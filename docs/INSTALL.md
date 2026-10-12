@@ -4,6 +4,9 @@ Four ways, from quickest to most hands-on. All of them run the same code and
 keep the same files: the history (`history.sqlite`), the accounts and the
 settings live in one data folder, and everything else can be rebuilt.
 
+To look around first, the [live demo](https://spcaeo.github.io/skald/) is the whole dashboard with
+sample data (`tools/demo.py` builds it).
+
 | Way | Best for | Web server |
 | --- | --- | --- |
 | [1. Docker](#1-docker) | trying it, or one container on any host | its own nginx, on port 8080 |
@@ -118,6 +121,9 @@ nginx config is DEPLOY.md's sessions-mode config, generated from it
 (`docker/build-nginx-conf.py`) and checked by the same route tests.
 
 ### Upgrade, uninstall
+
+Pin `:2` instead of `:latest` to get every 2.x release and never a breaking one; automatic
+updates (a cron line, Watchtower): [UPGRADING.md](UPGRADING.md#docker).
 
 ```sh
 docker pull ghcr.io/spcaeo/skald:latest
@@ -235,7 +241,7 @@ lines to add to nginx or Caddy.
 The quick way, pinned to a release (`--ref` picks the code it downloads):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.1.0/install.sh | sudo bash -s -- --ref v2.1.0
+curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.2.0/install.sh | sudo bash -s -- --ref v2.2.0
 ```
 
 This runs a script from the internet as root. To check what you run first,
@@ -244,10 +250,10 @@ the release workflow attaches to every release (it lists the tarball and
 `install.sh`):
 
 ```sh
-curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.1.0/skald-2.1.0.tar.gz
-curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.1.0/SHA256SUMS
-sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.1.0.tar.gz: OK
-tar -xzf skald-2.1.0.tar.gz && cd skald-2.1.0
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.2.0/skald-2.2.0.tar.gz
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.2.0/SHA256SUMS
+sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.2.0.tar.gz: OK
+tar -xzf skald-2.2.0.tar.gz && cd skald-2.2.0
 less install.sh                               # read it
 sudo ./install.sh                             # installs from this folder, downloads nothing
 ```
@@ -286,7 +292,9 @@ The `skald` command runs as the `skald` user with
 
 ### Upgrade, uninstall
 
-Run the script again: it replaces the code (the previous copy goes to
+`sudo skald upgrade` installs a newer release with a backup, health checks and a
+rollback; update notices and automatic upgrades too: [UPGRADING.md](UPGRADING.md).
+Running the script again also works: it replaces the code (the previous copy goes to
 `/opt/skald.prev`), reinstalls the units and cron, restarts the
 helper, and keeps the config, the env file and the history.
 

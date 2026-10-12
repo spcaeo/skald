@@ -258,9 +258,12 @@ def _metrics(history, key, days, returning_blobs, filters, visitors_cube, lead_r
     cited = history.db.execute(
         f"SELECT SUM(cited_visits) FROM days WHERE site = ? AND day IN ({marks})",
         (key, *days)).fetchone()[0] or 0
+    # `kind IN (...)` lets SQLite seek (site, day, kind) in the key rather
+    # than read every count of every day; the second test is the filter.
     counts = {(k, n): v for k, n, v in history.db.execute(
         f"SELECT kind, name, SUM(n) FROM counts WHERE site = ? AND day IN ({marks}) AND "
-        f"((kind = 'engine_tier') OR (kind = 'status_people' AND name = '404')) "
+        f"kind IN ('engine_tier', 'status_people') AND "
+        f"(kind = 'engine_tier' OR name = '404') "
         f"GROUP BY kind, name", (key, *days))}
     people = groups.get(Group.PEOPLE.value, (0, 0, 0))
     readers = people[2] or 0

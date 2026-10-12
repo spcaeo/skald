@@ -4,6 +4,8 @@
 
 <h1 align="center">Skald</h1>
 
+<p align="center"><sub>Say it “skawld” (/skɔːld/), one syllable, rhymes with “called”: an old Norse poet who told what happened.</sub></p>
+
 <p align="center">
   <strong>Every visit, truly told.</strong><br>
   Self-hosted web analytics that reads your server's own access log, so you see the people,<br>
@@ -16,10 +18,15 @@
   <img alt="Zero dependencies" src="https://img.shields.io/badge/dependencies-zero-2b8a3e">
   <a href="https://github.com/spcaeo/skald/actions/workflows/ci.yml"><img alt="Tests" src="https://github.com/spcaeo/skald/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/spcaeo/skald/pkgs/container/skald"><img alt="Docker image" src="https://img.shields.io/badge/docker-ghcr.io%2Fspcaeo%2Fskald-2496ed"></a>
-  <img alt="Version 2.1.0" src="https://img.shields.io/badge/version-2.1.0-555">
+  <img alt="Version 2.2.0" src="https://img.shields.io/badge/version-2.2.0-555">
 </p>
 
 <p align="center">
+  <a href="https://spcaeo.github.io/skald/"><img alt="Try the live demo" src="https://img.shields.io/badge/try_the_live_demo-sample_data,_no_sign--up-2a78d6?style=for-the-badge"></a>
+</p>
+
+<p align="center">
+  <a href="https://spcaeo.github.io/skald/"><strong>Live demo</strong></a> ·
   <a href="#quick-start-in-60-seconds"><strong>Quick start</strong></a> ·
   <a href="#see-it">Screenshots</a> ·
   <a href="#how-skald-compares">Comparison</a> ·
@@ -163,6 +170,10 @@ from any server. Step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md).
 - Block AI crawlers per assistant, or only their training crawlers, applied by the web server
   (`robots.txt` stays reachable). Skald blocks; it does not charge.
 - Your `robots.txt` rules shown beside what each crawler actually fetched.
+- AI alerts: an assistant starts or stops reading a page, or the visits it likely sends jump or
+  vanish. Whole, checked days only.
+- A suggested `llms.txt` from the pages people and assistants read most, to copy and publish
+  yourself.
 
 **Results**
 - Leads by first and last source, crossed with the status your team set, and time from first
@@ -191,6 +202,7 @@ from any server. Step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md).
   AI agents.
 - In-app Help in plain words, keyboard shortcuts, a command palette, light and dark themes, and a
   phone layout.
+- A notice when a new release is out, and one-command upgrades with a backup and a rollback.
 
 **Inputs**
 - nginx and Apache logs (combined or extended), Caddy JSON.
@@ -202,6 +214,9 @@ from any server. Step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md).
   script).
 
 ## See it
+
+**[Try the live demo](https://spcaeo.github.io/skald/)**: the whole dashboard with 60 days of sample
+data for a made-up site, in your browser. Nothing to install; settings and saving need your own Skald.
 
 | | |
 | :---: | :---: |
@@ -282,21 +297,24 @@ SKALD_DOMAIN=stats.example.com docker compose --profile https up -d
 The quick way, pinned to a release:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.1.0/install.sh | sudo bash -s -- --ref v2.1.0
+curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.2.0/install.sh | sudo bash -s -- --ref v2.2.0
 ```
 
 This runs a script from the internet as root. To check it first, download the release and its
 checksums, verify, then run it:
 
 ```sh
-curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.1.0/skald-2.1.0.tar.gz
-curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.1.0/SHA256SUMS
-sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.1.0.tar.gz: OK
-tar -xzf skald-2.1.0.tar.gz && cd skald-2.1.0 && less install.sh && sudo ./install.sh
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.2.0/skald-2.2.0.tar.gz
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.2.0/SHA256SUMS
+sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.2.0.tar.gz: OK
+tar -xzf skald-2.2.0.tar.gz && cd skald-2.2.0 && less install.sh && sudo ./install.sh
 ```
 
 It installs into `/opt/skald`, with config in `/etc/skald` and data in `/var/lib/skald`, and puts
 the `skald` command in `/usr/local/bin`.
+
+Upgrading later: `sudo skald upgrade` (a backup, migrations, a health check, a rollback), update notices
+and optional automatic upgrades, and the `:2` Docker tag: [docs/UPGRADING.md](docs/UPGRADING.md).
 
 ### Option 4: From source
 
@@ -348,6 +366,12 @@ skald('consent', true);                             // with data-consent="requir
 
 **Outgoing webhooks.** Signed, HTTPS only, never to a private address, retried five times over about
 15 hours. They never carry a name or an email.
+
+**Cloudflare on any plan.** The Skald Worker counts the pages Cloudflare serves from its cache. It
+asks for your Skald's ingest address and the site's token, then needs your site's route; see
+[docs/HOSTING.md](docs/HOSTING.md#cloudflare-on-any-plan-the-skald-worker).
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/spcaeo/skald/tree/main/deploy/cloudflare-worker)
 
 **API.** A read-only JSON API over every dashboard figure, with revocable, scoped tokens
 (`skald_<id>_<secret>`). See [docs/API.md](docs/API.md).

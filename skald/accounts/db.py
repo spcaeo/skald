@@ -26,8 +26,17 @@ from pathlib import Path
 
 from ..files import own_like_folder
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 STAMP = "%Y-%m-%dT%H:%M:%SZ"
+
+# 5: lookups made on every signed-in request (docs/PERFORMANCE.md): an
+# organisation's sites, a setting by key, an organisation's tokens and invites.
+INDEXES_V5 = (
+    "CREATE INDEX IF NOT EXISTS sites_org ON sites (org_id, name)",
+    "CREATE INDEX IF NOT EXISTS settings_key ON settings (key, scope)",
+    "CREATE INDEX IF NOT EXISTS tokens_org ON tokens (org_id)",
+    "CREATE INDEX IF NOT EXISTS invites_org ON invites (org_id, email)",
+)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -90,7 +99,7 @@ CREATE INDEX IF NOT EXISTS signups_email ON signups (email, created_at);
 CREATE TABLE IF NOT EXISTS billing_events (
   event_id TEXT PRIMARY KEY, type TEXT NOT NULL, org_id INTEGER, created INTEGER,
   received_at TEXT NOT NULL, outcome TEXT NOT NULL DEFAULT '');
-"""
+""" + "".join(sql + ";\n" for sql in INDEXES_V5)
 
 # version -> statements that bring a file from version-1 up to it.
 # 2: users.must_reset (an account made from an invite link that was shown to
@@ -115,7 +124,14 @@ UPGRADES: dict[int, list[str]] = {
         "ALTER TABLE orgs ADD COLUMN past_due_since TEXT"],
     # 4: each session keeps its own length ("Keep me signed in": 14 days, else 12 hours).
     4: ["ALTER TABLE sessions ADD COLUMN ttl_seconds INTEGER NOT NULL DEFAULT 1209600"],
+    5: list(INDEXES_V5),
 }
+
+# The SCHEMA this code set a file up with. A file stamped with it and with
+# SCHEMA_VERSION has every table and index, so connect() skips the script
+# (about 0.4 ms of a 0.5 ms session check). Any change to SCHEMA changes the
+# stamp, so the script runs again once, even without a version bump.
+SCHEMA_STAMP = hashlib.sha256(SCHEMA.encode()).hexdigest()[:16]
 
 
 def path_for(config: dict, live_dir: Path | None) -> Path | None:
@@ -168,12 +184,26 @@ def connect(path: Path | str) -> sqlite3.Connection:
         if not memory:
             db.execute("PRAGMA journal_mode = WAL")
         db.execute("PRAGMA foreign_keys = ON")
-        db.executescript(SCHEMA)
-        _upgrade(db)
+        if not _set_up(db):
+            db.executescript(SCHEMA)
+            _upgrade(db)
+            db.execute("INSERT INTO meta (key, value) VALUES ('schema_stamp', ?) "
+                       "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (SCHEMA_STAMP,))
     except BaseException:
         db.close()
         raise
     return db
+
+
+def _set_up(db: sqlite3.Connection) -> bool:
+    """True when this file was set up by this SCHEMA at SCHEMA_VERSION."""
+    try:
+        got = {r[0]: r[1] for r in db.execute(
+            "SELECT key, value FROM meta WHERE key IN ('schema_version', 'schema_stamp')")}
+    except sqlite3.OperationalError:             # a new file: no meta table yet
+        return False
+    return got.get("schema_version") == str(SCHEMA_VERSION) and \
+        got.get("schema_stamp") == SCHEMA_STAMP
 
 
 def _upgrade(db: sqlite3.Connection) -> None:

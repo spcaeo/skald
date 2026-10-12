@@ -6,6 +6,7 @@
 import { h, long } from "../ui.js";
 import { lockForViewer, isViewer, sessions, ME } from "../access.js";
 import { howTo } from "./help.js";
+import { DEMO, DEMO_SAYS } from "../demo.js";
 
 const LOCK = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>';
 const ERRORS = { 400: "That is not a valid address or range.", 403: "Refused: changes only work from this page.", 409: "The list is full. Remove an entry first." };
@@ -17,6 +18,8 @@ export function setCsrf(value) { csrf = typeof value === "string" ? value : ""; 
 export const csrfHeaders = () => (csrf ? { "X-Skald-CSRF": csrf } : {});
 
 export async function call(path, body) {
+  // The demo has no helper: nothing is asked or posted, and the caller shows why.
+  if (DEMO.on) return { ok: false, demo: true, error: DEMO_SAYS };
   let res;
   try {
     res = await fetch(path, body ? { method: "POST", credentials: "same-origin", cache: "no-store", headers: { "Content-Type": "application/json", ...csrfHeaders() }, body: JSON.stringify(body) }

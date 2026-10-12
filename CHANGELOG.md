@@ -4,7 +4,79 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
-Nothing yet.
+## 2.2.0 (2026-10-12)
+
+Alerts when AI assistants start or stop reading your pages; a suggested llms.txt; one-command,
+safe upgrades and a notice when a new release is out; a live demo; faster pages. No figure changed.
+
+### Added
+
+- **Update notices, safe upgrades, explicit migrations, optional automatic upgrades** (issue #8).
+  Once a day Skald asks GitHub for its latest release (one request, header `User-Agent:
+  Skald/<version>`, nothing else; `updates.check: false` turns it off; offline it is silent). A
+  newer release shows as a card in the daily and weekly mail and a line on the dashboard for
+  owners and admins (dismissible per version; security releases in red); `skald updates` prints it.
+  `skald upgrade [--to vX.Y.Z] [--dry-run]` installs a release on an install-script install: checks
+  the tarball's SHA-256 against SHA256SUMS, refuses downgrades, major jumps without
+  `--allow-major` and the daily run's window (`report.run_window`), copies and restore-tests every
+  database, swaps the code (the old one stays in `/opt/skald.prev`), migrates, restarts the
+  helpers, health-checks, and rolls the code and the databases back on any failure. `skald migrate
+  [--check]` lists and applies each database's schema steps after a copy, recorded in
+  `migrations.json`. `updates.auto: patch | minor` (default off) lets the new
+  `skald-upgrade.timer` upgrade by itself and mail the result; never across a major. Docker
+  images are now also tagged by major version (`:2`). Guide: docs/UPGRADING.md.
+- **AI alerts: an assistant starts or stops reading a page** (issue #5). Three new alert rules,
+  judged once a day on the last whole day: an assistant (by its company: GPTBot, OAI-SearchBot and
+  ChatGPT-User are OpenAI) fetched a page it had not fetched in the 28 days before; an assistant
+  that fetched a page in 3 of the 4 weeks before has not fetched it for 7 days; visits likely sent
+  by an assistant jumped or vanished against its 28-day average ("too few to judge" below the
+  thresholds, never an alert). Each alert names the assistant, the page, the days and the numbers.
+  No new figure: they read figures already counted twice (each assistant's requests by page, and
+  the likely-AI visits), and a withheld or missing day makes a rule wait, never fire. Shown on
+  Alerts (new **AI** filter) and in **AI reading changes** on AI & crawlers; mailed like other
+  alerts and listed in the weekly mail when alert mail is on; a new outgoing webhook event
+  `ai.reading_changed`. Settings `alerts.ai_*` (on/off per rule and every threshold).
+- **Deploy to Cloudflare button for the Skald Worker** (issue #4). `deploy/cloudflare-worker/` now
+  deploys in one click: the button copies the folder into a new repository in your GitHub or
+  GitLab account and deploys it to your Cloudflare account. It asks for `SKALD_INGEST_URL` and
+  `SKALD_TOKEN` as secrets, with no default. The Worker is deployed with no route and no
+  `workers.dev` address: add your site's route afterwards. New files: `wrangler.toml`,
+  `.dev.vars.example`, `package.json`; `wrangler.toml.example` stays for a deploy by hand. In
+  README, docs/HOSTING.md and docs/CDN-LOGS.md.
+- **Suggested llms.txt** (issue #6). Skald suggests an `/llms.txt` (llmstxt.org format) from your
+  site's real pages: those people and AI assistants read most over the last 90 recorded days,
+  grouped by section, under their titles from the website's page list (or their paths). Private
+  paths, paths robots.txt disallows, redirects and gone pages are left out; any day not recorded
+  is named. On Settings > AI crawlers (preview, Copy, Download), `ti.py llms-txt [--site X]
+  [--out FILE]`, the MCP resource `skald://sites/<site>/llms.txt` and `llms_txt.json`. No figure
+  is published. Skald never writes to your website. Contract: `docs/DATA-CONTRACT-LLMS-TXT.md`.
+- **A live demo on GitHub Pages** (issue #3): https://spcaeo.github.io/skald/. `tools/demo.py`
+  runs 60 days of sample data for a made-up site on example.com (RFC 5737 addresses, made-up
+  names; people, AI assistants and their user fetches, crawlers, bots, leads, bookings and
+  payments, a saved funnel, in-page events) through Skald's own pipeline and writes the dashboard
+  as static files. Seeded, so each build tells the same story. The new `pages.yml` workflow builds
+  and deploys it on every push to main and again every Monday, so the demo's dates stay recent. In the demo the page needs no helper: a banner says it is
+  sample data, Compare and page stories read answers worked out at build time, and refresh,
+  saving and the settings pages say they need a running Skald instead of failing.
+
+### Changed
+
+- **Faster dashboards, page stories and live runs** (issue #2). On a history ten times the size
+  of the first live install, the 2-minute live run takes 6.2 s instead of 9.4 s, the data files
+  5.0 s instead of 7.7 s, and a page's story 131 ms instead of 327 ms. No figure changed: every
+  data file, compare answer and page story is the same, byte for byte. New indexes through each
+  database's normal upgrade (history schema 12, accounts 5, conversions 3), applied once on first
+  open. A benchmark, `tools/bench.py`, and the results and reasons in docs/PERFORMANCE.md.
+- The tracking additions to the data contract (day kinds, leads, goals) moved out of
+  `DATA-CONTRACT.md` into `docs/DATA-CONTRACT-TRACKING.md`, linked from it.
+- The README and "Why Skald" say how to say the name: "skawld", one syllable.
+
+### Fixed
+
+- Insights that tie now come out in the same order on every run (the title breaks the tie), so
+  the list no longer reshuffles between two identical runs.
+- Older code refuses to read a history file written by a newer Skald, with a message to upgrade,
+  instead of reading it wrongly.
 
 ## 2.1.0 (2026-10-12)
 

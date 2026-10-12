@@ -486,10 +486,19 @@ every request on unchanged, and after the response has gone out (`ctx.waitUntil`
 one small record of the request to Skald. It never changes, blocks or delays the response; a
 failed post is dropped without a retry.
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/spcaeo/skald/tree/main/deploy/cloudflare-worker)
+
+**With the button.** Do step 1 below first. The button copies `deploy/cloudflare-worker/` into
+a new repository in your GitHub or GitLab account and deploys it to your Cloudflare account. It
+asks for `SKALD_INGEST_URL` and `SKALD_TOKEN` as secrets, with no default. The Worker is
+deployed with no route: add your site's route afterwards (in the new repository's
+`wrangler.toml`, or the Worker's **Settings > Domains & Routes** in the dashboard), or it sees
+no request. **By hand:**
+
 1. **In Skald:** turn on ingest (`SKALD_INGEST=true`), make the site and an ingest token for
    it. Log format **`edge_json`** when the Worker is the site's only source; **`auto`** when
    Skald also reads the server's log (below).
-2. **The Worker:** copy `deploy/cloudflare-worker/wrangler.toml.example` to `wrangler.toml`,
+2. **The Worker:** copy `deploy/cloudflare-worker/wrangler.toml.example` over `wrangler.toml`,
    set the routes (`example.com/*`) and
    `SKALD_INGEST_URL = "https://stats.example.com/traffic-ingest/example.com"`.
 3. **The token, as a secret:** `npx wrangler secret put SKALD_TOKEN`. Then

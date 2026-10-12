@@ -98,6 +98,9 @@ report:
   # the minute, country, device, source, pages in order) are kept in history
   # before they are deleted. Visit totals are kept for good.
   journey_days: 7
+  # The daily run's window, in report.timezone: `skald upgrade` refuses to
+  # start inside it. Unset: the cron file's run-daily time ±10 minutes.
+  # run_window: "07:05-07:45"
   # Days the per-page and per-visit detail behind the compare report and each
   # page's history is kept (every page, every reader's visit by country,
   # source, assistant, device, browser, system and campaign). Totals and page
@@ -238,6 +241,20 @@ alerts:
   traffic_drop: true
   traffic_drop_percent: 50
   traffic_drop_min_readers: 20
+  # AI reading changes (alerts_ai.py), judged once a day on the last whole
+  # day; a withheld or missing day makes a rule wait, never fire. Read from
+  # figures already checked twice (crawler_paths, ai_likely).
+  ai_started_reading: true     # fetched a page it had not fetched in ai_started_days
+  ai_started_days: 28
+  ai_stopped_reading: true     # fetched it in ai_stopped_weeks of 4 weeks, then not for 7 days
+  ai_stopped_weeks: 3
+  ai_sending_people: true      # visits likely sent by an assistant jumped or vanished
+  ai_sending_jump_factor: 3    # times its 28-day daily average ...
+  ai_sending_jump_minimum: 10  # ... and at least this many visits
+  ai_sending_drop_percent: 10  # at most this % of an average of ...
+  ai_sending_min_average: 5    # ... at least this a day; below both: too few to judge
+  ai_max_pages: 5              # more pages for one assistant: one alert listing them
+  ai_weekly_mail: true         # the "AI reading changes" card in the weekly mail
 
 # Deploy markers on the charts (markers.py): the website's release
 # directories, and its home page, where the footer shows "vX · build N".
@@ -266,6 +283,21 @@ alerts:
 # backup:
 #   dir: /var/lib/skald/backups
 #   ssh_host: server.example.com
+
+# Update notices and upgrades (updates.py, upgrade.py, docs/UPGRADING.md).
+# check: once a day, ask GitHub whether a newer release is out: one HTTPS GET
+#   to api.github.com with the header User-Agent "Skald/<version>", nothing
+#   else (no figure, no site name, no address). A newer release shows in the
+#   daily and weekly mail and, for owners and admins, on the dashboard.
+# repo: where the releases are published.
+# auto: off (the default), patch (2.1.0 -> 2.1.1) or minor (also 2.1.x ->
+#   2.2.0): what the daily timer (skald-upgrade.timer, install.sh)
+#   installs by itself, with a backup, health checks and a rollback; the
+#   result is mailed to the daily mail's recipients. A major release never.
+# updates:
+#   check: true
+#   repo: spcaeo/skald
+#   auto: off
 
 # AI crawler settings (bot_policy.py): the policy the dashboard saves through
 # the refresh helper, and the outcome root's skald-bot-policy.path unit

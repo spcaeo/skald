@@ -10,14 +10,39 @@ It passes every request on unchanged. After the response has gone out, it posts 
 record of the request to Skald. It never changes, blocks or delays the response, and a failed
 post is dropped without a retry.
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/spcaeo/skald/tree/main/deploy/cloudflare-worker)
+
 Files:
 
 - `skald-edge.js`: the Worker.
-- `wrangler.toml.example`: a config to copy.
+- `wrangler.toml`: the config the Deploy to Cloudflare button reads (no route, no secrets).
+- `.dev.vars.example`: the two secrets the button asks for, with no defaults.
+- `package.json`: Wrangler, and what each setting means on the button's form.
+- `wrangler.toml.example`: a config with routes, to copy for a deploy from your own machine.
 - `../netlify-edge-function/skald-edge.js`: the same idea as a Netlify Edge Function
   (an example, not tested on Netlify).
 
-## Set it up
+## Deploy with the button
+
+1. **In Skald:** turn on ingest, make the site, and make an ingest token for it
+   (docs/INGEST.md). Pick the log format as in step 1 below.
+2. Select **Deploy to Cloudflare** above. Cloudflare copies this folder into a new repository
+   in your GitHub or GitLab account, builds it and deploys it to your Cloudflare account.
+3. The form asks for two secrets. They have no default; paste your own:
+   - `SKALD_INGEST_URL`: `https://<your Skald>/traffic-ingest/<site>`;
+   - `SKALD_TOKEN`: the site's ingest token.
+
+   The other settings (`SKALD_CACHE_HITS_ONLY`, `SKALD_SKIP_EXTENSIONS`, `SKALD_SAMPLE`) keep
+   the defaults in the table below unless you change them.
+
+**After the button: add your site's route.** The Worker is deployed with no route and no
+`workers.dev` address, so it sees no request yet. Either add the routes to `wrangler.toml` in
+your new repository (as in `wrangler.toml.example`; each push deploys again), or in the
+Cloudflare dashboard open the Worker, then **Settings > Domains & Routes > Add > Route**, with
+`example.com/*` for each host of the site. Open a page of the site; the record shows in Skald's
+live panel within minutes.
+
+## Or set it up by hand
 
 1. **In Skald:** turn on ingest, make the site, and make an ingest token for it
    (docs/INGEST.md). Pick the log format:
@@ -25,7 +50,7 @@ Files:
    - `auto` when Skald also reads your server's log. Then Skald keeps only the cache hits
      from the Worker (below).
 2. **Install Wrangler** (Cloudflare's command-line tool) and sign in: `npx wrangler login`.
-3. Copy `wrangler.toml.example` to `wrangler.toml`. Set the routes to your site's hosts and
+3. Copy `wrangler.toml.example` over `wrangler.toml`. Set the routes to your site's hosts and
    `SKALD_INGEST_URL` to `https://<your Skald>/traffic-ingest/<site>`.
 4. Store the token as a secret, never in `wrangler.toml`:
 
@@ -86,5 +111,8 @@ Checked on 2026-10-12.
 - `cf-cache-status` values: <https://developers.cloudflare.com/cache/concepts/cache-responses/>
 - Workers pricing: <https://developers.cloudflare.com/workers/platform/pricing/>
 - Logpush availability: <https://developers.cloudflare.com/logs/logpush/>
+- Deploy to Cloudflare buttons (`.dev.vars.example` secrets, `package.json` binding
+  descriptions, a subdirectory as the repository's root):
+  <https://developers.cloudflare.com/workers/platform/deploy-buttons/>
 - Netlify Edge Functions (`context.next`, `context.waitUntil`, `context.ip`):
   <https://docs.netlify.com/build/edge-functions/api/>

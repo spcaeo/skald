@@ -12,6 +12,7 @@ import * as S from "../state.js";
 import { info } from "./tiles.js";
 import { ranges, picker, fmt, length, before, yearBefore } from "./versuspick.js";
 import { local, filterMode, cubeCtx, SERIES } from "./versuslocal.js";
+import { DEMO } from "../demo.js";
 
 const LABEL = {
   visitors: ["Visitors", "readers: browsers that read at least one page"],
@@ -156,7 +157,8 @@ function answer(m, s, a, b) {
     const q = query(s, a, b);
     // If the server's compare does not answer, the page works it out itself and says so.
     if (!ANSWERS.has(q)) ANSWERS.set(q, getJSON(`api/compare?${q}`, true).then((r) => (r && r.ok ? r : Promise.reject(new Error(r?.error || "no answer"))))
-      .catch((e) => inBrowser(m, s, a, b).then((res) => ({ ...res, problems: [`The server's compare did not answer (${e.message || e}), so these figures are worked out on this page from the days it holds.`, ...res.problems] }))));
+      .catch((e) => inBrowser(m, s, a, b).then((res) => ({ ...res, problems: [DEMO.on ? "In the demo, these two periods are worked out on this page from the days it holds; a running Skald's server answers any two periods and any filters."
+        : `The server's compare did not answer (${e.message || e}), so these figures are worked out on this page from the days it holds.`, ...res.problems] }))));
     return ANSWERS.get(q);
   }
   return inBrowser(m, s, a, b);

@@ -1,0 +1,32 @@
+{
+  "name": "skald-edge",
+  "private": true,
+  "description": "The Skald Worker: counts the pages Cloudflare serves from its cache, on any plan.",
+  "license": "Elastic-2.0",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "check": "wrangler deploy --dry-run --outdir dist"
+  },
+  "devDependencies": {
+    "wrangler": "^4.59.2"
+  },
+  "cloudflare": {
+    "bindings": {
+      "SKALD_INGEST_URL": {
+        "description": "Your Skald's ingest address for this site: `https://<your Skald>/traffic-ingest/<site>`. `?format=edge` is added."
+      },
+      "SKALD_TOKEN": {
+        "description": "The site's **ingest token**, made in Skald (Settings > Add or remove sites > New token). Without it nothing is sent."
+      },
+      "SKALD_CACHE_HITS_ONLY": {
+        "description": "`true` only when Skald also reads your server's log: sends only `cf-cache-status: HIT`. Otherwise `false`."
+      },
+      "SKALD_SKIP_EXTENSIONS": {
+        "description": "Optional, e.g. `css,js,png,woff2`: do not send those. Empty sends everything; Skald tells pages from assets itself."
+      },
+      "SKALD_SAMPLE": {
+        "description": "The share of requests sent, `1` = every request. Skald does **not** scale sampled figures up."
+      }
+    }
+  }
+}

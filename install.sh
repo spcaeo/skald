@@ -16,7 +16,9 @@
 # there), installs the systemd units and /etc/cron.d/skald, puts the
 # `skald` command in /usr/local/bin, runs a first `check` and `live`, and
 # prints the web server lines to add. Running it again upgrades the code and
-# keeps the config, the env file and the history.
+# keeps the config, the env file and the history. After that, `sudo skald
+# upgrade` installs a newer release with a backup and a way back (docs/UPGRADING.md);
+# skald-upgrade.timer checks for one daily (updates.check, updates.auto).
 set -euo pipefail
 
 APP=/opt/skald
@@ -29,7 +31,8 @@ CRON_FILE=/etc/cron.d/skald
 LOGROTATE_FILE=/etc/logrotate.d/skald
 CMD_FILE=/usr/local/bin/skald
 UNIT_DIR=/etc/systemd/system
-UNITS=(skald-refresh.service skald-beacon.service skald-bot-policy.service skald-bot-policy.path)
+UNITS=(skald-refresh.service skald-beacon.service skald-bot-policy.service skald-bot-policy.path
+       skald-upgrade.service skald-upgrade.timer)
 REPO_URL=${SKALD_REPO:-https://github.com/spcaeo/skald}
 
 SITE="" HOSTS="" LOG="" FORMAT="auto" TZONE="" EMAIL="" ORIGIN="" DAILY_AT="07:15"
@@ -397,12 +400,39 @@ EOF
   chmod 0644 "$LOGROTATE_FILE"
 }
 
+install_upgrade_timer() {
+  # The daily update check (and the automatic upgrade, when updates.auto allows it):
+  # a random minute at least 2 hours from the daily run, kept on a reinstall.
+  local run_h="" when=""
+  if [ -f "$UNIT_DIR/skald-upgrade.timer" ]; then
+    when=$(sed -n 's/^OnCalendar=//p' "$UNIT_DIR/skald-upgrade.timer" | head -n 1)
+  fi
+  if [ -z "$when" ]; then
+    read -r _ run_h <<<"$(awk '/run-daily/ && $1 ~ /^[0-9]+$/ {print $1, $2; exit}' "$CRON_FILE")" || true
+    when=$(printf '*-*-* %02d:%02d:00' $(( (${run_h:-7} + 2 + RANDOM % 20) % 24 )) $(( RANDOM % 60 )))
+  fi
+  say "installing skald-upgrade.timer (daily update check at $when; updates.auto: off by default)"
+  sed -e "s#/usr/bin/python3 #$PY #g" "$APP/systemd/skald-upgrade.service" > "$UNIT_DIR/skald-upgrade.service"
+  sed -e "s#^OnCalendar=.*#OnCalendar=$when#" "$APP/systemd/skald-upgrade.timer" > "$UNIT_DIR/skald-upgrade.timer"
+  chmod 0644 "$UNIT_DIR/skald-upgrade.service" "$UNIT_DIR/skald-upgrade.timer"
+  if systemd_up; then
+    systemctl daemon-reload
+    systemctl enable --now skald-upgrade.timer >/dev/null 2>&1 || warn "could not start skald-upgrade.timer"
+  fi
+}
+
 install_command() {
   say "installing the command $CMD_FILE (sudo $(basename "$CMD_FILE") check, live, run-daily, ...)"
   cat > "$CMD_FILE.new" <<EOF
 #!/bin/sh
 # The $(basename "$CMD_FILE") command (install.sh): $APP/bin/skald as the $SVC_USER user,
-# with $ETC/config.yml and the env file. Run it with sudo.
+# with $ETC/config.yml and the env file. Run it with sudo. \`upgrade\` stays root: it
+# replaces $APP, and runs its commands on the data as $SVC_USER itself.
+if [ "\$(id -u)" = 0 ] && [ "\${1:-}" = upgrade ]; then
+  cd $APP || exit 1
+  if [ -r $ETC/env ]; then . $ETC/env; fi
+  exec $PY $APP/bin/skald --config $ETC/config.yml "\$@"
+fi
 if [ "\$(id -u)" = 0 ]; then exec runuser -u $SVC_USER -- "\$0" "\$@"; fi
 if [ "\$(id -un)" != $SVC_USER ]; then
   echo "run it with sudo: it runs as the $SVC_USER user, who can read the config and the log" >&2
@@ -477,7 +507,8 @@ Next steps
 The command: sudo $(basename "$CMD_FILE") check | live | run-daily | version | --help
 (it runs $APP/bin/skald as $SVC_USER with $ETC/config.yml).
 
-Upgrade: run this script again. Remove: install.sh --uninstall [--purge]. docs/INSTALL.md has more.
+Upgrade: sudo $(basename "$CMD_FILE") upgrade --dry-run, then without --dry-run (docs/UPGRADING.md),
+or run this script again. Remove: install.sh --uninstall [--purge]. docs/INSTALL.md has more.
 EOF
 }
 
@@ -497,6 +528,7 @@ main() {
   write_env
   install_units
   install_cron
+  install_upgrade_timer
   install_command
   first_run
   print_next_steps

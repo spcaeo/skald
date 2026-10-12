@@ -9,13 +9,20 @@
 
 import { call, setCsrf, csrfHeaders } from "./tabs/ipmanager.js";
 import { HIDDEN, ACCOUNT_TABS } from "./state.js";
+import { DEMO } from "./demo.js";
 
-export const ME = { user: null, role: null, name: null, org: null, mode: "basic", install_admin: false, totp_on: false, saas: false, plan: null };
+export const ME = { user: null, role: null, name: null, org: null, mode: "basic", install_admin: false, totp_on: false, saas: false, plan: null, update: null };
 export const VIEWER = "Only an admin can change this. You are signed in as a viewer.";
 export const isViewer = () => ME.role === "viewer";
 export const sessions = () => ME.mode === "sessions";
 
 export async function loadMe(model) {
+  // The demo has no helper to ask: every settings page is in the menu, each saying it needs one.
+  if (DEMO.on) {
+    HIDDEN.clear();
+    ["settings/users", "settings/billing"].forEach((k) => HIDDEN.add(k));
+    return ME;
+  }
   if (!model?.x?.funnels) return ME;
   const r = await call("me");
   if (r.ok && r.role) {
@@ -24,6 +31,7 @@ export async function loadMe(model) {
     ME.mode = r.mode === "sessions" ? "sessions" : "basic";
     ME.install_admin = !!r.install_admin; ME.totp_on = !!r.totp_on;
     ME.saas = !!r.saas; ME.plan = r.plan || null;          // saas: the plan and its banner
+    ME.update = r.update || null;                          // a newer release (owners, admins)
     setCsrf(r.csrf);
   }
   HIDDEN.clear();

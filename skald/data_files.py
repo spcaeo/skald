@@ -30,6 +30,42 @@ FILES = ("overview", "live", "visits", "hourly", "breakdowns", "health", "bots",
          "not_found", "ai_activity", "campaigns", "pages", "insights")
 
 
+# Day kinds a builder never reads from Page.extras: each has its own reader
+# (history.extras or SQL) in its own module, and they are the largest blobs.
+# Leaving them out of the Page saves parsing them once per page per run
+# (docs/PERFORMANCE.md); asking a Page for one is an error, never a null.
+OWN_READERS = frozenset({"ai_fetches", "page_firsts", "crawler_paths", "cube",
+                         "visit_cube", "page_counts"})
+
+
+class _Day(dict):
+    """One day's blobs on a Page. A kind in OWN_READERS was not loaded, so
+    asking for it raises rather than reading as "not recorded"."""
+
+    def _loaded(self, kind) -> None:
+        if kind in OWN_READERS:
+            raise KeyError(f"{kind} is not loaded on a Page; read it with history.extras")
+
+    def get(self, kind, default=None):
+        self._loaded(kind)
+        return super().get(kind, default)
+
+    def __getitem__(self, kind):
+        self._loaded(kind)
+        return super().__getitem__(kind)
+
+    def __contains__(self, kind) -> bool:
+        self._loaded(kind)
+        return super().__contains__(kind)
+
+
+def page_extras(history, key: str, first: date, last: date) -> dict[str, dict]:
+    """{day: blobs} of every day kind but OWN_READERS."""
+    from .store_extras import KINDS
+    kinds = tuple(k for k in KINDS if k not in OWN_READERS)
+    return {d: _Day(blobs) for d, blobs in history.extras(key, first, last, kinds).items()}
+
+
 class Page:
     """What every builder needs to know about the page it writes for."""
 
@@ -51,7 +87,7 @@ class Page:
         self.ai = ai if (ai and ai.get("day") == self.today.isoformat()) else None
         self.daily = history.daily(key, self.first, self.anchor)
         self.states = {e["day"].isoformat(): e for e in self.daily}
-        self.extras = history.extras(key, self.first, self.anchor)
+        self.extras = page_extras(history, key, self.first, self.anchor)
 
     def envelope(self) -> dict:
         view = ({"slug": self.view.slug, "name": self.view.name, "rule": self.view.describe()}
@@ -150,8 +186,8 @@ def _visit_summary(stats: VisitStats | None) -> dict | None:
 
 def _visit_stats(p: Page) -> dict[str, VisitStats]:
     from .export_visits import _day_stats
-    days = [d for d in p.counted_days()
-            if d in p.history.visit_days(p.key, p.first, p.anchor)]
+    measured = p.history.visit_days(p.key, p.first, p.anchor)
+    days = [d for d in p.counted_days() if d in measured]
     return _day_stats(p.history, p.key, days)
 
 

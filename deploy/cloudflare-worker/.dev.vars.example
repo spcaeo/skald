@@ -1,0 +1,9 @@
+# The two secrets the Worker needs. The "Deploy to Cloudflare" button asks for
+# each one and stores it as a Worker secret. There are no defaults: paste your own.
+# For a local `wrangler dev`, copy this file to .dev.vars (never committed).
+
+# Your Skald's ingest address for this site: https://<your Skald>/traffic-ingest/<site>
+SKALD_INGEST_URL=
+
+# The site's ingest token, made in Skald (Settings > Add or remove sites > New token).
+SKALD_TOKEN=

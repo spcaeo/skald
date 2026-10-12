@@ -59,5 +59,5 @@ purpose: it shouldn't borrow or misuse any real rune's meaning.
 
 ## Pronunciation
 
-**Skald** rhymes with *bald* (Old Norse *skáld*, "poet").
+**Skald** is said "skawld" (/skɔːld/): one syllable, rhyming with *called* or *bald* (Old Norse *skáld*, "poet").
 

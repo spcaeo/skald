@@ -160,11 +160,14 @@ def build(history: History, key: str, site: str, tz, now: datetime, snap: dict |
     start = history.first_day(key)
     first = max(anchor - timedelta(days=DAYS - 1), start) if start else anchor
     days = []
+    # Each day's figures, as history.period(key, d, d, include_partial=True)
+    # makes them, read for all the days at once (store.History.periods).
+    periods = history.periods(key, first, anchor, include_partial=True) if start else {}
     for entry in history.daily(key, first, anchor) if start else []:
         d: date = entry["day"]
         item = {"day": d.isoformat(), "state": entry["state"]}
         if entry["state"] in ("ok", "partial"):
-            period = history.period(key, d, d, include_partial=True)
+            period = periods[d]
             item.update(figures(period.totals))
             if entry["state"] == "partial":
                 item["partial"] = _partial(entry)

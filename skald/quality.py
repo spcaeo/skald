@@ -149,16 +149,21 @@ def _audit(blob: dict | None) -> dict:
             "compared": blob.get("compared"), "problems": list(blob.get("problems") or [])}
 
 
-def _day(p, entry: dict) -> dict:
+def _lines(p) -> dict[str, tuple]:
+    """{day: (lines_read, unparsed, problems)} of the page's stored days, in one query."""
+    return {d: (lines, unparsed, problems) for d, lines, unparsed, problems in p.history.db.execute(
+        "SELECT day, lines_read, unparsed, problems FROM days WHERE site = ? AND day BETWEEN ? AND ?",
+        (p.key, p.first.isoformat(), p.anchor.isoformat()))}
+
+
+def _day(p, entry: dict, stored: dict[str, tuple]) -> dict:
     d = entry["day"].isoformat()
     row = {"day": d, "state": entry["state"]}
     if entry["state"] in ("missing", "before"):
         return row
     blobs = p.extras.get(d) or {}
     q = blobs.get("quality")
-    lines = p.history.db.execute(
-        "SELECT lines_read, unparsed, problems FROM days WHERE site = ? AND day = ?",
-        (p.key, d)).fetchone()
+    lines = stored.get(d)
     row.update({
         "lines": lines[0] if lines else None, "unparsed": lines[1] if lines else None,
         "duplicates": q.get("duplicates") if q else None,
@@ -178,7 +183,8 @@ def _day(p, entry: dict) -> dict:
 
 def build(p) -> dict:
     from . import runs
-    days = [_day(p, e) for e in p.daily]
+    stored = _lines(p)
+    days = [_day(p, e, stored) for e in p.daily]
     today = None
     if p.snap is not None:
         q = ((p.snap.get("extras") or {}).get("quality")) if p.live_ok else None

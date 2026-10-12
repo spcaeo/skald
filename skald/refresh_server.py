@@ -29,7 +29,9 @@ Release 3 (named users, funnels, the read-only API):
 
   GET  <page>/me                  {"user", "role"}: who nginx says logged in
                                   (X-Skald-User, believed from 127.0.0.1
-                                  only) and their role (access.py)
+                                  only) and their role (access.py); for an
+                                  owner or admin also "update", a newer
+                                  release (updates.py)
   GET  <page>/funnels             the page's funnels.json
   POST <page>/funnels/save        JSON {"name","source","steps"} (funnels.py)
   POST <page>/funnels/delete      {"name"}
@@ -86,7 +88,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from . import access, auth_api, bot_policy_api, helper_sessions, settings_api, team_api
-from . import ingest, integrations_api, sites_api
+from . import ingest, integrations_api, sites_api, updates
 from .saas import billing_api, signup_api
 from .mcp import http as mcp_http
 
@@ -498,10 +500,10 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
             m = route(ME_PATH, self.path)
             if m is not None:
                 user, role = self._user()
-                if sessions_mode:
-                    return self._json(200, team_api.me(self, config, live_dir, m.group("site"),
-                                                       user, role))
-                return self._json(200, {"ok": True, "user": user or None, "role": role})
+                body = team_api.me(self, config, live_dir, m.group("site"), user, role) \
+                    if sessions_mode else {"ok": True, "user": user or None, "role": role}
+                # A newer release, for an owner or admin (updates.py, from updates.json).
+                return self._json(200, updates.for_me(body, config, live_dir))
             m = route(FUNNELS_PATH, self.path)
             if m is not None and not m.group("act"):
                 return self._funnels(m)

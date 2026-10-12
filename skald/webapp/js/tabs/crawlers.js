@@ -4,12 +4,16 @@
 // (GET/POST <page>/bot-policy, admins only); nginx applies it a few seconds
 // later and the page waits until it is live. Beside each crawler: how often
 // it was refused (403) in the last 30 days and today. Skald never writes the
-// site's robots.txt; it only suggests what to put there.
+// site's robots.txt; it only suggests what to put there. Below: a suggested
+// llms.txt (llms_txt.json, llms_txt.py) to preview, copy or download; Skald
+// never writes it to the website either.
 
 import { h, n } from "../ui.js";
 import { call, installOnly, INSTALL_ONLY } from "./ipmanager.js";
 import { isViewer, VIEWER } from "../access.js";
 import { head1 } from "./forms.js";
+import { getJSON, base } from "../data.js";
+import { download } from "../table.js";
 // The policy applies to every site of the install: with accounts only an install admin saves it.
 const lockWhy = () => (isViewer() ? VIEWER : INSTALL_ONLY);
 
@@ -25,17 +29,42 @@ function refused(m) {
   return out;
 }
 
-function copyBox(text) {
+function copyBtn(text) {
   const btn = h("button", { type: "button", class: "btn cp" }, "Copy");
   btn.addEventListener("click", async () => { try { await navigator.clipboard.writeText(text); btn.textContent = "Copied"; } catch { btn.textContent = "Select and copy"; } setTimeout(() => { btn.textContent = "Copy"; }, 1600); });
-  return h("div", { class: "bp-sugg" }, h("div", { class: "bp-sugg-h" }, h("b", null, "robots.txt suggestion"), h("span", null, "Skald never writes your robots.txt"), btn), h("pre", null, text));
+  return btn;
+}
+
+function copyBox(text) {
+  return h("div", { class: "bp-sugg" }, h("div", { class: "bp-sugg-h" }, h("b", null, "robots.txt suggestion"), h("span", null, "Skald never writes your robots.txt"), copyBtn(text)), h("pre", null, text));
+}
+
+// Suggested llms.txt: the site's pages people and AI assistants read most (90 recorded days).
+function llmsBox(m) {
+  const box = h("div", { class: "bp-sugg", "aria-live": "polite" }, h("p", { class: "note" }, "Loading the suggested llms.txt…"));
+  getJSON(base(m.view) + "llms_txt.json").then((r) => box.replaceChildren(...llmsParts(r)), () => box.replaceChildren(...llmsParts({ state: "error", error: "it could not be loaded" })));
+  return box;
+}
+
+function llmsParts(r) {
+  const head = (...btns) => h("div", { class: "bp-sugg-h" }, h("b", null, "Suggested llms.txt"), h("span", null, "Skald never writes to your website"), ...btns);
+  const say = (text) => [head(), h("p", { class: "note", style: { padding: "8px 12px", margin: "0" } }, text)];
+  if (r?.state === "error") return say(`It could not be built: ${r.error || "no reason given"}.`);
+  if (!r || r.schema_version !== 1) return say("Not built yet. It appears after the next dashboard update.");
+  if (!r.ok) return say(r.why || "There is nothing to suggest yet.");
+  const p = r.period || {};
+  const left = (p.left_out || []).length ? ` Days not recorded are left out: ${p.left_out.map((d) => d.day).join(", ")}.` : "";
+  const titles = r.titles === "website" ? "Titles come from your website's page list." : "Your website gives no page list, so each link is named by its path: put the page titles in.";
+  return [head(copyBtn(r.text), h("button", { type: "button", class: "btn cp", onclick: () => download("llms.txt", r.text, "text/markdown;charset=utf-8") }, "Download")),
+    h("p", { class: "note", style: { padding: "8px 12px 0", margin: "0" } }, `The pages people and AI assistants read most, ${p.first} to ${p.last} (${p.counted} recorded days), by section.${left} ${titles} Write the summary line yourself, check the links, then publish it at /llms.txt.`),
+    h("pre", null, r.text)];
 }
 
 export default function crawlers(m) {
   const api = m.x.bots?.api?.bot_policy;
   DRAFT = null;
   const head = head1("AI crawlers", "Let them in, keep them out, or keep out only training.");
-  if (!api) return [head, h("div", { class: "state" }, h("div", null, "AI crawler settings are not set up on this server yet. Once they are, each AI company's crawlers can be allowed or blocked here; until then every crawler is allowed."))];
+  if (!api) return [head, h("div", { class: "state" }, h("div", null, "AI crawler settings are not set up on this server yet. Once they are, each AI company's crawlers can be allowed or blocked here; until then every crawler is allowed.")), llmsBox(m)];
   const body = h("div", { class: "bp" }, h("p", { class: "empty" }, "Loading the settings…"));
   const viewer = isViewer() || installOnly();
   const counts = refused(m);
@@ -75,7 +104,7 @@ export default function crawlers(m) {
     poll = setTimeout(again, 1500);
   };
   call(api).then((r) => draw(r));
-  return [head, body];
+  return [head, body, llmsBox(m)];
 }
 
 function owner(a, counts, viewer, redraw) {

@@ -735,7 +735,8 @@ def daily_steps(ctx: Context) -> list[tuple[str, Callable[[], int]]]:
         steps.append(("events", lambda: events.daily(ctx, day)))
     if setting(ctx.config, "dashboard", "favicons", False) in (True, "true"):
         steps.append(("favicons", lambda: _favicons(ctx, None, limit=40, days=90) or 0))
-    steps += [("dashboard", lambda: cmd_dashboard(ctx))]
+    from . import updates               # a newer release? at most daily; never fails the run
+    steps += [("updates", lambda: updates.daily(ctx)), ("dashboard", lambda: cmd_dashboard(ctx))]
     # Each mail can be turned off in Settings > Mail (mail.daily, mail.weekly).
     if _mail_on(ctx.config, "daily"):
         steps.append(("daily mail", lambda: mail(ctx, "daily", ctx.args.dry_run)))
@@ -752,7 +753,7 @@ def daily_steps(ctx: Context) -> list[tuple[str, Callable[[], int]]]:
             for name, step in steps]
 
 
-WHILE_WAITING = ("verify-bots", "conversions", "check", "favicons", "dashboard")
+WHILE_WAITING = ("verify-bots", "conversions", "check", "favicons", "updates", "dashboard")
 
 
 def _unless_waiting(ctx: Context, step: Callable[[], int]) -> Callable[[], int]:

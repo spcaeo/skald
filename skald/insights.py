@@ -146,7 +146,7 @@ def compare(src: Source, anchor: date, span: int, cfg: dict) -> list[dict]:
     out = []
     for kind, (what, metric, field) in SUBJECTS.items():
         now, then = src.total(what, *after), src.total(what, *before)
-        for name in set(now) | set(then):
+        for name in sorted(set(now) | set(then)):   # sorted: the same order every run
             if name in NOT_A_SUBJECT:
                 continue
             a, b = int(now.get(name, 0)), int(then.get(name, 0))
@@ -283,7 +283,9 @@ def compute(history, key: str, anchor: date, config: dict, snap: dict | None = N
     found = compare(src, anchor, 7, cfg) + compare(src, anchor, 30, cfg)
     found += new_things(src, anchor, first, cfg) + anomalies(src, anchor, cfg)
     found += opportunities(src, anchor, cfg)
-    found.sort(key=lambda i: (ORDER[i["type"]], -abs((i["after"] or 0) - (i["before"] or 0))))
+    # The title breaks ties, so equal insights come out in the same order every run.
+    found.sort(key=lambda i: (ORDER[i["type"]], -abs((i["after"] or 0) - (i["before"] or 0)),
+                              i["title"]))
     today = []
     if snap and snap.get("state") == "ok":
         extras = snap.get("extras") or {}

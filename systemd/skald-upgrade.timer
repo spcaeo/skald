@@ -1,0 +1,13 @@
+# Once a day: skald-upgrade.service (the update check; the automatic
+# upgrade when updates.auto is patch or minor). install.sh sets the time to a
+# random minute at least 2 hours from the daily run; `skald upgrade` refuses the
+# daily run's window anyway. Server clock, like the cron file.
+[Unit]
+Description=Skald: daily update check and automatic upgrade
+
+[Timer]
+OnCalendar=*-*-* 03:41:00
+Persistent=false
+
+[Install]
+WantedBy=timers.target

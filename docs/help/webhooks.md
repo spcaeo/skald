@@ -212,11 +212,11 @@ Conversions already recorded stay. To delete one person's data, see [Leads and c
 Skald can tell your CRM, Zapier, Make or Slack each time something happens. This is under **Outgoing webhooks** on the same page.
 
 1. Under **Add an outgoing webhook**, paste the **Address**. It must start with `https://`.
-2. Tick the **Events** you want: `conversion.started`, `conversion.completed`, `conversion.cancelled`, `conversion.rescheduled`, `conversion.no_show`, `conversion.abandoned`, `lead.won`, `lead.lost`.
+2. Tick the **Events** you want: `conversion.started`, `conversion.completed`, `conversion.cancelled`, `conversion.rescheduled`, `conversion.no_show`, `conversion.abandoned`, `lead.won`, `lead.lost`, and `ai.reading_changed` (an AI assistant started or stopped reading a page, or visits likely sent by AI answers jumped or vanished: see the FAQ).
 3. Press **Add webhook**. Copy the secret shown once, and give it to the receiving tool so it can check each message.
 4. Press **Send a test** to check that the address answers.
 
-Each message names the action, its source, campaign, landing page, country, device, visits and time before converting, and the anonymous journey. It never holds a name or an email. A failed delivery is tried again for about 15 hours. Only conversions recorded after you add the webhook are sent. **Remove** stops it at once.
+An `ai.reading_changed` message names the assistant, the pages, the days and the numbers, and is sent once per alert, only while alerts are on. Each conversion message names the action, its source, campaign, landing page, country, device, visits and time before converting, and the anonymous journey. It never holds a name or an email. A failed delivery is tried again for about 15 hours. Only conversions recorded after you add the webhook are sent. **Remove** stops it at once.
 
 ## Troubleshooting
 

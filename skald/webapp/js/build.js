@@ -5,6 +5,7 @@
 
 import { h } from "./ui.js";
 import { when } from "./tz.js";
+import { DEMO } from "./demo.js";
 
 export let BUILD = null;
 
@@ -77,7 +78,7 @@ export function releaseLine(zones) {
     const [first, ...more] = list;
     when = ` · released ${stamp(t, first)}${more.length ? ` (${more.map((z) => stamp(t, z, stamp(t, z).slice(0, 11) !== stamp(t, first).slice(0, 11))).join(", ")})` : ""}`;
   }
-  return { text: `Live · v${BUILD.version}${when}`,
+  return { text: `${DEMO.on ? "Demo" : "Live"} · v${BUILD.version}${when}`,
     title: [`${BUILD.name} v${BUILD.version}`, `release ${BUILD.release}`, BUILD.commit].filter(Boolean).join(" · ") };
 }
 

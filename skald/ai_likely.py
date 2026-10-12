@@ -101,6 +101,20 @@ def minute(when: datetime) -> int:
     return int(when.timestamp()) // 60
 
 
+def _stored_minute(at: str) -> int:
+    """minute() of a stored "%Y-%m-%dT%H:%M" (UTC). The usual shape is read
+    by position, which is what strptime would give, at a tenth of its cost;
+    anything else goes to strptime, which accepts or refuses it as before."""
+    digits = at[:4] + at[5:7] + at[8:10] + at[11:13] + at[14:]
+    if len(at) == 16 and at[4] == at[7] == "-" and at[10] == "T" and at[13] == ":" \
+            and digits.isascii() and digits.isdigit():
+        when = datetime(int(at[:4]), int(at[5:7]), int(at[8:10]), int(at[11:13]),
+                        int(at[14:]), tzinfo=timezone.utc)
+    else:
+        when = datetime.strptime(at, "%Y-%m-%dT%H:%M").replace(tzinfo=timezone.utc)
+    return minute(when)
+
+
 def minute_iso(m: int) -> str:
     return datetime.fromtimestamp(m * 60, timezone.utc).strftime("%Y-%m-%dT%H:%M")
 
@@ -222,8 +236,7 @@ def fetch_index(history, site: str, first: date, last: date) -> dict:
             continue
         kept.add(day)
         for at, who, path, _n in rows:
-            m = minute(datetime.strptime(at, "%Y-%m-%dT%H:%M").replace(tzinfo=timezone.utc))
-            pages.setdefault(page_key(path), []).append((m, who))
+            pages.setdefault(page_key(path), []).append((_stored_minute(at), who))
     for got in pages.values():
         got.sort()
     return {"days": kept, "pages": pages}
