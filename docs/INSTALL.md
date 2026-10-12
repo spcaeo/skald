@@ -97,7 +97,7 @@ the container has them (`history.db: /var/lib/skald/history.sqlite`,
 | `SKALD_EMAIL` | | who gets the mails (also the sender unless `SKALD_MAIL_FROM`) |
 | `SKALD_SMTP_HOST`, `SKALD_SMTP_PORT`, `SKALD_SMTP_SECURITY` | `587`, `starttls` | the mail server; mails stay off without a host (or set it in Settings > Mail) |
 | `SMTP_USER`, `SMTP_PASSWORD` | | the SMTP login: environment only, never in a file you commit |
-| `SKALD_BEACON_ORIGINS` | | your site's origin(s), to switch on the in-page events ([BEACON.md](BEACON.md)) |
+| `SKALD_BEACON_ORIGINS` | | your site's origin(s), to switch on the script tag and in-page events ([BEACON.md](BEACON.md)). Not needed for webhooks (Calendly, Stripe, the `lead` hook): those work without it since 2.2.2 |
 | `SKALD_INGEST` | | `true` takes logs from other servers and log drains ([INGEST.md](INGEST.md)); set `SKALD_LOG_DIR` with it |
 | `SKALD_DAILY_AT`, `SKALD_BACKUP_AT` | `07:15`, `03:30` | the daily run and the backup, in the site's time zone |
 | `SKALD_LIVE_MINUTES` | `2` | the live snapshot's interval |
@@ -329,7 +329,9 @@ then the folders in DEPLOY.md section 2 if the data should go too.
 | The sign-in page loops back to itself | The browser dropped the `Secure` cookie: use HTTPS (recipe A or B), or `http://localhost:8080` on the same machine. |
 | Links in mails say `localhost` | Set `SKALD_BASE_URL` (Docker) or `access.base_url` (config) to the public address. |
 | The first daily run "failed" | There is no whole day in the history yet. It sorts itself out the next day, or run `backfill --days 14`. |
-| 502 on `/traffic-beacon` or `/traffic-js/` | The beacon is off: set `SKALD_BEACON_ORIGINS` (Docker) or follow BEACON.md. |
+| 404 on `/traffic-beacon` or `/traffic-js/` | The script tag is off: set `SKALD_BEACON_ORIGINS` (Docker) or `beacon.origins`. |
+| 502 on `/traffic-hooks/…`, `/traffic-beacon` or `/traffic-js/` | Skald before 2.2.2, where the webhook receiver ran only with the script tag on. Upgrade (UPGRADING.md). |
+| The dashboard shows a plain page with no menu | Skald before 2.2.1 (Docker) or 2.2.2 (install script). Upgrade; or add `app: true` under `dashboard:` in config.yml. |
 | `permission denied` on a bind-mounted folder | The container runs as uid 10001. Started as root (the default) it gives `/var/lib/skald` to that user itself; for other folders, or with `--user`, `sudo chown -R 10001:10001 <folder>`, or use the named volume. |
 | Container `unhealthy` | `docker logs skald` and `docker inspect --format '{{json .State.Health}}' skald`. |
 | "Too many tries" on sign-in for everyone at once | The proxy in front is not trusted, so every visitor looks like it: set `SKALD_TRUSTED_PROXIES` to its range (the image's `peers` command shows it while you load the dashboard: `docker exec skald python3 /opt/skald/docker/entrypoint.py peers`) and `SKALD_REAL_IP_HEADER` to the header it sends. |

@@ -92,7 +92,7 @@ class Rendered(unittest.TestCase):
 
     def setUp(self):
         self.box = Sandbox(views=VIEWS)
-        text = self.box.config.read_text().replace("dashboard:\n", "dashboard:\n  app: true\n")
+        text = self.box.config.read_text().replace("  app: false\n", "  app: true\n")
         self.box.config.write_text(text)
         self.box.log(mixed_day())
         code, _, err = self.box.run("--today", "2026-10-07", "collect")
@@ -137,6 +137,25 @@ class Rendered(unittest.TestCase):
             text = self.site.joinpath(*view, "data", "app.json").read_text()
             self.assertNotRegex(text, r"203\.0\.113|198\.51\.100|Mozilla|curl/")
 
+
+
+class AppByDefault(unittest.TestCase):
+    """A config without dashboard.app gets the web app (2.2.2): installs made
+    from an older config.example.yml have no such key."""
+
+    def test_no_key_means_the_app(self):
+        box = Sandbox()
+        try:
+            box.config.write_text(box.config.read_text().replace("  app: false\n", ""))
+            box.log(mixed_day())
+            self.assertEqual(box.run("--today", "2026-10-07", "collect")[0], 0)
+            code, _, err = box.run("--today", "2026-10-07", "dashboard")
+            self.assertEqual(code, 0, err)
+            site = box.root / "www" / "example.com"
+            self.assertTrue((site / "classic.html").exists(), "the plain page moves beside the app")
+            self.assertTrue((site / "data" / "app.json").exists())
+        finally:
+            box.close()
 
 if __name__ == "__main__":
     unittest.main()

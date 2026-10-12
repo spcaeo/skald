@@ -289,7 +289,10 @@ def cmd_dashboard(ctx: Context) -> int:
                                   ctx.views,
                                   refresh=bool((ctx.config.get("dashboard") or {})
                                                .get("refresh_button")),
-                                  app=bool((ctx.config.get("dashboard") or {}).get("app")),
+                                  # The web app unless the config says app: false (2.2.2;
+                                  # before, a config without the key got only the plain page).
+                                  app=(ctx.config.get("dashboard") or {}).get("app", True)
+                                  not in (False, "false", "no", "off", 0),
                                   config=ctx.config,
                                   only=ctx.site if multi else None,
                                   index_sites=[site_name(c) for c in ctx.all_configs]

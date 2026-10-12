@@ -280,5 +280,12 @@ class InstallScript(unittest.TestCase):
         self.assertEqual(got.returncode, 0, got.stdout + got.stderr)
 
 
+class ContainerPrograms(unittest.TestCase):
+    def test_the_hook_receiver_always_runs(self):
+        cfg = entrypoint.render_config({})
+        progs = entrypoint.programs(Path("/tmp/config.yml"), cfg, {})
+        self.assertIn("beacon", progs, "signed hooks must not wait on the script tag")
+        self.assertIn("skald.beacon_server", progs["beacon"])
+
 if __name__ == "__main__":
     unittest.main()

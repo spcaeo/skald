@@ -47,7 +47,7 @@ def setUpModule():
     with mock.patch.dict(os.environ, KEY):
         BOX = Sandbox(mail=False, tz="America/New_York", views=VIEWS)
         BOX.config.write_text(BOX.config.read_text().replace(
-            "dashboard:\n", "dashboard:\n  app: true\n"))
+            "  app: false\n", "  app: true\n"))
         today = ("--today", TODAY.isoformat())
         for i in range(6, 0, -1):
             day = TODAY - timedelta(days=i)

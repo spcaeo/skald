@@ -90,7 +90,8 @@ def config_text(tmp: Path, *, tz: str = "UTC", mail: bool = True,
         # any hole; the partial-day tests set the real default, 60.
         f"  coverage_gap_minutes: {coverage_gap}\n"
         "history:\n  db: history.sqlite\n"
-        f"dashboard:\n  out: www\n  url: {url}\n"
+        # app: false: these tests read the plain page; test_webapp switches the app on.
+        f"dashboard:\n  out: www\n  url: {url}\n  app: false\n"
     )
     if views:
         text += "  views:\n" + "".join(f"    - {v}\n" for v in views)

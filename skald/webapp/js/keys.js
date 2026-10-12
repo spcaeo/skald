@@ -24,9 +24,10 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-12c",
+  id: "2026-10-12d",
   items: [
-    ["Docker", "a Docker or one-command install opens the full dashboard (menu, tabs, drawers), not the plain page.", "getting-started"],
+    ["Webhooks", "Calendly, Stripe, HubSpot and the lead hook reach Skald on every install, with or without the tracking script. Before, they could fail until the script was switched on.", "webhooks"],
+    ["Dashboard", "every install opens the full dashboard (menu, tabs, drawers), not the plain page.", "getting-started"],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [

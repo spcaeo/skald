@@ -322,6 +322,9 @@ cp systemd/skald-beacon.service /etc/systemd/system/
 systemctl daemon-reload && systemctl enable --now skald-beacon     # 127.0.0.1:8766
 ```
 
+Run it even without the beacon: it is also the receiver of the signed tool hooks
+(docs/INTEGRATIONS.md). With no `beacon.origins` it takes hooks only (2.2.2).
+
 Set `beacon.enabled`, `beacon.origins` and `beacon.log` in the config, and
 add the nginx `limit_req_zone`, `log_format` and `location = /traffic-beacon`
 from docs/BEACON.md to the site's HTTPS server. run-daily then collects,

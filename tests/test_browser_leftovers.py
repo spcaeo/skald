@@ -147,7 +147,9 @@ class NewSitePage(TenantServer):
         self.assertTrue(first_page.build(self.config_path, "shop.example.org", self.out))
         page = (self.out / "shop.example.org" / "index.html").read_text()
         self.assertNotIn("Getting ready", page)
-        self.assertIn("shop.example.org", page)
+        # The web app by default (2.2.2), with the site's plain page beside it.
+        self.assertIn('id="app"', page)
+        self.assertIn("shop.example.org", (self.out / "shop.example.org" / "classic.html").read_text())
 
 
 class SignUpPage(Server):
