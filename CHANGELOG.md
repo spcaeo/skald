@@ -4,6 +4,16 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.2.1 (2026-10-12)
+
+### Fixed
+
+- **Docker and one-command installs showed only the plain page, not the dashboard.** The
+  container's generated config and `config.example.yml` did not set `dashboard.app: true`, so
+  the site's address served the no-JavaScript fallback page (no menu, tabs or drawers). Both
+  now turn the web app on. Docker: pull the new image and start the container again. An
+  install-script install keeps its own `config.yml`: add `app: true` under `dashboard:`.
+
 ## 2.2.0 (2026-10-12)
 
 Alerts when AI assistants start or stop reading your pages; a suggested llms.txt; one-command,

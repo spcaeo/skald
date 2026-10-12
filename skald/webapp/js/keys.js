@@ -24,17 +24,19 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-12b",
+  id: "2026-10-12c",
   items: [
+    ["Docker", "a Docker or one-command install opens the full dashboard (menu, tabs, drawers), not the plain page.", "getting-started"],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.2.0
     ["New releases", "owners and admins see a line when a newer Skald is out, red for a security release; your server admin upgrades with one command, with a backup and a rollback.", "faq"],
     ["llms.txt", "Settings > AI crawlers suggests an llms.txt from the pages people and AI assistants read most. Copy or download it; Skald never writes to your site.", "settings-and-retention"],
     ["AI alerts", "an alert when an assistant starts or stops reading a page, or visits likely sent by AI jump or vanish. The AI filter on Alerts and AI reading changes on AI & crawlers.", "faq"],
     ["Cloudflare", "the Skald Worker now deploys with one button.", "faq"],
     ["Live demo", "the whole dashboard with sample data, no sign-up, at spcaeo.github.io/skald.", "getting-started"],
     ["Faster", "the live run and the dashboards take a third less time, a page's story less than half. No figure changed."],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.1.0
     ["Likely from AI", "a direct visit that lands on a page ChatGPT, Perplexity or another assistant fetched minutes before is shown as likely sent by it: on Sources, AI & crawlers, Leads, Conversions and a visitor's details. An estimate, marked \"likely\" with an (i), never added to any count.", "leads-and-conversions"],
     ["Cloudflare Worker", "a site behind Cloudflare on any plan can send each request to Skald, so pages served from Cloudflare's cache are counted too, and none twice.", "faq"],

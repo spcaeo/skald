@@ -155,6 +155,9 @@ dashboard:
   out: /var/www/skald
   # Where readers open it. Linked from the mail when set; leave empty for none.
   url: https://stats.example.com/example.com/
+  # The dashboard web app (menu, tabs, drawers) at the site's address. false
+  # writes only the plain page with no JavaScript (always also kept as classic.html).
+  app: true
   # Pre-built views by path, each its own page linked from the top of the
   # dashboard ("All" is always there). A view counts only requests whose path
   # starts with path_prefix (empty: any) and with none of exclude_prefix

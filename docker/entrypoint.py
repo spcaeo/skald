@@ -94,8 +94,10 @@ def render_config(env: dict) -> dict:
                  "format": env.get("SKALD_LOG_FORMAT") or "auto"},
         "report": {"timezone": tz, "env_file": str(DATA / "env")},
         "history": {"db": str(DATA / "history.sqlite")},
+        # app: the dashboard web app (menu, tabs, drawers). Without it only the
+        # plain fallback page (classic.html) is written, as the site's page.
         "dashboard": {"out": str(DASHBOARD), "url": f"{base}/traffic/{site}/",
-                      "refresh_button": True},
+                      "app": True, "refresh_button": True},
         "backup": {"dir": str(DATA / "backups")},
         "access": {"mode": "sessions", "base_url": base},
     }
