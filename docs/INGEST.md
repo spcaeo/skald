@@ -62,7 +62,7 @@ plan decides how many sites an organisation may have.
 
 On the server, an install admin can do the same with
 `skald site add shop.example.com --org <slug>` and make the token with
-`skald token create --name shipper --scope ingest --site shop.example.com`.
+`skald token create shipper --scope ingest --site shop.example.com`.
 A site from a config file can ship its log too: make an ingest token for it
 (Settings > Add or remove sites > New token) and point its `logs.dir` at
 `<ingest root>/<site>`.
@@ -162,6 +162,10 @@ CDN's log (CDN-LOGS.md), never both.
   the visitors' addresses, for `ingest.keep` days, readable only by the
   service (0640). The history the daily run builds from it holds no
   address.
+  Since 2.4.0 a site may also keep each reader's visit with its address in
+  `conversions.sqlite`, for `privacy.keep_days` (395) days: on for a new
+  install, off for one upgraded from before 2.4.0 (`privacy.keep_ips`,
+  SETTINGS.md).
 - **Files:** `access.log` (today, UTC), `access.log.1` (the day before),
   `access.log.2.gz` ... `access.log.<keep>.gz`. The folder also holds
   `.ingest-state.json`: the last batch number per shipper and counts, no
@@ -171,8 +175,8 @@ CDN's log (CDN-LOGS.md), never both.
 
 - The shipper saves its place (file, inode, offset, last batch number) only
   after Skald answered 2xx. Until then it sends the batch again, waiting
-  longer each time (1 s doubling to 5 minutes, with jitter); 429 and 503
-  wait for `Retry-After`; 413 splits the batch.
+  longer each time (1 s doubling to 5 minutes, with jitter); 429, 503 and
+  507 wait for `Retry-After` (at most 10 minutes); 413 splits the batch.
 - Every batch is numbered: `X-Skald-Batch: <shipper id>:<seq>`. Skald keeps
   the last number of each shipper; a batch it has already kept is answered
   "duplicate" and not written again. So a batch whose answer was lost on
@@ -226,8 +230,9 @@ month's requests, sites, members), and adding a site against the plan's
 number of sites (`can_add_site`). A read-only plan (cancelled, or unpaid past
 the grace days) refuses changes in Settings > Add or remove sites with 402,
 and every batch with 402 too (`saas.limits.read_only`).
-Over a limit, the batch gets 429 with the reason and the shipper waits an hour
-before trying again: nothing is lost while the plan is changed. Without
+Over a limit, the batch gets 429 with the reason and `Retry-After: 3600`; the
+shipper waits at most 10 minutes (its cap) and tries again, so nothing is lost
+while the plan is changed. Without
 that module there is no limit.
 
 ## Removing a site
@@ -244,7 +249,7 @@ The purge also deletes the site's conversions (every conversions.sqlite table
 with a `site` column: conversions, journeys, identities, deliveries, webhooks,
 outbox, and its outbox cursor), its lines in the hook spool and its secrets
 (`hooks/<site>/*`, `outgoing/<site>/*`). The name is then held for 30 days:
-`skald site add`, Settings > Sites and sign-up refuse it, unless an install
+`skald site add`, Settings > Add or remove sites and sign-up refuse it, unless an install
 admin passes `skald site add <site> --allow-reuse`.
 
 ## Log drains: Vercel and Netlify

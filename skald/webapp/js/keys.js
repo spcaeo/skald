@@ -24,16 +24,20 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-12k",
+  id: "2026-10-12l",
   items: [
+    ["Site logos", "each site shows its own logo in the menu, the switcher and the browser tab.", "settings-and-retention"],
+    ["Choose a site", "after sign-in, a card per site with today's visitors, leads and demos booked."],
+    ["Logo settings", "Settings > Sites > Logo: from the site, upload your own, or a letter on a colour.", "settings-and-retention"],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.5.0-2.5.2
     ["Spam caught sooner", "a lead your team marks spam leaves the figures within two minutes, not at the next daily run.", "leads-and-conversions"],
     ["Fixes", "lead tiles show 0, not a dash, when every lead was spam or test; Live no longer shows a date range; the top bar never overlaps."],
     ["Leads everywhere", "leads and demos booked on Overview, Sources, Pages, Locations, Insights and Compare, each counted twice.", "leads-and-conversions"],
     ["Live", "today's leads and bookings as they arrive, with source, page and country.", "leads-and-conversions"],
     ["Doctor", "names the step a daily run stopped at, and why."],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.4.0-2.4.1
     ["Find a person", "on narrower screens the search is an icon in the top bar, so nothing overlaps.", "privacy"],
     ["Person search", "find anyone by IP, email or lead (admins): every visit, page, lead and booking, across days.", "privacy"],

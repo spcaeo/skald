@@ -105,7 +105,7 @@ the container has them (`history.db: /var/lib/skald/history.sqlite`,
 | `SMTP_USER`, `SMTP_PASSWORD` | | the SMTP login: environment only, never in a file you commit |
 | `SKALD_BEACON_ORIGINS` | | your site's origin(s), to switch on the script tag and in-page events ([BEACON.md](BEACON.md)). Not needed for webhooks (Calendly, Stripe, the `lead` hook): those work without it since 2.2.2 |
 | `SKALD_INGEST` | | `true` takes logs from other servers and log drains ([INGEST.md](INGEST.md)); set `SKALD_LOG_DIR` with it |
-| `SKALD_KEEP_IPS` | on (new install), off (upgraded from before 2.4.0) | `1` keeps each visit's IP address and browser with its pages, so a person can be looked up; `0` keeps none (only the last 6 hours of requests show addresses). Also Settings > Data retention > People. Your privacy notice must say so |
+| `SKALD_KEEP_IPS` | on (new install), off (upgraded from before 2.4.0) | `1` keeps each visit's IP address and browser with its pages for `privacy.keep_days` (395 days), so a person can be looked up; `0` keeps none (only the last 6 hours of requests show addresses). Also Settings > Data retention > People. Your privacy notice must say so |
 | `SKALD_IDENTITY` | `full` (new install), `anonymous` (upgraded from before 2.4.0) | `full` keeps leads' names and emails with their conversions; `anonymous` keeps neither |
 | `SKALD_DAILY_AT`, `SKALD_BACKUP_AT` | `07:15`, `03:30` | the daily run and the backup, in the site's time zone |
 | `SKALD_LIVE_MINUTES` | `2` | the live snapshot's interval |
@@ -169,7 +169,9 @@ when the service is not running.
 
 ### Recipe A: next to the web server you already run
 
-By default Skald listens on `127.0.0.1:8080` only. Your web server keeps
+By default Skald listens on `127.0.0.1:8080` only (`SKALD_HOST_PORT` changes the port;
+`SKALD_BIND=0.0.0.0` opens it to the network: then put HTTPS in front, or, with nothing
+in front, set `SKALD_TRUSTED_PROXIES=none`). Your web server keeps
 serving the site and sends Skald's paths to it: `/traffic/` (the dashboard)
 and `/traffic-auth/`, `/traffic-api/`, `/traffic-ingest/`, `/traffic-mcp`,
 `/traffic-hooks/`, `/traffic-beacon`, `/traffic-js/`. It needs no other change.
@@ -237,7 +239,7 @@ docker compose down -v                                      # stop and delete th
 
 ## 3. Install script
 
-For Ubuntu 22.04, 24.04, 26.04 and Debian 12, on the web server itself. It
+For Ubuntu 22.04, 24.04, 26.04 and Debian 12 or 13, on the web server itself. It
 installs Python 3.11+ (on 22.04 the `python3.11` package) and PyYAML, makes
 the `skald` user (in group `adm`, to read the log), puts the code in
 `/opt/skald`, writes `/etc/skald/config.yml` from
@@ -249,7 +251,7 @@ lines to add to nginx or Caddy.
 The quick way, pinned to a release (`--ref` picks the code it downloads):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.5.0/install.sh | sudo bash -s -- --ref v2.5.0
+curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.6.0/install.sh | sudo bash -s -- --ref v2.6.0
 ```
 
 This runs a script from the internet as root. To check what you run first,
@@ -258,10 +260,10 @@ the release workflow attaches to every release (it lists the tarball and
 `install.sh`):
 
 ```sh
-curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.5.0/skald-2.5.0.tar.gz
-curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.5.0/SHA256SUMS
-sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.5.0.tar.gz: OK
-tar -xzf skald-2.5.0.tar.gz && cd skald-2.5.0
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.6.0/skald-2.6.0.tar.gz
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.6.0/SHA256SUMS
+sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.6.0.tar.gz: OK
+tar -xzf skald-2.6.0.tar.gz && cd skald-2.6.0
 less install.sh                               # read it
 sudo ./install.sh                             # installs from this folder, downloads nothing
 ```

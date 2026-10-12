@@ -48,8 +48,10 @@ Any other field - an address, a user id, an email, free text - and the beacon is
 refused. The helper answers `204` when it counted the event, `202` when it
 took it and kept nothing (Do Not Track, GPC, a bot, a `page_view` when
 neither beacon-only mode nor visitor IDs are on), `400` for a bad body,
-`403` for a foreign or missing Origin, `413` over 1 KB and `429` over the
-limit.
+`403` for a foreign or missing Origin (or a site made by sign-up whose domain
+is not verified yet), `411` with no length, `413` over 1 KB
+and `429` over the limit. Until `beacon.origins` names an origin, the beacon
+answers `404`.
 
 ### Events
 
@@ -234,6 +236,7 @@ In the site's HTTPS `server { }`:
 location = /traffic-beacon {
   limit_except POST { deny all; }
   limit_req zone=skald_beacon burst=30 nodelay;
+  limit_req_status 429;
   client_max_body_size 1k;
   access_log /var/log/nginx/skald-beacon.log skald_beacon;
   add_header Cache-Control "no-store" always;
@@ -312,3 +315,8 @@ address is used for the rate limit and to recognise our own traffic, in the
 helper's memory only, and is not in the beacon log. A suggested sentence for
 a privacy page: "We count anonymous button clicks and form steps on our own
 server, without cookies."
+
+The beacon is apart from what the log keeps. Since 2.4.0 a site may keep each
+reader's visit with its address and user agent (`privacy.keep_ips`: on for a
+new install, off for one upgraded from before 2.4.0; SETTINGS.md). The beacon
+spool never holds an address, whatever that setting says.

@@ -50,13 +50,18 @@ a version change; a field is never renamed or removed without one.
   folded tail of a longer list; it is a real count and keeps the sums.
 - **Hours** are `"00"` to `"23"` in `timezone`.
 - **Groups**: `people`, `answer_engines`, `search_engines`, `bots`, `ours`.
-- **Privacy.** No file carries an IP address, a user agent or a visitor key,
-  except `ai_activity.json`'s `today.events[].ip` and `requests.json`'s
+- **Privacy.** No data file carries an IP address, a user agent or a visitor
+  key, except `ai_activity.json`'s `today.events[].ip` and `requests.json`'s
   `rows[].ip` (the owner's decisions, 2026-10-07: shown on the private page
-  only, read from the raw log, never stored in history; `requests.json` holds
-  only its window). An address removed with `skald forget --ip` is shown as
-  `"(removed)"` from then on. Journeys are anonymous and kept
-  `journey_days` days.
+  only, read from the raw log; `requests.json` holds only its window). The
+  history (`history.sqlite`) never holds an address. Since 2.4.0 a site may
+  keep each reader's visit with its address and user agent, and a lead's name
+  and email, in `conversions.sqlite`: settings `privacy.keep_ips`,
+  `privacy.keep_days` (395) and `conversions.identity`, on for a new install,
+  off for one upgraded from before 2.4.0 (`people/policy.py`). Those are not
+  data files: [docs/DATA-CONTRACT-PEOPLE.md](docs/DATA-CONTRACT-PEOPLE.md).
+  An address removed with `skald forget --ip` is shown as `"(removed)"` from
+  then on. Journeys are anonymous and kept `journey_days` days.
 - **Release 3 files** (2026-10-08): `robots.json`, `speed.json`,
   `funnels.json`, `sites.json`, `page_index.json` - and the API, users and
   roles, compare and page lifecycle below.
@@ -159,7 +164,8 @@ below), `via` (assistant name like `"ChatGPT"`, a referrer host, or `""`),
 `campaign` (`"source / medium / campaign"` or `""`), `landing`, `exit`,
 `pages` (loaded), `seen` (incl. in-app), `in_app`, `trail`
 (`[[path, "page"|"app"]]`, at most 50), `seconds`, `not_found`, `posted`,
-`summary` (one readable line), and from schema 9: `utm`
+`summary` (one readable line), `at` (seconds into the visit of each `trail`
+entry, bucketed: [docs/DATA-CONTRACT-TRACKING.md](docs/DATA-CONTRACT-TRACKING.md)), and from schema 9: `utm`
 (`{"source","medium","campaign","term","content"}`, only those present),
 `paid` (network name or `""`), `ref_param` (`ref`/`source`/`via` query value
 or `""`), `ref_host`, `ref_page` (host + path, other websites only),
@@ -236,7 +242,8 @@ counted in. For readers by hour in another zone use `hours_utc` -
 
 `days[]` and `today`: `requests` int, `probes` int (scanner probes),
 `agents` `{short name: requests}` (monitors, SEO suites, unfurlers,
-crawler sessions in browser clothes), `statuses` (bots' status classes).
+crawler sessions in browser clothes; null in `today`), `statuses` (bots'
+status classes).
 
 From release 2 (null on days collected before it; `today` has them too):
 
@@ -303,7 +310,7 @@ A row:
 | `agent` | string | the browser family (`Chrome`, `Safari`, `LinkedIn app`, ...) for a browser, else the crawler or tool name (`GPTBot`, `curl`, `(no user agent)`) |
 | `os`, `device` | string | from the user agent (`macOS`, `iOS`, ... / `Desktop`, `Mobile`, `Tablet`); bots usually `Other` / `Desktop` |
 | `group` | string | `people`, `answer_engines`, `search_engines`, `bots`, `ours`, or `excluded` |
-| `rule` | string | why it is in that group, in words: `"people: reader"`, `"people: asset"`, `"people: Next.js payload (_rsc)"`, `"people: reader from chatgpt.com"`, `"ours: Office Mac (Morgan)"`, `"AI asked: ChatGPT-User"`, `"AI training: GPTBot"`, `"search: Googlebot"`, `"bot: meta-webindexer"`, `"bot: scanner probe"`, `"bot: link preview: Slack"`, `"bot: claims to be Googlebot"`, `"bot: browser-like crawler"`, `"bot: browser-like, never rendered the page"`, `"excluded: other host"` |
+| `rule` | string | why it is in that group, in words: `"people: reader"`, `"people: asset"`, `"people: Next.js payload (_rsc)"`, `"people: reader from chatgpt.com"`, `"ours: Office Mac (Morgan)"`, `"AI asked: ChatGPT-User"`, `"AI training: GPTBot"`, `"search: Googlebot"`, `"bot: meta-webindexer"`, `"bot: scanner probe"`, `"bot: link preview: Slack"`, `"bot: claims to be Googlebot"`, `"bot: browser-like crawler (robots.txt or sitemap, no rendering)"`, `"bot: browser-like, never rendered the page"`, `"excluded: other host"` |
 | `kind` | string | what was asked for: `page`, `rsc`, `asset`, `beacon`, `crawler_file`, `redirect`, `not_modified`, `not_found`, `client_error`, `server_error`, `post`, `other` |
 | `page_view` | bool | counted as a page view in its group |
 | `assistant` | string | the AI assistant: the crawler's name, or the assistant a reader came from; `""` |
@@ -437,8 +444,26 @@ folder.
 ```json
 {"schema_version":1,"generated_at":"...","sites":[{"name":"example.com","slug":"example.com",
  "path":"example.com/","views":[{"slug":"us-english","name":"US English"}],
- "first_day":"2026-10-06","last_day":"2026-10-07","live":true}],"current":"example.com"}
+ "first_day":"2026-10-06","last_day":"2026-10-07","waiting":false,"live":true,
+ "logo":{"url":"example.com/logo?v=3f2a9c1b07de","letter":"W","color":"#0f766e","source":"auto","kind":"png"},
+ "today":{"day":"2026-10-08","visitors":12,"leads":2,"demos":1,"live":true,"timezone":"America/New_York"}}],
+ "current":"example.com"}
 ```
+
+From 2.6.0 each site also has (`site_picker.py`, `site_logos.py`; the helper fills both in
+as they are at that moment when it answers, in sessions mode):
+
+- `logo`: `url` is the logo's address relative to the dashboard's root, carrying a hash of
+  the file so a new logo is a new address (served by the helper, `<site>/logo`), or null
+  while the site shows its letter; `letter` and `color` (one of four) are that fallback;
+  `source` is `site.logo.source` (`auto`, `upload`, `letter`); `kind` the stored type.
+- `today`: today so far, for the site picker and the switcher. Read, never counted here:
+  `visitors` is live.json's `people.readers` (the Overview's Visitors for Today) when the
+  live count is for today and `ok`; `leads` and `demos` are today's `days[]` entry of
+  conversions.json summed like the dashboard (finished stages of `lead_actions`, of
+  `demo_actions`), only when that day is `ok` (matched by the second count). Anything not
+  known is null, shown as "-", never 0. `live` is true while the live count is under 15
+  minutes old; `day` and `timezone` are the live count's.
 
 ## Compare: any two date ranges (helper API)
 
@@ -504,8 +529,10 @@ The data under it, both kept `report.retention_days` (400) days:
 `day_extras` kind `visit_cube` (every reader's visit as
 [country, landing, source, assistant, device, browser, os, campaign] → n, all
 pages, no cap; verified against the readers breakdowns and recounted by the
-audit) and kind `pages` (every page: views, readers, AI and search fetches,
-sources, assistants, countries).
+audit), kind `pages` (every page: views, readers, AI and search fetches,
+sources, assistants, countries; read for a `page=` filter) and kind
+`page_counts` (the same pages, compact: `{path: [views, readers, ai_asked,
+ai_training, search]}`; read for the page views of an unfiltered compare).
 
 ## Page lifecycle
 
@@ -556,9 +583,15 @@ docs/API.md has the details.
 
 ## Users and roles
 
-nginx checks the password; the helper reads who it was (`X-Skald-User`).
-`admin` may change internal addresses and funnels; `viewer` reads only.
-`GET <page>/me` -> `{"ok":true,"user":"morgan","role":"admin"}`.
+Basic mode (the default): nginx checks the password; the helper reads who
+it was (`X-Skald-User`, believed from 127.0.0.1 only). `admin` may change
+internal addresses and funnels; `viewer` reads only.
+`GET <page>/me` -> `{"ok":true,"user":"morgan","role":"admin"}`, plus
+`update` (a newer release) for an owner or admin.
+With accounts (`access: {mode: sessions}`, docs/ACCOUNTS.md) the roles are
+`owner`, `admin` and `viewer`, read from the session, never from a header;
+an owner counts as an admin, and `/me` adds `name`, `org`, `csrf`, `mode`,
+`install_admin` and `totp_on`.
 
 ## alerts.json
 
@@ -602,7 +635,7 @@ Is the input trustworthy - the data-quality panel.
 |---|---|
 | `days[]` | `{"day","state", ...}` - when the day has figures: `lines`, `unparsed`, `duplicates` (byte-identical to an earlier line in the same second; kept and counted), `duplicates_removed` (lines repeating an earlier line's request id `rid=`: the same request written twice, dropped before counting; null for days collected before the log carried `rid=`), `old_format` (lines in the combined format: no host, no country), `first_line`, `last_line` (HH:MM local), `gaps` `[{"from","to","minutes"}]` (no line at all for more than 10 minutes), `files` (log files read), `not_rendered` (bots.json's `{"requests","pages","readers"}`: browser-like requests moved to bots, null before 2026-10-11), `verify` (`"ok"`, `"withheld"`, `"partial"`), `problems` (string), `audit` `{"state": "ok"/"mismatch"/"not run", "at": ISO or null, "compared": int or null, "problems": [string]}`. Fields null when the day was collected before release 2. |
 | `today` | null, or `{"state","lines","unparsed","duplicates","duplicates_removed","old_format","gaps","first_line","last_line","newest_line" (ISO),"clock_skew_s" (server clock minus the newest line, seconds; large = logging stopped or the clock is wrong),"files","not_rendered"}` |
-| `runs` | `{name: {"last_ok": ISO or null, "last_fail": ISO or null, "last_exit": int or null, "expected_every_min": int}}` for `live`, `run-daily`, `verify-bots`, `alerts`, `backup`, and `heartbeat` (its last answered beat in the log) |
+| `runs` | `{name: {"last_ok": ISO or null, "last_fail": ISO or null, "last_exit": int or null, "expected_every_min": int}}` for `live`, `run-daily`, `verify-bots`, `alerts`, `backup`, `pagespeed`, and `heartbeat` (its last answered beat in the log) |
 | `rotation` | `{"files": [{"name","bytes","modified"}]}` - the log files on disk now, newest first |
 | `builders_failing` | `[{"file","error","since"}]`: optional data files whose builder failed on this redraw (see below); `[]` when all were built |
 
@@ -634,14 +667,17 @@ source of any one visit in the logs.
 | field | type |
 |---|---|
 | `available` | bool: the CMS database could be read (false: `error` says why, everything else empty) |
+| `error` | string or null |
+| `since` | date or null: the local day of the first lead in the database |
 | `admin_note` | string |
 | `types` | `["signup","contact","waitlist","demo_opened","demo_booked"]` |
 | `days[]` | `{"day","leads": {type: n},"status": {status: n},"spam": n,"duplicates": n}` - `leads` excludes spam and duplicates, for the 180 days ending today (local) |
 | `by_source_type` | from release 2b: `{"first_touch": {source type: {type: n}}, "last_touch": {...}, "ai_first": {assistant: {type: n}}, "ai_last": {assistant: {type: n}}}` over `period`'s days - leads (spam and duplicates excluded) by source and by AI assistant, split by lead type, so demos booked can be read by the source and assistant that brought them |
 | `period` | the last 30 days and today: `{"first","last","leads": {type: n},"status": {...},"first_touch": {"source": {..},"ai": {..},"utm_campaign": {..},"landing": {..}},"last_touch": {same},"page": {path sent from: n},"locale": {..}}` - each breakdown counts leads (spam and duplicates excluded) and adds up to the leads; `"(none)"` holds those without it |
 | `funnel` | `{"first","last","days","note","steps": ["readers","pricing","form_page","demo_opened","leads","demo_booked"],"by_source": [{"source","readers","pricing","form_page","demo_opened","leads","demo_booked"}],"total": {...}}` - `readers`, `pricing` (a visit that reached a pricing page), `form_page` (a visit that opened a sign-up, contact or early-access page) come from the logs' journeys (visits, by the visit's source; the last `journey_days` days); `demo_opened`, `leads` (sign-up, contact, early access) and `demo_booked` come from the CMS, by the lead's first-touch source type, over the same days. Two systems side by side, never divided per visit. |
-| `attribution_columns`, `attribution_rows` | phase 4, see [below](#leadsjson-attribution_rows) |
-| `time_to_convert` | phase 4, see [below](#leadsjson-time-to-convert) |
+| `attribution_columns`, `attribution_rows` | phase 4: [docs/DATA-CONTRACT-TRACKING.md](docs/DATA-CONTRACT-TRACKING.md#leadsjson-attribution_rows) |
+| `time_to_convert` | phase 4: [docs/DATA-CONTRACT-TRACKING.md](docs/DATA-CONTRACT-TRACKING.md#leadsjson-time-to-convert) |
+| `likely_ai` | `{"on","window_minutes","method"}`: [docs/DATA-CONTRACT-AI-LIKELY.md](docs/DATA-CONTRACT-AI-LIKELY.md) |
 | `withheld` | `{block: why}`: the blocks the second count disagreed with (empty when all agree). A block is `period`, `by_source_type`, `funnel`, `attribution_rows`, `time_to_convert`, or `days/<day>` |
 
 **Second count and withheld blocks (phase 4).** Each time leads.json is built,
@@ -673,8 +709,10 @@ more than 10 minutes)}`.
 ### Internal addresses API (refresh helper, same password, same-origin only)
 
 - `GET <page>/ours` -> `{"ok":true,"limit":50,"entries":[{"ip":"203.0.113.7","label":"Office","source":"config","editable":false,"added_at":null,"added_from":null}]}`.
-  IPs are shown here (private page) and nowhere else: never in the JSON files,
-  CSV exports or emails.
+  Internal addresses are shown here (private page) and never in the JSON
+  files, CSV exports or emails. (Visitors' addresses, when a site keeps
+  them, are shown only by the person lookup:
+  [docs/DATA-CONTRACT-PEOPLE.md](docs/DATA-CONTRACT-PEOPLE.md).)
 - `POST <page>/ours/add` (form or JSON `ip`, `label`), `POST <page>/ours/remove`
   (`ip`), `POST <page>/ours/add-mine` (`label`; the caller's address from
   nginx's `X-Real-IP`). Answer: `{"ok":bool,"error":string?,"entries":[...]}`;
@@ -721,13 +759,14 @@ people (`statuses.people.404`).
 |---|---|
 | `today` | null, or `{"events": [...], "total": int, "by_name": {name: {"kind","events","visitors","repeat"}}}` (`visitors`/`repeat` null without the visitor key; a view's `by_name` is null and its events are the ones on its paths) |
 | `days[]` | `{"by_name": {name: {"kind","events"}}, "by_kind": {"reader"/"asked"/"training": {"visitors","repeat_visitors"}} or null}` - visitors are distinct keyed hashes that day (whole site), repeat ones were seen on an earlier day within 30 |
-| `repeat_window_days` | 30 |
+| `repeat_window_days` | 30 (the file says 30 even when `visitors.repeat_days` is changed) |
 | `likely_ai`, `days[].ai_likely`, `today.ai_likely` | likely sent by an AI assistant, inferred (null: not recorded): [docs/DATA-CONTRACT-AI-LIKELY.md](docs/DATA-CONTRACT-AI-LIKELY.md) |
 | `repeat_counts` | `"days"`: `times_seen_30d` counts distinct days the visitor was seen in the 30 days ending today, today included |
 
-The addresses are written only here and in the private snapshot file
+These addresses are written only here and in the private snapshot file
 `live-<site>-ai.json` beside history (mode 0640); never in history, the
-other data files, CSV exports or mail.
+other data files, CSV exports or mail. (A site that keeps addresses keeps
+its readers' visits in `conversions.sqlite`, not here.)
 
 `events[]`, newest first, at most 200: `at` (ISO local), `name`
 (`"ChatGPT-User"`, `"GPTBot"`, or the assistant a reader came from, e.g.
@@ -739,8 +778,9 @@ who arrived from an assistant, one per page loaded), `path`, `status`,
 
 Repeat: the visitor is `HMAC-SHA256(SKALD_VISITOR_KEY, ip) + family`
 (family = the assistant or crawler name; for readers the browser family and
-system). History keeps that hash per day (`visitor_days`), 30 days, then
-deletes it. `repeat` = the same hash on an earlier day within 30 days.
+system). History keeps that hash per day (`visitor_days`) for
+`visitors.repeat_days` (default 30) days, then deletes it. `repeat` = the
+same hash on an earlier day within that window.
 
 ## campaigns.json
 
@@ -814,12 +854,13 @@ beside the visit steps (like the lead steps), never divided per visit.
 
 | field | type |
 |---|---|
-| `events` | `[{"name","label"}]`: the event names this site counts, in report order (`cta_click`, `book_demo_open`, `demo_booked`, `signup_start`, `signup_submit`, `contact_submit`, `waitlist_submit`, `outbound_click`, `scroll_75`, `copy_text`, `404_view`, and `page_view` in beacon-only mode) |
-| `keep_days` | int, 400: how many days history keeps |
+| `events` | `[{"name","label"}]`: the event names this site counts, in report order (`cta_click`, `book_demo_open`, `demo_booked`, `signup_start`, `signup_submit`, `contact_submit`, `waitlist_submit`, `outbound_click`, `scroll_75`, `copy_text`, `404_view`; skald.js's own `form_start`, `form_submit`, `calendly_open`, `calendly_time_selected`, `calendly_booked`, `cal_open`, `cal_booked`, `hubspot_meeting_booked`, `tel_click`, `mailto_click`; and `page_view` when `beacon.page_views` or `beacon.visitor_ids` is on) |
+| `keep_days` | int: how many days history keeps (`beacon.keep_days`, default 400) |
 | `first_day` | date or null: the first day with events |
 | `limits` | `{"factor","slack","day_factor","day_slack"}`: verify's bounds (events per page view) |
 | `days[]` | `keep_days` entries ending yesterday, oldest first: `{"day","state"}`; `state` is `ok`, `withheld` (+ `problems`), `missing` or `before`. When `ok`: `events` `{event: n}`, `ours` `{event: n}` and `ai` `{assistant: {event: n}}` (both null on a view), `anomalies` `[{"kind": "path"/"404"/"unchecked"/"spool", "path","events","views","limit"} or {"kind","note"}]`, `audit` `"ok"`/`"mismatch"`/null, `by_source` (see "events.json goals" below) |
 | `row_fields` | `["day","event","label","path","source","n"]` |
+| `rows_from` | date: the first day `rows` cover |
 | `rows` | `[[day, event, label, path, source, n]]` for `ok` days from `rows_from` (180 days); `label` is which button or form (`"signup_hero"`, `"demo_header"`; the destination host for `outbound_click`; `""` when none); `source` is one of the source types (Visits) of the visit the event came from |
 | `today` | `{"state": "ok"/"empty"/"withheld","from","until" (local ISO, first and last event),"events": {event: n},"ours","ai","rows": [[event, label, path, source, n]]}` from today's spool; not yet verified or audited |
 | `helper` | `{"today","yesterday"}`: the helper's counters, `{"day","accepted","accepted_ours","declined" (Do Not Track / GPC),"not_people","refused_origin","refused_body","refused_event","refused_path","refused_field","refused_rate","updated_at"}` (keys absent when zero) or null |

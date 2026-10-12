@@ -4,7 +4,7 @@
 
 How Skald stands beside Google Analytics 4, Search Console, Bing Webmaster Tools, Plausible, Matomo, Cloudflare, GoAccess, PostHog and Known Agents, grouped by module. The story behind it is in [WHY-WE-BUILT-SKALD.md](WHY-WE-BUILT-SKALD.md); the same matrix as a page, with filters, is [comparison.html](comparison.html) (made from the 2026-10-07 version: the 2026-10-11 rows and notes are only here and in the dashboard's About page).
 
-Every competitor fact comes from that vendor's own docs, pricing page or source code, checked on 2026-10-07. Skald's column claims only what is built and tested in its code (updated 2026-10-11); a part that is off until an install switches it on says so in its note, and anything on the roadmap says *planned*. Where a fact could not be confirmed on the vendor's own pages the cell says `?`. A `✗` means the feature is not offered, or we found no sign of it in the vendor's docs. Rows added on 2026-10-11 (accounts, conversions, webhooks, MCP, the hosted layer, engagement, campaign tag problems, exit rate) have not been checked for the other tools yet: their cells say *not checked*.
+Every competitor fact comes from that vendor's own docs, pricing page or source code, checked on 2026-10-07. Skald's column claims only what is built and tested in its code (updated 2026-10-12, version 2.5.0); a part that is off until an install switches it on says so in its note, and anything on the roadmap says *planned*. Where a fact could not be confirmed on the vendor's own pages the cell says `?`. A `✗` means the feature is not offered, or we found no sign of it in the vendor's docs. Rows added on 2026-10-11 (accounts, conversions, webhooks, MCP, the hosted layer, engagement, campaign tag problems, exit rate) have not been checked for the other tools yet: their cells say *not checked*.
 
 | Mark | Means |
 | --- | --- |
@@ -237,7 +237,7 @@ What it takes to run.
 - **It checks names.** A crawler is compared with its owner's published addresses or DNS; a fake is filed apart as "claims to be".
 - **Every figure is proven.** Groups add up to the log, a second count checks every figure, and a day that fails is withheld rather than shown.
 - **Live, private, unblockable.** Today so far every 2 minutes, each request of the last 6 hours with its reason, nothing needed in the visitor's browser, and it runs on your own server.
-- **Conversions checked like traffic.** Bookings, forms and payments arrive signed from the site and its tools, are kept without names or addresses by default, and every conversion figure is counted a second way; a day that does not agree is withheld.
+- **Conversions checked like traffic.** Bookings, forms and payments arrive signed from the site and its tools, are kept without addresses (and, if the site chooses, without names or emails), and every conversion figure is counted a second way; a day that does not agree is withheld.
 
 ## Where others lead
 
@@ -282,11 +282,11 @@ Given no column, to keep the table readable.
 [^12]: **Matomo, nothing runs in the visitor's browser**: Log import: yes; tag: no. [Matomo log analytics importer](https://github.com/matomo-org/matomo-log-analytics)
 [^13]: **Cloudflare, nothing runs in the visitor's browser**: Crawl Control: yes; Web Analytics beacon: no. [Cloudflare AI Crawl Control](https://developers.cloudflare.com/ai-crawl-control/); [Cloudflare Web Analytics: about](https://developers.cloudflare.com/web-analytics/about/)
 [^14]: **Known Agents, nothing runs in the visitor's browser**: Server, CDN or WordPress integrations. [Known Agents](https://knownagents.com/)
-[^15]: **Skald, works where you cannot read the server's log**: Beacon-only mode: a small script posts page views and events through a same-origin path to a Skald server you run. Bots and AI assistants run no script, so it sees people only; with a log, use the log. A log on another server can be shipped to Skald instead (row below). [Skald beacon-only mode](BEACON.md#beacon-only-mode-a-site-with-no-server-log)
+[^15]: **Skald, works where you cannot read the server's log**: Beacon-only mode: a small script posts page views and events through a same-origin path to a Skald server you run. Bots and AI assistants run no script, so it sees people only; with a log, use the log. A log on another server can be shipped to Skald instead (row below), and Vercel and Netlify can send their log drains. [Skald hosting](HOSTING.md); [Skald beacon-only mode](BEACON.md#beacon-only-mode-a-site-with-no-server-log)
 [^16]: **Matomo, works where you cannot read the server's log**: With the JavaScript tag.
 [^17]: **Cloudflare, works where you cannot read the server's log**: Beacon: anywhere; Crawl Control: traffic must pass through Cloudflare. [Cloudflare AI Crawl Control](https://developers.cloudflare.com/ai-crawl-control/)
 [^18]: **Known Agents, works where you cannot read the server's log**: Needs a supported CDN, platform or server code. [Known Agents](https://knownagents.com/)
-[^19]: **Skald, counts pages a cdn served from its cache**: Reads the CDN's own log: Cloudflare Logpush, CloudFront standard logs, Fastly JSON. Cache hits included. [Skald CDN logs](CDN-LOGS.md)
+[^19]: **Skald, counts pages a cdn served from its cache**: Reads the CDN's own log: Cloudflare Logpush, CloudFront standard logs, Fastly JSON; on any Cloudflare plan, the Skald Worker posts the cache hits. Cache hits included. [Skald CDN logs](CDN-LOGS.md)
 [^20]: **Matomo, counts pages a cdn served from its cache**: Tag: yes; importer also reads CloudFront logs. [Matomo log analytics importer](https://github.com/matomo-org/matomo-log-analytics)
 [^21]: **GoAccess, counts pages a cdn served from its cache**: If you feed it the CDN's logs (S3, CloudFront). [GoAccess: features](https://goaccess.io/features)
 [^22]: **Known Agents, counts pages a cdn served from its cache**: CDN connectors. [Known Agents](https://knownagents.com/)
@@ -354,7 +354,7 @@ Given no column, to keep the table readable.
 [^84]: **Cloudflare, browser, system and device**: [Cloudflare Web Analytics: dimensions](https://developers.cloudflare.com/web-analytics/data-metrics/dimensions/)
 [^85]: **GoAccess, browser, system and device**: [GoAccess: manual](https://goaccess.io/man)
 [^86]: **PostHog, browser, system and device**: [PostHog: web analytics](https://posthog.com/docs/web-analytics)
-[^87]: **Skald, each visit's pages in order**: Anonymous, kept 7 days; funnels over them are counted each day and kept. [Skald README](../README.md)
+[^87]: **Skald, each visit's pages in order**: Anonymous, kept 7 days (1 to 90 in Settings); funnels over them are counted each day and kept. Since 2.4.0, if the site keeps IP addresses, each reader's visit is also kept with its pages and address for 395 days. [Skald README](../README.md)
 [^88]: **Plausible, each visit's pages in order**: Not in the free Community Edition. [Plausible: Community Edition](https://plausible.io/docs/self-hosting)
 [^89]: **Matomo, each visit's pages in order**: Visits log. [Matomo: features](https://matomo.org/features/)
 [^90]: **PostHog, each visit's pages in order**: User paths. [PostHog: user paths](https://posthog.com/docs/product-analytics/paths)
@@ -427,7 +427,7 @@ Given no column, to keep the table readable.
 [^157]: **Search Console, unsampled and unthresholded**: 1,000-row tables; rare queries hidden. [Search Console: data delays and limits](https://support.google.com/webmasters/answer/96568)
 [^158]: **Bing Webmaster Tools, unsampled and unthresholded**: AI grounding queries are a sample. [Bing: AI Performance report (Feb 2026)](https://blogs.bing.com/webmaster/February-2026/Introducing-AI-Performance-in-Bing-Webmaster-Tools-Public-Preview)
 [^159]: **Cloudflare, unsampled and unthresholded**: Adaptive sampling; full detail for 7 days. [Cloudflare Web Analytics: FAQ](https://developers.cloudflare.com/web-analytics/faq/)
-[^160]: **Skald, email alerts**: Site down, logging stopped, 5xx, 404 surge, crawler burst, new crawler, traffic drop; shown on the dashboard, mailed when the install turns alert mail on. A failed daily run sends one short mail. [Skald README](../README.md)
+[^160]: **Skald, email alerts**: Site down, logging stopped, 5xx, 404 surge, crawler burst, new crawler, traffic drop, an AI assistant starting or stopping on a page, likely-AI visits jumping or vanishing; shown on the dashboard, mailed when the install turns alert mail on. A failed daily run sends one short mail. [Skald README](../README.md)
 [^161]: **Google Analytics 4, email alerts**: Custom insights. [GA4: custom insights and alerts](https://support.google.com/analytics/answer/9443595)
 [^162]: **Search Console, email alerts**: Site issues. [Search Console: about](https://search.google.com/search-console/about)
 [^163]: **Bing Webmaster Tools, email alerts**: Alerts and recommendations. [Bing Webmaster Tools: getting started (2025)](https://blogs.bing.com/webmaster/2025/6/Start-Using-Bing-Webmaster-Tools-to-Improve-Your-Site-Visibility/)
@@ -476,7 +476,7 @@ Given no column, to keep the table readable.
 [^206]: **Matomo, named users and roles**: [Matomo: managing users](https://matomo.org/faq/general/manage-users/)
 [^207]: **GoAccess, named users and roles**: A static report; you add the lock.
 [^208]: **Known Agents, named users and roles**: Team members on paid plans. [Known Agents: pricing](https://knownagents.com/pricing)
-[^209]: **Skald**: Defaults; the windows can be changed per site in Settings. [Skald README](../README.md); [Skald settings](SETTINGS.md)
+[^209]: **Skald**: Defaults; the windows can be changed per site in Settings. Each visit with its address is kept 395 days if the site keeps addresses (`privacy.keep_ips`): on for a new install and off for one upgraded from before 2.4.0. [Skald README](../README.md); [Skald settings](SETTINGS.md)
 [^210]: **Google Analytics 4**: [GA4: data retention](https://support.google.com/analytics/answer/7667196)
 [^211]: **Search Console**: [Search Console data in Analytics (16 months)](https://support.google.com/analytics/answer/10737381)
 [^212]: **Bing Webmaster Tools**: [Bing: 16 months of search data](https://blogs.bing.com/webmaster/October-2024/Bing-Webmaster-Tools-Extends-Search-Performance-Data-to-16-Months)
@@ -533,7 +533,7 @@ Given no column, to keep the table readable.
 [^263]: **Skald, two-step sign-in**: A code from any authenticator app, with one-time recovery codes; an owner can require it. With accounts switched on. [Skald accounts](ACCOUNTS.md)
 [^264]: **Skald, audit log of who changed what**: Sign-ins, invites, roles, tokens, settings; never a password, token or address; CSV export. With accounts switched on. [Skald accounts](ACCOUNTS.md); [Skald settings](SETTINGS.md)
 [^265]: **Skald, conversions with or without name and email**: Addresses, user agents, phones and form answers are taken out before anything is kept. Since 2.4.0 a site keeps the lead's name and email by default (identity full), or none (identity anonymous); an install upgraded from before 2.4.0 keeps none until it is turned on. [Skald integrations](INTEGRATIONS.md)
-[^266]: **Skald, retention windows set in the dashboard**: Detail days, journeys, the returning-visitor window, events and backups. A shorter window says what it will remove, needs the site's name typed, and removes nothing before the next daily run. Totals are kept for good. With accounts switched on. [Skald settings](SETTINGS.md)
+[^266]: **Skald, retention windows set in the dashboard**: Detail days, journeys, the returning-visitor window, events, visits with addresses and backups. A shorter window says what it will remove, needs the site's name typed, and removes nothing before the next daily run. Totals are kept for good. With accounts switched on. [Skald settings](SETTINGS.md)
 [^267]: **Skald, ai agents can query it**: Fourteen read-only tools (find_person only with the read_private scope) over the same files the dashboard reads; visits called an upper bound on people, withheld days named. A token with the mcp scope, or stdio on the server. Off by default. [Skald MCP server](MCP.md)
 [^268]: **Skald, hosted service with sign-up and billing**: Sign-up with a mailed link, plans and limits, Stripe billing. Built and tested, off by default; Skald is not sold as a service today. [Skald as a service](SAAS.md)
 [^269]: **Skald, engagement by source and device**: Pages per visit, the share of one-page visits and the median visit length, for people's visits by source type and by device; counted a second time by its own audit. [Skald DATA-CONTRACT](../DATA-CONTRACT.md)

@@ -21,9 +21,10 @@ admins of the site's organisation, and an admin who is not an install admin
 sees only the entries added on their own sites' pages.
 
 The sites list (/traffic/sites.json, /traffic/<site>/data/sites.json) and
-the switcher page (/traffic/, /traffic/index.html) are answered here,
-filtered to the caller's organisations, so one organisation never sees
-another's site names. nginx proxies those paths to the helper in sessions
+the site picker (/traffic/, /traffic/index.html; site_picker.py) are answered
+here, filtered to the caller's organisations, so one organisation never sees
+another's site names; each site comes with its logo and today so far as they
+are at that moment. nginx proxies those paths to the helper in sessions
 mode (DEPLOY.md).
 """
 from __future__ import annotations
@@ -110,13 +111,21 @@ def is_listing(path: str) -> bool:
     return path in ROOT_INDEX or SITES_JSON.match(path) is not None
 
 
-def listing(h, out: Path | None, who: dict) -> None:
-    """sites.json or the switcher page, with only the caller's sites."""
+def listing(h, out: Path | None, who: dict, config=None, live_dir=None,
+            config_path=None) -> None:
+    """sites.json or the site picker, with only the caller's sites, each with
+    its logo and today so far as they are now (site_picker.py)."""
+    from . import site_picker
     path = h.path.split("?", 1)[0]
     mine = set(who["member_sites"])
     if path in ROOT_INDEX:
-        from .dashboard import render_index
-        page = render_index(_order(out, mine), datetime.now(timezone.utc))
+        known = {s.get("name"): s for s in _listed(out)}
+        sites = [known.get(n) or {"name": n, "slug": slug(n), "path": f"{slug(n)}/"}
+                 for n in _order(out, mine)]
+        sites = site_picker.enrich(sites, out, config, live_dir, config_path)
+        admin = [n for n in _order(out, set(who.get("admin_sites") or []))]
+        add = f"{slug(admin[0])}/#settings/sitesadmin" if admin else None
+        page = site_picker.render(sites, datetime.now(timezone.utc), who.get("email"), add)
         return _send(h, 200, page.encode("utf-8"), "text/html; charset=utf-8")
     current = SITES_JSON.match(path).group("site")
     file = (Path(out) / "sites.json" if current is None
@@ -127,19 +136,23 @@ def listing(h, out: Path | None, who: dict) -> None:
         body = None
     if not isinstance(body, dict):
         return h._json(404, {"ok": False, "error": "no such file"})
-    body["sites"] = [s for s in body.get("sites") or []
-                     if isinstance(s, dict) and s.get("name") in mine]
+    body["sites"] = site_picker.enrich(
+        [s for s in body.get("sites") or [] if isinstance(s, dict) and s.get("name") in mine],
+        out, config, live_dir, config_path)
     data = (json.dumps(body, separators=(",", ":")) + "\n").encode()
     return _send(h, 200, data, "application/json; charset=utf-8")
 
 
+def _listed(out: Path | None) -> list[dict]:
+    """The install's sites.json entries (every site), or []."""
+    try:
+        got = json.loads((Path(out) / "sites.json").read_text()).get("sites") or []
+    except (OSError, ValueError, TypeError, AttributeError):
+        return []
+    return [s for s in got if isinstance(s, dict) and s.get("name")]
+
+
 def _order(out: Path | None, mine: set[str]) -> list[str]:
     """The caller's sites in the order of the install's sites.json."""
-    order = []
-    try:
-        order = [s.get("name") for s in json.loads((Path(out) / "sites.json").read_text())
-                 .get("sites") or [] if isinstance(s, dict)]
-    except (OSError, ValueError, TypeError, AttributeError):
-        pass
-    listed = [n for n in order if n in mine]
+    listed = [s["name"] for s in _listed(out) if s["name"] in mine]
     return listed + sorted(mine - set(listed))

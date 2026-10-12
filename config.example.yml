@@ -150,8 +150,9 @@ dashboard:
   # Fetch small icons of referring sites into data/favicons/ (from each site
   # itself, never a favicon service; 10 new hosts per live run at most).
   favicons: false
-  # Directory the static dashboard is written to: <out>/index.html lists the
-  # sites, <out>/<site>/index.html is each one. Serve it behind basic auth.
+  # Directory the dashboard is written to: <out>/index.html lists the sites,
+  # <out>/<site>/index.html is each one. Serve it behind basic auth or
+  # sessions mode (access: below, DEPLOY.md).
   out: /var/www/skald
   # Where readers open it. Linked from the mail when set; leave empty for none.
   url: https://stats.example.com/example.com/
@@ -195,7 +196,7 @@ mail:
   # brand's own, "[<NAME>]" (the repository's NAME file, brand.py).
   subject_prefix: "[traffic]"
   # The sender's display name. Leave it out to show the brand's NAME.
-  # from_name: Acme traffic
+  # from_name: Example traffic
   # Attach the week's HTML report (skald report) to the weekly mail.
   weekly_report_attachment: false
 
@@ -330,7 +331,8 @@ alerts:
 # Accounts instead of basic auth (docs/ACCOUNTS.md, DEPLOY.md "Sessions
 # mode"): mode sessions, base_url for the links in mails (never taken from
 # the request; unset: dashboard.base_url, then dashboard.url's scheme and
-# host; `skald accounts --base-url` overrides it), accounts (default
+# host; `--base-url` on `skald accounts init`, `member invite` and
+# `account reset-link` overrides it), accounts (default
 # accounts.sqlite beside the history).
 # trust_proxy_ip: believe nginx's X-Real-IP on the helper's 127.0.0.1
 # connection (default true); set false when other local users could reach
@@ -353,11 +355,12 @@ alerts:
 # key under settings.locked to keep this file's value: the page then shows it
 # read-only, with the reason. Keys: report.retention_days, report.journey_days,
 # visitors.repeat_days, beacon.keep_days, privacy.keep_ips, privacy.keep_days,
-# conversions.identity, backup.daily, backup.weekly,
+# conversions.identity, beacon.goals, backup.daily, backup.weekly,
 # mail.daily, mail.weekly, mail.to, mail.from_name, mail.smtp.host,
 # mail.smtp.port, mail.smtp.security, mail.smtp.user, mail.smtp.password,
 # pagespeed.api_key, sites.hosts, sites.views, sites.timezone, sites.log_dir,
-# sites.log_base, security.require_totp, security.session_days.
+# sites.log_base, hooks.calendly.event_types, hooks.calcom.event_types,
+# security.require_totp, security.session_days.
 # settings:
 #   locked: [report.retention_days, mail.smtp.host]
 #
@@ -428,7 +431,8 @@ alerts:
 # site's kept visits at the next daily run. Unset, keep_ips is true on a new
 # install and false on an install upgraded from before 2.4.0 (its history says
 # so), so an upgrade never starts keeping addresses by itself. Turn it on only
-# when the site's privacy notice says so. Docker: SKALD_KEEP_IPS=1 or 0.
+# when the site's privacy notice says so. Docker: SKALD_KEEP_IPS=1 or 0, and
+# SKALD_IDENTITY=full or anonymous for conversions.identity.
 # privacy:
 #   keep_ips: true
 #   keep_days: 395

@@ -170,7 +170,10 @@ def state_dir(base: Path, site: str) -> Path:
 
 
 def describe(configs: list[dict], history) -> list[dict]:
-    """sites.json's list: every site, with its views and the days stored."""
+    """sites.json's list: every site, with its views, the days stored and
+    its logo (site_logos.py; the files beside the history)."""
+    from . import site_logos
+    base = Path(history.path).parent if getattr(history, "path", None) else None
     out = []
     for config in configs:
         name = site_name(config)
@@ -185,15 +188,19 @@ def describe(configs: list[dict], history) -> list[dict]:
                     "views": [{"slug": v.slug, "name": v.name} for v in views],
                     "first_day": first.isoformat() if first else None, "last_day": last,
                     # A dashboard site with no day stored yet (waiting()).
-                    "waiting": bool(config.get("_dashboard_site")) and first is None})
+                    "waiting": bool(config.get("_dashboard_site")) and first is None,
+                    "logo": site_logos.entry(config, name, base)})
     return out
 
 
 def write_sites(out: Path, sites: list[dict], live_names: set[str]) -> list[Path]:
-    """sites.json at the dashboard's root and in each site's data folder."""
+    """sites.json at the dashboard's root and in each site's data folder,
+    each site with today so far from the files beside it (site_picker.py)."""
+    from .site_picker import today
     written = []
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    listed = [{**s, "live": s["name"] in live_names} for s in sites]
+    listed = [{**s, "live": s["name"] in live_names, "today": today(out, s["name"])}
+              for s in sites]
     for current in [None] + [s["name"] for s in sites]:
         body = {"schema_version": 1, "generated_at": now, "sites": listed, "current": current}
         path = (Path(out) / "sites.json" if current is None

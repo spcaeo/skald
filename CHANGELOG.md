@@ -4,6 +4,31 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.6.1 (2026-10-12)
+
+### Fixed
+
+- **The site switcher was cut off** on the right with two or more sites (the check mark and "N today" hidden at the menu's edge). Long names now end with "…". A browser check opens the switcher with two sites.
+
+## 2.6.0 (2026-10-12)
+
+Each site's own logo, everywhere you pick or switch a site.
+
+### Added
+
+- **Site logos** on the site picker, in the menu, the site switcher and the browser tab (the
+  site's icon with a small Skald badge). Taken from the site itself (its app icon, then its
+  favicon; only from the site's own hosts, never an outside icon service; checked weekly),
+  uploaded (PNG, ICO or a safe SVG, square, 64 px or more; admins and owners), or a letter on a
+  colour, which is also the fallback. Settings > Sites > Logo; `ti.py logo --check`.
+- **Choose a site** after sign-in: a card per site with its logo, a Live dot and today's
+  visitors, leads and demos booked.
+
+### Fixed
+
+- The site switcher never loaded the list of sites, so a second site never appeared in it.
+- **Nothing pruned the conversions file.** Conversions past `conversions.retention_days`, journeys past `journeys.vid_days`, delivery rows past 90 days and old spool files stayed for good; `conversions prune` ran only by hand. The daily run now prunes them.
+
 ## 2.5.2 (2026-10-12)
 
 ### Fixed

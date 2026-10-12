@@ -16,10 +16,12 @@ database"), and the page's script tag.
 | `contact` | forms: the page's `form_*` / `contact_submit`, Typeform, HubSpot contacts and workflows, the lead DB's `contact` |
 | `signup`, `waitlist` | the page's sign-up and early-access events, the lead DB |
 | `deal` | HubSpot deals (`won` when one moves to closedwon) |
+| `call`, `email`, `cta` | the page's `tel_click`, `mailto_click` and `cta_click` (visitor IDs on) |
 
 A `lead` or `json` hook may name any short action; the older names
-`booking`, `meeting`, `demo_booked` are read as `demo`, `checkout` and
-`payment` as `paid`, `form` as `contact`. The conversions file (schema 2)
+`booking`, `meeting`, `demo_booked`, `call_booked` are read as `demo`,
+`checkout` and `payment` as `paid`, `form` and `contact_form` as `contact`,
+`sign_up` as `signup` (`conversions.ALIASES`). The conversions file (schema 2)
 renamed its existing rows the same way when it was upgraded, keeping a copy
 of the old file beside it (`conversions.sqlite.v1.bak`).
 
@@ -204,7 +206,7 @@ lead there also becomes a conversion, with no change to the website
 | `first_touch`, `last_touch` | source (last touch), first source, campaign, landing page, the first touch's time |
 | `visits` | visits before, when present |
 | `ip_country` | country, only when it holds two letters |
-| `session_id` | the visitor ID, when it has the shape of one (8 to 80 letters, digits, `_.:-`) |
+| `session_id` | the visitor ID, when it has the shape of one (8 to 80 letters, digits, `_.:-`) and the site has visitor IDs on (`beacon.visitor_ids`); off, it is left out |
 
 The file is opened read-only and only those columns are read; names and
 emails only when the site's `conversions.identity` is `full` (the default
@@ -305,10 +307,11 @@ bot rules. The how-to: docs/help/leads-from-your-backend.md.
 | 200 | taken: `{"ok":true,"recorded":1,"duplicates":0}`; a repeat of the same event is a duplicate and changes nothing; an event Skald does not count is taken and ignored |
 | 400 | the body is not JSON, or not the tool's event (`lead`: a missing `external_ref` or `action`, an unknown `stage`, a time that is not a time, an event more than a day ahead) |
 | 401 | the signature does not match, or its time is more than 5 minutes off. Failed attempts are written once a minute per hook, as a count |
-| 404 | unknown site or tool, or no secret set |
+| 404 | unknown site or tool, no secret set, or (saas) a site still waiting for its domain to be verified |
+| 405 | not a POST (nginx refuses it first) |
 | 411 / 413 | no length / a body over 64 KiB |
 | 429 | over `hooks.per_minute` (default 60) verified deliveries per site and tool, burst `hooks.burst` (30); or a sender address with too many failed signatures (`hooks.preauth_per_minute`, default 30, burst `hooks.preauth_burst`, 10) |
-| 500 | not kept (disk or database); the tool should send again |
+| 500 | not kept (disk or database); the tool should send again. Also when `secrets.json` can be read by others (it must be 0600) |
 
 Every answer for a known hook is a row in the delivery log (what happened,
 never the body). The signature is checked on the raw bytes before the body
@@ -323,7 +326,7 @@ conversion is kept once per (site, tool, external ref, stage).
 Cal.com and Typeform sign no timestamp, so a captured body could be sent
 again later. Skald keeps a SHA-256 of each accepted body and its event id
 (table `hook_replays`, 30 days, never the body) and answers a repeat with
-200 and outcome `replay`, neither spooled nor kept. `forget` leaves these
+200 (`"duplicates":1`), logged as `replay`, neither spooled nor kept. `forget` leaves these
 hashes, so a replay cannot bring back a forgotten conversion.
 
 ## Skald's signature (`lead` and `json`)
@@ -538,14 +541,17 @@ the install. Code: `skald/integrations_api.py`, page
   each one's last 50 deliveries.
 
 Every change is in the audit log (Settings > Audit log), never a secret.
+With saas on, an organisation whose plan is locked (payment overdue) can read
+the page but not change it.
 nginx sends `<page>/integrations` and `integrations/*` to the helper
-(DEPLOY.md, the helper routes; `integrations/hooks/paste` and
-`integrations/hooks/remove` fit the existing `integrations(?:/[a-z]+(?:/[a-z]+)?)?`).
+(DEPLOY.md, the helper routes; `integrations/hooks/paste`, `/remove` and
+`/types` fit the existing `integrations(?:/[a-z]+(?:/[a-z]+)?)?`).
 
 ## Outgoing webhooks
 
 Skald can tell your CRM, Zapier, Make or Slack what happened. Add an
-`https://` address and the events it wants on the Integrations page:
+`https://` address and the events it wants on the Integrations page (at
+most 10 webhooks a site):
 
 | event | when |
 | --- | --- |
@@ -639,13 +645,16 @@ location ^~ /traffic-hooks/ {
     limit_req_status 429;
     access_log off;
     proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_read_timeout 10s;
     proxy_pass http://127.0.0.1:8766;
 }
 ```
 
-Run `nginx -t` before every reload.
+`X-Real-IP` matters: without it every failed signature counts against one
+sender, nginx's own address. DEPLOY.md and `docker/nginx.conf` have the full
+blocks. Run `nginx -t` before every reload.
 
 ## What is kept, and privacy
 
@@ -658,7 +667,8 @@ Run `nginx -t` before every reload.
 | rows a lead sync took away, whole, with when and why | same file, `removed` | as conversions |
 | each visit with its IP address and user agent (2.4.0, `privacy.keep_ips`) | same file, `visits`, `visit_days` | `privacy.keep_days` (395) |
 | delivery log: time, outcome, HTTP status, error, external ref; never a body | same file, `deliveries` | 90 days |
-| the verified bodies (and, on a `lead` or `json` line with a time without an offset, the zone it was read in) | `hooks/<day>.jsonl` beside the history (`hooks.spool`), 0640 | 400 days |
+| hashes of Cal.com and Typeform bodies (replays) | same file, `hook_replays` | 30 days |
+| the verified bodies (and, on a `lead` or `json` line with a time without an offset, the zone it was read in) | `hooks/<day>.jsonl` beside the history (`hooks.spool`), 0640 | `conversions.retention_days` (400) |
 | hook secrets | `secrets.json` beside the history (`hooks.secrets`), 0600, or env variables | until replaced |
 
 - **Only what counts.** Before a body is spooled, Skald keeps only the
@@ -672,7 +682,7 @@ Run `nginx -t` before every reload.
   sets it (Settings > Data retention > People, `config.yml`, or Docker
   `SKALD_IDENTITY=full`): its privacy notice may still promise otherwise
   (`people/policy.py`). Change the notice first; some places need consent
-  (`beacon.consent: required`).
+  (the script tag's `data-consent="required"`, above).
 - **Addresses.** The receiver reads the caller's address only to limit
   failed signatures, in memory; it is never written. A site's own `lead`
   may pass the visitor's address once, for the country; it is dropped at
@@ -691,10 +701,16 @@ Run `nginx -t` before every reload.
   `--vid skv_...` or `--lead REF` (or `./bin/skald forget` with the same flags;
   try `--dry-run` first) deletes the conversions, the removed rows, the
   journeys of every visitor ID involved, the identity, the delivery rows and
-  the spool lines. `./bin/skald forget --ip` deletes the visits kept with an
-  address. `privacy.log` gets a line with a hash
-  prefix, never the value.
-- **Pruning:** `skald conversions prune` (add it to the daily cron).
+  the hook spool lines, and takes the visitor ID out of the beacon spool's
+  lines. `./bin/skald forget --ip` deletes the visits kept with an address.
+  `privacy.log` gets a line with a hash prefix, never the value.
+- **Pruning:** `skald conversions prune` applies the "kept" column
+  above (conversions, removed rows, journeys, identities, deliveries, replay
+  hashes, spool files). Nothing runs it by itself: not run-daily, not
+  install.sh's cron, not the Docker scheduler. Add a daily line for it to
+  `/etc/cron.d/skald` (Docker: the host's cron, `docker exec skald
+  skald conversions prune`). The kept visits with addresses
+  are pruned by run-daily on their own (`privacy.keep_days`).
 
 ## The second count
 

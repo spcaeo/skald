@@ -2,13 +2,13 @@
 
 What Skald counts, how the pages are laid out, and how to choose a period, filter, drill down, compare and export.
 
-To look around first, open the [live demo](https://spcaeo.github.io/skald/): the whole dashboard with 60 days of sample data for a made-up site. No sign-up. Saving and the settings pages need a running Skald, so in the demo they say so.
+To look around first, open the [live demo](https://spcaeo.github.io/skald/): the whole dashboard with two months of sample data for a made-up site. No sign-up. Saving and the settings pages need a running Skald, so in the demo they say so.
 
 ## New here?
 
 Four short guides take you from nothing to a working install:
 
-- [Docker: first install in 10 minutes](docker-first-install.md): run it, sign in, fill the history, check it with `skald doctor`.
+- [Docker: first install in 10 minutes](docker-first-install.md): run it, sign in, fill the history, check it with the doctor.
 - [Pick your road](pick-your-road.md): which way your leads and bookings should reach Skald, for your kind of site.
 - [Send leads from your backend in 5 minutes](leads-from-your-backend.md): the signed lead hook, with copy-paste examples.
 - [Demo bookings](demo-bookings.md): Calendly and Cal.com, embedded, linked or by webhook, and keeping only your own event types.
@@ -55,10 +55,10 @@ The sidebar groups the pages by what you came to find out.
 - **Live** shows today: people first, then machines, the latest visits, and today's leads and bookings as they arrive.
 - **Insights** lists what is working, what dropped, and what is new or gone, leads too.
 - **Compare** puts any two periods side by side, with their leads.
-
-When your site reports leads (a form, a booking), they show beside the visitors on Overview, Live, Sources, Pages, Locations, Insights and Compare, not only on Leads and Conversions. See [Leads on every page](leads-and-conversions.md#leads-on-every-page).
 - **Site health** shows open alerts, the data's own checks, page speed and broken links.
 - **Requests** lists the last few hours of the request log, line by line.
+
+When your site reports leads (a form, a booking), they show beside the visitors on Overview, Live, Sources, Pages, Locations, Insights and Compare, not only on Leads and Conversions. See [Leads on every page](leads-and-conversions.md#leads-on-every-page).
 
 **Settings** opens from the gear at the foot of the sidebar. It has its own menu. See [Settings and retention](settings-and-retention.md).
 
@@ -66,7 +66,7 @@ The round **You** button beside the gear holds your own choices:
 
 - **Theme**: System, Light or Dark.
 - **Time zone**: show times in your own zone, the site's zone, or UTC.
-- **Your account**, **All settings**, **Keyboard shortcuts**, **What's new**, **About Skald** and **Plain page** (every figure, without scripts).
+- **Your account**, **All settings**, **Help**, **Keyboard shortcuts**, **What's new**, **About Skald** and **Plain page** (every figure, without scripts).
 - **Sign out**.
 
 On a phone, the menu opens from the menu button and the bottom bar.
@@ -114,6 +114,10 @@ If your site has several page groups (for example, the blog apart from the produ
 ### Saved views
 
 Save the period, page group and filters on screen under a name, and come back to them later. Saved views are in the top bar, and in the **More** menu on a narrow screen. The address bar also keeps every choice, so you can share a link.
+
+### Find a person
+
+Owners and admins also have a **Find a person** box in the top bar (a search icon on a narrower screen, and in **Ctrl K**). Type an IP address, an email, a lead or a visitor ID to see that person's visits, leads and conversions. Each search is written to the audit log. See [Privacy](privacy.md).
 
 ## Drill-down
 

@@ -158,16 +158,16 @@ The cost: about 5% on the 1x history file, 2% at 10x.
   window makes it fail.
 - On the 1x and 10x installs, every data file, every CSV and HTML page, compare over five
   ranges, three views and five filters, and the story of every page were written before and
-  after the change and compared: identical. One difference showed up at 10x and is not from
-  this change: `insights.json` orders tied insights by Python's string hashing, which changes
-  per process (`insights.py`, the set in its ranking). With `PYTHONHASHSEED` fixed, the old
-  and new code give identical files.
+  after the change and compared: identical. One difference showed up at 10x and was not from
+  this change: `insights.json` ordered tied insights by Python's string hashing, which changes
+  per process. With `PYTHONHASHSEED` fixed, the old and new code gave identical files. The
+  same release fixed that order (below).
 - The full test suite passes.
 
 ## Left for later
 
-- `insights.json` order of ties depends on the process (above). A stable sort key would fix
-  it; it is a change of output, so not done here.
+- Done in the same release (2.2.0): tied insights are now ordered by their title, so
+  `insights.json` comes out the same on every run (`insights.py`).
 - `live` at 10x is still 6 s for two sites; most of it is now reading today's log
   (`window.analyse_window_views`) and the CSV exports (`dashboard.write_exports`, 30-day
   tables recomputed every 2 minutes). Caching the CSVs between live runs is the next step.

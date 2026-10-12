@@ -416,3 +416,30 @@ td .confirm { flex-wrap: wrap; justify-content: flex-end; }
 .update-banner.bad svg { color: var(--bad); }
 .update-close { flex: none; border: 0; background: none; color: var(--ink-3); font-size: 18px; line-height: 1; padding: 2px 6px; cursor: pointer; border-radius: 6px; }
 .update-close:hover { color: var(--ink); background: var(--sunk, transparent); }
+
+/* Settings > Sites > Logo (2.6.0, tabs/sitelogo.js): the three sizes, what the
+   site gave, the three choices as bordered rows, the four letter colours */
+.lg-top { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin: 14px 0 18px; }
+.lg-sizes { display: flex; align-items: flex-end; gap: 14px; }
+.lg-sizes > span { display: block; line-height: 0; }
+.lg-found { display: grid; gap: 2px; min-width: 0; flex: 1 1 260px; }
+.lg-found b { font-weight: 650; font-size: 14.5px; }
+.lg-found small { color: var(--ink-3); font-size: 13px; overflow-wrap: anywhere; }
+.lg-set { border: 0; margin: 0 0 16px; padding: 0; display: grid; gap: 10px; min-width: 0; }
+.lg-set legend { padding: 0; margin-bottom: 8px; font-weight: 650; font-size: 14.5px; }
+.lg-choice { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 10px; cursor: pointer; }
+.lg-choice.on { border: 1.5px solid var(--ink); padding: 11.5px 13.5px; }
+.lg-choice input[type="radio"] { flex: none; width: 16px; height: 16px; margin: 3px 0 0; accent-color: var(--ink); }
+.lg-choice > span { display: grid; gap: 4px; min-width: 0; flex: 1; }
+.lg-choice > .lg-row, .lg-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.lg-choice b { font-weight: 600; }
+.lg-choice small { font-size: 13px; color: var(--ink-2); }
+.lg-choice > .lg-row > span:first-child { display: grid; gap: 2px; }
+.lg-file { color: var(--ink-3) !important; }
+.lg-colors { display: flex; gap: 8px; }
+.lg-sw { all: unset; cursor: pointer; padding: 2px; border: 2px solid transparent; border-radius: 12px; line-height: 0; }
+.lg-sw[aria-checked="true"] { border-color: var(--ink); }
+.lg-sw:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.lg-sw[disabled] { cursor: default; opacity: .7; }
+.logo-card .acts { display: flex; gap: 10px; flex-wrap: wrap; margin: 0; }
+.logo-card .acts .btn { min-height: 40px; padding: 0 16px; }

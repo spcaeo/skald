@@ -27,8 +27,7 @@ import { loadBuild, buildLine, toolName, newerBuild, releaseLine, BUILD } from "
 import { searchBox, openSearch, mayFind, SEARCH_HINT } from "./tabs/person.js";
 import { info, quietKpis } from "./tabs/tiles.js";
 import { PRIVACY } from "./tabs/about.js";
-import { MARK } from "./mark.js";
-import { buildNav, mark, badge, brand, railFoot, openDrawer, trailOf } from "./nav.js";
+import { buildNav, mark, badge, brand, siteChip, railFoot, openDrawer, trailOf } from "./nav.js";
 import { ME, loadMe, sessions, signOut } from "./access.js";
 import { planBanner } from "./tabs/billing.js";
 import { updateBanner } from "./updates.js";
@@ -192,6 +191,7 @@ const actions = () => [
 ];
 
 const NO_DATA = new Set(["about", "help", "settings/api", "settings/users", "settings/team", "settings/account", "settings/crawlers", ...S.ACCOUNT_TABS]);
+let chip = null;            // the phone's site button (nav.js siteChip), made once
 function drawBar(s) {
   const name = S.TABS.find(([k]) => k === s.tab)[1];
   // Left: the menu button (phones), the section and the drill-down trail.
@@ -199,8 +199,10 @@ function drawBar(s) {
   const last = chain[chain.length - 1];
   // The trail: the group or the parent (nav.js trailOf), the page, then the drill-down's last step.
   const trail = trailOf(s.tab);
+  chip = chip || siteChip();
   const title = h("div", { class: "tb-title" },
     h("button", { type: "button", class: "btn icon menu-btn", id: "menu-btn", html: MENU, "aria-label": "Open the menu", "aria-expanded": "false", "aria-controls": "rail", onclick: openDrawer }),
+    chip,
     h("nav", { class: "trail", "aria-label": "You are here" }, h("ol", null,
       trail.slice(0, -1).map(([words, key, cls]) => h("li", { class: cls || null }, key
         ? h("button", { type: "button", class: "crumb", onclick: () => S.set({ tab: key }) }, words) : h("span", { class: "crumb" }, words))),
@@ -412,7 +414,7 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
   REGISTRY.length = 0;
   setContext(model, s);
   const name = S.TABS.find(([k]) => k === s.tab)[1];
-  document.title = `${toolName()} · ${model.site} · ${name}`;
+  document.title = `${model.site} · ${name} — ${toolName()}`;
   const broken = model.failed?.[TAB_FILE[s.tab]];
   const body = broken ? notBuilt(s.tab, name, TAB_FILE[s.tab], broken)
     : DEMO.on && S.inSettings(s.tab) ? demoState(name) : TAB_RENDER[s.tab](model, s, { first: firstPaint, changed });
@@ -447,17 +449,9 @@ async function boot() {
   } catch (e) {
     return fail(e);
   }
-  // The sidebar: the mark, the tool's name (NAME, through build.json), the site switcher; its foot.
-  document.getElementById("brand-mark").innerHTML = MARK;
-  // The mark and the name open About Skald.
-  for (const id of ["brand-mark", "brand-name"]) {
-    const el = document.getElementById(id);
-    el.setAttribute("role", "link"); el.tabIndex = id === "brand-name" ? 0 : -1; el.title = "About Skald";
-    el.addEventListener("click", () => S.set({ tab: "about" }));
-    el.addEventListener("keydown", (e) => { if (e.key === "Enter") S.set({ tab: "about" }); });
-  }
-  document.getElementById("brand-name").textContent = toolName();
-  brand(model.site, model.x.sites);
+  // The sidebar: the site button (its logo, its name, the tool's name from build.json), which
+  // opens the site switcher; the tab's icon becomes the site's (nav.js brand, logo.js). Its foot below.
+  brand(model.site, model.x.sites, toolName());
   await loadMe(model);
   setZone(s.tz, model.tz);
   // The sidebar's foot: Settings opens the settings pages (their own menu); the round

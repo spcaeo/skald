@@ -2,15 +2,16 @@
 
 What turns skald from an honest daily report into an analytics
 tool a business can run on. Everything here was **beyond the release of
-2026-10-07**; the tables "Release 2" and "2026-10-11" below say what has been
-built since. EDGE-CASES.md has the
+2026-10-07**; the tables "Release 2", "2.0.0" and "2.1.0 to 2.5.0" below say what
+has been built since. EDGE-CASES.md has the
 evidence (entry ids like A5 or H12 point there).
 
-Written 2026-10-07.
+Written 2026-10-07. State brought up to 2.5.0 on 2026-10-12. The P0, P1 and P2
+sections further down are the plan as written then; the tables say what of it is done.
 
 ## Where it stands
 
-| Already shipped | In the current release (being built now) |
+| Shipped by 2026-10-07 | Shipped next, in 1.0.0 (2026-10-08) |
 | --- | --- |
 | Five groups that add up to the log, or nothing is sent | Per-visit journeys (7 days) |
 | Readers headline; answer-engine tiers; citations per visit | Hourly charts, day x hour heatmap |
@@ -53,9 +54,11 @@ stored beyond what the item states; standard library on the server.
 | P1-7 Network and burst signals | Flags done (hosting networks, fan-out, bare Mozilla); nothing is moved. |
 | P2-9 "Shared in chat" | Done as link previews by app in `bots.json`. |
 
-## 2026-10-11: what more of this list is built
+## 2.0.0 (2026-10-11): what more of this list is built
 
-Built and tested on 2026-10-11. Each new part is off until an install switches it on.
+Built on 2026-10-11 and released as 2.0.0 (live on example.com since release 165;
+HANDOVER/00-START-HERE.md says what runs now). Each new part is off until an install
+switches it on. Designs: [plans/](plans/).
 
 | Item | State |
 | --- | --- |
@@ -68,23 +71,41 @@ Built and tested on 2026-10-11. Each new part is off until an install switches i
 | P1-10 API hardening | Organisation tokens with scopes (`read`, `read_private`, `mcp`, `ingest`). |
 | P2-4 Multiple sites | Sites added from the dashboard, owned by an organisation; logs shipped from another server (docs/INGEST.md). |
 | P2-6 Lead journey | Built the privacy way: an anonymous visitor ID per browser (off by default) joins page views to a conversion; never a name unless the site turns identity on, never matched by address. |
+| P1-9 Tests and CI | Done: GitHub Actions on every push (Python 3.11 to 3.14, the JS checks); 1,826 tests at 2.5.0. |
 | Not on this list | An MCP server for AI agents (docs/MCP.md); settings in the dashboard (docs/SETTINGS.md); a hosted layer with sign-up, plans and Stripe billing, off (docs/SAAS.md). |
+
+## 2.1.0 to 2.5.0 (2026-10-12): what more is built
+
+All released and live on example.com (public/CHANGELOG.md has each version).
+
+| Item | State |
+| --- | --- |
+| P0-3 Alerts | AI alerts (2.2.0): an assistant starts or stops reading a page, likely-AI visits jump or vanish; the failure mail, too. Still open: an outside uptime check. |
+| P0-6 Goals and conversions | Leads and demos booked on Overview, Live, Sources, Pages, Locations, Insights and Compare, each counted twice (2.5.0). |
+| P0-7 Privacy | Keeping IPs and lead emails is a setting (2.4.0): `privacy.keep_ips`, `privacy.keep_days` (395), `conversions.identity`; on for new installs, off for upgraded ones until turned on (docs/SETTINGS.md). Key rotation still not done. |
+| P1-2 Free period comparison | Done since 1.0.0 (compare any two ranges); 2.5.0 adds leads and demos to it. |
+| P1-5 Scheduled reports | Partly: a printable report of any tab (print or save as PDF), a CSV zip, `skald report`. No scheduled monthly mail. |
+| P1-11 Saved views | Done (saved filter sets, in the command palette). |
+| P2-1 Performance | Partly (2.2.0): new indexes, live run and data files about a third faster; `tools/bench.py`, docs/PERFORMANCE.md. Incremental reading not built. |
+| P2-6 Lead journey | Built (2.4.0): with `privacy.keep_ips` on, each visit is kept with its address, and the person search (admins, audit-logged) links visits, leads and conversions. |
+| P2-10 AI crawler policy view | Done (allow, block, block training only, with robots.txt beside each crawler); plus a suggested llms.txt (2.2.0). |
+| Not on this list | Likely sent by an AI assistant, an estimate kept apart (2.1.0); the Cloudflare Worker and Vercel/Netlify drains; safe upgrades and update notices (2.2.0, docs/UPGRADING.md); flags beside countries and a new visit per outside source (2.3.0); `skald doctor` (2.4.0). |
 
 ## Recommended next (top 10)
 
-In order. The first five make the numbers we already show trustworthy; the
-next five make them useful for growth.
+In order, as written on 2026-10-07. The first five make the numbers we already show
+trustworthy; the next five make them useful for growth. The state at 2.5.0 is in brackets.
 
-1. **P0-1 Clean the people number** - the site's own team and AI agents, plus a dozen one-line fixes found in a real log.
-2. **P0-2 Verified bots** - reverse DNS and published IP ranges, so "GPTBot" means GPTBot.
-3. **P0-3 Alerts by email** - site down (checked from outside), errors, broken-link surge, logging stopped, crawl burst, new AI assistant.
-4. **P0-5 Data-quality monitor and log format** - request id, prefetch and fetch headers; duplicates, gaps, skew.
-5. **P0-4 Off-server backups and a tested restore.**
-6. **P0-6 Goals and conversions from leads** - leads by first-touch source and AI assistant beside readers by source.
-7. **P0-7 Privacy rules for what this release stores** - key rotation, retention, deletion requests.
-8. **P1-3 Annotations and deploy markers** - every deploy and rule change on every chart.
-9. **P1-7 Network and burst signals** - data-centre browsers and many-address crawlers.
-10. **P1-1 Funnel** - landing to pricing to form to lead.
+1. **P0-1 Clean the people number** - the site's own team and AI agents, plus a dozen one-line fixes found in a real log. (Partly; the open fixes are listed under Release 2.)
+2. **P0-2 Verified bots** - reverse DNS and published IP ranges, so "GPTBot" means GPTBot. (Done; Baidu not verified yet.)
+3. **P0-3 Alerts by email** - site down (checked from outside), errors, broken-link surge, logging stopped, crawl burst, new AI assistant. (Done, except the outside check.)
+4. **P0-5 Data-quality monitor and log format** - request id, prefetch and fetch headers; duplicates, gaps, skew. (Done; prefetch headers not added.)
+5. **P0-4 Off-server backups and a tested restore.** (Restore-tested backups done, on the same server; off-server is the owner's decision.)
+6. **P0-6 Goals and conversions from leads** - leads by first-touch source and AI assistant beside readers by source. (Done.)
+7. **P0-7 Privacy rules for what this release stores** - key rotation, retention, deletion requests. (Done, except key rotation.)
+8. **P1-3 Annotations and deploy markers** - every deploy and rule change on every chart. (Done.)
+9. **P1-7 Network and burst signals** - data-centre browsers and many-address crawlers. (Flags done; nothing is moved.)
+10. **P1-1 Funnel** - landing to pricing to form to lead. (Done.)
 
 ---
 

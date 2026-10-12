@@ -30,13 +30,15 @@ others: [WHY-WE-BUILT-SKALD.md](WHY-WE-BUILT-SKALD.md) and [COMPARISON.md](COMPA
 The log is still the main record. Since 2026-10-11 Skald can also hear what the site's own tools
 report: a booking in Calendly or Cal.com, a payment in Stripe, a form in Typeform or HubSpot. Every
 figure is still counted twice, and a day that does not add up is withheld. Since 2.4.0 (the owner's
-decision, 2026-10-12) Skald keeps each visit with its IP address and leads' emails, so a person can
-be followed across days, and hides nothing: spam, test, cancelled and removed rows are listed. That
-is a switch: an install upgraded from before 2.4.0 keeps neither until it is turned on. People sign in with their own accounts, and AI agents can ask it questions through
-MCP, read-only. Since 2026-10-12 it also estimates which "Direct" visits and leads an AI assistant
+decision, 2026-10-12) Skald can keep each visit with its IP address and leads' emails, so a person
+can be followed across days, and it hides nothing: spam, test, cancelled and removed rows are
+listed. Keeping IPs and emails is a setting (`privacy.keep_ips`, `conversions.identity`): on for a
+new install, off on an install upgraded from before 2.4.0 until it is turned on. Since 2.5.0 leads
+and demo bookings show on every page where they help. People sign in with their own accounts, and
+AI agents can ask it questions through MCP, read-only. Since 2026-10-12 it also estimates which "Direct" visits and leads an AI assistant
 very likely sent (it fetched the page minutes before), labelled as an estimate, and it takes logs
-from Vercel and Netlify drains and a Cloudflare Worker for cached pages. Each part is off until an
-install switches it on. The list, part by part:
+from Vercel and Netlify drains and a Cloudflare Worker for cached pages. Most new parts are off
+until an install switches them on. The list, part by part:
 [WHY-WE-BUILT-SKALD.md](WHY-WE-BUILT-SKALD.md), "What it does now". How to use each part, in plain
 words: the Help pages, starting with [getting started](help/getting-started.md).
 

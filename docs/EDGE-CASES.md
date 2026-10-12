@@ -16,6 +16,9 @@ deployed `report.py` run on today's file (15,827 requests). No address is
 copied here: an address is described by its network ("a data-centre
 address in Germany"), never written.
 
+The **Status** lines were rechecked against the code on 2026-10-12
+(version 2.5.0); the "Seen" figures are still those of 2026-10-07.
+
 The general rule behind every entry: **when in doubt, a request is not a
 person.** "Readers" must stay an upper bound that drifts down as we learn,
 never up.
@@ -42,7 +45,7 @@ never up.
 - **Detect:** robots/sitemap/ads.txt/security.txt fetch without rendering (exists, rule 8); no assets loaded per page read; no `_rsc` navigation; data-centre network (A15); many addresses one identity (A16); stale browser versions as a weak signal only; `Sec-Fetch-*` headers absent (needs log format, H12).
 - **Count:** bots. Never move a visit out of bots on a single weak signal; combine.
 - **Test:** fixture sessions for each signal alone (stays people) and combined (bots); the existing `test_a_scanner_sending_a_browser_user_agent_is_a_bot`.
-- **Status:** partly Handled (rule 8, readers headline). Network and fan-out signals: Gap, ROADMAP P1-7.
+- **Status:** partly Handled (rule 8, the "never rendered" rule, readers headline). Network, fan-out and bare-agent signals are flags on a people request (`hosting_network`, `fan_out`, `bare_mozilla`), never a move to bots on their own. Combining them: ROADMAP P1-7.
 
 ### A2. Verified search crawlers (reverse DNS)
 - **Seen:** Googlebot 605 requests from 28 addresses, GoogleOther 3,224, Google-InspectionTool 118, YandexBot 968 from 376 addresses. The top addresses reverse-resolve to `googlebot.com` and `yandex.com`, so these are genuine. No bingbot yet.
@@ -50,7 +53,7 @@ never up.
 - **Detect:** reverse DNS of the address must end in the vendor's domain (`googlebot.com`, `google.com`, `googleusercontent.com` for some Google fetchers, `search.msn.com`, `applebot.apple.com`, `yandex.ru/.com/.net`, `baidu.com/.jp`, `duckduckgo` uses a published list), then forward DNS of that name must return the same address. Google and Bing also publish JSON IP ranges; prefer those (no DNS at parse time).
 - **Count:** verified -> search engine. Claimed but failed -> bots, labelled "claims to be Googlebot". Unknown (lookup failed) -> keep the claim, mark "not verified".
 - **Test:** a spoofed Googlebot line from a non-Google address lands in bots; a lookup timeout does not change the group; cache hit test.
-- **Status:** Gap, ROADMAP P0-2. Cache results per address per day; never block parsing on DNS.
+- **Status:** Handled (`bot_verify.py`, `skald verify-bots`): the owners' published lists, reverse DNS for the rest, cached; a failed claim is filed in bots as "claims to be ...".
 
 ### A3. Verified AI crawlers (published IP ranges)
 - **Seen:** meta-externalagent 4,897 (no reverse DNS), ChatGPT-User 4 from addresses in Spain and the US (no reverse DNS), OAI-SearchBot 2, Claude-User 6 (ours, A6), Bytespider 62.
@@ -58,7 +61,7 @@ never up.
 - **Detect:** OpenAI publishes `gptbot.json`, `searchbot.json`, `chatgpt-user.json`; Perplexity publishes `perplexitybot.json` and `perplexity-user.json`; Meta's crawlers come from its own network (AS32934); Apple publishes Applebot ranges; Anthropic and others: name only. Fetch the lists daily, keep the last good copy, store the list's date with each day.
 - **Count:** in range -> answer engine, "verified". Out of range -> bots, "claims to be X". No published list -> answer engine, "not verifiable", shown as such.
 - **Test:** fixture with one in-range and one out-of-range GPTBot; list fetch failure keeps yesterday's list and says so.
-- **Status:** Gap, ROADMAP P0-2.
+- **Status:** Handled (`bot_verify.py`): OpenAI, Perplexity, Anthropic, Apple, Meta and DuckDuckGo lists among others; a list older than 7 days no longer says "spoofed".
 
 ### A4. New and renamed AI agents
 - **Seen:** `meta-webindexer` (53) and `NooksWebsiteResearchBot` (27) are filed under bots today; Meta's indexer may belong with the assistants. "Claude-User" now also carries the Claude Code product name.
@@ -66,7 +69,7 @@ never up.
 - **Detect:** a weekly "new names" list: user agents seen this week that were never seen before, with request counts; any agent containing `ai`, `gpt`, `llm`, `agent`, `assistant`, `-User`, `fetcher` that is not in a list.
 - **Count:** until classified, bots. Once added, `backfill --force` recounts what the logs still hold.
 - **Test:** an unknown "FooAI-User/1.0" lands in bots and appears in the "new names" list.
-- **Status:** Gap, ROADMAP P0-3 (new-assistant alert). Keep the name lists in one data file with a date and a source link per entry, so updating it is a one-line change.
+- **Status:** partly Handled: the `new_crawler` alert names an assistant, search crawler or AI-looking agent never seen before. Keep the name lists in one data file with a date and a source link per entry, so updating it is a one-line change.
 
 ### A5. Our own team, unlisted
 - **Seen:** one address in another country: 2,962 requests, 7 browser identities (Windows, Linux and Mac Chrome, Safari), 86% navigation payloads, 2,131 requests between 10:00 and 11:00 UTC, plus Claude Code fetches. Counted as people; that country is 19 of 143 readers today.
@@ -82,7 +85,7 @@ never up.
 - **Detect:** `claude-code/` in the agent; requests from a listed internal address; agent names of tools we run (Playwright, LibreCrawl, Lighthouse).
 - **Count:** ours, label "AI coding agent". Claude-User without `claude-code` stays "asked".
 - **Test:** the exact string above lands in ours; plain `Claude-User/1.0` stays answer engine, asked.
-- **Status:** Gap, ROADMAP P0-1 (one-line pattern plus test).
+- **Status:** Gap, ROADMAP P0-1. Today `claude-code/` is only marked "not verified" (`bot_verify.LOCAL_TOOL`); it stays in "asked" unless its address is listed as ours.
 
 ### A7. Link-preview unfurlers
 - **Seen:** facebookexternalhit 15, SkypeUriPreview 3.
@@ -105,7 +108,7 @@ never up.
 - **Detect:** `HeadlessChrome`, `Chrome-Lighthouse`, `Google-PageRenderer`, `Google-InspectionTool`, `PTST` (WebPageTest), `GTmetrix`.
 - **Count:** bots, or ours when we started them (from a listed address).
 - **Test:** `Chrome-Lighthouse` with full asset loads is not a reader.
-- **Status:** HeadlessChrome Handled; Lighthouse/PTST/GTmetrix tokens Gap (one-line, ROADMAP P0-1).
+- **Status:** Handled: HeadlessChrome, Chrome-Lighthouse, PTST, GTmetrix and Google-PageRenderer are in the bot list.
 
 ### A10. Google-InspectionTool and GoogleOther
 - **Seen:** InspectionTool 118 today (Search Console URL inspection, Rich Results Test - started by us); GoogleOther 3,224 (Google's general-purpose crawler, used for research and product work, possibly AI).
@@ -120,7 +123,7 @@ never up.
 - **Detect:** an agent with no platform and no engine (`Mozilla/5.0` with nothing after it, or shorter than ~30 characters).
 - **Count:** bots.
 - **Test:** `Mozilla/5.0` asking for `/` is bots; a full Safari string is not.
-- **Status:** Gap, ROADMAP P0-1.
+- **Status:** partly Handled: flagged `bare_mozilla` on people; it moves to bots only by another rule (a probe, never rendered). Moving it outright: Gap, ROADMAP P0-1.
 
 ### A12. Empty agent, garbage agent
 - **Seen:** 6 empty agents.
@@ -141,7 +144,7 @@ never up.
 - **Detect:** the address's network (ASN) is a hosting provider (Hetzner, OVH, DigitalOcean, AWS, GCP, Azure, Linode, Contabo, Hostinger...). DB-IP Lite has a free ASN database next to the country one.
 - **Count:** bots, unless the visit renders (loads assets per page) - VPN users exit from data centres too. Show "data-centre browser" as its own line.
 - **Test:** hosting-network visit with no assets -> bots; hosting-network visit that renders -> people, flagged.
-- **Status:** Gap, ROADMAP P1-7.
+- **Status:** partly Handled: a people request from a hosting network is flagged `hosting_network`; one that never renders is already bots. The "data-centre browser" line: Gap, ROADMAP P1-7.
 
 ### A16. Distributed crawlers
 - **Seen:** the same Chrome identity from 49 addresses within 10 seconds (also 46, 43, 42 for other identities).
@@ -149,7 +152,7 @@ never up.
 - **Detect:** N addresses, one identical agent, within S seconds, each with one page and no assets. Deliberately not built yet (CLASSIFICATION.md "burst rule") because a link shared in a busy chat looks similar.
 - **Count:** flag first ("possible crawler burst"), show the count; only reclassify once a real fixture shows the rule never catches a shared link.
 - **Test:** fixture of a real burst and of a real chat share; the rule must separate them.
-- **Status:** Gap, ROADMAP P1-7.
+- **Status:** flagged, as planned: one agent from 10 addresses within 10 seconds is `fan_out`, never reclassified. ROADMAP P1-7.
 
 ---
 
@@ -199,7 +202,7 @@ never up.
 - **Wrong:** `.xsl`, `.pdf`, `.csv`, `.rss`, `.atom`, `.zip`, `.mp4` and others are not in `ASSET`, so a 200 for them is a "page".
 - **Count:** `.xsl` is an asset. PDFs are documents: count them separately as "downloads", not pages.
 - **Test:** `/sitemap.xsl` 200 is not a page view; `/guide.pdf` is a download.
-- **Status:** Gap, ROADMAP P0-1.
+- **Status:** Handled for page views: `.xsl`, `.pdf`, `.csv`, `.rss`, `.zip`, `.mp4` and the like are assets. A separate "downloads" count: Gap.
 
 ### B9. Next.js image optimiser
 - **Seen:** `/_next/image?url=...&amp;w=...` (HTML-escaped), 7 of them answered 400 on the apex host.
@@ -256,7 +259,7 @@ never up.
 - **Detect:** a per-site "legacy paths" list (this site was WordPress until 2026-10-06) that wins over the probe rule for `/wp-content/uploads/` only; `wp-admin`, `wp-login`, `xmlrpc` stay probes.
 - **Count:** legacy 404 (people or bots by the usual rules), shown in Broken links as "old site URL".
 - **Test:** `/wp-content/uploads/2025/09/x.png` with a browser agent and a Google Images referrer is not a probe when the site lists `/wp-content/uploads/` as legacy.
-- **Status:** Gap, ROADMAP P0-1 (config key), ties in with the website's legacy-URL redirects work.
+- **Status:** Handled: `site.legacy_paths` (for example `[/wp-content/uploads/]`) wins over the probe rule.
 
 ### C8. Old blog and feature URLs (404)
 - **Seen:** 426 404s, 321 distinct paths; top `/blog/best-virtual-receptionist-for-law-firms/` 22, many `/blog/...`, `/features/...`, `/industries/...` of the old site.
@@ -378,12 +381,12 @@ never up.
 - **Wrong:** a spike looks like success on a chart; a share-of-traffic figure for people collapses.
 - **Detect:** requests per minute per group against the trailing 14-day median for that hour; split by group so a crawler spike is not a people spike.
 - **Count:** as classified; annotate the spike.
-- **Status:** Gap, ROADMAP P0-3.
+- **Status:** partly Handled: alerts for 5xx, a 404 surge, a crawler burst and a traffic drop (`alerts.py`, every live run). Annotating the spike on the chart: Gap.
 
 ### F2. Crawl bursts
 - **Seen:** meta-externalagent 4,897 in 34 minutes, 70 addresses, 125 404s and 499 redirects among them.
 - **Count:** answer engine, training (once verified, A3). Alert when one agent exceeds N requests in 10 minutes; show its 404s (a crawler hitting dead links is an SEO problem).
-- **Status:** Gap, ROADMAP P0-3.
+- **Status:** Handled: the `crawler_burst` alert (one agent at 50% or more of the last 30 minutes, at least 500 requests).
 
 ### F3. 404 scanners
 - **Seen:** `.env` family from a bare agent, `/wp-admin/install.php` 30, `/xmlrpc.php`, `/admin`, `/api/users`.
@@ -454,13 +457,13 @@ never up.
 ### H3. Server down vs quiet
 - **Wrong:** no lines because nobody came and no lines because nginx or the box was down look the same.
 - **Detect:** heartbeat gaps (same box: cannot see itself down) plus an outside check.
-- **Status:** Gap, ROADMAP P0-3.
+- **Status:** partly Handled: the `site_down` and `logging_stopped` alerts. The outside check: Gap, ROADMAP P0-3.
 
 ### H4. Duplicate lines
 - **Seen:** 58 byte-identical lines (mostly our own curl tests, a few `GET /` and `robots.txt` in the same second).
 - **Wrong:** a real repeat in the same second and a duplicated log line cannot be told apart. Reading a file twice (e.g. two rotations of the same data, or a config with two `access_log` directives) doubles everything.
 - **Detect:** add `$request_id` (and `$msec`) to the log format; then an identical request id is a duplicate. Today: alert if more than ~1% of lines are byte-identical.
-- **Status:** Gap, ROADMAP P0-5.
+- **Status:** Handled: with the extended format's request id (`rid=`), a repeat is dropped and counted as a duplicate removed; without one, byte-identical lines are counted and shown on the data-quality panel.
 
 ### H5. Unreadable lines
 - **Count:** counted, shown, withheld above 1% (Handled).
@@ -480,7 +483,7 @@ never up.
 
 ### H9. Disk full / logging stops
 - **Detect:** newest log line older than 15 minutes on a live run -> "logging stopped" (the heartbeat guarantees a line every 5 minutes).
-- **Status:** Gap, ROADMAP P0-3.
+- **Status:** Handled: the `logging_stopped` alert.
 
 ### H10. Only 14 days of raw logs
 - **Wrong:** any new rule (verified bots, a new AI name) can only be applied back 14 days; older days keep old numbers.
@@ -503,7 +506,7 @@ never up.
 ### I1. Deploy markers
 - **Wrong:** a jump in 404s or a drop in readers after a deploy cannot be tied to it.
 - **Detect:** the site's deploy script appends one line (time, version, build) to a file skald reads.
-- **Status:** Gap, ROADMAP P1-3.
+- **Status:** Handled: `skald mark-deploy` (and config changes) write markers, drawn on the charts (`markers.json`).
 
 ### I2. Stale build files after a deploy
 - **Seen:** all 35 apex 404s and several www 404s are `/_next/static/chunks/...` and font files of a previous build.
@@ -520,7 +523,7 @@ never up.
 ### I4. Multiple sites
 - **Wrong:** one server, several sites (website, a short-link service, an app): host lists overlap, `/v/` belongs to another product, one history for all.
 - **Count:** one config per site sharing a history (Handled by design); an "excluded" line per site.
-- **Status:** Handled; site switcher in the app: This release or ROADMAP P2-4.
+- **Status:** Handled, with an index and a site switcher in the app.
 
 ### I5. Dashboard data size
 - **Wrong:** at 10x traffic the live JSON with 1,000 journeys and 30 days of breakdowns grows to megabytes, refreshed every 2 minutes.
@@ -531,7 +534,7 @@ never up.
 
 ### I7. Report mail delivery
 - **Wrong:** the mail goes from and to the same Gmail account; if it lands in spam or Gmail throttles, nobody knows the report failed.
-- **Status:** Gap, ROADMAP P0-3 (alert on send failure goes to a second address).
+- **Status:** partly Handled: a failed daily run sends one short mail (`skald notify-failure`). Sending it to a second address: Gap, ROADMAP P0-3.
 
 ---
 

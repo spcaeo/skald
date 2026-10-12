@@ -647,9 +647,9 @@ class TestRunDaily(unittest.TestCase):
                 ["--config", str(self.box.config), "--today", today, "run-daily"])
             return [n for n, _ in cli.daily_steps(cli.Context(parsed))]
         self.assertEqual(names("2026-10-06"),
-                         ["check", "collect", "audit", "updates", "dashboard", "daily mail"])
+                         ["check", "collect", "audit", "logo", "updates", "dashboard", "daily mail"])
         self.assertEqual(names("2026-10-05"),
-                         ["check", "collect", "audit", "updates", "dashboard", "daily mail",
+                         ["check", "collect", "audit", "logo", "updates", "dashboard", "daily mail",
                           "weekly mail"])
 
     def test_a_failed_check_stores_draws_and_sends_nothing(self):

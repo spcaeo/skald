@@ -866,17 +866,10 @@ def render(history: History, site: str, tz: ZoneInfo,
     )
 
 
-def render_index(sites: list[str], now: datetime) -> str:
-    items = "".join(f'<li><a href="{esc(slug(s))}/">{esc(s)}</a></li>' for s in sites)
-    return (
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">"
-        '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        f"{ROBOTS}{REFERRER}<title>Traffic dashboards</title>"
-        f"<style>{CSS}</style></head><body><main><h1>Traffic dashboards</h1>"
-        f'<p class="meta">Rendered {now:%Y-%m-%d %H:%M %Z}.</p>'
-        f'<div class="panel"><ul>{items or "<li>No sites recorded yet.</li>"}</ul>'
-        "</div></main></body></html>\n"
-    )
+def render_index(sites: list[str], now: datetime, out: Path | None = None) -> str:
+    """The site picker for these sites (site_picker.py)."""
+    from . import site_picker
+    return site_picker.static_page(sites, now, out)
 
 
 EXPORT_DIR = "exports/"
@@ -990,6 +983,6 @@ def write(out: Path, history: History, tz: ZoneInfo,
             written += dashboard_webapp.write(out, history, site, tz, now, snap,
                                               views, refresh, credit, config)
     root = Path(out) / "index.html"
-    write_atomic(root, render_index(listed, now))
+    write_atomic(root, render_index(listed, now, out))
     written.append(root)
     return written

@@ -14,7 +14,7 @@ All of this is set up on one page: **Settings > This site > Integrations**, or [
 
 ## The Integrations page
 
-At the top, **Status** lists each road into Skald for this site, with **OK**, **Needs attention** (and what to do) or **Off**: the hook receiver, the script tag, each hook that is set up, one lead sent by two tools, and the lead database. The server's `skald doctor` command shows the same lines, and checks the rest of the install too.
+At the top, **Status** lists each road into Skald for this site, with **OK**, **Needs attention** (and what to do) or **Off**: the hook receiver, the script tag, each hook that is set up, one lead sent by two tools, and the lead database. The server's doctor command (`skald doctor`; Docker: `docker exec skald skald doctor`) shows the same lines, and checks the rest of the install too.
 
 Under **Incoming hooks**, each tool has a box with:
 
@@ -184,7 +184,7 @@ The key is the secret. Skald refuses a time more than 5 minutes off its own cloc
 | `first_touch`, `last_touch` | no | referrer, landing page, `utm_*` tags, ad click ids, time |
 | `country` or `ip` | no | two letters, or the visitor's address: Skald finds the country and drops the address |
 | `device` or `user_agent` | no | Desktop, Mobile or Tablet, or the browser string: Skald works out the device and drops it |
-| `name`, `email` | no | kept only if your server is set to keep them; otherwise dropped |
+| `name`, `email` | no | kept only when the site's **Leads' names and emails** is **full**; otherwise dropped |
 
 A short test from a terminal:
 
@@ -202,10 +202,10 @@ The full how-to, with examples in curl, Node, Python and PHP, retries and backfi
 
 ## What Skald stores, and what it drops
 
-- **Kept**: the action, its stage, the time, the tool, the tool's own reference, the visitor ID, and the source, campaign, landing page, country and device when known.
+- **Kept**: the action, its stage, the time, the tool, the tool's own reference, the visitor ID (only when the site has visitor IDs on), and the source, campaign, landing page, country and device when known.
 - **Kept for checking**: a copy of each verified message, cut down to the fields Skald reads. It is kept 400 days, so every figure can be counted a second time.
 - **Always dropped**: IP addresses, browser strings, phone numbers, extra email addresses, form answers, customer details, and Calendly's cancel and reschedule links.
-- **Names and emails**: dropped, unless the person who runs your server has turned on keeping them for your site. Your privacy notice must then say so.
+- **Names and emails**: kept only when **Leads' names and emails** is **full** (**Settings > Data retention > People**). That is the default for a new install. An install upgraded from before 2.4.0 drops them until an admin turns it on. Your privacy notice must say so. See [Privacy](privacy.md).
 - **The delivery log**: when, the outcome and the answer, never the message itself. Kept 90 days.
 
 ## Duplicates and retries

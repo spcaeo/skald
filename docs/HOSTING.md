@@ -23,7 +23,8 @@ You can mix them: Skald on a small VPS or on Fly.io, measuring a site on Vercel.
 | Instances | **exactly one.** SQLite on one disk; never scale out, never run two copies on one volume |
 | HTTPS | required for sign-in (the session cookie is `Secure`). Every platform below gives you HTTPS; on your own server use the bundled Caddy or your web server |
 | Health check | `GET /traffic-auth/login` answers 200 |
-| Settings | `SKALD_SITE` (your site's host name), `SKALD_HOSTS` (the host names to count), `SKALD_BASE_URL` (Skald's own `https://` address), `SKALD_TIMEZONE`, `SKALD_EMAIL` and `SMTP_*` for mail. [INSTALL.md](INSTALL.md) lists them all |
+| Settings | `SKALD_SITE` (your site's host name), `SKALD_HOSTS` (the host names to count), `SKALD_BASE_URL` (Skald's own `https://` address), `SKALD_TIMEZONE`, `SKALD_EMAIL`, `SKALD_SMTP_*` and `SMTP_USER` / `SMTP_PASSWORD` for mail. [INSTALL.md](INSTALL.md) lists them all |
+| Privacy | a new install keeps each visit's IP address and leads' names and emails (since 2.4.0). If your privacy notice promises otherwise, set `SKALD_KEEP_IPS=false` and `SKALD_IDENTITY=anonymous`, or change it in Settings > Data retention. [SETTINGS.md](SETTINGS.md) |
 | First owner | `skald accounts init --org "Example Co" --owner-email owner@example.com` inside the container. It prints a link to set the password |
 
 **When Skald has no log on its own disk** (every platform below except your own server), the

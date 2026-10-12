@@ -1,7 +1,7 @@
 # Data contract: tracking additions (day kinds, leads, goals)
 
-Split out of [../DATA-CONTRACT.md](../DATA-CONTRACT.md) to keep it under 1000 lines. Rules for all of them: history stays at schema 12 (12 added indexes only); new day figures
-are `day_extras` kinds (listed in `store_extras.KINDS`, computed by a module registered in
+Split out of [../DATA-CONTRACT.md](../DATA-CONTRACT.md) to keep it under 1000 lines. Rules for all of them: none of them changes the history's schema (it is at 13: 12 added
+indexes, 13 one meta row for the 2.4.0 privacy default); new day figures are `day_extras` kinds (listed in `store_extras.KINDS`, computed by a module registered in
 `day_more.KINDS`, checked by its `check`); every figure has a second count registered in
 `audit_more.py`; only `ok` days count; a figure not recorded is `null`, never 0; no rate over
 fewer than 10.

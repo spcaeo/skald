@@ -60,7 +60,7 @@ The daily run checks each finished day by both counts before it is stored. Until
 
 ## Where are my leads?
 
-On [Leads](#leads), under Results: leads per day by kind, and where they first and last came from. Spam, duplicate and test leads are listed under **Left out**. Owners and admins can find one lead, with its email and the visits around it, with the search at the top, when your site keeps names and emails. See [Leads and conversions](leads-and-conversions.md).
+On [Leads](#leads), under Results: leads per day by kind, and where they first and last came from. Leads and demos booked also show beside the visitors on Overview, Live, Sources, Pages, Locations, Insights and Compare. Spam, duplicate and test leads are listed under **Left out**. Owners and admins can find one lead, with its email and the visits around it, with the search at the top, when your site keeps names and emails. See [Leads and conversions](leads-and-conversions.md).
 
 ## How do I get data out?
 

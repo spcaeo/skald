@@ -11,8 +11,8 @@ install works exactly as before. It also needs accounts (`access.mode: sessions`
 
 Code: `skald/saas/` (`signups.py`, `signup_api.py`, `plans.py`, `limits.py`,
 `stripe_client.py`, `stripe_events.py`, `billing_api.py`, `cli.py`), `skald/audit_usage.py`
-(the second count of usage), `webapp/auth/signup.html`, `signup-finish.html` and
-`webapp/js/tabs/billing.js`.
+(the second count of usage), `skald/webapp/auth/signup.html`, `signup-finish.html` and
+`skald/webapp/js/tabs/billing.js`.
 
 ## Turning it on
 

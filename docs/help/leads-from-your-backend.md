@@ -10,7 +10,7 @@ On the server:
 sudo skald hooks secret example.com lead
 ```
 
-Or in the dashboard: **Settings > Integrations > Your site's server (lead) > Make secret**. Docker: `docker exec skald skald hooks secret example.com lead`.
+Or in the dashboard: **Settings > Integrations > Your site's server (lead) > Make secret**. Docker: `docker exec skald skald hooks secret example.com lead` (in Docker, run every `skald` command in this guide the same way, without `sudo`).
 
 It prints the secret once, and the address to post to. With `access.base_url` set, the address is the real one, such as `https://stats.example.com/traffic-hooks/example.com/lead`.
 
@@ -41,6 +41,7 @@ One JSON object per lead:
 | `vid` | | The visitor ID the page had. Kept only when the site has visitor IDs on |
 | `first_touch`, `last_touch` | | Where the visitor came from: `referrer`, `landing`, `utm_source`, `utm_medium`, `utm_campaign`, `at` |
 | `ip`, `user_agent` | | Skald looks up the country and the device, then drops both |
+| `name`, `email` | | Kept only when the site's **Leads' names and emails** is **full**; otherwise dropped |
 
 Always send the offset. A time without one ("2026-09-25" or "2026-09-25T14:30:00") is read in the site's own time zone, and the delivery log says so. That guess is right only when your server writes local times in the same zone.
 

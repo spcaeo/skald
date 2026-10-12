@@ -26,7 +26,9 @@ URL, the status, the referrer and the user agent. They answer:
 Logs cannot tell you about a conversion: nothing in a log line knows a form was
 submitted by a person who later paid you. The database cannot tell you about
 bots: a crawler never creates a row. A report that claims both from one source
-is guessing at half of it. This package reads logs only, and says so.
+is guessing at half of it. The traffic figures come from logs only, and say
+so. Leads and conversions come from the site's own database (read-only) and
+signed webhooks (docs/INTEGRATIONS.md), and are counted on their own.
 
 ## 2. Why server-side, and not a JavaScript tracker
 
@@ -57,6 +59,10 @@ log_format intel '$time_iso8601 $remote_addr $host "$request" '
 
 access_log /var/log/nginx/access.log intel;
 ```
+
+The reference server also ends each line with ` rid=$request_id`, so a line
+nginx wrote twice can be dropped rather than only counted (DEPLOY.md,
+"Request id in the log"). Lines with and without it parse.
 
 Three fields earn their place:
 
@@ -149,7 +155,7 @@ ls -l /var/log/nginx/
 If the server rotates hourly, or ships logs away and truncates, `days` means
 something different and you need to read the config rather than assume.
 
-## 5. Three quantities, never to be confused
+## 5. Four quantities, never to be confused
 
 This is the part that goes wrong in public.
 
@@ -284,7 +290,7 @@ otherwise it says "not comparable" rather than inventing a fall.
 | What | Config key | Contents |
 | --- | --- | --- |
 | history | `history.db` | SQLite, one row per site per local day |
-| dashboard | `dashboard.out` | `index.html` listing sites, `<site>/index.html` each |
+| dashboard | `dashboard.out` | `index.html` listing sites, `<site>/index.html` each (the web app; `classic.html` is the plain page), with its data files beside it |
 | SMTP login | `mail.user_env`, `mail.password_env` | the NAMES of environment variables; the values live in an env file |
 
 **What is stored, and what is not.** Per site per day: requests per group;
@@ -293,8 +299,12 @@ came from); top 50 pages people read, and countries; answer-engine requests
 per tier and per name, and the top 50 pages they fetched; search engines by
 name; bots split into scanner probes and the rest by short name; our own
 traffic; requests for excluded hosts; whether the day verified. Never: an IP
-address, a user agent of a person, a session, a referrer URL. The history file
-can be shared with anyone who may see the dashboard. The file carries a schema
+address, a user agent of a person, a referrer URL. (Later schemas add the
+anonymous journeys, kept 7 days, and keyed visitor hashes, kept 30; see
+below.) The history file can be shared with anyone who may see the
+dashboard. Since 2.4.0 a site can also keep each visit with its address,
+and leads' names and emails, in `conversions.sqlite`, apart from the history
+(`privacy.keep_ips`, `conversions.identity`; the README's "What is kept"). The file carries a schema
 version, and newer code upgrades an older file in place on open, keeping a
 copy of it first; nothing is dropped.
 
@@ -360,11 +370,11 @@ like an address is masked in its output. run-daily runs it after collect with
 `--withhold`: a mismatch marks the day withheld, and the dashboard and mail
 steps do not run. Read its output before overriding it.
 
-What the logs cannot give, and is therefore not shown: new against
-returning visitors (it needs an identifier kept across days - an address or
-agent stored past the day - which the privacy rule forbids), a breakdown
-crossed with another (each is stored on its own), and anything a browser
-does after the page arrives (scrolls, clicks, time on page).
+What the logs cannot give, and is therefore not shown: a breakdown crossed
+with another (each is stored on its own), and anything a browser does after
+the page arrives (scrolls, clicks, time on page; the optional beacon,
+docs/BEACON.md, counts some of these). New against returning visitors came
+later, from keyed hashes (schema 9, below).
 
 **What a visit is.** One address and user agent, no gap over
 `report.session_gap_minutes` - and, for people, no page view arriving from a
@@ -413,9 +423,11 @@ SKALD_VISITOR_KEY set (in /etc/skald/env; `report.env_file`
 points there for the refresh helper), a reader whose hash appeared on an
 earlier day within 30 days is returning; AI fetchers and readers from an
 assistant get repeat flags the same way. Without the key nothing is hashed
-and every such field is null. Raw addresses: only in the web server's log
-and on the private page (today's AI events, the internal-address list).
-Hashes: 30 days. Journeys: 7 days. Totals: for good.
+and every such field is null. Raw addresses: in the web server's log, on
+the private page (today's AI events, the internal-address list), in the
+6-hour Recent requests feed (release 2), and, since 2.4.0, with each kept
+visit in `conversions.sqlite` while `privacy.keep_ips` is on (395 days by
+default). Hashes: 30 days. Journeys: 7 days. Totals: for good.
 
 **Export.** `skald export --from D --to D --table T [filters] --format
 csv|json` reads the history, verified days only by default. Every row is
@@ -423,7 +435,7 @@ per day unless `--total`; the JSON carries which days were recorded,
 withheld and missing, so a gap is visible in the file itself. The dashboard
 writes the same tables beside each page under `exports/` on every render, and
 `today.csv` only while there is a reconciled snapshot for today. They sit
-behind the same password as the pages.
+behind the same sign-in as the pages.
 
 **Today so far.** A second cron line keeps a live panel at the top of the
 dashboard:
@@ -445,18 +457,20 @@ rules keep it from contaminating anything:
 
 The panel lists the latest 20 assistant fetches and citation clicks: time,
 the assistant's name as matched (or the citing site), and the path. No
-address and no user agent is written for anyone. The page reloads itself
-every two minutes with `<meta http-equiv="refresh">`; there is still no script.
+address and no user agent is written for anyone. The web app fetches the
+snapshot again every two minutes; the plain page (`classic.html`) reloads
+itself with `<meta http-equiv="refresh">` and runs no script.
 
 Cost: only the files that can hold today are opened (by modification time),
 yesterday's lines in them are parsed but not classified, and classification
 is cached per user agent - a busy day takes about a second. Run every two
 minutes, that is negligible.
 
-**Privacy of the dashboard itself.** It is static, makes no request, and
-carries `noindex, nofollow, noarchive` and `no-referrer`. Still serve it
-behind basic auth with an `X-Robots-Tag` header (DEPLOY.md): the page lists
-your top pages and traffic, which is nobody else's business.
+**Privacy of the dashboard itself.** It makes no request to anywhere but its
+own server (a strict Content-Security-Policy holds it to that), and carries
+`noindex, nofollow, noarchive` and `no-referrer`. Still serve it behind
+basic auth or sessions mode, with an `X-Robots-Tag` header (DEPLOY.md): the
+page lists your top pages and traffic, which is nobody else's business.
 
 ## 7a. Release 2: checking claims, watching the input, raising the alarm
 
@@ -486,7 +500,8 @@ the verdict the tally used for each - group, rule in words, kind, page view
 **Data quality.** `verify` proves sums, not inputs. `quality.json` shows
 per day what the input looked like: unreadable lines, duplicates (counted,
 never dropped - a doubled line and a real repeat look the same without
-`$request_id`), old-format lines, gaps over 10 minutes, the audit's
+`$request_id`; with `rid=` in the log, a repeated id is dropped and counted
+as removed), old-format lines, gaps over 10 minutes, the audit's
 verdict; for today, how old the newest line is; and when each job last
 ran. Read it before trusting a strange day.
 
@@ -505,11 +520,14 @@ on every chart, so a step in a line can be tied to something we did.
 **Leads.** The CMS is read read-only (`mode=ro`), aggregates only, and never
 joined to a visit: a lead's first touch is what its own browser
 remembered, which is not the source of any one visit in the log (EDGE E7).
-The funnel shows the logs' steps and the CMS's steps side by side.
+The funnel shows the logs' steps and the CMS's steps side by side. Since
+2.4.0 the person search may list the visits that sent a form near a lead's
+time: a listing, matched by time and said to be uncertain, never a figure.
 
 **Backups and deletion requests.** `skald backup` nightly (14 daily, 8
-weekly, each restore-tested); `skald forget --ip X` for a deletion request.
-The retention table is in the README.
+weekly, each restore-tested; the accounts and conversions files too);
+`skald forget --ip X` (or `--email`, `--vid`, `--lead`) for a deletion
+request. The retention table is in the README.
 
 ## 8. Before you trust a number you are about to send
 

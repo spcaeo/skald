@@ -31,16 +31,16 @@ Skald reads the one record that sees every visit: the web server's own access lo
 - **Crawlers checked, not trusted.** A crawler's name is compared with its owner's published addresses or DNS. A fake is filed as "claims to be GPTBot".
 - **Counted twice.** Every figure is recounted by a separate audit. A day that does not add up is withheld, never guessed.
 - **Live.** "Today so far" is redrawn every 2 minutes, the last 6 hours can be read request by request, and alerts show on the dashboard (and by email, if you want them).
-- **Private and yours.** The log needs no script and no cookie in anyone's browser. It runs on your own server. Raw addresses stay in the log for 14 days, history keeps totals, and one command deletes an address on request.
+- **Private and yours.** The log needs no script and no cookie in anyone's browser. It runs on your own server. The history keeps totals. Whether visits are also kept with their IP address, and for how long, is your setting (below). One command deletes an address or an email everywhere on request.
 
 ## What it does now
 
-Since 2026-10-11 Skald does more than count visits. Each part below is built and tested. Most are off until an install switches them on. On the first live install, accounts, settings, MCP and conversions from the lead database are on; the hosted layer is off.
+Since 2026-10-11 Skald does more than count visits. Each part below is built and tested. Most are off until an install switches them on. On the first live install, accounts, settings, MCP and conversions from the lead database are on, and it keeps IPs and leads' emails for 365 days; the hosted layer is off.
 
 - **Leads that tell you something.** Leads by first and last source over any range, crossed with the status your team set, and the time from first visit to lead.
 - **Better tracking.** How engaged each source's and device's visits are, returning visitors by source, goals from the tag's events per 100 visits, campaign tags that are missing or wrong, the exit rate of each page, and Yesterday as a period.
 - **Funnels with a history.** Each saved funnel is counted every day, by source and device, with where people dropped off and how long they took.
-- **Conversions from your tools.** Calendly, Cal.com, Stripe, Typeform, HubSpot and Zapier can send signed webhooks: a booking, a form, a payment. A Conversions tab shows what started, what finished and what was left half done. Since 2.4.0 it keeps the lead's name and email (a switch), and each visit with its address, so one search shows a person's visits, leads and conversions together. An install upgraded from before 2.4.0 keeps neither until it is turned on.
+- **Conversions from your tools.** Calendly, Cal.com, Stripe, Typeform, HubSpot and Zapier can send signed webhooks: a booking, a form, a payment. A Conversions tab shows what started, what finished and what was left half done. Since 2.4.0 it can keep the lead's name and email, and each visit with its address (395 days unless you choose otherwise), so one search shows a person's visits, leads and conversions together. Both are settings, on for a new install. An install upgraded from before 2.4.0 keeps neither until it is turned on. Since 2.5.0 leads and demo bookings show on Overview, Live, Sources, Pages, Locations, Insights and Compare.
 - **A script tag, if you want one.** One line in the page sends page views, form steps and bookings to your own server. A random visitor ID, off by default, joins a browser's visits to its conversion.
 - **Accounts.** Each person signs in with their own email and password (Show to check it, Keep me signed in on a trusted computer), with invites, roles, two-step sign-in, API tokens and an audit log.
 - **Settings in the dashboard.** How long detail is kept, mail and SMTP, sites, internal addresses, integrations and security, without editing a file on the server. A failed morning run sends one short mail.
@@ -52,7 +52,7 @@ Every new figure is counted twice, like the old ones. A day the two counts do no
 
 ## What it cannot do
 
-Keep Search Console for search queries, impressions and ranking. Keep GA4 or PostHog for deep in-page analysis and for ad spend; Skald's optional tag sends clicks, form steps and bookings, but no more. Skald also has its own limits. A page a CDN serves from its cache never reaches the log. "People" is an upper bound, because a browser's name is self-reported. AI citations are a floor, because referrers are often stripped. Skald now estimates the hidden part: a direct visit to a page an assistant fetched minutes before is shown as "likely" from that assistant. It is labelled as an estimate and never added to the count, so the citations stay a floor. And you need a server whose log you can read.
+Keep Search Console for search queries, impressions and ranking. Keep GA4 or PostHog for deep in-page analysis and for ad spend; Skald's optional tag sends clicks, form steps and bookings, but no more. Skald also has its own limits. A page a CDN serves from its cache never reaches the server's log; the CDN's own logs or the Skald Worker for Cloudflare have to send it. "People" is an upper bound, because a browser's name is self-reported. AI citations are a floor, because referrers are often stripped. Skald now estimates the hidden part: a direct visit to a page an assistant fetched minutes before is shown as "likely" from that assistant. It is labelled as an estimate and never added to the count, so the citations stay a floor. And you need a server whose log you can read.
 
 So Skald does not replace those tools. It sits beside them. Even the gap between Skald's count and GA4's is useful: it shows how much the script misses.
 

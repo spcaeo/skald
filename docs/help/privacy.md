@@ -36,7 +36,7 @@ Skald reads your website's lead database without changing it. Leads marked spam 
 
 ## Looking a person up
 
-Owners and admins see a search box at the top of every page. **Ctrl K** (or **Cmd K**) also offers **Find a person**. Type one of these:
+Owners and admins see a **Find a person** box at the top of every page; on a narrower screen it is a search icon. **Ctrl K** (or **Cmd K**) also offers **Find a person**. Type one of these:
 
 - an IP address
 - an email
@@ -45,11 +45,13 @@ Owners and admins see a search box at the top of every page. **Ctrl K** (or **Cm
 
 The person opens in a panel on the right:
 
+- **Linked**: the IP addresses, emails, visitor IDs and leads tied to them, and what this site keeps.
 - **Visits**: every visit kept with that address, with its pages in order, source, referring site, country and device. A day whose figures did not add up is marked "withheld day".
 - **Requests in the last 6 hours**: the address's requests from the Requests page.
 - **Leads**: their leads, spam and test ones too.
-- **Visits that sent a form at a lead's time**: visits that sent a form up to 2 minutes before a lead. This is a match by time only. It is likely the same person, never certain: the lead database keeps no address.
-- **Conversions**: every conversion, cancelled and test ones too, and rows removed by a sync.
+- **Leads and the visits that sent a form at their time**: visits that sent a form from 2 minutes before a lead to 30 seconds after it. This is a match by time only. It is likely the same person, never certain: the lead database keeps no address.
+- **Conversions**: every conversion, cancelled and test ones too, and the rows removed by a sync.
+- **Pages seen by its visitor IDs**, when the site has visitor IDs on.
 
 Every address, email, lead and visitor ID in the panel is a link. Select it to open that one.
 

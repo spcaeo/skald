@@ -100,10 +100,10 @@ sudo skald migrate            # a restore-tested copy first, then the upgrade
 ```
 
 ```
-history      schema 11 (code 12)  steps pending  /var/lib/skald/history.sqlite
-    v12: add index ...
+history      schema 12 (code 13)  steps pending  /var/lib/skald/history.sqlite
+    v13: add meta privacy_legacy
 accounts     schema 5 (code 5)  up to date  /var/lib/skald/accounts.sqlite
-conversions  schema - (code 3)  not made yet  /var/lib/skald/conversions.sqlite
+conversions  schema - (code 4)  not made yet  /var/lib/skald/conversions.sqlite
 ```
 
 The steps come from each database's own upgrade code; `migrate` never repeats
@@ -165,6 +165,14 @@ Nothing to edit by hand for these; upgrading is enough.
 | 2.2.0 (Docker) | 2.2.1 | The dashboard opens as the web app (menu, tabs, drawers), not the plain page. |
 | any before 2.2.2 | 2.2.2 | A `config.yml` without `dashboard.app` gets the web app (set `app: false` to keep the plain page). The webhook receiver runs even with the script tag off: Docker always starts it, `skald upgrade` switches on an installed but stopped `skald-beacon`. Webhooks (Calendly, Stripe, the `lead` hook) that answered 502 now reach Skald once their secret is set. |
 
+**One thing an upgrade does not turn on: keeping IPs and emails (2.4.0).** A new install keeps
+each visit's IP address and leads' names and emails (`privacy.keep_ips`, `conversions.identity:
+full`). An install whose history predates 2.4.0 keeps neither until someone turns it on: the
+upgrade marks the history (meta row `privacy_legacy`, history schema 13) and the unset keys
+read as off (`skald/people/policy.py`). To keep them, update your site's privacy notice
+first, then turn them on in Settings > Data retention > People, or set them in `config.yml`
+(Docker: `SKALD_KEEP_IPS=1`, `SKALD_IDENTITY=full`). [SETTINGS.md](SETTINGS.md), "People".
+
 ## Docker
 
 An image is never changed in place: `upgrade` in a container says to pull the
@@ -172,8 +180,8 @@ new tag. Each release is published as four tags:
 
 | Tag | Follows |
 | --- | --- |
-| `ghcr.io/spcaeo/skald:2.2.0` | exactly this release |
-| `ghcr.io/spcaeo/skald:2.2` | fixes to 2.2 only |
+| `ghcr.io/spcaeo/skald:2.5.0` | exactly this release |
+| `ghcr.io/spcaeo/skald:2.5` | fixes to 2.5 only |
 | `ghcr.io/spcaeo/skald:2` | every 2.x release: fixes and features, never a breaking change |
 | `ghcr.io/spcaeo/skald:latest` | every release, a new major version too |
 

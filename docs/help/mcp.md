@@ -113,7 +113,7 @@ The assistant chooses these tools itself. Dates are in your site's own time zone
 | `live_today` | Today so far, from the 2-minute snapshot (partial, never compared) |
 | `data_quality` | Per day: whether the log was read whole and passed its checks |
 | `site_health` | Open alerts, heartbeat uptime, errors today, late runs, page speed |
-| `conversions` | Demos, forms, sign-ups and payments by stage: started, completed, abandoned, won, lost |
+| `conversions` | Demos, forms, sign-ups and payments by stage: started, completed, abandoned, won, lost. The completed ones and the leads, by source, first touch, landing page, country, campaign, device or tool |
 | `find_person` | One person by IP address, email, visitor ID or lead: their visits, leads and conversions. Only with **Private**; each search goes to the audit log |
 
 It also offers a ready prompt, **weekly_report**, which asks the assistant for a short weekly report.

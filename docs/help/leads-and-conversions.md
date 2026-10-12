@@ -41,7 +41,7 @@ The honesty rules are the same as everywhere:
 - **Insights** about leads follow the same rules as the others: two whole periods, at least 5 leads, a change of at least 20%. A finding the second count does not confirm is left out, and the page says so.
 - Leads are counted for the whole site. On a page group (for example one language), the lead columns are not shown.
 
-> A lead reported by two roads (for example the script tag and the lead database, for the same form) counts on each, as on the Conversions page. `skald doctor` lists references that arrived twice.
+> A lead reported by two roads (for example the script tag and the lead database, for the same form) counts on each, as on the Conversions page. A lead that arrived from two tools with the same reference (for example the lead hook and Zapier, or a hook and the lead database) is flagged as "One lead, two tools" under **Settings > Integrations > Status** and by the server's doctor command. The script tag's own rows are not part of that check.
 
 ## Where leads and conversions come from
 
@@ -100,7 +100,7 @@ Open [Leads](#leads). The date range at the top governs most of the page.
 - One figure per kind: Sign-ups, Contact forms, Early access, Demo opened, Demos booked.
 - **Leads per 100 visitors**: leads against the visitors of the same verified days. It is given only over at least 10 visitors.
 
-Under them, a line says how many spam and duplicate leads were left out. Select **Show them** to see each one: when it came, its kind, page, first and last source, and its status. Leads marked test are listed there too. Owners and admins also see the email and name, when your site keeps them.
+Under them, a line says how many spam and duplicate leads were left out. Select **Show them, with test leads** to see each one: when it came, its kind, page, first and last source, and its status. Leads marked test are listed there too. Owners and admins also see the email and name, when your site keeps them.
 
 ### Per day, by kind
 
@@ -248,7 +248,7 @@ Without visitor IDs, conversions are still counted, but there are no journeys, n
 
 ## Goals
 
-Skald's goals are not set on the Conversions page. A goal is a page event, such as "demo booked" or "sign-up sent", shown per 100 visits by source on the [Events](#events) page. Admins choose them in **Settings > Sites > Goals**. See [Funnels and goals](funnels-and-goals.md).
+Skald's goals are not set on the Conversions page. A goal is a page event, such as "demo booked" or "sign-up sent", shown per 100 visits by source on the [Events](#events) page. Admins choose them in **Settings > This site > Sites > Goals**. See [Funnels and goals](funnels-and-goals.md).
 
 ## When a figure is missing
 

@@ -17,13 +17,19 @@ a data file without `.json`: `overview`, `live`, `visits`, `hourly`,
 `breakdowns`, `health`, `bots`, `ours`, `not_found`, `ai_activity`,
 `campaigns`, `pages`, `insights`, `requests`, `alerts`, `quality`, `markers`,
 `leads`, `cube`, `robots`, `speed`, `funnels`, `page_index`, `events`,
-`conversions`, `sites`. `GET .../api/v1/` lists the ones a page really has.
+`conversions`, `llms_txt`, `sites`, and `app` (the page's own bundle).
 
-`GET .../api/v1/` (with the password) lists the files a page has:
+`GET .../api/v1/` lists the files a page really has (404 when the page has
+none):
 
 ```json
 {"ok": true, "version": "v1", "files": ["ai_activity", "alerts", "bots", "..."], "docs": "docs/API.md"}
 ```
+
+Two more answers come from the history, with the dashboard login only (no
+token): `GET <page>/api/compare?a=FROM..TO&b=FROM..TO` (any two date ranges)
+and `GET <page>/api/page?path=/x` (one page's story). DATA-CONTRACT.md,
+"Compare" and "Page lifecycle", has their fields.
 
 ## Examples
 
@@ -64,7 +70,9 @@ the last 6 hours of requests, the lead database's rows (spam, duplicates and
 test too), every conversion (test, cancelled and removed too), the visitor
 IDs' journeys, the visits that sent a form within 2 minutes before a lead
 (`candidates`, matched by time, not certain), the linked `keys` and the days
-withheld. 400 for a value that is none of those. Each call is written to the
+withheld. A site that keeps no addresses or emails (`privacy.keep_ips` off,
+`conversions.identity: anonymous`, SETTINGS.md) has fewer rows to find. 400
+for a value that is none of those. Each call is written to the
 audit log (accounts) or `privacy.log` (basic mode) by its kind and a hash
 prefix, never the value. A listing, not a figure.
 
@@ -97,6 +105,7 @@ working.
 | Status | Body | When |
 | --- | --- | --- |
 | 200 | the file, as DATA-CONTRACT.md describes it | |
+| 400 | `{"ok": false, "error": "..."}` | `people?q=` with a value that is not an address, email, visitor ID or lead id |
 | 401 | `{"ok": false, "error": "..."}` | no token, an unknown or revoked one, a token for another site (or another organisation's), a token without the `read` scope, or a private file without `--private` / `read_private` |
 | 404 | `{"ok": false, "error": "no such file"}` | the page or file does not exist |
 
@@ -109,7 +118,7 @@ removed without a new `schema_version` (DATA-CONTRACT.md).
 
 In basic mode nginx keeps the password check for the first form and passes
 the request, with the user's name (`X-Skald-User`), to the local helper
-(`skald/refresh_server.py`, 127.0.0.1 only). In sessions mode the
+(`skald/refresh_server.py`, on 127.0.0.1 or a Unix socket). In sessions mode the
 helper reads the session cookie itself and never trusts that header. The
 token form has no password at nginx; the helper checks the token. The helper
 reads files only inside the dashboard's own folder.

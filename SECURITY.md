@@ -9,8 +9,9 @@ sign-in, for admins and owners only, and every search is written to the audit lo
 
 | Version | Supported |
 | --- | --- |
-| 2.0.x | ✓ Security fixes |
-| 1.x | ✗ Please upgrade to 2.0 |
+| 2.5.x (the newest) | ✓ Security fixes |
+| 2.0 to 2.4 | ✗ Please upgrade (`skald upgrade`, or the `:2` Docker tag) |
+| 1.x | ✗ Please upgrade to 2.x |
 
 Fixes go into the newest minor release. Upgrading keeps your history: newer code upgrades the
 history file in place, after copying it to `history.sqlite.schema-v<N>.bak`.
@@ -54,7 +55,7 @@ and stays within this policy.
 | Leads' names and emails (only while `conversions.identity` is `full`) | `conversions.sqlite` (`identities`) | As long as their conversions |
 | Password hashes (scrypt), session hashes (SHA-256), token hashes | `accounts.sqlite` | Until removed or revoked |
 | Webhook and SMTP secrets typed in the dashboard | `secrets.json`, mode 0600 | Until replaced |
-| History backups (hold the 30-day hashes, never the key) | `/var/lib/skald/backups/` | 14 daily, 8 weekly |
+| Backups of the history (hold the 30-day hashes, never the key), and of `accounts.sqlite` and `conversions.sqlite` (hold the kept visits with addresses, and leads' names and emails, while those are kept) | `/var/lib/skald/backups/` | 14 daily, 8 weekly |
 
 **Never stored in history** (`history.sqlite`): a visitor's address, a person's user agent, a name, an email, a phone
 number, a form field's value, the text a visitor copied, or the visit-grouping key (made fresh for
@@ -141,11 +142,15 @@ For a production install. [docs/INSTALL.md](docs/INSTALL.md) has the exact files
 - [ ] **Keep MCP and the API read-only tokens narrow:** one site, no `read_private` unless you need
       addresses.
 - [ ] **Back up** `history.sqlite`, `accounts.sqlite` and `conversions.sqlite`. `skald backup` makes
-      restore-tested nightly copies; encrypt any copy you move off the server (`age` or `gpg`).
+      restore-tested nightly copies of all three; encrypt any copy you move off the server (`age` or
+      `gpg`).
 - [ ] **Keep logs short.** Rotate the access log at 14 days or less; Skald needs only the days it has
       not yet collected.
-- [ ] **Switch on only what you use.** Accounts, MCP, webhooks, log intake and the hosted layer are
-      each off until the config turns them on.
+- [ ] **Switch on only what you use.** MCP, visitor IDs, log intake and the hosted layer are each
+      off until the config turns them on; a webhook works only once it has a secret. Accounts are
+      off in a plain install and on in the Docker image. Keeping IPs and leads' emails is **on** for
+      a new install: if you do not need it, set `privacy.keep_ips: false` and
+      `conversions.identity: anonymous` (or Settings > Data retention > People).
 - [ ] **Run the Docker image** with the log mounted read-only (`:ro`), as the quick start shows.
 
 ## Scope
