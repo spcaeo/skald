@@ -223,7 +223,7 @@ function drawBar(s) {
   } else right.push(h("span", { class: "stamp" }, model.stamp));
   right.push(h("div", { class: "wide-only" }, exportMenu(() => model, s, (next) => load(next, { previous: model }))));
   const helpBtn = h("a", { class: "btn icon help-btn", href: "#help", html: HELP_ICON, "aria-label": "Help and guides", title: "Help and guides" });
-  const always = [searchBox(), helpBtn, bell(model), h("button", { type: "button", class: "btn icon kbd-btn", html: CMDK, "aria-label": "Command palette (Ctrl or Cmd + K)", title: "Go to, or do (Ctrl K)", "aria-keyshortcuts": "Control+K Meta+K", onclick: () => palette(actions()) })];
+  const always = [...searchBox(), helpBtn, bell(model), h("button", { type: "button", class: "btn icon kbd-btn", html: CMDK, "aria-label": "Command palette (Ctrl or Cmd + K)", title: "Go to, or do (Ctrl K)", "aria-keyshortcuts": "Control+K Meta+K", onclick: () => palette(actions()) })];
   right.push(...always);
   right.push(moreMenu(s));
 

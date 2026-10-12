@@ -122,6 +122,8 @@ def _lead_rows(config: dict, where: str = "", args=(), private: bool = False,
         picked = [c if c in have else f"NULL AS {c}" for c in wanted]
         rows = db.execute(f"SELECT {', '.join(picked)} FROM submissions {where} "
                           f"ORDER BY created_at DESC LIMIT {LIMIT}", args).fetchall()
+    from ..beacon import visitor_ids
+    keeps_vid = visitor_ids(config)
     out = []
     for r in rows:
         row = {k: r[k] for k in wanted}
@@ -133,7 +135,9 @@ def _lead_rows(config: dict, where: str = "", args=(), private: bool = False,
         row["test"] = row["status"] == "test" or "test" in str(row.get("flags") or "").lower()
         row["left_out"] = row["status"] in ("spam", "duplicate") or row["test"]
         session = str(row.pop("session_id") or "")
-        row["vid"] = session if SITE_VID.match(session) else None
+        # A visitor ID only for admins, and only where the site has visitor IDs
+        # on (beacon.visitor_ids): a site's session column is no visitor else.
+        row["vid"] = session if private and keeps_vid and SITE_VID.match(session) else None
         row.pop("flags", None)
         out.append(row)
     return out

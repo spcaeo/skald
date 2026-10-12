@@ -24,8 +24,9 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-12g",
+  id: "2026-10-12h",
   items: [
+    ["Find a person", "on narrower screens the search is an icon in the top bar, so nothing overlaps.", "privacy"],
     ["Person search", "find anyone by IP, email or lead (admins): every visit, page, lead and booking, across days.", "privacy"],
     ["Nothing hidden", "spam, duplicate and test leads, and cancelled, removed and test conversions, are listed with their rows.", "leads-and-conversions"],
     ["Doctor", "skald doctor and Settings > Integrations say what works, what is missing, and the exact fix.", "pick-your-road"],
