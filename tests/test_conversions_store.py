@@ -99,6 +99,21 @@ class Store(unittest.TestCase):
         self.assertEqual([r["vid"] for r in got], [VID2],
                          "finished in time, no visitor ID, and still open are left out")
 
+    def test_a_finish_by_the_same_person_in_another_session_is_no_abandonment(self):
+        who = {"email": "a@example.com"}
+        store.record_conversion(self.db, conv(stage="started", vid="sess-aaaaaaaa", external_ref="L-1",
+                                              at="2026-10-10T10:00:00Z", identity=who))
+        store.record_conversion(self.db, conv(stage="completed", vid="sess-bbbbbbbb",
+                                              external_ref="L-2", at="2026-10-10T15:00:00Z",
+                                              identity=who))
+        store.record_conversion(self.db, conv(stage="started", vid="sess-cccccccc", external_ref="L-3",
+                                              at="2026-10-10T10:00:00Z",
+                                              identity={"email": "b@example.com"}))
+        got = store.abandoned(self.db, "example.com", "2026-10-10T00:00:00Z",
+                              "2026-10-11T00:00:00Z", 24, now="2026-10-12T12:00:00Z")
+        self.assertEqual([r["external_ref"] for r in got], ["L-3"],
+                         "same email, later session: a finish; another person: abandoned")
+
     def test_journey_of(self):
         store.record_page_view(self.db, "example.com", VID, "2026-10-09T10:00:00Z", "/", "Search engine")
         store.record_page_view(self.db, "example.com", VID, "2026-10-10T10:00:00Z", "/pricing/", None)

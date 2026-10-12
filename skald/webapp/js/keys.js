@@ -24,8 +24,10 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-12d",
+  id: "2026-10-12e",
   items: [
+    ["Abandoned", "a demo or form started and finished later by the same person, from another session or device, now counts as finished, not abandoned.", "leads-and-conversions"],
+    ["Privacy", "with visitor IDs off, no visitor ID is kept from any source: the script tag, a webhook, or your lead database.", "privacy"],
     ["Webhooks", "Calendly, Stripe, HubSpot and the lead hook reach Skald on every install, with or without the tracking script. Before, they could fail until the script was switched on.", "webhooks"],
     ["Dashboard", "every install opens the full dashboard (menu, tabs, drawers), not the plain page.", "getting-started"],
   ],

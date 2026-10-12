@@ -38,6 +38,8 @@ def lead(**kw) -> dict:
 class Base(unittest.TestCase):
     identity = ""
 
+    visitor_ids = True              # the sites' visitor IDs; VisitorIdsOff below
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.folder = Path(self.tmp.name)
@@ -45,7 +47,8 @@ class Base(unittest.TestCase):
         self.config = {"site": {"name": "example.com", "hosts": ["example.com"]},
                        "history": {"db": str(self.folder / "history.sqlite")},
                        "conversions": {"country_db": str(self.folder / "country.mmdb")},
-                       "hooks": {"per_minute": 600, "burst": 100}}
+                       "hooks": {"per_minute": 600, "burst": 100},
+                       "beacon": {"visitor_ids": self.visitor_ids}}
         if self.identity:
             self.config["conversions"]["identity"] = self.identity
         path = secrets_store.path_for(self.config, self.folder)
@@ -205,6 +208,17 @@ class Kept(Base):
         self.assertEqual(self.spooled(), "")
         self.assertEqual(self.rows("SELECT outcome FROM deliveries"), [("test",)])
 
+
+
+class VisitorIdsOff(Base):
+    """beacon.visitor_ids off: a hook's vid is kept nowhere, whatever was sent."""
+    visitor_ids = False
+
+    def test_vid_dropped_from_store_and_spool(self):
+        status, answer = self.post("lead", lead())
+        self.assertEqual((status, answer["recorded"]), (200, 1))
+        self.assertEqual(self.rows("SELECT vid FROM conversions"), [(None,)])
+        self.assertNotIn(VID, self.spooled())
 
 class FullIdentity(Base):
     identity = "full"

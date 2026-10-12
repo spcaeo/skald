@@ -43,6 +43,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from ..beacon import visitor_ids
 from ..config import setting, site_name
 from . import MAX_BODY, TOOLS, spool, store
 from .adapters import Invalid, adapter
@@ -55,6 +56,15 @@ REFUSED_EVERY = 60
 SITES_EVERY = 30          # seconds: a hook for an unknown site re-reads the sites
 REPLAY_TOOLS = ("calcom", "typeform")     # no signed timestamp: refused by hash
 PROXIES = ("127.0.0.1", "::1")
+
+
+def without_vid(value):
+    """The body with every `vid` key removed, at any depth."""
+    if isinstance(value, dict):
+        return {k: without_vid(v) for k, v in value.items() if k != "vid"}
+    if isinstance(value, list):
+        return [without_vid(v) for v in value]
+    return value
 
 
 def replay_digest(tool: str, payload, body: bytes) -> str | None:
@@ -268,6 +278,11 @@ class Receiver:
             self._log(site, tool, "replay", 200, "the same body was taken before",
                       at=received)
             return 200, {"ok": True, "recorded": 0, "duplicates": 1}
+        # Visitor IDs off for the site (beacon.visitor_ids): a hook's `vid` is not
+        # kept either, in the spool or the store, whatever the sender put in it.
+        keep_vid = visitor_ids(self.sites[site])
+        if not keep_vid:
+            payload = without_vid(payload)
         try:
             day = datetime.fromtimestamp(now, tz=timezone.utc).astimezone(self.tz).date()
             spool.append(self.spool, day, spool.line_for(received, site, tool, payload, full))
@@ -277,6 +292,9 @@ class Receiver:
         try:
             rows = [make_row(r, site, tool, received, self.hosts[site], full, self.country_db)
                     for r in mod.to_records(payload, self.sites[site])]
+            if not keep_vid:
+                for r in rows:
+                    r["vid"] = None
         except Invalid as why:
             self._log(site, tool, "bad_body", 400, str(why), at=received)
             return 400, {"error": str(why)}

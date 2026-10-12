@@ -105,8 +105,17 @@ class FromLeads(unittest.TestCase):
             ("6", "contact", "completed", "2026-10-07T19:00:00Z")],
             "spam is no lead; a type that is no token is left out")
 
-    def test_fields(self):
+    def test_a_session_id_is_no_visitor_id_unless_visitor_ids_are_on(self):
         self.sync()
+        one = self.db.execute("SELECT vid FROM conversions WHERE external_ref = '1'").fetchone()
+        self.assertIsNone(one[0], "a 30-minute session would count a later booking as abandoned")
+        got = self.sync(full=True, keep_vid=True)
+        self.assertGreater(got["removed"], 0, "turning visitor IDs on rewrites the rows")
+        one = self.db.execute("SELECT vid FROM conversions WHERE external_ref = '1'").fetchone()
+        self.assertEqual(one[0], SESSION)
+
+    def test_fields(self):
+        self.sync(keep_vid=True)
         one = dict(self.db.execute("SELECT * FROM conversions WHERE external_ref = '1'").fetchone())
         self.assertEqual(one["vid"], SESSION)
         self.assertEqual(one["source_type"], "Social media")        # the last touch
