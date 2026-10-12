@@ -116,6 +116,7 @@ class ContainerConfig(unittest.TestCase):
         self.assertEqual(cfg["logs"]["dir"], "/logs")
         self.assertEqual(cfg["access"]["mode"], "sessions")
         self.assertEqual(cfg["dashboard"]["out"], "/var/www/skald")
+        self.assertIs(cfg["dashboard"]["app"], True, "the web app, not only the plain fallback page")
         self.assertEqual(cfg["mail"]["daily"], False, "no SMTP: no mail, and no failed run for it")
         self.assertEqual(cfg["report"]["timezone"], "UTC")
         self.assertNotIn("beacon", cfg)
