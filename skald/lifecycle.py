@@ -23,6 +23,7 @@ seen - to yesterday; a day without figures says so (null), never 0.
 from __future__ import annotations
 
 import json
+import weakref
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -121,16 +122,22 @@ def _leads(config: dict, tz) -> tuple[dict, dict]:
     return landed, sent
 
 
-def _first_seen(history, key: str) -> dict[str, str]:
-    """{normalised path: the first day its page blob shows it}."""
-    out: dict[str, str] = {}
+def _pages_blobs(history, key: str):
+    """(day, parsed pages blob) of every stored day, oldest first, one at a
+    time; a blob that does not parse is left out."""
     for day, data in history.db.execute(
             "SELECT day, data FROM day_extras WHERE site = ? AND kind = 'pages' ORDER BY day",
             (key,)):
         try:
-            paths = json.loads(data)
+            yield day, json.loads(data)
         except ValueError:
             continue
+
+
+def _first_seen(history, key: str) -> dict[str, str]:
+    """{normalised path: the first day its page blob shows it}."""
+    out: dict[str, str] = {}
+    for day, paths in _pages_blobs(history, key):
         for p in paths:
             out.setdefault(_norm(p), day)
     return out
@@ -145,9 +152,23 @@ def _published(path: str, meta: dict, seen: dict) -> tuple[str | None, str | Non
 
 # ------------------------------------------------------------ page_index.json
 
+# page_index.json is the same on a site's every page (a view gets the
+# site's), so one dashboard run works it out once per site: kept per open
+# History file, which a run reads and never writes while it draws.
+_INDEX: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()
+
+
 def build(p) -> dict:
     """page_index.json (the whole site's page only; a view gets the same)."""
     site = p.key.split("::", 1)[0]
+    done = _INDEX.setdefault(p.history, {})
+    tag = (site, p.today, p.anchor)
+    if tag not in done:
+        done[tag] = _build(p, site)
+    return done[tag]
+
+
+def _build(p, site: str) -> dict:
     meta, about = load_meta(p.config)
     seen = _first_seen(p.history, site)
     marks = milestones(p.history, site, None, p.tz)
@@ -191,7 +212,15 @@ def build(p) -> dict:
 def story(history, site: str, path: str, config: dict, tz, today: date) -> dict:
     path = _norm(path)
     meta, _ = load_meta(config)
-    seen = _first_seen(history, site)
+    # One pass over the page blobs: every path's first day, and this page's
+    # entries per day (each blob is parsed once, and only this page is kept).
+    seen: dict[str, str] = {}
+    mine: dict[str, list] = {}
+    for day, pages in _pages_blobs(history, site):
+        for p in pages:
+            seen.setdefault(_norm(p), day)
+        if pages is not None:
+            mine[day] = [(p, v) for p, v in pages.items() if _norm(p) == path]
     if path not in meta and path not in seen:
         return {"ok": False, "error": "no such page in the website's list or the logs"}
     published, updated, source = _published(path, meta, seen)
@@ -203,19 +232,16 @@ def story(history, site: str, path: str, config: dict, tz, today: date) -> dict:
     start = max(start, last - timedelta(days=MAX_DAYS - 1))
     days = []
     if start <= last:
-        blobs = history.extras(site, start, last, ("pages",))
         for e in history.daily(site, start, last):
             d = e["day"].isoformat()
             row = {"day": d, "state": e["state"],
                    "days_since_publish": (e["day"] - date.fromisoformat(published)).days
                    if published else None}
-            pages = (blobs.get(d) or {}).get("pages")
+            pages = mine.get(d)
             if e["state"] in ("ok", "partial") and pages is not None:
                 got = Counter()
                 parts = {"sources": Counter(), "assistants": Counter(), "countries": Counter()}
-                for p, v in pages.items():
-                    if _norm(p) != path:
-                        continue
+                for p, v in pages:
                     for k in ("readers", "views", "ai_asked", "ai_training", "search"):
                         got[k] += int(v.get(k, 0))
                     for k in parts:

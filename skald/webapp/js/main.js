@@ -30,6 +30,8 @@ import { MARK } from "./mark.js";
 import { buildNav, mark, badge, brand, railFoot, openDrawer, trailOf } from "./nav.js";
 import { ME, loadMe, sessions, signOut } from "./access.js";
 import { planBanner } from "./tabs/billing.js";
+import { updateBanner } from "./updates.js";
+import { DEMO, demoBanner, demoState } from "./demo.js";
 
 const app = document.getElementById("app");
 const panel = document.getElementById("panel");
@@ -285,6 +287,7 @@ function footer() {
   const tick = () => {
     const L = model.live;
     if (!L?.generated_at || L.day !== model.today) { fresh.textContent = `data recorded to ${model.anchor}`; return; }
+    if (DEMO.on) { fresh.textContent = `sample data, updated ${tzTime(L.generated_at, { label: false })}`; return; }
     const next = Date.parse(L.generated_at) + 120000 - Date.now();
     fresh.textContent = `data updated ${tzTime(L.generated_at, { label: false })} · next ${next > 0 ? `in ${Math.max(1, Math.round(next / 60000))} min` : "any moment"}`;
   };
@@ -348,8 +351,9 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
   const name = S.TABS.find(([k]) => k === s.tab)[1];
   document.title = `${toolName()} · ${model.site} · ${name}`;
   const broken = model.failed?.[TAB_FILE[s.tab]];
-  const body = broken ? notBuilt(s.tab, name, TAB_FILE[s.tab], broken) : TAB_RENDER[s.tab](model, s, { first: firstPaint, changed });
-  panel.replaceChildren(printHead(s, name), ...[planBanner(), body].flat(Infinity).filter(Boolean));
+  const body = broken ? notBuilt(s.tab, name, TAB_FILE[s.tab], broken)
+    : DEMO.on && S.inSettings(s.tab) ? demoState(name) : TAB_RENDER[s.tab](model, s, { first: firstPaint, changed });
+  panel.replaceChildren(printHead(s, name), ...[demoBanner(), updateBanner(), planBanner(), body].flat(Infinity).filter(Boolean));
   quietKpis(panel);
   const tabChanged = !prev || prev.tab !== s.tab;
   if (tabChanged && !reduced()) {

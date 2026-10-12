@@ -22,6 +22,9 @@ measuring. Each rule can be switched off in the config's `alerts` section:
                     the same weekday's median over the 4 weeks before - only
                     whole days, at least 3 of them, and a median of at least
                     `traffic_drop_min_readers` (20)
+  ai_*              an AI assistant started or stopped reading a page, or the
+                    visits likely sent by AI answers jumped or vanished: whole
+                    days, once per day, settings in `alerts.ai` (alerts_ai.py)
 
 Fatigue rules: an alert is mailed once, when it opens. While it stays open,
 and if it reopens within `cooldown_hours` (6) of its last mail, nothing more
@@ -44,6 +47,7 @@ import statistics
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+from . import alerts_ai
 from .files import write_atomic
 
 STATE = "alerts-state.json"
@@ -64,7 +68,7 @@ CAUSES = ("site_down", "logging_stopped", "server_errors", "not_found_surge", "c
           "new_crawler", "traffic_drop")
 SEVERITY = {"site_down": "high", "logging_stopped": "high", "server_errors": "high",
             "not_found_surge": "medium", "crawler_burst": "medium", "new_crawler": "low",
-            "traffic_drop": "medium"}
+            "traffic_drop": "medium", **alerts_ai.SEVERITY}
 RESOLVED = ("site_down", "logging_stopped")
 AI_LOOKING = re.compile(r"\bai\b|ai[-_ ]?bot|gpt|llm|agent|assistant|-user\b|fetcher|claude"
                         r"|perplexity|gemini|mistral|cohere|anthropic|openai", re.I)
@@ -368,7 +372,7 @@ def apply(state: dict, found: list[dict], now: datetime, cfg: dict) -> tuple[lis
 def _public(a: dict) -> dict:
     return {k: a.get(k) for k in ("id", "cause", "subject", "severity", "title", "detail",
                                   "figure", "threshold", "opened_at", "last_seen_at",
-                                  "closed_at", "mailed", "repeats")}
+                                  "closed_at", "mailed", "repeats", "data")}
 
 
 # ------------------------------------------------------------------ mail
@@ -416,6 +420,7 @@ def run(ctx, snap: dict | None, signals: dict, send=_send) -> int:
         label = str(setting(ctx.config, "report", "heartbeat_label", "heartbeat"))
         heartbeat_on = any(r["label"] == label for r in ours_rules(ctx.config))
         found = check(cfg, signals, snap, history, ctx.site, ctx.tz, now, known, heartbeat_on)
+        found += _ai(ctx, state, history, now)
     to_mail, resolved = apply(state, found, now, cfg)
     state["figures"] = figures(cfg, signals, now, ctx.now)
     if snap and snap.get("state") == "ok":
@@ -423,6 +428,8 @@ def run(ctx, snap: dict | None, signals: dict, send=_send) -> int:
     host_ok = not cfg["only_on_host"] or socket.gethostname() == cfg["only_on_host"]
     mail_on = cfg["mail"] and host_ok and not replay
     url = setting(ctx.config, "dashboard", "url")
+    if not replay:                      # webhooks that asked for ai.reading_changed
+        alerts_ai.notify(ctx, to_mail)
     if mail_on:
         for alert in to_mail:
             error = send(ctx.config, f"ALERT: {alert['title']}", _body(alert, url), now)
@@ -442,6 +449,17 @@ def run(ctx, snap: dict | None, signals: dict, send=_send) -> int:
     for alert in to_mail:
         ctx.out(f"alert: {alert['title']}" + ("" if mail_on else " (not mailed)"))
     return 0
+
+
+def _ai(ctx, state: dict, history, now: datetime) -> list[dict]:
+    """The AI rules for the last whole day (alerts_ai.py). A failure is one
+    line on stderr and keeps the last findings, so nothing closes and reopens."""
+    day = ctx.now.astimezone(ctx.tz).date() - timedelta(days=1)
+    try:
+        return alerts_ai.findings(state, ctx.config, history, ctx.site, day, now)
+    except Exception as why:            # noqa: BLE001 - never stops the other alerts
+        ctx.err(f"alerts: AI rules: {type(why).__name__}: {why}")
+        return [dict(f) for f in (state.get("ai") or {}).get("found") or []]
 
 
 def _digest(ctx, state: dict, cfg: dict, now: datetime, send, url) -> None:
@@ -475,8 +493,10 @@ def build(p) -> dict:
     closed = sorted((a for a in alerts if a.get("closed_at") is not None),
                     key=lambda a: a["closed_at"], reverse=True)
     return {"enabled": cfg["enabled"], "mail": bool(state.get("mail", False)),
-            "checked_at": state.get("checked_at"), "rules": rules(cfg),
-            "open": [_public(a) for a in open_], "closed": [_public(a) for a in closed]}
+            "checked_at": state.get("checked_at"),
+            "rules": rules(cfg) + alerts_ai.rules(alerts_ai.settings(p.config)),
+            "open": [_public(a) for a in open_], "closed": [_public(a) for a in closed],
+            "ai": alerts_ai.public(state)}
 
 
 # --------------------------------------------------------------- command
@@ -504,6 +524,7 @@ def cmd_alerts(ctx) -> int:
         from .config import ours_rules
         found = check(cfg, feed.signals(), snap, history, ctx.site, ctx.tz, now, known,
                       any(r["label"] == label for r in ours_rules(ctx.config)))
+        found += _ai(ctx, {}, history, now)
     if getattr(ctx.args, "json", False):
         ctx.out(json.dumps(found, indent=1, default=str))
     else:

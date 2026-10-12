@@ -1,0 +1,29 @@
+# The config the "Deploy to Cloudflare" button reads, and `npx wrangler deploy`.
+# Docs: README.md here, docs/HOSTING.md ("Cloudflare on any plan: the Skald Worker").
+#
+# It deploys with no route, and never on a workers.dev address: the Worker sees
+# no request until you add your site's route (README.md, "After the button").
+# SKALD_INGEST_URL and SKALD_TOKEN are not here: they are secrets, asked for by
+# the button (.dev.vars.example) or set with `npx wrangler secret put`. They have
+# no default.
+name = "skald-edge"
+main = "skald-edge.js"
+compatibility_date = "2026-09-01"
+workers_dev = false
+preview_urls = false
+
+# Run in front of the whole site. Leave out hosts that are not the site
+# (Skald's own dashboard host, if it shares the zone). For example:
+# routes = [
+#   { pattern = "example.com/*", zone_name = "example.com" },
+#   { pattern = "www.example.com/*", zone_name = "example.com" },
+# ]
+
+[vars]
+# "true" only when Skald also reads your server's log: it saves the posts
+# Skald would drop. Leave "false" when the Worker is the site's only source.
+SKALD_CACHE_HITS_ONLY = "false"
+# Default: send everything; Skald tells pages from assets itself.
+SKALD_SKIP_EXTENSIONS = ""
+# 1 = every request. Skald does not scale sampled figures up.
+SKALD_SAMPLE = "1"

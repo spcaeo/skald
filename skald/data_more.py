@@ -9,7 +9,8 @@ import importlib
 FILES = {"requests": "requests_feed", "alerts": "alerts", "quality": "quality",
          "markers": "markers", "leads": "leads", "cube": "cube", "robots": "robots",
          "speed": "pagespeed", "funnels": "funnels",
-         "page_index": "lifecycle", "events": "events", "conversions": "conversions_data"}
+         "page_index": "lifecycle", "events": "events", "conversions": "conversions_data",
+         "llms_txt": "llms_txt"}
 
 
 def builders() -> dict:

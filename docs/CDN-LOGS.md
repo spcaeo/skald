@@ -132,15 +132,24 @@ cache reaches no log Skald reads. The Skald Worker closes that gap, on any
 plan: a Cloudflare Worker that passes every request
 on unchanged and, after the response has gone out (`ctx.waitUntil`), posts
 one edge record of it to Skald. Code and setup:
-`deploy/cloudflare-worker/` (`skald-edge.js`, `wrangler.toml.example`,
-`README.md`).
+`deploy/cloudflare-worker/` (`skald-edge.js`, `wrangler.toml` for the
+Deploy to Cloudflare button, `wrangler.toml.example`, `README.md`).
 
-**Setup, in short.**
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/spcaeo/skald/tree/main/deploy/cloudflare-worker)
+
+**With the button.** Do step 1 below first. The button copies
+`deploy/cloudflare-worker/` into a new repository in your GitHub or GitLab
+account and deploys it. It asks for `SKALD_INGEST_URL` and `SKALD_TOKEN` as
+secrets (`.dev.vars.example`), with no default. The Worker is deployed with
+no route and no `workers.dev` address: add your site's route afterwards, or it
+sees no request.
+
+**Setup by hand, in short.**
 
 1. In Skald: turn on ingest, make the site, make an ingest token for it
    (INGEST.md). Format `edge_json` when these records are the site's only
    log; `auto` when Skald reads the server's log too.
-2. Copy `wrangler.toml.example` to `wrangler.toml`; set the routes
+2. Copy `wrangler.toml.example` over `wrangler.toml`; set the routes
    (`example.com/*`) and `SKALD_INGEST_URL`
    (`https://stats.example.com/traffic-ingest/example.com`).
 3. `npx wrangler secret put SKALD_TOKEN` (the ingest token), then
@@ -284,6 +293,8 @@ Checked on 2026-10-08 (the Worker's sources on 2026-10-12).
   <https://developers.cloudflare.com/workers/runtime-apis/context/>
 - Cloudflare, `cf-cache-status` values:
   <https://developers.cloudflare.com/cache/concepts/cache-responses/>
+- Cloudflare, Deploy to Cloudflare buttons:
+  <https://developers.cloudflare.com/workers/platform/deploy-buttons/>
 - Cloudflare Workers pricing:
   <https://developers.cloudflare.com/workers/platform/pricing/>
 

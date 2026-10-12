@@ -23,6 +23,13 @@ if __name__ == "__main__" and "notify-failure" in sys.argv[1:]:
     _spec.loader.exec_module(_failmail)
     sys.exit(_failmail.main(sys.argv[1:]))
 
+if __name__ == "__main__":
+    # migrate starts before the rest: every other command opens (and so
+    # upgrades) the accounts file as it starts (skald/migrations.py).
+    from skald import migrations  # noqa: E402
+    if migrations.command_of(sys.argv[1:]) == "migrate":
+        sys.exit(migrations.main(sys.argv[1:]))
+
 from skald.cli import main  # noqa: E402
 
 if __name__ == "__main__":

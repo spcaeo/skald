@@ -1,0 +1,20 @@
+# The daily update check, and the automatic upgrade when updates.auto allows it
+# (skald/upgrade.py, docs/UPGRADING.md). Started by skald-upgrade.timer.
+# With updates.auto: off (the default) it only asks GitHub, at most once a day,
+# whether a newer release is out (one GET, User-Agent "Skald/<version>", nothing else).
+# Runs as root because an upgrade replaces /opt/skald; the commands it runs
+# on the data (migrate, live, check, audit) drop to the skald user.
+# The env file is sourced for the result mail's SMTP login (never EnvironmentFile=:
+# see skald-refresh.service).
+[Unit]
+Description=Skald: update check and automatic upgrade
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/skald
+ExecStart=/bin/sh -c '[ -r /etc/skald/env ] && . /etc/skald/env; exec /usr/bin/python3 /opt/skald/bin/skald --config /etc/skald/config.yml upgrade --auto'
+StandardOutput=append:/var/log/skald/upgrade.log
+StandardError=append:/var/log/skald/upgrade.log
+TimeoutStartSec=1h

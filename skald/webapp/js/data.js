@@ -12,6 +12,7 @@
 import { addDays, dayDiff, clock, long } from "./ui.js";
 import { adapt } from "./adapt.js";
 import { csrfHeaders } from "./tabs/ipmanager.js";
+import { DEMO, DEMO_SAYS, setDemo, demoFile } from "./demo.js";
 
 export const GROUPS = [
   ["people", "People"], ["answer_engines", "AI assistants"], ["search_engines", "Search engines"],
@@ -21,6 +22,8 @@ export const color = (g) => `var(--g-${g})`;
 
 const cache = new Map();
 export async function getJSON(url, fresh) {
+  // The demo has no helper: its answers are files beside the page, or there is none to ask.
+  if (DEMO.on && /^api\//.test(url)) { url = demoFile(url); if (!url) return null; }
   if (!fresh && cache.has(url)) return cache.get(url);
   const res = await fetch(url, { cache: "no-store", credentials: "same-origin" });
   // A body nobody reads keeps the connection busy: let it go.
@@ -42,6 +45,7 @@ export const EXTRA = ["insights", "not_found", "ai_activity", "campaigns", "page
 export async function load(s, { fresh = false } = {}) {
   const get = (name) => getJSON(base(s.view) + name, fresh);
   const raw = await adapt(get);
+  setDemo(raw.demo);
   // app.json lists the files written beside it; ask only for those, so a file not there yet is not a failed request.
   const listed = (n) => !Array.isArray(raw.files) || raw.files.includes(n);
   // favicons.json lives in the site's own data folder only; a view's page reads that one.
@@ -201,6 +205,7 @@ function options(m) {
 // ---------------------------------------------------------------- refresh
 // POST <page>/refresh: the helper runs `live` and answers 303 back to the page.
 export async function refresh(m) {
+  if (DEMO.on) return { ok: false, message: `${DEMO_SAYS} The figures here are a fixed sample.` };
   try {
     const res = await fetch(m.refreshUrl || "refresh", { method: "POST", credentials: "same-origin", redirect: "follow", cache: "no-store", headers: csrfHeaders() });
     if (res.ok) return { ok: true };

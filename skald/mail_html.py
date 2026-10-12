@@ -361,8 +361,9 @@ def _button(url: str | None) -> str:
 
 def render(kind: str, config: dict, history, tz, site: str, first: date, last: date,
            period, before, insights: list[dict], partial: str, url: str | None,
-           recipients: list[str], credit=None, logo: bool = True) -> str:
-    """The whole HTML part. `before` is the period compared with, or None."""
+           recipients: list[str], credit=None, logo: bool = True, extra: str = "") -> str:
+    """The whole HTML part. `before` is the period compared with, or None;
+    `extra` a ready card after the insights (the weekly AI reading changes)."""
     b = brand.load()
     totals = period.totals
     people = totals.groups.get(Group.PEOPLE)
@@ -410,7 +411,7 @@ def render(kind: str, config: dict, history, tz, site: str, first: date, last: d
     sections = [
         banner, _kpis(now_f, before_f, compare_words),
         _week_bars(history, site, first, last) if kind == "weekly" else "",
-        _insights(insights),
+        _insights(insights), extra,
         _sources(people) if totals.breakdowns else _unmeasured("Where visitors came from"),
         _pages(people),
         _countries(people, credit) if totals.breakdowns else _unmeasured("Countries"),

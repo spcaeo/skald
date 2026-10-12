@@ -5,6 +5,8 @@ Resources (read-only text):
   skald://docs/counting            CLASSIFICATION.md: the five groups and what
                                    the figures cannot know
   skald://sites/<site>/overview    the site's latest overview.json
+  skald://sites/<site>/llms.txt    a suggested /llms.txt (llms_txt.py), from
+                                   the latest llms_txt.json
 
 Prompt: weekly_report(site) - asks the model for a short weekly report
 written with the tools, under Skald's honesty rules.
@@ -23,6 +25,7 @@ DOCS = {"skald://docs/api": ("docs/API.md", "Skald read-only API",
                                   "The five groups every request falls in, and what the "
                                   "figures cannot know.")}
 SITE_URI = "skald://sites/{site}/overview"
+LLMS_URI = "skald://sites/{site}/llms.txt"
 
 
 class Missing(Exception):
@@ -39,6 +42,12 @@ def listing(ctx) -> list[dict]:
                     "description": "The latest overview.json: headline figures per day, "
                                    "with each day's state (ok, partial, withheld, missing).",
                     "mimeType": "application/json"})
+        out.append({"uri": LLMS_URI.format(site=site), "name": f"{site} llms.txt",
+                    "title": f"{site}: suggested llms.txt",
+                    "description": "A suggested /llms.txt: the pages people and AI assistants "
+                                   "read most over the last 90 recorded days. Skald never "
+                                   "publishes it.",
+                    "mimeType": "text/markdown"})
     return out
 
 
@@ -46,7 +55,11 @@ def templates() -> list[dict]:
     return [{"uriTemplate": SITE_URI, "name": "site overview",
              "title": "A site's overview data file",
              "description": "overview.json of a site you may read.",
-             "mimeType": "application/json"}]
+             "mimeType": "application/json"},
+            {"uriTemplate": LLMS_URI, "name": "site llms.txt",
+             "title": "A site's suggested llms.txt",
+             "description": "A suggested /llms.txt for a site you may read.",
+             "mimeType": "text/markdown"}]
 
 
 def read(ctx, uri: str) -> list[dict]:
@@ -56,6 +69,11 @@ def read(ctx, uri: str) -> list[dict]:
             raise Missing(uri)
         return [{"uri": uri, "mimeType": "text/markdown", "text": path.read_text()}]
     prefix, suffix = "skald://sites/", "/overview"
+    if uri.startswith(prefix) and uri.endswith("/llms.txt"):
+        doc = _site_doc(ctx, uri, uri[len(prefix):-len("/llms.txt")], "llms_txt")
+        if not doc.get("ok") or not isinstance(doc.get("text"), str):
+            raise Missing(uri)
+        return [{"uri": uri, "mimeType": "text/markdown", "text": doc["text"]}]
     if uri.startswith(prefix) and uri.endswith(suffix):
         site = uri[len(prefix):-len(suffix)]
         if not SITE.match(site):
@@ -68,6 +86,18 @@ def read(ctx, uri: str) -> list[dict]:
         return [{"uri": uri, "mimeType": "application/json",
                  "text": json.dumps(doc, separators=(",", ":"))}]
     raise Missing(uri)
+
+
+def _site_doc(ctx, uri: str, site: str, name: str) -> dict:
+    if not SITE.match(site):
+        raise Missing(uri)
+    try:
+        doc = ctx.load(ctx.site(site), None, name)
+    except Refused:
+        raise Missing(uri)              # the same answer whether it exists or is not yours
+    if not isinstance(doc, dict):
+        raise Missing(uri)
+    return doc
 
 
 # ---------------------------------------------------------------- prompts

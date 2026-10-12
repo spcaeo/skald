@@ -132,7 +132,9 @@ def _day_stats(history: History, key: str, days: list[str]) -> dict[str, VisitSt
                   READER_KINDS["country"]: "country", READER_KINDS["device"]: "device"})
     out: dict[str, VisitStats] = {}
     for d, kind, name, n in history.count_rows(key, kinds, days):
-        stats = out.setdefault(d, VisitStats())
+        stats = out.get(d)
+        if stats is None:               # one VisitStats per day, not one per row
+            stats = out[d] = VisitStats()
         getattr(stats, field[kind])[name] = n
     for stats in out.values():
         stats.visits = sum(stats.pages.values())

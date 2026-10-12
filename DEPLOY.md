@@ -181,7 +181,18 @@ the website's deploy. After the first deploy run
 `skald backfill --days 14 --force` so the days the logs still hold get the
 new detail, then `skald audit --day` each of them.
 
+Performance (issue #2, [docs/PERFORMANCE.md](docs/PERFORMANCE.md)): history schema 12,
+accounts 5 and conversions 3 add indexes only. Each file is upgraded in place on first open,
+in one transaction; nothing to run. The conversions file keeps a `.v2.bak` copy, as its
+upgrades always do; the history needs none (no row changes).
+
 ### Deploying a new version
+
+An install made by install.sh from a published release upgrades with `skald upgrade`
+instead (backup, migrations, health check, rollback: docs/UPGRADING.md). By hand, as below,
+`skald migrate --check` before and `skald migrate` after the code shows the database steps.
+run-daily's `updates` step (after the recounts, before `dashboard`) asks GitHub at most once a
+day whether a newer release is out; it never stops the run.
 
 Outside 11:10-11:30 UTC (the daily run). Commit first: only committed files
 ship. Lines marked "server" run there as root; the others run in your checkout.

@@ -20,6 +20,10 @@ the pass, the rest left for the next run. None of it ever raises:
      after 1 minute, 5 minutes, 30 minutes, 2 hours and 12 hours, then
      "failed". Rows older than 90 days are deleted.
 
+Events that are not conversions come through `notify`: the alert check
+queues "ai.reading_changed" once per new AI alert (alerts_ai.py; its body is
+the assistant, pages, days and numbers - nothing about a person).
+
 The body is a summary, never a name or an email: the action, stage, source,
 campaign, landing page, country, device, visits before, time to convert and
 the anonymous journey's paths (at most 50 page views). Its `id` is the
@@ -52,7 +56,7 @@ from .adapters import sign_timed
 
 EVENTS = ("conversion.started", "conversion.completed", "conversion.cancelled",
           "conversion.rescheduled", "conversion.no_show", "conversion.abandoned", "lead.won",
-          "lead.lost")
+          "lead.lost", "ai.reading_changed")
 STAGE_EVENT = {"started": "conversion.started", "completed": "conversion.completed",
                "paid": "conversion.completed", "cancelled": "conversion.cancelled",
                "rescheduled": "conversion.rescheduled", "no_show": "conversion.no_show",
@@ -474,6 +478,29 @@ def enqueue(db, config: dict, site: str, now: datetime | None = None) -> int:
                 added += _queue(db, h, "conversion.abandoned", f"c{r['id']}",
                                 body_for(db, r, "conversion.abandoned"), now)
     return added
+
+
+def notify(config: dict, folder: Path, site: str, event: str, ref: str, body: dict,
+           now: datetime | None = None) -> int:
+    """Queue one event that is not a conversion (alerts_ai: ai.reading_changed)
+    for every webhook of the site that wants it, once per `ref`. Rows queued;
+    0 without a conversions file or a webhook. Delivered by the next pass."""
+    if event not in EVENTS:
+        raise Refused(f"Unknown event: {event}")
+    path = store.path_for(config, folder)
+    if path is None or not Path(path).exists():
+        return 0
+    db = store.connect(path)
+    try:
+        hooks = [webhook(db, site, w["id"]) for w in active(db, site)]
+        if not hooks:
+            return 0
+        now = _now(now)
+        with store.tx(db):
+            return sum(_queue(db, h, event, str(ref)[:100], {**body, "event": event, "site": site},
+                              now) for h in hooks)
+    finally:
+        db.close()
 
 
 # ---------------------------------------------------------------- deliver

@@ -21,6 +21,7 @@ const EVENT_WORDS = {
   "conversion.no_show": "a booked call nobody came to",
   "conversion.abandoned": "started and not finished within the abandon window",
   "lead.won": "a lead marked won",
+  "ai.reading_changed": "an AI assistant started or stopped reading a page, or its likely visits jumped or vanished",
   "lead.lost": "a lead marked lost",
 };
 const OUTCOME = { recorded: "kept", duplicate: "already had it", ignored: "not a conversion", test: "test, read and not kept", test_failed: "test refused", bad_signature: "bad signature", bad_body: "not readable", too_large: "too large", no_length: "no length", rate_limited: "too many", error: "error" };

@@ -483,6 +483,13 @@ Skald can tell your CRM, Zapier, Make or Slack what happened. Add an
 | `conversion.cancelled`, `conversion.rescheduled`, `conversion.no_show` | a booking changed |
 | `conversion.abandoned` | started and not completed by the same visitor ID within `conversions.abandon_hours`; sent once |
 | `lead.won`, `lead.lost` | the team marked the lead (the lead database, a CRM) |
+| `ai.reading_changed` | a new AI alert (alerts_ai.py, alerts on): an assistant started or stopped reading a page, or its likely visits jumped or vanished; once per alert, never from a replay |
+
+`ai.reading_changed` carries no conversion fields: `{"event","id","site","alert_id","cause"
+("ai_started_reading"/"ai_stopped_reading"/"ai_sending_people"),"kind" ("started"/"stopped"/
+"sending_jumped"/"sending_vanished"),"assistant" (its owner, e.g. "OpenAI", or a likely-AI
+assistant name),"crawlers","day","window" [first, last],"pages" [{"path","n"} or
+{"path","weeks","n"}],"visits","average","title","detail","figure","threshold","opened_at"}`.
 
 Each is a `POST` with a JSON body, signed like Skald's own hooks:
 

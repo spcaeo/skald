@@ -10,6 +10,7 @@ import { head, nothing, coverageNote, blist, panel, countTable, fileName, compar
 import { verification, verifySection, badge, badgeOf } from "./botverify.js";
 import { robotsOf, robotsBadge, robotsWords, robotsSection } from "./robots.js";
 import { followedSection } from "./likelyai.js";
+import { aiChanges } from "./alerts.js";
 
 const ADS = /ads quality|AdsBot/i;
 
@@ -51,6 +52,7 @@ export default function bots(m, s, { first }) {
     table([{ key: "name", label: "Assistant", drill: "bot" }, ...checkCol, ...robotsCol, { key: "why", label: "Why it came" }, { key: "v", label: "Fetches", num: true }],
       { caption: "AI assistants by name and tier", rows, file: fileName("ai-assistants", r), empty: "No answer engines in this range." })));
   out.push(followedSection(m, r));
+  out.push(aiChanges(m));
   const searchRows = ranked(t.search_engines);
   out.push(h("div", { class: "cols" },
     h("section", { class: "s" }, h("h2", null, "Search engines"),

@@ -1,0 +1,5 @@
+# Local secrets and build output: never committed.
+.dev.vars
+.wrangler/
+node_modules/
+dist/

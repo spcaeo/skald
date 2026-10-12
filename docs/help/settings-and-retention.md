@@ -150,6 +150,14 @@ A blocked crawler gets a refusal before the page is served. Some crawlers cannot
 
 These rules apply to every site on the server, so only an install admin may change them.
 
+### Suggested llms.txt
+
+Below the crawlers, **Suggested llms.txt** shows a file you can publish at `/llms.txt` on your site. It follows the format at llmstxt.org: your site's name, a one-line summary, then links to your pages, grouped by section, so an AI assistant knows which pages matter.
+
+Skald picks the pages people and AI assistants read most over the last 90 days. Only recorded days count; any day left out is named. It leaves out private pages (sign-in, account, cart, search, admin), pages your robots.txt keeps crawlers from, redirects, and pages that are gone. With your website's page list, each link has the page's title; without it, the link is named by its path.
+
+Write the summary line yourself and check the links. Then select **Copy** or **Download** and publish it on your site. Skald never writes it to your website. Your server admin can also print it with `skald llms-txt`.
+
 ## Security
 
 [Security](#settings/security) sets sign-in rules for everyone in the organisation. Only an owner may change them.

@@ -285,6 +285,19 @@ def _insights(history: History, site: str, anchor: date, config: dict,
     return "\n".join(lines) + "\n\n", html
 
 
+def _ai_changes(kind: str, config: dict, history: History, site: str, first: date,
+                last: date) -> tuple[str, str]:
+    """The weekly mail's "AI reading changes" (alerts_ai.weekly): only with
+    alerts and alert mail on. Never fails the mail."""
+    if kind != "weekly":
+        return "", ""
+    try:
+        from .alerts_ai import weekly
+        return weekly(config, history, site, first, last)
+    except Exception:                   # noqa: BLE001 - a section, never the mail
+        return "", ""
+
+
 def _message(cfg: dict, subject: str, text: str, html: str,
              now: datetime) -> EmailMessage:
     msg = EmailMessage()
@@ -347,6 +360,13 @@ def build(kind: str, config: dict, history: History, tz: ZoneInfo,
     found = compute(history, site, last, config)["insights"][:5 if kind == "daily" else 10]
     preface_text += found_text
     preface_html += found_html
+    ai_text, ai_html = _ai_changes(kind, config, history, site, first if kind == "weekly"
+                                   else last, last)
+    preface_text += ai_text
+    # A newer Skald (updates.py): read from updates.json only, never the network.
+    from .updates import mail_notice
+    update_text, update_html = mail_notice(config)
+    preface_text += update_text
     credit = country_credit(config)
     text = (f"{title}\n{subtitle}\n\n{preface_text}"
             + as_text(period.totals, cards, credit, tz_name=zone) + link_text)
@@ -362,7 +382,7 @@ def build(kind: str, config: dict, history: History, tz: ZoneInfo,
     logo = _logo()
     html = mail_html.render(kind, config, history, tz, site, first, last, period, before,
                             found, partial_text, setting(config, "dashboard", "url"),
-                            cfg["to"], credit, logo is not None)
+                            cfg["to"], credit, logo is not None, extra=ai_html + update_html)
     msg = _message(cfg, subject, text, html, now)
     if logo is not None:
         body = msg.get_body(("html",))

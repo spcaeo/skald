@@ -26,7 +26,7 @@ from ..config import setting
 from ..files import own_like_folder
 from . import ALIASES, FINISHED, STAGES
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 STAMP = "%Y-%m-%dT%H:%M:%SZ"
 FILE = "conversions.sqlite"
 VID_DAYS = 30
@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   source_type TEXT);
 CREATE INDEX IF NOT EXISTS journeys_vid ON journeys (site, vid, at);
 CREATE INDEX IF NOT EXISTS journeys_at ON journeys (at);
+CREATE INDEX IF NOT EXISTS journeys_site_at ON journeys (site, at);
 CREATE TABLE IF NOT EXISTS identities (
   id INTEGER PRIMARY KEY, site TEXT NOT NULL, email_hash TEXT NOT NULL,
   email TEXT, name TEXT, created_at TEXT NOT NULL, UNIQUE (site, email_hash));
@@ -101,7 +102,14 @@ UPGRADES: dict[int, list[str]] = {2: [
     *(f"UPDATE conversions SET action = '{new}' WHERE action = '{old}'"
       for old, new in ALIASES.items()),
     *INDEXES.strip().splitlines(),
-]}
+],
+    # 3: a site's journeys by time (pages before converting, the audit's
+    # recount): a range in one site, not every journey of the site.
+    3: ["CREATE INDEX IF NOT EXISTS journeys_site_at ON journeys (site, at)"]}
+
+# The SCHEMA this code set a file up with (see accounts/db.py): a file
+# stamped with it at SCHEMA_VERSION skips the script on connect.
+SCHEMA_STAMP = hashlib.sha256(SCHEMA.encode()).hexdigest()[:16]
 
 COLUMNS = ("action", "stage", "at", "vid", "external_ref", "tool", "source_type",
            "first_source", "campaign", "landing", "country", "device", "first_touch_at",
@@ -143,12 +151,26 @@ def connect(path: Path | str) -> sqlite3.Connection:
         if not memory:
             db.execute("PRAGMA journal_mode = WAL")
         db.execute("PRAGMA foreign_keys = ON")
-        db.executescript(SCHEMA)
-        _upgrade(db, None if memory else path)
+        if not _set_up(db):
+            db.executescript(SCHEMA)
+            _upgrade(db, None if memory else path)
+            db.execute("INSERT INTO meta (key, value) VALUES ('schema_stamp', ?) "
+                       "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (SCHEMA_STAMP,))
     except BaseException:
         db.close()
         raise
     return db
+
+
+def _set_up(db: sqlite3.Connection) -> bool:
+    """True when this file was set up by this SCHEMA at SCHEMA_VERSION."""
+    try:
+        got = {r[0]: r[1] for r in db.execute(
+            "SELECT key, value FROM meta WHERE key IN ('schema_version', 'schema_stamp')")}
+    except sqlite3.OperationalError:             # a new file: no meta table yet
+        return False
+    return got.get("schema_version") == str(SCHEMA_VERSION) and \
+        got.get("schema_stamp") == SCHEMA_STAMP
 
 
 def _upgrade(db: sqlite3.Connection, path: Path | None = None) -> None:

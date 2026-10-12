@@ -1,4 +1,4 @@
-# Copy to wrangler.toml, change the names, then:
+# Copy over wrangler.toml (the Deploy button's config), change the names, then:
 #   npx wrangler secret put SKALD_TOKEN      (paste the site's ingest token)
 #   npx wrangler deploy
 # Docs: docs/HOSTING.md, "Cloudflare on any plan: the Skald Worker".

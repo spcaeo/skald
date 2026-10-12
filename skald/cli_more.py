@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import importlib
 
-MODULES = ("compare", "lifecycle", "brand", "access", "tokens", "report_export", "bot_verify", "backup", "privacy", "markers", "leads", "alerts", "favicons", "pagespeed", "events", "failmail", "cli_accounts", "mcp", "cli_conversions", "saas.cli")
+MODULES = ("compare", "lifecycle", "brand", "access", "tokens", "report_export", "bot_verify", "backup", "privacy", "markers", "leads", "alerts", "favicons", "pagespeed", "events", "failmail", "cli_accounts", "mcp", "cli_conversions", "saas.cli", "llms_txt", "updates", "migrations", "upgrade")
 
 
 def register(sub) -> None:

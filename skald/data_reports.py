@@ -134,12 +134,16 @@ def _visitor_days(p) -> dict[str, dict]:
         seen.setdefault((v, kind), []).append(d)
     out: dict[str, dict] = {}
     for (v, kind), days in seen.items():
-        for i, d in enumerate(days):
+        # A visitor's days are in order, one row per day, so it was seen in
+        # the 29 days before `d` exactly when its previous day falls in them.
+        before = None
+        for d in days:
             slot = out.setdefault(d, {}).setdefault(kind, {"visitors": 0, "repeat_visitors": 0})
             slot["visitors"] += 1
-            earlier = [x for x in days[:i]
-                       if date.fromisoformat(x) >= date.fromisoformat(d) - timedelta(days=29)]
-            slot["repeat_visitors"] += 1 if earlier else 0
+            when = date.fromisoformat(d)
+            if before is not None and before >= when - timedelta(days=29):
+                slot["repeat_visitors"] += 1
+            before = when
     return out
 
 

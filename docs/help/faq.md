@@ -28,6 +28,20 @@ No. AI crawlers and fetches are machines, and show on [AI & crawlers](#bots) in 
 
 It is an estimate, not a count. A person who clicks a link in an AI answer often arrives with no referrer, so the visit shows as Direct. But when they asked, the assistant fetched your page from your server. When a direct visit with no campaign tag lands on a page an assistant fetched in the same minute or up to 15 minutes before, Skald says the visit was *likely* sent by that assistant. It shows these on [Sources](#sources), [AI & crawlers](#bots), [Leads](#leads), [Conversions](#conversions) and in a visitor's details, always marked "likely" with an (i) that says how. They are never added to the AI assistant source or to any other figure. See [Leads and conversions](leads-and-conversions.md).
 
+## What are the AI alerts?
+
+Three alerts watch how AI assistants treat your site. They show on [Alerts](#health/alerts) (press **AI** to see only them) and in **AI reading changes** on [AI & crawlers](#bots):
+
+- **AI started reading**: an assistant fetched a page yesterday that it had not fetched in the 28 days before.
+- **AI stopped reading**: an assistant that fetched a page in at least 3 of the 4 weeks before has not fetched it for 7 days.
+- **AI sending people**: the visits likely sent by an assistant jumped (3 times its 28-day average, and at least 10) or vanished. With fewer visits Skald says "too few to judge" and does not alert.
+
+An assistant means its company: GPTBot, OAI-SearchBot and ChatGPT-User are all OpenAI. Each alert names the assistant, the page, the days and the numbers. They use whole days only, and only figures Skald has already counted twice. If a day in the window is withheld or missing, the alert waits; it never fires on a day it cannot trust. The server admin can change the thresholds or switch each one off (`alerts.ai_*` in the server's config). If alert mail is on, the weekly mail lists the week's changes, and an outgoing webhook can receive each one as `ai.reading_changed` ([Webhooks](webhooks.md)).
+
+## Can Skald write an llms.txt for my site?
+
+It suggests one; it never writes it to your website. Open [AI crawlers](#settings/crawlers) and see **Suggested llms.txt**: links to the pages people and AI assistants read most over the last 90 days, grouped by section, in the llmstxt.org format. Write the one-line summary yourself, check the links, then copy or download it and publish it at `/llms.txt`. See [Settings and retention](settings-and-retention.md).
+
 ## Why is my own visit not counted?
 
 Your team's addresses are probably listed as internal. Visits from them go to the "Our own" group, kept apart from people, so your own testing does not inflate the figures. See [Internal traffic](internal-traffic.md) and [Internal traffic settings](#settings/internal).
@@ -77,3 +91,11 @@ Admins and owners go to **Settings > Team & access > Team** and use **Invite som
 ## My site is behind Cloudflare: will cached pages be missed?
 
 Only if Skald reads nothing but your server's log. A page Cloudflare serves from its cache never reaches your server, so your server's log does not see that visit. Two fixes, set up by whoever runs your Skald server: Cloudflare's own request log (Logpush), if your Cloudflare plan offers it, or the small Skald Worker on any plan. The Worker sends Skald one line per request after the page has gone out, so it never slows the page. When Skald reads both the Worker and your server's log, it takes only the cached pages from the Worker, so no visit is counted twice.
+
+## What does "A newer Skald is available" mean?
+
+A newer release of Skald is out than the one your server runs. Only owners and admins see this line at the top of the dashboard, and the daily and weekly mail show it too. **What's new** opens the release notes. **×** hides the line in your browser until the next release. A red line is a security release: ask whoever runs your Skald server to upgrade soon. Nothing changes until they do (or until they switch on automatic upgrades). To check, your server asks GitHub once a day which release is the latest; it sends only Skald's version, never your figures or visitors. Your server admin can turn this off (`updates.check: false`). See [Upgrading](https://github.com/spcaeo/skald/blob/main/docs/UPGRADING.md).
+
+## How is Skald upgraded?
+
+Whoever runs your Skald server upgrades it with one command. It checks the download, copies every database first, refuses to jump to a new major version or to run during the morning run, and puts the old version back if anything fails. Your figures and settings stay. Automatic upgrades for fixes (or fixes and features) can be switched on; they are off unless your admin turns them on. With Docker, the admin pulls the new image. See [Upgrading](https://github.com/spcaeo/skald/blob/main/docs/UPGRADING.md).

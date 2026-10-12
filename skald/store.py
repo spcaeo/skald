@@ -74,7 +74,9 @@ from .verify import Problem
 # 11: the `page_milestones` table - each page's first times, kept for good
 #    (lifecycle.py): Googlebot, Bingbot, each AI crawler and assistant, the
 #    first person, the first from search and from each AI assistant.
-SCHEMA_VERSION = 11
+# 12: indexes by day on day_extras, visitor_days and journeys (ADDED_INDEXES),
+#    for the deletes that keep them to their windows; no row changes.
+SCHEMA_VERSION = 12
 
 # Tables added after version 1: (version, name, CREATE statement). Created by
 # an upgrade (after the backup copy), never by the plain open, so an older
@@ -106,6 +108,16 @@ CREATE TABLE IF NOT EXISTS page_milestones (
     via  TEXT NOT NULL DEFAULT '',       -- from_search: the search site
     PRIMARY KEY (site, path, kind, who)
 )"""),
+]
+
+# Indexes added after version 1: (version, name, CREATE statement). Made by
+# the upgrade, in its transaction, when missing (docs/PERFORMANCE.md).
+# Every read keys on (site, day, ...), which the primary keys serve; these
+# serve the daily prune ("WHERE day < ?"), which otherwise reads every row.
+ADDED_INDEXES = [
+    (12, "day_extras_day", "CREATE INDEX IF NOT EXISTS day_extras_day ON day_extras (day, kind)"),
+    (12, "visitor_days_day", "CREATE INDEX IF NOT EXISTS visitor_days_day ON visitor_days (day)"),
+    (12, "journeys_day", "CREATE INDEX IF NOT EXISTS journeys_day ON journeys (day)"),
 ]
 
 # Joins a site and a view's slug into the key a view's rows are filed under.
@@ -322,8 +334,13 @@ class History:
         have = {r[0] for r in self.db.execute(
             "SELECT name FROM sqlite_master WHERE type = 'table'")}
         tables = [sql for _, name, sql in ADDED_TABLES if name not in have]
-        if found == SCHEMA_VERSION and not missing and not tables:
+        have = {r[0] for r in self.db.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'index'")}
+        indexes = [sql for _, name, sql in ADDED_INDEXES if name not in have]
+        if found == SCHEMA_VERSION and not missing and not tables and not indexes:
             return None
+        # An index changes no row (and can be dropped again), so an upgrade
+        # that only adds indexes needs no copy.
         if (missing or (tables and found is not None)) and str(self.path) != ":memory:":
             backup = self.path.with_name(
                 f"{self.path.name}.schema-v{found or 0}.bak")
@@ -339,6 +356,9 @@ class History:
                 self.db.execute(
                     f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
             for sql in tables:
+                self.db.execute(sql)
+            # After the tables: an index may be on one just made.
+            for sql in indexes:
                 self.db.execute(sql)
             self.db.execute(
                 "INSERT INTO meta (key, value) VALUES ('schema_version', ?) "
@@ -358,6 +378,15 @@ class History:
         made.path = Path(path)
         made.db = sqlite3.connect(f"file:{Path(path).resolve()}?mode=ro", uri=True)
         made.migrated_from = None
+        try:
+            row = made.db.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
+        except sqlite3.OperationalError:
+            row = None                    # an empty or partial file: nothing to guard
+        if row and int(row[0]) > SCHEMA_VERSION:
+            made.db.close()
+            raise RuntimeError(
+                f"history file is schema {row[0]}, this code understands "
+                f"{SCHEMA_VERSION}; upgrade skald before reading it")
         return made
 
     def prune_extras(self, today: date, days: int, kinds: tuple[str, ...],
@@ -574,11 +603,77 @@ class History:
         never made a day's top 50 is missing from a month's list - the long
         tail undercounts, the head does not.
         """
-        period = Period(first, last, Totals())
-        states = {d: (v, pf, pu) for d, v, pf, pu in self.db.execute(
+        period = self._span(first, last, self._states(site, first, last))
+        summed = period.recorded + (period.partial if include_partial else [])
+        if not summed:
+            return period
+        days = sorted(d.isoformat() for d in summed)
+        marks = ",".join("?" * len(days))
+        day_rows = self.db.execute(
+            f"SELECT day, parsed, hits, other_hosts, unfiltered, cited_visits, "
+            f"first_seen, last_seen, lines_read, unparsed, breakdowns, journeys "
+            f"FROM days WHERE site = ? AND day IN ({marks})", (site, *days)).fetchall()
+        group_rows = self.db.execute(
+            f"SELECT grp, SUM(hits), SUM(views), SUM(visits), SUM(probes), "
+            f"SUM(readers), COUNT(readers), COUNT(*) "
+            f"FROM groups WHERE site = ? AND day IN ({marks}) GROUP BY grp",
+            (site, *days)).fetchall()
+        count_rows = self.db.execute(
+            f"SELECT kind, name, SUM(n) FROM counts WHERE site = ? "
+            f"AND day IN ({marks}) GROUP BY kind, name", (site, *days)).fetchall()
+        blobs = sx.read(self.db, site, date.fromisoformat(days[0]),
+                        date.fromisoformat(days[-1]), ("returning",))
+        return self._sum(period, days, day_rows, group_rows, count_rows, blobs)
+
+    def periods(self, site: str, first: date, last: date,
+                include_partial: bool = False) -> dict[date, Period]:
+        """{day: period(site, day, day, include_partial)} for every day in
+        [first, last], from four queries instead of five per day. Each day's
+        rows go through the same _sum as period(), in the same order (a
+        GROUP BY of one day's rows is those rows, ordered by its key), so a
+        day comes out exactly as period() makes it."""
+        states = self._states(site, first, last)
+        out = {d: self._span(d, d, states) for d in _days(first, last)}
+        wanted = sorted(d.isoformat() for d, p in out.items()
+                        if p.recorded or (include_partial and p.partial))
+        if not wanted:
+            return out
+        marks = ",".join("?" * len(wanted))
+        by_day: dict[str, list] = {d: [] for d in wanted}
+        groups: dict[str, list] = {d: [] for d in wanted}
+        counts: dict[str, list] = {d: [] for d in wanted}
+        for row in self.db.execute(
+                f"SELECT day, parsed, hits, other_hosts, unfiltered, cited_visits, "
+                f"first_seen, last_seen, lines_read, unparsed, breakdowns, journeys "
+                f"FROM days WHERE site = ? AND day IN ({marks})", (site, *wanted)):
+            by_day[row[0]].append(row)
+        for d, grp, hits, views, visits, probes, readers in self.db.execute(
+                f"SELECT day, grp, hits, views, visits, probes, readers FROM groups "
+                f"WHERE site = ? AND day IN ({marks}) ORDER BY day, grp", (site, *wanted)):
+            groups[d].append((grp, hits, views, visits, probes, readers,
+                              0 if readers is None else 1, 1))
+        for d, kind, name, n in self.db.execute(
+                f"SELECT day, kind, name, n FROM counts WHERE site = ? AND day IN ({marks}) "
+                f"ORDER BY day, kind, name", (site, *wanted)):
+            counts[d].append((kind, name, n))
+        blobs = sx.read(self.db, site, date.fromisoformat(wanted[0]),
+                        date.fromisoformat(wanted[-1]), ("returning",))
+        for d in wanted:
+            day = date.fromisoformat(d)
+            out[day] = self._sum(out[day], [d], by_day[d], groups[d], counts[d],
+                                 {d: blobs[d]} if d in blobs else {})
+        return out
+
+    def _states(self, site: str, first: date, last: date) -> dict[str, tuple]:
+        return {d: (v, pf, pu) for d, v, pf, pu in self.db.execute(
             "SELECT day, verified, partial_from, partial_until FROM days "
             "WHERE site = ? AND day BETWEEN ? AND ?",
             (site, first.isoformat(), last.isoformat()))}
+
+    @staticmethod
+    def _span(first: date, last: date, states: dict[str, tuple]) -> Period:
+        """The days of [first, last] sorted by state; nothing summed yet."""
+        period = Period(first, last, Totals())
         for day in _days(first, last):
             state = states.get(day.isoformat())
             if state is None:
@@ -593,12 +688,12 @@ class History:
                     period.partial_until[day] = datetime.fromisoformat(state[2])
             else:
                 period.recorded.append(day)
-        summed = period.recorded + (period.partial if include_partial else [])
-        if not summed:
-            return period
+        return period
 
-        days = sorted(d.isoformat() for d in summed)
-        marks = ",".join("?" * len(days))
+    @staticmethod
+    def _sum(period: Period, days: list[str], day_rows, group_rows, count_rows,
+             blobs: dict) -> Period:
+        """Sum the rows of `days` (ISO, sorted) into period.totals."""
         totals = period.totals
         # Each day's unreadable share was checked against the configured limit
         # when it was collected, and a day over it is withheld, not here. A
@@ -607,10 +702,7 @@ class History:
         totals.lines_scope = "in the days collected"
         measured = visited = 0
         for (day, parsed, hits, other, unfiltered, cited, first_seen, last_seen,
-             lines_read, unparsed, breakdowns, journeyed) in self.db.execute(
-                f"SELECT day, parsed, hits, other_hosts, unfiltered, cited_visits, "
-                f"first_seen, last_seen, lines_read, unparsed, breakdowns, journeys "
-                f"FROM days WHERE site = ? AND day IN ({marks})", (site, *days)):
+             lines_read, unparsed, breakdowns, journeyed) in day_rows:
             visited += 1 if journeyed else 0
             if breakdowns:
                 measured += 1
@@ -637,11 +729,7 @@ class History:
                     if totals.last is None or when > totals.last:
                         totals.last = when
 
-        for grp, hits, views, visits, probes, readers, known, rows in self.db.execute(
-                f"SELECT grp, SUM(hits), SUM(views), SUM(visits), SUM(probes), "
-                f"SUM(readers), COUNT(readers), COUNT(*) "
-                f"FROM groups WHERE site = ? AND day IN ({marks}) GROUP BY grp",
-                (site, *days)):
+        for grp, hits, views, visits, probes, readers, known, rows in group_rows:
             stats = totals.group(Group(grp))
             stats.hits, stats.views = hits, views
             stats.visits, stats.probes = visits, probes
@@ -649,9 +737,7 @@ class History:
             stats.readers = readers if known == rows else None
 
         summed: dict[str, Counter] = {kind: Counter() for kind in KINDS}
-        for kind, name, n in self.db.execute(
-                f"SELECT kind, name, SUM(n) FROM counts WHERE site = ? "
-                f"AND day IN ({marks}) GROUP BY kind, name", (site, *days)):
+        for kind, name, n in count_rows:
             summed.setdefault(kind, Counter())[name] = n
 
         def ranked(counter: Counter) -> Counter:
@@ -701,8 +787,6 @@ class History:
             totals.ours_labels = Counter(dict(summed.get(sv.OURS_KIND, Counter()).most_common()))
         period.unmeasured_visits = len(days) - visited
         # Returning visitors: summed only when every day has the figure.
-        blobs = sx.read(self.db, site, date.fromisoformat(days[0]),
-                        date.fromisoformat(days[-1]), ("returning",))
         got = [blobs.get(d, {}).get("returning") for d in days]
         if got and all(g is not None for g in got):
             totals.returning = {"readers": sum(g["readers"] for g in got),

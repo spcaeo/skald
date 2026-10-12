@@ -503,3 +503,16 @@ tr.withheld td { color: var(--ink-3); background: repeating-linear-gradient(135d
   .rail, .bar, .tbl-tools { display: none; }
   .app { display: block; }
 }
+
+/* the demo (js/demo.js): sample data, no helper; a slim line at the top of every page */
+.demo-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0 0 14px; padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--g-people) 40%, var(--rule)); border-radius: 10px;
+  background: color-mix(in srgb, var(--g-people) 7%, var(--surface)); color: var(--ink); font-size: 13.5px; line-height: 1.4; }
+.demo-banner .demo-tag { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--surface);
+  background: var(--g-people); border-radius: 999px; padding: 1px 8px; }
+.demo-banner .demo-words { min-width: 0; }
+.demo-banner .demo-links { margin-left: auto; white-space: nowrap; color: var(--ink-2); }
+.demo-banner a { color: inherit; font-weight: 600; }
+.demo-state { margin-top: 12px; }
+@media (max-width: 640px) { .demo-banner .demo-links { margin-left: 0; white-space: normal; } }
+@media print { .demo-banner { display: none; } }
