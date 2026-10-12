@@ -796,6 +796,14 @@ Comparisons only between complete periods (no withheld, missing or partial
 days). Thresholds (`insights:` in the config, defaults: at least 5 events
 after, and 20% change) keep tiny numbers out.
 
+Since 2.5.0 the whole site's file also holds lead findings (`metric`
+`"leads"`, subject kinds `site`, `source`, `page`, `country`; a "sends the
+most leads" finding has `"top": true` and `"of"`, all the leads of its 30
+days), from conversions.json's checked days, and `leads_withheld`: `[why]`,
+the lead findings the second count (`audit_conversions_leads.py`) disagreed
+with, left out. Rules and second count:
+[docs/DATA-CONTRACT-CONVERSIONS.md](docs/DATA-CONTRACT-CONVERSIONS.md).
+
 ## events.json
 
 In-page events from the beacon (`events.py`, docs/BEACON.md): what readers

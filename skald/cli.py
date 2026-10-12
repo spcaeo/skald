@@ -546,12 +546,16 @@ def cmd_mail(ctx: Context) -> int:
     return mail(ctx, kind, ctx.args.dry_run, ctx.args.save_html)
 
 
-def run_steps(steps: list[tuple[str, Callable[[], int]]], err=print) -> int:
-    """Run each step while the previous one returned 0. The first failure stops."""
+def run_steps(steps: list[tuple[str, Callable[[], int]]], err=print,
+              stopped: list | None = None) -> int:
+    """Run each step while the previous one returned 0. The first failure
+    stops; its name goes into `stopped` when one is given."""
     for name, step in steps:
         code = step()
         if code:
             err(f"run-daily stopped at '{name}' (exit {code}); later steps skipped")
+            if stopped is not None:
+                stopped.append(name)
             return code
     return 0
 
@@ -779,17 +783,24 @@ def cmd_run_daily(ctx: Context) -> int:
     ctx.by_design = None
     ctx.waiting = False
     ctx.recounts = None                 # (code, why) from audit_more's steps
+    stopped: list[str] = []
     try:
-        code = run_steps(daily_steps(ctx), ctx.err)
+        code = run_steps(daily_steps(ctx), ctx.err, stopped)
         if code == 0 and ctx.recounts:  # a recount disagreed (1) or broke (2)
             code, ctx.by_design = ctx.recounts
-    except BaseException:
-        runs.record(ctx.live_dir, "run-daily", 1, outcome="failed")
+            stopped.append("recounts")
+    except BaseException as why:
+        runs.record(ctx.live_dir, "run-daily", 1, outcome="failed",
+                    step=stopped[0] if stopped else None,
+                    reason=f"{type(why).__name__}: {why}")
         raise
     outcome = "ok" if code == 0 else "withheld" if code == 1 and ctx.by_design else "failed"
     if code == 0 and ctx.waiting:
         outcome = "waiting"             # a dashboard site with no line yet
-    runs.record(ctx.live_dir, "run-daily", code, outcome=outcome)
+    # The step it stopped at and why, for `skald doctor` (runs.json).
+    runs.record(ctx.live_dir, "run-daily", code, outcome=outcome,
+                step=stopped[0] if code and stopped else None,
+                reason=ctx.by_design if code else None)
     return code
 
 

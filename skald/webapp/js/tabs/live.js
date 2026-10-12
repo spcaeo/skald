@@ -4,6 +4,7 @@
 //
 //   header (one line: today so far, updated N s ago) - people tiles -
 //   who else came - right now (latest visits and AI activity, side by side) -
+//   today's leads and bookings as they arrive (conversions.json `today`) -
 //   hour by hour - today's top lists
 
 import { h, n, duration } from "../ui.js";
@@ -17,6 +18,7 @@ import { tiles, others, top, info } from "./tiles.js";
 import { leadsOver } from "./overview.js";
 import { aiFeed } from "./aifeed.js";
 import { time as tzTime, hourLabels, label as tzLabel, when } from "../tz.js";
+import { convFile, convDay, dayLeads, oneAction, STAGE, toolName, LEAD_WORDS } from "./leadfigs.js";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const KIND = { asked: "answering a question", training: "collecting for training", referred: "sent a visitor" };
@@ -87,6 +89,38 @@ function rightNow(m, js, events) {
       panel("Latest AI activity", "assistants fetching pages, and visitors they sent", shown.events.map((e) => aiRow(e, isNew(keyE(e)))), "No AI assistant has come yet today.")));
 }
 
+/* Today's leads and bookings, newest first, from the same rows the
+   Conversions tab counts: every stage of a form or a booking, with its
+   source, landing page and country. A row marked test is listed, marked and
+   never counted. Withheld with today's conversions; null without the file. */
+const REPORTED = { beacon: "the script tag", site: "the lead database", lead: "your site's server" };
+function leadsToday(m) {
+  const f = convFile(m);
+  if (!f) return null;
+  const b = f.today;
+  const fin = new Set(f.finished || ["completed", "paid"]);
+  const head = h("div", { class: "card-h start" }, h("h2", null, "Leads and bookings today"),
+    info(`Every form and booking reported today, newest first, from the script tag, the tools' webhooks and the lead database, as on the Conversions page. ${LEAD_WORDS} A started form or an opened booking is listed with its stage and is not a lead.`, "Leads and bookings today"));
+  if (!b || b.day !== m.today) return h("section", { class: "s" }, head, h("p", { class: "empty" }, "Today's list is written with the next update (every 2 minutes)."));
+  if (b.state !== "ok") return h("section", { class: "s" }, head, h("div", { class: "state bad", role: "alert" }, h("div", null, `Withheld: ${b.why || "the second count disagrees."} None of today's leads are shown or counted until it matches.`)));
+  const row = (x) => {
+    const done = fin.has(x.stage);
+    const facts = [x.source ? `from ${x.source}` : "source not recorded", x.landing ? `landed on ${x.landing}` : "", x.country ? country(x.country) : ""].filter(Boolean).join(", ");
+    return h("li", { class: x.test ? "lead-test" : null },
+      h("span", { class: "s-t" }, tzTime(x.at, { label: false })),
+      h("span", { class: "s-i" }, flagEl(x.country) || mark("device", x.device)),
+      h("span", { class: "s-w" }, h("b", null, oneAction(x.action)), h("span", { class: `lead-tag${done ? " done" : ""}` }, STAGE[x.stage] || x.stage),
+        x.test ? h("span", { class: "lead-tag", title: "Marked test by the server admin: listed, never counted" }, "test, not counted") : null,
+        ` ${facts}`, h("small", null, [`reported by ${REPORTED[x.tool] || toolName(x.tool)}`, x.first_source && x.first_source !== x.source ? `first came from ${x.first_source}` : "", x.campaign && x.campaign !== "(no campaign tag)" ? `campaign ${x.campaign}` : "", x.device || ""].filter(Boolean).join(" · "))));
+  };
+  const rows = b.rows || [];
+  const more = b.total > rows.length ? h("p", { class: "note" }, `The latest ${n(rows.length)} of ${n(b.total)} are listed; the Conversions page counts them all.`) : null;
+  const tests = b.tests ? ` · ${n(b.tests)} marked test, not counted` : "";
+  return h("section", { class: "s" }, head,
+    h("div", { class: "sheet card" }, h("p", { class: "card-m" }, `times in ${tzLabel()}${tests}`),
+      rows.length ? h("ul", { class: "stream live-stream lead-stream", "aria-live": "polite" }, rows.map(row)) : h("p", { class: "empty" }, "No form or booking yet today."), more));
+}
+
 export default function live(m, s) {
   const r = rangeOf(m, { ...s, range: "today" });
   const L = m.live;
@@ -97,19 +131,23 @@ export default function live(m, s) {
   const t = L.figures;
   const nowHour = Number(String(L.generated_at || "").slice(11, 13));
   const thisHour = t.by?.hour ? t.by.hour[String(nowHour).padStart(2, "0")] || 0 : null;
-  const leads = leadsOver(m, [m.today]);
+  const conv = convFile(m);
+  const today = conv ? dayLeads(conv, convDay(conv, m.today)) : null;
+  const leads = conv ? today?.leads ?? null : leadsOver(m, [m.today]);
   out.push(tiles([
     { label: "Visitors", value: t.readers ?? null, info: `Visits that read at least one page today, counted only when the browser loaded the page's scripts and styles, so automated readers are left out; ${n(t.visits)} browser sessions in all, including ones that loaded no page.`,
       line: thisHour != null ? `+${n(thisHour)} this hour` : null },
     { label: "Pages read", value: t.views ?? null, info: "Page views by visitors today." },
     { label: "Visitors from AI", value: t.cited ?? null, info: "Visitors who followed a link in an AI assistant's answer; once per visitor, so it undercounts." },
-    { label: "Leads today", value: leads, info: "Sign-ups, contact forms and early-access requests from the lead store, spam and duplicates removed." },
+    { label: "Leads today", value: leads, info: conv ? `${LEAD_WORDS} From the Conversions data, checked by the second count; "-" while today's conversions are withheld.` : "Sign-ups, contact forms and early-access requests from the lead store, spam and duplicates removed." },
+    conv ? { label: "Demos booked today", value: today?.demos ?? null, info: "Demo bookings completed today, from the booking tool's webhook, the script tag and the lead database. Part of the leads." } : null,
     { label: "Returning", value: null, info: "Counted once the day is whole: returning visitors appear on Overview from tomorrow." },
   ]));
   out.push(others(t, { probes: true }));
   const js = (m.journeys || []).filter((j) => j.day === m.today).sort((a, b) => String(b.start).localeCompare(String(a.start)));
   const events = m.x.ai_activity?.today?.events || (L.events || []).map((e) => ({ at: e.at, name: e.who, kind: e.kind === "citation" ? "referred" : e.kind, path: e.path }));
   out.push(rightNow(m, js, events));
+  out.push(leadsToday(m));
 
   const labels = hourLabels(m.today);
   out.push(h("section", { class: "s" }, h("div", { class: "card-h start" }, h("h2", null, `Hour by hour (${tzLabel()})`),

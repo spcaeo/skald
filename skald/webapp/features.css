@@ -831,3 +831,44 @@ select, .ctl select, .fld select, .feed-tools select, .rb-grid select, .fld .pai
   .rail-foot { padding: 8px 2px; }
 }
 @media (max-width: 767px) { #rail-toggle { display: none; } }
+
+/* Leads everywhere (2.5.0): the day's leads on the Overview chart, and Live's list of today's leads. */
+.chart text.lead-n { fill: var(--leads); font-weight: 700; font-size: 10px; }
+.stream li.lead-test { opacity: .62; }
+.lead-tag { display: inline-block; font-size: 11px; font-weight: 650; padding: 0 7px; border-radius: 999px; margin-left: 6px; white-space: nowrap; color: var(--ink-2); background: color-mix(in srgb, var(--ink-3) 16%, transparent); }
+.lead-tag.done { color: var(--good); background: color-mix(in srgb, var(--good) 13%, transparent); }
+
+/* Lead tables (2.5.0): the label column keeps one line (a mark, then the words, cut with an
+   ellipsis, the whole label in the tooltip) and stays put while the figures scroll sideways;
+   the scroll box fades at an edge that has more. Grouped headers sit over their columns. */
+.lead-tbl th.lbl, .lead-tbl td.lbl { position: sticky; left: 0; z-index: 1; background: var(--surface); min-width: 16ch; }
+.lead-tbl td.lbl { word-break: normal; white-space: nowrap; }
+.lead-tbl .cell-l { display: block; max-width: 40ch; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.lead-tbl .cell-l .named { display: inline; }
+/* A button is drawn as one box: it cuts its own words. */
+.lead-tbl .cell-l .dl { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.lead-tbl td.lbl .cell-l .nm { white-space: nowrap; overflow-wrap: normal; word-break: normal; }
+.lead-tbl .cell-l .ic, .lead-tbl .cell-l .flag { display: inline-block; vertical-align: -3px; margin-right: 7px; }
+.lead-tbl th.lbl { width: 36%; }
+.lead-tbl td.lp .cell-l { font-family: var(--mono); font-size: 12.5px; }
+.lead-tbl .cell-l.none { color: var(--ink-3); font-family: var(--sans); font-style: italic; }
+.lead-tbl th.colgrp { text-align: center; color: var(--ink); border-bottom: 1px solid var(--rule); padding-bottom: 4px; }
+.lead-tbl tr.grp-row th { padding-top: 9px; }
+.lead-tbl td.g-start, .lead-tbl th.g-start { border-left: 1px solid var(--grid); }
+.lead-tbl .scroll {
+  background:
+    linear-gradient(to right, var(--surface) 30%, transparent) left / 24px 100% no-repeat local,
+    linear-gradient(to left, var(--surface) 30%, transparent) right / 24px 100% no-repeat local,
+    radial-gradient(farthest-side at 100% 50%, color-mix(in srgb, var(--ink) 22%, transparent), transparent) right / 10px 100% no-repeat scroll,
+    var(--surface);
+}
+.lead-tbl .d-pct { display: block; font-size: 11.5px; color: var(--ink-3); }
+.vs-leads > .sheet { margin-top: 14px; }
+.vs-leads > .sheet h3 { margin: 0 0 8px; }
+@media (max-width: 640px) {
+  .lead-tbl .cell-l { max-width: 16ch; }
+  .lead-tbl th.lbl, .lead-tbl td.lbl { min-width: 0; width: auto; padding-right: 8px; }
+  .lead-tbl th, .lead-tbl td { padding-left: 8px; padding-right: 8px; }
+}
+.lead-tbl tr.grp-row th:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); }
+.stream.lead-stream .s-w small { font-family: var(--sans); word-break: normal; overflow-wrap: anywhere; }

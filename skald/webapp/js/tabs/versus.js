@@ -13,6 +13,7 @@ import { info } from "./tiles.js";
 import { ranges, picker, fmt, length, before, yearBefore } from "./versuspick.js";
 import { local, filterMode, cubeCtx, SERIES } from "./versuslocal.js";
 import { DEMO } from "../demo.js";
+import { leadsCompare } from "./versusleads.js";
 
 const LABEL = {
   visitors: ["Visitors", "readers: browsers that read at least one page"],
@@ -21,7 +22,7 @@ const LABEL = {
   ai_asked: ["AI fetches: asked", "an assistant fetched a page because someone asked it just then"],
   ai_training: ["AI fetches: training", "crawls that feed an assistant's training or index"],
   search: ["Search crawls", "pages fetched by search engines"],
-  leads: ["Leads", "sign-ups, contact forms, early access and demos booked, from the lead store"],
+  leads: ["Leads (lead database)", "sign-ups, contact forms, early access and demos booked, from the website's lead database; the section below counts leads from every road"],
   returning: ["Returning", "visitors seen on an earlier day in 30"],
   pages_per_visitor: ["Pages per visit", "pages read divided by visitors"],
   not_found_people: ["Pages not found", "404s people met"],
@@ -208,6 +209,7 @@ export default function versus(m, s) {
     body.replaceChildren(empty || "",
       notes.length ? h("div", { class: "vs-honest", role: "note" }, notes) : "",
       kpis(res, perDay),
+      leadsCompare(m, s, res) || "",
       res.series ? h("section", { class: "s" }, h("div", { class: "card-h start vs-ch" }, h("h2", null, "A against B"),
         h("span", { class: "vs-key" }, h("i", { class: "ka" }), "A", h("i", { class: "kb" }), "B"), h("span", { class: "grow" }), msel, gseg),
         h("div", { class: "sheet" }, chart(res, key, size, perDay)),

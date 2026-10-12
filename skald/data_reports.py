@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import date, timedelta
+from pathlib import Path
 
 from .campaigns import merge
 from .redirects import RedirectMap
@@ -258,8 +259,31 @@ def pages(p) -> dict:
 
 
 def insights(p) -> dict:
+    """insights.json: insights.py's findings, and (2.5.0) the lead findings
+    from conversions.json's checked days (conversions_leads.add_to), each
+    recounted by audit_conversions_leads.py."""
     from .insights import compute
-    return compute(p.history, p.key, p.anchor, p.config, p.snap)
+    found = compute(p.history, p.key, p.anchor, p.config, p.snap)
+    return _with_leads(p, found)
+
+
+def _with_leads(p, found: dict) -> dict:
+    from . import conversions_data, conversions_leads
+    from .conversions import store
+    from .conversions.hooks import history_folder
+    # Conversions do not know about views: a page group's insights carry no lead findings.
+    if p.view is not None:
+        return {**found, "leads_withheld": []}
+    try:
+        blob = conversions_data.build(p)
+    except Exception:                   # noqa: BLE001 - conversions.json says why itself
+        blob = None
+    if not blob or not blob.get("available"):
+        return {**found, "leads_withheld": []}
+    folder = p.live_dir if p.live_dir is not None else history_folder(p.config)
+    path = store.path_for(p.config, Path(folder))
+    site = p.key.split("::", 1)[0]
+    return conversions_leads.add_to(found, blob, p.anchor, p.config, path, site, p.tz)
 
 
 BUILDERS = {"not_found": not_found, "ai_activity": ai_activity, "campaigns": campaigns,

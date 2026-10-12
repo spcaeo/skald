@@ -374,6 +374,52 @@ class _Maker:
                                 "visits": 1, "cc": T.country_of[ip]})
 
 
+    # ------------------------------------------------- today's leads
+    TODAY_LEADS = [   # (share of the day so far, source, landing page, what they send)
+        (0.35, "search", "/pricing/", "contact"),
+        (0.6, "ai", "/blog/ai-crawlers-explained", "signup"),
+        (0.85, "email", "/customers/", "demo"),
+    ]
+
+    def today_leads(self) -> None:
+        """A few leads and a booking earlier today, so Live's "Leads and
+        bookings today" has rows at any hour after the first. Drawn after
+        every day is made: the days before stay as they were."""
+        T, s = self.t, timedelta(seconds=1)
+        start = datetime(T.today.year, T.today.month, T.today.day, tzinfo=self.tz)
+        elapsed = self.now - start
+        if elapsed < timedelta(hours=1):
+            return
+        for share, kind, landing, sends in self.TODAY_LEADS:
+            t = (start + elapsed * share).astimezone(UTC).replace(microsecond=0)
+            if t > self.now - timedelta(minutes=8):
+                continue
+            identity = self.new_identity(tracked=1.0)
+            ip, ua, vw = identity
+            self.cur = (ip, ua)
+            _, ref, q, host, touch = self.source(False, kind)
+            utm, cc, vid = touch.get("utmSource") or "", T.country_of[ip], self.vid_of[identity]
+            page = {"contact": "/contact/", "signup": "/signup/", "demo": "/book-a-demo/"}[sends]
+            T.lines.append(line(t, ip, landing + q, ua, ref, country=cc))
+            self.ev(t + s, "page_view", landing, vid, host, utm, vw)
+            t2 = t + timedelta(seconds=self.rnd.randrange(40, 150))
+            T.lines.append(line(t2, ip, page, ua, "https://example.com" + landing, country=cc))
+            self.ev(t2 + s, "page_view", page, vid, host, utm, vw)
+            first = {**touch, "landingPath": landing, "at": t}
+            self.info[identity]["first"] = first
+            if sends == "demo":
+                self.ev(t2 + 4 * s, "calendly_open", page, vid, host, utm, vw, id="demo_widget")
+                self.ev(t2 + 45 * s, "calendly_time_selected", page, vid, host, utm, vw, id="demo_widget")
+                T.hooks.append((t2 + timedelta(seconds=100), "calendly", {"vid": vid, "utm": utm}))
+                continue
+            started = "signup_start" if sends == "signup" else "form_start"
+            self.ev(t2 + 6 * s, started, page, vid, host, utm, vw, id=f"{sends}_form")
+            at = t2 + timedelta(seconds=self.rnd.randrange(50, 140))
+            self.form_sent(at, sends, page, cc)
+            T.leads.append({"at": at, "type": sends, "vid": vid, "first": first, "last": first,
+                            "visits": 1, "cc": cc})
+
+
 def generate(now: datetime, days: int = 62, seed: int = SEED) -> Traffic:
     """`days` whole days of traffic before `now`'s day, and that day up to `now`."""
     if days < 2:
@@ -383,6 +429,7 @@ def generate(now: datetime, days: int = 62, seed: int = SEED) -> Traffic:
     while d <= m.t.today:
         m.day(d)
         d += timedelta(days=1)
+    m.today_leads()
     T, cut = m.t, m.now
     T.lines = sorted((x for x in T.lines if x.split(" ", 1)[0] <= cut.isoformat()), key=lambda x: x.split(" ", 1)[0])
     T.beacon = sorted((b for b in T.beacon if b[0] <= cut), key=lambda b: b[0])

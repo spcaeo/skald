@@ -109,6 +109,22 @@ class Doctor(unittest.TestCase):
         runs.record(self.box.root, "run-daily", 1, now=NOW, outcome="withheld")
         _, out, _ = self.doctor()
         self.assertIn("stopped on purpose 4 h ago", out)
+        runs.record(self.box.root, "run-daily", 1, now=NOW, outcome="withheld", step="audit",
+                    reason="2026-10-11: the recount disagrees")
+        _, out, _ = self.doctor()
+        self.assertIn("stopped on purpose 4 h ago at 'audit': 2026-10-11: the recount", out)
+
+    def test_a_weekly_mail_held_back_for_a_partial_day(self):
+        runs.record(self.box.root, "run-daily", 1, now=NOW, outcome="withheld",
+                    step="weekly mail", reason="weekly mail: partial day(s) 2026-10-06 "
+                    "(partial day, data from 14:05); a week needs seven whole days")
+        _, out, _ = self.doctor("--json")
+        got = next(c for c in json.loads(out)["checks"] if c["id"] == "daily_run")
+        self.assertEqual(got["state"], "OK")
+        self.assertIn("the day itself is stored and checked", got["says"])
+        self.assertIn("this week's mail is held back", got["says"])
+        self.assertIn("clears by itself next week", got["says"])
+        self.assertNotIn("did not reconcile", got["says"])
 
     def test_json_is_the_same_list(self):
         code, out, _ = self.doctor("--json")

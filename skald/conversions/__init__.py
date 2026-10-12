@@ -27,6 +27,12 @@ STAGES = ("started", "completed", "cancelled", "rescheduled", "no_show", "paid",
 FINISHED = ("completed", "paid")
 # Stages that are a later outcome of a finished action, never a finish themselves.
 OUTCOMES = ("won", "lost")
+# Leads everywhere (2.5.0): the actions that are a lead once finished - a
+# form sent or a demo booked - shown as "Leads" on Overview, Live, Sources,
+# Pages, Locations, Insights and Compare; DEMO_ACTIONS are also shown on
+# their own, as demos booked. Payments, deals and clicks are not leads.
+LEAD_ACTIONS = ("contact", "signup", "waitlist", "trial", "demo")
+DEMO_ACTIONS = ("demo",)
 
 # The tools a hook may name: /traffic-hooks/<site>/<tool>.
 TOOLS = ("lead", "json", "calendly", "calcom", "stripe", "typeform", "hubspot")

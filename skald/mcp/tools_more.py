@@ -447,18 +447,30 @@ def site_health(ctx, args):
 
 # ---------------------------------------------------------------- conversions
 
+BY_DIMS = ("source_type", "first_source", "landing", "country", "campaign", "device", "tool")
+BY_WORDS = {"source_type": "source (last touch)", "first_source": "first touch",
+            "landing": "landing page", "country": "country", "campaign": "campaign",
+            "device": "device", "tool": "reported by"}
+
 @tool("conversions", "Conversions: demos, forms, sign-ups, payments",
       "Every action that counts (a demo booked, a form sent, a sign-up, a payment), from "
       "the page's script tag, the tools' webhooks and the site's lead database, over a "
       "range of local days: started, completed (completed or paid), abandoned (started "
       "with a visitor ID and not finished in time), the completion rate (only over 10 or "
       "more starts), other stages (cancelled, no-show, won, lost), and completed ones by "
-      "source. Withheld and not-recorded days are named and never counted as zero. "
+      "source (or by another breakdown: first touch, landing page, country, campaign, "
+      "device, tool), with the leads (forms sent and demos booked) and demos booked "
+      "among them. Withheld and not-recorded days are named and never counted as zero. "
       "Anonymous: no name, email or visitor ID.",
       schema({"site": SITE_ARG, "from": FROM_ARG, "to": TO_ARG,
               "action": {"type": "string", "maxLength": 40,
                          "description": "Only this action, e.g. 'demo', 'contact', "
-                                        "'signup', 'paid'."}}))
+                                        "'signup', 'paid'."},
+              "by": {"type": "string", "enum": list(BY_DIMS),
+                     "description": "Break the completed ones (and the leads) down by: "
+                                    "source_type (last touch, the default), first_source "
+                                    "(first touch), landing, country, campaign, device, "
+                                    "tool."}}))
 def conversions(ctx, args):
     site = ctx.site(args.get("site"))
     doc = ctx.load(site, None, "conversions", required=False) or {}
@@ -471,6 +483,12 @@ def conversions(ctx, args):
     anchor = parse_day(today, "today") if today else anchor_of(ov)
     first, last = period(args, anchor)
     only = str(args.get("action") or "").strip().lower() or None
+    dim = str(args.get("by") or "source_type")
+    if dim not in BY_DIMS:
+        dim = "source_type"
+    lead_acts = set(doc.get("lead_actions") or ())
+    demo_acts = set(doc.get("demo_actions") or ())
+    leads_by: dict = {}
     finished = set(doc.get("finished") or ("completed", "paid"))
     least = int(doc.get("min_rate") or 10)
     by = {d.get("day"): d for d in doc.get("days") or [] if isinstance(d, dict)}
@@ -497,10 +515,13 @@ def conversions(ctx, args):
             for action, v in (e.get("abandoned") or {}).items():
                 if not only or action == only:
                     abandoned[action] = abandoned.get(action, 0) + int(v)
-            for action, per in (dig(e, "by", "source_type") or {}).items():
+            for action, per in (dig(e, "by", dim) or {}).items():
                 if not only or action == only:
                     for k, v in per.items():
                         sources[k] = sources.get(k, 0) + int(v)
+                if action in lead_acts and (not only or action == only):
+                    for k, v in per.items():
+                        leads_by[k] = leads_by.get(k, 0) + int(v)
         day += timedelta(days=1)
     actions = {}
     for action, per in sorted(stages.items()):
@@ -512,10 +533,15 @@ def conversions(ctx, args):
                                                if started >= least else None),
                            **{k: v for k, v in per.items()
                               if k not in finished and k != "started"}}
+    def ranked(got):
+        return dict(sorted(got.items(), key=lambda kv: (-kv[1], kv[0])))
+    leads = sum(a["completed"] for k, a in actions.items() if k in lead_acts)
+    demos = sum(a["completed"] for k, a in actions.items() if k in demo_acts)
     data = {"site": site, "available": True, "from": first.isoformat(),
             "to": last.isoformat(), "action": only, "days_counted": counted,
-            "actions": actions, "by_source": dict(sorted(sources.items(),
-                                                         key=lambda kv: (-kv[1], kv[0]))),
+            "actions": actions, "by": dim, "by_source": ranked(sources),
+            "leads": leads if counted else None, "demos_booked": demos if counted else None,
+            "lead_actions": sorted(lead_acts), "leads_by": ranked(leads_by),
             "withheld": withheld, "not_recorded": missing,
             "note": doc.get("as_known")}
     lines = [f"{site}, {first} to {last}: conversions ({counted} day"
@@ -532,9 +558,15 @@ def conversions(ctx, args):
                          + ".")
         if not actions:
             lines.append("No conversion on the counted days.")
+        if lead_acts:
+            lines.append(f"Leads (forms sent and demos booked, completed): {leads:,}, of them "
+                         f"{demos:,} demos booked.")
         if sources:
-            lines.append("Completed, by source (last touch): " + ", ".join(
+            lines.append(f"Completed, by {BY_WORDS[dim]}: " + ", ".join(
                 f"{k} {v:,}" for k, v in data["by_source"].items()) + ".")
+        if leads_by:
+            lines.append(f"Leads, by {BY_WORDS[dim]}: " + ", ".join(
+                f"{k} {v:,}" for k, v in data["leads_by"].items()) + ".")
     else:
         lines.append("Conversions: not recorded (no day of this range holds checked "
                      "figures), never zero.")

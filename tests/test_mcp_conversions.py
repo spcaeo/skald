@@ -64,6 +64,21 @@ class Conversions(Base):
         self.assertEqual(list(data["actions"]), ["demo"])
         self.assertIsNone(data["actions"]["demo"]["completion_rate"], "under 10 starts")
 
+    def test_leads_and_another_breakdown(self):
+        d = day("2026-10-03", 3, 2, contact=1)
+        d["stages"]["paid"] = {"paid": 4}
+        d["by"]["source_type"]["paid"] = {"Email": 4}
+        d["by"]["landing"] = {"demo": {"/pricing/": 2}, "contact": {"/": 1}, "paid": {"/": 4}}
+        self.file(days=[d], lead_actions=["contact", "signup", "waitlist", "trial", "demo"],
+                  demo_actions=["demo"])
+        text, data = self.run_tool("conversions", by="landing",
+                                   **{"from": "2026-10-03", "to": "2026-10-03"})
+        self.assertEqual((data["leads"], data["demos_booked"], data["by"]), (3, 2, "landing"))
+        self.assertEqual(data["by_source"], {"/": 5, "/pricing/": 2})
+        self.assertEqual(data["leads_by"], {"/pricing/": 2, "/": 1}, "payments are not leads")
+        self.assertIn("Leads (forms sent and demos booked, completed): 3, of them 2", text)
+        self.assertIn("Leads, by landing page: /pricing/ 2, / 1.", text)
+
     def test_not_available(self):
         self.file(available=False, reason="no conversions yet")
         text, data = self.run_tool("conversions")

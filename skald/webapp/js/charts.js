@@ -196,8 +196,12 @@ function describeDay(d, series, unit) {
 }
 
 /* Lines per day. A value of null breaks the line (a day not shown, or a
-   figure not recorded); it is never drawn as zero. */
-export function lines(days, series, { label, H = 240, prev } = {}) {
+   figure not recorded); it is never drawn as zero.
+   marks: {name, color, get(day) -> number|null}: a small count per day (the
+   day's leads) drawn as a dot on the base line, on its own scale, with its
+   number above when there is room; only on days the lines draw. null is
+   "not recorded" in the tooltip, never a zero. */
+export function lines(days, series, { label, H = 240, prev, marks } = {}) {
   fit(arguments[2]?.half, arguments[2]?.width);
   const L = 52, R = 10, T = 14, B = 28;
   const ok = days.filter((d) => d.state === "ok");
@@ -231,11 +235,23 @@ export function lines(days, series, { label, H = 240, prev } = {}) {
       }
     }
   }
+  const markOf = (d) => (marks && d.state === "ok" ? marks.get(d) : null);
+  if (marks) {
+    const top = Math.max(1, ...days.map((d) => markOf(d) || 0));
+    days.forEach((d, i) => {
+      const v = markOf(d);
+      if (!v) return;
+      const cx = L + f.slot * (i + 0.5), cy = T + f.ph - 6, r = 2.5 + 3.5 * Math.sqrt(v / top);
+      out.push(`<circle class="lead-mark" cx="${cx.toFixed(1)}" cy="${cy}" r="${r.toFixed(1)}" fill="${marks.color}" stroke="var(--surface)" stroke-width="1.5"/>`);
+      if (f.slot >= 14) out.push(`<text x="${cx.toFixed(1)}" y="${(cy - r - 3).toFixed(1)}" text-anchor="middle" class="lead-n">${n(v)}</text>`);
+    });
+  }
+  const markLine = (d) => (!marks ? "" : markOf(d) == null ? `; ${marks.name} not recorded` : `; ${marks.name} ${n(markOf(d))}`);
   out.push(`<line class="hair" x1="0" x2="0" y1="${T}" y2="${T + f.ph}" opacity="0"/><g class="dots"></g>`);
   days.forEach((d, i) => {
     if (d.state === "before") return;
     const was = ghosts ? `; previous period ${series.map((x, j) => `${x.name} ${n(ghosts[j][i])}`).join(", ")}` : "";
-    out.push(`<rect class="hit" data-i="${i}" tabindex="0" x="${(L + f.slot * i).toFixed(1)}" y="${T}" width="${f.slot.toFixed(1)}" height="${f.ph}" aria-label="${esc(describeDay(d, series, "") + was + markWords(d))}"/>`);
+    out.push(`<rect class="hit" data-i="${i}" tabindex="0" x="${(L + f.slot * i).toFixed(1)}" y="${T}" width="${f.slot.toFixed(1)}" height="${f.ph}" aria-label="${esc(describeDay(d, series, "") + (d.state === "ok" ? markLine(d) : "") + was + markWords(d))}"/>`);
   });
   const el = wrap(out.join(""), label, H);
   const svg = el.querySelector("svg"), hair = svg.querySelector(".hair"), dots = svg.querySelector(".dots");
@@ -260,6 +276,7 @@ export function lines(days, series, { label, H = 240, prev } = {}) {
       const head = long(d.day) + (d.state === "partial" ? " (partial day, left out)" : "");
       const rows = d.state === "ok" ? series.map((s) => ({ color: s.color, value: s.get(d) == null ? "-" : n(s.get(d)), label: s.get(d) == null ? `${s.name} not recorded` : s.name }))
         : [{ value: "", label: d.state === "partial" ? "a partial day is not drawn on this line" : ABSENT[d.state] }];
+      if (marks && d.state === "ok") rows.push({ color: marks.color, value: markOf(d) == null ? "-" : n(markOf(d)), label: markOf(d) == null ? `${marks.name} not recorded` : marks.name });
       if (ghosts) rows.push(...series.map((x, j) => ({ color: x.color, value: ghosts[j][i] == null ? "-" : n(ghosts[j][i]), label: `${x.name}, previous period` })));
       rows.push(...markRows(d));
       tip(x, y, head, rows);

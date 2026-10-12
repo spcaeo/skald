@@ -51,10 +51,12 @@ The sidebar groups the pages by what you came to find out.
 | AI & bots | AI & crawlers |
 | Site & server | Site health (with Alerts, Data quality, Page speed and Broken links), Requests |
 
-- **Overview** is where every visit starts: the period's headline figures.
-- **Live** shows today: people first, then machines, and the latest visits.
-- **Insights** lists what is working, what dropped, and what is new or gone.
-- **Compare** puts any two periods side by side.
+- **Overview** is where every visit starts: the period's headline figures, leads and demos booked among them.
+- **Live** shows today: people first, then machines, the latest visits, and today's leads and bookings as they arrive.
+- **Insights** lists what is working, what dropped, and what is new or gone, leads too.
+- **Compare** puts any two periods side by side, with their leads.
+
+When your site reports leads (a form, a booking), they show beside the visitors on Overview, Live, Sources, Pages, Locations, Insights and Compare, not only on Leads and Conversions. See [Leads on every page](leads-and-conversions.md#leads-on-every-page).
 - **Site health** shows open alerts, the data's own checks, page speed and broken links.
 - **Requests** lists the last few hours of the request log, line by line.
 
@@ -128,7 +130,7 @@ On [Pages](#pages), select a page to see its story: when it was published, its f
 There are two ways to compare.
 
 - **Compare to the previous period**: the button in the top bar. It shows the period before beside each headline figure, and as a dashed line on the charts. It shows only when both periods are whole.
-- **Compare** page ([Compare](#compare)): any two periods, A against B, up to 12 months. It shows figures with their change and tables of what is new or gone.
+- **Compare** page ([Compare](#compare)): any two periods, A against B, up to 12 months. It shows figures with their change and tables of what is new or gone. Leads, demos booked and every completed action are compared too, in total, by source and by landing page, when both periods are whole and every day has checked conversions.
 
 ## Export
 

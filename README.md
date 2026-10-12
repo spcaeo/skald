@@ -18,7 +18,7 @@
   <img alt="Zero dependencies" src="https://img.shields.io/badge/dependencies-zero-2b8a3e">
   <a href="https://github.com/spcaeo/skald/actions/workflows/ci.yml"><img alt="Tests" src="https://github.com/spcaeo/skald/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/spcaeo/skald/pkgs/container/skald"><img alt="Docker image" src="https://img.shields.io/badge/docker-ghcr.io%2Fspcaeo%2Fskald-2496ed"></a>
-  <img alt="Version 2.4.0" src="https://img.shields.io/badge/version-2.4.0-555">
+  <img alt="Version 2.5.0" src="https://img.shields.io/badge/version-2.5.0-555">
 </p>
 
 <p align="center">
@@ -40,7 +40,7 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/hero-dark.png">
     <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/hero-light.png">
-    <img src="docs/screenshots/hero-light.png" alt="The Skald dashboard: visitors, AI assistants, search engines and bots for one site over the last 30 days" width="960">
+    <img src="docs/screenshots/hero-light.png" alt="The Skald dashboard: visitors, AI assistants, leads and demos booked for one site over the last 30 days, with each day's leads as dots on the chart" width="960">
   </picture>
 </p>
 
@@ -120,9 +120,11 @@ want them.
 <td valign="top">
 
 ### Results, not just visits
-Leads, funnels and conversions. Calendly, Cal.com, Stripe, Typeform, HubSpot and Zapier push
-signed webhooks; the optional `skald.js` tag adds clicks, form steps and bookings. Checked twice
-like everything else. Nothing hidden: spam, test, cancelled and removed rows are listed, not lost.
+Leads, funnels and conversions. Leads and demos booked sit beside the traffic on every page that
+needs them: Overview, Live, Sources, Pages, Locations, Insights and Compare, with a lead rate per
+source, page and country. Calendly, Cal.com, Stripe, Typeform, HubSpot and Zapier push signed
+webhooks; the optional `skald.js` tag adds clicks, form steps and bookings. Checked twice like
+everything else. Nothing hidden: spam, test, cancelled and removed rows are listed, not lost.
 
 </td>
 </tr>
@@ -185,8 +187,9 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
   visitors by source, exit rate per page.
 - Campaign tag problems flagged: a source with no medium, an unknown medium, an ad click with no
   tags, tags on internal links.
-- Compare any two ranges (up to 400 days each), Insights (working, dropped, new, gone), and a
-  page's story: its first Googlebot, first AI crawler, first person and first lead.
+- Compare any two ranges (up to 400 days each), leads and demos booked included, Insights
+  (working, dropped, new, gone), and a page's story: its first Googlebot, first AI crawler, first
+  person and first lead.
 
 **AI and machines**
 - AI assistants by name and by reason, with the pages each one fetched.
@@ -203,6 +206,10 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
   yourself.
 
 **Results**
+- Leads and demos booked on the Overview (two tiles, and each day's leads as dots on the main
+  chart), and today's leads and bookings on Live as they arrive.
+- A Leads column and a lead rate (leads per visitor, from 10 visitors up) on Sources, Pages and
+  Locations; lead findings in Insights; lead tables by source and landing page in Compare.
 - Leads by first and last source, crossed with the status your team set, and time from first
   visit to lead.
 - Saved funnels counted every day by source and device, with drop-off and time to go through.
@@ -228,7 +235,7 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
   addresses, integrations (with each road's status), security.
 - `skald doctor`: one line per part (daily run, missing days, logs, the dashboard, the hook
   receiver, each hook's secret and last delivery, the script tag, mail, a newer version, disk), each
-  with its fix.
+  with its fix. A daily run that held back names the step and why.
 - Several sites in one install, each with its own settings.
 - Export any table as CSV or JSON, print to PDF, a report builder, and daily and weekly email
   reports (refused if the figures do not add up).
@@ -251,19 +258,21 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
 ## See it
 
 **[Try the live demo](https://spcaeo.github.io/skald/)**: the whole dashboard with 60 days of sample
-data for a made-up site, in your browser, flags, the left-out leads and the removed conversions
-included. Nothing to install. Settings, saving and the person search need your own Skald.
+data for a made-up site, in your browser, flags, leads and bookings, the left-out leads and the
+removed conversions included. Nothing to install. Settings, saving and the person search need your own Skald.
 
 | | |
 | :---: | :---: |
-| <img src="docs/screenshots/overview.png" alt="Overview: the period's headline figures and the five groups" width="460"><br>**Overview.** The period at a glance, five groups that add up. | <img src="docs/screenshots/ai-crawlers.png" alt="AI and crawlers: assistants by name and by reason, verified crawlers" width="460"><br>**AI & crawlers.** Who came, why, and whether the name is true. |
-| <img src="docs/screenshots/leads.png" alt="Leads by first and last source and AI assistant" width="460"><br>**Leads.** By first and last source, AI assistants included. | <img src="docs/screenshots/conversions.png" alt="Conversions: started, completed and abandoned by action, and the demo booking funnel" width="460"><br>**Conversions.** Started, completed, abandoned. |
-| <img src="docs/screenshots/visitors.png" alt="Each visit: time, country with its flag, device, browser, source and the pages in order" width="460"><br>**Visitors.** Each visit, page by page, a flag beside every country. | <img src="docs/screenshots/funnels.png" alt="A saved funnel's history: drop-off by step and visits at each step, per day" width="460"><br>**Funnels.** Saved once, counted every day. |
+| <img src="docs/screenshots/overview.png" alt="Overview: visitors, pages read, visitors from AI, leads, demos booked, returning visitors and pages per visit, a chart with each day's leads as dots, and the other groups" width="460"><br>**Overview.** The period at a glance, leads and bookings beside the traffic. | <img src="docs/screenshots/ai-crawlers.png" alt="AI and crawlers: assistants by name and by reason, verified crawlers" width="460"><br>**AI & crawlers.** Who came, why, and whether the name is true. |
+| <img src="docs/screenshots/live-leads.png" alt="Live: today's visitors, leads and demos booked, and each lead and booking today with its time, stage, source, landing page and country" width="460"><br>**Live leads.** Today's leads and bookings as they arrive. | <img src="docs/screenshots/sources-leads.png" alt="Sources: visitors, share, leads and lead rate for each source over 30 days" width="460"><br>**Leads per source.** A Leads column and a lead rate. |
+| <img src="docs/screenshots/compare-leads.png" alt="Compare: leads, demos booked and all completed for two 30-day periods, and a table of leads and demos booked by source, A, B and the change" width="460"><br>**Compare leads.** Two periods, by source and landing page. | <img src="docs/screenshots/leads.png" alt="Leads by first and last source and AI assistant" width="460"><br>**Leads.** By first and last source, AI assistants included. |
+| <img src="docs/screenshots/conversions.png" alt="Conversions: started, completed and abandoned by action, and the demo booking funnel" width="460"><br>**Conversions.** Started, completed, abandoned. | <img src="docs/screenshots/funnels.png" alt="A saved funnel's history: drop-off by step and visits at each step, per day" width="460"><br>**Funnels.** Saved once, counted every day. |
+| <img src="docs/screenshots/visitors.png" alt="Each visit: time, country with its flag, device, browser, source and the pages in order" width="460"><br>**Visitors.** Each visit, page by page, a flag beside every country. | <img src="docs/screenshots/mcp-claude.png" alt="Example: adding Skald's MCP server with one command, and the answer of its ai_activity tool" width="460"><br>**MCP in Claude.** Ask about your traffic in plain words. |
 | <img src="docs/screenshots/person-search.png" alt="Person search for the IP address 203.0.113.109: eight visits from August to October, each with source, referrer, landing page, pages in order, country and device, and the two leads sent from those visits" width="460"><br>**Person search.** One address: every visit kept, across days, and the leads it sent. | <img src="docs/screenshots/person-lead.png" alt="Person search for lead14@example.com: the linked IP address 203.0.113.109, visitor ID and lead, the lead row, the visit that sent its form, and its conversions" width="460"><br>**One lead, linked.** Its email, address, visitor ID, form visit and conversions. |
 | <img src="docs/screenshots/leads-left-out.png" alt="Left out of the figures: spam, duplicate and test leads, and a payment marked test, each listed with its row" width="460"><br>**Left out, still listed.** Spam, duplicates and test, never just dropped. | <img src="docs/screenshots/conversions-removed.png" alt="Conversions removed by a lead-database sync, each with when and why, and the pages before it" width="460"><br>**Removed, with when and why.** Cancelled, removed and test conversions. |
-| <img src="docs/screenshots/integrations-status.png" alt="Settings, Integrations: a status line for the hook receiver, the script tag, each hook and the lead database, all OK" width="460"><br>**Integrations status.** Each road: working, or what to fix. | <img src="docs/screenshots/skald-doctor.png" alt="Terminal output of skald doctor: one line per part of the install, OK, OFF or NEEDS ATTENTION, with the fix" width="460"><br>**`skald doctor`.** Every part checked, each with its fix. |
+| <img src="docs/screenshots/integrations-status.png" alt="Settings, Integrations: a status line for the hook receiver, the script tag, each hook and the lead database, all OK" width="460"><br>**Integrations status.** Each road: working, or what to fix. | <img src="docs/screenshots/skald-doctor.png" alt="Terminal output of skald doctor: one line per part of the install, OK or OFF; the daily run line says only this week's mail was held back, for a partial day, and that it clears by itself" width="460"><br>**`skald doctor`.** Every part checked; a held-back run names its step. |
 | <img src="docs/screenshots/settings-team.png" alt="Settings: team, roles and invites" width="460"><br>**Team & access.** Roles, invites, two-step sign-in. | <img src="docs/screenshots/integrations.png" alt="Settings: signed Calendly and Stripe hooks with their deliveries, Calendly kept to one event type, and an outgoing webhook to a CRM" width="460"><br>**Integrations.** Signed webhooks from the tools you use. |
-| <img src="docs/screenshots/mcp-claude.png" alt="Example: adding Skald's MCP server with one command, and the answer of its ai_activity tool" width="460"><br>**MCP in Claude.** Ask about your traffic in plain words. | <img src="docs/screenshots/help.png" alt="In-app help: a guide for each topic, among them Docker first install, Pick your road, Send leads from your backend and Demo bookings" width="460"><br>**Help.** Every page explained, and four how-to guides. |
+| <img src="docs/screenshots/help.png" alt="In-app help: a guide for each topic, among them Docker first install, Pick your road, Send leads from your backend and Demo bookings" width="460"><br>**Help.** Every page explained, and four how-to guides. | |
 
 <p align="center">
   <img src="docs/screenshots/mobile.png" alt="Skald on a phone" width="300"><br>
@@ -340,17 +349,17 @@ SKALD_DOMAIN=stats.example.com docker compose --profile https up -d
 The quick way, pinned to a release:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.4.0/install.sh | sudo bash -s -- --ref v2.4.0
+curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.5.0/install.sh | sudo bash -s -- --ref v2.5.0
 ```
 
 This runs a script from the internet as root. To check it first, download the release and its
 checksums, verify, then run it:
 
 ```sh
-curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.4.0/skald-2.4.0.tar.gz
-curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.4.0/SHA256SUMS
-sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.4.0.tar.gz: OK
-tar -xzf skald-2.4.0.tar.gz && cd skald-2.4.0 && less install.sh && sudo ./install.sh
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.5.0/skald-2.5.0.tar.gz
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.5.0/SHA256SUMS
+sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.5.0.tar.gz: OK
+tar -xzf skald-2.5.0.tar.gz && cd skald-2.5.0 && less install.sh && sudo ./install.sh
 ```
 
 It installs into `/opt/skald`, with config in `/etc/skald` and data in `/var/lib/skald`, and puts
@@ -428,7 +437,9 @@ asks for your Skald's ingest address and the site's token, then needs your site'
 
 **MCP for AI agents.** 14 read-only tools: `overview`, `breakdown`, `top_pages`, `ai_activity`,
 `leads`, `funnel`, `compare`, `page_story`, `live_today`, `data_quality`, `site_health`,
-`conversions`, `list_sites` and, with the `read_private` scope only, `find_person`. Answers call visits "an upper bound on people" and name every
+`conversions` (its `by` breaks completed actions and leads down by source, first touch, landing
+page, country, campaign, device or tool), `list_sites` and, with the `read_private` scope only,
+`find_person`. Answers call visits "an upper bound on people" and name every
 withheld day. It cannot change anything.
 
 ```sh

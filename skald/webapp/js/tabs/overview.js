@@ -2,8 +2,9 @@
 // group and filters above - and every figure here follows it: today so far,
 // or the whole verified days of the range, never a mix.
 //
-//   1. six tiles: visitors, pages read, visitors from AI, leads, returning
-//      visitors, pages per visit - each with its trend and its change
+//   1. seven tiles: visitors, pages read, visitors from AI, leads, demos
+//      booked, returning visitors, pages per visit - each with its trend and
+//      its change (leads and demos from conversions.json's checked days)
 //   2. one line on how they relate to the files the server sent
 //   3. the main chart: visitors and pages, by hour today, by day otherwise
 //   4. who else came (machines, each in its own unit)
@@ -19,6 +20,7 @@ import { head, nothing, fileName, compareFor } from "./common.js";
 import { info, others, top } from "./tiles.js";
 import { serverLoad, LOAD_NAMES } from "./load.js";
 import { hourLabels, label as tzLabel } from "../tz.js";
+import { convFile, convDay, dayLeads, leadsOn, LEAD_WORDS } from "./leadfigs.js";
 
 const LEAD_TYPES = ["signup", "contact", "waitlist"];
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
@@ -40,33 +42,65 @@ const TILES = [
   ["pages", "Pages read", "Page views by visitors. Images, scripts and data the page loads are not pages.", (t) => t.views ?? null],
   ["ai", "Visitors from AI", "Visitors who arrived by following a link in an AI assistant's answer. Counted once per visitor; the true number is higher, as many assistants hide the link they came from.", (t) => t.cited ?? null],
   ["leads", "Leads", "Sign-ups, contact forms and early-access requests from the website's lead store, spam and duplicates removed.", null],
+  ["demos", "Demos booked", "Demo bookings completed, from every booking road: the booking tool's webhook, the script tag and the lead database. Part of the leads.", null],
   ["returning", "Returning visitors", "Visitors seen on an earlier day in the 30 days before.", (t) => (t.unmeasured?.returning || !t.returning ? null : t.returning.returning)],
   ["ppv", "Pages per visit", "Pages read divided by visitors.", (t) => (t.readers && t.views != null && !t.unmeasured?.readers ? t.views / t.readers : null)],
 ];
+
+/* Leads and demos booked from conversions.json: summed over the range's
+   checked days; a change only when both periods are whole in the log and
+   every day of both is checked in conversions. null without the file. */
+function leadFigures(m, r, both) {
+  if (!convFile(m)) return null;
+  const now = leadsOn(m, r.kind === "today" ? [m.today] : r.days.map((d) => d.day));
+  const before = r.kind === "history" ? leadsOn(m, previousOf(m, r).days.map((d) => d.day)) : null;
+  const whole = both && now.whole && before?.whole;
+  const cover = now.ok === now.of ? "" : ` Covers ${now.ok} of the ${now.of} days: the others are ${now.held.length ? "withheld or " : ""}not recorded, never zero.`;
+  return { now, before: whole ? before : null, cover,
+    why: !both ? null : "Not compared: not every day of both periods has checked conversions." };
+}
 
 function tiles(m, r, t, prevT, both, why) {
   const days = r.kind === "history" ? chartDays(r) : [];
   const dayList = r.kind === "today" ? [m.today] : r.days.filter((d) => d.state === "ok").map((d) => d.day);
   const prevDays = both ? previousOf(m, r).days.map((d) => d.day) : [];
-  return h("div", { class: "tiles", role: "list" }, TILES.map(([key, label, note, get]) => {
-    const v = key === "leads" ? leadsOver(m, dayList) : get(t);
-    const p = !both ? null : key === "leads" ? leadsOver(m, prevDays) : get(prevT);
+  const lf = leadFigures(m, r, both);
+  const conv = convFile(m);
+  const LEADS_NOTE = `${LEAD_WORDS} From the Conversions data: the script tag, the tools' webhooks and the lead database.`;
+  const shown = TILES.filter(([key]) => key !== "demos" || lf);
+  return h("div", { class: "tiles", role: "list" }, shown.map(([key, label, baseNote, get]) => {
+    const lead = (key === "leads" || key === "demos") && lf;
+    const pick = (x) => (x == null ? null : key === "demos" ? x.demos : x.leads);
+    const note = lead ? `${key === "leads" ? LEADS_NOTE : baseNote}${lf.cover}` : baseNote;
+    const v = lead ? (lf.now.ok ? pick(lf.now) : null) : key === "leads" ? leadsOver(m, dayList) : get(t);
+    const p = !both ? null : lead ? pick(lf.before) : key === "leads" ? leadsOver(m, prevDays) : get(prevT);
+    const whyHere = lead && both && p == null && v != null ? lf.why : why;
     const fmt = (x) => (x == null ? "-" : key === "ppv" ? x.toFixed(1) : n(x));
     let chg;
     if (r.kind === "today" || !both || v == null || p == null) {
-      const reason = r.kind === "today" ? "Today is still running; it is compared once it is a whole day." : v == null ? "Not counted for this period." : why;
+      const reason = r.kind === "today" ? "Today is still running; it is compared once it is a whole day." : v == null ? "Not counted for this period." : whyHere;
       chg = h("span", { class: "t-c none", title: reason }, h("span", { "aria-hidden": "true" }, "—"), h("span", { class: "vh" }, `No change shown: ${reason}`));
     } else {
       const [arrow, words] = change(v, p);
       chg = h("span", { class: "t-c" }, arrow ? h("span", { class: "arrow", "aria-hidden": "true" }, arrow) : null, words, h("span", { class: "was" }, `from ${fmt(p)}`));
     }
     let trend = null;
-    if (days.length > 1 && key !== "leads") trend = spark(days.map((d) => (d.state === "ok" ? get(d) : null)), key === "ai" ? color("answer_engines") : color("people"));
+    if (days.length > 1 && lead) trend = spark(days.map((d) => pick(dayLeads(conv, convDay(conv, d.day)))), "var(--leads)");
+    else if (days.length > 1 && key !== "leads" && key !== "demos") trend = spark(days.map((d) => (d.state === "ok" ? get(d) : null)), key === "ai" ? color("answer_engines") : color("people"));
     else if (r.kind === "today" && key === "visitors" && t.by?.hour) trend = spark(HOURS.map((hh) => t.by.hour[hh] ?? 0).slice(0, Number(String(m.live?.generated_at || "").slice(11, 13)) + 1), color("people"));
     return h("div", { class: "tile", role: "listitem" },
       h("div", { class: "t-top" }, h("span", { class: "t-l" }, label), info(note, label)),
       h("div", { class: "t-v" }, fmt(v)), chg, trend || h("div", { class: "spark" }));
   }));
+}
+
+/* Leads per day for the main chart's marks: a day's leads only when it is
+   whole in the log (the chart draws no other) and checked in conversions;
+   else null, "not recorded" in the tooltip. null without the file. */
+function leadMarks(m) {
+  const f = convFile(m);
+  if (!f) return null;
+  return { name: "Leads", color: "var(--leads)", get: (d) => dayLeads(f, convDay(f, d.day))?.leads ?? null };
 }
 
 function dailyTable(r) {
@@ -116,14 +150,15 @@ export default function overview(m, s) {
         value: i > now ? 0 : hours[hh] || 0, color: i === now ? "color-mix(in srgb, var(--g-people) 55%, var(--surface))" : color("people") })),
       { label: "Visitors by hour", unit: "visitors", every: 3, H: 180, onPick: (i) => openDrill("hour", HOURS[i]) }))));
   } else {
-    out.push(h("section", { class: "s" }, h("h2", null, "Visitors and pages read, by day"),
-      h("p", { class: "sub" }, "A line breaks at a day that is not whole. Purple marks are releases and changes; select a day to narrow the period to it."),
+    const marks = leadMarks(m);
+    out.push(h("section", { class: "s" }, h("h2", null, marks ? "Visitors, pages read and leads, by day" : "Visitors and pages read, by day"),
+      h("p", { class: "sub" }, `A line breaks at a day that is not whole. Purple marks are releases and changes; select a day to narrow the period to it.${marks ? " Pink dots on the base line are the day's leads (forms sent and demos booked), on whole days with checked conversions only." : ""}`),
       cmp.note,
-      h("div", { class: "sheet" }, legend([["Visitors", color("people")], ["Pages read", "var(--views)"], ...cmp.legend], true),
+      h("div", { class: "sheet" }, legend([["Visitors", color("people")], ["Pages read", "var(--views)"], ...(marks ? [["Leads", "var(--leads)"]] : []), ...cmp.legend], true),
         lines(chartDays(r), [
           { name: "Visitors", color: color("people"), get: (d) => d.readers ?? null, area: true },
           { name: "Pages read", color: "var(--views)", get: (d) => d.views ?? null },
-        ], { label: "Visitors and pages read per day", prev: cmp.prev, H: 220 }))));
+        ], { label: "Visitors and pages read per day", prev: cmp.prev, H: 220, marks }))));
   }
 
   out.push(others(t));

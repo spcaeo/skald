@@ -37,8 +37,9 @@ export function download(name, text, type = "text/csv;charset=utf-8") {
   toast(`Downloaded ${name}`);
 }
 
-/* columns: [{key, label, num?, path?, cls?, fmt?(v,row), csv?(row), sort?(row), drill?: dimension}]
-   opts: {caption, rows, file, limit=15, empty, sortKey, search=true, rowClass?(row), note, onRow?(row), placeholder}
+/* columns: [{key, label, num?, path?, cls?, title? (a hint on the header), fmt?(v,row), csv?(row), sort?(row), drill?: dimension}]
+   opts: {caption, rows, file, limit=15, empty, sortKey, search=true, rowClass?(row), note, onRow?(row), placeholder,
+          groups?: [[label, span]] - a header row above the columns that names groups of them}
    The returned element has update(rows): new rows, same sort and search. */
 export function table(columns, opts) {
   const { caption, file, empty = "Nothing recorded.", search = true, rowClass, note, onRow } = opts;
@@ -80,9 +81,10 @@ export function table(columns, opts) {
   };
 
   function head() {
-    thead.replaceChildren(h("tr", null, columns.map((c) => {
+    const groups = opts.groups ? h("tr", { class: "grp-row" }, opts.groups.map(([l, span]) => h("th", { scope: l ? "colgroup" : null, colspan: span, class: l ? "colgrp" : null }, l || ""))) : null;
+    thead.replaceChildren(...(groups ? [groups] : []), h("tr", null, columns.map((c) => {
       const sorted = c.key === sortKey;
-      const th = h("th", { scope: "col", class: [c.num ? "n" : null, c.cls].filter(Boolean).join(" ") || null, "aria-sort": sorted ? (dir > 0 ? "ascending" : "descending") : null },
+      const th = h("th", { scope: "col", title: c.title || null, class: [c.num ? "n" : null, c.cls].filter(Boolean).join(" ") || null, "aria-sort": sorted ? (dir > 0 ? "ascending" : "descending") : null },
         h("button", { type: "button", onclick: () => { if (sorted) dir = -dir; else { sortKey = c.key; dir = c.num ? -1 : 1; } render(true); } },
           c.label, h("span", { class: "dir", "aria-hidden": "true" }, sorted && dir > 0 ? "▲" : "▼")));
       return th;
