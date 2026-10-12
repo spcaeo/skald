@@ -158,7 +158,8 @@ below), `via` (assistant name like `"ChatGPT"`, a referrer host, or `""`),
 `paid` (network name or `""`), `ref_param` (`ref`/`source`/`via` query value
 or `""`), `ref_host`, `ref_page` (host + path, other websites only),
 `search_terms` (or `""`), `returning` (bool or null), `days_seen_30d` (int or
-null). Source types: `AI assistant`, `Search engine`, `Social media`,
+null), `likely_ai` (only on a visit likely sent by an AI assistant, an estimate:
+[docs/DATA-CONTRACT-AI-LIKELY.md](docs/DATA-CONTRACT-AI-LIKELY.md)). Source types: `AI assistant`, `Search engine`, `Social media`,
 `Email`, `Other website`, `This site`, `Tagged link`, `Direct or unknown`.
 
 ```json
@@ -704,6 +705,7 @@ people (`statuses.people.404`).
 | `today` | null, or `{"events": [...], "total": int, "by_name": {name: {"kind","events","visitors","repeat"}}}` (`visitors`/`repeat` null without the visitor key; a view's `by_name` is null and its events are the ones on its paths) |
 | `days[]` | `{"by_name": {name: {"kind","events"}}, "by_kind": {"reader"/"asked"/"training": {"visitors","repeat_visitors"}} or null}` - visitors are distinct keyed hashes that day (whole site), repeat ones were seen on an earlier day within 30 |
 | `repeat_window_days` | 30 |
+| `likely_ai`, `days[].ai_likely`, `today.ai_likely` | likely sent by an AI assistant, inferred (null: not recorded): [docs/DATA-CONTRACT-AI-LIKELY.md](docs/DATA-CONTRACT-AI-LIKELY.md) |
 | `repeat_counts` | `"days"`: `times_seen_30d` counts distinct days the visitor was seen in the 30 days ending today, today included |
 
 The addresses are written only here and in the private snapshot file
@@ -822,7 +824,8 @@ sources; over the last 30 days the pages seen before converting and the
 latest conversions as anonymous timelines. The same file on every view.
 Every figure is counted twice (`audit_conversions.py`,
 `audit_conversions_figures.py`); a day or block that disagrees is withheld.
-Every field: [docs/DATA-CONTRACT-CONVERSIONS.md](docs/DATA-CONTRACT-CONVERSIONS.md).
+Every field: [docs/DATA-CONTRACT-CONVERSIONS.md](docs/DATA-CONTRACT-CONVERSIONS.md); the
+per-day `likely_ai` (an estimate): [docs/DATA-CONTRACT-AI-LIKELY.md](docs/DATA-CONTRACT-AI-LIKELY.md).
 
 ---
 
@@ -927,6 +930,11 @@ reads each visit's first page line again with `parse_qsl` and its own rules, and
 (`period.first_touch`/`last_touch.utm_campaign`, last 30 days) against every `ok` day's
 `utm_campaign` rows, only when the lead store is set up.
 
+### Day kinds `ai_likely` and `ai_fetches`
+
+Likely sent by an AI assistant (inferred, never a count; `ai_likely.py`, `ai_fetches.py`,
+second count `audit_ai_likely.py`): [docs/DATA-CONTRACT-AI-LIKELY.md](docs/DATA-CONTRACT-AI-LIKELY.md).
+
 ### leads.json `attribution_rows`
 
 Written (lane A, `leads.py`; second count `audit_leads.py`). Leads by day crossed with
@@ -934,7 +942,7 @@ their type, status and both touches, so the app sums any range of the 180 days.
 
 | field | type |
 |---|---|
-| `attribution_columns` | `["day","type","status","touch","source_type","ai","campaign","utm_source","utm_medium","landing","paid","n"]` |
+| `attribution_columns` | `["day","type","status","touch","source_type","ai","campaign","utm_source","utm_medium","landing","paid","likely_ai","n"]` (`likely_ai`, an estimate, and top-level `likely_ai`: [docs/DATA-CONTRACT-AI-LIKELY.md](docs/DATA-CONTRACT-AI-LIKELY.md)) |
 | `attribution_rows` | list of rows in that order, for the 180 days ending today (local), or `{"state": "withheld", "why"}` |
 
 - Every lead counts twice, once with `touch` `"first"` and once `"last"`. Spam and

@@ -24,8 +24,15 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-11b",
+  id: "2026-10-12a",
   items: [
+    ["Likely from AI", "a direct visit that lands on a page ChatGPT, Perplexity or another assistant fetched minutes before is shown as likely sent by it: on Sources, AI & crawlers, Leads, Conversions and a visitor's details. An estimate, marked \"likely\" with an (i), never added to any count.", "leads-and-conversions"],
+    ["Cloudflare Worker", "a site behind Cloudflare on any plan can send each request to Skald, so pages served from Cloudflare's cache are counted too, and none twice.", "faq"],
+    ["Vercel", "a step-by-step guide for a site on Vercel: where Skald runs, the log drain, and what each Vercel plan lets Skald see.", "getting-started"],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.0.0
     ["Help", "guides in plain words for every part, step by step: getting started, sign-in and team, internal traffic, leads and conversions, the tracking script, webhooks, funnels and goals, the API, MCP, settings, privacy, and questions. In Settings > Help, the round You button, the footer, Ctrl K (Help: …) and the ? list. Pages with a setup step link to their guide.", "getting-started"],
     ["Sign-in", "Show or hide a password as you type it, and Keep me signed in on a computer you trust.", "sign-in-and-team"],
     ["Footer", "Live · version · released, in your time zone and the site's; how fresh the figures are beside it. Theme and What's new sit in the sidebar's foot."],
@@ -45,9 +52,7 @@ const NEW = {
     ["Exit rate", "how many of a page's visits left from it, on each page in Pages."],
     ["Leads", "lead quality by source, and time from first visit to lead.", "leads-and-conversions"],
     ["Failure mail", "a failed morning run sends one short mail."],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
+    // before 2.0.0
     ["Events", "under Results: what readers did inside the pages, from the site's own beacon: button clicks, sign-up and demo steps, links out, reading three quarters, copying text, by page and by source. Funnels can end with event steps, and each page's story shows its events."],
     ["Broken links", "now under Site health, beside Alerts, Data quality and Page speed. Old links still open it."],
     ["Compare", "after Insights: any two periods side by side, A against B, with presets or a calendar, up to 12 months. The figures with their change, both periods on one chart, and tables of pages, sources, AI assistants, countries, devices, browsers, systems and campaigns with what is new or gone. The link keeps it all."],

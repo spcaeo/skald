@@ -88,6 +88,21 @@ AI_ASKED = re.compile(
     re.I,
 )
 
+# Whose assistant each user fetcher (AI_ASKED) is, by the name its citations
+# carry (assistant_name). "Likely sent by an AI assistant" (ai_likely.py, its
+# recount audit_ai_likely.py, and the leads and conversions built on it)
+# credits a direct visit to the owner of the fetch before it. BingPreview is
+# filed as Microsoft's assistant, as AI_ASKED files it. Keys lower case.
+AI_FETCHER_OWNERS = {
+    "chatgpt-user": "chatgpt.com", "claude-user": "claude.ai",
+    "perplexity-user": "perplexity.ai", "gemini-user": "gemini.google.com",
+    "bingpreview": "copilot.microsoft.com", "mistralai-user": "mistral.ai",
+    "meta-externalfetcher": "meta.ai",
+}
+# A likely-referred visit whose page two or more assistants fetched in the
+# window: counted once, under this name, never under each.
+AI_LIKELY_MANY = "(more than one)"
+
 # A person who followed a citation. Identified by where they came FROM, since
 # their user agent is an ordinary browser's.
 #

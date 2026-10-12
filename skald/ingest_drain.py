@@ -1,4 +1,4 @@
-"""Log drains from Vercel and Netlify: POST /traffic-ingest/<site>?format=vercel|netlify.
+"""Log drains and edge records: POST /traffic-ingest/<site>?format=vercel|netlify|edge.
 
 A site on Vercel or Netlify has no access log Skald can read, and no server
 to run the shipper on. Both platforms post their request logs to an HTTPS
@@ -14,8 +14,13 @@ log, which the daily run and the audit read like any other.
            NDJSON, the token in its Authorization header (no signature).
            https://docs.netlify.com/manage/monitoring/log-drains/
 
+  edge     an edge record, Skald's own format: one request as a CDN Worker
+           saw it (deploy/cloudflare-worker/skald-edge.js). Cloudflare's own
+           request log (Logpush) is not on every plan; the Worker is.
+           docs/CDN-LOGS.md, "Cloudflare on any plan".
+
 The body is a JSON array of records or one record a line (NDJSON); either
-is read for either platform. For each record:
+is read for each format. For each record:
 
 - a request is kept, cut down to the fields Skald reads (parse_drains.py):
   time, address, host, method, URL, status, referrer, user agent, country,
@@ -29,6 +34,11 @@ is read for either platform. For each record:
   requests to Skald's own paths (/traffic-beacon, /traffic-js/,
   /traffic-hooks/) that a rewrite sends on, as nginx keeps them out of the
   main access log;
+- an edge record the origin's log also has is skipped and counted, so no
+  request is counted twice. With `logs.edge_only_cached` (true unless the
+  site's format is `edge_json`, the edge alone) only records with cache
+  "HIT" are kept: every other cf-cache-status (MISS, EXPIRED, BYPASS,
+  DYNAMIC, REVALIDATED, UPDATING, STALE, none) may have reached the origin;
 - a request Skald cannot read (no address, no status) is rejected and
   counted, never kept.
 
@@ -53,6 +63,11 @@ plan quota and the organisation's bytes a day 429. A drain sends no batch
 number: the batch id is the platform plus a hash of the body, so a delivery
 Vercel or Netlify retries is kept once. Requests that overlap across
 batches are dropped when read, by their request id.
+
+An edge post is one request, so it has its own rate limit
+(`ingest.edge_per_minute`, 1200; `ingest.edge_burst`, 300), apart from the
+shipper's, and is appended as the next batch of one "edge" sender: no
+per-post state. A record posted twice is dropped when read, by its id.
 """
 from __future__ import annotations
 
@@ -68,7 +83,7 @@ from . import ingest, ingest_log
 from .config import setting
 from .parse_drains import _url
 
-PLATFORMS = {"vercel": "vercel_json", "netlify": "netlify_json"}
+PLATFORMS = {"vercel": "vercel_json", "netlify": "netlify_json", "edge": "edge_json"}
 
 # Only these fields are kept (the platforms' own names, so the kept line
 # is a Vercel or Netlify record still, minus what Skald never reads).
@@ -77,6 +92,11 @@ VERCEL_PROXY = ("timestamp", "method", "host", "path", "userAgent", "referer",
                 "statusCode", "clientIp", "responseByteSize", "vercelId")
 NETLIFY = ("log_type", "timestamp", "client_ip", "method", "url", "status_code",
            "user_agent", "referrer", "country", "duration", "response_size", "request_id")
+# An edge record's fields: what an nginx line keeps, plus the cache status and
+# the request id. Anything else a sender adds is dropped.
+EDGE = ("ts", "ip", "method", "host", "path", "status", "bytes", "referer", "ua",
+        "cache", "id")
+EDGE_PER_MINUTE, EDGE_BURST = 1200, 300
 
 # Skald's own endpoints, reached through a rewrite on the host. nginx logs
 # them apart from the site's traffic (docs/BEACON.md); so does this.
@@ -114,11 +134,17 @@ def records(body: bytes) -> tuple[list, int]:
     return out, bad
 
 
-def keep(record, name: str) -> tuple[str, str | None]:
-    """("line", the line to keep) | ("skip", None) | ("bad", None)."""
+def keep(record, name: str, only_hits: bool = False) -> tuple[str, str | None]:
+    """("line", the line to keep) | ("skip", None) | ("bad", None).
+    `only_hits`: an edge record whose cache status is not HIT is skipped."""
     if not isinstance(record, dict):
         return "bad", None
-    if name == "vercel":
+    if name == "edge":
+        row = {k: record[k] for k in EDGE if k in record}
+        path = record.get("path")
+        if only_hits and str(record.get("cache") or "").strip().upper() != "HIT":
+            return "skip", None                 # the origin's log has it
+    elif name == "vercel":
         proxy = record.get("proxy")
         if not isinstance(proxy, dict):
             return "skip", None                 # build output, a function's own log
@@ -137,12 +163,12 @@ def keep(record, name: str) -> tuple[str, str | None]:
     return "line", json.dumps(row, separators=(",", ":"))
 
 
-def convert(body: bytes, name: str) -> tuple[bytes, int, int]:
+def convert(body: bytes, name: str, only_hits: bool = False) -> tuple[bytes, int, int]:
     """(lines to check and keep, records skipped, records unreadable)."""
     got, bad = records(body)
     lines, skipped = [], 0
     for record in got:
-        kind, line = keep(record, name)
+        kind, line = keep(record, name, only_hits)
         if kind == "line":
             lines.append(line)
         elif kind == "skip":
@@ -153,6 +179,28 @@ def convert(body: bytes, name: str) -> tuple[bytes, int, int]:
 
 
 # --------------------------------------------------------------- settings
+
+def edge_only_cached(site_config) -> bool:
+    """`logs.edge_only_cached`: keep only the edge's cache hits, because the
+    origin's log has the rest. Unset, true unless the site's format is
+    `edge_json` (the edge records are its only log)."""
+    logs = (site_config or {}).get("logs") or {}
+    got = logs.get("edge_only_cached")
+    if got is None:
+        return str(logs.get("format") or "auto") != "edge_json"
+    return got is True or str(got).strip().lower() in ("true", "yes", "1", "on")
+
+
+def edge_bucket(config) -> ingest.Bucket:
+    """The edge's own rate limit: a Worker posts once a request."""
+    per = float(setting(config or {}, "ingest", "edge_per_minute", EDGE_PER_MINUTE))
+    burst = float(setting(config or {}, "ingest", "edge_burst", EDGE_BURST))
+    with ingest._BUCKETS_GUARD:
+        got = ingest._BUCKETS.get(("edge", per, burst))
+        if got is None:
+            got = ingest._BUCKETS[("edge", per, burst)] = ingest.Bucket(per, burst)
+        return got
+
 
 def drain_setting(config, site: str, key: str):
     drains = ((config or {}).get("ingest") or {}).get("drains") or {}
@@ -227,7 +275,7 @@ def _who(db, h, site: str, name: str, raw: bytes, config) -> tuple:
 def handle(h, config, live_dir, config_path, site: str, name: str) -> None:
     """Answer one drain post (ingest._handle has checked on, POST, path)."""
     if name not in PLATFORMS:
-        return ingest.no(h, 400, "format is vercel or netlify (or none, for the shipper)")
+        return ingest.no(h, 400, "format is vercel, netlify or edge (or none, for the shipper)")
     from .accounts import db as base, site_configs as dsites
     verify = drain_setting(config, site, "vercel_verify") if name == "vercel" else None
     extra = {"x-vercel-verify": str(verify)} if verify else {}
@@ -260,7 +308,7 @@ def handle(h, config, live_dir, config_path, site: str, name: str) -> None:
         if fmt not in ("auto", PLATFORMS[name]):
             return ingest.no(h, 400, f"this site's log format is {fmt}; set it to "
                              f"{PLATFORMS[name]} or auto to take a {name} drain", extra)
-        wait = ingest.bucket(config).take(site)
+        wait = (edge_bucket(config) if name == "edge" else ingest.bucket(config)).take(site)
         if wait:
             return ingest.no(h, 429, "too many batches for this site; slow down",
                              dict(extra, **{"Retry-After": str(max(1, int(wait + 0.999)))}))
@@ -278,22 +326,25 @@ def handle(h, config, live_dir, config_path, site: str, name: str) -> None:
         except ValueError as bad:
             return ingest.no(h, 400, str(bad), extra)
         return _keep(h, db, config, live_dir, site, name, org, fmt, raw, body,
-                     ingest_root, extra)
+                     ingest_root, extra, name == "edge" and edge_only_cached(own))
     finally:
         db.close()
 
 
-def _keep(h, db, config, live_dir, site, name, org, fmt, raw, body, ingest_root, extra):
-    lines, skipped, bad = convert(body, name)
+def _keep(h, db, config, live_dir, site, name, org, fmt, raw, body, ingest_root, extra,
+          only_hits=False):
+    lines, skipped, bad = convert(body, name, only_hits)
     data, accepted, rejected = ingest.split(lines, fmt)
     rejected += bad
     shipper, seq = f"{name}-{hashlib.sha256(raw).hexdigest()[:40]}", 1
+    if name == "edge":                  # one sender, the next batch: no state a post
+        shipper, seq = "edge", None
     folder = ingest_log.site_folder(ingest_root, site)
     writer = ingest_log.Writer(
         folder, keep=int(setting(config, "ingest", "keep", ingest_log.KEEP)),
         max_mb=float(setting(config, "ingest", "max_mb", ingest_log.MAX_MB)))
     dup = {"ok": True, "accepted": 0, "rejected": 0, "skipped": 0, "duplicate": True}
-    if writer.seen(shipper, seq):
+    if seq is not None and writer.seen(shipper, seq):
         return ingest._answer(h, 200, dup, extra)
     refusal = ingest.quota(db, config, site, org, accepted, len(data),
                            ingest.history_folder(config, live_dir) / "history.sqlite") \

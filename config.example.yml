@@ -245,6 +245,17 @@ alerts:
 #   releases_dir: /opt/site/releases
 #   version_url: https://www.example.com/
 
+# Likely sent by an AI assistant (ai_likely.py): an estimate, never a count.
+# A visit with no referrer and no campaign tag that lands on a page an AI
+# assistant's user fetcher (ChatGPT-User, Perplexity-User, Claude-User, ...)
+# fetched in the same minute or up to ai_window_minutes before is shown as
+# "likely" from that assistant, on Sources, AI & crawlers, Leads and
+# Conversions. The fetches (minute, assistant, path; no address) are kept
+# 180 days. Defaults below; false turns it off (figures "not recorded").
+# attribution:
+#   ai_likely: true
+#   ai_window_minutes: 15
+
 # Leads from the website's CMS database, opened read-only, aggregates only
 # (leads.py). Leave it out when there is none.
 # leads:

@@ -13,6 +13,7 @@ import { rangeOf } from "../data.js";
 import { head, rangeWords, fixed } from "./common.js";
 import { table } from "../table.js";
 import { howTo } from "./help.js";
+import { conversionsLikely } from "./likelyai.js";
 
 const ACTION = { demo: "Demos", contact: "Contact forms", signup: "Sign-ups", waitlist: "Early access", paid: "Payments", deal: "Deals", call: "Phone clicks", email: "Email clicks", cta: "Button clicks", trial: "Trials" };
 const STAGE = { started: "started", completed: "completed", paid: "paid", cancelled: "cancelled", rescheduled: "rescheduled", no_show: "no-show", won: "won", lost: "lost" };
@@ -232,6 +233,7 @@ export default function conversions(m, s) {
       out.push(h("section", { class: "s" }, h("h2", null, "Where the completed ones came from"),
         h("div", { class: "cols tops" }, ...(f.dims || Object.keys(DIM)).filter((d) => DIM[d]).map((d) => breakdown(d, t, acts)))));
       out.push(h("section", { class: "s" }, h("h2", null, "First, last and assisted touch"), touches(t, acts)));
+      out.push(conversionsLikely(ok, acts, f));
       out.push(h("section", { class: "s" }, h("h2", null, "Time to convert"), timing(t)));
     }
   }

@@ -83,6 +83,25 @@ Each lead is shown twice, by its **First touch** and by its **Last touch**:
 
 There are four tables: by Source, by AI assistant, by Campaign and by Landing page. A lead without a value is said under the table, not shown as a row.
 
+### Likely from an AI assistant
+
+Many people who click a link in a ChatGPT, Perplexity, Claude, Copilot or Gemini answer arrive with no referrer. Their touch then says "Direct or unknown". The **Likely AI (inferred)** table, beside the four above, gives Skald's best guess for those touches, by first touch and by last touch. It is an estimate, never a count.
+
+How Skald guesses:
+
+1. The touch came with no referrer and no campaign tag.
+2. When someone asks an assistant, the assistant fetches the page from your server at that moment. Skald keeps those fetches: which assistant, which page, which minute.
+3. If an assistant fetched the touch's landing page in the same minute or up to 15 minutes before, the touch is **likely** from that assistant. Your server's admin can change the window (`attribution.ai_window_minutes`).
+
+What it shows:
+
+- **ChatGPT** (or another assistant): one assistant fetched the page in the window.
+- **More than one**: two or more did. The lead counts once.
+- A touch that was not direct, or whose page no assistant fetched in the window, is not in the table.
+- **Not recorded**, under the table: Skald did not keep the fetches for that time. For example, the touch is from before this feature, more than 180 days ago, or today (today's fetches are kept the next morning).
+
+> Why only "likely"? A fetch can be for someone who read the answer and never clicked. A direct visit a minute later can be someone else. Skald never adds these to the AI assistant source or to any count. The (i) beside the title says the same.
+
 ### Lead quality by source
 
 Statuses by first-touch source: New, Contacted, Qualified, Won, Lost, Spam, Duplicates. The column **Qualified or won, of reviewed** is the share of leads that are no longer new and were marked qualified or won. It is given over at least 10 reviewed leads. If every lead is still "new", the page says so and shows no zeros.
@@ -127,6 +146,10 @@ Completed conversions by Source (last touch), First touch, Campaign, Landing pag
 - **Assisted**: a source seen earlier in a converting browser's journey that was not its last touch. Each conversion counts once per source.
 
 Assisted needs anonymous visitor IDs (below).
+
+### Likely from an AI assistant (conversions)
+
+The section **Likely from AI assistants (inferred)**: completed conversions whose first touch was direct, by the assistant that likely sent them, the same guess as on the Leads page. The first touch is the lead's or the tool's first touch; for the script tag, the browser's first visit. "Not recorded", under the table, means the first touch, or the fetches around it, were not kept. Likely, never certain, and not part of the sources above.
 
 ### Time to convert
 

@@ -155,6 +155,16 @@ Letters to use after `g`:
 | u | Internal traffic |
 | , (comma) | Settings |
 
+## Your site on Vercel, Netlify or behind Cloudflare
+
+Skald needs a record of every request. A site on your own server has one: its access log. Other hosts keep that log to themselves, so it has to be sent to Skald. Whoever runs your Skald server sets this up once:
+
+- **Vercel:** a Log Drain sends every request to Skald (Vercel Pro or Enterprise). On the Hobby plan, only the `skald.js` tag works, so Skald sees people but not AI assistants or crawlers. Step by step: [Skald for a site on Vercel](https://github.com/spcaeo/skald/blob/main/docs/VERCEL.md).
+- **Netlify:** a Log Drain (Netlify Enterprise), set up the same way.
+- **Cloudflare in front of your site:** pages Cloudflare serves from its cache never reach your server. Cloudflare's own request log (Logpush) or the small Skald Worker, on any plan, sends them to Skald. No visit is counted twice. See the [FAQ](faq.md).
+
+The full list of hosts, with what each one lets Skald see: [Hosting](https://github.com/spcaeo/skald/blob/main/docs/HOSTING.md).
+
 ## How fresh the figures are
 
 The foot of every page says when the data was last updated, and when the next update is due. Today's figures are recounted about every two minutes. Yesterday becomes a whole day after the morning's daily run.

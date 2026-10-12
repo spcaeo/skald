@@ -11,6 +11,9 @@ lines, and compared in the audit (`skald audit`, run-daily's audit step,
 
     Recount(config, day, tz, own)
         one per recount of a day; `own` is the site's hosts (may be empty).
+      .hit(line, group, tier, name) -> None   (optional)
+        every line of the site's hosts in log order, with the audit's
+        group, AI tier ("asked", "training" or "") and crawler name.
       .visit(lines, is_page, labels) -> None
         each people visit: its audit.Line list in time order, assets and
         posts included; `is_page(line)` is the audit's page rule; `labels`
@@ -40,7 +43,7 @@ from __future__ import annotations
 import importlib
 
 RECOUNTS = {"funnels": "audit_funnels", "engagement": "audit_engagement",
-            "utm_hygiene": "audit_utm"}
+            "utm_hygiene": "audit_utm", "ai_likely": "audit_ai_likely"}
 DAILY: dict[str, str] = {"conversions": "audit_conversions"}
 
 
@@ -61,6 +64,13 @@ class Recounts:
     def __init__(self, config: dict, day, tz, own: set) -> None:
         self.each = [mod.Recount(config, day, tz, own)
                      for mod in _modules(RECOUNTS).values()]
+
+    def hit(self, line, group: str, tier: str, name: str) -> None:
+        """Every line of the site's hosts, as the audit judged it (a recount
+        that offers `hit` sees them all: the AI fetches, say)."""
+        for r in self.each:
+            if hasattr(r, "hit"):
+                r.hit(line, group, tier, name)
 
     def visit(self, lines: list, is_page, labels: dict | None) -> None:
         for r in self.each:

@@ -16,7 +16,7 @@
   <img alt="Zero dependencies" src="https://img.shields.io/badge/dependencies-zero-2b8a3e">
   <a href="https://github.com/spcaeo/skald/actions/workflows/ci.yml"><img alt="Tests" src="https://github.com/spcaeo/skald/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/spcaeo/skald/pkgs/container/skald"><img alt="Docker image" src="https://img.shields.io/badge/docker-ghcr.io%2Fspcaeo%2Fskald-2496ed"></a>
-  <img alt="Version 2.0.0" src="https://img.shields.io/badge/version-2.0.0-555">
+  <img alt="Version 2.1.0" src="https://img.shields.io/badge/version-2.1.0-555">
 </p>
 
 <p align="center">
@@ -118,6 +118,26 @@ default, and checked twice like everything else.
 
 </td>
 </tr>
+<tr>
+<td valign="top">
+
+### Find the AI traffic hiding in "Direct"
+A click from a ChatGPT or Perplexity answer often arrives with no referrer, so other tools file it
+under "Direct". When someone asks an assistant, it fetches your page first, and Skald sees that
+fetch. A direct visit landing on that same page minutes later is shown as **likely from that
+assistant**: for visits, leads and conversions. Always labelled "likely", never mixed into the real
+counts, and counted twice.
+
+</td>
+<td valign="top">
+
+### Works where your site lives
+Your own server's log, or the host's: **Vercel and Netlify log drains**, a **Cloudflare Worker**
+that reports pages served from cache on any plan, CloudFront and Fastly logs, or a small shipper
+from any server. Step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md).
+
+</td>
+</tr>
 </table>
 
 ## Features
@@ -136,6 +156,9 @@ default, and checked twice like everything else.
 
 **AI and machines**
 - AI assistants by name and by reason, with the pages each one fetched.
+- AI clicks that lost their referrer, estimated: a direct visit to a page an assistant fetched
+  minutes before is shown as "likely" from that assistant, on Sources, Leads and Conversions.
+  Kept apart, never added to any count.
 - Crawler verification, fake crawlers filed apart.
 - Block AI crawlers per assistant, or only their training crawlers, applied by the web server
   (`robots.txt` stays reachable). Skald blocks; it does not charge.
@@ -172,6 +195,8 @@ default, and checked twice like everything else.
 **Inputs**
 - nginx and Apache logs (combined or extended), Caddy JSON.
 - CDN logs: Cloudflare Logpush, CloudFront, Fastly. Pages served from the CDN cache are counted too.
+- Vercel and Netlify log drains, and the Skald Worker for Cloudflare on any plan (it posts each
+  request after the page has gone out; with your server's log, only cache hits are kept).
 - `skald-ship`: one standard-library Python file that sends another server's log to Skald.
 - Beacon-only mode for a site with no readable log (it then sees people only, since bots run no
   script).
@@ -195,7 +220,7 @@ default, and checked twice like everything else.
 
 You need a server whose access log Skald can read. Full guide, all options and troubleshooting:
 **[docs/INSTALL.md](docs/INSTALL.md)**. Hosting choices (Railway, Render, Fly.io, a VPS) and how to
-measure sites on Vercel, Netlify or Cloudflare: **[docs/HOSTING.md](docs/HOSTING.md)**.
+measure sites on Vercel, Netlify or Cloudflare: **[docs/HOSTING.md](docs/HOSTING.md)**. Site on Vercel? Follow **[docs/VERCEL.md](docs/VERCEL.md)**.
 
 **Hosting:** [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/spcaeo/skald)
 (a paid instance with a disk; `render.yaml` sets it up). Railway, Fly.io and Kubernetes:
@@ -257,17 +282,17 @@ SKALD_DOMAIN=stats.example.com docker compose --profile https up -d
 The quick way, pinned to a release:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.0.0/install.sh | sudo bash -s -- --ref v2.0.0
+curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.1.0/install.sh | sudo bash -s -- --ref v2.1.0
 ```
 
 This runs a script from the internet as root. To check it first, download the release and its
 checksums, verify, then run it:
 
 ```sh
-curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.0.0/skald-2.0.0.tar.gz
-curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.0.0/SHA256SUMS
-sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.0.0.tar.gz: OK
-tar -xzf skald-2.0.0.tar.gz && cd skald-2.0.0 && less install.sh && sudo ./install.sh
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.1.0/skald-2.1.0.tar.gz
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.1.0/SHA256SUMS
+sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.1.0.tar.gz: OK
+tar -xzf skald-2.1.0.tar.gz && cd skald-2.1.0 && less install.sh && sudo ./install.sh
 ```
 
 It installs into `/opt/skald`, with config in `/etc/skald` and data in `/var/lib/skald`, and puts
@@ -507,8 +532,10 @@ default and can wait for consent. Signing in to the dashboard uses one session c
 own legal duties depend on your country and setup.
 
 **What if my site is on Vercel, Netlify or a static host?**
-Use a CDN's log, ship the log from another server with `skald-ship`, or use beacon-only mode (people
-only). See [docs/HOSTING.md](docs/HOSTING.md).
+Vercel and Netlify can send every request to Skald with a log drain (Vercel Pro, Netlify
+Enterprise); step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md). Behind Cloudflare, use
+Logpush or the Skald Worker. Otherwise use a CDN's log, ship the log from another server with
+`skald-ship`, or use beacon-only mode (people only). See [docs/HOSTING.md](docs/HOSTING.md).
 
 **What happens when the figures do not add up?**
 The day is withheld: the dashboard says so, the mail for it is refused, and nothing is shown as zero.

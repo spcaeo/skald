@@ -244,7 +244,7 @@ def _line_parser(pattern: re.Pattern, when, fmt: str):
 # The CDN formats live in their own module; it imports Hit and the helpers
 # above, which is why this import sits here and not at the top.
 from .parse_cdn import W3C_HEADER, CloudFront, cloudflare, fastly  # noqa: E402
-from .parse_drains import netlify, vercel  # noqa: E402
+from .parse_drains import edge, netlify, vercel  # noqa: E402
 
 PARSERS = {
     "nginx_extended": _line_parser(NGINX_EXTENDED, _when_iso, "nginx_extended"),
@@ -255,6 +255,7 @@ PARSERS = {
     "fastly_json": fastly,
     "vercel_json": vercel,
     "netlify_json": netlify,
+    "edge_json": edge,
 }
 PARSERS["apache_combined"] = PARSERS["nginx_combined"]
 
@@ -264,7 +265,7 @@ PARSERS["apache_combined"] = PARSERS["nginx_combined"]
 # settles a sample none of them reads.
 AUTO_ORDER = ["nginx_extended", "nginx_combined", "caddy_json",
               "cloudflare_json", "fastly_json", "cloudfront_w3c",
-              "vercel_json", "netlify_json"]
+              "vercel_json", "netlify_json", "edge_json"]
 
 
 def detect(sample: list[str]) -> str:

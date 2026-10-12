@@ -536,7 +536,7 @@ def daily(ctx, day: date) -> list[str] | None:
 # ------------------------------------------------- conversions.json's check
 
 def check_file(config: dict, folder: Path, site: str, tz, first: date, last: date,
-               now: str, hours: float, blob: dict) -> dict[str, list[str]]:
+               now: str, hours: float, blob: dict, history=None) -> dict[str, list[str]]:
     """Every figure conversions.json shows, against the second counts:
     the stages against the spools and the lead DB (findings), and every
     day's figures and the pages block against audit_conversions_figures'
@@ -549,7 +549,7 @@ def check_file(config: dict, folder: Path, site: str, tz, first: date, last: dat
         out.setdefault(f"days/{day}", []).extend(problems)
     path = store.path_for(config, folder)
     for day, problems in figures.check_days(path, site, tz, first, last, now, hours,
-                                            blob["days"]).items():
+                                            blob["days"], history, config).items():
         out.setdefault(f"days/{day}", []).extend(problems)
     period = blob.get("period") or {}
     if period:

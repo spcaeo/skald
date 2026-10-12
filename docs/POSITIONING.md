@@ -31,7 +31,10 @@ JavaScript, so tools built on a tag never count them, and Google Analytics drops
 purpose. The usual tools have added an "AI" channel for click-throughs. None of them sees the
 assistant reading your page to answer someone.
 
-The server log sees all three. A tag-based tool sees none of the first two. How large that share is
+The server log sees all three. A tag-based tool sees none of the first two. And for the third,
+when the referrer is stripped, Skald goes one step further: an assistant fetches the page while
+answering, so a direct visit landing on that page minutes later is shown as *likely* from that
+assistant. Labelled as an estimate, kept apart from the counts. How large that share is
 differs from site to site; Skald's first run measures it from the site's own log.
 
 ## Who it is for
@@ -102,6 +105,8 @@ checked figures, conversions and accounts.
 - **Sees the machines.** AI training crawlers and live AI fetches, by name, with pages.
 - **Says why AI came.** Training, answering someone, or a person clicking a citation; never double
   counted.
+- **Finds hidden AI referrals.** Direct visits and leads that an assistant very likely sent, from its
+  fetch minutes before; labelled "likely", never mixed into the counts.
 - **Checks names.** Crawlers verified against owners' published addresses or DNS; fakes filed apart.
 - **Proves its numbers.** Groups add up to the log; a second count checks every figure; a day that
   fails is withheld.
@@ -111,15 +116,20 @@ checked figures, conversions and accounts.
 - **Yours.** Runs on your server, standard library only, SQLite files you can copy, no outside
   requests.
 - **Agent-ready.** MCP and a read-only API.
+- **Works where your site lives.** Vercel and Netlify log drains, a Cloudflare Worker for cached
+  pages on any plan, CloudFront and Fastly logs, or your own server's log.
 
 ## Honest limits
 
 - You need a server whose log you can read (or a CDN log, a shipped log, or beacon-only mode for
   people only).
-- A page a CDN serves from its cache never reaches the origin's log; feed Skald the CDN's log.
+- A page a CDN serves from its cache never reaches the origin's log; feed Skald the CDN's log, or
+  the Skald Cloudflare Worker (any plan).
 - "People" is an upper bound, because a browser's name is self-reported.
-- AI click-throughs are a floor, because referrers are often stripped. Google AI Overview clicks look
-  like ordinary Google clicks.
+- AI click-throughs are a floor, because referrers are often stripped. Skald estimates the hidden
+  part ("likely from" an assistant, from its fetch minutes before), but an estimate is not a count,
+  and an assistant that answers from its memory, without fetching, leaves no trace. Google AI Overview
+  clicks look like ordinary Google clicks.
 - No search queries (yet), no ad spend, no session replay.
 
 ## Pricing and licence intent

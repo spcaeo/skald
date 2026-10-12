@@ -11,6 +11,13 @@ The time to convert is bucketed in SQL from julianday differences; the
 visits before a lead by a SQL CASE; the funnel's log steps are recounted
 from the same journeys with this module's own page matching.
 
+Each touch's likely_ai (an inferred label, ai_likely.py) is worked out
+again here: the touch's minute by SQL strftime('%s'), the stored AI user
+fetches read from the history file by its own SQL (json_each over the
+day_extras rows of verified whole days), and its own page and window rule;
+it shares classify's AI_LIKELY_MANY and ai_likely.FETCH_DAYS, the span the
+fetches are looked up over.
+
 leads.py runs it each time it builds leads.json and withholds a block the
 recount disagrees with (`findings`, one entry per block, a day on its own);
 `skald leads --audit` and run-daily (`daily`, a step from audit_more.py)
@@ -18,15 +25,18 @@ report the same comparison (`compare`).
 """
 from __future__ import annotations
 
+import re
+import sqlite3
 from collections import Counter
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlencode
 
+from .ai_likely import FETCH_DAYS
 from .audit_labels import source_of
-from .classify import FORM_PAGES, PAID_CLICK_IDS, PAID_MEDIUMS, PRICING_PAGES
-from .config import setting
+from .classify import AI_LIKELY_MANY, FORM_PAGES, PAID_CLICK_IDS, PAID_MEDIUMS, PRICING_PAGES
+from .config import setting, site_name
 from .leads import NONE, _columns, connect
 
 FIELDS = ("aiSource", "referrerHost", "utmSource", "utmMedium", "utmCampaign", "landingPath",
@@ -78,6 +88,15 @@ def _elapsed(have: set) -> str:
             f"END END END")
 
 
+def _minute(col: str, have: set) -> str:
+    """The touch's `at` as whole minutes since the epoch, by strftime."""
+    if col not in have:
+        return "NULL"
+    return (f"CASE WHEN json_valid({col}) THEN CASE WHEN json_type({col}) = 'object' THEN "
+            f"CASE WHEN json_type({col}, '$.at') = 'text' THEN "
+            f"CAST(strftime('%s', json_extract({col}, '$.at')) AS INTEGER) / 60 END END END")
+
+
 def _bucket(ms: str) -> str:
     cuts = " ".join(f"WHEN {ms} < {top} THEN '{name}'" for top, name in CUTS)
     return (f"CASE WHEN {ms} IS NULL THEN 'unknown' WHEN {ms} < 0 THEN 'clock_error' "
@@ -105,6 +124,7 @@ def _query(have: set) -> str:
     for col in ("first_touch", "last_touch"):
         inner.append(_object(col, have))
         inner += [_field(col, key, have) for key in FIELDS]
+        inner.append(_minute(col, have))
     names = [f"c{i}" for i in range(len(inner))]
     cols = ", ".join(f"{e} AS {c}" for e, c in zip(inner, names))
     return (f"SELECT {', '.join(names)}, {_bucket('c5')}, COUNT(*) FROM "
@@ -122,7 +142,7 @@ def _labels(is_object, values) -> dict:
     """The audit's labels of one touch from its grouped raw fields."""
     if not is_object:
         return {"source": NONE, "ai": NONE, "campaign": NONE, "utm_source": NONE,
-                "utm_medium": NONE, "landing": NONE, "paid": False}
+                "utm_medium": NONE, "landing": NONE, "paid": False, "page": ""}
     f = {k: _clean(v) for k, v in zip(FIELDS, values)}
     tags = [(k, f[x]) for k, x in (("utm_source", "utmSource"), ("utm_medium", "utmMedium"),
                                    ("gclid", "gclid"), ("msclkid", "msclkid"),
@@ -133,17 +153,83 @@ def _labels(is_object, values) -> dict:
         ("ai", "aiSource"), ("campaign", "utmCampaign"), ("utm_source", "utmSource"),
         ("utm_medium", "utmMedium"))}
     return {"source": source_of(seen, bool(f["aiSource"]), set()), **cut,
-            "landing": f["landingPath"][:120] or NONE,
+            "landing": f["landingPath"][:120] or NONE, "page": f["landingPath"],
             "paid": any(f[k] for k in PAID_CLICK_IDS) or f["utmMedium"].lower() in PAID_MEDIUMS}
 
 
 def _record(row: tuple) -> dict:
     kind, status, page, locale, visits, ms = row[:6]
-    k = len(FIELDS) + 1
+    k = len(FIELDS) + 2
     first, last = row[6:6 + k], row[6 + k:6 + 2 * k]
-    return {"type": kind, "status": status, "page": page or NONE, "locale": locale or NONE,
-            "visits": visits, "ms": ms, "bucket": row[-2], "n": row[-1],
-            "first": _labels(first[0], first[1:]), "last": _labels(last[0], last[1:])}
+    out = {"type": kind, "status": status, "page": page or NONE, "locale": locale or NONE,
+           "visits": visits, "ms": ms, "bucket": row[-2], "n": row[-1],
+           "first": _labels(first[0], first[1:-1]), "last": _labels(last[0], last[1:-1])}
+    out["first"]["minute"], out["last"]["minute"] = first[-1], last[-1]
+    return out
+
+
+# ------------------------------------------------------------- likely AI
+
+_CUT = re.compile(r"[?#]")
+
+
+def _bare(path: str) -> str:
+    got = _CUT.split(path or "", 1)[0][:70]
+    while len(got) > 1 and got.endswith("/"):
+        got = got[:-1]
+    return got or "/"
+
+
+def _fetches(history, site: str, first: date, last: date) -> tuple[set, dict] | None:
+    """(the verified whole days with fetch records, {page: [(minute, assistant)]})
+    from the history file, read-only, by SQL."""
+    if history is None or not Path(history).is_file():
+        return None
+    db = sqlite3.connect(f"file:{Path(history).resolve()}?mode=ro", uri=True)
+    try:
+        span = (site, first.isoformat(), last.isoformat())
+        days = {d for (d,) in db.execute(
+            "SELECT x.day FROM day_extras x JOIN days d ON d.site = x.site AND d.day = x.day "
+            "WHERE x.site = ? AND x.kind = 'ai_fetches' AND x.day BETWEEN ? AND ? "
+            "AND d.verified = 1 AND COALESCE(d.partial_from, '') = '' "
+            "AND COALESCE(d.partial_until, '') = '' AND json_valid(x.data) "
+            "AND json_type(x.data, '$.rows') = 'array'", span)}
+        pages: dict = {}
+        for day, stamp, who, path in db.execute(
+                "SELECT x.day, CAST(strftime('%s', json_extract(r.value, '$[0]')) AS INTEGER) "
+                "/ 60, json_extract(r.value, '$[1]'), json_extract(r.value, '$[2]') "
+                "FROM day_extras x, json_each(x.data, '$.rows') r WHERE x.site = ? AND "
+                "x.kind = 'ai_fetches' AND x.day BETWEEN ? AND ? AND json_valid(x.data)", span):
+            if day in days and stamp is not None:
+                pages.setdefault(_bare(str(path)), []).append((stamp, str(who)))
+    finally:
+        db.close()
+    return days, pages
+
+
+def _likely(lab: dict, fetched, window: int, tz) -> str:
+    if lab["source"] != "Direct or unknown" or lab["campaign"] != NONE:
+        return NONE
+    stamp = lab.get("minute")
+    if fetched is None or stamp is None or not lab["page"]:
+        return "(not recorded)"
+    days, pages = fetched
+    for edge in (stamp - window, stamp):
+        if datetime.fromtimestamp(edge * 60, tz).date().isoformat() not in days:
+            return "(not recorded)"
+    who = {w for m, w in pages.get(_bare(lab["page"]), ()) if m <= stamp <= m + window}
+    if not who:
+        return NONE
+    return who.pop() if len(who) == 1 else AI_LIKELY_MANY
+
+
+def _attribution(config: dict | None) -> tuple[bool, int]:
+    got = (config or {}).get("attribution") or {}
+    on = got.get("ai_likely", True) not in (False, "false", "no", "off", 0)
+    try:
+        return on, max(0, int(got.get("ai_window_minutes", 15)))
+    except (TypeError, ValueError):
+        return on, 15
 
 
 # ---------------------------------------------------------------- funnel
@@ -183,10 +269,14 @@ def _log_steps(journeys: list[dict], config: dict) -> dict:
 # --------------------------------------------------------------- recount
 
 def audit_leads(path, tz, first: date, last: date, journeys: list[dict] | None = None,
-                config: dict | None = None) -> dict:
+                config: dict | None = None, history=None) -> dict:
     """The recount of [first, last]: per local day, the leads grouped by SQL
     (`records`), and leads by type and rows by status (`days`); the
-    funnel's log steps when `journeys` are given."""
+    funnel's log steps when `journeys` are given. `history`: the history
+    file, for each touch's likely_ai."""
+    on, window = _attribution(config)
+    fetched = _fetches(history, site_name(config or {}),
+                       last - timedelta(days=FETCH_DAYS + 1), last) if on else None
     db = connect(Path(path))
     try:
         have = _columns(db)
@@ -195,6 +285,9 @@ def audit_leads(path, tz, first: date, last: date, journeys: list[dict] | None =
         d = first
         while d <= last:
             got = [_record(r) for r in db.execute(sql, _bounds(d, tz))]
+            for r in got:
+                for which in ("first", "last"):
+                    r[which]["likely"] = _likely(r[which], fetched, window, tz)
             leads, status = Counter(), Counter()
             for r in got:
                 status[r["status"]] += r["n"]
@@ -324,7 +417,7 @@ def _rows(built: dict, audit: dict, covered, say) -> None:
                     lab = r[which]
                     want[(day, r["type"], r["status"], which, lab["source"], lab["ai"],
                           lab["campaign"], lab["utm_source"], lab["utm_medium"],
-                          lab["landing"], lab["paid"])] += r["n"]
+                          lab["landing"], lab["paid"], lab["likely"])] += r["n"]
         got = Counter({tuple(r[:-1]): r[-1] for r in rows if r[0] in days})
         if got != want:
             diff = sorted(set(got.items()) ^ set(want.items()))[:3]
@@ -381,16 +474,19 @@ def daily(ctx, day: date) -> list[str] | None:
     as counted today, against the recount of the same 180 days. None when
     leads are not set up. A body that fails its own sums is a mismatch; a
     database that cannot be read is an error."""
-    from .leads import DAYS, blob, db_path, site_journeys
+    from .leads import DAYS, blob, db_path, fetch_history, site_journeys
     path = db_path(ctx.config)
     if path is None:
         return None
     journeys, first = site_journeys(ctx)
     today = ctx.now.date()
-    built = blob(ctx.config, ctx.tz, today, journeys, first, audited=False)
+    with fetch_history(ctx) as history:
+        built = blob(ctx.config, ctx.tz, today, journeys, first, audited=False,
+                     history=history)
     if not built["available"]:
         if built.get("problems"):
             return list(built["problems"])
         raise OSError(built["error"])
     return compare(built, audit_leads(path, ctx.tz, today - timedelta(days=DAYS - 1), today,
-                                      journeys=journeys, config=ctx.config))
+                                      journeys=journeys, config=ctx.config,
+                                      history=getattr(history, "path", None)))

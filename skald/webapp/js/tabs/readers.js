@@ -13,6 +13,7 @@ import { campaigns } from "./campaigns.js";
 import { leaderboard } from "./pagedetail.js";
 import { pageStory, published } from "./pagestory.js";
 import { link } from "../drill.js";
+import { sourcesPanel } from "./likelyai.js";
 
 let regions = null;
 export function country(code) {
@@ -78,7 +79,8 @@ export function sources(m, s) {
       blist(ranked(t.by.source, only(s.source)), { drill: "source", total: t.readers, limit: 12, change: ch, empty: s.source ? `No visitor came from ${s.source} in this range.` : "No visitor recorded." })),
     panel("AI assistants that sent visitors", "Visitors who followed a citation, by assistant. Counted once per visitor; undercounts.",
       blist(ranked(t.cited_by), { drill: "assistant", color: color("answer_engines"), empty: "Nobody arrived by following an AI citation in this range." }),
-      h("p", { class: "note" }, "Google AI Overview clicks look exactly like ordinary Google clicks and are counted as search."))));
+      h("p", { class: "note" }, "Google AI Overview clicks look exactly like ordinary Google clicks and are counted as search.")),
+    sourcesPanel(m, r)));
   out.push(h("div", { class: "cols" },
     panel("Referring sites", "The first page's referrer, host only", blist(ranked(t.by.referrer), { drill: "referrer", limit: 12, color: "var(--views)", empty: "No referring site recorded." })),
     panel("Campaigns", "utm_ tags or an ad click id on the landing address", blist(ranked(t.by.campaign), { drill: "campaign", limit: 12, color: "var(--g-bots)", empty: "No tagged link was followed in this range." }))));

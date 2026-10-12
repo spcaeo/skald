@@ -19,6 +19,15 @@ withheld, a block too. A figure not recorded is "Unknown", never a guess
 (a visit known to carry no campaign tag is "(no campaign tag)", as in the
 logs). The same file is written on every page: the
 conversions do not know about views.
+
+`likely_ai` per day (inferred, ai_likely.py): finished rows by the
+assistant likely behind their first touch - {action: {label: n}}. The
+first touch is the row's own (first_source, first_touch_at, landing) when
+it has one, else, for a row with a visitor ID, the browser's earliest
+journeys row (source_type, at, path). A first touch from "Direct or
+unknown" is looked up in the stored AI user fetches (the assistant, or
+"(more than one)", or "(none)"); any other source is "(none)"; a first
+touch not known, or fetches not kept for its window, is "Unknown".
 """
 from __future__ import annotations
 
@@ -92,7 +101,7 @@ def set_up(config: dict, folder: Path, site: str) -> dict:
 
 def _empty(journeys: bool) -> dict:
     return {"stages": {}, "abandoned": {}, "by": {d: {} for d in DIMS}, "visits_before": {},
-            "time_to_convert": {}, "assisted": {} if journeys else None}
+            "time_to_convert": {}, "assisted": {} if journeys else None, "likely_ai": {}}
 
 
 def _add(table: dict, a: str, b: str) -> None:
@@ -100,8 +109,39 @@ def _add(table: dict, a: str, b: str) -> None:
     per[b] = per.get(b, 0) + 1
 
 
-def figures(db, site: str, tz, first: date, last: date, now: str, hours: float) -> dict:
-    """{local day: figures} for first..last. Days with no row are left out."""
+def likely_label(db, row, likely: tuple | None, tz) -> str:
+    """The likely assistant behind a finished row's first touch (see above)."""
+    from .ai_likely import DIRECT, NOT_RECORDED, likely_for
+    from .conversions import store
+    if row["first_source"] is not None:
+        source, at, path = row["first_source"], row["first_touch_at"], row["landing"]
+    elif row["vid"]:
+        got = db.execute("SELECT source_type, at, path FROM journeys WHERE site = ? AND vid = ? "
+                         "AND at <= ? ORDER BY at, rowid LIMIT 1",
+                         (row["site"], row["vid"], row["at"])).fetchone()
+        if got is None:
+            return UNKNOWN
+        source, at, path = got
+    else:
+        return UNKNOWN
+    if source is None:
+        return UNKNOWN
+    if source != DIRECT:
+        return "(none)"
+    try:
+        when = store.parse(str(at)) if at else None
+    except ValueError:
+        when = None
+    index, window = likely or (None, 0)
+    got = likely_for(index, path or "", when, window, tz)
+    return UNKNOWN if got == NOT_RECORDED else got
+
+
+def figures(db, site: str, tz, first: date, last: date, now: str, hours: float,
+            likely: tuple | None = None) -> dict:
+    """{local day: figures} for first..last. Days with no row are left out.
+    `likely`: (ai_likely.fetch_index, window), or None (every likely_ai
+    "Unknown")."""
     from .conversions import store
     from .leads import convert_bucket, visits_bucket
     lo, hi = _stamp(first, tz), _stamp(last + timedelta(days=1), tz)
@@ -119,6 +159,7 @@ def figures(db, site: str, tz, first: date, last: date, now: str, hours: float) 
         _add(f["visits_before"], r["action"], visits_bucket(r["visits_before"]))
         _add(f["time_to_convert"], r["action"],
              convert_bucket(_ms(r["at"], r["first_touch_at"])))
+        _add(f["likely_ai"], r["action"], likely_label(db, r, likely, tz))
         if journeys and r["vid"]:
             seen = {s for (s,) in db.execute(
                 "SELECT DISTINCT source_type FROM journeys WHERE site = ? AND vid = ? AND "
@@ -239,9 +280,12 @@ def _unavailable(reason: str, found: dict) -> dict:
 
 
 def blob(config: dict, folder: Path, site: str, tz, today: date, now: datetime,
-         audited: bool = True) -> dict:
+         audited: bool = True, history=None) -> dict:
     """conversions.json's body. audited (the file's way): the second count
-    runs and what it disagrees with is withheld."""
+    runs and what it disagrees with is withheld. `history` (store.History)
+    holds the AI user fetches behind likely_ai."""
+    from .data_reports import likely_note
+    from .leads import likely_fetches
     from .conversions import from_beacon, store
     found = set_up(config, folder, site)
     path = store.path_for(config, folder)
@@ -256,14 +300,15 @@ def blob(config: dict, folder: Path, site: str, tz, today: date, now: datetime,
         oldest = db.execute("SELECT MIN(at) FROM conversions WHERE site = ?",
                             (site,)).fetchone()[0]
         since = _day(oldest, tz) if oldest else None
-        per = figures(db, site, tz, first, today, now_s, hours)
+        per = figures(db, site, tz, first, today, now_s, hours,
+                      likely_fetches(config, history, today))
         lo, hi = _stamp(start, tz), _stamp(today + timedelta(days=1), tz)
         pages = pages_before(db, site, lo, hi)
         out = {"available": True, "reason": None, "set_up": found, "min_rate": MIN_RATE,
                "as_known": AS_KNOWN, "abandon_hours": hours, "stages": list(STAGES),
                "finished": list(FINISHED), "dims": list(DIMS),
                "visit_buckets": list(VISIT_BUCKETS), "convert_buckets": list(CONVERT_BUCKETS),
-               "since": since, "days": [],
+               "since": since, "days": [], "likely_ai": likely_note(config),
                "period": {"first": start.isoformat(), "last": today.isoformat()},
                "pages_before": pages, "timeline": [], "withheld": {}}
         for i in range(DAYS):
@@ -278,7 +323,8 @@ def blob(config: dict, folder: Path, site: str, tz, today: date, now: datetime,
             from . import audit_conversions
             try:
                 held = audit_conversions.check_file(config, folder, site, tz, first, today,
-                                                    now_s, hours, out)
+                                                    now_s, hours, out,
+                                                    getattr(history, "path", None))
             except Exception as why:        # noqa: BLE001 - unchecked figures are withheld
                 held = {"*": [f"the recount could not run: {type(why).__name__}: {why}"]}
         out = withhold(out, held)
@@ -318,5 +364,6 @@ def build(page) -> dict:
     key = (site, str(folder), page.now.isoformat())
     if key not in _MEMO:
         _MEMO.clear()
-        _MEMO[key] = blob(page.config, Path(folder), site, page.tz, page.today, page.now)
+        _MEMO[key] = blob(page.config, Path(folder), site, page.tz, page.today, page.now,
+                          history=getattr(page, "history", None))
     return _MEMO[key]

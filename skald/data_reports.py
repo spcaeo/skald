@@ -97,7 +97,10 @@ def ai_activity(p) -> dict:
                            ("cited_by", "referred")):
             for name, n in c.get(kind, {}).items():
                 by_name[name] = {"kind": tier, "events": int(n)}
-        return {"by_name": by_name, "by_kind": visitors.get(d)}
+        # Likely sent by an AI assistant (ai_likely.py): inferred, apart
+        # from the counts above; null on a day it was not recorded.
+        return {"by_name": by_name, "by_kind": visitors.get(d),
+                "ai_likely": _blob(p, d, "ai_likely")}
 
     today = None
     if p.ai is not None:
@@ -105,9 +108,18 @@ def ai_activity(p) -> dict:
         if p.view is not None:
             events = [e for e in events if p.view.matches(e.get("path", ""))]
         today = {"events": events, "total": int(p.ai.get("total", 0)) if p.view is None
-                 else len(events), "by_name": p.ai.get("by_name") if p.view is None else None}
-    return {"repeat_window_days": 30, "repeat_counts": "days",
+                 else len(events), "by_name": p.ai.get("by_name") if p.view is None else None,
+                 "ai_likely": _live_blob(p, "ai_likely")}
+    return {"repeat_window_days": 30, "repeat_counts": "days", "likely_ai": likely_note(p.config),
             "days": p.per_day(figures), "today": today}
+
+
+def likely_note(config: dict | None) -> dict:
+    """What a page says beside a likely-AI figure: on or off, the window, the method."""
+    from .ai_likely import METHOD, settings
+    got = settings(config)
+    return {"on": got["on"], "window_minutes": got["window"],
+            "method": METHOD.format(w=got["window"])}
 
 
 def _visitor_days(p) -> dict[str, dict]:

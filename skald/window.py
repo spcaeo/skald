@@ -251,9 +251,10 @@ def options(config: dict, day: date | None = None) -> dict:
     """What a tally needs beyond the session gap: the visitor key (for
     returning visitors), the label of our own heartbeat, and the saved
     funnels to count on `day` (funnel_days.wanted)."""
+    from .ai_likely import settings as attribution
     from .funnel_days import wanted
     from .visitors import load_key
-    return {"visitor_key": load_key(config),
+    return {"visitor_key": load_key(config), "attribution": attribution(config),
             "heartbeat": str(setting(config, "report", "heartbeat_label", "heartbeat")),
             "funnels": wanted(config, day, zone(config))}
 

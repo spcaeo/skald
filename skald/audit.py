@@ -389,6 +389,7 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
     extras = audit_extras.ExtrasRecount(tz, str(report.get("heartbeat_label") or "heartbeat"),
                                         audit_extras.secret(config))
     firsts = audit_release2.FirstsRecount(wanted, source_of, _bare)
+    more = audit_more.start(config, day, tz, wanted)    # phase 4 recounts
     for line in lines:
         if wanted and line.host and line.host.lower() not in wanted:
             excluded += 1
@@ -410,6 +411,7 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
             tier = "asked" if found else "training"
             name = (found or AI_TRAINING.search(line.agent)).group(0)
         firsts.hit(line, group, judge.info, tier, name, cited, is_page(line))
+        more.hit(line, group, tier, name)
         extras.hit(line, group, tier, name, label, is_page(line),
                    bool(PROBE.search(line.path) or PROBE_QUERY.search(line.url))
                    and not any(line.path.startswith(p) for p in judge.legacy))
@@ -417,7 +419,6 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
     visits = readers = 0
     by = {name: Counter() for name in DIMS}
     journeys = audit_visits.VisitRecount(wanted)
-    more = audit_more.start(config, day, tz, wanted)    # phase 4 recounts
 
     def close(visit: list) -> None:
         nonlocal visits, readers

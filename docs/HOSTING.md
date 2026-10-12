@@ -332,6 +332,7 @@ PROXY protocol), or the controller itself sees only node addresses. Never raise 
 | Vercel | a Log Drain to Skald, plus `skald.js` if you like | **yes** | [below](#vercel) |
 | Netlify | a Log Drain to Skald, plus `skald.js` if you like | **yes** | [below](#netlify) |
 | Cloudflare (in front of any host, or Pages) | Logpush to R2 or S3, read as a CDN log | **yes** | [below](#cloudflare) |
+| Cloudflare, any plan | the Skald Worker posts each request | **yes** | [below](#cloudflare-on-any-plan-the-skald-worker) |
 | AWS CloudFront | standard logs in S3, read as a CDN log | **yes** | [below](#aws-cloudfront) |
 | Fastly | a JSON logging endpoint | **yes** | [below](#fastly) |
 | WordPress | the server's log; `skald.js` without a plugin | yes, with the log | [below](#wordpress) |
@@ -342,7 +343,8 @@ most bots do not run JavaScript. Only a log of every request shows them. A scrip
 sees people only.
 
 **Never read the same request twice.** Behind a CDN, read the CDN's log, not the origin's as
-well: a cache miss is in both.
+well: a cache miss is in both. The Skald Worker is the exception: with the origin's log, Skald
+keeps only its cache hits.
 
 ### Your own server (nginx, Apache, Caddy)
 
@@ -355,6 +357,8 @@ well: a cache miss is in both.
   [INGEST.md](INGEST.md) has the systemd unit.
 
 ### Vercel
+
+Step by step, from zero to a working dashboard: [VERCEL.md](VERCEL.md).
 
 Vercel keeps its request logs to itself, but it can post them to an address you give it: a
 **Log Drain**. Skald takes Vercel's drain format directly. Drains are a Vercel Pro and
@@ -469,7 +473,55 @@ site (<https://developers.cloudflare.com/logs/logpush/>).
    `cloudflare_json`. If Skald runs on a platform, run the same script on any machine and post
    the lines with skald-ship.
 
-Read the Cloudflare log only, never the origin's log as well.
+Read the Cloudflare log only, never the origin's log as well. No HTTP requests dataset on your
+plan: use the Skald Worker (next).
+
+### Cloudflare on any plan: the Skald Worker
+
+Logpush's HTTP requests dataset is not on every plan ("Dataset availability depends on the
+Cloudflare products on your account", <https://developers.cloudflare.com/logs/logpush/>).
+Without it, a page Cloudflare serves from its cache never reaches a log Skald reads. The
+**Skald Worker** (`deploy/cloudflare-worker/skald-edge.js`) works on any plan. It passes
+every request on unchanged, and after the response has gone out (`ctx.waitUntil`) it posts
+one small record of the request to Skald. It never changes, blocks or delays the response; a
+failed post is dropped without a retry.
+
+1. **In Skald:** turn on ingest (`SKALD_INGEST=true`), make the site and an ingest token for
+   it. Log format **`edge_json`** when the Worker is the site's only source; **`auto`** when
+   Skald also reads the server's log (below).
+2. **The Worker:** copy `deploy/cloudflare-worker/wrangler.toml.example` to `wrangler.toml`,
+   set the routes (`example.com/*`) and
+   `SKALD_INGEST_URL = "https://stats.example.com/traffic-ingest/example.com"`.
+3. **The token, as a secret:** `npx wrangler secret put SKALD_TOKEN`. Then
+   `npx wrangler deploy`. The first records show in the live panel within minutes.
+
+**Never count a request twice.** A request Cloudflare passed on to your server (any cache
+status but `HIT`) is in the server's log too. When Skald reads both, it keeps only the
+Worker's records with cache status `HIT` and skips the rest: the site setting
+`logs.edge_only_cached`, true unless the format is `edge_json`. Both must reach the same
+site: ship the server's log with skald-ship to the same `/traffic-ingest/<site>`. Setting
+`SKALD_CACHE_HITS_ONLY = "true"` in the Worker saves the posts Skald would drop.
+
+**What it costs.** Each request through the Worker counts as a Worker request on your
+Cloudflare plan; the post to Skald is a subrequest, which Cloudflare does not bill. The
+allowance and price per plan are on <https://developers.cloudflare.com/workers/platform/pricing/>.
+On Skald's side, each request is one post, under its own rate limit per site
+(`ingest.edge_per_minute`, default 1200; `ingest.edge_burst`, 300). A post over the limit is
+refused and lost, so set it above your busiest minute.
+
+**Privacy.** A record holds what an access log line holds: time, the visitor's address
+(`CF-Connecting-IP`), method, host, path and query, status, bytes, referrer and user agent;
+plus the cache status and Cloudflare's request id (`CF-Ray`). No cookies, no other headers,
+no body. Skald drops any other field before writing. The record's fields, and the setup in
+full: [CDN-LOGS.md](CDN-LOGS.md) and `deploy/cloudflare-worker/README.md`.
+
+**Other edge platforms.** Any edge that can send after the response can post the same
+record. `deploy/netlify-edge-function/skald-edge.js` is an **example** Netlify Edge Function
+(`context.next()` for the response, `context.waitUntil()` to send after it,
+<https://docs.netlify.com/build/edge-functions/api/>), for a Netlify site without Log
+Drains; use format `edge_json`. Vercel's Routing Middleware runs before the response is made
+(<https://vercel.com/docs/routing-middleware/api>), so it cannot see the status or the cache:
+there is no Vercel example; use a Log Drain.
 
 ### AWS CloudFront
 
@@ -536,3 +588,9 @@ Checked on 2026-10-11.
   2026-10-11: <https://docs.railway.com/reference/public-networking>,
   <https://render.com/docs/web-services>); their community forums disagree, hence `peers`.
 - Cloudflare Logpush: <https://developers.cloudflare.com/logs/logpush/>
+- Cloudflare Workers (checked 2026-10-12): `ctx.waitUntil`
+  <https://developers.cloudflare.com/workers/runtime-apis/context/>; pricing
+  <https://developers.cloudflare.com/workers/platform/pricing/>; `cf-cache-status`
+  <https://developers.cloudflare.com/cache/concepts/cache-responses/>
+- Netlify Edge Functions API (checked 2026-10-12): <https://docs.netlify.com/build/edge-functions/api/>
+- Vercel Routing Middleware API (checked 2026-10-12): <https://vercel.com/docs/routing-middleware/api>

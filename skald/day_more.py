@@ -24,7 +24,7 @@ from __future__ import annotations
 import importlib
 
 KINDS = {"funnels": "funnel_days", "engagement": "engagement",
-         "utm_hygiene": "utm_hygiene"}
+         "utm_hygiene": "utm_hygiene", "ai_fetches": "ai_fetches", "ai_likely": "ai_likely"}
 
 
 def modules() -> dict:

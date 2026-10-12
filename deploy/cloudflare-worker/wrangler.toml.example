@@ -1,0 +1,24 @@
+# Copy to wrangler.toml, change the names, then:
+#   npx wrangler secret put SKALD_TOKEN      (paste the site's ingest token)
+#   npx wrangler deploy
+# Docs: docs/HOSTING.md, "Cloudflare on any plan: the Skald Worker".
+name = "skald-edge"
+main = "skald-edge.js"
+compatibility_date = "2026-09-01"
+
+# Run in front of the whole site. Leave out hosts that are not the site
+# (Skald's own dashboard host, if it shares the zone).
+routes = [
+  { pattern = "example.com/*", zone_name = "example.com" },
+  { pattern = "www.example.com/*", zone_name = "example.com" },
+]
+
+[vars]
+SKALD_INGEST_URL = "https://stats.example.com/traffic-ingest/example.com"
+# Only when Skald does NOT also read your server's log: leave this out.
+# With your server's log as well, "true" saves the posts Skald would drop.
+SKALD_CACHE_HITS_ONLY = "false"
+# Default: send everything; Skald tells pages from assets itself.
+SKALD_SKIP_EXTENSIONS = ""
+# 1 = every request. Skald does not scale sampled figures up.
+SKALD_SAMPLE = "1"

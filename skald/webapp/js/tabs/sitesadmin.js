@@ -14,7 +14,7 @@ import { head1, copyable, field, input, status, when, why } from "./forms.js";
 const FORMAT_NAME = {
   auto: "Detect it", nginx_combined: "nginx (combined)", nginx_extended: "nginx (Skald's extended format)", apache_combined: "Apache (combined)",
   caddy_json: "Caddy (JSON)", cloudflare_json: "Cloudflare Logpush (JSON)", cloudfront_w3c: "CloudFront (W3C)", fastly_json: "Fastly (JSON)",
-  vercel_json: "Vercel log drain", netlify_json: "Netlify log drain",
+  vercel_json: "Vercel log drain", netlify_json: "Netlify log drain", edge_json: "Edge records (Skald Worker)",
 };
 
 // What was just made: kept in this page's memory only, so a redraw does not lose the token before it is copied.

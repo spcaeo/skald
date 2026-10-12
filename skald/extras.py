@@ -95,6 +95,12 @@ class Extras:
         # Bingbot, each AI crawler or assistant, the first person, the first
         # from a search engine and from each AI assistant.
         self.firsts: dict[str, dict] = {}
+        # AI user fetches by minute (ai_likely.py); its settings and the
+        # visits' first times are set by aggregate.Tally.
+        from .ai_likely import Fetches
+        self.ai_fetches = Fetches()
+        self.attribution: dict | None = None
+        self.visit_firsts: list | None = None
 
     def _page(self, path: str) -> Counter:
         got = self.page_hits.get(path)
@@ -131,6 +137,7 @@ class Extras:
 
     def add(self, hit, verdict) -> None:
         self.bots.add(hit, verdict)
+        self.ai_fetches.add(hit, verdict)
         self.firsts_of(hit, verdict)
         self.crawler_paths.add(hit, verdict)
         hour = dim.hour(hit.when, self.tz)

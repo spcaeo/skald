@@ -344,6 +344,23 @@ scraper, a cached browser seen earlier that day and a reader from an
 earlier day, a beacon-only visit (one opening vouches for one visit), and a
 page whose stylesheet is logged the next second or a second before it.
 
+## 14. An estimate added into a count (avoided by design, 2026-10-12)
+
+**The temptation.** Many people who click a link in an AI answer arrive
+with no referrer, so they sit in "Direct or unknown". Skald can now spot
+many of them: the assistant's user fetcher fetched the page minutes before
+(CLASSIFICATION.md, "Inferred, not classified"). Adding those visits to the
+"AI assistant" source would make AI look bigger, and would make the
+sources stop being a count.
+
+**How this package prevents it.** The estimate is a figure of its own
+(`ai_likely`), beside the sources, never inside them. Each visit keeps its
+source; the groups and the source list still add up exactly. Every place
+that shows it says "likely", gives the window, and has an (i) that says
+how it is made. It is counted twice like any figure (`audit_ai_likely.py`),
+and a lead or conversion whose fetches were not kept reads "not recorded",
+not "none".
+
 ## The pattern in all five
 
 Every one of these was a number that answered a slightly different question
