@@ -331,9 +331,11 @@ def deliveries(db, site: str, tool: str | None = None, limit: int = 50) -> list[
 def abandoned(db, site: str, since: str, until: str, hours: float = ABANDON_HOURS,
               now: str | None = None) -> list[dict]:
     """Starts in [since, until) with a visitor ID and no completed or paid
-    for the same ID and action within `hours`. A start whose window is still
-    open at `now` is left out: it is not abandoned yet. A start without a
-    visitor ID cannot be matched and is left out too."""
+    for the same action within `hours`, by the same visitor ID or, when the
+    start has one, the same identity (a booking made later from another
+    browser or session is a finish, not a second lead). A start whose window
+    is still open at `now` is left out: it is not abandoned yet. A start
+    without a visitor ID cannot be matched and is left out too."""
     cutoff = stamp(parse(now or stamp()) - timedelta(hours=hours))
     marks = ",".join("?" * len(FINISHED))
     starts = _rows(db, "SELECT c.*, i.email AS email FROM conversions c "
@@ -344,10 +346,11 @@ def abandoned(db, site: str, since: str, until: str, hours: float = ABANDON_HOUR
     out = []
     for row in starts:
         end = stamp(parse(row["at"]) + timedelta(hours=hours))
-        done = db.execute(f"SELECT 1 FROM conversions WHERE site = ? AND vid = ? AND "
+        done = db.execute(f"SELECT 1 FROM conversions WHERE site = ? AND (vid = ? OR "
+                          f"(? IS NOT NULL AND identity_id = ?)) AND "
                           f"action = ? AND stage IN ({marks}) AND at >= ? AND at <= ?",
-                          (site, row["vid"], row["action"], *FINISHED, row["at"], end)
-                          ).fetchone()
+                          (site, row["vid"], row["identity_id"], row["identity_id"],
+                           row["action"], *FINISHED, row["at"], end)).fetchone()
         if not done:
             out.append(row)
     return out

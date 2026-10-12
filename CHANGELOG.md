@@ -4,6 +4,28 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.2.3 (2026-10-12)
+
+"Visitor IDs off" now holds on every road, and "abandoned" no longer counts a later booking
+as a lost one.
+
+### Fixed
+
+- **A booking in a later session was counted as abandoned.** A finish matched a start only by
+  visitor ID. Now the same person (the same email, when the site sends it) finishing the
+  action within the window counts too.
+- **Visitor IDs off did not cover every road.** A webhook's `vid`, and the lead database's
+  `session_id`, were kept even with `beacon.visitor_ids` off. Now neither is kept: the hook's
+  `vid` is dropped from the spool and the store, and the session column is read only with
+  visitor IDs on. A site's session ID (often 30 minutes) is not a visitor, and had made a
+  booking in a new session look abandoned.
+
+### What to do
+
+Nothing: upgrade (`docker compose pull && docker compose up -d`, or `sudo skald upgrade`). The
+next daily run rewrites lead-database rows that held a session ID; outgoing webhooks are not
+sent twice.
+
 ## 2.2.2 (2026-10-12)
 
 Webhooks work on every install, and every install opens the dashboard. An upgrade does both

@@ -11,7 +11,10 @@ so leads reach the Conversions tab without any change to the website:
                    second row of that stage; spam and duplicates make none.
     at             created_at (every row of the lead; "as known": a status
                    the team changes later changes that day)
-    vid            session_id, when it looks like a visitor ID
+    vid            session_id, when it looks like a visitor ID and the site has
+                   visitor IDs on (beacon.visitor_ids). Off, it is left out: a
+                   site's session ID (example.com's lasts 30 minutes) is not a
+                   visitor, and would count a later booking as abandoned
     touches        first_touch / last_touch: source (by leads.touch_source),
                    campaign, landing; first_touch.at
     visits_before  the `visits` column, when present and a whole number
@@ -118,7 +121,8 @@ def _pairs(lead: dict) -> list[tuple[str, str]]:
     return out
 
 
-def rows_for(lead: dict, site: str, identity_full: bool = False) -> list[dict]:
+def rows_for(lead: dict, site: str, identity_full: bool = False,
+             keep_vid: bool = False) -> list[dict]:
     """The store's rows for one lead (normalise.row's shape)."""
     from ..leads import NONE, touch_source
     from .normalise import row as make_row
@@ -134,7 +138,7 @@ def rows_for(lead: dict, site: str, identity_full: bool = False) -> list[dict]:
     out = []
     for action, stage in _pairs(lead):
         rec = {"action": action, "stage": stage, "external_ref": str(lead["id"]), "at": at,
-               "vid": vid if SITE_VID.match(vid) else None, "first_touch": first,
+               "vid": vid if keep_vid and SITE_VID.match(vid) else None, "first_touch": first,
                "last_touch": last, "source_type": None if source == NONE else source,
                "country": country if len(country) == 2 else None,
                "visits_before": _visits(lead.get("visits")),
@@ -168,7 +172,7 @@ def _read(path: Path, since: str | None, identity_full: bool) -> list[dict]:
 
 
 def sync(db: sqlite3.Connection, path: Path, site: str, identity_full: bool = False,
-         full: bool = False) -> dict:
+         full: bool = False, keep_vid: bool = False) -> dict:
     """Make the store's tool-"site" rows match the lead DB. Counts:
     {"read", "added", "removed", "kept"}. Raises OSError / sqlite3.Error /
     ValueError when the lead DB cannot be read."""
@@ -182,7 +186,7 @@ def sync(db: sqlite3.Connection, path: Path, site: str, identity_full: bool = Fa
         for lead in leads:
             ref = str(lead["id"])
             seen.add(ref)
-            want = {r["stage"]: r for r in rows_for(lead, site, identity_full)}
+            want = {r["stage"]: r for r in rows_for(lead, site, identity_full, keep_vid)}
             have = {r["stage"]: dict(r) for r in db.execute(
                 "SELECT id, stage, action, at, vid FROM conversions WHERE site = ? AND "
                 "tool = ? AND external_ref = ?", (site, LEADS_TOOL, ref))}
@@ -224,7 +228,8 @@ def run(config: dict, folder: Path, site: str, full: bool = False) -> dict | Non
     except (OSError, sqlite3.Error, RuntimeError) as why:
         return {"error": f"conversions file: {type(why).__name__}: {why}"}
     try:
-        return sync(db, path, site, identity_full(config), full)
+        from ..beacon import visitor_ids
+        return sync(db, path, site, identity_full(config), full, visitor_ids(config))
     except (OSError, sqlite3.Error, ValueError) as why:
         return {"error": f"{type(why).__name__}: {why}"}
     finally:

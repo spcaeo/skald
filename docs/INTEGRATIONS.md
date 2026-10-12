@@ -347,9 +347,9 @@ curl -sS -X POST 'https://www.example.com/traffic-hooks/example.com/lead' \
 | --- | --- | --- |
 | `external_ref` | required | the lead's own id in the site |
 | `action` | required | what was done, a lowercase token: `demo`, `trial`, `contact` |
-| `stage` | default `completed` | `started`, `completed`, `cancelled`, `rescheduled`, `no_show`, `paid` |
+| `stage` | default `completed` | `started`, `completed`, `cancelled`, `rescheduled`, `no_show`, `paid`, `won`, `lost` (a `won` or `lost` row stands on its own and counts on its own `at`) |
 | `at` | default: when it arrived | ISO time or Unix seconds |
-| `vid` | | the visitor ID the page had (`skv_...`, or the site's own ID) |
+| `vid` | | the visitor ID the page had (`skv_...`, or the site's own ID). Kept only when the site has visitor IDs on (`beacon.visitor_ids`); off, it is dropped from the spool and the store (2.2.3) |
 | `first_touch`, `last_touch` | | `{referrer, landing, utm_source, utm_medium, utm_campaign, utm_content, utm_term, gclid, msclkid, fbclid, li_fat_id, at}` |
 | `landing`, `campaign`, `source` | | when the site worked them out itself (`source` one of Skald's source types) |
 | `country` or `ip` | | two letters, or the visitor's address: Skald looks up the country (`conversions.country_db`, the DB-IP `.mmdb` file the web server uses) and drops the address |

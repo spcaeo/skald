@@ -169,7 +169,7 @@ A conversion is **abandoned** when all of this is true:
 
 1. The script tag saw it start (a form field used, a booking widget opened).
 2. The start carried an anonymous visitor ID.
-3. The same browser did not complete (or pay for) the same action within the abandon window. The window is 24 hours unless your server sets another.
+3. Neither the same browser nor the same person (the same email, when your site sends it) completed or paid for the same action within the abandon window. The window is 24 hours unless your server sets another. So a demo opened today and booked tomorrow from another device is a booking, not an abandoned demo.
 
 So:
 
@@ -190,7 +190,7 @@ Skald never matches by IP address, and never links a new ID to an old one. A vis
 
 > Visitor IDs are off by default. The person who runs your Skald server turns them on per site. [Integrations](#settings/integrations) says whether they are on. Your privacy notice must say so, and some places need consent first. See [Privacy](privacy.md).
 
-Without visitor IDs, conversions are still counted, but there are no journeys, no abandoned counts, no assisted sources and no pages seen before converting.
+Without visitor IDs, conversions are still counted, but there are no journeys, no abandoned counts, no assisted sources and no pages seen before converting. With them off, Skald keeps no visitor ID from any road: not from the script tag, not from a webhook's `vid`, and not from your lead database's session column.
 
 ## Goals
 

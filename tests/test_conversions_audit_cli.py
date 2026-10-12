@@ -58,6 +58,7 @@ class SecondCount(Base):
                                           date(2026, 10, 1), DAY)
 
     def test_not_set_up(self):
+        self.config.pop("beacon", None)             # Base turns visitor IDs on for the hooks
         self.assertIsNone(self.find())
 
     def test_the_two_roads_agree(self):
@@ -145,6 +146,8 @@ class Commands(unittest.TestCase):
         self.assertEqual(self.box.run("hooks", "test", "example.com", "stripe", "--url", url)[0], 2)
 
     def test_forget_and_prune(self):
+        # Visitor IDs on, or the hook keeps no vid to forget (2.2.3).
+        self.box.config.write_text(self.box.config.read_text() + "beacon:\n  visitor_ids: true\n")
         self.box.run("hooks", "secret", "example.com", "lead", "--value", SECRET)
         url = self.serve()
         import urllib.request

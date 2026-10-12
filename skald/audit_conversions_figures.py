@@ -135,7 +135,8 @@ def recount(path: Path, site: str, tz, first: date, last: date, now: str,
         cutoff = (datetime.strptime(now, STAMP) - timedelta(hours=hours)).strftime(STAMP)
         put(q(f"SELECT b.day, c.action, COUNT(*) {join}AND c.stage = 'started' AND c.vid IS "
               f"NOT NULL AND c.at <= ? AND NOT EXISTS (SELECT 1 FROM conversions f WHERE "
-              f"f.site = c.site AND f.vid = c.vid AND f.action = c.action AND f.stage IN "
+              f"f.site = c.site AND (f.vid = c.vid OR (c.identity_id IS NOT NULL AND "
+              f"f.identity_id = c.identity_id)) AND f.action = c.action AND f.stage IN "
               f"{_fin()} AND f.at >= c.at AND f.at <= strftime('%Y-%m-%dT%H:%M:%SZ', c.at, "
               f"'+{float(hours)} hours')) GROUP BY 1, 2", (cutoff,)), "abandoned")
         on, window = _attribution(config)
