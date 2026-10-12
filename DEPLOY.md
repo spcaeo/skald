@@ -95,7 +95,9 @@ sudo -u skald sh -c '. /etc/skald/env && cd /opt/skald && \
 
 `check` must say `ok`. If it says "nothing parsed", the log format or
 `logs.dir` is wrong; fix that before going further. The two dry runs print
-the mail without sending it - read them.
+the mail without sending it - read them. Then `./bin/skald --config
+/etc/skald/config.yml doctor` lists every part, OK or NEEDS ATTENTION
+with the fix (docs/INSTALL.md, "Check it"); after a deploy too.
 
 ## 5. Cron
 
@@ -172,6 +174,13 @@ deploy that changes it: `systemctl restart skald-refresh`. Roles:
 `skald user role <owner> --role admin` writes the first roles file (before
 it exists every login is admin); add people with
 `skald user add NAME --role viewer` as root.
+
+People (2.4.0): the person search and the left-out lists are helper routes,
+`<page>/people` and `<page>/people/*`. In sessions mode the route below has
+them. In basic mode, add `people` and `people/[a-z-]+` to the `/traffic/`
+block's helper route, with `X-Skald-User $remote_user` (the search is for
+`users.json` roles admin and owner; its audit line goes to `privacy.log`).
+The token route `/traffic-api/v1/<site>/people?q=` needs no change.
 
 Compare and page lifecycle: history schema 11 (`page_milestones`, upgraded
 in place after a `.schema-v10.bak` copy). The nginx route to the helper adds
@@ -573,7 +582,7 @@ location ^~ /traffic/ {
     # (team_api.py); settings and settings/* (settings_api.py); sites and
     # sites/* (sites_api.py); billing and billing/* (saas, 404 while off);
     # integrations and integrations/* (integrations_api.py).
-    location ~ ^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?(?:refresh|me|ours(?:/(?:add|remove|add-mine))?|funnels(?:/(?:save|delete))?|bot-policy|api/(?:v1/(?:[a-z_]+)?|compare|page)|team(?:/[a-z-]+)?|account(?:/[a-z-]+(?:/[a-z]+)?)?|tokens(?:/[a-z]+)?|audit|settings(?:/[a-z-]+)?|sites(?:/[a-z]+)?|billing(?:/[a-z]+)?|integrations(?:/[a-z]+(?:/[a-z]+)?)?)$ {
+    location ~ ^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?(?:refresh|me|ours(?:/(?:add|remove|add-mine))?|funnels(?:/(?:save|delete))?|bot-policy|api/(?:v1/(?:[a-z_]+)?|compare|page)|team(?:/[a-z-]+)?|account(?:/[a-z-]+(?:/[a-z]+)?)?|tokens(?:/[a-z]+)?|audit|settings(?:/[a-z-]+)?|sites(?:/[a-z]+)?|billing(?:/[a-z]+)?|integrations(?:/[a-z]+(?:/[a-z]+)?)?|people(?:/[a-z-]+)?)$ {
         limit_except GET POST { deny all; }
         set $skald_path $uri;
         include snippets/skald-helper.conf;

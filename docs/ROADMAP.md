@@ -61,7 +61,7 @@ Built and tested on 2026-10-11. Each new part is off until an install switches i
 | --- | --- |
 | P0-3 Alerts | A failed morning run sends one short mail (`skald notify-failure`); a withheld day sends none. Still open: an outside uptime check. |
 | P0-6 Goals and conversions | Built well past the plan: leads by first and last touch over any range, crossed with statuses (lead quality), time to convert; goals from beacon events (`beacon.goals`); conversions from signed webhooks (Calendly, Cal.com, Stripe, Typeform, HubSpot, Zapier, the site's own server) and from the lead database; abandoned forms and bookings; the Conversions tab; outgoing webhooks (docs/INTEGRATIONS.md). Each with its own second count. |
-| P0-7 Privacy | Retention windows per site in Settings; `skald conversions forget`; conversions anonymous by default; no matching by address. Key rotation still not done. |
+| P0-7 Privacy | Retention windows per site in Settings; `skald forget` (--ip, --email, --vid, --lead); since 2.4.0 visits kept with their address and leads' emails (a switch, off on upgraded installs), the person search for admins, audit-logged. Key rotation still not done. |
 | P1-1 Funnel | Funnel history: each saved funnel counted every day by source and device, with drop-off, the pages after leaving a step and time to go through. |
 | P1-4 Access control and audit log | Accounts (sessions mode): organisations, roles, invites, resets, two-step sign-in, an audit log with CSV export (docs/ACCOUNTS.md). |
 | P1-8 Counting refinements | Exit rate per page; campaign tag problems flagged. The four listed refinements are still open. |

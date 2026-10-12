@@ -239,6 +239,8 @@ def build(config: dict, site: str, tz: ZoneInfo, now: datetime,
     }
     if state != "ok":
         return snap
+    from .people.visits import keep_live          # today's visits with addresses (2.4.0)
+    keep_live(config, db_path, site, day, totals)
     db = _history(db_path)
     try:
         for t in [totals, *by_view.values()]:

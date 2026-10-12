@@ -7,6 +7,8 @@
 // Conversions and the visitor drawer.
 
 import { h, n, pct1 } from "../ui.js";
+
+const MIN_SHARE = 10;   // a share of fewer than this many is not given, only the counts
 import { table } from "../table.js";
 import { panel, blist } from "./common.js";
 import { info } from "./tiles.js";
@@ -60,7 +62,7 @@ export function sourcesPanel(m, r) {
   if (off(f)) { box.append(h("p", { class: "empty" }, "Turned off (attribution.ai_likely).")); return box; }
   if (!blobs.length) { box.append(h("p", { class: "empty" }, "Not recorded for this range: it is counted from this release on.")); return box; }
   box.append(blist(rankedOf(t.by), { label: aiLabel, color: "var(--g-answer_engines)", total: t.likely, empty: "No direct visit followed an assistant's fetch of its page in this range." }),
-    h("p", { class: "note" }, `${n(t.likely)} likely of ${n(t.direct)} direct, untagged visits (${pct1(t.likely, t.direct)} of them)${blobs.length < days ? `, over ${n(blobs.length)} of ${n(days)} recorded days` : ""}. ${text}`));
+    h("p", { class: "note" }, `${n(t.likely)} likely of ${n(t.direct)} direct, untagged visits${t.direct >= MIN_SHARE ? ` (${pct1(t.likely, t.direct)} of them)` : ""}${blobs.length < days ? `, over ${n(blobs.length)} of ${n(days)} recorded days` : ""}. ${text}`));
   return box;
 }
 
@@ -75,7 +77,7 @@ export function followedSection(m, r) {
     h("p", { class: "sub" }, "Of each assistant's fetches for someone's question, how many were likely followed by that person's click. Inferred, never certain."),
     table([{ key: "k", label: "Assistant", fmt: aiLabel, csv: (x) => aiLabel(x.k) }, { key: "fetches", label: "Fetches for a question", num: true },
       { key: "followed", label: "Likely followed by a visit", num: true },
-      { key: "share", label: "Share (likely)", num: true, sort: (x) => (x.fetches ? x.followed / x.fetches : null), fmt: (_, x) => pct1(x.followed, x.fetches), csv: (x) => (x.fetches ? (x.followed / x.fetches).toFixed(4) : "") }],
+      { key: "share", label: "Share (likely)", num: true, sort: (x) => (x.fetches >= MIN_SHARE ? x.followed / x.fetches : null), fmt: (_, x) => (x.fetches >= MIN_SHARE ? pct1(x.followed, x.fetches) : h("span", { class: "few" }, `too few (${n(x.fetches)})`)), csv: (x) => (x.fetches >= MIN_SHARE ? (x.followed / x.fetches).toFixed(4) : "") }],
     { caption: "AI fetches likely followed by a visit", rows, file: `ai-fetches-followed-${r.first}-to-${r.last}.csv`, search: false, sortKey: "fetches", empty: "No assistant fetched a page for a question in this range." }));
 }
 

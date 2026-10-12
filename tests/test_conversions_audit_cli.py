@@ -147,7 +147,10 @@ class Commands(unittest.TestCase):
 
     def test_forget_and_prune(self):
         # Visitor IDs on, or the hook keeps no vid to forget (2.2.3).
-        self.box.config.write_text(self.box.config.read_text() + "beacon:\n  visitor_ids: true\n")
+        # Anonymous: with names and emails kept (2.4.0's default) both leads share
+        # one email, and forgetting the ID forgets that person's other lead too.
+        self.box.config.write_text(self.box.config.read_text() + "beacon:\n  visitor_ids: true\n"
+                                   "conversions:\n  identity: anonymous\n")
         self.box.run("hooks", "secret", "example.com", "lead", "--value", SECRET)
         url = self.serve()
         import urllib.request

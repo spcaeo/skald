@@ -3,7 +3,7 @@
 // string, no identifier: a time, labels and the pages in order).
 
 import { time as tzTime } from "../tz.js";
-import { h, n, duration, pct1, counter } from "../ui.js";
+import { h, n, duration, share, counter } from "../ui.js";
 import { base, color, figures, getJSON, pathMatch, ranked } from "../data.js";
 import { bars } from "../charts.js";
 import { table } from "../table.js";
@@ -80,9 +80,9 @@ export default function visits(m, s, { first }) {
     k("Visits that read a page", first ? counter(readers) : n(readers), "visitors; an upper bound on people"),
     k("Pages per visit", readers ? (views / readers).toFixed(1) : "-", "pages read divided by visitors"),
     k("Typical visit length", med == null ? "-" : duration(med), "the median: half were shorter"),
-    k("One-page visits", one == null ? "-" : pct1(one, readers), one == null ? "not recorded for this range" : `${n(one)} read a single page and left`),
+    k("One-page visits", one == null ? "-" : share(one, readers) || n(one), one == null ? "not recorded for this range" : `${n(one)} read a single page and left`),
     k("New and returning", t.returning && !t.unmeasured?.returning ? `${n(t.returning.readers - t.returning.returning)} / ${n(t.returning.returning)}` : "-",
-      t.returning && !t.unmeasured?.returning ? `${pct1(t.returning.returning, t.returning.readers)} were seen on an earlier day in 30` : "not recorded for this range")),
+      t.returning && !t.unmeasured?.returning ? `${share(t.returning.returning, t.returning.readers) || n(t.returning.returning)} were seen on an earlier day in 30` : "not recorded for this range")),
   v && t.unmeasured?.visit ? h("p", { class: "note" }, `${t.unmeasured.visit} of these days were collected before visit lengths were recorded; the length and page figures leave them out.`) : null,
   coverageNote(cov, r)));
   if (v) {

@@ -38,7 +38,9 @@ class Base(unittest.TestCase):
         self.folder = Path(self.tmp.name)
         self.config = {"site": {"name": "example.com", "hosts": ["example.com"]},
                        "history": {"db": str(self.folder / "history.sqlite")},
-                       "hooks": {"per_minute": 600, "burst": 100, **self.hooks}}
+                       "hooks": {"per_minute": 600, "burst": 100, **self.hooks},
+                       # Anonymous on purpose: 2.4.0 keeps names and emails by default.
+                       "conversions": {"identity": "anonymous"}}
         path = secrets_store.path_for(self.config, self.folder)
         for tool in ("lead", "calendly", "typeform", "calcom", "hubspot"):
             secrets_store.put(path, secrets_store.key("example.com", tool), SECRET)

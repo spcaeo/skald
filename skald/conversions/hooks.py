@@ -13,6 +13,9 @@ Each request, in this order, before anything is kept:
   4. at most `hooks.per_minute` verified deliveries a minute per site and
      tool (burst `hooks.burst`): 429. An unsigned flood cannot spend it.
   5. the body must be JSON: 400
+  5a. Calendly and Cal.com, when the site names its event types
+     (hooks.<tool>.event_types, event_types.py): another type is answered
+     200 and logged "ignored", with nothing spooled or kept
   6. Cal.com and Typeform sign no timestamp: a body whose hash was accepted
      in the last 30 days is a replay (200, "replay"), never spooled or kept
      again. The hash (table hook_replays) outlives `forget`, so a replay
@@ -21,13 +24,17 @@ Each request, in this order, before anything is kept:
      the keys its adapter and the audit read (conversions.SPOOL_KEYS); name
      and primary email only when the site's identity is full
   8. the adapter maps it to records, normalise.py makes them rows, the
-     store keeps them once per (site, tool, external ref, stage): 200
+     store keeps them once per (site, tool, external ref, stage): 200. A
+     `lead` or `json` time without an offset is read in the site's time zone;
+     the spool line carries that zone and the delivery log says so
 
 Every outcome for a known site and tool is a row in `deliveries` (what
 happened, never the body); refusals for the rate limit and failed
 signatures are written at most once a minute per hook, as a count. A
 request with `X-Skald-Test: 1` (still signed) is checked and mapped, logged
-as "test", and neither spooled nor kept.
+as "test", and neither spooled nor kept; its answer shows what a real one
+would keep (no visitor ID when the site's are off, nothing for another event
+type).
 
 The sender's address is read only for the pre-auth bucket, kept in memory:
 X-Real-IP on the proxy's connection (loopback, or `hooks.trusted_proxies`),
@@ -45,7 +52,7 @@ from pathlib import Path
 
 from ..beacon import visitor_ids
 from ..config import setting, site_name
-from . import MAX_BODY, TOOLS, spool, store
+from . import LEAD_SHAPED, MAX_BODY, TOOLS, event_types, spool, store
 from .adapters import Invalid, adapter
 from .normalise import row as make_row
 from .secrets_store import Exposed, find
@@ -106,8 +113,11 @@ def site_configs(config: dict, config_path=None) -> dict[str, dict]:
     return out
 
 
-def identity_full(site_config: dict) -> bool:
-    return str(setting(site_config or {}, "conversions", "identity", "") or "").lower() == "full"
+def identity_full(site_config: dict, folder=None) -> bool:
+    """`conversions.identity` (people/policy.py: full unless the site says
+    anonymous, or the install was upgraded to 2.4.0 and nobody turned it on)."""
+    from ..people.policy import identity_full as full
+    return full(site_config, folder)
 
 
 class Receiver:
@@ -117,7 +127,7 @@ class Receiver:
         self.config, self.clock = config, clock
         self.config_path = config_path
         self.folder = Path(folder) if folder is not None else history_folder(config, config_path)
-        self.sites, self.hosts, self.sites_at = {}, {}, None
+        self.sites, self.hosts, self.sites_at, self.zones = {}, {}, None, {}
         self._load_sites()
         self.tz = zone(config)
         self.db_path = store.path_for(config, self.folder)
@@ -270,28 +280,47 @@ class Receiver:
         except (UnicodeDecodeError, ValueError):
             self._log(site, tool, "bad_body", 400, "not JSON", at=received)
             return 400, {"error": "not JSON"}
-        full = identity_full(self.sites[site])
+        full = identity_full(self.sites[site], self.folder)
+        # Calendly or Cal.com with the site's event types named: another type is
+        # answered 200, logged, and nothing else - no spool line, no row.
+        keep, skipped = event_types.decide(
+            tool, payload, event_types.wanted(self.sites[site], site, tool, self.folder),
+            lambda ref: self._booked(site, tool, ref))
+        # Visitor IDs off for the site (beacon.visitor_ids): a hook's `vid` is not
+        # kept either, in the spool or the store, whatever the sender put in it.
+        keep_vid = visitor_ids(self.sites[site])
+        tz = self.site_zone(site) if tool in LEAD_SHAPED else None
         if headers.get("x-skald-test") == "1":
-            return self._test(site, tool, mod, payload, received, full)
+            return self._test(site, tool, mod, payload, received, full, keep_vid, skipped, tz)
+        if not keep:
+            self._log(site, tool, "ignored", 200, skipped, at=received)
+            return 200, {"ok": True, "recorded": 0, "duplicates": 0,
+                         "outcome": event_types.IGNORED}
         digest = replay_digest(tool, payload, body)
         if digest and self._replayed(site, digest, now):
             self._log(site, tool, "replay", 200, "the same body was taken before",
                       at=received)
             return 200, {"ok": True, "recorded": 0, "duplicates": 1}
-        # Visitor IDs off for the site (beacon.visitor_ids): a hook's `vid` is not
-        # kept either, in the spool or the store, whatever the sender put in it.
-        keep_vid = visitor_ids(self.sites[site])
         if not keep_vid:
             payload = without_vid(payload)
+        records, bad = [], None
+        try:
+            records = mod.to_records(payload, self.sites[site], **({"tz": tz} if tz else {}))
+        except Invalid as why:
+            bad = why                       # refused below, after the spool line
+        naive = any(r.get("naive_at") for r in records)
         try:
             day = datetime.fromtimestamp(now, tz=timezone.utc).astimezone(self.tz).date()
-            spool.append(self.spool, day, spool.line_for(received, site, tool, payload, full))
+            spool.append(self.spool, day, spool.line_for(
+                received, site, tool, payload, full, str(tz) if naive else None))
         except OSError as why:
             self._log(site, tool, "error", 500, f"spool: {type(why).__name__}", at=received)
             return 500, {"error": "not kept, send again"}
         try:
+            if bad is not None:
+                raise bad
             rows = [make_row(r, site, tool, received, self.hosts[site], full, self.country_db)
-                    for r in mod.to_records(payload, self.sites[site])]
+                    for r in records]
             if not keep_vid:
                 for r in rows:
                     r["vid"] = None
@@ -309,7 +338,8 @@ class Receiver:
                 if digest:
                     store.keep_replay(db, site, digest, received)
                 store.log_delivery(db, site, tool, "recorded" if new else "duplicate", 200,
-                                   None, rows[0]["external_ref"], received)
+                                   naive_note(tz) if naive else None,
+                                   rows[0]["external_ref"], received)
             finally:
                 db.close()
         except Exception as why:            # noqa: BLE001 - the tool will send again
@@ -317,19 +347,68 @@ class Receiver:
             return 500, {"error": "not kept, send again"}
         return 200, {"ok": True, "recorded": new, "duplicates": len(kept) - new}
 
-    def _test(self, site, tool, mod, payload, received, full) -> tuple[int, dict]:
+    def _test(self, site, tool, mod, payload, received, full, keep_vid=True,
+              skipped=None, tz=None) -> tuple[int, dict]:
+        """Read a test as the real path would, and say what it would keep:
+        no visitor ID when the site's are off, nothing for another event type."""
+        if not keep_vid:
+            payload = without_vid(payload)
         try:
+            records = mod.to_records(payload, self.sites[site], **({"tz": tz} if tz else {}))
             rows = [make_row(r, site, tool, received, self.hosts[site], full, self.country_db)
-                    for r in mod.to_records(payload, self.sites[site])]
+                    for r in records]
         except Invalid as why:
             self._log(site, tool, "test_failed", 400, str(why), at=received)
             return 400, {"error": str(why), "test": True}
-        self._log(site, tool, "test", 200, f"{len(rows)} record(s) read, none kept",
-                  at=received)
+        notes = []
+        if not keep_vid:
+            notes.append("visitor IDs are off for this site: the visitor ID is dropped")
+            for r in rows:
+                r["vid"] = None
+        if any(r.get("naive_at") for r in records):
+            notes.append(naive_note(tz))
+        if skipped:
+            notes.append(f"{skipped}: a real one would be answered 200 and not kept")
+        self._log(site, tool, "test", 200, f"{len(rows)} record(s) read, none kept"
+                  + (f"; {skipped}" if skipped else ""), at=received)
+        kept = [] if skipped else rows
         return 200, {"ok": True, "test": True, "records": len(rows),
-                     "read": [{k: r.get(k) for k in ("action", "stage", "vid", "source_type",
-                                                     "campaign", "country", "device")}
-                              for r in rows[:5]]}
+                     "would_keep": len(kept), "notes": notes,
+                     "read": [{k: r.get(k) for k in ("action", "stage", "at", "vid",
+                                                     "source_type", "campaign", "country",
+                                                     "device")}
+                              for r in kept[:5]]}
+
+    def _booked(self, site: str, tool: str, ref: str) -> bool:
+        """Is the booking `ref` (an external ref) of this tool kept already?"""
+        if not self.db_path.exists():
+            return False
+        db = store.connect(self.db_path)
+        try:
+            return db.execute("SELECT 1 FROM conversions WHERE site = ? AND tool = ? AND "
+                              "external_ref = ? LIMIT 1", (site, tool, ref)).fetchone() \
+                is not None
+        finally:
+            db.close()
+
+    def site_zone(self, site: str):
+        """The site's time zone, with its Settings row (as run-daily reads it),
+        read again at most every SITES_EVERY seconds."""
+        got = self.zones.get(site)
+        if got is not None and time.monotonic() - got[1] < SITES_EVERY:
+            return got[0]
+        from ..settings_store import apply
+        from ..window import zone
+        try:
+            tz = zone(apply(self.sites[site], site, self.folder))
+        except Exception:                  # noqa: BLE001 - the config's own zone
+            tz = zone(self.sites[site])
+        self.zones[site] = (tz, time.monotonic())
+        return tz
+
+
+def naive_note(tz) -> str:
+    return f"a time without an offset was read in the site's zone, {tz}"
 
 
 _RECEIVERS: dict = {}

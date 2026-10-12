@@ -157,3 +157,14 @@ dialog.dw.dw-under { transform: translateX(-28px); transition: transform .3s var
   dialog.dw.dw-under { transform: none; }
 }
 @media print { dialog.dw { display: none !important; } }
+
+/* People (2.4.0, js/tabs/person.js): the top bar's search, the person drawer's keys and trails. */
+.pp-bar .pp-in { width: 13rem; max-width: 30vw; padding: 4px 8px; font: inherit; font-size: 13px; }
+.pp-in { min-width: 0; }
+.pp-link { all: unset; cursor: pointer; color: var(--ink); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.pp-link:hover { color: var(--ink-2); }
+.pp-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+.pp-key { display: inline-flex; gap: 6px; align-items: center; margin: 0 10px 4px 0; }
+.pp-trail { margin: 0; padding-left: 1.2em; font-size: 12px; }
+.pp-trail li { overflow-wrap: anywhere; }
+.pp-bad { color: var(--bad); font-weight: 600; }

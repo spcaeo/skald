@@ -36,7 +36,9 @@ def lead(**kw) -> dict:
 
 
 class Base(unittest.TestCase):
-    identity = ""
+    # Set on purpose: since 2.4.0 a new install keeps names and emails unless
+    # the site says anonymous (people/policy.py; test_people_policy.py).
+    identity = "anonymous"
 
     visitor_ids = True              # the sites' visitor IDs; VisitorIdsOff below
 
@@ -157,7 +159,7 @@ class Kept(Base):
                          ["recorded", "duplicate"])
         self.assertEqual(len(self.spooled().splitlines()), 2)
 
-    def test_anonymous_by_default(self):
+    def test_anonymous_when_the_site_says(self):
         self.post("lead", lead(ip="192.0.2.44", user_agent=CHROME_MOBILE))
         self.assertEqual(self.rows("SELECT country, device FROM conversions"), [("CA", "Mobile")])
         self.assertEqual(self.rows("SELECT COUNT(*) FROM identities")[0][0], 0)

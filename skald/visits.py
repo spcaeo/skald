@@ -7,8 +7,11 @@ and a visit that read at least one page is a reader. So visits equal
 readers, and verify checks that they do.
 
 The visitor key is the address and the user agent, hashed in memory with a
-random salt made for this run and never written anywhere. Nothing that
-leaves this module carries the address, the user agent or the hash: a
+random salt made for this run and never written anywhere. The journey
+itself carries neither the address, the user agent nor the hash (since
+2.4.0 `Journeys.people`, aligned with the journeys, hands each visit's
+address, user agent, referrer and POST times to people/visits.py, which
+keeps them apart, and only while the site keeps addresses): a
 journey is when it started (to the minute, in the report's time zone), the
 country, device, browser and system labels, where it came from, the pages
 in order (each with `at`, the seconds since the visit started, bucketed
@@ -121,7 +124,7 @@ def _via(hit, source: str, cited: bool, engine: str) -> str:
 
 class _Visit:
     __slots__ = ("first", "last", "prev", "trail", "times", "pages", "labels",
-                 "not_found", "posted", "visitor", "origin")
+                 "not_found", "posted", "visitor", "origin", "who")
 
     def __init__(self, when) -> None:
         self.first = self.last = self.prev = when
@@ -133,6 +136,10 @@ class _Visit:
         self.not_found = 0
         self.posted = 0
         self.origin = None                          # its first page's (dimensions.page_origin)
+        # Its address, user agent, first page's referrer and the times of its
+        # POSTs: memory only, handed to people/visits.py (Journeys.people),
+        # never put on the anonymous journey.
+        self.who = None
 
 
 @dataclass
@@ -225,6 +232,7 @@ class Journeys:
         self.key = key
         self.visitor_keys: list[str] | None = None
         self.firsts: list | None = None
+        self.people: list | None = None
         self.pages: dict[str, dict] = {}
         self.tz = tz
         self.own_hosts = own_hosts or set()
@@ -255,8 +263,13 @@ class Journeys:
         visit.last = max(visit.last, hit.when)
         if hit.status == "404" and not ASSET.search(hit.path):
             visit.not_found += 1
+        if visit.who is None:
+            visit.who = {"ip": hit.address, "user_agent": hit.user_agent, "referrer": "",
+                         "posts": []}
         if hit.method == "POST":
             visit.posted += 1
+            if len(visit.who["posts"]) < 20:
+                visit.who["posts"].append(hit.when)
         path = hit.path[:70]
         if visit.trail and hit.status[:1] in ("2", "3"):
             # Where the visitor was when this was asked for. A cancelled
@@ -272,6 +285,8 @@ class Journeys:
                     from .visitors import reader_family, visitor_hash
                     visit.visitor = visitor_hash(self.key, hit.address,
                                                  reader_family(hit.user_agent))
+            if not visit.pages:
+                visit.who["referrer"] = (hit.referrer or "")[:300]
             visit.pages += 1
             visit.trail.append((path, True))
             visit.times.append(hit.when)
@@ -305,6 +320,10 @@ class Journeys:
         stats = VisitStats(visits=len(visits))
         journeys = []
         self.visitor_keys = [v.visitor for v in visits] if self.key is not None else None
+        # Who each visit was (address, user agent, referrer, POST times),
+        # aligned with the journeys, in memory only (people/visits.py keeps
+        # them when the site keeps addresses).
+        self.people = [dict(v.who or {}, first=v.first, last=v.last) for v in visits]
         # Each visit's first request, aligned with the journeys, in memory
         # only (ai_likely.py compares it with the AI fetches before it).
         self.firsts = [v.first for v in visits]

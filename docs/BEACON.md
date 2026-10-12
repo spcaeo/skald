@@ -141,7 +141,9 @@ helper also writes to `conversions.sqlite`, right after the spool line:
 
 A visitor ID is a browser, not a person: one person on two devices is two
 IDs, and clearing storage makes a new one. Skald never links a new ID to an
-old one, and never matches by address.
+old one, and no figure matches by address. (The 2.4.0 person search, apart
+from the figures, shows the visits kept with an address and the visits that
+sent a form at a lead's time, said as not certain: DATA-CONTRACT-PEOPLE.md.)
 
 ## What is kept
 

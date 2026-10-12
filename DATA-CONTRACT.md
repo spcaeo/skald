@@ -838,11 +838,19 @@ ending today, every action's rows by stage, abandoned starts, and for
 finished ones the breakdowns (source, first source, campaign, landing,
 country, device, tool), visits before, time to convert and assisted
 sources; over the last 30 days the pages seen before converting and the
-latest conversions as anonymous timelines. The same file on every view.
+latest conversions as timelines without name, email or visitor ID. The same
+file on every view. A row marked test is never counted in it.
 Every figure is counted twice (`audit_conversions.py`,
 `audit_conversions_figures.py`); a day or block that disagrees is withheld.
 Every field: [docs/DATA-CONTRACT-CONVERSIONS.md](docs/DATA-CONTRACT-CONVERSIONS.md); the
 per-day `likely_ai` (an estimate): [docs/DATA-CONTRACT-AI-LIKELY.md](docs/DATA-CONTRACT-AI-LIKELY.md).
+
+## People (2.4.0)
+
+Each visit kept with its address (`visits`, `visit_days` in
+`conversions.sqlite`), rows a sync removed (`removed`), the `test` mark, and
+the helper's person lookup and left-out lists: not data files, not figures.
+Every field: [docs/DATA-CONTRACT-PEOPLE.md](docs/DATA-CONTRACT-PEOPLE.md).
 
 ---
 

@@ -10,7 +10,9 @@ with the hook's secret; refused when t is more than 5 minutes off. Body:
     action        what was done: "demo", "signup", "contact" (required, a token;
                   "booking" is read as "demo", "checkout" as "paid": ALIASES)
     stage         one of conversions.STAGES (default "completed")
-    at            when (ISO time or Unix seconds; default: when it arrived)
+    at            when (ISO time or Unix seconds; default: when it arrived). A
+                  time without an offset ("2026-09-25", "2026-09-25T08:00:00")
+                  is read in the site's time zone; the delivery log says so
     vid           the visitor ID the page had
     first_touch, last_touch   {referrer, landing, utm_source, utm_medium,
                   utm_campaign, utm_content, utm_term, gclid, ..., at}
@@ -25,7 +27,7 @@ with the hook's secret; refused when t is more than 5 minutes off. Body:
 from __future__ import annotations
 
 from .. import ACTION, SITE_VID, STAGES, action_name
-from . import Invalid, sign_timed, text, touch, verify_timed, when
+from . import Invalid, naive, sign_timed, text, touch, verify_timed, when
 
 HEADER = "x-skald-signature"
 
@@ -38,8 +40,10 @@ def sign(body: bytes, secret: str, now: float, method: str = "POST", uri: str = 
     return {"X-Skald-Signature": sign_timed(body, secret, now)}
 
 
-def record(item: dict) -> dict:
-    """One lead object as a record. Invalid when it breaks the shape."""
+def record(item: dict, tz=None) -> dict:
+    """One lead object as a record. Invalid when it breaks the shape. Times
+    without an offset are read in `tz`, the site's zone; `naive_at` is then
+    True, for the delivery log."""
     if not isinstance(item, dict):
         raise Invalid("a lead is a JSON object")
     ref = text(item.get("external_ref"), 120)
@@ -53,7 +57,7 @@ def record(item: dict) -> dict:
         raise Invalid(f"stage must be one of {', '.join(STAGES)}")
     at = None
     if item.get("at") not in (None, ""):
-        at = when(item.get("at"))
+        at = when(item.get("at"), tz)
         if at is None:
             raise Invalid("at is not a time")
     vid = text(item.get("vid"), 80)
@@ -62,21 +66,25 @@ def record(item: dict) -> dict:
     visits = item.get("visits_before")
     if isinstance(visits, bool) or not isinstance(visits, int) or not 0 <= visits <= 100000:
         visits = None
-    first = touch(item.get("first_touch"))
+    first = touch(item.get("first_touch"), tz)
+    last = item.get("last_touch")
+    times = [item.get("at"), item.get("first_touch_at"),
+             *[t.get("at") for t in (item.get("first_touch"), last) if isinstance(t, dict)]]
     return {
         "action": action, "stage": stage, "external_ref": ref, "at": at, "vid": vid,
-        "first_touch": first, "last_touch": touch(item.get("last_touch")),
+        "first_touch": first, "last_touch": touch(last, tz),
         "landing": text(item.get("landing"), 300), "campaign": text(item.get("campaign"), 120),
         "source_type": text(item.get("source"), 40), "country": text(item.get("country"), 2),
         "ip": text(item.get("ip"), 64), "device": text(item.get("device"), 20),
         "user_agent": text(item.get("user_agent"), 500), "name": text(item.get("name")),
         "email": text(item.get("email"), 320), "visits_before": visits,
-        "first_touch_at": when(item.get("first_touch_at")) or (first or {}).get("at"),
+        "first_touch_at": when(item.get("first_touch_at"), tz) or (first or {}).get("at"),
+        "naive_at": any(naive(t) for t in times),
     }
 
 
-def to_records(payload, site_config: dict | None = None) -> list[dict]:
-    return [record(payload)]
+def to_records(payload, site_config: dict | None = None, tz=None) -> list[dict]:
+    return [record(payload, tz)]
 
 
 def sample(site: str, now: float) -> dict:

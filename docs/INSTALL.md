@@ -72,8 +72,14 @@ Open `http://localhost:8080/` on the same machine, or the HTTPS address
 today's log; `docker exec skald skald backfill --days 14` adds the
 days the log's rotations still hold.
 
-`skald <command>` in the container is `skald` with the right config:
-`check`, `live`, `backup`, `accounts status`, `user`, `export` and the rest.
+Then check it: `docker exec skald skald doctor` says, one line per
+part, what works and what to fix (below, "Check it").
+
+`skald <command>` in the container runs Skald's command with the
+container's config: `check`, `live`, `backup`, `doctor`, `accounts status`,
+`user`, `export` and the rest. The step-by-step guide for a first install is
+the Help page "Docker: first install in 10 minutes"
+(docs/help/docker-first-install.md).
 
 ### Settings
 
@@ -99,6 +105,8 @@ the container has them (`history.db: /var/lib/skald/history.sqlite`,
 | `SMTP_USER`, `SMTP_PASSWORD` | | the SMTP login: environment only, never in a file you commit |
 | `SKALD_BEACON_ORIGINS` | | your site's origin(s), to switch on the script tag and in-page events ([BEACON.md](BEACON.md)). Not needed for webhooks (Calendly, Stripe, the `lead` hook): those work without it since 2.2.2 |
 | `SKALD_INGEST` | | `true` takes logs from other servers and log drains ([INGEST.md](INGEST.md)); set `SKALD_LOG_DIR` with it |
+| `SKALD_KEEP_IPS` | on (new install), off (upgraded from before 2.4.0) | `1` keeps each visit's IP address and browser with its pages, so a person can be looked up; `0` keeps none (only the last 6 hours of requests show addresses). Also Settings > Data retention > People. Your privacy notice must say so |
+| `SKALD_IDENTITY` | `full` (new install), `anonymous` (upgraded from before 2.4.0) | `full` keeps leads' names and emails with their conversions; `anonymous` keeps neither |
 | `SKALD_DAILY_AT`, `SKALD_BACKUP_AT` | `07:15`, `03:30` | the daily run and the backup, in the site's time zone |
 | `SKALD_LIVE_MINUTES` | `2` | the live snapshot's interval |
 | `SKALD_SCHEDULER` | `on` | `off` stops the container's own schedule (live, daily run, backup) |
@@ -285,6 +293,7 @@ After it:
    SMTP login in `/etc/skald/env`, and set `mail.daily` and
    `mail.weekly` to `true` (the script leaves them off).
 3. `sudo skald backfill --days 14` for the days the logs hold.
+4. `sudo skald doctor` (below, "Check it").
 
 The `skald` command runs as the `skald` user with
 `/etc/skald/config.yml` and the env file, so call it with `sudo`:
@@ -318,6 +327,38 @@ when you want to know exactly what the script does.
 Upgrade: DEPLOY.md, "Deploying a new version". Uninstall: stop and remove
 the units in `/etc/systemd/system/`, delete `/etc/cron.d/skald`,
 then the folders in DEPLOY.md section 2 if the data should go too.
+
+---
+
+## Check it: `doctor`
+
+```sh
+sudo skald doctor                    # a server set up with install.sh
+docker exec skald skald doctor       # Docker
+```
+
+One line per part, `OK`, `NEEDS ATTENTION` (with the fix in plain words) or
+`OFF` (not in use), and exit 1 when something needs attention, so a cron or
+a monitor can run it:
+
+| Part | What it checks |
+| --- | --- |
+| Daily run | `run-daily` ran in the last 26 hours and did not fail or stop on a day that does not reconcile (`runs.json`) |
+| Days stored | the last 14 days, from the first day stored: none missing, none withheld; else the `backfill --days N` that collects them again |
+| Access log | `logs.dir`/`logs.base` there, readable by Skald's user, written in the last day |
+| Page assets | a request for `site.asset_prefixes` (default `/_next/static/`; Docker `SKALD_ASSET_PREFIXES`) in the log's last lines: without one, no browser counts as a person |
+| Web app | `dashboard.app` on |
+| Hook receiver | the beacon helper answers on 127.0.0.1:8766 |
+| Hook (each tool) | its secret, and needs a secret / never received / ready / last received N ago, or why the last delivery was refused |
+| One lead, two tools | an external ref that arrived from two tools: it counts once per tool |
+| Script tag | `beacon.origins`, the helper serving the file, the last event from a page |
+| Lead database | `leads.db` readable (when set) |
+| Mail | the settings are complete; nothing is sent unless `--send-test` |
+| Version | a newer release, read from `updates.json` (the daily run asks GitHub; the doctor never does) |
+| Disk | free space where the history lives |
+
+`--json` prints the same list (one object per site); Settings > Integrations
+shows the integration lines under **Status**. Every check only reads.
 
 ---
 

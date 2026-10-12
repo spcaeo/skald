@@ -339,7 +339,7 @@ class Upgrades(unittest.TestCase):
         db.close()
         db = cstore.connect(path)
         try:
-            self.assertEqual(cstore.schema_version(db), 3)
+            self.assertEqual(cstore.schema_version(db), cstore.SCHEMA_VERSION)
             plan = " ".join(r[3] for r in db.execute(
                 "EXPLAIN QUERY PLAN SELECT vid, path FROM journeys WHERE site = ? AND at >= ? "
                 "AND at < ?", ("example.com", "a", "b")))

@@ -190,6 +190,8 @@ def prune_kept(ctx: Context, history: History) -> None:
     # in them) are kept as long as the leads look back (ai_likely.py).
     from .ai_likely import FETCH_DAYS
     history.prune_extras(today, FETCH_DAYS, ("ai_fetches",))
+    from .people.visits import prune_kept as prune_people   # privacy.keep_days
+    prune_people(ctx)
 
 
 def collect_day(ctx: Context, history: History, day: date,
@@ -219,6 +221,8 @@ def collect_day(ctx: Context, history: History, day: date,
     for t in [totals, *by_view.values()]:
         annotate(t, history.db, ctx.site, day, repeat_days(ctx.config))
     history.record(ctx.site, day, totals, str(ctx.tz), found.get("site", []))
+    from .people.visits import keep_day            # each visit with its address (2.4.0)
+    keep_day(ctx, day, totals)
     for view in ctx.views:
         history.record(view_key(ctx.site, view.slug), day, by_view[view.slug],
                        str(ctx.tz), found.get(f"view {view.name}", []),

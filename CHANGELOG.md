@@ -4,6 +4,54 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.4.0 (2026-10-12)
+
+Find any person by IP, email or lead and follow them across days; nothing left out is hidden;
+and setup that checks itself.
+
+### Added
+
+- **Person search.** One box in the top bar (and Ctrl K) for an IP, an email, a lead or a
+  visitor ID, for admins and owners. It opens every visit across the kept days (source,
+  referrer, landing, pages in order, country, device), the last 6 hours of requests, and every
+  lead and conversion, linked. A lead is tied to a visit by visitor ID, email, or a form sent
+  within 2 minutes (said as not certain). API `/traffic-api/v1/<site>/people?q=` and the MCP
+  tool `find_person` need the `read_private` scope. Each search is in the audit log, without
+  the value.
+- **Visits kept with their address.** Each reader's visit is kept with its IP and user agent
+  for `privacy.keep_days` (395), counted twice: a new audit recounts each day's kept visits
+  and pages per address from the log, and a day that disagrees is withheld.
+- **Nothing hidden.** Leads > "Left out" lists the spam, duplicate and test leads.
+  Conversions lists cancelled, removed and test rows with their journey. A lead sync that
+  removes a row keeps it in a removed list (when, why, the row). `conversions mark-test SITE
+  ID... [--unmark]` marks test rows: listed, never counted, by both counts.
+- **`skald doctor`**: one line per part (daily run, missing days, logs, the dashboard app,
+  the hook receiver, each hook's secret and last delivery, the script tag, mail, a newer
+  version, disk) with the exact fix. Settings > Integrations shows the same status per road,
+  with a test that says what a real delivery would keep.
+- **Calendly and Cal.com event-type filter** (`hooks.calendly.event_types`,
+  `hooks.calcom.event_types`, in Settings > Integrations): one account that books for several
+  businesses sends only your own events to Skald's figures; others are answered and dropped.
+- **Four how-to guides** in Help: pick your road, send leads from your backend in 5 minutes,
+  demo bookings, Docker first install.
+
+### Changed
+
+- **Keeping IPs and emails is a setting, on for new installs** (`privacy.keep_ips`,
+  `conversions.identity: full`; Docker `SKALD_KEEP_IPS`, `SKALD_IDENTITY`). **An install
+  upgraded from before 2.4.0 keeps nothing new until you turn it on** (Settings > Data
+  retention > People). Change your privacy notice first. `forget` now takes `--ip`, `--email`,
+  `--vid` and `--lead` and deletes everywhere, kept visits and removed rows included.
+- A hook time without an offset is read in the site's time zone, not UTC, and the delivery
+  log says so. A lead that arrives through two tools is flagged (it would count twice).
+- Percent shares of fewer than 10 show counts only.
+- `hooks secret` prints the real address; `hooks test` shows what a real delivery keeps.
+
+### What to do
+
+Upgrade as usual. To keep IPs and emails on an upgraded install, update your privacy notice,
+then turn it on in Settings > Data retention > People.
+
 ## 2.3.0 (2026-10-12)
 
 Flags beside every country, and a visit from an AI assistant is never hidden inside an earlier

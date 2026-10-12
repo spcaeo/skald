@@ -20,9 +20,20 @@ site's organisation and to install admins:
   POST integrations/hooks/remove      {site, tool}: delete the hook's secret, so its
                                       address answers 404 again; its deliveries
                                       stay in the log
+  POST integrations/hooks/types       {site, tool, types}: the Calendly or Cal.com
+                                      event types this site keeps (a list; [] keeps
+                                      every event): settings_store
+                                      "hooks.<tool>.event_types", a row for the site
   POST integrations/test              {site, tool}: a signed sample posted to the
                                       receiver in this process, marked as a test
-                                      (read, logged as "test", never kept)
+                                      (read, logged as "test", never kept); the
+                                      answer says what a real one would keep
+
+The GET also carries `status`: the doctor's lines for the integrations
+(doctor.integration_checks: the receiver, the script tag, each hook, one
+lead from two tools, the lead database), each tool's state in words
+(roads.hook_states: needs a secret, never received, ready, last received N
+ago) and `duplicates`, the external refs that arrived from two tools.
   POST integrations/webhooks/add      {site, url, events}: an outgoing webhook; its
                                       secret is shown once
   POST integrations/webhooks/remove   {site, id}
@@ -53,17 +64,15 @@ from .conversions import TOOLS, secrets_store, store
 from .conversions import hooks as hooks_mod
 from .conversions import outgoing
 from .conversions.adapters import adapter
+from .conversions.roads import TOOL_NAMES
 
 PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
-PATH = re.compile(PAGE + r"(?P<act>integrations(?:/(?:secret|test|hooks/(?:paste|remove)|"
+PATH = re.compile(PAGE + r"(?P<act>integrations(?:/(?:secret|test|hooks/(?:paste|remove|types)|"
                          r"webhooks/(?:add|remove|rotate|test)))?)$")
 GETS = {"integrations"}
 ADMIN = ("owner", "admin")
 LOG_ROWS = 50
 TEST_LIMIT, TEST_MINUTES = 3, 10        # webhook tests per user (each may wait 10 s)
-TOOL_NAMES = {"lead": "Your site's server (lead)", "json": "Zapier, Make, n8n (json)",
-              "calendly": "Calendly", "calcom": "Cal.com", "stripe": "Stripe",
-              "typeform": "Typeform", "hubspot": "HubSpot"}
 # Tools that sign with a secret they make themselves: it is pasted, never made here.
 OWN_SECRET = ("stripe", "hubspot")
 # Tools that take a secret you choose, or give their own: made here or pasted.
@@ -232,6 +241,10 @@ def script(c: Ctx, site: str) -> dict:
 def tools(c: Ctx, site: str, db) -> list[dict]:
     conf = _site_config(c, site)
     base = _origin(c)
+    from .conversions.roads import hook_states
+    from .doctor import command
+    states = {s["tool"]: s for s in hook_states(conf, c.folder, site, db, cmd=command(
+        c.config_path), base=base)}
     out = []
     for tool in TOOLS:
         try:
@@ -246,8 +259,34 @@ def tools(c: Ctx, site: str, db) -> list[dict]:
                     "rotatable": not where.startswith("env"), "problem": problem,
                     "make": tool not in OWN_SECRET, "paste": tool in OWN_SECRET + EITHER,
                     "secret_from": TOOL_NAMES.get(tool, tool),
+                    "state": states[tool]["state"], "words": states[tool]["words"],
+                    "attention": states[tool]["attention"], "fix": states[tool]["fix"],
+                    "event_types": _types(c, conf, site, tool),
                     "deliveries": store.deliveries(db, site, tool, LOG_ROWS) if db else []})
     return out
+
+
+def _types(c: Ctx, conf: dict, site: str, tool: str) -> dict | None:
+    """Calendly and Cal.com: the event types this site keeps ([] keeps all),
+    where the list comes from, and whether the caller may change it here."""
+    from .conversions.event_types import TOOLS as TYPED, setting_key
+    from . import settings_store
+    if tool not in TYPED:
+        return None
+    name = setting_key(tool)
+    got = settings_store.explain(conf, site, c.db).get(name) or {}
+    may, why = settings_store.may_edit(name, c.role, c.install_admin, c.config)
+    return {"value": list(got.get("value") or []), "source": got.get("source", "default"),
+            "editable": may, "reason": why}
+
+
+def _live_dir(c: Ctx, site: str) -> Path:
+    """The site's state folder (its beacon spool lives there)."""
+    from .config import site_name
+    from .files import slug
+    if site == site_name(c.config):
+        return c.folder
+    return c.folder / "sites" / slug(site)
 
 
 def overview(c: Ctx, form):
@@ -257,11 +296,17 @@ def overview(c: Ctx, form):
     path = store.path_for(c.config, c.folder)
     db = store.connect(path) if path is not None and Path(path).exists() else None
     try:
+        from .conversions.roads import duplicates
+        from .doctor import integration_checks
         hooks_on = site in install_sites(c)
+        conf = _site_config(c, site)
         return c.ok(site=site, sites=managed(c), install_admin=c.install_admin,
                     script=script(c, site), takes_hooks=hooks_on,
                     tools=tools(c, site, db), events=list(outgoing.EVENTS),
                     webhooks=outgoing.listing(db, site) if db else [],
+                    status=integration_checks(conf, c.folder, site, _live_dir(c, site),
+                                              config_path=c.config_path),
+                    duplicates=duplicates(db, site),
                     locked=_locked(c, site))
     finally:
         if db is not None:
@@ -373,6 +418,29 @@ def remove(c: Ctx, form):
     secrets_store.delete(path, [secrets_store.key(site, tool)])
     c.log("hook.remove", f"{site}/{tool}", "secret deleted")
     return c.ok(site=site, tool=tool, removed=True)
+
+
+def types(c: Ctx, form):
+    """The Calendly or Cal.com event types this site keeps: a settings row for
+    the site (settings_store "hooks.<tool>.event_types"); [] clears it."""
+    from . import settings_store
+    from .conversions.event_types import TOOLS as TYPED, setting_key
+    site = _change_target(c, form)
+    tool = None if site is None else _tool(c, form)
+    if tool is None:
+        return None
+    if tool not in TYPED:
+        return c.no(400, "Only Calendly and Cal.com hooks keep some event types.")
+    name = setting_key(tool)
+    may, why = settings_store.may_edit(name, c.role, c.install_admin, c.config)
+    if not may:
+        return c.no(403, why)
+    try:
+        got = settings_store.put(c.db, f"site:{site}", name, form.get("types"), c.uid)
+    except settings_store.Invalid as why:
+        return c.no(400, str(why))
+    return c.ok(site=site, tool=tool, types=got["new"] or [],
+                event_types=_types(c, _site_config(c, site), site, tool))
 
 
 def test(c: Ctx, form):
@@ -502,6 +570,7 @@ def webhook_test(c: Ctx, form):
 
 ROUTES = {"integrations": overview, "integrations/secret": secret, "integrations/test": test,
           "integrations/hooks/paste": paste, "integrations/hooks/remove": remove,
+          "integrations/hooks/types": types,
           "integrations/webhooks/add": webhook_add, "integrations/webhooks/remove": webhook_remove,
           "integrations/webhooks/rotate": webhook_rotate,
           "integrations/webhooks/test": webhook_test}

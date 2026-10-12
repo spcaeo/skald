@@ -5,6 +5,9 @@ before anything else is done with it. One file per local day:
     {"received_at": "2026-10-11T14:00:00Z", "site": "example.com",
      "tool": "calendly", "body": {...}}
 
+plus "zone": "<site's time zone>" on a `lead` or `json` line whose body has a
+time without an offset (read in that zone, since 2.4.0).
+
 The body is the tool's JSON with only the keys its adapter and the audit
 read (conversions.SPOOL_KEYS, an allow-list per tool), plus the name and the
 primary email when the site's identity is full (conversions.strip). The spool is what the second count
@@ -33,10 +36,16 @@ def day_file(spool: Path, day: date) -> Path:
     return Path(spool) / f"{day.isoformat()}.jsonl"
 
 
-def line_for(received_at: str, site: str, tool: str, body, identity_full: bool) -> str:
-    return json.dumps({"received_at": received_at, "site": site, "tool": tool,
-                       "body": strip(body, identity_full, tool)},
-                      separators=(",", ":"), sort_keys=True)
+def line_for(received_at: str, site: str, tool: str, body, identity_full: bool,
+             zone: str | None = None) -> str:
+    """One line. `zone`: the time zone the receiver read the body's times
+    without an offset in (the site's; 2.4.0). A line without it read them as
+    UTC, so the second count reads each line the way it was kept."""
+    line = {"received_at": received_at, "site": site, "tool": tool,
+            "body": strip(body, identity_full, tool)}
+    if zone:
+        line["zone"] = zone
+    return json.dumps(line, separators=(",", ":"), sort_keys=True)
 
 
 def append(spool: Path, day: date, line: str) -> None:

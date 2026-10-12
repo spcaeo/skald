@@ -60,7 +60,7 @@ The daily run checks each finished day by both counts before it is stored. Until
 
 ## Where are my leads?
 
-On [Leads](#leads), under Results. Skald shows counts only: leads per day by kind, and where they first and last came from. It never shows names or emails. Each lead's details stay in your website's own admin. See [Leads and conversions](leads-and-conversions.md).
+On [Leads](#leads), under Results: leads per day by kind, and where they first and last came from. Spam, duplicate and test leads are listed under **Left out**. Owners and admins can find one lead, with its email and the visits around it, with the search at the top, when your site keeps names and emails. See [Leads and conversions](leads-and-conversions.md).
 
 ## How do I get data out?
 
@@ -70,11 +70,11 @@ On [Leads](#leads), under Results. Skald shows counts only: leads per day by kin
 
 ## Who can see visitor addresses?
 
-Only people signed in to your organisation, and only in three places: [Requests](#requests) (the last 6 hours), today's AI activity, and the internal-address list (admins). Stored history never holds an address. API tokens see addresses only with the private scope. See [Privacy](privacy.md).
+Only people signed in to your organisation: [Requests](#requests) (the last 6 hours), today's AI activity, and the internal-address list (admins). When your site keeps IP addresses, owners and admins also see each kept visit's address in the person search; every search goes to the audit log. Stored history never holds an address. API tokens see addresses only with the private scope. See [Privacy](privacy.md).
 
 ## How do I delete someone's data on request?
 
-Send the address (or, for conversions, the email address) to the person who runs your Skald server. They run Skald's forget command. See [Privacy](privacy.md).
+Send the address or the email address to the person who runs your Skald server. They run Skald's forget command, which deletes the visits, conversions, name and email kept for it. See [Privacy](privacy.md).
 
 ## Why are my filters greyed out?
 

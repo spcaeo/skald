@@ -26,7 +26,8 @@ and email only when the site's `conversions.identity` is full.
 
 Idempotent: a sync makes the store's rows for each lead it reads match the
 lead, keeping the rows that are already right (same ids, so an outgoing
-webhook is not sent twice). Incremental: only leads whose updated_at (or
+webhook is not sent twice). A row it takes away is copied whole into the
+`removed` table first, with when and why (store.remove): nothing goes unseen. Incremental: only leads whose updated_at (or
 created_at) is at or after the last one seen are read (meta
 "leads_sync:<site>"); `full=True` (run-daily) reads them all and also drops
 the rows of leads deleted from the CMS.
@@ -196,21 +197,29 @@ def sync(db: sqlite3.Connection, path: Path, site: str, identity_full: bool = Fa
                     got["kept"] += 1
                     want.pop(stage)
                     continue
-                db.execute("DELETE FROM conversions WHERE id = ?", (old["id"],))
-                got["removed"] += 1
+                why = ("the lead changed in the lead database" if new is not None
+                       else _gone_why(lead))
+                got["removed"] += store.remove(db, old["id"], why)
             for new in want.values():
                 got["added"] += int(store.record_conversion(db, new))
         if full:
-            for (ref,) in db.execute("SELECT DISTINCT external_ref FROM conversions WHERE "
-                                     "site = ? AND tool = ?", (site, LEADS_TOOL)).fetchall():
+            for cid, ref in db.execute("SELECT id, external_ref FROM conversions WHERE "
+                                       "site = ? AND tool = ?", (site, LEADS_TOOL)).fetchall():
                 if ref not in seen:
-                    got["removed"] += db.execute(
-                        "DELETE FROM conversions WHERE site = ? AND tool = ? AND "
-                        "external_ref = ?", (site, LEADS_TOOL, ref)).rowcount
+                    got["removed"] += store.remove(
+                        db, cid, "the lead is no longer in the lead database")
         if mark:
             db.execute("INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO "
                        "UPDATE SET value = excluded.value", (_mark_key(site), mark))
     return got
+
+
+def _gone_why(lead: dict) -> str:
+    """Why a lead's row went: its status, or a type that makes no row."""
+    status = str(lead.get("status") or "new").strip().lower()
+    if status in LEAD_EXCLUDED:
+        return f"the lead was marked {status} in the lead database"
+    return "the lead changed in the lead database"
 
 
 def run(config: dict, folder: Path, site: str, full: bool = False) -> dict | None:
@@ -229,7 +238,8 @@ def run(config: dict, folder: Path, site: str, full: bool = False) -> dict | Non
         return {"error": f"conversions file: {type(why).__name__}: {why}"}
     try:
         from ..beacon import visitor_ids
-        return sync(db, path, site, identity_full(config), full, visitor_ids(config))
+        return sync(db, path, site, identity_full(config, folder), full,
+                    visitor_ids(config))
     except (OSError, sqlite3.Error, ValueError) as why:
         return {"error": f"{type(why).__name__}: {why}"}
     finally:

@@ -87,6 +87,15 @@ SCHEMA: dict[str, Key] = {
                                 shrink=True, label="Returning-visitor matching"),
     "beacon.keep_days": Key("int", "admin", SITE_UP, ("beacon", "keep_days"), 400, 30, 3650,
                             shrink=True, label="In-page events"),
+    # 2.4.0: what is kept about people (people/policy.py). On an install
+    # upgraded to 2.4.0 an unset keep_ips / identity reads as off ("upgrade").
+    "privacy.keep_ips": Key("bool", "admin", SITE_UP, ("privacy", "keep_ips"), True,
+                            label="Keep visitors' IP addresses"),
+    "privacy.keep_days": Key("int", "admin", SITE_UP, ("privacy", "keep_days"), 395, 1, 3650,
+                             shrink=True, label="Visits with addresses"),
+    "conversions.identity": Key("choice", "admin", SITE_UP, ("conversions", "identity"), "full",
+                                choices=("full", "anonymous"),
+                                label="Leads' names and emails"),
     "beacon.goals": Key("events", "admin", ("site",), ("beacon", "goals"), [], label="Goals"),
     "backup.daily": Key("int", "install", ("install",), ("backup", "daily"), 14, 1, 60,
                         shrink=True, label="Daily backup copies"),
@@ -119,6 +128,14 @@ SCHEMA: dict[str, Key] = {
                          label="Log folder"),
     "sites.log_base": Key("filename", "install", ("site",), ("logs", "base"), None,
                           label="Log file name"),
+    # Settings > Integrations: the booking tools' event types this site keeps
+    # (conversions/event_types.py); [] keeps every event.
+    "hooks.calendly.event_types": Key("eventtypes", "admin", ("site",),
+                                      ("hooks", "calendly_event_types"), [],
+                                      label="Calendly event types"),
+    "hooks.calcom.event_types": Key("eventtypes", "admin", ("site",),
+                                    ("hooks", "calcom_event_types"), [],
+                                    label="Cal.com event types"),
     "security.require_totp": Key("bool", "owner", ("org",), None, False,
                                  label="Require two-step sign-in"),
     "security.session_days": Key("int", "owner", ("org",), None, 14, 1, 90,
@@ -292,6 +309,12 @@ def validate(name: str, value, cap: int | None = None):
         return _views(value)
     if kind == "events":
         return _goals(value)
+    if kind == "eventtypes":
+        from .conversions.event_types import validate as event_types
+        try:
+            return event_types(value) or None
+        except ValueError as why:
+            raise Invalid(str(why)) from None
     if kind == "zone":
         from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
         zone = str(value).strip()
@@ -471,6 +494,9 @@ def _rows(db, site: str | None) -> tuple[dict, object]:
 def _from_config(config, key: Key):
     if key.config is None:
         return None
+    if key.kind == "eventtypes":        # nested hooks.<tool>.event_types, or the flat key
+        from .conversions.event_types import from_config
+        return from_config(config, key.config[1].rsplit("_event_types", 1)[0]) or None
     raw = setting(config or {}, *key.config)
     if raw is None:
         return None
@@ -490,7 +516,8 @@ def _from_config(config, key: Key):
 
 def explain(config, site: str | None = None, db=None, live_dir=None) -> dict:
     """{key: {"value", "source", "locked"}} for every key that is not a
-    secret. source: site, org, install, config or default."""
+    secret. source: site, org, install, config, default, or upgrade (an
+    unset privacy key on an install upgraded to 2.4.0: LEGACY_DEFAULTS)."""
     own = None
     if db is None:
         path = accounts_file(config, live_dir)
@@ -520,12 +547,23 @@ def explain(config, site: str | None = None, db=None, live_dir=None) -> dict:
             source = "config" if value is not None else "default"
             if value is None:
                 value = key.default
+                if name in LEGACY_DEFAULTS and _legacy(config, live_dir):
+                    value, source = LEGACY_DEFAULTS[name], "upgrade"
         out[name] = {"value": value, "source": source, "locked": lock}
         most = capped(name, cap)
         if most is not None and isinstance(value, int) and value > most:
             # The plan keeps less than the value says: the cap is what applies.
             out[name].update(value=most, capped=True, set_value=value)
     return out
+
+
+# What an unset key reads as on an install upgraded to 2.4.0 (people/policy.py).
+LEGACY_DEFAULTS = {"privacy.keep_ips": False, "conversions.identity": "anonymous"}
+
+
+def _legacy(config, live_dir=None) -> bool:
+    from .people.policy import legacy
+    return legacy(config or {}, history_folder(config, live_dir))
 
 
 def plan_cap(db, config, org) -> int | None:

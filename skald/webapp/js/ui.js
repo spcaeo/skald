@@ -43,6 +43,10 @@ export function pct1(part, whole) {
   const p = (part / whole) * 100;
   return p > 0 && p < 1 ? "<1%" : `${Math.round(p)}%`;
 }
+// A share of a tiny base misleads (one lead is "100%"): below MIN_SHARE, the
+// same minimum as conversions' min_rate, only the counts are shown.
+export const MIN_SHARE = 10;
+export const share = (part, whole) => (whole >= MIN_SHARE ? pct1(part, whole) : "");
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

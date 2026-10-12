@@ -24,6 +24,7 @@ import { REGISTRY, showAllRows } from "./table.js";
 import { exportMenu, builder, exportZip, exportJSON, printTab } from "./report.js";
 import { setContext, healthTabs } from "./tabs/common.js";
 import { loadBuild, buildLine, toolName, newerBuild, releaseLine, BUILD } from "./build.js";
+import { searchBox, openSearch, mayFind, SEARCH_HINT } from "./tabs/person.js";
 import { info, quietKpis } from "./tabs/tiles.js";
 import { PRIVACY } from "./tabs/about.js";
 import { MARK } from "./mark.js";
@@ -157,6 +158,7 @@ function ago(ts) {
 }
 
 const actions = () => [
+  ...(mayFind() ? [{ label: `Find a person: ${SEARCH_HINT}`, hint: "", run: openSearch }] : []),
   { label: "Compare to previous period: on or off", hint: "", run: () => S.set({ cmp: S.read().cmp ? "" : "1" }) },
   { label: "Colour theme: next", hint: "", run: cycleTheme },
   { label: "Sidebar: collapse or expand", hint: "[", run: () => document.getElementById("rail-toggle")?.click() },
@@ -221,7 +223,7 @@ function drawBar(s) {
   } else right.push(h("span", { class: "stamp" }, model.stamp));
   right.push(h("div", { class: "wide-only" }, exportMenu(() => model, s, (next) => load(next, { previous: model }))));
   const helpBtn = h("a", { class: "btn icon help-btn", href: "#help", html: HELP_ICON, "aria-label": "Help and guides", title: "Help and guides" });
-  const always = [helpBtn, bell(model), h("button", { type: "button", class: "btn icon kbd-btn", html: CMDK, "aria-label": "Command palette (Ctrl or Cmd + K)", title: "Go to, or do (Ctrl K)", "aria-keyshortcuts": "Control+K Meta+K", onclick: () => palette(actions()) })];
+  const always = [searchBox(), helpBtn, bell(model), h("button", { type: "button", class: "btn icon kbd-btn", html: CMDK, "aria-label": "Command palette (Ctrl or Cmd + K)", title: "Go to, or do (Ctrl K)", "aria-keyshortcuts": "Control+K Meta+K", onclick: () => palette(actions()) })];
   right.push(...always);
   right.push(moreMenu(s));
 
@@ -233,7 +235,7 @@ function drawBar(s) {
       h("button", { type: "button", "aria-label": `Remove the ${FILTER_LABEL[k].toLowerCase()} filter`, onclick: () => S.set({ [k]: "" }) }, "×"));
   }));
   // A page with no figures (About) keeps only its title, the bell and the palette.
-  if (NO_DATA.has(s.tab)) bar.replaceChildren(h("div", { class: "bar-row" }, title, h("div", { class: "bar-mid" }), h("div", { class: "bar-right" }, always)));
+  if (NO_DATA.has(s.tab)) bar.replaceChildren(h("div", { class: "bar-row" }, title, h("div", { class: "bar-mid" }), h("div", { class: "bar-right" }, always.filter(Boolean))));
   else bar.replaceChildren(h("div", { class: "bar-row" }, title, h("div", { class: "bar-mid" }, mid), h("div", { class: "bar-right" }, right.filter(Boolean))), chips);
   const open = (model.x?.alerts?.open || []).length;
   badge("health", open, `${open} open alert${open === 1 ? "" : "s"}`);

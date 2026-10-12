@@ -53,6 +53,11 @@ services:
       # Logs sent from other servers or a Vercel/Netlify drain (docs/INGEST.md):
       # SKALD_INGEST=true and SKALD_LOG_DIR=/var/lib/skald/ingest/<SKALD_SITE>.
       SKALD_INGEST: "${SKALD_INGEST:-}"
+      # Keep each visit's IP address, and leads' names and emails (2.4.0). Empty:
+      # on for a new install, off for one upgraded from before 2.4.0. 1 or 0;
+      # full or anonymous. Your privacy notice must say what you keep.
+      SKALD_KEEP_IPS: "${SKALD_KEEP_IPS:-}"
+      SKALD_IDENTITY: "${SKALD_IDENTITY:-}"
       SKALD_DAILY_AT: "${SKALD_DAILY_AT:-07:15}"
       SKALD_BACKUP_AT: "${SKALD_BACKUP_AT:-03:30}"
       SKALD_LIVE_MINUTES: "${SKALD_LIVE_MINUTES:-2}"

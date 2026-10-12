@@ -34,6 +34,7 @@ These pages have guides of their own:
 | Page | Part | Who may change it |
 | --- | --- | --- |
 | Data retention | Detail kept for this site | Admin |
+| Data retention | People (IP addresses, names and emails) | Admin |
 | Data retention | Backups | Install admin |
 | Mail | Reports | Admin |
 | Mail | Mail server (SMTP), Google PageSpeed | Install admin |
@@ -59,10 +60,21 @@ Viewers see the pages read-only.
 | Journeys | Anonymous visits: start time, country, device, source, pages in order | 1 to 90 days | 7 |
 | Returning-visitor matching | How long a visitor can be recognised as returning | 1 to 90 days | 30 |
 | In-page events | Events from the script tag | 30 to 3650 days | 400 |
+| Visits with addresses | Each visit with its IP address and browser (card **People**) | 1 to 3650 days | 395 |
 | Daily backup copies | Copies of the history on the server, for every site | 1 to 60 | 14 |
 | Weekly backup copies | Weekly copies of the history | 0 to 52 | 8 |
 
 Each field says where its value comes from: this site, the organisation, the whole server, the config file, or the default.
+
+### People
+
+The **People** card says what Skald keeps about the people who visit:
+
+- **Keep visitors' IP addresses**: each visit is kept with its IP address, browser, times, pages in order, source, referrer, campaign, country and device. Admins can then look a person up with the search at the top. Off: no address is kept, and the visits already kept with one are deleted at the next nightly run.
+- **Visits with addresses**: how many days those visits are kept. The default is 395.
+- **Leads' names and emails**: **full** keeps a lead's name and email with its conversions; **anonymous** keeps neither.
+
+A new install keeps both. An install that was upgraded from a version before 2.4.0 keeps neither until you turn them on. The field then says "kept off by the upgrade to 2.4.0". Your privacy notice must say what you keep before you turn them on. See [Privacy](privacy.md).
 
 ### Keeping less
 
@@ -172,7 +184,7 @@ Write the summary line yourself and check the links. Then select **Copy** or **D
 - Pick one kind of change in **Action**, or keep **Every action**.
 - Select **Download CSV** to keep a copy.
 
-No password, token, link or address is ever written to the log. Install admins see every organisation's rows.
+No password, token, link or address is ever written to the log. Each person search is written too (`people.search`): what kind of value was searched and a one-way code of it, never the value. So is each conversion marked test or not (`conversions.test`, `conversions.untest`). Install admins see every organisation's rows.
 
 ## Billing
 

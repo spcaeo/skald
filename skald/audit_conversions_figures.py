@@ -81,7 +81,8 @@ def _likely_rows(db, head: str, args: list, site: str):
         ("page", "c.landing", "path"))}
     sql = (head.rstrip() + f", t AS (SELECT b.day AS day, c.action AS action, {pick['src']} AS "
            f"src, {pick['tat']} AS tat, {pick['page']} AS page FROM conversions c JOIN b ON "
-           f"c.at >= b.lo AND c.at < b.hi WHERE c.site = ? AND c.stage IN {_fin()}) "
+           f"c.at >= b.lo AND c.at < b.hi WHERE c.site = ? AND c.test = 0 "
+           f"AND c.stage IN {_fin()}) "
            f"SELECT day, action, src, CASE WHEN tat GLOB {WELL_FORMED} THEN "
            f"CAST(strftime('%s', tat) AS INTEGER) / 60 END, page, COUNT(*) FROM t "
            f"GROUP BY 1, 2, 3, 4, 5")
@@ -110,7 +111,9 @@ def recount(path: Path, site: str, tz, first: date, last: date, now: str,
     action, bucket), ("likely", action, label) and, when the site has
     journeys, ("assisted", action, source)."""
     head, args = _bounds(tz, first, last)
-    join = "FROM conversions c JOIN b ON c.at >= b.lo AND c.at < b.hi WHERE c.site = ? "
+    # A row marked test is never a figure: left out here by this road's own SQL.
+    join = ("FROM conversions c JOIN b ON c.at >= b.lo AND c.at < b.hi WHERE c.site = ? "
+            "AND c.test = 0 ")
     out: dict[str, Counter] = {}
 
     def put(rows, *kind):
@@ -135,7 +138,7 @@ def recount(path: Path, site: str, tz, first: date, last: date, now: str,
         cutoff = (datetime.strptime(now, STAMP) - timedelta(hours=hours)).strftime(STAMP)
         put(q(f"SELECT b.day, c.action, COUNT(*) {join}AND c.stage = 'started' AND c.vid IS "
               f"NOT NULL AND c.at <= ? AND NOT EXISTS (SELECT 1 FROM conversions f WHERE "
-              f"f.site = c.site AND (f.vid = c.vid OR (c.identity_id IS NOT NULL AND "
+              f"f.site = c.site AND f.test = 0 AND (f.vid = c.vid OR (c.identity_id IS NOT NULL AND "
               f"f.identity_id = c.identity_id)) AND f.action = c.action AND f.stage IN "
               f"{_fin()} AND f.at >= c.at AND f.at <= strftime('%Y-%m-%dT%H:%M:%SZ', c.at, "
               f"'+{float(hours)} hours')) GROUP BY 1, 2", (cutoff,)), "abandoned")
@@ -213,7 +216,8 @@ def recount_pages(path: Path, site: str, tz, first: date, last: date) -> dict | 
                           (site,)).fetchone()[0]:
             return None
         conv = (f"WITH conv AS (SELECT vid, MIN(at) AS at FROM conversions WHERE site = ? AND "
-                f"vid IS NOT NULL AND stage IN {_fin()} AND at >= ? AND at < ? GROUP BY vid) ")
+                f"test = 0 AND vid IS NOT NULL AND stage IN {_fin()} AND at >= ? AND at < ? "
+                f"GROUP BY vid) ")
         a = (site, lo, hi, site)
         converting = db.execute(conv + "SELECT COUNT(DISTINCT c.vid) FROM conv c JOIN journeys "
                                 "j ON j.site = ? AND j.vid = c.vid AND j.at <= c.at",

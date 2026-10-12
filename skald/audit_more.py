@@ -43,7 +43,8 @@ from __future__ import annotations
 import importlib
 
 RECOUNTS = {"funnels": "audit_funnels", "engagement": "audit_engagement",
-            "utm_hygiene": "audit_utm", "ai_likely": "audit_ai_likely"}
+            "utm_hygiene": "audit_utm", "ai_likely": "audit_ai_likely",
+            "people": "audit_people"}
 DAILY: dict[str, str] = {"conversions": "audit_conversions"}
 
 

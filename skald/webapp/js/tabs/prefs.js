@@ -13,7 +13,8 @@ import { call } from "./ipmanager.js";
 import { ME, sessions } from "../access.js";
 import { head1, field, input, status, why } from "./forms.js";
 
-const SOURCE = { site: "set for this site", org: "set for the organisation", install: "set for the whole install", config: "from config.yml", default: "the default" };
+const SOURCE = { site: "set for this site", org: "set for the organisation", install: "set for the whole install", config: "from config.yml", default: "the default",
+  upgrade: "kept off by the upgrade to 2.4.0; turn it on once your privacy notice says so" };
 const BASIC = "These settings come with accounts. On this server they are set in config.yml by whoever runs it.";
 
 // One field per setting: get() is the value to save, or undefined when unchanged.
@@ -53,7 +54,7 @@ function control(name, s) {
     return { el: h("div", { class: "af" }, el, note), get };
   }
   if (s.kind === "choice") {
-    el = h("select", { id, disabled: ro }, h("option", { value: "" }, "from the port"), (s.choices || []).map((c) => h("option", { value: c, selected: c === s.value }, c)));
+    el = h("select", { id, disabled: ro }, h("option", { value: "" }, name === "mail.smtp.security" ? "from the port" : "the default"), (s.choices || []).map((c) => h("option", { value: c, selected: c === s.value }, c)));
     get = () => ((el.value || null) === (s.value || null) ? undefined : el.value || null);
   } else if (s.kind === "emails" || s.kind === "hosts") {
     const text = (s.value || []).join("\n");
@@ -175,6 +176,8 @@ export function retention(m) {
   return page("Data retention", "How long the detail is kept. Totals are kept for good.", (all, redraw) => [
     card("Detail kept for this site", "Days of each kind of detail. Totals, page milestones and every day's figures are kept forever and are not a setting.",
       ["report.retention_days", "report.journey_days", "visitors.repeat_days", "beacon.keep_days"], all, m.site, redraw),
+    card("People", "Each visit's IP address and browser, with its pages and times, and the names and emails of leads, so a person can be looked up and followed (the search at the top). Turning IP addresses off deletes the visits kept with them at the next nightly run. Your privacy notice must say what you keep.",
+      ["privacy.keep_ips", "privacy.keep_days", "conversions.identity"], all, m.site, redraw),
     card("Backups", "Copies of the history kept on the server, for every site of the install.", ["backup.daily", "backup.weekly"], all, m.site, redraw),
   ]);
 }

@@ -365,6 +365,9 @@ def preview(c: Ctx, form):
                      (*site_args, *store.DETAIL_KINDS))
     elif name == "report.journey_days":
         got = _count(history, _site_rows("journeys"), site_args)
+    elif name == "privacy.keep_days":    # visits with addresses (conversions.sqlite)
+        from .people.visits import preview as people_preview
+        got = people_preview(c.config, Path(history).parent if history else None, c.site, cutoff)
     elif name == "visitors.repeat_days":
         got = _count(history, _site_rows("visitor_days"), site_args)
     else:                               # beacon.keep_days: the day's counts

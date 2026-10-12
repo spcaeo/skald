@@ -195,7 +195,7 @@ Where the data lives, and for how long.
 | Named users and roles | ✓ [^202] | ✓ [^203] | ✓ [^204] | ? | ✓ [^205] | ✓ [^206] | ? | ✗ [^207] | ? | ◐ [^208] |
 | Two-step sign-in | ✓ [^263] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
 | Audit log of who changed what | ✓ [^264] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
-| Conversions kept without name, email or address <br><sub>Unless the site turns identity on</sub> | ✓ [^265] | not checked | – | – | not checked | not checked | not checked | not checked | not checked | not checked |
+| Conversions with or without name and email <br><sub>The site's choice</sub> | ✓ [^265] | not checked | – | – | not checked | not checked | not checked | not checked | not checked | not checked |
 
 **Retention**
 
@@ -459,7 +459,7 @@ Given no column, to keep the table readable.
 [^189]: **Matomo, runs on your own server**: [Matomo: features](https://matomo.org/features/)
 [^190]: **GoAccess, runs on your own server**: [GoAccess: README](https://github.com/allinurl/goaccess)
 [^191]: **PostHog, runs on your own server**: Supported only on its cloud; self-host is unsupported. [PostHog: self-host](https://posthog.com/docs/self-host)
-[^192]: **Skald, raw requests and addresses**: Your own log, plus a private 6-hour feed. [Skald DATA-CONTRACT](../DATA-CONTRACT.md)
+[^192]: **Skald, raw requests and addresses**: Your own log, plus a private 6-hour feed. Since 2.4.0, if the site keeps them, each visit with its address for 395 days, and one search for a person's visits, leads and conversions (admins only, audit-logged). [Skald DATA-CONTRACT](../DATA-CONTRACT.md)
 [^193]: **Google Analytics 4, raw requests and addresses**: Event-level BigQuery export, no IP; 1M events a day on the free tier. [GA4: BigQuery export schema](https://support.google.com/analytics/answer/7029846); [GA4: BigQuery export limits](https://support.google.com/analytics/answer/9358801)
 [^194]: **Search Console, raw requests and addresses**: Bulk export without anonymised queries. [Search Console: bulk export to BigQuery](https://support.google.com/webmasters/answer/12918484)
 [^195]: **Plausible, raw requests and addresses**: Never stores IPs. [Plausible: data policy](https://plausible.io/data-policy)
@@ -467,7 +467,7 @@ Given no column, to keep the table readable.
 [^197]: **Cloudflare, raw requests and addresses**: GraphQL API, sampled, no IP. [Cloudflare Web Analytics: FAQ](https://developers.cloudflare.com/web-analytics/faq/)
 [^198]: **GoAccess, raw requests and addresses**: [GoAccess: manual](https://goaccess.io/man)
 [^199]: **Known Agents, raw requests and addresses**: CSV on paid plans. [Known Agents: pricing](https://knownagents.com/pricing)
-[^200]: **Skald, deleting one visitor on request**: skald forget --ip for addresses; skald conversions forget --email, --vid or --lead for conversions and journeys. [Skald README](../README.md); [Skald integrations](INTEGRATIONS.md)
+[^200]: **Skald, deleting one visitor on request**: skald forget --ip for an address (its kept visits too); skald forget --email, --vid or --lead for conversions, removed rows and journeys. [Skald README](../README.md); [Skald integrations](INTEGRATIONS.md)
 [^201]: **Matomo, deleting one visitor on request**: GDPR tools. [Matomo: features](https://matomo.org/features/)
 [^202]: **Skald, named users and roles**: Named logins with admin and viewer roles; with accounts switched on, organisations with owner, admin and viewer, invites and password resets by mail. Only admins change settings, and every change records who made it. [Skald accounts](ACCOUNTS.md)
 [^203]: **Google Analytics 4, named users and roles**: [GA4: users and roles](https://support.google.com/analytics/answer/9305788)
@@ -532,9 +532,9 @@ Given no column, to keep the table readable.
 [^262]: **Skald, webhooks out to a crm, zapier or slack**: Signed, https only, never to a private address; retried five times over about 15 hours. Never a name or an email. [Skald integrations](INTEGRATIONS.md)
 [^263]: **Skald, two-step sign-in**: A code from any authenticator app, with one-time recovery codes; an owner can require it. With accounts switched on. [Skald accounts](ACCOUNTS.md)
 [^264]: **Skald, audit log of who changed what**: Sign-ins, invites, roles, tokens, settings; never a password, token or address; CSV export. With accounts switched on. [Skald accounts](ACCOUNTS.md); [Skald settings](SETTINGS.md)
-[^265]: **Skald, conversions kept without name, email or address**: Addresses and user agents are taken out before anything is kept. A site may keep name and email (identity full) if its privacy notice says so. [Skald integrations](INTEGRATIONS.md)
+[^265]: **Skald, conversions with or without name and email**: Addresses, user agents, phones and form answers are taken out before anything is kept. Since 2.4.0 a site keeps the lead's name and email by default (identity full), or none (identity anonymous); an install upgraded from before 2.4.0 keeps none until it is turned on. [Skald integrations](INTEGRATIONS.md)
 [^266]: **Skald, retention windows set in the dashboard**: Detail days, journeys, the returning-visitor window, events and backups. A shorter window says what it will remove, needs the site's name typed, and removes nothing before the next daily run. Totals are kept for good. With accounts switched on. [Skald settings](SETTINGS.md)
-[^267]: **Skald, ai agents can query it**: Thirteen read-only tools over the same files the dashboard reads; visits called an upper bound on people, withheld days named. A token with the mcp scope, or stdio on the server. Off by default. [Skald MCP server](MCP.md)
+[^267]: **Skald, ai agents can query it**: Fourteen read-only tools (find_person only with the read_private scope) over the same files the dashboard reads; visits called an upper bound on people, withheld days named. A token with the mcp scope, or stdio on the server. Off by default. [Skald MCP server](MCP.md)
 [^268]: **Skald, hosted service with sign-up and billing**: Sign-up with a mailed link, plans and limits, Stripe billing. Built and tested, off by default; Skald is not sold as a service today. [Skald as a service](SAAS.md)
 [^269]: **Skald, engagement by source and device**: Pages per visit, the share of one-page visits and the median visit length, for people's visits by source type and by device; counted a second time by its own audit. [Skald DATA-CONTRACT](../DATA-CONTRACT.md)
 [^270]: **Skald, campaign tag problems**: Visits whose landing address has a utm_source with no utm_medium, a medium analytics tools do not know, an ad click ID with no tags, or tags on a link inside the site; counted a second time by its own audit. [Skald DATA-CONTRACT](../DATA-CONTRACT.md)

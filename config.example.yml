@@ -352,7 +352,8 @@ alerts:
 # their recipients, SMTP, backups, a site's hosts, views and time zone. Name a
 # key under settings.locked to keep this file's value: the page then shows it
 # read-only, with the reason. Keys: report.retention_days, report.journey_days,
-# visitors.repeat_days, beacon.keep_days, backup.daily, backup.weekly,
+# visitors.repeat_days, beacon.keep_days, privacy.keep_ips, privacy.keep_days,
+# conversions.identity, backup.daily, backup.weekly,
 # mail.daily, mail.weekly, mail.to, mail.from_name, mail.smtp.host,
 # mail.smtp.port, mail.smtp.security, mail.smtp.user, mail.smtp.password,
 # pagespeed.api_key, sites.hosts, sites.views, sites.timezone, sites.log_dir,
@@ -411,12 +412,26 @@ alerts:
 # same visitor ID and action within abandon_hours counts as abandoned (worked
 # out when a report asks). country_db: the DB-IP .mmdb file for the country.
 # With leads.db set, every lead there is a conversion too (tool "site");
-# from_leads: false turns that off.
+# from_leads: false turns that off. identity: full keeps a lead's name and
+# email with its conversions; anonymous keeps neither. Unset: full on a new
+# install, anonymous on one upgraded from before 2.4.0 (see privacy: below).
 # conversions:
+#   identity: full
 #   abandon_hours: 24
 #   retention_days: 400
 #   country_db: /usr/share/GeoIP/dbip-country-lite.mmdb
 #   from_leads: true
+# People (2.4.0, docs/SETTINGS.md): keep each visit with its IP address, user
+# agent, times, pages in order, source, referrer, country and device, so admins
+# can look a person up (the search at the top of the dashboard). Kept in
+# conversions.sqlite for keep_days, apart from the history; off deletes the
+# site's kept visits at the next daily run. Unset, keep_ips is true on a new
+# install and false on an install upgraded from before 2.4.0 (its history says
+# so), so an upgrade never starts keeping addresses by itself. Turn it on only
+# when the site's privacy notice says so. Docker: SKALD_KEEP_IPS=1 or 0.
+# privacy:
+#   keep_ips: true
+#   keep_days: 395
 # Page views per visitor ID, deleted after vid_days unless the ID converted.
 # journeys:
 #   vid_days: 30

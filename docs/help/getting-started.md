@@ -4,6 +4,15 @@ What Skald counts, how the pages are laid out, and how to choose a period, filte
 
 To look around first, open the [live demo](https://spcaeo.github.io/skald/): the whole dashboard with 60 days of sample data for a made-up site. No sign-up. Saving and the settings pages need a running Skald, so in the demo they say so.
 
+## New here?
+
+Four short guides take you from nothing to a working install:
+
+- [Docker: first install in 10 minutes](docker-first-install.md): run it, sign in, fill the history, check it with `skald doctor`.
+- [Pick your road](pick-your-road.md): which way your leads and bookings should reach Skald, for your kind of site.
+- [Send leads from your backend in 5 minutes](leads-from-your-backend.md): the signed lead hook, with copy-paste examples.
+- [Demo bookings](demo-bookings.md): Calendly and Cal.com, embedded, linked or by webhook, and keeping only your own event types.
+
 ## What Skald counts
 
 Skald reads your web server's own access log. Every request the server answers is one line in that log, so Skald sees every visit, including the ones a browser script never sees: AI assistants, search engines and bots.

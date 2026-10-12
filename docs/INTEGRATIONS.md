@@ -207,9 +207,14 @@ lead there also becomes a conversion, with no change to the website
 | `session_id` | the visitor ID, when it has the shape of one (8 to 80 letters, digits, `_.:-`) |
 
 The file is opened read-only and only those columns are read; names and
-emails only when the site's `conversions.identity` is `full`. Every live run
-(2 minutes) reads the leads changed since the last one (by `updated_at`);
-run-daily reads them all and removes the rows of leads deleted from the CMS.
+emails only when the site's `conversions.identity` is `full` (the default
+since 2.4.0, except on an install upgraded from before it: see Privacy,
+below). Every live run (2 minutes) reads the leads changed since the last
+one (by `updated_at`); run-daily reads them all and removes the rows of
+leads deleted from the CMS. A row a sync takes away (the lead deleted,
+marked spam or duplicate, or changed) is first copied whole into the
+`removed` table, with when and why (`store.remove`): the Conversions page
+lists it under "Removed". Nothing disappears unseen; only `forget` deletes.
 A status the team changes later changes the lead's day ("as known").
 The second count reads the same database by its own SQL
 (`audit_conversions.recount_leads`). Device is never known here (NULL).
@@ -238,21 +243,24 @@ A hook only exists once it has a secret. Without one the address answers 404.
 ## Set up a hook
 
 Nothing to switch on first: the receiver runs on every install (2.2.2; see
-[nginx](#nginx) below). On Docker, run the commands below as
-`docker exec skald skald hooks …`.
+[nginx](#nginx) below). The commands below are `sudo skald ...` on a
+server set up with install.sh, and `docker exec skald skald ...` on
+Docker.
 
 1. Make its secret on the server (it is printed once, and kept 0600 in
-   `secrets.json` beside the history), or on the Integrations page (below):
+   `secrets.json` beside the history), or on the Integrations page (below).
+   It prints the hook's address too, from `hooks.public_url` or
+   `access.base_url` (Docker: `SKALD_BASE_URL`):
 
    ```sh
-   ./bin/skald --config /etc/skald/config.yml hooks secret example.com calendly
+   sudo skald hooks secret example.com calendly
    ```
 
    When the tool makes the secret itself (Stripe's `whsec_...`), give it to
    Skald from standard input, so it never lands in the shell history:
 
    ```sh
-   ./bin/skald --config /etc/skald/config.yml hooks secret example.com stripe --value -
+   sudo skald hooks secret example.com stripe --value -
    ```
 
    Or keep the secret in an environment variable and name it in the config
@@ -266,11 +274,29 @@ Nothing to switch on first: the receiver runs on every install (2.2.2; see
    ```
 
 2. Give the address and the secret to the tool (each tool's steps below).
-3. Send a test: `./bin/skald hooks test example.com calendly` posts a signed
+3. Send a test: `skald hooks test example.com calendly` posts a signed
    sample to the local receiver. A test is checked and read, logged as
-   `test`, and never kept or counted.
-4. `./bin/skald hooks list` shows each hook, where its secret lives (never the
-   secret) and its last deliveries.
+   `test`, and never kept or counted. It prints what a real delivery would
+   keep: the action, stage, time, source, country and device, the visitor ID
+   or "none" (dropped when the site's visitor IDs are off, as the real path
+   drops it), a time without an offset read in the site's zone, and
+   "ignored: other event type" when the site keeps other Calendly or Cal.com
+   event types only (below).
+4. `skald hooks list` shows each hook, where its secret lives (never the
+   secret) and its last deliveries. `skald doctor` says, per hook:
+   needs a secret, never received, ready (a test passed), or last received
+   N ago, and what to fix when the last delivery was refused.
+
+### From the same server (a CDN in front)
+
+When the site's own backend runs on the same server as Skald and the site
+sits behind Cloudflare or another proxy, post to Skald's local address, not
+the public one: Cloudflare can refuse a server posting to its own public
+address (403, error 1010, a bot check). Docker: the port you published,
+`http://127.0.0.1:8080/traffic-hooks/<site>/<tool>`. A server set up with
+install.sh: the beacon helper itself, `http://127.0.0.1:8766/traffic-hooks/<site>/<tool>`.
+The signature is the same. Or allow the path `/traffic-hooks/` in the CDN's
+bot rules. The how-to: docs/help/leads-from-your-backend.md.
 
 ## What the receiver answers
 
@@ -348,7 +374,7 @@ curl -sS -X POST 'https://www.example.com/traffic-hooks/example.com/lead' \
 | `external_ref` | required | the lead's own id in the site |
 | `action` | required | what was done, a lowercase token: `demo`, `trial`, `contact` |
 | `stage` | default `completed` | `started`, `completed`, `cancelled`, `rescheduled`, `no_show`, `paid`, `won`, `lost` (a `won` or `lost` row stands on its own and counts on its own `at`) |
-| `at` | default: when it arrived | ISO time or Unix seconds |
+| `at` | default: when it arrived | ISO time with its offset (`2026-09-25T14:30:00-04:00`, `...Z`) or Unix seconds. A time without an offset (`2026-09-25`, `2026-09-25T08:00:00`) is read in the site's time zone (2.4.0; before, as UTC, which put a bare date on the day before for a site west of UTC); the delivery log says so, and so does the hook test. The same for `first_touch_at` and a touch's `at` |
 | `vid` | | the visitor ID the page had (`skv_...`, or the site's own ID). Kept only when the site has visitor IDs on (`beacon.visitor_ids`); off, it is dropped from the spool and the store (2.2.3) |
 | `first_touch`, `last_touch` | | `{referrer, landing, utm_source, utm_medium, utm_campaign, utm_content, utm_term, gclid, msclkid, fbclid, li_fat_id, at}` |
 | `landing`, `campaign`, `source` | | when the site worked them out itself (`source` one of Skald's source types) |
@@ -379,6 +405,30 @@ A signing key Calendly made for an existing subscription can be pasted on
 the Integrations page instead.
 Events: `invitee.created` -> completed, `invitee.canceled` -> cancelled
 (rescheduled when Calendly says so), `invitee_no_show.created` -> no_show.
+
+**Only some event types (2.4.0).** One Calendly account often books for
+several businesses, and a Calendly subscription cannot be limited to some
+event types. Name the site's own in Settings > Integrations > Calendly
+("Only these Calendly event types"), a settings row for the site
+(`hooks.calendly.event_types`), or in the config:
+
+```yaml
+hooks:
+  calendly_event_types: [https://api.calendly.com/event_types/AAAA1111, product-demo]
+  # calendly: {event_types: [...]}      # the nested form, with PyYAML
+```
+
+Each item is an event type's URI (`GET https://api.calendly.com/event_types`
+lists them), its uuid, or the booking page's slug (or the page's address,
+`https://calendly.com/<you>/<slug>`). Calendly's webhook names the event type
+by its URI and its name, never the page's slug, so a slug is compared with
+the name written as a slug ("Product demo" -> `product-demo`): a renamed
+event type no longer matches its old slug, its URI always does. When the
+list is set, an event of another type is answered 200, logged as `ignored`
+with "other event type (<its URI>)" so it can be copied into the list, and
+nothing else: no spool line, no row. A no-show names only its invitee: it is
+kept when that booking is kept. An empty list keeps every event, as before.
+Code: `conversions/event_types.py`, applied before the spool.
 Pass the visitor ID in the embed as `utm_content` (Calendly returns the UTM
 fields in the webhook): `https://calendly.com/<you>/<event>?utm_content=skv_...`.
 
@@ -388,6 +438,10 @@ Settings > Developer > Webhooks > New. Subscriber URL: the hook address.
 Event triggers: Booking Created, Booking Cancelled, Booking Rescheduled.
 Secret: the hook secret. Pass the visitor ID in the embed as
 `metadata[skv]=skv_...` (or a hidden booking question named `skv`).
+Only some event types: `hooks.calcom.event_types` (Settings > Integrations >
+Cal.com, or `hooks: {calcom_event_types: [...]}`), each an event type's id
+(`1234`) or slug (`30min`, or the page's address); Cal.com sends both. The
+rest works as for Calendly above.
 
 ### Stripe
 
@@ -445,13 +499,26 @@ the install. Code: `skald/integrations_api.py`, page
   consent, share across subdomains, other domains you own, accept the ID
   from your other domains). It says whether
   anonymous visitor IDs are on for the site (`beacon.visitor_ids`).
-- **Incoming hooks**: for each tool its address, whether its secret is set
+- **Status** (2.4.0), on top: the doctor's lines for the roads in
+  (`doctor.integration_checks`): the hook receiver answering, the script tag
+  (its origins and its last event), each hook set up, one lead from two
+  tools, the lead database; each OK, NEEDS ATTENTION with the fix, or OFF.
+  The GET answer carries them as `status`, and `duplicates`: each external
+  ref that arrived from two tools (the script tag's own rows apart). Each tool
+  keeps its own row, so such a lead counts once per tool: send each lead
+  through one road.
+- **Incoming hooks**: for each tool its address, its state in words (needs a
+  secret, never received, ready, last received N ago, or the last delivery
+  refused and why: `conversions/roads.py`), whether its secret is set
   (and whether it comes from the server's environment), **Make secret** or
   **Rotate secret** (shown once, kept 0600 in `secrets.json`; a rotated
   secret replaces the old one at once), **Send a test event** (a signed
   sample posted to the receiver inside the helper: checked, read, logged as
-  `test`, never kept or counted), and the last 50 deliveries with their
-  outcome. A secret held in an environment variable is changed there, not
+  `test`, never kept or counted; the message says what a real one would
+  keep), and the last 50 deliveries with their outcome. Calendly and Cal.com
+  also have **Only these event types** (`POST integrations/hooks/types`
+  `{site, tool, types}`; `[]` keeps every event; admins; audit log
+  `setting.change`). A secret held in an environment variable is changed there, not
   on the page (make, paste and remove answer 409).
 - **Paste the signing secret from <tool>** (`POST integrations/hooks/paste`
   `{site, tool, secret}`): for tools that sign with a secret they make.
@@ -588,36 +655,61 @@ Run `nginx -t` before every reload.
 | page views per visitor ID (beacon `page_view` with visitor IDs on) | same file, `journeys` | `journeys.vid_days` (30), longer only for IDs that converted |
 | conversions from the beacon (tool `beacon`, docs/BEACON.md "Visitor IDs") | same file, `conversions` | as conversions |
 | name and email | same file, `identities` | only when `conversions.identity: full`; else never written |
+| rows a lead sync took away, whole, with when and why | same file, `removed` | as conversions |
+| each visit with its IP address and user agent (2.4.0, `privacy.keep_ips`) | same file, `visits`, `visit_days` | `privacy.keep_days` (395) |
 | delivery log: time, outcome, HTTP status, error, external ref; never a body | same file, `deliveries` | 90 days |
-| the verified bodies | `hooks/<day>.jsonl` beside the history (`hooks.spool`), 0640 | 400 days |
+| the verified bodies (and, on a `lead` or `json` line with a time without an offset, the zone it was read in) | `hooks/<day>.jsonl` beside the history (`hooks.spool`), 0640 | 400 days |
 | hook secrets | `secrets.json` beside the history (`hooks.secrets`), 0600, or env variables | until replaced |
 
-- **Anonymous by default.** Before a body is spooled, Skald keeps only the
+- **Only what counts.** Before a body is spooled, Skald keeps only the
   keys that tool's adapter and the second count read (an allow-list per tool,
   `conversions.SPOOL_KEYS`); everything else goes. Addresses, user agents,
   phones, extra emails and Calendly's cancel and reschedule links always go.
-  With `conversions.identity: full` (per site) the name and the primary
-  `email` are kept, nothing more. A site that turns this on must say so
-  in its privacy notice, and may need consent first (`beacon.consent: required`).
-- **No IP matching.** The receiver reads the caller's address only to
-  limit failed signatures, in memory; it is never written. A
-  site's own `lead` may pass the visitor's address once, for the country;
-  it is dropped at once.
+  With `conversions.identity: full` the name and the primary `email` are
+  kept, nothing more; with `anonymous`, neither.
+- **Identity: full by default (2.4.0).** Unset, a new install reads `full`.
+  An install whose history predates 2.4.0 reads `anonymous` until someone
+  sets it (Settings > Data retention > People, `config.yml`, or Docker
+  `SKALD_IDENTITY=full`): its privacy notice may still promise otherwise
+  (`people/policy.py`). Change the notice first; some places need consent
+  (`beacon.consent: required`).
+- **Addresses.** The receiver reads the caller's address only to limit
+  failed signatures, in memory; it is never written. A site's own `lead`
+  may pass the visitor's address once, for the country; it is dropped at
+  once. A conversion holds no address: a person's visits are linked to a
+  lead by the person search (people/lookup.py), through a visitor ID, an
+  email, or the visits that sent a form within 2 minutes of the lead
+  (matched by time, said as not certain).
+- **Test marks.** `./bin/skald conversions list SITE [--test]` shows the latest
+  rows with their ids; `./bin/skald conversions mark-test SITE ID... [--unmark]`
+  marks them test (every row of the same tool and reference, so a booking's
+  later stages too). A test row is kept and listed (Leads > Left out,
+  Conversions > Marked test), never counted: not in `conversions.json`, not
+  abandoned, and the second count leaves it out by its own SQL. Each change
+  is a row in the accounts audit log (`conversions.test`, `conversions.untest`).
 - **Delete on request:** `./bin/skald conversions forget --email ADDRESS`,
-  `--vid skv_...` or `--lead REF` (try `--dry-run` first) deletes the
-  conversions, the journeys of every visitor ID involved, the identity, the
-  delivery rows and the spool lines. `privacy.log` gets a line with a hash
+  `--vid skv_...` or `--lead REF` (or `./bin/skald forget` with the same flags;
+  try `--dry-run` first) deletes the conversions, the removed rows, the
+  journeys of every visitor ID involved, the identity, the delivery rows and
+  the spool lines. `./bin/skald forget --ip` deletes the visits kept with an
+  address. `privacy.log` gets a line with a hash
   prefix, never the value.
-- **Pruning:** `./bin/skald conversions prune` (add it to the daily cron).
+- **Pruning:** `skald conversions prune` (add it to the daily cron).
 
 ## The second count
 
 `audit_conversions.py` reads the spool on its own, maps each tool's events
 with its own code, removes repeats the same way, and counts conversions per
-day by action and stage. It reads the beacon spool too (people's events with
+day by action and stage. A time without an offset is read in the zone the
+spool line names (`zone`, written by the receiver since 2.4.0), else as UTC,
+the way that line was kept. An event the event-type filter left out was never
+spooled, so neither road counts it. It reads the beacon spool too (people's events with
 a visitor ID, one per ID, action and stage within 30 minutes), with its own
 parsing, for the conversions the beacon made, and the lead database by its
-own SQL (above). run-daily compares the last 30 days
+own SQL (above). Rows marked test are left out of every road: the audit
+reads their tool and reference from `conversions.sqlite` by its own SQL
+(`audit_conversions.test_keys`) and skips them in the spool, the beacon and
+the lead recounts. run-daily compares the last 30 days
 (`conversions.audit_days`) with `conversions.sqlite`; a day that disagrees
 is withheld and run-daily ends "withheld". The beacon's counts of whole
 days are kept in the audit's own file (`conversions-audit.json` beside the

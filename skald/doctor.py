@@ -1,0 +1,509 @@
+"""`skald doctor`: is this install working? One line per part, OK or NEEDS
+ATTENTION, and the fix in plain words. OFF is a part that is not in use.
+
+    skald doctor [--json] [--send-test]      (Docker: docker exec skald skald doctor)
+
+The parts, in order:
+
+    daily run      runs.json: run-daily ran in the last 26 hours, and did not fail
+                   or stop on a day that does not reconcile
+    days stored    the last 14 days (from the first day stored): none missing, none
+                   withheld; the backfill command when some are
+    access log     logs.dir/logs.base there, readable, written in the last day
+    page assets    a request for site.asset_prefixes (default /_next/static/) in the
+                   log's last lines: without one no browser counts as a person
+    web app        dashboard.app on
+    hook receiver  the beacon helper answers on its port (127.0.0.1:8766)
+    hook <tool>    each hook set up: its secret, its last delivery (roads.py)
+    one lead, two tools   an external ref that arrived from two tools counts twice
+    script tag     beacon.origins, the helper serving the file, the last event
+    lead database  leads.db readable (only when set)
+    mail           the mail settings are complete; nothing is sent unless --send-test
+    version        a newer release, from updates.json only: never the network
+    disk           free space where the history lives
+
+Every check reads only (--send-test sends one mail to the recipients). A
+check that fails to run is reported as NEEDS ATTENTION with its error, never
+as OK. Exit status: 0 when nothing needs attention, 1 otherwise. --json
+prints the same list as JSON, one object per site (Settings > Integrations
+shows the integration lines through integration_checks()).
+"""
+from __future__ import annotations
+
+import json
+import os
+import shutil
+from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
+
+from .config import setting
+
+OK, ATTENTION, OFF = "OK", "NEEDS ATTENTION", "OFF"
+DAYS = 14
+LATE_HOURS = 26
+TAIL_BYTES = 512 * 1024
+QUIET_HOURS = 48                 # the script tag: no event for this long
+DISK_MIN_BYTES = 1 << 30
+DISK_MIN_SHARE = 0.05
+
+
+def item(ident: str, part: str, state: str, says: str, fix: str | None = None) -> dict:
+    return {"id": ident, "part": part, "state": state, "says": says, "fix": fix}
+
+
+def in_docker() -> bool:
+    return Path("/.dockerenv").exists()
+
+
+def command(config_path=None) -> str:
+    """How this install's owner runs a command, for the fixes."""
+    if in_docker():
+        return "docker exec skald skald"
+    if Path("/usr/local/bin/skald").exists():
+        return "sudo skald"
+    return f"./bin/skald --config {config_path}" if config_path else "./bin/skald"
+
+
+def _ago(then, now) -> str:
+    from .conversions.roads import ago
+    return ago(then, now)
+
+
+def _when(text) -> datetime | None:
+    try:
+        got = datetime.fromisoformat(str(text).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    return got if got.tzinfo else got.replace(tzinfo=timezone.utc)
+
+
+# ------------------------------------------------------------------ runs
+
+def daily_run(live_dir, now: datetime, cmd: str) -> dict:
+    from . import runs
+    part = "Daily run"
+    got = runs.load(Path(live_dir)).get("run-daily")
+    if not got:
+        return item("daily_run", part, ATTENTION, "has never run here",
+                    f"Run it once: `{cmd} run-daily`. Docker runs it every day by itself; an "
+                    "install-script server runs it from /etc/cron.d/skald.")
+    times = [t for t in (_when(got.get("last_ok")), _when(got.get("last_fail"))) if t]
+    last = max(times) if times else None
+    if last is None:
+        return item("daily_run", part, ATTENTION, "runs.json has no time for it",
+                    f"Run `{cmd} run-daily`.")
+    when = _ago(last.isoformat(), now)
+    outcome = got.get("last_outcome") or ("ok" if got.get("last_exit") == 0 else "failed")
+    if now - last > timedelta(hours=LATE_HOURS):
+        return item("daily_run", part, ATTENTION, f"last ran {when}: it did not run today",
+                    f"Check the schedule (Docker: `docker logs skald`; a server: "
+                    f"/etc/cron.d/skald), then run `{cmd} run-daily`.")
+    if outcome == "failed":
+        return item("daily_run", part, ATTENTION, f"failed {when}",
+                    f"Run `{cmd} run-daily` to see the error (the failure mail has it too).")
+    if outcome == "withheld":
+        return item("daily_run", part, ATTENTION,
+                    f"stopped on purpose {when}: a day's figures did not reconcile",
+                    f"`{cmd} audit --day yesterday` shows what differs.")
+    if outcome == "waiting":
+        return item("daily_run", part, OK, f"ran {when}; the site waits for its first log lines")
+    return item("daily_run", part, OK, f"ran {when}")
+
+
+def days_stored(config: dict, history_path, site: str, tz, now: datetime, live_dir,
+                cmd: str) -> dict:
+    """The last DAYS days, from the first day stored: missing and withheld."""
+    from . import runs
+    from .store import History
+    part = "Days stored"
+    fix_all = f"`{cmd} backfill --days {DAYS}` stores the days the logs still hold."
+    path = Path(history_path)
+    if not path.is_file():
+        if (config or {}).get("_dashboard_site"):
+            return item("days", part, OK, "none yet: the site waits for its first log lines")
+        return item("days", part, ATTENTION, "no day stored yet", fix_all)
+    history = History.reader(path)
+    try:
+        first = history.first_day(site)
+        if first is None:
+            if (config or {}).get("_dashboard_site"):
+                return item("days", part, OK, "none yet: the site waits for its first log lines")
+            return item("days", part, ATTENTION, "no day stored yet", fix_all)
+        today = now.astimezone(tz).date()
+        last = today - timedelta(days=1)
+        span = [last - timedelta(days=i) for i in range(DAYS - 1, -1, -1)]
+        span = [d for d in span if d >= first]
+        states = {d: history.state(site, d) for d in span}
+    finally:
+        history.close()
+    # Yesterday comes with today's daily run: not missing before it ran.
+    ran = runs.load(Path(live_dir)).get("run-daily") or {}
+    stamps = [t for t in (_when(ran.get("last_ok")), _when(ran.get("last_fail"))) if t]
+    midnight = datetime.combine(today, datetime.min.time(), tzinfo=tz)
+    later = states.get(last) is None and not (stamps and max(stamps) >= midnight)
+    missing = [d for d, s in states.items() if s is None and not (later and d == last)]
+    held = [d for d, s in states.items() if s == "withheld"]
+    if not missing and not held:
+        note = "; yesterday comes with today's daily run" if later else ""
+        return item("days", part, OK, f"the last {len(span)} days are stored{note}")
+    words = []
+    if missing:
+        words.append(f"{len(missing)} missing ({_dates(missing)})")
+    if held:
+        words.append(f"{len(held)} withheld ({_dates(held)})")
+    back = (last - min(missing + held)).days + 1
+    fix = (f"`{cmd} backfill --days {back}` collects them again from the logs, while the logs "
+           "still hold them.")
+    if held:
+        fix += f" `{cmd} audit --day {held[-1].isoformat()}` says why a day was withheld."
+    return item("days", part, ATTENTION, ", ".join(words), fix)
+
+
+def _dates(days: list[date]) -> str:
+    shown = ", ".join(d.isoformat() for d in days[:5])
+    return shown + (f" and {len(days) - 5} more" if len(days) > 5 else "")
+
+
+# ------------------------------------------------------------------ logs
+
+def _log_path(config: dict) -> tuple[Path, Path]:
+    logs = (config or {}).get("logs") or {}
+    folder = Path(str(logs.get("dir") or "/var/log/nginx"))
+    return folder, folder / str(logs.get("base") or "access.log")
+
+
+def access_log(config: dict, now: datetime, cmd: str) -> dict:
+    part = "Access log"
+    folder, path = _log_path(config)
+    if not folder.is_dir():
+        return item("logs", part, ATTENTION, f"the folder {folder} is not there",
+                    "Set logs.dir to the folder the web server writes its access log in "
+                    "(Docker: mount that folder at /logs).")
+    if not path.exists():
+        return item("logs", part, ATTENTION, f"{path} is not there",
+                    "Set logs.base to the log's file name (access.log by default).")
+    try:
+        with open(path, "rb") as handle:
+            handle.read(1)
+    except OSError as why:
+        return item("logs", part, ATTENTION, f"{path} cannot be read ({type(why).__name__})",
+                    "Let Skald's user read it: it is in the group adm, which reads "
+                    "/var/log/nginx on Ubuntu and Debian. Check with `sudo -u skald "
+                    f"head -1 {path}`.")
+    written = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc)
+    if now - written > timedelta(hours=24):
+        return item("logs", part, ATTENTION,
+                    f"{path} is readable but was last written {_ago(written.isoformat(), now)}",
+                    "Is this the site's live log? Check logs.dir and logs.base, and that the "
+                    "web server writes there.")
+    return item("logs", part, OK,
+                f"{path} is readable, last written {_ago(written.isoformat(), now)}")
+
+
+def page_assets(config: dict) -> dict:
+    """A request for one of the site's asset prefixes in the log's last
+    lines: the evidence that a browser drew a page (rendering.py)."""
+    from . import rendering
+    part = "Page assets"
+    if not rendering.required(config):
+        return item("assets", part, OFF, "not needed (site.require_rendering: false)")
+    prefixes = rendering.asset_prefixes(config)
+    folder, path = _log_path(config)
+    tail = b""
+    for one in (path, folder / f"{path.name}.1"):
+        try:
+            with open(one, "rb") as handle:
+                size = handle.seek(0, os.SEEK_END)
+                handle.seek(max(0, size - TAIL_BYTES))
+                tail += handle.read()
+        except OSError:
+            continue
+        if len(tail) >= TAIL_BYTES:
+            break
+    if not tail:
+        return item("assets", part, OFF, "cannot check: the log is empty or not readable")
+    seen = [p for p in prefixes if p.encode() in tail] or (
+        ["?_rsc="] if b"_rsc=" in tail else [])
+    if seen:
+        return item("assets", part, OK, f"requests for {seen[0]} seen in the log")
+    return item("assets", part, ATTENTION,
+                f"no request for {', '.join(prefixes) or 'the asset prefixes'} in the log's "
+                "last lines: a visit counts as people only when its browser fetched one",
+                "Set site.asset_prefixes (Docker: SKALD_ASSET_PREFIXES) to where your pages "
+                "load their scripts and styles (WordPress: /wp-content/ and /wp-includes/; "
+                "many sites: /assets/ or /static/), "
+                "or site.require_rendering: false when they come from a CDN this log never sees.")
+
+
+# ------------------------------------------------------------- the parts
+
+def web_app(config: dict) -> dict:
+    on = ((config or {}).get("dashboard") or {}).get("app", True) not in (
+        False, "false", "no", "off", 0)
+    if on:
+        return item("app", "Web app", OK, "on")
+    return item("app", "Web app", ATTENTION, "off: the dashboard is a plain page with no menu",
+                "Remove `app: false` from the dashboard section of the config.")
+
+
+def receiver(config: dict, state: dict) -> dict:
+    from .conversions.roads import HELPER_URL
+    url = str(setting(config, "hooks", "test_url") or HELPER_URL).rstrip("/")
+    if state.get("up"):
+        return item("receiver", "Hook receiver", OK, f"the beacon helper answers on {url}")
+    fix = ("It runs inside the container: `docker logs skald` shows why it stopped."
+           if in_docker() else "`sudo systemctl status skald-beacon`; start it with "
+                               "`sudo systemctl enable --now skald-beacon`.")
+    return item("receiver", "Hook receiver", ATTENTION,
+                f"the beacon helper does not answer on {url} ({state.get('error')}): "
+                "hooks and the script tag get no answer", fix)
+
+
+def base_url(config: dict) -> str:
+    """Where the tools reach this install: hooks.public_url, else access.base_url."""
+    for got in (setting(config, "hooks", "public_url"), setting(config, "access", "base_url")):
+        if got:
+            return str(got).rstrip("/")
+    return ""
+
+
+def hook_items(site_config: dict, folder, site: str, now: datetime, cmd: str) -> list[dict]:
+    from .conversions import event_types, roads, store
+    base = base_url(site_config) or "https://<your site>"
+    path = store.path_for(site_config, Path(folder))
+    db = store.connect(path) if path is not None and Path(path).exists() else None
+    try:
+        states = roads.hook_states(site_config, folder, site, db, now, cmd, base)
+        twice = roads.duplicates(db, site)
+    finally:
+        if db is not None:
+            db.close()
+    out = []
+    for s in states:
+        if s["state"] == "needs_secret":
+            continue
+        words = s["words"]
+        listed = event_types.wanted(site_config, site, s["tool"], folder)
+        if listed:
+            words += f"; keeps {len(listed)} event type{'s' if len(listed) != 1 else ''} only"
+        out.append(item(f"hook:{s['tool']}", f"Hook {s['name']}",
+                        ATTENTION if s["attention"] else OK, words, s["fix"]))
+    if not out:
+        out.append(item("hooks", "Hooks", OFF, "no hook set up",
+                        f"To add one: `{cmd} hooks secret {site} <tool>` (or Settings > "
+                        "Integrations), then give its address and secret to the tool."))
+    if twice:
+        shown = "; ".join(f"{d['ref']} ({' and '.join(d['tools'])})" for d in twice[:3])
+        out.append(item("duplicates", "One lead, two tools", ATTENTION,
+                        f"{len(twice)}{'+' if len(twice) >= 20 else ''} external ref"
+                        f"{'s' if len(twice) != 1 else ''} arrived from two tools and count "
+                        f"once per tool: {shown}",
+                        "Send each lead through one road only (for example the lead "
+                        "database or the lead hook, not both)."))
+    return out
+
+
+def script_tag(config: dict, state: dict, live_dir, now: datetime, config_path=None) -> dict:
+    from .beacon import spool_dir
+    part = "Script tag"
+    origins = setting(config, "beacon", "origins") or []
+    origins = [origins] if isinstance(origins, str) else list(origins)
+    if not origins and state.get("script") is not True:
+        return item("script", part, OFF, "not set up (no beacon.origins); hooks work without it",
+                    "To add it: set beacon.origins (Docker: SKALD_BEACON_ORIGINS) to the site's "
+                    "address, then put the tag from Settings > Integrations on every page.")
+    shown = ", ".join(origins) or "the helper's --origin"
+    if state.get("up") and state.get("script") is False:
+        return item("script", part, ATTENTION,
+                    f"origins {shown}, but the helper does not serve /traffic-js/skald.js",
+                    "Restart the beacon helper after setting beacon.origins.")
+    spool = spool_dir(config, config_path, live_dir)
+    files = sorted(Path(spool).glob("*.jsonl")) if Path(spool).is_dir() else []
+    if not files:
+        return item("script", part, ATTENTION, f"origins {shown}; no event has arrived yet",
+                    "Put the tag on every page, from one of these origins. nginx must send "
+                    "/traffic-beacon and /traffic-js/ to the helper (docs/INTEGRATIONS.md).")
+    last = datetime.fromtimestamp(files[-1].stat().st_mtime, timezone.utc)
+    when = _ago(last.isoformat(), now)
+    if now - last > timedelta(hours=QUIET_HOURS):
+        return item("script", part, ATTENTION, f"origins {shown}; the last event came {when}",
+                    "Is the tag still on the pages? Open a page and look for a request to "
+                    "/traffic-beacon in the browser's network panel.")
+    return item("script", part, OK, f"origins {shown}; the last event came {when}")
+
+
+def lead_database(config: dict) -> dict | None:
+    from . import leads
+    path = leads.db_path(config)
+    if path is None:
+        return None
+    try:
+        db = leads.connect(path)
+        try:
+            db.execute("SELECT COUNT(*) FROM submissions").fetchone()
+        finally:
+            db.close()
+    except Exception as why:            # noqa: BLE001 - said, never raised
+        return item("leads", "Lead database", ATTENTION,
+                    f"{path} cannot be read ({type(why).__name__}: {str(why)[:120]})",
+                    "Check leads.db and that Skald's user may read the file. Only SQLite "
+                    "is read; for Postgres or MySQL use the signed lead hook.")
+    return item("leads", "Lead database", OK, f"{path} is readable")
+
+
+def mail(config: dict, send_test: bool = False) -> dict:
+    from . import mailer
+    part = "Mail"
+    section = (config or {}).get("mail") or {}
+    if not section.get("host"):
+        return item("mail", part, OFF, "no SMTP server set (mail.host)",
+                    "Settings > Mail, or the mail section of the config.")
+    try:
+        cfg = mailer.settings(config)
+    except mailer.Refused as why:
+        return item("mail", part, ATTENTION, f"cannot send: {why}",
+                    "Settings > Mail, or the mail section of the config.")
+    if not send_test:
+        return item("mail", part, OK, f"set up: {cfg['host']}:{cfg['port']} to "
+                    f"{len(cfg['to'])} recipient{'s' if len(cfg['to']) != 1 else ''} "
+                    "(not sent; --send-test sends one)")
+    import smtplib
+    try:
+        now = datetime.now(timezone.utc)
+        words = "This is a test mail from the doctor. If you can read it, the mail works."
+        msg = mailer._message(cfg, "Test mail from the doctor", words,
+                              f"<html><body><p>{words}</p></body></html>", now)
+        mailer.send(msg, cfg)
+    except (OSError, smtplib.SMTPException) as why:
+        return item("mail", part, ATTENTION, f"the test mail did not go: {type(why).__name__}: "
+                    f"{str(why)[:160]}", "Check the SMTP server, port, security and login.")
+    return item("mail", part, OK, f"a test mail went to {', '.join(cfg['to'])}")
+
+
+def version(config: dict, folder, now: datetime, cmd: str) -> dict:
+    from . import updates
+    part = "Version"
+    current = updates.current_version() or "unknown"
+    if not updates.settings(config)["check"]:
+        return item("version", part, OFF, f"{current}; update checks are off (updates.check)")
+    state = updates.read(folder)
+    found = updates.notice(config, folder, current)
+    if found:
+        how = "Docker: pull the new image and start it again (docs/UPGRADING.md)" \
+            if in_docker() else f"`{cmd} upgrade --dry-run`, then `{cmd} upgrade`"
+        return item("version", part, ATTENTION, updates.headline(found), how + ".")
+    if not state.get("checked_at"):
+        return item("version", part, OK, f"{current}; not asked yet (the daily run asks "
+                    "GitHub once a day)")
+    return item("version", part, OK, f"{current}, up to date (asked "
+                f"{_ago(state['checked_at'], now)})")
+
+
+def disk(folder) -> dict:
+    try:
+        got = shutil.disk_usage(folder)
+    except OSError as why:
+        return item("disk", "Disk", ATTENTION, f"cannot read: {why}")
+    free, share = got.free, got.free / got.total if got.total else 0
+    says = f"{free / (1 << 30):.1f} GB free ({share:.0%}) where the history lives"
+    if free < DISK_MIN_BYTES or share < DISK_MIN_SHARE:
+        return item("disk", "Disk", ATTENTION, says,
+                    "Free some space: old backups (backup.daily, backup.weekly) and logs go "
+                    "first. Skald stops writing when the disk is full.")
+    return item("disk", "Disk", OK, says)
+
+
+# ------------------------------------------------------------ all of them
+
+def _safe(ident: str, part: str, fn, *args) -> list[dict]:
+    try:
+        got = fn(*args)
+    except Exception as why:            # noqa: BLE001 - a check that breaks says so
+        return [item(ident, part, ATTENTION, f"could not check: {type(why).__name__}: "
+                     f"{str(why)[:160]}")]
+    if got is None:
+        return []
+    return got if isinstance(got, list) else [got]
+
+
+def checks(ctx, send_test: bool = False, helper_state: dict | None = None) -> list[dict]:
+    """Every part for one site (a cli.Context)."""
+    from .conversions.roads import HELPER_URL, helper
+    config, now, cmd = ctx.config, ctx.now.astimezone(timezone.utc), command(ctx.config_path)
+    folder = Path(ctx.db_path).parent
+    state = helper_state if helper_state is not None else \
+        helper(str(setting(config, "hooks", "test_url") or HELPER_URL))
+    out = []
+    out += _safe("daily_run", "Daily run", daily_run, ctx.live_dir, now, cmd)
+    out += _safe("days", "Days stored", days_stored, config, ctx.db_path, ctx.site, ctx.tz,
+                 now, ctx.live_dir, cmd)
+    out += _safe("logs", "Access log", access_log, config, now, cmd)
+    out += _safe("assets", "Page assets", page_assets, config)
+    out += _safe("app", "Web app", web_app, config)
+    out += _safe("receiver", "Hook receiver", receiver, config, state)
+    out += _safe("hooks", "Hooks", hook_items, config, folder, ctx.site, now, cmd)
+    out += _safe("script", "Script tag", script_tag, config, state, ctx.live_dir, now,
+                 ctx.config_path)
+    out += _safe("leads", "Lead database", lead_database, config)
+    out += _safe("mail", "Mail", mail, config, send_test)
+    out += _safe("version", "Version", version, config, folder, now, cmd)
+    out += _safe("disk", "Disk", disk, folder)
+    return out
+
+
+def integration_checks(site_config: dict, folder, site: str, live_dir=None,
+                       now: datetime | None = None, config_path=None) -> list[dict]:
+    """The lines Settings > Integrations shows: the receiver, the script tag,
+    each hook, one lead from two tools, the lead database."""
+    from .conversions.roads import HELPER_URL, helper
+    now = now or datetime.now(timezone.utc)
+    cmd = command(config_path)
+    state = helper(str(setting(site_config, "hooks", "test_url") or HELPER_URL))
+    out = []
+    out += _safe("receiver", "Hook receiver", receiver, site_config, state)
+    out += _safe("script", "Script tag", script_tag, site_config, state,
+                 live_dir if live_dir is not None else folder, now, config_path)
+    out += _safe("hooks", "Hooks", hook_items, site_config, folder, site, now, cmd)
+    out += _safe("leads", "Lead database", lead_database, site_config)
+    return out
+
+
+def report(site: str, found: list[dict]) -> dict:
+    from . import updates
+    return {"site": site, "version": updates.current_version(),
+            "checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "attention": sum(1 for f in found if f["state"] == ATTENTION), "checks": found}
+
+
+def lines(site: str, found: list[dict]) -> list[str]:
+    from . import updates
+    out = [f"doctor for {site} (version {updates.current_version() or 'unknown'})"]
+    width = len(ATTENTION)
+    for f in found:
+        out.append(f"{f['state']:<{width}}  {f['part']}: {f['says']}")
+        if f["fix"] and f["state"] != OK:
+            out.append(f"{'':<{width}}  fix: {f['fix']}")
+    n = sum(1 for f in found if f["state"] == ATTENTION)
+    out.append("nothing needs attention" if not n else
+               f"{n} part{'s' if n != 1 else ''} need{'' if n != 1 else 's'} attention")
+    return out
+
+
+def cmd_doctor(ctx) -> int:
+    found = checks(ctx, send_test=ctx.args.send_test)
+    if ctx.args.json:
+        ctx.out(json.dumps(report(ctx.site, found), sort_keys=True))
+    else:
+        for line in lines(ctx.site, found):
+            ctx.out(line)
+    return 1 if any(f["state"] == ATTENTION for f in found) else 0
+
+
+def add_command(sub) -> None:
+    p = sub.add_parser("doctor", help="is this install working? one line per part, with "
+                       "the fix (reads only; --send-test sends one mail)")
+    p.add_argument("--json", action="store_true", help="the same list as JSON, one object "
+                   "per site")
+    p.add_argument("--send-test", dest="send_test", action="store_true",
+                   help="also send one test mail to the recipients")
+    p.set_defaults(run=cmd_doctor)
