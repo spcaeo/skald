@@ -18,7 +18,8 @@ A page you may not change is shown read-only, with the reason beside each field.
 | Team & access | Team, API & tokens (Users, on a server with one shared login) |
 | This site | Sites, Internal traffic, AI crawlers, Data retention, Mail, Integrations |
 | Organisation | Add or remove sites, Security, Audit log, Billing |
-| Help | About Skald |
+
+**Back to the dashboard**, at the top of the settings menu, returns to the page you came from.
 
 These pages have guides of their own:
 
@@ -41,6 +42,7 @@ These pages have guides of their own:
 | Sites | Host names, Views, Time zone | Admin |
 | Sites | Log file | Install admin |
 | Sites | Goals | Admin |
+| Integrations | Hooks, event types, outgoing webhooks | Admin |
 | Security | Sign-in rules | Owner |
 | Audit log | (read only) | Admins may read it |
 | AI crawlers | Every crawler | Install admin |
@@ -98,7 +100,7 @@ A change to **Returning-visitor matching** also changes who counts as a returnin
 
 - **Daily mail**: sent after each morning's run.
 - **Weekly mail**: sent on Mondays.
-- **Recipients**: 1 to 20 email addresses.
+- **Recipients**: up to 20 email addresses.
 - **From name**: the name the mail comes from.
 
 Each new recipient first gets one mail with a confirm link. They get nothing else until they open the link and select the button on that page. The link works once, for 7 days. Until at least one address is confirmed, the reports are held back, not failed.
@@ -139,6 +141,18 @@ If the morning run fails, the server can send one short failure mail. It goes to
 - **Goals**: the page events that count as this site's goals, such as Sign-up sent or Demo booked. Tick up to 10. The events your site has already counted are listed first; the others are under **Not counted yet**. See [Funnels and goals](funnels-and-goals.md).
 
 Changes apply from the next run. Days already stored are not counted again.
+
+### Logo
+
+Each site shows its own logo: on the page where you choose a site, in the menu's site button, in the site switcher and on the browser tab. The card shows it at those three sizes, and what Skald found on the site.
+
+Choose where it comes from:
+
+- **From the site (automatic)**: Skald asks your site itself for its app icon, then its favicon. It never asks an outside icon service. It asks again once a week. **Check the site again now** asks at once.
+- **Upload my own**: a PNG, SVG or ICO file, square, at least 64 x 64 pixels, at most 256 KB. An SVG that could run a script or load something from elsewhere is refused; save it again as a plain drawing, or upload a PNG.
+- **A letter on a colour**: the site's first letter on one of four colours. Skald also shows this while there is no logo.
+
+Press **Save**. Owners and admins can change the logo; everyone else sees it.
 
 ## Add or remove sites
 

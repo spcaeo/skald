@@ -124,3 +124,60 @@ a.tab, a.foot-btn { text-decoration: none; box-sizing: border-box; }
 .app:not([data-rail="icons"]) .rail-foot { display: flex; flex-wrap: wrap; align-items: center; }
 .app:not([data-rail="icons"]) .rail-foot .foot-btn.gear { flex: 1 0 100%; }
 .foot-btn.quick .new-dot { position: absolute; top: 5px; right: 5px; }
+
+/* ======================================== the site's logo (2.6.0, logo.js)
+   A square tile: the letter on the site's colour, the logo over it. The site
+   button at the top of the sidebar (logo, site name, the tool's name), the
+   switcher's rows, the icon rail's button, and the phone bar's chip. */
+.logo-t { position: relative; width: var(--lt, 24px); height: var(--lt, 24px); flex: none; display: grid; place-items: center; overflow: hidden;
+  border-radius: calc(var(--lt, 24px) * .26); color: #fff; font-weight: 720; font-size: calc(var(--lt, 24px) * .5); line-height: 1;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 14%, transparent); }
+.logo-t img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.brand { display: flex; align-items: center; gap: 6px; padding: 2px 2px 10px; }
+.site-slot { display: block; flex: 1; min-width: 0; }
+.site-wrap { position: relative; display: block; min-width: 0; }
+.site-btn { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px;
+  padding: 8px 10px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+.site-btn:hover { border-color: var(--gap); }
+.site-btn[aria-expanded="true"] { border-color: var(--ink-3); }
+.site-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.sb-txt { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.brand .sb-txt .brand-site { margin: 0; font-size: 15px; font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-tool { font-size: 12px; color: var(--ink-3); }
+.site-btn .chev { margin-left: auto; flex: none; }
+.site-btn .chev svg { width: 16px; height: 16px; color: var(--ink-2); display: block; }
+/* One column as wide as the menu (2.6.1): an implicit grid column took the rows' full width, so a
+   long name and "N today" ran past the menu and the sidebar cut them off. */
+.pop.site-menu { left: 0; right: 0; top: calc(100% + 6px); width: auto; padding: 6px; gap: 2px; z-index: 60; transform-origin: top left;
+  grid-template-columns: minmax(0, 1fr); }
+.pop.site-menu[style*="fixed"] { right: auto; width: 260px; }
+.site-menu .site-i { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 8px; }
+.site-menu .site-i b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 520; }
+.site-menu .site-i[aria-current="page"] { background: var(--sunk); }
+.site-menu .site-i[aria-current="page"] b { font-weight: 650; }
+.site-menu .si-end { margin-left: auto; flex: none; font-size: 12px; color: var(--ink-3); }
+.site-menu .si-check svg { width: 16px; height: 16px; color: var(--ink); display: block; }
+.site-menu .site-all { display: flex; align-items: center; min-height: 40px; padding: 0 8px; margin-top: 4px; border-top: 1px solid var(--grid);
+  border-radius: 0 0 8px 8px; color: var(--ink-2); font-size: 14px; }
+/* the icon rail: the logo alone is the button */
+.app[data-rail="icons"] .brand { justify-content: center; padding: 2px 0 10px; }
+.app[data-rail="icons"] .site-btn { width: 40px; min-height: 40px; padding: 0; border: 0; background: none; justify-content: center; }
+.app[data-rail="icons"] .site-btn .sb-txt, .app[data-rail="icons"] .site-btn .chev { display: none; }
+.app[data-rail="icons"] .site-btn .sb-logo { width: 40px; height: 40px; border-radius: 10px; font-size: 19px; }
+.app[data-rail="icons"] .site-btn:focus-visible { outline-offset: 1px; }
+/* the phone's bar: the site's logo where the menu button was (the tab bar has Menu), its
+   name above the page's name; both open the switcher */
+.tb-title > .site-wrap { display: none; }
+@media (max-width: 767px) {
+  .bar .menu-btn { display: none; }
+  .tb-title:has(> .site-wrap) { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 9px; align-items: center; }
+  .tb-title > .site-wrap { display: contents; }
+  .site-chip { all: unset; box-sizing: border-box; cursor: pointer; grid-row: 1 / span 2; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; }
+  .site-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .site-chip[aria-expanded="true"] { box-shadow: 0 0 0 2px var(--rule); }
+  .sc-name { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: 2px; min-width: 0; cursor: pointer; font-size: 12px; line-height: 1.2; color: var(--ink-3); font-weight: 560; }
+  .sc-name > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sc-name .chev svg { width: 12px; height: 12px; display: block; }
+  .tb-title > .site-wrap ~ .trail { grid-column: 2; grid-row: 2; line-height: 1.25; }
+  .app[data-rail="drawer"] .site-btn { min-height: 56px; }
+}

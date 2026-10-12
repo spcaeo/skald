@@ -65,6 +65,7 @@ and names). Without it, no answer carries an address.
 | `skald://docs/api` | docs/API.md: the data files and the read-only API |
 | `skald://docs/counting` | CLASSIFICATION.md: the five groups and what the figures cannot know |
 | `skald://sites/<site>/overview` | the site's latest overview.json |
+| `skald://sites/<site>/llms.txt` | a suggested `/llms.txt` for the site, from its latest llms_txt.json (`skald llms-txt`) |
 
 Prompt `weekly_report(site)`: asks the model for a short weekly report
 written with the tools, under the rules above.
@@ -146,4 +147,5 @@ limits it to one site. Addresses are read only with `--private`.
 `tests/test_mcp_tools.py` (every tool against a dashboard folder made by the
 real commands, the withheld day named, honesty words, site isolation,
 addresses), `tests/test_mcp_transport.py` (the HTTP endpoint with real
-organisation tokens, and stdio in a subprocess).
+organisation tokens, and stdio in a subprocess), `tests/test_mcp_conversions.py`,
+`tests/test_mcp_withheld.py` and `tests/test_mcp_support.py`.

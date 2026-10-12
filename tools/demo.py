@@ -70,6 +70,7 @@ def config_text(root: Path) -> str:
   name: example.com
   hosts: [example.com, www.example.com]
   require_rendering: false
+  logo_color: "#1d4ed8"     # the letter tile on blue (the page has no helper to serve an image)
 logs:
   dir: {root / 'logs'}
   base: access.log

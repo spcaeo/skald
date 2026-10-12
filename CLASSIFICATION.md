@@ -17,7 +17,7 @@ Two separate questions are being answered, and keeping them apart is the point:
 | --- | --- | --- |
 | Real people | `people` | A browser that rendered the page, and nothing above it matched. |
 | Answer engines | `answer_engines` | An AI assistant's crawler or fetcher. |
-| Search engines | `search_engines` | Classic indexing, plus social unfurlers that index. |
+| Search engines | `search_engines` | Classic indexing, and Google's ads quality checks. |
 | Bots and scanners | `bots` | Everything else automated, including credential probes. |
 | Our own traffic | `ours` | Your crawler, your tests. Not traffic at all. |
 
@@ -51,14 +51,22 @@ once from the URL before any of it and attached to every verdict, so a probe is
 
 ```
 0.  probing = PROBE.search(path) or PROBE_QUERY.search(url)   # recorded, not yet decisive
+      (not for a path under site.legacy_paths: the site's old URLs)
 
 1.  ours.user_agents  matches the agent      -> OURS
-2.  ours.referrers    matches the referrer   -> OURS
+2.  ours.referrers    matches the referrer,
+      or ours.addresses holds the address    -> OURS
 3.  AI_ASKED          matches the agent      -> ANSWER_ENGINE, tier asked
 4.  AI_TRAINING       matches the agent      -> ANSWER_ENGINE, tier training
-5.  SEARCH_ENGINE     matches the agent      -> SEARCH_ENGINE
+      (3 and 4: proven fake by bot_verify    -> BOTS, "claims to be <name>")
+5.  LINK_PREVIEWS     matches the agent      -> BOTS, "link preview: <app>"
+    SEARCH_ENGINE     matches the agent      -> SEARCH_ENGINE
+      (proven fake                           -> BOTS, "claims to be <name>")
 6.  probing                                  -> BOTS, probe=True
-7.  OTHER_BOT matches, or no agent at all    -> BOTS
+7.  OTHER_BOT matches, "(compatible; ...)"
+      naming no browser engine, no agent at
+      all, or an /.well-known/acme-challenge/
+      path                                   -> BOTS
 8.  BROWSER matches, and this visit (address + agent, no gap over 30
       minutes, on the site's hosts) fetched robots.txt, a sitemap, ads.txt
       or security.txt without rendering its pages        -> BOTS
@@ -157,7 +165,7 @@ verdict keeps both facts: group `ANSWER_ENGINE`, `probe=True`.
 
 **`BROWSER` is last, and only as a fallback.** "Looks like a browser" is the
 weakest claim in the file, because every scanner in the world copies a Chrome
-string. Reaching rule 8 means nothing more specific matched.
+string. Reaching rules 8 to 10 means nothing more specific matched.
 
 **Rule 11 sends the unknown to bots, not to people.** An agent that is not empty,
 not a known bot and not browser-shaped is a library or a script. Defaulting the
@@ -278,12 +286,23 @@ this site's referrer is a citation too, in the count and in the audit.
 Classic indexing. Wanted traffic, which is why it is never filed under "bots".
 
 `Googlebot`, `Google-InspectionTool`, `GoogleOther`, `APIs-Google`,
-`AdsBot-Google`, `bingbot`, `Slurp`, `DuckDuckBot`, `Baiduspider`,
-`YandexBot`, `Sogou`, `Exabot`, `facebookexternalhit`, `Twitterbot`,
-`LinkedInBot`, `Applebot(?!-Extended)`.
+`AdsBot-Google`, `Google-Adwords-Instant`, `bingbot`, `Slurp`, `DuckDuckBot`,
+`Baiduspider`, `YandexBot`, `Sogou`, `Exabot`, `Applebot(?!-Extended)`.
 
-The social unfurlers are here rather than in `bots` because what they do is
-index a page for a card - closer to search than to a monitoring probe.
+A name that claims one of these, or an assistant's crawler, is checked
+against its owner's published address ranges or by reverse and forward DNS
+(`bot_verify.py`). One proven fake is filed under bots as "claims to be
+<name>"; one that cannot be checked stays, marked unverified.
+
+### `LINK_PREVIEWS` - matched against the user agent, before search
+
+An app fetching a page because someone pasted its link in a chat or a post:
+`Slack`, `iMessage`, `WhatsApp`, `LinkedIn`, `Microsoft Teams`, `Discord`,
+`Telegram`, `X (Twitter)`, `Facebook`, `Pinterest`, `Reddit`, `Embedly`,
+`Iframely`, `Snapchat`, `VK`, `Bluesky`, `Mastodon`. Filed under bots as
+"link preview: <app>", on their own line, because a preview means a person
+shared the link. `facebookexternalhit`, `Twitterbot` and `LinkedInBot` sat
+in the search group until 2026-10-07: they do not index.
 
 `AdsBot-Google` (and its mobile form) and `Google-Adwords-Instant` are Google's
 ad systems checking the landing pages of ads. They stay in this group -
@@ -293,7 +312,7 @@ are not indexing. On the audited day they were 54 of 142 search requests.
 
 ### `OTHER_BOT` - matched against the user agent
 
-Automated, but not an engine. Four families:
+Automated, but not an engine. These families:
 
 - generic self-declarations: `bot` as a word with no letter before it (so
   the phone maker CUBOT is not a bot), `bot/<version>` ("FooBot/2.1"), the
@@ -308,7 +327,11 @@ Automated, but not an engine. Four families:
   `BLEXBot`, `DataForSeoBot`, `PetalBot`
 - monitors and link unfurlers: `UptimeRobot`, `Pingdom`, `StatusCake`,
   `NewRelic`, `Site24x7`, `monitoring`, `Nagios`, `WhatsApp`, `TelegramBot`,
-  `Discordbot`, `Slackbot`, `vkShare`, `Embedly`, `SkypeUriPreview`
+  `Discordbot`, `Slackbot`, `vkShare`, `Embedly`, `SkypeUriPreview` (most
+  unfurlers are caught as link previews first), and the Let's Encrypt
+  validator
+- page-speed testers, which render pages fully: `Chrome-Lighthouse`,
+  `PTST/`, `GTmetrix`, `Google-PageRenderer`
 - found in a real log filed as people: `ctwatch`, `jSystem3-metadata-indexer`,
   and Googlebot's smartphone template with "Googlebot" taken out
   (`Nexus 5X Build/MMB29P` - Android 6 with this year's Chrome is a tool or a
@@ -379,10 +402,12 @@ above, and the dashboard lists our own traffic by label. Addresses added on
 the dashboard (`ours.file`) are merged in and apply only from the moment
 they were added: a stored day is never re-judged. Privacy: raw addresses
 stay in the server log and on the private page; keyed hashes 30 days;
-totals for good (README). An unlabelled
+totals for good (README). Since 2.4.0 a site may also keep each reader's
+visit with its address (`privacy.keep_ips`, docs/DATA-CONTRACT-PEOPLE.md).
+An unlabelled
 address is "Listed address N": an address is never used as a label.
 
-Certificate validation (`/.well-known/acme-challenge/…`, the Let's Encrypt validator) is filed under bots: it sends a Mozilla user agent and was being counted as people.
+Certificate validation (`/.well-known/acme-challenge/…`, `MACHINE_PATH`) is filed under bots whatever the agent: the validators send a Mozilla user agent and were being counted as people.
 
 `ours.user_agents` is matched against the user agent; `ours.referrers` against
 the referrer. Both are **literal substrings**, not regular expressions: the
@@ -401,7 +426,8 @@ none of:
   these, so counting them doubles every click; counting them *instead* of pages
   is what produced "56 people".
 - **`ASSET`** - by extension (`css`, `js`, `mjs`, `map`, images, fonts, `txt`,
-  `xml`, `json`, `webmanifest`) or by prefix (`/_next/`, `/static/`,
+  `xml`, `json`, `webmanifest`, `xsl`, feeds, `pdf` and office documents,
+  archives, audio and video, `wasm`) or by prefix (`/_next/`, `/static/`,
   `/assets/`, `/_nuxt/`, `/build/`). Note that `robots.txt` and `sitemap.xml`
   are assets by this rule, which is right: nobody reads them.
 - **`BEACON`** - `/api/events`, `/api/analytics`, `/__analytics`, `/collect`,

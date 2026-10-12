@@ -38,6 +38,7 @@ from pathlib import Path
 
 from .beacon import EVENTS, PAGE_VIEW
 from .config import setting
+from .site_logos import COLORS as LOGO_COLORS, SOURCES as LOGO_SOURCES
 
 LOCK_WORDS = "Locked in config.yml (settings.locked) by whoever runs the server."
 WHO_WORDS = {
@@ -128,6 +129,12 @@ SCHEMA: dict[str, Key] = {
                          label="Log folder"),
     "sites.log_base": Key("filename", "install", ("site",), ("logs", "base"), None,
                           label="Log file name"),
+    # 2.6.0: the site's logo (site_logos.py): from the site, uploaded, or a
+    # letter on one of four colours (also the fallback while there is none).
+    "site.logo.source": Key("choice", "admin", ("site",), ("site", "logo_source"), "auto",
+                            choices=LOGO_SOURCES, label="Logo"),
+    "site.logo.color": Key("choice", "admin", ("site",), ("site", "logo_color"), None,
+                           choices=LOGO_COLORS, label="Letter colour"),
     # Settings > Integrations: the booking tools' event types this site keeps
     # (conversions/event_types.py); [] keeps every event.
     "hooks.calendly.event_types": Key("eventtypes", "admin", ("site",),

@@ -19,10 +19,11 @@ docker run -d --name skald --restart unless-stopped \
 
 - `127.0.0.1:` publishes the port on this machine only. nginx in front gives it to the world. Keep the same line in every later `docker run`.
 - `/var/log/nginx` is read-only: Skald reads the log, never changes it.
-- `skald-data` holds everything Skald keeps. Keep the volume.
+- `skald-data` holds everything Skald keeps. It must be mounted at `/var/lib/skald`, where the image keeps its data. Keep the volume.
 - `:2` follows every 2.x release and never a breaking one.
 - Not a Next.js site? Add `-e SKALD_ASSET_PREFIXES="/wp-content/ /wp-includes/"` (WordPress), or the folder your pages load their scripts and styles from. A visit counts as people only when its browser fetched one.
 - The last line is for nginx on the same machine. It lets Skald see each visitor's address, not nginx's.
+- A new install keeps each visit with its IP address, and each lead's name and email, so admins can look a person up. To keep neither, add `-e SKALD_KEEP_IPS=0 -e SKALD_IDENTITY=anonymous`. Admins can change both later in **Settings > Data retention > People**. See [Privacy](privacy.md).
 
 ## 2. Put it on the web (2 minutes)
 
@@ -78,7 +79,9 @@ One line per part, each OK, NEEDS ATTENTION or OFF, and the fix in plain words:
 | Web app | The dashboard has its menu |
 | Hook receiver | The part that takes hooks and the script tag answers |
 | Hook ... | Each hook: its secret, and its last delivery |
+| One lead, two tools | The same lead arrived through two tools (two hooks, or a hook and the lead database), so it counts twice |
 | Script tag | Its origins, and the last event from a page |
+| Lead database | The website's lead database can be read, when one is set |
 | Mail | The mail settings are complete |
 | Version | A newer release, from the last daily check (it never goes online itself) |
 | Disk | Free space where Skald keeps its data |

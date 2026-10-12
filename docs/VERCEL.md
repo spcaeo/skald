@@ -17,7 +17,7 @@ cache result; that is why Skald uses the Log Drain on Vercel, not middleware.
 
 ## 1. Run Skald on Render (or Railway)
 
-Use the **Deploy to Render** button in the README, or Render > **New > Blueprint** with a fork
+Use the **Deploy to Render** button on Skald's GitHub page, or Render > **New > Blueprint** with a fork
 of the repository. It makes one web service from the Skald image with a disk (a disk needs a
 paid Render instance; without one the history is lost at every restart). Fill in:
 
@@ -30,9 +30,18 @@ paid Render instance; without one the history is lost at every restart). Fill in
 | `SKALD_INGEST` | `true` (already set by the Blueprint) |
 | `SKALD_LOG_DIR` | `/var/lib/skald/ingest/example.com` (your `SKALD_SITE`) |
 
+A new install keeps each visit's IP address for 395 days, and leads' names and emails, so a
+person can be looked up. If your privacy notice does not allow that, also set
+`SKALD_KEEP_IPS=0` and `SKALD_IDENTITY=anonymous` (or change it later in Settings > Data
+retention > People).
+
 Then give it a domain: Render > **Settings > Custom Domains**, add `stats.example.com`, and add
 the `CNAME` record Render shows at your DNS provider (in Vercel's DNS if Vercel holds your
 domain). Render issues the certificate. Sign-in needs HTTPS, so wait for it.
+
+Render does not publish its proxies' addresses. After the first deploy, set
+`SKALD_TRUSTED_PROXIES` as [HOSTING.md](HOSTING.md), "Render", says; until then the sign-in
+limits see Render's proxy, not each visitor.
 
 Railway works the same way: [HOSTING.md](HOSTING.md), "Railway".
 

@@ -2,7 +2,8 @@
 
 A site behind a CDN is mostly served by the CDN. When a page is in the CDN's
 cache, the request never reaches your server, so your server's access log
-never sees it. The CDN's own log sees every request. Skald reads three:
+never sees it. The CDN's own log sees every request. Skald reads three
+CDNs' logs, and the records of its own Cloudflare Worker:
 
 | `logs.format` | CDN | What it reads |
 | --- | --- | --- |
@@ -35,9 +36,12 @@ that mixes them with nginx lines, for the day you move a site behind a CDN.
   places each request by its own timestamp, so the day's totals are right.
   Fetch files in name order (they carry the date and hour) to keep visits
   whole.
-- **The independent audit (`skald audit`) does not read CDN logs.** It reads
-  the nginx and Apache layouts only, as with Caddy, the Vercel and Netlify
-  log drain lines (HOSTING.md), and the Skald Worker's edge records.
+- **The independent audit (`skald audit`) does not read CDN logs.** Its own
+  reader knows the nginx and Apache layouts, the Vercel and Netlify log
+  drain lines (HOSTING.md) and the Skald Worker's edge records. It does not
+  read `cloudflare_json`, `cloudfront_w3c` or `fastly_json` lines (nor
+  Caddy's). Today, on a CDN log, the recount finds no request, does not
+  match, and run-daily withholds the day.
 
 ## Getting the files to the server
 

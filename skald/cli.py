@@ -192,6 +192,14 @@ def prune_kept(ctx: Context, history: History) -> None:
     history.prune_extras(today, FETCH_DAYS, ("ai_fetches",))
     from .people.visits import prune_kept as prune_people   # privacy.keep_days
     prune_people(ctx)
+    # The conversions file's own keeping times (conversions.retention_days,
+    # journeys.vid_days, deliveries 90 days, the spool): before 2.5.3 only by
+    # hand (`conversions prune`), so nothing was ever pruned.
+    from .cli_conversions import cmd_prune as prune_conversions
+    try:
+        prune_conversions(ctx, quiet=True)
+    except Exception as why:          # noqa: BLE001 - a prune never stops the run
+        ctx.err(f"conversions prune: {type(why).__name__}: {why}")
 
 
 def collect_day(ctx: Context, history: History, day: date,
@@ -746,8 +754,9 @@ def daily_steps(ctx: Context) -> list[tuple[str, Callable[[], int]]]:
         steps.append(("events", lambda: events.daily(ctx, day)))
     if setting(ctx.config, "dashboard", "favicons", False) in (True, "true"):
         steps.append(("favicons", lambda: _favicons(ctx, None, limit=40, days=90) or 0))
-    from . import updates               # a newer release? at most daily; never fails the run
-    steps += [("updates", lambda: updates.daily(ctx)), ("dashboard", lambda: cmd_dashboard(ctx))]
+    from . import site_logos, updates   # the site's logo weekly; a newer release? never fail
+    steps += [("logo", lambda: site_logos.daily(ctx)), ("updates", lambda: updates.daily(ctx)),
+              ("dashboard", lambda: cmd_dashboard(ctx))]
     # Each mail can be turned off in Settings > Mail (mail.daily, mail.weekly).
     if _mail_on(ctx.config, "daily"):
         steps.append(("daily mail", lambda: mail(ctx, "daily", ctx.args.dry_run)))
@@ -764,7 +773,8 @@ def daily_steps(ctx: Context) -> list[tuple[str, Callable[[], int]]]:
             for name, step in steps]
 
 
-WHILE_WAITING = ("verify-bots", "conversions", "check", "favicons", "updates", "dashboard")
+WHILE_WAITING = ("verify-bots", "conversions", "check", "favicons", "logo", "updates",
+                 "dashboard")
 
 
 def _unless_waiting(ctx: Context, step: Callable[[], int]) -> Callable[[], int]:

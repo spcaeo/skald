@@ -47,9 +47,11 @@ export async function load(s, { fresh = false } = {}) {
   const raw = await adapt(get);
   setDemo(raw.demo);
   // app.json lists the files written beside it; ask only for those, so a file not there yet is not a failed request.
-  const listed = (n) => !Array.isArray(raw.files) || raw.files.includes(n);
-  // favicons.json lives in the site's own data folder only; a view's page reads that one.
-  const fetchOne = (n) => (n === "favicons" ? getJSON(`data/${n}.json`, fresh) : get(`${n}.json`));
+  // sites.json is written beside app.json by the site list (multisite.py), not by the data
+  // files app.json lists, so it is always asked for (2.6.0: before, the switcher never had it).
+  const listed = (n) => n === "sites" || !Array.isArray(raw.files) || raw.files.includes(n);
+  // favicons.json and sites.json live in the site's own data folder only; a view's page reads those.
+  const fetchOne = (n) => (n === "favicons" || n === "sites" ? getJSON(`data/${n}.json`, fresh) : get(`${n}.json`));
   const extra = await Promise.all(EXTRA.map((n) => (listed(n) ? fetchOne(n).catch(() => null) : null)));
   // A file whose builder failed holds only {"state": "error", "error"}: kept apart, so a tab says
   // "could not be built" rather than showing it empty.

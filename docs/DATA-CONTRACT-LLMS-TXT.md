@@ -49,7 +49,7 @@ the order of their best page. The next 20 (`OPTIONAL`) are under "Optional".
 | `titles` | `"website"` (from the page list) or `"paths"` |
 | `base_url` | `https://` and the site's `www.` host if it has one, else its first host |
 | `pages[]` | `{"path","url","title" (or null),"note" (or null),"section" (null for an optional page),"optional": bool}`, best first |
-| `left_out_paths` | paths (not requests) left out, by reason: `{"private","cut_short","robots_txt","redirected_or_gone","not_in_page_list","not_read"}` |
+| `left_out_paths` | how many paths (not requests) were left out, by reason: `{"private","cut_short","robots_txt","redirected_or_gone","not_in_page_list","not_read": int}` |
 | `text` | the llms.txt itself, or null |
 
 Also: `skald llms-txt [--site X] [--out FILE]` prints it (or writes FILE),

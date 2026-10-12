@@ -316,7 +316,7 @@ def cmd_conversions_list(ctx) -> int:
     return 0
 
 
-def cmd_prune(ctx) -> int:
+def cmd_prune(ctx, quiet: bool = False) -> int:
     folder = _folder(ctx)
     db_path = store.path_for(ctx.config, folder)
     vid_days = int(setting(ctx.config, "journeys", "vid_days", store.VID_DAYS))
@@ -330,6 +330,8 @@ def cmd_prune(ctx) -> int:
         finally:
             db.close()
     files = spool.prune(spool.spool_dir(ctx.config, folder), today, keep)
+    if quiet and not (files or any(got.values())):
+        return 0                      # the daily run says nothing when nothing went
     ctx.out(f"conversions prune: {got['conversions']} conversion(s), {got['journeys']} page "
             f"view(s), {got['identities']} identit{'y' if got['identities'] == 1 else 'ies'}, "
             f"{got['deliveries']} delivery row(s), {files} spool file(s) removed")

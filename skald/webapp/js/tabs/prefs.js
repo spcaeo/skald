@@ -12,6 +12,7 @@ import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { ME, sessions } from "../access.js";
 import { head1, field, input, status, why } from "./forms.js";
+import logoCard from "./sitelogo.js";
 
 const SOURCE = { site: "set for this site", org: "set for the organisation", install: "set for the whole install", config: "from config.yml", default: "the default",
   upgrade: "kept off by the upgrade to 2.4.0; turn it on once your privacy notice says so" };
@@ -212,6 +213,7 @@ export function sites(m) {
     card(m.site, "Changes apply from the next run. Days already stored are not counted again (backfill --force on the server does that).",
       ["sites.hosts", "sites.views", "sites.timezone"], all, m.site, redraw),
     h("p", { class: "note" }, "Views: one per line, as name | path prefix | prefixes to leave out (separated by spaces)."),
+    logoCard(m),
     card("Log file", "Where the server's access log for this site is. For install admins.", ["sites.log_dir", "sites.log_base"], all, m.site, redraw),
     card("Goals", "The in-page events that count as this site's goals. Events shows each one per 100 visits by source, on checked days. At most 10.", ["beacon.goals"], all, m.site, redraw),
   ]);

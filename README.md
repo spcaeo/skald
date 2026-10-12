@@ -18,7 +18,7 @@
   <img alt="Zero dependencies" src="https://img.shields.io/badge/dependencies-zero-2b8a3e">
   <a href="https://github.com/spcaeo/skald/actions/workflows/ci.yml"><img alt="Tests" src="https://github.com/spcaeo/skald/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/spcaeo/skald/pkgs/container/skald"><img alt="Docker image" src="https://img.shields.io/badge/docker-ghcr.io%2Fspcaeo%2Fskald-2496ed"></a>
-  <img alt="Version 2.5.0" src="https://img.shields.io/badge/version-2.5.0-555">
+  <img alt="Version 2.6.0" src="https://img.shields.io/badge/version-2.6.0-555">
 </p>
 
 <p align="center">
@@ -40,7 +40,7 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/hero-dark.png">
     <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/hero-light.png">
-    <img src="docs/screenshots/hero-light.png" alt="The Skald dashboard: visitors, AI assistants, leads and demos booked for one site over the last 30 days, with each day's leads as dots on the chart" width="960">
+    <img src="docs/screenshots/hero-light.png" alt="The Skald dashboard for example.com, with the site's logo on the menu's site button: visitors, AI assistants, leads and demos booked over the last 30 days, with each day's leads as dots on the chart" width="960">
   </picture>
 </p>
 
@@ -236,7 +236,12 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
 - `skald doctor`: one line per part (daily run, missing days, logs, the dashboard, the hook
   receiver, each hook's secret and last delivery, the script tag, mail, a newer version, disk), each
   with its fix. A daily run that held back names the step and why.
-- Several sites in one install, each with its own settings.
+- Several sites in one install, each with its own settings and its own logo. After sign-in, a
+  card per site: its logo, a Live dot, and today's visitors, leads and demos booked ("-" when a
+  figure is not known yet, never 0). The same logo is on the menu's site button, in the site
+  switcher and on the browser tab. It comes from the site itself (its app icon, then its favicon;
+  never an outside icon service), from an upload, or is the site's first letter on a colour
+  (Settings > Sites > Logo).
 - Export any table as CSV or JSON, print to PDF, a report builder, and daily and weekly email
   reports (refused if the figures do not add up).
 - A read-only JSON API and an **MCP server with 14 read-only tools** for Claude, ChatGPT and other
@@ -272,11 +277,12 @@ removed conversions included. Nothing to install. Settings, saving and the perso
 | <img src="docs/screenshots/leads-left-out.png" alt="Left out of the figures: spam, duplicate and test leads, and a payment marked test, each listed with its row" width="460"><br>**Left out, still listed.** Spam, duplicates and test, never just dropped. | <img src="docs/screenshots/conversions-removed.png" alt="Conversions removed by a lead-database sync, each with when and why, and the pages before it" width="460"><br>**Removed, with when and why.** Cancelled, removed and test conversions. |
 | <img src="docs/screenshots/integrations-status.png" alt="Settings, Integrations: a status line for the hook receiver, the script tag, each hook and the lead database, all OK" width="460"><br>**Integrations status.** Each road: working, or what to fix. | <img src="docs/screenshots/skald-doctor.png" alt="Terminal output of skald doctor: one line per part of the install, OK or OFF; the daily run line says only this week's mail was held back, for a partial day, and that it clears by itself" width="460"><br>**`skald doctor`.** Every part checked; a held-back run names its step. |
 | <img src="docs/screenshots/settings-team.png" alt="Settings: team, roles and invites" width="460"><br>**Team & access.** Roles, invites, two-step sign-in. | <img src="docs/screenshots/integrations.png" alt="Settings: signed Calendly and Stripe hooks with their deliveries, Calendly kept to one event type, and an outgoing webhook to a CRM" width="460"><br>**Integrations.** Signed webhooks from the tools you use. |
-| <img src="docs/screenshots/help.png" alt="In-app help: a guide for each topic, among them Docker first install, Pick your road, Send leads from your backend and Demo bookings" width="460"><br>**Help.** Every page explained, and four how-to guides. | |
+| <img src="docs/screenshots/site-picker.png" alt="Choose a site, after sign-in: a card for example.com and one for shop.example.com, each with its logo, a green Live dot and today's visitors, leads and demos booked, and an Add a site card" width="460"><br>**Choose a site.** Each site's logo and today so far. | <img src="docs/screenshots/site-switcher.png" alt="The site switcher open from the menu's site button: example.com with its logo, a Live dot and a check, shop.example.com with its logo and 56 visitors today, then All sites" width="460"><br>**Site switcher.** Every site with its logo, one click away. |
+| <img src="docs/screenshots/logo-settings.png" alt="Settings, Sites, Logo: the logo at three sizes, found on the site at https://example.com/apple-touch-icon.png, and the three choices: from the site (automatic), upload my own, or a letter on one of four colours" width="460"><br>**Site logo.** From the site, an upload, or a letter on a colour. | <img src="docs/screenshots/help.png" alt="In-app help: a guide for each topic, among them Docker first install, Pick your road, Send leads from your backend and Demo bookings" width="460"><br>**Help.** Every page explained, and four how-to guides. |
 
 <p align="center">
   <img src="docs/screenshots/mobile.png" alt="Skald on a phone" width="300"><br>
-  <em>On a phone: the same figures, a drawer menu and a bottom bar.</em>
+  <em>On a phone: the same figures, the site's logo and name in the top bar, a drawer menu and a bottom bar.</em>
 </p>
 
 ## Quick start in 60 seconds
@@ -318,7 +324,8 @@ logs still hold; `docker exec skald skald doctor` then says, one line per part, 
 what to fix. The full walk-through is the Help guide "Docker: first install in 10 minutes".
 
 Settings come from environment variables (`SKALD_SITE`, `SKALD_HOSTS`, `SKALD_TIMEZONE`,
-`SKALD_BASE_URL`, `SKALD_EMAIL`, `SMTP_*`) or a config file mounted at `/etc/skald/config.yml`. The
+`SKALD_BASE_URL`, `SKALD_EMAIL`, `SKALD_SMTP_*`, `SMTP_USER`, `SMTP_PASSWORD`, `SKALD_KEEP_IPS`,
+`SKALD_IDENTITY`) or a config file mounted at `/etc/skald/config.yml`. The
 log must be readable by group `adm` (gid 4), as it is on stock Debian and Ubuntu.
 
 > **Sign-in needs HTTPS.** The session cookie is `Secure`, so plain `http://` works only at
@@ -349,17 +356,17 @@ SKALD_DOMAIN=stats.example.com docker compose --profile https up -d
 The quick way, pinned to a release:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.5.0/install.sh | sudo bash -s -- --ref v2.5.0
+curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.6.0/install.sh | sudo bash -s -- --ref v2.6.0
 ```
 
 This runs a script from the internet as root. To check it first, download the release and its
 checksums, verify, then run it:
 
 ```sh
-curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.5.0/skald-2.5.0.tar.gz
-curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.5.0/SHA256SUMS
-sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.5.0.tar.gz: OK
-tar -xzf skald-2.5.0.tar.gz && cd skald-2.5.0 && less install.sh && sudo ./install.sh
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.6.0/skald-2.6.0.tar.gz
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.6.0/SHA256SUMS
+sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.6.0.tar.gz: OK
+tar -xzf skald-2.6.0.tar.gz && cd skald-2.6.0 && less install.sh && sudo ./install.sh
 ```
 
 It installs into `/opt/skald`, with config in `/etc/skald` and data in `/var/lib/skald`, and puts
@@ -569,8 +576,9 @@ flowchart LR
   full`), apart from history and behind sign-in, so admins can follow a person across days. An
   install upgraded from before 2.4.0 keeps neither until you turn them on (Settings > Data
   retention > People, or `SKALD_KEEP_IPS=1` / `SKALD_IDENTITY=full`). Your privacy notice must say
-  so first. Off, raw addresses stay only in your own log (14 days) and the 6-hour Requests feed.
-- **One true delete.** `ti.py forget` removes a person's address, visits, conversions, name and
+  so first. Off, raw addresses stay only in your own log (14 days), the 6-hour Requests feed and
+  today's AI activity.
+- **One true delete.** `skald forget` removes a person's address, visits, conversions, name and
   email everywhere Skald keeps them. Every person search is written to the audit log.
 - **Webhooks keep only what counts.** Phone numbers, form answers, addresses and browser strings
   are dropped before anything is written; a name and email only when the site keeps them.

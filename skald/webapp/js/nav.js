@@ -13,10 +13,11 @@
 //          bar's Menu, with a scrim, a close button, Escape to close and
 //          focus kept inside while open
 
-import { h, tip, untip, reduced, short } from "./ui.js";
+import { h, tip, untip, reduced } from "./ui.js";
 import * as S from "./state.js";
 import { TAB_ICONS, GEAR } from "./tabs/index.js";
 import { store } from "./extras.js";
+import { logoOf, tile, setTabIcon } from "./logo.js";
 
 const app = document.getElementById("app");
 const rail = document.getElementById("rail");
@@ -235,30 +236,84 @@ export function trailOf(key) {
 }
 
 // ---------------------------------------------------- brand and the foot
-/* The site name opens the site switcher. One site today; the list is the
-   dashboard's own index (one folder per site), so a second site appears
-   here when the server writes it. */
-export function brand(site, file = null) {
-  const slot = document.getElementById("site-slot");
-  const btn = h("button", { type: "button", class: "site-btn", "aria-haspopup": "menu", "aria-expanded": "false", title: "Switch site" },
-    h("span", { class: "brand-site" }, site),
-    h("span", { class: "chev", "aria-hidden": "true", html: '<svg viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' }));
-  const allSites = () => h("a", { class: "menu-i", role: "menuitem", href: "../" }, h("b", null, "All sites"), h("small", null, "every site this server reads"));
-  const menu = h("div", { class: "pop menu site-menu", role: "menu", hidden: true, "aria-label": "Sites" },
-    h("a", { class: "menu-i", role: "menuitem", href: "./", "aria-current": "page" }, h("b", null, site), h("small", null, "this site")), allSites());
-  // The real list, when the server writes one (sites.json): each site, then All sites.
-  const sites = (file?.sites || []).filter((x) => x && x.name && x.path);
-  if (sites.length) {
-    const span = (x) => (x.first_day && x.last_day ? `${short(x.first_day)} to ${short(x.last_day)}` : "no days yet");
-    menu.replaceChildren(...sites.map((x) => h("a", { class: "menu-i", role: "menuitem", href: `../${x.path}`, "aria-current": x.name === site ? "page" : null },
-      h("b", null, x.name, x.live ? h("span", { class: "live-dot", title: "Live: today is redrawn every 2 minutes" }, h("span", { class: "vh" }, ", live")) : null),
-      h("small", null, x.name === site ? `this site, ${span(x)}` : span(x)))), allSites());
-  }
+/* The site button at the top of the sidebar (2.6.0): the site's logo, its
+   name and the tool's; it opens the site switcher - each site with its logo
+   and today's visitors, a check on this one, then All sites. In the icon
+   rail the logo alone is the button; on a phone the top bar has its own
+   (siteChip). The list is sites.json (the helper's, with only the reader's
+   sites), else this site alone. */
+const CHEV = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 6.5 8 10l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CHECK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+let SITE = { site: "", sites: [] };
+
+function siteMenu() {
+  const { site, sites } = SITE;
+  const list = sites.length ? sites : [{ name: site, path: null }];
+  const today = (x) => (x.today?.visitors != null ? `${x.today.visitors.toLocaleString("en-US")} today` : "");
+  return h("div", { class: "pop menu site-menu", role: "menu", hidden: true, "aria-label": "Switch site" },
+    list.map((x) => {
+      const here = x.name === site;
+      return h("a", { class: "menu-i site-i", role: "menuitem", href: here ? "./" : `../${x.path}`, "aria-current": here ? "page" : null },
+        tile(logoOf(x, x.name), 24, "si-logo"),
+        h("b", null, x.name, x.live ? h("span", { class: "live-dot", title: "Live: today is redrawn every 2 minutes" }, h("span", { class: "vh" }, ", live")) : null),
+        here ? h("span", { class: "si-end si-check", html: CHECK, "aria-label": "this site", role: "img" })
+          : today(x) ? h("small", { class: "si-end" }, today(x)) : null);
+    }),
+    h("a", { class: "menu-i site-all", role: "menuitem", href: "../" }, "All sites"));
+}
+
+// One button and its menu: opens and closes; Escape, a click elsewhere or a
+// choice closes it. `float()`: place the menu on screen beside the button
+// (the icon rail, the phone's bar), where the sidebar would clip it.
+function switcher(btn, float) {
+  const menu = siteMenu();
+  const wrap = h("span", { class: "site-wrap" }, btn, menu);
   const close = () => { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); };
-  btn.addEventListener("click", () => { const open = menu.hidden; menu.hidden = !open; btn.setAttribute("aria-expanded", String(open)); if (open) menu.querySelector("a")?.focus(); });
-  menu.addEventListener("keydown", (e) => { if (e.key === "Escape") { close(); btn.focus(); } });
-  document.addEventListener("pointerdown", (e) => { if (!menu.hidden && !slot.contains(e.target)) close(); });
-  slot.replaceChildren(h("span", { class: "site-wrap" }, btn, menu));
+  btn.addEventListener("click", () => {
+    const open = menu.hidden;
+    menu.hidden = !open;
+    btn.setAttribute("aria-expanded", String(open));
+    untip();
+    if (open && float()) {
+      const r = btn.getBoundingClientRect(), beside = rail.contains(btn);
+      Object.assign(menu.style, { position: "fixed", top: `${beside ? r.top : r.bottom + 6}px`, left: `${beside ? r.right + 8 : Math.max(8, r.left)}px` });
+    } else menu.removeAttribute("style");
+    if (open) menu.querySelector("a")?.focus();
+  });
+  menu.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { close(); btn.focus(); return; }
+    const items = [...menu.querySelectorAll("a")], i = items.indexOf(document.activeElement);
+    const j = { ArrowDown: i + 1, ArrowUp: i - 1 }[e.key];
+    if (j != null && items.length) { e.preventDefault(); items[(j + items.length) % items.length].focus(); }
+  });
+  document.addEventListener("pointerdown", (e) => { if (!menu.hidden && !wrap.contains(e.target)) close(); });
+  return wrap;
+}
+
+export function brand(site, file = null, tool = "Skald") {
+  SITE = { site, sites: (file?.sites || []).filter((x) => x && x.name && x.path) };
+  const me = logoOf(SITE.sites.find((x) => x.name === site), site);
+  const btn = h("button", { type: "button", class: "site-btn", "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": `Switch site: ${site}`, title: "Switch site" },
+    tile(me, 34, "sb-logo"),
+    h("span", { class: "sb-txt" }, h("span", { class: "brand-site" }, site), h("span", { class: "sb-tool" }, tool)),
+    h("span", { class: "chev", "aria-hidden": "true", html: CHEV }));
+  tooltip(btn, `${site}: switch site`);
+  document.getElementById("site-slot").replaceChildren(switcher(btn, () => app.dataset.rail === "icons"));
+  setTabIcon(me);
+}
+
+/* The phone's top bar: the site's logo and name, opening the same switcher. */
+export function siteChip() {
+  const { site, sites } = SITE;
+  if (!site) return null;
+  const btn = h("button", { type: "button", class: "site-chip", "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": `Switch site: ${site}` },
+    tile(logoOf(sites.find((x) => x.name === site), site), 32, "sc-logo"));
+  const wrap = switcher(btn, () => true);
+  // The site's name above the page's (the trail), opening the same menu: the logo and the
+  // name read as one control, and the page's name keeps its room.
+  wrap.insertBefore(h("span", { class: "sc-name", "aria-hidden": "true", onclick: () => btn.click() }, h("span", null, site),
+    h("span", { class: "chev", html: CHEV })), btn.nextSibling);
+  return wrap;
 }
 
 /* The sidebar's foot: one row. Settings (a gear) opens the settings pages;

@@ -5,7 +5,8 @@ from the dashboard instead of editing `config.yml` on the server. In basic mode 
 exists: the pages are hidden, the routes answer 404, and `config.yml` is the only source.
 
 Code: `skald/settings_store.py` (the keys, checks and merged view),
-`skald/settings_api.py` (the routes), `webapp/js/tabs/prefs.js` and `auditlog.js` (the pages).
+`skald/settings_api.py` (the routes), `skald/webapp/js/tabs/prefs.js` and `auditlog.js`
+(the pages).
 
 ## Where a value comes from
 
@@ -68,6 +69,8 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `sites.timezone` | Sites | an IANA zone (UTC) | admin | site | `report.timezone` |
 | `sites.log_dir` | Sites | absolute path | install admin | site | `logs.dir` |
 | `sites.log_base` | Sites | a file name | install admin | site | `logs.base` |
+| `site.logo.source` | Sites (Logo) | auto, upload, letter (auto) | admin | site | `site.logo_source` |
+| `site.logo.color` | Sites (Logo) | `#1d4ed8`, `#0f766e`, `#9a6400`, `#17212b` (one picked from the name) | admin | site | `site.logo_color` |
 | `beacon.goals` | Sites (Goals) | up to 10 event names of `beacon.EVENTS` or `page_view`; `[]` is no goal ([]) | admin | site | `beacon.goals` |
 | `hooks.calendly.event_types` | Integrations (Calendly) | up to 50 event-type URIs, uuids or booking-page slugs; `[]` keeps every event ([]) | admin | site | `hooks.calendly_event_types` (or nested `hooks.calendly.event_types`) |
 | `hooks.calcom.event_types` | Integrations (Cal.com) | up to 50 event-type ids or slugs; `[]` keeps every event ([]) | admin | site | `hooks.calcom_event_types` (or nested `hooks.calcom.event_types`) |
@@ -194,6 +197,10 @@ origin and the session's `X-Skald-CSRF` value.
 | POST `<page>/sites/token` | admin | `{name}`: a new ingest token for one of the organisation's sites |
 | POST `<page>/sites/remove` | owner | `{name, confirm: name}`: a dashboard site stops being processed; data kept until `skald site purge` |
 | POST `<page>/sites/verify` | admin | `{name}`: looks for the site's `skald-verify` token (DNS TXT or the home page's meta tag); 10 checks an hour per site |
+| GET `<page>/logo` | every member | the logo as an image (`?src=fetched\|upload` for one stored file); 404 while the site shows its letter. Also in basic mode |
+| GET `<page>/logo/state` | every member | `{source, color, colors, letter, logo, found, checked_at, next_check, error, upload, hosts, editable, reason}` |
+| POST `<page>/logo/upload` | admin | `{data: base64, name}`: PNG, ICO or a safe SVG, square, at least 64 x 64, at most 256 KB; sets `site.logo.source` to `upload` |
+| POST `<page>/logo/check` | admin | asks the site for its icon now; once a minute per site (429 after) |
 
 Sites added in Settings > Add or remove sites live in accounts.sqlite (`site_config`), not in
 config files; their host names, views, time zone and log paths are then changed on the Sites
@@ -205,6 +212,45 @@ A site added there, or by sign-up, has a page at once: a small "Getting ready" p
 folder of the dashboard's output (only when none is there), then its first build on a thread
 (`skald --site <site> dashboard`, `skald/first_page.py`). Its address never answers
 nginx's 404 while it waits for the next run.
+
+## The site's logo (2.6.0)
+
+Settings > Sites > Logo (`skald/site_logos.py`, `logo_api.py`). The logo shows on the
+site picker (`/traffic/`), in the sidebar's site button, in the site switcher and on the
+browser tab (the site's icon with a small Skald badge, drawn in the page).
+
+- **auto** (the default): Skald asks the site itself, never an outside icon service. The home
+  page's `<link rel="apple-touch-icon">` (largest first), then `<link rel="icon">`, then
+  `/apple-touch-icon.png`, then `/favicon.ico`. Only the site's own host names (`site.hosts`,
+  and the site's name when it is a host name; IP addresses and example or local names are never
+  asked), https only, never a name that resolves to a private, loopback or link-local address
+  (the connection goes to the address that was checked). At most 3 redirects, each to one of the
+  same hosts; 6 seconds a request, 20 for the whole check; 512 KB of the home page, 256 KB of an
+  image. The Content-Type must say `image/` and the first bytes must agree (PNG, ICO, GIF, JPEG,
+  WebP, or an SVG that passes the check below). Asked again by the daily run once a week (after
+  a failed check, the next day), at once with **Check the site again now** (at most once a
+  minute), or on the server with `skald logo --check`.
+- **upload**: PNG, ICO or SVG, square (within 10%), at least 64 x 64 (an SVG scales), at most
+  256 KB, by owners and admins.
+- **letter**: the site's first letter on one of four colours. Also what every place shows while
+  there is no logo, or when the image cannot load.
+
+**SVG.** The standard library cannot turn an SVG into a PNG, so a risky SVG is refused rather
+than cleaned: a DOCTYPE or entity, a processing instruction, an element outside SVG's namespace
+(editors' notes in `<metadata>` excepted), `<script>`, `<foreignObject>`, animation, `<a>`, an
+`on...` attribute, a link that is not `#...` inside the file, or `url(...)`, `@import`,
+`javascript:` or `data:` pointing elsewhere. Every logo is served by the helper with the
+Content-Type of its stored type, `X-Content-Type-Options: nosniff`, and
+`Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox`; the pages show
+it only in `<img>`, where no script runs.
+
+Files: `<history folder>/logos/<site>/fetched.<ext>`, `upload.<ext>` and `state.json` (when the
+site was asked, the URL the icon came from, why not). Not in the backups: an uploaded logo is
+uploaded again after a restore, a fetched one is fetched again.
+
+Audit: saving the choice or the colour writes `setting.change`; an upload writes `logo.upload`
+(type, size, bytes, a hash prefix) and the source change; a check writes `logo.check` (found, or
+why not).
 
 ## Internal addresses
 

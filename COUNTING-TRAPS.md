@@ -1,8 +1,10 @@
 # Counting traps
 
-Five ways a traffic report says something false while every line of its
-plumbing works. Four of them shipped. They are written out because the code
-that prevents them looks arbitrary until you know what it is for.
+Ways a traffic report says something false while every line of its
+plumbing works. The first five came from the report this package replaced;
+four of them shipped. Traps 6 to 15 were found later, in the real log. They
+are written out because the code that prevents them looks arbitrary until
+you know what it is for.
 
 The report these came from was a daily email with one reader. It was wrong for
 days. Nobody noticed, because nothing checked.
@@ -303,7 +305,8 @@ Chrome, a Mac Firefox version (rv:151) that no person runs, Windows Chrome.
 it: sources, countries, landing pages, journeys, first-visitor milestones.
 
 **Why the code did it.** "Looks like a browser and nothing else matched" was
-the whole test for a person (CLASSIFICATION.md rule 9, before this). A user
+the whole test for a person (the browser rule, now CLASSIFICATION.md rule
+10; rule 9 is the new test). A user
 agent is a claim, and every scraper copies a browser's. The fake-browser
 flags (trap 12) only flagged; the robots.txt rule (rule 8) only caught
 crawlers that asked for robots.txt.
@@ -382,7 +385,7 @@ withholds the day.
 
 **The test.** `tests/test_visit_source_split.py`.
 
-## The pattern in all five
+## The pattern in the first five
 
 Every one of these was a number that answered a slightly different question
 from the sentence printed above it. None needed a clever test. Four needed one

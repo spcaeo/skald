@@ -106,7 +106,7 @@ If the buttons are greyed out, hover over one to see why. Ask an install admin t
 
 ## Privacy
 
-Your team's addresses appear only in this list and in the server's change log. They never appear in the data files, CSV downloads, the API, or mail. Every add and remove is logged with who did it and when.
+Your team's list of addresses is shown only on this page and kept in the server's change log. Like every visitor's address, your team's requests also show, behind sign-in, in the last 6 hours of [Requests](#requests). The list itself never appears in the data files, CSV downloads, the API or mail. Every add and remove is logged with who did it and when.
 
 See [Privacy](privacy.md) for more.
 

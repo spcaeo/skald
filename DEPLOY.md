@@ -22,10 +22,10 @@ Everything an Ubuntu web server with nginx needs to run the daily system
 | `/opt/skald/` | root, 0755 | this repository |
 | `/etc/skald/config.yml` | root:skald, 0640 | copied from `config.example.yml` and edited |
 | `/etc/skald/env` | skald, 0600 | SMTP login, see below |
-| `/var/lib/skald/` | skald, 0750 | `history.sqlite` (`history.db`), and `live-<site>.json`, today's live snapshot; the private `live-<site>-ai.json` and `live-<site>-requests.json` (0640, raw addresses); state files `runs.json`, `alerts-state.json`, `markers.log`, `config-hash`, `website-version.json`, `forgotten.json`, `privacy.log`, `failmail-state.json` |
+| `/var/lib/skald/` | skald, 0750 | `history.sqlite` (`history.db`), and `live-<site>.json`, today's live snapshot; the private `live-<site>-ai.json` and `live-<site>-requests.json` (0640, raw addresses); state files `runs.json`, `alerts-state.json`, `markers.log`, `config-hash`, `website-version.json`, `forgotten.json`, `privacy.log`, `failmail-state.json`; with the 2026-10-11 parts, `accounts.sqlite`, `conversions.sqlite` (0640; since 2.4.0 it can hold each visit's address and leads' names and emails, see the README's "What is kept") and `secrets.json` (0600) |
 | `/var/lib/skald/ranges/` | skald, 0750 | `bots.ranges_dir`: crawler owners' address lists, hosting networks, `dns.json` |
-| `/var/lib/skald/backups/` | skald, 0750 | `backup.dir`: nightly and weekly history copies (0640) |
-| `/var/www/skald/` | skald, 0755 | the dashboard (`dashboard.out`): `index.html`, `<site>/index.html`, `<site>/<view>/index.html` and an `exports/` folder of CSV files beside each page; all written 0644 |
+| `/var/lib/skald/backups/` | skald, 0750 | `backup.dir`: nightly and weekly copies of the history, and of the accounts and conversions files when there are any (0640) |
+| `/var/www/skald/` | skald, 0755 | the dashboard (`dashboard.out`): `index.html`, `<site>/index.html` (the web app), `<site>/classic.html` (the plain page), `<site>/<view>/...`, the app's code in `_app/`, and `data/` and `exports/` folders beside each page; all written 0644 |
 | `/var/log/skald/` | skald, 0750 | the cron job's own output |
 
 On the server:
@@ -195,6 +195,13 @@ accounts 5 and conversions 3 add indexes only. Each file is upgraded in place on
 in one transaction; nothing to run. The conversions file keeps a `.v2.bak` copy, as its
 upgrades always do; the history needs none (no row changes).
 
+People (2.4.0): history schema 13 changes no table. A file upgraded from 12 or older gets one
+meta row (`privacy_legacy`), so an upgraded install keeps no address and no lead email until
+someone turns `privacy.keep_ips` and `conversions.identity` on; a new install keeps both
+(people/policy.py). `conversions.sqlite` schema 4 adds the `test` mark, the kept visits
+(`visits`, `visit_days`) and the `removed` rows, after a `.v3.bak` copy. Change the site's
+privacy notice before turning them on.
+
 ### Deploying a new version
 
 An install made by install.sh from a published release upgrades with `skald upgrade`
@@ -342,7 +349,8 @@ run); the spool is `/var/lib/skald/beacon/` (no addresses, 400 days).
 
 ## 6. nginx: serve the dashboard privately
 
-The dashboard is static. Serve `dashboard.out` behind basic auth, with
+The dashboard is files on disk. Serve `dashboard.out` behind basic auth (or
+sessions mode, below), with
 headers that keep it out of indexes even if the auth is ever removed. If the
 server already has such a location (auth, `X-Robots-Tag`, `no-store`, and no
 access logging for it), nothing here needs adding - only `dashboard.url`.
@@ -581,8 +589,9 @@ location ^~ /traffic/ {
     # settings); api/v1, api/compare, api/page; team, account, tokens, audit
     # (team_api.py); settings and settings/* (settings_api.py); sites and
     # sites/* (sites_api.py); billing and billing/* (saas, 404 while off);
-    # integrations and integrations/* (integrations_api.py).
-    location ~ ^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?(?:refresh|me|ours(?:/(?:add|remove|add-mine))?|funnels(?:/(?:save|delete))?|bot-policy|api/(?:v1/(?:[a-z_]+)?|compare|page)|team(?:/[a-z-]+)?|account(?:/[a-z-]+(?:/[a-z]+)?)?|tokens(?:/[a-z]+)?|audit|settings(?:/[a-z-]+)?|sites(?:/[a-z]+)?|billing(?:/[a-z]+)?|integrations(?:/[a-z]+(?:/[a-z]+)?)?|people(?:/[a-z-]+)?)$ {
+    # integrations and integrations/* (integrations_api.py); people and people/*
+    # (people/api.py); logo and logo/* (the site's logo, logo_api.py).
+    location ~ ^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?(?:refresh|me|ours(?:/(?:add|remove|add-mine))?|funnels(?:/(?:save|delete))?|bot-policy|api/(?:v1/(?:[a-z_]+)?|compare|page)|team(?:/[a-z-]+)?|account(?:/[a-z-]+(?:/[a-z]+)?)?|tokens(?:/[a-z]+)?|audit|settings(?:/[a-z-]+)?|sites(?:/[a-z]+)?|billing(?:/[a-z]+)?|integrations(?:/[a-z]+(?:/[a-z]+)?)?|people(?:/[a-z-]+)?|logo(?:/[a-z]+)?)$ {
         limit_except GET POST { deny all; }
         set $skald_path $uri;
         include snippets/skald-helper.conf;
@@ -701,9 +710,13 @@ nginx`. The accounts file stays and is used again on the next switch;
 
 ## 7. Backups and upgrades
 
-- `history.sqlite` is the only state. Back it up with
+- `history.sqlite` is the only state that cannot be rebuilt from the logs. Back
+  it up with
   `sqlite3 /var/lib/skald/history.sqlite ".backup '/path/backup.sqlite'"`.
-  It holds aggregates only, no addresses or user agents.
+  It holds aggregates only, no addresses or user agents. With the 2026-10-11
+  parts, `accounts.sqlite` and `conversions.sqlite` are state too (`skald
+  backup` copies them); `conversions.sqlite` may hold addresses, names and
+  emails (2.4.0, above).
 - Upgrade the way "Deploying a new version" (section 5) says: back up, then
   ship the committed code with `git archive HEAD` from your checkout. The
   server has no git, so never `git pull` there. The history carries a
@@ -755,5 +768,6 @@ nginx`. The accounts file stays and is used again on the next switch;
   fetches the newest copy to another machine. Off-server copies are your
   choice: another server by a nightly rsync, object storage (Backblaze B2
   or S3) with the copy encrypted first (`age` or `gpg`), or a workstation
-  pulling nightly with a scheduled job running that scp. The copies hold the 30-day keyed hashes; the key stays
-  in the env file, which is never copied.
+  pulling nightly with a scheduled job running that scp. The history copies hold the 30-day keyed hashes; the key stays
+  in the env file, which is never copied. The conversions copies hold the kept visits with
+  their addresses, and leads' names and emails, while a site keeps them: encrypt them too.

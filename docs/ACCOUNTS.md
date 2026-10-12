@@ -55,6 +55,8 @@ member; names, emails and visitor IDs in them only for owners and admins.
   password. Stored as scrypt hashes only.
 - A session is a random cookie (`skald_session`: HttpOnly, Secure,
   SameSite=Lax), 14 days from its last use. Only its SHA-256 is stored.
+  An owner can also end every session older than 1 to 90 days from its
+  sign-in (Settings > Security, `security.session_days`).
   "Sign out everywhere" (Settings > Your account) ends all other sessions.
 - Every change the page makes is a same-origin POST that also carries the
   session's `X-Skald-CSRF` value.
@@ -97,7 +99,10 @@ mail, this is how a person gets back in.
 Optional per person (Settings > Your account): a 6-digit code from any
 authenticator app (RFC 6238, 30 seconds), asked after the password. Turning
 it on needs the current password, then a code from the app, then shows 10
-one-time recovery codes once. Turning it off needs the password.
+one-time recovery codes once. Turning it off needs the password. An
+owner can require it for the whole organisation (Settings > Security,
+`security.require_totp`): a member without it is sent to set it up at the
+next sign-in.
 `skald account totp-off EMAIL` turns it off for someone who lost the phone
 and the codes.
 
@@ -145,7 +150,7 @@ with the actor `cli`.
 
 | Command | Does |
 | --- | --- |
-| `accounts init --org NAME --owner-email EMAIL [--map NAME=EMAIL] [--base-url URL] [--force]` | First set-up, from basic mode (DEPLOY.md). |
+| `accounts init --org NAME --owner-email EMAIL [--owner-name NAME] [--map NAME=EMAIL] [--base-url URL] [--force]` | First set-up, from basic mode (DEPLOY.md). |
 | `accounts status` | Mode, schema, people, install admins, sessions, each organisation's members, invites, tokens and sites. |
 | `org list` / `org create NAME` / `org rename SLUG NAME` | Organisations. |
 | `member list` / `member invite EMAIL --role R` / `member role EMAIL R` / `member remove EMAIL` | Members of one organisation (`--org SLUG` when there are several). |
@@ -154,6 +159,7 @@ with the actor `cli`.
 | `account totp-off EMAIL` | Turn off two-step sign-in. |
 | `account install-admin EMAIL on\|off` | The install-admin flag. The last one stays. |
 | `site assign SITE --org SLUG` | Which organisation owns a site. |
+| `site list` / `site add HOST --org SLUG` / `site verify NAME` / `site purge NAME --yes` | Every site and its organisation; add a dashboard site; mark its domain verified; delete a removed site and all its data. |
 | `token create NAME [--scope read\|read_private\|mcp ...] [--site S ...] [--org SLUG]` / `token list` / `token revoke ID` | API tokens (`--scope` is repeatable; default `read`). |
 
 `skald user` is still the basic-mode password-file command.
@@ -188,7 +194,7 @@ with the actor `cli`.
   "add my address"). On a server with other local users, set
   `refresh.socket` (a Unix socket only nginx's group can open) or
   `access.trust_proxy_ip: false`.
-- **Links in mails** (and the links `accounts init` / `account invite` /
+- **Links in mails** (and the links `accounts init` / `member invite` /
   `account reset-link` print) start with one address, by one rule for the CLI
   and the helper (`accounts/links.py`): `access.base_url`, else
   `dashboard.base_url`, else the scheme and host of `dashboard.url` (the
