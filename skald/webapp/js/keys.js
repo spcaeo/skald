@@ -25,8 +25,9 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-12m",
+  id: "2026-10-12n",
   items: [
+    ["GitHub", "Skald's home on GitHub is linked from About, the footer and the account menu: star it, see releases, report a problem."],
     ["Five sections", "Overview, Traffic, Leads & sales, AI & bots and Site, with tabs inside. Old links still work.", "getting-started"],
     ["Live and Compare", "two switches in the top bar that work on every page.", "getting-started"],
     ["One place each", "landing pages, sources and countries each live in one place now.", "getting-started"],

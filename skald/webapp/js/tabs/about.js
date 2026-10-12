@@ -6,7 +6,7 @@
 import { h } from "../ui.js";
 import * as S from "../state.js";
 import { MARK } from "../mark.js";
-import { BUILD, toolName, toolTagline } from "../build.js";
+import { BUILD, REPO, toolName, toolTagline } from "../build.js";
 import { compare } from "./compare.js";
 import { line, blockList } from "../mdview.js";
 
@@ -91,7 +91,12 @@ function page(s) {
   const quote = DATA.name.find((b) => b.t === "quote" && /storyteller/i.test(b.in.map((x) => x.s ?? x.b ?? "").join("")));
   const hero = h("header", { class: "about-hero" }, h("span", { class: "about-mark", "aria-hidden": "true", html: MARK }),
     h("div", null, h("h1", { class: "about-name" }, toolName()), h("p", { class: "about-tag" }, toolTagline()),
-      quote ? h("p", { class: "about-pitch" }, line(quote.in)) : null, ver ? h("p", { class: "about-ver" }, ver) : null));
+      quote ? h("p", { class: "about-pitch" }, line(quote.in)) : null, ver ? h("p", { class: "about-ver" }, ver) : null,
+      h("p", { class: "about-links" },
+        h("a", { class: "btn about-star", href: REPO, target: "_blank", rel: "noopener" }, "★ Star Skald on GitHub"),
+        h("a", { class: "linkish", href: REPO, target: "_blank", rel: "noopener" }, "Source code"),
+        h("a", { class: "linkish", href: `${REPO}/releases`, target: "_blank", rel: "noopener" }, "Releases"),
+        h("a", { class: "linkish", href: `${REPO}/issues/new`, target: "_blank", rel: "noopener" }, "Report a problem"))));
   const nav = h("nav", { class: "about-nav", "aria-label": "On this page" }, PARTS.map(([k, name]) =>
     h("a", { href: `#about?part=${k}`, "aria-current": s.part === k ? "true" : null }, name)));
   const name = DATA.name.filter((b) => b !== quote);
