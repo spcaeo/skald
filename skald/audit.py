@@ -432,11 +432,15 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
     for seen in people.values():
         seen.sort(key=lambda item: item[0].when)
         visit: list = []
+        came = None             # where the visit's first page came from
         for item in seen:
-            if visit and item[0].when - visit[-1][0].when > gap:
+            here = _came_from(item, wanted) if is_page(item[0]) else None
+            if visit and (item[0].when - visit[-1][0].when > gap
+                          or _elsewhere(here, came)):
                 close(visit)
-                visit = []
+                visit, came = [], None
             visit.append(item)
+            came = came or here
         if visit:
             close(visit)
 
@@ -516,6 +520,26 @@ def recount_alert_figures(config: dict, tz, kept: dict, paths=None) -> dict:
             newest = line.when
     got["newest_line"] = newest.isoformat(timespec="seconds") if newest else None
     return got
+
+
+def _came_from(item: tuple, wanted: set) -> tuple | None:
+    """A page view's source, referrer and campaign, by the audit's labels;
+    None when the site's hosts are not known, so its own links cannot be
+    told from outside ones."""
+    line, cited = item
+    own = wanted or ({line.host.lower()} if line.host else set())
+    if not own:
+        return None
+    return source_of(line, cited, own), referrer_of(line, own), campaign_of(line.url)
+
+
+def _elsewhere(here: tuple | None, came: tuple | None) -> bool:
+    """SOP.md "What a visit is": inside the gap, a page from outside the
+    site (not from the site itself, not without referrer and tag) that came
+    from somewhere other than the visit's first page opens a new visit."""
+    if here is None or came is None:
+        return False
+    return here[0] not in ("This site", "Direct or unknown") and here != came
 
 
 def _landing(visit: list, extras) -> None:

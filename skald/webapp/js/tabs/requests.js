@@ -13,6 +13,7 @@ import { band } from "../charts.js";
 import { csv, download } from "../table.js";
 import * as S from "../state.js";
 import { link } from "../drill.js";
+import { withFlag } from "./readers.js";
 import { info } from "./tiles.js";
 import { mark } from "../icons.js";
 import { call } from "./ipmanager.js";
@@ -174,7 +175,7 @@ export default function requests(m, s, { changed } = {}) {
     tableBody.replaceChildren(...filtered.slice(0, st.shown).map((x) => row(x, open)));
     if (!all.length) tableBody.append(h("tr", null, h("td", { colspan: 8, class: "muted" }, `No request reached the server in the last ${st.file.window_hours || "few"} hours.`)));
     else if (!filtered.length) {
-      const why = [...TOGGLES.filter(([k]) => on.includes(k)).map(([, l]) => l.toLowerCase()), ...(s.ip ? [`address ${s.ip}`] : []), ...S.activeFilters(s).map(([k, v]) => `${k} ${v}`), ...(st.query ? [`search "${st.query}"`] : [])];
+      const why = [...TOGGLES.filter(([k]) => on.includes(k)).map(([, l]) => l.toLowerCase()), ...(s.ip ? [`address ${s.ip}`] : []), ...S.activeFilters(s).map(([k, v]) => `${k} ${k === "country" ? withFlag(v) : v}`), ...(st.query ? [`search "${st.query}"`] : [])];
       tableBody.append(h("tr", null, h("td", { colspan: 8, class: "muted" }, `No request among the ${n(all.length)} latest matches ${why.join(", ") || "these filters"}. `,
         h("button", { type: "button", class: "btn", onclick: () => { st.query = ""; S.set({ rq: "", ip: "" }); } }, "Clear the quick filters"))));
     }

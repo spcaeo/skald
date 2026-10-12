@@ -9,6 +9,7 @@ import { bars } from "../charts.js";
 import { table } from "../table.js";
 import { head, nothing, coverageNote, blist, panel, fileName } from "./common.js";
 import { visitMatrix, entryTable, folded, offset, NOTE } from "./visitlist.js";
+import { label as valueLabel } from "../drill.js";
 
 const MIN_RATE = 10;   // no rate over fewer visits than this: too few to mean anything
 const FEW = "too few to say";
@@ -47,7 +48,7 @@ export function journey(j) {
       j.returning ? h("span", { class: "rep yes", style: { marginLeft: "6px" } }, "returning") : null));
   const detail = h("div", { class: "j-d", id }, h("div", null,
     h("ol", null, j.trail.map((p) => h("li", null, p.at != null ? h("small", { class: "j-at" }, offset(p.at)) : null, p.path, p.page ? null : h("small", null, "moved inside the site; no page loaded")))),
-    h("dl", null, [["Country", j.country], ["Device", j.device], ["Browser", j.browser], ["System", j.os], ["Came from", j.via || j.source],
+    h("dl", null, [["Country", j.country ? valueLabel("country", j.country, j.country) : ""], ["Device", j.device], ["Browser", j.browser], ["System", j.os], ["Came from", j.via || j.source],
       ["Referring page", j.ref_page], ["Campaign", j.campaign], ["Paid", j.paid], ["Searched for", j.search_terms],
       ["Seen in 30 days", j.days_seen_30d != null ? `${j.days_seen_30d} day${j.days_seen_30d === 1 ? "" : "s"}` : ""], ["Ended on", j.exit],
       ...(j.flags || []).map((f) => ["Note", NOTE[f] || f])].filter(([, v]) => v).flatMap(([k, v]) => [h("dt", null, k), h("dd", null, v)]))));
@@ -68,7 +69,7 @@ function journeys(m, s, r) {
 
 export default function visits(m, s, { first }) {
   const { r, t, cov } = figures(m, s);
-  const out = [...head("Visits", r, "A visit is one visitor: a browser that read at least one page, with no gap longer than 30 minutes. Logs see what was loaded, not how long someone read, so a long read of one page shows as a short visit.")];
+  const out = [...head("Visits", r, "A visit is one visitor: a browser that read at least one page, with no gap longer than 30 minutes. Arriving again from another outside source (an AI assistant, a search, another site, a campaign link) starts a new visit. Logs see what was loaded, not how long someone read, so a long read of one page shows as a short visit.")];
   if (!t) return [...out, nothing(m, r, "visits")];
   const v = t.visit;
   const readers = t.readers ?? 0, views = t.views ?? 0;

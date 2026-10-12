@@ -20,10 +20,21 @@ export function country(code) {
   if (!code || code === "Unknown") return "Unknown";
   try { regions ||= new Intl.DisplayNames(["en"], { type: "region" }); return regions.of(code) || code; } catch { return code; }
 }
+/* The one flag helper: the emoji flag for a two-letter country code, or ""
+   for anything else (Unknown, "-", a folded tail, and the codes ISO keeps
+   for private use: AA, QM-QZ, XA-XZ but XK Kosovo, ZZ; and AP, an old
+   "Asia/Pacific"). The text beside it stays, so the flag is decoration:
+   flagEl marks it aria-hidden, withFlag is for plain text (a select's
+   option, a title, a sentence). */
 export function flag(code) {
-  if (!/^[A-Z]{2}$/.test(code || "")) return "";
+  if (!/^[A-Z]{2}$/.test(code || "") || /^(AA|AP|Q[M-Z]|X[A-JL-Z]|ZZ)$/.test(code)) return "";
   return String.fromCodePoint(...[...code].map((c) => 0x1f1a5 + c.charCodeAt(0)));
 }
+export function flagEl(code) {
+  const f = flag(code);
+  return f ? h("span", { class: "flag", "aria-hidden": "true" }, f) : null;
+}
+export const withFlag = (code, text = code) => { const f = flag(code); return f ? `${f} ${text ?? ""}` : String(text ?? ""); };
 
 // Change per row against the previous range, only when both ranges are complete.
 function changes(m, r, cov, t, dim) {

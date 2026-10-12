@@ -57,9 +57,14 @@ NAMES = {entry[:2]: entry[3:] for row in _NAMES.split("\n") for entry in
 
 def flag(code: str) -> str:
     """The flag emoji for a two-letter code: two regional indicator letters.
-    Empty for anything that is not two ASCII letters."""
+    Empty for anything that is not two ASCII letters, and for the codes ISO
+    keeps for private use (AA, QM-QZ, XA-XZ but XK Kosovo, ZZ): "XX" or "ZZ"
+    means unknown, not a place. AP (an old "Asia/Pacific") has no flag."""
     code = (code or "").upper()
     if len(code) != 2 or not code.isascii() or not code.isalpha():
+        return ""
+    if (code in ("AA", "AP", "ZZ") or (code[0] == "Q" and code[1] >= "M")
+            or (code[0] == "X" and code != "XK")):
         return ""
     return "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in code)
 

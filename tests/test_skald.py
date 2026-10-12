@@ -501,12 +501,14 @@ class TestMixedLog(unittest.TestCase):
 
     def test_visits_are_sessions_not_addresses_or_requests(self):
         people = self.totals.groups[Group.PEOPLE]
-        self.assertEqual(people.visits, 3)
+        # Three addresses, four visits: 203.0.113.10's /pricing came from
+        # google.com after a direct first page, so it starts a visit of its own.
+        self.assertEqual(people.visits, 4)
         self.assertLess(people.visits, people.hits)
 
     def test_countries_come_from_the_logged_header(self):
         people = self.totals.groups[Group.PEOPLE]
-        self.assertEqual(dict(people.countries), {"US": 2, "GB": 1})
+        self.assertEqual(dict(people.countries), {"US": 3, "GB": 1})
 
     def test_scanners_are_counted_whatever_agent_they_send(self):
         bots = self.totals.groups[Group.BOTS]
@@ -664,8 +666,10 @@ class TestRendering(unittest.TestCase):
         from skald import as_text
         out = as_text(self.totals, self.cards)
         self.assertIn("16  requests reached the server", out)
-        self.assertIn("2 visits that read at least one page", out)
-        self.assertIn("3 browser sessions in all, 1 without a page view", out)
+        # 203.0.113.10 opens / directly, then /pricing from google.com: two
+        # visits by the source rule (SOP.md, "What a visit is").
+        self.assertIn("3 visits that read at least one page", out)
+        self.assertIn("4 browser sessions in all, 1 without a page view", out)
         self.assertIn("1 arrived by following a citation", out)
 
     def test_html_is_self_contained_and_has_no_remote_references(self):

@@ -452,7 +452,11 @@ that assistant ("Inferred, not classified" above). It is never added to
 the citation count.
 
 **Sessions are approximate.** A visit is one address plus one user agent inside
-a 30-minute gap. A household or an office behind one address is one visit; one
+a 30-minute gap; for people, a page view arriving from a new outside source (an
+assistant, another website, a search engine, social, email, a tagged link)
+that differs from the visit's first page's source, referrer and campaign starts
+a new visit (SOP.md, "What a visit is"). A same-site or no-referrer page never
+does. A household or an office behind one address is one visit; one
 person moving from wifi to mobile data is two.
 
 **New engines appear constantly.** An assistant that launched last month is in

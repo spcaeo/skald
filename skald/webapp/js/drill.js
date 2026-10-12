@@ -8,7 +8,7 @@
 import { h } from "./ui.js";
 import * as S from "./state.js";
 import { mark } from "./icons.js";
-import { country, flag } from "./tabs/readers.js";
+import { country, flagEl, withFlag } from "./tabs/readers.js";
 
 // The values a step can be about, and how each is said.
 export const DIMS = {
@@ -27,6 +27,9 @@ export const DIMS = {
   status: { name: "Status", say: (v) => v },
   bot: { name: "Bot or crawler", say: (v) => v },
 };
+
+// The same as plain text, for a crumb, a title or a sentence: a country with its flag.
+export const said = (dim, v) => (dim === "country" ? withFlag(v, country(v)) : DIMS[dim].say(v));
 
 export function chainOf(s) {
   if (!s.dd) return [];
@@ -52,7 +55,7 @@ export function open(dim, value, { from = null } = {}) {
 // What a value looks like anywhere: its mark (or flag) and its words.
 export function label(dim, value, text) {
   const words = text ?? DIMS[dim]?.say(value) ?? value;
-  if (dim === "country") return h("span", { class: "named" }, flag(value) ? h("span", { class: "flag", "aria-hidden": "true" }, flag(value)) : null, h("span", { class: "nm" }, words));
+  if (dim === "country") return h("span", { class: "named" }, flagEl(value), h("span", { class: "nm" }, words));
   return h("span", { class: "named" }, mark(dim, value), h("span", { class: "nm" }, words));
 }
 

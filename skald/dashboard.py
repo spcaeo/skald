@@ -31,7 +31,7 @@ from .classify import Group, ads_checks
 from .files import slug, write_atomic
 from . import dashboard_breakdowns as bd
 from . import dashboard_visits as dv
-from . import data_files
+from . import countries, data_files
 from . import live
 from .kpi import KPIS, change
 from .report import TITLES
@@ -509,8 +509,9 @@ as a session, not a reader. A session that fetched robots.txt or a sitemap is
 a crawler, whatever browser it claims. Readers are still an upper bound: a
 user agent is self-reported.</li>
 <li><strong>Visits are not requests.</strong> One visit is one address and
-browser within a 30-minute gap. One person reading one page makes dozens of
-requests. A visit that runs past midnight counts on both days.</li>
+browser within a 30-minute gap, until a page arrives from a new outside source
+(an assistant, a search engine, another site, a tagged link). One person reading
+one page makes dozens of requests. A visit past midnight counts on both days.</li>
 <li><strong>AI citations undercount.</strong> They are counted from the
 referrer, which is often stripped. Google AI Overview clicks look exactly like
 ordinary Google clicks and are not in this number at all.</li>
@@ -772,7 +773,7 @@ def render(history: History, site: str, tz: ZoneInfo,
     if not t.breakdowns:
         # Before the breakdowns: countries of visits, the only list there was.
         tables.append(table(f"Countries of people's visits ({span})", ("Country", "Visits"),
-              _top(people.countries) if people else [],
+              [(countries.label(c), v) for c, v in _top(people.countries)] if people else [],
               "No country recorded. The log needs a country field (cc=) for "
               "this; it is never guessed.",
               note=_credit(credit) if people and people.countries else "",

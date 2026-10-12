@@ -11,7 +11,7 @@ import { mark } from "../icons.js";
 import { label as named, link } from "../drill.js";
 import { table } from "../table.js";
 import { ranked } from "../data.js";
-import { country, flag } from "./readers.js";
+import { country, flagEl, withFlag } from "./readers.js";
 import { fileName } from "./common.js";
 import { visitLikely } from "./likelyai.js";
 
@@ -49,8 +49,8 @@ const zoned = (j) => when(j.start);
 const whenWords = (w) => (w ? `${weekday(w.day)} ${w.date}, ${w.hour}:${w.minute}` : "");
 
 function countryCell(code) {
-  const f = flag(code);
-  return h("span", { class: `named${f ? "" : " unk"}` }, f ? h("span", { class: "flag", "aria-hidden": "true" }, f) : null, h("span", { class: "nm" }, country(code)));
+  const f = flagEl(code);
+  return h("span", { class: `named${f ? "" : " unk"}` }, f, h("span", { class: "nm" }, country(code)));
 }
 function withMark(dim, value, cls) {
   return value ? h("span", { class: `named ${cls || ""}` }, mark(dim, value), h("span", { class: "nm" }, value)) : h("span", { class: "unk" }, "Unknown");
@@ -116,7 +116,7 @@ export function visitBody(j) {
 export function openVisit(j) {
   const w = zoned(j);
   const title = `Visit on ${whenWords(w)}`;
-  const subtitle = `${country(j.country)}, ${[j.device, j.browser].filter(Boolean).join(", ")}, from ${sourceOf(j).name}: ${n(j.pages)} page${j.pages === 1 ? "" : "s"} in ${duration(j.seconds)}`;
+  const subtitle = `${withFlag(j.country, country(j.country))}, ${[j.device, j.browser].filter(Boolean).join(", ")}, from ${sourceOf(j).name}: ${n(j.pages)} page${j.pages === 1 ? "" : "s"} in ${duration(j.seconds)}`;
   return openDrawer({ title, subtitle, body: visitBody(j), key: "visit", scope: "page" });
 }
 
@@ -138,7 +138,7 @@ function quick(list, onChange) {
     if (vals.length < 2) continue;
     const btns = vals.map(([v, k]) => {
       const words = key === "country" ? country(v) : v;
-      const icon = key === "country" ? (flag(v) ? h("span", { class: "flag", "aria-hidden": "true" }, flag(v)) : null)
+      const icon = key === "country" ? flagEl(v)
         : key === "device" ? mark("device", v) : key === "source" ? mark("source", v) : null;
       const b = h("button", { type: "button", class: "vq-c", "aria-pressed": "false" }, icon, h("span", null, words), h("span", { class: "vq-n" }, n(k)));
       b.setAttribute("aria-label", `${words}: ${n(k)} visits`);

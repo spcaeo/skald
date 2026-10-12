@@ -186,6 +186,35 @@ def source_type(referrer: str, url: str, cited: bool, own_hosts: set[str]) -> st
     return "Direct or unknown"
 
 
+# Sources that continue a visit: a page reached from the site itself, or with
+# no referrer and no tag (a reload, a typed address, an app). Any other
+# source - an assistant, a website, a search engine, social, email, a tagged
+# link - is an outside arrival.
+INSIDE_SOURCES = ("This site", "Direct or unknown")
+
+
+def page_origin(referrer: str, url: str, cited: bool, own_hosts: set[str]) -> tuple | None:
+    """Where one page view came from: (source, referrer, campaign) labels,
+    as a reader is labelled. Two page views come from the same place when
+    these are equal. None when the site's own hosts are not known (no
+    site.hosts and a line without a host): a link from the site itself
+    cannot then be told from one from outside, so it never splits a visit."""
+    if not own_hosts:
+        return None
+    return (source_type(referrer, url, cited, own_hosts),
+            referrer_label(referrer, own_hosts), campaign(url))
+
+
+def new_source(origin: tuple | None, visit_origin: tuple | None) -> bool:
+    """The session rule's second half (the first is the gap): a page that
+    arrives from outside, from somewhere other than where the open visit's
+    first page came from, starts a new visit. `origin` is None for a request
+    that is not a page view; `visit_origin` is None while the visit has read
+    no page yet (the page then becomes its first)."""
+    return (origin is not None and visit_origin is not None
+            and origin[0] not in INSIDE_SOURCES and origin != visit_origin)
+
+
 def referrer_label(referrer: str, own_hosts: set[str]) -> str:
     host = referrer_host(referrer)
     if not host:
