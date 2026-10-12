@@ -56,6 +56,21 @@ a.tab, a.foot-btn { text-decoration: none; box-sizing: border-box; }
   .bar-row:has(.bar-mid > *) .trail li:is(.crumb-g, .crumb-p):first-child + li::before { content: none; }
   .refresh .r-l, .refresh .r-ago, .bar-right .stamp { display: none; }
 }
+/* the bar never overlaps itself (main.js fitBar, 768px and up): "tight" gives up the trail's
+   group and parent and the refresh words; "two-rows" puts the period and the filters on a
+   row of their own under the title and the buttons */
+.bar.tight .trail li:is(.crumb-g, .crumb-p) { display: none; }
+.bar.tight .trail li:is(.crumb-g, .crumb-p):first-child + li::before { content: none; }
+.bar.tight .refresh .r-l, .bar.tight .refresh .r-ago, .bar.tight .bar-right .stamp { display: none; }
+.bar.two-rows .bar-row { flex-wrap: wrap; row-gap: 4px; padding-top: 6px; }
+.bar.two-rows .tb-title { flex: 1 0 auto; }
+.bar.two-rows .bar-mid { order: 3; flex: 1 0 100%; flex-wrap: wrap; justify-content: flex-start; padding: 0 0 8px; }
+/* phones: a long page name is cut with an ellipsis, never drawn under the buttons */
+@media (max-width: 767px) {
+  .tb-title, .trail { min-width: 0; }
+  .trail { overflow: hidden; }
+  .trail .crumb.now { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+}
 /* the group, quiet, before the page (wide screens only) */
 .trail .crumb-g .crumb { cursor: default; color: var(--ink-3); font-weight: 520; }
 .trail .crumb-g .crumb:hover { text-decoration: none; }

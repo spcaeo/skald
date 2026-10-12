@@ -141,7 +141,8 @@ export function leadTable(obj, lb, { caption, file, key = "Label", keep = () => 
   if (lb && lb.days) {
     cols.push({ key: "leads", label: "Leads", num: true, sort: by((x) => x.leads), title: `${LEAD_WORDS} By ${touch}.` },
       { key: "rate", label: "Lead rate", num: true, sort: by((x) => x.rate), title: `Leads per visitor of the same days, given over at least ${min} visitors.`,
-        fmt: (v, x) => (v != null ? pct1(x.leads, lb.visitors[x.k]) : x.leads || lb.visitors[x.k] ? h("span", { class: "few" }, `too few to say (${n(lb.visitors[x.k] || 0)})`) : "-"),
+        fmt: (v, x) => (v != null ? pct1(x.leads, lb.visitors[x.k]) : x.k !== UNKNOWN && lb.visitors[x.k] ? h("span", { class: "few" }, `too few to say (${n(lb.visitors[x.k])})`)
+          : h("span", { class: "few", title: x.k === UNKNOWN ? "No rate: the label was not recorded" : "No rate: no visitor of this label in the same days" }, "-")),
         csv: (x) => (x.rate == null ? "" : x.rate.toFixed(4)) });
   }
   const t = table(cols, { caption, rows: rows.sort((a, b) => (a.k === UNKNOWN) - (b.k === UNKNOWN) || (b.v || 0) - (a.v || 0) || (b.leads || 0) - (a.leads || 0) || a.k.localeCompare(b.k)), file, limit, empty });

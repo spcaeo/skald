@@ -291,21 +291,24 @@ export function lines(days, series, { label, H = 240, prev, marks } = {}) {
 }
 
 // A sparkline: one series, no axes. Nulls break the line.
+/* A sparkline drawn to its box's own height (a tile's is 22px, a KPI's 34px),
+   with room under the base line: a zero day never sits on the box's edge. */
 export function spark(values, color = "var(--ink-3)") {
-  const Hs = 34, Ws = 200, k = values.length;
+  const Hs = 34, Ws = 200, k = values.length, lo = 7, hi = 4;
+  const y = (v) => Hs - lo - (v / max) * (Hs - lo - hi);
   const vals = values.filter((v) => v != null);
   if (vals.length < 2) return h("div", { class: "spark" });
   const max = Math.max(1, ...vals), step = Ws / Math.max(1, k - 1);
   const segs = []; let run = [];
   values.forEach((v, i) => {
     if (v == null) { if (run.length) segs.push(run); run = []; return; }
-    run.push(`${(i * step).toFixed(1)},${(Hs - 3 - (v / max) * (Hs - 6)).toFixed(1)}`);
+    run.push(`${(i * step).toFixed(1)},${y(v).toFixed(1)}`);
   });
   if (run.length) segs.push(run);
   const lastI = values.length - 1 - [...values].reverse().findIndex((v) => v != null);
-  const ly = Hs - 3 - (values[lastI] / max) * (Hs - 6);
+  const ly = y(values[lastI]);
   const el = h("div", { class: "spark", "aria-hidden": "true" });
-  el.innerHTML = `<svg viewBox="-3 0 ${Ws + 6} ${Hs}" preserveAspectRatio="none" style="width:100%;height:${Hs}px;display:block;overflow:visible">` +
+  el.innerHTML = `<svg viewBox="-3 0 ${Ws + 6} ${Hs}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;overflow:visible">` +
     segs.map((s) => s.length > 1 ? `<polyline points="${s.join(" ")}" fill="none" stroke="${color}" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>` : "").join("") +
     `<circle cx="${(lastI * step).toFixed(1)}" cy="${ly.toFixed(1)}" r="2.5" fill="${color}"/></svg>`;
   return el;

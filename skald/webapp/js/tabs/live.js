@@ -93,6 +93,12 @@ function rightNow(m, js, events) {
    Conversions tab counts: every stage of a form or a booking, with its
    source, landing page and country. A row marked test is listed, marked and
    never counted. Withheld with today's conversions; null without the file. */
+// "source / medium / name" with only the parts known: "newsletter / - / -" reads "campaign newsletter".
+function campaignWords(c) {
+  if (!c || c === "(no campaign tag)") return "";
+  const known = String(c).split(" / ").filter((p) => p && p !== "-");
+  return known.length ? `campaign ${known.join(" / ")}` : "";
+}
 const REPORTED = { beacon: "the script tag", site: "the lead database", lead: "your site's server" };
 function leadsToday(m) {
   const f = convFile(m);
@@ -111,7 +117,7 @@ function leadsToday(m) {
       h("span", { class: "s-i" }, flagEl(x.country) || mark("device", x.device)),
       h("span", { class: "s-w" }, h("b", null, oneAction(x.action)), h("span", { class: `lead-tag${done ? " done" : ""}` }, STAGE[x.stage] || x.stage),
         x.test ? h("span", { class: "lead-tag", title: "Marked test by the server admin: listed, never counted" }, "test, not counted") : null,
-        ` ${facts}`, h("small", null, [`reported by ${REPORTED[x.tool] || toolName(x.tool)}`, x.first_source && x.first_source !== x.source ? `first came from ${x.first_source}` : "", x.campaign && x.campaign !== "(no campaign tag)" ? `campaign ${x.campaign}` : "", x.device || ""].filter(Boolean).join(" · "))));
+        ` ${facts}`, h("small", null, [`reported by ${REPORTED[x.tool] || toolName(x.tool)}`, x.first_source && x.first_source !== x.source ? `first came from ${x.first_source}` : "", campaignWords(x.campaign), x.device || ""].filter(Boolean).join(" · "))));
   };
   const rows = b.rows || [];
   const more = b.total > rows.length ? h("p", { class: "note" }, `The latest ${n(rows.length)} of ${n(b.total)} are listed; the Conversions page counts them all.`) : null;
@@ -132,15 +138,18 @@ export default function live(m, s) {
   const nowHour = Number(String(L.generated_at || "").slice(11, 13));
   const thisHour = t.by?.hour ? t.by.hour[String(nowHour).padStart(2, "0")] || 0 : null;
   const conv = convFile(m);
-  const today = conv ? dayLeads(conv, convDay(conv, m.today)) : null;
+  // Today's conversions: "ok" (read, even when every lead was spam or test: 0), withheld, or not recorded (-).
+  const entry = conv ? convDay(conv, m.today) : null;
+  const today = conv ? dayLeads(conv, entry) : null;
   const leads = conv ? today?.leads ?? null : leadsOver(m, [m.today]);
+  const leadLine = !conv || today ? null : entry?.state === "withheld" ? "withheld: the second count disagrees" : "not recorded";
   out.push(tiles([
     { label: "Visitors", value: t.readers ?? null, info: `Visits that read at least one page today, counted only when the browser loaded the page's scripts and styles, so automated readers are left out; ${n(t.visits)} browser sessions in all, including ones that loaded no page.`,
       line: thisHour != null ? `+${n(thisHour)} this hour` : null },
     { label: "Pages read", value: t.views ?? null, info: "Page views by visitors today." },
     { label: "Visitors from AI", value: t.cited ?? null, info: "Visitors who followed a link in an AI assistant's answer; once per visitor, so it undercounts." },
-    { label: "Leads today", value: leads, info: conv ? `${LEAD_WORDS} From the Conversions data, checked by the second count; "-" while today's conversions are withheld.` : "Sign-ups, contact forms and early-access requests from the lead store, spam and duplicates removed." },
-    conv ? { label: "Demos booked today", value: today?.demos ?? null, info: "Demo bookings completed today, from the booking tool's webhook, the script tag and the lead database. Part of the leads." } : null,
+    { label: "Leads today", value: leads, line: leadLine, info: conv ? `${LEAD_WORDS} From the Conversions data, checked by the second count; "-" while today's conversions are withheld.` : "Sign-ups, contact forms and early-access requests from the lead store, spam and duplicates removed." },
+    conv ? { label: "Demos booked today", value: today?.demos ?? null, line: leadLine, info: "Demo bookings completed today, from the booking tool's webhook, the script tag and the lead database. Part of the leads." } : null,
     { label: "Returning", value: null, info: "Counted once the day is whole: returning visitors appear on Overview from tomorrow." },
   ]));
   out.push(others(t, { probes: true }));

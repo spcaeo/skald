@@ -31,6 +31,7 @@ touch not known, or fetches not kept for its window, is "Unknown".
 """
 from __future__ import annotations
 
+import sqlite3
 from collections import Counter
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
@@ -273,6 +274,35 @@ def _local(at, tz) -> str | None:
 
 # ------------------------------------------------------------- the file
 
+def recorded_since(config: dict, db, site: str, tz) -> str | None:
+    """conversions.json `since`: the first local day conversions are recorded
+    for, or None. The earliest of the first row kept, the first row taken
+    away (store.remove: it was recorded), and - once the lead DB has been
+    read into the store (its sync mark) - the lead DB's first lead of any
+    status: spam and duplicates make no row, yet their day was read, so a
+    day after it with no lead counted is 0, not "not recorded" (2.5.1).
+    audit_conversions_figures.check_since finds the same day by its own SQL."""
+    from .conversions import from_leads
+    from .conversions.adapters import when
+    stamps = [db.execute("SELECT MIN(at) FROM conversions WHERE site = ?", (site,)).fetchone()[0],
+              db.execute("SELECT MIN(at) FROM removed WHERE site = ? AND at IS NOT NULL",
+                         (site,)).fetchone()[0]]
+    if from_leads.enabled(config) and db.execute(
+            "SELECT 1 FROM meta WHERE key = ?", (from_leads._mark_key(site),)).fetchone():
+        from .leads import connect, db_path
+        try:
+            lead_db = connect(db_path(config))
+            try:
+                made = [when(r[0]) for r in lead_db.execute("SELECT created_at FROM submissions")]
+            finally:
+                lead_db.close()
+            stamps.append(min((m for m in made if m), default=None))
+        except (OSError, sqlite3.Error):
+            pass                        # not read now: the rows alone say
+    days = [_day(s, tz) for s in stamps if s]
+    return min(days) if days else None
+
+
 def _unavailable(reason: str, found: dict) -> dict:
     return {"available": False, "reason": reason, "set_up": found, "min_rate": MIN_RATE,
             "as_known": AS_KNOWN, "stages": list(STAGES), "finished": list(FINISHED),
@@ -301,9 +331,7 @@ def blob(config: dict, folder: Path, site: str, tz, today: date, now: datetime,
     hours = from_beacon.abandon_hours(config)
     db = store.connect(path)
     try:
-        oldest = db.execute("SELECT MIN(at) FROM conversions WHERE site = ?",
-                            (site,)).fetchone()[0]
-        since = _day(oldest, tz) if oldest else None
+        since = recorded_since(config, db, site, tz)
         per = figures(db, site, tz, first, today, now_s, hours,
                       likely_fetches(config, history, today))
         lo, hi = _stamp(start, tz), _stamp(today + timedelta(days=1), tz)

@@ -68,16 +68,37 @@ addEventListener("resize", () => {
 });
 
 // ------------------------------------------------------------- the top bar
+/* The dark pill under the chosen period. The bar is drawn again on every
+   change, so the pill starts where the last one stood and slides once; and
+   it is placed again whenever a button's size changes (the bar settling,
+   a narrower screen, a font), never left where an early measure put it. */
+let pillAt = null;
 function segmented(options, value, onPick, label) {
-  const ind2 = h("span", { class: "seg-ind", "aria-hidden": "true" });
-  const seg = h("div", { class: "seg", role: "group", "aria-label": label }, ind2,
-    options.map(([k, name]) => h("button", { type: "button", "aria-pressed": String(k === value), onclick: () => onPick(k) }, name)));
-  requestAnimationFrame(() => {
-    const on = seg.querySelector('[aria-pressed="true"]');
-    if (!on) { ind2.style.width = "0"; return; }
-    ind2.style.width = `${on.offsetWidth}px`;
-    ind2.style.transform = `translateX(${on.offsetLeft}px)`;
-  });
+  const ind = h("span", { class: "seg-ind", "aria-hidden": "true" });
+  const btns = options.map(([k, name]) => h("button", { type: "button", "aria-pressed": String(k === value), onclick: () => onPick(k) }, name));
+  const seg = h("div", { class: "seg", role: "group", "aria-label": label }, ind, btns);
+  let now = null;
+  const put = (x, w) => { now = { x, w }; ind.style.width = `${w}px`; ind.style.transform = `translateX(${x}px)`; };
+  const place = (slide) => {
+    const on = btns.find((b) => b.getAttribute("aria-pressed") === "true");
+    if (!seg.isConnected) return;
+    if (!on || !on.offsetWidth) { now = null; ind.style.width = "0"; return; }
+    const r = on.getBoundingClientRect(), box = seg.getBoundingClientRect();
+    const x = r.left - box.left - seg.clientLeft, w = r.width;
+    pillAt = { x, w };
+    if (now && Math.abs(now.x - x) < 0.5 && Math.abs(now.w - w) < 0.5) return;
+    if (!slide) ind.style.transition = "none";
+    put(x, w);
+    if (!slide) { void ind.offsetWidth; ind.style.transition = ""; }
+  };
+  // Where the last pill stood, then (a frame later, laid out) where this one belongs.
+  const slide = !!pillAt;
+  if (slide) { ind.style.transition = "none"; put(pillAt.x, pillAt.w); }
+  requestAnimationFrame(() => { ind.style.transition = ""; place(slide); });
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(() => { if (!seg.isConnected) return ro.disconnect(); place(false); });
+    btns.forEach((b) => ro.observe(b));
+  }
   return seg;
 }
 
@@ -190,9 +211,10 @@ function drawBar(s) {
   const range = segmented(S.RANGES, s.range, (k) => {
     if (k === "custom") { const r = rangeOf(model, s); S.set({ range: "custom", from: r.first, to: r.last }); } else S.set({ range: k });
   }, "Date range");
-  // Compare has two periods of its own: the single period above does not apply there.
-  const mid = s.tab === "compare" || (s.tab === "pages" && s.page) ? [] : [range];
-  if (s.range === "custom") {
+  // Compare has two periods of its own, and Live is always today so far: the period above does not apply there.
+  const ranged = !(s.tab === "compare" || s.tab === "live" || (s.tab === "pages" && s.page));
+  const mid = ranged ? [range] : [];
+  if (ranged && s.range === "custom") {
     const lo = model.firstDay || model.anchor, hi = model.anchor;
     const from = h("input", { type: "date", value: s.from, min: lo, max: hi, "aria-label": "From" });
     const to = h("input", { type: "date", value: s.to, min: lo, max: hi, "aria-label": "To" });
@@ -237,8 +259,47 @@ function drawBar(s) {
   // A page with no figures (About) keeps only its title, the bell and the palette.
   if (NO_DATA.has(s.tab)) bar.replaceChildren(h("div", { class: "bar-row" }, title, h("div", { class: "bar-mid" }), h("div", { class: "bar-right" }, always.filter(Boolean))));
   else bar.replaceChildren(h("div", { class: "bar-row" }, title, h("div", { class: "bar-mid" }, mid), h("div", { class: "bar-right" }, right.filter(Boolean))), chips);
+  fitBar();
   const open = (model.x?.alerts?.open || []).length;
   badge("health", open, `${open} open alert${open === 1 ? "" : "s"}`);
+}
+
+/* The bar never overlaps itself. When the middle (period, page group, filters)
+   does not fit between the trail and the buttons, the trail's group and parent
+   and the refresh words give way first ("tight"); if that is not enough, the
+   middle takes a row of its own ("two-rows"). Measured, not guessed by width:
+   a long page name, an admin's extra buttons or a wider search all count.
+   Phones (below 768px) have their own two-row bar. */
+const wideBar = matchMedia("(min-width: 768px)");
+function fitBar() {
+  const row = bar.querySelector(".bar-row"), mid = row?.querySelector(".bar-mid");
+  bar.classList.remove("tight", "two-rows");
+  watchBar(row?.querySelector(".bar-right"));
+  if (!mid || !wideBar.matches) return;
+  const over = () => mid.scrollWidth > mid.clientWidth + 1 || row.scrollWidth > row.clientWidth + 1;
+  if (!over()) return;
+  bar.classList.add("tight");
+  if (!over()) return;
+  bar.classList.replace("tight", "two-rows");
+  if (over()) bar.classList.add("tight");
+}
+// Fitted again when the bar's width changes (window, sidebar) or its buttons' (the search opening).
+const barSizes = new WeakMap();
+const barRO = window.ResizeObserver ? new ResizeObserver((list) => {
+  let moved = false;
+  for (const e of list) {
+    const w = Math.round(e.contentRect.width);
+    if (barSizes.get(e.target) !== w) { barSizes.set(e.target, w); moved = true; }
+  }
+  if (moved) fitBar();
+}) : null;
+let watched = null;
+function watchBar(right) {
+  if (!barRO || right === watched) return;
+  if (watched) barRO.unobserve(watched);
+  barRO.observe(bar);
+  if (right) { barRO.observe(right); barSizes.set(right, Math.round(right.getBoundingClientRect().width)); }
+  watched = right;
 }
 
 // The "more" menu: markers always; compare, saved views and export too when the screen hides their buttons.

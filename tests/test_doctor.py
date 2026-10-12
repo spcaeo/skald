@@ -123,6 +123,9 @@ class Doctor(unittest.TestCase):
         self.assertEqual(got["state"], "OK")
         self.assertIn("the day itself is stored and checked", got["says"])
         self.assertIn("this week's mail is held back", got["says"])
+        self.assertEqual(got["says"].count("seven whole days"), 1, got["says"])
+        self.assertIn("(weekly mail: partial day(s) 2026-10-06 (partial day, data from 14:05))",
+                      got["says"])
         self.assertIn("clears by itself next week", got["says"])
         self.assertNotIn("did not reconcile", got["says"])
 

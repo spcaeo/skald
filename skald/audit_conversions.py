@@ -593,6 +593,9 @@ def check_file(config: dict, folder: Path, site: str, tz, first: date, last: dat
                                    refresh=False) or {}).items():
         out.setdefault(f"days/{day}", []).extend(problems)
     path = store.path_for(config, folder)
+    problems = figures.check_since(path, site, tz, _leads_on(config), blob.get("since"))
+    if problems:
+        return {"*": problems}
     for day, problems in figures.check_days(path, site, tz, first, last, now, hours,
                                             blob["days"], history, config).items():
         out.setdefault(f"days/{day}", []).extend(problems)

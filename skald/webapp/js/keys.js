@@ -24,8 +24,9 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-12i",
+  id: "2026-10-12j",
   items: [
+    ["Fixes", "lead tiles show 0, not a dash, when every lead was spam or test; Live no longer shows a date range; the top bar never overlaps."],
     ["Leads everywhere", "leads and demos booked on Overview, Sources, Pages, Locations, Insights and Compare, each counted twice.", "leads-and-conversions"],
     ["Live", "today's leads and bookings as they arrive, with source, page and country.", "leads-and-conversions"],
     ["Doctor", "names the step a daily run stopped at, and why."],
