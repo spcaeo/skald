@@ -60,7 +60,7 @@ export function bell(m) {
   const b = h("button", { type: "button", class: `btn bell${open ? " on" : ""}${high ? " high" : ""}`, html: BELL,
     "aria-label": open ? `Alerts: ${open} open. Open the alerts.` : "Alerts: none open. Open the alerts." },
   open ? h("span", { class: "bell-n", "aria-hidden": "true" }, String(open)) : null);
-  b.addEventListener("click", () => S.set({ tab: "health/alerts" }));
+  b.addEventListener("click", () => S.set({ tab: "site/alerts" }));
   return b;
 }
 
@@ -130,7 +130,7 @@ export function savedDialog() {
 function describe(hash) {
   const [tab, q = ""] = hash.replace(/^#/, "").split("?");
   const p = new URLSearchParams(q);
-  const name = (S.TABS.find(([k]) => k === tab) || [null, tab])[1];
+  const name = S.nameOf(tab);
   const range = (S.RANGES.find(([k]) => k === (p.get("range") || "30d")) || [null, p.get("range")])[1];
   const bits = [name, range];
   for (const k of S.FILTERS) if (p.get(k)) bits.push(`${k} ${k === "country" ? withFlag(p.get(k)) : p.get(k)}`);

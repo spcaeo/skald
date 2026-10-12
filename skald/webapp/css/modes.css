@@ -1,0 +1,89 @@
+/* The two global modes (2.7.0, js/modes.js, mode-live.js, mode-compare.js):
+   "Today · Live" and "Compare with…" in the top bar, the line Compare puts at
+   the top of a tab, and the A · B · ± tables. Loaded after shell.css. Tokens
+   from app.css; A and B's colours (--va, --vb) from screens.css. */
+
+/* ------------------------------------------------------------ Today · Live */
+.bar .mode-live { gap: 7px; padding: 4px 11px 4px 10px; border-radius: 999px; white-space: nowrap; font-weight: 560; flex: none; }
+.mode-live .m-dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--ink-3); flex: none; }
+.mode-live.on { color: var(--good); border-color: color-mix(in srgb, var(--good) 50%, var(--rule));
+  background: color-mix(in srgb, var(--good) 11%, var(--surface)); }
+.mode-live.on:hover { border-color: var(--good); }
+.mode-live .m-today { color: var(--ink-2); font-weight: 500; }
+.mode-live.on .m-today { color: inherit; }
+
+/* ---------------------------------------------------------- Compare with… */
+.mode-cmp-wrap { flex: none; }
+.bar .mode-cmp { gap: 6px; padding: 4px 10px 4px 8px; white-space: nowrap; }
+.mode-cmp .m-s { display: none; }
+.mode-cmp.on { border-color: color-mix(in srgb, var(--vb) 60%, var(--rule)); background: color-mix(in srgb, var(--vb) 10%, var(--surface)); }
+.mode-cmp.on:hover { border-color: var(--vb); }
+.mode-cmp.on.idle { border-style: dashed; background: var(--surface); color: var(--ink-2); }
+.pop.mode-pop { left: 0; right: auto; width: min(340px, calc(100vw - 24px)); gap: 8px; transform-origin: top left; }
+.pop.mode-pop.from-right { left: auto; right: 0; transform-origin: top right; }
+.mode-h { margin: 0; font-weight: 650; }
+.mode-pop .note { margin: 0; font-size: 12.5px; }
+.mode-opts { display: grid; gap: 2px; }
+.mode-opt, .mode-custom { position: relative; display: grid; gap: 1px; padding: 7px 10px 7px 30px; border-radius: 8px; text-align: left; }
+.mode-opt { width: 100%; }
+.mode-opt small { color: var(--ink-2); }
+.mode-opt::before, .mode-custom::before { content: ""; position: absolute; left: 10px; top: 11px; width: 12px; height: 12px; border-radius: 50%;
+  border: 1.5px solid var(--ink-3); box-sizing: border-box; }
+.mode-opt[aria-pressed="true"]::before, .mode-custom.on::before { border: 4px solid var(--ink); }
+.mode-custom { gap: 6px; }
+.mode-custom .pair { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); }
+.mode-custom .pair input { flex: 1; min-width: 0; }
+.mode-custom .btn { justify-self: start; }
+.mode-say { margin: 0; font-size: 12.5px; color: var(--bad); }
+.mode-say:empty { display: none; }
+.mode-off { justify-self: start; }
+
+/* the top bar when it is tight (main.js fitBar) and on phones: short words */
+.bar.tight .mode-cmp .m-l { display: none; }
+.bar.tight .mode-cmp .m-s { display: inline; }
+@media (max-width: 767px) {
+  .bar .mode-live .m-today { display: none; }
+  .bar .mode-cmp .m-l { display: none; }
+  .bar .mode-cmp .m-s { display: inline; }
+  /* the period row scrolls sideways: the panel hangs from the whole bar instead */
+  .pop.mode-pop, .pop.mode-pop.from-right { position: fixed; left: 10px; right: 10px; top: calc(100% + 4px); width: auto; }
+}
+
+/* ------------------------------------------- the line at the top of a tab */
+.mode-banner { margin: 0 0 12px; }
+.cmp-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; font-size: 13px; color: var(--ink-2); }
+.cmp-line p { margin: 0; }
+.cmp-line b { color: var(--ink); font-weight: 650; }
+.cmp-line i, .cmp-vs i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.cmp-line i.sa { background: var(--va); }
+.cmp-line i.sb, .cmp-vs i.sb { background: var(--vb); }
+.cmp-line .cmp-gap { color: var(--ink-3); }
+.cmp-per { font-size: 13px; }
+.cmp-none { margin: 0 0 10px; font-size: 12.5px; color: var(--ink-3); }
+.cmp-vs { font-size: 12.5px; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cmp-vs .vs-d { font-size: 12.5px; }
+
+/* --------------------------- A · B · ± tables (mode-compare.js cmpTable):
+   the 2.5.1 lead tables' layout: full width, grouped headers over their
+   columns, the label column stays put while the figures scroll sideways. */
+.cmp-tbl th:first-child, .cmp-tbl td:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); }
+.cmp-tbl td:first-child { max-width: 40ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmp-tbl th.colgrp { text-align: center; color: var(--ink); border-bottom: 1px solid var(--rule); padding-bottom: 4px; }
+.cmp-tbl tr.grp-row th { padding-top: 9px; }
+.cmp-tbl td.g-start, .cmp-tbl th.g-start { border-left: 1px solid var(--grid); }
+.cmp-tbl .scroll {
+  background:
+    linear-gradient(to right, var(--surface) 30%, transparent) left / 24px 100% no-repeat local,
+    linear-gradient(to left, var(--surface) 30%, transparent) right / 24px 100% no-repeat local,
+    radial-gradient(farthest-side at 100% 50%, color-mix(in srgb, var(--ink) 22%, transparent), transparent) right / 10px 100% no-repeat scroll,
+    var(--surface);
+}
+.cmp-tbl .d-pct, .lead-tbl .d-pct { display: block; font-size: 11.5px; font-weight: 500; color: var(--ink-3); }
+.d-pct.in { display: inline; margin-left: 5px; font-size: 11.5px; font-weight: 500; color: var(--ink-3); }
+@media (max-width: 640px) {
+  .cmp-tbl td:first-child { max-width: 16ch; }
+  .cmp-tbl th, .cmp-tbl td { padding-left: 8px; padding-right: 8px; }
+}
+@media print {
+  .cmp-tbl th:first-child, .cmp-tbl td:first-child { position: static; }
+}

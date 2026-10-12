@@ -257,13 +257,13 @@ never up.
 - **Seen:** `/wp-content/uploads/2025/09/cropped-Welc...` and `/wp-content/uploads/2025/11/Banner-image...` (the old site's own images, still linked from somewhere) next to `/wp-admin/install.php?step=...` (30, a real probe).
 - **Wrong:** `/wp-content` is a probe pattern, so a person following an old image link is filed as a scanner.
 - **Detect:** a per-site "legacy paths" list (this site was WordPress until 2026-10-06) that wins over the probe rule for `/wp-content/uploads/` only; `wp-admin`, `wp-login`, `xmlrpc` stay probes.
-- **Count:** legacy 404 (people or bots by the usual rules), shown in Broken links as "old site URL".
+- **Count:** legacy 404 (people or bots by the usual rules), shown in Not found (Site > Not found; Broken links before 2.7.0) as "old site URL".
 - **Test:** `/wp-content/uploads/2025/09/x.png` with a browser agent and a Google Images referrer is not a probe when the site lists `/wp-content/uploads/` as legacy.
 - **Status:** Handled: `site.legacy_paths` (for example `[/wp-content/uploads/]`) wins over the probe rule.
 
 ### C8. Old blog and feature URLs (404)
 - **Seen:** 426 404s, 321 distinct paths; top `/blog/best-virtual-receptionist-for-law-firms/` 22, many `/blog/...`, `/features/...`, `/industries/...` of the old site.
-- **Count:** in Broken links, grouped: old-site URL / probe / typo / stale build file (I2). A path that starts returning 200 or 301 gets the "fixed" badge.
+- **Count:** in Not found, grouped: old-site URL / probe / typo / stale build file (I2). A path that starts returning 200 or 301 gets the "fixed" badge.
 - **Status:** This release (Broken links, fixed badges, probe grouping).
 
 ### C9. Another service's short links on the same host
@@ -366,7 +366,7 @@ never up.
 
 ### E8. Our own UTM tags on internal links
 - **Wrong:** a `utm_` tag on a link from one page of the site to another starts a new source mid-visit (the CMS starts a new session on any sourced arrival).
-- **Count:** never tag internal links; the Broken links/health tab can list internal links carrying `utm_`.
+- **Count:** never tag internal links; the Site > Not found and Health tabs can list internal links carrying `utm_`.
 
 ### E9. Click ids and personal data
 - **Wrong:** `gclid`, `fbclid` are long, unique per click, and with a timestamp can be tied back to an ad account; a query can carry an email.
@@ -390,7 +390,7 @@ never up.
 
 ### F3. 404 scanners
 - **Seen:** `.env` family from a bare agent, `/wp-admin/install.php` 30, `/xmlrpc.php`, `/admin`, `/api/users`.
-- **Count:** bots, probe=True (Handled). Group them in Broken links so they do not drown real broken links (This release).
+- **Count:** bots, probe=True (Handled). Group them in Not found so they do not drown real broken links (This release).
 
 ### F4. Rate limiting
 - **Seen:** 429 x4 from our own test.
@@ -511,7 +511,7 @@ never up.
 ### I2. Stale build files after a deploy
 - **Seen:** all 35 apex 404s and several www 404s are `/_next/static/chunks/...` and font files of a previous build.
 - **Wrong:** pages already open in a browser ask for the old build's files; they 404, and the page may break for that visitor.
-- **Count:** Broken links group "stale build file"; never mixed with real broken links. A surge right after a deploy is expected; one that lasts more than an hour is a bug (keep the previous build's static files for a day).
+- **Count:** Not found group "stale build file"; never mixed with real broken links. A surge right after a deploy is expected; one that lasts more than an hour is a bug (keep the previous build's static files for a day).
 - **Status:** Gap, ROADMAP P1-3.
 
 ### I3. Large CSV exports

@@ -18,7 +18,7 @@ Journeys carry `at`: one entry per `trail` entry, the seconds since the visit's 
 bucketed like durations (to the second under a minute, 10 s under ten minutes, the minute under
 an hour, then 10 minutes). The trail and `at` keep the first 50 entries.
 The web app's `data/app.json` gives each journey's trail as `{"path","page","at"}`: the same
-offset on its step (the Visitors tab shows "+0 s, +40 s"). A journey stored before `at` was kept
+offset on its step (Traffic > Visitors shows "+0 s, +40 s"). A journey stored before `at` was kept
 has steps with no `at`, never a guessed 0. No new personal data: an offset is a bucketed time.
 
 `day_extras` kind `funnels`: `{key: series}`. `key` is the first 16 hex digits of the SHA-256 of

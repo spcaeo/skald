@@ -44,7 +44,7 @@ and stays within this policy.
 | What | Where | How long |
 | --- | --- | --- |
 | Raw IP addresses | Your web server's own access log | Your log rotation (14 days on the reference setup) |
-| Raw IP addresses | The private Requests feed (behind sign-in) | Its 6-hour window |
+| Raw IP addresses | The private request log, Site > Requests (behind sign-in) | Its 6-hour window |
 | Raw IP addresses | Today's AI activity, the internal-address list | Today only; the list until removed |
 | Keyed visitor hashes (HMAC-SHA256 with a server secret) | History | 30 days by default (1 to 90 in Settings) |
 | Anonymous journeys (no address, no user agent, no key) | History | 7 days by default |

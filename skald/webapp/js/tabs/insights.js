@@ -21,16 +21,17 @@ export const TYPES = [
 const icon = (d) => `<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 
 // Where a subject is shown, and the filter that narrows that tab to it.
-const TARGET = { page: "pages", path: "pages", source: "sources", referrer: "sources", campaign: "sources",
-  country: "locations", assistant: "bots", crawler: "bots", site: "overview" };
-const TAB_NAME = Object.fromEntries(S.TABS);
+const TARGET = { page: "traffic/pages", path: "traffic/pages", source: "traffic/sources", referrer: "traffic/sources", campaign: "traffic/sources",
+  country: "traffic/places", assistant: "ai/assistants", crawler: "ai/crawlers", site: "overview/summary" };
+// Read when drawn: the sections' tabs are registered after this file loads (js/sections.js).
+const tabName = (k) => S.nameOf(k);
 const KNOWN = new Set(S.FILTERS);
 
 function target(i) {
-  const tab = i.metric === "not_found" ? "health/broken" : TARGET[i.subject?.kind] || "overview";
+  const tab = i.metric === "not_found" ? "site/notfound" : TARGET[i.subject?.kind] || "overview/summary";
   const filter = Object.fromEntries(Object.entries(i.filter || {}).filter(([k]) => KNOWN.has(k)));
   // A page that started leads opens the Pages tab on its landing-page leads, not its story.
-  if (i.subject?.kind === "page" && filter.path) return i.metric === "leads" ? { tab: "pages", ...filter } : { tab: "pages", page: filter.path, ...filter };
+  if (i.subject?.kind === "page" && filter.path) return i.metric === "leads" ? { tab: "traffic/pages", ...filter } : { tab: "traffic/pages", page: filter.path, ...filter };
   return { tab, ...filter };
 }
 
@@ -59,7 +60,7 @@ function card(i) {
     trend && trend.length > 1 ? spark(trend, tone) : null,
     h("p", { class: "ins-meta" }, `${i.subject?.kind || ""}${name ? `: ${name}` : ""}`, i.period?.after ? `, ${short(i.period.after[0])} to ${short(i.period.after[1])}` : "",
       i.period?.before ? ` against ${short(i.period.before[0])} to ${short(i.period.before[1])}` : ""),
-    h("button", { type: "button", class: "btn ins-go", onclick: () => S.set(go) }, `Open in ${TAB_NAME[go.tab] || "Overview"}`));
+    h("button", { type: "button", class: "btn ins-go", onclick: () => S.set(go) }, `Open in ${go.tab ? tabName(go.tab) : "Overview"}`));
 }
 
 export default function insights(m, s) {

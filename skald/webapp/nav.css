@@ -54,6 +54,7 @@ a.tab, a.foot-btn { text-decoration: none; box-sizing: border-box; }
 @media (min-width: 768px) and (max-width: 1439px) {
   .bar-row:has(.bar-mid > *) .trail li:is(.crumb-g, .crumb-p) { display: none; }
   .bar-row:has(.bar-mid > *) .trail li:is(.crumb-g, .crumb-p):first-child + li::before { content: none; }
+  .bar-row:has(.bar-mid > *) .trail li.crumb-g:not(:first-child) + li::before { content: "›"; }
   .refresh .r-l, .refresh .r-ago, .bar-right .stamp { display: none; }
 }
 /* the bar never overlaps itself (main.js fitBar, 768px and up): "tight" gives up the trail's
@@ -61,7 +62,10 @@ a.tab, a.foot-btn { text-decoration: none; box-sizing: border-box; }
    row of their own under the title and the buttons */
 .bar.tight .trail li:is(.crumb-g, .crumb-p) { display: none; }
 .bar.tight .trail li:is(.crumb-g, .crumb-p):first-child + li::before { content: none; }
+/* a hidden group after "Settings" still leaves a separator: "Settings › Internal traffic" */
+.bar.tight .trail li.crumb-g:not(:first-child) + li::before { content: "›"; }
 .bar.tight .refresh .r-l, .bar.tight .refresh .r-ago, .bar.tight .bar-right .stamp { display: none; }
+.bar.tighter .x-btn .x-l { display: none; }
 .bar.two-rows .bar-row { flex-wrap: wrap; row-gap: 4px; padding-top: 6px; }
 .bar.two-rows .tb-title { flex: 1 0 auto; }
 .bar.two-rows .bar-mid { order: 3; flex: 1 0 100%; flex-wrap: wrap; justify-content: flex-start; padding: 0 0 8px; }

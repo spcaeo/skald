@@ -1,10 +1,13 @@
 // The top bar, by bounding boxes, on every page at 1280, 1440, 1600, 1680
 // and 390 px, light and dark (2.5.1):
-//   * nothing in the bar overlaps anything else in it (trail, period,
-//     page group, filters, buttons), and nothing sticks out of the window
+//   * nothing in the bar overlaps anything else in it (trail, the modes,
+//     period, page group, filters, buttons), and nothing sticks out of the window
 //   * the dark pill sits exactly on the chosen period, on load and after a
 //     click (once its slide has ended)
-//   * Live has no period bar (it is always today so far)
+//   * the two global modes (2.7.0, js/modes.js) are there on every page with
+//     figures: "Today · Live" (pressed at range=today, when no period is marked)
+//     and "Compare with…"; with Live on and with Compare on (its longer words)
+//     the bar still does not overlap
 // Run once signed in as an admin and once as a viewer: their buttons differ.
 //
 //   PLAYWRIGHT=/path/to/node_modules/playwright/index.mjs \
@@ -18,6 +21,9 @@ const { chromium } = await import(process.env.PLAYWRIGHT || "playwright");
 if (!base) { console.error("usage: node topbar.mjs <page url> [user:password]"); process.exit(2); }
 
 const WIDTHS = [1280, 1440, 1600, 1680, 390];
+// The modes switched on: on a tab that compares and on one that does not.
+const MODES = ["overview/summary?range=today", "traffic/sources?cmp=prev", "site/requests?cmp=year",
+  "traffic/pages?range=custom&from=2026-09-01&to=2026-09-30&cmp=custom&cb=2026-08-01..2026-08-31"];
 const fails = [];
 const fail = (what) => { fails.push(what); console.log(`FAIL ${what}`); };
 
@@ -29,11 +35,11 @@ for (const scheme of ["light", "dark"]) {
   const p = await ctx.newPage();
   let where = "";
   p.on("pageerror", (e) => fail(`${where}: ${e.message}`));
-  await p.goto(`${base}#overview`, { waitUntil: "networkidle" });
+  await p.goto(`${base}#overview/summary`, { waitUntil: "networkidle" });
   const tabs = await p.evaluate(async () => (await import(new URL("../_app/js/state.js", location.href).href)).TABS.map(([k]) => k));
   for (const w of WIDTHS) {
     await p.setViewportSize({ width: w, height: 900 });
-    for (const tab of tabs) {
+    for (const tab of [...tabs, ...MODES]) {
       where = `${tab} at ${w} ${scheme}`;
       await p.goto(`${base}#${tab}`, { waitUntil: "networkidle" });
       await p.waitForTimeout(450);
@@ -43,7 +49,7 @@ for (const scheme of ["light", "dark"]) {
         const row = document.querySelector(".bar .bar-row");
         if (!row) return { none: true };
         const mid = row.querySelector(".bar-mid");
-        const items = [...row.querySelectorAll(".trail li, .bar-mid > *, .bar-right > *")].filter(seen);
+        const items = [...row.querySelectorAll(".trail li, .bar-mid > *, .bar-modes > *, .bar-right > *")].filter(seen);
         const name = (e) => (e.getAttribute("aria-label") || e.textContent || e.className).trim().slice(0, 30);
         const over = [];
         for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
@@ -55,18 +61,25 @@ for (const scheme of ["light", "dark"]) {
         const seg = row.querySelector(".bar-mid .seg");
         const ind = seg?.querySelector(".seg-ind"), on = seg?.querySelector('[aria-pressed="true"]');
         const pill = ind && on ? [r(ind).left - r(on).left, r(ind).width - r(on).width] : null;
-        return { over, out, seg: !!seg, pill };
+        const live = row.querySelector(".bar-modes .mode-live"), cmp = row.querySelector(".bar-modes .mode-cmp");
+        return { over, out, pill, figures: !!mid.children.length, live: live && live.getAttribute("aria-checked"), cmp: cmp && cmp.getAttribute("aria-pressed"),
+          today: !!seg && [...seg.querySelectorAll("button")].some((x) => x.textContent === "Today"),
+          range: new URLSearchParams(location.hash.split("?")[1] || "").get("range") || "" };
       });
       checked++;
       if (got.none) continue;
       for (const o of got.over) fail(`${where}: ${o} overlap in the top bar`);
       if (got.out.length) fail(`${where}: outside the window: ${got.out.join(", ")}`);
-      if (tab === "live" && got.seg) fail(`${where}: Live shows the period bar`);
       if (got.pill && (Math.abs(got.pill[0]) > 1 || Math.abs(got.pill[1]) > 1)) fail(`${where}: the pill is off its period by ${got.pill.map((x) => x.toFixed(1)).join(" px, ")} px`);
+      if (!got.figures) continue;
+      if (!got.live || !got.cmp) fail(`${where}: the modes are missing (Today · Live ${got.live}, Compare with… ${got.cmp})`);
+      if (got.live && got.live !== String(got.range === "today")) fail(`${where}: Today · Live says ${got.live} at range "${got.range}"`);
+      if (got.today) fail(`${where}: the period bar still offers Today beside the Live switch`);
+      if (got.range === "today" && got.pill) fail(`${where}: Live is on and a period is still marked`);
     }
     // A click moves the pill onto the new period (after its slide).
     where = `period click at ${w} ${scheme}`;
-    await p.goto(`${base}#overview?range=30d`, { waitUntil: "networkidle" });
+    await p.goto(`${base}#overview/summary?range=30d`, { waitUntil: "networkidle" });
     await p.waitForTimeout(300);
     await p.locator('.bar .seg button:has-text("7 days")').click();
     await p.waitForTimeout(600);

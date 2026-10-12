@@ -98,7 +98,7 @@ export default function quality(m, s) {
         h("span", { class: "sw", style: { background: "var(--good)" } }), "good", h("span", { class: "sw", style: { background: "var(--warn)", marginLeft: "12px" } }), "worth a look",
         h("span", { class: "sw", style: { background: "var(--bad)", marginLeft: "12px" } }), "not trusted", h("span", { class: "sw", style: { background: "var(--sunk)", marginLeft: "12px" } }), "not checked")),
       table([
-        { key: "day", label: "Day", fmt: (v) => long(v) },
+        { key: "day", label: "Day", cls: "q-day", fmt: (v) => long(v) },
         { key: "grade", label: "Grade", sort: (x) => ["red", "amber", "green", "none"].indexOf(grade(x)[0]), fmt: (_, x) => h("span", { class: `q-tag q-${grade(x)[0]}` }, GRADE[grade(x)[0]]), csv: (x) => grade(x)[0] },
         { key: "lines", label: "Lines", num: true },
         { key: "unparsed", label: "Unreadable", num: true, fmt: (v, x) => (v == null ? "-" : `${n(v)} (${fmtPct(share(x))})`) },
@@ -110,9 +110,9 @@ export default function quality(m, s) {
           fmt: (v) => (v == null ? h("span", { class: "muted", title: "Not recorded on this day" }, "not recorded") : h("span", { title: movedNote(v) }, `${n(v.requests)} (${n(v.readers)} visits)`)),
           csv: (x) => x.not_rendered?.requests ?? "" },
         { key: "first_line", label: "Log covers (site time)", fmt: (v, x) => (v ? `${v} to ${x.last_line}` : "-") },
-        { key: "gaps", label: "Silent stretches", num: true, sort: (x) => x.gaps?.length ?? null, fmt: (v) => (v == null ? "-" : v.length ? v.map((g) => `${g.from}-${g.to}`).join(", ") : "0"), csv: (x) => (x.gaps || []).map((g) => `${g.from}-${g.to}`).join(" ") },
+        { key: "gaps", label: "Silent stretches", num: true, sort: (x) => x.gaps?.length ?? null, fmt: (v) => (v == null ? "-" : v.length ? h("span", { class: "gaps", title: v.map((g) => `${g.from}-${g.to}`).join(", ") }, v.length > 2 ? `${n(v.length)}: ${v[0].from}-${v[0].to} and ${n(v.length - 1)} more` : v.map((g) => `${g.from}-${g.to}`).join(", ")) : "0"), csv: (x) => (x.gaps || []).map((g) => `${g.from}-${g.to}`).join(" ") },
         { key: "audit", label: "Audit", fmt: (v) => (v ? AUDIT[v.state] || v.state : "-"), csv: (x) => x.audit?.state || "" },
-        { key: "why", label: "Why", sort: (x) => grade(x)[1].join("; "), fmt: (_, x) => grade(x)[1].join("; "), csv: (x) => grade(x)[1].join("; ") },
+        { key: "why", label: "Why", cls: "q-why", sort: (x) => grade(x)[1].join("; "), fmt: (_, x) => grade(x)[1].join("; "), csv: (x) => grade(x)[1].join("; ") },
       ], { caption: "Data quality by day", rows: days.slice().reverse().map((d) => ({ ...d, __k: d.day })), file: `data-quality-${r.first}-to-${r.last}.csv`, sortKey: "day", dir: -1, limit: 10,
         rowClass: (x) => (grade(x)[0] === "red" ? "withheld" : null) })));
   }

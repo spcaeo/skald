@@ -24,7 +24,7 @@ When **Keep visitors' IP addresses** is on (**Settings > Data retention > People
 - where it came from: source, referring site, campaign
 - its country and device
 
-A visit here is a visit that read at least one page, the same visit the Visitors page counts. Visits are kept for 395 days by default (**Visits with addresses**). Turn the switch off and no address is kept from then on. The visits already kept with an address are deleted at the next nightly run.
+A visit here is a visit that read at least one page, the same visit Traffic > Visitors counts. Visits are kept for 395 days by default (**Visits with addresses**). Turn the switch off and no address is kept from then on. The visits already kept with an address are deleted at the next nightly run.
 
 These visits are kept apart from the history, in the conversions file on your server. They are counted twice like everything else: each morning Skald counts every address's visits again from the raw log, by separate code. A day that does not match is withheld.
 
@@ -32,11 +32,11 @@ These visits are kept apart from the history, in the conversions file on your se
 
 When **Leads' names and emails** is **full**, the name and email of each lead are kept with its conversions. With **anonymous**, neither is kept.
 
-Skald reads your website's lead database without changing it. Leads marked spam or duplicate there, and leads marked test, are left out of every figure. They are listed in full: open the **Left out** line on the [Leads](#leads) page.
+Skald reads your website's lead database without changing it. Leads marked spam or duplicate there, and leads marked test, are left out of every figure. They are listed in full: on [Leads & sales > Pipeline](#sales/pipeline), turn on **Show left out**.
 
 ## Looking a person up
 
-Owners and admins see a **Find a person** box at the top of every page; on a narrower screen it is a search icon. **Ctrl K** (or **Cmd K**) also offers **Find a person**. Type one of these:
+Owners and admins see a **Find a person** box at the top of every page; on a narrower screen it is a search icon. The same search is on [Leads & sales > People](#sales/people), and **Ctrl K** (or **Cmd K**) also offers **Find a person**. Type one of these:
 
 - an IP address
 - an email
@@ -47,7 +47,7 @@ The person opens in a panel on the right:
 
 - **Linked**: the IP addresses, emails, visitor IDs and leads tied to them, and what this site keeps.
 - **Visits**: every visit kept with that address, with its pages in order, source, referring site, country and device. A day whose figures did not add up is marked "withheld day".
-- **Requests in the last 6 hours**: the address's requests from the Requests page.
+- **Requests in the last 6 hours**: the address's requests from Site > Requests.
 - **Leads**: their leads, spam and test ones too.
 - **Leads and the visits that sent a form at their time**: visits that sent a form from 2 minutes before a lead to 30 seconds after it. This is a match by time only. It is likely the same person, never certain: the lead database keeps no address.
 - **Conversions**: every conversion, cancelled and test ones too, and the rows removed by a sync.
@@ -64,8 +64,8 @@ Viewers cannot look a person up. An API token or an AI assistant can, only with 
 Addresses show only behind sign-in:
 
 - The person search, for owners and admins.
-- [Requests](#requests): the last 6 hours of the request log.
-- Today's AI activity, on [Live](#live): today only.
+- [Site > Requests](#site/requests): the last 6 hours of the request log.
+- Today's AI activity, on [AI & bots > Assistants](#ai/assistants) when the period is Today (or **Today · Live** is on): today only.
 - The internal-address list in [Internal traffic](#settings/internal), so your team can manage it.
 
 They never appear in a stored day's totals, a CSV export of history, or a mail.

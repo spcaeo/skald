@@ -18,7 +18,7 @@
   <img alt="Zero dependencies" src="https://img.shields.io/badge/dependencies-zero-2b8a3e">
   <a href="https://github.com/spcaeo/skald/actions/workflows/ci.yml"><img alt="Tests" src="https://github.com/spcaeo/skald/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/spcaeo/skald/pkgs/container/skald"><img alt="Docker image" src="https://img.shields.io/badge/docker-ghcr.io%2Fspcaeo%2Fskald-2496ed"></a>
-  <img alt="Version 2.6.0" src="https://img.shields.io/badge/version-2.6.0-555">
+  <img alt="Version 2.7.0" src="https://img.shields.io/badge/version-2.7.0-555">
 </p>
 
 <p align="center">
@@ -112,17 +112,17 @@ person everywhere.
 <td valign="top">
 
 ### Live, not 48 hours late
-"Today so far" is redrawn every 2 minutes. The last 6 hours can be read request by request, each
-with the rule that put it in its group, in words. Alerts show on the dashboard, and by email if you
-want them.
+**Today · Live**, in the top bar of every tab, shows today so far, redrawn every 2 minutes. The
+last 6 hours can be read request by request, each with the rule that put it in its group, in
+words. Alerts show on the dashboard, and by email if you want them.
 
 </td>
 <td valign="top">
 
 ### Results, not just visits
-Leads, funnels and conversions. Leads and demos booked sit beside the traffic on every page that
-needs them: Overview, Live, Sources, Pages, Locations, Insights and Compare, with a lead rate per
-source, page and country. Calendly, Cal.com, Stripe, Typeform, HubSpot and Zapier push signed
+Leads, funnels and conversions, in one section with one row of options. Leads and demos booked
+also sit beside the traffic where they help: Overview, Sources, Pages, Places & devices and
+Insights, with a lead rate per source, page and country. Calendly, Cal.com, Stripe, Typeform, HubSpot and Zapier push signed
 webhooks; the optional `skald.js` tag adds clicks, form steps and bookings. Checked twice like
 everything else. Nothing hidden: spam, test, cancelled and removed rows are listed, not lost.
 
@@ -171,6 +171,13 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
 
 ## Features
 
+**The dashboard**
+- Five sections, with tabs inside: Overview, Traffic, Leads & sales, AI & bots and Site. Each
+  answer has one place.
+- **Today · Live** and **Compare with…** in the top bar, on every tab.
+- Long lists (requests, pages not found, sources, pages, countries) are grids whose search,
+  filters, sort and page stay in the address, so a link opens the same view. Old links redirect.
+
 **Traffic and audience**
 - Five groups that add up to the log, every day, every site.
 - Visitors, visits, pages read, countries (with a flag beside each, everywhere), browsers, systems,
@@ -187,18 +194,19 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
   visitors by source, exit rate per page.
 - Campaign tag problems flagged: a source with no medium, an unknown medium, an ad click with no
   tags, tags on internal links.
-- Compare any two ranges (up to 400 days each), leads and demos booked included, Insights
+- **Compare with…** in the top bar: the previous period, the same period last year, or any range
+  up to 12 months, as A, B and the change on every tab that compares, leads and demos booked included. Insights
   (working, dropped, new, gone), and a page's story: its first Googlebot, first AI crawler, first
   person and first lead.
 
 **AI and machines**
 - AI assistants by name and by reason, with the pages each one fetched.
 - AI clicks that lost their referrer, estimated: a direct visit to a page an assistant fetched
-  minutes before is shown as "likely" from that assistant, on Sources, Leads and Conversions.
+  minutes before is shown as "likely" from that assistant, on AI & bots and on Leads & sales.
   Kept apart, never added to any count.
 - Crawler verification, fake crawlers filed apart.
-- Block AI crawlers per assistant, or only their training crawlers, applied by the web server
-  (`robots.txt` stays reachable). Skald blocks; it does not charge.
+- Block AI crawlers per assistant, or only their training crawlers (AI & bots > Crawler rules),
+  applied by the web server (`robots.txt` stays reachable). Skald blocks; it does not charge.
 - Your `robots.txt` rules shown beside what each crawler actually fetched.
 - AI alerts: an assistant starts or stops reading a page, or the visits it likely sends jump or
   vanish. Whole, checked days only.
@@ -206,10 +214,13 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
   yourself.
 
 **Results**
+- One section, **Leads & sales**: Pipeline, Bookings, Funnels, Events and People. Pipeline's one row
+  of options: count from your lead database (the default) or from your tools, never both in one
+  figure; source, action, stage, show what was left out, and the period.
 - Leads and demos booked on the Overview (two tiles, and each day's leads as dots on the main
-  chart), and today's leads and bookings on Live as they arrive.
+  chart), and today's leads and bookings as they arrive with Today · Live.
 - A Leads column and a lead rate (leads per visitor, from 10 visitors up) on Sources, Pages and
-  Locations; lead findings in Insights; lead tables by source and landing page in Compare.
+  Places & devices; lead findings in Insights; leads against another period (Compare with…).
 - Leads by first and last source, crossed with the status your team set, and time from first
   visit to lead.
 - Saved funnels counted every day by source and device, with drop-off and time to go through.
@@ -221,8 +232,10 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
   from the command line, listed and never counted.
 - Outgoing signed webhooks to your CRM, Zapier or Slack, never with a name or email.
 
-**Site health**
-- 404s and who met them (people, probes, crawlers), server errors by page, page speed.
+**Site**
+- Health, Alerts, Requests, Not found, Speed and Data quality, as tabs of one section.
+- 404s and who met them (people, probes, crawlers), server errors by page, page speed, uptime from
+  the heartbeat with every outage.
 - Alerts: site down, logging stopped, 5xx burst, 404 surge, crawler burst, new crawler, traffic
   drop. A failed morning run sends one short mail.
 - A data-quality panel: unreadable lines, gaps, duplicates, log age.
@@ -268,9 +281,10 @@ removed conversions included. Nothing to install. Settings, saving and the perso
 
 | | |
 | :---: | :---: |
-| <img src="docs/screenshots/overview.png" alt="Overview: visitors, pages read, visitors from AI, leads, demos booked, returning visitors and pages per visit, a chart with each day's leads as dots, and the other groups" width="460"><br>**Overview.** The period at a glance, leads and bookings beside the traffic. | <img src="docs/screenshots/ai-crawlers.png" alt="AI and crawlers: assistants by name and by reason, verified crawlers" width="460"><br>**AI & crawlers.** Who came, why, and whether the name is true. |
-| <img src="docs/screenshots/live-leads.png" alt="Live: today's visitors, leads and demos booked, and each lead and booking today with its time, stage, source, landing page and country" width="460"><br>**Live leads.** Today's leads and bookings as they arrive. | <img src="docs/screenshots/sources-leads.png" alt="Sources: visitors, share, leads and lead rate for each source over 30 days" width="460"><br>**Leads per source.** A Leads column and a lead rate. |
-| <img src="docs/screenshots/compare-leads.png" alt="Compare: leads, demos booked and all completed for two 30-day periods, and a table of leads and demos booked by source, A, B and the change" width="460"><br>**Compare leads.** Two periods, by source and landing page. | <img src="docs/screenshots/leads.png" alt="Leads by first and last source and AI assistant" width="460"><br>**Leads.** By first and last source, AI assistants included. |
+| <img src="docs/screenshots/overview.png" alt="Overview, Summary: visitors, pages read, visitors from AI, leads and demos booked in even rows of tiles, a chart with each day's leads, and the other groups" width="460"><br>**Overview.** The period at a glance, five groups that add up. | <img src="docs/screenshots/live-mode.png" alt="Today · Live switched on: today's figures refreshing, the newest visits, AI events and today's leads and bookings" width="460"><br>**Today · Live.** One switch, on every section. |
+| <img src="docs/screenshots/compare-mode.png" alt="Compare with the previous period switched on: each table shows A, B and the change beside every row" width="460"><br>**Compare with…** Previous period, last year or any period, on every section. | <img src="docs/screenshots/traffic-sources-grid.png" alt="Traffic, Sources: one grid with segments for source type, referring site and campaign, with search, sort, leads and lead rate" width="460"><br>**Traffic › Sources.** One grid; search, filters and sort kept in the address. |
+| <img src="docs/screenshots/sales-pipeline.png" alt="Leads & sales, Pipeline: one options row (count from, source, action, stage, show left out, period) above leads by stage" width="460"><br>**Leads & sales › Pipeline.** One row of options, every lead by stage. | <img src="docs/screenshots/sales-bookings.png" alt="Leads & sales, Bookings: demo bookings from the booking tool by stage, the demo funnel and where bookings came from" width="460"><br>**Bookings.** Every stage, cancelled and removed ones too. |
+| <img src="docs/screenshots/ai-assistants.png" alt="AI & bots, Assistants: AI answering questions with your pages, visitors sent by AI assistants and those likely sent by them" width="460"><br>**AI & bots › Assistants.** Who read your pages to answer someone, and who came from it. | <img src="docs/screenshots/live-leads.png" alt="Today's leads and bookings as they arrive, with time, stage, source, landing page and country" width="460"><br>**Live leads.** Each lead and booking as it lands. |
 | <img src="docs/screenshots/conversions.png" alt="Conversions: started, completed and abandoned by action, and the demo booking funnel" width="460"><br>**Conversions.** Started, completed, abandoned. | <img src="docs/screenshots/funnels.png" alt="A saved funnel's history: drop-off by step and visits at each step, per day" width="460"><br>**Funnels.** Saved once, counted every day. |
 | <img src="docs/screenshots/visitors.png" alt="Each visit: time, country with its flag, device, browser, source and the pages in order" width="460"><br>**Visitors.** Each visit, page by page, a flag beside every country. | <img src="docs/screenshots/mcp-claude.png" alt="Example: adding Skald's MCP server with one command, and the answer of its ai_activity tool" width="460"><br>**MCP in Claude.** Ask about your traffic in plain words. |
 | <img src="docs/screenshots/person-search.png" alt="Person search for the IP address 203.0.113.109: eight visits from August to October, each with source, referrer, landing page, pages in order, country and device, and the two leads sent from those visits" width="460"><br>**Person search.** One address: every visit kept, across days, and the leads it sent. | <img src="docs/screenshots/person-lead.png" alt="Person search for lead14@example.com: the linked IP address 203.0.113.109, visitor ID and lead, the lead row, the visit that sent its form, and its conversions" width="460"><br>**One lead, linked.** Its email, address, visitor ID, form visit and conversions. |
@@ -356,17 +370,17 @@ SKALD_DOMAIN=stats.example.com docker compose --profile https up -d
 The quick way, pinned to a release:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.6.0/install.sh | sudo bash -s -- --ref v2.6.0
+curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.7.0/install.sh | sudo bash -s -- --ref v2.7.0
 ```
 
 This runs a script from the internet as root. To check it first, download the release and its
 checksums, verify, then run it:
 
 ```sh
-curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.6.0/skald-2.6.0.tar.gz
-curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.6.0/SHA256SUMS
-sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.6.0.tar.gz: OK
-tar -xzf skald-2.6.0.tar.gz && cd skald-2.6.0 && less install.sh && sudo ./install.sh
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.7.0/skald-2.7.0.tar.gz
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.7.0/SHA256SUMS
+sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.7.0.tar.gz: OK
+tar -xzf skald-2.7.0.tar.gz && cd skald-2.7.0 && less install.sh && sudo ./install.sh
 ```
 
 It installs into `/opt/skald`, with config in `/etc/skald` and data in `/var/lib/skald`, and puts
@@ -576,7 +590,7 @@ flowchart LR
   full`), apart from history and behind sign-in, so admins can follow a person across days. An
   install upgraded from before 2.4.0 keeps neither until you turn them on (Settings > Data
   retention > People, or `SKALD_KEEP_IPS=1` / `SKALD_IDENTITY=full`). Your privacy notice must say
-  so first. Off, raw addresses stay only in your own log (14 days), the 6-hour Requests feed and
+  so first. Off, raw addresses stay only in your own log (14 days), the 6-hour request log (Site > Requests) and
   today's AI activity.
 - **One true delete.** `skald forget` removes a person's address, visits, conversions, name and
   email everywhere Skald keeps them. Every person search is written to the audit log.

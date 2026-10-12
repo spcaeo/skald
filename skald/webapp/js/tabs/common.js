@@ -2,7 +2,7 @@
 // the "nothing to show" states and the bar lists.
 
 import { h, n, short, long, clock, share, stateNote, reduced, ICON } from "../ui.js";
-import { ranked, comparison, ghostDay, coverage } from "../data.js";
+import { ranked, coverage } from "../data.js";
 import { table } from "../table.js";
 import * as S from "../state.js";
 import { link } from "../drill.js";
@@ -67,13 +67,11 @@ export function head(title, r, lede, opts = {}) {
   ];
 }
 
-/* Site health's sub-tabs: Health, Alerts (with its open count), Data quality.
-   One section in the sidebar; three pages under it. */
-export function healthTabs(m, key) {
-  const open = (m.x?.alerts?.open || []).length;
-  return h("nav", { class: "subtabs", "aria-label": "Site health" }, [["health", "Health"], ["health/alerts", "Alerts"], ["health/quality", "Data quality"], ["health/speed", "Page speed"], ["health/broken", "Broken links"]].map(([k, name]) =>
-    h("a", { href: `#${k}`, class: "subtab", "aria-current": k === key ? "page" : null }, name,
-      k === "health/alerts" && open ? h("span", { class: "tab-n", "aria-label": `${open} open` }, String(open)) : null)));
+/* Site health's sub-tabs were drawn here; since 2.7.0 the Site section's tab strip
+   (main.js, tabstrip.js) names them, with the open alerts' count. Kept, drawing
+   nothing, until the Site builder stops calling it. */
+export function healthTabs() {
+  return null;
 }
 
 // A part whose data file could not be built on the last redraw: said so, never shown empty.
@@ -149,14 +147,7 @@ export function fileName(base, r) {
   return `${base}-${r.kind === "today" ? `today-${r.first}` : `${r.first}-to-${r.last}`}.csv`;
 }
 
-/* The "Compare to previous period" switch, as a tab uses it: `prev` for the
-   charts (null when off or not possible) and a note saying why not. */
-export function compareFor(m, s) {
-  const c = comparison(m, s);
-  return {
-    ...c,
-    prev: c.ok ? ghostDay(m, c.shift) : null,
-    note: c.on && !c.ok ? h("p", { class: "cmp-why", role: "note" }, c.why) : null,
-    legend: c.ok ? [["Previous period", "var(--ink-3)", "ghost"]] : [],
-  };
-}
+/* Compare mode, as a chart uses it: `prev` for the charts (null when off or not
+   possible), its legend entry. Previous period, last year or a custom B: the
+   global mode's (2.7.0, js/mode-compare.js); the tab's banner says why not. */
+export { compareFor } from "../mode-compare.js";

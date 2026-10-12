@@ -22,7 +22,8 @@ function cell(v) {
 }
 
 export function csv(columns, rows) {
-  const head = columns.map((c) => cell(c.label)).join(",");
+  // csvLabel: a header that needs its group to be read alone ("Visitors, B": js/mode-compare.js).
+  const head = columns.map((c) => cell(c.csvLabel ?? c.label)).join(",");
   const body = rows.map((r) => columns.map((c) => cell(c.csv ? c.csv(r) : r[c.key])).join(","));
   return [head, ...body].join("\r\n") + "\r\n";
 }

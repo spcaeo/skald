@@ -9,29 +9,36 @@ import { toolName } from "./build.js";
 import GUIDES from "./help-index.js";
 import { openDrawer } from "./drawer.js";
 
-// The letters stay what they were when the menu was regrouped; "," opens Settings.
+// The letters stay what they were before the five sections (2.7.0), each on the tab that
+// holds its old page now; "," opens Settings.
 export const GO = {
-  o: "overview", l: "live", i: "insights", c: "compare",
-  v: "visitors", s: "sources", p: "pages", d: "locations", t: "time",
-  e: "leads", x: "conversions", f: "funnels", n: "events",
-  b: "bots",
-  h: "health", a: "health/alerts", q: "health/quality", w: "health/speed", k: "health/broken", r: "requests",
+  o: "overview/summary", i: "overview/insights", l: "live", c: "compare",  // routes.js: the global Live and Compare modes
+  v: "traffic/visitors", s: "traffic/sources", p: "traffic/pages", d: "traffic/places", t: "traffic/time",
+  e: "sales/pipeline", x: "sales/bookings", f: "sales/funnels", n: "sales/events",
+  b: "ai/assistants",
+  h: "site/health", a: "site/alerts", r: "site/requests", k: "site/notfound", w: "site/speed", q: "site/quality",
   u: "settings/internal", ",": "settings",
 };
-const tabName = (k) => (k === "settings" ? "Settings" : (S.TABS.find(([x]) => x === k) || [null, k])[1]);
+const tabName = (k) => S.nameOf(k);
 const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-12l",
+  id: "2026-10-12m",
   items: [
-    ["Site logos", "each site shows its own logo in the menu, the switcher and the browser tab.", "settings-and-retention"],
-    ["Choose a site", "after sign-in, a card per site with today's visitors, leads and demos booked."],
-    ["Logo settings", "Settings > Sites > Logo: from the site, upload your own, or a letter on a colour.", "settings-and-retention"],
+    ["Five sections", "Overview, Traffic, Leads & sales, AI & bots and Site, with tabs inside. Old links still work.", "getting-started"],
+    ["Live and Compare", "two switches in the top bar that work on every page.", "getting-started"],
+    ["One place each", "landing pages, sources and countries each live in one place now.", "getting-started"],
+    ["Leads & sales", "one row of options: count from, source, action, stage, show left out.", "leads-and-conversions"],
+    ["Grids", "search, filter and sort long lists; the view is kept in the address to share.", "getting-started"],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.6.0-2.6.1
+    ["Site logos", "each site shows its own logo in the menu, the switcher and the browser tab.", "settings-and-retention"],
+    ["Choose a site", "after sign-in, a card per site with today's visitors, leads and demos booked."],
+    ["Logo settings", "Settings > Sites > Logo: from the site, upload your own, or a letter on a colour.", "settings-and-retention"],
     // 2.5.0-2.5.2
     ["Spam caught sooner", "a lead your team marks spam leaves the figures within two minutes, not at the next daily run.", "leads-and-conversions"],
     ["Fixes", "lead tiles show 0, not a dash, when every lead was spam or test; Live no longer shows a date range; the top bar never overlaps."],
@@ -148,7 +155,7 @@ export function help() {
     sec("Go to a section: press g, then",
       // In the menu's groups, so the letters read like the sidebar.
       h("div", { class: "keys-groups" }, [...S.MENU, ["Settings", ["settings", "settings/internal"]]].map(([group, keys]) => {
-        const rows = Object.entries(GO).filter(([, tab]) => keys.includes(tab.split("/")[0] === "health" ? "health" : tab) && (tab === "settings" || S.shown(tab)));
+        const rows = Object.entries(GO).filter(([, tab]) => keys.includes(tab) && (tab === "settings" || S.shown(tab)));
         return rows.length ? h("div", { class: "keys-g" }, h("h4", null, group), h("table", { class: "keys" }, h("tbody", null, rows.map(([k, tab]) => row(["g", k], tabName(tab)))))) : null;
       })))),
     // The guides, one click away: the drawer closes as a link is followed.
@@ -172,7 +179,8 @@ export const newUnseen = () => store.get("ti-seen-new", "") !== NEW.id;
    refresh...); the tabs, ranges and saved views are added here. */
 export function palette(actions = []) {
   const cmds = [
-    // Every page this reader may open, in the menu's order, with its group beside it.
+    // Every section, then every page this reader may open, in the menu's order, with its section or group beside it.
+    ...S.SECTIONS.map((x) => ({ label: `Go to ${x.name}`, group: "Section", hint: "", run: () => S.set({ tab: x.key }) })),
     ...S.TABS.filter(([k]) => S.shown(k)).map(([k, name]) => ({ label: `Go to ${name}`, group: S.inSettings(k) ? `Settings, ${S.groupOf(k)}` : S.groupOf(k), hint: keyOf(k) ? `g ${keyOf(k)}` : "", run: () => S.set({ tab: k }) })),
     ...S.RANGES.filter(([k]) => k !== "custom").map(([k, name]) => ({ label: `Range: ${name}`, hint: "", run: () => S.set({ range: k }) })),
     // Every Help guide by its name: "Help: Webhooks".

@@ -73,7 +73,7 @@ function series(dim, v) {
 }
 
 function crumbs(m, s, chain) {
-  const tab = (S.TABS.find(([k]) => k === s.tab) || [null, s.tab])[1];
+  const tab = S.nameOf(s.tab);
   const nav = h("nav", { class: "crumbs", "aria-label": "Drill-down trail" },
     h("ol", null, h("li", null, h("button", { type: "button", class: "crumb", onclick: () => S.set({ dd: "" }) }, tab)),
       chain.map(([d, v], i) => h("li", null, i === chain.length - 1
@@ -127,7 +127,7 @@ function requestPart(m, s, chain, holder) {
     const lists = [["status", "Statuses", (r) => String(r.status)], ["path", "Paths", (r) => r.path], ["ip", "Addresses", (r) => (r.ip !== "(removed)" ? r.ip : "")],
       ["bot", "Agents", (r) => (r.group !== "people" && r.group !== "ours" ? r.agent : "")], ["country", "Countries", (r) => r.country]].filter(([d]) => !has.has(d));
     const toTab = { ip: "ip", path: "path", country: "country", device: "device", browser: "browser", referrer: "referrer", campaign: "campaign", source: "source" };
-    const patch = { tab: "requests", dd: "", ...Object.fromEntries(chain.filter(([d]) => toTab[d]).map(([d, v]) => [toTab[d], v])) };
+    const patch = { tab: "site/requests", dd: "", ...Object.fromEntries(chain.filter(([d]) => toTab[d]).map(([d, v]) => [toTab[d], v])) };
     holder.replaceChildren(
       h("p", { class: "sub" }, `${n(rows.length)} of the ${n(f.rows.length)} requests kept from ${tzTime(f.from, { label: false })} to ${tzTime(f.until)}.`),
       band(parts, rows.length, false),

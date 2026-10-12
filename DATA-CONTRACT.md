@@ -255,7 +255,7 @@ From release 2 (null on days collected before it; `today` has them too):
 | `not_rendered` | `{"requests","pages","readers"}` | browser-like requests moved to **bots** because their visit never rendered a page (no own script, style or `?_rsc=` payload near a page, no beacon event, not seen rendering earlier that day or reading on an earlier day; `rendering.py`, CLASSIFICATION.md rule 9). `pages` are their page views; `readers` the visits among them that read a page - the visitors this rule took out. In `requests` and in `agents` as `"browser-like, never rendered the page"`. Absent on days collected before 2026-10-11. Recounted by the audit. |
 | `blocked` | `{crawler: n}` | 403 answers to each AI crawler of the AI crawler settings' catalog (`bot_policy.CATALOG`, by the token in its user agent), whichever group it counts in: what the settings refused, plus any other 403 that crawler got. Null on days collected before 2026-10-08; `{}` when none. Recounted by the audit. |
 
-The AI crawler settings themselves are not a data file: the page reads and
+The AI crawler settings themselves are not a data file: AI & bots > Crawler rules reads and
 saves them through the refresh helper, `GET <page>/bot-policy` and
 `POST <page>/bot-policy` with `{"owners": {assistant: "allow"|"block"|"block_training"},
 "crawlers": {name: "allow"|"block"}}` (admins only, same-origin). Both answer
@@ -275,8 +275,8 @@ Top level (not per day): `ranges` `{list: {"fetched": ISO or null, "networks": i
 
 ## requests.json
 
-Every request of the last `window_hours` hours, newest first - the "Recent
-requests" tab. Written by every live run (2 minutes). **Private**: it holds
+Every request of the last `window_hours` hours, newest first - Site >
+Requests. Written by every live run (2 minutes). **Private**: it holds
 raw addresses; nothing of it is stored in history, and the file holds only
 its window.
 

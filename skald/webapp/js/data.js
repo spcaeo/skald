@@ -170,16 +170,8 @@ export function figures(m, s) {
 }
 
 // ---------------------------------------------------------------- filters
-// Which global filters each tab can apply. The rest are shown greyed, with a reason.
-const SUPPORT = {
-  overview: [], insights: ["path", "country", "source", "campaign", "referrer"], live: ["path", "country"],
-  visitors: ["country", "path", "source", "device", "browser", "campaign", "referrer"],
-  sources: ["source", "path", "campaign", "referrer", "country"], pages: ["path"], "health/broken": ["path", "source"],
-  locations: ["country", "device", "browser"], time: [], bots: ["path"], health: ["path"], "settings/internal": [],
-  requests: ["country", "path", "source", "device", "browser", "campaign", "referrer"], leads: ["source"], conversions: [], funnels: ["country", "path", "source", "device", "browser", "campaign", "referrer"], events: ["path", "source"], compare: ["country", "path", "source", "device", "browser", "campaign", "referrer"],
-  "health/alerts": [], "health/quality": [], about: [],
-};
-export const filterSupport = (tab) => SUPPORT[tab] || [];
+// Which global filters each tab can apply is its `filters` option (js/tabs/s-*.js); the rest
+// are shown greyed, with a reason.
 
 export function pathMatch(s) {
   if (!s.path) return () => true;

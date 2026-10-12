@@ -1,6 +1,6 @@
 # Getting started
 
-What Skald counts, how the pages are laid out, and how to choose a period, filter, drill down, compare and export.
+What Skald counts, how the sections and tabs are laid out, and how to choose a period, filter, drill down, compare and export.
 
 To look around first, open the [live demo](https://spcaeo.github.io/skald/): the whole dashboard with two months of sample data for a made-up site. No sign-up. Saving and the settings pages need a running Skald, so in the demo they say so.
 
@@ -37,30 +37,37 @@ AI traffic is not people. A person who clicks a link inside an AI answer is coun
 
 ### The optional script tag
 
-If your site adds the `skald.js` script tag, Skald also counts what happens inside a page: button clicks, form steps, demo bookings, links out, and readers who reach three quarters of a page. These show on [Events](#events). The log's figures never depend on the tag. See [Tracking script](tracking-script.md).
+If your site adds the `skald.js` script tag, Skald also counts what happens inside a page: button clicks, form steps, demo bookings, links out, and readers who reach three quarters of a page. These show on [Leads & sales > Events](#sales/events). The log's figures never depend on the tag. See [Tracking script](tracking-script.md).
 
 ## The menu
 
-The sidebar groups the pages by what you came to find out.
+The sidebar has five sections. Each section has tabs along its top.
 
-| Group | Pages |
+| Section | Tabs |
 | --- | --- |
-| Home | Overview, Live, Insights, Compare |
-| Audience | Visitors, Sources, Pages, Locations & devices, Time of day |
-| Results | Leads, Conversions, Funnels, Events |
-| AI & bots | AI & crawlers |
-| Site & server | Site health (with Alerts, Data quality, Page speed and Broken links), Requests |
+| Overview | Summary, Insights |
+| Traffic | Visitors, Sources, Pages, Places & devices, Time |
+| Leads & sales | Pipeline, Bookings, Funnels, Events, People |
+| AI & bots | Assistants, Crawlers, Crawler rules, llms.txt |
+| Site | Health, Alerts, Requests, Not found, Speed, Data quality |
 
-- **Overview** is where every visit starts: the period's headline figures, leads and demos booked among them.
-- **Live** shows today: people first, then machines, the latest visits, and today's leads and bookings as they arrive.
-- **Insights** lists what is working, what dropped, and what is new or gone, leads too.
-- **Compare** puts any two periods side by side, with their leads.
-- **Site health** shows open alerts, the data's own checks, page speed and broken links.
-- **Requests** lists the last few hours of the request log, line by line.
+- **Overview > Summary** is where every visit starts: the period's headline figures, leads and demos booked among them.
+- **Overview > Insights** lists what is working, what dropped, and what is new or gone, leads too.
+- **Traffic** is who came, from where, to which pages, on what, and when.
+- **Leads & sales** is what the visits brought: leads by stage, demo bookings, funnels, events, and one person's story.
+- **AI & bots** is AI assistants (the pages they fetch to answer a question, and the visitors they send), crawlers, which crawlers may come in, and your llms.txt.
+- **Site** is the server: what it answered, open alerts, the request log line by line, pages not found, page speed and the data's own checks.
 
-When your site reports leads (a form, a booking), they show beside the visitors on Overview, Live, Sources, Pages, Locations, Insights and Compare, not only on Leads and Conversions. See [Leads on every page](leads-and-conversions.md#leads-on-every-page).
+The address names the section and the tab, for example `#traffic/sources`. Older links, such as `#sources` or `#live`, still open the right tab.
 
-**Settings** opens from the gear at the foot of the sidebar. It has its own menu. See [Settings and retention](settings-and-retention.md).
+Two switches sit in the top bar on every page:
+
+- **Today · Live** sets every tab to today so far, redrawn every 2 minutes. On Overview > Summary it also shows the newest visits and AI events, and today's leads and bookings as they arrive. Turn it off to go back to the period you had.
+- **Compare with…** puts another period beside this one. See Compare, below.
+
+When your site reports leads (a form, a booking), they show beside the visitors on Overview > Summary, Traffic > Sources, Traffic > Pages, Traffic > Places & devices and Overview > Insights, not only under Leads & sales. See [Leads on every page](leads-and-conversions.md#leads-on-every-page).
+
+**Settings**, **Help** and **About** sit at the foot of the sidebar. Settings (the gear) has its own menu. See [Settings and retention](settings-and-retention.md).
 
 The round **You** button beside the gear holds your own choices:
 
@@ -69,7 +76,7 @@ The round **You** button beside the gear holds your own choices:
 - **Your account**, **All settings**, **Help**, **Keyboard shortcuts**, **What's new**, **About Skald** and **Plain page** (every figure, without scripts).
 - **Sign out**.
 
-On a phone, the menu opens from the menu button and the bottom bar.
+On a phone, the five sections sit in the bottom bar, and a section's tabs scroll sideways. **Menu** in the bottom bar opens Settings, Help, About and your own choices.
 
 ## Choosing a period
 
@@ -107,13 +114,13 @@ Today's live figures can be withheld too, if they do not add up. They come back 
 
 Active filters show as chips under the top bar. Select the cross on a chip to remove that filter, or **Clear all** in the Filters panel.
 
-The log keeps each breakdown on its own, so filters cannot be crossed (for example, Canada AND Chrome). A filter that a page cannot apply is greyed out, and the page says so.
+The log keeps each breakdown on its own, so filters cannot be crossed (for example, Canada AND Chrome). A filter that a tab cannot apply is greyed out, and the tab says so.
 
 If your site has several page groups (for example, the blog apart from the product pages), a **Page group** list sits beside the period.
 
 ### Saved views
 
-Save the period, page group and filters on screen under a name, and come back to them later. Saved views are in the top bar, and in the **More** menu on a narrow screen. The address bar also keeps every choice, so you can share a link.
+Save the period, page group and filters on screen under a name, and come back to them later. Saved views are in the top bar, and in the **More** menu on a narrow screen. The address bar also keeps every choice, so you can share a link. That includes a long list's search, filters, sort and page, such as the request log on Site > Requests.
 
 ### Find a person
 
@@ -127,14 +134,21 @@ Select any country, page, source, AI assistant, campaign, referring site, device
 - Step back with the browser's Back button, or with the trail at the top of the page.
 - On the keyboard, press Enter on a value, a bar or an hour.
 
-On [Pages](#pages), select a page to see its story: when it was published, its first crawl, its first AI fetch, its first person and its first lead.
+On [Traffic > Pages](#traffic/pages), select a page to see its story: when it was published, its first crawl, its first AI fetch, its first person and its first lead.
 
 ## Compare
 
-There are two ways to compare.
+Select **Compare with…** in the top bar and choose what to put beside the period:
 
-- **Compare to the previous period**: the button in the top bar. It shows the period before beside each headline figure, and as a dashed line on the charts. It shows only when both periods are whole.
-- **Compare** page ([Compare](#compare)): any two periods, A against B, up to 12 months. It shows figures with their change and tables of what is new or gone. Leads, demos booked and every completed action are compared too, in total, by source and by landing page, when both periods are whole and every day has checked conversions.
+- **Previous period**: the same number of days just before.
+- **Same period last year**: 52 weeks earlier, so the weekdays match.
+- **Custom period**: any whole days you pick, up to 12 months.
+
+Tables then show A (the period in the top bar), B (the one you chose) and the change. Charts show B as a dashed line. A tab that does not compare says so in one line. Previous period and last year compare only when both periods are whole and checked; a custom period counts whole days and names any it left out. **Turn compare off** in the same menu.
+
+These tabs compare: Overview > Summary, Traffic > Sources, Pages and Places & devices, Leads & sales > Pipeline, AI & bots > Assistants and Crawlers, and Site > Health. Leads, demos booked and every completed action are compared too, when every day of both periods has checked conversions.
+
+Today is never compared: turning on **Today · Live** turns Compare off.
 
 ## Export
 
@@ -143,7 +157,7 @@ Select **Export** in the top bar:
 - **Tables on this tab (ZIP)**: every table, with the current filters, as CSV files.
 - **This tab as JSON**: the tables and the period's totals.
 - **Print this tab**: a clean report. Choose Save as PDF in the print dialog to keep a PDF.
-- **Report builder**: choose several pages, the period, page group and filters, then print or download them together.
+- **Report builder**: choose several tabs, the period, page group and filters, then print or download them together.
 
 To read figures from a script or an AI tool, see [API](api.md) and [MCP](mcp.md).
 
@@ -155,21 +169,23 @@ Shortcuts do nothing while you type in a field.
 | --- | --- |
 | ? | Show the list of shortcuts |
 | Ctrl K (Cmd K on a Mac) | Command palette: go anywhere, run anything |
-| / | Search the list on this page |
+| / | Search the list on this tab |
 | [ | Shrink the sidebar to icons, or open it again |
 | Esc | Close a panel or a menu |
-| g then a letter | Go to a page |
+| g then a letter | Go to a tab |
 
 Letters to use after `g`:
 
-| Letter | Page |
+| Letter | Tab |
 | --- | --- |
-| o, l, i, c | Overview, Live, Insights, Compare |
-| v, s, p, d, t | Visitors, Sources, Pages, Locations & devices, Time of day |
-| e, x, f, n | Leads, Conversions, Funnels, Events |
-| b | AI & crawlers |
-| h, a, q, w, k, r | Site health, Alerts, Data quality, Page speed, Broken links, Requests |
-| u | Internal traffic |
+| o, i | Overview > Summary, Insights |
+| l | Overview > Summary with Today · Live on |
+| c | Overview > Summary compared with the previous period |
+| v, s, p, d, t | Traffic > Visitors, Sources, Pages, Places & devices, Time |
+| e, x, f, n | Leads & sales > Pipeline, Bookings, Funnels, Events |
+| b | AI & bots > Assistants |
+| h, a, r, k, w, q | Site > Health, Alerts, Requests, Not found, Speed, Data quality |
+| u | Settings > Internal traffic |
 | , (comma) | Settings |
 
 ## Your site on Vercel, Netlify or behind Cloudflare

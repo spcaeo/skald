@@ -96,9 +96,9 @@ export function pageStory(m, s) {
     if (!st) { body.replaceChildren(h("p", { class: "empty" }, `Nothing was recorded for ${path} in the stored days.`)); return; }
     const start = st.published || st.first_seen;
     const since = start ? dayDiff(start, m.anchor) + 1 : null;
-    // Compare this page: A its last 7 whole days, B its first 7 after publishing.
-    const cmp = h("button", { type: "button", class: "btn primary", onclick: () => S.set({ tab: "compare", path, pathmode: "contains", page: "",
-      ca: `${addDays(m.anchor, -6)}..${m.anchor}`, cb: `${start}..${addDays(start, 6)}` }) }, "Compare this page");
+    // Compare this page: A its last 7 whole days, B its first 7 after publishing (Compare mode on Pages).
+    const cmp = h("button", { type: "button", class: "btn primary", onclick: () => S.set({ tab: "traffic/pages", path, pathmode: "contains", page: "",
+      range: "custom", from: addDays(m.anchor, -6), to: m.anchor, cmp: "custom", cb: `${start}..${addDays(start, 6)}` }) }, "Compare this page");
     const days = (st.days || []).map((d) => ({ ...d, ai: d.ai ?? ((d.ai_asked ?? 0) + (d.ai_training ?? 0)) }));
     const ok = days.filter((d) => d.state === "ok");
     const sum = (k) => ok.reduce((a, d) => { const o = d[k]; if (o) for (const [x, v] of Object.entries(o)) a[x] = (a[x] || 0) + v; return a; }, {});

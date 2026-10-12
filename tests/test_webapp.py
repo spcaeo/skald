@@ -59,6 +59,29 @@ class Install(unittest.TestCase):
             webapp.install(out, ["example.com"])
             self.assertFalse(stale.exists())
 
+    def test_vendored_components_ship_with_every_file_they_import(self):
+        # spcaeo/ui (vendor/spcaeo-ui/VERSION.md): upstream's core files were .mjs, which
+        # install() would not copy; every import in the installed app must find its file.
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            webapp.install(out, ["example.com"])
+            app = out / "_app"
+            for rel in ("vendor/spcaeo-ui/folder-tabs/vanilla/folder-tabs.js", "vendor/spcaeo-ui/data-grid/vanilla/data-grid.js",
+                        "vendor/spcaeo-ui/data-grid/core/url-state.js", "vendor/spcaeo-ui/spcaeo-ui-skald.css", "js/grid.js", "js/foldertabs.js"):
+                self.assertTrue((app / rel).is_file(), rel)
+            shell = (out / "example.com" / "index.html").read_text()
+            for css in ("folder-tabs/folder-tabs.css", "data-grid/data-grid.css", "spcaeo-ui-skald.css"):
+                self.assertIn(f'href="../_app/vendor/spcaeo-ui/{css}?v=', shell)
+            for js in app.rglob("*.js"):
+                # Static imports (a statement's line starts with import, export or the "}" of a long list) and import("…").
+                code = js.read_text()
+                specs = re.findall(r"""^\s*(?:import|export|\})[^\n;]*?\bfrom\s*["'](\.{1,2}/[^"']+)["']""", code, re.M)
+                specs += re.findall(r"""^\s*import\s*["'](\.{1,2}/[^"']+)["']""", code, re.M)
+                specs += re.findall(r"""\bimport\(\s*["'](\.{1,2}/[^"']+)["']\s*\)""", code)
+                for spec in specs:
+                    self.assertTrue((js.parent / spec).resolve().is_file(), f"{js.relative_to(app)} imports {spec}, which is not installed")
+            self.assertFalse(list(app.rglob("*.mjs")))
+
     def test_without_script_the_shell_sends_the_reader_to_the_static_page(self):
         shell = (APP / "index.html").read_text()
         self.assertRegex(shell, r'<noscript><meta http-equiv="refresh" content="0;url=classic.html"></noscript>')

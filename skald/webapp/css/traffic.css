@@ -1,0 +1,35 @@
+/* Traffic (Visitors, Sources, Pages, Places & devices, Time): the Traffic builder's styles (2.7.0). Tokens come from app.css. */
+
+/* A line that sends the reader to the one place a figure lives now. */
+.tr-goto { margin: 10px 0 0; font-size: 13px; color: var(--ink-2); }
+.tr-goto a { color: var(--ink); font-weight: 500; text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px; white-space: nowrap; }
+.tr-goto a:hover { text-decoration-color: currentColor; }
+.tr-goto a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+.cols + .tr-goto { margin: -10px 0 22px; }
+.tr-links .tr-goto:first-child { margin-top: 0; }
+
+/* A row of cards left with one card keeps it at half width (Paid traffic by network). */
+@media (min-width: 760px) { .cols.tr-one { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* The grids: labels on one line, cut with an ellipsis (the whole label in its tooltip). */
+.tr-grid .cell-l { display: block; max-width: 46ch; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tr-grid .cell-l .named { display: inline; }
+.tr-grid .cell-l .nm { white-space: nowrap; overflow-wrap: normal; word-break: normal; }
+.tr-grid .cell-l .dl { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
+.tr-grid .cell-l .ic, .tr-grid .cell-l .flag { display: inline-block; vertical-align: -3px; margin-right: 7px; }
+.tr-grid .cell-l.none { color: var(--ink-3); font-style: italic; }
+.tr-paths .cell-l .nm { font-family: var(--mono); font-size: 12.5px; }
+.tr-grid .few { color: var(--ink-3); }
+.tr-grid .dg-table td svg { display: block; }
+.tr-grid + .note, .tr-src + .note { margin-top: 10px; }
+
+/* Sources: a referring site or a campaign has no trend and no lead split, so its
+   segment shows the first three columns only (Source, Visitors, Share). */
+.tr-src:not([data-seg="type"]) .dg-table :is(th, td):nth-child(n+4) { display: none; }
+
+@media (max-width: 640px) {
+  .tr-grid .cell-l { max-width: 20ch; }
+  .tr-goto a { white-space: normal; }
+}
+/* A letter chip (a referring site's mark) in a grid's label cell keeps its letter centred. */
+.lead-tbl .cell-l .ic.ic-chip { display: inline-grid; place-items: center; vertical-align: middle; position: relative; top: -1px; }

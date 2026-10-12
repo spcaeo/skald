@@ -1,10 +1,10 @@
 # Funnels and goals
 
-How to build a funnel of pages and events, save it and read its history, how goals work on the Events page, and how to find badly tagged campaign links.
+How to build a funnel of pages and events, save it and read its history, how goals work on the Events tab, and how to find badly tagged campaign links.
 
 ## Funnels
 
-A funnel answers "how many visits went through these pages, in this order, and where did the rest leave?". Open [Funnels](#funnels), under **Results** in the menu.
+A funnel answers "how many visits went through these pages, in this order, and where did the rest leave?". Open [Leads & sales > Funnels](#sales/funnels).
 
 ### How steps are counted
 
@@ -23,14 +23,14 @@ Each page step has a choice of how it matches pages:
 | Starts with | every page whose address begins this way | `/blog/` |
 | Page named | a page whose last part is this word, in any language folder | `pricing` matches `/pricing/` and `/fr/pricing/` |
 
-1. Open [Funnels](#funnels).
+1. Open [Leads & sales > Funnels](#sales/funnels).
 2. In **Starting from**, choose where the visits came from: **Any source**, a kind of source (such as Search engine or AI assistant), or one assistant under **One assistant**.
 3. For each step, choose how it matches pages (above), then type the page.
 4. To let a step match several pages, type them separated by a vertical bar, such as `/pricing/ | /plans/`.
 5. Press **Add a step** for the next one. A funnel has up to 8 steps.
 6. To remove a step, press the **×** beside it.
 
-The page suggests pages your visitors read as you type.
+The tab suggests pages your visitors read as you type.
 
 ### Event steps
 
@@ -96,7 +96,7 @@ A goal is an event from the tracking script that counts as success for you, such
 
 You need to be an admin of the site.
 
-1. Open [Events](#events) and select **Edit goals** beside the Goals heading. Or open **Settings > This site > Sites** ([Sites](#settings/sites)).
+1. Open [Leads & sales > Events](#sales/events) and select **Edit goals** beside the Goals heading. Or open **Settings > This site > Sites** ([Sites](#settings/sites)).
 2. In the **Goals** box, tick the events that count as success, such as **Sign-up sent** or **Demo booked**. Up to 10.
 3. Select **Save**.
 
@@ -108,7 +108,7 @@ Goals show from the next run, for every day already counted. To have no goal, un
 
 ### Where goals show
 
-Open [Events](#events) and choose a date range. The **Goals** section has one table per goal:
+Open [Leads & sales > Events](#sales/events) and choose a date range. The **Goals** section has one table per goal:
 
 - **Source**, **Visits** from that source, the goal's events, and **Per 100 visits**.
 - The heading gives the whole site's rate.
@@ -122,11 +122,11 @@ How to read it:
 
 If no goal is set, the section says so, with a link to set one.
 
-For conversions from all sources (bookings, payments, CRM deals), with completion rates and sources, use [Conversions](#conversions). See [Leads and conversions](leads-and-conversions.md).
+For conversions from all sources (bookings, payments, CRM deals), with completion rates and sources, use [Leads & sales > Pipeline](#sales/pipeline) with **Count from: Tools**. See [Leads and conversions](leads-and-conversions.md).
 
-## The Events page
+## The Events tab
 
-[Events](#events) shows what people did inside your pages, as totals. Nothing here is tied to a visit or a person. Bots are left out.
+[Leads & sales > Events](#sales/events) shows what people did inside your pages, as totals. Nothing here is tied to a visit or a person. Bots are left out.
 
 - **The figures at the top**: each kind of event, with its rate per 100 visitors.
 - **Through the forms**: Sign-up started to Sign-up sent, and Demo booking opened to Demo booked, with the share that went on (from five starts).
@@ -135,13 +135,13 @@ For conversions from all sources (bookings, payments, CRM deals), with completio
 - **Which button or form**: each event by its name and page, such as a Button click named `pricing_top` on `/pricing/`.
 - **By page** and **By source**: one column per kind of event.
 
-Today's events are shown as "not yet checked". Events are checked each night against your server log. A day that does not match is left out, and the page says why. A page marked **flagged** had more events than its page views allow on some day.
+Today's events are shown as "not yet checked". Events are checked each night against your server log. A day that does not match is left out, and the tab says why. A page marked **flagged** had more events than its page views allow on some day.
 
 ## Campaign tag problems
 
 Badly tagged links split one campaign into several, or hide where visitors came from. Skald finds four kinds of problem.
 
-Open [Sources](#sources) and scroll to **Campaigns and referrers**, then **Tag problems**.
+Open [Traffic > Sources](#traffic/sources) and scroll to **Campaigns and referrers**, then **Tag problems**.
 
 | Problem | What it means | How to fix it |
 | --- | --- | --- |

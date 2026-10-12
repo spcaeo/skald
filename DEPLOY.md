@@ -289,7 +289,8 @@ dropped and counted as `duplicates_removed` in quality.json.
 
 ### AI crawler settings (optional)
 
-The dashboard's settings save a policy (allow, block, or block training only,
+The dashboard's crawler rules (AI & bots > Crawler rules; Settings > AI crawlers
+before 2.7.0) save a policy (allow, block, or block training only,
 per assistant; allow or block per crawler) through the refresh helper into
 `/var/lib/skald/bot-policy.json`. Root applies it: a path unit runs
 `skald/bot_policy.py apply`, which writes

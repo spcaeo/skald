@@ -78,7 +78,7 @@ A form records only its own `id` or `name`, such as `contact`. It never reads wh
 
 ### What it does not track by itself
 
-Two events on the [Events](#events) page come only from your site's own code: **Demo opened** (`book_demo_open`) and **Demo booked** (`demo_booked`). The Events page marks them "sent by your own code". Your developer sends them when your own booking step opens and succeeds:
+Two events on [Leads & sales > Events](#sales/events) come only from your site's own code: **Demo opened** (`book_demo_open`) and **Demo booked** (`demo_booked`). The Events tab marks them "sent by your own code". Your developer sends them when your own booking step opens and succeeds:
 
 ```
 skald('track', 'demo_booked', {id: 'header'})
@@ -160,9 +160,9 @@ With visitor IDs on, the tag adds the visitor ID to every Calendly embed and Cal
 
 1. Open your site in a normal browser window. Make sure Do Not Track and Global Privacy Control are off in that browser, or the tag sends nothing.
 2. Open a page, click a link and start a form.
-3. In Skald, open [Events](#events) and choose **Today**.
+3. In Skald, open [Leads & sales > Events](#sales/events) and choose **Today**.
 4. You should see "Today so far, not yet checked" and your events. Today's events are checked after midnight.
-5. At the bottom of the Events page, a line says what the beacon took in today: accepted, declined, from machines, from your own addresses, refused.
+5. At the bottom of the Events tab, a line says what the beacon took in today: accepted, declined, from machines, from your own addresses, refused.
 
 > Your own office is likely marked as internal traffic. Its events are kept apart as "ours" and not shown with people's. Test from a phone on mobile data, or see [Internal traffic](internal-traffic.md).
 

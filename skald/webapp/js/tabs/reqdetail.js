@@ -87,7 +87,7 @@ export function detail(m, row, ours) {
   // Our own traffic: say so, or offer to add the address (admins only).
   let ownPart = null, showAll = null;
   if (row.ip && !removed) {
-    showAll = h("button", { type: "button", class: "btn primary", onclick: () => { d.close({ focusBack: false }); S.set({ tab: "requests", ip: row.ip }); } }, `Show every request from ${row.ip}`);
+    showAll = h("button", { type: "button", class: "btn primary", onclick: () => { d.close({ focusBack: false }); S.set({ tab: "site/requests", ip: row.ip }); } }, `Show every request from ${row.ip}`);
     const known = ours.get(row.ip);
     const api = m.x.ours?.api;
     if (known || row.group === "ours") {
