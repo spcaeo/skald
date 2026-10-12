@@ -4,6 +4,24 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.5.1 (2026-10-12)
+
+### Fixed
+
+- **Lead tiles showed "-" when the count was 0.** When the lead database held only spam or
+  duplicates, every day read as "not recorded". Days from the lead database's first lead on now
+  count as recorded and show 0; the audit recounts that first day by its own SQL, and if it
+  disagrees every day is withheld (never shown as 0).
+- **Live showed the date range** with "30 days" picked. Live is always today; the range is
+  hidden there and kept for the other pages.
+- **The top bar overlapped** on pages with a long title at 1280-1680 px. When the bar is full,
+  the group name and the Refresh label go first, then the range and filters move to a second
+  row. The period highlight now sits exactly on its button. A browser check covers every page
+  at five widths in both themes.
+- Small: a halo behind lead counts on the Overview chart, padding under sparklines, only the
+  known parts of a campaign on Live, "-" for the rate of a not-recorded row, and the doctor's
+  weekly-mail line.
+
 ## 2.5.0 (2026-10-12)
 
 Leads and demo bookings on every page where they help, each counted twice.

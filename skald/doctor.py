@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -104,9 +105,12 @@ def daily_run(live_dir, now: datetime, cmd: str) -> dict:
                     f"Run `{cmd} run-daily` to see the error (the failure mail has it too).")
     step, reason = got.get("last_step"), got.get("last_reason")
     if outcome == "withheld" and step == "weekly mail" and "partial day" in str(reason or ""):
+        # The mailer's reason ends with why a week needs whole days: said once, below.
+        said = re.sub(r"(\s+-\s+the logs do not cover the whole day)?;\s*a week needs seven whole "
+                      r"days", "", str(reason)).strip()
         return item("daily_run", part, OK,
                     f"ran {when}; the day itself is stored and checked. Only this week's mail "
-                    f"is held back, because a day of the week was partial ({reason}). It "
+                    f"is held back, because a day of the week was partial ({said}). It "
                     f"clears by itself next week, when the week has seven whole days")
     if outcome == "withheld" and step:
         return item("daily_run", part, ATTENTION,

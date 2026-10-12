@@ -17,6 +17,7 @@ by this module's own window rule.
 """
 from __future__ import annotations
 
+import math
 import sqlite3
 from collections import Counter
 from datetime import date, datetime, time, timedelta, timezone
@@ -183,6 +184,43 @@ def _flat(day: dict) -> Counter:
             for key, n in per.items():
                 out[(kind, action, key)] += n
     return +out
+
+
+def recount_since(path: Path, site: str, tz, leads: Path | None) -> str | None:
+    """The first local day conversions are recorded for, by SQL: MIN(at) of
+    the rows kept and taken away, and, when `leads` is given and the file
+    holds the lead sync's mark, MIN(julianday(created_at)) of every lead in
+    the lead DB, both opened read-only."""
+    db = _open(path)
+    try:
+        stamp = db.execute("SELECT MIN(at) FROM (SELECT at FROM conversions WHERE site = ? "
+                           "UNION ALL SELECT at FROM removed WHERE site = ? AND at IS NOT NULL)",
+                           (site, site)).fetchone()[0]
+        # The mark from_leads writes after each read of the lead DB (the key is its name).
+        read = leads is not None and db.execute(
+            "SELECT COUNT(*) FROM meta WHERE key = ?", (f"leads_sync:{site}",)).fetchone()[0]
+    finally:
+        db.close()
+    found = [datetime.strptime(stamp, STAMP).replace(tzinfo=timezone.utc)] if stamp else []
+    if read and Path(leads).is_file():
+        ldb = _open(leads)
+        try:
+            jd = ldb.execute("SELECT MIN(julianday(created_at)) FROM submissions").fetchone()[0]
+        finally:
+            ldb.close()
+        if jd is not None:
+            # Whole seconds, cut as the main road's stamps are (a float day is off by microseconds).
+            secs = math.floor((jd - 2451545.0) * DAY + 0.001)
+            found.append(datetime(2000, 1, 1, 12, tzinfo=timezone.utc) + timedelta(seconds=secs))
+    return min(found).astimezone(tz).date().isoformat() if found else None
+
+
+def check_since(path: Path, site: str, tz, leads: Path | None, since) -> list[str]:
+    """[] when conversions.json's `since` is the recounted day, else why:
+    a day before it reads "not recorded" and a day after it 0, so a wrong
+    `since` withholds every day."""
+    got = recount_since(path, site, tz, leads)
+    return [] if got == since else [f"recorded from: file {since}, SQL recount {got}"]
 
 
 def check_days(path: Path, site: str, tz, first: date, last: date, now: str, hours: float,

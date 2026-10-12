@@ -833,7 +833,7 @@ select, .ctl select, .fld select, .feed-tools select, .rb-grid select, .fld .pai
 @media (max-width: 767px) { #rail-toggle { display: none; } }
 
 /* Leads everywhere (2.5.0): the day's leads on the Overview chart, and Live's list of today's leads. */
-.chart text.lead-n { fill: var(--leads); font-weight: 700; font-size: 10px; }
+.chart text.lead-n { fill: var(--leads); font-weight: 700; font-size: 10px; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
 .stream li.lead-test { opacity: .62; }
 .lead-tag { display: inline-block; font-size: 11px; font-weight: 650; padding: 0 7px; border-radius: 999px; margin-left: 6px; white-space: nowrap; color: var(--ink-2); background: color-mix(in srgb, var(--ink-3) 16%, transparent); }
 .lead-tag.done { color: var(--good); background: color-mix(in srgb, var(--good) 13%, transparent); }

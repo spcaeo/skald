@@ -226,6 +226,7 @@ section.s { margin: 0 0 22px; }
 .kpi .k-v { font-family: var(--round); font-size: 26px; font-weight: 680; letter-spacing: -.025em; margin: 4px 0 2px; }
 .kpi .k-c { font-size: 12px; color: var(--ink-2); display: flex; gap: 6px; align-items: center; }
 .kpi .k-c .arrow { font-size: 10px; }
+.spark { height: 34px; }
 .kpi .spark { height: 34px; margin-top: 6px; }
 button.kpi { border: 0; text-align: left; cursor: pointer; font: inherit; color: inherit; }
 button.kpi:hover { background: color-mix(in srgb, var(--surface) 92%, var(--ink)); }

@@ -78,7 +78,7 @@ function tiles(m, r, t, prevT, both, why) {
     const fmt = (x) => (x == null ? "-" : key === "ppv" ? x.toFixed(1) : n(x));
     let chg;
     if (r.kind === "today" || !both || v == null || p == null) {
-      const reason = r.kind === "today" ? "Today is still running; it is compared once it is a whole day." : v == null ? "Not counted for this period." : whyHere;
+      const reason = v == null && lead && lf.now.held.length ? "Withheld: the second count disagrees with these days' conversions, so none is shown." : r.kind === "today" ? "Today is still running; it is compared once it is a whole day." : v == null ? "Not counted for this period." : whyHere;
       chg = h("span", { class: "t-c none", title: reason }, h("span", { "aria-hidden": "true" }, "—"), h("span", { class: "vh" }, `No change shown: ${reason}`));
     } else {
       const [arrow, words] = change(v, p);
@@ -90,7 +90,7 @@ function tiles(m, r, t, prevT, both, why) {
     else if (r.kind === "today" && key === "visitors" && t.by?.hour) trend = spark(HOURS.map((hh) => t.by.hour[hh] ?? 0).slice(0, Number(String(m.live?.generated_at || "").slice(11, 13)) + 1), color("people"));
     return h("div", { class: "tile", role: "listitem" },
       h("div", { class: "t-top" }, h("span", { class: "t-l" }, label), info(note, label)),
-      h("div", { class: "t-v" }, fmt(v)), chg, trend || h("div", { class: "spark" }));
+      h("div", { class: "t-v", title: v == null && lead ? (lf.now.held.length ? "Withheld, never zero" : "Not recorded, never zero") : null }, fmt(v)), chg, trend || h("div", { class: "spark" }));
   }));
 }
 
