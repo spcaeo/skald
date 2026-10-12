@@ -85,9 +85,12 @@ The same page shows everything Skald counts as your own traffic, not only the ad
 
 - **Our own requests**: every request from your own machines and tools together.
 - **By machine or tool**: each one by its label, such as the office, your own crawler, browser tests, or the heartbeat. Labels for tools are set on the server.
+- **How fast the server answered**: server time per hour for the last whole day.
+
+Uptime from the heartbeat, and every outage, is on [Site > Health](#site/health), under **Is the site up?**:
+
 - **Uptime, from the heartbeat**: the heartbeat is one request every five minutes to your site. If it is answered, the site is up. A red day had a gap of more than 10 minutes or a failed answer: the site was down, or the heartbeat itself stopped.
 - **Outages and heartbeat gaps**: each gap, with when it started, when it ended, and how many minutes it lasted.
-- **How fast the server answered**: server time per hour for the last whole day.
 
 You see the heartbeat parts only if your server runs a heartbeat.
 
@@ -106,7 +109,7 @@ If the buttons are greyed out, hover over one to see why. Ask an install admin t
 
 ## Privacy
 
-Your team's list of addresses is shown only on this page and kept in the server's change log. Like every visitor's address, your team's requests also show, behind sign-in, in the last 6 hours of [Requests](#requests). The list itself never appears in the data files, CSV downloads, the API or mail. Every add and remove is logged with who did it and when.
+Your team's list of addresses is shown only on this page and kept in the server's change log. Like every visitor's address, your team's requests also show, behind sign-in, in the last 6 hours of [Site > Requests](#site/requests). The list itself never appears in the data files, CSV downloads, the API or mail. Every add and remove is logged with who did it and when.
 
 See [Privacy](privacy.md) for more.
 

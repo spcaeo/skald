@@ -17,7 +17,7 @@ export function leaderboard(m, s, r) {
       { key: "entries", label: "Entries", num: true }, { key: "ai_asked", label: "AI asked", num: true }, { key: "ai_training", label: "AI training", num: true }, { key: "search", label: "Search", num: true }];
     return h("div", null, table(cols, { caption: "Page leaderboard, today so far", rows, file: `pages-today-${m.today}.csv`, sortKey: "views", limit: 15,
       rowClass: () => "go", onRow: (row) => S.set({ page: row.path }), empty: "No page read yet today." }),
-    h("p", { class: "note" }, (f.pages || []).length ? "Today so far, live and partial." : "Today so far. The 30-day leaderboard, with change against the 30 days before, appears once 30 whole days are recorded."));
+    h("p", { class: "note" }, (f.pages || []).length ? "Today so far; it is still being counted. Pick 30 days for the 30-day leaderboard." : "Today so far. The 30-day leaderboard, with change against the 30 days before, appears once 30 whole days are recorded."));
   }
   const rows = (f.pages || []).filter((p) => keep(p.path)).map((p) => ({ ...p, __k: p.path }));
   const cols = [

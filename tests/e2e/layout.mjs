@@ -1,6 +1,9 @@
 // Every tab, at every range and page group: one-line headers, none of the
 // old intro sentences, no sideways scroll, no console error - and on a short
 // window the sidebar's last section, its foot and the page footer reachable.
+// The menu (2.7.0): the five sections, Settings, Help and About in its foot;
+// a section's tab strip sits outside the page's one-line header. Every old
+// address and its redirect: tests/e2e/routes.mjs.
 //
 //   PLAYWRIGHT=/path/to/node_modules/playwright/index.mjs \
 //   node tests/e2e/layout.mjs https://host/traffic/<site>/ [user:password] [--quick]
@@ -13,12 +16,14 @@ const [base, auth = ""] = args.filter((a) => !a.startsWith("--"));
 const { chromium } = await import(process.env.PLAYWRIGHT || "playwright");
 if (!base) { console.error("usage: node layout.mjs <page url> [user:password] [--quick]"); process.exit(2); }
 
-const TABS = ["overview", "insights", "compare", "live", "requests", "visitors", "sources", "pages", "leads", "funnels", "events", "locations", "time", "bots", "health", "health/alerts", "health/quality", "health/speed", "health/broken", "settings/internal", "settings/crawlers", "settings/api", "settings/users", "about"];
+const TABS = ["overview/summary", "overview/insights", "site/requests", "traffic/visitors", "traffic/sources", "traffic/pages", "sales/pipeline", "sales/bookings", "sales/funnels", "sales/events",
+  "traffic/places", "traffic/time", "ai/assistants", "ai/rules", "site/health", "site/alerts", "site/quality", "site/speed", "site/notfound", "settings/internal", "settings/api", "settings/users", "about"];
+const SECTIONS = ["overview", "traffic", "leads & sales", "ai & bots", "site"];
 const OLD = [/recounted every two minutes/i, /covering 00:00/i, /in five groups that add up exactly/i, /Live and partial/i, /Today from local midnight/i];
 const fails = [];
 const fail = (what) => { fails.push(what); console.log(`FAIL ${what}`); };
 
-const b = await chromium.launch();
+const b = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 const ctx = await b.newContext({ viewport: { width: 1440, height: 900 },
   httpCredentials: auth ? { username: auth.split(":")[0], password: auth.split(":").slice(1).join(":") } : undefined });
 const p = await ctx.newPage();
@@ -26,7 +31,7 @@ let where = "";
 p.on("console", (m) => { if (m.type() === "error") fail(`${where}: console error ${m.text()}`); });
 p.on("pageerror", (e) => fail(`${where}: ${e.message}`));
 
-await p.goto(`${base}#overview`, { waitUntil: "networkidle" });
+await p.goto(`${base}#overview/summary`, { waitUntil: "networkidle" });
 const views = await p.evaluate(() => [...document.querySelectorAll(".view-sel option")].map((o) => o.value));
 const groups = views.length ? views : ["all"];
 let pages = 0;
@@ -41,39 +46,46 @@ for (const view of groups) {
       await p.goto(`${base}#${tab}?${q}`, { waitUntil: "networkidle" });
       await p.waitForTimeout(250);
       const got = await p.evaluate(() => {
-        const head = document.querySelector("#panel > .head");
+        const head = document.querySelector("#panel > .head, #panel .stabs-panel > .head");
+        const strip = document.querySelector("#panel .stabs-list");
         const words = [document.body.innerText, ...[...document.querySelectorAll("[aria-label],[title]")].map((e) => `${e.getAttribute("aria-label") || ""} ${e.getAttribute("title") || ""}`)].join("\n");
-        return { headH: head ? head.getBoundingClientRect().height : 0, words, over: document.documentElement.scrollWidth - innerWidth };
+        return { headH: head ? head.getBoundingClientRect().height : 0, words, over: document.documentElement.scrollWidth - innerWidth,
+          strip: strip ? !strip.closest(".head") && (!head || head.getBoundingClientRect().top >= strip.getBoundingClientRect().bottom - 1) : null };
       });
       pages++;
       if (got.headH > 30) fail(`${where}: header block is ${Math.round(got.headH)}px tall, more than one line`);
       for (const re of OLD) if (re.test(got.words)) fail(`${where}: old wording "${re.source}" on the page`);
       if (got.over > 1) fail(`${where}: sideways scroll of ${got.over}px`);
+      if (tab.includes("/") && !tab.startsWith("settings/") && got.strip !== true) fail(`${where}: no tab strip above the page's header`);
     }
   }
 }
 
-// The menu: every label once (no item named like a group), all of it in view at 1440x800,
-// and when it must scroll, no item ever under the brand block.
+// The menu: the five sections, every label once (no item named like a group), all of it in
+// view at 1440x800, and when it must scroll, no item ever under the brand block. Its foot:
+// Settings, Help and About, then one row of buttons (theme, what's new, you, fold).
 await p.setViewportSize({ width: 1440, height: 800 });
 where = "menu at 1440x800";
-await p.goto(`${base}#overview?range=today`, { waitUntil: "networkidle" });
+await p.goto(`${base}#overview/summary?range=today`, { waitUntil: "networkidle" });
 const menu = await p.evaluate(() => {
   const items = [...document.querySelectorAll(".nav .tab")].map((b) => b.textContent.trim().toLowerCase());
   const heads = [...document.querySelectorAll(".nav .nav-h")].map((e) => e.textContent.trim().toLowerCase());
   const nav = document.querySelector(".nav");
-  const footRow = [...document.querySelectorAll(".rail-foot > *")].filter((e) => e.offsetParent !== null).map((e) => Math.round(e.getBoundingClientRect().top));
-  return { items, heads, scrolls: nav.scrollHeight > nav.clientHeight + 1, footRows: new Set(footRow).size };
+  const links = [...document.querySelectorAll(".rail-foot > .gear, .rail-foot > .foot-link")].filter((e) => e.offsetParent !== null).map((e) => e.textContent.trim());
+  const footRow = [...document.querySelectorAll(".rail-foot > :not(.gear):not(.foot-link)")].filter((e) => e.offsetParent !== null).map((e) => Math.round(e.getBoundingClientRect().top));
+  return { items, heads, links, scrolls: nav.scrollHeight > nav.clientHeight + 1, footRows: new Set(footRow).size };
 });
 const all = [...menu.items, ...menu.heads];
 const dup = all.filter((x, i) => all.indexOf(x) !== i);
 if (dup.length) fail(`${where}: a label appears twice: ${[...new Set(dup)].join(", ")}`);
+if (menu.items.join() !== SECTIONS.join()) fail(`${where}: the menu is ${menu.items.join(", ")}, not the five sections`);
+if (menu.links.join() !== "Settings,Help,About Skald") fail(`${where}: the foot's links are ${menu.links.join(", ")}`);
 if (menu.scrolls) fail(`${where}: the menu does not fit without scrolling`);
-if (menu.footRows !== 1) fail(`${where}: the sidebar's foot is ${menu.footRows} rows, not one`);
+if (menu.footRows !== 1) fail(`${where}: the sidebar foot's buttons are ${menu.footRows} rows, not one`);
 for (const [w, hgt] of [[1440, 600], [1280, 560]]) {
   await p.setViewportSize({ width: w, height: hgt });
   where = `menu at ${w}x${hgt}`;
-  await p.goto(`${base}#overview?range=today`, { waitUntil: "networkidle" });
+  await p.goto(`${base}#overview/summary?range=today`, { waitUntil: "networkidle" });
   const covered = await p.evaluate(() => {
     const nav = document.querySelector(".nav"), brand = document.querySelector(".brand").getBoundingClientRect();
     const out = [];
@@ -115,20 +127,22 @@ for (const [w, hgt] of [[1440, 900], [1024, 800]]) {
   for (const b of bad) fail(`${where}: ${b}`);
 }
 
-// Old links open the renamed sections.
+// Old links open the renamed sections: the bar names the section, the strip the tab
+// (every old address: tests/e2e/routes.mjs).
 await p.setViewportSize({ width: 1440, height: 800 });
-for (const [old, name] of [["visits", "Visitors"], ["audience", "Locations & devices"], ["hours", "Time of day"], ["alerts", "Alerts"], ["quality", "Data quality"], ["ours", "Internal traffic"], ["broken", "Broken links"]]) {
+for (const [old, name, tab] of [["visits", "Traffic", "Visitors"], ["audience", "Traffic", "Places & devices"], ["hours", "Traffic", "Time"], ["alerts", "Site", "Alerts"],
+  ["quality", "Site", "Data quality"], ["ours", "Internal traffic", null], ["broken", "Site", "Not found"], ["leads", "Leads & sales", "Pipeline"], ["bots", "AI & bots", "Assistants"]]) {
   where = `old link #${old}`;
   await p.goto(`${base}#${old}`, { waitUntil: "networkidle" });
-  const now = await p.evaluate(() => document.querySelector(".trail .crumb.now")?.textContent);
-  if (now !== name) fail(`${where}: opened "${now}", not "${name}"`);
+  const now = await p.evaluate(() => [document.querySelector(".trail .crumb.now")?.textContent, document.querySelector('.stabs [aria-selected="true"] .stab-name')?.textContent || null]);
+  if (now[0] !== name || now[1] !== tab) fail(`${where}: opened "${now.join(" > ")}", not "${[name, tab].filter(Boolean).join(" > ")}"`);
 }
 
 // A short window: the sidebar's last section and its foot, and the page footer, can be reached.
 for (const [w, hgt] of [[1440, 600], [1440, 700], [1280, 560]]) {
   await p.setViewportSize({ width: w, height: hgt });
   where = `short window ${w}x${hgt}`;
-  await p.goto(`${base}#overview?range=today`, { waitUntil: "networkidle" });
+  await p.goto(`${base}#overview/summary?range=today`, { waitUntil: "networkidle" });
   const r = await p.evaluate(() => {
     const nav = document.querySelector(".nav");
     nav.scrollTop = nav.scrollHeight;

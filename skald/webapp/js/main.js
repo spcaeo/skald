@@ -2,15 +2,19 @@
 // phone's tab bar are nav.js's.
 //
 // The top bar, one slim row: the section and drill-down trail on the left;
-// the period, page group and filters in the middle; compare, saved views,
+// the modes (modes.js: Today · Live, Compare with…), the period, page group
+// and filters in the middle; saved views,
 // refresh, export, alerts and the command palette on the right. What does
 // not fit a narrow screen moves into the "more" menu. Active filters make a
 // second row, only when there are some.
 
 import * as S from "./state.js";
 import { h, ICON, reduced, toast, untip } from "./ui.js";
-import { load, refresh as postRefresh, viewList, rangeOf, filterSupport, markersByDay } from "./data.js";
+import { load, refresh as postRefresh, viewList, rangeOf, markersByDay } from "./data.js";
 import { TAB_RENDER } from "./tabs/index.js";
+import { TAB, opt } from "./sections.js";
+import { tabStrip } from "./tabstrip.js";
+import { barModes, modeBanner, modeActions } from "./modes.js";
 import { country, flagEl, withFlag } from "./tabs/readers.js";
 import { setMarkers } from "./charts.js";
 import { saved, savedDialog, bell, marksOn, zonePicker, store } from "./extras.js";
@@ -22,7 +26,7 @@ import { chainOf, DIMS, said } from "./drill.js";
 import { setFavicons } from "./icons.js";
 import { REGISTRY, showAllRows } from "./table.js";
 import { exportMenu, builder, exportZip, exportJSON, printTab } from "./report.js";
-import { setContext, healthTabs } from "./tabs/common.js";
+import { setContext } from "./tabs/common.js";
 import { loadBuild, buildLine, toolName, newerBuild, releaseLine, BUILD } from "./build.js";
 import { searchBox, openSearch, mayFind, SEARCH_HINT } from "./tabs/person.js";
 import { info, quietKpis } from "./tabs/tiles.js";
@@ -109,7 +113,6 @@ const FILTER_LABEL = { country: "Country", path: "Page path", source: "Source", 
 const MORE = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><circle cx="3.5" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="12.5" cy="8" r="1.4"/></svg>';
 const MENU = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/></svg>';
 const CMDK = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.3"/><path d="M10.2 10.2l3.6 3.6"/></svg>';
-const CMP = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12l3.5-4 3 2.5L14 4"/><path d="M2 13.5h12" stroke-dasharray="2 2"/></svg>';
 
 function filtersPop(s) {
   const opts = model.options;
@@ -179,7 +182,7 @@ function ago(ts) {
 
 const actions = () => [
   ...(mayFind() ? [{ label: `Find a person: ${SEARCH_HINT}`, hint: "", run: openSearch }] : []),
-  { label: "Compare to previous period: on or off", hint: "", run: () => S.set({ cmp: S.read().cmp ? "" : "1" }) },
+  ...modeActions(),        // Today · Live and Compare with… (modes.js)
   { label: "Colour theme: next", hint: "", run: cycleTheme },
   { label: "Sidebar: collapse or expand", hint: "[", run: () => document.getElementById("rail-toggle")?.click() },
   { label: "Settings: every settings page", hint: "g ,", run: () => S.set({ tab: "settings" }) },
@@ -190,10 +193,13 @@ const actions = () => [
   { label: "Help: every guide", hint: "", group: "Help", run: () => S.set({ tab: "help", part: "" }) },
 ];
 
-const NO_DATA = new Set(["about", "help", "settings/api", "settings/users", "settings/team", "settings/account", "settings/crawlers", ...S.ACCOUNT_TABS]);
+// Pages without figures keep only their title and the buttons that always apply; a section's tab says so itself (figures: false).
+const NO_DATA = new Set(["about", "help", "settings/api", "settings/users", "settings/team", "settings/account", ...S.ACCOUNT_TABS]);
+const noData = (s) => NO_DATA.has(s.tab) || opt(s.tab, "figures", s, true) === false;
 let chip = null;            // the phone's site button (nav.js siteChip), made once
 function drawBar(s) {
-  const name = S.TABS.find(([k]) => k === s.tab)[1];
+  // A section's tab is named by its section here; the tab strip under the bar names the tab.
+  const name = S.sectionOf(s.tab)?.name || S.nameOf(s.tab);
   // Left: the menu button (phones), the section and the drill-down trail.
   const chain = chainOf(s);
   const last = chain[chain.length - 1];
@@ -209,13 +215,14 @@ function drawBar(s) {
       h("li", null, chain.length ? h("button", { type: "button", class: "crumb", onclick: () => S.set({ dd: "" }) }, name) : h("span", { class: "crumb now", "aria-current": "page" }, name)),
       last ? h("li", null, h("span", { class: "crumb now", "aria-current": "page" }, `${DIMS[last[0]].name}: ${said(last[0], last[1])}`)) : null)));
 
-  // Middle: the period, the page group, the filters.
-  const range = segmented(S.RANGES, s.range, (k) => {
+  // Middle: the modes (Today · Live, Compare with…: modes.js), the period, the page group, the filters.
+  // Today is the "Today · Live" switch (modes.js), so the period bar starts at Yesterday.
+  const range = segmented(S.RANGES.filter(([k]) => k !== "today"), s.range, (k) => {
     if (k === "custom") { const r = rangeOf(model, s); S.set({ range: "custom", from: r.first, to: r.last }); } else S.set({ range: k });
   }, "Date range");
   // Compare has two periods of its own, and Live is always today so far: the period above does not apply there.
-  const ranged = !(s.tab === "compare" || s.tab === "live" || (s.tab === "pages" && s.page));
-  const mid = ranged ? [range] : [];
+  const ranged = opt(s.tab, "ranged", s, true);
+  const mid = [h("div", { class: "bar-modes", id: "bar-modes" }, barModes(model, s)), ranged ? range : null].filter(Boolean);
   if (ranged && s.range === "custom") {
     const lo = model.firstDay || model.anchor, hi = model.anchor;
     const from = h("input", { type: "date", value: s.from, min: lo, max: hi, "aria-label": "From" });
@@ -233,11 +240,9 @@ function drawBar(s) {
   }
   mid.push(filtersPop(s));
 
-  // Right: compare, saved views, refresh, export, alerts, the palette; and "more" for what a narrow screen hides.
-  const cmp = h("button", { type: "button", class: "btn icon tog wide-only", "aria-pressed": String(!!s.cmp), html: CMP,
-    "aria-label": "Compare to the previous period", title: "Compare to the previous period" });
-  cmp.addEventListener("click", () => S.set({ cmp: s.cmp ? "" : "1" }));
-  const right = [s.tab === "compare" ? null : cmp, h("div", { class: "wide-only" }, saved())];
+  // Right: saved views, refresh, export, alerts, the palette; and "more" for what a narrow screen hides.
+  // (The compare toggle became "Compare with…" in the modes' slot, 2.7.0.)
+  const right = [h("div", { class: "wide-only" }, saved())];
   const live = model.live?.generated_at && model.live.day === model.today;
   if (model.canRefresh) {
     const btn = h("button", { type: "button", class: "btn refresh", html: ICON.refresh, title: "Recount today now" }, h("span", { class: "r-l" }, "Refresh"),
@@ -252,18 +257,18 @@ function drawBar(s) {
   right.push(moreMenu(s));
 
   // Active filters, each removable on its own; greyed where this tab cannot apply it.
-  const support = filterSupport(s.tab);
+  const support = opt(s.tab, "filters", s, []);
   const chips = h("div", { class: "chips", "aria-label": "Active filters" }, S.activeFilters(s).map(([k, v]) => {
     const words = k === "path" ? `${s.pathmode === "starts" ? "starts with" : "contains"} ${v}` : v;
     return h("span", { class: `chip${support.includes(k) ? "" : " off"}` }, FILTER_LABEL[k], " ", h("b", null, k === "country" ? flagEl(v) : null, words),
       h("button", { type: "button", "aria-label": `Remove the ${FILTER_LABEL[k].toLowerCase()} filter`, onclick: () => S.set({ [k]: "" }) }, "×"));
   }));
   // A page with no figures (About) keeps only its title, the bell and the palette.
-  if (NO_DATA.has(s.tab)) bar.replaceChildren(h("div", { class: "bar-row" }, title, h("div", { class: "bar-mid" }), h("div", { class: "bar-right" }, always.filter(Boolean))));
+  if (noData(s)) bar.replaceChildren(h("div", { class: "bar-row" }, title, h("div", { class: "bar-mid" }), h("div", { class: "bar-right" }, always.filter(Boolean))));
   else bar.replaceChildren(h("div", { class: "bar-row" }, title, h("div", { class: "bar-mid" }, mid), h("div", { class: "bar-right" }, right.filter(Boolean))), chips);
   fitBar();
   const open = (model.x?.alerts?.open || []).length;
-  badge("health", open, `${open} open alert${open === 1 ? "" : "s"}`);
+  badge("site", open, `${open} open alert${open === 1 ? "" : "s"}`);
 }
 
 /* The bar never overlaps itself. When the middle (period, page group, filters)
@@ -275,14 +280,18 @@ function drawBar(s) {
 const wideBar = matchMedia("(min-width: 768px)");
 function fitBar() {
   const row = bar.querySelector(".bar-row"), mid = row?.querySelector(".bar-mid");
-  bar.classList.remove("tight", "two-rows");
+  bar.classList.remove("tight", "tighter", "two-rows");
   watchBar(row?.querySelector(".bar-right"));
   if (!mid || !wideBar.matches) return;
   const over = () => mid.scrollWidth > mid.clientWidth + 1 || row.scrollWidth > row.clientWidth + 1;
   if (!over()) return;
   bar.classList.add("tight");
   if (!over()) return;
-  bar.classList.replace("tight", "two-rows");
+  // Then the Export button's word (its icon and name stay), so a longer section name keeps one row.
+  bar.classList.add("tighter");
+  if (!over()) return;
+  bar.classList.remove("tight", "tighter");
+  bar.classList.add("two-rows");
   if (over()) bar.classList.add("tight");
 }
 // Fitted again when the bar's width changes (window, sidebar) or its buttons' (the search opening).
@@ -304,7 +313,7 @@ function watchBar(right) {
   watched = right;
 }
 
-// The "more" menu: markers always; compare, saved views and export too when the screen hides their buttons.
+// The "more" menu: markers always; saved views and export too when the screen hides their buttons.
 function moreMenu(s) {
   const toggle = h("button", { type: "button", class: "btn icon", html: MORE, "aria-label": "More", "aria-haspopup": "menu", "aria-expanded": "false", title: "More" });
   const item = (text, sub, fn, cls = "") => h("button", { type: "button", role: "menuitem", class: `menu-i ${cls}`, onclick: () => { pop.hidden = true; toggle.setAttribute("aria-expanded", "false"); fn(); } },
@@ -312,7 +321,6 @@ function moreMenu(s) {
   const pop = h("div", { class: "pop menu", role: "menu", hidden: true, "aria-label": "More" });
   pop.append(
     item(`Markers on charts: ${marksOn() ? "on" : "off"}`, "releases and changes, as dashed lines", () => { store.set("ti-marks", !marksOn()); setMarkers(markersByDay(model), marksOn()); render(current, { keepScroll: true }); }),
-    item(`Compare to the previous period: ${s.cmp ? "on" : "off"}`, "the period before, beside each figure", () => S.set({ cmp: s.cmp ? "" : "1" }), "narrow-only"),
     item("Saved views", "keep this tab, period and filters under a name", savedDialog, "narrow-only"),
     item("Tables on this tab (ZIP)", "every table, as CSV files", () => exportZip(model, s), "narrow-only"),
     item("This tab as JSON", "the tables and the period's totals", () => exportJSON(model, s), "narrow-only"),
@@ -384,12 +392,10 @@ addEventListener("beforeprint", () => { if (current && !document.body.classList.
 addEventListener("afterprint", () => { if (current && !document.body.classList.contains("reporting")) { showAllRows(false); render(current, { keepScroll: true }); } });
 
 // ------------------------------------------------------------------ router
-// The data file each tab stands on, beyond the core files that are always built.
-const TAB_FILE = { insights: "insights", requests: "requests", leads: "leads", conversions: "conversions", funnels: "funnels", events: "events", bots: "bots", "health/alerts": "alerts",
-  "health/speed": "speed", "health/broken": "not_found", "settings/crawlers": "bots" };
-function notBuilt(tab, name, file, error) {
+// The data file a tab stands on, beyond the core files that are always built: its `file` (js/tabs/s-*.js).
+function notBuilt(name, file, error) {
   const since = model.x.quality?.builders_failing?.find((b) => b.file === `${file}.json` || b.file === file)?.since;
-  return [tab.startsWith("health/") ? healthTabs(model, tab) : null, h("div", { class: "head" }, h("h1", null, name)),
+  return [h("div", { class: "head" }, h("h1", null, name)),
     h("div", { class: "state warn", role: "alert", html: ICON.info }, h("div", null, h("strong", null, `${name} could not be built on the last redraw. `),
       `Its data file (${file}.json) failed${since ? ` since ${tzTime(since, { date: true })}` : ""}: ${error}. Nothing is shown rather than empty figures; Data quality lists every file that failed, and the next redraw tries again.`))];
 }
@@ -413,12 +419,24 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
   setFavicons(model.x?.favicons, "data/");
   REGISTRY.length = 0;
   setContext(model, s);
-  const name = S.TABS.find(([k]) => k === s.tab)[1];
-  document.title = `${model.site} · ${name} — ${toolName()}`;
-  const broken = model.failed?.[TAB_FILE[s.tab]];
-  const body = broken ? notBuilt(s.tab, name, TAB_FILE[s.tab], broken)
-    : DEMO.on && S.inSettings(s.tab) ? demoState(name) : TAB_RENDER[s.tab](model, s, { first: firstPaint, changed });
-  panel.replaceChildren(printHead(s, name), ...[demoBanner(), updateBanner(), planBanner(), body].flat(Infinity).filter(Boolean));
+  const name = S.nameOf(s.tab), sec = S.sectionOf(s.tab);
+  document.title = `${model.site} · ${sec ? `${name} · ${sec.name}` : name} — ${toolName()}`;
+  const file = opt(s.tab, "file", s, null), broken = file && model.failed?.[file];
+  const body = broken ? notBuilt(name, file, broken)
+    : DEMO.on && S.inSettings(s.tab) ? demoState(name) : DEMO.on && opt(s.tab, "helper", s, false) ? demoState(name) : TAB_RENDER[s.tab](model, s, { first: firstPaint, changed });
+  // modeBanner: while Compare is on, what A and B are, or why not (modes.js).
+  const banners = [demoBanner(), updateBanner(), planBanner(), modeBanner(model, s)].filter(Boolean);
+  const content = [body].flat(Infinity).filter(Boolean);
+  if (sec) {
+    // A section: its tabs right under the bar's title, the notices and the chosen tab's page in the strip's panel.
+    const tabs = sec.tabs.filter(([k]) => S.shown(k)).map(([k, nm]) => {
+      const [count, countLabel] = TAB[k].badge?.(model) || [];
+      return { key: k, name: nm, href: S.hashFor({ ...s, tab: k, dd: "" }), count, countLabel };
+    });
+    const strip = tabStrip(tabs, s.tab, (k) => S.set({ tab: k }), { label: sec.name });
+    strip.panel.append(...banners, ...content);
+    panel.replaceChildren(printHead(s, `${sec.name}: ${name}`), strip.root);
+  } else panel.replaceChildren(printHead(s, name), ...banners, ...content);
   quietKpis(panel);
   const tabChanged = !prev || prev.tab !== s.tab;
   if (tabChanged && !reduced()) {
@@ -514,8 +532,8 @@ async function boot() {
       const next = await load(S.read(), { fresh: true, previous: model });
       if (next.liveStamp !== model.liveStamp) {
         model = next;
-        // The request log polls on its own, every 30 seconds; a redraw here would close its detail panel.
-        if (current.tab !== "requests" && (["live", "overview"].includes(current.tab) || current.range === "today")) render(S.read(), { keepScroll: true, changed: true });
+        // A tab that polls on its own (the request log, every 30 seconds) is left alone: a redraw would close its detail panel.
+        if (!opt(current.tab, "polls", current, false) && (opt(current.tab, "live", current, false) || current.range === "today")) render(S.read(), { keepScroll: true, changed: true });
         else { drawBar(current); footTick(); }
       }
     } catch { /* keep the frame; the next tick tries again */ }

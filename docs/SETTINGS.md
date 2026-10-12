@@ -91,7 +91,7 @@ event type is answered 200 and not kept; docs/INTEGRATIONS.md, "Calendly".
 ones it has counted (`event_counts` in the history, read-only) first and the others under
 "Not counted yet". Saving checks each name against the events the beacon takes, keeps each
 once, at most 10. The daily run and `live` read the merged list (`settings_store.apply`), so
-events.json `goals` follows it from the next run, for every stored day; the Events page links
+events.json `goals` follows it from the next run, for every stored day; Leads & sales > Events links
 to it ("Edit goals"). A dashboard site inherits no goals from the install's config.
 
 A test mail with no sender address, or no SMTP server, is refused with a plain sentence

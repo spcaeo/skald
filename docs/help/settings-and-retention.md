@@ -16,7 +16,7 @@ A page you may not change is shown read-only, with the reason beside each field.
 | --- | --- |
 | You | Your account |
 | Team & access | Team, API & tokens (Users, on a server with one shared login) |
-| This site | Sites, Internal traffic, AI crawlers, Data retention, Mail, Integrations |
+| This site | Sites, Internal traffic, Data retention, Mail, Integrations |
 | Organisation | Add or remove sites, Security, Audit log, Billing |
 
 **Back to the dashboard**, at the top of the settings menu, returns to the page you came from.
@@ -45,7 +45,7 @@ These pages have guides of their own:
 | Integrations | Hooks, event types, outgoing webhooks | Admin |
 | Security | Sign-in rules | Owner |
 | Audit log | (read only) | Admins may read it |
-| AI crawlers | Every crawler | Install admin |
+| AI & bots > Crawler rules | Every crawler | Install admin |
 | Add or remove sites | Add a site | Admin |
 | Add or remove sites | Remove a site | Owner |
 | Billing | Plan and payment | Owner |
@@ -58,7 +58,7 @@ Viewers see the pages read-only.
 
 | Setting | What it keeps | Range | Default |
 | --- | --- | --- | --- |
-| Detail days | Each visit by its labels, and each page's daily figures (used by Compare and the page story) | 30 to 3650 days | 400 |
+| Detail days | Each visit by its labels, and each page's daily figures (used by Compare with… and the page story) | 30 to 3650 days | 400 |
 | Journeys | Anonymous visits: start time, country, device, source, pages in order | 1 to 90 days | 7 |
 | Returning-visitor matching | How long a visitor can be recognised as returning | 1 to 90 days | 30 |
 | In-page events | Events from the script tag | 30 to 3650 days | 400 |
@@ -113,7 +113,7 @@ For install admins. The sender address, server, port, security, user and passwor
 
 ### Google PageSpeed
 
-A free API key raises Google's daily limit for the tests on [Page speed](#health/speed). It is write-only too.
+A free API key raises Google's daily limit for the tests on [Site > Speed](#site/speed). It is write-only too.
 
 ### Send a test mail
 
@@ -126,7 +126,7 @@ At most 3 test mails in 10 minutes.
 
 ### Alerts and failure mail
 
-Alerts always show on [Alerts](#health/alerts) and on the bell in the top bar. Alert mails are sent only if the server admin has turned them on. They go to confirmed recipients only.
+Alerts always show on [Site > Alerts](#site/alerts) and on the bell in the top bar. Alert mails are sent only if the server admin has turned them on. They go to confirmed recipients only.
 
 If the morning run fails, the server can send one short failure mail. It goes to the same people as the daily mail: the confirmed recipients on this page, or the server's own list when none is set here or none has confirmed yet. It uses the mail server set on this page or on the server. A day held back because it did not add up is not a failure, so it sends no failure mail.
 
@@ -160,9 +160,11 @@ Press **Save**. Owners and admins can change the logo; everyone else sees it.
 
 Only an owner can remove a site. A removed site stops being processed. Its data is kept until the server admin deletes it.
 
-## AI crawlers
+## Crawler rules
 
-[AI crawlers](#settings/crawlers) lets each AI company's crawlers in, or keeps them out. If your server offers it, each company has three choices:
+The rules for AI crawlers are not in Settings any more. They are on [AI & bots > Crawler rules](#ai/rules), next to the crawlers they apply to. Old links to Settings > AI crawlers open that tab.
+
+Crawler rules lets each AI company's crawlers in, or keeps them out. If your server offers it, each company has three choices:
 
 - **Allow**: every crawler of that company may read the site.
 - **Block training only**: crawlers that collect for training are kept out. AI search and answers to people's questions still reach the site.
@@ -170,15 +172,15 @@ Only an owner can remove a site. A removed site stops being processed. Its data 
 
 Each crawler can also be set on its own: **As** the company, **Always allow** or **Always block**. Beside each one is how often it was refused in the last 30 days.
 
-Select **Save**. The page says "Saved. Being applied to the site..." and then "Live on the site" within a few seconds. **Undo changes** puts back what was saved before.
+Select **Save**. The tab says "Saved. Being applied to the site..." and then "Live on the site" within a few seconds. **Undo changes** puts back what was saved before.
 
-A blocked crawler gets a refusal before the page is served. Some crawlers cannot be told apart by the server: they are marked "robots.txt only", and only a line in your robots.txt can ask them to stay away. The page suggests the lines to use, with a **Copy** button. Skald never writes your robots.txt.
+A blocked crawler gets a refusal before the page is served. Some crawlers cannot be told apart by the server: they are marked "robots.txt only", and only a line in your robots.txt can ask them to stay away. The tab suggests the lines to use, with a **Copy** button. Under the rules, your site's robots.txt is shown beside each crawler. Skald never writes your robots.txt.
 
 These rules apply to every site on the server, so only an install admin may change them.
 
 ### Suggested llms.txt
 
-Below the crawlers, **Suggested llms.txt** shows a file you can publish at `/llms.txt` on your site. It follows the format at llmstxt.org: your site's name, a one-line summary, then links to your pages, grouped by section, so an AI assistant knows which pages matter.
+[AI & bots > llms.txt](#ai/llms) shows **Suggested llms.txt**: a file you can publish at `/llms.txt` on your site. It follows the format at llmstxt.org: your site's name, a one-line summary, then links to your pages, grouped by section, so an AI assistant knows which pages matter.
 
 Skald picks the pages people and AI assistants read most over the last 90 days. Only recorded days count; any day left out is named. It leaves out private pages (sign-in, account, cart, search, admin), pages your robots.txt keeps crawlers from, redirects, and pages that are gone. With your website's page list, each link has the page's title; without it, the link is named by its path.
 

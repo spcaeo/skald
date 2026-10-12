@@ -54,7 +54,7 @@ export function robotsSection(m) {
       { key: "disallowed", label: "Off-limits fetches", num: true, fmt: (_, c) => offLimits(c), csv: (c) => c.disallowed },
       { key: "today_n", label: "Today", num: true, fmt: (v) => (v == null ? "-" : n(v)) },
     ], { caption: "Crawlers and robots.txt", rows, file: "robots-txt-by-crawler.csv", sortKey: "requests", empty: "No crawler in the last 30 days." }),
-    h("p", { class: "note" }, "To let a crawler in or keep it out, see ", h("a", { href: "#settings/crawlers" }, "Settings, AI crawlers"), "."),
+    h("p", { class: "note" }, "To let a crawler in or keep it out, see ", h("a", { href: "#ai/rules" }, "AI & bots › Crawler rules"), "."),
     h("h3", { class: "rt-h" }, "The rules as written"),
     rules(file));
 }

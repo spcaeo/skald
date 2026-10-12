@@ -11,7 +11,7 @@ if (!base) { console.error("usage: node funnels.mjs <page url> [user:password]")
 const fails = [];
 const fail = (what) => { fails.push(what); console.log(`FAIL ${what}`); };
 
-const b = await chromium.launch();
+const b = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 const ctx = await b.newContext({ viewport: { width: 1440, height: 900 },
   httpCredentials: auth ? { username: auth.split(":")[0], password: auth.split(":").slice(1).join(":") } : undefined });
 const p = await ctx.newPage();

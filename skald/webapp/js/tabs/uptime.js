@@ -12,7 +12,7 @@ function heartbeat(f, r) {
   const exp = days.reduce((a, d) => a + (d.heartbeat.expected || 0), 0), ok = days.reduce((a, d) => a + (d.heartbeat.ok || 0), 0);
   const gaps = days.flatMap((d) => d.heartbeat.gaps || []);
   return h("div", { class: "sheet up-card" }, h("h3", null, "Our heartbeat"), h("p", { class: "sub" }, "The server asks for its own page every 5 minutes"),
-    exp ? [h("p", { class: "up-v" }, `${Math.min(100, (100 * ok) / exp).toFixed(2)}%`), h("p", { class: "up-n" }, `${ok >= exp ? `All ${n(exp)} expected beats answered` : `${n(ok)} of ${n(exp)} expected beats answered`}${gaps.length ? `; ${gaps.length} gap${gaps.length === 1 ? "" : "s"} longer than 10 minutes` : ""}. `, h("a", { href: "#settings/internal" }, "Every gap"))]
+    exp ? [h("p", { class: "up-v" }, `${Math.min(100, (100 * ok) / exp).toFixed(2)}%`), h("p", { class: "up-n" }, `${ok >= exp ? `All ${n(exp)} expected beats answered` : `${n(ok)} of ${n(exp)} expected beats answered`}${gaps.length ? `; ${gaps.length} gap${gaps.length === 1 ? "" : "s"} longer than 10 minutes` : ""}. `, h("a", { href: "#site/health" }, "Every gap"))]
       : h("p", { class: "empty" }, "No heartbeat recorded for this range."));
 }
 

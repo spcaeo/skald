@@ -79,7 +79,7 @@ const FEATURES = [
     ["help", "Guides in plain words: getting started, sign-in and team, internal traffic, leads and conversions, the tracking script, webhooks, funnels, the API, MCP, settings, privacy and questions."],
   ]],
 ];
-const tabName = (k) => (S.TABS.find(([x]) => x === k) || [null, k])[1];
+const tabName = (k) => S.nameOf(k);
 function features() {
   return h("div", { class: "fmap" }, FEATURES.map(([group, items]) => h("div", { class: "sheet card" }, h("h3", null, group),
     h("ul", null, items.filter(([tab]) => S.shown(tab)).map(([tab, what]) => h("li", null, h("a", { href: `#${tab}` }, tabName(tab)), h("span", null, what)))))));

@@ -4,6 +4,35 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.7.0 (2026-10-12)
+
+A simpler dashboard: five sections with tabs instead of eighteen pages, Live and Compare as
+switches on every page, and one place for each answer. No figure changed.
+
+### Changed
+
+- **Five sections with tabs:** Overview (Summary, Insights) · Traffic (Visitors, Sources, Pages,
+  Places & devices, Time) · Leads & sales (Pipeline, Bookings, Funnels, Events, People) · AI &
+  bots (Assistants, Crawlers, Crawler rules, llms.txt) · Site (Health, Requests, Not found,
+  Speed, Alerts, Data quality). Settings, Help and About sit in the menu's foot. Every old
+  address, bookmark and link redirects to its new tab.
+- **"Today · Live" and "Compare with…" in the top bar,** on every section: Live shows today and
+  refreshes; Compare puts the previous period, the same period last year or any period beside
+  this one (A · B · ±). The separate Live and Compare pages are gone.
+- **One place for each answer:** landing pages were listed in five places, now one; sources in
+  six, now one grid; countries in two, now one. Elsewhere a short link points to it.
+- **Leads & sales options:** count from the lead database (default) or the booking and payment
+  tools (never added together), then source, action, stage, show left-out (spam, duplicates,
+  test, cancelled, removed) and period, in one row.
+- **Data Grids** (from spcaeo/ui, MIT) for long lists (sources, pages, countries, requests, not
+  found, people, AI lists): search, filters, sort and page live in the address, so a view can be
+  shared or bookmarked. **Folder Tabs** from the same library for tab strips. Both themed with
+  Skald's colours; every colour pair checked for contrast in light and dark.
+- The Overview tiles sit evenly (4 + 3); Site > Health shows the uptime outages that used to sit
+  in Settings.
+- Compare with… also works on Traffic > Sources, Pages and Places & devices (B and ± beside each
+  row), and the lead tiles follow it (last year or any period, not only the previous one).
+
 ## 2.6.1 (2026-10-12)
 
 ### Fixed

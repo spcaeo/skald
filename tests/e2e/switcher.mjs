@@ -29,20 +29,20 @@ for (const scheme of ["light", "dark"]) {
     httpCredentials: auth ? { username: user, password: pass } : undefined });
   const p = await ctx.newPage();
   p.on("pageerror", (e) => fail(`${scheme}: ${e.message}`));
-  await p.goto(`${base}#overview`, { waitUntil: "networkidle" });
+  await p.goto(`${base}#overview/summary`, { waitUntil: "networkidle" });
   if (p.url().includes("/traffic-auth/login")) {
     await p.fill("#email", user);
     await p.fill("#password", pass);
     await p.click("#submit");
     await p.waitForURL((u) => !u.pathname.startsWith("/traffic-auth/"));
-    await p.goto(`${base}#overview`, { waitUntil: "networkidle" });
+    await p.goto(`${base}#overview/summary`, { waitUntil: "networkidle" });
   }
   for (const w of WIDTHS) {
     await p.setViewportSize({ width: w, height: 900 });
     const ways = w < 768 ? [["phone bar", ".tb-title .site-chip"]] : [["sidebar", "#site-slot .site-btn"], ["icon rail", "#site-slot .site-btn"]];
     for (const [way, sel] of ways) {
       const where = `${way} at ${w} ${scheme}`;
-      await p.goto(`${base}#overview`, { waitUntil: "networkidle" });
+      await p.goto(`${base}#overview/summary`, { waitUntil: "networkidle" });
       await p.evaluate((icons) => { document.getElementById("app").dataset.rail = icons ? "icons" : ""; }, way === "icon rail");
       await p.waitForTimeout(300);
       const btn = p.locator(sel).first();

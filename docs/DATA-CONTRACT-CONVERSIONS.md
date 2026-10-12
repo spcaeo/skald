@@ -50,8 +50,10 @@ A day either road disagrees on is withheld, and
 so is `pages_before`; a recount that cannot run withholds them all.
 
 **Leads everywhere (2.5.0).** Overview (the Leads and Demos booked tiles, a
-day's leads as marks on the main chart), Live, Sources, Pages (landing
-pages), Locations and Compare sum these `days` in the browser: the `ok` days
+day's leads as marks on the main chart; since 2.7.0 Overview > Summary,
+with today's in Today · Live), Sources, Pages (landing pages), Locations
+(Places & devices since 2.7.0) and Compare (the Compare with… mode since
+2.7.0) sum these `days` in the browser: the `ok` days
 only, a lead being a finished row of `lead_actions` (`by.source_type`, last
 touch, for sources; `by.landing`; `by.country`). A rate (leads per visitor)
 puts them over the visitors of the same days only (days whole in the log

@@ -1,47 +1,70 @@
 # Leads and conversions
 
-Where Skald's leads and conversions come from, what the Leads and Conversions pages show, what "abandoned" means, and how to see every lead and conversion the figures leave out. The pages show counts; a person's own leads, emails and visits are in the person search (owners and admins).
+Where Skald's leads and conversions come from, what the **Leads & sales** section shows, what "abandoned" means, and how to see every lead and conversion the figures leave out. The tabs show counts; a person's own leads, emails and visits are in the person search (owners and admins).
 
-## Two pages, two jobs
+## Leads & sales: five tabs, one options row
 
-Skald has two pages for results. Both are under **Results** in the menu.
+Everything about results sits in **Leads & sales** in the menu:
 
-- [Leads](#leads) counts the leads in your website's own lead database: sign-ups, contact forms, early-access requests and demo bookings.
-- [Conversions](#conversions) counts every action that matters, from every source at once: the lead database, your booking, form and payment tools, and the script tag on your pages.
+| Tab | What it answers |
+| --- | --- |
+| [Pipeline](#sales/pipeline) | How many leads, at which stage, from where, how fast |
+| [Bookings](#sales/bookings) | Demo bookings and payments from your booking and payment tools: opened, chose a time, booked, cancelled, rescheduled, no-show, won |
+| [Funnels](#sales/funnels) | Any series of pages and events. See [Funnels and goals](funnels-and-goals.md) |
+| [Events](#sales/events) | What readers did inside your pages, from the script tag |
+| [People](#sales/people) | Find one person, and the people who converted lately |
 
-The Leads page reads only the lead database. A booking that reaches Skald from Calendly, or a form from Typeform, shows on the Conversions page, not on the Leads page.
+### Count from: two roads, never added
+
+Pipeline has one row of options above its figures. The first one, **Count from**, picks where the figures come from:
+
+- **Lead database** (the default) counts the leads in your website's own lead database: sign-ups, contact forms, early-access requests and demo bookings, as your team marks them.
+- **Tools** counts every action that matters, from every road at once: your booking, form and payment tools, the script tag on your pages, and the lead database.
+
+The two are never added together, and never share a table. A booking that reaches Skald from Calendly, or a form from Typeform, shows only with **Tools**. A line under the options says which road the figures come from.
+
+The other options narrow what you see:
+
+- **Source**: one source (lead database only; the tools do not split their stages by source, so it is greyed with the reason).
+- **Action**: one kind of lead or action, for example Demo booking or Sign-up.
+- **Stage**: one status: New, Contacted, Qualified, Won or Lost (lead database only).
+- **Show left out**: list what the figures leave out, right under the options. With the lead database: Spam, Duplicates, Test. With the tools: Cancelled or no-show, Removed, Test. These are lists, never added to a figure.
+- **Period**: the same period as the top bar's. Changing one changes both.
+
+The address keeps every option, so a link or a reload opens the same view. An older `#leads` link opens Pipeline counting from the lead database, and `#conversions` opens it counting from the tools, so each shows the figures it showed before.
 
 ## Leads on every page
 
-Leads and demo bookings also show where you look at your visitors, so you can see which source, page or country brings them. All of these use the same data as the Conversions page, from every source at once.
+Leads and demo bookings also show where you look at your visitors, so you can see which source, page or country brings them. All of these use the tools' figures (Count from: Tools), from every road at once.
 
 A **lead** here is a form sent (contact, sign-up, early access, trial) or a demo booked, once completed. **Demos booked** are counted on their own as well. Payments, deals and clicks are not leads. A conversion marked test is never counted.
 
-| Page | What you see |
+| Tab | What you see |
 | --- | --- |
-| [Overview](#overview) | **Leads** and **Demos booked** tiles for the period, with the change against the period before. Pink dots on the main chart: each day's leads. |
-| [Live](#live) | **Leads today** and **Demos booked today**, and the list **Leads and bookings today**: time, what it was (contact form, demo booking, sign-up), its stage, source, landing page and country with its flag. Newest first. A started form is listed with its stage, and is not a lead. Test rows are listed and marked "test, not counted". |
-| [Sources](#sources) | **Leads** and **Lead rate** beside each source's visitors. |
-| [Pages](#pages) | **Landing pages and their leads**: visitors who started on each page, its leads and lead rate. |
-| [Locations](#locations) | **Leads** and **Lead rate** beside each country. |
-| [Insights](#insights) | Findings about leads, for example "Leads from AI assistant up 60% week on week" or "/pricing/ is the page that started the most leads". |
-| [Compare](#compare) | Leads, demos booked and every completed action, A against B, in total, by source and by landing page. |
+| [Overview > Summary](#overview/summary) | **Leads** and **Demos booked** tiles for the period, with the change against the period before. Pink dots on the main chart: each day's leads. |
+| Overview > Summary, with **Today · Live** on | The **Leads** and **Demos booked** tiles for today so far, and **Leads and bookings today**, the 5 newest: time, what it was (contact form, demo booking, sign-up), its stage, source, landing page and country with its flag. A link opens all of today's on Pipeline. A started form is listed with its stage, and is not a lead. Test rows are listed and marked "test, not counted". |
+| [Traffic > Sources](#traffic/sources) | **Leads** and **Lead rate** beside each source's visitors. |
+| [Traffic > Pages](#traffic/pages) | **Landing pages, with leads**: visitors who started on each page, its leads and lead rate. |
+| [Traffic > Places & devices](#traffic/places) | **Leads** and **Lead rate** beside each country. |
+| [Overview > Insights](#overview/insights) | Findings about leads, for example "Leads from AI assistant up 60% week on week" or "/pricing/ is the page that started the most leads". |
+
+With **Compare with…** on, the Traffic grids add the other period's visitors and the change; their lead columns stay the period in the top bar's.
 
 Which touch each column uses:
 
 - **Sources**: the last touch, the source of the visit the lead was sent from.
 - **Pages**: the landing page recorded with the lead (its first visit's, when known).
-- **Locations**: the lead's country, from the tool or the visitor's address.
+- **Places & devices**: the lead's country, from the tool or the visitor's address.
 
 The honesty rules are the same as everywhere:
 
 - Only days with **checked** conversions count. A day the second count disagreed on is withheld. A day before conversions were recorded is "not recorded", never zero.
 - The **lead rate** is leads per visitor over the same days only: days whole in the visitor figures *and* checked in conversions. It is given over at least 10 visitors. Below that you see the count alone, with "too few to say".
-- A **change** (Overview, Compare) is shown only when both periods are whole and every day of both has checked conversions.
-- **Insights** about leads follow the same rules as the others: two whole periods, at least 5 leads, a change of at least 20%. A finding the second count does not confirm is left out, and the page says so.
+- A **change** (Overview, Compare with…) is shown only when both periods are whole and every day of both has checked conversions.
+- **Insights** about leads follow the same rules as the others: two whole periods, at least 5 leads, a change of at least 20%. A finding the second count does not confirm is left out, and the tab says so.
 - Leads are counted for the whole site. On a page group (for example one language), the lead columns are not shown.
 
-> A lead reported by two roads (for example the script tag and the lead database, for the same form) counts on each, as on the Conversions page. A lead that arrived from two tools with the same reference (for example the lead hook and Zapier, or a hook and the lead database) is flagged as "One lead, two tools" under **Settings > Integrations > Status** and by the server's doctor command. The script tag's own rows are not part of that check.
+> A lead reported by two roads (for example the script tag and the lead database, for the same form) counts on each, as on Pipeline with Count from: Tools. A lead that arrived from two tools with the same reference (for example the lead hook and Zapier, or a hook and the lead database) is flagged as "One lead, two tools" under **Settings > Integrations > Status** and by the server's doctor command. The script tag's own rows are not part of that check.
 
 ## Where leads and conversions come from
 
@@ -49,16 +72,16 @@ There are four sources. You can use one or all of them.
 
 | Source | What it gives | Shown on |
 | --- | --- | --- |
-| Your website's lead database | every lead, its kind, its status, first and last touch | Leads and Conversions |
-| Your site's lead push (the `lead` hook) | a lead your own server reports the moment it is made | Conversions |
-| Webhooks from your tools | bookings, cancellations, no-shows, form answers, payments, CRM deals | Conversions |
-| The `skald.js` script tag | forms started and sent, booking widgets opened and booked, phone and email clicks | Conversions and Events |
+| Your website's lead database | every lead, its kind, its status, first and last touch | Pipeline (Lead database and Tools) |
+| Your site's lead push (the `lead` hook) | a lead your own server reports the moment it is made | Pipeline (Tools) |
+| Webhooks from your tools | bookings, cancellations, no-shows, form answers, payments, CRM deals | Pipeline (Tools) and Bookings |
+| The `skald.js` script tag | forms started and sent, booking widgets opened and booked, phone and email clicks | Pipeline (Tools), Bookings and Events |
 
 ### The lead database
 
 If your website keeps its leads in its own database, the person who runs your Skald server can point Skald at it. Skald opens it read-only and never changes it. Every two minutes it reads the leads that changed.
 
-- Leads marked `spam` or `duplicate` are left out of every count, and counted apart. They are listed in full under **Left out** on the Leads page.
+- Leads marked `spam` or `duplicate` are left out of every count, and counted apart. They are listed in full on Pipeline: **Show left out** with the lead database.
 - A lead's status (new, contacted, qualified, won, lost) is read as it is now. When your team changes a status, past days change with it.
 - Names and emails are read and kept only when **Leads' names and emails** is **full** (Settings > Data retention > People). Owners and admins then see them in the person search and the left-out list. See [Privacy](privacy.md).
 
@@ -90,9 +113,9 @@ Whatever reports it, an action gets one name, so the same thing is never counted
 
 Each action has a *stage*: started, completed, paid, cancelled, rescheduled, no-show, won or lost.
 
-## The Leads page
+## Pipeline, counting from the lead database
 
-Open [Leads](#leads). The date range at the top governs most of the page.
+Open [Leads & sales > Pipeline](#sales/pipeline). **Count from: Lead database** is the default. The period governs most of the tab.
 
 ### The figures at the top
 
@@ -100,7 +123,7 @@ Open [Leads](#leads). The date range at the top governs most of the page.
 - One figure per kind: Sign-ups, Contact forms, Early access, Demo opened, Demos booked.
 - **Leads per 100 visitors**: leads against the visitors of the same verified days. It is given only over at least 10 visitors.
 
-Under them, a line says how many spam and duplicate leads were left out. Select **Show them, with test leads** to see each one: when it came, its kind, page, first and last source, and its status. Leads marked test are listed there too. Owners and admins also see the email and name, when your site keeps them.
+Under them, a line says how many spam and duplicate leads were left out. Select **Show them, with test leads**, or turn on **Show left out** in the options, to see each one: when it came, its kind, page, first and last source, and its status. Leads marked test are listed there too. Owners and admins also see the email and name, when your site keeps them.
 
 ### Per day, by kind
 
@@ -136,7 +159,7 @@ What it shows:
 
 ### Lead quality by source
 
-Statuses by first-touch source: New, Contacted, Qualified, Won, Lost, Spam, Duplicates. The column **Qualified or won, of reviewed** is the share of leads that are no longer new and were marked qualified or won. It is given over at least 10 reviewed leads. If every lead is still "new", the page says so and shows no zeros.
+Statuses by first-touch source: New, Contacted, Qualified, Won, Lost, Spam, Duplicates. The column **Qualified or won, of reviewed** is the share of leads that are no longer new and were marked qualified or won. It is given over at least 10 reviewed leads. If every lead is still "new", the tab says so and shows no zeros.
 
 ### Time to convert
 
@@ -149,9 +172,9 @@ From visitors to demos booked, per source: **Visitors**, **Saw pricing**, **Open
 
 > The first three steps are visits from your server log. The last three come from the lead database, by the lead's first-touch source. Skald puts them side by side for the same days. It never joins one lead to one visit.
 
-## The Conversions page
+## Pipeline, counting from the tools
 
-Open [Conversions](#conversions). If nothing is set up yet, the page lists each source as **On** or **Off** and says what to turn on.
+Open [Leads & sales > Pipeline](#sales/pipeline) and set **Count from** to **Tools**. If nothing is set up yet, the tab lists each source as **On** or **Off** and says what to turn on.
 
 ### Every action
 
@@ -163,9 +186,9 @@ One row per action, with these columns:
 - **Completion rate**: completed out of started, given over at least 10 starts.
 - **Cancelled or no-show**, **Won**, **Lost**.
 
-### Demo funnel
+### Bookings: the demo funnel
 
-For demos only: **Opened the booking**, **Chose a time**, **Booked**, then **Cancelled**, **Rescheduled**, **No-show** and **Won**. "Chose a time" is a count of page events from a Calendly embed, not of browsers. Cancelled, rescheduled and no-show need the booking tool's webhook.
+[Leads & sales > Bookings](#sales/bookings) holds the bookings your booking and payment tools reported (Calendly, Cal.com, Stripe), with the script tag and the lead database. Pick the booking action in **Booking**. For demos: **Opened the booking**, **Chose a time**, **Booked**, then **Cancelled**, **Rescheduled**, **No-show** and **Won**. "Chose a time" is a count of page events from a Calendly embed, not of browsers. Cancelled, rescheduled and no-show need the booking tool's webhook.
 
 ### Where the completed ones came from
 
@@ -181,7 +204,7 @@ Assisted needs anonymous visitor IDs (below).
 
 ### Likely from an AI assistant (conversions)
 
-The section **Likely from AI assistants (inferred)**: completed conversions whose first touch was direct, by the assistant that likely sent them, the same guess as on the Leads page. The first touch is the lead's or the tool's first touch; for the script tag, the browser's first visit. "Not recorded", under the table, means the first touch, or the fetches around it, were not kept. Likely, never certain, and not part of the sources above.
+The section **Likely from AI assistants (inferred)**: completed conversions whose first touch was direct, by the assistant that likely sent them, the same guess as with the lead database. The first touch is the lead's or the tool's first touch; for the script tag, the browser's first visit. "Not recorded", under the table, means the first touch, or the fetches around it, were not kept. Likely, never certain, and not part of the sources above.
 
 ### Time to convert
 
@@ -191,17 +214,17 @@ The section **Likely from AI assistants (inferred)**: completed conversions whos
 
 For the last 30 days: the share of converting browsers that saw each page before converting, beside the share of browsers that did not convert. Use it to ask "does the pricing page help?". It needs visitor IDs.
 
-### Latest conversions
+### Latest conversions, on People
 
-The latest 50 completed conversions, one per browser (or per lead without one). Each shows its visits by day, the pages it read and its steps, for example "Demo started, then completed". No name, email or visitor ID is shown here: owners and admins find the person with the search at the top.
+[Leads & sales > People](#sales/people) lists the latest 50 completed conversions, one per browser (or per lead without one). Each shows its visits by day, the pages it read and its steps, for example "Demo started, then completed". No name, email or visitor ID is shown here: owners and admins find the person with **Find a person**, on the same tab or at the top.
 
 ### Cancelled, removed and test
 
-Nothing is hidden. At the foot of the page, three buttons list, in full, the conversions the figures above do not show as completed:
+Nothing is hidden. On Pipeline (Count from: Tools), **Show left out** lists, in full, the conversions the figures do not show as completed. Bookings has the same lists under **Show**:
 
-- **Cancelled and no-show**: bookings the booking tool reported as cancelled, or as a no-show.
+- **Cancelled or no-show**: bookings the booking tool reported as cancelled, or as a no-show.
 - **Removed**: rows a lead-database sync took away. For example, the lead was deleted, or marked spam. Each row is kept whole, with when and why.
-- **Marked test**: conversions the server admin marked as a test. They are kept and listed, and never counted.
+- **Test**: conversions the server admin marked as a test. They are kept and listed, and never counted.
 
 Each one shows its row and, when it had a visitor ID, the pages it read.
 
@@ -213,7 +236,7 @@ A test booking or form should not count. The server admin marks it on the server
 2. `skald conversions mark-test example.com 6 7` marks conversions 6 and 7 as test. Every stage of the same booking or lead is marked with it.
 3. To count one again: `skald conversions mark-test example.com 6 --unmark`.
 
-A test conversion is left out of every figure, and of the second count too. It stays listed under **Marked test**, and in the **Left out** list on the Leads page. Each change is written to the audit log.
+A test conversion is left out of every figure, and of the second count too. It stays listed under **Test** in **Show left out** on Pipeline, with either Count from. Each change is written to the audit log.
 
 For a lead in your website's lead database, mark it spam there, or give it the status `test`.
 
@@ -229,7 +252,7 @@ So:
 
 - A start still inside the window is not counted as abandoned yet.
 - A start without a visitor ID cannot be judged, and is never counted as abandoned.
-- Abandoned is worked out each time the page is drawn. It is not stored.
+- Abandoned is worked out each time the tab is drawn. It is not stored.
 
 ## How a conversion is tied to a visit
 
@@ -248,17 +271,17 @@ Without visitor IDs, conversions are still counted, but there are no journeys, n
 
 ## Goals
 
-Skald's goals are not set on the Conversions page. A goal is a page event, such as "demo booked" or "sign-up sent", shown per 100 visits by source on the [Events](#events) page. Admins choose them in **Settings > This site > Sites > Goals**. See [Funnels and goals](funnels-and-goals.md).
+Skald's goals are not set on Pipeline. A goal is a page event, such as "demo booked" or "sign-up sent", shown per 100 visits by source on [Leads & sales > Events](#sales/events). Admins choose them in **Settings > This site > Sites > Goals**. See [Funnels and goals](funnels-and-goals.md).
 
 ## When a figure is missing
 
-- **Withheld**: every figure is counted twice, by two separate roads. When they disagree on a day, that day is withheld and left out of every sum. The page says which days and why.
+- **Withheld**: every figure is counted twice, by two separate roads. When they disagree on a day, that day is withheld and left out of every sum. The tab says which days and why.
 - **Not recorded**: days before a source was set up are not recorded, never zero.
 - **Too few to say**: no rate is given over fewer than 10.
 
 ## Finding one person
 
-Owners and admins can type an IP address, an email, a lead's number or a visitor ID in the search box at the top (or **Ctrl K**, **Find a person**). It shows that person's visits, leads and conversions, spam, test, cancelled and removed ones too, linked together. Each search is written to the audit log. See [Privacy](privacy.md).
+Owners and admins can type an IP address, an email, a lead's number or a visitor ID in **Find a person** on [Leads & sales > People](#sales/people), or in the search box at the top (or **Ctrl K**). It shows that person's visits, leads and conversions, spam, test, cancelled and removed ones too, linked together. Each search is written to the audit log. See [Privacy](privacy.md).
 
 ## Removing a person's data
 

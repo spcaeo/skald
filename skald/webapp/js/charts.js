@@ -154,14 +154,14 @@ export function columns(days, series, { label, H = 250, unit = "requests", onPic
   if (ghost) out.push(ghostPath(ghost, (i) => L + f.slot * (i + 0.5), (v) => T + f.ph - (v / f.max) * f.ph));
   days.forEach((d, i) => {
     if (d.state === "before") return;
-    const was = ghost && ghost[i] != null ? `; previous period ${n(ghost[i])}` : "";
+    const was = ghost && ghost[i] != null ? `; ${prev.label || "previous period"} ${n(ghost[i])}` : "";
     out.push(`<rect class="hit" data-i="${i}" tabindex="0" x="${(L + f.slot * i).toFixed(1)}" y="${T}" width="${f.slot.toFixed(1)}" height="${f.ph}" aria-label="${esc(describeDay(d, series, unit) + was + markWords(d))}"/>`);
   });
   const el = wrap(out.join(""), label, H);
   slots(el, el.querySelectorAll(".hit"), (i) => {
     const d = days[i];
     const head = long(d.day) + (d.state === "partial" ? ` (partial day${d.partial ? `, ${d.partial}` : ""})` : "");
-    const extra = [...(ghost ? [{ color: "var(--ink-3)", value: ghost[i] == null ? "-" : n(ghost[i]), label: "previous period" }] : []), ...markRows(d)];
+    const extra = [...(ghost ? [{ color: "var(--ink-3)", value: ghost[i] == null ? "-" : n(ghost[i]), label: prev.label || "previous period" }] : []), ...markRows(d)];
     if (d.state !== "ok" && d.state !== "partial") return [head, [{ value: "", label: ABSENT[d.state] || d.state }, ...extra]];
     return [head, [{ value: n(sumOf(d)), label: unit }, ...series.slice().reverse().map((s) => ({ color: s.color, value: n(s.get(d)), label: s.name })), ...extra]];
   });
@@ -250,7 +250,7 @@ export function lines(days, series, { label, H = 240, prev, marks } = {}) {
   out.push(`<line class="hair" x1="0" x2="0" y1="${T}" y2="${T + f.ph}" opacity="0"/><g class="dots"></g>`);
   days.forEach((d, i) => {
     if (d.state === "before") return;
-    const was = ghosts ? `; previous period ${series.map((x, j) => `${x.name} ${n(ghosts[j][i])}`).join(", ")}` : "";
+    const was = ghosts ? `; ${prev.label || "previous period"} ${series.map((x, j) => `${x.name} ${n(ghosts[j][i])}`).join(", ")}` : "";
     out.push(`<rect class="hit" data-i="${i}" tabindex="0" x="${(L + f.slot * i).toFixed(1)}" y="${T}" width="${f.slot.toFixed(1)}" height="${f.ph}" aria-label="${esc(describeDay(d, series, "") + (d.state === "ok" ? markLine(d) : "") + was + markWords(d))}"/>`);
   });
   const el = wrap(out.join(""), label, H);
@@ -277,7 +277,7 @@ export function lines(days, series, { label, H = 240, prev, marks } = {}) {
       const rows = d.state === "ok" ? series.map((s) => ({ color: s.color, value: s.get(d) == null ? "-" : n(s.get(d)), label: s.get(d) == null ? `${s.name} not recorded` : s.name }))
         : [{ value: "", label: d.state === "partial" ? "a partial day is not drawn on this line" : ABSENT[d.state] }];
       if (marks && d.state === "ok") rows.push({ color: marks.color, value: markOf(d) == null ? "-" : n(markOf(d)), label: markOf(d) == null ? `${marks.name} not recorded` : marks.name });
-      if (ghosts) rows.push(...series.map((x, j) => ({ color: x.color, value: ghosts[j][i] == null ? "-" : n(ghosts[j][i]), label: `${x.name}, previous period` })));
+      if (ghosts) rows.push(...series.map((x, j) => ({ color: x.color, value: ghosts[j][i] == null ? "-" : n(ghosts[j][i]), label: `${x.name}, ${prev.label || "previous period"}` })));
       rows.push(...markRows(d));
       tip(x, y, head, rows);
     };

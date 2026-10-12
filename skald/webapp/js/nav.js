@@ -2,10 +2,11 @@
 // shapes - full, an icon rail, and on a phone a drawer - the phone's bottom
 // tab bar, and the top bar's trail. The rest of the top bar is main.js's.
 //
-// The sidebar has two menus. The dashboard's (state.js MENU): sections by
-// what the reader came to find out - Home, Audience, Results, AI & bots,
-// Site & server. While a settings page (or About) is open, Settings' own
-// menu takes its place (SETTINGS_MENU), with a way back at its top.
+// The sidebar has two menus. The dashboard's: the five sections (2.7.0,
+// js/sections.js) - Overview, Traffic, Leads & sales, AI & bots, Site - each
+// opening its tabs (the strip under the top bar, main.js); Settings, Help and
+// About in the foot. While a settings page is open, Settings' own menu takes
+// its place (SETTINGS_MENU), with a way back at its top.
 //
 //   full   wide screens, unless collapsed ([ or the toggle; remembered)
 //   icons  a 64px rail with tooltips; the default below 1100px
@@ -25,9 +26,8 @@ const list = document.getElementById("tabs");
 const scrim = document.getElementById("scrim");
 const tabbar = document.getElementById("tabbar");
 
-const nameOf = (k) => (S.TABS.find(([x]) => x === k) || [null, k])[1];
-// The phone's bottom bar: one section for each question most asked, and Menu for the rest.
-const PHONE_TABS = ["overview", "live", "sources", "leads"];
+const nameOf = (k) => S.nameOf(k);
+const HELP = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M6.3 6.2a1.8 1.8 0 1 1 2.4 1.7c-.5.2-.7.6-.7 1.1v.4M8 11.3h.01"/></svg>';
 const BACK = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 3.5 5 8l4.5 4.5"/></svg>';
 const CLOSE = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
 const MENU_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/></svg>';
@@ -106,7 +106,8 @@ rail.addEventListener("keydown", (e) => {
 // ------------------------------------------------------------- sections
 // A link keeps the period and the filters; a plain click stays in the page, a
 // Ctrl- or middle-click opens the section in a new tab as any link would.
-const hrefOf = (key) => S.hashFor({ ...S.read(), tab: key, dd: "" });
+// A section's link goes to its first tab.
+const hrefOf = (key) => S.hashFor({ ...S.read(), tab: S.route(key).tab, dd: "" });
 function go(e, key) {
   if (e.button > 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   e.preventDefault();
@@ -121,10 +122,10 @@ function tooltip(el, words) {
   el.addEventListener("pointerleave", untip);
   el.addEventListener("blur", untip);
 }
-function link(key, sub = false) {
-  const a = h("a", { href: `#${key}`, id: `tab-${key}`, class: sub ? "tab sub" : "tab", html: sub ? "" : TAB_ICONS[key] || "", "data-tab": key, onclick: (e) => go(e, key) },
+// A row of the menu: a section (key "traffic", opening its first tab) or a settings page.
+function link(key) {
+  const a = h("a", { href: `#${key}`, id: `tab-${key}`, class: "tab", html: TAB_ICONS[key] || "", "data-tab": key, onclick: (e) => go(e, key) },
     h("span", { class: "tab-name" }, nameOf(key)));
-  if (key === "live") a.append(h("span", { class: "pulse", "aria-hidden": "true" }));
   tooltip(a, nameOf(key));
   return a;
 }
@@ -134,9 +135,10 @@ function group([heading, keys], i, labelled) {
   const id = `nav-g-${i}`;
   return h("div", { class: "nav-group", role: "group", "aria-labelledby": labelled ? id : null, "aria-label": labelled ? null : heading },
     labelled ? h("p", { class: "nav-h", id }, heading) : null,
-    h("ul", null, on.map((key) => h("li", null, link(key),
-      S.SUB[key] ? h("ul", { class: "nav-sub", id: `sub-${key}` }, S.SUB[key].filter(S.shown).map((k) => h("li", null, link(k, true)))) : null))));
+    h("ul", null, on.map((key) => h("li", null, link(key)))));
 }
+// The sections a reader may open (a section whose every tab is hidden is left out).
+const sections = () => S.SECTIONS.filter((x) => x.tabs.some(([k]) => S.shown(k)));
 
 let built = "";                 // which menu is drawn, and for which set of hidden pages
 let lastApp = "overview";       // where "Back to the dashboard" returns
@@ -147,7 +149,7 @@ function draw(settings) {
   list.setAttribute("aria-label", settings ? "Settings" : "Sections");
   list.classList.toggle("in-settings", settings);
   if (!settings) {
-    list.replaceChildren(ind, ...S.MENU.map((g, i) => group(g, i, i > 0)).filter(Boolean));
+    list.replaceChildren(ind, group(["Sections", sections().map((x) => x.key)], 0, false));
     return;
   }
   const back = h("a", { href: "#overview", class: "tab nav-back", id: "nav-back", html: BACK, onclick: (e) => go(e, lastApp) }, h("span", { class: "tab-name" }, "Back to the dashboard"));
@@ -169,10 +171,10 @@ export function buildNav() {
   });
   // On a phone the drawer has its own close button, beside the brand.
   document.getElementById("brand").append(h("button", { type: "button", class: "btn icon drawer-x", "aria-label": "Close the menu", html: CLOSE, onclick: () => closeDrawer(true) }));
-  // The phone's bottom bar: four sections and Menu (the drawer, with every group).
-  tabbar.replaceChildren(...PHONE_TABS.map((key) => h("a", { class: "tb-i", href: `#${key}`, "data-tab": key, html: TAB_ICONS[key] || "", onclick: (e) => go(e, key) },
-    h("span", null, nameOf(key)))),
-  h("button", { type: "button", class: "tb-i", id: "tb-menu", "aria-label": "Menu: every section and settings", "aria-controls": "rail", "aria-expanded": "false", onclick: openDrawer,
+  // The phone's bottom bar: the five sections and Menu (the drawer: Settings, Help, About, the reader's choices).
+  tabbar.replaceChildren(...sections().map((x) => h("a", { class: "tb-i", href: `#${x.key}`, "data-tab": x.key, html: TAB_ICONS[x.key] || "", "aria-label": x.short !== x.name ? x.name : null, onclick: (e) => go(e, x.key) },
+    h("span", { "aria-hidden": x.short !== x.name ? "true" : null }, x.short))),
+  h("button", { type: "button", class: "tb-i", id: "tb-menu", "aria-label": "Menu: settings, help and your choices", "aria-controls": "rail", "aria-expanded": "false", onclick: openDrawer,
     html: MENU_ICON }, h("span", { "aria-hidden": "true" }, "Menu")));
   document.addEventListener("keydown", (e) => {
     if (e.key !== "[" || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -183,30 +185,29 @@ export function buildNav() {
   apply();
 }
 
-/* The current section: the right menu drawn, the page marked for screen
-   readers (aria-current) and by the moving indicator, its sub-pages shown,
-   and every link carrying the period and filters on screen. */
+/* The current section: the right menu drawn, the section marked for screen
+   readers (aria-current) and by the moving indicator, and every link carrying
+   the period and filters on screen. A section's link opens its first tab. */
 export function mark(key) {
   const settings = S.inSettings(key);
   if (!settings) lastApp = key;
   draw(settings);
   const back = document.getElementById("nav-back");
   if (back) back.href = hrefOf(lastApp);
-  const top = key.split("/")[0];
+  const here = S.sectionOf(key)?.key || key;
   let sel = null;
   list.querySelectorAll(".tab[data-tab]").forEach((a) => {
     a.href = hrefOf(a.dataset.tab);
     a.removeAttribute("aria-current");
-    a.classList.toggle("open", a.dataset.tab === top && key !== top);
-    if (a.dataset.tab === key) sel = a;
+    if (a.dataset.tab === here) sel = a;
   });
-  // Sub-pages are drawn only in the phone's drawer; elsewhere the parent carries the mark
-  // (and the page's own sub-tabs name the sub-page).
-  if (sel && !sel.offsetParent) sel = list.querySelector(`.tab[data-tab="${top}"]`);
   sel?.setAttribute("aria-current", "page");
-  tabbar.querySelectorAll(".tb-i[data-tab]").forEach((b) => { b.href = hrefOf(b.dataset.tab); if (b.dataset.tab === key) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
-  const gear = document.getElementById("nav-settings");
-  if (gear) { if (settings) gear.setAttribute("aria-current", "true"); else gear.removeAttribute("aria-current"); }
+  tabbar.querySelectorAll(".tb-i[data-tab]").forEach((b) => { b.href = hrefOf(b.dataset.tab); if (b.dataset.tab === here) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+  // The foot's Settings, Help and About carry the mark of their own pages.
+  for (const [id, on] of [["nav-settings", settings], ["nav-help", key === "help"], ["nav-about", key === "about"]]) {
+    const b = document.getElementById(id);
+    if (b) { if (on) b.setAttribute("aria-current", id === "nav-settings" ? "true" : "page"); else b.removeAttribute("aria-current"); }
+  }
   if (!sel || !sel.offsetParent) { ind.style.opacity = "0"; return; }
   const y = sel.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop;
   ind.style.opacity = "1";
@@ -225,14 +226,15 @@ export function badge(key, count, words) {
   if (count) b.append(h("span", { class: "tab-n", "aria-label": words }, String(count)));
 }
 
-/* The top bar's trail: where the page sits. A dashboard page shows its group
-   (on a wide screen); a sub-page its parent, which opens it; a settings page
-   Settings and its group. Returns [[words, key or null, class]], the page last. */
+/* The top bar's trail: where the page sits. A section's tab shows the section
+   (the tab strip under the bar names the tab); a settings page Settings and its
+   group. Returns [[words, key or null, class]], the page last. */
 export function trailOf(key) {
+  const sec = S.sectionOf(key);
+  if (sec) return [[sec.name]];
   const group = S.groupOf(key);
-  if (key.startsWith("health/")) return [["Site health", "health", "crumb-p"], [nameOf(key)]];
   if (S.inSettings(key)) return [["Settings", "settings"], group !== nameOf(key) ? [group, null, "crumb-g"] : null, [nameOf(key)]].filter(Boolean);
-  return [group && group !== "Home" && group !== nameOf(key) ? [group, null, "crumb-g"] : null, [nameOf(key)]].filter(Boolean);
+  return [[nameOf(key)]];
 }
 
 // ---------------------------------------------------- brand and the foot
@@ -316,11 +318,11 @@ export function siteChip() {
   return wrap;
 }
 
-/* The sidebar's foot: one row. Settings (a gear) opens the settings pages;
-   the round button beside it holds the reader's own choices - theme, time
-   zone, shortcuts, what's new, About, the plain page, sign out; the last
-   button folds the sidebar. items: that panel's nodes, built by main;
-   initials: the signed-in person's, or none for a person icon. */
+/* The sidebar's foot: Settings (a gear), Help and About, each on its own line;
+   below them one row: theme, what's new, the round button with the reader's
+   own choices - theme, time zone, shortcuts, what's new, About, the plain
+   page, sign out - and the button that folds the sidebar. items: that panel's
+   nodes, built by main; initials: the signed-in person's, or none for a person icon. */
 export function railFoot(items, initials = "", quick = []) {
   const foot = document.getElementById("rail-foot");
   const toggle = h("button", { type: "button", class: "foot-btn", id: "rail-toggle", "aria-controls": "rail",
@@ -328,6 +330,11 @@ export function railFoot(items, initials = "", quick = []) {
   toggle.addEventListener("click", toggleRail);
   const gear = h("a", { href: "#settings", class: "foot-btn gear", id: "nav-settings", html: GEAR, onclick: (e) => go(e, "settings") }, h("span", { class: "tab-name" }, "Settings"));
   tooltip(gear, "Settings");
+  const page = (key, id, icon) => {
+    const a = h("a", { href: `#${key}`, class: "foot-btn foot-link", id, html: icon, onclick: (e) => go(e, key) }, h("span", { class: "tab-name" }, nameOf(key)));
+    tooltip(a, nameOf(key));
+    return a;
+  };
   const me = h("button", { type: "button", class: "foot-btn me", "aria-haspopup": "dialog", "aria-expanded": "false", "aria-label": "You: theme, time zone, help and sign out",
     title: "Theme, time zone, help", html: initials ? "" : PERSON }, initials ? h("span", { class: "me-i", "aria-hidden": "true" }, initials) : null);
   const pop = h("div", { class: "pop menu settings-pop", role: "dialog", hidden: true, "aria-label": "You" }, items);
@@ -348,6 +355,6 @@ export function railFoot(items, initials = "", quick = []) {
   pop.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(true); } });
   pop.addEventListener("click", (e) => { if (e.target.closest("a, .menu-i")) close(false); });
   document.addEventListener("pointerdown", (e) => { if (!pop.hidden && !wrap.contains(e.target)) close(false); });
-  foot.replaceChildren(gear, ...quick, wrap, toggle);
+  foot.replaceChildren(gear, page("help", "nav-help", TAB_ICONS.help || HELP), page("about", "nav-about", TAB_ICONS.about || ""), ...quick, wrap, toggle);
   apply();
 }

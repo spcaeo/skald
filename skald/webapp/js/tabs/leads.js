@@ -9,7 +9,8 @@
 // and is said so, never shown as zeros.
 
 import { h, n, counter, addDays, short, pct1, reduced, ICON } from "../ui.js";
-import { rangeOf, chartDays, comparison } from "../data.js";
+import { rangeOf, chartDays } from "../data.js";
+import { compareOf, versus } from "../mode-compare.js";
 import { columns, legend } from "../charts.js";
 import { head, rangeWords, fixed } from "./common.js";
 import { table } from "../table.js";
@@ -96,29 +97,47 @@ function counts(m, s, r, f, byDay, inRange, first, out) {
   const leadsN = LEAD_TYPES.reduce((a, k) => a + (sum[k] || 0), 0);
   const readers = r.kind === "today" ? null : inRange.reduce((a, d) => { const day = m.byDay.get(d.day); return a + (day?.state === "ok" ? day.readers || 0 : 0); }, 0);
   const label = r.kind === "today" ? "today so far" : `${inRange.length} of ${r.length} days recorded`;
+  // Compare mode: B's leads, only when the lead store recorded every day of A and of B.
+  const c = compareOf(m, s);
+  const covered = c.ok && r.days.every((d) => byDay.has(d.day)) && c.b.days.every((d) => byDay.has(d.day));
+  let cmpB = null;
+  if (covered) {
+    const sumB = {};
+    for (const d of c.b.days) for (const [k, v] of Object.entries(byDay.get(d.day).leads || {})) sumB[k] = (sumB[k] || 0) + v;
+    const words = c.kind === "custom" ? "B" : c.name;
+    // Per day (a custom B of another length): each period as a typical day.
+    const per = c.perDay ? [r.days.length, c.b.days.length] : [1, 1];
+    cmpB = { c, sumB, words, vs: (a, k) => versus(a / per[0], (k === "*" ? LEAD_TYPES.reduce((x, t) => x + (sumB[t] || 0), 0) : sumB[k] || 0) / per[1]) };
+  }
   // The days-recorded line once, on the first tile; the kinds beside it share it.
-  const tile = (title, v, note, sw, quiet = false) => h("div", { class: "kpi" }, h("div", { class: "k-l" }, title), h("div", { class: "k-n" }, note || ""),
-    h("div", { class: "k-v" }, v == null ? "-" : first ? counter(v) : n(v)), h("div", { class: "k-c" }, sw ? h("span", { class: "sw", style: { background: sw } }) : null, quiet ? "" : label));
+  const tile = (title, v, note, sw, quiet = false, key = null) => h("div", { class: "kpi" }, h("div", { class: "k-l" }, title), h("div", { class: "k-n" }, note || ""),
+    h("div", { class: "k-v" }, v == null ? "-" : first ? counter(v) : n(v)), h("div", { class: "k-c" }, sw ? h("span", { class: "sw", style: { background: sw } }) : null, quiet ? "" : label),
+    cmpB && key && v != null ? h("div", { class: "k-vs" }, cmpB.vs(v, key)) : null);
   const per = readers ? rate(leadsN, readers) : null;
   out.push(h("section", { class: "s" }, h("div", { class: "kpis tight" },
-    tile("Leads", leadsN, "sign-ups, contact forms and early access; spam and duplicates removed", "var(--ink)"),
-    ...types.map((k) => tile(name(k), sum[k] || 0, k === "demo_opened" ? "opened the booking page" : "", TONE[k], true)),
+    tile("Leads", leadsN, "sign-ups, contact forms and early access; spam and duplicates removed", "var(--ink)", false, "*"),
+    ...types.map((k) => tile(name(k), sum[k] || 0, k === "demo_opened" ? "opened the booking page" : "", TONE[k], true, k)),
     readers != null ? h("div", { class: "kpi" }, h("div", { class: "k-l" }, "Leads per 100 visitors"), h("div", { class: "k-n" }, "visitors from the verified days of the same range"),
       h("div", { class: "k-v" }, per ? ((leadsN / readers) * 100).toFixed(1) : "-"), h("div", { class: "k-c" }, per ? `${n(leadsN)} from ${n(readers)} visitors` : `too few visitors to rate (under ${MIN_RATE})`)) : null)),
+    c.ok && !covered ? h("p", { class: "cmp-why" }, "Leads not compared: the lead store does not cover every day of A and of B.") : null,
+    cmpB?.c.perDay ? h("p", { class: "note" }, "Per day: each figure against B is a typical day of its period.") : null,
     h("p", { class: "note" }, spam || dup ? `Left out: ${n(spam)} spam and ${n(dup)} duplicate${dup === 1 ? "" : "s"}. ` : "",
       h("button", { type: "button", class: "pp-link", onclick: openLeftOut }, spam || dup ? "Show them, with test leads" : "Show spam, duplicate and test leads")));
 
   if (r.kind === "history" && r.length > 1) {
     const days = chartDays(r).map((d) => { const e = byDay.get(d.day); return e ? { ...e, state: "ok" } : { day: d.day, state: d.state === "before" ? "before" : "missing" }; });
     const series = types.map((k) => ({ name: name(k), color: TONE[k] || "var(--ink-3)", get: (d) => d.leads?.[k] || 0 }));
-    // Leads keep their own days, so the comparison is theirs: every day of both ranges recorded.
-    const cmp = comparison(m, s);
-    const both = cmp.on && r.days.every((d) => byDay.has(d.day)) && r.days.every((d) => byDay.has(addDays(d.day, -r.length)));
-    const prev = both ? (d) => { const e = byDay.get(addDays(d.day, -r.length)); return e ? { ...e, state: "ok" } : null; } : null;
+    // Leads keep their own days, so the comparison is theirs: every day of A and of B
+    // (the global Compare mode's B: previous period, last year or custom) recorded.
+    const prev = cmpB ? (d) => {
+      const day = addDays(d.day, -cmpB.c.shift);
+      if (day < cmpB.c.b.first || day > cmpB.c.b.last) return null;
+      const e = byDay.get(day); return e ? { ...e, state: "ok" } : null;
+    } : null;
+    if (prev) prev.label = cmpB.words.toLowerCase();
     out.push(h("section", { class: "s" }, h("h2", null, "Per day, by kind"),
       h("p", { class: "sub" }, "A hatched stub is a day with no lead counts: not recorded, never zero."),
-      cmp.on && !both ? h("p", { class: "cmp-why" }, "Not compared: the lead store does not cover every day of this range and the one before it.") : null,
-      h("div", { class: "sheet" }, legend([...series.map((x) => [x.name, x.color]), ["Not recorded", "", "hatch"], ...(prev ? [["Previous period", "", "ghost"]] : [])]),
+      h("div", { class: "sheet" }, legend([...series.map((x) => [x.name, x.color]), ["Not recorded", "", "hatch"], ...(prev ? [[cmpB.words, "", "ghost"]] : [])]),
         columns(days, series, { label: "Leads per day by kind", unit: "leads and demos", H: 210, prev }))));
   }
 }

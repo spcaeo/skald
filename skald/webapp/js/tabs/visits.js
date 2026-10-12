@@ -15,7 +15,7 @@ const MIN_RATE = 10;   // no rate over fewer visits than this: too few to mean a
 const FEW = "too few to say";
 
 const PAGE_BINS = [["1", (k) => k === 1], ["2", (k) => k === 2], ["3", (k) => k === 3], ["4", (k) => k === 4], ["5", (k) => k === 5], ["6 to 9", (k) => k >= 6 && k <= 9], ["10+", (k) => k >= 10]];
-const SEC_BINS = [["under 10 s", 0, 10], ["10 to 30 s", 10, 30], ["30 s to 1 min", 30, 60], ["1 to 3 min", 60, 180], ["3 to 10 min", 180, 600], ["10 to 30 min", 600, 1800], ["30 min or more", 1800, Infinity]];
+const SEC_BINS = [["under 10 s", 0, 10], ["10–30 s", 10, 30], ["30 s–1 min", 30, 60], ["1–3 min", 60, 180], ["3–10 min", 180, 600], ["10–30 min", 600, 1800], ["30 min +", 1800, Infinity]];
 
 function median(hist) {
   const pairs = Object.entries(hist || {}).map(([k, v]) => [Number(k), v]).filter(([, v]) => v).sort((a, b) => a[0] - b[0]);

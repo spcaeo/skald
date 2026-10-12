@@ -1,0 +1,71 @@
+/* Skald's colours for the vendored spcaeo/ui components (folder tabs, data grid).
+
+   The upstream stylesheets stay as shipped. This file only sets their colour
+   variables from Skald's tokens (app.css), on the components' own elements: an
+   element's own value beats the one it inherits from upstream's :root, whatever
+   the selector's weight. Skald's tokens already switch with the theme, so most
+   lines hold in light and dark alike; where the order of fills must change in
+   dark, the dark rules below say so, under both of Skald's dark selectors.
+
+   tests/test_spcaeo_contrast.py reads this file and app.css and checks every
+   text pair at 4.5:1 and every boundary at 3:1, in both themes. Change a line
+   here and run it. */
+
+/* ---- Folder tabs: the rail is darkest, an inactive tab sits above it, and the
+   active tab IS the panel (the same fill), so tab and panel read as one sheet. */
+[data-folder-tabs] {
+  --tab-rail: var(--sunk);
+  --tab-rail-fill: var(--page);
+  --tab-rail-ink: var(--ink-2);
+  --tab-panel: var(--surface);
+  --tab-panel-ink: var(--ink);
+  /* Light fills this close cannot sit 3:1 apart; the stroke carries each boundary. */
+  --tab-edge: var(--ink-3);
+  --tab-ring: var(--focus);
+  --tab-ring-on-panel: var(--focus);
+}
+/* Dark: Skald's sunk is lighter than its surface, so the rail moves to the page
+   colour and an inactive tab sits halfway between page and surface. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) [data-folder-tabs] {
+    --tab-rail: var(--page);
+    --tab-rail-fill: color-mix(in srgb, var(--page) 50%, var(--surface));
+  }
+}
+:root[data-theme="dark"] [data-folder-tabs] {
+  --tab-rail: var(--page);
+  --tab-rail-fill: color-mix(in srgb, var(--page) 50%, var(--surface));
+}
+/* Tabs that are links (Skald's tabs are routes) look like the buttons upstream draws. */
+a.fldr-tab { text-decoration: none; }
+
+/* ---- Data grid: one set, light and dark, through Skald's own tokens. */
+.dg {
+  --dg-bg: var(--surface);
+  --dg-fg: var(--ink);
+  --dg-muted: var(--sunk);
+  --dg-muted-fg: var(--ink-2);
+  --dg-border: var(--rule);
+  --dg-control-border: var(--ink-3);
+  --dg-accent: var(--page);
+  --dg-primary: var(--sel);
+  --dg-primary-fg: var(--sel-ink);
+  --dg-popover: var(--surface);
+  --dg-ring: var(--focus);
+  --dg-danger: var(--bad);
+  --dg-radius: var(--r);
+}
+.dg .dg-num { font-variant-numeric: tabular-nums; }
+
+/* ---- Skald's additions around the grid (js/grid.js): the CSV button, rows that open. */
+.sk-grid-tools { display: flex; justify-content: flex-end; margin-top: 8px; }
+.sk-grid-rows .dg-table tbody tr { cursor: pointer; }
+@media print { .sk-grid-tools { display: none; } }
+
+/* One page of rows (js/grid.js): the pager's buttons and "Page 1 of 1" say nothing. */
+.sk-grid.sk-one-page .dg-page-buttons,
+.sk-grid.sk-one-page .dg-pagination > span:last-child:not(.dg-count) { display: none; }
+
+/* Segments keep their name and count on one line; on a phone the row scrolls sideways. */
+.sk-grid .dg-segments { overflow-x: auto; scrollbar-width: none; }
+.sk-grid .dg-segment { white-space: nowrap; flex: none; }

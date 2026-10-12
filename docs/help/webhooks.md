@@ -1,10 +1,10 @@
 # Webhooks
 
-How to connect Calendly, Cal.com, HubSpot, Typeform, Stripe, Zapier, Make and your own site to Skald, so bookings, forms and payments show on the Conversions page. Also how Skald can send conversions out to your CRM.
+How to connect Calendly, Cal.com, HubSpot, Typeform, Stripe, Zapier, Make and your own site to Skald, so bookings, forms and payments show under Leads & sales. Also how Skald can send conversions out to your CRM.
 
 ## How it works
 
-Each tool gets its own address in Skald and its own secret. When something happens (a booking, a payment, a form), the tool sends a signed message to that address. Skald checks the signature, records the conversion once, and shows it on [Conversions](#conversions).
+Each tool gets its own address in Skald and its own secret. When something happens (a booking, a payment, a form), the tool sends a signed message to that address. Skald checks the signature, records the conversion once, and shows it on [Leads & sales > Pipeline](#sales/pipeline) (with **Count from: Tools**) and, for a booking or a payment, on [Bookings](#sales/bookings).
 
 All of this is set up on one page: **Settings > This site > Integrations**, or [Integrations](#settings/integrations).
 

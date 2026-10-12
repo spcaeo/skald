@@ -19,7 +19,7 @@ import { openDrawer } from "./drawer.js";
 
 const FILTER_WORDS = { country: "Country", path: "Page path", source: "Source", device: "Device", browser: "Browser", campaign: "Campaign", referrer: "Referring site" };
 const slug = (x) => String(x).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "table";
-const tabName = (k) => (S.TABS.find(([x]) => x === k) || [null, k])[1];
+const tabName = (k) => S.nameOf(k);
 const stamp = () => new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "").replace(/^(\d{8})(\d{4})$/, "$1-$2");
 
 // The tables a render registered, as files: [{name, data}] under an optional folder.
@@ -144,10 +144,10 @@ export function printTab(m, s) {
 export function builder(m, s, loadView) {
   let d = null;
   const chosen = new Set([s.tab]);
-  // The dashboard's sections, in the menu's groups (settings pages have no figures to report).
+  // The dashboard's tabs, by section (settings pages have no figures to report).
   const boxes = [];
   const groups = S.MENU.map(([group, keys]) => {
-    const on = keys.flatMap((k) => [k, ...(S.SUB[k] || [])]).filter(S.shown);
+    const on = keys.filter(S.shown);
     return on.length ? h("div", { class: "rb-g", role: "group", "aria-label": group }, h("p", { class: "rb-gh" }, group), on.map((k) => {
       const cb = h("input", { type: "checkbox", value: k, checked: chosen.has(k) });
       cb.addEventListener("change", () => { cb.checked ? chosen.add(k) : chosen.delete(k); count(); });
@@ -167,7 +167,7 @@ export function builder(m, s, loadView) {
   const keep = h("input", { type: "checkbox", checked: true });
   const cmp = h("input", { type: "checkbox", checked: !!s.cmp });
   const settings = async () => {
-    const next = { ...s, range: range.value, view: view.value, cmp: cmp.checked ? "1" : "" };
+    const next = { ...s, range: range.value, view: view.value, cmp: cmp.checked ? "prev" : "" };
     if (!keep.checked) for (const k of S.FILTERS) next[k] = "";
     const model = view.value === (s.view || "all") ? m : await loadView(next);
     return [model, next, S.TABS.map(([k]) => k).filter((k) => chosen.has(k))];
@@ -203,7 +203,7 @@ let openMenu = null;
 document.addEventListener("pointerdown", (e) => { if (openMenu && !openMenu.wrap.contains(e.target)) openMenu.close(); });
 
 export function exportMenu(getModel, s, loadView) {
-  const toggle = h("button", { type: "button", class: "btn", "aria-expanded": "false", "aria-haspopup": "menu", html: ICON.download }, "Export");
+  const toggle = h("button", { type: "button", class: "btn x-btn", "aria-expanded": "false", "aria-haspopup": "menu", "aria-label": "Export", title: "Export", html: ICON.download }, h("span", { class: "x-l" }, "Export"));
   const item = (text, sub, fn) => h("button", { type: "button", role: "menuitem", class: "menu-i", onclick: () => { close(); fn(); } }, h("b", null, text), h("small", null, sub));
   const menu = h("div", { class: "pop menu", role: "menu", hidden: true, "aria-label": "Export" },
     item("Tables on this tab (ZIP)", "every table, with the current filters, as CSV files", () => exportZip(getModel(), s)),

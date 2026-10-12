@@ -81,7 +81,7 @@ answers `404`.
 `skald.js` (docs/INTEGRATIONS.md, "The script tag") sends every event above by
 itself except `book_demo_open` and `demo_booked` (`beacon.CODE_ONLY`): only the
 site's own code sends those (`skald('track', 'demo_booked')` or its own
-beacon), and the Events page says so. The tag's own rules: `cta_click` for
+beacon), and the Events tab (Leads & sales > Events) says so. The tag's own rules: `cta_click` for
 `data-skald-cta="<name>"`; `signup_*` for a form with `data-skald="signup"`;
 `contact_submit` / `waitlist_submit` when a form with `data-skald="contact"` /
 `"waitlist"` is submitted (its start is `form_start`); `scroll_75` and
@@ -205,7 +205,7 @@ beacon:
   # spool: /var/lib/skald/beacon
   # page_views: false           # beacon-only mode
   # visitor_ids: false          # keep the anonymous visitor ID (journeys, conversions)
-  # goals: [demo_booked, signup_submit]   # events per 100 visits by source (Events tab);
+  # goals: [demo_booked, signup_submit]   # events per 100 visits by source (Leads & sales > Events);
   #                             # with accounts, Settings > Sites > Goals sets it per site
 ```
 

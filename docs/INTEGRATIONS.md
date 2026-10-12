@@ -189,11 +189,12 @@ website") does not need the snippet:
    made, so the server's record joins the browser's journey.
 
 Leads need no hook when Skald reads them from the website's own lead
-database (next section), which it already reads for the Leads tab.
+database (next section), which it already reads for Leads & sales > Pipeline
+(Count from: Lead database).
 
 ## Leads from the lead database
 
-When `leads.db` names the website's lead database (the Leads tab's), every
+When `leads.db` names the website's lead database (Pipeline's default road), every
 lead there also becomes a conversion, with no change to the website
 (`conversions/from_leads.py`; off with `conversions.from_leads: false`):
 
@@ -215,8 +216,8 @@ below). Every live run (2 minutes) reads the leads changed since the last
 one (by `updated_at`); run-daily reads them all and removes the rows of
 leads deleted from the CMS. A row a sync takes away (the lead deleted,
 marked spam or duplicate, or changed) is first copied whole into the
-`removed` table, with when and why (`store.remove`): the Conversions page
-lists it under "Removed". Nothing disappears unseen; only `forget` deletes.
+`removed` table, with when and why (`store.remove`): Leads & sales > Pipeline
+(Count from: Tools, Show left out) lists it under "Removed". Nothing disappears unseen; only `forget` deletes.
 A status the team changes later changes the lead's day ("as known").
 The second count reads the same database by its own SQL
 (`audit_conversions.recount_leads`). Device is never known here (NULL).

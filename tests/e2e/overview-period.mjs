@@ -18,7 +18,7 @@ const [, , base, auth = ""] = process.argv;
 const { chromium } = await import(process.env.PLAYWRIGHT || "playwright");
 if (!base) { console.error("usage: node overview-period.mjs <page url> [user:password]"); process.exit(2); }
 
-const b = await chromium.launch();
+const b = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 const ctx = await b.newContext({ viewport: { width: 1440, height: 1000 },
   httpCredentials: auth ? { username: auth.split(":")[0], password: auth.split(":").slice(1).join(":") } : undefined });
 const p = await ctx.newPage();

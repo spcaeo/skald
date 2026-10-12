@@ -14,7 +14,7 @@ They count different things, in different ways.
 
 ## Why does a day say withheld?
 
-Every figure is counted twice, by two separate roads. If the two counts do not agree, the day is withheld rather than shown wrong. It is never shown as zero. The server admin can see why on [Data quality](#health/quality).
+Every figure is counted twice, by two separate roads. If the two counts do not agree, the day is withheld rather than shown wrong. It is never shown as zero. The server admin can see why on [Site > Data quality](#site/quality).
 
 ## Why is a figure blank and not zero?
 
@@ -22,15 +22,15 @@ Blank means not known. Zero means Skald counted and found nothing. A figure that
 
 ## Is AI traffic counted as people?
 
-No. AI crawlers and fetches are machines, and show on [AI & crawlers](#bots) in their own units. A person who clicks a link in an AI answer is a person, and the AI assistant is shown as their source on [Sources](#sources).
+No. AI crawlers and fetches are machines, and show under AI & bots ([Assistants](#ai/assistants) and [Crawlers](#ai/crawlers)) in their own units. A person who clicks a link in an AI answer is a person, and the AI assistant is shown as their source on [Traffic > Sources](#traffic/sources), and in full on AI & bots > Assistants.
 
 ## What does "likely from ChatGPT" mean?
 
-It is an estimate, not a count. A person who clicks a link in an AI answer often arrives with no referrer, so the visit shows as Direct. But when they asked, the assistant fetched your page from your server. When a direct visit with no campaign tag lands on a page an assistant fetched in the same minute or up to 15 minutes before, Skald says the visit was *likely* sent by that assistant. It shows these on [Sources](#sources), [AI & crawlers](#bots), [Leads](#leads), [Conversions](#conversions) and in a visitor's details, always marked "likely" with an (i) that says how. They are never added to the AI assistant source or to any other figure. See [Leads and conversions](leads-and-conversions.md).
+It is an estimate, not a count. A person who clicks a link in an AI answer often arrives with no referrer, so the visit shows as Direct. But when they asked, the assistant fetched your page from your server. When a direct visit with no campaign tag lands on a page an assistant fetched in the same minute or up to 15 minutes before, Skald says the visit was *likely* sent by that assistant. It shows these on [AI & bots > Assistants](#ai/assistants), on [Leads & sales > Pipeline](#sales/pipeline) (with either Count from) and in a visitor's details, always marked "likely" with an (i) that says how. They are never added to the AI assistant source or to any other figure. See [Leads and conversions](leads-and-conversions.md).
 
 ## What are the AI alerts?
 
-Three alerts watch how AI assistants treat your site. They show on [Alerts](#health/alerts) (press **AI** to see only them) and in **AI reading changes** on [AI & crawlers](#bots):
+Three alerts watch how AI assistants treat your site. They show on [Site > Alerts](#site/alerts) (press **AI** to see only them) and in **AI reading changes** on [AI & bots > Assistants](#ai/assistants):
 
 - **AI started reading**: an assistant fetched a page yesterday that it had not fetched in the 28 days before.
 - **AI stopped reading**: an assistant that fetched a page in at least 3 of the 4 weeks before has not fetched it for 7 days.
@@ -40,7 +40,7 @@ An assistant means its company: GPTBot, OAI-SearchBot and ChatGPT-User are all O
 
 ## Can Skald write an llms.txt for my site?
 
-It suggests one; it never writes it to your website. Open [AI crawlers](#settings/crawlers) and see **Suggested llms.txt**: links to the pages people and AI assistants read most over the last 90 days, grouped by section, in the llmstxt.org format. Write the one-line summary yourself, check the links, then copy or download it and publish it at `/llms.txt`. See [Settings and retention](settings-and-retention.md).
+It suggests one; it never writes it to your website. Open [AI & bots > llms.txt](#ai/llms) and see **Suggested llms.txt**: links to the pages people and AI assistants read most over the last 90 days, grouped by section, in the llmstxt.org format. Write the one-line summary yourself, check the links, then copy or download it and publish it at `/llms.txt`. See [Settings and retention](settings-and-retention.md).
 
 ## Why is my own visit not counted?
 
@@ -52,7 +52,7 @@ Not to count visits. Skald reads the server's log, which needs nothing in the br
 
 ## How fresh is today?
 
-Today's figures are recounted about every two minutes. The foot of the page says when they were last updated and when the next update is due. If your server allows it, **Refresh** in the top bar recounts at once. Yesterday becomes a whole, checked day after the morning's run.
+Today's figures are recounted about every two minutes. The foot of every page says when they were last updated and when the next update is due. If your server allows it, **Refresh** in the top bar recounts at once. Yesterday becomes a whole, checked day after the morning's run.
 
 ## Why does a whole day appear only the next morning?
 
@@ -60,17 +60,17 @@ The daily run checks each finished day by both counts before it is stored. Until
 
 ## Where are my leads?
 
-On [Leads](#leads), under Results: leads per day by kind, and where they first and last came from. Leads and demos booked also show beside the visitors on Overview, Live, Sources, Pages, Locations, Insights and Compare. Spam, duplicate and test leads are listed under **Left out**. Owners and admins can find one lead, with its email and the visits around it, with the search at the top, when your site keeps names and emails. See [Leads and conversions](leads-and-conversions.md).
+On [Leads & sales > Pipeline](#sales/pipeline): leads per day by kind, at which stage, and where they first and last came from. It counts from your lead database by default; switch **Count from** to **Tools** for bookings, forms and payments from your tools. Leads and demos booked also show beside the visitors on Overview > Summary, Traffic > Sources, Pages and Places & devices, and Overview > Insights. Spam, duplicate and test leads are listed with **Show left out**. Owners and admins can find one lead, with its email and the visits around it, on [Leads & sales > People](#sales/people) or with the search at the top, when your site keeps names and emails. See [Leads and conversions](leads-and-conversions.md).
 
 ## How do I get data out?
 
-- **Export** in the top bar: every table on the page as CSV files in a ZIP, the page as JSON, a printable report, or the report builder for several pages at once.
+- **Export** in the top bar: every table on the tab as CSV files in a ZIP, the tab as JSON, a printable report, or the report builder for several tabs at once.
 - **API**: every figure as JSON, for a script. Tokens are made in **Settings > Team & access > API & tokens**. See [API](api.md).
 - **MCP**: let an AI assistant read your figures. See [MCP](mcp.md).
 
 ## Who can see visitor addresses?
 
-Only people signed in to your organisation: [Requests](#requests) (the last 6 hours), today's AI activity, and the internal-address list (admins). When your site keeps IP addresses, owners and admins also see each kept visit's address in the person search; every search goes to the audit log. Stored history never holds an address. API tokens see addresses only with the private scope. See [Privacy](privacy.md).
+Only people signed in to your organisation: [Site > Requests](#site/requests) (the last 6 hours), today's AI activity (on AI & bots > Assistants, when the period is Today), and the internal-address list (admins). When your site keeps IP addresses, owners and admins also see each kept visit's address in the person search; every search goes to the audit log. Stored history never holds an address. API tokens see addresses only with the private scope. See [Privacy](privacy.md).
 
 ## How do I delete someone's data on request?
 
@@ -78,7 +78,7 @@ Send the address or the email address to the person who runs your Skald server. 
 
 ## Why are my filters greyed out?
 
-The log keeps each breakdown on its own, so some pages cannot apply some filters, and filters cannot be crossed (for example, Canada AND Chrome). A greyed-out filter chip is one the page cannot apply. The page says which.
+The log keeps each breakdown on its own, so some tabs cannot apply some filters, and filters cannot be crossed (for example, Canada AND Chrome). A greyed-out filter chip is one the tab cannot apply. The tab says which.
 
 ## Can I see times in my own time zone?
 

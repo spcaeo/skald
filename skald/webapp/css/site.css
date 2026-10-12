@@ -1,0 +1,50 @@
+/* Site (Health, Alerts, Requests, Not found, Speed, Data quality): the Site builder's styles (2.7.0). Tokens come from app.css. */
+
+/* A link to where a shared figure lives (a tile's foot, a note). */
+.si-more { font-size: 12px; color: var(--ink-3); text-decoration: underline; text-underline-offset: 2px; }
+.si-more:hover { color: var(--ink); }
+.si-more:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+.si-also { margin-top: 18px; }
+
+/* Health: responses by status, one meter per group. */
+.si-status { display: grid; gap: 12px; }
+.si-status-h { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; margin-bottom: 4px; }
+.si-status-h .sw { margin-right: 8px; }
+
+/* Health: the heartbeat's outages, under the two uptime cards. */
+.si-outages { scroll-margin-top: 96px; }
+.si-outages h3 { margin: 0 0 2px; }
+.si-outages .sub { margin: 0 0 8px; }
+section.s > .sheet:has(> .si-outages) { margin-top: 14px; }
+
+/* Requests: the log's cells inside the Data Grid. */
+.si-rq-grid .dg-table td { vertical-align: middle; font-size: 13px; padding: 6px 8px; white-space: normal; }
+.si-rq-grid .dg-table th { font-size: 12px; padding: 8px 8px; white-space: normal; }
+.si-rq-t { font: 12.5px var(--mono); color: var(--ink-2); white-space: nowrap; border-radius: 4px; padding: 1px 3px; margin: -1px -3px; }
+.si-rq-t.fresh { animation: fresh 2.4s var(--ease); }
+.si-rq-p { display: inline-block; font: 12.5px var(--mono); overflow-wrap: anywhere; min-width: 140px; }
+.si-rq-p small { color: var(--ink-3); font-size: 11.5px; }
+.si-rq-p .meth { margin-right: 6px; }
+.si-rq-g { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 130px; padding-left: 7px; border-left: 3px solid var(--g, var(--rule)); }
+.si-rq-g .rule { font-size: 12.5px; }
+.si-rq-ip { white-space: nowrap; }
+.si-rq-ip .cc { font-size: 12px; margin-right: 6px; }
+.si-rq-r { display: inline-block; font-size: 12px; color: var(--ink-2); overflow-wrap: anywhere; min-width: 100px; max-width: 180px; }
+.si-rq-r .utm { margin-left: 4px; }
+.si-rq-d { display: inline-block; min-width: 140px; font-size: 12px; color: var(--ink-3); }
+.si-rq-t, .si-rq-grid .st { white-space: nowrap; }
+.si-rq-grid .dg-num { white-space: nowrap; }
+.si-rq-wait, .si-rq-none { padding: 10px 2px; }
+.si-rq-none .btn { margin-left: 6px; }
+/* With a mouse, Copy floats over the address's end on hover, so it takes no column width. */
+@media (hover: hover) {
+  .si-rq-ip .ip { position: relative; }
+  .si-rq-ip .copy { position: absolute; right: 0; top: 50%; transform: translateY(-50%); opacity: 0; background: var(--surface); box-shadow: -8px 0 8px var(--surface); }
+  .si-rq-grid .dg-table tr:hover .copy, .si-rq-grid .dg-table tr:focus-within .copy { opacity: 1; }
+}
+.si-rq-grid .dg-table tbody tr:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) { .si-rq-t.fresh { animation: none; } }
+
+/* Data quality by day: the reasons get room, so a day's row stays one or two lines */
+td.q-why, th.q-why { min-width: 320px; }
+.gaps, td.q-day { white-space: nowrap; }

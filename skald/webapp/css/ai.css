@@ -1,0 +1,21 @@
+/* AI & bots (Assistants, Crawlers, Crawler rules, llms.txt): the AI & bots builder's styles (2.7.0). Tokens come from app.css. */
+
+/* The section's long lists (Data Grid, .ai-g): numbers line up on the right, as in
+   Skald's own tables (upstream's `.dg-table td` outweighs its `.dg-num`), and the CSV
+   button sits on the search row instead of under the pages. */
+.ai-g .dg-table th.dg-num, .ai-g .dg-table td.dg-num { text-align: right; }
+.ai-g .dg-table th.dg-num .dg-sort { flex-direction: row-reverse; }
+.ai-g .sk-grid { position: relative; }
+.ai-g .sk-grid-tools { position: absolute; top: 0; right: 0; margin: 0; }
+.ai-g .dg-toolbar { padding-right: 88px; }
+
+/* Today's AI activity on Assistants: the feed reads as one card. */
+.ai-feed .feed { margin-top: 8px; }
+
+/* Crawler rules: the editor and robots.txt as two blocks; llms.txt fills the width. */
+.ai-rules > .state { margin: 0; }
+.ai-llms { margin-top: 0; }
+.ai-llms pre { max-height: none; }
+.ai-llms-say { padding: 8px 12px 0; margin: 0; }
+.ai-llms-say:last-child { padding-bottom: 10px; }
+.ai-lede { margin: 0 0 14px; max-width: 75ch; }

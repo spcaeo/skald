@@ -1,0 +1,34 @@
+/* Overview (Summary, Insights): the Overview builder's styles (2.7.0). Tokens come from app.css. */
+
+/* ------------------------------------------- Summary: the strip of tiles
+   Laid out evenly, never one tile alone on a row with its trend line stretched
+   across it: 7 tiles are 4 + 3, 6 are 3 + 3 (no demos without conversions),
+   on a 12-column grid so each row fills the strip. Two columns on a phone; an
+   odd last tile there keeps its trend line at a column's width. */
+.tiles.ov-tiles { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.ov-tiles > .tile { grid-column: span 3; }
+.ov-tiles[data-n="7"] > .tile:nth-child(n+5) { grid-column: span 4; }
+.ov-tiles[data-n="6"] > .tile,
+.ov-tiles[data-n="5"] > .tile:nth-child(n+3) { grid-column: span 4; }
+.ov-tiles[data-n="5"] > .tile:nth-child(-n+2) { grid-column: span 6; }
+.ov-tiles > .tile .spark { width: 100%; max-width: 220px; }
+@media (max-width: 640px) {
+  .tiles.ov-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ov-tiles > .tile, .ov-tiles[data-n] > .tile, .ov-tiles[data-n] > .tile:nth-child(n) { grid-column: auto; }
+  .ov-tiles > .tile:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .ov-tiles > .tile:last-child:nth-child(odd) .spark { max-width: calc(50% - 12px); }
+}
+
+/* ------------------------------------- Summary: links to the full lists */
+.ov-go { font-size: 12.5px; color: var(--ink-2); text-decoration: none; white-space: nowrap; border-radius: 4px; }
+.ov-go:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.ov-go:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.card-h .ov-go { font-weight: 400; }
+.ov-more { margin: 8px 0 0; }
+.ov-more .ov-go { white-space: normal; }
+/* Server requests: one line, the band is on Site > Health */
+.ov-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 0 0 12px; padding: 10px 14px;
+  font-size: 13px; color: var(--ink-2); background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); }
+.ov-line b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.ov-line .ov-go { margin-left: auto; }
+@media (max-width: 640px) { .ov-line .ov-go { margin-left: 0; } }

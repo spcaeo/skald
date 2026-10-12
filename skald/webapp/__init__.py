@@ -24,7 +24,8 @@ from ..files import slug, write_atomic
 
 HERE = Path(__file__).resolve().parent
 SHARED = "_app"
-ASSETS = ("app.css", "features.css", "compare.css", "screens.css", "nav.css", "drawer.css", "js")
+# vendor/: third-party code, copied as shipped (vendor/spcaeo-ui/VERSION.md says what and why).
+ASSETS = ("app.css", "features.css", "compare.css", "screens.css", "nav.css", "drawer.css", "css", "js", "vendor")
 CLASSIC = "classic.html"
 
 

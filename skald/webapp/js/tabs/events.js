@@ -168,7 +168,7 @@ export default function events(m, s) {
   const cols = (first, key) => [first, ...seen.map((e) => ({ key: e, label: SHORT[e], num: true })), { key: "total", label: "All", num: true }];
   const flagged = new Set((got.days || []).flatMap((d) => (d.anomalies || []).filter((a) => a.kind === "path").map((a) => a.path)));
   out.push(h("section", { class: "s" }, h("h2", null, "By page"),
-    table(cols({ key: "k", label: "Page", path: true, fmt: (v) => h("span", null, h("button", { type: "button", class: "linkish ev-pg", title: "This page's story", onclick: () => S.set({ tab: "pages", page: v }) }, v),
+    table(cols({ key: "k", label: "Page", path: true, fmt: (v) => h("span", null, h("button", { type: "button", class: "linkish ev-pg", title: "This page's story", onclick: () => S.set({ tab: "traffic/pages", page: v }) }, v),
       flagged.has(v) ? h("span", { class: "rb warn", title: "More events than page views allow on a day: checked, and left in only if it passed" }, "flagged") : null), csv: (x) => x.k }),
     { caption: "Events by page", rows: pivot(rows, (x) => x[3], seen), file: `events-by-page-${r.first}-to-${r.last}.csv`, sortKey: "total", limit: 12 })));
   // A day whose sources did not recount keeps its totals but not its sources (source null).

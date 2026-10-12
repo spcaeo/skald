@@ -6,6 +6,9 @@ import sys
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_routes import registry  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 JS = ROOT / "skald" / "webapp" / "js"
 HELP = ROOT / "docs" / "help"
@@ -33,7 +36,12 @@ class HelpData(unittest.TestCase):
     def test_links_go_to_a_guide_or_a_page_of_the_app(self):
         text, built = data("help-data.js")
         ids = {g["id"] for g in built["guides"]}
+        # A page of the app: a section's tab (js/tabs/s-*.js), a page listed in state.js, or an
+        # older address that redirects to one (routes.js), so a guide's old link keeps working.
         tabs = set(re.findall(r'\["([a-z/]+)", "[^"]+"\]', (JS / "state.js").read_text(encoding="utf-8")))
+        tabs |= {t["route"] for s in registry() for t in s["tabs"]} | {s["key"] for s in registry()}
+        redirects = (JS / "routes.js").read_text(encoding="utf-8").split("export const REDIRECTS = {", 1)[1].split("\n};", 1)[0]
+        tabs |= set(re.findall(r'"?([a-z/]+)"?: \["[a-z/]+"', redirects))
         for href in re.findall(r'"href":"([^"]+)"', text):
             if href.startswith("https://"):
                 continue

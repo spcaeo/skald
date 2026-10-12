@@ -22,7 +22,7 @@ const lasted = (a) => (a.closed_at ? duration((Date.parse(a.closed_at) - Date.pa
 // An alert about a path opens the request log narrowed to it, where the lines behind it are.
 function look(a) {
   if (!a.subject || !a.subject.startsWith("/")) return null;
-  return h("button", { type: "button", class: "btn", onclick: () => S.set({ tab: "requests", path: a.subject, pathmode: "starts" }) }, `See the recent requests to ${a.subject}`);
+  return h("button", { type: "button", class: "btn", onclick: () => S.set({ tab: "site/requests", path: a.subject, pathmode: "starts" }) }, `See the recent requests to ${a.subject}`);
 }
 
 function card(a, today) {
