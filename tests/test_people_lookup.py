@@ -92,6 +92,19 @@ class Lookup(unittest.TestCase):
         self.assertNotIn("email", got["leads"][0])
         mine = lookup.left_out(self.config, self.box.root, SITE, private=True)
         self.assertEqual(mine["leads"][0]["email"], "person2@example.com")
+        self.assertIsNone(got["leads"][0]["vid"], "a viewer never gets a visitor ID")
+
+    def test_lead_visitor_id_only_for_admins_with_visitor_ids_on(self):
+        import sqlite3 as sq
+        db = sq.connect(self.leads)
+        db.execute("UPDATE submissions SET session_id = 'sess-abcdefgh12' WHERE id = 2")
+        db.commit(); db.close()
+        off = lookup.left_out(self.config, self.box.root, SITE, private=True)
+        self.assertIsNone(off["leads"][0]["vid"], "visitor IDs off: a session is no visitor")
+        on = {**self.config, "beacon": {**(self.config.get("beacon") or {}), "visitor_ids": True}}
+        self.assertEqual(lookup.left_out(on, self.box.root, SITE, private=True)["leads"][0]["vid"],
+                         "sess-abcdefgh12")
+        self.assertIsNone(lookup.left_out(on, self.box.root, SITE, private=False)["leads"][0]["vid"])
 
     def test_a_status_change_keeps_the_removed_row(self):
         db = sqlite3.connect(self.leads)

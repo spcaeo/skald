@@ -4,6 +4,17 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.4.1 (2026-10-12)
+
+### Fixed
+
+- **A lead's visitor ID reached viewers.** The Leads > "Left out" list sent the lead
+  database's session ID as a visitor ID to every member. Now only admins and owners get it, and
+  only where the site has visitor IDs on (`beacon.visitor_ids`); a site's session column is no
+  visitor otherwise.
+- **The top bar overflowed below 1600 px for admins.** The person search box squeezed the
+  period and the buttons. Below 1600 px it is now an icon button that opens the same search.
+
 ## 2.4.0 (2026-10-12)
 
 Find any person by IP, email or lead and follow them across days; nothing left out is hidden;

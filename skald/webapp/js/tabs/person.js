@@ -114,13 +114,18 @@ export function openSearch() {
     body: [form, h("p", { class: "note" }, mayFind() ? "Every visit kept, every lead and conversion, linked. Each search is written to the audit log." : "Only an admin or an owner can look a person up.")] });
 }
 
-// The top bar's search box (admins and owners).
+const FIND_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4l3.4 3.4"/></svg>';
+
+// The top bar's search (admins and owners): a box on wide screens (1600 px and
+// up), an icon button that opens the same search below that, so the bar never
+// overflows. Returns a list: [] for everyone else.
 export function searchBox() {
-  if (!mayFind()) return null;
+  if (!mayFind()) return [];
+  const btn = h("button", { type: "button", class: "btn icon pp-btn", html: FIND_ICON, "aria-label": `Find a person: ${SEARCH_HINT}`, title: `Find a person: ${SEARCH_HINT}`, onclick: openSearch });
   const field = h("input", { type: "search", class: "pp-in", placeholder: "Find a person", title: SEARCH_HINT, "aria-label": `Find a person: ${SEARCH_HINT}`, autocomplete: "off", spellcheck: "false", maxlength: "320" });
-  const form = h("form", { class: "ctl pp-bar wide-only", role: "search" }, field);
+  const form = h("form", { class: "ctl pp-bar", role: "search" }, field);
   form.addEventListener("submit", (e) => { e.preventDefault(); if (field.value.trim()) openPerson(field.value); });
-  return form;
+  return [form, btn];
 }
 
 // The Leads page's "Left out" line: spam, duplicates and test leads, and test conversions.
