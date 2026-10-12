@@ -37,6 +37,8 @@ The second count is audit_conversions.recount_leads (its own SQL).
 """
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 import json
 import sqlite3
 from pathlib import Path
@@ -152,7 +154,14 @@ def rows_for(lead: dict, site: str, identity_full: bool = False,
     return out
 
 
-def _read(path: Path, since: str | None, identity_full: bool) -> list[dict]:
+# An incremental sync also re-reads the leads created in this many hours: a
+# team that marks a lead spam in its CMS does not always move updated_at, and
+# the second count reads the lead DB as it is now (found on example.com, 2.5.1).
+RECENT_HOURS = 48
+
+
+def _read(path: Path, since: str | None, identity_full: bool,
+          recent: str | None = None) -> list[dict]:
     from ..leads import connect
     db = connect(path)
     try:
@@ -164,7 +173,10 @@ def _read(path: Path, since: str | None, identity_full: bool) -> list[dict]:
         changed = "COALESCE(updated_at, created_at)" if "updated_at" in have else "created_at"
         sql = f"SELECT {', '.join(picked)}, {changed} AS mark FROM submissions"
         args: tuple = ()
-        if since:
+        if since and recent:
+            sql += f" WHERE {changed} >= ? OR julianday(created_at) >= julianday(?)"
+            args = (since, recent)
+        elif since:
             sql += f" WHERE {changed} >= ?"
             args = (since,)
         return [dict(zip(wanted + ("mark",), r)) for r in db.execute(sql, args)]
@@ -179,7 +191,9 @@ def sync(db: sqlite3.Connection, path: Path, site: str, identity_full: bool = Fa
     ValueError when the lead DB cannot be read."""
     row = db.execute("SELECT value FROM meta WHERE key = ?", (_mark_key(site),)).fetchone()
     since = None if full or row is None else row[0]
-    leads = _read(Path(path), since, identity_full)
+    recent = None if since is None else (datetime.now(timezone.utc) - timedelta(
+        hours=RECENT_HOURS)).strftime("%Y-%m-%dT%H:%M:%S")
+    leads = _read(Path(path), since, identity_full, recent)
     got = {"read": len(leads), "added": 0, "removed": 0, "kept": 0}
     mark = max((str(r["mark"]) for r in leads if r.get("mark")), default=since)
     with store.tx(db):

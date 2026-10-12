@@ -25,7 +25,7 @@ export function tiles(items) {
   return h("div", { class: "tiles", role: "list" }, items.filter(Boolean).map((x) => h("div", { class: "tile", role: "listitem" },
     h("div", { class: "t-top" }, h("span", { class: "t-l" }, x.label), x.info ? info(x.info, x.label) : null),
     h("div", { class: "t-v" }, x.value == null ? "-" : typeof x.value === "number" ? (x.fmt || n)(x.value) : x.value),
-    typeof x.line === "string" ? h("span", { class: "t-c" }, x.line) : x.line || h("span", { class: "t-c none" }, ""),
+    typeof x.line === "string" ? h("span", { class: "t-c t-wrap" }, x.line) : x.line || h("span", { class: "t-c none" }, ""),
     x.trend || h("div", { class: "spark" }))));
 }
 

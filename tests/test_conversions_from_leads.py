@@ -178,6 +178,22 @@ class FromLeads(unittest.TestCase):
         self.assertNotIn(("6", "completed"), refs)
         self.assertIn(("8", "completed"), refs)
 
+    def test_a_recent_lead_marked_spam_without_updated_at_is_caught(self):
+        # example.com, 2026-10-12: a lead was marked spam in the CMS and its updated_at
+        # did not move, so the incremental sync never saw it and the second count
+        # (which reads the lead DB as it is now) withheld the day.
+        self.sync()
+        raw = sqlite3.connect(self.leads)
+        raw.execute("UPDATE submissions SET status = 'spam' WHERE id = 6")
+        raw.commit()
+        raw.close()
+        from unittest import mock
+        with mock.patch.object(from_leads, "RECENT_HOURS", 24 * 365 * 20):
+            got = self.sync()
+        self.assertGreaterEqual(got["removed"], 1)
+        refs = self.rows("SELECT external_ref FROM conversions WHERE tool = 'site'")
+        self.assertNotIn(("6",), refs)
+
     def test_full_sync_drops_deleted_leads(self):
         self.sync()
         raw = sqlite3.connect(self.leads)

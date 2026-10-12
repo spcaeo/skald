@@ -490,6 +490,7 @@ td .named .nm, .rq-d .named .nm { white-space: normal; }
 .t-v { font-family: var(--round); font-size: 28px; font-weight: 680; letter-spacing: -.025em; line-height: 1.15; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .t-c { font-size: 11.5px; color: var(--ink-2); display: flex; gap: 5px; align-items: center; white-space: nowrap; overflow: hidden; }
 .t-c.none { color: var(--ink-3); cursor: help; }
+.t-c.t-wrap { display: block; white-space: normal; overflow: visible; line-height: 1.3; } /* a sentence ("withheld: ...") wraps, never cut */
 .t-c .arrow { font-size: 9px; }
 .t-c .was { color: var(--ink-3); }
 .tile .spark { height: 22px; margin-top: 4px; align-self: end; }
