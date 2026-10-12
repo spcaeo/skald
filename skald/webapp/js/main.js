@@ -27,7 +27,7 @@ import { setFavicons } from "./icons.js";
 import { REGISTRY, showAllRows } from "./table.js";
 import { exportMenu, builder, exportZip, exportJSON, printTab } from "./report.js";
 import { setContext } from "./tabs/common.js";
-import { loadBuild, buildLine, toolName, newerBuild, releaseLine, BUILD } from "./build.js";
+import { loadBuild, buildLine, toolName, newerBuild, releaseLine, BUILD, REPO } from "./build.js";
 import { searchBox, openSearch, mayFind, SEARCH_HINT } from "./tabs/person.js";
 import { info, quietKpis } from "./tabs/tiles.js";
 import { PRIVACY } from "./tabs/about.js";
@@ -374,6 +374,7 @@ function footer() {
   foot.replaceChildren(h("div", { class: "foot-line" },
     h("p", { class: "foot-left" }, build, sep, fresh),
     h("p", { class: "foot-right" }, h("a", { class: "linkish", href: "#about" }, "About"), h("a", { class: "linkish", href: "#help" }, "Help"),
+      h("a", { class: "linkish", href: REPO, target: "_blank", rel: "noopener", title: "Skald on GitHub: source, releases, issues. A star helps others find it." }, "★ GitHub"),
       h("span", { class: "privacy" }, "Privacy", info(PRIVACY, "Privacy")))));
   return () => { tick(); const v = ver(); build.textContent = v.text; build.title = v.title; sep.hidden = !v.text; };
 }
@@ -507,6 +508,7 @@ async function boot() {
     row("Keyboard shortcuts", help, h("kbd", null, "?")),
     row("What's new", () => whatsNew(dot), dot),
     h("a", { class: "menu-i set-i", href: "#about" }, h("b", null, "About Skald")),
+    h("a", { class: "menu-i set-i", href: REPO, target: "_blank", rel: "noopener" }, h("b", null, "★ Skald on GitHub"), h("small", null, "star it, see releases, report a problem")),
     h("a", { class: "menu-i set-i", href: "classic.html" }, h("b", null, "Plain page"), h("small", null, "every figure, without scripts")),
     sessions() ? row("Sign out", signOut) : null,
   ], initials, [themeBtn, newBtn]);

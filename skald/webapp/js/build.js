@@ -9,6 +9,10 @@ import { DEMO } from "./demo.js";
 
 export let BUILD = null;
 
+// Skald's own home: the public repository (source, releases, issues). Every install links
+// to it from About, the footer and the account menu, so people can star it and report.
+export const REPO = "https://github.com/spcaeo/skald";
+
 export async function loadBuild() {
   try {
     const res = await fetch("../build.json", { cache: "no-store", credentials: "same-origin" });

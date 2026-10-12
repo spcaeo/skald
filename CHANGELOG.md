@@ -4,6 +4,12 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.7.1 (2026-10-12)
+
+### Added
+
+- **Links to Skald on GitHub** in every install: "★ Star Skald on GitHub", Source code, Releases and "Report a problem" on About; "★ GitHub" in the footer; "★ Skald on GitHub" in the account menu.
+
 ## 2.7.0 (2026-10-12)
 
 A simpler dashboard: five sections with tabs instead of eighteen pages, Live and Compare as
