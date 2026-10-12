@@ -1,6 +1,9 @@
-"""conversions.sqlite: every conversion, the anonymous journeys behind them,
-identities (only with `identity: full`), the log of hook deliveries, and
-the outgoing webhooks with their outbox (conversions/outgoing.py).
+"""conversions.sqlite: every conversion, the journeys behind them,
+identities (name and email; on unless a site sets `conversions.identity:
+anonymous`), the log of hook deliveries, the outgoing webhooks with their
+outbox (conversions/outgoing.py), and - since 2.4.0 - the people's visits
+with their address (people/visits.py, `visits` and `visit_days`), the rows
+a sync removed (`removed`) and the `test` mark on a conversion.
 
 Beside the history (`conversions.db` to move it), apart from it because it
 may hold personal data. 0640. Opened with `connect(path)` once per call
@@ -8,8 +11,15 @@ site; never shared between threads. Autocommit; a multi-statement write runs
 inside `with tx(db):`.
 
 Times are UTC, "2026-10-11T14:00:00Z". A figure not recorded is NULL.
-No address and no user agent is ever written here; an email is kept only
-in `identities`, and found again by a keyed hash (meta `hash_key`).
+A conversion row holds no address and no user agent; an email is kept only
+in `identities`, and found again by a keyed hash (meta `hash_key`). The
+address and user agent of a visit are in `visits` only, and only while the
+site keeps them (people/policy.py, `privacy.keep_ips`).
+
+A row marked `test` (`skald conversions mark-test`) is kept and listed, but
+left out of every figure; the second count leaves it out by its own SQL.
+Rows a lead-database sync takes away are copied whole into `removed` first
+(`remove`), so nothing disappears unseen; only `forget` deletes for good.
 """
 from __future__ import annotations
 
@@ -26,7 +36,7 @@ from ..config import setting
 from ..files import own_like_folder
 from . import ALIASES, FINISHED, STAGES
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 STAMP = "%Y-%m-%dT%H:%M:%SZ"
 FILE = "conversions.sqlite"
 VID_DAYS = 30
@@ -35,7 +45,7 @@ DELIVERY_DAYS = 90
 REPLAY_DAYS = 30         # a Cal.com/Typeform body's hash is kept this long
 ABANDON_HOURS = 24
 
-CONVERSIONS = """CREATE TABLE IF NOT EXISTS {name} (
+CONVERSIONS_V2 = """CREATE TABLE IF NOT EXISTS {name} (
   id INTEGER PRIMARY KEY, site TEXT NOT NULL, action TEXT NOT NULL,
   stage TEXT NOT NULL CHECK (stage IN ('started', 'completed', 'cancelled',
                                        'rescheduled', 'no_show', 'paid', 'won', 'lost')),
@@ -46,9 +56,38 @@ CONVERSIONS = """CREATE TABLE IF NOT EXISTS {name} (
   received_at TEXT NOT NULL,
   UNIQUE (site, tool, external_ref, stage));
 """
+# Schema 4: `test` (1: kept and listed, never counted), added by ALTER to an
+# older file, part of the table for a new one.
+CONVERSIONS = CONVERSIONS_V2.replace(
+    "  received_at TEXT NOT NULL,\n",
+    "  received_at TEXT NOT NULL, test INTEGER NOT NULL DEFAULT 0,\n")
 INDEXES = """
 CREATE INDEX IF NOT EXISTS conversions_at ON conversions (site, at);
 CREATE INDEX IF NOT EXISTS conversions_vid ON conversions (site, vid);
+"""
+
+# Schema 4 (2.4.0): each reader's visit with its address and user agent
+# (people/visits.py; written only while the site keeps them), the days
+# written, and the rows a sync removed, kept whole.
+PEOPLE_TABLES = """CREATE TABLE IF NOT EXISTS visits (
+  id INTEGER PRIMARY KEY, site TEXT NOT NULL, day TEXT NOT NULL, seq INTEGER NOT NULL,
+  ip TEXT NOT NULL, user_agent TEXT, start TEXT NOT NULL, end TEXT NOT NULL,
+  source TEXT, via TEXT, referrer TEXT, campaign TEXT, landing TEXT, exit TEXT,
+  country TEXT, device TEXT, browser TEXT, os TEXT, pages INTEGER NOT NULL,
+  seconds INTEGER, trail TEXT NOT NULL, posts TEXT, UNIQUE (site, day, seq));
+CREATE INDEX IF NOT EXISTS visits_ip ON visits (site, ip, start);
+CREATE INDEX IF NOT EXISTS visits_day ON visits (day);
+CREATE TABLE IF NOT EXISTS visit_days (
+  site TEXT NOT NULL, day TEXT NOT NULL,
+  state TEXT NOT NULL CHECK (state IN ('whole', 'today')),
+  visits INTEGER NOT NULL, pages INTEGER NOT NULL, written_at TEXT NOT NULL,
+  PRIMARY KEY (site, day));
+CREATE TABLE IF NOT EXISTS removed (
+  id INTEGER PRIMARY KEY, site TEXT NOT NULL, removed_at TEXT NOT NULL, why TEXT NOT NULL,
+  conversion_id INTEGER, tool TEXT, external_ref TEXT, vid TEXT, action TEXT, stage TEXT,
+  at TEXT, row TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS removed_site ON removed (site, removed_at);
+CREATE INDEX IF NOT EXISTS removed_ref ON removed (site, external_ref);
 """
 
 SCHEMA = """
@@ -81,7 +120,7 @@ CREATE INDEX IF NOT EXISTS outbox_due ON outbox (state, next_at);
 CREATE TABLE IF NOT EXISTS hook_replays (
   site TEXT NOT NULL, digest TEXT NOT NULL, received_at TEXT NOT NULL,
   PRIMARY KEY (site, digest));
-"""
+""" + PEOPLE_TABLES
 
 # Schema 2 (Phase 4b step 3): the stages "won" and "lost" (a CHECK cannot be
 # changed in place, so the table is copied into a new one), one name per
@@ -91,7 +130,7 @@ _V2_COLUMNS = ("id, site, action, stage, at, vid, external_ref, tool, source_typ
                "first_source, campaign, landing, country, device, first_touch_at, "
                "visits_before, identity_id, received_at")
 UPGRADES: dict[int, list[str]] = {2: [
-    CONVERSIONS.format(name="conversions_v2"),
+    CONVERSIONS_V2.format(name="conversions_v2"),
     f"INSERT INTO conversions_v2 ({_V2_COLUMNS}) SELECT {_V2_COLUMNS} FROM conversions",
     "DROP TABLE conversions",
     "ALTER TABLE conversions_v2 RENAME TO conversions",
@@ -105,7 +144,10 @@ UPGRADES: dict[int, list[str]] = {2: [
 ],
     # 3: a site's journeys by time (pages before converting, the audit's
     # recount): a range in one site, not every journey of the site.
-    3: ["CREATE INDEX IF NOT EXISTS journeys_site_at ON journeys (site, at)"]}
+    3: ["CREATE INDEX IF NOT EXISTS journeys_site_at ON journeys (site, at)"],
+    # 4: the test mark, the people's visits, the removed rows (PEOPLE_TABLES).
+    4: ["ALTER TABLE conversions ADD COLUMN test INTEGER NOT NULL DEFAULT 0",
+        *[sql.strip() + ";" for sql in PEOPLE_TABLES.split(";\n") if sql.strip()]]}
 
 # The SCHEMA this code set a file up with (see accounts/db.py): a file
 # stamped with it at SCHEMA_VERSION skips the script on connect.
@@ -188,10 +230,22 @@ def _upgrade(db: sqlite3.Connection, path: Path | None = None) -> None:
     with tx(db):
         for version in range((found or SCHEMA_VERSION) + 1, SCHEMA_VERSION + 1):
             for sql in UPGRADES.get(version, []):
+                if _have_column(db, sql):
+                    continue
                 db.execute(sql)
         db.execute("INSERT INTO meta (key, value) VALUES ('schema_version', ?) "
                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                    (str(SCHEMA_VERSION),))
+
+
+def _have_column(db: sqlite3.Connection, sql: str) -> bool:
+    """An "ALTER TABLE t ADD COLUMN c" whose column is there already (a file
+    stamped older than it is): skipped, so the upgrade still runs."""
+    words = sql.split()
+    if len(words) < 6 or [w.upper() for w in words[:2] + words[3:5]] != \
+            ["ALTER", "TABLE", "ADD", "COLUMN"]:
+        return False
+    return words[5] in {r[1] for r in db.execute(f"PRAGMA table_info({words[2]})")}
 
 
 def _copy(db: sqlite3.Connection, target: Path) -> None:
@@ -261,10 +315,58 @@ def record_conversion(db: sqlite3.Connection, rec: dict) -> bool:
             return False
         identity_id = _identity(db, rec["site"], rec.get("identity"))
         values = [rec.get(c) for c in COLUMNS]
+        # A later stage of a booking or lead marked test is test too.
+        test = db.execute("SELECT MAX(test) FROM conversions WHERE site = ? AND tool = ? AND "
+                          "external_ref = ?", (rec["site"], rec["tool"], rec["external_ref"])
+                          ).fetchone()[0] or 0
         db.execute(f"INSERT INTO conversions (site, {', '.join(COLUMNS)}, identity_id, "
-                   f"received_at) VALUES ({', '.join('?' * (len(COLUMNS) + 3))})",
-                   [rec["site"], *values, identity_id, rec.get("received_at") or stamp()])
+                   f"received_at, test) VALUES ({', '.join('?' * (len(COLUMNS) + 4))})",
+                   [rec["site"], *values, identity_id, rec.get("received_at") or stamp(),
+                    int(test)])
     return True
+
+
+def remove(db, row_id: int, why: str) -> int:
+    """Delete one conversion, its whole row (and its identity's email and
+    name, when it had one) copied into `removed` first with when and why:
+    a sync that takes a row away leaves it visible. 1, or 0 when gone."""
+    import json
+    row = db.execute("SELECT c.*, i.email AS email, i.name AS name FROM conversions c "
+                     "LEFT JOIN identities i ON i.id = c.identity_id WHERE c.id = ?",
+                     (row_id,)).fetchone()
+    if row is None:
+        return 0
+    kept = dict(row)
+    with tx(db):
+        db.execute("INSERT INTO removed (site, removed_at, why, conversion_id, tool, "
+                   "external_ref, vid, action, stage, at, row) VALUES "
+                   "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                   (kept["site"], stamp(), str(why)[:200], kept["id"], kept["tool"],
+                    kept["external_ref"], kept["vid"], kept["action"], kept["stage"],
+                    kept["at"], json.dumps(kept, sort_keys=True)))
+        db.execute("DELETE FROM conversions WHERE id = ?", (row_id,))
+    return 1
+
+
+def mark_test(db, site: str, ids, on: bool = True) -> list[dict]:
+    """Mark conversions (by id) as test, or not (`on` False). Every row of
+    the same booking or lead (site, tool, external ref) is marked with it,
+    so its later stages are test too. The rows changed: {id, tool,
+    external_ref, action, stage, at}. Raises ValueError for an id that is
+    not this site's."""
+    out = []
+    with tx(db):
+        for cid in ids:
+            row = db.execute("SELECT tool, external_ref FROM conversions WHERE id = ? AND "
+                             "site = ?", (int(cid), site)).fetchone()
+            if row is None:
+                raise ValueError(f"no conversion {cid} on {site}")
+            for r in db.execute("SELECT id, tool, external_ref, action, stage, at FROM "
+                                "conversions WHERE site = ? AND tool = ? AND external_ref = ? "
+                                "AND test != ?", (site, row[0], row[1], int(on))).fetchall():
+                db.execute("UPDATE conversions SET test = ? WHERE id = ?", (int(on), r[0]))
+                out.append(dict(r))
+    return out
 
 
 def _identity(db, site: str, identity: dict | None) -> int | None:
@@ -341,6 +443,7 @@ def abandoned(db, site: str, since: str, until: str, hours: float = ABANDON_HOUR
     starts = _rows(db, "SELECT c.*, i.email AS email FROM conversions c "
                        "LEFT JOIN identities i ON i.id = c.identity_id "
                        "WHERE c.site = ? AND c.stage = 'started' AND c.vid IS NOT NULL "
+                       "AND c.test = 0 "
                        "AND c.at >= ? AND c.at < ? AND c.at <= ? ORDER BY c.at",
                    (site, since, until, cutoff))
     out = []
@@ -348,7 +451,8 @@ def abandoned(db, site: str, since: str, until: str, hours: float = ABANDON_HOUR
         end = stamp(parse(row["at"]) + timedelta(hours=hours))
         done = db.execute(f"SELECT 1 FROM conversions WHERE site = ? AND (vid = ? OR "
                           f"(? IS NOT NULL AND identity_id = ?)) AND "
-                          f"action = ? AND stage IN ({marks}) AND at >= ? AND at <= ?",
+                          f"action = ? AND stage IN ({marks}) AND at >= ? AND at <= ? "
+                          f"AND test = 0",
                           (site, row["vid"], row["identity_id"], row["identity_id"],
                            row["action"], *FINISHED, row["at"], end)).fetchone()
         if not done:
@@ -362,7 +466,7 @@ def journey_of(db, site: str, vid: str) -> dict:
             "pages": _rows(db, "SELECT at, path, source_type FROM journeys "
                                "WHERE site = ? AND vid = ? ORDER BY at", (site, vid)),
             "conversions": _rows(db, "SELECT action, stage, at, tool, source_type, campaign, "
-                                     "landing, country, device FROM conversions "
+                                     "landing, country, device, test FROM conversions "
                                      "WHERE site = ? AND vid = ? ORDER BY at, id",
                                  (site, vid))}
 
@@ -373,7 +477,8 @@ def day_counts(db, site: str, tz, first: date, last: date,
     first..last in `tz`. Days with none are left out."""
     lo = datetime.combine(first, time(0), tzinfo=tz)
     hi = datetime.combine(last + timedelta(days=1), time(0), tzinfo=tz)
-    sql = "SELECT at, action, stage FROM conversions WHERE site = ? AND at >= ? AND at < ?"
+    sql = ("SELECT at, action, stage FROM conversions WHERE site = ? AND at >= ? AND at < ? "
+           "AND test = 0")
     args = [site, stamp(lo), stamp(hi)]
     if tools:
         sql += f" AND tool IN ({','.join('?' * len(tools))})"
@@ -399,12 +504,15 @@ def prune(db, today: date, vid_days: int = VID_DAYS,
     with tx(db):
         conv = db.execute("DELETE FROM conversions WHERE at < ?",
                           (edge(retention_days),)).rowcount
+        db.execute("DELETE FROM removed WHERE removed_at < ?", (edge(retention_days),))
         old = db.execute("DELETE FROM journeys WHERE at < ?", (edge(retention_days),)).rowcount
         short = db.execute("DELETE FROM journeys WHERE at < ? AND NOT EXISTS ("
                            "SELECT 1 FROM conversions c WHERE c.site = journeys.site "
                            "AND c.vid = journeys.vid)", (edge(vid_days),)).rowcount
         ids = db.execute("DELETE FROM identities WHERE id NOT IN (SELECT identity_id FROM "
-                         "conversions WHERE identity_id IS NOT NULL)").rowcount
+                         "conversions WHERE identity_id IS NOT NULL) AND id NOT IN (SELECT "
+                         "CAST(json_extract(row, '$.identity_id') AS INTEGER) FROM removed "
+                         "WHERE json_extract(row, '$.identity_id') IS NOT NULL)").rowcount
         dels = db.execute("DELETE FROM deliveries WHERE received_at < ?",
                           (edge(DELIVERY_DAYS),)).rowcount
         db.execute("DELETE FROM hook_replays WHERE received_at < ?", (edge(REPLAY_DAYS),))
@@ -416,7 +524,8 @@ def forget(db, site: str | None, email: str | None = None, vid: str | None = Non
            external_ref: str | None = None, dry_run: bool = False) -> dict:
     """Delete everything for an email, a visitor ID or a lead (external ref):
     its conversions, the journeys of every visitor ID they carry, the other
-    conversions of those IDs, its identity and its delivery rows. Counts.
+    conversions of those IDs, the removed rows of any of them, its identity
+    and its delivery rows. Counts.
     The hashes in hook_replays stay: they hold nothing of the person."""
     where_site, args_site = ("site = ? AND ", [site]) if site else ("", [])
     with tx(db):
@@ -433,6 +542,7 @@ def forget(db, site: str | None, email: str | None = None, vid: str | None = Non
         if external_ref:
             refs.add(external_ref)
         conv: set[int] = set()
+        gone: set[int] = set()
         for _ in range(3):        # IDs lead to conversions lead to more IDs
             before = (len(conv), len(vids), len(ids))
             for column, values in (("identity_id", ids), ("vid", vids),
@@ -449,8 +559,16 @@ def forget(db, site: str | None, email: str | None = None, vid: str | None = Non
                         refs.add(row[3])
             if (len(conv), len(vids), len(ids)) == before:
                 break
+        for row in db.execute(f"SELECT id, vid, external_ref, row FROM removed WHERE "
+                              f"{where_site}1 = 1", args_site).fetchall():
+            ident = _row_identity(row[3])
+            if row[1] in vids or row[2] in refs or (ident is not None and ident in ids):
+                gone.add(row[0])
+                if row[1]:
+                    vids.add(row[1])
         counts = {"conversions": len(conv), "identities": len(ids), "journeys": 0,
-                  "deliveries": 0, "vids": sorted(vids), "refs": sorted(refs)}
+                  "deliveries": 0, "removed": len(gone), "vids": sorted(vids),
+                  "refs": sorted(refs)}
         for v in vids:
             counts["journeys"] += db.execute(
                 f"SELECT COUNT(*) FROM journeys WHERE {where_site}vid = ?",
@@ -467,6 +585,17 @@ def forget(db, site: str | None, email: str | None = None, vid: str | None = Non
             for r in refs:
                 db.execute(f"DELETE FROM deliveries WHERE {where_site}external_ref = ?",
                            [*args_site, r])
+            for rid in gone:
+                db.execute("DELETE FROM removed WHERE id = ?", (rid,))
             for i in ids:
                 db.execute("DELETE FROM identities WHERE id = ?", (i,))
     return counts
+
+
+def _row_identity(text) -> int | None:
+    import json
+    try:
+        got = json.loads(text).get("identity_id")
+    except (TypeError, ValueError, AttributeError):
+        return None
+    return int(got) if isinstance(got, int) else None

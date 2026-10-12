@@ -122,7 +122,7 @@ export function detail(m, row, ours) {
     body: [
       h("div", { class: "dw-cols" }, sec("The request", request), sec("Who asked", who)),
       h("div", { class: "dw-cols" }, sec("How it was counted", counted, ownPart ? sec("Our own traffic", ownPart) : null), sec("Where it came from", from)),
-      h("p", { class: "note" }, "Addresses are shown on this private page only, read from the recent log; they are never stored in history."),
+      h("p", { class: "note" }, "Addresses are shown on this private page only. The totals in history hold none; a site that keeps IP addresses keeps each visit with its address for the person search (Settings > Data retention > People)."),
     ],
     footer: [h("button", { type: "button", class: "btn", onclick: () => d.close() }, "Close"), showAll],
   });

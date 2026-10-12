@@ -54,7 +54,19 @@ skald token revoke ab12cd34
 The token is printed once, when it is made; only a SHA-256 of it is kept
 (`tokens.json` beside the history, mode 0640). A token without `--private`
 cannot read `requests` or `ai_activity`, the two files that hold visitor
-addresses. A token never changes anything.
+addresses, nor look a person up. A token never changes anything.
+
+**A person (2.4.0).** `GET /traffic-api/v1/<site>/people?q=Q` with a private
+token (`--private` / `read_private`; `tokens.PRIVATE` holds `people`) answers
+what the page's search answers (`people/lookup.py`): for one IP address,
+email, visitor ID (`skv_...`) or lead id, every visit kept with the address,
+the last 6 hours of requests, the lead database's rows (spam, duplicates and
+test too), every conversion (test, cancelled and removed too), the visitor
+IDs' journeys, the visits that sent a form within 2 minutes before a lead
+(`candidates`, matched by time, not certain), the linked `keys` and the days
+withheld. 400 for a value that is none of those. Each call is written to the
+audit log (accounts) or `privacy.log` (basic mode) by its kind and a hash
+prefix, never the value. A listing, not a figure.
 
 ### Sessions mode (`access.mode: sessions`, docs/ACCOUNTS.md)
 
@@ -71,7 +83,7 @@ skald token revoke ab12cd34
 | Scope | Lets the token |
 | --- | --- |
 | `read` | read the data files at `/traffic-api/v1/...` |
-| `read_private` | also read `requests` and `ai_activity`, the files with addresses |
+| `read_private` | also read `requests` and `ai_activity`, the files with addresses, and look a person up (`people?q=`, MCP `find_person`) |
 | `mcp` | use the MCP endpoint `/traffic-mcp` (MCP.md) |
 | `ingest` | add log lines to one site at `/traffic-ingest/<site>` (INGEST.md); it reads nothing |
 

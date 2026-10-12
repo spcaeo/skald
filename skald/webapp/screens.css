@@ -317,6 +317,11 @@ td .confirm { flex-wrap: wrap; justify-content: flex-end; }
 .integ .acts { margin-top: 8px; }
 .integ details { margin-top: 8px; }
 .integ summary { cursor: pointer; font-size: 12.5px; color: var(--ink-2); }
+.tf.warn { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, var(--rule)); }
+.doc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.doc-list li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: baseline; font-size: 13.5px; }
+.doc-list li p { margin: 0; overflow-wrap: anywhere; }
+.doc-list .fix { grid-column: 2; color: var(--ink-2); font-size: 12.5px; }
 
 /* Conversions: the set-up list and the anonymous timelines (tabs/conversions.js). */
 .conv-setup { margin: 6px 0 0; padding-left: 18px; }

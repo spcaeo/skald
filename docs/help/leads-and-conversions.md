@@ -1,6 +1,6 @@
 # Leads and conversions
 
-Where Skald's leads and conversions come from, what the Leads and Conversions pages show, and what "abandoned" means. Every figure here is a count: no names, emails or messages.
+Where Skald's leads and conversions come from, what the Leads and Conversions pages show, what "abandoned" means, and how to see every lead and conversion the figures leave out. The pages show counts; a person's own leads, emails and visits are in the person search (owners and admins).
 
 ## Two pages, two jobs
 
@@ -26,9 +26,9 @@ There are four sources. You can use one or all of them.
 
 If your website keeps its leads in its own database, the person who runs your Skald server can point Skald at it. Skald opens it read-only and never changes it. Every two minutes it reads the leads that changed.
 
-- Leads marked `spam` or `duplicate` are left out of every count, and counted apart.
+- Leads marked `spam` or `duplicate` are left out of every count, and counted apart. They are listed in full under **Left out** on the Leads page.
 - A lead's status (new, contacted, qualified, won, lost) is read as it is now. When your team changes a status, past days change with it.
-- Names and emails stay in your website's admin. Skald does not show them.
+- Names and emails are read and kept only when **Leads' names and emails** is **full** (Settings > Data retention > People). Owners and admins then see them in the person search and the left-out list. See [Privacy](privacy.md).
 
 ### Your site's lead push
 
@@ -68,7 +68,7 @@ Open [Leads](#leads). The date range at the top governs most of the page.
 - One figure per kind: Sign-ups, Contact forms, Early access, Demo opened, Demos booked.
 - **Leads per 100 visitors**: leads against the visitors of the same verified days. It is given only over at least 10 visitors.
 
-Under them, a line says how many spam and duplicate leads were left out.
+Under them, a line says how many spam and duplicate leads were left out. Select **Show them** to see each one: when it came, its kind, page, first and last source, and its status. Leads marked test are listed there too. Owners and admins also see the email and name, when your site keeps them.
 
 ### Per day, by kind
 
@@ -161,7 +161,29 @@ For the last 30 days: the share of converting browsers that saw each page before
 
 ### Latest conversions
 
-The latest 50 completed conversions, one per browser (or per lead without one). Each shows its visits by day, the pages it read and its steps, for example "Demo started, then completed". No name, email or visitor ID is shown.
+The latest 50 completed conversions, one per browser (or per lead without one). Each shows its visits by day, the pages it read and its steps, for example "Demo started, then completed". No name, email or visitor ID is shown here: owners and admins find the person with the search at the top.
+
+### Cancelled, removed and test
+
+Nothing is hidden. At the foot of the page, three buttons list, in full, the conversions the figures above do not show as completed:
+
+- **Cancelled and no-show**: bookings the booking tool reported as cancelled, or as a no-show.
+- **Removed**: rows a lead-database sync took away. For example, the lead was deleted, or marked spam. Each row is kept whole, with when and why.
+- **Marked test**: conversions the server admin marked as a test. They are kept and listed, and never counted.
+
+Each one shows its row and, when it had a visitor ID, the pages it read.
+
+## Marking a conversion as a test
+
+A test booking or form should not count. The server admin marks it on the server:
+
+1. `skald conversions list example.com` shows the latest conversions with their numbers.
+2. `skald conversions mark-test example.com 6 7` marks conversions 6 and 7 as test. Every stage of the same booking or lead is marked with it.
+3. To count one again: `skald conversions mark-test example.com 6 --unmark`.
+
+A test conversion is left out of every figure, and of the second count too. It stays listed under **Marked test**, and in the **Left out** list on the Leads page. Each change is written to the audit log.
+
+For a lead in your website's lead database, mark it spam there, or give it the status `test`.
 
 ## What "abandoned" means
 
@@ -186,7 +208,7 @@ Skald ties a conversion to a journey only through an **anonymous visitor ID**: a
 - For other tools, the ID is passed in a hidden field or a metadata value. [Webhooks](webhooks.md) says how for each tool.
 - Your site's lead push and lead database can carry the same ID.
 
-Skald never matches by IP address, and never links a new ID to an old one. A visitor ID is a *browser*, not a person: one person on a phone and a laptop is two browsers.
+The figures never match by IP address, and never link a new ID to an old one. A visitor ID is a *browser*, not a person: one person on a phone and a laptop is two browsers. The person search can show, apart from the figures, the visits that sent a form at a lead's time: a match by time, never certain. See [Privacy](privacy.md).
 
 > Visitor IDs are off by default. The person who runs your Skald server turns them on per site. [Integrations](#settings/integrations) says whether they are on. Your privacy notice must say so, and some places need consent first. See [Privacy](privacy.md).
 
@@ -202,6 +224,10 @@ Skald's goals are not set on the Conversions page. A goal is a page event, such 
 - **Not recorded**: days before a source was set up are not recorded, never zero.
 - **Too few to say**: no rate is given over fewer than 10.
 
+## Finding one person
+
+Owners and admins can type an IP address, an email, a lead's number or a visitor ID in the search box at the top (or **Ctrl K**, **Find a person**). It shows that person's visits, leads and conversions, spam, test, cancelled and removed ones too, linked together. Each search is written to the audit log. See [Privacy](privacy.md).
+
 ## Removing a person's data
 
-To delete one person's conversions (for a privacy request), ask the person who runs your Skald server. They can delete by email, visitor ID or lead reference.
+To delete one person's data (for a privacy request), ask the person who runs your Skald server. They run `skald forget` with the email, IP address, visitor ID or lead reference. It deletes their conversions, the removed rows, their name and email, and the visits kept with their address.

@@ -4,8 +4,10 @@
 // secret (Stripe, HubSpot), pasted here write-only; a signed test event;
 // Remove, which deletes the secret; the last 50 deliveries),
 // and outgoing webhooks: Skald posts a signed summary of each conversion to
-// the owner's CRM, Zapier or Slack. For admins; install admins may pick any
-// site of the install. GET/POST <page>/integrations (integrations_api.py).
+// the owner's CRM, Zapier or Slack. On top, the doctor's lines for the
+// integrations (doctor.integration_checks): each road working, off, or what
+// to fix; each hook's state in words; the Calendly and Cal.com event types to
+// keep. For admins; install admins may pick any site of the install. GET/POST <page>/integrations (integrations_api.py).
 
 import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
@@ -24,6 +26,7 @@ const EVENT_WORDS = {
   "ai.reading_changed": "an AI assistant started or stopped reading a page, or its likely visits jumped or vanished",
   "lead.lost": "a lead marked lost",
 };
+const STATE = { OK: ["on", "OK"], "NEEDS ATTENTION": ["warn", "Needs attention"], OFF: ["off", "Off"] };
 const OUTCOME = { recorded: "kept", duplicate: "already had it", ignored: "not a conversion", test: "test, read and not kept", test_failed: "test refused", bad_signature: "bad signature", bad_body: "not readable", too_large: "too large", no_length: "no length", rate_limited: "too many", error: "error" };
 
 // A secret just made: kept in this page's memory only, until it is copied.
@@ -71,9 +74,33 @@ function scriptBox(r) {
       : "Anonymous visitor IDs are off for this site (beacon.visitor_ids in the config): the tag sends events, but journeys and abandoned actions need the IDs on."));
 }
 
+// The doctor's lines for this site's roads in: OK, needs attention (with the fix) or off.
+function statusBox(r) {
+  const list = r.status || [];
+  if (!list.length) return null;
+  const bad = list.filter((x) => x.state === "NEEDS ATTENTION").length;
+  return h("section", { class: "s" }, h("h2", null, "Status"),
+    h("p", { class: "sub" }, bad ? `${bad} thing${bad === 1 ? "" : "s"} to fix. The server's doctor command lists the same, and more.` : "Every road that is set up is working. The server's doctor command checks the rest of the install."),
+    h("ul", { class: "doc-list" }, list.map((x) => {
+      const [cls, word] = STATE[x.state] || ["off", x.state];
+      return h("li", null, h("span", { class: `tf ${cls}` }, word), h("p", null, h("strong", null, `${x.part}: `), x.says),
+        x.fix && x.state !== "OK" ? h("p", { class: "fix" }, `Fix: ${x.fix}`) : null);
+    })));
+}
+
+// What a test said a real delivery would keep, in words.
+function testWords(name, r) {
+  const a = r.answer || {};
+  if (r.status !== 200) return `${name}: the receiver answered ${r.status}: ${a.error || "refused"}.`;
+  const kept = a.would_keep ?? a.records ?? 0;
+  const one = (a.read || [])[0];
+  const facts = one ? ` (${[one.action, one.stage, one.source_type, one.country, one.device].filter(Boolean).join(", ")}; visitor ID ${one.vid ? "kept" : "none"})` : "";
+  return `${name}: the test was signed, received and read. A real one would keep ${kept} of ${a.records ?? 0}${facts}. Nothing was kept.${(a.notes || []).length ? ` Note: ${a.notes.join("; ")}.` : ""}`;
+}
+
 export default function integrations() {
   const title = head1("Integrations", "The script tag, incoming hooks and outgoing webhooks.");
-  if (!sessions()) return [title, h("div", { class: "state" }, h("div", null, "Integrations are set up here with accounts. On this server, use skald hooks secret and docs/INTEGRATIONS.md."))];
+  if (!sessions()) return [title, h("div", { class: "state" }, h("div", null, "Integrations are set up here with accounts. On this server, use skald hooks secret, skald doctor and docs/INTEGRATIONS.md."))];
   if (isViewer()) return [title, h("div", { class: "state" }, h("div", null, `${VIEWER} Integrations are for admins.`))];
   const body = h("div", null, h("p", { class: "empty" }, "Loading the integrations..."));
   const msg = status();
@@ -122,21 +149,43 @@ export default function integrations() {
         const r = await call("integrations/test", { site: chosen, tool: t.tool });
         test.disabled = false;
         if (!r.ok) { msg.say(why(r)); return; }
-        const a = r.answer || {};
-        msg.say(r.status === 200 ? `${t.name}: the test was signed, received and read (${a.records ?? 0} record${a.records === 1 ? "" : "s"}); nothing was kept.` : `${t.name}: the receiver answered ${r.status}: ${a.error || "refused"}.`, r.status === 200);
+        msg.say(testWords(t.name, r), r.status === 200);
         reload();
       });
       acts.replaceChildren(...[make, test, rm].filter(Boolean));
     };
     drawActs();
-    const badge = h("span", { class: `tf ${t.set ? "on" : "off"}` }, t.set ? (t.where === "env" ? `set (environment ${t.env})` : "secret set") : "no secret");
+    const badge = h("span", { class: `tf ${t.attention ? "warn" : t.set ? "on" : "off"}` }, t.set ? (t.where === "env" ? `set (environment ${t.env})` : "secret set") : "no secret");
+    const state = t.words ? h("p", { class: t.attention ? "msg err" : "muted" }, `${t.words.replace(/^./, (c) => c.toUpperCase())}.${t.attention && t.fix ? ` ${t.fix}` : ""}`) : null;
     const log = h("details", null, h("summary", null, `Last deliveries (${t.deliveries.length})`),
       deliveriesTable(t.deliveries, `Deliveries from ${t.name}`, [
         ["When", (d) => when(d.received_at, ""), "muted"], ["Answer", (d) => String(d.http_status), "n"],
         ["Outcome", (d) => OUTCOME[d.outcome] || d.outcome], ["Detail", (d) => d.error || "", "muted"]]));
     return h("div", { class: "sheet integ" }, h("h3", null, t.name, " ", badge),
-      t.problem ? h("p", { class: "msg err" }, t.problem) : null, copyable(t.url, `the address for ${t.name}`),
-      t.paste && t.rotatable ? pasteForm(t) : null, acts, log);
+      t.problem ? h("p", { class: "msg err" }, t.problem) : null, state, copyable(t.url, `the address for ${t.name}`),
+      t.paste && t.rotatable ? pasteForm(t) : null, t.event_types ? typesForm(t) : null, acts, log);
+  }
+
+  // Calendly and Cal.com: keep only this site's event types (one account often books for several businesses).
+  function typesForm(t) {
+    const e = t.event_types;
+    const cal = t.tool === "calendly";
+    const box = h("textarea", { rows: "2", maxlength: "4000", autocomplete: "off", spellcheck: "false", disabled: !e.editable, placeholder: cal ? "https://api.calendly.com/event_types/..., or a booking-page slug such as demo" : "an event type id such as 1234, or a slug such as 30min" });
+    box.value = (e.value || []).join("\n");
+    const save = h("button", { type: "submit", class: "btn", disabled: !e.editable }, "Save event types");
+    const hint = `${e.value?.length ? `Keeps only these ${e.value.length}; any other event type is answered and not kept.` : "Empty: every event is kept."} One per line. ${cal ? "Calendly sends the event type's URI and its name, not the page's slug: a slug is compared with the name written as a slug (\u201cProduct demo\u201d is product-demo). The delivery log names each event type it left out." : "Cal.com sends the event type's id and slug."}${e.source === "config" ? " Now set in the server's config; saving here wins over it." : ""}${e.editable ? "" : ` ${e.reason}`}`;
+    const form = h("form", { class: "af-col", novalidate: true }, field(`Only these ${t.name} event types`, box, hint), h("div", null, save));
+    form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      save.disabled = true;
+      const types = box.value.split(/[\s,]+/).map((x) => x.trim()).filter(Boolean);
+      const r = await call("integrations/hooks/types", { site: chosen, tool: t.tool, types });
+      save.disabled = false;
+      if (!r.ok) { msg.say(why(r)); return; }
+      msg.say(types.length ? `${t.name}: only ${types.length} event type${types.length === 1 ? "" : "s"} kept from now on.` : `${t.name}: every event type is kept.`, true);
+      reload();
+    });
+    return form;
   }
 
   // A signing secret the tool made (Stripe, HubSpot; Calendly, Cal.com and Typeform
@@ -213,6 +262,7 @@ export default function integrations() {
     body.replaceChildren(
       pick ? h("section", { class: "s" }, field("Site", pick, r.install_admin ? "As an install admin you may set up any site." : "The sites of your organisation.")) : "",
       r.locked ? h("p", { class: "msg err" }, r.locked) : "",
+      statusBox(r) || "",
       scriptBox(r),
       h("section", { class: "s" }, h("h2", null, "Incoming hooks"),
         h("p", { class: "sub" }, "Your site's server and the tools you use tell Skald what happened: a booking, a payment, a form. Give each tool its address and its secret; Stripe and HubSpot make their own secret, which you paste here. The Webhooks guide says where in each tool."),

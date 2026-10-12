@@ -51,7 +51,8 @@ nothing): /traffic-auth/* signs people in (auth_api.py, with nginx's
 auth_request check), <page>/team, account, tokens and audit are the
 Settings routes (team_api.py), <page>/settings and settings/* the
 settings pages (settings_api.py), <page>/integrations and integrations/*
-Settings > Integrations (integrations_api.py), /me adds name, org, csrf, mode, install_admin
+Settings > Integrations (integrations_api.py), <page>/people and people/* the person
+lookup and the left-out lists (people/api.py), /me adds name, org, csrf, mode, install_admin
 and totp_on, every POST but refresh also needs X-Skald-CSRF, an owner counts
 as an admin, and /traffic-api/ checks tokens in accounts.sqlite. Every other
 /traffic/ route reads the person from the session cookie itself, never from
@@ -91,6 +92,7 @@ from . import access, auth_api, bot_policy_api, helper_sessions, settings_api, t
 from . import ingest, integrations_api, sites_api, updates
 from .saas import billing_api, signup_api
 from .mcp import http as mcp_http
+from .people import api as people_api
 
 MIN_GAP = 15          # seconds between two runs
 RUN_TIMEOUT = 90      # seconds a run may take before it is abandoned
@@ -495,6 +497,9 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
                 return helper_sessions.listing(self, out, self.who)
             if bot_policy_api.is_policy(self.path):
                 return bot_policy_api.handle(self, False, config, allowed, same_origin)
+            if people_api.is_people(self.path):         # the person lookup (2.4.0)
+                return people_api.handle(self, config, live_dir, history_path, config_path,
+                                         sessions_mode)
             if ours_action(self.path) == "list":
                 return self._ours("list")
             m = route(ME_PATH, self.path)
@@ -531,6 +536,8 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
                                        m.group("name"))
             if not ok:
                 return self._json(401, {"ok": False, "error": why})
+            if m.group("name") == "people":             # read_private (tokens.PRIVATE)
+                return people_api.token(self, m, config, live_dir, history_path, config_path)
             return self._file(data_file(out, m.group("site"), m.group("view"),
                                         m.group("name")))
 

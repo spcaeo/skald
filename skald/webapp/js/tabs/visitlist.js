@@ -6,7 +6,7 @@
 
 import { openDrawer } from "../drawer.js";
 import { when, label as tzLabel } from "../tz.js";
-import { h, n, duration, pct1, weekday } from "../ui.js";
+import { h, n, duration, share, weekday } from "../ui.js";
 import { mark } from "../icons.js";
 import { label as named, link } from "../drill.js";
 import { table } from "../table.js";
@@ -209,7 +209,7 @@ export function entryTable(obj, { keep, total, r }) {
     { key: "k", label: "Page", path: true, cls: "c-entry", fmt: (v) => link("landing", v), csv: (x) => x.k },
     { key: "v", label: "Visits", num: true },
     { key: "share", label: "Share", num: true, cls: "c-share", sort: (x) => x.v, fmt: (_, x) => h("span", { class: "v-share" },
-      h("span", { class: "v-bar", "aria-hidden": "true" }, h("i", { style: { width: `${(x.v / max) * 100}%` } })), h("span", null, pct1(x.v, sum))),
-    csv: (x) => (sum ? (x.v / sum).toFixed(4) : "") },
+      h("span", { class: "v-bar", "aria-hidden": "true" }, h("i", { style: { width: `${(x.v / max) * 100}%` } })), h("span", null, share(x.v, sum))),
+    csv: (x) => (share(x.v, sum) ? (x.v / sum).toFixed(4) : "") },
   ], { caption: "Entry pages", rows: list, file: fileName("entry-pages", r), limit: 12, empty: "No landing page recorded." });
 }

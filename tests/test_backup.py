@@ -97,6 +97,9 @@ class TestCopy(unittest.TestCase):
 class TestCommand(unittest.TestCase):
     def setUp(self):
         self.box = Sandbox(mail=False)
+        # No address kept, so collect makes no conversions file (2.4.0 keeps
+        # visits with addresses there by default): the tests make their own.
+        self.box.config.write_text(self.box.config.read_text() + "privacy:\n  keep_ips: false\n")
         self.box.log(day_lines(date(2026, 10, 6), 3))
         self.assertEqual(self.box.run("--today", "2026-10-07", "collect")[0], 0)
 

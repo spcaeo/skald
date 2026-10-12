@@ -449,3 +449,5 @@ def _lead_figures(e) -> bool:
 
 
 from . import tools_more  # noqa: E402,F401 - registers the other tools
+
+from . import tools_people  # noqa: E402,F401 - registers find_person (2.4.0)

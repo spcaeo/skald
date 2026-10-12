@@ -541,10 +541,11 @@ never up.
 - **Rule:** addresses may be shown for machines (AI crawlers, search engines, scanners, our own labelled traffic) on password-protected pages. Never for people, including people who followed a citation (the "cited" tier is people).
 - **Test:** the AI activity feed carries an address only for answer-engine rows, never for cited rows; an export of readers carries none.
 - **Status:** This release (latest AI activity with address) - must implement this rule.
+- **Changed (2.4.0, owner 2026-10-12):** a site that keeps IP addresses (`privacy.keep_ips`) keeps each person's visit with its address for `privacy.keep_days` (395), shown to owners and admins in the person search only, every search audit-logged. Off, the rule above stands. An install upgraded from before 2.4.0 starts with it off.
 
 ### J2. Journeys can identify
 - **Wrong:** a journey with a rare country, device and landing page at 03:12 can point to one person.
-- **Count:** journeys keep times to the minute, no address, no agent, 7 days (This release). Do not export journeys with country for countries with fewer than 5 readers in the period.
+- **Count:** journeys keep times to the minute, no address, no agent, 7 days (This release). Do not export journeys with country for countries with fewer than 5 readers in the period. Since 2.4.0 the visits kept with their address (`visits` in conversions.sqlite) identify by design; they are never exported, only shown in the person search.
 
 ### J3. The keyed 30-day returning-visitor hash
 - **Wrong:** a hash of address + agent kept 30 days is pseudonymous personal data (GDPR, PIPEDA). If the key leaks, addresses can be recovered by brute force (the IPv4 space is small).
@@ -555,7 +556,7 @@ never up.
 ### J4. Deletion and access requests
 - **Wrong:** someone asks "delete what you have on me". Logs hold their address for 14 days; the 30-day hash may hold a pseudonym; the CMS holds the lead.
 - **Count:** documented procedure: delete from the CMS; logs age out in 14 days (or are edited); returning hashes age out in 30 days; aggregates hold nothing personal.
-- **Status:** Gap, ROADMAP P0-7.
+- **Status:** Built. `skald forget --ip` removes the address from the private files, its hashes and its kept visits; `--email`, `--vid` and `--lead` remove the conversions, removed rows, name and email. The person search answers an access request (what is kept about this address or email).
 
 ### J5. Personal data in URLs
 - **Count:** paths only, query values dropped except attribution keys (C5). A path containing an `@` is stored as "(path with personal data)".

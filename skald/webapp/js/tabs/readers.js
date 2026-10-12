@@ -3,7 +3,7 @@
 // one does not), and each is stored on its own, so a filter narrows the list
 // it belongs to and is never crossed with another.
 
-import { h, n, change, pct1 } from "../ui.js";
+import { h, n, change, share } from "../ui.js";
 import { color, figures, pathMatch, ranked, previousOf, total, coverage, chartDays } from "../data.js";
 import { spark } from "../charts.js";
 import { table } from "../table.js";
@@ -164,5 +164,5 @@ function meter(obj, whole, pick) {
     h("div", { class: "meter", role: "img", "aria-label": rows.map(([k, v]) => `${k} ${n(v)}`).join(", ") },
       rows.map(([k, v]) => h("i", { style: { flexGrow: String(v), background: DEVICE_TONES[k] || "var(--ink-3)", opacity: pick && pick !== k ? ".3" : "1" } }))),
     h("ul", { class: "legend", style: { marginTop: "10px" } }, rows.map(([k, v]) => h("li", null,
-      h("span", { class: "sw", style: { background: DEVICE_TONES[k] || "var(--ink-3)" } }), link("device", k), ` ${n(v)} (${pct1(v, whole)})`))));
+      h("span", { class: "sw", style: { background: DEVICE_TONES[k] || "var(--ink-3)" } }), link("device", k), ` ${n(v)}${share(v, whole) ? ` (${share(v, whole)})` : ""}`))));
 }

@@ -1,4 +1,4 @@
-"""Deletion requests: `skald forget --ip X`.
+"""Deletion requests: `skald forget --ip X` (and --email, --vid, --lead).
 
 What skald keeps about one address, and what forget does to each:
 
@@ -11,6 +11,8 @@ What skald keeps about one address, and what forget does to each:
     or a crawler's name - so forget computes it for every family the
     package can produce and deletes the rows that match. Without the key no
     hash can be matched, and forget says so;
+  * the visits kept with the address (people/visits.py, conversions.sqlite
+    `visits`, 2.4.0): every row of the address is deleted;
   * from now on: the address goes on a forgotten list (forgotten.json
     beside the history) as its SHA-256 only, with an expiry 15 days ahead -
     past the web server's 14 days of logs - so the next live runs, which
@@ -19,6 +21,8 @@ What skald keeps about one address, and what forget does to each:
 The web server's own access logs are not touched: they are the server's,
 rotate away after 14 days, and the README gives the command to scrub them
 by hand. Totals and anonymous journeys hold no address and are not changed.
+--email, --vid and --lead run `conversions forget` (cli_conversions.py): the
+conversions, removed rows, identity, journeys, deliveries and spool lines.
 Each forget is logged to privacy.log (time, a hash prefix, the counts),
 never the address.
 """
@@ -201,7 +205,8 @@ def forget(ctx, ip: str, dry_run: bool = False) -> dict:
     """Do it; return the counts (never another address)."""
     from .cli import _path
     from .visitors import load_key
-    report = {"private_fields": 0, "data_fields": 0, "files": 0, "hashes": None}
+    report = {"private_fields": 0, "data_fields": 0, "files": 0, "hashes": None,
+              "visits": 0}
     for path in private_files(ctx.live_dir, ctx.site):
         n = redact_file(path, ip, dry_run)
         report["private_fields"] += n
@@ -219,12 +224,13 @@ def forget(ctx, ip: str, dry_run: bool = False) -> dict:
             report["hashes"] = forget_hashes(db, key, ip, dry_run) if has else 0
         finally:
             db.close()
+    report["visits"] = _forget_visits(ctx, ip, dry_run)
     if not dry_run:
         remember(ctx.live_dir, ip)
         line = (f"{datetime.now(timezone.utc).isoformat(timespec='seconds')} forget "
                 f"sha256:{digest(ip)[:12]} private_fields={report['private_fields']} "
                 f"data_fields={report['data_fields']} files={report['files']} "
-                f"hashes={report['hashes']}\n")
+                f"hashes={report['hashes']} visits={report['visits']}\n")
         log = Path(ctx.live_dir) / LOG
         with open(log, "a", encoding="utf-8") as handle:
             handle.write(line)
@@ -232,7 +238,37 @@ def forget(ctx, ip: str, dry_run: bool = False) -> dict:
     return report
 
 
+def _forget_visits(ctx, ip: str, dry_run: bool) -> int:
+    """The visits kept with `ip` (people/visits.py): deleted, or counted."""
+    from .conversions import store
+    from .people.visits import forget_ip
+    path = store.path_for(ctx.config, Path(ctx.db_path).parent)
+    if path is None or not Path(path).is_file():
+        return 0
+    db = store.connect(path)
+    try:
+        return forget_ip(db, ip, dry_run)
+    finally:
+        db.close()
+
+
 def cmd_forget(ctx) -> int:
+    a = ctx.args
+    if not (a.ip or a.email or a.vid or a.lead):
+        ctx.err("forget: give --ip, --email, --vid or --lead (any of them)")
+        return 2
+    code = _forget_ip(ctx) if a.ip else 0
+    if code:
+        return code
+    from .cli_conversions import forget_person
+    for kind in ("email", "vid", "lead"):
+        value = getattr(a, kind)
+        if value:
+            forget_person(ctx, **{kind: value}, dry_run=a.dry_run)
+    return 0
+
+
+def _forget_ip(ctx) -> int:
     ip = ctx.args.ip.strip()
     try:
         ipaddress.ip_address(ip)
@@ -251,18 +287,23 @@ def cmd_forget(ctx) -> int:
     else:
         ctx.out(f"  visitor hashes: {got['hashes']} row(s) "
                 f"{'found' if dry else 'deleted'} from the 30-day table")
+    ctx.out(f"  visits kept with the address: {got['visits']} kept visit(s) "
+            f"{'found' if dry else 'deleted'}")
     if not dry:
         ctx.out(f"  the address is on the forgotten list for {KEEP_DAYS} days: live runs "
-                "show it as (removed)")
+                "show it as (removed), and visits are kept without it")
     ctx.out("  not changed: the web server's own access logs (rotated away after 14 "
             "days; see README, Privacy, to scrub them sooner)")
     return 0
 
 
 def add_command(sub) -> None:
-    p = sub.add_parser("forget", help="remove one IP address from the private lists and "
-                       "the 30-day visitor hashes (deletion requests)")
-    p.add_argument("--ip", required=True, help="the address to forget")
+    p = sub.add_parser("forget", help="delete a person (deletion requests): an IP address "
+                       "everywhere it is kept, and an email, visitor ID or lead's conversions")
+    p.add_argument("--ip", help="the address to forget")
+    p.add_argument("--email", help="a lead's email: its conversions and identity")
+    p.add_argument("--vid", help="a visitor ID (skv_...)")
+    p.add_argument("--lead", help="a lead's id or a tool's reference (external_ref)")
     p.add_argument("--dry-run", dest="dry_run", action="store_true",
                    help="count what would change; change nothing")
     p.set_defaults(run=cmd_forget)

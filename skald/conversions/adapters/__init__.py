@@ -74,9 +74,11 @@ def sign_timed(body: bytes, secret: str, now: float) -> str:
     return f"t={t},v1={hmac_hex(secret, f'{t}.'.encode() + body)}"
 
 
-def when(value) -> str | None:
+def when(value, tz=None) -> str | None:
     """A time as UTC "YYYY-MM-DDTHH:MM:SSZ": ISO text (any offset, any
-    fraction) or Unix seconds or milliseconds. None when missing or not a time."""
+    fraction) or Unix seconds or milliseconds. None when missing or not a time.
+    ISO text without an offset ("2026-09-25", "2026-09-25T08:00:00") is read
+    in `tz`, the site's time zone, when given; else as UTC (naive() tells)."""
     if value is None or value == "" or isinstance(value, bool):
         return None
     try:
@@ -89,10 +91,22 @@ def when(value) -> str | None:
                 return when(int(text))
             got = datetime.fromisoformat(text.replace("Z", "+00:00").replace("z", "+00:00"))
             if got.tzinfo is None:
-                got = got.replace(tzinfo=timezone.utc)
+                got = got.replace(tzinfo=tz or timezone.utc)
     except (ValueError, OverflowError, OSError):
         return None
     return got.astimezone(timezone.utc).strftime(STAMP)
+
+
+def naive(value) -> bool:
+    """True for ISO text that is a time but names no offset ("2026-09-25",
+    "2026-09-25T08:00:00"): its zone is a guess, the site's."""
+    if not isinstance(value, str) or value.strip().isdigit():
+        return False
+    try:
+        got = datetime.fromisoformat(value.strip().replace("Z", "+00:00").replace("z", "+00:00"))
+    except ValueError:
+        return False
+    return got.tzinfo is None
 
 
 def dig(value, *path):
@@ -119,12 +133,13 @@ def skald_vid(value) -> str | None:
     return value if value and SKALD_VID.match(value) else None
 
 
-def touch(raw) -> dict | None:
-    """A touch (where a visit came from) with only the known keys, or None."""
+def touch(raw, tz=None) -> dict | None:
+    """A touch (where a visit came from) with only the known keys, or None.
+    Its `at` without an offset is read in `tz` (when())."""
     if not isinstance(raw, dict):
         return None
     out = {k: text(raw.get(k), 300) for k in TOUCH_KEYS if text(raw.get(k), 300)}
-    at = when(raw.get("at"))
+    at = when(raw.get("at"), tz)
     if at:
         out["at"] = at
     return out or None

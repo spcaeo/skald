@@ -62,9 +62,10 @@ class HelpData(unittest.TestCase):
         words = "\n".join(prose)
         for bad in ("<script", "<style", "javascript:", "<br", "<sub>"):
             self.assertNotIn(bad, words)
-        # Examples use RFC 5737 addresses and example.com only.
+        # Examples use RFC 5737 addresses and example.com only; the loopback
+        # address names this machine, never anyone's (docker run -p, a local post).
         for ip in re.findall(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", text):
-            self.assertRegex(ip, r"^(192\.0\.2|198\.51\.100|203\.0\.113)\.", ip)
+            self.assertRegex(ip, r"^(192\.0\.2\.|198\.51\.100\.|203\.0\.113\.|127\.0\.0\.1$)", ip)
         self.assertNotIn("acme", text.lower())
         self.assertNotRegex(text, r"skald_[0-9a-f]{6,}_[A-Za-z0-9]{8,}")
 

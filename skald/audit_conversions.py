@@ -39,7 +39,9 @@ class _Bad(Exception):
 
 # ------------------------------------------------------------ own readers
 
-def _instant(value) -> datetime | None:
+def _instant(value, naive_zone=timezone.utc) -> datetime | None:
+    """A time; ISO text without an offset is taken in `naive_zone` (the zone
+    the spool line names, else UTC as before 2.4.0)."""
     if value is None or value == "" or isinstance(value, bool):
         return None
     if isinstance(value, str) and value.strip().isdigit():
@@ -58,7 +60,7 @@ def _instant(value) -> datetime | None:
     except (ValueError, OverflowError, OSError):
         return None
     if got.tzinfo is None:
-        got = got.replace(tzinfo=timezone.utc)
+        got = got.replace(tzinfo=naive_zone)
     return got.astimezone(timezone.utc).replace(microsecond=0)
 
 
@@ -72,7 +74,7 @@ def _obj(value) -> dict:
     return value if isinstance(value, dict) else {}
 
 
-def _lead(item) -> tuple:
+def _lead(item, naive_zone=timezone.utc) -> tuple:
     if not isinstance(item, dict):
         raise _Bad
     ref = _txt(item.get("external_ref"), 120)
@@ -83,22 +85,22 @@ def _lead(item) -> tuple:
         raise _Bad
     at = None
     if item.get("at") not in (None, ""):
-        at = _instant(item.get("at"))
+        at = _instant(item.get("at"), naive_zone)
         if at is None:
             raise _Bad
     return action, stage, ref, at
 
 
-def _read(tool: str, body) -> list[tuple]:
+def _read(tool: str, body, naive_zone=timezone.utc) -> list[tuple]:
     """[(action, stage, ref, at or None)] for one spooled body."""
     if tool == "lead":
-        return [_lead(body)]
+        return [_lead(body, naive_zone)]
     if tool == "json":
         items = body.get("records") if isinstance(body, dict) and "records" in body else body
         items = [items] if isinstance(items, dict) else items
         if not isinstance(items, list) or not 0 < len(items) <= 100:
             raise _Bad
-        return [_lead(i) for i in items]
+        return [_lead(i, naive_zone) for i in items]
     if tool == "calendly":
         inner = body.get("payload") if isinstance(body, dict) else None
         if not isinstance(inner, dict):
@@ -200,6 +202,18 @@ def _hubspot(body) -> list[tuple]:
 
 # --------------------------------------------------------------- recount
 
+def _zone_of(line: dict):
+    """The zone a line says its times without an offset are in; UTC for a
+    line without one (or one this server does not know)."""
+    name = line.get("zone")
+    if not isinstance(name, str) or not name:
+        return timezone.utc
+    try:
+        from zoneinfo import ZoneInfo
+        return ZoneInfo(name)
+    except (ValueError, KeyError, OSError):
+        return timezone.utc
+
 def _lines(spool: Path):
     """Every spooled line, oldest file first, in the order written."""
     files = []
@@ -219,8 +233,28 @@ def _lines(spool: Path):
                     yield got
 
 
-def recount(spool: Path, site: str, tz, first: date, last: date) -> dict:
-    """{local day: {(action, stage): n}} from the spool, first..last."""
+def test_keys(db_path: Path, site: str) -> frozenset:
+    """{(tool, external ref)} of the rows marked test (`conversions
+    mark-test`), by this road's own SQL over the file opened read-only. A
+    test row stays in the spools; this road leaves it out of its count."""
+    import sqlite3
+    if not Path(db_path).is_file():
+        return frozenset()
+    db = sqlite3.connect(f"file:{Path(db_path).resolve()}?mode=ro", uri=True)
+    try:
+        cols = {r[1] for r in db.execute("PRAGMA table_info(conversions)")}
+        if "test" not in cols:
+            return frozenset()
+        return frozenset(db.execute("SELECT DISTINCT tool, external_ref FROM conversions "
+                                    "WHERE site = ? AND test <> 0", (site,)).fetchall())
+    finally:
+        db.close()
+
+
+def recount(spool: Path, site: str, tz, first: date, last: date,
+            skip: frozenset = frozenset()) -> dict:
+    """{local day: {(action, stage): n}} from the spool, first..last; a
+    (tool, ref) in `skip` (test_keys) is not counted."""
     seen: set = set()
     out: dict = {}
     for line in _lines(spool):
@@ -231,7 +265,7 @@ def recount(spool: Path, site: str, tz, first: date, last: date) -> dict:
         if received is None:
             continue
         try:
-            found = _read(tool, line.get("body"))
+            found = _read(tool, line.get("body"), _zone_of(line))
             found = [(a, s, r, at or received) for a, s, r, at in found]
             if any(at > received + timedelta(seconds=FUTURE_SLACK) for *_, at in found):
                 raise _Bad
@@ -243,7 +277,7 @@ def recount(spool: Path, site: str, tz, first: date, last: date) -> dict:
                 continue
             seen.add(key)
             day = at.astimezone(tz).date()
-            if first <= day <= last:
+            if (tool, ref) not in skip and first <= day <= last:
                 per = out.setdefault(day.isoformat(), {})
                 per[(action, stage)] = per.get((action, stage), 0) + 1
     return out
@@ -253,7 +287,7 @@ _BEACON_VID = re.compile(r"\Askv_[A-Za-z0-9_-]{22}\Z")
 
 
 def recount_beacon(spool: Path, tz, first: date, last: date,
-                   files_from: date | None = None) -> dict:
+                   files_from: date | None = None, skip: frozenset = frozenset()) -> dict:
     """{local day: {(action, stage): n}} of beacon conversions, first..last,
     from the beacon spool's own lines. Every file up to the day after `last`
     (and from `files_from`, when given: two days before `first` is enough,
@@ -294,7 +328,8 @@ def recount_beacon(spool: Path, tz, first: date, last: date,
                     continue
                 kept[key] = at if last_kept is None else max(at, last_kept)
                 day = at.astimezone(tz).date()
-                if first <= day <= last:
+                ref = f"{vid}:{pair[0]}:{pair[1]}:{at.strftime('%Y-%m-%dT%H:%M:%SZ')}"
+                if ("beacon", ref) not in skip and first <= day <= last:
                     per = out.setdefault(day.isoformat(), {})
                     per[pair] = per.get(pair, 0) + 1
     return out
@@ -309,9 +344,11 @@ def _leads_on(config: dict) -> Path | None:
     return Path(str(raw)).expanduser()
 
 
-def recount_leads(path: Path, tz, first: date, last: date) -> dict:
+def recount_leads(path: Path, tz, first: date, last: date,
+                  skip: frozenset = frozenset()) -> dict:
     """{local day: {(action, stage): n}} of the lead DB's leads, first..last,
-    by SQL over the file opened read-only."""
+    by SQL over the file opened read-only; a lead id in `skip` (marked test)
+    is left out."""
     import sqlite3
     from datetime import time as clock
     db = sqlite3.connect(f"file:{Path(path).resolve()}?mode=ro", uri=True)
@@ -334,7 +371,8 @@ def recount_leads(path: Path, tz, first: date, last: date) -> dict:
             f"SELECT b.day, LOWER(TRIM(COALESCE(s.type, ''))), {status}, COUNT(*) "
             f"FROM submissions s JOIN b ON julianday(s.created_at) >= julianday(b.lo) "
             f"AND julianday(s.created_at) < julianday(b.hi) "
-            f"WHERE s.id IS NOT NULL GROUP BY 1, 2, 3", args).fetchall()
+            f"WHERE s.id IS NOT NULL{_not_in(skip)} GROUP BY 1, 2, 3",
+            [*args, *sorted(skip)]).fetchall()
     finally:
         db.close()
     out: dict = {}
@@ -352,6 +390,10 @@ def recount_leads(path: Path, tz, first: date, last: date) -> dict:
         if stage == "completed" and state in LEAD_OUTCOMES:
             per[(action, state)] = per.get((action, state), 0) + n
     return out
+
+
+def _not_in(ids: frozenset) -> str:
+    return f" AND CAST(s.id AS TEXT) NOT IN ({','.join('?' * len(ids))})" if ids else ""
 
 
 def _beacon_spool(config: dict, folder: Path) -> Path:
@@ -419,12 +461,14 @@ def findings(config: dict, folder: Path, site: str, tz, first: date, last: date,
             stored = store.day_counts(db, site, tz, first, last, tools=tools)
         finally:
             db.close()
-    counted = recount(spool, site, tz, first, last)
+    skip = test_keys(db_path, site)
+    counted = recount(spool, site, tz, first, last, skip)
     if with_beacon:
         counted = _merge(counted, beacon_counts(beacons, folder, tz, first, last, today,
-                                                refresh))
+                                                refresh, skip))
     if leads is not None and leads.is_file():
-        counted = _merge(counted, recount_leads(leads, tz, first, last))
+        counted = _merge(counted, recount_leads(
+            leads, tz, first, last, frozenset(r for t, r in skip if t == LEADS_TOOL)))
     return compare(stored, counted, first, last)
 
 
@@ -455,12 +499,13 @@ def _save_cache(folder: Path, tz, days: dict) -> None:
 
 
 def forget_cache(folder: Path) -> None:
-    """After `conversions forget`: the spool changed, count again."""
+    """After `conversions forget` or `mark-test`: count again."""
     (Path(folder) / CACHE).unlink(missing_ok=True)
 
 
 def beacon_counts(spool: Path, folder: Path, tz, first: date, last: date,
-                  today: date | None = None, refresh: bool = True) -> dict:
+                  today: date | None = None, refresh: bool = True,
+                  skip: frozenset = frozenset()) -> dict:
     """recount_beacon over first..last, reading only the files it needs: the
     counts of whole days before `today` are kept in CACHE beside the history
     (the audit's own file) and read back unless `refresh`; the days not in
@@ -473,7 +518,7 @@ def beacon_counts(spool: Path, folder: Path, tz, first: date, last: date,
 
     def count(span: list[date]) -> None:
         nonlocal changed
-        got = recount_beacon(spool, tz, span[0], span[-1], span[0] - timedelta(days=2))
+        got = recount_beacon(spool, tz, span[0], span[-1], span[0] - timedelta(days=2), skip)
         for d in span:
             key = d.isoformat()
             per = got.get(key) or {}

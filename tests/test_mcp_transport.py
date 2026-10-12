@@ -242,7 +242,7 @@ class Stdio(unittest.TestCase):
         out = [json.loads(x) for x in done.stdout.splitlines()]
         self.assertEqual([o.get("id") for o in out], [1, 2, 3, None])
         self.assertEqual(out[0]["result"]["protocolVersion"], "2025-06-18")
-        self.assertEqual(len(out[1]["result"]["tools"]), 13)
+        self.assertEqual(len(out[1]["result"]["tools"]), 14)
         r = out[2]["result"]
         self.assertIs(r["isError"], False, r)
         self.assertEqual(r["structuredContent"]["site"], SITE)

@@ -149,7 +149,7 @@ def figures(db, site: str, tz, first: date, last: date, now: str, hours: float,
                           (site,)).fetchone() is not None
     out: dict = {}
     for r in db.execute("SELECT * FROM conversions WHERE site = ? AND at >= ? AND at < ? "
-                        "ORDER BY at, id", (site, lo, hi)).fetchall():
+                        "AND test = 0 ORDER BY at, id", (site, lo, hi)).fetchall():
         f = out.setdefault(_day(r["at"], tz), _empty(journeys))
         _add(f["stages"], r["action"], r["stage"])
         if r["stage"] not in FINISHED:
@@ -179,7 +179,8 @@ def _converting(db, site: str, lo: str, hi: str) -> dict[str, str]:
     out: dict[str, str] = {}
     marks = ",".join("?" * len(FINISHED))
     for vid, at in db.execute(f"SELECT vid, at FROM conversions WHERE site = ? AND vid IS NOT "
-                              f"NULL AND stage IN ({marks}) AND at >= ? AND at < ?",
+                              f"NULL AND stage IN ({marks}) AND at >= ? AND at < ? "
+                              f"AND test = 0",
                               (site, *FINISHED, lo, hi)):
         if vid not in out or at < out[vid]:
             out[vid] = at
@@ -221,7 +222,7 @@ def timeline(db, site: str, tz, lo: str, hi: str, held: set) -> list[dict]:
     out, done = [], set()
     marks = ",".join("?" * len(FINISHED))
     for r in db.execute(f"SELECT * FROM conversions WHERE site = ? AND stage IN ({marks}) "
-                        f"AND at >= ? AND at < ? ORDER BY at DESC, id DESC",
+                        f"AND at >= ? AND at < ? AND test = 0 ORDER BY at DESC, id DESC",
                         (site, *FINISHED, lo, hi)).fetchall():
         key = ("vid", r["vid"]) if r["vid"] else ("ref", r["tool"], r["external_ref"])
         if key in done or _day(r["at"], tz) in held:
@@ -229,7 +230,8 @@ def timeline(db, site: str, tz, lo: str, hi: str, held: set) -> list[dict]:
         done.add(key)
         if r["vid"]:
             steps = db.execute("SELECT at, action, stage, tool FROM conversions WHERE site = ? "
-                               "AND vid = ? ORDER BY at, id", (site, r["vid"])).fetchall()
+                               "AND vid = ? AND test = 0 ORDER BY at, id",
+                               (site, r["vid"])).fetchall()
             visits: dict[str, dict] = {}
             for at, path, source in db.execute(
                     "SELECT at, path, source_type FROM journeys WHERE site = ? AND vid = ? "
@@ -242,7 +244,7 @@ def timeline(db, site: str, tz, lo: str, hi: str, held: set) -> list[dict]:
             days = list(visits.values())[-TIMELINE_DAYS:]
         else:
             steps = db.execute("SELECT at, action, stage, tool FROM conversions WHERE site = ? "
-                               "AND tool = ? AND external_ref = ? ORDER BY at, id",
+                               "AND tool = ? AND external_ref = ? AND test = 0 ORDER BY at, id",
                                (site, r["tool"], r["external_ref"])).fetchall()
             days = []
         out.append({"at": _local(r["at"], tz), "action": r["action"], "stage": r["stage"],

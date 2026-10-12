@@ -1,7 +1,7 @@
 // Pieces several tabs share: the heading with its range, the coverage line,
 // the "nothing to show" states and the bar lists.
 
-import { h, n, short, long, clock, pct1, stateNote, reduced, ICON } from "../ui.js";
+import { h, n, short, long, clock, share, stateNote, reduced, ICON } from "../ui.js";
 import { ranked, comparison, ghostDay, coverage } from "../data.js";
 import { table } from "../table.js";
 import * as S from "../state.js";
@@ -124,7 +124,7 @@ export function blist(rows, { color = "var(--g-people)", total, limit = 10, labe
     // A row may carry a third item: the value to drill into, when its label is not the value itself.
     const lab = drill ? link(drill, value(k), { from, text: typeof label(k) === "string" && label(k) !== value(k) ? label(k) : undefined }) : label(k);
     ul.append(h("li", null, bar, h("span", { class: "bl-l", title: typeof lab === "string" ? lab : k }, lab), h("span", { class: "bl-v" }, n(v)),
-      change ? h("span", { class: "bl-c" }, change(k)) : h("span", { class: "bl-p" }, pct1(v, sum))));
+      change ? h("span", { class: "bl-c" }, change(k)) : h("span", { class: "bl-p" }, share(v, sum))));
   });
   return ul;
 }
@@ -136,7 +136,7 @@ export function countTable(obj, { caption, file, key = "Label", value = "Count",
   const cols = [
     { key: "label", label: key, path, ...(drill ? { fmt: (v, r) => link(drill, r.k, { text: v }), csv: (r) => r.label } : {}) },
     { key: "v", label: value, num: true },
-    { key: "share", label: "Share", num: true, sort: (r) => r.v, fmt: (_, r) => pct1(r.v, sum), csv: (r) => (sum ? (r.v / sum).toFixed(4) : "") },
+    { key: "share", label: "Share", num: true, sort: (r) => r.v, fmt: (_, r) => share(r.v, sum), csv: (r) => (share(r.v, sum) ? (r.v / sum).toFixed(4) : "") },
   ];
   return table(cols, { caption, rows, file, limit, empty });
 }

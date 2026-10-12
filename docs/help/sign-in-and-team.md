@@ -90,8 +90,8 @@ A person has one role in each organisation.
 
 | Role | May |
 | --- | --- |
-| Viewer | See every page of the organisation's sites and the team list. Change their own name, password and two-step sign-in. Changes nothing else |
-| Admin | All of that, plus: invite, remove and change members (not owners), make API tokens, read the audit log, and change the site's settings |
+| Viewer | See every page of the organisation's sites and the team list. Change their own name, password and two-step sign-in. Changes nothing else. Cannot look a person up, and sees the left-out lists without names, emails or visitor IDs |
+| Admin | All of that, plus: invite, remove and change members (not owners), make API tokens, read the audit log, change the site's settings, and look a person up (the search at the top: visits with their IP address, emails, names) |
 | Owner | All of that, plus: make, change or remove owners, set the security rules, remove a site, and handle billing |
 
 An organisation always keeps at least one owner.

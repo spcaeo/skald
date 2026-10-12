@@ -6,7 +6,8 @@
 // it took; and the latest conversions as anonymous timelines.
 // A visitor ID is a browser, never a person: journeys say "browsers".
 // A day the second count disagreed with arrives withheld and is left out of
-// every sum, said once; a rate over fewer than min_rate is not given.
+// every sum, said once; a rate or a share over fewer than min_rate is not
+// given (the counts are).
 
 import { h, n, short, pct1, reduced, ICON } from "../ui.js";
 import { rangeOf } from "../data.js";
@@ -16,6 +17,7 @@ import { howTo } from "./help.js";
 import { conversionsLikely } from "./likelyai.js";
 import { withFlag } from "./readers.js";
 import { label as valueLabel } from "../drill.js";
+import { openConversionList } from "./person.js";
 
 const ACTION = { demo: "Demos", contact: "Contact forms", signup: "Sign-ups", waitlist: "Early access", paid: "Payments", deal: "Deals", call: "Phone clicks", email: "Email clicks", cta: "Button clicks", trial: "Trials" };
 const STAGE = { started: "started", completed: "completed", paid: "paid", cancelled: "cancelled", rescheduled: "rescheduled", no_show: "no-show", won: "won", lost: "lost" };
@@ -149,24 +151,27 @@ function touches(t, acts) {
   h("p", { class: "note" }, `First touch: where the browser (or the lead) first came from; last touch: the visit it converted in. Assisted: a source seen earlier in a converting browser's journey that was not its last touch, each conversion counted once per source${t.hasAssisted ? "" : "; it needs visitor IDs (beacon.visitor_ids)"}. "Unknown" is not recorded, never guessed.`));
 }
 
-function ordered(items, color) {
+// A bar list in a fixed order. Shares only over at least `min` (a share of 1 is always 100%).
+function ordered(items, color, min) {
   const max = Math.max(1, ...items.map(([, v]) => v)), all = items.reduce((a, [, v]) => a + v, 0);
   return h("ul", { class: `blist${reduced() ? "" : " play"}` }, items.map(([k, v], i) => h("li", null,
     h("span", { class: "bl-bar", style: { width: `${(v / max) * 100}%`, background: color, animationDelay: `${i * 0.03}s` } }),
-    h("span", { class: "bl-l", title: k }, k), h("span", { class: "bl-v" }, n(v)), h("span", { class: "bl-p" }, pct1(v, all)))));
+    h("span", { class: "bl-l", title: k }, k), h("span", { class: "bl-v" }, n(v)), h("span", { class: "bl-p" }, all >= min ? pct1(v, all) : ""))));
 }
 
-function timing(t) {
+const fewWords = (all, min) => (all && all < min ? `Counts only: shares are given over at least ${min}. ` : "");
+
+function timing(t, min) {
   const wait = Object.keys(WAIT).map((k) => [WAIT[k], t.wait[k] || 0]);
   const visits = Object.keys(VISITS).map((k) => [VISITS[k], t.visits[k] || 0]);
   const wk = wait.reduce((a, [, v]) => a + v, 0), vk = visits.reduce((a, [, v]) => a + v, 0);
   return h("div", { class: "cols tops" },
     h("div", { class: "sheet" }, h("h3", null, "From first touch to converting"),
-      wk ? ordered(wait, "var(--g-people)") : h("p", { class: "empty" }, "No completed conversion in this range has a first-touch time."),
-      h("p", { class: "note" }, [t.wait.unknown ? `${n(t.wait.unknown)} without a first-touch time, left out. ` : "", t.wait.clock_error ? `${n(t.wait.clock_error)} with a clock error, left out. ` : "", "The first touch is what the browser or the tool remembered."].join(""))),
+      wk ? ordered(wait, "var(--g-people)", min) : h("p", { class: "empty" }, "No completed conversion in this range has a first-touch time."),
+      h("p", { class: "note" }, [fewWords(wk, min), t.wait.unknown ? `${n(t.wait.unknown)} without a first-touch time, left out. ` : "", t.wait.clock_error ? `${n(t.wait.clock_error)} with a clock error, left out. ` : "", "The first touch is what the browser or the tool remembered."].join(""))),
     h("div", { class: "sheet" }, h("h3", null, "Visits before converting"),
-      vk ? ordered(visits, "var(--g-search_engines)") : h("p", { class: "empty" }, "No completed conversion in this range has a visit count."),
-      h("p", { class: "note" }, t.visits.unknown ? `${n(t.visits.unknown)} without a count, left out.` : "As the site or the tool counted them.")));
+      vk ? ordered(visits, "var(--g-search_engines)", min) : h("p", { class: "empty" }, "No completed conversion in this range has a visit count."),
+      h("p", { class: "note" }, fewWords(vk, min) + (t.visits.unknown ? `${n(t.visits.unknown)} without a count, left out.` : "As the site or the tool counted them."))));
 }
 
 // The pages seen before converting, against browsers that did not convert (the file's last 30 days).
@@ -207,7 +212,7 @@ function timeline(f) {
       h("p", { class: "conv-tl-steps" }, steps.join(" → ")));
   };
   return fixed("Latest conversions", period,
-    h("p", { class: "sub" }, "Each line is one browser (or one lead without a browser): its visits by day, the pages it read and its conversion steps. Anonymous: no name, email or visitor ID is shown. A browser is not a person: one person on two devices is two browsers."),
+    h("p", { class: "sub" }, "Each line is one browser (or one lead without a browser): its visits by day, the pages it read and its conversion steps. No name, email or visitor ID is shown here: an admin finds the person with the search at the top. A browser is not a person: one person on two devices is two browsers."),
     h("ol", { class: "conv-tl" }, list.map(one)));
 }
 
@@ -236,10 +241,15 @@ export default function conversions(m, s) {
         h("div", { class: "cols tops" }, ...(f.dims || Object.keys(DIM)).filter((d) => DIM[d]).map((d) => breakdown(d, t, acts)))));
       out.push(h("section", { class: "s" }, h("h2", null, "First, last and assisted touch"), touches(t, acts)));
       out.push(conversionsLikely(ok, acts, f));
-      out.push(h("section", { class: "s" }, h("h2", null, "Time to convert"), timing(t)));
+      out.push(h("section", { class: "s" }, h("h2", null, "Time to convert"), timing(t, min)));
     }
   }
   out.push(pages(f, min), timeline(f));
+  // Nothing hidden (2.4.0): the rows the figures do not show as completed, listed in full.
+  out.push(h("section", { class: "s" }, h("h2", null, "Cancelled, removed and test"),
+    h("p", { class: "sub" }, "Every conversion stays visible: cancelled bookings and no-shows, rows a lead-database sync took away (with when and why), and conversions marked test (kept, never counted). Each with its row and journey where known."),
+    h("div", { class: "acts" }, [["cancelled", "Cancelled and no-show"], ["removed", "Removed"], ["test", "Marked test"]].map(([k, t]) =>
+      h("button", { type: "button", class: "btn", onclick: () => openConversionList(k) }, t)))));
   out.push(h("p", { class: "note" }, f.as_known || "Conversions are as known now: a later cancellation or status changes past days."));
   if (!f.set_up?.visitor_ids || !f.set_up?.beacon) out.push(setup(f), ...guide);
   return out;

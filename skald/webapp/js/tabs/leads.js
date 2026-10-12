@@ -1,7 +1,8 @@
 // Leads: how many sign-ups, contact forms and demo bookings came in, from
 // which source (first and last touch), their quality by source, the time from
 // first touch to lead, and the funnel from readers to demos per source.
-// Counts only: names, emails and messages stay in the website's admin.
+// Counts here; the leads left out (spam, duplicates, test) are listed in full
+// from the "Left out" line (person.js), and a person is found with the search.
 // A lead is never joined to a visit: the funnel's log steps are visits, the
 // lead steps come from the lead store, two systems side by side.
 // A block the second count disagreed with arrives as {state: "withheld", why}
@@ -15,6 +16,7 @@ import { table } from "../table.js";
 import * as S from "../state.js";
 import { howTo } from "./help.js";
 import { leadsLikely } from "./likelyai.js";
+import { openLeftOut } from "./person.js";
 
 const TYPE = { signup: "Sign-ups", contact: "Contact forms", waitlist: "Early access", demo_opened: "Demo opened", demo_booked: "Demos booked" };
 const TONE = { signup: "var(--g-people)", contact: "var(--g-search_engines)", waitlist: "var(--g-bots)", demo_opened: "var(--g-ours)", demo_booked: "var(--opp)" };
@@ -103,7 +105,8 @@ function counts(m, s, r, f, byDay, inRange, first, out) {
     ...types.map((k) => tile(name(k), sum[k] || 0, k === "demo_opened" ? "opened the booking page" : "", TONE[k], true)),
     readers != null ? h("div", { class: "kpi" }, h("div", { class: "k-l" }, "Leads per 100 visitors"), h("div", { class: "k-n" }, "visitors from the verified days of the same range"),
       h("div", { class: "k-v" }, per ? ((leadsN / readers) * 100).toFixed(1) : "-"), h("div", { class: "k-c" }, per ? `${n(leadsN)} from ${n(readers)} visitors` : `too few visitors to rate (under ${MIN_RATE})`)) : null)),
-    spam || dup ? h("p", { class: "note" }, `Left out: ${n(spam)} spam and ${n(dup)} duplicate${dup === 1 ? "" : "s"}.`) : null);
+    h("p", { class: "note" }, spam || dup ? `Left out: ${n(spam)} spam and ${n(dup)} duplicate${dup === 1 ? "" : "s"}. ` : "",
+      h("button", { type: "button", class: "pp-link", onclick: openLeftOut }, spam || dup ? "Show them, with test leads" : "Show spam, duplicate and test leads")));
 
   if (r.kind === "history" && r.length > 1) {
     const days = chartDays(r).map((d) => { const e = byDay.get(d.day); return e ? { ...e, state: "ok" } : { day: d.day, state: d.state === "before" ? "before" : "missing" }; });
@@ -229,11 +232,12 @@ function quality(rows, at, s) {
 }
 
 // A bar list in a fixed order (blist ranks; time buckets must keep theirs).
+// Shares only over at least MIN_RATE: below it, counts alone.
 function ordered(items, color) {
   const max = Math.max(1, ...items.map(([, v]) => v)), sum = items.reduce((a, [, v]) => a + v, 0);
   return h("ul", { class: `blist${reduced() ? "" : " play"}` }, items.map(([k, v], i) => h("li", null,
     h("span", { class: "bl-bar", style: { width: `${(v / max) * 100}%`, background: color, animationDelay: `${i * 0.03}s` } }),
-    h("span", { class: "bl-l", title: k }, k), h("span", { class: "bl-v" }, n(v)), h("span", { class: "bl-p" }, pct1(v, sum)))));
+    h("span", { class: "bl-l", title: k }, k), h("span", { class: "bl-v" }, n(v)), h("span", { class: "bl-p" }, sum >= MIN_RATE ? pct1(v, sum) : ""))));
 }
 
 // From first touch to lead, over the range's days; the middle only over 10 or more known times.

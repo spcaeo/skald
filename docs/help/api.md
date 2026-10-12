@@ -83,7 +83,7 @@ A scope is what a token may do. A token can have more than one.
 | Scope | Label in the app | What it allows |
 | --- | --- | --- |
 | `read` | Read | Read every figure these pages show, as JSON, through the API |
-| `read_private` | Read private files | Also read the two files that hold visitor addresses: `requests` and `ai_activity` |
+| `read_private` | Read private files | Also read the two files that hold visitor addresses, `requests` and `ai_activity`, and look a person up |
 | `mcp` | MCP | Let an AI assistant ask about your traffic through the MCP server |
 
 The **Private** box on the form does the same as **Read private files**. Ticking either one is enough.
@@ -137,6 +137,7 @@ The signed-in address also lists the files a page has: end it at `api/v1/`. The 
 | `ours` | Your own traffic and the heartbeat |
 | `ai_activity` | What AI assistants did (holds addresses: needs **Read private files**) |
 | `requests` | The recent request log (holds addresses: needs **Read private files**) |
+| `people?q=...` | One person by IP address, email, visitor ID or lead: their visits, leads and conversions, linked. Needs **Read private files**; each search goes to the audit log |
 
 The API & tokens page lists every file your site really has.
 

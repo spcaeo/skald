@@ -13,7 +13,7 @@ verify = lead.verify
 sign = lead.sign
 
 
-def to_records(payload, site_config: dict | None = None) -> list[dict]:
+def to_records(payload, site_config: dict | None = None, tz=None) -> list[dict]:
     items = payload.get("records") if isinstance(payload, dict) and "records" in payload \
         else payload
     if isinstance(items, dict):
@@ -22,7 +22,7 @@ def to_records(payload, site_config: dict | None = None) -> list[dict]:
         raise Invalid("a lead object, a list of them, or {\"records\": [...]}")
     if len(items) > MAX_RECORDS:
         raise Invalid(f"at most {MAX_RECORDS} records in one delivery")
-    return [lead.record(item) for item in items]
+    return [lead.record(item, tz) for item in items]
 
 
 def sample(site: str, now: float) -> dict:

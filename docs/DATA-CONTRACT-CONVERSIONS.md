@@ -7,7 +7,12 @@ Conversions (Phase 4b; `conversions_data.py`, docs/INTEGRATIONS.md): what
 visitors did that counts, from `conversions.sqlite` - the hooks, the
 beacon's events with visitor IDs, and the site's lead database (tool
 `site`). The same file on the site's page and every view's (conversions
-do not know about views). Anonymous: no name, email, address or visitor ID.
+do not know about views). No name, email, address or visitor ID: those are
+for the person lookup ([DATA-CONTRACT-PEOPLE.md](DATA-CONTRACT-PEOPLE.md)).
+A row marked test (`conversions.test`, `skald conversions mark-test`) is left
+out of every block below: stages, abandoned, breakdowns, pages before and
+the timeline. Cancelled, removed and test rows are listed by the helper
+(`<page>/people/conversions?kind=`), not here.
 Statuses and cancellations are "as known now": a later change rewrites the
 day the action was taken.
 
@@ -35,8 +40,23 @@ stages per day against the hook spool, the beacon spool (whole days from
 the audit's own `conversions-audit.json`) and the lead database (its own
 SQL), and every other figure of every day and `pages_before` against
 `audit_conversions_figures.py`, which counts them again by SQL GROUP BY over
-the file opened read-only. A day either road disagrees on is withheld, and
+the file opened read-only. Both roads leave test rows out by their own code:
+the spool, beacon and lead recounts skip the (tool, reference) pairs marked
+test (`audit_conversions.test_keys`), the SQL recount reads `c.test = 0`.
+A day either road disagrees on is withheld, and
 so is `pages_before`; a recount that cannot run withholds them all.
+
+**Times without an offset (2.4.0).** A `lead` or `json` hook's `at` (and
+`first_touch_at`, a touch's `at`) given without an offset is read in the
+site's time zone, not UTC; the delivery log says so. The spool line then
+carries `"zone"`, and the second count reads that line's times in it (a line
+without `zone` was kept as UTC, and is read so). An event a Calendly or
+Cal.com event-type filter leaves out is never spooled or stored, so neither
+road counts it.
+
+**Shares at low volume.** The web app shows a share (`time_to_convert`,
+`visits_before`, and every other share of a small base) only over at least
+`min_rate` (10); below it, the counts alone.
 
 ```json
 {"available":true,"set_up":{"beacon":true,"visitor_ids":true,"leads_db":true,"store":true,"hooks":["calendly"]},

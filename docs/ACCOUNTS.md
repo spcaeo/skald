@@ -18,7 +18,7 @@ role in each:
 | Role | Can |
 | --- | --- |
 | `viewer` | Read every page of the organisation's sites. See the team list. Change their own name, password and two-step sign-in. |
-| `admin` | All of that, plus: invite, remove and change members (not owners), API tokens, the audit log, and read the internal addresses added on their own sites' pages. |
+| `admin` | All of that, plus: invite, remove and change members (not owners), API tokens, the audit log, read the internal addresses added on their own sites' pages, and look a person up (2.4.0, below). |
 | `owner` | All of that, plus: make, change or remove owners. An organisation always keeps one enabled owner. |
 
 One more flag, **install admin**, is per person, not per organisation. It is
@@ -30,6 +30,24 @@ keeps one.
 
 Membership is read on every request: removing a member, or disabling a
 person, ends their access at once.
+
+## Private data: looking a person up (2.4.0)
+
+The person search (`GET <page>/people?q=`, the box in the top bar, Ctrl K)
+shows addresses, user agents, emails and names. It is for **owners and
+admins** of the site's organisation only; a viewer gets 403 and sees no
+search box. In basic mode the role is `users.json`'s (`admin` or `owner`).
+An API token needs the `read_private` scope (`/traffic-api/v1/<site>/people?q=`,
+and the MCP tool `find_person`). Every search writes one audit row, action
+`people.search`, target the site, detail the kind of value (ip, email, vid,
+lead), a SHA-256 prefix of it and how much was found: never the value
+itself. In basic mode the same line goes to `privacy.log` beside the history.
+
+The lists of what the figures leave out (`<page>/people/left-out`,
+`<page>/people/conversions?kind=cancelled|removed|test`) are for every
+member; names, emails and visitor IDs in them only for owners and admins.
+`skald conversions mark-test` writes `conversions.test` or
+`conversions.untest` rows (actor `cli`).
 
 ## Signing in
 
@@ -93,7 +111,7 @@ with `skald token create NAME --scope ...`.
 | Scope | Lets the token |
 | --- | --- |
 | `read` | Read the data files over `/traffic-api/v1/<site>/<file>` ([API.md](API.md)). |
-| `read_private` | Also read the files that hold addresses (`requests`, `ai_activity`). |
+| `read_private` | Also read the files that hold addresses (`requests`, `ai_activity`), and look a person up (`people?q=`, MCP `find_person`). |
 | `mcp` | Use the MCP endpoint `/traffic-mcp` ([MCP.md](MCP.md)). |
 
 A token made in the page records who made it. It works only while that
@@ -108,7 +126,9 @@ good.
 Every change is one row that is never edited: who (a person or `cli`), what,
 to whom, when. Sign-ins and failed sign-ins, invites, role changes,
 removals, password and two-step changes, resets, tokens, sites given to an
-organisation. No password, token, link or address is ever written. Admins
+organisation, person searches (`people.search`) and test marks
+(`conversions.test`, `conversions.untest`). No password, token, link or
+address is ever written, nor the value a person search looked for. Admins
 read their organisation's rows in Settings > Audit log (filter, CSV), or from
 `GET /traffic/<site>/settings/audit`; on the server, `sqlite3` on the accounts file.
 

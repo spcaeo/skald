@@ -22,7 +22,9 @@ from pathlib import Path
 
 from .files import own_like_folder, write_atomic
 
-PRIVATE = ("requests", "ai_activity")
+# Need the private flag (read_private): they hold addresses. "people" is the
+# person lookup (people/api.py, 2.4.0), not a file.
+PRIVATE = ("requests", "ai_activity", "people")
 
 
 def path_for(config: dict, live_dir) -> Path | None:

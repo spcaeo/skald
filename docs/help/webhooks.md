@@ -14,10 +14,13 @@ All of this is set up on one page: **Settings > This site > Integrations**, or [
 
 ## The Integrations page
 
+At the top, **Status** lists each road into Skald for this site, with **OK**, **Needs attention** (and what to do) or **Off**: the hook receiver, the script tag, each hook that is set up, one lead sent by two tools, and the lead database. The server's `skald doctor` command shows the same lines, and checks the rest of the install too.
+
 Under **Incoming hooks**, each tool has a box with:
 
 - Its **address**, with a copy button. It looks like `https://analytics.example.com/traffic-hooks/example.com/calendly`. Always copy yours from the page.
 - A badge: **no secret**, **secret set**, or **set (environment ...)** when the secret is kept on the server.
+- Its state in words: **needs a secret**, **never received** (set up, but nothing has come, not even a test), **ready** (a test passed, nothing real yet), or **last received 2 h ago**. When the last message was refused, it says why and what to do.
 - **Make secret** (or **Rotate secret** once there is one), for the tools that take a secret Skald makes.
 - **Paste the signing secret from ...**, for the tools that make their own secret (Stripe, HubSpot). Calendly, Cal.com and Typeform have both: use either one.
 - **Send a test event**.
@@ -57,7 +60,9 @@ If the box says **set (environment ...)**, the secret is kept on the server. It 
 
 ### The test button
 
-**Send a test event** sends a signed sample to Skald's own receiver for that tool. It checks the signature and reads the sample, then keeps nothing and counts nothing. The page says "the test was signed, received and read". The test shows as "test, read and not kept" in Last deliveries.
+**Send a test event** sends a signed sample to Skald's own receiver for that tool. It checks the signature and reads the sample, then keeps nothing and counts nothing. The page says "the test was signed, received and read", and what a real message would keep: the action, its stage, the source, country and device, and whether the visitor ID is kept. With visitor IDs off for the site, the visitor ID is dropped, as it is for a real message. The test shows as "test, read and not kept" in Last deliveries.
+
+The server has the same test: `skald hooks test example.com lead`.
 
 The test checks Skald's side only. To check the other tool, use its own "send test" button, if it has one, and look at Last deliveries.
 
@@ -85,6 +90,16 @@ curl -X POST https://api.calendly.com/webhook_subscriptions \
 
 What Skald records: a booking (Demos, completed), a cancellation (cancelled, or rescheduled when Calendly says so) and a no-show. To join a booking to the visitor's journey, the tracking script adds the visitor ID to Calendly links as `utm_content`. See [The tracking script](tracking-script.md).
 
+### Only some event types
+
+One Calendly account often books for several businesses, and a Calendly webhook cannot be limited to some event types. So tell Skald which are this site's:
+
+1. In the **Calendly** box, find **Only these Calendly event types**.
+2. Enter one per line: the event type's address from Calendly's API (`https://api.calendly.com/event_types/...`), or the booking page's name at the end of its link (`product-demo` in `https://calendly.com/you/product-demo`).
+3. Press **Save event types**.
+
+Any other event type is answered "OK" and left out: nothing is kept, and Last deliveries shows "not a conversion" with the event type it named, so you can copy it. A no-show is kept when its booking was kept. Leave the box empty to keep every event. Calendly does not send the booking page's name, so Skald compares it with the event type's name ("Product demo" is `product-demo`). If you rename the event type, use its address instead. See [Demo bookings](demo-bookings.md).
+
 ## Cal.com
 
 1. In Skald, open the **Cal.com** box, press **Make secret**, and copy the address and the secret.
@@ -96,6 +111,8 @@ What Skald records: a booking (Demos, completed), a cancellation (cancelled, or 
 If the Cal.com webhook already has a secret of its own, paste it into **Paste the signing secret from Cal.com** in Skald instead.
 
 To join a booking to the journey, pass the visitor ID in the embed as `metadata[skv]`, or add a hidden booking question named `skv`.
+
+To keep only some event types, enter their ids (`1234`) or names (`30min`) in **Only these Cal.com event types**, as for Calendly above.
 
 ## HubSpot
 
@@ -162,7 +179,7 @@ The key is the secret. Skald refuses a time more than 5 minutes off its own cloc
 | `external_ref` | yes | the lead's own ID in your site |
 | `action` | yes | a short word: `demo`, `signup`, `contact`, `trial` |
 | `stage` | no | `started`, `completed` (the default), `cancelled`, `rescheduled`, `no_show`, `paid` |
-| `at` | no | when, as an ISO time; default: when it arrived |
+| `at` | no | when, as an ISO time with its offset, such as `2026-09-25T14:30:00-04:00`; default: when it arrived. A time without an offset is read in the site's time zone, and Last deliveries says so |
 | `vid` | no | the visitor ID the page had |
 | `first_touch`, `last_touch` | no | referrer, landing page, `utm_*` tags, ad click ids, time |
 | `country` or `ip` | no | two letters, or the visitor's address: Skald finds the country and drops the address |
@@ -181,6 +198,8 @@ curl -X POST 'https://analytics.example.com/traffic-hooks/example.com/lead' \
 
 > If Skald already reads your website's lead database, you do not need the lead push. See [Leads and conversions](leads-and-conversions.md).
 
+The full how-to, with examples in curl, Node, Python and PHP, retries and backfilling: [Send leads from your backend in 5 minutes](leads-from-your-backend.md). If your server and Skald share a machine behind Cloudflare, post to Skald's local address: the guide says how.
+
 ## What Skald stores, and what it drops
 
 - **Kept**: the action, its stage, the time, the tool, the tool's own reference, the visitor ID, and the source, campaign, landing page, country and device when known.
@@ -194,6 +213,7 @@ curl -X POST 'https://analytics.example.com/traffic-hooks/example.com/lead' \
 - A tool sends again when it does not get an "OK" answer. This is harmless.
 - Skald keeps each conversion once per tool, reference and stage. A repeat is answered "OK" and shows as "already had it" in Last deliveries. Nothing is counted twice.
 - Cal.com and Typeform sign no time, so Skald also remembers each message for 30 days and ignores an exact repeat.
+- **One lead, one road.** Each tool keeps its own record, so the same lead sent through two tools (your lead push and Zapier, or the lead push and the lead database) counts twice. The **Status** list names any lead that arrived from two tools: send each lead one way only.
 - If Skald cannot save a message, it answers with an error, and the tool sends it again later.
 
 ## Remove an integration
@@ -226,7 +246,7 @@ Open the tool's box and look at **Last deliveries**. The **Outcome** column says
 | --- | --- | --- |
 | kept | recorded | nothing |
 | already had it | a repeat of a message already kept | nothing |
-| not a conversion | an event Skald does not count | choose the events listed above |
+| not a conversion | an event Skald does not count, or (with a detail "other event type") a Calendly or Cal.com event type this site does not keep | choose the events listed above; or add the event type to the list |
 | test, read and not kept | a test | nothing |
 | bad signature | the secret does not match, or the time is more than 5 minutes off | paste the secret again, or rotate it and give the new one; check the sender's clock |
 | not readable | the message is not what this tool sends | check you used the address for the right tool |

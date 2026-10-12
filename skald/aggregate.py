@@ -144,6 +144,10 @@ class Totals:
     # never put on a journey. returning: set by visitors.annotate.
     extras: dict | None = None
     visitor_keys: list | None = None
+    # Who each journey's visit was (address, user agent, referrer, POST
+    # times), aligned with journeys; memory only, kept by people/visits.py
+    # when the site keeps addresses (privacy.keep_ips).
+    people: list | None = None
     visitor_seen: dict | None = None
     returning: dict | None = None
 
@@ -370,6 +374,7 @@ class Tally:
         totals.server_errors = dim.fold(totals.server_errors, top)
         totals.journeys, totals.visits = self.journeys.finish(top)
         totals.visitor_keys = self.journeys.visitor_keys
+        totals.people = self.journeys.people
         if self.key is not None:
             seen = dict(self.ai_seen)
             for j, visitor in zip(totals.journeys, totals.visitor_keys or []):

@@ -1,8 +1,9 @@
 # Security policy
 
 Skald reads your web server's access log, which holds visitors' addresses. We treat that as
-personal data, and we design every part so that as little of it as possible is kept, for as short
-a time as possible, behind sign-in.
+personal data. Since 2.4.0 a site can keep each visit with its address, and leads' names and
+emails, so its admins can follow a person across days. That is a switch, with a time limit, behind
+sign-in, for admins and owners only, and every search is written to the audit log.
 
 ## Supported versions
 
@@ -49,25 +50,31 @@ and stays within this policy.
 | Per-visit and per-page detail by labels | History | 400 days by default |
 | Totals and labels | History, data files, CSV, mail | For good |
 | Conversions: action, stage, time, tool, reference, source, campaign, landing page, country, device | `conversions.sqlite` | 400 days by default |
+| Each visit with its IP address, user agent, times, pages in order, source, referrer, country, device (only while `privacy.keep_ips` is on) | `conversions.sqlite` (`visits`) | 395 days by default (`privacy.keep_days`) |
+| Leads' names and emails (only while `conversions.identity` is `full`) | `conversions.sqlite` (`identities`) | As long as their conversions |
 | Password hashes (scrypt), session hashes (SHA-256), token hashes | `accounts.sqlite` | Until removed or revoked |
 | Webhook and SMTP secrets typed in the dashboard | `secrets.json`, mode 0600 | Until replaced |
 | History backups (hold the 30-day hashes, never the key) | `/var/lib/skald/backups/` | 14 daily, 8 weekly |
 
-**Never stored in history:** a visitor's address, a person's user agent, a name, an email, a phone
+**Never stored in history** (`history.sqlite`): a visitor's address, a person's user agent, a name, an email, a phone
 number, a form field's value, the text a visitor copied, or the visit-grouping key (made fresh for
 each run, held in memory only).
 
 **Never written to the audit log:** a password, a token, a reset or invite link, or an address.
 
-**Conversions are anonymous by default.** Before anything is written, Skald drops addresses,
-browser strings, names, emails, phone numbers, form answers, free text and cancel or reschedule
-links. A site can keep name and email (`conversions.identity: full`) only if its privacy notice
-says so. Outgoing webhooks never carry a name or an email. Skald never matches a visitor by address.
+**Keeping IPs and emails is a switch.** A new install keeps each visit with its address
+(`privacy.keep_ips`) and leads' names and emails (`conversions.identity: full`). An install upgraded
+from before 2.4.0 keeps neither until someone turns them on: its privacy notice may still promise
+otherwise. Change the notice first. Before a webhook is written, Skald drops addresses, browser
+strings, phone numbers, form answers, free text and cancel or reschedule links; a name and email
+only when the site keeps them. Outgoing webhooks never carry a name or an email. Looking a person
+up is for admins and owners (and API tokens with `read_private`); each search is written to the
+audit log by its kind and a hash, never the value.
 
 **Deletion requests.** `skald forget --ip 192.0.2.7` (try `--dry-run` first) removes the address
-from every private file, deletes its hashes, and keeps it hidden for 15 days, longer than the log
-holds it. `skald conversions forget --email A | --vid ID | --lead REF` does the same for
-conversions. The web server's own log is yours to scrub; [docs/help/privacy.md](docs/help/privacy.md)
+from every private file, deletes its hashes and its kept visits, and keeps it hidden for 15 days,
+longer than the log holds it. `skald forget --email A` (or `--vid ID`, `--lead REF`) deletes that
+person's conversions, removed rows, name and email. The web server's own log is yours to scrub; [docs/help/privacy.md](docs/help/privacy.md)
 shows how.
 
 ## How the code protects you

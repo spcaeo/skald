@@ -15,7 +15,8 @@ A setting is read in this order. The first one found wins:
 2. the organisation's row (scope `org:<id>`)
 3. the install's row (scope `install`)
 4. `config.yml` (the site's own file in a multi-site install)
-5. the default
+5. the default (source `upgrade` for the two privacy keys below on an install upgraded from
+   before 2.4.0)
 
 `settings_store.effective(config, site)` gives the merged values. The daily run, `live`, the
 mails, backups, beacon pruning and the returning-visitor window all read them: `cli.Context`
@@ -46,6 +47,9 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `report.journey_days` | Data retention | 1-90 (7) | admin | site | `report.journey_days` |
 | `visitors.repeat_days` | Data retention | 1-90 (30) | admin | site | `visitors.repeat_days` |
 | `beacon.keep_days` | Data retention | 30-3650 (400) | admin | site | `beacon.keep_days` |
+| `privacy.keep_ips` | Data retention > People | true / false (true) | admin | site | `privacy.keep_ips` |
+| `privacy.keep_days` | Data retention > People | 1-3650 (395) | admin | site | `privacy.keep_days` |
+| `conversions.identity` | Data retention > People | full / anonymous (full) | admin | site | `conversions.identity` |
 | `backup.daily` | Data retention | 1-60 (14) | install admin | install | `backup.daily` |
 | `backup.weekly` | Data retention | 0-52 (8) | install admin | install | `backup.weekly` |
 | `mail.daily` | Mail | on / off (on) | admin | site | `mail.daily` |
@@ -65,6 +69,8 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `sites.log_dir` | Sites | absolute path | install admin | site | `logs.dir` |
 | `sites.log_base` | Sites | a file name | install admin | site | `logs.base` |
 | `beacon.goals` | Sites (Goals) | up to 10 event names of `beacon.EVENTS` or `page_view`; `[]` is no goal ([]) | admin | site | `beacon.goals` |
+| `hooks.calendly.event_types` | Integrations (Calendly) | up to 50 event-type URIs, uuids or booking-page slugs; `[]` keeps every event ([]) | admin | site | `hooks.calendly_event_types` (or nested `hooks.calendly.event_types`) |
+| `hooks.calcom.event_types` | Integrations (Cal.com) | up to 50 event-type ids or slugs; `[]` keeps every event ([]) | admin | site | `hooks.calcom_event_types` (or nested `hooks.calcom.event_types`) |
 | `security.require_totp` | Security | on / off (off) | owner | organisation | none |
 | `security.session_days` | Security | 1-90 (14) | owner | organisation | none |
 
@@ -72,6 +78,11 @@ A viewer sees every page read-only, with the reason. Install-only values (SMTP s
 log paths) are shown to install admins only.
 
 Totals, page milestones and every stored day's figures are kept forever. They are not a setting.
+
+`hooks.calendly.event_types` and `hooks.calcom.event_types` (Settings > Integrations, the
+tool's box; saved by `POST integrations/hooks/types`): the hook receiver reads them for each
+delivery (`conversions/event_types.py`), so a change counts from the next delivery. Another
+event type is answered 200 and not kept; docs/INTEGRATIONS.md, "Calendly".
 
 `beacon.goals` (Settings > Sites > Goals): the page lists every event the site may name, the
 ones it has counted (`event_counts` in the history, read-only) first and the others under
@@ -93,12 +104,28 @@ page says "Capped by your plan". The input's top is the cap, and a save above it
 The daily run's pruning uses the capped value too (`settings_store.apply`, `prune_plan`), so a
 smaller plan keeps fewer days from its next run.
 
+## People: keeping IPs and emails (2.4.0)
+
+`privacy.keep_ips` keeps each visit with its IP address and user agent (`people/visits.py`,
+tables `visits` and `visit_days` in `conversions.sqlite`), for `privacy.keep_days` days.
+`conversions.identity: full` keeps a lead's name and email with its conversions. Turning
+`keep_ips` off deletes the site's kept visits at the next nightly run (`people.visits.prune_kept`).
+
+**The upgrade rule.** When neither the page nor `config.yml` sets them, a new install reads
+`keep_ips: true` and `identity: full`. An install whose history predates 2.4.0 reads `false` and
+`anonymous` (`people/policy.py`): history schema 13 writes the meta row `privacy_legacy` when it
+upgrades an older file, and a file still at schema 12 or older counts the same. The page then
+shows source `upgrade` ("kept off by the upgrade to 2.4.0", `settings_store.LEGACY_DEFAULTS`).
+Docker: `SKALD_KEEP_IPS=1|0` and `SKALD_IDENTITY=full|anonymous` write the config keys. Turn them on
+only when the site's privacy notice says so.
+
 ## A shorter window
 
 Making a retention window (or the number of backups) smaller removes stored data. So:
 
 - the page shows what will go: `GET settings/retention-preview?key=&value=` counts the stored
-  rows and days (and beacon or backup files) the new value removes;
+  rows and days (and beacon or backup files; for `privacy.keep_days` the kept visits) the new
+  value removes;
 - the save is refused (409, `needs_confirm`) until the site's name is typed (`"confirm": "<site>"`);
 - nothing is removed at once. Removal happens at the next daily run (`cli.prune_kept`), and
   each site is pruned by its own window: a site with a longer window keeps its rows when

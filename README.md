@@ -120,8 +120,8 @@ want them.
 
 ### Results, not just visits
 Leads, funnels and conversions. Calendly, Cal.com, Stripe, Typeform, HubSpot and Zapier push
-signed webhooks; the optional `skald.js` tag adds clicks, form steps and bookings. Anonymous by
-default, and checked twice like everything else.
+signed webhooks; the optional `skald.js` tag adds clicks, form steps and bookings. Checked twice
+like everything else. Nothing hidden: spam, test, cancelled and removed rows are listed, not lost.
 
 </td>
 </tr>
@@ -154,6 +154,9 @@ from any server. Step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md).
 - Visitors, visits, pages read, countries, browsers, systems, devices, sources, referring sites,
   UTM campaigns and ad networks (from the click ID, never its value).
 - Anonymous journeys: each visit's pages in order, kept 7 days by default.
+- People: each visit kept with its IP address and browser (395 days by default; a switch), and one
+  search for an IP, an email, a lead or a visitor ID that shows that person's visits, leads and
+  conversions across days, linked. Admins and owners only, every search in the audit log.
 - Engagement by source and device (pages per visit, one-page visits, visit length), returning
   visitors by source, exit rate per page.
 - Campaign tag problems flagged: a source with no medium, an unknown medium, an ad click with no
@@ -181,6 +184,7 @@ from any server. Step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md).
 - Saved funnels counted every day by source and device, with drop-off and time to go through.
 - Conversions from signed webhooks; forms and bookings started but not finished.
 - Goals from in-page events, per 100 visits by source.
+- Spam, duplicate and test leads, and cancelled, removed and test conversions, each listed in full.
 - Outgoing signed webhooks to your CRM, Zapier or Slack, never with a name or email.
 
 **Site health**
@@ -264,6 +268,10 @@ docker exec -it skald skald accounts init --org "Example Co" --owner-email owner
 ```
 
 **4. Open the link, set a password, sign in.** Your history lives in the `skald-data` volume.
+
+**5. Fill the history and check it.** `docker exec skald skald backfill --days 14` adds the days your
+logs still hold; `docker exec skald skald doctor` then says, one line per part, what works and
+what to fix. The full walk-through is the Help guide "Docker: first install in 10 minutes".
 
 Settings come from environment variables (`SKALD_SITE`, `SKALD_HOSTS`, `SKALD_TIMEZONE`,
 `SKALD_BASE_URL`, `SKALD_EMAIL`, `SMTP_*`) or a config file mounted at `/etc/skald/config.yml`. The
@@ -357,12 +365,18 @@ skald('consent', true);                             // with data-consent="requir
 
 | Tool | What Skald records |
 | --- | --- |
-| Calendly, Cal.com | `demo`: booked, cancelled, rescheduled (Calendly also no-show) |
+| Calendly, Cal.com | `demo`: booked, cancelled, rescheduled (Calendly also no-show); keep only your own event types when one account books for several businesses |
 | HubSpot | meetings as `demo`, contacts and workflows as `contact`, deals as `deal` (`won` at closed-won) |
 | Stripe | `paid` (a checkout paid) |
 | Typeform | `contact` |
 | Zapier, Make, n8n, any script | the signed `json` hook, any short action name |
 | Your own server | the signed `lead` hook (sign-ups, contacts, trials) |
+
+**Which road fits your site** (a form plugin, Next.js on Vercel, a Postgres backend, no code,
+Calendly, Stripe, HubSpot) is in the Help guide "Pick your road"; "Send leads from your backend in
+5 minutes" has signed examples in curl, Node, Python and PHP. Settings > Integrations shows each
+road's state (ready, never received, last received 2 h ago) and flags a lead that arrived by two
+roads, which would count twice.
 
 **Outgoing webhooks.** Signed, HTTPS only, never to a private address, retried five times over about
 15 hours. They never carry a name or an email.
@@ -376,9 +390,9 @@ asks for your Skald's ingest address and the site's token, then needs your site'
 **API.** A read-only JSON API over every dashboard figure, with revocable, scoped tokens
 (`skald_<id>_<secret>`). See [docs/API.md](docs/API.md).
 
-**MCP for AI agents.** Thirteen read-only tools: `overview`, `breakdown`, `top_pages`, `ai_activity`,
+**MCP for AI agents.** Fourteen read-only tools: `overview`, `breakdown`, `top_pages`, `ai_activity`,
 `leads`, `funnel`, `compare`, `page_story`, `live_today`, `data_quality`, `site_health`,
-`conversions` and `list_sites`. Answers call visits "an upper bound on people" and name every
+`conversions`, `list_sites` and, with the `read_private` scope only, `find_person`. Answers call visits "an upper bound on people" and name every
 withheld day. It cannot change anything.
 
 ```sh
@@ -493,7 +507,7 @@ flowchart LR
   D --> API[Read-only API]
   D --> MCP[MCP server<br/>Claude, ChatGPT]
   TAG[skald.js tag and webhooks<br/>Calendly, Stripe, HubSpot...] --> BH[Beacon helper]
-  BH --> CV[(conversions.sqlite<br/>anonymous by default)]
+  BH --> CV[(conversions.sqlite<br/>conversions, people's visits)]
   CV --> D
   H[Refresh helper<br/>sessions, settings, tokens] --- UI
   H --> ACC[(accounts.sqlite)]
@@ -501,13 +515,18 @@ flowchart LR
 
 ## Security and privacy
 
-- **No addresses in history.** Stored history holds totals and labels only. Visits are grouped in
-  memory with a key made fresh for each run and never stored. Returning visitors use a keyed one-way
-  hash, deleted after 30 days.
-- **Short windows for raw data.** Raw addresses stay in your own log (14 days by default) and a
-  private 6-hour Requests feed, both behind sign-in.
-- **Conversions are anonymous by default.** Names, emails, phone numbers, form answers, addresses
-  and browser strings are dropped before anything is written. Skald never matches people by address.
+- **No addresses in history.** Stored history holds totals and labels only. Returning visitors use
+  a keyed one-way hash, deleted after 30 days.
+- **People, as a switch.** A new install keeps each visit with its IP address and browser
+  (`privacy.keep_ips`, 395 days by default) and leads' names and emails (`conversions.identity:
+  full`), apart from history and behind sign-in, so admins can follow a person across days. An
+  install upgraded from before 2.4.0 keeps neither until you turn them on (Settings > Data
+  retention > People, or `SKALD_KEEP_IPS=1` / `SKALD_IDENTITY=full`). Your privacy notice must say
+  so first. Off, raw addresses stay only in your own log (14 days) and the 6-hour Requests feed.
+- **One true delete.** `ti.py forget` removes a person's address, visits, conversions, name and
+  email everywhere Skald keeps them. Every person search is written to the audit log.
+- **Webhooks keep only what counts.** Phone numbers, form answers, addresses and browser strings
+  are dropped before anything is written; a name and email only when the site keeps them.
 - **Signed everything.** Webhooks are checked against each tool's signature; outgoing hooks are
   signed and HTTPS only.
 - **Hardened sign-in.** scrypt hashes, HttpOnly + Secure session cookie (only its SHA-256 stored),

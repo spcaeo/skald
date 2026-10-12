@@ -34,7 +34,7 @@ Copy yours from **Settings > Team & access > API & tokens**, under **For an AI a
 2. Under **Make a token**, type a **Name**, for example "Claude".
 3. Under **Sites it may read**, tick the sites the assistant may read.
 4. Under **Scopes**, tick **MCP**. You can untick **Read** if this token is only for the assistant.
-5. Leave **Private** off. With it on, the assistant can see visitor addresses in today's AI activity. Turn it on only if you truly need that.
+5. Leave **Private** off. With it on, the assistant can see visitor addresses in today's AI activity and look a person up (`find_person`: their visits, emails and names). Turn it on only if you truly need that.
 6. Press **Make token** and copy the token. It is shown only once.
 7. Press **I have copied it**.
 
@@ -114,6 +114,7 @@ The assistant chooses these tools itself. Dates are in your site's own time zone
 | `data_quality` | Per day: whether the log was read whole and passed its checks |
 | `site_health` | Open alerts, heartbeat uptime, errors today, late runs, page speed |
 | `conversions` | Demos, forms, sign-ups and payments by stage: started, completed, abandoned, won, lost |
+| `find_person` | One person by IP address, email, visitor ID or lead: their visits, leads and conversions. Only with **Private**; each search goes to the audit log |
 
 It also offers a ready prompt, **weekly_report**, which asks the assistant for a short weekly report.
 
@@ -145,7 +146,7 @@ Skald gives the assistant the same rules the dashboard follows:
 
 - **Read-only.** Every tool only reads. The assistant cannot change settings, delete data, or add anything.
 - **Only your sites.** The token reads only your organisation's sites, and only the ones you ticked. Every tool checks this again on each call.
-- **No addresses by default.** Without **Private**, no answer carries a visitor's address.
+- **No addresses by default.** Without **Private**, no answer carries a visitor's address, and the assistant cannot look a person up.
 - **Turn it off at once.** To cut off an assistant, revoke its token: open **Settings > Team & access > API & tokens**, press **Revoke**, then **Yes, revoke**. It stops working immediately.
 - **Tied to the maker.** If the person who made the token leaves the team or stops being an admin, the token stops too.
 - **Keep the token secret.** It sits in your assistant's settings. Do not paste it into a chat or a shared file.

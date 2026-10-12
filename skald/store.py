@@ -76,7 +76,18 @@ from .verify import Problem
 #    first person, the first from search and from each AI assistant.
 # 12: indexes by day on day_extras, visitor_days and journeys (ADDED_INDEXES),
 #    for the deletes that keep them to their windows; no row changes.
-SCHEMA_VERSION = 12
+# 13: (2.4.0) no table change. A file upgraded from 12 or older gets the meta
+#    row `privacy_legacy` (ADDED_META): this install predates "keep IPs and
+#    emails", so it keeps today's behaviour - no address, no email kept -
+#    until someone turns `privacy.keep_ips` / `conversions.identity` on
+#    (people/policy.py). A new file has no such row: the owner's default, on.
+SCHEMA_VERSION = 13
+
+# Meta rows an upgrade adds: (version, key, value). Written only when a file
+# older than `version` is upgraded, never on a new file.
+ADDED_META = [
+    (13, "privacy_legacy", "kept off by the upgrade to 2.4.0"),
+]
 
 # Tables added after version 1: (version, name, CREATE statement). Created by
 # an upgrade (after the backup copy), never by the plain open, so an older
@@ -337,6 +348,8 @@ class History:
         have = {r[0] for r in self.db.execute(
             "SELECT name FROM sqlite_master WHERE type = 'index'")}
         indexes = [sql for _, name, sql in ADDED_INDEXES if name not in have]
+        meta = [(key, value) for version, key, value in ADDED_META
+                if found is not None and found < version]
         if found == SCHEMA_VERSION and not missing and not tables and not indexes:
             return None
         # An index changes no row (and can be dropped again), so an upgrade
@@ -360,6 +373,9 @@ class History:
             # After the tables: an index may be on one just made.
             for sql in indexes:
                 self.db.execute(sql)
+            for key, value in meta:
+                self.db.execute("INSERT OR IGNORE INTO meta (key, value) VALUES (?, ?)",
+                                (key, value))
             self.db.execute(
                 "INSERT INTO meta (key, value) VALUES ('schema_version', ?) "
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value",

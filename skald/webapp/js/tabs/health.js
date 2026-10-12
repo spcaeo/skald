@@ -1,7 +1,7 @@
 // Site health: what the server answered (status classes per group), the
 // errors, and how fast it answered people's page views.
 
-import { h, n, pct1 } from "../ui.js";
+import { h, n, share } from "../ui.js";
 import { GROUPS, color, figures, pathMatch, ranked, chartDays } from "../data.js";
 import { bars, columns, legend } from "../charts.js";
 import { table } from "../table.js";
@@ -52,7 +52,7 @@ export default function health(m, s) {
     tile("Page not found, seen by people", t.nf == null ? "-" : n(t.nf), "404s people met, not scanners"),
     tile("Typical answer time", p50 || "-", "the median page view for people; only buckets are kept"),
     tile("Slowest 5%", p95 || "-", "the 95th percentile falls in this bucket"),
-    tile("Slow page views", views ? pct1(slow, views) : "-", `${n(slow)} took a second or more`))));
+    tile("Slow page views", share(slow, views) || (views ? n(slow) : "-"), `${n(slow)} took a second or more`))));
   out.push(uptime(m, r));
   if (r.kind === "history" && r.length > 1) {
     const series = [{ name: "Server errors (5xx)", color: "var(--bad)", get: (d) => d.err || 0 }, { name: "404s seen by people", color: "var(--warn)", get: (d) => d.nf || 0 }];

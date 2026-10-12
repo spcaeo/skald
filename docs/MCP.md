@@ -46,7 +46,8 @@ be left out when the token reads only one site. `view` is a part of a site
 | `live_today` | site, view | today so far from the 2-minute snapshot (partial; never compared) |
 | `data_quality` | site, from, to | per day: verify, audit, log gaps, unreadable lines; files that failed to build |
 | `site_health` | site | open alerts, heartbeat uptime, errors today, late scheduled runs, page-speed status |
-| `conversions` | site, from, to, action | every action (demo, contact, signup, paid, ...) by stage: started, completed, abandoned, the completion rate (over 10 or more starts), cancelled, no-show, won, lost; completed ones by source; withheld and not-recorded days named. From conversions.json; anonymous |
+| `conversions` | site, from, to, action | every action (demo, contact, signup, paid, ...) by stage: started, completed, abandoned, the completion rate (over 10 or more starts), cancelled, no-show, won, lost; completed ones by source; withheld and not-recorded days named. From conversions.json; no name or email; rows marked test are never counted |
+| `find_person` | site, q | **read_private only.** One IP address, email, visitor ID or lead id: every visit kept with the address, the last 6 hours of requests, the leads (spam, duplicates and test too), every conversion (test, cancelled and removed too), linked. The same lookup as the page's search (`people/lookup.py`); each call is written to the audit log by its kind and a hash, never the value. A listing, not a figure |
 
 A site you may not read, a bad date or a missing file comes back as a tool
 error (`isError: true`) in plain words, not as a protocol error.
@@ -54,7 +55,8 @@ error (`isError: true`) in plain words, not as a protocol error.
 **Addresses.** Two data files hold visitors' addresses: `requests` and
 `ai_activity`. Only a token with the `read_private` scope reads them (today
 that means `ai_activity`'s list of today's assistant events, with
-addresses). Without it, no answer carries an address.
+addresses), and only such a token may call `find_person` (addresses, emails
+and names). Without it, no answer carries an address.
 
 ## Resources and prompt
 
