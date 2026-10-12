@@ -6,6 +6,7 @@ import { h, toast } from "./ui.js";
 import * as S from "./state.js";
 import { CHOICES, choiceWords } from "./tz.js";
 import { openDrawer } from "./drawer.js";
+import { withFlag } from "./tabs/readers.js";
 
 // Browser storage may be blocked (private windows, strict settings): every
 // read and write is wrapped, and the app works the same without it.
@@ -132,7 +133,7 @@ function describe(hash) {
   const name = (S.TABS.find(([k]) => k === tab) || [null, tab])[1];
   const range = (S.RANGES.find(([k]) => k === (p.get("range") || "30d")) || [null, p.get("range")])[1];
   const bits = [name, range];
-  for (const k of S.FILTERS) if (p.get(k)) bits.push(`${k} ${p.get(k)}`);
+  for (const k of S.FILTERS) if (p.get(k)) bits.push(`${k} ${k === "country" ? withFlag(p.get(k)) : p.get(k)}`);
   if (p.get("view")) bits.push(p.get("view"));
   if (p.get("cmp")) bits.push("compared");
   return bits.join(", ");

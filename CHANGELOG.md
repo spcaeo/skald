@@ -4,6 +4,32 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.3.0 (2026-10-12)
+
+Flags beside every country, and a visit from an AI assistant is never hidden inside an earlier
+visit.
+
+### Added
+
+- **A flag beside every country** across the dashboard: tables, chips, filters and filter
+  chips, drill-downs, visits, leads, conversions, requests, live, insights, the printed report,
+  and the plain page and mails. The code or name stays beside it; unknown codes get none.
+
+### Changed
+
+- **A new outside source starts a new visit.** Before, a visit was one browser with no gap
+  over 30 minutes. So someone who opened the site directly, then came back from ChatGPT or
+  Perplexity minutes later, was one "Direct" visit. The assistant showed under "AI assistants
+  that sent visitors" but not in Traffic sources or the visit list. Now a page arriving from
+  an outside source (an AI assistant, search, social, email, another site, a campaign link)
+  that differs from the visit's own starts a new visit. Same-site pages, pages with no
+  referrer, and the same source again continue the visit. The audit's second count follows
+  the same rule by its own code. Bot and crawler visits, and the "did the page draw" check,
+  are unchanged.
+- Days already stored keep their counts. `backfill --force` recounts the days the logs still
+  hold. A manual audit of a day stored before 2.3.0 can differ on visits where someone came
+  back from outside within 30 minutes; the daily run audits only days collected by the new code.
+
 ## 2.2.3 (2026-10-12)
 
 "Visitor IDs off" now holds on every road, and "abandoned" no longer counts a later booking

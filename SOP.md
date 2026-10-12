@@ -157,7 +157,7 @@ This is the part that goes wrong in public.
 | --- | --- | --- |
 | **hits** | every request | how much work the server did |
 | **views** | requests for something a person could read | how many pages were read |
-| **visits** | distinct sessions: one address and one user agent, within a 30-minute gap | how many browsers came |
+| **visits** | distinct sessions: one address and one user agent, within a 30-minute gap; for people, a page from a new outside source starts a new one (below) | how many browsers came |
 | **readers** | visits with at least one page view | the closest honest answer to "how many people read us" - the headline |
 
 A worked example, from the log this package was extracted from. One person, one
@@ -366,9 +366,29 @@ agent stored past the day - which the privacy rule forbids), a breakdown
 crossed with another (each is stored on its own), and anything a browser
 does after the page arrives (scrolls, clicks, time on page).
 
-**Visits (schema 8).** A visit is the readers' own session - one address
-and user agent, no gap over `report.session_gap_minutes` - so visits equal
-readers, and verify withholds a day where they do not, or where the visits'
+**What a visit is.** One address and user agent, no gap over
+`report.session_gap_minutes` - and, for people, no page view arriving from a
+new outside source. Inside an open visit, a page (a document, not an asset or
+a payload) whose source is outside the site - an AI assistant citation,
+another website, a search engine, social, email, a tagged link (utm or click
+id) - and whose source, referrer and campaign differ from the visit's first
+page's starts a new visit. A page from the site itself, or with no referrer
+and no tag, continues the visit; so does the same outside source again. This
+is Google Analytics' session rule. Why: a reader who opened the site directly
+and came back from perplexity.ai two minutes later was one "Direct" visit, so
+the citation count said perplexity 1 while sources and visits said 0
+(docomatic.ai, 2026-10-12). The split lives in `aggregate._Sessions`,
+`visits.Journeys` and the requests feed (`dimensions.new_source`), and again,
+written apart, in `audit.py` (`_elsewhere`). Crawler, bot and rendering
+judgements (`rendering.py`, `classify.crawler_visits`, `bot_counts.py`) still
+split on the gap alone: whether a browser drew is about the browser, and a
+returning reader's assets are cached. It applies to days collected from the
+release that brought it (2026-10-12) on; a stored day changes only with
+`backfill --force`, and an audit of a day collected before it can differ
+where a reader came back from outside inside the gap.
+
+**Visits (schema 8).** A visit is the readers' own session (above) - so
+visits equal readers, and verify withholds a day where they do not, or where the visits'
 pages do not add up to the pages read. The key is hashed in memory with a
 salt made for the run and never written. Each visit becomes an anonymous
 journey (start time to the minute in `report.timezone`, country, device,

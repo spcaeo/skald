@@ -1,7 +1,8 @@
 """Visits: an anonymous journey for every reader's visit, and its metrics.
 
 A visit here is exactly the session aggregate.Tally already counts for real
-people - one visitor key, no gap longer than report.session_gap_minutes -
+people - one visitor key, no gap longer than report.session_gap_minutes,
+and no page arriving from a new outside source (dimensions.new_source) -
 and a visit that read at least one page is a reader. So visits equal
 readers, and verify checks that they do.
 
@@ -120,7 +121,7 @@ def _via(hit, source: str, cited: bool, engine: str) -> str:
 
 class _Visit:
     __slots__ = ("first", "last", "prev", "trail", "times", "pages", "labels",
-                 "not_found", "posted", "visitor")
+                 "not_found", "posted", "visitor", "origin")
 
     def __init__(self, when) -> None:
         self.first = self.last = self.prev = when
@@ -131,6 +132,7 @@ class _Visit:
         self.labels: dict = {}
         self.not_found = 0
         self.posted = 0
+        self.origin = None                          # its first page's (dimensions.page_origin)
 
 
 @dataclass
@@ -210,8 +212,9 @@ class Journeys:
 
     The session rule is aggregate._Sessions' to the letter - a new visit
     when the key has not been seen or was last seen more than the gap away,
-    in the order the hits arrive - so its visits with a page are exactly
-    the readers.
+    or when a page arrives from an outside source other than the visit's
+    own (dimensions.new_source), in the order the hits arrive - so its
+    visits with a page are exactly the readers.
     """
 
     def __init__(self, gap_minutes: int = 30, tz=None,
@@ -237,10 +240,16 @@ class Journeys:
     def add(self, hit, verdict) -> None:
         key = self._key(hit)
         visit = self.open.get(key)
-        if visit is None or abs(hit.when - visit.prev) > self.gap:
+        own = self.own_hosts or ({hit.host.lower()} if hit.host else set())
+        origin = (dim.page_origin(hit.referrer, hit.url, verdict.tier is Tier.CITED, own)
+                  if hit.is_page else None)
+        if (visit is None or abs(hit.when - visit.prev) > self.gap
+                or dim.new_source(origin, visit.origin)):
             if visit is not None:
                 self._close(visit)
             visit = self.open[key] = _Visit(hit.when)
+        if visit.origin is None:
+            visit.origin = origin
         visit.prev = hit.when
         visit.first = min(visit.first, hit.when)
         visit.last = max(visit.last, hit.when)
@@ -248,7 +257,6 @@ class Journeys:
             visit.not_found += 1
         if hit.method == "POST":
             visit.posted += 1
-        own = self.own_hosts or ({hit.host.lower()} if hit.host else set())
         path = hit.path[:70]
         if visit.trail and hit.status[:1] in ("2", "3"):
             # Where the visitor was when this was asked for. A cancelled

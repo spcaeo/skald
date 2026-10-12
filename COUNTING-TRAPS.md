@@ -361,6 +361,27 @@ how it is made. It is counted twice like any figure (`audit_ai_likely.py`),
 and a lead or conversion whose fetches were not kept reads "not recorded",
 not "none".
 
+## 15. A second arrival hidden inside one visit (2026-10-12)
+
+**What happened.** On docomatic.ai a reader opened the site directly at 10:16,
+then came back from perplexity.ai at 10:18: same address and browser, inside
+the 30-minute gap. One visit, sourced by its first page: "Direct or unknown".
+The citation count (counted per arrival) said perplexity.ai 1; Traffic sources,
+the visits list and the assistant drill-down said 0.
+
+**How this package prevents it.** For people, a page view whose source is
+outside the site and differs from the visit's own starts a new visit
+(`dimensions.new_source`, used by `aggregate._Sessions`, `visits.Journeys` and
+the requests feed). Same-site and no-referrer pages continue the visit, and so
+does the same outside source again. Rendering and crawler judgements still
+split on the gap alone.
+
+**The check that catches it.** The audit splits visits by the same rule,
+written apart (`audit._elsewhere`, with its own labels); a disagreement
+withholds the day.
+
+**The test.** `tests/test_visit_source_split.py`.
+
 ## The pattern in all five
 
 Every one of these was a number that answered a slightly different question

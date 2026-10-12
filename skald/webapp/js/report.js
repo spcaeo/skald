@@ -13,6 +13,7 @@ import { TAB_RENDER } from "./tabs/index.js";
 import { REGISTRY, csv, download, showAllRows } from "./table.js";
 import { zip } from "./zip.js";
 import { rangeWords, setContext } from "./tabs/common.js";
+import { withFlag } from "./tabs/readers.js";
 import { BUILD, buildLine, toolName, toolTagline } from "./build.js";
 import { openDrawer } from "./drawer.js";
 
@@ -77,7 +78,7 @@ function cover(m, s, tabs) {
     h("dl", null,
       h("dt", null, "Period"), h("dd", null, r.kind === "today" ? `Today so far, ${long(m.today)}` : `${long(r.first)} to ${long(r.last)} (${n(r.length)} days)`),
       h("dt", null, "Page group"), h("dd", null, viewList(m).find(([k]) => k === (s.view || "all"))?.[1] || s.view),
-      h("dt", null, "Filters"), h("dd", null, f.length ? f.map(([k, v]) => `${FILTER_WORDS[k]}: ${v}`).join("; ") : "none"),
+      h("dt", null, "Filters"), h("dd", null, f.length ? f.map(([k, v]) => `${FILTER_WORDS[k]}: ${k === "country" ? withFlag(v) : v}`).join("; ") : "none"),
       h("dt", null, "Sections"), h("dd", null, tabs.map(tabName).join(", ")),
       h("dt", null, "Prepared"), h("dd", null, `${new Date().toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" })}, times in ${m.tz}`),
       BUILD ? h("dt", null, "Version") : null, BUILD ? h("dd", null, buildLine()) : null),
@@ -184,7 +185,7 @@ export function builder(m, s, loadView) {
     h("section", { class: "dw-sec" }, h("h3", null, "Period and filters"),
       h("div", { class: "rb-grid" }, h("label", { class: "fld" }, "Period", range), h("label", { class: "fld" }, "Page group", view)),
       h("div", { class: "rb-checks" },
-        h("label", { class: "rb-check" }, keep, f.length ? `Apply the current filters: ${f.map(([k, v]) => `${FILTER_WORDS[k]} ${v}`).join(", ")}` : "Apply the current filters (none set)"),
+        h("label", { class: "rb-check" }, keep, f.length ? `Apply the current filters: ${f.map(([k, v]) => `${FILTER_WORDS[k]} ${k === "country" ? withFlag(v) : v}`).join(", ")}` : "Apply the current filters (none set)"),
         h("label", { class: "rb-check" }, cmp, "Compare to the previous period, where both are whole"))),
     h("p", { class: "note" }, "To make a PDF, choose \"Save as PDF\" as the printer in the print dialog. Each section starts on a new page; every table row is printed."),
   ];

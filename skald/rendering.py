@@ -30,6 +30,12 @@ A visit counts whole or not at all: once any of its pages rendered, every
 request of the visit is people's. Every request of a visit that did not
 render moves to bots, as NOT_RENDERED, so the groups still add up to the log.
 
+The visit judged here is split on the gap alone, never on the source: the
+question is whether this browser drew, and a person who comes back from an
+assistant two minutes later has the assets cached and asks for none. The
+people's visits (aggregate._Sessions) then split by source inside it, on
+both roads alike; audit_rendered.py judges the same gap-only spans.
+
 What it cannot know: a person whose browser blocks scripts and styles, or
 who reads through a text-only browser, is left out with the scrapers. The
 beacon shows how rare that is (README, "What this cannot know").

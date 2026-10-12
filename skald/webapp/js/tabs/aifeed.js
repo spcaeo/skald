@@ -6,7 +6,7 @@
 import { time as tzTime, label as tzLabel } from "../tz.js";
 import { h, n, clock, short, toast, ICON } from "../ui.js";
 import { csv, download } from "../table.js";
-import { flag, country } from "./readers.js";
+import { withFlag, country } from "./readers.js";
 import { link } from "../drill.js";
 import { mark } from "../icons.js";
 
@@ -83,7 +83,7 @@ export function aiFeed(m, { limit = 12, globalCountry = "" } = {}) {
   draw();
   return h("div", null,
     h("div", { class: "feed-tools" }, sel("Assistant", names, "name"), sel("Kind", Object.keys(KIND), "kind", (k) => KIND[k]),
-      sel("Country", countries, "country", (c) => `${flag(c)} ${country(c)}`), h("span", { class: "grow", style: { flex: "1" } }), count, dl),
+      sel("Country", countries, "country", (c) => withFlag(c, country(c))), h("span", { class: "grow", style: { flex: "1" } }), count, dl),
     list, more,
     h("p", { class: "note" }, "Addresses are shown on this private page only. They are read from today's log and never stored in history. Repeat means the same visitor (a keyed hash of the address and the assistant's name) was seen on an earlier day in the last 30."));
 }

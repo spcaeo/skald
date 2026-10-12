@@ -11,14 +11,14 @@ import * as S from "./state.js";
 import { h, ICON, reduced, toast, untip } from "./ui.js";
 import { load, refresh as postRefresh, viewList, rangeOf, filterSupport, markersByDay } from "./data.js";
 import { TAB_RENDER } from "./tabs/index.js";
-import { country } from "./tabs/readers.js";
+import { country, flagEl, withFlag } from "./tabs/readers.js";
 import { setMarkers } from "./charts.js";
 import { saved, savedDialog, bell, marksOn, zonePicker, store } from "./extras.js";
 import { setZone, time as tzTime } from "./tz.js";
 import { keys, help, whatsNew, newUnseen, palette } from "./keys.js";
 import { drillView } from "./drillview.js";
 import { closeDrawers } from "./drawer.js";
-import { chainOf, DIMS } from "./drill.js";
+import { chainOf, DIMS, said } from "./drill.js";
 import { setFavicons } from "./icons.js";
 import { REGISTRY, showAllRows } from "./table.js";
 import { exportMenu, builder, exportZip, exportJSON, printTab } from "./report.js";
@@ -96,7 +96,7 @@ function filtersPop(s) {
   const fields = {};
   const pick = (k, list) => {
     const sel = h("select", { id: `f-${k}` }, h("option", { value: "" }, "Any"),
-      list.map((v) => h("option", { value: v, selected: s[k] === v }, k === "country" ? country(v) : v)));
+      list.map((v) => h("option", { value: v, selected: s[k] === v }, k === "country" ? withFlag(v, country(v)) : v)));
     fields[k] = sel;
     return h("label", { class: "fld", for: `f-${k}` }, FILTER_LABEL[k], sel);
   };
@@ -182,7 +182,7 @@ function drawBar(s) {
       trail.slice(0, -1).map(([words, key, cls]) => h("li", { class: cls || null }, key
         ? h("button", { type: "button", class: "crumb", onclick: () => S.set({ tab: key }) }, words) : h("span", { class: "crumb" }, words))),
       h("li", null, chain.length ? h("button", { type: "button", class: "crumb", onclick: () => S.set({ dd: "" }) }, name) : h("span", { class: "crumb now", "aria-current": "page" }, name)),
-      last ? h("li", null, h("span", { class: "crumb now", "aria-current": "page" }, `${DIMS[last[0]].name}: ${DIMS[last[0]].say(last[1])}`)) : null)));
+      last ? h("li", null, h("span", { class: "crumb now", "aria-current": "page" }, `${DIMS[last[0]].name}: ${said(last[0], last[1])}`)) : null)));
 
   // Middle: the period, the page group, the filters.
   const range = segmented(S.RANGES, s.range, (k) => {
@@ -229,7 +229,7 @@ function drawBar(s) {
   const support = filterSupport(s.tab);
   const chips = h("div", { class: "chips", "aria-label": "Active filters" }, S.activeFilters(s).map(([k, v]) => {
     const words = k === "path" ? `${s.pathmode === "starts" ? "starts with" : "contains"} ${v}` : v;
-    return h("span", { class: `chip${support.includes(k) ? "" : " off"}` }, FILTER_LABEL[k], " ", h("b", null, words),
+    return h("span", { class: `chip${support.includes(k) ? "" : " off"}` }, FILTER_LABEL[k], " ", h("b", null, k === "country" ? flagEl(v) : null, words),
       h("button", { type: "button", "aria-label": `Remove the ${FILTER_LABEL[k].toLowerCase()} filter`, onclick: () => S.set({ [k]: "" }) }, "×"));
   }));
   // A page with no figures (About) keeps only its title, the bell and the palette.
@@ -309,7 +309,7 @@ let footTick = () => {};
 // What a printed page says at its top (hidden on screen): site, tab, period, filters.
 function printHead(s, name) {
   const r = rangeOf(model, s);
-  const f = S.activeFilters(s).map(([k, v]) => `${FILTER_LABEL[k]}: ${v}`).join("; ");
+  const f = S.activeFilters(s).map(([k, v]) => `${FILTER_LABEL[k]}: ${k === "country" ? withFlag(v) : v}`).join("; ");
   return h("div", { class: "print-head", "aria-hidden": "true" }, h("b", null, `${model.site}: ${name}`),
     ` ${r.kind === "today" ? `today so far, ${model.today}` : `${r.first} to ${r.last}`}${f ? `. Filters: ${f}` : ""}. Printed ${new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}.`,
     buildLine() ? h("span", { class: "ph-build" }, ` ${buildLine()}`) : null);

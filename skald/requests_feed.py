@@ -239,7 +239,8 @@ class Feed:
         self.cutoff = cutoff
         # People's visits as the feed sees them, for each row's `source`:
         # the source of the visit's first page view (as journeys label it),
-        # or of its first request until a page is read.
+        # or of its first request until a page is read. A page from a new
+        # outside source starts a new visit, as in the journeys.
         self.own = {h.lower() for h in own_hosts}
         self.gap = timedelta(minutes=gap_minutes)
         self.visits: dict[tuple[str, str], dict] = {}
@@ -281,11 +282,17 @@ class Feed:
         key = (hit.address, hit.user_agent)
         visit = self.visits.get(key)
         own = self.own or ({hit.host.lower()} if hit.host else set())
-        source = dim.source_type(hit.referrer, hit.url, verdict.tier is Tier.CITED, own)
-        if visit is None or when - visit["last"] > self.gap:
-            visit = self.visits[key] = {"last": when, "source": source, "page": hit.is_page}
+        cited = verdict.tier is Tier.CITED
+        source = dim.source_type(hit.referrer, hit.url, cited, own)
+        page = dim.page_origin(hit.referrer, hit.url, cited, own) if hit.is_page else None
+        # The visits' own rule (aggregate._Sessions): the gap, or a page from
+        # a new outside source.
+        if (visit is None or when - visit["last"] > self.gap
+                or dim.new_source(page, visit["origin"])):
+            visit = self.visits[key] = {"last": when, "source": source, "page": hit.is_page,
+                                        "origin": page}
         elif not visit["page"] and hit.is_page:
-            visit.update(source=source, page=True)
+            visit.update(source=source, page=True, origin=page)
         visit["last"] = max(visit["last"], when)
         return visit
 

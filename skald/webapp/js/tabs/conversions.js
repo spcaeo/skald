@@ -14,6 +14,8 @@ import { head, rangeWords, fixed } from "./common.js";
 import { table } from "../table.js";
 import { howTo } from "./help.js";
 import { conversionsLikely } from "./likelyai.js";
+import { withFlag } from "./readers.js";
+import { label as valueLabel } from "../drill.js";
 
 const ACTION = { demo: "Demos", contact: "Contact forms", signup: "Sign-ups", waitlist: "Early access", paid: "Payments", deal: "Deals", call: "Phone clicks", email: "Email clicks", cta: "Button clicks", trial: "Trials" };
 const STAGE = { started: "started", completed: "completed", paid: "paid", cancelled: "cancelled", rescheduled: "rescheduled", no_show: "no-show", won: "won", lost: "lost" };
@@ -126,7 +128,7 @@ function breakdown(dim, t, acts) {
   const labels = new Map();
   for (const a of acts) for (const [k, v] of Object.entries(per[a] || {})) labels.set(k, (labels.get(k) || 0) + v);
   const rows = [...labels.entries()].map(([k, all]) => ({ k, all, ...Object.fromEntries(acts.map((a) => [a, per[a]?.[k] || 0])) }));
-  const cols = [{ key: "k", label: DIM[dim], fmt: dim === "tool" ? toolName : undefined, path: dim === "landing" }, { key: "all", label: "All", num: true },
+  const cols = [{ key: "k", label: DIM[dim], fmt: dim === "tool" ? toolName : dim === "country" ? (v) => valueLabel("country", v, v) : undefined, path: dim === "landing" }, { key: "all", label: "All", num: true },
     ...acts.slice(0, 4).map((a) => ({ key: a, label: actionName(a), num: true }))];
   return h("div", { class: "sheet" }, h("h3", null, `By ${DIM[dim].toLowerCase()}`),
     table(cols, { caption: `Completed conversions by ${DIM[dim].toLowerCase()}`, rows, file: `conversions-by-${dim}.csv`, search: false, limit: 8, sortKey: "all", empty: "None in this range." }));
@@ -197,7 +199,7 @@ function timeline(f) {
     });
     const steps = (x.steps || []).map((s) => `${actionName(s.action).replace(/s$/, "")} ${STAGE[s.stage] || s.stage} ${dayLabel(s.at)} ${timeOf(s.at)}`);
     const facts = [x.first_source ? `first came from ${x.first_source}` : "", x.source ? `converted from ${x.source}` : "", x.landing ? `landed on ${x.landing}` : "",
-      x.country ? x.country : "", x.device ? x.device : "", x.visits_before != null ? `${n(x.visits_before)} visits before` : ""].filter(Boolean).join(" · ");
+      x.country ? withFlag(x.country) : "", x.device ? x.device : "", x.visits_before != null ? `${n(x.visits_before)} visits before` : ""].filter(Boolean).join(" · ");
     return h("li", { class: "conv-tl-item" },
       h("p", null, h("strong", null, `${actionName(x.action)}, ${dayLabel(x.at)} ${timeOf(x.at)}`), ` via ${toolName(x.tool)}${x.browser ? ", one browser" : ""}`),
       facts ? h("p", { class: "note" }, facts) : null,

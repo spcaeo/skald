@@ -8,7 +8,7 @@ import { pathMatch } from "../data.js";
 import { spark } from "../charts.js";
 import * as S from "../state.js";
 import { info } from "./tiles.js";
-import { country } from "./readers.js";
+import { country, withFlag } from "./readers.js";
 
 export const TYPES = [
   ["working", "Working", "var(--good)", '<path d="M3 11l4-4 3 3 4-5"/><path d="M10 5h4v4"/>'],
@@ -43,7 +43,7 @@ function card(i) {
   const [, label, tone, glyph] = TYPES.find(([k]) => k === i.type) || TYPES[0];
   const [arrow, words] = i.before == null ? ["", ""] : change(i.after, i.before);
   const go = target(i);
-  const name = i.subject?.kind === "country" ? country(i.subject.name) : i.subject?.name;
+  const name = i.subject?.kind === "country" ? withFlag(i.subject.name, country(i.subject.name)) : i.subject?.name;
   const trend = i.trend ? Object.keys(i.trend).sort().map((d) => i.trend[d]) : null;
   return h("article", { class: "ins", style: { "--tone": tone } },
     h("div", { class: "ins-top" },

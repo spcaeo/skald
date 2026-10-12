@@ -30,6 +30,7 @@ from html import escape as esc
 
 from .aggregate import GroupStats, Totals
 from .classify import Group, ads_checks
+from .countries import label as country_label
 
 WIDTH = 72
 
@@ -88,6 +89,11 @@ def _share(part: int, whole: int) -> str:
 
 def _top(counter, limit: int = 5, sep: str = ", ") -> str:
     return sep.join(f"{name} {n:,}" for name, n in list(counter.items())[:limit])
+
+
+def _flagged(counter) -> dict:
+    """Country codes as their flag and name ('🇨🇦 Canada'), same order."""
+    return {country_label(code): n for code, n in counter.items()}
 
 
 def unreadable_words(totals: Totals) -> str:
@@ -190,7 +196,7 @@ def _card_text(which: Group, stats: GroupStats, total: int,
             row("From an AI", "none arrived by following a citation")
         # With the breakdowns, countries of readers are in their own card.
         if stats.countries and not stats.by.get("country"):
-            row("Countries", _top(stats.countries) + " (visits)")
+            row("Countries", _top(_flagged(stats.countries)) + " (visits)")
             if credit:
                 row("", credit[0] + (f" ({credit[1]})" if credit[1] else ""))
         if stats.pages:
@@ -356,7 +362,7 @@ def _card(which: Group, stats: GroupStats, total: int,
             rows.append(_row("Followed a citation", "none yet",
                              "the number that becomes customers"))
         if stats.countries and not stats.by.get("country"):
-            value = _top(stats.countries, 5) + " (visits, not requests)"
+            value = _top(_flagged(stats.countries), 5) + " (visits, not requests)"
             if credit:
                 value += (f'<div class="mute" style="font:400 11px/1.5 {FONT};'
                           f'color:{FAINT};padding-top:2px">{credit_html(credit)}</div>')

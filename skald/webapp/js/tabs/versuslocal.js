@@ -7,6 +7,7 @@
 import { addDays } from "../ui.js";
 import { daysBetween, pathMatch } from "../data.js";
 import * as S from "../state.js";
+import { withFlag } from "./readers.js";
 
 const LEAD_TYPES = ["signup", "contact", "waitlist", "demo_booked"];
 const MARGINAL = ["country", "source", "device", "browser", "campaign", "referrer"];
@@ -134,7 +135,7 @@ export function local(m, s, a, b, cube) {
   }
   dimensions.continents = null;
   const problems = [];
-  if (mode.kind === "split") problems.push(`These filters together (${mode.f.map(([k, v]) => `${k} ${v}`).join(", ")}) cannot be split from the days this page holds; keep one, or only country, source and device.`);
+  if (mode.kind === "split") problems.push(`These filters together (${mode.f.map(([k, v]) => `${k} ${k === "country" ? withFlag(v) : v}`).join(", ")}) cannot be split from the days this page holds; keep one, or only country, source and device.`);
   if ((mode.kind === "cube" || mode.kind === "one") && cube?.first && [a.first, b.first].some((d) => d < cube.first)) problems.push(`Tables split by a filter come from the daily cube, which starts on ${cube.first}; earlier days are not in them.`);
   if (ctx.path) problems.push("Here the page filter narrows Pages read and the Pages table only; the page's own visitors, fetches and sources need the server's compare.");
   return { ok: true, local: true, a: A.info, b: B.info, filtered: mode.kind !== "none" || !!ctx.path, metrics, dimensions, series: { a: A.series, b: B.series }, problems,

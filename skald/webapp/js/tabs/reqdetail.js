@@ -6,7 +6,7 @@ import { time as tzTime, label as tzLabel } from "../tz.js";
 import { h, n, clock, long, toast } from "../ui.js";
 import { GROUPS, color } from "../data.js";
 import * as S from "../state.js";
-import { country, flag } from "./readers.js";
+import { country, withFlag } from "./readers.js";
 import { call, installOnly, INSTALL_ONLY } from "./ipmanager.js";
 import { isViewer, VIEWER } from "../access.js";
 import { openDrawer } from "../drawer.js";
@@ -67,7 +67,7 @@ export function detail(m, row, ours) {
   ]);
   const who = dl([
     ["Address", row.ip && !removed ? h("span", { class: "ip" }, row.ip, copyButton(row.ip)) : removed ? "removed on request" : "-"],
-    ["Country", row.country ? `${flag(row.country)} ${row.country_name || country(row.country)}` : "unknown"],
+    ["Country", row.country ? withFlag(row.country, row.country_name || country(row.country)) : "unknown"],
     ["System", [row.os, row.device].filter((x) => x && x !== "Other").join(", ") || "-"],
     ["Agent", row.agent || "-"],
     ["Verified", row.verified ? VERIFIED[row.verified] || row.verified : "only named assistants and search crawlers are checked"],

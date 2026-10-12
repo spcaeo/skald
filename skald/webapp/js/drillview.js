@@ -14,7 +14,7 @@ import { h, n, short, duration, clock } from "./ui.js";
 import { rangeOf, chartDays, ranked, base, getJSON, color, GROUPS } from "./data.js";
 import { lines, band } from "./charts.js";
 import * as S from "./state.js";
-import { DIMS, chainOf, encode, label, link } from "./drill.js";
+import { DIMS, chainOf, encode, label, link, said } from "./drill.js";
 import { blist, panel } from "./tabs/common.js";
 import { openDrawer } from "./drawer.js";
 
@@ -78,7 +78,7 @@ function crumbs(m, s, chain) {
     h("ol", null, h("li", null, h("button", { type: "button", class: "crumb", onclick: () => S.set({ dd: "" }) }, tab)),
       chain.map(([d, v], i) => h("li", null, i === chain.length - 1
         ? h("span", { class: "crumb now", "aria-current": "page" }, `${DIMS[d].name}: `, label(d, v))
-        : h("button", { type: "button", class: "crumb", onclick: () => S.set({ dd: encode(chain.slice(0, i + 1)) }) }, `${DIMS[d].name}: ${DIMS[d].say(v)}`)))));
+        : h("button", { type: "button", class: "crumb", onclick: () => S.set({ dd: encode(chain.slice(0, i + 1)) }) }, `${DIMS[d].name}: ${said(d, v)}`)))));
   return nav;
 }
 
@@ -136,7 +136,7 @@ function requestPart(m, s, chain, holder) {
       h("ul", { class: "stream" }, rows.slice(0, 12).map((r) => h("li", null, h("span", { class: "s-t" }, tzTime(r.at, { seconds: true, label: false })),
         h("span", { class: "s-d", style: { background: color(r.group) }, "aria-hidden": "true" }),
         h("span", { class: "s-w" }, `${r.status} ${r.method || ""} `, link("path", r.path, { from: "drill" }), ` ${r.rule}`,
-          h("small", null, r.ip && r.ip !== "(removed)" ? link("ip", r.ip, { from: "drill" }) : "", r.country ? ` ${r.country}` : ""))))),
+          h("small", null, r.ip && r.ip !== "(removed)" ? link("ip", r.ip, { from: "drill" }) : "", r.country ? [" ", label("country", r.country, r.country)] : ""))))),
       h("button", { type: "button", class: "btn", onclick: () => S.set(patch) }, "Open these in the Requests tab"));
   }).catch((e) => holder.replaceChildren(h("p", { class: "empty" }, `The recent requests could not be loaded: ${e.message || e}.`)));
 }
@@ -240,7 +240,7 @@ export function drillView(m, s) {
   requestPart(m, s, chain, rq);
   const d = openDrawer({
     title: label(dim, value), head: [back, crumbs(m, s, chain)], className: "dd", key: "drill", scope: "page", still: wasOpen,
-    subtitle: chain.length > 1 ? `${chain.map(([d, v]) => `${DIMS[d].name.toLowerCase()} ${DIMS[d].say(v)}`).join(", and ")}. Select any value below to narrow further.`
+    subtitle: chain.length > 1 ? `${chain.map(([d, v]) => `${DIMS[d].name.toLowerCase()} ${said(d, v)}`).join(", and ")}. Select any value below to narrow further.`
       : `${DIMS[dim].name}. Select any value below to narrow further.`,
     body, onClose: () => { wasOpen = false; if (S.read().dd) S.set({ dd: "" }); },
   });

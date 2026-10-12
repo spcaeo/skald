@@ -20,7 +20,9 @@ from .visits import duration_words
 NOT_RECORDED = ("Visit figures not recorded for (some of) these days: they were "
                 "collected before visits were counted.")
 BLURB = ("A visit is one visitor, no gap over 30 minutes, that loaded at least "
-         "one page - the same count as the readers. Length runs from the first "
+         "one page - the same count as the readers. A page arriving from a new "
+         "outside source (an assistant, a search engine, another site, a tagged "
+         "link) starts a new visit. Length runs from the first "
          "request to the last, so time spent reading one page is not in it.")
 
 

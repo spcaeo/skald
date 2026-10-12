@@ -24,15 +24,18 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-12e",
+  id: "2026-10-12f",
   items: [
+    ["Flags", "a flag beside every country, everywhere in the dashboard, the plain page and the mails."],
+    ["Visits", "coming back from ChatGPT, Perplexity, a search or a campaign link starts a new visit, so the assistant or campaign that brought someone back is shown as its source.", "getting-started"],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.2.1-2.2.3
     ["Abandoned", "a demo or form started and finished later by the same person, from another session or device, now counts as finished, not abandoned.", "leads-and-conversions"],
     ["Privacy", "with visitor IDs off, no visitor ID is kept from any source: the script tag, a webhook, or your lead database.", "privacy"],
     ["Webhooks", "Calendly, Stripe, HubSpot and the lead hook reach Skald on every install, with or without the tracking script. Before, they could fail until the script was switched on.", "webhooks"],
     ["Dashboard", "every install opens the full dashboard (menu, tabs, drawers), not the plain page.", "getting-started"],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.2.0
     ["New releases", "owners and admins see a line when a newer Skald is out, red for a security release; your server admin upgrades with one command, with a backup and a rollback.", "faq"],
     ["llms.txt", "Settings > AI crawlers suggests an llms.txt from the pages people and AI assistants read most. Copy or download it; Skald never writes to your site.", "settings-and-retention"],

@@ -14,7 +14,10 @@ accidentally print one while meaning another:
 
   hits      every request. Only useful for "how much work did the server do".
   views     requests for something a person could read (see Hit.is_page).
-  visits    distinct sessions: same address and user agent, within a gap.
+  visits    distinct sessions: same address and user agent, within a gap;
+            for people, a page arriving from a new outside source (an
+            assistant, a website, a search engine, a tagged link) starts
+            a new one (_Sessions).
 
 A visit is the closest honest answer to "how many people", and it is still an
 upper bound - a household behind one address is one visit, and a scanner
@@ -162,22 +165,33 @@ class _Sessions:
     key has not been seen, or was last seen longer ago than the gap. Logs are
     read newest-file-first in places, so the comparison uses absolute distance
     rather than assuming time moves forward.
+
+    With `origin` (people's page views only, dimensions.page_origin), a page
+    that arrives from an outside source other than the open visit's own also
+    starts a new visit (dimensions.new_source): the classic session rule, so
+    a reader who comes back from an assistant inside the gap is a visit from
+    that assistant. Other groups split on the gap alone.
     """
 
     def __init__(self, gap_minutes: int) -> None:
         self.gap = timedelta(minutes=gap_minutes)
         self.last: dict[tuple[str, str], object] = {}
         self.read: dict[tuple[str, str], bool] = {}
+        self.origin: dict[tuple[str, str], tuple | None] = {}
         self.count = 0
 
-    def saw(self, hit: Hit) -> bool:
+    def saw(self, hit: Hit, origin: tuple | None = None) -> bool:
         key = (hit.address, hit.user_agent)
         previous = self.last.get(key)
         self.last[key] = hit.when
-        if previous is None or abs(hit.when - previous) > self.gap:
+        if (previous is None or abs(hit.when - previous) > self.gap
+                or dim.new_source(origin, self.origin.get(key))):
             self.count += 1
             self.read[key] = False
+            self.origin[key] = origin
             return True
+        if self.origin.get(key) is None:
+            self.origin[key] = origin
         return False
 
     def first_page(self, hit: Hit) -> bool:
@@ -251,7 +265,11 @@ class Tally:
             stats.views += 1
             stats.pages[hit.path[:70]] += 1
         sessions = self.sessions[verdict.group]
-        if sessions.saw(hit):
+        origin = None
+        if hit.is_page and verdict.group is Group.PEOPLE:
+            origin = dim.page_origin(hit.referrer, hit.url, verdict.tier is Tier.CITED,
+                                     self.own_hosts or ({hit.host.lower()} if hit.host else set()))
+        if sessions.saw(hit, origin):
             stats.visits += 1
             if hit.country:
                 stats.countries[hit.country] += 1

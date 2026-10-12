@@ -10,7 +10,7 @@ import { h, n, duration } from "../ui.js";
 import { color, rangeOf, ranked } from "../data.js";
 import { bars } from "../charts.js";
 import { head, nothing } from "./common.js";
-import { flag, country } from "./readers.js";
+import { flag, flagEl, country } from "./readers.js";
 import { link, open as openDrill } from "../drill.js";
 import { mark } from "../icons.js";
 import { tiles, others, top, info } from "./tiles.js";
@@ -42,7 +42,7 @@ function visitRow(j, fresh) {
   const trail = (j.trail || []).map((p) => p.path ?? p[0]);
   return h("li", { class: fresh ? "fresh" : null },
     h("span", { class: "s-t" }, tzTime(j.start, { label: false })),
-    h("span", { class: "s-i" }, flag(j.country) ? h("span", { class: "flag", "aria-hidden": "true" }, flag(j.country)) : mark("device", j.device)),
+    h("span", { class: "s-i" }, flagEl(j.country) || mark("device", j.device)),
     h("span", { class: "s-w" }, link("country", j.country, { text: country(j.country), bare: true }), ", ",
       [j.device, j.browser !== "Other" ? j.browser : ""].filter(Boolean).join(", "),
       j.via ? h("span", null, " from ", link(j.source === "AI assistant" ? "assistant" : "referrer", j.via, { bare: true })) : null,
@@ -55,7 +55,7 @@ function aiRow(e, fresh) {
     h("span", { class: "s-t" }, tzTime(e.at, { label: false })),
     h("span", { class: "s-i" }, mark("assistant", e.name || "?")),
     h("span", { class: "s-w" }, h("b", null, link(e.kind === "referred" ? "referrer" : "bot", e.name, { bare: true })), ` ${KIND[e.kind] || e.kind}`,
-      e.country ? h("span", { class: "flag s-f", title: e.country_name || e.country }, ` ${flag(e.country)}`) : null,
+      flag(e.country) ? h("span", { class: "flag s-f", title: e.country_name || country(e.country) }, ` ${flag(e.country)}`) : null,
       h("small", null, e.path)));
 }
 
