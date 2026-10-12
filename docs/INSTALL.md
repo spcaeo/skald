@@ -235,7 +235,7 @@ lines to add to nginx or Caddy.
 The quick way, pinned to a release (`--ref` picks the code it downloads):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.0.0/install.sh | sudo bash -s -- --ref v2.0.0
+curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.1.0/install.sh | sudo bash -s -- --ref v2.1.0
 ```
 
 This runs a script from the internet as root. To check what you run first,
@@ -244,10 +244,10 @@ the release workflow attaches to every release (it lists the tarball and
 `install.sh`):
 
 ```sh
-curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.0.0/skald-2.0.0.tar.gz
-curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.0.0/SHA256SUMS
-sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.0.0.tar.gz: OK
-tar -xzf skald-2.0.0.tar.gz && cd skald-2.0.0
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.1.0/skald-2.1.0.tar.gz
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.1.0/SHA256SUMS
+sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.1.0.tar.gz: OK
+tar -xzf skald-2.1.0.tar.gz && cd skald-2.1.0
 less install.sh                               # read it
 sudo ./install.sh                             # installs from this folder, downloads nothing
 ```

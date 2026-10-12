@@ -115,7 +115,7 @@ export function table(columns, opts) {
         return tr;
       }));
     }
-    count.textContent = rows.length ? (all.length === rows.length ? `${n(rows.length)} rows` : `${n(all.length)} of ${n(rows.length)} rows`) : "";
+    count.textContent = rows.length ? (all.length === rows.length ? `${n(rows.length)} row${rows.length === 1 ? "" : "s"}` : `${n(all.length)} of ${n(rows.length)} rows`) : "";
     more.hidden = all.length <= limit;
     more.textContent = showAll ? "Show fewer" : `Show all ${n(all.length)}`;
     if (dl) dl.disabled = !all.length;

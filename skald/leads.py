@@ -41,6 +41,14 @@ any range; and `time_to_convert` (from the first touch to the lead, in
 buckets, and the visits the browser counted before it). Statuses are as
 of now: the team's later changes rewrite past days.
 
+`likely_ai` on each attribution row (inferred, ai_likely.py): for a touch
+whose source is "Direct or unknown" with no utm_campaign, the assistant
+whose user fetcher fetched the touch's landing page in the same minute as
+its `at` or up to `attribution.ai_window_minutes` before - from the stored
+user fetches (day kind `ai_fetches`, verified whole days) - else "(none)";
+"(not recorded)" when those fetches were not kept or the touch has no page
+or time; "(none)" for every other touch.
+
 `audit_leads.py` recounts every figure by a different road - SQL GROUP BY
 over json_extract within UTC bounds worked out per local day, with its own
 source rules - so a mistake here shows up as a disagreement. Each time the
@@ -54,6 +62,7 @@ import json
 import sqlite3
 import statistics
 from collections import Counter
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlencode
@@ -76,7 +85,7 @@ PERIOD_DAYS = 30
 TOUCH_DIMS = ("source", "ai", "utm_campaign", "landing")
 TOUCHES = (("first", "first_touch"), ("last", "last_touch"))
 ATTRIBUTION_COLUMNS = ["day", "type", "status", "touch", "source_type", "ai", "campaign",
-                       "utm_source", "utm_medium", "landing", "paid", "n"]
+                       "utm_source", "utm_medium", "landing", "paid", "likely_ai", "n"]
 # From the first touch to the lead, in elapsed time; "1-7d" is 1 to 7 whole days.
 CONVERT_BUCKETS = ["<1h", "<1d", "1-7d", "8-30d", "31-90d", ">90d", "unknown", "clock_error"]
 VISIT_BUCKETS = ["0", "1", "2", "3-5", "6-10", "11+", "unknown"]
@@ -264,11 +273,24 @@ def paid(touch: dict | None) -> bool:
         _s(touch, "utmMedium").lower() in PAID_MEDIUMS
 
 
-def attribution(rows: list[dict], tz, first: date, last: date) -> list[list]:
+def touch_likely(t: dict | None, index: dict | None, window: int, tz) -> str:
+    """A touch's likely_ai (see the module's note)."""
+    from .ai_likely import likely_for
+    if t is None or touch_source(t) != "Direct or unknown" or _s(t, "utmCampaign"):
+        return NONE
+    raw = t.get("at")
+    return likely_for(index, _s(t, "landingPath"), _utc(raw) if isinstance(raw, str) else None,
+                      window, tz)
+
+
+def attribution(rows: list[dict], tz, first: date, last: date,
+                likely: tuple | None = None) -> list[list]:
     """Every lead of [first, last] (spam and duplicates too: the status says
     which) twice, once per touch, as ATTRIBUTION_COLUMNS rows. A lead
     without the touch is all "(none)", so each touch adds up to the day's
-    statuses."""
+    statuses. `likely`: (ai_likely.fetch_index, window), or None when the
+    fetches are not at hand."""
+    index, window = likely or (None, 0)
     got: Counter = Counter()
     for row in rows:
         d = local_day(row, tz)
@@ -280,7 +302,7 @@ def attribution(rows: list[dict], tz, first: date, last: date) -> list[list]:
             utm = [(_s(t, k).lower()[:60] if t else "") or NONE for k in ("utmSource", "utmMedium")]
             got[(d.isoformat(), row.get("type") or "unknown", row.get("status") or "new", which,
                  lab["source"], lab["ai"], lab["utm_campaign"], *utm, lab["landing"],
-                 paid(t))] += 1
+                 paid(t), touch_likely(t, index, window, tz))] += 1
     return [[*key, n] for key, n in sorted(got.items())]
 
 
@@ -531,24 +553,38 @@ def withhold(out: dict, found: dict[str, list[str]]) -> dict:
 
 
 def _audited(out: dict, path: Path, tz, today: date, journeys: list[dict],
-             config: dict) -> dict:
+             config: dict, history_path=None) -> dict:
     """The second count of every block; a block that disagrees is withheld.
     A recount that cannot run withholds them all."""
     from . import audit_leads
     try:
         recount = audit_leads.audit_leads(path, tz, today - timedelta(days=DAYS - 1), today,
-                                          journeys=journeys, config=config)
+                                          journeys=journeys, config=config,
+                                          history=history_path)
         found = audit_leads.findings(out, recount)
     except Exception as why:            # noqa: BLE001 - unchecked figures are withheld
         found = {"*": [f"the recount could not run: {type(why).__name__}: {why}"]}
     return withhold(out, found)
 
 
+def likely_fetches(config: dict, history, today: date) -> tuple | None:
+    """(fetch index, window) for touch_likely, from the whole site's stored
+    AI user fetches; None when off or without a history."""
+    from .ai_likely import FETCH_DAYS, fetch_index, settings
+    from .config import site_name
+    got = settings(config)
+    if history is None or not got["on"]:
+        return None
+    first = today - timedelta(days=FETCH_DAYS + 1)
+    return fetch_index(history, site_name(config), first, today), got["window"]
+
+
 def blob(config: dict, tz, today: date, journeys: list[dict],
-         journey_first: date, audited: bool = True) -> dict:
+         journey_first: date, audited: bool = True, history=None) -> dict:
     """leads.json's body. `journeys`: the visits of [journey_first, today].
     audited (the file's way): every block recounted, a disagreeing one
-    withheld; False gives the figures as counted, for the recount to check."""
+    withheld; False gives the figures as counted, for the recount to check.
+    `history` (store.History) holds the AI user fetches for likely_ai."""
     note = str(setting(config, "leads", "admin_note", ADMIN_NOTE))
     path = db_path(config)
     if path is None:
@@ -571,7 +607,9 @@ def blob(config: dict, tz, today: date, journeys: list[dict],
            "by_source_type": None,
            "funnel": funnel(journeys, rows, tz, journey_first, today, config),
            "attribution_columns": ATTRIBUTION_COLUMNS,
-           "attribution_rows": attribution(rows, tz, today - timedelta(days=DAYS - 1), today),
+           "attribution_rows": attribution(rows, tz, today - timedelta(days=DAYS - 1), today,
+                                           likely_fetches(config, history, today)),
+           "likely_ai": likely_note(config),
            "time_to_convert": time_to_convert(rows, tz, today - timedelta(days=DAYS - 1), today,
                                               has_visits)}
     out["by_source_type"] = out["period"].pop("by_type")
@@ -579,7 +617,13 @@ def blob(config: dict, tz, today: date, journeys: list[dict],
     if problems:
         return {**_unavailable("leads figures do not reconcile: " + "; ".join(problems[:3]),
                                note), "problems": problems}
-    return _audited(out, path, tz, today, journeys, config) if audited else out
+    return _audited(out, path, tz, today, journeys, config,
+                    getattr(history, "path", None)) if audited else out
+
+
+def likely_note(config: dict) -> dict:
+    from .data_reports import likely_note as note
+    return note(config)
 
 
 def _page_journeys(page) -> tuple[list[dict], date]:
@@ -607,7 +651,7 @@ def build(page) -> dict:
         whole.states = {e["day"].isoformat(): e for e in whole.daily}
         page = whole
     journeys, first = _page_journeys(page)
-    return blob(page.config, page.tz, page.today, journeys, first)
+    return blob(page.config, page.tz, page.today, journeys, first, history=page.history)
 
 
 # ---------------------------------------------------------------- command
@@ -667,7 +711,24 @@ def current(ctx, audited: bool = True) -> dict:
     """leads.json's body for the whole site today, from the stored journeys
     of verified days (the command's and run-daily's)."""
     journeys, first = site_journeys(ctx)
-    return blob(ctx.config, ctx.tz, ctx.now.date(), journeys, first, audited)
+    with fetch_history(ctx) as history:
+        return blob(ctx.config, ctx.tz, ctx.now.date(), journeys, first, audited, history)
+
+
+@contextmanager
+def fetch_history(ctx):
+    """The history file opened read-only, for the AI user fetches behind
+    likely_ai; None when there is none."""
+    from .store import History
+    path = getattr(ctx, "db_path", None)
+    if not isinstance(path, (str, Path)) or not Path(path).is_file():
+        yield None
+        return
+    history = History.reader(path)
+    try:
+        yield history
+    finally:
+        history.close()
 
 
 def cmd_leads(ctx) -> int:
@@ -684,7 +745,8 @@ def cmd_leads(ctx) -> int:
         journeys, _ = site_journeys(ctx)
         got = compare(b, audit_leads(db_path(ctx.config), ctx.tz,
                                      today - timedelta(days=DAYS - 1), today,
-                                     journeys=journeys, config=ctx.config))
+                                     journeys=journeys, config=ctx.config,
+                                     history=ctx.db_path))
         for p in got:
             ctx.err(f"  - {p}")
         ctx.out("leads audit: " + ("ok, the SQL recount matches" if not got

@@ -14,6 +14,7 @@ import { head, rangeWords, fixed } from "./common.js";
 import { table } from "../table.js";
 import * as S from "../state.js";
 import { howTo } from "./help.js";
+import { leadsLikely } from "./likelyai.js";
 
 const TYPE = { signup: "Sign-ups", contact: "Contact forms", waitlist: "Early access", demo_opened: "Demo opened", demo_booked: "Demos booked" };
 const TONE = { signup: "var(--g-people)", contact: "var(--g-search_engines)", waitlist: "var(--g-bots)", demo_opened: "var(--g-ours)", demo_booked: "var(--opp)" };
@@ -169,7 +170,7 @@ function ranged(r, f, s, days, length, out) {
     const at = Object.fromEntries(cols.map((c, i) => [c, i]));
     const mine = rows.filter((x) => days.has(x[at.day]));
     const leadRows = mine.filter((x) => !SKIP.has(x[at.status]));
-    out.push(section2("Where they came from", cover, sources(leadRows, at, s)));
+    out.push(section2("Where they came from", cover, sources(leadRows, at, s), leadsLikely(leadRows, at, f)));
     out.push(section2("Lead quality by source", cover, quality(mine, at, s)));
   }
   const t = f.time_to_convert;

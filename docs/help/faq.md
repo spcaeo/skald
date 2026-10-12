@@ -24,6 +24,10 @@ Blank means not known. Zero means Skald counted and found nothing. A figure that
 
 No. AI crawlers and fetches are machines, and show on [AI & crawlers](#bots) in their own units. A person who clicks a link in an AI answer is a person, and the AI assistant is shown as their source on [Sources](#sources).
 
+## What does "likely from ChatGPT" mean?
+
+It is an estimate, not a count. A person who clicks a link in an AI answer often arrives with no referrer, so the visit shows as Direct. But when they asked, the assistant fetched your page from your server. When a direct visit with no campaign tag lands on a page an assistant fetched in the same minute or up to 15 minutes before, Skald says the visit was *likely* sent by that assistant. It shows these on [Sources](#sources), [AI & crawlers](#bots), [Leads](#leads), [Conversions](#conversions) and in a visitor's details, always marked "likely" with an (i) that says how. They are never added to the AI assistant source or to any other figure. See [Leads and conversions](leads-and-conversions.md).
+
 ## Why is my own visit not counted?
 
 Your team's addresses are probably listed as internal. Visits from them go to the "Our own" group, kept apart from people, so your own testing does not inflate the figures. See [Internal traffic](internal-traffic.md) and [Internal traffic settings](#settings/internal).
@@ -69,3 +73,7 @@ Yes. Select the round **You** button at the foot of the sidebar and choose **Tim
 ## How do I invite a colleague?
 
 Admins and owners go to **Settings > Team & access > Team** and use **Invite someone**. See [Sign-in and team](sign-in-and-team.md).
+
+## My site is behind Cloudflare: will cached pages be missed?
+
+Only if Skald reads nothing but your server's log. A page Cloudflare serves from its cache never reaches your server, so your server's log does not see that visit. Two fixes, set up by whoever runs your Skald server: Cloudflare's own request log (Logpush), if your Cloudflare plan offers it, or the small Skald Worker on any plan. The Worker sends Skald one line per request after the page has gone out, so it never slows the page. When Skald reads both the Worker and your server's log, it takes only the cached pages from the Worker, so no visit is counted twice.

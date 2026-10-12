@@ -31,7 +31,10 @@ KINDS = ("hourly", "ours", "not_found", "pages", "campaigns", "returning",
          # phase 4 (day_more.py; each written once its module exists): saved
          # funnels counted daily, engagement and new/returning by source and
          # device, campaign tag hygiene
-         "funnels", "engagement", "utm_hygiene")
+         "funnels", "engagement", "utm_hygiene",
+         # likely sent by an AI assistant (inferred, ai_likely.py), and the
+         # user fetches it rests on, kept ai_likely.FETCH_DAYS
+         "ai_likely", "ai_fetches")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS day_extras (

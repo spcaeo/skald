@@ -1,4 +1,4 @@
-"""The audit's own reader for log-drain lines (Vercel and Netlify).
+"""The audit's own reader for log-drain lines (Vercel, Netlify, edge records).
 
 audit.py recounts a day from the raw lines by a road of its own. A site on
 Vercel or Netlify has no nginx log: its lines are the drain records the
@@ -15,6 +15,10 @@ does not read. The rules match the main road's on purpose (written apart):
 a record needs the client's address, a three-digit status and a URL;
 Vercel's revalidations (status -1) and records without a `proxy` are not
 requests; Netlify's records other than `log_type: traffic` are not either.
+
+Edge records (Skald's own format, posted by a CDN Worker; ingest_drain.py)
+are read here too: `ts` is RFC 3339 or a JSON number of Unix milliseconds,
+`path` starts with "/", `id` is the request's id. No country.
 """
 from __future__ import annotations
 
@@ -148,6 +152,39 @@ def _netlify(row: dict) -> dict | None:
             "country": cc, "rid": _string(row.get("request_id"))[:128]}
 
 
+def _edge_when(value) -> datetime | None:
+    """RFC 3339, or a JSON number of Unix milliseconds; nothing else."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        if not value >= 0:                      # negative, or NaN
+            return None
+        try:
+            if isinstance(value, int):
+                return _EPOCH + timedelta(microseconds=value * 1000)
+            return _EPOCH + timedelta(microseconds=round(value * 1000))
+        except (OverflowError, ValueError):
+            return None
+    if not isinstance(value, str) or value.strip().isdigit():
+        return None
+    return _time(value)
+
+
+def _edge(row: dict) -> dict | None:
+    path = row.get("path")
+    address = _string(row.get("ip")).strip()
+    if not isinstance(path, str) or path[:1] != "/" or address == "":
+        return None
+    when = _edge_when(row.get("ts"))
+    status = _three_digits(row.get("status"))
+    if when is None or status == "":
+        return None
+    return {"when": when, "address": address, "host": _string(row.get("host")),
+            "method": _string(row.get("method")), "url": path, "status": status,
+            "referrer": _string(row.get("referer")), "agent": _string(row.get("ua")),
+            "country": "", "rid": _string(row.get("id"))[:128]}
+
+
 def fields(raw: str) -> dict | None:
     """audit.Line's fields from one drain line, or None."""
     text = raw.strip()
@@ -163,4 +200,6 @@ def fields(raw: str) -> dict | None:
         return _vercel(row)
     if row.get("log_type") == "traffic":
         return _netlify(row)
+    if "ts" in row and "log_type" not in row:
+        return _edge(row)
     return None

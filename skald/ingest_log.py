@@ -145,10 +145,12 @@ class Writer:
         got = read_state(self.folder)["shippers"].get(shipper)
         return bool(got) and int(got.get("seq", 0)) >= seq
 
-    def append(self, shipper: str, seq: int, data: bytes, accepted: int = 0,
+    def append(self, shipper: str, seq: int | None, data: bytes, accepted: int = 0,
                rejected: int = 0) -> str:
-        """"stored" or "duplicate". Raises Full, ValueError (a bad shipper id)."""
-        if not SHIPPER.match(shipper or "") or seq < 0:
+        """"stored" or "duplicate". Raises Full, ValueError (a bad shipper id).
+        `seq` None: the shipper's next batch, whatever it is (a sender that
+        numbers nothing, such as the edge Worker; never a duplicate)."""
+        if not SHIPPER.match(shipper or "") or (seq is not None and seq < 0):
             raise ValueError("bad batch id")
         if data and not data.endswith(b"\n"):
             data += b"\n"
@@ -157,6 +159,8 @@ class Writer:
             self._recover(state)
             now = self.clock()
             last = state["shippers"].get(shipper)
+            if seq is None:
+                seq = int(last.get("seq", 0)) + 1 if last else 1
             if last and int(last.get("seq", 0)) >= seq:
                 state["totals"]["duplicates"] = state["totals"].get("duplicates", 0) + 1
                 _write_json(self.folder / STATE, state)

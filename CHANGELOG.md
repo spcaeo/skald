@@ -6,6 +6,52 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 Nothing yet.
 
+## 2.1.0 (2026-10-12)
+
+AI clicks that lost their referrer, estimated and kept apart; Cloudflare on any plan; a guide for
+sites on Vercel. Every new figure has its own second, independent count.
+
+### Added
+
+- **Likely sent by an AI assistant (inferred).** A visit with no referrer and no campaign tag that
+  lands on a page an assistant's user fetcher (ChatGPT-User, Perplexity-User, Claude-User, ...)
+  fetched in the same minute or up to 15 minutes before is shown as "likely" from that
+  assistant: on Sources, AI & crawlers (with fetches followed by a visit, per assistant), Leads
+  (by first and last touch), Conversions (by first touch) and a visitor's
+  details. Two or more assistants count once, as "more than one". **An estimate, never a count:**
+  every place says "likely", with an (i) that gives the window, and it is never added to the AI
+  assistant source, to people or to any other figure. Settings `attribution.ai_likely` (on) and
+  `attribution.ai_window_minutes` (15). The user fetches it rests on are kept 180 days as minute,
+  assistant and page only: no address, no user agent. Counted a second time by
+  `audit_ai_likely.py`, `audit_leads.py` and `audit_conversions_figures.py`; a day that differs is
+  withheld. Contract: `docs/DATA-CONTRACT-AI-LIKELY.md`.
+- **The Skald Worker for Cloudflare, on any plan** (`deploy/cloudflare-worker/`). It passes each
+  request on unchanged and, after the response has gone out, posts one edge record to
+  `/traffic-ingest/<site>?format=edge`, so pages served from Cloudflare's cache are counted. New
+  log format `edge_json`; its own rate limit (`ingest.edge_per_minute`, `ingest.edge_burst`); a
+  record posted twice is read once; the independent audit reads edge records too.
+- **An example Netlify Edge Function** (`deploy/netlify-edge-function/`) that posts the same
+  record, for a Netlify site without Log Drains.
+- **`docs/VERCEL.md`:** step by step for a site on Vercel, from zero to a working dashboard, and
+  what each Vercel plan lets Skald see. Linked from the README, `docs/HOSTING.md` and Help.
+- **Help:** "Likely from an AI assistant" in Leads and conversions, two new questions in the FAQ
+  (what "likely" means; Cloudflare's cache), and "Your site on Vercel, Netlify or behind
+  Cloudflare" in Getting started.
+
+### Changed
+
+- **Never a request counted twice with the Worker.** With `logs.edge_only_cached` (true unless
+  the site's format is `edge_json`), Skald keeps only the Worker's cache hits when it also reads
+  the server's log: any other cache status may have reached the server.
+- `leads.json` gains the `likely_ai` column (just before `n`); `ai_activity.json` and each
+  `conversions.json` day gain `likely_ai`. Existing fields are unchanged.
+- The README's feature list, the comparison and "Why we built Skald" mention the estimate, the
+  log drains and the Worker.
+
+### Fixed
+
+- A table with one row says "1 row", not "1 rows".
+
 ## 2.0.0 (2026-10-11)
 
 The first public release. Skald grows from a traffic report into a platform: accounts, results,
@@ -46,6 +92,14 @@ install works as before. Every new figure has its own second, independent count.
   not sold as a service today.
 - **Public project files:** Elastic License 2.0, security policy, contributing guide, code of
   conduct, CI, Docker image and install script.
+- **Four ways to install** (Docker, Docker Compose with an HTTPS profile, `install.sh`, manual)
+  and a hosting guide (`docs/HOSTING.md`): Render (with a Deploy button), Railway, Fly.io,
+  Kubernetes and a VPS for Skald; nginx, Apache, Caddy, Vercel, Netlify, Cloudflare, CloudFront,
+  Fastly and WordPress for your site, with what each loses without a log.
+- **Vercel and Netlify log drains:** `POST /traffic-ingest/<site>?format=vercel|netlify`, with
+  Vercel's signature checked; a request sent twice is stored once; the audit re-reads them.
+- **Real visitor addresses behind a platform's proxy** (`SKALD_TRUSTED_PROXIES`,
+  `SKALD_REAL_IP_HEADER`); nobody is trusted by default.
 
 ### Changed
 

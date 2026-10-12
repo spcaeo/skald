@@ -19,14 +19,20 @@ are hidden in your Drains" and Netlify's "Exclude personally identifiable
 information" leave it out, and without it every person would be one
 visitor. Unknown stays unknown: such a line is unreadable, and counted so.
 
+  edge_json     an edge record: one request as a CDN Worker sends it
+                (deploy/cloudflare-worker/skald-edge.js), Skald's own format.
+                Fields: ts, ip, method, host, path, status, bytes, referer,
+                ua, cache, id (docs/CDN-LOGS.md, "Cloudflare on any plan").
+
 The independent audit reads these lines with its own code (audit_drains.py).
 """
 from __future__ import annotations
 
 import re
+from datetime import datetime, timedelta, timezone
 
 from .parse import Hit, _country
-from .parse_cdn import _bytes, _duration, _json_object, _text, _when
+from .parse_cdn import _ISO, _bytes, _duration, _json_object, _text, _when
 
 
 def _status(value) -> str:
@@ -166,4 +172,69 @@ def netlify(line: str) -> Hit | None:
         size=_bytes(row.get("response_size")),
         fmt="netlify_json",
         rid=_text(row.get("request_id"))[:128],
+    )
+
+
+# -------------------------------------------------------------------- edge
+
+_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+
+def _edge_time(value) -> datetime | None:
+    """`ts`: RFC 3339 (a "t" or "z" in lower case too), or a JSON number of
+    Unix milliseconds. A string of digits is neither: no unit to guess."""
+    if isinstance(value, bool):
+        return None
+    try:
+        if isinstance(value, int):
+            return _EPOCH + timedelta(milliseconds=value) if value >= 0 else None
+        if isinstance(value, float):
+            return _EPOCH + timedelta(microseconds=round(value * 1000)) if value >= 0 else None
+        if not isinstance(value, str):
+            return None
+        text = value.strip()
+        if len(text) > 10 and text[10] == "t":
+            text = text[:10] + "T" + text[11:]
+        if not _ISO.fullmatch(text):
+            return None
+        return _when(text)
+    except (ValueError, OverflowError):
+        return None
+
+
+def edge(line: str) -> Hit | None:
+    """One edge record (ingest_drain.py keeps only its documented fields).
+
+    `path` is the path and query as the browser asked for it, so it starts
+    with "/"; `id` is the request's own id (Cloudflare's CF-Ray) and drops a
+    record posted twice. `cache` (cf-cache-status) is not read here: the
+    endpoint uses it to keep a request the origin also logged out
+    (`logs.edge_only_cached`). An edge record carries no country.
+    """
+    row = _json_object(line)
+    if row is None or "ts" not in row or isinstance(row.get("proxy"), dict) \
+            or "log_type" in row:
+        return None
+    path = row.get("path")
+    address = _text(row.get("ip")).strip()
+    if not isinstance(path, str) or not path.startswith("/") or not address:
+        return None
+    when = _edge_time(row.get("ts"))
+    status = _status(row.get("status"))
+    if when is None or not status:
+        return None
+    return Hit(
+        when=when,
+        address=address,
+        host=_text(row.get("host")),
+        method=_text(row.get("method")),
+        url=path,
+        status=status,
+        referrer=_text(row.get("referer")),
+        user_agent=_text(row.get("ua")),
+        country="",
+        request_time=None,
+        size=_bytes(row.get("bytes")),
+        fmt="edge_json",
+        rid=_text(row.get("id"))[:128],
     )

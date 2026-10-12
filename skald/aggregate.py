@@ -216,6 +216,8 @@ class Tally:
                              session_gap_minutes)
         # The saved funnels to count today (funnel_days.wanted), or None.
         self.extras.funnels = options.get("funnels")
+        # attribution.ai_likely / ai_window_minutes (ai_likely.settings).
+        self.extras.attribution = options.get("attribution")
         self.ai_seen: dict[tuple[str, str], list] = {}
         self.totals.ours_labels = Counter()
         # quality.Quality for the whole site's tally only: it is fed every
@@ -357,6 +359,7 @@ class Tally:
                 got[0] += 1
             totals.visitor_seen = seen
         people = totals.groups.get(Group.PEOPLE)
+        self.extras.visit_firsts = self.journeys.firsts
         totals.extras = self.extras.finish(totals, totals.journeys, self.journeys.pages,
                                            people.by.get("hour") if people else {})
         if self.quality is not None:

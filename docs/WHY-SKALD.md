@@ -31,7 +31,10 @@ The log is still the main record. Since 2026-10-11 Skald can also hear what the 
 report: a booking in Calendly or Cal.com, a payment in Stripe, a form in Typeform or HubSpot. The
 promise stays the same: anonymous by default, every figure counted twice, a day that does not add
 up withheld. People sign in with their own accounts, and AI agents can ask it questions through
-MCP, read-only. Each part is off until an install switches it on. The list, part by part:
+MCP, read-only. Since 2026-10-12 it also estimates which "Direct" visits and leads an AI assistant
+very likely sent (it fetched the page minutes before), labelled as an estimate, and it takes logs
+from Vercel and Netlify drains and a Cloudflare Worker for cached pages. Each part is off until an
+install switches it on. The list, part by part:
 [WHY-WE-BUILT-SKALD.md](WHY-WE-BUILT-SKALD.md), "What it does now". How to use each part, in plain
 words: the Help pages, starting with [getting started](help/getting-started.md).
 

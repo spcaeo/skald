@@ -52,7 +52,7 @@ Every new figure is counted twice, like the old ones. A day the two counts do no
 
 ## What it cannot do
 
-Keep Search Console for search queries, impressions and ranking. Keep GA4 or PostHog for deep in-page analysis and for ad spend; Skald's optional tag sends clicks, form steps and bookings, but no more. Skald also has its own limits. A page a CDN serves from its cache never reaches the log. "People" is an upper bound, because a browser's name is self-reported. AI citations are a floor, because referrers are often stripped. And you need a server whose log you can read.
+Keep Search Console for search queries, impressions and ranking. Keep GA4 or PostHog for deep in-page analysis and for ad spend; Skald's optional tag sends clicks, form steps and bookings, but no more. Skald also has its own limits. A page a CDN serves from its cache never reaches the log. "People" is an upper bound, because a browser's name is self-reported. AI citations are a floor, because referrers are often stripped. Skald now estimates the hidden part: a direct visit to a page an assistant fetched minutes before is shown as "likely" from that assistant. It is labelled as an estimate and never added to the count, so the citations stay a floor. And you need a server whose log you can read.
 
 So Skald does not replace those tools. It sits beside them. Even the gap between Skald's count and GA4's is useful: it shows how much the script misses.
 

@@ -163,6 +163,58 @@ string. Reaching rule 8 means nothing more specific matched.
 not a known bot and not browser-shaped is a library or a script. Defaulting the
 unknown into "people" is how a number drifts upward with nobody noticing.
 
+## Inferred, not classified: likely sent by an AI assistant
+
+This is not a twelfth rule. It moves no request and no visit. Every visit
+keeps its group and its source. It is an estimate laid beside the counts,
+and every place that shows it says "likely" and how it was made.
+
+Rule 10 finds a person who followed an assistant's link only by the
+referrer or an AI `utm_source` tag. Both are often lost: the app strips the
+referrer, or the link carries no tag. That person lands in "Direct or
+unknown". But when the person asked, the assistant's user fetcher
+(`AI_ASKED`) fetched the page from the server at that moment. So:
+
+```
+A visit is "likely referred by" an assistant when
+  its source is "Direct or unknown",
+  its landing address has no utm_ tag and no ad click id (CLICK_ID_PARAMS),
+  and that assistant's user fetcher fetched the page it landed on
+  in the same minute as the visit's first request,
+  or up to attribution.ai_window_minutes (default 15) minutes before.
+```
+
+- **Whose fetcher.** `AI_FETCHER_OWNERS` in `classify.py` names the
+  assistant behind each user fetcher: `ChatGPT-User` is ChatGPT
+  (`chatgpt.com`), `Perplexity-User` Perplexity, `Claude-User` Claude,
+  `Gemini-User` Gemini, `MistralAI-User` Mistral, `BingPreview` Copilot
+  (as `AI_ASKED` files it), `meta-externalfetcher` Meta AI. Training and
+  index crawlers (`AI_TRAINING`) never count: nobody is waiting on them.
+  A fetcher proven fake (spoofed) is a bot, so it does not count either.
+- **The same page.** Both paths without the query string, cut to 70
+  characters, with a trailing `/` ignored (`/pricing/` is `/pricing`).
+- **The time.** Compared to the minute, in UTC.
+- **Two or more assistants** fetched the page in the window: the visit
+  counts once, under "(more than one)". Never once per assistant.
+- **Settings.** `attribution.ai_likely` (default true) turns it on or off;
+  `attribution.ai_window_minutes` sets the window. Each day keeps the
+  window it was counted with. Off: the figure is "not recorded", never 0.
+
+Why it is only "likely". A fetch can be for a person who read the answer
+and never clicked. A direct visit to the same page a minute later can be
+someone else. A visit in the first minutes of a day cannot see the
+fetches of the day before. And an assistant that answers from its own
+index fetches nothing. So the figure is an estimate, a floor in the same
+way citations are, and it is never added to the "AI assistant" source,
+to people, or to any other real count.
+
+It is counted twice like every figure: `ai_likely.py` in the tally pass,
+and `audit_ai_likely.py` from the raw lines with its own code, sharing
+only the name lists here. A day the two disagree on is withheld. The same
+rule, at the same minute precision, marks leads and conversions whose
+touch was direct (DATA-CONTRACT.md: `ai_likely`, `ai_fetches`,
+leads.json `likely_ai`, conversions.json `likely_ai`).
+
 ## The patterns
 
 All are case-insensitive. The names are the constants in `classify.py`.
@@ -394,6 +446,10 @@ purpose.
 `Referrer-Policy`, by apps that open links in their own webview, and by HTTPS
 to HTTP transitions. Every citation count is therefore a floor, not a figure.
 `AI_UTM` recovers some of it and not all.
+Skald estimates part of the rest, labelled as an estimate: a direct visit
+to a page an assistant's user fetcher had just fetched is "likely" from
+that assistant ("Inferred, not classified" above). It is never added to
+the citation count.
 
 **Sessions are approximate.** A visit is one address plus one user agent inside
 a 30-minute gap. A household or an office behind one address is one visit; one

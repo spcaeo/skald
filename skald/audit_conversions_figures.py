@@ -8,6 +8,12 @@ assisted sources and pages by joins. It shares only the name lists in
 conversions/__init__.py (the finished stages, the labels for what was not
 recorded, the bucket names) and the file's location. Called by
 audit_conversions.check_file; a day or block it disagrees with is withheld.
+
+likely_ai (inferred, ai_likely.py): each finished row's first touch is
+picked in SQL (the row's own, else the visitor ID's earliest journeys row),
+its minute by strftime('%s') of a well-formed UTC stamp, and it is matched
+against the history's stored AI user fetches read by audit_leads' own SQL,
+by this module's own window rule.
 """
 from __future__ import annotations
 
@@ -16,6 +22,9 @@ from collections import Counter
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
+from .audit_leads import _attribution, _bare, _fetches
+from .classify import AI_LIKELY_MANY
+from .config import site_name
 from .conversions import FINISHED, UNKNOWN
 
 COLUMNS = ("source_type", "first_source", "campaign", "landing", "country", "device", "tool")
@@ -59,12 +68,47 @@ CONVERT = (f"CASE WHEN c.first_touch_at IS NULL OR strftime('%s', c.first_touch_
            f"ELSE '>90d' END")
 
 
+FIRST = ("CASE WHEN c.first_source IS NOT NULL THEN {own} WHEN c.vid IS NOT NULL THEN "
+         "(SELECT j.{col} FROM journeys j WHERE j.site = c.site AND j.vid = c.vid AND "
+         "j.at <= c.at ORDER BY j.at, j.rowid LIMIT 1) END")
+WELL_FORMED = "'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'"
+
+
+def _likely_rows(db, head: str, args: list, site: str):
+    """(day, action, source, minute, page, n) per finished row's first touch."""
+    pick = {name: FIRST.format(own=own, col=col) for name, own, col in (
+        ("src", "c.first_source", "source_type"), ("tat", "c.first_touch_at", "at"),
+        ("page", "c.landing", "path"))}
+    sql = (head.rstrip() + f", t AS (SELECT b.day AS day, c.action AS action, {pick['src']} AS "
+           f"src, {pick['tat']} AS tat, {pick['page']} AS page FROM conversions c JOIN b ON "
+           f"c.at >= b.lo AND c.at < b.hi WHERE c.site = ? AND c.stage IN {_fin()}) "
+           f"SELECT day, action, src, CASE WHEN tat GLOB {WELL_FORMED} THEN "
+           f"CAST(strftime('%s', tat) AS INTEGER) / 60 END, page, COUNT(*) FROM t "
+           f"GROUP BY 1, 2, 3, 4, 5")
+    return db.execute(sql, [*args, site]).fetchall()
+
+
+def _likely(src, stamp, page, fetched, window: int, tz) -> str:
+    if src is None:
+        return UNKNOWN
+    if src != "Direct or unknown":
+        return "(none)"
+    if fetched is None or stamp is None or not page:
+        return UNKNOWN
+    days, pages = fetched
+    if any(datetime.fromtimestamp(m * 60, tz).date().isoformat() not in days
+           for m in (stamp - window, stamp)):
+        return UNKNOWN
+    who = {w for m, w in pages.get(_bare(page), ()) if m <= stamp <= m + window}
+    return (who.pop() if len(who) == 1 else AI_LIKELY_MANY) if who else "(none)"
+
+
 def recount(path: Path, site: str, tz, first: date, last: date, now: str,
-            hours: float) -> dict[str, Counter]:
+            hours: float, history=None, config: dict | None = None) -> dict[str, Counter]:
     """{day: Counter} keyed ("stages", action, stage), ("abandoned", action),
     ("by", column, action, label), ("visits", action, bucket), ("ttc",
-    action, bucket) and, when the site has journeys, ("assisted", action,
-    source)."""
+    action, bucket), ("likely", action, label) and, when the site has
+    journeys, ("assisted", action, source)."""
     head, args = _bounds(tz, first, last)
     join = "FROM conversions c JOIN b ON c.at >= b.lo AND c.at < b.hi WHERE c.site = ? "
     out: dict[str, Counter] = {}
@@ -94,6 +138,12 @@ def recount(path: Path, site: str, tz, first: date, last: date, now: str,
               f"f.site = c.site AND f.vid = c.vid AND f.action = c.action AND f.stage IN "
               f"{_fin()} AND f.at >= c.at AND f.at <= strftime('%Y-%m-%dT%H:%M:%SZ', c.at, "
               f"'+{float(hours)} hours')) GROUP BY 1, 2", (cutoff,)), "abandoned")
+        on, window = _attribution(config)
+        fetched = _fetches(history, site_name(config or {}),
+                           last - timedelta(days=_keep() + 1), last) if on else None
+        for day, action, src, stamp, page, n in _likely_rows(db, head, args, site):
+            out.setdefault(day, Counter())[("likely", action,
+                                            _likely(src, stamp, page, fetched, window, tz))] += n
         if db.execute("SELECT COUNT(*) FROM journeys WHERE site = ?", (site,)).fetchone()[0]:
             via = join.replace("WHERE", "JOIN journeys j ON j.site = c.site AND j.vid = c.vid "
                                         "AND j.at < c.at WHERE")
@@ -104,6 +154,11 @@ def recount(path: Path, site: str, tz, first: date, last: date, now: str,
     finally:
         db.close()
     return out
+
+
+def _keep() -> int:
+    from .ai_likely import FETCH_DAYS
+    return FETCH_DAYS
 
 
 def _flat(day: dict) -> Counter:
@@ -119,7 +174,7 @@ def _flat(day: dict) -> Counter:
             for label, n in per.items():
                 out[("by", col, action, label)] += n
     for name, kind in (("visits_before", "visits"), ("time_to_convert", "ttc"),
-                       ("assisted", "assisted")):
+                       ("assisted", "assisted"), ("likely_ai", "likely")):
         for action, per in (day.get(name) or {}).items():
             for key, n in per.items():
                 out[(kind, action, key)] += n
@@ -127,12 +182,13 @@ def _flat(day: dict) -> Counter:
 
 
 def check_days(path: Path, site: str, tz, first: date, last: date, now: str, hours: float,
-               days: list[dict]) -> dict[str, list[str]]:
+               days: list[dict], history=None, config: dict | None = None
+               ) -> dict[str, list[str]]:
     """{day: problems} for every shown day the SQL count disagrees with."""
     shown = [d for d in days if d.get("state") == "ok"]
     if not shown:
         return {}
-    counted = recount(path, site, tz, first, last, now, hours)
+    counted = recount(path, site, tz, first, last, now, hours, history, config)
     out: dict[str, list[str]] = {}
     for d in shown:
         mine, theirs = _flat(d), +counted.get(d["day"], Counter())

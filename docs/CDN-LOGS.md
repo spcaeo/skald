@@ -9,6 +9,7 @@ never sees it. The CDN's own log sees every request. Skald reads three:
 | `cloudflare_json` | Cloudflare | Logpush, dataset `http_requests`, one JSON object a line |
 | `cloudfront_w3c` | AWS CloudFront | Standard logs (legacy): W3C, tab-separated |
 | `fastly_json` | Fastly | The JSON log format below, written in the logging endpoint |
+| `edge_json` | Cloudflare, any plan | Edge records the Skald Worker posts ([below](#cloudflare-on-any-plan-the-skald-worker)) |
 
 `format: auto` picks each one from the first lines. It also reads a file
 that mixes them with nginx lines, for the day you move a site behind a CDN.
@@ -19,7 +20,9 @@ that mixes them with nginx lines, for the day you move a site behind a CDN.
   cache hits included. The origin's log counts only the misses the CDN passed
   on. On a site behind a CDN, the origin's figures are too low.
 - **Never read both.** A cache miss is in both logs. Read both and that
-  request is counted twice. Point `logs.dir` at the CDN log only.
+  request is counted twice. Point `logs.dir` at the CDN log only. The one
+  exception is the Skald Worker below: Skald keeps only its cache hits, so
+  it adds to the origin's log without counting anything twice.
 - **The address is whoever connected to the CDN.** For CloudFront that is a
   proxy's address when the visitor came through one; Skald does not read
   `x-forwarded-for`.
@@ -33,8 +36,8 @@ that mixes them with nginx lines, for the day you move a site behind a CDN.
   Fetch files in name order (they carry the date and hour) to keep visits
   whole.
 - **The independent audit (`skald audit`) does not read CDN logs.** It reads
-  the nginx and Apache layouts only, as with Caddy, and the Vercel and Netlify
-  log drain lines (HOSTING.md).
+  the nginx and Apache layouts only, as with Caddy, the Vercel and Netlify
+  log drain lines (HOSTING.md), and the Skald Worker's edge records.
 
 ## Getting the files to the server
 
@@ -120,6 +123,92 @@ Any timestamp format works: `rfc3339` (the dashboard's default),
 line without `ClientRequestURI` or `EdgeStartTimestamp` is counted as
 unreadable. `xx` (unknown) means no country.
 
+## Cloudflare on any plan: the Skald Worker
+
+Logpush's **HTTP requests** dataset is not on every Cloudflare plan
+("Dataset availability depends on the Cloudflare products on your account",
+<https://developers.cloudflare.com/logs/logpush/>). Without it, a page Cloudflare serves from its
+cache reaches no log Skald reads. The Skald Worker closes that gap, on any
+plan: a Cloudflare Worker that passes every request
+on unchanged and, after the response has gone out (`ctx.waitUntil`), posts
+one edge record of it to Skald. Code and setup:
+`deploy/cloudflare-worker/` (`skald-edge.js`, `wrangler.toml.example`,
+`README.md`).
+
+**Setup, in short.**
+
+1. In Skald: turn on ingest, make the site, make an ingest token for it
+   (INGEST.md). Format `edge_json` when these records are the site's only
+   log; `auto` when Skald reads the server's log too.
+2. Copy `wrangler.toml.example` to `wrangler.toml`; set the routes
+   (`example.com/*`) and `SKALD_INGEST_URL`
+   (`https://stats.example.com/traffic-ingest/example.com`).
+3. `npx wrangler secret put SKALD_TOKEN` (the ingest token), then
+   `npx wrangler deploy`.
+
+**The record.** One JSON object per request, posted to
+`POST /traffic-ingest/<site>?format=edge` with `Authorization: Bearer
+<ingest token>`. A JSON array or NDJSON of many works too, gzip or plain, so
+another edge platform can send the same format.
+
+| Field | Holds | Required |
+| --- | --- | --- |
+| `ts` | when the request came in: RFC 3339 (`2026-10-06T10:00:00.000Z`) or a JSON number of Unix milliseconds | yes |
+| `ip` | the visitor's address (`CF-Connecting-IP`) | yes |
+| `method` | `GET`, `POST`, ... | |
+| `host` | the host asked for | |
+| `path` | path and query, starting with `/` | yes |
+| `status` | the status code sent | yes |
+| `bytes` | `Content-Length` of the response, or `null` | |
+| `referer` | the `Referer` header | |
+| `ua` | the `User-Agent` header | |
+| `cache` | `cf-cache-status` (`HIT`, `MISS`, ...) | for the rule below |
+| `id` | the request's own id (`CF-Ray`): a record posted twice is read once | |
+
+Skald writes only these fields; anything else a sender adds is dropped. A
+record without `ip`, `path`, `status` or a readable `ts` is refused and
+counted as rejected.
+
+**The double-count rule.** A request Cloudflare passed on to the origin
+(any cache status but `HIT`) is in the origin's log too. With
+`logs.edge_only_cached: true`, Skald keeps only the edge records whose
+`cache` is `HIT` and skips the others (the answer's `"skipped"` counts
+them). Unset, it is true unless the site's format is `edge_json`, where the
+edge is the only log and every record is kept. `STALE` and `UPDATING` are
+skipped too: the origin may have logged a request for them. Set it in the
+site's config to override:
+
+```yaml
+logs:
+  format: auto
+  edge_only_cached: true    # the server's log is read as well
+```
+
+For the two to be read together, both must land in the site's folder: ship
+the server's log with `skald-ship` to the same `/traffic-ingest/<site>`, or,
+on the server Skald runs on, point `logs.dir` at the site's ingest folder
+(`<ingest root>/<site>`) and ship the local log there too. The Worker's
+`SKALD_CACHE_HITS_ONLY = "true"` skips non-hits at the edge, which saves the
+posts Skald would drop anyway.
+
+**What it costs.** Every request through the Worker is a Worker request on
+your Cloudflare plan's allowance or bill; the post to Skald is a subrequest,
+which Cloudflare does not bill
+(<https://developers.cloudflare.com/workers/platform/pricing/>). On Skald's
+side each record is one post, with its own rate limit per site,
+`ingest.edge_per_minute` (1200) and `ingest.edge_burst` (300). A post over
+it is refused and the Worker drops it, so that request is not counted: set
+the limit above the site's busiest minute.
+
+**Privacy.** A record holds what an access log line holds (time, address,
+method, host, path and query, status, bytes, referrer, user agent), plus the
+cache status and Cloudflare's request id. No cookies, no other headers, no
+body.
+
+**Order.** Edge records arrive as requests happen; shipped server lines in
+batches a little later. Skald places each request by its own time, as for
+any CDN log.
+
 ## AWS CloudFront: standard logs
 
 Turn on **Standard logging** for the distribution and choose **Amazon S3
@@ -189,7 +278,14 @@ keys.
 
 ## Sources
 
-Checked on 2026-10-08.
+Checked on 2026-10-08 (the Worker's sources on 2026-10-12).
+
+- Cloudflare Workers, `ctx.waitUntil` and `ctx.passThroughOnException`:
+  <https://developers.cloudflare.com/workers/runtime-apis/context/>
+- Cloudflare, `cf-cache-status` values:
+  <https://developers.cloudflare.com/cache/concepts/cache-responses/>
+- Cloudflare Workers pricing:
+  <https://developers.cloudflare.com/workers/platform/pricing/>
 
 - Cloudflare, Logpush `http_requests` fields:
   <https://developers.cloudflare.com/logs/logpush/logpush-job/datasets/zone/http_requests/>

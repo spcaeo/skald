@@ -41,8 +41,9 @@ Each request, in this order, before anything is kept:
 Nothing about the sender is kept: no address, no user agent.
 
 With `?format=vercel` or `?format=netlify` the post is a platform's log
-drain instead of a shipper's batch: ingest_drain.py answers it (its own
-auth step, Vercel's signature; then the same checks as above).
+drain instead of a shipper's batch, and with `?format=edge` an edge record
+from a CDN Worker: ingest_drain.py answers it (its own auth step, Vercel's
+signature; then the same checks as above).
 """
 from __future__ import annotations
 
@@ -334,7 +335,7 @@ def _handle(h, config, live_dir, config_path) -> None:
     if m is None or ".." in path:
         return no(h, 404, "not found")
     site = m.group("site")
-    from . import ingest_drain                # ?format=vercel|netlify: a log drain
+    from . import ingest_drain                # ?format=vercel|netlify|edge
     drain = ingest_drain.platform(h.path)
     if drain is not None:
         return ingest_drain.handle(h, config, live_dir, config_path, site, drain)

@@ -144,6 +144,7 @@ format are refused and counted (the shipper's journal says "N rejected").
 | Caddy | `caddy_json` | Caddy's default JSON access log (`log { output file ... }`) |
 | Cloudflare, CloudFront, Fastly | `cloudflare_json`, `cloudfront_w3c`, `fastly_json` | see CDN-LOGS.md |
 | Vercel, Netlify (log drains) | `vercel_json`, `netlify_json` | no shipper: the platform posts its own request logs (below, and HOSTING.md) |
+| Cloudflare on any plan (the Skald Worker) | `edge_json` | no shipper: the Worker posts one edge record per request (below, and CDN-LOGS.md) |
 | any of these | `auto` | each line is read by whichever format reads it |
 
 Ship the log of the server that sees the visitors. Behind a CDN, that is the
@@ -275,6 +276,19 @@ their request logs to an address instead (a "log drain"), to the same endpoint w
 - The answer adds `"skipped"`: `{"ok":true,"accepted":N,"rejected":M,"skipped":K,"duplicate":false}`.
   Every other check and answer is the shipper's (table below).
 - The audit reads the kept lines with its own reader (`audit_drains.py`).
+
+**Edge records** (`?format=edge`): one request per JSON object, Skald's own format, posted by
+the Skald Worker for Cloudflare (`deploy/cloudflare-worker/`) or any edge that sends the same
+fields (`ts`, `ip`, `method`, `host`, `path`, `status`, `bytes`, `referer`, `ua`, `cache`,
+`id`; CDN-LOGS.md has the table). Bearer token only. The site's format must be `edge_json` or
+`auto`. Differences from a drain:
+
+- With `logs.edge_only_cached` (true unless the format is `edge_json`), a record whose `cache`
+  is not `HIT` is skipped: the origin's log, shipped to the same site, has that request.
+- Each post is the next batch of one sender, `edge`: no `X-Skald-Batch`, no per-post state. A
+  record posted twice is dropped when read, by its `id`.
+- Its own rate limit per site, `ingest.edge_per_minute` (1200) and `ingest.edge_burst` (300),
+  apart from the shipper's. A refused post is lost (the Worker does not retry).
 
 Setup on each platform, and the field lists with their sources: [HOSTING.md](HOSTING.md),
 part B. Code: `skald/ingest_drain.py`, `parse_drains.py`.

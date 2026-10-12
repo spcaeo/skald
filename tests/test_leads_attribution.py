@@ -215,9 +215,9 @@ class TestAttributionRows(Base):
         rows = got["attribution_rows"]
         first = [r for r in rows if r[0] == "2026-10-06" and r[1] == "waitlist"]
         self.assertIn(["2026-10-06", "waitlist", "qualified", "first", "Social media", "(none)",
-                       "launch", "linkedin", "social", "/ca/fr/", False, 1], first)
+                       "launch", "linkedin", "social", "/ca/fr/", False, "(none)", 1], first)
         self.assertIn(["2026-10-06", "waitlist", "qualified", "last", "Search engine", "(none)",
-                       "(none)", "(none)", "(none)", "/", False, 1], first)
+                       "(none)", "(none)", "(none)", "/", False, "(none)", 1], first)
 
     def test_rows_add_up_to_every_lead_of_each_day_once_per_touch(self):
         got = self.raw()
@@ -346,7 +346,11 @@ class TestIndependence(unittest.TestCase):
         got = self.imports(audit_leads)
         from_leads = {name for module, name in got if module == "leads"}
         self.assertLessEqual(from_leads, {"NONE", "_columns", "connect", "DAYS", "blob",
-                                          "db_path", "site_journeys"})
+                                          "db_path", "site_journeys", "fetch_history"})
+        # likely_ai: only the span the fetches are looked up over, never the matching.
+        self.assertEqual({name for module, name in got if module == "ai_likely"},
+                         {"FETCH_DAYS"})
+        self.assertIn(("classify", "AI_LIKELY_MANY"), got)
         for name in ("PAID_CLICK_IDS", "PAID_MEDIUMS", "PRICING_PAGES", "FORM_PAGES"):
             self.assertIn(("classify", name), got)
 

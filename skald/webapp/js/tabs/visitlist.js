@@ -13,6 +13,7 @@ import { table } from "../table.js";
 import { ranked } from "../data.js";
 import { country, flag } from "./readers.js";
 import { fileName } from "./common.js";
+import { visitLikely } from "./likelyai.js";
 
 export const NOTE = { not_found: "met a page not found (404)", posted: "sent a form", in_app: "moved inside the site without loading a page" };
 const BADGE = { posted: "form sent", not_found: "404" };
@@ -93,6 +94,7 @@ export function visitBody(j) {
     ["System", j.os ? withMark("os", j.os) : ""],
     ["Source type", j.source ? named("source", j.source) : ""],
     ["Came from", j.via ? h("span", { class: "named" }, src.icon, h("span", { class: "nm" }, j.via)) : ""],
+    ["Likely AI", visitLikely(j)],
     ["Referring page", j.ref_page], ["Campaign", j.campaign ? j.campaign.split(" / ").filter((x) => x && x !== "-").join(" / ") : ""], ["Tags", utm], ["Paid", j.paid], ["Searched for", j.search_terms],
     ["Visitor", visitor(j) ? `${visitor(j)}${j.days_seen_30d != null ? `, seen on ${j.days_seen_30d} day${j.days_seen_30d === 1 ? "" : "s"} in 30` : ""}` : ""],
     ["Ended on", j.exit],

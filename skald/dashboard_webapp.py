@@ -132,9 +132,10 @@ def journey(j: dict, day: str | None = None) -> dict:
         for step, sec in zip(trail, at):
             step["at"] = sec
     flags = [f for f in ("not_found", "posted", "in_app") if j.get(f)]
-    # Fields added later (schema 9: utm, paid, referring page, returning) pass through as they are.
+    # Fields added later (schema 9: utm, paid, referring page, returning; likely_ai, inferred,
+    # ai_likely.py) pass through as they are.
     extra = {k: j[k] for k in ("utm", "paid", "ref_param", "ref_host", "ref_page", "search_terms",
-                               "returning", "days_seen_30d") if k in j}
+                               "returning", "days_seen_30d", "likely_ai") if k in j}
     return {**extra, "start": j.get("start", ""), "day": day or str(j.get("start", ""))[:10],
             "country": j.get("country", ""), "device": j.get("device", ""),
             "browser": j.get("browser", ""), "os": j.get("os", ""),

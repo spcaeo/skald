@@ -221,6 +221,7 @@ class Journeys:
         # keyed hash for returning-visitor counts, kept apart from the journey.
         self.key = key
         self.visitor_keys: list[str] | None = None
+        self.firsts: list | None = None
         self.pages: dict[str, dict] = {}
         self.tz = tz
         self.own_hosts = own_hosts or set()
@@ -296,6 +297,9 @@ class Journeys:
         stats = VisitStats(visits=len(visits))
         journeys = []
         self.visitor_keys = [v.visitor for v in visits] if self.key is not None else None
+        # Each visit's first request, aligned with the journeys, in memory
+        # only (ai_likely.py compares it with the AI fetches before it).
+        self.firsts = [v.first for v in visits]
         self.pages = _page_figures(visits)
         for v in visits:
             trail = [p for p, _ in v.trail]

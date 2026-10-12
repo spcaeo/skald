@@ -92,6 +92,7 @@ Where people came from.
 | Feature | Skald | Google Analytics 4 | Search Console | Bing Webmaster Tools | Plausible | Matomo | Cloudflare | GoAccess | PostHog | Known Agents |
 | --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | People who clicked through from an AI assistant <br><sub>Its own channel, by assistant</sub> | ✓ [^97] | ✓ [^98] | – | – | ✓ [^99] | ✓ [^100] | ◐ [^101] | ✗ [^102] | ✓ [^103] | ✓ [^104] |
+| AI clicks that lost their referrer, estimated <br><sub>A direct visit to a page an assistant fetched minutes before; labelled "likely"</sub> | ◐ [^272] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
 | How often an assistant cites you, clicked or not | ◐ [^105] | ✗ | ◐ [^106] | ✓ [^107] | ✗ | ✗ | ✗ | ✗ | ✗ | ? |
 | Search queries, impressions, position | planned [^108] | ◐ [^109] | ✓ [^110] | ✓ [^111] | ◐ [^112] | ◐ [^113] | ✗ | ✗ | ? | ✗ |
 | Google AI Overview clicks told apart | ✗ [^114] | ✗ [^115] | ◐ [^116] | – | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
@@ -232,7 +233,7 @@ What it takes to run.
 ## Where Skald leads
 
 - **It sees the machines.** AI training crawlers and the fetches an assistant makes while answering someone are in the log; a JavaScript tag never runs for them, and GA4 and Plausible drop known bots on purpose.
-- **It says why an AI came.** To train, because someone just asked, or a person who clicked a citation; three tiers that never double count.
+- **It says why an AI came.** To train, because someone just asked, or a person who clicked a citation; three tiers that never double count. It also estimates the AI clicks whose referrer was lost, shown apart and labelled "likely".
 - **It checks names.** A crawler is compared with its owner's published addresses or DNS; a fake is filed apart as "claims to be".
 - **Every figure is proven.** Groups add up to the log, a second count checks every figure, and a day that fails is withheld rather than shown.
 - **Live, private, unblockable.** Today so far every 2 minutes, each request of the last 6 hours with its reason, nothing needed in the visitor's browser, and it runs on your own server.
@@ -538,3 +539,4 @@ Given no column, to keep the table readable.
 [^269]: **Skald, engagement by source and device**: Pages per visit, the share of one-page visits and the median visit length, for people's visits by source type and by device; counted a second time by its own audit. [Skald DATA-CONTRACT](../DATA-CONTRACT.md)
 [^270]: **Skald, campaign tag problems**: Visits whose landing address has a utm_source with no utm_medium, a medium analytics tools do not know, an ad click ID with no tags, or tags on a link inside the site; counted a second time by its own audit. [Skald DATA-CONTRACT](../DATA-CONTRACT.md)
 [^271]: **Skald, exit rate per page**: The share of a page's visits that left from it, over the last 30 whole days; not shown under 10 visits. [Skald DATA-CONTRACT](../DATA-CONTRACT.md)
+[^272]: **Skald, ai clicks that lost their referrer, estimated**: A visit with no referrer and no campaign tag that lands on a page an assistant's user fetcher fetched in the same minute or up to 15 minutes before is "likely" from that assistant, by assistant, landing page, lead and conversion. An estimate, shown apart and never added to the citation count; counted a second time by its own audit. [Skald CLASSIFICATION](../CLASSIFICATION.md)

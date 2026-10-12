@@ -186,6 +186,10 @@ def prune_kept(ctx: Context, history: History) -> None:
     keep, own = prune_plan(ctx.config, "report.retention_days",
                            int(setting(ctx.config, "report", "retention_days", 400)))
     history.prune_extras(today, keep, DETAIL_KINDS, own)
+    # The AI user fetches behind "likely sent by an AI assistant" (no person
+    # in them) are kept as long as the leads look back (ai_likely.py).
+    from .ai_likely import FETCH_DAYS
+    history.prune_extras(today, FETCH_DAYS, ("ai_fetches",))
 
 
 def collect_day(ctx: Context, history: History, day: date,
