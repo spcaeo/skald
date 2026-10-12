@@ -4,6 +4,17 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.5.2 (2026-10-12)
+
+### Fixed
+
+- **A lead marked spam in the CMS without a new `updated_at` kept counting until the next
+  daily run**, so the second count (which reads the lead database as it is now) disagreed and
+  the day's lead figures were withheld. The sync every two minutes now also re-reads the leads
+  created in the last 48 hours, so a status change is caught at once and the removed row is
+  kept in the removed list.
+- A tile's sentence ("withheld: the second count disagrees") wraps instead of being cut off.
+
 ## 2.5.1 (2026-10-12)
 
 ### Fixed
