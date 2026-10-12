@@ -6,11 +6,13 @@
 //   * compare and page story read the answers the demo build wrote beside the
 //     page (api: {compare: {"A|B": file}, page: {path: file}}); anything else
 //     falls back to what the page works out from its own days
+//   * the lists of what the figures leave out read theirs too (api.people:
+//     {"people/left-out": file, "people/conversions?kind=..": file})
 //   * a banner says it is sample data, with links to install it
 
 import { h, ICON } from "./ui.js";
 
-export const DEMO = { on: false, text: "", install: "", links: [], api: { compare: {}, page: {} } };
+export const DEMO = { on: false, text: "", install: "", links: [], api: { compare: {}, page: {}, people: {} } };
 export const DEMO_SAYS = "In the demo, this needs a running Skald.";
 
 export function setDemo(d) {
@@ -19,7 +21,7 @@ export function setDemo(d) {
   DEMO.text = String(d.text || "Demo with sample data");
   DEMO.install = String(d.install || "");
   DEMO.links = (Array.isArray(d.links) ? d.links : []).filter((l) => l && /^https:\/\//.test(String(l.url || "")));
-  DEMO.api = { compare: d.api?.compare || {}, page: d.api?.page || {} };
+  DEMO.api = { compare: d.api?.compare || {}, page: d.api?.page || {}, people: d.api?.people || {} };
 }
 
 // A helper address the page would ask ("api/compare?a=..&b=..", "api/page?path=..")
@@ -32,7 +34,20 @@ export function demoFile(url) {
     return DEMO.api.compare[`${p.get("a")}|${p.get("b")}`] || null;
   }
   if (path === "api/page") return DEMO.api.page[p.get("path") || ""] || null;
+  if (path.startsWith("people/")) return DEMO.api.people[String(url)] || null;
   return null;
+}
+
+// What the helper would answer for `path`, from the demo's own file; else the polite refusal.
+export async function demoAnswer(path, body) {
+  const file = body ? null : demoFile(path);
+  if (file) {
+    try {
+      const got = await (await fetch(file, { cache: "no-store" })).json();
+      if (got && got.ok) return got;
+    } catch { /* the refusal below */ }
+  }
+  return { ok: false, demo: true, error: DEMO_SAYS };
 }
 
 const link = (l) => h("a", { href: l.url, target: "_blank", rel: "noopener" }, l.text);

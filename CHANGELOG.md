@@ -34,6 +34,8 @@ and setup that checks itself.
   businesses sends only your own events to Skald's figures; others are answered and dropped.
 - **Four how-to guides** in Help: pick your road, send leads from your backend in 5 minutes,
   demo bookings, Docker first install.
+- **The live demo** lists the left-out leads and the cancelled, removed and test conversions too.
+  The person search needs a running install, so the demo does not offer it.
 
 ### Changed
 

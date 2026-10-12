@@ -18,7 +18,7 @@
   <img alt="Zero dependencies" src="https://img.shields.io/badge/dependencies-zero-2b8a3e">
   <a href="https://github.com/spcaeo/skald/actions/workflows/ci.yml"><img alt="Tests" src="https://github.com/spcaeo/skald/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/spcaeo/skald/pkgs/container/skald"><img alt="Docker image" src="https://img.shields.io/badge/docker-ghcr.io%2Fspcaeo%2Fskald-2496ed"></a>
-  <img alt="Version 2.2.0" src="https://img.shields.io/badge/version-2.2.0-555">
+  <img alt="Version 2.4.0" src="https://img.shields.io/badge/version-2.4.0-555">
 </p>
 
 <p align="center">
@@ -100,10 +100,11 @@ a figure that was not recorded stays blank.
 </td>
 <td valign="top">
 
-### Private by design, yours by default
-No script and no cookie are needed in the visitor's browser. It runs on your server. History keeps
-totals and labels, never addresses. Raw addresses live only in your log (14 days) and a 6-hour
-private feed. One command deletes an address on request.
+### Private by design, yours to set
+No script and no cookie are needed in the visitor's browser, and everything stays on your server.
+History keeps totals and labels. Whether each visit keeps its IP address and each lead its email is
+a setting: on for a new install, off on an upgraded one until you turn it on. One command deletes a
+person everywhere.
 
 </td>
 </tr>
@@ -145,18 +146,41 @@ from any server. Step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md).
 
 </td>
 </tr>
+<tr>
+<td valign="top">
+
+### Follow one person across days
+Search an IP address, an email or a lead and see that person's visits on every day kept (source,
+landing page, pages in order, country, device), and their leads and conversions, linked by visitor
+ID and email. An address is tied to a lead by the form it sent at the lead's time: likely, never
+certain. For admins and owners; every search is in the audit log.
+
+</td>
+<td valign="top">
+
+### Nothing hidden, and setup that checks itself
+Spam, duplicate and test leads, and cancelled, removed and test conversions, are listed in full,
+never just dropped. `skald doctor` checks every part of the install, one line each, with the exact
+fix; Settings > Integrations shows the same for each hook and the script tag.
+
+</td>
+</tr>
 </table>
 
 ## Features
 
 **Traffic and audience**
 - Five groups that add up to the log, every day, every site.
-- Visitors, visits, pages read, countries, browsers, systems, devices, sources, referring sites,
-  UTM campaigns and ad networks (from the click ID, never its value).
+- Visitors, visits, pages read, countries (with a flag beside each, everywhere), browsers, systems,
+  devices, sources, referring sites, UTM campaigns and ad networks (from the click ID, never its value).
+- A new outside source starts a new visit: someone who opens the site directly and comes back from
+  ChatGPT minutes later is two visits, the second from ChatGPT, so an AI assistant's visit is never
+  hidden inside an earlier one.
 - Anonymous journeys: each visit's pages in order, kept 7 days by default.
-- People: each visit kept with its IP address and browser (395 days by default; a switch), and one
-  search for an IP, an email, a lead or a visitor ID that shows that person's visits, leads and
-  conversions across days, linked. Admins and owners only, every search in the audit log.
+- People: each visit kept with its IP address and browser (395 days by default), and one search for
+  an IP, an email, a lead or a visitor ID that shows that person's visits, leads and conversions
+  across days, linked. Admins and owners only, every search in the audit log. Keeping IPs and emails
+  is a setting: on for a new install, off on an install upgraded from before 2.4.0.
 - Engagement by source and device (pages per visit, one-page visits, visit length), returning
   visitors by source, exit rate per page.
 - Campaign tag problems flagged: a source with no medium, an unknown medium, an ad click with no
@@ -183,8 +207,11 @@ from any server. Step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md).
   visit to lead.
 - Saved funnels counted every day by source and device, with drop-off and time to go through.
 - Conversions from signed webhooks; forms and bookings started but not finished.
+- One Calendly or Cal.com account that books for several businesses: keep only your own event types.
 - Goals from in-page events, per 100 visits by source.
 - Spam, duplicate and test leads, and cancelled, removed and test conversions, each listed in full.
+  A lead-database sync that takes a row away keeps it, with when and why; a test row is marked
+  from the command line, listed and never counted.
 - Outgoing signed webhooks to your CRM, Zapier or Slack, never with a name or email.
 
 **Site health**
@@ -197,15 +224,19 @@ from any server. Step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md).
 **Team, data and agents**
 - Accounts: organisations, owner/admin/viewer roles, invites, two-step sign-in, scoped API tokens
   and an audit log. Or a single nginx password, if that is all you need.
-- Settings in the dashboard: retention windows, mail, sites, internal addresses, integrations,
-  security.
+- Settings in the dashboard: retention windows, what is kept about people, mail, sites, internal
+  addresses, integrations (with each road's status), security.
+- `skald doctor`: one line per part (daily run, missing days, logs, the dashboard, the hook
+  receiver, each hook's secret and last delivery, the script tag, mail, a newer version, disk), each
+  with its fix.
 - Several sites in one install, each with its own settings.
 - Export any table as CSV or JSON, print to PDF, a report builder, and daily and weekly email
   reports (refused if the figures do not add up).
-- A read-only JSON API and an **MCP server with 13 read-only tools** for Claude, ChatGPT and other
-  AI agents.
-- In-app Help in plain words, keyboard shortcuts, a command palette, light and dark themes, and a
-  phone layout.
+- A read-only JSON API and an **MCP server with 14 read-only tools** for Claude, ChatGPT and other
+  AI agents (the person search only with a token that may read private data).
+- In-app Help in plain words, with four how-to guides (pick your road, send leads from your backend
+  in 5 minutes, demo bookings, Docker first install), keyboard shortcuts, a command palette, light
+  and dark themes, and a phone layout.
 - A notice when a new release is out, and one-command upgrades with a backup and a rollback.
 
 **Inputs**
@@ -220,15 +251,19 @@ from any server. Step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md).
 ## See it
 
 **[Try the live demo](https://spcaeo.github.io/skald/)**: the whole dashboard with 60 days of sample
-data for a made-up site, in your browser. Nothing to install; settings and saving need your own Skald.
+data for a made-up site, in your browser, flags, the left-out leads and the removed conversions
+included. Nothing to install. Settings, saving and the person search need your own Skald.
 
 | | |
 | :---: | :---: |
 | <img src="docs/screenshots/overview.png" alt="Overview: the period's headline figures and the five groups" width="460"><br>**Overview.** The period at a glance, five groups that add up. | <img src="docs/screenshots/ai-crawlers.png" alt="AI and crawlers: assistants by name and by reason, verified crawlers" width="460"><br>**AI & crawlers.** Who came, why, and whether the name is true. |
 | <img src="docs/screenshots/leads.png" alt="Leads by first and last source and AI assistant" width="460"><br>**Leads.** By first and last source, AI assistants included. | <img src="docs/screenshots/conversions.png" alt="Conversions: started, completed and abandoned by action, and the demo booking funnel" width="460"><br>**Conversions.** Started, completed, abandoned. |
-| <img src="docs/screenshots/visitors.png" alt="Visitors table with anonymous journeys" width="460"><br>**Visitors.** Anonymous journeys, page by page. | <img src="docs/screenshots/funnels.png" alt="A saved funnel's history: drop-off by step and visits at each step, per day" width="460"><br>**Funnels.** Saved once, counted every day. |
-| <img src="docs/screenshots/settings-team.png" alt="Settings: team, roles and invites" width="460"><br>**Team & access.** Roles, invites, two-step sign-in. | <img src="docs/screenshots/integrations.png" alt="Settings: signed Calendly and Stripe hooks with their deliveries, and an outgoing webhook to a CRM" width="460"><br>**Integrations.** Signed webhooks from the tools you use. |
-| <img src="docs/screenshots/mcp-claude.png" alt="Example: adding Skald's MCP server with one command, and the answer of its ai_activity tool" width="460"><br>**MCP in Claude.** Ask about your traffic in plain words. | <img src="docs/screenshots/help.png" alt="In-app help pages" width="460"><br>**Help.** Every page explained, in plain words. |
+| <img src="docs/screenshots/visitors.png" alt="Each visit: time, country with its flag, device, browser, source and the pages in order" width="460"><br>**Visitors.** Each visit, page by page, a flag beside every country. | <img src="docs/screenshots/funnels.png" alt="A saved funnel's history: drop-off by step and visits at each step, per day" width="460"><br>**Funnels.** Saved once, counted every day. |
+| <img src="docs/screenshots/person-search.png" alt="Person search for the IP address 203.0.113.109: eight visits from August to October, each with source, referrer, landing page, pages in order, country and device, and the two leads sent from those visits" width="460"><br>**Person search.** One address: every visit kept, across days, and the leads it sent. | <img src="docs/screenshots/person-lead.png" alt="Person search for lead14@example.com: the linked IP address 203.0.113.109, visitor ID and lead, the lead row, the visit that sent its form, and its conversions" width="460"><br>**One lead, linked.** Its email, address, visitor ID, form visit and conversions. |
+| <img src="docs/screenshots/leads-left-out.png" alt="Left out of the figures: spam, duplicate and test leads, and a payment marked test, each listed with its row" width="460"><br>**Left out, still listed.** Spam, duplicates and test, never just dropped. | <img src="docs/screenshots/conversions-removed.png" alt="Conversions removed by a lead-database sync, each with when and why, and the pages before it" width="460"><br>**Removed, with when and why.** Cancelled, removed and test conversions. |
+| <img src="docs/screenshots/integrations-status.png" alt="Settings, Integrations: a status line for the hook receiver, the script tag, each hook and the lead database, all OK" width="460"><br>**Integrations status.** Each road: working, or what to fix. | <img src="docs/screenshots/skald-doctor.png" alt="Terminal output of skald doctor: one line per part of the install, OK, OFF or NEEDS ATTENTION, with the fix" width="460"><br>**`skald doctor`.** Every part checked, each with its fix. |
+| <img src="docs/screenshots/settings-team.png" alt="Settings: team, roles and invites" width="460"><br>**Team & access.** Roles, invites, two-step sign-in. | <img src="docs/screenshots/integrations.png" alt="Settings: signed Calendly and Stripe hooks with their deliveries, Calendly kept to one event type, and an outgoing webhook to a CRM" width="460"><br>**Integrations.** Signed webhooks from the tools you use. |
+| <img src="docs/screenshots/mcp-claude.png" alt="Example: adding Skald's MCP server with one command, and the answer of its ai_activity tool" width="460"><br>**MCP in Claude.** Ask about your traffic in plain words. | <img src="docs/screenshots/help.png" alt="In-app help: a guide for each topic, among them Docker first install, Pick your road, Send leads from your backend and Demo bookings" width="460"><br>**Help.** Every page explained, and four how-to guides. |
 
 <p align="center">
   <img src="docs/screenshots/mobile.png" alt="Skald on a phone" width="300"><br>
@@ -305,17 +340,17 @@ SKALD_DOMAIN=stats.example.com docker compose --profile https up -d
 The quick way, pinned to a release:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.2.0/install.sh | sudo bash -s -- --ref v2.2.0
+curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.4.0/install.sh | sudo bash -s -- --ref v2.4.0
 ```
 
 This runs a script from the internet as root. To check it first, download the release and its
 checksums, verify, then run it:
 
 ```sh
-curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.2.0/skald-2.2.0.tar.gz
-curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.2.0/SHA256SUMS
-sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.2.0.tar.gz: OK
-tar -xzf skald-2.2.0.tar.gz && cd skald-2.2.0 && less install.sh && sudo ./install.sh
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.4.0/skald-2.4.0.tar.gz
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.4.0/SHA256SUMS
+sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.4.0.tar.gz: OK
+tar -xzf skald-2.4.0.tar.gz && cd skald-2.4.0 && less install.sh && sudo ./install.sh
 ```
 
 It installs into `/opt/skald`, with config in `/etc/skald` and data in `/var/lib/skald`, and puts
@@ -362,6 +397,7 @@ skald('consent', true);                             // with data-consent="requir
 ```
 
 **Incoming webhooks.** Each tool's own signature is checked on the raw body; a repeat changes nothing.
+The receiver runs on every install, Docker or install script, with or without the script tag.
 
 | Tool | What Skald records |
 | --- | --- |
@@ -376,7 +412,7 @@ skald('consent', true);                             // with data-consent="requir
 Calendly, Stripe, HubSpot) is in the Help guide "Pick your road"; "Send leads from your backend in
 5 minutes" has signed examples in curl, Node, Python and PHP. Settings > Integrations shows each
 road's state (ready, never received, last received 2 h ago) and flags a lead that arrived by two
-roads, which would count twice.
+roads, which would count twice. `skald doctor` on the server says the same, with the fix.
 
 **Outgoing webhooks.** Signed, HTTPS only, never to a private address, retried five times over about
 15 hours. They never carry a name or an email.
@@ -390,7 +426,7 @@ asks for your Skald's ingest address and the site's token, then needs your site'
 **API.** A read-only JSON API over every dashboard figure, with revocable, scoped tokens
 (`skald_<id>_<secret>`). See [docs/API.md](docs/API.md).
 
-**MCP for AI agents.** Fourteen read-only tools: `overview`, `breakdown`, `top_pages`, `ai_activity`,
+**MCP for AI agents.** 14 read-only tools: `overview`, `breakdown`, `top_pages`, `ai_activity`,
 `leads`, `funnel`, `compare`, `page_story`, `live_today`, `data_quality`, `site_health`,
 `conversions`, `list_sites` and, with the `read_private` scope only, `find_person`. Answers call visits "an upper bound on people" and name every
 withheld day. It cannot change anything.
@@ -482,7 +518,7 @@ More in [docs/POSITIONING.md](docs/POSITIONING.md) and the story in
 | Web server | **nginx** or **Caddy** in front for HTTPS (the Docker `https` profile adds Caddy with automatic certificates). The reference nginx setup adds a sign-in check with `auth_request` and rate limits. Reads nginx, Apache and Caddy logs. |
 | Running | cron and systemd on a plain Linux server, or the **Docker** image. Two small local helpers on `127.0.0.1` (or a Unix socket). |
 | Security | scrypt password hashes, HMAC-SHA256 for visitor keys and webhook checks, TOTP (RFC 6238) two-step sign-in. |
-| Tests | 1,500+ tests, standard library `unittest`, exact numbers against hand-built logs. |
+| Tests | 1,800+ tests, standard library `unittest`, exact numbers against hand-built logs. |
 
 ## Architecture
 
@@ -568,6 +604,13 @@ Partly. Skald sees each live fetch an assistant makes for a user's question, and
 clicks through, but not the answer the assistant gives. Clicks are a floor, because referrers are
 often stripped. Clicks from Google AI Overviews look like ordinary Google clicks and cannot be told
 apart.
+
+**Does Skald keep IP addresses or emails?**
+On a new install, yes: each visit with its IP address and browser (395 days by default), and a
+lead's name and email, so an admin can follow one person across days. Both are settings (Settings >
+Data retention > People). An install upgraded from before 2.4.0 keeps neither until you turn it
+on; update your privacy notice first. Stored history never holds an address, and `forget` deletes a
+person everywhere.
 
 **Does it need cookies or a consent banner?**
 Counting from the log needs no cookie and nothing in the browser. The optional tag sets no cookie by

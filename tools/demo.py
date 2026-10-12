@@ -24,9 +24,11 @@ Seeded: the same --now and --days give the same traffic. --now defaults to a few
 minutes ago, so the demo's "today" is the day it was built.
 
 app.json gets "demo": {...}: the page then works without a helper. What needs a
-running install (refresh, saving, settings, team, integrations) says so politely,
-and compare and page story read the files in data/demo/ (DATA-CONTRACT.md, the
-compare and page answers).
+running install (refresh, saving, settings, team, integrations, the person
+search) says so politely; compare, page story and the lists of what the figures
+leave out (spam, duplicate and test leads; cancelled, removed and test
+conversions) read the files in data/demo/ (DATA-CONTRACT.md, the compare and
+page answers; DATA-CONTRACT-PEOPLE.md, the lists).
 
 Standard library only (the tiny MaxMind writer and the hook test double come from tests/).
 """
@@ -172,8 +174,53 @@ def leads_db(path: Path, traffic: dt.Traffic, rnd) -> None:
                    (i, r["type"], f"lead{i}@example.com", made, made, status,
                     "/signup/" if r["type"] == "signup" else "/contact/",
                     touch(first or r["last"]), touch(r["last"]), r["visits"], r["vid"], r["cc"] or None))
+    # Left out of the figures and listed (Leads > "Left out"): a few forms sent
+    # twice, the second marked duplicate, and the team's own test lead.
+    # No draw from `rnd`: the rest of the demo stays as it was.
+    extra = db.execute("SELECT MAX(id) FROM submissions").fetchone()[0]
+    twice = db.execute("SELECT type, email, created_at, page, first_touch, last_touch, visits, session_id, ip_country "
+                       "FROM submissions WHERE status != 'spam' ORDER BY id").fetchall()[5::30]
+    for kind, email, made, page, first, last, visits, vid, cc in twice:
+        extra += 1
+        again = _iso(datetime.fromisoformat(made.replace("Z", "+00:00")) + timedelta(minutes=4))
+        db.execute("INSERT INTO submissions (id, type, email, fields, locale, updated_at, created_at, status, page, "
+                   "first_touch, last_touch, visits, session_id, ip_country, duplicate_of_id) "
+                   "VALUES (?, ?, ?, '{}', 'en-us', ?, ?, 'duplicate', ?, ?, ?, ?, ?, ?, NULL)",
+                   (extra, kind, email, again, again, page, first, last, visits, vid, cc))
+    made = _iso(traffic.now - timedelta(hours=30))
+    db.execute("INSERT INTO submissions (id, type, email, fields, locale, updated_at, created_at, status, page) "
+               "VALUES (?, 'contact', 'test@example.com', '{}', 'en-us', ?, ?, 'test', '/contact/')",
+               (extra + 1, made, made))
     db.commit()
     db.close()
+
+
+def later_changes(root: Path, cfgp: Path, traffic: dt.Traffic) -> None:
+    """What a team does after the fact, for the lists that show it: three
+    leads marked duplicate or spam in the lead store days later (the next
+    sync moves their conversions to the removed list, with when and why),
+    and the team's own test payment marked test (listed, never counted)."""
+    from skald.config import load_config
+    from skald.conversions import from_leads, store
+    from_leads.run(load_config(cfgp), root, dt.SITE)        # the leads so far, as a run would have synced them
+    leads = sqlite3.connect(root / "leads.db")
+    for days, status in ((7, "duplicate"), (12, "spam"), (20, "duplicate")):
+        before = _iso(traffic.now - timedelta(days=days))
+        row = leads.execute("SELECT id FROM submissions WHERE status NOT IN ('spam', 'duplicate', 'test') "
+                            "AND created_at < ? ORDER BY created_at DESC LIMIT 1", (before,)).fetchone()
+        if row:
+            leads.execute("UPDATE submissions SET status = ?, updated_at = ? WHERE id = ?",
+                          (status, _iso(traffic.now), row[0]))
+    leads.commit()
+    leads.close()
+    db = sqlite3.connect(store.path_for({}, root))
+    paid = db.execute("SELECT id FROM conversions WHERE tool = 'stripe' AND at < ? ORDER BY at DESC LIMIT 1",
+                      (store.stamp(traffic.now - timedelta(hours=6)),)).fetchone()
+    db.close()
+    if paid:
+        code, err = run(cfgp, "--today", traffic.today.isoformat(), "conversions", "mark-test", dt.SITE, str(paid[0]))
+        if code:
+            raise SystemExit(f"demo: mark-test failed ({code}): {err[-800:]}")
 
 
 def _pick(rnd, pairs):
@@ -315,6 +362,7 @@ def install(root: Path, traffic: dt.Traffic, say=print) -> Path:
             events.collect(history, cfg, dt.SITE, root / "beacon", d)
             events.audit(history, cfg, dt.SITE, root / "beacon", d, tz)
             d += timedelta(days=1)
+    later_changes(root, cfgp, traffic)
     for argv in (("backfill", "--days", "3"), ("live",)):
         code, err = run(cfgp, "--today", traffic.today.isoformat(), *argv)
         if code:
@@ -368,7 +416,7 @@ def helper_answers(root: Path, site_dir: Path) -> dict:
     anchor, today = date.fromisoformat(app["anchor"]), date.fromisoformat(app["today"])
     folder = site_dir / "data" / "demo"
     folder.mkdir(parents=True, exist_ok=True)
-    answers = {"compare": {}, "page": {}}
+    answers = {"compare": {}, "page": {}, "people": {}}
     index = json.loads((site_dir / "data" / "page_index.json").read_text())
     with History(root / "history.sqlite") as history:
         for a, b in compare_ranges(anchor):
@@ -383,6 +431,21 @@ def helper_answers(root: Path, site_dir: Path) -> dict:
             name = f"page-{i:03d}-{re.sub(r'[^a-z0-9]+', '-', row['path'].lower()).strip('-') or 'home'}.json"
             (folder / name).write_text(json.dumps(got, separators=(",", ":")))
             answers["page"][row["path"]] = f"data/demo/{name}"
+    # The lists of what the figures leave out (Leads > "Left out", the Conversions
+    # page's cancelled, removed and test rows), as a member who is not an admin
+    # sees them: no email, name or visitor ID.
+    from skald.people import lookup
+    answers["people"] = {}
+    lists = [("people/left-out", "left-out", lambda: lookup.left_out(cfg, root, dt.SITE, False))]
+    lists += [(f"people/conversions?kind={k}", f"conversions-{k}",
+               lambda k=k: lookup.conversions_listing(cfg, root, dt.SITE, k, False)) for k in ("cancelled", "removed", "test")]
+    for url, stem, ask in lists:
+        got = {**ask(), "private": False}
+        for row in [*got.get("leads", []), *got.get("rows", []), *got.get("conversions", [])]:
+            row.pop("vid", None)           # a lead's visitor ID too: the demo shows what a viewer may see
+        if got.get("ok"):
+            (folder / f"{stem}.json").write_text(json.dumps(got, separators=(",", ":")))
+            answers["people"][url] = f"data/demo/{stem}.json"
     return answers
 
 

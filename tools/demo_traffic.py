@@ -10,8 +10,9 @@ traffic, line for line. Nothing here writes a file or touches the network.
 
 What it makes, for the days up to `now`:
   lines   nginx_extended access-log lines: people (pages and assets, a few
-          404s), AI crawlers and assistants (training, user fetches), search
-          engines, a fake GPTBot, scanners, the team's own office visits
+          404s, the form posts that make the leads), AI crawlers and
+          assistants (training, user fetches), search engines, a fake
+          GPTBot, scanners, the team's own office visits
   beacon  in-page events from the site's script: page views, CTA clicks,
           scrolls, forms started, a booking widget
   hooks   Calendly bookings and Stripe payments, as the tools would post them
@@ -134,9 +135,9 @@ VIDCH = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
 
 
 def line(when: datetime, address: str, path: str, agent: str, referrer: str = "-", status: int = 200,
-         country: str = "US") -> str:
+         country: str = "US", method: str = "GET") -> str:
     """One nginx_extended line (the format DEPLOY.md sets up), host example.com."""
-    return (f'{when.isoformat()} {address} {SITE} "GET {path} HTTP/2.0" '
+    return (f'{when.isoformat()} {address} {SITE} "{method} {path} HTTP/2.0" '
             f'{status} 512 "{referrer}" "{agent}" 0.004 cc={country} '
             f'ray=0000000000000000-LHR\n')
 
@@ -257,6 +258,13 @@ class _Maker:
                 T.lines.append(line(t, ip, "/blog/old-launch-post", ua, prev_url, status=404, country=cc))
         return pages, touch
 
+    def form_sent(self, at, kind, page, cc):
+        """The form's POST to the site's own endpoint, a second before the lead
+        is stored: what lets a person search tie a lead to its visit by time."""
+        ip, ua = self.cur
+        self.t.lines.append(line(at - timedelta(seconds=1), ip, f"/api/forms/{kind}", ua,
+                                 "https://example.com" + page, country=cc, method="POST"))
+
     def events(self, t, cur, vid, host, utm, vw, nvisits, first_touch, touch, path, cc):
         rnd, T = self.rnd, self.t
         s = timedelta(seconds=1)
@@ -271,12 +279,16 @@ class _Maker:
             if rnd.random() < (0.55 if nvisits > 1 else 0.2):
                 if rnd.random() < 0.25:
                     T.hooks.append((t + timedelta(hours=rnd.choice([1, 5, 30, 70, 150])), "stripe", {"vid": vid}))
-                T.leads.append({"at": t + timedelta(seconds=rnd.randrange(40, 160)), "type": "signup", "vid": vid,
+                at = t + timedelta(seconds=rnd.randrange(40, 160))
+                self.form_sent(at, "signup", cur, cc)
+                T.leads.append({"at": at, "type": "signup", "vid": vid,
                                 "first": first_touch, "last": last, "visits": nvisits, "cc": cc})
         if cur == "/contact/" and rnd.random() < 0.5:
             self.ev(t + 8 * s, "form_start", cur, vid, host, utm, vw, id="contact_form")
             if rnd.random() < (0.75 if nvisits > 1 else 0.3):
-                T.leads.append({"at": t + timedelta(seconds=rnd.randrange(50, 200)), "type": "contact", "vid": vid,
+                at = t + timedelta(seconds=rnd.randrange(50, 200))
+                self.form_sent(at, "contact", cur, cc)
+                T.leads.append({"at": at, "type": "contact", "vid": vid,
                                 "first": first_touch, "last": last, "visits": nvisits, "cc": cc})
             if rnd.random() < 0.12:
                 self.ev(t + 20 * s, "mailto_click", cur, vid, host, utm, vw, id="sales_email")
@@ -356,6 +368,7 @@ class _Maker:
                 T.lines.append(line(ts, ip, "/signup/", ua, "https://example.com" + page, country=T.country_of[ip]))
                 self.ev(ts + timedelta(seconds=1), "page_view", "/signup/", vid, "", "", vw)
                 self.ev(ts + timedelta(seconds=6), "signup_start", "/signup/", vid, "", "", vw, id="signup_form")
+                self.form_sent(ts + timedelta(seconds=90), "signup", "/signup/", T.country_of[ip])
                 T.leads.append({"at": ts + timedelta(seconds=90), "type": "signup", "vid": vid,
                                 "first": self.info[identity]["first"], "last": {**touch, "landingPath": page, "at": tv},
                                 "visits": 1, "cc": T.country_of[ip]})

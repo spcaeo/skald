@@ -127,6 +127,19 @@ class Build(unittest.TestCase):
         index = json.loads((self.site / "data" / "page_index.json").read_text())
         self.assertEqual(set(d["api"]["page"]), {p["path"] for p in index["pages"]})
 
+    def test_the_left_out_lists_are_files_without_emails_or_visitor_ids(self):
+        d = json.loads((self.site / "data" / "app.json").read_text())["demo"]["api"]["people"]
+        self.assertEqual(set(d), {"people/left-out", "people/conversions?kind=cancelled",
+                                  "people/conversions?kind=removed", "people/conversions?kind=test"})
+        left = json.loads((self.site / d["people/left-out"]).read_text())
+        self.assertTrue(left["ok"])
+        self.assertIn("test", {r["why"] for r in left["leads"]})            # the team's own test lead
+        for name in d.values():
+            text = (self.site / name).read_text()
+            self.assertFalse(json.loads(text)["private"], name)
+            self.assertNotIn("@example.com", text, name)
+            self.assertNotIn('"vid":"', text, name)
+
     def test_no_request_log_names_a_helper_to_poll(self):
         for path in self.out.rglob("data/requests.json"):
             self.assertNotIn("api", json.loads(path.read_text()))
@@ -190,6 +203,20 @@ console.log(JSON.stringify([...before, d.DEMO.on, d.DEMO.links.length,
   d.demoFile("api/page?path=%2Fpricing%2F"), d.demoFile("api/page?path=%2Fnope%2F"), d.demoFile("me")]));
 """)
         self.assertEqual(json.loads(out), [False, None, True, 1, "data/demo/c.json", None, "data/demo/p.json", None, None])
+
+    def test_a_left_out_list_is_read_from_its_file_and_nothing_is_posted(self):
+        url = (APP_JS / "demo.js").as_uri()
+        out = self.node(f"""
+const d = await import({json.dumps(url)});
+const asked = [];
+globalThis.fetch = async (f) => {{ asked.push(f); return {{ json: async () => ({{ ok: true, leads: [] }}) }}; }};
+d.setDemo({{api: {{people: {{"people/left-out": "data/demo/left-out.json"}}}}}});
+const got = await d.demoAnswer("people/left-out");
+const post = await d.demoAnswer("people/left-out", {{x: 1}});
+const other = await d.demoAnswer("people?q=203.0.113.9");
+console.log(JSON.stringify([got.ok, post.ok, post.demo, other.ok, asked]));
+""")
+        self.assertEqual(json.loads(out), [True, False, True, False, ["data/demo/left-out.json"]])
 
     def test_the_helper_is_never_asked_in_the_demo(self):
         """call() (every save and helper read) and getJSON's api/ addresses stop before fetch."""
