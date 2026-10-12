@@ -99,8 +99,21 @@ def daily_run(live_dir, now: datetime, cmd: str) -> dict:
                     f"Check the schedule (Docker: `docker logs skald`; a server: "
                     f"/etc/cron.d/skald), then run `{cmd} run-daily`.")
     if outcome == "failed":
-        return item("daily_run", part, ATTENTION, f"failed {when}",
+        where = f" at '{got['last_step']}'" if got.get("last_step") else ""
+        return item("daily_run", part, ATTENTION, f"failed {when}{where}",
                     f"Run `{cmd} run-daily` to see the error (the failure mail has it too).")
+    step, reason = got.get("last_step"), got.get("last_reason")
+    if outcome == "withheld" and step == "weekly mail" and "partial day" in str(reason or ""):
+        return item("daily_run", part, OK,
+                    f"ran {when}; the day itself is stored and checked. Only this week's mail "
+                    f"is held back, because a day of the week was partial ({reason}). It "
+                    f"clears by itself next week, when the week has seven whole days")
+    if outcome == "withheld" and step:
+        return item("daily_run", part, ATTENTION,
+                    f"stopped on purpose {when} at '{step}'"
+                    + (f": {reason}" if reason else ""),
+                    f"`{cmd} run-daily` prints the same; for a day that does not reconcile, "
+                    f"`{cmd} audit --day yesterday` shows what differs.")
     if outcome == "withheld":
         return item("daily_run", part, ATTENTION,
                     f"stopped on purpose {when}: a day's figures did not reconcile",

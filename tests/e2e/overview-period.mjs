@@ -5,7 +5,7 @@
 //   node tests/e2e/overview-period.mjs https://host/traffic/<site>/ [user:password]
 //
 // Not part of the Python suite (it needs a browser and a served page).
-// For each range it reads the period line, the six tiles and the "how these
+// For each range it reads the period line, the tiles (seven since 2.5.0: leads and demos booked) and the "how these
 // numbers relate" line, and checks:
 //   * the period line names that range, and changes with it
 //   * a range with no whole day shows the empty state, never a row of zeros

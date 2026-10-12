@@ -36,8 +36,8 @@ from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
 from .config import setting
-from .conversions import (CONVERT_BUCKETS, FINISHED, MIN_RATE, STAGES, TOOLS, UNKNOWN,
-                          VISIT_BUCKETS)
+from .conversions import (CONVERT_BUCKETS, DEMO_ACTIONS, FINISHED, LEAD_ACTIONS, MIN_RATE,
+                          STAGES, TOOLS, UNKNOWN, VISIT_BUCKETS)
 
 DAYS = 180
 PERIOD_DAYS = 30
@@ -278,7 +278,9 @@ def _unavailable(reason: str, found: dict) -> dict:
             "as_known": AS_KNOWN, "stages": list(STAGES), "finished": list(FINISHED),
             "dims": list(DIMS), "visit_buckets": list(VISIT_BUCKETS),
             "convert_buckets": list(CONVERT_BUCKETS), "since": None, "days": [],
-            "period": None, "pages_before": None, "timeline": [], "withheld": {}}
+            "lead_actions": list(LEAD_ACTIONS), "demo_actions": list(DEMO_ACTIONS),
+            "period": None, "pages_before": None, "timeline": [], "today": None,
+            "withheld": {}}
 
 
 def blob(config: dict, folder: Path, site: str, tz, today: date, now: datetime,
@@ -311,6 +313,7 @@ def blob(config: dict, folder: Path, site: str, tz, today: date, now: datetime,
                "finished": list(FINISHED), "dims": list(DIMS),
                "visit_buckets": list(VISIT_BUCKETS), "convert_buckets": list(CONVERT_BUCKETS),
                "since": since, "days": [], "likely_ai": likely_note(config),
+               "lead_actions": list(LEAD_ACTIONS), "demo_actions": list(DEMO_ACTIONS),
                "period": {"first": start.isoformat(), "last": today.isoformat()},
                "pages_before": pages, "timeline": [], "withheld": {}}
         for i in range(DAYS):
@@ -332,9 +335,32 @@ def blob(config: dict, folder: Path, site: str, tz, today: date, now: datetime,
         out = withhold(out, held)
         days_held = {k.split("/", 1)[1] for k in out["withheld"] if k.startswith("days/")}
         out["timeline"] = timeline(db, site, tz, lo, hi, days_held)
+        out["today"] = _today(db, path, site, tz, today, days_held, audited, out["withheld"])
     finally:
         db.close()
     return out
+
+
+def _today(db, path, site: str, tz, today: date, held: set, audited: bool,
+           withheld: dict) -> dict:
+    """conversions.json `today` (conversions_leads.today_block), checked by
+    audit_conversions_leads.check_today when audited; withheld (and named
+    in `withheld["today"]`) when the recount disagrees or cannot run."""
+    from .conversions_leads import today_block
+    block = today_block(db, site, tz, today, held)
+    if not audited or block["state"] != "ok":
+        return block
+    from . import audit_conversions_leads
+    try:
+        problems = audit_conversions_leads.check_today(path, site, tz, today, block)
+    except Exception as why:            # noqa: BLE001 - an unchecked listing is withheld
+        problems = [f"the recount could not run: {type(why).__name__}: {why}"]
+    if not problems:
+        return block
+    why = ("the second count (audit_conversions_leads.py) disagrees: " + "; ".join(problems[:3])
+           + (f" (and {len(problems) - 3} more)" if len(problems) > 3 else ""))
+    withheld["today"] = why
+    return {"day": block["day"], "state": "withheld", "why": why}
 
 
 def withhold(out: dict, found: dict[str, list[str]]) -> dict:

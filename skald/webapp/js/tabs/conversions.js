@@ -18,15 +18,11 @@ import { conversionsLikely } from "./likelyai.js";
 import { withFlag } from "./readers.js";
 import { label as valueLabel } from "../drill.js";
 import { openConversionList } from "./person.js";
+import { STAGE, actionName, toolName } from "./leadfigs.js";
 
-const ACTION = { demo: "Demos", contact: "Contact forms", signup: "Sign-ups", waitlist: "Early access", paid: "Payments", deal: "Deals", call: "Phone clicks", email: "Email clicks", cta: "Button clicks", trial: "Trials" };
-const STAGE = { started: "started", completed: "completed", paid: "paid", cancelled: "cancelled", rescheduled: "rescheduled", no_show: "no-show", won: "won", lost: "lost" };
 const DIM = { source_type: "Source (last touch)", first_source: "First touch", campaign: "Campaign", landing: "Landing page", country: "Country", device: "Device", tool: "Reported by" };
-const TOOL = { beacon: "The page (script tag)", site: "Lead database", lead: "Site's server", json: "Zapier, Make or a script", calendly: "Calendly", calcom: "Cal.com", stripe: "Stripe", typeform: "Typeform", hubspot: "HubSpot" };
 const WAIT = { "<1h": "Under an hour", "<1d": "1 to 24 hours", "1-7d": "1 to 7 days", "8-30d": "8 to 30 days", "31-90d": "31 to 90 days", ">90d": "Over 90 days" };
 const VISITS = { 0: "0", 1: "1", 2: "2", "3-5": "3 to 5", "6-10": "6 to 10", "11+": "11 or more" };
-const actionName = (a) => ACTION[a] || a.replace(/[_.:-]/g, " ").replace(/^./, (c) => c.toUpperCase());
-const toolName = (t) => TOOL[t] || t;
 const info = (...kids) => h("div", { class: "state", html: ICON.info }, h("div", null, ...kids));
 const bad = (...kids) => h("div", { class: "state bad", role: "alert", html: ICON.info }, h("div", null, ...kids));
 

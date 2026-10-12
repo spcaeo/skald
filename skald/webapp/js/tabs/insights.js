@@ -29,7 +29,8 @@ const KNOWN = new Set(S.FILTERS);
 function target(i) {
   const tab = i.metric === "not_found" ? "health/broken" : TARGET[i.subject?.kind] || "overview";
   const filter = Object.fromEntries(Object.entries(i.filter || {}).filter(([k]) => KNOWN.has(k)));
-  if (i.subject?.kind === "page" && filter.path) return { tab: "pages", page: filter.path, ...filter };
+  // A page that started leads opens the Pages tab on its landing-page leads, not its story.
+  if (i.subject?.kind === "page" && filter.path) return i.metric === "leads" ? { tab: "pages", ...filter } : { tab: "pages", page: filter.path, ...filter };
   return { tab, ...filter };
 }
 
@@ -88,6 +89,9 @@ export default function insights(m, s) {
       h("span", { class: "tally-n" }, String(c)), h("span", { class: "tally-l", html: icon(glyph) }, label));
   }));
   out.push(h("section", { class: "ins-hero" }, h("div", { class: "ins-hero-top" }, h("h2", null, "Since"), pick), tally));
+  // Lead findings the second count disagreed with are left out, and said so.
+  const held = file.leads_withheld || [];
+  if (held.length) out.push(h("p", { class: "note", role: "note" }, `${held.length} lead finding${held.length === 1 ? " was" : "s were"} left out: the second count disagreed. ${held[0]}`));
   if (!filtered.length) {
     out.push(stateNote(all.length ? "Nothing passes the thresholds for this window and these filters. That is a quiet period, not missing data." : "No insights yet: they need two complete periods to compare."));
     return out;

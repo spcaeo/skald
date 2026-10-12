@@ -617,6 +617,30 @@ class TestRunDaily(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertEqual(ran, ["a", "b"])
 
+    def test_run_daily_notes_the_step_and_why_it_stopped(self):
+        from unittest import mock
+        from skald import runs
+        parsed = cli.parser().parse_args(
+            ["--config", str(self.box.config), "--today", "2026-10-12", "run-daily"])
+        ctx = cli.Context(parsed)
+        why = ("weekly mail: partial day(s) 2026-10-06 (partial day, data from 14:05); "
+               "a week needs seven whole days")
+
+        def refused():
+            ctx.by_design = why
+            return 1
+        steps = [("collect", lambda: 0), ("weekly mail", refused), ("after", lambda: 0)]
+        with mock.patch.object(cli, "daily_steps", lambda c: steps):
+            self.assertEqual(cli.cmd_run_daily(ctx), 1)
+        got = runs.load(ctx.live_dir)["run-daily"]
+        self.assertEqual((got["last_outcome"], got["last_step"], got["last_reason"]),
+                         ("withheld", "weekly mail", why))
+        with mock.patch.object(cli, "daily_steps", lambda c: steps[:1]):
+            self.assertEqual(cli.cmd_run_daily(ctx), 0)
+        got = runs.load(ctx.live_dir)["run-daily"]
+        self.assertEqual((got["last_outcome"], got["last_step"], got["last_reason"]),
+                         ("ok", None, None))
+
     def test_the_steps_run_in_order_and_weekly_only_on_monday(self):
         def names(today):
             parsed = cli.parser().parse_args(

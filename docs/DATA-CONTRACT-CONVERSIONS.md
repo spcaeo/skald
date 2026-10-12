@@ -30,7 +30,9 @@ day the action was taken.
 | `period` | `{"first","last"}`: the last 30 days (today included) of the two blocks below |
 | `pages_before` | null without journeys (visitor IDs off), `{"state": "withheld","why"}`, or `{"converting","other","pages": [[path, converting, other]]}`: browsers with a finished conversion in the period and a journey up to it, and the browsers seen in the period that did not convert; per page, how many of each saw it (the converting ones before converting). Top 50 by converting, then other, then path; exact |
 | `timeline[]` | the latest 50 finished conversions of the period, one per browser (or per lead without one), newest first, withheld days left out: `{"at","action","stage","tool","source","first_source","campaign","landing","country","device","visits_before","first_touch","browser": bool,"visits": [{"day","source","paths": [up to 15]}] (last 10 days with page views up to the conversion; [] without a browser),"steps": [{"at","action","stage","tool"}] (up to 20)}`. Times are local ISO. A listing, not a figure |
-| `withheld` | `{"days/<day>" or "pages_before": why}` |
+| `lead_actions`, `demo_actions` | (2.5.0) the actions that are a lead once finished (`contact`, `signup`, `waitlist`, `trial`, `demo`: a form sent or a demo booked) and the ones also shown as demos booked (`demo`); name lists from `conversions/__init__.py`, never figures |
+| `today` | (2.5.0) null without a conversions file, `{"day","state": "withheld","why"}`, or `{"day","state": "ok","total","tests","rows"}`: today's (local) rows of the lead actions, every stage, newest first, at most 100: `{"at" (local ISO),"action","stage","tool","source","first_source","campaign","landing","country","device","test": bool}`. `total` counts all of today's such rows, `tests` the ones marked test (listed, marked, never counted: today's `days[]` entry leaves them out). A listing for the Live tab, not a figure; withheld when today's day is withheld or the second count disagrees |
+| `withheld` | `{"days/<day>", "pages_before" or "today": why}` |
 
 A day's `by` tables each add up, per action, to its finished stages; its
 `visits_before` and `time_to_convert` too. A `withheld` day shows no figures.
@@ -45,6 +47,38 @@ the spool, beacon and lead recounts skip the (tool, reference) pairs marked
 test (`audit_conversions.test_keys`), the SQL recount reads `c.test = 0`.
 A day either road disagrees on is withheld, and
 so is `pages_before`; a recount that cannot run withholds them all.
+
+**Leads everywhere (2.5.0).** Overview (the Leads and Demos booked tiles, a
+day's leads as marks on the main chart), Live, Sources, Pages (landing
+pages), Locations and Compare sum these `days` in the browser: the `ok` days
+only, a lead being a finished row of `lead_actions` (`by.source_type`, last
+touch, for sources; `by.landing`; `by.country`). A rate (leads per visitor)
+puts them over the visitors of the same days only (days whole in the log
+and `ok` here), and only over at least `min_rate` (10) visitors. A change
+against another period needs both periods whole in the log and every day of
+both `ok` here. On a page group (a view) no lead figure is shown: conversions
+do not know about views. These sums are of figures the second count already
+matched day by day; nothing new is stored for them.
+
+`today` has its own second count: `audit_conversions_leads.check_today`
+counts today's rows of the lead actions by SQL GROUP BY (action, stage,
+test) over the file opened read-only, and compares the total, the test
+count and (when every row is listed) the rows by action, stage and test
+mark. A difference withholds the listing (`withheld["today"]`).
+
+**Lead findings in insights.json (2.5.0).** `conversions_leads.insights` adds
+findings with `metric` `"leads"`, by insights.py's rules (whole periods only,
+`min_after` 5, `min_change` 20%, the same confidence): all leads (`subject`
+`{"kind": "site", "name": "leads"}`), and per source (last touch), landing
+page and country, week on week and 30 days on 30, `working`, `dropped` and,
+for a source, `gone`; and the source and the landing page that sent the most
+leads in the last 30 whole days (`"top": true`, `"of"`: all the leads of
+those days), when one leads alone with at least `min_after`. A period counts
+only when every day of it is `ok` in conversions.json. Only the whole site's
+page carries them. Second count: `audit_conversions_leads.check_insights`
+recounts each finding's `after` and `before` (and, for a top finding, the
+leader, its count and `of`) by its own SQL over the file; a finding it
+disagrees with is left out and named in insights.json's `leads_withheld`.
 
 **Times without an offset (2.4.0).** A `lead` or `json` hook's `at` (and
 `first_touch_at`, a touch's `at`) given without an offset is read in the

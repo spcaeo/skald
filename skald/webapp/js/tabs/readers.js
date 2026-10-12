@@ -14,6 +14,14 @@ import { leaderboard } from "./pagedetail.js";
 import { pageStory, published } from "./pagestory.js";
 import { link } from "../drill.js";
 import { sourcesPanel } from "./likelyai.js";
+import { leadsBy, leadTable, viewNote } from "./leadfigs.js";
+
+// Which touch each tab's Leads column is attributed by (the column hint and the note say it).
+const TOUCH = {
+  source: "last touch: the source of the visit the lead was sent from",
+  landing: "landing page: the page recorded with the lead (its first visit's, when known)",
+  country: "the lead's country, from the tool or the visitor's address",
+};
 
 let regions = null;
 export function country(code) {
@@ -103,7 +111,7 @@ export function sources(m, s) {
     h("p", { class: "sub" }, "Sources and landing pages are stored apart, so this list is every visitor's landing page, whatever the source filter."),
     countTable(t.by.landing, { caption: "Landing pages", file: fileName("landing", r), key: "Page", value: "Visitors", keep, path: true, total: t.readers, drill: "landing" })));
   out.push(h("div", { class: "cols" },
-    h("section", { class: "s" }, h("h2", null, "All sources"), countTable(t.by.source, { caption: "Traffic sources", file: fileName("sources", r), key: "Source", value: "Visitors", keep: only(s.source), total: t.readers, drill: "source" })),
+    h("section", { class: "s" }, h("h2", null, "All sources, with their leads"), leadTable(t.by.source, leadsBy(m, s, r, t, "source"), { caption: "Traffic sources", file: fileName("sources", r), key: "Source", keep: only(s.source), total: t.readers, drill: "source", touch: TOUCH.source }), viewNote(m, s)),
     h("section", { class: "s" }, h("h2", null, "All referring sites"), countTable(t.by.referrer, { caption: "Referring sites", file: fileName("referrers", r), key: "Site", value: "Visitors", drill: "referrer" }))));
   out.push(unmeasured(t), coverageNote(cov, r));
   return out;
@@ -126,6 +134,9 @@ export function pages(m, s) {
   out.push(h("div", { class: "cols" },
     panel("Most read", `Page views by people${sub}`, blist(ranked(t.pages, keep), { drill: "path", limit: 12, empty: "No page matches." })),
     panel("Where visitors started", `Landing pages${sub}`, blist(ranked(t.by?.landing, keep), { drill: "landing", limit: 12, color: "var(--views)", total: t.readers, empty: t.by ? "No page matches." : "Not recorded for this range." }))));
+  if (t.by) out.push(h("section", { class: "s" }, h("h2", null, "Landing pages and their leads"),
+    h("p", { class: "sub" }, `Visitors who started on each page${sub}, and the leads that started there.`),
+    leadTable(t.by.landing, leadsBy(m, s, r, t, "landing"), { caption: "Landing pages and leads", file: fileName("landing-leads", r), key: "Page", keep, path: true, total: t.readers, drill: "landing", touch: TOUCH.landing }), viewNote(m, s)));
   out.push(h("section", { class: "s" }, h("h2", null, "Pages read by people"),
     countTable(t.pages, { caption: "Pages read by people", file: fileName("pages", r), key: "Page", value: "Page views", keep, path: true, limit: 15, drill: "path" }),
     r.kind === "history" && r.length > 1 ? h("p", { class: "note" }, "Each day keeps its top 50 pages, so over several days the long tail is undercounted.") : null));
@@ -150,8 +161,8 @@ export function audience(m, s) {
       panel("Devices", null, meter(t.by.device, t.readers, s.device)),
       panel("Browsers", "Brave counts as Chrome; an in-app browser by its app", blist(ranked(t.by.browser, only(s.browser)), { drill: "browser", total: t.readers, limit: 8, color: "var(--views)" })),
       panel("Systems", "An iPad asking for the desktop site counts as macOS", blist(ranked(t.by.os), { drill: "os", total: t.readers, limit: 8, color: "var(--ink-3)" })))));
-  out.push(h("section", { class: "s" }, h("h2", null, "All countries"),
-    countTable(t.by.country, { caption: "Visitors by country", file: fileName("countries", r), key: "Country", value: "Visitors", keep: only(s.country), total: t.readers, label: country, drill: "country" })));
+  out.push(h("section", { class: "s" }, h("h2", null, "All countries, with their leads"),
+    leadTable(t.by.country, leadsBy(m, s, r, t, "country"), { caption: "Visitors by country", file: fileName("countries", r), key: "Country", keep: only(s.country), total: t.readers, label: country, drill: "country", touch: TOUCH.country }), viewNote(m, s)));
   out.push(unmeasured(t), coverageNote(cov, r));
   return out;
 }

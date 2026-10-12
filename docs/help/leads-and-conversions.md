@@ -11,6 +11,38 @@ Skald has two pages for results. Both are under **Results** in the menu.
 
 The Leads page reads only the lead database. A booking that reaches Skald from Calendly, or a form from Typeform, shows on the Conversions page, not on the Leads page.
 
+## Leads on every page
+
+Leads and demo bookings also show where you look at your visitors, so you can see which source, page or country brings them. All of these use the same data as the Conversions page, from every source at once.
+
+A **lead** here is a form sent (contact, sign-up, early access, trial) or a demo booked, once completed. **Demos booked** are counted on their own as well. Payments, deals and clicks are not leads. A conversion marked test is never counted.
+
+| Page | What you see |
+| --- | --- |
+| [Overview](#overview) | **Leads** and **Demos booked** tiles for the period, with the change against the period before. Pink dots on the main chart: each day's leads. |
+| [Live](#live) | **Leads today** and **Demos booked today**, and the list **Leads and bookings today**: time, what it was (contact form, demo booking, sign-up), its stage, source, landing page and country with its flag. Newest first. A started form is listed with its stage, and is not a lead. Test rows are listed and marked "test, not counted". |
+| [Sources](#sources) | **Leads** and **Lead rate** beside each source's visitors. |
+| [Pages](#pages) | **Landing pages and their leads**: visitors who started on each page, its leads and lead rate. |
+| [Locations](#locations) | **Leads** and **Lead rate** beside each country. |
+| [Insights](#insights) | Findings about leads, for example "Leads from AI assistant up 60% week on week" or "/pricing/ is the page that started the most leads". |
+| [Compare](#compare) | Leads, demos booked and every completed action, A against B, in total, by source and by landing page. |
+
+Which touch each column uses:
+
+- **Sources**: the last touch, the source of the visit the lead was sent from.
+- **Pages**: the landing page recorded with the lead (its first visit's, when known).
+- **Locations**: the lead's country, from the tool or the visitor's address.
+
+The honesty rules are the same as everywhere:
+
+- Only days with **checked** conversions count. A day the second count disagreed on is withheld. A day before conversions were recorded is "not recorded", never zero.
+- The **lead rate** is leads per visitor over the same days only: days whole in the visitor figures *and* checked in conversions. It is given over at least 10 visitors. Below that you see the count alone, with "too few to say".
+- A **change** (Overview, Compare) is shown only when both periods are whole and every day of both has checked conversions.
+- **Insights** about leads follow the same rules as the others: two whole periods, at least 5 leads, a change of at least 20%. A finding the second count does not confirm is left out, and the page says so.
+- Leads are counted for the whole site. On a page group (for example one language), the lead columns are not shown.
+
+> A lead reported by two roads (for example the script tag and the lead database, for the same form) counts on each, as on the Conversions page. `skald doctor` lists references that arrived twice.
+
 ## Where leads and conversions come from
 
 There are four sources. You can use one or all of them.

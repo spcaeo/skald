@@ -4,6 +4,30 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.5.0 (2026-10-12)
+
+Leads and demo bookings on every page where they help, each counted twice.
+
+### Added
+
+- **Overview:** Leads and Demos booked tiles, with the change only when both periods are whole
+  and checked, and each day's leads as dots on the main chart.
+- **Live:** today's leads and bookings as they arrive (time, action, stage, source, landing
+  page, country), with today's totals. Test rows say "test, not counted".
+- **Sources, Pages, Locations:** a Leads column and a lead rate (leads per visitor, from 10
+  visitors up). Sources use the last touch; Pages the landing page recorded with the lead.
+- **Insights:** lead findings, week on week and 30 days on 30, by source, page and country.
+- **Compare:** leads, demos booked and all completed, in total, by source and by landing page,
+  in full-width tables (A · B · ± under each group; long labels on one line).
+- **MCP:** the `conversions` tool takes `by` (source, page, country) and gives lead totals.
+- A new audit (`audit_conversions_leads.py`) recounts today's list and every lead finding; a
+  list it disagrees with is withheld, a finding left out and named.
+
+### Changed
+
+- `skald doctor` names the step a daily run stopped at and why. A weekly mail held back by a
+  partial day says the day itself is fine and that it clears by itself next week.
+
 ## 2.4.1 (2026-10-12)
 
 ### Fixed

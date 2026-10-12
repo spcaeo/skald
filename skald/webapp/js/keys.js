@@ -24,17 +24,21 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-12h",
+  id: "2026-10-12i",
   items: [
+    ["Leads everywhere", "leads and demos booked on Overview, Sources, Pages, Locations, Insights and Compare, each counted twice.", "leads-and-conversions"],
+    ["Live", "today's leads and bookings as they arrive, with source, page and country.", "leads-and-conversions"],
+    ["Doctor", "names the step a daily run stopped at, and why."],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.4.0-2.4.1
     ["Find a person", "on narrower screens the search is an icon in the top bar, so nothing overlaps.", "privacy"],
     ["Person search", "find anyone by IP, email or lead (admins): every visit, page, lead and booking, across days.", "privacy"],
     ["Nothing hidden", "spam, duplicate and test leads, and cancelled, removed and test conversions, are listed with their rows.", "leads-and-conversions"],
     ["Doctor", "skald doctor and Settings > Integrations say what works, what is missing, and the exact fix.", "pick-your-road"],
     ["Calendly", "keep only your own event types when one Calendly account books for several businesses.", "demo-bookings"],
     ["Guides", "pick your road, leads from your backend in 5 minutes, demo bookings, Docker first install.", "pick-your-road"],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.3.0
     ["Flags", "a flag beside every country, everywhere in the dashboard, the plain page and the mails."],
     ["Visits", "coming back from ChatGPT, Perplexity, a search or a campaign link starts a new visit, so the assistant or campaign that brought someone back is shown as its source.", "getting-started"],
