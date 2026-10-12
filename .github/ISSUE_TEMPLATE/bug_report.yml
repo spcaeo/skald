@@ -1,0 +1,92 @@
+name: Bug report
+description: Something counts wrong, breaks, or does not match the docs.
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. **Security problem? Do not file it here**: see SECURITY.md.
+
+        **Never paste real visitor addresses, tokens, passwords or log lines with personal data.**
+        Use RFC 5737 addresses (192.0.2.x, 198.51.100.x, 203.0.113.x) and example.com.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you saw, and what you expected.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Counting or classification (a figure looks wrong)
+        - A day is withheld and I do not know why
+        - Dashboard
+        - Accounts, sign-in or settings
+        - Conversions or webhooks
+        - The skald.js tag or beacon
+        - API or MCP
+        - Mail or alerts
+        - Install, Docker or upgrade
+        - Docs
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sample log lines or output (anonymised)
+      description: A few log lines with addresses replaced by 192.0.2.x help most with counting bugs.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Skald version
+      description: Output of `skald version`
+      placeholder: "2.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How is it installed?
+      options:
+        - Docker
+        - Docker Compose
+        - install.sh
+        - From source
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Access mode
+      options:
+        - basic (one nginx password)
+        - sessions (accounts)
+        - not sure
+  - type: input
+    id: env
+    attributes:
+      label: Python version, OS and web server
+      placeholder: "Python 3.12, Ubuntu 24.04, nginx 1.24 (combined log format)"
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I removed real addresses, tokens and personal data from everything above.
+          required: true
+        - label: I searched the existing issues.
+          required: true

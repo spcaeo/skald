@@ -1,0 +1,21 @@
+# What the Docker image leaves out (docker/Dockerfile copies the repository).
+.git
+.github
+.claude
+.playwright-mcp
+**/__pycache__
+**/*.pyc
+**/.DS_Store
+# Local configs, environment files and data: never in an image.
+config.yml
+**/env
+**/.env
+*.sqlite
+*.sqlite-*
+*.db
+*.bak
+build.json
+secrets.local.md
+HANDOVER
+deployments
+tests

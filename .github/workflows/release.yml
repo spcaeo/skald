@@ -1,0 +1,70 @@
+name: Release files
+
+# For a version tag (v2.0.0): runs the tests, then attaches to the GitHub release (made if it is
+# missing) the source tarball skald-2.0.0.tar.gz, install.sh, and SHA256SUMS for both. The
+# tarball comes from `git archive` and `gzip -n`, so the same tag always gives the same bytes.
+# docs/INSTALL.md shows how to check them. Uses only the built-in GITHUB_TOKEN.
+# Actions are pinned to full commit SHAs (the comment says the release); update them together.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Run the tests
+        run: python3 -m unittest discover tests
+
+  files:
+    name: Tarball, install.sh and SHA256SUMS
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Build the files
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          ver="${TAG#v}"
+          mkdir dist
+          git archive --format=tar --prefix="skald-$ver/" HEAD | gzip -n -9 > "dist/skald-$ver.tar.gz"
+          cp install.sh dist/install.sh
+          (cd dist && sha256sum "skald-$ver.tar.gz" install.sh > SHA256SUMS && cat SHA256SUMS)
+
+      - name: Attach them to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --verify-tag --title "$TAG" --notes "See CHANGELOG.md for what changed."
+          fi
+          gh release upload "$TAG" dist/* --clobber

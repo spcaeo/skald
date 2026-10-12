@@ -1,0 +1,46 @@
+# Skald on Render: one web service from the Docker image, with a persistent disk.
+# Guide: docs/HOSTING.md, "Render". Render's Blueprint reference:
+# https://render.com/docs/blueprint-spec  Disks: https://render.com/docs/disks
+#
+# - A disk needs a paid instance type; free instances have no disk, and
+#   without one every restart loses the history. Check Render's pricing page.
+# - A service with a disk runs one instance and redeploys with a short stop
+#   (no zero-downtime deploys). Skald is built for exactly one instance.
+# - Render reads render.yaml at the repository root (the Deploy to Render
+#   button too). deploy/render.yaml is the same file, kept beside the other
+#   platforms' (tests/test_hosting_container.py checks the two match).
+# - The visitor's address: Render does not publish its proxies' ranges.
+#   After the first deploy, set SKALD_TRUSTED_PROXIES as docs/HOSTING.md says
+#   ("The visitor's address"); until then Skald uses the connection's own.
+services:
+  - type: web
+    name: skald
+    runtime: image
+    image:
+      url: ghcr.io/spcaeo/skald:latest
+    # Or build from the repository instead of pulling the image:
+    # runtime: docker
+    # dockerfilePath: ./docker/Dockerfile
+    # dockerContext: .
+    healthCheckPath: /traffic-auth/login
+    envVars:
+      - key: PORT                  # the port nginx listens on in the image
+        value: "8080"
+      - key: SKALD_SITE            # your site's host name, e.g. example.com
+        sync: false
+      - key: SKALD_HOSTS           # host names to count, e.g. "example.com www.example.com"
+        sync: false
+      - key: SKALD_BASE_URL        # this service's https:// address (onrender.com or your domain)
+        sync: false
+      - key: SKALD_TIMEZONE        # the zone a day is cut in, e.g. America/New_York
+        value: UTC
+      # No access log on this machine: the site's lines arrive by POST
+      # (the shipper, or a Vercel/Netlify log drain) and are kept on the disk.
+      - key: SKALD_INGEST
+        value: "true"
+      - key: SKALD_LOG_DIR         # /var/lib/skald/ingest/<SKALD_SITE>
+        sync: false
+    disk:
+      name: skald-data
+      mountPath: /var/lib/skald
+      sizeGB: 5

@@ -1,0 +1,41 @@
+name: Feature request
+description: Suggest a figure, an integration or an improvement.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tell us the question you want answered, not only the button you want. Skald's rules apply to
+        every new figure: it must reconcile, it gets a second independent count, and no personal
+        data goes into history.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What question can you not answer today?
+      placeholder: "I want to know which pages Perplexity fetches before people book a demo..."
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like Skald to do?
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Where would the data come from?
+      description: The access log, the skald.js tag, a webhook from a tool, the lead database, another source?
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What do you use now instead?
+  - type: dropdown
+    id: help
+    attributes:
+      label: Would you help build it?
+      options:
+        - Yes, I can open a pull request
+        - I can test it
+        - No

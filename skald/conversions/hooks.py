@@ -1,0 +1,349 @@
+"""The hook receiver: POST /traffic-hooks/<site>/<tool>, public, behind nginx.
+
+Each request, in this order, before anything is kept:
+
+  1. the site must be one this install reports on, the tool one of
+     conversions.TOOLS with a secret set for that site, and not waiting for
+     its domain to be verified (site_verify.py): 404 otherwise
+  2. a body of at most 64 KiB: 411 without a length, 413 over it
+  3. the tool's signature over the raw bytes, checked BEFORE the body is
+     parsed and before any per-hook bucket is spent: 401. A failure spends
+     the sender's small pre-auth bucket (`hooks.preauth_per_minute`, burst
+     `hooks.preauth_burst`): 429 once it is empty
+  4. at most `hooks.per_minute` verified deliveries a minute per site and
+     tool (burst `hooks.burst`): 429. An unsigned flood cannot spend it.
+  5. the body must be JSON: 400
+  6. Cal.com and Typeform sign no timestamp: a body whose hash was accepted
+     in the last 30 days is a replay (200, "replay"), never spooled or kept
+     again. The hash (table hook_replays) outlives `forget`, so a replay
+     cannot bring back a forgotten conversion.
+  7. the verified body is appended to the day's spool (spool.py) with only
+     the keys its adapter and the audit read (conversions.SPOOL_KEYS); name
+     and primary email only when the site's identity is full
+  8. the adapter maps it to records, normalise.py makes them rows, the
+     store keeps them once per (site, tool, external ref, stage): 200
+
+Every outcome for a known site and tool is a row in `deliveries` (what
+happened, never the body); refusals for the rate limit and failed
+signatures are written at most once a minute per hook, as a count. A
+request with `X-Skald-Test: 1` (still signed) is checked and mapped, logged
+as "test", and neither spooled nor kept.
+
+The sender's address is read only for the pre-auth bucket, kept in memory:
+X-Real-IP on the proxy's connection (loopback, or `hooks.trusted_proxies`),
+else the connection's own address.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+import threading
+import time
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+from ..config import setting, site_name
+from . import MAX_BODY, TOOLS, spool, store
+from .adapters import Invalid, adapter
+from .normalise import row as make_row
+from .secrets_store import Exposed, find
+
+PREFIX = "/traffic-hooks/"
+_PATH = re.compile(r"^/traffic-hooks/([A-Za-z0-9][A-Za-z0-9._-]{0,99})/([a-z]{2,20})/?$")
+REFUSED_EVERY = 60
+SITES_EVERY = 30          # seconds: a hook for an unknown site re-reads the sites
+REPLAY_TOOLS = ("calcom", "typeform")     # no signed timestamp: refused by hash
+PROXIES = ("127.0.0.1", "::1")
+
+
+def replay_digest(tool: str, payload, body: bytes) -> str | None:
+    """sha256 of the tool, the event's id and the raw body, for the tools
+    that sign no timestamp; None for the others."""
+    if tool not in REPLAY_TOOLS or not isinstance(payload, dict):
+        return None
+    inner = payload.get("payload") if isinstance(payload.get("payload"), dict) else {}
+    event = payload.get("event_id") if tool == "typeform" else \
+        f"{payload.get('triggerEvent')}:{inner.get('uid')}"
+    return hashlib.sha256(f"{tool}\0{event}\0".encode() + body).hexdigest()
+
+
+def history_folder(config: dict, config_path=None) -> Path:
+    db = Path(str(setting(config, "history", "db", "history.sqlite"))).expanduser()
+    if not db.is_absolute() and config_path is not None:
+        db = Path(config_path).resolve().parent / db
+    return db.parent
+
+
+def site_configs(config: dict, config_path=None) -> dict[str, dict]:
+    """{site name: its (merged) config} for every site of the install: the
+    config files' and the dashboard's (accounts.sqlite), loaded as run-daily
+    loads them (multisite.site_configs), with or without a `sites:` list."""
+    out = {site_name(config): config}
+    if config_path is None:
+        return out
+    from ..multisite import site_configs as others
+    moved = ((config or {}).get("hooks") or {}).get("secrets")
+    try:
+        for got in others(config, Path(config_path)):
+            if got.get("_dashboard_site") and moved:
+                # A dashboard site inherits no `hooks:`, but its secret is
+                # kept in the install's secrets file (Settings > Integrations).
+                got = {**got, "hooks": {"secrets": moved}}
+            out[site_name(got)] = got
+    except SystemExit:
+        pass
+    return out
+
+
+def identity_full(site_config: dict) -> bool:
+    return str(setting(site_config or {}, "conversions", "identity", "") or "").lower() == "full"
+
+
+class Receiver:
+    def __init__(self, config: dict, folder=None, config_path=None, clock=time.time) -> None:
+        from ..beacon_server import Limiter
+        from ..window import zone
+        self.config, self.clock = config, clock
+        self.config_path = config_path
+        self.folder = Path(folder) if folder is not None else history_folder(config, config_path)
+        self.sites, self.hosts, self.sites_at = {}, {}, None
+        self._load_sites()
+        self.tz = zone(config)
+        self.db_path = store.path_for(config, self.folder)
+        self.spool = spool.spool_dir(config, self.folder)
+        self.country_db = setting(config, "conversions", "country_db")
+        self.limiter = Limiter(float(setting(config, "hooks", "per_minute", 60)),
+                               float(setting(config, "hooks", "burst", 30)),
+                               float(setting(config, "hooks", "all_per_second", 20)),
+                               clock=time.monotonic)
+        # Unsigned or badly signed attempts, per sender address (never kept).
+        self.preauth = Limiter(float(setting(config, "hooks", "preauth_per_minute", 30)),
+                               float(setting(config, "hooks", "preauth_burst", 10)),
+                               float(setting(config, "hooks", "preauth_all_per_second", 20)),
+                               clock=time.monotonic)
+        self.lock = threading.Lock()
+        self.refused: dict[tuple[str, str, str], list] = {}
+
+    # -------------------------------------------------------------- pieces
+
+    def _load_sites(self) -> None:
+        from ..beacon import own_hosts
+        sites = site_configs(self.config, self.config_path)
+        self.sites, self.hosts = sites, {name: own_hosts(c) for name, c in sites.items()}
+        self.sites_at = time.monotonic()
+
+    def secret(self, site: str, tool: str) -> str | None:
+        """The hook's secret; None when the site or tool is not set up.
+        Raises Exposed for a secrets file others can read. A site added
+        from the dashboard after the helper started is found by reading
+        the sites again, at most once every SITES_EVERY seconds."""
+        if tool not in TOOLS:
+            return None
+        if site not in self.sites and time.monotonic() - self.sites_at >= SITES_EVERY:
+            self._load_sites()
+        if site not in self.sites:
+            return None
+        from ..site_verify import refuses           # a site waiting for verification
+        if refuses(self.config, self.folder, site):
+            return None
+        return find(self.sites[site], self.folder, site, tool)[0]
+
+    def _log(self, site: str, tool: str, outcome: str, status: int, error=None,
+             ref=None, at=None) -> None:
+        db = store.connect(self.db_path)
+        try:
+            store.log_delivery(db, site, tool, outcome, status, error, ref, at)
+        finally:
+            db.close()
+
+    def _refused(self, site: str, tool: str, outcome: str = "rate_limited",
+                 status: int = 429) -> None:
+        """Count a refusal; write one row a minute per hook and outcome,
+        with the count, so a flood is never a flood of rows."""
+        now = self.clock()
+        with self.lock:
+            entry = self.refused.setdefault((site, tool, outcome), [0, 0.0])
+            entry[0] += 1
+            if now - entry[1] < REFUSED_EVERY:
+                return
+            count, entry[0], entry[1] = entry[0], 0, now
+        self._log(site, tool, outcome, status, f"{count} refused")
+
+    def _limited(self, site: str, tool: str) -> None:
+        self._refused(site, tool, "rate_limited", 429)
+
+    def client(self, handler) -> str:
+        """The sender's address for the pre-auth bucket: X-Real-IP on the
+        proxy's own connection, else the connection's address."""
+        peer = str((getattr(handler, "client_address", None) or ("",))[0] or "")
+        extra = setting(self.config, "hooks", "trusted_proxies") or ()
+        extra = [extra] if isinstance(extra, str) else list(extra)
+        if peer in PROXIES or peer in [str(p) for p in extra]:
+            got = (handler.headers.get("X-Real-IP") or "").strip()
+            if got and len(got) <= 64:
+                return got
+        return peer
+
+    def _replayed(self, site: str, digest: str, now: float) -> bool:
+        if not self.db_path.exists():
+            return False
+        since = store.stamp(datetime.fromtimestamp(now, tz=timezone.utc)
+                            - timedelta(days=store.REPLAY_DAYS))
+        db = store.connect(self.db_path)
+        try:
+            return store.replayed(db, site, digest, since)
+        finally:
+            db.close()
+
+    def uri(self, handler) -> str:
+        base = setting(self.config, "hooks", "public_url")
+        if base:
+            return str(base).rstrip("/") + handler.path
+        proto = handler.headers.get("X-Forwarded-Proto") or "https"
+        return f"{proto}://{handler.headers.get('Host') or ''}{handler.path}"
+
+    # --------------------------------------------------------------- HTTP
+
+    def http(self, handler) -> tuple[int, dict]:
+        """(status, answer) for one request on the handler; reads its body."""
+        found = _PATH.match(handler.path.split("?", 1)[0])
+        if not found:
+            return 404, {"error": "not found"}
+        site, tool = found.groups()
+        if handler.command != "POST":
+            return 405, {"error": "POST only"}
+        try:
+            secret = self.secret(site, tool)
+        except Exposed:
+            self._log(site, tool, "error", 500, "the secrets file is not 0600")
+            return 500, {"error": "not set up"}
+        if not secret:
+            return 404, {"error": "not found"}
+        try:
+            length = int(handler.headers.get("Content-Length") or -1)
+        except ValueError:
+            length = -1
+        if length < 0:
+            self._log(site, tool, "no_length", 411)
+            return 411, {"error": "length required"}
+        if length > MAX_BODY:
+            self._log(site, tool, "too_large", 413, f"{length} bytes")
+            return 413, {"error": "body over 64 KiB"}
+        body = handler.rfile.read(length)
+        headers = {k.lower(): v for k, v in handler.headers.items()}
+        headers[":method"], headers[":uri"] = "POST", self.uri(handler)
+        # The signature first (cheap): only a verified delivery spends the
+        # hook's bucket, so an unsigned flood cannot starve the real tool.
+        if not adapter(tool).verify(headers, body, secret, self.clock()):
+            self._refused(site, tool, "bad_signature", 401)
+            if not self.preauth.allow(self.client(handler)):
+                return 429, {"error": "too many"}
+            return 401, {"error": "bad signature"}
+        if not self.limiter.allow(f"{site}/{tool}"):
+            self._limited(site, tool)
+            return 429, {"error": "too many"}
+        return self.process(site, tool, headers, body, secret, verified=True)
+
+    def process(self, site: str, tool: str, headers: dict, body: bytes,
+                secret: str, verified: bool = False) -> tuple[int, dict]:
+        """Verify (unless `http` just did), spool, map and keep one
+        delivery. (status, answer)."""
+        mod = adapter(tool)
+        now = self.clock()
+        received = store.stamp(datetime.fromtimestamp(now, tz=timezone.utc))
+        if not verified and not mod.verify(headers, body, secret, now):
+            self._refused(site, tool, "bad_signature", 401)
+            return 401, {"error": "bad signature"}
+        try:
+            payload = json.loads(body.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            self._log(site, tool, "bad_body", 400, "not JSON", at=received)
+            return 400, {"error": "not JSON"}
+        full = identity_full(self.sites[site])
+        if headers.get("x-skald-test") == "1":
+            return self._test(site, tool, mod, payload, received, full)
+        digest = replay_digest(tool, payload, body)
+        if digest and self._replayed(site, digest, now):
+            self._log(site, tool, "replay", 200, "the same body was taken before",
+                      at=received)
+            return 200, {"ok": True, "recorded": 0, "duplicates": 1}
+        try:
+            day = datetime.fromtimestamp(now, tz=timezone.utc).astimezone(self.tz).date()
+            spool.append(self.spool, day, spool.line_for(received, site, tool, payload, full))
+        except OSError as why:
+            self._log(site, tool, "error", 500, f"spool: {type(why).__name__}", at=received)
+            return 500, {"error": "not kept, send again"}
+        try:
+            rows = [make_row(r, site, tool, received, self.hosts[site], full, self.country_db)
+                    for r in mod.to_records(payload, self.sites[site])]
+        except Invalid as why:
+            self._log(site, tool, "bad_body", 400, str(why), at=received)
+            return 400, {"error": str(why)}
+        if not rows:
+            self._log(site, tool, "ignored", 200, at=received)
+            return 200, {"ok": True, "recorded": 0, "duplicates": 0}
+        try:
+            db = store.connect(self.db_path)
+            try:
+                kept = [store.record_conversion(db, r) for r in rows]
+                new = sum(kept)
+                if digest:
+                    store.keep_replay(db, site, digest, received)
+                store.log_delivery(db, site, tool, "recorded" if new else "duplicate", 200,
+                                   None, rows[0]["external_ref"], received)
+            finally:
+                db.close()
+        except Exception as why:            # noqa: BLE001 - the tool will send again
+            self._log(site, tool, "error", 500, f"store: {type(why).__name__}", at=received)
+            return 500, {"error": "not kept, send again"}
+        return 200, {"ok": True, "recorded": new, "duplicates": len(kept) - new}
+
+    def _test(self, site, tool, mod, payload, received, full) -> tuple[int, dict]:
+        try:
+            rows = [make_row(r, site, tool, received, self.hosts[site], full, self.country_db)
+                    for r in mod.to_records(payload, self.sites[site])]
+        except Invalid as why:
+            self._log(site, tool, "test_failed", 400, str(why), at=received)
+            return 400, {"error": str(why), "test": True}
+        self._log(site, tool, "test", 200, f"{len(rows)} record(s) read, none kept",
+                  at=received)
+        return 200, {"ok": True, "test": True, "records": len(rows),
+                     "read": [{k: r.get(k) for k in ("action", "stage", "vid", "source_type",
+                                                     "campaign", "country", "device")}
+                              for r in rows[:5]]}
+
+
+_RECEIVERS: dict = {}
+_GUARD = threading.Lock()
+
+
+def receiver(config: dict, folder=None, config_path=None) -> Receiver:
+    """One Receiver per config for the life of the process (its rate limits
+    live in memory)."""
+    path = config_path or (config.get("_resolved") or {}).get("config_path")
+    key = (id(config), str(folder), str(path))
+    with _GUARD:
+        got = _RECEIVERS.get(key)
+        if got is None:
+            got = _RECEIVERS[key] = Receiver(config, folder, path)
+        return got
+
+
+def handle(handler, config: dict, live_dir=None, config_path=None) -> None:
+    """Answer one request to /traffic-hooks/ on a BaseHTTPRequestHandler.
+    `live_dir` is the history's folder (None: worked out from the config)."""
+    try:
+        status, answer = receiver(config, live_dir, config_path).http(handler)
+    except Exception:                      # noqa: BLE001 - never a traceback to a caller
+        status, answer = 500, {"error": "failed"}
+    raw = json.dumps(answer, separators=(",", ":")).encode()
+    handler.send_response(status)
+    handler.send_header("Content-Type", "application/json")
+    handler.send_header("Cache-Control", "no-store")
+    handler.send_header("Content-Length", str(len(raw)))
+    if status in (411, 413):
+        handler.send_header("Connection", "close")
+        handler.close_connection = True
+    handler.end_headers()
+    handler.wfile.write(raw)

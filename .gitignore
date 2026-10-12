@@ -1,0 +1,24 @@
+__pycache__/
+*.pyc
+/config.yml
+.DS_Store
+._*
+*.sqlite
+*.sqlite-journal
+*.bak
+.pytest_cache/
+# Local-only secrets
+secrets.local.md
+*.sqlite-wal
+*.sqlite-shm
+*.db
+# Environment and secrets files (the server's is /etc/skald/env)
+.env
+env
+# Written at deploy time by tools/build-info.sh
+build.json
+# Claude Code session data
+.claude/
+.playwright-mcp/
+# The export tool's marker
+.skald-export

@@ -1,0 +1,104 @@
+/* Skald's sign-in pages (/traffic-auth/): sign in, forgot, reset, invite.
+   The dashboard's own colours and type, one card in the middle of the page,
+   no fonts or images fetched: the mark is inline SVG in each page. */
+
+:root {
+  color-scheme: light;
+  --page: #edf0f3; --surface: #fbfcfd; --sunk: #e4e9ee; --ink: #17212b; --ink-2: #4f5d6b; --ink-3: #6e7c89;
+  --rule: #d8dfe6; --focus: #17212b; --good: #1b7f52; --warn: #9a6400; --bad: #c0352f;
+  --shadow: 0 1px 0 rgba(23, 33, 43, .04), 0 8px 24px -12px rgba(23, 33, 43, .18);
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d1319; --surface: #141c24; --sunk: #1b252f; --ink: #e4eaf0; --ink-2: #a9b5c1; --ink-3: #8593a0;
+    --rule: #26313c; --focus: #e4eaf0; --good: #48b883; --warn: #d9a440; --bad: #ef6b63;
+    --shadow: 0 1px 0 rgba(0, 0, 0, .3), 0 10px 30px -14px rgba(0, 0, 0, .7);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d1319; --surface: #141c24; --sunk: #1b252f; --ink: #e4eaf0; --ink-2: #a9b5c1; --ink-3: #8593a0;
+  --rule: #26313c; --focus: #e4eaf0; --good: #48b883; --warn: #d9a440; --bad: #ef6b63;
+  --shadow: 0 1px 0 rgba(0, 0, 0, .3), 0 10px 30px -14px rgba(0, 0, 0, .7);
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px;
+  background: var(--page); color: var(--ink); font: 14px/1.5 var(--sans);
+}
+a { color: inherit; text-underline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+
+.card {
+  width: min(400px, 100%); background: var(--surface); border: 1px solid var(--rule); border-radius: 14px;
+  box-shadow: var(--shadow); padding: 26px 24px 22px;
+}
+.brand { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; font-weight: 680; font-size: 16px; letter-spacing: -.01em; }
+.brand svg { width: 30px; height: 30px; flex: none; }
+h1 { font-size: 20px; line-height: 1.25; letter-spacing: -.02em; margin: 0 0 4px; font-weight: 680; }
+.lede { color: var(--ink-2); margin: 0 0 16px; font-size: 13.5px; }
+.lede b { color: var(--ink); }
+
+form { display: grid; gap: 12px; }
+.step { display: grid; gap: 12px; }
+label { display: grid; gap: 5px; font-size: 13px; color: var(--ink-2); font-weight: 560; }
+input {
+  font: inherit; font-size: 15px; color: var(--ink); background: var(--surface); border: 1px solid var(--rule);
+  border-radius: 9px; padding: 9px 11px; width: 100%; min-width: 0; height: 40px;
+}
+input:hover { border-color: var(--ink-3); }
+input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-radius: 9px; }
+input.code { font-family: var(--mono); letter-spacing: .3em; font-size: 18px; }
+.hint { font-size: 12px; color: var(--ink-3); font-weight: 400; }
+
+/* Show / Hide on a password field: the button sits inside the field's right edge. */
+.pw { position: relative; display: block; }
+.pw input { padding-right: 64px; }
+.pw-toggle {
+  position: absolute; top: 4px; right: 4px; height: 32px; min-width: 52px; padding: 0 10px;
+  border: 0; border-radius: 7px; background: none; color: var(--ink-2);
+  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.pw-toggle:hover { background: var(--sunk); color: var(--ink); }
+
+/* "Keep me signed in": box and words on one line, the hint below. */
+label.check { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 8px; row-gap: 2px; color: var(--ink); font-weight: 500; cursor: pointer; }
+label.check input { width: 18px; height: 18px; margin: 0; accent-color: var(--ink); }
+label.check .hint { grid-column: 2; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; padding: 0 16px;
+  border-radius: 9px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink);
+  font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.btn:hover { border-color: var(--ink-3); }
+.btn.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); width: 100%; }
+.btn:disabled { opacity: .55; cursor: default; }
+.btn.link { border: 0; background: none; height: auto; padding: 0; font-weight: 500; color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px; }
+
+.msg { margin: 0; font-size: 13.5px; min-height: 0; }
+.msg:empty { display: none; }
+.msg.err { color: var(--bad); }
+.msg.ok { color: var(--good); }
+.box { border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; background: var(--sunk); font-size: 13.5px; margin: 0 0 4px; }
+.box.ok { border-color: color-mix(in srgb, var(--good) 45%, var(--rule)); background: color-mix(in srgb, var(--good) 7%, var(--surface)); }
+.box.bad { border-color: color-mix(in srgb, var(--bad) 45%, var(--rule)); background: color-mix(in srgb, var(--bad) 6%, var(--surface)); }
+.box p { margin: 0; }
+.box p + p { margin-top: 6px; }
+
+.links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin: 16px 0 0; font-size: 13px; color: var(--ink-2); }
+.foot { margin: 18px 0 0; font-size: 12px; color: var(--ink-3); text-align: center; }
+
+@media (max-width: 480px) {
+  body { place-items: start center; padding-top: 28px; }
+  .card { padding: 22px 18px 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

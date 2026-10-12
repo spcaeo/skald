@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Skald">
+  <!-- Skald: a quill crossing a carved stave - the record being written. The stave is
+       a plain carved bar, not any historical rune. One colour, on paper-white. -->
+  <rect width="64" height="64" rx="15" fill="#17212b"/>
+  <path d="M20 14.5 27 11v41l-7 3.5z" fill="#f4f6f8"/>
+  <g fill="#f4f6f8" stroke="#17212b" stroke-width="3" stroke-linejoin="round" paint-order="stroke">
+    <path d="M25 41C28 29 38 17 51 10c-2 9-6 16-11 21l-3.5-.5 1.5 3c-3 3.5-7 7-10.5 9.5z"/>
+    <path d="M24.6 39.2l3.6 3.2L11.5 56.5z"/>
+  </g>
+  <path d="M27.5 41.2 48.5 13.5" stroke="#17212b" stroke-width="1.6" stroke-linecap="round"/>
+</svg>

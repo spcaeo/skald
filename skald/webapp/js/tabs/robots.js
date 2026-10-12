@@ -1,0 +1,60 @@
+// robots.txt beside behaviour: for each crawler, the rule that applies to it,
+// whether it may fetch the site at all, and how often it fetched a path the
+// rules keep it from; then the site's robots.txt itself, group by group.
+// From robots.json (the last 30 days and today). A past day is judged by
+// today's robots.txt, and the section says so.
+
+import { h, n, long } from "../ui.js";
+import { table } from "../table.js";
+import { fixed, notBuiltNote } from "./common.js";
+
+export const robotsOf = (m) => new Map((m.x.robots?.crawlers || []).map((c) => [c.name, c]));
+
+// One verdict per crawler: may it fetch the site, and did it keep to the rules.
+export function verdict(c) {
+  if (!c) return null;
+  if (!c.root_allowed) return c.disallowed ? ["bad", "Blocked, fetched anyway"] : ["off", "Blocked"];
+  return c.disallowed ? ["warn", "Allowed, crossed a rule"] : ["ok", "Allowed"];
+}
+export function robotsBadge(c) {
+  const v = verdict(c);
+  if (!v) return h("span", { class: "rb none", title: "Not seen in the last 30 days" }, "-");
+  return h("span", { class: `rb ${v[0]}`, title: c.disallowed ? `${n(c.disallowed)} fetches of paths robots.txt keeps it from, in 30 days` : `The robots.txt group that applies: ${c.applies}` }, v[1]);
+}
+export const robotsWords = (c) => verdict(c)?.[1] || "";
+
+function rules(file) {
+  const r = file.robots || {};
+  if (!r.ok) return h("div", { class: "state bad" }, h("div", null, `robots.txt could not be read${r.error ? `: ${r.error}` : ""}. The verdicts above use the last copy that was.`));
+  const line = (k, v) => h("div", { class: "rt-l" }, h("span", { class: "rt-k" }, `${k}:`), " ", h("span", { class: "rt-v" }, v));
+  return h("div", null,
+    h("div", { class: "rt-groups" }, (r.groups || []).map((g) => h("div", { class: "rt-g" },
+      (g.agents || []).map((a) => line("User-agent", a)),
+      (g.allow || []).map((p) => line("Allow", p)),
+      (g.disallow || []).map((p) => line("Disallow", p || "(nothing)")),
+      g.crawl_delay != null ? line("Crawl-delay", String(g.crawl_delay)) : null))),
+    (r.sitemaps || []).length ? h("p", { class: "note" }, "Sitemaps: ", r.sitemaps.map((u, i) => [i ? ", " : "", h("code", null, u)])) : null);
+}
+
+export function robotsSection(m) {
+  const file = m.x.robots;
+  if (!file) return notBuiltNote(m, "robots", "robots.txt beside the crawlers");
+  const r = file.robots || {};
+  const rows = (file.crawlers || []).map((c) => ({ ...c, verdict: robotsWords(c), today_n: c.today ? c.today.requests : null }));
+  const offLimits = (c) => (c.disallowed ? h("span", { class: "rt-off" }, h("b", null, n(c.disallowed)),
+    (c.disallowed_paths || []).length ? h("small", null, c.disallowed_paths.slice(0, 3).map((p) => `${p.path} (${n(p.n)})`).join(", ")) : null) : "0");
+  return fixed("robots.txt", "last 30 days and today",
+    h("p", { class: "sub" }, r.fetched_at ? `Read from ${r.url || "/robots.txt"} on ${long(r.fetched_at.slice(0, 10))} at ${r.fetched_at.slice(11, 16)}. ` : "",
+      "Each crawler is judged by its own token against today's rules, past days included; a rule changed since then is not taken into account."),
+    table([
+      { key: "name", label: "Crawler", drill: "bot" },
+      { key: "applies", label: "Rule that applies", fmt: (v) => h("code", null, v === "*" ? "* (everyone)" : v) },
+      { key: "verdict", label: "robots.txt", fmt: (_, c) => robotsBadge(c) },
+      { key: "requests", label: "Requests", num: true },
+      { key: "disallowed", label: "Off-limits fetches", num: true, fmt: (_, c) => offLimits(c), csv: (c) => c.disallowed },
+      { key: "today_n", label: "Today", num: true, fmt: (v) => (v == null ? "-" : n(v)) },
+    ], { caption: "Crawlers and robots.txt", rows, file: "robots-txt-by-crawler.csv", sortKey: "requests", empty: "No crawler in the last 30 days." }),
+    h("p", { class: "note" }, "To let a crawler in or keep it out, see ", h("a", { href: "#settings/crawlers" }, "Settings, AI crawlers"), "."),
+    h("h3", { class: "rt-h" }, "The rules as written"),
+    rules(file));
+}

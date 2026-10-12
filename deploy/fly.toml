@@ -1,0 +1,57 @@
+# Skald on Fly.io: one Machine running the Docker image, with a volume.
+# Guide: docs/HOSTING.md, "Fly.io". Reference: https://fly.io/docs/reference/configuration/
+#
+#   fly apps create skald-example                 # a name of your own; set `app` below to it
+#   fly volumes create skald_data --size 3 --region fra -a skald-example
+#   fly deploy -c deploy/fly.toml
+#
+# Change `app`, `primary_region` and the SKALD_* values below first.
+# One Machine only: the volume belongs to one Machine, and Skald keeps its
+# history in SQLite on it. Never `fly scale count 2`.
+
+app = "skald-example"
+primary_region = "fra"
+
+[build]
+  image = "ghcr.io/spcaeo/skald:latest"
+  # Or build from this repository: remove `image` and run
+  # `fly deploy -c deploy/fly.toml --dockerfile docker/Dockerfile` from its root.
+
+[env]
+  SKALD_PORT = "8080"
+  SKALD_SITE = "example.com"
+  SKALD_HOSTS = "example.com www.example.com"
+  SKALD_BASE_URL = "https://skald-example.fly.dev"
+  SKALD_TIMEZONE = "UTC"
+  # The site's lines arrive by POST (the shipper, or a Vercel/Netlify drain).
+  SKALD_INGEST = "true"
+  SKALD_LOG_DIR = "/var/lib/skald/ingest/example.com"
+  # The visitor's address: Fly's proxy reaches the Machine from a private
+  # address and puts the visitor's in Fly-Client-IP (docs/HOSTING.md).
+  SKALD_TRUSTED_PROXIES = "private"
+  SKALD_REAL_IP_HEADER = "Fly-Client-IP"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Skald runs its own schedule (live every 2 minutes, the daily run, the
+  # backup): a stopped Machine misses it. Keep it running.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "60s"
+    interval = "30s"
+    timeout = "10s"
+    method = "GET"
+    path = "/traffic-auth/login"
+
+[mounts]
+  source = "skald_data"
+  destination = "/var/lib/skald"
+  initial_size = "3gb"
+
+[[vm]]
+  memory = "512mb"
+  cpus = 1

@@ -1,0 +1,97 @@
+name: CI
+
+# Actions are pinned to full commit SHAs (the comment says the release); update them together.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: ${{ matrix.python }}
+          allow-prereleases: true
+
+      # Node is optional for Skald, but with it the tests also run the skald.js tag checks.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+
+      - name: Standard library only (no install step)
+        run: python3 --version
+
+      - name: Run the tests
+        run: python3 -m unittest discover tests
+
+  javascript:
+    name: JavaScript parses
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+
+      - name: node --check every .js and .mjs file
+        run: |
+          set -eu
+          tmp="$(mktemp -d)"
+          failed=0
+          count=0
+          while IFS= read -r -d '' f; do
+            count=$((count + 1))
+            # Dashboard files are ES modules; check each as a module.
+            cp "$f" "$tmp/check.mjs"
+            if ! node --check "$tmp/check.mjs"; then
+              echo "::error file=$f::does not parse"
+              failed=1
+            fi
+          done < <(find . -path ./.git -prune -o -path ./node_modules -prune -o \
+                     \( -name '*.js' -o -name '*.mjs' \) -type f -print0)
+          echo "Checked $count files."
+          exit "$failed"
+
+  file-size:
+    name: No file over 1,000 lines
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Check line counts of source files
+        run: |
+          set -eu
+          over="$(find . -path ./.git -prune -o -type f \
+                    \( -name '*.py' -o -name '*.js' -o -name '*.mjs' -o -name '*.css' -o -name '*.html' \) \
+                    -print0 | xargs -0 wc -l | awk '$2 != "total" && $1 > 1000')"
+          if [ -n "$over" ]; then
+            echo "Files over 1,000 lines:"; echo "$over"; exit 1
+          fi
+          echo "All source files are 1,000 lines or fewer."

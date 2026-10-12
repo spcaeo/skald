@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+"""skald as a system: history, dashboard and mail. See skald/cli.py.
+
+    ./bin/skald run-daily                 the cron entry
+    ./bin/skald backfill --days 14        fill history from rotated logs
+    ./bin/skald mail --weekly --dry-run   print the weekly mail, send nothing
+    ./bin/skald notify-failure --exit 1   one mail when run-daily failed (cron, after it)
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+if __name__ == "__main__" and "notify-failure" in sys.argv[1:]:
+    # The failure mail must go even when the package no longer imports: load
+    # that one standard-library-only file by its path (skald/failmail.py).
+    import importlib.util
+    _spec = importlib.util.spec_from_file_location(
+        "_failmail", Path(__file__).resolve().parent.parent / "skald" / "failmail.py")
+    _failmail = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_failmail)
+    sys.exit(_failmail.main(sys.argv[1:]))
+
+from skald.cli import main  # noqa: E402
+
+if __name__ == "__main__":
+    sys.exit(main())

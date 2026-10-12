@@ -1,0 +1,44 @@
+Skald
+Every visit, truly told.
+
+Copyright 2026 Space-O Technologies. All rights reserved.
+Author: Rakesh Patel (CEO, Space-O Technologies; CEO, LabsMedia).
+
+This software is licensed under the Elastic License 2.0 (ELv2). See the LICENSE
+file for the full terms. In short: you may use, copy, change and self-host Skald
+for free, including inside your business. You may not provide Skald to third
+parties as a hosted or managed service without a separate commercial licence
+from Space-O Technologies. Contact: https://www.spaceo.ca/contact-us/
+
+Trademarks
+----------
+"Skald" as the name of this software, the Skald logo (a quill crossing a carved
+stave) and the tagline "Every visit, truly told." are trademarks of Space-O
+Technologies. The Elastic License 2.0 does not grant any right to use them. You
+may say truthfully that your work is "based on Skald" or "works with Skald".
+You may not name a fork, product or service "Skald", or use the logo, in a way
+that suggests it is the official project or is endorsed by Space-O
+Technologies, without written permission.
+
+Modified copies
+---------------
+The Elastic License 2.0 requires that modified copies carry prominent notices
+stating that you have modified the software. Keep this NOTICE and the LICENSE
+file in every copy you distribute, and add a line saying what you changed.
+
+Third-party data and names
+--------------------------
+Skald has no third-party runtime dependencies: it uses the Python standard
+library. PyYAML (MIT licence) is used if it is already installed, and Pillow (HPND
+licence) turns fetched site icons into small PNGs if it is installed; both are optional.
+
+If you add a country database, its own licence applies. DB-IP Lite, for
+example, is CC BY 4.0 and needs the credit line "IP geolocation by DB-IP"
+(https://db-ip.com); Skald can show that credit beside every country list.
+
+Product and company names mentioned in the documentation (Google Analytics,
+Search Console, Bing, Plausible, Matomo, Umami, Cloudflare, GoAccess, PostHog,
+Known Agents, Calendly, Cal.com, HubSpot, Typeform, Stripe, Zapier, Claude,
+ChatGPT, Perplexity and others) are trademarks of their owners. They are named
+only to describe compatibility or to compare features. No endorsement is
+implied.

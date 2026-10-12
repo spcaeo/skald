@@ -1,0 +1,142 @@
+"""The web app's files: what install() writes, and what the app may not do.
+
+The app runs behind a Content-Security-Policy that allows script, styles and
+fetches from the same origin only. These tests keep it that way: no inline
+script, no address outside the page's own folder, no font, and nothing in
+the app that could carry a visitor's address or user agent.
+"""
+from __future__ import annotations
+
+import json
+import re
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from skald import webapp  # noqa: E402
+from support import Sandbox  # noqa: E402
+from test_views import KEYS, VIEWS, mixed_day  # noqa: E402
+
+APP = Path(webapp.__file__).resolve().parent
+
+
+def sources():
+    return [p for p in APP.rglob("*") if p.suffix in (".js", ".css", ".html")]
+
+
+class Install(unittest.TestCase):
+    def test_shared_files_and_one_shell_per_site(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            written = webapp.install(out, ["example.com", "other site"])
+            self.assertTrue((out / "_app" / "app.css").is_file())
+            self.assertTrue((out / "_app" / "js" / "main.js").is_file())
+            self.assertTrue((out / "_app" / "js" / "tabs" / "overview.js").is_file())
+            for name in ("example.com", "other-site"):
+                shell = (out / name / "index.html").read_text()
+                self.assertIn('src="../_app/js/main.js?v=', shell)
+            self.assertFalse(any(p.suffix == ".py" for p in written))
+
+    def test_the_shell_asks_for_this_release_s_assets(self):
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(webapp, "_version", return_value="abc1234"):
+            out = Path(tmp)
+            webapp.install(out, ["example.com"])
+            shell = (out / "example.com" / "index.html").read_text()
+            for asset in ("app.css", "features.css", "js/main.js"):
+                self.assertIn(f"../_app/{asset}?v=abc1234", shell)
+
+    def test_a_file_left_by_an_older_version_is_removed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            stale = out / "_app" / "js" / "gone.js"
+            stale.parent.mkdir(parents=True)
+            stale.write_text("old")
+            webapp.install(out, ["example.com"])
+            self.assertFalse(stale.exists())
+
+    def test_without_script_the_shell_sends_the_reader_to_the_static_page(self):
+        shell = (APP / "index.html").read_text()
+        self.assertRegex(shell, r'<noscript><meta http-equiv="refresh" content="0;url=classic.html"></noscript>')
+
+
+class SameOriginOnly(unittest.TestCase):
+    def test_no_inline_script_and_no_outside_address(self):
+        for path in sources():
+            text = path.read_text()
+            if path.suffix == ".html":
+                for tag in re.findall(r"<script[^>]*>", text):
+                    self.assertIn("src=", tag, f"inline script in {path.name}")
+                self.assertNotRegex(text, r"(?:src|href)=\"https?://", path.name)
+            self.assertNotRegex(text, r"@import|url\(\s*['\"]?https?:", path.name)
+            self.assertNotIn("fonts.googleapis", text, path.name)
+
+    def test_fetches_stay_beside_the_page(self):
+        for path in APP.rglob("*.js"):
+            for call in re.findall(r"fetch\(([^,)]+)", path.read_text()):
+                self.assertNotRegex(call, r"https?:|//", f"{path.name}: {call}")
+
+    def test_robots_and_referrer_metas(self):
+        shell = (APP / "index.html").read_text()
+        self.assertIn('content="noindex, nofollow, noarchive"', shell)
+        self.assertIn('name="referrer" content="no-referrer"', shell)
+
+
+class Rendered(unittest.TestCase):
+    """`dashboard.app: true`: the shell at the site's address, the static
+    page beside it, and the figures as data/app.json for the site and each view."""
+
+    def setUp(self):
+        self.box = Sandbox(views=VIEWS)
+        text = self.box.config.read_text().replace("dashboard:\n", "dashboard:\n  app: true\n")
+        self.box.config.write_text(text)
+        self.box.log(mixed_day())
+        code, _, err = self.box.run("--today", "2026-10-07", "collect")
+        self.assertEqual(code, 0, err)
+        code, _, err = self.box.run("--today", "2026-10-07", "dashboard")
+        self.assertEqual(code, 0, err)
+        self.site = self.box.root / "www" / "example.com"
+
+    def tearDown(self):
+        self.box.close()
+
+    def data(self, *view):
+        return json.loads(self.site.joinpath(*view, "data", "app.json").read_text())
+
+    def test_shell_static_page_and_shared_files(self):
+        self.assertIn("../_app/js/main.js", (self.site / "index.html").read_text())
+        self.assertIn("<h1>", (self.site / "classic.html").read_text())
+        self.assertTrue((self.site.parent / "_app" / "js" / "main.js").is_file())
+
+    def test_a_verified_day_carries_its_figures(self):
+        day = next(d for d in self.data()["days"] if d["day"] == "2026-10-06")
+        self.assertEqual(day["state"], "ok")
+        self.assertEqual(sum(day["hits"].values()), day["requests"])
+        self.assertEqual(day["readers"], sum(day["by"]["country"].values()))
+        for key in KEYS:
+            self.assertEqual(self.data(key)["site"], "example.com")
+
+    def test_each_journey_step_carries_its_offset(self):
+        # `at` comes from the journey store (visits.py): seconds since the
+        # visit's first request, bucketed, one per trail step.
+        journeys = self.data()["journeys"]
+        self.assertTrue(journeys)
+        for j in journeys:
+            at = [step["at"] for step in j["trail"]]
+            self.assertTrue(all(isinstance(a, int) for a in at), j)
+            self.assertEqual(at[0], 0, j)
+            self.assertEqual(at, sorted(at), j)
+            self.assertLessEqual(at[-1], j["seconds"], j)  # buckets round down
+
+    def test_no_address_or_user_agent_in_the_data(self):
+        for view in ((), *[(k,) for k in KEYS]):
+            text = self.site.joinpath(*view, "data", "app.json").read_text()
+            self.assertNotRegex(text, r"203\.0\.113|198\.51\.100|Mozilla|curl/")
+
+
+if __name__ == "__main__":
+    unittest.main()

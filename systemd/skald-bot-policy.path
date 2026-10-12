@@ -1,0 +1,11 @@
+# Watches the AI crawler settings the dashboard saves; each change runs
+# skald-bot-policy.service once (systemd rate-limits bursts).
+[Unit]
+Description=Skald: watch the AI crawler settings
+
+[Path]
+PathChanged=/var/lib/skald/bot-policy.json
+Unit=skald-bot-policy.service
+
+[Install]
+WantedBy=multi-user.target

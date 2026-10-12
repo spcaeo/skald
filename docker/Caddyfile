@@ -1,0 +1,15 @@
+# Caddy in front of Skald (docker-compose.yml, profile "https"): HTTPS with a
+# certificate Caddy gets and renews itself, for SKALD_DOMAIN (a name whose DNS
+# points at this server; ports 80 and 443 open). Everything goes to the Skald
+# container, which serves the dashboard at /traffic/ and every helper route.
+#
+# Behind it, set SKALD_BASE_URL=https://<SKALD_DOMAIN> so the links in mails
+# (invites, password resets) and the dashboard's own address are right.
+{$SKALD_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy skald:8080 {
+		# The visitor's address, for the sign-in limits; Skald believes it from
+		# the private network only (SKALD_TRUSTED_PROXIES).
+		header_up X-Real-IP {remote_host}
+	}
+}

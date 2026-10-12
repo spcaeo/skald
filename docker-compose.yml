@@ -1,0 +1,95 @@
+# Skald with Docker Compose. docs/INSTALL.md has the whole story.
+#
+#   docker compose up -d                      # build or pull, then start
+#   docker compose exec skald skald accounts init \
+#     --org "Example Co" --owner-email owner@example.com   # the first owner: prints a link
+#   docker compose logs -f skald
+#
+# Two ways to put it on the web (sign-in needs HTTPS: the session cookie is Secure,
+# so plain http works only at http://localhost:8080):
+#
+# A. Next to the web server you already run (nginx, Caddy, Apache). Skald listens
+#    on 127.0.0.1:8080 only; your server sends /traffic and /traffic-* there
+#    (the snippets are in docs/INSTALL.md) and reads its own access log as before.
+#    Skald reads that log from SKALD_LOGS (default /var/log/nginx), read-only.
+#
+# B. All in one, with automatic HTTPS: `docker compose --profile https up -d`
+#    adds Caddy on ports 80 and 443 for SKALD_DOMAIN (a name that points at this
+#    server, e.g. stats.example.com). Caddy gets the certificate itself.
+#
+# Settings: put them in a .env file beside this one (SKALD_SITE=example.com, ...);
+# docs/INSTALL.md lists every SKALD_* variable. SMTP_USER and SMTP_PASSWORD go
+# there too, never in this file. Or mount your own config (see volumes below).
+
+services:
+  skald:
+    image: ghcr.io/spcaeo/skald:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    stop_grace_period: 60s
+    ports:
+      # Recipe A: only this machine (your web server) can reach it.
+      # SKALD_BIND=0.0.0.0 opens it to the network (then put HTTPS in front).
+      - "${SKALD_BIND:-127.0.0.1}:${SKALD_HOST_PORT:-8080}:8080"
+    volumes:
+      # The web server's access log and its rotations (access.log, .1, .2.gz ...).
+      - "${SKALD_LOGS:-/var/log/nginx}:/logs:ro"
+      # History, accounts, settings, backups: the only state. Back this up.
+      - skald-data:/var/lib/skald
+      # Your own config instead of the SKALD_* variables (config.example.yml):
+      # - ./config.yml:/etc/skald/config.yml:ro
+    environment:
+      SKALD_SITE: "${SKALD_SITE:-site}"
+      SKALD_HOSTS: "${SKALD_HOSTS:-}"
+      SKALD_TIMEZONE: "${SKALD_TIMEZONE:-UTC}"
+      SKALD_BASE_URL: "${SKALD_BASE_URL:-http://localhost:8080}"
+      SKALD_EMAIL: "${SKALD_EMAIL:-}"
+      SKALD_LOG_DIR: "${SKALD_LOG_DIR:-/logs}"
+      SKALD_LOG_FILE: "${SKALD_LOG_FILE:-access.log}"
+      SKALD_LOG_FORMAT: "${SKALD_LOG_FORMAT:-auto}"
+      SKALD_ASSET_PREFIXES: "${SKALD_ASSET_PREFIXES:-}"
+      # Logs sent from other servers or a Vercel/Netlify drain (docs/INGEST.md):
+      # SKALD_INGEST=true and SKALD_LOG_DIR=/var/lib/skald/ingest/<SKALD_SITE>.
+      SKALD_INGEST: "${SKALD_INGEST:-}"
+      SKALD_DAILY_AT: "${SKALD_DAILY_AT:-07:15}"
+      SKALD_BACKUP_AT: "${SKALD_BACKUP_AT:-03:30}"
+      SKALD_LIVE_MINUTES: "${SKALD_LIVE_MINUTES:-2}"
+      SKALD_SCHEDULER: "${SKALD_SCHEDULER:-on}"
+      SKALD_BEACON_ORIGINS: "${SKALD_BEACON_ORIGINS:-}"
+      SKALD_ORIGIN: "${SKALD_ORIGIN:-}"
+      # Both recipes put a proxy on the Docker network in front (your web server
+      # through the published port, or Caddy), and both send X-Real-IP: believe
+      # it from the private ranges only. Set SKALD_TRUSTED_PROXIES=none when
+      # nothing is in front (SKALD_BIND=0.0.0.0 straight to the internet).
+      SKALD_TRUSTED_PROXIES: "${SKALD_TRUSTED_PROXIES:-private}"
+      SKALD_REAL_IP_HEADER: "${SKALD_REAL_IP_HEADER:-X-Real-IP}"
+      SKALD_SMTP_HOST: "${SKALD_SMTP_HOST:-}"
+      SKALD_SMTP_PORT: "${SKALD_SMTP_PORT:-587}"
+      SKALD_SMTP_SECURITY: "${SKALD_SMTP_SECURITY:-starttls}"
+      SKALD_MAIL_FROM: "${SKALD_MAIL_FROM:-}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+
+  # Recipe B: HTTPS in front, certificates from Let's Encrypt, automatically.
+  caddy:
+    image: caddy:2.10.2-alpine
+    profiles: ["https"]
+    restart: unless-stopped
+    depends_on: [skald]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SKALD_DOMAIN: "${SKALD_DOMAIN:-stats.example.com}"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  skald-data:
+  caddy-data:
+  caddy-config:

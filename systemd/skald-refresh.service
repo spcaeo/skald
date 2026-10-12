@@ -1,0 +1,37 @@
+# The dashboard's "Refresh now" button (skald/refresh_server.py).
+# Listens on 127.0.0.1:8765 only; nginx keeps the password and forwards POST <page>/refresh.
+# Set --origin to your own dashboard's origin (the example.com one below is a placeholder).
+# It is only used for browsers that send no Sec-Fetch-Site header; leave it out and those are refused.
+#
+# Sessions mode (accounts) can put the helper on a Unix socket instead of the port:
+# set `refresh: {socket: /run/skald/helper.sock, socket_group: www-data}` in the
+# config, uncomment the three lines below, and point nginx's upstream at
+# unix:/run/skald/helper.sock (DEPLOY.md, "Sessions mode"). The socket is 0660,
+# group www-data, so only nginx (and root) can open it; the port is then not opened.
+[Unit]
+Description=skald dashboard refresh helper
+After=network.target
+
+[Service]
+User=skald
+Group=skald
+WorkingDirectory=/opt/skald
+# Mail settings (SMTP) for invite and password mails come from the env file the cron jobs
+# load. Sourced by the shell, never EnvironmentFile=: its lines are `export NAME=value`,
+# which systemd rejects and would print, values and all, into the journal.
+ExecStart=/bin/sh -c '[ -r /etc/skald/env ] && . /etc/skald/env; exec /usr/bin/python3 -m skald.refresh_server --config /etc/skald/config.yml --port 8765 --origin https://www.example.com'
+Restart=on-failure
+RestartSec=5
+# RuntimeDirectory=skald
+# RuntimeDirectoryMode=0755
+# SupplementaryGroups=www-data
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,90 @@
+"""`lead`: a site's own server or CMS telling Skald a lead was made.
+
+POST /traffic-hooks/<site>/lead, signed with Skald's scheme:
+
+    X-Skald-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<raw body>">
+
+with the hook's secret; refused when t is more than 5 minutes off. Body:
+
+    external_ref  the lead's own id in the site (required)
+    action        what was done: "demo", "signup", "contact" (required, a token;
+                  "booking" is read as "demo", "checkout" as "paid": ALIASES)
+    stage         one of conversions.STAGES (default "completed")
+    at            when (ISO time or Unix seconds; default: when it arrived)
+    vid           the visitor ID the page had
+    first_touch, last_touch   {referrer, landing, utm_source, utm_medium,
+                  utm_campaign, utm_content, utm_term, gclid, ..., at}
+    landing, campaign, source  when the site worked them out itself
+    country or ip             two letters, or the visitor's address: Skald
+                              looks up the country and drops the address
+    device or user_agent      Desktop/Mobile/Tablet, or the agent: Skald
+                              works out the device and drops the agent
+    visits_before             visits before this one, a whole number
+    name, email               kept only when the site's identity is full
+"""
+from __future__ import annotations
+
+from .. import ACTION, SITE_VID, STAGES, action_name
+from . import Invalid, sign_timed, text, touch, verify_timed, when
+
+HEADER = "x-skald-signature"
+
+
+def verify(headers: dict, body: bytes, secret: str, now: float) -> bool:
+    return verify_timed(headers.get(HEADER, ""), body, secret, now)
+
+
+def sign(body: bytes, secret: str, now: float, method: str = "POST", uri: str = "") -> dict:
+    return {"X-Skald-Signature": sign_timed(body, secret, now)}
+
+
+def record(item: dict) -> dict:
+    """One lead object as a record. Invalid when it breaks the shape."""
+    if not isinstance(item, dict):
+        raise Invalid("a lead is a JSON object")
+    ref = text(item.get("external_ref"), 120)
+    if not ref:
+        raise Invalid("external_ref is required")
+    action = action_name(item.get("action"))
+    if not ACTION.match(action):
+        raise Invalid("action must be a short lowercase token")
+    stage = str(item.get("stage") or "completed").strip().lower()
+    if stage not in STAGES:
+        raise Invalid(f"stage must be one of {', '.join(STAGES)}")
+    at = None
+    if item.get("at") not in (None, ""):
+        at = when(item.get("at"))
+        if at is None:
+            raise Invalid("at is not a time")
+    vid = text(item.get("vid"), 80)
+    if vid and not SITE_VID.match(vid):
+        vid = None
+    visits = item.get("visits_before")
+    if isinstance(visits, bool) or not isinstance(visits, int) or not 0 <= visits <= 100000:
+        visits = None
+    first = touch(item.get("first_touch"))
+    return {
+        "action": action, "stage": stage, "external_ref": ref, "at": at, "vid": vid,
+        "first_touch": first, "last_touch": touch(item.get("last_touch")),
+        "landing": text(item.get("landing"), 300), "campaign": text(item.get("campaign"), 120),
+        "source_type": text(item.get("source"), 40), "country": text(item.get("country"), 2),
+        "ip": text(item.get("ip"), 64), "device": text(item.get("device"), 20),
+        "user_agent": text(item.get("user_agent"), 500), "name": text(item.get("name")),
+        "email": text(item.get("email"), 320), "visits_before": visits,
+        "first_touch_at": when(item.get("first_touch_at")) or (first or {}).get("at"),
+    }
+
+
+def to_records(payload, site_config: dict | None = None) -> list[dict]:
+    return [record(payload)]
+
+
+def sample(site: str, now: float) -> dict:
+    return {"external_ref": f"skald-test-{int(now)}", "action": "demo", "stage": "completed",
+            "at": int(now), "vid": "skv_" + "A" * 22,
+            "first_touch": {"referrer": "https://www.google.com/", "landing": "/",
+                            "at": int(now) - 86400 * 3},
+            "last_touch": {"landing": "/pricing/", "utm_source": "newsletter",
+                           "utm_medium": "email", "utm_campaign": "october"},
+            "country": "CA", "device": "Desktop", "visits_before": 2}
+

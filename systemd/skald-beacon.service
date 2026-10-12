@@ -1,0 +1,24 @@
+# The in-page event beacon (skald/beacon_server.py, docs/BEACON.md).
+# Listens on 127.0.0.1:8766 only; nginx forwards POST /traffic-beacon from the website's own pages.
+[Unit]
+Description=Skald in-page event beacon
+After=network.target
+
+[Service]
+User=skald
+Group=skald
+WorkingDirectory=/opt/skald
+ExecStart=/usr/bin/python3 -m skald.beacon_server --config /etc/skald/config.yml --port 8766
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target

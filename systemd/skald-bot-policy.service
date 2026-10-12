@@ -1,0 +1,15 @@
+# Applies Skald's AI crawler settings to nginx (skald/bot_policy.py).
+# Started by skald-bot-policy.path whenever the refresh helper saves the policy;
+# runs as root because it writes /etc/nginx/conf.d and reloads nginx. It reads
+# only the policy file and writes only the nginx map, its .prev copy and the
+# status file. nginx -t runs first; on failure the previous map is put back.
+[Unit]
+Description=Skald: apply the AI crawler settings to nginx
+After=nginx.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 -I /opt/skald/skald/bot_policy.py apply --policy /var/lib/skald/bot-policy.json --conf /etc/nginx/conf.d/skald-bot-policy.conf --status /var/lib/skald/bot-policy-applied.json
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true

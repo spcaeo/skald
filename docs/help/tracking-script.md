@@ -1,0 +1,177 @@
+# The tracking script
+
+How to add Skald's one-line `skald.js` tag to your pages, what it sees, what it never collects, and how to check that it works.
+
+## What it is for
+
+Your server log already counts visits and pages. It cannot see what happens *inside* a page: a form started and not sent, a phone link clicked, a demo booked in a widget. The `skald.js` tag reports those.
+
+- It is under 6 KB of plain JavaScript.
+- It sends events to your own site's address, never to a third party.
+- It uses no cookies, unless you ask it to share an ID across subdomains (below).
+- Skald's figures from the log never depend on it. Without the tag, you lose nothing you already have.
+
+## Add the tag
+
+You need to be an admin of the site.
+
+1. Open **Settings > This site > Integrations**, or go to [Integrations](#settings/integrations).
+2. If you manage more than one site, choose the site at the top.
+3. Under **The script tag**, tick the options you need (see "Options" below). The tag updates as you tick.
+4. Copy the tag.
+5. Paste it into the `<head>` of every page of your site. In most site builders this is a "custom code" or "head code" setting that applies to all pages.
+6. Publish your site.
+
+The tag looks like this. Always copy yours from the page, because the address and site name are your own:
+
+```
+<script src="https://www.example.com/traffic-js/skald.js" data-site="example.com" defer></script>
+```
+
+> The tag only works when your web server passes two addresses to Skald: `/traffic-js/skald.js` and `/traffic-beacon`. The person who runs your Skald server sets this up once.
+
+If the Integrations page is not in your Settings menu, your server does not use accounts, or you are not an admin. Ask the person who runs your Skald server for the tag.
+
+## Options
+
+| Tick box on the page | Adds to the tag | What it does |
+| --- | --- | --- |
+| Wait for consent | `data-consent="required"` | sends nothing and keeps no ID until your consent banner says yes |
+| Share across subdomains | `data-share-subdomains="true"` | `www.` and `app.` see the same anonymous ID, kept in a first-party cookie |
+| Other domains you own | `data-link-domains="..."` | links to those domains carry the anonymous ID |
+| Accept the ID from your other domains | `data-accept-id="true"` | this site takes the ID a link from your other domains brought (below) |
+
+## What it tracks by itself
+
+Once the tag is on a page, it reports these events with no extra work:
+
+| Event | When |
+| --- | --- |
+| Page view | the page loads, and each time a single-page app changes the address |
+| Form started | a field of a form is first used (once per form per page) |
+| Form sent | a form is submitted |
+| Sign-up started, Sign-up sent | the same, for a form marked `data-skald="signup"` |
+| Contact sent | a form marked `data-skald="contact"` is submitted |
+| Early access sent | a form marked `data-skald="waitlist"` is submitted |
+| Phone click | a `tel:` link is clicked (never the number) |
+| Email click | a `mailto:` link is clicked (never the address) |
+| Link out | a link to another site is clicked (the other site's name only) |
+| Button click | an element marked `data-skald-cta="<name>"` is clicked |
+| Read ¾ | the reader scrolls to three quarters of the page (once per page) |
+| Copied | text is copied from the page (once per page; never the text) |
+| Not found | a page marked `data-skald="404"` is shown, such as your "page not found" page |
+| Calendly opened, time chosen, booked | inside a Calendly embed on your page |
+| Cal.com opened, booked | inside a Cal.com embed |
+| HubSpot meeting booked | inside a HubSpot meetings embed |
+
+A form records only its own `id` or `name`, such as `contact`. It never reads what a person typed.
+
+### Marking forms and buttons
+
+- To track a button or link by name, add `data-skald-cta="pricing_top"` to it. It is reported as a Button click named `pricing_top`.
+- To count a form as a sign-up, add `data-skald="signup"` to the form.
+- To count a form as a contact form, add `data-skald="contact"`; for an early-access or waiting list form, `data-skald="waitlist"`. Starting either one still counts as Form started.
+- To leave a form out, add `data-skald="off"`. Search forms (`role="search"`) are always left out.
+- To count your "page not found" page, add `data-skald="404"` to its `<body>`, or put `<div data-skald="404" hidden></div>` anywhere on it. This also works in a single-page app.
+
+> A form whose own code refuses the submit (for example, a missing field) still counts as sent. If that matters, your developer can send the event only after success: `skald('track', 'form_submit', {id: 'contact'})`.
+
+### What it does not track by itself
+
+Two events on the [Events](#events) page come only from your site's own code: **Demo opened** (`book_demo_open`) and **Demo booked** (`demo_booked`). The Events page marks them "sent by your own code". Your developer sends them when your own booking step opens and succeeds:
+
+```
+skald('track', 'demo_booked', {id: 'header'})
+```
+
+A booking made inside a Calendly, Cal.com or HubSpot embed is already counted by the tag as Calendly booked, Cal.com booked or HubSpot meeting booked.
+
+Time on page, pages per visit and one-page visits come from your server log, not from the tag.
+
+## What it never collects
+
+- No text a person typed, and no form field's value.
+- No phone number or email address from a link.
+- No IP address and no browser details are stored. Skald uses the address only in memory, to find the country and to limit abuse, and then drops it.
+- No third-party code, and nothing sent anywhere but your own site.
+- No fingerprinting.
+
+With visitor IDs on, the tag also keeps one random ID per browser (below). It holds no name or email.
+
+## Anonymous visitor IDs
+
+Visitor IDs let Skald follow one browser's anonymous journey up to a conversion. They make "abandoned", "assisted" and "pages seen before converting" possible. See [Leads and conversions](leads-and-conversions.md).
+
+- They are **off by default**. The person who runs your Skald server turns them on per site.
+- The Integrations page says, under the tag, whether they are on for your site.
+- When they are off, the tag makes no ID at all and stores nothing in the browser.
+- When they are on, the ID is kept in the browser's local storage. With "Share across subdomains", it is also kept in a first-party cookie called `skald_vid` for up to 400 days.
+
+> Turn visitor IDs on only when your privacy notice says so. See [Privacy](privacy.md).
+
+## Consent and Do Not Track
+
+- **Do Not Track and Global Privacy Control**: when the browser sends either one, the tag does nothing at all. No ID, no storage, no event.
+- **Consent first**: in places that need consent before any ID (the EU, Quebec, often the rest of Canada), tick **Wait for consent**. The tag then waits.
+
+When the visitor agrees, your consent banner must call this on every page:
+
+```
+skald('consent', true)
+```
+
+If the visitor says no, or withdraws consent, call `skald('consent', false)`. This deletes the ID, the cookie and the stored source in that browser.
+
+To call `skald` before the tag has loaded, your developer can put this line before the tag:
+
+```
+<script>window.skald=window.skald||function(){(skald.q=skald.q||[]).push(arguments)}</script>
+```
+
+## Your other domains (data-link-domains)
+
+If your visitors move between domains you own, such as `example.com` and `app.example.net`, type the other domains in **Other domains you own**, separated by commas.
+
+When a visitor clicks a link to one of them, the tag adds `?skv=<the visitor ID>` to the link.
+
+On the other domain, the same tag picks the ID up, so the visit continues the same anonymous journey:
+
+1. Put the tag on the other domain's pages too (it can report to the same site, or to its own).
+2. On that domain's tag, either list your first domain in **Other domains you own** (for example `example.com`), or tick **Accept the ID from your other domains** (`data-accept-id="true"`).
+3. Publish both.
+
+When a page opens with a valid `skv` in its address, the tag keeps that ID as the visitor's ID and takes `skv` out of the address bar, so it is not bookmarked or shared. Without `data-accept-id`, it takes the ID only when the visitor came from a domain listed in **Other domains you own**; any other `skv` is ignored and left alone.
+
+- With **Wait for consent**, the ID is kept only after `skald('consent', true)`. The address is cleaned at once either way.
+- With Do Not Track or Global Privacy Control, the tag does nothing, so `skv` stays in the address.
+- If your other domain does not run the tag, its own code can read `skv` and pass it to Skald, for example as `vid` in your site's lead push. See [Webhooks](webhooks.md).
+
+For subdomains of one domain (`www.` and `app.`), tick **Share across subdomains** instead. If the shared cookie does not work on your host (some free hosting addresses refuse it), the ID still works on each subdomain on its own.
+
+## Calendly links get utm_content
+
+With visitor IDs on, the tag adds the visitor ID to every Calendly embed and Calendly link on your page, as `utm_content=<the visitor ID>`. Calendly sends this back in its webhook, so the booking joins the visitor's journey.
+
+- If a Calendly link already has a `utm_content`, the tag leaves it alone. That booking then has no journey.
+- This works for Calendly iframes, inline widgets and plain links. A popup opened only from your own JavaScript is not changed.
+- You also need the Calendly webhook. See [Webhooks](webhooks.md), section "Calendly".
+
+## Check that it works
+
+1. Open your site in a normal browser window. Make sure Do Not Track and Global Privacy Control are off in that browser, or the tag sends nothing.
+2. Open a page, click a link and start a form.
+3. In Skald, open [Events](#events) and choose **Today**.
+4. You should see "Today so far, not yet checked" and your events. Today's events are checked after midnight.
+5. At the bottom of the Events page, a line says what the beacon took in today: accepted, declined, from machines, from your own addresses, refused.
+
+> Your own office is likely marked as internal traffic. Its events are kept apart as "ours" and not shown with people's. Test from a phone on mobile data, or see [Internal traffic](internal-traffic.md).
+
+If you know your browser's developer tools, open the Network panel. Each event is a request to `/traffic-beacon`. An answer of 204 means it was counted. An answer of 202 means it was taken and nothing was kept, which is normal for page views when visitor IDs are off.
+
+### If nothing shows
+
+- The tag is not on the page: view the page's source and look for `skald.js`.
+- `/traffic-js/skald.js` does not load: the web server is not set up for it. Ask the person who runs your Skald server.
+- Requests to `/traffic-beacon` are refused (403): the page's address is not on the server's list of allowed origins.
+- Your browser sends Do Not Track or Global Privacy Control.
+- The tag waits for consent and your banner never calls `skald('consent', true)`.

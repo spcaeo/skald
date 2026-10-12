@@ -1,0 +1,447 @@
+"""conversions.sqlite: every conversion, the anonymous journeys behind them,
+identities (only with `identity: full`), the log of hook deliveries, and
+the outgoing webhooks with their outbox (conversions/outgoing.py).
+
+Beside the history (`conversions.db` to move it), apart from it because it
+may hold personal data. 0640. Opened with `connect(path)` once per call
+site; never shared between threads. Autocommit; a multi-statement write runs
+inside `with tx(db):`.
+
+Times are UTC, "2026-10-11T14:00:00Z". A figure not recorded is NULL.
+No address and no user agent is ever written here; an email is kept only
+in `identities`, and found again by a keyed hash (meta `hash_key`).
+"""
+from __future__ import annotations
+
+import hashlib
+import hmac
+import os
+import secrets
+import sqlite3
+from contextlib import contextmanager
+from datetime import date, datetime, time, timedelta, timezone
+from pathlib import Path
+
+from ..config import setting
+from ..files import own_like_folder
+from . import ALIASES, FINISHED, STAGES
+
+SCHEMA_VERSION = 2
+STAMP = "%Y-%m-%dT%H:%M:%SZ"
+FILE = "conversions.sqlite"
+VID_DAYS = 30
+RETENTION_DAYS = 400
+DELIVERY_DAYS = 90
+REPLAY_DAYS = 30         # a Cal.com/Typeform body's hash is kept this long
+ABANDON_HOURS = 24
+
+CONVERSIONS = """CREATE TABLE IF NOT EXISTS {name} (
+  id INTEGER PRIMARY KEY, site TEXT NOT NULL, action TEXT NOT NULL,
+  stage TEXT NOT NULL CHECK (stage IN ('started', 'completed', 'cancelled',
+                                       'rescheduled', 'no_show', 'paid', 'won', 'lost')),
+  at TEXT NOT NULL, vid TEXT, external_ref TEXT NOT NULL, tool TEXT NOT NULL,
+  source_type TEXT, first_source TEXT, campaign TEXT, landing TEXT, country TEXT,
+  device TEXT, first_touch_at TEXT, visits_before INTEGER, identity_id INTEGER
+    REFERENCES identities(id) ON DELETE SET NULL,
+  received_at TEXT NOT NULL,
+  UNIQUE (site, tool, external_ref, stage));
+"""
+INDEXES = """
+CREATE INDEX IF NOT EXISTS conversions_at ON conversions (site, at);
+CREATE INDEX IF NOT EXISTS conversions_vid ON conversions (site, vid);
+"""
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+""" + CONVERSIONS.format(name="conversions") + INDEXES + """CREATE TABLE IF NOT EXISTS journeys (
+  vid TEXT NOT NULL, site TEXT NOT NULL, at TEXT NOT NULL, path TEXT NOT NULL,
+  source_type TEXT);
+CREATE INDEX IF NOT EXISTS journeys_vid ON journeys (site, vid, at);
+CREATE INDEX IF NOT EXISTS journeys_at ON journeys (at);
+CREATE TABLE IF NOT EXISTS identities (
+  id INTEGER PRIMARY KEY, site TEXT NOT NULL, email_hash TEXT NOT NULL,
+  email TEXT, name TEXT, created_at TEXT NOT NULL, UNIQUE (site, email_hash));
+CREATE TABLE IF NOT EXISTS deliveries (
+  id INTEGER PRIMARY KEY, site TEXT NOT NULL, tool TEXT NOT NULL,
+  received_at TEXT NOT NULL, outcome TEXT NOT NULL, http_status INTEGER NOT NULL,
+  error TEXT, external_ref TEXT);
+CREATE INDEX IF NOT EXISTS deliveries_tool ON deliveries (site, tool, id);
+CREATE TABLE IF NOT EXISTS webhooks (
+  id INTEGER PRIMARY KEY, site TEXT NOT NULL, url TEXT NOT NULL, events TEXT NOT NULL,
+  created_at TEXT NOT NULL, created_by TEXT, active INTEGER NOT NULL DEFAULT 1);
+CREATE TABLE IF NOT EXISTS outbox (
+  id INTEGER PRIMARY KEY, webhook_id INTEGER NOT NULL
+    REFERENCES webhooks(id) ON DELETE CASCADE,
+  site TEXT NOT NULL, event TEXT NOT NULL, ref TEXT NOT NULL, body TEXT NOT NULL,
+  created_at TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, next_at TEXT NOT NULL,
+  state TEXT NOT NULL DEFAULT 'pending' CHECK (state IN ('pending', 'sent', 'failed')),
+  http_status INTEGER, error TEXT, sent_at TEXT, UNIQUE (webhook_id, event, ref));
+CREATE INDEX IF NOT EXISTS outbox_due ON outbox (state, next_at);
+CREATE TABLE IF NOT EXISTS hook_replays (
+  site TEXT NOT NULL, digest TEXT NOT NULL, received_at TEXT NOT NULL,
+  PRIMARY KEY (site, digest));
+"""
+
+# Schema 2 (Phase 4b step 3): the stages "won" and "lost" (a CHECK cannot be
+# changed in place, so the table is copied into a new one), one name per
+# action (ALIASES; Stripe's unpaid checkout is a payment started, HubSpot's
+# deal won is "won"), and the outgoing webhooks' tables (made by SCHEMA).
+_V2_COLUMNS = ("id, site, action, stage, at, vid, external_ref, tool, source_type, "
+               "first_source, campaign, landing, country, device, first_touch_at, "
+               "visits_before, identity_id, received_at")
+UPGRADES: dict[int, list[str]] = {2: [
+    CONVERSIONS.format(name="conversions_v2"),
+    f"INSERT INTO conversions_v2 ({_V2_COLUMNS}) SELECT {_V2_COLUMNS} FROM conversions",
+    "DROP TABLE conversions",
+    "ALTER TABLE conversions_v2 RENAME TO conversions",
+    "UPDATE conversions SET stage = 'started' WHERE tool = 'stripe' AND action = 'checkout' "
+    "AND stage = 'completed'",
+    "UPDATE conversions SET stage = 'won' WHERE tool = 'hubspot' AND action = 'deal' "
+    "AND stage = 'paid'",
+    *(f"UPDATE conversions SET action = '{new}' WHERE action = '{old}'"
+      for old, new in ALIASES.items()),
+    *INDEXES.strip().splitlines(),
+]}
+
+COLUMNS = ("action", "stage", "at", "vid", "external_ref", "tool", "source_type",
+           "first_source", "campaign", "landing", "country", "device", "first_touch_at",
+           "visits_before")
+
+
+def path_for(config: dict, folder: Path | None) -> Path | None:
+    """`conversions.db`, else conversions.sqlite in the history's folder."""
+    raw = setting(config or {}, "conversions", "db")
+    if raw:
+        return Path(str(raw)).expanduser()
+    return Path(folder) / FILE if folder is not None else None
+
+
+def stamp(when: datetime | None = None) -> str:
+    when = when or datetime.now(timezone.utc)
+    return when.astimezone(timezone.utc).strftime(STAMP)
+
+
+def parse(text: str) -> datetime:
+    return datetime.strptime(text, STAMP).replace(tzinfo=timezone.utc)
+
+
+def connect(path: Path | str) -> sqlite3.Connection:
+    """Open (creating or upgrading) the file. The caller closes it."""
+    memory = str(path) == ":memory:"
+    if not memory:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            fd = os.open(path, os.O_CREAT | os.O_WRONLY, 0o640)
+            os.close(fd)
+            os.chmod(path, 0o640)
+            own_like_folder(path)
+    db = sqlite3.connect(str(path), isolation_level=None, timeout=10)
+    try:
+        db.row_factory = sqlite3.Row
+        db.execute("PRAGMA busy_timeout = 10000")
+        if not memory:
+            db.execute("PRAGMA journal_mode = WAL")
+        db.execute("PRAGMA foreign_keys = ON")
+        db.executescript(SCHEMA)
+        _upgrade(db, None if memory else path)
+    except BaseException:
+        db.close()
+        raise
+    return db
+
+
+def _upgrade(db: sqlite3.Connection, path: Path | None = None) -> None:
+    """Bring an older file up to SCHEMA_VERSION, a copy of it kept first
+    beside it (conversions.sqlite.v<old>.bak, 0640). Never drops a row."""
+    row = db.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
+    found = int(row[0]) if row else None
+    if found is not None and found > SCHEMA_VERSION:
+        raise RuntimeError(f"conversions file is schema {found}, this code understands "
+                           f"{SCHEMA_VERSION}; upgrade skald before reading it")
+    if found == SCHEMA_VERSION:
+        return
+    if found is not None and path is not None:
+        _copy(db, Path(path).with_name(f"{Path(path).name}.v{found}.bak"))
+    with tx(db):
+        for version in range((found or SCHEMA_VERSION) + 1, SCHEMA_VERSION + 1):
+            for sql in UPGRADES.get(version, []):
+                db.execute(sql)
+        db.execute("INSERT INTO meta (key, value) VALUES ('schema_version', ?) "
+                   "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                   (str(SCHEMA_VERSION),))
+
+
+def _copy(db: sqlite3.Connection, target: Path) -> None:
+    """A consistent copy of the open file (sqlite's backup), 0640."""
+    if target.exists():
+        return
+    fd = os.open(target, os.O_CREAT | os.O_WRONLY, 0o640)
+    os.close(fd)
+    os.chmod(target, 0o640)
+    copy = sqlite3.connect(str(target))
+    try:
+        db.backup(copy)
+    finally:
+        copy.close()
+    own_like_folder(target)
+
+
+def schema_version(db: sqlite3.Connection) -> int:
+    return int(db.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()[0])
+
+
+@contextmanager
+def tx(db: sqlite3.Connection):
+    """One write transaction; nested uses join the outer one."""
+    if db.in_transaction:
+        yield db
+        return
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        yield db
+    except BaseException:
+        db.execute("ROLLBACK")
+        raise
+    db.execute("COMMIT")
+
+
+def email_hash(db: sqlite3.Connection, email: str) -> str:
+    """HMAC-SHA256 of the lower-cased email with this file's own key."""
+    row = db.execute("SELECT value FROM meta WHERE key = 'hash_key'").fetchone()
+    if row is None:
+        db.execute("INSERT OR IGNORE INTO meta (key, value) VALUES ('hash_key', ?)",
+                   (secrets.token_hex(32),))
+        row = db.execute("SELECT value FROM meta WHERE key = 'hash_key'").fetchone()
+    return hmac.new(bytes.fromhex(row[0]), email.strip().lower().encode(),
+                    hashlib.sha256).hexdigest()
+
+
+# ------------------------------------------------------------------ writes
+
+def record_conversion(db: sqlite3.Connection, rec: dict) -> bool:
+    """Keep one conversion. Idempotent on (site, tool, external_ref, stage):
+    the first delivery wins, a repeat changes nothing and returns False.
+
+    `rec` holds COLUMNS plus `site`, optional `received_at`, and optional
+    `identity` {email, name}: pass it only when the site's identity is full."""
+    if rec.get("stage") not in STAGES:
+        raise ValueError(f"stage {rec.get('stage')!r} is not one of {STAGES}")
+    for need in ("site", "action", "at", "external_ref", "tool"):
+        if not rec.get(need):
+            raise ValueError(f"a conversion needs {need}")
+    with tx(db):
+        hit = db.execute("SELECT 1 FROM conversions WHERE site = ? AND tool = ? AND "
+                         "external_ref = ? AND stage = ?",
+                         (rec["site"], rec["tool"], rec["external_ref"], rec["stage"])
+                         ).fetchone()
+        if hit:
+            return False
+        identity_id = _identity(db, rec["site"], rec.get("identity"))
+        values = [rec.get(c) for c in COLUMNS]
+        db.execute(f"INSERT INTO conversions (site, {', '.join(COLUMNS)}, identity_id, "
+                   f"received_at) VALUES ({', '.join('?' * (len(COLUMNS) + 3))})",
+                   [rec["site"], *values, identity_id, rec.get("received_at") or stamp()])
+    return True
+
+
+def _identity(db, site: str, identity: dict | None) -> int | None:
+    email = str((identity or {}).get("email") or "").strip()
+    if not email:
+        return None
+    digest = email_hash(db, email)
+    name = str((identity or {}).get("name") or "").strip()[:200] or None
+    row = db.execute("SELECT id FROM identities WHERE site = ? AND email_hash = ?",
+                     (site, digest)).fetchone()
+    if row:
+        if name:
+            db.execute("UPDATE identities SET name = ? WHERE id = ?", (name, row[0]))
+        return row[0]
+    return db.execute("INSERT INTO identities (site, email_hash, email, name, created_at) "
+                      "VALUES (?, ?, ?, ?, ?)",
+                      (site, digest, email[:320], name, stamp())).lastrowid
+
+
+def record_page_view(db, site: str, vid: str, at: str, path: str,
+                     source_type: str | None) -> None:
+    db.execute("INSERT INTO journeys (vid, site, at, path, source_type) VALUES (?, ?, ?, ?, ?)",
+               (vid, site, at, path, source_type))
+
+
+def log_delivery(db, site: str, tool: str, outcome: str, http_status: int,
+                 error: str | None = None, external_ref: str | None = None,
+                 received_at: str | None = None) -> None:
+    """One row of the delivery log. Never a body: only what happened."""
+    db.execute("INSERT INTO deliveries (site, tool, received_at, outcome, http_status, error, "
+               "external_ref) VALUES (?, ?, ?, ?, ?, ?, ?)",
+               (site, tool, received_at or stamp(), outcome, int(http_status),
+                (error or None) and str(error)[:200], external_ref))
+
+
+# ------------------------------------------------------------------- reads
+
+def replayed(db, site: str, digest: str, since: str) -> bool:
+    """Was this body (its hash, hooks.replay_digest) accepted since `since`?"""
+    return db.execute("SELECT 1 FROM hook_replays WHERE site = ? AND digest = ? AND "
+                      "received_at >= ?", (site, digest, since)).fetchone() is not None
+
+
+def keep_replay(db, site: str, digest: str, received_at: str) -> None:
+    """Remember an accepted body's hash (never the body). `forget` leaves it,
+    so replaying a forgotten person's body cannot bring the row back."""
+    db.execute("INSERT INTO hook_replays (site, digest, received_at) VALUES (?, ?, ?) "
+               "ON CONFLICT(site, digest) DO UPDATE SET received_at = excluded.received_at",
+               (site, digest, received_at))
+
+
+def _rows(db, sql: str, args=()) -> list[dict]:
+    return [dict(r) for r in db.execute(sql, args)]
+
+
+def deliveries(db, site: str, tool: str | None = None, limit: int = 50) -> list[dict]:
+    if tool:
+        return _rows(db, "SELECT * FROM deliveries WHERE site = ? AND tool = ? "
+                         "ORDER BY id DESC LIMIT ?", (site, tool, limit))
+    return _rows(db, "SELECT * FROM deliveries WHERE site = ? ORDER BY id DESC LIMIT ?",
+                 (site, limit))
+
+
+def abandoned(db, site: str, since: str, until: str, hours: float = ABANDON_HOURS,
+              now: str | None = None) -> list[dict]:
+    """Starts in [since, until) with a visitor ID and no completed or paid
+    for the same ID and action within `hours`. A start whose window is still
+    open at `now` is left out: it is not abandoned yet. A start without a
+    visitor ID cannot be matched and is left out too."""
+    cutoff = stamp(parse(now or stamp()) - timedelta(hours=hours))
+    marks = ",".join("?" * len(FINISHED))
+    starts = _rows(db, "SELECT c.*, i.email AS email FROM conversions c "
+                       "LEFT JOIN identities i ON i.id = c.identity_id "
+                       "WHERE c.site = ? AND c.stage = 'started' AND c.vid IS NOT NULL "
+                       "AND c.at >= ? AND c.at < ? AND c.at <= ? ORDER BY c.at",
+                   (site, since, until, cutoff))
+    out = []
+    for row in starts:
+        end = stamp(parse(row["at"]) + timedelta(hours=hours))
+        done = db.execute(f"SELECT 1 FROM conversions WHERE site = ? AND vid = ? AND "
+                          f"action = ? AND stage IN ({marks}) AND at >= ? AND at <= ?",
+                          (site, row["vid"], row["action"], *FINISHED, row["at"], end)
+                          ).fetchone()
+        if not done:
+            out.append(row)
+    return out
+
+
+def journey_of(db, site: str, vid: str) -> dict:
+    """A visitor ID's page views and conversions, in time order."""
+    return {"vid": vid,
+            "pages": _rows(db, "SELECT at, path, source_type FROM journeys "
+                               "WHERE site = ? AND vid = ? ORDER BY at", (site, vid)),
+            "conversions": _rows(db, "SELECT action, stage, at, tool, source_type, campaign, "
+                                     "landing, country, device FROM conversions "
+                                     "WHERE site = ? AND vid = ? ORDER BY at, id",
+                                 (site, vid))}
+
+
+def day_counts(db, site: str, tz, first: date, last: date,
+               tools=None) -> dict[str, dict[tuple[str, str], int]]:
+    """{local day: {(action, stage): n}} for conversions whose `at` falls on
+    first..last in `tz`. Days with none are left out."""
+    lo = datetime.combine(first, time(0), tzinfo=tz)
+    hi = datetime.combine(last + timedelta(days=1), time(0), tzinfo=tz)
+    sql = "SELECT at, action, stage FROM conversions WHERE site = ? AND at >= ? AND at < ?"
+    args = [site, stamp(lo), stamp(hi)]
+    if tools:
+        sql += f" AND tool IN ({','.join('?' * len(tools))})"
+        args += list(tools)
+    out: dict = {}
+    for at, action, stage in db.execute(sql, args):
+        day = parse(at).astimezone(tz).date().isoformat()
+        per = out.setdefault(day, {})
+        per[(action, stage)] = per.get((action, stage), 0) + 1
+    return out
+
+
+# --------------------------------------------------------- prune and forget
+
+def prune(db, today: date, vid_days: int = VID_DAYS,
+          retention_days: int = RETENTION_DAYS) -> dict:
+    """Delete what is past its time: journeys after vid_days unless their ID
+    converted (kept as long as conversions), conversions after
+    retention_days, identities nothing points to, deliveries after 90 days."""
+    def edge(days: int) -> str:
+        return stamp(datetime.combine(today - timedelta(days=days), time(0),
+                                      tzinfo=timezone.utc))
+    with tx(db):
+        conv = db.execute("DELETE FROM conversions WHERE at < ?",
+                          (edge(retention_days),)).rowcount
+        old = db.execute("DELETE FROM journeys WHERE at < ?", (edge(retention_days),)).rowcount
+        short = db.execute("DELETE FROM journeys WHERE at < ? AND NOT EXISTS ("
+                           "SELECT 1 FROM conversions c WHERE c.site = journeys.site "
+                           "AND c.vid = journeys.vid)", (edge(vid_days),)).rowcount
+        ids = db.execute("DELETE FROM identities WHERE id NOT IN (SELECT identity_id FROM "
+                         "conversions WHERE identity_id IS NOT NULL)").rowcount
+        dels = db.execute("DELETE FROM deliveries WHERE received_at < ?",
+                          (edge(DELIVERY_DAYS),)).rowcount
+        db.execute("DELETE FROM hook_replays WHERE received_at < ?", (edge(REPLAY_DAYS),))
+    return {"conversions": conv, "journeys": old + short, "identities": ids,
+            "deliveries": dels}
+
+
+def forget(db, site: str | None, email: str | None = None, vid: str | None = None,
+           external_ref: str | None = None, dry_run: bool = False) -> dict:
+    """Delete everything for an email, a visitor ID or a lead (external ref):
+    its conversions, the journeys of every visitor ID they carry, the other
+    conversions of those IDs, its identity and its delivery rows. Counts.
+    The hashes in hook_replays stay: they hold nothing of the person."""
+    where_site, args_site = ("site = ? AND ", [site]) if site else ("", [])
+    with tx(db):
+        ids: set[int] = set()
+        vids: set[str] = set()
+        refs: set[str] = set()
+        if email:
+            digest = email_hash(db, email)
+            ids |= {r[0] for r in db.execute(
+                f"SELECT id FROM identities WHERE {where_site}email_hash = ?",
+                [*args_site, digest])}
+        if vid:
+            vids.add(vid)
+        if external_ref:
+            refs.add(external_ref)
+        conv: set[int] = set()
+        for _ in range(3):        # IDs lead to conversions lead to more IDs
+            before = (len(conv), len(vids), len(ids))
+            for column, values in (("identity_id", ids), ("vid", vids),
+                                   ("external_ref", refs)):
+                for value in list(values):
+                    for row in db.execute(f"SELECT id, vid, identity_id, external_ref FROM "
+                                          f"conversions WHERE {where_site}{column} = ?",
+                                          [*args_site, value]).fetchall():
+                        conv.add(row[0])
+                        if row[1]:
+                            vids.add(row[1])
+                        if row[2]:
+                            ids.add(row[2])
+                        refs.add(row[3])
+            if (len(conv), len(vids), len(ids)) == before:
+                break
+        counts = {"conversions": len(conv), "identities": len(ids), "journeys": 0,
+                  "deliveries": 0, "vids": sorted(vids), "refs": sorted(refs)}
+        for v in vids:
+            counts["journeys"] += db.execute(
+                f"SELECT COUNT(*) FROM journeys WHERE {where_site}vid = ?",
+                [*args_site, v]).fetchone()[0]
+        for r in refs:
+            counts["deliveries"] += db.execute(
+                f"SELECT COUNT(*) FROM deliveries WHERE {where_site}external_ref = ?",
+                [*args_site, r]).fetchone()[0]
+        if not dry_run:
+            for cid in conv:
+                db.execute("DELETE FROM conversions WHERE id = ?", (cid,))
+            for v in vids:
+                db.execute(f"DELETE FROM journeys WHERE {where_site}vid = ?", [*args_site, v])
+            for r in refs:
+                db.execute(f"DELETE FROM deliveries WHERE {where_site}external_ref = ?",
+                           [*args_site, r])
+            for i in ids:
+                db.execute("DELETE FROM identities WHERE id = ?", (i,))
+    return counts

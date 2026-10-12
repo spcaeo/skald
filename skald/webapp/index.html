@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="light dark">
+<!-- With JavaScript off, the static page beside this one carries every figure. -->
+<noscript><meta http-equiv="refresh" content="0;url=classic.html"></noscript>
+<title>Skald</title>
+<!-- The tool's name until build.json says otherwise (js/build.js toolName); NAME at the repo's root is the one to rename. -->
+<meta name="application-name" content="Skald">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7.5'%20fill='%2317212b'/%3E%3Cpath%20d='M9.5%206.5%2013.5%204.5v21l-4%202z'%20fill='%23f4f6f8'/%3E%3Cg%20fill='%23f4f6f8'%20stroke='%2317212b'%20stroke-width='2'%20stroke-linejoin='round'%20paint-order='stroke'%3E%3Cpath%20d='M12%2021C13.5%2015%2018.5%208.5%2026%204.5c-1.5%207-6.5%2013.5-12.5%2017.5z'/%3E%3Cpath%20d='M11.4%2019.6l3%202.8L5%2029z'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="stylesheet" href="../_app/app.css">
+<link rel="stylesheet" href="../_app/features.css">
+<link rel="stylesheet" href="../_app/compare.css">
+<link rel="stylesheet" href="../_app/screens.css">
+<link rel="stylesheet" href="../_app/nav.css">
+<link rel="stylesheet" href="../_app/drawer.css">
+<script type="module" src="../_app/js/main.js"></script>
+</head>
+<body>
+<a class="skip" href="#panel">Skip to content</a>
+<div class="app" id="app" data-state="booting" data-rail="full">
+  <aside class="rail" id="rail" aria-label="Sections and settings">
+    <div class="brand" id="brand">
+      <span class="brand-mark" id="brand-mark"></span>
+      <span class="brand-text"><span class="brand-name" id="brand-name"></span><span id="site-slot"></span></span>
+    </div>
+    <nav class="nav" id="tabs" aria-label="Sections"></nav>
+    <div class="rail-foot" id="rail-foot">
+    </div>
+  </aside>
+  <div class="scrim" id="scrim" hidden></div>
+  <div class="main">
+    <header class="bar" id="bar" role="banner"></header>
+    <main id="panel" class="panel" tabindex="-1">
+      <div class="boot" id="boot"><p>Loading the figures…</p></div>
+    </main>
+    <footer class="foot" id="foot" role="contentinfo">
+      <p>From the server's access logs, so bots and AI crawlers are visible. Visitor IP addresses appear only on this private page (the last 6 hours of requests, today's AI activity); stored history holds totals and 30-day one-way codes, never addresses.</p>
+    </footer>
+  </div>
+  <nav class="tabbar" id="tabbar" aria-label="Main sections"></nav>
+</div>
+<div class="tip" id="tip" role="status" aria-live="polite" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

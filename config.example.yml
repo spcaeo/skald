@@ -1,0 +1,394 @@
+# skald configuration. Copy to config.yml and edit.
+#
+# Nothing here is specific to a product: point it at a log, tell it which
+# hostnames are yours, and it works. No domain name is hard-coded anywhere in
+# the package.
+
+site:
+  # The label history and the dashboard are filed under. Optional: the first
+  # of `hosts` is used when it is not set. Run one config per site; several
+  # configs may share one history.db.
+  name: example.com
+  # Hostnames THIS report is about. One server usually answers for several -
+  # a marketing site, an API, a customer app, and its own bare IP address -
+  # and pooling them makes every figure meaningless. On the reference server
+  # that was 4,265 API calls and 3,003 app requests counted as website
+  # visitors, plus 2,695 requests straight to the IP, which is never a person:
+  # nobody types an IP address.
+  #
+  # Requests for any other host are counted as excluded and reported as such,
+  # never silently dropped. Leave this empty to count everything, which is
+  # right for a server with one site on it.
+  hosts:
+    - example.com
+    - www.example.com
+  # Path prefixes of the site's previous version (an old WordPress site's
+  # /wp-content/uploads/). A request under one is never a scanner probe: a
+  # person following an old image link is whoever they are, not a scanner.
+  # wp-admin, wp-login and the rest stay probes.
+  # legacy_paths: [/wp-content/uploads/]
+  # A browser-like visit counts as people only when a browser drew the page
+  # (rendering.py, CLASSIFICATION.md rule 9): it fetched one of the page's own
+  # scripts or styles under these prefixes (or a ?_rsc= payload) within
+  # render_seconds of a page, or the beacon vouched for it, or it rendered
+  # earlier that day or was a reader on an earlier day. The rest are bots
+  # sending a browser's name. Name your framework's asset folder here
+  # (/_next/static/ for Next.js, /assets/ for Vite, /static/ for many others).
+  # asset_prefixes: [/_next/static/]
+  # render_seconds: 30
+  # Off only when the page assets are served from a host this log never sees
+  # (a separate CDN): then nobody could ever render, and nobody would count.
+  # require_rendering: true
+
+logs:
+  # Directory holding the access log and its rotations.
+  dir: /var/log/nginx
+  # Base filename. Rotations are found automatically: <base>.1, <base>.2.gz ...
+  base: access.log
+  # How many days back to read. Rotation keeps 14 by default on Debian/Ubuntu,
+  # so anything up to that is free; the cost is parse time, not data.
+  days: 2
+  # Which format the lines are in. See parse.py for what each expects.
+  #   nginx_extended  - with "cc=XX ray=..." appended (Cloudflare country)
+  #   nginx_combined  - the stock combined format
+  #   apache_combined - same shape as nginx_combined
+  #   caddy_json      - Caddy's JSON lines
+  #   cloudflare_json - Cloudflare Logpush, http_requests (docs/CDN-LOGS.md)
+  #   cloudfront_w3c  - AWS CloudFront standard logs (docs/CDN-LOGS.md)
+  #   fastly_json     - Fastly, the JSON format in docs/CDN-LOGS.md
+  # "auto" tries each on the first lines that parse and picks the richest.
+  format: auto
+
+ours:
+  # Requests you make yourself, which are not traffic. Matched on user agent.
+  # Leave empty if you have none. Any entry in the three lists below may be a
+  # plain value or a labelled one - {agent: ..., label: ...}, {referrer: ...,
+  # label: ...}, {ip: ..., label: ...} - and the dashboard's "Our own traffic"
+  # box lists each rule by its label with the requests it matched. An address
+  # is never shown: unlabelled, it is "Listed address N".
+  user_agents:
+    - MyCompanyCrawler
+    - MyCompany-e2e
+    # - {agent: MyCompany-e2e, label: end-to-end tests}   (the labelled form)
+    # An audit crawl of your own site is not traffic either. Matched as a
+    # substring, so one entry covers every dated version of the agent.
+    - {agent: acme-server-audit, label: server audit}
+  # Requests that arrive through a browser from a tool you own, so the user
+  # agent looks human. Matched on referrer instead.
+  referrers: []
+  # Addresses or CIDR ranges you browse from yourself (office, home). Your own visits look exactly like a
+  # reader's; listing them moves them to "our own traffic". Home addresses change, so check now and then.
+  addresses: []
+  # Addresses added from the dashboard ("Our own traffic" tab) are kept in
+  # this file, merged with the list above; each applies from the moment it
+  # was added. Every change is appended to change_log. Without `file`, the
+  # list is ours.json beside the history.
+  # file: /var/lib/skald/ours.json
+  # change_log: /var/log/skald/ours-changes.log
+  # addresses:
+  #   - {ip: 192.0.2.10, label: "Office Mac"}
+
+report:
+  # Cards to render, in order. Drop any you do not want.
+  cards: [people, answer_engines, search_engines, bots, ours]
+  # A session is one visitor: requests from the same address and user agent
+  # within this many minutes count as one visit, not many.
+  session_gap_minutes: 30
+  # Days the anonymous journeys (one row per reader's visit: start time to
+  # the minute, country, device, source, pages in order) are kept in history
+  # before they are deleted. Visit totals are kept for good.
+  journey_days: 7
+  # Days the per-page and per-visit detail behind the compare report and each
+  # page's history is kept (every page, every reader's visit by country,
+  # source, assistant, device, browser, system and campaign). Totals and page
+  # milestones are kept for good.
+  retention_days: 400
+  # Publish and update dates of each page, written by the website at deploy:
+  # {"generated", "pages": [{"path","key","locale","title","published","updated"}]}.
+  # Without it a page's "published" is the first day the logs saw it.
+  # pages_meta: /etc/skald/pages.json
+  # The label (in ours) of the 5-minute heartbeat request; ours.json works
+  # out uptime and outages from it.
+  heartbeat_label: heartbeat
+  # Where SKALD_VISITOR_KEY can be read when it is not in the
+  # environment (the refresh helper runs without the cron's environment).
+  # With the key, returning visitors are counted from keyed hashes kept 30
+  # days; without it, they are not counted at all.
+  # env_file: /etc/skald/env
+  # A copy of the website's old-URL map (legacy-urls.ts), so a 404 that is
+  # now redirected or gone says so in not_found.json.
+  # redirect_map: /etc/skald/legacy-urls.ts
+  # Lines in the files read that no log format parses are counted and shown
+  # in every report. Above this share the figures are withheld: a format that
+  # quietly stops matching looks exactly like a quiet day.
+  max_unparsed_percent: 1
+  # A day is whole only if its first log line is within this many minutes of
+  # local midnight and its last within this many of the next. Otherwise it is
+  # a partial day: shown labelled, never compared or summed. Raise it for a
+  # site that is genuinely silent at night.
+  coverage_gap_minutes: 60
+  # Credit for the country data, shown as a text link wherever countries
+  # appear (dashboard, mail, report). A GeoIP database's free licence usually
+  # requires it - DB-IP Lite is CC BY 4.0. Leave both empty when the country
+  # comes from Cloudflare's header.
+  country_credit: IP geolocation by DB-IP
+  country_credit_url: https://db-ip.com
+  # IANA timezone a "day" is cut in, for history, the dashboard and the mail.
+  # A day is local midnight to midnight, so it is 23 or 25 hours long on the
+  # days the clocks change.
+  timezone: America/New_York
+
+history:
+  # SQLite file holding one row of aggregates per site per day. No addresses,
+  # no user agents of people. Relative paths are relative to this file.
+  db: /var/lib/skald/history.sqlite
+
+dashboard:
+  # Fetch small icons of referring sites into data/favicons/ (from each site
+  # itself, never a favicon service; 10 new hosts per live run at most).
+  favicons: false
+  # Directory the static dashboard is written to: <out>/index.html lists the
+  # sites, <out>/<site>/index.html is each one. Serve it behind basic auth.
+  out: /var/www/skald
+  # Where readers open it. Linked from the mail when set; leave empty for none.
+  url: https://stats.example.com/example.com/
+  # Pre-built views by path, each its own page linked from the top of the
+  # dashboard ("All" is always there). A view counts only requests whose path
+  # starts with path_prefix (empty: any) and with none of exclude_prefix
+  # (several may be given, separated by spaces). A prefix ending in "/" also
+  # matches the path without it: /ca/ covers /ca. Views are computed when a
+  # day is collected; after changing one, backfill --force recomputes the
+  # days the logs still hold.
+  views:
+    - {name: US English, exclude_prefix: /ca/}
+    - {name: Canada English, path_prefix: /ca/, exclude_prefix: /ca/fr/}
+    - {name: Canada French, path_prefix: /ca/fr/}
+
+# Automatic findings (insights.json, and the top ones in the mails): an
+# insight needs at least min_after events and a change of min_change percent.
+insights:
+  min_after: 5
+  min_change: 20
+
+mail:
+  host: smtp.example.com
+  # 587 with STARTTLS, or 465 with implicit TLS. `security` defaults from the
+  # port; "none" is for a relay on localhost and refuses to send credentials.
+  port: 587
+  security: starttls
+  from: traffic@example.com
+  to:
+    - owner@example.com
+  # NAMES of the environment variables holding the SMTP login. The values
+  # never go in this file; put them in the cron job's environment file.
+  # Leave both empty for a relay that needs no login.
+  user_env: SMTP_USER
+  password_env: SMTP_PASSWORD
+  # Quote it: an unquoted [..] is read as a list. Leave it out to use the
+  # brand's own, "[<NAME>]" (the repository's NAME file, brand.py).
+  subject_prefix: "[traffic]"
+  # The sender's display name. Leave it out to show the brand's NAME.
+  # from_name: Acme traffic
+  # Attach the week's HTML report (skald report) to the weekly mail.
+  weekly_report_attachment: false
+
+# ------------------------------------------------------------ release 2
+
+# Crawler checks (bot_verify.py). skald verify-bots fetches each crawler
+# owner's published address list (Google, Bing, Apple, OpenAI, Perplexity,
+# Anthropic, DuckDuckGo, Meta's network) and the hosting networks into this
+# directory, and looks up reverse DNS for the rest; run-daily runs it first.
+# Counting only reads these files. Leave it out to check nothing.
+# bots:
+#   ranges_dir: /var/lib/skald/ranges
+
+# The Recent requests tab (requests.json): the last window_hours hours, at
+# most cap rows. Private: it holds raw addresses, and only its window.
+requests:
+  window_hours: 6
+  cap: 5000
+
+# Alerts by email, checked on every live run (alerts.py). Off unless enabled.
+# Each rule can be switched off with false; thresholds are below each one.
+alerts:
+  enabled: false
+  # Mail the alerts (and their daily digest). Off: alerts are shown on the
+  # dashboard only, and the daily and weekly reports are the only mail.
+  mail: false
+  # Mail only from the machine with this name (uname -n): a copy of the
+  # config on a staging box evaluates alerts but never sends them.
+  only_on_host: ""
+  cooldown_hours: 6
+  digest_hour: 8
+  site_down: true
+  site_down_misses: 2
+  logging_stopped: true
+  logging_stopped_minutes: 15
+  server_errors: true
+  server_errors_count: 10
+  server_errors_minutes: 10
+  not_found_surge: true
+  not_found_minimum: 10
+  not_found_factor: 3
+  crawler_burst: true
+  crawler_burst_share: 50
+  crawler_burst_minimum: 500
+  crawler_burst_minutes: 30
+  new_crawler: true
+  traffic_drop: true
+  traffic_drop_percent: 50
+  traffic_drop_min_readers: 20
+
+# Deploy markers on the charts (markers.py): the website's release
+# directories, and its home page, where the footer shows "vX · build N".
+# markers:
+#   releases_dir: /opt/site/releases
+#   version_url: https://www.example.com/
+
+# Leads from the website's CMS database, opened read-only, aggregates only
+# (leads.py). Leave it out when there is none.
+# leads:
+#   db: /opt/site/data/payload.db
+
+# Nightly backups of the history (skald backup from cron). ssh_host is only
+# used to print the scp command for pulling a copy (skald backup --pull).
+# backup:
+#   dir: /var/lib/skald/backups
+#   ssh_host: server.example.com
+
+# AI crawler settings (bot_policy.py): the policy the dashboard saves through
+# the refresh helper, and the outcome root's skald-bot-policy.path unit
+# writes after applying it to nginx. Defaults: beside the history.
+# enabled: true once nginx forwards <page>/bot-policy and the path unit is
+# installed (DEPLOY.md); until then bots.json says "api": null and the page
+# shows the settings as not set up.
+# bot_policy:
+#   enabled: true
+#   file: /var/lib/skald/bot-policy.json
+#   status: /var/lib/skald/bot-policy-applied.json
+
+# Page speed from Google PageSpeed Insights, once a day after run-daily, for
+# the day before's top 5 landing pages on a phone and a desktop (pagespeed.py).
+# PSI_API_KEY in the env file raises Google's quota; it is never printed.
+# pagespeed:
+#   enabled: true
+#   base_url: https://www.example.com
+
+# Named users (access.py, `skald user`). htpasswd: the nginx password file
+# the dashboard's basic auth reads. roles / tokens default to users.json and
+# tokens.json beside the history.
+# access:
+#   htpasswd: /etc/nginx/traffic.htpasswd
+#
+# Accounts instead of basic auth (docs/ACCOUNTS.md, DEPLOY.md "Sessions
+# mode"): mode sessions, base_url for the links in mails (never taken from
+# the request; unset: dashboard.base_url, then dashboard.url's scheme and
+# host; `skald accounts --base-url` overrides it), accounts (default
+# accounts.sqlite beside the history).
+# trust_proxy_ip: believe nginx's X-Real-IP on the helper's 127.0.0.1
+# connection (default true); set false when other local users could reach
+# the helper's port, or use refresh.socket below.
+# access:
+#   mode: sessions
+#   base_url: https://www.example.com
+#   trust_proxy_ip: true
+#
+# The refresh helper on a Unix socket instead of 127.0.0.1:8765 (nginx then
+# proxies to unix:<socket>): mode 0660, group socket_group (default
+# www-data; the service needs that group, see systemd/).
+# refresh:
+#   socket: /run/skald/helper.sock
+#   socket_group: www-data
+#
+# Settings changed in the dashboard (sessions mode, docs/SETTINGS.md) are kept
+# in accounts.sqlite and win over this file: retention days, the mails and
+# their recipients, SMTP, backups, a site's hosts, views and time zone. Name a
+# key under settings.locked to keep this file's value: the page then shows it
+# read-only, with the reason. Keys: report.retention_days, report.journey_days,
+# visitors.repeat_days, beacon.keep_days, backup.daily, backup.weekly,
+# mail.daily, mail.weekly, mail.to, mail.from_name, mail.smtp.host,
+# mail.smtp.port, mail.smtp.security, mail.smtp.user, mail.smtp.password,
+# pagespeed.api_key, sites.hosts, sites.views, sites.timezone, sites.log_dir,
+# sites.log_base, security.require_totp, security.session_days.
+# settings:
+#   locked: [report.retention_days, mail.smtp.host]
+#
+# Copies of the history kept by `skald backup` (also Settings > Data retention):
+# backup:
+#   daily: 14
+#   weekly: 8
+#
+# The returning-visitor window, days (1-90); keyed hashes are kept that long.
+# visitors:
+#   repeat_days: 30
+#
+# MCP over HTTP (docs/MCP.md): POST /traffic-mcp with a token that has the
+# mcp scope. Needs access.mode sessions.
+# mcp:
+#   enabled: true
+
+# More sites in this install (multisite.py): each a config file, relative to
+# this one, laid over this config section by section. Share this history file
+# and dashboard folder; `--site NAME` picks one.
+# sites:
+#   - sites/shop.example.yml
+
+# In-page events from the site's own pages (docs/BEACON.md): button clicks,
+# form steps, demo bookings, 75% scroll, copies, outbound links, 404s. The
+# helper (skald-beacon.service) takes POST /traffic-beacon from these origins
+# only; run-daily counts, verifies and audits the day. `log` is nginx's own
+# beacon log (time and status only), the audit's second count.
+# beacon:
+#   enabled: true
+#   origins:
+#     - https://www.example.com
+#   log: /var/log/nginx/skald-beacon.log
+#   per_minute: 60
+#   burst: 20
+#   site_per_second: 20
+#   keep_days: 400
+#   page_views: false          # beacon-only mode (beacon/skald.js), for a site without a log
+#   # Keep the anonymous visitor ID (skv_...) that /traffic-js/skald.js makes:
+#   # journeys and conversions in conversions.sqlite (docs/BEACON.md "Visitor
+#   # IDs"). Off: the ID is dropped and skald.js is served so it makes none.
+#   # Sharing the ID across subdomains is set on the script tag,
+#   # data-share-subdomains="true" (docs/INTEGRATIONS.md "The script tag").
+#   visitor_ids: false
+#   # Goals: the events that count as a goal. The Events tab shows each one per
+#   # 100 visits by source, over any range of the 400 days kept, and no rate
+#   # over fewer than 10 visits. Names from docs/BEACON.md's list.
+#   goals: [demo_booked, signup_submit, contact_submit]
+
+# Conversions (docs/INTEGRATIONS.md): hooks from the site and its tools, and
+# with beacon.visitor_ids the beacon's own. A start with no completed for the
+# same visitor ID and action within abandon_hours counts as abandoned (worked
+# out when a report asks). country_db: the DB-IP .mmdb file for the country.
+# With leads.db set, every lead there is a conversion too (tool "site");
+# from_leads: false turns that off.
+# conversions:
+#   abandon_hours: 24
+#   retention_days: 400
+#   country_db: /usr/share/GeoIP/dbip-country-lite.mmdb
+#   from_leads: true
+# Page views per visitor ID, deleted after vid_days unless the ID converted.
+# journeys:
+#   vid_days: 30
+# Outgoing webhooks (Settings > Integrations, docs/INTEGRATIONS.md): https
+# only, never to a private or reserved address. allow_private_urls lifts that,
+# for a closed network or a test only.
+# integrations:
+#   allow_private_urls: false
+
+# Skald as a service (docs/SAAS.md): self-serve sign-up, plans and limits,
+# Stripe billing. Off by default; needs access.mode sessions. Plans are a
+# flow list so the small config parser reads them without PyYAML. A limit
+# left out is no limit. Stripe keys are never here: `skald billing secret
+# key|webhook` puts them in secrets.json.
+# saas:
+#   enabled: true
+#   signup: true
+#   allowed_domains: [example.com]   # leave out to let any address sign up
+#   billing: stripe
+#   grace_days: 7                    # past due this long: read-only, nothing deleted
+#   default_plan: starter
+#   plans: [{name: starter, sites: 1, requests_month: 300000, retention_days_max: 90, members: 3, trial_days: 14, price_id: price_123, label: Starter}, {name: team, sites: 10, requests_month: 3000000, retention_days_max: 400, members: 20, price_id: price_456, label: Team}]

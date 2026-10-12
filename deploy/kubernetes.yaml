@@ -1,0 +1,83 @@
+# Skald on Kubernetes: a minimal example. Guide: docs/HOSTING.md, "Kubernetes".
+#
+#   kubectl create namespace skald
+#   kubectl -n skald apply -f deploy/kubernetes.yaml
+#   kubectl -n skald exec deploy/skald -- skald accounts init \
+#     --org "Example Co" --owner-email owner@example.com
+#
+# One replica, always: the history is SQLite on one volume (ReadWriteOnce).
+# `Recreate` stops the old pod before the new one starts, so two never
+# write the same files. Put HTTPS in front with your Ingress controller.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: skald-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skald
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: skald}
+  template:
+    metadata:
+      labels: {app: skald}
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001            # the volume becomes writable by the image's user
+      containers:
+        - name: skald
+          image: ghcr.io/spcaeo/skald:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - {name: SKALD_SITE, value: "example.com"}
+            - {name: SKALD_HOSTS, value: "example.com www.example.com"}
+            - {name: SKALD_BASE_URL, value: "https://stats.example.com"}
+            - {name: SKALD_TIMEZONE, value: "UTC"}
+            - {name: SKALD_INGEST, value: "true"}
+            - {name: SKALD_LOG_DIR, value: "/var/lib/skald/ingest/example.com"}
+            # The Ingress controller's pod network (your cluster's pod CIDR), whose
+            # X-Forwarded-For is believed, so the visitor's address is used.
+            - {name: SKALD_TRUSTED_PROXIES, value: "10.0.0.0/8"}
+            - {name: SKALD_REAL_IP_HEADER, value: "X-Forwarded-For"}
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/skald}
+          readinessProbe:
+            httpGet: {path: /traffic-auth/login, port: 8080}
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          livenessProbe:
+            exec:
+              command: ["python3", "/opt/skald/docker/entrypoint.py", "health"]
+            initialDelaySeconds: 120
+            periodSeconds: 60
+            timeoutSeconds: 15
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 1Gi}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: skald-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: skald
+spec:
+  selector: {app: skald}
+  ports:
+    - port: 80
+      targetPort: 8080

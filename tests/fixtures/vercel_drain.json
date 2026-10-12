@@ -1,0 +1,308 @@
+[
+ {
+  "id": "1791280000000000000000000001",
+  "deploymentId": "dpl_EXAMPLE",
+  "source": "build",
+  "host": "my-app-abc123.vercel.app",
+  "timestamp": 1791280740000,
+  "projectId": "prj_EXAMPLE",
+  "level": "info",
+  "message": "Build completed successfully",
+  "buildId": "bld_example",
+  "type": "stdout",
+  "projectName": "my-app"
+ },
+ {
+  "id": "1791280000000000000000000100",
+  "deploymentId": "dpl_EXAMPLE",
+  "source": "edge",
+  "host": "my-app-abc123.vercel.app",
+  "timestamp": 1791280800111,
+  "projectId": "prj_EXAMPLE",
+  "level": "info",
+  "environment": "production",
+  "ja3Digest": "769c83e5b0example",
+  "requestId": "req-example-0000",
+  "proxy": {
+   "timestamp": 1791280800000,
+   "method": "GET",
+   "host": "example.com",
+   "path": "/",
+   "userAgent": [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
+   ],
+   "region": "fra1",
+   "statusCode": 200,
+   "clientIp": "203.0.113.10",
+   "scheme": "https",
+   "responseByteSize": 5120,
+   "vercelCache": "HIT",
+   "vercelId": "fra1::example-0",
+   "referer": "https://www.google.com/"
+  }
+ },
+ {
+  "id": "1791280000000000000000000101",
+  "deploymentId": "dpl_EXAMPLE",
+  "source": "static",
+  "host": "my-app-abc123.vercel.app",
+  "timestamp": 1791280801111,
+  "projectId": "prj_EXAMPLE",
+  "level": "info",
+  "environment": "production",
+  "ja3Digest": "769c83e5b0example",
+  "requestId": "req-example-0001",
+  "proxy": {
+   "timestamp": 1791280801000,
+   "method": "GET",
+   "host": "example.com",
+   "path": "/assets/app.css",
+   "userAgent": [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
+   ],
+   "region": "fra1",
+   "statusCode": 200,
+   "clientIp": "203.0.113.10",
+   "scheme": "https",
+   "responseByteSize": 2048,
+   "vercelCache": "HIT",
+   "vercelId": "fra1::example-1",
+   "referer": "https://example.com/"
+  }
+ },
+ {
+  "id": "1791280000000000000000000102",
+  "deploymentId": "dpl_EXAMPLE",
+  "source": "lambda",
+  "host": "my-app-abc123.vercel.app",
+  "timestamp": 1791280820111,
+  "projectId": "prj_EXAMPLE",
+  "level": "info",
+  "environment": "production",
+  "ja3Digest": "769c83e5b0example",
+  "requestId": "req-example-0002",
+  "proxy": {
+   "timestamp": 1791280820000,
+   "method": "GET",
+   "host": "example.com",
+   "path": "/pricing?plan=pro",
+   "userAgent": [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
+   ],
+   "region": "fra1",
+   "statusCode": 200,
+   "clientIp": "203.0.113.10",
+   "scheme": "https",
+   "responseByteSize": 4096,
+   "vercelCache": "HIT",
+   "vercelId": "fra1::example-2",
+   "referer": "https://example.com/"
+  },
+  "message": "API request processed",
+  "entrypoint": "api/index.js",
+  "statusCode": 200,
+  "path": "/pricing"
+ },
+ {
+  "id": "1791280000000000000000000102b",
+  "deploymentId": "dpl_EXAMPLE",
+  "source": "lambda",
+  "host": "my-app-abc123.vercel.app",
+  "timestamp": 1791280820111,
+  "projectId": "prj_EXAMPLE",
+  "level": "info",
+  "environment": "production",
+  "ja3Digest": "769c83e5b0example",
+  "requestId": "req-example-0002",
+  "proxy": {
+   "timestamp": 1791280820000,
+   "method": "GET",
+   "host": "example.com",
+   "path": "/pricing?plan=pro",
+   "userAgent": [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
+   ],
+   "region": "fra1",
+   "statusCode": 200,
+   "clientIp": "203.0.113.10",
+   "scheme": "https",
+   "responseByteSize": 4096,
+   "vercelCache": "HIT",
+   "vercelId": "fra1::example-2",
+   "referer": "https://example.com/"
+  },
+  "message": "customer looked up",
+  "entrypoint": "api/index.js",
+  "statusCode": 200,
+  "path": "/pricing",
+  "type": "stdout"
+ },
+ {
+  "id": "1791280000000000000000000103",
+  "deploymentId": "dpl_EXAMPLE",
+  "source": "static",
+  "host": "my-app-abc123.vercel.app",
+  "timestamp": 1791281100111,
+  "projectId": "prj_EXAMPLE",
+  "level": "info",
+  "environment": "production",
+  "ja3Digest": "769c83e5b0example",
+  "requestId": "req-example-0003",
+  "proxy": {
+   "timestamp": 1791281100000,
+   "method": "GET",
+   "host": "example.com",
+   "path": "/guides/alpha",
+   "userAgent": [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
+   ],
+   "region": "fra1",
+   "statusCode": 200,
+   "clientIp": "203.0.113.20",
+   "scheme": "https",
+   "responseByteSize": 7340,
+   "vercelCache": "HIT",
+   "vercelId": "fra1::example-3",
+   "referer": "https://chatgpt.com/"
+  }
+ },
+ {
+  "id": "1791280000000000000000000104",
+  "deploymentId": "dpl_EXAMPLE",
+  "source": "edge",
+  "host": "my-app-abc123.vercel.app",
+  "timestamp": 1791281400111,
+  "projectId": "prj_EXAMPLE",
+  "level": "info",
+  "environment": "production",
+  "ja3Digest": "769c83e5b0example",
+  "requestId": "req-example-0004",
+  "proxy": {
+   "timestamp": 1791281400000,
+   "method": "GET",
+   "host": "example.com",
+   "path": "/guides/alpha",
+   "userAgent": [
+    "Mozilla/5.0 (compatible; GPTBot/1.2; +https://openai.com/gptbot)"
+   ],
+   "region": "fra1",
+   "statusCode": 200,
+   "clientIp": "198.51.100.40",
+   "scheme": "https",
+   "responseByteSize": 7340,
+   "vercelCache": "HIT",
+   "vercelId": "fra1::example-4"
+  }
+ },
+ {
+  "id": "1791280000000000000000000105",
+  "deploymentId": "dpl_EXAMPLE",
+  "source": "static",
+  "host": "my-app-abc123.vercel.app",
+  "timestamp": 1791281460111,
+  "projectId": "prj_EXAMPLE",
+  "level": "info",
+  "environment": "production",
+  "ja3Digest": "769c83e5b0example",
+  "requestId": "req-example-0005",
+  "proxy": {
+   "timestamp": 1791281460000,
+   "method": "GET",
+   "host": "example.com",
+   "path": "/",
+   "userAgent": [
+    "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+   ],
+   "region": "fra1",
+   "statusCode": 200,
+   "clientIp": "198.51.100.42",
+   "scheme": "https",
+   "responseByteSize": 5120,
+   "vercelCache": "HIT",
+   "vercelId": "fra1::example-5"
+  }
+ },
+ {
+  "id": "1791280000000000000000000106",
+  "deploymentId": "dpl_EXAMPLE",
+  "source": "edge",
+  "host": "my-app-abc123.vercel.app",
+  "timestamp": 1791281520111,
+  "projectId": "prj_EXAMPLE",
+  "level": "info",
+  "environment": "production",
+  "ja3Digest": "769c83e5b0example",
+  "requestId": "req-example-0006",
+  "proxy": {
+   "timestamp": 1791281520000,
+   "method": "GET",
+   "host": "example.com",
+   "path": "/.env",
+   "userAgent": [
+    "curl/8.7.1"
+   ],
+   "region": "fra1",
+   "statusCode": 404,
+   "clientIp": "198.51.100.52",
+   "scheme": "https",
+   "responseByteSize": 66,
+   "vercelCache": "HIT",
+   "vercelId": "fra1::example-6"
+  }
+ },
+ {
+  "id": "1791280000000000000000000201",
+  "deploymentId": "dpl_EXAMPLE",
+  "source": "lambda",
+  "host": "my-app-abc123.vercel.app",
+  "timestamp": 1791281580000,
+  "projectId": "prj_EXAMPLE",
+  "level": "info",
+  "requestId": "req-example-revalidate",
+  "proxy": {
+   "timestamp": 1791281580000,
+   "method": "GET",
+   "host": "example.com",
+   "path": "/pricing",
+   "userAgent": [
+    "Vercel Revalidation"
+   ],
+   "region": "fra1",
+   "statusCode": -1,
+   "clientIp": "192.0.2.1"
+  }
+ },
+ {
+  "id": "1791280000000000000000000202",
+  "deploymentId": "dpl_EXAMPLE",
+  "source": "lambda",
+  "host": "my-app-abc123.vercel.app",
+  "timestamp": 1791281610000,
+  "projectId": "prj_EXAMPLE",
+  "level": "error",
+  "type": "stderr",
+  "message": "Error: something failed"
+ },
+ {
+  "id": "1791280000000000000000000203",
+  "deploymentId": "dpl_EXAMPLE",
+  "source": "external",
+  "host": "my-app-abc123.vercel.app",
+  "timestamp": 1791281640000,
+  "projectId": "prj_EXAMPLE",
+  "level": "info",
+  "destination": "https://stats.example.net/traffic-beacon",
+  "proxy": {
+   "timestamp": 1791281640000,
+   "method": "POST",
+   "host": "example.com",
+   "path": "/traffic-beacon",
+   "userAgent": [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
+   ],
+   "region": "fra1",
+   "statusCode": 204,
+   "clientIp": "203.0.113.10"
+  }
+ }
+]

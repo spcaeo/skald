@@ -1,0 +1,333 @@
+# Installing Skald
+
+Four ways, from quickest to most hands-on. All of them run the same code and
+keep the same files: the history (`history.sqlite`), the accounts and the
+settings live in one data folder, and everything else can be rebuilt.
+
+| Way | Best for | Web server |
+| --- | --- | --- |
+| [1. Docker](#1-docker) | trying it, or one container on any host | its own nginx, on port 8080 |
+| [2. Docker Compose](#2-docker-compose) | a server that already runs Docker | next to yours, or Caddy with HTTPS |
+| [3. Install script](#3-install-script) | an Ubuntu or Debian web server | yours (nginx, Caddy, Apache) |
+| [4. Manual](#4-manual) | full control, other systems | yours |
+
+## What you need
+
+- **A web server's access log**, readable by Skald: nginx or Apache
+  (combined format, or the extended one in SOP.md section 3), Caddy JSON, or a
+  CDN's log (Cloudflare, CloudFront, Fastly: [CDN-LOGS.md](CDN-LOGS.md)).
+  `logs.format: auto` finds which. A site on another server can send its log
+  with skald-ship ([INGEST.md](INGEST.md)).
+- **Python 3.11 or newer** for ways 3 and 4 (the Docker image has its own).
+  The standard library is enough; PyYAML is used when it is there, and
+  Pillow, when it is there, turns fetched site icons into small PNGs.
+- **HTTPS in front of the dashboard** for signing in. The session cookie is
+  `Secure`, so a browser keeps it only over HTTPS, or at `http://localhost`.
+- Optional: an SMTP account for the daily and weekly mails. Without it,
+  everything works and no mail is sent.
+
+---
+
+## 1. Docker
+
+One container runs everything: nginx on port 8080 (the dashboard and every
+Skald route), the two helpers behind it, and a small scheduler (the live
+snapshot every 2 minutes, the daily run, the nightly backup). Mount the log
+read-only at `/logs`; the data lives in a volume.
+
+```sh
+docker run -d --name skald --restart unless-stopped \
+  -p 127.0.0.1:8080:8080 \
+  -v /var/log/nginx:/logs:ro \
+  -v skald-data:/var/lib/skald \
+  -e SKALD_SITE=example.com \
+  -e SKALD_TIMEZONE=America/New_York \
+  -e SKALD_BASE_URL=https://stats.example.com \
+  ghcr.io/spcaeo/skald:latest
+```
+
+`127.0.0.1:` publishes the port on this machine only, the safe default:
+reach it from elsewhere through HTTPS in front (recipe A or B below). Leave
+it out only when something else already guards the port.
+
+Behind a web server on the same machine (recipe A below), also give
+`-e SKALD_TRUSTED_PROXIES=private -e SKALD_REAL_IP_HEADER=X-Real-IP`, so the
+sign-in limits and the in-page events see each visitor's address, not the
+proxy's (Compose sets both). On a hosting platform, [HOSTING.md](HOSTING.md)
+gives the values.
+
+Then make the first owner. It prints a "set your password" link (valid 60
+minutes):
+
+```sh
+docker exec -it skald skald accounts init \
+  --org "Example Co" --owner-email owner@example.com
+```
+
+Open `http://localhost:8080/` on the same machine, or the HTTPS address
+(see "Put it on the web" below). The dashboard fills within two minutes from
+today's log; `docker exec skald skald backfill --days 14` adds the
+days the log's rotations still hold.
+
+`skald <command>` in the container is `skald` with the right config:
+`check`, `live`, `backup`, `accounts status`, `user`, `export` and the rest.
+
+### Settings
+
+Set them as `-e NAME=value` (or in Compose's `.env`). The container writes
+its config from them at every start. For anything more, mount your own
+config (`config.example.yml` documents every key) at
+`/etc/skald/config.yml`; it then wins over these. Keep its paths as
+the container has them (`history.db: /var/lib/skald/history.sqlite`,
+`dashboard.out: /var/www/skald`, `logs.dir: /logs`).
+
+| Variable | Default | What |
+| --- | --- | --- |
+| `SKALD_SITE` | `site` | the site's name (a host name, e.g. `example.com`); the dashboard is at `/traffic/<name>/` |
+| `SKALD_HOSTS` | (all) | host names the report is about, space or comma separated; empty counts every host in the log |
+| `SKALD_TIMEZONE` | `UTC` | the zone a day is cut in |
+| `SKALD_BASE_URL` | `http://localhost:8080` | the public address: links in mails, allowed origin |
+| `SKALD_LOG_DIR` | `/logs` | the folder the log is read from; with `SKALD_INGEST`, `/var/lib/skald/ingest/<SKALD_SITE>` |
+| `SKALD_LOG_FILE` | `access.log` | the log's file name in `/logs` (rotations `.1`, `.2.gz`... are found) |
+| `SKALD_LOG_FORMAT` | `auto` | or `nginx_combined`, `nginx_extended`, `caddy_json`, ... |
+| `SKALD_ASSET_PREFIXES` | | extra path prefixes that are files, not pages (e.g. `/_next/static/`) |
+| `SKALD_EMAIL` | | who gets the mails (also the sender unless `SKALD_MAIL_FROM`) |
+| `SKALD_SMTP_HOST`, `SKALD_SMTP_PORT`, `SKALD_SMTP_SECURITY` | `587`, `starttls` | the mail server; mails stay off without a host (or set it in Settings > Mail) |
+| `SMTP_USER`, `SMTP_PASSWORD` | | the SMTP login: environment only, never in a file you commit |
+| `SKALD_BEACON_ORIGINS` | | your site's origin(s), to switch on the in-page events ([BEACON.md](BEACON.md)) |
+| `SKALD_INGEST` | | `true` takes logs from other servers and log drains ([INGEST.md](INGEST.md)); set `SKALD_LOG_DIR` with it |
+| `SKALD_DAILY_AT`, `SKALD_BACKUP_AT` | `07:15`, `03:30` | the daily run and the backup, in the site's time zone |
+| `SKALD_LIVE_MINUTES` | `2` | the live snapshot's interval |
+| `SKALD_SCHEDULER` | `on` | `off` stops the container's own schedule (live, daily run, backup) |
+| `SKALD_ORIGIN` | from `SKALD_BASE_URL` | the browser origin(s) the dashboard's buttons are accepted from |
+| `SKALD_TRUSTED_PROXIES` | none (Compose: `private`) | the proxy in front, whose word on the visitor's address is believed: ranges such as `10.0.0.0/8`, or `private` (the private ranges). Empty: nobody, right when the container faces the internet. Per platform: [HOSTING.md](HOSTING.md) |
+| `SKALD_REAL_IP_HEADER` | `X-Forwarded-For` (Compose: `X-Real-IP`) | the header that proxy puts the visitor's address in; `Fly-Client-IP` on Fly.io |
+| `SKALD_PORT` | `8080` | the port inside the container |
+
+The returning-visitor key is made once, on the first start, into
+`/var/lib/skald/env` (0600, in the volume). Keep the volume.
+
+### Why one container
+
+nginx, the two helpers and the scheduler share one data folder and talk over
+127.0.0.1, which the helpers insist on. One small supervisor
+(`docker/entrypoint.py`, standard library) starts the four, restarts any that
+stops and is the health check: the sign-in page must answer through nginx and
+the helper, and the scheduler must have ticked in the last 5 minutes. The
+nginx config is DEPLOY.md's sessions-mode config, generated from it
+(`docker/build-nginx-conf.py`) and checked by the same route tests.
+
+### Upgrade, uninstall
+
+```sh
+docker pull ghcr.io/spcaeo/skald:latest
+docker rm -f skald
+docker run -d --name skald ...           # the same command as before; the volume keeps the data
+```
+
+Uninstall: `docker rm -f skald`. The data stays in the volume until
+`docker volume rm skald-data`. Copy the backups out first if you want them:
+`docker cp skald:/var/lib/skald/backups ./skald-backups`.
+
+---
+
+## 2. Docker Compose
+
+`docker-compose.yml` at the top of the repository runs the same image.
+
+```sh
+git clone https://github.com/spcaeo/skald && cd skald
+cat > .env <<'EOF'
+SKALD_SITE=example.com
+SKALD_HOSTS=example.com www.example.com
+SKALD_TIMEZONE=America/New_York
+SKALD_BASE_URL=https://www.example.com
+SKALD_LOGS=/var/log/nginx
+EOF
+docker compose up -d
+docker compose exec skald skald accounts init \
+  --org "Example Co" --owner-email owner@example.com
+```
+
+`.env` is not committed (it is in `.gitignore`); SMTP_USER and SMTP_PASSWORD
+go there too. `docker compose run --rm skald accounts init ...` works as well
+when the service is not running.
+
+### Recipe A: next to the web server you already run
+
+By default Skald listens on `127.0.0.1:8080` only. Your web server keeps
+serving the site and sends Skald's paths to it: `/traffic/` (the dashboard)
+and `/traffic-auth/`, `/traffic-api/`, `/traffic-ingest/`, `/traffic-mcp`,
+`/traffic-hooks/`, `/traffic-beacon`, `/traffic-js/`. It needs no other change.
+
+nginx, inside the site's HTTPS `server { }` block:
+
+```nginx
+location ~ ^/traffic(?:$|/|-(?:auth|api|ingest|mcp|hooks|beacon|js)(?:/|$)) {
+    access_log off;                       # your own dashboard views are not visitors
+    client_max_body_size 6m;              # shipped log batches (INGEST.md)
+    proxy_read_timeout 60s;
+    proxy_pass http://127.0.0.1:8080;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+then `sudo nginx -t && sudo systemctl reload nginx`.
+
+Caddy, inside the site's block:
+
+```caddy
+@skald path_regexp ^/traffic($|/|-(auth|api|ingest|mcp|hooks|beacon|js)(/|$))
+log_skip @skald
+handle @skald {
+    reverse_proxy 127.0.0.1:8080 {
+        header_up X-Real-IP {remote_host}
+    }
+}
+```
+
+Set `SKALD_BASE_URL` to that site's address (`https://www.example.com`). The
+nginx inside the container does the rest: the session check on every
+dashboard file, the sign-in limits, the security headers.
+
+### Recipe B: all in one, with HTTPS
+
+For a stats address of its own (`stats.example.com`, its DNS pointing at
+this server, ports 80 and 443 free):
+
+```sh
+cat >> .env <<'EOF'
+SKALD_DOMAIN=stats.example.com
+SKALD_BASE_URL=https://stats.example.com
+EOF
+docker compose --profile https up -d
+```
+
+This adds Caddy (`docker/Caddyfile`), which gets and renews the certificate
+itself and sends everything to Skald. The site's own log still comes from
+`SKALD_LOGS` (the web server on this host) or from skald-ship on the site's
+server ([INGEST.md](INGEST.md), `SKALD_INGEST=true`).
+
+### Upgrade, uninstall
+
+```sh
+docker compose pull && docker compose up -d                 # the published image
+git pull && docker compose up -d --build                    # or build from the checkout
+docker compose down                                         # stop; the data volume stays
+docker compose down -v                                      # stop and delete the data
+```
+
+---
+
+## 3. Install script
+
+For Ubuntu 22.04, 24.04, 26.04 and Debian 12, on the web server itself. It
+installs Python 3.11+ (on 22.04 the `python3.11` package) and PyYAML, makes
+the `skald` user (in group `adm`, to read the log), puts the code in
+`/opt/skald`, writes `/etc/skald/config.yml` from
+`config.example.yml`, makes the env file with the visitor key, installs the
+systemd units and `/etc/cron.d/skald`, puts the `skald`
+command in `/usr/local/bin`, runs a first `check` and `live`, and prints the
+lines to add to nginx or Caddy.
+
+The quick way, pinned to a release (`--ref` picks the code it downloads):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/spcaeo/skald/v2.0.0/install.sh | sudo bash -s -- --ref v2.0.0
+```
+
+This runs a script from the internet as root. To check what you run first,
+take the release's tarball and verify it against the `SHA256SUMS` file that
+the release workflow attaches to every release (it lists the tarball and
+`install.sh`):
+
+```sh
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.0.0/skald-2.0.0.tar.gz
+curl -fsSLO https://github.com/spcaeo/skald/releases/download/v2.0.0/SHA256SUMS
+sha256sum --ignore-missing -c SHA256SUMS      # must print: skald-2.0.0.tar.gz: OK
+tar -xzf skald-2.0.0.tar.gz && cd skald-2.0.0
+less install.sh                               # read it
+sudo ./install.sh                             # installs from this folder, downloads nothing
+```
+
+or from a checkout:
+
+```sh
+git clone https://github.com/spcaeo/skald && cd skald && sudo ./install.sh
+```
+
+It asks for the site, the log, the time zone and the mail address. Without
+questions:
+
+```sh
+sudo ./install.sh --site example.com --log /var/log/nginx/access.log \
+  --timezone America/New_York --email owner@example.com --non-interactive
+```
+
+`./install.sh --help` lists every option (`--hosts`, `--format`, `--origin`,
+`--daily-at`, `--source`, `--ref`, `--no-first-run`).
+
+After it:
+
+1. Add the printed `/traffic/` location to the site's nginx (or Caddy)
+   block, with an htpasswd file, then `sudo nginx -t && sudo systemctl
+   reload nginx`. For accounts (each person signs in with their own email)
+   use DEPLOY.md's "Sessions mode" blocks and `accounts init` instead.
+2. Mail: fill in the `mail:` section of `/etc/skald/config.yml`, the
+   SMTP login in `/etc/skald/env`, and set `mail.daily` and
+   `mail.weekly` to `true` (the script leaves them off).
+3. `sudo skald backfill --days 14` for the days the logs hold.
+
+The `skald` command runs as the `skald` user with
+`/etc/skald/config.yml` and the env file, so call it with `sudo`:
+`sudo skald check`, `live`, `run-daily`, `version`, `--help`.
+
+### Upgrade, uninstall
+
+Run the script again: it replaces the code (the previous copy goes to
+`/opt/skald.prev`), reinstalls the units and cron, restarts the
+helper, and keeps the config, the env file and the history.
+
+```sh
+sudo ./install.sh --uninstall           # units, cron, logrotate, the command go; code, config, data stay
+sudo ./install.sh --uninstall --purge   # also /opt, /etc, /var/lib, /var/www and the user
+```
+
+Roll back an upgrade: `sudo rsync -a --delete /opt/skald.prev/
+/opt/skald/` and `sudo systemctl restart skald-refresh`.
+
+---
+
+## 4. Manual
+
+[DEPLOY.md](../DEPLOY.md) is every step by hand: the paths and owners, the
+env file, the first run, the cron lines, the systemd units, nginx in basic
+or sessions mode, and upgrading by `git archive`. Use it on another Linux, or
+when you want to know exactly what the script does.
+
+Upgrade: DEPLOY.md, "Deploying a new version". Uninstall: stop and remove
+the units in `/etc/systemd/system/`, delete `/etc/cron.d/skald`,
+then the folders in DEPLOY.md section 2 if the data should go too.
+
+---
+
+## Troubleshooting
+
+| What you see | Why, and what to do |
+| --- | --- |
+| `nothing parsed` from `check` | Wrong file or format, or no permission. Docker: `docker exec skald ls -l /logs` (the container's user is in group `adm`, gid 4, which reads `/var/log/nginx` on Ubuntu and Debian). Script: `sudo -u skald head -1 /var/log/nginx/access.log`. Then `check --day today`. |
+| The sign-in page loops back to itself | The browser dropped the `Secure` cookie: use HTTPS (recipe A or B), or `http://localhost:8080` on the same machine. |
+| Links in mails say `localhost` | Set `SKALD_BASE_URL` (Docker) or `access.base_url` (config) to the public address. |
+| The first daily run "failed" | There is no whole day in the history yet. It sorts itself out the next day, or run `backfill --days 14`. |
+| 502 on `/traffic-beacon` or `/traffic-js/` | The beacon is off: set `SKALD_BEACON_ORIGINS` (Docker) or follow BEACON.md. |
+| `permission denied` on a bind-mounted folder | The container runs as uid 10001. Started as root (the default) it gives `/var/lib/skald` to that user itself; for other folders, or with `--user`, `sudo chown -R 10001:10001 <folder>`, or use the named volume. |
+| Container `unhealthy` | `docker logs skald` and `docker inspect --format '{{json .State.Health}}' skald`. |
+| "Too many tries" on sign-in for everyone at once | The proxy in front is not trusted, so every visitor looks like it: set `SKALD_TRUSTED_PROXIES` to its range (the image's `peers` command shows it while you load the dashboard: `docker exec skald python3 /opt/skald/docker/entrypoint.py peers`) and `SKALD_REAL_IP_HEADER` to the header it sends. |
+| Mails do not go | `skald mail --daily --dry-run` shows the mail; Settings > Mail sends a test. Without an SMTP host the mails are off on purpose. |
+| Ubuntu 22.04's Python 3.11 says `3.11.0rc1` | That is the package Ubuntu ships; it runs Skald. |
+
+Logs: Docker, `docker logs skald` (one line per job) and
+`/var/log/skald/*.log` in the container; the script,
+`/var/log/skald/` and `journalctl -u skald-refresh`.

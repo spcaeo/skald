@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Skald">
+  <!-- Skald in one colour: the tile in currentColor, the quill and stave cut out of it. -->
+  <defs>
+    <mask id="cut">
+      <rect width="64" height="64" fill="#fff"/>
+      <path d="M20 14.5 27 11v41l-7 3.5z" fill="#000"/>
+      <g fill="#000" stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke">
+        <path d="M25 41C28 29 38 17 51 10c-2 9-6 16-11 21l-3.5-.5 1.5 3c-3 3.5-7 7-10.5 9.5z"/>
+        <path d="M24.6 39.2l3.6 3.2L11.5 56.5z"/>
+      </g>
+      <path d="M27.5 41.2 48.5 13.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+    </mask>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="currentColor" mask="url(#cut)"/>
+</svg>

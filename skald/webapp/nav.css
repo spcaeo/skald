@@ -1,0 +1,111 @@
+/* The menu, regrouped (nav.js): sections by what the reader came to find
+   out, Site health's pages under it while open, Settings' own menu in the
+   sidebar's place, a foot of three buttons, the trail's group, the phone's
+   drawer and tab bar. Loaded last: it refines features.css's sidebar.
+   Tokens come from app.css; the chrome stays ink, colour is for data. */
+
+/* the rows are links now: no underline, and a focus ring inside the rail */
+a.tab, a.foot-btn { text-decoration: none; box-sizing: border-box; }
+.tab:focus-visible, .foot-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: 8px; }
+/* rows a little shorter than before: sixteen sections, four headings and the foot fit a 800px-tall window */
+.tab { height: 34px; }
+.nav-h { margin: 7px 10px 3px; font-size: 11.5px; font-weight: 600; color: var(--ink-3); }
+
+/* Site health's pages: tabs on the page itself; under it in the phone's menu only */
+.nav-group .nav-sub { display: none; list-style: none; margin: 1px 0 3px 17px; padding: 0 0 0 9px; border-left: 1px solid var(--rule); gap: 1px; }
+.app[data-rail="drawer"] .nav-group .nav-sub { display: grid; }
+.tab.open { color: var(--ink); font-weight: 640; }
+
+/* Settings' menu: the way back, its title, its groups */
+.nav-back { color: var(--ink-3); height: 32px; font-size: 13px; }
+.nav-back svg { width: 14px; height: 14px; }
+.nav-title { margin: 6px 10px 2px; font-size: 18px; font-weight: 720; letter-spacing: -.015em; color: var(--ink); }
+/* a longer list than the dashboard's, so slightly shorter rows: it fits a 800px-tall window */
+.nav.in-settings .tab:not(.nav-back) { height: 32px; font-size: 13.5px; }
+.nav.in-settings .nav-h { margin-top: 8px; }
+
+/* the foot: Settings, the reader's own button, the fold button - one row */
+.rail-foot { gap: 2px; }
+.foot-btn.gear { flex: 1; width: auto; min-width: 0; }
+.foot-btn.gear[aria-current] { color: var(--ink); font-weight: 640; background: var(--surface); box-shadow: inset 0 0 0 1px var(--rule); }
+.foot-me { position: relative; flex: none; }
+.foot-btn.me { width: 34px; padding: 0; justify-content: center; }
+.me-i { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: var(--surface);
+  font-size: 10.5px; font-weight: 700; letter-spacing: .02em; }
+.foot-btn.me[aria-expanded="true"] { background: var(--sunk); }
+.set-rule { border: 0; border-top: 1px solid var(--rule); margin: 6px 4px; }
+.settings-pop { width: min(280px, calc(100vw - 16px)); }
+
+/* the icon rail: sub-pages and the title give way; the foot stacks */
+.app[data-rail="icons"] .nav-title { display: none; }
+/* one rule between groups: the heading's line (features.css), not a second border above it */
+.app[data-rail="icons"] .nav-group + .nav-group { border-top: 0; padding-top: 0; }
+.app[data-rail="icons"] .foot-btn.me { width: 40px; }
+.app[data-rail="icons"] .foot-btn.gear { flex: none; }
+
+/* the trail: the page's name is never cut or covered. Beside the period and the filters
+   (below 1440px) the group and the parent give way - the sidebar and the sub-tabs name them -
+   and so do the refresh button's words (the footer has the time too). */
+@media (min-width: 768px) {
+  .tb-title { flex-shrink: 0; }
+  .trail .crumb.now { max-width: none; }
+  .bar-mid { justify-content: safe center; }
+}
+@media (min-width: 768px) and (max-width: 1439px) {
+  .bar-row:has(.bar-mid > *) .trail li:is(.crumb-g, .crumb-p) { display: none; }
+  .bar-row:has(.bar-mid > *) .trail li:is(.crumb-g, .crumb-p):first-child + li::before { content: none; }
+  .refresh .r-l, .refresh .r-ago, .bar-right .stamp { display: none; }
+}
+/* the group, quiet, before the page (wide screens only) */
+.trail .crumb-g .crumb { cursor: default; color: var(--ink-3); font-weight: 520; }
+.trail .crumb-g .crumb:hover { text-decoration: none; }
+.trail li.crumb-g + li::before { content: none; }
+.trail li.crumb-g::after { content: "›"; margin: 0 6px; color: var(--gap); }
+@media (max-width: 1099px) {
+  .trail li.crumb-g { display: none; }
+  .trail li.crumb-g + li::before { content: "›"; }
+  .trail li.crumb-g:first-child + li::before { content: none; }
+}
+
+/* the palette's group, the shortcuts by group, the report builder by group */
+.pal-g { margin-left: 8px; font-size: 12px; color: var(--ink-3); }
+.pal-list li[aria-selected="true"] .pal-g { color: inherit; opacity: .75; }
+.keys-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0 24px; }
+.keys-g h4 { margin: 10px 0 2px; font-size: 12px; font-weight: 600; color: var(--ink-3); }
+.rb-tabs { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px 18px; align-items: start; }
+.rb-g { display: grid; gap: 5px; }
+.rb-gh { margin: 0 0 1px; font-size: 12px; font-weight: 600; color: var(--ink-3); }
+
+/* the drawer's close button; hidden unless the sidebar is a drawer */
+.drawer-x { display: none; margin-left: auto; flex: none; align-self: flex-start; }
+.drawer-x svg { width: 16px; height: 16px; }
+
+/* phones: the drawer with large rows, the tab bar's Menu, sub-tabs that never push the page sideways */
+@media (max-width: 767px) {
+  .app[data-rail="drawer"] .drawer-x { display: inline-flex; min-width: 40px; min-height: 40px; align-items: center; justify-content: center; }
+  .app[data-rail="drawer"] .tab { height: 44px; font-size: 15px; }
+  .app[data-rail="drawer"] .tab.sub { height: 40px; font-size: 14.5px; }
+  .app[data-rail="drawer"] .nav.in-settings .tab:not(.nav-back) { height: 42px; font-size: 14.5px; }
+  .app[data-rail="drawer"] .nav-back { height: 40px; font-size: 14px; }
+  .app[data-rail="drawer"] .nav-h { margin-top: 14px; font-size: 12.5px; }
+  .app[data-rail="drawer"] .foot-btn { height: 44px; }
+  .app[data-rail="drawer"] .foot-btn.me { width: 44px; }
+  .app[data-rail="drawer"] #rail-toggle { display: none; }
+  .rail { width: min(300px, 86vw); }
+  .tb-i { min-height: 44px; align-content: center; }
+  .tb-i[aria-expanded="true"] { color: var(--ink); }
+  .subtabs { overflow-x: auto; scrollbar-width: none; }
+  .subtabs::-webkit-scrollbar { display: none; }
+  .subtab { white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) { .rail { transition: none; } }
+
+/* The menu scrolls inside the sidebar when the window is shorter than it
+   (the sidebar is one screen high): no page is ever out of reach. */
+.rail .nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+/* Theme and What's new, one click away in the foot. */
+.foot-btn.quick { position: relative; width: 34px; padding: 0; justify-content: center; }
+/* Settings on its own line; theme, what's new, you and fold share the line below. */
+.app:not([data-rail="icons"]) .rail-foot { display: flex; flex-wrap: wrap; align-items: center; }
+.app:not([data-rail="icons"]) .rail-foot .foot-btn.gear { flex: 1 0 100%; }
+.foot-btn.quick .new-dot { position: absolute; top: 5px; right: 5px; }

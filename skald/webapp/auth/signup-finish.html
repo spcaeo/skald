@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="light dark">
+<title>Finish signing up · Skald</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7.5'%20fill='%2317212b'/%3E%3Cpath%20d='M9.5%206.5%2013.5%204.5v21l-4%202z'%20fill='%23f4f6f8'/%3E%3Cg%20fill='%23f4f6f8'%20stroke='%2317212b'%20stroke-width='2'%20stroke-linejoin='round'%20paint-order='stroke'%3E%3Cpath%20d='M12%2021C13.5%2015%2018.5%208.5%2026%204.5c-1.5%207-6.5%2013.5-12.5%2017.5z'/%3E%3Cpath%20d='M11.4%2019.6l3%202.8L5%2029z'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="stylesheet" href="/traffic-auth/auth.css">
+<script type="module" src="/traffic-auth/auth.js"></script>
+</head>
+<body data-page="signup-finish">
+<main class="card" id="main">
+  <p class="brand"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15" fill="var(--ink)"/><path d="M20 14.5 27 11v41l-7 3.5z" fill="var(--surface)"/><g fill="var(--surface)" stroke="var(--ink)" stroke-width="3" stroke-linejoin="round" paint-order="stroke"><path d="M25 41C28 29 38 17 51 10c-2 9-6 16-11 21l-3.5-.5 1.5 3c-3 3.5-7 7-10.5 9.5z"/><path d="M24.6 39.2l3.6 3.2L11.5 56.5z"/></g><path d="M27.5 41.2 48.5 13.5" stroke="var(--ink)" stroke-width="1.6" stroke-linecap="round"/></svg><span>Skald</span></p>
+  <h1>Finish signing up</h1>
+  <p class="lede" id="lede">Checking the link...</p>
+  <form id="form" method="post" novalidate hidden>
+    <label>Your name <input type="text" name="name" id="name" autocomplete="name" maxlength="100" required></label>
+    <label>Password <input type="password" name="password" id="password" autocomplete="new-password" maxlength="1024" required aria-describedby="policy">
+      <span class="hint" id="policy">At least 12 characters. Not your email address, and not a common password.</span></label>
+    <label>Password again <input type="password" name="again" id="again" autocomplete="new-password" maxlength="1024" required></label>
+    <label>Organisation <input type="text" name="org" id="org" autocomplete="organization" maxlength="100" required aria-describedby="org-hint">
+      <span class="hint" id="org-hint">Your company or team. You can invite others to it later.</span></label>
+    <label>Your site <input type="text" name="host" id="host" autocomplete="url" autocapitalize="off" spellcheck="false" maxlength="253" placeholder="www.example.com" required aria-describedby="host-hint">
+      <span class="hint" id="host-hint">The host name people type to reach it, without https://.</span></label>
+    <p class="msg" id="msg" role="alert"></p>
+    <button type="submit" class="btn primary" id="submit">Create the account</button>
+  </form>
+  <div class="box bad" id="broken" hidden><p id="broken-text">This link is not complete.</p><p><a href="/traffic-auth/signup">Ask for a new link</a></p></div>
+  <p class="links"><a href="/traffic-auth/login">I have an account: sign in</a></p>
+  <noscript><p class="msg err">This page needs JavaScript switched on.</p></noscript>
+</main>
+</body>
+</html>

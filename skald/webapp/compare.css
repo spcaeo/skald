@@ -1,0 +1,187 @@
+/* About Skald, "How Skald compares" (js/tabs/compare.js). Colour keeps its
+   meaning: green yes, amber partly, muted no, violet planned, grey unknown.
+   The one tint is Skald's own column, in the people blue. */
+
+.about { --me: color-mix(in srgb, var(--g-people) 8%, var(--surface)); --me-hover: color-mix(in srgb, var(--g-people) 13%, var(--surface)); }
+.glance, .guide, .matrix, .also, .sources { margin-top: 30px; }
+.cmp-h { font-size: 16.5px; margin: 0 0 10px; letter-spacing: -.01em; }
+.cmp-lede { margin: 0 0 12px; font-size: 14px; line-height: 1.55; color: var(--ink-2); }
+.cmp-lede .info-i { margin-left: 6px; vertical-align: 1px; }
+/* a module heading reached by a jump lands below the bar, the sub-nav and the table header */
+.mod-r { scroll-margin-top: calc(var(--bar-h) + var(--subnav-h) + 73px - 76px); }
+
+/* tool tiles: a letter square, Skald's quill */
+.tl { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 5px; border: 1px solid var(--rule);
+  background: var(--sunk); color: var(--ink-2); font-size: 9px; font-weight: 750; letter-spacing: -.02em; line-height: 1; }
+.tl-me { border: 0; background: none; }
+.tl-me svg { width: 20px; height: 20px; display: block; }
+.who-t { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; white-space: nowrap; }
+
+/* ------------------------------------------------------------ at a glance */
+.glance { container-type: inline-size; }
+.gl-side + .gl-side { margin-top: 16px; }
+.gl-cap { margin: 0 0 8px; font-size: 13px; font-weight: 650; color: var(--ink-2); }
+.gl-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); }
+.gl-i { padding: 16px 18px 18px; }
+.gl-i h4 { margin: 10px 0 4px; font-size: 14.5px; line-height: 1.3; }
+.gl-i p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+.gl-ic { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; }
+.gl-ic svg { width: 18px; height: 18px; }
+/* Skald's side: one joined strip, hairlines between */
+.gl-list.us { gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; }
+.us .gl-i { background: var(--surface); }
+.us .gl-ic { color: var(--g-people); background: color-mix(in srgb, var(--g-people) 12%, transparent); }
+/* the other side: a dashed outline, the winning tools named under each */
+.gl-list.them { border: 1px dashed var(--gap); border-radius: 12px; }
+.them .gl-i + .gl-i { border-top: 1px dashed var(--gap); }
+.them .gl-ic { color: var(--ink-2); border: 1px solid var(--rule); background: var(--surface); }
+.gl-who { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px !important; font-size: 12.5px; color: var(--ink) !important; }
+@container (max-width: 559px) {
+  .gl-i { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 12px; padding: 14px 16px; }
+  .gl-i h4 { margin: 0; }
+  .gl-i p { grid-column: 1 / -1; margin-top: 8px; }
+}
+@container (min-width: 560px) {
+  .gl-list.us { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .us .gl-i:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+@container (min-width: 900px) {
+  .gl-list.us { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .us .gl-i:last-child:nth-child(odd) { grid-column: auto; }
+  .gl-list.them { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .them .gl-i + .gl-i { border-top: 0; border-left: 1px dashed var(--gap); }
+}
+
+/* --------------------------------------------------------- who should use what */
+.guide-l { margin: 0; border-top: 1px solid var(--rule); }
+.guide-r { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 4px 28px; padding: 12px 14px; border-bottom: 1px solid var(--rule); }
+.guide-r dt { font-size: 14px; font-weight: 600; line-height: 1.45; }
+.guide-r dd { margin: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; line-height: 1.45; }
+.guide-use { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.guide-why { color: var(--ink-2); }
+.guide-r.me { background: var(--me); box-shadow: inset 3px 0 0 var(--g-people); }
+
+/* ------------------------------------------------------------------ matrix */
+.cmp-ctl { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 20px; margin-bottom: 10px; }
+.cmp-ctl2 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; font-size: 13px; }
+.add-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.add-l { font-size: 13px; font-weight: 650; color: var(--ink-2); margin-right: 4px; }
+.tchip2 { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px 0 8px; border-radius: 999px; border: 1px solid var(--rule);
+  background: var(--surface); color: var(--ink-2); font: inherit; font-size: 13px; cursor: pointer; }
+.tchip2:hover { border-color: var(--ink-3); color: var(--ink); }
+.tchip2[aria-pressed="true"] { background: var(--sunk); border-color: var(--ink-3); color: var(--ink); font-weight: 600; }
+.tc-s { width: 12px; text-align: center; color: var(--ink-3); font-weight: 700; }
+.tchip2[aria-pressed="true"] .tc-s { color: var(--good); }
+.cmp-key { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--ink-2); }
+.cmp-key li { display: inline-flex; align-items: center; gap: 7px; }
+.cmp-key .mk2 { --mk: 20px; }
+.cmp-key .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-3); opacity: .6; }
+
+/* The marks: a disc for yes, partly and unknown; a quiet cross for no. */
+.mk2 { --mk: 30px; display: inline-grid; place-items: center; width: var(--mk); height: var(--mk); border-radius: 50%; flex: none;
+  font-size: calc(var(--mk) * .52); font-weight: 750; line-height: 1; }
+.mk2.yes { color: var(--good); background: color-mix(in srgb, var(--good) 15%, transparent); }
+.mk2.part { color: var(--warn); background: color-mix(in srgb, var(--warn) 17%, transparent); }
+.mk2.no { color: var(--ink-3); font-weight: 450; opacity: .8; }
+.mk2.unk { color: var(--ink-3); background: var(--sunk); }
+.mk2.na { color: var(--gap); }
+.mk2.plan { width: auto; height: 24px; padding: 0 10px; border-radius: 999px; font-size: 11.5px; font-weight: 650; color: var(--opp);
+  background: color-mix(in srgb, var(--opp) 13%, transparent); }
+
+/* The table: page-wide; its header sticks under the top bar. When the chosen
+   tools cannot fit, it becomes a box that scrolls both ways (.boxed). */
+.cmp-frame { position: relative; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); overflow: clip; }
+.cmp-frame.boxed { overflow: auto; max-height: calc(100vh - var(--bar-h) - var(--subnav-h) - 24px); overscroll-behavior-x: contain; }
+table.cmp2 { width: 100%; min-width: calc(230px + var(--cols) * 96px); table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+table.cmp2 col.col-f { width: 25%; }
+table.cmp2 th, table.cmp2 td { white-space: normal; position: static; font-size: inherit; }
+table.cmp2 thead th { position: sticky; top: calc(var(--bar-h) + var(--subnav-h)); z-index: 3; background: var(--surface); padding: 14px 6px 10px;
+  border-bottom: 1px solid var(--rule); vertical-align: bottom; text-align: center; color: var(--ink); font-size: 13px; font-weight: 620; }
+.boxed table.cmp2 thead th { top: 0; }
+.th-in { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; line-height: 1.2; }
+.th-in .tl, .th-in .tl-me svg { width: 26px; height: 26px; }
+.th-in .tl { font-size: 10.5px; border-radius: 7px; }
+table.cmp2 thead th.me { background: var(--me); box-shadow: inset 0 3px 0 var(--g-people); }
+table.cmp2 thead th.c-feat, table.cmp2 tbody th[scope="row"] { position: sticky; left: 0; background: var(--surface); }
+table.cmp2 thead th.c-feat { z-index: 4; }
+table.cmp2 tbody th[scope="row"] { z-index: 2; text-align: left; vertical-align: middle; padding: 14px 16px; font-size: 14px; font-weight: 580; color: var(--ink);
+  border-top: 1px solid var(--grid); line-height: 1.35; }
+table.cmp2 tbody th small { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--ink-3); }
+table.cmp2 td { padding: 6px 4px; text-align: center; vertical-align: middle; border-top: 1px solid var(--grid); }
+table.cmp2 td.me { background: var(--me); }
+table.cmp2 tbody tr:hover > td, table.cmp2 tbody tr:hover > th[scope="row"] { background: color-mix(in srgb, var(--ink) 3.5%, var(--surface)); }
+table.cmp2 tbody tr:hover > td.me { background: var(--me-hover); }
+/* a module: its name and what it asks, as a chapter break across the table */
+.mod-r th { background: var(--page); padding: 26px 16px 10px; text-align: left; border-top: 1px solid var(--rule); }
+tbody:first-of-type .mod-r th { border-top: 0; }
+.mod-r th > span, .grp-r th { position: sticky; left: 16px; }
+.mod-n { display: inline; font-size: 18px; font-weight: 680; letter-spacing: -.015em; color: var(--ink); margin-right: 12px; }
+.mod-d { font-size: 13.5px; font-weight: 400; color: var(--ink-2); }
+.grp-r th { padding: 14px 16px 6px; text-align: left; font-size: 12.5px; font-weight: 650; color: var(--ink-3); background: var(--surface); }
+
+/* a cell: the mark and at most six words; a dot when there is more behind it */
+.c-in { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; width: 100%; min-height: 48px; padding: 6px 4px; }
+.c-note { font-size: 11.5px; line-height: 1.3; color: var(--ink-2); }
+.c-text { font-size: 12.5px; line-height: 1.35; color: var(--ink); }
+button.c-more { position: relative; width: auto; min-width: 56px; max-width: 100%; margin: 0 auto; padding: 6px 12px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+button.c-more::after { content: ""; position: absolute; top: 5px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--ink-3); opacity: .5; }
+button.c-more:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+button.c-more:hover::after, button.c-more[aria-expanded="true"]::after { opacity: 1; }
+button.c-more[aria-expanded="true"] { background: color-mix(in srgb, var(--ink) 8%, transparent); box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+button.c-more:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+/* phones: a card per feature */
+.cmp-cards { display: none; }
+@media (max-width: 767px) {
+  .cmp-frame { display: none; }
+  .cmp-cards { display: block; }
+  .guide-r { grid-template-columns: minmax(0, 1fr); padding: 12px 10px; }
+  .cmp-ctl { display: block; }
+  .cmp-ctl2 { margin-top: 10px; }
+}
+.cc-mod { margin-top: 22px; }
+.cc-mod > h4 { margin: 0; font-size: 17px; letter-spacing: -.01em; }
+.cc-mod > .mod-d { margin: 2px 0 10px; }
+.cc { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; margin: 0 0 10px; overflow: hidden; }
+.cc h5 { margin: 0; padding: 12px 14px 8px; font-size: 14.5px; line-height: 1.35; }
+.cc h5 small { display: block; font-size: 12px; font-weight: 400; color: var(--ink-3); }
+.cc ul { list-style: none; margin: 0; padding: 0; }
+.cc li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 0 8px 0 14px; border-top: 1px solid var(--grid); min-height: 48px; }
+.cc li.me { background: var(--me); box-shadow: inset 3px 0 0 var(--g-people); }
+.cc-t { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 560; }
+.cc .c-in { flex-direction: row-reverse; justify-content: flex-start; min-height: 44px; margin: 0; padding: 4px 18px 4px 8px; text-align: right; }
+.cc .c-in .mk2 { --mk: 26px; }
+.cc .c-note, .cc .c-text { max-width: 22ch; }
+.cc button.c-more::after { top: 50%; right: 6px; margin-top: -2.5px; }
+
+/* the popover with a cell's notes and sources */
+.cmp-pop { position: fixed; z-index: 60; width: min(380px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow: auto; background: var(--surface);
+  border: 1px solid var(--rule); border-radius: 12px; box-shadow: var(--shadow); padding: 14px 16px 12px; font-size: 13px; line-height: 1.5; animation: pop-in .14s var(--ease); }
+@keyframes pop-in { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { .cmp-pop { animation: none; } }
+.pop-h { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: start; margin-bottom: 8px; }
+.pop-h .tl, .pop-h .tl-me svg { width: 26px; height: 26px; }
+.pop-h b { display: block; font-size: 14px; }
+.pop-h div > span { display: block; color: var(--ink-2); font-size: 12.5px; }
+.pop-x { border: 0; background: none; color: var(--ink-3); font-size: 20px; line-height: 1; padding: 2px 6px; border-radius: 6px; cursor: pointer; }
+.pop-x:hover { color: var(--ink); background: var(--sunk); }
+.pop-mk { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-weight: 600; }
+.pop-mk .mk2 { --mk: 22px; }
+.pop-full { margin: 0 0 6px; font-size: 13.5px; }
+.pop-note { margin: 0 0 6px; color: var(--ink-2); }
+.pop-src { border-top: 1px solid var(--rule); margin-top: 8px; padding-top: 8px; }
+.pop-src > span { font-size: 12px; font-weight: 650; color: var(--ink-3); }
+.pop-src ul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; }
+.pop-src li { font-size: 12.5px; }
+.host { color: var(--ink-3); font-size: .92em; }
+.src-ref { border: 0; background: none; padding: 0 1px; font: inherit; font-size: 12px; color: var(--g-people); cursor: pointer; font-variant-numeric: tabular-nums; }
+.src-ref:hover { text-decoration: underline; }
+
+/* also checked, and the numbered sources */
+.also-l { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); max-width: 110ch; }
+.also-l b { color: var(--ink); }
+.src-l { columns: 3 20em; column-gap: 36px; margin: 0; padding-left: 34px; font-size: 12.5px; line-height: 1.45; }
+.src-l li { break-inside: avoid; margin: 0 0 5px; padding-left: 2px; scroll-margin-top: 120px; }
+.src-l li::marker { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.src-l a { text-decoration: none; }
+.src-l a:hover { text-decoration: underline; }
