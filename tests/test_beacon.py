@@ -12,6 +12,7 @@ from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from unittest import mock
 from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
@@ -330,6 +331,47 @@ class SkaldJs(unittest.TestCase):
         self.assertNotIn("cookie", text.split("*/", 1)[1])
         self.assertNotIn("localStorage", text)
 
+
+class HooksOnly(unittest.TestCase):
+    """No allowed origin: the helper takes the signed hooks only (2.2.2). The
+    beacon and the script tag answer 404, so no site can send events yet."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        config = {"site": {"name": "example.com", "hosts": ["www.example.com"]},
+                  "report": {"timezone": "UTC"}}
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(
+            Sink(config, Path(self.tmp.name) / "beacon"), Limiter(per_minute=60, burst=3), set()))
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+        self.tmp.cleanup()
+
+    def ask(self, method, path, raw=None):
+        conn = http.client.HTTPConnection("127.0.0.1", self.server.server_address[1], timeout=5)
+        conn.request(method, path, body=raw, headers={"Origin": ORIGIN, "User-Agent": CHROME,
+                                                      "Content-Type": "text/plain"})
+        status = conn.getresponse().status
+        conn.close()
+        return status
+
+    def test_beacon_and_script_tag_are_off(self):
+        self.assertEqual(self.ask("POST", "/traffic-beacon", body()), 404)
+        self.assertEqual(self.ask("GET", "/traffic-js/skald.js"), 404)
+
+    def test_hooks_still_reach_the_receiver(self):
+        seen = []
+
+        def handle(h, *args):
+            seen.append(h.path)
+            h.send_response(200)
+            h.send_header("Content-Length", "0")
+            h.end_headers()
+        with mock.patch("skald.conversions.hooks.handle", handle):
+            self.assertEqual(self.ask("POST", "/traffic-hooks/example.com/lead", b"{}"), 200)
+        self.assertEqual(seen, ["/traffic-hooks/example.com/lead"])
 
 if __name__ == "__main__":
     unittest.main()

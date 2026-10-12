@@ -237,6 +237,10 @@ A hook only exists once it has a secret. Without one the address answers 404.
 
 ## Set up a hook
 
+Nothing to switch on first: the receiver runs on every install (2.2.2; see
+[nginx](#nginx) below). On Docker, run the commands below as
+`docker exec skald skald hooks …`.
+
 1. Make its secret on the server (it is printed once, and kept 0600 in
    `secrets.json` beside the history), or on the Integrations page (below):
 
@@ -548,6 +552,13 @@ than 5 minutes off. The body:
 The receiver runs inside the beacon helper (`skald/beacon_server.py`,
 127.0.0.1:8766). nginx forwards one path to it: public, POST only, small
 bodies, rate-limited, not logged (the delivery log is Skald's own).
+
+Since 2.2.2 that helper runs on every install, whether or not the script tag is
+on: the Docker image always starts it, `install.sh` enables it, and `skald upgrade`
+switches it on if it was installed but off. Without `beacon.origins` (Docker:
+`SKALD_BEACON_ORIGINS`) it takes hooks only, and `/traffic-beacon` and
+`/traffic-js/skald.js` answer 404. Before 2.2.2 a hook answered 502 until the
+script tag was switched on.
 
 ```nginx
 # http {} context, once

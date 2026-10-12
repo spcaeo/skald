@@ -24,6 +24,11 @@ decides whether to take it:
     conversions, conversions/from_beacon.py), with the country from the
     address and the device from the user agent, both then dropped
 
+With no allowed origin (no --origin, no beacon.origins) the helper runs for the
+signed tool hooks only: /traffic-beacon and /traffic-js/skald.js answer 404, so
+a site cannot send events until its own origin is named. The Docker image always
+starts it this way or with origins, so incoming hooks never depend on the beacon.
+
 GET /traffic-js/skald.js serves the snippet (webapp/snippet/skald.js) with
 an ETag and a day's cache; with visitor IDs off it is served with IDS=0, so
 browsers make no ID at all.
@@ -272,7 +277,7 @@ def make_handler(sink: Sink, limiter: Limiter, allowed: set[str]):
             if self.path.startswith("/traffic-hooks/"):    # signed tool hooks
                 from .conversions.hooks import handle
                 return handle(self, sink.config, None, getattr(sink, "config_path", None))
-            if self.path.split("?", 1)[0] != PATH:
+            if self.path.split("?", 1)[0] != PATH or not allowed:   # no origin: hooks only
                 return self._send(404)
             if sink.unverified():                      # site_verify.py: collects nothing yet
                 return self._refuse(403, "unverified")
@@ -312,7 +317,7 @@ def make_handler(sink: Sink, limiter: Limiter, allowed: set[str]):
             return self._send(204)
 
         def do_GET(self):
-            if self.path.split("?", 1)[0] == SNIPPET_PATH:
+            if self.path.split("?", 1)[0] == SNIPPET_PATH and allowed:
                 return self._snippet(self.command == "GET")
             if self.path.startswith("/traffic-js/"):
                 return self._send(404)
@@ -374,7 +379,8 @@ def main(argv=None) -> int:
     if isinstance(origins, str):
         origins = [origins]
     if not origins:
-        p.error("no allowed origin: pass --origin or set beacon.origins")
+        print("beacon helper: no allowed origin (--origin / beacon.origins), so signed hooks "
+              "only; /traffic-beacon and /traffic-js/skald.js answer 404", file=sys.stderr)
     sink = Sink(config, beacon.spool_dir(config, config_path))
     sink.config_path = config_path        # for /traffic-hooks/ (conversions/hooks.py)
     limiter = Limiter(float(setting(config, "beacon", "per_minute", 60)),

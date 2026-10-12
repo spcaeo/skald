@@ -207,6 +207,10 @@ beacon:
 
 ### The helper
 
+`install.sh` (and, since 2.2.2, `skald upgrade`) already runs it, because it also
+receives the signed tool hooks. Until `beacon.origins` names the site's own address it
+takes hooks only, and the beacon answers 404. By hand:
+
 ```sh
 cp systemd/skald-beacon.service /etc/systemd/system/
 systemctl daemon-reload && systemctl enable --now skald-beacon

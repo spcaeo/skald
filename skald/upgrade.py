@@ -51,6 +51,7 @@ from .files import own_like_folder, write_atomic
 from .upgrade_files import Refused, Skipped
 
 UNITS = ("skald-refresh.service", "skald-beacon.service")
+BEACON_UNIT = UNITS[1]
 LOG = "upgrades.log"
 LOCK = "live.lock"
 HELPER = "http://127.0.0.1:{port}/traffic-auth/login"
@@ -102,9 +103,22 @@ def restart_units(units=UNITS) -> list[str]:
     for unit in units:
         on = any(subprocess.run(["systemctl", verb, "--quiet", unit]).returncode == 0
                  for verb in ("is-active", "is-enabled"))
+        if not on and unit == BEACON_UNIT and installed(unit):
+            # Since 2.2.2 the beacon helper runs on every install: it also receives
+            # the signed tool hooks (hooks only until beacon.origins is set).
+            if subprocess.run(["systemctl", "enable", "--now", "--quiet", unit]).returncode != 0:
+                problems.append(f"{unit} did not start")
+            continue
         if on and subprocess.run(["systemctl", "restart", unit]).returncode != 0:
             problems.append(f"{unit} did not restart")
     return problems
+
+
+def installed(unit: str) -> bool:
+    """True when systemd knows the unit file (install.sh put it there)."""
+    got = subprocess.run(["systemctl", "list-unit-files", "--no-legend", unit],
+                         capture_output=True, text=True)
+    return got.returncode == 0 and unit in got.stdout
 
 
 def helper_answers(config: dict) -> str | None:

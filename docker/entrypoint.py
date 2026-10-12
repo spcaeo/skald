@@ -2,8 +2,9 @@
 """The Docker image's entrypoint: one container, four processes, one port.
 
     serve (default)   nginx on SKALD_PORT (8080), the refresh helper on
-                      127.0.0.1:8765, the beacon helper on 127.0.0.1:8766 (when
-                      beacon.enabled), and docker/scheduler.py (live, run-daily,
+                      127.0.0.1:8765, the beacon helper on 127.0.0.1:8766 (always:
+                      it receives the signed tool hooks; the script tag and
+                      /traffic-beacon only with SKALD_BEACON_ORIGINS), and docker/scheduler.py (live, run-daily,
                       backup). Each is restarted when it stops; SIGTERM stops all.
     health            the HEALTHCHECK: the sign-in page answers through nginx and
                       the helper, and the scheduler wrote its heartbeat lately.
@@ -360,10 +361,11 @@ def programs(cfg_path: Path, config: dict, env: dict) -> dict[str, list[str]]:
                   "-g", "daemon off;"],
         "refresh": refresh,
     }
-    beacon = config.get("beacon") or {}
-    if beacon.get("enabled") in (True, "true"):
-        progs["beacon"] = [py, "-m", "skald.beacon_server", "--config", str(cfg_path),
-                           "--port", "8766"]
+    # Always: it is also the receiver of the signed tool hooks (Calendly, Stripe,
+    # the `lead` hook...), which must not wait on the script tag being switched on.
+    # Without beacon.origins it takes hooks only (beacon_server.py).
+    progs["beacon"] = [py, "-m", "skald.beacon_server", "--config", str(cfg_path),
+                       "--port", "8766"]
     if str(env.get("SKALD_SCHEDULER", "on")).lower() not in ("0", "off", "false", "no"):
         progs["scheduler"] = [py, str(APP / "docker" / "scheduler.py"), "--config", str(cfg_path)]
     return progs

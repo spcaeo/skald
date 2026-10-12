@@ -156,6 +156,15 @@ rolled back and why) to the daily mail's recipients. See when it runs with
 `/var/log/skald/upgrade.log`. Turn the timer off with
 `sudo systemctl disable --now skald-upgrade.timer`.
 
+## What an upgrade fixes by itself
+
+Nothing to edit by hand for these; upgrading is enough.
+
+| From | To | What changes on its own |
+| --- | --- | --- |
+| 2.2.0 (Docker) | 2.2.1 | The dashboard opens as the web app (menu, tabs, drawers), not the plain page. |
+| any before 2.2.2 | 2.2.2 | A `config.yml` without `dashboard.app` gets the web app (set `app: false` to keep the plain page). The webhook receiver runs even with the script tag off: Docker always starts it, `skald upgrade` switches on an installed but stopped `skald-beacon`. Webhooks (Calendly, Stripe, the `lead` hook) that answered 502 now reach Skald once their secret is set. |
+
 ## Docker
 
 An image is never changed in place: `upgrade` in a container says to pull the

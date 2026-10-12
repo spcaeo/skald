@@ -4,6 +4,29 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.2.2 (2026-10-12)
+
+Webhooks work on every install, and every install opens the dashboard. An upgrade does both
+by itself.
+
+### Fixed
+
+- **Webhooks answered 502 unless the script tag was on.** The receiver for the signed tool
+  hooks (Calendly, Cal.com, Stripe, Typeform, HubSpot, the generic `lead` hook) runs in the
+  beacon helper, which started only with `SKALD_BEACON_ORIGINS` (Docker) or when enabled by
+  hand. Now the Docker image always starts it, `install.sh` enables it, and `skald upgrade`
+  switches it on when it was installed but off. Without allowed origins it takes hooks only:
+  `/traffic-beacon` and `/traffic-js/skald.js` answer 404 until the site's origin is set.
+- **A config without `dashboard.app` showed only the plain page.** Installs made from an
+  older `config.example.yml` have no such key; it now means the web app. `app: false` keeps
+  the plain page.
+
+### What to do
+
+- **Docker:** pull the new image and start the container again (`docker compose pull && docker
+  compose up -d`). Nothing else.
+- **Install script:** `sudo skald upgrade`, or let the upgrade timer do it. Nothing else.
+
 ## 2.2.1 (2026-10-12)
 
 ### Fixed

@@ -351,10 +351,10 @@ install_units() {
   systemctl daemon-reload
   systemctl enable skald-refresh.service >/dev/null 2>&1
   systemctl restart skald-refresh.service
-  # The beacon is optional (beacon.enabled, docs/BEACON.md): restarted only if it was switched on.
-  if systemctl is-enabled --quiet skald-beacon.service 2>/dev/null; then
-    systemctl restart skald-beacon.service
-  fi
+  # The beacon helper always runs: it receives the signed tool hooks (Calendly, Stripe, the
+  # lead hook). The script tag and /traffic-beacon stay off until beacon.origins is set.
+  systemctl enable skald-beacon.service >/dev/null 2>&1
+  systemctl restart skald-beacon.service
 }
 
 install_cron() {

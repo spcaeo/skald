@@ -14,6 +14,7 @@ import sqlite3
 import sys
 import tarfile
 import tempfile
+import subprocess
 import threading
 import unittest
 from datetime import datetime, timezone
@@ -494,6 +495,41 @@ class Wiring(unittest.TestCase):
                      ["migrate", "--check"]):
             self.assertTrue(callable(parser.parse_args(argv).run), argv)
 
+
+class HelperUnits(unittest.TestCase):
+    """restart_units: since 2.2.2 an upgrade switches the beacon helper (the hook
+    receiver) on when install.sh installed it but it was never enabled."""
+
+    def run_with(self, states):
+        calls = []
+
+        def fake(cmd, **kw):
+            calls.append(cmd)
+            verb, unit = cmd[1], cmd[-1]
+            if verb in ("is-active", "is-enabled"):
+                code = 0 if states.get(unit) else 1
+            elif verb == "list-unit-files":
+                return subprocess.CompletedProcess(cmd, 0, stdout=f"{unit} disabled enabled\n")
+            else:
+                code = 0
+            return subprocess.CompletedProcess(cmd, code, stdout="")
+        with mock.patch.object(upgrade, "systemd_up", return_value=True), \
+             mock.patch.object(upgrade.subprocess, "run", side_effect=fake):
+            problems = upgrade.restart_units()
+        return problems, calls
+
+    def test_an_installed_but_off_beacon_is_enabled_and_started(self):
+        problems, calls = self.run_with({"skald-refresh.service": True})
+        self.assertEqual(problems, [])
+        self.assertIn(["systemctl", "enable", "--now", "--quiet", "skald-beacon.service"], calls)
+        self.assertIn(["systemctl", "restart", "skald-refresh.service"], calls)
+
+    def test_a_running_beacon_is_restarted(self):
+        problems, calls = self.run_with({"skald-refresh.service": True,
+                                         "skald-beacon.service": True})
+        self.assertEqual(problems, [])
+        self.assertIn(["systemctl", "restart", "skald-beacon.service"], calls)
+        self.assertNotIn("enable", [c[1] for c in calls])
 
 if __name__ == "__main__":
     unittest.main()
