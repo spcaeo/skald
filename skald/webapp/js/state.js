@@ -16,13 +16,13 @@ import { TABLE_KEY as GRID_KEY } from "./tablestate.js";
 // front of these by addSections, so TABS is every route, in the menu's order.
 export const TABS = [
   ["settings/account", "Your account"], ["settings/team", "Team"], ["settings/users", "Users"], ["settings/api", "API & tokens"],
-  ["settings/sites", "Sites"], ["settings/internal", "Internal traffic"], ["settings/retention", "Data retention"], ["settings/mail", "Mail"], ["settings/reports", "Reports"], ["settings/integrations", "Integrations"],
+  ["settings/sites", "Sites"], ["settings/internal", "Internal traffic"], ["settings/retention", "Data retention"], ["settings/mail", "Mail"], ["settings/reports", "Reports"], ["settings/integrations", "Integrations"], ["settings/aianswers", "AI answers"],
   ["settings/sitesadmin", "Add or remove sites"], ["settings/security", "Security"], ["settings/audit", "Audit log"], ["settings/billing", "Billing"], ["help", "Help"], ["about", "About Skald"],
 ];
 // Sections this server does not offer: Team, Your account and the settings pages come with
 // accounts (access.mode: sessions), which replace Users; Billing also needs saas (docs/SAAS.md).
 // access.js changes the set once /me has answered (and hides what the reader's role may not open).
-export const ACCOUNT_TABS = ["settings/team", "settings/account", "settings/retention", "settings/mail", "settings/reports", "settings/sites", "settings/sitesadmin", "settings/integrations", "settings/security", "settings/audit", "settings/billing"];
+export const ACCOUNT_TABS = ["settings/team", "settings/account", "settings/retention", "settings/mail", "settings/reports", "settings/sites", "settings/sitesadmin", "settings/integrations", "settings/aianswers", "settings/security", "settings/audit", "settings/billing"];
 export const HIDDEN = new Set(ACCOUNT_TABS);
 export const shown = (key) => !HIDDEN.has(key);
 
@@ -54,7 +54,7 @@ export const sectionOf = (key) => SECTIONS.find((x) => String(key).split("/")[0]
 export const SETTINGS_MENU = [
   ["You", ["settings/account"]],
   ["Team & access", ["settings/team", "settings/users", "settings/api"]],
-  ["This site", ["settings/sites", "settings/internal", "settings/retention", "settings/mail", "settings/reports", "settings/integrations"]],
+  ["This site", ["settings/sites", "settings/internal", "settings/retention", "settings/mail", "settings/reports", "settings/integrations", "settings/aianswers"]],
   ["Organisation", ["settings/sitesadmin", "settings/security", "settings/audit", "settings/billing"]],
 ];
 export const inSettings = (key) => key.startsWith("settings/");

@@ -865,3 +865,10 @@ Search Console and Bing Webmaster Tools figures synced into history (table
 `search_days`, history schema 14), the day kind `search_landing` (people from
 search engines by engine and landing page) and the cross-check between them.
 Every field: [docs/DATA-CONTRACT-SEARCH.md](docs/DATA-CONTRACT-SEARCH.md).
+
+## ai_answers.json (AI answers)
+
+What AI assistants say about the site, asked through their APIs per tracking
+profile (`ai_answers.sqlite` beside the history), only figures the second count
+(`audit_ai_answers.py`) verified, and the cited → read → sent → converted chain.
+Every field: [docs/DATA-CONTRACT-AI-ANSWERS.md](docs/DATA-CONTRACT-AI-ANSWERS.md).

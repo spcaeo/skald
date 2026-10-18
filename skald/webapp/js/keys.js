@@ -26,8 +26,18 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-18-2.13.0",
+  id: "2026-10-18-2.14.0",
   items: [
+    ["AI answers", "what ChatGPT, Perplexity, Gemini and Claude answer to your buyers' questions: whether they name you, the pages they cite, the competitors they name. AI & bots > AI answers.", "ai-answers"],
+    ["Tracking profiles", "ask from a place and in a language (New York in English, Montréal in French), daily, weekly or monthly, with 1 to 5 tries a question. Settings > AI answers.", "ai-answers"],
+    ["From an answer to a lead", "a page an assistant cited, beside what its fetcher then read, the visitors it sent and the leads: four counts from their own roads.", "ai-answers"],
+    ["Cost first", "each profile shows its estimated cost before it runs, and stops at its daily cap. Each assistant needs your own API key, in Settings > Integrations.", "ai-answers"],
+    ["A sample", "AI answers are a sample of API answers, labelled so: a direction over weeks, not what every user sees.", "ai-answers"],
+    ["Fixes", "a stray \"null\" no longer shows in a table's column filter or on Real time's map legend."],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.13.0
     ["Overview, today", "today's Summary in Live mode: visitors now, arrivals minute by minute, and each tile against yesterday at this hour.", "real-time"],
     ["Visitors", "a new Traffic > Visitors: the flow, each visit with its city and where the visitor first came from, and real new and returning figures.", "getting-started"],
     ["Visitors cards", "New and returning, and How engaged, follow your filters when every kept visit checks out against the day's own figures; otherwise they say they cover all visits.", "getting-started"],
@@ -48,9 +58,6 @@ const NEW = {
     ["Set up this site", "a checklist for owners and admins on a new site's Overview; Settings > Mail can preview the daily and weekly mail."],
     ["Alerts", "switch alerts, their mail and each rule on or off on Site > Alerts."],
     ["Fixes", "one Leads figure in the mails, reports and Overview; drill panels follow the period; phone tables stay in the page; and more in the changelog."],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.11.0-2.12.0
     ["Visitor flow", "see how visits moved, from where they came to each page and out; on Visitors, every drill-down and Funnels.", "visitor-flow"],
     ["Internal traffic", "pause, edit or delete an address on your own-traffic list; nothing is lost, past days keep their figures."],

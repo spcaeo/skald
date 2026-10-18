@@ -112,7 +112,7 @@ let saved = null;
 let waiting = "";   // recipients that still have to confirm (mail_confirm.py)
 
 // A card of settings with one Save button; a smaller window asks for the site's name first.
-function card(title, sub, names, all, site, onSaved) {
+export function card(title, sub, names, all, site, onSaved) {
   const rows = names.filter((k) => all[k]).map((k) => [k, control(k, all[k])]);
   const msg = status();
   if (saved === title) { msg.say("Saved. It applies from the next run." + waiting, true); saved = null; }

@@ -151,6 +151,13 @@ SCHEMA: dict[str, Key] = {
                             label="Bing Webmaster Tools site"),
     "search.bing_api_key": Key("secret", "install", ("install",), None,
                                env="BING_WEBMASTER_API_KEY", label="Bing API key"),
+    # AI answers (answers/): each assistant's API key, install level.
+    **{f"ai_answers.{p}_key": Key("secret", "install", ("install",), None,
+                                  env=f"SKALD_{p.upper()}_API_KEY", label=label)
+       for p, label in (("openai", "OpenAI API key (ChatGPT answers)"),
+                        ("perplexity", "Perplexity API key"),
+                        ("gemini", "Google Gemini API key"),
+                        ("anthropic", "Anthropic API key (Claude answers)"))},
     "sites.hosts": Key("hosts", "admin", ("site",), ("site", "hosts"), [], label="Host names"),
     "sites.views": Key("views", "admin", ("site",), ("dashboard", "views"), [], label="Views"),
     "sites.timezone": Key("zone", "admin", ("site",), ("report", "timezone"), "UTC",

@@ -43,7 +43,8 @@ from .config import load_config, site_name, views as config_views
 from .files import slug, write_atomic
 
 PER_SITE = ("live", "run-daily", "dashboard", "check", "collect", "backfill", "audit",
-            "verify-bots", "pagespeed", "doctor", "search-console", "bing", "search", "reports")
+            "verify-bots", "pagespeed", "doctor", "search-console", "bing", "search", "reports",
+            "ai-answers")
 
 
 def merged(base: dict, over: dict) -> dict:

@@ -521,3 +521,20 @@ alerts:
 #   grace_days: 7                    # past due this long: read-only, nothing deleted
 #   default_plan: starter
 #   plans: [{name: starter, sites: 1, requests_month: 300000, retention_days_max: 90, members: 3, trial_days: 14, price_id: price_123, label: Starter}, {name: team, sites: 10, requests_month: 3000000, retention_days_max: 400, members: 20, price_id: price_456, label: Team}]
+
+# AI answers (docs/AI-ANSWERS.md): what ChatGPT, Perplexity, Gemini and Claude
+# say for the tracking profiles' questions. Off until an install admin saves a
+# provider's key (Settings > Integrations; or SKALD_OPENAI_API_KEY and the like
+# in the environment) and a site admin makes a profile (Settings > AI answers).
+# Only the models, the prices the estimate and the cap use (US dollars an
+# answer), and the hour a due profile starts (site's zone) are set here.
+# ai_answers:
+#   openai_model: gpt-4.1-mini
+#   perplexity_model: fast          # an Agent API preset, or provider/model
+#   gemini_model: gemini-2.5-flash
+#   anthropic_model: claude-haiku-4-5
+#   openai_price: 0.03
+#   perplexity_price: 0.01
+#   gemini_price: 0.04
+#   anthropic_price: 0.03
+#   run_hour: 6

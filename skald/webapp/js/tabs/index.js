@@ -9,6 +9,7 @@ import auditlog from "./auditlog.js";
 import billing from "./billing.js";
 import sitesadmin from "./sitesadmin.js";
 import integrations from "./integrations.js";
+import aiAnswersSettings from "./ai-answers-settings.js";
 import reports from "./reports.js";
 import about from "./about.js";
 import help from "./help.js";
@@ -19,7 +20,7 @@ import { TAB, SECTION_ICONS } from "../sections.js";
 export const TAB_RENDER = { ...Object.fromEntries(Object.entries(TAB).map(([k, t]) => [k, t.render])),
   "settings/internal": ours, "settings/api": api, "settings/users": users,
   "settings/team": team, "settings/account": account, "settings/retention": retention, "settings/mail": mail, "settings/reports": reports,
-  "settings/sites": sites, "settings/sitesadmin": sitesadmin, "settings/integrations": integrations, "settings/security": security, "settings/audit": auditlog, "settings/billing": billing, help, about };
+  "settings/sites": sites, "settings/sitesadmin": sitesadmin, "settings/integrations": integrations, "settings/aianswers": aiAnswersSettings, "settings/security": security, "settings/audit": auditlog, "settings/billing": billing, help, about };
 
 const I = (d) => `<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 export const TAB_ICONS = {
@@ -34,6 +35,7 @@ export const TAB_ICONS = {
   "settings/sites": I('<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 5.5h12M4 4h.01M5.5 4h.01"/>'),
   "settings/sitesadmin": I('<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 5.5h12M8 7.5v4M6 9.5h4"/>'),
   "settings/integrations": I('<path d="M6 2.5v3M10 2.5v3M4.5 5.5h7v2.5a3.5 3.5 0 0 1-7 0z"/><path d="M8 11.5v2"/>'),
+  "settings/aianswers": I('<path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z"/><path d="M5.5 7h.01M8 7h.01M10.5 7h.01"/>'),
   "settings/security": I('<rect x="3.5" y="7" width="9" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>'),
   "settings/audit": I('<path d="M4 1.8h5.5L13 5.3v8.9H4z"/><path d="M6.5 8h4M6.5 10.5h4M6.5 5.5h1.5"/>'),
   "settings/billing": I('<rect x="1.8" y="3.5" width="12.4" height="9" rx="1.5"/><path d="M1.8 6.5h12.4M4 10h3"/>'),

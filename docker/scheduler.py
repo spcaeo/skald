@@ -16,6 +16,11 @@
                 the daily run. Each connected site in turn, under its own lock
                 (search/sync.py); a site with nothing connected is skipped at
                 once. Its failures mail once by themselves, so no failure mail here.
+    ai-answers  `ai-answers --due` every SKALD_AI_ANSWERS_MINUTES minutes (15; 0 turns
+                it off): the AI answers tracking profiles whose time has come, or
+                that an admin asked to run now (answers/run.py). Nothing is asked
+                until an install admin saved a provider's key and a site admin made
+                a profile; a profile past its daily cap waits for the next day.
 
 Like cron with `flock -n`: a job still running when it is next due is not
 started twice; a time missed while the container was down is not caught up.
@@ -142,7 +147,8 @@ class Job:
 
 class Scheduler:
     def __init__(self, config: str, tz: str, live_minutes: int, daily_at: str, backup_at: str,
-                 report_minutes: int = 15, search_hours: int = 0, search_at: str = "01:40"):
+                 report_minutes: int = 15, search_hours: int = 0, search_at: str = "01:40",
+                 answers_minutes: int = 0):
         self.config = config
         ti = [sys.executable, str(APP / "bin/skald"), "--config", config]
         self.ti = ti
@@ -160,6 +166,9 @@ class Scheduler:
         if search_hours > 0:
             self.jobs.append(Job("search", ti + ["search", "sync"],
                                  lambda t: next_hours(t, search_at, search_hours, tz)))
+        if answers_minutes > 0:
+            self.jobs.append(Job("ai-answers", ti + ["ai-answers", "--due"],
+                                 lambda t: next_every(t, answers_minutes)))
         self.stopping = False
 
     def log_path(self, job: Job) -> Path:
@@ -272,10 +281,13 @@ def main(argv: list[str] | None = None) -> int:
     search_hours = int(os.environ.get("SKALD_SEARCH_HOURS") or 6)
     search_at = os.environ.get("SKALD_SEARCH_AT") or "01:40"
     parse_hhmm(search_at)
+    answers = int(os.environ.get("SKALD_AI_ANSWERS_MINUTES") or 15)
     say(f"times in {tz}: run-daily {daily}, backup {backup}, live every {minutes} min, "
-        f"client reports every {reports} min, search sync every {search_hours} h from {search_at}")
+        f"client reports every {reports} min, search sync every {search_hours} h from {search_at}, "
+        f"AI answers every {answers} min")
     return Scheduler(a.config, tz, minutes, daily, backup, report_minutes=reports,
-                     search_hours=search_hours, search_at=search_at).run()
+                     search_hours=search_hours, search_at=search_at,
+                     answers_minutes=answers).run()
 
 
 if __name__ == "__main__":

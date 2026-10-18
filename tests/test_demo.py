@@ -111,6 +111,23 @@ class Build(unittest.TestCase):
         self.assertEqual(build["name"], (ROOT / "NAME").read_text().strip())
         self.assertEqual(build["version"], (ROOT / "VERSION").read_text().strip())
 
+    def test_ai_answers_made_up_and_recounted_and_no_key_kept(self):
+        # demo_answers.py: runs through answers/run.py with a stand-in for the providers,
+        # every run recounted by the second road; the made-up keys never leave the build.
+        got = json.loads((self.site / "data" / "ai_answers.json").read_text())
+        self.assertEqual(got["state"], "ok")
+        self.assertEqual([p["name"] for p in got["profiles"]], ["New York", "London", "Montréal"])
+        self.assertTrue(got["trend"])
+        self.assertFalse(any(t["withheld"] for t in got["trend"]))
+        self.assertTrue(got["last"])
+        self.assertTrue(all(p["key"] for p in got["providers"]))
+        for var in sys.modules["demo_answers"].KEYS:
+            self.assertNotEqual(os.environ.get(var), "demo-made-up-key")
+        leaked = [p for p in self.out.rglob("*") if p.is_file() and b"demo-made-up-key" in p.read_bytes()]
+        self.assertEqual(leaked, [])
+        text = json.dumps(got)
+        self.assertNotRegex(text, r"https?://(?!(?:[a-z0-9-]+\.)*example\.(?:com|org|net)/)[^\s\"]+")
+
     @unittest.skipUnless(shutil.which("node"), "node is not installed")
     def test_the_visitor_flow_reconciles_with_the_visit_tables(self):
         """js/flow.js on the built page: its columns are Where visits started, Common

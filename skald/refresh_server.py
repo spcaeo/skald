@@ -102,6 +102,7 @@ from . import client_reports_api
 from .saas import billing_api, signup_api
 from .mcp import http as mcp_http
 from .people import api as people_api
+from .answers import api as answers_api
 
 MIN_GAP = 15          # seconds between two runs
 RUN_TIMEOUT = 90      # seconds a run may take before it is abandoned
@@ -458,6 +459,9 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
             if client_reports_api.is_reports(self.path):  # Settings > Reports
                 return client_reports_api.handle(self, True, config, live_dir, allowed,
                                                  same_origin, history_path, config_path)
+            if answers_api.is_answers(self.path):       # AI answers: lists, profiles
+                return answers_api.handle(self, True, config, live_dir, allowed, same_origin,
+                                          history_path, config_path)
             if settings_api.is_settings(self.path):     # before team_api: settings/audit
                 return settings_api.handle(self, True, config, live_dir, allowed, same_origin,
                                            history_path, config_path)
@@ -515,6 +519,9 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
             if client_reports_api.is_reports(self.path):
                 return client_reports_api.handle(self, False, config, live_dir, allowed,
                                                  same_origin, history_path, config_path)
+            if answers_api.is_answers(self.path):
+                return answers_api.handle(self, False, config, live_dir, allowed, same_origin,
+                                          history_path, config_path)
             if settings_api.is_settings(self.path):
                 return settings_api.handle(self, False, config, live_dir, allowed, same_origin,
                                            history_path, config_path)

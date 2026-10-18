@@ -55,7 +55,8 @@ RECOUNTS = {"funnels": "audit_funnels", "engagement": "audit_engagement",
             "first_touch": "audit_firsttouch", "search_landing": "audit_search_landing",
             "crawl_health": "audit_crawl_health"}
 DAILY: dict[str, str] = {"conversions": "audit_conversions", "alerts": "audit_alerts",
-                         "search": "audit_search", "retention": "audit_retention"}
+                         "search": "audit_search", "retention": "audit_retention",
+                         "ai_answers": "audit_ai_answers"}
 
 
 def _modules(registry: dict) -> dict:

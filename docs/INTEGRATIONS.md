@@ -953,3 +953,24 @@ count different things and are never forced to match: a click is not a
 visit, some apps send no referrer, Pacific days are not the site's days. The
 tab says so beside the figures, and flags a sudden change in the ratio:
 that is usually a tracking break.
+
+## AI answers
+
+What ChatGPT, Perplexity, Gemini and Claude say when asked the questions
+buyers ask, joined with what the same assistant read on the site and the
+visitors and leads it sent. Every detail (providers, fields, cost, the cap,
+the second count): [docs/AI-ANSWERS.md](AI-ANSWERS.md). In short:
+
+- **Keys:** one per assistant, Settings › Integrations › "AI answers:
+  assistants' API keys" (install admins), write-only, 0600 in `secrets.json`;
+  the environment wins: `SKALD_OPENAI_API_KEY`, `SKALD_PERPLEXITY_API_KEY`,
+  `SKALD_GEMINI_API_KEY`, `SKALD_ANTHROPIC_API_KEY`. Never printed or logged.
+- **Opt-in:** nothing is asked until a key is set and a site admin makes a
+  tracking profile that names that assistant (Settings › AI answers).
+- **Costs:** every answer costs on your provider account. The profile's panel
+  shows the estimate before it runs (questions × tries × assistants × price
+  an answer × runs a month) and each profile has a daily cap in US dollars;
+  a run past it goes on the next day.
+- **Privacy:** the questions, and the profile's place and language, are sent
+  to the providers you choose, under their terms. Nothing about visitors is.
+  Answers are kept 400 days (per site, `keep_days`).

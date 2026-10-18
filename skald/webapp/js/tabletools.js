@@ -136,7 +136,7 @@ export function filterCell(c, kind, f, options, set) {
         });
         return h("label", { class: "tt-opt" }, box, h("span", null, v || "Not recorded"), h("small", null, n(k)));
       }) : [h("p", { class: "tt-pop-h" }, "No values in these rows.")]),
-      picked.length ? h("button", { type: "button", class: "linkish tt-clear", onclick: () => { picked = []; say(); toggle.classList.remove("on"); set(null); draw(); } }, "Clear") : null);
+      picked.length ? h("button", { type: "button", class: "linkish tt-clear", onclick: () => { picked = []; say(); toggle.classList.remove("on"); set(null); draw(); } }, "Clear") : "");
     };
     say();
     return h("div", { class: "tt-f" }, popper(toggle, pop, { onOpen: draw }));
