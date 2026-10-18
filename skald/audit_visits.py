@@ -33,6 +33,8 @@ def _is_asset_path(path: str) -> bool:
 
 def _is_beacon_path(path: str) -> bool:
     low = path.lower()
+    if low == "/api" or low.startswith("/api/"):     # any JSON API endpoint
+        return True
     for name in _BEACONS:
         head = "/" + name
         if low.startswith(head):

@@ -25,8 +25,9 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-18a",
+  id: "2026-10-18b",
   items: [
+    ["Pages", "calls to a site's own API (/api/...) are no longer counted as pages or as steps between pages."],
     ["Countries", "a log with no country of its own (Caddy, a plain log) gets one from a GeoIP file your server admin sets. DB-IP's free file works.", "faq"],
     ["Caddy", "sites with a Caddy log no longer fail the daily check, so their days are stored."],
     ["More readers", "sites added from the dashboard no longer wait for the first site's files, so returning readers count as people again."],

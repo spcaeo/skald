@@ -180,7 +180,7 @@ _ASSET_EXT = (".css", ".js", ".mjs", ".map", ".png", ".jpg", ".jpeg", ".gif",
               ".tgz", ".rar", ".7z", ".mp4", ".webm", ".mov", ".mp3", ".wav", ".ogg",
               ".m4a", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".wasm")
 _ASSET_DIRS = ("/_next/", "/static/", "/assets/", "/_nuxt/", "/build/")
-_BEACON = re.compile(r"^/(?:api/events|api/analytics|__analytics|collect|beacon|ping)\b",
+_BEACON = re.compile(r"^/(?:api/|api$|__analytics\b|collect\b|beacon\b|ping\b)",
                      re.I)
 
 

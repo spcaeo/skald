@@ -155,7 +155,7 @@ export function audience(m, s) {
   if (!t || !t.by) return [...out, nothing(m, r, "breakdowns")];
   const credit = m.credit ? h("p", { class: "note" }, h("a", { href: m.credit.url || null, rel: "noreferrer" }, m.credit.text)) : null;
   out.push(h("div", { class: "cols" },
-    panel("Countries", "From the log's country field; Unknown when it had none, never guessed",
+    panel("Countries", "From the log's country field, or the GeoIP file for a line without one; Unknown when neither had it, never guessed",
       blist(ranked(t.by.country, only(s.country)), { drill: "country", total: t.readers, limit: 12 }), credit),
     h("div", { style: { display: "grid", gap: "18px", alignContent: "start" } },
       panel("Devices", null, meter(t.by.device, t.readers, s.device)),
