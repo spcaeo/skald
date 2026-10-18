@@ -40,9 +40,9 @@ One card per crawler: the share of your sitemap's pages it fetched at least once
 | Coverage | Sitemap pages it fetched at least once, out of all of them. |
 | Never fetched | Sitemap pages it did not fetch once in the window: orphans, as far as that crawler knows. |
 | Not in sitemap | Pages it fetched (and your site served) that the sitemap does not list. |
-| Fetches per page | Its requests per sitemap page it fetched: how often it comes back. |
 | 404 / 410, 5xx, Redirects | How many of its requests got each answer. |
 | Last crawl | Its last request. |
+| Kind, Fetches per page | Hidden at first, so the table fits the screen: turn them on under **Columns**. Kind is search, AI crawler or AI user fetcher; fetches per page is its requests per sitemap page it fetched, how often it comes back. Your choice stays in the page's address. |
 
 The chart **Sitemap pages fetched per day** shows one crawler at a time: pick it beside the title. A day it made no request is 0; a day that was not recorded is a gap, never a 0.
 

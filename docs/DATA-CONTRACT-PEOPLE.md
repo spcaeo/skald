@@ -152,8 +152,16 @@ returning visitors first came from"; a day without it is left out and said.
 audit's own labels, and links it again with its own SQL on conversions.sqlite (`journeys`,
 `visits`) and history (`visitor_days`), opened read-only, and its own keyed hash. Which links
 were on (`roads`) is read from the blob (a setting, not a figure); the window's end is its own.
-Every count above is compared; a mismatch withholds the day. An old day audited after its
-visitor IDs' page views or 30-day codes were pruned disagrees, as "returning" does.
+Every count above is compared; a mismatch withholds the day.
+
+A day audited after inputs its links could have read were pruned (an ID's page views after
+`journeys.vid_days`, 30, unless the ID converted; kept visits after `privacy.keep_days`; the
+30-day codes after `visitors.repeat_days`) says its first touch is "not checkable (inputs
+expired)", as the visitor hashes and returning readers do: never a mismatch, never withheld.
+Only its visit count, which needs no kept input, is still compared. Pruned is read from the
+files: a stored day the count could have read (its blob says the link was on and it had visits)
+whose page views (of IDs that never converted, before the earliest one kept), kept visits or
+codes are gone. Kept visits and codes count only when the day linked a visit by them.
 
 ## The visitor timeline (2.12.0)
 

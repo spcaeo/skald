@@ -243,6 +243,68 @@ class ByVisitorID(Base):
         self.assertEqual(got, {}, "a page view after the window's end is not read")
 
 
+class ExpiredInputs(Base):
+    """A day audited after the inputs its first touch was linked from were
+    pruned (an ID's page views after journeys.vid_days, kept visits after
+    privacy.keep_days, the 30-day codes) says "not checkable (inputs
+    expired)", as the visitor hashes do; never a mismatch. Its visit count,
+    which needs no kept input, is still compared."""
+    extra = "beacon:\n  enabled: true\n  visitor_ids: true\n"
+    VID = "skv_" + "E" * 22
+
+    def setUp(self):
+        super().setUp()
+        db = store.connect(self.box.root / "conversions.sqlite")
+        with store.tx(db):
+            for when, path, source, via in ((at(D1, 7), "/blog/", "Social media", "linkedin.com"),
+                                            (at(D2, 14) + timedelta(seconds=1), "/", "Direct or unknown", "")):
+                store.record_page_view(db, "example.com", self.VID, store.stamp(when), path, source, via)
+        db.close()
+        self.box.log(lines())
+        self.collect(D1, D2)
+
+    def sql(self, statement: str) -> None:
+        db = sqlite3.connect(self.box.root / "conversions.sqlite")
+        db.execute(statement)
+        db.commit()
+        db.close()
+
+    def test_inside_their_keeping_everything_is_compared(self):
+        code, out = self.audit(D2)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("first touch", out)
+
+    def test_page_views_past_their_keeping_are_not_checkable(self):
+        self.assertEqual(self.blob(D2)["by"]["vid"], 1)
+        code, _, err = self.box.run("--today", (D2 + timedelta(days=40)).isoformat(),
+                                    "conversions", "prune")
+        self.assertEqual(code, 0, err)
+        code, out = self.audit(D2)
+        self.assertEqual(code, 0, out)
+        self.assertIn("not checkable (inputs expired)", out)
+        self.assertIn("first touch", out)
+
+    def test_kept_visits_past_their_keeping_are_not_checkable(self):
+        self.sql("DELETE FROM visits WHERE day = '2026-10-05'")      # as privacy.keep_days prunes
+        code, out = self.audit(D2)
+        self.assertEqual(code, 0, out)
+        self.assertIn("not checkable (inputs expired)", out)
+        self.assertIn("first touch", out)
+
+    def test_the_visit_count_is_still_compared(self):
+        self.sql("DELETE FROM journeys")
+        db = sqlite3.connect(self.box.db)
+        blob = self.blob(D2)
+        blob["visits"] += 1
+        db.execute("UPDATE day_extras SET data = ? WHERE kind = 'first_touch' AND day = ?",
+                   (json.dumps(blob), D2.isoformat()))
+        db.commit()
+        db.close()
+        code, out = self.audit(D2)
+        self.assertEqual(code, 1, out)
+        self.assertIn("first touch: visits", out)
+
+
 class Timeline(Base):
     def test_every_visit_of_the_visitor_newest_first(self):
         self.box.log(lines())

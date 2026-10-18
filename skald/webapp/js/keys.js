@@ -26,17 +26,21 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-18-2.14.0",
+  id: "2026-10-18-2.14.1",
   items: [
+    ["Crawl health", "the table fits the screen: Kind and Fetches per page start hidden; Columns shows them again.", "crawl-health"],
+    ["Leads won or lost", "a lead counts once, on the day it was completed or paid; a later won or lost is shown apart and changes no count.", "leads-and-conversions"],
+    ["Audit", "first touch says \"not checkable (inputs expired)\" when the 30 days behind a day are no longer kept, instead of a mismatch."],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.14.0
     ["AI answers", "what ChatGPT, Perplexity, Gemini and Claude answer to your buyers' questions: whether they name you, the pages they cite, the competitors they name. AI & bots > AI answers.", "ai-answers"],
     ["Tracking profiles", "ask from a place and in a language (New York in English, Montréal in French), daily, weekly or monthly, with 1 to 5 tries a question. Settings > AI answers.", "ai-answers"],
     ["From an answer to a lead", "a page an assistant cited, beside what its fetcher then read, the visitors it sent and the leads: four counts from their own roads.", "ai-answers"],
     ["Cost first", "each profile shows its estimated cost before it runs, and stops at its daily cap. Each assistant needs your own API key, in Settings > Integrations.", "ai-answers"],
     ["A sample", "AI answers are a sample of API answers, labelled so: a direction over weeks, not what every user sees.", "ai-answers"],
     ["Fixes", "a stray \"null\" no longer shows in a table's column filter or on Real time's map legend."],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.13.0
     ["Overview, today", "today's Summary in Live mode: visitors now, arrivals minute by minute, and each tile against yesterday at this hour.", "real-time"],
     ["Visitors", "a new Traffic > Visitors: the flow, each visit with its city and where the visitor first came from, and real new and returning figures.", "getting-started"],

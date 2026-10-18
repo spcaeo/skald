@@ -2,6 +2,19 @@
 
 All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versioning](https://semver.org).
 
+## 2.14.1 (2026-10-18)
+
+### Fixed
+
+- **Crawl health** fits at 1280 px: "Kind" and "Fetches per page" start hidden ("Columns" shows
+  them; the address keeps the choice). Tables can mark a column hidden by default.
+- **Leads won or lost later:** the rule is now written down and tested. A lead counts once, on the
+  day it was completed or paid; a later won or lost is shown apart and adds or takes away nothing.
+  A won or lost with no completed row is not a lead. Same on Overview, mails, client reports and
+  Leads & sales.
+- **Audit:** first touch says "not checkable (inputs expired)" when visitor-ID page views older
+  than 30 days were pruned after the day was counted, instead of reporting a mismatch.
+
 ## 2.14.0 (2026-10-18)
 
 What ChatGPT, Perplexity, Gemini and Claude answer when asked the questions your customers ask,
