@@ -120,8 +120,10 @@ their type, status and both touches, so the app sums any range of the 180 days.
   when the lead has no such touch (then every label is `"(none)"` and `paid` false).
 - `ai`, `campaign`, `utm_source`, `utm_medium`: lower case, at most 60 characters;
   `landing`: at most 120. `"(none)"` when the touch did not carry it.
-- `paid`: true when the touch carried `gclid` or `msclkid`, or its `utm_medium` is a
-  paid medium (cpc, ppc, paid, paidsearch, paidsocial, display, cpm and spellings).
+- `paid`: true when the touch carried `gclid`, `gbraid`, `wbraid` (Google Ads clicks from
+  iOS) or `msclkid`, or its `utm_medium` is a paid medium (cpc, ppc, paid, paidsearch,
+  paidsocial, display, cpm and spellings). A touch without one of these fields (an old
+  lead, a site that does not send it) reads it as empty.
   `fbclid` alone is not paid: Facebook adds it to every link out.
 - **Statuses are as of now.** When the team changes a lead's status in the website's
   admin, past days change with it.

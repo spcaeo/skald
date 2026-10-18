@@ -4,6 +4,41 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.9.0 (2026-10-18)
+
+The script tag for every site of an install, and Google Ads clicks from iOS read as paid.
+
+### Added
+
+- **The script tag works for every site, not only the first.** The beacon helper sends each
+  `POST /traffic-beacon` to the site its `Origin` names, into that site's own spool: the first
+  site's stays `<history folder>/beacon`, another site's is `sites/<name>/beacon`, where its daily
+  run already reads. A site added from the dashboard (or in a `sites:` file) accepts
+  `https://<each of its hosts>` as origins, but only while the install has the script tag on
+  (the first site has an origin: `beacon.origins`, `SKALD_BEACON_ORIGINS`). The first site keeps
+  its own list. Sites and their settings are read again every 60 seconds.
+- **Visitor IDs per site:** `beacon.visitor_ids` is a site setting (admin, off by default).
+  `/traffic-js/skald.js` is served with the setting of the site whose page loads it (by
+  `Referer`; the first site when there is none), with `Vary: Referer`. Turn it on only when that
+  site's privacy notice says so; a consent banner should gate the tag.
+- **Each site's beacons counted apart in the audit.** The helper names the site in a response
+  header, `X-Skald-Site`, and nginx's beacon log writes it as a third field:
+  `log_format skald_beacon '$time_iso8601 $status $upstream_http_x_skald_site';`. The event audit
+  compares each site's 204s with its own spool. A line without the field (before 2.9.0) is the
+  first site's. The Docker image has the new line; **an nginx you run yourself needs it**
+  (docs/UPGRADING.md).
+- A site can pass the tag through its own server (Caddy or nginx on the site's domain, forwarding
+  `/traffic-js/` and `/traffic-beacon` to the Skald server), so the tag and the beacon stay on the
+  site's own origin. The Skald server's nginx must trust that server's address for
+  `X-Forwarded-For` (`set_real_ip_from`; Docker: `SKALD_TRUSTED_PROXIES`), so the rate limit and
+  the own-traffic check see the visitor's address. It is never stored.
+
+### Fixed
+
+- **Google Ads clicks from iOS mark a lead paid.** `gbraid` and `wbraid` count like `gclid`: the
+  touch is paid and reads as a Search engine visit, on both counting roads. Lead hooks and the
+  lead database keep them on the touch.
+
 ## 2.8.1 (2026-10-18)
 
 ### Fixed

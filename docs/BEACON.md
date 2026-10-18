@@ -13,21 +13,102 @@ figures never depend on it.
 ```
 page  --navigator.sendBeacon('/traffic-beacon', {...})-->  nginx  -->  beacon helper (127.0.0.1:8766)
                                                              |               |
-                                     the beacon log: time, status      the day's spool: one line per event
+                              the beacon log: time, status, site      the site's spool: one line per event
                                                                              |
                                                   run-daily: collect -> verify -> audit -> history (400 days)
 ```
 
 1. The page posts one small JSON body per event to its own origin.
 2. nginx rate-limits it, caps the body at 1 KB, writes one line to its own
-   beacon log (time and status only, no address) and forwards it to the
-   helper (`skald/beacon_server.py`).
-3. The helper checks the Origin, the body and its own per-address limit,
+   beacon log (time, status and the site's name; no address) and forwards it
+   to the helper (`skald/beacon_server.py`).
+3. The helper finds the site by the Origin (below, "Several sites"), checks
+   the body and its own per-address limit,
    drops Do Not Track and Global Privacy Control, drops anything the
    classifier does not file under people (bots do not click), and appends
-   the event to the day's spool. The address is used in memory only.
+   the event to that site's spool for the day. The address is used in
+   memory only.
 4. run-daily counts yesterday's spool into history, checks it against the
    log's page views, and audits it by a second road (below).
+
+## Several sites (2.9.0)
+
+One install can count several sites: the first site (`config.yml`) and the
+sites added from the dashboard or listed in a `sites:` file. Since 2.9.0 one
+beacon helper takes events for all of them. Before, only the first site could
+use the script tag.
+
+- **The site is the Origin.** Each `POST /traffic-beacon` goes to the site
+  its `Origin` header names. The first site takes the origins it is given
+  (`beacon.origins`, Docker `SKALD_BEACON_ORIGINS`, `--origin`), and only
+  those. Every other site takes `https://<each of its hosts>` (`site.hosts`,
+  Settings > Sites), but only while the install has the script tag on, that
+  is while the first site has an origin. An origin no site claims is refused
+  (`403`). When two sites name the same origin, the first site wins.
+- **Each site has its own spool.** The first site's is
+  `<history folder>/beacon`; another site's is
+  `<history folder>/sites/<name>/beacon`, where its daily run already
+  reads. Each site's events are collected, verified and audited on their own.
+- **Each site's 204s are counted apart.** The helper names the site in a
+  response header, `X-Skald-Site`, and nginx writes it as the beacon log's
+  third field (`$upstream_http_x_skald_site`, below). The audit compares
+  each site's 204s with that site's spool. A line without the field
+  (written before 2.9.0) is the first site's, the only one then. With the
+  old two-field `log_format`, every line reads as the first site's, so
+  another site's audit finds no 204s and withholds its days.
+- **Visitor IDs per site.** `beacon.visitor_ids` is a site setting (below).
+  `/traffic-js/skald.js` is served with the setting of the site whose page
+  loads it, found by the `Referer` (scheme and host only). With no
+  `Referer`, or one that is not a site's, it is served with the first site's
+  setting. The answer carries `Vary: Referer`, so a cache keeps one copy per
+  page. Whatever the file did, the helper keeps `v` only for a site that has
+  visitor IDs on.
+- **Read again every minute.** The list of sites, their hosts and their
+  settings (visitor IDs, goals) are read again every 60 seconds. A site
+  added from the dashboard takes events within a minute; no restart.
+
+### A site on another server: pass the tag through it
+
+The tag posts to its own page's origin, so the page's server must forward two
+paths to the Skald server: `/traffic-js/` and `/traffic-beacon`. The browser
+then sees one origin, and the `Origin` the helper reads is the site's own.
+With Caddy on the site's server (`www.example.net`; Skald at
+`skald.example.com`):
+
+```caddy
+www.example.net {
+  @skald path /traffic-beacon /traffic-js/*
+  handle @skald {
+    reverse_proxy https://skald.example.com {
+      header_up Host {upstream_hostport}
+    }
+  }
+  # ... the site itself
+}
+```
+
+and in the page's `<head>`:
+
+```html
+<script src="/traffic-js/skald.js" data-site="example.net" defer></script>
+```
+
+Netlify, Vercel and Cloudflare do the same with a rewrite (docs/HOSTING.md).
+
+The Skald server then sees the site's server, not the visitor. Its nginx must
+take the visitor's address from that server's `X-Forwarded-For`, and only
+from that server:
+
+```nginx
+set_real_ip_from 203.0.113.10;     # the site's server
+real_ip_header X-Forwarded-For;
+real_ip_recursive on;
+```
+
+In Docker: `SKALD_TRUSTED_PROXIES=203.0.113.10` (docs/HOSTING.md). Without
+it, every visitor has the site server's address: one rate limit for all of
+them, and our own traffic is not told apart. The address is used for those
+two things only, in memory, and never stored.
 
 ## What a beacon may say
 
@@ -51,7 +132,8 @@ neither beacon-only mode nor visitor IDs are on), `400` for a bad body,
 `403` for a foreign or missing Origin (or a site made by sign-up whose domain
 is not verified yet), `411` with no length, `413` over 1 KB
 and `429` over the limit. Until `beacon.origins` names an origin, the beacon
-answers `404`.
+answers `404`. Each answer to a post carries `X-Skald-Site: <site>` when the
+helper knew the site (2.9.0).
 
 ### Events
 
@@ -98,7 +180,9 @@ an AI citation also keep the assistant's name.
 
 ## Visitor IDs (off by default)
 
-With `beacon.visitor_ids: true` the beacon also keeps `v`, a random ID the
+`beacon.visitor_ids` is set per site (since 2.9.0: a site setting, admin,
+default off; docs/SETTINGS.md). With `beacon.visitor_ids: true` the beacon
+also keeps `v`, a random ID the
 browser made (`skv_` and 16 random bytes in base64url; no name, email or
 fingerprint). It lets Skald follow one browser's anonymous journey to a
 conversion. Off, the
@@ -149,8 +233,9 @@ sent a form at a lead's time, said as not certain: DATA-CONTRACT-PEOPLE.md.)
 
 ## What is kept
 
-- The spool, `<history folder>/beacon/<YYYY-MM-DD>.jsonl`: one line per
-  counted event - time, the fields above, people or ours, the source type,
+- The spool, `<history folder>/beacon/<YYYY-MM-DD>.jsonl` for the first
+  site and `<history folder>/sites/<name>/beacon/<YYYY-MM-DD>.jsonl` for
+  each other site: one line per counted event - time, the fields above, people or ours, the source type,
   and `v` only with visitor IDs on. No address, no user agent. Kept 400
   days, like the counts.
 - With visitor IDs on: journeys and conversions in `conversions.sqlite`
@@ -177,8 +262,8 @@ requests are kept apart in the log, and never added to people.
 
 **Audit** (after collect, by a separate road). The spool is recounted from
 its raw text with a pattern, not the JSON reader collect used, and compared
-with history per event; and the 204s in nginx's beacon log are counted for
-the same local day and compared with the spool's lines. Only events within
+with history per event; and the site's 204s in nginx's beacon log are
+counted for the same local day and compared with the spool's lines. Only events within
 2 seconds of midnight may differ (two clocks, one each side). A mismatch
 withholds the day's events.
 The same recount reads each line's source (`s`) with its own pattern and
@@ -197,14 +282,15 @@ and audits a day again; `--audit` audits only.
 beacon:
   enabled: true                 # run-daily collects and audits, events.json is filled
   origins:
-    - https://www.your-site.org # the page origins allowed to post
+    - https://www.your-site.org # the first site's page origins; other sites use their hosts
   log: /var/log/nginx/skald-beacon.log   # nginx's beacon log, for the audit
   # per_minute: 60              # per address; burst: 20
   # site_per_second: 20         # everyone together
   # keep_days: 400
   # spool: /var/lib/skald/beacon
   # page_views: false           # beacon-only mode
-  # visitor_ids: false          # keep the anonymous visitor ID (journeys, conversions)
+  # visitor_ids: false          # keep the anonymous visitor ID (journeys, conversions);
+  #                             # with accounts, set per site (docs/SETTINGS.md)
   # goals: [demo_booked, signup_submit]   # events per 100 visits by source (Leads & sales > Events);
   #                             # with accounts, Settings > Sites > Goals sets it per site
 ```
@@ -227,7 +313,7 @@ At the `http` level (a `conf.d` file, or the top of the site's file):
 ```nginx
 # Skald event beacon: 60 a minute per address, bursts of 30; a log with no address in it.
 limit_req_zone $binary_remote_addr zone=skald_beacon:1m rate=60r/m;
-log_format skald_beacon '$time_iso8601 $status';
+log_format skald_beacon '$time_iso8601 $status $upstream_http_x_skald_site';
 ```
 
 In the site's HTTPS `server { }`:
@@ -249,7 +335,8 @@ location = /traffic-beacon {
 
 The location's own `access_log` keeps the beacon posts out of the main
 access log, so they are never counted as requests or as a visit's form
-posts. The beacon log rotates with the other nginx logs; the audit reads
+posts. Its third field, `$upstream_http_x_skald_site`, is the site the helper
+named (`-` when it named none); the audit counts each site's 204s by it. The beacon log rotates with the other nginx logs; the audit reads
 the current file and the two before it.
 
 ### The website
@@ -308,9 +395,10 @@ figures. With a log, use the log; skald.js is not needed and is not loaded.
 
 What leaves the browser is listed above and nothing else. What is kept has
 no address, no user agent and no text a person typed, and no identifier
-unless `beacon.visitor_ids` is on (then a random per-browser ID, above;
-the site's privacy notice must say so, and in some places it needs consent
-first: `data-consent="required"`). The
+unless the site has `beacon.visitor_ids` on (then a random per-browser ID,
+above; that site's privacy notice must say so, and in some places it needs
+consent first: `data-consent="required"`, with the consent banner calling
+`skald('consent', true)`). The
 address is used for the rate limit and to recognise our own traffic, in the
 helper's memory only, and is not in the beacon log. A suggested sentence for
 a privacy page: "We count anonymous button clicks and form steps on our own

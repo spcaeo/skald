@@ -40,7 +40,7 @@ from .config import setting, site_name
 from .leads import NONE, _columns, connect
 
 FIELDS = ("aiSource", "referrerHost", "utmSource", "utmMedium", "utmCampaign", "landingPath",
-          "gclid", "msclkid", "fbclid")
+          "gclid", "gbraid", "wbraid", "msclkid", "fbclid")
 LEFT_OUT = ("spam", "duplicate")
 FORM_KINDS = ("signup", "contact", "waitlist")
 DAY_MS = 86_400_000
@@ -145,7 +145,8 @@ def _labels(is_object, values) -> dict:
                 "utm_medium": NONE, "landing": NONE, "paid": False, "page": ""}
     f = {k: _clean(v) for k, v in zip(FIELDS, values)}
     tags = [(k, f[x]) for k, x in (("utm_source", "utmSource"), ("utm_medium", "utmMedium"),
-                                   ("gclid", "gclid"), ("msclkid", "msclkid"),
+                                   ("gclid", "gclid"), ("gbraid", "gbraid"),
+                                   ("wbraid", "wbraid"), ("msclkid", "msclkid"),
                                    ("fbclid", "fbclid")) if f[x]]
     seen = SimpleNamespace(referrer=f"https://{f['referrerHost']}/" if f["referrerHost"] else "",
                            url="/?" + urlencode(tags) if tags else "/")

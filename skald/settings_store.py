@@ -98,6 +98,11 @@ SCHEMA: dict[str, Key] = {
                                 choices=("full", "anonymous"),
                                 label="Leads' names and emails"),
     "beacon.goals": Key("events", "admin", ("site",), ("beacon", "goals"), [], label="Goals"),
+    # 2.9.0: per site. The script tag keeps an anonymous visitor ID in the
+    # browser, for journeys and lead matching (docs/BEACON.md); the site's
+    # privacy notice must say so, and its consent banner gates the tag.
+    "beacon.visitor_ids": Key("bool", "admin", ("site",), ("beacon", "visitor_ids"), False,
+                              label="Visitor IDs (script tag)"),
     "backup.daily": Key("int", "install", ("install",), ("backup", "daily"), 14, 1, 60,
                         shrink=True, label="Daily backup copies"),
     "backup.weekly": Key("int", "install", ("install",), ("backup", "weekly"), 8, 0, 52,

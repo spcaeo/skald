@@ -54,6 +54,17 @@ location = /traffic-js/skald.js {
 }
 ```
 
+**Every site of the install (2.9.0).** The tag works for each site Skald counts,
+not only the first. A post goes to the site its `Origin` names, into that
+site's own spool. The first site takes its listed origins (`beacon.origins`,
+`SKALD_BEACON_ORIGINS`); a site added from the dashboard or a `sites:` file
+takes `https://<each of its hosts>`, while the install has the tag on (the
+first site has an origin). The file is served with the visitor-ID setting of
+the site whose page loads it (by `Referer`). A site on another server passes
+`/traffic-js/` and `/traffic-beacon` through its own server to Skald, so the
+tag and the beacon stay on its own origin; Skald's nginx must then trust that
+server for `X-Forwarded-For`. Details: docs/BEACON.md, "Several sites".
+
 ### Options (attributes on the tag)
 
 | attribute | default | what |
@@ -133,9 +144,11 @@ To call it before the file has loaded, put this before the tag:
 
 - **Do Not Track or Global Privacy Control:** nothing at all. No ID, no
   storage, no beacon.
-- **Visitor IDs are off by default** (`beacon.visitor_ids: false`): the
+- **Visitor IDs are off by default** (`beacon.visitor_ids: false`), and set
+  per site (since 2.9.0: a site setting for admins, docs/SETTINGS.md): the
   helper then serves the file so that it makes no ID, and drops any `v`
-  it is sent. Turn them on only when the site's privacy notice says so.
+  it is sent. Turn them on for a site only when its privacy notice says so,
+  and let its consent banner gate the tag (`data-consent="required"`).
 - With IDs on, the ID (`skv_` + 16 random bytes) is kept in `localStorage`
   (`skald.vid`), the visit's source in `sessionStorage` (`skald.src`), and
   with `data-share-subdomains="true"` in a cookie `skald_vid` (400 days,
@@ -382,7 +395,7 @@ curl -sS -X POST 'https://www.example.com/traffic-hooks/example.com/lead' \
 | `stage` | default `completed` | `started`, `completed`, `cancelled`, `rescheduled`, `no_show`, `paid`, `won`, `lost` (a `won` or `lost` row stands on its own and counts on its own `at`) |
 | `at` | default: when it arrived | ISO time with its offset (`2026-09-25T14:30:00-04:00`, `...Z`) or Unix seconds. A time without an offset (`2026-09-25`, `2026-09-25T08:00:00`) is read in the site's time zone (2.4.0; before, as UTC, which put a bare date on the day before for a site west of UTC); the delivery log says so, and so does the hook test. The same for `first_touch_at` and a touch's `at` |
 | `vid` | | the visitor ID the page had (`skv_...`, or the site's own ID). Kept only when the site has visitor IDs on (`beacon.visitor_ids`); off, it is dropped from the spool and the store (2.2.3) |
-| `first_touch`, `last_touch` | | `{referrer, landing, utm_source, utm_medium, utm_campaign, utm_content, utm_term, gclid, msclkid, fbclid, li_fat_id, at}` |
+| `first_touch`, `last_touch` | | `{referrer, landing, utm_source, utm_medium, utm_campaign, utm_content, utm_term, gclid, gbraid, wbraid, msclkid, fbclid, li_fat_id, at}`, each optional. `gbraid` and `wbraid` are Google Ads clicks from iOS: like `gclid`, they make the touch a paid Search engine visit |
 | `landing`, `campaign`, `source` | | when the site worked them out itself (`source` one of Skald's source types) |
 | `country` or `ip` | | two letters, or the visitor's address: Skald looks up the country (`conversions.country_db`, the DB-IP `.mmdb` file the web server uses) and drops the address |
 | `device` or `user_agent` | | `Desktop`/`Mobile`/`Tablet`, or the agent: Skald works out the device and drops the agent |

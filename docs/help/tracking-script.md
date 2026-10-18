@@ -32,6 +32,25 @@ The tag looks like this. Always copy yours from the page, because the address an
 
 If the Integrations page is not in your Settings menu, your server does not use accounts, or you are not an admin. Ask the person who runs your Skald server for the tag.
 
+## More than one site
+
+Since Skald 2.9.0, every site on your Skald can use the tag, not only the first one.
+
+- Each site's events go to that site. Skald knows the site by the address the page is on.
+- A site added from the dashboard takes events from its own **Host names** ([Sites](#settings/sites), under **Settings > This site > Sites**). Nothing else to set. This works once the person who runs your Skald server has turned the tag on for the first site.
+- A host name you add there works within a minute.
+- Anonymous visitor IDs (below) are set per site. One site can have them on and another off.
+
+### A site on another server
+
+The tag sends events to the address of the page it is on. So when your site runs on a different server from Skald, that server must pass two addresses on to Skald: `/traffic-js/skald.js` and `/traffic-beacon`. Your developer or host sets this up once (a "reverse proxy" or "rewrite"). The tag then loads from your own site:
+
+```
+<script src="/traffic-js/skald.js" data-site="example.net" defer></script>
+```
+
+The person who runs your Skald server must also tell it to trust your site's server for the visitor's address. Without that, every visitor looks like one address, and the limit on events per visitor applies to all of them together. Skald uses the address only in memory and never keeps it.
+
 ## Options
 
 | Tick box on the page | Adds to the tag | What it does |
@@ -172,6 +191,6 @@ If you know your browser's developer tools, open the Network panel. Each event i
 
 - The tag is not on the page: view the page's source and look for `skald.js`.
 - `/traffic-js/skald.js` does not load: the web server is not set up for it. Ask the person who runs your Skald server.
-- Requests to `/traffic-beacon` are refused (403): the page's address is not on the server's list of allowed origins.
+- Requests to `/traffic-beacon` are refused (403): the page's address is not on the server's list of allowed origins. For a site added from the dashboard, check that the page's exact host name (with or without `www.`) is in its **Host names** under **Settings > This site > Sites**.
 - Your browser sends Do Not Track or Global Privacy Control.
 - The tag waits for consent and your banner never calls `skald('consent', true)`.

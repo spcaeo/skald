@@ -20,7 +20,7 @@ from .adapters import Invalid
 from .store import parse
 
 TAGS = ("utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "gclid",
-        "msclkid", "fbclid", "li_fat_id")
+        "gbraid", "wbraid", "msclkid", "fbclid", "li_fat_id")
 
 
 def _url(touch: dict) -> str:

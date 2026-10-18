@@ -109,7 +109,7 @@ The optional `skald.js` tag counts what happens inside a page. It is served from
 - **Consent first, if you need it.** The tag can wait and send nothing until your consent banner says yes. When a visitor says no, the ID and anything stored are deleted.
 - **Never a field's value.** Form events say which form was used, never what was typed. A click on a phone or email link never keeps the number or the address.
 
-Visitor IDs are off by default. With them on, the browser keeps a random ID. Turn them on only when your privacy notice says so.
+Visitor IDs are off by default, and set per site. With them on, the browser keeps a random ID. Turn them on for a site only when that site's privacy notice says so, and let its consent banner gate the tag where consent is needed.
 
 ## Webhooks and conversions
 

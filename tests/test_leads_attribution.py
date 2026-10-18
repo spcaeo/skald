@@ -251,6 +251,81 @@ class TestAttributionRows(Base):
         self.assertEqual(min(r[0] for r in got["attribution_rows"]), "2026-10-06")
 
 
+
+class TestIosAdClicks(Base):
+    """gbraid and wbraid (Google Ads clicks from iOS, in place of gclid) are
+    paid on both roads; a touch without them (old rows, sites that do not
+    send them) still reads, as not paid."""
+
+    ROWS = [
+        ("demo_booked", "new", touch(gbraid="g-1"), touch(wbraid="w-1"), 2),
+        ("signup", "new", touch(gbraid=""), json.dumps({"at": at(hours=1)}), 1),
+        ("contact", "new", json.dumps({"landingPath": "/", "gbraid": 7}), None, 1),
+        ("waitlist", "new", touch(gbraid=None, wbraid=["x"]), None, 1),
+    ]
+
+    def setUp(self):
+        super().setUp()
+        self.path = convert_db(self.dir / "ios.db", rows=self.ROWS)
+        self.got = leads.blob({"leads": {"db": str(self.path)}}, NY, TODAY, [], TODAY,
+                              audited=False)
+
+    def row(self, kind, which):
+        return next(r for r in self.got["attribution_rows"] if r[1] == kind and r[3] == which)
+
+    def test_paid_ids_are_exactly_these(self):
+        from skald import classify
+        self.assertEqual(classify.PAID_CLICK_IDS, ("gclid", "gbraid", "wbraid", "msclkid"))
+
+    def test_a_lead_with_only_gbraid_or_wbraid_is_a_paid_search_click(self):
+        for which in ("first", "last"):
+            r = self.row("demo_booked", which)
+            self.assertEqual((r[4], r[10]), ("Search engine", True), which)
+        self.assertEqual(self.row("contact", "first")[10], True)    # a number is a value
+
+    def test_old_rows_and_empty_values_are_not_paid(self):
+        for kind in ("signup", "waitlist"):
+            for which in ("first", "last"):
+                self.assertFalse(self.row(kind, which)[10], (kind, which))
+        self.assertFalse(leads.paid({}))
+        self.assertFalse(leads.paid({"gclid": "", "msclkid": ""}))
+        self.assertFalse(leads.paid(None))
+        self.assertTrue(leads.paid({"wbraid": " w "}))
+
+    def test_the_recount_agrees_and_says_paid_itself(self):
+        audit = audit_leads.audit_leads(self.path, NY, TODAY - timedelta(days=leads.DAYS - 1),
+                                        TODAY)
+        self.assertEqual(audit_leads.compare(self.got, audit), [])
+        paid = {(r["type"], w): r[w]["paid"] for recs in audit["records"].values()
+                for r in recs for w in ("first", "last")}
+        self.assertEqual(paid, {("demo_booked", "first"): True, ("demo_booked", "last"): True,
+                                ("signup", "first"): False, ("signup", "last"): False,
+                                ("contact", "first"): True, ("contact", "last"): False,
+                                ("waitlist", "first"): False, ("waitlist", "last"): False})
+
+    def test_the_recount_catches_a_wrong_paid(self):
+        rows = self.got["attribution_rows"]
+        r = next(r for r in rows if r[1] == "demo_booked" and r[3] == "first")
+        r[10] = False
+        audit = audit_leads.audit_leads(self.path, NY, TODAY - timedelta(days=leads.DAYS - 1),
+                                        TODAY)
+        self.assertTrue(any("attribution_rows" in p
+                            for p in audit_leads.compare(self.got, audit)))
+
+    def test_conversions_carry_the_ids_and_read_them_as_search(self):
+        from skald.conversions import SPOOL_KEYS, from_leads, normalise
+        from skald.conversions.adapters import touch as hook_touch
+        lead_touch = from_leads._record_touch({"landingPath": "/", "gbraid": "g-1"})
+        self.assertEqual(lead_touch, {"landing": "/", "gbraid": "g-1"})
+        self.assertEqual(from_leads._record_touch({"landingPath": "/"}), {"landing": "/"})
+        sent = hook_touch({"landing": "/", "wbraid": "w-1", "other": "dropped"})
+        self.assertEqual(sent, {"landing": "/", "wbraid": "w-1"})
+        self.assertLessEqual({"gbraid", "wbraid"}, SPOOL_KEYS["lead"])
+        for t in (lead_touch, sent):
+            self.assertEqual(normalise.touch_source(t, set()), "Search engine")
+        self.assertEqual(normalise.touch_source({"landing": "/"}, set()), "Direct or unknown")
+
+
 # ------------------------------------------------------------------- A3
 
 class TestTimeToConvert(Base):

@@ -418,7 +418,8 @@ to read the log (on Debian and Ubuntu, the `adm` group).
 **The script tag (optional).** One line in your page's `<head>` adds page views, form steps, phone,
 mail and outbound clicks, 75% scroll, and Calendly, Cal.com and HubSpot meeting bookings. It is under
 6 KB of plain JavaScript, served from your own site and posting to your own site. No third-party code,
-no cookie by default, and Do Not Track and Global Privacy Control are respected.
+no cookie by default, and Do Not Track and Global Privacy Control are respected. Every site on one
+Skald can use it: each site's events go to that site, and visitor IDs are set per site.
 
 ```html
 <script src="/traffic-js/skald.js" data-site="example.com" defer></script>

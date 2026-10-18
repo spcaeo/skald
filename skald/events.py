@@ -207,7 +207,7 @@ _AT = re.compile(r'"at":"([^"]{19,40})"')
 # The visit's source type: a key of its own (after "{" or ","), letters and
 # spaces only. Absent or empty is "Direct or unknown", as the helper writes it.
 _S = re.compile(r'[{,]"s":"([A-Za-z ]{0,40})"')
-_NGINX = re.compile(r"^(\S+) (\d{3})\b")
+_NGINX = re.compile(r"^(\S+) (\d{3})\b(?: (\S+))?")
 NO_SOURCE = "Direct or unknown"
 
 
@@ -243,8 +243,13 @@ def beacon_log_files(config: dict) -> list[Path]:
     return log_files(path.parent, path.name, 3)
 
 
-def count_answered(files: list[Path], start: datetime, end: datetime) -> int:
-    """204s (counted beacons) in nginx's beacon log inside [start, end)."""
+def count_answered(files: list[Path], start: datetime, end: datetime,
+                   site: str | None = None, first: bool = True) -> int:
+    """204s (counted beacons) in nginx's beacon log inside [start, end).
+
+    Since 2.9.0 the helper names the site each answer was for and nginx logs
+    it as a third field: with `site`, only that site's are counted. A line
+    without one (written before) was the first site's, the only one then."""
     import gzip
     n = 0
     for path in files:
@@ -254,6 +259,12 @@ def count_answered(files: list[Path], start: datetime, end: datetime) -> int:
                 m = _NGINX.match(line)
                 if not m or m.group(2) != "204":
                     continue
+                if site is not None:
+                    named = (m.group(3) or "").strip()
+                    if named in ("", "-") and not first:
+                        continue
+                    if named not in ("", "-") and named != site:
+                        continue
                 try:
                     when = datetime.fromisoformat(m.group(1))
                 except ValueError:
@@ -264,7 +275,7 @@ def count_answered(files: list[Path], start: datetime, end: datetime) -> int:
 
 
 def audit(history, config: dict, site: str, spool: Path, day: date, tz,
-          withhold: bool = True) -> dict:
+          withhold: bool = True, first: bool = True) -> dict:
     """Recount a stored day by the second road. Returns the result, which
     is also stored on the day's row."""
     from .window import day_window
@@ -297,7 +308,7 @@ def audit(history, config: dict, site: str, spool: Path, day: date, tz,
     files = beacon_log_files(config)
     nginx = None
     if files:
-        nginx = count_answered(files, start, end)
+        nginx = count_answered(files, start, end, site, first)
         lines = sum(people.values()) + sum(ours.values())
         edge = sum(1 for t in times
                    if abs((t - start).total_seconds()) <= EDGE_SECONDS
@@ -517,13 +528,20 @@ def daily(ctx, day: date) -> int:
     try:
         with ctx.history() as history:
             got = collect(history, ctx.config, ctx.site, spool, day)
-            checked = audit(history, ctx.config, ctx.site, spool, day, ctx.tz)
+            checked = audit(history, ctx.config, ctx.site, spool, day, ctx.tz,
+                            first=_first(ctx))
         beacon.prune(spool, ctx.now.date(), keep_days(ctx.config))
     except Exception as why:            # noqa: BLE001 - never fails the day
         ctx.err(f"events {day}: {type(why).__name__}: {why}")
         return 0
     _say(ctx, got, checked)
     return 0
+
+
+def _first(ctx) -> bool:
+    """The install's first site: its state lives beside the history; the
+    others' in sites/<name> (multisite.state_dir)."""
+    return Path(ctx.live_dir) == Path(ctx.db_path).parent
 
 
 def _say(ctx, got: dict, checked: dict) -> None:
@@ -550,7 +568,7 @@ def cmd_events(ctx) -> int:
         with ctx.history() as history:
             got = collect(history, ctx.config, ctx.site, spool, day) if ctx.args.collect else None
             checked = audit(history, ctx.config, ctx.site, spool, day, ctx.tz,
-                            withhold=ctx.args.collect)
+                            withhold=ctx.args.collect, first=_first(ctx))
         if got:
             _say(ctx, got, checked)
         else:

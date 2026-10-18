@@ -25,8 +25,15 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-18b",
+  id: "2026-10-18c",
   items: [
+    ["Script tag", "every site of your Skald can use the script tag now, not only the first. Each site's events go to that site.", "tracking-script"],
+    ["Visitor IDs", "can be on for one site and off for another."],
+    ["Google Ads on iPhone", "a lead from a Google Ads click on iOS (gbraid, wbraid) counts as paid search."],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.8.0-2.8.1
     ["Pages", "calls to a site's own API (/api/...) are no longer counted as pages or as steps between pages."],
     ["Countries", "a log with no country of its own (Caddy, a plain log) gets one from a GeoIP file your server admin sets. DB-IP's free file works.", "faq"],
     ["Caddy", "sites with a Caddy log no longer fail the daily check, so their days are stored."],
@@ -34,9 +41,6 @@ const NEW = {
     ["Cached pages", "a page shown from the browser's cache counts as a page view and keeps the visit's source."],
     ["Sources", "ChatGPT, Claude and other assistant phone apps count as AI; YouTube, WhatsApp and Telegram apps are social; utm_source decides before utm_medium; more ad click ids."],
     ["Our own traffic", "Skald's own robots.txt check is no longer counted as a bot."],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.7.0-2.7.1
     ["GitHub", "Skald's home on GitHub is linked from About, the footer and the account menu: star it, see releases, report a problem."],
     ["Five sections", "Overview, Traffic, Leads & sales, AI & bots and Site, with tabs inside. Old links still work.", "getting-started"],
