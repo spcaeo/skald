@@ -2,6 +2,59 @@
 
 All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versioning](https://semver.org).
 
+## 2.14.0 (2026-10-18)
+
+What ChatGPT, Perplexity, Gemini and Claude answer when asked the questions your customers ask,
+joined with what only your server log shows: what the assistant then read, and who it sent.
+
+### Added
+
+- **AI answers** (AI & bots › AI answers). What ChatGPT, Perplexity, Gemini and Claude answer to
+  the questions your customers ask, per **tracking profile**: a place (city, region, country) and
+  a language, asked daily, weekly or monthly with 1 to 5 tries a question. For each run and
+  assistant: whether the answer **names** you, the **pages** of yours it cites and where the
+  first one sits, and the **competitors** it names. The page shows how often each assistant
+  names you run by run, every profile × assistant for one question as "x of N tries", the
+  questions with a line from an answer and the full answer, and the competitors.
+- **From an answer to a lead.** For one assistant and one cited page over 30 days, four counts
+  side by side, each from its own road: answers that **cited** it, that assistant's fetcher
+  **reading** it in your log, the visitors it **sent** there, and the **leads** whose first
+  visit came from an AI answer and landed on it. Joined by page and day, never added together.
+- **Tracking profiles** in Settings › AI answers: the site's questions (at most 50), brand terms
+  and competitors, or a profile's own; at most 10 profiles a site; duplicate, pause, resume,
+  Run now and delete. Nothing is erased: an edit is a new version that later runs ask with, and
+  a deleted profile's results stay.
+- **Cost estimate and daily cap.** Before anything runs, each profile shows its cost (questions
+  × tries × assistants × a price an answer, by month); a run that would pass the profile's daily
+  cap in US dollars stops there and goes on the next day. The prices are rough defaults, set in
+  config.yml to match your contract.
+- **Your own API keys.** Each assistant needs its provider's API key (OpenAI, Perplexity, Google
+  Gemini, Anthropic), set write-only by an install admin in Settings › Integrations or in the
+  environment (`SKALD_OPENAI_API_KEY`, `SKALD_PERPLEXITY_API_KEY`, `SKALD_GEMINI_API_KEY`,
+  `SKALD_ANTHROPIC_API_KEY`). Nothing is asked, and nothing costs, until a key and a profile
+  exist. Only the questions and the profile's place and language are sent; nothing about your
+  visitors.
+- **A sample, labelled so.** These are a sample of API answers, not what every user sees: each
+  provider answers people differently by account, history, place and wording, and its API can
+  differ from its app. The page says so above every figure, and every answer is kept to read.
+- **Counted twice.** Every answer's reading and every run's figures are recounted from the
+  stored text and links by a second, separate count (`audit_ai_answers.py`); a run where the
+  two disagree is withheld, listed with no figures.
+- The demo has made-up AI answers, asked through the same code with a stand-in for the
+  providers.
+
+### Fixed
+
+- A table's column filter and Real time's map legend no longer show the word "null" where a
+  button or legend line was left out.
+
+### Upgrading
+
+- Docker: nothing by hand. The scheduler asks the due profiles every
+  `SKALD_AI_ANSWERS_MINUTES` (15; `0` stops it). Outside Docker, add
+  `*/15 * * * * ... ti.py ai-answers --due` to cron, and add `ai-answers` to the helper paths
+  in your nginx site (DEPLOY.md shows the line). Set up: docs/AI-ANSWERS.md.
+
 ## 2.13.0 (2026-10-18)
 
 A new Overview for today and a new Traffic › Visitors; where a visitor first came from, and

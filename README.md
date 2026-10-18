@@ -51,6 +51,11 @@
 
 ## What's new
 
+- **2.14.0: AI answers** ([changelog](CHANGELOG.md#2140-2026-10-18)). What ChatGPT, Perplexity,
+  Gemini and Claude answer to your customers' questions, per tracking profile (a place and a
+  language): whether they name you, the pages they cite, the competitors they name, and the
+  chain only your log can show: cited → read → sent → leads. A cost estimate before anything runs
+  and a daily cap; it needs each provider's API key. A sample of API answers, labelled so.
 - **2.13.0: a new Overview and Visitors; first touch and cities; search, reports, retention and
   crawl health; advanced filters** ([changelog](CHANGELOG.md#2130-2026-10-18)). Today on one live
   page, each figure against yesterday at this hour. Each visit with its city and where the
@@ -298,6 +303,13 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
   Whole, checked days only, and each alert's figures recounted.
 - A suggested `llms.txt` from the pages people and assistants read most, to copy and publish
   yourself.
+- **AI answers:** what ChatGPT, Perplexity, Gemini and Claude answer to the questions your
+  customers ask, asked through their APIs with your own keys, per **tracking profile** (a place
+  and a language; daily, weekly or monthly; 1 to 5 tries a question). Whether each answer names
+  you, which of your pages it cites, which competitors it names, run by run and as "x of N
+  tries"; then **cited → read → sent → leads** for one page, from your own log and lead tools.
+  A cost estimate before anything runs and a daily cap; every figure recounted, a run that
+  disagrees withheld. A sample of API answers, labelled so, not what every user sees.
 
 **Results**
 - One section, **Leads & sales**: Pipeline, Bookings, Funnels, Events and People. Pipeline's one row
@@ -378,8 +390,19 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
 </p>
 
 The whole dashboard with 60 days of sample data for a made-up site, in your browser: today's Overview,
-the visitor drawer, cities, retention and crawl health, Real time with its world map, AI & bots, flags, leads and bookings, the left-out leads and the removed conversions included.
+the visitor drawer, cities, retention and crawl health, AI answers (made-up answers), Real time with its world map, AI & bots, flags, leads and bookings, the left-out leads and the removed conversions included.
 Nothing to install. Settings, saving and the person search need your own Skald.
+
+### New in 2.14.0: AI answers
+
+<p align="center">
+  <img src="docs/screenshots/ai-answers.png" alt="AI and bots, AI answers for example.com: the note that these are a sample of API answers, tracking profiles New York, London and Montréal, from an answer to a lead for ChatGPT and the pricing page (38 answers cited it, its fetcher read it 58 times, 14 visitors clicked through, 1 lead), how often ChatGPT, Perplexity, Gemini and Claude named the site in each weekly run, every profile by every assistant as x of 3 tries, and the profile's settings beside it. Made-up answers" width="920"><br>
+  <strong>AI answers.</strong> What the assistants say, and what they then read and sent.
+</p>
+
+| | |
+| :---: | :---: |
+| <img src="docs/screenshots/ai-answers-profiles.png" alt="Settings, AI answers, tracking profiles: New York (USA, en), London (GBR, en-GB) and Montréal (CAN, fr-CA), each with how often, tries, questions, the daily cap and the estimated cost a month, and Edit, Duplicate, Pause, Run now and Delete" width="460"><br>**Tracking profiles.** A place and a language each, the cost before it runs. | |
 
 ### New in 2.13.0
 
@@ -628,7 +651,8 @@ the vendor's pages · – does not apply · nc = not checked
 | A second, independent recount of every figure | ✓ | ✗ | ✗ | nc | ✗ | ✗ | ✗ | ✗ |
 | Events inside the page | ✓ ⁴ | ✓ | ✓ | nc | ✓ | ✓ | ✗ | ✗ |
 | Funnels | ✓ | ✓ | ◐ | nc | ◐ | ✓ | ✗ | ✗ |
-| Search queries, impressions, position | planned | ◐ | ◐ | nc | ◐ | ? | ✗ | ✗ |
+| Search queries, impressions, position | ✓ | ◐ | ◐ | nc | ◐ | ? | ✗ | ✗ |
+| What AI assistants answer about you, per place and language | ✓ | nc | nc | nc | nc | nc | nc | nc |
 | Ad cost and Google Ads link | ✗ | ✓ | ✗ | nc | ? | ? | ✗ | ✗ |
 | Runs on your own server | ✓ | ✗ | ◐ | ✓ | ✓ | ◐ | ✗ | ✓ |
 | Deleting one visitor on request | ✓ | ? | – | nc | ✓ | ? | – | ✗ |

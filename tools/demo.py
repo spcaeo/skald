@@ -63,6 +63,7 @@ sys.path[:0] = [str(HERE), str(ROOT), str(ROOT / "tests")]
 # its codes are the same every build.
 KEY_VAR, DEMO_KEY = "SKALD_VISITOR_KEY", "ab" * 32
 
+import demo_answers as da  # noqa: E402
 import demo_traffic as dt  # noqa: E402
 
 MARKER = ".skald-demo"
@@ -437,6 +438,8 @@ def install(root: Path, traffic: dt.Traffic, say=print) -> Path:
             events.audit(history, cfg, dt.SITE, root / "beacon", d, tz)
             d += timedelta(days=1)
     later_changes(root, cfgp, traffic)
+    # AI & bots > AI answers: made-up answers asked through the real road (demo_answers.py).
+    da.seed(root, load_config(cfgp), dt.SITE, dt.TZ_NAME, traffic.first, traffic.today, say)
     code, err = run(cfgp, "--today", traffic.today.isoformat(), "backfill", "--days", "3")
     if code:
         raise SystemExit(f"demo: backfill failed ({code}): {err[-1500:]}")
@@ -681,7 +684,7 @@ def build(out: Path, now: datetime, days: int = 62, keep: Path | None = None, re
     was = os.environ.get(KEY_VAR)
     os.environ[KEY_VAR] = DEMO_KEY
     try:
-        with tempfile.TemporaryDirectory(prefix="skald-demo-") as tmp:
+        with tempfile.TemporaryDirectory(prefix="skald-demo-") as tmp, da.made_up_keys():
             root = Path(keep).resolve() if keep else Path(tmp) / "install"
             if root.exists():
                 shutil.rmtree(root)

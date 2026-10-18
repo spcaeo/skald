@@ -67,6 +67,7 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `search.google_property` | Integrations > Search | a Search Console property that covers the site's hosts (`sc-domain:example.com` or a URL prefix) | admin | site | `search_console.property` |
 | `search.bing_site` | Integrations > Search | the site's URL in Bing Webmaster Tools, covering its hosts | admin | site | `bing.site_url` |
 | `search.bing_api_key` | Integrations > Search | secret, write-only | install admin | secrets.json | env var `BING_WEBMASTER_API_KEY` |
+| `ai_answers.openai_key`, `ai_answers.perplexity_key`, `ai_answers.gemini_key`, `ai_answers.anthropic_key` | Integrations | secret, write-only | install admin | secrets.json | env vars `SKALD_OPENAI_API_KEY`, `SKALD_PERPLEXITY_API_KEY`, `SKALD_GEMINI_API_KEY`, `SKALD_ANTHROPIC_API_KEY` (AI answers, docs/AI-ANSWERS.md) |
 | `brand.agency_name` | Reports (Agency branding) | text, 60 at most | admin | organisation | (none) |
 | `brand.color` | Reports (Agency branding) | a colour `#rrggbb` (none: Skald's ink) | admin | organisation | (none) |
 | `sites.hosts` | Sites | 1-50 host names | admin | site | `site.hosts` |
@@ -327,6 +328,39 @@ Time. A site with no property says so, and the box is greyed in the form.
   report of a site that moved to another organisation is not sent.
 
 `skald reports --list`, `--send ID`, `--pdf ID --out FILE` do the same from the shell.
+
+## AI answers (2.14)
+
+Settings > AI answers (`skald/answers/api.py`; every detail in docs/AI-ANSWERS.md). Not
+settings_store keys: the site's lists and its tracking profiles live in `ai_answers.sqlite`
+beside the history, filed by site, and every profile version is kept. Only the four API keys
+are settings_store rows (above, Settings > Integrations, install admins, write-only).
+
+- **The site's lists**: the questions buyers ask (at most 50), the brand terms, the
+  competitors, and how many days answers are kept (30 to 3650, default 400). A profile with no
+  list of its own asks with these.
+- **Tracking profiles** (at most 10 a site): a name; a place (city, region, ISO country,
+  optional latitude, longitude and time zone) and a language (BCP-47); its own questions, brand
+  terms and competitors, or the site's; the assistants to ask; daily, weekly or monthly; 1 to 5
+  tries a question; a daily cap in US dollars. Duplicate, pause, resume, Run now and delete.
+  Nothing is erased: an edit is a new version (each run keeps the one it asked with), a pause
+  is kept as a [from, to] pair, a deleted profile leaves the list and its results stay until
+  the days kept pass.
+- **Who**: every member reads; a site's admins and owners and install admins change, and each
+  change is in the audit log. An organisation whose plan is locked reads only. Basic mode: the
+  page says to use the API on the server (every route answers 404).
+- **Asking**: the container's scheduler runs `skald ai-answers --due` every
+  `SKALD_AI_ANSWERS_MINUTES` (15; 0 stops it): the profiles that are due (from 06:00 in the
+  site's zone) or asked to run now. Outside Docker, add `*/15 * * * * ... skald ai-answers
+  --due` to cron.
+
+| Method, path | Who | Answer |
+| --- | --- | --- |
+| GET `<page>/ai-answers` | every member | `{site, lists, profiles, keys, editable, providers}`: which keys are set (never a key), each assistant's model, price and how it is told the place, each profile's estimate |
+| GET `<page>/ai-answers/answer?id=` | every member | one stored answer in full: the question as sent, the text, the cited URLs |
+| POST `<page>/ai-answers/lists` | admin | `{questions, brands, competitors, keep_days}` |
+| POST `<page>/ai-answers/profiles/save` | admin | `{id?, ...profile}`: a new profile, or a new version of one |
+| POST `<page>/ai-answers/profiles/duplicate`, `pause`, `resume`, `delete`, `run` | admin | `{id}`; delete leaves the list and keeps the results; run asks at the next 15-minute tick |
 
 ## The site's logo (2.6.0)
 

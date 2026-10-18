@@ -15,6 +15,24 @@ import { call } from "./ipmanager.js";
 import { isViewer, sessions, VIEWER } from "../access.js";
 import { head1, copyable, field, input, status, confirmIn, when, why } from "./forms.js";
 import { howTo } from "./help.js";
+import { card } from "./prefs.js";
+
+// AI answers: each assistant's API key (settings_store ai_answers.<provider>_key, install
+// admins; write-only, kept in secrets.json, the environment wins). The questions of the
+// tracking profiles are sent to the providers whose key is set (Settings › AI answers).
+const AI_KEYS = ["ai_answers.openai_key", "ai_answers.perplexity_key", "ai_answers.gemini_key", "ai_answers.anthropic_key"];
+function aiKeys() {
+  const box = h("div", { class: "set-cards" });
+  const draw = (r) => {
+    if (!r.ok) { box.replaceChildren(); return; }
+    const redraw = (settings) => draw({ ...r, settings });
+    box.replaceChildren(card("AI answers: assistants' API keys",
+      "Each key lets Skald ask that assistant the tracking profiles' questions (Settings › AI answers). The questions are sent to the provider; each answer costs a few cents on your provider account. Nothing is asked until a site admin makes a profile. Write-only: the page only says set or not.",
+      AI_KEYS, r.settings, r.site || "", redraw));
+  };
+  call("settings").then(draw);
+  return box;
+}
 import { searchBox } from "./search-connect.js";
 
 const EVENT_WORDS = {
@@ -288,5 +306,5 @@ export default function integrations() {
 
   showFresh();
   reload();
-  return [title, shown, body, msg];
+  return [title, shown, body, aiKeys(), msg];
 }

@@ -16,7 +16,7 @@ A page you may not change is shown read-only, with the reason beside each field.
 | --- | --- |
 | You | Your account |
 | Team & access | Team, API & tokens (Users, on a server with one shared login) |
-| This site | Sites, Internal traffic, Data retention, Mail, Reports, Integrations |
+| This site | Sites, Internal traffic, Data retention, Mail, Reports, Integrations, AI answers |
 | Organisation | Add or remove sites, Security, Audit log, Billing |
 
 **Back to the dashboard**, at the top of the settings menu, returns to the page you came from.
@@ -28,6 +28,7 @@ These pages have guides of their own:
 - Internal traffic: [Internal traffic](internal-traffic.md).
 - Integrations: [Tracking script](tracking-script.md) and [Webhooks](webhooks.md).
 - Reports: [Client reports](client-reports.md).
+- AI answers, and its API keys in Integrations: [AI answers](ai-answers.md).
 
 ## Who may change what
 
@@ -45,6 +46,8 @@ These pages have guides of their own:
 | Sites | Log file | Install admin |
 | Sites | Goals | Admin |
 | Integrations | Hooks, event types, outgoing webhooks | Admin |
+| Integrations | AI answers: the assistants' API keys | Install admin |
+| AI answers | The site's lists, tracking profiles | Admin |
 | Security | Sign-in rules | Owner |
 | Audit log | (read only) | Admins may read it |
 | AI & bots > Crawler rules | Every crawler | Install admin |

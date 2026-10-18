@@ -40,7 +40,7 @@ export const base = (view) => (view && view !== "all" ? `${view}/data/` : "data/
 
 // Files the data layer writes beside app.json (DATA-CONTRACT.md). Each is
 // optional: a tab whose file is not there yet says so instead of failing.
-export const EXTRA = ["insights", "not_found", "ai_activity", "campaigns", "pages", "overview", "ours", "bots", "alerts", "quality", "markers", "leads", "favicons", "sites", "robots", "speed", "funnels", "page_index", "events", "conversions", "realtime", "search", "retention"];
+export const EXTRA = ["insights", "not_found", "ai_activity", "campaigns", "pages", "overview", "ours", "bots", "alerts", "quality", "markers", "leads", "favicons", "sites", "robots", "speed", "funnels", "page_index", "events", "conversions", "realtime", "search", "retention", "ai_answers"];
 // requests.json is today's whole request log: the Requests tab fetches it itself, only when it is open.
 
 export async function load(s, { fresh = false } = {}) {

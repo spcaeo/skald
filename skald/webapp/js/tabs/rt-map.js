@@ -193,7 +193,7 @@ export function worldMap({ onPick, onCity, label = "World map of today's visits"
       ...(list.length ? list.map((b, i) => h("span", { class: "rt-lg-i" }, h("i", { class: `rt-sw s${stepOf(i, list.length)}` }), rangeWords(b)))
         : [h("span", { class: "rt-lg-i" }, h("i", { class: "rt-sw s0" }), "none yet")]),
       h("span", { class: "rt-lg-i" }, h("i", { class: "rt-sw rt-sw-bub" }), "active in the last 30 minutes (size: how many)"),
-      dots.length ? h("span", { class: "rt-lg-i" }, h("i", { class: "rt-sw rt-sw-town" }), "a city with visits today") : null);
+      dots.length ? h("span", { class: "rt-lg-i" }, h("i", { class: "rt-sw rt-sw-town" }), "a city with visits today") : "");
   }
   update({});
   return { el, update };
