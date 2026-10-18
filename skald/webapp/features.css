@@ -103,6 +103,18 @@ td .spark { height: 22px; width: 110px; margin: 0; }
 .ipm input.addr { font-family: var(--mono); width: 210px; }
 .lock { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-3); font-size: 12px; }
 .lock svg { width: 12px; height: 12px; }
+/* Active / Paused switch (2026-10-18): the track shows the state, the words say it. */
+.ipm-sw { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; padding: 2px 0; font: inherit; font-size: 12.5px; color: var(--ink); cursor: pointer; }
+.ipm-sw .trk { position: relative; width: 30px; height: 17px; border-radius: 999px; background: var(--ink-3); flex: none; transition: background .15s var(--ease); }
+.ipm-sw .trk::after { content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: var(--surface); transition: transform .15s var(--ease); }
+.ipm-sw[aria-checked="true"] .trk { background: var(--good); }
+.ipm-sw[aria-checked="true"] .trk::after { transform: translateX(13px); }
+.ipm-sw:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+.ipm-sw:disabled { cursor: not-allowed; opacity: .6; }
+.ipm-sw .when { color: var(--ink-3); }
+.ipm .acts { display: inline-flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.ipm td input { width: 100%; min-width: 120px; }
+@media (prefers-reduced-motion: reduce) { .ipm-sw .trk, .ipm-sw .trk::after { transition: none; } }
 .confirm { display: inline-flex; gap: 6px; align-items: center; font-size: 12.5px; animation: chip-in .2s var(--ease); }
 .btn.danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--rule)); }
 .msg { font-size: 13px; margin: 8px 0 0; }

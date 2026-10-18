@@ -109,6 +109,16 @@ class Build(unittest.TestCase):
         self.assertEqual(build["name"], (ROOT / "NAME").read_text().strip())
         self.assertEqual(build["version"], (ROOT / "VERSION").read_text().strip())
 
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_the_visitor_flow_reconciles_with_the_visit_tables(self):
+        """js/flow.js on the built page: its columns are Where visits started, Common
+        next steps (less reloads) and Where visits ended, and every drawn flow adds up."""
+        done = subprocess.run(["node", str(ROOT / "tests" / "js" / "flow.mjs"), str(self.site / "data" / "app.json")],
+                              capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("reconcile with the tables", done.stdout)
+        self.assertIn("flow: all passed", done.stdout)
+
     def test_every_app_json_says_demo_with_its_answers(self):
         apps = sorted(self.out.rglob("data/app.json"))
         self.assertEqual(len(apps), 2)                                     # the site and its Blog view

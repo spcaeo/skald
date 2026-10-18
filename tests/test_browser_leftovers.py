@@ -196,7 +196,8 @@ class OursBesideTheHistory(unittest.TestCase):
         self.assertEqual([e["ip"] for e in ours_store.listing(config)], ["203.0.113.7"])
         self.assertEqual(len(Classifier.from_config(config).ours_networks), 1)
         # The audit's second road reads the same file on its own terms.
-        self.assertEqual(audit_visits.page_added(config), [("203.0.113.7", "Office", when)])
+        self.assertEqual(audit_visits.page_added(config),
+                         [("203.0.113.7", "Office", when, None, [])])
 
     def test_no_history_folder_known_refuses_in_plain_words(self):
         with self.assertRaises(ours_store.Invalid) as got:

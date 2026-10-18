@@ -106,6 +106,9 @@ class InstallWideSettings(Server):
         for path, body in (("ours/add", {"ip": "203.0.113.5", "label": "x"}),
                            ("ours/remove", {"ip": "192.0.2.50"}),
                            ("ours/add-mine", {"label": "x"}),
+                           ("ours/pause", {"ip": "192.0.2.50"}),
+                           ("ours/resume", {"ip": "192.0.2.50"}),
+                           ("ours/edit", {"ip": "192.0.2.50", "label": "y"}),
                            ("funnels/save", {"name": "f", "steps": "/a\n/b"}),
                            ("funnels/delete", {"name": "f"}),
                            ("bot-policy", {"owners": {}, "crawlers": {}})):
@@ -120,6 +123,12 @@ class InstallWideSettings(Server):
         self.assertEqual(got.status, 200, got.json)
         entry = ours_store.load(ours_store.path_of(self.config))[0]
         self.assertEqual((entry["ip"], entry["site"]), ("203.0.113.5", A))
+        # Pause and resume: the same permission as add (2026-10-18).
+        got = self.post(T + "ours/pause", {"ip": "203.0.113.5"}, cookie, csrf)
+        self.assertEqual(got.status, 200, got.json)
+        self.assertFalse([e for e in got.json["entries"] if e["ip"] == "203.0.113.5"][0]["active"])
+        self.assertEqual(self.post(T + "ours/resume", {"ip": "203.0.113.5"}, cookie,
+                                   csrf).status, 200)
         self.assertEqual(self.post(T + "bot-policy", {"owners": {}, "crawlers": {}}, cookie,
                                    csrf).status, 200)
 

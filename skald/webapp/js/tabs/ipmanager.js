@@ -1,9 +1,10 @@
 // Internal addresses: the addresses and ranges that count as our own traffic.
-// Entries from the config file are locked here; the rest can be added and
-// removed. The helper behind <page>/ours checks the password (nginx) and
+// Entries from the config file are locked here; the rest can be added,
+// paused and resumed (Active / Paused), edited and deleted. The helper behind <page>/ours checks the password (nginx) and
 // that the request came from this page; it never rewrites a stored day.
 
 import { h, long } from "../ui.js";
+import { time as tzTime } from "../tz.js";
 import { lockForViewer, isViewer, sessions, ME } from "../access.js";
 import { howTo } from "./help.js";
 import { DEMO, demoAnswer } from "../demo.js";
@@ -46,41 +47,91 @@ function lockForInstall(root) {
   return root;
 }
 
-export function ipManager(api = { list: "ours", add: "ours/add", remove: "ours/remove", add_mine: "ours/add-mine" }) {
+const API = { list: "ours", add: "ours/add", remove: "ours/remove", add_mine: "ours/add-mine", pause: "ours/pause", resume: "ours/resume", edit: "ours/edit" };
+
+export function ipManager(given = API) {
+  // A data file written before 2026-10-18 names no pause/resume/edit paths: the defaults fill them.
+  const api = { ...API, ...given };
   const box = h("div", { class: "ipm" });
   const msg = h("p", { class: "msg", role: "status", "aria-live": "polite" });
   const list = h("div");
   const say = (text, ok = false) => { msg.textContent = text || ""; msg.className = `msg ${ok ? "ok" : "err"}`; };
 
+  // One row: the address, its label, since when, Active / Paused (a switch), Edit and Delete.
+  // A config-file entry always applies: it shows "Always on" and a lock, no switch.
+  function row(e, entries, limit) {
+    const tr = h("tr");
+    const fixed = e.editable === false || e.source === "config";
+    const since = e.added_at ? `added ${long(String(e.added_at).slice(0, 10))}` : fixed ? "config" : "";
+    const state = h("td");
+    const acts = h("td", { class: "n" });
+    const redraw = (r, words) => { if (r.ok) { say(words, true); draw(r.entries || [], limit); } else say(r.error); };
+    if (fixed) {
+      state.append(h("span", { class: "muted" }, "Always on"));
+      acts.append(h("span", { class: "lock", html: LOCK, title: "Set in the config file: it always applies and cannot be paused, edited or deleted here. Change it there." }, "locked"));
+    } else {
+      const on = e.active !== false;
+      const sw = h("button", { type: "button", role: "switch", class: "ipm-sw", "aria-checked": String(on),
+        "aria-label": `Count ${e.label} as our own traffic`,
+        title: on ? "Active: its visits count as our own traffic. Turn off to pause." : "Paused: its visits count as visitors. Turn on to count them as ours again." },
+      h("span", { class: "trk", "aria-hidden": "true" }),
+      h("span", null, on ? "Active" : "Paused"),
+      !on && e.paused_since ? h("span", { class: "when" }, `since ${tzTime(e.paused_since, { date: true })}`) : null);
+      sw.addEventListener("click", async () => {
+        sw.disabled = true;
+        const r = await call(on ? api.pause : api.resume, { ip: e.ip });
+        sw.disabled = false;
+        redraw(r, on ? `Paused ${e.label}. From now on its visits count as visitors.` : `${e.label} is active again. From now on its visits count as our own traffic.`);
+      });
+      state.append(sw);
+      const edit = h("button", { type: "button", class: "btn" }, "Edit");
+      edit.setAttribute("aria-label", `Edit ${e.label}`);
+      const del = h("button", { type: "button", class: "btn danger" }, "Delete");
+      del.setAttribute("aria-label", `Delete ${e.label}`);
+      edit.addEventListener("click", () => {
+        const ipIn = h("input", { type: "text", class: "addr", value: e.ip, "aria-label": "Address or range", spellcheck: "false", autocomplete: "off" });
+        const labelIn = h("input", { type: "text", value: e.label, "aria-label": "Label", maxlength: "60" });
+        const save = h("button", { type: "button", class: "btn primary" }, "Save");
+        const cancel = h("button", { type: "button", class: "btn" }, "Cancel");
+        tr.replaceChildren(h("td", { class: "path" }, ipIn), h("td", null, labelIn),
+          h("td", { class: "muted", colspan: "2" }, "The change applies from now on. Days before keep the old label and address."),
+          h("td", { class: "n" }, h("span", { class: "acts" }, save, cancel)));
+        labelIn.focus();
+        cancel.addEventListener("click", () => draw(entries, limit));
+        save.addEventListener("click", async () => {
+          const body = { ip: e.ip };
+          if (ipIn.value.trim() !== e.ip) body.new_ip = ipIn.value.trim();
+          if (labelIn.value.trim() !== e.label) body.label = labelIn.value.trim();
+          if (!body.new_ip && !body.label) { draw(entries, limit); return; }
+          save.disabled = true;
+          const r = await call(api.edit, body);
+          save.disabled = false;
+          redraw(r, `Saved. From now on it counts as ${body.label || e.label}.`);
+        });
+      });
+      del.addEventListener("click", () => {
+        const yes = h("button", { type: "button", class: "btn danger" }, "Yes, delete");
+        const no = h("button", { type: "button", class: "btn" }, "Keep it");
+        acts.replaceChildren(h("span", { class: "confirm" },
+          `Delete ${e.label}? It stops applying to days not yet collected; stored days keep their figures. To stop it only for a while, pause it instead.`, yes, no));
+        no.focus();
+        no.addEventListener("click", () => draw(entries, limit));
+        yes.addEventListener("click", async () => {
+          yes.disabled = true;
+          redraw(await call(api.remove, { ip: e.ip }), `Deleted ${e.label}. From now on its visits count as visitors.`);
+        });
+      });
+      acts.append(h("span", { class: "acts" }, edit, del));
+    }
+    tr.append(h("td", { class: "path" }, e.ip), h("td", null, e.label || ""), h("td", { class: "muted" }, since), state, acts);
+    return tr;
+  }
+
   function draw(entries, limit) {
     if (!entries.length) { list.replaceChildren(h("p", { class: "empty" }, installOnly() ? "No internal addresses yet." : "No internal addresses yet. Add this computer's address below.")); return; }
-    const rows = entries.map((e) => {
-      const cell = h("td", { class: "n" });
-      if (e.editable === false || e.source === "config") cell.append(h("span", { class: "lock", html: LOCK, title: "Set in the config file; change it there" }, "locked"));
-      else {
-        const rm = h("button", { type: "button", class: "btn danger" }, "Remove");
-        rm.setAttribute("aria-label", `Remove ${e.ip} (${e.label})`);
-        rm.addEventListener("click", () => {
-          const yes = h("button", { type: "button", class: "btn danger" }, "Yes, remove");
-          const no = h("button", { type: "button", class: "btn" }, "Keep it");
-          const ask = h("span", { class: "confirm" }, `Stop counting ${e.ip} as ours?`, yes, no);
-          cell.replaceChildren(ask);
-          no.focus();
-          no.addEventListener("click", () => { draw(entries, limit); });
-          yes.addEventListener("click", async () => {
-            yes.disabled = true;
-            const r = await call(api.remove, { ip: e.ip });
-            if (r.ok) { say(`Removed ${e.ip}. From now on it counts as an ordinary visitor.`, true); draw(r.entries || [], limit); } else say(r.error);
-          });
-        });
-        cell.append(rm);
-      }
-      return h("tr", null, h("td", { class: "path" }, e.ip), h("td", null, e.label || ""),
-        h("td", { class: "muted" }, e.added_at ? `added ${long(String(e.added_at).slice(0, 10))}` : e.source === "config" ? "config" : ""), cell);
-    });
     list.replaceChildren(h("div", { class: "scroll" }, h("table", { class: "rows-mid" }, h("caption", { class: "vh" }, "Internal addresses"),
-      h("thead", null, h("tr", null, h("th", { scope: "col" }, "Address or range"), h("th", { scope: "col" }, "Label"), h("th", { scope: "col" }, "Since"), h("th", { scope: "col", class: "n" }, h("span", { class: "vh" }, "Action")))),
-      h("tbody", null, rows))), limit ? h("p", { class: "note" }, `${entries.length} of at most ${limit} entries.`) : "");
+      h("thead", null, h("tr", null, h("th", { scope: "col" }, "Address or range"), h("th", { scope: "col" }, "Label"), h("th", { scope: "col" }, "Since"), h("th", { scope: "col" }, "Status"), h("th", { scope: "col", class: "n" }, h("span", { class: "vh" }, "Actions")))),
+      h("tbody", null, entries.map((e) => row(e, entries, limit))))), limit ? h("p", { class: "note" }, `${entries.length} of at most ${limit} entries.`) : "");
     lockForInstall(list);
   }
 
@@ -108,7 +159,7 @@ export function ipManager(api = { list: "ours", add: "ours/add", remove: "ours/r
   box.append(list,
     h("div", { style: { display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center", marginTop: "14px" } }, mineLabel, mine),
     form, msg,
-    h("p", { class: "note" }, "Changes apply from now on. Days already counted are not recounted, so a past visit from a newly added address stays where it was counted."),
+    h("p", { class: "note" }, "Changes apply from now on. Days already counted are not recounted, so a past visit from a newly added address stays where it was counted. Pause an address while you test the site as a visitor, and turn it back on when you are done. Lines from the config file always apply and cannot be paused here."),
     howTo("internal-traffic", "How do I keep my team's own visits out of the figures?"));
   // With accounts the list itself is for admins (it holds addresses): a viewer is not asked for it.
   if (sessions() && isViewer()) {

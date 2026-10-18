@@ -4,6 +4,22 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.12.0 (2026-10-18)
+
+### Added
+
+- **Visitor flow.** A flow map of how visits moved: where they came from, the pages they read in
+  order, and when they left. On Traffic › Visitors, in every drill-down ("How these visitors
+  moved", e.g. one country), and in Funnels ("Flow between the steps"). Hover for figures, click a
+  page to open it, or switch to the table. Drawn from the same kept visits as the visit tables;
+  each column adds up to the visits, and a map that does not add up is not shown.
+- **Pause, edit and delete internal traffic.** Each entry in Settings › Internal traffic has an
+  Active / Paused switch, Edit and Delete; also `skald ours list|pause|resume|edit|delete`.
+  Nothing is erased: a pause, an edit or a delete is recorded with its time, so a past day
+  recounted later gives the same figures, on both counting roads.
+- **Active now pings on the live map:** two rings and a soft blink on each country with visitors
+  active now (a still halo with reduced motion).
+
 ## 2.11.1 (2026-10-18)
 
 ### Fixed

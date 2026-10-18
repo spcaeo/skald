@@ -210,7 +210,8 @@ def _releases(config: dict) -> list[dict]:
     return out
 
 
-OURS_WORDS = {"add": "added", "remove": "removed"}
+OURS_WORDS = {"add": "added", "remove": "removed", "pause": "paused", "resume": "resumed",
+              "edit": "edited"}
 
 
 def _ours_changes(config: dict) -> list[dict]:

@@ -790,7 +790,7 @@ Things we did, to draw as vertical lines on every chart.
 
 | field | type |
 |---|---|
-| `markers[]` | `{"at": ISO, "kind", "label", "detail"}`, newest first, the last 180 days. `kind`: `website_release` (a release directory on the server), `skald_deploy`, `config_change` (the skald config changed), `ours_change` (an internal address added or removed), `backfill` (history recounted) |
+| `markers[]` | `{"at": ISO, "kind", "label", "detail"}`, newest first, the last 180 days. `kind`: `website_release` (a release directory on the server), `skald_deploy`, `config_change` (the skald config changed), `ours_change` (an internal address added, removed, paused, resumed or edited), `backfill` (history recounted) |
 | `website_version` | string or null: the version the live site's footer shows now, e.g. `"v1.4.0 · build 212"` |
 
 ## leads.json
@@ -833,10 +833,10 @@ Our own traffic, and the server's health as our own heartbeat sees it.
 
 | field | type |
 |---|---|
-| `rules` | `[{"label","kind" ("user agent"/"referrer"/"address"),"source" ("config"/"file")}]` - labels only, never an address (the address list is the management API below) |
+| `rules` | `[{"label","kind" ("user agent"/"referrer"/"address"),"source" ("config"/"file"),"paused" (file entries only: bool, paused now)}]` - labels only, never an address (the address list is the management API below); deleted and replaced entries are not listed |
 | `heartbeat_label` | string, the label whose requests are the 5-minute heartbeat (default `"heartbeat"`) |
 | `days[]` / `today` | `labels` `{label: requests}`; `heartbeat` (below); `hours` `{hour: {"requests","p50_ms","p95_ms","server_errors","heartbeat_ok","heartbeat_failed"}}` (`p50_ms`/`p95_ms`: all site requests' server time, null when not logged) |
-| `api` | `{"list": "ours", "add": "ours/add", "remove": "ours/remove", "add_mine": "ours/add-mine"}` relative to the page |
+| `api` | `{"list": "ours", "add": "ours/add", "remove": "ours/remove", "add_mine": "ours/add-mine", "pause": "ours/pause", "resume": "ours/resume", "edit": "ours/edit"}` relative to the page (an older file without the last three: the page uses these defaults) |
 
 `heartbeat`: `{"expected": int (one per 5 min in the window), "seen": int,
 "ok": int (status 2xx/3xx), "failed": int, "uptime_pct": float or null
@@ -845,7 +845,10 @@ more than 10 minutes)}`.
 
 ### Internal addresses API (refresh helper, same password, same-origin only)
 
-- `GET <page>/ours` -> `{"ok":true,"limit":50,"entries":[{"ip":"203.0.113.7","label":"Office","source":"config","editable":false,"added_at":null,"added_from":null}]}`.
+- `GET <page>/ours` -> `{"ok":true,"limit":50,"entries":[{"ip":"203.0.113.7","label":"Office","source":"config","editable":false,"pausable":false,"active":true,"paused_since":null,"added_at":null,"added_from":null}]}`.
+  A page-added entry has `"source":"file"`, `"editable":true`, `"pausable":true`, `active`
+  (false while paused), `paused_since` (ISO, when the open pause began, else null) and `paused`
+  (below). Deleted and replaced entries are not listed.
   Internal addresses are shown here (private page) and never in the JSON
   files, CSV exports or emails. (Visitors' addresses, when a site keeps
   them, are shown only by the person lookup:
@@ -854,9 +857,23 @@ more than 10 minutes)}`.
   (`ip`), `POST <page>/ours/add-mine` (`label`; the caller's address from
   nginx's `X-Real-IP`). Answer: `{"ok":bool,"error":string?,"entries":[...]}`;
   400 on invalid input, 403 when not same-origin, 409 at the limit.
+  `POST <page>/ours/pause` and `POST <page>/ours/resume` (`ip`): 400 when it is
+  already paused / not paused, or a config entry. `POST <page>/ours/edit` (`ip`,
+  and `label` and/or `new_ip`). Same permission as add.
   An address added applies from `added_at` on (live and future days); stored
   days are never rewritten. Each change is logged to
-  `/var/log/skald/ours-changes.log`.
+  `/var/log/skald/ours-changes.log` (actions `add`, `remove`, `pause`,
+  `resume`, `edit`).
+
+  The server's own file (`ours.file`, else `ours.json` beside the history; not
+  a data file) keeps, per entry: `ip`, `label`, `added_at`, `added_from`,
+  `added_by`, `site`, and since 2026-10-18 `paused`: `[[from, to-or-null], ...]`
+  (ISO with offset; null: still paused), `removed_at` (deleted, or replaced by an
+  edit), `replaced_by`, `removed_by`. An entry counts a request at time t when
+  `added_at <= t`, t is before `removed_at`, and t is in no pause (`from <= t < to`).
+  Entries are never taken out of the file, so a stored day re-collected later,
+  and the audit's own recount, give the same figures. A file without these
+  fields reads as before (active, never removed).
 
 ### Outside uptime check (`outside`: null until set up; written by the outside check, not by Skald)
 

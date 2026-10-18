@@ -283,10 +283,12 @@ class Judge:
         self.agents += [(v.lower(), l) for v, l in OWN_AGENTS]
         self.referrers = [(v.lower(), l) for v, l in
                           entries(ours.get("referrers"), "referrer", False)]
-        self.networks = [(ipaddress.ip_network(v, strict=False), l, None)
+        # (network, label, since, until, pauses): config addresses always;
+        # page-added ones while they applied (audit_visits.ours_applies).
+        self.networks = [(ipaddress.ip_network(v, strict=False), l, None, None, [])
                          for v, l in entries(ours.get("addresses"), "ip", True)]
-        self.networks += [(ipaddress.ip_network(v, strict=False), l, since)
-                          for v, l, since in audit_visits.page_added(config)]
+        self.networks += [(ipaddress.ip_network(v, strict=False), l, since, until, stops)
+                          for v, l, since, until, stops in audit_visits.page_added(config)]
         self.hosts = {str(h).lower() for h in
                       ((config.get("site") or {}).get("hosts") or [])}
         self.crawlers = self._crawlers(lines, gap)
@@ -320,8 +322,8 @@ class Judge:
             ip = ipaddress.ip_address(line.address)
         except ValueError:
             return ""
-        for n, label, since in self.networks:
-            if ip in n and (since is None or line.when >= since):
+        for n, label, since, until, stops in self.networks:
+            if ip in n and audit_visits.ours_applies(since, until, stops, line.when):
                 return label
         return ""
 

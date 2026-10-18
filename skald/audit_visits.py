@@ -78,10 +78,51 @@ def ours_entries(raw, key: str, addresses: bool) -> list[tuple[str, str]]:
     return out
 
 
-def page_added(config: dict) -> list[tuple[str, str, object]]:
-    """(ip or range, label, from when) for the addresses added on the page:
-    the JSON file `ours.file` (else ours.json beside the history), read here
-    on its own terms."""
+def _iso(text):
+    """An aware time from ISO text (UTC when it names no zone); None otherwise."""
+    from datetime import datetime, timezone
+    if not isinstance(text, str):
+        return None
+    try:
+        when = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    return when if when.tzinfo else when.replace(tzinfo=timezone.utc)
+
+
+def _stops(raw) -> list[tuple]:
+    """The pauses of one entry, (from, to or None); unreadable pairs skipped."""
+    out = []
+    for pair in raw if isinstance(raw, list) else []:
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            continue
+        start, end = _iso(pair[0]), (_iso(pair[1]) if pair[1] is not None else None)
+        if start is None or (pair[1] is not None and end is None):
+            continue
+        out.append((start, end))
+    return out
+
+
+def ours_applies(since, until, stops, when) -> bool:
+    """Whether a page-added address counts as ours at `when`: on or after it
+    was added, before it was deleted or edited, and in none of its pauses
+    (a pause covers from <= when < to; an open one from <= when)."""
+    if since is not None and when < since:
+        return False
+    if until is not None and when >= until:
+        return False
+    for start, end in stops:
+        if when >= start and (end is None or when < end):
+            return False
+    return True
+
+
+def page_added(config: dict) -> list[tuple]:
+    """(ip or range, label, from when, until when or None, pauses) for the
+    addresses added on the page: the JSON file `ours.file` (else ours.json
+    beside the history), read here on its own terms. Deleted and edited
+    entries stay in the file with `removed_at` and are kept here, so the
+    days before still recount the same."""
     import json
     import os
     from datetime import datetime, timezone
@@ -107,7 +148,8 @@ def page_added(config: dict) -> list[tuple[str, str, object]]:
         except ValueError:
             continue
         out.append((str(e["ip"]), " ".join(str(e["label"]).split()),
-                    when if when.tzinfo else when.replace(tzinfo=timezone.utc)))
+                    when if when.tzinfo else when.replace(tzinfo=timezone.utc),
+                    _iso(e.get("removed_at")), _stops(e.get("paused"))))
     return out
 
 

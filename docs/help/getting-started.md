@@ -134,7 +134,25 @@ Select any country, page, source, AI assistant, campaign, referring site, device
 - Step back with the browser's Back button, or with the trail at the top of the page.
 - On the keyboard, press Enter on a value, a bar or an hour.
 
+When the panel has visits behind it, **How these visitors moved** draws them as a flow map. See [Visitor flow](getting-started.md#visitor-flow).
+
 On [Traffic > Pages](#traffic/pages), select a page to see its story: when it was published, its first crawl, its first AI fetch, its first person and its first lead.
+
+## Visitor flow
+
+[Traffic > Visitors](#traffic/visitors) has a **Visitor flow** map. It shows how visits moved: where they came from, the pages they read in order, and when they left.
+
+- Each column is one step: the source, then page 1, page 2 and so on. A bar's height is its visits. A band's width is the visits that moved from one bar to the next.
+- A visit that ends flows to **Left after 1 page**, **Left after 2 pages** and so on. A visit with more pages than the map shows flows to **Went on to more pages**.
+- Each column keeps its 7 biggest pages and folds the rest into **Other pages**, so every column still adds up to the visits.
+- A page loaded twice in a row (a reload) counts once. Moves inside the site count, as in **Common next steps**.
+- **Start from** picks the first column: the source type, or who sent them (the AI assistant or site). **Pages** picks how many page columns to draw.
+- Point at or tab to a bar to see its visits, its share and where its visits went next. Click it, or press Enter, to open it.
+- **Table** shows the same figures as rows, with a CSV. On a phone the table shows first.
+
+The map uses the visits whose journeys are kept: today and the last 7 days. For a longer period it says which days it covers. Every filter applies. The same visits reconcile with **Where visits started**, **Common next steps** and **Where visits ended** for those days. A map that does not add up is withheld, not drawn.
+
+The drill-down panel draws the same map for its visits (**How these visitors moved**), so a country, a source or a page has one too. [Funnels](funnels-and-goals.md#flow-between-the-steps) draws one between its steps.
 
 ## Compare
 

@@ -18,6 +18,7 @@ import { DIMS, chainOf, encode, label, link, said } from "./drill.js";
 import { blist, panel } from "./tabs/common.js";
 import { openDrawer } from "./drawer.js";
 import { botDetail } from "./tabs/crawlercost.js";
+import { drillFlow } from "./tabs/flowview.js";
 
 const STATUS_CLASS = (code) => (code >= 500 ? "5xx" : code === 404 ? "404" : code >= 400 ? "4xx" : code >= 300 ? "3xx" : "2xx");
 const landing = (j) => j.landing || j.trail?.[0]?.path || j.trail?.[0]?.[0] || "";
@@ -233,7 +234,7 @@ export function drillView(m, s) {
           h("div", null, h("b", null, n(js.length)), h("span", null, "visits")),
           h("div", null, h("b", null, (js.reduce((a, j) => a + (j.pages || 0), 0) / js.length).toFixed(1)), h("span", null, "pages per visit")),
           h("div", null, h("b", null, secs.length ? duration(secs[Math.floor(secs.length / 2)]) : "-"), h("span", null, "median length"))),
-        visitLists(js, chain), h("h3", { style: { marginTop: "6px" } }, "Latest visits"), visitList(js));
+        drillFlow(js, chain, chartWidth()), visitLists(js, chain), h("h3", { style: { marginTop: "6px" } }, "Latest visits"), visitList(js));
     }
   }
   body.append(vs);

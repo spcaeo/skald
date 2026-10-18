@@ -40,6 +40,7 @@ from urllib.parse import urlsplit
 from enum import Enum
 
 from .config import ours_entries
+from .ours_store import paused_at, pauses, since, until
 from .parse import ASSET, RSC_PAYLOAD, Hit
 
 
@@ -547,12 +548,13 @@ class Classifier:
         self.ours_referrer = self._any_of([v for v, _ in self.ours_referrers])
         # Addresses or CIDR ranges you browse from (an office, your own laptop): your own visits
         # look exactly like a reader's, and are not traffic.
-        # (network, label, since): config entries apply always; an entry added
-        # on the page (ours_store) only from the moment it was added.
-        self.ours_networks = [(ipaddress.ip_network(v, strict=False), l, None)
+        # (network, label, since, until, pauses): config entries apply always;
+        # an entry added on the page (ours_store) from the moment it was added,
+        # until it was deleted or edited, outside its pauses.
+        self.ours_networks = [(ipaddress.ip_network(v, strict=False), l, None, None, ())
                               for v, l in ours_entries(our_addresses, "addresses")]
-        from .ours_store import since
-        self.ours_networks += [(ipaddress.ip_network(e["ip"], strict=False), e["label"], since(e))
+        self.ours_networks += [(ipaddress.ip_network(e["ip"], strict=False), e["label"],
+                                since(e), until(e), tuple(pauses(e)))
                                for e in file_addresses or []]
         self._agents: dict[str, tuple] = {}
         # Crawler visits found by a first pass (crawler_visits). Set by the
@@ -626,13 +628,23 @@ class Classifier:
 
     def _ours_address(self, address: str, when=None) -> str:
         """The label of the first listed range holding this address (and, for
-        one added on the page, added before this request), or ""."""
+        one added on the page, applying at this request's time: added before
+        it, not yet deleted or edited, not paused), or ""."""
         try:
             ip = ipaddress.ip_address(address)
         except ValueError:
             return ""
-        for net, label, start in self.ours_networks:
-            if ip in net and (start is None or when is None or _aware(when) >= start):
+        at = _aware(when) if when is not None else None
+        for net, label, start, end, spans in self.ours_networks:
+            if ip not in net:
+                continue
+            if at is None:
+                # No time known: what applies now.
+                if end is None and not (spans and spans[-1][1] is None):
+                    return label
+                continue
+            if (start is None or at >= start) and (end is None or at < end) \
+                    and not paused_at(spans, at):
                 return label
         return ""
 

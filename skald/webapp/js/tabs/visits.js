@@ -10,6 +10,7 @@ import { table } from "../table.js";
 import { head, nothing, coverageNote, blist, panel, fileName } from "./common.js";
 import { visitMatrix, entryTable, folded, offset, NOTE } from "./visitlist.js";
 import { label as valueLabel } from "../drill.js";
+import { visitorFlow } from "./flowview.js";
 
 const MIN_RATE = 10;   // no rate over fewer visits than this: too few to mean anything
 const FEW = "too few to say";
@@ -97,6 +98,7 @@ export default function visits(m, s, { first }) {
     panel("Where visits started", "The first page each visitor read", blist(ranked(t.by?.landing, keep), { drill: "landing", empty: "No landing page recorded." })),
     panel("Where visits ended", "The last page a visitor was seen on", blist(ranked(v?.exits, keep), { drill: "path", color: "var(--views)", empty: v ? "No exit page recorded." : "Not recorded for this range." })),
     panel("Common next steps", "From one page to the next", blist(ranked(v?.steps, (x) => x.split(" → ").some(keep)), { color: "var(--ink-3)", empty: v ? "No visit went past one page." : "Not recorded for this range." }))));
+  out.push(visitorFlow(m, s, r));
   out.push(...engagement(s, r));
   out.push(h("section", { class: "s" }, h("h2", null, "Each visit"),
     h("p", { class: "sub" }, `Newest first, one row per visit; open a row for its pages in order. Every global filter applies, and the buttons below narrow the list further. Anonymous, kept ${m.journey_days || 7} days.`),
