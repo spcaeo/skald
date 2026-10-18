@@ -24,6 +24,7 @@ from html import escape as esc
 from .aggregate import Totals
 from .classify import Group
 from .countries import label as country_label
+from .labels import shown as shown_label
 from .dimensions import DEVICES, NO_CAMPAIGN, SLOW
 
 NOT_RECORDED = ("Breakdowns not recorded for (some of) these days: they were "
@@ -56,7 +57,7 @@ def _pct(n: int, whole: int) -> str:
     return f"{n / whole * 100:.0f}%" if whole else "0%"
 
 
-def _shares(counter, whole: int, limit: int | None = 5, name=str) -> list[str]:
+def _shares(counter, whole: int, limit: int | None = 5, name=shown_label) -> list[str]:
     items = counter.most_common(limit) if limit else counter.most_common()
     return [f"{name(k)} {n:,} ({_pct(n, whole)})" for k, n in items if n]
 
@@ -89,7 +90,7 @@ def reader_rows(totals: Totals, credit=None, tz_name: str | None = None
     shown = _shares(countries, whole, 5, country_label)
     unknown = countries.get("Unknown", 0)
     if unknown and "Unknown" not in [k for k, _ in countries.most_common(5)]:
-        shown.append(f"Unknown {unknown:,} ({_pct(unknown, whole)})")
+        shown.append(f"{country_label('Unknown')} {unknown:,} ({_pct(unknown, whole)})")
     rows.append(("Countries", ", ".join(shown), credit_note))
     rows.append(("Browsers", ", ".join(_shares(get("browser"), whole)), ""))
     rows.append(("Systems", ", ".join(_shares(get("os"), whole)), ""))

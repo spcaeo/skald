@@ -471,6 +471,7 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
                                         audit_extras.secret(config))
     firsts = audit_release2.FirstsRecount(wanted, source_of, _bare)
     more = audit_more.start(config, day, tz, wanted)    # phase 4 recounts
+    more.set_window(start, end)
     for line in lines:
         if wanted and line.host and line.host.lower() not in wanted:
             excluded += 1
@@ -837,7 +838,9 @@ def compare_live(figures: dict, snap: dict) -> tuple[list[str], int]:
                                         same, problems)
             audit_release2.compare_crawler_paths(snap["extras"],
                                                  figures["bots"]["crawler_paths"], same, problems)
-        figures["more"].compare(snap["extras"], same, problems)
+        # Real time (audit_realtime.py) is the snapshot's own part, not an extra.
+        figures["more"].compare({**snap["extras"], "realtime": snap.get("realtime")},
+                                same, problems)
     same("journeys in the snapshot", int(snap.get("journeys_total", 0)),
          figures["journeys"]["visits"])
     listed = snap.get("journeys") or []

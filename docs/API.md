@@ -106,7 +106,7 @@ working.
 | --- | --- | --- |
 | 200 | the file, as DATA-CONTRACT.md describes it | |
 | 400 | `{"ok": false, "error": "..."}` | `people?q=` with a value that is not an address, email, visitor ID or lead id |
-| 401 | `{"ok": false, "error": "..."}` | no token, an unknown or revoked one, a token for another site (or another organisation's), a token without the `read` scope, or a private file without `--private` / `read_private` |
+| 401 | `{"ok": false, "error": "..."}` | no token, an unrecognised or revoked one, a token for another site (or another organisation's), a token without the `read` scope, or a private file without `--private` / `read_private` |
 | 404 | `{"ok": false, "error": "no such file"}` | the page or file does not exist |
 
 Answers are `application/json`, never cached (`Cache-Control: no-store`).

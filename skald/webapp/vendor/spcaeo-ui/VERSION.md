@@ -19,7 +19,7 @@ names an outside address.
 | --- | --- | --- |
 | `folder-tabs/vanilla/folder-tabs.js` | `components/folder-tabs/vanilla/folder-tabs.js` | licence header only |
 | `folder-tabs/folder-tabs.css` | `components/folder-tabs/folder-tabs.css` | licence header only |
-| `data-grid/vanilla/data-grid.js` | `components/data-grid/vanilla/data-grid.js` | header, imports, patches 1-3 below |
+| `data-grid/vanilla/data-grid.js` | `components/data-grid/vanilla/data-grid.js` | header, imports, patches 1-5 below |
 | `data-grid/core/url-state.js` | `components/data-grid/core/url-state.mjs` | header, renamed, imports |
 | `data-grid/core/query.js` | `components/data-grid/core/query.mjs` | header, renamed, import |
 | `data-grid/core/filter-model.js` | `components/data-grid/core/filter-model.mjs` | header, renamed |
@@ -248,3 +248,11 @@ run `python3 -m unittest discover tests` and `tests/e2e/spcaeo-ui.mjs`, and upda
 ## Patch 4 (2.7.0): segments as a proper tab strip
 
 `data-grid/vanilla/data-grid.js` `renderSegments`: the segment buttons have `role="tab"` but every one was a tab stop. Now only the selected one has `tabindex=0` (the others -1), and ArrowLeft/ArrowRight/Home/End move between them and pick one, as the WAI-ARIA tabs pattern asks. Found by the Traffic builder (a section with a segmented grid showed 4 tab stops).
+
+## Patch 5 (2.10): centred columns
+
+`data-grid/vanilla/data-grid.js` `alignClass`: upstream knew only `align: "right"` (class
+`dg-num`). `align: "center"` now gives `dg-center`, for a yes/no or a small tag ("New",
+"Blocked"). `js/grid.js` sets `align` from the column's type (`table.js` `alignOf`), and
+`spcaeo-ui-skald.css` lines every grid up: cells at the top of the row, `dg-num` right
+(upstream's `.dg-table td` outweighs its own `.dg-num`), `dg-center` centred.

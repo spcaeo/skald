@@ -18,7 +18,7 @@
 section.s > .sheet:has(> .si-outages) { margin-top: 14px; }
 
 /* Requests: the log's cells inside the Data Grid. */
-.si-rq-grid .dg-table td { vertical-align: middle; font-size: 13px; padding: 6px 8px; white-space: normal; }
+.si-rq-grid .dg-table td { vertical-align: top; font-size: 13px; padding: 6px 8px; white-space: normal; }
 .si-rq-grid .dg-table th { font-size: 12px; padding: 8px 8px; white-space: normal; }
 .si-rq-t { font: 12.5px var(--mono); color: var(--ink-2); white-space: nowrap; border-radius: 4px; padding: 1px 3px; margin: -1px -3px; }
 .si-rq-t.fresh { animation: fresh 2.4s var(--ease); }

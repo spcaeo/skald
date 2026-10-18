@@ -11,7 +11,7 @@
 - [ ] `python3 -m unittest discover tests` ends `OK`.
 - [ ] **New figure?** It has a second, independent count in an `audit*.py` file that shares only
       the name lists with the main code. (Or: this change adds no figure.)
-- [ ] Figures still reconcile; nothing unknown is shown as `0`; requests are never called people.
+- [ ] Figures still reconcile; nothing unrecorded is shown as `0`; requests are never called people.
 - [ ] No address, person's user agent, name or email goes into stored history.
 - [ ] Standard library only; no new runtime dependency.
 - [ ] No file is over 1,000 lines.

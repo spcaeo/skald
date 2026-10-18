@@ -66,7 +66,7 @@ function today(f, a) {
   return h("section", { class: "s" }, h("h2", null, "Today, as it came in"),
     h("p", { class: "sub" }, `Each ${actionName(a).toLowerCase().replace(/s$/, "")} step today, newest first: started, booked, cancelled and the rest. A row marked test is kept and never counted.`),
     grid({ ns: "bt", caption: `Today's ${actionName(a).toLowerCase()}`, file: "bookings-today.csv", rows, sortKey: "at", dir: "desc",
-      columns: [{ key: "at", label: "Time", fmt: (v) => at(v) }, { key: "stage", label: "Stage", fmt: (v, r) => h("span", null, STAGE[v] || dash(v), r.test ? h("b", { class: "pp-bad" }, " test (not counted)") : null), csv: (r) => `${r.stage}${r.test ? " (test)" : ""}` },
+      columns: [{ key: "at", label: "Time", type: "date", fmt: (v) => at(v) }, { key: "stage", label: "Stage", fmt: (v, r) => h("span", null, STAGE[v] || dash(v), r.test ? h("b", { class: "pp-bad" }, " test (not counted)") : null), csv: (r) => `${r.stage}${r.test ? " (test)" : ""}` },
         { key: "tool", label: "Reported by", fmt: (v) => (v ? toolName(v) : "-"), csv: (r) => r.tool }, { key: "source", label: "Source", fmt: dash }, { key: "campaign", label: "Campaign", fmt: dash },
         { key: "landing", label: "Landing", fmt: dash }, { key: "country", label: "Country", fmt: dash }, { key: "device", label: "Device", fmt: dash }],
       filters: [{ key: "stage", label: "Stage", options: [...new Set(rows.map((r) => r.stage))].map((k) => [k, STAGE[k] || k]) }],

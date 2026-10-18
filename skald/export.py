@@ -61,6 +61,7 @@ from datetime import date
 from .aggregate import READER_DIMS
 from .classify import Group, ads_checks, assistant_name
 from .dimensions import SPEEDS, STATUSES
+from .labels import shown, shown_text, stored
 from .store import READER_KINDS, History
 
 from . import export_visits as ev
@@ -189,7 +190,7 @@ def _reader_wanted(f: Filters, dimension: str, name: str) -> bool:
         elif key == "country":
             if name.upper() != value.upper():
                 return False
-        elif name.lower() != value.lower():
+        elif name.lower() not in (value.lower(), stored(value).lower()):
             return False
     return True
 
@@ -532,7 +533,7 @@ _FORMULA = ("=", "+", "-", "@", "\t", "\r")
 
 
 def _cell(value) -> str:
-    text = "" if value is None else str(value)
+    text = "" if value is None else shown_text(str(value))
     return "'" + text if text.startswith(_FORMULA) else text
 
 
@@ -557,4 +558,5 @@ def as_csv(rows: list[dict]) -> str:
 
 
 def as_json(rows: list[dict], meta: dict) -> str:
-    return json.dumps({**meta, "rows": _public(rows)}, indent=1, sort_keys=False) + "\n"
+    rows = [{k: shown(v) for k, v in row.items()} for row in _public(rows)]
+    return json.dumps({**meta, "rows": rows}, indent=1, sort_keys=False) + "\n"

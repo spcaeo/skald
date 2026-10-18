@@ -24,13 +24,15 @@
 //   });
 //   card.append(g);   // g.update(rows), g.filtered(), g.destroy(), g.api (upstream's)
 //
-// Columns take table.js's shape: {key, label, num?, fmt?(v,row), csv?(row), sort?(row), drill?, sortable?}.
+// Columns take table.js's shape: {key, label, num?, type?, fmt?(v,row), csv?(row), sort?(row), drill?, sortable?};
+// type lines a column up as in table.js (alignOf): numbers right, tags and yes/no centred.
 
 import { createDataGrid } from "../vendor/spcaeo-ui/data-grid/vanilla/data-grid.js";
 import { URL_SUFFIX, readGridParams, writeGridParams } from "../vendor/spcaeo-ui/data-grid/core/url-state.js";
 import { h, n, ICON } from "./ui.js";
 import { link } from "./drill.js";
-import { REGISTRY, csv, download } from "./table.js";
+import { shown, shownText } from "./labels.js";
+import { REGISTRY, csv, download, alignOf } from "./table.js";
 import { track } from "./mounts.js";
 
 // ---- the hash's query, where every Skald key lives -----------------------------
@@ -83,7 +85,8 @@ export function grid(opts) {
   let rows = opts.rows || [];
   let texts = new WeakMap();  // each row's searchable text, built once per update()
 
-  const cell = (c, r) => { const v = r[c.key]; return c.fmt ? c.fmt(v, r) : c.num ? n(v) : v; };
+  // A stored label the grid draws as plain text is said as shown ("Direct", not "Direct or unknown").
+  const cell = (c, r) => { const v = r[c.key]; return c.fmt ? c.fmt(v, r) : c.num ? n(v) : typeof v === "string" ? shownText(v) : v; };
   const value = (c, r) => (c.sort ? c.sort(r) : r[c.key]);
   const fieldOf = (f) => f.value || ((r) => r[f.key]);
   const searchText = (r) => {
@@ -92,10 +95,11 @@ export function grid(opts) {
     return t;
   };
   const optionsOf = (f) => {
-    if (f.options) return f.options.map((o) => (Array.isArray(o) ? { value: String(o[0]), label: o[1] } : { value: String(o), label: String(o) }));
+    if (f.options) return f.options.map((o) => (Array.isArray(o) ? { value: String(o[0]), label: o[1] } : { value: String(o), label: shown(String(o)) }));
     const seen = new Set();
     for (const r of rows) { const v = fieldOf(f)(r); if (v != null && v !== "") seen.add(String(v)); }
-    return [...seen].sort((a, b) => a.localeCompare(b)).slice(0, 100).map((v) => ({ value: v, label: v }));
+    // The value stays the stored name (the filter compares it); the label is its shown words.
+    return [...seen].sort((a, b) => a.localeCompare(b)).slice(0, 100).map((v) => ({ value: v, label: shown(v) }));
   };
   const segTest = (id) => segments.find((s) => s.id === id)?.test;
 
@@ -147,7 +151,7 @@ export function grid(opts) {
     if (query.page > pages) HASH.write(writeGridParams(ns, { ...query, page: pages }, HASH.read()));
   }
 
-  let shown = [];
+  let onPage = [];  // the rows on screen (not labels.js shown)
   const wrap = h("div", { class: "sk-grid" });
   const host = h("div", { class: "sk-grid-host", "aria-label": caption || null, role: caption ? "region" : null });
   wrap.append(host);
@@ -161,7 +165,7 @@ export function grid(opts) {
   const api = createDataGrid(host, {
     namespace: ns,
     params: HASH,
-    columns: cols.map((c) => ({ id: c.key, label: c.label, sortable: c.sortable !== false, align: c.num ? "right" : null, render: (r) => cell(c, r) })),
+    columns: cols.map((c) => ({ id: c.key, label: c.label, sortable: c.sortable !== false, align: alignOf(c), render: (r) => cell(c, r) })),
     filters: filters.map((f) => ({ id: f.key, label: f.label, type: "enum", options: optionsOf(f) })),
     segments: segCounts,
     getRowId: rowId || ((r) => rows.indexOf(r)),
@@ -173,15 +177,15 @@ export function grid(opts) {
       // One page of rows: no Previous, Next or "Page 1 of 1" (the count and the page size stay).
       wrap.classList.toggle("sk-one-page", query.page <= 1 && all.length <= query.pageSize);
       const start = (query.page - 1) * query.pageSize;
-      shown = everyRow() ? all : all.slice(start, start + query.pageSize);
-      return { rows: shown, total: all.length };
+      onPage = everyRow() ? all : all.slice(start, start + query.pageSize);
+      return { rows: onPage, total: all.length };
     },
   });
 
   // Rows that open something: a click, or Enter on the focused row, as in table.js.
   if (onRow) {
     host.classList.add("sk-grid-rows");
-    const rowAt = (tr) => (tr?.parentElement?.closest(".dg-table") && !tr.classList.contains("dg-skeleton-row") ? shown[[...tr.parentElement.children].indexOf(tr)] : null);
+    const rowAt = (tr) => (tr?.parentElement?.closest(".dg-table") && !tr.classList.contains("dg-skeleton-row") ? onPage[[...tr.parentElement.children].indexOf(tr)] : null);
     host.addEventListener("click", (e) => {
       if (e.target.closest("button,a,input,label,select")) return;
       const row = rowAt(e.target.closest("tbody tr"));

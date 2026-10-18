@@ -75,7 +75,7 @@ Three fields earn their place:
   self-reported and forgeable, which is why `people` is an upper bound and
   never a count of humans.
 - **`cc=$http_cf_ipcountry`** is the country, as Cloudflare resolved it. With
-  no such header the country is **Unknown, not guessed**, unless
+  no such header the country is **Not recorded, not guessed**, unless
   `logs.country_db` names a GeoIP country file (`.mmdb`, DB-IP's free file
   works): then a line with no country of its own gets its address's country
   from that file. That is a lookup in the same file nginx's module would read,

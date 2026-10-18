@@ -587,12 +587,12 @@ location ^~ /traffic/ {
     }
     # Every per-site route the helper answers, /traffic/<site>/[<view>/]<route>:
     # refresh; me; ours (internal addresses); funnels; bot-policy (crawler
-    # settings); api/v1, api/compare, api/page; team, account, tokens, audit
+    # settings); api/v1, api/compare, api/page, api/realtime; team, account, tokens, audit
     # (team_api.py); settings and settings/* (settings_api.py); sites and
     # sites/* (sites_api.py); billing and billing/* (saas, 404 while off);
     # integrations and integrations/* (integrations_api.py); people and people/*
     # (people/api.py); logo and logo/* (the site's logo, logo_api.py).
-    location ~ ^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?(?:refresh|me|ours(?:/(?:add|remove|add-mine))?|funnels(?:/(?:save|delete))?|bot-policy|api/(?:v1/(?:[a-z_]+)?|compare|page)|team(?:/[a-z-]+)?|account(?:/[a-z-]+(?:/[a-z]+)?)?|tokens(?:/[a-z]+)?|audit|settings(?:/[a-z-]+)?|sites(?:/[a-z]+)?|billing(?:/[a-z]+)?|integrations(?:/[a-z]+(?:/[a-z]+)?)?|people(?:/[a-z-]+)?|logo(?:/[a-z]+)?)$ {
+    location ~ ^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?(?:refresh|me|ours(?:/(?:add|remove|add-mine))?|funnels(?:/(?:save|delete))?|bot-policy|api/(?:v1/(?:[a-z_]+)?|compare|page|realtime)|team(?:/[a-z-]+)?|account(?:/[a-z-]+(?:/[a-z]+)?)?|tokens(?:/[a-z]+)?|audit|settings(?:/[a-z-]+)?|sites(?:/[a-z]+)?|billing(?:/[a-z]+)?|integrations(?:/[a-z]+(?:/[a-z]+)?)?|people(?:/[a-z-]+)?|logo(?:/[a-z]+)?)$ {
         limit_except GET POST { deny all; }
         set $skald_path $uri;
         include snippets/skald-helper.conf;

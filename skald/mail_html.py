@@ -28,7 +28,8 @@ from html import escape as esc
 
 from . import brand
 from .classify import AI_ASKED, Group
-from .countries import UNKNOWN, label as country_label
+from .countries import label as country_label
+from .labels import shown as shown_label, shown_text
 from .dimensions import OTHER
 
 LOGO_CID = "skald-mark"
@@ -211,7 +212,7 @@ def _insights(found: list[dict]) -> str:
             f'<span class="s-ink3" style="font:600 11px/1.5 {FONT};color:{INK3};'
             f'text-transform:uppercase;letter-spacing:.04em">'
             f'{esc(WORD.get(i.get("type"), i.get("type", "")))}</span>&nbsp; '
-            f'{esc(i.get("title", ""))}</td></tr>')
+            f'{esc(shown_text(i.get("title", "")))}</td></tr>')
     body = (f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
             f'style="border-collapse:collapse">{"".join(rows)}</table>')
     return _card("What changed", body, "Only whole, verified days are compared.")
@@ -231,7 +232,7 @@ def _sources(people) -> str:
     cited = Counter(people.cited_by) if people else Counter()
     rows = []
     for name, n in Counter(by).most_common(ROWS):
-        shown = esc(name)
+        shown = esc(shown_label(name))
         if name == "AI assistant" and cited:
             shown += (f'<div class="s-ink3" style="font:400 12px/1.4 {FONT};color:{INK3}">'
                       + esc(", ".join(f"{a} {c}" for a, c in cited.most_common(4))) + "</div>")
@@ -252,7 +253,7 @@ def _pages(people) -> str:
 def _countries(people, credit=None) -> str:
     by = (people.by or {}).get("country") or {} if people else {}
     total = sum(by.values())
-    rows = [(esc(country_label(c) if c != UNKNOWN else "Unknown"), f"{n:,}", _pct(n, total))
+    rows = [(esc(country_label(c)), f"{n:,}", _pct(n, total))
             for c, n in Counter(by).most_common(ROWS)]
     note = ""
     if credit:                          # the country database's licence asks for it here

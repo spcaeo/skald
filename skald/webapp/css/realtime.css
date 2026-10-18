@@ -1,0 +1,69 @@
+/* Overview > Real time (js/tabs/realtime.js, rt-map.js). The map's shading is
+   one hue, blue, light to dark (the people colour's ramp), five steps at most;
+   in dark mode its own steps, darkest near the surface. Each ramp reads in
+   order (lightness steps of 0.06 or more) and its faintest step stands 2:1
+   or more against its surface. Land with no visit is
+   a quiet grey; borders are the surface colour (a gap, not a line). A bubble
+   is the live green of the "Today · Live" pulse, with a surface ring. */
+
+:root {
+  --rt-0: #dfe5eb; --rt-1: #86b6ef; --rt-2: #5598e7; --rt-3: #256abf; --rt-4: #184f95; --rt-5: #0d366b;
+  --rt-live: #1b8f65;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --rt-0: #26313c; --rt-1: #184f95; --rt-2: #256abf; --rt-3: #3987e5; --rt-4: #6da7ec; --rt-5: #b7d3f6;
+    --rt-live: #2fbf8a;
+  }
+}
+:root[data-theme="dark"] {
+  --rt-0: #26313c; --rt-1: #184f95; --rt-2: #256abf; --rt-3: #3987e5; --rt-4: #6da7ec; --rt-5: #b7d3f6;
+  --rt-live: #2fbf8a;
+}
+
+.rt { margin-bottom: 26px; }
+.rt-top { flex-wrap: wrap; align-items: center; row-gap: 4px; margin-bottom: 10px; }
+.rt-clocks { display: flex; flex-direction: column; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; line-height: 1.35; }
+.rt-as.late { color: var(--warn); }
+.rt .tiles { margin-top: 0; }
+.rt-charts { margin-bottom: 14px; }
+.rt-charts .sheet h3, .rt-geo .sheet h3 { margin: 0 0 2px; font-size: 13.5px; }
+
+/* The map and its table: side by side when there is room, else one under the other. */
+.rt-geo { display: grid; gap: 14px; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); margin-bottom: 14px; align-items: start; }
+@media (max-width: 980px) { .rt-geo { grid-template-columns: minmax(0, 1fr); } }
+.rt-frame { width: 100%; }
+.rt-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.rt-c { fill: var(--rt-0); stroke: var(--surface); stroke-width: .6; stroke-linejoin: round; transition: fill .4s var(--ease); }
+.rt-c.s1 { fill: var(--rt-1); } .rt-c.s2 { fill: var(--rt-2); } .rt-c.s3 { fill: var(--rt-3); }
+.rt-c.s4 { fill: var(--rt-4); } .rt-c.s5 { fill: var(--rt-5); }
+.rt-c.rt-dot.s0 { fill: none; stroke: none; }
+.rt-c[tabindex] { cursor: pointer; }
+.rt-c[tabindex]:hover { stroke: var(--ink); stroke-width: 1; }
+.rt-c:focus { outline: none; }
+.rt-c:focus-visible { stroke: var(--focus); stroke-width: 2; }
+.rt-bubbles { pointer-events: none; }
+.rt-bub { fill: var(--rt-live); fill-opacity: .85; stroke: var(--surface); stroke-width: 2; }
+.rt-ring { fill: none; stroke: var(--rt-live); stroke-width: 1.5; transform-box: fill-box; transform-origin: center;
+  animation: rt-pulse 2.4s var(--ease) infinite; }
+@keyframes rt-pulse { from { transform: scale(1); opacity: .7; } to { transform: scale(2.2); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .rt-ring { display: none; } .rt-c { transition: none; } }
+
+.rt-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; margin-top: 8px; font-size: 11.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.rt-lg-h { color: var(--ink-3); }
+.rt-lg-i { display: inline-flex; align-items: center; gap: 5px; }
+.rt-sw { width: 14px; height: 10px; border-radius: 2px; display: inline-block; background: var(--rt-0); }
+.rt-sw.s1 { background: var(--rt-1); } .rt-sw.s2 { background: var(--rt-2); } .rt-sw.s3 { background: var(--rt-3); }
+.rt-sw.s4 { background: var(--rt-4); } .rt-sw.s5 { background: var(--rt-5); }
+.rt-sw-bub { width: 10px; height: 10px; border-radius: 50%; background: var(--rt-live); box-shadow: 0 0 0 2px var(--surface); }
+.rt-ctable .tbl-tools input { max-width: 150px; }
+
+.rt-lists { margin-bottom: 14px; }
+.rt-sub { margin: 8px 0 2px; font-size: 12px; color: var(--ink-3); }
+.rt-line { margin: 10px 0 0; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.rt-line b { font-variant-numeric: tabular-nums; }
+.rt-k { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.rt-now { margin-left: 6px; font-size: 11px; padding: 0 6px; border-radius: 999px; color: var(--ink-2); border: 1px solid var(--rule); white-space: nowrap; }
+.rt-now.on { color: var(--rt-live); border-color: color-mix(in srgb, var(--rt-live) 45%, var(--rule)); }
+
+@media print { .rt-ring { display: none; } }

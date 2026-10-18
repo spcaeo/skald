@@ -150,13 +150,13 @@ export function published(m, s) {
       h("span", { class: "ps-quick" }, quick.map(([w, [f, t]]) => h("button", { type: "button", class: "linkish", onclick: () => set({ pubfrom: f, pubto: t }) }, w)))),
     table([
       { key: "path", label: "Page", path: true, fmt: (v, p) => h("span", null, v, p.title ? h("small", { class: "ps-t" }, p.title) : null) },
-      { key: "published", label: "Published", fmt: (v, p) => (v ? short(v) : h("span", { class: "muted", title: "The website gives no date; first seen" }, `${short(p.first_seen)}*`)), sort: (p) => p.published || p.first_seen },
+      { key: "published", label: "Published", type: "date", fmt: (v, p) => (v ? short(v) : h("span", { class: "muted", title: "The website gives no date; first seen" }, `${short(p.first_seen)}*`)), sort: (p) => p.published || p.first_seen },
       { key: "days_since_publish", label: "Days since", num: true },
       { key: "views_7d", label: "Views, 7 days", num: true },
       { key: "views_30d", label: "Views, 30 days", num: true },
       { key: "readers_30d", label: "Visitors, 30 days", num: true },
-      { key: "g", label: "First Google crawl", sort: (p) => p.milestones?.googlebot || "~", fmt: (_, p) => rel(p.milestones?.googlebot, p), csv: (p) => p.milestones?.googlebot || "" },
-      { key: "hu", label: "First visitor", sort: (p) => p.milestones?.human || "~", fmt: (_, p) => rel(p.milestones?.human, p), csv: (p) => p.milestones?.human || "" },
+      { key: "g", label: "First Google crawl", type: "date", sort: (p) => p.milestones?.googlebot || "~", fmt: (_, p) => rel(p.milestones?.googlebot, p), csv: (p) => p.milestones?.googlebot || "" },
+      { key: "hu", label: "First visitor", type: "date", sort: (p) => p.milestones?.human || "~", fmt: (_, p) => rel(p.milestones?.human, p), csv: (p) => p.milestones?.human || "" },
     ], { caption: "Pages by publish date", rows, file: `pages-published-${s.pubfrom || "any"}-to-${s.pubto || "any"}.csv`, sortKey: "published", dir: -1, limit: 15,
       rowClass: () => "go", onRow: (p) => S.set({ page: p.path }), empty: "No page was published in these dates." }),
     h("p", { class: "note" }, `Publish dates come from ${idx.meta?.source === "website" ? "the website" : "the first day the page was seen in the logs"}; * marks a page the website gives no date for. Select a page for its story.`));

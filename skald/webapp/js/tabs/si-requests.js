@@ -98,9 +98,9 @@ function matches(s) {
 // ---- the grid's columns: the old table's cells, each with the value it sorts by ----
 
 const columns = () => [
-  { key: "at", label: `Time (${tzLabel()})`, csv: (r) => r.at,
+  { key: "at", label: `Time (${tzLabel()})`, type: "date", csv: (r) => r.at,
     fmt: (_, r) => h("span", { class: `si-rq-t${st.fresh.has(key(r)) ? " fresh" : ""}` }, tzTime(r.at, { seconds: true, label: false })) },
-  { key: "status", label: "Status", num: true, fmt: (v) => h("span", { class: `st ${statusTone(v)}` }, String(v)) },
+  { key: "status", label: "Status", num: true, type: "badge", fmt: (v) => h("span", { class: `st ${statusTone(v)}` }, String(v)) },
   { key: "path", label: "Request", csv: (r) => `${r.method || ""} ${r.path}${r.query ? `?${r.query}` : ""}`.trim(),
     fmt: (_, r) => h("span", { class: "si-rq-p" }, r.method && r.method !== "GET" ? h("b", { class: "meth" }, r.method) : null, h("span", null, r.path), r.query ? h("small", null, `?${r.query}`) : null,
       // Words the search finds that the cells do not show (the old log's search covered them).

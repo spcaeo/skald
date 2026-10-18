@@ -12,13 +12,17 @@ site_health) are in tools_more.py.
 """
 from __future__ import annotations
 
+import re
 import sys
 from datetime import timedelta
 
+from ..labels import shown_keys, shown_text, stored
 from .data import (HONEST, OTHERS, Refused, anchor_of, counters, coverage,
                    coverage_text, dig, num, pct, period, top, total)
 
 TOOLS: dict[str, dict] = {}
+# "Unknown" stored as a label (a country, a device, a touch), inside an answer's sentences.
+_UNKNOWN_WORD = re.compile(r"\bUnknown\b")
 
 DIMENSIONS = ("country", "source", "campaign", "landing", "device", "browser", "hour",
               "os", "referrer")
@@ -98,6 +102,8 @@ def call(ctx, name: str, args) -> dict:
     """The tools/call result for one tool (the caller checked the name)."""
     spec = TOOLS[name]
     try:
+        # A value given in its shown words ("Direct") is looked up by its stored name.
+        args = {k: stored(v) for k, v in args.items()}
         text, data = spec["run"](ctx, validate(spec["inputSchema"], args))
     except Refused as why:
         return {"content": [{"type": "text", "text": str(why)}], "isError": True}
@@ -106,7 +112,9 @@ def call(ctx, name: str, args) -> dict:
         return {"content": [{"type": "text", "text": "Skald could not answer that just now "
                              "(an error on the server). Nothing was changed."}],
                 "isError": True}
-    return {"content": [{"type": "text", "text": text}], "structuredContent": data,
+    # A person reads the answer: stored labels in it are said as shown (labels.py).
+    text = _UNKNOWN_WORD.sub("Not recorded", shown_text(text))
+    return {"content": [{"type": "text", "text": text}], "structuredContent": shown_keys(data),
             "isError": False}
 
 
@@ -142,7 +150,7 @@ def list_sites(ctx, args):
     for r in rows:
         views = ", ".join(v["slug"] for v in r["views"]) or "none"
         lines.append(f"- {r['site']}: whole days {r['first_day'] or '?'} to "
-                     f"{r['last_whole_day'] or '?'} ({r['timezone'] or 'time zone unknown'}); "
+                     f"{r['last_whole_day'] or '?'} ({r['timezone'] or 'time zone not set'}); "
                      f"views: {views}")
     return "\n".join(lines), {"sites": rows}
 

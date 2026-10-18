@@ -1,6 +1,9 @@
 // Small DOM and formatting helpers shared by every tab.
 // Every label that came from the logs (paths, sites, names) goes in through
-// textContent or esc(), never as markup.
+// textContent or esc(), never as markup. A stored label is drawn in the words
+// labels.js gives it ("Direct or unknown" is shown as "Direct").
+
+import { shownText } from "./labels.js";
 
 export const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -17,11 +20,11 @@ export function h(tag, attrs, ...kids) {
         else el.style[prop] = val;
       }
     }
-    else el.setAttribute(k, v === true ? "" : v);
+    else el.setAttribute(k, v === true ? "" : k === "title" || k === "aria-label" ? shownText(String(v)) : v);
   }
   for (const kid of kids.flat(Infinity)) {
     if (kid == null || kid === false) continue;
-    el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+    el.append(kid instanceof Node ? kid : document.createTextNode(shownText(String(kid))));
   }
   return el;
 }

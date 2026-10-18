@@ -51,12 +51,12 @@ function steps(labels, t) {
 function splitTable(title, file, labels, rows) {
   const k = labels.length;
   const data = Object.entries(rows).map(([label, r]) => {
-    const row = { label: label || "Unknown", through: rate(r[k - 1], r[0]), sortRate: r[0] >= MIN_RATE ? r[k - 1] / r[0] : -1 };
+    const row = { label: label || "Not recorded", through: rate(r[k - 1], r[0]), sortRate: r[0] >= MIN_RATE ? r[k - 1] / r[0] : -1 };
     r.forEach((v, i) => { row[`s${i}`] = v; });
     return row;
   });
   const cols = [{ key: "label", label: title }, ...labels.map((l, i) => ({ key: `s${i}`, label: `${i + 1}. ${l}`, num: true })),
-    { key: "through", label: "Went through", fmt: (v) => v || FEW, sort: (r) => r.sortRate, csv: (r) => r.through || "" }];
+    { key: "through", label: "Went through", type: "num", fmt: (v) => v || FEW, sort: (r) => r.sortRate, csv: (r) => r.through || "" }];
   return h("div", { class: "sheet" }, h("h3", null, `By ${title.toLowerCase()}`),
     table(cols, { caption: `Funnel steps by ${title.toLowerCase()}`, rows: data, file, search: false, limit: 8, sortKey: "s0", empty: "No visit in this range.",
       note: `"Went through" is the last step as a share of the first, given only over at least ${MIN_RATE} visits.` }));
@@ -72,7 +72,7 @@ function nextPages(labels, t) {
   return h("div", { class: "sheet" }, h("h3", null, "Where they went next"),
     h("p", { class: "sub" }, "For each step, the visits that went no further: the next page they were seen on, or that they left. After the last step: where the visits that went through went next. Top 10 per step per day; the rest is \"(all others)\"."),
     table([{ key: "step", label: "After step", sort: (r) => r.at }, { key: "page", label: "Next page" }, { key: "n", label: "Visits", num: true },
-      { key: "share", label: "Share", fmt: (v) => v || FEW, sort: (r) => (r.share ? r.n : -1) }],
+      { key: "share", label: "Share", type: "num", fmt: (v) => v || FEW, sort: (r) => (r.share ? r.n : -1) }],
     { caption: "Where visits went after each funnel step", rows, file: "funnel-next-pages.csv", limit: 12, sortKey: "step", dir: 1, empty: "No visit stopped at a step in this range." }));
 }
 

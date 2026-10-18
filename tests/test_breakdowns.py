@@ -130,8 +130,8 @@ class TestLabels(unittest.TestCase):
 
     def test_country_labels(self):
         self.assertEqual(countries.label("CA"), "\U0001F1E8\U0001F1E6 Canada")
-        self.assertEqual(countries.label("Unknown"), "Unknown")
-        self.assertEqual(countries.label(""), "Unknown")
+        self.assertEqual(countries.label("Unknown"), "Not recorded")
+        self.assertEqual(countries.label(""), "Not recorded")
         self.assertEqual(countries.label(dim.OTHER), dim.OTHER)
         self.assertEqual(countries.flag("1x"), "")
 

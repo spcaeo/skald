@@ -415,7 +415,7 @@ SOURCE_WORDS = {
 
 
 def came_from(j: dict) -> str:
-    """'from ChatGPT', 'from google.com (search)', 'direct or unknown'."""
+    """'from ChatGPT', 'from google.com (search)', 'direct (no referrer, no tag)'."""
     source, via = j.get("source", ""), j.get("via", "")
     if source == "AI assistant":
         words = f"from {via or 'an AI assistant'}"
@@ -428,7 +428,7 @@ def came_from(j: dict) -> str:
     elif source == "Tagged link":
         words = f"tagged link ({via})" if via else "tagged link"
     else:
-        words = "direct or unknown"
+        words = "direct (no referrer, no tag)"
     if j.get("campaign"):
         words += f", campaign {j['campaign']}"
     return words

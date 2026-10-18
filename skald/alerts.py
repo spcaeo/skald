@@ -25,6 +25,11 @@ measuring. Each rule can be switched off in the config's `alerts` section:
   ai_*              an AI assistant started or stopped reading a page, or the
                     visits likely sent by AI answers jumped or vanished: whole
                     days, once per day, settings in `alerts.ai` (alerts_ai.py)
+  ai_first_citation, ai_first_cited_page, ai_cited_visits, crawler_silent
+                    the first visit from an assistant's citation, a page's
+                    first cited visit, visits from AI answers against the
+                    same weekday's median, a crawler gone silent: whole days,
+                    once per day (alerts_history.py)
 
 Fatigue rules: an alert is mailed once, when it opens. While it stays open,
 and if it reopens within `cooldown_hours` (6) of its last mail, nothing more
@@ -37,6 +42,10 @@ the machine's name is `alerts.only_on_host` (when set); otherwise alerts are
 evaluated and shown on the page only. The figure-based rules run only when
 today's snapshot reconciled; a replay (`--today`) never mails. A failed mail
 is noted on the alert and never fails the live run.
+
+Each newly opened alert is also queued as the outgoing webhook event
+`alert.opened` (conversions/outgoing.py: the site's own webhooks, opt-in,
+signed; a Slack address gets Slack's {"text"} shape), never from a replay.
 """
 from __future__ import annotations
 
@@ -47,7 +56,7 @@ import statistics
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from . import alerts_ai
+from . import alerts_ai, alerts_history
 from .files import write_atomic
 
 STATE = "alerts-state.json"
@@ -68,7 +77,7 @@ CAUSES = ("site_down", "logging_stopped", "server_errors", "not_found_surge", "c
           "new_crawler", "traffic_drop")
 SEVERITY = {"site_down": "high", "logging_stopped": "high", "server_errors": "high",
             "not_found_surge": "medium", "crawler_burst": "medium", "new_crawler": "low",
-            "traffic_drop": "medium", **alerts_ai.SEVERITY}
+            "traffic_drop": "medium", **alerts_ai.SEVERITY, **alerts_history.SEVERITY}
 RESOLVED = ("site_down", "logging_stopped")
 AI_LOOKING = re.compile(r"\bai\b|ai[-_ ]?bot|gpt|llm|agent|assistant|-user\b|fetcher|claude"
                         r"|perplexity|gemini|mistral|cohere|anthropic|openai", re.I)
@@ -372,7 +381,7 @@ def apply(state: dict, found: list[dict], now: datetime, cfg: dict) -> tuple[lis
 def _public(a: dict) -> dict:
     return {k: a.get(k) for k in ("id", "cause", "subject", "severity", "title", "detail",
                                   "figure", "threshold", "opened_at", "last_seen_at",
-                                  "closed_at", "mailed", "repeats", "data")}
+                                  "closed_at", "mailed", "repeats", "data", "unit")}
 
 
 # ------------------------------------------------------------------ mail
@@ -394,8 +403,9 @@ def _send(config: dict, subject: str, text: str, now: datetime) -> str | None:
 
 
 def _body(alert: dict, url: str | None) -> str:
+    unit = f" {alert['unit']}" if alert.get("unit") else ""
     return (f"{alert['title']}\n\n{alert['detail']}\n\n"
-            f"Figure: {alert['figure']}   Threshold: {alert['threshold']}\n"
+            f"Figure: {alert['figure']}{unit}   Threshold: {alert['threshold']}{unit}\n"
             f"Opened: {alert['opened_at']} (UTC)\n"
             + (f"\nDashboard: {url}\n" if url else "")
             + "\nYou get one mail per alert. If it stays or comes back within the cooldown, "
@@ -428,8 +438,9 @@ def run(ctx, snap: dict | None, signals: dict, send=_send) -> int:
     host_ok = not cfg["only_on_host"] or socket.gethostname() == cfg["only_on_host"]
     mail_on = cfg["mail"] and host_ok and not replay
     url = setting(ctx.config, "dashboard", "url")
-    if not replay:                      # webhooks that asked for ai.reading_changed
+    if not replay:                      # webhooks: ai.reading_changed, alert.opened
         alerts_ai.notify(ctx, to_mail)
+        notify(ctx, to_mail)
     if mail_on:
         for alert in to_mail:
             error = send(ctx.config, f"ALERT: {alert['title']}", _body(alert, url), now)
@@ -456,10 +467,48 @@ def _ai(ctx, state: dict, history, now: datetime) -> list[dict]:
     line on stderr and keeps the last findings, so nothing closes and reopens."""
     day = ctx.now.astimezone(ctx.tz).date() - timedelta(days=1)
     try:
-        return alerts_ai.findings(state, ctx.config, history, ctx.site, day, now)
+        found = alerts_ai.findings(state, ctx.config, history, ctx.site, day, now)
     except Exception as why:            # noqa: BLE001 - never stops the other alerts
         ctx.err(f"alerts: AI rules: {type(why).__name__}: {why}")
-        return [dict(f) for f in (state.get("ai") or {}).get("found") or []]
+        found = [dict(f) for f in (state.get("ai") or {}).get("found") or []]
+    try:
+        found += alerts_history.findings(state, ctx.config, history, ctx.site, day, now, ctx.tz)
+    except Exception as why:            # noqa: BLE001 - never stops the other alerts
+        ctx.err(f"alerts: citation and crawler rules: {type(why).__name__}: {why}")
+        found += [dict(f) for f in (state.get("history") or {}).get("found") or []]
+    return found
+
+
+# ------------------------------------------------------------- webhooks
+
+EVENT = "alert.opened"
+
+
+def hook_body(alert: dict, site: str) -> dict:
+    """The outgoing `alert.opened` body: {site, alert, text, figures, at}.
+    Figures and words only: nothing about a person, never a secret."""
+    text = f"[{site}] {alert.get('title')}\n{alert.get('detail') or ''}".strip()
+    return {"event": EVENT, "site": site,
+            "alert": {k: alert.get(k) for k in ("id", "cause", "subject", "severity", "title")},
+            "text": text,
+            "figures": {"figure": alert.get("figure"), "threshold": alert.get("threshold"),
+                        "unit": alert.get("unit"), "data": alert.get("data")},
+            "at": alert.get("opened_at")}
+
+
+def notify(ctx, opened: list[dict]) -> int:
+    """Queue `alert.opened` for each newly opened alert, for the site's
+    webhooks that ticked it. Rows queued; never raises."""
+    if not opened:
+        return 0
+    try:
+        from .conversions import outgoing
+        folder = Path(ctx.db_path).parent
+        return sum(outgoing.notify(ctx.config, folder, ctx.site, EVENT, a["id"],
+                                   hook_body(a, ctx.site), ctx.now) for a in opened)
+    except Exception as why:            # noqa: BLE001
+        ctx.err(f"alerts: {EVENT} webhook: {type(why).__name__}")
+        return 0
 
 
 def _digest(ctx, state: dict, cfg: dict, now: datetime, send, url) -> None:
@@ -494,9 +543,10 @@ def build(p) -> dict:
                     key=lambda a: a["closed_at"], reverse=True)
     return {"enabled": cfg["enabled"], "mail": bool(state.get("mail", False)),
             "checked_at": state.get("checked_at"),
-            "rules": rules(cfg) + alerts_ai.rules(alerts_ai.settings(p.config)),
+            "rules": rules(cfg) + alerts_ai.rules(alerts_ai.settings(p.config))
+            + alerts_history.rules(alerts_history.settings(p.config)),
             "open": [_public(a) for a in open_], "closed": [_public(a) for a in closed],
-            "ai": alerts_ai.public(state)}
+            "ai": alerts_ai.public(state), "history": alerts_history.public(state)}
 
 
 # --------------------------------------------------------------- command

@@ -6,6 +6,7 @@
 //   #audience?range=30d&dd=country:CA|path:/pricing/
 
 import { h } from "./ui.js";
+import { shown } from "./labels.js";
 import * as S from "./state.js";
 import { mark } from "./icons.js";
 import { country, flagEl, withFlag } from "./tabs/readers.js";
@@ -13,19 +14,19 @@ import { country, flagEl, withFlag } from "./tabs/readers.js";
 // The values a step can be about, and how each is said.
 export const DIMS = {
   country: { name: "Country", say: (v) => country(v) },
-  path: { name: "Page", say: (v) => v },
-  landing: { name: "Landing page", say: (v) => v },
-  source: { name: "Source", say: (v) => v },
-  assistant: { name: "AI assistant", say: (v) => v },
-  referrer: { name: "Referring site", say: (v) => v },
-  campaign: { name: "Campaign", say: (v) => v },
-  device: { name: "Device", say: (v) => v },
-  browser: { name: "Browser", say: (v) => v },
-  os: { name: "System", say: (v) => v },
+  path: { name: "Page", say: shown },
+  landing: { name: "Landing page", say: shown },
+  source: { name: "Source", say: shown },
+  assistant: { name: "AI assistant", say: shown },
+  referrer: { name: "Referring site", say: shown },
+  campaign: { name: "Campaign", say: shown },
+  device: { name: "Device", say: shown },
+  browser: { name: "Browser", say: shown },
+  os: { name: "System", say: shown },
   hour: { name: "Hour", say: (v) => `${v}:00 to ${String((Number(v) + 1) % 24).padStart(2, "0")}:00` },
-  ip: { name: "Address", say: (v) => v },
-  status: { name: "Status", say: (v) => v },
-  bot: { name: "Bot or crawler", say: (v) => v },
+  ip: { name: "Address", say: shown },
+  status: { name: "Status", say: shown },
+  bot: { name: "Bot or crawler", say: shown },
 };
 
 // The same as plain text, for a crumb, a title or a sentence: a country with its flag.

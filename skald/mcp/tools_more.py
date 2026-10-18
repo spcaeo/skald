@@ -244,7 +244,7 @@ def page_story(ctx, args):
     ok = [d for d in days if d.get("state") == "ok"]
     readers, views = total(ok, "readers"), total(ok, "views")
     lines = [f"{site} {got['path']}" + (f" \"{got['title']}\"" if got.get("title") else "")
-             + f": published {got.get('published') or 'unknown'} "
+             + f": published {got.get('published') or 'date not recorded'} "
              f"({got.get('date_source')}), first seen in the logs {got.get('first_seen')}."]
     marks = got.get("milestones") or {}
     names = {"googlebot": "Googlebot first fetched it", "bingbot": "Bingbot first fetched it",

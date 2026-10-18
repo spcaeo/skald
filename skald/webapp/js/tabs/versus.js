@@ -126,7 +126,7 @@ function dimTable(res, tab, perDay) {
     { key: "b", label: `B ${unit}`, num: true, fmt: num },
     { key: "d", label: "Change", num: true, fmt: (v) => (v == null ? "-" : h("span", { class: `vs-d ${v > 0 ? "up good" : v < 0 ? "down bad" : "flat"}` }, v ? `${v > 0 ? "+" : "−"}${num(Math.abs(v))}` : "0")) },
     { key: "pct", label: "Change %", num: true, fmt: (v, x) => (v == null ? (both && x.a ? "new" : "-") : v ? pctWords(v) : "0%") },
-    { key: "badge", label: "", sort: (x) => (x.isNew ? 2 : x.gone ? 1 : 0), fmt: (_, x) => h("span", null,
+    { key: "badge", label: "", type: "badge", sort: (x) => (x.isNew ? 2 : x.gone ? 1 : 0), fmt: (_, x) => h("span", null,
       x.isNew ? h("span", { class: "vs-badge new", title: "In A, not in B" }, "New") : null, x.gone ? h("span", { class: "vs-badge gone", title: "In B, not in A" }, "Gone") : null,
       movers.has(x.k) ? h("span", { class: "vs-badge mover", title: "One of the three biggest changes" }, "Top mover") : null),
       csv: (x) => [x.isNew ? "new" : "", x.gone ? "gone" : "", movers.has(x.k) ? "top mover" : ""].filter(Boolean).join("; ") },

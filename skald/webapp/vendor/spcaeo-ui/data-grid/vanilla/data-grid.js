@@ -96,6 +96,11 @@ const SEARCH_PARAMS = {
   },
 };
 
+/* Skald patch 5: a column can be centred. Upstream knew only `align: "right"`
+   (class dg-num); `align: "center"` gives dg-center, for a yes/no or a small tag. */
+const alignClass = (col) =>
+  col.align === "right" ? "dg-num" : col.align === "center" ? "dg-center" : null;
+
 export function createDataGrid(host, config) {
   const {
     namespace,
@@ -626,7 +631,7 @@ export function createDataGrid(host, config) {
           return h(
             "th",
             {
-              class: col.align === "right" ? "dg-num" : null,
+              class: alignClass(col),
               scope: "col",
               "aria-sort": active
                 ? active.direction === "asc"
@@ -691,7 +696,7 @@ export function createDataGrid(host, config) {
               )
             : null,
           ...columns.map((col) => {
-            const cell = h("td", { class: col.align === "right" ? "dg-num" : null });
+            const cell = h("td", { class: alignClass(col) });
             const value = col.render ? col.render(row) : row[col.id];
             if (value?.nodeType) cell.append(value);
             else

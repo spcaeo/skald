@@ -4,6 +4,57 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.11.0 (2026-10-18)
+
+Who is on the site now, on a live world map; alerts for AI citations and crawlers, also sent to
+Slack or any webhook; no "unknown" anywhere.
+
+### Added
+
+- **Real time** (Overview › Real time, and the first block of Overview › Summary with
+  Today · Live on). Visitors active now (last 5 minutes) and in the last 30 minutes, visitors on
+  the site minute by minute, from the live run's count every 2 minutes with the same people rules
+  as every other figure. Requests per minute, read from the end of the log every 15 seconds
+  through the helper (`api/realtime`), always labelled requests, never people. The page asks for
+  fresh figures every 15 seconds while it is open; Pause holds it.
+- **A world map of who is on the site.** Countries shaded by visits today, a bubble for each
+  country with visitors in the last 30 minutes; point at one, or Tab to it, for its figures, and
+  click or Enter for its detail. A countries table beside it to search, sort and download. The
+  outlines are Natural Earth's (public domain), drawn in the page: no map service is asked for
+  anything. Beside it: pages being read, sources and devices now, AI assistants and crawlers now
+  (in requests), and the newest visits (no address, no browser string).
+- **Every Real time figure counted twice.** `audit --live` recounts the snapshot's real-time part
+  and the helper's last 15-second count from the raw lines (`audit_realtime.py`). If today's
+  figures disagree, Real time shows no visitor figures until they match.
+- **AI alerts.** The first visit ever from an assistant's answer; a page's first visit from an AI
+  answer (more than 5 in a day make one alert); visits from AI answers against the median of the
+  same weekday over the 6 weeks before (at least 2 times the usual and 10 visits, or at most half
+  of a usual of at least 10; fewer is "too few to judge"); an AI or search crawler that came
+  often and has been silent for 7 days. Each alert states its rule and figures in plain words, in
+  visits (people) or requests (crawlers), never both. Whole, checked days only: a withheld,
+  partial or missing day makes it wait. The first-citation alerts start once 28 days are kept.
+  Each alert's figures are recounted by the daily run (`audit_alerts.py`).
+- **Alerts in Slack or any tool.** Every new alert is the outgoing webhook event `alert.opened`
+  (site, alert, text, figures with their unit, time), opt-in per site on Settings › Integrations,
+  signed with the webhook's own secret. A Slack incoming-webhook address (`hooks.slack.com`) gets
+  Slack's own `{"text"}` shape.
+
+### Changed
+
+- **No "unknown" shown anywhere.** A visit with no referrer and no campaign tag reads "Direct"
+  (with a note saying so), and a value the log did not have reads "Not recorded", in the
+  dashboard, mails, CSV and JSON exports, MCP answers, help and docs. Only the words shown
+  change: the stored names stay, so earlier days do not split, and filters and links keep
+  working.
+- **Grids and tables line up.** Every cell sits at the top of its row; text on the left,
+  numbers and dates on the right, badges and yes/no in the middle; each header follows its column.
+
+### Upgrading
+
+- Docker: nothing extra. An nginx you run yourself needs `api/realtime` in the helper's
+  per-site route for the 15-second request count (docs/UPGRADING.md); without it Real time
+  shows requests from the 2-minute count and says so.
+
 ## 2.10.1 (2026-10-18)
 
 ### Changed
@@ -341,7 +392,7 @@ visit.
 
 - **A flag beside every country** across the dashboard: tables, chips, filters and filter
   chips, drill-downs, visits, leads, conversions, requests, live, insights, the printed report,
-  and the plain page and mails. The code or name stays beside it; unknown codes get none.
+  and the plain page and mails. The code or name stays beside it; unrecognised codes get none.
 
 ### Changed
 

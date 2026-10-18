@@ -188,7 +188,7 @@ Each day has a `state`. Check it before you use any figure.
 | `missing` | No | Not collected |
 | `before` | No | Before your history starts |
 
-### Unknown is null, never 0
+### Not recorded is null, never 0
 
 - A figure that was not recorded is `null`. It never becomes `0`.
 - `0` means Skald counted and found none.
@@ -205,7 +205,7 @@ Each day has a `state`. Check it before you use any figure.
 | 401 | `{"ok": false, "error": "..."}` | No token, a wrong or revoked token, a token for another site, a token without **Read**, or a private file without **Read private files** |
 | 404 | `{"ok": false, "error": "no such file"}` | The site, view or file does not exist |
 
-The `error` text says which problem it was, for example "unknown or revoked token" or "this token is not for that site".
+The `error` text says which problem it was, for example "unrecognised or revoked token" or "this token is not for that site".
 
 Answers are never cached. Ask again for fresh figures; they change every 2 minutes.
 

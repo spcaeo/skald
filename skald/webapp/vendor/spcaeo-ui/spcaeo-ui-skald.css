@@ -57,6 +57,15 @@ a.fldr-tab { text-decoration: none; }
 }
 .dg .dg-num { font-variant-numeric: tabular-nums; }
 
+/* ---- Every grid lines up as Skald's own tables do (js/table.js alignOf): each cell at the
+   top of its row, numbers right, a yes/no or a small tag centred, words left; the header
+   follows its column. Upstream's `.dg-table td` (middle, left) outweighs its own `.dg-num`,
+   so both are restated here (patch 5 adds dg-center). */
+.dg .dg-table th, .dg .dg-table td { vertical-align: top; }
+.dg .dg-table th.dg-num, .dg .dg-table td.dg-num { text-align: right; }
+.dg .dg-table th.dg-center, .dg .dg-table td.dg-center { text-align: center; }
+.dg .dg-table th.dg-num .dg-sort { flex-direction: row-reverse; }
+
 /* ---- Skald's additions around the grid (js/grid.js): the CSV button, rows that open. */
 .sk-grid-tools { display: flex; justify-content: flex-end; margin-top: 8px; }
 .sk-grid-rows .dg-table tbody tr { cursor: pointer; }

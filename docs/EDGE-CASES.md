@@ -317,7 +317,7 @@ never up.
 ### D5. Country accuracy
 - **Seen:** no `XX` countries in the new format; the 1,513 old-format lines have none.
 - **Wrong:** DB-IP Lite is country-level and sometimes wrong; the database refreshes monthly, so one address can change country mid-period.
-- **Count:** country of the visit at its first page (Handled). "Unknown" stays a row.
+- **Count:** country of the visit at its first page (Handled). A country not recorded stays a row ("Not recorded").
 
 ### D6. A CDN or proxy put in front later
 - **Wrong:** behind Cloudflare or a load balancer, every `$remote_addr` becomes the proxy's: one "visitor", one country, and every address rule breaks silently.
@@ -330,10 +330,10 @@ never up.
 ## E. Referrers and attribution
 
 ### E1. Referrer stripped by apps and email
-- **Seen:** no email-client or `android-app://` referrers yet; 84% of today's readers are "direct or unknown".
+- **Seen:** no email-client or `android-app://` referrers yet; 84% of today's readers are "Direct" (no referrer and no campaign tag).
 - **Wrong:** in-app browsers (LinkedIn, Facebook, Instagram, Gmail), desktop and mobile mail clients, Slack and Teams desktop, and the ChatGPT and Claude desktop/mobile apps often send no referrer. These people land in "direct".
 - **Detect:** the in-app browser marker in the agent (Handled for the major apps); `utm_*` on links we control.
-- **Count:** source = the in-app browser's app when known ("LinkedIn app"), else direct. "Direct" must be labelled "direct or unknown" (Handled).
+- **Count:** source = the in-app browser's app when known ("LinkedIn app"), else direct. Stored as "Direct or unknown", shown as "Direct" with a note that it means no referrer and no campaign tag (Handled).
 - **Status:** Handled where possible; tagging all our own outbound links is a marketing practice, not code.
 
 ### E2. `utm_source=chatgpt.com` with or without a referrer
@@ -632,7 +632,7 @@ suppress.**
 
 ### K7. Gone versus not measured
 - **Wrong:** a source is "Gone" because a browser or app started stripping referrers; a page is "Gone" and another "New" because it was renamed or redirected; an AI agent is "Gone" because it changed its name (A4).
-- **Detect:** pair a Gone page with a New one when the old path now redirects (301/308) to the new; pair a Gone agent with a New one sharing a vendor; for sources, check whether "direct or unknown" rose by the same amount.
+- **Detect:** pair a Gone page with a New one when the old path now redirects (301/308) to the new; pair a Gone agent with a New one sharing a vendor; for sources, check whether Direct rose by the same amount.
 - **Count:** paired items are shown as "moved", not as one loss and one win.
 - **Test:** `/old` returning 301 to `/new` on day D gives one "moved" item.
 

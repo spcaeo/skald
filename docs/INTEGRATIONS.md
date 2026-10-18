@@ -577,6 +577,15 @@ most 10 webhooks a site):
 | `conversion.abandoned` | started and not completed by the same visitor ID within `conversions.abandon_hours`; sent once |
 | `lead.won`, `lead.lost` | the team marked the lead (the lead database, a CRM) |
 | `ai.reading_changed` | a new AI alert (alerts_ai.py, alerts on): an assistant started or stopped reading a page, or its likely visits jumped or vanished; once per alert, never from a replay |
+| `alert.opened` | any new alert (alerts.py, alerts on), of every cause; once per alert, never from a replay |
+
+`alert.opened` is `{"event","id","site","alert": {"id","cause","subject","severity","title"},
+"text" ("[<site>] <title>\n<detail>"),"figures": {"figure","threshold","unit" ("visits",
+"requests" or null),"data" (the alert's data, or null)},"at" (opened, UTC ISO)}`. A webhook
+whose address is on `hooks.slack.com` (a Slack incoming webhook) is sent `{"text": ...}`
+instead, for every event: the body's `text`, or one line made from a conversion's event,
+action, stage, source and landing page (outgoing.wire). It is still signed; Slack ignores
+the header.
 
 `ai.reading_changed` carries no conversion fields: `{"event","id","site","alert_id","cause"
 ("ai_started_reading"/"ai_stopped_reading"/"ai_sending_people"),"kind" ("started"/"stopped"/

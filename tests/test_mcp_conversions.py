@@ -51,7 +51,7 @@ class Conversions(Base):
         self.assertEqual(data["actions"]["contact"]["completed"], 1)
         self.assertIsNone(data["actions"]["contact"]["completion_rate"], "no starts seen")
         self.assertEqual(data["by_source"], {"Search engine": 5, "Social media": 2,
-                                             "Direct or unknown": 1})
+                                             "Direct": 1}, "shown as Direct (labels.py)")
         self.assertEqual([w["day"] for w in data["withheld"]], ["2026-10-02"])
         self.assertEqual(data["not_recorded"], ["2026-09-30"])
         self.assertIn("2026-10-02", text)

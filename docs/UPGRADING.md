@@ -192,6 +192,14 @@ then `nginx -t` and reload. With one site, nothing changes if you wait: a line w
 counts as the first site's. A second site's events need it, or its audit finds no answers and
 withholds its days. [BEACON.md](BEACON.md), "Several sites".
 
+**One route to add by hand (2.11.0): `api/realtime`, when you run nginx yourself.** The Docker
+image has it already. Real time's requests per minute are read every 15 seconds through the
+helper at `/traffic/<site>/api/realtime`. In the location that sends the per-site routes to the
+helper, change `api/(?:v1/(?:[a-z_]+)?|compare|page)` to
+`api/(?:v1/(?:[a-z_]+)?|compare|page|realtime)` (the whole line is in
+[DEPLOY.md](../DEPLOY.md)), then `nginx -t` and reload. Without it nothing breaks: Real time
+shows requests from the 2-minute count and says so.
+
 ## Docker
 
 An image is never changed in place: `upgrade` in a container says to pull the

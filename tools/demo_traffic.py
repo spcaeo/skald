@@ -511,6 +511,29 @@ class _Maker:
                             "visits": 1, "cc": cc})
 
 
+    # ------------------------------------------------- the last half hour
+    NOW_VISITS = (28, 23, 19, 15, 12, 9, 7, 5, 4, 3, 2, 1, 1)   # minutes before `now`
+    NOW_MACHINES = ((GPTBOT, "198.51.100.2", "training"), (CHATGPT_USER, "198.51.100.3", "asked"),
+                    (CHATGPT_USER, "198.51.100.3", "asked"), (CLAUDE_USER, "198.51.100.19", "asked"))
+
+    def right_now(self) -> None:
+        """Visits and a few AI fetches in the last half hour, so Overview >
+        Real time has someone on the site whenever the demo is built. Drawn
+        after every day is made: the days before stay as they were."""
+        T, rnd = self.t, self.rnd
+        start = datetime(T.today.year, T.today.month, T.today.day, tzinfo=self.tz)
+        if self.now - start < timedelta(minutes=40):
+            return
+        for ago in self.NOW_VISITS:
+            t = (self.now - timedelta(minutes=ago, seconds=rnd.randrange(0, 50))).replace(microsecond=0)
+            identity = self.new_identity()
+            pages, touch = self.visit(t, identity, False, None, 1)
+            if self.info[identity]["first"] is None:
+                self.info[identity]["first"] = {**touch, "at": t, "landingPath": pages[0][1]}
+        for agent, ip, kind in self.NOW_MACHINES:
+            t = (self.now - timedelta(seconds=rnd.randrange(60, 1700))).replace(microsecond=0)
+            T.lines.append(self.line(t, ip, self.pick(CRAWL[kind]), agent))
+
     def prefetch(self) -> None:
         """Before many visits cited by ChatGPT, Perplexity or Claude, that
         assistant's user fetcher read pages minutes earlier: usually the page
@@ -538,6 +561,7 @@ def generate(now: datetime, days: int = 62, seed: int = SEED) -> Traffic:
         m.day(d)
         d += timedelta(days=1)
     m.today_leads()
+    m.right_now()
     m.prefetch()
     T, cut = m.t, m.now
     T.lines = sorted((x for x in T.lines if x.split(" ", 1)[0] <= cut.isoformat()), key=lambda x: x.split(" ", 1)[0])

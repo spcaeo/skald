@@ -33,8 +33,8 @@ export default function crawlersTab(m, s, { first }) {
   const checks = verification(m, r);
   const rb = robotsOf(m);
   const extra = [
-    ...(checks?.seen ? [{ key: "check", label: "Check", sortable: false, fmt: (_, x) => badge(checks.byName[x.k]), csv: (x) => badgeOf(checks.byName[x.k]) || "" }] : []),
-    ...(rb.size ? [{ key: "robots", label: "robots.txt", sortable: false, fmt: (_, x) => robotsBadge(rb.get(x.k)), csv: (x) => robotsWords(rb.get(x.k)) }] : []),
+    ...(checks?.seen ? [{ key: "check", label: "Check", type: "badge", sortable: false, fmt: (_, x) => badge(checks.byName[x.k]), csv: (x) => badgeOf(checks.byName[x.k]) || "" }] : []),
+    ...(rb.size ? [{ key: "robots", label: "robots.txt", type: "badge", sortable: false, fmt: (_, x) => robotsBadge(rb.get(x.k)), csv: (x) => robotsWords(rb.get(x.k)) }] : []),
   ];
   out.push(h("section", { class: "s" }, h("h2", null, "AI collecting for training, by name"),
     h("p", { class: "sub" }, "Pages fetched to train a model or feed AI search. To let one in or keep it out, see ", tabLink(s, "rules", "Crawler rules"), "."),

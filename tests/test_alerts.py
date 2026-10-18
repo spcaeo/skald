@@ -184,7 +184,8 @@ class TestRun(unittest.TestCase):
         got = alerts.build(page)
         self.assertEqual((got["enabled"], got["mail"], len(got["open"])), (True, True, 1))
         self.assertEqual(got["open"][0]["repeats"], 1)
-        self.assertEqual(len(got["rules"]), len(alerts.CAUSES) + len(alerts.alerts_ai.CAUSES))
+        self.assertEqual(len(got["rules"]), len(alerts.CAUSES) + len(alerts.alerts_ai.CAUSES)
+                         + len(alerts.alerts_history.CAUSES))
 
     def test_never_mailed_on_another_host_or_from_a_replay(self):
         ctx = self.ctx("alerts:\n  enabled: true\n  only_on_host: not-this-machine\n")

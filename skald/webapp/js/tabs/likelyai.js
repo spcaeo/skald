@@ -103,7 +103,7 @@ export function conversionsLikely(days, acts, f) {
   const all = {};
   for (const d of got) for (const a of acts) addTo(all, d.likely_ai[a]);
   const keys = Object.keys(all).filter(ASSISTANT);
-  const text = `${method(f)} For a conversion: its first touch came from Direct or unknown (no referrer, no utm_source or utm_medium, no ad click id), and an assistant fetched its landing page in the window before it.`;
+  const text = `${method(f)} For a conversion: its first touch was Direct (no referrer, no utm_source or utm_medium, no ad click id), and an assistant fetched its landing page in the window before it.`;
   return h("section", { class: "s" }, h("h2", null, "Likely from AI assistants (inferred) ", info(text, "Likely from AI assistants")),
     keys.length ? h("div", { class: "sheet" }, table([{ key: "k", label: "Likely assistant", fmt: aiLabel, csv: (x) => aiLabel(x.k) }, { key: "all", label: "Completed", num: true }],
       { caption: "Completed conversions likely sent by an AI assistant (inferred)", rows: keys.map((k) => ({ k, all: all[k] })), file: "conversions-likely-ai.csv", search: false, limit: 8 }))

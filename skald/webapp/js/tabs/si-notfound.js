@@ -106,7 +106,7 @@ export default function notFound(m, s) {
   if (r.kind === "today" && f.today?.rows?.length) {
     out.push(h("section", { class: "s" }, h("h2", null, "Today so far"),
       table([{ key: "path", label: "Page", path: true }, { key: "group", label: "Who", fmt: (v) => GROUP_NAME[v] || v }, { key: "source", label: "Came from" },
-        { key: "n", label: "Times", num: true }, { key: "first", label: "First" }, { key: "last", label: "Last" }],
+        { key: "n", label: "Times", num: true }, { key: "first", label: "First", type: "date" }, { key: "last", label: "Last", type: "date" }],
       { caption: "Missing pages today", rows: f.today.rows.filter((x) => keep(x.path) && !x.probe), file: fileName("broken-links", r), sortKey: "n" })));
   }
 
@@ -118,9 +118,9 @@ export default function notFound(m, s) {
       { key: "path", label: "Page", drill: "path" },
       { key: "people", label: "People", num: true },
       { key: "sources", label: "Came from", fmt: (v) => sources(v), csv: (row) => ranked(row.sources).map(([a, b]) => `${a} ${b}`).join("; "), sort: (row) => ranked(row.sources)[0]?.[0] || "" },
-      { key: "first_day", label: "First seen", fmt: (v) => (v ? short(v) : "-"), csv: (row) => row.first_day || "" },
-      { key: "last_day", label: "Last seen", fmt: (v) => (v ? short(v) : "-"), csv: (row) => row.last_day || "" },
-      { key: "fix", label: "Status", fmt: (_, row) => fixBadge(row), csv: (row) => row.fix || "open", sort: (row) => (isOpen(row) ? 0 : 1) },
+      { key: "first_day", label: "First seen", type: "date", fmt: (v) => (v ? short(v) : "-"), csv: (row) => row.first_day || "" },
+      { key: "last_day", label: "Last seen", type: "date", fmt: (v) => (v ? short(v) : "-"), csv: (row) => row.last_day || "" },
+      { key: "fix", label: "Status", type: "badge", fmt: (_, row) => fixBadge(row), csv: (row) => row.fix || "open", sort: (row) => (isOpen(row) ? 0 : 1) },
     ],
     rows: people, sortKey: "people", placeholder: "Search pages and where people came from",
     segments: [
@@ -143,7 +143,7 @@ export default function notFound(m, s) {
 
   out.push(fixed(`Probes and scanner noise (${n(probes.length)} paths)`, "last 30 days and today",
     h("p", { class: "note" }, "Requests for files no real site serves, such as /.env and /wp-login.php: scanners hunting for passwords. Nothing to fix; shown so the totals add up."),
-    table([{ key: "path", label: "Path", path: true }, { key: "n", label: "Requests", num: true }, { key: "last_day", label: "Last seen", fmt: (v) => (v ? short(v) : "-") }],
+    table([{ key: "path", label: "Path", path: true }, { key: "n", label: "Requests", num: true }, { key: "last_day", label: "Last seen", type: "date", fmt: (v) => (v ? short(v) : "-") }],
       { caption: "Scanner probes", rows: probes, file: "broken-links-probes.csv", sortKey: "n", empty: "No probes." })));
 
   return out;

@@ -216,7 +216,9 @@ def build(config: dict, site: str, tz: ZoneInfo, now: datetime,
     from .visitors import annotate, load_key, repeat_days
     hidden = forgotten(Path(db_path).parent if db_path is not None else None)
     ai = AIEvents(load_key(config), hidden)
-    observe = _Observers(activity, ai, *([feed] if feed is not None else []))
+    from . import realtime
+    now_seen = realtime.Observer(end)          # Real time: the last 30 minutes
+    observe = _Observers(activity, ai, now_seen, *([feed] if feed is not None else []))
 
     totals, by_view = analyse_window_views(config, start, end, now=now, top=TOP,
                                            observe=observe, views=views)
@@ -252,6 +254,8 @@ def build(config: dict, site: str, tz: ZoneInfo, now: datetime,
     snap.update(_figures(totals, {tier: _top(names)
                                   for tier, names in activity.tiers.items()}))
     # What counts as our own traffic, by label only - never an address.
+    # Real time (realtime.py): who is on the site now, as of `until`.
+    snap["realtime"] = realtime.part(totals, now_seen, tz)
     snap["ours_rules"] = ours_rules(config)
     snap["journey_days"] = journey_days(config)
     snap["events"] = [

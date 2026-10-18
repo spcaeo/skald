@@ -611,7 +611,8 @@ llms.txt. In this order:
 `dimensions.source_type` (and, on the audit's own road,
 `audit_labels.source_of`) gives each visit one of: AI assistant, Search
 engine, Social media, Email, Other website, This site, Tagged link, Direct
-or unknown. A referrer decides first. With none, the tags do:
+or unknown (the stored name; shown to a person as Direct, see
+`skald/labels.py`). A referrer decides first. With none, the tags do:
 
 - **Search engines** are named by their real domains (`google.com`,
   `google.de`, `google.co.uk`, `google.com.au`, `bing.com`, ...), never by
@@ -661,7 +662,8 @@ details decide what a line gives:
 - **Country.** The line's own (`cc=`, Cloudflare's `CF-IPCountry`) always
   wins. A line with none gets its address's country from the GeoIP file
   `logs.country_db`, when one is set: a lookup in the same DB-IP file
-  nginx's GeoIP module reads, not a guess. With neither, it is Unknown.
+  nginx's GeoIP module reads, not a guess. With neither, it is stored as
+  Unknown and shown as Not recorded.
 
 ## What this cannot know
 

@@ -25,6 +25,7 @@ const EVENT_WORDS = {
   "lead.won": "a lead marked won",
   "ai.reading_changed": "an AI assistant started or stopped reading a page, or its likely visits jumped or vanished",
   "lead.lost": "a lead marked lost",
+  "alert.opened": "any alert opened (site down, AI citations, a crawler gone silent, ...): its text and figures; a Slack address gets Slack's text",
 };
 const STATE = { OK: ["on", "OK"], "NEEDS ATTENTION": ["warn", "Needs attention"], OFF: ["off", "Off"] };
 const OUTCOME = { recorded: "kept", duplicate: "already had it", ignored: "not a conversion", test: "test, read and not kept", test_failed: "test refused", bad_signature: "bad signature", bad_body: "not readable", too_large: "too large", no_length: "no length", rate_limited: "too many", error: "error" };
@@ -36,7 +37,7 @@ let chosen = "";
 function deliveriesTable(rows, caption, cols) {
   if (!rows.length) return h("p", { class: "empty" }, "No deliveries yet.");
   return h("div", { class: "scroll" }, h("table", null, h("caption", { class: "vh" }, caption),
-    h("thead", null, h("tr", null, cols.map(([t, , cls]) => h("th", { scope: "col", class: cls === "n" ? "n" : null }, t)))),
+    h("thead", null, h("tr", null, cols.map(([t, , cls]) => h("th", { scope: "col", class: /\b[nc]\b/.exec(cls || "")?.[0] || null }, t)))),
     h("tbody", null, rows.map((r) => h("tr", null, cols.map(([, get, cls]) => h("td", { class: cls || null }, get(r))))))));
 }
 
@@ -159,7 +160,7 @@ export default function integrations() {
     const state = t.words ? h("p", { class: t.attention ? "msg err" : "muted" }, `${t.words.replace(/^./, (c) => c.toUpperCase())}.${t.attention && t.fix ? ` ${t.fix}` : ""}`) : null;
     const log = h("details", null, h("summary", null, `Last deliveries (${t.deliveries.length})`),
       deliveriesTable(t.deliveries, `Deliveries from ${t.name}`, [
-        ["When", (d) => when(d.received_at, ""), "muted"], ["Answer", (d) => String(d.http_status), "n"],
+        ["When", (d) => when(d.received_at, ""), "muted n"], ["Answer", (d) => String(d.http_status), "c"],
         ["Outcome", (d) => OUTCOME[d.outcome] || d.outcome], ["Detail", (d) => d.error || "", "muted"]]));
     return h("div", { class: "sheet integ" }, h("h3", null, t.name, " ", badge),
       t.problem ? h("p", { class: "msg err" }, t.problem) : null, state, copyable(t.url, `the address for ${t.name}`),
@@ -228,9 +229,9 @@ export default function integrations() {
     drawActs();
     const log = h("details", null, h("summary", null, `Last deliveries (${w.deliveries.length})`),
       deliveriesTable(w.deliveries, "Outgoing deliveries", [
-        ["Made", (d) => when(d.created_at, ""), "muted"], ["Event", (d) => d.event],
+        ["Made", (d) => when(d.created_at, ""), "muted n"], ["Event", (d) => d.event],
         ["State", (d) => (d.state === "pending" ? `waiting, try ${d.attempts + 1} at ${when(d.next_at, "")}` : d.state)],
-        ["Answer", (d) => (d.http_status == null ? "" : String(d.http_status)), "n"], ["Detail", (d) => d.error || "", "muted"]]));
+        ["Answer", (d) => (d.http_status == null ? "" : String(d.http_status)), "c"], ["Detail", (d) => d.error || "", "muted"]]));
     return h("div", { class: "sheet integ" }, h("h3", { class: "path" }, w.url),
       h("p", { class: "muted" }, `${w.events.join(", ")}. Added ${when(w.created_at, "")}${w.created_by ? ` by ${w.created_by}` : ""}.`), acts, log);
   }

@@ -2,10 +2,12 @@
 
 The log carries an ISO 3166-1 alpha-2 code (from a CDN header or a GeoIP
 database). History stores the code; this only decides how it is shown.
-"Unknown" is a visit whose country the log did not record - shown as such,
-never guessed.
+"Unknown" (stored) is a visit whose country the log did not record - shown
+as "Not recorded" (labels.py), never guessed.
 """
 from __future__ import annotations
+
+from .labels import shown
 
 UNKNOWN = "Unknown"
 
@@ -70,10 +72,10 @@ def flag(code: str) -> str:
 
 
 def label(code: str) -> str:
-    """'🇨🇦 Canada', 'Unknown', or the code itself with its flag if the
-    name is not in the table."""
+    """'🇨🇦 Canada', 'Not recorded' (stored as Unknown), or the code itself
+    with its flag if the name is not in the table."""
     if not code or code == UNKNOWN:
-        return UNKNOWN
+        return shown(UNKNOWN)
     if len(code) != 2:
         return code            # a folded "(all others)" row, say
     code = code.upper()

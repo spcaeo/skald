@@ -60,7 +60,7 @@ class TestReportCards(unittest.TestCase):
         self.assertIn("\U0001F1E8\U0001F1E6 Canada 1 (14%)", text)
         self.assertIn("Chrome 6 (86%), LinkedIn app 1 (14%)", text)
         self.assertIn("Desktop 6 (86%), Mobile 1 (14%), Tablet 0 (0%)", text)
-        self.assertIn("Social media 1 (14%)", text)
+        self.assertIn("Social media 1 (14%)", re.sub(r"\s+", " ", text))
         self.assertIn("linkedin / social / launch 1", text)
         self.assertIn("12:00-13:00 6", text)
         self.assertIn("(New York time)", text)
@@ -137,13 +137,13 @@ class TestMailBreakdowns(unittest.TestCase):
         self.assertIn("\U0001F1FA\U0001F1F8 United States 3 (43%)", text)
         self.assertIn("Chrome 6 (86%)", text)
         self.assertIn("Desktop 6 (86%), Mobile 1 (14%), Tablet 0 (0%)", text)
-        self.assertIn("Direct or unknown 5 (71%)", text)
+        self.assertIn("Direct 5 (71%)", text)
         self.assertIn("page-not-found (404) responses to people", text)
         self.assertIn("(UTC)", text)
         # The branded HTML (mail_html.py) groups the same figures in tables.
         flat = re.sub(r"<[^>]+>", "|", html)
         self.assertRegex(flat, r"\U0001F1FA\U0001F1F8 United States\|+3\|+43%")
-        self.assertRegex(flat, r"Direct or unknown\|+5\|+71%")
+        self.assertRegex(flat, r"Direct\|+5\|+71%")
         self.assertIn("Broken links people hit (404)", html)
 
     def test_the_numbers_are_the_ones_in_history(self):

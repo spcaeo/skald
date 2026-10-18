@@ -31,7 +31,7 @@ The dashboard has no build step. Edit a file under `skald/webapp/`, reload the p
    its own rules. No new figure ships without it.
 3. **Never report requests as people.** Requests, people and machines are different units. "People"
    is an upper bound.
-4. **Unknown stays unknown.** A figure that was not recorded is `null` (blank), never `0`.
+4. **Not recorded stays not recorded.** A figure that was not recorded is `null` (blank), never `0`.
 5. **No personal data in history.** No address, no person's user agent, no name or email goes into
    stored history. If your change needs one, open an issue first.
 6. **Standard library only.** No new runtime dependency. PyYAML stays optional.

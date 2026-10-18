@@ -22,7 +22,14 @@ the pass, the rest left for the next run. None of it ever raises:
 
 Events that are not conversions come through `notify`: the alert check
 queues "ai.reading_changed" once per new AI alert (alerts_ai.py; its body is
-the assistant, pages, days and numbers - nothing about a person).
+the assistant, pages, days and numbers - nothing about a person), and
+"alert.opened" once per new alert of any kind (alerts.hook_body: {site,
+alert, text, figures, at}).
+
+Slack: an address on hooks.slack.com (a Slack incoming webhook) takes only
+{"text": ...}, so it gets the body's `text` (or one line made from a
+conversion's fields) in that shape (`wire`); still signed, which Slack
+ignores. Every other address gets the body as queued.
 
 The body is a summary, never a name or an email: the action, stage, source,
 campaign, landing page, country, device, visits before, time to convert and
@@ -56,7 +63,7 @@ from .adapters import sign_timed
 
 EVENTS = ("conversion.started", "conversion.completed", "conversion.cancelled",
           "conversion.rescheduled", "conversion.no_show", "conversion.abandoned", "lead.won",
-          "lead.lost", "ai.reading_changed")
+          "lead.lost", "ai.reading_changed", "alert.opened")
 STAGE_EVENT = {"started": "conversion.started", "completed": "conversion.completed",
                "paid": "conversion.completed", "cancelled": "conversion.cancelled",
                "rescheduled": "conversion.rescheduled", "no_show": "conversion.no_show",
@@ -280,6 +287,43 @@ def _why(why: BaseException, seconds: float) -> str:
     if isinstance(why, (_Late, socket.timeout, TimeoutError)):
         return f"timed out after {seconds:g} s"
     return str(why) if isinstance(why, Refused) else type(why).__name__
+
+
+SLACK_HOST = "hooks.slack.com"
+
+
+def is_slack(url: str) -> bool:
+    try:
+        return (urlsplit(url).hostname or "").lower().rstrip(".") == SLACK_HOST
+    except ValueError:
+        return False
+
+
+def text_of(body: dict) -> str:
+    """One plain line for a body without `text` (a conversion)."""
+    if body.get("text"):
+        return str(body["text"])
+    words = [f"[{body.get('site') or '?'}] {body.get('event') or 'event'}"]
+    if body.get("action"):
+        words.append(f"{body['action']} ({body.get('stage') or '?'})")
+    if body.get("source_type"):
+        words.append(f"from {body['source_type']}")
+    if body.get("landing"):
+        words.append(f"landed on {body['landing']}")
+    return " ".join(words) + (" (test)" if body.get("test") else "")
+
+
+def wire(url: str, body: str) -> bytes:
+    """The bytes sent to `url`: Slack's {"text"} shape for a Slack incoming
+    webhook, the queued body for everything else."""
+    if not is_slack(url):
+        return body.encode()
+    try:
+        got = json.loads(body)
+    except ValueError:
+        got = {}
+    return json.dumps({"text": text_of(got if isinstance(got, dict) else {})[:3000]},
+                      separators=(",", ":")).encode()
 
 
 def post(url: str, body: bytes, secret: str, config: dict, now: float,
@@ -521,7 +565,7 @@ def deliver(db, config: dict, folder: Path, row: dict, url: str, now: datetime,
     if secret is None:
         status, error = 0, "no secret for this webhook (secrets.json)"
     else:
-        status, error = post(url, row["body"].encode(), secret, config, now.timestamp(),
+        status, error = post(url, wire(url, row["body"]), secret, config, now.timestamp(),
                              seconds=seconds)
     attempts = row["attempts"] + 1
     if error is None:

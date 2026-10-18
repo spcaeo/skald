@@ -4,6 +4,7 @@
 
 import { h, n, toast, reduced, ICON } from "./ui.js";
 import { link } from "./drill.js";
+import { shownText } from "./labels.js";
 
 /* Every table drawn in the current render, so "Export this view" and the
    report can take them all: {caption, file, columns, rows()}. main.js
@@ -14,9 +15,9 @@ let ALL_ROWS = false;
 export function showAllRows(on) { ALL_ROWS = !!on; }
 
 // A cell a spreadsheet would run as a formula is prefixed with an apostrophe,
-// as export.py does for the server's files.
+// as export.py does for the server's files. A stored label is written in its shown words.
 function cell(v) {
-  let s = v == null ? "" : String(v);
+  let s = v == null ? "" : shownText(String(v));
   if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
@@ -38,7 +39,22 @@ export function download(name, text, type = "text/csv;charset=utf-8") {
   toast(`Downloaded ${name}`);
 }
 
-/* columns: [{key, label, num?, path?, cls?, title? (a hint on the header), fmt?(v,row), csv?(row), sort?(row), drill?: dimension}]
+/* How a column lines up, the same in every table and grid (js/grid.js): every cell sits at
+   the top of its row (app.css); words left; numbers right (counts, shares, durations,
+   money, times and dates written as numbers); a yes/no or a small tag ("New", "Blocked")
+   centred. The header follows its column.
+     type: "num"  (or num: true)  right; num: true also formats a bare number and sorts biggest first
+     type: "date"                 right, sorted like words (an ISO day sorts as itself)
+     type: "badge" | "bool"       centred, before num (an HTTP status is a number drawn as a tag)
+     type: "text" (the default)   left */
+export function alignOf(c) {
+  if (c.type === "badge" || c.type === "bool") return "center";
+  if (c.num || c.type === "num" || c.type === "date") return "right";
+  return null;
+}
+const ALIGN_CLS = { right: "n", center: "c" };
+
+/* columns: [{key, label, num?, type?, path?, cls?, title? (a hint on the header), fmt?(v,row), csv?(row), sort?(row), drill?: dimension}]
    opts: {caption, rows, file, limit=15, empty, sortKey, search=true, rowClass?(row), note, onRow?(row), placeholder,
           groups?: [[label, span]] - a header row above the columns that names groups of them}
    The returned element has update(rows): new rows, same sort and search. */
@@ -85,7 +101,7 @@ export function table(columns, opts) {
     const groups = opts.groups ? h("tr", { class: "grp-row" }, opts.groups.map(([l, span]) => h("th", { scope: l ? "colgroup" : null, colspan: span, class: l ? "colgrp" : null }, l || ""))) : null;
     thead.replaceChildren(...(groups ? [groups] : []), h("tr", null, columns.map((c) => {
       const sorted = c.key === sortKey;
-      const th = h("th", { scope: "col", title: c.title || null, class: [c.num ? "n" : null, c.cls].filter(Boolean).join(" ") || null, "aria-sort": sorted ? (dir > 0 ? "ascending" : "descending") : null },
+      const th = h("th", { scope: "col", title: c.title || null, class: [ALIGN_CLS[alignOf(c)], c.cls].filter(Boolean).join(" ") || null, "aria-sort": sorted ? (dir > 0 ? "ascending" : "descending") : null },
         h("button", { type: "button", onclick: () => { if (sorted) dir = -dir; else { sortKey = c.key; dir = c.num ? -1 : 1; } render(true); } },
           c.label, h("span", { class: "dir", "aria-hidden": "true" }, sorted && dir > 0 ? "▲" : "▼")));
       return th;
@@ -113,7 +129,7 @@ export function table(columns, opts) {
         for (const c of columns) {
           const v = r[c.key];
           const text = c.fmt ? c.fmt(v, r) : c.num ? n(v) : v ?? "";
-          tr.append(h("td", { class: [c.num ? "n" : c.path ? "path" : null, c.cls].filter(Boolean).join(" ") || null }, text instanceof Node ? text : String(text)));
+          tr.append(h("td", { class: [ALIGN_CLS[alignOf(c)] || (c.path ? "path" : null), c.cls].filter(Boolean).join(" ") || null }, text instanceof Node ? text : String(text)));
         }
         return tr;
       }));

@@ -657,6 +657,11 @@ def audit_live(ctx: Context) -> int:
         if int(feed.get("total", 0)) != sum(counted.values()):
             problems.append(f"recent requests: the feed has {int(feed.get('total', 0)):,}, "
                             f"the recount finds {sum(counted.values()):,}")
+    # Real time's 15-second request count, the helper's last one (realtime_tail.py).
+    from .audit_realtime import live_tail
+    got, n = live_tail(ctx.config, ctx.live_dir, ctx.site, ctx.args.log or None)
+    problems += got
+    compared += n
     # The totals the last alert check read.
     from .alerts import load_state
     kept = (load_state(ctx.live_dir).get("figures") or {})

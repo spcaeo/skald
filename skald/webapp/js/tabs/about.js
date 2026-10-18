@@ -13,6 +13,8 @@ import { line, blockList } from "../mdview.js";
 let DATA = null;
 // Where addresses appear and what is kept: the footer's Privacy (i), and a section here.
 export const PRIVACY = "Visitor IP addresses appear only on this private page: the last 6 hours of requests and today's AI activity. Stored history holds totals and 30-day one-way codes, never addresses. Raw logs stay on the server for 14 days, and one command removes an address on request.";
+// What the page draws with that others made (vendor/): the world map's shapes.
+const CREDITS = "The world map on Overview › Real time is drawn from Natural Earth's 1:110m countries (naturalearthdata.com), which are in the public domain, projected with the Equal Earth projection. It is part of the page itself: no map service is asked for anything.";
 const PARTS = [["why", "Why we built Skald"], ["name", "Why the name"], ["compare", "How Skald compares"], ["features", "What Skald can do"]];
 
 // ------------------------------------------------------------- words
@@ -105,7 +107,8 @@ function page(s) {
     h("section", { class: "s about-sec", id: "about-name" }, h("h2", null, "Why the name"), prose(name, "The skalds")),
     h("section", { class: "s about-sec", id: "about-compare" }, h("h2", null, "How Skald compares"), compare(DATA.compare)),
     h("section", { class: "s about-sec", id: "about-features" }, h("h2", null, "What Skald can do"), features()),
-    h("section", { class: "s about-sec", id: "about-privacy" }, h("h2", null, "Privacy"), h("p", { class: "about-privacy" }, PRIVACY))];
+    h("section", { class: "s about-sec", id: "about-privacy" }, h("h2", null, "Privacy"), h("p", { class: "about-privacy" }, PRIVACY)),
+    h("section", { class: "s about-sec", id: "about-credits" }, h("h2", null, "Credits"), h("p", { class: "about-privacy" }, CREDITS))];
   requestAnimationFrame(() => { measure(); if (s.part) document.getElementById(`about-${s.part}`)?.scrollIntoView({ block: "start" }); });
   return out;
 }

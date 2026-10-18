@@ -44,7 +44,7 @@ export default function tokens(m) {
     const all = (r.tokens || []).filter((t) => !t.revoked_at);
     if (!all.length) { list.replaceChildren(h("p", { class: "empty" }, "No tokens yet.")); return; }
     list.replaceChildren(h("div", { class: "scroll" }, h("table", { class: "rows-mid" }, h("caption", { class: "vh" }, "API tokens"),
-      h("thead", null, h("tr", null, ["Name", "Sites", "Scopes", "Made", "Last used"].map((t) => h("th", { scope: "col" }, t)), h("th", { scope: "col", class: "n" }, h("span", { class: "vh" }, "Action")))),
+      h("thead", null, h("tr", null, [["Name"], ["Sites"], ["Scopes"], ["Made", "n"], ["Last used", "n"]].map(([t, cls]) => h("th", { scope: "col", class: cls }, t)), h("th", { scope: "col", class: "n" }, h("span", { class: "vh" }, "Action")))),
       h("tbody", null, all.map((t) => {
         const cell = h("td", { class: "n" });
         const drawCell = () => {
@@ -60,7 +60,7 @@ export default function tokens(m) {
         const scopes = (Array.isArray(t.scopes) ? t.scopes : String(t.scopes || "").split(/[,\s]+/)).filter(Boolean);
         return h("tr", null, h("td", null, t.name || `#${t.id}`), h("td", { class: "path nm" }, sites),
           h("td", null, scopes.join(", ") || "read", t.private ? h("span", { class: "muted" }, " (private)") : null),
-          h("td", { class: "muted" }, when(t.created_at, ""), t.created_by ? ` by ${t.created_by}` : ""), h("td", { class: "muted" }, when(t.last_used)), cell);
+          h("td", { class: "muted n" }, when(t.created_at, ""), t.created_by ? ` by ${t.created_by}` : ""), h("td", { class: "muted n" }, when(t.last_used)), cell);
       })))));
   }
 

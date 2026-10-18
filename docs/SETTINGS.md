@@ -188,6 +188,12 @@ gets nothing but one confirm mail until its owner follows the link in it
   them as `mail_waiting`.
 - The link opens `/traffic-auth/mail-confirm?t=...`, a page with one button; the button
   confirms the address for that organisation. A link works once, for 7 days.
+- Alerts are set in config.yml's `alerts` section, not on these pages (thresholds and
+  switches: config.example.yml; the citation and crawler alerts: alerts_history.py). To send
+  alerts to Slack or another tool, an admin adds an outgoing webhook for the event
+  `alert.opened` on Settings > Integrations: one site, https only, signed with the webhook's
+  own secret, which is kept in secrets.json (key `outgoing/<site>/<id>`), never in the
+  `settings` table, and shown once. A `hooks.slack.com` address gets Slack's `{"text"}` shape.
 - The daily and weekly mails and alerts go only to confirmed addresses (`settings_store.apply`
   drops the others). With none confirmed, the mail is withheld, not failed. Addresses in
   config.yml's own `mail.to` count as confirmed.
