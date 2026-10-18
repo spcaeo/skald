@@ -40,6 +40,35 @@
 .fn-drop { margin: 0 0 0 calc(min(26%, 9999px) + 24px); padding: 0 10px; font-size: 12px; color: var(--ink-3); }
 .fn-drop.big { color: var(--warn); }
 @media (prefers-reduced-motion: reduce) { .fn-track i { transition: none; } }
+
+/* Visitor flow (sankey.js): node bars in the kind's colour, quiet grey bands that take the
+   node's colour on hover or focus, labels in text ink. Tokens from app.css, so dark mode follows. */
+.sk-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 10px; }
+.sk-tools .grow { flex: 1; }
+.sk-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.sk-pick .add-l { font-size: 12.5px; font-weight: 600; color: var(--ink-2); margin-left: 4px; }
+.sk-scroll { overflow-x: auto; }
+.sk-svg { display: block; max-width: none; font-family: var(--sans); }
+.sk-col { font-size: 11px; font-weight: 600; fill: var(--ink-3); letter-spacing: .02em; text-transform: uppercase; }
+.sk-band { fill: color-mix(in srgb, var(--ink-3) 22%, transparent); transition: fill .15s; }
+.sk-svg.on .sk-band { fill: color-mix(in srgb, var(--ink-3) 11%, transparent); }
+.sk-svg .sk-band.hi { fill: color-mix(in srgb, var(--k) 46%, transparent); }
+.sk-hit { fill: transparent; }
+.sk-node { outline: none; }
+.sk-node.pick { cursor: pointer; }
+.sk-node:hover .sk-bar, .sk-node:focus-visible .sk-bar { stroke: var(--ink); stroke-width: 1.5; }
+.sk-node:focus-visible .sk-hit { stroke: var(--focus); stroke-width: 2; }
+.sk-lab { font-size: 11.5px; fill: var(--ink); pointer-events: none; }
+.sk-lab .sk-n { fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+.sk-map .legend { margin-top: 10px; }
+.sk-drill { margin: 8px 0 14px; }
+.sk-drill > h3 { margin-bottom: 2px; }
+@media (prefers-reduced-motion: reduce) { .sk-band { transition: none; } }
+@media (forced-colors: active) {
+  .sk-band { fill: GrayText; opacity: .35; }
+  .sk-band.hi { fill: Highlight; opacity: .6; }
+  .sk-bar { forced-color-adjust: none; }
+}
 @media (max-width: 767px) {
   .fn-step { grid-template-columns: 22px minmax(0, 1fr) 30px; }
   .fn-step input[type="text"] { grid-column: 2 / 3; }

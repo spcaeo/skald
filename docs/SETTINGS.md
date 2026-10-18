@@ -308,6 +308,18 @@ set it, in `ours.json` beside the history, like the other state files. The runs,
 and the audit's own reading all find it there. Only when the server knows neither (no history
 folder resolved) does the page hide its add form, with the reason, instead of offering it.
 
+Each page-added entry is **Active** or **Paused** (2026-10-18): a switch on the page,
+`POST <page>/ours/pause|resume`, or `skald ours pause|resume LABEL|ADDRESS` (in Docker
+`docker exec skald skald ours ...`). A pause stops the entry applying from that moment, so the
+team's visits count as visitors while they test; resuming applies it again from that moment.
+The pauses stay on the entry (`paused`: `[[from, to-or-null], ...]`), so a day re-collected later
+gives the same figures. **Edit** (label and/or address) ends the old entry now and starts a new
+one now; **Delete** marks the entry `removed_at` and keeps it in the file. Neither changes a
+day before it, on the main road or in the audit. Entries from config.yml always apply and
+cannot be paused, edited or deleted on the page. Who may do this: the same people who may add
+(an install admin with accounts; an admin with one shared login). `skald ours list` shows
+entries by label only, never the address.
+
 ## The audit log
 
 Every change writes a row: action `setting.change`, the key, and `<scope>: <old> -> <new>`.

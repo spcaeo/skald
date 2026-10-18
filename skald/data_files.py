@@ -414,7 +414,8 @@ def ours(p: Page) -> dict:
     return {"rules": ours_rules(p.config),
             "heartbeat_label": str(setting(p.config, "report", "heartbeat_label", "heartbeat")),
             "api": {"list": "ours", "add": "ours/add", "remove": "ours/remove",
-                    "add_mine": "ours/add-mine"},
+                    "add_mine": "ours/add-mine", "pause": "ours/pause",
+                    "resume": "ours/resume", "edit": "ours/edit"},
             # An outside uptime check (from another server) is not set up:
             # null says so, beside our own heartbeat (DATA-CONTRACT.md).
             "outside": None,

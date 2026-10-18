@@ -53,6 +53,13 @@ Lead steps cannot be added from the step list. The built-in funnel **Landing to 
 - Each step shows its visits and its share of the start.
 - Between steps, a line says how many left before this step. A drop of half or more is marked.
 
+### Flow between the steps
+
+With two page steps or more, a flow map follows the chart. It shows where the funnel's visits came from, each page step they reached, and **Left after step 1**, **Left after step 2** and so on for those that went no further. Its step figures are the chart's.
+
+- Click a step, or a **Left after** bar, to list those visits. Click a source to start the funnel from it.
+- **Table** shows the same figures as rows.
+
 ### Open a step's visits
 
 1. Click a page step's bar.

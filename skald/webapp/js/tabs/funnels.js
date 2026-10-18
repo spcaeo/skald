@@ -20,6 +20,9 @@ const lockWhy = () => (isViewer() ? VIEWER : INSTALL_ONLY);
 import { eventLabel } from "./events.js";
 import { history } from "./funnelhistory.js";
 import { howTo } from "./help.js";
+import { funnelFlowOf, check } from "../flow.js";
+import { sankey } from "../sankey.js";
+import { shown } from "../labels.js";
 
 const MATCH = [["any", "Any page"], ["equals", "Page is"], ["starts_with", "Starts with"], ["segment", "Page named"]];
 const LEAD = { signup: "Sign-up", contact: "Contact form", waitlist: "Early access", demo_opened: "Opened Book a demo", demo_booked: "Demo booked" };
@@ -275,6 +278,28 @@ function eventCounts(m, steps, days, fsrc) {
   });
 }
 
+/* The same visits as a flow: source, then each page step, with those that left
+   between steps. Built from the list the chart counts, so its step nodes are the
+   chart's figures; withheld if it does not add up. A step opens its visits. */
+function flowBetween(list, steps, s, labels) {
+  const at = steps.map((x, i) => (x.kind === "path" ? i : -1)).filter((i) => i >= 0);
+  const names = at.map((i) => labels?.[i] || stepName(steps[i]));
+  const flow = funnelFlowOf(list, names);
+  const off = check(flow);
+  const body = off.length ? h("div", { class: "state bad", role: "alert" }, h("div", null, `The flow is withheld: it does not add up (${off[0]}).`))
+    : sankey(flow, {
+      label: "Visits between the funnel's steps", unit: "visits", file: "funnel-flow.csv", pickAll: true,
+      kindWords: { start: "Starting source", step: "A funnel step", left: "Left between steps" },
+      say: (nd) => (nd.kind === "start" ? shown(nd.label) : nd.kind === "step" ? `${nd.step}. ${nd.label}` : nd.label),
+      onPick: (nd) => (nd.kind === "start" ? S.set({ fsrc: nd.drill[1], fstep: "" }, { replace: true })
+        : S.set({ fstep: String(at[nd.step - 1] + 1), fmode: nd.kind === "left" ? "left" : "" }, { replace: true })),
+      empty: "No visit met the first step.",
+      note: "Each visit once: its source, then each page step it reached in order; a visit that went no further flows to Left after that step. The step figures are the chart's above. Click a step for its visits, a source to start from it.",
+    });
+  return h("section", { class: "s" }, h("h2", null, "Flow between the steps"),
+    h("p", { class: "sub" }, "Where the funnel's visits came from, and where they dropped off."), h("div", { class: "sheet" }, body));
+}
+
 export default function funnels(m, s) {
   EVNAMES = m.x.events;
   const r = rangeOf(m, s);
@@ -309,6 +334,7 @@ export default function funnels(m, s) {
     h("p", { class: "note" }, `Click a page step for its visits. Out of ${n(list.length)} visit${list.length === 1 ? "" : "s"} from ${s.fsrc || "any source"}${S.activeFilters(s).length ? " that match the filters" : ""}.`,
       steps.some((x) => x.kind === "lead") ? ` The lead steps cover ${match ? `${short(match.result.first)} to ${short(match.result.last)}` : "the days of the last save"}, by first-touch source.` : "",
       match?.long?.first_step != null ? ` Over ${match.long.days} days, ${n(match.long.first_step)} visits met the first step.` : "")));
+  if (pathSteps.length >= 2) out.push(flowBetween(list, steps, s, match?.labels));
   const opened = Number(s.fstep);
   if (opened >= 1 && opened <= steps.length && steps[opened - 1].kind === "path") out.push(drill(list, steps, s));
   out.push(...past);

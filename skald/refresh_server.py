@@ -21,6 +21,10 @@ It also serves the internal-addresses list (ours_store.py) for the page:
   POST <page>/ours/add-mine   label; the address is the caller's, from the
                               X-Real-IP header nginx sets - believed only when
                               the connection itself comes from 127.0.0.1
+  POST <page>/ours/pause      ip   stop it applying from now (visits count as
+  POST <page>/ours/resume     ip   visitors) / apply again from now
+  POST <page>/ours/edit       ip, new_ip and/or label: the old entry ends now,
+                              a new one starts now (ours_store.edit)
 
 Same guards, plus: bodies of at most 4 KB, JSON answers, and a live run after
 every change so the page shows it at once.
@@ -99,7 +103,7 @@ from .people import api as people_api
 MIN_GAP = 15          # seconds between two runs
 RUN_TIMEOUT = 90      # seconds a run may take before it is abandoned
 PATH = re.compile(r"^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?refresh$")
-OURS_PATH = re.compile(r"^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?ours(?:/(add|remove|add-mine))?$")
+OURS_PATH = re.compile(r"^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?ours(?:/(add|remove|add-mine|pause|resume|edit))?$")
 MAX_BODY = 4096
 PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
 ME_PATH = re.compile(PAGE + r"me$")
@@ -132,7 +136,8 @@ def data_file(out: Path | None, site: str, view: str | None, name: str) -> Path 
 
 
 def ours_action(path: str) -> str | None:
-    """"list", "add", "remove", "add-mine", or None when not an ours path."""
+    """"list", "add", "remove", "add-mine", "pause", "resume", "edit", or
+    None when not an ours path."""
     path = path.split("?", 1)[0]
     m = OURS_PATH.match(path)
     if not m or ".." in path:
@@ -397,6 +402,13 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
                         raise ours_store.Invalid("your address is not known here")
                     ours_store.add(config, mine, form.get("label") or "My address",
                                    "page (my address)", by=who, site=site)
+                elif action == "pause":
+                    ours_store.pause(config, form.get("ip"), by=who)
+                elif action == "resume":
+                    ours_store.resume(config, form.get("ip"), by=who)
+                elif action == "edit":
+                    ours_store.edit(config, form.get("ip"), label=form.get("label"),
+                                    ip=form.get("new_ip"), by=who)
                 else:
                     ours_store.remove(config, form.get("ip"), by=who)
             except ours_store.Full as why:

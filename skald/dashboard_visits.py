@@ -190,7 +190,8 @@ def ours_box(rules: list[dict] | None, counts: dict | None, when: str) -> str:
         if label in seen:
             continue
         seen.add(label)
-        rows.append((label, str(rule.get("kind", "")), f"{int(counts.get(label, 0)):,}"))
+        kind = str(rule.get("kind", "")) + (" (paused)" if rule.get("paused") else "")
+        rows.append((label, kind, f"{int(counts.get(label, 0)):,}"))
     for label, n in sorted(counts.items(), key=lambda kv: -int(kv[1])):
         if label not in seen:
             rows.append((label, "no longer configured", f"{int(n):,}"))

@@ -183,13 +183,15 @@ def ours_rules(config: dict) -> list[dict]:
     """Everything that counts as our own traffic, by label and kind, in the
     order the classifier tries them. Never the values themselves: an
     address is shown only by its label."""
-    from .ours_store import load, path_of
+    from .ours_store import live, load, path_of, paused_since
     ours = (config or {}).get("ours") or {}
     rules = [{"label": label, "kind": OURS_KINDS[which], "source": "config"}
              for which in ("user_agents", "referrers", "addresses")
              for _, label in ours_entries(ours.get(which), which)]
-    return rules + [{"label": e["label"], "kind": "address", "source": "file"}
-                    for e in load(path_of(config))]
+    # A paused page-added address is still listed, marked paused (2026-10-18).
+    return rules + [{"label": e["label"], "kind": "address", "source": "file",
+                     "paused": paused_since(e) is not None}
+                    for e in live(load(path_of(config)))]
 
 
 # Directories the dashboard writes beside the view pages.

@@ -112,7 +112,10 @@ export function worldMap({ onPick, label = "World map of today's visits" } = {})
     for (const [cc, r] of live.reverse()) {
       const [x, y] = WORLD.points[cc];
       const rad = 3 + 11 * Math.sqrt(r.active / top);
-      if (!reduced()) bubbles.append(svg("circle", { cx: x, cy: y, r: rad, class: "rt-ring" }));
+      // Active now: two rings pinging out of the bubble, staggered, and a soft
+      // blink on the bubble; with reduced motion, one still halo instead.
+      bubbles.append(svg("circle", { cx: x, cy: y, r: rad, class: "rt-ring" }));
+      if (!reduced()) bubbles.append(svg("circle", { cx: x, cy: y, r: rad, class: "rt-ring rt-ring2" }));
       bubbles.append(svg("circle", { cx: x, cy: y, r: rad, class: "rt-bub" }));
     }
     if (focused) shapes.get(focused)?.focus();
