@@ -150,7 +150,7 @@ helper knew the site (2.9.0).
 | `scroll_75` | the reader reaches 75% of the page, once per page | - |
 | `copy_text` | text is copied, once per page (never the text) | - |
 | `404_view` | the not-found page is shown | - |
-| `page_view` | a page loads, or a client-side navigation; counted in beacon-only mode or with visitor IDs on | - |
+| `page_view` | a page loads, or a client-side navigation; counted in beacon-only mode or with visitor IDs on. Otherwise (since 2.10.1) kept only as proof the page was drawn: path and time in `opens-<day>.jsonl`, read by the render test, never counted as an event | - |
 | `form_start` | a field of a form is first used, once per form per page | the form's `id` or `name` |
 | `form_submit` | a form is submitted | the form's `id` or `name` |
 | `calendly_open` | a Calendly embed shows its page | - |

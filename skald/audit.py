@@ -59,6 +59,9 @@ _COMBINED = re.compile(
 # a letter and a dot; a port dropped). An address list or "-" is not one.
 _LAST_QUOTED = re.compile(r'"([^"]*)"\s*$')
 _REQUEST = re.compile(r"^([A-Z]+) (\S*)")
+# Skald's own endpoints (script-tag events, its file, hooks, shipped logs): a
+# POST to one is no form post.
+_OWN = re.compile(r"/traffic-(?:beacon(?:$|[/?])|js/|hooks/|ingest/)")
 # nginx's $request_id, the last field of the extended layout since it was
 # added; older lines have none.
 _RID = re.compile(r"\srid=([0-9A-Za-z-]{8,64})\s*$")
@@ -476,7 +479,7 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
         bots.hit(line, group, judge.info)
         more.judged(line, group, judge.info)
         requests[group] += 1
-        if line.method == "POST":
+        if line.method == "POST" and not _OWN.match(line.path):
             posts[group] += 1
         statuses[group][status_of(line.status)] += 1
         label = tier = name = ""

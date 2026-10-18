@@ -288,3 +288,38 @@ class TestApiEndpoints(unittest.TestCase):
                 self.assertEqual(audit.is_page(audit.line_hit(raw)), page)
                 self.assertEqual(audit_visits._is_beacon_path(path.partition("?")[0]),
                                  not page)
+
+
+class TestOwnEndpointsAreNoForms(Case):
+    """The script tag posts its events to /traffic-beacon from every page; that
+    is no form being sent (it made every visit "form sent")."""
+
+    def test_a_beacon_post_is_no_form_post_on_any_road(self):
+        from skald import audit_visits
+        from skald.parse import PARSERS as P
+        beacon_post = line(NOON, "203.0.113.80", "/traffic-beacon").replace('"GET ', '"POST ')
+        form_post = line(NOON, "203.0.113.80", "/api/contact").replace('"GET ', '"POST ')
+        self.assertFalse(P["nginx_extended"](beacon_post).is_form_post)
+        self.assertTrue(P["nginx_extended"](form_post).is_form_post)
+        self.assertTrue(audit_visits._own_endpoint("/traffic-beacon"))
+        self.assertFalse(audit_visits._own_endpoint("/api/contact"))
+        self.box.log([line(NOON, "203.0.113.80", "/pricing", referrer="https://www.google.com/"),
+                      line(NOON + timedelta(seconds=1), "203.0.113.80", "/_next/static/a.js"),
+                      beacon_post.replace(NOON.isoformat(),
+                                          (NOON + timedelta(seconds=2)).isoformat()),
+                      line(NOON + timedelta(minutes=1), "203.0.113.81", "/contact"),
+                      line(NOON + timedelta(minutes=1, seconds=1), "203.0.113.81",
+                           "/_next/static/a.js"),
+                      form_post.replace("203.0.113.80", "203.0.113.81").replace(
+                          NOON.isoformat(), (NOON + timedelta(minutes=1, seconds=5)).isoformat())])
+        self.collect_and_audit()
+        db = sqlite3.connect(str(self.box.db))
+        try:
+            posts = db.execute("SELECT SUM(n) FROM counts WHERE day = ? AND kind LIKE "
+                               "'post_page_people'", (DAY.isoformat(),)).fetchone()[0]
+            pages = dict(db.execute("SELECT name, n FROM counts WHERE day = ? AND kind = "
+                                    "'post_page_people'", (DAY.isoformat(),)).fetchall())
+        finally:
+            db.close()
+        self.assertEqual(pages, {"/api/contact": 1})
+        self.assertEqual(posts, 1)

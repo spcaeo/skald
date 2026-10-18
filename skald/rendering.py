@@ -20,7 +20,9 @@ that a browser drew the page. Any one of these is enough:
              the browser already asked for its styles. Images, /og/ cards and
              favicons do not count: a link unfurler fetches those too.
   * beacon   an event from the page's own script (the beacon spool) was sent
-             from one of its pages: same path, opened within the same window.
+             from one of its pages: same path, opened within the same window. A
+             page opening that is no event (page_view without beacon-only mode or
+             visitor IDs) counts too, from the day's opens file (since 2.10.1).
   * earlier  the same address and agent rendered a page earlier the same day:
              a returning browser has the assets in its cache and asks for none.
   * returning  its 30-day keyed hash (visitors.py) was a counted reader on an
@@ -246,7 +248,9 @@ def beacon_opens(config: dict, start: datetime, end: datetime) -> list[tuple[str
     out: set = set()
     day = start.astimezone(tz).date() - timedelta(days=1)
     while day <= end.astimezone(tz).date():
-        for row in beacon.read_day(spool, day):
+        # The day's events, then its openings that are no event (2.10.1).
+        rows = list(beacon.read_day(spool, day)) + list(_opens(beacon.opens_file(spool, day)))
+        for row in rows:
             if row.get("g") != "people":
                 continue
             try:
@@ -258,6 +262,23 @@ def beacon_opens(config: dict, start: datetime, end: datetime) -> list[tuple[str
                 out.add((row["p"], opened))
         day += timedelta(days=1)
     return sorted(out, key=lambda o: (o[1], o[0]))
+
+
+def _opens(path) -> list[dict]:
+    import json
+    from pathlib import Path
+    if not Path(path).is_file():
+        return []
+    out = []
+    for line in Path(path).read_text(encoding="utf-8", errors="replace").splitlines():
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(row, dict) and isinstance(row.get("e"), str) \
+                and isinstance(row.get("p"), str):
+            out.append(row)
+    return out
 
 
 def earlier_readers(config: dict, first_day, key: bytes | None):

@@ -80,7 +80,7 @@ class Policy(unittest.TestCase):
         policy = bp.validate({"owners": {"Anthropic": "block"},
                               "crawlers": {"Claude-User": "allow", "CCBot": "block"}})
         self.assertEqual(sorted(c.name for c in bp.blocked(policy)),
-                         ["CCBot", "Claude-SearchBot", "ClaudeBot", "anthropic-ai"])
+                         ["CCBot", "Claude-SearchBot", "Claude-Web", "ClaudeBot", "anthropic-ai"])
         view = bp.view(policy)
         anthropic = next(a for a in view["assistants"] if a["owner"] == "Anthropic")
         user = next(c for c in anthropic["crawlers"] if c["name"] == "Claude-User")

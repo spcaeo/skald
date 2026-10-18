@@ -18,7 +18,10 @@ decides whether to take it:
     kept (bots do not click). Our own addresses' events are kept marked
     "ours", like our own requests in the log, and never added to people
   * page_view when neither beacon-only mode nor visitor IDs are on: 202,
-    nothing kept (skald.js always sends it)
+    not an event. Since 2.10.1 its path and time (no address, no agent) go to
+    the day's opens file (beacon.opens_file) when the sender is people or
+    ours: proof that a browser drew the page, so a returning reader whose
+    browser has every asset cached still counts (rendering.py, "beacon")
   * the visitor ID `v` is kept only with `beacon.visitor_ids: true`; then
     people's events with one also go to conversions.sqlite (journeys and
     conversions, conversions/from_beacon.py), with the country from the
@@ -185,6 +188,20 @@ class Sink:
             self.stats[key] = self.stats.get(key, 0) + 1
             if event.get("v") and group == "people":
                 self._conversion(event, when, source, address, agent)
+            self._flush(False)
+
+    def opened(self, event: dict, group: str) -> None:
+        """A page opening that is no event: its path and time, for the
+        render test only (beacon.opens_file)."""
+        when = self.now()
+        row = {"at": when.isoformat(timespec="seconds"), "g": group, "e": event["e"],
+               "p": event["p"], "t": int(event.get("t") or 0)}
+        with self.lock:
+            self._roll(when)
+            self.spool.mkdir(parents=True, exist_ok=True)
+            with open(beacon.opens_file(self.spool, when.date()), "a", encoding="utf-8") as out:
+                out.write(json.dumps(row, separators=(",", ":")) + "\n")
+            self.stats["opens"] = self.stats.get("opens", 0) + 1
             self._flush(False)
 
     def _conversion(self, event: dict, when: datetime, source: str, address: str,
@@ -410,11 +427,13 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
                 event = beacon.validate(raw, sink.accepts)
             except beacon.Refused as why:
                 return self._refuse(400, why.reason)
-            if event["e"] not in sink.events:     # page_view, not counted here
-                sink.count("page_view_off")
-                return self._send(202)
             agent = self.headers.get("User-Agent") or ""
             group = sink.group(address, agent, event["p"], sink.now())
+            if event["e"] not in sink.events:     # page_view, not counted here
+                sink.count("page_view_off")
+                if group != "bot":
+                    sink.opened(event, group)
+                return self._send(202)
             if group == "bot":
                 sink.count("not_people")
                 return self._send(202)

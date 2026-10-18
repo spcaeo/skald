@@ -19,13 +19,23 @@ What it makes, for the days up to `now`:
   leads   sign-up and contact form rows for the site's lead store
 A user fetch by ChatGPT-User or Perplexity-User followed minutes later by a
 direct, untagged visit to the same page makes the "likely sent by an AI
-assistant" figure; a few of those visitors become leads.
+assistant" figure; a few of those visitors become leads. Before many visits
+cited by ChatGPT, Perplexity or Claude, that assistant's user fetcher read the
+landing page and a few others minutes earlier ("what the AI read").
+
+Crawlers ask for what real ones ask for: pages, robots.txt, sitemaps, and the
+AI crawlers and user fetchers llms.txt, llms-full.txt and Markdown copies of
+the blog. Every line has a body size and a response time that fit what it
+asked for (a crawler on a big page is slower than a cached page for a person),
+and crawlers meet the odd 404 and 5xx. Those draws come from a second seeded
+generator, so the people, leads and bookings are the same as without them.
 
 Standard library only.
 """
 from __future__ import annotations
 
 import random
+import zlib
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -60,15 +70,19 @@ GPTBOT = "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/
 CHATGPT_USER = "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot"
 PERPLEXITY_USER = ("Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Perplexity-User/1.0; "
                    "+https://perplexity.ai/perplexity-user)")
+CLAUDE_USER = ("Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Claude-User/1.0; "
+               "+Claude-User@anthropic.com)")
 FETCHERS = [(CHATGPT_USER, "198.51.100.3", 3), (PERPLEXITY_USER, "198.51.100.35", 1)]
+# The user fetcher of each assistant a cited visit can come from (its referrer host).
+FETCHER_OF = {"chatgpt.com": (CHATGPT_USER, "198.51.100.3"), "perplexity.ai": (PERPLEXITY_USER, "198.51.100.35"),
+              "claude.ai": (CLAUDE_USER, "198.51.100.19")}
 BOTS = [  # (user agent, address, (fewest, most) requests a day)
     (GPTBOT, "198.51.100.2", (4, 14)),
     (CHATGPT_USER, "198.51.100.3", (3, 11)),
     ("Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; OAI-SearchBot/1.0; +https://openai.com/searchbot",
      "198.51.100.4", (1, 5)),
     ("Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ClaudeBot/1.0)", "198.51.100.18", (3, 12)),
-    ("Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Claude-User/1.0; +Claude-User@anthropic.com)",
-     "198.51.100.19", (1, 5)),
+    (CLAUDE_USER, "198.51.100.19", (1, 5)),
     ("Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)",
      "198.51.100.34", (2, 8)),
     (PERPLEXITY_USER, "198.51.100.35", (1, 6)),
@@ -130,15 +144,63 @@ LAND = {
     "paid": [("/pricing/", 60), ("/", 40)],
     "social_paid": [("/features/", 60), ("/", 40)],
 }
+MD = [b + ".md" for b in BLOG]          # the blog's Markdown copies, for AI readers
+_PAGES = [("/", 10), ("/pricing/", 8), ("/features/", 6)] + [(b, 4) for b in BLOG] + [(g, 4) for g in GUIDES]
+CRAWL = {   # what each kind of crawler asks for (one draw each: the main sequence stays as it was)
+    "search": _PAGES + [("/robots.txt", 4), ("/sitemap.xml", 4), ("/sitemap-blog.xml", 2)],
+    "training": _PAGES + [("/robots.txt", 4), ("/llms.txt", 6), ("/llms-full.txt", 3), ("/sitemap.xml", 3),
+                          ("/sitemap-blog.xml", 1.5)] + [(m, 2) for m in MD],
+    "asked": _PAGES + [("/robots.txt", 2), ("/llms.txt", 4), ("/llms-full.txt", 1), ("/sitemap.xml", 0.5)]
+             + [(m, 2) for m in MD],
+    "other": _PAGES + [("/robots.txt", 4), ("/sitemap.xml", 2)],
+}
+TRAINING = ("GPTBot", "ClaudeBot", "PerplexityBot", "OAI-SearchBot", "meta-externalagent")
+SEARCHERS = ("Googlebot", "bingbot", "Applebot")
+GONE = ["/blog/old-launch-post", "/guides/api-v1", "/blog/2024-roadmap", "/blog/old-launch-post.md"]
+SIZES = {"/robots.txt": 168, "/llms.txt": 5_812, "/llms-full.txt": 214_377, "/sitemap.xml": 7_406,
+         "/sitemap-blog.xml": 3_118, "/assets/site.css": 38_412, "/assets/site.js": 96_850, "/assets/logo.svg": 3_920}
 FETCHED = [("/pricing/", 30), ("/guides/getting-started", 25), ("/features/", 15), ("/guides/webhooks", 10)] + [(b, 5) for b in BLOG]
 VIDCH = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
 
 
+HUMAN = frozenset(ua for ua, _, _ in UAS)
+
+
+def crawl_kind(agent: str) -> str:
+    if "-User/" in agent:
+        return "asked"
+    if any(name in agent for name in TRAINING):
+        return "training"
+    return "search" if any(name in agent for name in SEARCHERS) else "other"
+
+
+def size_of(path: str, status: int = 200, method: str = "GET") -> int:
+    """The body size a path is sent with: fixed per path, so a page weighs
+    the same every time (a blog post more than a landing page)."""
+    bare = path.split("?", 1)[0]
+    h = zlib.crc32(bare.encode())
+    if method == "POST":
+        return 48 + h % 40
+    if status >= 500:
+        return 150 + h % 400
+    if status == 404:
+        return 9_400 + h % 600
+    if bare in SIZES:
+        return SIZES[bare]
+    if bare.endswith(".md"):
+        return 9_000 + h % 17_000
+    if bare.startswith("/blog/") and bare != "/blog/":
+        return 58_000 + h % 50_000
+    if bare.startswith("/guides/"):
+        return 41_000 + h % 38_000
+    return 22_000 + h % 26_000
+
+
 def line(when: datetime, address: str, path: str, agent: str, referrer: str = "-", status: int = 200,
-         country: str = "US", method: str = "GET") -> str:
+         country: str = "US", method: str = "GET", size: int = 512, secs: float = 0.004) -> str:
     """One nginx_extended line (the format DEPLOY.md sets up), host example.com."""
     return (f'{when.isoformat()} {address} {SITE} "{method} {path} HTTP/2.0" '
-            f'{status} 512 "{referrer}" "{agent}" 0.004 cc={country} '
+            f'{status} {size} "{referrer}" "{agent}" {secs:.3f} cc={country} '
             f'ray=0000000000000000-LHR\n')
 
 
@@ -171,6 +233,27 @@ class _Maker:
         self.seen: list[tuple] = []
         self.info: dict[tuple, dict] = {}
         self.cur = ("", "")
+        self.xr = random.Random(seed + 2)      # sizes, times, errors, pre-fetches: never the main draws
+        self.cited: list[tuple] = []           # (when, assistant host, landing page) of each AI-cited visit
+
+    def line(self, when, address, path, agent, referrer="-", status=200, country="US", method="GET") -> str:
+        """line() with a body size and a response time drawn for what was asked:
+        static files fast, a person's page from the cache, a crawler's page
+        slower the bigger it is, a 5xx slowest."""
+        x = self.xr
+        size = size_of(path, status, method)
+        if status >= 500:
+            secs = x.uniform(0.25, 0.9)
+        elif method == "POST":
+            secs = x.uniform(0.08, 0.35)
+        elif status == 404 or path in SIZES or path.endswith((".txt", ".xml", ".md")):
+            secs = x.uniform(0.001, 0.006) + size / 2_000_000 * x.uniform(0.5, 1.5)
+        elif agent in HUMAN:
+            secs = x.lognormvariate(-3.6 + size / 400_000, 0.55)
+            size = int(size * x.uniform(0.98, 1.02))          # compression varies a little
+        else:
+            secs = x.lognormvariate(-2.4 + size / 120_000, 0.45)
+        return line(when, address, path, agent, referrer, status, country, method, size, min(0.9, max(0.004, secs)))
 
     def pick(self, pairs):
         total = sum(w for _, w in pairs)
@@ -238,12 +321,14 @@ class _Maker:
         cc = T.country_of[ip]
         vid = self.vid_of[identity]
         path = force_path or self.pick(LAND[kind])
+        if kind == "ai":
+            self.cited.append((t, host, path))
         pages, cur, prev_url, url, stay = [], path, ref, path + q, 0.62
         while True:
-            T.lines.append(line(t, ip, url, ua, prev_url, country=cc))
+            T.lines.append(self.line(t, ip, url, ua, prev_url, country=cc))
             if rnd.random() < 0.7:
                 for a in ASSETS[: rnd.randrange(1, 4)]:
-                    T.lines.append(line(t + timedelta(seconds=1), ip, a, ua, "https://example.com" + cur, country=cc))
+                    T.lines.append(self.line(t + timedelta(seconds=1), ip, a, ua, "https://example.com" + cur, country=cc))
             pages.append((t, cur))
             if vid is not None:
                 self.events(t, cur, vid, host, utm, vw, nvisits, first_touch, touch, path, cc)
@@ -255,14 +340,14 @@ class _Maker:
             nxt = self.pick(NEXT.get(cur, [("/", 1)]))
             prev_url, cur, url = "https://example.com" + cur, nxt, nxt
             if rnd.random() < 0.012:
-                T.lines.append(line(t, ip, "/blog/old-launch-post", ua, prev_url, status=404, country=cc))
+                T.lines.append(self.line(t, ip, "/blog/old-launch-post", ua, prev_url, status=404, country=cc))
         return pages, touch
 
     def form_sent(self, at, kind, page, cc):
         """The form's POST to the site's own endpoint, a second before the lead
         is stored: what lets a person search tie a lead to its visit by time."""
         ip, ua = self.cur
-        self.t.lines.append(line(at - timedelta(seconds=1), ip, f"/api/forms/{kind}", ua,
+        self.t.lines.append(self.line(at - timedelta(seconds=1), ip, f"/api/forms/{kind}", ua,
                                  "https://example.com" + page, country=cc, method="POST"))
 
     def events(self, t, cur, vid, host, utm, vw, nvisits, first_touch, touch, path, cc):
@@ -327,19 +412,23 @@ class _Maker:
         for agent, ip, (lo, hi) in BOTS:
             for _ in range(rnd.randrange(lo, hi + 1)):
                 t = (start + timedelta(seconds=rnd.randrange(0, span))).astimezone(UTC)
-                path = self.pick([("/", 10), ("/pricing/", 8), ("/features/", 6), ("/robots.txt", 4)]
-                                 + [(b, 4) for b in BLOG] + [(g, 4) for g in GUIDES])
-                T.lines.append(line(t, ip, path, agent))
+                path, status = self.pick(CRAWL[crawl_kind(agent)]), 200
+                e = self.xr.random()
+                if e < 0.03:                    # an old link, or a Markdown copy that was never made
+                    path, status = self.xr.choice(GONE), 404
+                elif e < 0.04:
+                    status = self.xr.choice([500, 502, 503, 504])
+                T.lines.append(self.line(t, ip, path, agent, status=status))
         if rnd.random() < 0.25:     # someone claims to be GPTBot from a home address
-            T.lines.append(line((start + timedelta(hours=9)).astimezone(UTC), "203.0.113.251", "/pricing/", GPTBOT))
+            T.lines.append(self.line((start + timedelta(hours=9)).astimezone(UTC), "203.0.113.251", "/pricing/", GPTBOT))
         for _ in range(rnd.randrange(1, 4)):       # scanners
             t = (start + timedelta(seconds=rnd.randrange(0, span))).astimezone(UTC)
-            T.lines.append(line(t, "198.51.100.200", rnd.choice(["/.env", "/wp-login.php", "/.git/config", "/xmlrpc.php"]),
+            T.lines.append(self.line(t, "198.51.100.200", rnd.choice(["/.env", "/wp-login.php", "/.git/config", "/xmlrpc.php"]),
                                 rnd.choice(["curl/8.7.1", "python-requests/2.31", "Go-http-client/1.1"]), status=404))
         if day.weekday() < 5:                       # the team's own visits, from the office
             for _ in range(rnd.randrange(3, 9)):
                 t = (start + timedelta(hours=9, seconds=rnd.randrange(0, 30000))).astimezone(UTC)
-                T.lines.append(line(t, OFFICE, rnd.choice(["/", "/pricing/", "/blog/fall-launch"]), UAS[0][0]))
+                T.lines.append(self.line(t, OFFICE, rnd.choice(["/", "/pricing/", "/blog/fall-launch"]), UAS[0][0]))
 
     def likely_ai(self, day, start, span, k) -> None:
         """An assistant fetches a page for someone; minutes later a browser
@@ -352,10 +441,10 @@ class _Maker:
                 continue
             page = self.pick(FETCHED)
             fua, fip = self.pick([((ua, ip), w) for ua, ip, w in FETCHERS])
-            T.lines.append(line(tf, fip, page, fua))
+            T.lines.append(self.line(tf, fip, page, fua))
             if j == 0 and k % 3 == 0:     # both assistants fetched it: "more than one"
                 other = FETCHERS[1] if fip == FETCHERS[0][1] else FETCHERS[0]
-                T.lines.append(line(tf + timedelta(seconds=40), other[1], page, other[0]))
+                T.lines.append(self.line(tf + timedelta(seconds=40), other[1], page, other[0]))
             tv = tf + timedelta(seconds=rnd.randrange(60, 600))
             identity = self.new_identity(tracked=1.0)
             pages, touch = self.visit(tv, identity, False, None, 1, force="direct", force_path=page)
@@ -365,7 +454,7 @@ class _Maker:
                 vid = self.vid_of[identity]
                 self.cur = (ip, ua)
                 ts = tv + timedelta(minutes=4)
-                T.lines.append(line(ts, ip, "/signup/", ua, "https://example.com" + page, country=T.country_of[ip]))
+                T.lines.append(self.line(ts, ip, "/signup/", ua, "https://example.com" + page, country=T.country_of[ip]))
                 self.ev(ts + timedelta(seconds=1), "page_view", "/signup/", vid, "", "", vw)
                 self.ev(ts + timedelta(seconds=6), "signup_start", "/signup/", vid, "", "", vw, id="signup_form")
                 self.form_sent(ts + timedelta(seconds=90), "signup", "/signup/", T.country_of[ip])
@@ -398,12 +487,14 @@ class _Maker:
             ip, ua, vw = identity
             self.cur = (ip, ua)
             _, ref, q, host, touch = self.source(False, kind)
+            if kind == "ai":
+                self.cited.append((t, host, landing))
             utm, cc, vid = touch.get("utmSource") or "", T.country_of[ip], self.vid_of[identity]
             page = {"contact": "/contact/", "signup": "/signup/", "demo": "/book-a-demo/"}[sends]
-            T.lines.append(line(t, ip, landing + q, ua, ref, country=cc))
+            T.lines.append(self.line(t, ip, landing + q, ua, ref, country=cc))
             self.ev(t + s, "page_view", landing, vid, host, utm, vw)
             t2 = t + timedelta(seconds=self.rnd.randrange(40, 150))
-            T.lines.append(line(t2, ip, page, ua, "https://example.com" + landing, country=cc))
+            T.lines.append(self.line(t2, ip, page, ua, "https://example.com" + landing, country=cc))
             self.ev(t2 + s, "page_view", page, vid, host, utm, vw)
             first = {**touch, "landingPath": landing, "at": t}
             self.info[identity]["first"] = first
@@ -420,6 +511,23 @@ class _Maker:
                             "visits": 1, "cc": cc})
 
 
+    def prefetch(self) -> None:
+        """Before many visits cited by ChatGPT, Perplexity or Claude, that
+        assistant's user fetcher read pages minutes earlier: usually the page
+        the visit landed on and one to three others, now and then only others."""
+        x, T = self.xr, self.t
+        others = [p for p, _ in FETCHED] + ["/", "/customers/", "/llms.txt"] + MD
+        for tv, host, landing in self.cited:
+            if host not in FETCHER_OF or x.random() > 0.62:
+                continue
+            agent, ip = FETCHER_OF[host]
+            read = [] if x.random() < 0.15 else [landing]
+            read += x.sample([p for p in others if p != landing], x.choice([1, 1, 2, 2, 3]))
+            for i, path in enumerate(read):
+                ago = x.randrange(60, 420) if i == 0 else x.randrange(70, 840)
+                T.lines.append(self.line(tv - timedelta(seconds=ago), ip, path, agent))
+
+
 def generate(now: datetime, days: int = 62, seed: int = SEED) -> Traffic:
     """`days` whole days of traffic before `now`'s day, and that day up to `now`."""
     if days < 2:
@@ -430,6 +538,7 @@ def generate(now: datetime, days: int = 62, seed: int = SEED) -> Traffic:
         m.day(d)
         d += timedelta(days=1)
     m.today_leads()
+    m.prefetch()
     T, cut = m.t, m.now
     T.lines = sorted((x for x in T.lines if x.split(" ", 1)[0] <= cut.isoformat()), key=lambda x: x.split(" ", 1)[0])
     T.beacon = sorted((b for b in T.beacon if b[0] <= cut), key=lambda b: b[0])

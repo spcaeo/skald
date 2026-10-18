@@ -284,7 +284,7 @@ class Tally:
                 self.extras.reader(hit.when)
         status = dim.status_class(hit.status)
         stats.statuses[status] += 1
-        if hit.method == "POST":
+        if hit.is_form_post:
             stats.posts += 1
             stats.post_pages[hit.path[:70]] += 1
         if status == "5xx":

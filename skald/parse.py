@@ -68,6 +68,13 @@ class Hit:
         return self.status[:1] in ("2", "3")
 
     @property
+    def is_form_post(self) -> bool:
+        """A POST the site's own pages sent (a form, an API call), not one to
+        Skald's own endpoints: the script tag posts its events to
+        /traffic-beacon from every page, which made every visit "form sent"."""
+        return self.method == "POST" and not OWN_ENDPOINT.match(self.path)
+
+    @property
     def is_page(self) -> bool:
         """A document a person could actually look at.
 
@@ -104,6 +111,11 @@ class Hit:
         if ASSET.search(self.path) or BEACON.search(self.path):
             return False
         return True
+
+
+# Skald's own endpoints on the site's server: the script tag's events and its
+# file, signed hooks, shipped logs. A POST to one is no form being sent.
+OWN_ENDPOINT = re.compile(r"^/traffic-(?:beacon(?:$|[/?])|js/|hooks/|ingest/)")
 
 
 # Next.js/React Server Components fetch a payload for the page you clicked.

@@ -266,7 +266,7 @@ class Journeys:
         if visit.who is None:
             visit.who = {"ip": hit.address, "user_agent": hit.user_agent, "referrer": "",
                          "posts": []}
-        if hit.method == "POST":
+        if hit.is_form_post:
             visit.posted += 1
             if len(visit.who["posts"]) < 20:
                 visit.who["posts"].append(hit.when)

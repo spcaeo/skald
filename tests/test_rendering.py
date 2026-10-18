@@ -192,6 +192,23 @@ class TestBeaconAndAudit(RenderingBox):
         self.assertEqual(moved, {"requests": 2, "pages": 2, "readers": 2})
         self.audit()
 
+    def test_an_uncounted_page_opening_vouches_too(self):
+        """2.10.1: a page_view the beacon does not count as an event (no
+        beacon-only mode, no visitor IDs) is kept in the opens file. A
+        returning phone with every asset cached is a reader on both roads."""
+        from skald import beacon
+        self.box.log([line(at(10), "203.0.113.30", "/privacy/"),          # assets cached
+                      line(at(10, 0, 5), "203.0.113.30", "/story/"),
+                      line(at(12), "203.0.113.31", "/guides/alpha", FIREFOX)])  # a scraper
+        with open(beacon.opens_file(self.spool, DAY), "a") as handle:
+            handle.write(json.dumps({"at": at(10, 0, 1).isoformat(), "g": "people",
+                                     "e": "page_view", "p": "/privacy/", "t": 0}) + "\n")
+        self.collect()
+        (hits, visits, readers), moved = self.stored()
+        self.assertEqual((hits, visits, readers), (2, 1, 1))
+        self.assertEqual(moved["readers"], 1)
+        self.audit()
+
     def test_the_audit_catches_a_changed_figure(self):
         self.box.log([line(at(10), "203.0.113.12", "/"),
                       line(at(11), "203.0.113.11", "/"), asset(at(11, 0, 1), "203.0.113.11")])

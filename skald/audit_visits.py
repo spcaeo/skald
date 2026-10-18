@@ -31,6 +31,15 @@ def _is_asset_path(path: str) -> bool:
     return low.endswith(_SKIP_EXT) or low.startswith(_SKIP_DIRS)
 
 
+def _own_endpoint(path: str) -> bool:
+    """Skald's own endpoints: /traffic-beacon, /traffic-js/, /traffic-hooks/,
+    /traffic-ingest/. A POST there is no form post."""
+    low = path.lower()
+    return (low == "/traffic-beacon" or low.startswith(("/traffic-beacon/", "/traffic-beacon?",
+                                                        "/traffic-js/", "/traffic-hooks/",
+                                                        "/traffic-ingest/")))
+
+
 def _is_beacon_path(path: str) -> bool:
     low = path.lower()
     if low == "/api" or low.startswith("/api/"):     # any JSON API endpoint
@@ -161,7 +170,7 @@ class VisitRecount:
             self.steps[f"{seen[i - 1]} → {seen[i]}"] += 1
         if any(l.status == "404" and not _is_asset_path(l.path) for l in lines):
             self.flags["not_found"] += 1
-        if any(l.method == "POST" for l in lines):
+        if any(l.method == "POST" and not _own_endpoint(l.path) for l in lines):
             self.flags["posted"] += 1
         if moved:
             self.flags["in_app"] += 1

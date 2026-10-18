@@ -251,7 +251,13 @@ waiting on the response.
 `OAI-SearchBot`, `PerplexityBot`, `meta-externalagent`, `FacebookBot`, `Bytespider`,
 `Amazonbot`, `Applebot-Extended`, `cohere-ai`, `Diffbot`, `omgili`, `AI2Bot`,
 `Timpibot`, `ImagesiftBot`, `YouBot`, `PanguBot`, `Kangaroo Bot`,
-`DuckAssistBot`.
+`DuckAssistBot`, `Amzn-SearchBot`, `Google-CloudVertexBot`,
+`cohere-training-data-crawler`.
+
+Added 2026-10-18 (below, "Checking the name lists"): `Amzn-SearchBot` builds
+Amazon's search index for Alexa (Amazon says it does not train);
+`Google-CloudVertexBot` crawls for Vertex AI agents a site owner builds;
+`cohere-training-data-crawler` is Cohere's training crawler.
 
 `OAI-SearchBot` and `PerplexityBot` build the assistants' own search indexes
 ahead of any question, exactly as `Googlebot` does, so nobody is waiting on
@@ -267,7 +273,21 @@ a negative lookahead (`Applebot(?!-Extended)`) so the two cannot collide.
 Fetching *now*, because a person asked the assistant something.
 
 `ChatGPT-User`, `Claude-User`, `Perplexity-User`, `meta-externalfetcher`,
-`Gemini-User`, `BingPreview`, `MistralAI-User`.
+`Gemini-User`, `BingPreview`, `MistralAI-User`, `Claude-Web`, `Google-Agent`,
+`GoogleAgent-Mariner`, `Google-GeminiNotebook`, `Google-NotebookLM`, `Amzn-User`.
+
+Added 2026-10-18: `Claude-Web` is Anthropic's older agent for fetches made
+from claude.ai (`Claude-User` replaced it; it is still seen, and Anthropic's
+published ranges do not cover it, so it is never checked, never "spoofed").
+`Google-Agent` is Google's agent that browses and acts on a user's request
+(listed with Google's user-triggered fetchers; `GoogleAgent-Mariner` is the
+Project Mariner form). `Google-GeminiNotebook` (formerly `Google-NotebookLM`)
+reads a page a user added as a source. `Amzn-User` fetches to answer an Alexa
+question. Each has an owner in `AI_FETCHER_OWNERS` (Google's are
+`gemini.google.com`, Alexa is `alexa.amazon.com`) and a row in the AI crawler
+controls (`bot_policy.CATALOG`). None is checked against an address list
+yet: Google publishes Google-Agent's ranges in a file `bot_verify.py` does not
+read, and a check against the wrong list would call the real agent a fake.
 
 ### `AI_REFERRER_HOSTS` - matched against the referrer's host
 
@@ -310,7 +330,16 @@ Classic indexing. Wanted traffic, which is why it is never filed under "bots".
 
 `Googlebot`, `Google-InspectionTool`, `GoogleOther`, `APIs-Google`,
 `AdsBot-Google`, `Google-Adwords-Instant`, `bingbot`, `Slurp`, `DuckDuckBot`,
-`Baiduspider`, `YandexBot`, `Sogou`, `Exabot`, `Applebot(?!-Extended)`.
+`Baiduspider`, `YandexBot`, `Sogou(?!MSE|MobileBrowser|Explorer)`, `Exabot`,
+`Applebot(?!-Extended)`, `SeznamBot`, `Yeti(?=/)`, `coccocbot`, `Qwantbot`,
+`Qwantify`, `MojeekBot`.
+
+`Sogou` means Sogou's spiders, never its browsers: `SogouMobileBrowser` and
+`SogouMSE` are people with a phone, and were filed as the search engine until
+2026-10-18. Added that day: the indexing crawlers of Seznam (Czech), Naver
+(`Yeti/`, Korean), Coc Coc (Vietnamese), Qwant (French) and Mojeek
+(British), whose referrers `dimensions.py` already counts as search engines.
+They were bots before. None of them is checked against an address list.
 
 A name that claims one of these, or an assistant's crawler, is checked
 against its owner's published address ranges or by reverse and forward DNS
@@ -322,7 +351,8 @@ against its owner's published address ranges or by reverse and forward DNS
 An app fetching a page because someone pasted its link in a chat or a post:
 `Slack`, `iMessage`, `WhatsApp`, `LinkedIn`, `Microsoft Teams`, `Discord`,
 `Telegram`, `X (Twitter)`, `Facebook`, `Pinterest`, `Reddit`, `Embedly`,
-`Iframely`, `Snapchat`, `VK`, `Bluesky`, `Mastodon`. Filed under bots as
+`Iframely`, `Snapchat`, `VK`, `Bluesky`, `Mastodon`, `Google Messages`
+(`GoogleMessages/`, added 2026-10-18). Filed under bots as
 "link preview: <app>", on their own line, because a preview means a person
 shared the link. `facebookexternalhit`, `Twitterbot` and `LinkedInBot` sat
 in the search group until 2026-10-07: they do not index.
@@ -338,7 +368,8 @@ are not indexing. On the audited day they were 54 of 142 search requests.
 Automated, but not an engine. These families:
 
 - generic self-declarations: `bot` as a word with no letter before it (so
-  the phone maker CUBOT is not a bot), `bot/<version>` ("FooBot/2.1"), the
+  the phone maker CUBOT is not a bot) and not ending an Android model name
+  ("M bot 60 Build/", "POWER BOT Build/": phones, people), `bot/<version>` ("FooBot/2.1"), the
   `+https://` info link crawlers put in their agent and browsers never do,
   `(compatible; ...)` with no browser engine named anywhere in the agent
   (Internet Explorer also says "compatible;" but names Trident),
@@ -354,7 +385,24 @@ Automated, but not an engine. These families:
   unfurlers are caught as link previews first), and the Let's Encrypt
   validator
 - page-speed testers, which render pages fully: `Chrome-Lighthouse`,
-  `PTST/`, `GTmetrix`, `Google-PageRenderer`
+  `PTST/` or `PTST ` (WebPageTest), `GTmetrix`, `Google-PageRenderer`
+- added 2026-10-18 from the check below, all filed as people before because
+  they send a full browser agent with their name tacked on:
+  - testers and synthetic monitors: `Google Page Speed Insights`, `DareBoost`,
+    `DebugBear`, `Ghost Inspector`, `RuxitSynthetic` (Dynatrace),
+    `DatadogSynthetics`, `Neustar WPM`, `YottaaMonitor`, `Siteimprove`
+  - Google tools and ad checks that are not indexing: `Google Web Preview`,
+    `Google Search Console`, `Google-Ads-Overview`, `Google-Ads-Conversions`,
+    `Google-Adwords-DisplayAds`, `Google-HotelAdsVerifier`, `DuplexWeb-Google`,
+    `GoogleImageProxy` (Gmail's image proxy), `Google Favicon`,
+    `Google-SearchByImage`, `Google Keyword Suggestion`, `Google-Publisher-Plugin`
+  - screenshots and image search: `mShots`, `shrinktheweb`, `Site-Shot`,
+    `wkhtmlto` (wkhtmltopdf, wkhtmltoimage), `webkit2png`, `TinEye`
+  - link checkers, sitemap builders, crawl frameworks, data collectors:
+    `deadlinkchecker`, `BrokenLinkCheck`, `XML-Sitemaps`, `Pro-Sitemaps`,
+    `Nutch`, `Spinn3r`, `HubSpot`, `Datanyze`
+  - security scanners and load testers: `zgrab`, `OpenVAS`, `ProbelySPDR`,
+    `Hardenize`, `Siege/`, `fasthttp`, `Zombie.js`
 - found in a real log filed as people: `ctwatch`, `jSystem3-metadata-indexer`,
   and Googlebot's smartphone template with "Googlebot" taken out
   (`Nexus 5X Build/MMB29P` - Android 6 with this year's Chrome is a tool or a
@@ -368,6 +416,65 @@ though it is a browser.
 
 An empty user agent is treated the same way. Browsers always send one; a
 request with none is a script or a scanner.
+
+### Checking the name lists (dev time only)
+
+`tools/check-bot-names.py` runs a corpus of real user agents through
+`classify.py` and lists the crawler agents it files as people (a bot the
+lists miss) and the device agents it files as anything else (a person
+counted as a bot). Each agent is one request for `/` with no referrer: the
+name lists alone decide. The corpus used is Crawler-Detect's test fixtures
+(github.com/JayBizzle/Crawler-Detect, MIT licence), downloaded by hand into
+a folder of their own - data only, nothing from that project is run:
+
+    mkdir -p /tmp/crawler-detect && cd /tmp/crawler-detect
+    curl -fsSLO https://raw.githubusercontent.com/JayBizzle/Crawler-Detect/master/tests/data/user_agent/crawlers.txt
+    curl -fsSLO https://raw.githubusercontent.com/JayBizzle/Crawler-Detect/master/tests/data/user_agent/devices.txt
+    cd -   # back to the repo
+    python3 -I tools/check-bot-names.py /tmp/crawler-detect/crawlers.txt /tmp/crawler-detect/devices.txt
+    # --all also lists every crawler agent filed as a bot, with the name it matched
+
+Skald never reads Crawler-Detect, or any other list, at runtime, and never
+learns names by itself. The lists are fixed data in the code: a day
+recounted later is counted by the same rules, and the audit recounts with the
+very same lists. A name the check finds is added here by hand, in its group,
+with a test (`tests/test_bot_names.py`), conservatively: only names that are
+well known or documented by their owner, and only when none of the device
+agents matches.
+
+The run of 2026-10-18 (3,713 distinct crawler agents, 165,640 device agents):
+
+| | before | after |
+|---|---|---|
+| crawler agents filed as people | 249 | 135 |
+| device agents filed as not people | 2,804 | 2,792 |
+
+The 135 left are mostly dead services (StumbleUpon, Cuil, Voila), one-person
+scripts, and Microsoft Office checking a link a person clicked in a
+document (`Word/`, `Excel/`, `Microsoft Outlook`), which stays people for
+now. The 2,792 device agents filed as bots are by design: Internet Explorer
+7 and older ("compatible; MSIE" with no engine named), UCWEB and other
+feature-phone and app clients (`Dalvik/`, `CFNetwork/`) that send no browser
+token, and Googlebot's phone template without the Googlebot token.
+
+### Bing Copilot by `form=MA...`: not adopted
+
+The Third Audience WordPress plugin files a `bing.com` referrer whose query
+has `form=MA...` (e.g. `form=MA13FV`) as Copilot. Not adopted, 2026-10-18:
+
+- the plugin gives no source for the rule, and Microsoft documents no
+  meaning for Bing's `form=` codes, which mark where a Bing search was
+  started, not that an assistant answered;
+- Bing, like Google, normally sends other sites only its origin
+  (`https://www.bing.com/`), so the query string with `form=` seldom reaches
+  a server log at all;
+- Copilot has its own host, `copilot.microsoft.com`, already counted, and
+  Bing's chat answers keep their `/chat` path (`AI_REFERRER_PATHS`).
+
+Counting it would relabel ordinary Bing searches as AI on an undocumented
+guess. If a real log ever shows `form=MA...` referrers that can be tied to
+Copilot, add it to `AI_REFERRER_PATHS`'s rule in `classify.cited_by` and to
+the audit's `_cited` together, with a test on both roads.
 
 ### `PROBE` - matched against the path; `PROBE_QUERY` - against the URL
 

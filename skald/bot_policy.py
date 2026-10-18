@@ -97,6 +97,16 @@ CATALOG = (
     Crawler("DuckAssistBot", "DuckDuckGo", "index"),
     Crawler("BingPreview", "Microsoft", "asked"),
     Crawler("MistralAI-User", "Mistral", "asked"),
+    # Added 2026-10-18 with classify.py's lists.
+    Crawler("Claude-Web", "Anthropic", "asked"),
+    Crawler("Google-Agent", "Google", "asked"),
+    Crawler("GoogleAgent-Mariner", "Google", "asked"),
+    Crawler("Google-GeminiNotebook", "Google", "asked"),
+    Crawler("Google-NotebookLM", "Google", "asked"),
+    Crawler("Google-CloudVertexBot", "Google", "index"),
+    Crawler("Amzn-SearchBot", "Amazon", "index"),
+    Crawler("Amzn-User", "Amazon", "asked"),
+    Crawler("cohere-training-data-crawler", "Cohere", "training"),
 )
 BY_NAME = {c.name: c for c in CATALOG}
 OWNERS = tuple(dict.fromkeys(c.owner for c in CATALOG))
