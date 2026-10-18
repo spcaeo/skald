@@ -103,6 +103,30 @@ reads each visit's first page line again with `parse_qsl` and its own rules, and
 Likely sent by an AI assistant (inferred, never a count; `ai_likely.py`, `ai_fetches.py`,
 second count `audit_ai_likely.py`): [docs/DATA-CONTRACT-AI-LIKELY.md](DATA-CONTRACT-AI-LIKELY.md).
 
+### Day kind `ai_formats` (app.json)
+
+Since 2.10.0: every answer-engine request by what its path names (`ai_formats.py`; second count
+`audit_ai_formats.py`, from the raw lines with its own path rule). The formats, in order:
+`Page`, `llms.txt` (`/llms.txt`, `/llms-full.txt`), `Markdown` (`.md`, `.mdx`), `Text` (other
+`.txt`), `robots.txt`, `Sitemap` (`sitemap*.xml`), `Other file`; the rules are in
+[CLASSIFICATION.md](../CLASSIFICATION.md) ("What an AI fetch asked for").
+
+```json
+{"asked":    {"formats": {"Page": 12, "Markdown": 3},
+              "by_name": {"ChatGPT-User": {"Page": 10, "Markdown": 3}, "(all others)": {"Page": 2}}},
+ "training": {"formats": {}, "by_name": {}}}
+```
+
+- Both tiers are always there. `formats` adds up to the tier's requests (`engine_tier`);
+  `by_name` keeps the 20 names with the most fetches that day (the classifier's token, as
+  `engines` names them) and folds the rest into `"(all others)"`, so each format over the names
+  adds up to `formats`. Only formats seen are keys. Verify withholds the day when a sum fails;
+  the audit compares every format, every kept name and the folded rest.
+- The web app's `data/app.json` gives the blob as `days[].ai_formats` on a day with figures and
+  `live.figures.ai_formats` today; a day collected before 2.10.0 has no `ai_formats` (not
+  recorded, never 0), and AI & bots > Assistants and Crawlers ("What they fetch") then show no
+  table for a range that holds one. Kept for good, like the other small day kinds.
+
 ### leads.json `attribution_rows`
 
 Written (lane A, `leads.py`; second count `audit_leads.py`). Leads by day crossed with

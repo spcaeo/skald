@@ -386,6 +386,7 @@ tr.withheld td { color: var(--ink-3); background: repeating-linear-gradient(135d
 .vj-steps li::after { content: ""; position: absolute; left: 100px; top: 16px; bottom: 0; width: 1px; background: var(--rule); }
 .vj-steps li:last-child::after { display: none; }
 .vj-steps li.inapp::before { background: var(--surface); border: 1.5px solid var(--ink-3); width: 6px; height: 6px; }
+.vj-steps.ai-read li::before { background: var(--g-answer_engines); }
 .vj-at { white-space: nowrap; text-align: right; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink-3); padding-top: 1px; }
 .vj-p { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding-left: 14px; min-width: 0; }
 .vj-p .ic { align-self: center; }

@@ -347,7 +347,9 @@ never up.
 
 ### E4. Google AI Overviews and AI Mode
 - **Wrong:** clicks arrive as `google.com`, identical to search clicks.
-- **Count:** search. Show "not measurable" (Handled).
+- **Count:** search. Show "not measurable" (Handled). Since 2.10.0 a click that carries
+  `udm=50` (AI Mode) on the referrer or the landing URL is still search, with the referrer
+  label `google.com (AI Mode)` (CLASSIFICATION.md); without it, nothing is inferred.
 
 ### E5. Two referrers in one header
 - **Seen:** `https://google.com, https://example.com/features/...` (2).

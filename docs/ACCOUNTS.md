@@ -118,6 +118,7 @@ with `skald token create NAME --scope ...`.
 | `read` | Read the data files over `/traffic-api/v1/<site>/<file>` ([API.md](API.md)). |
 | `read_private` | Also read the files that hold addresses (`requests`, `ai_activity`), and look a person up (`people?q=`, MCP `find_person`). |
 | `mcp` | Use the MCP endpoint `/traffic-mcp` ([MCP.md](MCP.md)). |
+| `ingest` | Post log lines for the one site it names (`--site`) to `/traffic-ingest/<site>` ([INGEST.md](INGEST.md)): `skald-ship`, log drains. |
 
 A token made in the page records who made it. It works only while that
 person is enabled and still an owner or admin of the organisation:
@@ -159,8 +160,11 @@ with the actor `cli`.
 | `account totp-off EMAIL` | Turn off two-step sign-in. |
 | `account install-admin EMAIL on\|off` | The install-admin flag. The last one stays. |
 | `site assign SITE --org SLUG` | Which organisation owns a site. |
-| `site list` / `site add HOST --org SLUG` / `site verify NAME` / `site purge NAME --yes` | Every site and its organisation; add a dashboard site; mark its domain verified; delete a removed site and all its data. |
-| `token create NAME [--scope read\|read_private\|mcp ...] [--site S ...] [--org SLUG]` / `token list` / `token revoke ID` | API tokens (`--scope` is repeatable; default `read`). |
+| `site list` / `site add HOST --org SLUG` / `site verify NAME` | Every site and its organisation; add a dashboard site; mark its domain verified. |
+| `site hosts NAME HOST [HOST ...]` | Replace a dashboard site's host names (checked like Settings > Sites > Host names; a Host names row saved there is set to the same list). |
+| `site remove NAME --yes` / `site purge NAME --yes` | Stop processing a dashboard site (its data stays); delete a removed site and all its data, its logo folder too. |
+| `settings list-keys` / `settings get SITE [KEY]` / `settings set SITE KEY VALUE [--yes]` | The dashboard's settings from the shell: each value and where it comes from; save one (JSON), checked and audited like the page ([SETTINGS.md](SETTINGS.md), "From the shell"). |
+| `token create NAME [--scope read\|read_private\|mcp\|ingest ...] [--site S ...] [--org SLUG]` / `token list` / `token revoke ID` | API tokens (`--scope` is repeatable; default `read`). |
 
 `skald user` is still the basic-mode password-file command.
 

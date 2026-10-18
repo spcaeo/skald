@@ -58,12 +58,60 @@ no person, no address, no user agent. The rows add up to the day's `asked`
 requests. Kept **180 days** (`ai_likely.FETCH_DAYS`, the leads' window),
 then deleted (`cli.prune_kept`). Not in any data file.
 
+## Day kind `ai_read`: what the AI read before it sent the visitor
+
+`ai_read.py`, after `ai_likely` in the tally pass. Context, never a count
+of people. An AI visit is **cited** (source "AI assistant", by referrer or
+utm tag, from an assistant with a user fetcher: a value of
+`classify.AI_FETCHER_OWNERS`) or **likely** (it carries `likely_ai`). Its
+assistants (the cited one, or every assistant that made it likely) may have
+fetched pages, by their user fetchers only (`AI_ASKED`, never a training
+crawler), in the visit's first minute or up to the window before it, the
+same window and minute rule as above. A citation from an assistant with no
+known user fetcher (You.com, Phind, Poe) is left out: not recorded, never 0.
+`null` when `attribution.ai_likely` is false or the visits were not
+counted; days before this kind have none (not recorded).
+
+| field | type |
+|---|---|
+| `window_minutes` | int: the window this day was counted with |
+| `cited` | int: cited visits from an assistant with a user fetcher |
+| `likely` | int: likely visits; equals `ai_likely.likely` |
+| `marked` | int: visits that carry `ai_read` (at least one page fetched before) |
+| `listed` | int: paths listed over those visits, at most 10 a visit |
+| `beyond` | int: paths left out by the cap of 10 |
+| `by_assistant` | `{assistant or "(more than one)": {"cited", "fetched", "same_page", "likely"}}`: cited visits from it; of which it fetched a page in the window before; of which the landing page was one of those pages ("fetch -> visit to the same page", paths compared as above); likely visits under its name (they land on a fetched page by their rule, so they are kept apart) |
+
+Verify withholds the day when `by_assistant` does not add up to `cited` or
+`likely`, `fetched` plus `likely` is not `marked`, a `same_page` is above
+its `fetched` or a `fetched` above its `cited`, `likely` is not
+`ai_likely.likely`, the journeys carrying `ai_read` are not `marked`, their
+paths are not `listed`, a visit lists more than 10, or the cited journeys
+are not `cited`.
+
+```json
+{"window_minutes":15,"cited":3,"likely":1,"marked":4,"listed":16,"beyond":2,
+ "by_assistant":{"chatgpt.com":{"cited":1,"fetched":1,"same_page":1,"likely":1},
+   "claude.ai":{"cited":1,"fetched":1,"same_page":1,"likely":0},
+   "perplexity.ai":{"cited":1,"fetched":1,"same_page":0,"likely":0}}}
+```
+
 ## Journeys (visits.json)
 
 A likely visit's journey carries `likely_ai`: `{"name": assistant or
 "(more than one)", "names": [every assistant in the window], "minutes":
 int}` (from the nearest fetch to the visit's first request). Other journeys
 have no `likely_ai`. Kept like the journeys: 7 days.
+
+An AI visit (cited or likely, above) whose assistant fetched at least one
+page in the window carries `ai_read`: `{"how": "cited" | "likely", "name":
+assistant or "(more than one)", "names": [assistants looked at],
+"window_minutes": int, "paths": [[path, assistant, minutes before]],
+"more": int}`. `paths` holds each (path, assistant) once, at its nearest
+fetch, nearest first (then path, then assistant), at most 10; `more` counts
+the ones left out. Paths as the fetch records keep them (no query, 70
+characters). Shown in the visit's drawer as "Fetched by <assistant> in the N
+minutes before". Kept like the journeys: 7 days.
 
 ## ai_activity.json
 
@@ -72,6 +120,7 @@ have no `likely_ai`. Kept like the journeys: 7 days.
 | `likely_ai` | `{"on": bool, "window_minutes": int, "method": the sentence the page shows}` |
 | `days[].ai_likely` | the day's blob above, or `null` (not recorded) |
 | `today.ai_likely` | today's so far from the live snapshot, or `null` |
+| `days[].ai_read`, `today.ai_read` | the `ai_read` blob above, or `null` (not recorded) |
 
 ## leads.json
 
@@ -114,8 +163,12 @@ history opened read-only; a difference withholds the day.
 `audit --live`. It sees every line the audit judged and every people
 visit, and rebuilds the fetch rows, the direct untagged visits (its own
 `parse_qsl` reading of the landing address, its own path rule) and every
-field of `ai_likely` with the stored day's window. It shares only
-`classify.py`'s name lists. Any difference withholds the day.
+field of `ai_likely` with the stored day's window. It also rebuilds every
+field of `ai_read`: the cited visits with its own reading of the first
+page's referrer host and utm tag, the likely ones from its own likely
+rule, and each visit's distinct (path, assistant) pairs from its own fetch
+rows. It shares only `classify.py`'s name lists. Any difference withholds
+the day.
 
 ```json
 {"window_minutes":15,"visits":4,"direct":3,"likely":2,

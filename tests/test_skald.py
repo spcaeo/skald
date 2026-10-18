@@ -651,6 +651,13 @@ def _count_twice_by_hour(totals, group, n):
     utc = totals.extras.get("hourly_utc")
     if utc:                                  # and in its UTC hour
         utc[next(iter(utc))][group.value] += n
+    names = ((totals.extras.get("crawler_cost") or {}).get("groups") or {}).get(group.value)
+    if names:                                # and by its crawler's name (crawler_cost.py)
+        entry = next(iter(names.values()))
+        entry["requests"] += n
+        for key in ("status", "pages", "countries", "agents"):
+            if entry.get(key):
+                entry[key][next(iter(entry[key]))] += n
 
 
 # ---------------------------------------------------------------------- render

@@ -11,7 +11,8 @@ A key named in config.yml's `settings.locked` list ignores every row: the
 page shows it read-only, with the reason. Every editable key is in SCHEMA,
 with its check, who may change it and where it is saved:
 
-    scope "site:<name>"  a site's page (retention, mail recipients, hosts, goals)
+    scope "site:<name>"  a site's page (retention, mail recipients, hosts, goals,
+                         page assets)
           "org:<id>"     the organisation (security)
           "install"      the whole install (SMTP, backups, the PageSpeed key)
 
@@ -38,6 +39,7 @@ from pathlib import Path
 
 from .beacon import EVENTS, PAGE_VIEW
 from .config import setting
+from .rendering import ASSET_PREFIXES
 from .site_logos import COLORS as LOGO_COLORS, SOURCES as LOGO_SOURCES
 
 LOCK_WORDS = "Locked in config.yml (settings.locked) by whoever runs the server."
@@ -54,6 +56,7 @@ FILENAME = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9._-]{0,99}$")
 NAME = re.compile(r"^[A-Za-z0-9 .'-]{1,40}$")      # mail.from_name (mailer.display_name)
 GOAL_EVENTS = EVENTS + (PAGE_VIEW,)                 # what beacon.goals may name
 MAX_GOALS = 10
+MAX_PREFIXES = 10                                   # site.asset_prefixes
 
 
 class Invalid(ValueError):
@@ -63,7 +66,7 @@ class Invalid(ValueError):
 @dataclass(frozen=True)
 class Key:
     kind: str                       # int bool email emails text choice host hosts views zone
-    #                                 path filename secret events
+    #                                 path filename secret events prefixes
     who: str                        # admin, install or owner
     scopes: tuple                   # where it may be saved; the first is where the page saves
     config: tuple | None            # (section, key) in config.yml
@@ -103,6 +106,16 @@ SCHEMA: dict[str, Key] = {
     # privacy notice must say so, and its consent banner gates the tag.
     "beacon.visitor_ids": Key("bool", "admin", ("site",), ("beacon", "visitor_ids"), False,
                               label="Visitor IDs (script tag)"),
+    # Per site: a visit counts as people only when its browser fetched one of
+    # the page's own assets (rendering.py; its recount audit_rendered.py reads
+    # the same config["site"] keys, which `apply` writes). A dashboard site
+    # takes nothing of the first site's site: section (multisite.tenant_base),
+    # so a WordPress or static site sets its own folders here.
+    "site.asset_prefixes": Key("prefixes", "admin", ("site",), ("site", "asset_prefixes"),
+                               list(ASSET_PREFIXES), limit=MAX_PREFIXES,
+                               label="Page asset paths"),
+    "site.require_rendering": Key("bool", "admin", ("site",), ("site", "require_rendering"),
+                                  True, label="Count a visit only when its page drew"),
     "backup.daily": Key("int", "install", ("install",), ("backup", "daily"), 14, 1, 60,
                         shrink=True, label="Daily backup copies"),
     "backup.weekly": Key("int", "install", ("install",), ("backup", "weekly"), 8, 0, 52,
@@ -235,6 +248,28 @@ def _goals(value) -> list[str]:
     return out
 
 
+def _prefixes(value, key: Key) -> list[str]:
+    """site.asset_prefixes: 1 to MAX_PREFIXES path prefixes, each starting
+    with / and naming a folder or file (a bare / would match every page)."""
+    items = value.replace(",", " ").split() if isinstance(value, str) else value
+    if not isinstance(items, list):
+        raise Invalid(f"{key.label} are a list of path prefixes.")
+    out = []
+    for item in items:
+        p = str(item).strip() if isinstance(item, str) else ""
+        if (not p.startswith("/") or len(p) > 100 or ".." in p
+                or any(ord(c) <= 0x20 or ord(c) == 0x7f for c in p)):
+            raise Invalid(f"A path prefix starts with / and has no spaces: {str(item)[:40]!r}.")
+        if p == "/":
+            raise Invalid("A prefix of / alone matches every page. To count every visit, "
+                          "turn the rendering rule off instead.")
+        if p not in out:
+            out.append(p)
+    if not out or len(out) > key.limit:
+        raise Invalid(f"Give from 1 to {key.limit} path prefixes.")
+    return out
+
+
 def capped(name: str, cap: int | None) -> int | None:
     """The most a retention key may hold under a plan's `cap` (saas/limits.py),
     never below the key's own floor; None when no cap applies to `name`."""
@@ -321,6 +356,8 @@ def validate(name: str, value, cap: int | None = None):
         return _views(value)
     if kind == "events":
         return _goals(value)
+    if kind == "prefixes":
+        return _prefixes(value, key)
     if kind == "eventtypes":
         from .conversions.event_types import validate as event_types
         try:
@@ -521,7 +558,7 @@ def _from_config(config, key: Key):
         return raw is True or str(raw).lower() == "true"
     if key.kind in ("emails", "hosts") and isinstance(raw, str):
         return [raw]
-    if key.kind == "events" and isinstance(raw, str):
+    if key.kind in ("events", "prefixes") and isinstance(raw, str):
         return raw.replace(",", " ").split()
     return raw
 
@@ -631,7 +668,7 @@ SHRINKING = tuple(k for k in PLAIN if SCHEMA[k].shrink and "site" in SCHEMA[k].s
 # The per-day detail report.retention_days keeps (store_extras kinds); totals,
 # page milestones and the rest are kept for good.
 DETAIL_KINDS = ("pages", "visit_cube", "cube", "crawler_paths", "page_firsts",
-                "not_found", "page_counts", "funnels")
+                "not_found", "page_counts", "funnels", "crawler_cost")
 
 
 def apply(config: dict, site: str | None = None, live_dir=None) -> dict:

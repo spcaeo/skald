@@ -67,6 +67,25 @@ def day_lines(day: date, people: int, tz=UTC) -> list[str]:
     return out
 
 
+# The only user-agent strings history and the live snapshot may hold: a named
+# crawler's own, in the day kind crawler_cost (DATA-CONTRACT.md). Never a
+# person's browser, never an address.
+PERSONS = ("203.0.113.", "198.51.100.", "Macintosh", "Chrome/", "iPhone")
+
+
+def split_crawler_cost(db_path) -> tuple[str, str]:
+    """(the history's SQL dump without crawler_cost rows, those rows' JSON)."""
+    import sqlite3
+    db = sqlite3.connect(str(db_path))
+    try:
+        dump = "\n".join(x for x in db.iterdump() if "'crawler_cost'" not in x)
+        cost = "\n".join(d for (d,) in db.execute(
+            "SELECT data FROM day_extras WHERE kind = 'crawler_cost'"))
+    finally:
+        db.close()
+    return dump, cost
+
+
 def totals_for(lines: list[str]):
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "access.log"

@@ -4,6 +4,54 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.10.0 (2026-10-18)
+
+What AI assistants and crawlers read, ask for and cost, Google's AI Mode told apart, and client
+sites set up from the dashboard or the shell.
+
+### Added
+
+- **What each crawler costs** (day kind `crawler_cost`). Per assistant, search crawler and bot, per
+  day: requests, bytes sent (the log's size field; not recorded when no line had one), mean and
+  90th-percentile response time (when the log has a time), status classes and error share,
+  distinct paths and re-crawls (fetches per distinct path). Tables "What each crawler costs" on
+  AI & bots > Crawlers and "What each assistant costs" on Assistants; a range shows the mean, the
+  p90 for one day only. Each group keeps its 50 busiest names, the rest folded into
+  "(all others)". Recounted from the raw lines by its own audit (`audit_crawler_cost.py`), with its
+  own size and time readers. Kept 180 days in `crawler_cost.json`, with lists for the last 30.
+- **A detail view per crawler.** Open a crawler or bot for its cost, requests by day, pages, status
+  mix, verified share, countries, user agents and last seen. User-agent strings are kept only for
+  named crawlers, never for probes, link previews or anything that may be a person's browser.
+- **What AI fetches ask for** (day kind `ai_formats`). Every AI fetch, for training or for a live
+  question, filed by what its path names: Page, llms.txt, Markdown, Text, robots.txt, Sitemap,
+  Other file. "What they fetch" on AI & bots > Assistants and Crawlers. Recounted by
+  `audit_ai_formats.py`, which has its own path rule. A range with a day counted before 2.10.0 shows
+  no table rather than a partial one.
+- **What the AI read before it sent this visitor** (day kind `ai_read`). For a visit from an AI
+  answer (cited, or likely), the pages that same assistant's user fetcher fetched in the minutes
+  before: at most 10, nearest first. The visit drawer lists them; AI & bots > Assistants has a
+  table per assistant: visits from its answers, how many it had read pages for first, and how many
+  landed on one of those pages. Likely visits are kept apart. Context, never a count of people.
+  Recounted by `audit_ai_likely.py`.
+- **Google AI Mode.** A Google search referrer with `udm=50` (on the referrer or the landing
+  address) stays a Search engine visit, with the referring site `google.com (AI Mode)`. Only when
+  the parameter is there, never guessed. Both counting roads.
+- **Page assets per site.** `site.asset_prefixes` and `site.require_rendering` are site settings
+  (Settings > Sites > Page assets), read by both counting roads and by `doctor`. A WordPress or
+  other client site can name its own asset folders, so its readers are counted as people.
+- **Visitor IDs switch** in Settings > Sites > Script tag (`beacon.visitor_ids`, per site, off by
+  default). Settings > Integrations shows the site's own value.
+- **Settings and sites from the shell:** `skald settings list-keys`, `settings get SITE [KEY]`,
+  `settings set SITE KEY VALUE` (checked and audit-logged like the page; secrets and locked keys
+  refused; a shorter retention window needs `--yes`); `skald site hosts NAME HOST...` and
+  `skald site remove NAME --yes`.
+
+### Changed
+
+- `skald site purge` also deletes the site's logo folder, and lists every folder it deleted.
+- The Add-a-site panel's tag loads `/traffic-js/skald.js`, the path the tag is served from.
+- `skald token --help` names the `ingest` scope.
+
 ## 2.9.0 (2026-10-18)
 
 The script tag for every site of an install, and Google Ads clicks from iOS read as paid.

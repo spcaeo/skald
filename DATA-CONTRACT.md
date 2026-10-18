@@ -178,7 +178,8 @@ entry, bucketed: [docs/DATA-CONTRACT-TRACKING.md](docs/DATA-CONTRACT-TRACKING.md
 `paid` (network name or `""`), `ref_param` (`ref`/`source`/`via` query value
 or `""`), `ref_host`, `ref_page` (host + path, other websites only),
 `search_terms` (or `""`), `returning` (bool or null), `days_seen_30d` (int or
-null), `likely_ai` (only on a visit likely sent by an AI assistant, an estimate:
+null), `likely_ai` (only on a visit likely sent by an AI assistant, an estimate),
+`ai_read` (only on an AI visit whose assistant fetched pages just before it, at most 10:
 [docs/DATA-CONTRACT-AI-LIKELY.md](docs/DATA-CONTRACT-AI-LIKELY.md)). Source types: `AI assistant`, `Search engine`, `Social media`,
 `Email`, `Other website`, `This site`, `Tagged link`, `Direct or unknown`.
 
@@ -409,6 +410,59 @@ row, verified and audited); `disallowed` is judged against the robots.txt
 fetched at `robots.fetched_at` - rules change, so a past day is judged by
 today's rules, and the file says so.
 `llms_txt.json`, a suggested /llms.txt: [docs/DATA-CONTRACT-LLMS-TXT.md](docs/DATA-CONTRACT-LLMS-TXT.md).
+
+## crawler_cost.json
+
+What each crawler, assistant and bot cost the server (`crawler_cost.py`).
+Counted per day into the `day_extras` kind `crawler_cost` (kept
+`report.retention_days`, like the other per-day detail), checked by verify and
+recounted by the audit (`audit_crawler_cost.py`). Only the three machine groups:
+`answer_engines` and `search_engines` by the name the classifier matched, `bots`
+by the name `bots.json` `agents` uses (a check, a preview, a crawler session, or
+the short name the user agent announces); a scanner probe with no other name is
+`"(scanner probes)"`. People and our own traffic are never in it. No address.
+
+The day kind, `{"groups": {group: {name: entry}}}`, one entry per name:
+
+| field | type | meaning |
+|---|---|---|
+| `requests` | int | every request it made that day |
+| `bytes` | int or null | the log's body-size field summed over the lines that have one; **null (not recorded) when none of its lines had a size** |
+| `sized` | int | lines with a size. Below `requests`, `bytes` is a partial sum and the page says so |
+| `ms`, `timed` | int or null, int | response times in whole milliseconds (each line's time rounded), summed, over the `timed` lines that logged one; `ms` null when `timed` is 0 |
+| `p90_ms` | int or null | the day's 90th percentile, nearest rank (the smallest time at least 90% of its timed lines took no longer than); null when `timed` is 0 |
+| `status` | `{"2xx","3xx","4xx","5xx": n}` | requests by status class; errors are 4xx + 5xx |
+| `paths` | int | distinct paths (query string cut, first 200 characters) |
+| `pages` | `{path: n}` | the 10 paths it fetched most, and `"(all others)"`: adds up to `requests` |
+| `countries` | `{code: n}` | its requests by the line's country (cc= or the GeoIP file), `"Unknown"` for none; top 10 and `"(all others)"` |
+| `agents` | `{user agent: n}` or null | the user-agent strings it sent, first 200 characters; top 5 and `"(all others)"`. A named crawler's own strings only: **null (not kept)** for the bots whose string may be a person's browser - `"(scanner probes)"`, link previews (iMessage sends the sender's Safari string), browser-like crawler sessions, visits that never rendered, `"browser-like agent"` and the Googlebot template. The only user-agent strings history or the live snapshot holds |
+| `last` | ISO | its last request of the day, UTC |
+
+Each group keeps its 50 busiest names; the rest are one `"(all others)"` entry
+with `requests`, `bytes`, `sized`, `ms`, `timed`, `status`, `names` (how many were
+folded), `last`, and `p90_ms`, `paths` null. Verify holds: each group's entries
+add up to the group's requests; each entry's statuses, pages, countries and
+agents add up to its requests; `bytes` is null exactly when `sized` is 0, `ms` and
+`p90_ms` exactly when `timed` is 0. Body size: nginx and combined logs' `$bytes`
+field (`-` is none), Vercel `responseByteSize`, Netlify `response_size`, an edge
+record's `bytes`, Caddy's `size`, the CDN formats' own fields. Response time:
+nginx's `$request_time`, the combined layout's number after the user agent,
+Netlify's `duration`, the CDN formats' own; Vercel, Caddy and edge records give
+none, so their times are not recorded.
+
+The data file:
+
+| field | type |
+|---|---|
+| `days[]` | `{"day","state","names": {group: {name: {"requests","bytes","sized","ms","timed","p90_ms","status","paths","last", "tier" (answer engines: "training" or "asked"), "names" (a fold only), and on the last 30 days only "pages","countries","agents"}}} or null}` (180 days; null: collected before this was counted) |
+| `today` | the live snapshot's day the same way, lists included, or null |
+| `detail_days` | 30: how many days carry the lists |
+
+Over a range the page sums `requests`, `bytes`, `sized`, `ms`, `timed` and the
+statuses; the mean time is `ms / timed` (weighted by request); the p90 is shown
+for one day only (a range's p90 cannot be built from daily ones); distinct paths
+are each day's count summed (a path fetched on two days counts twice), and
+re-crawl is `requests / paths`, fetches per distinct path within a day.
 
 ## speed.json
 
@@ -769,6 +823,7 @@ people (`statuses.people.404`).
 | `days[]` | `{"by_name": {name: {"kind","events"}}, "by_kind": {"reader"/"asked"/"training": {"visitors","repeat_visitors"}} or null}` - visitors are distinct keyed hashes that day (whole site), repeat ones were seen on an earlier day within 30 |
 | `repeat_window_days` | 30 (the file says 30 even when `visitors.repeat_days` is changed) |
 | `likely_ai`, `days[].ai_likely`, `today.ai_likely` | likely sent by an AI assistant, inferred (null: not recorded): [docs/DATA-CONTRACT-AI-LIKELY.md](docs/DATA-CONTRACT-AI-LIKELY.md) |
+| `days[].ai_read`, `today.ai_read` | what an AI visit's assistant fetched before it, per assistant (null: not recorded): same file |
 | `repeat_counts` | `"days"`: `times_seen_30d` counts distinct days the visitor was seen in the 30 days ending today, today included |
 
 These addresses are written only here and in the private snapshot file
@@ -913,5 +968,6 @@ Every field: [docs/DATA-CONTRACT-PEOPLE.md](docs/DATA-CONTRACT-PEOPLE.md).
 
 ## Tracking additions
 
-The day kinds `funnels`, `engagement`, `utm_hygiene`, `ai_likely` and `ai_fetches`, leads.json
+The day kinds `funnels`, `engagement`, `utm_hygiene`, `ai_likely`, `ai_fetches`, `ai_read` and
+`ai_formats` (also app.json `days[].ai_formats`), leads.json
 `attribution_rows` and time to convert, and events.json goals: [docs/DATA-CONTRACT-TRACKING.md](docs/DATA-CONTRACT-TRACKING.md).

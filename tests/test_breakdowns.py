@@ -247,10 +247,17 @@ class TestHistory(unittest.TestCase):
         self.assertIn("collected before the breakdowns existed", page)
 
     def test_history_holds_labels_only(self):
-        dump = "\n".join(self.history.db.iterdump())
+        # crawler_cost keeps a named crawler's own user-agent strings, never a
+        # person's (test_crawler_cost); everything else holds labels only.
+        dump = "\n".join(x for x in self.history.db.iterdump() if "'crawler_cost'" not in x)
         for secret in ("203.0.113.", "198.51.100.", "Mozilla/5.0", "AppleWebKit",
                        "https://", "gclid=abc"):
             self.assertNotIn(secret, dump)
+        from support import PERSONS
+        for (cost,) in self.history.db.execute(
+                "SELECT data FROM day_extras WHERE kind = 'crawler_cost'"):
+            for secret in PERSONS + ("gclid=abc",):
+                self.assertNotIn(secret, cost)
 
     def test_an_older_file_is_upgraded_from_6_with_a_copy_kept(self):
         path = Path(self._tmp.name) / "old.sqlite"

@@ -158,6 +158,7 @@ export function total(days) {
     visit: ok.filter((d) => !d.visit).length,
     health: ok.filter((d) => !d.statuses).length,
     returning: ok.filter((d) => !d.returning).length,
+    ai_formats: ok.filter((d) => !d.ai_formats).length,
   };
   return out;
 }

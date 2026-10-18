@@ -69,9 +69,11 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `sites.timezone` | Sites | an IANA zone (UTC) | admin | site | `report.timezone` |
 | `sites.log_dir` | Sites | absolute path | install admin | site | `logs.dir` |
 | `sites.log_base` | Sites | a file name | install admin | site | `logs.base` |
+| `site.asset_prefixes` | Sites (Page assets) | 1-10 path prefixes, each starting with `/`, not `/` alone (`/_next/static/`) | admin | site | `site.asset_prefixes` |
+| `site.require_rendering` | Sites (Page assets) | true / false (true) | admin | site | `site.require_rendering` |
 | `site.logo.source` | Sites (Logo) | auto, upload, letter (auto) | admin | site | `site.logo_source` |
 | `site.logo.color` | Sites (Logo) | `#1d4ed8`, `#0f766e`, `#9a6400`, `#17212b` (one picked from the name) | admin | site | `site.logo_color` |
-| `beacon.visitor_ids` | none yet: `POST <page>/settings/save` | true / false (false) | admin | site | `beacon.visitor_ids` |
+| `beacon.visitor_ids` | Sites (Script tag) | true / false (false) | admin | site | `beacon.visitor_ids` |
 | `beacon.goals` | Sites (Goals) | up to 10 event names of `beacon.EVENTS` or `page_view`; `[]` is no goal ([]) | admin | site | `beacon.goals` |
 | `hooks.calendly.event_types` | Integrations (Calendly) | up to 50 event-type URIs, uuids or booking-page slugs; `[]` keeps every event ([]) | admin | site | `hooks.calendly_event_types` (or nested `hooks.calendly.event_types`) |
 | `hooks.calcom.event_types` | Integrations (Cal.com) | up to 50 event-type ids or slugs; `[]` keeps every event ([]) | admin | site | `hooks.calcom_event_types` (or nested `hooks.calcom.event_types`) |
@@ -98,8 +100,19 @@ to it ("Edit goals"). A dashboard site inherits no goals from the install's conf
 `beacon.visitor_ids` (2.9.0): whether the script tag keeps an anonymous visitor ID for this site
 (docs/BEACON.md, "Visitor IDs"). Saved for one site only; another site keeps its own value. The
 beacon helper reads it again within a minute, and serves `skald.js` with the value of the site
-whose page loads it. No settings page has a switch for it yet.
+whose page loads it. Settings > Sites > Script tag has the switch; Settings > Integrations says
+whether it is on from the same merged value.
 Turn it on only when the site's privacy notice says so, and let a consent banner gate the tag.
+
+`site.asset_prefixes` and `site.require_rendering` (Settings > Sites > Page assets): a visit
+counts as people only when its browser also fetched one of the page's own assets
+(CLASSIFICATION.md, rendering.py). A dashboard site takes nothing of the first site's `site:`
+section, so without a row it looks for `/_next/static/` (Next.js). A WordPress site saves
+`/wp-content/` and `/wp-includes/`; many static sites `/assets/` or `/static/`. Off is only for
+a site whose assets come from a CDN host this log never sees. `settings_store.apply` writes the
+row into `config["site"]`, where the first pass (`rendering.py`), its recount
+(`audit_rendered.py`) and the doctor's "Page assets" line read it, so both roads count with the
+same paths. A change counts from the next run; `backfill --days N --force` recounts stored days.
 
 A test mail with no sender address, or no SMTP server, is refused with a plain sentence
 ("Set the sender address first ..."), not with config key names.
@@ -186,6 +199,29 @@ gets nothing but one confirm mail until its owner follows the link in it
 - Only an HMAC of the address is kept (table `mail_confirms` in accounts.sqlite).
 - `mail.from_name` and organisation names in invite subjects are cut to letters, digits,
   spaces and `. - '`, 40 characters, when sent too.
+
+## From the shell
+
+An install admin at the server can read and save the same rows without the page
+(`skald/settings_cli.py`; Docker: `docker exec skald skald settings ...`):
+
+```sh
+skald settings list-keys                          # every key: kind, scope, who, default
+skald settings get example.com                    # each value and where it comes from
+skald settings get example.com privacy.keep_days
+skald settings set example.com beacon.visitor_ids true
+skald settings set example.com site.asset_prefixes '["/wp-content/", "/wp-includes/"]'
+skald settings set example.com conversions.identity anonymous
+skald settings set example.com privacy.keep_days 180 --yes     # smaller: removes data
+skald settings set example.com beacon.visitor_ids null         # clear the row
+```
+
+The value is JSON (a word that is not JSON is taken as text). It is checked like the page's
+(`settings_store.validate`), saved where the page saves it (`scope_for`), and audited as
+`setting.change` by `cli`. Refused: a locked key, a secret (it would sit in the shell history:
+use the page or the environment), an unknown site or key. A smaller retention window needs
+`--yes`. Recipients saved this way get no confirm mail and receive nothing until they confirm:
+add them on the Mail page.
 
 ## Routes
 

@@ -217,8 +217,12 @@ def _db(c: Ctx):
 
 def script(c: Ctx, site: str) -> dict:
     """The tag to copy and what its options do (docs/INTEGRATIONS.md)."""
+    from . import settings_store
     conf = _site_config(c, site)
-    on = setting(conf, "beacon", "visitor_ids", False) in (True, "true")
+    # The merged value (Settings > Sites > Script tag, else config.yml), as
+    # the beacon reads it (settings_store.apply in beacon_server.py).
+    got = settings_store.explain(conf, site, c.db).get("beacon.visitor_ids") or {}
+    on = got.get("value") in (True, "true")
     src = f"{_origin(c)}/traffic-js/skald.js"
     return {"tag": f'<script src="{src}" data-site="{site}" defer></script>',
             "src": src, "visitor_ids": on,

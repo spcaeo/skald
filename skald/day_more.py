@@ -24,7 +24,11 @@ from __future__ import annotations
 import importlib
 
 KINDS = {"funnels": "funnel_days", "engagement": "engagement",
-         "utm_hygiene": "utm_hygiene", "ai_fetches": "ai_fetches", "ai_likely": "ai_likely"}
+         "utm_hygiene": "utm_hygiene", "ai_fetches": "ai_fetches", "ai_likely": "ai_likely",
+         # after ai_likely: it reads the visits that kind marks
+         "ai_read": "ai_read",
+         "ai_formats": "ai_formats",
+         "crawler_cost": "crawler_cost"}
 
 
 def modules() -> dict:

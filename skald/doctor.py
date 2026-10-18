@@ -246,10 +246,12 @@ def page_assets(config: dict) -> dict:
     return item("assets", part, ATTENTION,
                 f"no request for {', '.join(prefixes) or 'the asset prefixes'} in the log's "
                 "last lines: a visit counts as people only when its browser fetched one",
-                "Set site.asset_prefixes (Docker: SKALD_ASSET_PREFIXES) to where your pages "
-                "load their scripts and styles (WordPress: /wp-content/ and /wp-includes/; "
-                "many sites: /assets/ or /static/), "
-                "or site.require_rendering: false when they come from a CDN this log never sees.")
+                "Set site.asset_prefixes to where your pages load their scripts and styles "
+                "(WordPress: /wp-content/ and /wp-includes/; many sites: /assets/ or "
+                "/static/): Settings > Sites > Page assets, or `settings set <site> "
+                "site.asset_prefixes '[\"/wp-content/\"]'`; for the first site also "
+                "config.yml (Docker: SKALD_ASSET_PREFIXES). Turn the rule off "
+                "(site.require_rendering false) when they come from a CDN this log never sees.")
 
 
 # ------------------------------------------------------------- the parts

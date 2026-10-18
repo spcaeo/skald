@@ -11,7 +11,9 @@ documented field names are shared, because they are the platforms' data.
   Netlify: https://docs.netlify.com/manage/monitoring/log-drains/
 
 fields() gives the keyword arguments of audit.Line, or None for a line it
-does not read. The rules match the main road's on purpose (written apart):
+does not read. Bytes sent: Vercel's proxy.responseByteSize, Netlify's
+response_size, an edge record's bytes, Caddy's size; the response time only
+from Netlify's duration (milliseconds). The rules match the main road's on purpose (written apart):
 a record needs the client's address, a three-digit status and a URL;
 Vercel's revalidations (status -1) and records without a `proxy` are not
 requests; Netlify's records other than `log_type: traffic` are not either.
@@ -47,6 +49,38 @@ def _three_digits(value) -> str:
         return ""
     text = str(value).strip()
     return text if len(text) == 3 and text.isdigit() else ""
+
+
+def _amount(value) -> float | None:
+    """A JSON number, or a string holding one; None for anything else."""
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return float(str(value).strip())
+    except ValueError:
+        return None
+
+
+def _byte_count(value) -> int | None:
+    """Bytes sent: a number of at least 0 (a fraction cut off), else None."""
+    got = _amount(value)
+    if got is None or not got >= 0:
+        return None
+    try:
+        return int(got)
+    except (OverflowError, ValueError):
+        return None
+
+
+def _seconds(value, per_second: int) -> float | None:
+    """A duration in 1/per_second units, as seconds: 0 up to a day, else None."""
+    got = _amount(value)
+    if got is None:
+        return None
+    got = got / per_second
+    return got if 0 <= got < 86400 else None
 
 
 def _from_number(value) -> datetime | None:
@@ -131,7 +165,8 @@ def _vercel(row: dict) -> dict | None:
     return {"when": when, "address": address, "host": _string(proxy.get("host")),
             "method": _string(proxy.get("method")), "url": path, "status": status,
             "referrer": _string(proxy.get("referer")), "agent": agent, "country": "",
-            "rid": str(rid)[:128]}
+            "rid": str(rid)[:128], "size": _byte_count(proxy.get("responseByteSize")),
+            "seconds": None}
 
 
 def _netlify(row: dict) -> dict | None:
@@ -155,7 +190,9 @@ def _netlify(row: dict) -> dict | None:
     return {"when": when, "address": address, "host": host,
             "method": _string(row.get("method")), "url": url, "status": status,
             "referrer": _string(row.get("referrer")), "agent": _string(row.get("user_agent")),
-            "country": cc, "rid": _string(row.get("request_id"))[:128]}
+            "country": cc, "rid": _string(row.get("request_id"))[:128],
+            "size": _byte_count(row.get("response_size")),
+            "seconds": _seconds(row.get("duration"), 1000)}
 
 
 def _edge_when(value) -> datetime | None:
@@ -188,7 +225,8 @@ def _edge(row: dict) -> dict | None:
     return {"when": when, "address": address, "host": _string(row.get("host")),
             "method": _string(row.get("method")), "url": path, "status": status,
             "referrer": _string(row.get("referer")), "agent": _string(row.get("ua")),
-            "country": "", "rid": _string(row.get("id"))[:128]}
+            "country": "", "rid": _string(row.get("id"))[:128],
+            "size": _byte_count(row.get("bytes")), "seconds": None}
 
 
 def _header(headers, name: str) -> str:
@@ -229,7 +267,11 @@ def _caddy(row: dict) -> dict | None:
     return {"when": when, "address": address, "host": host,
             "method": _string(req.get("method")), "url": uri, "status": status,
             "referrer": _header(headers, "referer"), "agent": _header(headers, "user-agent"),
-            "country": cc, "rid": ""}
+            "country": cc, "rid": "",
+            # Caddy's own size field, a whole number; its duration is not read
+            # (the main road does not read it either).
+            "size": row.get("size") if isinstance(row.get("size"), int) else None,
+            "seconds": None}
 
 
 def fields(raw: str) -> dict | None:

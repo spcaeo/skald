@@ -99,8 +99,9 @@ def cmd_token(ctx) -> int:
     if a.action == "create":
         scopes = set(getattr(a, "scope", None) or ())
         if scopes - {"read", "read_private"}:
-            ctx.err("--scope mcp needs accounts (access.mode: sessions); in basic mode a "
-                    "token reads, and --private (or --scope read_private) adds addresses")
+            ctx.err("--scope mcp and --scope ingest need accounts (access.mode: sessions); "
+                    "in basic mode a token reads, and --private (or --scope read_private) "
+                    "adds addresses")
             return 2
         a.private = a.private or "read_private" in scopes
         if not a.name:
@@ -130,7 +131,8 @@ def cmd_token(ctx) -> int:
 
 
 def add_command(sub) -> None:
-    p = sub.add_parser("token", help="read-only API tokens (docs/API.md)")
+    p = sub.add_parser("token", help="API tokens: read the data, the MCP endpoint, or ship "
+                       "a site's log (docs/API.md, docs/INGEST.md)")
     p.add_argument("action", choices=("create", "list", "revoke"))
     p.add_argument("name", nargs="?", help="create: what uses it; revoke: its id")
     p.add_argument("--site", action="append", help="only this site (repeatable)")
@@ -139,6 +141,8 @@ def add_command(sub) -> None:
     p.add_argument("--org", metavar="SLUG",
                    help="sessions mode: the organisation (needed when there are several)")
     p.add_argument("--scope", action="append", metavar="SCOPE",
-                   help="read (default), read_private (addresses too) or mcp (the MCP "
-                        "endpoint); repeatable. mcp needs sessions mode")
+                   help="read (default), read_private (addresses too), mcp (the MCP "
+                        "endpoint) or ingest (post log lines for the --site it names: "
+                        "skald-ship, log drains); repeatable. mcp and ingest need "
+                        "sessions mode")
     p.set_defaults(run=cmd_token)

@@ -51,10 +51,10 @@ OTHER = "(all others)"          # the label history folds a long tail into
 # ------------------------------------------------------------------ lines
 
 _EXTENDED = re.compile(
-    r'^(\S+) (\S+) (\S+) "([^"]*)" (\d{3}) \S+ "([^"]*)" "([^"]*)"'
+    r'^(\S+) (\S+) (\S+) "([^"]*)" (\d{3}) (\S+) "([^"]*)" "([^"]*)"'
     r'(?:\s+(\S+))?(?:\s+cc=(\S+))?')
 _COMBINED = re.compile(
-    r'^(\S+) \S+ \S+ \[([^\]]+)\] "([^"]*)" (\d{3}) \S+ "([^"]*)" "([^"]*)"(.*)$')
+    r'^(\S+) \S+ \S+ \[([^\]]+)\] "([^"]*)" (\d{3}) (\S+) "([^"]*)" "([^"]*)"(.*)$')
 # A combined line's last field, when it is quoted and a host name (a name with
 # a letter and a dot; a port dropped). An address list or "-" is not one.
 _LAST_QUOTED = re.compile(r'"([^"]*)"\s*$')
@@ -76,6 +76,10 @@ class Line:
     agent: str
     country: str
     rid: str = ""
+    # Body bytes sent and the response time in seconds, when the line has
+    # them (None: not logged). What each crawler costs (audit_crawler_cost).
+    size: int | None = None
+    seconds: float | None = None
 
     @property
     def path(self) -> str:
@@ -97,9 +101,10 @@ def line_hit(raw: str) -> Line | None:
             when = None
         if when is not None:
             got = _line(when, m.group(2), m.group(3), m.group(4), m.group(5),
-                        m.group(6), m.group(7), m.group(9))
+                        m.group(7), m.group(8), m.group(10))
             rid = _RID.search(raw.rstrip("\n"))
             got.rid = rid.group(1) if rid else ""
+            got.size, got.seconds = _byte_count(m.group(6)), _secs(m.group(9))
             return got
     m = _COMBINED.match(raw)
     if m:
@@ -107,9 +112,43 @@ def line_hit(raw: str) -> Line | None:
             when = datetime.strptime(m.group(2), "%d/%b/%Y:%H:%M:%S %z")
         except ValueError:
             return None
-        return _line(when, m.group(1), _named_host(m.group(7)), m.group(3), m.group(4),
-                     m.group(5), m.group(6), None)
+        got = _line(when, m.group(1), _named_host(m.group(8)), m.group(3), m.group(4),
+                    m.group(6), m.group(7), None)
+        got.size, got.seconds = _byte_count(m.group(5)), _tail_seconds(m.group(8))
+        return got
     return None
+
+
+def _byte_count(raw: str | None) -> int | None:
+    """The size field: a whole number of bytes, or None ("-", absent)."""
+    if not raw or not raw.isdigit():
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
+def _secs(raw: str | None) -> float | None:
+    """A response time in seconds: a number from 0 up to a day, else None."""
+    try:
+        value = float(raw) if raw else None
+    except ValueError:
+        return None
+    return value if value is not None and 0 <= value < 86400 else None
+
+
+def _tail_seconds(tail: str) -> float | None:
+    """The combined layout's optional response time: the first field after
+    the user agent, when it is digits with at most one decimal point and
+    a space or the end after it."""
+    if not tail[:1].isspace():
+        return None
+    first = tail.split(None, 1)[0] if tail.strip() else ""
+    whole, dot, frac = first.partition(".")
+    if not whole.isdecimal() or (dot and not frac.isdecimal()):
+        return None
+    return _secs(first)
 
 
 def _named_host(tail: str) -> str:
@@ -329,6 +368,7 @@ class Judge:
         if probe and any(line.path.startswith(p) for p in self.legacy):
             probe = False
         if probe:
+            self.info = {"probe": True}
             return "bots", False
         compatible_only = ("(compatible;" in agent.lower() and not re.search(
             r"AppleWebKit|Gecko|Trident|Presto|Chrome/|Safari/|Firefox/", agent, re.I))
@@ -340,6 +380,7 @@ class Judge:
             return "bots", False
         for first, last in self.crawlers.get((line.address, line.agent), ()):
             if first <= line.when <= last:
+                self.info = {"crawler": True}
                 return "bots", False
         for first, last in self.unrendered.get((line.address, line.agent), ()):
             if first <= line.when <= last:
@@ -433,6 +474,7 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
             continue
         group, cited = judge(line)
         bots.hit(line, group, judge.info)
+        more.judged(line, group, judge.info)
         requests[group] += 1
         if line.method == "POST":
             posts[group] += 1

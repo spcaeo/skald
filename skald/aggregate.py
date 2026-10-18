@@ -344,7 +344,7 @@ class Tally:
             "os": system,
             "device": device,
             "source": dim.source_type(hit.referrer, hit.url, cited, own),
-            "referrer": dim.referrer_label(hit.referrer, own),
+            "referrer": dim.referrer_label(hit.referrer, own, hit.url),
             "campaign": dim.campaign(hit.url),
             "landing": hit.path[:70],
             "hour": dim.hour(hit.when, self.tz),

@@ -13,7 +13,7 @@ import { table } from "../table.js";
 import { ranked } from "../data.js";
 import { country, flagEl, withFlag } from "./readers.js";
 import { fileName } from "./common.js";
-import { visitLikely } from "./likelyai.js";
+import { visitLikely, visitRead } from "./likelyai.js";
 
 export const NOTE = { not_found: "met a page not found (404)", posted: "sent a form", in_app: "moved inside the site without loading a page" };
 const BADGE = { posted: "form sent", not_found: "404" };
@@ -107,6 +107,7 @@ export function visitBody(j) {
       h("p", { class: "note" }, noAt ? "This visit was kept before step times were: the order is exact, the times are not known."
         : "Time since the visit's first request, rounded like visit lengths. A log sees requests, not reading time."),
       steps, seen.length >= 50 ? h("p", { class: "note" }, "Only the first 50 steps are kept.") : null),
+    visitRead(j),
     h("section", null, h("h3", null, "About this visit"),
       h("dl", { class: "rq-dl" }, rows.flatMap(([k, v]) => [h("dt", null, k), h("dd", null, v)]))),
     h("p", { class: "note" }, `Anonymous: no address, no browser string, no identifier. Journeys are kept ${whenKept} days.`));

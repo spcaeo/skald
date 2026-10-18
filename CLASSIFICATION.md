@@ -105,7 +105,8 @@ no gap over 30 minutes, on the site's hosts) is people only with evidence
 that a browser drew the page, any one of:
 
 - **assets**: it fetched something under `site.asset_prefixes` (default
-  `/_next/static/`) or a `?_rsc=` payload, from 5 seconds before to
+  `/_next/static/`; per site also in Settings > Sites > Page assets,
+  docs/SETTINGS.md) or a `?_rsc=` payload, from 5 seconds before to
   `site.render_seconds` (30) after one of its page requests. Before, too,
   because a streamed page is logged when it ends, after its styles were
   asked for. Images, `/og/` cards and favicons do not count: link
@@ -222,6 +223,20 @@ only the name lists here. A day the two disagree on is withheld. The same
 rule, at the same minute precision, marks leads and conversions whose
 touch was direct (DATA-CONTRACT.md: `ai_likely`, `ai_fetches`,
 leads.json `likely_ai`, conversions.json `likely_ai`).
+
+**What the AI read before it sent the visitor** (`ai_read.py`, kind
+`ai_read`). The same fetches, read the other way. For each AI visit, cited
+(rule 10, from an assistant that has a user fetcher in `AI_FETCHER_OWNERS`)
+or likely (above), the visit keeps the paths that same assistant's user
+fetcher fetched in the same window before its first request: at most 10,
+nearest first, labelled "fetched by <assistant> in the N minutes before".
+Only `AI_ASKED` fetchers; never a training crawler. Context, never a count
+of people. The day figure is, per assistant, the cited visits, of which it
+fetched pages first, of which the landing page was one of them ("fetch ->
+visit to the same page"); likely visits are kept apart, since by their rule
+they always land on a fetched page. A citation from an assistant with no
+known user fetcher (You.com, Phind, Poe) is not recorded, never 0.
+Recounted in `audit_ai_likely.py`, with its own reading of the citation.
 
 ## The patterns
 
@@ -465,6 +480,25 @@ Probe paths are *not* excluded here. A scanner asking for `/.env` and getting a
 200 counts as a page view inside the `bots` card, which is where the scanner
 already is. If that bothers you, the honest fix is to stop serving a 200.
 
+## What an AI fetch asked for
+
+Every answer-engine request (both tiers, `asked` and `training`) is also
+filed by what its path names (day kind `ai_formats`, since 2.10.0;
+`ai_formats.format_of`, and on the audit's road `audit_ai_formats.kind_of`,
+written apart). The path alone decides, lower case, without the query
+string; the status does not, so a 404 for `/llms.txt` is a fetch of
+llms.txt. In this order:
+
+| format | path |
+|---|---|
+| llms.txt | exactly `/llms.txt` or `/llms-full.txt` (at the root; `/docs/llms.txt` is Text) |
+| robots.txt | exactly `/robots.txt` |
+| Markdown | the last segment ends `.md` or `.mdx` |
+| Sitemap | the last segment is `sitemap*.xml` (`sitemap.xml`, `sitemap_index.xml`, `sitemap-1.xml`) |
+| Text | any other `.txt` |
+| Other file | an asset, feed, document, archive or media file (the extensions of "What decides a page view"), a framework folder (`/_next/`, `/static/`, ...), an `/api` or beacon path, or a framework payload (`?_rsc=`) |
+| Page | everything else |
+
 ## The source type of a visit
 
 `dimensions.source_type` (and, on the audit's own road,
@@ -480,6 +514,15 @@ or unknown. A referrer decides first. With none, the tags do:
   (`com.google.android.gm`) is email. Since 2.8.0 Google's other apps are not
   "Search engine": YouTube, WhatsApp and Telegram apps are Social media, the
   rest Other website. An assistant's app is the assistant (above).
+- **Google AI Mode** (since 2.10.0). A Google search referrer (`google.com`,
+  `google.de`, ..., not Gmail) with `udm=50` in its own query string or in the
+  landing URL's is Google's AI Mode: the source type stays "Search engine",
+  and the referrer label becomes `google.com (AI Mode)` (`google.de (AI
+  Mode)`, ...), so it can be seen apart. Only when the parameter is there,
+  never inferred: a bare `google.com` referrer stays `google.com`.
+  `dimensions.referrer_label` and, on the audit's road,
+  `audit_labels.referrer_of`; a visit's first page carries the label, and a
+  later page from the other label is a new outside source, on both roads.
 - **utm_ tags.** `utm_source` decides first, `utm_medium` only when the
   source names no type: the source names the place, the medium only says
   how. `utm_source=linkedin&utm_medium=cpc` is Social media, not Search
@@ -536,7 +579,10 @@ and no marker. The crawl side is not separable either: Google trains on what
 Googlebot fetches, and `Google-Extended` is a robots.txt switch, not a user
 agent. So a report must not claim any number for Overview clicks, nor for
 "Google's AI crawl". The HTML card says "not measurable" in that row on
-purpose.
+purpose. Google's AI Mode is the one exception, and only when the click
+carries `udm=50` (on the referrer or the landing URL): it is then labelled
+`google.com (AI Mode)` ("The source type of a visit"). Most AI Mode clicks
+arrive with the bare origin and stay plain `google.com`, so it is a floor.
 
 **Referrers are frequently stripped**, by privacy settings, by
 `Referrer-Policy`, by apps that open links in their own webview, and by HTTPS
