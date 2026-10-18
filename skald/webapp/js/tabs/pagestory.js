@@ -83,7 +83,7 @@ function inside(m, path, since) {
   const kinds = by((x) => eventLabel(f, x[0]));
   const which = by((x) => (x[1] ? `${eventLabel(f, x[0])}: ${x[1]}` : null));
   return h("div", { class: "cols" },
-    panel("What readers did on it", `events from the beacon since ${short(since)}${f.today?.state === "ok" ? ", today included (not yet checked)" : ""}`, blist(ranked(kinds), { color: "var(--ink-3)", empty: f.first_day ? "No event on this page yet." : "The beacon has not counted any event yet." })),
+    panel("What visitors did on it", `events from the beacon since ${short(since)}${f.today?.state === "ok" ? ", today included (not yet checked)" : ""}`, blist(ranked(kinds), { color: "var(--ink-3)", empty: f.first_day ? "No event on this page yet." : "The beacon has not counted any event yet." })),
     panel("Which button or form", "the buttons and forms used on it", blist(ranked(which), { color: "var(--g-people)", empty: "No button or form used on it yet." })));
 }
 
@@ -142,22 +142,32 @@ export function published(m, s) {
   const to = h("input", { type: "date", value: s.pubto || "", "aria-label": "Published to", onchange: (e) => set({ pubto: e.target.value }) });
   const month = (k) => { const d = new Date(`${m.anchor}T12:00:00Z`); d.setUTCMonth(d.getUTCMonth() - k, 1); const f = d.toISOString().slice(0, 10); d.setUTCMonth(d.getUTCMonth() + 1, 0); return [f, d.toISOString().slice(0, 10)]; };
   const quick = [["This month", month(0)], ["Last month", month(1)], ["Last 90 days", [addDays(m.anchor, -89), m.anchor]], ["Any time", ["", ""]]];
-  const rows = idx.pages.filter((p) => (!s.pubfrom || (p.published && p.published >= s.pubfrom)) && (!s.pubto || (p.published && p.published <= s.pubto)));
+  const all = idx.pages.filter((p) => (!s.pubfrom || (p.published && p.published >= s.pubfrom)) && (!s.pubto || (p.published && p.published <= s.pubto)));
+  // A Markdown copy of a post (/blog/post.md) is not a page of its own: the copies are one row that opens to list them.
+  const rows = all.filter((p) => !isCopy(p.path)), copies = all.filter((p) => isCopy(p.path));
   const rel = (at, p) => (at ? after(at, p.published || p.first_seen) || short(at.slice(0, 10)) : "not yet");
   return h("section", { class: "s ps-pub" },
     h("div", { class: "card-h start" }, h("h2", null, "Pages by publish date"),
       h("span", { class: "ps-range" }, "Published between", from, "and", to),
       h("span", { class: "ps-quick" }, quick.map(([w, [f, t]]) => h("button", { type: "button", class: "linkish", onclick: () => set({ pubfrom: f, pubto: t }) }, w)))),
-    table([
-      { key: "path", label: "Page", path: true, fmt: (v, p) => h("span", null, v, p.title ? h("small", { class: "ps-t" }, p.title) : null) },
-      { key: "published", label: "Published", type: "date", fmt: (v, p) => (v ? short(v) : h("span", { class: "muted", title: "The website gives no date; first seen" }, `${short(p.first_seen)}*`)), sort: (p) => p.published || p.first_seen },
-      { key: "days_since_publish", label: "Days since", num: true },
-      { key: "views_7d", label: "Views, 7 days", num: true },
-      { key: "views_30d", label: "Views, 30 days", num: true },
-      { key: "readers_30d", label: "Visitors, 30 days", num: true },
-      { key: "g", label: "First Google crawl", type: "date", sort: (p) => p.milestones?.googlebot || "~", fmt: (_, p) => rel(p.milestones?.googlebot, p), csv: (p) => p.milestones?.googlebot || "" },
-      { key: "hu", label: "First visitor", type: "date", sort: (p) => p.milestones?.human || "~", fmt: (_, p) => rel(p.milestones?.human, p), csv: (p) => p.milestones?.human || "" },
-    ], { caption: "Pages by publish date", rows, file: `pages-published-${s.pubfrom || "any"}-to-${s.pubto || "any"}.csv`, sortKey: "published", dir: -1, limit: 15,
-      rowClass: () => "go", onRow: (p) => S.set({ page: p.path }), empty: "No page was published in these dates." }),
+    pubTable(rows, rel, { caption: "Pages by publish date", file: `pages-published-${s.pubfrom || "any"}-to-${s.pubto || "any"}.csv`, empty: "No page was published in these dates." }),
+    copies.length ? h("details", { class: "md-copies" }, h("summary", null, `.md copies (${copies.length}): Markdown versions of pages, kept for AI assistants`),
+      pubTable(copies, rel, { caption: "Markdown copies by publish date", file: `pages-published-md-copies-${s.pubfrom || "any"}-to-${s.pubto || "any"}.csv`, empty: "" })) : null,
     h("p", { class: "note" }, `Publish dates come from ${idx.meta?.source === "website" ? "the website" : "the first day the page was seen in the logs"}; * marks a page the website gives no date for. Select a page for its story.`));
+}
+
+export const isCopy = (path) => /\.md\/?$/i.test(path || "");
+
+function pubTable(rows, rel, { caption, file, empty }) {
+  return table([
+    { key: "path", label: "Page", path: true, fmt: (v, p) => h("span", null, v, p.title ? h("small", { class: "ps-t" }, p.title) : null) },
+    { key: "published", label: "Published", type: "date", fmt: (v, p) => (v ? short(v) : h("span", { class: "muted", title: "The website gives no date; first seen" }, `${short(p.first_seen)}*`)), sort: (p) => p.published || p.first_seen },
+    { key: "days_since_publish", label: "Days since", num: true },
+    { key: "views_7d", label: "Views, 7 days", num: true },
+    { key: "views_30d", label: "Views, 30 days", num: true },
+    { key: "readers_30d", label: "Visitors, 30 days", num: true },
+    { key: "g", label: "First Google crawl", type: "date", sort: (p) => p.milestones?.googlebot || "~", fmt: (_, p) => rel(p.milestones?.googlebot, p), csv: (p) => p.milestones?.googlebot || "" },
+    { key: "hu", label: "First visitor", type: "date", sort: (p) => p.milestones?.human || "~", fmt: (_, p) => rel(p.milestones?.human, p), csv: (p) => p.milestones?.human || "" },
+  ], { caption, rows, file, sortKey: "published", dir: -1, limit: 15,
+    rowClass: () => "go", onRow: (p) => S.set({ page: p.path }), empty });
 }

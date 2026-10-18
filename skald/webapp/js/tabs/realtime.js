@@ -1,5 +1,5 @@
-// Real time: who is on the site now. Overview > Real time, and the first thing
-// on Overview > Summary in Live mode (ov-summary.js).
+// Real time: who is on the site now. Overview > Real time; Overview > Summary in
+// Live mode draws its short parts from the same answer (follow(), ov-today.js).
 //
 // Two roads, each with its own clock, never added together:
 //   * people (visitors active in the last 5 and 30 minutes, visitors minute by
@@ -17,21 +17,24 @@
 // block, which starts from the last answer (no flash).
 
 import { h, n } from "../ui.js";
+import { pagesWords } from "../visitpages.js";
 import { getJSON } from "../data.js";
 import { bars } from "../charts.js";
 import { blist } from "./common.js";
 import { tiles, info } from "./tiles.js";
 import { table, REGISTRY } from "../table.js";
 import { link, open as openDrill } from "../drill.js";
-import { flagEl, country } from "./readers.js";
+import { flagEl, country, countryName, city, cityName } from "./readers.js";
 import { mark } from "../icons.js";
 import { time as tzTime, label as tzLabel } from "../tz.js";
 import { worldMap } from "./rt-map.js";
 import { DEMO } from "../demo.js";
+import { openVisitor, touchLine } from "./visitor.js";
 
 export const POLL = 15;            // seconds between two asks
 const TICK = 5;                    // seconds between two looks at the clock
 const TABLE = "Countries now: visits today and visitors active";
+const CTABLE = "Cities now: visits today and visitors active";
 const LATE = 10 * 60000;           // the people count is late after 10 minutes (it runs every 2)
 
 // One state for every block on screen: the last answer, the clock, Pause.
@@ -109,10 +112,40 @@ function countriesTable(P) {
   for (let i = REGISTRY.length - 1; i >= 0; i--) if (REGISTRY[i].caption === TABLE) REGISTRY.splice(i, 1);
   const rows = Object.entries(P.countries || {}).map(([cc, r]) => ({ cc, name: country(cc), visits: r.visits || 0, active: r.active || 0 }));
   return table([
-    { key: "name", label: "Country", fmt: (v, r) => link("country", r.cc, { text: v }), csv: (r) => r.name },
+    { key: "name", label: "Country", fmt: (v, r) => link("country", r.cc, { text: v }), csv: (r) => r.name, country: (r) => r.cc },
     { key: "visits", label: "Visits today", num: true },
     { key: "active", label: "Active, 30 min", num: true },
   ], { caption: TABLE, rows, file: "realtime-countries.csv", limit: 8, empty: "No visitor yet today.", sortKey: "visits", dir: -1 });
+}
+
+/* Under the map, in rows of even height (2.13): with cities, Pages being read beside
+   By city, then Newest visits beside Sources, Devices and AI now stacked; without, Pages
+   beside Newest visits, then the three "now" cards in a row. */
+function lower(P, m) {
+  const pages = card("Pages being read", `page views by visitors in the last 30 minutes (${n(P.page_views || 0)})`,
+    blist(pairs(P.pages), { drill: "path", limit: 8, total: P.page_views, empty: "No page read in the last 30 minutes." }));
+  const now = [card("Sources now", "visitors active in the last 30 minutes, by where they came from", blist(pairs(P.sources), { drill: "source", limit: 6, empty: "Nobody in the last 30 minutes." })),
+    card("Devices now", "visitors active in the last 30 minutes, by device", blist(pairs(P.devices), { drill: "device", limit: 6, empty: "Nobody in the last 30 minutes." })),
+    machines(P.machines)];
+  if (!P.cities) return [h("div", { class: "cols rt-lists" }, pages, newest(P, m)), h("div", { class: "cols three rt-lists" }, ...now)];
+  return [h("div", { class: "cols rt-lists" }, pages, h("div", { class: "sheet rt-ctable rt-citycard" }, ...citiesTable(P))),
+    h("div", { class: "rt-feed" }, newest(P, m), h("div", { class: "rt-stack" }, ...now))];
+}
+
+/* The cities beside the map (only with a city file, logs.city_db): the same figures
+   as its dots, and how many of today's visits have no city recorded. */
+function citiesTable(P) {
+  for (let i = REGISTRY.length - 1; i >= 0; i--) if (REGISTRY[i].caption === CTABLE) REGISTRY.splice(i, 1);
+  // The city's own name beside its flag (the region and country are its title and its CSV).
+  const rows = Object.entries(P.cities || {}).map(([k, r]) => ({ k, name: k.split(", ")[0], full: cityName(k), visits: r.visits || 0, active: r.active || 0 }));
+  const rest = (P.visits_today || 0) - rows.reduce((a, r) => a + r.visits, 0);
+  return [h("h3", { class: "rt-ch" }, "By city"),
+    table([
+      { key: "name", label: "City", fmt: (v, r) => h("span", { title: r.full }, link("city", r.k, { text: v })), csv: (r) => r.full },
+      { key: "visits", label: "Today", num: true },
+      { key: "active", label: "Active, 30 min", num: true },
+    ], { caption: CTABLE, rows, file: "realtime-cities.csv", limit: 6, empty: "No city recorded yet today.", sortKey: "visits", dir: -1 }),
+    rest > 0 ? h("p", { class: "note" }, `${n(rest)} of today's visit${rest === 1 ? "" : "s"}: city not recorded.`) : null];
 }
 
 const pairs = (obj) => Object.entries(obj || {}).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
@@ -128,18 +161,28 @@ function machines(M = {}) {
     blist(ai, { color: "var(--g-answer_engines)", drill: "bot", limit: 6, empty: "None in the last 30 minutes." }),
     h("p", { class: "rt-sub" }, "Search crawlers"),
     blist(search, { color: "var(--g-search_engines)", drill: "bot", limit: 4, empty: "None in the last 30 minutes." }),
-    h("p", { class: "rt-line" }, h("i", { class: "rt-k", style: { background: "var(--g-bots)" } }), "Other bots and scanners: ", h("b", null, n(M.bots || 0)), " requests"));
+    h("p", { class: "rt-line" }, h("i", { class: "rtm-k", style: { background: "var(--g-bots)" } }), "Other bots and scanners: ", h("b", null, n(M.bots || 0)), " requests"));
 }
 
-function newest(P) {
-  const rows = (P.newest || []).map((v) => h("li", null,
+// A newest visit opens the visitor drawer: the day's journey when the page holds it, else the row itself.
+export function openNewest(m, v) {
+  const day = String(v.start || "").slice(0, 10);
+  const j = (m.journeys || []).find((x) => x.seq === v.seq && x.day === day && v.seq != null);
+  return openVisitor(j || { ...v, day, trail: v.landing ? [{ path: v.landing, page: true, at: 0 }] : [], seconds: null });
+}
+
+function newest(P, m) {
+  const rows = (P.newest || []).map((v) => h("li", { class: "rt-open", tabindex: "0", role: "button", "aria-label": `Open this visitor: ${v.city ? cityName(v.city) : countryName(v.country)}, landed on ${v.landing || "a page"}`,
+    onclick: (e) => { if (!e.target.closest("a, button")) openNewest(m, v); },
+    onkeydown: (e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); openNewest(m, v); } } },
     h("span", { class: "s-t" }, tzTime(v.start, { label: false })),
     h("span", { class: "s-i" }, flagEl(v.country) || mark("device", v.device)),
-    h("span", { class: "s-w" }, link("country", v.country, { text: country(v.country), bare: true }), `, ${v.device || "device not recorded"}`,
+    h("span", { class: "s-w" }, v.city ? link("city", v.city, { text: city(v.city), bare: true }) : link("country", v.country, { text: country(v.country), bare: true }), `, ${v.device || "device not recorded"}`,
       v.via ? [" from ", link(v.source === "AI assistant" ? "assistant" : "referrer", v.via, { bare: true })] : v.source ? ` · ${v.source}` : "",
-      `: ${n(v.pages)} page${v.pages === 1 ? "" : "s"} so far`,
+      `: ${pagesWords(v, { soFar: true })}`,
       v.active ? h("span", { class: `rt-now${v.active === "5" ? " on" : ""}` }, v.active === "5" ? "active now" : "active, 30 min") : null,
-      h("small", null, `landed on ${v.landing || "?"}`))));
+      h("small", null, `landed on ${v.landing || "a page not recorded"}`),
+      touchLine(v) ? h("small", { class: "v-ft" }, touchLine(v)) : null)));
   return card("Newest visits", `times in ${tzLabel()}, newest first; no address, no browser string`,
     rows.length ? h("ul", { class: "stream live-stream" }, rows) : h("p", { class: "empty" }, "No visitor has read a page yet today."));
 }
@@ -154,7 +197,7 @@ function stateWords(state) {
 export function realtimeBlock(m, s, { tab = false } = {}) {
   if (!st.body && m.x?.realtime) st.body = fromFile(m.x.realtime);
   const el = h("section", { class: `s rt${tab ? " rt-tab" : ""}`, "aria-label": "Real time" });
-  const map = worldMap({ onPick: (cc) => openDrill("country", cc), label: "World map: visits today by country, and countries with visitors active in the last 30 minutes" });
+  const map = worldMap({ onPick: (cc) => openDrill("country", cc), onCity: (k) => openDrill("city", k), label: "World map: visits today by country, and the countries and cities with visitors active in the last 30 minutes" });
   const clockP = h("span", { class: "rt-as" });
   const clockR = h("span", { class: "rt-as" });
   const pause = h("button", { type: "button", class: "btn", "aria-pressed": String(st.paused) }, st.paused ? "Resume" : "Pause");
@@ -197,17 +240,11 @@ export function realtimeBlock(m, s, { tab = false } = {}) {
           h("p", { class: "card-m" }, "every request the server logged: pages, files, bots and people alike. Not visitors."), requestsChart(reqRows, !B.requests)) : null),
       P ? h("div", { class: "rt-geo" },
         h("div", { class: "sheet rt-mapcard" }, h("h3", null, "Where visitors are"),
-          h("p", { class: "card-m" }, "shaded by visits today; a bubble where visitors were active in the last 30 minutes. Select a country for its detail."), map.el),
+          h("p", { class: "card-m" }, P.cities ? "shaded by visits today; a pulsing dot on each city with visitors active in the last 30 minutes (a country's bubble: active visitors whose city is not recorded). Select a country or a city for its detail."
+            : "shaded by visits today; a bubble where visitors were active in the last 30 minutes. Select a country for its detail."), map.el),
         h("div", { class: "sheet rt-ctable" }, h("h3", null, "By country"), countriesTable(P))) : null,
-      P ? h("div", { class: "cols rt-lists" },
-        card("Pages being read", `page views by visitors in the last 30 minutes (${n(P.page_views || 0)})`,
-          blist(pairs(P.pages), { drill: "path", limit: 8, total: P.page_views, empty: "No page read in the last 30 minutes." })),
-        newest(P)) : null,
-      P ? h("div", { class: "cols three rt-lists" },
-        card("Sources now", "visitors active in the last 30 minutes, by where they came from", blist(pairs(P.sources), { drill: "source", limit: 6, empty: "Nobody in the last 30 minutes." })),
-        card("Devices now", "visitors active in the last 30 minutes, by device", blist(pairs(P.devices), { drill: "device", limit: 6, empty: "Nobody in the last 30 minutes." })),
-        machines(P.machines)) : null].filter(Boolean));
-    if (P) map.update(P.countries);
+      ...(P ? lower(P, m) : [])].filter(Boolean));
+    if (P) map.update(P.countries, P.cities);
   }
 
   st.blocks.add(block);
@@ -224,6 +261,21 @@ export default function realtimeTab(m, s) {
     info("Who is on the site now: visitors (counted every 2 minutes, the same rules as every figure) and requests (read every 15 seconds). It does not follow the period: it is always now.", "Real time"),
     h("span", { class: "period" }, h("span", { class: "pulse", "aria-hidden": "true" }), "Now")),
   realtimeBlock(m, s, { tab: true })];
+}
+
+/* Another view of the same answer: Overview > Summary in Live mode (ov-today.js)
+   draws its own short parts from it. view: {el, draw(body), clock(body, at), paused(on)};
+   it is asked again with every answer while view.el is on the page, and shares Pause. */
+export function follow(m, view) {
+  if (!st.body && m.x?.realtime) st.body = fromFile(m.x.realtime);
+  const block = { el: view.el, draw: () => view.draw(st.body), clock: () => view.clock?.(st.body, st.at), paused: () => view.paused?.(st.paused) };
+  st.blocks.add(block);
+  if (!st.timer) st.timer = setInterval(tick, TICK * 1000);
+  if (Date.now() - st.at >= POLL * 1000) queueMicrotask(poll);
+  return {
+    body: () => st.body, isPaused: () => st.paused,
+    pause(on) { st.paused = on; for (const b of st.blocks) b.paused(); if (!on) poll(); },
+  };
 }
 
 // For a test: what the block keeps between draws.

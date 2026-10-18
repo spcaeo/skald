@@ -4,7 +4,8 @@
 // From robots.json (the last 30 days and today). A past day is judged by
 // today's robots.txt, and the section says so.
 
-import { h, n, long } from "../ui.js";
+import { h, n } from "../ui.js";
+import { ago } from "../tz.js";
 import { table } from "../table.js";
 import { fixed, notBuiltNote } from "./common.js";
 
@@ -44,7 +45,7 @@ export function robotsSection(m) {
   const offLimits = (c) => (c.disallowed ? h("span", { class: "rt-off" }, h("b", null, n(c.disallowed)),
     (c.disallowed_paths || []).length ? h("small", null, c.disallowed_paths.slice(0, 3).map((p) => `${p.path} (${n(p.n)})`).join(", ")) : null) : "0");
   return fixed("robots.txt", "last 30 days and today",
-    h("p", { class: "sub" }, r.fetched_at ? `Read from ${r.url || "/robots.txt"} on ${long(r.fetched_at.slice(0, 10))} at ${r.fetched_at.slice(11, 16)}. ` : "",
+    h("p", { class: "sub" }, r.fetched_at ? `Read from ${r.url || "/robots.txt"} ${ago(r.fetched_at)}. ` : "",
       "Each crawler is judged by its own token against today's rules, past days included; a rule changed since then is not taken into account."),
     table([
       { key: "name", label: "Crawler", drill: "bot" },

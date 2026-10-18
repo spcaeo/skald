@@ -20,6 +20,8 @@
 // comes from are "Where visits ended". check() proves a flow adds up; a flow
 // that does not is withheld, never drawn.
 
+import { shown, assistantName } from "./labels.js";
+
 export const OTHER = "(other pages)";
 export const OTHER_SOURCES = "(other sources)";
 
@@ -43,6 +45,9 @@ export function startOf(j, by = "source") {
   if (by !== "via" || !j.via) return { key: source, drill: ["source", source] };
   return { key: j.via, drill: [source === "AI assistant" ? "assistant" : "referrer", j.via] };
 }
+
+// A start as a person reads it: "Direct", not the stored "Direct or unknown"; "ChatGPT", not chatgpt.com.
+const startWords = (s) => (s.drill?.[0] === "assistant" ? assistantName(s.key) : shown(s.key));
 
 // The `top` biggest keys of a count; the rest fold. Ties by name, so a flow draws the same twice.
 function keepers(count, top) {
@@ -78,7 +83,7 @@ export function flowOf(journeys, { depth = 4, top = 7, start = "source" } = {}) 
   };
   for (const x of seqs) {
     const s = kept[0].has(x.start.key) ? x.start : { key: OTHER_SOURCES, drill: null };
-    let prev = node(0, s.key, () => ({ label: s.key, kind: s.drill ? "start" : "other", drill: s.drill }));
+    let prev = node(0, s.key, () => ({ label: startWords(s), kind: s.drill ? "start" : "other", drill: s.drill }));
     const shown = x.pages.slice(0, depth);
     shown.forEach((p, i) => {
       const keep = kept[i + 1].has(p);
@@ -129,7 +134,7 @@ export function funnelFlowOf(reached, names) {
     if (r < 1) continue;
     total += 1;
     const s = startOf(j);
-    let prev = node(0, s.key, () => ({ label: s.key, kind: "start", drill: s.drill }));
+    let prev = node(0, s.key, () => ({ label: startWords(s), kind: "start", drill: s.drill }));
     for (let k = 1; k <= Math.min(r, last); k++) {
       const here = node(k, `step${k}`, () => ({ label: names[k - 1], kind: "step", step: k, end: k === last, drill: null }));
       link(prev, here);

@@ -8,7 +8,7 @@
 // It replaces Traffic sources, Each source over time, All sources with their leads,
 // Referring sites, All referring sites and Campaigns: the same figures, in one place.
 //
-// Below it: Campaigns and referrers (campaigns.json: UTM tags, referring sites down
+// Below it: where returning visitors first came from (tr-firsttouch.js), then Campaigns and referrers (campaigns.json: UTM tags, referring sites down
 // to the page, paid networks, tag problems). AI visits live under AI & bots > Assistants
 // (owner's decision, 2026-10-12): this tab links there. Landing pages live on Pages.
 
@@ -19,6 +19,7 @@ import * as S from "../state.js";
 import { grid } from "../grid.js";
 import { head, nothing, fileName } from "./common.js";
 import { campaigns } from "./campaigns.js";
+import { firstTouch } from "./tr-firsttouch.js";
 import { leadsBy, leadNote, viewNote } from "./leadfigs.js";
 import { leadRows, labelCol, countCols, leadCols, goTo, compareOf, compareRows, compareCols, compareNote } from "./tr-grid.js";
 
@@ -50,7 +51,8 @@ export function sourceColumns({ prev, perDay, leads, c }) {
     { key: "before", label: "Before", num: true, csv: (x) => x.before ?? "" },
     { key: "chg", label: "Change", num: true, sort: (x) => (x.before ? (x.v - x.before) / x.before : null),
       fmt: (_, x) => { if (x.before == null) return "-"; const [a, w] = change(x.v || 0, x.before); return `${a}${a ? " " : ""}${w}`; },
-      csv: (x) => (x.before == null ? "" : change(x.v || 0, x.before)[1]) },
+      // A fraction, as every share in a CSV is (0.0612, not "6%"); none when there was nothing before.
+      csv: (x) => (x.before ? ((x.v || 0) - x.before) / x.before : null)?.toFixed(4) ?? "" },
     { key: "chip", label: "Trend", type: "badge", sortable: false, fmt: (v) => (v ? h("span", { class: `trend-chip ${v}` }, v) : ""), csv: (x) => x.chip || "" });
   if (perDay) cols.push({ key: "trend", label: "Per day", sortable: false,
     fmt: (v) => (v && v.filter((x) => x != null).length > 1 ? spark(v, color("people")) : "-"), csv: (x) => (x.trend || []).join(" ") });
@@ -136,6 +138,7 @@ export default function sources(m, s) {
     viewNote(m, s),
     goTo(ai, "Visitors sent by AI assistants, counted and likely (inferred), are under", "AI & bots › Assistants"),
     goTo(S.hashFor({ ...s, tab: "traffic/pages", dd: "" }), "The pages these visitors landed on, with their leads, are on", "Pages")));
+  out.push(firstTouch(t, r, { live: r.kind === "today" }));
   out.push(h("section", { class: "s" }, h("h2", null, "Campaigns and referrers"), campaignParts(m, s, r)));
   out.push(unmeasured(t));
   return out;

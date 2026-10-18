@@ -6,7 +6,8 @@ our own addresses, not bots). The beacon helper calls `record` right after
 it spools the event, under the same lock, so the store sees the events in
 the spool's order:
 
-  page_view             one row in `journeys` (path, the visit's source)
+  page_view             one row in `journeys` (path, the visit's source and
+                        referring host)
   BEACON_ACTIONS        one conversion (tool "beacon"), at most one per
                         (visitor ID, action, stage) within
                         BEACON_REPEAT_SECONDS of the last one kept
@@ -80,7 +81,8 @@ def record(db, site: str, event: dict, when: datetime, source: str | None,
         return None
     at = store.stamp(when)
     if event.get("e") == PAGE_VIEW:
-        store.record_page_view(db, site, vid, at, event["p"], source)
+        store.record_page_view(db, site, vid, at, event["p"], source,
+                               str(event.get("r") or "")[:60])
         return "journey"
     pair = BEACON_ACTIONS.get(event.get("e"))
     if pair is None:

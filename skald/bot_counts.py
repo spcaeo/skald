@@ -1,7 +1,7 @@
 """Per-day counts for the bots tab: verified crawlers, link previews, fake browsers.
 
 Built in the tally pass (extras.Extras offers it every counted hit) into the
-day's "bots" extras blob (DATA-CONTRACT.md, bots.json):
+day's "bots" extras blob (docs/DATA-CONTRACT-BOTS.md, bots.json):
 
   verification   per named assistant or search crawler: the group it counts
                  in, how it can be checked, and its requests verified,
@@ -16,6 +16,9 @@ day's "bots" extras blob (DATA-CONTRACT.md, bots.json):
                  never rendered a page (rendering.py): requests, page views,
                  and readers - the visits among them that read a page, which
                  would otherwise have been counted as visitors
+  too_fast       the same three for browser-like requests moved to bots
+                 because their visit read pages faster than a person can
+                 (too_fast.py)
 
 `check()` holds the sums: verified + unverified add up to each crawler
 group's requests; spoofed and link previews are inside bots; flagged
@@ -30,7 +33,7 @@ from .bot_verify import method_of, vendor_of
 from datetime import timedelta
 
 from .classify import (AI_ASKED, AI_TRAINING, FAKE_BROWSER_FLAGS, LINK_PREVIEW, NOT_RENDERED,
-                       Group)
+                       TOO_FAST, Group)
 
 
 def claim_group(name: str) -> str:
@@ -44,6 +47,8 @@ class BotCounts:
         self.gap = timedelta(minutes=gap_minutes)
         # (address, agent) -> [(when, is_page)] of requests that never rendered.
         self.unrendered: dict[tuple, list] = {}
+        # The same, of requests whose visit read too fast for a person.
+        self.fast: dict[tuple, list] = {}
         self.checks: dict[str, Counter] = {}
         self.groups: dict[str, str] = {}
         self.previews: Counter = Counter()
@@ -71,6 +76,9 @@ class BotCounts:
             elif verdict.engine == NOT_RENDERED:
                 self.unrendered.setdefault((hit.address, hit.user_agent), []).append(
                     (hit.when, hit.is_page))
+            elif verdict.engine == TOO_FAST:
+                self.fast.setdefault((hit.address, hit.user_agent), []).append(
+                    (hit.when, hit.is_page))
         elif group is Group.PEOPLE:
             for flag in verdict.flags:
                 self.flagged[flag]["requests"] += 1
@@ -87,12 +95,15 @@ class BotCounts:
                                   "addresses": len(self.addresses[f])}
                               for f in FAKE_BROWSER_FLAGS},
             "blocked": dict(sorted(self.blocked.items())),
-            "not_rendered": self._not_rendered(),
+            "not_rendered": self._moved(self.unrendered),
+            "too_fast": self._moved(self.fast),
         }
 
-    def _not_rendered(self) -> dict:
+    def _moved(self, by_pair: dict) -> dict:
+        """Requests, page views, and visits that read a page, of the
+        requests a visit rule moved to bots."""
         requests = pages = readers = 0
-        for seen in self.unrendered.values():
+        for seen in by_pair.values():
             seen.sort(key=lambda e: e[0])
             read, last = False, None
             for when, page in seen:
@@ -131,6 +142,11 @@ def check(totals, blob: dict | None, differs, problems: list) -> None:
         problems.append(Problem("browser-like requests that never rendered",
                                 f"{moved:,} is more than the {bots.hits if bots else 0:,} "
                                 f"bot requests they are part of"))
+    fast = (blob.get("too_fast") or {}).get("requests", 0)
+    if moved + fast > (bots.hits if bots else 0):
+        problems.append(Problem("browser-like requests too fast to be a person",
+                                f"{moved + fast:,} moved by the visit rules is more than the "
+                                f"{bots.hits if bots else 0:,} bot requests they are part of"))
     people = totals.groups.get(Group.PEOPLE)
     for flag, got in (blob.get("fake_browsers") or {}).items():
         if got["requests"] > (people.hits if people else 0):

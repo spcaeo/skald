@@ -9,12 +9,23 @@
 // shapes is a dot. Only countries with a visit today take the keyboard focus,
 // in the order of their visits; the table beside the map holds the same figures.
 //
-//   const map = worldMap({ onPick });   map.el in the page; map.update(countries)
+//   const map = worldMap({ onPick, onCity });   map.el in the page; map.update(countries, cities)
 //   countries: {CC: {visits, active}}  (realtime.json `countries`)
+//   cities: {"Toronto, Ontario, CA": {visits, active, lat, lon}} (realtime.json `cities`,
+//           only with a city file, logs.city_db)
+//
+// Cities (2.12.0): a dot at each city's own point (its latitude and longitude,
+// placed by project(), the very Equal Earth projection tools/world-map.py drew the
+// shapes with), on top of the country shading. A city with visitors active in the
+// last 30 minutes pings like a country bubble (two staggered rings and a soft
+// blink; a still halo with reduced motion); one with visits today only is a small
+// hollow dot. A country's own bubble then stands only for its active visitors whose
+// city is not recorded. Hover a dot for its figures; select it for the city's
+// detail (dd=city:...). The city list beside the map holds the same figures.
 
 import { h, n, tip, untip, reduced } from "../ui.js";
 import { WORLD } from "../../vendor/world-110m.js";
-import { country } from "./readers.js";
+import { country, countryName, cityCode, cityName } from "./readers.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const STEPS = 5;
@@ -44,11 +55,31 @@ export function binOf(v, list) {
 }
 const rangeWords = ([lo, hi]) => (lo === hi ? n(lo) : `${n(lo)}–${n(hi)}`);
 
-export function worldMap({ onPick, label = "World map of today's visits" } = {}) {
+/* Equal Earth (Šavrič, Patterson, Jenny 2018), as tools/world-map.py has it: the
+   map is 1000 units wide, its top edge 84° N, so project(lon, lat) -> [x, y] lands
+   on the shapes of vendor/world-110m.js. */
+const A1 = 1.340264, A2 = -0.081106, A3 = 0.000893, A4 = 0.003796, M = Math.sqrt(3) / 2;
+function equalEarth(lon, lat) {
+  const lam = (lon * Math.PI) / 180, t = Math.asin(M * Math.sin((lat * Math.PI) / 180));
+  const t2 = t * t, t6 = t2 * t2 * t2;
+  return [(2 * Math.sqrt(3) * lam * Math.cos(t)) / (3 * (A1 + 3 * A2 * t2 + t6 * (7 * A3 + 9 * A4 * t2))),
+    t * (A1 + A2 * t2 + t6 * (A3 + A4 * t2))];
+}
+const X_MAX = equalEarth(180, 0)[0], Y_TOP = equalEarth(0, 84)[1], SCALE = 1000 / (2 * X_MAX);
+export function project(lon, lat) {
+  const [x, y] = equalEarth(lon, lat);
+  return [(x + X_MAX) * SCALE, (Y_TOP - y) * SCALE];
+}
+// The cities a map can place: a known point, not the folded tail.
+export const placed = (cities) => Object.entries(cities || {}).filter(([k, r]) => k !== "(all others)" && Number.isFinite(r?.lat) && Number.isFinite(r?.lon) && r.visits > 0);
+
+export function worldMap({ onPick, onCity, label = "World map of today's visits" } = {}) {
   const box = svg("svg", { viewBox: `0 0 ${WORLD.width} ${WORLD.height}`, class: "rt-svg", role: "group", "aria-label": label });
   const land = svg("g", { class: "rt-land" });
   const bubbles = svg("g", { class: "rt-bubbles", "aria-hidden": "true" });
-  box.append(land, bubbles);
+  // City dots take the pointer (hover and select); the city list is their keyboard road.
+  const towns = svg("g", { class: "rt-cities", "aria-hidden": "true" });
+  box.append(land, bubbles, towns);
   const shapes = new Map();
   for (const [cc, d] of Object.entries(WORLD.paths)) {
     const p = svg("path", { d, "data-cc": cc, class: "rt-c" });
@@ -67,7 +98,7 @@ export function worldMap({ onPick, label = "World map of today's visits" } = {})
 
   const words = (cc) => {
     const row = data[cc] || { visits: 0, active: 0 };
-    return [country(cc), `${n(row.visits)} visit${row.visits === 1 ? "" : "s"} today`, `${n(row.active)} active in the last 30 minutes`];
+    return [`${country(cc)}, ${countryName(cc)}`, `${n(row.visits)} visit${row.visits === 1 ? "" : "s"} today`, `${n(row.active)} active in the last 30 minutes`];
   };
   const show = (cc, x, y) => {
     const [name, v, a] = words(cc);
@@ -85,8 +116,20 @@ export function worldMap({ onPick, label = "World map of today's visits" } = {})
   land.addEventListener("click", (e) => pick(target(e)));
   land.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(target(e)); } });
 
-  function update(countries) {
+  let places = {};
+  towns.addEventListener("pointermove", (e) => {
+    const k = e.target.closest?.("[data-city]")?.dataset.city;
+    if (!k) return untip();
+    const row = places[k] || {};
+    tip(e.clientX, e.clientY, cityName(k), [{ color: "var(--g-people)", value: n(row.visits || 0), label: "visits today" },
+      { color: row.active ? "var(--rt-live)" : null, value: n(row.active || 0), label: "active in the last 30 minutes" }]);
+  });
+  towns.addEventListener("pointerleave", untip);
+  towns.addEventListener("click", (e) => { const k = e.target.closest?.("[data-city]")?.dataset.city; if (k && onCity) { untip(); onCity(k); } });
+
+  function update(countries, cities) {
     data = countries || {};
+    places = cities || {};
     const max = Math.max(0, ...Object.values(data).map((r) => r.visits || 0));
     const list = bins(max);
     const focused = document.activeElement?.closest?.(".rt-land [data-cc]")?.dataset.cc;
@@ -105,25 +148,52 @@ export function worldMap({ onPick, label = "World map of today's visits" } = {})
     // Keyboard order: the most visits first (moving the shape in the group moves its Tab stop).
     Object.entries(data).filter(([cc, r]) => r.visits && shapes.has(cc)).sort((a, b) => b[1].visits - a[1].visits)
       .forEach(([cc]) => land.append(shapes.get(cc)));
-    // Bubbles: area by visitors active now, the largest 14 units across.
+    // Bubbles: area by visitors active now, the largest 14 units across. A country's
+    // active visitors with a city on the map are that city's dot, not its bubble.
     bubbles.replaceChildren();
-    const live = Object.entries(data).filter(([cc, r]) => r.active > 0 && WORLD.points[cc]).sort((a, b) => b[1].active - a[1].active);
-    const top = Math.max(1, ...live.map(([, r]) => r.active));
+    towns.replaceChildren();
+    const dots = placed(places);
+    const inCities = {};
+    for (const [k, r] of dots) { const cc = cityCode(k); if (cc) inCities[cc] = (inCities[cc] || 0) + (r.active || 0); }
+    const live = Object.entries(data).map(([cc, r]) => [cc, { ...r, active: Math.max(0, (r.active || 0) - (inCities[cc] || 0)) }])
+      .filter(([cc, r]) => r.active > 0 && WORLD.points[cc]).sort((a, b) => b[1].active - a[1].active);
+    // With cities on the map, a country's bubble (its visitors with no city) is drawn
+    // on the cities' scale, so one visitor is the same size wherever it is drawn.
+    const top = Math.max(1, ...live.map(([, r]) => r.active), ...dots.map(([, r]) => r.active || 0));
+    const size = (a) => (dots.length ? 2.4 + 5 * Math.sqrt(a / top) : 3 + 11 * Math.sqrt(a / top));
     for (const [cc, r] of live.reverse()) {
       const [x, y] = WORLD.points[cc];
-      const rad = 3 + 11 * Math.sqrt(r.active / top);
+      const rad = size(r.active);
       // Active now: two rings pinging out of the bubble, staggered, and a soft
       // blink on the bubble; with reduced motion, one still halo instead.
       bubbles.append(svg("circle", { cx: x, cy: y, r: rad, class: "rt-ring" }));
       if (!reduced()) bubbles.append(svg("circle", { cx: x, cy: y, r: rad, class: "rt-ring rt-ring2" }));
       bubbles.append(svg("circle", { cx: x, cy: y, r: rad, class: "rt-bub" }));
     }
+    // Cities: the quiet ones first (under), then the active ones, the most active on top.
+    const order = [...dots].sort((a, b) => (a[1].active || 0) - (b[1].active || 0) || a[1].visits - b[1].visits);
+    for (const [k, r] of order) {
+      const [x, y] = project(r.lon, r.lat);
+      const g = svg("g", { class: "rt-town", "data-city": k });
+      if (r.active > 0) {
+        const rad = size(r.active);
+        g.append(svg("circle", { cx: x, cy: y, r: rad, class: "rt-ring" }));
+        if (!reduced()) g.append(svg("circle", { cx: x, cy: y, r: rad, class: "rt-ring rt-ring2" }));
+        g.append(svg("circle", { cx: x, cy: y, r: rad, class: "rt-bub rt-cbub" }));
+      } else {
+        g.append(svg("circle", { cx: x, cy: y, r: 2.6, class: "rt-cdot" }));
+      }
+      // A target larger than the mark, so a small dot is easy to point at.
+      g.append(svg("circle", { cx: x, cy: y, r: 7, class: "rt-hit" }));
+      towns.append(g);
+    }
     if (focused) shapes.get(focused)?.focus();
     legend.replaceChildren(
       h("span", { class: "rt-lg-h" }, "Visits today"),
       ...(list.length ? list.map((b, i) => h("span", { class: "rt-lg-i" }, h("i", { class: `rt-sw s${stepOf(i, list.length)}` }), rangeWords(b)))
         : [h("span", { class: "rt-lg-i" }, h("i", { class: "rt-sw s0" }), "none yet")]),
-      h("span", { class: "rt-lg-i" }, h("i", { class: "rt-sw rt-sw-bub" }), "active in the last 30 minutes (size: how many)"));
+      h("span", { class: "rt-lg-i" }, h("i", { class: "rt-sw rt-sw-bub" }), "active in the last 30 minutes (size: how many)"),
+      dots.length ? h("span", { class: "rt-lg-i" }, h("i", { class: "rt-sw rt-sw-town" }), "a city with visits today") : null);
   }
   update({});
   return { el, update };

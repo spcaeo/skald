@@ -35,7 +35,8 @@ for (const [range, words] of [["today", /^Today/], ["yesterday", /^\w{3} \d+ \w{
   await p.waitForTimeout(400);
   const got = await p.evaluate(() => ({
     period: document.querySelector("#panel .head .period")?.textContent.trim() || "",
-    tiles: [...document.querySelectorAll("#panel .tile")].map((t) => [t.querySelector(".t-l")?.textContent, t.querySelector(".t-v")?.textContent]),
+    // The tiles; Today's are the redesigned figure cards (2.13: .td-k, "vs yesterday at this hour").
+    tiles: [...document.querySelectorAll("#panel .tile, #panel .td-k")].map((t) => [t.querySelector(".t-l, .td-kl")?.textContent, t.querySelector(".t-v, .td-kv")?.textContent]),
     relate: document.querySelector("#panel .relate")?.textContent || "",
     banner: !!document.querySelector("#panel .period-banner"),
     empty: !!document.querySelector("#panel .state"),

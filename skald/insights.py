@@ -28,6 +28,7 @@ from collections import Counter
 from datetime import date, timedelta
 from statistics import median
 
+from . import countries
 from .labels import shown_text
 
 ORDER = {"anomaly": 0, "opportunity": 1, "working": 2, "dropped": 3, "new": 4, "gone": 5}
@@ -42,6 +43,20 @@ SUBJECTS = {
     "campaign": ("campaigns.utm_campaign", "visits", "utm_campaign"),
     "crawler": ("engines", "ai_fetches", "assistant"),
 }
+# The metric keys stay as stored (the data contract); a title says them in plain words.
+WORDS = {"readers": "visitors", "ai_fetches": "AI fetches", "bots": "bot requests",
+         "search": "search crawls", "server_errors": "server errors"}
+
+
+def _words(metric: str) -> str:
+    return WORDS.get(metric, metric.replace("_", " "))
+
+
+def _named(kind: str, name: str) -> str:
+    """A subject as a person reads it: a country by its flag and code."""
+    return countries.label(name) if kind == "country" else name
+
+
 NOT_A_SUBJECT = {"(none)", "(this site)", "(all others)", "Unknown", "(no campaign tag)"}
 
 
@@ -156,17 +171,18 @@ def compare(src: Source, anchor: date, span: int, cfg: dict) -> list[dict]:
             change = _pct(b, a)
             subject = {"kind": kind, "name": name}
             filt = {field: name}
+            said, what_ = _named(kind, name), _words(metric)
             if b >= cfg["min_after"] and a == 0 and kind in ("source", "referrer", "assistant",
                                                              "campaign"):
-                out.append(_insight("gone", f"{name}: no {metric} in the last {span} days "
+                out.append(_insight("gone", f"{said}: no {what_} in the last {span} days "
                                     f"(was {b:,})", metric, subject, b, a,
                                     after[0].isoformat(), period, filt, cfg["min_after"]))
             elif change is not None and a >= cfg["min_after"] and change >= cfg["min_change"]:
-                out.append(_insight("working", f"{name}: {metric} up {change:.0f}% {words} "
+                out.append(_insight("working", f"{said}: {what_} up {change:.0f}% {words} "
                                     f"({b:,} to {a:,})", metric, subject, b, a,
                                     after[0].isoformat(), period, filt, cfg["min_after"]))
             elif change is not None and b >= cfg["min_after"] and change <= -cfg["min_change"]:
-                out.append(_insight("dropped", f"{name}: {metric} down {-change:.0f}% {words} "
+                out.append(_insight("dropped", f"{said}: {what_} down {-change:.0f}% {words} "
                                     f"({b:,} to {a:,})", metric, subject, b, a,
                                     after[0].isoformat(), period, filt, cfg["min_after"]))
     return out
@@ -194,7 +210,8 @@ def new_things(src: Source, day: date, first_day: date, cfg: dict,
         for name, n in Counter(got or {}).items():
             if name in NOT_A_SUBJECT or name in seen[kind] or n < cfg["min_new"]:
                 continue
-            out.append(_insight("new", f"New {kind}: {name} ({n:,} {metric})", metric,
+            title = f"New {kind}: {_named(kind, name)} ({n:,} {_words(metric)})"
+            out.append(_insight("new", title, metric,
                                 {"kind": kind, "name": name}, None, int(n), day.isoformat(),
                                 ([day.isoformat(), day.isoformat()], None), {field: name},
                                 cfg["min_new"]))
@@ -222,7 +239,8 @@ def anomalies(src: Source, day: date, cfg: dict) -> list[dict]:
         mad = median(abs(v - med) for v in base) * 1.4826 or 1.0
         if abs(x - med) >= max(cfg["min_after"], 3 * mad):
             word = "spike" if x > med else "drop"
-            out.append(_insight("anomaly", f"{metric.replace('_', ' ')}: {word} on {day:%a %d %b}, "
+            said = _words(metric).capitalize()
+            out.append(_insight("anomaly", f"{said}: {word} on {day:%a %d %b}, "
                                 f"{x:,} against a usual {med:,.0f}", metric,
                                 {"kind": "site", "name": metric}, round(med, 1), x,
                                 day.isoformat(), ([day.isoformat()] * 2,

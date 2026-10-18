@@ -11,7 +11,7 @@
 // Run once signed in as an admin and once as a viewer: their buttons differ.
 //
 //   PLAYWRIGHT=/path/to/node_modules/playwright/index.mjs \
-//   node tests/e2e/topbar.mjs https://host/traffic/<site>/ [user:password]
+//   node tests/e2e/topbar.mjs https://host/traffic/<site>/ [user:password]   (basic auth, or a sessions sign-in)
 //
 // Works on the demo too: python3 tools/demo.py OUT, serve OUT, pass .../traffic/example.com/
 
@@ -36,6 +36,14 @@ for (const scheme of ["light", "dark"]) {
   let where = "";
   p.on("pageerror", (e) => fail(`${where}: ${e.message}`));
   await p.goto(`${base}#overview/summary`, { waitUntil: "networkidle" });
+  // A sessions install sends the browser to its sign-in page: sign in there (as switcher.mjs does).
+  if (p.url().includes("/traffic-auth/login") && auth) {
+    await p.fill("#email", auth.split(":")[0]);
+    await p.fill("#password", auth.split(":").slice(1).join(":"));
+    await p.click("#submit");
+    await p.waitForURL((u) => !u.pathname.startsWith("/traffic-auth/"));
+    await p.goto(`${base}#overview/summary`, { waitUntil: "networkidle" });
+  }
   const tabs = await p.evaluate(async () => (await import(new URL("../_app/js/state.js", location.href).href)).TABS.map(([k]) => k));
   for (const w of WIDTHS) {
     await p.setViewportSize({ width: w, height: 900 });
@@ -62,9 +70,11 @@ for (const scheme of ["light", "dark"]) {
         const ind = seg?.querySelector(".seg-ind"), on = seg?.querySelector('[aria-pressed="true"]');
         const pill = ind && on ? [r(ind).left - r(on).left, r(ind).width - r(on).width] : null;
         const live = row.querySelector(".bar-modes .mode-live"), cmp = row.querySelector(".bar-modes .mode-cmp");
-        return { over, out, pill, figures: !!mid.children.length, live: live && live.getAttribute("aria-checked"), cmp: cmp && cmp.getAttribute("aria-pressed"),
+        // A page without figures keeps at most its own period chip there (2.13), never the modes.
+        return { over, out, pill, figures: !!mid.querySelector(".bar-modes, .seg"), live: live && live.getAttribute("aria-checked"), cmp: cmp && cmp.getAttribute("aria-pressed"),
           today: !!seg && [...seg.querySelectorAll("button")].some((x) => x.textContent === "Today"),
-          range: new URLSearchParams(location.hash.split("?")[1] || "").get("range") || "" };
+          // Today is the default period (2.10.1): the address leaves range=today out.
+          range: new URLSearchParams(location.hash.split("?")[1] || "").get("range") || "today" };
       });
       checked++;
       if (got.none) continue;

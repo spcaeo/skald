@@ -58,6 +58,42 @@ def today_block(db, site: str, tz, today: date, held: set) -> dict:
             "tests": sum(1 for r in found if r["test"]), "rows": rows}
 
 
+def by_now(db, site: str, tz, today: date, now, held: set, since: str | None) -> dict:
+    """conversions.json `today.by_now`: yesterday's leads from midnight to
+    `now`'s local time of day, and both days' leads by local hour (today's
+    whole so far, yesterday's to that time). A lead: a finished row of the
+    lead actions, test rows left out - the days' own rule. Yesterday held
+    or before `since` carries no figures: "withheld" or "not_recorded"."""
+    from .conversions.store import parse, stamp
+    from datetime import datetime, time as dtime
+    yday = today - timedelta(days=1)
+    t = now.astimezone(tz)
+    cut = datetime(yday.year, yday.month, yday.day, t.hour, t.minute, t.second, tzinfo=tz)
+    out = {"day": yday.isoformat(), "until": cut.isoformat(timespec="seconds"),
+           "state": "ok", "leads": None, "hours": None, "today_hours": None}
+
+    def hours(lo, hi) -> list[int]:
+        got = [0] * 24
+        for (at,) in db.execute("SELECT at FROM conversions WHERE site = ? AND at >= ? AND at < ? "
+                                "AND test = 0 AND action IN (%s) AND stage IN (%s)" % (
+                                    ",".join("?" * len(LEAD_ACTIONS)), ",".join("?" * len(FINISHED))),
+                                (site, lo, hi, *LEAD_ACTIONS, *FINISHED)):
+            got[parse(at).astimezone(tz).hour] += 1
+        return got
+
+    start = lambda d: stamp(datetime.combine(d, dtime(0), tzinfo=tz))   # noqa: E731
+    if today.isoformat() not in held and (since is None or today.isoformat() >= since):
+        out["today_hours"] = hours(start(today), start(today + timedelta(days=1)))
+    if yday.isoformat() in held:
+        out["state"] = "withheld"
+    elif since is None or yday.isoformat() < since:
+        out["state"] = "not_recorded"
+    else:
+        out["hours"] = hours(start(yday), stamp(cut))
+        out["leads"] = sum(out["hours"])
+    return out
+
+
 # ---------------------------------------------------------- insights
 
 def day_leads(day: dict) -> int:
@@ -212,3 +248,55 @@ def add_to(found: dict, blob: dict | None, anchor: date, config: dict, path, sit
         ORDER[i["type"]], -abs((i["after"] or 0) - (i["before"] or 0)), i["title"]))
     out["leads_withheld"] = held
     return out
+
+
+# ------------------------------------------- a period, for the mails
+
+ACTION_WORDS = {"demo": "Demos booked", "contact": "Contact forms", "signup": "Sign-ups",
+                "waitlist": "Early access", "trial": "Trials"}
+LEAD_RULE = ("Leads: forms sent (contact, sign-up, early access, trial) and demos booked, "
+             "completed, as on the dashboard's Leads tile; test rows left out.")
+
+
+def store_of(config: dict, history):
+    """The conversions file beside `history`'s file (or conversions.db), when it exists."""
+    from pathlib import Path
+    from .conversions import store
+    where = getattr(history, "path", None)
+    folder = Path(where).parent if where and str(where) != ":memory:" else None
+    path = store.path_for(config, folder)
+    return path if path is not None and Path(path).is_file() else None
+
+
+def period_leads(config: dict, history, site: str, tz, first: date, last: date) -> dict | None:
+    """The dashboard's leads (Overview's Leads tile, js/tabs/leadfigs.js) over
+    first..last, for the daily and weekly mails and the client reports, so no
+    reader sees two "Leads" for one period: finished rows of LEAD_ACTIONS,
+    test rows left out.
+
+    None: the site records no conversions. {"state": "not_recorded", "since"}:
+    the period starts before conversions were recorded (never a partial sum).
+    Else {"state": "ok", "total", "demos", "by_action": {action: n}}, summed by
+    day from conversions_data.figures (the Conversions tab's own rows).
+    audit_client_reports.recount_leads counts the same by its own SQL."""
+    from . import conversions_data as cd
+    from .conversions import store
+    path = store_of(config, history)
+    if path is None:
+        return None
+    db = store.connect(path)
+    try:
+        since = cd.recorded_since(config, db, site, tz)
+        if since is None or first.isoformat() < since:
+            return {"state": "not_recorded", "since": since}
+        per = cd.figures(db, site, tz, first, last, store.stamp(), 0)
+    finally:
+        db.close()
+    by: Counter = Counter()
+    for day in per.values():
+        for action, stages in (day.get("stages") or {}).items():
+            if action in LEAD_ACTIONS:
+                by[action] += sum(n for st, n in stages.items() if st in FINISHED)
+    by = Counter({k: v for k, v in by.items() if v})
+    return {"state": "ok", "total": sum(by.values()),
+            "demos": sum(n for a, n in by.items() if a in DEMO_ACTIONS), "by_action": dict(by)}

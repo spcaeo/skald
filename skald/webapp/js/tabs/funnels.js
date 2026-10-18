@@ -17,7 +17,8 @@ import { call, installOnly, INSTALL_ONLY } from "./ipmanager.js";
 import { isViewer, VIEWER } from "../access.js";
 // Saved funnels are shared by every site of the install: with accounts only an install admin saves them.
 const lockWhy = () => (isViewer() ? VIEWER : INSTALL_ONLY);
-import { eventLabel } from "./events.js";
+import { eventLabel, everSent, howToSend } from "./events.js";
+import { neverRecorded } from "../notset.js";
 import { history } from "./funnelhistory.js";
 import { howTo } from "./help.js";
 import { funnelFlowOf, check } from "../flow.js";
@@ -198,30 +199,59 @@ function savedRow(m, s, fn) {
 }
 
 // ------------------------------------------------------------- the results
-function chart(steps, counts, s, lead, labels, evCounts) {
+/* A step that relies on something the site never sends: an event never sent, or a
+   lead kind the lead store has never recorded. Its words say so, never 0. */
+export function unsentStep(m, x) {
+  if (x.kind === "event") {
+    const off = x.events.filter((e) => !everSent(m.x.events, e));
+    return off.length === x.events.length ? `Not set up: ${off.map((e) => eventLabel(m.x.events, e)).join(" or ")} never sent. ${howToSend(off[0])}` : null;
+  }
+  if (x.kind === "lead") {
+    const f = m.x.leads;
+    if (!f || f.available === false) return null;
+    const never = neverRecorded(f);
+    if (!x.types.every((t) => never.has(t))) return null;
+    const demo = x.types.some((t) => t.startsWith("demo_"));
+    return `Not set up: the lead store has never recorded ${x.types.map((t) => LEAD[t].toLowerCase()).join(" or ")}${f.since ? ` (read since ${short(f.since)})` : ""}.${demo ? " Demo bookings are counted from the booking tool, on Leads & sales › Bookings." : ""}`;
+  }
+  return null;
+}
+
+/* The bars: page steps are visits, as a share of the visits at step 1. Lead and
+   event steps are other systems with other units: each group is drawn apart, under
+   its own heading, on its own scale (the longest bar of the group), never as a
+   share of visits. */
+function chart(m, steps, counts, s, lead, labels, evCounts) {
   const start = counts[0] || 0;
   const name = (x, i) => labels?.[i] || stepName(x);
-  // Lead steps are another system: drawn against the largest lead step, never as a share of visits.
   const leadTop = Math.max(0, ...steps.map((x, i) => (x.kind === "lead" ? lead?.[i]?.n || 0 : 0)));
   const evTop = Math.max(0, ...steps.map((x, i) => (x.kind === "event" ? evCounts[i] || 0 : 0)));
   const open = Number(s.fstep) || 0;
   let prevPath = null;
-  return h("ol", { class: "fn-chart", "aria-label": "Visits at each step" }, steps.map((x, i) => {
+  const scaleNote = (kind) => (kind === "lead"
+    ? h("p", { class: "fn-scale" }, h("b", null, "Lead store steps, on their own scale"), ` (the longest bar is ${n(leadTop)} lead${leadTop === 1 ? "" : "s"}). Leads by first-touch source: not a share of the visits above, never joined to them.`)
+    : h("p", { class: "fn-scale" }, h("b", null, "Beacon steps, on their own scale"), ` (the longest bar is ${n(evTop)} event${evTop === 1 ? "" : "s"}). Events on the same days: not a share of the visits above, never joined to them.`));
+  return h("ol", { class: "fn-chart", "aria-label": "Visits at each step" },
+    steps.some((x) => x.kind === "path") ? h("li", { class: "fn-scale-li" }, h("p", { class: "fn-scale first" }, h("b", null, "Page steps: visits"), `, each bar a share of the ${n(start)} visit${start === 1 ? "" : "s"} at step 1.`)) : null,
+    steps.map((x, i) => {
+    const unsent = x.kind === "path" ? null : unsentStep(m, x);
     if (x.kind === "event") {
-      const v = evCounts[i];
+      const v = unsent ? null : evCounts[i];
       const first = !steps.slice(0, i).some((y) => y.kind === "event");
-      return h("li", null, first ? h("p", { class: "fn-sep" }, "From the beacon: events on the same days, counted as events beside the visits, never joined to them") : null, h("div", { class: "fn-bar static" },
+      return h("li", null, first ? scaleNote("event") : null, h("div", { class: "fn-bar static" },
         h("span", { class: "fn-l" }, h("b", null, `${i + 1}`), h("span", { class: "any" }, name(x, i))),
         h("span", { class: "fn-track ev" }, h("i", { style: { width: v && evTop ? `${Math.max(1.5, (v / evTop) * 100)}%` : "0%" } })),
-        h("span", { class: "fn-v" }, h("b", null, v == null ? "-" : n(v)), h("small", null, v == null ? "not split by this source" : "events"))));
+        h("span", { class: "fn-v" }, h("b", null, unsent ? "Not set up" : v == null ? "-" : n(v)), h("small", null, unsent ? "never sent" : v == null ? "not split by this source" : "events"))),
+        unsent ? h("p", { class: "fn-unsent" }, unsent) : null);
     }
     if (x.kind === "lead") {
-      const v = lead?.[i]?.n;
+      const v = unsent ? null : lead?.[i]?.n;
       const first = !steps.slice(0, i).some((y) => y.kind === "lead");
-      return h("li", null, first ? h("p", { class: "fn-sep" }, "From the lead store: leads by the first-touch source, beside the visits, never joined to them") : null, h("div", { class: "fn-bar static" },
+      return h("li", null, first ? scaleNote("lead") : null, h("div", { class: "fn-bar static" },
         h("span", { class: "fn-l" }, h("b", null, `${i + 1}`), h("span", { class: "any" }, name(x, i))),
         h("span", { class: "fn-track lead" }, h("i", { style: { width: v && leadTop ? `${Math.max(1.5, (v / leadTop) * 100)}%` : "0%" } })),
-        h("span", { class: "fn-v" }, h("b", null, v == null ? "-" : n(v)), h("small", null, v == null ? "counted once saved" : "leads, lead store"))));
+        h("span", { class: "fn-v" }, h("b", null, unsent ? "Not set up" : v == null ? "-" : n(v)), h("small", null, unsent ? "never recorded" : v == null ? "counted once saved" : "leads, lead store"))),
+        unsent ? h("p", { class: "fn-unsent" }, unsent) : null);
     }
     const v = counts[i], prev = prevPath;
     prevPath = v;
@@ -310,7 +340,11 @@ export default function funnels(m, s) {
   const inRange = r.kind === "today" ? (j) => j.day === m.today : (j) => j.day >= r.first && j.day <= r.last;
   const kept = m.journeys.filter(inRange);
   const days = [...new Set(kept.map((j) => j.day))].sort();
-  const covers = days.length ? `${days.length === 1 ? short(days[0]) : `${short(days[0])} to ${short(days[days.length - 1])}`}, the days journeys are kept` : "no journeys kept for this range";
+  // The period above reaches only as far back as the journeys kept: a longer one is said, never silently cut.
+  const span = days.length ? (days.length === 1 ? short(days[0]) : `${short(days[0])} to ${short(days[days.length - 1])}`) : "";
+  const covers = !days.length ? "no journeys kept for this range"
+    : r.kind === "history" && r.length > days.length ? `Visits: ${span} only, the days journeys are kept (${m.journey_days || 7}); the period above is longer`
+      : `${span}, the days journeys are kept`;
   const out = [...head("Funnels", r, `How many visits went through these pages in order, and where the rest left. The page that met one step may also meet the next, so Any page then /pricing/ counts a visit that landed on pricing. Built from each visit's pages in order, kept ${m.journey_days || 7} days. A saved funnel may end with steps from the lead store, counted by the lead's first-touch source and never joined to a visit.`, { period: covers, banner: false })];
   out.push(savedRow(m, s, fn), builder(m, s, steps));
   const match = saved.find((x) => x.fn === fn && (x.fsrc || "") === (s.fsrc || "") && x.result);
@@ -330,9 +364,9 @@ export default function funnels(m, s) {
   const lastPath = counts.filter((c) => c != null).pop() ?? 0, start = counts[0] ?? 0;
   out.push(h("section", { class: "s" }, h("div", { class: "card-h start" }, h("h2", null, `${n(lastPath)} of ${n(start)} visits went through every page step`),
     h("span", { class: "tbl-count" }, start ? `${((lastPath / start) * 100).toFixed(start >= 100 ? 1 : 0)}%` : "")),
-    h("div", { class: "sheet" }, chart(steps, counts, s, lead, match?.labels, eventCounts(m, steps, days, s.fsrc))),
-    h("p", { class: "note" }, `Click a page step for its visits. Out of ${n(list.length)} visit${list.length === 1 ? "" : "s"} from ${s.fsrc || "any source"}${S.activeFilters(s).length ? " that match the filters" : ""}.`,
-      steps.some((x) => x.kind === "lead") ? ` The lead steps cover ${match ? `${short(match.result.first)} to ${short(match.result.last)}` : "the days of the last save"}, by first-touch source.` : "",
+    h("div", { class: "sheet" }, chart(m, steps, counts, s, lead, match?.labels, eventCounts(m, steps, days, s.fsrc))),
+    h("p", { class: "note" }, `Click a page step for its visits. Out of ${n(list.length)} visit${list.length === 1 ? "" : "s"} from ${s.fsrc || "any source"}${S.activeFilters(s).length || s.rules ? " that match the filters" : ""}.`,
+      steps.some((x) => x.kind === "lead") ? ` The lead steps cover ${match ? `${short(match.result.first)} to ${short(match.result.last)}` : "the days of the last save"}, by first-touch source${match && (match.result.first !== days[0] || match.result.last !== days[days.length - 1]) ? `: their own period (the last save's), not the visits' ${span}` : ""}.` : "",
       match?.long?.first_step != null ? ` Over ${match.long.days} days, ${n(match.long.first_step)} visits met the first step.` : "")));
   if (pathSteps.length >= 2) out.push(flowBetween(list, steps, s, match?.labels));
   const opened = Number(s.fstep);

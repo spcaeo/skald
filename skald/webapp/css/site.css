@@ -6,6 +6,12 @@
 .si-more:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
 .si-also { margin-top: 18px; }
 
+/* Health's tiles: a label that wraps keeps its (i) beside its last word, and every label
+   takes two lines' room, so the figures of a row line up (2.13, the UX check). */
+.si-kpis .kpi .k-l { display: block; min-height: calc(2 * 1.35em); line-height: 1.35; text-wrap: balance; }
+.si-kpis .kpi .k-l .info-i { vertical-align: -2px; margin-left: 4px; }
+@media (max-width: 767px) { .si-kpis .kpi .k-l { min-height: 0; } }
+
 /* Health: responses by status, one meter per group. */
 .si-status { display: grid; gap: 12px; }
 .si-status-h { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; margin-bottom: 4px; }
@@ -48,3 +54,8 @@ section.s > .sheet:has(> .si-outages) { margin-top: 14px; }
 /* Data quality by day: the reasons get room, so a day's row stays one or two lines */
 td.q-why, th.q-why { min-width: 320px; }
 .gaps, td.q-day { white-space: nowrap; }
+/* Why days are not all good, on the page (quality.js reasons) */
+.q-why-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 4px; font-size: 13px; color: var(--ink-2); }
+.q-why-list .q-tag { margin-right: 4px; }
+/* Page speed not set up yet (speed.js) */
+.sp-setup { margin-bottom: 14px; }

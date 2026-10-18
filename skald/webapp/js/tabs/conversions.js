@@ -12,6 +12,7 @@
 import { h, n, short, pct1, reduced, ICON } from "../ui.js";
 import { shown } from "../labels.js";
 import { rangeOf } from "../data.js";
+import { stamp } from "../tz.js";
 import { head, rangeWords, fixed } from "./common.js";
 import { table } from "../table.js";
 import { howTo } from "./help.js";
@@ -98,7 +99,7 @@ function actions(t, f, min) {
       csv: (e) => (e.started >= min ? (Math.min(e.done, e.started) / e.started).toFixed(4) : "") },
     { key: "cancelled", label: "Cancelled or no-show", num: true }, { key: "won", label: "Won", num: true }, { key: "lost", label: "Lost", num: true }];
   return [h("div", { class: "sheet" }, table(cols, { caption: "Every action side by side", rows, file: "conversions-by-action.csv", search: false, limit: 12, sortKey: "done" })),
-    h("p", { class: "note" }, `Completed counts completed and paid. Abandoned: started with a visitor ID and not completed by the same browser within ${f.abandon_hours || 24} hours (a start still inside that window is not counted yet; a start without a visitor ID cannot be judged). A rate is given over at least ${min} starts. Starts are seen only by the script tag; an action only a tool reports has none.`)];
+    h("p", { class: "note" }, `Completed counts completed and paid. Abandoned: started with a visitor ID and not completed by the same browser within ${f.abandon_hours || 24} hours (a start still inside that window is not counted yet; a start without a visitor ID cannot be judged). A rate is given over at least ${min} starts. Starts are seen only by the script tag; an action only a tool reports has none. A browser's repeat of the same start within ${f.repeat_minutes || 30} minutes is kept once, so Started can be lower than Events' count of the same event, which counts every one.`)];
 }
 
 // The demo funnel: opened, time chosen (the page's own event, from events.json), booked, then what happened to the booking.
@@ -122,12 +123,25 @@ function demoFunnel(m, t, days) {
 }
 
 // One breakdown of the completed conversions: a row per label, a column per action.
+// A breakdown whose every completed row is "Unknown" (or that has none) says nothing:
+// it joins one line naming every such breakdown instead of a card of its own.
+function unrecorded(dim, t, acts) {
+  const per = t.by[dim] || {};
+  return acts.every((a) => Object.entries(per[a] || {}).every(([k, v]) => !v || k === "Unknown"));
+}
+function unrecordedNote(dims) {
+  if (!dims.length) return null;
+  const names = dims.map((d) => DIM[d].toLowerCase());
+  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return h("p", { class: "bk-none" }, h("b", null, "Not recorded for these: "), `${list}. The tool that reported them (a booking or payment webhook) does not carry ${names.length === 1 ? "it" : "them"}; the page's script tag on the booking page adds the visit's source, landing page, country and device.`);
+}
+
 function breakdown(dim, t, acts) {
   const per = t.by[dim] || {};
   const labels = new Map();
   for (const a of acts) for (const [k, v] of Object.entries(per[a] || {})) labels.set(k, (labels.get(k) || 0) + v);
   const rows = [...labels.entries()].map(([k, all]) => ({ k, all, ...Object.fromEntries(acts.map((a) => [a, per[a]?.[k] || 0])) }));
-  const cols = [{ key: "k", label: DIM[dim], fmt: dim === "tool" ? toolName : dim === "country" ? (v) => valueLabel("country", v, v) : undefined, path: dim === "landing" }, { key: "all", label: "All", num: true },
+  const cols = [{ key: "k", label: DIM[dim], fmt: dim === "tool" ? toolName : dim === "country" ? (v) => valueLabel("country", v, v) : undefined, country: dim === "country" ? (r) => r.k : undefined, path: dim === "landing" }, { key: "all", label: "All", num: true },
     ...acts.slice(0, 4).map((a) => ({ key: a, label: actionName(a), num: true }))];
   return h("div", { class: "sheet" }, h("h3", null, `By ${DIM[dim].toLowerCase()}`),
     table(cols, { caption: `Completed conversions by ${DIM[dim].toLowerCase()}`, rows, file: `conversions-by-${dim}.csv`, search: false, limit: 8, sortKey: "all", empty: "None in this range." }));
@@ -187,8 +201,8 @@ function pages(f, min) {
     { caption: "Pages seen before converting", rows, file: "conversions-pages-before.csv", search: true, limit: 12, sortKey: "c", empty: "No converting browser had a journey in this period." })));
 }
 
-const dayLabel = (iso) => (iso ? short(iso.slice(0, 10)) : "");
-const timeOf = (iso) => (iso ? iso.slice(11, 16) : "");
+// A moment in the one date family (tz.js): "7 Oct 16:05 EDT", in the chosen zone.
+const at = (iso) => (iso ? stamp(iso) : "");
 function timeline(f) {
   const list = f.timeline || [];
   const period = f.period ? `${short(f.period.first)} to ${short(f.period.last)}` : "the last 30 days";
@@ -199,11 +213,11 @@ function timeline(f) {
       const k = first ? Math.round((Date.parse(`${v.day}T00:00:00Z`) - Date.parse(`${first}T00:00:00Z`)) / 864e5) + 1 : 1;
       return h("li", null, h("strong", null, `Day ${k} (${short(v.day)}), ${shown(v.source) || "source not recorded"}: `), (v.paths || []).join(", "));
     });
-    const steps = (x.steps || []).map((s) => `${actionName(s.action).replace(/s$/, "")} ${STAGE[s.stage] || s.stage} ${dayLabel(s.at)} ${timeOf(s.at)}`);
+    const steps = (x.steps || []).map((s) => `${actionName(s.action).replace(/s$/, "")} ${STAGE[s.stage] || s.stage} ${at(s.at)}`);
     const facts = [x.first_source ? `first came from ${x.first_source}` : "", x.source ? `converted from ${x.source}` : "", x.landing ? `landed on ${x.landing}` : "",
       x.country ? withFlag(x.country) : "", x.device ? x.device : "", x.visits_before != null ? `${n(x.visits_before)} visits before` : ""].filter(Boolean).join(" · ");
     return h("li", { class: "conv-tl-item" },
-      h("p", null, h("strong", null, `${actionName(x.action)}, ${dayLabel(x.at)} ${timeOf(x.at)}`), ` via ${toolName(x.tool)}${x.browser ? ", one browser" : ""}`),
+      h("p", null, h("strong", null, `${actionName(x.action)}, ${at(x.at)}`), ` via ${toolName(x.tool)}${x.browser ? ", one browser" : ""}`),
       facts ? h("p", { class: "note" }, facts) : null,
       visits.length ? h("ul", { class: "conv-tl-visits" }, visits) : x.browser ? null : h("p", { class: "note" }, "No journey: this conversion carries no visitor ID."),
       h("p", { class: "conv-tl-steps" }, steps.join(" → ")));
@@ -234,8 +248,10 @@ export default function conversions(m, s) {
     const demo = demoFunnel(m, t, ok);
     if (demo) out.push(h("section", { class: "s" }, h("h2", null, "Demo funnel"), demo));
     if (acts.length) {
+      const dims = (f.dims || Object.keys(DIM)).filter((d) => DIM[d]);
+      const blank = dims.filter((d) => d !== "tool" && unrecorded(d, t, acts));
       out.push(h("section", { class: "s" }, h("h2", null, "Where the completed ones came from"),
-        h("div", { class: "cols tops" }, ...(f.dims || Object.keys(DIM)).filter((d) => DIM[d]).map((d) => breakdown(d, t, acts)))));
+        h("div", { class: "cols tops" }, ...dims.filter((d) => !blank.includes(d)).map((d) => breakdown(d, t, acts))), unrecordedNote(blank)));
       out.push(h("section", { class: "s" }, h("h2", null, "First, last and assisted touch"), touches(t, acts)));
       out.push(conversionsLikely(ok, acts, f));
       out.push(h("section", { class: "s" }, h("h2", null, "Time to convert"), timing(t, min)));

@@ -189,8 +189,10 @@ class ConversionsSchema4(unittest.TestCase):
             db.close()
             db = store.connect(path)
             try:
-                self.assertEqual(store.schema_version(db), 4)
+                self.assertEqual(store.schema_version(db), store.SCHEMA_VERSION)
                 cols = {r[1] for r in db.execute("PRAGMA table_info(conversions)")}
+                # Schema 5: each kept visit's city (logs.city_db).
+                self.assertIn("city", {r[1] for r in db.execute("PRAGMA table_info(visits)")})
                 self.assertIn("test", cols)
                 have = {r[0] for r in db.execute("SELECT name FROM sqlite_master")}
                 self.assertTrue({"visits", "visit_days", "removed"} <= have)

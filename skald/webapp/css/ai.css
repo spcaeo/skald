@@ -16,3 +16,25 @@
 .ai-llms-say { padding: 8px 12px 0; margin: 0; }
 .ai-llms-say:last-child { padding-bottom: 10px; }
 .ai-lede { margin: 0 0 14px; max-width: 75ch; }
+/* AI & bots > Crawl health (js/tabs/crawlhealth.js) */
+.ch-sitemap { margin: 0 0 12px; }
+.ch-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 14px; }
+.ch-bar .muted { font-size: 13px; }
+.ch-empty { margin: 0 0 14px; }
+.ch-empty ol { margin: 8px 0; padding-left: 20px; }
+.ch-empty li { margin: 4px 0; }
+.ch-prob + .ch-prob { margin-top: 22px; }
+.ch-prob h3 { margin: 0 0 2px; }
+.ch-prob .sub { margin: 0 0 8px; }
+.ch-tab .card-h { flex-wrap: wrap; gap: 8px 10px; }
+/* On a phone every cell keeps one line: the table scrolls sideways instead of breaking paths. */
+@media (max-width: 767px) {
+  .ch-tab .scroll :is(th, td) { white-space: nowrap; }
+  .ch-tab .scroll td:first-child { min-width: 44vw; }
+}
+
+/* What they fetch: the by-name table under its own heading (ai-parts.js formatsSection). */
+.ai-sub-h { margin: 22px 0 8px; font-size: 14px; }
+
+/* Crawl health: the kind and the last crawl keep one line at 1440 (table.js cls). */
+.ch-tab :is(th, td).nowrap { white-space: nowrap; }

@@ -5,8 +5,16 @@
 
 import { h, n, short } from "../ui.js";
 import { time as tzTime } from "../tz.js";
+import { heartbeatOn } from "../notset.js";
+
+// A heartbeat never seen is "not set up" (notset.js heartbeatOn): no 0%, no outages.
+export { heartbeatOn };
 
 function heartbeat(f, r) {
+  if (!heartbeatOn(f)) {
+    return h("div", { class: "sheet up-card off" }, h("h3", null, "Our heartbeat"), h("p", { class: "sub" }, "The server asks for its own page every 5 minutes"),
+      h("p", { class: "up-off" }, h("b", null, "Heartbeat not set up. "), "No heartbeat has reached the log yet, so there is no uptime figure and no outage list. To set it up: a cron line on the server asks for one small page of your site every 5 minutes with the heartbeat's own user agent, and the config labels that agent as the heartbeat (DEPLOY.md, the heartbeat line)."));
+  }
   const days = (f?.days || []).filter((d) => d.day >= r.first && d.day <= r.last && d.heartbeat);
   if (r.kind === "today" && f?.today?.heartbeat) days.push(f.today);
   const exp = days.reduce((a, d) => a + (d.heartbeat.expected || 0), 0), ok = days.reduce((a, d) => a + (d.heartbeat.ok || 0), 0);
@@ -18,7 +26,7 @@ function heartbeat(f, r) {
 
 function outside(o, r) {
   const head = [h("h3", null, "Outside check"), h("p", { class: "sub" }, "From another server, as a visitor would see it")];
-  if (!o || o.enabled === false) return h("div", { class: "sheet up-card off" }, head, h("p", { class: "up-off" }, "Not set up. An outside check runs from a second server and posts its result here; see docs/HOSTING.md."));
+  if (!o || o.enabled === false) return h("div", { class: "sheet up-card off" }, head, h("p", { class: "up-off" }, "Not set up. An outside check runs from a second server and posts its result here; your server admin can set it up."));
   if (!o.last) return h("div", { class: "sheet up-card" }, head, h("p", { class: "empty" }, "Set up; no check has run yet."));
   const days = (o.days || []).filter((d) => r.kind === "today" ? true : d.day >= r.first && d.day <= r.last);
   const checks = days.reduce((a, d) => a + (d.checks || 0), 0), ok = days.reduce((a, d) => a + (d.ok || 0), 0);

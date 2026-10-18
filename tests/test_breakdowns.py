@@ -129,7 +129,7 @@ class TestLabels(unittest.TestCase):
         self.assertEqual(dim.campaign("/pricing/"), dim.NO_CAMPAIGN)
 
     def test_country_labels(self):
-        self.assertEqual(countries.label("CA"), "\U0001F1E8\U0001F1E6 Canada")
+        self.assertEqual(countries.label("CA"), "\U0001F1E8\U0001F1E6 CAN")
         self.assertEqual(countries.label("Unknown"), "Not recorded")
         self.assertEqual(countries.label(""), "Not recorded")
         self.assertEqual(countries.label(dim.OTHER), dim.OTHER)
@@ -286,7 +286,7 @@ class TestDashboardAndLive(unittest.TestCase):
         self.assertEqual(self.box.run("--today", "2026-10-06", "collect")[0], 0)
         self.assertEqual(self.box.run("--today", "2026-10-06", "dashboard")[0], 0)
         page = (self.box.root / "www" / "example.com" / "index.html").read_text()
-        for words in ("Who the readers were", "Countries (", "\U0001F1E8\U0001F1E6 Canada",
+        for words in ("Who the readers were", "Countries (", "\U0001F1E8\U0001F1E6 CAN",
                       "Devices (", "Browsers (", "Operating systems (", "Traffic sources (",
                       "Referring sites (", "Campaigns (", "Landing pages (", "Hour of day (",
                       "Site health", "Responses by status", "Pages not found, seen by real people",

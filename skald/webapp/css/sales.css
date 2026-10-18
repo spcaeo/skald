@@ -54,3 +54,15 @@
   /* the notes under the row say what the page counts from and what it narrows */
   .sa-opts, .sa-find { display: none; }
 }
+
+/* Something the site never sends (a lead kind, an event, a funnel step): "Not set up" and
+   how to send it, never 0 (leads.js notSent, events.js, funnels.js). */
+.kpi.not-set .k-v, .ev-t.not-set b, .ev-step .not-set { font-size: 15px; font-weight: 600; color: var(--ink-3); }
+.ev-t.not-set small, .ev-step small.how { white-space: normal; line-height: 1.35; font-weight: 400; color: var(--ink-3); }
+.ev-t.not-set code, .ev-step code, .fn-unsent code { font-size: 11.5px; }
+.fn-unsent { margin: 2px 10px 6px; font-size: 12px; color: var(--ink-3); }
+/* Funnels: each kind of step on its own scale, said above its bars (funnels.js chart). */
+.fn-scale { margin: 12px 10px 4px; padding-top: 10px; border-top: 1px dashed var(--gap); font-size: 12.5px; color: var(--ink-2); }
+.fn-scale.first { margin-top: 0; padding-top: 0; border-top: 0; }
+.fn-scale b { color: var(--ink); }
+.bk-none { margin: 0; padding: 12px 14px; font-size: 13px; color: var(--ink-2); background: var(--surface); border: 1px dashed var(--rule); border-radius: 10px; }

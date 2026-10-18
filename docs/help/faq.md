@@ -93,6 +93,7 @@ On [Leads & sales > Pipeline](#sales/pipeline): leads per day by kind, at which 
 
 ## How do I get data out?
 
+- **Export what you see** above any table: its matching rows, in their order, with the columns shown, as a CSV.
 - **Export** in the top bar: every table on the tab as CSV files in a ZIP, the tab as JSON, a printable report, or the report builder for several tabs at once.
 - **API**: every figure as JSON, for a script. Tokens are made in **Settings > Team & access > API & tokens**. See [API](api.md).
 - **MCP**: let an AI assistant read your figures. See [MCP](mcp.md).
@@ -107,11 +108,11 @@ Send the address or the email address to the person who runs your Skald server. 
 
 ## Why are my filters greyed out?
 
-The log keeps each breakdown on its own, so some tabs cannot apply some filters, and filters cannot be crossed (for example, Canada AND Chrome). A greyed-out filter chip is one the tab cannot apply. The tab says which.
+The log keeps each breakdown on its own, so the counted tabs apply one value per breakdown and cannot cross them (for example, Canada AND Chrome). Rules over single visits (several values, OR, groups, pages read, time on site, first came from) apply in full on Traffic > Visitors and Leads & sales > Funnels, and a crawler rule on Site > Requests. A greyed-out chip is one the tab cannot apply; a line at the top of the tab says which, and links to where it does apply.
 
 ## Can I see times in my own time zone?
 
-Yes. Select the round **You** button at the foot of the sidebar and choose **Time zone**: your own, the site's, or UTC. Days are still counted midnight to midnight in the site's own zone.
+Yes. Times show in the site's own zone unless you choose otherwise. Select the round **You** button at the foot of the sidebar and choose **Time zone**: the site's, your own, or UTC. Days are still counted midnight to midnight in the site's own zone.
 
 ## How do I invite a colleague?
 

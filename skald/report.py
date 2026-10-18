@@ -91,8 +91,17 @@ def _top(counter, limit: int = 5, sep: str = ", ") -> str:
     return sep.join(f"{name} {n:,}" for name, n in list(counter.items())[:limit])
 
 
+def _assistants(counter) -> dict:
+    """Assistants by the name a reader knows ('ChatGPT', not chatgpt.com), same order."""
+    from .visits import assistant_label
+    out: dict = {}
+    for name, n in counter.items():
+        out[assistant_label(name)] = out.get(assistant_label(name), 0) + n
+    return out
+
+
 def _flagged(counter) -> dict:
-    """Country codes as their flag and name ('🇨🇦 Canada'), same order."""
+    """Country codes as their flag and alpha-3 code ('🇨🇦 CAN'), same order."""
     return {country_label(code): n for code, n in counter.items()}
 
 
@@ -191,7 +200,7 @@ def _card_text(which: Group, stats: GroupStats, total: int,
                           f"(payload fetches and assets excluded)")
         if stats.cited_visits:
             row("From an AI", f"{stats.cited_visits:,} arrived by following a "
-                              f"citation ({_top(stats.cited_by, 3)})")
+                              f"citation ({_top(_assistants(stats.cited_by), 3)})")
         else:
             row("From an AI", "none arrived by following a citation")
         # With the breakdowns, countries of readers are in their own card.
@@ -357,7 +366,7 @@ def _card(which: Group, stats: GroupStats, total: int,
                 "Followed a citation",
                 f'<span style="color:{HUMAN};font-weight:600">'
                 f'{stats.cited_visits:,}</span>',
-                f"from {_top(stats.cited_by, 3)} - counted once per visitor"))
+                f"from {_top(_assistants(stats.cited_by), 3)} - counted once per visitor"))
         else:
             rows.append(_row("Followed a citation", "none yet",
                              "the number that becomes customers"))

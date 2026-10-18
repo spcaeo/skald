@@ -9,9 +9,11 @@ import { shown } from "../labels.js";
 import { flowOf, check, keptFor, OTHER, OTHER_SOURCES } from "../flow.js";
 import { sankey } from "../sankey.js";
 import { open } from "../drill.js";
-import { country } from "./readers.js";
+import { country, city } from "./readers.js";
 import { journeyFilter } from "./visits.js";
 import { fileName } from "./common.js";
+import { openVisitor } from "./visitor.js";
+import { time as tzTime } from "../tz.js";
 
 // The reader's choices, kept while the page is open.
 const pick = { start: "source", depth: 4 };
@@ -46,14 +48,24 @@ function flowBlock(js, { label, file, from, note, width }) {
       holder.replaceChildren(h("div", { class: "state bad", role: "alert" }, h("div", null, `The flow is withheld: it does not add up (${off.slice(0, 2).join("; ")}).`)));
       return;
     }
-    holder.replaceChildren(sankey(flow, {
+    // few() is null past a few visits: replaceChildren would write it as the word "null".
+    holder.replaceChildren(...[sankey(flow, {
       label, file, width, unit: "visits", say: words, note,
       tools: controls(redraw),
       onPick: (nd) => open(nd.drill[0], nd.drill[1], { from }),
-    }));
+    }), few(js)].filter(Boolean));
   };
   redraw();
   return holder;
+}
+
+/* Narrowed to a few visits (FEW or fewer): each opens in the visitor drawer (visitor.js). */
+const FEW = 5;
+function few(js) {
+  if (!js.length || js.length > FEW) return null;
+  return h("div", { class: "jm-tools" }, h("span", { class: "add-l" }, js.length === 1 ? "This visit:" : "These visits:"),
+    js.map((j) => h("button", { type: "button", class: "btn", onclick: () => openVisitor(j) },
+      `${tzTime(j.start, { date: true, label: false })}, ${shown(j.via || j.source) || "source not recorded"}`)));
 }
 
 const span = (days) => (!days.length ? "" : days.length === 1 ? short(days[0]) : `${short(days[0])} to ${short(days[days.length - 1])}`);
@@ -62,8 +74,13 @@ const span = (days) => (!days.length ? "" : days.length === 1 ? short(days[0]) :
 export function visitorFlow(m, s, r) {
   const kept = keptFor(m, r);
   const js = kept.journeys.filter(journeyFilter(s));
-  const sec = h("section", { class: "s sk-sec" }, h("h2", null, "Visitor flow"),
-    h("p", { class: "sub" }, "How visits moved: where they came from, the pages they read in order, and when they left. Band widths are visits. Hover or focus a page for its figures; click it to open it."));
+  // Like "Each visit": visits are kept fewer days than a long period, so the flow's own days are said beside its title.
+  const days = [...kept.days].sort();
+  const own = r.kind !== "today" && days.length && days.length < (r.days || []).length
+    ? h("span", { class: "own-period", title: `Visits are kept ${m.journey_days || 7} days: the period above is longer` },
+      `${short(days[0])} to ${short(days[days.length - 1])} · its own period`) : null;
+  const sec = h("section", { class: "s vs-card sk-sec", "aria-labelledby": "vf-h" }, h("div", { class: "vs-card-h" }, h("h3", { id: "vf-h" }, "Visitor flow", own ? " " : null, own),
+    h("p", { class: "sub" }, "Where visits came from, the pages they read in order, and when they left. Band width is visits. Hover or focus a bar for its figures; select it to open its visits.")));
   if (!kept.days.length) {
     sec.append(h("p", { class: "empty" }, r.kind === "today" ? "Today's visits are not all kept yet, so no flow is drawn."
       : `No day of this range has its visits kept: they are kept ${m.journey_days || 7} days. Choose Today or 7 days.`));
@@ -80,7 +97,7 @@ export function visitorFlow(m, s, r) {
 
 /* The drill drawer: the same visits as "The visits behind it". */
 export function drillFlow(js, chain, width) {
-  const who = chain.map(([d, v]) => (d === "country" ? country(v) : shown(v))).join(", ");
+  const who = chain.map(([d, v]) => (d === "country" ? country(v) : d === "city" ? city(v) : shown(v))).join(", ");
   return h("div", { class: "sk-drill" }, h("h3", null, "How these visitors moved"),
     h("p", { class: "sub" }, `The same ${n(js.length)} visit${js.length === 1 ? "" : "s"} (${who}): where they came from, their pages in order, and when they left. Click a page or source to narrow further.`),
     flowBlock(js, { label: `How visitors from ${who} moved`, file: "visitor-flow-drill.csv", from: "drill", width, note: RULE }));

@@ -11,7 +11,7 @@ roads, never mixed on screen:
     15 seconds by the helper, all requests of the site's hosts, unsorted
     (a request is not a person). Fresh to the second it was read.
 
-What the live run adds to its snapshot, `realtime` (DATA-CONTRACT.md):
+What the live run adds to its snapshot, `realtime` (docs/DATA-CONTRACT-REALTIME.md):
 
   active        readers' visits (visits that read a page, = the readers)
                 with a request in the last 5 and the last 30 minutes before
@@ -23,6 +23,12 @@ What the live run adds to its snapshot, `realtime` (DATA-CONTRACT.md):
                 each group in it
   countries     every country with a visit today: its visits and how many
                 of them are active (last 30 minutes)
+  cities        only with a city file (logs.city_db): each city with a
+                visit today, "Toronto, Ontario, CA": {visits, active, lat,
+                lon}; every active city, then the most visits up to
+                TOP_CITIES, the rest one "(all others)" row (no point). A
+                visit whose city is not recorded is in no row: their visits
+                are visits_today minus the rows' sum
   sources, devices
                 the active visits by their source and device (the labels of
                 their first page, as the readers breakdowns label it)
@@ -32,8 +38,9 @@ What the live run adds to its snapshot, `realtime` (DATA-CONTRACT.md):
                 crawlers by name (folded), other bots and scanners as one count
   newest        the NEWEST newest visits by their first request: start (to
                 the minute), country, device, source, who sent it, landing
-                page, pages read so far, still active. No address, no user
-                agent, ever.
+                page, pages read so far, still active, where its visitor first
+                came from (first_touch, firsttouch.py) and its place in the day
+                (seq). No address, no user agent, ever.
 
 audit_realtime.py counts every one of these again from the raw lines
 (`skald audit --live`).
@@ -55,6 +62,8 @@ MINUTES = 30             # the window: active "now", per-minute bars, lists
 SHORT = 5                # "active in the last 5 minutes"
 TOP_PAGES = 25
 TOP_NAMES = 15
+TOP_CITIES = 60
+OTHER = "(all others)"
 NEWEST = 10
 STALE_MINUTES = 10
 
@@ -129,6 +138,7 @@ def visit_figures(visits, until: datetime, minutes: int = MINUTES) -> dict:
     under = [0] * len(edges)
     started = [0] * len(edges)
     countries: dict[str, dict] = {}
+    cities: dict[str, dict] = {}
     sources, devices = Counter(), Counter()
     active = {str(SHORT): 0, str(minutes): 0}
     for first, last, labels in visits:
@@ -136,6 +146,10 @@ def visit_figures(visits, until: datetime, minutes: int = MINUTES) -> dict:
         cc = labels.get("country") or "Unknown"
         row = countries.setdefault(cc, {"visits": 0, "active": 0})
         row["visits"] += 1
+        city = labels.get("city") or ""
+        if city:
+            place = cities.setdefault(city, {"visits": 0, "active": 0})
+            place["visits"] += 1
         if last < edges[0][0]:
             continue
         for i, (start, end) in enumerate(edges):
@@ -146,13 +160,34 @@ def visit_figures(visits, until: datetime, minutes: int = MINUTES) -> dict:
         if last >= since:
             active[str(minutes)] += 1
             row["active"] += 1
+            if city:
+                place["active"] += 1
             sources[labels.get("source") or "Direct or unknown"] += 1
             devices[labels.get("device") or "Unknown"] += 1
         if last >= recent:
             active[str(SHORT)] += 1
     return {"active": active, "under_way": under, "started": started,
-            "countries": dict(sorted(countries.items())),
+            "countries": dict(sorted(countries.items())), "cities": cities,
             "sources": dict(sources.most_common()), "devices": dict(devices.most_common())}
+
+
+def city_rows(cities: dict, points: dict) -> dict:
+    """The cities kept: every active one, then the most visits up to
+    TOP_CITIES; the rest folded into one OTHER row. Each kept city with
+    its point (lat, lon) when the file had one."""
+    order = sorted(cities.items(), key=lambda kv: (-kv[1]["active"], -kv[1]["visits"], kv[0]))
+    out, rest = {}, {"visits": 0, "active": 0}
+    for name, row in order:
+        if row["active"] or len(out) < TOP_CITIES:
+            out[name] = dict(row)
+            if name in points:
+                out[name]["lat"], out[name]["lon"] = points[name]
+        else:
+            rest["visits"] += row["visits"]
+            rest["active"] += row["active"]
+    if rest["visits"]:
+        out[OTHER] = rest
+    return out
 
 
 def part(totals, observer: Observer, tz, minutes: int = MINUTES) -> dict:
@@ -174,12 +209,22 @@ def part(totals, observer: Observer, tz, minutes: int = MINUTES) -> dict:
     newest = []
     for first, last, j in sorted(rows, key=lambda r: _aware(r[0]), reverse=True)[:NEWEST]:
         newest.append({"start": j.get("start"), "country": j.get("country"),
+                       "city": j.get("city") or "",
                        "device": j.get("device"), "browser": j.get("browser"),
                        "source": j.get("source"), "via": j.get("via") or "",
                        "landing": j.get("landing"), "pages": j.get("pages", 0),
+                       # steps seen only in the browser (visits.py): shown beside pages
+                       "in_app": j.get("in_app", 0),
+                       # firsttouch.py: where its visitor first came from (labels only)
+                       "first_touch": j.get("first_touch"),
+                       # the visit's place in the day: the visitor drawer opens it
+                       "seq": j.get("seq"),
                        "active": "5" if _aware(last) >= recent else
                        "30" if _aware(last) >= since else ""})
+    points = getattr(totals, "city_points", None)
+    more = {} if points is None else {"cities": city_rows(got["cities"], points)}
     return {
+        **more,
         "version": VERSION, "minutes": minutes, "short": SHORT,
         "until": until.astimezone(tz).isoformat(timespec="seconds"),
         "visits_today": len(rows),

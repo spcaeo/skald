@@ -40,6 +40,7 @@ from . import store_extras as sx
 from . import store_visits as sv
 from .aggregate import READER_DIMS, Totals
 from .classify import AI_ASKED, Group, assistant_name
+from .search.days import TABLE as SEARCH_DAYS
 from .verify import Problem
 
 # 1: the first release (01af148).
@@ -81,7 +82,10 @@ from .verify import Problem
 #    emails", so it keeps today's behaviour - no address, no email kept -
 #    until someone turns `privacy.keep_ips` / `conversions.identity` on
 #    (people/policy.py). A new file has no such row: the owner's default, on.
-SCHEMA_VERSION = 13
+# 14: the `search_days` table - Search Console and Bing Webmaster Tools
+#    figures per day and kind, synced from their APIs (search/days.py). A
+#    table, not a column: older days simply have no rows.
+SCHEMA_VERSION = 14
 
 # Meta rows an upgrade adds: (version, key, value). Written only when a file
 # older than `version` is upgraded, never on a new file.
@@ -119,6 +123,7 @@ CREATE TABLE IF NOT EXISTS page_milestones (
     via  TEXT NOT NULL DEFAULT '',       -- from_search: the search site
     PRIMARY KEY (site, path, kind, who)
 )"""),
+    (14, "search_days", SEARCH_DAYS),
 ]
 
 # Indexes added after version 1: (version, name, CREATE statement). Made by
@@ -225,7 +230,7 @@ KINDS = (
     "people_country_visits",  # people's visits by country (log's cc= field).
                               # Before this, "people_country" held requests;
                               # those rows stay, and are never read as visits.
-    "cited_by",         # which assistant's citation they followed (visits)
+    "cited_by",        # which assistant's citation they followed (visits)
     "cited_page",       # pages they landed on from a citation
     "engine_tier",      # answer-engine requests by tier: training / asked
     "engine_training",  # answer engines that fetched to train, by name
@@ -242,6 +247,12 @@ KINDS = (
 # rather than cut. Per group: "status_<group>", "post_page_<group>", and
 # "post_total" named by group.
 READER_KINDS = {name: f"reader_{name}" for name in READER_DIMS}
+# People's visits (readers) by city, from the city file (logs.city_db):
+# "Toronto, Ontario, CA", "Unknown" (not recorded) and "(all others)", adding
+# up to the readers. Not a READER_DIMS kind: written only on days counted
+# with a city file, so a period sums cities only when each of its days has
+# them (History._sum), and days from before still add up.
+CITY_KIND = "people_city_visits"
 BREAKDOWN_KINDS = (
     *READER_KINDS.values(),
     "people_404_page",   # paths people asked for and got a 404
@@ -251,6 +262,7 @@ BREAKDOWN_KINDS = (
     "post_total",        # POST requests per group (name = group)
     *(f"status_{g.value}" for g in Group),
     *(f"post_page_{g.value}" for g in Group),
+    CITY_KIND,
 )
 
 
@@ -486,6 +498,12 @@ class History:
                 add("people_404_page", people.not_found)
                 add("people_speed", people.speeds)
                 add("people_slow_page", people.slow_pages)
+                if "city" in people.by:
+                    add(CITY_KIND, people.by["city"])
+                    if not any(people.by["city"].values()):
+                        # Counted with a city file, no reader: one 0 row, so
+                        # the day still counts as a day with cities.
+                        rows.append((CITY_KIND, "Unknown", 0))
             add("server_error_page", totals.server_errors)
             for g, stats in totals.groups.items():
                 add(f"status_{g.value}", stats.statuses)
@@ -639,7 +657,10 @@ class History:
             f"AND day IN ({marks}) GROUP BY kind, name", (site, *days)).fetchall()
         blobs = sx.read(self.db, site, date.fromisoformat(days[0]),
                         date.fromisoformat(days[-1]), ("returning",))
-        return self._sum(period, days, day_rows, group_rows, count_rows, blobs)
+        city_days = self.db.execute(
+            f"SELECT COUNT(DISTINCT day) FROM counts WHERE site = ? AND kind = ? "
+            f"AND day IN ({marks})", (site, CITY_KIND, *days)).fetchone()[0]
+        return self._sum(period, days, day_rows, group_rows, count_rows, blobs, city_days)
 
     def periods(self, site: str, first: date, last: date,
                 include_partial: bool = False) -> dict[date, Period]:
@@ -677,7 +698,8 @@ class History:
         for d in wanted:
             day = date.fromisoformat(d)
             out[day] = self._sum(out[day], [d], by_day[d], groups[d], counts[d],
-                                 {d: blobs[d]} if d in blobs else {})
+                                 {d: blobs[d]} if d in blobs else {},
+                                 int(any(row[0] == CITY_KIND for row in counts[d])))
         return out
 
     def _states(self, site: str, first: date, last: date) -> dict[str, tuple]:
@@ -708,8 +730,9 @@ class History:
 
     @staticmethod
     def _sum(period: Period, days: list[str], day_rows, group_rows, count_rows,
-             blobs: dict) -> Period:
-        """Sum the rows of `days` (ISO, sorted) into period.totals."""
+             blobs: dict, city_days: int = 0) -> Period:
+        """Sum the rows of `days` (ISO, sorted) into period.totals.
+        `city_days`: how many of them have people_city_visits rows."""
         totals = period.totals
         # Each day's unreadable share was checked against the configured limit
         # when it was collected, and a day over it is withheld, not here. A
@@ -790,6 +813,9 @@ class History:
             people.not_found = ranked(summed.get("people_404_page", Counter()))
             people.speeds = ranked(summed.get("people_speed", Counter()))
             people.slow_pages = ranked(summed.get("people_slow_page", Counter()))
+            # Cities only when every day summed was counted with a city file.
+            if city_days == len(days) and summed.get(CITY_KIND):
+                people.by["city"] = ranked(summed[CITY_KIND])
             totals.server_errors = ranked(summed.get("server_error_page", Counter()))
             posts = summed.get("post_total", Counter())
             for g, stats in totals.groups.items():

@@ -28,6 +28,11 @@ classify.py's name lists are shared, through the audit.
                   crawlers by the judge's name, other bots as one count
   newest          the newest visits by their first line: start to the
                   minute, country and pages read
+  cities          with a city file only: every reader's visit today by the
+                  audit's own city of its first page (audit_cities.py), and
+                  of those the ones active; a visit with no city is in no
+                  row. Each city the part kept, exactly; its "(all others)"
+                  against the rest
 
 The tail (recount_tail): every line of the site's hosts in the tail file's
 own window [from, until), per clock minute, against what the helper counted.
@@ -56,6 +61,8 @@ def _last(end: datetime) -> int:
 class Recount:
     def __init__(self, config: dict, day, tz, own: set) -> None:
         self.tz = tz
+        # A city file set (logs.city_db): cities are recounted.
+        self.cities = bool(((config or {}).get("logs") or {}).get("city_db"))
         self.end = None
         self.lines: list[tuple] = []          # (when, group, name) of the last minutes
         self.visits: list[tuple] = []         # (first, last, labels, pages, page lines)
@@ -85,6 +92,7 @@ class Recount:
         under, started = [0] * MINUTES, [0] * MINUTES
         requests = [Counter() for _ in range(MINUTES)]
         countries: dict[str, list] = {}
+        cities: dict[str, list] | None = {} if self.cities else None
         sources, devices, pages = Counter(), Counter(), Counter()
         ai, search = Counter(), Counter()
         bots = 0
@@ -92,6 +100,10 @@ class Recount:
         for first, final, labels, _, seen in self.visits:
             row = countries.setdefault(labels["country"], [0, 0])
             row[0] += 1
+            place = None
+            if cities is not None and labels.get("city") not in (None, "Unknown"):
+                place = cities.setdefault(labels["city"], [0, 0])
+                place[0] += 1
             for i in range(MINUTES):
                 if first < ends[i] and final >= starts[i]:
                     under[i] += 1
@@ -100,6 +112,8 @@ class Recount:
             if final >= since:
                 active[str(MINUTES)] += 1
                 row[1] += 1
+                if place is not None:
+                    place[1] += 1
                 sources[labels["source"]] += 1
                 devices[labels["device"]] += 1
             if final >= recent:
@@ -123,7 +137,8 @@ class Recount:
                 bots += 1
         newest = sorted(self.visits, key=lambda v: v[0], reverse=True)
         return {"active": active, "under": under, "started": started, "requests": requests,
-                "starts": starts, "countries": countries, "sources": sources,
+                "starts": starts, "countries": countries, "cities": cities,
+                "sources": sources,
                 "devices": devices, "pages": pages, "ai": ai, "search": search, "bots": bots,
                 "visits": len(self.visits), "newest": newest}
 
@@ -160,6 +175,7 @@ class Recount:
             c = got["countries"].get(cc, [0, 0])
             same(f"real time: visits today from {cc}", int(s.get("visits", 0)), c[0])
             same(f"real time: visits active from {cc}", int(s.get("active", 0)), c[1])
+        _cities(part.get("cities"), got["cities"], same, problems)
         for name, key in (("sources", "sources"), ("devices", "devices")):
             kept = Counter(part.get(key) or {})
             for label in sorted(set(kept) | set(got[key])):
@@ -175,6 +191,23 @@ class Recount:
                 Counter(machines.get("search_engines") or {}), got["search"], same)
         same("real time: bot and scanner requests", int(machines.get("bots", 0)), got["bots"])
         _newest(part.get("newest") or [], got["newest"], self.tz, same, problems)
+
+
+def _cities(stored: dict | None, counted: dict | None, same, problems: list) -> None:
+    """Each city the part kept, its visits and active visits exactly; the
+    folded "(all others)" against the rest. A city file on one road only
+    is a mismatch."""
+    if stored is None and counted is None:
+        return
+    if stored is None or counted is None:
+        problems.append("real time: cities are counted on one road only "
+                        f"(the snapshot {'has' if stored is not None else 'has none'})")
+        return
+    for i, what in ((0, "visits today"), (1, "visits active")):
+        kept = Counter({k: int((v or {}).get("visits" if i == 0 else "active", 0))
+                        for k, v in stored.items()})
+        _folded(f"real time: {what} from", kept, Counter({k: v[i] for k, v in counted.items()}),
+                same)
 
 
 def _folded(what: str, stored: Counter, counted: Counter, same) -> None:

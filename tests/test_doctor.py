@@ -156,6 +156,20 @@ class Doctor(unittest.TestCase):
         _, out, _ = self.doctor()
         self.assertIn("OK               Page assets: requests for /assets/ seen", out)
 
+    def test_settings_lines_carry_the_log_and_its_page_assets(self):
+        """Settings > Integrations and Overview's first-run checklist (2.13) read the
+        access log and page assets lines from integration_checks, first."""
+        from skald.config import load_config
+        text = self.box.config.read_text().replace("  require_rendering: false\n",
+                                                   "  asset_prefixes: [/assets/]\n")
+        self.box.config.write_text(text)
+        self.box.log(readers(date(2026, 10, 8), 2))
+        got = doctor.integration_checks(load_config(self.box.config), self.box.root, "example.com")
+        self.assertEqual([x["id"] for x in got[:2]], ["logs", "assets"])
+        self.assertEqual(got[0]["state"], "OK")
+        self.assertEqual(got[1]["state"], "NEEDS ATTENTION")
+        self.assertIn("site.asset_prefixes", got[1]["fix"])
+
     def test_a_missing_or_unreadable_log(self):
         text = self.box.config.read_text().replace(str(self.box.root / "logs"),
                                                    str(self.box.root / "nowhere"))

@@ -15,7 +15,7 @@ import { table } from "../table.js";
 import * as S from "../state.js";
 import { head, nothing, panel, countTable, fileName, compareFor } from "./common.js";
 import { bucketAt } from "./health.js";
-import { uptime } from "./uptime.js";
+import { uptime, heartbeatOn } from "./uptime.js";
 import { serverLoad } from "./load.js";
 import { time as tzTime, siteWall } from "../tz.js";
 
@@ -46,6 +46,8 @@ function gapsOf(f, r) {
 function upSection(m, r) {
   const sec = uptime(m, r);
   if (!sec) return null;
+  // No heartbeat ever: no outage list (the card above says how to set it up).
+  if (!heartbeatOn(m.x.ours)) return sec;
   const gaps = gapsOf(m.x.ours, r);
   const outages = h("div", { class: "si-outages", id: "si-outages" }, h("h3", null, "Outages and heartbeat gaps"),
     h("p", { class: "sub" }, "Each stretch of more than 10 minutes without an answered heartbeat: the site was down, or the heartbeat itself stopped."),
@@ -80,7 +82,7 @@ export default function health(m, s) {
     h("div", { class: "k-v", style: tone ? { color: tone } : null }, v), h("div", { class: "k-c" }));
   const nfTile = tile("Page not found, seen by people", t.nf == null ? "-" : n(t.nf), "404s people met, not scanners");
   nfTile.lastChild.append(h("a", { class: "si-more", href: S.hashFor({ ...s, tab: "site/notfound" }) }, "Which pages, on Not found"));
-  out.push(h("section", { class: "s" }, h("div", { class: "kpis" },
+  out.push(h("section", { class: "s" }, h("div", { class: "kpis si-kpis" },
     tile("Server errors (5xx)", n(err), err ? "responses to anyone; should be zero" : "none: as it should be", err ? "var(--bad)" : null),
     nfTile,
     tile("Typical answer time", p50 || "-", "the median page view for people; only buckets are kept"),
@@ -95,7 +97,7 @@ export default function health(m, s) {
   }
   const rows = statusRows(t.statuses);
   out.push(h("section", { class: "s" }, h("h2", null, "Responses by status, for each group"),
-    h("div", { class: "sheet" }, legend(STATUSES.map((k) => [`${k} ${STATUS_WORDS[k]}`, STATUS_TONE[k]])),
+    h("div", { class: "sheet" }, legend(STATUSES.map((k) => [k === "other" ? "Any other status" : `${k} ${STATUS_WORDS[k]}`, STATUS_TONE[k]])),
       h("div", { class: "si-status" }, rows.map((row) => h("div", null,
         h("div", { class: "si-status-h" },
           h("span", null, h("span", { class: "sw", style: { background: color(row.g) } }), row.name), h("span", { class: "tbl-count" }, `${n(row.sum)} requests`)),
@@ -104,7 +106,7 @@ export default function health(m, s) {
     table([{ key: "name", label: "Group" }, ...STATUSES.map((k) => ({ key: k, label: k, num: true })), { key: "sum", label: "All", num: true }],
       { caption: "Responses by status and group", rows, file: fileName("statuses", r), search: false, sortKey: "sum" })));
   out.push(h("div", { class: "cols" },
-    panel("How fast people's pages were answered", "Server time per page view ($request_time)",
+    panel("How fast people's pages were answered", "Time the server took to answer each page view",
       bars(SPEEDS.map((b, i) => ({ label: b.replace(" to ", "-"), title: b, value: speeds[b] || 0, color: i >= 3 ? "var(--warn)" : "var(--good)" })), { label: "Page views by answer time", unit: "page views", H: 190, half: true }),
       speeds["not logged"] ? h("p", { class: "note" }, `${n(speeds["not logged"])} page views had no time in the log line.`) : null),
     h("section", { class: "s" }, h("h2", null, "Slow pages"), countTable(t.slow_pages, { caption: "Slow pages", file: fileName("slow-pages", r), key: "Page", value: "Slow views", keep, path: true, drill: "path", empty: "No page took a second or more." }))));

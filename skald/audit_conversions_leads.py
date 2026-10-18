@@ -11,7 +11,10 @@ counts them apart). It shares only the name lists in conversions/__init__.py
 
     check_today      problems with the `today` block: its total, its test
                      count, and (when every row is listed) its rows by
-                     action, stage and test mark, each against the SQL
+                     action, stage and test mark, each against the SQL;
+                     and its `by_now` (check_by_now): yesterday's leads to
+                     the same time of day and both days by hour, one SQL
+                     COUNT per local hour
     check_insights   {index: problems} for the lead findings whose numbers
                      the SQL does not give: `after` and `before` over their
                      periods, by the subject's column; for a "most leads"
@@ -23,10 +26,10 @@ named in insights.json's `leads_withheld`.
 from __future__ import annotations
 
 from collections import Counter
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from .audit_conversions_figures import _open, _utc
+from .audit_conversions_figures import STAMP, _open, _utc
 from .conversions import FINISHED, LEAD_ACTIONS, UNKNOWN
 
 # The subject's column, by this module's own reading of the finding.
@@ -134,4 +137,49 @@ def check_today(path: Path, site: str, tz, today: date, block: dict | None) -> l
     day = today.isoformat()
     if any(str(r.get("at") or "")[:10] != day for r in rows):
         out.append("today: a listed row is not of today")
+    if block.get("by_now") is not None:
+        out += check_by_now(path, site, tz, today, block["by_now"])
+    return out
+
+
+def _hour_counts(db, site: str, tz, day: date, cut: datetime | None) -> list[int]:
+    """Leads in each local hour of `day` (cut short at `cut`), one SQL COUNT
+    per hour between that hour's UTC bounds."""
+    got = []
+    nxt = day + timedelta(days=1)
+    for hour in range(24):
+        lo = datetime(day.year, day.month, day.day, hour, tzinfo=tz)
+        hi = (datetime(day.year, day.month, day.day, hour + 1, tzinfo=tz) if hour < 23
+              else datetime(nxt.year, nxt.month, nxt.day, tzinfo=tz))
+        if cut is not None:
+            hi = min(hi, cut)
+        if hi <= lo:
+            got.append(0)
+            continue
+        utc = [x.astimezone(timezone.utc).strftime(STAMP) for x in (lo, hi)]
+        got.append(db.execute(f"SELECT COUNT(*) {LEADS}", (site, *utc)).fetchone()[0])
+    return got
+
+
+def check_by_now(path: Path, site: str, tz, today: date, part: dict) -> list[str]:
+    """Problems with `today.by_now`: yesterday's leads to the same time of day,
+    and both days by local hour, against the SQL's own hour bounds."""
+    out = []
+    db = _open(path)
+    try:
+        if part.get("today_hours") is not None:
+            mine = _hour_counts(db, site, tz, today, None)
+            if list(part["today_hours"]) != mine:
+                out.append(f"today's leads by hour: file {part['today_hours']}, SQL recount {mine}")
+        if part.get("state") == "ok":
+            cut = datetime.fromisoformat(part["until"])
+            mine = _hour_counts(db, site, tz, today - timedelta(days=1), cut)
+            if part.get("hours") is None or list(part["hours"]) != mine:
+                out.append(f"yesterday's leads by hour to {part['until'][11:16]}: file "
+                           f"{part.get('hours')}, SQL recount {mine}")
+            if part.get("leads") != sum(mine):
+                out.append(f"yesterday's leads to {part['until'][11:16]}: file {part.get('leads')}, "
+                           f"SQL recount {sum(mine)}")
+    finally:
+        db.close()
     return out

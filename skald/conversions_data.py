@@ -37,8 +37,8 @@ from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
 from .config import setting
-from .conversions import (CONVERT_BUCKETS, DEMO_ACTIONS, FINISHED, LEAD_ACTIONS, MIN_RATE,
-                          STAGES, TOOLS, UNKNOWN, VISIT_BUCKETS)
+from .conversions import (BEACON_REPEAT_SECONDS, CONVERT_BUCKETS, DEMO_ACTIONS, FINISHED,
+                          LEAD_ACTIONS, MIN_RATE, STAGES, TOOLS, UNKNOWN, VISIT_BUCKETS)
 
 DAYS = 180
 PERIOD_DAYS = 30
@@ -337,7 +337,8 @@ def blob(config: dict, folder: Path, site: str, tz, today: date, now: datetime,
         lo, hi = _stamp(start, tz), _stamp(today + timedelta(days=1), tz)
         pages = pages_before(db, site, lo, hi)
         out = {"available": True, "reason": None, "set_up": found, "min_rate": MIN_RATE,
-               "as_known": AS_KNOWN, "abandon_hours": hours, "stages": list(STAGES),
+               "as_known": AS_KNOWN, "abandon_hours": hours,
+               "repeat_minutes": BEACON_REPEAT_SECONDS // 60, "stages": list(STAGES),
                "finished": list(FINISHED), "dims": list(DIMS),
                "visit_buckets": list(VISIT_BUCKETS), "convert_buckets": list(CONVERT_BUCKETS),
                "since": since, "days": [], "likely_ai": likely_note(config),
@@ -363,19 +364,23 @@ def blob(config: dict, folder: Path, site: str, tz, today: date, now: datetime,
         out = withhold(out, held)
         days_held = {k.split("/", 1)[1] for k in out["withheld"] if k.startswith("days/")}
         out["timeline"] = timeline(db, site, tz, lo, hi, days_held)
-        out["today"] = _today(db, path, site, tz, today, days_held, audited, out["withheld"])
+        out["today"] = _today(db, path, site, tz, today, days_held, audited, out["withheld"],
+                              now, since)
     finally:
         db.close()
     return out
 
 
 def _today(db, path, site: str, tz, today: date, held: set, audited: bool,
-           withheld: dict) -> dict:
+           withheld: dict, now: datetime | None = None, since: str | None = None) -> dict:
     """conversions.json `today` (conversions_leads.today_block), checked by
     audit_conversions_leads.check_today when audited; withheld (and named
     in `withheld["today"]`) when the recount disagrees or cannot run."""
-    from .conversions_leads import today_block
+    from .conversions_leads import by_now, today_block
     block = today_block(db, site, tz, today, held)
+    if block["state"] == "ok" and now is not None:
+        # Yesterday at this hour, and both days by hour (Overview in Live mode).
+        block["by_now"] = by_now(db, site, tz, today, now, held, since)
     if not audited or block["state"] != "ok":
         return block
     from . import audit_conversions_leads

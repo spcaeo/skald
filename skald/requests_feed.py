@@ -37,7 +37,8 @@ from .classify import (BROWSER, CRAWLER_PATH, CRAWLER_SESSION, LINK_PREVIEW, OTH
                        Group, Tier)
 from .countries import NAMES
 from .files import write_atomic
-from .parse import ASSET, BEACON, RSC_PAYLOAD
+from .parse import ASSET, BEACON, OWN_ENDPOINT, RSC_PAYLOAD
+from .visits import assistant_label   # "ChatGPT", not chatgpt.com
 
 VERSION = 1
 WINDOW_HOURS = 6
@@ -46,11 +47,12 @@ STALE_MINUTES = 10
 EXCLUDED = "excluded"
 REMOVED = "(removed)"
 
-KIND_WORDS = {"page": "reader", "rsc": "Next.js payload (_rsc)", "asset": "asset",
+KIND_WORDS = {"page": "page view", "rsc": "Next.js payload (_rsc)", "asset": "asset",
               "beacon": "beacon", "crawler_file": "crawler file", "redirect": "redirect",
               "not_modified": "not modified (304)", "not_found": "not found",
               "client_error": "client error", "server_error": "server error",
-              "post": "form post", "other": "other"}
+              "post": "form post", "script_event": "script tag event",
+              "skald_endpoint": "Skald endpoint", "other": "other"}
 
 
 def settings(config: dict) -> tuple[int, int]:
@@ -73,6 +75,13 @@ def path_for(directory: Path, site: str) -> Path:
 
 def kind_of(hit) -> str:
     status = hit.status
+    if OWN_ENDPOINT.match(hit.path) and hit.method != "GET":
+        # Skald's own endpoints (parse.OWN_ENDPOINT): the script tag posts
+        # its events to /traffic-beacon or /traffic-js/; hooks and shipped
+        # logs post to /traffic-hooks/ and /traffic-ingest/. None of them
+        # is a form the site's visitor sent.
+        return ("script_event" if hit.path.startswith(("/traffic-beacon", "/traffic-js/"))
+                else "skald_endpoint")
     if hit.method == "POST":
         return "post"
     if status[:1] == "5":
@@ -182,7 +191,7 @@ def rule_of(hit, verdict, kind: str) -> str:
         return f"bot: {_short_agent(hit.user_agent)}"
     words = KIND_WORDS["page"] if hit.is_page else KIND_WORDS.get(kind, kind)
     if verdict.tier is Tier.CITED:
-        return f"people: {words} from {verdict.engine}"
+        return f"people: {words} from {assistant_label(verdict.engine)}"
     return f"people: {words}"
 
 
@@ -346,7 +355,7 @@ def before_midnight(config: dict, feed: Feed, midnight: datetime, now: datetime,
     limits (parse.read)."""
     from .config import setting
     from .parse import geo_database, read
-    from .window import _classifier, within, window_paths
+    from .window import ordered_classifier, within, window_paths
     if feed.cutoff >= midnight:
         return
     start = midnight - timedelta(hours=26)       # yesterday's start, DST or not
@@ -357,8 +366,9 @@ def before_midnight(config: dict, feed: Feed, midnight: datetime, now: datetime,
     paths = oldest_first(paths)
     fmt = (config.get("logs") or {}).get("format") or "auto"
     tz_day_start = _day_start(config, midnight)
-    classifier = _classifier(config, within(read(paths, fmt, upto=upto), tz_day_start,
-                                            midnight), tz_day_start, midnight)
+    classifier, _ = ordered_classifier(
+        config, lambda: within(read(paths, fmt, upto=upto), tz_day_start, midnight),
+        tz_day_start, midnight)
     wanted = {str(h).lower() for h in (setting(config, "site", "hosts") or [])}
     for hit in within(read(paths, fmt, geo=geo_database(config), upto=upto), feed.cutoff,
                       midnight):

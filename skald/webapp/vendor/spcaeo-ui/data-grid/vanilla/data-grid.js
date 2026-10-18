@@ -627,7 +627,9 @@ export function createDataGrid(host, config) {
             )
           : null,
         ...columns.map((col) => {
-          const active = query.sort.find((s) => s.field === col.id);
+          // Skald patch 6: the order shown may be the host's default (no sort in the
+          // address), and a click may cycle asc, desc, default (config.nextSort).
+          const active = (config.shownSort ? config.shownSort(query) : query.sort).find((s) => s.field === col.id);
           return h(
             "th",
             {
@@ -651,23 +653,30 @@ export function createDataGrid(host, config) {
                       commit(
                         {
                           ...query,
-                          sort: [
-                            {
-                              field: col.id,
-                              direction: active?.direction === "asc" ? "desc" : "asc",
-                            },
-                          ],
+                          sort: config.nextSort
+                            ? config.nextSort(col.id, query)
+                            : [
+                                {
+                                  field: col.id,
+                                  direction: active?.direction === "asc" ? "desc" : "asc",
+                                },
+                              ],
                         },
                         "sort",
                       ),
                   },
                   col.label,
-                  h("span", { html: ICON.sort }),
+                  // Skald patch 7: the shared tables' marks (js/table.js): ▲ ascending,
+                  // ▼ descending (biggest first), a faint ↕ on a sortable column not sorted.
+                  h("span", { class: "dir", "aria-hidden": "true" },
+                    active ? (active.direction === "asc" ? "▲" : "▼") : "↕"),
                 )
               : col.label,
           );
         }),
       ),
+      // Skald patch 6: a row of the host's own under the headers (the column filters).
+      config.headExtra ? config.headExtra() : null,
     );
   }
 
@@ -817,6 +826,11 @@ export function createDataGrid(host, config) {
     refresh: fetchRows,
     get query() {
       return query;
+    },
+    /* Skald patch 6: the host changes the query as a control of the grid's own would
+       (its column filters: page 1 again, written to the address). */
+    change(patch, kind = "filter") {
+      commit({ ...query, ...patch }, kind);
     },
     get selection() {
       return [...selection];

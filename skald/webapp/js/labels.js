@@ -24,6 +24,17 @@ export const shownText = (s) => (Object.hasOwn(SHOWN, s) ? SHOWN[s] : s.includes
 // Back from the words to the stored name, for a value typed or picked by its words.
 export const stored = (v) => (typeof v === "string" && Object.hasOwn(STORED, v) ? STORED[v] : v);
 
+// An AI assistant by the name a person knows it by ("ChatGPT", not chatgpt.com). The
+// same table is visits.ASSISTANTS in Python. Bot names (ChatGPT-User, GPTBot) stay:
+// they name one fetcher or crawler, not the assistant.
+export const ASSISTANTS = {
+  "chatgpt.com": "ChatGPT", "perplexity.ai": "Perplexity", "claude.ai": "Claude",
+  "gemini.google.com": "Gemini", "copilot.microsoft.com": "Copilot",
+  "you.com": "You.com", "phind.com": "Phind", "poe.com": "Poe", "mistral.ai": "Mistral",
+  "meta.ai": "Meta AI",
+};
+export const assistantName = (v) => (typeof v === "string" && Object.hasOwn(ASSISTANTS, v) ? ASSISTANTS[v] : shown(v));
+
 // An object's keys (and its nested objects' keys) as shown: for JSON a person reads.
 export function shownKeys(o) {
   if (Array.isArray(o)) return o.map(shownKeys);

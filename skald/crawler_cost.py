@@ -10,7 +10,7 @@ counted hit to Costs.add) for the three machine groups classify.py gives:
                    short name its user agent announces, aggregate._short_agent);
                    a scanner probe with no other name is "(scanner probes)"
 
-Per name (DATA-CONTRACT.md, "crawler_cost"):
+Per name (docs/DATA-CONTRACT-BOTS.md, "crawler_cost.json"):
 
   requests   every request it made
   bytes      the body bytes sent, summed over the lines that logged a size;
@@ -47,7 +47,7 @@ from __future__ import annotations
 from collections import Counter
 from datetime import timedelta, timezone
 
-from .classify import AI_ASKED, CRAWLER_SESSION, LINK_PREVIEW, NOT_RENDERED, Group
+from .classify import AI_ASKED, CRAWLER_SESSION, LINK_PREVIEW, NOT_RENDERED, TOO_FAST, Group
 
 TOP = 50
 PAGES = 10
@@ -60,7 +60,7 @@ UNKNOWN = "Unknown"
 GROUPS = (Group.ANSWER_ENGINE, Group.SEARCH_ENGINE, Group.BOTS)
 SUMMED = ("requests", "bytes", "sized", "ms", "timed")
 # Bots whose user-agent strings are not kept: they may be a person's browser.
-NO_AGENTS = (PROBES, NOT_RENDERED, CRAWLER_SESSION, "browser-like agent",
+NO_AGENTS = (PROBES, NOT_RENDERED, TOO_FAST, CRAWLER_SESSION, "browser-like agent",
              "Googlebot template, no Googlebot")
 
 

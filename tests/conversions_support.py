@@ -6,6 +6,7 @@ The secrets are made up for the tests and protect nothing.
 from __future__ import annotations
 
 import ipaddress
+import json
 import struct
 import sys
 from pathlib import Path
@@ -19,10 +20,28 @@ MARKER = b"\xab\xcd\xefMaxMind.com"
 
 # ------------------------------------------------- a tiny MaxMind DB writer
 
+def _size(kind: int, n: int) -> bytes:
+    """A control byte (and extended type byte) for `kind` holding `n` items."""
+    head = (kind << 5) if kind <= 7 else 0
+    if n < 29:
+        out, extra = bytes([head | n]), b""
+    elif n < 285:
+        out, extra = bytes([head | 29]), bytes([n - 29])
+    else:
+        out, extra = bytes([head | 30]), (n - 285).to_bytes(2, "big")
+    return out + (bytes([kind - 7]) if kind > 7 else b"") + extra
+
+
 def _enc(value) -> bytes:
     if isinstance(value, str):
         raw = value.encode()
-        return bytes([(2 << 5) | len(raw)]) + raw
+        return _size(2, len(raw)) + raw
+    if isinstance(value, float):                        # a double
+        return bytes([(3 << 5) | 8]) + struct.pack(">d", value)
+    if isinstance(value, list):                         # an array (extended type 11)
+        return _size(11, len(value)) + b"".join(_enc(v) for v in value)
+    if isinstance(value, int) and not isinstance(value, bool):
+        return bytes([(6 << 5) | 4]) + struct.pack(">I", value)
     if isinstance(value, dict):
         out = bytes([(7 << 5) | len(value)])
         for k, v in value.items():
@@ -35,10 +54,20 @@ def _enc(value) -> bytes:
     raise TypeError(value)
 
 
-def mmdb(prefixes: dict[str, str], ip_version: int = 6, record_size: int = 24,
+def city_record(city: str, region: str, country: str, lat: float, lon: float) -> dict:
+    """A record shaped as DB-IP's "IP to City Lite" file has it."""
+    return {"city": {"names": {"en": city}},
+            "country": {"iso_code": country, "names": {"en": country}},
+            "location": {"latitude": float(lat), "longitude": float(lon)},
+            "subdivisions": [{"names": {"en": region}}] if region else []}
+
+
+def mmdb(prefixes: dict, ip_version: int = 6, record_size: int = 24,
          kind: str = "Test-Country") -> bytes:
-    """A MaxMind-format file mapping each network to {"country": {"iso_code"}}.
-    The key "country" is stored once and reached by a pointer."""
+    """A MaxMind-format file mapping each network to {"country": {"iso_code"}}
+    (a country code) or to a whole record (a dict, e.g. city_record()).
+    The key "country" of a country code is stored once and reached by a
+    pointer."""
     nodes: list[list] = [[None, None]]
     for net, code in prefixes.items():
         network = ipaddress.ip_network(net)
@@ -50,7 +79,7 @@ def mmdb(prefixes: dict[str, str], ip_version: int = 6, record_size: int = 24,
         node = 0
         for i, bit in enumerate(bits):
             if i == len(bits) - 1:
-                nodes[node][bit] = ("data", code)
+                nodes[node][bit] = ("data", json.dumps(code, sort_keys=True))
                 break
             child = nodes[node][bit]
             if not isinstance(child, int):
@@ -60,9 +89,10 @@ def mmdb(prefixes: dict[str, str], ip_version: int = 6, record_size: int = 24,
     data = _enc("country")                              # offset 0
     pointer = bytes([(1 << 5) | 0, 0])                  # -> offset 0
     offsets = {}
-    for code in sorted(set(prefixes.values())):
-        offsets[code] = len(data)
-        data += _enc({pointer: {"iso_code": code}})
+    for key in sorted({json.dumps(v, sort_keys=True) for v in prefixes.values()}):
+        value = json.loads(key)
+        offsets[key] = len(data)
+        data += _enc({pointer: {"iso_code": value}} if isinstance(value, str) else value)
     count = len(nodes)
 
     def record(v) -> int:

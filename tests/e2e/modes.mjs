@@ -5,7 +5,7 @@
 //     a custom B; a choice made in Live mode leaves Live; "Turn compare off" ends it
 //   * a tab that registers compare shows what A and B are (or why not); one that
 //     does not says "No compare on this tab", quietly
-//   * mode-compare.js cmpTable: A · B · ± under grouped headers, rows only one
+//   * mode-compare.js cmpTable: A · B · ± under grouped headers (sort marks ▲▼↕ aside), rows only one
 //     period has count 0 in the other, the CSV names each column, "Per day" divides
 //   * no console error
 //
@@ -36,7 +36,8 @@ where = "Today · Live";
 await go("traffic/sources?range=7d&cmp=prev");
 await click(".bar .mode-live");
 let q = await params();
-check(q.range === "today" && !q.cmp, `on: range ${q.range}, cmp ${q.cmp}`);
+// Today is the default period (2.10.1): the address leaves range=today out.
+check((q.range === "today" || q.range === undefined) && !q.cmp, `on: range ${q.range}, cmp ${q.cmp}`);
 check(await p.locator('.bar .mode-live[aria-checked="true"] .pulse').count() === 1, "on: the switch is pressed, with its pulsing dot");
 check(await p.locator('.bar .seg [aria-pressed="true"]').count() === 0, "on: no period is marked");
 await click(".bar .mode-live");
@@ -66,7 +67,8 @@ check(await p.locator(".mode-pop:visible").count() === 0, "Escape closes the pan
 check(await p.evaluate(() => document.activeElement?.classList.contains("mode-cmp")), "Escape gives the focus back to the button");
 
 where = "the line at the top of a tab";
-await go("site/health?cmp=prev");
+// A past period: Today, the default since 2.10.1, is never compared (checked below).
+await go("site/health?range=30d&cmp=prev");
 const line = await p.locator("#panel .mode-banner").first().textContent().catch(() => "");
 check(/^A .+ against B .+/.test(line.trim()) || /Not compared/.test(line), `a tab that compares names A and B or why not ("${line.trim().slice(0, 80)}")`);
 await go("traffic/time?cmp=prev");
@@ -88,7 +90,7 @@ const got = await p.evaluate(async () => {
   const A = [{ k: "Search", v: 120, sh: 96 }, { k: "Email", v: 5, sh: 4 }], B = [{ k: "Search", v: 100, sh: 93 }, { k: "Social", v: 7, sh: 7 }];
   const read = (t) => ({
     groups: [...t.querySelectorAll("tr.grp-row th")].map((x) => [x.textContent, x.colSpan]),
-    heads: [...t.querySelectorAll("thead tr:last-child th")].map((x) => x.textContent.replace(/[▲▼]/g, "")),
+    heads: [...t.querySelectorAll("thead tr:last-child th")].map((x) => x.textContent.replace(/[▲▼↕]/g, "")),
     rows: [...t.querySelectorAll("tbody tr")].map((tr) => [...tr.cells].map((td) => td.textContent.replace(/ \((up|down)\)/, ""))),
     csv: T.csv(T.REGISTRY.at(-1).columns, T.REGISTRY.at(-1).rows()).split("\r\n")[0],
     wide: t.classList.contains("cmp-tbl"),

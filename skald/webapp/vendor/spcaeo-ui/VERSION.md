@@ -256,3 +256,30 @@ run `python3 -m unittest discover tests` and `tests/e2e/spcaeo-ui.mjs`, and upda
 "Blocked"). `js/grid.js` sets `align` from the column's type (`table.js` `alignOf`), and
 `spcaeo-ui-skald.css` lines every grid up: cells at the top of the row, `dg-num` right
 (upstream's `.dg-table td` outweighs its own `.dg-num`), `dg-center` centred.
+
+## Patch 6 (2.13): the host's sort cycle, a row under the headers, and changes from the host
+
+`data-grid/vanilla/data-grid.js`, three optional `config` entries and one method, so every
+Skald grid sorts, filters and exports like every Skald table (`js/tablestate.js`,
+`js/tabletools.js`, `js/grid.js`):
+
+- `config.shownSort(query)`: the order the header marks (`aria-sort`, the arrow). Skald's
+  default order is not in the address, so without it the default column showed unsorted.
+- `config.nextSort(columnId, query)`: the sort a header click sets. Skald cycles one way,
+  the other, then the grid's own order again (upstream: asc and desc only).
+- `config.headExtra()`: a `<tr>` appended to the header (the per-column filters). `js/grid.js`
+  builds it once and gives the same row each render; it puts the focus and caret back.
+- `api.change(patch, kind = "filter")`: the host changes the query as a control of the
+  grid's own would (page 1 again, written to the address).
+
+Columns hidden with the column chooser: `js/grid.js` changes the `columns` array it passed
+in place and calls `refresh()`; no patch.
+
+## Patch 7 (2.13): the shared tables' sort marks
+
+`data-grid/vanilla/data-grid.js` and `data-grid.css`. Upstream drew one chevron that
+`th[aria-sort]` made solid; Skald sets `aria-sort="none"` on every sortable column, so every
+header showed it, and descending turned it to point up. The header button now ends with
+`<span class="dir">` holding the marks every Skald table uses (`js/table.js`): ▲ ascending,
+▼ descending (biggest first), a faint ↕ on a sortable column not sorted (`css/tables.css`).
+`ICON.sort` is no longer drawn. Checked by `tests/e2e/spcaeo-ui.mjs`.

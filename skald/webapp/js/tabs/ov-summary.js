@@ -1,43 +1,35 @@
-// Overview > Summary (2.7.0): the old Overview page, with the old Live page's
-// own panels in Live mode, and one place per answer.
+// Overview > Summary (2.7.0; one order for every period, 2.13).
 //
-// Every figure is drawn by overview.js exactly as before (the same code, the
-// same files); this file only arranges what it returns:
-//   * the tiles: one strip laid out evenly (4 + 3; 3 + 3 without demos; two
-//     columns on a phone), so no tile sits alone and no trend line stretches
-//     across a row (css/overview.css)
-//   * Server requests: one line with its total and a link to Site > Health,
-//     where the full band is (the map's D16)
-//   * Who else came: a link to AI & bots > Crawlers (D3)
-//   * Live mode (the period Today, "Today · Live"): Real time first (realtime.js:
-//     visitors now, minute by minute, the world map), then "+N this hour" on the
-//     Visitors tile, then Right now and today's leads and bookings, short, each
-//     with a link to the full list (ov-live.js). The hourly chart, who else came
-//     and today's top fives are Overview's own for today. Redrawn every 2 minutes
-//     (the `live` option in s-overview.js).
+// Live mode (the period Today, "Today · Live") is its own page, the owner's
+// approved layout: the live strip with "vs yesterday at this hour", where
+// visitors are and the newest visits, sources and the flow, what converted,
+// AI & bots (ov-today.js). One place per answer, each linking to its full tab.
+//
+// Any other period: every figure is drawn by overview.js exactly as before (the
+// same code, the same files); this file arranges what it returns in the same
+// order as Live mode, where it applies:
+//   tiles (laid out evenly, css/overview.css) and their one-line relation, the
+//   main chart, then where (countries, top pages), then where they came from
+//   (top sources) beside the AI assistants, then who else came (machines, with
+//   a link to AI & bots > Crawlers), then Server requests as one line with its
+//   total and a link to Site > Health, then each day's figures.
 
-import { h, n } from "../ui.js";
-import { figures } from "../data.js";
+import { h } from "../ui.js";
 import overview from "./overview.js";
-import { rightNow, leadsToday, thisHour, goTo } from "./ov-live.js";
-import { realtimeBlock } from "./realtime.js";
+import today from "./ov-today.js";
+import { goTo } from "./ov-live.js";
+import { setupChecklist } from "./checklist.js";
 
 /* Live mode is the period Today (the map, section 3): the address keeps
    range=today, so every today-path in data.js stays as it is. */
 export const isLive = (s) => s.range === "today";
 
 const is = (el, cls) => el instanceof Element && el.classList.contains(cls);
-const label = (tile) => tile.querySelector(".t-l")?.textContent.trim();
 
-// The strip of tiles: evenly laid out, and "+N this hour" on Visitors in Live mode.
-function arrangeTiles(strip, extra) {
+// The strip of tiles: laid out evenly.
+function arrangeTiles(strip) {
   strip.classList.add("ov-tiles");
   strip.dataset.n = String(strip.children.length);
-  if (extra == null) return;
-  const visitors = [...strip.children].find((t) => label(t) === "Visitors");
-  const line = visitors?.querySelector(".t-c");
-  // The change line says "—" for a day still running; in Live mode it says how many came this hour.
-  if (line) line.replaceWith(h("span", { class: "t-c" }, `+${n(extra)} this hour`));
 }
 
 // The server requests fold: its total on one line, the band on Site > Health.
@@ -53,25 +45,29 @@ function linkOthers(section) {
   if (top && !top.querySelector(".ov-go")) top.append(h("span", { class: "grow" }), goTo("ai/crawlers", "AI & bots › Crawlers"));
 }
 
+/* The four top cards (pages, sources, countries, AI assistants) in Live mode's
+   order: where (countries, pages), where from (sources), then AI & bots. */
+function inOrder(out) {
+  const tops = out.find((el) => el instanceof Element && el.matches(".cols.tops"));
+  const others = out.find((el) => el instanceof Element && el.matches("section.s") && el.querySelector(":scope > ul.others"));
+  if (!tops || tops.children.length !== 4) return out;
+  const [pages, sources, countries, ai] = [...tops.children];
+  const where = h("div", { class: "cols tops" }, countries, pages);
+  const from = h("div", { class: "cols tops" }, sources, ai);
+  return out.flatMap((el) => (el === tops ? [where, from, ...(others ? [others] : [])] : el === others ? [] : [el]));
+}
+
 export default function summary(m, s, o) {
-  const out = [overview(m, s, o)].flat(Infinity).filter(Boolean);
-  const live = isLive(s);
-  const { t } = figures(m, s);
+  if (isLive(s)) return today(m, s, o);
+  let out = [overview(m, s, o)].flat(Infinity).filter(Boolean);
   const strip = out.find((el) => is(el, "tiles"));
-  if (strip) arrangeTiles(strip, live && t ? thisHour(m, t) : null);
+  if (strip) arrangeTiles(strip);
   for (const el of out) if (el instanceof Element && el.matches("section.s") && el.querySelector(":scope > ul.others")) linkOthers(el);
   const i = out.findIndex((el) => el instanceof Element && el.matches("details.fold") && /^Server requests/.test(el.querySelector("summary")?.textContent || ""));
   if (i >= 0) out[i] = serverLine(out[i]);
-  if (live && t) {
-    // After the tiles and their one-line relation: what is happening now, then the hour by hour.
-    const at = out.findIndex((el) => is(el, "relate"));
-    const after = at >= 0 ? at + 1 : out.indexOf(strip) + 1;
-    out.splice(after, 0, rightNow(m), leadsToday(m));
-  }
-  // Live mode opens on Real time: right under the page's title, before the tiles.
-  if (live) {
-    const at = out.findIndex((el) => is(el, "head"));
-    out.splice(at + 1, 0, realtimeBlock(m, s));
-  }
+  out = inOrder(out);
+  // A new site's first-run checklist (owners and admins, until done or hidden): first under the title.
+  const setup = setupChecklist(m);
+  if (setup) out.splice(out.findIndex((el) => is(el, "head")) + 1, 0, setup);
   return out.filter(Boolean);
 }

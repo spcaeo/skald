@@ -40,7 +40,7 @@ export async function loadMe(model) {
   if (!ME.saas || ME.role !== "owner") HIDDEN.add("settings/billing");
   // What the reader's role cannot open stays out of the menu, the palette and the reports.
   if (ME.role !== "owner") HIDDEN.add("settings/security");
-  if (isViewer()) ["settings/users", "settings/integrations", "settings/audit"].forEach((k) => HIDDEN.add(k));
+  if (isViewer()) ["settings/users", "settings/integrations", "settings/audit", "settings/reports"].forEach((k) => HIDDEN.add(k));
   return ME;
 }
 

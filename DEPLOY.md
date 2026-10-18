@@ -590,7 +590,8 @@ location ^~ /traffic/ {
     # settings); api/v1, api/compare, api/page, api/realtime; team, account, tokens, audit
     # (team_api.py); settings and settings/* (settings_api.py); sites and
     # sites/* (sites_api.py); billing and billing/* (saas, 404 while off);
-    # integrations and integrations/* (integrations_api.py); people and people/*
+    # integrations and integrations/* (integrations_api.py; integrations/search
+    # and integrations/search/* are search/api.py); people and people/*
     # (people/api.py); logo and logo/* (the site's logo, logo_api.py).
     location ~ ^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?(?:refresh|me|ours(?:/(?:add|remove|add-mine|pause|resume|edit))?|funnels(?:/(?:save|delete))?|bot-policy|api/(?:v1/(?:[a-z_]+)?|compare|page|realtime)|team(?:/[a-z-]+)?|account(?:/[a-z-]+(?:/[a-z]+)?)?|tokens(?:/[a-z]+)?|audit|settings(?:/[a-z-]+)?|sites(?:/[a-z]+)?|billing(?:/[a-z]+)?|integrations(?:/[a-z]+(?:/[a-z]+)?)?|people(?:/[a-z-]+)?|logo(?:/[a-z]+)?)$ {
         limit_except GET POST { deny all; }
@@ -741,6 +742,16 @@ nginx`. The accounts file stays and is used again on the next switch;
   `/etc/skald/env` as `export SKALD_VISITOR_KEY='...'`, and
   set `report.env_file: /etc/skald/env`. Losing the key only resets
   "returning" to zero for 30 days; changing it does the same.
+- Schema 14 (P1-6) adds the `search_days` table: Search Console and Bing
+  figures synced from their APIs (docs/DATA-CONTRACT-SEARCH.md). The first
+  open copies the file to `history.sqlite.schema-v13.bak`, then adds the
+  table; no row changes. Nothing is synced until a site is connected in
+  Settings > Integrations > Search (docs/INTEGRATIONS.md, "Search Console and
+  Bing"). The Docker scheduler runs `skald search sync` every 6 hours
+  (`SKALD_SEARCH_HOURS`, `SKALD_SEARCH_AT`). Without Docker, add a line to
+  `/etc/cron.d/skald` (section 5), clear of the daily run:
+  `40 5,11,17,23 * * * skald . /etc/skald/env && cd /opt/skald && ./bin/skald --config /etc/skald/config.yml search sync >>/var/log/skald/search.log 2>&1`.
+  Its failures mail once by themselves (no `notify-failure`).
 - `ours.file` must be writable by the skald user (the refresh helper
   writes it); `ours.change_log` too.
 - `conversions.sqlite` schema 2 (Phase 4b step 3): the stages `won` and

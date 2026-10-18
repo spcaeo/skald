@@ -16,7 +16,7 @@ A page you may not change is shown read-only, with the reason beside each field.
 | --- | --- |
 | You | Your account |
 | Team & access | Team, API & tokens (Users, on a server with one shared login) |
-| This site | Sites, Internal traffic, Data retention, Mail, Integrations |
+| This site | Sites, Internal traffic, Data retention, Mail, Reports, Integrations |
 | Organisation | Add or remove sites, Security, Audit log, Billing |
 
 **Back to the dashboard**, at the top of the settings menu, returns to the page you came from.
@@ -27,6 +27,7 @@ These pages have guides of their own:
 - API & tokens: [API](api.md) and [MCP](mcp.md).
 - Internal traffic: [Internal traffic](internal-traffic.md).
 - Integrations: [Tracking script](tracking-script.md) and [Webhooks](webhooks.md).
+- Reports: [Client reports](client-reports.md).
 
 ## Who may change what
 
@@ -39,6 +40,7 @@ These pages have guides of their own:
 | Data retention | Backups | Install admin |
 | Mail | Reports | Admin |
 | Mail | Mail server (SMTP), Google PageSpeed | Install admin |
+| Reports | Client reports, agency branding | Admin |
 | Sites | Host names, Views, Time zone | Admin |
 | Sites | Log file | Install admin |
 | Sites | Goals | Admin |
@@ -115,6 +117,10 @@ For install admins. The sender address, server, port, security, user and passwor
 
 A free API key raises Google's daily limit for the tests on [Site > Speed](#site/speed). It is write-only too.
 
+### Preview the mail
+
+Owners, admins and install admins can see the daily or the weekly mail exactly as this site would send it now: select **Preview the daily mail** or **Preview the weekly mail**. The mail is built from the same checked days, by the same code, and shown on the page with its subject. Nothing is sent, and no mail server is needed. When the mail would not go now (a day held back, a week not whole), the preview says why.
+
 ### Send a test mail
 
 Owners, admins and install admins can send a short test mail through the settings above.
@@ -126,7 +132,15 @@ At most 3 test mails in 10 minutes.
 
 ### Alerts and failure mail
 
-Alerts always show on [Site > Alerts](#site/alerts) and on the bell in the top bar. Alert mails are sent only if the server admin has turned them on. They go to confirmed recipients only.
+Alerts always show on [Site > Alerts](#site/alerts) and on the bell in the top bar. They go to confirmed recipients only.
+
+Admins and owners switch alerts on or off for this site under **Which alerts are on** on [Site > Alerts](#site/alerts):
+
+- **All alerts**: the switch for every rule. While it is off, nothing is checked, and the page offers **Turn alerts on**.
+- **Mail alerts**: off, alerts are only shown here, never mailed.
+- **Each rule** (site down, server errors, a crawl burst, AI started reading, and the rest): on or off by itself.
+
+A change applies from the next live run, within 2 minutes. How much makes an alert (the thresholds) is set in the server's config. A switch the server's config locks shows its reason and cannot be changed here. Viewers see the switches but cannot change them.
 
 If the morning run fails, the server can send one short failure mail. It goes to the same people as the daily mail: the confirmed recipients on this page, or the server's own list when none is set here or none has confirmed yet. It uses the mail server set on this page or on the server. A day held back because it did not add up is not a failure, so it sends no failure mail.
 

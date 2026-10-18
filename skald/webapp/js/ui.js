@@ -4,6 +4,7 @@
 // labels.js gives it ("Direct or unknown" is shown as "Direct").
 
 import { shownText } from "./labels.js";
+import { tipBox } from "./place.js";
 
 export const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -113,19 +114,34 @@ export function change(cur, prev) {
 }
 
 // One tooltip for the whole app. rows: [{key colour, value, label}]
-const tipEl = () => document.getElementById("tip");
+// (Made again if a closed drawer took it away with it.)
+const tipEl = () => document.getElementById("tip")
+  || document.body.appendChild(h("div", { class: "tip", id: "tip", role: "status", "aria-live": "polite", hidden: true }));
+// An open drawer (a modal <dialog>) sits in the top layer, over anything outside it:
+// the tooltip moves into the topmost one while it is open, and back to the page after.
+function tipHost(el) {
+  let modal = null;
+  try { modal = [...document.querySelectorAll("dialog:modal")].pop() || null; } catch { /* no :modal */ }
+  const host = modal || document.body;
+  if (el.parentNode !== host) host.append(el);
+  // A dialog sliding in (a transform) is the tooltip's frame: measure from its corner.
+  if (!modal || getComputedStyle(modal).transform === "none") return [0, 0];
+  const r = modal.getBoundingClientRect();
+  return [r.left, r.top];
+}
 export function tip(x, y, head, rows) {
   const el = tipEl();
   el.replaceChildren(h("div", { class: "t-h" }, head),
     ...rows.map((r) => h("div", { class: "t-r" },
       r.color ? h("span", { class: "t-k", style: { background: r.color } }) : null,
       h("b", null, r.value), h("span", null, r.label))));
+  const [ox, oy] = tipHost(el);
+  // Measured at the corner, so its last place near an edge does not squeeze it.
+  Object.assign(el.style, { left: "0px", top: "0px", transform: "none" });
   el.hidden = false;
-  const w = el.offsetWidth, pad = 8;
-  const left = Math.max(w / 2 + pad, Math.min(innerWidth - w / 2 - pad, x));
-  const flip = y - el.offsetHeight - 16 < 0;
-  el.style.left = `${left}px`;
-  el.style.top = `${flip ? y + el.offsetHeight + 28 : y}px`;
+  const box = tipBox(x, y, el.offsetWidth, el.offsetHeight, innerWidth, innerHeight);
+  el.style.left = `${box.left - ox}px`;
+  el.style.top = `${box.top - oy}px`;
 }
 export function untip() { const el = tipEl(); if (el) el.hidden = true; }
 

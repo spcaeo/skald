@@ -57,6 +57,20 @@ a version change; a field is never renamed or removed without one.
   The line's own country always wins. Both counting roads (main and audit)
   look it up the same way. With no country and no file, the country is
   `""` / `Unknown` (shown as Not recorded), never guessed.
+- **Cities** (2.12.0) are `"City, Region, CC"` (`"Toronto, Ontario, CA"`; the
+  region left out when missing or the same as the city), from the city file
+  `logs.city_db` (DB-IP's free "IP to City Lite" `.mmdb`), people only, at
+  each visit's first page; never a city in another country than the line's
+  (CLASSIFICATION.md). Only where the file is set: then history keeps
+  `people_city_visits` per day (readers by city, top 50 and `"(all others)"`,
+  `"Unknown"` for none, adding up to the readers; one `"Unknown": 0` row on a
+  day without a reader), a day's `by.city` in `app.json` and the live
+  snapshot's `breakdowns.by.city`; a journey gets `city` only when known;
+  `realtime.cities` ([docs/DATA-CONTRACT-REALTIME.md](docs/DATA-CONTRACT-REALTIME.md)). A period sums cities only when each of its days
+  has them. The audit recounts them by its own road (`audit_cities.py`: its
+  own label from the same file's raw record). A day stored without cities is
+  skipped by the audit (collected before the file was set). `app.json`'s
+  `cities` (bool) says whether a city file is set.
 - **Groups**: `people`, `answer_engines`, `search_engines`, `bots`, `ours`.
 - **Privacy.** No data file carries an IP address, a user agent or a visitor
   key, except `ai_activity.json`'s `today.events[].ip` and `requests.json`'s
@@ -69,7 +83,7 @@ a version change; a field is never renamed or removed without one.
   off for one upgraded from before 2.4.0 (`people/policy.py`). Those are not
   data files: [docs/DATA-CONTRACT-PEOPLE.md](docs/DATA-CONTRACT-PEOPLE.md).
   An address removed with `skald forget --ip` is shown as `"(removed)"` from
-  then on. Journeys are anonymous and kept `journey_days` days.
+  then on. Journeys are anonymous and kept `journey_days` days; their `first_touch` and `seq` (2.12.0) are in DATA-CONTRACT-PEOPLE.md.
 - **Release 3 files** (2026-10-08): `robots.json`, `speed.json`,
   `funnels.json`, `sites.json`, `page_index.json` - and the API, users and
   roles, compare and page lifecycle below.
@@ -190,6 +204,12 @@ null), `likely_ai` (only on a visit likely sent by an AI assistant, an estimate)
 [docs/DATA-CONTRACT-AI-LIKELY.md](docs/DATA-CONTRACT-AI-LIKELY.md)). Source types: `AI assistant`, `Search engine`, `Social media`,
 `Email`, `Other website`, `This site`, `Tagged link`, `Direct or unknown` (stored names; people read **Direct** and, for `Unknown`, **Not recorded**: `labels.py`).
 
+`pages` stays the page views (what both roads add up); `seen` = `pages` + `in_app`.
+Every view of a visit states both: "3 pages (2 seen in the browser)" is `seen` with
+`in_app` named (`visits.pages_words`, `webapp/js/visitpages.js`); the `summary` line
+says it the same way. app.json's journeys carry `seen` and `in_app` too, and real
+time's newest visits carry `in_app`.
+
 ```json
 {"journey_days":7,"days":[{"day":"2026-10-07","state":"ok","stats":{"visits":140,"pages":{"1":118,"2":15}}}],
  "journeys":[{"day":"2026-10-07","start":"2026-10-07T12:41","country":"CA","device":"Mobile",
@@ -198,7 +218,7 @@ null), `likely_ai` (only on a visit likely sent by an AI assistant, an estimate)
    "trail":[["/compare/x/","page"],["/features/","app"],["/pricing/","page"]],"seconds":100,
    "not_found":0,"posted":0,"utm":{"source":"chatgpt.com"},"paid":"","ref_param":"",
    "ref_host":"chatgpt.com","ref_page":"","search_terms":"","returning":false,"days_seen_30d":1,
-   "summary":"12:41 · 🇨🇦 Canada · Mobile, Safari on iOS · from ChatGPT → /compare/x/ → /features/ (in-app) → /pricing/ · 2 pages · 1m 40s"}],
+   "summary":"12:41 · 🇨🇦 Canada · Mobile, Safari on iOS · from ChatGPT → /compare/x/ → /features/ (in-app) → /pricing/ · 3 pages (1 seen in the browser) · 1m 40s"}],
  "today":{"state":"ok","stats":{"visits":12},"journeys":[],"journeys_total":12}}
 ```
 
@@ -256,38 +276,7 @@ counted in. For readers by hour in another zone use `hours_utc` -
 
 ## bots.json
 
-`days[]` and `today`: `requests` int, `probes` int (scanner probes),
-`agents` `{short name: requests}` (monitors, SEO suites, unfurlers,
-crawler sessions in browser clothes; null in `today`), `statuses` (bots'
-status classes).
-
-From release 2 (null on days collected before it; `today` has them too):
-
-| field | type | meaning |
-|---|---|---|
-| `link_previews` | `{app: requests}` | link-preview unfurlers by app (`Slack`, `iMessage`, `WhatsApp`, `LinkedIn`, `Microsoft Teams`, `Discord`, `Telegram`, `X (Twitter)`, `Facebook`, `Skype`, `Pinterest`, `Reddit`, `Embedly`, `Iframely`, ...). A preview means someone pasted a link in a chat. Filed under bots; included in `requests` and in `agents` as `"link preview: <app>"`. |
-| `verification` | `{crawler: {"group","method","verified","unverified","spoofed"}}` | every named assistant or search crawler that came, checked against its owner's published ranges or by reverse+forward DNS. `group` is `answer_engines` or `search_engines` (where it counts when not spoofed); `method` is `ranges`, `dns`, `network` (the owner's network list) or `none` (nothing published: always `unverified`). `spoofed` requests are filed under **bots** as `"claims to be <crawler>"` (and counted in `requests`); `verified + unverified` add up to the crawler's requests in its group. |
-| `fake_browsers` | `{"hosting_network","fan_out","bare_mozilla": {"requests","addresses"}}` | browser-looking requests counted in **people** that carry a warning sign: from a cloud or hosting network, the same agent from 10+ addresses within 10 seconds, or the bare agent `Mozilla/5.0`. Flags only - they stay in people until a rule is proven; one request can carry several flags. |
-| `not_rendered` | `{"requests","pages","readers"}` | browser-like requests moved to **bots** because their visit never rendered a page (no own script, style or `?_rsc=` payload near a page, no beacon event, not seen rendering earlier that day or reading on an earlier day; `rendering.py`, CLASSIFICATION.md rule 9). `pages` are their page views; `readers` the visits among them that read a page - the visitors this rule took out. In `requests` and in `agents` as `"browser-like, never rendered the page"`. Absent on days collected before 2026-10-11. Recounted by the audit. |
-| `blocked` | `{crawler: n}` | 403 answers to each AI crawler of the AI crawler settings' catalog (`bot_policy.CATALOG`, by the token in its user agent), whichever group it counts in: what the settings refused, plus any other 403 that crawler got. Null on days collected before 2026-10-08; `{}` when none. Recounted by the audit. |
-
-The AI crawler settings themselves are not a data file: AI & bots > Crawler rules reads and
-saves them through the refresh helper, `GET <page>/bot-policy` and
-`POST <page>/bot-policy` with `{"owners": {assistant: "allow"|"block"|"block_training"},
-"crawlers": {name: "allow"|"block"}}` (admins only, same-origin). Both answer
-`{"ok", "policy", "modes", "assistants": [{"owner","mode","crawlers": [{"name","tier"
-("training"|"index"|"asked"),"robots_only","override","effective"}]}], "blocked": [name],
-"robots_suggestion": text, "applied": {"at","ok","changed","error","blocked",
-"policy_updated_at","conf_sha256"} or null}`, plus `"error"` on a refused save.
-bots.json says whether that route exists: top level `api` is
-`{"bot_policy": "bot-policy"}` (relative to the page) when the config has
-`bot_policy.enabled: true`, else null - then the page fetches nothing and
-shows the settings as not set up.
-`applied` is the last time root's path unit wrote the nginx map; when its
-`policy_updated_at` is older than the policy's `updated_at`, the change is
-still being applied (seconds).
-
-Top level (not per day): `ranges` `{list: {"fetched": ISO or null, "networks": int, "ok": bool, "error": string or null}}` - when each published list was last fetched; `dns_cache` `{"addresses": int, "checked_at": ISO or null}`.
+Moved to [docs/DATA-CONTRACT-BOTS.md](docs/DATA-CONTRACT-BOTS.md#botsjson).
 
 ## requests.json
 
@@ -327,7 +316,7 @@ A row:
 | `os`, `device` | string | from the user agent (`macOS`, `iOS`, ... / `Desktop`, `Mobile`, `Tablet`); bots usually `Other` / `Desktop` |
 | `group` | string | `people`, `answer_engines`, `search_engines`, `bots`, `ours`, or `excluded` |
 | `rule` | string | why it is in that group, in words: `"people: reader"`, `"people: asset"`, `"people: Next.js payload (_rsc)"`, `"people: reader from chatgpt.com"`, `"ours: Office Mac (Morgan)"`, `"AI asked: ChatGPT-User"`, `"AI training: GPTBot"`, `"search: Googlebot"`, `"bot: meta-webindexer"`, `"bot: scanner probe"`, `"bot: link preview: Slack"`, `"bot: claims to be Googlebot"`, `"bot: browser-like crawler (robots.txt or sitemap, no rendering)"`, `"bot: browser-like, never rendered the page"`, `"excluded: other host"` |
-| `kind` | string | what was asked for: `page`, `rsc`, `asset`, `beacon`, `crawler_file`, `redirect`, `not_modified`, `not_found`, `client_error`, `server_error`, `post`, `other` |
+| `kind` | string | what was asked for: `page`, `rsc`, `asset`, `beacon`, `crawler_file`, `redirect`, `not_modified`, `not_found`, `client_error`, `server_error`, `post` (a form or API call the site's own pages sent), `script_event` (the script tag's events posted to Skald's own `/traffic-beacon` or `/traffic-js/`: never a form post), `skald_endpoint` (a call to `/traffic-hooks/` or `/traffic-ingest/`), `other` |
 | `page_view` | bool | counted as a page view in its group |
 | `assistant` | string | the AI assistant: the crawler's name, or the assistant a reader came from; `""` |
 | `source` | string | people rows: the source type of the visit the request belongs to (same words as journeys: `AI assistant`, `Search engine`, `Social media`, `Email`, `Other website`, `This site`, `Tagged link`, `Direct or unknown`) - the source of the visit's first page view, or of its first request until a page is read; a page from a new outside source starts a new visit (SOP.md, "What a visit is"), as in the journeys; `""` for every other group |
@@ -400,127 +389,17 @@ run (10 at most) and in run-daily, again after 30 days; switched on by
 
 ## robots.json
 
-The site's own robots.txt beside what each crawler actually fetched
-(`robots.py`). robots.txt is fetched by the live run at most once an hour
-and kept beside the history; verdicts use Python's `urllib.robotparser`
-with the crawler's own token.
-
-| field | type |
-|---|---|
-| `robots` | `{"url","fetched_at" (ISO or null),"ok": bool,"error": string or null,"groups": [{"agents": [token],"allow": [path],"disallow": [path],"crawl_delay": number or null}],"sitemaps": [url]}` |
-| `crawlers[]` | one per assistant, search crawler or named bot seen in the last 30 days and today: `{"name","group","token" (the token matched against robots.txt),"applies" (the robots.txt group that applies: a token or "*"),"root_allowed": bool,"days_seen": int,"requests": int,"paths": int (distinct paths),"disallowed": int (requests for paths robots.txt disallows it),"disallowed_paths": [{"path","n"}] (top 10),"today": {"requests","disallowed"} or null}` - newest activity first |
-| `days[]` | `{"day","state","crawlers": {name: {"requests","disallowed"}} or null}` (30 days) |
-
-Requests are counted per day per crawler by path (`day_extras` kind
-`crawler_paths`, the top 200 paths per crawler and an `"(all others)"`
-row, verified and audited); `disallowed` is judged against the robots.txt
-fetched at `robots.fetched_at` - rules change, so a past day is judged by
-today's rules, and the file says so.
-`llms_txt.json`, a suggested /llms.txt: [docs/DATA-CONTRACT-LLMS-TXT.md](docs/DATA-CONTRACT-LLMS-TXT.md).
+Moved to [docs/DATA-CONTRACT-BOTS.md](docs/DATA-CONTRACT-BOTS.md#robotsjson).
 
 ## crawler_cost.json
 
-What each crawler, assistant and bot cost the server (`crawler_cost.py`).
-Counted per day into the `day_extras` kind `crawler_cost` (kept
-`report.retention_days`, like the other per-day detail), checked by verify and
-recounted by the audit (`audit_crawler_cost.py`). Only the three machine groups:
-`answer_engines` and `search_engines` by the name the classifier matched, `bots`
-by the name `bots.json` `agents` uses (a check, a preview, a crawler session, or
-the short name the user agent announces); a scanner probe with no other name is
-`"(scanner probes)"`. People and our own traffic are never in it. No address.
-
-The day kind, `{"groups": {group: {name: entry}}}`, one entry per name:
-
-| field | type | meaning |
-|---|---|---|
-| `requests` | int | every request it made that day |
-| `bytes` | int or null | the log's body-size field summed over the lines that have one; **null (not recorded) when none of its lines had a size** |
-| `sized` | int | lines with a size. Below `requests`, `bytes` is a partial sum and the page says so |
-| `ms`, `timed` | int or null, int | response times in whole milliseconds (each line's time rounded), summed, over the `timed` lines that logged one; `ms` null when `timed` is 0 |
-| `p90_ms` | int or null | the day's 90th percentile, nearest rank (the smallest time at least 90% of its timed lines took no longer than); null when `timed` is 0 |
-| `status` | `{"2xx","3xx","4xx","5xx": n}` | requests by status class; errors are 4xx + 5xx |
-| `paths` | int | distinct paths (query string cut, first 200 characters) |
-| `pages` | `{path: n}` | the 10 paths it fetched most, and `"(all others)"`: adds up to `requests` |
-| `countries` | `{code: n}` | its requests by the line's country (cc= or the GeoIP file), `"Unknown"` for none; top 10 and `"(all others)"` |
-| `agents` | `{user agent: n}` or null | the user-agent strings it sent, first 200 characters; top 5 and `"(all others)"`. A named crawler's own strings only: **null (not kept)** for the bots whose string may be a person's browser - `"(scanner probes)"`, link previews (iMessage sends the sender's Safari string), browser-like crawler sessions, visits that never rendered, `"browser-like agent"` and the Googlebot template. The only user-agent strings history or the live snapshot holds |
-| `last` | ISO | its last request of the day, UTC |
-
-Each group keeps its 50 busiest names; the rest are one `"(all others)"` entry
-with `requests`, `bytes`, `sized`, `ms`, `timed`, `status`, `names` (how many were
-folded), `last`, and `p90_ms`, `paths` null. Verify holds: each group's entries
-add up to the group's requests; each entry's statuses, pages, countries and
-agents add up to its requests; `bytes` is null exactly when `sized` is 0, `ms` and
-`p90_ms` exactly when `timed` is 0. Body size: nginx and combined logs' `$bytes`
-field (`-` is none), Vercel `responseByteSize`, Netlify `response_size`, an edge
-record's `bytes`, Caddy's `size`, the CDN formats' own fields. Response time:
-nginx's `$request_time`, the combined layout's number after the user agent,
-Netlify's `duration`, the CDN formats' own; Vercel, Caddy and edge records give
-none, so their times are not recorded.
-
-The data file:
-
-| field | type |
-|---|---|
-| `days[]` | `{"day","state","names": {group: {name: {"requests","bytes","sized","ms","timed","p90_ms","status","paths","last", "tier" (answer engines: "training" or "asked"), "names" (a fold only), and on the last 30 days only "pages","countries","agents"}}} or null}` (180 days; null: collected before this was counted) |
-| `today` | the live snapshot's day the same way, lists included, or null |
-| `detail_days` | 30: how many days carry the lists |
-
-Over a range the page sums `requests`, `bytes`, `sized`, `ms`, `timed` and the
-statuses; the mean time is `ms / timed` (weighted by request); the p90 is shown
-for one day only (a range's p90 cannot be built from daily ones); distinct paths
-are each day's count summed (a path fetched on two days counts twice), and
-re-crawl is `requests / paths`, fetches per distinct path within a day.
+Moved to [docs/DATA-CONTRACT-BOTS.md](docs/DATA-CONTRACT-BOTS.md#crawler_costjson).
 
 ## realtime.json
 
-Overview › Real time (`realtime.py`): who is on the site now. Built by the live
-run (every 2 minutes) inside its own tally, so the people rule is the main road's
-to the letter, and kept in the live snapshot as `realtime` (never in history,
-never mailed). Recounted from the raw lines by `skald audit --live`
-(`audit_realtime.py`, registered in `audit_more.RECOUNTS`). No address and no
-user agent anywhere in it. Written for the site's own data folder only: a page
-group's copy says `"state": "site"` (the figures are the whole site's).
+Moved to [docs/DATA-CONTRACT-REALTIME.md](docs/DATA-CONTRACT-REALTIME.md#realtimejson).
 
-| field | type | meaning |
-|---|---|---|
-| `state` | `ok`, `stale`, `empty`, `withheld`, `site` | `stale`: the part is more than 10 minutes old; `withheld`: today's snapshot did not reconcile, so no figure is given; `empty`: no snapshot or no part yet |
-| `realtime` | object or null | the snapshot's part, below; null unless `ok` or `stale` |
-
-The snapshot's `realtime` part (times in the site's zone):
-
-| field | type | meaning |
-|---|---|---|
-| `version`, `minutes`, `short` | int | 1; the window, 30; the short window, 5 |
-| `until` | ISO | the end of the window (the snapshot's own `until`, not included) |
-| `visits_today` | int | readers' visits today so far (= the journeys, = the readers) |
-| `active` | `{"5": n, "30": n}` | readers' visits with any request (assets included) in the last 5 / 30 minutes before `until` |
-| `per_minute[]` | `{"at", "under_way", "started", "requests": {group: n}}` | the last 30 clock minutes, oldest first, the last one running to `until`. `under_way`: visits whose first request was before the minute ended and whose last was in it or after; `started`: visits whose first request was in it; `requests`: every request of the site's hosts in it by group (another host's lines are not in it) |
-| `countries` | `{code: {"visits", "active"}}` | every country with a visit today (the visit's first page's country, `"Unknown"` for none), and of those the visits active in the last 30 minutes |
-| `sources`, `devices` | `{label: n}` | visits active in the last 30 minutes, by the labels of their first page |
-| `pages` | `{path: n}` | people's page views in the last 30 minutes, top 25 and `"(all others)"`: adds up to `page_views` |
-| `page_views` | int | people's page views in the last 30 minutes |
-| `machines` | `{"answer_engines": {name: n}, "search_engines": {name: n}, "bots": n}` | requests in the last 30 minutes; the two named lists top 15 and `"(all others)"` |
-| `newest[]` | `{"start", "country", "device", "browser", "source", "via", "landing", "pages", "active"}` | the 10 newest visits by first request; `start` to the minute; `active` `"5"`, `"30"` or `""` |
-
-### Real time's helper route: GET `<page>/api/realtime`
-
-What the page polls every 15 seconds (`realtime_api.py`, read-only, same
-sign-in as the page; nginx routes it with `api/compare` and `api/page`). An
-unknown site is 404.
-
-| field | type | meaning |
-|---|---|---|
-| `ok`, `site`, `now` | | |
-| `people_state` | `ok`, `withheld`, `empty` | today's snapshot's state |
-| `people` | object or null | the snapshot's `realtime` part (above), as of its `until` |
-| `people_counted` | ISO or null | when the snapshot was written |
-| `requests` | `{"from", "until", "per_minute": [{"at", "requests"}], "total", "newest", "partial"}` | every request of the site's hosts per clock minute over the 30 minutes before `until` (the second it was read), unsorted (`realtime_tail.py`): read from the end of the plain log files only; `partial` true when the end was too large to read whole (64 MB), so the count is a floor |
-
-The helper keeps an answer 10 seconds (many open pages cost one read) and writes
-the last one beside the snapshot, `live-<site>-tail.json` (counts only:
-`from`, `until` UTC, `per_minute` keyed by epoch minute, `total`, `newest`,
-`partial`, `read_upto`: each plain file's size when the count began, read no
-further), which `audit --live` counts again from the same bytes of the raw lines.
+Yesterday at this hour (`by_now`, 2.13): [docs/DATA-CONTRACT-REALTIME.md](docs/DATA-CONTRACT-REALTIME.md#yesterday-at-this-hour-the-snapshots-by_now-213).
 
 ## speed.json
 
@@ -715,83 +594,15 @@ an owner counts as an admin, and `/me` adds `name`, `org`, `csrf`, `mode`,
 
 ## alerts.json
 
-What the alert check (every live run) found, open and recently closed. The
-same file on every page.
-
-| field | type | meaning |
-|---|---|---|
-| `enabled` | bool | `alerts.enabled` in the config |
-| `mail` | bool | alerts are mailed (false: evaluated and shown only - staging, or `alerts.mail: false`) |
-| `checked_at` | ISO or null | the last check |
-| `rules[]` | `{"cause","on","threshold"}` | every alert type, whether it is switched on, and its threshold in words |
-| `open[]` | alert | newest first |
-| `closed[]` | alert | closed in the last 30 days, newest first |
-| `history` | object or null | the citation and crawler rules' last evaluation (alerts_history.py): `{"day","evaluated_at","rules": {"first_citation"/"first_cited_page"/"cited_visits"/"crawler_silent": {"on","state" ("ok"/"waiting"/"off"),"waiting_on": [day],"why" (a waiting rule's reason when it is not a day: history too young),"found": int}}}`; `cited_visits` also has `day_visits`, `median`, `weeks` (how many same weekdays were counted), `skipped` [day] and `verdict` ("rose"/"fell"/"steady"/"too few to judge") once judged. null before the first check |
-| `ai` | object or null | the AI rules' last evaluation (alerts_ai.py): `{"day" (the last whole day judged),"evaluated_at","rules": {"started_reading"/"stopped_reading"/"sending_people": {"on","state" ("ok"/"waiting"/"off"),"waiting_on": [day] (withheld, partial, missing or not-recorded days the rule needs),"unjudged": [assistant] (an "(all others)" path row on a day that had to be empty),"found": int}}}`; `sending_people` also has `assistants[]`: `{"assistant","day" (likely visits),"average" (a day, the 28 days before),"verdict" ("jumped"/"vanished"/"steady"/"too few to judge")}`. null before the first check |
-
-An alert: `id` (string), `cause` (`site_down`, `logging_stopped`,
-`server_errors`, `not_found_surge`, `crawler_burst`, `new_crawler`,
-`traffic_drop`, `ai_started_reading`, `ai_stopped_reading`, `ai_sending_people`,
-`ai_first_citation`, `ai_first_cited_page`, `ai_cited_visits`, `crawler_silent`), `subject` (what it is about: a crawler name, a path, or
-`""`), `severity` (`high`, `medium`, `low`), `title` (one plain line),
-`detail` (a few lines: the figure, the threshold, what to look at), `figure`
-(number or null), `threshold` (number or null), `opened_at`, `last_seen_at`,
-`closed_at` (ISO or null), `mailed` (mails sent for it), `repeats` (checks
-that found it again while it was open and were not mailed - they go in the
-daily digest). An AI alert also has `data`: `{"kind","assistant","crawlers","day","window",
-"pages" | "visits","average"}` (the webhook body, docs/INTEGRATIONS.md); its `subject` is
-`"<assistant>: <path>"`, `"<assistant>: pages"` (more than `ai_max_pages` pages in one alert) or
-`"<assistant>: jumped"`/`"vanished"`, and `rules[]` rows for them carry `"group": "ai"`.
-
-The AI rules count nothing new: they read the day kinds `crawler_paths` (checked by
-robots.check, recounted by audit_release2) and `ai_likely` (checked by ai_likely.check,
-recounted by audit_ai_likely.py), and the `pages` kind (a page answered to an assistant), on
-whole `ok` days only. A withheld, partial, missing or not-recorded day in a rule's window makes
-it wait. Settings `alerts.ai_*` (config.example.yml).
-
-The citation and crawler alerts (alerts_history.py) also carry `unit` (`"visits"` or
-`"requests"`, never both) and `data` by `data.kind`:
-`first_citation` `{"assistant","day","at" (UTC),"path","visits" (that day's visits from its
-citations, or null: not recorded),"history_since"}` (subject: the assistant, e.g.
-`"claude.ai"`); `first_cited_page` `{"day","pages": [{"path","assistant","at","visits"}],
-"history_since"}` (subject: the path, or `"pages"` for more than `first_max_pages`, figure =
-pages); `cited_rose`/`cited_fell` `{"day","visits","median","weeks": [{"day","visits"}],
-"skipped": [day],"spike_factor","drop_percent","minimum"}` (subject `"rose"`/`"fell"`);
-`silent` `{"crawler","group","day","quiet": [first, last],"window": [first, last],
-"active_days","requests","last_seen"}`. They read the `page_milestones` table and the
-`counts` kinds `cited_by`, `cited_page` and `reader_source` ("AI assistant"), and the
-`crawler_paths` day kind; nothing new is stored but the alert state. Run-daily's recounts
-(audit_alerts.py) work each kept alert's figures out again from the stored days' `page_firsts`
-and `crawler_paths` blobs and the `counts` rows, with its own code.
+Moved to [docs/DATA-CONTRACT-ALERTS.md](docs/DATA-CONTRACT-ALERTS.md#alertsjson).
 
 ## quality.json
 
-Is the input trustworthy - the data-quality panel.
-
-| field | type |
-|---|---|
-| `days[]` | `{"day","state", ...}` - when the day has figures: `lines`, `unparsed`, `duplicates` (byte-identical to an earlier line in the same second; kept and counted), `duplicates_removed` (lines repeating an earlier line's request id `rid=`: the same request written twice, dropped before counting; null for days collected before the log carried `rid=`), `old_format` (lines in the combined format: no host, no country), `first_line`, `last_line` (HH:MM local), `gaps` `[{"from","to","minutes"}]` (no line at all for more than 10 minutes), `files` (log files read), `not_rendered` (bots.json's `{"requests","pages","readers"}`: browser-like requests moved to bots, null before 2026-10-11), `verify` (`"ok"`, `"withheld"`, `"partial"`), `problems` (string), `audit` `{"state": "ok"/"mismatch"/"not run", "at": ISO or null, "compared": int or null, "problems": [string]}`. Fields null when the day was collected before release 2. |
-| `today` | null, or `{"state","lines","unparsed","duplicates","duplicates_removed","old_format","gaps","first_line","last_line","newest_line" (ISO),"clock_skew_s" (server clock minus the newest line, seconds; large = logging stopped or the clock is wrong),"files","not_rendered"}` |
-| `runs` | `{name: {"last_ok": ISO or null, "last_fail": ISO or null, "last_exit": int or null, "expected_every_min": int}}` for `live`, `run-daily`, `verify-bots`, `alerts`, `backup`, `pagespeed`, and `heartbeat` (its last answered beat in the log) |
-| `rotation` | `{"files": [{"name","bytes","modified"}]}` - the log files on disk now, newest first |
-| `builders_failing` | `[{"file","error","since"}]`: optional data files whose builder failed on this redraw (see below); `[]` when all were built |
-
-**A data file that failed to build.** The core files - overview, live,
-visits, hourly, breakdowns, health, ours, quality - are always built or the
-run stops. Any other file whose builder raises is written as the envelope
-plus `{"state": "error", "error": "<short message>"}` and nothing else, and
-listed in `quality.json` `builders_failing` with the time it started
-failing; every other file is still written. Show such a file as "could
-not be built", never as empty or zero.
+Moved to [docs/DATA-CONTRACT-ALERTS.md](docs/DATA-CONTRACT-ALERTS.md#qualityjson).
 
 ## markers.json
 
-Things we did, to draw as vertical lines on every chart.
-
-| field | type |
-|---|---|
-| `markers[]` | `{"at": ISO, "kind", "label", "detail"}`, newest first, the last 180 days. `kind`: `website_release` (a release directory on the server), `skald_deploy`, `config_change` (the skald config changed), `ours_change` (an internal address added, removed, paused, resumed or edited), `backfill` (history recounted) |
-| `website_version` | string or null: the version the live site's footer shows now, e.g. `"v1.4.0 · build 212"` |
+Moved to [docs/DATA-CONTRACT-ALERTS.md](docs/DATA-CONTRACT-ALERTS.md#markersjson).
 
 ## leads.json
 
@@ -909,33 +720,7 @@ people (`statuses.people.404`).
 
 ## ai_activity.json
 
-| field | type |
-|---|---|
-| `today` | null, or `{"events": [...], "total": int, "by_name": {name: {"kind","events","visitors","repeat"}}}` (`visitors`/`repeat` null without the visitor key; a view's `by_name` is null and its events are the ones on its paths) |
-| `days[]` | `{"by_name": {name: {"kind","events"}}, "by_kind": {"reader"/"asked"/"training": {"visitors","repeat_visitors"}} or null}` - visitors are distinct keyed hashes that day (whole site), repeat ones were seen on an earlier day within 30 |
-| `repeat_window_days` | 30 (the file says 30 even when `visitors.repeat_days` is changed) |
-| `likely_ai`, `days[].ai_likely`, `today.ai_likely` | likely sent by an AI assistant, inferred (null: not recorded): [docs/DATA-CONTRACT-AI-LIKELY.md](docs/DATA-CONTRACT-AI-LIKELY.md) |
-| `days[].ai_read`, `today.ai_read` | what an AI visit's assistant fetched before it, per assistant (null: not recorded): same file |
-| `repeat_counts` | `"days"`: `times_seen_30d` counts distinct days the visitor was seen in the 30 days ending today, today included |
-
-These addresses are written only here and in the private snapshot file
-`live-<site>-ai.json` beside history (mode 0640); never in history, the
-other data files, CSV exports or mail. (A site that keeps addresses keeps
-its readers' visits in `conversions.sqlite`, not here.)
-
-`events[]`, newest first, at most 200: `at` (ISO local), `name`
-(`"ChatGPT-User"`, `"GPTBot"`, or the assistant a reader came from, e.g.
-`"chatgpt.com"`), `kind` (`"asked"`, `"training"`, `"referred"` = a reader
-who arrived from an assistant, one per page loaded), `path`, `status`,
-`country` (code or `""`), `country_name`, `ip` (from today's raw log),
-`repeat` (bool or null when the visitor key is not configured),
-`times_seen_30d` (int or null), `first_seen` (date or null).
-
-Repeat: the visitor is `HMAC-SHA256(SKALD_VISITOR_KEY, ip) + family`
-(family = the assistant or crawler name; for readers the browser family and
-system). History keeps that hash per day (`visitor_days`) for
-`visitors.repeat_days` (default 30) days, then deletes it. `repeat` = the
-same hash on an earlier day within that window.
+Moved to [docs/DATA-CONTRACT-BOTS.md](docs/DATA-CONTRACT-BOTS.md#ai_activityjson).
 
 ## campaigns.json
 
@@ -1015,6 +800,7 @@ beside the visit steps (like the lead steps), never divided per visit.
 | `limits` | `{"factor","slack","day_factor","day_slack"}`: verify's bounds (events per page view) |
 | `days[]` | `keep_days` entries ending yesterday, oldest first: `{"day","state"}`; `state` is `ok`, `withheld` (+ `problems`), `missing` or `before`. When `ok`: `events` `{event: n}`, `ours` `{event: n}` and `ai` `{assistant: {event: n}}` (both null on a view), `anomalies` `[{"kind": "path"/"404"/"unchecked"/"spool", "path","events","views","limit"} or {"kind","note"}]`, `audit` `"ok"`/`"mismatch"`/null, `by_source` (see "events.json goals" below) |
 | `row_fields` | `["day","event","label","path","source","n"]` |
+| `sent` | `{event: day}`: every event name the beacon ever recorded for the site (any kept day, withheld days included, and today's spool), with the last day it did. Names only, no count. An event in `events` but not here was never sent: the page says "not set up", never 0 |
 | `rows_from` | date: the first day `rows` cover |
 | `rows` | `[[day, event, label, path, source, n]]` for `ok` days from `rows_from` (180 days); `label` is which button or form (`"signup_hero"`, `"demo_header"`; the destination host for `outbound_click`; `""` when none); `source` is one of the source types (Visits) of the visit the event came from |
 | `today` | `{"state": "ok"/"empty"/"withheld","from","until" (local ISO, first and last event),"events": {event: n},"ours","ai","rows": [[event, label, path, source, n]]}` from today's spool; not yet verified or audited |
@@ -1056,6 +842,15 @@ Each visit kept with its address (`visits`, `visit_days` in
 the helper's person lookup and left-out lists: not data files, not figures.
 Every field: [docs/DATA-CONTRACT-PEOPLE.md](docs/DATA-CONTRACT-PEOPLE.md).
 
+`retention.json` (Traffic › Retention) and the day kinds `retention_week` and
+`retention_day`: cohorts of new visitors and who came back, counted from the kept
+visits or the 30-day code, recounted by `audit_retention.py`. Every field:
+[docs/DATA-CONTRACT-PEOPLE.md](docs/DATA-CONTRACT-PEOPLE.md), "Retention cohorts".
+
+## Client reports (2.13)
+
+Moved to [docs/DATA-CONTRACT-REPORTS.md](docs/DATA-CONTRACT-REPORTS.md#client-reports-213).
+
 ---
 
 ## Tracking additions
@@ -1063,3 +858,10 @@ Every field: [docs/DATA-CONTRACT-PEOPLE.md](docs/DATA-CONTRACT-PEOPLE.md).
 The day kinds `funnels`, `engagement`, `utm_hygiene`, `ai_likely`, `ai_fetches`, `ai_read` and
 `ai_formats` (also app.json `days[].ai_formats`), leads.json
 `attribution_rows` and time to convert, and events.json goals: [docs/DATA-CONTRACT-TRACKING.md](docs/DATA-CONTRACT-TRACKING.md).
+
+## search.json (P1-6)
+
+Search Console and Bing Webmaster Tools figures synced into history (table
+`search_days`, history schema 14), the day kind `search_landing` (people from
+search engines by engine and landing page) and the cross-check between them.
+Every field: [docs/DATA-CONTRACT-SEARCH.md](docs/DATA-CONTRACT-SEARCH.md).

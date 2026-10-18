@@ -472,13 +472,17 @@ def checks(ctx, send_test: bool = False, helper_state: dict | None = None) -> li
 
 def integration_checks(site_config: dict, folder, site: str, live_dir=None,
                        now: datetime | None = None, config_path=None) -> list[dict]:
-    """The lines Settings > Integrations shows: the receiver, the script tag,
-    each hook, one lead from two tools, the lead database."""
+    """The lines Settings > Integrations shows: the access log and its page
+    assets (the first road in, which Overview's first-run checklist also reads),
+    the receiver, the script tag, each hook, one lead from two tools, the lead
+    database."""
     from .conversions.roads import HELPER_URL, helper
     now = now or datetime.now(timezone.utc)
     cmd = command(config_path)
     state = helper(str(setting(site_config, "hooks", "test_url") or HELPER_URL))
     out = []
+    out += _safe("logs", "Access log", access_log, site_config, now, cmd)
+    out += _safe("assets", "Page assets", page_assets, site_config)
     out += _safe("receiver", "Hook receiver", receiver, site_config, state)
     out += _safe("script", "Script tag", script_tag, site_config, state,
                  live_dir if live_dir is not None else folder, now, config_path)

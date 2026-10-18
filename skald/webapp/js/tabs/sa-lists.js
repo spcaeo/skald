@@ -14,7 +14,7 @@ import { h } from "../ui.js";
 import { time as tzTime } from "../tz.js";
 import { call } from "./ipmanager.js";
 import { mayFind, openPerson } from "./person.js";
-import { openDrawer } from "../drawer.js";
+import { openVisitor } from "./visitor.js";
 import { grid } from "../grid.js";
 import { actionName, toolName, STAGE } from "./leadfigs.js";
 
@@ -102,9 +102,9 @@ function convDetail(r) {
   const dl = h("dl", { class: "dw-dl" }, [["List", KIND[r.kind]], ["When", at(r.at)], ["Action", actionName(r.action || "")], ["Stage", STAGE[r.stage] || dash(r.stage)],
     ["Reported by", toolName(r.tool)], ["Source (last touch)", dash(r.source)], ["Landing", dash(r.landing)], ["Lead or reference", key(r.ref)], ["Visitor ID", key(r.vid)], ["Why", dash(r.why)]]
     .flatMap(([t, v]) => [h("dt", null, t), h("dd", null, v)]));
-  const trail = r.journey.length ? h("section", { class: "dw-sec" }, h("h3", null, `Pages before (${r.journey.length})`),
-    h("ol", { class: "pp-trail" }, r.journey.map((j) => h("li", null, at(j.at), " ", h("span", { class: "mono" }, j.path))))) : h("p", { class: "note" }, "No journey: this conversion carries no visitor ID.");
-  openDrawer({ title: `${actionName(r.action || "")}, ${STAGE[r.stage] || r.stage || ""}`, subtitle: KIND[r.kind], key: "sa-conv", scope: "page", size: "md", body: [dl, trail] });
+  // The visitor drawer (visitor.js): the visitor ID's pages as visits, this row's facts below.
+  openVisitor({ conversion: { action: r.action, at: r.at, tool: r.tool, journey: r.journey, steps: [{ action: r.action, stage: r.stage, at: r.at, tool: r.tool }] },
+    facts: [dl, r.journey.length ? null : h("p", { class: "note" }, "No journey: this conversion carries no visitor ID.")].filter(Boolean) });
 }
 
 /* The tools' cancelled, removed and test conversions, of the kinds asked for.

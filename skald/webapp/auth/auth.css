@@ -4,7 +4,7 @@
 
 :root {
   color-scheme: light;
-  --page: #edf0f3; --surface: #fbfcfd; --sunk: #e4e9ee; --ink: #17212b; --ink-2: #4f5d6b; --ink-3: #6e7c89;
+  --page: #edf0f3; --surface: #fbfcfd; --sunk: #e4e9ee; --ink: #17212b; --ink-2: #4f5d6b; --ink-3: #5a6672;
   --rule: #d8dfe6; --focus: #17212b; --good: #1b7f52; --warn: #9a6400; --bad: #c0352f;
   --shadow: 0 1px 0 rgba(23, 33, 43, .04), 0 8px 24px -12px rgba(23, 33, 43, .18);
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;

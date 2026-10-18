@@ -2,7 +2,7 @@
 
 A traffic number moves for two kinds of reason: something happened out
 there, or we changed something in here. Without the second kind written
-down, the first is guessed at. markers.json (DATA-CONTRACT.md) lists them,
+down, the first is guessed at. markers.json (docs/DATA-CONTRACT-ALERTS.md) lists them,
 newest first, for the last 180 days, from five places:
 
   markers.log          one JSON line per event beside the history, appended
@@ -265,7 +265,7 @@ def _directory(page) -> Path | None:
 
 
 def build(page) -> dict:
-    """markers.json (DATA-CONTRACT.md): the same on every page."""
+    """markers.json (docs/DATA-CONTRACT-ALERTS.md): the same on every page."""
     directory = getattr(page, "live_dir", None) or _directory(page)
     version = _read_version(directory).get("version") if directory is not None else None
     return {"markers": collect(page.config, directory, page.now, page.tz),

@@ -16,6 +16,9 @@ check:
   GET  settings/retention-preview?key=&value=
                                        how many stored days and rows a smaller
                                        window removes at the next run
+  GET  settings/mail-preview?kind=daily|weekly
+                                       the mail as it would go now, never sent:
+                                       {subject, html} (mail_preview.py); admins
   POST settings/test-mail              {to}: one short mail through the install's
                                        SMTP settings; admins; 3 per 10 minutes;
                                        only to the caller or a confirmed recipient
@@ -50,8 +53,8 @@ from .accounts import auditlog, limits, sessions, users
 from .auth_api import answer, csrf_ok, read_json, text
 
 PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
-PATH = re.compile(PAGE + r"(?P<act>settings(?:/(?:save|retention-preview|test-mail|audit))?)$")
-GETS = {"settings", "settings/retention-preview", "settings/audit"}
+PATH = re.compile(PAGE + r"(?P<act>settings(?:/(?:save|retention-preview|mail-preview|test-mail|audit))?)$")
+GETS = {"settings", "settings/retention-preview", "settings/mail-preview", "settings/audit"}
 ADMIN = ("owner", "admin")
 TEST_LIMIT, TEST_MINUTES = 3, 10
 # Values only an install admin sees (a login name, server paths).
@@ -136,7 +139,7 @@ def handle(h, write: bool, config, live_dir, allowed: set[str], same_origin,
         c = Ctx(h, db, session, m.group("site"), role, org, config, live_dir,
                 history_path, config_path)
         c.allowed = allowed
-        if act in ("settings/audit", "settings/test-mail", "settings/retention-preview") \
+        if act in ("settings/audit", "settings/test-mail", "settings/retention-preview", "settings/mail-preview") \
                 and not (c.admin or c.install_admin):
             return c.no(403, "Only an admin can do this.", role=role)
         form = {}
@@ -456,6 +459,20 @@ def test_mail(c: Ctx, form):
     return c.ok(sent=True, to=to)
 
 
+def mail_preview(c: Ctx, form):
+    """The daily or weekly mail as it would go now, never sent (mail_preview.py)."""
+    from . import mail_preview as mp
+    kind = auth_api.query(c.h.path).get("kind") or "daily"
+    if kind not in mp.KINDS:
+        return c.no(400, "Ask for the daily or the weekly mail.")
+    merged = store.apply(c.config, c.site, c.live_dir)
+    try:
+        got = mp.build(merged, c.history_path, kind)
+    except mp.NotYet as why:
+        return c.no(409, str(why))
+    return c.ok(kind=kind, **got)
+
+
 def _not_set_up(mail: dict, install_admin: bool) -> str | None:
     """A plain sentence when the sender or the SMTP server is missing, or None."""
     if not str(mail.get("from") or "").strip():
@@ -518,7 +535,7 @@ def _csv(c: Ctx, entries: list[dict]):
 
 
 ROUTES = {"settings": settings, "settings/save": save, "settings/retention-preview": preview,
-          "settings/test-mail": test_mail, "settings/audit": audit}
+          "settings/test-mail": test_mail, "settings/mail-preview": mail_preview, "settings/audit": audit}
 
 
 # --------------------------------------------------------------- security

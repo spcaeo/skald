@@ -11,7 +11,7 @@ Everything about results sits in **Leads & sales** in the menu:
 | [Pipeline](#sales/pipeline) | How many leads, at which stage, from where, how fast |
 | [Bookings](#sales/bookings) | Demo bookings and payments from your booking and payment tools: opened, chose a time, booked, cancelled, rescheduled, no-show, won |
 | [Funnels](#sales/funnels) | Any series of pages and events. See [Funnels and goals](funnels-and-goals.md) |
-| [Events](#sales/events) | What readers did inside your pages, from the script tag |
+| [Events](#sales/events) | What visitors did inside your pages, from the script tag |
 | [People](#sales/people) | Find one person, and the people who converted lately |
 
 ### Count from: two roads, never added
@@ -41,8 +41,8 @@ A **lead** here is a form sent (contact, sign-up, early access, trial) or a demo
 
 | Tab | What you see |
 | --- | --- |
-| [Overview > Summary](#overview/summary) | **Leads** and **Demos booked** tiles for the period, with the change against the period before. Pink dots on the main chart: each day's leads. |
-| Overview > Summary, with **Today · Live** on | The **Leads** and **Demos booked** tiles for today so far, and **Leads and bookings today**, the 5 newest: time, what it was (contact form, demo booking, sign-up), its stage, source, landing page and country with its flag. A link opens all of today's on Pipeline. A started form is listed with its stage, and is not a lead. Test rows are listed and marked "test, not counted". |
+| [Overview > Summary](#overview/summary) | **Leads** and **Demos booked** tiles for the period, with the change against the period before. Each tile says which count it is ("From the tools", "From the booking tools", or "From the lead database") and links to the same figure: Pipeline counting from the tools, or Bookings. Pink dots on the main chart: each day's leads. |
+| Overview > Summary, with **Today · Live** on | The **Leads** tile for today so far, against yesterday up to the same time of day ([vs yesterday at this hour](real-time.md#vs-yesterday-at-this-hour)), and **What converted today**: each completed form and demo booking with its time, what it was, the page, the country with its flag, and where it came from (and where the visitor first came from, when that differs). A link opens all of today's on Pipeline, started forms and test rows included. |
 | [Traffic > Sources](#traffic/sources) | **Leads** and **Lead rate** beside each source's visitors. |
 | [Traffic > Pages](#traffic/pages) | **Landing pages, with leads**: visitors who started on each page, its leads and lead rate. |
 | [Traffic > Places & devices](#traffic/places) | **Leads** and **Lead rate** beside each country. |
@@ -115,7 +115,7 @@ Each action has a *stage*: started, completed, paid, cancelled, rescheduled, no-
 
 ## Pipeline, counting from the lead database
 
-Open [Leads & sales > Pipeline](#sales/pipeline). **Count from: Lead database** is the default. The period governs most of the tab.
+Open [Leads & sales > Pipeline](#sales/pipeline). **Count from: Lead database** is the default. The period governs most of the tab. Overview's **Leads** and **Demos booked** tiles count from the tools when the tools are set up: choose **Tools** here for the same figures. A kind of lead the lead store has never recorded (often **Demo opened** and **Demos booked**, which come from the booking tool) shows **Not set up** with a link to Bookings, never 0.
 
 ### The figures at the top
 
@@ -188,7 +188,7 @@ One row per action, with these columns:
 
 ### Bookings: the demo funnel
 
-[Leads & sales > Bookings](#sales/bookings) holds the bookings your booking and payment tools reported (Calendly, Cal.com, Stripe), with the script tag and the lead database. Pick the booking action in **Booking**. For demos: **Opened the booking**, **Chose a time**, **Booked**, then **Cancelled**, **Rescheduled**, **No-show** and **Won**. "Chose a time" is a count of page events from a Calendly embed, not of browsers. Cancelled, rescheduled and no-show need the booking tool's webhook.
+[Leads & sales > Bookings](#sales/bookings) holds the bookings your booking and payment tools reported (Calendly, Cal.com, Stripe), with the script tag and the lead database. Pick the booking action in **Booking**. For demos: **Opened the booking**, **Chose a time**, **Booked**, then **Cancelled**, **Rescheduled**, **No-show** and **Won**. "Chose a time" is a count of page events from a Calendly embed, not of browsers. Cancelled, rescheduled and no-show need the booking tool's webhook. Under **Where the booked ones came from**, a breakdown the booking tool does not carry (first touch, landing page, country, device) is named in one line instead of a card that only says "Not recorded".
 
 ### Where the completed ones came from
 

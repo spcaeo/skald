@@ -37,13 +37,13 @@ export async function newerBuild() {
 }
 export const toolTagline = () => BUILD?.tagline || "";
 
-// "7 Oct 2026, 16:07 EDT" in the zone the reader picked.
+// "7 Oct 2026 16:07 EDT" in the zone the reader picked (the one date family, tz.js).
 function deployed(ts) {
   const w = when(ts);
-  return w ? `${w.date} ${w.day.slice(0, 4)}, ${w.hour}:${w.minute} ${w.label}` : "";
+  return w ? `${w.date} ${w.day.slice(0, 4)} ${w.hour}:${w.minute} ${w.label}` : "";
 }
 
-// "Skald v1.0.0 · release 58 · 888ea90 · deployed 7 Oct 2026, 16:07 EDT"
+// "Skald v1.0.0 · release 58 · 888ea90 · deployed 7 Oct 2026 16:07 EDT"
 export function buildLine() {
   if (!BUILD) return "";
   return [`${BUILD.name} v${BUILD.version}`, `release ${BUILD.release}`, BUILD.commit,
@@ -61,17 +61,20 @@ function zoneName(t, tz) {
   return tz;
 }
 
-// "11-Oct-2026 2:51 pm EDT" in one zone; withDate false: "12:21 am IST".
+// "11 Oct 2026 14:51 EDT" in one zone, the app's one date family (tz.js); withDate false: "00:21 IST".
+function parts(t, tz) {
+  return Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "short", day: "numeric",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(t)).map((x) => [x.type, x.value]));
+}
 function stamp(t, tz, withDate = true) {
   try {
-    const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "short", day: "2-digit",
-      hour: "numeric", minute: "2-digit", hour12: true }).formatToParts(new Date(t)).map((x) => [x.type, x.value]));
-    const clock = `${p.hour}:${p.minute} ${String(p.dayPeriod || "").toLowerCase()}`.trim();
-    return `${withDate ? `${p.day}-${p.month}-${p.year} ` : ""}${clock} ${zoneName(t, tz)}`;
+    const p = parts(t, tz);
+    return `${withDate ? `${p.day} ${p.month} ${p.year} ` : ""}${p.hour}:${p.minute} ${zoneName(t, tz)}`;
   } catch { return ""; }
 }
+const dayIn = (t, tz) => { try { const p = parts(t, tz); return `${p.year}-${p.month}-${p.day}`; } catch { return ""; } };
 
-// The footer's line: "Live · v2.0.0 · released 11-Oct-2026 2:51 pm EDT (12:21 am IST)".
+// The footer's line: "Live · v2.0.0 · released 11 Oct 2026 14:51 EDT (00:21 IST)".
 // The release number and commit stay in its tooltip.
 export function releaseLine(zones) {
   if (!BUILD) return { text: "", title: "" };
@@ -80,7 +83,7 @@ export function releaseLine(zones) {
   let when = "";
   if (!Number.isNaN(t)) {
     const [first, ...more] = list;
-    when = ` · released ${stamp(t, first)}${more.length ? ` (${more.map((z) => stamp(t, z, stamp(t, z).slice(0, 11) !== stamp(t, first).slice(0, 11))).join(", ")})` : ""}`;
+    when = ` · released ${stamp(t, first)}${more.length ? ` (${more.map((z) => stamp(t, z, dayIn(t, z) !== dayIn(t, first))).join(", ")})` : ""}`;
   }
   return { text: `${DEMO.on ? "Demo" : "Live"} · v${BUILD.version}${when}`,
     title: [`${BUILD.name} v${BUILD.version}`, `release ${BUILD.release}`, BUILD.commit].filter(Boolean).join(" · ") };

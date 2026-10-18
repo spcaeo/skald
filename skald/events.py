@@ -393,18 +393,35 @@ def build(p) -> dict:
             entry["problems"] = got["problems"] or ""
         days.append(entry)
     spool = beacon.spool_dir(p.config, None, p.live_dir)
+    today = _today(p, spool, view)
     return {"events": [{"name": e, "label": beacon.LABELS[e]}
                        for e in beacon.allowed_events(p.config)],
+            # Each event name the beacon ever recorded for the site, with the last day it
+            # did: an event never sent is "not set up" on the page, never 0 (DATA-CONTRACT.md).
+            "sent": _sent(p.history.db, site, today, p.today),
             "keep_days": keep, "first_day": started,
             "limits": {"factor": FACTOR, "slack": SLACK, "day_factor": DAY_FACTOR,
                        "day_slack": DAY_SLACK},
             "row_fields": ["day", "event", "label", "path", "source", "n"],
             "rows_from": row_first.isoformat(), "rows": rows, "days": days,
             "goals": goals_block(p, started, days_db, by_source, first, last),
-            "today": _today(p, spool, view),
+            "today": today,
             "helper": {"today": beacon.read_stats(spool, p.today),
                        "yesterday": (days_db.get(p.anchor.isoformat()) or {}).get("helper")
                        or beacon.read_stats(spool, p.anchor)}}
+
+
+def _sent(db, site: str, today: dict, day: date) -> dict[str, str]:
+    """{event: the last day it was recorded}: every day kept in history, whatever its
+    state (a withheld day still shows the event is sent), and today's spool. Names only,
+    no count: a presence list, not a figure."""
+    out = {str(e): str(d) for e, d in db.execute(
+        "SELECT event, MAX(day) FROM event_counts WHERE site = ? AND n > 0 GROUP BY event",
+        (site,))}
+    for e, n in ((today or {}).get("events") or {}).items():
+        if n:
+            out[str(e)] = day.isoformat()
+    return dict(sorted(out.items()))
 
 
 def _by_source(got: dict) -> str | None:

@@ -7,14 +7,15 @@ import { h, n, change, share } from "../ui.js";
 import { color, figures, pathMatch, ranked, previousOf, total, coverage, chartDays } from "../data.js";
 import { spark } from "../charts.js";
 import { table } from "../table.js";
-import { head, nothing, coverageNote, blist, panel, countTable, fileName, fixed } from "./common.js";
+import { head, nothing, coverageNote, blist, panel, countTable, fileName, fixed, ownPeriod } from "./common.js";
 import { aiFeed } from "./aifeed.js";
 import { campaigns } from "./campaigns.js";
 import { leaderboard } from "./pagedetail.js";
 import { pageStory, published } from "./pagestory.js";
-import { link } from "../drill.js";
+import { link, drillRow } from "../drill.js";
 import { sourcesPanel } from "./likelyai.js";
 import { leadsBy, leadTable, viewNote } from "./leadfigs.js";
+import { code3, countryName } from "../countries.js";
 
 // Which touch each tab's Leads column is attributed by (the column hint and the note say it).
 const TOUCH = {
@@ -23,17 +24,17 @@ const TOUCH = {
   country: "the lead's country, from the tool or the visitor's address",
 };
 
-let regions = null;
-export function country(code) {
-  if (!code || code === "Unknown") return "Not recorded";
-  try { regions ||= new Intl.DisplayNames(["en"], { type: "region" }); return regions.of(code) || code; } catch { return code; }
-}
+/* A country is shown as its flag and ISO alpha-3 code ("🇺🇸 USA", owner 2026-10-18);
+   the full name is the tooltip, what a screen reader reads, and what a search finds.
+   country(code): the short words ("USA", "Not recorded"); countryName(code): the full name. */
+export const country = (code) => code3(code);
+export { countryName };
 /* The one flag helper: the emoji flag for a two-letter country code, or ""
    for anything else (a country not recorded, "-", a folded tail, and the codes ISO keeps
    for private use: AA, QM-QZ, XA-XZ but XK Kosovo, ZZ; and AP, an old
    "Asia/Pacific"). The text beside it stays, so the flag is decoration:
    flagEl marks it aria-hidden, withFlag is for plain text (a select's
-   option, a title, a sentence). */
+   option, a sentence). */
 export function flag(code) {
   if (!/^[A-Z]{2}$/.test(code || "") || /^(AA|AP|Q[M-Z]|X[A-JL-Z]|ZZ)$/.test(code)) return "";
   return String.fromCodePoint(...[...code].map((c) => 0x1f1a5 + c.charCodeAt(0)));
@@ -42,7 +43,35 @@ export function flagEl(code) {
   const f = flag(code);
   return f ? h("span", { class: "flag", "aria-hidden": "true" }, f) : null;
 }
-export const withFlag = (code, text = code) => { const f = flag(code); return f ? `${f} ${text ?? ""}` : String(text ?? ""); };
+export const withFlag = (code, text = code3(code)) => { const f = flag(code); return f ? `${f} ${text ?? ""}` : String(text ?? ""); };
+/* The short words as an element: "USA" on screen, "United States" in the tooltip and
+   for a screen reader, and both in its text, so a table's search finds either.
+   flag: false where a flag is already drawn beside it. */
+export function countryWords(code, { flag: withMark = true, text } = {}) {
+  const name = countryName(code), short = text ?? code3(code);
+  if (short === name) return h("span", { class: "named" }, withMark ? flagEl(code) : null, h("span", { class: "nm" }, short));
+  return h("span", { class: "named", title: name }, withMark ? flagEl(code) : null,
+    h("span", { class: "nm", "aria-hidden": "true" }, short), h("span", { class: "vh" }, name));
+}
+
+/* A city, as stored (logs.city_db): "Toronto, Ontario, CA" - the city, its region,
+   the country code last. cityCode -> "CA", cityPlace -> "Toronto, Ontario",
+   city -> "Toronto, Ontario, CAN" (the alpha-3 code, like every country); "Not recorded" for none. */
+export const cityCode = (label) => /, ([A-Z]{2})$/.exec(label || "")?.[1] || "";
+export const cityPlace = (label) => String(label || "").replace(/, [A-Z]{2}$/, "");
+export function city(label) {
+  if (!label || label === "Unknown") return "Not recorded";
+  if (label === "(all others)") return label;
+  const cc = cityCode(label);
+  return cc ? `${cityPlace(label)}, ${country(cc)}` : cityPlace(label);
+}
+// The city in full, for a tooltip: "Toronto, Ontario, Canada".
+export const cityName = (label) => {
+  const cc = cityCode(label);
+  return cc ? `${cityPlace(label)}, ${countryName(cc)}` : city(label);
+};
+// A visit's place in words: its city when one is recorded, else its country.
+export const placeOf = (j) => (j?.city ? city(j.city) : country(j?.country));
 
 // Change per row against the previous range, only when both ranges are complete.
 function changes(m, r, cov, t, dim) {
@@ -128,7 +157,7 @@ export function pages(m, s) {
   if (m.x.pages) {
     // The leaderboard keeps its own last 30 whole days (with change against the 30 before); today's follows the range.
     if (r.kind === "today") out.push(h("section", { class: "s" }, h("h2", null, "Page leaderboard"), leaderboard(m, s, r)));
-    else out.push(fixed("Page leaderboard, with change and each page's detail", m.x.pages.period?.first ? `${m.x.pages.period.first} to ${m.x.pages.period.last}` : "last 30 whole days", leaderboard(m, s, r)));
+    else out.push(fixed("Page leaderboard, with change and each page's detail", ownPeriod(m.x.pages.period, r), leaderboard(m, s, r)));
   }
   const sub = s.path ? ` whose path ${s.pathmode === "starts" ? "starts with" : "contains"} ${s.path}` : "";
   out.push(h("div", { class: "cols" },
@@ -174,6 +203,9 @@ function meter(obj, whole, pick) {
   return h("div", null,
     h("div", { class: "meter", role: "img", "aria-label": rows.map(([k, v]) => `${k} ${n(v)}`).join(", ") },
       rows.map(([k, v]) => h("i", { style: { flexGrow: String(v), background: DEVICE_TONES[k] || "var(--ink-3)", opacity: pick && pick !== k ? ".3" : "1" } }))),
-    h("ul", { class: "legend", style: { marginTop: "10px" } }, rows.map(([k, v]) => h("li", null,
-      h("span", { class: "sw", style: { background: DEVICE_TONES[k] || "var(--ink-3)" } }), link("device", k), ` ${n(v)}${share(v, whole) ? ` (${share(v, whole)})` : ""}`))));
+    h("ul", { class: "legend", style: { marginTop: "10px" } }, rows.map(([k, v]) => {
+      const li = h("li", null, h("span", { class: "sw", style: { background: DEVICE_TONES[k] || "var(--ink-3)" } }), link("device", k), ` ${n(v)}${share(v, whole) ? ` (${share(v, whole)})` : ""}`);
+      drillRow(li);   // the whole line opens the device (drill.js)
+      return li;
+    })));
 }

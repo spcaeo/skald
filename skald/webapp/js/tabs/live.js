@@ -8,6 +8,7 @@
 //   hour by hour - today's top lists
 
 import { h, n, duration } from "../ui.js";
+import { pagesWords } from "../visitpages.js";
 import { color, rangeOf, ranked } from "../data.js";
 import { bars } from "../charts.js";
 import { head, nothing } from "./common.js";
@@ -48,7 +49,7 @@ function visitRow(j, fresh) {
     h("span", { class: "s-w" }, link("country", j.country, { text: country(j.country), bare: true }), ", ",
       [j.device, j.browser !== "Other" ? j.browser : ""].filter(Boolean).join(", "),
       j.via ? h("span", null, " from ", link(j.source === "AI assistant" ? "assistant" : "referrer", j.via, { bare: true })) : null,
-      `: ${n(j.pages)} page${j.pages === 1 ? "" : "s"}, ${duration(j.seconds)}`,
+      `: ${pagesWords(j)}, ${duration(j.seconds)}`,
       h("small", null, trail.join("  >  "))));
 }
 
@@ -144,7 +145,7 @@ export default function live(m, s) {
   const leads = conv ? today?.leads ?? null : leadsOver(m, [m.today]);
   const leadLine = !conv || today ? null : entry?.state === "withheld" ? "withheld: the second count disagrees" : "not recorded";
   out.push(tiles([
-    { label: "Visitors", value: t.readers ?? null, info: `Visits that read at least one page today, counted only when the browser loaded the page's scripts and styles, so automated readers are left out; ${n(t.visits)} browser sessions in all, including ones that loaded no page.`,
+    { label: "Visitors", value: t.readers ?? null, info: `Visits that read at least one page today, counted only when the browser loaded the page's scripts and styles, so automated programs are left out; ${n(t.visits)} browser sessions in all, including ones that loaded no page.`,
       line: thisHour != null ? `+${n(thisHour)} this hour` : null },
     { label: "Pages read", value: t.views ?? null, info: "Page views by visitors today." },
     { label: "Visitors from AI", value: t.cited ?? null, info: "Visitors who followed a link in an AI assistant's answer; once per visitor, so it undercounts." },

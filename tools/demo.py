@@ -23,6 +23,13 @@ in-page events, and `live`, in a temporary install that is removed afterwards
 Seeded: the same --now and --days give the same traffic. --now defaults to a few
 minutes ago, so the demo's "today" is the day it was built.
 
+--keep DIR is a whole install: `python3 bin/skald --config DIR/config.yml audit --day D`
+recounts any stored day. Its made-up visitor key is in DIR/visitor.env
+(report.env_file), so the visitor hashes are recounted too (a key set in the shell
+wins over it). As on a real install the hashes are kept 30 days: a day older than
+that says its visitor hashes, and a day whose 30-day window reaches past that its
+returning readers, are "not checkable (inputs expired)"; everything else matches.
+
 app.json gets "demo": {...}: the page then works without a helper. What needs a
 running install (refresh, saving, settings, team, integrations, the person
 search) says so politely; compare, page story and the lists of what the figures
@@ -76,6 +83,7 @@ logs:
   base: access.log
   days: 2
   format: auto
+  city_db: {root / 'city.mmdb'}
 ours:
   addresses:
     - {{ip: {dt.OFFICE}, label: office}}
@@ -83,6 +91,7 @@ report:
   session_gap_minutes: 30
   timezone: {dt.TZ_NAME}
   coverage_gap_minutes: 1440
+  env_file: {root / 'visitor.env'}     # the demo's made-up visitor key, for runs after the build
 history:
   db: history.sqlite
 dashboard:
@@ -126,6 +135,28 @@ def robots(root: Path, now: datetime) -> None:
     stamp = now.isoformat(timespec="seconds")
     (root / "robots-state.json").write_text(json.dumps({"ok": True, "error": None, "url": "https://www.example.com/robots.txt",
                                                         "fetched_at": stamp, "tried_at": stamp}, sort_keys=True) + "\n")
+
+
+def sitemaps(root: Path, traffic: dt.Traffic) -> None:
+    """The site's sitemap as the live run keeps it (sitemap.py), one list per day, as if
+    each had been fetched that morning (so no run fetches it). It lists pages no crawler
+    asks for, a guide that is gone (404) and, from ten days ago, a changelog; it leaves
+    out one guide the crawlers do fetch."""
+    from skald import sitemap
+    pages = sorted({p for p, _ in dt._PAGES} - {dt.GUIDES[-1]}
+                   | {"/customers/", "/about/", "/contact/", "/blog/", "/book-a-demo/", "/guides/api-v1"})
+    d = traffic.first
+    while d <= traffic.today:
+        listed = pages + (["/changelog/"] if (traffic.today - d).days < 10 else [])
+        got = {"paths": sorted(listed), "sources": ["https://example.com/sitemap.xml",
+                                                    "https://example.com/sitemap-blog.xml"],
+               "skipped": 0, "truncated": False}
+        sitemap.keep(root, d, got, datetime(d.year, d.month, d.day, 11, tzinfo=UTC).isoformat())
+        d += timedelta(days=1)
+    stamp = traffic.now.isoformat(timespec="seconds")
+    (root / sitemap.STATE).write_text(json.dumps({"ok": True, "error": None, "tried_at": stamp, "fetched_at": stamp,
+                                                  "urls": ["https://example.com/sitemap.xml", "https://example.com/sitemap-blog.xml"]},
+                                                 sort_keys=True) + "\n")
 
 
 LEADS_SCHEMA = """
@@ -327,6 +358,45 @@ def run(cfgp: Path, *argv: str) -> tuple[int, str]:
     return code, err.getvalue()
 
 
+# The demo's city file (logs.city_db): a few made-up placements of its RFC 5737
+# addresses in real cities of their country, at each city's own point. Not
+# DB-IP's data (so no DB-IP credit); every eleventh address has no city, so
+# "Not recorded" shows too. Kept apart from demo_traffic's seeded draws.
+CITIES = {
+    "US": [("New York", "New York", 40.713, -74.006), ("San Francisco", "California", 37.775, -122.419),
+           ("Austin", "Texas", 30.267, -97.743), ("Chicago", "Illinois", 41.878, -87.630),
+           ("Seattle", "Washington", 47.606, -122.332)],
+    "GB": [("London", "England", 51.507, -0.128), ("Manchester", "England", 53.481, -2.243),
+           ("Edinburgh", "Scotland", 55.953, -3.188)],
+    "CA": [("Toronto", "Ontario", 43.653, -79.383), ("Vancouver", "British Columbia", 49.283, -123.121),
+           ("Montreal", "Quebec", 45.502, -73.567)],
+    "DE": [("Berlin", "Land Berlin", 52.520, 13.405), ("Munich", "Bavaria", 48.137, 11.575)],
+    "IN": [("Bengaluru", "Karnataka", 12.972, 77.594), ("Mumbai", "Maharashtra", 19.076, 72.878)],
+    "AU": [("Sydney", "New South Wales", -33.869, 151.209), ("Melbourne", "Victoria", -37.814, 144.963)],
+    "FR": [("Paris", "Île-de-France", 48.857, 2.352), ("Lyon", "Auvergne-Rhône-Alpes", 45.764, 4.836)],
+    "NL": [("Amsterdam", "North Holland", 52.368, 4.904)],
+    "ES": [("Madrid", "Madrid", 40.417, -3.704), ("Barcelona", "Catalonia", 41.385, 2.173)],
+    "BR": [("São Paulo", "São Paulo", -23.551, -46.633)],
+    "SE": [("Stockholm", "Stockholm", 59.329, 18.069)],
+    "IE": [("Dublin", "Leinster", 53.350, -6.260)],
+    "SG": [("Singapore", "Singapore", 1.290, 103.852)],
+}
+
+
+def city_file(country_of: dict) -> bytes:
+    """The demo's city .mmdb: most of a country's addresses in its first city."""
+    from conversions_support import city_record, mmdb
+    nets = {}
+    for ip, cc in sorted(country_of.items()):
+        n = int(ip.rsplit(".", 1)[1])
+        if n % 11 == 0 or cc not in CITIES:
+            continue
+        roll = (n * 37) % 10
+        place = CITIES[cc][min(len(CITIES[cc]) - 1, 0 if roll < 5 else 1 if roll < 8 else 2 + roll % 3)]
+        nets[f"{ip}/32"] = city_record(place[0], place[1], cc, place[2], place[3])
+    return mmdb(nets, kind="Demo-City")
+
+
 def install(root: Path, traffic: dt.Traffic, say=print) -> Path:
     """A whole install in `root`, its history built from `traffic`. Returns dashboard.out."""
     import random
@@ -340,10 +410,13 @@ def install(root: Path, traffic: dt.Traffic, say=print) -> Path:
     (root / "logs" / "access.log").write_text("".join(traffic.lines))
     cfgp = root / "config.yml"
     cfgp.write_text(config_text(root))
+    (root / "visitor.env").write_text(f"{KEY_VAR}={DEMO_KEY}\n")
     cfg = load_config(cfgp)
     ranges(root, traffic.now)
     robots(root, traffic.now)
+    sitemaps(root, traffic)
     (root / "country.mmdb").write_bytes(mmdb({f"{ip}/32": cc for ip, cc in sorted(traffic.country_of.items())}))
+    (root / "city.mmdb").write_bytes(city_file(traffic.country_of))
     leads_db(root / "leads.db", traffic, rnd)
     funnels(root, traffic.now)
     spool_beacon(root, cfg, traffic)
@@ -367,6 +440,18 @@ def install(root: Path, traffic: dt.Traffic, say=print) -> Path:
     code, err = run(cfgp, "--today", traffic.today.isoformat(), "backfill", "--days", "3")
     if code:
         raise SystemExit(f"demo: backfill failed ({code}): {err[-1500:]}")
+    # The morning run's recount of the retention cohorts (audit_retention.py, run-daily's
+    # recounts step): every cohort the page shows is checked, and says so.
+    from skald import audit_retention
+    with History(root / "history.sqlite") as history:
+        cdb = sqlite3.connect(root / "conversions.sqlite")
+        try:
+            got = audit_retention.check(history.db, cdb, dt.SITE, traffic.today,
+                                        (traffic.today - timedelta(days=1)).isoformat())
+        finally:
+            cdb.close()
+    if got["problems"]:
+        raise SystemExit(f"demo: the retention recount does not match: {got['problems'][:3]}")
     # The live run at the demo's own clock, not at --today's noon: today so far ends
     # where the traffic does, and Real time's last 30 minutes are the traffic's.
     from unittest import mock
@@ -454,7 +539,56 @@ def helper_answers(root: Path, site_dir: Path) -> dict:
         if got.get("ok"):
             (folder / f"{stem}.json").write_text(json.dumps(got, separators=(",", ":")))
             answers["people"][url] = f"data/demo/{stem}.json"
+    # The visitor drawer's timeline (people/visitor, admins and owners on an
+    # install): for each visit the page holds whose visitor came before, and
+    # every visit of today. Labels, times and pages: no address, no visitor ID.
+    from skald.people.timeline import visitor
+    for j in app.get("journeys") or []:
+        ft = j.get("first_touch") or {}
+        if j.get("seq") is None or (ft.get("by") not in ("vid", "address", "hash") and j.get("day") != app["today"]):
+            continue
+        url = f"people/visitor?day={j['day']}&seq={j['seq']}"
+        got = visitor(cfg, root, dt.SITE, j["day"], int(j["seq"]))
+        if got.get("found"):
+            name = f"visitor-{j['day']}-{int(j['seq']):04d}.json"
+            (folder / name).write_text(json.dumps(got, separators=(",", ":")))
+            answers["people"][url] = f"data/demo/{name}"
+    retention_answers(cfg, root, folder, answers, today, visitor)
     return answers
+
+
+def retention_answers(cfg: dict, root: Path, folder: Path, answers: dict, today: date, visitor) -> None:
+    """Traffic > Retention: the visitors behind each weekly cell (people/cohort, everyone,
+    came back and read 2+ pages), and the visitor drawer's timeline for those that came
+    back. Labels, times and pages: no address."""
+    from skald.retention_page import visitors
+    from skald.store import History
+    data = json.loads((folder.parent / "retention.json").read_text())
+    timelines = 0
+    with History(root / "history.sqlite") as history:
+        for c in data.get("grains", {}).get("week", {}).get("cohorts", []):
+            if c.get("state") != "ok":
+                continue
+            ks = [0] + [int(k) for k, st in (c.get("status") or {}).items() if st == "ok"]
+            for k in ks:
+                for deep in ((False, True) if k else (False,)):
+                    got = visitors(cfg, root, history.db, dt.SITE, "week", c["start"], k, deep=deep, today=today)
+                    if not got.get("ok"):
+                        continue
+                    url = f"people/cohort?grain=week&start={c['start']}&k={k}" + ("&deep=1" if deep else "")
+                    name = f"cohort-week-{c['start']}-{k}{'-deep' if deep else ''}.json"
+                    (folder / name).write_text(json.dumps(got, separators=(",", ":")))
+                    answers["people"][url] = f"data/demo/{name}"
+                    for r in got.get("rows", []) if k else []:
+                        vurl = f"people/visitor?day={r['day']}&seq={r['seq']}"
+                        if vurl in answers["people"] or timelines >= 600:
+                            continue
+                        tl = visitor(cfg, root, dt.SITE, r["day"], int(r["seq"]))
+                        if tl.get("found"):
+                            vname = f"visitor-{r['day']}-{int(r['seq']):04d}.json"
+                            (folder / vname).write_text(json.dumps(tl, separators=(",", ":")))
+                            answers["people"][vurl] = f"data/demo/{vname}"
+                            timelines += 1
 
 
 def mark_demo(www: Path, answers: dict, repo_url: str) -> None:

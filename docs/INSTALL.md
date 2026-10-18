@@ -100,7 +100,8 @@ the container has them (`history.db: /var/lib/skald/history.sqlite`,
 | `SKALD_LOG_FILE` | `access.log` | the log's file name in `/logs` (rotations `.1`, `.2.gz`... are found) |
 | `SKALD_LOG_FORMAT` | `auto` | or `nginx_combined`, `nginx_extended`, `caddy_json`, ... |
 | `SKALD_ASSET_PREFIXES` | | extra path prefixes that are files, not pages (e.g. `/_next/static/`) |
-| `SKALD_COUNTRY_DB` | | a GeoIP `.mmdb` file inside the container (e.g. `/geoip/dbip-country-lite.mmdb`, with `-v /usr/share/GeoIP:/geoip:ro`): a log line with no country of its own (Caddy, a plain combined log) gets its address's country from it, and so does a lead hook's `ip`. DB-IP's free country file works; its credit is shown under the countries. Unset: such lines stay Unknown |
+| `SKALD_COUNTRY_DB` | | a GeoIP `.mmdb` file inside the container (e.g. `/geoip/dbip-country-lite.mmdb`, with `-v /usr/share/GeoIP:/geoip:ro`): a log line with no country of its own (Caddy, a plain combined log) gets its address's country from it, and so does a lead hook's `ip`. DB-IP's free country file works; its credit is shown under the countries. Unset: such lines say Not recorded |
+| `SKALD_CITY_DB` | | a GeoIP city `.mmdb` file inside the container (e.g. `/geoip/dbip-city-lite.mmdb`, same mount): DB-IP's free "IP to City Lite" (CC BY 4.0, monthly, about 120 MB; `tools/update-dbip-city.sh` downloads it). Each visit gets its city ("Toronto, Ontario, Canada"), Places & devices gets a Cities table and the real-time map a dot per active city. People only, never bots; a city whose country is not the line's own is not used. Its credit is shown with the countries. Unset: no city is recorded |
 | `SKALD_EMAIL` | | who gets the mails (also the sender unless `SKALD_MAIL_FROM`) |
 | `SKALD_SMTP_HOST`, `SKALD_SMTP_PORT`, `SKALD_SMTP_SECURITY` | `587`, `starttls` | the mail server; mails stay off without a host (or set it in Settings > Mail) |
 | `SMTP_USER`, `SMTP_PASSWORD` | | the SMTP login: environment only, never in a file you commit |
@@ -110,6 +111,9 @@ the container has them (`history.db: /var/lib/skald/history.sqlite`,
 | `SKALD_IDENTITY` | `full` (new install), `anonymous` (upgraded from before 2.4.0) | `full` keeps leads' names and emails with their conversions; `anonymous` keeps neither |
 | `SKALD_DAILY_AT`, `SKALD_BACKUP_AT` | `07:15`, `03:30` | the daily run and the backup, in the site's time zone |
 | `SKALD_LIVE_MINUTES` | `2` | the live snapshot's interval |
+| `SKALD_SEARCH_HOURS`, `SKALD_SEARCH_AT` | `6`, `01:40` | the Search Console and Bing sync: every N hours from that time (0 turns it off; [INTEGRATIONS.md](INTEGRATIONS.md#search-console-and-bing)) |
+| `SKALD_GSC_KEY_JSON`, `SKALD_GSC_KEY_FILE` | | the Google service-account key for the Search Console sync: the key file's text, or a path to it inside the container (make it 0600). Not needed when the key is uploaded in Settings > Integrations > Search, which keeps it in `secrets.json` beside the history. Environment only, never in a file you commit |
+| `SKALD_REPORTS_MINUTES` | `15` | how often the client reports that are due are sent (Settings > Reports); `0` stops them |
 | `SKALD_SCHEDULER` | `on` | `off` stops the container's own schedule (live, daily run, backup) |
 | `SKALD_ORIGIN` | from `SKALD_BASE_URL` | the browser origin(s) the dashboard's buttons are accepted from |
 | `SKALD_TRUSTED_PROXIES` | none (Compose: `private`) | the proxy in front, whose word on the visitor's address is believed: ranges such as `10.0.0.0/8`, or `private` (the private ranges). Empty: nobody, right when the container faces the internet. Per platform: [HOSTING.md](HOSTING.md) |

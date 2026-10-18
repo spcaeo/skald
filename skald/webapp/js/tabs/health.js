@@ -62,7 +62,7 @@ export default function health(m, s) {
   }
   const rows = statusRows(t.statuses);
   out.push(h("section", { class: "s" }, h("h2", null, "Responses by status, for each group"),
-    h("div", { class: "sheet" }, legend(STATUSES.map((k) => [`${k} ${STATUS_WORDS[k]}`, STATUS_TONE[k]])),
+    h("div", { class: "sheet" }, legend(STATUSES.map((k) => [k === "other" ? "Any other status" : `${k} ${STATUS_WORDS[k]}`, STATUS_TONE[k]])),
       h("div", { style: { display: "grid", gap: "12px" } }, rows.map((row) => h("div", null,
         h("div", { style: { display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "4px" } },
           h("span", null, h("span", { class: "sw", style: { background: color(row.g), marginRight: "8px" } }), row.name), h("span", { class: "tbl-count" }, `${n(row.sum)} requests`)),
@@ -71,7 +71,7 @@ export default function health(m, s) {
     table([{ key: "name", label: "Group" }, ...STATUSES.map((k) => ({ key: k, label: k, num: true })), { key: "sum", label: "All", num: true }],
       { caption: "Responses by status and group", rows, file: fileName("statuses", r), search: false, sortKey: "sum" })));
   out.push(h("div", { class: "cols" },
-    panel("How fast people's pages were answered", "Server time per page view ($request_time)",
+    panel("How fast people's pages were answered", "Time the server took to answer each page view",
       bars(SPEEDS.map((b, i) => ({ label: b.replace(" to ", "-"), title: b, value: speeds[b] || 0, color: i >= 3 ? "var(--warn)" : "var(--good)" })), { label: "Page views by answer time", unit: "page views", H: 190, half: true }),
       speeds["not logged"] ? h("p", { class: "note" }, `${n(speeds["not logged"])} page views had no time in the log line.`) : null),
     h("section", { class: "s" }, h("h2", null, "Slow pages"), countTable(t.slow_pages, { caption: "Slow pages", file: fileName("slow-pages", r), key: "Page", value: "Slow views", keep, path: true, drill: "path", empty: "No page took a second or more." }))));

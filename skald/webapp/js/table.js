@@ -1,10 +1,14 @@
-// Every table in the app: sort by any column, search its rows, download what
-// it shows as CSV. The CSV holds the rows the filters and the search left,
-// all of them, not only the ones on screen.
+// Every table in the app: sort by any column, filter each column, choose the
+// columns, search its rows, download what it shows as CSV. The CSV holds the rows
+// the filters and the search left, all of them, not only the ones on screen, with
+// the columns shown, in their order.
 
 import { h, n, toast, reduced, ICON } from "./ui.js";
-import { link } from "./drill.js";
+import { link, drillRow } from "./drill.js";
 import { shownText } from "./labels.js";
+import { code3, countryName } from "./countries.js";
+import { HASH, writeKeys, nsOf, compare, sortRows, nextSort, sortParam, readSort, readFilters, writeFilters, readHidden, testFilter, filterKind, parseAmount, visibleColumns } from "./tablestate.js";
+import { chooser, exportButton, filterToggle, filterCell } from "./tabletools.js";
 
 /* Every table drawn in the current render, so "Export this view" and the
    report can take them all: {caption, file, columns, rows()}. main.js
@@ -22,7 +26,38 @@ function cell(v) {
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+/* A country column (country: row -> its stored two-letter code; a column drilled by
+   country gets one) is written as two: the full name under the column's own header,
+   and its ISO alpha-3 code under "Code"; a column that also shows a city (city: row -> its
+   words) adds a "City" column. The screen shows the flag and the code. */
+const COUNTRY_CSV = (columns) => columns.flatMap((c) => (c.country
+  ? [{ ...c, csv: (r) => countryName(c.country(r)) }, { label: "Code", csv: (r) => { const k = c.country(r); return /^[A-Za-z]{2}$/.test(k || "") ? code3(k) : ""; } },
+    ...(c.city ? [{ label: "City", csv: c.city }] : [])]
+  : [c]));
+
+/* A drawn cell's words: shown (its text without the .vh or [hidden] parts a reader does
+   not see, joined as drawn) and all (shown, then each hidden part apart, for the search box). */
+export function cellWords(node) {
+  let shown = "";
+  const hidden = [];
+  const walk = (x, off) => {
+    if (x.nodeType === 8) return;
+    const el = typeof x.tagName === "string";
+    if (!el && !x.childNodes?.length) { const t = x.textContent || ""; if (off) hidden.push(t.trim()); else shown += t; return; }
+    const out = off || (el && (x.classList?.contains("vh") || x.hasAttribute?.("hidden")));
+    for (const k of x.childNodes) walk(k, out);
+  };
+  walk(node, false);
+  shown = shown.trim();
+  return { shown, all: [shown, ...hidden.filter(Boolean)].join(" ") };
+}
+
+/* How many columns csv() writes for these: a country column is two (or three with a city),
+   so "Export what you see" says the CSV's own width. */
+export const csvWidth = (columns) => COUNTRY_CSV(columns).length;
+
 export function csv(columns, rows) {
+  columns = COUNTRY_CSV(columns);
   // csvLabel: a header that needs its group to be read alone ("Visitors, B": js/mode-compare.js).
   const head = columns.map((c) => cell(c.csvLabel ?? c.label)).join(",");
   const body = rows.map((r) => columns.map((c) => cell(c.csv ? c.csv(r) : r[c.key])).join(","));
@@ -54,90 +89,160 @@ export function alignOf(c) {
 }
 const ALIGN_CLS = { right: "n", center: "c" };
 
-/* columns: [{key, label, num?, type?, path?, cls?, title? (a hint on the header), fmt?(v,row), csv?(row), sort?(row), drill?: dimension}]
-   opts: {caption, rows, file, limit=15, empty, sortKey, search=true, rowClass?(row), note, onRow?(row), placeholder,
-          groups?: [[label, span]] - a header row above the columns that names groups of them}
-   The returned element has update(rows): new rows, same sort and search. */
+/* columns: [{key, label, num?, type?, path?, cls?, title? (a hint on the header), fmt?(v,row), csv?(row), sort?(row), drill?: dimension,
+             filter?: "text"|"num"|"enum"|false (the column filter; tablestate.js filterKind decides when not given)}]
+   opts: {caption, rows, file, limit=15, empty, sortKey, dir, search=true, rowClass?(row), note, onRow?(row), placeholder, rowDrill?: false,
+          groups?: [[label, span]] - a header row above the columns that names groups of them,
+          ns?: the table's name in the address (default: its caption made short); ns: false keeps nothing there,
+          tools?: false - no filter row, column chooser or export (a table inside a small card)}
+   Every table: a header click sorts (A to Z or biggest first, the other way, then the
+   table's own order again), "Filter columns" opens a row of filters under the headers
+   (words: contains; numbers: lowest and highest; a few values: pick some), "Columns"
+   chooses which show, and "Export what you see" downloads the rows that match, in their
+   order, with the columns shown. Sort, filters, hidden columns and search stay in the
+   address (tablestate.js), so a link or a reload brings the same table back.
+   Without onRow, a row whose cells hold a value's link opens that value, the whole row
+   (drill.js drillRow); rowDrill: false keeps only the link.
+   The returned element has update(rows): new rows, same sort, filters and search. */
 export function table(columns, opts) {
   const { caption, file, empty = "Nothing recorded.", search = true, rowClass, note, onRow } = opts;
   let rows = opts.rows;
   const limit = ALL_ROWS ? Infinity : opts.limit ?? 15;
   // A drillable column draws its value as a link to the value's detail, unless it formats it itself.
-  columns = columns.map((c) => (c.drill && !c.fmt ? { ...c, fmt: (v) => (v == null || v === "" ? "" : link(c.drill, v)), csv: c.csv || ((r) => r[c.key]) } : c));
-  let sortKey = opts.sortKey ?? columns.find((c) => c.num)?.key ?? null;
-  let dir = opts.dir ?? (columns.find((c) => c.key === sortKey)?.num ? -1 : 1);
-  let query = "", showAll = false;
+  columns = columns.map((c) => (c.drill && !c.fmt ? { ...c, fmt: (v) => (v == null || v === "" ? "" : link(c.drill, v)), csv: c.csv || ((r) => r[c.key]) } : c))
+    .map((c) => (c.drill === "country" && !c.country ? { ...c, country: (r) => (c.key === "label" ? r.k : r[c.key]) } : c));
+  const keys = columns.map((c) => c.key);
+  const ns = opts.ns === false ? null : opts.ns || nsOf(caption, REGISTRY.map((x) => x.ns).filter(Boolean));
+  const key = (suffix) => `${ns}_${suffix}`;
+  const kept = ns ? HASH.read() : new URLSearchParams();
+  const tools = opts.tools !== false;
+
+  const def = (() => {
+    const k = opts.sortKey ?? columns.find((c) => c.num)?.key ?? null;
+    return k == null ? null : { key: k, dir: opts.dir ?? (columns.find((c) => c.key === k)?.num ? -1 : 1) };
+  })();
+  let sort = readSort(kept.get(key("sort")), keys);
+  let filters = tools ? readFilters(kept.get(key("cf")), keys) : [];
+  let hidden = tools ? readHidden(kept.get(key("hide")), keys.slice(1)) : [];
+  let query = search ? kept.get(key("q")) || "" : "", showAll = false;
+  let frowOpen = filters.length > 0;
+  const save = () => { if (ns) writeKeys({ [key("sort")]: sortParam(sort), [key("cf")]: writeFilters(filters), [key("hide")]: hidden.join(","), [key("q")]: query.trim() }); };
 
   const wrap = h("div", { class: "tbl" });
   const count = h("span", { class: "tbl-count", "aria-live": "polite" });
-  const input = search ? h("input", { type: "search", placeholder: opts.placeholder || "Search rows", "aria-label": `Search ${caption}` }) : null;
-  const dl = file ? h("button", { type: "button", class: "btn", html: ICON.download }, "CSV") : null;
-  if (dl) dl.setAttribute("aria-label", `Download ${caption} as CSV`);
+  const input = search ? h("input", { type: "search", value: query, placeholder: opts.placeholder || "Search rows", "aria-label": `Search ${caption}` }) : null;
+  const shownCols = () => visibleColumns(columns, hidden);
+  const dl = file && tools ? exportButton(() => download(file, csv(shownCols(), filtered()))) : null;
+  const plainDl = file && !tools ? h("button", { type: "button", class: "btn", html: ICON.download, "aria-label": `Download ${caption} as CSV`, onclick: () => download(file, csv(columns, filtered())) }, "CSV") : null;
+  const ftog = tools && rows.length > 1 ? filterToggle((on) => { frowOpen = on; render(); if (on) frow.querySelector("input,button")?.focus(); }) : null;
+  const pick = tools && columns.length >= 4 ? chooser(columns, hidden, (next) => { hidden = next; save(); render(); }, caption) : null;
   const thead = h("thead");
   const tbody = h("tbody");
   const tableEl = h("table", null, h("caption", { class: "vh" }, caption), thead, tbody);
   const more = h("button", { type: "button", class: "btn more-rows" });
-  const tools = h("div", { class: "tbl-tools" }, input, h("span", { class: "grow" }), count, dl);
-  wrap.append(tools, h("div", { class: "scroll" }, tableEl), more);
+  const bar = h("div", { class: "tbl-tools" }, input, ftog, pick, h("span", { class: "grow" }), count, dl || plainDl);
+  const scroll = h("div", { class: "scroll" }, tableEl);
+  wrap.append(bar, scroll, more);
   if (note) wrap.append(h("p", { class: "note" }, note));
 
+  // What a cell shows (its visible words: a column filter and the value lists match these,
+  // so "USA" never matches AUS through a screen reader's hidden "Australia"), and what the
+  // search box also finds (the hidden words too, apart: "Canada" finds CAN). Once per row.
+  let texts = new WeakMap();
+  const cellOf = (c, r) => {
+    let m = texts.get(r);
+    if (!m) { m = new Map(); texts.set(r, m); }
+    if (!m.has(c.key)) { const v = c.fmt ? c.fmt(r[c.key], r) : r[c.key] ?? ""; m.set(c.key, v instanceof Node ? cellWords(v) : { shown: String(v).trim(), all: String(v).trim() }); }
+    return m.get(c.key);
+  };
+  const textOf = (c, r) => cellOf(c, r).shown;
   const val = (c, r) => (c.sort ? c.sort(r) : r[c.key]);
+  const kinds = new Map(columns.map((c) => [c.key, filterKind(c, new Set(rows.slice(0, 400).map((r) => textOf(c, r))).size)]));
   const filtered = () => {
     const q = query.trim().toLowerCase();
-    const text = (c, r) => { const v = c.fmt ? c.fmt(r[c.key], r) : r[c.key] ?? ""; return v instanceof Node ? v.textContent : String(v); };
-    let out = q ? rows.filter((r) => columns.some((c) => text(c, r).toLowerCase().includes(q))) : rows.slice();
-    const c = columns.find((x) => x.key === sortKey);
-    if (c) out.sort((a, b) => {
-      const x = val(c, a), y = val(c, b);
-      if (x == null && y == null) return 0;
-      if (x == null) return 1;
-      if (y == null) return -1;
-      return (typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y))) * dir;
-    });
-    return out;
+    let out = q ? rows.filter((r) => columns.some((c) => cellOf(c, r).all.toLowerCase().includes(q))) : rows.slice();
+    for (const f of filters) {
+      const c = columns.find((x) => x.key === f.key);
+      // The number a range compares: the row's own, else the one the cell shows ("12%", "3 min"), else what it sorts by.
+      if (c) out = out.filter((r) => testFilter(f, { num: typeof r[c.key] === "number" ? r[c.key] : parseAmount(textOf(c, r)) ?? val(c, r), text: textOf(c, r) }));
+    }
+    const s = sort || def;
+    const c = s && columns.find((x) => x.key === s.key);
+    return c ? sortRows(out, [{ get: (r) => val(c, r), type: c.type, dir: s.dir }]) : out;
   };
 
+  // The filter row: one cell per column shown, built once per render of the header.
+  const frow = h("tr", { class: "tt-frow" });
+  let frowFor = null;  // the columns the filter row was built for
+  const setFilter = (k, f) => { filters = [...filters.filter((x) => x.key !== k), ...(f ? [f] : [])]; save(); render(); };
+  const optionsOf = (c) => () => {
+    const seen = new Map();
+    for (const r of rows) { const t = textOf(c, r); seen.set(t, (seen.get(t) || 0) + 1); }
+    return [...seen].sort((a, b) => b[1] - a[1] || compare(a[0], b[0])).slice(0, 40);
+  };
+  function filterRow() {
+    frow.replaceChildren(...shownCols().map((c) => h("td", { class: ALIGN_CLS[alignOf(c)] || null },
+      kinds.get(c.key) ? filterCell(c, kinds.get(c.key), filters.find((f) => f.key === c.key), optionsOf(c), (f) => setFilter(c.key, f)) : null)));
+  }
+
   function head() {
-    const groups = opts.groups ? h("tr", { class: "grp-row" }, opts.groups.map(([l, span]) => h("th", { scope: l ? "colgroup" : null, colspan: span, class: l ? "colgrp" : null }, l || ""))) : null;
-    thead.replaceChildren(...(groups ? [groups] : []), h("tr", null, columns.map((c) => {
-      const sorted = c.key === sortKey;
-      const th = h("th", { scope: "col", title: c.title || null, class: [ALIGN_CLS[alignOf(c)], c.cls].filter(Boolean).join(" ") || null, "aria-sort": sorted ? (dir > 0 ? "ascending" : "descending") : null },
-        h("button", { type: "button", onclick: () => { if (sorted) dir = -dir; else { sortKey = c.key; dir = c.num ? -1 : 1; } render(true); } },
-          c.label, h("span", { class: "dir", "aria-hidden": "true" }, sorted && dir > 0 ? "▲" : "▼")));
+    const cols = shownCols();
+    const s = sort || def;
+    const groups = opts.groups && !hidden.length ? h("tr", { class: "grp-row" }, opts.groups.map(([l, span]) => h("th", { scope: l ? "colgroup" : null, colspan: span, class: l ? "colgrp" : null }, l || ""))) : null;
+    const row = h("tr", null, cols.map((c) => {
+      const sorted = s && c.key === s.key;
+      const th = h("th", { scope: "col", title: c.title || null, class: [ALIGN_CLS[alignOf(c)], c.cls].filter(Boolean).join(" ") || null, "aria-sort": sorted ? (s.dir > 0 ? "ascending" : "descending") : "none" },
+        h("button", { type: "button", "aria-label": `${c.label}: sort ${sortWords(c, sort, def)}`, onclick: () => { sort = nextSort(sort, c, def); save(); render(true); } },
+          c.label, h("span", { class: "dir", "aria-hidden": "true" }, sorted ? (s.dir > 0 ? "▲" : "▼") : "↕")));
       return th;
-    })));
+    }));
+    // The filter row is built once for the columns shown and then left in place, so a
+    // cell keeps its focus and an open list of values stays open while the rows change.
+    const lead = [groups, row].filter(Boolean);
+    if (!frowOpen) { frowFor = null; thead.replaceChildren(...lead); return; }
+    if (frowFor !== hidden.join()) { filterRow(); frowFor = hidden.join(); }
+    for (const el of [...thead.children]) if (el !== frow) el.remove();
+    if (frow.parentNode === thead) for (const el of lead) thead.insertBefore(el, frow);
+    else thead.append(...lead, frow);
   }
 
   function render(animate = false) {
     const before = animate && !reduced() ? new Map([...tbody.children].map((tr) => [tr.dataset.k, tr.getBoundingClientRect().top])) : null;
     head();
+    const cols = shownCols();
     const all = filtered();
     const shown = showAll ? all : all.slice(0, limit);
     if (!rows.length) {
-      tbody.replaceChildren(h("tr", null, h("td", { colspan: columns.length, class: "muted" }, empty)));
+      tbody.replaceChildren(h("tr", null, h("td", { colspan: cols.length, class: "muted" }, empty)));
     } else if (!all.length) {
-      tbody.replaceChildren(h("tr", null, h("td", { colspan: columns.length, class: "muted" }, "No row matches the search.")));
+      tbody.replaceChildren(h("tr", null, h("td", { colspan: cols.length, class: "muted" }, filters.length ? "No row matches these filters." : "No row matches the search.")));
     } else {
       tbody.replaceChildren(...shown.map((r) => {
         const tr = h("tr", { class: rowClass ? rowClass(r) : null });
         if (onRow) {
           tr.tabIndex = 0;
           tr.addEventListener("click", (e) => { if (!e.target.closest("button,a")) onRow(r); });
-          tr.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target === tr) { e.preventDefault(); onRow(r); } });
+          tr.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target === tr) { e.preventDefault(); onRow(r); } });
         }
         tr.dataset.k = r.__k ?? columns.map((c) => r[c.key]).join("|");
-        for (const c of columns) {
+        for (const c of cols) {
           const v = r[c.key];
           const text = c.fmt ? c.fmt(v, r) : c.num ? n(v) : v ?? "";
           tr.append(h("td", { class: [ALIGN_CLS[alignOf(c)] || (c.path ? "path" : null), c.cls].filter(Boolean).join(" ") || null }, text instanceof Node ? text : String(text)));
         }
+        // A row about a value opens it, the whole row (drill.js drillRow); onRow wins.
+        if (!onRow && opts.rowDrill !== false) drillRow(tr);
         return tr;
       }));
     }
     count.textContent = rows.length ? (all.length === rows.length ? `${n(rows.length)} row${rows.length === 1 ? "" : "s"}` : `${n(all.length)} of ${n(rows.length)} rows`) : "";
     more.hidden = all.length <= limit;
     more.textContent = showAll ? "Show fewer" : `Show all ${n(all.length)}`;
-    if (dl) dl.disabled = !all.length;
+    // Every row on screen: the header stays in view while the box scrolls.
+    wrap.classList.toggle("tall", showAll && all.length > 25);
+    dl?.say(all.length, csvWidth(cols), caption);
+    if (plainDl) plainDl.disabled = !all.length;
+    ftog?.say(frowOpen, filters.length);
     if (before) [...tbody.children].forEach((tr) => {
       const was = before.get(tr.dataset.k);
       if (was == null) return;
@@ -147,11 +252,19 @@ export function table(columns, opts) {
     });
   }
 
-  input?.addEventListener("input", () => { query = input.value; render(); });
+  let qTimer = 0;
+  input?.addEventListener("input", () => { query = input.value; render(); clearTimeout(qTimer); qTimer = setTimeout(save, 300); });
   more.addEventListener("click", () => { showAll = !showAll; render(); });
-  dl?.addEventListener("click", () => download(file, csv(columns, filtered())));
   render();
-  wrap.update = (next) => { rows = next; render(); };
-  REGISTRY.push({ caption, file, columns, rows: filtered });
+  wrap.update = (next) => { rows = next; texts = new WeakMap(); render(); };
+  REGISTRY.push({ caption, file, ns, columns, rows: filtered });
   return wrap;
+}
+
+// What the next header click does, for a screen reader: "ascending", "descending", "back to the table's order".
+function sortWords(c, sort, def) {
+  const next = nextSort(sort, c, def);
+  if (!next) return "back to the table's own order";
+  return next.dir > 0 ? (c.num || c.type === "num" ? "smallest first" : c.type === "date" ? "oldest first" : "A to Z")
+    : (c.num || c.type === "num" ? "biggest first" : c.type === "date" ? "newest first" : "Z to A");
 }

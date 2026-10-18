@@ -51,7 +51,8 @@ export function labelCol(name) {
 export function countCols(value = "Visitors") {
   return [
     { key: "v", label: value, num: true, sort: by((x) => x.v), fmt: (v) => (v == null ? dash("Not in this list's visitors") : n(v)), csv: (x) => x.v ?? "" },
-    { key: "share", label: "Share", num: true, sort: by((x) => x.v), fmt: (_, x) => share(x.v || 0, x.whole), csv: (x) => (x.v && x.whole ? (x.v / x.whole).toFixed(4) : "") },
+    // A row with no visitors of its own (Not recorded, a label only the leads have): no share, never 0%.
+    { key: "share", label: "Share", num: true, sort: by((x) => x.v), fmt: (_, x) => (x.v == null ? dash("No share: not in this list's visitors") : share(x.v, x.whole)), csv: (x) => (x.v && x.whole ? (x.v / x.whole).toFixed(4) : "") },
   ];
 }
 

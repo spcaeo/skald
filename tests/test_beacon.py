@@ -309,6 +309,9 @@ class EventsJson(unittest.TestCase):
             self.assertEqual(site["days"][-2]["state"], "before")
             self.assertEqual(len(site["rows"]), 2)
             self.assertEqual(site["today"]["events"], {"demo_booked": 1})
+            # Every event ever recorded, with its last day: the page says "not set up" for the rest.
+            self.assertEqual(site["sent"], {"cta_click": DAY.isoformat(), "demo_booked": today.isoformat()})
+            self.assertNotIn("signup_submit", site["sent"])
             us = events.build(page(View("US English", "", ("/ca/",))))
             self.assertEqual(us["days"][-1]["events"], {"cta_click": 1})
             self.assertIsNone(us["days"][-1]["ours"])

@@ -17,7 +17,7 @@ import { time as tzTime } from "../tz.js";
 import { openDrawer } from "../drawer.js";
 import { call } from "./ipmanager.js";
 import { ME } from "../access.js";
-import { withFlag, country } from "./readers.js";
+import { openVisitor } from "./visitor.js";
 import { copyButton } from "./reqdetail.js";
 
 export const SEARCH_HINT = "IP address, email, lead or visitor ID";
@@ -27,7 +27,6 @@ const at = (ts) => (ts ? tzTime(ts, { date: true, label: false }) : "-");
 const dash = (v) => (v == null || v === "" ? "-" : String(v));
 const sec = (title, ...kids) => h("section", { class: "dw-sec" }, h("h3", null, title), ...kids);
 const empty = (words) => h("p", { class: "empty" }, words);
-const dur = (s) => (s == null ? "-" : s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`);
 
 function grid(caption, heads, rows) {
   return h("div", { class: "scroll" }, h("table", { class: "rows-mid" }, h("caption", { class: "vh" }, caption),
@@ -40,23 +39,6 @@ function key(value, label = value) {
   if (!value || value === "(removed)") return value === "(removed)" ? "removed on request" : "-";
   if (!mayFind()) return label;
   return h("button", { type: "button", class: "pp-link", title: `Find ${value}`, onclick: () => openPerson(value) }, label);
-}
-
-function trail(v) {
-  return h("ol", { class: "pp-trail" }, (v.trail || []).map(([path, how, s]) => h("li", null, h("span", { class: "mono" }, path),
-    how === "app" ? h("small", null, " (in-app)") : null, s ? h("small", null, ` +${dur(s)}`) : null)));
-}
-
-function visitsPart(got) {
-  const held = got.withheld || {};
-  if (!got.visits.length) {
-    if (got.query.kind !== "ip") return empty("No visit is shown: the search was not for an IP address. Open an address under Linked (or under the visits that sent a form at a lead's time) to see its visits.");
-    return empty(got.kept?.keep_ips ? "No visit kept for this address." : "This site keeps no IP addresses with its visits (Settings > Data retention > People): only the last 6 hours of requests below show them.");
-  }
-  return grid("Visits", ["Started", "Source", "Referrer", "Landing", "Pages in order", "Country", "Device", "Took"], got.visits.map((v) => [
-    h("span", null, at(v.start), held[v.day] ? h("small", { class: "pp-bad", title: "This day's figures did not reconcile: it is withheld from every total." }, " withheld day") : null),
-    [v.source || "-", v.via ? h("small", null, ` ${v.via}`) : null], h("span", { class: "mono" }, dash(v.referrer)), h("span", { class: "mono" }, dash(v.landing)),
-    trail(v), v.country ? withFlag(v.country, country(v.country)) : "-", [dash(v.device), v.browser ? h("small", null, ` ${v.browser} on ${v.os || "?"}`) : null], dur(v.seconds)]));
 }
 
 function leadsPart(rows) {
@@ -79,22 +61,22 @@ function removedPart(rows) {
     at(r.removed_at), dash(r.why), `${dash(r.action)} ${STAGE[r.stage] || dash(r.stage)} at ${at(r.at)}`, key(r.external_ref)]));
 }
 
-export async function openPerson(q) {
-  q = String(q || "").trim();
-  if (!q) return openSearch();
-  const d = openDrawer({ title: q, subtitle: "Looking…", key: "person", scope: "app", body: h("p", { class: "empty" }, "Looking in everything kept…") });
-  const got = await call(`people?q=${encodeURIComponent(q)}`);
-  if (!d.el.isConnected) return;
-  if (!got.ok) { d.body.replaceChildren(h("div", { class: "state bad", role: "alert" }, h("div", null, got.error || "The search could not run."))); return; }
+/* A person (people?q=) opens in the visitor drawer (visitor.js), the same
+   layout as every visit; these are the parts only a search has: what it
+   linked, the last 6 hours of requests, the lead database's rows, the visits
+   at a lead's time, every conversion, the removed rows and the visitor IDs'
+   pages. */
+export function personParts(got) {
   const k = got.keys || {};
-  const kinds = { ip: "IP address", email: "Email", vid: "Visitor ID", lead: "Lead" };
-  d.el.querySelector(".dw-sub").textContent = `${kinds[got.query.kind]}: ${got.visits.length} visit${got.visits.length === 1 ? "" : "s"}, ${got.leads.length} lead${got.leads.length === 1 ? "" : "s"}, ${got.conversions.length} conversion${got.conversions.length === 1 ? "" : "s"}`;
   const linked = h("dl", { class: "dw-dl" }, [["IP addresses", k.ips], ["Emails", k.emails], ["Visitor IDs", k.vids], ["Leads and references", k.leads]]
     .flatMap(([t, list]) => [h("dt", null, t), h("dd", null, (list || []).length ? (list || []).map((v) => h("span", { class: "pp-key" }, key(v), " ", copyButton(v, "value"))) : "-")]));
   const cand = got.candidates || [];
-  d.body.replaceChildren(...[
+  const noVisits = !got.visits.length ? empty(got.query.kind !== "ip"
+    ? "No visit is shown: the search was not for an IP address. Open an address under Linked (or under the visits that sent a form at a lead's time) to see its visits."
+    : got.kept?.keep_ips ? "No visit kept for this address." : "This site keeps no IP addresses with its visits (Settings > Data retention > People): only the last 6 hours of requests below show them.") : null;
+  return [
+    noVisits,
     sec("Linked", linked, h("p", { class: "note" }, `Kept: addresses ${got.kept?.keep_ips ? `for ${got.kept.keep_days} days` : "not kept"}; names and emails ${got.kept?.identity === "full" ? "kept" : "not kept"}.`)),
-    sec("Visits", visitsPart(got)),
     got.requests.length ? sec("Requests in the last 6 hours", grid("Requests", ["Time", "Request", "Status", "Group"], got.requests.map((r) => [at(r.at), h("span", { class: "mono" }, `${r.method} ${r.path}`), String(r.status), dash(r.group)]))) : null,
     sec("Leads", leadsPart(got.leads)),
     cand.length ? sec("Leads and the visits that sent a form at their time", h("p", { class: "note" }, "Matched by time only: a form sent from 2 minutes before the lead to 30 seconds after. Likely the same person, never certain: the lead database keeps no address."),
@@ -102,7 +84,14 @@ export async function openPerson(q) {
     sec("Conversions", conversionsPart(got.conversions)),
     got.removed.length ? sec("Removed by a sync", removedPart(got.removed)) : null,
     got.journeys.length ? sec("Pages seen by its visitor IDs", grid("Pages", ["When", "Page", "Source"], got.journeys.map((j) => [at(j.at), h("span", { class: "mono" }, j.path), dash(j.source_type)]))) : null,
-    h("p", { class: "note" }, "This search was written to the audit log (what kind of value, never the value). Deleting a person: skald forget on the server.")].filter(Boolean));
+  ].filter(Boolean);
+}
+
+/* Find a person: the visitor drawer, by an address, email, visitor ID or lead. */
+export function openPerson(q) {
+  q = String(q || "").trim();
+  if (!q) return openSearch();
+  return openVisitor({ q });
 }
 
 // The search itself, for the palette and a phone: a drawer with one field.

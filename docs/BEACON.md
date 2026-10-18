@@ -195,7 +195,7 @@ helper also writes to `conversions.sqlite`, right after the spool line:
 
 | event | goes to |
 |---|---|
-| `page_view` | `journeys`: ID, time, path, the visit's source type |
+| `page_view` | `journeys`: ID, time, path, the visit's source type and referring host (`via`, since conversions schema 6) |
 | `form_start` / `form_submit`, `contact_submit` | conversion `contact`, started / completed |
 | `signup_start` / `signup_submit` | `signup`, started / completed |
 | `waitlist_submit` | `waitlist`, completed |

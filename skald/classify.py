@@ -355,6 +355,9 @@ CRAWLER_SESSION = "browser-like crawler (fetched robots.txt or a sitemap)"
 # A browser-like visit that never loaded the page's own scripts and styles
 # (rendering.py): a scraper in a browser's clothes. Its requests are bots.
 NOT_RENDERED = "browser-like, never rendered the page"
+# A browser-like visit that read pages faster than a person can (too_fast.py):
+# at least site.too_fast_pages page views, all within site.too_fast_seconds.
+TOO_FAST = "too fast to be a person"
 
 
 def crawler_visits(hits, gap_minutes: int = 30,
@@ -573,6 +576,9 @@ class Classifier:
         # the same first pass: {(address, agent): [(first, last), ...]}.
         # Empty: the rule is off.
         self.unrendered: dict[tuple[str, str], list] = {}
+        # Browser-like visits that read pages too fast for a person
+        # (too_fast.py), from the same first pass. Empty: the rule is off.
+        self.too_fast: dict[tuple[str, str], list] = {}
 
     # A user agent repeats across thousands of hits, and the case-insensitive
     # alternations below were nine-tenths of the time spent per hit. What
@@ -659,6 +665,13 @@ class Classifier:
         when = _aware(hit.when)
         return any(first <= when <= last for first, last in spans)
 
+    def _too_fast(self, hit: Hit) -> bool:
+        spans = self.too_fast.get((hit.address, hit.user_agent))
+        if not spans:
+            return False
+        when = _aware(hit.when)
+        return any(first <= when <= last for first, last in spans)
+
     @staticmethod
     def _any_of(patterns: list[str] | None) -> re.Pattern | None:
         cleaned = [re.escape(p) for p in (patterns or []) if p]
@@ -729,6 +742,11 @@ class Classifier:
             # Took the page and never drew it: no script, no style, no
             # beacon, and not a browser we saw render before. A scraper.
             return Verdict(Group.BOTS, engine=NOT_RENDERED, legacy=legacy)
+
+        if browser and self._too_fast(hit):
+            # Six pages or more inside two seconds, and nothing slower in
+            # the visit: no person reads that fast.
+            return Verdict(Group.BOTS, engine=TOO_FAST, legacy=legacy)
 
         if browser:
             # A browser that arrived from an assistant is a person who followed

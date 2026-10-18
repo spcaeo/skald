@@ -18,6 +18,7 @@ import * as S from "../state.js";
 import { howTo } from "./help.js";
 import { leadsLikely } from "./likelyai.js";
 import { openLeftOut } from "./person.js";
+import { neverRecorded } from "../notset.js";
 
 const TYPE = { signup: "Sign-ups", contact: "Contact forms", waitlist: "Early access", demo_opened: "Demo opened", demo_booked: "Demos booked" };
 const TONE = { signup: "var(--g-people)", contact: "var(--g-search_engines)", waitlist: "var(--g-bots)", demo_opened: "var(--g-ours)", demo_booked: "var(--opp)" };
@@ -62,10 +63,10 @@ function funnel(fn, s) {
 
 export default function leads(m, s, { first }) {
   const r = rangeOf(m, s);
-  const out = [...head("Leads", r, "Sign-ups, contact forms, early-access requests and demo bookings: how many, and where the people who sent them first came from. Counts only; names and messages stay in the website's admin.", { banner: false })];
+  const out = [...head("Pipeline", r, "Sign-ups, contact forms, early-access requests and demo bookings: how many, and where the people who sent them first came from. Counts only; names and messages stay in the website's admin.", { banner: false })];
   const f = m.x.leads;
   const how = h("div", { class: "state", html: ICON.info }, h("div", null, h("strong", null, "Names, emails and messages are not here. "),
-    f?.admin_note || "They stay in the website's admin: open it through the private SSH tunnel described in the server runbook, never on a public address."));
+    f?.admin_note || "They stay in the website's admin: open it through the private connection described in the server runbook, never on a public address."));
   if (!f) return [...out, h("div", { class: "state", html: ICON.info }, h("div", null, "Lead counts are not written beside this page yet. They come from the website's lead store as daily totals with no names; when the first file lands this tab fills in. Until then the Sources tab shows where visitors come from.")), how,
     howTo("leads-and-conversions", "How do leads reach Skald?")];
   if (f.available === false) return [...out, h("div", { class: "state bad", html: ICON.info }, h("div", null, `The lead store could not be read${f.error ? `: ${f.error}` : ""}. Nothing is shown rather than zeros.`)), how, howTo("leads-and-conversions", "How do leads reach Skald?")];
@@ -88,6 +89,15 @@ export default function leads(m, s, { first }) {
   tail(f, s, out);
   out.push(how);
   return out;
+}
+
+// A kind the lead store has never recorded is "Not set up", never 0 (notset.js neverRecorded).
+function notSent(k, s) {
+  const demo = k === "demo_opened" || k === "demo_booked";
+  return h("div", { class: "kpi not-set" }, h("div", { class: "k-l" }, name(k)), h("div", { class: "k-n" }, "never recorded by the lead store"),
+    h("div", { class: "k-v", title: "Not recorded, never zero" }, "Not set up"),
+    h("div", { class: "k-c" }, demo ? h("a", { href: S.hashFor({ ...s, tab: "sales/bookings", dd: "" }) }, "From the booking tool: Bookings ›")
+      : "The website's lead store sends none of these"));
 }
 
 function counts(m, s, r, f, byDay, inRange, first, out) {
@@ -114,9 +124,11 @@ function counts(m, s, r, f, byDay, inRange, first, out) {
     h("div", { class: "k-v" }, v == null ? "-" : first ? counter(v) : n(v)), h("div", { class: "k-c" }, sw ? h("span", { class: "sw", style: { background: sw } }) : null, quiet ? "" : label),
     cmpB && key && v != null ? h("div", { class: "k-vs" }, cmpB.vs(v, key)) : null);
   const per = readers ? rate(leadsN, readers) : null;
+  // A kind the lead store has never recorded (every day it was read) is not set up there: said so, never 0.
+  const never = neverRecorded(f);
   out.push(h("section", { class: "s" }, h("div", { class: "kpis tight" },
     tile("Leads", leadsN, "sign-ups, contact forms and early access; spam and duplicates removed", "var(--ink)", false, "*"),
-    ...types.map((k) => tile(name(k), sum[k] || 0, k === "demo_opened" ? "opened the booking page" : "", TONE[k], true, k)),
+    ...types.map((k) => (never.has(k) ? notSent(k, s) : tile(name(k), sum[k] || 0, k === "demo_opened" ? "opened the booking page" : "", TONE[k], true, k))),
     readers != null ? h("div", { class: "kpi" }, h("div", { class: "k-l" }, "Leads per 100 visitors"), h("div", { class: "k-n" }, "visitors from the verified days of the same range"),
       h("div", { class: "k-v" }, per ? ((leadsN / readers) * 100).toFixed(1) : "-"), h("div", { class: "k-c" }, per ? `${n(leadsN)} from ${n(readers)} visitors` : `too few visitors to rate (under ${MIN_RATE})`)) : null)),
     c.ok && !covered ? h("p", { class: "cmp-why" }, "Leads not compared: the lead store does not cover every day of A and of B.") : null,

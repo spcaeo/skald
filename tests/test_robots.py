@@ -124,6 +124,29 @@ class TestDay(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("GPTBot: /private/x", err)
 
+    def test_today_is_zero_when_counted_and_unknown_when_not(self):
+        """Crawler rules' Today column: a crawler seen in the 30 days but not today is a
+        real 0 when today's live count adds up (its crawler_paths keep every name), and
+        not recorded (None, shown "-") when today was not counted."""
+        from types import SimpleNamespace
+        from datetime import date
+
+        class History:
+            def extras(self, *_a):
+                return {"2026-10-05": {"crawler_paths": {"CCBot": {"group": "answer_engines", "requests": 2, "paths": {"/": 2}}}}}
+
+        def p(snap):
+            return SimpleNamespace(
+                live_dir=None, config={}, anchor=date(2026, 10, 5), today=date(2026, 10, 6), key="example.com",
+                history=History(), daily=[{"day": date(2026, 10, 5)}], day_entry=lambda e: {"day": e["day"].isoformat()},
+                has_figures=lambda e: True, snap=snap, live_ok=bool(snap and snap.get("state") == "ok"))
+        live = {"state": "ok", "extras": {"crawler_paths": {"GPTBot": {"group": "answer_engines", "requests": 1, "paths": {"/": 1}}}}}
+        by = {c["name"]: c for c in robots.build(p(live))["crawlers"]}
+        self.assertEqual(by["CCBot"]["today"], {"requests": 0, "disallowed": 0})
+        self.assertEqual(by["GPTBot"]["today"], {"requests": 1, "disallowed": 0})
+        by = {c["name"]: c for c in robots.build(p({"state": "partial"}))["crawlers"]}
+        self.assertIsNone(by["CCBot"]["today"])
+
     def test_verify_holds_the_sums(self):
         from skald.verify import check
         from support import totals_for

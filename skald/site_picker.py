@@ -135,7 +135,7 @@ MARK = ('<svg width="28" height="28" viewBox="0 0 64 64" aria-hidden="true">'
 
 CSS = """
 :root{color-scheme:light;--page:#edf0f3;--surface:#fbfcfd;--sunk:#e4e9ee;--ink:#17212b;
---ink-2:#4f5d6b;--ink-3:#6e7c89;--rule:#d8dfe6;--grid:#e6ebf0;--gap:#c3ccd5;--good:#1b7f52;
+--ink-2:#4f5d6b;--ink-3:#5a6672;--rule:#d8dfe6;--grid:#e6ebf0;--gap:#c3ccd5;--good:#1b7f52;
 --shadow:0 1px 0 rgba(23,33,43,.04),0 8px 24px -12px rgba(23,33,43,.18);
 --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
 @media (prefers-color-scheme:dark){:root{color-scheme:dark;--page:#0d1319;--surface:#141c24;

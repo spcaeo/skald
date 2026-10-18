@@ -8,6 +8,14 @@
                                        leave out (spam, duplicates, test)
     GET <page>/people/conversions?kind=cancelled|removed|test
                                        those conversions, with row and journey
+    GET <page>/people/visitor?day=D&seq=S
+                                       one visitor's every visit, from one kept
+                                       visit (people/timeline.py): admins and
+                                       owners only; written to the audit log
+    GET <page>/people/cohort?grain=week|day&start=D&k=K[&split=S&value=V][&deep=1]
+                                       the visits behind one retention cell
+                                       (retention_page.visitors): admins and
+                                       owners only; written to the audit log
     GET /traffic-api/v1/<site>/people?q=Q
                                        a person, for an API token with the
                                        read_private scope (tokens.PRIVATE)
@@ -24,7 +32,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
-PEOPLE_PATH = re.compile(PAGE + r"people(?:/(?P<act>left-out|conversions))?$")
+PEOPLE_PATH = re.compile(PAGE + r"people(?:/(?P<act>left-out|conversions|visitor|cohort))?$")
 PRIVATE_ROLES = ("owner", "admin")
 KINDS = ("cancelled", "removed", "test")
 
@@ -76,6 +84,12 @@ def handle(h, config, live_dir, history_path=None, config_path=None, sessions_mo
             return h._json(400, {"ok": False, "error": f"kind is one of {', '.join(KINDS)}"})
         return h._json(200, {**lookup.conversions_listing(cfg, folder, site, kind, private),
                              "private": private})
+    if act == "visitor":
+        return _visitor(h, q, cfg, folder, site, private, config, live_dir,
+                        h.who if sessions_mode else None, user)
+    if act == "cohort":
+        return _cohort(h, q, cfg, folder, site, private, config, live_dir,
+                       h.who if sessions_mode else None, user, history_path)
     if not private:
         return h._json(403, {"ok": False, "role": role,
                              "error": "Only an admin or an owner can look a person up: it "
@@ -86,6 +100,57 @@ def handle(h, config, live_dir, history_path=None, config_path=None, sessions_mo
         return h._json(400, {"ok": False, "error": str(why)})
     record(config, live_dir, site, h.who if sessions_mode else None, user, got)
     return h._json(200, got)
+
+
+DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _visitor(h, q: dict, cfg, folder, site: str, private: bool, config, live_dir, who,
+             user: str):
+    """people/visitor?day=&seq=: the visitor timeline (admins and owners)."""
+    from .timeline import visitor
+    if not private:
+        return h._json(403, {"ok": False, "error": "Only an admin or an owner can follow a "
+                                                   "visitor across visits."})
+    day, seq = str(q.get("day") or ""), str(q.get("seq") or "")
+    if not DAY.match(day) or not seq.isdigit() or len(seq) > 7:
+        return h._json(400, {"ok": False, "error": "day is YYYY-MM-DD and seq a number"})
+    got = visitor(cfg, folder, site, day, int(seq))
+    detail = f"visit {day}#{seq} visits={len(got['visits'])} leads={len(got['leads'])}"
+    _audit(config, live_dir, site, who, user, "people.visitor", detail)
+    return h._json(200, got)
+
+
+def _cohort(h, q: dict, cfg, folder, site: str, private: bool, config, live_dir, who,
+            user: str, history_path):
+    """people/cohort: the visits behind one retention cell (admins and owners)."""
+    from ..retention_page import visitors
+    from ..store import History
+    if not private:
+        return h._json(403, {"ok": False, "error": "Only an admin or an owner can list the "
+                                                   "visitors behind a retention cell."})
+    grain, start, k = str(q.get("grain") or ""), str(q.get("start") or ""), str(q.get("k") or "")
+    if grain not in ("week", "day") or not DAY.match(start) or not k.isdigit() or len(k) > 2:
+        return h._json(400, {"ok": False, "error": "grain is week or day, start YYYY-MM-DD "
+                                                   "and k a number"})
+    split = q.get("split") or None
+    from .policy import history_path as find
+    hist = Path(history_path) if history_path is not None else find(cfg, folder)
+    if hist is None or not hist.is_file():
+        return h._json(200, {"ok": True, "found": False, "rows": [], "why": "No history yet."})
+    from ..window import zone
+    today = datetime.now(zone(cfg)).date()
+    history = History(hist)
+    try:
+        got = visitors(cfg, folder, history.db, site, grain, start, int(k), split,
+                       q.get("value") if split else None, q.get("deep") == "1", today)
+    except ValueError as why:
+        return h._json(400, {"ok": False, "error": str(why)})
+    finally:
+        history.close()
+    _audit(config, live_dir, site, who, user, "people.cohort",
+           f"{grain} {start} +{k}{' by ' + split if split else ''} rows={len(got.get('rows') or [])}")
+    return h._json(200 if got.get("ok") else 400, got)
 
 
 def token(h, m, config, live_dir, history_path=None, config_path=None) -> None:
@@ -114,7 +179,11 @@ def words(got: dict) -> str:
 def record(config, live_dir, site: str, who: dict | None, user: str, got: dict) -> None:
     """One audit row per search (sessions: accounts.sqlite's audit log;
     basic: a line in privacy.log beside the history). Never the value."""
-    detail = words(got)
+    _audit(config, live_dir, site, who, user, "people.search", words(got))
+
+
+def _audit(config, live_dir, site: str, who: dict | None, user: str, action: str,
+           detail: str) -> None:
     if who is not None:
         from ..auth_api import open_db
         from ..accounts import auditlog
@@ -123,14 +192,14 @@ def record(config, live_dir, site: str, who: dict | None, user: str, got: dict) 
             try:
                 org = who.get("org")
                 auditlog.record(db, org.get("id") if isinstance(org, dict) else org,
-                                who.get("user_id") or "?", "people.search", site, detail)
+                                who.get("user_id") or "?", action, site, detail)
             finally:
                 db.close()
             return
     if live_dir is None:
         return
     from ..privacy import LOG
-    line = (f"{datetime.now(timezone.utc).isoformat(timespec='seconds')} people.search "
+    line = (f"{datetime.now(timezone.utc).isoformat(timespec='seconds')} {action} "
             f"site={site} by={(user or 'unknown')[:80]} {detail}\n")
     log = Path(live_dir) / LOG
     try:

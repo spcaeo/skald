@@ -265,6 +265,9 @@ def build(p) -> dict:
             agg["last"] = e["day"].isoformat()
         days.append(row)
     today = {}
+    # Today counted (a live snapshot that adds up, with its crawler_paths, which keeps every
+    # name): a crawler not in it made no request today, a real 0. Not counted: None ("-").
+    today_counted = p.live_ok and ((p.snap.get("extras") or {}).get("crawler_paths")) is not None
     if p.live_ok:
         for name, got in (((p.snap.get("extras") or {}).get("crawler_paths")) or {}).items():
             n, _ = _disallowed(rp, token_of(name), got["paths"])
@@ -284,7 +287,8 @@ def build(p) -> dict:
             "root_allowed": (rp.can_fetch(token, "/") if rp is not None and token else None),
             "days_seen": agg["days"], "requests": int(sum(agg["paths"].values())),
             "paths": len([k for k in agg["paths"] if k != OTHER]),
-            "disallowed": n, "disallowed_paths": top, "today": today.get(name),
+            "disallowed": n, "disallowed_paths": top,
+            "today": today.get(name) or ({"requests": 0, "disallowed": 0} if today_counted else None),
             "_last": agg["last"]})
     crawlers.sort(key=lambda c: (c["_last"], c["requests"]), reverse=True)
     for c in crawlers:

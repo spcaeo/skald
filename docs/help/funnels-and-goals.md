@@ -10,7 +10,7 @@ A funnel answers "how many visits went through these pages, in this order, and w
 
 - A visit reaches a step when it reads a page that matches it, after the step before.
 - The page that met one step may also meet the next. So "Any page" then "/pricing/" counts a visit that landed straight on pricing.
-- The page steps are built from each visit's pages in order. These are kept for a few days (7 by default), so a new funnel shows only those days. Save it to count it every day (see "Funnel history").
+- The page steps are built from each visit's pages in order. These are kept for a few days (7 by default), so a new funnel shows only those days, and the line under the title says so when the period above is longer. Save it to count it every day (see "Funnel history").
 
 ### Build a funnel
 
@@ -44,6 +44,10 @@ A step can also be an event from the [tracking script](tracking-script.md), such
 ### Lead steps
 
 A funnel can also end with steps from your website's lead database: Opened Book a demo, Sign-up, Contact form, Early access, Demo booked. They are counted by the lead's first-touch source, beside the visits, never joined to them. They are counted once the funnel is saved.
+
+The chart keeps each kind of step on its own scale, under its own heading. Page steps are visits, each bar a share of the visits at step 1. Lead steps (and beacon event steps) are drawn apart, against the longest bar of their own group, and the heading says how many that is: they are never a share of the visits.
+
+A lead step the lead database has never recorded, or an event step your site has never sent, shows **Not set up** with one line on what is missing, never 0. Demo bookings often come from the booking tool rather than the lead database: they are on [Leads & sales > Bookings](#sales/bookings).
 
 Lead steps cannot be added from the step list. The built-in funnel **Landing to lead** has them: landed, pricing, a sign-up or contact page, then demo opened, lead and demo booked.
 

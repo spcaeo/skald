@@ -3,7 +3,9 @@
 Checked on every live run (every 2 minutes), from what that run already has
 in memory - the requests of the last hours by minute (requests_feed.Feed's
 signals), today's snapshot and history - so a check costs nothing worth
-measuring. Each rule can be switched off in the config's `alerts` section:
+measuring. Each rule can be switched off in the config's `alerts` section, or
+by an admin on Site > Alerts (settings_store keys `alerts.<name>`, per site,
+laid over the config by `apply`; a name in `settings.locked` stays the config's):
 
   site_down         the heartbeat (our own request every 5 minutes) missed or
                     failed `site_down_misses` (2) beats in a row
@@ -79,6 +81,10 @@ SEVERITY = {"site_down": "high", "logging_stopped": "high", "server_errors": "hi
             "not_found_surge": "medium", "crawler_burst": "medium", "new_crawler": "low",
             "traffic_drop": "medium", **alerts_ai.SEVERITY, **alerts_history.SEVERITY}
 RESOLVED = ("site_down", "logging_stopped")
+# Each rule's switch on Site > Alerts: its settings_store key (the config name in `alerts`).
+SETTING = {**{c: f"alerts.{c}" for c in CAUSES},
+           **{c: f"alerts.ai_{r}" for c, r in alerts_ai.RULE.items()},
+           **{c: f"alerts.{r}" for c, r in alerts_history.RULE.items()}}
 AI_LOOKING = re.compile(r"\bai\b|ai[-_ ]?bot|gpt|llm|agent|assistant|-user\b|fetcher|claude"
                         r"|perplexity|gemini|mistral|cohere|anthropic|openai", re.I)
 
@@ -120,7 +126,7 @@ def rules(cfg: dict) -> list[dict]:
                          f"{cfg['crawler_burst_minutes']} minutes and "
                          f"{cfg['crawler_burst_minimum']}+ requests",
         "new_crawler": "an assistant or crawler never seen before (3+ requests)",
-        "traffic_drop": f"yesterday's readers under {cfg['traffic_drop_percent']}% of the same "
+        "traffic_drop": f"yesterday's visitors under {cfg['traffic_drop_percent']}% of the same "
                         f"weekday's 4-week median (whole days only, median "
                         f"{cfg['traffic_drop_min_readers']}+)",
     }
@@ -541,10 +547,12 @@ def build(p) -> dict:
                    key=lambda a: a["opened_at"], reverse=True)
     closed = sorted((a for a in alerts if a.get("closed_at") is not None),
                     key=lambda a: a["closed_at"], reverse=True)
+    every = (rules(cfg) + alerts_ai.rules(alerts_ai.settings(p.config))
+             + alerts_history.rules(alerts_history.settings(p.config)))
     return {"enabled": cfg["enabled"], "mail": bool(state.get("mail", False)),
+            "mail_on": cfg["mail"],
             "checked_at": state.get("checked_at"),
-            "rules": rules(cfg) + alerts_ai.rules(alerts_ai.settings(p.config))
-            + alerts_history.rules(alerts_history.settings(p.config)),
+            "rules": [{**r, "setting": SETTING.get(r["cause"])} for r in every],
             "open": [_public(a) for a in open_], "closed": [_public(a) for a in closed],
             "ai": alerts_ai.public(state), "history": alerts_history.public(state)}
 

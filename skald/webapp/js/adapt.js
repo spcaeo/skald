@@ -15,7 +15,7 @@
 //             ours_by: {label: n} }
 //   Live  = { state, day, generated_at, from, problems, figures: Day-shaped, events: [...] }
 //   Journey = { start, day, country, device, browser, os, source, via, trail: [{path, page, at?}],
-//               pages, seconds, exit, flags: [] }
+//               pages, seconds, exit, flags: [], seen?, in_app? (steps seen only in the browser) }
 
 export async function adapt(get) {
   const raw = await get("app.json");

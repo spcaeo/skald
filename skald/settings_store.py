@@ -51,6 +51,7 @@ WHO_WORDS = {
 SMTP_PASSWORD_ENV = "SKALD_SMTP_PASSWORD"
 HOST = re.compile(r"^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?"
                   r"(?:\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*(?::\d{1,5})?$")
+COLOR = re.compile(r"^#[0-9a-f]{6}$")
 ZONE = re.compile(r"^[A-Za-z0-9_+\-/]{1,64}$")
 FILENAME = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9._-]{0,99}$")
 NAME = re.compile(r"^[A-Za-z0-9 .'-]{1,40}$")      # mail.from_name (mailer.display_name)
@@ -66,7 +67,7 @@ class Invalid(ValueError):
 @dataclass(frozen=True)
 class Key:
     kind: str                       # int bool email emails text choice host hosts views zone
-    #                                 path filename secret events prefixes
+    #                                 path filename secret events prefixes searchprop bingsite
     who: str                        # admin, install or owner
     scopes: tuple                   # where it may be saved; the first is where the page saves
     config: tuple | None            # (section, key) in config.yml
@@ -139,6 +140,17 @@ SCHEMA: dict[str, Key] = {
                               label="SMTP password"),
     "pagespeed.api_key": Key("secret", "install", ("install",), None, env="PSI_API_KEY",
                              label="PageSpeed API key"),
+    # P1-6: search figures (search/). The property and Bing site are per site
+    # (checked against the site's hosts, search/props.py); the Bing key is the
+    # install's. The Search Console key file is uploaded through
+    # Settings > Integrations > Search (search/api.py), never through here.
+    "search.google_property": Key("searchprop", "admin", ("site",),
+                                  ("search_console", "property"), None,
+                                  label="Search Console property"),
+    "search.bing_site": Key("bingsite", "admin", ("site",), ("bing", "site_url"), None,
+                            label="Bing Webmaster Tools site"),
+    "search.bing_api_key": Key("secret", "install", ("install",), None,
+                               env="BING_WEBMASTER_API_KEY", label="Bing API key"),
     "sites.hosts": Key("hosts", "admin", ("site",), ("site", "hosts"), [], label="Host names"),
     "sites.views": Key("views", "admin", ("site",), ("dashboard", "views"), [], label="Views"),
     "sites.timezone": Key("zone", "admin", ("site",), ("report", "timezone"), "UTC",
@@ -161,11 +173,37 @@ SCHEMA: dict[str, Key] = {
     "hooks.calcom.event_types": Key("eventtypes", "admin", ("site",),
                                     ("hooks", "calcom_event_types"), [],
                                     label="Cal.com event types"),
+    # Settings > Reports (client_reports.py): the agency's name and colour on
+    # every client report of the organisation; its logo is a file (logos/org-<id>/).
+    "brand.agency_name": Key("text", "admin", ("org",), None, None, limit=60,
+                             label="Agency name"),
+    "brand.color": Key("color", "admin", ("org",), None, None, label="Brand colour"),
     "security.require_totp": Key("bool", "owner", ("org",), None, False,
                                  label="Require two-step sign-in"),
     "security.session_days": Key("int", "owner", ("org",), None, 14, 1, 90,
                                  label="Session length"),
 }
+# Site > Alerts (2.13.0): the master switch, mailing, and each rule's switch, by
+# their names in config.yml's `alerts` section (alerts.py; alerts_ai.py, whose
+# flat `ai_<rule>` names win over the nested `alerts.ai`; alerts_history.py).
+# Thresholds stay in config.yml.
+ALERT_RULES = {"site_down": "Site down", "logging_stopped": "Logging stopped",
+               "server_errors": "Server errors", "not_found_surge": "Broken-link surge",
+               "crawler_burst": "Crawl burst", "new_crawler": "New crawler",
+               "traffic_drop": "Traffic drop", "ai_started_reading": "AI started reading",
+               "ai_stopped_reading": "AI stopped reading",
+               "ai_sending_people": "AI sending people",
+               "first_citation": "First AI citation",
+               "first_cited_page": "Page's first AI citation",
+               "cited_visits": "Visits from AI answers", "crawler_silent": "Crawler gone silent"}
+SCHEMA["alerts.enabled"] = Key("bool", "admin", ("site",), ("alerts", "enabled"), False,
+                               label="Alerts")
+SCHEMA["alerts.mail"] = Key("bool", "admin", ("site",), ("alerts", "mail"), True,
+                            label="Mail alerts")
+for _rule, _label in ALERT_RULES.items():
+    SCHEMA[f"alerts.{_rule}"] = Key("bool", "admin", ("site",), ("alerts", _rule), True,
+                                    label=f"Alert: {_label}")
+
 # Keys that are not secrets, in SCHEMA order.
 PLAIN = tuple(k for k, v in SCHEMA.items() if v.kind != "secret")
 SECRETS = tuple(k for k, v in SCHEMA.items() if v.kind == "secret")
@@ -331,10 +369,25 @@ def validate(name: str, value, cap: int | None = None):
         if name == "mail.from_name" and got and not NAME.match(got):
             raise Invalid(f"{label} is at most {key.limit} letters, digits, spaces and . - '.")
         return got
+    if kind == "color":
+        got = str(value or "").strip().lower()
+        if not got:
+            return None
+        if not COLOR.match(got):
+            raise Invalid(f"{label} is a colour like #1d4ed8.")
+        return got
     if kind == "choice":
         if value not in key.choices:
             raise Invalid(f"{label} is one of: {', '.join(key.choices)}.")
         return value
+    if kind in ("searchprop", "bingsite"):
+        if value in (None, ""):
+            return None
+        from .search import props
+        try:
+            return props.google_property(value) if kind == "searchprop" else props.bing_site(value)
+        except props.Invalid as why:
+            raise Invalid(str(why)) from None
     if kind == "host":
         host = str(value).strip().lower()
         if not HOST.match(host):
@@ -547,8 +600,13 @@ def _from_config(config, key: Key):
         from .conversions.event_types import from_config
         return from_config(config, key.config[1].rsplit("_event_types", 1)[0]) or None
     raw = setting(config or {}, *key.config)
+    if raw is None and key.config[0] == "alerts" and key.config[1].startswith("ai_"):
+        nested = ((config or {}).get("alerts") or {}).get("ai")     # alerts_ai.settings
+        raw = nested.get(key.config[1][3:]) if isinstance(nested, dict) else None
     if raw is None:
         return None
+    if key.kind == "bool" and key.config[0] == "alerts":            # alerts._flag's words
+        return raw is True or str(raw).strip().lower() in ("1", "true", "yes", "on")
     if key.kind == "int":
         try:
             return int(raw)
@@ -668,7 +726,8 @@ SHRINKING = tuple(k for k in PLAIN if SCHEMA[k].shrink and "site" in SCHEMA[k].s
 # The per-day detail report.retention_days keeps (store_extras kinds); totals,
 # page milestones and the rest are kept for good.
 DETAIL_KINDS = ("pages", "visit_cube", "cube", "crawler_paths", "page_firsts",
-                "not_found", "page_counts", "funnels", "crawler_cost")
+                "not_found", "page_counts", "funnels", "crawler_cost",
+                "crawl_health")
 
 
 def apply(config: dict, site: str | None = None, live_dir=None) -> dict:

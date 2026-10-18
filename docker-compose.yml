@@ -51,6 +51,9 @@ services:
       SKALD_LOG_FORMAT: "${SKALD_LOG_FORMAT:-auto}"
       SKALD_ASSET_PREFIXES: "${SKALD_ASSET_PREFIXES:-}"
       SKALD_COUNTRY_DB: "${SKALD_COUNTRY_DB:-}"
+      # A GeoIP city file (DB-IP's free "IP to City Lite" .mmdb) for each visit's
+      # city, e.g. /geoip/dbip-city-lite.mmdb with /usr/share/GeoIP:/geoip:ro.
+      SKALD_CITY_DB: "${SKALD_CITY_DB:-}"
       # Logs sent from other servers or a Vercel/Netlify drain (docs/INGEST.md):
       # SKALD_INGEST=true and SKALD_LOG_DIR=/var/lib/skald/ingest/<SKALD_SITE>.
       SKALD_INGEST: "${SKALD_INGEST:-}"
@@ -62,6 +65,9 @@ services:
       SKALD_DAILY_AT: "${SKALD_DAILY_AT:-07:15}"
       SKALD_BACKUP_AT: "${SKALD_BACKUP_AT:-03:30}"
       SKALD_LIVE_MINUTES: "${SKALD_LIVE_MINUTES:-2}"
+      SKALD_SEARCH_HOURS: "${SKALD_SEARCH_HOURS:-6}"
+      SKALD_SEARCH_AT: "${SKALD_SEARCH_AT:-01:40}"
+      SKALD_REPORTS_MINUTES: "${SKALD_REPORTS_MINUTES:-15}"
       SKALD_SCHEDULER: "${SKALD_SCHEDULER:-on}"
       SKALD_BEACON_ORIGINS: "${SKALD_BEACON_ORIGINS:-}"
       SKALD_ORIGIN: "${SKALD_ORIGIN:-}"

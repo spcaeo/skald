@@ -415,21 +415,15 @@
 .dg-sort:hover {
   color: var(--dg-fg);
 }
-.dg-sort-arrow {
-  opacity: 0;
+/* Skald patch 7: the marks are the shared tables' text (data-grid.js); only a sorted
+   column's mark is solid, a sortable column's ↕ faint (css/tables.css th[aria-sort] .dir). */
+.dg-sort .dir {
+  font-size: 10px;
   transition: opacity 120ms;
 }
-.dg-sort:hover .dg-sort-arrow {
-  opacity: 0.4;
-}
-th[aria-sort] .dg-sort {
+th[aria-sort="ascending"] .dg-sort,
+th[aria-sort="descending"] .dg-sort {
   color: var(--dg-fg);
-}
-th[aria-sort] .dg-sort-arrow {
-  opacity: 1;
-}
-th[aria-sort="descending"] .dg-sort-arrow {
-  rotate: 180deg;
 }
 
 /* --- states --------------------------------------------------------------- */

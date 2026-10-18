@@ -17,6 +17,7 @@ import * as S from "../state.js";
 import { head } from "./common.js";
 import { info } from "./tiles.js";
 import { sessions, isViewer } from "../access.js";
+import { everSent, howToSend } from "../notset.js";
 
 const COLS = ["cta_click", "book_demo_open", "demo_booked", "signup_start", "signup_submit", "contact_submit", "waitlist_submit", "outbound_click", "scroll_75", "copy_text", "404_view"];
 const SHORT = { cta_click: "Clicks", book_demo_open: "Demo opened", demo_booked: "Demo booked", signup_start: "Sign-up started", signup_submit: "Sign-up sent", contact_submit: "Contact sent",
@@ -24,6 +25,9 @@ const SHORT = { cta_click: "Clicks", book_demo_open: "Demo opened", demo_booked:
 // Sent by the site's own code only, never by the tag (beacon.CODE_ONLY).
 const CODE_ONLY = ["book_demo_open", "demo_booked"];
 const LINE = { cta_click: "var(--g-people)", scroll_75: "var(--ink-3)", book_demo_open: "var(--opp)", signup_submit: "var(--good)" };
+
+// An event the site has never sent is "not set up" with how to send it, never 0 or 0% (notset.js).
+export { everSent, howToSend };
 
 export const eventLabel = (f, e) => (f?.events || []).find((x) => x.name === e)?.label || SHORT[e] || e;
 
@@ -117,7 +121,7 @@ function refused(f) {
 export default function events(m, s) {
   const f = m.x.events;
   const r = rangeOf(m, s);
-  const out = [...head("Events", r, "What readers did inside the pages, counted by the site's own beacon on its own server: buttons, forms, demo bookings, links out, reading three quarters of a page, copying text. People only, as totals: no event is tied to a visit or a person.", { banner: false })];
+  const out = [...head("Events", r, "What visitors did inside the pages, counted by the site's own beacon on its own server: buttons, forms, demo bookings, links out, reading three quarters of a page, copying text. People only, as totals: no event is tied to a visit or a person.", { banner: false })];
   if (!f) return [...out, h("div", { class: "state" }, h("div", null, "In-page events are not counted on this server yet. They come from the website's own beacon once it is installed (docs/BEACON.md)."))];
   const keep = pathMatch(s);
   const got = eventRows(f, r, m.today);
@@ -132,15 +136,23 @@ export default function events(m, s) {
     return out;
   }
   // The figures: each kind of event, with its rate per 100 visitors.
-  out.push(h("section", { class: "s" }, h("div", { class: "ev-tiles" }, names.filter((e) => totals[e] || COLS.slice(0, 5).includes(e)).map((e) => h("div", { class: "ev-t" },
-    h("span", { class: "ev-l" }, eventLabel(f, e)), h("b", null, n(totals[e] || 0)),
-    h("small", null, CODE_ONLY.includes(e) && !totals[e] ? "sent by your own code" : readers ? `${((100 * (totals[e] || 0)) / readers).toFixed(1)} per 100 visitors` : got.live ? "today so far" : "")))),
-  h("p", { class: "note" }, "The tracking tag sends these by itself, except Demo opened and Demo booked: those come from your site's own code (skald('track', 'demo_booked'))."),
+  out.push(h("section", { class: "s" }, h("div", { class: "ev-tiles" }, names.filter((e) => totals[e] || COLS.slice(0, 5).includes(e)).map((e) => (!everSent(f, e)
+    ? h("div", { class: "ev-t not-set", title: "Never sent by this site: not recorded, never zero" }, h("span", { class: "ev-l" }, eventLabel(f, e)), h("b", null, "Not set up"), h("small", null, howToSend(e)))
+    : h("div", { class: "ev-t" },
+      h("span", { class: "ev-l" }, eventLabel(f, e)), h("b", null, n(totals[e] || 0)),
+      h("small", null, CODE_ONLY.includes(e) && !totals[e] ? "sent by your own code" : readers ? `${((100 * (totals[e] || 0)) / readers).toFixed(1)} per 100 visitors` : got.live ? "today so far" : ""))))),
+  h("p", { class: "note" }, "The tracking tag sends these by itself, except Demo opened and Demo booked: those come from your site's own code (the Help guide “The tracking script” shows the one line to add). \"Not set up\": this site has never sent that event, so there is no count, not a zero."),
   leftOut(got.days)));
   // The two paths through the forms: started to sent, opened to booked.
-  const step = (a, b, nameA, nameB) => h("div", { class: "ev-step" }, h("div", null, h("span", null, nameA), h("b", null, n(totals[a] || 0))), h("span", { class: "ev-arrow", "aria-hidden": "true" }, "→"),
-    h("div", null, h("span", null, nameB), h("b", null, n(totals[b] || 0))),
-    h("small", null, totals[a] >= 5 ? `${Math.round((100 * (totals[b] || 0)) / totals[a])}% went on` : totals[a] ? "too few to rate" : ""));
+  // A side the site never sends is "Not set up", and no share is given across it.
+  const val = (e) => (everSent(f, e) ? h("b", null, n(totals[e] || 0)) : h("b", { class: "not-set", title: "Never sent by this site" }, "Not set up"));
+  const step = (a, b, nameA, nameB) => {
+    const unsent = [a, b].filter((e) => !everSent(f, e));
+    return h("div", { class: "ev-step" }, h("div", null, h("span", null, nameA), val(a)), h("span", { class: "ev-arrow", "aria-hidden": "true" }, "→"),
+      h("div", null, h("span", null, nameB), val(b)),
+      unsent.length ? h("small", { class: "how" }, `No share: ${unsent.map((e) => eventLabel(f, e)).join(" and ")} never sent. ${howToSend(unsent[unsent.length - 1])}`)
+        : h("small", null, totals[a] >= 5 ? `${Math.round((100 * (totals[b] || 0)) / totals[a])}% went on` : totals[a] ? "too few to rate" : ""));
+  };
   out.push(h("section", { class: "s" }, h("div", { class: "card-h start" }, h("h2", null, "Through the forms"), info("Each count is of events, not of people: one person can start a sign-up twice. A share is given from five starts on.", "Through the forms")),
     h("div", { class: "ev-steps" }, step("signup_start", "signup_submit", "Sign-up started", "Sign-up sent"), step("book_demo_open", "demo_booked", "Demo booking opened", "Demo booked"))));
   // Per day.

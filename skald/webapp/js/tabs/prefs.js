@@ -15,6 +15,7 @@ import { call } from "./ipmanager.js";
 import { ME, sessions } from "../access.js";
 import { head1, field, input, status, why } from "./forms.js";
 import logoCard from "./sitelogo.js";
+import { mailPreview } from "./mailpreview.js";
 
 const SOURCE = { site: "set for this site", org: "set for the organisation", install: "set for the whole install", config: "from config.yml", default: "the default",
   upgrade: "kept off by the upgrade to 2.4.0; turn it on once your privacy notice says so" };
@@ -31,7 +32,7 @@ function control(name, s) {
   }
   if (s.kind === "secret") {
     el = input({ type: "password", id, autocomplete: "new-password", maxlength: "500", placeholder: s.set ? "set: type to replace" : "not set", disabled: ro });
-    const clear = h("label", { class: "chk" }, h("input", { type: "checkbox", disabled: ro || !s.set }), h("span", null, "Clear it"));
+    const clear = h("label", { class: "chk chk-clear" }, h("input", { type: "checkbox", disabled: ro || !s.set }), h("span", null, "Clear it"));
     const badge = h("span", { class: `tf ${s.set ? "on" : "off"}` }, s.set ? "set" : "not set");
     get = () => (clear.querySelector("input").checked ? null : el.value ? el.value : undefined);
     return { el: field(s.label, h("div", { class: "sec-row" }, el, badge, clear), ro ? s.reason : s.env ? "The server's environment also sets it, and wins." : "Write-only: it is never shown again."), get };
@@ -209,6 +210,7 @@ export function mail(m) {
       ["mail.from", "mail.smtp.host", "mail.smtp.port", "mail.smtp.security", "mail.smtp.user", "mail.smtp.password"], all, m.site, redraw),
     card("Google PageSpeed", "A free API key raises Google's daily limit for the page speed tests.", ["pagespeed.api_key"], all, m.site, redraw),
     ["owner", "admin"].includes(r.role) || r.install_admin ? testMail() : null,
+    ["owner", "admin"].includes(r.role) || r.install_admin ? mailPreview() : null,
   ]);
 }
 

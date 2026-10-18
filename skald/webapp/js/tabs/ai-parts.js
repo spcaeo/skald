@@ -82,6 +82,8 @@ export function formatsSection(t, r, tier, { who, file }) {
     ...shown.map((k) => ({ key: k, label: k, num: true })),
     { key: "total", label: "Fetches", num: true },
   ], { caption: `What ${who} fetched, by name`, rows: named, file: fileName(`${file}-by-name`, r), sortKey: "total", search: false }) : null;
-  return h("section", { class: "s" }, title, sub, byFormat, byName,
+  // The second table has its own heading and room above it, not glued under the first.
+  const nameHead = byName ? h("h3", { class: "ai-sub-h" }, who === "assistants" ? "By assistant" : "By crawler") : null;
+  return h("section", { class: "s" }, title, sub, byFormat, nameHead, byName,
     named.some((x) => x.name === "(all others)") ? h("p", { class: "note" }, "Each day keeps the 20 names with the most fetches; the rest are summed in (all others), so the totals still add up.") : null);
 }

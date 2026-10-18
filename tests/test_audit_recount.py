@@ -246,6 +246,8 @@ class TestIndependence(AuditCase):
         allowed |= {(None, "audit_release2")}
         # Its own rendering rule, tested the same way in test_rendering.
         allowed |= {(None, "audit_rendered")}
+        # Its own speed rule, tested the same way in test_too_fast.
+        allowed |= {(None, "audit_too_fast")}
         # Its own labels, moved out whole (below), and the phase 4 recounts'
         # registry (audit_more.py), whose modules follow the same rule.
         allowed |= {("audit_labels", n) for n in (
@@ -260,7 +262,18 @@ class TestIndependence(AuditCase):
         # The MaxMind-format reader is tested against its own fixtures
         # (test_conversions_store) and, live, against nginx's cc= field.
         allowed |= {("conversions.geo", "country"), ("conversions.geo", "database")}
+        # Its own city of a visit (logs.city_db), which shares only the
+        # file's reader (test_city_lookup).
+        allowed |= {(None, "audit_cities")}
         self.assertLessEqual(imported, allowed)
+
+    def test_its_cities_share_only_the_file_reader(self):
+        import ast
+        from skald import audit_cities
+        tree = ast.parse(Path(audit_cities.__file__).read_text())
+        imported = {(n.module, a.name) for n in ast.walk(tree)
+                    if isinstance(n, ast.ImportFrom) and n.level for a in n.names}
+        self.assertEqual(imported, {("conversions.geo", "reader")})
 
     def test_its_labels_import_nothing_from_the_package(self):
         import ast

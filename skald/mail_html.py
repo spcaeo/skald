@@ -30,14 +30,16 @@ from . import brand
 from .classify import AI_ASKED, Group
 from .countries import label as country_label
 from .labels import shown as shown_label, shown_text
+from .conversions_leads import LEAD_RULE
 from .dimensions import OTHER
+from .visits import assistant_label
 
 LOGO_CID = "skald-mark"
 ROWS = 5
 
 # The dashboard's palette (webapp/app.css), light and dark.
 PAGE, CARD, SUNK, INK, INK2, INK3, RULE = ("#edf0f3", "#fbfcfd", "#e4e9ee", "#17212b",
-                                           "#4f5d6b", "#6e7c89", "#d8dfe6")
+                                           "#4f5d6b", "#5a6672", "#d8dfe6")
 PEOPLE, AI, SEARCH, GOOD, WARN, BAD = ("#2a78d6", "#d95926", "#199e70", "#1b7f52",
                                        "#9a6400", "#c0352f")
 # Single quotes only: every style sits inside a double-quoted attribute.
@@ -91,23 +93,22 @@ def change(current: int | None, previous: int | None) -> str:
 
 # ------------------------------------------------------------ the figures
 
-def _leads(config: dict, tz, first: date, last: date) -> int | None:
-    """Leads (sign-ups, contact, early access, demos booked; spam and
-    duplicates left out) in the period, from the CMS; None without one."""
-    from . import leads
-    path = leads.db_path(config)
-    if path is None:
-        return None
+def _leads(config: dict, history, site: str, tz, first: date, last: date) -> int | None:
+    """The dashboard's leads for the period (conversions_leads.period_leads, the
+    Overview tile's own rule), counted again by audit_client_reports.check_leads;
+    None ("—") when the site records none, the period starts before they were
+    recorded, or the two counts differ."""
+    from . import audit_client_reports
+    from .conversions_leads import period_leads, store_of
     try:
-        db = leads.connect(path)
-        try:
-            rows = leads.read_rows(db)
-        finally:
-            db.close()
+        got = period_leads(config, history, site, tz, first, last)
+        if not got or got["state"] != "ok":
+            return None
+        if audit_client_reports.check_leads(store_of(config, history), site, tz, first, last, got):
+            return None
     except Exception:                   # noqa: BLE001 - a missing figure, not a failed mail
         return None
-    days = leads.day_counts(rows, tz, first, last)
-    return sum(n for d in days for t, n in d["leads"].items() if t != "demo_opened")
+    return got["total"]
 
 
 def _returning(history, site: str, first: date, last: date) -> int | None:
@@ -126,7 +127,7 @@ def figures(config, history, site, tz, period, first, last) -> dict:
     return {"visitors": people.readers if people else 0,
             "pages": people.views if people else 0,
             "ai": people.cited_visits if people else 0,
-            "leads": _leads(config, tz, first, last),
+            "leads": _leads(config, history, site, tz, first, last),
             "returning": _returning(history, site, first, last)}
 
 
@@ -191,8 +192,7 @@ def _kpis(now_f: dict, before: dict | None, compare_words: str) -> str:
             f'color:{INK2}">{esc(delta)}</div></td>')
     note = (f"Visitors are {VISITORS_RULE}. "
             f"Change against {compare_words}, only when both are whole, verified "
-            f"days. Arrows give the direction, not good or bad. Leads: sign-ups, contact, "
-            f"early access and demos booked, spam left out.")
+            f"days. Arrows give the direction, not good or bad. {LEAD_RULE}")
     body = (f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
             f'style="border-collapse:collapse"><tr>{"".join(cells)}</tr></table>')
     return _card("The headline", body, esc(note))
@@ -235,7 +235,8 @@ def _sources(people) -> str:
         shown = esc(shown_label(name))
         if name == "AI assistant" and cited:
             shown += (f'<div class="s-ink3" style="font:400 12px/1.4 {FONT};color:{INK3}">'
-                      + esc(", ".join(f"{a} {c}" for a, c in cited.most_common(4))) + "</div>")
+                      + esc(", ".join(f"{assistant_label(a)} {c}" for a, c in cited.most_common(4)))
+                      + "</div>")
         rows.append((shown, f"{n:,}", _pct(n, total)))
     return _card("Where visitors came from", _table(rows, ("Source", "Visitors", "")),
                  "Each visitor counted once, by the first page they read." if rows else "")

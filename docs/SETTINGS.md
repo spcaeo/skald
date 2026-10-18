@@ -64,6 +64,11 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `mail.smtp.user` | Mail | text | install admin | install | `mail.user` (else `mail.user_env`) |
 | `mail.smtp.password` | Mail | secret, write-only | install admin | secrets.json | env var `mail.password_env`, else `SKALD_SMTP_PASSWORD` |
 | `pagespeed.api_key` | Mail | secret, write-only | install admin | secrets.json | env var `PSI_API_KEY` |
+| `search.google_property` | Integrations > Search | a Search Console property that covers the site's hosts (`sc-domain:example.com` or a URL prefix) | admin | site | `search_console.property` |
+| `search.bing_site` | Integrations > Search | the site's URL in Bing Webmaster Tools, covering its hosts | admin | site | `bing.site_url` |
+| `search.bing_api_key` | Integrations > Search | secret, write-only | install admin | secrets.json | env var `BING_WEBMASTER_API_KEY` |
+| `brand.agency_name` | Reports (Agency branding) | text, 60 at most | admin | organisation | (none) |
+| `brand.color` | Reports (Agency branding) | a colour `#rrggbb` (none: Skald's ink) | admin | organisation | (none) |
 | `sites.hosts` | Sites | 1-50 host names | admin | site | `site.hosts` |
 | `sites.views` | Sites | up to 20 views | admin | site | `dashboard.views` |
 | `sites.timezone` | Sites | an IANA zone (UTC) | admin | site | `report.timezone` |
@@ -77,6 +82,9 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `beacon.goals` | Sites (Goals) | up to 10 event names of `beacon.EVENTS` or `page_view`; `[]` is no goal ([]) | admin | site | `beacon.goals` |
 | `hooks.calendly.event_types` | Integrations (Calendly) | up to 50 event-type URIs, uuids or booking-page slugs; `[]` keeps every event ([]) | admin | site | `hooks.calendly_event_types` (or nested `hooks.calendly.event_types`) |
 | `hooks.calcom.event_types` | Integrations (Cal.com) | up to 50 event-type ids or slugs; `[]` keeps every event ([]) | admin | site | `hooks.calcom_event_types` (or nested `hooks.calcom.event_types`) |
+| `alerts.enabled` | Site > Alerts | on / off (off) | admin | site | `alerts.enabled` |
+| `alerts.mail` | Site > Alerts | on / off (on) | admin | site | `alerts.mail` |
+| `alerts.<rule>` | Site > Alerts | on / off (on), one per rule: `site_down`, `logging_stopped`, `server_errors`, `not_found_surge`, `crawler_burst`, `new_crawler`, `traffic_drop`, `ai_started_reading`, `ai_stopped_reading`, `ai_sending_people`, `first_citation`, `first_cited_page`, `cited_visits`, `crawler_silent` | admin | site | `alerts.<rule>` (the AI three also nested `alerts.ai.<rule without ai_>`) |
 | `security.require_totp` | Security | on / off (off) | owner | organisation | none |
 | `security.session_days` | Security | 1-90 (14) | owner | organisation | none |
 
@@ -188,8 +196,10 @@ gets nothing but one confirm mail until its owner follows the link in it
   them as `mail_waiting`.
 - The link opens `/traffic-auth/mail-confirm?t=...`, a page with one button; the button
   confirms the address for that organisation. A link works once, for 7 days.
-- Alerts are set in config.yml's `alerts` section, not on these pages (thresholds and
-  switches: config.example.yml; the citation and crawler alerts: alerts_history.py). To send
+- Alerts' switches (`alerts.enabled`, `alerts.mail`, each rule) are saved per site from
+  Site > Alerts (the table above; `apply` lays them over config.yml's `alerts` section, so
+  the live run reads them on its next pass); their thresholds stay in config.yml
+  (config.example.yml; the citation and crawler alerts: alerts_history.py). To send
   alerts to Slack or another tool, an admin adds an outgoing webhook for the event
   `alert.opened` on Settings > Integrations: one site, https only, signed with the webhook's
   own secret, which is kept in secrets.json (key `outgoing/<site>/<id>`), never in the
@@ -239,7 +249,16 @@ origin and the session's `X-Skald-CSRF` value.
 | GET `<page>/settings` | every member | `{settings: {key: {value, source, locked, editable, reason, ...}}}`; secrets `{set, env}` |
 | POST `<page>/settings/save` | per key | `{key: value, ..., confirm?}`; null clears a row. All keys are checked before any is saved. |
 | GET `<page>/settings/retention-preview?key=&value=` | admin | `{shrinks, rows, days, first, last, files}` |
+| GET `<page>/settings/mail-preview?kind=daily\|weekly` | admin | `{kind, subject, html}`: the mail as it would go now, built by `mailer.build` from the verified history and never sent; no SMTP login is read (`mail_preview.py`). 409 with the run's words when the history cannot give it yet |
 | POST `<page>/settings/test-mail` | admin | `{to}`: the caller's own address or a confirmed recipient (403 otherwise); 3 per 10 minutes per user (429 after) |
+| GET `<page>/settings/reports` | admin | the site's client reports (each with `next`, the period it will cover, `confirmed`, `waiting`, `last_send`) and the organisation's branding (`client_reports_api.py`) |
+| POST `<page>/settings/report-save` | admin | `{id?, name, recipients, schedule: {kind: weekly\|monthly\|custom, weekday, day, every, start, at}, period, sections, notes, footer, agency_logo, paused}`; a recipient not confirmed gets the confirm mail |
+| POST `<page>/settings/report-delete` | admin | `{id}`; its send history goes with it |
+| POST `<page>/settings/report-preview` | admin | `{id}` or unsaved settings -> `{subject, html, coverage, waiting, file}`; never sent. 409 when the period cannot be reported (no verified day, figures that do not reconcile) |
+| POST `<page>/settings/report-pdf` | admin | the same, as `application/pdf` |
+| POST `<page>/settings/report-send` | admin | `{id}`: send now to the confirmed recipients; 3 per 10 minutes per user (429 after); recorded |
+| GET `<page>/settings/report-log?id=` | admin | `{sends}`: when, started by, period, addresses, ok, detail |
+| GET, POST `<page>/settings/agency-logo` | admin | the organisation's logo (404: none); POST `{data: base64}` (PNG or JPEG, 256 KB at most) or `{data: null}` to remove |
 | GET `<page>/settings/audit?action=&limit=&format=csv` | admin | `{entries, actions}` or a CSV file; install admins see every organisation |
 | GET `<page>/sites` | every member | the organisation's sites: config file or dashboard, active or removed, log received |
 | POST `<page>/sites/add` | admin | `{host, timezone?, format?}` -> the site, an ingest token (shown once), the shipper command, the tag. Needs `ingest.enabled` (docs/INGEST.md) |
@@ -261,6 +280,53 @@ A site added there, or by sign-up, has a page at once: a small "Getting ready" p
 folder of the dashboard's output (only when none is there), then its first build on a thread
 (`skald --site <site> dashboard`, `skald/first_page.py`). Its address never answers
 nginx's 404 while it waits for the next run.
+
+## Client reports (2.13)
+
+Settings > Reports (`skald/client_reports*.py`, `client_report_*.py`, `pdf_writer.py`;
+the guide is docs/help/client-reports.md). An admin makes, per site, reports for the site's
+clients: a name, recipients, a schedule (weekly on a weekday, monthly on day N - a shorter
+month's last day - or every N days from a date, at HH:MM in the site's time zone), a period
+(last week Monday to Sunday, last month, month to date; on the 1st, month to date is the whole
+month before), sections (summary, sources, pages, countries and cities, AI and bots, leads,
+Search Console, notes), notes,
+a footer line, the agency logo on or off, and paused. The Search Console section reads the
+synced `search_days` (Settings > Integrations > Search, history schema 14): the period's final
+days summed (clicks, impressions, CTR, position, top 10 queries and pages), provisional days
+and days not synced yet listed by date and never counted; Search Console's days are Pacific
+Time. A site with no property says so, and the box is greyed in the form.
+
+- **Recipients confirm first**, by the rule below ("Mail recipients confirm first"): saving a
+  report mails each new address its confirm link; a send goes to confirmed addresses only and
+  says how many it left out.
+- **Figures** are read from verified history only (`client_report_data.py`): a withheld,
+  partial or missing day is listed by date, drawn as a pale stub in the chart and never
+  counted; the sums must pass `verify.check` and the second count of
+  `audit_client_reports.py` (the history file read again with its own SQL), or the report is
+  refused, not sent smaller. A change against the period before is shown only when both are
+  whole. Leads come from the site's lead database (`leads.db`), every day of the period.
+- **Format**: an HTML mail (the daily mail's layout) with the same report as a PDF attached.
+  The PDF is drawn by `pdf_writer.py`, standard library only (no browser in the image):
+  Helvetica text, tables, bars; PNG and JPEG logos.
+- **Branding**: the organisation's `brand.agency_name` (header, and the mail's From name; the
+  address stays the install's `mail.from`), `brand.color` (the header band; its text is white
+  or ink, whichever reads) and its logo, a PNG or JPEG kept in
+  `<history folder>/logos/org-<id>/agency.<png|jpg>`. The site's own logo is the one Settings >
+  Sites shows (an SVG or bitmap icon gives way to the letter).
+- **Sending**: the container's scheduler runs `skald reports --due` every
+  `SKALD_REPORTS_MINUTES` (15). A report goes once per scheduled day, from its time on; one
+  whose period's last day is not stored yet waits for the morning run until 18:00, then goes
+  with that day listed as not recorded. A failed send is tried once more 30 minutes later; a
+  time missed by more than two days is not caught up, and neither is one that came before the
+  report was made. Outside Docker, add `*/15 * * * * ... skald reports --due` to cron.
+- **Records**: every try is a row in `client_report_sends` (accounts.sqlite, beside
+  `client_reports`; DATA-CONTRACT-REPORTS.md): when, started by (the schedule or the person), the
+  period, the addresses it went to, ok, the words. Saves, deletes, hand sends and logo changes
+  are also in the audit log (`report.save`, `report.delete`, `report.send`, `brand.logo`).
+- **Organisations**: every read and write names the site's organisation and the site; a
+  report of a site that moved to another organisation is not sent.
+
+`skald reports --list`, `--send ID`, `--pdf ID --out FILE` do the same from the shell.
 
 ## The site's logo (2.6.0)
 

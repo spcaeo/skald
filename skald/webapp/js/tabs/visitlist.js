@@ -1,10 +1,10 @@
 // Each visit, as a matrix: one row per anonymous journey (no address, no
 // browser string, no identifier), sortable and searchable, with quick
-// filters above it. A row opens the whole journey: each step with its
-// offset from the visit's first request, and the visit's labels.
+// filters above it. Under a visit's source, where its visitor first came from
+// (first_touch, firsttouch.py) when that was elsewhere. A row opens the visitor
+// drawer (visitor.js); visitFacts is its "This visit" part.
 // Also the entry pages, with a share bar. Visits.js draws the rest of the tab.
 
-import { openDrawer } from "../drawer.js";
 import { when, label as tzLabel } from "../tz.js";
 import { h, n, duration, share, weekday } from "../ui.js";
 import { shown } from "../labels.js";
@@ -12,9 +12,11 @@ import { mark } from "../icons.js";
 import { label as named, link } from "../drill.js";
 import { table } from "../table.js";
 import { ranked } from "../data.js";
-import { country, flagEl, withFlag } from "./readers.js";
+import { country, countryName, countryWords, flag, flagEl, withFlag, city, cityPlace, cityName } from "./readers.js";
 import { fileName } from "./common.js";
 import { visitLikely, visitRead } from "./likelyai.js";
+import { openVisitor, touchLine, touchName, ago } from "./visitor.js";
+import { pagesWords, visitPages } from "../visitpages.js";
 
 export const NOTE = { not_found: "met a page not found (404)", posted: "sent a form", in_app: "moved inside the site without loading a page" };
 const BADGE = { posted: "form sent", not_found: "404" };
@@ -50,8 +52,9 @@ const zoned = (j) => when(j.start);
 const whenWords = (w) => (w ? `${weekday(w.day)} ${w.date}, ${w.hour}:${w.minute}` : "");
 
 function countryCell(code) {
-  const f = flagEl(code);
-  return h("span", { class: `named${f ? "" : " unk"}` }, f, h("span", { class: "nm" }, country(code)));
+  const el = countryWords(code);   // "🇺🇸 USA", the full name in its tooltip and its text for search
+  if (!flag(code)) el.classList.add("unk");
+  return el;
 }
 function withMark(dim, value, cls) {
   return value ? h("span", { class: `named ${cls || ""}` }, mark(dim, value), h("span", { class: "nm" }, value)) : h("span", { class: "unk" }, "Not recorded");
@@ -67,59 +70,44 @@ function trailCell(j) {
   return h("span", { class: "vt" }, line, badges);
 }
 
-// A strip under the length: one tick per page seen, at its offset.
-function track(j) {
-  const at = (j.trail || []).map((p) => p.at);
-  if (!j.seconds || at.length < 2 || at.some((a) => a == null)) return null;
-  return h("span", { class: "v-track", "aria-hidden": "true" },
-    at.map((a) => h("i", { style: { left: `${Math.min(100, (a / j.seconds) * 100)}%` } })));
-}
-
-// ------------------------------------------------------------ the journey
-export function visitBody(j) {
-  const src = sourceOf(j), seen = j.trail || [];
-  const stat = (k, v) => h("div", null, h("dt", null, k), h("dd", null, v));
-  const steps = h("ol", { class: "vj-steps" }, seen.map((p, i) => {
-    const again = i && seen[i - 1].path === p.path;
-    return h("li", { class: p.page ? null : "inapp" },
-      h("span", { class: "vj-at" }, offset(p.at) || "-"),
-      h("span", { class: "vj-p" }, mark("path", p.path), h("span", { class: "vj-path" }, p.path),
-        again ? h("small", null, p.page ? "the same page again (a reload)" : "the same page again") : null,
-        p.page ? null : h("small", null, "moved inside the site; no page loaded")));
-  }));
+// ------------------------------------------------------------ the visit
+/* This visit's own labels and tags: the visitor drawer's "This visit" part
+   (visitor.js draws the rest: the visitor, the journey, every visit). */
+export function visitFacts(j) {
+  const src = sourceOf(j);
   const utm = Object.entries(j.utm || {}).map(([k, v]) => `${k}: ${v}`).join(", ");
   const rows = [
     ["Country", countryCell(j.country)],
+    // Only with a city file (logs.city_db) and when it named the address's city.
+    ["City", j.city ? h("span", { class: "named", title: cityName(j.city) }, flagEl(j.country), h("span", { class: "nm" }, city(j.city))) : ""],
     ["Device", withMark("device", j.device)],
     ["Browser", withMark("browser", j.browser)],
     ["System", j.os ? withMark("os", j.os) : ""],
     ["Source type", j.source ? named("source", j.source) : ""],
     ["Came from", j.via ? h("span", { class: "named" }, src.icon, h("span", { class: "nm" }, j.via)) : ""],
+    ["First came from", touchLine(j) ? touchLine(j).replace(/^first came from /, "") : ""],
     ["Likely AI", visitLikely(j)],
     ["Referring page", j.ref_page], ["Campaign", j.campaign ? j.campaign.split(" / ").filter((x) => x && x !== "-").join(" / ") : ""], ["Tags", utm], ["Paid", j.paid], ["Searched for", j.search_terms],
     ["Visitor", visitor(j) ? `${visitor(j)}${j.days_seen_30d != null ? `, seen on ${j.days_seen_30d} day${j.days_seen_30d === 1 ? "" : "s"} in 30` : ""}` : ""],
     ["Ended on", j.exit],
     ...(j.flags || []).map((f) => ["Note", NOTE[f] || f]),
   ].filter(([, v]) => v);
+  const seen = j.trail || [];
   const noAt = seen.length && seen.every((p) => p.at == null);
-  return h("div", { class: "vj" },
-    h("dl", { class: "vj-sum" }, stat("Pages", n(j.pages)), stat("Time on site", duration(j.seconds)), stat("Steps seen", n(seen.length)), stat("Visitor", visitor(j) || "not recorded")),
-    h("section", null, h("h3", null, "Pages in order"),
-      h("p", { class: "note" }, noAt ? "This visit was kept before step times were: the order is exact, the times are not known."
-        : "Time since the visit's first request, rounded like visit lengths. A log sees requests, not reading time."),
-      steps, seen.length >= 50 ? h("p", { class: "note" }, "Only the first 50 steps are kept.") : null),
-    visitRead(j),
-    h("section", null, h("h3", null, "About this visit"),
-      h("dl", { class: "rq-dl" }, rows.flatMap(([k, v]) => [h("dt", null, k), h("dd", null, v)]))),
-    h("p", { class: "note" }, `Anonymous: no address, no browser string, no identifier. Journeys are kept ${whenKept} days.`));
+  return [visitRead(j),
+    h("dl", { class: "rq-dl" }, rows.flatMap(([k, v]) => [h("dt", null, k), h("dd", null, v)])),
+    h("p", { class: "note" }, `${noAt ? "This visit was kept before step times were: the order is exact, the times are not known. " : ""}Journeys are kept ${whenKept} days. A log sees requests, not reading time.`)].filter(Boolean);
 }
 
-// Opens the journey in the app's shared drawer; one visit at a time, closed on a redraw.
-export function openVisit(j) {
-  const w = zoned(j);
-  const title = `Visit on ${whenWords(w)}`;
-  const subtitle = `${withFlag(j.country, country(j.country))}, ${[j.device, j.browser].filter(Boolean).join(", ")}, from ${sourceOf(j).name}: ${n(j.pages)} page${j.pages === 1 ? "" : "s"} in ${duration(j.seconds)}`;
-  return openDrawer({ title, subtitle, body: visitBody(j), key: "visit", scope: "page" });
+// Opens the visit in the visitor drawer (visitor.js): one drawer for every visit and visitor.
+export const openVisit = (j) => openVisitor(j);
+
+/* A city in a word: "Toronto". A city named as its country is followed by the code, so it
+   never reads as the country: "Singapore, SGP". */
+export function cityShort(label) {
+  const name = cityPlace(label).split(", ")[0];
+  const cc = /, ([A-Z]{2})$/.exec(label || "")?.[1];
+  return cc && name === countryName(cc) ? `${name}, ${country(cc)}` : name;
 }
 
 // ------------------------------------------------------------ quick filters
@@ -139,11 +127,12 @@ function quick(list, onChange) {
     if (top) vals = vals.slice(0, top);
     if (vals.length < 2) continue;
     const btns = vals.map(([v, k]) => {
-      const words = key === "country" ? country(v) : v;
+      const words = key === "country" ? country(v) : shown(v);
       const icon = key === "country" ? flagEl(v)
         : key === "device" ? mark("device", v) : key === "source" ? mark("source", v) : null;
       const b = h("button", { type: "button", class: "vq-c", "aria-pressed": "false" }, icon, h("span", null, words), h("span", { class: "vq-n" }, n(k)));
-      b.setAttribute("aria-label", `${words}: ${n(k)} visits`);
+      b.setAttribute("aria-label", `${key === "country" ? countryName(v) : words}: ${n(k)} visits`);
+      if (key === "country") b.title = countryName(v);
       b.addEventListener("click", () => {
         const on = picked[key] !== v;
         picked[key] = on ? v : null;
@@ -159,16 +148,13 @@ function quick(list, onChange) {
 }
 
 // ------------------------------------------------------------ the matrix
-/* all: the range's journeys; list: those the global filters keep. */
-export function visitMatrix(all, list, r, keptDays) {
-  whenKept = keptDays || 7;
-  const rows = list.map((j, i) => {
-    const src = sourceOf(j);
-    return { j, __k: i, start: j.start, country: country(j.country), device: j.device || "", browser: j.browser || "", src: src.name,
-      visitor: visitor(j), pages: j.pages, seconds: j.seconds, path: trailWords(j.trail) };
-  });
+/* The table's columns. Each says its key, its label and its type (text, date, num,
+   badge), and the row carries the plain value under that key, so the shared table's
+   sorting, column filters, column chooser and export (table.js) work on them as on
+   any other table; fmt draws the cell, csv writes it. */
+function columns(hasCity) {
   const zone = tzLabel();
-  const cols = [
+  return [
     { key: "start", label: `When (${zone})`, type: "date", cls: "c-when", fmt: (_, x) => {
       const w = zoned(x.j);
       const b = h("button", { type: "button", class: "v-open", "aria-label": `Open the visit on ${whenWords(w)}` },
@@ -176,27 +162,61 @@ export function visitMatrix(all, list, r, keptDays) {
       b.addEventListener("click", () => openVisit(x.j));
       return b;
     }, csv: (x) => { const w = zoned(x.j); return w ? `${w.day} ${w.hour}:${w.minute}` : ""; } },
-    { key: "country", label: "Country", cls: "c-country", fmt: (_, x) => countryCell(x.j.country) },
-    { key: "device", label: "Device", cls: "c-device", fmt: (v) => withMark("device", v) },
-    { key: "browser", label: "Browser", cls: "c-browser", fmt: (v, x) => h("span", { class: "v-stack" }, withMark("browser", v),
-      x.j.os ? h("small", null, x.j.os) : null), csv: (x) => [x.j.browser, x.j.os].filter(Boolean).join(" on ") },
-    { key: "src", label: "Source", cls: "c-src", fmt: (v, x) => {
+    // Flag and three-letter code; the name on hover, and in the CSV (table.js COUNTRY_CSV).
+    { key: "country", label: "Country", type: "text", cls: "c-country", fmt: (_, x) => countryCell(x.j.country), country: (x) => x.j.country },
+    // Only with a city file (logs.city_db): the column is left out when no visit here has a city.
+    hasCity ? { key: "city", label: "City", type: "text", cls: "c-city", fmt: (v, x) => (x.j.city ? h("span", { class: "v-city", title: cityName(x.j.city) }, v) : h("span", { class: "unk" }, "Not recorded")),
+      csv: (x) => (x.j.city ? cityPlace(x.j.city) : "") } : null,
+    { key: "device", label: "Device", type: "text", cls: "c-device", fmt: (v, x) => h("span", { class: "v-stack" }, withMark("device", v),
+      x.j.browser || x.j.os ? h("small", null, [x.j.browser, x.j.os].filter(Boolean).join(", ")) : null),
+    csv: (x) => [x.j.device, [x.j.browser, x.j.os].filter(Boolean).join(" on ")].filter(Boolean).join(", ") },
+    { key: "src", label: "Source", type: "text", cls: "c-src", fmt: (v, x) => {
       const s = sourceOf(x.j);
+      const ft = touchLine(x.j);
       return h("span", { class: "v-stack" }, h("span", { class: "named" }, s.icon, h("span", { class: "nm" }, v)),
-        s.type || s.campaign ? h("small", null, s.type, s.type && s.campaign ? ", " : "", s.campaign ? h("span", { class: "v-camp" }, s.campaign) : null) : null);
-    }, csv: (x) => { const s = sourceOf(x.j); return [s.type ? `${s.type}: ${s.name}` : s.name, s.campaign ? `campaign ${s.campaign}` : ""].filter(Boolean).join("; "); } },
+        s.type || s.campaign ? h("small", null, s.type, s.type && s.campaign ? ", " : "", s.campaign ? h("span", { class: "v-camp" }, s.campaign) : null) : null,
+        ft ? h("small", { class: "v-ft", title: "The first visit we know of for this visitor (visitor ID, kept address or 30-day code)" },
+          "First came from ", h("b", null, touchName(x.j.first_touch)), `, ${ago(x.j.first_touch.day)}`) : null);
+    }, csv: (x) => { const s = sourceOf(x.j); return [s.type ? `${s.type}: ${s.name}` : s.name, s.campaign ? `campaign ${s.campaign}` : "", touchLine(x.j)].filter(Boolean).join("; "); } },
     { key: "visitor", label: "Visitor", type: "badge", cls: "c-vis", fmt: (v) => (v ? h("span", { class: `v-vis ${v === "New" ? "new" : "ret"}` }, v) : "") },
-    { key: "pages", label: "Pages", num: true, cls: "c-pages", fmt: (v) => h("span", { class: "v-pg", "data-unit": v === 1 ? "page" : "pages" }, n(v)), csv: (x) => x.pages },
-    { key: "seconds", label: "Time on site", num: true, cls: "c-time", fmt: (v, x) => h("span", { class: "v-len", "data-pages": `${n(x.pages)} page${x.pages === 1 ? "" : "s"}, ` }, duration(v), track(x.j)), csv: (x) => duration(x.seconds) },
-    { key: "path", label: "Pages in order", cls: "c-path", fmt: (_, x) => trailCell(x.j),
+    // Pages: loaded from the server plus steps seen in the browser, the browser ones said (visitpages.js).
+    { key: "pages", label: "Pages", type: "num", num: true, cls: "c-pages", fmt: (v, x) => {
+      const b = visitPages(x.j).browser;
+      return h("span", { class: "v-pg", "data-unit": v === 1 ? "page" : "pages", title: pagesWords(x.j) }, n(v), b ? h("small", null, ` (${n(b)} in the browser)`) : null);
+    }, csv: (x) => x.pages },
+    { key: "seconds", label: "Time on site", type: "num", num: true, cls: "c-time", fmt: (v, x) => h("span", { class: "v-len", "data-pages": `${pagesWords(x.j)}, ` }, duration(v)), csv: (x) => duration(x.seconds) },
+    { key: "path", label: "Pages in order", type: "text", cls: "c-path", fmt: (_, x) => trailCell(x.j),
       csv: (x) => x.j.trail.map((p) => `${p.path}${p.at != null ? ` (${offset(p.at)})` : ""}${p.page ? "" : " (in-app)"}`).join(" > ") },
-  ];
-  const tbl = table(cols, {
+  ].filter(Boolean);
+}
+
+// The row whose visitor is open stays marked until its drawer closes.
+function markOpen(tr) {
+  for (const x of tr.parentElement?.querySelectorAll("tr.on") || []) x.classList.remove("on");
+  const dlg = [...document.querySelectorAll("dialog.dw[open]")].pop();
+  if (!dlg) return;
+  tr.classList.add("on");
+  dlg.addEventListener("close", () => tr.classList.remove("on"), { once: true });
+}
+
+/* all: the range's journeys; list: those the global filters keep. */
+export function visitMatrix(all, list, r, keptDays) {
+  whenKept = keptDays || 7;
+  const rows = list.map((j, i) => {
+    const src = sourceOf(j);
+    return { j, __k: i, start: j.start, country: j.country || "", city: j.city ? cityShort(j.city) : "", device: j.device || "", src: src.name, ft: touchLine(j),
+      visitor: visitor(j), pages: visitPages(j).all ?? j.pages, seconds: j.seconds, path: trailWords(j.trail) };
+  });
+  const tbl = table(columns(list.some((j) => j.city)), {
     caption: "Each visit", rows, file: fileName("visits", r), limit: 25, sortKey: "start", dir: -1,
-    placeholder: "Search pages, countries, sources", rowClass: () => "v-row", onRow: (x) => openVisit(x.j),
+    placeholder: "Search pages, cities, sources", rowClass: () => "v-row", onRow: (x) => openVisit(x.j),
     empty: all.length ? "No visit matches these filters." : "No visit journeys are kept for this range.",
   });
   tbl.classList.add("vtab");
+  // The drawer is open once the click (or Enter) is handled: mark its row then.
+  const later = (e) => { const tr = e.target.closest?.("tr.v-row"); if (tr) setTimeout(() => markOpen(tr)); };
+  tbl.addEventListener("click", later);
+  tbl.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") later(e); });
   const byJourney = new Map(rows.map((x) => [x.j, x]));
   const chips = quick(list, (kept) => tbl.update(kept.map((j) => byJourney.get(j))));
   return h("div", { class: "vmatrix" }, chips, tbl);

@@ -9,7 +9,8 @@
 //   * breakdowns are stored each on its own, so a filter narrows the list it
 //     belongs to and is never crossed with another (Canada AND Chrome)
 
-import { addDays, dayDiff, clock, long } from "./ui.js";
+import { addDays, dayDiff, long } from "./ui.js";
+import { time as tzTime } from "./tz.js";
 import { adapt } from "./adapt.js";
 import { csrfHeaders } from "./tabs/ipmanager.js";
 import { DEMO, DEMO_SAYS, setDemo, demoFile } from "./demo.js";
@@ -39,7 +40,7 @@ export const base = (view) => (view && view !== "all" ? `${view}/data/` : "data/
 
 // Files the data layer writes beside app.json (DATA-CONTRACT.md). Each is
 // optional: a tab whose file is not there yet says so instead of failing.
-export const EXTRA = ["insights", "not_found", "ai_activity", "campaigns", "pages", "overview", "ours", "bots", "alerts", "quality", "markers", "leads", "favicons", "sites", "robots", "speed", "funnels", "page_index", "events", "conversions", "realtime"];
+export const EXTRA = ["insights", "not_found", "ai_activity", "campaigns", "pages", "overview", "ours", "bots", "alerts", "quality", "markers", "leads", "favicons", "sites", "robots", "speed", "funnels", "page_index", "events", "conversions", "realtime", "search", "retention"];
 // requests.json is today's whole request log: the Requests tab fetches it itself, only when it is open.
 
 export async function load(s, { fresh = false } = {}) {
@@ -71,7 +72,7 @@ export async function load(s, { fresh = false } = {}) {
 
 // The bar's "last updated": the live count's time today, else the last day recorded.
 function stampOf(m) {
-  if (m.live?.generated_at && m.live.day === m.today) return `Updated ${clock(m.live.generated_at)}`;
+  if (m.live?.generated_at && m.live.day === m.today) return `Updated ${tzTime(m.live.generated_at)}`;
   return `Recorded to ${long(m.anchor)}`;
 }
 
@@ -159,6 +160,7 @@ export function total(days) {
     health: ok.filter((d) => !d.statuses).length,
     returning: ok.filter((d) => !d.returning).length,
     ai_formats: ok.filter((d) => !d.ai_formats).length,
+    first_touch: ok.filter((d) => !d.first_touch).length,
   };
   return out;
 }
