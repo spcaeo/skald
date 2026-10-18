@@ -30,6 +30,8 @@ Those figures are not checkable, never a mismatch: `compare` leaves them out
 and names them in `unchecked` (EXPIRED; NOT_RECORDED for a day collected
 without the key), and the audit's line says so. What is still kept is
 compared as always: hashes missing inside their window are a mismatch.
+First touch's links (audit_firsttouch.py) say the same once the page views,
+kept visits or codes they could have read are pruned (its `expired`).
 """
 from __future__ import annotations
 
@@ -872,6 +874,8 @@ def _compare_extras(db, key, day: date, figures: dict, same, problems: list,
         audit_release2.compare_crawler_paths(stored, figures["bots"]["crawler_paths"], same,
                                              problems)
     figures["more"].compare(stored, same, problems)      # phase 4 (audit_more.py)
+    for r in figures["more"].each:       # links whose kept inputs are pruned (audit_firsttouch.py)
+        unchecked += [(EXPIRED, what) for what in getattr(r, "expired", ())]
 
 
 def _compare_dim(name: str, stored: Counter, counted: Counter, readers: int,

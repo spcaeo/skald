@@ -406,6 +406,32 @@ curl -sS -X POST 'https://www.example.com/traffic-hooks/example.com/lead' \
 
 `json` takes the same object, a list of them, or `{"records": [...]}` (at most 100).
 
+### Lead stages: a lead counts once, won and lost are outcomes
+
+A lead is a finished row (`completed` or `paid`, `conversions.FINISHED`) of a lead action
+(`contact`, `signup`, `waitlist`, `trial`, `demo`: `conversions.LEAD_ACTIONS`), test rows
+left out. It counts once, on the day of that row's `at`. A lead the team later marks won or
+lost keeps that row: a hook posts the same `external_ref` with stage `won` or `lost` (a row of
+its own, at its own `at`, since a conversion is kept once per site, tool, ref and stage), and
+the lead database adds a `won` or `lost` row beside the completed one (at `created_at`). So:
+
+- a lead later won, or later lost, is still one lead, on its completed day; the outcome
+  neither adds a lead nor takes one away, and the day the outcome arrives counts none;
+- `won` and `lost` are outcomes, shown apart: as stages on Leads & sales > Pipeline (Tools),
+  Bookings ("Won"), the outgoing `lead.won` / `lead.lost` events; never in a Leads figure;
+- a `won` or `lost` for a ref that never completed is an outcome with no lead: not counted;
+- a lead marked `spam` or `duplicate` in the lead database stops being a lead (its rows are
+  taken away and kept in `removed`), and every past day changes with it.
+
+The same rule everywhere a Leads figure is shown: Overview's Leads tile (conversions.json days,
+`js/tabs/leadfigs.js`), the daily and weekly mails and client reports
+(`conversions_leads.period_leads`), and Leads & sales > Pipeline counting from the tools. Counting
+from the lead database (leads.json), a lead is a submission that is not spam or a duplicate, on
+its `created_at` day, whatever its status; won and lost are its status, counted apart. Each is
+recounted on its own road: `audit_conversions_leads.py` and `audit_client_reports.recount_leads`
+(SQL over the finished stages), `audit_leads.py` (the lead database). Tested in
+`tests/test_leads_outcomes.py`.
+
 ## Each tool
 
 ### Calendly (paid plan: Standard or higher)

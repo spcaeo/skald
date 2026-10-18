@@ -118,20 +118,22 @@ function crawlerTable(win, sm, w) {
   const has = sm.paths != null;
   const cols = [
     { key: "name", label: "Crawler", fmt: (v) => crawlerLink(v), csv: (c) => c.name },
-    { key: "kind", label: "Kind", cls: "nowrap", fmt: (v) => KIND[v] || v },
+    { key: "kind", label: "Kind", cls: "nowrap", hide: true, fmt: (v) => KIND[v] || v },
     { key: "requests", label: "Requests", num: true },
     ...(has ? [
       { key: "coverage", label: "Coverage", num: true, sort: (c) => c.coverage ?? -1, fmt: (v, c) => (v == null ? "-" : h("span", { title: `${n(c.listed)} of ${n(sm.paths)} sitemap pages` }, pct1(c.listed, sm.paths))), csv: (c) => (c.coverage == null ? "" : c.coverage) },
       { key: "orphans", label: "Never fetched", num: true, title: "Sitemap pages it did not fetch once in this window" },
       { key: "unlisted", label: "Not in sitemap", num: true, title: "Pages it fetched that the sitemap does not list" },
-      { key: "per_page", label: "Fetches per page", num: true, fmt: (v) => (v == null ? "-" : v.toFixed(1)), title: "Requests per sitemap page it fetched: how often it comes back" },
+      { key: "per_page", label: "Fetches per page", num: true, fmt: (v) => (v == null ? "-" : v.toFixed(1)), hide: true, title: "Requests per sitemap page it fetched: how often it comes back" },
     ] : []),
     { key: "not_found", label: "404 / 410", num: true },
     { key: "server_errors", label: "5xx", num: true },
     { key: "redirects", label: "Redirects", num: true },
     { key: "last", label: "Last crawl", type: "date", cls: "nowrap", fmt: (v) => when(v) },
   ];
+  // Kind and fetches per page start hidden ("Columns" shows them), so the table fits at 1280.
   return h("section", { class: "s" }, h("h2", null, "Each crawler"),
+    h("p", { class: "sub" }, "Kind and fetches per page are under Columns. Open a crawler for its detail by day."),
     table(cols, { caption: "Crawl health by crawler", rows: win.crawlers, file: `crawl-health-crawlers-${w}d.csv`, sortKey: "requests", limit: 20, empty: "No crawler in this window." }));
 }
 

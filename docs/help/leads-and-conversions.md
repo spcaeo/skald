@@ -113,6 +113,17 @@ Whatever reports it, an action gets one name, so the same thing is never counted
 
 Each action has a *stage*: started, completed, paid, cancelled, rescheduled, no-show, won or lost.
 
+### A lead counts once, even when it is won or lost later
+
+A lead is counted once, on the day it was completed: a form sent, a demo booked (or a payment made). When your team later marks it **won** or **lost**, in your lead database or through your tools, it is still that one lead, on that same day:
+
+- the outcome never adds a second lead and never takes the first one away;
+- the day the outcome arrives counts no lead for it;
+- won and lost are shown apart, as outcomes: the **Stage** option and the stages on Pipeline, and **Won** on Bookings;
+- a "won" or "lost" for something that was never completed is not a lead.
+
+This is the same on Overview's **Leads** tile, the daily and weekly mails, client reports and Leads & sales. Only spam and duplicates are taken out of the leads.
+
 ## Pipeline, counting from the lead database
 
 Open [Leads & sales > Pipeline](#sales/pipeline). **Count from: Lead database** is the default. The period governs most of the tab. Overview's **Leads** and **Demos booked** tiles count from the tools when the tools are set up: choose **Tools** here for the same figures. A kind of lead the lead store has never recorded (often **Demo opened** and **Demos booked**, which come from the booking tool) shows **Not set up** with a link to Bookings, never 0.

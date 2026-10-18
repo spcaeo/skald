@@ -28,7 +28,9 @@ recounts any stored day. Its made-up visitor key is in DIR/visitor.env
 (report.env_file), so the visitor hashes are recounted too (a key set in the shell
 wins over it). As on a real install the hashes are kept 30 days: a day older than
 that says its visitor hashes, and a day whose 30-day window reaches past that its
-returning readers, are "not checkable (inputs expired)"; everything else matches.
+returning readers, are "not checkable (inputs expired)"; so is the first touch of a
+day counted while visitor IDs' page views (kept 30 days unless the ID converted) now
+pruned were still kept: every day but the last few. Everything else matches.
 
 app.json gets "demo": {...}: the page then works without a helper. What needs a
 running install (refresh, saving, settings, team, integrations, the person

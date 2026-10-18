@@ -16,12 +16,28 @@ Which links were on (`roads`: visitor IDs, kept addresses with their days,
 the hash window) is a setting, not a figure: it is read from the stored
 blob, and the window's end is the audit's own. Nothing from firsttouch.py,
 dimensions.py, visits.py or visitors.py is called.
+
+The links read inputs that are kept only for a while: an ID's page views
+`journeys.vid_days` (30) unless it converted, the kept visits
+`privacy.keep_days`, the 30-day codes `visitors.repeat_days`. A day audited
+after inputs it could have read were pruned cannot be linked again the same
+way, so, as with the visitor hashes (audit.py), its links are "not checkable
+(inputs expired)" - `expired` says so and audit.py names it - never a
+mismatch. Only the day's visit count, which needs no kept input, is still
+compared. Pruned is shown by the files, like the hashes: a stored day the
+count could have read (its own blob says the link was on and it had visits)
+whose inputs are gone now - page views of IDs that never converted from
+before the earliest one still kept (prunes cut at UTC midnight), no kept
+visit of that day, no code of that day. A visitor-ID link counts whether or
+not the day used it (a pruned view can make an ambiguous match single); a
+kept visit or a code only when the day linked a visit by it.
 """
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
 from .audit_extras import keyed, secret
@@ -29,6 +45,7 @@ from .audit_labels import _GOOGLE_SEARCH, _MAIL_HOSTS, _bare, _tags
 from .audit_people import _site, _store
 
 BEFORE, AFTER = 2, 30
+VID_DAYS = 30                 # journeys.vid_days when not set
 DIRECT = "Direct or unknown"
 LINKS = ("vid", "address", "hash")
 FORMAT = "%Y-%m-%dT%H:%M:%SZ"
@@ -79,12 +96,21 @@ def host_label(host, own: set) -> str:
     return "(this site)" if host in own or "www." + host in own else host[:60]
 
 
+def _day_span(day: date, tz) -> tuple[datetime, datetime]:
+    """A local day as UTC instants [start, end)."""
+    zone = tz or timezone.utc
+    start = datetime.combine(day, time(0), tzinfo=zone)
+    end = datetime.combine(day + timedelta(days=1), time(0), tzinfo=zone)
+    return start.astimezone(timezone.utc), end.astimezone(timezone.utc)
+
+
 class Recount:
     def __init__(self, config: dict, day, tz, own: set) -> None:
-        self.config, self.day, self.own = config, day, set(own or ())
+        self.config, self.day, self.tz, self.own = config, day, tz, set(own or ())
         self.key = secret(config)
         self.end: datetime | None = None
         self.visits: list[dict] = []
+        self.expired: list[str] = []         # what audit.py says is not checkable
 
     def set_window(self, start, end) -> None:
         self.end = end
@@ -205,10 +231,108 @@ class Recount:
                 cdb.close()
         return got
 
+    # ------------------------------------------------------------ expired inputs
+    def gone(self, blob: dict) -> list[str]:
+        """The links whose inputs the day could have read are pruned now
+        (see the module): [] when every one is still kept."""
+        roads, by = blob.get("roads") or {}, blob.get("by") or {}
+        hdb = _open(_history(self.config))
+        if hdb is None:
+            return []
+        cdb = _open(_store(self.config))
+        site, x = _site(self.config), self.day
+        start_x, end_x = _day_span(x, self.tz)
+        out: list[str] = []
+        try:
+            back = max(int(roads.get("address") or 0), int(roads.get("hash") or 0),
+                       self._vid_days() + 1) + 1
+            blobs = {}
+            for d, data in hdb.execute(
+                    "SELECT day, data FROM day_extras WHERE site = ? AND kind = 'first_touch' "
+                    "AND day >= ? AND day <= ?",
+                    (site, (x - timedelta(days=back)).isoformat(), x.isoformat())):
+                try:
+                    blobs[d] = json.loads(data)
+                except (TypeError, ValueError):
+                    continue
+
+            def had(d: date, road: str) -> bool:
+                b = blobs.get(d.isoformat())
+                return isinstance(b, dict) and bool((b.get("roads") or {}).get(road)) \
+                    and int(b.get("visits") or 0) > 0
+
+            have = {r[0] for r in cdb.execute("SELECT name FROM sqlite_master WHERE "
+                                              "type = 'table'")} if cdb is not None else set()
+            # The count ran once the day was over: its prune had cut at UTC midnight
+            # vid_days before that date at the earliest (cli.prune_kept, store.prune).
+            # Page views were kept at all: one still is, or the day linked a visit by ID.
+            if roads.get("vid") and "journeys" in have and (int(by.get("vid") or 0) or cdb.execute(
+                    "SELECT 1 FROM journeys WHERE site = ? LIMIT 1", (site,)).fetchone()):
+                lo = datetime.combine(end_x.date() - timedelta(days=self._vid_days()), time(0),
+                                      tzinfo=timezone.utc)
+                kept = cdb.execute(
+                    "SELECT MIN(at) FROM journeys j WHERE site = ? AND NOT EXISTS (SELECT 1 "
+                    "FROM conversions c WHERE c.site = j.site AND c.vid = j.vid)",
+                    (site,)).fetchone()[0] if "conversions" in have else cdb.execute(
+                    "SELECT MIN(at) FROM journeys WHERE site = ?", (site,)).fetchone()[0]
+                cut = end_x if kept is None else datetime.combine(
+                    datetime.strptime(kept, FORMAT).date(), time(0), tzinfo=timezone.utc)
+                hi = min(cut, end_x)
+                d = lo.astimezone(self.tz or timezone.utc).date()
+                while lo < hi and d <= x:
+                    a, b = _day_span(d, self.tz)
+                    if b > lo and a < hi and had(d, "vid"):
+                        out.append("vid")
+                        break
+                    d += timedelta(days=1)
+            keep = int(roads.get("address") or 0)
+            if keep and int(by.get("address") or 0) and "visits" in have:
+                first = max(x - timedelta(days=keep), end_x.date() - timedelta(days=keep))
+                kept_days = {r[0] for r in cdb.execute(
+                    "SELECT DISTINCT day FROM visits WHERE site = ? AND day >= ? AND day <= ?",
+                    (site, first.isoformat(), x.isoformat()))}
+                d = first
+                while d <= x:
+                    if d.isoformat() not in kept_days and had(d, "address"):
+                        out.append("address")
+                        break
+                    d += timedelta(days=1)
+            window = int(roads.get("hash") or 0)
+            if window and int(by.get("hash") or 0):
+                first = x - timedelta(days=window - 1)
+                coded = {r[0] for r in hdb.execute(
+                    "SELECT DISTINCT day FROM visitor_days WHERE site = ? AND day >= ? AND day < ?",
+                    (site, first.isoformat(), x.isoformat()))}
+                d = first
+                while d < x:
+                    if d.isoformat() not in coded and had(d, "hash"):
+                        out.append("hash")
+                        break
+                    d += timedelta(days=1)
+        except sqlite3.Error:
+            return out
+        finally:
+            hdb.close()
+            if cdb is not None:
+                cdb.close()
+        return out
+
+    def _vid_days(self) -> int:
+        try:
+            return max(1, int(((self.config or {}).get("journeys") or {}).get("vid_days")
+                              or VID_DAYS))
+        except (TypeError, ValueError):
+            return VID_DAYS
+
     def compare(self, stored: dict, same, problems: list) -> None:
         blob = stored.get("first_touch")
         if not isinstance(blob, dict):
             return                           # not counted that day (no link on, or a view)
+        if self.gone(blob):
+            # Its links cannot be made again: not checkable, never a mismatch.
+            self.expired = ["first touch"]
+            same("first touch: visits", int(blob.get("visits", 0)), len(self.visits))
+            return
         if self.end is not None and blob.get("until") != _utc(self.end):
             problems.append("first touch: the stored window's end is not the recount's")
         got = self.counted(blob.get("roads") or {})

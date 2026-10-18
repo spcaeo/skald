@@ -90,7 +90,8 @@ export function alignOf(c) {
 const ALIGN_CLS = { right: "n", center: "c" };
 
 /* columns: [{key, label, num?, type?, path?, cls?, title? (a hint on the header), fmt?(v,row), csv?(row), sort?(row), drill?: dimension,
-             filter?: "text"|"num"|"enum"|false (the column filter; tablestate.js filterKind decides when not given)}]
+             filter?: "text"|"num"|"enum"|false (the column filter; tablestate.js filterKind decides when not given),
+             hide?: true - a secondary column, left out until "Columns" shows it (only with the tools; never the first)}]
    opts: {caption, rows, file, limit=15, empty, sortKey, dir, search=true, rowClass?(row), note, onRow?(row), placeholder, rowDrill?: false,
           groups?: [[label, span]] - a header row above the columns that names groups of them,
           ns?: the table's name in the address (default: its caption made short); ns: false keeps nothing there,
@@ -123,10 +124,14 @@ export function table(columns, opts) {
   })();
   let sort = readSort(kept.get(key("sort")), keys);
   let filters = tools ? readFilters(kept.get(key("cf")), keys) : [];
-  let hidden = tools ? readHidden(kept.get(key("hide")), keys.slice(1)) : [];
+  // A column marked hide starts hidden; once the reader chooses, the address keeps the choice
+  // ("-": every column shown), and choosing the defaults again leaves the address clean.
+  const defHidden = tools ? columns.slice(1).filter((c) => c.hide).map((c) => c.key) : [];
+  const isDefault = (x) => x.length === defHidden.length && defHidden.every((k) => x.includes(k));
+  let hidden = tools ? (kept.has(key("hide")) ? readHidden(kept.get(key("hide")), keys.slice(1)) : defHidden) : [];
   let query = search ? kept.get(key("q")) || "" : "", showAll = false;
   let frowOpen = filters.length > 0;
-  const save = () => { if (ns) writeKeys({ [key("sort")]: sortParam(sort), [key("cf")]: writeFilters(filters), [key("hide")]: hidden.join(","), [key("q")]: query.trim() }); };
+  const save = () => { if (ns) writeKeys({ [key("sort")]: sortParam(sort), [key("cf")]: writeFilters(filters), [key("hide")]: isDefault(hidden) ? "" : hidden.join(",") || "-", [key("q")]: query.trim() }); };
 
   const wrap = h("div", { class: "tbl" });
   const count = h("span", { class: "tbl-count", "aria-live": "polite" });
