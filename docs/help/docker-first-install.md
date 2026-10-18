@@ -102,6 +102,8 @@ docker run ... -e SKALD_BEACON_ORIGINS=https://www.example.com ...    # the same
 
 Then copy the tag from **Settings > Integrations** into every page's head. See [Tracking script](tracking-script.md).
 
+Only the first site needs `SKALD_BEACON_ORIGINS`. A site you add later from the dashboard takes events from its own **Host names** (**Settings > This site > Sites**). See [Tracking script](tracking-script.md), "More than one site".
+
 ## 7. Add hooks
 
 **Settings > Integrations > Make secret** for each tool, or on the server:

@@ -54,8 +54,8 @@ PERSONAL = ("email", "name")
 # The lead DB's touch fields -> the hooks' touch fields (adapters.TOUCH_KEYS).
 TOUCH_FIELDS = {"landingPath": "landing", "utmSource": "utm_source", "utmMedium": "utm_medium",
                 "utmCampaign": "utm_campaign", "utmContent": "utm_content",
-                "utmTerm": "utm_term", "gclid": "gclid", "msclkid": "msclkid",
-                "fbclid": "fbclid"}
+                "utmTerm": "utm_term", "gclid": "gclid", "gbraid": "gbraid",
+                "wbraid": "wbraid", "msclkid": "msclkid", "fbclid": "fbclid"}
 # What decides whether a stored row is still right.
 SAME = ("action", "at", "vid")
 

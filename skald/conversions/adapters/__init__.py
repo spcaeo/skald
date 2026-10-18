@@ -31,7 +31,8 @@ class Invalid(ValueError):
 
 STAMP = "%Y-%m-%dT%H:%M:%SZ"
 TOUCH_KEYS = ("referrer", "landing", "utm_source", "utm_medium", "utm_campaign",
-              "utm_content", "utm_term", "gclid", "msclkid", "fbclid", "li_fat_id")
+              "utm_content", "utm_term", "gclid", "gbraid", "wbraid", "msclkid", "fbclid",
+              "li_fat_id")
 
 
 def hmac_hex(secret: str, message: bytes) -> str:

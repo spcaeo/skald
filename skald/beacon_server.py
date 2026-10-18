@@ -117,18 +117,25 @@ class Sink:
     """Writes accepted events to the day's spool and keeps the counters."""
 
     def __init__(self, config: dict, spool: Path, clock=time.time) -> None:
-        from .window import zone
-        self.config, self.spool, self.clock = config, Path(spool), clock
-        self.tz = zone(config)
+        self.spool, self.clock = Path(spool), clock
         self.lock = threading.Lock()
         self.day = None
         self.stats: dict = {}
         self.flushed = 0.0
-        self.events = beacon.allowed_events(config)
         self.accepts = beacon.EVENTS + (beacon.PAGE_VIEW,)
+        self.config_path = None           # set by main (hooks and conversions.sqlite)
+        self.reconfigure(config)
+
+    def reconfigure(self, config: dict) -> None:
+        """Take a site's (new) settings: visitor IDs, events, hosts, zone."""
+        from .config import site_name
+        from .window import zone
+        self.config = config
+        self.name = site_name(config)
+        self.tz = zone(config)
+        self.events = beacon.allowed_events(config)
         self.visitor_ids = beacon.visitor_ids(config)
         self.hosts = beacon.own_hosts(config)
-        self.config_path = None           # set by main (hooks and conversions.sqlite)
         self._snippet = None
         self._classifier = None
         self._built = 0.0
@@ -244,6 +251,90 @@ class Sink:
             self._flush(True)
 
 
+class Sites:
+    """Every site this helper takes events for: one Sink each, found by the
+    event's Origin, and for skald.js by the page that loads it (Referer).
+
+    The first site takes the origins it is given (--origin, beacon.origins).
+    A site added from the dashboard takes https://<each of its hosts>, but
+    only while the install has the script tag on (the first site has an
+    origin): its pages post to its own spool, sites/<name>/beacon, where its
+    daily run reads them. Its settings rows (visitor IDs, goals) are read
+    again every RELOAD_SECONDS, and so is the list of sites."""
+
+    def __init__(self, main: Sink, origins, config: dict | None = None,
+                 config_path=None, clock=time.time) -> None:
+        self.main, self.origins = main, {o for o in (origins or []) if o}
+        self.config, self.config_path, self.clock = config, config_path, clock
+        self.lock = threading.Lock()
+        self.others: dict[str, Sink] = {}
+        self.by_origin: dict[str, Sink] = {o: main for o in self.origins}
+        self.built = None
+
+    def __bool__(self) -> bool:
+        return bool(self.origins)
+
+    def all(self) -> list[Sink]:
+        return [self.main, *self.others.values()]
+
+    def refresh(self) -> None:
+        if self.config is None or not self.origins:
+            return
+        if self.built is not None and self.clock() - self.built < RELOAD_SECONDS:
+            return
+        with self.lock:
+            if self.built is not None and self.clock() - self.built < RELOAD_SECONDS:
+                return
+            self.built = self.clock()
+            try:
+                self._load()
+            except Exception as why:      # noqa: BLE001 - keep serving the sites known
+                sys.stderr.write(f"beacon: sites not reloaded: {type(why).__name__}: {why}\n")
+
+    def _load(self) -> None:
+        from . import settings_store
+        from .config import site_name
+        from .multisite import history_folder, site_configs, state_dir
+        folder = history_folder(self.config, Path(self.config_path))
+        main = settings_store.apply(self.config, self.main.name)
+        if main is not self.config:
+            self.main.reconfigure({**main, "_resolved": self.config.get("_resolved", {})})
+        others, by_origin = {}, {o: self.main for o in self.origins}
+        for c in site_configs(self.config, Path(self.config_path)):
+            name = site_name(c)
+            c = settings_store.apply(c, name)
+            sink = self.others.get(name)
+            if sink is None:
+                sink = Sink(c, beacon.spool_dir(c, None, state_dir(folder, name)), self.clock)
+                sink.config_path = self.config_path
+            else:
+                sink.reconfigure(c)
+            others[name] = sink
+            for host in sorted(sink.hosts):
+                by_origin.setdefault(f"https://{host}", sink)
+        self.others, self.by_origin = others, by_origin
+
+    def for_origin(self, origin: str | None) -> Sink | None:
+        self.refresh()
+        return self.by_origin.get(origin or "")
+
+    def for_page(self, referrer: str | None) -> Sink:
+        """The site whose page loads skald.js, by its Referer; the first site
+        when it is not one of ours (or none was sent)."""
+        from urllib.parse import urlsplit
+        self.refresh()
+        try:
+            parts = urlsplit(referrer or "")
+        except ValueError:
+            return self.main
+        got = self.by_origin.get(f"{parts.scheme}://{(parts.hostname or '').lower()}")
+        return got or self.main
+
+    def close(self) -> None:
+        for sink in self.all():
+            sink.close()
+
+
 def same_site(headers, allowed: set[str]) -> bool:
     origin = headers.get("Origin")
     if not origin or origin not in allowed:
@@ -257,31 +348,45 @@ def declined(headers) -> bool:
     return headers.get("DNT") == "1" or headers.get("Sec-GPC") == "1"
 
 
-def make_handler(sink: Sink, limiter: Limiter, allowed: set[str]):
+def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
+    """`sink` is a Sites, or one Sink with its `allowed` origins."""
+    sites = sink if isinstance(sink, Sites) else Sites(sink, allowed)
+    main = sites.main
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "skald-beacon"
         timeout = 5
 
+        site = None             # the Sink this request is for (beacon posts)
+
         def _send(self, code: int) -> None:
             self.send_response(code)
             self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", "0")
+            if self.site is not None:
+                # nginx logs it beside the status: each site's 204s, counted
+                # apart from its spool (events.audit).
+                self.send_header("X-Skald-Site", self.site.name)
             self.end_headers()
 
         def _refuse(self, code: int, reason: str) -> None:
-            sink.count("refused_" + reason)
+            (self.site or main).count("refused_" + reason)
             self._send(code)
 
         def do_POST(self):
+            self.site = None
             if self.path.startswith("/traffic-hooks/"):    # signed tool hooks
                 from .conversions.hooks import handle
-                return handle(self, sink.config, None, getattr(sink, "config_path", None))
-            if self.path.split("?", 1)[0] != PATH or not allowed:   # no origin: hooks only
+                return handle(self, main.config, None, getattr(main, "config_path", None))
+            if self.path.split("?", 1)[0] != PATH or not sites:   # no origin: hooks only
                 return self._send(404)
+            sink = sites.for_origin(self.headers.get("Origin"))
+            if sink is None:
+                return self._refuse(403, "origin")
+            self.site = sink
             if sink.unverified():                      # site_verify.py: collects nothing yet
                 return self._refuse(403, "unverified")
-            if not same_site(self.headers, allowed):
+            if not same_site(self.headers, {self.headers.get("Origin")}):
                 return self._refuse(403, "origin")
             try:
                 length = int(self.headers.get("Content-Length") or -1)
@@ -317,7 +422,8 @@ def make_handler(sink: Sink, limiter: Limiter, allowed: set[str]):
             return self._send(204)
 
         def do_GET(self):
-            if self.path.split("?", 1)[0] == SNIPPET_PATH and allowed:
+            self.site = None
+            if self.path.split("?", 1)[0] == SNIPPET_PATH and sites:
                 return self._snippet(self.command == "GET")
             if self.path.startswith("/traffic-js/"):
                 return self._send(404)
@@ -327,6 +433,7 @@ def make_handler(sink: Sink, limiter: Limiter, allowed: set[str]):
             self.do_GET()
 
         def _snippet(self, with_body: bool) -> None:
+            sink = sites.for_page(self.headers.get("Referer"))
             try:
                 raw, tag = sink.snippet()
             except OSError:
@@ -337,6 +444,7 @@ def make_handler(sink: Sink, limiter: Limiter, allowed: set[str]):
             self.send_header("Content-Type", "application/javascript; charset=utf-8")
             self.send_header("Cache-Control", SNIPPET_CACHE)
             self.send_header("ETag", tag)
+            self.send_header("Vary", "Referer")       # visitor IDs on or off, per site
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Content-Length", "0" if fresh else str(len(raw)))
             self.end_headers()
@@ -383,16 +491,18 @@ def main(argv=None) -> int:
               "only; /traffic-beacon and /traffic-js/skald.js answer 404", file=sys.stderr)
     sink = Sink(config, beacon.spool_dir(config, config_path))
     sink.config_path = config_path        # for /traffic-hooks/ (conversions/hooks.py)
+    sites = Sites(sink, origins, config, config_path)
+    sites.refresh()
     limiter = Limiter(float(setting(config, "beacon", "per_minute", 60)),
                       float(setting(config, "beacon", "burst", 20)),
                       float(setting(config, "beacon", "site_per_second", 20)))
-    server = BeaconServer(("127.0.0.1", a.port), make_handler(sink, limiter, set(origins)))
+    server = BeaconServer(("127.0.0.1", a.port), make_handler(sites, limiter))
     # systemd stops with SIGTERM: leave through the finally, counters written.
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     try:
         server.serve_forever()
     finally:
-        sink.close()
+        sites.close()
     return 0
 
 

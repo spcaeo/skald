@@ -134,8 +134,8 @@ SITE_VID = re.compile(r"^[A-Za-z0-9_.:-]{8,80}$")
 # full, and then only the keys IDENTITY names (the primary email, never a
 # second one). PERSONAL_* always go, whatever a list says.
 _TOUCH = frozenset({"referrer", "landing", "utm_source", "utm_medium", "utm_campaign",
-                    "utm_content", "utm_term", "gclid", "msclkid", "fbclid", "li_fat_id",
-                    "at", "skv"})
+                    "utm_content", "utm_term", "gclid", "gbraid", "wbraid", "msclkid",
+                    "fbclid", "li_fat_id", "at", "skv"})
 _LEAD = frozenset({"external_ref", "action", "stage", "at", "vid", "first_touch",
                    "last_touch", "landing", "campaign", "source", "country", "device",
                    "visits_before", "first_touch_at"}) | _TOUCH

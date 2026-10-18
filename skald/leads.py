@@ -169,7 +169,8 @@ def touch_source(touch: dict | None) -> str:
     host = _s(touch, "referrerHost")
     tags = [(k, _s(touch, f)) for k, f in (
         ("utm_source", "utmSource"), ("utm_medium", "utmMedium"), ("gclid", "gclid"),
-        ("msclkid", "msclkid"), ("fbclid", "fbclid")) if _s(touch, f)]
+        ("gbraid", "gbraid"), ("wbraid", "wbraid"), ("msclkid", "msclkid"),
+        ("fbclid", "fbclid")) if _s(touch, f)]
     url = "/?" + urlencode(tags) if tags else "/"
     return dim.source_type(f"https://{host}/" if host else "", url, False, set())
 

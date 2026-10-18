@@ -71,6 +71,7 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `sites.log_base` | Sites | a file name | install admin | site | `logs.base` |
 | `site.logo.source` | Sites (Logo) | auto, upload, letter (auto) | admin | site | `site.logo_source` |
 | `site.logo.color` | Sites (Logo) | `#1d4ed8`, `#0f766e`, `#9a6400`, `#17212b` (one picked from the name) | admin | site | `site.logo_color` |
+| `beacon.visitor_ids` | none yet: `POST <page>/settings/save` | true / false (false) | admin | site | `beacon.visitor_ids` |
 | `beacon.goals` | Sites (Goals) | up to 10 event names of `beacon.EVENTS` or `page_view`; `[]` is no goal ([]) | admin | site | `beacon.goals` |
 | `hooks.calendly.event_types` | Integrations (Calendly) | up to 50 event-type URIs, uuids or booking-page slugs; `[]` keeps every event ([]) | admin | site | `hooks.calendly_event_types` (or nested `hooks.calendly.event_types`) |
 | `hooks.calcom.event_types` | Integrations (Cal.com) | up to 50 event-type ids or slugs; `[]` keeps every event ([]) | admin | site | `hooks.calcom_event_types` (or nested `hooks.calcom.event_types`) |
@@ -93,6 +94,12 @@ ones it has counted (`event_counts` in the history, read-only) first and the oth
 once, at most 10. The daily run and `live` read the merged list (`settings_store.apply`), so
 events.json `goals` follows it from the next run, for every stored day; Leads & sales > Events links
 to it ("Edit goals"). A dashboard site inherits no goals from the install's config.
+
+`beacon.visitor_ids` (2.9.0): whether the script tag keeps an anonymous visitor ID for this site
+(docs/BEACON.md, "Visitor IDs"). Saved for one site only; another site keeps its own value. The
+beacon helper reads it again within a minute, and serves `skald.js` with the value of the site
+whose page loads it. No settings page has a switch for it yet.
+Turn it on only when the site's privacy notice says so, and let a consent banner gate the tag.
 
 A test mail with no sender address, or no SMTP server, is refused with a plain sentence
 ("Set the sender address first ..."), not with config key names.

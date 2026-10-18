@@ -476,7 +476,7 @@ limit_req_zone $skald_auth_post zone=skald_auth:10m rate=10r/m;
 limit_req_zone $binary_remote_addr zone=skald_ingest:10m rate=5r/s;
 # In-page events (docs/BEACON.md): 60 a minute per address; a log with no address in it.
 limit_req_zone $binary_remote_addr zone=skald_beacon:1m rate=60r/m;
-log_format skald_beacon '$time_iso8601 $status';
+log_format skald_beacon '$time_iso8601 $status $upstream_http_x_skald_site';
 # Signed hooks from the site and its tools (docs/INTEGRATIONS.md).
 limit_req_zone $binary_remote_addr zone=skald_hooks:1m rate=60r/m;
 ```

@@ -173,6 +173,25 @@ read as off (`skald/people/policy.py`). To keep them, update your site's privacy
 first, then turn them on in Settings > Data retention > People, or set them in `config.yml`
 (Docker: `SKALD_KEEP_IPS=1`, `SKALD_IDENTITY=full`). [SETTINGS.md](SETTINGS.md), "People".
 
+**One line to edit by hand (2.9.0): nginx's beacon log, when you run nginx yourself.** The Docker
+image has it already. From 2.9.0 the script tag works for every site of an install, and the event
+audit counts each site's answers apart by a third field in the beacon log. In the `http { }`
+level, change
+
+```nginx
+log_format skald_beacon '$time_iso8601 $status';
+```
+
+to
+
+```nginx
+log_format skald_beacon '$time_iso8601 $status $upstream_http_x_skald_site';
+```
+
+then `nginx -t` and reload. With one site, nothing changes if you wait: a line without the field
+counts as the first site's. A second site's events need it, or its audit finds no answers and
+withholds its days. [BEACON.md](BEACON.md), "Several sites".
+
 ## Docker
 
 An image is never changed in place: `upgrade` in a container says to pull the

@@ -192,8 +192,9 @@ UTM_MEDIUMS = frozenset((
     "influencer"))
 
 # Leads (leads.py, its recount audit_leads.py). "Paid": an ad click id, or a
-# medium that says paid. fbclid is not one: Facebook adds it to every link out.
-PAID_CLICK_IDS = ("gclid", "msclkid")
+# medium that says paid. gbraid and wbraid are Google Ads clicks from iOS (in
+# place of gclid). fbclid is not one: Facebook adds it to every link out.
+PAID_CLICK_IDS = ("gclid", "gbraid", "wbraid", "msclkid")
 PAID_MEDIUMS = ("cpc", "ppc", "paid", "paidsearch", "paid_search", "paid-search",
                 "paidsocial", "paid_social", "paid-social", "display", "cpm")
 # The funnel's pages by their last path segment, in English, French, German and
