@@ -150,6 +150,9 @@ class Totals:
     people: list | None = None
     visitor_seen: dict | None = None
     returning: dict | None = None
+    # {city label: (lat, lon)} for the cities seen, when a city file is set
+    # (logs.city_db); memory only, for the real-time map. None: no cities.
+    city_points: dict | None = None
 
     @property
     def partial(self) -> bool:
@@ -230,12 +233,18 @@ class Tally:
         self.cited_sessions = _Sessions(session_gap_minutes)
         self.cited_keys: set[tuple[str, str]] = set()
         self.journeys = Journeys(session_gap_minutes, tz, self.own_hosts, self.key)
+        # The city fill (conversions/geo.Cities) when `logs.city_db` is set:
+        # readers by city, and each journey's city. None: no city counted.
+        self.cities = options.get("cities")
+        self.journeys.cities = self.cities
         self.extras = Extras(tz, self.own_hosts, options.get("heartbeat") or "heartbeat",
                              session_gap_minutes)
         # The saved funnels to count today (funnel_days.wanted), or None.
         self.extras.funnels = options.get("funnels")
         # attribution.ai_likely / ai_window_minutes (ai_likely.settings).
         self.extras.attribution = options.get("attribution")
+        # The sitemap list the day is judged by (sitemap.for_day), or None.
+        self.extras.crawl_health.sitemap = options.get("sitemap")
         self.ai_seen: dict[tuple[str, str], list] = {}
         self.totals.ours_labels = Counter()
         # quality.Quality for the whole site's tally only: it is fed every
@@ -349,6 +358,10 @@ class Tally:
             "landing": hit.path[:70],
             "hour": dim.hour(hit.when, self.tz),
         }
+        if self.cities is not None:
+            # Not a READER_DIMS dimension: only where a city file is set, and
+            # stored apart (people_city_visits), so days before it still sum.
+            labels["city"] = self.cities(hit.address, hit.country) or UNKNOWN
         for name, value in labels.items():
             stats.by.setdefault(name, Counter())[value] += 1
         self.visit_cube[(labels["country"], labels["landing"], labels["source"],
@@ -375,6 +388,10 @@ class Tally:
         totals.journeys, totals.visits = self.journeys.finish(top)
         totals.visitor_keys = self.journeys.visitor_keys
         totals.people = self.journeys.people
+        totals.city_points = dict(self.cities.points) if self.cities is not None else None
+        if self.cities is not None and Group.PEOPLE in totals.groups:
+            # Counted with a city file, even on a day without a reader.
+            totals.groups[Group.PEOPLE].by.setdefault("city", Counter())
         if self.key is not None:
             seen = dict(self.ai_seen)
             for j, visitor in zip(totals.journeys, totals.visitor_keys or []):
@@ -417,6 +434,8 @@ def summarise_views(
     whole.quality = Quality(tz)
     tallies = {name: (test, Tally(session_gap_minutes, tz, wanted, options))
                for name, test in (views or {}).items()}
+    for _, t in tallies.values():        # crawl health is the whole site's
+        t.extras.crawl_health = None
     for hit in hits:
         whole.quality.add(hit)
         chosen = [t for test, t in tallies.values() if test(hit)]

@@ -4,7 +4,7 @@
 
 How Skald stands beside Google Analytics 4, Search Console, Bing Webmaster Tools, Plausible, Matomo, Cloudflare, GoAccess, PostHog and Known Agents, grouped by module. The story behind it is in [WHY-WE-BUILT-SKALD.md](WHY-WE-BUILT-SKALD.md); the same matrix as a page, with filters, is [comparison.html](comparison.html) (made from the 2026-10-07 version: the 2026-10-11 rows and notes are only here and in the dashboard's About page).
 
-Every competitor fact comes from that vendor's own docs, pricing page or source code, checked on 2026-10-07. Skald's column claims only what is built and tested in its code (updated 2026-10-12, version 2.5.0); a part that is off until an install switches it on says so in its note, and anything on the roadmap says *planned*. Where a fact could not be confirmed on the vendor's own pages the cell says `?`. A `✗` means the feature is not offered, or we found no sign of it in the vendor's docs. Rows added on 2026-10-11 (accounts, conversions, webhooks, MCP, the hosted layer, engagement, campaign tag problems, exit rate) and on 2026-10-18 for versions 2.10.0 (what AI fetches ask for, what each crawler costs, what the AI read before a visit, Google AI Mode) and 2.11.0 (who is on the site now on a world map, AI citation and crawler alerts, alerts to Slack or any webhook) have not been checked for the other tools yet: their cells say *not checked*.
+Every competitor fact comes from that vendor's own docs, pricing page or source code, checked on 2026-10-07. Skald's column claims only what is built and tested in its code (updated 2026-10-12, version 2.5.0); a part that is off until an install switches it on says so in its note, and anything on the roadmap says *planned*. Where a fact could not be confirmed on the vendor's own pages the cell says `?`. A `✗` means the feature is not offered, or we found no sign of it in the vendor's docs. Rows added on 2026-10-11 (accounts, conversions, webhooks, MCP, the hosted layer, engagement, campaign tag problems, exit rate) and on 2026-10-18 for versions 2.10.0 (what AI fetches ask for, what each crawler costs, what the AI read before a visit, Google AI Mode) 2.11.0 (who is on the site now on a world map, AI citation and crawler alerts, alerts to Slack or any webhook) and 2.13.0 (cities, first touch, advanced filters with saved views, client reports, retention cohorts, crawl health) have not been checked for the other tools yet: their cells say *not checked*.
 
 | Mark | Means |
 | --- | --- |
@@ -59,6 +59,7 @@ Whether a crawler's name can be trusted, and what you can do about it.
 | --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | Blocks or charges AI crawlers | ✓ [^65] | ✗ | – | – | ✗ | ✗ | ✓ [^66] | ✗ | ✗ | ✓ [^67] |
 | robots.txt rules beside what each crawler fetched | ✓ [^68] | ✗ | – | – | ✗ | ✗ | ? | ✗ | ✗ | ◐ [^69] |
+| Crawl health: sitemap coverage, orphans and errors per crawler <br><sub>Google, Bing and each AI crawler</sub> | ✓ [^285] | ✗ | ◐ [^286] | ◐ [^287] | ✗ | ✗ | ? | ◐ [^288] | ✗ | ? |
 
 **What they ask for and cost**
 
@@ -78,9 +79,11 @@ Who the people were.
 | Visitors and visits | ✓ [^70] | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | ◐ [^71] |
 | Returning visitors | ◐ [^72] | ✓ [^73] | – | – | ? | ✓ [^74] | ? | ? | ? | ? |
 | Countries | ✓ [^75] | ✓ | ✓ [^76] | ? | ✓ | ✓ [^77] | ✓ [^78] | ✓ [^79] | ✓ [^80] | ? |
+| Cities <br><sub>Each visit's city from a GeoIP city file; city dots on the live map</sub> | ✓ [^289] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
 | Browser, system and device | ✓ [^81] | ✓ | ◐ [^82] | ? | ✓ | ✓ [^83] | ✓ [^84] | ✓ [^85] | ✓ [^86] | ? |
 | Each visit's pages in order <br><sub>Journeys</sub> | ✓ [^87] | ? | – | – | ◐ [^88] | ✓ [^89] | ✗ | ✗ | ✓ [^90] | ? |
 | Engagement by source and device <br><sub>Pages per visit, one-page visits, visit length</sub> | ✓ [^269] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
+| Where a returning visitor first came from <br><sub>First touch, on the visit, the visitor drawer and as a filter</sub> | ✓ [^290] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
 
 ## Sources
 
@@ -102,7 +105,7 @@ Where people came from.
 | AI clicks that lost their referrer, estimated <br><sub>A direct visit to a page an assistant fetched minutes before; labelled "likely"</sub> | ◐ [^272] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
 | What the AI read before it sent a visitor <br><sub>The pages that assistant fetched in the minutes before the click</sub> | ✓ [^275] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
 | How often an assistant cites you, clicked or not | ◐ [^105] | ✗ | ◐ [^106] | ✓ [^107] | ✗ | ✗ | ✗ | ✗ | ✗ | ? |
-| Search queries, impressions, position | planned [^108] | ◐ [^109] | ✓ [^110] | ✓ [^111] | ◐ [^112] | ◐ [^113] | ✗ | ✗ | ? | ✗ |
+| Search queries, impressions, position | ✓ [^108] | ◐ [^109] | ✓ [^110] | ✓ [^111] | ◐ [^112] | ◐ [^113] | ✗ | ✗ | ? | ✗ |
 | Google AI Overview clicks told apart | ✗ [^114] | ✗ [^115] | ◐ [^116] | – | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | Google AI Mode clicks told apart <br><sub>A Google click that carries AI Mode's udm=50</sub> | ◐ [^276] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
 
@@ -180,6 +183,7 @@ Whether the visits turned into business.
 | --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | Events inside the page <br><sub>Clicks, scrolls, sign-ups</sub> | ✓ [^174] | ✓ | – | – | ✓ [^175] | ✓ [^176] | ✗ | ✗ | ✓ | ✗ |
 | Funnels | ✓ [^177] | ✓ [^178] | – | – | ◐ [^179] | ◐ [^180] | ✗ | ✗ | ✓ [^181] | ✗ |
+| Retention cohorts <br><sub>New visitors by week, and who came back</sub> | ✓ [^281] | ✓ [^282] | – | – | ✗ | ◐ [^283] | ✗ | ✗ | ✓ [^284] | ✗ |
 | Leads by source and AI assistant | ✓ [^182] | ◐ [^183] | – | – | ◐ [^184] | ◐ [^185] | ✗ | ✗ | ◐ [^186] | ✗ |
 | Ad cost and Google Ads link | ✗ | ✓ [^187] | – | – | ✗ | ? | ✗ | ✗ | ? | ✗ |
 
@@ -224,8 +228,10 @@ Getting the data out.
 
 | Feature | Skald | Google Analytics 4 | Search Console | Bing Webmaster Tools | Plausible | Matomo | Cloudflare | GoAccess | PostHog | Known Agents |
 | --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Advanced filters with saved views <br><sub>AND / OR rules in groups on any field; every table sorts, filters columns and exports what you see</sub> | ✓ [^291] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
 | CSV or JSON export | ✓ [^218] | ✓ | ✓ [^219] | ✓ [^220] | ✓ [^221] | ✓ [^222] | ◐ [^223] | ✓ [^224] | ✓ | ◐ [^225] |
 | Scheduled email reports | ✓ [^226] | ? | ✗ | ? | ✓ [^227] | ✓ [^228] | ? | ✗ | ? | ? |
+| Branded client reports on a schedule <br><sub>Your logo and colour, a PDF attached, weekly or monthly</sub> | ✓ [^280] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
 | API | ✓ [^229] | ✓ [^230] | ✓ [^231] | ? | ◐ [^232] | ✓ [^233] | ✓ [^234] | ◐ [^235] | ? | ◐ [^236] |
 | AI agents can query it <br><sub>An MCP server for Claude, ChatGPT and other clients</sub> | ✓ [^267] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
 
@@ -253,7 +259,7 @@ What it takes to run.
 
 ## Where others lead
 
-- **Search itself.** Queries, impressions and ranking come only from Search Console and Bing Webmaster Tools; Bing also counts Copilot citations, and Search Console AI Overview impressions. Skald plans an import, not a replacement.
+- **Search itself.** Queries, impressions and ranking come only from Search Console and Bing Webmaster Tools; Bing also counts Copilot citations, and Search Console AI Overview impressions. Skald now syncs them from both (every 6 hours) and shows them beside its own visits, but the figures stay the engines': a sync, not a replacement.
 - **What happens inside the page.** Click and scroll events, funnels with in-page steps, ad spend and the Google Ads link belong to GA4, PostHog, Matomo and Plausible. Skald's optional tag now sends clicks, form steps and bookings too, but it has no ad spend or Google Ads link.
 - **Reach and control.** Script-based tools work on any host and count pages a CDN serves from cache; Cloudflare and Known Agents can block or charge AI crawlers; Skald blocks them (since 2026-10-08) but does not charge.
 
@@ -347,7 +353,7 @@ Given no column, to keep the table readable.
 [^65]: **Skald, blocks or charges ai crawlers**: Blocks, does not charge: per assistant, allow, block, or block only its training crawlers, applied by the web server (robots.txt always reachable). [Skald DEPLOY, AI crawler settings](../DEPLOY.md)
 [^66]: **Cloudflare, blocks or charges ai crawlers**: Allow and block rules; pay per crawl. [Cloudflare AI Crawl Control](https://developers.cloudflare.com/ai-crawl-control/)
 [^67]: **Known Agents, blocks or charges ai crawlers**: Auto-updating robots.txt; WordPress rule enforcement on paid plans. [Known Agents](https://knownagents.com/); [Known Agents: pricing](https://knownagents.com/pricing)
-[^68]: **Skald, robots.txt rules beside what each crawler fetched**: The site's own robots.txt, fetched hourly, beside each assistant's and search crawler's fetched paths; requests for disallowed paths counted per crawler and recounted by the audit. [Skald DATA-CONTRACT, robots.json](../DATA-CONTRACT.md)
+[^68]: **Skald, robots.txt rules beside what each crawler fetched**: The site's own robots.txt, fetched hourly, beside each assistant's and search crawler's fetched paths; requests for disallowed paths counted per crawler and recounted by the audit. [Skald DATA-CONTRACT, robots.json](DATA-CONTRACT-BOTS.md)
 [^69]: **Known Agents, robots.txt rules beside what each crawler fetched**: Writes robots.txt for you. [Known Agents](https://knownagents.com/)
 [^70]: **Skald, visitors and visits**: Readers: visits that read a page; an upper bound. [Skald README](../README.md)
 [^71]: **Known Agents, visitors and visits**: Visits from AI chats. [Known Agents](https://knownagents.com/)
@@ -387,7 +393,7 @@ Given no column, to keep the table readable.
 [^105]: **Skald, how often an assistant cites you, clicked or not**: Sees each live fetch an assistant makes, not the answer it gives.
 [^106]: **Search Console, how often an assistant cites you, clicked or not**: Impressions in AI Overviews and AI Mode. [Search Console: Generative AI performance report](https://support.google.com/webmasters/answer/16984139)
 [^107]: **Bing Webmaster Tools, how often an assistant cites you, clicked or not**: Citations in Copilot and Bing AI; no clicks; queries sampled. [Bing: AI Performance report (Feb 2026)](https://blogs.bing.com/webmaster/February-2026/Introducing-AI-Performance-in-Bing-Webmaster-Tools-Public-Preview); [Bing: AI visibility insights (Jun 2026)](https://blogs.bing.com/search/June-2026/New-AI-Visibility-Insights-in-Bing-Webmaster-Tools-Intents-Topics-Citation-Share-Compare)
-[^108]: **Skald, search queries, impressions, position**: Search Console import, ROADMAP P1-6. [Skald ROADMAP](ROADMAP.md)
+[^108]: **Skald, search queries, impressions, position**: Synced from the Search Console and Bing Webmaster Tools APIs every 6 hours (queries, pages, countries, devices and search appearance, with clicks, impressions, CTR and position), connected from the dashboard, and shown beside Skald's own visits from search. The figures are the engines', never Skald's count; Skald does not replace them. Added 2026-10-18. [Skald help: search queries](help/search.md)
 [^109]: **Google Analytics 4, search queries, impressions, position**: Through a Search Console link; thresholds apply. [GA4: data thresholds](https://support.google.com/analytics/answer/9383630)
 [^110]: **Search Console, search queries, impressions, position**: [Search Console: Performance report](https://support.google.com/webmasters/answer/7042828)
 [^111]: **Bing Webmaster Tools, search queries, impressions, position**: [Bing Webmaster Tools: getting started (2025)](https://blogs.bing.com/webmaster/2025/6/Start-Using-Bing-Webmaster-Tools-to-Improve-Your-Site-Visibility/)
@@ -553,9 +559,21 @@ Given no column, to keep the table readable.
 [^271]: **Skald, exit rate per page**: The share of a page's visits that left from it, over the last 30 whole days; not shown under 10 visits. [Skald DATA-CONTRACT](../DATA-CONTRACT.md)
 [^272]: **Skald, ai clicks that lost their referrer, estimated**: A visit with no referrer and no campaign tag that lands on a page an assistant's user fetcher fetched in the same minute or up to 15 minutes before is "likely" from that assistant, by assistant, landing page, lead and conversion. An estimate, shown apart and never added to the citation count; counted a second time by its own audit. [Skald CLASSIFICATION](../CLASSIFICATION.md)
 [^273]: **Skald, what ai fetches ask for**: Every answer-engine request, for training and for a live question apart, filed by what its path names: Page, llms.txt, Markdown, Text, robots.txt, Sitemap, Other file; per assistant. Counted a second time by its own audit, with its own path rule. Since 2.10.0. [Skald CLASSIFICATION](../CLASSIFICATION.md)
-[^274]: **Skald, what each crawler costs the server**: Per assistant, search crawler and bot, per day: requests, bytes sent, mean and 90th-percentile response time (when the log has a size and a time), status classes, distinct paths and re-crawls, with a detail view per crawler (by day, pages, statuses, verified share, countries, user agents, last seen). Counted a second time by its own audit. Since 2.10.0. [Skald DATA-CONTRACT, crawler_cost.json](../DATA-CONTRACT.md)
+[^274]: **Skald, what each crawler costs the server**: Per assistant, search crawler and bot, per day: requests, bytes sent, mean and 90th-percentile response time (when the log has a size and a time), status classes, distinct paths and re-crawls, with a detail view per crawler (by day, pages, statuses, verified share, countries, user agents, last seen). Counted a second time by its own audit. Since 2.10.0. [Skald DATA-CONTRACT, crawler_cost.json](DATA-CONTRACT-BOTS.md)
 [^275]: **Skald, what the ai read before it sent a visitor**: For a visit from an AI answer (cited, or likely), the paths that assistant's user fetcher fetched in the minutes before it, and per assistant how many of its visits landed on a page it had just fetched. Context, never a count of people; counted a second time by its own audit. Since 2.10.0. [Skald DATA-CONTRACT, likely from AI](DATA-CONTRACT-AI-LIKELY.md)
 [^276]: **Skald, google ai mode clicks told apart**: Only when Google's referrer or the landing address carries udm=50; the visit stays Search engine with the referring site "google.com (AI Mode)". A click without it looks like any Google click and is not guessed. Since 2.10.0. [Skald CLASSIFICATION](../CLASSIFICATION.md)
 [^277]: **Skald, who is on the site now, on a world map**: Countries shaded by visits today, a bubble for each country with visitors in the last 30 minutes, a countries table beside it; Natural Earth's public-domain outlines drawn in the page, no map service. Counted a second time by its own audit. Since 2.11.0. [Skald help: Real time](help/real-time.md)
 [^278]: **Skald, ai citation and crawler alerts against a baseline**: The first visit ever from an assistant's answer, a page's first (from 28 days of history), visits from AI answers against the median of the same weekday over 6 weeks (the rule and each week's figure in the alert; "too few to judge" below 10 visits), an AI or search crawler silent for 7 days. Visits or requests, never mixed; whole, checked days only; each alert's figures counted a second time. Since 2.11.0. [Skald help: FAQ](help/faq.md)
 [^279]: **Skald, alerts to slack or any webhook**: Every new alert is the signed outgoing webhook event alert.opened, opt-in per site; a Slack incoming-webhook address gets Slack's own message shape. Since 2.11.0. [Skald help: webhooks](help/webhooks.md)
+[^280]: **Skald, branded client reports on a schedule**: Per site, in Settings > Reports: recipients who confirmed, weekly, monthly or every few days in the site's zone, last week, last month or month to date; the agency's name, colour and logo; an HTML mail with a PDF made without a browser; verified days only, a withheld day listed and left out; every send recorded, a failed one tried once more. [Skald help: client reports](help/client-reports.md)
+[^281]: **Skald, retention cohorts**: Of the visitors first seen in a week (or on a day), the share back in each of the 8 weeks (14 days) after, or back and reading 2 or more pages; split by first source type, country, device and landing page. Counted from the visits kept with their address (or the 30-day code), with the identity and how far it can follow stated on the page; a cell it cannot follow says "not recorded", never 0. Counted a second time by its own audit; a cell opens the visitors behind it. [Skald help: retention](help/retention.md)
+[^282]: **Google Analytics 4, retention cohorts**: Cohort exploration in Explore. [GA4: cohort exploration](https://support.google.com/analytics/answer/9670133)
+[^283]: **Matomo, retention cohorts**: Paid Cohorts plugin. [Matomo: Cohorts](https://plugins.matomo.org/Cohorts)
+[^284]: **PostHog, retention cohorts**: Retention insight. [PostHog: retention](https://posthog.com/docs/product-analytics/retention)
+[^285]: **Skald, crawl health per crawler**: The site's own sitemap (robots.txt's Sitemap: lines and /sitemap.xml, read once a day, kept per day) beside what Google, Bing and each AI crawler and user fetcher fetched: coverage, sitemap pages never fetched in 7 or 30 days, pages fetched that the sitemap does not list, and the paths answering crawlers with 404 or 410, 5xx, a redirect, slowly or with a large body. Recounted by the audit from the raw log and the stored list. [Skald help: crawl health](help/crawl-health.md)
+[^286]: **Search Console, crawl health per crawler**: Crawl stats and the page indexing report, for Google's own crawler only; no AI crawler. [Search Console: Crawl Stats report](https://support.google.com/webmasters/answer/9679690)
+[^287]: **Bing Webmaster Tools, crawl health per crawler**: Crawl information and sitemaps for Bing's own crawler only. [Bing Webmaster Tools](https://www.bing.com/webmasters/)
+[^288]: **GoAccess, crawl health per crawler**: Not-found requests and crawlers in their own panels; no sitemap beside them. [GoAccess: features](https://goaccess.io/features)
+[^289]: **Skald, cities**: From DB-IP's free city file (`logs.city_db`, `SKALD_CITY_DB`), looked up once per visit at its first page, people only; a city whose country is not the visit's own is not used and says Not recorded. Places & devices › Cities, each visit, and the real-time map. [Skald help: Cities](help/getting-started.md#cities)
+[^290]: **Skald, first touch**: For every visit, the same visitor's first visit Skald knows of, linked by the script tag's visitor ID, else the address and browser (where addresses are kept), else the 30-day keyed code; never guessed. Under the visit's source, in the visitor drawer, as a filter, and on Traffic › Sources by where returning visitors first came from, counted twice. [Skald help: first touch](help/where-visitors-come-from.md)
+[^291]: **Skald, advanced filters and saved views**: Rules on country, city, source, campaign, AI assistant, first touch, pages, time on site, lead, device, browser, new or returning, joined by All or Any with groups; applied in full to single visits, one value per breakdown on counted tabs, which say so. Saved views keep the tab, period, rules and each table's sort, filters and columns. [Skald help: Filters](help/getting-started.md#filters)

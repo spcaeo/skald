@@ -27,7 +27,8 @@ site's first log line, run-daily and live report it as "waiting for its first
 log lines" (waiting()) and go on: exit 0, nothing stored, no failure mail.
 
 `skald live`, `run-daily`, `dashboard`, `check`, `collect`, `backfill`, `doctor`,
-`audit`, `verify-bots` and `pagespeed` run for every site in turn (each
+`audit`, `verify-bots`, `pagespeed` and the search syncs (`search-console`, `bing`,
+`search`) run for every site in turn (each
 one's exit status counted; the worst is returned); `--site NAME` picks one.
 Every other command works on the first site unless `--site` names another.
 """
@@ -42,7 +43,7 @@ from .config import load_config, site_name, views as config_views
 from .files import slug, write_atomic
 
 PER_SITE = ("live", "run-daily", "dashboard", "check", "collect", "backfill", "audit",
-            "verify-bots", "pagespeed", "doctor")
+            "verify-bots", "pagespeed", "doctor", "search-console", "bing", "search", "reports")
 
 
 def merged(base: dict, over: dict) -> dict:

@@ -156,6 +156,8 @@ class BotsRecount:
         self.gap = gap
         # Browser-like lines that never drew, by address and agent.
         self.undrawn: dict[tuple, list] = {}
+        # Browser-like lines whose visit read too fast for a person.
+        self.fast: dict[tuple, list] = {}
         self.checks: dict[str, Counter] = {}
         self.groups: dict[str, str] = {}
         self.previews: Counter = Counter()
@@ -185,6 +187,8 @@ class BotsRecount:
             self.previews[info["preview"]] += 1
         elif group == "bots" and info.get("not_rendered"):
             self.undrawn.setdefault((line.address, line.agent), []).append(line)
+        elif group == "bots" and info.get("too_fast"):
+            self.fast.setdefault((line.address, line.agent), []).append(line)
         elif group == "people":
             for flag in info.get("flags") or ():
                 self.flags[flag]["requests"] += 1
@@ -200,14 +204,15 @@ class BotsRecount:
                                       "addresses": len(self.addresses[f])} for f in FLAGS},
                 "blocked": dict(self.blocked),
                 "crawler_paths": self.paths,
-                "not_rendered": self._undrawn()}
+                "not_rendered": self._undrawn(),
+                "too_fast": self._undrawn(self.fast)}
 
-    def _undrawn(self) -> dict:
+    def _undrawn(self, by_pair: dict | None = None) -> dict:
         """Requests, page views, and visits that read a page, among the lines
-        moved to bots for never drawing."""
+        moved to bots for never drawing (or, given, for reading too fast)."""
         from .audit import is_page
         got = {"requests": 0, "pages": 0, "readers": 0}
-        for seen in self.undrawn.values():
+        for seen in (self.undrawn if by_pair is None else by_pair).values():
             seen = sorted(seen, key=lambda l: l.when)
             starts = [0] + [k for k in range(1, len(seen))
                             if seen[k].when - seen[k - 1].when > self.gap]
@@ -325,6 +330,11 @@ def compare(stored: dict, got_bots: dict, got_quality: dict | None, same, proble
             kept, mine = blob.get("not_rendered") or {}, got_bots["not_rendered"]
             for k in ("requests", "pages", "readers"):
                 same(f"browser-like, never rendered: {k}", int(kept.get(k, 0)),
+                     int(mine.get(k, 0)))
+        if "too_fast" in blob:                     # stored since the speed rule (2.13)
+            kept, mine = blob.get("too_fast") or {}, got_bots["too_fast"]
+            for k in ("requests", "pages", "readers"):
+                same(f"too fast to be a person: {k}", int(kept.get(k, 0)),
                      int(mine.get(k, 0)))
         if "blocked" in blob:                      # stored since the AI crawler settings
             kept, mine = blob.get("blocked") or {}, got_bots["blocked"]

@@ -7,6 +7,7 @@ import { head, nothing, coverageNote, panel } from "./common.js";
 import { open as openDrill } from "../drill.js";
 import { hourLabels, label as tzLabel, sameAsSite, city, siteZone } from "../tz.js";
 import * as S from "../state.js";
+import { rove } from "../place.js";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -46,15 +47,8 @@ function heat(rows, label, unit, tone) {
       grid.append(cell);
     });
   });
-  // Arrow keys move between cells, as in a spreadsheet.
-  grid.addEventListener("keydown", (e) => {
-    const cells = [...grid.querySelectorAll(".hc")], i = cells.indexOf(document.activeElement);
-    if (i < 0) return;
-    const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 24, ArrowUp: -24 }[e.key];
-    if (!step) return;
-    e.preventDefault();
-    cells[Math.max(0, Math.min(cells.length - 1, i + step))].focus();
-  });
+  // One Tab stop for the grid; arrow keys move between cells, as in a spreadsheet.
+  rove(grid.querySelectorAll(".hc"), { start: 0, cols: 24 });
   return h("div", null, grid, h("div", { class: "scale" }, "Fewer", h("span", { class: "ramp", style: { background: `linear-gradient(to right, var(--heat-0), ${tone})` } }), `More (${n(max)} at most)`,
     h("span", { class: "sw hatch", style: { marginLeft: "12px" } }), "not shown"));
 }
@@ -62,7 +56,7 @@ function heat(rows, label, unit, tone) {
 let measure = "readers";
 export default function hours(m, s) {
   const { r, t, cov } = figures(m, s);
-  const out = [...head("Hours", r, "When visitors arrive, by the hour of their first page. Each visitor is counted once.")];
+  const out = [...head("Time", r, "When visitors arrive, by the hour of their first page. Each visitor is counted once.")];
   if (!t) return [...out, nothing(m, r, "hours")];
   const days = r.kind === "today" ? [{ day: m.today, state: "ok", ...m.live.figures }] : r.days;
   LABELS = hourLabels(r.kind === "today" ? m.today : r.first);

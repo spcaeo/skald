@@ -306,6 +306,11 @@ td .vb:first-child { margin-left: 0; }
 .onoff { font-size: 11px; font-weight: 700; text-align: center; padding: 2px 0; border-radius: 999px; background: var(--sunk); color: var(--ink-3); }
 .onoff.on { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
 .al-ch { font-size: 12px; color: var(--ink-3); }
+/* The switches (alertswitch.js): the same pill, pressable for an admin. */
+button.al-sw { border: 0; font-family: inherit; min-height: 24px; cursor: pointer; }
+button.al-sw:disabled { cursor: default; }
+button.al-sw:not(:disabled):hover { box-shadow: inset 0 0 0 1px currentColor; }
+.al-types small.al-why { display: block; font-style: italic; }
 
 /* -------------------------------------------------------- data quality */
 .q-strip i.q-green { background: var(--good); }
@@ -363,6 +368,7 @@ td .vb:first-child { margin-left: 0; }
 /* marks: 14px, aligned to the text, decorative (the name stays as text) */
 .named { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; vertical-align: middle; }
 .named .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.named .nm-kind { font-size: 11px; color: var(--ink-3); white-space: nowrap; }
 td .named .nm, .rq-d .named .nm { white-space: normal; }
 /* In a table cell the words may wrap: the mark stays level with the first line, at the top
    of the row like the cell itself, not halfway down the lines (owner, 2026-10-18).
@@ -461,10 +467,10 @@ td .named > .flag, td .named > .flag ~ .nm { align-self: baseline; }
   @page { margin: 14mm 12mm; }
   /* Paper is white whatever the screen theme: the light tokens, at the dark theme's own specificity. */
   :root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
-    color-scheme: light; --page: #fff; --surface: #fff; --sunk: #eef1f4; --ink: #17212b; --ink-2: #4f5d6b; --ink-3: #6e7c89;
+    color-scheme: light; --page: #fff; --surface: #fff; --sunk: #eef1f4; --ink: #17212b; --ink-2: #4f5d6b; --ink-3: #5a6672;
     --rule: #d8dfe6; --grid: #e6ebf0; --gap: #c3ccd5; --hatch: #9aa7b3; --sel: #17212b; --sel-ink: #fff;
     --g-people: #2a78d6; --g-answer_engines: #eb6834; --g-search_engines: #1baf7a; --g-bots: #eda100; --g-ours: #e87ba4; --views: #008300;
-    --good: #1b7f52; --warn: #9a6400; --bad: #c0352f; --heat-0: #e9eef4; --heat-1: #2a78d6; --opp: #6d4fd8; }
+    --good: #18734a; --warn: #9a6400; --bad: #c0352f; --heat-0: #e9eef4; --heat-1: #2a78d6; --opp: #6d4fd8; }
   body { background: #fff; font-size: 12px; }
   .print-head { display: block; font-size: 11px; color: #4f5d6b; margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid #d8dfe6; }
   .panel { padding: 0; max-width: none; }
@@ -858,7 +864,7 @@ select, .ctl select, .fld select, .feed-tools select, .rb-grid select, .fld .pai
 
 /* Leads everywhere (2.5.0): the day's leads on the Overview chart, and Live's list of today's leads. */
 .chart text.lead-n { fill: var(--leads); font-weight: 700; font-size: 10px; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
-.stream li.lead-test { opacity: .62; }
+.stream li.lead-test { color: var(--ink-3); }
 .lead-tag { display: inline-block; font-size: 11px; font-weight: 650; padding: 0 7px; border-radius: 999px; margin-left: 6px; white-space: nowrap; color: var(--ink-2); background: color-mix(in srgb, var(--ink-3) 16%, transparent); }
 .lead-tag.done { color: var(--good); background: color-mix(in srgb, var(--good) 13%, transparent); }
 

@@ -90,6 +90,10 @@ class Extras:
         # What each crawler, assistant and bot cost the server (crawler_cost.py).
         from .crawler_cost import Costs
         self.crawler_cost = Costs()
+        # Each crawler beside the site's sitemap, and the problems crawlers
+        # hit (crawl_health.py). The whole site's tally only: None for a view.
+        from .crawl_health import Collector
+        self.crawl_health = Collector()
         # The same hourly figures keyed by the UTC hour they started
         # ("YYYY-MM-DDTHH"), so a reader's chosen zone can re-bucket them
         # exactly - the day the clocks go back has two local 01:00 hours.
@@ -148,6 +152,8 @@ class Extras:
         self.firsts_of(hit, verdict)
         self.crawler_paths.add(hit, verdict)
         self.crawler_cost.add(hit, verdict)
+        if self.crawl_health is not None:
+            self.crawl_health.add(hit, verdict)
         hour = dim.hour(hit.when, self.tz)
         row = self.hours.get(hour)
         if row is None:
@@ -188,11 +194,14 @@ class Extras:
             elif verdict.group is Group.SEARCH_ENGINE:
                 self._page(path)["search"] += 1
         if verdict.group is Group.PEOPLE and (
-                (status == "404" and not ASSET.search(hit.path)) or hit.method == "POST"):
+                (status == "404" and not ASSET.search(hit.path) and hit.method != "POST")
+                or hit.is_form_post):
+            # A form post, not the script tag's events to Skald's own
+            # endpoints (parse.OWN_ENDPOINT), which every page sends.
             from .visits import _same_site_path
             origin = _same_site_path(hit.referrer, own)
             if origin:
-                self._page(origin)["posts_from" if hit.method == "POST" else "not_found_from"] += 1
+                self._page(origin)["posts_from" if hit.is_form_post else "not_found_from"] += 1
 
     def reader(self, when) -> None:
         """A reader's first page view (aggregate.Tally), by its UTC hour."""

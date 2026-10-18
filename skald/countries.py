@@ -1,7 +1,9 @@
-"""Country codes, as a reader would want to see them: a flag and a name.
+"""Country codes, as a reader would want to see them: a flag and a short code.
 
 The log carries an ISO 3166-1 alpha-2 code (from a CDN header or a GeoIP
-database). History stores the code; this only decides how it is shown.
+database). History stores the code; this only decides how it is shown:
+the flag and the ISO 3166-1 alpha-3 code ("🇺🇸 USA", owner 2026-10-18), with
+the full name beside it where the medium has room for a tooltip (name()).
 "Unknown" (stored) is a visit whose country the log did not record - shown
 as "Not recorded" (labels.py), never guessed.
 """
@@ -50,11 +52,44 @@ TV Tuvalu|TW Taiwan|TZ Tanzania|UA Ukraine|UG Uganda|US United States|UY Uruguay
 UZ Uzbekistan|VA Vatican City|VC Saint Vincent and the Grenadines|VE Venezuela
 VG British Virgin Islands|VI US Virgin Islands|VN Vietnam|VU Vanuatu
 WF Wallis and Futuna|WS Samoa|XK Kosovo|YE Yemen|YT Mayotte|ZA South Africa|ZM Zambia
-ZW Zimbabwe|EU European Union|AP Asia/Pacific
+ZW Zimbabwe|EU European Union|AP Asia/Pacific|BV Bouvet Island
+GS South Georgia and the South Sandwich Islands|HM Heard and McDonald Islands
+IO British Indian Ocean Territory|SJ Svalbard and Jan Mayen|TF French Southern Territories
+UM US Outlying Islands
 """
 
 NAMES = {entry[:2]: entry[3:] for row in _NAMES.split("\n") for entry in
          (part.strip() for part in row.split("|")) if len(entry) > 3}
+
+# ISO 3166-1 alpha-2 -> alpha-3, every assigned code (and XK Kosovo's common XKX).
+# The twin is webapp/js/countries.js; tests/test_country_codes.py keeps them equal.
+# EU and AP are not countries: they have no alpha-3 and are shown as they are.
+_ALPHA3 = """
+AD AND|AE ARE|AF AFG|AG ATG|AI AIA|AL ALB|AM ARM|AO AGO|AQ ATA|AR ARG|AS ASM|AT AUT
+AU AUS|AW ABW|AX ALA|AZ AZE|BA BIH|BB BRB|BD BGD|BE BEL|BF BFA|BG BGR|BH BHR|BI BDI
+BJ BEN|BL BLM|BM BMU|BN BRN|BO BOL|BQ BES|BR BRA|BS BHS|BT BTN|BV BVT|BW BWA|BY BLR
+BZ BLZ|CA CAN|CC CCK|CD COD|CF CAF|CG COG|CH CHE|CI CIV|CK COK|CL CHL|CM CMR|CN CHN
+CO COL|CR CRI|CU CUB|CV CPV|CW CUW|CX CXR|CY CYP|CZ CZE|DE DEU|DJ DJI|DK DNK|DM DMA
+DO DOM|DZ DZA|EC ECU|EE EST|EG EGY|EH ESH|ER ERI|ES ESP|ET ETH|FI FIN|FJ FJI|FK FLK
+FM FSM|FO FRO|FR FRA|GA GAB|GB GBR|GD GRD|GE GEO|GF GUF|GG GGY|GH GHA|GI GIB|GL GRL
+GM GMB|GN GIN|GP GLP|GQ GNQ|GR GRC|GS SGS|GT GTM|GU GUM|GW GNB|GY GUY|HK HKG|HM HMD
+HN HND|HR HRV|HT HTI|HU HUN|ID IDN|IE IRL|IL ISR|IM IMN|IN IND|IO IOT|IQ IRQ|IR IRN
+IS ISL|IT ITA|JE JEY|JM JAM|JO JOR|JP JPN|KE KEN|KG KGZ|KH KHM|KI KIR|KM COM|KN KNA
+KP PRK|KR KOR|KW KWT|KY CYM|KZ KAZ|LA LAO|LB LBN|LC LCA|LI LIE|LK LKA|LR LBR|LS LSO
+LT LTU|LU LUX|LV LVA|LY LBY|MA MAR|MC MCO|MD MDA|ME MNE|MF MAF|MG MDG|MH MHL|MK MKD
+ML MLI|MM MMR|MN MNG|MO MAC|MP MNP|MQ MTQ|MR MRT|MS MSR|MT MLT|MU MUS|MV MDV|MW MWI
+MX MEX|MY MYS|MZ MOZ|NA NAM|NC NCL|NE NER|NF NFK|NG NGA|NI NIC|NL NLD|NO NOR|NP NPL
+NR NRU|NU NIU|NZ NZL|OM OMN|PA PAN|PE PER|PF PYF|PG PNG|PH PHL|PK PAK|PL POL|PM SPM
+PN PCN|PR PRI|PS PSE|PT PRT|PW PLW|PY PRY|QA QAT|RE REU|RO ROU|RS SRB|RU RUS|RW RWA
+SA SAU|SB SLB|SC SYC|SD SDN|SE SWE|SG SGP|SH SHN|SI SVN|SJ SJM|SK SVK|SL SLE|SM SMR
+SN SEN|SO SOM|SR SUR|SS SSD|ST STP|SV SLV|SX SXM|SY SYR|SZ SWZ|TC TCA|TD TCD|TF ATF
+TG TGO|TH THA|TJ TJK|TK TKL|TL TLS|TM TKM|TN TUN|TO TON|TR TUR|TT TTO|TV TUV|TW TWN
+TZ TZA|UA UKR|UG UGA|UM UMI|US USA|UY URY|UZ UZB|VA VAT|VC VCT|VE VEN|VG VGB|VI VIR
+VN VNM|VU VUT|WF WLF|WS WSM|XK XKX|YE YEM|YT MYT|ZA ZAF|ZM ZMB|ZW ZWE
+"""
+
+ALPHA3 = {entry[:2]: entry[3:] for row in _ALPHA3.split("\n") for entry in
+          (part.strip() for part in row.split("|")) if len(entry) == 6}
 
 
 def flag(code: str) -> str:
@@ -71,19 +106,31 @@ def flag(code: str) -> str:
     return "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in code)
 
 
+def code3(code: str) -> str:
+    """'USA' for 'US'; a code without an alpha-3 (EU, AP) as it is."""
+    code = (code or "").upper()
+    return ALPHA3.get(code, code)
+
+
+def name(code: str) -> str:
+    """The full name ('United States'), for a tooltip, a search or a CSV;
+    'Not recorded' for a country the log did not record."""
+    if not code or code == UNKNOWN:
+        return shown(UNKNOWN)
+    if len(code) != 2:
+        return code
+    return NAMES.get(code.upper(), code.upper())
+
+
 def label(code: str) -> str:
-    """'🇨🇦 Canada', 'Not recorded' (stored as Unknown), or the code itself
-    with its flag if the name is not in the table."""
+    """'🇨🇦 CAN', 'Not recorded' (stored as Unknown), or the code itself
+    with its flag if it has no alpha-3. The full name is name(code)."""
     if not code or code == UNKNOWN:
         return shown(UNKNOWN)
     if len(code) != 2:
         return code            # a folded "(all others)" row, say
     code = code.upper()
-    name = NAMES.get(code)
-    mark = flag(code)
-    if name:
-        return f"{mark} {name}".strip()
-    return f"{mark} {code}".strip()
+    return f"{flag(code)} {code3(code)}".strip()
 
 
 # Continents, from the country (ISO 3166-1 alpha-2): the compare report's

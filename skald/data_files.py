@@ -35,7 +35,8 @@ FILES = ("overview", "live", "visits", "hourly", "breakdowns", "health", "bots",
 # Leaving them out of the Page saves parsing them once per page per run
 # (docs/PERFORMANCE.md); asking a Page for one is an error, never a null.
 OWN_READERS = frozenset({"ai_fetches", "page_firsts", "crawler_paths", "cube",
-                         "visit_cube", "page_counts", "crawler_cost"})
+                         "visit_cube", "page_counts", "crawler_cost",
+                         "crawl_health"})
 
 
 class _Day(dict):

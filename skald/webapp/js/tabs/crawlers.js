@@ -10,7 +10,7 @@
 // llms.txt (llms_txt.json, llms_txt.py) to preview, copy or download; Skald
 // never writes it to the website either.
 
-import { h, n } from "../ui.js";
+import { h, n, long } from "../ui.js";
 import { call, installOnly, INSTALL_ONLY } from "./ipmanager.js";
 import { isViewer, VIEWER } from "../access.js";
 import { getJSON, base } from "../data.js";
@@ -55,10 +55,10 @@ function llmsParts(r) {
   if (!r || r.schema_version !== 1) return say("Not built yet. It appears after the next dashboard update.");
   if (!r.ok) return say(r.why || "There is nothing to suggest yet.");
   const p = r.period || {};
-  const left = (p.left_out || []).length ? ` Days not recorded are left out: ${p.left_out.map((d) => d.day).join(", ")}.` : "";
+  const left = (p.left_out || []).length ? ` Days not recorded are left out: ${p.left_out.map((d) => long(d.day)).join(", ")}.` : "";
   const titles = r.titles === "website" ? "Titles come from your website's page list." : "Your website gives no page list, so each link is named by its path: put the page titles in.";
   return [top(copyBtn(r.text), h("button", { type: "button", class: "btn cp", onclick: () => download("llms.txt", r.text, "text/markdown;charset=utf-8") }, "Download")),
-    h("p", { class: "note ai-llms-say" }, `The pages people and AI assistants read most, ${p.first} to ${p.last} (${p.counted} recorded days), by section.${left} ${titles} Write the summary line yourself, check the links, then publish it at /llms.txt.`),
+    h("p", { class: "note ai-llms-say" }, `The pages people and AI assistants read most, ${long(p.first)} to ${long(p.last)} (${p.counted} recorded days), by section.${left} ${titles} Write the summary line yourself, check the links, then publish it at /llms.txt.`),
     h("pre", null, r.text)];
 }
 

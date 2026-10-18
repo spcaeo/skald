@@ -3,7 +3,8 @@
 One row per visit that read a page - exactly the journeys (visits.Journeys),
 so a day's rows are its readers - with what the journey holds (start, end,
 source, via, referrer, campaign, landing, exit, country, device, browser,
-system, pages in order with their seconds) and what it does not: the
+system, city when a city file named one (logs.city_db), pages in order with
+their seconds) and what it does not: the
 address, the user agent and the times of the visit's POSTs (a form sent).
 In conversions.sqlite, tables `visits` and `visit_days` (store.PEOPLE_TABLES).
 
@@ -33,7 +34,7 @@ from . import policy
 REMOVED = "(removed)"
 TRAIL = 50
 FIELDS = ("source", "via", "campaign", "landing", "exit", "country", "device", "browser",
-          "os")
+          "os", "city")
 
 
 def path_for(config: dict, folder) -> Path | None:
@@ -71,7 +72,7 @@ def rows(site: str, day: str, journeys: list, people: list, hidden=None) -> list
 
 
 COLUMNS = ("site, day, seq, ip, user_agent, start, end, source, via, referrer, campaign, "
-           "landing, exit, country, device, browser, os, pages, seconds, trail, posts")
+           "landing, exit, country, device, browser, os, city, pages, seconds, trail, posts")
 
 
 def write(db, site: str, day: str, journeys: list, people: list, state: str,
@@ -82,7 +83,7 @@ def write(db, site: str, day: str, journeys: list, people: list, state: str,
         db.execute("DELETE FROM visits WHERE site = ? AND day = ?", (site, day))
         db.executemany(f"INSERT INTO visits ({COLUMNS}) VALUES "
                        f"({', '.join('?' * len(COLUMNS.split(', ')))})", got)
-        pages = sum(r[17] for r in got)
+        pages = sum(r[COLUMNS.split(", ").index("pages")] for r in got)
         db.execute("INSERT INTO visit_days (site, day, state, visits, pages, written_at) "
                    "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(site, day) DO UPDATE SET "
                    "state = excluded.state, visits = excluded.visits, pages = excluded.pages, "

@@ -24,7 +24,7 @@ const filters = (s) => (tools(s) ? [] : ["source"]);
 export default [
   ["pipeline", "Pipeline", pipeline, { file, filters, keep: ["lsrc", "lact", "lstage", "lshow"], compare: true }],
   ["bookings", "Bookings", bookings, { file: "conversions", filters: [], keep: ["bact", "bshow"] }],
-  ["funnels", "Funnels", funnels, { file: "funnels", filters: ALL, keep: ["fn", "fsrc", "fstep", "fmode"] }],
+  ["funnels", "Funnels", funnels, { file: "funnels", filters: ALL, rules: "visit", keep: ["fn", "fsrc", "fstep", "fmode"] }],
   ["events", "Events", events, { file: "events", filters: ["path", "source"] }],
-  ["people", "People", people, { figures: false }],
+  ["people", "People", people, { figures: false, period: (s, m) => (m?.x?.conversions?.available ? "The latest conversions" : null) }],
 ];

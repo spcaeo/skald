@@ -91,6 +91,14 @@ All released and live on example.com (public/CHANGELOG.md has each version).
 | P2-10 AI crawler policy view | Done (allow, block, block training only, with robots.txt beside each crawler); plus a suggested llms.txt (2.2.0). |
 | Not on this list | Likely sent by an AI assistant, an estimate kept apart (2.1.0); the Cloudflare Worker and Vercel/Netlify drains; safe upgrades and update notices (2.2.0, docs/UPGRADING.md); flags beside countries and a new visit per outside source (2.3.0); `skald doctor` (2.4.0). |
 
+## After 2.13 (2026-10-18): what more is built
+
+On a branch, not yet released.
+
+| Item | State |
+| --- | --- |
+| P1-6 Search Console and GA4 cross-checks | Search Console part done (2026-10-18), with Bing Webmaster Tools too. Synced by their APIs every 6 hours, not imported once: clicks, impressions, CTR and position per day by query, page, country, device and search appearance (Bing: per day, and its top queries and pages), stored in history (`search_days`, schema 14). The last 4 days are fetched again on each sync; provisional days are shown as such; a 3- or 16-month backfill on connect. Connected from the dashboard (Settings > Integrations > Search: upload the service-account key, add the robot in Search Console, find the property, test, connect). Traffic > Search shows the tables, the trend and the cross-check: Search Console clicks beside Skald's people from Google search, by day and landing page, never forced to match, flagged when the ratio moves sharply. Second roads: `audit_search.py`, `audit_search_landing.py`. docs/INTEGRATIONS.md, "Search Console and Bing". **GA4 users and sessions: still open.** |
+
 ## Recommended next (top 10)
 
 In order, as written on 2026-10-07. The first five make the numbers we already show
@@ -190,6 +198,7 @@ trustworthy; the next five make them useful for growth. The state at 2.5.0 is in
 - **Why:** logs cannot see impressions or queries; GA cannot see bots. Each checks the other.
 - **What:** daily import of Search Console clicks and impressions by page and query, and GA4 users and sessions by day, through their APIs with a service account. A "cross-check" row: readers vs GA4 users (expect GA lower: blockers, consent) and search-referred readers vs Search Console clicks. Flag when the ratio moves sharply - that is usually a tracking break.
 - **Effort:** M. **Risk:** API credentials on the server; quota; GA4 sampling. **Depends on:** a Google service account (owner).
+- **State (2026-10-18):** the Search Console part is done, with Bing too (table above, "After 2.13"). GA4 is still open.
 
 ### P1-7. Network and burst signals
 - **Why:** browser-shaped crawlers from data centres and fan-out crawlers pass as readers (A1, A15, A16).

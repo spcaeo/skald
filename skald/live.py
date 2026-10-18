@@ -99,8 +99,10 @@ def breakdowns(totals) -> dict:
     is called."""
     people = totals.groups.get(Group.PEOPLE)
     return {
+        # "city" only when a city file counted it (logs.city_db).
         "by": {name: dict(people.by.get(name, {})) if people else {}
-               for name in READER_DIMS},
+               for name in READER_DIMS + (("city",) if people and "city" in people.by
+                                          else ())},
         "not_found": dict(people.not_found) if people else {},
         "speeds": dict(people.speeds) if people else {},
         "slow_pages": dict(people.slow_pages) if people else {},
@@ -226,7 +228,10 @@ def build(config: dict, site: str, tz: ZoneInfo, now: datetime,
     ai = AIEvents(load_key(config), hidden)
     from . import realtime
     now_seen = realtime.Observer(end)          # Real time: the last 30 minutes
-    observe = _Observers(activity, ai, now_seen, *([feed] if feed is not None else []))
+    from . import by_now
+    # Today's page views and AI-sent visits by hour, for "yesterday at this hour".
+    hours = by_now.Hours(tz, int(((config.get("report") or {}).get("session_gap_minutes")) or 30))
+    observe = _Observers(activity, ai, now_seen, hours, *([feed] if feed is not None else []))
 
     totals, by_view = analyse_window_views(config, start, end, now=now, top=TOP,
                                            observe=observe, views=views, upto=upto)
@@ -257,7 +262,12 @@ def build(config: dict, site: str, tz: ZoneInfo, now: datetime,
     try:
         for t in [totals, *by_view.values()]:
             annotate(t, db, site, day, repeat_days(config))
+        from .firsttouch import annotate as first_touch   # after keep_live: today's visits
+        first_touch(totals, config, Path(db_path).parent if db_path is not None else None,
+                    site, day, tz, end, db)
         snap["ai_activity"] = ai.result(tz, db, site, day)
+        # Yesterday up to this time of day, by the same tally (by_now.py).
+        snap["by_now"] = by_now.part(config, site, tz, end, now, upto, db, totals, hours)
     finally:
         if db is not None:
             db.close()

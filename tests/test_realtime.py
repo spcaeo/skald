@@ -119,8 +119,10 @@ class TestSnapshotPart(Case):
         newest = self.live()["realtime"]["newest"]
         self.assertEqual([v["country"] for v in newest[:2]], ["US", "GB"])
         self.assertEqual(newest[0]["active"], "5")
-        self.assertEqual(set(newest[0]), {"start", "country", "device", "browser", "source",
-                                          "via", "landing", "pages", "active"})
+        self.assertEqual(set(newest[0]), {"start", "country", "city", "device", "browser",
+                                          "source", "via", "landing", "pages", "in_app", "active",
+                                          "first_touch", "seq"})
+        self.assertEqual(newest[0]["city"], "", "no city file: no city")
 
 
 class TestAudit(Case):

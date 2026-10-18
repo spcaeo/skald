@@ -134,14 +134,14 @@ def country_credit(config: dict) -> tuple[str, str | None] | None:
 
     `report.country_credit` and `report.country_credit_url`. A GeoIP
     database's free licence usually requires attribution wherever its data
-    is shown. Unset, a GeoIP file Skald itself reads (`logs.country_db`)
-    that is one of DB-IP's gets DB-IP's credit. Only an http(s) URL becomes
-    a link.
+    is shown. Unset, a GeoIP file Skald itself reads (`logs.country_db`,
+    or the city file `logs.city_db`) that is one of DB-IP's gets DB-IP's
+    credit. Only an http(s) URL becomes a link.
     """
     text = setting(config, "report", "country_credit")
     if not text:
-        from .conversions.geo import credit, database
-        return credit(database(config))
+        from .conversions.geo import city_database, credit, database
+        return credit(database(config), city_database(config))
     url = setting(config, "report", "country_credit_url")
     url = str(url) if url and str(url).startswith(("https://", "http://")) else None
     return str(text), url

@@ -55,8 +55,9 @@ With `access: {mode: sessions}` (accounts; basic is the default and changes
 nothing): /traffic-auth/* signs people in (auth_api.py, with nginx's
 auth_request check), <page>/team, account, tokens and audit are the
 Settings routes (team_api.py), <page>/settings and settings/* the
-settings pages (settings_api.py), <page>/integrations and integrations/*
-Settings > Integrations (integrations_api.py), <page>/people and people/* the person
+settings pages (settings_api.py; Settings > Reports, client_reports_api.py), <page>/integrations and integrations/*
+Settings > Integrations (integrations_api.py; integrations/search and
+integrations/search/* its Search part, search/api.py), <page>/people and people/* the person
 lookup and the left-out lists (people/api.py), <page>/logo and logo/* the site's logo
 (logo_api.py; the image itself in basic mode too), /me adds name, org, csrf, mode, install_admin
 and totp_on, every POST but refresh also needs X-Skald-CSRF, an owner counts
@@ -96,6 +97,8 @@ from pathlib import Path
 
 from . import access, auth_api, bot_policy_api, helper_sessions, settings_api, team_api
 from . import ingest, integrations_api, logo_api, realtime_api, sites_api, updates
+from .search import api as search_api
+from . import client_reports_api
 from .saas import billing_api, signup_api
 from .mcp import http as mcp_http
 from .people import api as people_api
@@ -446,9 +449,15 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
             if billing_api.is_billing(self.path):       # Settings > Billing (saas)
                 return billing_api.handle(self, True, config, live_dir, allowed, same_origin,
                                           history_path)
+            if search_api.is_search(self.path):   # Settings > Integrations > Search
+                return search_api.handle(self, True, config, live_dir, allowed, same_origin,
+                                         config_path)
             if integrations_api.is_integrations(self.path):   # Settings > Integrations
                 return integrations_api.handle(self, True, config, live_dir, allowed,
                                                same_origin, config_path)
+            if client_reports_api.is_reports(self.path):  # Settings > Reports
+                return client_reports_api.handle(self, True, config, live_dir, allowed,
+                                                 same_origin, history_path, config_path)
             if settings_api.is_settings(self.path):     # before team_api: settings/audit
                 return settings_api.handle(self, True, config, live_dir, allowed, same_origin,
                                            history_path, config_path)
@@ -497,9 +506,15 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
             if billing_api.is_billing(self.path):
                 return billing_api.handle(self, False, config, live_dir, allowed, same_origin,
                                           history_path)
+            if search_api.is_search(self.path):
+                return search_api.handle(self, False, config, live_dir, allowed, same_origin,
+                                         config_path)
             if integrations_api.is_integrations(self.path):
                 return integrations_api.handle(self, False, config, live_dir, allowed,
                                                same_origin, config_path)
+            if client_reports_api.is_reports(self.path):
+                return client_reports_api.handle(self, False, config, live_dir, allowed,
+                                                 same_origin, history_path, config_path)
             if settings_api.is_settings(self.path):
                 return settings_api.handle(self, False, config, live_dir, allowed, same_origin,
                                            history_path, config_path)

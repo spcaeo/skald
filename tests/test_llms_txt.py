@@ -199,6 +199,24 @@ class TestSuggest(unittest.TestCase):
         self.assertNotIn(f"/p{llms_txt.LIMIT + llms_txt.OPTIONAL:02d})", text)
         self.assertTrue(text.rstrip().split("\n")[-1].startswith("- ["))
 
+    def test_markdown_copies_are_grouped_after_the_pages(self):
+        # /post.md is a copy of /post, not a page: the copies sit together under their
+        # own heading after the pages and take no page's place in the limit.
+        ok = {"pages": {**{f"/p{i:02d}": page(views=200 - i) for i in range(60)},
+                        **{f"/p{i:02d}.md": page(views=300 - i, asked=50) for i in range(3)}}}
+        days = {FIRST + timedelta(days=i): ("ok", ok) for i in range(90)}
+        got = self.suggest(days)
+        text = got["text"]
+        well_formed(self, text)
+        head, rest = text.split(f"## {llms_txt.COPIES}\n", 1)
+        copies, optional = rest.split("## Optional\n", 1)
+        self.assertNotIn(".md)", head)
+        self.assertEqual(head.count("\n- ["), llms_txt.LIMIT)
+        self.assertEqual(copies.count("- ["), 3)
+        self.assertNotIn(".md)", optional)
+        self.assertEqual({r["path"] for r in got["pages"] if r["section"] == llms_txt.COPIES},
+                         {"/p00.md", "/p01.md", "/p02.md"})
+
     def test_no_recorded_day_no_file(self):
         got = self.suggest({ANCHOR: ("withheld", {"pages": {"/": page(views=5)}})})
         self.assertFalse(got["ok"])

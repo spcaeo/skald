@@ -7,6 +7,7 @@ import * as S from "./state.js";
 import { CHOICES, choiceWords } from "./tz.js";
 import { openDrawer } from "./drawer.js";
 import { withFlag } from "./tabs/readers.js";
+import { fromState, treeWords } from "./rules.js";
 
 // Browser storage may be blocked (private windows, strict settings): every
 // read and write is wrapped, and the app works the same without it.
@@ -22,6 +23,8 @@ export const store = {
 const BELL = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5V7a4 4 0 0 1 8 0v4.5l1.2 1.3H2.8z"/><path d="M6.6 14a1.5 1.5 0 0 0 2.8 0"/></svg>';
 const STAR = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M4 2.5h8v11L8 10.8 4 13.5z"/></svg>';
 const CMP = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12l3.5-4 3 2.5L14 4"/><path d="M2 13.5h12" stroke-dasharray="2 2"/></svg>';
+const LINK = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6.5 9.5l3-3M7 4.5l1.2-1.2a2.6 2.6 0 0 1 3.7 3.7L10.7 8.2M9 11.5l-1.2 1.2a2.6 2.6 0 0 1-3.7-3.7L5.3 7.8"/></svg>';
+const PEN = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 13l.6-2.6L10.8 3.2l2 2-7.2 7.2zM9.6 4.4l2 2"/></svg>';
 const MARK = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 4.5v10" stroke-dasharray="2 2"/><path d="M8 1l3 3-3 3-3-3z"/></svg>';
 
 // --------------------------------------------------------------- markers
@@ -69,6 +72,50 @@ export function bell(m) {
    view, filters and the compare switch. Kept in this browser only. */
 const KEY = "ti-saved";
 export const savedViews = () => { const v = store.get(KEY, []); return Array.isArray(v) ? v.filter((x) => x && x.name && x.hash) : []; };
+// Save (or replace, by name), rename and delete; each says whether the browser kept it.
+export function saveView(name, hash) {
+  const n = String(name || "").trim().slice(0, 60);
+  if (!n) return false;
+  return store.set(KEY, [...savedViews().filter((v) => v.name !== n), { name: n, hash: hash || location.hash || "#overview" }]);
+}
+export function renameView(from, to) {
+  const n = String(to || "").trim().slice(0, 60);
+  if (!n || n === from) return !!n;
+  return store.set(KEY, savedViews().filter((v) => v.name !== n).map((v) => (v.name === from ? { ...v, name: n } : v)));
+}
+export const deleteView = (name) => store.set(KEY, savedViews().filter((v) => v.name !== name));
+/* A view's link: this page's address with the view's hash. No share token: whoever opens it
+   signs in as usual and sees it only if their account may open this site. */
+export const viewLink = (hash) => `${location.origin || ""}${location.pathname}${location.search || ""}${hash}`;
+export async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch { /* no clipboard here: the fallback below */ }
+  try {
+    const ta = h("textarea", { readonly: "", style: { position: "fixed", opacity: "0" } }, text);
+    document.body.append(ta); ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  } catch { return false; }
+}
+/* Rename in place: the name becomes a field; Enter keeps it, Escape leaves it. */
+export function renameInPlace(el, name, done) {
+  const input = h("input", { type: "text", value: name, maxlength: "60", class: "saved-rn", "aria-label": `New name for ${name}` });
+  const finish = (keep) => {
+    if (input.dataset.done) return;
+    input.dataset.done = "1";
+    const next = input.value.trim();
+    if (keep && next && next !== name) { if (renameView(name, next)) toast(`Renamed to "${next}"`); else toast("Renaming needs browser storage, which is blocked here."); }
+    done();
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); finish(true); }
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); finish(false); }
+  });
+  input.addEventListener("blur", () => finish(true));
+  el.replaceWith(input);
+  input.focus();
+  input.select?.();
+}
 
 let openPop = null;
 document.addEventListener("pointerdown", (e) => { if (openPop && !openPop.wrap.contains(e.target)) openPop.close(false); });
@@ -83,14 +130,19 @@ function savedContent(box, close, { heading = true } = {}) {
       e.preventDefault();
       const n = name.value.trim();
       if (!n) { name.focus(); return; }
-      const next = [...list.filter((v) => v.name !== n), { name: n, hash: location.hash || "#overview" }];
-      if (store.set(KEY, next)) { toast(`Saved "${n}"`); draw(); } else toast("Saving needs browser storage, which is blocked here.");
+      if (saveView(n, location.hash)) { toast(`Saved "${n}"`); draw(); } else toast("Saving needs browser storage, which is blocked here.");
     });
-    const items = list.length ? h("ul", { class: "saved-list" }, list.map((v) => h("li", null,
-      h("button", { type: "button", class: "saved-go", onclick: () => { close(false); location.hash = v.hash; } }, h("b", null, v.name), h("small", null, describe(v.hash))),
-      h("button", { type: "button", class: "saved-x", "aria-label": `Delete the saved view ${v.name}`, onclick: () => {
-        store.set(KEY, list.filter((x) => x !== v)); toast(`Deleted "${v.name}"`); draw(); box.querySelector("input")?.focus();
-      } }, "×"))))
+    const items = list.length ? h("ul", { class: "saved-list" }, list.map((v) => {
+      const go = h("button", { type: "button", class: "saved-go", onclick: () => { close(false); location.hash = v.hash; } }, h("b", null, v.name), h("small", null, describe(v.hash)));
+      return h("li", null, go,
+        h("button", { type: "button", class: "saved-x", title: "Copy link", "aria-label": `Copy the link to ${v.name}`, html: LINK, onclick: async () => {
+          toast(await copyText(viewLink(v.hash)) ? `Link to "${v.name}" copied. Whoever opens it signs in first.` : "Copying is blocked here; open the view and copy the address.");
+        } }),
+        h("button", { type: "button", class: "saved-x", title: "Rename", "aria-label": `Rename ${v.name}`, html: PEN, onclick: () => renameInPlace(go, v.name, draw) }),
+        h("button", { type: "button", class: "saved-x", "aria-label": `Delete the saved view ${v.name}`, onclick: () => {
+          deleteView(v.name); toast(`Deleted "${v.name}"`); draw(); box.querySelector("input")?.focus();
+        } }, "×"));
+    }))
       : h("p", { class: "note", style: { margin: 0 } }, "No saved views yet. A saved view keeps the tab, range, page group, filters and the compare switch, in this browser only.");
     box.replaceChildren(...[heading ? h("h3", null, "Saved views") : null, items, h("p", { class: "sub", style: { margin: "6px 0 0" } }, "Save what is on screen now"), form].filter(Boolean));
   };
@@ -126,14 +178,15 @@ export function savedDialog() {
   savedContent(box, (focusBack) => d.close({ focusBack }), { heading: false });
 }
 
-// "Requests · 7 days · country CA" from a saved hash, so a name is not the only clue.
-function describe(hash) {
+// "Requests, 7 days, Country is CAN" from a saved hash, so a name is not the only clue.
+export function describe(hash) {
   const [tab, q = ""] = hash.replace(/^#/, "").split("?");
   const p = new URLSearchParams(q);
   const name = S.nameOf(tab);
   const range = (S.RANGES.find(([k]) => k === (p.get("range") || "30d")) || [null, p.get("range")])[1];
   const bits = [name, range];
-  for (const k of S.FILTERS) if (p.get(k)) bits.push(`${k} ${k === "country" ? withFlag(p.get(k)) : p.get(k)}`);
+  const rules = fromState(Object.fromEntries(p));
+  if (rules.items.length) bits.push(treeWords(rules, (d, v) => (d === "country" ? withFlag(v) : v)));
   if (p.get("view")) bits.push(p.get("view"));
   if (p.get("cmp")) bits.push("compared");
   return bits.join(", ");

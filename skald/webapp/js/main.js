@@ -9,26 +9,29 @@
 // second row, only when there are some.
 
 import * as S from "./state.js";
-import { h, ICON, reduced, toast, untip } from "./ui.js";
+import { h, ICON, reduced, toast, untip, short } from "./ui.js";
 import { load, refresh as postRefresh, viewList, rangeOf, markersByDay } from "./data.js";
 import { TAB_RENDER } from "./tabs/index.js";
 import { TAB, opt } from "./sections.js";
 import { tabStrip } from "./tabstrip.js";
 import { barModes, modeBanner, modeActions } from "./modes.js";
-import { country, flagEl, withFlag } from "./tabs/readers.js";
+import { country, countryName, withFlag, city, cityCode, cityName } from "./tabs/readers.js";
 import { setMarkers } from "./charts.js";
 import { saved, savedDialog, bell, marksOn, zonePicker, store } from "./extras.js";
 import { setZone, time as tzTime } from "./tz.js";
 import { keys, help, whatsNew, newUnseen, palette } from "./keys.js";
 import { drillView } from "./drillview.js";
 import { closeDrawers } from "./drawer.js";
-import { chainOf, DIMS, said } from "./drill.js";
+import { chainOf, DIMS, said, titled, close as closeDrill } from "./drill.js";
 import { setFavicons } from "./icons.js";
 import { REGISTRY, showAllRows } from "./table.js";
 import { exportMenu, builder, exportZip, exportJSON, printTab } from "./report.js";
 import { setContext } from "./tabs/common.js";
 import { loadBuild, buildLine, toolName, newerBuild, releaseLine, BUILD, REPO } from "./build.js";
-import { searchBox, openSearch, mayFind, SEARCH_HINT } from "./tabs/person.js";
+import { searchBox, openSearch, openPerson, mayFind, SEARCH_HINT } from "./tabs/person.js";
+import { findIndex } from "./finder.js";
+import { showSetup } from "./tabs/checklist.js";
+import { shown } from "./labels.js";
 import { info, quietKpis } from "./tabs/tiles.js";
 import { PRIVACY } from "./tabs/about.js";
 import { buildNav, mark, badge, brand, siteChip, railFoot, openDrawer, trailOf } from "./nav.js";
@@ -36,6 +39,9 @@ import { ME, loadMe, sessions, signOut } from "./access.js";
 import { planBanner } from "./tabs/billing.js";
 import { updateBanner } from "./updates.js";
 import { DEMO, demoBanner, demoState } from "./demo.js";
+import { startEdges } from "./edges.js";
+import { filtersButton, filterChips, rulesBanner, openFilters } from "./filterpanel.js";
+import { fromState, treeWords } from "./rules.js";
 
 const app = document.getElementById("app");
 const panel = document.getElementById("panel");
@@ -109,40 +115,9 @@ function segmented(options, value, onPick, label) {
 let closePop = null;
 document.addEventListener("pointerdown", (e) => closePop && closePop(e));
 
-const FILTER_LABEL = { country: "Country", path: "Page path", source: "Source", device: "Device", browser: "Browser", campaign: "Campaign", referrer: "Referring site" };
 const MORE = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><circle cx="3.5" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="12.5" cy="8" r="1.4"/></svg>';
 const MENU = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/></svg>';
 const CMDK = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.3"/><path d="M10.2 10.2l3.6 3.6"/></svg>';
-
-function filtersPop(s) {
-  const opts = model.options;
-  const pop = h("div", { class: "pop", hidden: true, role: "dialog", "aria-label": "Filters" });
-  const fields = {};
-  const pick = (k, list) => {
-    const sel = h("select", { id: `f-${k}` }, h("option", { value: "" }, "Any"),
-      list.map((v) => h("option", { value: v, selected: s[k] === v }, k === "country" ? withFlag(v, country(v)) : v)));
-    fields[k] = sel;
-    return h("label", { class: "fld", for: `f-${k}` }, FILTER_LABEL[k], sel);
-  };
-  const mode = h("select", { "aria-label": "Match" }, h("option", { value: "contains", selected: s.pathmode !== "starts" }, "contains"),
-    h("option", { value: "starts", selected: s.pathmode === "starts" }, "starts with"));
-  const pathIn = h("input", { type: "text", id: "f-path", value: s.path || "", placeholder: "/pricing", spellcheck: "false", autocomplete: "off" });
-  fields.path = pathIn;
-  pop.append(pick("country", opts.country), h("label", { class: "fld", for: "f-path" }, "Page path", h("span", { class: "pair" }, mode, pathIn)),
-    pick("source", opts.source), pick("campaign", opts.campaign), pick("referrer", opts.referrer), pick("device", opts.device), pick("browser", opts.browser),
-    h("p", { class: "note" }, "Logs keep each breakdown on its own, so filters narrow the lists they belong to and cannot be crossed (Canada AND Chrome). A tab says which filters it cannot apply."),
-    h("div", { class: "row" },
-      h("button", { type: "button", class: "btn", onclick: () => { S.set(Object.fromEntries(S.FILTERS.map((k) => [k, ""]))); } }, "Clear all"),
-      h("button", { type: "button", class: "btn primary", onclick: () => {
-        const patch = { pathmode: mode.value };
-        for (const k of S.FILTERS) patch[k] = fields[k].value.trim();
-        S.set(patch);
-      } }, "Apply filters")));
-  const n = S.activeFilters(s).length;
-  const toggle = h("button", { type: "button", class: "btn", "aria-expanded": "false", "aria-haspopup": "dialog", html: ICON.filter, "aria-label": n ? `Filters, ${n} active` : "Filters" },
-    h("span", { class: "f-l" }, "Filters"), n ? h("span", { class: "count", "aria-label": `${n} active` }, String(n)) : null);
-  return popover(toggle, pop, () => pop.querySelector("select,input")?.focus());
-}
 
 // A button and its popover: open, close on Escape or a press outside, focus back on close.
 function popover(toggle, pop, onOpen) {
@@ -180,22 +155,53 @@ function ago(ts) {
   return el;
 }
 
+/* What the palette searches in the figures (finder.js): the names seen in the period
+   on screen (today: the live count), the days kept before it when the period has
+   none, and a person for an admin (the same search as Find a person). */
+const finds = () => {
+  if (!model) return null;
+  const s = S.read(), r = rangeOf(model, s);
+  // A country shown by its flag and three letters (a city as the Cities table says it), found by its full name too ("canada").
+  const say = (dim, v) => (dim === "country" ? withFlag(v, country(v)) : dim === "city" ? withFlag(cityCode(v), city(v)) : shown(v));
+  const alias = (dim, v) => (dim === "country" ? countryName(v) : dim === "city" ? cityName(v) : "");
+  const live = model.live?.state === "ok" && model.live.day === model.today ? [model.live.figures] : [];
+  const days = r.kind === "today" ? live : r.days.filter((d) => d.state === "ok");
+  const period = r.kind === "today" ? "today so far" : r.length === 1 ? short(r.first) : `${short(r.first)} to ${short(r.last)}`;
+  return { entries: findIndex(days, say, alias), period, earlier: () => findIndex([...model.byDay.values()].filter((d) => d.state === "ok"), say, alias),
+    person: mayFind() ? openPerson : null };
+};
+
 const actions = () => [
   ...(mayFind() ? [{ label: `Find a person: ${SEARCH_HINT}`, hint: "", run: openSearch }] : []),
   ...modeActions(),        // Today · Live and Compare with… (modes.js)
+  { label: "Filters: rules over every dimension, saved views", hint: "", run: () => openFilters(model, S.read(), document.querySelector(".fp-btn")) },
   { label: "Colour theme: next", hint: "", run: cycleTheme },
   { label: "Sidebar: collapse or expand", hint: "[", run: () => document.getElementById("rail-toggle")?.click() },
   { label: "Settings: every settings page", hint: "g ,", run: () => S.set({ tab: "settings" }) },
   ...(model?.canRefresh ? [{ label: "Refresh now: recount today", hint: "", run: () => document.querySelector(".bar .refresh")?.click() }] : []),
   { label: "Report builder: print, PDF or download", hint: "", run: () => builder(model, S.read(), (next) => load(next, { previous: model })) },
+  ...(!DEMO.on && sessions() && (["owner", "admin"].includes(ME.role) || ME.install_admin) ? [{ label: "Setup checklist: show it again on Overview", hint: "", run: () => showSetup(model.site) }] : []),
   { label: "What's new", hint: "", run: () => whatsNew(document.querySelector(".new-dot")) },
   { label: "Keyboard shortcuts", hint: "?", run: help },
   { label: "Help: every guide", hint: "", group: "Help", run: () => S.set({ tab: "help", part: "" }) },
 ];
 
 // Pages without figures keep only their title and the buttons that always apply; a section's tab says so itself (figures: false).
+// Every settings page is a form, not figures: no period, page group or filters there.
 const NO_DATA = new Set(["about", "help", "settings/api", "settings/users", "settings/team", "settings/account", ...S.ACCOUNT_TABS]);
-const noData = (s) => NO_DATA.has(s.tab) || opt(s.tab, "figures", s, true) === false;
+const noData = (s) => NO_DATA.has(s.tab) || S.inSettings(s.tab) || opt(s.tab, "figures", s, true) === false;
+
+/* A tab with a period of its own (Real time, Insights, Alerts, the request log...):
+   the period bar does not apply there, so it is not shown; a fixed chip says the
+   tab's own period instead (the tab's `period` option, s-*.js). Never a picker
+   that is ignored. */
+function periodChip(s) {
+  const p = TAB[s.tab]?.period;
+  const words = typeof p === "function" ? p(s, model) : p;
+  if (!words) return null;
+  return h("span", { class: "period-chip", role: "note", title: `${words}: this tab keeps its own period, so the date range does not apply here` },
+    h("span", { class: "pc-l" }, "Period"), h("b", null, words));
+}
 let chip = null;            // the phone's site button (nav.js siteChip), made once
 function drawBar(s) {
   // A section's tab is named by its section here; the tab strip under the bar names the tab.
@@ -212,8 +218,8 @@ function drawBar(s) {
     h("nav", { class: "trail", "aria-label": "You are here" }, h("ol", null,
       trail.slice(0, -1).map(([words, key, cls]) => h("li", { class: cls || null }, key
         ? h("button", { type: "button", class: "crumb", onclick: () => S.set({ tab: key }) }, words) : h("span", { class: "crumb" }, words))),
-      h("li", null, chain.length ? h("button", { type: "button", class: "crumb", onclick: () => S.set({ dd: "" }) }, name) : h("span", { class: "crumb now", "aria-current": "page" }, name)),
-      last ? h("li", null, h("span", { class: "crumb now", "aria-current": "page" }, `${DIMS[last[0]].name}: ${said(last[0], last[1])}`)) : null)));
+      h("li", null, chain.length ? h("button", { type: "button", class: "crumb", onclick: closeDrill }, name) : h("span", { class: "crumb now", "aria-current": "page" }, name)),
+      last ? h("li", null, h("span", { class: "crumb now", "aria-current": "page", title: last[0] === "country" || last[0] === "city" ? titled(last[0], last[1]) : null }, `${DIMS[last[0]].name}: ${said(last[0], last[1])}`)) : null)));
 
   // Middle: the modes (Today · Live, Compare with…: modes.js), the period, the page group, the filters.
   // Today is the "Today · Live" switch (modes.js), so the period bar starts at Yesterday.
@@ -222,7 +228,7 @@ function drawBar(s) {
   }, "Date range");
   // Compare has two periods of its own, and Live is always today so far: the period above does not apply there.
   const ranged = opt(s.tab, "ranged", s, true);
-  const mid = [h("div", { class: "bar-modes", id: "bar-modes" }, barModes(model, s)), ranged ? range : null].filter(Boolean);
+  const mid = [h("div", { class: "bar-modes", id: "bar-modes" }, barModes(model, s)), ranged ? range : periodChip(s)].filter(Boolean);
   if (ranged && s.range === "custom") {
     const lo = model.firstDay || model.anchor, hi = model.anchor;
     const from = h("input", { type: "date", value: s.from, min: lo, max: hi, "aria-label": "From" });
@@ -238,7 +244,7 @@ function drawBar(s) {
     sel.addEventListener("change", () => S.set({ view: sel.value }));
     mid.push(h("label", { class: "ctl view-sel" }, h("span", { class: "vh" }, "Page group"), sel));
   }
-  mid.push(filtersPop(s));
+  mid.push(filtersButton(model, s));
 
   // Right: saved views, refresh, export, alerts, the palette; and "more" for what a narrow screen hides.
   // (The compare toggle became "Compare with…" in the modes' slot, 2.7.0.)
@@ -252,19 +258,17 @@ function drawBar(s) {
   } else right.push(h("span", { class: "stamp" }, model.stamp));
   right.push(h("div", { class: "wide-only" }, exportMenu(() => model, s, (next) => load(next, { previous: model }))));
   const helpBtn = h("a", { class: "btn icon help-btn", href: "#help", html: HELP_ICON, "aria-label": "Help and guides", title: "Help and guides" });
-  const always = [...searchBox(), helpBtn, bell(model), h("button", { type: "button", class: "btn icon kbd-btn", html: CMDK, "aria-label": "Command palette (Ctrl or Cmd + K)", title: "Go to, or do (Ctrl K)", "aria-keyshortcuts": "Control+K Meta+K", onclick: () => palette(actions()) })];
+  // One magnifier: the palette searches the figures and, for an admin, a person (2.13); the
+  // wide screens keep the "Find a person" field, the narrow ones lose its second magnifier.
+  const always = [...searchBox().filter((el) => !el.classList.contains("pp-btn")), helpBtn, bell(model), h("button", { type: "button", class: "btn icon kbd-btn", html: CMDK, "aria-label": "Search and commands (Ctrl or Cmd + K)", title: "Search pages, sources, countries, or go anywhere (Ctrl K)", "aria-keyshortcuts": "Control+K Meta+K", onclick: () => palette(actions(), finds) })];
   right.push(...always);
   right.push(moreMenu(s));
 
-  // Active filters, each removable on its own; greyed where this tab cannot apply it.
-  const support = opt(s.tab, "filters", s, []);
-  const chips = h("div", { class: "chips", "aria-label": "Active filters" }, S.activeFilters(s).map(([k, v]) => {
-    const words = k === "path" ? `${s.pathmode === "starts" ? "starts with" : "contains"} ${v}` : v;
-    return h("span", { class: `chip${support.includes(k) ? "" : " off"}` }, FILTER_LABEL[k], " ", h("b", null, k === "country" ? flagEl(v) : null, words),
-      h("button", { type: "button", "aria-label": `Remove the ${FILTER_LABEL[k].toLowerCase()} filter`, onclick: () => S.set({ [k]: "" }) }, "×"));
-  }));
+  // Active filters (the single ones and the advanced rules), each removable on its own;
+  // greyed where this tab cannot apply it (filterpanel.js).
+  const chips = filterChips(model, s, { noData: noData(s) });
   // A page with no figures (About) keeps only its title, the bell and the palette.
-  if (noData(s)) bar.replaceChildren(h("div", { class: "bar-row" }, title, h("div", { class: "bar-mid" }), h("div", { class: "bar-right" }, always.filter(Boolean))));
+  if (noData(s)) bar.replaceChildren(h("div", { class: "bar-row" }, title, h("div", { class: "bar-mid" }, periodChip(s)), h("div", { class: "bar-right" }, always.filter(Boolean))));
   else bar.replaceChildren(h("div", { class: "bar-row" }, title, h("div", { class: "bar-mid" }, mid), h("div", { class: "bar-right" }, right.filter(Boolean))), chips);
   fitBar();
   const open = (model.x?.alerts?.open || []).length;
@@ -383,7 +387,7 @@ let footTick = () => {};
 // What a printed page says at its top (hidden on screen): site, tab, period, filters.
 function printHead(s, name) {
   const r = rangeOf(model, s);
-  const f = S.activeFilters(s).map(([k, v]) => `${FILTER_LABEL[k]}: ${k === "country" ? withFlag(v) : v}`).join("; ");
+  const f = treeWords(fromState(s), (d, v) => (d === "country" ? withFlag(v) : v));
   return h("div", { class: "print-head", "aria-hidden": "true" }, h("b", null, `${model.site}: ${name}`),
     ` ${r.kind === "today" ? `today so far, ${model.today}` : `${r.first} to ${r.last}`}${f ? `. Filters: ${f}` : ""}. Printed ${new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}.`,
     buildLine() ? h("span", { class: "ph-build" }, ` ${buildLine()}`) : null);
@@ -391,6 +395,12 @@ function printHead(s, name) {
 // Ctrl+P on a tab prints every row of its tables, not only the first page of them.
 addEventListener("beforeprint", () => { if (current && !document.body.classList.contains("reporting")) { showAllRows(true); render(current, { keepScroll: true }); } });
 addEventListener("afterprint", () => { if (current && !document.body.classList.contains("reporting")) { showAllRows(false); render(current, { keepScroll: true }); } });
+
+/* Filters this tab cannot apply (logs keep each breakdown on its own): said in one
+   clear line at the top, with where they do apply (filterpanel.js rulesBanner). */
+function filterBanner(s) {
+  return noData(s) ? null : rulesBanner(model, s);
+}
 
 // ------------------------------------------------------------------ router
 // The data file a tab stands on, beyond the core files that are always built: its `file` (js/tabs/s-*.js).
@@ -426,7 +436,7 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
   const body = broken ? notBuilt(name, file, broken)
     : DEMO.on && S.inSettings(s.tab) ? demoState(name) : DEMO.on && opt(s.tab, "helper", s, false) ? demoState(name) : TAB_RENDER[s.tab](model, s, { first: firstPaint, changed });
   // modeBanner: while Compare is on, what A and B are, or why not (modes.js).
-  const banners = [demoBanner(), updateBanner(), planBanner(), modeBanner(model, s)].filter(Boolean);
+  const banners = [demoBanner(), updateBanner(), planBanner(), modeBanner(model, s), filterBanner(s)].filter(Boolean);
   const content = [body].flat(Infinity).filter(Boolean);
   if (sec) {
     // A section: its tabs right under the bar's title, the notices and the chosen tab's page in the strip's panel.
@@ -460,8 +470,9 @@ function fail(e) {
 }
 
 async function boot() {
+  startEdges();
   buildNav();
-  keys(actions);
+  keys(actions, finds);
   const s = S.read();
   try {
     [model] = await Promise.all([load(s), loadBuild()]);

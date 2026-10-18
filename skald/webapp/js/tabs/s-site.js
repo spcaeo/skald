@@ -11,14 +11,15 @@ import requests from "./si-requests.js";
 import notFound from "./si-notfound.js";
 import { speed, alerts } from "./si-wrap.js";
 import quality from "./quality.js";
+import { logPeriod } from "./si-requests.js";
 
 const ALL = ["country", "path", "source", "device", "browser", "campaign", "referrer"];
 
 export default [
   ["health", "Health", health, { filters: ["path"], compare: true }],
-  ["alerts", "Alerts", alerts, { file: "alerts", badge: (m) => { const n = (m.x?.alerts?.open || []).length; return n ? [n, `${n} open`] : null; } }],
+  ["alerts", "Alerts", alerts, { file: "alerts", ranged: false, period: "Now and the last 30 days", badge: (m) => { const n = (m.x?.alerts?.open || []).length; return n ? [n, `${n} open`] : null; } }],
   // The request log polls every 30 seconds on its own; a redraw would close its detail panel.
-  ["requests", "Requests", requests, { file: "requests", filters: ALL, keep: ["ip", "rq"], polls: true }],
+  ["requests", "Requests", requests, { file: "requests", filters: ALL, rules: "request", keep: ["ip", "rq"], polls: true, ranged: false, period: logPeriod }],
   ["notfound", "Not found", notFound, { file: "not_found", filters: ["path", "source"] }],
   ["speed", "Speed", speed, { file: "speed", keep: ["strat"] }],
   ["quality", "Data quality", quality],

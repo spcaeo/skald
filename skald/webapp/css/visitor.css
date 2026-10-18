@@ -1,0 +1,106 @@
+/* The visitor drawer (js/tabs/visitor.js) and its journey (js/journeymap.js), 2.13.
+   Colours are the Sankey's: where visits came from in the people blue, pages in the
+   page green, leaving in grey, a form, lead or booking in the leads colour. Light and
+   dark come from the tokens in app.css. */
+
+/* A visitor's drawer is narrow: its journey reads top to bottom. */
+dialog.dw.vz-dw { --dw-w: min(660px, 100vw); }
+.dw-head .jm-replay { flex: none; align-self: center; }
+
+/* ------------------------------------------------------------- summary */
+.vz-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 1px; margin: 0;
+  background: var(--rule); border: 1px solid var(--rule); border-radius: 10px; clip-path: inset(0 round 10px); }
+.vz-sum > div { padding: 8px 12px; min-width: 0; background: var(--surface); }
+.vz-sum dt { color: var(--ink-3); font-size: 11.5px; margin: 0 0 1px; }
+.vz-sum dd { margin: 0; font-weight: 650; overflow-wrap: anywhere; }
+.vz-sum dd small { display: block; font-size: 11.5px; font-weight: 450; color: var(--ink-3); }
+.vz-out.lead dd { color: color-mix(in srgb, var(--leads) 78%, var(--ink)); }
+.vz-touch { display: inline-flex; gap: 6px; align-items: center; }
+.vz-how { color: var(--ink-3); font-size: 12.5px; }
+.vz-first td { background: color-mix(in srgb, var(--g-people) 8%, var(--surface)); }
+.vz-first td:first-child { box-shadow: inset 3px 0 0 var(--g-people); }
+.vz-badge { display: inline-block; padding: 0 6px; border-radius: 999px; font-size: 11.5px; font-weight: 600;
+  background: color-mix(in srgb, var(--g-people) 14%, var(--surface)); color: var(--ink); margin-left: 6px; }
+.vz-badge.script { background: var(--sunk); font-weight: 500; }
+.vz-badge.lead { background: color-mix(in srgb, var(--leads) 16%, var(--surface)); }
+.v-ft { display: block; color: var(--ink-3); font-size: 12px; white-space: normal; overflow-wrap: anywhere; }
+.v-stack small.v-ft { white-space: normal; overflow: visible; text-overflow: clip; }
+.v-ft b { color: var(--ink); font-weight: 620; }
+.vz-jh { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 8px; margin: 0 0 10px; }
+.vz-jh h3 { margin: 0; font-size: 14px; font-weight: 650; }
+.vz-jh small { font-size: 12px; color: var(--ink-3); }
+.vz-more > summary { cursor: pointer; font-size: 14px; font-weight: 650; padding: 2px 0; }
+.vz-more[open] > summary { margin-bottom: 8px; }
+.vz-more > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+
+/* ------------------------------------------------------------- the journey */
+.jm { display: flex; flex-direction: column; }
+.jm-v { border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px 12px; background: var(--surface); }
+.jm-v.newest { border-color: color-mix(in srgb, var(--g-people) 45%, var(--rule)); }
+.jm-h { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; margin-bottom: 8px; }
+.jm-h b { font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.jm-h small { font-size: 12px; color: var(--ink-3); }
+.jm-tag { font-size: 11px; font-weight: 650; padding: 0 8px; border-radius: 999px; background: var(--sunk); color: var(--ink-2); }
+.jm-tag.this, .jm-tag.first { background: color-mix(in srgb, var(--g-people) 14%, var(--surface)); color: color-mix(in srgb, var(--g-people) 62%, var(--ink)); }
+.jm-tag.on { background: color-mix(in srgb, var(--good) 18%, var(--surface)); color: var(--ink); }
+
+/* Each step: a dot on the rail, its node beside it; the lines between carry the time. */
+.jm-p { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.jm-s { --k: var(--views); display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 0 10px; }
+.jm-s.from { --k: var(--g-people); }
+.jm-s.nf { --k: var(--bad); }
+.jm-s.end { --k: var(--ink-3); }
+.jm-s.end.form, .jm-s.end.lead, .jm-s.end.booked { --k: var(--leads); }
+.jm-rail { position: relative; display: flex; justify-content: center; }
+.jm-dot { display: block; width: 10px; height: 10px; margin-top: 8px; border-radius: 50%; background: var(--k); box-shadow: 0 0 0 3px var(--surface); }
+.jm-s.from .jm-dot { margin-top: 12px; }
+.jm-s.end .jm-dot { margin-top: 6px; }
+.jm-c { min-height: 26px; }
+.jm-c.bare { min-height: 12px; }
+.jm-ln { display: block; width: 2px; height: 100%; background: var(--gap); border-radius: 1px; }
+.jm-t { align-self: center; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+.jm-n { justify-self: start; max-width: 100%; min-width: 0; color: var(--ink); font: inherit; text-align: left; }
+.jm-n:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.jm-n.from { display: inline-flex; flex-direction: column; padding: 4px 10px; border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--g-people) 45%, var(--rule)); background: color-mix(in srgb, var(--g-people) 10%, var(--surface)); }
+.jm-n.from .jm-w { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 650; min-width: 0; }
+.jm-n.from small { font-size: 11.5px; color: var(--ink-2); overflow-wrap: anywhere; }
+.jm-n.pg { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 8px; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--views) 35%, var(--rule)); background: color-mix(in srgb, var(--views) 8%, var(--surface));
+  font-family: var(--mono); font-size: 12.5px; line-height: 1.4; }
+.jm-n.pg:hover { background: color-mix(in srgb, var(--views) 16%, var(--surface)); }
+.jm-n.pg .jm-w { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.jm-n.pg small { font-family: var(--sans); color: var(--ink-3); }
+.jm-n.pg.app { border-style: dashed; }
+.jm-n.pg.nf { border-color: color-mix(in srgb, var(--bad) 50%, var(--rule)); background: color-mix(in srgb, var(--bad) 8%, var(--surface)); }
+.jm-n.end { display: inline-flex; align-items: center; gap: 6px; padding: 1px 10px; border-radius: 999px; font-size: 12.5px;
+  border: 1px solid var(--gap); background: var(--sunk); color: var(--ink-2); }
+.jm-n.end.form, .jm-n.end.lead, .jm-n.end.booked { border-color: var(--leads); background: var(--leads); color: var(--sel-ink); font-weight: 650; padding: 2px 11px; }
+.jm-ok { font-size: 11px; }
+
+/* Between two visits: how long after, on a dotted line. */
+.jm-gap { display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.jm-gap::before { content: ""; width: 0; height: 22px; margin-left: 18px; border-left: 2px dotted var(--hatch); }
+
+/* Opening (and Replay): the steps rise in one by one, the lines grow down. */
+.jm-play .jm-s { animation: jm-rise .4s var(--ease) both; animation-delay: var(--d, 0ms); }
+.jm-play .jm-ln { transform-origin: top; animation: jm-grow .3s ease both; animation-delay: var(--d, 0ms); }
+.jm-play .jm-n.end.form, .jm-play .jm-n.end.lead, .jm-play .jm-n.end.booked { animation: jm-pop .5s ease both; animation-delay: var(--d, 0ms); }
+@keyframes jm-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes jm-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes jm-pop { 0% { opacity: 0; transform: scale(.6); } 70% { opacity: 1; transform: scale(1.08); } 100% { transform: scale(1); } }
+/* The visit under way: its last dot pings, like the real-time map's active countries. */
+.jm-v.on .jm-s.end { --k: var(--good); }
+.jm-v.on .jm-s.end .jm-dot { position: relative; }
+.jm-v.on .jm-s.end .jm-dot::after { content: ""; position: absolute; inset: -1px; border-radius: 50%;
+  border: 2px solid var(--good); animation: jm-ping 1.8s ease-out infinite; }
+@keyframes jm-ping { from { transform: scale(1); opacity: .8; } to { transform: scale(2.2); opacity: 0; } }
+.jm-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  .jm-play .jm-s, .jm-play .jm-ln, .jm-play .jm-n, .jm-v.on .jm-s.end .jm-dot::after { animation: none; }
+}
+
+/* Traffic > Sources, first touch: the table under the returning visits' bars, with room above it. */
+.ft-h4 { margin: 18px 0 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }

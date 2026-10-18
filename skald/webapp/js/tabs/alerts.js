@@ -1,5 +1,6 @@
 // Alerts: what is wrong now, what was wrong recently and how long it lasted,
-// and which alerts are switched on. Read-only: alerts are set in the config.
+// and which alerts are switched on. Admins switch them here (alertswitch.js);
+// thresholds stay in the config.
 
 import { time as tzTime, label as tzLabel } from "../tz.js";
 import { h, n, duration, zoned, ICON } from "../ui.js";
@@ -7,6 +8,7 @@ import { rangeOf } from "../data.js";
 import { table } from "../table.js";
 import * as S from "../state.js";
 import { head, healthTabs } from "./common.js";
+import { switchboard } from "./alertswitch.js";
 
 const SEV = { high: "Urgent", medium: "Worth a look", low: "For information" };
 export const CAUSE = { site_down: "Site down", logging_stopped: "Logging stopped", server_errors: "Server errors", not_found_surge: "Broken-link surge",
@@ -40,9 +42,9 @@ export default function alerts(m, s) {
   const out = [healthTabs(m, "health/alerts"), ...head("Alerts", rangeOf(m, { ...s, range: "today" }), "Problems the system watches for: the site down, server errors, a surge of broken links, logging stopped, a crawl burst, a new AI assistant, AI assistants starting or stopping reading a page, first AI citations, visits from AI answers far above or below the usual, and a crawler gone silent. An alert opens when its rule is met and closes on its own when the problem is gone.", { period: "Now, and the last 30 days · the date range above does not apply" })];
   const f = m.x.alerts;
   if (!f) return [...out, h("div", { class: "state", html: ICON.info }, h("div", null, "No alerts file beside this page yet. Alerts are checked by the server with every live run and written here; until the first check, nothing is shown, and nothing here means \"no alerts\" only once the file exists."))];
-  const rules = f.rules || [];
-  if (f.enabled === false) out.push(h("div", { class: "state bad", role: "note", html: ICON.info }, h("div", null, "Alerts are switched off in the server's config, so nothing is being checked. Switch on alerts.enabled to have them checked with every live run.")));
-  else if (f.mail === false) out.push(h("p", { class: "cmp-why" }, "Alerts are checked and shown here, but not mailed (alerts.mail is off)."));
+  // The master switch's banner and the switches (alertswitch.js): admins change them here.
+  const board = switchboard(f, CAUSE);
+  out.push(board.banner);
   const keep = (a) => only !== "ai" || isAI(a);
   const holder = h("div");
   const seg = h("div", { class: "seg plain", role: "group", "aria-label": "Which alerts" });
@@ -72,12 +74,9 @@ export default function alerts(m, s) {
   };
   draw();
   out.push(holder);
-  out.push(h("section", { class: "s" }, h("h2", null, "Which alerts are on"), h("p", { class: "sub" }, "Set in the server's config file; shown here so you know what is being watched."),
-    h("ul", { class: "al-types" }, rules.map((t) => h("li", null,
-      h("span", { class: `onoff${t.on && f.enabled !== false ? " on" : ""}` }, t.on && f.enabled !== false ? "On" : "Off"),
-      h("div", null, h("b", null, CAUSE[t.cause] || t.cause), h("small", null, t.threshold || "")),
-      h("span", { class: "al-ch" }, t.on && f.enabled !== false ? (f.mail === false ? "shown here only" : "mailed") : "not watched")))),
-    rules.length ? null : h("p", { class: "empty" }, "No alert types are listed.")));
+  out.push(h("section", { class: "s" }, h("h2", null, "Which alerts are on"),
+    h("p", { class: "sub" }, "Switch each one on or off for this site (admins). Thresholds are set in the server's config file; a switch locked there says so."),
+    board.list));
   return out;
 }
 
@@ -90,7 +89,7 @@ export function aiChanges(m) {
   const why = "Whole days only. From figures already checked twice: each assistant's requests by page, visits likely sent by an AI assistant (inferred), each page's first times, visits by source and each crawler's requests. Visits and requests are never mixed. A withheld or missing day makes a rule wait; it never fires on it.";
   const top = (...kids) => h("section", { class: "s" }, h("h2", null, "AI reading changes"), h("p", { class: "sub" }, why), ...kids);
   if (!f) return null;
-  if (f.enabled === false || !f.ai) return top(h("p", { class: "empty" }, f.enabled === false ? "Alerts are switched off in the server's config (alerts.enabled), so AI reading changes are not checked." : "Not checked yet: the first live run after an update checks the last whole day."));
+  if (f.enabled === false || !f.ai) return top(h("p", { class: "empty" }, f.enabled === false ? "Alerts are switched off for this site (Site > Alerts, or the server's settings), so AI reading changes are not checked." : "Not checked yet: the first live run after an update checks the last whole day."));
   const since = Date.now() - 7 * 864e5;
   const rows = [...(f.open || []), ...(f.closed || [])].filter((a) => (isAI(a) || a.cause === "crawler_silent") && Date.parse(a.opened_at) >= since)
     .map((a) => ({ ...a, __k: a.id, kind: CAUSE[a.cause] || a.cause, state: a.closed_at ? "closed" : "open" }));

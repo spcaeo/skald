@@ -1,5 +1,5 @@
 // Every tab, at every range and page group: one-line headers, none of the
-// old intro sentences, no sideways scroll, no console error - and on a short
+// old intro sentences, no sideways scroll (at 390 too), no console error - and on a short
 // window the sidebar's last section, its foot and the page footer reachable.
 // The menu (2.7.0): the five sections, Settings, Help and About in its foot;
 // a section's tab strip sits outside the page's one-line header. Every old
@@ -32,6 +32,14 @@ p.on("console", (m) => { if (m.type() === "error") fail(`${where}: console error
 p.on("pageerror", (e) => fail(`${where}: ${e.message}`));
 
 await p.goto(`${base}#overview/summary`, { waitUntil: "networkidle" });
+// A sessions install sends the browser to its sign-in page: sign in there (as switcher.mjs does).
+if (p.url().includes("/traffic-auth/login") && auth) {
+  await p.fill("#email", auth.split(":")[0]);
+  await p.fill("#password", auth.split(":").slice(1).join(":"));
+  await p.click("#submit");
+  await p.waitForURL((u) => !u.pathname.startsWith("/traffic-auth/"));
+  await p.goto(`${base}#overview/summary`, { waitUntil: "networkidle" });
+}
 const views = await p.evaluate(() => [...document.querySelectorAll(".view-sel option")].map((o) => o.value));
 const groups = views.length ? views : ["all"];
 let pages = 0;
@@ -136,6 +144,19 @@ for (const [old, name, tab] of [["visits", "Traffic", "Visitors"], ["audience", 
   await p.goto(`${base}#${old}`, { waitUntil: "networkidle" });
   const now = await p.evaluate(() => [document.querySelector(".trail .crumb.now")?.textContent, document.querySelector('.stabs [aria-selected="true"] .stab-name')?.textContent || null]);
   if (now[0] !== name || now[1] !== tab) fail(`${where}: opened "${now.join(" > ")}", not "${[name, tab].filter(Boolean).join(" > ")}"`);
+}
+
+// A phone (390 px): no tab or settings page scrolls sideways (2.13: a grid's .vh spans
+// escaped its scroller, and the doctor's fix line on Integrations did not wrap). A settings
+// page that needs a signed-in helper shows its own state on the demo; that is checked too.
+await p.setViewportSize({ width: 390, height: 800 });
+for (const tab of [...TABS, "overview/realtime", "traffic/search", "traffic/retention", "sales/people", "ai/crawl", "ai/crawlers",
+  "settings/sites", "settings/mail", "settings/reports", "settings/integrations", "settings/team", "help"]) {
+  where = `${tab} at 390`;
+  await p.goto(`${base}#${tab}?range=30d`, { waitUntil: "networkidle" });
+  await p.waitForTimeout(250);
+  const over = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  if (over > 1) fail(`${where}: sideways scroll of ${over}px`);
 }
 
 // A short window: the sidebar's last section and its foot, and the page footer, can be reached.

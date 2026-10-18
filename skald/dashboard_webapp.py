@@ -25,6 +25,7 @@ from pathlib import Path
 from . import live
 from .classify import AI_ASKED, Group
 from .files import slug, write_atomic
+from .firsttouch import for_app
 from .kpi import KPIS
 from .store import History, view_key
 from . import webapp
@@ -122,6 +123,14 @@ def from_snapshot(snap: dict) -> dict:
     formats = (snap.get("extras") or {}).get("ai_formats")
     if formats is not None:
         out["ai_formats"] = formats
+    touch = for_app((snap.get("extras") or {}).get("first_touch"))
+    if touch is not None:
+        out["first_touch"] = touch
+    # Today's returning readers (visitors.annotate), the shape a stored day has in
+    # overview.json; none when no visitor key is set (never 0).
+    ret = snap.get("returning")
+    if ret and ret.get("readers") is not None:
+        out["returning"] = {"readers": int(ret["readers"]), "returning": int(ret.get("returning") or 0)}
     return out
 
 
@@ -137,8 +146,15 @@ def journey(j: dict, day: str | None = None) -> dict:
     flags = [f for f in ("not_found", "posted", "in_app") if j.get(f)]
     # Fields added later (schema 9: utm, paid, referring page, returning; likely_ai, inferred,
     # ai_likely.py; ai_read, the pages its assistant fetched before, ai_read.py) pass through.
+    # city: only when a city file named one (logs.city_db), "Toronto, Ontario, CA".
     extra = {k: j[k] for k in ("utm", "paid", "ref_param", "ref_host", "ref_page", "search_terms",
-                               "returning", "days_seen_30d", "likely_ai", "ai_read") if k in j}
+                               "returning", "days_seen_30d", "likely_ai", "ai_read", "city",
+                               # firsttouch.py: the visitor's first known visit; seq, the
+                               # day's place of the visit (the visitor timeline asks by it)
+                               "first_touch", "seq",
+                               # visits.py: steps seen in all, and those seen only in
+                               # the browser (no page loaded); pages + in_app = seen
+                               "seen", "in_app") if k in j}
     return {**extra, "start": j.get("start", ""), "day": day or str(j.get("start", ""))[:10],
             "country": j.get("country", ""), "device": j.get("device", ""),
             "browser": j.get("browser", ""), "os": j.get("os", ""),
@@ -168,7 +184,7 @@ def build(history: History, key: str, site: str, tz, now: datetime, snap: dict |
     periods = history.periods(key, first, anchor, include_partial=True) if start else {}
     # AI fetches by what they asked for (ai_formats.py): absent on a day
     # collected before it was counted, never 0.
-    formats = history.extras(key, first, anchor, ("ai_formats",)) if start else {}
+    formats = history.extras(key, first, anchor, ("ai_formats", "first_touch")) if start else {}
     for entry in history.daily(key, first, anchor) if start else []:
         d: date = entry["day"]
         item = {"day": d.isoformat(), "state": entry["state"]}
@@ -178,6 +194,9 @@ def build(history: History, key: str, site: str, tz, now: datetime, snap: dict |
             blob = (formats.get(d.isoformat()) or {}).get("ai_formats")
             if blob is not None:
                 item["ai_formats"] = blob
+            touch = for_app((formats.get(d.isoformat()) or {}).get("first_touch"))
+            if touch is not None:
+                item["first_touch"] = touch
             if entry["state"] == "partial":
                 item["partial"] = _partial(entry)
         days.append(item)
@@ -199,6 +218,9 @@ def build(history: History, key: str, site: str, tz, now: datetime, snap: dict |
         if state == "ok":
             out["live"]["figures"] = from_snapshot(snap)
             out["live"]["events"] = snap.get("events") or []
+            # Yesterday at this hour (by_now.py): the site's page only.
+            if snap.get("by_now") is not None:
+                out["live"]["by_now"] = snap["by_now"]
             out["journeys"] = [journey(j) for j in snap.get("journeys") or []] + out["journeys"]
     return out
 
@@ -222,6 +244,10 @@ def write(out: Path, history: History, site: str, tz, now: datetime, snap: dict 
         part = live.view_snapshot(snap, view.slug) if view else snap
         data = build(history, key, site, tz, now, part, views, refresh, credit)
         data["releaseZones"] = release_zones(config, tz)
+        # A city file is set (logs.city_db): the app says "not recorded"
+        # for a visit without a city, and how to set one when it is not.
+        from .conversions.geo import city_database
+        data["cities"] = bool(city_database(config or {}))
         path = (folder / view.slug if view else folder) / DATA
         # The data layer's own files beside this one, so the app asks only for those that exist.
         data["files"] = sorted(p.stem for p in path.parent.glob("*.json") if p.name != path.name)

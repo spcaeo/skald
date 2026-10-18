@@ -22,10 +22,11 @@ country is "Unknown".
 from __future__ import annotations
 
 import gzip
+import heapq
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterator
 
@@ -571,3 +572,61 @@ def read(paths: list[str] | list[Path], fmt: str = "auto",
                 yield hit
         if stats is not None and waiting:
             stats.placed.extend([None] * waiting)
+
+
+# ------------------------------------------------------------- line order
+
+# How far back a line may be written after a later one and still be put in
+# its place without a second read: nginx writes a line when the request
+# ends, so a slow request lands after faster ones that started after it.
+HOLD = timedelta(seconds=60)
+
+
+class Lateness:
+    """What in_time_order saw: `most`, the furthest any line was behind the
+    newest line read before it; `inverted`, whether a line came after one
+    already passed on with a later timestamp (the hold was too short, so
+    that read was not in time order)."""
+
+    def __init__(self) -> None:
+        self.most = timedelta(0)
+        self.inverted = False
+
+    def hold(self) -> timedelta:
+        """A hold that puts these same lines wholly in time order."""
+        return max(HOLD, self.most)
+
+
+def in_time_order(hits, hold: timedelta = HOLD, seen: Lateness | None = None):
+    """The hits in timestamp order, ties kept in the order they were read
+    (CLASSIFICATION.md, "Line order"). A timestamp with no offset is UTC.
+
+    Streams: a hit is held until a hit at least `hold` newer has been read,
+    so memory is the lines of the last `hold`, never the day. A hit further
+    behind than that widens the hold from then on; any hit already passed on
+    with a later timestamp stays where it went, and `seen.inverted` says so.
+    A hold of at least `seen.most` from an earlier read of the same lines
+    (Lateness.hold) is exact: no hit is ever behind by more than the hold.
+    """
+    heap: list = []
+    newest = None
+    passed = None           # the timestamp of the last hit passed on
+    for n, hit in enumerate(hits):
+        when = hit.when if hit.when.tzinfo else hit.when.replace(tzinfo=timezone.utc)
+        if newest is None or when > newest:
+            newest = when
+        else:
+            late = newest - when
+            if late > hold:
+                hold = late
+            if seen is not None:
+                seen.most = max(seen.most, late)
+                if passed is not None and when < passed:
+                    seen.inverted = True
+        heapq.heappush(heap, (when, n, hit))
+        edge = newest - hold
+        while heap and heap[0][0] < edge:
+            passed, _, out = heapq.heappop(heap)
+            yield out
+    while heap:
+        yield heapq.heappop(heap)[2]

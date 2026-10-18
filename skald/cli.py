@@ -228,9 +228,12 @@ def collect_day(ctx: Context, history: History, day: date,
     from .visitors import annotate, repeat_days
     for t in [totals, *by_view.values()]:
         annotate(t, history.db, ctx.site, day, repeat_days(ctx.config))
-    history.record(ctx.site, day, totals, str(ctx.tz), found.get("site", []))
     from .people.visits import keep_day            # each visit with its address (2.4.0)
-    keep_day(ctx, day, totals)
+    keep_day(ctx, day, totals)                     # before first touch: the day's own visits
+    from .firsttouch import annotate as first_touch, day_end
+    first_touch(totals, ctx.config, Path(ctx.db_path).parent, ctx.site, day, ctx.tz,
+                day_end(day, ctx.tz), history.db)
+    history.record(ctx.site, day, totals, str(ctx.tz), found.get("site", []))
     for view in ctx.views:
         history.record(view_key(ctx.site, view.slug), day, by_view[view.slug],
                        str(ctx.tz), found.get(f"view {view.name}", []),
@@ -255,7 +258,10 @@ def collect_day(ctx: Context, history: History, day: date,
 def cmd_collect(ctx: Context) -> int:
     day = parse_day(ctx.args.day, ctx.tz, ctx.now)
     with ctx.history() as history:
-        return 0 if collect_day(ctx, history, day, ctx.args.log) == "ok" else 1
+        got = collect_day(ctx, history, day, ctx.args.log)
+    from .retention import after_collect      # the cohorts, from what is kept
+    after_collect(ctx)
+    return 0 if got == "ok" else 1
 
 
 def cmd_backfill(ctx: Context) -> int:
@@ -276,6 +282,8 @@ def cmd_backfill(ctx: Context) -> int:
             from .store_extras import rebuild_milestones
             ctx.out(f"page milestones rebuilt from the stored days: "
                     f"{rebuild_milestones(history.db, ctx.site, ctx.tz):,}")
+    from .retention import after_collect      # the cohorts, once, from what is kept
+    after_collect(ctx)
     ctx.out("backfill: " + ", ".join(f"{k} {v}" for k, v in tally.items()))
     if ctx.args.force:
         from . import markers
@@ -497,6 +505,11 @@ def _after_live(ctx: Context, snap: dict, feed) -> None:
         robots.refresh(ctx.config, ctx.live_dir)
     except Exception as why:            # noqa: BLE001
         ctx.err(f"robots: {why}")
+    try:
+        from . import sitemap           # the site's sitemaps, at most hourly
+        sitemap.refresh(ctx.config, ctx.live_dir)
+    except Exception as why:            # noqa: BLE001
+        ctx.err(f"sitemap: {why}")
     _favicons(ctx, snap, limit=10)
     from .conversions import jobs       # leads into conversions, outgoing webhooks
     jobs.live(ctx)
@@ -586,10 +599,14 @@ def audit_day(ctx: Context, day: date, logs: list[str] | None = None,
     except ValueError as why:
         ctx.err(f"audit {day}: {why}")
         return 2
+    from .settings_store import prune_plan
+    window = int(setting(ctx.config, "visitors", "repeat_days", 30))
+    keep, own = prune_plan(ctx.config, "visitors.repeat_days", window)   # as prune_kept keeps hashes
+    unchecked: list = []
     with ctx.history() as history:
         problems, compared = audit.compare(
-            figures, history, ctx.site, day,
-            int(setting(ctx.config, "visitors", "repeat_days", 30)))
+            figures, history, ctx.site, day, window,
+            ctx.now.date() - timedelta(days=own.get(ctx.site, keep)), unchecked)
         state = history.state(ctx.site, day)
         if state is not None:
             # The result, for the data-quality panel (quality.json).
@@ -608,6 +625,8 @@ def audit_day(ctx: Context, day: date, logs: list[str] | None = None,
                 f"({len(problems)} of {compared} figures)")
         for p in problems:
             ctx.err(audit.mask(f"  - {p}"))
+        if unchecked:
+            ctx.err(f"  {audit.unchecked_words(unchecked).lstrip('; ')}")
         if withhold and state is not None:
             ctx.err("  the day is now withheld; it will not be shown or mailed")
         return 1
@@ -618,7 +637,7 @@ def audit_day(ctx: Context, day: date, logs: list[str] | None = None,
         note = "; breakdowns not recorded for this day (collected before they existed)"
     ctx.out(f"audit ok: {day}: {figures['requests']:,} requests, "
             f"{figures['readers']:,} readers; {compared} figures recounted, "
-            f"all match{note}")
+            f"all match{audit.unchecked_words(unchecked)}{note}")
     return 0
 
 
@@ -667,6 +686,11 @@ def audit_live(ctx: Context) -> int:
     # Real time's 15-second request count, the helper's last one (realtime_tail.py).
     from .audit_realtime import live_tail
     got, n = live_tail(ctx.config, ctx.live_dir, ctx.site, ctx.args.log or None)
+    problems += got
+    compared += n
+    # Yesterday at this hour, and both days by hour (by_now.py).
+    from .audit_by_now import check as check_by_now
+    got, n = check_by_now(ctx.config, ctx.tz, snap, [Path(p) for p in ctx.args.log] if ctx.args.log else None)
     problems += got
     compared += n
     # The totals the last alert check read.
@@ -730,6 +754,8 @@ def daily_steps(ctx: Context) -> list[tuple[str, Callable[[], int]]]:
     def do_collect() -> int:
         with ctx.history() as history:
             got = collect_day(ctx, history, day, figures=held["figures"])
+        from .retention import after_collect  # the cohorts (audit_retention recounts)
+        after_collect(ctx)
         return 0 if got == "ok" else 1
 
     def do_verify_bots() -> int:

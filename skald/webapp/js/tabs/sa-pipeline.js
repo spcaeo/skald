@@ -22,11 +22,12 @@
 // (Bookings), the latest conversions (People), the cancelled, removed and test
 // lists (Show, above the figures).
 
-import { h } from "../ui.js";
+import { h, n } from "../ui.js";
+import { rangeOf } from "../data.js";
 import * as S from "../state.js";
 import leads from "./leads.js";
 import conversions from "./conversions.js";
-import { actionName } from "./leadfigs.js";
+import { actionName, convFile, leadsOn } from "./leadfigs.js";
 import { optionsRow, choice, select, toggles, listOf, period } from "./sa-options.js";
 import { leadList, convList, LEAD_SHOW, CONV_SHOW } from "./sa-lists.js";
 
@@ -116,7 +117,7 @@ function optionsFor(m, s, f, all) {
   const show = listOf(s.lshow, known);
   const notSplit = "The tools' file does not split its stages by source: Where the completed ones came from lists every source.";
   const controls = [
-    choice("Count from", all ? "all" : "db", [["db", "Lead database", "leads.json: forms sent on the site, as your team marks them"],
+    choice("Count from", all ? "all" : "db", [["db", "Lead database", "Forms sent on the site, as your team marks them"],
       ["all", "Tools", "conversions.json: the page's script tag, booking and payment tools, and the lead database"]],
     (k) => S.set({ lsrc: k, lact: "", lstage: "", lshow: "" })),
     select("Source", s.source, all ? [] : leadSources(m, f), (v) => S.set({ source: v }), { off: all ? notSplit : "", all: "Every source" }),
@@ -128,11 +129,23 @@ function optionsFor(m, s, f, all) {
   ];
   const from = all
     ? "Counted from the tools (conversions.json): the page's script tag, Calendly, Cal.com, Stripe and the other webhooks, and the lead database. Never added to the lead database's own counts."
-    : "Counted from the lead database (leads.json): forms sent on the site. Never added to the tools' counts; switch Count from to see those.";
+    : `Counted from the lead database: forms sent on the site. Never added to the tools' counts; switch Count from to see those.${convFile(m) ? " Overview's Leads and Demos booked count from the tools: choose Tools for the same figures." : ""}`;
   return { row: optionsRow("Pipeline options", controls, from, narrowWords(s, all)), show };
 }
 
 // ------------------------------------------------------------------- the tab
+
+/* Counting from the tools, the leads and demos booked of the period in one line: the
+   same sum (leadfigs.js leadsOn, the same days) as Overview's Leads and Demos booked
+   tiles, so the two places say the same number. */
+function overviewLine(m, s) {
+  if (s.lact) return null;
+  const r = rangeOf(m, s);
+  const got = leadsOn(m, r.kind === "today" ? [m.today] : r.days.map((d) => d.day));
+  if (!got || !got.ok) return null;
+  return h("p", { class: "note sa-total" }, h("b", null, `Leads: ${n(got.leads)}`), ", of them ", h("b", null, `demos booked: ${n(got.demos)}`),
+    ` (completed forms and demos, test rows left out; ${got.ok === got.of ? `every day of the period` : `${n(got.ok)} of its ${n(got.of)} days, the others not recorded`}). The same figures as Overview's Leads and Demos booked tiles.`);
+}
 
 // A part's heading: a section's h2, or a fold's summary (its first words).
 const titleOf = (el) => (el?.matches?.("section") ? el.querySelector(":scope > h2")?.firstChild?.textContent
@@ -154,5 +167,5 @@ export default function pipeline(m, s, o) {
     "; the latest conversions are on ", h("a", { href: S.hashFor({ ...s, tab: "sales/people" }) }, "People"), ".") : null;
   // The options under the tab's heading (its period line), the lists under the options.
   const at = body.findIndex((el) => el.classList?.contains("head")) + 1;
-  return [...body.slice(0, at), ...row, ...lists, ...body.slice(at), moved];
+  return [...body.slice(0, at), ...row, all ? overviewLine(m, s) : null, ...lists, ...body.slice(at), moved];
 }

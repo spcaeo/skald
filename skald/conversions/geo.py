@@ -152,9 +152,23 @@ def reader(path) -> Reader | None:
     with _LOCK:
         got = _CACHE.get(path)
         if got is None or got[0] != mtime:
-            got = (mtime, Reader(Path(path).read_bytes()))
+            got = (mtime, Reader(_mapped(path)))
             _CACHE[path] = got
         return got[1]
+
+
+def _mapped(path: str):
+    """The file mapped read-only, not copied into memory: a city file is
+    about 120 MB, and every Skald process reading it shares the same pages.
+    A file replaced by the monthly update gets a new inode, so a mapping of
+    the old one stays valid until the reader is rebuilt (on its new mtime).
+    Falls back to reading it whole where mmap is not available."""
+    import mmap
+    try:
+        with open(path, "rb") as handle:
+            return mmap.mmap(handle.fileno(), 0, access=mmap.ACCESS_READ)
+    except (OSError, ValueError):
+        return Path(path).read_bytes()
 
 
 def database(config: dict) -> str | None:
@@ -173,15 +187,17 @@ def database(config: dict) -> str | None:
 DBIP_CREDIT = ("IP Geolocation by DB-IP", "https://db-ip.com")
 
 
-def credit(path) -> tuple[str, str] | None:
+def credit(path, *more) -> tuple[str, str] | None:
     """The credit a GeoIP file's licence asks for, when this file is one of
-    DB-IP's (its metadata says DBIP-...); None for any other or no file."""
-    try:
-        found = reader(path) if path else None
-    except (ValueError, KeyError, IndexError, struct.error):
-        return None
-    if found is not None and found.kind.upper().startswith("DBIP"):
-        return DBIP_CREDIT
+    DB-IP's (its metadata says DBIP-...); None for any other or no file.
+    More files (the city file beside the country file): any of DB-IP's."""
+    for one in (path, *more):
+        try:
+            found = reader(one) if one else None
+        except (ValueError, KeyError, IndexError, struct.error):
+            continue
+        if found is not None and found.kind.upper().startswith("DBIP"):
+            return DBIP_CREDIT
     return None
 
 
@@ -201,3 +217,115 @@ def country(path, ip: str) -> str | None:
         record.get("country"), dict) else None
     code = str(code or "").upper()
     return code if len(code) == 2 and code.isalpha() and code not in ("XX", "ZZ") else None
+
+
+# ------------------------------------------------------------------- cities
+#
+# `logs.city_db` names a city file in the same MaxMind format: DB-IP's free
+# "IP to City Lite" (CC BY 4.0, monthly), whose record is
+#   {"city": {"names": {"en": ...}}, "subdivisions": [{"names": {"en": ...}}],
+#    "country": {"iso_code": "CA", ...}, "location": {"latitude", "longitude"}}
+# (db-ip.com/db/format/ip-to-city-lite/mmdb.html; MaxMind's GeoLite2-City has
+# the same keys). The reader is tolerant: a key missing or of another type is
+# "not recorded", never a guess. A city is coarse: the city's own point, not
+# the visitor's.
+
+def city_database(config: dict) -> str | None:
+    """The city .mmdb for this config (`logs.city_db`), or None."""
+    got = ((config or {}).get("logs") or {}).get("city_db")
+    return str(got) if got not in (None, "", []) else None
+
+
+def _english(node) -> str:
+    """A record part's name: names.en, else the first name it has."""
+    names = node.get("names") if isinstance(node, dict) else None
+    if not isinstance(names, dict):
+        return ""
+    got = names.get("en")
+    if not isinstance(got, str) or not got.strip():
+        got = next((v for v in names.values() if isinstance(v, str) and v.strip()), "")
+    return " ".join(got.split())[:80]
+
+
+def _degrees(value, limit: float) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    value = float(value)
+    return round(value, 3) if -limit <= value <= limit else None
+
+
+def city(path, ip: str) -> dict | None:
+    """{city, region, country, lat, lon} for the address, or None (no file,
+    no answer, not an address, or a record without a city name). region and
+    country are "", lat and lon None, when the record lacks them."""
+    if not path or not ip:
+        return None
+    try:
+        found = reader(path)
+        record = found.lookup(str(ip).strip()) if found else None
+    except (ValueError, KeyError, IndexError, struct.error):
+        return None
+    if not isinstance(record, dict):
+        return None
+    name = _english(record.get("city"))
+    if not name:
+        return None
+    subs = record.get("subdivisions")
+    region = _english(subs[0]) if isinstance(subs, list) and subs else ""
+    cc = record.get("country")
+    cc = str(cc.get("iso_code") or "").upper() if isinstance(cc, dict) else ""
+    if not (len(cc) == 2 and cc.isalpha() and cc not in ("XX", "ZZ")):
+        cc = ""
+    where = record.get("location") if isinstance(record.get("location"), dict) else {}
+    lat, lon = _degrees(where.get("latitude"), 90), _degrees(where.get("longitude"), 180)
+    if lat is None or lon is None:
+        lat = lon = None
+    return {"city": name, "region": region, "country": cc, "lat": lat, "lon": lon}
+
+
+def city_label(found: dict | None) -> str:
+    """"Toronto, Ontario, CA": the city, its region (left out when missing or
+    the same as the city), the country code. "" for no city. The one name a
+    city has everywhere it is counted, stored and shown."""
+    if not found or not found.get("city"):
+        return ""
+    parts = [" ".join(found["city"].replace(",", " ").split())]
+    region = " ".join((found.get("region") or "").replace(",", " ").split())
+    if region and region != parts[0]:
+        parts.append(region)
+    if found.get("country"):
+        parts.append(found["country"])
+    return ", ".join(parts)
+
+
+class Cities:
+    """address -> city label, looked up once per address per read (as the
+    country fill is), and each label's point (lat, lon) for the map.
+
+    A line whose own country (the log's cc=, or the country file's) differs
+    from the city's country gets no city: a visit is never shown in a city
+    of another country than its own."""
+
+    def __init__(self, path) -> None:
+        self.path = str(path)
+        self.seen: dict[str, tuple[str, str]] = {}
+        self.points: dict[str, tuple[float, float]] = {}
+
+    def __call__(self, address: str, country: str = "") -> str:
+        got = self.seen.get(address)
+        if got is None:
+            found = city(self.path, address)
+            label = city_label(found)
+            if label and found["lat"] is not None:
+                self.points.setdefault(label, (found["lat"], found["lon"]))
+            got = self.seen[address] = (label, found["country"] if found else "")
+        label, cc = got
+        if label and cc and country and country.upper() != cc:
+            return ""
+        return label
+
+
+def cities(config: dict) -> Cities | None:
+    """A city fill for this config, or None without `logs.city_db`."""
+    path = city_database(config)
+    return Cities(path) if path else None

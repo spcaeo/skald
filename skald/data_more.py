@@ -11,7 +11,8 @@ FILES = {"requests": "requests_feed", "alerts": "alerts", "quality": "quality",
          "speed": "pagespeed", "funnels": "funnels",
          "page_index": "lifecycle", "events": "events", "conversions": "conversions_data",
          "llms_txt": "llms_txt", "crawler_cost": "crawler_cost",
-         "realtime": "realtime"}
+         "crawl_health": "crawl_health",
+         "realtime": "realtime", "search": "search.data", "retention": "retention_page"}
 
 
 def builders() -> dict:

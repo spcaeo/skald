@@ -9,6 +9,7 @@ import auditlog from "./auditlog.js";
 import billing from "./billing.js";
 import sitesadmin from "./sitesadmin.js";
 import integrations from "./integrations.js";
+import reports from "./reports.js";
 import about from "./about.js";
 import help from "./help.js";
 import { TAB, SECTION_ICONS } from "../sections.js";
@@ -17,7 +18,7 @@ import { TAB, SECTION_ICONS } from "../sections.js";
 // pages, Help and About are here.
 export const TAB_RENDER = { ...Object.fromEntries(Object.entries(TAB).map(([k, t]) => [k, t.render])),
   "settings/internal": ours, "settings/api": api, "settings/users": users,
-  "settings/team": team, "settings/account": account, "settings/retention": retention, "settings/mail": mail,
+  "settings/team": team, "settings/account": account, "settings/retention": retention, "settings/mail": mail, "settings/reports": reports,
   "settings/sites": sites, "settings/sitesadmin": sitesadmin, "settings/integrations": integrations, "settings/security": security, "settings/audit": auditlog, "settings/billing": billing, help, about };
 
 const I = (d) => `<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
@@ -29,6 +30,7 @@ export const TAB_ICONS = {
   "settings/account": I('<circle cx="8" cy="5.5" r="2.5"/><path d="M3 13.5c.7-2.6 2.6-4 5-4s4.3 1.4 5 4"/>'),
   "settings/retention": I('<path d="M3 4.5h10M4.5 4.5v8.5a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V4.5M6.5 2.5h3"/><path d="M6.8 7v4.5M9.2 7v4.5"/>'),
   "settings/mail": I('<rect x="2" y="3.5" width="12" height="9" rx="1.5"/><path d="M2.5 4.5 8 9l5.5-4.5"/>'),
+  "settings/reports": I('<path d="M4 1.8h5.5L13 5.3v8.9H4z"/><path d="M6.5 12v-2M8.5 12V8M10.5 12V9.5"/>'),
   "settings/sites": I('<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 5.5h12M4 4h.01M5.5 4h.01"/>'),
   "settings/sitesadmin": I('<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 5.5h12M8 7.5v4M6 9.5h4"/>'),
   "settings/integrations": I('<path d="M6 2.5v3M10 2.5v3M4.5 5.5h7v2.5a3.5 3.5 0 0 1-7 0z"/><path d="M8 11.5v2"/>'),

@@ -10,6 +10,7 @@
 import { esc, h, n, short, long, tip, untip, reduced } from "./ui.js";
 import * as S from "./state.js";
 import { time as tzTime } from "./tz.js";
+import { rove } from "./place.js";
 
 let uid = 0;
 // Charts are drawn at the width they will be shown, so text stays 11px at any size.
@@ -108,6 +109,7 @@ function slots(el, items, describe) {
     hit.addEventListener("focus", () => { const r = hit.getBoundingClientRect(); show(i, r.left + r.width / 2, r.top + 20); });
     hit.addEventListener("blur", hide);
   });
+  rove(items);  // one Tab stop per chart; the arrow keys move between its slots
 }
 
 /* Columns per day, stacked by series.
@@ -287,6 +289,7 @@ export function lines(days, series, { label, H = 240, prev, marks } = {}) {
     hit.addEventListener("focus", () => { const r = hit.getBoundingClientRect(); show(r.left + r.width / 2, r.top + 30); });
     hit.addEventListener("blur", hide);
   });
+  rove(el.querySelectorAll(".hit"));
   return el;
 }
 
@@ -319,7 +322,13 @@ export function spark(values, color = "var(--ink-3)") {
 export function bars(items, { label, color = "var(--g-people)", H = 200, unit = "", every = 1, onPick } = {}) {
   fit(arguments[1]?.half, arguments[1]?.width);
   const L = 44, R = 6, T = 12, B = 28;
-  // Every `every`-th slot is labelled, counting from the first (00, 03, 06...).
+  // Every `every`-th slot is labelled, counting from the first (00, 03, 06...), and
+  // fewer where the labels would run into each other (11px text, about 6.5px a letter):
+  // the whole label of every slot is in its tooltip and aria-label.
+  const slotW = (W - L - R) / Math.max(1, items.length);
+  const longest = Math.max(1, ...items.map((it) => String(it.label ?? "").length));
+  const need = Math.ceil((longest * 6.5 + 8) / slotW);
+  every = Math.max(1, every) * Math.max(1, Math.ceil(need / Math.max(1, every)));
   const days = items.map((it, i) => ({ day: "2000-01-01", label: i % every === 0 ? it.label : "" }));
   const top = Math.max(0, ...items.map((i) => i.value || 0));
   const f = frame({ top, days, H, L, R, T, B, every: 1 });
@@ -358,6 +367,7 @@ export function band(parts, total, play = true) {
     seg.addEventListener("blur", untip);
     el.append(seg);
   });
+  rove(el.querySelectorAll(".seg-g"), { start: 0 });
   return el;
 }
 

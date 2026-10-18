@@ -21,6 +21,15 @@ is wrong, and the day is withheld until somebody finds out which.
 
 Output never carries an address: anything shaped like one is masked
 (`mask`), whatever field it came from.
+
+Some inputs are kept only for a while. The visitor hashes live
+visitors.repeat_days (30) days, so a day audited later than that has no
+hashes left to compare, and a day whose returning-visitor window reaches past
+that has lost the earlier hashes its "returning" figures were counted from.
+Those figures are not checkable, never a mismatch: `compare` leaves them out
+and names them in `unchecked` (EXPIRED; NOT_RECORDED for a day collected
+without the key), and the audit's line says so. What is still kept is
+compared as always: hashes missing inside their window are a mismatch.
 """
 from __future__ import annotations
 
@@ -37,8 +46,8 @@ from urllib.parse import urlsplit
 from .classify import (AI_ASKED, AI_REFERRER_HOSTS, AI_TRAINING, AI_UTM, OTHER_BOT,
                        OWN_AGENTS, PROBE, PROBE_QUERY, SEARCH_ENGINE)
 from .store import History, READER_KINDS
-from . import (audit_drains, audit_extras, audit_more, audit_release2, audit_rendered,
-               audit_visits)
+from . import (audit_cities, audit_drains, audit_extras, audit_more, audit_release2,
+               audit_rendered, audit_too_fast, audit_visits)
 # The audit's own labels (moved out whole; still audit.browser_of etc.).
 from .audit_labels import (_bare, _host_of, browser_of, campaign_of,  # noqa: F401
                            device_of, referrer_of, source_of, status_of, system_of)
@@ -232,6 +241,14 @@ def _read(paths, upto: dict | None = None):
             yield got
 
 
+def in_time_order(lines: list) -> list:
+    """The lines by timestamp, lines with the same timestamp in the order
+    they were read (CLASSIFICATION.md, "Line order"): a whole sort of the
+    window, where the main road streams through a hold."""
+    return [line for _, _, line in sorted(
+        (line.when, n, line) for n, line in enumerate(lines))]
+
+
 # ------------------------------------------------------------ what it is
 
 _PAYLOAD = re.compile(r"[?&](?:_rsc|__flight__|_data)=", re.I)
@@ -306,6 +323,8 @@ class Judge:
             lambda path: bool(_BEACON.search(path)),
             lambda agent: f"{browser_of(agent)}/{system_of(agent)}",
             audit_extras.keyed, audit_extras.secret(config)) if lines else {}
+        # Browser-like visits that read pages too fast for a person (audit_too_fast).
+        self.too_fast = audit_too_fast.too_fast(config, lines, gap, self.hosts, is_page)
         # What the last call found beyond the group (audit_release2.BotsRecount).
         self.info: dict = {}
 
@@ -412,6 +431,10 @@ class Judge:
             if first <= line.when <= last:
                 self.info = {"not_rendered": True}
                 return "bots", False
+        for first, last in self.too_fast.get((line.address, line.agent), ()):
+            if first <= line.when <= last:
+                self.info = {"too_fast": True}
+                return "bots", False
         flags = []
         if self.checks.on and self.checks.from_hosting(line.address):
             flags.append("hosting_network")
@@ -479,7 +502,7 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
     gap = timedelta(minutes=int((config.get("report") or {}).get(
         "session_gap_minutes") or 30))
 
-    lines = [l for l in _read(files, upto) if start <= l.when < end]
+    lines = in_time_order([l for l in _read(files, upto) if start <= l.when < end])
     _countries(config, lines)
     judge = Judge(config, lines, gap, window=(start, end), tz=tz)
     bots = audit_release2.BotsRecount(gap)
@@ -525,12 +548,15 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
 
     visits = readers = 0
     by = {name: Counter() for name in DIMS}
+    cities = audit_cities.fill(config)
+    if cities is not None:
+        by["city"] = Counter()
     journeys = audit_visits.VisitRecount(wanted)
 
     def close(visit: list) -> None:
         nonlocal visits, readers
         visits += 1
-        labels = _reader(visit, by, wanted, tz)
+        labels = _reader(visit, by, wanted, tz, cities)
         readers += labels is not None
         journeys.visit([i[0] for i in visit], is_page)
         more.visit([i[0] for i in visit], is_page, labels)
@@ -582,7 +608,7 @@ def judged(config: dict, tz, start: datetime, end: datetime, paths=None,
     wanted = {str(h).lower() for h in ((config.get("site") or {}).get("hosts") or [])}
     gap = timedelta(minutes=int((config.get("report") or {}).get(
         "session_gap_minutes") or 30))
-    lines = [l for l in _read(files, upto) if l.when < end]
+    lines = in_time_order([l for l in _read(files, upto) if l.when < end])
     day = start.astimezone(tz).date()
     while True:
         first, last = window(day, tz)
@@ -657,9 +683,10 @@ def _landing(visit: list, extras) -> None:
         extras.visit(first, f"{browser_of(first.agent)}/{system_of(first.agent)}")
 
 
-def _reader(visit: list, by: dict, wanted: set, tz) -> dict | None:
+def _reader(visit: list, by: dict, wanted: set, tz, cities=None) -> dict | None:
     """Label the visit's first page view in every dimension: its labels,
-    or None if it read no page."""
+    or None if it read no page. `cities`: the audit's own city fill
+    (audit_cities.fill), when a city file is set."""
     first = next((item for item in visit if is_page(item[0])), None)
     if first is None:
         return None
@@ -676,6 +703,8 @@ def _reader(visit: list, by: dict, wanted: set, tz) -> dict | None:
         "landing": line.path[:70],
         "hour": f"{line.when.astimezone(tz).hour:02d}",
     }
+    if cities is not None:
+        labels["city"] = cities(line.address, line.country) or audit_cities.NONE
     for name, value in labels.items():
         by[name][value] += 1
     return labels
@@ -698,10 +727,42 @@ def mask(text: str) -> str:
     return _IPV6.sub(_v6, _IPV4.sub("[address]", text))
 
 
+EXPIRED = "not checkable (inputs expired)"
+NOT_RECORDED = "not checkable (not recorded that day)"
+
+
+def unchecked_words(unchecked: list) -> str:
+    """'; not checkable (inputs expired): visitor hashes, ...', or ''."""
+    by: dict[str, list[str]] = {}
+    for why, what in unchecked:
+        by.setdefault(why, []).append(what)
+    return "".join(f"; {why}: {', '.join(names)}" for why, names in by.items())
+
+
+def _hashes_gone(db, site: str, first: date, last: date, kept_since: date | None) -> bool:
+    """True when a stored day in first..last, older than `kept_since` (the
+    oldest day whose visitor hashes are still kept), had hashes recorded (its
+    "returning" blob) and history holds none of them now: pruned."""
+    if kept_since is None:
+        return False
+    last = min(last, kept_since - timedelta(days=1))
+    if last < first:
+        return False
+    return db.execute(
+        "SELECT 1 FROM day_extras e WHERE e.site = ? AND e.kind = 'returning' AND e.day "
+        "BETWEEN ? AND ? AND NOT EXISTS (SELECT 1 FROM visitor_days v WHERE v.site = "
+        "e.site AND v.day = e.day) LIMIT 1",
+        (site, first.isoformat(), last.isoformat())).fetchone() is not None
+
+
 def compare(figures: dict, history: History, site: str, day: date,
-            window: int = 30) -> tuple[list[str], int]:
+            window: int = 30, kept_since: date | None = None,
+            unchecked: list | None = None) -> tuple[list[str], int]:
     """(mismatches, how many figures were compared) against the stored day.
-    `window`: the returning-visitor days (visitors.repeat_days, default 30)."""
+    `window`: the returning-visitor days (visitors.repeat_days, default 30).
+    `kept_since`: the oldest day whose visitor hashes are still kept (None:
+    compare them whatever their age). A figure whose inputs are gone goes
+    into `unchecked` as (why, what), not into the mismatches."""
     key = (site, day.isoformat())
     db = history.db
     row = db.execute("SELECT hits, breakdowns, journeys, extras FROM days "
@@ -754,35 +815,52 @@ def compare(figures: dict, history: History, site: str, day: date,
     for name in DIMS:
         _compare_dim(name, counts.get(READER_KINDS[name], Counter()),
                      figures["by"][name], stored_readers, same, problems)
+    audit_cities.compare(counts.get(audit_cities.KIND), figures["by"].get("city"),
+                         stored_readers, same, problems, _compare_dim)
     if row[2]:                           # visits counted (schema 8)
         audit_visits.compare(audit_visits.from_counts(counts),
                              counts.get("ours_label", Counter()), figures, same)
     if row[3]:                           # day extras counted (schema 9)
-        _compare_extras(db, key, day, figures, same, problems, window)
+        _compare_extras(db, key, day, figures, same, problems, window, kept_since,
+                        unchecked)
     return problems, compared
 
 
 def _compare_extras(db, key, day: date, figures: dict, same, problems: list,
-                    window: int = 30) -> None:
+                    window: int = 30, kept_since: date | None = None,
+                    unchecked: list | None = None) -> None:
     import json
     stored = {kind: json.loads(data) for kind, data in db.execute(
         "SELECT kind, data FROM day_extras WHERE site = ? AND day = ?", key)}
+    unchecked = unchecked if unchecked is not None else []
     visitors = None
     if figures["extras"]["visitors"] is not None and "::" not in key[0]:
-        visitors = {(v, k): n for v, k, n in db.execute(
-            "SELECT visitor, kind, n FROM visitor_days WHERE site = ? AND day = ?", key)}
-        # Returning readers: visits whose hash history holds on an earlier day
-        # within the window (30 days unless visitors.repeat_days says).
-        first = (day - timedelta(days=window - 1)).isoformat()
-        earlier = {v for (v,) in db.execute(
-            "SELECT DISTINCT visitor FROM visitor_days WHERE site = ? AND day >= ? AND "
-            "day < ?", (key[0], first, key[1]))}
-        counted = sum(n for (v, k), n in figures["extras"]["visitors"].items()
-                      if k == "reader" and v in earlier)
-        same("returning readers", int((stored.get("returning") or {}).get("returning", 0)),
-             counted)
-        for r in figures["more"].each:   # by this visit's source (audit_engagement.py)
-            getattr(r, "returning", lambda *a: None)(stored.get("returning"), earlier, same, problems)
+        if "returning" not in stored:      # no hashes were made that day (no key then)
+            unchecked += [(NOT_RECORDED, "visitor hashes"), (NOT_RECORDED, "returning readers")]
+        else:
+            if _hashes_gone(db, key[0], day, day, kept_since):
+                unchecked.append((EXPIRED, "visitor hashes"))
+            else:
+                visitors = {(v, k): n for v, k, n in db.execute(
+                    "SELECT visitor, kind, n FROM visitor_days WHERE site = ? AND day = ?",
+                    key)}
+            # Returning readers: visits whose hash history holds on an earlier day
+            # within the window (30 days unless visitors.repeat_days says).
+            first = day - timedelta(days=window - 1)
+            earlier = None
+            if _hashes_gone(db, key[0], first, day - timedelta(days=1), kept_since):
+                unchecked.append((EXPIRED, "returning readers"))
+            else:
+                earlier = {v for (v,) in db.execute(
+                    "SELECT DISTINCT visitor FROM visitor_days WHERE site = ? AND day >= ? "
+                    "AND day < ?", (key[0], first.isoformat(), key[1]))}
+                counted = sum(n for (v, k), n in figures["extras"]["visitors"].items()
+                              if k == "reader" and v in earlier)
+                same("returning readers",
+                     int((stored.get("returning") or {}).get("returning", 0)), counted)
+            for r in figures["more"].each:   # by this visit's source (audit_engagement.py)
+                getattr(r, "returning", lambda *a: None)(stored.get("returning"), earlier,
+                                                         same, problems)
     audit_extras.compare(stored, visitors, figures["extras"], same, problems)
     audit_visits.compare_pages(stored.get("pages"), figures["journeys"], same)
     if "bots" in stored or "quality" in stored:          # collected by release 2
@@ -846,6 +924,11 @@ def compare_live(figures: dict, snap: dict) -> tuple[list[str], int]:
     for name in DIMS:
         _compare_dim(name, Counter((b.get("by") or {}).get(name) or {}),
                      figures["by"][name], people.get("readers", 0), same, problems)
+    if "city" in (b.get("by") or {}) or "city" in figures["by"]:
+        # The same config on both sides: a city on one only is a mismatch.
+        _compare_dim("city", Counter((b.get("by") or {}).get("city") or {}),
+                     figures["by"].get("city") or Counter(), people.get("readers", 0),
+                     same, problems)
     if snap.get("visits") is None:
         return problems + ["the snapshot predates visits"], compared
     audit_visits.compare(snap["visits"], Counter(snap.get("ours_labels") or {}),

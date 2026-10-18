@@ -85,9 +85,9 @@ class TestJourneys(unittest.TestCase):
         self.assertEqual((chat["pages"], chat["seen"], chat["in_app"], chat["seconds"]),
                          (2, 3, 1, 100))
         self.assertEqual(sentence(chat),
-                         "15:00 · \U0001F1E8\U0001F1E6 Canada · Mobile, Safari on iOS · from "
+                         "15:00 · \U0001F1E8\U0001F1E6 CAN · Mobile, Safari on iOS · from "
                          "ChatGPT → /compare/x/ → /features/ (in-app) → /pricing/ · "
-                         "2 pages · 1m 40s")
+                         "3 pages (1 seen in the browser) · 1m 40s")
 
     def test_flags_and_lists(self):
         self.assertEqual(self.stats.flags, Counter({"not_found": 1, "in_app": 1}))

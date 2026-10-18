@@ -51,8 +51,11 @@ import importlib
 RECOUNTS = {"funnels": "audit_funnels", "engagement": "audit_engagement",
             "utm_hygiene": "audit_utm", "ai_likely": "audit_ai_likely",
             "people": "audit_people", "ai_formats": "audit_ai_formats",
-            "crawler_cost": "audit_crawler_cost", "realtime": "audit_realtime"}
-DAILY: dict[str, str] = {"conversions": "audit_conversions", "alerts": "audit_alerts"}
+            "crawler_cost": "audit_crawler_cost", "realtime": "audit_realtime",
+            "first_touch": "audit_firsttouch", "search_landing": "audit_search_landing",
+            "crawl_health": "audit_crawl_health"}
+DAILY: dict[str, str] = {"conversions": "audit_conversions", "alerts": "audit_alerts",
+                         "search": "audit_search", "retention": "audit_retention"}
 
 
 def _modules(registry: dict) -> dict:

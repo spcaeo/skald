@@ -3,11 +3,11 @@
 // zone days are cut in) or UTC. Days stay the site's days: history is stored
 // per site-time day, so ranges and totals never move; hours of the day do.
 
-let CHOICE = "local", SITE = "UTC";
+let CHOICE = "site", SITE = "UTC";
 const LOCAL = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; } })();
 
 export const CHOICES = ["local", "site", "utc"];
-export function setZone(choice, siteTz) { CHOICE = CHOICES.includes(choice) ? choice : "local"; SITE = siteTz || "UTC"; }
+export function setZone(choice, siteTz) { CHOICE = CHOICES.includes(choice) ? choice : "site"; SITE = siteTz || "UTC"; }
 export const zone = () => (CHOICE === "utc" ? "UTC" : CHOICE === "site" ? SITE : LOCAL);
 export const siteZone = () => SITE;
 export const city = (tz) => (tz === "UTC" ? "UTC" : String(tz).split("/").pop().replace(/_/g, " "));
@@ -62,6 +62,24 @@ export function time(ts, { seconds = false, date = false, label = true } = {}) {
   if (!w) return "";
   return `${date ? `${w.date} ` : ""}${w.hour}:${w.minute}${seconds ? `:${w.second}` : ""}${label ? ` ${w.label}` : ""}`;
 }
+/* The one date family. A moment is said as "7 Oct 16:05 EDT" (the year added when it is not
+   this year), and with ago() as "3 h ago (7 Oct 16:05 EDT)": relative first, the absolute
+   moment beside it, both in the chosen zone (the site's by default). */
+export function stamp(ts) {
+  const w = when(ts);
+  if (!w) return "";
+  const year = w.day.slice(0, 4), now = when(Date.now());
+  return `${w.date}${now && now.day.slice(0, 4) !== year ? ` ${year}` : ""} ${w.hour}:${w.minute} ${w.label}`;
+}
+export function ago(ts, { now = Date.now() } = {}) {
+  const w = when(ts);
+  if (!w) return "";
+  const sec = Math.round((now - w.t) / 1000);
+  const rel = sec < 0 ? "" : sec < 60 ? "just now" : sec < 3600 ? `${Math.floor(sec / 60)} min ago`
+    : sec < 86400 ? `${Math.floor(sec / 3600)} h ago` : `${Math.floor(sec / 86400)} day${sec < 172800 ? "" : "s"} ago`;
+  return rel ? `${rel} (${stamp(ts)})` : stamp(ts);
+}
+
 // The chosen zone's short name now ("EDT", "GMT+5:30", "UTC").
 export const label = () => parts(Date.now(), zone()).timeZoneName;
 

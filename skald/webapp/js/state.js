@@ -7,22 +7,22 @@
 // pages, Help and About are listed here. Older addresses redirect (routes.js).
 
 import { resolve, cmpOf, spanOf } from "./routes.js";
-import { URL_SUFFIX } from "../vendor/spcaeo-ui/data-grid/core/url-state.js";
+import { TABLE_KEY as GRID_KEY } from "./tablestate.js";
 
-// A data grid's own keys in the hash (search, sort, filters, page: js/grid.js), e.g. pg_q.
-const GRID_KEY = new RegExp(`^[a-z][a-z0-9]*_(?:${Object.values(URL_SUFFIX).join("|")})$`);
+// A table's or a data grid's own keys in the hash (search, sort, column filters, hidden
+// columns, page: js/tablestate.js, js/grid.js), e.g. pg_q, eachvisit_cf.
 
 // Every page outside the sections, in the menu's order. The sections' tabs are put in
 // front of these by addSections, so TABS is every route, in the menu's order.
 export const TABS = [
   ["settings/account", "Your account"], ["settings/team", "Team"], ["settings/users", "Users"], ["settings/api", "API & tokens"],
-  ["settings/sites", "Sites"], ["settings/internal", "Internal traffic"], ["settings/retention", "Data retention"], ["settings/mail", "Mail"], ["settings/integrations", "Integrations"],
+  ["settings/sites", "Sites"], ["settings/internal", "Internal traffic"], ["settings/retention", "Data retention"], ["settings/mail", "Mail"], ["settings/reports", "Reports"], ["settings/integrations", "Integrations"],
   ["settings/sitesadmin", "Add or remove sites"], ["settings/security", "Security"], ["settings/audit", "Audit log"], ["settings/billing", "Billing"], ["help", "Help"], ["about", "About Skald"],
 ];
 // Sections this server does not offer: Team, Your account and the settings pages come with
 // accounts (access.mode: sessions), which replace Users; Billing also needs saas (docs/SAAS.md).
 // access.js changes the set once /me has answered (and hides what the reader's role may not open).
-export const ACCOUNT_TABS = ["settings/team", "settings/account", "settings/retention", "settings/mail", "settings/sites", "settings/sitesadmin", "settings/integrations", "settings/security", "settings/audit", "settings/billing"];
+export const ACCOUNT_TABS = ["settings/team", "settings/account", "settings/retention", "settings/mail", "settings/reports", "settings/sites", "settings/sitesadmin", "settings/integrations", "settings/security", "settings/audit", "settings/billing"];
 export const HIDDEN = new Set(ACCOUNT_TABS);
 export const shown = (key) => !HIDDEN.has(key);
 
@@ -54,7 +54,7 @@ export const sectionOf = (key) => SECTIONS.find((x) => String(key).split("/")[0]
 export const SETTINGS_MENU = [
   ["You", ["settings/account"]],
   ["Team & access", ["settings/team", "settings/users", "settings/api"]],
-  ["This site", ["settings/sites", "settings/internal", "settings/retention", "settings/mail", "settings/integrations"]],
+  ["This site", ["settings/sites", "settings/internal", "settings/retention", "settings/mail", "settings/reports", "settings/integrations"]],
   ["Organisation", ["settings/sitesadmin", "settings/security", "settings/audit", "settings/billing"]],
 ];
 export const inSettings = (key) => key.startsWith("settings/");
@@ -85,10 +85,10 @@ export function nameOf(key) {
 
 export const RANGES = [["today", "Today"], ["yesterday", "Yesterday"], ["7d", "7 days"], ["30d", "30 days"], ["90d", "90 days"], ["custom", "Custom"]];
 export const FILTERS = ["country", "path", "source", "device", "browser", "campaign", "referrer"];
-const GLOBAL = ["range", "view", "from", "to", "pathmode", "cmp", "dd", "tz"];
+const GLOBAL = ["range", "view", "from", "to", "pathmode", "rules", "cmp", "dd", "tz"];
 // Kept while Compare is on (2.7.0): the custom B, "Per day", the old Compare page's chart keys.
 const CMP_KEYS = ["cb", "cnorm", "cgran", "cm"];
-const DEFAULT = { tab: "overview/summary", range: "today", view: "all", from: "", to: "", pathmode: "contains", page: "", since: "", cmp: "", ip: "", rq: "", dd: "", tz: "", part: "", note: "", fn: "", fsrc: "", fstep: "", fmode: "", strat: "", ca: "", cb: "", cnorm: "", cgran: "", cm: "", cdim: "", pubfrom: "", pubto: "" };
+const DEFAULT = { tab: "overview/summary", range: "today", view: "all", from: "", to: "", pathmode: "contains", rules: "", page: "", since: "", cmp: "", ip: "", rq: "", dd: "", tz: "", part: "", note: "", fn: "", fsrc: "", fstep: "", fmode: "", strat: "", ca: "", cb: "", cnorm: "", cgran: "", cm: "", cdim: "", pubfrom: "", pubto: "", rg: "", rm: "", rs: "", rv: "" };
 
 // The state in the address. `moved`: the address was an older one (or the old compare
 // switch), and emit() writes the new one in its place.
@@ -112,7 +112,7 @@ export function read() {
   if (!["local", "site", "utc"].includes(s.tz)) {
     let kept = "";
     try { kept = JSON.parse(localStorage.getItem("ti-tz") || '""'); } catch { /* storage blocked */ }
-    s.tz = ["local", "site", "utc"].includes(kept) ? kept : "local";
+    s.tz = ["local", "site", "utc"].includes(kept) ? kept : "site";
   }
   return s;
 }
@@ -124,10 +124,12 @@ export function hashFor(s) {
   if (s.view && s.view !== "all") p.set("view", s.view);
   for (const k of FILTERS) if (s[k]) p.set(k, s[k]);
   if (s.path && s.pathmode === "starts") p.set("pathmode", "starts");
+  // The advanced filters' rules beyond the single filters above (js/rules.js), on every tab.
+  if (s.rules) p.set("rules", s.rules);
   if (cmpOf(s.cmp)) p.set("cmp", cmpOf(s.cmp));
   // Compare mode's own keys, on every tab while it is on: the custom B, "Per day".
   if (cmpOf(s.cmp)) for (const k of CMP_KEYS) if (s[k] && (k !== "cb" || s.cmp === "custom")) p.set(k, s[k]);
-  if (s.tz && s.tz !== "local") p.set("tz", s.tz);
+  if (s.tz && s.tz !== "site") p.set("tz", s.tz);
   // What belongs to one tab only (a page's story, the insights' "since", a funnel's
   // steps, the request log's toggles...): the tab's `keep` list, js/tabs/s-*.js.
   for (const k of KEEP[s.tab] || []) if (s[k] && !GLOBAL.includes(k)) p.set(k, s[k]);
@@ -146,7 +148,9 @@ const listeners = new Set();
 export function on(fn) { listeners.add(fn); }
 
 // Move to another state. A tab may be named by any route: an old one, a bare section.
-export function set(patch, { replace = false } = {}) {
+// mark: kept with the history entry (history.state), e.g. how many drill-down steps
+// deep it is, so closing the drawer can step Back out of them (drill.js).
+export function set(patch, { replace = false, mark = null } = {}) {
   const cur = read();
   const next = { ...cur, ...patch };
   if (patch.tab) { const r = route(patch.tab); Object.assign(next, r.patch, { tab: r.tab }); }
@@ -154,8 +158,8 @@ export function set(patch, { replace = false } = {}) {
   if (next.tab !== cur.tab && !("dd" in patch)) next.dd = "";
   const hash = hashFor(next);
   if (hash === location.hash) return;
-  if (replace) history.replaceState(null, "", hash);
-  else history.pushState(null, "", hash);
+  if (replace) history.replaceState(mark, "", hash);
+  else history.pushState(mark, "", hash);
   emit();
 }
 

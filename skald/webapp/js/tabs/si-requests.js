@@ -14,7 +14,8 @@
 
 import { time as tzTime, label as tzLabel } from "../tz.js";
 import { h, n, ICON, reduced } from "../ui.js";
-import { base, getJSON, pathMatch, color, GROUPS } from "../data.js";
+import { base, getJSON, color, GROUPS } from "../data.js";
+import { fromState, matcher, without, treeWords } from "../rules.js";
 import { band } from "../charts.js";
 import { csv, download, REGISTRY } from "../table.js";
 import * as S from "../state.js";
@@ -41,6 +42,8 @@ const classOf = (st) => ({ s2: "2xx", s3: "3xx", s404: "404", s4: "4xx", s5: "5x
 
 // Kept between draws: the file, the clock, what is new since the last check.
 const st = { file: null, view: null, state: "idle", error: "", fetchedAt: 0, paused: false, fresh: new Set(), ours: null, timer: 0 };
+// The log's own period, for the top bar's period chip (s-site.js): the date range does not apply here.
+export const logPeriod = () => (st.file?.window_hours ? `Last ${st.file.window_hours} hours` : "The last few hours");
 const key = (r) => `${r.at}|${r.ip}|${r.method}|${r.path}|${r.status}`;
 
 async function fetchLog(view, listed = true) {
@@ -82,17 +85,11 @@ async function loadOurs(m) {
 function matches(s) {
   const on = (s.rq || "").split(",").filter(Boolean);
   const tests = TOGGLES.filter(([k]) => on.includes(k)).map(([, , t]) => t);
-  const keep = pathMatch(s);
-  const campaign = (r) => [r.utm?.source, r.utm?.medium, r.utm?.campaign].filter(Boolean).join(" / ");
+  // The single filters and the advanced rules a request carries (js/rules.js); the rest the banner names.
+  const rule = matcher(without(fromState(s), "request"), "request");
   return (r) => tests.every((t) => t(r))
     && (!s.ip || r.ip === s.ip)
-    && keep(r.path)
-    && (!s.country || r.country === s.country)
-    && (!s.device || r.device === s.device)
-    && (!s.browser || r.agent === s.browser)
-    && (!s.source || r.source === s.source)
-    && (!s.campaign || campaign(r) === s.campaign || r.utm?.campaign === s.campaign)
-    && (!s.referrer || r.ref_host === s.referrer || r.referrer.startsWith(s.referrer));
+    && rule(r);
 }
 
 // ---- the grid's columns: the old table's cells, each with the value it sorts by ----
@@ -170,7 +167,7 @@ export default function requests(m, s, { changed } = {}) {
   let given = [];
   const open = (row) => detail(m, row, st.ours || new Map());
   const why = () => [...TOGGLES.filter(([k]) => on.includes(k)).map(([, l]) => l.toLowerCase()), ...(s.ip ? [`address ${s.ip}`] : []),
-    ...S.activeFilters(s).map(([k, v]) => `${k} ${k === "country" ? withFlag(v) : v}`)];
+    ...(() => { const t = without(fromState(s), "request"); return t.items.length ? [treeWords(t, (d, v) => (d === "country" ? withFlag(v) : v))] : []; })()];
 
   function fill() {
     if (st.state === "loading" || st.state === "idle") {
@@ -188,6 +185,9 @@ export default function requests(m, s, { changed } = {}) {
     }
     const all = st.file.rows;
     badgeWords.textContent = st.file.window_hours ? `Last ${st.file.window_hours} hours` : "Recent";
+    // The top bar's period chip was drawn before the log arrived: it says the log's own hours now.
+    const chip = document.querySelector("#bar .period-chip b");
+    if (chip) chip.textContent = logPeriod();
     drawMix(st.file);
     given = all.filter(matches(s));
     // Nothing left before the grid's own search: say which quick filter did it.

@@ -25,7 +25,7 @@ from html import escape as esc
 from .dashboard_breakdowns import _table
 from .dimensions import OTHER
 from .visits import (ARROW, FLAG_WORDS, VisitStats, came_from, duration_words,
-                     visitor)
+                     pages_words, visitor)
 
 EXPORT_DIR = "exports/"
 SHOWN = 50          # journeys in the "Visits today" table
@@ -74,20 +74,20 @@ def journeys_table(journeys: list[dict], total: int, download: str) -> str:
                 'that read a page yet today.</p></div>')
     rows = []
     for j in journeys[:SHOWN]:
-        pages = int(j.get("pages", 0))
         rows.append(
             f'<tr><td>{esc(str(j.get("start", ""))[11:16])}</td>'
             f'<td>{esc(visitor(j))}<br><small>{esc(came_from(j))}</small></td>'
             f'<td class="path">{_trail_html(j)}</td>'
-            f'<td class="n">{pages:,}</td>'
+            f'<td class="n">{esc(pages_words(j))}</td>'
             f'<td class="n">{esc(duration_words(j.get("seconds")))}</td></tr>')
     shown = min(len(journeys), SHOWN)
     note = (f"Newest first; {shown:,} of {total:,} visits today shown. "
             if total > shown else "Newest first. ")
     note += ("One row per visit, anonymous: no address or browser string is kept. "
              "Pages in italics were shown by the site's app without loading a page, "
-             "seen from the referrer of the visitor's next request; they are not "
-             "counted as pages. Length is first request to last.")
+             "seen from the referrer of the visitor's next request: the Pages column "
+             "states them as seen in the browser, apart from the pages loaded. "
+             "Length is first request to last.")
     return ('<div class="panel scroll"><table><caption><h3>Visits today</h3></caption>'
             '<thead><tr><th scope="col">Time</th><th scope="col">Visitor and source</th>'
             '<th scope="col">Pages, in order</th><th scope="col" class="n">Pages</th>'

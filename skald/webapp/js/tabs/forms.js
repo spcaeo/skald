@@ -3,6 +3,7 @@
 // Every value from the server goes in as text, never as markup.
 
 import { h } from "../ui.js";
+import { ago as tzAgo } from "../tz.js";
 
 export const POLICY = "At least 12 characters. Not your email address, and not a common password.";
 export const MIN_PASSWORD = 12;
@@ -69,11 +70,9 @@ export function confirmIn(cell, question, yesText, onYes, redraw) {
   yes.addEventListener("click", async () => { yes.disabled = true; no.disabled = true; await onYes(); });
 }
 
-// "11 Oct 2026, 14:05" in the reader's own clock; an empty value is "never".
+// "3 h ago (11 Oct 14:05 EDT)" in the chosen zone (tz.js, the one date family); an empty value is "never".
 export function when(ts, never = "never") {
-  const t = Date.parse(ts || "");
-  if (!t) return never;
-  return new Date(t).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return Date.parse(ts || "") ? tzAgo(ts) : never;
 }
 
 // The words a refused change shows: the server's own, else a plain fallback.

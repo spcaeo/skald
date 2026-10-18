@@ -27,7 +27,8 @@ from zoneinfo import ZoneInfo
 from .aggregate import Totals, summarise_views
 from .classify import Classifier, crawler_visits
 from .config import setting
-from .parse import Hit, ReadStats, geo_database, log_files, oldest_first, read, sizes
+from .parse import (HOLD, Hit, Lateness, ReadStats, geo_database, in_time_order, log_files,
+                    oldest_first, read, sizes)
 
 # A line can land in the file after the one its timestamp belongs to: the
 # server buffers writes, and reopens its log some time after the rename. Six
@@ -162,12 +163,13 @@ def analyse_window_views(config: dict, start: datetime, end: datetime,
     paths = oldest_first(paths)
     tests = {v.slug: (lambda hit, v=v: v.matches(hit.path)) for v in (views or [])}
     fmt = logs.get("format") or "auto"
-    classifier = _classifier(config, within(read(paths, fmt, upto=upto), start, end),
-                             start, end)
+    classifier, hold = ordered_classifier(
+        config, lambda: within(read(paths, fmt, upto=upto), start, end), start, end)
     stats = ReadStats()
     edges = _Edges()
     whole, by_view = summarise_views(
-        edges.watch(within(read(paths, fmt, stats, geo_database(config), upto), start, end)),
+        edges.watch(in_time_order(
+            within(read(paths, fmt, stats, geo_database(config), upto), start, end), hold)),
         classifier,
         int(setting(config, "report", "session_gap_minutes", 30)),
         top=top,
@@ -245,10 +247,10 @@ def analyse_paths(config: dict, paths: list[Path], top: int = 8,
     logs = config.get("logs") or {}
     paths = oldest_first(paths)
     fmt = fmt or logs.get("format") or "auto"
-    classifier = _classifier(config, read(paths, fmt))
+    classifier, hold = ordered_classifier(config, lambda: read(paths, fmt))
     stats = ReadStats()
     totals = summarise_views(
-        read(paths, fmt, stats, geo_database(config)),
+        in_time_order(read(paths, fmt, stats, geo_database(config)), hold),
         classifier,
         int(setting(config, "report", "session_gap_minutes", 30)),
         top=top,
@@ -263,11 +265,35 @@ def options(config: dict, day: date | None = None) -> dict:
     returning visitors), the label of our own heartbeat, and the saved
     funnels to count on `day` (funnel_days.wanted)."""
     from .ai_likely import settings as attribution
+    from .conversions.geo import cities
     from .funnel_days import wanted
+    from .sitemap import for_day
     from .visitors import load_key
     return {"visitor_key": load_key(config), "attribution": attribution(config),
             "heartbeat": str(setting(config, "report", "heartbeat_label", "heartbeat")),
-            "funnels": wanted(config, day, zone(config))}
+            "funnels": wanted(config, day, zone(config)),
+            # the site's sitemap paths kept for `day` (crawl_health.py)
+            "sitemap": for_day(config, day),
+            # logs.city_db: one fill (one lookup per address) for every tally.
+            "cities": cities(config)}
+
+
+def ordered_classifier(config: dict, lines, start: datetime | None = None,
+                       end: datetime | None = None) -> tuple[Classifier, object]:
+    """(the classifier, the hold that reads these lines in time order).
+
+    Both passes read the lines in timestamp order, ties in file order
+    (parse.in_time_order; CLASSIFICATION.md, "Line order"). `lines()` is a
+    fresh read of them. The first pass learns how far out of order they
+    are; only when a line was further behind than parse.HOLD, so that pass
+    was not wholly in order, is it read again holding back that far. The
+    count's own pass is then given that hold, and is exact.
+    """
+    seen = Lateness()
+    classifier = _classifier(config, in_time_order(lines(), HOLD, seen), start, end)
+    if seen.inverted:
+        classifier = _classifier(config, in_time_order(lines(), seen.hold()), start, end)
+    return classifier, seen.hold()
 
 
 def _classifier(config: dict, first_pass, start: datetime | None = None,
@@ -281,7 +307,7 @@ def _classifier(config: dict, first_pass, start: datetime | None = None,
     the window is simply read twice. `start` and `end` name the window, for
     the beacon's page openings and the readers of the days before it.
     """
-    from . import rendering
+    from . import rendering, too_fast
     from .classify import FanOut
     classifier = Classifier.from_config(config)
     gap = int(setting(config, "report", "session_gap_minutes", 30))
@@ -298,16 +324,23 @@ def _classifier(config: dict, first_pass, start: datetime | None = None,
         drawn = rendering.Rendering(hosts, gap, rendering.asset_prefixes(config),
                                     rendering.render_seconds(config), opens, returning)
 
+    pages, seconds = too_fast.limits(config)
+    fast = too_fast.TooFast(hosts, gap, pages, seconds) if pages else None
+
     def also(hit) -> None:
         fan(hit)
         if drawn is not None:
             drawn(hit)
+        if fast is not None:
+            fast(hit)
 
     classifier.crawler_visits = crawler_visits(first_pass, gap, hosts, also=also)
     classifier.fan_out = fan.pairs()
     if drawn is not None:
         classifier.unrendered = drawn.unrendered()
         classifier.rendering = drawn.counts
+    if fast is not None:
+        classifier.too_fast = fast.spans()
     return classifier
 
 

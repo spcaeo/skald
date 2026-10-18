@@ -14,15 +14,15 @@ import { h, n, short } from "../ui.js";
 import { shown } from "../labels.js";
 import * as S from "../state.js";
 import { time as tzTime } from "../tz.js";
-import { openDrawer } from "../drawer.js";
 import { DEMO, DEMO_SAYS } from "../demo.js";
 import { grid } from "../grid.js";
 import { mayFind, openPerson, SEARCH_HINT } from "./person.js";
-import { withFlag } from "./readers.js";
+import { openVisitor } from "./visitor.js";
+import { countryWords } from "./readers.js";
 import { actionName, toolName, STAGE } from "./leadfigs.js";
 
 const at = (ts) => (ts ? tzTime(ts, { date: true, label: false }) : "-");
-const dash = (v) => (v == null || v === "" ? "-" : String(v));
+const dash = (v) => (v == null || v === "" ? "-" : shown(String(v)));
 
 function search() {
   // The demo has no helper to ask: the search needs a running install.
@@ -48,15 +48,13 @@ function story(x) {
   const first = x.visits?.[0]?.day;
   const dayN = (d) => (first ? Math.round((Date.parse(`${d}T00:00:00Z`) - Date.parse(`${first}T00:00:00Z`)) / 864e5) + 1 : 1);
   const facts = [["Converted", `${actionName(x.action)}, ${at(x.at)}`], ["Reported by", toolName(x.tool)], ["Converted from", dash(x.source)], ["First came from", dash(x.first_source)],
-    ["Campaign", dash(x.campaign)], ["Landed on", dash(x.landing)], ["Country", x.country ? withFlag(x.country) : "-"], ["Device", dash(x.device)],
+    ["Campaign", dash(x.campaign)], ["Landed on", dash(x.landing)], ["Country", x.country ? countryWords(x.country) : "-"], ["Device", dash(x.device)],
     ["Visits before", x.visits_before == null ? "-" : n(x.visits_before)]];
-  openDrawer({ title: `${actionName(x.action)}, ${at(x.at)}`, subtitle: x.browser ? "One browser (not a person: one person on two devices is two browsers)" : "One lead without a browser", key: "sa-story", scope: "page", size: "md",
-    body: [h("dl", { class: "dw-dl" }, facts.flatMap(([t, v]) => [h("dt", null, t), h("dd", null, v)])),
-      h("section", { class: "dw-sec" }, h("h3", null, "Visits"), (x.visits || []).length
-        ? h("ul", { class: "conv-tl-visits" }, x.visits.map((v) => h("li", null, h("strong", null, `Day ${dayN(v.day)} (${short(v.day)}), ${shown(v.source) || "source not recorded"}: `), (v.paths || []).join(", "))))
-        : h("p", { class: "note" }, "No journey: this conversion carries no visitor ID.")),
-      h("section", { class: "dw-sec" }, h("h3", null, "Steps"), h("ol", { class: "pp-trail" }, (x.steps || []).map((st) =>
-        h("li", null, `${at(st.at)} `, h("b", null, `${actionName(st.action)} ${STAGE[st.stage] || st.stage}`), ` (${toolName(st.tool)})`))))] });
+  // The visitor drawer (visitor.js), the same as every visit's: its visits by day, its steps, and these facts.
+  openVisitor({ conversion: x, facts: [h("dl", { class: "dw-dl" }, facts.flatMap(([t, v]) => [h("dt", null, t), h("dd", null, v)])),
+    (x.visits || []).length ? h("p", { class: "note" }, `Days with visits: ${x.visits.map((v) => `day ${dayN(v.day)} (${short(v.day)})`).join(", ")}.`) : null,
+    h("ol", { class: "pp-trail" }, (x.steps || []).map((st) =>
+      h("li", null, `${at(st.at)} `, h("b", null, `${actionName(st.action)} ${STAGE[st.stage] || st.stage}`), ` (${toolName(st.tool)})`)))].filter(Boolean) });
 }
 
 function recent(m) {
@@ -70,7 +68,7 @@ function recent(m) {
     grid({ ns: "pp", caption: "Recent people", file: "recent-conversions.csv", rows, sortKey: "at", dir: "desc", onRow: story,
       columns: [{ key: "at", label: "When", type: "date", fmt: (v) => at(v) }, { key: "action", label: "Action", fmt: (v) => actionName(v || ""), csv: (r) => r.action },
         { key: "tool", label: "Reported by", fmt: (v) => toolName(v), csv: (r) => r.tool }, { key: "source", label: "Converted from", fmt: dash }, { key: "first_source", label: "First came from", fmt: dash },
-        { key: "landing", label: "Landed on", fmt: dash }, { key: "country", label: "Country", fmt: (v) => (v ? withFlag(v) : "-"), csv: (r) => r.country || "" },
+        { key: "landing", label: "Landed on", fmt: dash }, { key: "country", label: "Country", fmt: (v) => (v ? countryWords(v) : "-"), country: (r) => r.country || "" },
         { key: "visits_n", label: "Days with visits", num: true }],
       filters: [{ key: "action", label: "Action", options: [...new Set(rows.map((r) => r.action))].map((k) => [k, actionName(k)]) },
         { key: "tool", label: "Reported by", options: [...new Set(rows.map((r) => r.tool))].map((k) => [k, toolName(k)]) }],

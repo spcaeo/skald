@@ -52,7 +52,7 @@ const FEATURES = [
     ["leads", "Sign-ups and demo bookings by source, first and last touch, and the funnel to them."],
     ["conversions", "Every action that counts - a demo booked, a form sent, a sign-up, a payment - from the script tag, the tools' webhooks and the lead database: started, completed, abandoned, and where they came from."],
     ["funnels", "Any series of pages, in order: how many visits went through, and where the rest left."],
-    ["events", "What readers did inside the pages: buttons, forms, demo bookings, reading and copying, by page and source."],
+    ["events", "What visitors did inside the pages: buttons, forms, demo bookings, reading and copying, by page and source."],
   ]],
   ["AI & bots", [
     ["bots", "AI assistants by why they came, search engines, bots and scanners, each crawler checked against its owner's addresses."],
@@ -74,6 +74,7 @@ const FEATURES = [
     ["settings/integrations", "Webhooks from booking, form and payment tools, and the skald.js tag, for Conversions."],
     ["settings/retention", "How long each kind of record is kept."],
     ["settings/mail", "Reports, alerts and failure mail: who gets what."],
+    ["settings/reports", "Branded client reports: a mail with a PDF, on your schedule, from verified days only."],
     ["settings/security", "Sign-in rules for everyone in the organisation."],
     ["settings/audit", "Who changed what, and when."],
   ]],

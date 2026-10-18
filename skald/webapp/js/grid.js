@@ -28,38 +28,24 @@
 // type lines a column up as in table.js (alignOf): numbers right, tags and yes/no centred.
 
 import { createDataGrid } from "../vendor/spcaeo-ui/data-grid/vanilla/data-grid.js";
-import { URL_SUFFIX, readGridParams, writeGridParams } from "../vendor/spcaeo-ui/data-grid/core/url-state.js";
-import { h, n, ICON } from "./ui.js";
-import { link } from "./drill.js";
+import { readGridParams, writeGridParams } from "../vendor/spcaeo-ui/data-grid/core/url-state.js";
+import { h, n } from "./ui.js";
+import { link, drillRow } from "./drill.js";
 import { shown, shownText } from "./labels.js";
-import { REGISTRY, csv, download, alignOf } from "./table.js";
+import { REGISTRY, csv, csvWidth, download, alignOf } from "./table.js";
 import { track } from "./mounts.js";
+import { HASH, TABLE_KEY, writeKeys, sortRows, nextSort, readFilters, writeFilters, readHidden, testFilter, filterKind, parseAmount, visibleColumns } from "./tablestate.js";
+import { chooser, exportButton, filterToggle, filterCell } from "./tabletools.js";
 
 // ---- the hash's query, where every Skald key lives -----------------------------
-
-function split() {
-  const raw = location.hash.replace(/^#/, "");
-  const at = raw.indexOf("?");
-  return at < 0 ? [raw, ""] : [raw.slice(0, at), raw.slice(at + 1)];
-}
-
-// What upstream's `params` option asks for: read and write a URLSearchParams.
-// Writing keeps the route and every other key; it never fires hashchange, so a grid
-// change does not redraw the page (upstream's own rule: refine without re-rendering).
-export const HASH = {
-  read: () => new URLSearchParams(split()[1]),
-  write(params, { push = false } = {}) {
-    const qs = params.toString();
-    const hash = `#${split()[0]}${qs ? `?${qs}` : ""}`;
-    if (hash === location.hash) return;
-    const url = `${location.pathname}${location.search}${hash}`;
-    if (push) history.pushState(history.state, "", url);
-    else history.replaceState(history.state, "", url);
-  },
-};
+// What upstream's `params` option asks for (tablestate.js HASH): read and write a
+// URLSearchParams. Writing keeps the route and every other key; it never fires
+// hashchange, so a grid change does not redraw the page (upstream's own rule).
+export { HASH };
 
 // A grid's key, for state.js hashFor to carry: S.set() rebuilds the hash from known keys.
-export const GRID_KEY = new RegExp(`^[a-z][a-z0-9]*_(?:${Object.values(URL_SUFFIX).join("|")})$`);
+// Its own suffixes plus the column filters and the column chooser's (tablestate.js).
+export const GRID_KEY = TABLE_KEY;
 export function carryGridKeys(into, from = HASH.read()) {
   for (const [k, v] of from) if (GRID_KEY.test(k)) into.set(k, v);
   return into;
@@ -81,17 +67,32 @@ export function grid(opts) {
   const { ns, caption, file, filters = [], segments = [], rowId, sortKey, onFiltered, onRow } = opts;
   if (!/^[a-z][a-z0-9]*$/.test(ns || "")) throw new Error(`grid: namespace "${ns}" must be lower-case letters and digits`);
   // A drillable column draws its value as a link to the value's detail, as in table.js.
-  const cols = opts.columns.map((c) => (c.drill && !c.fmt ? { ...c, fmt: (v) => (v == null || v === "" ? "" : link(c.drill, v)), csv: c.csv || ((r) => r[c.key]) } : c));
+  const cols = opts.columns.map((c) => (c.drill && !c.fmt ? { ...c, fmt: (v) => (v == null || v === "" ? "" : link(c.drill, v)), csv: c.csv || ((r) => r[c.key]) } : c))
+    .map((c) => (c.drill === "country" && !c.country ? { ...c, country: (r) => (c.key === "label" ? r.k : r[c.key]) } : c));  // CSV: name and code (table.js)
   let rows = opts.rows || [];
   let texts = new WeakMap();  // each row's searchable text, built once per update()
+  // The column filters and the hidden columns, from the address (tablestate.js).
+  const kept = HASH.read();
+  let cfs = readFilters(kept.get(`${ns}_cf`), cols.map((c) => c.key));
+  let hidden = readHidden(kept.get(`${ns}_hide`), cols.slice(1).map((c) => c.key));
+  let frowOpen = cfs.length > 0;
 
   // A stored label the grid draws as plain text is said as shown ("Direct", not "Direct or unknown").
-  const cell = (c, r) => { const v = r[c.key]; return c.fmt ? c.fmt(v, r) : c.num ? n(v) : typeof v === "string" ? shownText(v) : v; };
+  // The vendor grid draws a string as text (not through h()), so a formatted string is mapped here too.
+  const cell = (c, r) => { const v = r[c.key]; const out = c.fmt ? c.fmt(v, r) : c.num ? n(v) : v; return typeof out === "string" ? shownText(out) : out; };
   const value = (c, r) => (c.sort ? c.sort(r) : r[c.key]);
+  // What a cell says, worked out once per row and column (the search and the column filters read it).
+  let said = new WeakMap();
+  const cellText = (c, r) => {
+    let m = said.get(r);
+    if (!m) { m = new Map(); said.set(r, m); }
+    if (!m.has(c.key)) m.set(c.key, textOf(cell(c, r)));
+    return m.get(c.key);
+  };
   const fieldOf = (f) => f.value || ((r) => r[f.key]);
   const searchText = (r) => {
     let t = texts.get(r);
-    if (t == null) { t = cols.map((c) => textOf(cell(c, r))).join("\u0001").toLowerCase(); texts.set(r, t); }
+    if (t == null) { t = cols.map((c) => cellText(c, r)).join("\u0001").toLowerCase(); texts.set(r, t); }
     return t;
   };
   const optionsOf = (f) => {
@@ -121,22 +122,32 @@ export function grid(opts) {
     }
     const q = query.q.trim().toLowerCase();
     if (q) out = out.filter((r) => searchText(r).includes(q));
-    const order = query.sort.length ? query.sort : sortKey ? [{ field: sortKey, direction: opts.dir || (cols.find((c) => c.key === sortKey)?.num ? "desc" : "asc") }] : [];
+    // The column filters (tablestate.js): what a cell shows, or the number it holds.
+    for (const f of cfs) {
+      const c = cols.find((x) => x.key === f.key);
+      if (c) out = out.filter((r) => testFilter(f, { num: typeof r[c.key] === "number" ? r[c.key] : parseAmount(cellText(c, r)) ?? value(c, r), text: cellText(c, r).trim() }));
+    }
+    const order = shownSort(query);
     if (order.length) {
-      const keys = order.map((s) => [cols.find((c) => c.key === s.field), s.direction === "desc" ? -1 : 1]).filter(([c]) => c);
-      out = out.slice().sort((a, b) => {
-        for (const [c, dir] of keys) {
-          const x = value(c, a), y = value(c, b);
-          if (x == null && y == null) continue;
-          if (x == null) return 1;  // not recorded: last, whichever way
-          if (y == null) return -1;
-          const d = typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y));
-          if (d) return d * dir;
-        }
-        return 0;
-      });
+      // Not recorded last, whichever way; numbers by size, dates by time (tablestate.js sortRows).
+      const keys = order.map((s) => [cols.find((c) => c.key === s.field), s.direction === "desc" ? -1 : 1]).filter(([c]) => c)
+        .map(([c, dir]) => ({ get: (r) => value(c, r), type: c.type, dir }));
+      out = sortRows(out, keys);
     }
     return out;
+  }
+
+  // The order on screen: the address's, else the grid's own (sortKey).
+  function shownSort(query) {
+    return query.sort.length ? query.sort : sortKey ? [{ field: sortKey, direction: opts.dir || (cols.find((c) => c.key === sortKey)?.num ? "desc" : "asc") }] : [];
+  }
+  // A header click: one way, the other, then the grid's own order (tablestate.js nextSort).
+  function cycle(field, query) {
+    const c = cols.find((x) => x.key === field);
+    const cur = query.sort[0] ? { key: query.sort[0].field, dir: query.sort[0].direction === "asc" ? 1 : -1 } : null;
+    const d = shownSort({ sort: [] })[0];
+    const next = nextSort(cur, c, d ? { key: d.field, dir: d.direction === "asc" ? 1 : -1 } : null);
+    return next ? [{ field: next.key, direction: next.dir > 0 ? "asc" : "desc" }] : [];
   }
 
   const config = {
@@ -154,18 +165,59 @@ export function grid(opts) {
   let onPage = [];  // the rows on screen (not labels.js shown)
   const wrap = h("div", { class: "sk-grid" });
   const host = h("div", { class: "sk-grid-host", "aria-label": caption || null, role: caption ? "region" : null });
-  wrap.append(host);
-  const dl = file ? h("button", { type: "button", class: "btn", html: ICON.download, "aria-label": `Download ${caption || "these rows"} as CSV` }, "CSV") : null;
-  if (dl) {
-    wrap.append(h("div", { class: "sk-grid-tools" }, dl));
-    dl.addEventListener("click", () => download(file, csv(cols, filterAll(api.query))));
+  // The columns the grid draws: the same array, changed in place when the chooser hides one.
+  const every = cols.map((c) => ({ id: c.key, label: c.label, sortable: c.sortable !== false, align: alignOf(c), render: (r) => cell(c, r) }));
+  const drawn = every.filter((c) => !hidden.includes(c.id));
+  const shownCols = () => visibleColumns(cols, hidden);
+  const dl = file ? exportButton(() => download(file, csv(shownCols(), filterAll(api.query)))) : null;
+  const ftog = rows.length < 2 && !cfs.length ? null : filterToggle((on) => { frowOpen = on; frowFor = null; api.refresh(); if (on) setTimeout(() => frow.querySelector("input,button")?.focus(), 0); });
+  const pick = cols.length >= 4 ? chooser(cols, hidden, (next) => {
+    hidden = next; frowFor = null;
+    drawn.splice(0, drawn.length, ...every.filter((c) => !hidden.includes(c.id)));
+    writeKeys({ [`${ns}_hide`]: hidden.join(",") });
+    api.refresh();
+  }, caption) : null;
+  wrap.append(h("div", { class: "sk-grid-tools" }, ftog, pick, dl), host);
+
+  // The filter row under the headers: built once for the columns shown, then moved into each
+  // header the grid draws; the cell being typed in keeps its focus and caret.
+  const frow = h("tr", { class: "tt-frow" });
+  let frowFor = null;
+  const setFilter = (k, f) => {
+    cfs = [...cfs.filter((x) => x.key !== k), ...(f ? [f] : [])];
+    writeKeys({ [`${ns}_cf`]: writeFilters(cfs) });
+    api.change({}, "filter");  // page 1 again
+  };
+  const valuesOf = (c) => () => {
+    const seen = new Map();
+    for (const r of rows) { const t = cellText(c, r).trim(); seen.set(t, (seen.get(t) || 0) + 1); }
+    return [...seen].sort((a, b) => b[1] - a[1]).slice(0, 40);
+  };
+  const kinds = new Map(cols.map((c) => [c.key, filterKind(c, new Set(rows.slice(0, 400).map((r) => cellText(c, r).trim())).size)]));
+  function headExtra() {
+    if (!frowOpen) return null;
+    if (frowFor !== hidden.join()) {
+      frow.replaceChildren(...shownCols().map((c) => h("td", { class: { right: "dg-num", center: "dg-center" }[alignOf(c)] || null },
+        kinds.get(c.key) ? filterCell(c, kinds.get(c.key), cfs.find((f) => f.key === c.key), valuesOf(c), (f) => setFilter(c.key, f)) : null)));
+      frowFor = hidden.join();
+    }
+    const a = document.activeElement;
+    if (a && frow.contains(a)) {
+      const caret = a.type === "text" || a.type === "search" ? [a.selectionStart, a.selectionEnd] : null;
+      queueMicrotask(() => { if (a.isConnected) { a.focus({ preventScroll: true }); if (caret) a.setSelectionRange(...caret); } });
+    }
+    return frow;
   }
+  const sayTools = (count) => { dl?.say(count, csvWidth(shownCols()), caption); ftog?.say(frowOpen, cfs.length); };
 
   const segCounts = segments.map((s) => ({ id: s.id, label: s.label, count: s.test ? rows.filter(s.test).length : rows.length }));
   const api = createDataGrid(host, {
     namespace: ns,
     params: HASH,
-    columns: cols.map((c) => ({ id: c.key, label: c.label, sortable: c.sortable !== false, align: alignOf(c), render: (r) => cell(c, r) })),
+    columns: drawn,
+    shownSort,
+    nextSort: cycle,
+    headExtra,
     filters: filters.map((f) => ({ id: f.key, label: f.label, type: "enum", options: optionsOf(f) })),
     segments: segCounts,
     getRowId: rowId || ((r) => rows.indexOf(r)),
@@ -174,6 +226,7 @@ export function grid(opts) {
     async load(query) {
       const all = filterAll(query);
       onFiltered?.(all, query);
+      sayTools(all.length);
       // One page of rows: no Previous, Next or "Page 1 of 1" (the count and the page size stay).
       wrap.classList.toggle("sk-one-page", query.page <= 1 && all.length <= query.pageSize);
       const start = (query.page - 1) * query.pageSize;
@@ -192,7 +245,7 @@ export function grid(opts) {
       if (row) onRow(row);
     });
     host.addEventListener("keydown", (e) => {
-      if (e.key !== "Enter" || !e.target.matches?.("tbody tr")) return;
+      if ((e.key !== "Enter" && e.key !== " ") || !e.target.matches?.("tbody tr")) return;
       const row = rowAt(e.target);
       if (row) { e.preventDefault(); onRow(row); }
     });
@@ -203,11 +256,20 @@ export function grid(opts) {
     wrap.addEventListener("sk-grid:gone", () => mo.disconnect());
   }
 
-  REGISTRY.push({ caption, file, columns: cols, rows: () => filterAll(api.query) });
+  // No onRow: a row about a value opens it, the whole row (drill.js drillRow), as in table.js.
+  else if (opts.rowDrill !== false) {
+    const rowsOpen = () => host.querySelectorAll(".dg-table tbody tr:not([data-drow])").forEach((tr) => { if (!tr.classList.contains("dg-skeleton-row")) drillRow(tr); });
+    const mo = new MutationObserver(rowsOpen);
+    mo.observe(host, { childList: true, subtree: true });
+    rowsOpen();
+    wrap.addEventListener("sk-grid:gone", () => mo.disconnect());
+  }
+
+  REGISTRY.push({ caption, file, ns, columns: cols, rows: () => filterAll(api.query) });
 
   wrap.api = api;
   wrap.filtered = () => filterAll(api.query);
-  wrap.update = (next) => { rows = next || []; texts = new WeakMap(); api.refresh(); };
+  wrap.update = (next) => { rows = next || []; texts = new WeakMap(); said = new WeakMap(); api.refresh(); };
   wrap.destroy = track(wrap, () => { api.destroy(); wrap.dispatchEvent(new Event("sk-grid:gone")); });
   return wrap;
 }

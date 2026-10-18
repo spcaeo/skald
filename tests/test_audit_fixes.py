@@ -337,7 +337,7 @@ class TestCountriesCountVisits(unittest.TestCase):
         self.assertEqual(people.hits, 42)
         self.assertEqual(dict(people.countries), {"CA": 1, "US": 1})
         # Shown as readers, one each, in the readers card.
-        self.assertIn("Canada 1 (50%), \U0001F1FA\U0001F1F8 United States 1 (50%)",
+        self.assertIn("CAN 1 (50%), \U0001F1FA\U0001F1F8 USA 1 (50%)",
                       as_text(totals, [Group.PEOPLE]))
 
     def test_history_files_the_visits_under_their_own_name(self):

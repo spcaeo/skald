@@ -28,7 +28,11 @@ KINDS = {"funnels": "funnel_days", "engagement": "engagement",
          # after ai_likely: it reads the visits that kind marks
          "ai_read": "ai_read",
          "ai_formats": "ai_formats",
-         "crawler_cost": "crawler_cost"}
+         "crawler_cost": "crawler_cost",
+         # people from search engines by engine and landing page: Skald's side
+         # of the Search tab's cross-check with Search Console (search/)
+         "search_landing": "search_landing",
+         "crawl_health": "crawl_health"}
 
 
 def modules() -> dict:

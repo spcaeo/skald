@@ -7,13 +7,15 @@
 // the owner's CRM, Zapier or Slack. On top, the doctor's lines for the
 // integrations (doctor.integration_checks): each road working, off, or what
 // to fix; each hook's state in words; the Calendly and Cal.com event types to
-// keep. For admins; install admins may pick any site of the install. GET/POST <page>/integrations (integrations_api.py).
+// keep. Search Console and Bing (search-connect.js): the keys and each site's
+// connect wizard. For admins; install admins may pick any site of the install. GET/POST <page>/integrations (integrations_api.py).
 
 import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { isViewer, sessions, VIEWER } from "../access.js";
 import { head1, copyable, field, input, status, confirmIn, when, why } from "./forms.js";
 import { howTo } from "./help.js";
+import { searchBox } from "./search-connect.js";
 
 const EVENT_WORDS = {
   "conversion.started": "an action started (a form or booking opened)",
@@ -85,8 +87,14 @@ function statusBox(r) {
     h("ul", { class: "doc-list" }, list.map((x) => {
       const [cls, word] = STATE[x.state] || ["off", x.state];
       return h("li", null, h("span", { class: `tf ${cls}` }, word), h("p", null, h("strong", null, `${x.part}: `), x.says),
-        x.fix && x.state !== "OK" ? h("p", { class: "fix" }, `Fix: ${x.fix}`) : null);
+        x.fix && x.state !== "OK" ? h("p", { class: "doc-fix" }, "Fix: ", ...codeSpans(x.fix)) : null);
     })));
+}
+
+/* The doctor writes a command between backticks: those parts as <code> (text nodes, never
+   HTML), the rest as text, so "`sudo systemctl ...`" reads as a command and wraps. */
+export function codeSpans(text) {
+  return String(text).split("`").map((part, i) => (i % 2 ? h("code", null, part) : part)).filter((x) => x !== "");
 }
 
 // What a test said a real delivery would keep, in words.
@@ -100,7 +108,7 @@ function testWords(name, r) {
 }
 
 export default function integrations() {
-  const title = head1("Integrations", "The script tag, incoming hooks and outgoing webhooks.");
+  const title = head1("Integrations", "The script tag, incoming hooks, outgoing webhooks, and Search Console and Bing.");
   if (!sessions()) return [title, h("div", { class: "state" }, h("div", null, "Integrations are set up here with accounts. On this server, use skald hooks secret, skald doctor and docs/INTEGRATIONS.md."))];
   if (isViewer()) return [title, h("div", { class: "state" }, h("div", null, `${VIEWER} Integrations are for admins.`))];
   const body = h("div", null, h("p", { class: "empty" }, "Loading the integrations..."));
@@ -274,7 +282,8 @@ export default function integrations() {
         h("p", { class: "sub" }, "Skald posts a signed summary of each conversion to your CRM, Zapier or Slack: the action, its source, campaign, landing page, country, device, visits and time before converting, and the anonymous journey. Never a name or an email. A failed delivery is tried again for about 15 hours."),
         (r.webhooks || []).length ? r.webhooks.map(hookRow) : h("p", { class: "empty" }, "No outgoing webhooks yet."),
         howTo("webhooks", "How do I send each conversion to my CRM, Zapier or Slack?"),
-        addForm(r)));
+        addForm(r)),
+      searchBox(r.site));
   }
 
   showFresh();

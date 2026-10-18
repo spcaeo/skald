@@ -1,0 +1,66 @@
+/* Every table and grid (2.13, js/table.js, js/grid.js, js/tabletools.js): the sort
+   arrows, "Filter columns" and its row under the headers, the column chooser,
+   "Export what you see", and the header that stays in view when every row is shown. */
+
+/* A sortable header shows a faint two-way arrow; the sorted one a solid arrow. */
+th[aria-sort="none"] .dir { opacity: .35; }
+th button:hover .dir { opacity: .8; }
+th[aria-sort="ascending"] .dir, th[aria-sort="descending"] .dir { opacity: 1; }
+
+.tt-btn { font-size: 12.5px; padding-top: 4px; padding-bottom: 4px; }
+.tt-btn .tt-meta { color: var(--ink-3); font-weight: 450; }
+.tt-btn[aria-pressed="true"] { border-color: var(--ink); }
+.tt-k { display: inline-grid; place-items: center; min-width: 17px; height: 17px; border-radius: 999px; font-size: 11px; font-weight: 700;
+  background: var(--sel); color: var(--sel-ink); }
+.tt-k[hidden] { display: none; }
+.tt-export .tt-xs { display: none; }
+
+/* A small list that opens under its button: the columns, an enum's values. */
+.tt-pw { position: relative; display: inline-flex; }
+.tt-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; min-width: 210px; max-width: min(320px, calc(100vw - 32px));
+  max-height: 320px; overflow: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px;
+  box-shadow: var(--shadow); padding: 8px; display: grid; gap: 1px; text-align: left; font-weight: 400; white-space: normal; }
+.tt-pop[hidden] { display: none; }
+.tt-pop.tt-left { left: auto; right: 0; }
+.tt-pop-h { margin: 2px 6px 4px; font-size: 12px; font-weight: 600; color: var(--ink-3); }
+.tt-opt { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; font-size: 13px; color: var(--ink); cursor: pointer; }
+.tt-opt:hover { background: var(--sunk); }
+.tt-opt input { margin: 0; accent-color: var(--ink); }
+.tt-opt input:disabled + span { color: var(--ink-3); }
+.tt-opt small { margin-left: auto; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.tt-clear { margin: 4px 6px 2px; font-size: 12.5px; }
+
+/* The filter row under the headers. */
+.tt-frow td { padding: 2px 8px 8px; background: var(--surface); border-bottom: 1px solid var(--rule); vertical-align: top; }
+.tt-f { min-width: 0; }
+.tt-in { box-sizing: border-box; width: 100%; min-width: 72px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink);
+  border-radius: 6px; padding: 3px 7px; font: inherit; font-size: 12.5px; font-weight: 400; }
+.tt-in::placeholder { color: var(--ink-3); }
+.tt-in:focus-visible, .tt-enum:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.tt-range { display: flex; align-items: center; gap: 4px; justify-content: flex-end; color: var(--ink-3); }
+.tt-range .tt-num { width: 58px; min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.tt-enum { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 84px; width: 100%;
+  border: 1px solid var(--rule); background: var(--surface); border-radius: 6px; padding: 3px 7px; font-size: 12.5px; color: var(--ink-2); cursor: pointer; }
+.tt-enum span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-enum.on { border-color: var(--ink); color: var(--ink); font-weight: 600; }
+.tt-enum i { display: inline-flex; flex: none; }
+.tt-enum svg { width: 12px; height: 12px; }
+td.c .tt-enum, td.dg-center .tt-enum { justify-content: center; }
+
+/* Every row shown: the box scrolls and its header stays in view. */
+.tbl.tall .scroll { max-height: min(78vh, 920px); overflow: auto; }
+.tbl.tall thead th { z-index: 2; }
+
+/* The data grid's tools sit above it, right-aligned. */
+.sk-grid > .sk-grid-tools { margin: 0 0 8px; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.ai-g .sk-grid-tools { position: static; }
+.sk-grid .tt-frow td { padding: 2px 10px 8px; }
+
+@media (max-width: 640px) {
+  .tt-export .tt-xl { display: none; }
+  .tt-export .tt-xs { display: inline; }
+}
+@media print {
+  .tt-pw, .tt-btn, .tt-frow, .sk-grid-tools { display: none !important; }
+  .tbl.tall .scroll { max-height: none; overflow: visible; }
+}

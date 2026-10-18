@@ -9,6 +9,7 @@ from __future__ import annotations
 import importlib.util
 import ipaddress
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -90,7 +91,8 @@ class Build(unittest.TestCase):
     def setUpClass(cls):
         cls.tmp = tempfile.mkdtemp(prefix="skald-demo-test-")
         cls.out = Path(cls.tmp) / "site"
-        demo.build(cls.out, NOW, days=4, say=lambda *_: None)
+        cls.keep = Path(cls.tmp) / "install"
+        demo.build(cls.out, NOW, days=4, keep=cls.keep, say=lambda *_: None)
         cls.site = cls.out / "traffic" / "example.com"
 
     @classmethod
@@ -119,6 +121,30 @@ class Build(unittest.TestCase):
         self.assertIn("reconcile with the tables", done.stdout)
         self.assertIn("flow: all passed", done.stdout)
 
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_new_and_returning_and_engagement_reconcile(self):
+        """Traffic > Visitors' cards (js/visitorfigs.js) on the built page: every
+        verified day's new and returning visits and both histograms add up to its
+        readers, today's live figures too."""
+        done = subprocess.run(["node", str(ROOT / "tests" / "js" / "visitorfigs.mjs"), str(self.site / "data" / "app.json"),
+                               str(self.site / "data" / "overview.json")], capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("visitorfigs: all passed", done.stdout)
+        live = json.loads((self.site / "data" / "app.json").read_text())["live"]["figures"]
+        self.assertEqual(live["returning"]["readers"], live["readers"])
+
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_the_palette_finds_every_page_and_insights_lose_nothing(self):
+        """js/finder.js finds every page the demo's last 30 days list ("pricing" finds
+        /pricing/); js/insight-rank.js folds the demo's insights one card per subject
+        and shows every finding (2.13)."""
+        for script, data, says in (("finder.mjs", "app.json", "finder: all passed"),
+                                   ("insights.mjs", "insights.json", "insights: all passed")):
+            done = subprocess.run(["node", str(ROOT / "tests" / "js" / script), str(self.site / "data" / data)],
+                                  capture_output=True, text=True, timeout=60)
+            self.assertEqual(done.returncode, 0, done.stderr)
+            self.assertIn(says, done.stdout)
+
     def test_every_app_json_says_demo_with_its_answers(self):
         apps = sorted(self.out.rglob("data/app.json"))
         self.assertEqual(len(apps), 2)                                     # the site and its Blog view
@@ -139,8 +165,17 @@ class Build(unittest.TestCase):
 
     def test_the_left_out_lists_are_files_without_emails_or_visitor_ids(self):
         d = json.loads((self.site / "data" / "app.json").read_text())["demo"]["api"]["people"]
+        timelines = {k: v for k, v in d.items() if k.startswith("people/visitor?")}
+        d = {k: v for k, v in d.items() if k not in timelines}
         self.assertEqual(set(d), {"people/left-out", "people/conversions?kind=cancelled",
                                   "people/conversions?kind=removed", "people/conversions?kind=test"})
+        # 2.12.0: the visitor drawer's timelines, labels and times only
+        self.assertTrue(timelines)
+        for name in timelines.values():
+            text = (self.site / name).read_text()
+            self.assertTrue(json.loads(text)["found"], name)
+            for word in ("192.0.2.", "198.51.100.", "203.0.113.", "@", '"vid":"', "skv_"):
+                self.assertNotIn(word, text, name)
         left = json.loads((self.site / d["people/left-out"]).read_text())
         self.assertTrue(left["ok"])
         self.assertIn("test", {r["why"] for r in left["leads"]})            # the team's own test lead
@@ -149,6 +184,23 @@ class Build(unittest.TestCase):
             self.assertFalse(json.loads(text)["private"], name)
             self.assertNotIn("@example.com", text, name)
             self.assertNotIn('"vid":"', text, name)
+
+    def test_the_kept_install_audits_every_day_with_its_own_visitor_key(self):
+        """--keep DIR: `skald --config DIR/config.yml audit --day D` recounts each
+        stored day, the visitor hashes too: the install names its demo key in
+        report.env_file, as a real install's helper finds its key."""
+        from unittest import mock
+        from skald.config import load_config
+        from skald.visitors import load_key
+        cfgp = self.keep / "config.yml"
+        today = NOW.astimezone(dt.ZoneInfo(dt.TZ_NAME)).date()
+        with mock.patch.dict("os.environ"):
+            os.environ.pop(demo.KEY_VAR, None)
+            self.assertEqual(load_key(load_config(cfgp)), demo.DEMO_KEY.encode())
+            for k in range(1, 5):
+                day = (today - timedelta(days=k)).isoformat()
+                code, err = demo.run(cfgp, "--today", today.isoformat(), "audit", "--day", day)
+                self.assertEqual(code, 0, f"{day}: {err}")
 
     def test_no_request_log_names_a_helper_to_poll(self):
         for path in self.out.rglob("data/requests.json"):

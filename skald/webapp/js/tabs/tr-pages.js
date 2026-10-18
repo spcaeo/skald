@@ -14,7 +14,7 @@ import { h } from "../ui.js";
 import { figures, pathMatch } from "../data.js";
 import * as S from "../state.js";
 import { grid } from "../grid.js";
-import { head, nothing, fileName, fixed } from "./common.js";
+import { head, nothing, fileName, fixed, ownPeriod } from "./common.js";
 import { leaderboard } from "./pagedetail.js";
 import { pageStory, published } from "./pagestory.js";
 import { leadsBy, leadNote, viewNote } from "./leadfigs.js";
@@ -37,7 +37,7 @@ export default function pages(m, s) {
   if (m.x.pages) {
     // The leaderboard keeps its own last 30 whole days (with change against the 30 before); today's follows the range.
     if (r.kind === "today") out.push(h("section", { class: "s" }, h("h2", null, "Page leaderboard"), leaderboard(m, s, r)));
-    else out.push(fixed("Page leaderboard, with change and each page's detail", m.x.pages.period?.first ? `${m.x.pages.period.first} to ${m.x.pages.period.last}` : "last 30 whole days", leaderboard(m, s, r)));
+    else out.push(fixed("Page leaderboard, with change and each page's detail", ownPeriod(m.x.pages.period, r), leaderboard(m, s, r)));
   }
   const sub = s.path ? ` whose path ${s.pathmode === "starts" ? "starts with" : "contains"} ${s.path}` : "";
 

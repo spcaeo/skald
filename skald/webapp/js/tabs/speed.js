@@ -4,7 +4,7 @@
 // how fast our own server answered. From speed.json (PageSpeed Insights, once
 // a day for the top 5 landing pages) and the health figures.
 
-import { h, n, long, short, addDays } from "../ui.js";
+import { h, n, long, short, addDays, ICON } from "../ui.js";
 import { figures } from "../data.js";
 import { lines, legend } from "../charts.js";
 import { table } from "../table.js";
@@ -56,13 +56,23 @@ export default function speed(m, s) {
   // The same figure as Site health: the exact median when kept, else the bucket it falls in.
   const p50 = !t ? null : t.speed_p50 != null ? `${t.speed_p50} s` : bucketAt(t.speeds || {}, 0.5);
 
+  // Never tested, on either device: not set up. Say what to switch on, not a row of dashes.
+  const everTested = (file.latest || []).length > 0 || (file.days || []).some((d) => (d.tests || []).length);
+  const serverTile = tile("Server answer time", h("span", { class: "sp-plain" }, p50 || "-"), p50 ? "our own server, the typical page view for people, over the date range above"
+    : "not in the log: the server's log format needs the request time (Help › Getting started says how)");
+  if (!everTested && file.status?.state !== "failing") {
+    out.push(h("div", { class: "state sp-setup", html: ICON.info }, h("div", null, h("strong", null, "Page speed is not set up yet: no page has been tested. "),
+      "The daily run tests the top 5 landing pages on a phone and a desktop with Google PageSpeed Insights once pagespeed.enabled is on (it is by default when the site's hosts are set) and a free PageSpeed API key is in pagespeed.api_key or the PSI_API_KEY setting; without a key Google often refuses. The first figures appear the day after.")),
+    h("section", { class: "s" }, h("div", { class: "kpis" }, serverTile)));
+    return out;
+  }
   out.push(h("div", { class: "sp-bar" }, seg, h("span", { class: "sp-when" }, tested ? `Tested ${long(tested)}` : "Not tested yet")));
   out.push(h("section", { class: "s" }, h("div", { class: "kpis" },
     tile("Performance score", pill("score", score), "Google's lab score, median of the tested pages (0 to 100)"),
     tile("Largest paint (LCP)", pill("lcp_ms", vit("lcp_ms")), `when the main content showed; ${vitNote}`),
     tile("Layout shift (CLS)", pill("cls", vit("cls")), `how much the page jumped while loading; ${vitNote}`),
     tile("Response to input (INP)", pill("inp_ms", vit("inp_ms"), "Only real-user data has INP"), "how fast a tap or click showed a change; real users only"),
-    tile("Server answer time", h("span", { class: "sp-plain" }, p50 || "-"), "our own server, the typical page view for people, over the date range above"))));
+    serverTile)));
 
   const rows = latest.map((x) => ({ ...x, lcp: pick(x, "lcp_ms"), cls_v: pick(x, "cls"), inp: pick(x, "inp_ms"), src: x.ok ? from(x) : "Test failed" }));
   out.push(h("section", { class: "s sp-tbl" }, h("h2", null, `The top pages, on a ${strat === "mobile" ? "phone" : "desktop"}`),

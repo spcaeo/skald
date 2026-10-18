@@ -232,10 +232,10 @@ class TestFeedRows(unittest.TestCase):
     def test_rules_in_words(self):
         c = Classifier(["MyCompanyCrawler"])
         cases = [
-            (hit("/pricing/"), "people: reader", "page", True),
+            (hit("/pricing/"), "people: page view", "page", True),
             (hit("/_next/static/a.js"), "people: asset", "asset", False),
             (hit("/pricing/?_rsc=1"), "people: Next.js payload (_rsc)", "rsc", False),
-            (hit("/", referrer="https://chatgpt.com/"), "people: reader from chatgpt.com",
+            (hit("/", referrer="https://chatgpt.com/"), "people: page view from ChatGPT",
              "page", True),
             (hit("/.env", status="404"), "bot: scanner probe", "not_found", False),
             (hit(agent=SLACK), "bot: link preview: Slack", "page", True),
@@ -368,7 +368,7 @@ class TestFeedAcrossMidnight(unittest.TestCase):
             rules = {r["path"]: r["rule"] for r in feed["rows"]}
             self.assertNotIn("/early", rules)
             self.assertTrue(rules["/a"].startswith("bot: browser-like crawler"))
-            self.assertEqual(rules["/b"], "people: reader")
+            self.assertEqual(rules["/b"], "people: page view")
             self.assertEqual(feed["by_group"], {"bots": 2, "people": 1})
             got = json.loads((box.root / "www" / "example.com" / "data" /
                               "requests.json").read_text())

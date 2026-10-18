@@ -2,7 +2,7 @@
 // on a demo page served here with the dashboard's Content-Security-Policy:
 //  - both mount; Folder Tabs move with arrows, Home and End (skipping a disabled tab),
 //    keep focus across the redraw, and a keyboard move does not stack history;
-//  - the Data Grid's search, sort and filter round-trip through the hash beside the route
+//  - the Data Grid's search, sort (biggest first, smallest, its own order) and filter round-trip through the hash beside the route
 //    and the page's own keys, survive a reload, and Reset clears only the grid's keys;
 //  - paging pushes history and Back returns; totals and exports hold every filtered row;
 //  - redraws do not pile up instances or window listeners; no CSP refusal, no error.
@@ -111,13 +111,22 @@ let q = await params();
 check(q.get("pg_q") === "beta" && q.get("range") === "7d" && (await routeOf()) === "demo/one", `search in the hash beside route and range (${await hash()})`);
 check(await total() === 12 && (await rowCount()) === 12, `12 rows have "beta" (got ${await total()})`);
 
-// ---- sort: one click ascending, a second descending
+// ---- sort (2.13, js/tablestate.js nextSort): a number biggest first, then smallest, then the grid's own order
 const viewsHead = p.locator(".dg-table thead th", { hasText: "Views" });
+await viewsHead.locator("button").click();
+check((await params()).get("pg_sort") === "views:desc", "sort descending in the hash");
 await viewsHead.locator("button").click();
 check((await params()).get("pg_sort") === "views:asc", "sort ascending in the hash");
 check(await viewsHead.getAttribute("aria-sort") === "ascending", "header says ascending");
 await viewsHead.locator("button").click();
-check((await params()).get("pg_sort") === "views:desc", "sort descending in the hash");
+check(!(await params()).get("pg_sort"), "a third click: the grid's own order, nothing in the hash");
+await viewsHead.locator("button").click();
+check((await params()).get("pg_sort") === "views:desc", "sort descending in the hash again");
+// The marks are the shared tables' (patch 7): ▼ on the column sorted biggest first, a ↕ on the others.
+const marks = await p.locator(".dg-table thead th .dg-sort .dir").allTextContents();
+check(marks.filter((x) => x === "▼").length === 1 && marks.filter((x) => x === "▲").length === 0 && marks.filter((x) => x === "↕").length === marks.length - 1,
+  `one ▼ on the sorted column, ↕ on the rest (got ${marks.join(" ")})`);
+check(await viewsHead.locator(".dir").textContent() === "▼", "Views, sorted biggest first, shows ▼");
 const firstViews = async () => Number(await p.locator(".dg-table tbody tr").first().locator("td").nth(3).textContent());
 check(await firstViews() === 100, `largest views first (got ${await firstViews()})`);
 

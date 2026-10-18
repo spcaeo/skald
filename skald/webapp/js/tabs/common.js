@@ -5,7 +5,7 @@ import { h, n, short, long, clock, share, stateNote, reduced, ICON } from "../ui
 import { ranked, coverage } from "../data.js";
 import { table } from "../table.js";
 import * as S from "../state.js";
-import { link } from "../drill.js";
+import { link, drillRow } from "../drill.js";
 import { info } from "./tiles.js";
 import { time as tzTime, sameAsSite, siteZone, city, daysNote } from "../tz.js";
 
@@ -87,7 +87,17 @@ export function coverageNote() { return null; }
    last days) that the date range cannot change: folded at the bottom, its
    period in its title, so no card above carries a date of its own. */
 export function fixed(title, period, ...body) {
-  return h("details", { class: "fold fixed" }, h("summary", null, title, h("span", null, `${period} · not the date range above`)), ...body);
+  // period: words, or {words, same} when the part's period may be the date range above (then no "not").
+  const words = typeof period === "object" && period ? (period.same ? `${period.words} · the date range above` : `${period.words} · its own period`) : `${period} · not the date range above`;
+  return h("details", { class: "fold fixed" }, h("summary", null, title, h("span", null, words)), ...body);
+}
+
+/* A part's own period {first, last} (ISO days) as fixed() takes it: short date words, and
+   whether it is the date range above (r). */
+export function ownPeriod(p, r, fallback = "last 30 whole days") {
+  if (!p?.first) return fallback;
+  const words = p.first === p.last ? short(p.first) : `${short(p.first)} to ${short(p.last)}`;
+  return { words, same: r?.kind === "history" && r.first === p.first && r.last === p.last };
 }
 
 // What a tab shows when the chosen range has nothing it may show.
@@ -121,8 +131,11 @@ export function blist(rows, { color = "var(--g-people)", total, limit = 10, labe
     const bar = h("span", { class: "bl-bar", style: { width: `${(v / max) * 100}%`, background: color, animationDelay: `${i * 0.03}s` } });
     // A row may carry a third item: the value to drill into, when its label is not the value itself.
     const lab = drill ? link(drill, value(k), { from, text: typeof label(k) === "string" && label(k) !== value(k) ? label(k) : undefined }) : label(k);
-    ul.append(h("li", null, bar, h("span", { class: "bl-l", title: typeof lab === "string" ? lab : k }, lab), h("span", { class: "bl-v" }, n(v)),
-      change ? h("span", { class: "bl-c" }, change(k)) : h("span", { class: "bl-p" }, share(v, sum))));
+    const li = h("li", null, bar, h("span", { class: "bl-l", title: typeof lab === "string" ? lab : k }, lab), h("span", { class: "bl-v" }, n(v)),
+      change ? h("span", { class: "bl-c" }, change(k)) : h("span", { class: "bl-p" }, share(v, sum)));
+    // The whole line opens the value, not only its words (drill.js drillRow).
+    if (drill) drillRow(li);
+    ul.append(li);
   });
   return ul;
 }
@@ -132,7 +145,7 @@ export function countTable(obj, { caption, file, key = "Label", value = "Count",
   const rows = ranked(obj, keep).map(([k, v]) => ({ k, v, label: label ? label(k) : k }));
   const sum = total ?? rows.reduce((s, r) => s + r.v, 0);
   const cols = [
-    { key: "label", label: key, path, ...(drill ? { fmt: (v, r) => link(drill, r.k, { text: v }), csv: (r) => r.label } : {}) },
+    { key: "label", label: key, path, ...(drill ? { fmt: (v, r) => link(drill, r.k, { text: v }), csv: (r) => r.label } : {}), ...(drill === "country" ? { country: (r) => r.k } : {}) },
     { key: "v", label: value, num: true },
     { key: "share", label: "Share", num: true, sort: (r) => r.v, fmt: (_, r) => share(r.v, sum), csv: (r) => (share(r.v, sum) ? (r.v / sum).toFixed(4) : "") },
   ];

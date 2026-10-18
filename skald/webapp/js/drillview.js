@@ -10,13 +10,16 @@
 //   * requests: the last hours of the raw log - addresses, statuses, bots
 
 import { time as tzTime, label as tzLabel } from "./tz.js";
-import { h, n, short, duration, clock } from "./ui.js";
+import { h, n, short, duration, clock, reduced } from "./ui.js";
+import { pagesWords } from "./visitpages.js";
 import { rangeOf, chartDays, ranked, base, getJSON, color, GROUPS } from "./data.js";
 import { lines, band } from "./charts.js";
 import * as S from "./state.js";
-import { DIMS, chainOf, encode, label, link, said } from "./drill.js";
+import { DIMS, chainOf, encode, label, link, said, titled, drillRow, close as closeDrill } from "./drill.js";
+import { openVisitor } from "./tabs/visitor.js";
 import { blist, panel } from "./tabs/common.js";
 import { openDrawer } from "./drawer.js";
+import { encode as encodeRules } from "./rules.js";
 import { botDetail } from "./tabs/crawlercost.js";
 import { drillFlow } from "./tabs/flowview.js";
 
@@ -26,9 +29,21 @@ const trailPaths = (j) => (j.trail || []).map((p) => p.path ?? p[0]);
 const campaignName = (j) => (j.campaign || "").split(" / ").pop() || j.utm?.campaign || "";
 
 // Does a visit match a step? undefined: visits do not carry this kind of value.
+/* The visits a drawer lists for period r: {has(journey), words}. Today: today's; a past
+   period: its days, as far back as visits are kept (said when the period is longer). */
+export function visitSpan(m, r) {
+  if (r.kind === "today") return { has: (j) => j.day === m.today, words: "today so far" };
+  const has = (j) => j.day >= r.first && j.day <= r.last;
+  const kept = [...new Set((m.journeys || []).filter(has).map((j) => j.day))].sort();
+  const from = kept[0] || r.first, to = kept[kept.length - 1] || r.last;
+  const words = from === to ? `on ${short(from)}` : `from ${short(from)} to ${short(to)}`;
+  return { has, words, longer: !!kept.length && kept.length < (r.length || kept.length) };
+}
+
 function visitHas(j, dim, v) {
   switch (dim) {
     case "country": case "device": case "browser": case "os": case "source": return j[dim] === v;
+    case "city": return (j.city || "Unknown") === v;
     case "path": return trailPaths(j).includes(v);
     case "landing": return landing(j) === v;
     case "assistant": return j.via === v;
@@ -55,7 +70,7 @@ function requestHas(r, dim, v) {
 /* One value's figure on one stored day, from history; null when that day
    does not keep this kind of value. Only for a single step: history keeps
    each breakdown on its own. */
-const BY = ["country", "device", "browser", "os", "source", "referrer", "campaign", "landing", "hour"];
+const BY = ["country", "city", "device", "browser", "os", "source", "referrer", "campaign", "landing", "hour"];
 function series(dim, v) {
   const sum = (...xs) => (xs.every((x) => x == null) ? null : xs.reduce((a, x) => a + (x || 0), 0));
   if (BY.includes(dim)) return [{ name: "Visitors", color: color("people"), get: (d) => (d.by ? d.by[dim]?.[v] || 0 : null), area: true }];
@@ -77,10 +92,10 @@ function series(dim, v) {
 function crumbs(m, s, chain) {
   const tab = S.nameOf(s.tab);
   const nav = h("nav", { class: "crumbs", "aria-label": "Drill-down trail" },
-    h("ol", null, h("li", null, h("button", { type: "button", class: "crumb", onclick: () => S.set({ dd: "" }) }, tab)),
+    h("ol", null, h("li", null, h("button", { type: "button", class: "crumb", onclick: closeDrill }, tab)),
       chain.map(([d, v], i) => h("li", null, i === chain.length - 1
         ? h("span", { class: "crumb now", "aria-current": "page" }, `${DIMS[d].name}: `, label(d, v))
-        : h("button", { type: "button", class: "crumb", onclick: () => S.set({ dd: encode(chain.slice(0, i + 1)) }) }, `${DIMS[d].name}: ${said(d, v)}`)))));
+        : h("button", { type: "button", class: "crumb", title: d === "country" ? titled(d, v) : null, onclick: () => S.set({ dd: encode(chain.slice(0, i + 1)) }) }, `${DIMS[d].name}: ${said(d, v)}`)))));
   return nav;
 }
 
@@ -96,6 +111,7 @@ function visitLists(js, chain) {
     ["referrer", "Referring sites", (j) => j.ref_host || (j.source === "Other website" ? j.via : "")],
     ["campaign", "Campaigns", campaignName],
     ["country", "Countries", (j) => j.country],
+    ["city", "Cities", (j) => j.city],
     ["device", "Devices", (j) => j.device],
     ["browser", "Browsers", (j) => j.browser],
     ["os", "Systems", (j) => j.os],
@@ -103,19 +119,27 @@ function visitLists(js, chain) {
   ].filter(([d]) => !has.has(d));
   return h("div", { class: "cols three" }, lists.map(([d, title, get]) => {
     const rows = ranked(count(get));
-    return rows.length ? panel(title, null, blist(rows, { drill: d, from: "drill", limit: 6, color: d === "path" || d === "landing" ? "var(--views)" : "var(--g-people)" })) : null;
+    if (!rows.length) return null;
+    const p = panel(title, null, blist(rows, { drill: d, from: "drill", limit: 6, color: d === "path" || d === "landing" ? "var(--views)" : "var(--g-people)" }));
+    p.id = `dd-list-${d}`;   // "Its sources" and the like jump here (jumpsFor below)
+    return p;
   }));
 }
 
+// Each visit: the whole row opens the visitor drawer (tabs/visitor.js), the one drawer
+// for a visit everywhere; its place and its pages keep their own links.
 function visitList(js) {
-  return h("ul", { class: "stream dd-visits" }, js.slice(0, 15).map((j) => h("li", null,
+  return h("ul", { class: "stream dd-visits" }, js.slice(0, 15).map((j) => visitRowOf(j, h("li", null,
     h("span", { class: "s-t" }, tzTime(j.start, { date: true, label: false })),
     h("span", { class: "s-d", style: { background: color("people") }, "aria-hidden": "true" }),
-    h("span", { class: "s-w" }, label("country", j.country), ` ${[j.device, j.browser].filter((x) => x && x !== "Other").join(", ")}, ${j.source}${j.via ? ` (${j.via})` : ""}: ${n(j.pages)} page${j.pages === 1 ? "" : "s"}, ${duration(j.seconds)}`,
-      h("small", null, trailPaths(j).join("  >  "))))));
+    h("span", { class: "s-w" }, j.city ? label("city", j.city) : label("country", j.country), ` ${[j.device, j.browser].filter((x) => x && x !== "Other").join(", ")}, ${j.source}${j.via ? ` (${j.via})` : ""}: ${pagesWords(j)}, ${duration(j.seconds)}`,
+      // Each page of the visit opens that page's detail (a new trail, not a narrower one).
+      h("small", { class: "dd-trail" }, trailPaths(j).map((p, i) => [i ? "  >  " : "", link("path", p, { bare: true })])))))));
 }
+const visitRowOf = (j, li) => { drillRow(li, () => openVisitor(j)); return li; };
 
 function requestPart(m, s, chain, holder) {
+  if (chain.some(([d]) => d === "city")) { holder.replaceChildren(h("p", { class: "empty" }, "The request log carries no city; the visits above do.")); return; }
   holder.replaceChildren(h("p", { class: "empty" }, "Loading the recent requests…"));
   if (Array.isArray(m.files) && !m.files.includes("requests")) { holder.replaceChildren(h("p", { class: "empty" }, "The recent request log is not written beside this page yet.")); return; }
   getJSON(`${base(s.view)}requests.json`).then((f) => {
@@ -138,7 +162,7 @@ function requestPart(m, s, chain, holder) {
       h("ul", { class: "stream" }, rows.slice(0, 12).map((r) => h("li", null, h("span", { class: "s-t" }, tzTime(r.at, { seconds: true, label: false })),
         h("span", { class: "s-d", style: { background: color(r.group) }, "aria-hidden": "true" }),
         h("span", { class: "s-w" }, `${r.status} ${r.method || ""} `, link("path", r.path, { from: "drill" }), ` ${r.rule}`,
-          h("small", null, r.ip && r.ip !== "(removed)" ? link("ip", r.ip, { from: "drill" }) : "", r.country ? [" ", label("country", r.country, r.country)] : ""))))),
+          h("small", null, r.ip && r.ip !== "(removed)" ? link("ip", r.ip, { from: "drill" }) : "", r.country ? [" ", label("country", r.country)] : ""))))),
       h("button", { type: "button", class: "btn", onclick: () => S.set(patch) }, "Open these in the Requests tab"));
   }).catch((e) => holder.replaceChildren(h("p", { class: "empty" }, `The recent requests could not be loaded: ${e.message || e}.`)));
 }
@@ -187,15 +211,61 @@ function cubePart(m, s, chain, r, holder) {
 // The charts are drawn for the drawer's width (drawer.css: 80% of the screen, capped; the whole width on a phone).
 const chartWidth = () => (innerWidth < 640 ? innerWidth - 32 : Math.min(innerWidth * 0.8, 1360) - 56) - 30;
 
+/* Where else this value is: its visits and their flow below, a page's sources and
+   its story, the tab that lists it and the visitor list narrowed to it (2.13). */
+const TAB_OF = { country: "traffic/places", city: "traffic/places", device: "traffic/places", browser: "traffic/places", os: "traffic/places", source: "traffic/sources",
+  referrer: "traffic/sources", campaign: "traffic/sources", path: "traffic/pages", landing: "traffic/pages", assistant: "ai/assistants",
+  bot: "ai/crawlers", status: "site/requests", ip: "site/requests", hour: "traffic/time" };
+const FILTER_OF = { country: "country", device: "device", browser: "browser", source: "source", referrer: "referrer", path: "path", landing: "path" };
+export function jumpsFor(dim, value, chain, has = {}) {
+  const out = [];
+  if (has.visits) out.push({ words: "Its visits", to: "dd-visits" }, { words: "How they moved", to: "dd-flow" });
+  if ((dim === "path" || dim === "landing") && has.sources) out.push({ words: "Its sources", to: "dd-list-source" });
+  if (dim === "path" || dim === "landing") out.push({ words: "Page story", go: { tab: "traffic/pages", page: value, dd: "" } });
+  const f = FILTER_OF[dim];
+  // A filter narrows a whole tab: only for one step, so the tab shows what the drawer shows.
+  // ("/" as a path filter would keep every page: no link then.)
+  if (f && chain.length === 1 && !(f === "path" && value === "/")) {
+    out.push({ words: "Visitors tab, filtered to it", go: { tab: "traffic/visitors", [f]: value, ...(f === "path" ? { pathmode: "contains" } : {}), dd: "" } });
+  }
+  // A city has no single filter: the advanced rules say it ("city is Toronto, Ontario, CA").
+  if (dim === "city" && chain.length === 1) {
+    out.push({ words: "Visitors tab, filtered to it", go: { tab: "traffic/visitors", rules: encodeRules({ mode: "all", items: [{ dim: "city", op: "is", vals: [value] }] }), dd: "" } });
+  }
+  if (TAB_OF[dim] && chain.length === 1) out.push({ words: `Open in ${S.nameOf(TAB_OF[dim])}`, go: { tab: TAB_OF[dim], ...(f && TAB_OF[dim] !== "traffic/pages" ? { [f]: value } : {}), dd: "" } });
+  return out;
+}
+function jumps(list) {
+  if (!list.length) return null;
+  const to = (id) => document.getElementById(id)?.scrollIntoView({ behavior: reduced() ? "auto" : "smooth", block: "start" });
+  return h("nav", { class: "dd-jumps", "aria-label": "Go to" }, list.map((j) => (j.to
+    ? h("button", { type: "button", class: "btn dd-jump", onclick: () => to(j.to) }, j.words)
+    : h("button", { type: "button", class: "btn dd-jump out", onclick: () => S.set(j.go) }, j.words))));
+}
+
+/* Opened from Crawl health: its row counts the whole days and today together, so say both
+   parts and their sum (today only when today's live count adds up; else not recorded). */
+function ownWindow(m, r, ser, totals) {
+  const live = m.live?.state === "ok" && m.live.day === m.today ? m.live.figures : null;
+  const today = live ? ser[0].get(live) : null;
+  const words = today == null
+    ? `Crawl health's window: the last ${r.length} whole days, ${short(r.first)} to ${short(r.last)}, and today. ${n(totals[0])} ${ser[0].name.toLowerCase()} on those days; today so far is not recorded.`
+    : `Crawl health's window: the last ${r.length} whole days and today. ${n(totals[0])} ${ser[0].name.toLowerCase()} from ${short(r.first)} to ${short(r.last)}, and ${n(today)} today so far: ${n(totals[0] + today)} in all.`;
+  return h("p", { class: "note dd-own" }, words);
+}
+
 let wasOpen = false;
 export function drillView(m, s) {
   const chain = chainOf(s);
   if (!chain.length) { wasOpen = false; return null; }
   const [dim, value] = chain[chain.length - 1];
-  const r = rangeOf(m, s);
+  // Crawl health has its own window (cw: the last 7 or 30 whole days, and today), not the
+  // bar's period: a crawler opened from there is shown over that window, today said apart.
+  const own = s.tab === "ai/crawl";
+  const r = own ? rangeOf(m, { ...s, range: s.cw === "7" ? "7d" : "30d" }) : rangeOf(m, s);
   const body = document.createDocumentFragment();
   const back = h("button", { type: "button", class: "btn", html: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5L5.5 8l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' }, "Back");
-  back.addEventListener("click", () => S.set({ dd: encode(chain.slice(0, -1)) }));
+  back.addEventListener("click", () => (history.state?.drill > 1 ? history.back() : chain.length > 1 ? S.set({ dd: encode(chain.slice(0, -1)) }) : closeDrill()));
   // ---- trend, from history (one step only)
   const ser = chain.length === 1 ? series(dim, value) : null;
   if (ser && r.kind === "history") {
@@ -205,6 +275,7 @@ export function drillView(m, s) {
       h("div", { class: "dd-kpis" }, ser.map((x, i) => h("div", null, h("b", null, n(totals[i])), h("span", null, x.name)))),
       h("div", { class: "sheet" }, lines(days, ser, { label: `${DIMS[dim].name} ${value} per day`, H: 170, width: chartWidth() })),
       h("p", { class: "note" }, "From whole, verified days. Each day keeps its longest lists in full and folds the tail, so a rare value can read 0 on a day it was in the tail.")));
+    if (own) body.prepend(ownWindow(m, r, ser, totals));
   } else if (ser && r.kind === "today" && m.live?.state === "ok") {
     const t = m.live.figures;
     body.append(h("div", { class: "dd-kpis" }, ser.map((x) => h("div", null, h("b", null, n(x.get(t))), h("span", null, `${x.name}, today so far`)))));
@@ -222,22 +293,30 @@ export function drillView(m, s) {
 
   // ---- visits (anonymous journeys), which can be crossed
   const applies = chain.map(([d, v]) => visitHas({}, d, v) !== undefined).every(Boolean);
-  const vs = h("section", { class: "s" }, h("h3", null, "The visits behind it"));
+  const vs = h("section", { class: "s", id: "dd-visits" }, h("h3", null, "The visits behind it"));
+  const has = {};
   if (!applies) vs.append(h("p", { class: "empty" }, "Visits are anonymous: they carry no address, status or bot name. The requests below show those."));
   else {
-    const js = (m.journeys || []).filter((j) => chain.every(([d, v]) => visitHas(j, d, v))).sort((a, b) => String(b.start).localeCompare(String(a.start)));
-    if (!js.length) vs.append(h("p", { class: "empty" }, `No visit in the last ${m.journey_days || 7} days matches.`));
+    // The period's visits only (2.13): Today is today's; a longer period reaches back as far
+    // as visits are kept, and says so when the period is longer than that.
+    const span = visitSpan(m, r);
+    const js = (m.journeys || []).filter((j) => span.has(j) && chain.every(([d, v]) => visitHas(j, d, v))).sort((a, b) => String(b.start).localeCompare(String(a.start)));
+    if (!js.length) vs.append(h("p", { class: "empty" }, `No visit ${span.words} matches.`));
     else {
       const secs = js.map((j) => j.seconds).filter((x) => x != null).sort((a, b) => a - b);
-      vs.append(h("p", { class: "sub" }, `${n(js.length)} visit${js.length === 1 ? "" : "s"} in the last ${m.journey_days || 7} days (anonymous; kept that long, then deleted).`),
+      vs.append(h("p", { class: "sub" }, `${n(js.length)} visit${js.length === 1 ? "" : "s"} ${span.words} (anonymous; kept ${m.journey_days || 7} days, then deleted${span.longer ? ", so the period above reaches past them" : ""}).`),
         h("div", { class: "dd-kpis" },
           h("div", null, h("b", null, n(js.length)), h("span", null, "visits")),
           h("div", null, h("b", null, (js.reduce((a, j) => a + (j.pages || 0), 0) / js.length).toFixed(1)), h("span", null, "pages per visit")),
           h("div", null, h("b", null, secs.length ? duration(secs[Math.floor(secs.length / 2)]) : "-"), h("span", null, "median length"))),
-        drillFlow(js, chain, chartWidth()), visitLists(js, chain), h("h3", { style: { marginTop: "6px" } }, "Latest visits"), visitList(js));
+        h("div", { id: "dd-flow" }, drillFlow(js, chain, chartWidth())), visitLists(js, chain), h("h3", { style: { marginTop: "6px" } }, "Latest visits"), visitList(js));
+      has.visits = true;
+      has.sources = !!vs.querySelector("#dd-list-source");
     }
   }
   body.append(vs);
+  const goTo = jumps(jumpsFor(dim, value, chain, has));
+  if (goTo) body.prepend(goTo);
 
   // ---- requests, the last few hours of the raw log
   const rq = h("div");
@@ -247,7 +326,7 @@ export function drillView(m, s) {
     title: label(dim, value), head: [back, crumbs(m, s, chain)], className: "dd", key: "drill", scope: "page", still: wasOpen,
     subtitle: chain.length > 1 ? `${chain.map(([d, v]) => `${DIMS[d].name.toLowerCase()} ${said(d, v)}`).join(", and ")}. Select any value below to narrow further.`
       : `${DIMS[dim].name}. Select any value below to narrow further.`,
-    body, onClose: () => { wasOpen = false; if (S.read().dd) S.set({ dd: "" }); },
+    body, onClose: () => { wasOpen = false; if (S.read().dd) closeDrill(); },
   });
   wasOpen = true;
   return d.el;

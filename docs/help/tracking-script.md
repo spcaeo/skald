@@ -97,7 +97,7 @@ A form records only its own `id` or `name`, such as `contact`. It never reads wh
 
 ### What it does not track by itself
 
-Two events on [Leads & sales > Events](#sales/events) come only from your site's own code: **Demo opened** (`book_demo_open`) and **Demo booked** (`demo_booked`). The Events tab marks them "sent by your own code". Your developer sends them when your own booking step opens and succeeds:
+Two events on [Leads & sales > Events](#sales/events) come only from your site's own code: **Demo opened** (`book_demo_open`) and **Demo booked** (`demo_booked`). Until your site sends them, the Events tab shows them as **Not set up**, with the line to add. Any event your site has never sent shows the same way, never as 0 or "0% went on". Your developer sends them when your own booking step opens and succeeds:
 
 ```
 skald('track', 'demo_booked', {id: 'header'})

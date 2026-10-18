@@ -36,7 +36,7 @@ from ..config import setting
 from ..files import own_like_folder
 from . import ALIASES, FINISHED, STAGES
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 6
 STAMP = "%Y-%m-%dT%H:%M:%SZ"
 FILE = "conversions.sqlite"
 VID_DAYS = 30
@@ -74,7 +74,7 @@ PEOPLE_TABLES = """CREATE TABLE IF NOT EXISTS visits (
   ip TEXT NOT NULL, user_agent TEXT, start TEXT NOT NULL, end TEXT NOT NULL,
   source TEXT, via TEXT, referrer TEXT, campaign TEXT, landing TEXT, exit TEXT,
   country TEXT, device TEXT, browser TEXT, os TEXT, pages INTEGER NOT NULL,
-  seconds INTEGER, trail TEXT NOT NULL, posts TEXT, UNIQUE (site, day, seq));
+  seconds INTEGER, trail TEXT NOT NULL, posts TEXT, city TEXT, UNIQUE (site, day, seq));
 CREATE INDEX IF NOT EXISTS visits_ip ON visits (site, ip, start);
 CREATE INDEX IF NOT EXISTS visits_day ON visits (day);
 CREATE TABLE IF NOT EXISTS visit_days (
@@ -94,7 +94,7 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 """ + CONVERSIONS.format(name="conversions") + INDEXES + """CREATE TABLE IF NOT EXISTS journeys (
   vid TEXT NOT NULL, site TEXT NOT NULL, at TEXT NOT NULL, path TEXT NOT NULL,
-  source_type TEXT);
+  source_type TEXT, via TEXT);
 CREATE INDEX IF NOT EXISTS journeys_vid ON journeys (site, vid, at);
 CREATE INDEX IF NOT EXISTS journeys_at ON journeys (at);
 CREATE INDEX IF NOT EXISTS journeys_site_at ON journeys (site, at);
@@ -147,7 +147,12 @@ UPGRADES: dict[int, list[str]] = {2: [
     3: ["CREATE INDEX IF NOT EXISTS journeys_site_at ON journeys (site, at)"],
     # 4: the test mark, the people's visits, the removed rows (PEOPLE_TABLES).
     4: ["ALTER TABLE conversions ADD COLUMN test INTEGER NOT NULL DEFAULT 0",
-        *[sql.strip() + ";" for sql in PEOPLE_TABLES.split(";\n") if sql.strip()]]}
+        *[sql.strip() + ";" for sql in PEOPLE_TABLES.split(";\n") if sql.strip()]],
+    # 5: each kept visit's city, when a city file named one (logs.city_db).
+    5: ["ALTER TABLE visits ADD COLUMN city TEXT"],
+    # 6: the page view's referring host (the beacon's `r`; "" none, NULL a
+    # row from before): a visitor ID's first touch (firsttouch.py).
+    6: ["ALTER TABLE journeys ADD COLUMN via TEXT"]}
 
 # The SCHEMA this code set a file up with (see accounts/db.py): a file
 # stamped with it at SCHEMA_VERSION skips the script on connect.
@@ -387,9 +392,9 @@ def _identity(db, site: str, identity: dict | None) -> int | None:
 
 
 def record_page_view(db, site: str, vid: str, at: str, path: str,
-                     source_type: str | None) -> None:
-    db.execute("INSERT INTO journeys (vid, site, at, path, source_type) VALUES (?, ?, ?, ?, ?)",
-               (vid, site, at, path, source_type))
+                     source_type: str | None, via: str | None = None) -> None:
+    db.execute("INSERT INTO journeys (vid, site, at, path, source_type, via) "
+               "VALUES (?, ?, ?, ?, ?, ?)", (vid, site, at, path, source_type, via))
 
 
 def log_delivery(db, site: str, tool: str, outcome: str, http_status: int,

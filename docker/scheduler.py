@@ -5,8 +5,17 @@
     run-daily   at SKALD_DAILY_AT (07:15) in the site's time zone; on failure,
                 one `notify-failure` mail (at most one per 12 hours)
     backup      at SKALD_BACKUP_AT (03:30) in the same zone; on failure, the same
+    reports     every SKALD_REPORTS_MINUTES minutes (15; 0 turns it off): the client
+                reports whose time has come (`skald reports --due`; each report keeps
+                its own schedule in the site's zone, records every send and retries
+                a failed one once, client_reports.py)
     rotate      at 00:05: the in-image nginx's beacon log, Debian style
                 (.1, then .2.gz ... .14.gz), then nginx reopens it
+    search      `search sync` every SKALD_SEARCH_HOURS hours (6; 0 turns it off)
+                from SKALD_SEARCH_AT (01:40): 01:40, 07:40, 13:40, 19:40, clear of
+                the daily run. Each connected site in turn, under its own lock
+                (search/sync.py); a site with nothing connected is skipped at
+                once. Its failures mail once by themselves, so no failure mail here.
 
 Like cron with `flock -n`: a job still running when it is next due is not
 started twice; a time missed while the container was down is not caught up.
@@ -62,6 +71,16 @@ def next_daily(after: datetime, hhmm: str, tz: str) -> datetime:
         if at > after:
             return at
     raise AssertionError("unreachable")
+
+
+def next_hours(after: datetime, hhmm: str, hours: int, tz: str) -> datetime:
+    """The first of HH:MM, HH:MM + `hours`, ... (in `tz`, within each day,
+    from the day's HH:MM) strictly after `after`, in UTC. `hours` divides 24."""
+    if hours < 1 or 24 % hours:
+        raise ValueError("hours must divide 24")
+    h, m = parse_hhmm(hhmm)
+    times = sorted({f"{(h + k * hours) % 24:02d}:{m:02d}" for k in range(24 // hours)})
+    return min(next_daily(after, t, tz) for t in times)
 
 
 def next_every(after: datetime, minutes: int) -> datetime:
@@ -122,7 +141,8 @@ class Job:
 
 
 class Scheduler:
-    def __init__(self, config: str, tz: str, live_minutes: int, daily_at: str, backup_at: str):
+    def __init__(self, config: str, tz: str, live_minutes: int, daily_at: str, backup_at: str,
+                 report_minutes: int = 15, search_hours: int = 0, search_at: str = "01:40"):
         self.config = config
         ti = [sys.executable, str(APP / "bin/skald"), "--config", config]
         self.ti = ti
@@ -133,7 +153,13 @@ class Scheduler:
                              lambda t: next_daily(t, daily_at, tz), notify=True))
         self.jobs.append(Job("backup", ti + ["backup"],
                              lambda t: next_daily(t, backup_at, tz), notify=True))
+        if report_minutes > 0:
+            self.jobs.append(Job("reports", ti + ["reports", "--due"],
+                                 lambda t: next_every(t, report_minutes)))
         self.jobs.append(Job("rotate", None, lambda t: next_daily(t, "00:05", tz), fn=rotate_job))
+        if search_hours > 0:
+            self.jobs.append(Job("search", ti + ["search", "sync"],
+                                 lambda t: next_hours(t, search_at, search_hours, tz)))
         self.stopping = False
 
     def log_path(self, job: Job) -> Path:
@@ -169,6 +195,8 @@ class Scheduler:
             if code == 1:
                 say(f"live: withheld (exit 1, {took:.0f} s)")
             return
+        if job.name == "reports" and code == 0:
+            return                      # every 15 minutes: quiet unless a send failed
         say(f"{job.name}: exit {code} after {took:.0f} s")
         if code != 0 and job.notify:
             got = subprocess.run(self.ti + ["notify-failure", "--job", job.name, "--exit", str(code),
@@ -240,8 +268,14 @@ def main(argv: list[str] | None = None) -> int:
     backup = os.environ.get("SKALD_BACKUP_AT") or "03:30"
     parse_hhmm(daily), parse_hhmm(backup)
     minutes = int(os.environ.get("SKALD_LIVE_MINUTES") or 2)
-    say(f"times in {tz}: run-daily {daily}, backup {backup}, live every {minutes} min")
-    return Scheduler(a.config, tz, minutes, daily, backup).run()
+    reports = int(os.environ.get("SKALD_REPORTS_MINUTES") or 15)
+    search_hours = int(os.environ.get("SKALD_SEARCH_HOURS") or 6)
+    search_at = os.environ.get("SKALD_SEARCH_AT") or "01:40"
+    parse_hhmm(search_at)
+    say(f"times in {tz}: run-daily {daily}, backup {backup}, live every {minutes} min, "
+        f"client reports every {reports} min, search sync every {search_hours} h from {search_at}")
+    return Scheduler(a.config, tz, minutes, daily, backup, report_minutes=reports,
+                     search_hours=search_hours, search_at=search_at).run()
 
 
 if __name__ == "__main__":

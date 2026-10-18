@@ -7,6 +7,7 @@
 //   filters  the global filters it applies; the others show greyed (s)
 //   keep     the address parameters that belong to this tab (page, fn, ip...)
 //   ranged   false: the period bar does not apply (s)
+//   period   with ranged false: the tab's own period, in a fixed chip where the bar was (s, m)
 //   live     true: redrawn every 2 minutes whatever the period (else only for today)
 //   compare  true: it follows the compare switch (cmp)
 //   figures  false: a page without figures (the top bar keeps its title and buttons only)
@@ -19,18 +20,17 @@ import insights from "./insights.js";
 import realtime from "./realtime.js";
 
 
-// Summary in Live mode (range=today) starts with Real time (the same block as the
-// Real time tab: visitors now, minute by minute, the world map, what is read
-// now), then holds what the old Live page showed: the tiles with "+N this hour", Right now (5 visits, 5 AI events, Pause), today's
-// leads and bookings (5, with a link to Pipeline), visitors by hour, who else
-// came and today's top fives (js/tabs/ov-summary.js, ov-live.js).
+// Summary in Live mode (range=today) is the approved Live layout (2.13,
+// js/tabs/ov-today.js): the live strip (visitors now, minute by minute, one Pause;
+// the four tiles against yesterday at this hour), the map and the newest visits,
+// sources and the flow, what converted and AI & bots, each linking to its full tab.
 
 export default [
   ["summary", "Summary", summary, { live: true, compare: true }],
   // Real time (js/tabs/realtime.js): always now, whatever the period; it asks for
   // fresh figures every 15 seconds itself, so the 2-minute redraw leaves it alone.
-  ["realtime", "Real time", realtime, { live: true, polls: true, ranged: false }],
-  ["insights", "Insights", insights, { file: "insights", filters: ["path", "country", "source", "campaign", "referrer"], keep: ["since"] }],
+  ["realtime", "Real time", realtime, { live: true, polls: true, ranged: false, period: "Now" }],
+  ["insights", "Insights", insights, { file: "insights", filters: ["path", "country", "source", "campaign", "referrer"], keep: ["since"], ranged: false, period: "Each insight's own two periods" }],
   // #live and #compare are the global modes now (js/modes.js, routes.js): Summary with
   // range=today, or any tab with cmp set. No Live or Compare tab of their own.
 ];

@@ -75,6 +75,10 @@ once from the URL before any of it and attached to every verdict, so a probe is
       this address and agent did not render earlier that day or read on an
       earlier day                              -> BOTS ("browser-like, never
                                                    rendered the page")
+9b. BROWSER matches, and this visit read site.too_fast_pages (6) page
+      views or more, all within site.too_fast_seconds (2) of its first
+                                               -> BOTS ("too fast to be a
+                                                   person")
 10. BROWSER           matches the agent      -> PEOPLE
       and the referrer's host is an assistant's,
       or AI_UTM matches the URL              -> PEOPLE, tier cited
@@ -126,6 +130,30 @@ rendered is filed under bots, so the groups still partition the log. On the
 audited day (2026-10-10) this moved 704 of 717 browser-like page visitors
 to bots, and readers went from 532 to 10. `site.require_rendering: false`
 turns it off, for a site whose assets come from a host this log never sees.
+
+Rule 9b (`too_fast.py`, added 2026-10-18) catches the scraper that passes
+rule 9. On 14 Oct a visit counted as a person read 17 pages, every one at
+second 0 of the visit: it drives a real browser, or fetched one asset, so it
+"rendered". Nobody reads that fast. A click is a choice - find the link, move
+the hand, wait for the page - and even a hurried reader clicking through a
+menu spends about a second per page: a fast clicker reads 3 pages in 2
+seconds, and stays a person (tests/test_too_fast.py). So a browser-like visit (the same visit as rule 9) with
+at least `site.too_fast_pages` (6) page views, all of them within
+`site.too_fast_seconds` (2) of its first, is a bot. The log stamps whole
+seconds, so that is 6 pages in under 3 real seconds - two a second, with
+nothing slower anywhere in the visit. "All of the visit's pages", not "any 6
+in a row", on purpose: a person who restores six tabs and then reads on is
+left alone. A page view is a 2xx or 304 document (rule "What decides a page
+view"), so redirects never make a reader look faster. Like rule 9 it is
+whole-visit, every request of the visit moves to bots, and the groups still
+partition the log; bots.json's `too_fast` says how many (`requests`,
+`pages`, `readers`). A visit that never rendered is rule 9's first.
+`site.too_fast_pages: 0` turns it off. The audit recounts it on its own road
+(`audit_too_fast.py`). Prefetch and prerender (Chrome speculation rules
+fetch whole pages a person never opens) would look the same; they send
+`Sec-Purpose: prefetch`, which the log format does not carry yet
+(docs/EDGE-CASES.md B2), so a site that prerenders many pages at once should
+raise `site.too_fast_pages`.
 
 **Not done: a burst rule.** The same day had one page load spread over 51
 addresses in 6 seconds - a distributed crawler with one user agent. A rule
@@ -542,7 +570,18 @@ Certificate validation (`/.well-known/acme-challenge/…`, `MACHINE_PATH`) is fi
 Skald's own fetchers are always our own traffic, whatever the lists say
 (`classify.OWN_AGENTS`): the hourly robots.txt check, user agent
 `site-version-check/1`, is "Skald (robots.txt check)". Before 2.8.0 it
-landed in bots on every site.
+landed in bots on every site. The same agent reads the site's sitemaps for
+crawl health (sitemap.py): the files on robots.txt's `Sitemap:` lines and
+`/sitemap.xml`, once a day (retried at most hourly after a failure), only on
+the site's own hosts, 5 s and 10 MB a file, 20 files at most;
+`crawl_health.sitemap: false` turns it off
+([docs/DATA-CONTRACT-CRAWL-HEALTH.md](docs/DATA-CONTRACT-CRAWL-HEALTH.md)). Those
+requests are our own traffic too, under the same label.
+
+Crawl health follows Google (`Googlebot`), Bing (`bingbot`) and every AI
+crawler and AI user fetcher by the name and tier given above; a crawler
+claiming one of those names from an address that is not theirs is a bot and is
+not in it.
 
 `ours.user_agents` is matched against the user agent; `ours.referrers` against
 the referrer. Both are **literal substrings**, not regular expressions: the
@@ -664,6 +703,47 @@ details decide what a line gives:
   `logs.country_db`, when one is set: a lookup in the same DB-IP file
   nginx's GeoIP module reads, not a guess. With neither, it is stored as
   Unknown and shown as Not recorded.
+- **City** (2.12.0, people only). With a city file `logs.city_db` (a
+  MaxMind-format `.mmdb`, DB-IP's free "IP to City Lite"), a reader's visit
+  gets the city of its first page's address: `"City, Region, CC"` (the
+  region left out when missing or the same as the city; commas in a name are
+  spaces). A record without a city name gives none, and so does a city whose
+  country is not the line's own country (`cc=`, or the country file's): a
+  visit is never placed in a city of another country. No file, or no city:
+  stored as Unknown, shown as Not recorded, never guessed. Bots, crawlers and
+  our own traffic are never looked up.
+
+## Line order
+
+A visit is built from its lines in time order, so which page came first
+decides its landing page, its steps (a → b), its exit, its trail and flow,
+the funnels it meets, its first touch, what the AI read before it, and
+whether a page from a new source starts a new visit. A log is not always in
+time order: nginx writes a line when the request ends (a slow request lands
+after faster ones that started later), some formats stamp a line with the
+request's start, and shipped logs (skald-ship, ingest) and rotations can
+interleave.
+
+**The rule (both roads):** a window's lines are counted in timestamp order;
+lines with the same timestamp keep the order they were read in (files oldest
+first, each top to bottom). Which line of a repeated request id is kept is
+decided before that, in file order, as it always was.
+
+- **Main road** (`parse.in_time_order`, used by `window.ordered_classifier`
+  and both passes of a window): it streams, holding each line back until a
+  line at least 60 seconds newer (`parse.HOLD`) has been read, so memory is
+  a minute of lines, never the day. The first pass (the classifier's) also
+  measures how far behind any line was. When a line was further behind than
+  the hold, that pass is read again holding back that far, and the count's
+  pass uses the same hold: the order is exact whatever the lateness, and a
+  log hours out of order costs a second read and that many hours of lines in
+  memory, only on such a day.
+- **Audit** (`audit.in_time_order`): sorts its whole window by (timestamp,
+  place read), its own code.
+
+Requests, page views and statuses never depend on order (every line is
+still counted once); visits and the figures above can, and a day written in
+order is counted exactly as before.
 
 ## What this cannot know
 
@@ -675,6 +755,11 @@ never a count of them. A scraper that sends a plausible Chrome string and only
 requests pages is caught by rule 9; one that drives a real browser and loads
 the assets as well (a headless browser not saying so) is indistinguishable
 from a reader.
+
+**A person whose browser fetches six pages at once is not counted.** Rule 9b
+cannot tell a visit that only restored six or more tabs of the site (or that
+prerendered them) and loaded nothing after from a scraper. Reading on after
+the burst keeps them a person.
 
 **A person who blocks scripts and styles is not counted.** Rule 9 cannot tell
 them from a scraper, and the beacon cannot see them either. On 2026-10-10

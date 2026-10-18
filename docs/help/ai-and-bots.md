@@ -27,6 +27,8 @@ Pick the period at the top as on any other page: today, yesterday, a number of d
 
 Select a name to open its detail.
 
+An assistant is called by the name people know it by: **ChatGPT**, not `chatgpt.com`. A bot keeps its own name, because it is one fetcher, not the assistant. A bot that reads a page only when one user asks the assistant about it (`ChatGPT-User`, `Claude-User`, `Perplexity-User`) is marked **user fetcher**.
+
 ## When a figure says "not recorded" or "partial"
 
 Skald only shows what your server log holds. It never fills a gap with zero.

@@ -116,6 +116,52 @@ class Returning(unittest.TestCase):
             days = {d for (d,) in h.db.execute("SELECT DISTINCT day FROM visitor_days")}
         self.assertEqual(days, {self.d2.isoformat()})
 
+    def test_an_audit_after_the_hashes_expired_says_not_checkable(self):
+        """Hashes live 30 days; a day audited later recounts everything else
+        and labels the hash figures not checkable instead of failing them."""
+        later = self.d1 + timedelta(days=31)
+        with mock.patch.dict(os.environ, KEY):
+            self.collect(self.d1, self.d2)
+            self.collect(self.d2, self.d3)
+            self.collect(self.d3, later)                   # this run prunes d1's hashes
+            code, out, err = self.box.run("--today", later.isoformat(), "audit", "--day",
+                                          self.d1.isoformat())
+            self.assertEqual(code, 0, err)
+            self.assertIn("not checkable (inputs expired): visitor hashes", out)
+            code, out, err = self.box.run("--today", later.isoformat(), "audit", "--day",
+                                          self.d2.isoformat())
+            self.assertEqual(code, 0, err)
+            self.assertIn("not checkable (inputs expired): returning readers", out)
+            self.assertNotIn("visitor hashes", out)        # d2's own hashes are still kept
+            with History(self.box.db) as h:
+                h.db.execute("UPDATE visitor_days SET n = n + 1 WHERE day = ?",
+                             (self.d2.isoformat(),))
+                h.db.commit()
+            code, _, err = self.box.run("--today", later.isoformat(), "audit", "--day",
+                                        self.d2.isoformat())
+        self.assertEqual(code, 1)                          # what is kept is still checked
+        self.assertIn("visitor hash", err)
+
+    def test_hashes_missing_inside_their_window_still_fail_the_audit(self):
+        with mock.patch.dict(os.environ, KEY):
+            self.collect(self.d1, self.d2)
+            with History(self.box.db) as h:
+                h.db.execute("DELETE FROM visitor_days")
+                h.db.commit()
+            code, out, err = self.box.run("--today", self.d2.isoformat(), "audit", "--day",
+                                          self.d1.isoformat())
+        self.assertEqual(code, 1, out)
+        self.assertIn("visitor hashes", err)
+
+    def test_a_day_collected_without_the_key_is_not_checkable_for_hashes(self):
+        self.collect(self.d1, self.d2)
+        with mock.patch.dict(os.environ, KEY):
+            code, out, err = self.box.run("--today", self.d2.isoformat(), "audit", "--day",
+                                          self.d1.isoformat())
+        self.assertEqual(code, 0, err)
+        self.assertIn("not checkable (not recorded that day): "
+                      "visitor hashes", out)
+
     def test_without_the_key_nothing_is_hashed(self):
         self.collect(self.d1, self.d2)
         with History(self.box.db) as h:

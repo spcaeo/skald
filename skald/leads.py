@@ -93,7 +93,7 @@ MIN_MEDIAN = 10
 BLOCKS = ("period", "by_source_type", "funnel", "attribution_rows", "time_to_convert")
 
 ADMIN_NOTE = ("Aggregates only. Each lead (name, email, form, attribution) is in the "
-              "website's admin at /admin, reached through the SSH tunnel to the server.")
+              "website's admin at /admin, reached only through the private connection to the server.")
 
 # Columns read, and never any other: personal fields are not even selected.
 COLUMNS = ("created_at", "type", "status", "locale", "page", "ai_source",

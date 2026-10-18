@@ -15,6 +15,7 @@
 import { h, n, pct1, share } from "../ui.js";
 import { table } from "../table.js";
 import { link } from "../drill.js";
+import { countryName } from "../countries.js";
 
 export const ACTION = { demo: "Demos", contact: "Contact forms", signup: "Sign-ups", waitlist: "Early access", paid: "Payments", deal: "Deals", call: "Phone clicks", email: "Email clicks", cta: "Button clicks", trial: "Trials" };
 export const ONE = { demo: "Demo booking", contact: "Contact form", signup: "Sign-up", waitlist: "Early access", trial: "Trial", paid: "Payment", deal: "Deal" };
@@ -136,7 +137,8 @@ export function leadTable(obj, lb, { caption, file, key = "Label", keep = () => 
   const cols = [
     labelColumn(key, drill, path),
     { key: "v", label: "Visitors", num: true, sort: by((x) => x.v), fmt: (v) => (v == null ? h("span", { class: "few", title: "Not in this list's visitors" }, "-") : n(v)) },
-    { key: "share", label: "Share", num: true, sort: by((x) => x.v), fmt: (_, x) => share(x.v || 0, sum), csv: (x) => (x.v && sum ? (x.v / sum).toFixed(4) : "") },
+    // A row with no visitors of its own (Not recorded, a label only the leads have) has no share, never 0%.
+    { key: "share", label: "Share", num: true, sort: by((x) => x.v), fmt: (_, x) => (x.v == null ? h("span", { class: "few", title: "No share: not in this list's visitors" }, "-") : share(x.v, sum)), csv: (x) => (x.v && sum ? (x.v / sum).toFixed(4) : "") },
   ];
   if (lb && lb.days) {
     cols.push({ key: "leads", label: "Leads", num: true, sort: by((x) => x.leads), title: `${LEAD_WORDS} By ${touch}.` },
@@ -157,11 +159,12 @@ export const UNKNOWN = "Unknown";
 export function labelCell(drill, k, text) {
   if (k === UNKNOWN) return h("span", { class: "cell-l none", title: "Not recorded, never guessed" }, "Not recorded");
   const words = text ?? k;
-  return h("span", { class: "cell-l", title: words }, drill ? link(drill, k, { text: words }) : words);
+  return h("span", { class: "cell-l", title: drill === "country" ? countryName(k) : words }, drill ? link(drill, k, { text: words }) : words);
 }
 export function labelColumn(key, drill, path = false) {
   return { key: "label", label: key, cls: path ? "lbl lp" : "lbl", sort: (x) => (x.k === UNKNOWN ? null : x.label),
-    fmt: (v, x) => labelCell(drill, x.k, v ?? x.k), csv: (x) => (x.k === UNKNOWN ? "Not recorded" : x.label ?? x.k) };
+    fmt: (v, x) => labelCell(drill, x.k, v ?? x.k), csv: (x) => (x.k === UNKNOWN ? "Not recorded" : x.label ?? x.k),
+    ...(drill === "country" ? { country: (x) => x.k } : {}) };
 }
 
 // The line under a table with lead columns: what Leads are, which touch, the days they cover.

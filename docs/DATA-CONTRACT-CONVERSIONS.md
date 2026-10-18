@@ -23,6 +23,7 @@ day the action was taken.
 | `min_rate` | int, 10: no rate over fewer starts or browsers |
 | `as_known` | the "as known" sentence the tab shows |
 | `abandon_hours` | number, 24: how long a start may wait for its finish |
+| `repeat_minutes` | int, 30: the script tag's started (and other) rows keep one per browser, action and stage in this many minutes (conversions.BEACON_REPEAT_SECONDS), so they can be fewer than Events' count of the same event |
 | `stages`, `finished` | the stages in report order; the ones that count as completed (`completed`, `paid`) |
 | `dims`, `visit_buckets`, `convert_buckets` | the breakdown names and bucket names below, in order |
 | `since` | the first local date conversions are recorded for, or null: the earliest of the first conversion kept, the first row taken away (`removed`), and, once the lead DB has been read into the store, the lead DB's first lead of any status (spam and duplicates make no row, yet their day was read: a day from `since` on with no lead counted is 0). audit_conversions_figures.check_since finds the same day by its own SQL; when it disagrees every day is withheld |
@@ -68,6 +69,16 @@ counts today's rows of the lead actions by SQL GROUP BY (action, stage,
 test) over the file opened read-only, and compares the total, the test
 count and (when every row is listed) the rows by action, stage and test
 mark. A difference withholds the listing (`withheld["today"]`).
+
+`today.by_now` (2.13, `conversions_leads.by_now`): the Leads tile's "vs
+yesterday at this hour" in Live mode. `{"day": yesterday, "until": yesterday at
+the file's own time of day (local ISO), "state": "ok" | "withheld" |
+"not_recorded", "leads": n or null, "hours": [24] or null, "today_hours": [24] or
+null}`: finished rows (completed, paid) of the lead actions, `test = 0`, from
+yesterday's midnight to `until`, by local hour; `today_hours` today's the same way
+(they add up to today's `days[]` leads). Yesterday withheld or before `since`
+carries no figure. `check_by_now` counts the same again with one SQL COUNT per
+local hour between its UTC bounds; a difference withholds the listing as above.
 
 **Lead findings in insights.json (2.5.0).** `conversions_leads.insights` adds
 findings with `metric` `"leads"`, by insights.py's rules (whole periods only,

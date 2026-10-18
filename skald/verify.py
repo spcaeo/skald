@@ -177,7 +177,8 @@ def _breakdowns(totals: Totals) -> list[Problem]:
     people = totals.groups.get(Group.PEOPLE)
     if people:
         if people.readers is not None:
-            for name in READER_DIMS:
+            # City only where a city file counted it (logs.city_db).
+            for name in READER_DIMS + (("city",) if "city" in people.by else ()):
                 differs(f"readers by {name}", sum(people.by.get(name, {}).values()),
                         people.readers, "readers")
         differs("people's page views by speed", sum(people.speeds.values()),

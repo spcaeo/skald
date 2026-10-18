@@ -12,10 +12,10 @@ const MIN_SHARE = 10;   // a share of fewer than this many is not given, only th
 import { table } from "../table.js";
 import { panel, blist } from "./common.js";
 import { info } from "./tiles.js";
+import { ASSISTANTS } from "../labels.js";
 
 export const MANY = "(more than one)";
-const LABEL = { "chatgpt.com": "ChatGPT", "perplexity.ai": "Perplexity", "claude.ai": "Claude", "gemini.google.com": "Gemini",
-  "copilot.microsoft.com": "Copilot", "mistral.ai": "Mistral", "meta.ai": "Meta AI", [MANY]: "More than one",
+const LABEL = { ...ASSISTANTS, [MANY]: "More than one",
   "(none)": "None", "(not recorded)": "Not recorded", Unknown: "Not recorded" };
 export const aiLabel = (name) => LABEL[name] || name;
 const ASSISTANT = (k) => !["(none)", "(not recorded)", "Unknown"].includes(k);

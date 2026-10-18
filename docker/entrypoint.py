@@ -106,6 +106,10 @@ def render_config(env: dict) -> dict:
         # A GeoIP .mmdb (DB-IP's free country file): a line with no country
         # of its own gets its address's, and so does a lead hook's ip.
         config["logs"]["country_db"] = env["SKALD_COUNTRY_DB"].strip()
+    if (env.get("SKALD_CITY_DB") or "").strip():
+        # A GeoIP city .mmdb (DB-IP's free "IP to City Lite"): each visit's
+        # city, readers by city, and the cities on the real-time map.
+        config["logs"]["city_db"] = env["SKALD_CITY_DB"].strip()
     if env.get("SKALD_ASSET_PREFIXES"):
         config["site"]["asset_prefixes"] = _words(env["SKALD_ASSET_PREFIXES"])
     to = _words(env.get("SKALD_EMAIL"))

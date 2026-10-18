@@ -25,7 +25,10 @@ This builds one from the site's real pages:
             are kept, under their titles; otherwise the path is the title.
   sections  by top-level section (/blog/... under "Blog"); pages with no
             section are "Main pages". The first LIMIT pages make the
-            sections, the next OPTIONAL go under "Optional".
+            sections, the next OPTIONAL go under "Optional". A Markdown copy
+            of a page (/blog/post.md beside /blog/post) is not a page of its
+            own: the copies go together under "Markdown copies", after the
+            pages, and do not take a page's place in LIMIT.
 
 The H1 is the site's name. The summary is the home page's description in the
 page list when it has one; otherwise a line asking the owner to write it.
@@ -49,6 +52,8 @@ LIMIT = 30
 OPTIONAL = 20
 MAX_PATH = 70           # extras.py keeps a path's first 70 characters
 MAIN = "Main pages"
+COPIES = "Markdown copies"
+COPY = re.compile(r"\.md/?$", re.I)
 RANKED_BY = ("people's page views plus AI assistants' fetches for someone's question, "
              "over recorded days")
 # First path segments that are never public reading: sign-in, accounts,
@@ -194,13 +199,16 @@ def suggest(p) -> dict:
         out["why"] = "No page that people or AI assistants read is left to suggest."
         return out
     base = out["base_url"]
-    rows = []
-    for i, (path, entry) in enumerate(kept[:LIMIT + OPTIONAL]):
-        rows.append({"path": path, "url": url_of(base, path),
-                     "title": entry.get("title") or None,
-                     "note": entry.get("description") or None,
-                     "section": None, "optional": i >= LIMIT})
+    pages = [k for k in kept if not COPY.search(k[0])]
+    copies = [k for k in kept if COPY.search(k[0])]
+    row = lambda path, entry, optional: {  # noqa: E731
+        "path": path, "url": url_of(base, path), "title": entry.get("title") or None,
+        "note": entry.get("description") or None, "section": None, "optional": optional}
+    rows = [row(path, entry, i >= LIMIT)
+            for i, (path, entry) in enumerate(pages[:LIMIT + OPTIONAL])]
     _sections(rows[:LIMIT], meta)
+    for path, entry in copies[:LIMIT]:
+        rows.append({**row(path, entry, False), "section": COPIES})
     home = meta.get("/") or {}
     name = site_name(config)
     summary = (home.get("description")
@@ -243,9 +251,11 @@ def render(name: str, summary: str, rows: list[dict]) -> str:
     for r in rows:
         if r["optional"]:
             continue
-        if r["section"] not in by:
+        if r["section"] not in by and r["section"] != COPIES:
             order.append(r["section"])
         by.setdefault(r["section"], []).append(item(r))
+    if COPIES in by:                      # the copies after the pages they copy
+        order.append(COPIES)
     parts = [f"# {_text(name, 120)}", f"> {_text(summary, 500)}"]
     for section in order:
         parts.append(f"## {section}\n\n" + "\n".join(by[section]))

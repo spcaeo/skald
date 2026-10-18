@@ -385,6 +385,30 @@ withholds the day.
 
 **The test.** `tests/test_visit_source_split.py`.
 
+## 16. Lines out of time order counted in file order (2026-10-18)
+
+**What happened.** The main road built visits from lines in the order they
+sat in the file; the audit sorted each visitor's lines by time. nginx writes a
+line when the request ends, so a page that took longer than the next one is
+written after it, 1-3 seconds out of order. Then the main road saw /features
+before /compare/x/: the landing page, the step (a → b), the exit, the trail,
+funnels and engagement all came out wrong, and a tagged page written before
+the direct one 2 s earlier split the visit differently. The audit, reading in
+time order, disagreed and withheld the day.
+
+**How this package prevents it.** One rule on both roads (CLASSIFICATION.md,
+"Line order"): lines in timestamp order, ties in file order. The main road
+streams through a 60-second hold (`parse.in_time_order`), learns in its first
+pass how far out of order the window is, and reads again with a longer hold
+when it must, so the order is exact without holding the day in memory.
+
+**The check that catches it.** The audit sorts its window by its own code
+(`audit.in_time_order`); any figure built in a different order differs.
+
+**The test.** `tests/test_line_order.py`: a day written out of order (1-3 s,
+and one line hours late) is stored exactly as the same day written in order,
+and the audit says "all match".
+
 ## The pattern in the first five
 
 Every one of these was a number that answered a slightly different question

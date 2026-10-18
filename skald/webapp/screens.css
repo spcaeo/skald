@@ -49,7 +49,7 @@
 .sk-pick .add-l { font-size: 12.5px; font-weight: 600; color: var(--ink-2); margin-left: 4px; }
 .sk-scroll { overflow-x: auto; }
 .sk-svg { display: block; max-width: none; font-family: var(--sans); }
-.sk-col { font-size: 11px; font-weight: 600; fill: var(--ink-3); letter-spacing: .02em; text-transform: uppercase; }
+.sk-col { font-size: 11.5px; font-weight: 600; fill: var(--ink-3); }
 .sk-band { fill: color-mix(in srgb, var(--ink-3) 22%, transparent); transition: fill .15s; }
 .sk-svg.on .sk-band { fill: color-mix(in srgb, var(--ink-3) 11%, transparent); }
 .sk-svg .sk-band.hi { fill: color-mix(in srgb, var(--k) 46%, transparent); }
@@ -233,6 +233,10 @@ tr.vs-mover td { background: color-mix(in srgb, var(--va) 4%, transparent); }
 .ps-i.not b { font-weight: 450; color: var(--ink-3); }
 .ps-pub .card-h { flex-wrap: wrap; gap: 8px 16px; align-items: center; }
 .ps-pub h2 { margin: 0; }
+.md-copies { margin: 10px 0 0; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); }
+.md-copies > summary { cursor: pointer; padding: 8px 12px; font-size: 13px; color: var(--ink-2); }
+.md-copies[open] > summary { border-bottom: 1px solid var(--rule); }
+.md-copies > .tbl, .md-copies > div { padding: 0 8px 8px; }
 .ps-range { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); }
 .ps-range input { font: inherit; font-size: 13px; padding: 4px 8px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); color: var(--ink); }
 .ps-quick { display: inline-flex; gap: 12px; font-size: 13px; }
@@ -338,7 +342,7 @@ td .confirm { flex-wrap: wrap; justify-content: flex-end; }
 .af small.ro-why { color: var(--ink-3); font-style: italic; }
 .af small.shrink { color: var(--bad); }
 .sec-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.sec-row input { flex: 1 1 180px; }
+.sec-row input:not([type="checkbox"]) { flex: 1 1 180px; }
 .set-cards { display: grid; gap: 14px; }
 
 /* Settings > Integrations (tabs/integrations.js) */
@@ -351,7 +355,8 @@ td .confirm { flex-wrap: wrap; justify-content: flex-end; }
 .doc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .doc-list li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: baseline; font-size: 13.5px; }
 .doc-list li p { margin: 0; overflow-wrap: anywhere; }
-.doc-list .fix { grid-column: 2; color: var(--ink-2); font-size: 12.5px; }
+.doc-list .doc-fix { grid-column: 2; color: var(--ink-2); font-size: 12.5px; overflow-wrap: anywhere; }
+.doc-list .doc-fix code { white-space: normal; overflow-wrap: anywhere; }
 
 /* Conversions: the set-up list and the anonymous timelines (tabs/conversions.js). */
 .conv-setup { margin: 6px 0 0; padding-left: 18px; }

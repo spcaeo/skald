@@ -72,10 +72,10 @@ def defaults(config: dict | None = None) -> list[dict]:
              "paths": [p.strip("/") for p in pricing]},
             {"label": "Sign-up, contact or early-access page", "kind": "path",
              "match": "segment", "paths": [p.strip("/") for p in forms]},
-            {"label": "Opened Book a demo (CMS)", "kind": "lead", "types": ["demo_opened"]},
-            {"label": "Lead: sign-up, contact, early access (CMS)", "kind": "lead",
+            {"label": "Opened Book a demo (lead database)", "kind": "lead", "types": ["demo_opened"]},
+            {"label": "Lead: sign-up, contact, early access (lead database)", "kind": "lead",
              "types": ["signup", "contact", "waitlist"]},
-            {"label": "Demo booked (CMS)", "kind": "lead", "types": ["demo_booked"]},
+            {"label": "Demo booked (lead database)", "kind": "lead", "types": ["demo_booked"]},
         ]}]
 
 

@@ -15,10 +15,11 @@ import { zip } from "./zip.js";
 import { shown, shownKeys } from "./labels.js";
 import { rangeWords, setContext } from "./tabs/common.js";
 import { withFlag } from "./tabs/readers.js";
+import { decode, treeWords } from "./rules.js";
 import { BUILD, buildLine, toolName, toolTagline } from "./build.js";
 import { openDrawer } from "./drawer.js";
 
-const FILTER_WORDS = { country: "Country", path: "Page path", source: "Source", device: "Device", browser: "Browser", campaign: "Campaign", referrer: "Referring site" };
+const FILTER_WORDS = { country: "Country", path: "Page path", source: "Source", device: "Device", browser: "Browser", campaign: "Campaign", referrer: "Referring site", rules: "Rules" };
 const slug = (x) => String(x).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "table";
 const tabName = (k) => S.nameOf(k);
 const stamp = () => new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "").replace(/^(\d{8})(\d{4})$/, "$1-$2");
@@ -33,7 +34,13 @@ function tableJSON(regs) {
     rows: t.rows().map((r) => Object.fromEntries(t.columns.map((c) => [c.label, shown(c.csv ? c.csv(r) : r[c.key] ?? null)]))),
   }));
 }
-function filtersOf(s) { return S.FILTERS.filter((k) => s[k]).map((k) => [k, s[k]]); }
+// The single filters, then the advanced rules in words (js/rules.js).
+function filtersOf(s) {
+  const out = S.FILTERS.filter((k) => s[k]).map((k) => [k, s[k]]);
+  const rules = decode(s.rules);
+  if (rules.items.length) out.push(["rules", treeWords(rules, (d, v) => (d === "country" ? withFlag(v) : v))]);
+  return out;
+}
 function meta(m, s) {
   const r = rangeOf(m, s);
   return { site: m.site, view: viewList(m).find(([k]) => k === (s.view || "all"))?.[1] || s.view, period: r.kind === "today" ? { today: m.today } : { first: r.first, last: r.last, days: r.length },
@@ -169,7 +176,7 @@ export function builder(m, s, loadView) {
   const cmp = h("input", { type: "checkbox", checked: !!s.cmp });
   const settings = async () => {
     const next = { ...s, range: range.value, view: view.value, cmp: cmp.checked ? "prev" : "" };
-    if (!keep.checked) for (const k of S.FILTERS) next[k] = "";
+    if (!keep.checked) { for (const k of S.FILTERS) next[k] = ""; next.rules = ""; }
     const model = view.value === (s.view || "all") ? m : await loadView(next);
     return [model, next, S.TABS.map(([k]) => k).filter((k) => chosen.has(k))];
   };

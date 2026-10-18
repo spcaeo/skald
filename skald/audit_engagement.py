@@ -69,20 +69,23 @@ class Recount:
                 for b in sorted(set(ws) | set(gs), key=int):
                     same(f"{what}: visits of {b} s", int(ws.get(b, 0)), int(gs.get(b, 0)))
 
-    def returning(self, blob, earlier: set, same, problems: list) -> None:
+    def returning(self, blob, earlier: set | None, same, problems: list) -> None:
         """The stored returning blob's by_source against the hashes: a visit
-        is returning when its hash is on an earlier day within 30 days."""
+        is returning when its hash is on an earlier day within 30 days.
+        `earlier` None: those hashes are pruned (audit.EXPIRED), so only the
+        readers per source are compared."""
         if self.key is None or not isinstance(blob, dict) or blob.get("by_source") is None:
             return                               # no key, or not recorded that day
         counted: dict[str, Counter] = {}
         for (visitor, source), n in self.readers.items():
             row = counted.setdefault(source, Counter())
             row["readers"] += n
-            row["returning"] += n if visitor in earlier else 0
+            row["returning"] += n if earlier is not None and visitor in earlier else 0
         want = blob["by_source"]
+        fields = ("readers", "returning") if earlier is not None else ("readers",)
         for source in sorted(set(want) | set(counted)):
             w, g = want.get(source) or {}, counted.get(source) or Counter()
-            for field in ("readers", "returning"):
+            for field in fields:
                 same(f"returning by source: {source}: {field}", int(w.get(field, 0)),
                      int(g.get(field, 0)))
 

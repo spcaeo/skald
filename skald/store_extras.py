@@ -40,7 +40,14 @@ KINDS = ("hourly", "ours", "not_found", "pages", "campaigns", "returning",
          # (ai_formats.py)
          "ai_formats",
          # what each crawler, assistant and bot cost the server (crawler_cost.py)
-         "crawler_cost")
+         "crawler_cost",
+         # each crawler beside the site's sitemap; problems crawlers hit
+         # (crawl_health.py)
+         "crawl_health",
+         # where each visit's visitor first came from (firsttouch.py)
+         "first_touch",
+         # people from search engines by engine and landing page (search_landing.py)
+         "search_landing")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS day_extras (

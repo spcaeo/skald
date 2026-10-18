@@ -58,6 +58,7 @@ ASSISTANTS = {
     "chatgpt.com": "ChatGPT", "perplexity.ai": "Perplexity", "claude.ai": "Claude",
     "gemini.google.com": "Gemini", "copilot.microsoft.com": "Copilot",
     "you.com": "You.com", "phind.com": "Phind", "poe.com": "Poe", "mistral.ai": "Mistral",
+    "meta.ai": "Meta AI",
 }
 
 
@@ -240,6 +241,9 @@ class Journeys:
         self._salt = os.urandom(16)
         self.open: dict[bytes, _Visit] = {}
         self.done: list[_Visit] = []
+        # The city fill (conversions/geo.Cities), set by the tally when a
+        # city file is set: a journey then carries its first page's city.
+        self.cities = None
 
     def _key(self, hit) -> bytes:
         raw = f"{hit.address}\0{hit.user_agent}".encode("utf-8", "replace")
@@ -298,8 +302,11 @@ class Journeys:
         source = dim.source_type(hit.referrer, hit.url, cited, own)
         campaign = dim.campaign(hit.url)
         from .campaigns import fields
+        city = self.cities(hit.address, hit.country) if self.cities is not None else ""
         return {
             "country": hit.country.upper() if hit.country else UNKNOWN,
+            # Only when known: a visit without one has no "city" at all.
+            **({"city": city} if city else {}),
             "browser": browser, "os": system, "device": device,
             "source": source, "via": _via(hit, source, cited, verdict.engine),
             "campaign": "" if campaign == dim.NO_CAMPAIGN else campaign,
@@ -435,18 +442,37 @@ def came_from(j: dict) -> str:
 
 
 def visitor(j: dict) -> str:
-    """'🇨🇦 Canada · Mobile, Safari on iOS'."""
+    """'🇨🇦 CAN · Mobile, Safari on iOS'."""
     return (f"{country_label(j.get('country', ''))} · {j.get('device', '')}, "
             f"{j.get('browser', '')} on {j.get('os', '')}")
+
+
+def browser_steps(j: dict) -> int:
+    """Steps of a journey seen only in the browser (no page loaded): its
+    `in_app`, or the "app" entries of its trail for an older journey."""
+    got = j.get("in_app")
+    if isinstance(got, int):
+        return max(0, got)
+    return sum(1 for _, how in j.get("trail") or [] if how == "app")
+
+
+def pages_words(j: dict) -> str:
+    """'3 pages (2 seen in the browser)': the pages loaded from the server and
+    the steps seen only in the browser, both stated; '2 pages' when none.
+    `pages` keeps its meaning (page views, on both roads); this is words."""
+    loaded = int(j.get("pages", 0) or 0)
+    browser = browser_steps(j)
+    seen = loaded + browser
+    words = f"{seen:,} page{'s' if seen != 1 else ''}"
+    return f"{words} ({browser:,} seen in the browser)" if browser else words
 
 
 def sentence(j: dict) -> str:
     """One journey as plain words, as the CSV and the page say it."""
     trail = ARROW.join(p + (" (in-app)" if how == "app" else "")
                        for p, how in j.get("trail") or [])
-    pages = j.get("pages", 0)
     return (f"{str(j.get('start', ''))[11:16]} · {visitor(j)} · {came_from(j)} → "
-            f"{trail} · {pages} page{'s' if pages != 1 else ''} · "
+            f"{trail} · {pages_words(j)} · "
             f"{duration_words(j.get('seconds'))}")
 
 

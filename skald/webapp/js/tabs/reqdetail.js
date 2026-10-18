@@ -6,7 +6,7 @@ import { time as tzTime, label as tzLabel } from "../tz.js";
 import { h, n, clock, long, toast } from "../ui.js";
 import { GROUPS, color } from "../data.js";
 import * as S from "../state.js";
-import { country, withFlag } from "./readers.js";
+import { countryWords } from "./readers.js";
 import { call, installOnly, INSTALL_ONLY } from "./ipmanager.js";
 import { isViewer, VIEWER } from "../access.js";
 import { openDrawer } from "../drawer.js";
@@ -24,7 +24,8 @@ export const FLAG_WORDS = {
   duplicate: ["duplicate", "Byte-identical to an earlier line in the same second"],
 };
 const KIND_WORDS = { page: "a page", rsc: "Next.js page data (_rsc)", asset: "a file (script, style, image)", beacon: "a beacon", crawler_file: "robots.txt, a sitemap or similar",
-  redirect: "a redirect", not_modified: "not modified (cached)", not_found: "not found", client_error: "a client error", server_error: "a server error", post: "a form post", other: "other" };
+  redirect: "a redirect", not_modified: "not modified (cached)", not_found: "not found", client_error: "a client error", server_error: "a server error", post: "a form post",
+  script_event: "a script tag event (sent to Skald, not a form)", skald_endpoint: "a call to a Skald endpoint (hooks or shipped logs, not a form)", other: "other" };
 
 // One row as the screens read it; the file's own fields stay as they are.
 export function norm(r) {
@@ -67,7 +68,7 @@ export function detail(m, row, ours) {
   ]);
   const who = dl([
     ["Address", row.ip && !removed ? h("span", { class: "ip" }, row.ip, copyButton(row.ip)) : removed ? "removed on request" : "-"],
-    ["Country", row.country ? withFlag(row.country, row.country_name || country(row.country)) : "Not recorded"],
+    ["Country", row.country ? countryWords(row.country) : "Not recorded"],
     ["System", [row.os, row.device].filter((x) => x && x !== "Other").join(", ") || "-"],
     ["Agent", row.agent || "-"],
     ["Verified", row.verified ? VERIFIED[row.verified] || row.verified : "only named assistants and search crawlers are checked"],

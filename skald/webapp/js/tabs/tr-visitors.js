@@ -1,34 +1,91 @@
-// Traffic > Visitors (2.7.0): what a visit looked like. visits.js draws the tab;
-// this file takes out what has one place elsewhere now:
-//   * "Visits that read a page" and "Pages per visit": Overview's tiles hold them
-//     (the map's D1); the bars "Pages per visit" below stay
-//   * "Where visits started" and "Entry pages": landing pages live on Traffic > Pages
-//     (the map's D9), so a line links there instead
-// Nothing is recounted: every figure left is visits.js's own.
+// Traffic > Visitors (2.13, the owner's approved layout): what visits looked like.
+//
+//   Visitor flow        where visits came from, their pages in order, where they left
+//                       (flowview.js, sankey.js); Pages 3 / 4 / 5
+//   Each visit          one row per visit, newest first (visitlist.js); a row opens the
+//                       visitor drawer (visitor.js)
+//   New and returning   and How engaged visits were: two cards (vis-cards.js); with a
+//                       filter on, both count the filtered visits when that reconciles
+//   Where visits ended, Common next steps, and the engagement tables by source and
+//   device (visits.js)
+//
+// Landing pages live on Traffic > Pages (a line links there). Nothing is recounted
+// here: the figures are the days' own, checked in js/visitorfigs.js.
 
 import * as S from "../state.js";
-import visits from "./visits.js";
+import { h, n, short } from "../ui.js";
+import { figures, pathMatch, ranked } from "../data.js";
+import { head, nothing, coverageNote, blist, panel } from "./common.js";
 import { goTo } from "./tr-grid.js";
+import { visitMatrix } from "./visitlist.js";
+import { visitorFlow } from "./flowview.js";
+import { journeyFilter, engagementTables } from "./visits.js";
+import { newReturningCard, engagementCard, rangeDays, cardDays, filtersOn } from "./vis-cards.js";
+import { newReturning, narrowedLists, ARROW } from "../visitorfigs.js";
 
-const ON_OVERVIEW = new Set(["Visits that read a page", "Pages per visit"]);
-const textOf = (el, sel) => el.querySelector(sel)?.textContent.trim();
+const LEDE = "Each visit here read at least one page: one browser, with no gap longer than 30 minutes. Arriving again from another outside source (an AI assistant, a search, another site, a campaign link) starts a new visit. Logs see what was loaded, not how long someone read, so a long read of one page shows as a short visit.";
 
-export default function visitors(m, s, o) {
-  const pages = S.hashFor({ ...s, tab: "traffic/pages", dd: "" });
-  return visits(m, s, o).flatMap((node) => {
-    if (!(node instanceof Element)) return [node];
-    // The tiles: the two Overview holds are dropped.
-    for (const k of node.querySelectorAll(".kpis > .kpi")) if (ON_OVERVIEW.has(textOf(k, ".k-l"))) k.remove();
-    // Where visits started: dropped from the row of three, with a line to the landing pages under it.
-    if (node.matches(".cols.three")) {
-      const start = [...node.children].find((c) => textOf(c, "h3") === "Where visits started");
-      if (start) {
-        start.remove();
-        node.classList.remove("three");
-        return [node, goTo(pages, "Where visits started: the landing pages, with their leads, are on", "Traffic › Pages")];
-      }
-    }
-    // Entry pages: the same list as the landing pages; dropped.
-    return node.matches("section.s") && textOf(node, ":scope > h2") === "Entry pages" ? [] : [node];
-  });
+// The line beside the title: the visits, and how many were by new and returning visitors when that adds up.
+// With the filters narrowing the cards (vis-cards.cardDays), the line says the filtered visits.
+function summary(m, r, t, src) {
+  const f = newReturning(src.narrow ? src.days : rangeDays(m, r));
+  const when = r.kind === "today" ? "today so far" : r.length === 1 ? `on ${short(r.first)}` : `${short(r.first)} to ${short(r.last)}`;
+  if (src.narrow) {
+    const of = `${n(src.kept)} visit${src.kept === 1 ? "" : "s"} ${when} match the filters, of ${n(t.readers ?? 0)}`;
+    return f.state === "ok" && !f.left.length && src.kept ? `${of}: ${n(f.fresh)} by new visitors and ${n(f.returning)} by returning ones.` : `${of}.`;
+  }
+  const visits = n(t.readers ?? 0);
+  if (f.state === "ok" && !f.left.length) return `${visits} visits ${when}: ${n(f.fresh)} by new visitors and ${n(f.returning)} by returning ones.`;
+  return `${visits} visits ${when}.`;
+}
+
+function eachVisit(m, s, r) {
+  const inRange = r.kind === "today" ? (j) => j.day === m.today : (j) => j.day >= r.first && j.day <= r.last;
+  const all = (m.journeys || []).filter(inRange);
+  // The list reaches back only as far as journeys are kept: a longer period above is said here, not silently cut.
+  const kept = r.kind === "history" ? [...new Set(all.map((j) => j.day))].sort() : [];
+  const own = kept.length && kept.length < r.length ? h("span", { class: "own-period", title: `Journeys are kept ${m.journey_days || 7} days: the period above is longer` },
+    `${short(kept[0])} to ${short(kept[kept.length - 1])} · its own period`) : null;
+  return h("section", { class: "s vs-card vs-visits", "aria-labelledby": "ev-h" },
+    h("div", { class: "vs-card-h" }, h("h3", { id: "ev-h" }, "Each visit", own ? " " : null, own),
+      h("p", { class: "sub" }, `Newest first, one row per visit. Select a row to see that visitor's whole journey. Every filter applies. Anonymous, kept ${m.journey_days || 7} days.`)),
+    visitMatrix(all, all.filter(journeyFilter(s)), r, m.journey_days));
+}
+
+/* Where visits ended and Common next steps: with a filter a visit can carry, counted from
+   the kept visits when each day's kept visits give back its own lists (visitorfigs
+   narrowedLists); otherwise the whole site's (narrowed by a page filter only) and said so. */
+function endLists(m, s, r, v) {
+  const keep = pathMatch(s);
+  const whole = { exits: ranked(v?.exits, keep), steps: ranked(v?.steps, (x) => x.split(ARROW).some(keep)), narrow: false };
+  if (!filtersOn(s)) return { ...whole, note: () => null };
+  const f = narrowedLists(rangeDays(m, r), m.journeys, journeyFilter(s) || (() => true));
+  if (f.state === "ok") {
+    const words = `Filtered: ${n(f.kept)} of ${n(f.whole)} visits, counted from each visit kept and checked against the days' own lists.`;
+    return { exits: ranked(f.exits), steps: ranked(f.steps), narrow: true, note: () => h("p", { class: "note" }, words) };
+  }
+  const old = f.state === "unchecked" && f.off.some((x) => x.why === "none");
+  const words = `For all visits: the filters above do not narrow this.${old ? ` Visits are kept ${m.journey_days || 7} days; pick a period inside them to narrow it.` : ""}`;
+  return { ...whole, note: () => h("p", { class: "note" }, words) };
+}
+
+export default function visitors(m, s) {
+  const { r, t, cov } = figures(m, s);
+  const out = [...head("Visitors", r, LEDE)];
+  if (!t) return [...out, nothing(m, r, "visits")];
+  const src = cardDays(m, s, r);
+  out.push(h("div", { class: "vs-title" }, h("h2", null, "Visitors"), h("p", null, summary(m, r, t, src))));
+  const v = t.visit;
+  out.push(coverageNote(cov, r));
+  out.push(visitorFlow(m, s, r));
+  out.push(eachVisit(m, s, r));
+  const eng = engagementCard(m, s, r, src);
+  out.push(h("div", { class: "vs-pair" }, newReturningCard(m, s, r, src), eng));
+  const L = endLists(m, s, r, v);
+  out.push(h("div", { class: "cols" },
+    panel("Where visits ended", "The last page a visitor was seen on", blist(L.exits, { drill: "path", color: "var(--views)", empty: L.narrow ? "No visit matches the filters." : v ? "No exit page recorded." : "Not recorded for this range." }), L.note()),
+    panel("Common next steps", "From one page to the next", blist(L.steps, { color: "var(--ink-3)", empty: L.narrow ? "No matching visit went past one page." : v ? "No visit went past one page." : "Not recorded for this range." }), L.note())));
+  out.push(goTo(S.hashFor({ ...s, tab: "traffic/pages", dd: "" }), "Where visits started: the landing pages, with their leads, are on", "Traffic › Pages"));
+  out.push(...engagementTables(s, r, (e) => eng.withAssistants(e)));
+  return out.filter(Boolean);
 }

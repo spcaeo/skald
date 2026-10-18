@@ -1,0 +1,90 @@
+/* Traffic > Retention (js/tabs/tr-retention.js). The triangle is shaded one hue,
+   light to dark: the people colour's ramp from css/realtime.css (--rt-1 to
+   --rt-5, its own steps in dark mode), five steps scaled to the highest share
+   shown; 0% is the quiet --rt-0. Each step's text is the ink that stands 4.5:1
+   or more on it (light mode: dark ink on steps 1-2, white on 3-5; dark mode:
+   white on 1-2, dark ink on 3-5). A cell never counted is hatched, a period
+   not over is left blank: neither is ever drawn as a zero. */
+
+:root {
+  --ret-on-1: var(--ink); --ret-on-2: var(--ink); --ret-on-3: #fff; --ret-on-4: #fff; --ret-on-5: #fff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ret-on-1: #fff; --ret-on-2: #fff; --ret-on-3: #0d1319; --ret-on-4: #0d1319; --ret-on-5: #0d1319;
+  }
+}
+:root[data-theme="dark"] {
+  --ret-on-1: #fff; --ret-on-2: #fff; --ret-on-3: #0d1319; --ret-on-4: #0d1319; --ret-on-5: #0d1319;
+}
+
+.ret-id { margin-bottom: 12px; }
+.ret-id b { font-weight: 600; }
+.ret-ctl { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin: 0 0 14px; }
+.ret-sel { display: inline-flex; align-items: center; gap: 6px; }
+.ret-sel select { font: inherit; font-size: 13px; padding: 4px 8px; border: 1px solid var(--rule); border-radius: 8px;
+  background: var(--surface); color: var(--ink); max-width: 260px; }
+.ret-ctl .seg button[disabled] { opacity: .45; cursor: not-allowed; }
+
+/* the triangle */
+.ret-tri { border-collapse: separate; border-spacing: 2px; width: 100%; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.ret-tri tbody tr:hover td, .ret-tri tbody tr:hover th { background: none; }
+.ret-tri th, .ret-tri td { padding: 0; text-align: center; vertical-align: middle; }
+.ret-tri thead th { font-weight: 600; color: var(--ink-3); font-size: 12px; padding: 6px 2px; white-space: nowrap; }
+.ret-tri tbody th { text-align: left; font-weight: 500; white-space: nowrap; padding: 0 10px 0 8px; color: var(--ink); }
+.ret-tri thead th:first-child { text-align: left; padding-left: 8px; }
+.ret-m { display: block; font-size: 11px; font-weight: 400; color: var(--ink-3); }
+.ret-c { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; min-width: 50px; height: 42px;
+  border: 0; border-radius: 4px; font: inherit; cursor: pointer; background: var(--rt-0); color: var(--ink); padding: 0 4px; }
+.ret-c b { font-size: 13px; font-weight: 600; line-height: 1.1; }
+.ret-c small { font-size: 11px; opacity: .85; line-height: 1.1; }
+.ret-c:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ret-c:hover { box-shadow: inset 0 0 0 2px var(--surface), 0 0 0 1px var(--ink-3); }
+.ret-c.s1 { background: var(--rt-1); color: var(--ret-on-1); }
+.ret-c.s2 { background: var(--rt-2); color: var(--ret-on-2); }
+.ret-c.s3 { background: var(--rt-3); color: var(--ret-on-3); }
+.ret-c.s4 { background: var(--rt-4); color: var(--ret-on-4); }
+.ret-c.s5 { background: var(--rt-5); color: var(--ret-on-5); }
+.ret-c.ret-n { background: none; color: var(--ink); font-weight: 600; min-width: 64px; }
+.ret-c.ret-n:hover { background: var(--sunk); box-shadow: none; }
+.ret-c.ret-nr, i.ret-nr { cursor: default; color: var(--ink-3);
+  background: repeating-linear-gradient(135deg, var(--sunk) 0 4px, color-mix(in srgb, var(--hatch) 45%, var(--sunk)) 4px 5.5px); }
+.ret-c.ret-nr:hover { box-shadow: none; }
+td.ret-pend, i.ret-pend { background: none; }
+i.ret-pend { box-shadow: inset 0 0 0 1px var(--rule); }
+.ret-off td { color: var(--ink-3); font-size: 12px; text-align: left; padding: 10px 8px; background: var(--sunk); border-radius: 4px; }
+
+.ret-scale { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 10px; font-size: 12px; color: var(--ink-3); }
+.ret-ramp { display: inline-flex; gap: 2px; }
+.ret-ramp i, .ret-key i { display: inline-block; width: 18px; height: 10px; border-radius: 2px; }
+.ret-ramp i.s1 { background: var(--rt-1); } .ret-ramp i.s2 { background: var(--rt-2); } .ret-ramp i.s3 { background: var(--rt-3); }
+.ret-ramp i.s4 { background: var(--rt-4); } .ret-ramp i.s5 { background: var(--rt-5); }
+.ret-key { display: inline-flex; align-items: center; gap: 5px; margin-left: 6px; }
+
+/* the curve: one series, the people colour; 2px line, 8px dots with a surface ring */
+.ret-curve svg { display: block; width: 100%; height: auto; max-height: 260px; overflow: visible; }
+.ret-grid { stroke: var(--grid); stroke-width: 1; }
+.ret-ax { fill: var(--ink-3); font-size: 11px; }
+.ret-line { fill: none; stroke: var(--g-people); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.ret-dot { fill: var(--g-people); stroke: var(--surface); stroke-width: 2; }
+.ret-lab { fill: var(--ink); font-size: 12px; font-weight: 600; }
+.ret-hit { fill: transparent; cursor: default; }
+.ret-hit:focus-visible { outline: none; fill: color-mix(in srgb, var(--g-people) 8%, transparent); }
+
+/* the visitors behind a cell */
+.ret-rows tr.ret-row { cursor: pointer; }
+.ret-rows tr.ret-row:hover, .ret-rows tr.ret-row:focus-visible { background: var(--sunk); outline: none; }
+
+/* a phone: the tables instead of the grid and the curve */
+.ret-phone { display: none; }
+.ret-list { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; margin-bottom: 14px;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); }
+.ret-list caption { text-align: left; font-weight: 600; padding: 6px 0; color: var(--ink); }
+.ret-list th, .ret-list td { padding: 7px 8px; border-top: 1px solid var(--rule); text-align: right; }
+.ret-list th[scope="row"], .ret-list thead th:first-child { text-align: left; font-weight: 500; }
+.ret-list thead th { color: var(--ink-3); font-weight: 600; font-size: 12px; border-top: 0; }
+@media (max-width: 640px) {
+  .ret-desk { display: none; }
+  .ret-phone { display: block; }
+  .ret-sel select { max-width: 200px; }
+}

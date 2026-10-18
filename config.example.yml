@@ -39,6 +39,12 @@ site:
   # Off only when the page assets are served from a host this log never sees
   # (a separate CDN): then nobody could ever render, and nobody would count.
   # require_rendering: true
+  # A browser-like visit that read too_fast_pages page views or more, all
+  # within too_fast_seconds of the first, is no person (too_fast.py,
+  # CLASSIFICATION.md rule 9b): its requests are bots, "too fast to be a
+  # person". A fast clicker reads 3 pages in 2 s; 0 pages turns it off.
+  # too_fast_pages: 6
+  # too_fast_seconds: 2
 
 logs:
   # Directory holding the access log and its rotations.
@@ -66,6 +72,12 @@ logs:
   # DB-IP's file, its credit is shown unless report.country_credit is set.
   # Unset: such lines stay Unknown, never guessed.
   # country_db: /usr/share/GeoIP/dbip-country-lite.mmdb
+  # A GeoIP city file in the same format: DB-IP's free "IP to City Lite"
+  # (CC BY 4.0, monthly; tools/update-dbip-city.sh downloads it). Each
+  # visit's city (people only), readers by city (people_city_visits) and the
+  # cities on the real-time map. A city in another country than the line's
+  # own is not used. Unset: no city is recorded, never guessed.
+  # city_db: /usr/share/GeoIP/dbip-city-lite.mmdb
 
 ours:
   # Requests you make yourself, which are not traffic. Matched on user agent.
@@ -350,6 +362,27 @@ alerts:
 #   enabled: true
 #   base_url: https://www.example.com
 
+# Search figures from the engines (search/, docs/INTEGRATIONS.md "Search
+# Console and Bing"). Easiest from the dashboard: Settings > Integrations >
+# Search. Here instead: the site's Search Console property (sc-domain:<domain>
+# or a URL-prefix address; it must cover site.hosts) and the service-account
+# key file (0600; SKALD_GSC_KEY_JSON or SKALD_GSC_KEY_FILE in the environment
+# wins). Bing: the site's address in Bing Webmaster Tools; its API key only in
+# BING_WEBMASTER_API_KEY or Settings, never here. Synced every 6 hours by the
+# Docker scheduler, or `skald search sync` from cron.
+# search_console:
+#   property: sc-domain:example.com
+#   key_file: /etc/skald/search-console-key.json
+# bing:
+#   site_url: https://www.example.com/
+
+# Crawl health (AI & bots > Crawl health, crawl_health.py): the live run reads
+# the site's sitemap once a day as site-version-check (robots.txt's Sitemap:
+# lines and /sitemap.xml on the site's own host), only on site.hosts.
+# crawl_health:
+#   sitemap: false                  # never fetch it (coverage and orphans: not recorded)
+#   sitemaps: [https://www.example.com/sitemap_index.xml]   # more to read
+
 # Named users (access.py, `skald user`). htpasswd: the nginx password file
 # the dashboard's basic auth reads. roles / tokens default to users.json and
 # tokens.json beside the history.
@@ -386,7 +419,8 @@ alerts:
 # conversions.identity, beacon.goals, backup.daily, backup.weekly,
 # mail.daily, mail.weekly, mail.to, mail.from_name, mail.smtp.host,
 # mail.smtp.port, mail.smtp.security, mail.smtp.user, mail.smtp.password,
-# pagespeed.api_key, sites.hosts, sites.views, sites.timezone, sites.log_dir,
+# pagespeed.api_key, search.google_property, search.bing_site, search.bing_api_key,
+# sites.hosts, sites.views, sites.timezone, sites.log_dir,
 # sites.log_base, hooks.calendly.event_types, hooks.calcom.event_types,
 # security.require_totp, security.session_days.
 # settings:

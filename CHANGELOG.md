@@ -2,7 +2,174 @@
 
 All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versioning](https://semver.org).
 
-## Unreleased
+## 2.13.0 (2026-10-18)
+
+A new Overview for today and a new Traffic › Visitors; where a visitor first came from, and
+their city; Google's and Bing's own search figures; client reports, retention and crawl health;
+advanced filters and one toolkit for every table.
+
+### Added
+
+- **Overview, today, live.** With Today · Live on, Overview › Summary is one live page: visitors
+  now and arrivals in the last 5 minutes minute by minute (one Pause), the four tiles (Visitors,
+  Pages, Leads, AI) against **yesterday at this hour** with both days' running totals, the map
+  with country chips, the pages being read beside the newest visits, sources and a two-page flow,
+  what converted, AI & bots; each card links to its full tab. Yesterday-by-now is a new figure
+  with its own second count (`audit --live` recounts both days hour by hour, leads by SQL); a
+  withheld, partial or unrecorded yesterday says "not recorded", never 0.
+- **Traffic › Visitors, rebuilt.** The visitor flow first; each visit with its country (flag and
+  code), city, device with browser and system, source with "First came from …", new or
+  returning, pages, time on site and the pages in order; a **New and returning visitors** card
+  and a **How engaged visits were** card whose figures must add up to each day's visitors, or
+  the card is withheld.
+- **Where a returning visitor first came from (first touch).** Each visit carries its
+  visitor's first visit Skald knows of, linked by the script tag's visitor ID, else the kept
+  address with the same browser, else the 30-day code; none found says "first visit we know
+  of", never a guess. Shown under the visit's source, in Real time's newest visits, and on
+  Traffic › Sources as "Where returning visitors first came from", counted twice (a new day kind
+  `first_touch`, recounted by `audit_firsttouch.py`).
+- **One visitor drawer, with an animated journey.** Every visit and visitor (the visit list,
+  Real time, Find a person, Leads & sales, funnels, the flow) opens the same drawer: "Visitor
+  from Toronto", visits over days, first came from, the outcome, and each visit as a timeline
+  with the time between pages and "12 days later" between visits; **Replay** plays them again
+  at their real pace (still with reduced motion). Admins and owners, audit-logged.
+- **Cities.** `logs.city_db` (Docker `SKALD_CITY_DB`) names a city file such as DB-IP's free
+  "IP to City Lite"; each visit gets its city, Places & devices gets a **Cities** table, and
+  the real-time map a pulsing dot per active city. People only; a city in another country than
+  the line's own is not used. Counted twice (`audit_cities.py`). `tools/update-dbip-city.sh`
+  fetches the monthly file.
+- **Client reports.** Settings › Reports: branded reports an agency sends its clients, as a mail
+  with a PDF attached, weekly on a weekday, monthly on a day or every few days, at a time in the
+  site's zone; last week, last month or month to date; the sections you pick, your notes and a
+  footer; the agency's name, colour and logo. Recipients confirm first. Figures are verified
+  days only: a withheld or missing day is listed and never counted, and the sums are counted a
+  second time before a report goes. Preview, Download PDF, Send now and a history of every send;
+  a failed send is tried once more. The PDF is made without a browser. With Search Console
+  connected, a Search Console section gives the period's clicks, impressions, CTR, position and
+  top queries and pages, final days only; provisional days are listed, not counted.
+- **Search queries, impressions and position, synced from Google and Bing.** A new Traffic ›
+  Search tab: queries, pages, countries, devices and search appearance with clicks,
+  impressions, CTR and position over 7 days, 28 days, 3 or 16 months, and a trend. Synced from
+  the Search Console and Bing Webmaster Tools APIs every 6 hours; the newest days are marked
+  provisional and fetched again until Google calls them final. Connected from the dashboard
+  (Settings › Integrations › Search): upload a service-account key once, add its robot email to
+  each site's Search Console (a ready text to send to a client), find the property, test,
+  connect, with an optional 3 or 16 month backfill. "Sync now", the last sync and the next, and
+  errors in plain words with one mail per run of failures. Also `skald search-console sync`,
+  `skald bing sync`, `skald search sync`.
+- **Search Console beside Skald's own visits.** A cross-check panel puts Google's clicks beside
+  Skald's visits from Google search, by day and landing page, says why they differ, and flags a
+  sharp change in the ratio. Never forced to match. The synced figures are checked by a second
+  road (every table re-added, one day asked of Google again); Skald's own side is counted twice.
+- **Retention cohorts.** Traffic › Retention: of the visitors first seen in a week (or on a day),
+  how many came back in each of the 8 weeks (14 days) after, or came back and read 2 or more
+  pages; split by first source type, country, device or landing page, with a curve and the
+  visitors behind a cell (admins). Counted from what is kept, never past it ("not recorded"),
+  and checked again by `audit_retention.py`; a cohort that does not match is withheld.
+- **Crawl health.** AI & bots › Crawl health: your sitemap (read once a day) beside what Google,
+  Bing and each AI crawler fetch: coverage per crawler, sitemap pages never fetched, pages
+  fetched that the sitemap does not list, and 404/410, 5xx, redirect, slow and large answers,
+  over 7 or 30 days and today. Counted twice (`audit_crawl_health.py`).
+- **Advanced filters and saved views.** The Filters button builds rules over every field a visit
+  carries (country, city, source, referring site, campaign, AI assistant, first came from,
+  landing page, a page read, pages read, time on site, sent a form, device, browser, system, new
+  or returning, crawler) with is, is not, contains, starts with, at least, at most; All or Any,
+  and groups. A live count of matching visits, and of each rule alone. A value not recorded
+  never matches by chance. Applied in full to single visits (Visitors, Funnels, Requests); other
+  tabs grey a rule they cannot apply and say where it does apply. Saved views can be renamed and
+  copied as a link (the reader still signs in).
+- **One toolkit for every table.** Sort any column (one way, the other, the table's own order;
+  not recorded always last), filter columns (contains, a range, pick values), choose columns,
+  and **Export what you see** (the matching rows, in their order, with the columns shown). All
+  kept in the address.
+- **Search the dashboard.** The magnifier (Ctrl K, Cmd K) finds pages, countries, sources,
+  referring sites, campaigns, AI assistants and crawlers seen in the period and opens each on
+  its tab with its detail; tabs, settings, guides and saved views too.
+- **Set up this site.** A first-run checklist on a new site's Overview for owners and admins
+  (logs, page assets, countries, script tag, lead hook, mail recipient, privacy), read from the
+  doctor's own checks; hidden per site.
+- **Mail preview.** Settings › Mail shows the daily or weekly mail as it would be sent, never
+  sending it.
+- **Alert switches.** Admins switch alerts, their mail and each rule on or off per site on
+  Site › Alerts; a key locked in the config stays the config's and says why.
+
+### Changed
+
+- **Visitors' cards follow the filters when that is honest.** With a filter on, New and
+  returning visitors and How engaged visits were count only the visits the filters keep, rebuilt
+  from the kept visits and only when every day's kept visits are exactly that day's own figures
+  ("Filtered: N of M visits"); past the 7 kept days, or when a day does not match, they show
+  every visit and say why. The engagement tables by source and device stay whole-site.
+- **Every row opens its detail,** the whole row, by click, Enter or Space; the drill panel has
+  **Go to** links (its visits, its flow, a page's sources and story, Visitors filtered to it).
+  Closing it keeps the browser's Back for the tab you came from.
+- **Insights** shows the five biggest first (by how much moved and what it is worth), one card
+  per subject, one sentence, one number, one link; **Show all** lists the rest.
+- **Countries are a flag and a three-letter code** everywhere ("🇨🇦 CAN"); the full name is in
+  the tooltip, found by search, and kept with a Code column in the CSV.
+- **Dates in one form, in the site's time zone** by default: "3 h ago (18 Oct 13:43 EDT)".
+- **Counts that agree.** Places that show the same figure now say the same number and which
+  count it is; a tab with its own period shows a fixed **Period** chip instead of a picker it
+  ignores; a filter a tab cannot apply shows a banner; something the site never sent (an event,
+  a kind of lead, a heartbeat, page speed) says **Not set up**, never 0 or 0%.
+- **Too fast to be a person.** A browser-like visit with 6 or more page views all within 2
+  seconds of its first now counts as a bot, whole, so the groups still add up
+  (`site.too_fast_pages`, `site.too_fast_seconds`; its own audit road).
+- **A visit's pages are said in full:** "3 pages (2 seen in the browser)" when the script tag
+  saw steps the log did not.
+- **Site › Requests** calls the script tag's posts "script tag event" and Skald's own hooks
+  "Skald endpoint", never "form post".
+- **Plain words and contrast:** one name per thing, headings that match the tabs, darker light
+  greys, tables that scroll sideways on a phone keep their first column, tooltips stay on
+  screen, each chart is one Tab stop.
+- **GeoIP files are mapped read-only** instead of copied into memory, so the 120 MB city file
+  is shared by every process.
+- History schema 14 (search days) and conversions schema 6 (a visit's city, a page view's
+  referring host), applied by the normal upgrade on first open.
+
+### Fixed
+
+- **Line order.** nginx writes a line when its request ends, so a slow request can sit after a
+  faster, later one. Both counting roads now read a window's lines in time order (ties in file
+  order); before, such a visit could get the wrong landing page or steps, and the audit withheld
+  the day.
+- **The audit and expired inputs.** A day audited after its 30-day visitor hashes were pruned
+  says "not checkable (inputs expired)" for those figures instead of failing.
+- **Today's returning visitors** showed "–": the live snapshot's figure was dropped.
+- **The visitor flow** wrote the word "null" under the map.
+- **"Direct or unknown"** no longer shows in grids, People, the flow map or the visit filters.
+- **One "Leads" everywhere.** The daily and weekly mails and client reports counted the lead
+  database (no demos) while Overview's Leads tile counts completed forms and demo bookings: the
+  same week read 24 in the mail and 32 on the page. Both now count the tile's way, recounted by
+  a second road before a report goes; a period before conversions were recorded is not summed.
+- **Client reports and mails in the app's words:** "Direct", three-letter country codes,
+  cities as "London, England, GBR", assistants by name (ChatGPT, not chatgpt.com).
+- **Saving a report** says whether a confirm link went out, or that none could because no mail
+  server is set up (no one's one-link-a-day is used up).
+- **Visitors with filters on:** Where visits ended and Common next steps follow the filters too
+  (when the kept visits give back each day's own lists); tables that cannot say so; the filter
+  banner says what narrows.
+- **The drill panel's visits follow the period** (they always showed the whole 7 kept days); a
+  city's panel has the same Go to links as a country's.
+- **Crawl health's panel counts the tab's own window** (7 or 30 days and today), as its row does.
+- **The person drawer** found by email or lead named the lead as its outcome (it said "No lead
+  linked" above it) and shows no empty journey, visit table or Replay.
+- **Column filters match what a cell shows:** "USA" no longer finds AUS through the hidden full
+  name. The Export button counts the CSV's columns; the Sources CSV writes Change as a fraction,
+  like Share.
+- **Layout:** phone tables no longer make the page scroll sideways; data grids show only the
+  sorted column's mark (▼ biggest first); Real time has no empty gaps; Site › Health's figures
+  line up; Settings › Integrations' fix line wraps and shows commands as code; the palette uses
+  a code font for paths only; the Pages leaderboard dates its fold in words; Crawler rules shows
+  a counted 0 as 0.
+- **Events and Pipeline** say why their "started" counts differ (the script tag keeps one start
+  per browser and action per 30 minutes); Funnels says when its lead steps cover other days.
+
+### Upgrading
+
+- Nothing by hand. The new helper routes sit under paths nginx already passes on. For cities,
+  mount a city file and set `SKALD_CITY_DB` (docs/INSTALL.md); for search figures, connect
+  Search Console and Bing in Settings › Integrations › Search.
 
 ## 2.12.0 (2026-10-18)
 

@@ -2,7 +2,7 @@
 // group and filters above - and every figure here follows it: today so far,
 // or the whole verified days of the range, never a mix.
 //
-//   1. seven tiles: visitors, pages read, visitors from AI, leads, demos
+//   1. seven tiles: visitors, pages read, leads, visitors from AI, demos
 //      booked, returning visitors, pages per visit - each with its trend and
 //      its change (leads and demos from conversions.json's checked days)
 //   2. one line on how they relate to the files the server sent
@@ -21,6 +21,7 @@ import { info, others, top } from "./tiles.js";
 import { serverLoad, LOAD_NAMES } from "./load.js";
 import { hourLabels, label as tzLabel } from "../tz.js";
 import { convFile, convDay, dayLeads, leadsOn, LEAD_WORDS } from "./leadfigs.js";
+import * as S from "../state.js";
 
 const LEAD_TYPES = ["signup", "contact", "waitlist"];
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
@@ -38,10 +39,10 @@ export function leadsOver(m, days) {
 /* The six measures: [key, label, what it counts (the ⓘ), value from a total
    or a day]. A value the period cannot give honestly is null, shown "-". */
 const TILES = [
-  ["visitors", "Visitors", "Visits that read at least one page, counted only when the browser loaded the page's scripts and styles, so automated readers are left out. One person on two devices is two visitors.", (t) => (t.unmeasured?.readers ? null : t.readers ?? null)],
+  ["visitors", "Visitors", "Visits that read at least one page, counted only when the browser loaded the page's scripts and styles, so automated programs are left out. One person on two devices is two visitors.", (t) => (t.unmeasured?.readers ? null : t.readers ?? null)],
   ["pages", "Pages read", "Page views by visitors. Images, scripts and data the page loads are not pages.", (t) => t.views ?? null],
-  ["ai", "Visitors from AI", "Visitors who arrived by following a link in an AI assistant's answer. Counted once per visitor; the true number is higher, as many assistants hide the link they came from.", (t) => t.cited ?? null],
   ["leads", "Leads", "Sign-ups, contact forms and early-access requests from the website's lead store, spam and duplicates removed.", null],
+  ["ai", "Visitors from AI", "Visitors who arrived by following a link in an AI assistant's answer. Counted once per visitor; the true number is higher, as many assistants hide the link they came from.", (t) => t.cited ?? null],
   ["demos", "Demos booked", "Demo bookings completed, from every booking road: the booking tool's webhook, the script tag and the lead database. Part of the leads.", null],
   ["returning", "Returning visitors", "Visitors seen on an earlier day in the 30 days before.", (t) => (t.unmeasured?.returning || !t.returning ? null : t.returning.returning)],
   ["ppv", "Pages per visit", "Pages read divided by visitors.", (t) => (t.readers && t.views != null && !t.unmeasured?.readers ? t.views / t.readers : null)],
@@ -60,7 +61,17 @@ function leadFigures(m, r, both) {
     why: !both ? null : "Not compared: not every day of both periods has checked conversions." };
 }
 
-function tiles(m, r, t, prevT, both, why) {
+/* Which count a lead tile is, and where the same figure is listed: Pipeline counts
+   from the lead database unless told otherwise, so the link opens it on the tools
+   when the tile counts from them (the same days, the same figure). */
+function leadSource(s, key, tools) {
+  const to = key === "demos" ? { tab: "sales/bookings", lsrc: "" } : { tab: "sales/pipeline", lsrc: tools ? "all" : "" };
+  const words = key === "demos" ? "From the booking tools" : tools ? "From the tools" : "From the lead database";
+  return h("a", { class: "t-src", href: S.hashFor({ ...s, ...to, dd: "" }), title: key === "demos" ? "The same count as Leads & sales › Bookings"
+    : `The same count as Leads & sales › Pipeline, counted from ${tools ? "the tools" : "the lead database"}` }, `${words} · ${key === "demos" ? "Bookings" : "Pipeline"} ›`);
+}
+
+function tiles(m, r, t, prevT, both, why, s) {
   const days = r.kind === "history" ? chartDays(r) : [];
   const dayList = r.kind === "today" ? [m.today] : r.days.filter((d) => d.state === "ok").map((d) => d.day);
   const prevDays = both ? previousOf(m, r).days.map((d) => d.day) : [];
@@ -90,7 +101,8 @@ function tiles(m, r, t, prevT, both, why) {
     else if (r.kind === "today" && key === "visitors" && t.by?.hour) trend = spark(HOURS.map((hh) => t.by.hour[hh] ?? 0).slice(0, Number(String(m.live?.generated_at || "").slice(11, 13)) + 1), color("people"));
     return h("div", { class: "tile", role: "listitem" },
       h("div", { class: "t-top" }, h("span", { class: "t-l" }, label), info(note, label)),
-      h("div", { class: "t-v", title: v == null && lead ? (lf.now.held.length ? "Withheld, never zero" : "Not recorded, never zero") : null }, fmt(v)), chg, trend || h("div", { class: "spark" }));
+      h("div", { class: "t-v", title: v == null && lead ? (lf.now.held.length ? "Withheld, never zero" : "Not recorded, never zero") : null }, fmt(v)), chg,
+      key === "leads" || key === "demos" ? leadSource(s, key, !!lf) : null, trend || h("div", { class: "spark" }));
   }));
 }
 
@@ -133,9 +145,9 @@ export default function overview(m, s) {
     : `The ${r.length} days before (${prev ? `${short(prev.first)} to ${short(prev.last)}` : ""}) are not all recorded, so there is nothing whole to compare with.`;
   const cmp = compareFor(m, s);
 
-  out.push(tiles(m, r, t, prevT, both, why));
+  out.push(tiles(m, r, t, prevT, both, why, s));
   if (t.readers != null && t.views != null) {
-    out.push(h("p", { class: "relate" }, `${n(t.readers)} visitor${t.readers === 1 ? "" : "s"} read ${n(t.views)} page${t.views === 1 ? "" : "s"}, which took ${n(t.hits?.people ?? 0)} file downloads.`,
+    out.push(h("p", { class: "relate" }, `${n(t.readers)} visitor${t.readers === 1 ? "" : "s"} read ${n(t.views)} page${t.views === 1 ? "" : "s"}, which took ${n(t.hits?.people ?? 0)} requests to the server (pages, images, scripts and styles).`,
       both ? h("span", { class: "muted" }, ` Changes are against ${short(prev.first)} to ${short(prev.last)}.`) : null));
   }
 

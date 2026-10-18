@@ -56,8 +56,8 @@ class TestReportCards(unittest.TestCase):
     def test_text_breaks_the_readers_down(self):
         text = as_text(self.totals, list(Group), CREDIT, "America/New_York")
         self.assertIn("WHO THE READERS WERE", text)
-        self.assertIn("\U0001F1FA\U0001F1F8 United States 3 (43%)", text)
-        self.assertIn("\U0001F1E8\U0001F1E6 Canada 1 (14%)", text)
+        self.assertIn("\U0001F1FA\U0001F1F8 USA 3 (43%)", text)
+        self.assertIn("\U0001F1E8\U0001F1E6 CAN 1 (14%)", text)
         self.assertIn("Chrome 6 (86%), LinkedIn app 1 (14%)", text)
         self.assertIn("Desktop 6 (86%), Mobile 1 (14%), Tablet 0 (0%)", text)
         self.assertIn("Social media 1 (14%)", re.sub(r"\s+", " ", text))
@@ -72,7 +72,7 @@ class TestReportCards(unittest.TestCase):
         html = as_html(self.totals, list(Group), "t", credit=CREDIT,
                        tz_name="America/New_York")
         self.assertIn("Who the readers were", html)
-        self.assertIn("\U0001F1FA\U0001F1F8 United States 3 (43%)", html)
+        self.assertIn("\U0001F1FA\U0001F1F8 USA 3 (43%)", html)
         self.assertIn("Desktop 6 (86%), Mobile 1 (14%), Tablet 0 (0%)", html)
         self.assertIn("Site health", html)
         self.assertIn("/nope 1", html)
@@ -134,7 +134,7 @@ class TestMailBreakdowns(unittest.TestCase):
     def test_daily_mail_carries_the_breakdowns_in_both_parts(self):
         self.fill(1)
         text, html = self.build()
-        self.assertIn("\U0001F1FA\U0001F1F8 United States 3 (43%)", text)
+        self.assertIn("\U0001F1FA\U0001F1F8 USA 3 (43%)", text)
         self.assertIn("Chrome 6 (86%)", text)
         self.assertIn("Desktop 6 (86%), Mobile 1 (14%), Tablet 0 (0%)", text)
         self.assertIn("Direct 5 (71%)", text)
@@ -142,7 +142,7 @@ class TestMailBreakdowns(unittest.TestCase):
         self.assertIn("(UTC)", text)
         # The branded HTML (mail_html.py) groups the same figures in tables.
         flat = re.sub(r"<[^>]+>", "|", html)
-        self.assertRegex(flat, r"\U0001F1FA\U0001F1F8 United States\|+3\|+43%")
+        self.assertRegex(flat, r"\U0001F1FA\U0001F1F8 USA\|+3\|+43%")
         self.assertRegex(flat, r"Direct\|+5\|+71%")
         self.assertIn("Broken links people hit (404)", html)
 

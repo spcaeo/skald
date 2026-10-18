@@ -65,14 +65,31 @@
 .rt-sw.s1 { background: var(--rt-1); } .rt-sw.s2 { background: var(--rt-2); } .rt-sw.s3 { background: var(--rt-3); }
 .rt-sw.s4 { background: var(--rt-4); } .rt-sw.s5 { background: var(--rt-5); }
 .rt-sw-bub { width: 10px; height: 10px; border-radius: 50%; background: var(--rt-live); box-shadow: 0 0 0 2px var(--surface); }
+/* Cities (logs.city_db): an active city pings like a country bubble, a little
+   smaller; a city with visits today only is a small hollow dot, ink on the
+   surface, so it reads on any step of the shading. The hit circle is larger
+   than the mark and invisible. */
+.rt-cities .rt-town { cursor: pointer; }
+.rt-cbub { stroke-width: 1.5; }
+.rt-cdot { fill: var(--surface); stroke: var(--ink-2); stroke-width: 1.3; }
+.rt-hit { fill: transparent; stroke: none; }
+.rt-town:hover .rt-cdot { stroke: var(--ink); stroke-width: 1.8; }
+.rt-sw-town { width: 8px; height: 8px; border-radius: 50%; background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--ink-2); }
+.rt-ctable h3 + .tbl, .rt-ctable .rt-ch { margin-top: 12px; }
 .rt-ctable .tbl-tools input { max-width: 150px; }
 
 .rt-lists { margin-bottom: 14px; }
+/* With cities (2.13): By city in its own card beside Pages being read, and Newest visits
+   beside the three "now" cards stacked, so no column runs far past the other. */
+.rt-citycard > .rt-ch:first-child { margin-top: 0; font-size: 13.5px; }
+.rt-feed { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; margin-bottom: 14px; }
+.rt-stack { display: grid; gap: 14px; }
+@media (max-width: 980px) { .rt-feed { grid-template-columns: minmax(0, 1fr); } }
 .rt-sub { margin: 8px 0 2px; font-size: 12px; color: var(--ink-3); }
 .rt-line { margin: 10px 0 0; font-size: 13px; display: flex; align-items: center; gap: 6px; }
 .rt-line b { font-variant-numeric: tabular-nums; }
-.rt-k { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.rtm-k { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 .rt-now { margin-left: 6px; font-size: 11px; padding: 0 6px; border-radius: 999px; color: var(--ink-2); border: 1px solid var(--rule); white-space: nowrap; }
-.rt-now.on { color: var(--rt-live); border-color: color-mix(in srgb, var(--rt-live) 45%, var(--rule)); }
+.rt-now.on { color: var(--good); border-color: color-mix(in srgb, var(--rt-live) 45%, var(--rule)); }
 
 @media print { .rt-ring { display: none; } }

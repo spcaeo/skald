@@ -374,6 +374,15 @@ like an address is masked in its output. run-daily runs it after collect with
 `--withhold`: a mismatch marks the day withheld, and the dashboard and mail
 steps do not run. Read its output before overriding it.
 
+Some inputs are kept only for a while: the visitor hashes, 30 days
+(`visitors.repeat_days`). A day audited after its hashes were deleted, or
+whose 30-day window reaches back past them, ends `not checkable (inputs
+expired): visitor hashes, returning readers` instead of failing; a day
+collected without the visitor key ends `not checkable (not recorded that
+day)`. Everything else is recounted as always, and hashes missing inside
+their window are still a mismatch. run-daily audits yesterday, whose hashes
+are always kept, so this only shows when an older day is audited by hand.
+
 What the logs cannot give, and is therefore not shown: a breakdown crossed
 with another (each is stored on its own), and anything a browser does after
 the page arrives (scrolls, clicks, time on page; the optional beacon,

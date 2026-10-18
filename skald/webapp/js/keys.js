@@ -8,6 +8,7 @@ import { store, savedViews } from "./extras.js";
 import { toolName } from "./build.js";
 import GUIDES from "./help-index.js";
 import { openDrawer } from "./drawer.js";
+import { find, score, targetOf, personLike } from "./finder.js";
 
 // The letters stay what they were before the five sections (2.7.0), each on the tab that
 // holds its old page now; "," opens Settings.
@@ -25,20 +26,38 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-18h",
+  id: "2026-10-18-2.13.0",
   items: [
-    ["Visitor flow", "see how visits moved, from where they came to each page and out; on Visitors, every drill-down and Funnels.", "visitor-flow"],
-    ["Internal traffic", "pause, edit or delete an address on your own-traffic list; nothing is lost, past days keep their figures."],
-    ["Live map", "countries with visitors active now ping on the map."],
-    ["Live check", "the live figures and their second count now read exactly the same log lines, so a busy site no longer shows a one-off difference."],
-    ["Grids", "every cell sits at the top of its row; text on the left, numbers on the right, badges in the middle."],
-    ["Clearer words", "a visit with no referrer and no campaign tag reads \"Direct\"; a value the log did not have reads \"Not recorded\"."],
-    ["Real time", "who is on your site now: active visitors, minute by minute, a world map, the pages being read and the AI and crawlers now. Overview > Real time.", "real-time"],
-    ["Alerts in Slack", "any alert can go to Slack or another tool: add a webhook for alert.opened in Settings > Integrations.", "webhooks"],
-    ["AI alerts", "the first visit from an AI answer, a page's first, visits from AI answers against the usual for that weekday, and a crawler gone silent.", "faq"],
+    ["Overview, today", "today's Summary in Live mode: visitors now, arrivals minute by minute, and each tile against yesterday at this hour.", "real-time"],
+    ["Visitors", "a new Traffic > Visitors: the flow, each visit with its city and where the visitor first came from, and real new and returning figures.", "getting-started"],
+    ["Visitors cards", "New and returning, and How engaged, follow your filters when every kept visit checks out against the day's own figures; otherwise they say they cover all visits.", "getting-started"],
+    ["Filters", "build rules with AND, OR and groups on any field a visit carries; save them as views, rename them or copy a link.", "getting-started"],
+    ["Every table", "sort any column, filter columns, choose columns, and export just what you see.", "getting-started"],
+    ["Search", "Google Search Console's and Bing's own queries, pages, clicks, impressions and position, under Traffic > Search; they sync every 6 hours.", "search"],
+    ["Connect search", "connect Search Console and Bing from Settings > Integrations, no shell; a cross-check puts Google's clicks beside Skald's own visits."],
+    ["Client reports", "branded reports for your clients, a mail with a PDF, weekly or monthly, from verified days only. Settings > Reports.", "client-reports"],
+    ["Retention", "of the visitors first seen in a week, how many came back in each week after. Traffic > Retention.", "retention"],
+    ["Crawl health", "which of your sitemap's pages Google, Bing and each AI crawler fetch, which they never do, and their errors. AI & bots > Crawl health.", "crawl-health"],
+    ["First touch", "where a returning visitor first came from, under each Direct visit and on Sources; one visitor drawer with an animated journey.", "where-visitors-come-from"],
+    ["Cities", "each visit's city from a free city file, a Cities table on Places & devices, and city dots on the live map.", "getting-started"],
+    ["Search the dashboard", "the magnifier (Ctrl K) finds pages, countries, sources, assistants and crawlers in the period, and opens them.", "getting-started"],
+    ["Whole rows", "every row opens its detail, not only its name; Insights shows the five biggest first."],
+    ["Countries", "shown as a flag and a three-letter code everywhere; the full name on hover and in the CSV."],
+    ["Honest counts", "places that show the same figure agree; something never set up says so instead of 0; a tab with its own period says which."],
+    ["Too fast to be a person", "a visit that opens 6 or more pages within 2 seconds counts as a bot; a visit says \"3 pages (2 seen in the browser)\"."],
+    ["Set up this site", "a checklist for owners and admins on a new site's Overview; Settings > Mail can preview the daily and weekly mail."],
+    ["Alerts", "switch alerts, their mail and each rule on or off on Site > Alerts."],
+    ["Fixes", "one Leads figure in the mails, reports and Overview; drill panels follow the period; phone tables stay in the page; and more in the changelog."],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.11.0-2.12.0
+    ["Visitor flow", "see how visits moved, from where they came to each page and out; on Visitors, every drill-down and Funnels.", "visitor-flow"],
+    ["Internal traffic", "pause, edit or delete an address on your own-traffic list; nothing is lost, past days keep their figures."],
+    ["Real time", "who is on your site now: active visitors, minute by minute, a world map, the pages being read and the AI and crawlers now. Overview > Real time.", "real-time"],
+    ["Alerts in Slack", "any alert can go to Slack or another tool: add a webhook for alert.opened in Settings > Integrations.", "webhooks"],
+    ["AI alerts", "the first visit from an AI answer, a page's first, visits from AI answers against the usual for that weekday, and a crawler gone silent.", "faq"],
+    ["Clearer words", "a visit with no referrer and no campaign tag reads \"Direct\"; a value the log did not have reads \"Not recorded\"."],
     // 2.10.0-2.10.1
     ["Today, live", "the dashboard now opens on Today with live figures on every page; pick another period any time."],
     ["Forms", "a visit is no longer marked \"form sent\" because the script tag reported an event."],
@@ -139,7 +158,7 @@ const NEW = {
     ["About Skald", "why we built it, why the name, how it compares with the usual tools, and what each tab does: from the logo, the sidebar or the footer."],
     ["Navigation", "sections in groups; press [ or the button at the foot of the sidebar to shrink it to icons; on a phone, the sections open from the menu button and the bottom bar."],
     ["Skald", "the tool has its name and mark: Skald, every visit, truly told. The version and release are at the foot of every page."],
-    ["Time zone", "the top bar shows times in your own zone, the site's or UTC. Days are still counted midnight to midnight in the site's zone."],
+    ["Time zone", "times show in the site's zone by default; choose your own zone or UTC instead. Days are still counted midnight to midnight in the site's zone."],
     ["Live", "people first, the machines in their own units, the latest visits and AI activity side by side, and today's top lists."],
     ["One period", "every tab's figures follow the date range; a part kept for a fixed period of its own is folded at the bottom and says so."],
     ["Drill-down", "select any country, page, source, assistant, campaign, referrer, device, browser, system, hour, address or bot to see its trend, the visits and the requests behind it; keep selecting to narrow. Back and the trail at the top step out again, and the address bar keeps every step."],
@@ -208,9 +227,14 @@ export function whatsNew(dot) {
 }
 export const newUnseen = () => store.get("ti-seen-new", "") !== NEW.id;
 
-/* The command palette. actions: [{label, hint, run}] from main.js (theme,
-   refresh...); the tabs, ranges and saved views are added here. */
-export function palette(actions = []) {
+/* The command palette, and the search behind the top bar's magnifier. actions:
+   [{label, hint, run}] from main.js (theme, refresh...); the tabs, ranges and saved
+   views are added here. finds(): what it searches in the figures (main.js, finder.js):
+   {entries, earlier, period, person(q) or null}. A typed word finds the commands
+   first, then the pages, countries, sources, referring sites, campaigns, assistants
+   and crawlers seen in the period (each opens its tab with its detail), then, for an
+   admin, a person by IP address, email or lead. */
+export function palette(actions = [], finds = null) {
   const cmds = [
     // Every section, then every page this reader may open, in the menu's order, with its section or group beside it.
     ...S.SECTIONS.map((x) => ({ label: `Go to ${x.name}`, group: "Section", hint: "", run: () => S.set({ tab: x.key }) })),
@@ -221,21 +245,40 @@ export function palette(actions = []) {
     ...savedViews().map((v) => ({ label: `Saved view: ${v.name}`, hint: "", run: () => { location.hash = v.hash; } })),
     ...actions,
   ];
-  const input = h("input", { type: "text", class: "pal-in", placeholder: "Type a tab, a range, a saved view or an action", "aria-label": "Command",
-    role: "combobox", "aria-expanded": "true", "aria-controls": "pal-list", autocomplete: "off", spellcheck: "false" });
-  const list = h("ul", { class: "pal-list", id: "pal-list", role: "listbox", "aria-label": "Commands" });
+  const data = finds ? finds() : null;
+  const input = h("input", { type: "text", class: "pal-in", placeholder: data ? "Search pages, sources, countries… or a tab or an action" : "Type a tab, a range, a saved view or an action",
+    "aria-label": "Search or command", role: "combobox", "aria-expanded": "true", "aria-controls": "pal-list", autocomplete: "off", spellcheck: "false" });
+  const list = h("ul", { class: "pal-list", id: "pal-list", role: "listbox", "aria-label": "Results" });
+  // A found name: its words, its kind and period beside them; it opens its tab with its detail.
+  // Two steps in the history, the tab then its detail (one drill step): closing the
+  // drawer leaves the tab open, and Back then returns to where the search began.
+  const open = (e) => { const t = targetOf(e); S.set({ tab: t.tab }); S.set({ dd: t.dd }, { mark: { drill: 1 } }); };
+  // A country or a city is said in full already ("🇨🇦 CAN · Canada"): its stored code is not repeated.
+  const named = (e, when) => ({ label: e.words, value: e.words !== e.value && e.dim !== "country" && e.dim !== "city" ? e.value : "", group: `${e.group} · ${when}`, hint: "", found: true, path: e.dim === "path", run: () => open(e) });
   let shown = cmds, at = 0;
   const draw = () => {
     const q = input.value.trim().toLowerCase();
-    shown = q ? cmds.filter((c) => q.split(/\s+/).every((w) => `${c.label} ${c.group || ""}`.toLowerCase().includes(w))) : cmds;
+    if (!q) shown = cmds;
+    else {
+      const ranked = cmds.map((c) => [score(`${c.label} ${c.group || ""}`, q), c]).filter(([r]) => r != null);
+      // Commands keep their menu order, the closest first; at most 8, so the figures show too.
+      shown = ranked.sort((a, b) => a[0] - b[0]).slice(0, 8).map(([, c]) => c);
+      if (data) {
+        let got = find(data.entries, q, 30).map((e) => named(e, data.period));
+        // Nothing in the period: the days kept before it, said so.
+        if (!got.length && data.earlier) got = find(data.earlier(), q, 15).map((e) => named(e, "earlier days, not this period"));
+        const person = personLike(q) && data.person ? [{ label: `Find a person: ${input.value.trim()}`, group: "People · every visit kept", hint: "", run: () => data.person(input.value.trim()) }] : [];
+        shown = [...person, ...shown, ...got];
+      }
+    }
     at = Math.min(at, Math.max(0, shown.length - 1));
-    list.replaceChildren(...shown.map((c, i) => h("li", { role: "option", id: `pal-${i}`, "aria-selected": String(i === at), onclick: () => go(i) },
-      h("span", null, c.label, c.group ? h("small", { class: "pal-g" }, c.group) : null), c.hint ? h("kbd", null, c.hint) : null)));
-    if (!shown.length) list.append(h("li", { class: "empty" }, "Nothing matches."));
+    list.replaceChildren(...shown.map((c, i) => h("li", { role: "option", id: `pal-${i}`, class: c.found ? `pal-found${c.path ? " pal-path" : ""}` : null, "aria-selected": String(i === at), onclick: () => go(i) },
+      h("span", null, c.label, c.value ? h("small", { class: "pal-v" }, c.value) : null, c.group ? h("small", { class: "pal-g" }, c.group) : null), c.hint ? h("kbd", null, c.hint) : null)));
+    if (!shown.length) list.append(h("li", { class: "empty" }, data ? `Nothing matches. Pages, sources, countries, campaigns, assistants and crawlers are searched in ${data.period}.` : "Nothing matches."));
     input.setAttribute("aria-activedescendant", shown.length ? `pal-${at}` : "");
     list.children[at]?.scrollIntoView({ block: "nearest" });
   };
-  const dlg = modal("Go to, or do", h("div", null, input, list));
+  const dlg = modal(data ? "Search, go to, or do" : "Go to, or do", h("div", null, input, list));
   dlg.classList.add("pal");
   const go = (i) => { const c = shown[i]; if (!c) return; dlg.close(); c.run(); };
   input.addEventListener("input", () => { at = 0; draw(); });
@@ -250,12 +293,12 @@ export function palette(actions = []) {
 
 const typing = (el) => el && (el.isContentEditable || /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName));
 
-export function keys(actions) {
+export function keys(actions, finds = null) {
   let pending = 0;
   document.addEventListener("keydown", (e) => {
     if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "k") {
       e.preventDefault();
-      palette(actions());
+      palette(actions(), finds);
       return;
     }
     if (e.metaKey || e.ctrlKey || e.altKey || typing(e.target) || document.querySelector("dialog[open]")) return;
@@ -271,7 +314,7 @@ export function keys(actions) {
     if (e.key === "/") {
       const field = document.querySelector('#panel input[type="search"], #panel .rq-search');
       e.preventDefault();
-      if (field) { field.focus(); field.select?.(); } else palette(actions());
+      if (field) { field.focus(); field.select?.(); } else palette(actions(), finds);
     }
   });
 }

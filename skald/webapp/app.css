@@ -9,7 +9,7 @@
   --sunk: #e4e9ee;
   --ink: #17212b;
   --ink-2: #4f5d6b;
-  --ink-3: #6e7c89;
+  --ink-3: #5a6672;
   --rule: #d8dfe6;
   --grid: #e6ebf0;
   --gap: #c3ccd5;
@@ -24,7 +24,7 @@
   --g-ours: #e87ba4;
   --views: #008300;
   --leads: #b02a86;
-  --good: #1b7f52;
+  --good: #18734a;
   --warn: #9a6400;
   --bad: #c0352f;
   --heat-0: #e9eef4;
@@ -335,9 +335,9 @@ tr.withheld td { color: var(--ink-3); background: repeating-linear-gradient(135d
 .vq-c:hover { border-color: var(--ink-3); color: var(--ink); }
 .vq-c:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .vq-c[aria-pressed="true"] { background: var(--sel); border-color: var(--sel); color: var(--sel-ink); }
-.vq-c[aria-pressed="true"] .ic-g { color: inherit; }
+.vq-c[aria-pressed="true"] .ic-g, .vq-c[aria-pressed="true"] .vq-n { color: inherit; }
 .vq-c .flag { font-size: 13px; margin: 0; }
-.vq-n { font-size: 11px; font-variant-numeric: tabular-nums; opacity: .7; }
+.vq-n { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--ink-3); }
 .vtab td, .vtab th { padding-left: 10px; padding-right: 10px; }
 .vtab td.c-src { min-width: 132px; }
 .vtab td.c-browser { min-width: 84px; }

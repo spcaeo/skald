@@ -22,7 +22,8 @@ const TABLE = [
   ["overview", "overview/summary", {}, "Overview", "Summary"],
   ["home", "overview/summary", {}, "Overview", "Summary"],
   // Live and Compare are global modes (js/modes.js): Live is Today on Overview, Compare opens its table's tab.
-  ["live", "overview/summary", { range: "today" }, "Overview", "Summary"],
+  // Today is the default period (2.10.1), so the address leaves range=today out.
+  ["live", "overview/summary", {}, "Overview", "Summary"],
   ["insights?since=7d", "overview/insights", { since: "7d" }, "Overview", "Insights"],
   ["compare?cdim=pages&cgran=week", "traffic/pages", { cmp: "prev", cgran: "week" }, "Traffic", "Pages"],
   ["compare?ca=2026-09-01..2026-09-30&cb=2026-08-01..2026-08-31&cdim=countries", "traffic/places",

@@ -8,6 +8,7 @@ import { h, n, clock, short, toast, ICON } from "../ui.js";
 import { csv, download } from "../table.js";
 import { withFlag, country } from "./readers.js";
 import { link } from "../drill.js";
+import { assistantName } from "../labels.js";
 import { mark } from "../icons.js";
 
 const KIND = { asked: "asked", training: "training", referred: "referred visitor" };
@@ -32,10 +33,10 @@ function row(e) {
     h("span", { class: "f-t" }, tzTime(e.at, { seconds: true, label: false })),
     chip(e.name || "?"),
     h("div", { class: "f-w" },
-      h("b", null, e.name ? link(e.kind === "referred" ? "referrer" : "bot", e.name, { bare: true }) : "not recorded"), " ", h("span", { class: "kind", title: KIND_LONG[e.kind] || "" }, KIND[e.kind] || e.kind),
+      h("b", null, e.name ? (e.kind === "referred" ? link("referrer", e.name, { bare: true, text: assistantName(e.name) }) : link("bot", e.name, { bare: true })) : "not recorded"), " ", h("span", { class: "kind", title: KIND_LONG[e.kind] || "" }, KIND[e.kind] || e.kind),
       h("span", { class: "f-p" }, e.path),
       h("div", { class: "f-m" },
-        e.country ? link("country", e.country, { text: e.country_name || country(e.country) }) : h("span", null, "country not recorded"),
+        e.country ? link("country", e.country) : h("span", null, "country not recorded"),
         e.status ? h("span", { class: e.status >= 400 ? "status-bad" : null }, `status ${e.status}`) : null,
         e.ip ? h("span", { class: "ip" }, link("ip", e.ip, { bare: true }), copy(e.ip)) : null,
         ...Object.entries(e.utm || {}).map(([k, v]) => h("span", { class: "utm", title: `utm_${k}` }, `${k}: ${v}`)))),
@@ -77,12 +78,12 @@ export function aiFeed(m, { limit = 12, globalCountry = "" } = {}) {
     more.textContent = `Show ${n(Math.min(20, rows.length - st.shown))} more`;
   };
   more.addEventListener("click", () => { st.shown += 20; draw(); });
-  const cols = [{ key: "at", label: "at" }, { key: "time", label: `time (${tzLabel()})`, csv: (e) => tzTime(e.at, { seconds: true, date: true, label: false }) }, ...["name", "kind", "path", "status", "country", "ip", "repeat", "times_seen_30d", "first_seen"].map((k) => ({ key: k, label: k }))];
+  const cols = [{ key: "at", label: "at" }, { key: "time", label: `time (${tzLabel()})`, csv: (e) => tzTime(e.at, { seconds: true, date: true, label: false }) }, ...["name", "kind", "path", "status", "country", "ip", "repeat", "times_seen_30d", "first_seen"].map((k) => ({ key: k, label: k, ...(k === "country" ? { country: (e) => e.country } : {}) }))];
   cols.push({ key: "utm", label: "utm", csv: (e) => Object.entries(e.utm || {}).map(([a, b]) => `${a}=${b}`).join(" ") });
   dl.addEventListener("click", () => download(`ai-activity-${m.today}.csv`, csv(cols, rows)));
   draw();
   return h("div", null,
-    h("div", { class: "feed-tools" }, sel("Assistant", names, "name"), sel("Kind", Object.keys(KIND), "kind", (k) => KIND[k]),
+    h("div", { class: "feed-tools" }, sel("Assistant", names, "name", assistantName), sel("Kind", Object.keys(KIND), "kind", (k) => KIND[k]),
       sel("Country", countries, "country", (c) => withFlag(c, country(c))), h("span", { class: "grow", style: { flex: "1" } }), count, dl),
     list, more,
     h("p", { class: "note" }, "Addresses are shown on this private page only. They are read from today's log and never stored in history. Repeat means the same visitor (a keyed hash of the address and the assistant's name) was seen on an earlier day in the last 30."));

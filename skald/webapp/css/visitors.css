@@ -1,0 +1,93 @@
+/* Traffic > Visitors (js/tabs/tr-visitors.js, vis-cards.js, visitlist.js), 2.13: the
+   owner's approved layout. Cards with their title inside; the flow, the visit list,
+   then New and returning beside How engaged visits were. Tokens come from app.css. */
+
+.vs-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin: 2px 0 16px; }
+.vs-title h2 { margin: 0; font-size: 22px; font-weight: 680; letter-spacing: -.02em; }
+.vs-title p { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+
+section.s.vs-card { display: flex; flex-direction: column; gap: 12px; min-width: 0; margin: 0 0 18px; padding: 16px 18px;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; box-shadow: var(--shadow); }
+.vs-card-h h3 { margin: 0; font-size: 15px; font-weight: 650; }
+.vs-card-h .sub { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-3); max-width: 110ch; }
+.vs-card > .note, .vs-card > .empty, .vs-card > .state { margin: 0; }
+/* The flow sits in the card itself, not a card of its own. */
+.vs-card .sk-holder { border: 0; padding: 0; background: none; box-shadow: none; }
+.vs-card .sk-tools { margin-bottom: 8px; }
+.vs-card .sk .note { max-width: 110ch; }
+
+.vs-pair { display: flex; flex-wrap: wrap; align-items: stretch; gap: 16px; margin: 0 0 22px; }
+.vs-pair > .vs-card { flex: 1 1 420px; margin: 0; }
+.vs-pair > .vs-card:last-child { flex: 1.4 1 520px; }
+
+/* ------------------------------------------------------------- each visit */
+.vs-visits .vq { margin-bottom: 2px; }
+.vs-visits .tbl-tools { margin-top: 0; }
+.vtab td.c-city { min-width: 92px; }
+.vtab td.c-device { min-width: 120px; }
+.vtab td.c-src { min-width: 170px; }
+.vtab td.c-src .v-ft { max-width: 30ch; }
+.vtab tr.v-row:hover td { background: color-mix(in srgb, var(--sunk) 45%, var(--surface)); }
+.vtab tr.v-row.on td { background: color-mix(in srgb, var(--g-people) 10%, var(--surface)); }
+.vtab tr.v-row.on td:first-child { box-shadow: inset 3px 0 0 var(--g-people); }
+.v-city { white-space: nowrap; }
+.v-vis { font-weight: 650; padding: 1px 9px; }
+.v-vis.ret { padding: 1px 9px; font-weight: 650; background: var(--sunk); color: var(--ink-2); }
+.v-pg small { font-weight: 400; color: var(--ink-3); font-size: 11.5px; white-space: nowrap; }
+.vt-b.posted { color: var(--leads); }
+
+/* ------------------------------------------------------------- new and returning */
+.nr-figs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 28px; }
+.nr-fig { display: flex; flex-direction: column; }
+.nr-l { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+.nr-l .sw { width: 10px; height: 10px; border-radius: 3px; }
+.nr-v { font-family: var(--round); font-size: 28px; font-weight: 700; letter-spacing: -.02em; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.nr-v small { margin-left: 6px; font-family: var(--sans); font-size: 13px; font-weight: 500; letter-spacing: 0; color: var(--ink-3); }
+.nr-bar { display: flex; gap: 2px; height: 12px; border-radius: 6px; overflow: hidden; }
+.nr-bar span { display: block; flex-basis: 0; }
+.nr-chart { --gap: max(1px, min(10px, calc(70px / var(--cols, 7)))); display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 6px 8px; }
+.nr-y { display: flex; flex-direction: column; justify-content: space-between; height: 150px; font-size: 11px; color: var(--ink-3); text-align: right; line-height: 1; }
+.nr-plot { position: relative; height: 150px; }
+.nr-grid { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; }
+.nr-grid span { border-top: 1px solid var(--grid); }
+.nr-grid span:last-child { border-color: var(--rule); }
+.nr-cols { position: absolute; inset: 0; display: grid; gap: var(--gap); align-items: end; padding: 0 4px; }
+.nr-col { display: flex; flex-direction: column; gap: 2px; min-height: 2px; outline: none; border-radius: 4px 4px 0 0; }
+.nr-col > span { display: block; flex-basis: 0; min-height: 1px; }
+.nr-col .nr-new { background: var(--g-people); border-radius: 4px 4px 0 0; }
+.nr-col .nr-ret { background: var(--ink-2); }
+.nr-col .nr-ret:first-child { border-radius: 4px 4px 0 0; }
+.nr-col:hover > span, .nr-col:focus-visible > span { filter: brightness(1.12); }
+.nr-col:focus-visible { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus); }
+.nr-x { display: grid; gap: var(--gap); padding: 0 4px; font-size: 11px; color: var(--ink-3); text-align: center; white-space: nowrap; }
+.nr-x span { overflow: visible; min-width: 0; }
+
+/* ------------------------------------------------------------- how engaged */
+.vs-hists { display: flex; flex-wrap: wrap; gap: 20px; }
+.vs-hist { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.vs-hist h4 { margin: 0; font-size: 13px; font-weight: 620; }
+.vs-hist-plot { height: 150px; display: grid; gap: 6px; align-items: end; border-bottom: 1px solid var(--rule); }
+.vs-hist-col { display: flex; flex-direction: column; justify-content: flex-end; height: 100%; outline: none; border-radius: 4px 4px 0 0; }
+.vs-hist-col b { font-size: 11.5px; font-weight: 620; text-align: center; font-variant-numeric: tabular-nums; }
+.vs-hist-col .vs-bar { display: block; margin-top: 3px; border-radius: 4px 4px 0 0; }
+.vs-hist-col:hover .vs-bar, .vs-hist-col:focus-visible .vs-bar { filter: brightness(1.12); }
+.vs-hist-col:focus-visible { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus); }
+.vs-hist-x { display: grid; gap: 6px; font-size: 11px; line-height: 1.25; color: var(--ink-3); text-align: center; }
+.vs-line { margin: 0; font-size: 12.5px; color: var(--ink-2); }
+
+/* The columns grow from the base, once, as the cards open. */
+@media (prefers-reduced-motion: no-preference) {
+  .nr-col, .vs-hist-col .vs-bar { transform-origin: bottom; animation: vs-grow .55s var(--ease) both; animation-delay: calc(var(--i, 0) * 40ms); }
+}
+@keyframes vs-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+/* A phone: the visit list is the app's card rows (app.css); the city and the browser line drop out. */
+@media (max-width: 767px) {
+  section.s.vs-card { padding: 14px 12px; border-radius: 12px; }
+  .vtab tr.v-row { grid-template-columns: 58px auto auto minmax(0, 1fr) auto; }
+  .vtab tr.v-row td.c-city { display: none; }
+  .vtab td.c-device small { display: none; }
+  .vtab td.c-time { grid-column: 5; }
+  .vs-pair > .vs-card, .vs-pair > .vs-card:last-child { flex-basis: 100%; }
+}
+@media (max-width: 520px) { .nr-x .wd { display: none; } }

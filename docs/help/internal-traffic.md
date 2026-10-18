@@ -116,7 +116,7 @@ Uptime from the heartbeat, and every outage, is on [Site > Health](#site/health)
 - **Uptime, from the heartbeat**: the heartbeat is one request every five minutes to your site. If it is answered, the site is up. A red day had a gap of more than 10 minutes or a failed answer: the site was down, or the heartbeat itself stopped.
 - **Outages and heartbeat gaps**: each gap, with when it started, when it ended, and how many minutes it lasted.
 
-You see the heartbeat parts only if your server runs a heartbeat.
+You see the heartbeat parts only if your server runs a heartbeat. If no heartbeat has ever reached the log, **Is the site up?** says **Heartbeat not set up** and how to add it, with no uptime figure and no outages.
 
 ## Who may change the list
 
