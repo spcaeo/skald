@@ -443,9 +443,11 @@ that is none of:
   archives, audio and video, `wasm`) or by prefix (`/_next/`, `/static/`,
   `/assets/`, `/_nuxt/`, `/build/`). Note that `robots.txt` and `sitemap.xml`
   are assets by this rule, which is right: nobody reads them.
-- **`BEACON`** - `/api/events`, `/api/analytics`, `/__analytics`, `/collect`,
-  `/beacon`, `/ping`. A page calls these while you read it. They are evidence
-  of a visit, never a visit of their own.
+- **`BEACON`** - everything under `/api/` (since 2.8.1), `/__analytics`,
+  `/collect`, `/beacon`, `/ping`. A page calls these while you read it. They are
+  evidence of a visit, never a visit of their own. Before 2.8.1 only
+  `/api/events` and `/api/analytics` were; a site's JSON API (`/api/v1/...`)
+  then showed up as pages where visits ended and as steps between pages.
 
 Redirects are excluded by the 2xx rule. A 301 is not a page: the browser lands
 somewhere else and that page is logged separately as its own 200, so counting

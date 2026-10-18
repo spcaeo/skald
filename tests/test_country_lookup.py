@@ -272,3 +272,19 @@ class TestOwnFetcher(Case):
             db.close()
         self.assertEqual(got.get("ours"), 1)
         self.assertEqual(got.get("bots", 0), 0)
+
+
+class TestApiEndpoints(unittest.TestCase):
+    """A JSON API under /api/ answers a page's script: never a page, on any road."""
+
+    def test_api_paths_are_endpoints_everywhere(self):
+        from skald import audit, audit_visits
+        for path, page in (("/api/v1/jobs/job_1", False), ("/api", False),
+                           ("/api/search?q=x", False), ("/apiary", True),
+                           ("/docs/api", True), ("/pricing", True)):
+            raw = line(NOON, "203.0.113.70", path)
+            with self.subTest(path=path):
+                self.assertEqual(PARSERS["nginx_extended"](raw).is_page, page)
+                self.assertEqual(audit.is_page(audit.line_hit(raw)), page)
+                self.assertEqual(audit_visits._is_beacon_path(path.partition("?")[0]),
+                                 not page)

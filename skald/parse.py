@@ -123,8 +123,10 @@ ASSET = re.compile(
 )
 
 # Endpoints a page calls while you read it. They are evidence of a visit, never
-# a visit of their own.
-BEACON = re.compile(r"^/(api/events|api/analytics|__analytics|collect|beacon|ping)\b", re.I)
+# a visit of their own. Everything under /api/ is one: a site's JSON API
+# (/api/v1/jobs/..., /api/search) answers a page's script, and counted as a
+# page it showed up as where visits ended and as steps between pages.
+BEACON = re.compile(r"^/(?:api(?:/|$)|(?:__analytics|collect|beacon|ping)\b)", re.I)
 
 
 # $time_iso8601 $remote_addr $host "$request" $status $bytes "$ref" "$ua" $rt cc=XX ray=... rid=...

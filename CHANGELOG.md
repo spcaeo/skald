@@ -4,6 +4,16 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.8.1 (2026-10-18)
+
+### Fixed
+
+- **API calls are not pages:** a GET under `/api/` (a site's JSON API, called by the page's script)
+  was counted as a page view, so it showed up as where visits ended and as a step between pages.
+  Everything under `/api/` is now an endpoint, like the analytics beacon: evidence of a visit,
+  never a page of its own. Both counting roads.
+- The countries table says where countries come from: the log's own field, or the GeoIP file.
+
 ## 2.8.0 (2026-10-18)
 
 Countries for logs that carry none, and counting fixes for Caddy logs, dashboard-made sites and

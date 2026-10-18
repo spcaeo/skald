@@ -55,7 +55,7 @@ export default function places(m, s) {
   g.classList.add("tr-grid", "lead-tbl");
   const credit = m.credit ? h("p", { class: "note" }, h("a", { href: m.credit.url || null, rel: "noreferrer" }, m.credit.text)) : null;
   out.push(h("section", { class: "s" }, h("h2", null, "Countries, with their leads"),
-    h("p", { class: "sub" }, "From the log's country field; Not recorded when it had none, never guessed."),
+    h("p", { class: "sub" }, "From the log's country field, or the GeoIP file for a line without one; Not recorded when neither had it, never guessed."),
     g, compareNote(c), lb ? leadNote(lb, TOUCH) : null, viewNote(m, s), credit));
   out.push(unmeasured(t));
   return out;
