@@ -223,10 +223,11 @@ tr.vs-mover td { background: color-mix(in srgb, var(--va) 4%, transparent); }
 .bp-t { width: 100%; margin-top: 10px; font-size: 13px; border-collapse: collapse; table-layout: fixed; }
 .bp-t .c1 { width: 28%; } .bp-t .c2 { width: 26%; } .bp-t .c3 { width: 18%; } .bp-t .c4 { width: 14%; } .bp-t .c5 { width: 14%; }
 .bp-unsaved { font-size: 12.5px; color: var(--warn); font-weight: 600; }
-.bp-t th, .bp-t td { text-align: left; padding: 7px 8px; border-top: 1px solid var(--grid); font-weight: 400; vertical-align: middle; }
+.bp-t th, .bp-t td { text-align: left; padding: 7px 8px; border-top: 1px solid var(--grid); font-weight: 400; vertical-align: top; }
 .bp-t thead th { border-top: 0; font-size: 12px; color: var(--ink-3); font-weight: 600; position: static; background: none; }
 .bp-t tbody th { font-weight: 600; }
 .bp-t .num { text-align: right; font-variant-numeric: tabular-nums; }
+.bp-t .c { text-align: center; }
 .bp-t select { font-size: 12.5px; }
 .bp-ro { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; border: 1px dashed var(--gap); color: var(--ink-2); }
 .bp-sugg { margin: 16px 0 0; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); overflow: hidden; }

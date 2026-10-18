@@ -232,11 +232,23 @@ Conversions already recorded stay. To delete one person's data, see [Leads and c
 Skald can tell your CRM, Zapier, Make or Slack each time something happens. This is under **Outgoing webhooks** on the same page.
 
 1. Under **Add an outgoing webhook**, paste the **Address**. It must start with `https://`.
-2. Tick the **Events** you want: `conversion.started`, `conversion.completed`, `conversion.cancelled`, `conversion.rescheduled`, `conversion.no_show`, `conversion.abandoned`, `lead.won`, `lead.lost`, and `ai.reading_changed` (an AI assistant started or stopped reading a page, or visits likely sent by AI answers jumped or vanished: see the FAQ).
+2. Tick the **Events** you want: `conversion.started`, `conversion.completed`, `conversion.cancelled`, `conversion.rescheduled`, `conversion.no_show`, `conversion.abandoned`, `lead.won`, `lead.lost`, `ai.reading_changed` (an AI assistant started or stopped reading a page, or visits likely sent by AI answers jumped or vanished: see the FAQ), and `alert.opened` (any alert, when it opens).
 3. Press **Add webhook**. Copy the secret shown once, and give it to the receiving tool so it can check each message.
 4. Press **Send a test** to check that the address answers.
 
-An `ai.reading_changed` message names the assistant, the pages, the days and the numbers, and is sent once per alert, only while alerts are on. Each conversion message names the action, its source, campaign, landing page, country, device, visits and time before converting, and the anonymous journey. It never holds a name or an email. A failed delivery is tried again for about 15 hours. Only conversions recorded after you add the webhook are sent. **Remove** stops it at once.
+An `ai.reading_changed` message names the assistant, the pages, the days and the numbers, and is sent once per alert, only while alerts are on. An `alert.opened` message is sent once for each new alert of any kind (site down, a first AI citation, a crawler gone silent, ...): the site, the alert, its text, its figures with their unit (visits or requests) and the time. Each conversion message names the action, its source, campaign, landing page, country, device, visits and time before converting, and the anonymous journey. It never holds a name or an email. A failed delivery is tried again for about 15 hours. Only conversions recorded after you add the webhook are sent. **Remove** stops it at once.
+
+### Alerts in Slack
+
+Slack's incoming webhooks take only a short text. Skald knows a Slack address and sends the alert's text in Slack's own shape.
+
+1. In Slack, add an **Incoming Webhook** to the channel and copy its address. It starts with `https://hooks.slack.com/`.
+2. In Skald, under **Add an outgoing webhook**, paste it, tick `alert.opened`, and press **Add webhook**. Slack does not check the secret, so you can ignore it.
+3. Press **Send a test**. A line appears in the channel.
+
+Each new alert then posts one message: the site, the title and the detail with its numbers. Any other address gets the full message, signed.
+
+Sending is opt-in: nothing leaves Skald until an admin adds a webhook. Each delivery has 10 seconds. A failed one is tried again after 1 minute, 5 minutes, 30 minutes, 2 hours and 12 hours, then given up.
 
 ## Troubleshooting
 

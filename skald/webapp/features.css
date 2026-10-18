@@ -211,7 +211,7 @@ dialog.pal { width: min(600px, calc(100vw - 32px)); }
 .qt[aria-pressed="true"] { background: var(--sel); color: var(--sel-ink); border-color: var(--sel); font-weight: 600; }
 .rq-table { font-size: 13px; }
 .rq-table th { font-size: 12px; }
-.rq-table td { padding: 6px 10px; vertical-align: middle; }
+.rq-table td { padding: 6px 10px; vertical-align: top; }
 .rq-row { cursor: pointer; }
 .rq-row td:first-child { box-shadow: inset 3px 0 0 var(--g); }
 .rq-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
@@ -352,6 +352,15 @@ td .vb:first-child { margin-left: 0; }
 .named { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; vertical-align: middle; }
 .named .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 td .named .nm, .rq-d .named .nm { white-space: normal; }
+/* In a table cell the words may wrap: the mark stays level with the first line, at the top
+   of the row like the cell itself, not halfway down the lines (owner, 2026-10-18).
+   --named-lh is the cell text's own line height in px (a registered length is computed
+   where it is set, so a chip's 9px font below does not change it). */
+@property --named-lh { syntax: "<length>"; inherits: true; initial-value: 14px; }
+td .named { align-items: flex-start; --named-lh: 1lh; }
+td .named > .ic { margin-top: max(0px, calc((var(--named-lh) - 14px) / 2)); }
+/* A flag is a letter of a larger font: it shares the words' baseline instead. */
+td .named > .flag, td .named > .flag ~ .nm { align-self: baseline; }
 .named .flag { margin-right: 0; }
 .ic { flex: none; width: 14px; height: 14px; display: inline-grid; place-items: center; }
 .ic svg { width: 14px; height: 14px; display: block; }

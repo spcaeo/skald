@@ -31,8 +31,8 @@ export default function auditlog() {
     list.replaceChildren(
       r.all_orgs ? h("p", { class: "note" }, "As an install admin you see every organisation's rows.") : "",
       h("div", { class: "scroll" }, h("table", null, h("caption", { class: "vh" }, "Audit log"),
-        h("thead", null, h("tr", null, ["When", "Who", "Action", "What", "Detail"].map((t) => h("th", { scope: "col" }, t)))),
-        h("tbody", null, rows.map((e) => h("tr", null, h("td", { class: "muted" }, when(e.at, "")), h("td", null, e.actor_email || e.actor),
+        h("thead", null, h("tr", null, [["When", "n"], ["Who"], ["Action"], ["What"], ["Detail"]].map(([t, cls]) => h("th", { scope: "col", class: cls }, t)))),
+        h("tbody", null, rows.map((e) => h("tr", null, h("td", { class: "muted n" }, when(e.at, "")), h("td", null, e.actor_email || e.actor),
           h("td", null, e.action), h("td", { class: "path nm" }, e.target || ""), h("td", { class: "muted" }, e.detail || "")))))),
       h("p", { class: "note" }, `${rows.length} row${rows.length === 1 ? "" : "s"}, newest first${rows.length >= 500 ? "; the CSV has more" : ""}.`));
   }

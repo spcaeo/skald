@@ -76,18 +76,18 @@ export default function team() {
       drawCell();
       const on = m.totp_on ?? m.two_step;
       return h("tr", null, h("td", { class: "path nm" }, m.email, me ? h("span", { class: "you" }, " (you)") : null), h("td", null, m.name || ""),
-        h("td", null, sel), h("td", { class: "muted" }, when(m.last_seen ?? m.last_sign_in)),
-        h("td", null, on == null ? h("span", { class: "muted" }, "not known") : h("span", { class: `tf ${on ? "on" : "off"}` }, on ? "On" : "Off")), cell);
+        h("td", null, sel), h("td", { class: "muted n" }, when(m.last_seen ?? m.last_sign_in)),
+        h("td", { class: "c" }, on == null ? h("span", { class: "muted" }, "not known") : h("span", { class: `tf ${on ? "on" : "off"}` }, on ? "On" : "Off")), cell);
     });
     return h("section", { class: "s" }, h("h2", null, "Members"), h("p", { class: "sub" }, `${list.length} member${list.length === 1 ? "" : "s"}. Removing a member ends their sessions for this organisation at once.`),
       h("div", { class: "scroll" }, h("table", { class: "rows-mid" }, h("caption", { class: "vh" }, "Members"),
-        h("thead", null, h("tr", null, ["Email", "Name", "Role", "Last seen", "Two-step sign-in"].map((t) => h("th", { scope: "col" }, t)), h("th", { scope: "col", class: "n" }, h("span", { class: "vh" }, "Action")))),
+        h("thead", null, h("tr", null, [["Email"], ["Name"], ["Role"], ["Last seen", "n"], ["Two-step sign-in", "c"]].map(([t, cls]) => h("th", { scope: "col", class: cls }, t)), h("th", { scope: "col", class: "n" }, h("span", { class: "vh" }, "Action")))),
         h("tbody", null, rows))));
   }
 
   function invites(list) {
     const body = !list.length ? h("p", { class: "empty" }, "No invites waiting.") : h("div", { class: "scroll" }, h("table", { class: "rows-mid" }, h("caption", { class: "vh" }, "Pending invites"),
-      h("thead", null, h("tr", null, ["Email", "Role", "Invited by", "Expires"].map((t) => h("th", { scope: "col" }, t)), h("th", { scope: "col", class: "n" }, h("span", { class: "vh" }, "Actions")))),
+      h("thead", null, h("tr", null, [["Email"], ["Role"], ["Invited by"], ["Expires", "n"]].map(([t, cls]) => h("th", { scope: "col", class: cls }, t)), h("th", { scope: "col", class: "n" }, h("span", { class: "vh" }, "Actions")))),
       h("tbody", null, list.map((v) => {
         const cell = h("td", { class: "n" });
         const drawCell = () => {
@@ -109,7 +109,7 @@ export default function team() {
         };
         drawCell();
         return h("tr", null, h("td", { class: "path nm" }, v.email), h("td", null, ROLE_NAME[v.role] || v.role || ""),
-          h("td", { class: "muted" }, v.invited_by || ""), h("td", { class: "muted" }, when(v.expires_at, "")), cell);
+          h("td", { class: "muted" }, v.invited_by || ""), h("td", { class: "muted n" }, when(v.expires_at, "")), cell);
       }))));
     return h("section", { class: "s" }, h("h2", null, "Pending invites"), h("p", { class: "sub" }, "An invite link works for 7 days, once."), body);
   }

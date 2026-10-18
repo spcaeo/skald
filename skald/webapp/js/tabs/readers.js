@@ -25,11 +25,11 @@ const TOUCH = {
 
 let regions = null;
 export function country(code) {
-  if (!code || code === "Unknown") return "Unknown";
+  if (!code || code === "Unknown") return "Not recorded";
   try { regions ||= new Intl.DisplayNames(["en"], { type: "region" }); return regions.of(code) || code; } catch { return code; }
 }
 /* The one flag helper: the emoji flag for a two-letter country code, or ""
-   for anything else (Unknown, "-", a folded tail, and the codes ISO keeps
+   for anything else (a country not recorded, "-", a folded tail, and the codes ISO keeps
    for private use: AA, QM-QZ, XA-XZ but XK Kosovo, ZZ; and AP, an old
    "Asia/Pacific"). The text beside it stays, so the flag is decoration:
    flagEl marks it aria-hidden, withFlag is for plain text (a select's
@@ -75,7 +75,7 @@ function trendTable(m, r, cov, t) {
     { key: "before", label: "Before", num: true },
     { key: "chg", label: "Change", num: true, sort: (row) => (row.before ? (row.v - row.before) / row.before : null),
       fmt: (_, row) => { const [a, w] = change(row.v, row.before); return `${a}${a ? " " : ""}${w}`; }, csv: (row) => change(row.v, row.before)[1] },
-    { key: "chip", label: "", fmt: (v) => (v ? h("span", { class: `trend-chip ${v}` }, v) : ""), csv: (row) => row.chip },
+    { key: "chip", label: "", type: "badge", fmt: (v) => (v ? h("span", { class: `trend-chip ${v}` }, v) : ""), csv: (row) => row.chip },
     { key: "trend", label: "Per day", fmt: (v) => (v.filter((x) => x != null).length > 1 ? spark(v, color("people")) : "-"), csv: (row) => row.trend.join(" ") },
   ];
   return table(cols, { caption: "Sources over time", rows, file: fileName("sources-trend", r), search: false, sortKey: "v" });
@@ -89,7 +89,7 @@ function only(value) { return value ? (k) => k === value : () => true; }
 
 export function sources(m, s) {
   const { r, t, cov } = figures(m, s);
-  const out = [...head("Sources", r, "Where visitors came from, by the referrer of the first page they read. Referrers are often stripped, so Direct includes everyone whose browser did not say.")];
+  const out = [...head("Sources", r, "Where visitors came from, by the referrer of the first page they read. Direct: no referrer and no campaign tag. Referrers are often stripped, so Direct includes everyone whose browser did not say.")];
   if (!t || !t.by) return [...out, nothing(m, r, "sources")];
   const ch = changes(m, r, cov, t, "source");
   const keep = pathMatch(s);
@@ -155,7 +155,7 @@ export function audience(m, s) {
   if (!t || !t.by) return [...out, nothing(m, r, "breakdowns")];
   const credit = m.credit ? h("p", { class: "note" }, h("a", { href: m.credit.url || null, rel: "noreferrer" }, m.credit.text)) : null;
   out.push(h("div", { class: "cols" },
-    panel("Countries", "From the log's country field, or the GeoIP file for a line without one; Unknown when neither had it, never guessed",
+    panel("Countries", "From the log's country field, or the GeoIP file for a line without one; Not recorded when neither had it, never guessed",
       blist(ranked(t.by.country, only(s.country)), { drill: "country", total: t.readers, limit: 12 }), credit),
     h("div", { style: { display: "grid", gap: "18px", alignContent: "start" } },
       panel("Devices", null, meter(t.by.device, t.readers, s.device)),

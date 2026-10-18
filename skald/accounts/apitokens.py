@@ -32,7 +32,7 @@ from . import db as base
 
 SCOPES = ("read", "read_private", "mcp", "ingest")
 PRIVATE = old_tokens.PRIVATE
-DENIED = "unknown or revoked token"
+DENIED = "unrecognised or revoked token"
 
 
 def _entry(row: dict) -> dict:

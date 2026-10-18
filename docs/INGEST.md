@@ -155,7 +155,7 @@ combined log) gets its address's country from the install's `logs.country_db`
 (Docker: `SKALD_COUNTRY_DB`), a GeoIP `.mmdb` file on Skald's server; DB-IP's
 free country file works. Every site added from the dashboard uses the same
 file. A country the line carries (`cc=`, Cloudflare's) always wins. With no
-file set, such lines stay Unknown.
+file set, such lines stay Not recorded (stored as `Unknown`).
 
 ## What is sent, and what is kept
 

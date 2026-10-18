@@ -9,7 +9,8 @@
 //   * Server requests: one line with its total and a link to Site > Health,
 //     where the full band is (the map's D16)
 //   * Who else came: a link to AI & bots > Crawlers (D3)
-//   * Live mode (the period Today, "Today · Live"): "+N this hour" on the
+//   * Live mode (the period Today, "Today · Live"): Real time first (realtime.js:
+//     visitors now, minute by minute, the world map), then "+N this hour" on the
 //     Visitors tile, then Right now and today's leads and bookings, short, each
 //     with a link to the full list (ov-live.js). The hourly chart, who else came
 //     and today's top fives are Overview's own for today. Redrawn every 2 minutes
@@ -19,6 +20,7 @@ import { h, n } from "../ui.js";
 import { figures } from "../data.js";
 import overview from "./overview.js";
 import { rightNow, leadsToday, thisHour, goTo } from "./ov-live.js";
+import { realtimeBlock } from "./realtime.js";
 
 /* Live mode is the period Today (the map, section 3): the address keeps
    range=today, so every today-path in data.js stays as it is. */
@@ -65,6 +67,11 @@ export default function summary(m, s, o) {
     const at = out.findIndex((el) => is(el, "relate"));
     const after = at >= 0 ? at + 1 : out.indexOf(strip) + 1;
     out.splice(after, 0, rightNow(m), leadsToday(m));
+  }
+  // Live mode opens on Real time: right under the page's title, before the tiles.
+  if (live) {
+    const at = out.findIndex((el) => is(el, "head"));
+    out.splice(at + 1, 0, realtimeBlock(m, s));
   }
   return out.filter(Boolean);
 }

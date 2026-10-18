@@ -50,8 +50,8 @@ function upSection(m, r) {
   const outages = h("div", { class: "si-outages", id: "si-outages" }, h("h3", null, "Outages and heartbeat gaps"),
     h("p", { class: "sub" }, "Each stretch of more than 10 minutes without an answered heartbeat: the site was down, or the heartbeat itself stopped."),
     table([
-      { key: "at", label: "From", fmt: (v) => (Number.isNaN(v) ? "-" : tzTime(v, { date: true })), csv: (x) => `${x.day} ${x.from}` },
-      { key: "until", label: "To", fmt: (v) => (Number.isNaN(v) ? "-" : tzTime(v, { date: true })), csv: (x) => x.to },
+      { key: "at", label: "From", type: "date", fmt: (v) => (Number.isNaN(v) ? "-" : tzTime(v, { date: true })), csv: (x) => `${x.day} ${x.from}` },
+      { key: "until", label: "To", type: "date", fmt: (v) => (Number.isNaN(v) ? "-" : tzTime(v, { date: true })), csv: (x) => x.to },
       { key: "minutes", label: "Minutes", num: true },
     ], { caption: "Outages and heartbeat gaps", rows: gaps, file: fileName("heartbeat-gaps", r), search: false, sortKey: "at", dir: -1, limit: 10, empty: "No gap longer than 10 minutes in this range." }));
   // The heartbeat card's "Every gap" (uptime.js) links here; on this tab the gaps are right below.

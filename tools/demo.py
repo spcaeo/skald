@@ -364,10 +364,17 @@ def install(root: Path, traffic: dt.Traffic, say=print) -> Path:
             events.audit(history, cfg, dt.SITE, root / "beacon", d, tz)
             d += timedelta(days=1)
     later_changes(root, cfgp, traffic)
-    for argv in (("backfill", "--days", "3"), ("live",)):
-        code, err = run(cfgp, "--today", traffic.today.isoformat(), *argv)
-        if code:
-            raise SystemExit(f"demo: {argv[0]} failed ({code}): {err[-1500:]}")
+    code, err = run(cfgp, "--today", traffic.today.isoformat(), "backfill", "--days", "3")
+    if code:
+        raise SystemExit(f"demo: backfill failed ({code}): {err[-1500:]}")
+    # The live run at the demo's own clock, not at --today's noon: today so far ends
+    # where the traffic does, and Real time's last 30 minutes are the traffic's.
+    from unittest import mock
+    from skald import cli
+    with mock.patch.object(cli, "_now", lambda _args, zone: traffic.now.astimezone(zone)):
+        code, err = run(cfgp, "live")
+    if code:
+        raise SystemExit(f"demo: live failed ({code}): {err[-1500:]}")
     return root / "www"
 
 # ------------------------------------------------------- the static output

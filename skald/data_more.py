@@ -10,7 +10,8 @@ FILES = {"requests": "requests_feed", "alerts": "alerts", "quality": "quality",
          "markers": "markers", "leads": "leads", "cube": "cube", "robots": "robots",
          "speed": "pagespeed", "funnels": "funnels",
          "page_index": "lifecycle", "events": "events", "conversions": "conversions_data",
-         "llms_txt": "llms_txt", "crawler_cost": "crawler_cost"}
+         "llms_txt": "llms_txt", "crawler_cost": "crawler_cost",
+         "realtime": "realtime"}
 
 
 def builders() -> dict:

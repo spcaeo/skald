@@ -51,7 +51,7 @@ export function sourceColumns({ prev, perDay, leads, c }) {
     { key: "chg", label: "Change", num: true, sort: (x) => (x.before ? (x.v - x.before) / x.before : null),
       fmt: (_, x) => { if (x.before == null) return "-"; const [a, w] = change(x.v || 0, x.before); return `${a}${a ? " " : ""}${w}`; },
       csv: (x) => (x.before == null ? "" : change(x.v || 0, x.before)[1]) },
-    { key: "chip", label: "Trend", sortable: false, fmt: (v) => (v ? h("span", { class: `trend-chip ${v}` }, v) : ""), csv: (x) => x.chip || "" });
+    { key: "chip", label: "Trend", type: "badge", sortable: false, fmt: (v) => (v ? h("span", { class: `trend-chip ${v}` }, v) : ""), csv: (x) => x.chip || "" });
   if (perDay) cols.push({ key: "trend", label: "Per day", sortable: false,
     fmt: (v) => (v && v.filter((x) => x != null).length > 1 ? spark(v, color("people")) : "-"), csv: (x) => (x.trend || []).join(" ") });
   if (leads) cols.push(...leadCols());
@@ -103,7 +103,7 @@ function campaignParts(m, s, r) {
 
 export default function sources(m, s) {
   const { r, t, cov } = figures(m, s);
-  const out = [...head("Sources", r, "Where visitors came from, by the referrer of the first page they read. Referrers are often stripped, so Direct includes everyone whose browser did not say. Source types, referring sites and campaigns are stored apart, so each segment adds up on its own and they are never added together.")];
+  const out = [...head("Sources", r, "Where visitors came from, by the referrer of the first page they read. Direct: no referrer and no campaign tag. Referrers are often stripped, so Direct includes everyone whose browser did not say. Source types, referring sites and campaigns are stored apart, so each segment adds up on its own and they are never added together.")];
   if (!t || !t.by) return [...out, nothing(m, r, "sources")];
   const { lb, prev, perDay, rows, c } = sourceRows(m, s, r, t, cov);
   const leads = !!(lb && lb.days);

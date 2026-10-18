@@ -39,7 +39,7 @@ export const base = (view) => (view && view !== "all" ? `${view}/data/` : "data/
 
 // Files the data layer writes beside app.json (DATA-CONTRACT.md). Each is
 // optional: a tab whose file is not there yet says so instead of failing.
-export const EXTRA = ["insights", "not_found", "ai_activity", "campaigns", "pages", "overview", "ours", "bots", "alerts", "quality", "markers", "leads", "favicons", "sites", "robots", "speed", "funnels", "page_index", "events", "conversions"];
+export const EXTRA = ["insights", "not_found", "ai_activity", "campaigns", "pages", "overview", "ours", "bots", "alerts", "quality", "markers", "leads", "favicons", "sites", "robots", "speed", "funnels", "page_index", "events", "conversions", "realtime"];
 // requests.json is today's whole request log: the Requests tab fetches it itself, only when it is open.
 
 export async function load(s, { fresh = false } = {}) {
@@ -50,8 +50,8 @@ export async function load(s, { fresh = false } = {}) {
   // sites.json is written beside app.json by the site list (multisite.py), not by the data
   // files app.json lists, so it is always asked for (2.6.0: before, the switcher never had it).
   const listed = (n) => n === "sites" || !Array.isArray(raw.files) || raw.files.includes(n);
-  // favicons.json and sites.json live in the site's own data folder only; a view's page reads those.
-  const fetchOne = (n) => (n === "favicons" || n === "sites" ? getJSON(`data/${n}.json`, fresh) : get(`${n}.json`));
+  // favicons.json, sites.json and realtime.json (the whole site's, now) live in the site's own data folder only; a view's page reads those.
+  const fetchOne = (n) => (n === "favicons" || n === "sites" || n === "realtime" ? getJSON(`data/${n}.json`, fresh) : get(`${n}.json`));
   const extra = await Promise.all(EXTRA.map((n) => (listed(n) ? fetchOne(n).catch(() => null) : null)));
   // A file whose builder failed holds only {"state": "error", "error"}: kept apart, so a tab says
   // "could not be built" rather than showing it empty.

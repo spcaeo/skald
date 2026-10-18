@@ -96,7 +96,7 @@ table.cmp2 { width: 100%; min-width: calc(230px + var(--cols) * 96px); table-lay
 table.cmp2 col.col-f { width: 25%; }
 table.cmp2 th, table.cmp2 td { white-space: normal; position: static; font-size: inherit; }
 table.cmp2 thead th { position: sticky; top: calc(var(--bar-h) + var(--subnav-h)); z-index: 3; background: var(--surface); padding: 14px 6px 10px;
-  border-bottom: 1px solid var(--rule); vertical-align: bottom; text-align: center; color: var(--ink); font-size: 13px; font-weight: 620; }
+  border-bottom: 1px solid var(--rule); vertical-align: top; text-align: center; color: var(--ink); font-size: 13px; font-weight: 620; }
 .boxed table.cmp2 thead th { top: 0; }
 .th-in { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; line-height: 1.2; }
 .th-in .tl, .th-in .tl-me svg { width: 26px; height: 26px; }
@@ -104,10 +104,10 @@ table.cmp2 thead th { position: sticky; top: calc(var(--bar-h) + var(--subnav-h)
 table.cmp2 thead th.me { background: var(--me); box-shadow: inset 0 3px 0 var(--g-people); }
 table.cmp2 thead th.c-feat, table.cmp2 tbody th[scope="row"] { position: sticky; left: 0; background: var(--surface); }
 table.cmp2 thead th.c-feat { z-index: 4; }
-table.cmp2 tbody th[scope="row"] { z-index: 2; text-align: left; vertical-align: middle; padding: 14px 16px; font-size: 14px; font-weight: 580; color: var(--ink);
+table.cmp2 tbody th[scope="row"] { z-index: 2; text-align: left; vertical-align: top; padding: 14px 16px; font-size: 14px; font-weight: 580; color: var(--ink);
   border-top: 1px solid var(--grid); line-height: 1.35; }
 table.cmp2 tbody th small { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--ink-3); }
-table.cmp2 td { padding: 6px 4px; text-align: center; vertical-align: middle; border-top: 1px solid var(--grid); }
+table.cmp2 td { padding: 6px 4px; text-align: center; vertical-align: top; border-top: 1px solid var(--grid); }
 table.cmp2 td.me { background: var(--me); }
 table.cmp2 tbody tr:hover > td, table.cmp2 tbody tr:hover > th[scope="row"] { background: color-mix(in srgb, var(--ink) 3.5%, var(--surface)); }
 table.cmp2 tbody tr:hover > td.me { background: var(--me-hover); }

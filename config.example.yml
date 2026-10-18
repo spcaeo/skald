@@ -269,6 +269,25 @@ alerts:
   ai_sending_min_average: 5    # ... at least this a day; below both: too few to judge
   ai_max_pages: 5              # more pages for one assistant: one alert listing them
   ai_weekly_mail: true         # the "AI reading changes" card in the weekly mail
+  # AI citations and crawlers (alerts_history.py), judged once a day on the
+  # last whole day, the same way. Visits (people) and requests (crawlers) are
+  # never mixed. Each alert's figures are recounted by run-daily (audit_alerts).
+  first_citation: true         # the first visit ever from an assistant's citation
+  first_cited_page: true       # a page's first visit ever from an AI citation
+  first_min_days: 28           # ... only once history is this many days old
+  first_max_pages: 5           # more first-cited pages in a day: one alert listing them
+  cited_visits: true           # visits from AI answers against the usual for that weekday
+  cited_weeks: 6               # the usual: the median of the same weekday over 4 to 8 weeks
+  cited_min_weeks: 4           # ... at least this many of them counted, or it waits
+  cited_spike_factor: 2        # rose: at least this many times the usual ...
+  cited_minimum: 10            # ... and at least this many visits; fell: a usual of at least this
+  cited_drop_percent: 50       # fell: at most this % of the usual; fewer: too few to judge
+  crawler_silent: true         # an AI or search crawler stopped coming
+  silent_days: 7               # no request for this many whole days ...
+  silent_active_days: 7        # ... after requests on at least this many of the 28 days before
+  # Sending alerts out: add an outgoing webhook for the event alert.opened on
+  # Settings > Integrations (per site, admins; https only; signed; its secret in
+  # secrets.json). A Slack incoming-webhook address gets Slack's {"text"} shape.
 
 # Deploy markers on the charts (markers.py): the website's release
 # directories, and its home page, where the footer shows "vX · build N".

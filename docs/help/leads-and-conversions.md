@@ -140,7 +140,7 @@ There are four tables: by Source, by AI assistant, by Campaign and by Landing pa
 
 ### Likely from an AI assistant
 
-Many people who click a link in a ChatGPT, Perplexity, Claude, Copilot or Gemini answer arrive with no referrer. Their touch then says "Direct or unknown". The **Likely AI (inferred)** table, beside the four above, gives Skald's best guess for those touches, by first touch and by last touch. It is an estimate, never a count.
+Many people who click a link in a ChatGPT, Perplexity, Claude, Copilot or Gemini answer arrive with no referrer. Their touch then says "Direct" (no referrer and no campaign tag). The **Likely AI (inferred)** table, beside the four above, gives Skald's best guess for those touches, by first touch and by last touch. It is an estimate, never a count.
 
 How Skald guesses:
 
@@ -192,7 +192,7 @@ One row per action, with these columns:
 
 ### Where the completed ones came from
 
-Completed conversions by Source (last touch), First touch, Campaign, Landing page, Country, Device and **Reported by** (which source told Skald). A value Skald was not told is shown as "Unknown", never guessed.
+Completed conversions by Source (last touch), First touch, Campaign, Landing page, Country, Device and **Reported by** (which source told Skald). A value Skald was not told is shown as "Not recorded", never guessed.
 
 ### First, last and assisted touch
 

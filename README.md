@@ -51,6 +51,12 @@
 
 ## What's new
 
+- **2.11.0: real time, on a world map; AI alerts in Slack** ([changelog](CHANGELOG.md#2110-2026-10-18)).
+  Who is on your site now, minute by minute, on a live world map, with the pages being read and
+  the AI and crawlers fetching right now, every figure counted twice. Alerts for an assistant's
+  first citation, a page's first, AI-answer visits against the usual for that weekday, and a
+  crawler gone silent, sent to Slack or any webhook. "Direct" and "Not recorded" instead of
+  "unknown".
 - **2.10.0: what AI reads, asks for and costs** ([changelog](CHANGELOG.md#2100-2026-10-18)). What
   an assistant read just before it sent you a visitor. What AI fetches ask for: pages, `llms.txt`,
   Markdown, `robots.txt`, sitemaps. Google's AI Mode told apart. What each crawler costs your
@@ -59,10 +65,6 @@
   each site's events kept and audited apart. Google Ads clicks from iOS read as paid.
 - **2.8.1: API calls are not pages** ([changelog](CHANGELOG.md#281-2026-10-18)). Requests under
   `/api/` are evidence of a visit, never a page view.
-- **2.8.0: countries for any log** ([changelog](CHANGELOG.md#280-2026-10-18)) from a GeoIP file
-  (DB-IP's free file works). Caddy logs pass the audit. More accurate people counts for sites added
-  from the dashboard on a multi-site install. Source fixes: AI assistants' phone apps count as
-  citations, paid social is Social media, and TikTok and X click IDs are read.
 
 [Full changelog](CHANGELOG.md) · [All releases](https://github.com/spcaeo/skald/releases)
 
@@ -132,9 +134,10 @@ person everywhere.
 <td valign="top">
 
 ### Live, not 48 hours late
-**Today · Live**, in the top bar of every tab, shows today so far, redrawn every 2 minutes. The
-last 6 hours can be read request by request, each with the rule that put it in its group, in
-words. Alerts show on the dashboard, and by email if you want them.
+**Real time** shows who is on the site now, on a world map, with the pages being read and the AI
+and crawlers fetching right now. **Today · Live**, in the top bar of every tab, shows today so far,
+redrawn every 2 minutes. The last 6 hours can be read request by request, each with the rule that
+put it in its group, in words. Alerts show on the dashboard, by email, or in Slack.
 
 </td>
 <td valign="top">
@@ -195,6 +198,16 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
 - Five sections, with tabs inside: Overview, Traffic, Leads & sales, AI & bots and Site. Each
   answer has one place.
 - **Today · Live** and **Compare with…** in the top bar, on every tab.
+- **Real time** (Overview › Real time, and the top of Summary in Live mode): visitors active now and
+  in the last 30 minutes, visitors minute by minute, requests per minute (labelled requests, never
+  people), pages being read, sources, devices, AI assistants and crawlers now, and the newest
+  visits. Visitors every 2 minutes with the same rules as every figure; requests every 15 seconds;
+  both recounted by the audit.
+- A **world map** of where visitors are: countries shaded by visits today, a bubble where visitors
+  are active now, keyboard and click to a country's detail, a countries table beside it. Natural
+  Earth's public-domain outlines drawn in the page; no map service is asked for anything.
+- Nothing reads "unknown": a visit with no referrer and no campaign tag is **Direct**, a value the
+  log did not have is **Not recorded**.
 - Long lists (requests, pages not found, sources, pages, countries) are grids whose search,
   filters, sort and page stay in the address, so a link opens the same view. Old links redirect.
 
@@ -215,7 +228,7 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
   is a setting: on for a new install, off on an install upgraded from before 2.4.0.
 - Engagement by source and device (pages per visit, one-page visits, visit length), returning
   visitors by source, exit rate per page.
-- Campaign tag problems flagged: a source with no medium, an unknown medium, an ad click with no
+- Campaign tag problems flagged: a source with no medium, an unrecognised medium, an ad click with no
   tags, tags on internal links.
 - **Compare with…** in the top bar: the previous period, the same period last year, or any range
   up to 12 months, as A, B and the change on every tab that compares, leads and demos booked included. Insights
@@ -243,7 +256,10 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
   applied by the web server (`robots.txt` stays reachable). Skald blocks; it does not charge.
 - Your `robots.txt` rules shown beside what each crawler actually fetched.
 - AI alerts: an assistant starts or stops reading a page, or the visits it likely sends jump or
-  vanish. Whole, checked days only.
+  vanish; the first visit ever from an assistant's answer, a page's first, visits from AI answers
+  against the median of the same weekday over 6 weeks (the rule and each week's figure in the
+  alert), and an AI or search crawler gone silent for 7 days. Visits or requests, never mixed.
+  Whole, checked days only, and each alert's figures recounted.
 - A suggested `llms.txt` from the pages people and assistants read most, to copy and publish
   yourself.
 
@@ -271,7 +287,8 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
 - 404s and who met them (people, probes, crawlers), server errors by page, page speed, uptime from
   the heartbeat with every outage.
 - Alerts: site down, logging stopped, 5xx burst, 404 surge, crawler burst, new crawler, traffic
-  drop. A failed morning run sends one short mail.
+  drop. A failed morning run sends one short mail. Any alert can go to **Slack** (an incoming
+  webhook gets Slack's own message shape) or any tool, as the signed webhook event `alert.opened`.
 - A data-quality panel: unreadable lines, gaps, duplicates, log age.
 - Deploy and change markers on every chart.
 
@@ -305,7 +322,7 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
 - nginx and Apache logs (combined or extended), Caddy JSON.
 - Countries from the log (Cloudflare's country, or nginx's `cc=`). A log without one (Caddy, a plain
   combined log) gets each address's country from a GeoIP file you give it (`SKALD_COUNTRY_DB`;
-  DB-IP's free country file works, and its credit is shown). Without one, Unknown, never guessed.
+  DB-IP's free country file works, and its credit is shown). Without one, Not recorded, never guessed.
 - CDN logs: Cloudflare Logpush, CloudFront, Fastly. Pages served from the CDN cache are counted too.
 - Vercel and Netlify log drains, and the Skald Worker for Cloudflare on any plan (it posts each
   request after the page has gone out; with your server's log, only cache hits are kept).
@@ -319,9 +336,16 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
   <a href="https://spcaeo.github.io/skald/"><strong>Try the live demo: sample data, no sign-up.</strong></a>
 </p>
 
-The whole dashboard with 60 days of sample data for a made-up site, in your browser: AI & bots with the
-new 2.10.0 reports, flags, leads and bookings, the left-out leads and the removed conversions included.
+The whole dashboard with 60 days of sample data for a made-up site, in your browser: Real time with its
+world map, AI & bots with the 2.10.0 reports, flags, leads and bookings, the left-out leads and the removed conversions included.
 Nothing to install. Settings, saving and the person search need your own Skald.
+
+### New in 2.11.0: real time
+
+<p align="center">
+  <img src="docs/screenshots/realtime.png" alt="Overview, Real time: 6 visitors active now and 15 in the last 30 minutes, visitors minute by minute, requests per minute labelled as requests, and a world map shaded by visits today with green bubbles where visitors are active now, beside a countries table" width="920"><br>
+  <strong>Real time.</strong> Who is on the site now, minute by minute, and where on the map. Visitors and requests kept apart, both counted twice.
+</p>
 
 ### New in 2.10.0: what AI reads, asks for and costs
 

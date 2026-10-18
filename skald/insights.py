@@ -28,6 +28,8 @@ from collections import Counter
 from datetime import date, timedelta
 from statistics import median
 
+from .labels import shown_text
+
 ORDER = {"anomaly": 0, "opportunity": 1, "working": 2, "dropped": 3, "new": 4, "gone": 5}
 
 # subject kind -> (counts kind or extras source, metric, filter field)
@@ -126,7 +128,8 @@ def _confidence(before: float, after: float, floor: int) -> str:
 
 
 def _insight(kind, title, metric, subject, before, after, since, period, filt, floor):
-    return {"type": kind, "title": title, "metric": metric,
+    # The title is for a person: a stored label in it is said as shown (labels.py).
+    return {"type": kind, "title": shown_text(title), "metric": metric,
             "subject": subject, "before": before, "after": after,
             "change_pct": _pct(before or 0, after or 0) if before is not None else None,
             "confidence": _confidence(before or 0, after or 0, floor),

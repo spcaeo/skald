@@ -125,7 +125,7 @@ Any timestamp format works: `rfc3339` (the dashboard's default),
 `rfc3339ms`, `rfc3339ns`, `unix` and `unixnano` (the API's default).
 `CacheCacheStatus` is worth adding for your own checks; Skald ignores it. A
 line without `ClientRequestURI` or `EdgeStartTimestamp` is counted as
-unreadable. `xx` (unknown) means no country.
+unreadable. `xx` means no country.
 
 ## Cloudflare on any plan: the Skald Worker
 

@@ -18,11 +18,11 @@ Every figure is counted twice, by two separate roads. If the two counts do not a
 
 ## Why is a figure blank and not zero?
 
-Blank means not known. Zero means Skald counted and found nothing. A figure that was not recorded, for example a breakdown from before Skald began collecting it, stays blank. Unknown stays unknown.
+Blank means not known. Zero means Skald counted and found nothing. A figure that was not recorded, for example a breakdown from before Skald began collecting it, stays blank. What was not recorded is never guessed.
 
-## Why do my countries say Unknown?
+## Why do my countries say Not recorded?
 
-Skald takes a visit's country from your server's log. Some logs carry it (Cloudflare's country, or nginx's own `cc=` field). Others do not, for example Caddy's log or nginx's stock log. For those, whoever runs your Skald server can set a GeoIP country file (`logs.country_db`, or `SKALD_COUNTRY_DB` in Docker; DB-IP's free file works). Skald then looks up each visit's address in it. Without a file, the country stays Unknown. It is never guessed. See [Docker: first install](docker-first-install.md).
+Skald takes a visit's country from your server's log. Some logs carry it (Cloudflare's country, or nginx's own `cc=` field). Others do not, for example Caddy's log or nginx's stock log. For those, whoever runs your Skald server can set a GeoIP country file (`logs.country_db`, or `SKALD_COUNTRY_DB` in Docker; DB-IP's free file works). Skald then looks up each visit's address in it. Without a file, the country stays Not recorded. It is never guessed. See [Docker: first install](docker-first-install.md).
 
 ## Is AI traffic counted as people?
 
@@ -47,6 +47,17 @@ Three alerts watch how AI assistants treat your site. They show on [Site > Alert
 - **AI sending people**: the visits likely sent by an assistant jumped (3 times its 28-day average, and at least 10) or vanished. With fewer visits Skald says "too few to judge" and does not alert.
 
 An assistant means its company: GPTBot, OAI-SearchBot and ChatGPT-User are all OpenAI. Each alert names the assistant, the page, the days and the numbers. They use whole days only, and only figures Skald has already counted twice. If a day in the window is withheld or missing, the alert waits; it never fires on a day it cannot trust. The server admin can change the thresholds or switch each one off (`alerts.ai_*` in the server's config). If alert mail is on, the weekly mail lists the week's changes, and an outgoing webhook can receive each one as `ai.reading_changed` ([Webhooks](webhooks.md)).
+
+Four more alerts watch AI citations and crawlers:
+
+- **First AI citation**: the first visit ever that followed a link in an assistant's answer (ChatGPT, Claude, Perplexity, ...). The alert gives the time, the page it landed on and that day's visits from the assistant.
+- **A page's first AI citation**: the first visit ever that landed on a page from an AI answer. More than 5 pages on one day make one alert that lists them.
+- **Visits from AI answers**: yesterday's visits from AI answers compared with the usual for that weekday. The usual is the median of the same weekday over the 6 weeks before (at least 4 of them counted). The alert fires when the day has at least 2 times the usual and at least 10 visits, or at most half of a usual of at least 10. With fewer visits Skald says "too few to judge" and does not alert. The alert lists each week's figure, so you can check it.
+- **Crawler gone silent**: an AI or search crawler that came on at least 7 of 28 days has made no request for 7 days. Check robots.txt and any firewall or CDN rule.
+
+These count visits (a person who clicked a link) or requests (a crawler), never both in one figure. The first-citation alerts start once Skald has 28 days of history, so a new install does not call every citation a first. The morning run checks each alert's figures again against the stored days, with separate code. The server admin sets these in the server's config too (`alerts.first_citation`, `alerts.cited_weeks`, `alerts.silent_days`, ...).
+
+To get any alert in Slack or another tool, add an outgoing webhook with the event `alert.opened` ([Webhooks](webhooks.md)).
 
 ## What do AI assistants and crawlers fetch?
 

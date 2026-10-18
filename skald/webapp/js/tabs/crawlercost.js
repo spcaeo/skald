@@ -55,12 +55,12 @@ export function costSection(m, s, r, { title = "What each crawler costs", sub, k
       { key: "error_share", label: "Errors", num: true, fmt: (v, x) => (v == null ? "-" : h("span", { title: `${n(x.errors)} of ${n(x.requests)} answered 4xx or 5xx` }, pct1(x.errors, x.requests))), csv: (x) => (x.error_share == null ? "" : x.error_share.toFixed(4)) },
       { key: "paths", label: got.single ? "Distinct paths" : "Paths (per day)", num: true, fmt: (v) => (v == null ? "-" : n(v)), title: "Distinct paths it asked for; over a range, each day's count summed" },
       { key: "recrawl", label: "Re-crawl", num: true, fmt: (v) => (v == null ? "-" : `${v.toFixed(1)}×`), csv: (x) => (x.recrawl == null ? "" : x.recrawl.toFixed(2)), title: "Requests per distinct path (within each day)" },
-      { key: "last", label: "Last seen", fmt: (v) => (v ? tzTime(v, { date: !got.single, label: false }) : "-") },
+      { key: "last", label: "Last seen", type: "date", fmt: (v) => (v ? tzTime(v, { date: !got.single, label: false }) : "-") },
     ];
     const rows = got.rows.map((x) => ({ ...x, __k: `${x.group}|${x.name}` }));
     const bits = [];
     if (got.unrecorded) bits.push(`${got.unrecorded} day${got.unrecorded === 1 ? "" : "s"} of the range were collected before this was counted and are left out.`);
-    if (rows.some((x) => x.partial)) bits.push("Bytes marked partial are summed over the requests whose log line had a size; the rest are unknown, not zero.");
+    if (rows.some((x) => x.partial)) bits.push("Bytes marked partial are summed over the requests whose log line had a size; the rest are not recorded, not zero.");
     return [
       table(cols, { caption: title, rows, file: fileName(`crawler-cost-${id}`, r), sortKey: "requests", limit: 12, empty: got.days ? "No crawler in this range." : "Not recorded for this range yet.",
         note: [r.kind === "today" || r.length === 1 ? "One day: the p90 time is that day's." : `Summed over ${got.days} whole day${got.days === 1 ? "" : "s"}: requests and bytes add up; the mean time is weighted by request; the p90 time is shown for a single day only (pick one day to see it); distinct paths are counted per day and summed.`,

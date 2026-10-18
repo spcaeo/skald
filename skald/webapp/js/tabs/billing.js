@@ -40,7 +40,7 @@ function usageRows(plan) {
     else if (k === "requests_month" && plan.usage?.requests == null) now = "no day recorded yet";
     const over = (plan.over || []).includes(k);
     return h("tr", null, h("th", { scope: "row" }, LIMIT_NAME[k]), h("td", { class: "n" }, now), h("td", { class: "n" }, num(plan.limits?.[k])),
-      h("td", null, over ? h("span", { class: "tf off" }, "over") : ""));
+      h("td", { class: "c" }, over ? h("span", { class: "tf off" }, "over") : ""));
   });
 }
 
@@ -70,7 +70,7 @@ export default function billing() {
         p.trial_days_left != null ? `: ${p.trial_days_left} day${p.trial_days_left === 1 ? "" : "s"} of the trial left` : "",
         p.read_only ? `. ${p.read_only_why}` : "."),
         h("div", { class: "scroll" }, h("table", null, h("caption", { class: "vh" }, "Usage against the plan's limits"),
-          h("thead", null, h("tr", null, [["", null], ["Now", "n"], ["Plan allows", "n"], ["", null]].map(([t, cls]) => h("th", { scope: "col", class: cls }, t)))),
+          h("thead", null, h("tr", null, [["", null], ["Now", "n"], ["Plan allows", "n"], ["", "c"]].map(([t, cls]) => h("th", { scope: "col", class: cls }, t)))),
           h("tbody", null, usageRows(p)))),
         h("p", { class: "note" }, `Requests are every request the server logged for your sites in ${p.usage?.month || "this month"}, people and machines alike. Over a limit, nothing is deleted.`)]
         : h("p", { class: "sub" }, "This organisation has no plan, and no limits."));

@@ -49,7 +49,7 @@ export function robotsSection(m) {
     table([
       { key: "name", label: "Crawler", drill: "bot" },
       { key: "applies", label: "Rule that applies", fmt: (v) => h("code", null, v === "*" ? "* (everyone)" : v) },
-      { key: "verdict", label: "robots.txt", fmt: (_, c) => robotsBadge(c) },
+      { key: "verdict", label: "robots.txt", type: "badge", fmt: (_, c) => robotsBadge(c) },
       { key: "requests", label: "Requests", num: true },
       { key: "disallowed", label: "Off-limits fetches", num: true, fmt: (_, c) => offLimits(c), csv: (c) => c.disallowed },
       { key: "today_n", label: "Today", num: true, fmt: (v) => (v == null ? "-" : n(v)) },

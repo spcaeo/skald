@@ -51,7 +51,7 @@ export function api(m) {
         copyable("skald token list", "the command to list tokens"),
         copyable("skald token revoke <id>", "the command to revoke a token"),
       ] : h("p", { class: "note" }, VIEWER)),
-    h("p", { class: "note" }, "Answers: 200 with the file; 401 for a missing, unknown or revoked token, or a token for another site; 404 for a file this page does not have. Nothing can be changed through the API. The API guide in Help has examples; the full reference is docs/API.md in Skald's code."),
+    h("p", { class: "note" }, "Answers: 200 with the file; 401 for a missing, unrecognised or revoked token, or a token for another site; 404 for a file this page does not have. Nothing can be changed through the API. The API guide in Help has examples; the full reference is docs/API.md in Skald's code."),
   ];
 }
 

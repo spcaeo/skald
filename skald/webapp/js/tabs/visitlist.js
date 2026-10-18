@@ -7,6 +7,7 @@
 import { openDrawer } from "../drawer.js";
 import { when, label as tzLabel } from "../tz.js";
 import { h, n, duration, share, weekday } from "../ui.js";
+import { shown } from "../labels.js";
 import { mark } from "../icons.js";
 import { label as named, link } from "../drill.js";
 import { table } from "../table.js";
@@ -42,7 +43,7 @@ function sourceOf(j) {
   const icon = j.source === "AI assistant" && via ? mark("assistant", via) || mark("source", j.source)
     : host ? mark("referrer", via) : mark("source", j.source);
   const campaign = j.utm?.campaign || (j.campaign ? j.campaign.split(" / ").pop() : "");
-  return { name: via || j.source || "Unknown", type: via ? j.source : "", icon, campaign: campaign && campaign !== "-" ? campaign : "" };
+  return { name: via || shown(j.source) || "Not recorded", type: via ? j.source : "", icon, campaign: campaign && campaign !== "-" ? campaign : "" };
 }
 const visitor = (j) => (j.returning === true ? "Returning" : j.returning === false ? "New" : "");
 const zoned = (j) => when(j.start);
@@ -53,7 +54,7 @@ function countryCell(code) {
   return h("span", { class: `named${f ? "" : " unk"}` }, f, h("span", { class: "nm" }, country(code)));
 }
 function withMark(dim, value, cls) {
-  return value ? h("span", { class: `named ${cls || ""}` }, mark(dim, value), h("span", { class: "nm" }, value)) : h("span", { class: "unk" }, "Unknown");
+  return value ? h("span", { class: `named ${cls || ""}` }, mark(dim, value), h("span", { class: "nm" }, value)) : h("span", { class: "unk" }, "Not recorded");
 }
 
 // The trail in one line: the landing page, then the rest; the whole of it on hover.
@@ -168,7 +169,7 @@ export function visitMatrix(all, list, r, keptDays) {
   });
   const zone = tzLabel();
   const cols = [
-    { key: "start", label: `When (${zone})`, cls: "c-when", fmt: (_, x) => {
+    { key: "start", label: `When (${zone})`, type: "date", cls: "c-when", fmt: (_, x) => {
       const w = zoned(x.j);
       const b = h("button", { type: "button", class: "v-open", "aria-label": `Open the visit on ${whenWords(w)}` },
         h("span", { class: "v-hm" }, w ? `${w.hour}:${w.minute}` : ""), h("span", { class: "v-day" }, w ? `${weekday(w.day)} ${w.date}` : ""));
@@ -184,7 +185,7 @@ export function visitMatrix(all, list, r, keptDays) {
       return h("span", { class: "v-stack" }, h("span", { class: "named" }, s.icon, h("span", { class: "nm" }, v)),
         s.type || s.campaign ? h("small", null, s.type, s.type && s.campaign ? ", " : "", s.campaign ? h("span", { class: "v-camp" }, s.campaign) : null) : null);
     }, csv: (x) => { const s = sourceOf(x.j); return [s.type ? `${s.type}: ${s.name}` : s.name, s.campaign ? `campaign ${s.campaign}` : ""].filter(Boolean).join("; "); } },
-    { key: "visitor", label: "Visitor", cls: "c-vis", fmt: (v) => (v ? h("span", { class: `v-vis ${v === "New" ? "new" : "ret"}` }, v) : "") },
+    { key: "visitor", label: "Visitor", type: "badge", cls: "c-vis", fmt: (v) => (v ? h("span", { class: `v-vis ${v === "New" ? "new" : "ret"}` }, v) : "") },
     { key: "pages", label: "Pages", num: true, cls: "c-pages", fmt: (v) => h("span", { class: "v-pg", "data-unit": v === 1 ? "page" : "pages" }, n(v)), csv: (x) => x.pages },
     { key: "seconds", label: "Time on site", num: true, cls: "c-time", fmt: (v, x) => h("span", { class: "v-len", "data-pages": `${n(x.pages)} page${x.pages === 1 ? "" : "s"}, ` }, duration(v), track(x.j)), csv: (x) => duration(x.seconds) },
     { key: "path", label: "Pages in order", cls: "c-path", fmt: (_, x) => trailCell(x.j),

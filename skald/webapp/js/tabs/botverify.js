@@ -79,7 +79,7 @@ export function verifySection(m, r) {
         : "Every checked address belonged to the crawler it named."),
       table([
         { key: "name", label: "Crawler" },
-        { key: "badge", label: "Check", fmt: (_, x) => badge(x), csv: (x) => x.badge, sort: (x) => ["spoofed", "unverified", "verified"].indexOf(x.badge) },
+        { key: "badge", label: "Check", type: "badge", fmt: (_, x) => badge(x), csv: (x) => x.badge, sort: (x) => ["spoofed", "unverified", "verified"].indexOf(x.badge) },
         { key: "method", label: "Checked by", fmt: (val) => METHOD[val] || val || "-" },
         { key: "verified", label: "Verified", num: true },
         { key: "unverified", label: "Not verifiable", num: true },

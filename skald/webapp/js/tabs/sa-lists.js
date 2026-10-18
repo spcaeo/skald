@@ -70,7 +70,7 @@ export function leadList(kinds, { ns = "lo", only = null } = {}) {
     const rows = (got.leads || []).filter((r) => kinds.includes(kindOf(r)) && (!only || only(r.type))).map((r) => ({ ...r, kind: kindOf(r) }));
     const named = rows.some((r) => r.email || r.name);
     const cols = [
-      { key: "created_at", label: "Made", fmt: (v) => at(v) },
+      { key: "created_at", label: "Made", type: "date", fmt: (v) => at(v) },
       { key: "id", label: "Lead", fmt: (v) => key(v, `#${v}`), csv: (r) => r.id },
       { key: "kind", label: "Left out as", fmt: (v) => h("b", { class: "pp-bad" }, KIND[v] || v), csv: (r) => KIND[r.kind] || r.kind },
       { key: "type", label: "Type", fmt: dash },
@@ -118,7 +118,7 @@ export function convList(kinds, { ns = "lo", only = null, title = "Cancelled, re
     const rows = answers.flatMap(([k, got]) => (got.rows || []).map((r) => convRow(k, r))).filter((r) => !only || only(r.action));
     const named = rows.some((r) => r.email || r.vid);
     const cols = [
-      { key: "at", label: "When", fmt: (v) => at(v) },
+      { key: "at", label: "When", type: "date", fmt: (v) => at(v) },
       { key: "kind", label: "List", fmt: (v) => KIND[v] || v, csv: (r) => KIND[r.kind] || r.kind },
       { key: "action", label: "Action", fmt: (v) => (v ? actionName(v) : "-"), csv: (r) => r.action },
       { key: "stage", label: "Stage", fmt: (v) => STAGE[v] || dash(v) },

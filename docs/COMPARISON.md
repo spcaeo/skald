@@ -4,7 +4,7 @@
 
 How Skald stands beside Google Analytics 4, Search Console, Bing Webmaster Tools, Plausible, Matomo, Cloudflare, GoAccess, PostHog and Known Agents, grouped by module. The story behind it is in [WHY-WE-BUILT-SKALD.md](WHY-WE-BUILT-SKALD.md); the same matrix as a page, with filters, is [comparison.html](comparison.html) (made from the 2026-10-07 version: the 2026-10-11 rows and notes are only here and in the dashboard's About page).
 
-Every competitor fact comes from that vendor's own docs, pricing page or source code, checked on 2026-10-07. Skald's column claims only what is built and tested in its code (updated 2026-10-12, version 2.5.0); a part that is off until an install switches it on says so in its note, and anything on the roadmap says *planned*. Where a fact could not be confirmed on the vendor's own pages the cell says `?`. A `✗` means the feature is not offered, or we found no sign of it in the vendor's docs. Rows added on 2026-10-11 (accounts, conversions, webhooks, MCP, the hosted layer, engagement, campaign tag problems, exit rate) and on 2026-10-18 for version 2.10.0 (what AI fetches ask for, what each crawler costs, what the AI read before a visit, Google AI Mode) have not been checked for the other tools yet: their cells say *not checked*.
+Every competitor fact comes from that vendor's own docs, pricing page or source code, checked on 2026-10-07. Skald's column claims only what is built and tested in its code (updated 2026-10-12, version 2.5.0); a part that is off until an install switches it on says so in its note, and anything on the roadmap says *planned*. Where a fact could not be confirmed on the vendor's own pages the cell says `?`. A `✗` means the feature is not offered, or we found no sign of it in the vendor's docs. Rows added on 2026-10-11 (accounts, conversions, webhooks, MCP, the hosted layer, engagement, campaign tag problems, exit rate) and on 2026-10-18 for versions 2.10.0 (what AI fetches ask for, what each crawler costs, what the AI read before a visit, Google AI Mode) and 2.11.0 (who is on the site now on a world map, AI citation and crawler alerts, alerts to Slack or any webhook) have not been checked for the other tools yet: their cells say *not checked*.
 
 | Mark | Means |
 | --- | --- |
@@ -92,7 +92,7 @@ Where people came from.
 | --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | Referring sites | ✓ | ✓ | – | – | ✓ | ✓ | ✓ [^91] | ✓ [^92] | ✓ | ? |
 | UTM campaigns | ✓ [^93] | ✓ | – | – | ✓ [^94] | ✓ [^95] | ? | ? | ✓ [^96] | ? |
-| Campaign tag problems <br><sub>A source with no medium, an unknown medium, an ad click with no tags</sub> | ✓ [^270] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
+| Campaign tag problems <br><sub>A source with no medium, an unrecognised medium, an ad click with no tags</sub> | ✓ [^270] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
 
 **AI and search**
 
@@ -114,7 +114,8 @@ How fresh the newest number is.
 
 | Feature | Skald | Google Analytics 4 | Search Console | Bing Webmaster Tools | Plausible | Matomo | Cloudflare | GoAccess | PostHog | Known Agents |
 | --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| Newest figures | Today so far, redrawn every 2 minutes [^117] | Realtime covers the last 30 minutes; full processing 24-48 hours [^118] | 2-3 days; a preliminary 24-hour view [^119] | ? | Current visitors (last 5 minutes); refreshes every 30 seconds [^120] | Real-time visitor log; the importer can stream [^121] | ? | Every second over WebSocket [^122] | Live view; online count covers 30 seconds [^123] | "In real time" (its words) [^124] |
+| Newest figures | Visitors now and today so far every 2 minutes; requests every 15 seconds [^117] | Realtime covers the last 30 minutes; full processing 24-48 hours [^118] | 2-3 days; a preliminary 24-hour view [^119] | ? | Current visitors (last 5 minutes); refreshes every 30 seconds [^120] | Real-time visitor log; the importer can stream [^121] | ? | Every second over WebSocket [^122] | Live view; online count covers 30 seconds [^123] | "In real time" (its words) [^124] |
+| Who is on the site now, on a world map <br><sub>Countries shaded by visits today, active ones marked</sub> | ✓ [^277] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
 | Every request of the last hours, one by one <br><sub>With why it was counted where it was</sub> | ✓ [^125] | ✗ | – | – | ✗ | ◐ [^126] | ✗ | ✗ [^127] | ? | ? |
 
 ## Content and site health
@@ -164,6 +165,8 @@ Being told without having to look.
 | Feature | Skald | Google Analytics 4 | Search Console | Bing Webmaster Tools | Plausible | Matomo | Cloudflare | GoAccess | PostHog | Known Agents |
 | --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | Email alerts | ✓ [^160] | ✓ [^161] | ✓ [^162] | ✓ [^163] | ✓ [^164] | ✓ [^165] | ? | ✗ | ✓ [^166] | ? |
+| AI citation and crawler alerts against a baseline <br><sub>First citation, a page's first, the same weekday's median, a crawler gone silent</sub> | ✓ [^278] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
+| Alerts to Slack or any webhook | ✓ [^279] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
 | Uptime check | ◐ [^167] | ✗ | ✗ | ✗ | ✗ | ✗ | ? | ✗ | ✗ | ✗ |
 | Deploy and change markers on charts | ✓ [^168] | ✓ [^169] | ✓ [^170] | ? | ✓ [^171] | ✓ [^172] | ? | ✗ | ✓ [^173] | ? |
 
@@ -351,7 +354,7 @@ Given no column, to keep the table readable.
 [^72]: **Skald, returning visitors**: By a keyed hash, within 30 days by default (1 to 90 in Settings); also by the visit's source. [Skald DATA-CONTRACT](../DATA-CONTRACT.md)
 [^73]: **Google Analytics 4, returning visitors**: [GA4: dimensions and metrics](https://support.google.com/analytics/answer/9143382)
 [^74]: **Matomo, returning visitors**: [Matomo: features](https://matomo.org/features/)
-[^75]: **Skald, countries**: From the log's own country field, or a GeoIP file looked up by address (`logs.country_db`). Unknown kept, never guessed. [Skald SOP](../SOP.md)
+[^75]: **Skald, countries**: From the log's own country field, or a GeoIP file looked up by address (`logs.country_db`). Not recorded kept, never guessed. [Skald SOP](../SOP.md)
 [^76]: **Search Console, countries**: Of searchers. [Search Console: Performance report](https://support.google.com/webmasters/answer/7042828)
 [^77]: **Matomo, countries**: [Matomo: features](https://matomo.org/features/)
 [^78]: **Cloudflare, countries**: [Cloudflare Web Analytics: dimensions](https://developers.cloudflare.com/web-analytics/data-metrics/dimensions/)
@@ -369,7 +372,7 @@ Given no column, to keep the table readable.
 [^90]: **PostHog, each visit's pages in order**: User paths. [PostHog: user paths](https://posthog.com/docs/product-analytics/paths)
 [^91]: **Cloudflare, referring sites**: [Cloudflare Web Analytics: dimensions](https://developers.cloudflare.com/web-analytics/data-metrics/dimensions/)
 [^92]: **GoAccess, referring sites**: [GoAccess: manual](https://goaccess.io/man)
-[^93]: **Skald, utm campaigns**: Five UTM tags; ad network from the click id, never its value; tag problems flagged (no medium, unknown medium, click id without tags, tags on internal links). [Skald DATA-CONTRACT](../DATA-CONTRACT.md)
+[^93]: **Skald, utm campaigns**: Five UTM tags; ad network from the click id, never its value; tag problems flagged (no medium, unrecognised medium, click id without tags, tags on internal links). [Skald DATA-CONTRACT](../DATA-CONTRACT.md)
 [^94]: **Plausible, utm campaigns**: [Plausible: dashboard guide](https://plausible.io/docs/your-plausible-experience)
 [^95]: **Matomo, utm campaigns**: [Matomo: features](https://matomo.org/features/)
 [^96]: **PostHog, utm campaigns**: [PostHog: channel types](https://posthog.com/docs/data/channel-type)
@@ -393,7 +396,7 @@ Given no column, to keep the table readable.
 [^114]: **Skald, google ai overview clicks told apart**: They arrive looking like ordinary Google clicks. [Skald README](../README.md)
 [^115]: **Google Analytics 4, google ai overview clicks told apart**: [GA4: default channel group](https://support.google.com/analytics/answer/9756891)
 [^116]: **Search Console, google ai overview clicks told apart**: Reported apart, but also merged into Web results. [Search Console: Generative AI performance report](https://support.google.com/webmasters/answer/16984139); [Google Search: AI features and your site](https://developers.google.com/search/docs/appearance/ai-features)
-[^117]: **Skald**: [Skald README](../README.md)
+[^117]: **Skald**: Real time: visitors active in the last 5 and 30 minutes and minute by minute, from the live run every 2 minutes with the same people rules as every figure; requests per minute read from the end of the log every 15 seconds, labelled requests, never people; both recounted by the audit. Today so far redrawn every 2 minutes. [Skald README](../README.md)
 [^118]: **Google Analytics 4**: [GA4: Realtime report](https://support.google.com/analytics/answer/9271392); [GA4: data freshness](https://support.google.com/analytics/answer/11198161)
 [^119]: **Search Console**: [Search Console: data delays and limits](https://support.google.com/webmasters/answer/96568); [Search Console: 24-hour view](https://support.google.com/webmasters/answer/7576553)
 [^120]: **Plausible**: [Plausible: realtime dashboard](https://plausible.io/docs/realtime-dashboard)
@@ -436,7 +439,7 @@ Given no column, to keep the table readable.
 [^157]: **Search Console, unsampled and unthresholded**: 1,000-row tables; rare queries hidden. [Search Console: data delays and limits](https://support.google.com/webmasters/answer/96568)
 [^158]: **Bing Webmaster Tools, unsampled and unthresholded**: AI grounding queries are a sample. [Bing: AI Performance report (Feb 2026)](https://blogs.bing.com/webmaster/February-2026/Introducing-AI-Performance-in-Bing-Webmaster-Tools-Public-Preview)
 [^159]: **Cloudflare, unsampled and unthresholded**: Adaptive sampling; full detail for 7 days. [Cloudflare Web Analytics: FAQ](https://developers.cloudflare.com/web-analytics/faq/)
-[^160]: **Skald, email alerts**: Site down, logging stopped, 5xx, 404 surge, crawler burst, new crawler, traffic drop, an AI assistant starting or stopping on a page, likely-AI visits jumping or vanishing; shown on the dashboard, mailed when the install turns alert mail on. A failed daily run sends one short mail. [Skald README](../README.md)
+[^160]: **Skald, email alerts**: Site down, logging stopped, 5xx, 404 surge, crawler burst, new crawler, traffic drop, an AI assistant starting or stopping on a page, likely-AI visits jumping or vanishing, an assistant's first citation, a page's first, AI-answer visits against the weekday median, a crawler gone silent; shown on the dashboard, mailed when the install turns alert mail on. A failed daily run sends one short mail. [Skald README](../README.md)
 [^161]: **Google Analytics 4, email alerts**: Custom insights. [GA4: custom insights and alerts](https://support.google.com/analytics/answer/9443595)
 [^162]: **Search Console, email alerts**: Site issues. [Search Console: about](https://search.google.com/search-console/about)
 [^163]: **Bing Webmaster Tools, email alerts**: Alerts and recommendations. [Bing Webmaster Tools: getting started (2025)](https://blogs.bing.com/webmaster/2025/6/Start-Using-Bing-Webmaster-Tools-to-Improve-Your-Site-Visibility/)
@@ -537,7 +540,7 @@ Given no column, to keep the table readable.
 [^258]: **Skald, bookings, forms and payments pushed in by the tools**: Each tool's own signature checked on the raw body; a repeat changes nothing; kept once per tool, reference and stage; every figure counted a second time from the raw copies. [Skald integrations](INTEGRATIONS.md)
 [^259]: **Skald, forms and bookings started but not finished**: A start with no finish by the same browser and action within 24 hours. Needs the visitor IDs, which are off by default. [Skald integrations](INTEGRATIONS.md)
 [^260]: **Skald, the anonymous pages a browser read before it converted**: A random ID per browser, never a name or an address; page views kept 30 days unless the browser converted. Off by default. Never matched by address. [Skald event beacon, visitor IDs](BEACON.md)
-[^261]: **Skald, time from first visit to lead**: Buckets from first touch to the lead, from the lead database or a hook; unknown and clock errors shown apart. [Skald DATA-CONTRACT, leads.json](../DATA-CONTRACT.md)
+[^261]: **Skald, time from first visit to lead**: Buckets from first touch to the lead, from the lead database or a hook; not recorded and clock errors shown apart. [Skald DATA-CONTRACT, leads.json](../DATA-CONTRACT.md)
 [^262]: **Skald, webhooks out to a crm, zapier or slack**: Signed, https only, never to a private address; retried five times over about 15 hours. Never a name or an email. [Skald integrations](INTEGRATIONS.md)
 [^263]: **Skald, two-step sign-in**: A code from any authenticator app, with one-time recovery codes; an owner can require it. With accounts switched on. [Skald accounts](ACCOUNTS.md)
 [^264]: **Skald, audit log of who changed what**: Sign-ins, invites, roles, tokens, settings; never a password, token or address; CSV export. With accounts switched on. [Skald accounts](ACCOUNTS.md); [Skald settings](SETTINGS.md)
@@ -553,3 +556,6 @@ Given no column, to keep the table readable.
 [^274]: **Skald, what each crawler costs the server**: Per assistant, search crawler and bot, per day: requests, bytes sent, mean and 90th-percentile response time (when the log has a size and a time), status classes, distinct paths and re-crawls, with a detail view per crawler (by day, pages, statuses, verified share, countries, user agents, last seen). Counted a second time by its own audit. Since 2.10.0. [Skald DATA-CONTRACT, crawler_cost.json](../DATA-CONTRACT.md)
 [^275]: **Skald, what the ai read before it sent a visitor**: For a visit from an AI answer (cited, or likely), the paths that assistant's user fetcher fetched in the minutes before it, and per assistant how many of its visits landed on a page it had just fetched. Context, never a count of people; counted a second time by its own audit. Since 2.10.0. [Skald DATA-CONTRACT, likely from AI](DATA-CONTRACT-AI-LIKELY.md)
 [^276]: **Skald, google ai mode clicks told apart**: Only when Google's referrer or the landing address carries udm=50; the visit stays Search engine with the referring site "google.com (AI Mode)". A click without it looks like any Google click and is not guessed. Since 2.10.0. [Skald CLASSIFICATION](../CLASSIFICATION.md)
+[^277]: **Skald, who is on the site now, on a world map**: Countries shaded by visits today, a bubble for each country with visitors in the last 30 minutes, a countries table beside it; Natural Earth's public-domain outlines drawn in the page, no map service. Counted a second time by its own audit. Since 2.11.0. [Skald help: Real time](help/real-time.md)
+[^278]: **Skald, ai citation and crawler alerts against a baseline**: The first visit ever from an assistant's answer, a page's first (from 28 days of history), visits from AI answers against the median of the same weekday over 6 weeks (the rule and each week's figure in the alert; "too few to judge" below 10 visits), an AI or search crawler silent for 7 days. Visits or requests, never mixed; whole, checked days only; each alert's figures counted a second time. Since 2.11.0. [Skald help: FAQ](help/faq.md)
+[^279]: **Skald, alerts to slack or any webhook**: Every new alert is the signed outgoing webhook event alert.opened, opt-in per site; a Slack incoming-webhook address gets Slack's own message shape. Since 2.11.0. [Skald help: webhooks](help/webhooks.md)

@@ -11,8 +11,9 @@ import { head, healthTabs } from "./common.js";
 const SEV = { high: "Urgent", medium: "Worth a look", low: "For information" };
 export const CAUSE = { site_down: "Site down", logging_stopped: "Logging stopped", server_errors: "Server errors", not_found_surge: "Broken-link surge",
   crawler_burst: "Crawl burst", new_crawler: "New crawler", traffic_drop: "Traffic drop",
-  ai_started_reading: "AI started reading", ai_stopped_reading: "AI stopped reading", ai_sending_people: "AI sending people" };
-// The AI alerts (alerts_ai.py): the "AI" filter here, and the panel on AI & crawlers.
+  ai_started_reading: "AI started reading", ai_stopped_reading: "AI stopped reading", ai_sending_people: "AI sending people",
+  ai_first_citation: "First AI citation", ai_first_cited_page: "Page's first AI citation", ai_cited_visits: "Visits from AI answers", crawler_silent: "Crawler gone silent" };
+// The AI alerts (alerts_ai.py, alerts_history.py): the "AI" filter here, and the panel on AI & crawlers.
 const isAI = (a) => String(a.cause || "").startsWith("ai_");
 let only = "all";
 // In the reader's chosen zone, with the date (alerts span days).
@@ -36,7 +37,7 @@ function card(a, today) {
 }
 
 export default function alerts(m, s) {
-  const out = [healthTabs(m, "health/alerts"), ...head("Alerts", rangeOf(m, { ...s, range: "today" }), "Problems the system watches for: the site down, server errors, a surge of broken links, logging stopped, a crawl burst, a new AI assistant, and AI assistants starting or stopping reading a page. An alert opens when its rule is met and closes on its own when the problem is gone.", { period: "Now, and the last 30 days · the date range above does not apply" })];
+  const out = [healthTabs(m, "health/alerts"), ...head("Alerts", rangeOf(m, { ...s, range: "today" }), "Problems the system watches for: the site down, server errors, a surge of broken links, logging stopped, a crawl burst, a new AI assistant, AI assistants starting or stopping reading a page, first AI citations, visits from AI answers far above or below the usual, and a crawler gone silent. An alert opens when its rule is met and closes on its own when the problem is gone.", { period: "Now, and the last 30 days · the date range above does not apply" })];
   const f = m.x.alerts;
   if (!f) return [...out, h("div", { class: "state", html: ICON.info }, h("div", null, "No alerts file beside this page yet. Alerts are checked by the server with every live run and written here; until the first check, nothing is shown, and nothing here means \"no alerts\" only once the file exists."))];
   const rules = f.rules || [];
@@ -61,7 +62,7 @@ export default function alerts(m, s) {
   const closed = closedAll.filter(keep).map((a) => ({ ...a, __k: a.id, type_name: CAUSE[a.cause] || a.cause, lasted_s: a.closed_at ? (Date.parse(a.closed_at) - Date.parse(a.opened_at)) / 1000 : null }));
   shown.push(h("section", { class: "s" }, h("h2", null, "Closed recently"), h("p", { class: "sub" }, "The last 30 days, newest first."),
     table([
-      { key: "opened_at", label: "Opened", fmt: (v) => when(v, m.today), csv: (r) => r.opened_at },
+      { key: "opened_at", label: "Opened", type: "date", fmt: (v) => when(v, m.today), csv: (r) => r.opened_at },
       { key: "lasted_s", label: "Lasted", num: true, fmt: (_, r) => lasted(r) || "-" },
       { key: "type_name", label: "Kind" },
       { key: "title", label: "What happened" },
@@ -82,27 +83,29 @@ export default function alerts(m, s) {
 
 // "AI reading changes" for the AI & crawlers tab: the AI alerts of the last 7 days, and
 // whether each rule judged the last whole day or is waiting for one.
-const RULE_NAME = { started_reading: "Started reading", stopped_reading: "Stopped reading", sending_people: "AI answers sending people" };
+const RULE_NAME = { started_reading: "Started reading", stopped_reading: "Stopped reading", sending_people: "AI answers sending people",
+  first_citation: "First citation from an assistant", first_cited_page: "A page's first citation", cited_visits: "Visits from AI answers against the usual", crawler_silent: "Crawler gone silent" };
 export function aiChanges(m) {
   const f = m.x.alerts;
-  const why = "Whole days only. From figures already checked twice: each assistant's requests by page, and visits likely sent by an AI assistant (inferred). A withheld or missing day makes a rule wait; it never fires on it.";
+  const why = "Whole days only. From figures already checked twice: each assistant's requests by page, visits likely sent by an AI assistant (inferred), each page's first times, visits by source and each crawler's requests. Visits and requests are never mixed. A withheld or missing day makes a rule wait; it never fires on it.";
   const top = (...kids) => h("section", { class: "s" }, h("h2", null, "AI reading changes"), h("p", { class: "sub" }, why), ...kids);
   if (!f) return null;
   if (f.enabled === false || !f.ai) return top(h("p", { class: "empty" }, f.enabled === false ? "Alerts are switched off in the server's config (alerts.enabled), so AI reading changes are not checked." : "Not checked yet: the first live run after an update checks the last whole day."));
   const since = Date.now() - 7 * 864e5;
-  const rows = [...(f.open || []), ...(f.closed || [])].filter((a) => isAI(a) && Date.parse(a.opened_at) >= since)
+  const rows = [...(f.open || []), ...(f.closed || [])].filter((a) => (isAI(a) || a.cause === "crawler_silent") && Date.parse(a.opened_at) >= since)
     .map((a) => ({ ...a, __k: a.id, kind: CAUSE[a.cause] || a.cause, state: a.closed_at ? "closed" : "open" }));
-  const rules = Object.entries(f.ai.rules || {}).map(([k, r]) => h("li", null,
+  const rules = Object.entries({ ...(f.ai.rules || {}), ...((f.history || {}).rules || {}) }).map(([k, r]) => h("li", null,
     h("b", null, RULE_NAME[k] || k), ": ",
-    r.state === "off" ? "off" : r.state === "waiting" ? `waiting for whole days (${(r.waiting_on || []).slice(0, 3).join(", ")}${(r.waiting_on || []).length > 3 ? ", ..." : ""})` : `judged ${f.ai.day}`,
+    r.state === "off" ? "off" : r.state === "waiting" ? (r.why || `waiting for whole days (${(r.waiting_on || []).slice(0, 3).join(", ")}${(r.waiting_on || []).length > 3 ? ", ..." : ""})`) : `judged ${k in (f.ai.rules || {}) ? f.ai.day : f.history.day}`,
     r.unjudged?.length ? `; not judged for ${r.unjudged.join(", ")} (too many pages a day to tell)` : "",
-    k === "sending_people" && r.assistants?.length ? `; ${r.assistants.map((x) => `${x.assistant} ${x.verdict} (${n(x.day)} against ${x.average} a day)`).join("; ")}` : ""));
+    k === "sending_people" && r.assistants?.length ? `; ${r.assistants.map((x) => `${x.assistant} ${x.verdict} (${n(x.day)} against ${x.average} a day)`).join("; ")}` : "",
+    k === "cited_visits" && r.verdict ? `; ${r.verdict} (${n(r.day_visits)} visits against a usual ${r.median})` : ""));
   return top(h("ul", { class: "note" }, rules),
     table([
-      { key: "opened_at", label: "Opened", fmt: (v) => when(v, m.today), csv: (r) => r.opened_at },
+      { key: "opened_at", label: "Opened", type: "date", fmt: (v) => when(v, m.today), csv: (r) => r.opened_at },
       { key: "kind", label: "Change" },
       { key: "title", label: "What happened" },
       { key: "detail", label: "Based on" },
-      { key: "state", label: "Alert" },
+      { key: "state", label: "Alert", type: "badge" },
     ], { caption: "AI reading changes, last 7 days", rows, file: `ai-reading-changes-${m.today}.csv`, sortKey: "opened_at", dir: -1, limit: 10, empty: "No assistant started or stopped reading a page in the last 7 days, and no jump or fall in visits likely sent by AI answers." }));
 }

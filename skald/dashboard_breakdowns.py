@@ -23,6 +23,7 @@ from .aggregate import READER_DIMS
 from .classify import Group
 from .dimensions import HOURS, OTHER, SLOW, SPEEDS, STATUSES
 from .kpi import change
+from .labels import shown
 from .report import TITLES
 
 EXPORT_DIR = "exports/"
@@ -30,16 +31,16 @@ EXPORT_DIR = "exports/"
 # dimension: (title, column heading, what it means)
 WHO = {
     "country": ("Countries", "Country",
-                "where each reader was, from the log's country field; Unknown "
-                "when it had none - never guessed"),
+                "where each reader was, from the log's country field; Not "
+                "recorded when it had none - never guessed"),
     "device": ("Devices", "Device", "from the user agent; bots are never in it"),
     "browser": ("Browsers", "Browser",
                 "self-reported; Brave counts as Chrome, an in-app browser by its app"),
     "os": ("Operating systems", "System",
            "an iPad asking for the desktop site counts as macOS"),
     "source": ("Traffic sources", "Source",
-               "from the referrer of the first page read; often stripped, so "
-               "Direct includes those"),
+               "Direct: no referrer and no campaign tag. From the referrer of "
+               "the first page read; often stripped, so Direct includes those"),
     "referrer": ("Referring sites", "Site", "the first page's referrer, host only"),
     "campaign": ("Campaigns", "source / medium / campaign",
                  "utm_ tags or an ad click id on the landing URL"),
@@ -76,7 +77,7 @@ def _label(dimension: str, name: str, tz_name: str) -> str:
     if dimension == "hour" and name in HOURS:
         h = int(name)
         return f"{h:02d}:00-{(h + 1) % 24:02d}:00"
-    return name
+    return shown(name)
 
 
 def _download(name: str) -> str:

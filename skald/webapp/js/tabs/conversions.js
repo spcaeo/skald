@@ -10,6 +10,7 @@
 // given (the counts are).
 
 import { h, n, short, pct1, reduced, ICON } from "../ui.js";
+import { shown } from "../labels.js";
 import { rangeOf } from "../data.js";
 import { head, rangeWords, fixed } from "./common.js";
 import { table } from "../table.js";
@@ -144,7 +145,7 @@ function touches(t, acts) {
   return h("div", { class: "sheet" }, table([{ key: "k", label: "Source" }, { key: "first", label: "First touch", num: true }, { key: "last", label: "Last touch", num: true },
     { key: "assisted", label: "Assisted", num: true, fmt: (v) => (v == null ? "-" : n(v)) }],
   { caption: "Completed conversions by first, last and assisting source", rows, file: "conversions-touches.csv", search: false, limit: 10, sortKey: "last" }),
-  h("p", { class: "note" }, `First touch: where the browser (or the lead) first came from; last touch: the visit it converted in. Assisted: a source seen earlier in a converting browser's journey that was not its last touch, each conversion counted once per source${t.hasAssisted ? "" : "; it needs visitor IDs (beacon.visitor_ids)"}. "Unknown" is not recorded, never guessed.`));
+  h("p", { class: "note" }, `First touch: where the browser (or the lead) first came from; last touch: the visit it converted in. Assisted: a source seen earlier in a converting browser's journey that was not its last touch, each conversion counted once per source${t.hasAssisted ? "" : "; it needs visitor IDs (beacon.visitor_ids)"}. "Not recorded" is never guessed.`));
 }
 
 // A bar list in a fixed order. Shares only over at least `min` (a share of 1 is always 100%).
@@ -196,7 +197,7 @@ function timeline(f) {
     const first = x.visits?.[0]?.day;
     const visits = (x.visits || []).map((v) => {
       const k = first ? Math.round((Date.parse(`${v.day}T00:00:00Z`) - Date.parse(`${first}T00:00:00Z`)) / 864e5) + 1 : 1;
-      return h("li", null, h("strong", null, `Day ${k} (${short(v.day)}), ${v.source || "source unknown"}: `), (v.paths || []).join(", "));
+      return h("li", null, h("strong", null, `Day ${k} (${short(v.day)}), ${shown(v.source) || "source not recorded"}: `), (v.paths || []).join(", "));
     });
     const steps = (x.steps || []).map((s) => `${actionName(s.action).replace(/s$/, "")} ${STAGE[s.stage] || s.stage} ${dayLabel(s.at)} ${timeOf(s.at)}`);
     const facts = [x.first_source ? `first came from ${x.first_source}` : "", x.source ? `converted from ${x.source}` : "", x.landing ? `landed on ${x.landing}` : "",

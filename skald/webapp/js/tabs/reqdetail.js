@@ -67,7 +67,7 @@ export function detail(m, row, ours) {
   ]);
   const who = dl([
     ["Address", row.ip && !removed ? h("span", { class: "ip" }, row.ip, copyButton(row.ip)) : removed ? "removed on request" : "-"],
-    ["Country", row.country ? withFlag(row.country, row.country_name || country(row.country)) : "unknown"],
+    ["Country", row.country ? withFlag(row.country, row.country_name || country(row.country)) : "Not recorded"],
     ["System", [row.os, row.device].filter((x) => x && x !== "Other").join(", ") || "-"],
     ["Agent", row.agent || "-"],
     ["Verified", row.verified ? VERIFIED[row.verified] || row.verified : "only named assistants and search crawlers are checked"],

@@ -99,7 +99,7 @@ export default function quality(m, s) {
         h("span", { class: "sw", style: { background: "var(--bad)", marginLeft: "12px" } }), "not trusted", h("span", { class: "sw", style: { background: "var(--sunk)", marginLeft: "12px" } }), "not checked")),
       table([
         { key: "day", label: "Day", cls: "q-day", fmt: (v) => long(v) },
-        { key: "grade", label: "Grade", sort: (x) => ["red", "amber", "green", "none"].indexOf(grade(x)[0]), fmt: (_, x) => h("span", { class: `q-tag q-${grade(x)[0]}` }, GRADE[grade(x)[0]]), csv: (x) => grade(x)[0] },
+        { key: "grade", label: "Grade", type: "badge", sort: (x) => ["red", "amber", "green", "none"].indexOf(grade(x)[0]), fmt: (_, x) => h("span", { class: `q-tag q-${grade(x)[0]}` }, GRADE[grade(x)[0]]), csv: (x) => grade(x)[0] },
         { key: "lines", label: "Lines", num: true },
         { key: "unparsed", label: "Unreadable", num: true, fmt: (v, x) => (v == null ? "-" : `${n(v)} (${fmtPct(share(x))})`) },
         { key: "duplicates", label: "Duplicates", num: true },
@@ -109,7 +109,7 @@ export default function quality(m, s) {
         { key: "not_rendered", label: "Browser-like requests moved to bots", num: true, sort: (x) => x.not_rendered?.requests ?? null,
           fmt: (v) => (v == null ? h("span", { class: "muted", title: "Not recorded on this day" }, "not recorded") : h("span", { title: movedNote(v) }, `${n(v.requests)} (${n(v.readers)} visits)`)),
           csv: (x) => x.not_rendered?.requests ?? "" },
-        { key: "first_line", label: "Log covers (site time)", fmt: (v, x) => (v ? `${v} to ${x.last_line}` : "-") },
+        { key: "first_line", label: "Log covers (site time)", type: "date", fmt: (v, x) => (v ? `${v} to ${x.last_line}` : "-") },
         { key: "gaps", label: "Silent stretches", num: true, sort: (x) => x.gaps?.length ?? null, fmt: (v) => (v == null ? "-" : v.length ? h("span", { class: "gaps", title: v.map((g) => `${g.from}-${g.to}`).join(", ") }, v.length > 2 ? `${n(v.length)}: ${v[0].from}-${v[0].to} and ${n(v.length - 1)} more` : v.map((g) => `${g.from}-${g.to}`).join(", ")) : "0"), csv: (x) => (x.gaps || []).map((g) => `${g.from}-${g.to}`).join(" ") },
         { key: "audit", label: "Audit", fmt: (v) => (v ? AUDIT[v.state] || v.state : "-"), csv: (x) => x.audit?.state || "" },
         { key: "why", label: "Why", cls: "q-why", sort: (x) => grade(x)[1].join("; "), fmt: (_, x) => grade(x)[1].join("; "), csv: (x) => grade(x)[1].join("; ") },
@@ -122,18 +122,18 @@ export default function quality(m, s) {
   const failing = f.builders_failing;
   if (Array.isArray(failing)) out.push(h("section", { class: "s" }, h("h2", null, "Data files, last redraw"),
     failing.length ? [h("p", { class: "sub" }, `${failing.length} file${failing.length === 1 ? "" : "s"} could not be built; every other file was. The tabs that stand on them say so instead of showing empty figures.`),
-      table([{ key: "file", label: "File", fmt: (v) => h("span", null, h("span", { class: "q-tag q-amber" }, "Not built"), " ", v), csv: (x) => x.file }, { key: "error", label: "Why" }, { key: "since", label: "Failing since", fmt: (v) => (v ? stamp(v) : "-") }],
+      table([{ key: "file", label: "File", fmt: (v) => h("span", null, h("span", { class: "q-tag q-amber" }, "Not built"), " ", v), csv: (x) => x.file }, { key: "error", label: "Why" }, { key: "since", label: "Failing since", type: "date", fmt: (v) => (v ? stamp(v) : "-") }],
         { caption: "Data files that could not be built", rows: failing.map((b) => ({ ...b, __k: b.file })), file: "builders-failing.csv", search: false, rowClass: () => "q-fail" })]
       : h("p", { class: "q-ok" }, h("span", { class: "q-tag q-green" }, "All built"), " Every data file was built on the last redraw.")));
   const jobs = Object.entries(f.runs || {}).map(([job, j]) => ({ job, ...j, state: jobState(j, now), __k: job }));
   out.push(h("section", { class: "s" }, h("h2", null, "Scheduled jobs, now"), h("p", { class: "sub" }, "When each job last succeeded and last failed; the date range does not apply. A late or failed job is why figures stop moving."),
     table([
-      { key: "state", label: "State", sort: (x) => ["failed", "never", "late", "ok"].indexOf(x.state),
+      { key: "state", label: "State", type: "badge", sort: (x) => ["failed", "never", "late", "ok"].indexOf(x.state),
         fmt: (v) => h("span", { class: `q-tag q-${v === "ok" ? "green" : v === "late" ? "amber" : "red"}` }, v === "ok" ? "on time" : v === "never" ? "never ran" : v) },
       { key: "job", label: "Job", fmt: (v) => JOB_WORDS[v] || v },
       { key: "expected_every_min", label: "Runs", fmt: (v) => every(v) },
-      { key: "last_ok", label: "Last succeeded", fmt: stamp },
-      { key: "last_fail", label: "Last failed", fmt: (v, x) => (v ? `${stamp(v)}${x.last_exit ? ` (exit ${x.last_exit})` : ""}` : "-") },
+      { key: "last_ok", label: "Last succeeded", type: "date", fmt: stamp },
+      { key: "last_fail", label: "Last failed", type: "date", fmt: (v, x) => (v ? `${stamp(v)}${x.last_exit ? ` (exit ${x.last_exit})` : ""}` : "-") },
     ], { caption: "Scheduled jobs", rows: jobs, file: `jobs-${m.today}.csv`, search: false, sortKey: "state", dir: 1, empty: "No job runs recorded yet." }),
     f.rotation?.files?.length ? h("p", { class: "note" }, `Log files on disk: ${f.rotation.files.map((x) => `${x.name} (${n(Math.round(x.bytes / 1024))} KB)`).join(", ")}.`) : null,
     m.x.markers?.website_version ? h("p", { class: "note" }, `The live website says it is ${m.x.markers.website_version}.`) : null));

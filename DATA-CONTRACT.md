@@ -56,7 +56,7 @@ a version change; a field is never renamed or removed without one.
   `.mmdb`, e.g. DB-IP's free country file), when one is set (since 2.8.0).
   The line's own country always wins. Both counting roads (main and audit)
   look it up the same way. With no country and no file, the country is
-  `""` / Unknown, never guessed.
+  `""` / `Unknown` (shown as Not recorded), never guessed.
 - **Groups**: `people`, `answer_engines`, `search_engines`, `bots`, `ours`.
 - **Privacy.** No data file carries an IP address, a user agent or a visitor
   key, except `ai_activity.json`'s `today.events[].ip` and `requests.json`'s
@@ -181,7 +181,7 @@ or `""`), `ref_host`, `ref_page` (host + path, other websites only),
 null), `likely_ai` (only on a visit likely sent by an AI assistant, an estimate),
 `ai_read` (only on an AI visit whose assistant fetched pages just before it, at most 10:
 [docs/DATA-CONTRACT-AI-LIKELY.md](docs/DATA-CONTRACT-AI-LIKELY.md)). Source types: `AI assistant`, `Search engine`, `Social media`,
-`Email`, `Other website`, `This site`, `Tagged link`, `Direct or unknown`.
+`Email`, `Other website`, `This site`, `Tagged link`, `Direct or unknown` (stored names; people read **Direct** and, for `Unknown`, **Not recorded**: `labels.py`).
 
 ```json
 {"journey_days":7,"days":[{"day":"2026-10-07","state":"ok","stats":{"visits":140,"pages":{"1":118,"2":15}}}],
@@ -464,6 +464,56 @@ for one day only (a range's p90 cannot be built from daily ones); distinct paths
 are each day's count summed (a path fetched on two days counts twice), and
 re-crawl is `requests / paths`, fetches per distinct path within a day.
 
+## realtime.json
+
+Overview › Real time (`realtime.py`): who is on the site now. Built by the live
+run (every 2 minutes) inside its own tally, so the people rule is the main road's
+to the letter, and kept in the live snapshot as `realtime` (never in history,
+never mailed). Recounted from the raw lines by `skald audit --live`
+(`audit_realtime.py`, registered in `audit_more.RECOUNTS`). No address and no
+user agent anywhere in it. Written for the site's own data folder only: a page
+group's copy says `"state": "site"` (the figures are the whole site's).
+
+| field | type | meaning |
+|---|---|---|
+| `state` | `ok`, `stale`, `empty`, `withheld`, `site` | `stale`: the part is more than 10 minutes old; `withheld`: today's snapshot did not reconcile, so no figure is given; `empty`: no snapshot or no part yet |
+| `realtime` | object or null | the snapshot's part, below; null unless `ok` or `stale` |
+
+The snapshot's `realtime` part (times in the site's zone):
+
+| field | type | meaning |
+|---|---|---|
+| `version`, `minutes`, `short` | int | 1; the window, 30; the short window, 5 |
+| `until` | ISO | the end of the window (the snapshot's own `until`, not included) |
+| `visits_today` | int | readers' visits today so far (= the journeys, = the readers) |
+| `active` | `{"5": n, "30": n}` | readers' visits with any request (assets included) in the last 5 / 30 minutes before `until` |
+| `per_minute[]` | `{"at", "under_way", "started", "requests": {group: n}}` | the last 30 clock minutes, oldest first, the last one running to `until`. `under_way`: visits whose first request was before the minute ended and whose last was in it or after; `started`: visits whose first request was in it; `requests`: every request of the site's hosts in it by group (another host's lines are not in it) |
+| `countries` | `{code: {"visits", "active"}}` | every country with a visit today (the visit's first page's country, `"Unknown"` for none), and of those the visits active in the last 30 minutes |
+| `sources`, `devices` | `{label: n}` | visits active in the last 30 minutes, by the labels of their first page |
+| `pages` | `{path: n}` | people's page views in the last 30 minutes, top 25 and `"(all others)"`: adds up to `page_views` |
+| `page_views` | int | people's page views in the last 30 minutes |
+| `machines` | `{"answer_engines": {name: n}, "search_engines": {name: n}, "bots": n}` | requests in the last 30 minutes; the two named lists top 15 and `"(all others)"` |
+| `newest[]` | `{"start", "country", "device", "browser", "source", "via", "landing", "pages", "active"}` | the 10 newest visits by first request; `start` to the minute; `active` `"5"`, `"30"` or `""` |
+
+### Real time's helper route: GET `<page>/api/realtime`
+
+What the page polls every 15 seconds (`realtime_api.py`, read-only, same
+sign-in as the page; nginx routes it with `api/compare` and `api/page`). An
+unknown site is 404.
+
+| field | type | meaning |
+|---|---|---|
+| `ok`, `site`, `now` | | |
+| `people_state` | `ok`, `withheld`, `empty` | today's snapshot's state |
+| `people` | object or null | the snapshot's `realtime` part (above), as of its `until` |
+| `people_counted` | ISO or null | when the snapshot was written |
+| `requests` | `{"from", "until", "per_minute": [{"at", "requests"}], "total", "newest", "partial"}` | every request of the site's hosts per clock minute over the 30 minutes before `until` (the second it was read), unsorted (`realtime_tail.py`): read from the end of the plain log files only; `partial` true when the end was too large to read whole (64 MB), so the count is a floor |
+
+The helper keeps an answer 10 seconds (many open pages cost one read) and writes
+the last one beside the snapshot, `live-<site>-tail.json` (counts only:
+`from`, `until` UTC, `per_minute` keyed by epoch minute, `total`, `newest`,
+`partial`), which `audit --live` counts again from the raw lines.
+
 ## speed.json
 
 Real page speed from Google PageSpeed Insights (`pagespeed.py`), once a day
@@ -668,11 +718,13 @@ same file on every page.
 | `rules[]` | `{"cause","on","threshold"}` | every alert type, whether it is switched on, and its threshold in words |
 | `open[]` | alert | newest first |
 | `closed[]` | alert | closed in the last 30 days, newest first |
+| `history` | object or null | the citation and crawler rules' last evaluation (alerts_history.py): `{"day","evaluated_at","rules": {"first_citation"/"first_cited_page"/"cited_visits"/"crawler_silent": {"on","state" ("ok"/"waiting"/"off"),"waiting_on": [day],"why" (a waiting rule's reason when it is not a day: history too young),"found": int}}}`; `cited_visits` also has `day_visits`, `median`, `weeks` (how many same weekdays were counted), `skipped` [day] and `verdict` ("rose"/"fell"/"steady"/"too few to judge") once judged. null before the first check |
 | `ai` | object or null | the AI rules' last evaluation (alerts_ai.py): `{"day" (the last whole day judged),"evaluated_at","rules": {"started_reading"/"stopped_reading"/"sending_people": {"on","state" ("ok"/"waiting"/"off"),"waiting_on": [day] (withheld, partial, missing or not-recorded days the rule needs),"unjudged": [assistant] (an "(all others)" path row on a day that had to be empty),"found": int}}}`; `sending_people` also has `assistants[]`: `{"assistant","day" (likely visits),"average" (a day, the 28 days before),"verdict" ("jumped"/"vanished"/"steady"/"too few to judge")}`. null before the first check |
 
 An alert: `id` (string), `cause` (`site_down`, `logging_stopped`,
 `server_errors`, `not_found_surge`, `crawler_burst`, `new_crawler`,
-`traffic_drop`, `ai_started_reading`, `ai_stopped_reading`, `ai_sending_people`), `subject` (what it is about: a crawler name, a path, or
+`traffic_drop`, `ai_started_reading`, `ai_stopped_reading`, `ai_sending_people`,
+`ai_first_citation`, `ai_first_cited_page`, `ai_cited_visits`, `crawler_silent`), `subject` (what it is about: a crawler name, a path, or
 `""`), `severity` (`high`, `medium`, `low`), `title` (one plain line),
 `detail` (a few lines: the figure, the threshold, what to look at), `figure`
 (number or null), `threshold` (number or null), `opened_at`, `last_seen_at`,
@@ -688,6 +740,21 @@ robots.check, recounted by audit_release2) and `ai_likely` (checked by ai_likely
 recounted by audit_ai_likely.py), and the `pages` kind (a page answered to an assistant), on
 whole `ok` days only. A withheld, partial, missing or not-recorded day in a rule's window makes
 it wait. Settings `alerts.ai_*` (config.example.yml).
+
+The citation and crawler alerts (alerts_history.py) also carry `unit` (`"visits"` or
+`"requests"`, never both) and `data` by `data.kind`:
+`first_citation` `{"assistant","day","at" (UTC),"path","visits" (that day's visits from its
+citations, or null: not recorded),"history_since"}` (subject: the assistant, e.g.
+`"claude.ai"`); `first_cited_page` `{"day","pages": [{"path","assistant","at","visits"}],
+"history_since"}` (subject: the path, or `"pages"` for more than `first_max_pages`, figure =
+pages); `cited_rose`/`cited_fell` `{"day","visits","median","weeks": [{"day","visits"}],
+"skipped": [day],"spike_factor","drop_percent","minimum"}` (subject `"rose"`/`"fell"`);
+`silent` `{"crawler","group","day","quiet": [first, last],"window": [first, last],
+"active_days","requests","last_seen"}`. They read the `page_milestones` table and the
+`counts` kinds `cited_by`, `cited_page` and `reader_source` ("AI assistant"), and the
+`crawler_paths` day kind; nothing new is stored but the alert state. Run-daily's recounts
+(audit_alerts.py) work each kept alert's figures out again from the stored days' `page_firsts`
+and `crawler_paths` blobs and the `counts` rows, with its own code.
 
 ## quality.json
 

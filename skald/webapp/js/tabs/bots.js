@@ -47,8 +47,8 @@ export default function bots(m, s, { first }) {
     panel("AI answering a question now", "pages fetched; someone is waiting on each", blist(ranked(t.engines?.asked), { drill: "bot", color: color("people"), limit: 10, empty: "No assistant fetched a page to answer a question in this range." }))));
   const checks = verification(m, r);
   const rb = robotsOf(m);
-  const robotsCol = rb.size ? [{ key: "robots", label: "robots.txt", fmt: (_, x) => robotsBadge(rb.get(x.name)), csv: (x) => robotsWords(rb.get(x.name)) }] : [];
-  const checkCol = checks?.seen ? [{ key: "check", label: "Check", fmt: (_, x) => badge(checks.byName[x.name]), csv: (x) => badgeOf(checks.byName[x.name]) || "" }] : [];
+  const robotsCol = rb.size ? [{ key: "robots", label: "robots.txt", type: "badge", fmt: (_, x) => robotsBadge(rb.get(x.name)), csv: (x) => robotsWords(rb.get(x.name)) }] : [];
+  const checkCol = checks?.seen ? [{ key: "check", label: "Check", type: "badge", fmt: (_, x) => badge(checks.byName[x.name]), csv: (x) => badgeOf(checks.byName[x.name]) || "" }] : [];
   out.push(h("section", { class: "s" }, h("h2", null, "AI assistants by name"),
     table([{ key: "name", label: "Assistant", drill: "bot" }, ...checkCol, ...robotsCol, { key: "why", label: "Why it came" }, { key: "v", label: "Fetches", num: true }],
       { caption: "AI assistants by name and tier", rows, file: fileName("ai-assistants", r), empty: "No answer engines in this range." })));

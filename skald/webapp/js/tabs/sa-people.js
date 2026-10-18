@@ -11,6 +11,7 @@
 // their figures (Pipeline and Bookings, "Show"); this tab links to them.
 
 import { h, n, short } from "../ui.js";
+import { shown } from "../labels.js";
 import * as S from "../state.js";
 import { time as tzTime } from "../tz.js";
 import { openDrawer } from "../drawer.js";
@@ -52,7 +53,7 @@ function story(x) {
   openDrawer({ title: `${actionName(x.action)}, ${at(x.at)}`, subtitle: x.browser ? "One browser (not a person: one person on two devices is two browsers)" : "One lead without a browser", key: "sa-story", scope: "page", size: "md",
     body: [h("dl", { class: "dw-dl" }, facts.flatMap(([t, v]) => [h("dt", null, t), h("dd", null, v)])),
       h("section", { class: "dw-sec" }, h("h3", null, "Visits"), (x.visits || []).length
-        ? h("ul", { class: "conv-tl-visits" }, x.visits.map((v) => h("li", null, h("strong", null, `Day ${dayN(v.day)} (${short(v.day)}), ${v.source || "source unknown"}: `), (v.paths || []).join(", "))))
+        ? h("ul", { class: "conv-tl-visits" }, x.visits.map((v) => h("li", null, h("strong", null, `Day ${dayN(v.day)} (${short(v.day)}), ${shown(v.source) || "source not recorded"}: `), (v.paths || []).join(", "))))
         : h("p", { class: "note" }, "No journey: this conversion carries no visitor ID.")),
       h("section", { class: "dw-sec" }, h("h3", null, "Steps"), h("ol", { class: "pp-trail" }, (x.steps || []).map((st) =>
         h("li", null, `${at(st.at)} `, h("b", null, `${actionName(st.action)} ${STAGE[st.stage] || st.stage}`), ` (${toolName(st.tool)})`))))] });
@@ -67,7 +68,7 @@ function recent(m) {
   return h("section", { class: "s" }, head,
     h("p", { class: "sub" }, "The latest conversions, newest first: each one browser, or one lead without a browser. No name, email or visitor ID here; a row opens its visits and steps."),
     grid({ ns: "pp", caption: "Recent people", file: "recent-conversions.csv", rows, sortKey: "at", dir: "desc", onRow: story,
-      columns: [{ key: "at", label: "When", fmt: (v) => at(v) }, { key: "action", label: "Action", fmt: (v) => actionName(v || ""), csv: (r) => r.action },
+      columns: [{ key: "at", label: "When", type: "date", fmt: (v) => at(v) }, { key: "action", label: "Action", fmt: (v) => actionName(v || ""), csv: (r) => r.action },
         { key: "tool", label: "Reported by", fmt: (v) => toolName(v), csv: (r) => r.tool }, { key: "source", label: "Converted from", fmt: dash }, { key: "first_source", label: "First came from", fmt: dash },
         { key: "landing", label: "Landed on", fmt: dash }, { key: "country", label: "Country", fmt: (v) => (v ? withFlag(v) : "-"), csv: (r) => r.country || "" },
         { key: "visits_n", label: "Days with visits", num: true }],

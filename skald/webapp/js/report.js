@@ -12,6 +12,7 @@ import { rangeOf, viewList, figures } from "./data.js";
 import { TAB_RENDER } from "./tabs/index.js";
 import { REGISTRY, csv, download, showAllRows } from "./table.js";
 import { zip } from "./zip.js";
+import { shown, shownKeys } from "./labels.js";
 import { rangeWords, setContext } from "./tabs/common.js";
 import { withFlag } from "./tabs/readers.js";
 import { BUILD, buildLine, toolName, toolTagline } from "./build.js";
@@ -29,14 +30,14 @@ function tableFiles(regs, folder = "") {
 function tableJSON(regs) {
   return regs.map((t) => ({
     caption: t.caption, file: t.file || null, columns: t.columns.map((c) => c.label),
-    rows: t.rows().map((r) => Object.fromEntries(t.columns.map((c) => [c.label, c.csv ? c.csv(r) : r[c.key] ?? null]))),
+    rows: t.rows().map((r) => Object.fromEntries(t.columns.map((c) => [c.label, shown(c.csv ? c.csv(r) : r[c.key] ?? null)]))),
   }));
 }
 function filtersOf(s) { return S.FILTERS.filter((k) => s[k]).map((k) => [k, s[k]]); }
 function meta(m, s) {
   const r = rangeOf(m, s);
   return { site: m.site, view: viewList(m).find(([k]) => k === (s.view || "all"))?.[1] || s.view, period: r.kind === "today" ? { today: m.today } : { first: r.first, last: r.last, days: r.length },
-    filters: Object.fromEntries(filtersOf(s)), compare: !!s.cmp, timezone: m.tz, exported_at: new Date().toISOString(),
+    filters: Object.fromEntries(filtersOf(s).map(([k, v]) => [k, shown(v)])), compare: !!s.cmp, timezone: m.tz, exported_at: new Date().toISOString(),
     tool: BUILD ? { name: BUILD.name, version: BUILD.version, release: BUILD.release, commit: BUILD.commit } : null };
 }
 
@@ -53,7 +54,7 @@ export function exportJSON(m, s) {
   download(`${slug(m.site)}-${s.tab}-${stamp()}.json`, JSON.stringify(body, null, 2), "application/json");
 }
 // Range totals without the per-day bookkeeping the app adds.
-function strip(t) { const { unmeasured, days, ...rest } = t; return { days_counted: days, ...rest }; }
+function strip(t) { const { unmeasured, days, ...rest } = t; return { days_counted: days, ...shownKeys(rest) }; }
 
 function readme(m, s, tabs) {
   const md = meta(m, s);

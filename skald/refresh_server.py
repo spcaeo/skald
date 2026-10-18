@@ -36,6 +36,7 @@ Release 3 (named users, funnels, the read-only API):
   POST <page>/funnels/save        JSON {"name","source","steps"} (funnels.py)
   POST <page>/funnels/delete      {"name"}
   GET  <page>/api/v1/[<name>]     a data file, or the list of them
+  GET  <page>/api/realtime        Overview > Real time (realtime_api.py)
   GET  /traffic-api/v1/<site>/[<view>/]<name>
                                   the same with "Authorization: Bearer <token>"
                                   and no password (tokens.py)
@@ -90,7 +91,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from . import access, auth_api, bot_policy_api, helper_sessions, settings_api, team_api
-from . import ingest, integrations_api, logo_api, sites_api, updates
+from . import ingest, integrations_api, logo_api, realtime_api, sites_api, updates
 from .saas import billing_api, signup_api
 from .mcp import http as mcp_http
 from .people import api as people_api
@@ -504,6 +505,8 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
                                        config_path, self.who)
             if bot_policy_api.is_policy(self.path):
                 return bot_policy_api.handle(self, False, config, allowed, same_origin)
+            if realtime_api.is_realtime(self.path):     # Overview > Real time, every 15 s
+                return realtime_api.handle(self, config, live_dir, config_path)
             if people_api.is_people(self.path):         # the person lookup (2.4.0)
                 return people_api.handle(self, config, live_dir, history_path, config_path,
                                          sessions_mode)

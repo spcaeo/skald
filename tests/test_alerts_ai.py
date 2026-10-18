@@ -294,8 +294,11 @@ class ThroughTheAlertMachinery(unittest.TestCase):
             alerts.run(self.ctx(), None, self.signals(), self.send)
         self.assertEqual(ev.call_count, 1)          # once per last whole day
         self.assertEqual(self.sent, ["ALERT: OpenAI started reading /new/"])
-        self.assertEqual(hook.call_count, 1)
-        event, ref, body = hook.call_args[0][3:6]
+        # One ai.reading_changed and one alert.opened, each once.
+        self.assertEqual(sorted(c[0][3] for c in hook.call_args_list),
+                         ["ai.reading_changed", "alert.opened"])
+        call = next(c for c in hook.call_args_list if c[0][3] == "ai.reading_changed")
+        event, ref, body = call[0][3:6]
         self.assertEqual(event, "ai.reading_changed")
         self.assertEqual((body["cause"], body["assistant"], body["day"]),
                          ("ai_started_reading", "OpenAI", "2026-10-11"))

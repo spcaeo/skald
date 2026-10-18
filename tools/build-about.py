@@ -31,7 +31,7 @@ HELP = DOCS / "help"
 HELP_OUT = ROOT / "skald" / "webapp" / "js" / "help-data.js"
 HELP_INDEX = ROOT / "skald" / "webapp" / "js" / "help-index.js"
 # The guides in the order the Help page lists them; a new guide not named here comes last.
-HELP_ORDER = ("getting-started", "docker-first-install", "pick-your-road", "sign-in-and-team", "internal-traffic",
+HELP_ORDER = ("getting-started", "docker-first-install", "pick-your-road", "sign-in-and-team", "real-time", "internal-traffic",
               "leads-and-conversions", "tracking-script", "webhooks", "leads-from-your-backend", "demo-bookings",
               "funnels-and-goals", "ai-and-bots", "api", "mcp", "settings-and-retention", "privacy", "faq")
 GUIDES = sorted((p.stem for p in HELP.glob("*.md") if p.stem.lower() != "readme"),
@@ -51,7 +51,7 @@ SHORT = {
     "JavaScript tag, or server logs through its importer": "JavaScript tag, or log import",
     "JavaScript beacon; AI Crawl Control at Cloudflare's edge": "JavaScript beacon; edge for crawlers",
     "Events sent from your server, CDN or WordPress": "Events from your server or CDN",
-    "Today so far, redrawn every 2 minutes": "Today so far, every 2 minutes",
+    "Visitors now and today so far every 2 minutes; requests every 15 seconds": "Visitors 2 min, requests 15 s",
     "Realtime covers the last 30 minutes; full processing 24-48 hours": "Last 30 minutes; full in 24-48h",
     "Current visitors (last 5 minutes); refreshes every 30 seconds": "Last 5 minutes, every 30 seconds",
     "Real-time visitor log; the importer can stream": "Real-time visitor log",

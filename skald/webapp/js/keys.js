@@ -25,8 +25,17 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-18e",
+  id: "2026-10-18f",
   items: [
+    ["Grids", "every cell sits at the top of its row; text on the left, numbers on the right, badges in the middle."],
+    ["Clearer words", "a visit with no referrer and no campaign tag reads \"Direct\"; a value the log did not have reads \"Not recorded\"."],
+    ["Real time", "who is on your site now: active visitors, minute by minute, a world map, the pages being read and the AI and crawlers now. Overview > Real time.", "real-time"],
+    ["Alerts in Slack", "any alert can go to Slack or another tool: add a webhook for alert.opened in Settings > Integrations.", "webhooks"],
+    ["AI alerts", "the first visit from an AI answer, a page's first, visits from AI answers against the usual for that weekday, and a crawler gone silent.", "faq"],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.10.0-2.10.1
     ["Today, live", "the dashboard now opens on Today with live figures on every page; pick another period any time."],
     ["Forms", "a visit is no longer marked \"form sent\" because the script tag reported an event."],
     ["Bots", "about 60 more crawlers, AI agents and monitors recognised; phone browsers that look like bots stay people."],
@@ -36,9 +45,6 @@ const NEW = {
     ["Google AI Mode", "a visit from Google's AI Mode reads \"google.com (AI Mode)\" under Search engine.", "faq"],
     ["What they fetch", "AI fetches by what they ask for: pages, llms.txt, Markdown, robots.txt, sitemaps.", "faq"],
     ["What the AI read", "the pages an assistant fetched just before it sent a visitor, in the visit and per assistant.", "faq"],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.9.0
     ["Script tag", "every site of your Skald can use the script tag now, not only the first. Each site's events go to that site."],
     ["Visitor IDs", "can be on for one site and off for another."],
@@ -110,7 +116,7 @@ const NEW = {
     ["Funnel history", "a saved funnel is counted every day, by source and device, with drop-off and time to go through.", "funnels-and-goals"],
     ["Goals", "chosen events per 100 visits, by source, on Events.", "funnels-and-goals"],
     ["Engagement", "pages per visit, one-page visits and visit length by source and device, and returning visitors by source, on Visitors."],
-    ["Tag problems", "campaign links with a missing or unknown tag, on Sources."],
+    ["Tag problems", "campaign links with a missing or unrecognised tag, on Sources."],
     ["Exit rate", "how many of a page's visits left from it, on each page in Pages."],
     ["Leads", "lead quality by source, and time from first visit to lead.", "leads-and-conversions"],
     ["Failure mail", "a failed morning run sends one short mail."],

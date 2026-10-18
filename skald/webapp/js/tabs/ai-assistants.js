@@ -31,8 +31,8 @@ function byName(m, s, r, t) {
   const checks = verification(m, r);
   const rb = robotsOf(m);
   const cols = [{ key: "name", label: "Assistant", drill: "bot" },
-    ...(checks?.seen ? [{ key: "check", label: "Check", fmt: (_, x) => badge(checks.byName[x.name]), csv: (x) => badgeOf(checks.byName[x.name]) || "" }] : []),
-    ...(rb.size ? [{ key: "robots", label: "robots.txt", fmt: (_, x) => robotsBadge(rb.get(x.name)), csv: (x) => robotsWords(rb.get(x.name)) }] : []),
+    ...(checks?.seen ? [{ key: "check", label: "Check", type: "badge", fmt: (_, x) => badge(checks.byName[x.name]), csv: (x) => badgeOf(checks.byName[x.name]) || "" }] : []),
+    ...(rb.size ? [{ key: "robots", label: "robots.txt", type: "badge", fmt: (_, x) => robotsBadge(rb.get(x.name)), csv: (x) => robotsWords(rb.get(x.name)) }] : []),
     { key: "v", label: "Fetches", num: true },
     { key: "share", label: "Share", num: true, sort: (x) => x.v, fmt: (_, x) => share(x.v, sum), csv: (x) => (share(x.v, sum) ? (x.v / sum).toFixed(4) : "") }];
   return h("section", { class: "s" }, h("h2", null, "Assistants answering a question, by name"),

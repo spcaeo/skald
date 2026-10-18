@@ -53,7 +53,7 @@ The sidebar has five sections. Each section has tabs along its top.
 
 - **Overview > Summary** is where every visit starts: the period's headline figures, leads and demos booked among them.
 - **Overview > Insights** lists what is working, what dropped, and what is new or gone, leads too.
-- **Traffic** is who came, from where, to which pages, on what, and when.
+- **Traffic** is who came, from where, to which pages, on what, and when. A source of **Direct** means no referrer and no campaign tag. A country, device or touch the log did not carry says **Not recorded**.
 - **Leads & sales** is what the visits brought: leads by stage, demo bookings, funnels, events, and one person's story.
 - **AI & bots** is AI assistants (the pages they fetch to answer a question, and the visitors they send), crawlers, which crawlers may come in, and your llms.txt.
 - **Site** is the server: what it answered, open alerts, the request log line by line, pages not found, page speed and the data's own checks.
@@ -102,7 +102,7 @@ Every figure is counted twice, by two separate roads. A day is shown only when b
 | Withheld | The two counts did not add up. Nothing is shown for it |
 | Not collected | Skald was not reading the log that day |
 
-A withheld day is never shown as zero. A figure that was not recorded is left blank, not zero. Unknown stays unknown. When a period holds such days, the page says how many and which.
+A withheld day is never shown as zero. A figure that was not recorded is left blank, not zero. It is never guessed. When a period holds such days, the page says how many and which.
 
 Today's live figures can be withheld too, if they do not add up. They come back at the next recount.
 

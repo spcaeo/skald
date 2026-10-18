@@ -292,13 +292,14 @@ th button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; 
 th .dir { opacity: 0; font-size: 10px; }
 th[aria-sort] .dir { opacity: 1; }
 td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+/* A yes/no or a small tag ("New", "On", "Blocked"): centred under its header (js/table.js alignOf). */
+td.c, th.c { text-align: center; }
 th.n button { flex-direction: row-reverse; }
 td.path { font-family: var(--mono); font-size: 12.5px; word-break: break-all; }
 /* An email, a host name: broken between words where it can, never one letter a line on a phone. */
 td.path.nm { word-break: normal; overflow-wrap: anywhere; min-width: 15ch; }
 td.muted { color: var(--ink-3); }
-/* A row with a select or buttons in it: its words sit level with the controls. */
-table.rows-mid td { vertical-align: middle; }
+/* Every cell sits at the top of its row, a row with a select or buttons in it too (owner, 2026-10-18). */
 tbody tr:hover td { background: color-mix(in srgb, var(--surface) 94%, var(--ink)); }
 tr.withheld td { color: var(--ink-3); background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--hatch) 18%, transparent) 6px 7px); }
 .more-rows { margin-top: 8px; }
@@ -338,7 +339,6 @@ tr.withheld td { color: var(--ink-3); background: repeating-linear-gradient(135d
 .vq-c .flag { font-size: 13px; margin: 0; }
 .vq-n { font-size: 11px; font-variant-numeric: tabular-nums; opacity: .7; }
 .vtab td, .vtab th { padding-left: 10px; padding-right: 10px; }
-.vtab td { vertical-align: middle; }
 .vtab td.c-src { min-width: 132px; }
 .vtab td.c-browser { min-width: 84px; }
 .vtab td.c-country { min-width: 110px; }

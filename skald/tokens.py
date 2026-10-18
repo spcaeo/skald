@@ -80,9 +80,9 @@ def check(path: Path | None, header: str | None, site: str, name: str) -> tuple[
         return False, "not a token"
     entry = load(path).get(parts[1])
     if not entry or entry.get("revoked_at"):
-        return False, "unknown or revoked token"
+        return False, "unrecognised or revoked token"
     if not hmac.compare_digest(entry.get("sha256", ""), _digest(token)):
-        return False, "unknown or revoked token"
+        return False, "unrecognised or revoked token"
     if entry.get("sites") and site not in entry["sites"]:
         return False, "this token is not for that site"
     if name in PRIVATE and not entry.get("private"):

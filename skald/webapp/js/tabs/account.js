@@ -14,7 +14,7 @@ const card = (title, sub, ...body) => h("section", { class: "sheet acct-card" },
 
 // "Firefox on Mac" from a user agent; the raw string when nothing matches.
 function device(agent) {
-  if (!agent) return "Unknown device";
+  if (!agent) return "Device not recorded";
   const b = /Edg\//.test(agent) ? "Edge" : /Firefox\//.test(agent) ? "Firefox" : /Chrome\//.test(agent) ? "Chrome" : /Safari\//.test(agent) ? "Safari" : "";
   const os = /iPhone|iPad/.test(agent) ? "iPhone or iPad" : /Android/.test(agent) ? "Android" : /Mac OS X|Macintosh/.test(agent) ? "Mac" : /Windows/.test(agent) ? "Windows" : /Linux/.test(agent) ? "Linux" : "";
   return b && os ? `${b} on ${os}` : b || os || agent;
@@ -151,7 +151,7 @@ function sessionsCard(acc) {
   const others = list.filter((s) => !s.current).length;
   const rows = list.map((s) => h("tr", null,
     h("td", null, device(s.agent), s.current ? h("span", { class: "you" }, " (this browser)") : null),
-    h("td", { class: "muted" }, when(s.created_at, "")), h("td", { class: "muted" }, when(s.last_seen, ""))));
+    h("td", { class: "muted n" }, when(s.created_at, "")), h("td", { class: "muted n" }, when(s.last_seen, ""))));
   const all = h("button", { type: "button", class: "btn danger" }, "Sign out everywhere else");
   const slot = h("div", { class: "acts" }, all);
   const reset = () => slot.replaceChildren(all);
@@ -171,7 +171,7 @@ function sessionsCard(acc) {
   me.addEventListener("click", signOut);
   return card("Where you are signed in", "A session lasts 14 days from its last use.",
     list.length ? h("div", { class: "scroll" }, h("table", null, h("caption", { class: "vh" }, "Your sessions"),
-      h("thead", null, h("tr", null, ["Browser", "Signed in", "Last seen"].map((t) => h("th", { scope: "col" }, t)))), h("tbody", null, rows)))
+      h("thead", null, h("tr", null, [["Browser"], ["Signed in", "n"], ["Last seen", "n"]].map(([t, cls]) => h("th", { scope: "col", class: cls }, t)))), h("tbody", null, rows)))
       : h("p", { class: "empty" }, "No sessions listed."),
     h("div", { class: "acts" }, others || !list.length ? slot : null, me), msg);
 }
