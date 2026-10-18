@@ -196,12 +196,20 @@ class _Observers:
 
 
 def build(config: dict, site: str, tz: ZoneInfo, now: datetime,
-          views=(), db_path=None, feed=None) -> dict:
+          views=(), db_path=None, feed=None, upto: dict | None = None) -> dict:
     """Today from local midnight, verified, as a JSON-ready dict.
 
     With `views` (config.View), each view's figures today are under
     snap["views"][slug], verified on their own, the same way collect
-    verifies a view: a view with no lines today is a true zero."""
+    verifies a view: a view with no lines today is a true zero.
+
+    `upto` is each plain log file's size at the start of the run
+    (window.plain_sizes; taken here when not given): every file is read only
+    that far, and the snapshot records it as `read_upto`, so `audit --live`
+    recounts the very same bytes, not the lines appended since."""
+    if upto is None:
+        from .window import plain_sizes
+        upto = plain_sizes(config)
     now = now.astimezone(tz)
     day = today(tz, now)
     start, end = day_window(day, tz)
@@ -221,7 +229,7 @@ def build(config: dict, site: str, tz: ZoneInfo, now: datetime,
     observe = _Observers(activity, ai, now_seen, *([feed] if feed is not None else []))
 
     totals, by_view = analyse_window_views(config, start, end, now=now, top=TOP,
-                                           observe=observe, views=views)
+                                           observe=observe, views=views, upto=upto)
     problems = check(totals)
     state = _state(totals, problems, totals.parsed)
     snap = {
@@ -233,6 +241,8 @@ def build(config: dict, site: str, tz: ZoneInfo, now: datetime,
         "generated_at": now.isoformat(timespec="seconds"),
         # The exact end of the window read, so a recount can use the same one.
         "until": end.isoformat(),
+        # How far each plain log file was read, in bytes: the audit reads as far.
+        "read_upto": dict(upto),
         "state": state,
         "problems": [str(p) for p in problems] if state == "withheld" else [],
         "parsed": totals.parsed,

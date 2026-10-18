@@ -193,22 +193,43 @@ def log_files(config: dict) -> list[Path]:
     return [p for _, p in sorted(found)]
 
 
-def _read(paths):
-    """Every readable line, without a second copy of any request id: a line
-    repeating an earlier rid= is the same request written twice."""
-    rids = set()
-    for path in paths:
+def raw_lines(path: Path, upto: dict | None = None):
+    """A file's text lines. `upto` ({file name: bytes}) is how far the live
+    run read each plain file (the snapshot's `read_upto`): only the lines
+    wholly inside that many bytes, so lines appended since are not counted.
+    No limit (a day's audit, an older snapshot): the whole file."""
+    limit = None if path.suffix == ".gz" else (upto or {}).get(path.name)
+    if limit is None:
         opener = gzip.open if path.suffix == ".gz" else open
         with opener(path, "rt", errors="replace") as handle:
-            for raw in handle:
-                got = line_hit(raw)
-                if got is None:
+            yield from handle
+        return
+    left = int(limit)
+    with open(path, "rb") as handle:
+        while left > 0:
+            raw = handle.readline(left)
+            left -= len(raw)
+            if not raw.endswith(b"\n"):
+                return              # a line cut at the limit (or still being written)
+            text = raw[:-1].decode("utf-8", "replace")
+            yield (text[:-1] if text.endswith("\r") else text) + "\n"
+
+
+def _read(paths, upto: dict | None = None):
+    """Every readable line, without a second copy of any request id: a line
+    repeating an earlier rid= is the same request written twice. `upto`:
+    raw_lines."""
+    rids = set()
+    for path in paths:
+        for raw in raw_lines(path, upto):
+            got = line_hit(raw)
+            if got is None:
+                continue
+            if got.rid:
+                if got.rid in rids:
                     continue
-                if got.rid:
-                    if got.rid in rids:
-                        continue
-                    rids.add(got.rid)
-                yield got
+                rids.add(got.rid)
+            yield got
 
 
 # ------------------------------------------------------------ what it is
@@ -443,9 +464,10 @@ def window(day: date, tz) -> tuple[datetime, datetime]:
 
 
 def recount(config: dict, day: date, tz, paths=None, now=None,
-            until: datetime | None = None) -> dict:
+            until: datetime | None = None, upto: dict | None = None) -> dict:
     """The day's figures, counted again from the log. `until` cuts the day
-    short (today so far, for comparing with the live snapshot)."""
+    short (today so far, for comparing with the live snapshot); `upto` (the
+    snapshot's `read_upto`) reads each plain file only as far as it did."""
     start, end = window(day, tz)
     if until is not None:
         end = min(end, until)
@@ -455,7 +477,7 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
     gap = timedelta(minutes=int((config.get("report") or {}).get(
         "session_gap_minutes") or 30))
 
-    lines = [l for l in _read(files) if start <= l.when < end]
+    lines = [l for l in _read(files, upto) if start <= l.when < end]
     _countries(config, lines)
     judge = Judge(config, lines, gap, window=(start, end), tz=tz)
     bots = audit_release2.BotsRecount(gap)
@@ -543,21 +565,22 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
         "ours": ours_labels,
         "extras": extras.figures(),
         "bots": bots.figures(),
-        "quality": audit_release2.quality(files, start, end, line_hit),
+        "quality": audit_release2.quality(files, start, end, line_hit, upto),
         "page_firsts": firsts.got,
         "more": more,
     }
 
 
-def judged(config: dict, tz, start: datetime, end: datetime, paths=None):
+def judged(config: dict, tz, start: datetime, end: datetime, paths=None,
+           upto: dict | None = None):
     """(line, group) for every line in [start, end), group "excluded" for
     another host; each local day's part judged over that day from its
-    midnight, as the live run and its feed are."""
+    midnight, as the live run and its feed are. `upto`: raw_lines."""
     files = [Path(p) for p in paths] if paths else log_files(config)
     wanted = {str(h).lower() for h in ((config.get("site") or {}).get("hosts") or [])}
     gap = timedelta(minutes=int((config.get("report") or {}).get(
         "session_gap_minutes") or 30))
-    lines = [l for l in _read(files) if l.when < end]
+    lines = [l for l in _read(files, upto) if l.when < end]
     day = start.astimezone(tz).date()
     while True:
         first, last = window(day, tz)
@@ -576,12 +599,13 @@ def judged(config: dict, tz, start: datetime, end: datetime, paths=None):
 
 
 def recount_requests(config: dict, tz, start: datetime, end: datetime,
-                     paths=None) -> Counter:
+                     paths=None, upto: dict | None = None) -> Counter:
     """Requests in [start, end) by group (and "excluded")."""
-    return Counter(group for _, group in judged(config, tz, start, end, paths))
+    return Counter(group for _, group in judged(config, tz, start, end, paths, upto))
 
 
-def recount_alert_figures(config: dict, tz, kept: dict, paths=None) -> dict:
+def recount_alert_figures(config: dict, tz, kept: dict, paths=None,
+                          upto: dict | None = None) -> dict:
     """The totals an alert check read (alerts.figures), counted again: each
     over the whole minutes from `minutes - 1` before `at`'s minute to `at`."""
     at = datetime.fromisoformat(kept["at"]).astimezone(timezone.utc)
@@ -590,7 +614,7 @@ def recount_alert_figures(config: dict, tz, kept: dict, paths=None) -> dict:
     start = datetime.fromtimestamp((int(at.timestamp()) // 60 - longest + 1) * 60, timezone.utc)
     got = {"server_errors": 0, "people_404": 0, "requests": 0}
     newest = None
-    for line, group in judged(config, tz, start, end, paths):
+    for line, group in judged(config, tz, start, end, paths, upto):
         age = int(at.timestamp()) // 60 - int(line.when.timestamp()) // 60
         if age < kept["server_errors"]["minutes"] and line.status.startswith("5"):
             got["server_errors"] += 1
@@ -598,7 +622,7 @@ def recount_alert_figures(config: dict, tz, kept: dict, paths=None) -> dict:
             got["people_404"] += 1
         if age < kept["requests"]["minutes"]:
             got["requests"] += 1
-    for line in _read([Path(p) for p in paths] if paths else log_files(config)):
+    for line in _read([Path(p) for p in paths] if paths else log_files(config), upto):
         if line.when < end and (newest is None or line.when > newest):
             newest = line.when
     got["newest_line"] = newest.isoformat(timespec="seconds") if newest else None

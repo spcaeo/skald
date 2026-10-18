@@ -323,13 +323,15 @@ class Feed:
         self._take(hit, None)
 
     def result(self, tz, hidden, start: datetime, until: datetime, hours: int,
-               cap: int, generated_at: str) -> dict:
+               cap: int, generated_at: str, read_upto: dict | None = None) -> dict:
         ordered = sorted(self.rows, key=lambda r: r[0].when if r[0].when.tzinfo
                          else r[0].when.replace(tzinfo=timezone.utc), reverse=True)
         return {"version": VERSION, "generated_at": generated_at,
                 "from": start.astimezone(tz).isoformat(timespec="seconds"),
                 "until": until.astimezone(tz).isoformat(timespec="seconds"),
                 "window_hours": hours, "cap": cap, "total": self.total,
+                # How far each plain log file was read (parse.sizes), for the audit.
+                **({"read_upto": dict(read_upto)} if read_upto is not None else {}),
                 "by_group": dict(self.by_group),
                 "by_view": {slug: {"total": sum(c.values()), "by_group": dict(c)}
                             for slug, c in self.by_view.items()},
@@ -337,9 +339,11 @@ class Feed:
                          for h, v, d, visit in ordered]}
 
 
-def before_midnight(config: dict, feed: Feed, midnight: datetime, now: datetime) -> None:
+def before_midnight(config: dict, feed: Feed, midnight: datetime, now: datetime,
+                    upto: dict | None = None) -> None:
     """Feed the part of the window before today's midnight, classified over
-    yesterday's whole window (as collect will)."""
+    yesterday's whole window (as collect will). `upto`: the live run's byte
+    limits (parse.read)."""
     from .config import setting
     from .parse import geo_database, read
     from .window import _classifier, within, window_paths
@@ -353,10 +357,11 @@ def before_midnight(config: dict, feed: Feed, midnight: datetime, now: datetime)
     paths = oldest_first(paths)
     fmt = (config.get("logs") or {}).get("format") or "auto"
     tz_day_start = _day_start(config, midnight)
-    classifier = _classifier(config, within(read(paths, fmt), tz_day_start, midnight),
-                             tz_day_start, midnight)
+    classifier = _classifier(config, within(read(paths, fmt, upto=upto), tz_day_start,
+                                            midnight), tz_day_start, midnight)
     wanted = {str(h).lower() for h in (setting(config, "site", "hosts") or [])}
-    for hit in within(read(paths, fmt, geo=geo_database(config)), feed.cutoff, midnight):
+    for hit in within(read(paths, fmt, geo=geo_database(config), upto=upto), feed.cutoff,
+                      midnight):
         if wanted and hit.host and hit.host.lower() not in wanted:
             feed.excluded(hit)
         else:

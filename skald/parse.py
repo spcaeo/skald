@@ -424,8 +424,47 @@ def _country_filler(path: str | None):
     return fill
 
 
+def sizes(paths) -> dict[str, int]:
+    """Each plain (uncompressed) file's size in bytes now, by file name.
+
+    A live run takes them at its start and reads each file only that far
+    (read's `upto`), and records them, so the live audit reads the very same
+    bytes however many lines the shipper appends meanwhile. A compressed
+    rotation is not written to any more and is always read whole."""
+    out = {}
+    for path in (Path(p) for p in paths):
+        if path.suffix == ".gz":
+            continue
+        try:
+            out[path.name] = path.stat().st_size
+        except OSError:
+            pass
+    return out
+
+
+def lines_of(path: Path, upto: dict | None = None) -> Iterator[str]:
+    """A log file's lines. With a byte limit for it in `upto` (sizes()),
+    only the whole lines in its first that many bytes: a line still being
+    written at the limit is not read."""
+    limit = (upto or {}).get(path.name) if path.suffix != ".gz" else None
+    if limit is None:
+        opener = gzip.open if path.suffix == ".gz" else open
+        with opener(path, "rt", errors="replace") as handle:
+            yield from handle
+        return
+    left = int(limit)
+    with open(path, "rb") as handle:
+        for raw in handle:
+            left -= len(raw)
+            if left < 0 or not raw.endswith(b"\n"):
+                return
+            text = raw.decode("utf-8", "replace")
+            yield text[:-2] + "\n" if text.endswith("\r\n") else text
+
+
 def read(paths: list[str] | list[Path], fmt: str = "auto",
-         stats: ReadStats | None = None, geo: str | None = None) -> Iterator[Hit]:
+         stats: ReadStats | None = None, geo: str | None = None,
+         upto: dict | None = None) -> Iterator[Hit]:
     """Every parsable hit in these files. Unparsable lines are skipped.
 
     A line that will not parse is not an error worth stopping for - logs
@@ -459,6 +498,9 @@ def read(paths: list[str] | list[Path], fmt: str = "auto",
     `geo` is a GeoIP .mmdb file (geo_database(config)): a hit whose line
     carries no country gets the one its address is in there. The line's own
     country always wins. Each address is looked up once per read.
+
+    `upto` ({file name: bytes}, sizes()) reads each plain file named in it
+    only up to that many bytes (lines_of): the live run's same bytes.
     """
     paths = [Path(p) for p in paths]
     fill = _country_filler(geo)
@@ -469,14 +511,14 @@ def read(paths: list[str] | list[Path], fmt: str = "auto",
     if auto:
         sample: list[str] = []
         for path in paths:
-            opener = gzip.open if path.suffix == ".gz" else open
-            with opener(path, "rt", errors="replace") as handle:
-                for line in handle:
-                    if W3C_HEADER.match(line):
-                        continue
-                    sample.append(line)
-                    if len(sample) >= 200:
-                        break
+            lines = lines_of(path, upto)
+            for line in lines:
+                if W3C_HEADER.match(line):
+                    continue
+                sample.append(line)
+                if len(sample) >= 200:
+                    break
+            lines.close()
             if sample:
                 break
         fmt = detect(sample) if sample else "nginx_extended"
@@ -497,37 +539,35 @@ def read(paths: list[str] | list[Path], fmt: str = "auto",
 
     rids: set[str] = set()
     for path in paths:
-        opener = gzip.open if path.suffix == ".gz" else open
         last = None          # timestamp of the last readable line in this file
         waiting = 0          # unreadable lines before the first readable one
-        with opener(path, "rt", errors="replace") as handle:
-            for line in handle:
-                if W3C_HEADER.match(line):
-                    cloudfront.header(line)
+        for line in lines_of(path, upto):
+            if W3C_HEADER.match(line):
+                cloudfront.header(line)
+                continue
+            hit = parse_one(line)
+            if stats is not None and line.strip():
+                stats.lines += 1
+                if hit is None:
+                    stats.unparsed += 1
+                    if last is None:
+                        waiting += 1
+                    else:
+                        stats.placed.append(last)
+            if hit is not None and hit.rid:
+                if hit.rid in rids:
+                    if stats is not None:
+                        stats.removed.append(hit.when)
                     continue
-                hit = parse_one(line)
-                if stats is not None and line.strip():
-                    stats.lines += 1
-                    if hit is None:
-                        stats.unparsed += 1
-                        if last is None:
-                            waiting += 1
-                        else:
-                            stats.placed.append(last)
-                if hit is not None and hit.rid:
-                    if hit.rid in rids:
-                        if stats is not None:
-                            stats.removed.append(hit.when)
-                        continue
-                    rids.add(hit.rid)
-                if hit is not None:
-                    if fill is not None and not hit.country:
-                        hit.country = fill(hit.address)
-                    hit.line_id = hash(line.rstrip("\n"))
-                    if waiting:
-                        stats.placed.extend([hit.when] * waiting)
-                        waiting = 0
-                    last = hit.when
-                    yield hit
+                rids.add(hit.rid)
+            if hit is not None:
+                if fill is not None and not hit.country:
+                    hit.country = fill(hit.address)
+                hit.line_id = hash(line.rstrip("\n"))
+                if waiting:
+                    stats.placed.extend([hit.when] * waiting)
+                    waiting = 0
+                last = hit.when
+                yield hit
         if stats is not None and waiting:
             stats.placed.extend([None] * waiting)

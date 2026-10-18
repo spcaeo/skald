@@ -138,6 +138,13 @@ without the journeys (in `visits.json`) and without the AI events (in
 day), `visits` (same shape as a visits.json `stats`), `journeys_total`.
 `live.stale` is true when the snapshot is not for today.
 
+The snapshot file itself (`live-<site>.json` beside history) and the requests
+feed (`live-<site>-requests.json`) also carry `read_upto`: `{file name: bytes}`,
+each plain (uncompressed) log file's size when the live run began. The run
+reads each file only that far (a line cut at the limit is not read), and
+`audit --live` reads only as far, so lines appended meanwhile change neither
+side. A file without `read_upto` (an older one) is recounted whole.
+
 ```json
 {"schema_version":1,"generated_at":"...","site":"example.com","view":null,"timezone":"America/New_York",
  "stale":false,"state":"ok","day":"2026-10-08","from":"2026-10-08T00:00:00-04:00",
@@ -512,7 +519,8 @@ unknown site is 404.
 The helper keeps an answer 10 seconds (many open pages cost one read) and writes
 the last one beside the snapshot, `live-<site>-tail.json` (counts only:
 `from`, `until` UTC, `per_minute` keyed by epoch minute, `total`, `newest`,
-`partial`), which `audit --live` counts again from the raw lines.
+`partial`, `read_upto`: each plain file's size when the count began, read no
+further), which `audit --live` counts again from the same bytes of the raw lines.
 
 ## speed.json
 

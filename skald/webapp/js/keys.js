@@ -25,8 +25,9 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-18f",
+  id: "2026-10-18g",
   items: [
+    ["Live check", "the live figures and their second count now read exactly the same log lines, so a busy site no longer shows a one-off difference."],
     ["Grids", "every cell sits at the top of its row; text on the left, numbers on the right, badges in the middle."],
     ["Clearer words", "a visit with no referrer and no campaign tag reads \"Direct\"; a value the log did not have reads \"Not recorded\"."],
     ["Real time", "who is on your site now: active visitors, minute by minute, a world map, the pages being read and the AI and crawlers now. Overview > Real time.", "real-time"],

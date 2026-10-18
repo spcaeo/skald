@@ -4,6 +4,16 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.11.1 (2026-10-18)
+
+### Fixed
+
+- **The live check on a busy site with shipped logs.** The live run and `audit --live` read the
+  log at different moments; lines shipped in between (stamped before the snapshot's end) made
+  the recount differ by a request or a visitor. The live run now records how far it read each
+  log file (`read_upto` in the snapshot, the requests feed and the real-time tail) and every
+  live reader, the audit's own included, stops there. Older snapshots audit as before.
+
 ## 2.11.0 (2026-10-18)
 
 Who is on the site now, on a live world map; alerts for AI citations and crawlers, also sent to

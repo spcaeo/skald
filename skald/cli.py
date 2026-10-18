@@ -446,13 +446,18 @@ def cmd_live(ctx: Context) -> int:
                               setting(ctx.config, "site", "hosts") or (),
                               int(setting(ctx.config, "report", "session_gap_minutes", 30)))
     midnight = day_window(ctx.now.date(), ctx.tz)[0]
-    requests_feed.before_midnight(ctx.config, feed, midnight, utc_now)
-    snap = live.build(ctx.config, ctx.site, ctx.tz, ctx.now, ctx.views, ctx.db_path, feed)
+    # Each plain log's size now: every reader of this run, and the audit
+    # after it, reads that far and no further (lines keep arriving).
+    from .window import plain_sizes
+    upto = plain_sizes(ctx.config)
+    requests_feed.before_midnight(ctx.config, feed, midnight, utc_now, upto)
+    snap = live.build(ctx.config, ctx.site, ctx.tz, ctx.now, ctx.views, ctx.db_path, feed,
+                      upto)
     path = live.path_for(ctx.live_dir, ctx.site)
     live.save(path, snap)
     requests_feed.save(requests_feed.path_for(ctx.live_dir, ctx.site), feed.result(
         ctx.tz, forgotten(ctx.live_dir), cutoff,
-        utc_now, hours, cap, ctx.now.isoformat(timespec="seconds")))
+        utc_now, hours, cap, ctx.now.isoformat(timespec="seconds"), upto))
     if snap["state"] == "ok":
         ctx.out(f"live {snap['day']} to {snap['generated_at']}: "
                 f"{snap['requests']:,} requests, every category reconciles")
@@ -627,10 +632,12 @@ def audit_live(ctx: Context) -> int:
         return 2
     day = date.fromisoformat(snap["day"])
     until = datetime.fromisoformat(snap["until"])
+    # The bytes the snapshot read (an older one recorded none: whole files).
+    upto = snap.get("read_upto")
     try:
         figures = audit.recount(ctx.config, day, ctx.tz,
                                 [Path(p) for p in ctx.args.log] if ctx.args.log else None,
-                                ctx.now, until=until)
+                                ctx.now, until=until, upto=upto)
     except ValueError as why:
         ctx.err(f"audit --live: {why}")
         return 2
@@ -645,7 +652,7 @@ def audit_live(ctx: Context) -> int:
     if feed and feed.get("from") and feed.get("generated_at") == snap.get("generated_at"):
         counted = audit.recount_requests(
             ctx.config, ctx.tz, datetime.fromisoformat(feed["from"]), until,
-            [Path(p) for p in ctx.args.log] if ctx.args.log else None)
+            [Path(p) for p in ctx.args.log] if ctx.args.log else None, feed.get("read_upto"))
         stored = feed.get("by_group") or {}
         for group in sorted(set(stored) | set(counted)):
             compared += 1
@@ -667,7 +674,8 @@ def audit_live(ctx: Context) -> int:
     kept = (load_state(ctx.live_dir).get("figures") or {})
     if kept.get("at") == snap.get("generated_at"):
         counted = audit.recount_alert_figures(
-            ctx.config, ctx.tz, kept, [Path(p) for p in ctx.args.log] if ctx.args.log else None)
+            ctx.config, ctx.tz, kept, [Path(p) for p in ctx.args.log] if ctx.args.log else None,
+            upto)
         for key in ("server_errors", "people_404", "requests"):
             compared += 1
             if kept[key]["n"] != counted[key]:

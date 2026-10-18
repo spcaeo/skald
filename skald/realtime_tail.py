@@ -79,17 +79,21 @@ def _any_time(line: str):
     return None
 
 
-def tail_lines(path: Path, start: datetime) -> tuple[list[str], bool]:
+def tail_lines(path: Path, start: datetime,
+               limit: int | None = None) -> tuple[list[str], bool]:
     """The lines at the end of `path` that can be at or after `start`, and
-    whether MAX_BYTES stopped the read short of them."""
+    whether MAX_BYTES stopped the read short of them. With `limit`, the end
+    is that byte (the file's size when the count began, parse.sizes) and a
+    line cut there is not read: the audit counts the same bytes."""
     try:
         with open(path, "rb") as handle:
             handle.seek(0, os.SEEK_END)
-            size = pos = handle.tell()
+            size = pos = handle.tell() if limit is None else min(limit, handle.tell())
             chunks: list[bytes] = []
+            limited = limit is not None
             while pos > 0:
                 if size - pos >= MAX_BYTES:
-                    return _split(chunks, pos > 0), True
+                    return _split(chunks, pos > 0, limited), True
                 step = min(BLOCK, pos)
                 pos -= step
                 handle.seek(pos)
@@ -106,13 +110,16 @@ def tail_lines(path: Path, start: datetime) -> tuple[list[str], bool]:
                 when = _any_time(line)
                 if when is not None and when < start:
                     break
-            return _split(chunks, pos > 0), False
+            return _split(chunks, pos > 0, limited), False
     except OSError:
         return [], False
 
 
-def _split(chunks: list[bytes], cut_first: bool) -> list[str]:
-    lines = b"".join(chunks).decode("utf-8", "replace").splitlines()
+def _split(chunks: list[bytes], cut_first: bool, cut_last: bool = False) -> list[str]:
+    data = b"".join(chunks)
+    if cut_last:                    # a line cut at the size limit is not read
+        data = data[:data.rfind(b"\n") + 1]
+    lines = data.decode("utf-8", "replace").splitlines()
     return lines[1:] if cut_first and lines else lines
 
 
@@ -126,11 +133,15 @@ def requests_now(config: dict, now: datetime, minutes: int = MINUTES) -> dict:
     first = (int(until.timestamp()) - 1) // 60 - minutes + 1
     start = datetime.fromtimestamp(first * 60, timezone.utc)
     paths = [p for p in window_paths(config, start, until, now) if p.suffix != ".gz"]
+    # Each file's size now: read that far, and recorded, so the audit counts
+    # the same bytes and not the lines written since (parse.sizes).
+    from .parse import sizes
+    upto = sizes(paths)
     wanted = {str(h).lower() for h in (setting(config, "site", "hosts") or [])}
     per_minute: Counter = Counter()
     newest, partial, rids = None, False, set()
     for path in paths:
-        lines, short = tail_lines(path, start)
+        lines, short = tail_lines(path, start, upto.get(path.name, 0))
         partial = partial or short
         parse_one = _parser(config, lines[-200:])
         for line in lines:
@@ -155,7 +166,7 @@ def requests_now(config: dict, now: datetime, minutes: int = MINUTES) -> dict:
             "per_minute": {str(m): int(per_minute.get(m, 0)) for m in range(first, first + minutes)},
             "total": sum(per_minute.values()),
             "newest": newest.isoformat(timespec="seconds") if newest else None,
-            "partial": partial}
+            "partial": partial, "read_upto": upto}
 
 
 # ------------------------------------------------------------- the helper's cache

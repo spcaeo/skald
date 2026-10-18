@@ -14,7 +14,6 @@ name list, as the audit already shares the crawler name lists.
 from __future__ import annotations
 
 import bisect
-import gzip
 import ipaddress
 import json
 import re
@@ -222,44 +221,43 @@ class BotsRecount:
 
 # ------------------------------------------------------------- quality
 
-def quality(files, start: datetime, end: datetime, parse) -> dict:
+def quality(files, start: datetime, end: datetime, parse, upto: dict | None = None) -> dict:
     """Lines in [start, end) counted from the raw text: parsed, byte-identical
     repeats within one second, old-layout lines, and gaps of over 10
     minutes. `parse(raw)` is audit.line_hit; `old(raw)` tells the layout.
     A line repeating an earlier request id (rid=) is not parsed: it is
-    counted as removed, in the window its own timestamp falls in."""
-    from .audit import _EXTENDED
+    counted as removed, in the window its own timestamp falls in. `upto`:
+    the live run's byte limits (audit.raw_lines)."""
+    from .audit import _EXTENDED, raw_lines
     seen: dict[int, set] = {}
     rids: set = set()
     parsed = dupes = old = removed = 0
     minutes = set()
     for path in files:
-        opener = gzip.open if str(path).endswith(".gz") else open
-        with opener(path, "rt", errors="replace") as handle:
-            for raw in handle:
-                line = parse(raw)
-                if line is None:
+        for raw in raw_lines(Path(path), upto):
+            line = parse(raw)
+            if line is None:
+                continue
+            if line.rid:
+                if line.rid in rids:
+                    removed += start <= line.when < end
                     continue
-                if line.rid:
-                    if line.rid in rids:
-                        removed += start <= line.when < end
-                        continue
-                    rids.add(line.rid)
-                if not (start <= line.when < end):
-                    continue
-                parsed += 1
-                second = int(line.when.timestamp())
-                text = raw.rstrip("\n")
-                bucket = seen.setdefault(second, set())
-                if text in bucket:
-                    dupes += 1
-                else:
-                    bucket.add(text)
-                # The old layout is nginx's or Apache's combined: no host.
-                # A drain record (JSON, audit_drains) is not an old layout.
-                if not _EXTENDED.match(raw) and not raw.lstrip().startswith("{"):
-                    old += 1
-                minutes.add(second // 60)
+                rids.add(line.rid)
+            if not (start <= line.when < end):
+                continue
+            parsed += 1
+            second = int(line.when.timestamp())
+            text = raw.rstrip("\n")
+            bucket = seen.setdefault(second, set())
+            if text in bucket:
+                dupes += 1
+            else:
+                bucket.add(text)
+            # The old layout is nginx's or Apache's combined: no host.
+            # A drain record (JSON, audit_drains) is not an old layout.
+            if not _EXTENDED.match(raw) and not raw.lstrip().startswith("{"):
+                old += 1
+            minutes.add(second // 60)
     ordered = sorted(minutes)
     gaps = sum(1 for a, b in zip(ordered, ordered[1:]) if b - a - 1 > 10)
     return {"parsed": parsed, "duplicates": dupes, "old_format": old, "gaps": gaps,
