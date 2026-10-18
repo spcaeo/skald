@@ -187,14 +187,14 @@ class Sink:
         counted, never raised: the spool line stands, and the second count
         then withholds the day."""
         from .config import site_name
-        from .conversions import from_beacon, store
+        from .conversions import from_beacon, geo, store
         from .conversions.hooks import history_folder
         try:
             db = store.connect(store.path_for(
                 self.config, history_folder(self.config, self.config_path)))
             try:
                 from_beacon.record(db, site_name(self.config), event, when, source, self.hosts,
-                                   setting(self.config, "conversions", "country_db"),
+                                   geo.database(self.config),
                                    address, agent)
             finally:
                 db.close()

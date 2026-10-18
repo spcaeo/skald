@@ -102,6 +102,10 @@ def render_config(env: dict) -> dict:
         "backup": {"dir": str(DATA / "backups")},
         "access": {"mode": "sessions", "base_url": base},
     }
+    if env.get("SKALD_COUNTRY_DB"):
+        # A GeoIP .mmdb (DB-IP's free country file): a line with no country
+        # of its own gets its address's, and so does a lead hook's ip.
+        config["logs"]["country_db"] = env["SKALD_COUNTRY_DB"].strip()
     if env.get("SKALD_ASSET_PREFIXES"):
         config["site"]["asset_prefixes"] = _words(env["SKALD_ASSET_PREFIXES"])
     to = _words(env.get("SKALD_EMAIL"))

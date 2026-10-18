@@ -13,7 +13,8 @@ rule, its own page rule, and its own browser, system, device, source and
 campaign labels. What it shares is only the lists of names - the AI
 assistants, search crawlers, bots and scanner paths in classify.py - because
 those are data, not logic: a recount with a different list would be counting
-something else.
+something else. The GeoIP file (`logs.country_db`) is data in the same way: a
+line with no country of its own is looked up in it, as the main road does.
 
 So when the two disagree, one of two pieces of code that were written apart
 is wrong, and the day is withheld until somebody finds out which.
@@ -34,7 +35,7 @@ from urllib.parse import urlsplit
 
 # The name lists - the only thing shared with the package.
 from .classify import (AI_ASKED, AI_REFERRER_HOSTS, AI_TRAINING, AI_UTM, OTHER_BOT,
-                       PROBE, PROBE_QUERY, SEARCH_ENGINE)
+                       OWN_AGENTS, PROBE, PROBE_QUERY, SEARCH_ENGINE)
 from .store import History, READER_KINDS
 from . import (audit_drains, audit_extras, audit_more, audit_release2, audit_rendered,
                audit_visits)
@@ -53,7 +54,10 @@ _EXTENDED = re.compile(
     r'^(\S+) (\S+) (\S+) "([^"]*)" (\d{3}) \S+ "([^"]*)" "([^"]*)"'
     r'(?:\s+(\S+))?(?:\s+cc=(\S+))?')
 _COMBINED = re.compile(
-    r'^(\S+) \S+ \S+ \[([^\]]+)\] "([^"]*)" (\d{3}) \S+ "([^"]*)" "([^"]*)"')
+    r'^(\S+) \S+ \S+ \[([^\]]+)\] "([^"]*)" (\d{3}) \S+ "([^"]*)" "([^"]*)"(.*)$')
+# A combined line's last field, when it is quoted and a host name (a name with
+# a letter and a dot; a port dropped). An address list or "-" is not one.
+_LAST_QUOTED = re.compile(r'"([^"]*)"\s*$')
 _REQUEST = re.compile(r"^([A-Z]+) (\S*)")
 # nginx's $request_id, the last field of the extended layout since it was
 # added; older lines have none.
@@ -80,8 +84,8 @@ class Line:
 
 def line_hit(raw: str) -> Line | None:
     """One log line, or None if no layout reads it: nginx's extended or
-    combined (Apache's too), or a Vercel / Netlify drain record kept by
-    the ingest endpoint (audit_drains, its own reader)."""
+    combined (Apache's too), a Caddy JSON line, or a Vercel / Netlify drain
+    record kept by the ingest endpoint (audit_drains, its own reader)."""
     if raw.lstrip().startswith("{"):
         got = audit_drains.fields(raw)
         return Line(**got) if got else None
@@ -103,9 +107,23 @@ def line_hit(raw: str) -> Line | None:
             when = datetime.strptime(m.group(2), "%d/%b/%Y:%H:%M:%S %z")
         except ValueError:
             return None
-        return _line(when, m.group(1), "", m.group(3), m.group(4), m.group(5),
-                     m.group(6), None)
+        return _line(when, m.group(1), _named_host(m.group(7)), m.group(3), m.group(4),
+                     m.group(5), m.group(6), None)
     return None
+
+
+def _named_host(tail: str) -> str:
+    found = _LAST_QUOTED.search(tail or "")
+    if not found or found.start() == 0 or not tail[found.start() - 1].isspace():
+        return ""
+    name = found.group(1).rsplit(":", 1)[0] if found.group(1).count(":") == 1 \
+        else found.group(1)
+    labels = name.split(".")
+    if len(labels) < 2 or not any(c.isalpha() for c in name):
+        return ""
+    if not all(lab and all(c.isalnum() or c == "-" for c in lab) for lab in labels):
+        return ""
+    return name.lower()
 
 
 def _line(when, address, host, request, status, referrer, agent, cc) -> Line:
@@ -172,8 +190,10 @@ def _asset(line: Line) -> bool:
 
 
 def is_page(line: Line) -> bool:
-    """A 2xx GET or HEAD for a document: no payload, asset or beacon."""
-    return (line.status.startswith("2") and line.method in ("GET", "HEAD")
+    """A 2xx (or 304: the cached copy, shown) GET or HEAD for a document: no
+    payload, asset or beacon."""
+    return ((line.status.startswith("2") or line.status == "304")
+            and line.method in ("GET", "HEAD")
             and not _PAYLOAD.search(line.url) and not _asset(line)
             and not _BEACON.search(line.path))
 
@@ -197,6 +217,7 @@ class Judge:
         ours = config.get("ours") or {}
         entries = audit_visits.ours_entries
         self.agents = [(v.lower(), l) for v, l in entries(ours.get("user_agents"), "agent", False)]
+        self.agents += [(v.lower(), l) for v, l in OWN_AGENTS]
         self.referrers = [(v.lower(), l) for v, l in
                           entries(ours.get("referrers"), "referrer", False)]
         self.networks = [(ipaddress.ip_network(v, strict=False), l, None)
@@ -351,6 +372,25 @@ def _cited(line: Line) -> bool:
 
 # --------------------------------------------------------------- recount
 
+def _countries(config: dict, lines: list) -> None:
+    """Give a line without a country the one the GeoIP file has for its
+    address (the file is data, like the name lists; the reader of the
+    MaxMind format is conversions/geo.py). Unknown stays "" ."""
+    from .conversions.geo import country, database
+    path = database(config)
+    if not path:
+        return
+    seen: dict[str, str] = {}
+    for line in lines:
+        if line.country:
+            continue
+        got = seen.get(line.address)
+        if got is None:
+            code = (country(path, line.address) or "").upper()
+            got = seen[line.address] = "" if code in ("XX", "ZZ") else code
+        line.country = got
+
+
 def window(day: date, tz) -> tuple[datetime, datetime]:
     start = datetime(day.year, day.month, day.day, tzinfo=tz)
     nxt = day + timedelta(days=1)
@@ -362,10 +402,6 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
             until: datetime | None = None) -> dict:
     """The day's figures, counted again from the log. `until` cuts the day
     short (today so far, for comparing with the live snapshot)."""
-    fmt = str((config.get("logs") or {}).get("format") or "auto")
-    if fmt == "caddy_json":
-        raise ValueError("the audit reads nginx and apache layouts only, not "
-                         "caddy_json")
     start, end = window(day, tz)
     if until is not None:
         end = min(end, until)
@@ -376,6 +412,7 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
         "session_gap_minutes") or 30))
 
     lines = [l for l in _read(files) if start <= l.when < end]
+    _countries(config, lines)
     judge = Judge(config, lines, gap, window=(start, end), tz=tz)
     bots = audit_release2.BotsRecount(gap)
 

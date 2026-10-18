@@ -3,17 +3,16 @@
 The sample paths are generated from the helpers' own route patterns (the
 compiled regexes and path constants of refresh_server.py and the modules its
 dispatch calls, and of beacon_server.py and conversions/hooks.py), so a new
-route in the code without its nginx location fails here. Checked against:
-
+route in the code without its nginx location fails here. Checked against
 DEPLOY.md, the sessions-mode blocks between the skald-nginx-sessions
-    markers (http level, the two snippets, the server level).
+markers (http level, the two snippets, the server level).
 
 For each sample, nginx's own location choice (exact, longest prefix, ^~,
 then regexes in order, nested locations first) must land on a location
 that proxies to the right helper (8765 refresh, 8766 beacon) and clears
 X-Skald-User / X-Skald-Role. A per-site route must match as a route, not by
 accident with its first word taken as a view (settings/audit as view
-"settings" + "audit"). With nginx installed, `nginx -t` runs on both in a
+"settings" + "audit"). With nginx installed, `nginx -t` runs on it in a
 scratch prefix.
 """
 from __future__ import annotations

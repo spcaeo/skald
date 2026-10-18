@@ -248,15 +248,17 @@ class TestPageViews(unittest.TestCase):
                 self.assertFalse(hit(url=url).is_page)
                 self.assertFalse(hit(url=url, method="POST").is_page)
 
-    def test_only_a_two_hundred_is_a_page(self):
+    def test_only_a_two_hundred_or_a_304_is_a_page(self):
         """A 301 is not read, and the page it lands on is logged separately.
 
         Counting the redirect as well counts that one read twice. On the
-        reference log this was 3,993 of 15,727 claimed views.
+        reference log this was 3,993 of 15,727 claimed views. A 304 is no
+        redirect: the browser shows its cached copy, a page read.
         """
         self.assertTrue(hit(status="200").is_page)
         self.assertTrue(hit(status="206").is_page)
-        for status in ("301", "302", "304", "308", "404", "410", "500"):
+        self.assertTrue(hit(status="304").is_page)
+        for status in ("301", "302", "308", "404", "410", "500"):
             with self.subTest(status=status):
                 self.assertFalse(hit(status=status).is_page)
 

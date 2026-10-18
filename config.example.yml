@@ -58,6 +58,14 @@ logs:
   #   fastly_json     - Fastly, the JSON format in docs/CDN-LOGS.md
   # "auto" tries each on the first lines that parse and picks the richest.
   format: auto
+  # A GeoIP country file (MaxMind .mmdb format; DB-IP's free country file
+  # works). A line with no country of its own (caddy_json, a plain combined
+  # log) gets its address's country from it. A country the line carries
+  # (cc=, Cloudflare's CF-IPCountry) always wins. The same file serves lead
+  # hooks and the beacon (conversions.country_db is the older name). With
+  # DB-IP's file, its credit is shown unless report.country_credit is set.
+  # Unset: such lines stay Unknown, never guessed.
+  # country_db: /usr/share/GeoIP/dbip-country-lite.mmdb
 
 ours:
   # Requests you make yourself, which are not traffic. Matched on user agent.
@@ -133,7 +141,8 @@ report:
   # Credit for the country data, shown as a text link wherever countries
   # appear (dashboard, mail, report). A GeoIP database's free licence usually
   # requires it - DB-IP Lite is CC BY 4.0. Leave both empty when the country
-  # comes from Cloudflare's header.
+  # comes from Cloudflare's header. Unset, a DB-IP file named in
+  # logs.country_db gets "IP Geolocation by DB-IP" on its own.
   country_credit: IP geolocation by DB-IP
   country_credit_url: https://db-ip.com
   # IANA timezone a "day" is cut in, for history, the dashboard and the mail.
@@ -413,7 +422,8 @@ alerts:
 # Conversions (docs/INTEGRATIONS.md): hooks from the site and its tools, and
 # with beacon.visitor_ids the beacon's own. A start with no completed for the
 # same visitor ID and action within abandon_hours counts as abandoned (worked
-# out when a report asks). country_db: the DB-IP .mmdb file for the country.
+# out when a report asks). country_db: the DB-IP .mmdb file for the country
+# (logs.country_db is read first; one file serves both).
 # With leads.db set, every lead there is a conversion too (tool "site");
 # from_leads: false turns that off. identity: full keeps a lead's name and
 # email with its conversions; anonymous keeps neither. Unset: full on a new

@@ -100,6 +100,7 @@ the container has them (`history.db: /var/lib/skald/history.sqlite`,
 | `SKALD_LOG_FILE` | `access.log` | the log's file name in `/logs` (rotations `.1`, `.2.gz`... are found) |
 | `SKALD_LOG_FORMAT` | `auto` | or `nginx_combined`, `nginx_extended`, `caddy_json`, ... |
 | `SKALD_ASSET_PREFIXES` | | extra path prefixes that are files, not pages (e.g. `/_next/static/`) |
+| `SKALD_COUNTRY_DB` | | a GeoIP `.mmdb` file inside the container (e.g. `/geoip/dbip-country-lite.mmdb`, with `-v /usr/share/GeoIP:/geoip:ro`): a log line with no country of its own (Caddy, a plain combined log) gets its address's country from it, and so does a lead hook's `ip`. DB-IP's free country file works; its credit is shown under the countries. Unset: such lines stay Unknown |
 | `SKALD_EMAIL` | | who gets the mails (also the sender unless `SKALD_MAIL_FROM`) |
 | `SKALD_SMTP_HOST`, `SKALD_SMTP_PORT`, `SKALD_SMTP_SECURITY` | `587`, `starttls` | the mail server; mails stay off without a host (or set it in Settings > Mail) |
 | `SMTP_USER`, `SMTP_PASSWORD` | | the SMTP login: environment only, never in a file you commit |

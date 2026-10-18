@@ -342,7 +342,7 @@ Given no column, to keep the table readable.
 [^72]: **Skald, returning visitors**: By a keyed hash, within 30 days by default (1 to 90 in Settings); also by the visit's source. [Skald DATA-CONTRACT](../DATA-CONTRACT.md)
 [^73]: **Google Analytics 4, returning visitors**: [GA4: dimensions and metrics](https://support.google.com/analytics/answer/9143382)
 [^74]: **Matomo, returning visitors**: [Matomo: features](https://matomo.org/features/)
-[^75]: **Skald, countries**: Unknown kept, never guessed. [Skald SOP](../SOP.md)
+[^75]: **Skald, countries**: From the log's own country field, or a GeoIP file looked up by address (`logs.country_db`). Unknown kept, never guessed. [Skald SOP](../SOP.md)
 [^76]: **Search Console, countries**: Of searchers. [Search Console: Performance report](https://support.google.com/webmasters/answer/7042828)
 [^77]: **Matomo, countries**: [Matomo: features](https://matomo.org/features/)
 [^78]: **Cloudflare, countries**: [Cloudflare Web Analytics: dimensions](https://developers.cloudflare.com/web-analytics/data-metrics/dimensions/)

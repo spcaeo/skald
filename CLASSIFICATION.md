@@ -266,10 +266,18 @@ The referrer's **host** must be one of these or a subdomain of one -
 match counted `thank-you.com` as `you.com`; `notperplexity.ai` and a
 `?ref=chatgpt.com` query are not citations either.
 
+An assistant's Android app sends `android-app://<package id>/`, so its package
+id is the host. These count as the assistant: `com.openai.chatgpt`
+(ChatGPT), `ai.perplexity.app.android` (Perplexity), `com.anthropic.claude`
+(Claude), `com.google.android.apps.bard` (Gemini), `com.microsoft.copilot`
+(Copilot). Without them an app citation was "Other website" (or, for Gemini,
+"Search engine").
+
 Every signal for one assistant gives it one name - its main domain:
 `chat.openai.com`, `openai.com` and `utm_source=chatgpt` are all
 `chatgpt.com`; `bing.com/chat` and `utm_source=copilot` are
-`copilot.microsoft.com` (`classify.assistant_name`). History written with an
+`copilot.microsoft.com`; each app's package id is its assistant's domain
+(`classify.assistant_name`). History written with an
 older name of an assistant is read back under the canonical one.
 
 ### `AI_UTM` - matched against the URL
@@ -409,6 +417,11 @@ address is "Listed address N": an address is never used as a label.
 
 Certificate validation (`/.well-known/acme-challenge/…`, `MACHINE_PATH`) is filed under bots whatever the agent: the validators send a Mozilla user agent and were being counted as people.
 
+Skald's own fetchers are always our own traffic, whatever the lists say
+(`classify.OWN_AGENTS`): the hourly robots.txt check, user agent
+`site-version-check/1`, is "Skald (robots.txt check)". Before 2.8.0 it
+landed in bots on every site.
+
 `ours.user_agents` is matched against the user agent; `ours.referrers` against
 the referrer. Both are **literal substrings**, not regular expressions: the
 entries are passed through `re.escape`, so `MyCompany-e2e` matches and
@@ -418,8 +431,8 @@ matches nothing, rather than everything.
 ## What decides a page view
 
 `parse.Hit.is_page` answers "could a person have read this", and it is separate
-from who asked. It is true only for a 2xx response to a GET or HEAD that is
-none of:
+from who asked. It is true only for a 2xx or 304 response to a GET or HEAD
+that is none of:
 
 - **`RSC_PAYLOAD`** - `?_rsc=`, `?__flight__=`, `?_data=`. A React or Next
   client fetching the page you just clicked. One navigation produces one of
@@ -439,9 +452,64 @@ somewhere else and that page is logged separately as its own 200, so counting
 the redirect counts one read twice. On the reference log this was 3,993 of
 15,727 claimed views - 25% of them - almost all trailing-slash 301s and 308s.
 
+A 304 is not a redirect (since 2.8.0). It tells the browser its cached copy
+is current, and the browser shows that copy: a returning reader read the
+page. So it is a page view, and the first page of a visit carries the
+visit's source. Before, a reader who came back from a search to a page they
+had cached lost that source to their next page ("This site"), or was no
+reader at all.
+
 Probe paths are *not* excluded here. A scanner asking for `/.env` and getting a
 200 counts as a page view inside the `bots` card, which is where the scanner
 already is. If that bothers you, the honest fix is to stop serving a 200.
+
+## The source type of a visit
+
+`dimensions.source_type` (and, on the audit's own road,
+`audit_labels.source_of`) gives each visit one of: AI assistant, Search
+engine, Social media, Email, Other website, This site, Tagged link, Direct
+or unknown. A referrer decides first. With none, the tags do:
+
+- **Search engines** are named by their real domains (`google.com`,
+  `google.de`, `google.co.uk`, `google.com.au`, `bing.com`, ...), never by
+  the word "google". An Android app's referrer is
+  `android-app://<package id>/`: only Google's search app
+  (`com.google.android.googlequicksearchbox`) is a search engine, and Gmail
+  (`com.google.android.gm`) is email. Since 2.8.0 Google's other apps are not
+  "Search engine": YouTube, WhatsApp and Telegram apps are Social media, the
+  rest Other website. An assistant's app is the assistant (above).
+- **utm_ tags.** `utm_source` decides first, `utm_medium` only when the
+  source names no type: the source names the place, the medium only says
+  how. `utm_source=linkedin&utm_medium=cpc` is Social media, not Search
+  engine (before 2.8.0 both words were pooled and search won). Tags that
+  name no type are a Tagged link.
+- **Ad click ids** with no utm_ tag: `gclid`, `gbraid`, `wbraid` (Google
+  Ads, the last two from iOS) and `msclkid` are Search engine; `fbclid`,
+  `li_fat_id`, `ttclid` (TikTok) and `twclid` (X) are Social media. The
+  campaign is the network's name, never the id's value
+  (`google / cpc / (gbraid)`).
+
+## Reading a log line
+
+`parse.py` reads each line into the fields the rules above use. Three
+details decide what a line gives:
+
+- **Combined logs.** Many servers add fields after the stock combined
+  format. Two are read when present: a response time right after the user
+  agent (`$request_time`), and a quoted host name as the very last field
+  (`"$host"`). The host is taken only when it looks like one: letters in it,
+  dots between labels, an optional `:port` (dropped). A quoted address list
+  (`"$http_x_forwarded_for"`) or `"-"` is not a host, and the host stays
+  empty, as before.
+- **Caddy JSON.** The address is `client_ip` (the client once Caddy trusts
+  its proxies; `remote_ip` is then the proxy), else `remote_ip` for older
+  logs. `host:port` becomes `host`. A record with no address, no URI or no
+  three-digit status is not a request and is not counted; both roads (main
+  and audit) skip it the same way.
+- **Country.** The line's own (`cc=`, Cloudflare's `CF-IPCountry`) always
+  wins. A line with none gets its address's country from the GeoIP file
+  `logs.country_db`, when one is set: a lookup in the same DB-IP file
+  nginx's GeoIP module reads, not a guess. With neither, it is Unknown.
 
 ## What this cannot know
 

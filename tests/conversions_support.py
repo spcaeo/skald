@@ -35,7 +35,8 @@ def _enc(value) -> bytes:
     raise TypeError(value)
 
 
-def mmdb(prefixes: dict[str, str], ip_version: int = 6, record_size: int = 24) -> bytes:
+def mmdb(prefixes: dict[str, str], ip_version: int = 6, record_size: int = 24,
+         kind: str = "Test-Country") -> bytes:
     """A MaxMind-format file mapping each network to {"country": {"iso_code"}}.
     The key "country" is stored once and reached by a pointer."""
     nodes: list[list] = [[None, None]]
@@ -82,7 +83,7 @@ def mmdb(prefixes: dict[str, str], ip_version: int = 6, record_size: int = 24) -
         else:
             tree += a.to_bytes(4, "big") + b.to_bytes(4, "big")
     meta = _enc({"node_count": ("u32", count), "record_size": ("u16", record_size),
-                 "ip_version": ("u16", ip_version), "database_type": "Test-Country"})
+                 "ip_version": ("u16", ip_version), "database_type": kind})
     return tree + b"\0" * 16 + data + MARKER + meta
 
 

@@ -52,7 +52,7 @@ from pathlib import Path
 
 from ..beacon import visitor_ids
 from ..config import setting, site_name
-from . import LEAD_SHAPED, MAX_BODY, TOOLS, event_types, spool, store
+from . import LEAD_SHAPED, MAX_BODY, TOOLS, event_types, geo, spool, store
 from .adapters import Invalid, adapter
 from .normalise import row as make_row
 from .secrets_store import Exposed, find
@@ -132,7 +132,7 @@ class Receiver:
         self.tz = zone(config)
         self.db_path = store.path_for(config, self.folder)
         self.spool = spool.spool_dir(config, self.folder)
-        self.country_db = setting(config, "conversions", "country_db")
+        self.country_db = geo.database(config)
         self.limiter = Limiter(float(setting(config, "hooks", "per_minute", 60)),
                                float(setting(config, "hooks", "burst", 30)),
                                float(setting(config, "hooks", "all_per_second", 20)),

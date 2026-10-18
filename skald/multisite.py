@@ -92,9 +92,16 @@ NOT_INHERITED = ("leads", "pagespeed", "hooks", "conversions", "markers")
 
 
 def tenant_base(config: dict) -> dict:
-    """The install's config as a base for a dashboard site."""
+    """The install's config as a base for a dashboard site.
+
+    Nothing of the first site's `site:` section is taken: its asset
+    prefixes, rendering rule and legacy paths describe that site's pages.
+    Inherited, a static first site's `asset_prefixes` (/style.css ...) made
+    every Next.js dashboard site wait for those files instead of
+    /_next/static/, and a returning reader with them cached was no person."""
     out = {k: (dict(v) if isinstance(v, dict) else v) for k, v in (config or {}).items()
            if k not in NOT_INHERITED}
+    out["site"] = {}
     mail = dict(out.get("mail") or {})
     mail.update({"to": [], "daily": False, "weekly": False})
     out["mail"] = mail

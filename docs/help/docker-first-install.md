@@ -23,6 +23,7 @@ docker run -d --name skald --restart unless-stopped \
 - `:2` follows every 2.x release and never a breaking one.
 - Not a Next.js site? Add `-e SKALD_ASSET_PREFIXES="/wp-content/ /wp-includes/"` (WordPress), or the folder your pages load their scripts and styles from. A visit counts as people only when its browser fetched one.
 - The last line is for nginx on the same machine. It lets Skald see each visitor's address, not nginx's.
+- Countries: nginx's stock log has no country. To get one, give Skald a GeoIP country file. DB-IP's free country file works. Keep it on the host, for example in `/usr/share/GeoIP`, and add `-v /usr/share/GeoIP:/geoip:ro -e SKALD_COUNTRY_DB=/geoip/dbip-country-lite.mmdb`. Each visit then gets its address's country, and so does a lead your backend sends with an address. Refresh the file on the host once a month (your updater or a cron job that downloads DB-IP's new file). Skald reads the new file by itself, no restart. DB-IP's credit is shown under the countries. Without a file, countries say Unknown. A country your log already carries (Cloudflare's, or nginx's own `cc=`) always wins.
 - A new install keeps each visit with its IP address, and each lead's name and email, so admins can look a person up. To keep neither, add `-e SKALD_KEEP_IPS=0 -e SKALD_IDENTITY=anonymous`. Admins can change both later in **Settings > Data retention > People**. See [Privacy](privacy.md).
 
 ## 2. Put it on the web (2 minutes)

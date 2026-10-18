@@ -27,7 +27,7 @@ from zoneinfo import ZoneInfo
 from .aggregate import Totals, summarise_views
 from .classify import Classifier, crawler_visits
 from .config import setting
-from .parse import Hit, ReadStats, log_files, oldest_first, read
+from .parse import Hit, ReadStats, geo_database, log_files, oldest_first, read
 
 # A line can land in the file after the one its timestamp belongs to: the
 # server buffers writes, and reopens its log some time after the rename. Six
@@ -156,7 +156,7 @@ def analyse_window_views(config: dict, start: datetime, end: datetime,
     stats = ReadStats()
     edges = _Edges()
     whole, by_view = summarise_views(
-        edges.watch(within(read(paths, fmt, stats), start, end)),
+        edges.watch(within(read(paths, fmt, stats, geo_database(config)), start, end)),
         classifier,
         int(setting(config, "report", "session_gap_minutes", 30)),
         top=top,
@@ -237,7 +237,7 @@ def analyse_paths(config: dict, paths: list[Path], top: int = 8,
     classifier = _classifier(config, read(paths, fmt))
     stats = ReadStats()
     totals = summarise_views(
-        read(paths, fmt, stats),
+        read(paths, fmt, stats, geo_database(config)),
         classifier,
         int(setting(config, "report", "session_gap_minutes", 30)),
         top=top,

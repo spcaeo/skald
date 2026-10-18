@@ -266,6 +266,9 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
 
 **Inputs**
 - nginx and Apache logs (combined or extended), Caddy JSON.
+- Countries from the log (Cloudflare's country, or nginx's `cc=`). A log without one (Caddy, a plain
+  combined log) gets each address's country from a GeoIP file you give it (`SKALD_COUNTRY_DB`;
+  DB-IP's free country file works, and its credit is shown). Without one, Unknown, never guessed.
 - CDN logs: Cloudflare Logpush, CloudFront, Fastly. Pages served from the CDN cache are counted too.
 - Vercel and Netlify log drains, and the Skald Worker for Cloudflare on any plan (it posts each
   request after the page has gone out; with your server's log, only cache hits are kept).

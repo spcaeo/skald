@@ -20,6 +20,10 @@ Every figure is counted twice, by two separate roads. If the two counts do not a
 
 Blank means not known. Zero means Skald counted and found nothing. A figure that was not recorded, for example a breakdown from before Skald began collecting it, stays blank. Unknown stays unknown.
 
+## Why do my countries say Unknown?
+
+Skald takes a visit's country from your server's log. Some logs carry it (Cloudflare's country, or nginx's own `cc=` field). Others do not, for example Caddy's log or nginx's stock log. For those, whoever runs your Skald server can set a GeoIP country file (`logs.country_db`, or `SKALD_COUNTRY_DB` in Docker; DB-IP's free file works). Skald then looks up each visit's address in it. Without a file, the country stays Unknown. It is never guessed. See [Docker: first install](docker-first-install.md).
+
 ## Is AI traffic counted as people?
 
 No. AI crawlers and fetches are machines, and show under AI & bots ([Assistants](#ai/assistants) and [Crawlers](#ai/crawlers)) in their own units. A person who clicks a link in an AI answer is a person, and the AI assistant is shown as their source on [Traffic > Sources](#traffic/sources), and in full on AI & bots > Assistants.

@@ -121,6 +121,11 @@ class ContainerConfig(unittest.TestCase):
         self.assertEqual(cfg["report"]["timezone"], "UTC")
         self.assertNotIn("beacon", cfg)
 
+    def test_the_country_file(self):
+        self.assertNotIn("country_db", entrypoint.render_config({})["logs"])
+        cfg = entrypoint.render_config({"SKALD_COUNTRY_DB": " /geoip/dbip-country-lite.mmdb "})
+        self.assertEqual(cfg["logs"]["country_db"], "/geoip/dbip-country-lite.mmdb")
+
     def test_from_the_environment(self):
         env = {"SKALD_SITE": "Example.com", "SKALD_HOSTS": "example.com, www.example.com",
                "SKALD_TIMEZONE": "Europe/Berlin", "SKALD_BASE_URL": "https://stats.example.com/",

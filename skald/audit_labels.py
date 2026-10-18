@@ -97,6 +97,12 @@ _SOCIAL_SITES = ("facebook.com", "fb.com", "instagram.com", "linkedin.com", "lnk
                  "tiktok.com", "threads.net", "ycombinator.com", "quora.com", "t.me",
                  "whatsapp.com", "slack.com", "discord.com", "bsky.app",
                  "mastodon.social")
+# Android app ids (android-app://<id>/) that are social: the id itself, or
+# the id followed by more of its own (com.whatsapp.w4b).
+_SOCIAL_APPS = ("com.google.android.youtube", "com.whatsapp", "org.telegram.messenger")
+# Google's web search country domains: google.<cc>, google.com, google.com.<cc>,
+# google.co.<cc>. Any other google.* name (com.google.android.<app>) is not.
+_GOOGLE_SEARCH = re.compile(r"(?:^|\.)google\.(?:com|com\.[a-z]{2}|co\.[a-z]{2}|[a-z]{2,3})$")
 _MAIL_HOSTS = {"mail.google.com", "outlook.live.com", "outlook.office.com",
                "outlook.office365.com", "mail.yahoo.com", "mail.proton.me",
                "com.google.android.gm", "com.microsoft.office.outlook"}
@@ -129,31 +135,50 @@ def source_of(line: Line, cited: bool, own: set) -> str:
             return "This site"
         if host in _MAIL_HOSTS:
             return "Email"
-        if re.search(r"(?:^|\.)google\.[a-z.]+$", host) or re.search(
+        if _GOOGLE_SEARCH.search(host) or re.search(
                 r"(?:^|\.)yandex\.[a-z.]+$", host) or _under(host, _SEARCH_SITES) or \
                 host == "com.google.android.googlequicksearchbox":
             return "Search engine"
         if _under(host, _SOCIAL_SITES) or re.search(r"(?:^|\.)pinterest\.[a-z.]+$", host) \
-                or re.match(r"com\.(?:linkedin|facebook|instagram|twitter|reddit|slack)", host):
+                or re.match(r"com\.(?:linkedin|facebook|instagram|twitter|reddit|slack)", host) \
+                or any(host == a or host.startswith(a + ".") for a in _SOCIAL_APPS):
             return "Social media"
         return "Other website"
     tags = _tags(line.url)
     if tags.get("utm_source") or tags.get("utm_medium"):
-        words = set(re.split(r"[^a-z0-9]+", f"{tags.get('utm_source', '')} "
-                                            f"{tags.get('utm_medium', '')}".lower()))
-        if words & {"google", "bing", "duckduckgo", "yahoo", "cpc", "ppc"}:
-            return "Search engine"
-        if words & {"linkedin", "facebook", "instagram", "twitter", "x", "reddit",
-                    "youtube", "tiktok", "social"}:
-            return "Social media"
-        if words & {"email", "newsletter", "mailchimp", "hubspot", "gmail"}:
-            return "Email"
+        # utm_source first; utm_medium only when the source names no kind.
+        for key in ("utm_source", "utm_medium"):
+            kind = _utm_kind(tags.get(key, ""))
+            if kind:
+                return kind
         return "Tagged link"
-    if tags.get("gclid") or tags.get("msclkid"):
-        return "Search engine"
-    if tags.get("fbclid") or tags.get("li_fat_id"):
-        return "Social media"
+    for key, kind, _ in _CLICKS:
+        if tags.get(key):
+            return kind
     return "Direct or unknown"
+
+
+def _utm_kind(value: str) -> str:
+    words = set(re.split(r"[^a-z0-9]+", value.lower()))
+    if words & {"google", "bing", "duckduckgo", "yahoo", "cpc", "ppc"}:
+        return "Search engine"
+    if words & {"linkedin", "facebook", "instagram", "twitter", "x", "reddit",
+                "youtube", "tiktok", "social"}:
+        return "Social media"
+    if words & {"email", "newsletter", "mailchimp", "hubspot", "gmail"}:
+        return "Email"
+    return ""
+
+
+# Ad click ids with no utm_ tag, in order: (id, source type, campaign).
+_CLICKS = (("gclid", "Search engine", "google / cpc / (gclid)"),
+           ("gbraid", "Search engine", "google / cpc / (gbraid)"),
+           ("wbraid", "Search engine", "google / cpc / (wbraid)"),
+           ("msclkid", "Search engine", "bing / cpc / (msclkid)"),
+           ("fbclid", "Social media", "facebook / (fbclid) / -"),
+           ("li_fat_id", "Social media", "linkedin / (li_fat_id) / -"),
+           ("ttclid", "Social media", "tiktok / (ttclid) / -"),
+           ("twclid", "Social media", "x / (twclid) / -"))
 
 
 def referrer_of(line: Line, own: set) -> str:
@@ -170,10 +195,7 @@ def campaign_of(url: str) -> str:
     parts = [tags.get(k, "") for k in ("utm_source", "utm_medium", "utm_campaign")]
     if any(parts):
         return " / ".join((v or "-").strip().lower()[:30] for v in parts)
-    for key, said in (("gclid", "google / cpc / (gclid)"),
-                      ("msclkid", "bing / cpc / (msclkid)"),
-                      ("fbclid", "facebook / (fbclid) / -"),
-                      ("li_fat_id", "linkedin / (li_fat_id) / -")):
+    for key, _, said in _CLICKS:
         if tags.get(key):
             return said
     return "(no campaign tag)"

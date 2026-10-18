@@ -188,9 +188,11 @@ website") does not need the snippet:
 4. Pass the same ID as `vid` in the signed `lead` hook (below) when a lead is
    made, so the server's record joins the browser's journey.
 
-Leads need no hook when Skald reads them from the website's own lead
-database (next section), which it already reads for Leads & sales > Pipeline
-(Count from: Lead database).
+example.com's website posts a signed `lead` hook for each lead and a signed
+`calendly` hook for each booking. A site whose lead database sits on Skald's
+own server needs no lead hook: Skald reads the leads from that database (next
+section), which it already reads for Leads & sales > Pipeline (Count from:
+Lead database).
 
 ## Leads from the lead database
 

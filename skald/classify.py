@@ -103,6 +103,11 @@ AI_FETCHER_OWNERS = {
 # window: counted once, under this name, never under each.
 AI_LIKELY_MANY = "(more than one)"
 
+# Skald's own fetchers: always our own traffic, never a bot in the counts,
+# whatever the `ours` lists say. robots.py fetches the site's robots.txt
+# hourly as "site-version-check/1"; it used to land in bots on every site.
+OWN_AGENTS = (("site-version-check/", "Skald (robots.txt check)"),)
+
 # A person who followed a citation. Identified by where they came FROM, since
 # their user agent is an ordinary browser's.
 #
@@ -110,10 +115,16 @@ AI_LIKELY_MANY = "(more than one)"
 # A substring match counted thank-you.com as you.com, and would have counted
 # notperplexity.ai or a ?ref=chatgpt.com query too. Most specific first, so
 # chat.openai.com is reported as itself rather than as openai.com.
+#
+# An assistant's Android app sends its package id as the referrer's host
+# (android-app://com.openai.chatgpt/); those ids count as the assistant
+# (ASSISTANT_ALIASES names them). Only the assistants' own published app ids.
 AI_REFERRER_HOSTS = (
     "chatgpt.com", "chat.openai.com", "openai.com", "perplexity.ai", "claude.ai",
     "gemini.google.com", "copilot.microsoft.com", "you.com", "phind.com",
     "poe.com", "mistral.ai",
+    "com.openai.chatgpt", "ai.perplexity.app.android", "com.anthropic.claude",
+    "com.google.android.apps.bard", "com.microsoft.copilot",
 )
 # Bing's assistant shares its host with Bing search; only its path tells.
 AI_REFERRER_PATHS = {"bing.com": "/chat"}
@@ -130,6 +141,10 @@ ASSISTANT_ALIASES = {
     "perplexity": "perplexity.ai", "claude": "claude.ai",
     "gemini": "gemini.google.com", "copilot": "copilot.microsoft.com",
     "bing.com/chat": "copilot.microsoft.com", "mistral": "mistral.ai",
+    # Android apps, by package id.
+    "com.openai.chatgpt": "chatgpt.com", "ai.perplexity.app.android": "perplexity.ai",
+    "com.anthropic.claude": "claude.ai", "com.google.android.apps.bard": "gemini.google.com",
+    "com.microsoft.copilot": "copilot.microsoft.com",
 }
 
 
@@ -477,6 +492,7 @@ class Classifier:
         # dashboard can say which rule a request matched without ever
         # showing the address behind it.
         self.ours_agents = [(v.lower(), l) for v, l in ours_entries(our_agents, "user_agents")]
+        self.ours_agents += [(v.lower(), l) for v, l in OWN_AGENTS]
         self.ours_referrers = [(v.lower(), l) for v, l in ours_entries(our_referrers, "referrers")]
         self.ours_agent = self._any_of([v for v, _ in self.ours_agents])
         self.ours_referrer = self._any_of([v for v, _ in self.ours_referrers])
