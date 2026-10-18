@@ -25,8 +25,12 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-18d",
+  id: "2026-10-18e",
   items: [
+    ["Today, live", "the dashboard now opens on Today with live figures on every page; pick another period any time."],
+    ["Forms", "a visit is no longer marked \"form sent\" because the script tag reported an event."],
+    ["Bots", "about 60 more crawlers, AI agents and monitors recognised; phone browsers that look like bots stay people."],
+    ["Returning readers", "a returning visitor whose browser has your site's files cached now counts as a reader when your pages have the script tag."],
     ["Crawler cost", "what each crawler costs your server: requests, data sent, response time, errors and re-crawls. Open one for its detail by day.", "ai-and-bots"],
     ["Client sites", "page assets and the visitor IDs switch per site in Settings > Sites; settings and site commands from the shell."],
     ["Google AI Mode", "a visit from Google's AI Mode reads \"google.com (AI Mode)\" under Search engine.", "faq"],

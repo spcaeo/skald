@@ -224,7 +224,7 @@ class TestMisfiledAgentsAndReferrers(unittest.TestCase):
         for agent in ("Mozilla/5.0 (compatible; ctwatch/0.1)",
                       "Mozilla/5.0 (compatible; jSystem3-metadata-indexer/0.1)",
                       NEXUS,
-                      "Mozilla/5.0 (compatible; SeznamBot/4.0; +https://o-seznam.cz/)",
+                      "Mozilla/5.0 (compatible; ExampleBot/4.0; +https://example.com/)",
                       "Mozilla/5.0 (compatible; FooBot/2.1)"):
             with self.subTest(agent=agent):
                 self.assertIs(self.verdict(agent).group, Group.BOTS)

@@ -8,8 +8,9 @@
 
 <p align="center">
   <strong>Every visit, truly told.</strong><br>
-  Self-hosted web analytics that reads your server's own access log, so you see the people,<br>
-  the AI assistants, the crawlers and the bots that a JavaScript tracker never sees.
+  Web analytics from your server's own access log: the people, the AI assistants and the crawlers<br>
+  that a JavaScript tracker never sees. Every figure is counted twice, by an independent audit.<br>
+  No cookies, nothing needed in the visitor's browser. Self-host it free, or try hosted Skald in beta.
 </p>
 
 <p align="center">
@@ -18,22 +19,24 @@
   <img alt="Zero dependencies" src="https://img.shields.io/badge/dependencies-zero-2b8a3e">
   <a href="https://github.com/spcaeo/skald/actions/workflows/ci.yml"><img alt="Tests" src="https://github.com/spcaeo/skald/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/spcaeo/skald/pkgs/container/skald"><img alt="Docker image" src="https://img.shields.io/badge/docker-ghcr.io%2Fspcaeo%2Fskald-2496ed"></a>
-  <img alt="Version 2.7.0" src="https://img.shields.io/badge/version-2.7.0-555">
+  <a href="https://github.com/spcaeo/skald/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/spcaeo/skald?sort=semver&label=release&color=555"></a>
 </p>
 
 <p align="center">
-  <a href="https://spcaeo.github.io/skald/"><img alt="Try the live demo" src="https://img.shields.io/badge/try_the_live_demo-sample_data,_no_sign--up-2a78d6?style=for-the-badge"></a>
+  <a href="https://spcaeo.github.io/skald/"><img alt="Try the live demo: sample data, no sign-up" src="https://img.shields.io/badge/try_the_live_demo-sample_data,_no_sign--up-2a78d6?style=for-the-badge"></a>
+  <a href="https://skaldanalytics.com/beta/"><img alt="Hosted Skald beta: 30 days free, no card" src="https://img.shields.io/badge/hosted_beta-30_days_free,_no_card-2b8a3e?style=for-the-badge"></a>
 </p>
 
 <p align="center">
   <a href="https://spcaeo.github.io/skald/"><strong>Live demo</strong></a> ·
   <a href="#quick-start-in-60-seconds"><strong>Quick start</strong></a> ·
+  <a href="#whats-new">What's new</a> ·
   <a href="#see-it">Screenshots</a> ·
   <a href="#how-skald-compares">Comparison</a> ·
   <a href="docs/INSTALL.md">Install guide</a> ·
   <a href="SECURITY.md">Security</a> ·
   <a href="#faq">FAQ</a> ·
-  <a href="#hosted-skald-and-commercial-licences">Hosted / commercial</a>
+  <a href="#hosted-skald-and-commercial-licences">Hosted beta / commercial</a>
 </p>
 
 <p align="center">
@@ -45,6 +48,23 @@
 </p>
 
 ---
+
+## What's new
+
+- **2.10.0: what AI reads, asks for and costs** ([changelog](CHANGELOG.md#2100-2026-10-18)). What
+  an assistant read just before it sent you a visitor. What AI fetches ask for: pages, `llms.txt`,
+  Markdown, `robots.txt`, sitemaps. Google's AI Mode told apart. What each crawler costs your
+  server, with a detail view per crawler.
+- **2.9.0: the script tag on every site of one install** ([changelog](CHANGELOG.md#290-2026-10-18)),
+  each site's events kept and audited apart. Google Ads clicks from iOS read as paid.
+- **2.8.1: API calls are not pages** ([changelog](CHANGELOG.md#281-2026-10-18)). Requests under
+  `/api/` are evidence of a visit, never a page view.
+- **2.8.0: countries for any log** ([changelog](CHANGELOG.md#280-2026-10-18)) from a GeoIP file
+  (DB-IP's free file works). Caddy logs pass the audit. More accurate people counts for sites added
+  from the dashboard on a multi-site install. Source fixes: AI assistants' phone apps count as
+  citations, paid social is Social media, and TikTok and X click IDs are read.
+
+[Full changelog](CHANGELOG.md) · [All releases](https://github.com/spcaeo/skald/releases)
 
 ## Your analytics cannot see the new visitors
 
@@ -64,9 +84,8 @@ lands in exactly one of five groups, and the five add up to the log exactly.
 | **Bots and scanners** | Monitors, SEO tools, chat link previews, and probes hunting for `.env` or `wp-login`. |
 | **Your own traffic** | Your team, your crawler, your tests. Kept apart, never counted as people. |
 
-How much of your traffic is AI assistants reading your pages? Only your server's log can say: a
-script-based tool shows none of it. Skald's first run answers it for your own site, from the log you
-already have, with every request in exactly one of these groups.
+How much of your traffic is AI assistants reading your pages? Only your server's log can say, and
+Skald's first run answers it for your own site, from the log you already have.
 
 ## Why Skald
 
@@ -123,9 +142,9 @@ words. Alerts show on the dashboard, and by email if you want them.
 ### Results, not just visits
 Leads, funnels and conversions, in one section with one row of options. Leads and demos booked
 also sit beside the traffic where they help: Overview, Sources, Pages, Places & devices and
-Insights, with a lead rate per source, page and country. Calendly, Cal.com, Stripe, Typeform, HubSpot and Zapier push signed
-webhooks; the optional `skald.js` tag adds clicks, form steps and bookings. Checked twice like
-everything else. Nothing hidden: spam, test, cancelled and removed rows are listed, not lost.
+Insights, with a lead rate per source, page and country. Calendly, Cal.com, Stripe, Typeform,
+HubSpot and Zapier push signed webhooks; the optional `skald.js` tag adds clicks, form steps and
+bookings, on every site of the install. Checked twice like everything else.
 
 </td>
 </tr>
@@ -183,6 +202,9 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
 - Five groups that add up to the log, every day, every site.
 - Visitors, visits, pages read, countries (with a flag beside each, everywhere), browsers, systems,
   devices, sources, referring sites, UTM campaigns and ad networks (from the click ID, never its value).
+- AI assistants' phone apps count as citations; paid social, iOS Google Ads, TikTok and X clicks
+  are told apart by their tags and click IDs.
+- Calls under `/api/` (a site's own JSON API) are evidence of a visit, never a page view.
 - A new outside source starts a new visit: someone who opens the site directly and comes back from
   ChatGPT minutes later is two visits, the second from ChatGPT, so an AI assistant's visit is never
   hidden inside an earlier one.
@@ -293,18 +315,29 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
 
 ## See it
 
-**[Try the live demo](https://spcaeo.github.io/skald/)**: the whole dashboard with 60 days of sample
-data for a made-up site, in your browser, flags, leads and bookings, the left-out leads and the
-removed conversions included. Nothing to install. Settings, saving and the person search need your own Skald.
+<p align="center">
+  <a href="https://spcaeo.github.io/skald/"><strong>Try the live demo: sample data, no sign-up.</strong></a>
+</p>
+
+The whole dashboard with 60 days of sample data for a made-up site, in your browser: AI & bots with the
+new 2.10.0 reports, flags, leads and bookings, the left-out leads and the removed conversions included.
+Nothing to install. Settings, saving and the person search need your own Skald.
+
+### New in 2.10.0: what AI reads, asks for and costs
+
+| | |
+| :---: | :---: |
+| <img src="docs/screenshots/ai-read.png" alt="What the AI read before it sent a visitor: per assistant, visits from its answers, how many it fetched pages for first, how many landed on a page it fetched, and likely visits kept apart" width="460"><br>**What the AI read before it sent a visitor.** Per assistant: visits from its answers, and how many landed on a page it had just fetched. | <img src="docs/screenshots/ai-fetch-formats.png" alt="What they fetch: every AI crawler fetch by what its address names (pages, llms.txt, Markdown, robots.txt, sitemaps), in total and per crawler" width="460"><br>**What AI fetches ask for.** Pages, `llms.txt`, Markdown, `robots.txt`, sitemaps, per crawler. |
+| <img src="docs/screenshots/crawler-cost.png" alt="What each crawler costs: Googlebot, GPTBot, ClaudeBot, bingbot and others with requests, bytes sent, mean time, errors, distinct paths, re-crawl and last seen" width="460"><br>**What each crawler costs.** Requests, bytes, response time, errors and re-crawls, every crawler side by side. | <img src="docs/screenshots/crawler-detail.png" alt="GPTBot's detail: requests per day, bytes, mean time, errors, the share from its own checked addresses, pages it fetched, status mix, countries and the user agent it sent" width="460"><br>**One crawler in detail.** By day, pages, statuses, the address check (impostors filed apart), user agents. |
+| <img src="docs/screenshots/ai-assistants.png" alt="AI & bots, Assistants: pages fetched to answer a question per day, assistants by name with their address check and robots.txt rule, and what they fetch" width="460"><br>**AI & bots › Assistants.** Who read your pages to answer someone, and who came from it. | <img src="docs/screenshots/ai-assistant-cost.png" alt="What each assistant costs: requests, bytes sent, mean time, errors, distinct paths, re-crawl and last seen for ChatGPT-User, Perplexity-User and Claude-User" width="460"><br>**What each assistant costs.** ChatGPT, Perplexity and Claude fetching live for a user. |
+
+### The rest of the dashboard
 
 | | |
 | :---: | :---: |
 | <img src="docs/screenshots/overview.png" alt="Overview, Summary: visitors, pages read, visitors from AI, leads and demos booked in even rows of tiles, a chart with each day's leads, and the other groups" width="460"><br>**Overview.** The period at a glance, five groups that add up. | <img src="docs/screenshots/live-mode.png" alt="Today · Live switched on: today's figures refreshing, the newest visits, AI events and today's leads and bookings" width="460"><br>**Today · Live.** One switch, on every section. |
 | <img src="docs/screenshots/compare-mode.png" alt="Compare with the previous period switched on: each table shows A, B and the change beside every row" width="460"><br>**Compare with…** Previous period, last year or any period, on every section. | <img src="docs/screenshots/traffic-sources-grid.png" alt="Traffic, Sources: one grid with segments for source type, referring site and campaign, with search, sort, leads and lead rate" width="460"><br>**Traffic › Sources.** One grid; search, filters and sort kept in the address. |
 | <img src="docs/screenshots/sales-pipeline.png" alt="Leads & sales, Pipeline: one options row (count from, source, action, stage, show left out, period) above leads by stage" width="460"><br>**Leads & sales › Pipeline.** One row of options, every lead by stage. | <img src="docs/screenshots/sales-bookings.png" alt="Leads & sales, Bookings: demo bookings from the booking tool by stage, the demo funnel and where bookings came from" width="460"><br>**Bookings.** Every stage, cancelled and removed ones too. |
-| <img src="docs/screenshots/ai-assistants.png" alt="AI & bots, Assistants: pages fetched to answer a question per day, assistants by name with their address check and robots.txt rule, and what they fetch" width="460"><br>**AI & bots › Assistants.** Who read your pages to answer someone, and who came from it. | <img src="docs/screenshots/ai-read.png" alt="What the AI read before it sent a visitor: per assistant, visits from its answers, how many it fetched pages for first, how many landed on a page it fetched, and likely visits kept apart" width="460"><br>**What the AI read.** The pages an assistant fetched just before it sent a visitor. |
-| <img src="docs/screenshots/ai-fetch-formats.png" alt="What they fetch: every AI crawler fetch by what its address names (here pages and robots.txt), in total and per crawler" width="460"><br>**What they fetch.** Pages, llms.txt, Markdown, robots.txt, sitemaps. | <img src="docs/screenshots/ai-assistant-cost.png" alt="What each assistant costs: requests, bytes sent, mean time, errors, distinct paths, re-crawl and last seen for ChatGPT-User, Perplexity-User and Claude-User" width="460"><br>**What each assistant costs.** Requests, bytes, time, errors. |
-| <img src="docs/screenshots/crawler-cost.png" alt="What each crawler costs: Googlebot, GPTBot, ClaudeBot, bingbot and others with requests, bytes sent, mean time, errors, distinct paths, re-crawl and last seen" width="460"><br>**What each crawler costs.** Every crawler and bot, side by side. | <img src="docs/screenshots/crawler-detail.png" alt="GPTBot's detail: requests per day, bytes, mean time, errors, the share from its own checked addresses, pages it fetched, status mix, countries and the user agent it sent" width="460"><br>**One crawler in detail.** By day, pages, statuses, address check, user agents. |
 | <img src="docs/screenshots/live-leads.png" alt="Today's leads and bookings as they arrive, with time, stage, source, landing page and country" width="460"><br>**Live leads.** Each lead and booking as it lands. | <img src="docs/screenshots/conversions.png" alt="Conversions: started, completed and abandoned by action, and the demo booking funnel" width="460"><br>**Conversions.** Started, completed, abandoned. |
 | <img src="docs/screenshots/funnels.png" alt="A saved funnel's history: drop-off by step and visits at each step, per day" width="460"><br>**Funnels.** Saved once, counted every day. | <img src="docs/screenshots/visitors.png" alt="Each visit: time, country with its flag, device, browser, source and the pages in order" width="460"><br>**Visitors.** Each visit, page by page, a flag beside every country. |
 | <img src="docs/screenshots/mcp-claude.png" alt="Example: adding Skald's MCP server with one command, and the answer of its ai_activity tool" width="460"><br>**MCP in Claude.** Ask about your traffic in plain words. | <img src="docs/screenshots/person-search.png" alt="Person search for the IP address 203.0.113.109: eight visits from August to October, each with source, referrer, landing page, pages in order, country and device, and the two leads sent from those visits" width="460"><br>**Person search.** One address: every visit kept, across days, and the leads it sent. |
@@ -686,7 +719,9 @@ A busy day's log takes about a second for the live view, and only today's files 
 database server, no queue, no build step.
 
 **Is there a hosted version?**
-Not yet. Sign-up, plans and Stripe billing are built and switched off. See below.
+Yes, in beta. [Join the beta or start a 30-day free trial](https://skaldanalytics.com/beta/): we set
+the account up for you within one working day, and no card is needed. Or run Skald on your own
+server, free, with the quick start above.
 
 ## Roadmap
 
@@ -697,7 +732,7 @@ Not yet. Sign-up, plans and Stripe billing are built and switched off. See below
 - More crawler owners verified (Baidu next).
 - Counting refinements listed in [docs/ROADMAP.md](docs/ROADMAP.md): HEAD requests, `/pricing` equal to `/pricing/`,
   `%xx` decoding.
-- Hosted Skald.
+- Hosted Skald out of beta.
 
 Have a need that is not here? [Open a feature request](https://github.com/spcaeo/skald/issues/new/choose).
 
@@ -717,9 +752,13 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) (including the short contributor licence
 
 ## Hosted Skald and commercial licences
 
-Want Skald without running a server, or want to offer Skald to your own customers as a service?
-That needs a commercial licence from Space-O Technologies.
-**[Talk to us](https://www.spaceo.ca/contact-us/)** and say "Skald" in your message.
+**Rather not run a server?** Hosted Skald is in beta at
+**[skaldanalytics.com](https://skaldanalytics.com/beta/)**: 30 days free, no card, your account
+ready within one working day. Or join the beta list and we will contact you.
+
+**Want to offer Skald to your own customers as a service?** That needs a commercial licence from
+Space-O Technologies. **[Talk to us](https://www.spaceo.ca/contact-us/)** and say "Skald" in your
+message.
 
 ## Licence
 

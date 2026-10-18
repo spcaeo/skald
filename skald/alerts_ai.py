@@ -93,7 +93,11 @@ VENDORS = {"openai": "OpenAI", "anthropic": "Anthropic", "perplexity": "Perplexi
            "google": "Google", "bing": "Microsoft", "apple": "Apple", "meta": "Meta",
            "duckduckgo": "DuckDuckGo", "yandex": "Yandex"}
 MORE = {"gemini-user": "Google", "mistralai-user": "Mistral", "bytespider": "ByteDance",
-        "amazonbot": "Amazon", "ccbot": "Common Crawl", "cohere-ai": "Cohere"}
+        "amazonbot": "Amazon", "ccbot": "Common Crawl", "cohere-ai": "Cohere",
+        "claude-web": "Anthropic", "google-agent": "Google", "googleagent-mariner": "Google",
+        "google-gemininotebook": "Google", "google-notebooklm": "Google",
+        "google-cloudvertexbot": "Google", "amzn-searchbot": "Amazon", "amzn-user": "Amazon",
+        "cohere-training-data-crawler": "Cohere"}
 
 
 def owner(name: str) -> str:

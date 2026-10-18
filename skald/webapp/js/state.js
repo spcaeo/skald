@@ -88,7 +88,7 @@ export const FILTERS = ["country", "path", "source", "device", "browser", "campa
 const GLOBAL = ["range", "view", "from", "to", "pathmode", "cmp", "dd", "tz"];
 // Kept while Compare is on (2.7.0): the custom B, "Per day", the old Compare page's chart keys.
 const CMP_KEYS = ["cb", "cnorm", "cgran", "cm"];
-const DEFAULT = { tab: "overview/summary", range: "30d", view: "all", from: "", to: "", pathmode: "contains", page: "", since: "", cmp: "", ip: "", rq: "", dd: "", tz: "", part: "", note: "", fn: "", fsrc: "", fstep: "", fmode: "", strat: "", ca: "", cb: "", cnorm: "", cgran: "", cm: "", cdim: "", pubfrom: "", pubto: "" };
+const DEFAULT = { tab: "overview/summary", range: "today", view: "all", from: "", to: "", pathmode: "contains", page: "", since: "", cmp: "", ip: "", rq: "", dd: "", tz: "", part: "", note: "", fn: "", fsrc: "", fstep: "", fmode: "", strat: "", ca: "", cb: "", cnorm: "", cgran: "", cm: "", cdim: "", pubfrom: "", pubto: "" };
 
 // The state in the address. `moved`: the address was an older one (or the old compare
 // switch), and emit() writes the new one in its place.

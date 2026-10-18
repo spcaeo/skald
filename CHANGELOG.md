@@ -4,6 +4,33 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.10.1 (2026-10-18)
+
+### Changed
+
+- **More bots recognised, no person lost.** Checked against Crawler-Detect's test files (3,713
+  crawler and 165,640 device user agents): `Claude-Web`, Google's AI agents (`Google-Agent`,
+  NotebookLM), Amazon's AI user fetcher, Seznam, Naver, Coc Coc, Qwant, Mojeek and about 45
+  monitors, testers and scanners added. Sogou's phone browser and phones named "... bot" stay
+  people. The check is a dev-time tool (`tools/check-bot-names.py`); nothing is synced at runtime.
+
+- **Today is the default period.** The dashboard opens on Today, live, on every page. Old links
+  that name a period keep it.
+
+### Fixed
+
+- **"Form sent" on every visit.** The script tag posts its events to `/traffic-beacon`; when the
+  site's log kept those requests, every visit with the tag counted as having sent a form. A POST
+  to Skald's own endpoints (`/traffic-beacon`, `/traffic-js/`, `/traffic-hooks/`,
+  `/traffic-ingest/`) is no form post, on both counting roads.
+- **Returning readers with everything cached.** A browser that already had a site's styles and
+  scripts cached asked for none, so it passed the render test only if the script tag's page
+  opening was kept. That page opening (`page_view`) was dropped unless beacon-only mode or
+  visitor IDs were on, so a real returning reader could be missing. Now the page opening is kept,
+  apart from the events (`opens-<day>.jsonl` beside the spool: path and time only, no address,
+  no agent), as proof that the page was drawn. Both counting roads read it. It is not counted
+  as an event and changes no event figure.
+
 ## 2.10.0 (2026-10-18)
 
 What AI assistants and crawlers read, ask for and cost, Google's AI Mode told apart, and client

@@ -77,14 +77,27 @@ AI_TRAINING = re.compile(
     r"GPTBot|ClaudeBot|Claude-SearchBot|CCBot|anthropic-ai|OAI-SearchBot"
     r"|PerplexityBot|meta-externalagent|FacebookBot|Bytespider|Amazonbot|Applebot-Extended"
     r"|cohere-ai|Diffbot|omgili|AI2Bot|Timpibot|ImagesiftBot|YouBot"
-    r"|PanguBot|Kangaroo Bot|DuckAssistBot",
+    r"|PanguBot|Kangaroo Bot|DuckAssistBot"
+    # Added 2026-10-18 from the dev-time check (tools/check-bot-names.py) and
+    # the owners' own crawler pages: Amazon's search index for Alexa (not
+    # training, but nobody waits on it either), Google's Vertex AI agent
+    # crawler, and Cohere's training crawler.
+    r"|Amzn-SearchBot|Google-CloudVertexBot|cohere-training-data-crawler",
     re.I,
 )
 
 # Fetching right now because a person asked the assistant something.
 AI_ASKED = re.compile(
     r"ChatGPT-User|Claude-User|Perplexity-User|meta-externalfetcher"
-    r"|Gemini-User|BingPreview|MistralAI-User",
+    r"|Gemini-User|BingPreview|MistralAI-User"
+    # Added 2026-10-18: Anthropic's older agent for fetches made from
+    # claude.ai (Claude-User replaced it; still seen), Google's agents that
+    # browse and act on a user's request (Google-Agent, documented with the
+    # user-triggered fetchers; GoogleAgent-Mariner, Project Mariner), the
+    # notebook that reads a source a user added (Google-GeminiNotebook, and
+    # its old name Google-NotebookLM), and Alexa answering a question.
+    r"|Claude-Web|Google-Agent|GoogleAgent-Mariner|Google-GeminiNotebook"
+    r"|Google-NotebookLM|Amzn-User",
     re.I,
 )
 
@@ -98,6 +111,10 @@ AI_FETCHER_OWNERS = {
     "perplexity-user": "perplexity.ai", "gemini-user": "gemini.google.com",
     "bingpreview": "copilot.microsoft.com", "mistralai-user": "mistral.ai",
     "meta-externalfetcher": "meta.ai",
+    "claude-web": "claude.ai", "google-agent": "gemini.google.com",
+    "googleagent-mariner": "gemini.google.com",
+    "google-gemininotebook": "gemini.google.com",
+    "google-notebooklm": "gemini.google.com", "amzn-user": "alexa.amazon.com",
 }
 # A likely-referred visit whose page two or more assistants fetched in the
 # window: counted once, under this name, never under each.
@@ -219,8 +236,15 @@ def ads_checks(engines) -> int:
 SEARCH_ENGINE = re.compile(
     r"Googlebot|Google-InspectionTool|GoogleOther|APIs-Google|AdsBot-Google"
     r"|Google-Adwords-Instant"
-    r"|bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot|Sogou|Exabot"
-    r"|Applebot(?!-Extended)",
+    r"|bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot|Exabot"
+    r"|Applebot(?!-Extended)"
+    # Sogou's spiders, never its own browsers: SogouMobileBrowser and SogouMSE
+    # are people with a phone (found by tools/check-bot-names.py).
+    r"|Sogou(?!MSE|MobileBrowser|Explorer)"
+    # Added 2026-10-18: national and independent search engines' indexing
+    # crawlers - Seznam (Czech), Naver's Yeti (Korean), Coc Coc
+    # (Vietnamese), Qwant (French), Mojeek (British).
+    r"|SeznamBot|Yeti(?=/)|coccocbot|Qwantbot|Qwantify|MojeekBot",
     re.I,
 )
 
@@ -249,6 +273,9 @@ LINK_PREVIEWS = (
     (re.compile(r"vkShare", re.I), "VK"),
     (re.compile(r"Bluesky Cardyb|Cardyb/", re.I), "Bluesky"),
     (re.compile(r"Mastodon/", re.I), "Mastodon"),
+    # Added 2026-10-18: Google Messages (RCS chats), a documented
+    # user-triggered fetcher whose only job is the preview.
+    (re.compile(r"GoogleMessages/", re.I), "Google Messages"),
 )
 LINK_PREVIEW = "link preview: "
 
@@ -263,11 +290,13 @@ def link_preview(agent: str) -> str:
 # Automated, not an engine. Monitors, SEO suites, link unfurlers, libraries.
 #
 # "bot" counts as a word only when no letter comes before it: CUBOT is a phone
-# maker, and "CUBOT X30" in a browser's user agent is a person. Crawler names
+# maker, and "CUBOT X30" in a browser's user agent is a person. Nor when an
+# Android model name ends with it ("M bot 60 Build/", "POWER BOT Build/"):
+# phones sold under those names are people. Crawler names
 # that end in -bot are caught by their version ("FooBot/2.1") or by the
 # "+https://..." info link crawlers put in their agent and browsers never do.
 OTHER_BOT = re.compile(
-    r"(?<![a-z])bot\b|bot/\d|\+https?://"
+    r"(?<![a-z])bot\b(?![\s\d+]*Build/)|bot/\d|\+https?://"
     r"|crawler|spider|scraper|curl|wget|python-requests|httpx|aiohttp|Go-http"
     r"|java/|okhttp|axios|node-fetch|libwww|Scrapy|HeadlessChrome|PhantomJS"
     r"|AhrefsBot|SemrushBot|MJ12bot|DotBot|BLEXBot|DataForSeoBot|PetalBot"
@@ -275,13 +304,32 @@ OTHER_BOT = re.compile(
     r"|WhatsApp|TelegramBot|Discordbot|Slackbot|vkShare|Embedly|SkypeUriPreview"
     r"|Let's Encrypt validation"
     # Page-speed testers render pages fully, assets and all.
-    r"|Chrome-Lighthouse|PTST/|GTmetrix|Google-PageRenderer"
+    r"|Chrome-Lighthouse|PTST[/ ]|GTmetrix|Google-PageRenderer"
     # Found in a real log, filed as people.
     r"|ctwatch|jSystem3-metadata-indexer"
     # Googlebot's smartphone template with "Googlebot" taken out: a tool or a
     # spoof copying the crawler, never a person - no phone has run Android 6
     # on a Nexus 5X with this year's Chrome.
-    r"|Nexus 5X Build/MMB29P",
+    r"|Nexus 5X Build/MMB29P"
+    # Added 2026-10-18 from the dev-time check against Crawler-Detect's
+    # corpus of real crawler agents (tools/check-bot-names.py): services
+    # that send a full browser agent with their name tacked on, all filed
+    # as people before. None appears in its 165,000 real device agents.
+    # Page-speed testers and synthetic monitors:
+    r"|Google Page Speed Insights|DareBoost|DebugBear|Ghost Inspector|RuxitSynthetic"
+    r"|DatadogSynthetics|Neustar WPM|YottaaMonitor|Siteimprove"
+    # Google's own tools and ad checks that are not indexing:
+    r"|Google Web Preview|Google Search Console|Google-Ads-Overview"
+    r"|Google-Ads-Conversions|Google-Adwords-DisplayAds|Google-HotelAdsVerifier"
+    r"|DuplexWeb-Google|GoogleImageProxy|Google Favicon|Google-SearchByImage"
+    r"|Google Keyword Suggestion|Google-Publisher-Plugin"
+    # Screenshots, thumbnails and reverse image search:
+    r"|mShots|shrinktheweb|Site-Shot|wkhtmlto|webkit2png|TinEye"
+    # Link checkers, sitemap builders, crawl frameworks, data collectors:
+    r"|deadlinkchecker|BrokenLinkCheck|XML-Sitemaps|Pro-Sitemaps|Nutch|Spinn3r"
+    r"|HubSpot|Datanyze"
+    # Security scanners and load testers:
+    r"|zgrab|OpenVAS|ProbelySPDR|Hardenize|Siege/|fasthttp|Zombie\.js",
     re.I,
 )
 

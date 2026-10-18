@@ -186,6 +186,14 @@ def day_file(spool: Path, day: date) -> Path:
     return Path(spool) / f"{day.isoformat()}.jsonl"
 
 
+def opens_file(spool: Path, day: date) -> Path:
+    """The day's page openings that are not counted as events (a page_view
+    while neither beacon-only mode nor visitor IDs are on): proof only that a
+    browser drew the page, read by rendering.py and audit_rendered.py.
+    Lines like the spool's: {"at", "g", "e", "p", "t"}; no address, no agent."""
+    return Path(spool) / f"opens-{day.isoformat()}.jsonl"
+
+
 def line_for(event: dict, at: datetime, group: str, source: str, ai: str) -> str:
     """The spool line for one accepted event. No address, no user agent."""
     row = {"at": at.isoformat(timespec="seconds"), "g": group, "s": source, **event}
@@ -227,7 +235,7 @@ def prune(spool: Path, today: date, keep_days: int = KEEP_DAYS) -> int:
     cutoff = today - timedelta(days=keep_days)
     gone = 0
     for path in Path(spool).glob("*.json*"):
-        stem = path.name.split(".", 1)[0].replace("stats-", "")
+        stem = path.name.split(".", 1)[0].replace("stats-", "").replace("opens-", "")
         try:
             day = date.fromisoformat(stem)
         except ValueError:

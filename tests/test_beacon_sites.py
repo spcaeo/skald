@@ -90,6 +90,13 @@ class TwoSites(unittest.TestCase):
         self.assertEqual(status, 204, "page_view counts where visitor IDs are on")
         status, _, _ = self.post(FIRST, body(e="page_view"))
         self.assertEqual(status, 202, "and not where they are off")
+        # ...but its opening is kept as proof the page was drawn (2.10.1)
+        rows = beacon.opens_file(self.first.spool, self.first.now().date()).read_text()
+        got = [json.loads(l) for l in rows.splitlines()]
+        self.assertEqual([(r["e"], r["p"], r["g"]) for r in got],
+                         [("page_view", "/pricing/", "people")])
+        self.assertEqual(beacon.read_day(self.first.spool, self.first.now().date()), [],
+                         "and it is no event")
 
     def test_the_snippet_is_the_loading_page_s(self):
         _, h1, js1 = self.call("GET", "/traffic-js/skald.js",

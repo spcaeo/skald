@@ -24,8 +24,9 @@ TABLE = [
     ("home", "overview/summary", {}),
     # Live and Compare are global modes (js/modes.js): Live is Today on Overview; the Compare
     # page opens the tab its table was on, A as the period, B as Compare's choice.
-    ("live", "overview/summary", {"range": "today"}),
-    ("live?range=7d&cmp=prev", "overview/summary", {"range": "today"}),
+    # Today is the default period since 2.10.1, so the address no longer says it.
+    ("live", "overview/summary", {}),
+    ("live?range=7d&cmp=prev", "overview/summary", {}),
     ("insights?since=2026-10-01", "overview/insights", {"since": "2026-10-01"}),
     ("compare?ca=2026-09-01..2026-09-30&cb=2026-08-01..2026-08-31&cnorm=1&cgran=week&cm=views&cdim=pages",
      "traffic/pages", {"range": "custom", "from": "2026-09-01", "to": "2026-09-30", "cmp": "custom", "cb": "2026-08-01..2026-08-31",

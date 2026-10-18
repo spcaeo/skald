@@ -74,8 +74,10 @@ def openings(config: dict, start: datetime, end: datetime, tz) -> list:
     day = start.astimezone(tz).date() - timedelta(days=1)
     last = end.astimezone(tz).date()
     while day <= last:
-        path = folder / f"{day.isoformat()}.jsonl"
-        if path.is_file():
+        # The day's events and its openings that are no event (since 2.10.1).
+        for path in (folder / f"{day.isoformat()}.jsonl", folder / f"opens-{day.isoformat()}.jsonl"):
+            if not path.is_file():
+                continue
             for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
                 try:
                     row = json.loads(raw)

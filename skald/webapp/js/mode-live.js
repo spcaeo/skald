@@ -17,7 +17,7 @@ import * as S from "./state.js";
 export const isLive = (s) => s.range === "today";
 
 const KEY = "ti-live-back";            // the period to go back to, this tab of the browser only
-const FALLBACK = { range: "30d", from: "", to: "" };   // the app's default period (state.js DEFAULT)
+const FALLBACK = { range: "30d", from: "", to: "" };   // where Live goes back to when it kept no period (the default is Today since 2.10.1)
 
 // The period Live leaves for: the one it was turned on from, else the default.
 export function backRange() {
