@@ -13,9 +13,11 @@ Two fields decide almost every later question, so they are worth naming:
   user_agent  what the client claims to be. Self-reported and forgeable, which
               is why classify.py never treats it as proof of a human.
 
-A country needs a header the server was told to log (Cloudflare's
-CF-IPCountry). Without it the country cards are simply omitted rather than
-guessed at from the address.
+A country comes from the line when the server logged one (nginx's cc= from
+a GeoIP module, Cloudflare's CF-IPCountry). A line without one is looked up
+in the GeoIP database `logs.country_db` names (read(geo=...)), the same
+DB-IP file such a module reads - a lookup, not a guess. With neither, the
+country is "Unknown".
 """
 from __future__ import annotations
 
@@ -86,8 +88,16 @@ class Hit:
         200. Counting the 3xx as well counts that read twice. On the reference
         log it was 3,993 of 15,727 claimed views - 25% - almost all of them
         301 and 308 trailing-slash redirects.
+
+        A 304 is not a redirect: it tells the browser its cached copy is
+        current, and the browser shows that copy. It is a page view, of a
+        returning reader, and the first page of a visit carries the visit's
+        source. Counted as anything else, a reader coming back from a search
+        to a page they had cached lost their source to the next page they
+        opened ("This site"), or was no reader at all.
         """
-        if self.status[:1] != "2" or self.method not in ("GET", "HEAD"):
+        if (self.status[:1] != "2" and self.status != "304") or \
+                self.method not in ("GET", "HEAD"):
             return False
         if RSC_PAYLOAD.search(self.url):
             return False
@@ -130,12 +140,21 @@ NGINX_EXTENDED = re.compile(
 # before it still yields it. Lines from before it was added have none.
 RID = re.compile(r"\srid=([0-9A-Za-z-]{8,64})\s*$")
 
-# The stock combined format, used by nginx and Apache alike.
+# The stock combined format, used by nginx and Apache alike. Many servers add
+# fields after it; two are read when present: a response time right after the
+# user agent ($request_time), and a quoted host name as the very last field
+# ("$host"), e.g.  ... "Mozilla/5.0 ..." 0.010 0.010 "<the host name>".
 COMBINED = re.compile(
     r'^(?P<address>\S+) \S+ \S+ \[(?P<when>[^\]]+)\] '
     r'"(?P<request>[^"]*)" '
     r'(?P<status>\d{3}) (?P<size>\S+) "(?P<referrer>[^"]*)" "(?P<user_agent>[^"]*)"'
+    r'(?:\s+(?P<request_time>\d+(?:\.\d+)?)(?=\s|$))?(?P<tail>.*)'
 )
+# The last quoted field, when it is a host name: letters in it, dots between
+# labels, an optional :port. A quoted address list ("$http_x_forwarded_for"
+# in many layouts) or "-" is not one, and leaves the host empty, as before.
+TAIL_HOST = re.compile(r'\s"(?P<host>(?=[^"]*[A-Za-z])[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)'
+                       r'(?::\d+)?"\s*$')
 
 
 def _when_iso(raw: str) -> datetime:
@@ -183,10 +202,14 @@ def _from_match(m: re.Match, when: datetime, fmt: str = "") -> Hit:
     got = m.groupdict()
     rid = RID.search(m.string) if fmt == "nginx_extended" else None
     request = REQUEST.match(got["request"])
+    host = got.get("host", "") or ""
+    if not host and got.get("tail"):
+        found = TAIL_HOST.search(got["tail"])
+        host = found.group("host").lower() if found else ""
     return Hit(
         when=when,
         address=got["address"],
-        host=got.get("host", "") or "",
+        host=host,
         method=request.group("method") if request else "",
         url=request.group("url") if request else "",
         status=got["status"],
@@ -201,6 +224,10 @@ def _from_match(m: re.Match, when: datetime, fmt: str = "") -> Hit:
 
 
 def _caddy(line: str) -> Hit | None:
+    """Caddy's JSON access log. `client_ip` is the client once Caddy has
+    trusted proxies (remote_ip is then the proxy); older Caddy logs only
+    remote_ip. A record with no address, no URI or no three-digit status is
+    not a request this counts (the nginx patterns cannot match one either)."""
     try:
         row = json.loads(line)
         req = row["request"]
@@ -208,18 +235,24 @@ def _caddy(line: str) -> Hit | None:
 
         def header(name: str) -> str:
             got = headers.get(name)
-            return (got[0] if isinstance(got, list) else got) or ""
+            return ((got[0] if got else "") if isinstance(got, list) else got) or ""
 
+        address = str(req.get("client_ip") or req.get("remote_ip") or "").strip()
+        status = row.get("status")
+        if (not address or not req.get("uri") or isinstance(status, bool)
+                or not re.fullmatch(r"\d{3}", str(status).strip())):
+            return None
         return Hit(
             when=datetime.fromtimestamp(row["ts"], tz=timezone.utc),
-            address=req.get("remote_ip", ""),
-            host=req.get("host", ""),
+            address=address,
+            host=re.sub(r":\d+$", "", str(req.get("host") or "")) if "]" not in str(
+                req.get("host") or "") else str(req.get("host")),
             method=req.get("method", ""),
             url=req.get("uri", ""),
-            status=str(row.get("status", "")),
+            status=str(status).strip(),
             referrer=header("referer"),
             user_agent=header("user-agent"),
-            country=header("cf-ipcountry"),
+            country=_country(header("cf-ipcountry")),
             size=row.get("size") if isinstance(row.get("size"), int) else None,
             fmt="caddy_json",
         )
@@ -356,8 +389,29 @@ class ReadStats:
                    if start <= (when if when.tzinfo else when.replace(tzinfo=timezone.utc)) < end)
 
 
+def geo_database(config: dict) -> str | None:
+    """The GeoIP file a site's lines are looked up in, or None."""
+    from .conversions.geo import database
+    return database(config)
+
+
+def _country_filler(path: str | None):
+    """address -> country code or "", cached; None without a file."""
+    if not path:
+        return None
+    from .conversions.geo import country
+    seen: dict[str, str] = {}
+
+    def fill(address: str) -> str:
+        got = seen.get(address)
+        if got is None:
+            got = seen[address] = _country(country(path, address) or "")
+        return got
+    return fill
+
+
 def read(paths: list[str] | list[Path], fmt: str = "auto",
-         stats: ReadStats | None = None) -> Iterator[Hit]:
+         stats: ReadStats | None = None, geo: str | None = None) -> Iterator[Hit]:
     """Every parsable hit in these files. Unparsable lines are skipped.
 
     A line that will not parse is not an error worth stopping for - logs
@@ -387,8 +441,13 @@ def read(paths: list[str] | list[Path], fmt: str = "auto",
     starts every file with two, and a day built from many small files would
     otherwise be withheld for them. A #Fields: line sets the field order the
     CloudFront reader uses for the lines after it, in this read only.
+
+    `geo` is a GeoIP .mmdb file (geo_database(config)): a hit whose line
+    carries no country gets the one its address is in there. The line's own
+    country always wins. Each address is looked up once per read.
     """
     paths = [Path(p) for p in paths]
+    fill = _country_filler(geo)
     auto = fmt == "auto"
     # A CloudFront reader of this read's own, so it can follow #Fields: lines.
     parsers = dict(PARSERS)
@@ -448,6 +507,8 @@ def read(paths: list[str] | list[Path], fmt: str = "auto",
                         continue
                     rids.add(hit.rid)
                 if hit is not None:
+                    if fill is not None and not hit.country:
+                        hit.country = fill(hit.address)
                     hit.line_id = hash(line.rstrip("\n"))
                     if waiting:
                         stats.placed.extend([hit.when] * waiting)

@@ -35,6 +35,7 @@ class Reader:
         if self.size not in (24, 28, 32):
             raise ValueError(f"record size {self.size} not supported")
         self.version = int(meta["ip_version"])
+        self.kind = str(meta.get("database_type") or "")
         self.node_bytes = self.size * 2 // 8
         self.data = data
         self.decoder = _Decoder(data, self.nodes * self.node_bytes + 16)
@@ -154,6 +155,34 @@ def reader(path) -> Reader | None:
             got = (mtime, Reader(Path(path).read_bytes()))
             _CACHE[path] = got
         return got[1]
+
+
+def database(config: dict) -> str | None:
+    """The .mmdb file for this config: `logs.country_db`, else
+    `conversions.country_db`. One file serves both, so a site whose log
+    carries no country field (Caddy, a plain combined log) gets one from the
+    address, and a lead hook's `ip` is looked up in the same file."""
+    for section in ("logs", "conversions"):
+        got = ((config or {}).get(section) or {}).get("country_db")
+        if got not in (None, "", []):
+            return str(got)
+    return None
+
+
+# DB-IP's free files (CC BY 4.0) ask for this credit wherever their data shows.
+DBIP_CREDIT = ("IP Geolocation by DB-IP", "https://db-ip.com")
+
+
+def credit(path) -> tuple[str, str] | None:
+    """The credit a GeoIP file's licence asks for, when this file is one of
+    DB-IP's (its metadata says DBIP-...); None for any other or no file."""
+    try:
+        found = reader(path) if path else None
+    except (ValueError, KeyError, IndexError, struct.error):
+        return None
+    if found is not None and found.kind.upper().startswith("DBIP"):
+        return DBIP_CREDIT
+    return None
 
 
 def country(path, ip: str) -> str | None:

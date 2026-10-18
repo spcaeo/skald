@@ -75,16 +75,20 @@ Three fields earn their place:
   self-reported and forgeable, which is why `people` is an upper bound and
   never a count of humans.
 - **`cc=$http_cf_ipcountry`** is the country, as Cloudflare resolved it. With
-  no such header the country cards are **omitted, not guessed**: there is no
-  GeoIP lookup here and no inference from the address. `XX` means Cloudflare
-  could not tell and is treated as no country.
+  no such header the country is **Unknown, not guessed**, unless
+  `logs.country_db` names a GeoIP country file (`.mmdb`, DB-IP's free file
+  works): then a line with no country of its own gets its address's country
+  from that file. That is a lookup in the same file nginx's module would read,
+  not an inference. A country the line carries always wins. `XX` means
+  Cloudflare could not tell and is treated as no country.
 
   Without Cloudflare, nginx can look the country up itself from a local
   database with the GeoIP2 module, and log `cc=$geoip2_country` in the same
   place. The free databases (DB-IP Lite, CC BY 4.0) require attribution
   wherever their data is shown: set `report.country_credit` and
   `report.country_credit_url`, and every place countries appear - dashboard,
-  mail, report - carries it as a plain text link. `-`, an empty value and
+  mail, report - carries it as a plain text link. When `logs.country_db` is
+  one of DB-IP's files, its credit is shown without either setting. `-`, an empty value and
   `ZZ` all mean no country. Anything after the country (`ray=-` as a literal
   dash, say) is ignored.
 

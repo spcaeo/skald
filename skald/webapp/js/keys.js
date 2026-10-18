@@ -25,17 +25,24 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-12n",
+  id: "2026-10-18a",
   items: [
+    ["Countries", "a log with no country of its own (Caddy, a plain log) gets one from a GeoIP file your server admin sets. DB-IP's free file works.", "faq"],
+    ["Caddy", "sites with a Caddy log no longer fail the daily check, so their days are stored."],
+    ["More readers", "sites added from the dashboard no longer wait for the first site's files, so returning readers count as people again."],
+    ["Cached pages", "a page shown from the browser's cache counts as a page view and keeps the visit's source."],
+    ["Sources", "ChatGPT, Claude and other assistant phone apps count as AI; YouTube, WhatsApp and Telegram apps are social; utm_source decides before utm_medium; more ad click ids."],
+    ["Our own traffic", "Skald's own robots.txt check is no longer counted as a bot."],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.7.0-2.7.1
     ["GitHub", "Skald's home on GitHub is linked from About, the footer and the account menu: star it, see releases, report a problem."],
     ["Five sections", "Overview, Traffic, Leads & sales, AI & bots and Site, with tabs inside. Old links still work.", "getting-started"],
     ["Live and Compare", "two switches in the top bar that work on every page.", "getting-started"],
     ["One place each", "landing pages, sources and countries each live in one place now.", "getting-started"],
     ["Leads & sales", "one row of options: count from, source, action, stage, show left out.", "leads-and-conversions"],
     ["Grids", "search, filter and sort long lists; the view is kept in the address to share.", "getting-started"],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.6.0-2.6.1
     ["Site logos", "each site shows its own logo in the menu, the switcher and the browser tab.", "settings-and-retention"],
     ["Choose a site", "after sign-in, a card per site with today's visitors, leads and demos booked."],

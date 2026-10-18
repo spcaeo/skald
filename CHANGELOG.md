@@ -4,6 +4,40 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.8.0 (2026-10-18)
+
+Countries for logs that carry none, and counting fixes for Caddy logs, dashboard-made sites and
+traffic sources.
+
+### Added
+
+- **Countries from a GeoIP file:** `logs.country_db` (Docker: `SKALD_COUNTRY_DB`) names a
+  MaxMind-format `.mmdb` file; DB-IP's free country file works. A log line with no country of its
+  own (Caddy JSON, a plain combined log) gets its address's country. The line's own country
+  (nginx `cc=`, Cloudflare's `CF-IPCountry`) always wins. Both counting roads look it up. The same
+  file serves lead hooks and the beacon (`conversions.country_db` still works). With DB-IP's file,
+  "IP Geolocation by DB-IP" is shown beside the countries unless `report.country_credit` is set.
+
+### Fixed
+
+- **Caddy logs failed the daily run:** the audit refused Caddy JSON, so every Caddy site's run
+  stopped at `audit` and its days were not stored. Caddy's `client_ip` is now taken before
+  `remote_ip`, `host:port` becomes `host`, and a record with no address, URI or three-digit status
+  is not counted as a request (on both roads).
+- **Sites added from the dashboard inherited the first site's `site:` section** (asset prefixes,
+  rendering rule, legacy paths). A static first site's asset prefixes made Next.js sites wait for
+  the wrong files, so returning readers were not counted as people (30-60% too few, seen live).
+- A combined log line's trailing quoted `"$host"`, and `$request_time` right after the user agent,
+  are read. A quoted address list or `"-"` is not a host.
+- **A 304 (cached copy shown) is a page view;** a cached landing page keeps the visit's source.
+- **Sources:** AI assistants' phone-app referrers (`android-app://com.openai.chatgpt` and others)
+  count as citations. Google's Android apps other than Search and Gmail are no longer "Search
+  engine" (YouTube, WhatsApp, Telegram are Social media). `utm_source` decides the source type
+  before `utm_medium` (`linkedin` + `cpc` is Social media). Click ids `gbraid`, `wbraid` (Google
+  Ads on iOS), `ttclid` (TikTok) and `twclid` (X) are recognised.
+- Skald's own robots.txt check (`site-version-check/1`) is counted as our own traffic, not a bot.
+- The "no countries" message names `logs.country_db`.
+
 ## 2.7.1 (2026-10-12)
 
 ### Added

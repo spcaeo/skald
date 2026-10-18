@@ -18,8 +18,8 @@ site's server                                  Skald's server
                                                skald run-daily  (logs.dir points here)
 ```
 
-It is **off by default**. An install does not change until
-its config switches it on.
+It is **off by default**. An install does not change until its config
+switches it on.
 
 ## Switching it on (on Skald's server)
 
@@ -149,6 +149,13 @@ format are refused and counted (the shipper's journal says "N rejected").
 
 Ship the log of the server that sees the visitors. Behind a CDN, that is the
 CDN's log (CDN-LOGS.md), never both.
+
+**Countries.** A shipped line with no country of its own (Caddy, a plain
+combined log) gets its address's country from the install's `logs.country_db`
+(Docker: `SKALD_COUNTRY_DB`), a GeoIP `.mmdb` file on Skald's server; DB-IP's
+free country file works. Every site added from the dashboard uses the same
+file. A country the line carries (`cc=`, Cloudflare's) always wins. With no
+file set, such lines stay Unknown.
 
 ## What is sent, and what is kept
 

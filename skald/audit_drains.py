@@ -19,6 +19,12 @@ requests; Netlify's records other than `log_type: traffic` are not either.
 Edge records (Skald's own format, posted by a CDN Worker; ingest_drain.py)
 are read here too: `ts` is RFC 3339 or a JSON number of Unix milliseconds,
 `path` starts with "/", `id` is the request's id. No country.
+
+Caddy's JSON access log too (https://caddyserver.com/docs/caddyfile/directives/log):
+`ts` is Unix seconds, the request is under `request` (`client_ip` when
+Caddy has trusted proxies, else `remote_ip`; `host`, `method`, `uri`, and
+`headers` as lists of values, any letter case), `status` is a number.
+Country only from a logged CF-IPCountry header.
 """
 from __future__ import annotations
 
@@ -185,6 +191,47 @@ def _edge(row: dict) -> dict | None:
             "country": "", "rid": _string(row.get("id"))[:128]}
 
 
+def _header(headers, name: str) -> str:
+    if not isinstance(headers, dict):
+        return ""
+    for key, value in headers.items():
+        if isinstance(key, str) and key.lower() == name:
+            if isinstance(value, list):
+                value = value[0] if value else ""
+            return _string(value)
+    return ""
+
+
+def _caddy(row: dict) -> dict | None:
+    req = row["request"]
+    address = _string(req.get("client_ip") or req.get("remote_ip")).strip()
+    uri = req.get("uri")
+    if not isinstance(uri, str) or uri == "" or address == "":
+        return None
+    seconds = row.get("ts")
+    if isinstance(seconds, bool) or not isinstance(seconds, (int, float)) or seconds < 0:
+        return None
+    try:
+        when = _EPOCH + timedelta(microseconds=round(seconds * 10**6))
+    except (OverflowError, ValueError):
+        return None
+    status = _three_digits(row.get("status"))
+    if status == "":
+        return None
+    headers = req.get("headers")
+    cc = _header(headers, "cf-ipcountry").strip().upper()
+    if len(cc) != 2 or not cc.isalpha() or cc in ("XX", "ZZ"):
+        cc = ""
+    host = _string(req.get("host"))
+    name, colon, port = host.rpartition(":")
+    if colon and port.isdigit() and "]" not in host and name:
+        host = name                                    # a host with :443 on it
+    return {"when": when, "address": address, "host": host,
+            "method": _string(req.get("method")), "url": uri, "status": status,
+            "referrer": _header(headers, "referer"), "agent": _header(headers, "user-agent"),
+            "country": cc, "rid": ""}
+
+
 def fields(raw: str) -> dict | None:
     """audit.Line's fields from one drain line, or None."""
     text = raw.strip()
@@ -200,6 +247,8 @@ def fields(raw: str) -> dict | None:
         return _vercel(row)
     if row.get("log_type") == "traffic":
         return _netlify(row)
+    if isinstance(row.get("request"), dict) and "ts" in row:
+        return _caddy(row)
     if "ts" in row and "log_type" not in row:
         return _edge(row)
     return None

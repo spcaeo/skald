@@ -236,7 +236,7 @@ class TestIndependence(AuditCase):
             if isinstance(node, ast.ImportFrom) and node.level:
                 imported |= {(node.module, a.name) for a in node.names}
         allowed = {("classify", n) for n in ("AI_ASKED", "AI_REFERRER_HOSTS", "AI_TRAINING",
-                                             "AI_UTM", "OTHER_BOT", "PROBE", "PROBE_QUERY",
+                                             "AI_UTM", "OTHER_BOT", "OWN_AGENTS", "PROBE", "PROBE_QUERY",
                                              "SEARCH_ENGINE")}
         allowed |= {("store", "History"), ("store", "READER_KINDS")}
         # The audit's own visits recount, itself independent (test_visits_audit).
@@ -255,6 +255,11 @@ class TestIndependence(AuditCase):
         # Its own reader of Vercel and Netlify drain lines, which imports
         # nothing from the package (test_drains).
         allowed |= {(None, "audit_drains")}
+        # The GeoIP file is data, like the name lists: a line with no country
+        # of its own gets the one the file has for its address, on both roads.
+        # The MaxMind-format reader is tested against its own fixtures
+        # (test_conversions_store) and, live, against nginx's cc= field.
+        allowed |= {("conversions.geo", "country"), ("conversions.geo", "database")}
         self.assertLessEqual(imported, allowed)
 
     def test_its_labels_import_nothing_from_the_package(self):

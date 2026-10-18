@@ -35,11 +35,11 @@ and `GET <page>/api/page?path=/x` (one page's story). DATA-CONTRACT.md,
 
 ```sh
 # With the dashboard login
-curl -u morgan https://www.example.com/traffic/example.com/api/v1/overview
+curl -u morgan https://analytics.example.com/traffic/example.com/api/v1/overview
 
 # With a token, for a script
 curl -H "Authorization: Bearer skald_ab12cd34_..." \
-     https://www.example.com/traffic-api/v1/example.com/canada-french/pages
+     https://analytics.example.com/traffic-api/v1/example.com/canada-french/pages
 ```
 
 ## Tokens

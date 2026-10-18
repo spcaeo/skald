@@ -49,6 +49,14 @@ a version change; a field is never renamed or removed without one.
 - **Counters** are objects `{label: int}`. A key `"(all others)"` is the
   folded tail of a longer list; it is a real count and keeps the sums.
 - **Hours** are `"00"` to `"23"` in `timezone`.
+- **Countries** are two-letter ISO codes. A request's country is the log
+  line's own (nginx `cc=`, Cloudflare's `CF-IPCountry`, a CDN log's country
+  field). A line with none (Caddy JSON, a plain combined log) gets its
+  address's country from the GeoIP file `logs.country_db` (a MaxMind-format
+  `.mmdb`, e.g. DB-IP's free country file), when one is set (since 2.8.0).
+  The line's own country always wins. Both counting roads (main and audit)
+  look it up the same way. With no country and no file, the country is
+  `""` / Unknown, never guessed.
 - **Groups**: `people`, `answer_engines`, `search_engines`, `bots`, `ours`.
 - **Privacy.** No data file carries an IP address, a user agent or a visitor
   key, except `ai_activity.json`'s `today.events[].ip` and `requests.json`'s
@@ -84,7 +92,7 @@ Meta for the app, and one row of headline figures per day.
 | `first_day` | date or null | first day history holds for this key |
 | `views` | `[{"slug","name","rule"}]` | all configured views (same list on every page) |
 | `refresh_button` | bool | the Refresh now endpoint exists |
-| `credit` | `{"text","url"}` or null | country data attribution, show beside countries |
+| `credit` | `{"text","url"}` or null | country data attribution, show beside countries: `report.country_credit`, else DB-IP's credit when `logs.country_db` is a DB-IP file |
 | `journey_days` | int | how long journeys are kept |
 | `files` | `[string]` | the data files written beside this one |
 | `days[]` | | see below |
@@ -298,7 +306,7 @@ A row:
 |---|---|---|
 | `at` | ISO local, seconds | when the server logged it |
 | `ip` | string | the address, or `"(removed)"` after `skald forget` |
-| `country`, `country_name` | string | ISO code or `""` |
+| `country`, `country_name` | string | ISO code (the line's own, else `logs.country_db`'s) or `""` |
 | `host` | string | the host asked for |
 | `method` | string | `GET`, `POST`, `HEAD`, ... or `""` (an empty or garbled request line) |
 | `path` | string | without the query, at most 300 characters |

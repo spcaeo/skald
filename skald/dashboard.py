@@ -774,8 +774,8 @@ def render(history: History, site: str, tz: ZoneInfo,
         # Before the breakdowns: countries of visits, the only list there was.
         tables.append(table(f"Countries of people's visits ({span})", ("Country", "Visits"),
               [(countries.label(c), v) for c, v in _top(people.countries)] if people else [],
-              "No country recorded. The log needs a country field (cc=) for "
-              "this; it is never guessed.",
+              "No country recorded: the log has no country field (cc=) and no "
+              "GeoIP file is set (logs.country_db). It is never guessed.",
               note=_credit(credit) if people and people.countries else "",
               download=EXPORT_DIR + "countries-30d.csv"))
     tables.append(table(f"Bots and scanners ({span})", ("What", "Requests"), bot_rows,

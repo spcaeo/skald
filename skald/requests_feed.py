@@ -341,7 +341,7 @@ def before_midnight(config: dict, feed: Feed, midnight: datetime, now: datetime)
     """Feed the part of the window before today's midnight, classified over
     yesterday's whole window (as collect will)."""
     from .config import setting
-    from .parse import read
+    from .parse import geo_database, read
     from .window import _classifier, within, window_paths
     if feed.cutoff >= midnight:
         return
@@ -356,7 +356,7 @@ def before_midnight(config: dict, feed: Feed, midnight: datetime, now: datetime)
     classifier = _classifier(config, within(read(paths, fmt), tz_day_start, midnight),
                              tz_day_start, midnight)
     wanted = {str(h).lower() for h in (setting(config, "site", "hosts") or [])}
-    for hit in within(read(paths, fmt), feed.cutoff, midnight):
+    for hit in within(read(paths, fmt, geo=geo_database(config)), feed.cutoff, midnight):
         if wanted and hit.host and hit.host.lower() not in wanted:
             feed.excluded(hit)
         else:
