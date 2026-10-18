@@ -11,6 +11,7 @@ import { verification, verifySection, badge, badgeOf } from "./botverify.js";
 import { robotsOf, robotsBadge, robotsWords, robotsSection } from "./robots.js";
 import { followedSection } from "./likelyai.js";
 import { aiChanges } from "./alerts.js";
+import { costSection } from "./crawlercost.js";
 
 const ADS = /ads quality|AdsBot/i;
 
@@ -62,6 +63,8 @@ export default function bots(m, s, { first }) {
       countTable(t.bot_agents, { caption: "Bots and scanners", file: fileName("bots", r), key: "What", value: "Requests", empty: "No bots in this range.", drill: "bot" }))));
   out.push(h("section", { class: "s" }, h("h2", null, "Pages AI assistants fetched"),
     countTable(t.ai_pages, { caption: "Pages AI assistants fetched", file: fileName("ai-pages", r), key: "Page", value: "Fetches", keep: pathMatch(s), path: true, empty: "No answer-engine fetches.", drill: "path" })));
+  out.push(costSection(m, s, r, { id: "all", groupCol: true,
+    sub: "Per assistant, crawler and bot: requests, bytes the server sent, its time per request, failed requests, distinct paths and how often it fetched them again." }));
   out.push(verifySection(m, r));
   out.push(robotsSection(m));
   out.push(coverageNote(cov, r));

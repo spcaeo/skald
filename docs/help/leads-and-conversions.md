@@ -265,7 +265,7 @@ Skald ties a conversion to a journey only through an **anonymous visitor ID**: a
 
 The figures never match by IP address, and never link a new ID to an old one. A visitor ID is a *browser*, not a person: one person on a phone and a laptop is two browsers. The person search can show, apart from the figures, the visits that sent a form at a lead's time: a match by time, never certain. See [Privacy](privacy.md).
 
-> Visitor IDs are off by default. The person who runs your Skald server turns them on per site. [Integrations](#settings/integrations) says whether they are on. Your privacy notice must say so, and some places need consent first. See [Privacy](privacy.md).
+> Visitor IDs are off by default. An owner or admin turns them on per site in **Settings > This site > Sites > Script tag**. [Integrations](#settings/integrations) says whether they are on. Your privacy notice must say so, and some places need consent first. See [Privacy](privacy.md).
 
 Without visitor IDs, conversions are still counted, but there are no journeys, no abandoned counts, no assisted sources and no pages seen before converting. With them off, Skald keeps no visitor ID from any road: not from the script tag, not from a webhook's `vid`, and not from your lead database's session column.
 

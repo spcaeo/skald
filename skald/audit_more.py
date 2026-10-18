@@ -14,6 +14,10 @@ lines, and compared in the audit (`skald audit`, run-daily's audit step,
       .hit(line, group, tier, name) -> None   (optional)
         every line of the site's hosts in log order, with the audit's
         group, AI tier ("asked", "training" or "") and crawler name.
+      .judged(line, group, info) -> None   (optional)
+        the same lines with audit.Judge.info: what the judge found beyond
+        the group (a crawler's name, a spoof, a link preview, a probe, a
+        crawler session, a visit that never rendered).
       .visit(lines, is_page, labels) -> None
         each people visit: its audit.Line list in time order, assets and
         posts included; `is_page(line)` is the audit's page rule; `labels`
@@ -44,7 +48,8 @@ import importlib
 
 RECOUNTS = {"funnels": "audit_funnels", "engagement": "audit_engagement",
             "utm_hygiene": "audit_utm", "ai_likely": "audit_ai_likely",
-            "people": "audit_people"}
+            "people": "audit_people", "ai_formats": "audit_ai_formats",
+            "crawler_cost": "audit_crawler_cost"}
 DAILY: dict[str, str] = {"conversions": "audit_conversions"}
 
 
@@ -72,6 +77,13 @@ class Recounts:
         for r in self.each:
             if hasattr(r, "hit"):
                 r.hit(line, group, tier, name)
+
+    def judged(self, line, group: str, info: dict) -> None:
+        """The same lines with what the audit's judge found beyond the group
+        (audit.Judge.info: the crawler's name, a spoof, a preview, a probe)."""
+        for r in self.each:
+            if hasattr(r, "judged"):
+                r.judged(line, group, info)
 
     def visit(self, lines: list, is_page, labels: dict | None) -> None:
         for r in self.each:

@@ -71,7 +71,7 @@ function scriptBox(r) {
     howTo("tracking-script", "How do I add the script tag, and what does it track?"),
     h("p", { class: "note" }, sc.visitor_ids
       ? "Anonymous visitor IDs are on for this site: journeys and abandoned actions are counted."
-      : "Anonymous visitor IDs are off for this site (beacon.visitor_ids in the config): the tag sends events, but journeys and abandoned actions need the IDs on."));
+      : "Anonymous visitor IDs are off for this site (Settings > Sites > Script tag): the tag sends events, but journeys and abandoned actions need the IDs on."));
 }
 
 // The doctor's lines for this site's roads in: OK, needs attention (with the fix) or off.

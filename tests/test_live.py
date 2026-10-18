@@ -127,7 +127,15 @@ class TestLiveSnapshot(LiveCase):
     def test_no_address_or_user_agent_is_written_anywhere(self):
         self.box.log(morning())
         self.live()
-        for text in (self.snap_path.read_text(), self.page):
+        snap = self.snap()
+        # crawler_cost keeps a named crawler's own strings, never a person's
+        # (and never a scanner's: a probe's string may be a browser's).
+        cost = json.dumps(snap["extras"].pop("crawler_cost"))
+        self.assertIn("GPTBot", cost)
+        for forbidden in ("203.0.113.", "198.51.100.", "Chrome/", "Macintosh", "curl/8"):
+            with self.subTest(crawler_cost=forbidden):
+                self.assertNotIn(forbidden, cost)
+        for text in (json.dumps(snap), self.page):
             for forbidden in ("203.0.113.", "198.51.100.", "Mozilla/", "Chrome/",
                               "AppleWebKit", "curl/8"):
                 with self.subTest(forbidden=forbidden):

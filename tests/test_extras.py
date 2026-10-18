@@ -168,7 +168,11 @@ class TestDataFiles(unittest.TestCase):
         for path in list(self.data.glob("*.json")) + list(
                 (self.data.parent / "guides" / "data").glob("*.json")):
             text = path.read_text()
-            for secret in ("203.0.113.", "198.51.100.", "Mozilla", "SECRET123", "x%40y"):
+            # crawler_cost.json shows a named crawler's own user-agent strings
+            # (never a person's); every other file holds none.
+            agents = ("Macintosh", "Chrome/", "iPhone") if path.name == "crawler_cost.json" \
+                else ("Mozilla",)
+            for secret in ("203.0.113.", "198.51.100.", "SECRET123", "x%40y") + agents:
                 self.assertNotIn(secret, text, f"{path.name}: {secret}")
 
     def test_day_rows(self):

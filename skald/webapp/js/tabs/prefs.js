@@ -6,7 +6,9 @@
 // remove and needs the site's name typed; removal happens at the next run.
 // Secrets (the SMTP password, the PageSpeed key) are write-only: the page
 // only ever says "set" or "not set". Goals (beacon.goals) are ticked from the
-// events the site has counted; the others wait under "Not counted yet".
+// events the site has counted; the others wait under "Not counted yet". Page
+// assets (site.asset_prefixes, one per line) and the rendering rule decide
+// which visits count as people (rendering.py).
 
 import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
@@ -57,12 +59,14 @@ function control(name, s) {
   if (s.kind === "choice") {
     el = h("select", { id, disabled: ro }, h("option", { value: "" }, name === "mail.smtp.security" ? "from the port" : "the default"), (s.choices || []).map((c) => h("option", { value: c, selected: c === s.value }, c)));
     get = () => ((el.value || null) === (s.value || null) ? undefined : el.value || null);
-  } else if (s.kind === "emails" || s.kind === "hosts") {
+  } else if (s.kind === "emails" || s.kind === "hosts" || s.kind === "prefixes") {
     const text = (s.value || []).join("\n");
-    el = h("textarea", { id, rows: "3", spellcheck: "false", disabled: ro }, text);
+    el = h("textarea", { id, rows: "3", spellcheck: "false", disabled: ro, placeholder: s.kind === "prefixes" ? "/wp-content/\n/wp-includes/" : null }, text);
     get = () => {
       const items = el.value.split(/[\s,]+/).filter(Boolean);
-      return items.join("\n") === text ? undefined : items;
+      if (items.join("\n") === text) return undefined;
+      // An empty list of asset paths clears the row: the default (/_next/static/) applies.
+      return s.kind === "prefixes" && !items.length ? null : items;
     };
   } else if (s.kind === "views") {
     const line = (v) => [v.name, v.path_prefix || "", v.exclude_prefix || ""].join(" | ").replace(/( \| )+$/, "");
@@ -215,6 +219,9 @@ export function sites(m) {
     h("p", { class: "note" }, "Views: one per line, as name | path prefix | prefixes to leave out (separated by spaces)."),
     logoCard(m),
     card("Log file", "Where the server's access log for this site is. For install admins.", ["sites.log_dir", "sites.log_base"], all, m.site, redraw),
+    card("Page assets", "A visit counts as people only when its browser also fetched one of the page's own scripts or styles. Next.js: /_next/static/ (the default). WordPress: /wp-content/ and /wp-includes/. Many other sites: /assets/ or /static/. One path per line, at most 10. Turn the rule off only when the assets come from a CDN host this log never sees. Changes apply from the next run; stored days are recounted with backfill --force on the server.",
+      ["site.asset_prefixes", "site.require_rendering"], all, m.site, redraw),
+    card("Script tag", "Visitor IDs: the tag keeps an anonymous random ID per browser, for journeys, abandoned forms and lead matching; your privacy notice must say so. Off, the tag still sends events but keeps no ID.", ["beacon.visitor_ids"], all, m.site, redraw),
     card("Goals", "The in-page events that count as this site's goals. Events shows each one per 100 visits by source, on checked days. At most 10.", ["beacon.goals"], all, m.site, redraw),
   ]);
 }

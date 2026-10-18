@@ -9,7 +9,7 @@ import { columns, legend } from "../charts.js";
 import * as S from "../state.js";
 import { grid } from "../grid.js";
 import { table } from "../table.js";
-import { compareFor } from "./common.js";
+import { compareFor, fileName } from "./common.js";
 
 /* One figure card, as bots.js drew them. v null: not recorded, shown as "-", never 0. */
 export function kpi(first, label, v, note, group, unit = "pages fetched") {
@@ -50,4 +50,38 @@ export function countGrid(ns, obj, { caption, file, key, value, keep, drill, emp
 /* A link to another tab of AI & bots, keeping the period and page group. */
 export function tabLink(s, tab, words) {
   return h("a", { href: S.hashFor({ ...s, tab: `ai/${tab}` }) }, words);
+}
+
+// What AI fetches asked for (app.json `ai_formats`, ai_formats.py), in this order.
+const FORMATS = ["Page", "llms.txt", "Markdown", "Text", "robots.txt", "Sitemap", "Other file"];
+
+/* "What they fetch": one tier's fetches by what the path names (a page, llms.txt, Markdown,
+   ...), then by name. A range with a day counted before this existed shows no table: a sum
+   of some of the days would not add up to the fetches above it. */
+export function formatsSection(t, r, tier, { who, file }) {
+  const title = h("h2", null, "What they fetch");
+  const sub = h("p", { class: "sub" }, "Each fetch by what its address names: a page, llms.txt, a Markdown or text file, robots.txt, a sitemap, or another file (images, scripts, feeds, PDFs). The address decides, not what the server answered.");
+  const missing = r.kind === "history" ? t.unmeasured?.ai_formats || 0 : 0;
+  const got = t.ai_formats?.[tier];
+  if (!got || missing) {
+    const why = missing && missing < (t.days || 0) ? `${missing} of these ${t.days} days were collected before this was counted, so it is not shown for this range.` : "Not recorded for this range.";
+    return h("section", { class: "s" }, title, sub, h("p", { class: "note" }, why));
+  }
+  const formats = got.formats || {};
+  const sum = Object.values(formats).reduce((a, v) => a + v, 0);
+  const rows = FORMATS.filter((k) => formats[k]).map((k) => ({ k, v: formats[k], __k: k }));
+  const byFormat = table([
+    { key: "k", label: "What", sortable: false },
+    { key: "v", label: "Fetches", num: true },
+    { key: "share", label: "Share", num: true, sort: (x) => x.v, fmt: (_, x) => share(x.v, sum), csv: (x) => (share(x.v, sum) ? (x.v / sum).toFixed(4) : "") },
+  ], { caption: `What ${who} fetched`, rows, file: fileName(`${file}-by-format`, r), sortKey: "v", search: false, empty: `No ${who} fetches in this range.` });
+  const shown = rows.map((x) => x.k);
+  const named = Object.entries(got.by_name || {}).map(([name, c]) => ({ name, __k: name, ...Object.fromEntries(shown.map((k) => [k, c[k] || 0])), total: shown.reduce((a, k) => a + (c[k] || 0), 0) }));
+  const byName = named.length ? table([
+    { key: "name", label: who === "assistants" ? "Assistant" : "Crawler" },
+    ...shown.map((k) => ({ key: k, label: k, num: true })),
+    { key: "total", label: "Fetches", num: true },
+  ], { caption: `What ${who} fetched, by name`, rows: named, file: fileName(`${file}-by-name`, r), sortKey: "total", search: false }) : null;
+  return h("section", { class: "s" }, title, sub, byFormat, byName,
+    named.some((x) => x.name === "(all others)") ? h("p", { class: "note" }, "Each day keeps the 20 names with the most fetches; the rest are summed in (all others), so the totals still add up.") : null);
 }

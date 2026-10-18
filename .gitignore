@@ -20,5 +20,6 @@ build.json
 # Claude Code session data
 .claude/
 .playwright-mcp/
+
 # The export tool's marker
 .skald-export

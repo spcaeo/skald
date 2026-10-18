@@ -151,6 +151,26 @@ def remove(db, org_id, name, actor) -> dict:
     return get(db, name)
 
 
+def set_hosts(db, name, hosts, actor) -> dict:
+    """Replace an active dashboard site's host names (checked like Settings'
+    Host names, settings_store "sites.hosts"); one audit row, old -> new."""
+    from ..settings_store import validate
+    ensure(db)
+    hosts = validate("sites.hosts", hosts)
+    with base.tx(db):
+        got = get(db, name)
+        if got is None:
+            raise ValueError(f"{name} is not a site made from the dashboard.")
+        if got["removed_at"]:
+            raise ValueError(f"{name} is removed.")
+        db.execute("UPDATE site_config SET hosts = ? WHERE name = ?",
+                   (json.dumps(hosts), got["name"]))
+        if got["hosts"] != hosts:
+            auditlog.record(db, got["org_id"], actor, "site.hosts", got["name"],
+                            f"{' '.join(got['hosts'])} -> {' '.join(hosts)}")
+    return get(db, name)
+
+
 def purge(db, name, actor) -> dict:
     """Forget a removed dashboard site in accounts.sqlite: its row, its
     organisation link, its settings rows; tokens that read only it are

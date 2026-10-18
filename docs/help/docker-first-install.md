@@ -102,7 +102,7 @@ docker run ... -e SKALD_BEACON_ORIGINS=https://www.example.com ...    # the same
 
 Then copy the tag from **Settings > Integrations** into every page's head. See [Tracking script](tracking-script.md).
 
-Only the first site needs `SKALD_BEACON_ORIGINS`. A site you add later from the dashboard takes events from its own **Host names** (**Settings > This site > Sites**). See [Tracking script](tracking-script.md), "More than one site".
+Only the first site needs `SKALD_BEACON_ORIGINS`. A site you add later from the dashboard takes events from its own **Host names** (**Settings > This site > Sites**). Its page assets are its own too: a site that is not Next.js sets them in **Settings > This site > Sites > Page assets** (`SKALD_ASSET_PREFIXES` is for the first site only). See [Tracking script](tracking-script.md), "More than one site".
 
 ## 7. Add hooks
 
@@ -130,7 +130,7 @@ The volume keeps all data. Not during the daily run.
 | --- | --- | --- |
 | A plain page with no menu | An old image | Pull the new image; the doctor's **Web app** line says so |
 | "nothing parsed" | The log is not mounted, or not readable | `docker exec skald ls -l /logs`; the container's user is in group `adm` (gid 4), which reads `/var/log/nginx` on Ubuntu and Debian |
-| No person counted | No page asset seen | Set `SKALD_ASSET_PREFIXES`; the doctor's **Page assets** line says which |
+| No person counted | No page asset seen | Set `SKALD_ASSET_PREFIXES` (the first site) or **Settings > Sites > Page assets** (a site added later); the doctor's **Page assets** line says which |
 | A hook answers 404 | The hook has no secret | Make its secret |
 | A hook answers 502 | An image older than 2.2.2 | Pull the new image |
 | "Too many tries" on sign-in for everyone | The proxy in front is not trusted | Set `SKALD_TRUSTED_PROXIES` and `SKALD_REAL_IP_HEADER` |

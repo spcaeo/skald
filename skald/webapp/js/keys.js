@@ -25,14 +25,20 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-18c",
+  id: "2026-10-18d",
   items: [
-    ["Script tag", "every site of your Skald can use the script tag now, not only the first. Each site's events go to that site.", "tracking-script"],
-    ["Visitor IDs", "can be on for one site and off for another."],
-    ["Google Ads on iPhone", "a lead from a Google Ads click on iOS (gbraid, wbraid) counts as paid search."],
+    ["Crawler cost", "what each crawler costs your server: requests, data sent, response time, errors and re-crawls. Open one for its detail by day.", "ai-and-bots"],
+    ["Client sites", "page assets and the visitor IDs switch per site in Settings > Sites; settings and site commands from the shell."],
+    ["Google AI Mode", "a visit from Google's AI Mode reads \"google.com (AI Mode)\" under Search engine.", "faq"],
+    ["What they fetch", "AI fetches by what they ask for: pages, llms.txt, Markdown, robots.txt, sitemaps.", "faq"],
+    ["What the AI read", "the pages an assistant fetched just before it sent a visitor, in the visit and per assistant.", "faq"],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.9.0
+    ["Script tag", "every site of your Skald can use the script tag now, not only the first. Each site's events go to that site."],
+    ["Visitor IDs", "can be on for one site and off for another."],
+    ["Google Ads on iPhone", "a lead from a Google Ads click on iOS (gbraid, wbraid) counts as paid search."],
     // 2.8.0-2.8.1
     ["Pages", "calls to a site's own API (/api/...) are no longer counted as pages or as steps between pages."],
     ["Countries", "a log with no country of its own (Caddy, a plain log) gets one from a GeoIP file your server admin sets. DB-IP's free file works.", "faq"],

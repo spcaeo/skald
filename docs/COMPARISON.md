@@ -4,7 +4,7 @@
 
 How Skald stands beside Google Analytics 4, Search Console, Bing Webmaster Tools, Plausible, Matomo, Cloudflare, GoAccess, PostHog and Known Agents, grouped by module. The story behind it is in [WHY-WE-BUILT-SKALD.md](WHY-WE-BUILT-SKALD.md); the same matrix as a page, with filters, is [comparison.html](comparison.html) (made from the 2026-10-07 version: the 2026-10-11 rows and notes are only here and in the dashboard's About page).
 
-Every competitor fact comes from that vendor's own docs, pricing page or source code, checked on 2026-10-07. Skald's column claims only what is built and tested in its code (updated 2026-10-12, version 2.5.0); a part that is off until an install switches it on says so in its note, and anything on the roadmap says *planned*. Where a fact could not be confirmed on the vendor's own pages the cell says `?`. A `✗` means the feature is not offered, or we found no sign of it in the vendor's docs. Rows added on 2026-10-11 (accounts, conversions, webhooks, MCP, the hosted layer, engagement, campaign tag problems, exit rate) have not been checked for the other tools yet: their cells say *not checked*.
+Every competitor fact comes from that vendor's own docs, pricing page or source code, checked on 2026-10-07. Skald's column claims only what is built and tested in its code (updated 2026-10-12, version 2.5.0); a part that is off until an install switches it on says so in its note, and anything on the roadmap says *planned*. Where a fact could not be confirmed on the vendor's own pages the cell says `?`. A `✗` means the feature is not offered, or we found no sign of it in the vendor's docs. Rows added on 2026-10-11 (accounts, conversions, webhooks, MCP, the hosted layer, engagement, campaign tag problems, exit rate) and on 2026-10-18 for version 2.10.0 (what AI fetches ask for, what each crawler costs, what the AI read before a visit, Google AI Mode) have not been checked for the other tools yet: their cells say *not checked*.
 
 | Mark | Means |
 | --- | --- |
@@ -60,6 +60,13 @@ Whether a crawler's name can be trusted, and what you can do about it.
 | Blocks or charges AI crawlers | ✓ [^65] | ✗ | – | – | ✗ | ✗ | ✓ [^66] | ✗ | ✗ | ✓ [^67] |
 | robots.txt rules beside what each crawler fetched | ✓ [^68] | ✗ | – | – | ✗ | ✗ | ? | ✗ | ✗ | ◐ [^69] |
 
+**What they ask for and cost**
+
+| Feature | Skald | Google Analytics 4 | Search Console | Bing Webmaster Tools | Plausible | Matomo | Cloudflare | GoAccess | PostHog | Known Agents |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| What AI fetches ask for <br><sub>Pages, llms.txt, Markdown, robots.txt, sitemaps; training and live answers apart</sub> | ✓ [^273] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
+| What each crawler costs the server <br><sub>Requests, bytes, response time, errors, re-crawls; a detail view per crawler</sub> | ✓ [^274] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
+
 ## Audience
 
 Who the people were.
@@ -93,9 +100,11 @@ Where people came from.
 | --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | People who clicked through from an AI assistant <br><sub>Its own channel, by assistant</sub> | ✓ [^97] | ✓ [^98] | – | – | ✓ [^99] | ✓ [^100] | ◐ [^101] | ✗ [^102] | ✓ [^103] | ✓ [^104] |
 | AI clicks that lost their referrer, estimated <br><sub>A direct visit to a page an assistant fetched minutes before; labelled "likely"</sub> | ◐ [^272] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
+| What the AI read before it sent a visitor <br><sub>The pages that assistant fetched in the minutes before the click</sub> | ✓ [^275] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
 | How often an assistant cites you, clicked or not | ◐ [^105] | ✗ | ◐ [^106] | ✓ [^107] | ✗ | ✗ | ✗ | ✗ | ✗ | ? |
 | Search queries, impressions, position | planned [^108] | ◐ [^109] | ✓ [^110] | ✓ [^111] | ◐ [^112] | ◐ [^113] | ✗ | ✗ | ? | ✗ |
 | Google AI Overview clicks told apart | ✗ [^114] | ✗ [^115] | ◐ [^116] | – | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Google AI Mode clicks told apart <br><sub>A Google click that carries AI Mode's udm=50</sub> | ◐ [^276] | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked | not checked |
 
 ## Real time
 
@@ -232,7 +241,7 @@ What it takes to run.
 
 ## Where Skald leads
 
-- **It sees the machines.** AI training crawlers and the fetches an assistant makes while answering someone are in the log; a JavaScript tag never runs for them, and GA4 and Plausible drop known bots on purpose.
+- **It sees the machines.** AI training crawlers and the fetches an assistant makes while answering someone are in the log; a JavaScript tag never runs for them, and GA4 and Plausible drop known bots on purpose. Skald also shows what each one asks for (llms.txt, Markdown, pages) and what it costs the server.
 - **It says why an AI came.** To train, because someone just asked, or a person who clicked a citation; three tiers that never double count. It also estimates the AI clicks whose referrer was lost, shown apart and labelled "likely".
 - **It checks names.** A crawler is compared with its owner's published addresses or DNS; a fake is filed apart as "claims to be".
 - **Every figure is proven.** Groups add up to the log, a second count checks every figure, and a day that fails is withheld rather than shown.
@@ -540,3 +549,7 @@ Given no column, to keep the table readable.
 [^270]: **Skald, campaign tag problems**: Visits whose landing address has a utm_source with no utm_medium, a medium analytics tools do not know, an ad click ID with no tags, or tags on a link inside the site; counted a second time by its own audit. [Skald DATA-CONTRACT](../DATA-CONTRACT.md)
 [^271]: **Skald, exit rate per page**: The share of a page's visits that left from it, over the last 30 whole days; not shown under 10 visits. [Skald DATA-CONTRACT](../DATA-CONTRACT.md)
 [^272]: **Skald, ai clicks that lost their referrer, estimated**: A visit with no referrer and no campaign tag that lands on a page an assistant's user fetcher fetched in the same minute or up to 15 minutes before is "likely" from that assistant, by assistant, landing page, lead and conversion. An estimate, shown apart and never added to the citation count; counted a second time by its own audit. [Skald CLASSIFICATION](../CLASSIFICATION.md)
+[^273]: **Skald, what ai fetches ask for**: Every answer-engine request, for training and for a live question apart, filed by what its path names: Page, llms.txt, Markdown, Text, robots.txt, Sitemap, Other file; per assistant. Counted a second time by its own audit, with its own path rule. Since 2.10.0. [Skald CLASSIFICATION](../CLASSIFICATION.md)
+[^274]: **Skald, what each crawler costs the server**: Per assistant, search crawler and bot, per day: requests, bytes sent, mean and 90th-percentile response time (when the log has a size and a time), status classes, distinct paths and re-crawls, with a detail view per crawler (by day, pages, statuses, verified share, countries, user agents, last seen). Counted a second time by its own audit. Since 2.10.0. [Skald DATA-CONTRACT, crawler_cost.json](../DATA-CONTRACT.md)
+[^275]: **Skald, what the ai read before it sent a visitor**: For a visit from an AI answer (cited, or likely), the paths that assistant's user fetcher fetched in the minutes before it, and per assistant how many of its visits landed on a page it had just fetched. Context, never a count of people; counted a second time by its own audit. Since 2.10.0. [Skald DATA-CONTRACT, likely from AI](DATA-CONTRACT-AI-LIKELY.md)
+[^276]: **Skald, google ai mode clicks told apart**: Only when Google's referrer or the landing address carries udm=50; the visit stays Search engine with the referring site "google.com (AI Mode)". A click without it looks like any Google click and is not guessed. Since 2.10.0. [Skald CLASSIFICATION](../CLASSIFICATION.md)

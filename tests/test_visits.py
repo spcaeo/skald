@@ -189,9 +189,13 @@ class TestSystem(unittest.TestCase):
             self.assertEqual(len(h.journeys("example.com", DAY, DAY)), 6)
             # The view's own visits: one standard reader, and alpha and beta.
             self.assertEqual(len(h.journeys("example.com::guides", DAY, DAY)), 3)
-            dump = "\n".join(h.db.iterdump())
+        from support import PERSONS, split_crawler_cost
+        dump, cost = split_crawler_cost(self.box.db)
         for secret in ("203.0.113.", OFFICE, "Mozilla", "AppleWebKit", "https://"):
             self.assertNotIn(secret, dump)
+        # crawler_cost keeps a named crawler's own strings, never a person's.
+        for secret in PERSONS + (OFFICE,):
+            self.assertNotIn(secret, cost)
 
     def test_journeys_expire_but_totals_stay(self):
         self.box.run("--today", "2026-10-06", "collect", "--day", "2026-10-05")

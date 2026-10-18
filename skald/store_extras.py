@@ -33,8 +33,14 @@ KINDS = ("hourly", "ours", "not_found", "pages", "campaigns", "returning",
          # device, campaign tag hygiene
          "funnels", "engagement", "utm_hygiene",
          # likely sent by an AI assistant (inferred, ai_likely.py), and the
-         # user fetches it rests on, kept ai_likely.FETCH_DAYS
-         "ai_likely", "ai_fetches")
+         # user fetches it rests on, kept ai_likely.FETCH_DAYS; what an AI
+         # visit's assistant fetched before it (ai_read.py)
+         "ai_likely", "ai_fetches", "ai_read",
+         # every AI fetch by what it asked for: page, llms.txt, Markdown, ...
+         # (ai_formats.py)
+         "ai_formats",
+         # what each crawler, assistant and bot cost the server (crawler_cost.py)
+         "crawler_cost")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS day_extras (

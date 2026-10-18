@@ -225,7 +225,7 @@ def page_origin(referrer: str, url: str, cited: bool, own_hosts: set[str]) -> tu
     if not own_hosts:
         return None
     return (source_type(referrer, url, cited, own_hosts),
-            referrer_label(referrer, own_hosts), campaign(url))
+            referrer_label(referrer, own_hosts, url), campaign(url))
 
 
 def new_source(origin: tuple | None, visit_origin: tuple | None) -> bool:
@@ -238,13 +238,31 @@ def new_source(origin: tuple | None, visit_origin: tuple | None) -> bool:
             and origin[0] not in INSIDE_SOURCES and origin != visit_origin)
 
 
-def referrer_label(referrer: str, own_hosts: set[str]) -> str:
+def referrer_label(referrer: str, own_hosts: set[str], url: str = "") -> str:
     host = referrer_host(referrer)
     if not host:
         return "(none)"
     if host in own_hosts or "www." + host in own_hosts:
         return "(this site)"
-    return host[:60]
+    return host[:60] + (AI_MODE if google_ai_mode(referrer, url) else "")
+
+
+# Google's AI Mode: Google search with udm=50 in its address. Still a search
+# engine; its referrer label gets this mark, so it can be seen apart. Only
+# when the parameter is there (on the referrer or the landing URL), never
+# guessed: a bare google.com referrer stays plain google.com.
+AI_MODE = " (AI Mode)"
+_GOOGLE_SEARCH = re.compile(r"(?:^|\.)google\.(?:com(?:\.[a-z]{2})?|co\.[a-z]{2}|[a-z]{2,3})$")
+
+
+def google_ai_mode(referrer: str, url: str = "") -> bool:
+    """A Google search referrer (not Gmail) with udm=50 on it or on the
+    landing URL."""
+    host = referrer_host(referrer)
+    if not _GOOGLE_SEARCH.search(host) or _EMAIL.search(host):
+        return False
+    return any(query(u.split("#", 1)[0]).get("udm", "").strip() == "50"
+               for u in (referrer, url) if u)
 
 
 def query(url: str) -> dict[str, str]:

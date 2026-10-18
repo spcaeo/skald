@@ -119,6 +119,9 @@ def from_snapshot(snap: dict) -> dict:
         out["visit"] = {k: snap["visits"].get(k, {}) for k in ("pages", "seconds", "exits", "steps", "flags")}
     if snap.get("ours_labels") is not None:
         out["ours_by"] = snap.get("ours_labels") or {}
+    formats = (snap.get("extras") or {}).get("ai_formats")
+    if formats is not None:
+        out["ai_formats"] = formats
     return out
 
 
@@ -133,9 +136,9 @@ def journey(j: dict, day: str | None = None) -> dict:
             step["at"] = sec
     flags = [f for f in ("not_found", "posted", "in_app") if j.get(f)]
     # Fields added later (schema 9: utm, paid, referring page, returning; likely_ai, inferred,
-    # ai_likely.py) pass through as they are.
+    # ai_likely.py; ai_read, the pages its assistant fetched before, ai_read.py) pass through.
     extra = {k: j[k] for k in ("utm", "paid", "ref_param", "ref_host", "ref_page", "search_terms",
-                               "returning", "days_seen_30d", "likely_ai") if k in j}
+                               "returning", "days_seen_30d", "likely_ai", "ai_read") if k in j}
     return {**extra, "start": j.get("start", ""), "day": day or str(j.get("start", ""))[:10],
             "country": j.get("country", ""), "device": j.get("device", ""),
             "browser": j.get("browser", ""), "os": j.get("os", ""),
@@ -163,12 +166,18 @@ def build(history: History, key: str, site: str, tz, now: datetime, snap: dict |
     # Each day's figures, as history.period(key, d, d, include_partial=True)
     # makes them, read for all the days at once (store.History.periods).
     periods = history.periods(key, first, anchor, include_partial=True) if start else {}
+    # AI fetches by what they asked for (ai_formats.py): absent on a day
+    # collected before it was counted, never 0.
+    formats = history.extras(key, first, anchor, ("ai_formats",)) if start else {}
     for entry in history.daily(key, first, anchor) if start else []:
         d: date = entry["day"]
         item = {"day": d.isoformat(), "state": entry["state"]}
         if entry["state"] in ("ok", "partial"):
             period = periods[d]
             item.update(figures(period.totals))
+            blob = (formats.get(d.isoformat()) or {}).get("ai_formats")
+            if blob is not None:
+                item["ai_formats"] = blob
             if entry["state"] == "partial":
                 item["partial"] = _partial(entry)
         days.append(item)

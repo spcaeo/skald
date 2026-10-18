@@ -99,9 +99,10 @@ def ai_activity(p) -> dict:
             for name, n in c.get(kind, {}).items():
                 by_name[name] = {"kind": tier, "events": int(n)}
         # Likely sent by an AI assistant (ai_likely.py): inferred, apart
-        # from the counts above; null on a day it was not recorded.
+        # from the counts above; and what an AI visit's assistant fetched
+        # before it (ai_read.py). Null on a day it was not recorded.
         return {"by_name": by_name, "by_kind": visitors.get(d),
-                "ai_likely": _blob(p, d, "ai_likely")}
+                "ai_likely": _blob(p, d, "ai_likely"), "ai_read": _blob(p, d, "ai_read")}
 
     today = None
     if p.ai is not None:
@@ -110,7 +111,7 @@ def ai_activity(p) -> dict:
             events = [e for e in events if p.view.matches(e.get("path", ""))]
         today = {"events": events, "total": int(p.ai.get("total", 0)) if p.view is None
                  else len(events), "by_name": p.ai.get("by_name") if p.view is None else None,
-                 "ai_likely": _live_blob(p, "ai_likely")}
+                 "ai_likely": _live_blob(p, "ai_likely"), "ai_read": _live_blob(p, "ai_read")}
     return {"repeat_window_days": 30, "repeat_counts": "days", "likely_ai": likely_note(p.config),
             "days": p.per_day(figures), "today": today}
 

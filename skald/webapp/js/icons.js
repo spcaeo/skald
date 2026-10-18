@@ -108,7 +108,8 @@ const initial = (name) => {
 const find = (list, v) => list.find(([re]) => re.test(v));
 
 function favicon(host) {
-  const bare = String(host || "").replace(/\/.*$/, "");
+  // "google.com (AI Mode)" (dimensions.AI_MODE) is google.com's icon.
+  const bare = String(host || "").replace(/ \(AI Mode\)$/, "").replace(/\/.*$/, "");
   const path = FAVICONS[bare] || FAVICONS[bare.replace(/^www\./, "")];
   if (!path) return null;
   const img = h("img", { class: "ic ic-fav", src: FAVBASE + path, alt: "", width: "14", height: "14", loading: "lazy", "aria-hidden": "true" });

@@ -187,6 +187,12 @@ def referrer_of(line: Line, own: set) -> str:
         return "(none)"
     if host in own or "www." + host in own:
         return "(this site)"
+    # Google's AI Mode: a Google search referrer, and udm=50 in the
+    # referrer's query or the landing URL's. Only when it is there.
+    if _GOOGLE_SEARCH.search(host) and host not in _MAIL_HOSTS and any(
+            _tags(u.split("#", 1)[0]).get("udm", "").strip() == "50"
+            for u in (line.referrer, line.url)):
+        return host[:60] + " (AI Mode)"
     return host[:60]
 
 

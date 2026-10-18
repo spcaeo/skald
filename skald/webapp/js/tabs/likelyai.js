@@ -111,6 +111,54 @@ export function conversionsLikely(days, acts, f) {
     h("p", { class: "note" }, `Likely, never certain, and not part of the sources above.${all.Unknown ? ` ${n(all.Unknown)} not recorded (no first touch, or the fetches of that time were not kept).` : ""}`));
 }
 
+// ------------------------------------------- what the AI read before (ai_read.py)
+const bare = (p) => (String(p || "").split(/[?#]/)[0].slice(0, 70).replace(/\/+$/, "") || "/");
+const READ_NOTE = "The pages the assistant's user fetcher (ChatGPT-User, Perplexity-User, Claude-User, ...) fetched in the window before this visit's first request: likely what it read to write the answer. Training crawlers are never listed. Context, not people: a fetch can be for someone else. At most 10 pages are kept a visit.";
+
+// The visit drawer: "Fetched by ChatGPT in the 15 minutes before", nearest first.
+export function visitRead(j) {
+  const a = j?.ai_read;
+  if (!a || !(a.paths || []).length) return null;
+  const many = (a.names || []).length > 1;
+  const who = many ? a.names.map(aiLabel).join(" and ") : aiLabel(a.name);
+  const landing = bare(j.trail?.find((p) => p.page)?.path ?? j.trail?.[0]?.path);
+  const how = a.how === "cited" ? `This visit followed a link in a ${who} answer.` : `This visit is likely from ${who} (inferred).`;
+  return h("section", null, h("h3", null, "What the AI read before this visit ", info(READ_NOTE, "What the AI read before this visit")),
+    h("p", { class: "note" }, `Fetched by ${who} in the ${a.window_minutes} minutes before. ${how}`),
+    h("ol", { class: "vj-steps ai-read" }, a.paths.map(([path, by, min]) => h("li", null,
+      h("span", { class: "vj-at" }, min ? `${min} min before` : "same minute"),
+      h("span", { class: "vj-p" }, h("span", { class: "vj-path" }, path),
+        many ? h("small", null, aiLabel(by)) : null,
+        bare(path) === landing ? h("small", null, "the page this visit landed on") : null)))),
+    a.more ? h("p", { class: "note" }, `And ${n(a.more)} more page${a.more === 1 ? "" : "s"}, not kept.`) : null);
+}
+
+// AI assistants: per assistant, visits from its answers whose landing page it had just fetched.
+export function readSection(m, r) {
+  const f = m.x?.ai_activity;
+  if (!f || off(f)) return null;
+  const days = r.kind === "today" ? (f.today ? [f.today] : [])
+    : (f.days || []).filter((d) => d.state === "ok" && d.day >= r.first && d.day <= r.last);
+  const blobs = days.map((d) => d.ai_read).filter(Boolean);
+  if (!blobs.length) return null;
+  const by = {}, windows = new Set();
+  for (const b of blobs) {
+    if (b.window_minutes != null) windows.add(b.window_minutes);
+    for (const [k, v] of Object.entries(b.by_assistant || {})) addTo(by[k] = by[k] || {}, v);
+  }
+  const w = windows.size === 1 ? `${[...windows][0]} minutes` : "window";
+  const rows = Object.entries(by).map(([k, v]) => ({ k, cited: v.cited || 0, fetched: v.fetched || 0, same: v.same_page || 0, likely: v.likely || 0 }));
+  const text = `For each visit that followed an assistant's citation, Skald looks at what that assistant's user fetcher fetched in the ${w} before the visit. "Landed on a page it fetched": the visit's landing page was one of them (fetch → visit to the same page). Likely visits always land on a page the assistant fetched: that is how they are inferred, so they are shown apart. Visits, never people. Assistants with no known user fetcher (You.com, Phind, Poe) are not in this table.`;
+  return h("section", { class: "s" }, h("h2", null, "What the AI read before it sent a visitor ", info(text, "What the AI read before it sent a visitor")),
+    h("p", { class: "sub" }, `Visits from each assistant's answers, and how many landed on a page its user fetcher fetched in the ${w} before.${blobs.length < days.length ? ` Over ${n(blobs.length)} of ${n(days.length)} days: the others were not recorded.` : ""} Open a visit on Traffic > Visitors to see the pages.`),
+    table([{ key: "k", label: "Assistant", fmt: aiLabel, csv: (x) => aiLabel(x.k) },
+      { key: "cited", label: "Visits from its answers", num: true },
+      { key: "fetched", label: "It fetched pages first", num: true },
+      { key: "same", label: "Landed on a page it fetched", num: true },
+      { key: "likely", label: "Likely visits (inferred)", num: true }],
+    { caption: "What the AI read before it sent a visitor", rows, file: `ai-read-before-${r.first}-to-${r.last}.csv`, search: false, sortKey: "cited", empty: "No visit from an assistant with a user fetcher in this range." }));
+}
+
 // The visitor drawer's line: "Likely from ChatGPT (inferred: it fetched this page 2 min before)".
 export function visitLikely(j) {
   const l = j?.likely_ai;

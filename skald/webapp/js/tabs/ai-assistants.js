@@ -1,13 +1,14 @@
 // AI & bots > Assistants (2.7.0): the AI that works for a person waiting on an answer.
 // Which assistants fetched pages to answer a question, the visitors who followed an
 // AI citation, the visits likely sent by an AI answer (inferred, always apart), the
-// fetches followed by a visit, the pages assistants fetched, and AI reading changes.
+// fetches followed by a visit, what the AI read before it sent a visitor (ai_read), the
+// pages assistants fetched, and AI reading changes.
 // Today (Live): every AI event so far, with its address (aifeed.js), on top.
 //
 // The owner's decision (2026-10-12): AI visits live only here; Traffic links here.
 // Figures are today's, from the same fields: app.json `tiers.asked`, `engines.asked`,
 // `cited`, `cited_by`, `ai_pages`; ai_activity.json (likely, feed); bots.json (Check);
-// robots.json (robots.txt); alerts.json (AI reading changes).
+// robots.json (robots.txt); alerts.json (AI reading changes); `ai_formats` (What they fetch).
 
 import { h, share } from "../ui.js";
 import { color, figures, pathMatch, ranked } from "../data.js";
@@ -15,10 +16,11 @@ import { table } from "../table.js";
 import { head, nothing, blist, panel, fileName, notBuiltNote } from "./common.js";
 import { verification, badge, badgeOf } from "./botverify.js";
 import { robotsOf, robotsBadge, robotsWords } from "./robots.js";
-import { followedSection, sourcesPanel } from "./likelyai.js";
+import { followedSection, readSection, sourcesPanel } from "./likelyai.js";
 import { aiChanges } from "./alerts.js";
 import { aiFeed } from "./aifeed.js";
-import { kpi, tierChart, countGrid, tabLink } from "./ai-parts.js";
+import { kpi, tierChart, countGrid, tabLink, formatsSection } from "./ai-parts.js";
+import { costSection } from "./crawlercost.js";
 
 const LEDE = "AI assistants at work for someone waiting on an answer: the pages they fetched for a question, the visitors who then came from their answers, and changes in how they read the site. Fetched is not read. Crawlers with nobody waiting (training, search, bots) are on Crawlers.";
 
@@ -54,12 +56,17 @@ export default function assistants(m, s, { first }) {
   }
   out.push(tierChart(m, s, r, { title: "Pages fetched to answer a question, per day", name: "Answering a question now", tier: "asked", group: "people", label: "AI fetches for a question per day" }));
   out.push(byName(m, s, r, t));
+  out.push(formatsSection(t, r, "asked", { who: "assistants", file: "ai-assistants-fetch" }));
+  out.push(costSection(m, s, r, { id: "assistants", title: "What each assistant costs",
+    sub: "Per assistant answering a question: requests, bytes the server sent, its time per request, failed requests, distinct paths and how often it fetched them again. Select a name for its detail.",
+    keep: (g, name, e) => g === "answer_engines" && e.tier === "asked" }));
   out.push(h("div", { class: "cols" },
     panel("AI assistants that sent visitors", "Visitors who followed a citation, by assistant. Counted once per visitor; undercounts.",
       blist(ranked(t.cited_by), { drill: "assistant", color: color("answer_engines"), empty: "Nobody arrived by following an AI citation in this range." }),
       h("p", { class: "note" }, "Google AI Overview clicks look exactly like ordinary Google clicks and are counted as search.")),
     h("div", null, notBuiltNote(m, "ai_activity", "Likely from AI assistants"), sourcesPanel(m, r))));
   out.push(followedSection(m, r));
+  out.push(readSection(m, r));
   out.push(h("section", { class: "s" }, h("h2", null, "Pages AI assistants fetched"),
     h("p", { class: "sub" }, "Every AI fetch by page: for a question, and for training or AI search."),
     countGrid("aipages", t.ai_pages, { caption: "Pages AI assistants fetched", file: fileName("ai-pages", r), key: "Page", value: "Fetches", keep: pathMatch(s), drill: "path", empty: "No answer-engine fetches." })));

@@ -8,7 +8,7 @@
     skald account reset-link | disable | enable | totp-off EMAIL
     skald account install-admin EMAIL on|off
     skald site assign SITE --org SLUG
-    skald token create NAME [--scope read|read_private|mcp ...] [--site S] [--org SLUG]
+    skald token create NAME [--scope read|read_private|mcp|ingest ...] [--site S] [--org SLUG]
 
 `account` (one person's sign-in) is singular on purpose: `skald user` is
 already the htpasswd command of `access.mode: basic` (access.py) and stays
@@ -638,11 +638,12 @@ def add_command(sub) -> None:
             q.add_argument("flag", choices=("on", "off"))
         q.set_defaults(run=cmd_account)
 
-    p = sub.add_parser("site", help="which organisation owns a site (accounts mode)")
+    p = sub.add_parser("site", help="the install's sites (accounts mode): assign, list, add, "
+                       "hosts, remove, purge, verify")
     acts = p.add_subparsers(dest="action", required=True)
     q = acts.add_parser("assign")
     q.add_argument("site")
     q.add_argument("--org", required=True, metavar="SLUG")
     q.set_defaults(run=cmd_site)
-    from .sites_cli import add_site_actions      # list, add, purge (dashboard sites)
+    from .sites_cli import add_site_actions      # list, add, hosts, remove, purge, verify
     add_site_actions(acts)

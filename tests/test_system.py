@@ -273,12 +273,18 @@ class TestHistory(unittest.TestCase):
                             + open(FIXTURES / "mixed_extended.log").readlines())
         self.history.record("example.com", self.day, totals, "UTC", [])
         self.history.close()
-        dump = "\n".join(sqlite3.connect(str(self.path)).iterdump())
+        from support import PERSONS, split_crawler_cost
+        dump, cost = split_crawler_cost(self.path)
         self.history = History(self.path)
         for forbidden in ("203.0.113.", "198.51.100.", "Mozilla/", "Chrome/",
                           "Macintosh", "AppleWebKit"):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, dump)
+        # crawler_cost keeps a named crawler's own strings, never a person's.
+        self.assertIn("GPTBot/1.2", cost)
+        for forbidden in PERSONS:
+            with self.subTest(crawler_cost=forbidden):
+                self.assertNotIn(forbidden, cost)
 
     def test_a_withheld_day_is_kept_but_never_summed(self):
         self.history.record("example.com", self.day, self.totals, "UTC",

@@ -17,6 +17,7 @@ import * as S from "./state.js";
 import { DIMS, chainOf, encode, label, link, said } from "./drill.js";
 import { blist, panel } from "./tabs/common.js";
 import { openDrawer } from "./drawer.js";
+import { botDetail } from "./tabs/crawlercost.js";
 
 const STATUS_CLASS = (code) => (code >= 500 ? "5xx" : code === 404 ? "404" : code >= 400 ? "4xx" : code >= 300 ? "3xx" : "2xx");
 const landing = (j) => j.landing || j.trail?.[0]?.path || j.trail?.[0]?.[0] || "";
@@ -207,6 +208,9 @@ export function drillView(m, s) {
     const t = m.live.figures;
     body.append(h("div", { class: "dd-kpis" }, ser.map((x) => h("div", null, h("b", null, n(x.get(t))), h("span", null, `${x.name}, today so far`)))));
   }
+
+  // ---- a crawler's cost and what it fetched (crawler_cost.json)
+  if (dim === "bot" && chain.length === 1) body.append(botDetail(m, s, r, value));
 
   // ---- the whole period, crossed, from the daily cube
   const cube = h("div");

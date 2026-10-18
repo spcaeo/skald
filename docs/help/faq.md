@@ -32,6 +32,12 @@ No. AI crawlers and fetches are machines, and show under AI & bots ([Assistants]
 
 It is an estimate, not a count. A person who clicks a link in an AI answer often arrives with no referrer, so the visit shows as Direct. But when they asked, the assistant fetched your page from your server. When a direct visit with no campaign tag lands on a page an assistant fetched in the same minute or up to 15 minutes before, Skald says the visit was *likely* sent by that assistant. It shows these on [AI & bots > Assistants](#ai/assistants), on [Leads & sales > Pipeline](#sales/pipeline) (with either Count from) and in a visitor's details, always marked "likely" with an (i) that says how. They are never added to the AI assistant source or to any other figure. See [Leads and conversions](leads-and-conversions.md).
 
+## What did the AI read before it sent this visitor?
+
+Open a visit on [Traffic > Visitors](#traffic/visitors). If the visit followed a link in an AI answer (ChatGPT, Perplexity, Claude, Gemini, Copilot, Mistral, Meta AI), or is likely from one, **What the AI read before this visit** lists the pages that assistant's user fetcher fetched in the 15 minutes before the visit: "Fetched by ChatGPT in the 15 minutes before", nearest first, at most 10 pages, with the page the visit landed on marked. It is context, not a count of people: a fetch can be for someone else. Training crawlers (GPTBot, ClaudeBot, ...) are never listed: nobody was waiting on them.
+
+On [AI & bots > Assistants](#ai/assistants), **What the AI read before it sent a visitor** shows, per assistant, the visits from its answers, how many came after it fetched pages, and how many landed on a page it had just fetched (fetch, then a visit to the same page). Likely visits are shown apart: they always land on a page the assistant fetched, because that is how they are inferred. Assistants with no known user fetcher (You.com, Phind, Poe) are not in that table. Days before this feature read "not recorded". The window is the same setting as for "likely" (`attribution.ai_window_minutes`).
+
 ## What are the AI alerts?
 
 Three alerts watch how AI assistants treat your site. They show on [Site > Alerts](#site/alerts) (press **AI** to see only them) and in **AI reading changes** on [AI & bots > Assistants](#ai/assistants):
@@ -41,6 +47,14 @@ Three alerts watch how AI assistants treat your site. They show on [Site > Alert
 - **AI sending people**: the visits likely sent by an assistant jumped (3 times its 28-day average, and at least 10) or vanished. With fewer visits Skald says "too few to judge" and does not alert.
 
 An assistant means its company: GPTBot, OAI-SearchBot and ChatGPT-User are all OpenAI. Each alert names the assistant, the page, the days and the numbers. They use whole days only, and only figures Skald has already counted twice. If a day in the window is withheld or missing, the alert waits; it never fires on a day it cannot trust. The server admin can change the thresholds or switch each one off (`alerts.ai_*` in the server's config). If alert mail is on, the weekly mail lists the week's changes, and an outgoing webhook can receive each one as `ai.reading_changed` ([Webhooks](webhooks.md)).
+
+## What do AI assistants and crawlers fetch?
+
+**What they fetch** on [AI & bots > Assistants](#ai/assistants) (fetches for a question) and [Crawlers](#ai/crawlers) (fetches for training) splits every AI fetch by what its address names: a page, your llms.txt (`/llms.txt` or `/llms-full.txt`), a Markdown file (`.md`), another text file, robots.txt, a sitemap, or another file (images, scripts, feeds, PDFs). A second table gives the same split per assistant or crawler; each day keeps the 20 with the most fetches and sums the rest in "(all others)". The address decides, not the answer: a fetch of an llms.txt you do not have still counts as llms.txt. Days counted before version 2.10.0 have no split, and a range that holds one shows none.
+
+## Can Skald see Google's AI Mode?
+
+Only when Google says so. A click from Google whose address carries `udm=50` (Google's AI Mode) is still a search engine visit, but its referring site reads **google.com (AI Mode)** on [Traffic > Sources](#traffic/sources), so you can see it apart. Most clicks from AI Mode and AI Overviews arrive as a plain `google.com`, the same as any search click; Skald never guesses which those were.
 
 ## Can Skald write an llms.txt for my site?
 

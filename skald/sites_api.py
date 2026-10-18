@@ -131,7 +131,9 @@ def ship_command(config, allowed, site: str) -> str:
 
 
 def tag(site: str) -> str:
-    return f'<script src="/skald.js" data-site="{site}" defer></script>'
+    # The path the beacon helper serves the tag on (beacon_server.SNIPPET_PATH),
+    # on the site's own host: its web server forwards it to this install.
+    return f'<script src="/traffic-js/skald.js" data-site="{site}" defer></script>'
 
 
 class Ctx:

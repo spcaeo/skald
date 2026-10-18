@@ -87,6 +87,9 @@ class Extras:
         self.bots = BotCounts(gap_minutes)
         from .robots import CrawlerPaths
         self.crawler_paths = CrawlerPaths()
+        # What each crawler, assistant and bot cost the server (crawler_cost.py).
+        from .crawler_cost import Costs
+        self.crawler_cost = Costs()
         # The same hourly figures keyed by the UTC hour they started
         # ("YYYY-MM-DDTHH"), so a reader's chosen zone can re-bucket them
         # exactly - the day the clocks go back has two local 01:00 hours.
@@ -99,6 +102,9 @@ class Extras:
         # visits' first times are set by aggregate.Tally.
         from .ai_likely import Fetches
         self.ai_fetches = Fetches()
+        # Every AI fetch by what it asked for (ai_formats.py).
+        from .ai_formats import Formats
+        self.ai_formats = Formats()
         self.attribution: dict | None = None
         self.visit_firsts: list | None = None
 
@@ -138,8 +144,10 @@ class Extras:
     def add(self, hit, verdict) -> None:
         self.bots.add(hit, verdict)
         self.ai_fetches.add(hit, verdict)
+        self.ai_formats.add(hit, verdict)
         self.firsts_of(hit, verdict)
         self.crawler_paths.add(hit, verdict)
+        self.crawler_cost.add(hit, verdict)
         hour = dim.hour(hit.when, self.tz)
         row = self.hours.get(hour)
         if row is None:
