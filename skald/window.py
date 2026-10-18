@@ -27,7 +27,7 @@ from zoneinfo import ZoneInfo
 from .aggregate import Totals, summarise_views
 from .classify import Classifier, crawler_visits
 from .config import setting
-from .parse import Hit, ReadStats, geo_database, log_files, oldest_first, read
+from .parse import Hit, ReadStats, geo_database, log_files, oldest_first, read, sizes
 
 # A line can land in the file after the one its timestamp belongs to: the
 # server buffers writes, and reopens its log some time after the rename. Six
@@ -126,6 +126,14 @@ def window_paths(config: dict, start: datetime, end: datetime,
     return files_for(paths, start, end)
 
 
+def plain_sizes(config: dict) -> dict[str, int]:
+    """The live log and its first rotation (the files still written to),
+    each one's size in bytes now: what a live run reads up to (parse.sizes)."""
+    logs = config.get("logs") or {}
+    return sizes(log_files(Path(logs.get("dir") or "/var/log/nginx"),
+                           logs.get("base") or "access.log", 2))
+
+
 def analyse_window(config: dict, start: datetime, end: datetime,
                    paths: list[Path] | None = None,
                    now: datetime | None = None, top: int = HISTORY_TOP,
@@ -142,8 +150,10 @@ def analyse_window(config: dict, start: datetime, end: datetime,
 def analyse_window_views(config: dict, start: datetime, end: datetime,
                          paths: list[Path] | None = None,
                          now: datetime | None = None, top: int = HISTORY_TOP,
-                         observe=None, views=None) -> tuple[Totals, dict]:
-    """The whole site and each config.View, in one pass over the window."""
+                         observe=None, views=None,
+                         upto: dict | None = None) -> tuple[Totals, dict]:
+    """The whole site and each config.View, in one pass over the window.
+    `upto` reads each plain file only that far (parse.read): a live run."""
     logs = config.get("logs") or {}
     # Files named by the caller are read whole: they were chosen on purpose,
     # and their modification times say nothing about rotation order.
@@ -152,11 +162,12 @@ def analyse_window_views(config: dict, start: datetime, end: datetime,
     paths = oldest_first(paths)
     tests = {v.slug: (lambda hit, v=v: v.matches(hit.path)) for v in (views or [])}
     fmt = logs.get("format") or "auto"
-    classifier = _classifier(config, within(read(paths, fmt), start, end), start, end)
+    classifier = _classifier(config, within(read(paths, fmt, upto=upto), start, end),
+                             start, end)
     stats = ReadStats()
     edges = _Edges()
     whole, by_view = summarise_views(
-        edges.watch(within(read(paths, fmt, stats, geo_database(config)), start, end)),
+        edges.watch(within(read(paths, fmt, stats, geo_database(config), upto), start, end)),
         classifier,
         int(setting(config, "report", "session_gap_minutes", 30)),
         top=top,

@@ -213,7 +213,9 @@ def recount_tail(config: dict, answer: dict, paths=None) -> Counter:
     files = [Path(p) for p in paths] if paths else log_files(config)
     wanted = {str(h).lower() for h in ((config.get("site") or {}).get("hosts") or [])}
     got: Counter = Counter()
-    for line in _read(files):
+    # As far as the helper read each file (its `read_upto`); a tail file
+    # written before it recorded one is counted from the whole files.
+    for line in _read(files, answer.get("read_upto")):
         if not start <= line.when < end:
             continue
         if wanted and line.host and line.host.lower() not in wanted:
