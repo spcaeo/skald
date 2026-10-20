@@ -77,11 +77,16 @@ Each field says where its value comes from: this site, the organisation, the who
 
 The **People** card says what Skald keeps about the people who visit:
 
-- **Keep visitors' IP addresses**: each visit is kept with its IP address, browser, times, pages in order, source, referrer, campaign, country and device. Admins can then look a person up with the search at the top. Off: no address is kept, and the visits already kept with one are deleted at the next nightly run.
+- **Keep visitors' IP addresses**: each visit is kept with its IP address, browser, times, pages in order, source, referrer, campaign, country and device. Admins can then look a person up with the search at the top. Three choices:
+  - **Full address**: the whole address.
+  - **Shortened (last part removed)**: `203.0.113.57` is kept as `203.0.113.0`. Switching from full shortens the addresses already kept at the next nightly run. Switching back to full keeps only new visits in full.
+  - **Don't keep**: no address is kept, and the visits already kept with one are deleted at the next nightly run.
 - **Visits with addresses**: how many days those visits are kept. The default is 395.
 - **Leads' names and emails**: **full** keeps a lead's name and email with its conversions; **anonymous** keeps neither.
 
 A new install keeps both. An install that was upgraded from a version before 2.4.0 keeps neither until you turn them on. The field then says "kept off by the upgrade to 2.4.0". Your privacy notice must say what you keep before you turn them on. See [Privacy](privacy.md).
+
+Below the card, **Wording for your privacy notice** gives a short text made from these settings, with a **Copy** button. Fill in the parts in [square brackets]. It is a starting point, not legal advice.
 
 ### Keeping less
 

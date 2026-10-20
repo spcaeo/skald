@@ -12,12 +12,18 @@ In conversions.sqlite, tables `visits` and `visit_days` (store.PEOPLE_TABLES).
                live run, for today so far (state "today", replaced each time)
     when       only while the site keeps addresses (policy.keep_ips) and the
                day is inside privacy.keep_days (395)
+    shortened  with privacy.keep_ips "short" the address is kept shortened
+               (policy.shorten: 203.0.113.57 as 203.0.113.0); the country
+               and city were looked up from the full one before. Rows kept
+               in full before the switch are shortened at the next nightly
+               run (prune_kept)
     forgotten  an address on the forgotten list (privacy.py) is written as
                "(removed)", without user agent or referrer: the visit still
                counts, its person does not show
     pruned     each night, rows older than the site's keep_days; every row of
                a site that no longer keeps addresses
-    deleted    `skald forget --ip` (privacy.py) deletes the address's rows
+    deleted    `skald forget --ip` (privacy.py) deletes the address's rows,
+               and on a site that shortens, the rows of its shortened form
 
 The second count is audit_people.py: from the raw log, by its own road, the
 readers and page views per address of each whole day, against these rows.
@@ -47,13 +53,17 @@ def _stamp(when) -> str | None:
     return store.stamp(when if when.tzinfo else when.replace(tzinfo=timezone.utc))
 
 
-def rows(site: str, day: str, journeys: list, people: list, hidden=None) -> list[tuple]:
-    """The table's rows for one day: one per journey, with who it was."""
+def rows(site: str, day: str, journeys: list, people: list, hidden=None,
+         kept=str) -> list[tuple]:
+    """The table's rows for one day: one per journey, with who it was.
+    `kept` turns the full address into what is kept (policy.kept_ip); the
+    forgotten list is asked about the full address, before."""
     out = []
     for seq, (j, who) in enumerate(zip(journeys, people)):
         who = who or {}
         ip = str(who.get("ip") or "")
         gone = not ip or (hidden is not None and hidden(ip))
+        ip = ip if gone else kept(ip)
         offsets = list(j.get("at") or [])
         trail = [[p, how, offsets[i] if i < len(offsets) else None]
                  for i, (p, how) in enumerate((j.get("trail") or [])[:TRAIL])]
@@ -76,9 +86,9 @@ COLUMNS = ("site, day, seq, ip, user_agent, start, end, source, via, referrer, c
 
 
 def write(db, site: str, day: str, journeys: list, people: list, state: str,
-          hidden=None, now: datetime | None = None) -> tuple[int, int]:
+          hidden=None, now: datetime | None = None, kept=str) -> tuple[int, int]:
     """Replace a day's visits of `site`; (visits, pages) written."""
-    got = rows(site, day, journeys, people, hidden)
+    got = rows(site, day, journeys, people, hidden, kept)
     with store.tx(db):
         db.execute("DELETE FROM visits WHERE site = ? AND day = ?", (site, day))
         db.executemany(f"INSERT INTO visits ({COLUMNS}) VALUES "
@@ -96,7 +106,8 @@ def record(config: dict, folder, site: str, day: date, totals, state: str = "who
            today: date | None = None, hidden=None) -> tuple[int, int] | None:
     """Keep `totals`' visits for `day` when the site keeps addresses; None
     when it does not, the day is past keep_days, or no visit was counted."""
-    if folder is None or not policy.keep_ips(config, folder):
+    kept = policy.kept_ip(config, folder) if folder is not None else None
+    if kept is None:
         return None
     journeys, people = getattr(totals, "journeys", None), getattr(totals, "people", None)
     if journeys is None or people is None or len(journeys) != len(people):
@@ -109,7 +120,7 @@ def record(config: dict, folder, site: str, day: date, totals, state: str = "who
         hidden = forgotten(Path(folder))
     db = store.connect(path_for(config, folder))
     try:
-        return write(db, site, day.isoformat(), journeys, people, state, hidden)
+        return write(db, site, day.isoformat(), journeys, people, state, hidden, kept=kept)
     finally:
         db.close()
 
@@ -138,13 +149,30 @@ def keep_live(config: dict, db_path, site: str, day: date, totals) -> None:
               file=sys.stderr)
 
 
+def shorten_kept(db, site: str) -> int:
+    """Shorten every address of `site` still kept in full (a site switched
+    from full to short; policy.shorten). Rows changed."""
+    changed = 0
+    found = [r[0] for r in db.execute("SELECT DISTINCT ip FROM visits WHERE site = ?", (site,))]
+    with store.tx(db):
+        for ip in found:
+            short = policy.shorten(ip)
+            if short != ip:
+                changed += db.execute("UPDATE visits SET ip = ? WHERE site = ? AND ip = ?",
+                                      (short, site, ip)).rowcount
+    return changed
+
+
 def prune(db, today: date, keep: int, own: dict | None = None,
-          off: tuple = ()) -> int:
+          off: tuple = (), short: tuple = ()) -> int:
     """Delete visits older than `keep` days (a site in `own` by its own
     days), and every visit of a site in `off` (it no longer keeps
-    addresses). Rows deleted."""
+    addresses); shorten the full addresses of a site in `short`. Rows
+    deleted."""
     gone = 0
     own = own or {}
+    for site in short:
+        shorten_kept(db, site)
     with store.tx(db):
         for site in off:
             gone += db.execute("DELETE FROM visits WHERE site = ?", (site,)).rowcount
@@ -159,18 +187,21 @@ def prune(db, today: date, keep: int, own: dict | None = None,
 
 
 def prune_kept(ctx) -> int | None:
-    """The nightly prune (cli.prune_kept): privacy.keep_days per site, and a
-    site that turned privacy.keep_ips off loses its rows."""
+    """The nightly prune (cli.prune_kept): privacy.keep_days per site, a
+    site that turned privacy.keep_ips off loses its rows, and one that
+    turned it to short has its full addresses shortened."""
     from ..settings_store import prune_plan
     folder = Path(ctx.db_path).parent
     path = path_for(ctx.config, folder)
     if path is None or not Path(path).is_file():
         return None
     keep, own = prune_plan(ctx.config, "privacy.keep_days", policy.keep_days(ctx.config))
-    off = () if policy.keep_ips(ctx.config, folder) else (ctx.site,)
+    mode = policy.ip_mode(ctx.config, folder)
+    off = (ctx.site,) if mode == policy.OFF else ()
+    short = (ctx.site,) if mode == policy.SHORT else ()
     db = store.connect(path)
     try:
-        return prune(db, ctx.now.date(), keep, own, off)
+        return prune(db, ctx.now.date(), keep, own, off, short)
     finally:
         db.close()
 
@@ -192,20 +223,30 @@ def preview(config: dict, folder, site: str, cutoff: str) -> tuple:
     return int(row[0] or 0), int(row[1] or 0), row[2], row[3]
 
 
-def forget_ip(db, ip: str, dry_run: bool = False) -> int:
-    """Delete every visit of `ip` (every site). Rows deleted (or found)."""
-    n = db.execute("SELECT COUNT(*) FROM visits WHERE ip = ?", (ip,)).fetchone()[0]
+def forget_ip(db, ip: str, dry_run: bool = False, short_sites: tuple = ()) -> int:
+    """Delete every visit of `ip` (every site), and on each site in
+    `short_sites` (it keeps addresses shortened) every visit of the
+    shortened address too: those rows may be other people's as well, and
+    cannot be told apart. Rows deleted (or found)."""
+    where, args = "ip = ?", [ip]
+    short = policy.shorten(ip)
+    if short_sites and short != ip:
+        where += f" OR (ip = ? AND site IN ({','.join('?' * len(short_sites))}))"
+        args += [short, *short_sites]
+    n = db.execute(f"SELECT COUNT(*) FROM visits WHERE {where}", args).fetchone()[0]
     if n and not dry_run:
         with store.tx(db):
-            db.execute("DELETE FROM visits WHERE ip = ?", (ip,))
+            db.execute(f"DELETE FROM visits WHERE {where}", args)
     return int(n)
 
 
-def of_ip(db, site: str, ip: str, limit: int = 2000) -> list[dict]:
-    """Every kept visit of an address, newest first."""
+def of_ip(db, site: str, ip: str, limit: int = 2000, short: bool = False) -> list[dict]:
+    """Every kept visit of an address, newest first; with `short`, the
+    visits kept under its shortened form too."""
+    forms = sorted({ip, policy.shorten(ip)}) if short else [ip]
     return [_row(r) for r in db.execute(
-        "SELECT * FROM visits WHERE site = ? AND ip = ? ORDER BY start DESC LIMIT ?",
-        (site, ip, limit))]
+        f"SELECT * FROM visits WHERE site = ? AND ip IN ({','.join('?' * len(forms))}) "
+        f"ORDER BY start DESC LIMIT ?", (site, *forms, limit))]
 
 
 def posted_near(db, site: str, at: str, before: int = 120, after: int = 30) -> list[dict]:

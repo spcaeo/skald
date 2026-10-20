@@ -494,10 +494,16 @@ alerts:
 # site's kept visits at the next daily run. Unset, keep_ips is true on a new
 # install and false on an install upgraded from before 2.4.0 (its history says
 # so), so an upgrade never starts keeping addresses by itself. Turn it on only
-# when the site's privacy notice says so. Docker: SKALD_KEEP_IPS=1 or 0, and
-# SKALD_IDENTITY=full or anonymous for conversions.identity.
+# when the site's privacy notice says so. 2.15.0: keep_ips is full, short or off
+# (true reads as full, false as off). short keeps each address shortened: an
+# IPv4 address's last part zeroed (203.0.113.57 as 203.0.113.0), an IPv6
+# address cut to its first 48 bits; the country and city still come from the
+# full address. Full to short shortens the rows already kept at the next daily
+# run; short to full keeps them short and keeps only new rows in full. Docker:
+# SKALD_KEEP_IPS=1, 0 or short, and SKALD_IDENTITY=full or anonymous for
+# conversions.identity.
 # privacy:
-#   keep_ips: true
+#   keep_ips: full
 #   keep_days: 395
 # Page views per visitor ID, deleted after vid_days unless the ID converted.
 # journeys:

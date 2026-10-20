@@ -8,7 +8,10 @@ finds, from what is kept:
     visits       every kept visit of the same address with the same browser
                  and system (the user agent's family: the first-touch rule,
                  firsttouch.py), newest first; only while the site keeps
-                 addresses, inside privacy.keep_days
+                 addresses, inside privacy.keep_days. A site that keeps
+                 them shortened links by the shortened address: a weaker
+                 link (`linked_by` "short_address"), since one shortened
+                 address can be several people
     script       when a visitor ID is matched to one of those visits (its
                  page view of the landing page within seconds of the visit's
                  first request, one ID only: matched by time, said so), the
@@ -65,7 +68,8 @@ def visitor(config: dict, folder, site: str, day: str, seq: int) -> dict:
     from ..firsttouch import match_vids
     kept = policy.describe(config, folder)
     out = {"ok": True, "found": False, "kept": kept, "visits": [], "leads": [],
-           "conversions": [], "withheld": {}, "linked_by": "address"}
+           "conversions": [], "withheld": {},
+           "linked_by": "short_address" if kept["ip_mode"] == policy.SHORT else "address"}
     if not kept["keep_ips"]:
         out["why"] = "This site keeps no IP addresses with its visits, so its visits cannot be followed across days here. The first touch on each visit is by the visitor ID or the 30-day code."
         return out

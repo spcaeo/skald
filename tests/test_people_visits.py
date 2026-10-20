@@ -79,7 +79,7 @@ class Policy(unittest.TestCase):
         db.commit()
         db.close()
         got = settings_store.explain(self.config, "example.com", live_dir=self.box.root)
-        self.assertEqual(got["privacy.keep_ips"], {"value": False, "source": "upgrade",
+        self.assertEqual(got["privacy.keep_ips"], {"value": "off", "source": "upgrade",
                                                    "locked": False})
         self.assertEqual(got["conversions.identity"]["value"], "anonymous")
         self.assertEqual(got["privacy.keep_days"]["value"], 395)

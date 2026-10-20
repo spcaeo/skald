@@ -85,7 +85,7 @@ Yes. Skald counts from your web server's own access log, and the server writes a
 
 The optional script tag is the one part that follows the banner. It can wait for consent (`data-consent="required"`, then your banner calls `skald('consent', true)`), it does nothing when Do Not Track or Global Privacy Control is on, and it keeps no visitor ID unless you turn IDs on for the site.
 
-The log holds IP addresses, which are personal data in places like the EU. You choose whether Skald keeps them and for how long ([Data retention](#settings/retention)), and your privacy notice should say what you keep. See [Privacy](privacy.md).
+The log holds IP addresses, which are personal data in places like the EU. You choose whether Skald keeps them in full, shortened (the last part removed) or not at all, and for how long ([Data retention](#settings/retention)). The same page writes the wording for your privacy notice from those settings. See [Privacy](privacy.md).
 
 ## How fresh is today?
 

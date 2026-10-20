@@ -14,7 +14,11 @@ withholds the day like any other.
 
 Which links were on (`roads`: visitor IDs, kept addresses with their days,
 the hash window) is a setting, not a figure: it is read from the stored
-blob, and the window's end is the audit's own. Nothing from firsttouch.py,
+blob, and the window's end is the audit's own. So is whether the address
+link used shortened addresses (`address_form`: "short",
+privacy.keep_ips: short): then each visit's address is shortened by the
+audit's own code (audit_people.short_address) before it is looked up.
+Nothing from firsttouch.py,
 dimensions.py, visits.py or visitors.py is called.
 
 The links read inputs that are kept only for a while: an ID's page views
@@ -42,7 +46,7 @@ from pathlib import Path
 
 from .audit_extras import keyed, secret
 from .audit_labels import _GOOGLE_SEARCH, _MAIL_HOSTS, _bare, _tags
-from .audit_people import _site, _store
+from .audit_people import _site, _store, short_address
 
 BEFORE, AFTER = 2, 30
 VID_DAYS = 30                 # journeys.vid_days when not set
@@ -111,6 +115,7 @@ class Recount:
         self.end: datetime | None = None
         self.visits: list[dict] = []
         self.expired: list[str] = []         # what audit.py says is not checkable
+        self.short = False                   # the address link used shortened addresses
 
     def set_window(self, start, end) -> None:
         self.end = end
@@ -165,7 +170,8 @@ class Recount:
             row = cdb.execute("SELECT source, referrer FROM visits WHERE site = ? AND ip = ? AND "
                               "browser IS ? AND os IS ? AND start < ? AND day >= ? "
                               "ORDER BY start LIMIT 1",
-                              (site, v["address"], v["browser"] or None, v["os"] or None,
+                              (site, short_address(v["address"]) if self.short
+                               else v["address"], v["browser"] or None, v["os"] or None,
                                _utc(v["first"]), since)).fetchone()
             if row is not None:
                 return "address", row[0] or DIRECT, ref_label(row[1], self.own)
@@ -335,6 +341,7 @@ class Recount:
             return
         if self.end is not None and blob.get("until") != _utc(self.end):
             problems.append("first touch: the stored window's end is not the recount's")
+        self.short = blob.get("address_form") == "short"
         got = self.counted(blob.get("roads") or {})
         same("first touch: visits", int(blob.get("visits", 0)), got["visits"])
         for how in (*LINKS, "none", "off"):

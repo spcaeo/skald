@@ -445,6 +445,7 @@ Nothing to install. Settings, saving and the person search need your own Skald.
 | <img src="docs/screenshots/mcp-claude.png" alt="Example: adding Skald's MCP server with one command, and the answer of its ai_activity tool" width="460"><br>**MCP in Claude.** Ask about your traffic in plain words. | <img src="docs/screenshots/person-search.png" alt="Person search for the IP address 203.0.113.109: seven visits over 33 days, where it first came from (ChatGPT), its city and device, and every visit as a line of pages, newest first, with the days between them" width="460"><br>**Person search.** One address: every visit kept, across days, and the leads it sent. |
 | <img src="docs/screenshots/person-lead.png" alt="Person search for lead14@example.com: lead #14 as the outcome, the linked IP address, visitor ID and lead, the lead row, the visit that sent its form, its conversions and the pages its visitor ID saw" width="460"><br>**One lead, linked.** Its email, address, visitor ID, form visit and conversions. | <img src="docs/screenshots/leads-left-out.png" alt="Left out of the figures: spam, duplicate and test leads, and a payment marked test, each listed with its row" width="460"><br>**Left out, still listed.** Spam, duplicates and test, never just dropped. |
 | <img src="docs/screenshots/conversions-removed.png" alt="Conversions removed by a lead-database sync, each with when and why, and the pages before it" width="460"><br>**Removed, with when and why.** Cancelled, removed and test conversions. | <img src="docs/screenshots/integrations-status.png" alt="Settings, Integrations: a status line for the hook receiver, the script tag, each hook and the lead database, all OK" width="460"><br>**Integrations status.** Each road: working, or what to fix. |
+| <img src="docs/screenshots/privacy-ip-choice.png" alt="Settings, Data retention, People: keep visitors' IP addresses as Full address, Shortened (last part removed, chosen: 203.0.113.57 is kept as 203.0.113.0) or Don't keep, with what each means and what switching does" width="460"><br>**Shortened addresses.** Full, shortened or none: country and city still work. | <img src="docs/screenshots/privacy-notice.png" alt="Settings, Data retention: the wording for your privacy notice, made from this site's settings: the log sets no cookie, addresses kept shortened for 395 days, names and emails with forms, the script tag keeps no ID and respects Do Not Track and GPC, how to ask for deletion, and a Copy button" width="460"><br>**Privacy-notice wording.** Made from what the site really keeps; copy and paste. |
 | <img src="docs/screenshots/skald-doctor.png" alt="Terminal output of skald doctor: one line per part of the install, OK or OFF; the daily run line says only this week's mail was held back, for a partial day, and that it clears by itself" width="460"><br>**`skald doctor`.** Every part checked; a held-back run names its step. | <img src="docs/screenshots/settings-team.png" alt="Settings: team, roles and invites" width="460"><br>**Team & access.** Roles, invites, two-step sign-in. |
 | <img src="docs/screenshots/integrations.png" alt="Settings: signed Calendly and Stripe hooks with their deliveries, Calendly kept to one event type, and an outgoing webhook to a CRM" width="460"><br>**Integrations.** Signed webhooks from the tools you use. | <img src="docs/screenshots/site-picker.png" alt="Choose a site, after sign-in: a card for example.com and one for shop.example.com, each with its logo, a green Live dot and today's visitors, leads and demos booked, and an Add a site card" width="460"><br>**Choose a site.** Each site's logo and today so far. |
 | <img src="docs/screenshots/site-switcher.png" alt="The site switcher open from the menu's site button: example.com with its logo, a Live dot and a check, shop.example.com with its logo and 56 visitors today, then All sites" width="460"><br>**Site switcher.** Every site with its logo, one click away. | <img src="docs/screenshots/logo-settings.png" alt="Settings, Sites, Logo: the logo at three sizes, found on the site at https://example.com/apple-touch-icon.png, and the three choices: from the site (automatic), upload my own, or a letter on one of four colours" width="460"><br>**Site logo.** From the site, an upload, or a letter on a colour. |
@@ -748,7 +749,12 @@ flowchart LR
   full`), apart from history and behind sign-in, so admins can follow a person across days. An
   install upgraded from before 2.4.0 keeps neither until you turn them on (Settings > Data
   retention > People, or `SKALD_KEEP_IPS=1` / `SKALD_IDENTITY=full`). Your privacy notice must say
-  so first. Off, raw addresses stay only in your own log (14 days), the 6-hour request log (Site > Requests) and
+  so first.
+- **Shortened addresses** (2.15). Keep each visit's IP with its last part removed (203.0.113.57 is
+  kept as 203.0.113.0; IPv6 keeps its first 48 bits): country, city and counts still work, and no
+  exact address is kept (`privacy.keep_ips: short`, `SKALD_KEEP_IPS=short`). Counted twice too.
+- **Wording for your privacy notice** (2.15). Settings > Data retention writes a short text for your
+  privacy page from what the site really keeps, ready to copy. A starting point, not legal advice. Off, raw addresses stay only in your own log (14 days), the 6-hour request log (Site > Requests) and
   today's AI activity.
 - **One true delete.** `skald forget` removes a person's address, visits, conversions, name and
   email everywhere Skald keeps them. Every person search is written to the audit log.
@@ -802,8 +808,9 @@ request, whatever the visitor chose on the banner. Skald sets no cookie and stor
 visitor's device to count them. The optional script tag is the one part that follows the banner: it
 can wait for consent (`data-consent="required"`), does nothing when Do Not Track or Global Privacy
 Control is on, and keeps no visitor ID unless you turn IDs on. The log holds IP addresses, which are
-personal data in places like the EU: you choose whether Skald keeps them and for how long, and your
-privacy notice should say what you keep.
+personal data in places like the EU: you choose whether Skald keeps them in full, shortened (the last
+part removed) or not at all, and for how long, and Settings > Data retention writes the wording for
+your privacy notice.
 
 **Does Skald keep IP addresses or emails?**
 On a new install, yes: each visit with its IP address and browser (395 days by default), and a

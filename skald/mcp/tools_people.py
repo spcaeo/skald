@@ -17,7 +17,9 @@ from .tools import SITE_ARG, schema, tool
       "(time, source, referrer, landing page, pages in order, country, device), the last 6 "
       "hours of requests, the leads in the site's lead database (spam, duplicates and test "
       "too) and every conversion (test, cancelled and removed ones too). Give one IP "
-      "address, email, visitor ID (skv_...) or lead id. Needs the read_private scope; "
+      "address, email, visitor ID (skv_...) or lead id. On a site that keeps addresses "
+      "shortened (the last part removed), a full address finds the visits of its "
+      "shortened form, which can be several people. Needs the read_private scope; "
       "each search is written to the audit log.",
       schema({"site": SITE_ARG,
               "q": {"type": "string", "minLength": 1, "maxLength": 320,
@@ -42,6 +44,10 @@ def find_person(ctx, args):
              f"Visits kept with the address: {len(got['visits'])}"
              + ("" if kept["keep_ips"] else " (this site keeps no addresses: only the last "
                                               "6 hours of requests show them)") + ".",
+             *([f"This site keeps addresses shortened (the last part removed): "
+                f"{q['value']} is kept as {q['short']}, and a shortened address can be "
+                f"several people. Visits linked by it are a weaker link."]
+               if q.get("short") else []),
              f"Requests in the last 6 hours: {len(got['requests'])}.",
              f"Leads: {len(got['leads'])}; conversions: {len(got['conversions'])}; "
              f"removed conversions: {len(got['removed'])}.",

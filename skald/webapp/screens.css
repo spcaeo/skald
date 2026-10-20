@@ -315,6 +315,9 @@ tr.q-fail td { background: color-mix(in srgb, var(--warn) 6%, transparent); }
 .chk input { margin: 3px 0 0; flex: none; width: 15px; height: 15px; accent-color: var(--ink); }
 .chk span { display: grid; gap: 1px; min-width: 0; }
 .chk small { color: var(--ink-3); font-size: 12px; }
+.notice-text { margin: 10px 0 0; padding: 10px 14px; max-width: 72ch; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); font-size: 13.5px; overflow-wrap: anywhere; }
+.notice-text p { margin: 0; }
+.notice-text ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 6px; }
 .acts { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .acct-card .acts, .acct-link .acts { margin-top: 10px; }
 .you { color: var(--ink-3); font-family: var(--sans); font-size: 12px; }

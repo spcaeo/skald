@@ -7,7 +7,8 @@ a new install. An install whose history predates 2.4.0 keeps today's
 behaviour (no address, no email kept) until someone turns it on, because
 its site's privacy notice may still promise otherwise:
 
-    privacy.keep_ips      true / false. Unset: true on a new install, false
+    privacy.keep_ips      full / short / off (2.15.0; true reads as full,
+                          false as off). Unset: full on a new install, off
                           on one upgraded to 2.4.0 (store.ADDED_META,
                           history meta `privacy_legacy`)
     privacy.keep_days     how long a kept visit stays (default 395 days)
@@ -16,7 +17,25 @@ its site's privacy notice may still promise otherwise:
 
 Each is a setting (Settings > This site > Privacy, settings_store.SCHEMA)
 that config.yml or a settings row may set per site, per organisation or for
-the install; the Docker image takes SKALD_KEEP_IPS and SKALD_IDENTITY.
+the install; the Docker image takes SKALD_KEEP_IPS (1, 0 or short) and
+SKALD_IDENTITY.
+
+The shortened address (`privacy.keep_ips: short`, `shorten`). The rule:
+
+    IPv4   the last octet is zeroed: 203.0.113.57 -> 203.0.113.0
+    IPv6   the first 48 bits are kept, the rest zeroed:
+           2001:db8:85a3:8d3:: -> 2001:db8:85a3::
+    IPv4-mapped IPv6 (::ffff:203.0.113.57) is IPv4: 203.0.113.0
+    a value that is not an IP address is kept as it is ("(removed)")
+
+Only what is KEPT about a person is shortened: the kept visits
+(people/visits.py) and the address their first touch is looked up by
+(firsttouch.py). The country and the city are looked up from the full
+address before it is shortened, and everything that reads the raw log (bot
+sorting, our own traffic, the totals) reads the full address. Switching full
+to short shortens the rows already kept at the next nightly run
+(visits.prune_kept); short to full keeps the old rows short, and only new
+rows are full. The second count (audit_people.py) shortens by its own code.
 
 "Upgraded" is read from the history file: the meta row, or a file still at
 a schema before 13 (the upgrade has not run yet). No history file at all is
@@ -24,6 +43,7 @@ a new install.
 """
 from __future__ import annotations
 
+import ipaddress
 import sqlite3
 from pathlib import Path
 
@@ -34,6 +54,8 @@ LEGACY_SCHEMA = 13               # store.SCHEMA_VERSION that added the meta row
 LEGACY_KEY = "privacy_legacy"
 TRUE = ("1", "true", "on", "yes")
 FALSE = ("0", "false", "off", "no")
+FULL, SHORT, OFF = "full", "short", "off"
+MODES = (FULL, SHORT, OFF)
 
 
 def history_path(config: dict, folder=None) -> Path | None:
@@ -79,10 +101,57 @@ def _flag(raw) -> bool | None:
     return True if word in TRUE else False if word in FALSE else None
 
 
+def mode_of(raw) -> str | None:
+    """A `privacy.keep_ips` value as full, short or off; None when unset or
+    not one of its words. true and the on words are full, false and the
+    off words are off."""
+    if raw is None:
+        return None
+    if isinstance(raw, bool):
+        return FULL if raw else OFF
+    word = str(raw).strip().lower()
+    if word in (FULL, SHORT):
+        return word
+    got = _flag(word)
+    return None if got is None else FULL if got else OFF
+
+
+def ip_mode(config: dict, folder=None) -> str:
+    """"full", "short" or "off": how this site keeps each visit's address."""
+    got = mode_of(setting(config or {}, "privacy", "keep_ips"))
+    if got is not None:
+        return got
+    return OFF if legacy(config, folder) else FULL
+
+
 def keep_ips(config: dict, folder=None) -> bool:
-    """Whether this site keeps each visit's address (people/visits.py)."""
-    got = _flag(setting(config or {}, "privacy", "keep_ips"))
-    return got if got is not None else not legacy(config, folder)
+    """Whether this site keeps each visit's address, in full or shortened
+    (people/visits.py). `ip_mode` says which."""
+    return ip_mode(config, folder) != OFF
+
+
+def shorten(value) -> str:
+    """The address as a site with `privacy.keep_ips: short` keeps it (the
+    rule in the module): the last IPv4 octet zeroed, an IPv6 address cut to
+    its first 48 bits. A value that is not an address comes back as it is."""
+    text = "" if value is None else str(value)
+    try:
+        addr = ipaddress.ip_address(text.strip())
+    except ValueError:
+        return text
+    if addr.version == 6 and addr.ipv4_mapped is not None:
+        addr = addr.ipv4_mapped
+    raw = addr.packed
+    if addr.version == 4:
+        return str(ipaddress.IPv4Address(raw[:3] + b"\0"))
+    return str(ipaddress.IPv6Address(raw[:6] + bytes(10)))
+
+
+def kept_ip(config: dict, folder=None):
+    """The function that turns a visit's address into what is kept: the
+    address itself (full), `shorten` (short), or None (off)."""
+    mode = ip_mode(config, folder)
+    return None if mode == OFF else shorten if mode == SHORT else str
 
 
 def identity_full(config: dict, folder=None) -> bool:
@@ -101,7 +170,9 @@ def keep_days(config: dict) -> int:
 
 
 def describe(config: dict, folder=None) -> dict:
-    """{"keep_ips", "identity", "keep_days", "legacy"} for the page and doctor."""
-    return {"keep_ips": keep_ips(config, folder),
+    """{"keep_ips", "ip_mode", "identity", "keep_days", "legacy"} for the
+    page and doctor. keep_ips: an address is kept (full or short)."""
+    mode = ip_mode(config, folder)
+    return {"keep_ips": mode != OFF, "ip_mode": mode,
             "identity": "full" if identity_full(config, folder) else "anonymous",
             "keep_days": keep_days(config), "legacy": legacy(config, folder)}

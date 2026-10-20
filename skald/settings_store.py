@@ -68,6 +68,7 @@ class Invalid(ValueError):
 class Key:
     kind: str                       # int bool email emails text choice host hosts views zone
     #                                 path filename secret events prefixes searchprop bingsite
+    #                                 ipmode
     who: str                        # admin, install or owner
     scopes: tuple                   # where it may be saved; the first is where the page saves
     config: tuple | None            # (section, key) in config.yml
@@ -94,7 +95,10 @@ SCHEMA: dict[str, Key] = {
                             shrink=True, label="In-page events"),
     # 2.4.0: what is kept about people (people/policy.py). On an install
     # upgraded to 2.4.0 an unset keep_ips / identity reads as off ("upgrade").
-    "privacy.keep_ips": Key("bool", "admin", SITE_UP, ("privacy", "keep_ips"), True,
+    # 2.15.0: keep_ips is full, short or off; a row or config.yml that says
+    # true or false still reads as full or off (policy.mode_of).
+    "privacy.keep_ips": Key("ipmode", "admin", SITE_UP, ("privacy", "keep_ips"), "full",
+                            choices=("full", "short", "off"),
                             label="Keep visitors' IP addresses"),
     "privacy.keep_days": Key("int", "admin", SITE_UP, ("privacy", "keep_days"), 395, 1, 3650,
                              shrink=True, label="Visits with addresses"),
@@ -383,6 +387,12 @@ def validate(name: str, value, cap: int | None = None):
         if not COLOR.match(got):
             raise Invalid(f"{label} is a colour like #1d4ed8.")
         return got
+    if kind == "ipmode":
+        from .people.policy import mode_of
+        got = mode_of(value)
+        if got is None:
+            raise Invalid(f"{label} is one of: {', '.join(key.choices)}.")
+        return got
     if kind == "choice":
         if value not in key.choices:
             raise Invalid(f"{label} is one of: {', '.join(key.choices)}.")
@@ -612,6 +622,9 @@ def _from_config(config, key: Key):
         raw = nested.get(key.config[1][3:]) if isinstance(nested, dict) else None
     if raw is None:
         return None
+    if key.kind == "ipmode":                                        # true / false too
+        from .people.policy import mode_of
+        return mode_of(raw)
     if key.kind == "bool" and key.config[0] == "alerts":            # alerts._flag's words
         return raw is True or str(raw).strip().lower() in ("1", "true", "yes", "on")
     if key.kind == "int":
@@ -655,6 +668,9 @@ def explain(config, site: str | None = None, db=None, live_dir=None) -> dict:
             for kind, scope in order:
                 if kind in key.scopes and (scope, name) in rows:
                     value, source = rows[(scope, name)], kind
+                    if key.kind == "ipmode":    # a row saved as true / false
+                        from .people.policy import mode_of
+                        value = mode_of(value) or key.default
                     break
         if source is None:
             value = _from_config(config, key)
@@ -672,7 +688,7 @@ def explain(config, site: str | None = None, db=None, live_dir=None) -> dict:
 
 
 # What an unset key reads as on an install upgraded to 2.4.0 (people/policy.py).
-LEGACY_DEFAULTS = {"privacy.keep_ips": False, "conversions.identity": "anonymous"}
+LEGACY_DEFAULTS = {"privacy.keep_ips": "off", "conversions.identity": "anonymous"}
 
 
 def _legacy(config, live_dir=None) -> bool:

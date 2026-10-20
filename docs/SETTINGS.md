@@ -48,7 +48,7 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `report.journey_days` | Data retention | 1-90 (7) | admin | site | `report.journey_days` |
 | `visitors.repeat_days` | Data retention | 1-90 (30) | admin | site | `visitors.repeat_days` |
 | `beacon.keep_days` | Data retention | 30-3650 (400) | admin | site | `beacon.keep_days` |
-| `privacy.keep_ips` | Data retention > People | true / false (true) | admin | site | `privacy.keep_ips` |
+| `privacy.keep_ips` | Data retention > People | full / short / off (full); true and false read as full and off | admin | site | `privacy.keep_ips` |
 | `privacy.keep_days` | Data retention > People | 1-3650 (395) | admin | site | `privacy.keep_days` |
 | `conversions.identity` | Data retention > People | full / anonymous (full) | admin | site | `conversions.identity` |
 | `backup.daily` | Data retention | 1-60 (14) | install admin | install | `backup.daily` |
@@ -143,12 +143,41 @@ tables `visits` and `visit_days` in `conversions.sqlite`), for `privacy.keep_day
 `conversions.identity: full` keeps a lead's name and email with its conversions. Turning
 `keep_ips` off deletes the site's kept visits at the next nightly run (`people.visits.prune_kept`).
 
+**Three values (2.15.0).** `full` keeps the whole address, `short` keeps it shortened, `off`
+keeps none. `true` and `false` (config.yml, settings rows saved before 2.15.0, the CLI) still
+read as `full` and `off`, and the page shows them so (`policy.mode_of`); a row is saved as
+the word. The shortening rule (`people/policy.shorten`): an IPv4 address's last octet is
+zeroed (203.0.113.57 as 203.0.113.0), an IPv6 address keeps its first 48 bits
+(2001:db8:85a3:8d3:: as 2001:db8:85a3::), an IPv4-mapped IPv6 address is IPv4, and a value
+that is not an address is kept as it is. The country and city are looked up from the full
+address first; bot sorting, internal traffic and every total read the raw log, unchanged.
+Switching full to short shortens the rows already kept at the next nightly run, as off
+deletes them then (a save never removes data by itself). Short to full keeps the old rows
+shortened; only new rows are full. The page says both under the choice. The person search
+finds a full address's visits by its shortened form and says one shortened address can be
+several people; the visitor drawer calls the link by a shortened address weaker. The
+second count shortens by its own code (DATA-CONTRACT-PEOPLE.md, "Second count").
+
+**Wording for your privacy notice (2.15.0).** Under the People card, a card shows a short
+text a site owner can paste into their privacy page, with a Copy button and the line "A
+starting point, not legal advice. Your notice must match your own situation."
+`people/notice.py` makes it on the server, from the merged settings, by the same functions
+that decide what is kept (`policy.ip_mode`, `policy.keep_days`, `policy.identity_full`,
+`events.enabled`, `beacon.visitor_ids`): the log is read and sets no cookie; IP addresses
+kept in full, shortened (the rule in plain words) or not, and for how long; names and emails
+kept or not; with the script tag on, visitor IDs (local storage, and the shared cookie as a
+marked line), Do Not Track and Global Privacy Control, and the wait for consent (a marked
+line: the tag attribute is not seen by the server); how to ask for deletion. What the
+server cannot know is a placeholder in [square brackets]: the site's contact, how long its
+web server keeps logs. `notice` in the answer: `{intro, items, text, placeholders, note,
+uses}`, `uses` naming the values it was made from.
+
 **The upgrade rule.** When neither the page nor `config.yml` sets them, a new install reads
-`keep_ips: true` and `identity: full`. An install whose history predates 2.4.0 reads `false` and
+`keep_ips: full` and `identity: full`. An install whose history predates 2.4.0 reads `off` and
 `anonymous` (`people/policy.py`): history schema 13 writes the meta row `privacy_legacy` when it
 upgrades an older file, and a file still at schema 12 or older counts the same. The page then
 shows source `upgrade` ("kept off by the upgrade to 2.4.0", `settings_store.LEGACY_DEFAULTS`).
-Docker: `SKALD_KEEP_IPS=1|0` and `SKALD_IDENTITY=full|anonymous` write the config keys. Turn them on
+Docker: `SKALD_KEEP_IPS=1|0|short` and `SKALD_IDENTITY=full|anonymous` write the config keys. Turn them on
 only when the site's privacy notice says so.
 
 ## A shorter window
@@ -247,8 +276,8 @@ origin and the session's `X-Skald-CSRF` value.
 
 | Method, path | Who | Answer |
 | --- | --- | --- |
-| GET `<page>/settings` | every member | `{settings: {key: {value, source, locked, editable, reason, ...}}}`; secrets `{set, env}` |
-| POST `<page>/settings/save` | per key | `{key: value, ..., confirm?}`; null clears a row. All keys are checked before any is saved. |
+| GET `<page>/settings` | every member | `{settings: {key: {value, source, locked, editable, reason, ...}}, notice}`; secrets `{set, env}`. `notice` (2.15.0): the privacy-notice wording, below |
+| POST `<page>/settings/save` | per key | `{key: value, ..., confirm?}`; null clears a row. All keys are checked before any is saved. The answer carries `settings` and `notice` again, made from the saved values |
 | GET `<page>/settings/retention-preview?key=&value=` | admin | `{shrinks, rows, days, first, last, files}` |
 | GET `<page>/settings/mail-preview?kind=daily\|weekly` | admin | `{kind, subject, html}`: the mail as it would go now, built by `mailer.build` from the verified history and never sent; no SMTP login is read (`mail_preview.py`). 409 with the run's words when the history cannot give it yet |
 | POST `<page>/settings/test-mail` | admin | `{to}`: the caller's own address or a confirmed recipient (403 otherwise); 3 per 10 minutes per user (429 after) |
