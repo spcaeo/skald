@@ -8,7 +8,7 @@ import dataclasses
 import json
 import sys
 import unittest
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from unittest import mock
 
@@ -36,7 +36,9 @@ class Base(Server):
         made = api._job
 
         def job(c, site):
-            return dataclasses.replace(made(c, site), api=self.engines.api())
+            # The clock is pinned near the sample data, which ends 2026-10-09.
+            return dataclasses.replace(made(c, site), api=self.engines.api(),
+                                       now=datetime(2026, 10, 11, 12, tzinfo=timezone.utc))
 
         for patch in (mock.patch.object(api, "_job", job),
                       mock.patch.object(api, "spawn",
