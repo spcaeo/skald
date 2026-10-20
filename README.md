@@ -796,6 +796,15 @@ clicks through, but not the answer the assistant gives. Clicks are a floor, beca
 often stripped. Clicks from Google AI Overviews look like ordinary Google clicks and cannot be told
 apart.
 
+**Does it count visitors who decline or ignore the cookie banner?**
+Yes. Skald counts from your web server's own access log, and the server writes a line for every
+request, whatever the visitor chose on the banner. Skald sets no cookie and stores nothing on the
+visitor's device to count them. The optional script tag is the one part that follows the banner: it
+can wait for consent (`data-consent="required"`), does nothing when Do Not Track or Global Privacy
+Control is on, and keeps no visitor ID unless you turn IDs on. The log holds IP addresses, which are
+personal data in places like the EU: you choose whether Skald keeps them and for how long, and your
+privacy notice should say what you keep.
+
 **Does Skald keep IP addresses or emails?**
 On a new install, yes: each visit with its IP address and browser (395 days by default), and a
 lead's name and email, so an admin can follow one person across days. Both are settings (Settings >
