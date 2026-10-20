@@ -141,7 +141,7 @@ checked figures, conversions and accounts.
 - **A hosted Skald is planned.** Sign-up, plans, limits and Stripe billing are built and switched
   off. Plans will be set by sites, requests a month, members and how long detail is kept. Prices are
   not set yet. To be told when it opens, or to licence Skald for your own service:
-  [contact us](https://www.spaceo.ca/contact-us/).
+  [contact us](https://skaldanalytics.com/contact/).
 
 ## Messaging guide
 
@@ -156,6 +156,6 @@ checked figures, conversions and accounts.
 
 ## About the author
 
-Skald was built by **Rakesh Patel**, CEO of [Space-O Technologies](https://www.spaceo.ca) and CEO of
+Skald was built by **Rakesh Patel**, CEO of Space-O Technologies and CEO of
 [LabsMedia](https://www.labsmedia.com), to answer one question on his own company's website: is AI
 reading us, and does it send anyone?

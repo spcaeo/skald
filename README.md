@@ -775,7 +775,7 @@ Skald is **source-available** under the [Elastic License 2.0](LICENSE). You can 
 and self-host it for free, for your own sites or your clients' sites, including at work. The one
 thing you may not do without a commercial licence is offer Skald to others as a hosted or managed
 service. Because of that limit, ELv2 is not an OSI-approved open-source licence, and we do not call it
-one. Questions: [contact us](https://www.spaceo.ca/contact-us/).
+one. Questions: [contact us](https://skaldanalytics.com/contact/?topic=licence).
 
 **Can I use it for my agency's clients?**
 Yes, if you run it for them. Selling access to a hosted Skald that others sign up for is the case that
@@ -860,8 +860,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) (including the short contributor licence
 ready within one working day. Or join the beta list and we will contact you.
 
 **Want to offer Skald to your own customers as a service?** That needs a commercial licence from
-Space-O Technologies. **[Talk to us](https://www.spaceo.ca/contact-us/)** and say "Skald" in your
-message.
+Space-O Technologies. **[Talk to us](https://skaldanalytics.com/contact/?topic=licence)**.
 
 ## Licence
 
@@ -876,7 +875,7 @@ trademarks of Space-O Technologies; see [NOTICE](NOTICE).
 
 **Rakesh Patel** built Skald.
 
-- CEO, [Space-O Technologies](https://www.spaceo.ca): software development and AI engineering.
+- CEO, Space-O Technologies: software development and AI engineering.
 - CEO, [LabsMedia](https://www.labsmedia.com).
 
 Skald began as a tool for one question on our own website: is AI reading us, and does it send

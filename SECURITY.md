@@ -22,8 +22,9 @@ history file in place, after copying it to `history.sqlite.schema-v<N>.bak`.
 
 - Use GitHub's private report: the **Security** tab of this repository, then **Report a
   vulnerability**.
-- Or contact us through **https://www.spaceo.ca/contact-us/** and put "Skald security" in the
-  subject. Do not send exploit details in that first message; we will reply with a private channel.
+- Or use the contact form at **https://skaldanalytics.com/contact/?topic=security** (topic
+  "Security"). Do not send exploit details in that first message; we will reply with a private
+  channel.
 
 Please include the version (`skald version`), the mode (`basic` or `sessions`), what you did, what
 happened, and what you expected. Never send real visitor addresses or secrets: use RFC 5737
