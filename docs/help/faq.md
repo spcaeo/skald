@@ -79,6 +79,14 @@ Your team's addresses are probably listed as internal. Visits from them go to th
 
 Not to count visits. Skald reads the server's log, which needs nothing in the browser. The optional script tag sets no cookie by default; a cookie is used only if your site turns on anonymous visitor IDs shared across subdomains. Signing in to the dashboard uses one cookie, for your own session. See [Privacy](privacy.md).
 
+## Does Skald count visitors who decline or ignore the cookie banner?
+
+Yes. Skald counts from your web server's own access log, and the server writes a line for every request, whatever the visitor chose on the banner. Skald sets no cookie and stores nothing on the visitor's device to count them.
+
+The optional script tag is the one part that follows the banner. It can wait for consent (`data-consent="required"`, then your banner calls `skald('consent', true)`), it does nothing when Do Not Track or Global Privacy Control is on, and it keeps no visitor ID unless you turn IDs on for the site.
+
+The log holds IP addresses, which are personal data in places like the EU. You choose whether Skald keeps them and for how long ([Data retention](#settings/retention)), and your privacy notice should say what you keep. See [Privacy](privacy.md).
+
 ## How fresh is today?
 
 Today's figures are recounted about every two minutes. The foot of every page says when they were last updated and when the next update is due. If your server allows it, **Refresh** in the top bar recounts at once. Yesterday becomes a whole, checked day after the morning's run.
