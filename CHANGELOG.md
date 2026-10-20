@@ -2,6 +2,35 @@
 
 All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versioning](https://semver.org).
 
+## 2.15.0 (2026-10-20)
+
+Two privacy controls, from a community question: "does it also track visitors who don't accept the
+cookie consent?" Yes: the log has every request. Now you can choose to keep less of it.
+
+### Added
+
+- **Shortened IP addresses.** Settings > Data retention > People > Keep visitors' IP addresses is
+  now a choice of three: **Full address**, **Shortened (last part removed)** and **Don't keep**
+  (`privacy.keep_ips: full | short | off`; `SKALD_KEEP_IPS=short` with Docker; the old true/false
+  still work). Shortened keeps 203.0.113.57 as 203.0.113.0, and an IPv6 address's first 48 bits.
+  Country and city are looked up from the full address first; bots, internal traffic and every total
+  read the raw log as before. Switching from full to shortened shortens the visits already kept at
+  the next nightly run. A person search by a full address finds its shortened visits and says one
+  shortened address can be several people; the visitor drawer says the link is weaker.
+- **Counted twice:** the second count of kept visits shortens with its own code and checks that no
+  kept address is full and that each shortened address holds exactly the visits of the addresses
+  that shorten to it.
+- **Wording for your privacy notice.** A card on Settings > Data retention with a short text to paste
+  into your privacy page, made from the same settings that decide what is kept (IP addresses, how
+  long, leads' names and emails, the script tag, visitor IDs, Do Not Track and GPC), with a Copy
+  button. What Skald cannot know is left in [square brackets]. A starting point, not legal advice.
+- **FAQ:** does Skald count visitors who decline or ignore the cookie banner? (README, Help, the site).
+
+### Fixed
+
+- A flaky AI-answers test: it changed the first stored answer, which, with the assistants asked at
+  once, was sometimes one that never named the site.
+
 ## 2.14.1 (2026-10-18)
 
 ### Fixed

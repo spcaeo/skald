@@ -19,7 +19,11 @@ links, in this order (the first that finds an earlier visit wins):
            family), started before this one, within `privacy.keep_days`.
            The day's own visits are kept before this runs, so an earlier
            visit the same day counts. A forgotten address is kept as
-           "(removed)" and never links.
+           "(removed)" and never links. A site that keeps addresses
+           shortened (`privacy.keep_ips: short`) is looked up by the
+           shortened address (policy.shorten): a weaker link, since one
+           shortened address can be several people; the day's blob says
+           so (`address_form`: "short").
   hash     the 30-day keyed hash (visitors.py; only with the visitor key):
            the earliest earlier day within `visitors.repeat_days` with the
            same hash and a reader's visit (its day and source type; its
@@ -62,6 +66,8 @@ STAMP = "%Y-%m-%dT%H:%M:%SZ"
 #   direct     the Direct visits: {visits, known, none, off, first: {source type: n},
 #              referrer: {referrer label: n}} (first and referrer sum to known)
 #   returning  every visit with an earlier one known: {visits, first, referrer}
+#   address_form  "short" when the address link used shortened addresses
+#              (privacy.keep_ips: short); absent when they were full
 FIGURES = ("roads", "until", "visits", "by", "direct", "returning")
 
 
@@ -208,7 +214,10 @@ def annotate(totals, config: dict, folder, site: str, day, tz, until: datetime,
         return None
     from .beacon import own_hosts
     from .conversions import store
+    from .people import policy
     own = own_hosts(config)
+    short = policy.shorten if on["address"] and \
+        policy.ip_mode(config, folder) == policy.SHORT else None
     cpath = store.path_for(config, folder) if folder is not None else None
     cdb = _ro(cpath)
     try:
@@ -224,19 +233,21 @@ def annotate(totals, config: dict, folder, site: str, day, tz, until: datetime,
         blob = _empty(on, until)
         for i, (j, who) in enumerate(zip(journeys, people)):
             got = _first(i, j, who, journeys, people, keys, vids, vdb, adb, hashed,
-                         site, since, own, tz)
+                         site, since, own, tz, short)
             j["first_touch"] = got
             _count(blob, j, got)
     finally:
         if cdb is not None:
             cdb.close()
+    if short is not None:
+        blob["address_form"] = "short"
     totals.extras = totals.extras if totals.extras is not None else {}
     totals.extras["first_touch"] = blob
     return blob
 
 
 def _first(i, j, who, journeys, people, keys, vids, vdb, adb, hashed, site, since,
-           own, tz) -> dict:
+           own, tz, short=None) -> dict:
     first = _aware(who["first"])
     tried = False
     if i in vids:
@@ -247,8 +258,9 @@ def _first(i, j, who, journeys, people, keys, vids, vdb, adb, hashed, site, sinc
                           got["via_host"] or "")
     if adb is not None and who.get("ip"):
         tried = True
-        got = address_first(adb, site, str(who["ip"]), j.get("browser"), j.get("os"),
-                            first, since)
+        ip = str(who["ip"])
+        got = address_first(adb, site, short(ip) if short else ip, j.get("browser"),
+                            j.get("os"), first, since)
         if got is not None:
             return _touch("address", got, tz, referrer_label(got["referrer_raw"], own),
                           got["via"])

@@ -12,7 +12,9 @@ What skald keeps about one address, and what forget does to each:
     package can produce and deletes the rows that match. Without the key no
     hash can be matched, and forget says so;
   * the visits kept with the address (people/visits.py, conversions.sqlite
-    `visits`, 2.4.0): every row of the address is deleted;
+    `visits`, 2.4.0): every row of the address is deleted, and on a site
+    that keeps addresses shortened (`privacy.keep_ips: short`) every row of
+    its shortened form, which may hold other people's visits too;
   * from now on: the address goes on a forgotten list (forgotten.json
     beside the history) as its SHA-256 only, with an expiry 15 days ahead -
     past the web server's 14 days of logs - so the next live runs, which
@@ -241,13 +243,18 @@ def forget(ctx, ip: str, dry_run: bool = False) -> dict:
 def _forget_visits(ctx, ip: str, dry_run: bool) -> int:
     """The visits kept with `ip` (people/visits.py): deleted, or counted."""
     from .conversions import store
+    from .people import policy
     from .people.visits import forget_ip
-    path = store.path_for(ctx.config, Path(ctx.db_path).parent)
+    folder = Path(ctx.db_path).parent
+    path = store.path_for(ctx.config, folder)
     if path is None or not Path(path).is_file():
         return 0
+    # A site that keeps addresses shortened: its rows of the shortened form
+    # go too (they cannot be told apart from the person's).
+    short = (ctx.site,) if policy.ip_mode(ctx.config, folder) == policy.SHORT else ()
     db = store.connect(path)
     try:
-        return forget_ip(db, ip, dry_run)
+        return forget_ip(db, ip, dry_run, short)
     finally:
         db.close()
 

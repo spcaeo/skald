@@ -9,7 +9,10 @@ check:
                                        caller may change it (with the reason when
                                        not); secrets only as {"set": true|false};
                                        for beacon.goals the events it may name, and
-                                       which of them the site has counted
+                                       which of them the site has counted; and
+                                       `notice`: wording for the site's privacy
+                                       notice, made from what it keeps
+                                       (people/notice.py)
   POST settings/save                   {key: value, ...} (null clears a row); a value
                                        that removes stored data also needs
                                        "confirm": "<site name>"
@@ -214,7 +217,15 @@ def _goal_choices(c: Ctx) -> list[dict]:
 def settings(c: Ctx, form):
     return c.ok(site=c.site, org=c.org["name"], role=c.role, install_admin=c.install_admin,
                 settings=described(c), totp_on=_totp_on(c.db, c.uid),
-                mail_waiting=_waiting(c))
+                mail_waiting=_waiting(c), notice=notice(c))
+
+
+def notice(c: Ctx) -> dict:
+    """Wording for the site's privacy notice, from the merged settings
+    (people/notice.py): the same functions that decide what is kept."""
+    from .people.notice import wording
+    folder = Path(c.history_path).parent if c.history_path is not None else c.live_dir
+    return wording(store.apply(c.config, c.site, c.live_dir), folder)
 
 
 def _waiting(c: Ctx) -> list[str]:
@@ -282,7 +293,7 @@ def save(c: Ctx, form):
     if "mail.to" in saved and waiting:
         from .mail_confirm import ask
         ask(c.db, c.config, getattr(c, "allowed", None), c.org, c.site, waiting)
-    return c.ok(saved=saved, settings=described(c), mail_waiting=waiting)
+    return c.ok(saved=saved, settings=described(c), mail_waiting=waiting, notice=notice(c))
 
 
 def _fallback(c: Ctx, name: str, cap: int | None = None):

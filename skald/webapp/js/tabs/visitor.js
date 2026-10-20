@@ -116,7 +116,7 @@ function fromTimeline(j, got) {
     return v;
   });
   return { title: "Visitor", journey: j, visits, leads: got.leads || [], conversions: got.conversions || [], withheld: got.withheld || {},
-    firstTouch: j?.first_touch, how: "address", vid: got.vid_matched, firstKnown: true };
+    firstTouch: j?.first_touch, how: "address", short: got.linked_by === "short_address", vid: got.vid_matched, firstKnown: true };
 }
 
 /* A visitor ID's page views ({at, path, source_type}) as visits: 30 minutes apart. */
@@ -144,7 +144,7 @@ function fromConversion(x) {
 function fromPerson(got) {
   const visits = (got.visits || []).map((r) => visitOf(r, "kept"));
   return { title: `${{ ip: "IP address", email: "Email", vid: "Visitor ID", lead: "Lead" }[got.query.kind]}: ${got.query.value}`, visits,
-    leads: [], conversions: got.conversions || [], withheld: got.withheld || {}, how: "address", firstKnown: true, person: got };
+    leads: [], conversions: got.conversions || [], withheld: got.withheld || {}, how: "address", short: got.kept?.ip_mode === "short", firstKnown: true, person: got };
 }
 
 // ------------------------------------------------------------ the parts
@@ -257,7 +257,8 @@ function leadsAndConversions(model) {
 
 function howNote(model, extra) {
   const bits = [];
-  if (model.how === "address") bits.push("Visits are linked by the same address with the same browser and system, inside the days the site keeps addresses. One address can be several people (an office), and one person on two devices is two visitors.");
+  if (model.how === "address" && model.short) bits.push("Visits are linked by the same shortened address (its last part removed) with the same browser and system, inside the days the site keeps addresses. This is a weaker link: one shortened address can be several people on the same network, and one person on two devices is two visitors.");
+  else if (model.how === "address") bits.push("Visits are linked by the same address with the same browser and system, inside the days the site keeps addresses. One address can be several people (an office), and one person on two devices is two visitors.");
   if (model.vid) bits.push("A visitor ID was matched to a visit by its page view of the landing page within seconds of the visit: matched by time.");
   if (model.how === "vid" && !model.firstKnown) bits.push("Linked by the visitor ID the page script made: one browser, not a person.");
   if (model.how === "hash") bits.push("Linked by the 30-day code: an address and browser family, hashed with a secret; no address is kept.");

@@ -13,13 +13,33 @@ beside the history) and helper answers behind sign-in.
 
 | key | default | meaning |
 |---|---|---|
-| `privacy.keep_ips` | `true` on a new install; `false` on one upgraded from before 2.4.0 | keep each visit with its address and user agent |
+| `privacy.keep_ips` | `full` on a new install; `off` on one upgraded from before 2.4.0 | keep each visit with its address and user agent: `full`, `short` (the address shortened, below) or `off`. `true` reads as `full` and `false` as `off` (configs, settings rows and answers from before 2.15.0) |
 | `privacy.keep_days` | 395 | how long a kept visit stays (1 to 3650) |
 | `conversions.identity` | `full` on a new install; `anonymous` on one upgraded from before 2.4.0 | keep a lead's name and email with its conversions |
 
 "Upgraded" is read from the history file: history schema 13 adds no table,
 but an upgrade from 12 or older writes the meta row `privacy_legacy`; a file
 still at 12 or older counts the same. No history file is a new install.
+
+### The shortened address (2.15.0, `privacy.keep_ips: short`)
+
+`people/policy.shorten`, with the standard library's `ipaddress`:
+
+- IPv4: the last octet is zeroed. `203.0.113.57` is kept as `203.0.113.0`.
+- IPv6: the first 48 bits are kept, the rest zeroed. `2001:db8:85a3:8d3::` is kept as
+  `2001:db8:85a3::`.
+- An IPv4-mapped IPv6 address (`::ffff:203.0.113.57`) is IPv4: `203.0.113.0`.
+- A value that is not an IP address is kept as it is (`(removed)`).
+
+Only what is kept about a person is shortened: the kept visits' `ip`, and the address the
+first touch looks a visit up by (`firsttouch.py`). The country and the city are looked up
+from the full address first. Everything that reads the raw log is unchanged: bot sorting,
+internal traffic, the totals, the private 6-hour Requests feed. Conversions and leads keep no
+address in Skald at all (a hook's address gives the country, then is dropped).
+
+Switching: full to short shortens every row the site already keeps at the next daily run
+(`visits.prune_kept`, `shorten_kept`); short to full keeps the old rows shortened, and only
+new rows are full; off deletes them at the next daily run, as before.
 
 ## Tables (conversions.sqlite schema 6)
 
@@ -30,7 +50,7 @@ outside source), so a day's rows are its readers.
 | column | type | meaning |
 |---|---|---|
 | `site`, `day`, `seq` | text, text, int | the site, the local day, the visit's place in the day (oldest first); unique together |
-| `ip` | text | the address; `(removed)` for an address on the forgotten list |
+| `ip` | text | the address (shortened with `keep_ips: short`); `(removed)` for an address on the forgotten list (asked about the full address) |
 | `user_agent` | text or NULL | cut to 400; NULL when removed |
 | `start`, `end` | text | UTC, `YYYY-MM-DDTHH:MM:SSZ`: the visit's first and last request |
 | `source`, `via`, `campaign`, `landing`, `exit`, `country`, `device`, `browser`, `os` | text or NULL | the journey's labels (NULL: not recorded) |
@@ -60,8 +80,10 @@ before, timeline), not by `store.day_counts`.
 Written by the daily run (whole days, `cli.collect_day`) and every live run
 (today, `live.build`), only while `keep_ips` is on and the day is inside
 `keep_days`. Pruned at each daily run: rows older than the site's
-`keep_days`, and every row of a site that turned `keep_ips` off.
-`skald forget --ip` deletes an address's rows.
+`keep_days`, every row of a site that turned `keep_ips` off, and every full
+address of a site that turned it to `short` is shortened. `skald forget --ip`
+deletes an address's rows; on a site that shortens, also the rows of its
+shortened form, which may hold other people's visits too.
 
 ## Helper answers (behind sign-in)
 
@@ -76,8 +98,12 @@ In the two lists `email`, `name` and `vid` are left out unless the caller is
 an owner or admin (`private: true`) and the site keeps identities.
 
 The person (`lookup.person`): `query` `{kind: ip|email|vid|lead, value}`,
-`kept` (the three keys above and `legacy`), `visits` (rows above, newest
-first), `requests` (the address's rows of the private 6-hour feed),
+plus `short` (the shortened form) when the site keeps addresses shortened and
+the search is an address, `kept` (`keep_ips` true/false, `ip_mode`
+full/short/off, `identity`, `keep_days`, `legacy`), `visits` (rows above, newest
+first; with `query.short`, the rows of the shortened form: one shortened
+address can be several people, and the page and MCP say so), `requests`
+(the address's rows of the private 6-hour feed, by the full address),
 `leads` (lead database rows: `id`, `created_at`, `type`, `status`, `page`,
 `first_source`, `last_source`, `landing`, `test`, `left_out`, `vid`, and
 `email` / `name` when the site keeps them), `conversions` (every row, test
@@ -101,6 +127,17 @@ equal its rows, every address kept has exactly the recount's visits and
 pages, and the `(removed)` rows equal the visits of addresses not kept by
 name. A mismatch withholds the day like any audit finding. No address is
 written into a problem. Today's rows (`state` `today`) are not compared.
+
+On a site that keeps addresses shortened (`privacy.keep_ips` is the word
+`short`, read from the config by the audit itself) it shortens each address
+by its own code (`audit_people.short_address`: integer masks, sharing only
+the rule above with `policy.shorten`) and checks: no kept address is in full;
+each kept shortened address holds exactly the visits and pages of every
+recount address that shortens to it (on a day with `(removed)` rows, no more
+than that, the totals taking up the rest); the `(removed)` rows equal the rest.
+A site back on full keeps its older days shortened: a day whose full check
+fails, whose every kept address is already shortened and which passes the
+shortened check passes.
 
 ## First touch (2.12.0)
 
@@ -142,6 +179,7 @@ Real time's `newest` rows carry both.
 | `by` | `{vid, address, hash, none, off}`: how each was linked; sums to `visits` |
 | `direct` | the Direct visits: `visits`, `known` + `none` + `off` (= `visits`), `first` `{source type: n}` and `referrer` `{referrer label: n}` (each sums to `known`) |
 | `returning` | every visit with an earlier one known: `visits`, `first`, `referrer` (each sums to `visits`) |
+| `address_form` | `"short"` when the address link looked visits up by the shortened address (`privacy.keep_ips: short`, 2.15.0); absent when full |
 
 No blob: no link was on (or a view), not zero. Traffic > Sources shows it as "Where
 returning visitors first came from"; a day without it is left out and said.
@@ -152,6 +190,8 @@ returning visitors first came from"; a day without it is left out and said.
 audit's own labels, and links it again with its own SQL on conversions.sqlite (`journeys`,
 `visits`) and history (`visitor_days`), opened read-only, and its own keyed hash. Which links
 were on (`roads`) is read from the blob (a setting, not a figure); the window's end is its own.
+With `address_form: "short"` it shortens each visit's address by its own code
+(`audit_people.short_address`) before it looks it up.
 Every count above is compared; a mismatch withholds the day.
 
 A day audited after inputs its links could have read were pruned (an ID's page views after
@@ -170,7 +210,9 @@ or seq; each answer writes an audit row `people.visitor` with the visit's day an
 an address): `people/timeline.py`, from the kept visit `(site, D, S)`:
 
 `{"ok","found","kept","why" (when not found: addresses not kept, not kept yet, forgotten),
-"visits": [...],"leads": [...],"conversions": [...],"withheld","vid_matched"}`.
+"visits": [...],"leads": [...],"conversions": [...],"withheld","vid_matched","linked_by"}`.
+`linked_by`: `address`, or `short_address` on a site that keeps addresses shortened: a
+weaker link, which the drawer says.
 `visits`, newest first: every kept visit of the same address with the same browser and
 system within `keep_days` (`kind` `kept`: the visit row's labels, `trail`, `posts`, `day`,
 `seq`; `linked` `this` or `address`), and, when a visitor ID matched one of them by the rule

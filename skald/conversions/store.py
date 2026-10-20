@@ -14,7 +14,8 @@ Times are UTC, "2026-10-11T14:00:00Z". A figure not recorded is NULL.
 A conversion row holds no address and no user agent; an email is kept only
 in `identities`, and found again by a keyed hash (meta `hash_key`). The
 address and user agent of a visit are in `visits` only, and only while the
-site keeps them (people/policy.py, `privacy.keep_ips`).
+site keeps them (people/policy.py, `privacy.keep_ips`; with `short` the
+address is kept shortened, policy.shorten).
 
 A row marked `test` (`skald conversions mark-test`) is kept and listed, but
 left out of every figure; the second count leaves it out by its own SQL.

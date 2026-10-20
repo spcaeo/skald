@@ -4,27 +4,50 @@ What Skald keeps about the people who visit, who can see it, for how long, and h
 
 ## The short version
 
-- Skald can keep each visit with its IP address, so you can look a person up and follow them across days. That is a switch, on by default for a new install.
+- Skald can keep each visit with its IP address, so you can look a person up and follow them across days. You choose: the full address, a shortened one with its last part removed, or none. A new install keeps the full address.
 - It can keep the name and email of each lead with its conversions. Also a switch, on by default for a new install.
 - An install upgraded from before version 2.4.0 keeps neither until you turn them on.
 - Only owners and admins can look a person up. Every search is written to the audit log.
 - Stored history (the totals) never holds an address.
 - Nothing is hidden: spam, duplicate and test leads, and cancelled, removed and test conversions, are listed, not only counted.
 - One command on the server removes a person everywhere Skald keeps them.
+- **Settings > Data retention** gives you wording for your privacy notice, made from what this site keeps.
 
 > Your privacy notice must say what you keep before you turn these on. Some places also need the visitor's consent.
 
 ## What is kept about a visit
 
-When **Keep visitors' IP addresses** is on (**Settings > Data retention > People**), each visit is kept with:
+**Keep visitors' IP addresses** (**Settings > Data retention > People**) has three choices. Only owners and admins can change it.
 
-- its IP address and browser string
+- **Full address**: each visit is kept with its whole IP address.
+- **Shortened (last part removed)**: each visit is kept with a shortened address. It no longer points to one device, but visits can still be followed, more loosely.
+- **Don't keep**: no address is kept with the visits.
+
+With the full or the shortened address, each visit is kept with:
+
+- its IP address (full or shortened) and browser string
 - when it started and ended
 - the pages it read, in order
 - where it came from: source, referring site, campaign
 - its country and device
 
-A visit here is a visit that read at least one page, the same visit Traffic > Visitors counts. Visits are kept for 395 days by default (**Visits with addresses**). Turn the switch off and no address is kept from then on. The visits already kept with an address are deleted at the next nightly run.
+A visit here is a visit that read at least one page, the same visit Traffic > Visitors counts. Visits are kept for 395 days by default (**Visits with addresses**).
+
+### How an address is shortened
+
+- An IPv4 address loses its last part: `203.0.113.57` is kept as `203.0.113.0`.
+- An IPv6 address keeps its first 48 bits, and the rest is zeroed: `2001:db8:85a3:8d3::` is kept as `2001:db8:85a3::`.
+- An IPv4 address written the IPv6 way (`::ffff:203.0.113.57`) is treated as IPv4.
+
+The country and city are looked up from the full address before it is shortened. Everything else Skald works out from the raw log is the same in every choice: which visits are bots, which are your own team's, and every total.
+
+A shortened address can be several people: everyone on the same network, or neighbours at the same internet provider. So with shortened addresses, visits linked "by address" are a weaker link, and the person panel says so.
+
+### Changing the choice
+
+- **Full to shortened**: the addresses already kept are shortened at the next nightly run.
+- **Shortened to full**: only new visits are kept in full. The visits kept before stay shortened.
+- **To Don't keep**: no address is kept from then on. The visits already kept with an address are deleted at the next nightly run.
 
 These visits are kept apart from the history, in the conversions file on your server. They are counted twice like everything else: each morning Skald counts every address's visits again from the raw log, by separate code. A day that does not match is withheld.
 
@@ -54,6 +77,8 @@ The person opens in a panel on the right:
 - **Pages seen by its visitor IDs**, when the site has visitor IDs on.
 
 Every address, email, lead and visitor ID in the panel is a link. Select it to open that one.
+
+When the site keeps shortened addresses, type the full address: it finds the visits kept under its shortened form. The panel says the address is shortened, and that those visits may be several people's.
 
 Each search is written to the [audit log](#settings/audit): who searched, when, and what kind of value. Never the value itself.
 
@@ -95,10 +120,25 @@ An install that ran a version before 2.4.0 keeps working as before: no address a
 
 1. Change your privacy notice first, so it says what Skald keeps.
 2. Open **Settings > Data retention**.
-3. Under **People**, tick **Keep visitors' IP addresses**, and set **Leads' names and emails** to **full**.
+3. Under **People**, choose **Full address** or **Shortened (last part removed)** for **Keep visitors' IP addresses**, and set **Leads' names and emails** to **full**.
 4. Select **Save**. It applies from the next run.
 
-On a server without the Settings pages, the server admin sets `privacy: keep_ips: true` and `conversions: identity: full` in the config file. With Docker, `SKALD_KEEP_IPS=1` and `SKALD_IDENTITY=full`.
+On a server without the Settings pages, the server admin sets `privacy: keep_ips: full` (or `short`) and `conversions: identity: full` in the config file. With Docker, `SKALD_KEEP_IPS=1` (or `short`) and `SKALD_IDENTITY=full`. The older `true` and `false` still work, as full and off.
+
+## Wording for your privacy notice
+
+**Settings > Data retention** has a card, **Wording for your privacy notice**. It is a short text you can paste into your privacy page, with a **Copy** button. It is made from this site's own settings, so it says exactly what is kept:
+
+- that Skald reads your server's log to count visits, and that this sets no cookie and stores nothing on the visitor's device;
+- that the raw log, the 6-hour Requests list and today's AI activity hold full addresses for that short time, in every choice;
+- whether IP addresses are kept in full, shortened or not at all, and for how long;
+- whether leads' names and emails are kept;
+- if the site uses the script tag: whether it keeps a visitor ID and where, that Do Not Track and Global Privacy Control are respected, and that it can wait for consent;
+- how a person can ask for their data to be deleted.
+
+Skald does not know some things, so they are left in [square brackets] for you to fill in or delete: your contact for deletion requests, how long your web server keeps its logs, and the script tag lines that depend on how you added the tag. Save a change on the page and the wording is made again.
+
+> A starting point, not legal advice. Your notice must match your own situation.
 
 ## The script tag
 
@@ -136,7 +176,7 @@ If someone asks you to delete their data, the server admin removes it. It cannot
 
 `skald forget --ip` with the address:
 
-- Deletes every visit kept with that address.
+- Deletes every visit kept with that address. On a site that keeps shortened addresses, it also deletes the visits kept under the shortened form, since they cannot be told apart. Those may include other people's visits.
 - Replaces it with "(removed)" in the Requests list and today's AI activity.
 - Deletes its returning-visitor codes.
 - Keeps it hidden for 15 days, longer than the raw logs last. Visits in that time are kept without the address.

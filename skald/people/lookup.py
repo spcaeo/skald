@@ -5,7 +5,10 @@ from what is kept:
 
     visits       every visit kept with that address (people/visits.py), with
                  its day flagged when the day is withheld (its figures did
-                 not reconcile)
+                 not reconcile). On a site that keeps addresses shortened
+                 (privacy.keep_ips: short) a full address finds the visits
+                 of its shortened form: `query.short` names it, and the page
+                 says one shortened address can be several people
     requests     the address's requests in the private Recent requests feed
                  (the last 6 hours): all there is when addresses are not kept
     leads        the site's lead database rows (read-only), spam, duplicates
@@ -157,9 +160,13 @@ def person(config: dict, folder, site: str, q: str, live_dir=None) -> dict:
     from .visits import _row, posted_near
     kind, value = kind_of(q)
     full = policy.identity_full(config, folder)
+    short = policy.ip_mode(config, folder) == policy.SHORT
     ips, emails, vids, refs = set(), set(), set(), set()
     {"ip": ips, "email": emails, "vid": vids, "lead": refs}[kind].add(value)
-    out = {"ok": True, "query": {"kind": kind, "value": value},
+    query = {"kind": kind, "value": value}
+    if kind == "ip" and short:
+        query["short"] = policy.shorten(value)
+    out = {"ok": True, "query": query,
            "kept": policy.describe(config, folder), "visits": [], "requests": [],
            "leads": [], "conversions": [], "removed": [], "journeys": [],
            "candidates": [], "withheld": {}}
@@ -232,9 +239,11 @@ def person(config: dict, folder, site: str, q: str, live_dir=None) -> dict:
                     "ORDER BY at LIMIT ?", (site, v, LIMIT))]
         if db is not None and "visits" in have:
             for ip in sorted(ips):
+                forms = sorted({ip, policy.shorten(ip)}) if short else [ip]
                 out["visits"] += [_row(r) for r in db.execute(
-                    "SELECT * FROM visits WHERE site = ? AND ip = ? ORDER BY start DESC "
-                    "LIMIT ?", (site, ip, LIMIT))]
+                    f"SELECT * FROM visits WHERE site = ? AND ip IN "
+                    f"({','.join('?' * len(forms))}) ORDER BY start DESC LIMIT ?",
+                    (site, *forms, LIMIT))]
             for lead in leads.values():
                 at = _stamp_of(lead.get("created_at"))
                 if at:
@@ -247,7 +256,8 @@ def person(config: dict, folder, site: str, q: str, live_dir=None) -> dict:
     out["requests"] = _requests(live_dir, site, ips)
     out["withheld"] = _withheld(config, folder, site,
                                 {v["day"] for v in out["visits"] + out["candidates"]})
-    out["keys"] = {"ips": sorted(ips | {v["ip"] for v in out["candidates"]} - {"(removed)"}),
+    out["keys"] = {"ips": sorted(ips | {v["ip"] for v in out["visits"] + out["candidates"]}
+                                 - {"(removed)"}),
                    "emails": sorted(emails), "vids": sorted(vids), "leads": sorted(refs)}
     if not full:
         for r in out["conversions"]:

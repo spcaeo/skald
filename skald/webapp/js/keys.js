@@ -26,14 +26,18 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-18-2.14.1",
+  id: "2026-10-20-2.15.0",
   items: [
-    ["Crawl health", "the table fits the screen: Kind and Fetches per page start hidden; Columns shows them again.", "crawl-health"],
-    ["Leads won or lost", "a lead counts once, on the day it was completed or paid; a later won or lost is shown apart and changes no count.", "leads-and-conversions"],
-    ["Audit", "first touch says \"not checkable (inputs expired)\" when the 30 days behind a day are no longer kept, instead of a mismatch."],
+    ["Shortened addresses", "keep each visit's IP address with its last part removed: country, city and counts still work, and no exact address is kept. Settings > Data retention > People.", "privacy"],
+    ["Wording for your privacy notice", "a short text to paste into your privacy page, made from what this site really keeps, with a Copy button. Settings > Data retention.", "privacy"],
+    ["FAQ", "does Skald count visitors who decline or ignore the cookie banner? Yes: the answer is in Help > FAQ.", "faq"],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.14.1
+    ["Crawl health", "the table fits the screen: Kind and Fetches per page start hidden; Columns shows them again.", "crawl-health"],
+    ["Leads won or lost", "a lead counts once, on the day it was completed or paid; a later won or lost is shown apart and changes no count.", "leads-and-conversions"],
+    ["Audit", "first touch says \"not checkable (inputs expired)\" when the 30 days behind a day are no longer kept, instead of a mismatch."],
     // 2.14.0
     ["AI answers", "what ChatGPT, Perplexity, Gemini and Claude answer to your buyers' questions: whether they name you, the pages they cite, the competitors they name. AI & bots > AI answers.", "ai-answers"],
     ["Tracking profiles", "ask from a place and in a language (New York in English, Montréal in French), daily, weekly or monthly, with 1 to 5 tries a question. Settings > AI answers.", "ai-answers"],

@@ -10,7 +10,9 @@
 // The helper answers <page>/people?q= for admins and owners only, and writes
 // each search to the audit log (never the value). The two lists are for every
 // member; names, emails and visitor IDs in them only for admins and owners.
-// Listings, never figures: nothing here is summed into a count.
+// Listings, never figures: nothing here is summed into a count. A site that
+// keeps addresses shortened (privacy.keep_ips: short) finds a full address's
+// visits under its shortened form (query.short), and says it can be several people.
 
 import { h, n } from "../ui.js";
 import { time as tzTime } from "../tz.js";
@@ -74,9 +76,13 @@ export function personParts(got) {
   const noVisits = !got.visits.length ? empty(got.query.kind !== "ip"
     ? "No visit is shown: the search was not for an IP address. Open an address under Linked (or under the visits that sent a form at a lead's time) to see its visits."
     : got.kept?.keep_ips ? "No visit kept for this address." : "This site keeps no IP addresses with its visits (Settings > Data retention > People): only the last 6 hours of requests below show them.") : null;
+  const short = got.query.short ? h("p", { class: "note" }, `This site keeps addresses shortened, with the last part removed: ${got.query.value} is kept as ${got.query.short}. A shortened address can be several people, so the visits below may not all be one person's.`) : null;
+  const mode = got.kept?.ip_mode || (got.kept?.keep_ips ? "full" : "off");
+  const addresses = mode === "off" ? "not kept" : `${mode === "short" ? "shortened, " : ""}for ${got.kept.keep_days} days`;
   return [
+    short,
     noVisits,
-    sec("Linked", linked, h("p", { class: "note" }, `Kept: addresses ${got.kept?.keep_ips ? `for ${got.kept.keep_days} days` : "not kept"}; names and emails ${got.kept?.identity === "full" ? "kept" : "not kept"}.`)),
+    sec("Linked", linked, h("p", { class: "note" }, `Kept: addresses ${addresses}; names and emails ${got.kept?.identity === "full" ? "kept" : "not kept"}.`)),
     got.requests.length ? sec("Requests in the last 6 hours", grid("Requests", ["Time", "Request", "Status", "Group"], got.requests.map((r) => [at(r.at), h("span", { class: "mono" }, `${r.method} ${r.path}`), String(r.status), dash(r.group)]))) : null,
     sec("Leads", leadsPart(got.leads)),
     cand.length ? sec("Leads and the visits that sent a form at their time", h("p", { class: "note" }, "Matched by time only: a form sent from 2 minutes before the lead to 30 seconds after. Likely the same person, never certain: the lead database keeps no address."),

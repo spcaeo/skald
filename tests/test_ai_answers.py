@@ -298,7 +298,8 @@ class Runs(unittest.TestCase):
             run_id = figs["openai"]["run_id"]
             self.assertEqual(audit_ai_answers.recheck_run(db, run_id), [])
             # A tampered reading or figure: the second road says so.
-            db.execute("UPDATE answers SET mentioned = 0 WHERE id = (SELECT MIN(id) FROM answers)")
+            # providers run at once, so pick an answer that does mention the site
+            db.execute("UPDATE answers SET mentioned = 0 WHERE id = (SELECT MIN(id) FROM answers WHERE mentioned = 1)")
             db.execute("UPDATE figures SET cited = 1 WHERE provider = 'perplexity'")
             db.commit()
             problems = audit_ai_answers.recheck_run(db, run_id)

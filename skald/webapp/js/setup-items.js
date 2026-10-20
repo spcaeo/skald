@@ -70,9 +70,11 @@ export function setupItems(m, { status = null, tools = null, settings = null, wa
   if (!settings) out.push({ id: "privacy", title: "Privacy settings chosen", state: "unknown", says: "An admin sees this in Settings > Data retention.", fix: null });
   else {
     const ips = settings["privacy.keep_ips"];
+    // full, short or off (2.15.0); true and false from an older answer.
+    const mode = ips?.value === true ? "full" : ips?.value === false || !ips?.value ? "off" : ips.value;
     const chosen = ips && ips.source && ips.source !== "default";
     out.push({ id: "privacy", title: "Privacy settings chosen", state: chosen ? "done" : "todo",
-      says: chosen ? `IP addresses ${ips.value ? `kept with each visit${settings["privacy.keep_days"]?.value ? ` for ${settings["privacy.keep_days"].value} days` : ""}` : "not kept"}.` : "The defaults apply: choose what is kept about people, and say so in your privacy notice.",
+      says: chosen ? `IP addresses ${mode !== "off" ? `kept${mode === "short" ? " shortened" : ""} with each visit${settings["privacy.keep_days"]?.value ? ` for ${settings["privacy.keep_days"].value} days` : ""}` : "not kept"}.` : "The defaults apply: choose what is kept about people, and say so in your privacy notice.",
       fix: chosen ? null : ["Settings > Data retention > People", "#settings/retention"] });
   }
   return out;

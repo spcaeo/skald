@@ -8,9 +8,12 @@
 // only ever says "set" or "not set". Goals (beacon.goals) are ticked from the
 // events the site has counted; the others wait under "Not counted yet". Page
 // assets (site.asset_prefixes, one per line) and the rendering rule decide
-// which visits count as people (rendering.py).
+// which visits count as people (rendering.py). Keeping IP addresses
+// (privacy.keep_ips) is a choice of three: full, shortened or not kept. Under
+// it, "Wording for your privacy notice" (people/notice.py, the answer's
+// `notice`) says what this site's settings keep, with a Copy button.
 
-import { h } from "../ui.js";
+import { h, toast } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { ME, sessions } from "../access.js";
 import { head1, field, input, status, why } from "./forms.js";
@@ -20,6 +23,13 @@ import { mailPreview } from "./mailpreview.js";
 const SOURCE = { site: "set for this site", org: "set for the organisation", install: "set for the whole install", config: "from config.yml", default: "the default",
   upgrade: "kept off by the upgrade to 2.4.0; turn it on once your privacy notice says so" };
 const BASIC = "These settings come with accounts. On this server they are set in config.yml by whoever runs it.";
+// privacy.keep_ips (2.15.0): the three choices, each with one line.
+const IP_MODES = [
+  ["full", "Full address", "Each visit is kept with its whole IP address."],
+  ["short", "Shortened (last part removed)", "203.0.113.57 is kept as 203.0.113.0; an IPv6 address keeps its first 48 bits. The country and city still come from the full address. One shortened address can be several people."],
+  ["off", "Don't keep", "No address is kept with the visits. The visits already kept with one are deleted at the next nightly run."],
+];
+const IP_SWITCH = "From full to shortened, the addresses already kept are shortened at the next nightly run. From shortened to full, only new visits are kept in full: the ones kept before stay shortened.";
 
 // One field per setting: get() is the value to save, or undefined when unchanged.
 function control(name, s) {
@@ -41,6 +51,17 @@ function control(name, s) {
     el = h("input", { type: "checkbox", id, checked: !!s.value, disabled: ro });
     get = () => (el.checked === !!s.value ? undefined : el.checked);
     return { el: h("div", { class: "af" }, h("label", { class: "chk" }, el, h("span", null, h("b", null, s.label))), note), get };
+  }
+  if (s.kind === "ipmode") {
+    // true and false from an older answer read as full and off.
+    const was = s.value === true ? "full" : s.value === false ? "off" : s.value || "full";
+    const box = h("fieldset", { class: "af-set", id }, h("legend", null, s.label),
+      IP_MODES.map(([v, t, line]) => h("label", { class: "chk" }, h("input", { type: "radio", name: id, value: v, checked: v === was, disabled: ro }), h("span", null, h("b", null, t), h("small", null, line)))));
+    get = () => {
+      const now = [...box.querySelectorAll("input")].find((i) => i.checked)?.value;
+      return !now || now === was ? undefined : now;
+    };
+    return { el: h("div", { class: "af" }, box, note, ro ? null : h("small", null, IP_SWITCH)), get };
   }
   if (s.kind === "events") {
     const was = s.value || [];
@@ -146,7 +167,7 @@ export function card(title, sub, names, all, site, onSaved) {
     ask.replaceChildren();
     saved = title;
     waiting = r.mail_waiting?.length ? ` A confirm link was mailed to ${r.mail_waiting.join(", ")}; they get no reports until they confirm.` : "";
-    onSaved(r.settings);
+    onSaved(r.settings, r);
   }
   async function askName(keys, body) {
     const words = (await Promise.all(keys.map((k) => previewWords(k, body[k])))).filter(Boolean);
@@ -171,19 +192,35 @@ function page(title, lede, build) {
   const box = h("div", { class: "set-cards" }, h("p", { class: "empty" }, "Loading the settings..."));
   const draw = (r) => {
     if (!r.ok) { box.replaceChildren(h("div", { class: "state" }, h("div", null, why(r, "The settings could not be loaded.")))); return; }
-    const redraw = (settings) => draw({ ...r, settings });
+    const redraw = (settings, got) => draw({ ...r, settings, notice: got?.notice || r.notice });
     box.replaceChildren(...[build(r.settings, redraw, r)].flat(Infinity).filter(Boolean));
   };
   call("settings").then(draw);
   return [head1(title, lede), box];
 }
 
+// "Wording for your privacy notice": the text the server made from this site's
+// settings (people/notice.py), shown as it will be copied, with a Copy button.
+function noticeCard(nt) {
+  if (!nt || !Array.isArray(nt.items)) return null;
+  const copy = h("button", { type: "button", class: "btn" }, "Copy");
+  copy.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(nt.text); toast("Copied the wording"); } catch { toast("Copy is not allowed here; select the text instead"); }
+  });
+  return h("section", { class: "sheet acct-card notice-card" }, h("h2", null, "Wording for your privacy notice"),
+    h("p", { class: "sub" }, "Made from this site's settings on this page, so it says what is kept. Save a change and it is made again. Fill in or delete the parts in [square brackets] before you use it."),
+    h("p", { class: "note" }, nt.note || "A starting point, not legal advice. Your notice must match your own situation."),
+    h("div", { class: "notice-text" }, h("p", null, nt.intro), h("ul", null, nt.items.map((line) => h("li", null, line)))),
+    h("div", { class: "acts" }, copy));
+}
+
 export function retention(m) {
-  return page("Data retention", "How long the detail is kept. Totals are kept for good.", (all, redraw) => [
+  return page("Data retention", "How long the detail is kept. Totals are kept for good.", (all, redraw, r) => [
     card("Detail kept for this site", "Days of each kind of detail. Totals, page milestones and every day's figures are kept forever and are not a setting.",
       ["report.retention_days", "report.journey_days", "visitors.repeat_days", "beacon.keep_days"], all, m.site, redraw),
-    card("People", "Each visit's IP address and browser, with its pages and times, and the names and emails of leads, so a person can be looked up and followed (the search at the top). Turning IP addresses off deletes the visits kept with them at the next nightly run. Your privacy notice must say what you keep.",
+    card("People", "Each visit's IP address and browser, with its pages and times, and the names and emails of leads, so a person can be looked up and followed (the search at the top). Not keeping IP addresses deletes the visits kept with them at the next nightly run; keeping them shortened shortens them then. Your privacy notice must say what you keep.",
       ["privacy.keep_ips", "privacy.keep_days", "conversions.identity"], all, m.site, redraw),
+    noticeCard(r.notice),
     card("Backups", "Copies of the history kept on the server, for every site of the install.", ["backup.daily", "backup.weekly"], all, m.site, redraw),
   ]);
 }

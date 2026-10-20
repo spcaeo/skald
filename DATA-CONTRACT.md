@@ -78,7 +78,8 @@ a version change; a field is never renamed or removed without one.
   only, read from the raw log; `requests.json` holds only its window). The
   history (`history.sqlite`) never holds an address. Since 2.4.0 a site may
   keep each reader's visit with its address and user agent, and a lead's name
-  and email, in `conversions.sqlite`: settings `privacy.keep_ips`,
+  and email, in `conversions.sqlite`: settings `privacy.keep_ips` (full,
+  short or off since 2.15.0: short keeps each address shortened),
   `privacy.keep_days` (395) and `conversions.identity`, on for a new install,
   off for one upgraded from before 2.4.0 (`people/policy.py`). Those are not
   data files: [docs/DATA-CONTRACT-PEOPLE.md](docs/DATA-CONTRACT-PEOPLE.md).

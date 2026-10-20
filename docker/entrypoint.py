@@ -133,9 +133,12 @@ def render_config(env: dict) -> dict:
     # 2.4.0: keep each visit's IP address and leads' names and emails. Unset,
     # a new install keeps them and one upgraded from before 2.4.0 does not
     # (people/policy.py) until this, or Settings > Data retention, says so.
+    # 2.15.0: `short` keeps each address shortened (203.0.113.57 as 203.0.113.0).
     keep = str(env.get("SKALD_KEEP_IPS", "")).strip().lower()
-    if keep in ("1", "true", "on", "yes", "0", "false", "off", "no"):
-        config["privacy"] = {"keep_ips": keep in ("1", "true", "on", "yes")}
+    if keep in ("1", "true", "on", "yes", "full", "0", "false", "off", "no"):
+        config["privacy"] = {"keep_ips": keep in ("1", "true", "on", "yes", "full")}
+    elif keep == "short":
+        config["privacy"] = {"keep_ips": "short"}
     identity = str(env.get("SKALD_IDENTITY", "")).strip().lower()
     if identity:
         if identity not in ("full", "anonymous"):
