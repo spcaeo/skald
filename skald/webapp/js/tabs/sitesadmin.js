@@ -67,7 +67,7 @@ export default function sitesadmin(m, s = {}) {
   // The wizard for a site: from its saved step, or at the Test (step 5).
   function resume(site, test = false) {
     const step = test ? STEPS : Math.max(1, Math.min(STEPS, site.setup?.step || 1));
-    siteWizard({ data, name: site.name, start: step - 1, method: site.setup?.method || "", verify: site.verify, onChange: reload });
+    siteWizard({ data, name: site.name, start: step - 1, method: site.setup?.method || "", verify: site.verify, found: site.setup?.found || null, onChange: reload });
   }
   function openAsked(r) {
     const want = s.setup ? `setup:${s.setup}` : s.test ? `test:${s.test}` : "";

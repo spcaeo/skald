@@ -2,6 +2,7 @@
 // and the steps the "Add a site" wizard shares with it (site-wizard.js):
 // choose how, a sending token, install, test.
 //
+// Step 1 shows the site check's card (conn-detect.js) and chooses its way.
 // The sending token is made with the tokens endpoint (team_api.py,
 // tokens/create, scope ingest, this site only) and kept in this page's memory
 // only, like tokens.js. The Test reads <page>/sites/status (connections_api.py)
@@ -15,6 +16,7 @@ import { METHODS, methodOf, REASON_FIX, TROUBLE } from "./conn-words.js";
 import { wizard, codeBlock, answerBox, helpLink } from "./conn-ui.js";
 import { installFor } from "./conn-install.js";
 import { shareBox } from "./conn-share.js";
+import { detectCard, recommendFor, suggestionsFor, saveFound } from "./conn-detect.js";
 
 export const POLL_MS = 5000;
 export const POLL_FOR_MS = 120000;
@@ -37,16 +39,28 @@ export function sendState(site, data = {}) {
 
 // ------------------------------------------------------------ choose how
 
-export function methodChooser(st, onPick = null) {
+/* The ways, as radio buttons. `rec` ({id, reason, site}, from the site check,
+   conn-detect.js) marks one "Recommended for <site>" with its reason, in place
+   of the general "Recommended". */
+export function methodChooser(st, onPick = null, rec = null) {
   const name = `how-${Math.random().toString(36).slice(2, 8)}`;
   return h("fieldset", { class: "cn-ways" }, h("legend", { class: "vh" }, "How should Skald get this site's visits?"),
     METHODS.map((x) => {
       const radio = h("input", { type: "radio", name, value: x.id });
       radio.checked = st.method === x.id;
-      radio.addEventListener("change", () => { st.method = x.id; if (onPick) onPick(x.id); });
-      return h("label", { class: `cn-way${x.best ? " best" : ""}` }, radio,
-        h("span", null, h("b", null, x.title, x.best ? h("em", null, " Recommended") : null), h("small", null, x.sub)));
+      radio.addEventListener("change", () => { st.method = x.id; st.methodBy = "owner"; if (onPick) onPick(x.id); });
+      const mine = rec && rec.id === x.id;
+      const badge = mine ? h("em", { class: "cn-rec" }, ` Recommended for ${rec.site}`) : !rec && x.best ? h("em", null, " Recommended") : null;
+      return h("label", { class: `cn-way${x.best ? " best" : ""}${mine ? " rec" : ""}` }, radio,
+        h("span", null, h("b", null, x.title, badge), h("small", null, x.sub), mine && rec.reason ? h("small", { class: "cn-why" }, rec.reason) : null));
     }));
+}
+
+/* The check's way, chosen for the owner when nothing is chosen yet (or the
+   last choice was the check's own). Turning "Use these" off takes it back. */
+export function preselect(st, rec) {
+  if (rec && (!st.method || st.methodBy === "found")) { st.method = rec.id; st.methodBy = "found"; }
+  else if (!rec && st.methodBy === "found") { st.method = ""; st.methodBy = ""; }
 }
 
 export const chooseCheck = (st) => (st.method ? "" : "Choose how the visits get to Skald.");
@@ -177,13 +191,38 @@ export function shareFor(st) {
 
 // ------------------------------------------------- the Connections dialog
 
+// Step 1 of the dialog: the site check's card for this site (checked once on
+// opening), and the ways with the check's one chosen.
+function chooseStep(w, st, site) {
+  const ways = h("div");
+  const saved = h("p", { class: "msg", role: "status", "aria-live": "polite" });
+  const keep = h("button", { type: "button", class: "btn", hidden: true }, "Save the host names and page assets to this site");
+  const drawWays = () => {
+    const rec = recommendFor(st);
+    preselect(st, rec);
+    ways.replaceChildren(methodChooser(st, () => w.say(""), rec));
+    const got = suggestionsFor(st, site);
+    keep.hidden = !(got.hosts || got.asset_prefixes);
+  };
+  keep.addEventListener("click", async () => {
+    keep.disabled = true;
+    const r = await saveFound(st, site);
+    keep.disabled = false;
+    saved.className = `msg ${r.ok ? "ok" : "err"}`;
+    saved.textContent = r.words;
+  });
+  const card = detectCard(st, { address: () => site, name: site, auto: true, onFound: drawWays });
+  drawWays();
+  return [card, h("div", { class: "acts" }, keep), saved, h("p", null, "Where does the site run? Choose the way its visits reach Skald."), ways];
+}
+
 export function sendDialog(site, data, { onClose = null } = {}) {
   const st = sendState(site, data);
   return wizard({
     title: "Send this site's visits to Skald", subtitle: `For ${site}, when its web server is not this Skald's server.`,
     key: "conn-send", state: st, onClose,
     steps: [
-      { name: "Choose how", draw: (w) => [h("p", null, "Where does the site run? Choose the way its visits reach Skald."), methodChooser(st, () => w.say(""))], check: () => chooseCheck(st) },
+      { name: "Choose how", draw: (w) => chooseStep(w, st, site), check: () => chooseCheck(st) },
       { name: "Sending token", draw: () => tokenPanel(st) },
       { name: "Install", draw: () => [h("p", { class: "sub" }, `${methodOf(st.method)?.title || ""}. The send address: `, h("code", null, st.url)), ...installFor(st.method, st), shareFor(st)] },
       { name: "Test", draw: () => [testPanel(st), troubleTable()] },

@@ -9,8 +9,15 @@ role and CSRF checks; every route here is for an owner or admin):
        -> the install kit as a zip (skald/kit). The token goes in only
           when include_token is true, and only a valid sending token of that
           site; it is never logged or kept.
-  POST sites/setup   {name, step?, method?, token_id?, done?}: the wizard's
-       progress (accounts/site_setup.py), never a token's value -> {setup}
+  POST sites/setup   {name, step?, method?, token_id?, done?, found?}: the
+       wizard's progress (accounts/site_setup.py), never a token's value; found:
+       a site check's facts, kept cleaned (site_detect.clean_found) -> {setup}
+  POST sites/detect  {address, name?}: the site check (site_detect.py): how the
+       site at `address` is hosted, from outside, with a suggested way and
+       why -> {found}. Fetched safely (site_fetch.py); DETECT_PER_ADMIN checks
+       an hour per admin, DETECT_PER_TARGET per address in 10 minutes (429).
+       With `name`, a site of the organisation with set-up progress, the
+       facts are kept in that progress too (no progress row is made).
 
 They live under sites/ so the nginx route every install already has
 (`sites(?:/[a-z]+)?`) reaches them. `extras` adds to the GET sites answer
@@ -28,6 +35,8 @@ from .auth_api import answer, query, text
 from .files import slug
 
 QUIET_HOURS = 24
+DETECT_PER_ADMIN = 30              # site checks an admin may ask for in an hour
+DETECT_PER_TARGET = 6              # checks of one address in 10 minutes, by anyone
 
 
 def _site(c, name: str) -> str | None:
@@ -172,10 +181,11 @@ def setup(c, form):
         return c.no(404, "There is no such site in this organisation.")
     method = text(form, "method", 20) or None
     done = form.get("done") if isinstance(form.get("done"), bool) else None
+    found = form.get("found") if isinstance(form.get("found"), dict) else None
     try:
         got = site_setup.save(c.db, c.org["id"], name, c.uid, step=form.get("step"),
                               method=method, token_id=text(form, "token_id", 200) or None,
-                              done=done)
+                              done=done, found=found)
     except ValueError as why:
         return c.no(400, str(why))
     fmt = site_setup.FORMAT_FOR.get(method or "", "auto") if method else None
@@ -184,6 +194,37 @@ def setup(c, form):
             and not (_received(c, name)[1] or {}).get("batches"):
         site_configs.set_format(c.db, name, fmt, c.uid)    # nothing arrived yet
     return c.ok(setup=got)
+
+
+# ------------------------------------------------------------ site check
+
+def detect(c, form):
+    """The site check: admins only (sites_api.handle refuses the rest), and
+    rate-limited per admin and per address before anything is fetched."""
+    from . import site_detect
+    from .accounts import limits, site_setup
+    try:
+        host = site_detect.clean_address(text(form, "address", 300))
+    except ValueError as why:
+        return c.no(400, str(why))
+    mine, theirs = f"site-detect:user:{c.uid}", f"site-detect:host:{host}"
+    if limits.too_many(c.db, mine, limit=DETECT_PER_ADMIN, minutes=60):
+        return c.no(429, "Too many site checks. Try again in an hour, or choose by hand.")
+    if limits.too_many(c.db, theirs, limit=DETECT_PER_TARGET, minutes=10):
+        return c.no(429, f"{host} was checked many times just now. Try again in a few "
+                         "minutes, or choose by hand.")
+    limits.note_failure(c.db, mine)
+    limits.note_failure(c.db, theirs)
+    try:
+        found = site_detect.detect(host)
+    except ValueError as why:
+        return c.no(400, str(why))
+    name = _site(c, text(form, "name", 200)) if form.get("name") else None
+    row = site_setup.get(c.db, name) if name is not None else None
+    if row is not None:                   # never a new row: that would be a set-up badge
+        use = (row.get("found") or {}).get("use") is not False
+        site_setup.save(c.db, c.org["id"], name, c.uid, found={**found, "use": use})
+    return c.ok(found=found)
 
 
 # ---------------------------------------------------- the GET sites extras

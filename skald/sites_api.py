@@ -7,18 +7,23 @@ with `access.mode: sessions` (404 otherwise), the way team_api.py is:
                        file or dashboard), active or removed, its log format
                        and what the ingest endpoint has received; whether the
                        caller may add one (and why not)
-  POST sites/add       {host, timezone?, format?, token?}             admin
-                       -> the site, an ingest token (shown once), the shipper
+  POST sites/add       {host, timezone?, format?, token?, hosts?, asset_prefixes?}
+                       -> the site, an ingest token (shown once), the shipper  admin
                           command and the skald.js tag (with token: false, no
-                          token: the wizard makes a named one later)
+                          token: the wizard makes a named one later). hosts:
+                          its host names (site_config); asset_prefixes: its
+                          Settings > Sites > Page assets (the site's
+                          site.asset_prefixes setting), both checked as
+                          Settings checks them: the site check's suggestions
   POST sites/token     {name}: a new ingest token for a site          admin
   POST sites/remove    {name, confirm: name}                          owner
                        stops processing; the data stays until an install
                        admin runs `skald site purge <name>`
   POST sites/verify    {name}: look for the site's verification token (DNS
                        TXT or the home page's meta tag, site_verify.py)  admin
-  GET  sites/status, POST sites/kit, POST sites/setup: Settings > Connections
-                       and the "Add a site" wizard (connections_api.py)  admin
+  GET  sites/status, POST sites/kit, POST sites/setup, POST sites/detect:
+                       Settings > Connections and the "Add a site" wizard
+                       (connections_api.py; detect: the site check)    admin
   POST sites/share, GET sites/shares, POST sites/unshare: "Share with your
                        developer" links (share_api.py)                 admin
 
@@ -47,8 +52,8 @@ from .auth_api import answer, csrf_ok, read_json, text
 from .config import site_name
 
 PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
-PATH = re.compile(PAGE + r"(?P<act>sites(?:/(?:add|token|remove|verify|status|kit|setup|share"
-                         r"|shares|unshare))?)$")
+PATH = re.compile(PAGE + r"(?P<act>sites(?:/(?:add|token|remove|verify|status|kit|setup|detect"
+                         r"|share|shares|unshare))?)$")
 GETS = ("sites", "sites/status", "sites/shares")
 ADMIN = ("owner", "admin")
 SHIP_TOKEN_FILE = "/etc/skald-ship/token"
@@ -252,10 +257,17 @@ def add(c: Ctx, form):
     refusal = _refusal(c)
     if refusal:
         return c.no(403, refusal)
+    from . import settings_store
     from .accounts import db as base
     try:
         name = site_configs.clean_name(text(form, "host", 200))
         folder = ingest_log.site_folder(c.ingest_root(), name)
+        assets = form.get("asset_prefixes") or None
+        if assets is not None:
+            try:
+                assets = settings_store.validate("site.asset_prefixes", assets)
+            except settings_store.Invalid as why:
+                raise ValueError(str(why)) from None
         with base.tx(c.db):
             site_configs.create(
                 c.db, c.org["id"], name, c.uid, hosts=form.get("hosts") or None,
@@ -263,6 +275,8 @@ def add(c: Ctx, form):
                 fmt=text(form, "format", 40) or "auto", log_dir=str(folder),
                 taken=config_sites(c.config, c.config_path))
             token = _new_token(c, name) if form.get("token") is not False else None
+            if assets:
+                settings_store.put(c.db, f"site:{name}", "site.asset_prefixes", assets, c.uid)
             if saas_on(c.config):
                 site_verify.start(c.db, name)
     except ValueError as why:
@@ -345,5 +359,6 @@ def _more(name):
 
 ROUTES = {"sites": listing, "sites/add": add, "sites/token": new_token, "sites/remove": remove,
           "sites/verify": verify, "sites/status": _more("status"), "sites/kit": _more("kit_zip"),
-          "sites/setup": _more("setup"), "sites/share": _share("share"),
+          "sites/setup": _more("setup"), "sites/detect": _more("detect"),
+          "sites/share": _share("share"),
           "sites/shares": _share("shares"), "sites/unshare": _share("unshare")}

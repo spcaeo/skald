@@ -60,3 +60,20 @@
 .cn-share { display: grid; gap: 8px; padding-top: 6px; border-top: 1px solid var(--rule); }
 .cn-share-new p { margin: 0 0 6px; }
 .cn-share select { min-height: 34px; padding: 4px 8px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); color: var(--ink); }
+
+/* "What Skald found": the site check's card (js/tabs/conn-detect.js) */
+.cn-found { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: var(--r); background: var(--surface); }
+.cn-found-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.cn-found-top h4 { margin: 0; font-size: 13.5px; flex: 1 1 auto; }
+.cn-found .msg, .cn-found .note, .cn-found-body > p { margin: 0; }
+.cn-found-body { display: grid; gap: 8px; }
+.cn-found-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.cn-found-list li { display: flex; gap: 8px; align-items: baseline; min-width: 0; overflow-wrap: anywhere; }
+.cn-tick { flex: none; width: 16px; text-align: center; font-weight: 700; color: var(--good); }
+.cn-found-list li.unsure { color: var(--ink-3); }
+.cn-found-list li.unsure .cn-tick { color: var(--ink-3); }
+.cn-use { display: inline-flex; gap: 6px; align-items: center; font-size: 12.5px; cursor: pointer; }
+.cn-use input { margin: 0; accent-color: var(--ink); }
+.cn-found-why, .cn-builder { font-size: 13px; }
+.cn-way small.cn-why { color: var(--ink-2); }
+.cn-way.rec em.cn-rec { color: var(--good); }

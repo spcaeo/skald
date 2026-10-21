@@ -32,7 +32,7 @@ The dialog has four steps: **Choose how**, **Sending token**, **Install**, **Tes
 
 ### Step 1: Choose how
 
-Pick where the site runs:
+Step 1 first shows **What Skald found** for this site (see **Skald checks your site**, below), and chooses the way it suggests. **Save the host names and page assets to this site** puts the found host names (added to the ones the site has) and page assets in the site's settings. Then pick where the site runs, or keep the suggestion:
 
 | Choice | When to pick it |
 | --- | --- |
@@ -156,13 +156,47 @@ Owners and admins add a site in five short steps. Open **Settings > Organisation
 
 1. **Your site.** Type the site's address, as people type it. A whole link works too: `https://www.example.com/pricing` becomes the site `www.example.com`. The page shows the name it will use. Choose the time zone its days are counted in.
 2. **Prove it's yours.** Add the DNS TXT record or the meta tag the step shows, then press **Check now**. A new DNS record can take a few minutes to show. Nothing is collected for the site until this is done, but you can go on and install now. When your server asks for no proof, the step says so.
-3. **How visits reach Skald.** The same choice as in Connections: Docker, without Docker, Cloudflare, Vercel or Netlify, or only the script tag.
+3. **How visits reach Skald.** The same choice as in Connections: Docker, without Docker, Cloudflare, Vercel or Netlify, or only the script tag. The way Skald suggests is chosen already, marked **Recommended for** your site, with the reason under it.
 4. **Install.** Make the sending token, then follow the steps and download the kit, as in Connections.
 5. **Test and finish.** Press **Test connection**. When lines arrive it says "Done: example.com is receiving visits", with **Open its dashboard**. If not, it shows the fix and the common problems. **Finish later** closes the dialog.
 
+### Skald checks your site
+
+When you type the address in step 1, Skald looks at the site from outside, the way a browser does, and shows **What Skald found**:
+
+| Line | What it says | Read from |
+| --- | --- | --- |
+| Server | nginx, Apache, LiteSpeed, Caddy or Microsoft IIS, and the system it names (like Ubuntu) | The site's `Server` header |
+| Platform | Cloudflare (when its proxy is on), Vercel, Netlify, CloudFront, Fastly, GitHub Pages, or a hosted builder: Shopify, Wix, Squarespace, Webflow | Headers such as `cf-ray`, `x-vercel-id`, `x-nf-request-id`, `x-amz-cf-id` |
+| Built with | Next.js, Nuxt, WordPress, Gatsby, Astro, or plain HTML | `X-Powered-By`, and the page's own folders like `/_next/static/` or `/wp-content/` |
+| Host names | Both `example.com` and `www.example.com` when they are the same site, and which one sends visitors to the other | Both addresses are asked |
+
+Each line has a tick, or says **could not tell**. Under them: the page assets it suggests for **Settings > This site > Sites > Page assets**, and the way it suggests, with one plain reason. For example: "example.com runs on its own nginx server (Ubuntu), so the log shipper kit is the way."
+
+| What Skald sees | The way it suggests |
+| --- | --- |
+| nginx, Apache, LiteSpeed or Caddy, nothing in front | A Linux server with Docker (the shipper kit) |
+| Cloudflare with its proxy on | Cloudflare (the Skald Worker sees every request, cached pages too) |
+| Vercel or Netlify | Vercel or Netlify (its log drain) |
+| CloudFront or Fastly in front of nginx or Apache | The shipper kit, on the server behind it. Pages the CDN answers from its cache are not in that log |
+| Shopify, Wix, Squarespace, Webflow, GitHub Pages | Only the script tag: Skald cannot read their server log |
+| Microsoft IIS | Only the script tag: the kit is for Linux servers |
+| Nothing it can tell | Nothing: you choose |
+
+Every line is a suggestion. **Use these** is on at first: the site is added with the found host names and page assets, and step 3 chooses the suggested way. Turn it off to use none of them, or change any of them later: the way in step 3, the host names and page assets in **Settings > Sites**. **Check again** looks once more.
+
+When the site cannot be reached (it is not live yet, or it turns automated visitors away), the card says so plainly. Nothing depends on the check: add the site and choose the way by hand.
+
+How the check behaves:
+
+- It asks only the site's home page, `https://<site>/` and `https://www.<site>/` (or without `www.`), with a `HEAD` request, then reads at most 256 KB of the page when the headers do not say enough. Each request waits at most 6 seconds and follows at most 3 redirects. It sends no cookie, and says it is Skald's site check in its user agent.
+- It fetches only public addresses, over http or https on ports 80 and 443. A name that points to a private, local or cloud-metadata address is refused, and so is a redirect to one.
+- An admin can ask for about 30 checks an hour, and one address is checked at most 6 times in 10 minutes. The server log keeps only the site's name and the outcome.
+- The facts are kept with the set-up's progress, so **Setup: step 3 of 5, continue** shows them again.
+
 ### Continue later
 
-Skald saves how far you got, on the server, for each site: the step, the way chosen, and which sending token was made (its id, never the token itself). Closing the dialog or the browser loses nothing.
+Skald saves how far you got, on the server, for each site: the step, the way chosen, what the site check found, and which sending token was made (its id, never the token itself). Closing the dialog or the browser loses nothing.
 
 A site with an unfinished set-up shows a button in **Add or remove sites** and on the site picker:
 
