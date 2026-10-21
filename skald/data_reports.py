@@ -271,7 +271,6 @@ def insights(p) -> dict:
 def _with_leads(p, found: dict) -> dict:
     from . import conversions_data, conversions_leads
     from .conversions import store
-    from .conversions.hooks import history_folder
     # Conversions do not know about views: a page group's insights carry no lead findings.
     if p.view is not None:
         return {**found, "leads_withheld": []}
@@ -281,7 +280,7 @@ def _with_leads(p, found: dict) -> dict:
         blob = None
     if not blob or not blob.get("available"):
         return {**found, "leads_withheld": []}
-    folder = p.live_dir if p.live_dir is not None else history_folder(p.config)
+    folder = conversions_data.store_folder(p)
     path = store.path_for(p.config, Path(folder))
     site = p.key.split("::", 1)[0]
     return conversions_leads.add_to(found, blob, p.anchor, p.config, path, site, p.tz)

@@ -433,12 +433,25 @@ def withhold(out: dict, found: dict[str, list[str]]) -> dict:
     return out
 
 
+def store_folder(page) -> Path:
+    """The folder of the install's conversions.sqlite and secrets.json: the
+    history's own folder, where the hook receiver and the beacon write
+    (conversions.hooks.history_folder). Not the page's live folder: for a
+    site added in the dashboard that is its own state folder
+    (sites/<site>/), where no conversion is ever kept, and every such site
+    showed "no conversions yet"."""
+    from .conversions.hooks import history_folder
+    path = str(getattr(getattr(page, "history", None), "path", "") or "")
+    if path and path != ":memory:":
+        return Path(path).parent
+    return page.live_dir if page.live_dir is not None else history_folder(page.config)
+
+
 def build(page) -> dict:
     """conversions.json for a page (data_files.Page): the whole site's, the
     same on every page of it, worked out once per run."""
-    from .conversions.hooks import history_folder
     site = page.key.split("::", 1)[0]
-    folder = page.live_dir if page.live_dir is not None else history_folder(page.config)
+    folder = store_folder(page)
     key = (site, str(folder), page.now.isoformat())
     if key not in _MEMO:
         _MEMO.clear()

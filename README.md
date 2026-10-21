@@ -51,6 +51,8 @@
 
 ## What's new
 
+- **2.18.1:** leads show on every site of an install, not only the first
+  ([changelog](CHANGELOG.md#2181-2026-10-21)).
 - **2.18.0: Next.js pages counted, lead labels, and a lead check** ([changelog](CHANGELOG.md#2180-2026-10-21)).
   Pages opened by a click inside a Next.js site now count, with one line in the site's nginx log
   format. Leads can carry a label (sales, support). A signed, read-only address lets your server
