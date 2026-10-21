@@ -2,6 +2,242 @@
 
 All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versioning](https://semver.org).
 
+## 2.21.0 (2026-10-21)
+
+Two parts: **Security**, a new section built from the server's own log (exposure check, scanners,
+attack attempts, fake browsers, a block list, your stack and its advisories, alerts to the people
+on each site); and **every view has its own link**, with copy and open-in-a-new-tab on every URL
+and three fixes to the set-up list. Also: the Node.js advisory card's score line no longer
+repeats its severity ("High · High"), and the scanner detail has its own key (`scan=`) and opens
+its request list through a token, never the address in the link.
+
+### Part 1: Security
+
+- **`skald stack` checks the stack now** (the same public reads as the daily run), so a new install or a new advisory list shows on Security > Your stack without waiting for the morning run; `dashboard` then draws it.
+
+Security: a new section that shows who probes the server, whether it ever handed one of them
+a real file, what else was tried, and which addresses to block, all from the server's own log
+and every figure counted twice. For owners and admins of any site Skald reads.
+
+### Added
+
+- **Security, a section of its own** (in the menu after AI & bots; route `#threats/...`,
+  `g` then `y`). Why a section and not a tab of AI & bots: it is about the server and what was
+  tried against it, on every host the log names (the server's bare IP too), where AI & bots is
+  about who reads the site; and its six questions would crowd that strip. The menu has room for
+  a sixth row; the phone's bottom bar keeps five sections and Menu, so Security opens from Menu
+  there. `#security` still opens Settings > Security, as it always did. Why now: the owner asked
+  to "see all similar logs and double confirm" after a hand check of the sites' logs found 1,858
+  scanner probes from 142 addresses on one site in a day (`/phpinfo.php`, `/.env`,
+  `/storage/logs/laravel.log`, `/serverless.yml`, `/owa/...`), 148 of them answered 200, and
+  wanted it as a selling point. Six tabs, each answering one question:
+  - **Is anything exposed?** The headline, first: one line, "Nothing exposed in this period",
+    "N possible exposures: check these now" or "Can't tell for N answers". Every scanner probe
+    the server answered 2xx is set against its host's own fallback page (what a single-page app
+    or a default server page sends for any path it does not have): the size (within 16 bytes)
+    that the most distinct probe paths of that host got that day, when at least 3 paths share
+    it. Harmless if it matches, a possible exposure if not, "can't tell" (never "safe") when the
+    log has no size. Each host has its own, and the bare IP is a host of its own: the log's size
+    is the size sent after compression, so the same 626-byte page was 392 bytes through the CDN
+    and 404 bytes straight to the IP on a real site, both harmless. Each possible exposure lists
+    host, path, time, status, size, why it was flagged and one line of advice (for example
+    `location ~ /\. { deny all; }`, then rotate the secrets). The (i) says plainly what the log
+    cannot prove: it records the size, never the content.
+  - **Who is scanning us?** One row per scanner (address and user agent): first and last seen,
+    requests, probes, country, hosting network (where Skald keeps that list; no guess when it
+    does not), what it looked for (secret files, cloud and deploy configs, admin panels,
+    WordPress, PHP, dumps and backups, path tricks and injection), what the server answered, and
+    two signs: a **forged referrer** (it claimed one of the site's pages or subdomains, such as
+    a `wp.` subdomain, and never loaded the site's files) and **sent to the bare IP**. Probes per
+    day as a small chart. A row opens its detail and **Open its requests** (Site > Requests
+    filtered to the address), which says that older raw lines have expired from the request list.
+  - **Attack attempts:** path traversal and injection by kind (traversal, Log4Shell, script, SQL,
+    PHP settings); login and form hammering (20 POSTs to a login or form path from one address
+    within 5 minutes); bursts (300 requests from one address within 60 seconds, people and bots
+    only). Each: address, when, how many, what was answered. Thresholds in the config's
+    `security:` section (docs/SETTINGS.md).
+  - **Fake browsers and scrapers:** the requests Skald already files as bots (never rendered the
+    page, too fast for a person, a browser-like crawler, "claims to be Googlebot"), by address
+    and network, with the pages they took; named crawlers stay on AI & bots.
+  - **Block list:** the worst addresses and networks (probes, then attack attempts), exported as
+    nginx `deny` lines, a Cloudflare IP list CSV or a plain list (fail2ban, ipset). An (i) and a
+    note say to review first: a shared address or a CDN can carry real visitors.
+  - **Alerts:** the two new rules and the security alerts of the last 30 days.
+- **Your stack** (Security's second tab): once a day the morning run reads each site from
+  outside, like a visitor (the 2.17 safe fetcher: no cookie, no password, public addresses
+  only): the web server and its version, PHP and its version, WordPress, Next.js (and so
+  Node.js), and any host the pages load WordPress files from (a headless WordPress at `wp.`
+  of the site, as on a real site checked today), with `/wp-login.php` asked once on every
+  WordPress host: "Login page open to the internet" when it answers. A version the server
+  hides reads "not shown by the server", never guessed, with the command to see it folded
+  under "For your server admin". Kept per day (`stack-<site>.json`), shown "as of" its time.
+  Why: the owner asked what runs each site and whether today's PHP and Node.js advisories
+  apply. Off with `security.stack_check: false`.
+- **Advisories** shipped with Skald (`data/advisories.json` in the package): PHP's
+  CVE-2026-109618 and CVE-2026-109619 (critical, unauthenticated remote code execution; fixed
+  in 8.5.12, 8.4.27, 8.3.36, 8.2.35; none for 8.1 and older) and Node.js's October 2026
+  security releases (fixed in 22.23.4, 24.22.1, 26.12.1), from php.net and nodejs.org. Each is
+  matched against the stack: **Update needed**, **No official fix: upgrade the branch**, or
+  **Check your version** (hidden), as a card with what to do, the advisory's mitigations
+  (folded, said to reduce the exposure, not to make a site safe) and the source links. Skald
+  tells you what applies and how to fix it; it does not detect or block an exploit. Nothing is
+  fetched unless `security.advisories_fetch: true` (off by default) lets the morning run take
+  the newest list from the public repository. Second count: `audit_stack.py` reads the kept
+  evidence again with its own parsing and version comparison (run-daily's recounts).
+- **Log signs worth a look** (top of Attack attempts), never "attack detected": a day whose
+  gateway errors (502, 503, 504: crashing PHP workers or an upstream) or requests for `.php`
+  paths reach 3 times the median of the 14 days before it (7 recorded at least) and 20, with
+  its busiest hour; and, where the log records each request's size, POST bodies of 1,000,000
+  bytes or more (`security.large_post_bytes`). The size is a new optional log field,
+  `request_length=$request_length`, read like `rsc_prefetch=` by both roads and documented in
+  docs/INGEST.md; without it the tab says "not recorded" and gives the line. Why: the PHP
+  advisory's flaw crashes workers and takes large multipart bodies. The counts are part of the
+  day kind `security` (`signs`), recounted by audit_security.py by its own reading.
+- **Security alerts to the people on the site.** Each team member chooses their own, per
+  site, under Security > Alerts, "Your security alerts": on or off, right away or in the daily
+  mail. Defaults: owners and admins on, right away; viewers off until they opt in. What: a
+  possible exposure, and an advisory that matches the stack. Each mail names the site, what was
+  found, what to do in one line, and a link straight to it (`#threats/exposed?item=<id>`, an
+  opaque hash, never an address), which opens the tab with that item first. Each item once; a
+  reminder only while it stays open, every `security.remind_days` (3) days. Only confirmed,
+  enabled accounts get one; an exposure the site's alert mail already sends to that address is
+  not doubled. Every send is an audit-log row (to whom, which item, how; never the content).
+  "Send a test security alert" for owners and admins (3 in 10 minutes). Routes under
+  `settings/` (no nginx change). Why: the owner asked for "a way to alert the people you added
+  to receive those messages". Also a third site alert, **Advisory matches your stack**, on with
+  the site's alerts, so the site's mail and Slack hear about it too.
+- **Two alerts**, through the existing alert machinery (dashboard, mail, webhooks and Slack's
+  `alert.opened`): **Possible exposure** opens at once from the live count and from the last
+  whole day, one per host and path; it is on by default, so it follows the site's alerts
+  (`alerts.enabled`, `alerts.mail`). **New scan wave**: the last whole day's probes at least 3
+  times the median of the 14 whole days before (at least 7 counted) and at least 200; off by
+  default (`alerts.scan_wave`). Both on Site > Alerts.
+
+### Who sees what
+
+- **Addresses:** owners and admins only, through a new helper call `GET <page>/people/security
+  ?first=&last=` (CSRF or same-origin, one audit row "security addresses viewed", never an
+  address), and only what the site keeps (`privacy.keep_ips`): full addresses and their
+  networks; with `short`, networks only (/24, /48) and the page says so; with `off`, none, and
+  each day's rows stand alone. Viewers see every figure and row without the address. The public
+  demo shows its made-up documentation addresses as an owner sees them.
+- **Nothing in history holds an address or a user agent:** the day kind `security` carries a
+  row number; the address behind it is kept in `conversions.sqlite` (schema 8, tables
+  `security_rows` and `security_days`) beside the kept visits, under the same rules: only while
+  the site keeps addresses, for `privacy.keep_days`, pruned nightly, deleted by `forget --ip`.
+
+### How it is counted
+
+- **A view, never a group:** every request stays where classify.py put it; the five groups add up
+  exactly as before. A probe is a bots request whose path or query a scanner pattern matches
+  (classify.PROBE / PROBE_QUERY), plus probe-shaped lines sent to the server's bare IP, which
+  count in no group (another host's) and only here.
+- **New day kind `security`** (docs/DATA-CONTRACT-SECURITY.md), counted in the tally pass every
+  daily and live run, whole site only; `security.json` for the page (the last 31 days' rows, every
+  day's totals). Days collected before this release read **Not recorded**, never 0; `backfill`
+  counts them for days whose raw lines are still on the server.
+- **Second count:** `audit_security.py` rebuilds the whole day from the raw lines by its own code
+  (its own pairing, categories, referrer and asset tests, shell rule, episode rule and ranking)
+  and compares every figure, and on a whole day kept with addresses, every kept address against
+  its own ranking. The scan-wave alert's figure and median are rechecked from history by
+  run-daily. A mismatch withholds the day, as always.
+
+### What to do
+
+- Nothing to set up: Security fills from the next run. Owners and admins see the addresses on
+  sites that keep them. To count the days before the upgrade, run `backfill` for the days the raw
+  log still holds. Switch **New scan wave** on in Site > Alerts if you want it.
+- On a site whose log has no body size (`$body_bytes_sent`), "Is anything exposed?" can only say
+  "can't tell": add it to the log format.
+
+### Checked
+
+- `tests/test_security.py` (categories, bare IP, own referrers, login paths; the exposure rule:
+  a 392-byte app shell and a 404-byte IP default page harmless each on its own host, a 1,873-byte
+  leak possible, the tolerance, too few paths, one file asked five times, no size and empty; the
+  login threshold at 19, 20 and spread out; a burst with Googlebot left out; the whole day stored,
+  verified and audited; no address in history; the groups unchanged; a view has none; the live
+  run and `audit --live`; old paths; a log without bytes; the audit catching a moved exposure, a
+  moved category and a dropped row).
+- `tests/test_security_more.py` (addresses kept in full, shortened and not at all; the audit
+  catching a swapped address; `forget --ip`; `people/security` refused to viewers and cross-site,
+  audit-logged without an address; security.json with a not-recorded day and no address; both
+  alerts, their settings, their webhook body, the wave's median and its recheck catching a change).
+- `tests/test_security_notify.py` (who gets them: owners and admins by default, a viewer who
+  opts in, never an unconfirmed or disabled account; the item ids and link format; once per item
+  then a reminder after 3 days, a closed item never; no double mail for the site's alert
+  recipients; the daily-mail digest in one mail; the test send and its audit row; the routes by
+  role and the test limit) and the advisory site alert in `tests/test_security_stack.py`.
+- `tests/test_security_signs.py` (request_length= read by both roads wherever it sits, "-" and
+  absent as not recorded; gateway errors, .php requests and large POSTs counted and audited;
+  the audit catching a moved hour) and the worth-a-look rule in `tests/js/security.mjs` (a
+  flagged day against its usual, too few days flags nothing, the not-recorded line).
+- `tests/test_security_stack.py` (products and hidden versions, the content origin, www. read
+  once, every advisory state, the shipped list valid, a check kept with its matches and
+  audited, the audit catching a changed state, a failed fetch never stopping the run, the
+  switch, no fetch unless asked and an invalid list refused, the data file's cards).
+- `tests/js/security.mjs` (the period's sums, the verdict, rows joined to addresses, the block
+  list and its three exports in full, short and off modes, every tab drawn for a viewer and an
+  admin with nothing null appended). The demo (`tools/demo_security.py`) adds scanners, one fake
+  leak, login hammering, a burst and a browser-like crawler on example.com, with RFC 5737
+  addresses only.
+
+### Part 2: every view has its own link
+
+Every state in the address, copy and open-in-a-new-tab on every URL, and three fixes to the
+set-up list (the owner's rules of 2026-10-21: "a proper URL router ... so any state is reachable
+and copy-pasteable"; "if there is a URL on a mouse over, show two small icons ... copy ... open in
+a new tab").
+
+### Added
+
+- **Every view has its own link.** *Seen:* opening a visitor, a lead, a request, a Set up or a
+  Connections dialog left the address as it was, so it could not be shared, and Back left the page.
+  *Change:* one key registry (`js/routekeys.js`, `docs/ROUTES.md`) and one router for what is open
+  over a tab (`js/overlays.js`). New keys: `vis` (visit day and number, `vis=2026-10-20.14`), `who`
+  (person search), `lead`, `conv`, `req` (a code of the log line), `cohort`, `sq`, `list`, `ans`,
+  `setup` + `step` (Set up dialogs; Add a site on Add or remove sites), `conn`, `share`, `dlg` (keys,
+  What's new, saved views, report builder, Filters, Find a person); sub-tabs as `<ns>_view` (Alerts,
+  UTM tag, Search's engine/period/measure, the flow, Live's sources order). Opening pushes a history
+  entry so **Back closes it**; a step replaces it; closing removes the key. A link to what the reader
+  may not see opens the page with one plain line ("That visitor is no longer kept (journeys are kept
+  7 days).", "Not available to your role."). *Privacy:* no address ever holds an IP address, an email
+  or a person search: they become a token (`~` + 10 characters, `js/routemask.js`) only the browser
+  that made it reads back. This fixes Requests' `ip=` filter and a drill-down by address, which put
+  the IP in links; old links are rewritten on load. *Who:* everyone; old links keep working. *Do:*
+  nothing. *Checked:* `tests/js/routes.mjs` (each opener writes its key, a link reopens it, Back
+  closes it, missing ids and roles get the line, every key state.js reads is registered, and no value
+  in 40+ written addresses is an IP or holds "@"); `tests/test_routes.py`; and in Chrome on the demo
+  (the visitor drawer reopens on reload and Back closes it).
+- **Copy and open in a new tab on every URL and page path** (`js/urlactions.js`,
+  `css/urlactions.css`). On hover or keyboard focus two icons appear at the cell's edge without moving
+  anything: **Copy** writes the full URL (a path joined with `https://` + the site's name), shows a
+  green tick for 1.5 s, then hides; **Open** opens it (`noopener noreferrer`). A refused copy says
+  "Copy failed: select and copy". Always shown on touch screens; the row's own click still works.
+  Where: every table and grid column of pages (Pages, Landing pages, Search, AI and crawler pages,
+  Not found, Health, Speed, Events), referring sites, Requests' request and referrer, the visitor
+  drawer's journey and visits, leads' and bookings' landing page, Live's lists, the drill-down title,
+  the page story, the set-up and connection dialogs' URLs, webhook URLs, the API file list, AI
+  answers' citations and the site switcher. *Who:* everyone. *Do:* nothing. *Checked:*
+  `tests/js/urlactions.mjs` (labels, full URL copied, tick and its end on fake timers, failure, href
+  and rel, the row never clicked, every path/url column draws them, no page column lacks the flag).
+
+### Fixed
+
+- **"Lead hook tested" was ticked while its sentence said the last delivery was refused** (Overview's
+  set-up list). *Why:* `setup-items.js` counted every hook in state "received" as done, but
+  `conversions/roads.py` keeps "received" with `attention` after a refusal. *Fix:* a hook that needs
+  attention is never done: the line is to do ("leads are not arriving"), with the cause and fix under
+  "For your server admin". A signed test Skald itself sends (`X-Skald-Test: 1`) whose signature fails
+  is now logged `test_failed`, not `bad_signature` (`conversions/hooks.py`), so it never reads as real
+  leads refused. *Who:* sites with a lead hook. *Do:* if the line turns to do, give the tool the
+  secret again. *Checked:* `tests/js/setup.mjs`, `tests/test_conversions_hooks.py`.
+- **The set-up list did not name its site:** it is now "Set up example.com".
+- **Once hidden, the set-up list was reachable only through Ctrl/Cmd+K.** It is now always at the top
+  of **Settings › Connections** for owners and admins (all ticks and "All set" once done); Overview's
+  "Hide this list" became "Hide on Overview" with the note "Always in Settings › Connections". Both
+  checked in `tests/js/setup-checklist.mjs`; help: Getting started and Connections.
+
 ## 2.20.1 (2026-10-21)
 
 Three fixes the owner reported from the live site on 2026-10-21: a vulnerability scanner shown
@@ -528,406 +764,7 @@ joined with what only your server log shows: what the assistant then read, and w
   `*/15 * * * * ... ti.py ai-answers --due` to cron, and add `ai-answers` to the helper paths
   in your nginx site (DEPLOY.md shows the line). Set up: docs/AI-ANSWERS.md.
 
-## 2.13.0 (2026-10-18)
-
-A new Overview for today and a new Traffic › Visitors; where a visitor first came from, and
-their city; Google's and Bing's own search figures; client reports, retention and crawl health;
-advanced filters and one toolkit for every table.
-
-### Added
-
-- **Overview, today, live.** With Today · Live on, Overview › Summary is one live page: visitors
-  now and arrivals in the last 5 minutes minute by minute (one Pause), the four tiles (Visitors,
-  Pages, Leads, AI) against **yesterday at this hour** with both days' running totals, the map
-  with country chips, the pages being read beside the newest visits, sources and a two-page flow,
-  what converted, AI & bots; each card links to its full tab. Yesterday-by-now is a new figure
-  with its own second count (`audit --live` recounts both days hour by hour, leads by SQL); a
-  withheld, partial or unrecorded yesterday says "not recorded", never 0.
-- **Traffic › Visitors, rebuilt.** The visitor flow first; each visit with its country (flag and
-  code), city, device with browser and system, source with "First came from …", new or
-  returning, pages, time on site and the pages in order; a **New and returning visitors** card
-  and a **How engaged visits were** card whose figures must add up to each day's visitors, or
-  the card is withheld.
-- **Where a returning visitor first came from (first touch).** Each visit carries its
-  visitor's first visit Skald knows of, linked by the script tag's visitor ID, else the kept
-  address with the same browser, else the 30-day code; none found says "first visit we know
-  of", never a guess. Shown under the visit's source, in Real time's newest visits, and on
-  Traffic › Sources as "Where returning visitors first came from", counted twice (a new day kind
-  `first_touch`, recounted by `audit_firsttouch.py`).
-- **One visitor drawer, with an animated journey.** Every visit and visitor (the visit list,
-  Real time, Find a person, Leads & sales, funnels, the flow) opens the same drawer: "Visitor
-  from Toronto", visits over days, first came from, the outcome, and each visit as a timeline
-  with the time between pages and "12 days later" between visits; **Replay** plays them again
-  at their real pace (still with reduced motion). Admins and owners, audit-logged.
-- **Cities.** `logs.city_db` (Docker `SKALD_CITY_DB`) names a city file such as DB-IP's free
-  "IP to City Lite"; each visit gets its city, Places & devices gets a **Cities** table, and
-  the real-time map a pulsing dot per active city. People only; a city in another country than
-  the line's own is not used. Counted twice (`audit_cities.py`). `tools/update-dbip-city.sh`
-  fetches the monthly file.
-- **Client reports.** Settings › Reports: branded reports an agency sends its clients, as a mail
-  with a PDF attached, weekly on a weekday, monthly on a day or every few days, at a time in the
-  site's zone; last week, last month or month to date; the sections you pick, your notes and a
-  footer; the agency's name, colour and logo. Recipients confirm first. Figures are verified
-  days only: a withheld or missing day is listed and never counted, and the sums are counted a
-  second time before a report goes. Preview, Download PDF, Send now and a history of every send;
-  a failed send is tried once more. The PDF is made without a browser. With Search Console
-  connected, a Search Console section gives the period's clicks, impressions, CTR, position and
-  top queries and pages, final days only; provisional days are listed, not counted.
-- **Search queries, impressions and position, synced from Google and Bing.** A new Traffic ›
-  Search tab: queries, pages, countries, devices and search appearance with clicks,
-  impressions, CTR and position over 7 days, 28 days, 3 or 16 months, and a trend. Synced from
-  the Search Console and Bing Webmaster Tools APIs every 6 hours; the newest days are marked
-  provisional and fetched again until Google calls them final. Connected from the dashboard
-  (Settings › Integrations › Search): upload a service-account key once, add its robot email to
-  each site's Search Console (a ready text to send to a client), find the property, test,
-  connect, with an optional 3 or 16 month backfill. "Sync now", the last sync and the next, and
-  errors in plain words with one mail per run of failures. Also `skald search-console sync`,
-  `skald bing sync`, `skald search sync`.
-- **Search Console beside Skald's own visits.** A cross-check panel puts Google's clicks beside
-  Skald's visits from Google search, by day and landing page, says why they differ, and flags a
-  sharp change in the ratio. Never forced to match. The synced figures are checked by a second
-  road (every table re-added, one day asked of Google again); Skald's own side is counted twice.
-- **Retention cohorts.** Traffic › Retention: of the visitors first seen in a week (or on a day),
-  how many came back in each of the 8 weeks (14 days) after, or came back and read 2 or more
-  pages; split by first source type, country, device or landing page, with a curve and the
-  visitors behind a cell (admins). Counted from what is kept, never past it ("not recorded"),
-  and checked again by `audit_retention.py`; a cohort that does not match is withheld.
-- **Crawl health.** AI & bots › Crawl health: your sitemap (read once a day) beside what Google,
-  Bing and each AI crawler fetch: coverage per crawler, sitemap pages never fetched, pages
-  fetched that the sitemap does not list, and 404/410, 5xx, redirect, slow and large answers,
-  over 7 or 30 days and today. Counted twice (`audit_crawl_health.py`).
-- **Advanced filters and saved views.** The Filters button builds rules over every field a visit
-  carries (country, city, source, referring site, campaign, AI assistant, first came from,
-  landing page, a page read, pages read, time on site, sent a form, device, browser, system, new
-  or returning, crawler) with is, is not, contains, starts with, at least, at most; All or Any,
-  and groups. A live count of matching visits, and of each rule alone. A value not recorded
-  never matches by chance. Applied in full to single visits (Visitors, Funnels, Requests); other
-  tabs grey a rule they cannot apply and say where it does apply. Saved views can be renamed and
-  copied as a link (the reader still signs in).
-- **One toolkit for every table.** Sort any column (one way, the other, the table's own order;
-  not recorded always last), filter columns (contains, a range, pick values), choose columns,
-  and **Export what you see** (the matching rows, in their order, with the columns shown). All
-  kept in the address.
-- **Search the dashboard.** The magnifier (Ctrl K, Cmd K) finds pages, countries, sources,
-  referring sites, campaigns, AI assistants and crawlers seen in the period and opens each on
-  its tab with its detail; tabs, settings, guides and saved views too.
-- **Set up this site.** A first-run checklist on a new site's Overview for owners and admins
-  (logs, page assets, countries, script tag, lead hook, mail recipient, privacy), read from the
-  doctor's own checks; hidden per site.
-- **Mail preview.** Settings › Mail shows the daily or weekly mail as it would be sent, never
-  sending it.
-- **Alert switches.** Admins switch alerts, their mail and each rule on or off per site on
-  Site › Alerts; a key locked in the config stays the config's and says why.
-
-### Changed
-
-- **Visitors' cards follow the filters when that is honest.** With a filter on, New and
-  returning visitors and How engaged visits were count only the visits the filters keep, rebuilt
-  from the kept visits and only when every day's kept visits are exactly that day's own figures
-  ("Filtered: N of M visits"); past the 7 kept days, or when a day does not match, they show
-  every visit and say why. The engagement tables by source and device stay whole-site.
-- **Every row opens its detail,** the whole row, by click, Enter or Space; the drill panel has
-  **Go to** links (its visits, its flow, a page's sources and story, Visitors filtered to it).
-  Closing it keeps the browser's Back for the tab you came from.
-- **Insights** shows the five biggest first (by how much moved and what it is worth), one card
-  per subject, one sentence, one number, one link; **Show all** lists the rest.
-- **Countries are a flag and a three-letter code** everywhere ("🇨🇦 CAN"); the full name is in
-  the tooltip, found by search, and kept with a Code column in the CSV.
-- **Dates in one form, in the site's time zone** by default: "3 h ago (18 Oct 13:43 EDT)".
-- **Counts that agree.** Places that show the same figure now say the same number and which
-  count it is; a tab with its own period shows a fixed **Period** chip instead of a picker it
-  ignores; a filter a tab cannot apply shows a banner; something the site never sent (an event,
-  a kind of lead, a heartbeat, page speed) says **Not set up**, never 0 or 0%.
-- **Too fast to be a person.** A browser-like visit with 6 or more page views all within 2
-  seconds of its first now counts as a bot, whole, so the groups still add up
-  (`site.too_fast_pages`, `site.too_fast_seconds`; its own audit road).
-- **A visit's pages are said in full:** "3 pages (2 seen in the browser)" when the script tag
-  saw steps the log did not.
-- **Site › Requests** calls the script tag's posts "script tag event" and Skald's own hooks
-  "Skald endpoint", never "form post".
-- **Plain words and contrast:** one name per thing, headings that match the tabs, darker light
-  greys, tables that scroll sideways on a phone keep their first column, tooltips stay on
-  screen, each chart is one Tab stop.
-- **GeoIP files are mapped read-only** instead of copied into memory, so the 120 MB city file
-  is shared by every process.
-- History schema 14 (search days) and conversions schema 6 (a visit's city, a page view's
-  referring host), applied by the normal upgrade on first open.
-
-### Fixed
-
-- **Line order.** nginx writes a line when its request ends, so a slow request can sit after a
-  faster, later one. Both counting roads now read a window's lines in time order (ties in file
-  order); before, such a visit could get the wrong landing page or steps, and the audit withheld
-  the day.
-- **The audit and expired inputs.** A day audited after its 30-day visitor hashes were pruned
-  says "not checkable (inputs expired)" for those figures instead of failing.
-- **Today's returning visitors** showed "–": the live snapshot's figure was dropped.
-- **The visitor flow** wrote the word "null" under the map.
-- **"Direct or unknown"** no longer shows in grids, People, the flow map or the visit filters.
-- **One "Leads" everywhere.** The daily and weekly mails and client reports counted the lead
-  database (no demos) while Overview's Leads tile counts completed forms and demo bookings: the
-  same week read 24 in the mail and 32 on the page. Both now count the tile's way, recounted by
-  a second road before a report goes; a period before conversions were recorded is not summed.
-- **Client reports and mails in the app's words:** "Direct", three-letter country codes,
-  cities as "London, England, GBR", assistants by name (ChatGPT, not chatgpt.com).
-- **Saving a report** says whether a confirm link went out, or that none could because no mail
-  server is set up (no one's one-link-a-day is used up).
-- **Visitors with filters on:** Where visits ended and Common next steps follow the filters too
-  (when the kept visits give back each day's own lists); tables that cannot say so; the filter
-  banner says what narrows.
-- **The drill panel's visits follow the period** (they always showed the whole 7 kept days); a
-  city's panel has the same Go to links as a country's.
-- **Crawl health's panel counts the tab's own window** (7 or 30 days and today), as its row does.
-- **The person drawer** found by email or lead named the lead as its outcome (it said "No lead
-  linked" above it) and shows no empty journey, visit table or Replay.
-- **Column filters match what a cell shows:** "USA" no longer finds AUS through the hidden full
-  name. The Export button counts the CSV's columns; the Sources CSV writes Change as a fraction,
-  like Share.
-- **Layout:** phone tables no longer make the page scroll sideways; data grids show only the
-  sorted column's mark (▼ biggest first); Real time has no empty gaps; Site › Health's figures
-  line up; Settings › Integrations' fix line wraps and shows commands as code; the palette uses
-  a code font for paths only; the Pages leaderboard dates its fold in words; Crawler rules shows
-  a counted 0 as 0.
-- **Events and Pipeline** say why their "started" counts differ (the script tag keeps one start
-  per browser and action per 30 minutes); Funnels says when its lead steps cover other days.
-
-### Upgrading
-
-- Nothing by hand. The new helper routes sit under paths nginx already passes on. For cities,
-  mount a city file and set `SKALD_CITY_DB` (docs/INSTALL.md); for search figures, connect
-  Search Console and Bing in Settings › Integrations › Search.
-
-## 2.12.0 (2026-10-18)
-
-### Added
-
-- **Visitor flow.** A flow map of how visits moved: where they came from, the pages they read in
-  order, and when they left. On Traffic › Visitors, in every drill-down ("How these visitors
-  moved", e.g. one country), and in Funnels ("Flow between the steps"). Hover for figures, click a
-  page to open it, or switch to the table. Drawn from the same kept visits as the visit tables;
-  each column adds up to the visits, and a map that does not add up is not shown.
-- **Pause, edit and delete internal traffic.** Each entry in Settings › Internal traffic has an
-  Active / Paused switch, Edit and Delete; also `skald ours list|pause|resume|edit|delete`.
-  Nothing is erased: a pause, an edit or a delete is recorded with its time, so a past day
-  recounted later gives the same figures, on both counting roads.
-- **Active now pings on the live map:** two rings and a soft blink on each country with visitors
-  active now (a still halo with reduced motion).
-
-## 2.11.1 (2026-10-18)
-
-### Fixed
-
-- **The live check on a busy site with shipped logs.** The live run and `audit --live` read the
-  log at different moments; lines shipped in between (stamped before the snapshot's end) made
-  the recount differ by a request or a visitor. The live run now records how far it read each
-  log file (`read_upto` in the snapshot, the requests feed and the real-time tail) and every
-  live reader, the audit's own included, stops there. Older snapshots audit as before.
-
-## 2.11.0 (2026-10-18)
-
-Who is on the site now, on a live world map; alerts for AI citations and crawlers, also sent to
-Slack or any webhook; no "unknown" anywhere.
-
-### Added
-
-- **Real time** (Overview › Real time, and the first block of Overview › Summary with
-  Today · Live on). Visitors active now (last 5 minutes) and in the last 30 minutes, visitors on
-  the site minute by minute, from the live run's count every 2 minutes with the same people rules
-  as every other figure. Requests per minute, read from the end of the log every 15 seconds
-  through the helper (`api/realtime`), always labelled requests, never people. The page asks for
-  fresh figures every 15 seconds while it is open; Pause holds it.
-- **A world map of who is on the site.** Countries shaded by visits today, a bubble for each
-  country with visitors in the last 30 minutes; point at one, or Tab to it, for its figures, and
-  click or Enter for its detail. A countries table beside it to search, sort and download. The
-  outlines are Natural Earth's (public domain), drawn in the page: no map service is asked for
-  anything. Beside it: pages being read, sources and devices now, AI assistants and crawlers now
-  (in requests), and the newest visits (no address, no browser string).
-- **Every Real time figure counted twice.** `audit --live` recounts the snapshot's real-time part
-  and the helper's last 15-second count from the raw lines (`audit_realtime.py`). If today's
-  figures disagree, Real time shows no visitor figures until they match.
-- **AI alerts.** The first visit ever from an assistant's answer; a page's first visit from an AI
-  answer (more than 5 in a day make one alert); visits from AI answers against the median of the
-  same weekday over the 6 weeks before (at least 2 times the usual and 10 visits, or at most half
-  of a usual of at least 10; fewer is "too few to judge"); an AI or search crawler that came
-  often and has been silent for 7 days. Each alert states its rule and figures in plain words, in
-  visits (people) or requests (crawlers), never both. Whole, checked days only: a withheld,
-  partial or missing day makes it wait. The first-citation alerts start once 28 days are kept.
-  Each alert's figures are recounted by the daily run (`audit_alerts.py`).
-- **Alerts in Slack or any tool.** Every new alert is the outgoing webhook event `alert.opened`
-  (site, alert, text, figures with their unit, time), opt-in per site on Settings › Integrations,
-  signed with the webhook's own secret. A Slack incoming-webhook address (`hooks.slack.com`) gets
-  Slack's own `{"text"}` shape.
-
-### Changed
-
-- **No "unknown" shown anywhere.** A visit with no referrer and no campaign tag reads "Direct"
-  (with a note saying so), and a value the log did not have reads "Not recorded", in the
-  dashboard, mails, CSV and JSON exports, MCP answers, help and docs. Only the words shown
-  change: the stored names stay, so earlier days do not split, and filters and links keep
-  working.
-- **Grids and tables line up.** Every cell sits at the top of its row; text on the left,
-  numbers and dates on the right, badges and yes/no in the middle; each header follows its column.
-
-### Upgrading
-
-- Docker: nothing extra. An nginx you run yourself needs `api/realtime` in the helper's
-  per-site route for the 15-second request count (docs/UPGRADING.md); without it Real time
-  shows requests from the 2-minute count and says so.
-
-## 2.10.1 (2026-10-18)
-
-### Changed
-
-- **More bots recognised, no person lost.** Checked against Crawler-Detect's test files (3,713
-  crawler and 165,640 device user agents): `Claude-Web`, Google's AI agents (`Google-Agent`,
-  NotebookLM), Amazon's AI user fetcher, Seznam, Naver, Coc Coc, Qwant, Mojeek and about 45
-  monitors, testers and scanners added. Sogou's phone browser and phones named "... bot" stay
-  people. The check is a dev-time tool (`tools/check-bot-names.py`); nothing is synced at runtime.
-
-- **Today is the default period.** The dashboard opens on Today, live, on every page. Old links
-  that name a period keep it.
-
-### Fixed
-
-- **"Form sent" on every visit.** The script tag posts its events to `/traffic-beacon`; when the
-  site's log kept those requests, every visit with the tag counted as having sent a form. A POST
-  to Skald's own endpoints (`/traffic-beacon`, `/traffic-js/`, `/traffic-hooks/`,
-  `/traffic-ingest/`) is no form post, on both counting roads.
-- **Returning readers with everything cached.** A browser that already had a site's styles and
-  scripts cached asked for none, so it passed the render test only if the script tag's page
-  opening was kept. That page opening (`page_view`) was dropped unless beacon-only mode or
-  visitor IDs were on, so a real returning reader could be missing. Now the page opening is kept,
-  apart from the events (`opens-<day>.jsonl` beside the spool: path and time only, no address,
-  no agent), as proof that the page was drawn. Both counting roads read it. It is not counted
-  as an event and changes no event figure.
-
-## 2.10.0 (2026-10-18)
-
-What AI assistants and crawlers read, ask for and cost, Google's AI Mode told apart, and client
-sites set up from the dashboard or the shell.
-
-### Added
-
-- **What each crawler costs** (day kind `crawler_cost`). Per assistant, search crawler and bot, per
-  day: requests, bytes sent (the log's size field; not recorded when no line had one), mean and
-  90th-percentile response time (when the log has a time), status classes and error share,
-  distinct paths and re-crawls (fetches per distinct path). Tables "What each crawler costs" on
-  AI & bots > Crawlers and "What each assistant costs" on Assistants; a range shows the mean, the
-  p90 for one day only. Each group keeps its 50 busiest names, the rest folded into
-  "(all others)". Recounted from the raw lines by its own audit (`audit_crawler_cost.py`), with its
-  own size and time readers. Kept 180 days in `crawler_cost.json`, with lists for the last 30.
-- **A detail view per crawler.** Open a crawler or bot for its cost, requests by day, pages, status
-  mix, verified share, countries, user agents and last seen. User-agent strings are kept only for
-  named crawlers, never for probes, link previews or anything that may be a person's browser.
-- **What AI fetches ask for** (day kind `ai_formats`). Every AI fetch, for training or for a live
-  question, filed by what its path names: Page, llms.txt, Markdown, Text, robots.txt, Sitemap,
-  Other file. "What they fetch" on AI & bots > Assistants and Crawlers. Recounted by
-  `audit_ai_formats.py`, which has its own path rule. A range with a day counted before 2.10.0 shows
-  no table rather than a partial one.
-- **What the AI read before it sent this visitor** (day kind `ai_read`). For a visit from an AI
-  answer (cited, or likely), the pages that same assistant's user fetcher fetched in the minutes
-  before: at most 10, nearest first. The visit drawer lists them; AI & bots > Assistants has a
-  table per assistant: visits from its answers, how many it had read pages for first, and how many
-  landed on one of those pages. Likely visits are kept apart. Context, never a count of people.
-  Recounted by `audit_ai_likely.py`.
-- **Google AI Mode.** A Google search referrer with `udm=50` (on the referrer or the landing
-  address) stays a Search engine visit, with the referring site `google.com (AI Mode)`. Only when
-  the parameter is there, never guessed. Both counting roads.
-- **Page assets per site.** `site.asset_prefixes` and `site.require_rendering` are site settings
-  (Settings > Sites > Page assets), read by both counting roads and by `doctor`. A WordPress or
-  other client site can name its own asset folders, so its readers are counted as people.
-- **Visitor IDs switch** in Settings > Sites > Script tag (`beacon.visitor_ids`, per site, off by
-  default). Settings > Integrations shows the site's own value.
-- **Settings and sites from the shell:** `skald settings list-keys`, `settings get SITE [KEY]`,
-  `settings set SITE KEY VALUE` (checked and audit-logged like the page; secrets and locked keys
-  refused; a shorter retention window needs `--yes`); `skald site hosts NAME HOST...` and
-  `skald site remove NAME --yes`.
-
-### Changed
-
-- `skald site purge` also deletes the site's logo folder, and lists every folder it deleted.
-- The Add-a-site panel's tag loads `/traffic-js/skald.js`, the path the tag is served from.
-- `skald token --help` names the `ingest` scope.
-
-## 2.9.0 (2026-10-18)
-
-The script tag for every site of an install, and Google Ads clicks from iOS read as paid.
-
-### Added
-
-- **The script tag works for every site, not only the first.** The beacon helper sends each
-  `POST /traffic-beacon` to the site its `Origin` names, into that site's own spool: the first
-  site's stays `<history folder>/beacon`, another site's is `sites/<name>/beacon`, where its daily
-  run already reads. A site added from the dashboard (or in a `sites:` file) accepts
-  `https://<each of its hosts>` as origins, but only while the install has the script tag on
-  (the first site has an origin: `beacon.origins`, `SKALD_BEACON_ORIGINS`). The first site keeps
-  its own list. Sites and their settings are read again every 60 seconds.
-- **Visitor IDs per site:** `beacon.visitor_ids` is a site setting (admin, off by default).
-  `/traffic-js/skald.js` is served with the setting of the site whose page loads it (by
-  `Referer`; the first site when there is none), with `Vary: Referer`. Turn it on only when that
-  site's privacy notice says so; a consent banner should gate the tag.
-- **Each site's beacons counted apart in the audit.** The helper names the site in a response
-  header, `X-Skald-Site`, and nginx's beacon log writes it as a third field:
-  `log_format skald_beacon '$time_iso8601 $status $upstream_http_x_skald_site';`. The event audit
-  compares each site's 204s with its own spool. A line without the field (before 2.9.0) is the
-  first site's. The Docker image has the new line; **an nginx you run yourself needs it**
-  (docs/UPGRADING.md).
-- A site can pass the tag through its own server (Caddy or nginx on the site's domain, forwarding
-  `/traffic-js/` and `/traffic-beacon` to the Skald server), so the tag and the beacon stay on the
-  site's own origin. The Skald server's nginx must trust that server's address for
-  `X-Forwarded-For` (`set_real_ip_from`; Docker: `SKALD_TRUSTED_PROXIES`), so the rate limit and
-  the own-traffic check see the visitor's address. It is never stored.
-
-### Fixed
-
-- **Google Ads clicks from iOS mark a lead paid.** `gbraid` and `wbraid` count like `gclid`: the
-  touch is paid and reads as a Search engine visit, on both counting roads. Lead hooks and the
-  lead database keep them on the touch.
-
-## 2.8.1 (2026-10-18)
-
-### Fixed
-
-- **API calls are not pages:** a GET under `/api/` (a site's JSON API, called by the page's script)
-  was counted as a page view, so it showed up as where visits ended and as a step between pages.
-  Everything under `/api/` is now an endpoint, like the analytics beacon: evidence of a visit,
-  never a page of its own. Both counting roads.
-- The countries table says where countries come from: the log's own field, or the GeoIP file.
-
-## 2.8.0 (2026-10-18)
-
-Countries for logs that carry none, and counting fixes for Caddy logs, dashboard-made sites and
-traffic sources.
-
-### Added
-
-- **Countries from a GeoIP file:** `logs.country_db` (Docker: `SKALD_COUNTRY_DB`) names a
-  MaxMind-format `.mmdb` file; DB-IP's free country file works. A log line with no country of its
-  own (Caddy JSON, a plain combined log) gets its address's country. The line's own country
-  (nginx `cc=`, Cloudflare's `CF-IPCountry`) always wins. Both counting roads look it up. The same
-  file serves lead hooks and the beacon (`conversions.country_db` still works). With DB-IP's file,
-  "IP Geolocation by DB-IP" is shown beside the countries unless `report.country_credit` is set.
-
-### Fixed
-
-- **Caddy logs failed the daily run:** the audit refused Caddy JSON, so every Caddy site's run
-  stopped at `audit` and its days were not stored. Caddy's `client_ip` is now taken before
-  `remote_ip`, `host:port` becomes `host`, and a record with no address, URI or three-digit status
-  is not counted as a request (on both roads).
-- **Sites added from the dashboard inherited the first site's `site:` section** (asset prefixes,
-  rendering rule, legacy paths). A static first site's asset prefixes made Next.js sites wait for
-  the wrong files, so returning readers were not counted as people (30-60% too few, seen live).
-- A combined log line's trailing quoted `"$host"`, and `$request_time` right after the user agent,
-  are read. A quoted address list or `"-"` is not a host.
-- **A 304 (cached copy shown) is a page view;** a cached landing page keeps the visit's source.
-- **Sources:** AI assistants' phone-app referrers (`android-app://com.openai.chatgpt` and others)
-  count as citations. Google's Android apps other than Search and Gmail are no longer "Search
-  engine" (YouTube, WhatsApp, Telegram are Social media). `utm_source` decides the source type
-  before `utm_medium` (`linkedin` + `cpc` is Social media). Click ids `gbraid`, `wbraid` (Google
-  Ads on iOS), `ttclid` (TikTok) and `twclid` (X) are recognised.
-- Skald's own robots.txt check (`site-version-check/1`) is counted as our own traffic, not a bot.
-- The "no countries" message names `logs.country_db`.
-
 ## Older versions
 
-2.7.1 and earlier (8 to 12 October 2026): [docs/CHANGELOG-2.0-2.7.md](docs/CHANGELOG-2.0-2.7.md).
+- 2.8.0 to 2.13.0 (18 October 2026): [docs/CHANGELOG-2.8-2.13.md](docs/CHANGELOG-2.8-2.13.md).
+- 2.7.1 and earlier (8 to 12 October 2026): [docs/CHANGELOG-2.0-2.7.md](docs/CHANGELOG-2.0-2.7.md).

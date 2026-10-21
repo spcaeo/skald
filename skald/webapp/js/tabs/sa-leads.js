@@ -31,6 +31,7 @@ import { narrowConv, withFile, convLabels } from "./sa-pipeline.js";
 import { tabHead, optionsRow, select, toggles, listOf, emptyState } from "./sa-options.js";
 import { viewSwitch, viewOf } from "../viewswitch.js";
 import { board, timeline, map } from "./sa-views.js";
+import { withUrl } from "../urlactions.js";
 
 export const VIEWS = [["list", "List"], ["board", "Board: by stage now"], ["timeline", "Timeline: leads per day"], ["map", "Map: leads by country"]];
 // A lead's stage now, in words, and the group it joins on the board and in the Stage filter.
@@ -84,7 +85,7 @@ export function columnsFor(names) {
     { key: "tool", label: "From", fmt: (v) => toolName(v || ""), csv: (x) => toolName(x.tool || "") },
     { key: "source", label: "Source", fmt: dash },
     { key: "first_source", label: "First touch", fmt: dash },
-    { key: "landing", label: "Landing page", fmt: dash, cls: "path" },
+    { key: "landing", label: "Landing page", fmt: dash, path: true },
     { key: "country", label: "Country", fmt: (v) => (v ? countryWords(v) : "-"), country: (x) => x.country || "" },
   ];
 }
@@ -94,9 +95,22 @@ export function columnsFor(names) {
 export function openLead(x) {
   const facts = [["When", at(x.at)], ...(x.name || x.email ? [["Name", dash(x.name)], ["Email", dash(x.email)]] : []), ["What", h("span", null, oneAction(x.action || ""), labelTag(x.label))],
     ["Stage now", stageWords(x)], ["From", toolName(x.tool || "")], ["Source (last touch)", dash(x.source)], ["First touch", dash(x.first_source)],
-    ["Campaign", dash(x.campaign)], ["Landing page", dash(x.landing)], ["Country", x.country ? countryWords(x.country) : "-"], ["Device", dash(x.device)]];
+    ["Campaign", dash(x.campaign)], ["Landing page", x.landing ? withUrl(h("span", { class: "mono" }, x.landing), x.landing, { cls: "ua-after" }) : "-"], ["Country", x.country ? countryWords(x.country) : "-"], ["Device", dash(x.device)]];
+  // In the address by its row id (lead=1287: js/overlays.js), never a name or an email.
   return openVisitor({ conversion: { action: x.action, at: x.at, tool: x.tool, browser: x.browser, journey: x.journey || [], steps: x.steps || [] },
-    facts: [h("dl", { class: "dw-dl" }, facts.flatMap(([t, v]) => [h("dt", null, t), h("dd", null, v)]))] });
+    facts: [h("dl", { class: "dw-dl" }, facts.flatMap(([t, v]) => [h("dt", null, t), h("dd", null, v)]))],
+    route: x.id != null ? { key: "lead", value: String(x.id) } : null });
+}
+
+/* lead=<id>, from a link: the row in the period on screen (the same answer the list asked
+   for), else the plain line. */
+export async function openLeadKey(m, s, value) {
+  const r = rangeOf(m, s);
+  const first = r.kind === "today" ? m.today : r.first, last = r.kind === "today" ? m.today : r.last;
+  const ans = await fetchLeads(first, last, mayFind());
+  if (!ans?.ok) return ans?.status === 403 ? "Not available to your role." : "The leads could not be loaded just now, so that lead cannot be shown. Open this page again in a minute.";
+  const x = (ans.rows || []).find((row) => String(row.id) === String(value));
+  return x ? openLead(x) : "That lead is not in the period on screen. Choose a longer period, or it is no longer kept.";
 }
 
 // The period's days, as the figure counts them.

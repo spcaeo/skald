@@ -26,6 +26,14 @@
                                        the visits behind one retention cell
                                        (retention_page.visitors): admins and
                                        owners only; written to the audit log
+    GET <page>/people/security?first=D&last=D
+                                       Security: the addresses and user agents
+                                       behind the period's suspect rows
+                                       (security_kept.listing), admins and
+                                       owners only, with the session's CSRF
+                                       value (basic mode: same-origin); written
+                                       to the audit log ("security addresses
+                                       viewed", the period and the row count)
     GET /traffic-api/v1/<site>/people?q=Q
                                        a person, for an API token with the
                                        read_private scope (tokens.PRIVATE)
@@ -42,7 +50,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
-PEOPLE_PATH = re.compile(PAGE + r"people(?:/(?P<act>left-out|conversions|visitor|cohort|leads))?$")
+PEOPLE_PATH = re.compile(PAGE + r"people(?:/(?P<act>left-out|conversions|visitor|cohort|leads|security))?$")
 PRIVATE_ROLES = ("owner", "admin")
 KINDS = ("cancelled", "removed", "test")
 
@@ -100,6 +108,9 @@ def handle(h, config, live_dir, history_path=None, config_path=None, sessions_mo
     if act == "leads":
         return _leads(h, q, cfg, folder, site, private, config, live_dir,
                       h.who if sessions_mode else None, user)
+    if act == "security":
+        return _security(h, q, cfg, folder, site, private, config, live_dir,
+                         h.who if sessions_mode else None, user)
     if act == "cohort":
         return _cohort(h, q, cfg, folder, site, private, config, live_dir,
                        h.who if sessions_mode else None, user, history_path)
@@ -166,6 +177,29 @@ def _leads(h, q: dict, cfg, folder, site: str, private: bool, config, live_dir, 
                f"lead list viewed {first.isoformat()}..{last.isoformat()} "
                f"rows={len(got['rows'])}")
     return h._json(200 if got.get("ok") else 500, got)
+
+
+def _security(h, q: dict, cfg, folder, site: str, private: bool, config, live_dir, who,
+              user: str):
+    """people/security?first=&last=: the addresses behind Security's rows."""
+    from ..security_kept import listing, span
+    from ..window import today, zone
+    if not private:
+        return h._json(403, {"ok": False, "error": "Only an admin or an owner sees the "
+                                                   "addresses of scanners and attackers."})
+    if not _names_allowed(h, who):
+        return h._json(403, {"ok": False, "error": "The page is out of date. Reload it and "
+                                                   "try again."})
+    try:
+        first, last = span(str(q.get("first") or ""), str(q.get("last") or ""),
+                           today(zone(cfg)))
+    except ValueError as why:
+        return h._json(400, {"ok": False, "error": str(why)})
+    got = listing(cfg, folder, site, first, last)
+    _audit(config, live_dir, site, who, user, "people.security",
+           f"security addresses viewed {first.isoformat()}..{last.isoformat()} "
+           f"rows={len(got['rows'])}")
+    return h._json(200, got)
 
 
 def _cohort(h, q: dict, cfg, folder, site: str, private: bool, config, live_dir, who,

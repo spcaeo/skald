@@ -57,6 +57,8 @@ li.drow:hover, li.drow:focus-visible { background: color-mix(in srgb, var(--surf
 .su-head h2 { margin: 0; font-size: 16px; }
 .su-left { font-size: 12.5px; color: var(--ink-3); }
 .su-head .grow { flex: 1; }
+.su-hide-w { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.su-where { font-size: 11.5px; color: var(--ink-3); }
 .su-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 2px 24px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
 .su-i { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; padding: 8px 0; border-top: 1px solid var(--rule); }
 .su-i p { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-2); }

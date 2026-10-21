@@ -299,8 +299,58 @@ nbox.remove();
 rscState = "";
 await box.refresh();
 
-// ---- Hide this list
-button(box, "Hide this list").click();
+// ---- 2.21: the list names its site
+assert.equal(box.querySelector(".su-head h2").textContent, `Set up ${SITE}`);
+assert.equal(box.getAttribute("aria-label"), `Set up ${SITE}`);
+
+// ---- 2.21: each Set up dialog is in the address, setup=<item>&step=<n>; closing takes it away
+location.hash = "#overview/summary";
+button(box.querySelectorAll("li.su-i").find((li) => li.getAttribute("data-item") === "mail"), "Set up").click();
+await tick(30);
+let q = new URLSearchParams(location.hash.split("?")[1]);
+assert.equal(q.get("setup"), "mail", location.hash);
+assert.equal(q.get("step"), "1");
+await next();
+q = new URLSearchParams(location.hash.split("?")[1]);
+assert.equal(q.get("step"), "2", "a step replaces the entry in place");
+await closeDialog();
+await tick(5);
+q = new URLSearchParams(location.hash.split("?")[1] || "");
+assert.ok(!q.get("setup") && !q.get("step"), `closing takes the keys away: ${location.hash}`);
+// A link at a step: the dialog opens there (the mail dialog's first step has no choice to wait for).
+const { openSetupKey } = await import(new URL("tabs/setup-dialogs.js", JS));
+location.hash = "#overview/summary?setup=mail&step=2";
+await openSetupKey("mail", m, 2);
+await tick(30);
+assert.match(stepName(), /Step 2 of 3: Who gets it/);
+await closeDialog();
+// A step that needs an earlier choice waits for it: assets at step 2 opens at step 1.
+location.hash = "#overview/summary?setup=assets&step=2";
+await openSetupKey("assets", m, 2);
+await tick(30);
+assert.match(stepName(), /Step 1 of 2/, "the choice first");
+await closeDialog();
+// Not for a viewer, and nothing for an unknown item.
+ME.role = "viewer";
+assert.equal(await openSetupKey("mail", m, 1), "Not available to your role.");
+ME.role = "owner";
+assert.match(await openSetupKey("nope", m, 1), /not in this version/);
+
+// ---- 2.21: Settings › Connections shows the same list, always, all ticks and "All set" once done
+const doneAnswers = { status: [{ id: "logs", state: "OK", says: "readable" }, { id: "assets", state: "OK", says: "ok" }, { id: "script", state: "OK", says: "the last event came 2 minutes ago" }],
+  tools: [], settings: { "mail.to": { value: ["owner@example.com"], source: "site" }, "mail.daily": { value: true, source: "site" }, "privacy.keep_ips": { value: "full", source: "site" } }, waiting: [] };
+const { setupItems: items2, setupDone: done2 } = await import(new URL("setup-items.js", JS));
+const live = { ...m, live: { state: "ok", day: m.today, figures: { requests: 9, readers: 3, hits: { people: 3 }, by: { country: { CA: 3 } } } } };
+assert.ok(done2(items2(live, doneAnswers)), "a finished site");
+const conn = setupChecklist(live, { where: "connections" });
+assert.ok(conn && !conn.hidden, "always drawn on Connections");
+assert.ok(!button(conn, "Hide on Overview"), "no Hide on Connections");
+assert.equal(conn.querySelector(".su-head h2").textContent, `Set up ${SITE}`);
+
+// ---- Hide on Overview: hidden on Overview only, with the note that it stays on Connections
+assert.ok(box.textContent.includes("Always in Settings › Connections"));
+button(box, "Hide on Overview").click();
 assert.ok(!box.parentNode, "hidden for this site");
-assert.equal(setupChecklist(m), null);
+assert.equal(setupChecklist(m), null, "not on Overview");
+assert.ok(setupChecklist(m, { where: "connections" }), "still on Settings › Connections");
 console.log("setup-checklist: all passed");

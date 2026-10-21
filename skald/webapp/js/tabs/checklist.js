@@ -1,13 +1,18 @@
-// The first-run checklist on Overview (2.13): for a new site, what works and what
-// is left - logs arriving, visits counted as people, countries, the script tag and
-// a lead hook (both optional), a confirmed mail recipient and the privacy choice.
-// Each open line is one plain sentence and a Set up button that opens a short
-// guided dialog (js/tabs/setup-dialogs.js, loaded when first pressed); the
-// server's own technical words stay folded under "For your server admin".
-// Shown to owners and admins until every item that is not optional is done, or
-// until they hide it for this site (kept in this browser). The items are worked
-// out in js/setup-items.js from what the page has and two answers it already
-// uses: GET integrations (the doctor's lines, each hook's state) and GET
+// The "Set up <site>" checklist (2.13; 2.21: named for its site, and also on Settings ›
+// Connections): for a site, what works and what is left - logs arriving, visits counted
+// as people, countries, the script tag and a lead hook (both optional), a confirmed mail
+// recipient and the privacy choice. Each open line is one plain sentence and a Set up
+// button that opens a short guided dialog (js/tabs/setup-dialogs.js, loaded when first
+// pressed; in the address as setup=<item>&step=<n>); the server's own technical words
+// stay folded under "For your server admin".
+//
+// Two places, for owners and admins:
+//   Overview              until every item that is not optional is done, or until they
+//                         press "Hide on Overview" (kept in this browser, for this site)
+//   Settings › Connections  always, at the top: a finished list shows every tick and
+//                         "All set". Hiding it on Overview never hides it here.
+// The items are worked out in js/setup-items.js from what the page has and two answers
+// it already uses: GET integrations (the doctor's lines, each hook's state) and GET
 // settings. A dialog closed asks both again, so a fixed line ticks itself.
 
 import { h } from "../ui.js";
@@ -22,8 +27,10 @@ import { adminFold } from "./setup-common.js";
 const KEY = (site) => `ti-setup-hidden:${site}`;
 const MARK = { done: "Done", todo: "To do", wait: "Waiting", unknown: "Not checked" };
 const answers = new Map();   // site -> {at, got}: asked again after 5 minutes, not on every redraw
+const drawn = new Set();     // the lists on the page, asked again when a dialog closes
 
-const mayManage = () => sessions() && (["owner", "admin"].includes(ME.role) || ME.install_admin);
+export const mayManage = () => sessions() && (["owner", "admin"].includes(ME.role) || ME.install_admin);
+// Hidden on Overview only (the reader's choice, in this browser).
 export const setupHidden = (site) => !!store.get(KEY(site), false);
 // The palette's "Setup checklist": shown again, on Overview.
 export function showSetup(site) { store.set(KEY(site), false); answers.delete(site); S.set({ tab: "overview/summary" }); }
@@ -40,6 +47,15 @@ async function ask(site, fresh = false) {
   return got;
 }
 
+/* The line a Set up dialog fixes, for a dialog opened from a link (its words for the server admin). */
+export async function itemFor(m, act) {
+  try { return setupItems(m, await ask(m.site)).find((i) => i.act === act) || null; } catch { return null; }
+}
+/* Every list on the page asks again (a dialog opened from a link closed). */
+export function refreshChecklists() {
+  for (const box of [...drawn]) { if (box.isConnected) box.refresh(); else drawn.delete(box); }
+}
+
 /* One line: its mark, title, the plain sentence, and for an admin with an open
    item the Set up button (and the technical words folded). */
 export function row(i, { manage = false, onSetUp = null } = {}) {
@@ -54,17 +70,21 @@ export function row(i, { manage = false, onSetUp = null } = {}) {
       open ? adminFold(i.tech) : null));
 }
 
-/* The checklist for Overview, or null. Drawn at once from the page's own data, then
-   again when the two answers come (or left out when they say everything is done). */
-export function setupChecklist(m) {
-  if (DEMO.on || !mayManage() || setupHidden(m.site)) return null;
+/* The checklist, or null. where: "overview" (hidden once done or when the reader hides it)
+   or "connections" (always, ticks and all). Drawn at once from the page's own data, then
+   again when the two answers come. */
+export function setupChecklist(m, { where = "overview" } = {}) {
+  const always = where === "connections";
+  if (DEMO.on || !mayManage() || (!always && setupHidden(m.site))) return null;
   const list = h("ol", { class: "su-list" });
   const left = h("span", { class: "su-left" });
-  const hide = h("button", { type: "button", class: "btn su-hide" }, "Hide this list");
-  const box = h("section", { class: "sheet su", "aria-label": "Set up this site" },
-    h("div", { class: "su-head" }, h("h2", null, "Set up this site"), left, h("span", { class: "grow" }), hide),
-    h("p", { class: "sub" }, "What works and what is left. Set up walks you through each step; a line ticks itself once Skald sees it working."), list);
-  hide.addEventListener("click", () => { store.set(KEY(m.site), true); box.remove(); });
+  const hide = always ? null : h("button", { type: "button", class: "btn su-hide" }, "Hide on Overview");
+  const head = h("div", { class: "su-head" }, h("h2", null, `Set up ${m.site}`), left, h("span", { class: "grow" }),
+    hide ? h("span", { class: "su-hide-w" }, hide, h("small", { class: "su-where" }, "Always in Settings › Connections")) : null);
+  const box = h("section", { class: `sheet su${always ? " su-always" : ""}`, "aria-label": `Set up ${m.site}` }, head,
+    h("p", { class: "sub" }, always ? "What works and what is left for this site. Set up walks you through each step; a line ticks itself once Skald sees it working."
+      : "What works and what is left. Set up walks you through each step; a line ticks itself once Skald sees it working."), list);
+  if (hide) hide.addEventListener("click", () => { store.set(KEY(m.site), true); box.remove(); });
 
   // A Set up button: its dialog, then both answers asked again when it closes.
   async function setUp(item, btn) {
@@ -81,19 +101,22 @@ export function setupChecklist(m) {
   };
   const show = (got) => {
     const items = setupItems(m, got);
-    if (setupDone(items)) { box.remove(); return; }
+    if (!always && setupDone(items)) { box.remove(); return; }
     draw(items);
     box.hidden = false;
   };
   const refresh = () => ask(m.site, true).then(show);
   box.refresh = refresh;
-  // Hidden until the answers say something is left, so a site that is set up never flashes a list.
+  drawn.add(box);
+  // On Overview, hidden until the answers say something is left, so a site that is set up
+  // never flashes a list. On Connections, drawn at once from what the page has.
   const kept = answers.get(m.site);
   if (kept) {
     const items = setupItems(m, kept.got);
-    if (setupDone(items)) return null;
+    if (!always && setupDone(items)) return null;
     draw(items);
-  } else box.hidden = true;
+  } else if (always) draw(setupItems(m, {}));
+  else box.hidden = true;
   ask(m.site).then(show);
   return box;
 }

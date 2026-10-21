@@ -269,13 +269,16 @@ def options(config: dict, day: date | None = None) -> dict:
     from .funnel_days import wanted
     from .sitemap import for_day
     from .visitors import load_key
+    from .security_names import settings as security_settings
     return {"visitor_key": load_key(config), "attribution": attribution(config),
             "heartbeat": str(setting(config, "report", "heartbeat_label", "heartbeat")),
             "funnels": wanted(config, day, zone(config)),
             # the site's sitemap paths kept for `day` (crawl_health.py)
             "sitemap": for_day(config, day),
             # logs.city_db: one fill (one lookup per address) for every tally.
-            "cities": cities(config)}
+            "cities": cities(config),
+            # Security's thresholds (security_names.py)
+            "security": security_settings(config)}
 
 
 def ordered_classifier(config: dict, lines, start: datetime | None = None,

@@ -27,6 +27,7 @@
 import { h, n, duration, dayDiff } from "../ui.js";
 import { when, time as tzTime } from "../tz.js";
 import { openDrawer } from "../drawer.js";
+import { withUrl } from "../urlactions.js";
 import { shown } from "../labels.js";
 import { mark } from "../icons.js";
 import { DEMO, demoFile } from "../demo.js";
@@ -234,7 +235,7 @@ function timeline(model) {
         held[v.day] ? h("small", { class: "pp-bad", title: "This day's figures did not reconcile: it is withheld from every total." }, " withheld day") : null),
       h("td", null, h("span", { class: "named" }, v.via ? mark("referrer", v.via) : mark("source", v.source), h("span", { class: "nm" }, sourceWords(v))),
         v.via ? h("small", { class: "v-ft" }, shown(v.source)) : null, line ? h("small", { class: "v-ft" }, line) : null),
-      h("td", null, h("span", { class: "mono" }, dash(v.landing))),
+      h("td", null, withUrl(h("span", { class: "mono" }, dash(v.landing)), v.landing)),
       h("td", null, v.kind === "touch" ? h("small", null, "only its first page is known here") : trailText(v)),
       h("td", null, v.seconds == null ? "-" : duration(v.seconds)),
       h("td", null, v.country ? countryCell(v.country) : "-", v.city ? h("small", { class: "v-ft", title: cityName(v.city) }, cityPlace(v.city)) : null),
@@ -293,19 +294,34 @@ function draw(d, model, extra) {
   if (replay) d.head.insertBefore(replay, d.head.querySelector(".dw-x"));
 }
 
+// One answer per visit for 5 minutes: the drawer the address opens again after a redraw
+// (Live, every 2 minutes) does not ask, and write to the audit log, each time.
+const asked = new Map();
+function visitsOf(url) {
+  const kept = asked.get(url);
+  if (kept && Date.now() - kept.at < 300000) return kept.p;
+  const p = call(url);
+  asked.set(url, { at: Date.now(), p });
+  p.then((r) => { if (!r?.ok) asked.delete(url); });
+  return p;
+}
+
 // ------------------------------------------------------------ the one way in
-/* Opens the visitor drawer. key: a journey, {q}, or {conversion}. */
+/* Opens the visitor drawer. key: a journey, {q}, or {conversion} (with route: its key in
+   the address, {key, value}: a lead's or a conversion's; js/overlays.js). */
 export async function openVisitor(key) {
   if (!key) return null;
   if (key.q != null) return openByQuery(String(key.q).trim());
   if (key.conversion) {
     const x = key.conversion;
-    const d = openDrawer({ title: "Visitor", subtitle: " ", key: "visitor", scope: "page", className: "vz-dw" });
+    const d = openDrawer({ title: "Visitor", subtitle: " ", key: "visitor", scope: "page", className: "vz-dw", route: key.route || null });
     draw(d, { ...fromConversion(x), facts: key.facts || null }, x.browser || x.journey?.length ? "One browser, by the visitor ID the page script made: not a person (one person on two devices is two browsers). Days with visits, as the page script saw them." : "One lead without a browser: no visits are linked.");
     return d;
   }
   const j = key.journey || key;
-  const d = openDrawer({ title: "Visitor", subtitle: " ", key: "visitor", scope: "page", className: "vz-dw" });
+  // In the address by its visit, the day and its number that day (vis=2026-10-20.14): never an address.
+  const vis = visitKey(j);
+  const d = openDrawer({ title: "Visitor", subtitle: " ", key: "visitor", scope: "page", className: "vz-dw", route: vis ? { key: "vis", value: vis } : null });
   draw(d, fromJourney(j), "Anonymous: no address, no browser string, no identifier on this page.");
   const url = j.day && j.seq != null ? `people/visitor?day=${encodeURIComponent(j.day)}&seq=${encodeURIComponent(j.seq)}` : "";
   const ask = url && (mayFind() || (DEMO.on && demoFile(url)));
@@ -313,7 +329,7 @@ export async function openVisitor(key) {
     if (url && !mayFind()) d.body.append(h("p", { class: "note" }, "Admins and owners see every visit of this visitor here, where the site keeps addresses."));
     return d;
   }
-  const got = await call(url);
+  const got = await visitsOf(url);
   if (!d.el.isConnected) return d;
   if (!got.ok) { d.body.append(h("p", { class: "note" }, got.error || "The visitor's other visits could not be read.")); return d; }
   if (!got.found) { d.body.append(h("p", { class: "note" }, got.why || "No other visit is kept for this visitor.")); return d; }
@@ -322,11 +338,33 @@ export async function openVisitor(key) {
 }
 
 async function openByQuery(q) {
-  const d = openDrawer({ title: q || "Find a person", subtitle: "Looking…", key: "person", scope: "app", body: h("p", { class: "empty" }, "Looking in everything kept…") });
+  // In the address as a token only this browser reads back (who=~...: routemask.js), never the search.
+  const d = openDrawer({ title: q || "Find a person", subtitle: "Looking…", key: "person", scope: "app", body: h("p", { class: "empty" }, "Looking in everything kept…"),
+    route: q ? { key: "who", value: q } : null });
   const got = await call(`people?q=${encodeURIComponent(q)}`);
   if (!d.el.isConnected) return d;
   if (!got.ok) { d.body.replaceChildren(h("div", { class: "state bad", role: "alert" }, h("div", null, got.error || "The search could not run."))); return d; }
   d.el.querySelector(".dw-title").textContent = fromPerson(got).title;
   draw(d, fromPerson(got), "This search was written to the audit log (what kind of value, never the value). Deleting a person: skald forget on the server.");
   return d;
+}
+
+// ------------------------------------------------------------ from the address
+/* A visit's key in the address: its day and its number that day ("2026-10-20.14"). */
+export const visitKey = (j) => (j && /^\d{4}-\d\d-\d\d$/.test(String(j.day || "")) && j.seq != null && j.seq !== "" ? `${j.day}.${j.seq}` : "");
+
+/* vis=<day>.<seq>: the visit's journey from the page's data, else the plain line. */
+export function openVisitKey(m, value) {
+  const [, day, seq] = /^(\d{4}-\d\d-\d\d)\.(\d+)$/.exec(String(value)) || [];
+  const gone = `That visitor is no longer kept (journeys are kept ${m?.journey_days || 7} days).`;
+  if (!day) return gone;
+  const j = (m?.journeys || []).find((x) => x.day === day && String(x.seq) === seq);
+  return j ? openVisitor(j) : gone;
+}
+
+/* who=<token>: a person search made in this browser; a token from another browser says so. */
+export function openWhoKey(value) {
+  if (!mayFind()) return "Not available to your role.";
+  if (/^~[a-z0-9]{10}$/.test(String(value))) return "That search was made in another browser: a search for a person never goes in a link (it may hold an address or an email). Search again with Find a person.";
+  return openVisitor({ q: value });
 }

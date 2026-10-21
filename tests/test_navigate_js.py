@@ -45,10 +45,27 @@ class Node(unittest.TestCase):
         them, a viewer never asks; Show left out; the board; a row opens the drawer."""
         self.assertIn("sales-leads: all passed", self.run_js("sales-leads.mjs"))
 
+    def test_every_state_is_in_the_address_and_no_address_is(self):
+        """2.21 (js/routekeys.js, js/overlays.js): each drawer and dialog writes its key,
+        a link reopens it, Back closes it, a link to what is not kept opens the page with
+        one plain line, and no value in the address is an IP address or holds an @."""
+        self.assertIn("routes: all passed", self.run_js("routes.mjs"))
+
+    def test_copy_and_open_on_every_url(self):
+        """2.21 (js/urlactions.js): copy (the full URL, a tick, then hidden; a failure said)
+        and open in a new tab on every path and URL; every page column draws them."""
+        self.assertIn("urlactions: all passed", self.run_js("urlactions.mjs"))
+
     def test_what_visitors_are_doing_now(self):
         """Overview, Live (2.20): the newest visitors' paths, folded; the live diff; the pages
         read beside them; the drill-down narrowing the list, and its line when it cannot."""
         self.assertIn("live-doing: all passed", self.run_js("live-doing.mjs"))
+
+    def test_security_sums_verdict_addresses_block_list_and_tabs(self):
+        """Security (2.21): the period's sums, the verdict, rows joined to addresses (an admin
+        asks, a viewer never does), the block list and its three exports by privacy mode, and
+        every tab drawn with nothing null appended."""
+        self.assertIn("security: all passed", self.run_js("security.mjs"))
 
 
 if __name__ == "__main__":

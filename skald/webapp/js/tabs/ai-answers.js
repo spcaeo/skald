@@ -11,6 +11,7 @@
 // Only figures the second count verified are in the file; a withheld run says so.
 
 import { h, long, short } from "../ui.js";
+import { opened as routeOpened, closed as routeClosed } from "../overlays.js";
 import * as S from "../state.js";
 import { figures } from "../data.js";
 import { sessions } from "../access.js";
@@ -20,6 +21,7 @@ import { why } from "./forms.js";
 import { stamp } from "../tz.js";
 import { profileEditor, estimate, costWords, usd, FREQ } from "./ai-answers-edit.js";
 import { chainCard, sovChart, matrix, questionsTable, competitorsTable, profileLabel, profileText } from "./ai-answers-parts.js";
+import { withUrl } from "../urlactions.js";
 
 const LEDE = "What ChatGPT, Perplexity, Gemini and Claude say when asked the questions your buyers ask. Skald asks each one through its API on a schedule, as if from the place and language of a profile, and reads every answer.";
 const SAMPLE = [h("b", null, "A sample of API answers, not what every user sees. "),
@@ -34,13 +36,15 @@ const at = (iso) => (!iso ? "" : iso.length <= 10 ? long(iso) : stamp(iso));
 
 // One stored answer in full, in a dialog headed by its assistant (ChatGPT, not openai): the
 // question as sent, the text, the cited URLs.
-async function openAnswer(id, provName = (x) => x) {
+// In the address as ans=<id> while it is open (js/overlays.js): a link opens it again.
+export async function openAnswer(id, provName = (x) => x) {
   const box = h("dialog", { class: "aa-dlg", "aria-label": "Full answer" });
   const close = h("button", { type: "button", class: "btn", onclick: () => box.close() }, "Close");
-  box.addEventListener("close", () => box.remove());
+  box.addEventListener("close", () => { box.remove(); routeClosed("ans", String(id)); });
   box.append(h("p", { class: "empty" }, "Loading the answer..."), close);
   document.body.append(box);
   box.showModal();
+  routeOpened("ans", String(id), { close: () => box.close(), isOpen: () => box.isConnected });
   const r = await call(`ai-answers/answer?id=${encodeURIComponent(id)}`);
   if (!r.ok) { box.replaceChildren(h("p", { class: "msg err" }, why(r, "Full answers open with accounts (sessions mode).")), close); return; }
   const a = r.answer;
@@ -49,7 +53,7 @@ async function openAnswer(id, provName = (x) => x) {
     h("p", { class: "aa-asked" }, h("b", null, "Asked: "), a.sent || a.question),
     h("div", { class: "aa-text" }, a.text || `No answer: ${a.error}`),
     a.citations.length ? h("ol", { class: "aa-cites" }, a.citations.map((c) => h("li", null,
-      h("a", { href: c.url, target: "_blank", rel: "noopener noreferrer nofollow" }, c.title || c.url), c.domain ? ` (${c.domain}, page not known)` : ""))) : h("p", { class: "muted" }, "It cited no URL."),
+      withUrl(h("a", { href: c.url, target: "_blank", rel: "noopener noreferrer nofollow" }, c.title || c.url), c.url, { label: c.title || c.url, cls: "ua-after" }), c.domain ? ` (${c.domain}, page not known)` : ""))) : h("p", { class: "muted" }, "It cited no URL."),
     h("div", { class: "acts" }, close));
 }
 

@@ -23,7 +23,8 @@ same file on every page.
 An alert: `id` (string), `cause` (`site_down`, `logging_stopped`,
 `server_errors`, `not_found_surge`, `crawler_burst`, `new_crawler`,
 `traffic_drop`, `ai_started_reading`, `ai_stopped_reading`, `ai_sending_people`,
-`ai_first_citation`, `ai_first_cited_page`, `ai_cited_visits`, `crawler_silent`), `subject` (what it is about: a crawler name, a path, or
+`ai_first_citation`, `ai_first_cited_page`, `ai_cited_visits`, `crawler_silent`,
+`security_exposure`, `scan_wave`, `stack_advisory`), `subject` (what it is about: a crawler name, a path, or
 `""`), `severity` (`high`, `medium`, `low`), `title` (one plain line),
 `detail` (a few lines: the figure, the threshold, what to look at), `figure`
 (number or null), `threshold` (number or null), `opened_at`, `last_seen_at`,
@@ -54,6 +55,24 @@ pages); `cited_rose`/`cited_fell` `{"day","visits","median","weeks": [{"day","vi
 `crawler_paths` day kind; nothing new is stored but the alert state. Run-daily's recounts
 (audit_alerts.py) work each kept alert's figures out again from the stored days' `page_firsts`
 and `crawler_paths` blobs and the `counts` rows, with its own code.
+
+The security alerts (alerts_security.py, 2.21) carry `unit` and, for an exposure, `data`
+`{"host","path","at" (UTC),"category"}`. `security_exposure` (subject `"<host><path>"`,
+figure the answer's bytes, threshold the host's fallback page size or null): a scanner probe
+answered 2xx with a size unlike the host's fallback page (the day kind `security`'s exposure
+rows, verdict `possible`), from the live snapshot (today) and the last whole, verified day;
+on by default, so it follows `alerts.enabled` and `alerts.mail`. `scan_wave` (subject the
+day, figure its probes, threshold `max(scan_wave_factor x median, scan_wave_minimum)`):
+the last whole day's probes against the median of the `scan_wave_days` (14) whole, verified
+days before that have the figure, at least `scan_wave_min_days` (7) of them, else it waits;
+off by default (`alerts.scan_wave`). Its evaluation is kept in the alert state (`security`:
+`{"wave": {"state","day","figure","median","need","days","found"},"settings"}`) and
+rechecked from history by audit_security.recheck (audit_more.DAILY `security_alerts`).
+`stack_advisory` (subject the item id, `data` `{"item"}`, no figure): an advisory
+shipped with Skald matches the site's stack in the latest daily check (update needed, no
+official fix, check your version), one per advisory, host and product; on by default. Rows of
+`rules[]` for them carry `"group": "security"`. Each person's own security mail is
+docs/DATA-CONTRACT-SECURITY.md, "Alerts to the people on the site".
 
 ## quality.json
 

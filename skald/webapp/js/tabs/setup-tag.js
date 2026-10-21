@@ -34,7 +34,7 @@ export function tagMail(site, tag) {
     "", "Thank you."].join("\n");
 }
 
-export async function tagDialog(site, { item = null, onClose = null } = {}) {
+export async function tagDialog(site, { item = null, onClose = null, route = null, start = 0 } = {}) {
   const [r, data] = await Promise.all([call(`integrations?site=${encodeURIComponent(site)}`), call("sites")]);
   const tag = tagOf(r.ok ? r : null, site);
   const ts = sendState(site, data.ok ? data : {});
@@ -48,7 +48,7 @@ export async function tagDialog(site, { item = null, onClose = null } = {}) {
     codeBlock(local, "the tag for a site on another server"),
     h("p", null, "Skald must then trust that server for the visitor's address. Docs: INTEGRATIONS.md, HOSTING.md and VERCEL.md."),
   ];
-  return wizard({
+  return wizard({ route, start,
     title: "Add the script tag", subtitle: `For ${site}. Optional.`, key: "setup-script", onClose, state: ts,
     steps: [
       { name: "What it adds",

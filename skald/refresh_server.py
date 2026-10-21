@@ -102,6 +102,7 @@ from . import client_reports_api
 from .saas import billing_api, signup_api
 from .mcp import http as mcp_http
 from .people import api as people_api
+from . import security_api
 from .answers import api as answers_api
 
 MIN_GAP = 15          # seconds between two runs
@@ -465,6 +466,9 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
             if answers_api.is_answers(self.path):       # AI answers: lists, profiles
                 return answers_api.handle(self, True, config, live_dir, allowed, same_origin,
                                           history_path, config_path)
+            if security_api.is_security(self.path):     # Security > Alerts: your own (2.21)
+                return security_api.handle(self, True, config, live_dir, allowed, same_origin,
+                                           config_path)
             if settings_api.is_settings(self.path):     # before team_api: settings/audit
                 return settings_api.handle(self, True, config, live_dir, allowed, same_origin,
                                            history_path, config_path)
@@ -528,6 +532,9 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
             if answers_api.is_answers(self.path):
                 return answers_api.handle(self, False, config, live_dir, allowed, same_origin,
                                           history_path, config_path)
+            if security_api.is_security(self.path):
+                return security_api.handle(self, False, config, live_dir, allowed, same_origin,
+                                           config_path)
             if settings_api.is_settings(self.path):
                 return settings_api.handle(self, False, config, live_dir, allowed, same_origin,
                                            history_path, config_path)

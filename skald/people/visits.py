@@ -31,6 +31,7 @@ readers and page views per address of each whole day, against these rows.
 from __future__ import annotations
 
 import json
+import sqlite3
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -134,6 +135,8 @@ def keep_day(ctx, day: date, totals) -> None:
                ctx.now.date())
     except (OSError, sqlite3.Error, RuntimeError) as why:
         ctx.err(f"{day}: visits with addresses not kept: {type(why).__name__}: {why}")
+    from ..security_kept import keep_day as keep_scanners   # Security's addresses (2.21)
+    keep_scanners(ctx, day, totals)
 
 
 def keep_live(config: dict, db_path, site: str, day: date, totals) -> None:
@@ -147,6 +150,8 @@ def keep_live(config: dict, db_path, site: str, day: date, totals) -> None:
     except (OSError, sqlite3.Error, RuntimeError) as why:
         print(f"live: visits with addresses not kept: {type(why).__name__}: {why}",
               file=sys.stderr)
+    from ..security_kept import keep_live as keep_scanners  # Security's addresses (2.21)
+    keep_scanners(config, db_path, site, day, totals)
 
 
 def shorten_kept(db, site: str) -> int:
@@ -201,9 +206,15 @@ def prune_kept(ctx) -> int | None:
     short = (ctx.site,) if mode == policy.SHORT else ()
     db = store.connect(path)
     try:
-        return prune(db, ctx.now.date(), keep, own, off, short)
+        gone = prune(db, ctx.now.date(), keep, own, off, short)
     finally:
         db.close()
+    from ..security_kept import prune_kept as prune_scanners  # the same days (2.21)
+    try:
+        prune_scanners(ctx)
+    except (OSError, sqlite3.Error, RuntimeError) as why:
+        ctx.err(f"security prune: {type(why).__name__}: {why}")
+    return gone
 
 
 def preview(config: dict, folder, site: str, cutoff: str) -> tuple:

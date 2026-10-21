@@ -44,7 +44,7 @@ from ..config import setting
 from ..files import own_like_folder
 from . import ALIASES, FINISHED, STAGES
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 STAMP = "%Y-%m-%dT%H:%M:%SZ"
 FILE = "conversions.sqlite"
 VID_DAYS = 30
@@ -105,6 +105,19 @@ CREATE INDEX IF NOT EXISTS removed_site ON removed (site, removed_at);
 CREATE INDEX IF NOT EXISTS removed_ref ON removed (site, external_ref);
 """
 
+# Schema 8 (2.21): the addresses behind Security's suspect rows (security_kept.py;
+# written only while the site keeps addresses): one row per (day, seq) of the
+# day kind `security`'s `who` list, and the days written.
+SECURITY_TABLES = """CREATE TABLE IF NOT EXISTS security_rows (
+  site TEXT NOT NULL, day TEXT NOT NULL, seq INTEGER NOT NULL, ip TEXT NOT NULL,
+  user_agent TEXT, PRIMARY KEY (site, day, seq));
+CREATE INDEX IF NOT EXISTS security_rows_ip ON security_rows (ip);
+CREATE TABLE IF NOT EXISTS security_days (
+  site TEXT NOT NULL, day TEXT NOT NULL,
+  state TEXT NOT NULL CHECK (state IN ('whole', 'today')),
+  rows INTEGER NOT NULL, written_at TEXT NOT NULL, PRIMARY KEY (site, day));
+"""
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 """ + CONVERSIONS.format(name="conversions") + INDEXES + RECEIVED_INDEX + """;
@@ -136,7 +149,7 @@ CREATE INDEX IF NOT EXISTS outbox_due ON outbox (state, next_at);
 CREATE TABLE IF NOT EXISTS hook_replays (
   site TEXT NOT NULL, digest TEXT NOT NULL, received_at TEXT NOT NULL,
   PRIMARY KEY (site, digest));
-""" + PEOPLE_TABLES
+""" + PEOPLE_TABLES + SECURITY_TABLES
 
 # Schema 2 (Phase 4b step 3): the stages "won" and "lost" (a CHECK cannot be
 # changed in place, so the table is copied into a new one), one name per
@@ -171,7 +184,9 @@ UPGRADES: dict[int, list[str]] = {2: [
     6: ["ALTER TABLE journeys ADD COLUMN via TEXT"],
     # 7 (2.18): a lead's label (NULL for every older row: none was sent), and
     # a hook's rows in the order received (GET /traffic-hooks/<site>/leads).
-    7: ["ALTER TABLE conversions ADD COLUMN label TEXT", RECEIVED_INDEX]}
+    7: ["ALTER TABLE conversions ADD COLUMN label TEXT", RECEIVED_INDEX],
+    # 8 (2.21): the addresses behind Security's suspect rows (SECURITY_TABLES).
+    8: [sql.strip() + ";" for sql in SECURITY_TABLES.split(";\n") if sql.strip()]}
 
 # The SCHEMA this code set a file up with (see accounts/db.py): a file
 # stamped with it at SCHEMA_VERSION skips the script on connect.

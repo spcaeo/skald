@@ -202,8 +202,10 @@ export function builder(m, s, loadView) {
     h("button", { type: "button", class: "btn", onclick: act((mm, ss, tabs) => { preview(mm, ss, tabs); requestAnimationFrame(() => setTimeout(() => print(), 60)); }) }, "Print or save as PDF"),
     h("button", { type: "button", class: "btn primary", onclick: act((mm, ss, tabs) => preview(mm, ss, tabs)) }, "Preview"),
   ];
-  d = openDrawer({ title: "Report builder", subtitle: "Choose the sections, the period and the filters; then preview, print or download the tables.", size: "md", className: "dw-rb", key: "report", body, footer });
+  d = openDrawer({ title: "Report builder", subtitle: "Choose the sections, the period and the filters; then preview, print or download the tables.", size: "md", className: "dw-rb", key: "report", body, footer,
+    route: { key: "dlg", value: "report" } });
   count();
+  return d;
 }
 
 // --------------------------------------------------------- the menu

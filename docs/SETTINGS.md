@@ -215,6 +215,37 @@ A `secrets.json` that others can read is refused, not used.
   sign-in page, which sets it up (secret, then a code; recovery codes shown once). An owner can
   turn it on only after turning it on for their own account.
 
+## Security thresholds (config only, 2.21)
+
+The config's `security:` section sets the rules of the Security section
+(skald/security_names.py, docs/DATA-CONTRACT-SECURITY.md); each is kept
+within a sane range:
+
+```yaml
+security:
+  shell_paths: 3        # "Is anything exposed?": paths that must share a size to call it the host's fallback page
+  tolerance: 16         # bytes either side of that size
+  login_posts: 20       # login and form hammering: POSTs to a login or form path from one address...
+  login_seconds: 300    # ...within this many seconds
+  burst_requests: 300   # a burst: requests from one address...
+  burst_seconds: 60     # ...within this many seconds
+  large_post_bytes: 1000000   # log signs: a POST this large or larger (needs request_length= in the log)
+```
+
+Your stack (2.21) is read once a day by the morning run: `security.stack_check: false`
+turns it off. `security.advisories_fetch: true` (off by default) lets the morning run fetch
+the newest advisories list from Skald's public repository; without it the list changes only
+with a Skald release, and nothing is fetched.
+
+Each person's own security mail (Security > Alerts, "Your security alerts") reminds while
+an item stays open every `security.remind_days` (3) days.
+
+Its alerts are switched on Site > Alerts like the others: `alerts.security_exposure` and
+`alerts.stack_advisory` (on by default: they follow the site's alerts) and `alerts.scan_wave`
+(off by default; the
+config's `scan_wave_factor` 3, `scan_wave_days` 14, `scan_wave_min_days` 7 and
+`scan_wave_minimum` 200 set its rule).
+
 ## Mail recipients confirm first
 
 The install's SMTP server sends for every organisation, so an address typed in `mail.to`

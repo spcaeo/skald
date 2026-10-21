@@ -10,6 +10,7 @@ import { countryWords } from "./readers.js";
 import { call, installOnly, INSTALL_ONLY } from "./ipmanager.js";
 import { isViewer, VIEWER } from "../access.js";
 import { openDrawer } from "../drawer.js";
+import { withUrl } from "../urlactions.js";
 
 export const GROUP_NAME = { ...Object.fromEntries(GROUPS), excluded: "Other hosts (not counted)" };
 
@@ -51,7 +52,9 @@ export function copyButton(text, what = "address") {
 const yes = (v) => (v == null ? "-" : v ? "yes" : "no");
 const VERIFIED = { verified: "verified: its address belongs to who it says", unverified: "not verifiable: no published address list", spoofed: "spoofed: claims a name its address does not belong to" };
 
-export function detail(m, row, ours) {
+/* One request's drawer. code: its key in the address (req=<code>: an opaque code of the
+   log line, never its address; js/overlays.js). */
+export function detail(m, row, ours, code = null) {
   let d = null;
   const utm = Object.entries(row.utm || {}).map(([k, v]) => `${k}: ${v}`).join(", ");
   const removed = row.ip === "(removed)";
@@ -60,7 +63,7 @@ export function detail(m, row, ours) {
   const request = dl([
     ["Time", tzTime(row.at, { seconds: true, date: true })],
     ["Host", row.host || "-"],
-    ["Request", h("span", { class: "mono" }, `${row.method || "(no method)"} ${row.path}${row.query ? `?${row.query}` : ""}`)],
+    ["Request", withUrl(h("span", { class: "mono" }, `${row.method || "(no method)"} ${row.path}${row.query ? `?${row.query}` : ""}`), row.host && /^[a-z0-9.-]+(:\d+)?$/i.test(row.host) ? `https://${row.host}${row.path}` : row.path, { label: row.path })],
     ["What it was", KIND_WORDS[row.kind] || row.kind || "-"],
     ["Status", h("span", { class: `st ${statusTone(row.status)}` }, String(row.status))],
     ["Size", row.bytes == null ? "-" : `${n(row.bytes)} bytes`],
@@ -80,7 +83,7 @@ export function detail(m, row, ours) {
     ["Page view", row.page_view ? "yes, counted as a page view" : "no"],
   ]);
   const from = dl([
-    ["Referrer", row.referrer ? h("span", { class: "mono" }, row.referrer) : "none"],
+    ["Referrer", row.referrer ? withUrl(h("span", { class: "mono" }, row.referrer), row.ref_host && /^[a-z0-9.-]+$/i.test(row.ref_host) ? `https://${row.referrer}` : "") : "none"],
     ["AI assistant", row.assistant || "-"],
     ["Campaign tags", utm || "none"],
   ]);
@@ -119,7 +122,7 @@ export function detail(m, row, ours) {
 
   d = openDrawer({
     title: row.path, subtitle: `${row.method || "Request"} at ${tzTime(row.at, { seconds: true, date: true })}, status ${row.status}, ${GROUP_NAME[row.group] || row.group}`,
-    className: "rq-dw", key: "request", scope: "page",
+    className: "rq-dw", key: "request", scope: "page", route: code ? { key: "req", value: code } : null,
     body: [
       h("div", { class: "dw-cols" }, sec("The request", request), sec("Who asked", who)),
       h("div", { class: "dw-cols" }, sec("How it was counted", counted, ownPart ? sec("Our own traffic", ownPart) : null), sec("Where it came from", from)),

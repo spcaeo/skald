@@ -20,6 +20,7 @@ import { time as tzTime, when } from "./tz.js";
 import { shown } from "./labels.js";
 import { mark } from "./icons.js";
 import { open } from "./drill.js";
+import { withUrl } from "./urlactions.js";
 
 const PER_MINUTE = 1000;      // replay: 1 s per minute of the real visit
 const CAP = 4000;             // ... at most 4 s for one visit
@@ -78,7 +79,8 @@ function steps(v) {
       "aria-label": `Page ${p.path}, ${at}. Opens its page detail.` }, mark("path", p.path), h("span", { class: "jm-w" }, p.path), p.times > 1 ? h("small", null, `×${p.times}`) : null),
     p.path, [{ label: at }, ...(p.page === false ? [{ label: "seen in the browser: moved inside the site, no page loaded from the server" }] : []), ...(p.nf ? [{ label: "page not found (404)" }] : [])]);
     btn.addEventListener("click", () => { untip(); open("path", p.path); });
-    out.push(step(`pg${p.nf ? " nf" : ""}`, btn));
+    // Copy and open in a new tab beside the chip (urlactions.js), never inside its button.
+    out.push(step(`pg${p.nf ? " nf" : ""}`, withUrl(btn, p.path, { cls: "ua-after jm-ua" })));
   });
   out.push(gap(""));
   const end = v.endNode || { kind: "left", words: v.active ? "still here" : "left" };

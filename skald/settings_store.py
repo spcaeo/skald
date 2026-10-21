@@ -206,14 +206,16 @@ ALERT_RULES = {"site_down": "Site down", "logging_stopped": "Logging stopped",
                "ai_sending_people": "AI sending people",
                "first_citation": "First AI citation",
                "first_cited_page": "Page's first AI citation",
-               "cited_visits": "Visits from AI answers", "crawler_silent": "Crawler gone silent"}
+               "cited_visits": "Visits from AI answers", "crawler_silent": "Crawler gone silent",
+               "security_exposure": "Possible exposure", "scan_wave": "New scan wave",
+               "stack_advisory": "Advisory matches your stack"}
 SCHEMA["alerts.enabled"] = Key("bool", "admin", ("site",), ("alerts", "enabled"), False,
                                label="Alerts")
 SCHEMA["alerts.mail"] = Key("bool", "admin", ("site",), ("alerts", "mail"), True,
                             label="Mail alerts")
 for _rule, _label in ALERT_RULES.items():
-    SCHEMA[f"alerts.{_rule}"] = Key("bool", "admin", ("site",), ("alerts", _rule), True,
-                                    label=f"Alert: {_label}")
+    SCHEMA[f"alerts.{_rule}"] = Key("bool", "admin", ("site",), ("alerts", _rule),
+                                    _rule != "scan_wave", label=f"Alert: {_label}")
 
 # Keys that are not secrets, in SCHEMA order.
 PLAIN = tuple(k for k, v in SCHEMA.items() if v.kind != "secret")
@@ -750,7 +752,7 @@ SHRINKING = tuple(k for k in PLAIN if SCHEMA[k].shrink and "site" in SCHEMA[k].s
 # page milestones and the rest are kept for good.
 DETAIL_KINDS = ("pages", "visit_cube", "cube", "crawler_paths", "page_firsts",
                 "not_found", "page_counts", "funnels", "crawler_cost",
-                "crawl_health")
+                "crawl_health", "security")
 
 
 def apply(config: dict, site: str | None = None, live_dir=None) -> dict:

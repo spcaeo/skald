@@ -18,6 +18,8 @@ from urllib.parse import parse_qsl
 ROOT = Path(__file__).resolve().parents[1]
 JS = ROOT / "skald" / "webapp" / "js"
 
+TOKEN = object()   # stands for "~" and 10 letters or digits: an address made opaque (2.21)
+
 # old address -> where it opens (route, parameters), as the map's table says.
 TABLE = [
     ("overview", "overview/summary", {}),
@@ -59,7 +61,8 @@ TABLE = [
     ("health", "site/health", {}),
     ("health/alerts", "site/alerts", {}),
     ("alerts", "site/alerts", {}),
-    ("requests?ip=203.0.113.9&rq=people", "site/requests", {"ip": "203.0.113.9", "rq": "people"}),
+    # An address never stays in the address: the new one holds a token (js/routemask.js).
+    ("requests?ip=203.0.113.9&rq=people", "site/requests", {"ip": TOKEN, "rq": "people"}),
     ("health/broken", "site/notfound", {}),
     ("broken", "site/notfound", {}),
     ("health/speed?strat=desktop", "site/speed", {"strat": "desktop"}),
@@ -151,7 +154,7 @@ def split(h):
 class Redirects(unittest.TestCase):
     def test_the_registry_is_read(self):
         reg = registry()
-        self.assertEqual([s["key"] for s in reg], ["overview", "traffic", "sales", "ai", "site"])
+        self.assertEqual([s["key"] for s in reg], ["overview", "traffic", "sales", "ai", "threats", "site"])
         routes = {t["route"] for s in reg for t in s["tabs"]}
         for r in ("overview/summary", "overview/insights", "traffic/visitors", "traffic/sources", "traffic/pages", "traffic/places", "traffic/time",
                   "sales/leads", "sales/summary", "sales/sources", "sales/bookings", "sales/funnels", "sales/events", "sales/people",
@@ -164,7 +167,11 @@ class Redirects(unittest.TestCase):
         for (asked, route, params), (hash_, tab) in zip(TABLE, got):
             with self.subTest(asked=asked):
                 self.assertEqual(tab, route)
-                self.assertEqual(split(hash_), (route, params))
+                got_route, got_params = split(hash_)
+                if params.get("ip") is TOKEN:
+                    self.assertRegex(got_params.pop("ip", ""), r"^~[a-z0-9]{10}$", "an address is a token")
+                    params = {k: v for k, v in params.items() if k != "ip"}
+                self.assertEqual((got_route, got_params), (route, params))
         self.assertEqual(split(got[-2][0]), ("sales/summary", {"range": "7d", "lsrc": "all"}))
         self.assertEqual(split(got[-1][0]), ("ai/assistants", {"range": "7d"}))
 

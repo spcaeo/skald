@@ -27,6 +27,7 @@ import * as S from "../state.js";
 import { chainOf, open as openDrill, said } from "../drill.js";
 import { flagEl, country, countryName, cityName } from "./readers.js";
 import { mark } from "../icons.js";
+import { withUrl } from "../urlactions.js";
 import { shown, assistantName } from "../labels.js";
 import { openNewest } from "./realtime.js";
 import { goLink, cardHead } from "./ov-today-bits.js";
@@ -91,7 +92,7 @@ function rowOf(m, v, until, cls, grew) {
         h("span", { class: "td-vs" }, mark(ai || v.via ? "referrer" : "source", v.via || v.source), h("b", null, who))),
       steps(v, grew),
       h("span", { class: "td-pnow" }, v.active === "5" ? h("i", { class: "td-pdot", "aria-hidden": "true" }) : null,
-        `now on ${t[t.length - 1] || "a page"}`, v.last && until ? ` · ${ago(v.last, until)}` : "")));
+        "now on ", t.length ? withUrl(h("span", null, t[t.length - 1]), t[t.length - 1], { cls: "ua-after" }) : "a page", v.last && until ? ` · ${ago(v.last, until)}` : "")));
 }
 
 export function doingCard(m, rt, first, { onHover } = {}) {
@@ -150,8 +151,8 @@ export function doingCard(m, rt, first, { onHover } = {}) {
     pages.replaceChildren(...(P ? [h("div", { class: "td-pgh" }, h("b", null, "Pages read in the last 30 minutes"),
       h("span", null, `${n(P.page_views || 0)} page view${P.page_views === 1 ? "" : "s"} by visitors`)),
     ...(read.length ? read.map(([path, v]) => h("div", { class: `td-pgr${pick === path ? " on" : ""}` },
-      h("button", { type: "button", class: "td-path", title: pick === path ? `${path}: press again for its detail` : `${path}: the visitors who read it`,
-        onclick: () => { if (pick === path) openDrill("path", path); else { pick = path; draw(last); } } }, middle(path)),
+      withUrl(h("button", { type: "button", class: "td-path", title: pick === path ? `${path}: press again for its detail` : `${path}: the visitors who read it`,
+        onclick: () => { if (pick === path) openDrill("path", path); else { pick = path; draw(last); } } }, middle(path)), path, { cls: "ua-after td-pua" }),
       h("span", { class: "td-pgb", "aria-hidden": "true" }, h("i", { style: { width: `${(v / most) * 100}%` } })), h("span", { class: "td-num" }, n(v))))
       : [h("p", { class: "empty" }, "No page read in the last 30 minutes.")]),
     chain.length ? h("p", { class: "td-note" }, "These counts are every visitor's: they are not split by the filter.") : null].filter(Boolean) : []));

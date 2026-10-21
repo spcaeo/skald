@@ -12,6 +12,7 @@
 //     cannot apply it; the banner (main.js) says which and where they do apply.
 
 import * as S from "./state.js";
+import { opened as routeOpened, closed as routeClosed } from "./overlays.js";
 import { h, n, toast, reduced, ICON } from "./ui.js";
 import { rangeOf } from "./data.js";
 import { opt } from "./sections.js";
@@ -300,7 +301,9 @@ export function openFilters(m, s, from) {
   }
 
   function close(focusBack = true) {
+    if (!box.isConnected) return;
     box.remove(); shade.remove();
+    routeClosed("dlg", "filters");
     removeEventListener("resize", place);
     from?.setAttribute("aria-expanded", "false");
     from?.classList.remove("on");
@@ -326,6 +329,8 @@ export function openFilters(m, s, from) {
   focusKey = "r0-f";
   draw();
   open = { close };
+  // In the address as dlg=filters while it is open (js/overlays.js): Back closes it.
+  routeOpened("dlg", "filters", { close: () => close(false), isOpen: () => box.isConnected });
   return open;
 }
 

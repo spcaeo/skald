@@ -27,6 +27,7 @@ import { call } from "./ipmanager.js";
 import { isViewer, sessions } from "../access.js";
 import { detail, statusTone, GROUP_NAME, copyButton, FLAG_WORDS, norm } from "./reqdetail.js";
 import { grid } from "../grid.js";
+import { codeOf } from "../routekeys.js";
 
 const POLL = 30;     // seconds between checks
 const CRAWLERS = ["bots", "answer_engines", "search_engines", "excluded"];
@@ -45,8 +46,17 @@ const st = { file: null, view: null, state: "idle", error: "", fetchedAt: 0, pau
 // The log's own period, for the top bar's period chip (s-site.js): the date range does not apply here.
 export const logPeriod = () => (st.file?.window_hours ? `Last ${st.file.window_hours} hours` : "The last few hours");
 const key = (r) => `${r.at}|${r.ip}|${r.method}|${r.path}|${r.status}`;
+// A line's key in the address (req=<code>): a code of the line, never its address.
+const codeFor = (r) => codeOf(key(r));
 
-async function fetchLog(view, listed = true) {
+/* The log, asked for once at a time: a link's detail waits for the same answer as the tab. */
+function fetchLog(view, listed = true) {
+  if (st.inflight && st.inflightView === view) return st.inflight;
+  st.inflightView = view;
+  st.inflight = fetchOnce(view, listed).finally(() => { st.inflight = null; });
+  return st.inflight;
+}
+async function fetchOnce(view, listed = true) {
   // app.json lists the files beside it: one not there yet is not asked for (no failed request).
   if (!listed) { st.file = null; st.view = view; st.state = "missing"; st.fetchedAt = Date.now(); return; }
   st.state = st.file ? "polling" : "loading";
@@ -98,7 +108,8 @@ const columns = () => [
   { key: "at", label: `Time (${tzLabel()})`, type: "date", csv: (r) => r.at,
     fmt: (_, r) => h("span", { class: `si-rq-t${st.fresh.has(key(r)) ? " fresh" : ""}` }, tzTime(r.at, { seconds: true, label: false })) },
   { key: "status", label: "Status", num: true, type: "badge", fmt: (v) => h("span", { class: `st ${statusTone(v)}` }, String(v)) },
-  { key: "path", label: "Request", csv: (r) => `${r.method || ""} ${r.path}${r.query ? `?${r.query}` : ""}`.trim(),
+  // The page asked for, on the host that was asked: copy and open in a new tab (urlactions.js).
+  { key: "path", label: "Request", url: true, href: (r) => (r.host && /^[a-z0-9.-]+(:\d+)?$/i.test(r.host) ? `https://${r.host}${r.path}` : r.path), csv: (r) => `${r.method || ""} ${r.path}${r.query ? `?${r.query}` : ""}`.trim(),
     fmt: (_, r) => h("span", { class: "si-rq-p" }, r.method && r.method !== "GET" ? h("b", { class: "meth" }, r.method) : null, h("span", null, r.path), r.query ? h("small", null, `?${r.query}`) : null,
       // Words the search finds that the cells do not show (the old log's search covered them).
       h("span", { class: "vh", "aria-hidden": "true" }, ` ${[r.host, r.kind, r.country_name, r.assistant, r.method].filter(Boolean).join(" ")}`)) },
@@ -111,7 +122,7 @@ const columns = () => [
   { key: "ip", label: "From", csv: (r) => r.ip,
     fmt: (_, r) => h("span", { class: "si-rq-ip" }, r.country ? h("span", { class: "cc", title: r.country_name || r.country }, link("country", r.country, { text: r.country })) : null,
       r.ip && r.ip !== "(removed)" ? h("span", { class: "ip" }, link("ip", r.ip, { bare: true }), copyButton(r.ip)) : h("span", { class: "muted" }, r.ip || "-")) },
-  { key: "referrer", label: "Referrer and tags", csv: (r) => r.referrer,
+  { key: "referrer", label: "Referrer and tags", url: true, href: (r) => (r.ref_host && /^[a-z0-9.-]+$/i.test(r.ref_host) ? `https://${r.ref_host}${r.ref_path || "/"}` : ""), csv: (r) => r.referrer,
     fmt: (_, r) => h("span", { class: "si-rq-r", title: r.referrer || null }, r.assistant && r.group === "people" ? h("span", { class: "ai-tag" }, r.assistant) : null,
       r.referrer ? h("span", { class: "ref" }, r.ref_host, r.ref_path && r.ref_path !== "/" ? h("small", null, r.ref_path) : null) : r.assistant ? "" : "-",
       ...Object.entries(r.utm || {}).map(([k, v]) => h("span", { class: "utm", title: `utm_${k}` }, `${k}: ${v}`))) },
@@ -127,6 +138,17 @@ const csvCols = () => [{ key: "at", label: "at" }, { key: "time", label: `time (
   ...["ip", "country", "host", "method", "path", "query", "status", "kind", "group", "rule", "agent", "verified", "page_view", "ref_host", "ref_path", "assistant", "device", "os", "ms", "bytes"].map((k) => ({ key: k, label: k })),
   { key: "utm", label: "utm", csv: (x) => Object.entries(x.utm || {}).map(([a, b]) => `${a}=${b}`).join(" ") },
   { key: "flags", label: "flags", csv: (x) => (x.flags || []).join(" ") }];
+
+/* req=<code>, from a link: the line in the recent log, else the plain line. */
+export async function openRequestKey(m, s, value) {
+  const listed = !Array.isArray(m.files) || m.files.includes("requests");
+  if (!st.file || st.view !== s.view) await fetchLog(s.view, listed);
+  else if (st.inflight) await st.inflight;
+  if (!st.file) return "The recent request log is not written beside this page yet, so that request cannot be shown.";
+  const row = st.file.rows.find((r) => codeFor(r) === value);
+  return row ? detail(m, row, st.ours || new Map(), value)
+    : `That request is no longer in the recent log (it keeps the last ${st.file.window_hours || "few"} hours).`;
+}
 
 export default function requests(m, s, { changed } = {}) {
   const hours = st.file?.window_hours;
@@ -165,7 +187,7 @@ export default function requests(m, s, { changed } = {}) {
 
   let g = null;
   let given = [];
-  const open = (row) => detail(m, row, st.ours || new Map());
+  const open = (row) => detail(m, row, st.ours || new Map(), codeFor(row));
   const why = () => [...TOGGLES.filter(([k]) => on.includes(k)).map(([, l]) => l.toLowerCase()), ...(s.ip ? [`address ${s.ip}`] : []),
     ...(() => { const t = without(fromState(s), "request"); return t.items.length ? [treeWords(t, (d, v) => (d === "country" ? withFlag(v) : v))] : []; })()];
 

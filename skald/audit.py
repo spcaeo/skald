@@ -406,6 +406,7 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
     for line in lines:
         if wanted and line.host and line.host.lower() not in wanted:
             excluded += 1
+            more.other_host(line)
             continue
         group, cited = judge(line)
         bots.hit(line, group, judge.info)

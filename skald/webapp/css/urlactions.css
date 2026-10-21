@@ -1,0 +1,55 @@
+/* Copy and open in a new tab on every URL and site path (js/urlactions.js, 2.21).
+   The two icons sit over the end of the cell or chip, so nothing moves when they
+   show; on hover or keyboard focus only, always on a touch screen. */
+.ua-host { position: relative; display: inline-block; max-width: 100%; vertical-align: top; }
+.ua {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  display: inline-flex; align-items: center; gap: 2px; padding: 1px 1px 1px 10px;
+  background: linear-gradient(to right, transparent, var(--ua-bg, var(--surface)) 9px);
+  opacity: 0; pointer-events: none; transition: opacity .12s var(--ease);
+  white-space: nowrap; z-index: 1; font-family: var(--sans);
+}
+/* In a table cell the icons sit at the cell's right edge: over the empty space beside a
+   short path, never over its words; over the end of a long one that fills the cell. */
+td:has(> .ua-host:not(.ua-after)) { position: relative; }
+td > .ua-host:not(.ua-after) { position: static; }
+td > .ua-host:not(.ua-after) > .ua { right: 6px; }
+tbody tr:hover .ua, .vrow:hover .ua, li.drow:hover .ua { --ua-bg: color-mix(in srgb, var(--surface) 94%, var(--ink)); }
+.dw .ua, .sheet .ua { --ua-bg: var(--surface); }
+:is(td, li, .ua-host):hover > .ua-host > .ua, .ua-host:hover > .ua, .ua-host:focus-within > .ua { opacity: 1; pointer-events: auto; }
+.ua.ua-gone:not(.ua-ok):not(.ua-bad) { opacity: 0; pointer-events: none; }
+.ua.ua-ok, .ua.ua-bad { opacity: 1; pointer-events: auto; }
+.ua-b {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 1px solid var(--rule);
+  border-radius: 6px; background: var(--surface); color: var(--ink-2, var(--ink)); cursor: pointer; text-decoration: none;
+}
+.ua-b svg { width: 13px; height: 13px; }
+.ua-b:hover { color: var(--ink); border-color: var(--gap); }
+.ua-b:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ua-ok .ua-copy { color: #fff; background: var(--good); border-color: var(--good); }
+.ua-ok .ua-open { display: none; }
+.ua-msg:empty { display: none; }
+.ua-msg { font-size: 11.5px; padding: 1px 6px; border-radius: 6px; background: var(--surface); border: 1px solid var(--rule); }
+.ua-ok .ua-msg { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); padding: 0; border: 0; }
+.ua-bad .ua-msg { color: var(--bad); border-color: var(--bad); }
+.ua-bad .ua-b { display: none; }
+/* A chip (a journey's page) or a line of its own: the icons after it, their space kept while hidden. */
+.ua-host.ua-after { display: inline-flex; align-items: center; }
+.ua-host.ua-after > .ua { position: static; transform: none; background: none; padding: 0 0 0 4px; }
+.ua-host.ua-block { display: flex; align-items: center; max-width: 100%; }
+.ua-host.ua-block > :first-child { min-width: 0; }
+/* Phones and tablets: no hover, so the icons always show, after the words. */
+@media (hover: none) {
+  .ua { position: static; transform: none; opacity: 1; pointer-events: auto; background: none; padding: 0 0 0 6px; vertical-align: middle; }
+  .ua.ua-gone { opacity: 1; pointer-events: auto; }
+  .ua-b { width: 28px; height: 28px; }
+}
+@media (prefers-reduced-motion: reduce) { .ua { transition: none; } }
+@media print { .ua { display: none !important; } }
+/* The site switcher's rows: the whole row is the host, the icons over its end. */
+.site-menu .ua-host.si-row { display: block; }
+.site-menu .si-row > .ua { right: 6px; --ua-bg: var(--surface); }
+/* The plain line a link opens with when it names something not shown here (js/overlays.js). */
+.route-miss { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 12px; }
+.route-miss > div { flex: 1; }
+.route-miss-x { flex: none; }

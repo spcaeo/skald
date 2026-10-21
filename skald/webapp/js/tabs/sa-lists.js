@@ -17,6 +17,8 @@ import { mayFind, openPerson } from "./person.js";
 import { openVisitor } from "./visitor.js";
 import { grid } from "../grid.js";
 import { actionName, toolName, STAGE, labelTag } from "./leadfigs.js";
+import { codeOf } from "../routekeys.js";
+import { withUrl } from "../urlactions.js";
 
 export const LEAD_SHOW = [["spam", "Spam"], ["duplicate", "Duplicates"], ["test", "Test"]];
 export const CONV_SHOW = [["cancelled", "Cancelled or no-show"], ["removed", "Removed"], ["test", "Test"]];
@@ -74,7 +76,7 @@ export function leadList(kinds, { ns = "lo", only = null } = {}) {
       { key: "id", label: "Lead", fmt: (v) => key(v, `#${v}`), csv: (r) => r.id },
       { key: "kind", label: "Left out as", fmt: (v) => h("b", { class: "pp-bad" }, KIND[v] || v), csv: (r) => KIND[r.kind] || r.kind },
       { key: "type", label: "Type", fmt: dash },
-      { key: "page", label: "Page", fmt: mono },
+      { key: "page", label: "Page", path: true, fmt: mono },
       { key: "first_source", label: "First touch", fmt: dash },
       { key: "last_source", label: "Last touch", fmt: dash },
       ...(named ? [{ key: "email", label: "Email", fmt: (v) => key(v) }, { key: "name", label: "Name", fmt: dash }] : []),
@@ -99,13 +101,27 @@ export function convRow(kind, r) {
     email: r.email || null, label: r.label || null, why: kind === "test" ? "marked test (kept, never counted)" : "", journey: r.journey || [] };
 }
 
+// Its code in the address: the list and an opaque code of the row (conv=test.r1x2y3z).
+const convCode = (r) => `${r.kind}.${codeOf([r.kind, r.at, r.action, r.stage, r.tool, r.ref].join("|"))}`;
+
 function convDetail(r) {
   const dl = h("dl", { class: "dw-dl" }, [["List", KIND[r.kind]], ["When", at(r.at)], ["Action", actionName(r.action || "")], ["Label", r.label ? labelTag(r.label) : "-"], ["Stage", STAGE[r.stage] || dash(r.stage)],
-    ["Reported by", toolName(r.tool)], ["Source (last touch)", dash(r.source)], ["Landing", dash(r.landing)], ["Lead or reference", key(r.ref)], ["Visitor ID", key(r.vid)], ["Why", dash(r.why)]]
+    ["Reported by", toolName(r.tool)], ["Source (last touch)", dash(r.source)], ["Landing", r.landing ? withUrl(h("span", { class: "mono" }, r.landing), r.landing, { cls: "ua-after" }) : "-"], ["Lead or reference", key(r.ref)], ["Visitor ID", key(r.vid)], ["Why", dash(r.why)]]
     .flatMap(([t, v]) => [h("dt", null, t), h("dd", null, v)]));
   // The visitor drawer (visitor.js): the visitor ID's pages as visits, this row's facts below.
-  openVisitor({ conversion: { action: r.action, at: r.at, tool: r.tool, journey: r.journey, steps: [{ action: r.action, stage: r.stage, at: r.at, tool: r.tool }] },
-    facts: [dl, r.journey.length ? null : h("p", { class: "note" }, "No journey: this conversion carries no visitor ID.")].filter(Boolean) });
+  return openVisitor({ conversion: { action: r.action, at: r.at, tool: r.tool, journey: r.journey, steps: [{ action: r.action, stage: r.stage, at: r.at, tool: r.tool }] },
+    facts: [dl, r.journey.length ? null : h("p", { class: "note" }, "No journey: this conversion carries no visitor ID.")].filter(Boolean),
+    route: { key: "conv", value: convCode(r) } });
+}
+
+/* conv=<list>.<code>, from a link: the row in its list now, else the plain line. */
+export async function openConvKey(value) {
+  const [kind] = String(value).split(".");
+  if (!["cancelled", "removed", "test"].includes(kind)) return "That conversion is not in these lists.";
+  const got = await fetchList(`people/conversions?kind=${encodeURIComponent(kind)}`);
+  if (!got?.ok) return got?.status === 403 ? "Not available to your role." : "The list could not be loaded just now. Open this page again in a minute.";
+  const r = (got.rows || []).map((x) => convRow(kind, x)).find((x) => convCode(x) === value);
+  return r ? convDetail(r) : "That conversion is no longer in its list.";
 }
 
 /* The tools' cancelled, removed and test conversions, of the kinds asked for.

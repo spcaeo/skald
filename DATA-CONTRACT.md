@@ -912,6 +912,15 @@ Search Console and Bing Webmaster Tools figures synced into history (table
 search engines by engine and landing page) and the cross-check between them.
 Every field: [docs/DATA-CONTRACT-SEARCH.md](docs/DATA-CONTRACT-SEARCH.md).
 
+## security.json and the day kind `security` (2.21)
+
+Scanners, what the server answered them ("Is anything exposed?"), attack
+attempts and fake browsers: a view across the groups, never a group. The day
+kind `security` (no address, no user agent), the addresses behind its rows in
+conversions.sqlite (schema 8, `security_rows` and `security_days`, only while
+the site keeps addresses), the helper's `people/security` (owners and admins)
+and `security.json`. Every field: [docs/DATA-CONTRACT-SECURITY.md](docs/DATA-CONTRACT-SECURITY.md).
+
 ## ai_answers.json (AI answers)
 
 What AI assistants say about the site, asked through their APIs per tracking

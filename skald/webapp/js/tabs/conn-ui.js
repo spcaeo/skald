@@ -4,22 +4,31 @@
 //
 //   const w = wizard({ title, subtitle, steps: [{ name, draw(w) -> nodes,
 //                      check(w) -> "" or why Next is refused, next(w) -> async, false stops }],
-//                      start, onStep(i), onClose, done: "Done" });
+//                      start, onStep(i), onClose, done: "Done", route: {key, value} });
 //   w.go(i); w.redraw(); w.close(); w.say(text, ok); w.state (the dialog's own memory)
+//
+// route (2.21): the dialog in the address, e.g. setup=rsc&step=2 (js/overlays.js): opening
+// adds a history entry (Back closes it), each step replaces it, closing takes it away.
+// A dialog opened from a link at a later step starts at the first step whose check() is
+// not met yet, so it never skips a choice that later steps need.
 
 import { h } from "../ui.js";
 import { openDrawer } from "../drawer.js";
 import { status } from "./forms.js";
+import { stepped } from "../overlays.js";
+import { withUrl } from "../urlactions.js";
 
-export function wizard({ title, subtitle = "", steps, start = 0, onStep = null, onClose = null, done = "Done", key = "conn-wizard", state = {} }) {
-  const w = { at: Math.max(0, Math.min(start, steps.length - 1)), state, steps };
+export function wizard({ title, subtitle = "", steps, start = 0, onStep = null, onClose = null, done = "Done", key = "conn-wizard", state = {}, route = null }) {
+  const w = { at: Math.max(0, Math.min(start, steps.length - 1)), state, steps, route };
   const bar = h("ol", { class: "cn-bar", "aria-label": "Steps" });
   const body = h("div", { class: "cn-step" });
   const msg = status();
   const back = h("button", { type: "button", class: "btn" }, "Back");
   const next = h("button", { type: "button", class: "btn primary" }, "Next");
+  // From a link at a later step: no further than the first step still waiting for its choice.
+  for (let i = 0; i < w.at; i++) if (steps[i].check && steps[i].check(w)) { w.at = i; break; }
   const d = openDrawer({ title, subtitle, size: "md", key, className: "cn-dw", body: [bar, body, msg],
-    footer: [h("span", { class: "grow" }), back, next], onClose });
+    footer: [h("span", { class: "grow" }), back, next], onClose, route: route ? { ...route, step: w.at + 1 } : null });
   w.el = d.el;
   w.close = () => d.close();
   w.say = (text, ok = false) => msg.say(text, ok);
@@ -40,6 +49,7 @@ export function wizard({ title, subtitle = "", steps, start = 0, onStep = null, 
   w.go = (i) => {
     w.at = Math.max(0, Math.min(i, steps.length - 1));
     w.redraw();
+    if (route) stepped(route.key, route.value, { step: w.at + 1, share: "" });
     if (onStep) onStep(w.at, w);
   };
   back.addEventListener("click", () => w.go(w.at - 1));
@@ -76,7 +86,9 @@ export function codeBlock(text, label) {
     try { await navigator.clipboard.writeText(text); btn.textContent = "Copied"; } catch { btn.textContent = "Select and copy"; }
     setTimeout(() => { btn.textContent = "Copy"; }, 1600);
   });
-  return h("div", { class: "cn-code" }, h("pre", null, h("code", null, text)), btn);
+  // A block that is one address (a send address, a shared link): open it in a new tab too.
+  const one = /^https?:\/\/\S+$/.test(String(text).trim());
+  return h("div", { class: "cn-code" }, h("pre", null, one ? withUrl(h("code", null, text), String(text).trim(), { cls: "ua-after" }) : h("code", null, text)), btn);
 }
 
 // Numbered instructions: each item a line of words, or [words, node...].

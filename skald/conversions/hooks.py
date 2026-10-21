@@ -195,7 +195,7 @@ class Receiver:
             db.close()
 
     def _refused(self, site: str, tool: str, outcome: str = "rate_limited",
-                 status: int = 429) -> None:
+                 status: int = 429, why: str = "") -> None:
         """Count a refusal; write one row a minute per hook and outcome,
         with the count, so a flood is never a flood of rows."""
         now = self.clock()
@@ -205,7 +205,17 @@ class Receiver:
             if now - entry[1] < REFUSED_EVERY:
                 return
             count, entry[0], entry[1] = entry[0], 0, now
-        self._log(site, tool, outcome, status, f"{count} refused")
+        self._log(site, tool, outcome, status, f"{count} refused" + (f": {why}" if why else ""))
+
+    def _bad_signature(self, site: str, tool: str, headers: dict) -> None:
+        """A signature that did not match. A test Skald's own tools signed and sent
+        (X-Skald-Test: 1: Send a test, `hooks test`, the shared page's Test) is a
+        failed test, never a refusal of the tool's own deliveries: Settings and the
+        set-up checklist read "bad_signature" as real leads refused (roads.py)."""
+        if headers.get("x-skald-test") == "1":
+            self._refused(site, tool, "test_failed", 401, "the signature did not match")
+        else:
+            self._refused(site, tool, "bad_signature", 401)
 
     def _limited(self, site: str, tool: str) -> None:
         self._refused(site, tool, "rate_limited", 429)
@@ -267,7 +277,7 @@ class Receiver:
         # The signature first (cheap): only a verified delivery spends the
         # hook's bucket, so an unsigned flood cannot starve the real tool.
         if not adapter(tool).verify(headers, body, secret, self.clock()):
-            self._refused(site, tool, "bad_signature", 401)
+            self._bad_signature(site, tool, headers)
             if not self.preauth.allow(self.client(handler)):
                 return 429, {"error": "too many"}
             return 401, {"error": "bad signature"}
@@ -397,7 +407,7 @@ class Receiver:
         now = self.clock()
         received = store.stamp(datetime.fromtimestamp(now, tz=timezone.utc))
         if not verified and not mod.verify(headers, body, secret, now):
-            self._refused(site, tool, "bad_signature", 401)
+            self._bad_signature(site, tool, headers)
             return 401, {"error": "bad signature"}
         try:
             payload = json.loads(body.decode("utf-8"))

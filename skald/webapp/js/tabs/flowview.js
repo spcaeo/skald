@@ -14,9 +14,17 @@ import { journeyFilter } from "./visits.js";
 import { fileName } from "./common.js";
 import { openVisitor } from "./visitor.js";
 import { time as tzTime } from "../tz.js";
+import { subView } from "../tablestate.js";
 
 // The reader's choices, kept while the page is open.
 const pick = { start: "source", depth: 4 };
+// The two choices stay in the address (flow_view=via.5: tablestate.js subView).
+const KEPT = subView("flow");
+function readPick() {
+  const [start, depth] = KEPT.get().split(".");
+  pick.start = start === "via" ? "via" : "source";
+  pick.depth = [3, 4, 5].includes(Number(depth)) ? Number(depth) : 4;
+}
 const TOP = 7;
 
 const RULE = "Each visit once: where it came from, then its pages in order (a page loaded twice in a row counts once; moves inside the site count, as in Common next steps), then where it left. Each column keeps its 7 biggest values and folds the rest, so every column adds up to the visits.";
@@ -31,7 +39,7 @@ function words(nd) {
 function controls(redraw) {
   const seg = (label, key, opts) => h("div", { class: "seg plain", role: "group", "aria-label": label },
     opts.map(([v, w]) => h("button", { type: "button", "aria-pressed": String(pick[key] === v),
-      onclick: () => { pick[key] = v; redraw(); } }, w)));
+      onclick: () => { pick[key] = v; KEPT.set(`${pick.start}.${pick.depth}`, "source.4"); redraw(); } }, w)));
   return h("div", { class: "sk-pick" },
     h("span", { class: "add-l" }, "Start from"), seg("Start the flow from", "start", [["source", "Source type"], ["via", "Who sent them"]]),
     h("span", { class: "add-l" }, "Pages"), seg("Pages drawn", "depth", [[3, "3"], [4, "4"], [5, "5"]]));
@@ -40,6 +48,7 @@ function controls(redraw) {
 /* The map of a list of journeys, with its controls; withheld when it does not add up.
    from: "drill" narrows the drawer's trail on a click; else a click opens a new one. */
 function flowBlock(js, { label, file, from, note, width }) {
+  readPick();
   const holder = h("div", { class: "sheet sk-holder" });
   const redraw = () => {
     const flow = flowOf(js, { depth: pick.depth, top: TOP, start: pick.start });

@@ -6,6 +6,7 @@ import { ranked, coverage } from "../data.js";
 import { table } from "../table.js";
 import * as S from "../state.js";
 import { link, drillRow } from "../drill.js";
+import { withUrl } from "../urlactions.js";
 import { info } from "./tiles.js";
 import { time as tzTime, sameAsSite, siteZone, city, daysNote } from "../tz.js";
 
@@ -131,7 +132,9 @@ export function blist(rows, { color = "var(--g-people)", total, limit = 10, labe
     const bar = h("span", { class: "bl-bar", style: { width: `${(v / max) * 100}%`, background: color, animationDelay: `${i * 0.03}s` } });
     // A row may carry a third item: the value to drill into, when its label is not the value itself.
     const lab = drill ? link(drill, value(k), { from, text: typeof label(k) === "string" && label(k) !== value(k) ? label(k) : undefined }) : label(k);
-    const li = h("li", null, bar, h("span", { class: "bl-l", title: typeof lab === "string" ? lab : k }, lab), h("span", { class: "bl-v" }, n(v)),
+    // A page: copy and open in a new tab at the label's end (urlactions.js).
+    const words = drill === "path" || drill === "landing" ? withUrl(lab, value(k)) : lab;
+    const li = h("li", null, bar, h("span", { class: "bl-l", title: typeof lab === "string" ? lab : k }, words), h("span", { class: "bl-v" }, n(v)),
       change ? h("span", { class: "bl-c" }, change(k)) : h("span", { class: "bl-p" }, share(v, sum)));
     // The whole line opens the value, not only its words (drill.js drillRow).
     if (drill) drillRow(li);
@@ -145,7 +148,7 @@ export function countTable(obj, { caption, file, key = "Label", value = "Count",
   const rows = ranked(obj, keep).map(([k, v]) => ({ k, v, label: label ? label(k) : k }));
   const sum = total ?? rows.reduce((s, r) => s + r.v, 0);
   const cols = [
-    { key: "label", label: key, path, ...(drill ? { fmt: (v, r) => link(drill, r.k, { text: v }), csv: (r) => r.label } : {}), ...(drill === "country" ? { country: (r) => r.k } : {}) },
+    { key: "label", label: key, path, ...(path || drill === "path" || drill === "landing" ? { url: true, href: (r) => r.k } : {}), ...(drill ? { fmt: (v, r) => link(drill, r.k, { text: v }), csv: (r) => r.label } : {}), ...(drill === "country" ? { country: (r) => r.k } : {}) },
     { key: "v", label: value, num: true },
     { key: "share", label: "Share", num: true, sort: (r) => r.v, fmt: (_, r) => share(r.v, sum), csv: (r) => (share(r.v, sum) ? (r.v / sum).toFixed(4) : "") },
   ];

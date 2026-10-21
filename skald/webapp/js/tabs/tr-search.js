@@ -21,6 +21,7 @@ import { countryWords } from "./readers.js";
 import { info } from "./tiles.js";
 import { head, notBuiltNote } from "./common.js";
 import { figures } from "../data.js";
+import { subView } from "../tablestate.js";
 
 const PERIODS = [["7", "7 days"], ["28", "28 days"], ["90", "3 months"], ["480", "16 months"]];
 const ENGINES = [["google", "Google"], ["bing", "Bing"]];
@@ -38,6 +39,9 @@ const SETTINGS = "#settings/integrations";
 let engine = "";
 let per = "28";
 let metric = "clicks";
+// The engine, the period and the measure stay in the address (seeng_view, seper_view,
+// semet_view: tablestate.js subView), so a link brings the same view back.
+const KEPT = { engine: subView("seeng"), per: subView("seper"), metric: subView("semet") };
 
 const pct = (v) => (v == null ? "-" : `${(v * 100).toFixed(v < 0.1 ? 1 : 0)}%`);
 const pos = (v) => (v == null ? "-" : v.toFixed(1));
@@ -209,14 +213,30 @@ function rowDrawer(kind, row, part, period, s, file) {
     body.push(h("p", null, h("a", { href: S.hashFor({ ...s, tab: "traffic/pages", page: path, dd: "" }) }, `Open ${path}: its story since it was published`)));
   }
   if (kind === "query") body.push(h("p", { class: "note" }, "The engine does not give, in this table, which page each query led to."));
-  openDrawer({ title: textOf(kind, row.key), subtitle: `${nameOf(e)} search, ${KINDS.find((x) => x[0] === kind)[2].toLowerCase()}`, body: h("div", null, body), size: "md", key: "search-row" });
+  // In the address as sq=<kind>.<engine>:<key> (js/overlays.js): a link reopens it.
+  return openDrawer({ title: textOf(kind, row.key), subtitle: `${nameOf(e)} search, ${KINDS.find((x) => x[0] === kind)[2].toLowerCase()}`, body: h("div", null, body), size: "md", key: "search-row",
+    route: { key: "sq", value: `${kind}.${e}:${row.key}` } });
+}
+
+/* sq=<kind>.<engine>:<key>, from a link: the row in the period on screen, else the plain line. */
+export function openSearchKey(m, s, value) {
+  const [, kind, e, key] = /^([a-z]+)\.(google|bing):(.*)$/s.exec(String(value)) || [];
+  const file = m?.x?.search;
+  const part = file?.engines?.[e];
+  if (!kind || !part?.connected) return "That search row is not in the figures on this page: the engine is not connected here.";
+  engine = e;
+  const period = part.periods?.[per];
+  const row = (period?.[kind]?.rows || []).find((x) => String(x[0]) === key);
+  if (!row) return `That search row is not in the ${PERIODS.find(([k]) => k === per)?.[1] || "period"} on screen. Choose a longer period, or it is no longer among the engine's rows.`;
+  const [k2, clicks, impressions, ctr, position] = row;
+  return rowDrawer(kind, { key: k2, label: textOf(kind, k2), clicks, impressions, ctr, position }, part, period, s, file);
 }
 
 function kindTable(kind, title, colName, blob, part, period, s, file) {
   const e = engine;
   const rows = (blob.rows || []).map(([key, clicks, impressions, ctr, position]) => ({ key, label: textOf(kind, key), clicks, impressions, ctr, position }));
   const t = table([
-    { key: "label", label: colName, path: kind === "page", fmt: (v, r) => labelOf(kind, r.key) },
+    { key: "label", label: colName, path: kind === "page", href: (r) => r.key, fmt: (v, r) => labelOf(kind, r.key) },
     { key: "clicks", label: "Clicks", num: true },
     { key: "impressions", label: "Impressions", num: true },
     { key: "ctr", label: "CTR", type: "num", fmt: pct },
@@ -290,13 +310,16 @@ export default function search(m, s) {
     return [...top, notBuiltNote(m, "search", "Search") || h("div", { class: "state" }, h("div", null, "The search figures appear after the next redraw."))];
   }
   const parts = file.engines || {};
+  if (["google", "bing"].includes(KEPT.engine.get())) engine = KEPT.engine.get();
+  if (PERIODS.some(([k]) => k === KEPT.per.get())) per = KEPT.per.get();
+  if (METRICS[KEPT.metric.get()]) metric = KEPT.metric.get();
   if (!engine) engine = parts.google?.connected || !parts.bing?.connected ? "google" : "bing";
 
   const paint = () => {
     const part = parts[engine] || {};
     const out = [];
-    out.push(h("div", { class: "se-bar" }, seg("Search engine", ENGINES, engine, (k) => { engine = k; paint(); }),
-      part.connected && part.summary?.days ? seg("Period", PERIODS, per, (k) => { per = k; paint(); }) : null,
+    out.push(h("div", { class: "se-bar" }, seg("Search engine", ENGINES, engine, (k) => { engine = k; KEPT.engine.set(k); paint(); }),
+      part.connected && part.summary?.days ? seg("Period", PERIODS, per, (k) => { per = k; KEPT.per.set(k, "28"); paint(); }) : null,
       part.connected ? h("span", { class: "se-src" }, `${toolOf(engine)}: ${part.connected}`) : null));
     if (file.view_note) out.push(h("p", { class: "note" }, file.view_note));
     if (!part.connected) {
@@ -328,7 +351,7 @@ export default function search(m, s) {
       const all = [];
       for (let d = period.first; d <= period.last; d = addDays(d, 1)) all.push(byDay.get(d) || { day: d, final: true, clicks: null, impressions: null, ctr: null, position: null });
       out.push(h("section", { class: "s" }, h("div", { class: "card-h start" }, h("h2", null, `${METRICS[metric].name} per day`),
-        seg("Measure", Object.entries(METRICS).map(([k, v]) => [k, v.name]), metric, (k) => { metric = k; paint(); })),
+        seg("Measure", Object.entries(METRICS).map(([k, v]) => [k, v.name]), metric, (k) => { metric = k; KEPT.metric.set(k, "clicks"); paint(); })),
       h("div", { class: "sheet" }, legend([["Final", COLOR], ["Provisional: may still change", "", "ghost"]], true), trend(all, metric))));
     }
     for (const [kind, title, col] of KINDS) {

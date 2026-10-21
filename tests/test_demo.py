@@ -55,7 +55,7 @@ class Traffic(unittest.TestCase):
         for line in self.t.lines:
             address = ipaddress.ip_address(line.split()[1])
             self.assertTrue(any(address in n for n in DOCS), line)
-            self.assertEqual(line.split()[2], "example.com")
+            self.assertIn(line.split()[2], ("example.com", "app.example.com", "192.0.2.10"))
         for _, address, _, _ in self.t.beacon:
             self.assertTrue(any(ipaddress.ip_address(address) in n for n in DOCS))
         mails = {m.lower() for line in self.t.lines for m in re.findall(r"[\w.-]+@[\w.-]+\.\w+", line)}
@@ -186,7 +186,13 @@ class Build(unittest.TestCase):
         d = {k: v for k, v in d.items() if k not in timelines}
         self.assertEqual(set(d), {"people/left-out", "people/conversions?kind=cancelled",
                                   "people/conversions?kind=removed", "people/conversions?kind=test",
-                                  "people/leads"})
+                                  "people/leads", "people/security"})
+        # Security's addresses (2.21): documentation addresses only, as an owner sees them.
+        sec = json.loads((self.site / d.pop("people/security")).read_text())
+        self.assertTrue(sec["ok"] and sec["rows"])
+        self.assertEqual(sec["mode"], "full")
+        for row in sec["rows"]:
+            self.assertTrue(any(ipaddress.ip_address(row["ip"]) in n for n in DOCS), row["ip"])
         leads = json.loads((self.site / d.pop("people/leads")).read_text())
         self.assertTrue(leads["ok"] and leads["rows"])
         self.assertFalse(leads["names"], "the demo shows the leads as a viewer sees them")

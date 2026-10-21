@@ -17,6 +17,7 @@ export const GO = {
   v: "traffic/visitors", s: "traffic/sources", p: "traffic/pages", d: "traffic/places", t: "traffic/time",
   e: "sales/leads", x: "sales/bookings", f: "sales/funnels", n: "sales/events",
   b: "ai/assistants",
+  y: "threats/exposed",
   h: "site/health", a: "site/alerts", r: "site/requests", k: "site/notfound", w: "site/speed", q: "site/quality",
   u: "settings/internal", ",": "settings",
 };
@@ -26,14 +27,21 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-21-2.20.1",
+  id: "2026-10-21-2.21.0",
   items: [
-    ["Scanners never count as visitors", "an address that asks for secret or config files (.env, cloud and Terraform files, keys) is a bot for the whole day: none of its requests count as people or show live.", "ai-and-bots"],
-    ["Visitor drawer", "a page seen only in the browser is a normal step again, not a tall empty box."],
-    ["A site still being set up", "its address shows how far setup got and a Continue setup button, instead of a page not found.", "connections"],
+    ["Security", "a new section: is anything exposed, who is scanning you, attack attempts, fake browsers and a block list to paste into nginx or Cloudflare. All from your server log, every figure counted twice.", "security"],
+    ["Your stack and advisories", "what serves each site (PHP, WordPress, Next.js, nginx) and whether a known flaw applies, like the October 2026 PHP and Node.js ones, with what to do.", "security"],
+    ["Security alerts to your team", "owners and admins hear about a possible exposure or an advisory for their stack right away; everyone chooses on or off, now or in the daily mail.", "security"],
+    ["Every view has its own link", "an open visitor, lead, request, dialog or step is in the address: copy it and the same view opens. Back closes what is open.", "getting-started"],
+    ["Copy and open on every URL", "hover any page or URL for a copy button (it turns into a tick) and an open-in-a-new-tab button.", "getting-started"],
+    ["Set up this site, always there", "the setup list names the site, never ticks a lead hook whose last delivery was refused, and is always in Settings > Connections.", "connections"],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.20.1
+    ["Scanners never count as visitors", "an address that asks for secret or config files (.env, cloud and Terraform files, keys) is a bot for the whole day: none of its requests count as people or show live.", "ai-and-bots"],
+    ["Visitor drawer", "a page seen only in the browser is a normal step again, not a tall empty box."],
+    ["A site still being set up", "its address shows how far setup got and a Continue setup button, instead of a page not found.", "connections"],
     // 2.20.0
     ["Leads, in one list", "Leads & sales opens on every lead of the period: who (name and email for owners and admins), what they did, stage, source, landing page. As a list, a board, a timeline or a map.", "leads-and-conversions"],
     ["Leads & sales, simpler", "one question per tab: Leads, Summary, Sources, Calendar bookings, Funnels, Events, Find a person; one options row; help behind the (i).", "leads-and-conversions"],
@@ -233,7 +241,8 @@ function modal(title, body, { wide = false } = {}) {
 
 // Shortcuts and What's new open in the drawer (drawer.js); the palette stays a small centred box.
 let sheet = null;
-const drawer = (title, subtitle, body, className) => { sheet = openDrawer({ title, subtitle, body, size: "md", className, key: "keys" }); };
+// In the address as dlg=keys or dlg=new (js/overlays.js): a link or a reload opens it again.
+const drawer = (title, subtitle, body, className, dlg) => { sheet = openDrawer({ title, subtitle, body, size: "md", className, key: "keys", route: dlg ? { key: "dlg", value: dlg } : null }); return sheet; };
 const closeModal = () => { document.querySelectorAll("dialog.modal").forEach((d) => d.close()); sheet?.close({ focusBack: false }); };
 
 export function help() {
@@ -257,7 +266,7 @@ export function help() {
     // The guides, one click away: the drawer closes as a link is followed.
     sec("Help guides",
       h("ul", { class: "keys-help" }, h("li", null, h("a", { href: "#help", onclick: closeModal }, "All guides")),
-        GUIDES.map((g) => h("li", null, h("a", { href: `#help?part=${g.id}`, onclick: closeModal }, g.title)))))], "dw-keys");
+        GUIDES.map((g) => h("li", null, h("a", { href: `#help?part=${g.id}`, onclick: closeModal }, g.title)))))], "dw-keys", "keys");
 }
 
 export function whatsNew(dot) {
@@ -267,7 +276,7 @@ export function whatsNew(dot) {
     h("ul", { class: "dw-news" }, NEW.items.map(([name, what, guide]) => h("li", null, h("b", null, name), " ", what,
       guide ? [" ", h("a", { href: `#help?part=${guide}`, onclick: closeModal }, "Read the guide")] : null))),
     h("details", { class: "news-old" }, h("summary", null, "Earlier changes"),
-      h("ul", { class: "dw-news" }, NEW.earlier.map(([name, what]) => h("li", null, h("b", null, name), " ", what))))], "dw-new");
+      h("ul", { class: "dw-news" }, NEW.earlier.map(([name, what]) => h("li", null, h("b", null, name), " ", what))))], "dw-new", "new");
 }
 export const newUnseen = () => store.get("ti-seen-new", "") !== NEW.id;
 

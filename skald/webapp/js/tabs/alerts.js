@@ -9,14 +9,18 @@ import { table } from "../table.js";
 import * as S from "../state.js";
 import { head, healthTabs } from "./common.js";
 import { switchboard } from "./alertswitch.js";
+import { subView } from "../tablestate.js";
 
 const SEV = { high: "Urgent", medium: "Worth a look", low: "For information" };
 export const CAUSE = { site_down: "Site down", logging_stopped: "Logging stopped", server_errors: "Server errors", not_found_surge: "Broken-link surge",
   crawler_burst: "Crawl burst", new_crawler: "New crawler", traffic_drop: "Traffic drop",
   ai_started_reading: "AI started reading", ai_stopped_reading: "AI stopped reading", ai_sending_people: "AI sending people",
-  ai_first_citation: "First AI citation", ai_first_cited_page: "Page's first AI citation", ai_cited_visits: "Visits from AI answers", crawler_silent: "Crawler gone silent" };
+  ai_first_citation: "First AI citation", ai_first_cited_page: "Page's first AI citation", ai_cited_visits: "Visits from AI answers", crawler_silent: "Crawler gone silent",
+  security_exposure: "Possible exposure", scan_wave: "New scan wave", stack_advisory: "Advisory matches your stack" };
 // The AI alerts (alerts_ai.py, alerts_history.py): the "AI" filter here, and the panel on AI & crawlers.
 const isAI = (a) => String(a.cause || "").startsWith("ai_");
+// All or only AI, kept in the address (alerts_view=ai: tablestate.js subView).
+const ONLY = subView("alerts");
 let only = "all";
 // In the reader's chosen zone, with the date (alerts span days).
 const when = (ts) => tzTime(ts, { date: true });
@@ -45,6 +49,7 @@ export default function alerts(m, s) {
   // The master switch's banner and the switches (alertswitch.js): admins change them here.
   const board = switchboard(f, CAUSE);
   out.push(board.banner);
+  only = ONLY.get() === "ai" ? "ai" : "all";
   const keep = (a) => only !== "ai" || isAI(a);
   const holder = h("div");
   const seg = h("div", { class: "seg plain", role: "group", "aria-label": "Which alerts" });
@@ -52,7 +57,7 @@ export default function alerts(m, s) {
     seg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === only)));
     holder.replaceChildren(...lists(f.open || [], f.closed || []));
   };
-  seg.append(...[["all", "All"], ["ai", "AI"]].map(([k, label]) => h("button", { type: "button", "data-k": k, onclick: () => { only = k; draw(); } }, label)));
+  seg.append(...[["all", "All"], ["ai", "AI"]].map(([k, label]) => h("button", { type: "button", "data-k": k, onclick: () => { only = k; ONLY.set(k, "all"); draw(); } }, label)));
   const lists = (openAll, closedAll) => {
   const open = openAll.filter(keep).sort((a, b) => ["high", "medium", "low"].indexOf(a.severity) - ["high", "medium", "low"].indexOf(b.severity) || String(b.opened_at).localeCompare(String(a.opened_at)));
   const ai = only === "ai";

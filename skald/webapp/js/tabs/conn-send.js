@@ -17,6 +17,7 @@ import { wizard, codeBlock, answerBox, helpLink } from "./conn-ui.js";
 import { installFor } from "./conn-install.js";
 import { shareBox } from "./conn-share.js";
 import { detectCard, recommendFor, suggestionsFor, saveFound } from "./conn-detect.js";
+import { withUrl } from "../urlactions.js";
 
 export const POLL_MS = 5000;
 export const POLL_FOR_MS = 120000;
@@ -216,15 +217,15 @@ function chooseStep(w, st, site) {
   return [card, h("div", { class: "acts" }, keep), saved, h("p", null, "Where does the site run? Choose the way its visits reach Skald."), ways];
 }
 
-export function sendDialog(site, data, { onClose = null } = {}) {
+export function sendDialog(site, data, { onClose = null, route = null, start = 0 } = {}) {
   const st = sendState(site, data);
-  return wizard({
+  return wizard({ route, start,
     title: "Send this site's visits to Skald", subtitle: `For ${site}, when its web server is not this Skald's server.`,
     key: "conn-send", state: st, onClose,
     steps: [
       { name: "Choose how", draw: (w) => chooseStep(w, st, site), check: () => chooseCheck(st) },
       { name: "Sending token", draw: () => tokenPanel(st) },
-      { name: "Install", draw: () => [h("p", { class: "sub" }, `${methodOf(st.method)?.title || ""}. The send address: `, h("code", null, st.url)), ...installFor(st.method, st), shareFor(st)] },
+      { name: "Install", draw: () => [h("p", { class: "sub" }, `${methodOf(st.method)?.title || ""}. The send address: `, withUrl(h("code", null, st.url), st.url, { cls: "ua-after" })), ...installFor(st.method, st), shareFor(st)] },
       { name: "Test", draw: () => [testPanel(st), troubleTable()] },
     ],
   });

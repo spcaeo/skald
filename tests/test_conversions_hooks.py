@@ -112,6 +112,32 @@ class Refusals(Base):
                          [("bad_signature", 401)] * 2)
         self.assertEqual(self.spooled(), "", "nothing spooled before the signature holds")
 
+    def test_a_signed_self_test_that_fails_is_a_failed_test_not_a_refusal(self):
+        """2.21: Skald's own signed test (X-Skald-Test: 1) with a signature that does not
+        match is logged as test_failed, so roads.hook_states never reads it as the tool's
+        real deliveries refused (the checklist's "Lead hook tested" line)."""
+        from skald.conversions import roads
+        self.assertEqual(self.post("lead", lead(), secret="wrong", extra={"X-Skald-Test": "1"})[0], 401)
+        self.assertEqual(self.rows("SELECT outcome, http_status, error FROM deliveries"),
+                         [("test_failed", 401, "1 refused: the signature did not match")])
+        db = store.connect(self.folder / "conversions.sqlite")
+        try:
+            got = {s["tool"]: s for s in roads.hook_states(self.config, self.folder, "example.com", db)}
+        finally:
+            db.close()
+        self.assertEqual(got["lead"]["state"], "never", got["lead"])
+        self.assertNotIn("refused", got["lead"]["words"])
+        # A real delivery with a bad signature is still a refusal that needs attention.
+        self.now = T + 120
+        self.assertEqual(self.post("lead", lead(), secret="wrong")[0], 401)
+        db = store.connect(self.folder / "conversions.sqlite")
+        try:
+            got = {s["tool"]: s for s in roads.hook_states(self.config, self.folder, "example.com", db)}
+        finally:
+            db.close()
+        self.assertEqual((got["lead"]["state"], got["lead"]["attention"]), ("received", True))
+        self.assertIn("was refused: the signature did not match", got["lead"]["words"])
+
     def test_too_large_is_413_and_not_read(self):
         handler = FakeHandler("/traffic-hooks/example.com/lead", b"",
                               {"Content-Length": str(64 * 1024 + 1)})

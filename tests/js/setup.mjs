@@ -128,4 +128,34 @@ const S = (value, source = "default") => ({ value, source });
   assert.ok(!setupItems(live, { status: base, tools: [], settings: null }).some((i) => i.id === "rsc"), "no line: not Next.js");
   assert.ok(!setupItems(live, { status: null, tools: [], settings: null }).some((i) => i.id === "rsc"), "not loaded: not guessed");
 }
+
+// ---- 2.21: a hook whose last real delivery was refused is never done (it showed a tick
+// above "last delivery 2 h ago was refused: the signature did not match")
+{
+  const refused = { tool: "lead", name: "Your site's server (lead)", state: "received", attention: true,
+    words: "last delivery 2 h ago was refused: the signature did not match", fix: "The secret Your site's server (lead) signs with is not the one Skald has." };
+  let got = by(setupItems(model(null), { status: [], tools: [refused], settings: null }));
+  assert.equal(got.lead.state, "todo", "refused: to do, not a tick");
+  assert.equal(got.lead.act, "lead");
+  assert.match(got.lead.says, /leads are not arriving/);
+  assert.doesNotMatch(got.lead.says, /signature/, "the plain line has no server words");
+  assert.match(got.lead.tech, /was refused: the signature did not match/);
+  assert.match(got.lead.tech, /^Fix: /m, "the fix, for the server admin");
+  // Another tool working does not make the refused one done.
+  const calendly = { tool: "calendly", name: "Calendly", state: "received", attention: false, words: "last received 5 min ago (kept)" };
+  got = by(setupItems(model(null), { status: [], tools: [calendly, refused], settings: null }));
+  assert.equal(got.lead.state, "todo");
+  // Received with no attention, or a passed test: done, as before.
+  got = by(setupItems(model(null), { status: [], tools: [calendly], settings: null }));
+  assert.equal(got.lead.state, "done");
+  assert.match(got.lead.says, /^Calendly: last received/);
+  // A secret set but nothing ever arrived (attention, state never): to do, with the fix folded.
+  got = by(setupItems(model(null), { status: [], tools: [{ tool: "lead", name: "Your site's server (lead)", state: "never", attention: true, words: "secret set, but nothing has arrived, not even a test", fix: "Send a test." }], settings: null }));
+  assert.equal(got.lead.state, "todo");
+  assert.match(got.lead.tech, /Fix: Send a test/);
+  // No secret yet: the optional line, no fold.
+  got = by(setupItems(model(null), { status: [], tools: [{ tool: "lead", name: "Your site's server (lead)", state: "needs_secret", attention: false, words: "needs a secret" }], settings: null }));
+  assert.equal(got.lead.state, "todo");
+  assert.equal(got.lead.tech, null);
+}
 console.log("setup: all passed");

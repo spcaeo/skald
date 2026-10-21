@@ -15,11 +15,14 @@
 //   still     no slide-in (a redraw reopening the same drawer)
 //   focus     the element to focus first (default: the X)
 //   onClose   called once, after the reader or the code closed it
+//   route     {key, value[, step]}: what the address says while it is open (js/overlays.js):
+//             written when it opens (Back closes it), taken away when it closes
 //
 // A <dialog> opened with showModal() makes the page behind inert; the focus
 // trap, Escape, the mask's click, focus return and the scroll lock are here.
 
 import { h, reduced } from "./ui.js";
+import { opened as routeOpened, closed as routeClosed } from "./overlays.js";
 
 const X = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
 const stack = [];            // the open drawers, the top one last
@@ -34,12 +37,13 @@ function lock(on) {
 }
 
 export function openDrawer({ title = "", subtitle = "", body = null, footer = null, size = "lg", head = null, className = "", key = "", scope = "app",
-  still = false, focus = null, onClose = null } = {}) {
+  still = false, focus = null, onClose = null, route = null } = {}) {
   let opener = document.activeElement;
   if (key) {
     const same = stack.find((d) => d.key === key);
     if (same) { opener = same.opener; same.close({ instant: true, silent: true, focusBack: false }); }
-    else if (still && handoff.has(key)) { opener = handoff.get(key); }
+    // A drawer a redraw closed and the address opens again: no slide-in, and focus goes back to where it was.
+    else if (handoff.has(key)) { opener = handoff.get(key); still = true; }
     handoff.delete(key);
   }
   const id = `dw-${++seq}`;
@@ -77,6 +81,8 @@ export function openDrawer({ title = "", subtitle = "", body = null, footer = nu
       el.addEventListener("animationend", end);
       t = setTimeout(end, 320);
     }
+    // The reader (or the code) closed it: its key leaves the address. A redraw's silent close keeps it.
+    if (!silent && route) routeClosed(route.key, route.value);
     if (!silent && onClose) onClose();
   }
 
@@ -104,6 +110,7 @@ export function openDrawer({ title = "", subtitle = "", body = null, footer = nu
   el.showModal();
   (focus || x).focus({ preventScroll: true });
   bodyEl.scrollTop = 0;
+  if (route) routeOpened(route.key, route.value, { close: () => close(), isOpen: () => !closed && el.isConnected }, { step: route.step ?? null });
   return d;
 }
 

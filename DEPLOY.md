@@ -202,6 +202,12 @@ someone turns `privacy.keep_ips` and `conversions.identity` on; a new install ke
 (`visits`, `visit_days`) and the `removed` rows, after a `.v3.bak` copy. Change the site's
 privacy notice before turning them on.
 
+Security (2.21): `conversions.sqlite` schema 8 adds `security_rows` and `security_days` (the
+addresses behind Security's rows, written only while `privacy.keep_ips` keeps addresses),
+after a `.v7.bak` copy; history gains the day kind `security` (no table change). Days stored
+before the upgrade read "not recorded" in Security until `backfill` counts them again from
+the raw lines still on the server.
+
 ### Deploying a new version
 
 An install made by install.sh from a published release upgrades with `skald upgrade`

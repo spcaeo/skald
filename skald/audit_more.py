@@ -16,6 +16,8 @@ lines, and compared in the audit (`skald audit`, run-daily's audit step,
       .hit(line, group, tier, name) -> None   (optional)
         every line of the site's hosts in log order, with the audit's
         group, AI tier ("asked", "training" or "") and crawler name.
+      .other_host(line) -> None   (optional)
+        each line of a host the site does not list, in log order.
       .judged(line, group, info) -> None   (optional)
         the same lines with audit.Judge.info: what the judge found beyond
         the group (a crawler's name, a spoof, a link preview, a probe, a
@@ -53,10 +55,11 @@ RECOUNTS = {"funnels": "audit_funnels", "engagement": "audit_engagement",
             "people": "audit_people", "ai_formats": "audit_ai_formats",
             "crawler_cost": "audit_crawler_cost", "realtime": "audit_realtime",
             "first_touch": "audit_firsttouch", "search_landing": "audit_search_landing",
-            "crawl_health": "audit_crawl_health"}
+            "crawl_health": "audit_crawl_health", "security": "audit_security"}
 DAILY: dict[str, str] = {"conversions": "audit_conversions", "alerts": "audit_alerts",
                          "search": "audit_search", "retention": "audit_retention",
-                         "ai_answers": "audit_ai_answers"}
+                         "ai_answers": "audit_ai_answers",
+                         "security_alerts": "audit_security", "stack": "audit_stack"}
 
 
 def _modules(registry: dict) -> dict:
@@ -101,6 +104,13 @@ class Recounts:
     def visit(self, lines: list, is_page, labels: dict | None) -> None:
         for r in self.each:
             r.visit(lines, is_page, labels)
+
+    def other_host(self, line) -> None:
+        """A line of a host the site does not list (counted nowhere else): a
+        recount that offers `other_host` sees it (Security: bare-IP lines)."""
+        for r in self.each:
+            if hasattr(r, "other_host"):
+                r.other_host(line)
 
     def compare(self, stored: dict, same, problems: list) -> None:
         for r in self.each:

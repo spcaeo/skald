@@ -141,7 +141,7 @@ class Migration(unittest.TestCase):
             db.close()
             db = store.connect(path)
             try:
-                self.assertEqual(store.schema_version(db), 7)
+                self.assertEqual(store.schema_version(db), store.SCHEMA_VERSION)
                 cols = {r[1] for r in db.execute("PRAGMA table_info(conversions)")}
                 self.assertIn("label", cols)
                 self.assertIn("conversions_received", {r[1] for r in db.execute(

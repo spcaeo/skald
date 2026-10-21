@@ -37,6 +37,8 @@ export function demoFile(url) {
   if (path === "api/page") return DEMO.api.page[p.get("path") || ""] || null;
   // The Leads list: one answer for every period (the page keeps the rows of its own).
   if (path === "people/leads") return DEMO.api.people["people/leads"] || null;
+  // Security's addresses: one answer for every period too (the tab keeps the rows of its days).
+  if (path === "people/security") return DEMO.api.people["people/security"] || null;
   if (path.startsWith("people/")) return DEMO.api.people[String(url)] || null;
   return null;
 }

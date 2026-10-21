@@ -36,12 +36,12 @@ export function noticeBox(nt) {
     h("div", { class: "acts" }, copy));
 }
 
-export async function privacyDialog(site, { onClose = null } = {}) {
+export async function privacyDialog(site, { onClose = null, route = null, start = 0 } = {}) {
   const r = await call("settings");
   const s = r.ok ? r.settings || {} : {};
   const st = { ips: modeOf(s["privacy.keep_ips"]?.value), id: s["conversions.identity"]?.value || "full", was: modeOf(s["privacy.keep_ips"]?.value), notice: r.notice || null };
   const locked = (k) => (s[k] && !s[k].editable ? s[k].reason || "You cannot change this." : "");
-  return wizard({
+  return wizard({ route, start,
     title: "Choose what is kept about visitors", subtitle: `For ${site}.`, key: "setup-privacy", onClose, state: st,
     steps: [
       { name: "IP addresses",

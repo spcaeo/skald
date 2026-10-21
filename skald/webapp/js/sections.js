@@ -1,4 +1,4 @@
-// The five sections (2.7.0): their keys, names, icons and order. Each section's
+// The six sections (2.7.0; Security in 2.21): their keys, names, icons and order. Each section's
 // tabs come from its own file, js/tabs/s-<section>.js, which its builder owns:
 // [key, name, render, options] (the options are described in s-overview.js).
 // The shell owns this file; section builders do not need to change it.
@@ -11,6 +11,7 @@ import overview from "./tabs/s-overview.js";
 import traffic from "./tabs/s-traffic.js";
 import sales from "./tabs/s-sales.js";
 import ai from "./tabs/s-ai.js";
+import security from "./tabs/s-security.js";
 import site from "./tabs/s-site.js";
 
 const I = (d) => `<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
@@ -25,6 +26,10 @@ export const SECTIONS = [
     icon: I('<path d="M2 3h12l-4.5 5.5V13l-3-1.5v-3z"/>') },
   { key: "ai", name: "AI & bots", tabs: ai,
     icon: I('<rect x="3" y="5" width="10" height="8" rx="2"/><path d="M8 2.5V5M6 9h.01M10 9h.01M1.5 9v2M14.5 9v2"/>') },
+  // Security (2.21): route key "threats", as "#security" opens Settings > Security. bar: false
+  // keeps it off the phone's bottom bar (five sections and Menu fill it); the menu has it.
+  { key: "threats", name: "Security", tabs: security, bar: false,
+    icon: I('<path d="M8 1.8 13.2 4v4c0 3.2-2.2 5.4-5.2 6.4C5 13.4 2.8 11.2 2.8 8V4z"/><path d="M8 5.5v3M8 10.6h.01"/>') },
   { key: "site", name: "Site", tabs: site,
     icon: I('<path d="M1.5 8.5h3l1.5-4 3 8 1.5-4h4"/>') },
 ];

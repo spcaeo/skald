@@ -4,8 +4,9 @@
 // site step by step (site-wizard.js): its address, proof it is theirs, how its
 // visits reach Skald, the install and a test; a set-up left half way shows
 // "Setup: step 3 of 5, continue", and one that heard nothing for a day "No
-// visits yet: test the connection". #settings/sitesadmin?setup=new|<site> and
-// ?test=<site> open the wizard (the site picker links there). An owner removes
+// visits yet: test the connection". #settings/sitesadmin?setup=new|<site>&step=<n> is the
+// wizard open (2.21: kept while it is open, Back closes it; js/overlays.js), and ?test=<site>
+// opens a site's wizard at its Test (the site picker links there). An owner removes
 // a site made here, typing its name: processing stops, the data stays until an
 // install admin purges it on the server. The helper behind <page>/sites checks
 // role and CSRF.
@@ -43,8 +44,23 @@ function freshNote(slot) {
     h("div", { class: "acts" }, done))));
 }
 
-// A wizard asked for by the address (?setup= / ?test=), opened once per ask.
+// A wizard asked for by ?test=, opened once per ask.
 let asked = "";
+// The latest answer and its reload, for a wizard a link opens (openSiteKey).
+let latest = null;
+
+/* setup=new|<site>&step=<n>, from a link: the Add a site wizard, for an owner or an admin. */
+export async function openSiteKey(value, step = 1) {
+  if (!sessions() || !admin()) return "Not available to your role.";
+  const r = latest?.data?.sites ? latest.data : await call("sites");
+  if (!r.ok && !r.sites) return why(r, "The sites could not be loaded, so the wizard cannot open. Open this page again in a minute.");
+  const reload = latest?.reload || (() => {});
+  if (value === "new") return r.can_add ? siteWizard({ data: r, onChange: reload }) : "Adding a site is not open to this organisation now.";
+  const site = (r.sites || []).find((x) => x.name === value);
+  if (!site) return "That site is not one of this organisation's sites.";
+  return siteWizard({ data: r, name: site.name, start: Math.max(0, Math.min(STEPS, step) - 1), method: site.setup?.method || "", verify: site.verify,
+    found: site.setup?.found || null, onChange: reload });
+}
 
 export default function sitesadmin(m, s = {}) {
   const title = head1("Add or remove sites", ME.org ? `The sites ${ME.org} reports on.` : "The sites this organisation reports on.");
@@ -60,6 +76,7 @@ export default function sitesadmin(m, s = {}) {
   function draw(r) {
     if (!r.ok) { box.replaceChildren(h("div", { class: "state" }, h("div", null, why(r, "The sites could not be loaded.")))); return; }
     data = r;
+    latest = { data: r, reload };
     box.replaceChildren(table(r.sites || []), pendingBox(r.sites || []), addForm(r));
     openAsked(r);
   }
@@ -69,16 +86,15 @@ export default function sitesadmin(m, s = {}) {
     const step = test ? STEPS : Math.max(1, Math.min(STEPS, site.setup?.step || 1));
     siteWizard({ data, name: site.name, start: step - 1, method: site.setup?.method || "", verify: site.verify, found: site.setup?.found || null, onChange: reload });
   }
+  // ?test=<site>: its wizard at the Test, which then names itself (setup=<site>&step=5).
+  // ?setup= is the router's (js/overlays.js -> openSiteKey).
   function openAsked(r) {
-    const want = s.setup ? `setup:${s.setup}` : s.test ? `test:${s.test}` : "";
+    const want = s.test ? `test:${s.test}` : "";
     if (!want || want === asked || !admin()) return;
     asked = want;
-    if (s.setup === "new") { if (r.can_add) siteWizard({ data: r, onChange: reload }); }
-    else {
-      const site = (r.sites || []).find((x) => x.name === (s.setup || s.test));
-      if (site) resume(site, Boolean(s.test));
-    }
-    S.set({ setup: "", test: "" }, { replace: true });
+    S.set({ test: "" }, { replace: true });
+    const site = (r.sites || []).find((x) => x.name === s.test);
+    if (site) resume(site, true);
   }
   function setupCell(site) {
     if (!admin() || site.status !== "active") return "";

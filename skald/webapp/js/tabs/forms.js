@@ -4,6 +4,7 @@
 
 import { h } from "../ui.js";
 import { ago as tzAgo } from "../tz.js";
+import { withUrl } from "../urlactions.js";
 
 export const POLICY = "At least 12 characters. Not your email address, and not a common password.";
 export const MIN_PASSWORD = 12;
@@ -20,7 +21,8 @@ export function copyable(text, label) {
     try { await navigator.clipboard.writeText(text); btn.textContent = "Copied"; } catch { btn.textContent = "Select and copy"; }
     setTimeout(() => { btn.textContent = "Copy"; }, 1600);
   });
-  return h("div", { class: "cp-row" }, h("code", null, text), btn);
+  // An address: open it in a new tab too, beside the copy (urlactions.js).
+  return h("div", { class: "cp-row" }, /^https?:\/\/\S+$/.test(text) ? withUrl(h("code", null, text), text, { cls: "ua-block" }) : h("code", null, text), btn);
 }
 
 // A label around its control, so the words name it for a screen reader too.

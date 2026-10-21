@@ -13,7 +13,7 @@ FILES = {"requests": "requests_feed", "alerts": "alerts", "quality": "quality",
          "llms_txt": "llms_txt", "crawler_cost": "crawler_cost",
          "crawl_health": "crawl_health",
          "realtime": "realtime", "search": "search.data", "retention": "retention_page",
-         "ai_answers": "answers.data"}
+         "ai_answers": "answers.data", "security": "security_page"}
 
 
 def builders() -> dict:

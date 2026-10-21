@@ -19,7 +19,7 @@ function check(label, sub, on, set, disabled) {
   return h("label", { class: "chk" }, box, h("span", null, h("b", null, label), h("small", null, sub)));
 }
 
-export async function mailDialog(site, { onClose = null } = {}) {
+export async function mailDialog(site, { onClose = null, route = null, start = 0 } = {}) {
   const r = await call("settings");
   const s = r.ok ? r.settings || {} : {};
   const st = {
@@ -64,7 +64,7 @@ export async function mailDialog(site, { onClose = null } = {}) {
       h("p", { class: "note" }, "A test goes to your own address or to a recipient who has confirmed. At most 3 in 10 minutes."));
   }
 
-  return wizard({
+  return wizard({ route, start,
     title: "Get the daily mail", subtitle: `For ${site}.`, key: "setup-mail", onClose, state: st,
     steps: [
       { name: "Which mail",

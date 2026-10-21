@@ -74,7 +74,7 @@ export async function testApi(origin, site, token, fetcher = fetch) {
   return { kind: "ok", head: `${apiWords(200)}${keys.length ? ` The answer starts with: ${keys.join(", ")}.` : ""}` };
 }
 
-export function apiDialog(site, data = {}, { onClose = null } = {}) {
+export function apiDialog(site, data = {}, { onClose = null, route = null, start = 0 } = {}) {
   const origin = String(data.api_base || "").replace(/\/traffic-api\/v1\/?$/, "") || location.origin;
   const st = { site, token: "" };
   const base = `${origin}/traffic-api/v1/${site}/`;
@@ -83,7 +83,7 @@ export function apiDialog(site, data = {}, { onClose = null } = {}) {
     if (!r.ok || !Array.isArray(r.files)) { files.replaceChildren(h("p", { class: "empty" }, r.missing ? "The API is not switched on for this page yet." : r.error)); return; }
     files.replaceChildren(...r.files.map((name) => h("span", { class: "api-f" }, name)));
   });
-  return wizard({
+  return wizard({ route, start,
     title: "Read your figures (API)", subtitle: "Every figure these pages show, as JSON, for a script or a spreadsheet. Read-only.", key: "conn-api", state: st, onClose,
     steps: [
       { name: "Token", draw: () => [h("p", null, "A token reads; it can change nothing."), ...tokenMaker(st, "api", { label: "Reading figures", scopes: ["read"], withPrivate: true })] },
@@ -133,11 +133,11 @@ export async function testMcp(url, token, fetcher = fetch) {
   }
 }
 
-export function mcpDialog(site, data = {}, { onClose = null } = {}) {
+export function mcpDialog(site, data = {}, { onClose = null, route = null, start = 0 } = {}) {
   const url = data.mcp_url || `${location.origin}/traffic-mcp`;
   const st = { site, token: "" };
   const tok = () => st.token || "<token>";
-  return wizard({
+  return wizard({ route, start,
     title: "Connect an AI assistant (MCP)", subtitle: "Ask Claude, ChatGPT or another assistant about your traffic in plain words.", key: "conn-mcp", state: st, onClose,
     steps: [
       { name: "Token", draw: () => [

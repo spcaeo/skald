@@ -12,7 +12,8 @@ What it makes, for the days up to `now`:
   lines   nginx_extended access-log lines: people (pages and assets, a few
           404s, the form posts that make the leads), AI crawlers and
           assistants (training, user fetches), search engines, a fake
-          GPTBot, scanners, the team's own office visits
+          GPTBot, scanners, the team's own office visits; and Security's scanners,
+          a leak, login hammering and a burst (demo_security.py)
   beacon  in-page events from the site's script: page views, CTA clicks,
           scrolls, forms started, a booking widget
   hooks   Calendly bookings and Stripe payments, as the tools would post them
@@ -563,6 +564,9 @@ def generate(now: datetime, days: int = 62, seed: int = SEED) -> Traffic:
     m.today_leads()
     m.right_now()
     m.prefetch()
+    # Security's scanners and attack attempts, from a generator of their own (demo_security.py).
+    import demo_security
+    demo_security.add(m.t.lines, m.t.first, m.t.today, m.tz, m.now, seed)
     T, cut = m.t, m.now
     T.lines = sorted((x for x in T.lines if x.split(" ", 1)[0] <= cut.isoformat()), key=lambda x: x.split(" ", 1)[0])
     T.beacon = sorted((b for b in T.beacon if b[0] <= cut), key=lambda b: b[0])
