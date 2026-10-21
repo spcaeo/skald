@@ -24,18 +24,20 @@
 //   });
 //   card.append(g);   // g.update(rows), g.filtered(), g.destroy(), g.api (upstream's)
 //
+// opts.tools: more buttons of the caller's own, at the right end of the toolbar row.
 // Columns take table.js's shape: {key, label, num?, type?, fmt?(v,row), csv?(row), sort?(row), drill?, sortable?};
 // type lines a column up as in table.js (alignOf): numbers right, tags and yes/no centred.
 
 import { createDataGrid } from "../vendor/spcaeo-ui/data-grid/vanilla/data-grid.js";
 import { readGridParams, writeGridParams } from "../vendor/spcaeo-ui/data-grid/core/url-state.js";
+import { PAGE_SIZE_OPTIONS as PAGE_SIZES } from "../vendor/spcaeo-ui/data-grid/core/query.js";
 import { h, n } from "./ui.js";
 import { link, drillRow } from "./drill.js";
 import { shown, shownText } from "./labels.js";
 import { REGISTRY, csv, csvWidth, download, alignOf } from "./table.js";
 import { track } from "./mounts.js";
 import { HASH, TABLE_KEY, writeKeys, sortRows, nextSort, readFilters, writeFilters, readHidden, testFilter, filterKind, parseAmount, visibleColumns } from "./tablestate.js";
-import { chooser, exportButton, filterToggle, filterCell } from "./tabletools.js";
+import { chooser, exportButton, filterToggle, filterCell, filterChips } from "./tabletools.js";
 
 // ---- the hash's query, where every Skald key lives -----------------------------
 // What upstream's `params` option asks for (tablestate.js HASH): read and write a
@@ -177,7 +179,8 @@ export function grid(opts) {
     writeKeys({ [`${ns}_hide`]: hidden.join(",") });
     api.refresh();
   }, caption) : null;
-  wrap.append(h("div", { class: "sk-grid-tools" }, ftog, pick, dl), host);
+  // One toolbar row: the grid's search and filters on the left, these on the right (patch 8).
+  wrap.append(host);
 
   // The filter row under the headers: built once for the columns shown, then moved into each
   // header the grid draws; the cell being typed in keeps its focus and caret.
@@ -208,7 +211,9 @@ export function grid(opts) {
     }
     return frow;
   }
-  const sayTools = (count) => { dl?.say(count, csvWidth(shownCols()), caption); ftog?.say(frowOpen, cfs.length); };
+  // The column filters that are on, as chips under the toolbar (each removable).
+  const chips = filterChips((k) => { cfs = k == null ? [] : cfs.filter((f) => f.key !== k); frowFor = null; writeKeys({ [`${ns}_cf`]: writeFilters(cfs) }); api.change({}, "filter"); });
+  const sayTools = (count) => { dl?.say(count, csvWidth(shownCols()), caption); ftog?.say(frowOpen, cfs.length); chips.say(cols, cfs); };
 
   const segCounts = segments.map((s) => ({ id: s.id, label: s.label, count: s.test ? rows.filter(s.test).length : rows.length }));
   const api = createDataGrid(host, {
@@ -218,6 +223,7 @@ export function grid(opts) {
     shownSort,
     nextSort: cycle,
     headExtra,
+    toolbarEnd: [ftog, pick, dl, ...(opts.tools || [])],
     filters: filters.map((f) => ({ id: f.key, label: f.label, type: "enum", options: optionsOf(f) })),
     segments: segCounts,
     getRowId: rowId || ((r) => rows.indexOf(r)),
@@ -229,11 +235,16 @@ export function grid(opts) {
       sayTools(all.length);
       // One page of rows: no Previous, Next or "Page 1 of 1" (the count and the page size stay).
       wrap.classList.toggle("sk-one-page", query.page <= 1 && all.length <= query.pageSize);
+      // No rows: no "0 of 0" under the empty state; a few rows: no page-size choice either.
+      wrap.classList.toggle("sk-no-rows", !all.length);
+      wrap.classList.toggle("sk-few", all.length <= PAGE_SIZES[0]);
       const start = (query.page - 1) * query.pageSize;
       onPage = everyRow() ? all : all.slice(start, start + query.pageSize);
       return { rows: onPage, total: all.length };
     },
   });
+  // The column filters' chips sit under the toolbar, beside the grid's own (its filter menus').
+  host.insertBefore(chips, host.querySelector(".dg-chips"));
 
   // Rows that open something: a click, or Enter on the focused row, as in table.js.
   if (onRow) {

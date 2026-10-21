@@ -67,9 +67,9 @@ a.fldr-tab { text-decoration: none; }
 .dg .dg-table th.dg-num .dg-sort { flex-direction: row-reverse; }
 
 /* ---- Skald's additions around the grid (js/grid.js): the CSV button, rows that open. */
-.sk-grid-tools { display: flex; justify-content: flex-end; margin-top: 8px; }
+/* (Skald's tools sit on the grid's own toolbar row since 2.20: css/tables.css.) */
 .sk-grid-rows .dg-table tbody tr { cursor: pointer; }
-@media print { .sk-grid-tools { display: none; } }
+
 
 /* One page of rows (js/grid.js): the pager's buttons and "Page 1 of 1" say nothing. */
 .sk-grid.sk-one-page .dg-page-buttons,

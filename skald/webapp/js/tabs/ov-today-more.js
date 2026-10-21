@@ -107,7 +107,7 @@ export function convertedCard(m) {
   const f = convFile(m);
   if (!f) return null;
   const el = h("section", { class: "td-card td-conv", "aria-labelledby": "td-conv-h" });
-  const go = goLink("sales/pipeline", "Leads & sales", { lsrc: "all" });
+  const go = goLink("sales/leads", "Leads & sales", {});
   const b = f.today;
   const lf = leadsOn(m, [m.today]);
   if (!b || b.day !== m.today) {

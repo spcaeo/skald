@@ -41,6 +41,12 @@ What the live run adds to its snapshot, `realtime` (docs/DATA-CONTRACT-REALTIME.
                 page, pages read so far, still active, where its visitor first
                 came from (first_touch, firsttouch.py) and its place in the day
                 (seq). No address, no user agent, ever.
+  doing         (2.20) the DOING active visits (last 30 minutes), newest activity
+                first: the same labels as newest, plus `last` (its newest
+                request) and `trail`, its pages in order as the day's journeys
+                hold them (at most TRAIL: the first two and the newest). Overview's
+                "What visitors are doing now". The same privacy class as newest
+                and the journeys: labels and paths only.
 
 audit_realtime.py counts every one of these again from the raw lines
 (`skald audit --live`).
@@ -65,6 +71,8 @@ TOP_NAMES = 15
 TOP_CITIES = 60
 OTHER = "(all others)"
 NEWEST = 10
+DOING = 50               # the active visits listed with their pages, newest activity first
+TRAIL = 20
 STALE_MINUTES = 10
 
 
@@ -221,6 +229,16 @@ def part(totals, observer: Observer, tz, minutes: int = MINUTES) -> dict:
                        "seq": j.get("seq"),
                        "active": "5" if _aware(last) >= recent else
                        "30" if _aware(last) >= since else ""})
+    doing = []
+    for first, last, j in sorted((r for r in rows if _aware(r[1]) >= since),
+                                 key=lambda r: _aware(r[1]), reverse=True)[:DOING]:
+        doing.append({"start": j.get("start"), "last": _aware(last).astimezone(tz).isoformat(timespec="seconds"),
+                      "country": j.get("country"), "city": j.get("city") or "",
+                      "device": j.get("device"), "source": j.get("source"), "via": j.get("via") or "",
+                      "landing": j.get("landing"), "pages": j.get("pages", 0),
+                      "trail": path_of(j), "seq": j.get("seq"),
+                      "first_touch": j.get("first_touch"),
+                      "active": "5" if _aware(last) >= recent else "30"})
     points = getattr(totals, "city_points", None)
     more = {} if points is None else {"cities": city_rows(got["cities"], points)}
     return {
@@ -238,7 +256,19 @@ def part(totals, observer: Observer, tz, minutes: int = MINUTES) -> dict:
                      "search_engines": dict(dim.fold(observer.search, TOP_NAMES)),
                      "bots": observer.bots},
         "newest": newest,
+        "doing": doing,
     }
+
+
+def path_of(j: dict) -> list[str]:
+    """A visit's pages in order, as the journeys hold them (a page loaded twice in a
+    row once), at most TRAIL pages: the first and the newest ones."""
+    out: list[str] = []
+    for step in j.get("trail") or []:
+        path = step[0] if isinstance(step, (list, tuple)) else step
+        if path and (not out or out[-1] != path):
+            out.append(str(path))
+    return out if len(out) <= TRAIL else out[:2] + out[-(TRAIL - 2):]
 
 
 # ------------------------------------------------------------- realtime.json

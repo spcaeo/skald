@@ -132,6 +132,25 @@ class TestAudit(Case):
         self.assertEqual(code, 0, err)
         self.assertIn("audit ok: live", out)
 
+    def test_doing_lists_the_active_visits_with_their_pages(self):
+        """What visitors are doing now (2.20): the active visits, newest activity first, each
+        with its pages in order; labels and paths only; recounted by the audit."""
+        rt = self.live()["realtime"]
+        doing = rt["doing"]
+        self.assertEqual(len(doing), rt["active"]["30"], "every active visit, none other")
+        lasts = [v["last"] for v in doing]
+        self.assertEqual(lasts, sorted(lasts, reverse=True), "newest activity first")
+        for v in doing:
+            self.assertTrue(v["trail"], "each with its pages")
+            self.assertEqual(v["trail"][0], v["landing"])
+            self.assertNotIn("ip", v)
+        code, _, err = self.tamper(lambda r: r["doing"][0].update({"pages": 99}))
+        self.assertEqual(code, 1)
+        self.assertIn("real time: active visit", err)
+        code, _, err = self.tamper(lambda r: r["doing"].pop())
+        self.assertEqual(code, 1)
+        self.assertIn("active visits listed with their pages", err)
+
     def tamper(self, fn):
         path = self.box.root / "live-example.com.json"
         snap = json.loads(path.read_text())

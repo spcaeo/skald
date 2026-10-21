@@ -173,7 +173,18 @@ When you type the address in step 1, Skald looks at the site from outside, the w
 
 Each line has a tick, or says **could not tell**. Under them: the page assets it suggests for **Settings > This site > Sites > Page assets**, and the way it suggests, with one plain reason. For example: "example.com runs on its own nginx server (Ubuntu), so the log shipper kit is the way."
 
-A Next.js site on its own nginx, Apache or LiteSpeed server also gets one more line: add ` rsc_prefetch=$http_next_router_prefetch` at the end of the site's nginx `log_format` (Apache: ` rsc_prefetch=%{Next-Router-Prefetch}i`), then reload nginx. Without it, a page opened by a click inside the site is not counted, because Next.js loads it without an HTML request. The install kit's `check.sh` says whether the log has it.
+A Next.js site on its own nginx, Apache or LiteSpeed server also gets one more line: add ` rsc_prefetch=$http_next_router_prefetch` at the end of the site's nginx `log_format` (Apache: ` rsc_prefetch=%{Next-Router-Prefetch}i`), then reload nginx. Without it, a page opened by a click inside the site is not counted, because Next.js loads it without an HTML request. The install kit's `check.sh` says whether the log has it. For a Next.js site this line is part of setting it up, not an extra.
+
+**Is it safe?** Yes. The line only adds one header's value (`1`, or `-` when absent) to what nginx already writes in its own log file. It opens no port, adds no route and gives no one access; nginx escapes an odd value as it does for every other header; and the log already goes to Skald over HTTPS with the site's own token.
+
+### Check a new site end to end
+
+A site is ready when a real visit shows up the way you expect:
+
+1. In a private window, open the site and click two links inside it. Within about 2 minutes, Overview shows the visit and Traffic › Visitors lists it with every page you clicked. On a Next.js site, if only the first page shows, the line above is missing.
+2. Do the same on a phone on mobile data, in a new private tab (a tab that is already open shows the page from memory and sends nothing).
+3. Overview › Set up this site: every line is ticked, or marked optional on purpose.
+4. If the site sends leads: a lead sent with `"test": true` is listed under Left out and not counted.
 
 | What Skald sees | The way it suggests |
 | --- | --- |

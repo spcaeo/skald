@@ -2,7 +2,8 @@
 every table builder attaches (tests/js/rows.mjs), the palette's search in the
 figures (finder.mjs), Insights' order and folding (insights.mjs) and the
 first-run checklist's items (setup.mjs), every table's sort, column filters,
-column chooser and export (tables.mjs) and the advanced filters' rules (rules.mjs). tests/test_demo.py runs finder.mjs and
+column chooser and export (tables.mjs), the advanced filters' rules (rules.mjs) and
+Leads & sales > Leads (sales-leads.mjs). tests/test_demo.py runs finder.mjs and
 insights.mjs again on the demo's own files."""
 from __future__ import annotations
 
@@ -38,6 +39,16 @@ class Node(unittest.TestCase):
 
     def test_the_advanced_filters_rules_and_their_address(self):
         self.assertIn("rules: all passed", self.run_js("rules.mjs"))
+
+    def test_leads_list_names_for_admins_only_views_and_drawer(self):
+        """Leads & sales > Leads (2.20): Name and Email columns only in an answer that holds
+        them, a viewer never asks; Show left out; the board; a row opens the drawer."""
+        self.assertIn("sales-leads: all passed", self.run_js("sales-leads.mjs"))
+
+    def test_what_visitors_are_doing_now(self):
+        """Overview, Live (2.20): the newest visitors' paths, folded; the live diff; the pages
+        read beside them; the drill-down narrowing the list, and its line when it cannot."""
+        self.assertIn("live-doing: all passed", self.run_js("live-doing.mjs"))
 
 
 if __name__ == "__main__":

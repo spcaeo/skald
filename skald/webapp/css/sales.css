@@ -1,13 +1,75 @@
 /* Leads & sales (Pipeline, Bookings, Funnels, Events, People): the Leads & sales builder's styles (2.7.0). Tokens come from app.css. */
 
+/* ---------------------------- every tab's shape (2.20): head, question, options, content */
+.sa-q { margin: 0 0 var(--sp-3); max-width: var(--read); }
+
 /* ------------------------------------------- the options row (sa-options.js) */
-.sa-block { margin: 0 0 16px; }
-.sa-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin: 8px 0 4px; padding: 8px 12px;
-  background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); }
+.sa-block { margin: 0 0 var(--sp-4); }
+.sa-opts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); margin: 0; padding: var(--sp-2) var(--sp-3);
+  background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); min-height: calc(var(--ctl-h) + 2 * var(--sp-2)); box-sizing: border-box; }
 .sa-opt { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; color: var(--ink-2); }
 .sa-opt-l { font-size: 12.5px; color: var(--ink-2); white-space: nowrap; }
-.sa-opt select { border: 1px solid var(--rule); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 4px 8px;
+.sa-opt select { box-sizing: border-box; height: var(--ctl-h); border: 1px solid var(--rule); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 0 8px;
   font: inherit; font-size: 13px; min-width: 0; max-width: 16rem; }
+/* The row's (i) and its right end (Count from, the view switcher) */
+.sa-why { display: inline-flex; align-items: center; }
+.sa-end { margin-left: auto; display: inline-flex; align-items: center; gap: var(--sp-2); }
+/* "More": the options that matter less, folded */
+.sa-more { position: relative; font-size: 13px; }
+.sa-more > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; height: var(--ctl-h); padding: 0 10px;
+  border: 1px solid var(--rule); border-radius: 8px; color: var(--ink-2); font-weight: 560; box-sizing: border-box; }
+.sa-more > summary::-webkit-details-marker { display: none; }
+.sa-more > summary::after { content: "\25BE"; font-size: 10px; color: var(--ink-3); }
+.sa-more[open] > summary { border-color: var(--ink-3); color: var(--ink); }
+.sa-more-body { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; min-width: 260px; padding: var(--sp-3); display: grid; gap: var(--sp-2);
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; box-shadow: var(--shadow); }
+.sa-more-body .sa-opt { display: grid; gap: 6px; }
+
+/* The view switcher (js/viewswitch.js): icon buttons, the chosen one filled */
+.vw { display: inline-flex; border: 1px solid var(--rule); border-radius: 9px; background: var(--surface); padding: 2px; gap: 2px; }
+.vw-b { display: inline-grid; place-items: center; width: 30px; height: 26px; border: 0; background: none; border-radius: 7px; color: var(--ink-2); cursor: pointer; }
+.vw-b svg { width: 16px; height: 16px; }
+.vw-b:hover { color: var(--ink); background: var(--sunk); }
+.vw-b[aria-pressed="true"] { background: var(--sel); color: var(--sel-ink); }
+.vw-b:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+/* The figure line above a list ("37 leads · 12% more than the 30 days before") */
+.sa-figure { margin: 0 0 var(--sp-3); font-size: 13.5px; color: var(--ink-2); }
+.sa-figure b { color: var(--ink); font-size: 15px; font-weight: 680; font-variant-numeric: tabular-nums; }
+.sa-view { margin: 0 0 var(--sp-5); }
+.sa-viewbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin: 0 0 var(--sp-2); }
+.sa-map { grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); align-items: start; }
+@media (max-width: 900px) { .sa-map { grid-template-columns: 1fr; } }
+
+/* An empty state, the same on every tab: one line, one button */
+.sa-empty { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); margin: 0 0 var(--sp-4); padding: var(--sp-3) var(--sp-4);
+  border: 1px dashed var(--gap); border-radius: var(--r); background: var(--surface); color: var(--ink-2); font-size: 13.5px; }
+.sa-empty p { margin: 0; flex: 1 1 320px; max-width: var(--read); }
+.sa-empty.bad { border-style: solid; border-color: color-mix(in srgb, var(--bad) 50%, var(--rule)); }
+
+/* The board (sa-views.js): columns by stage now, a card per lead */
+.bd-top { display: flex; align-items: center; gap: 6px; margin: 0 0 var(--sp-2); }
+.bd-top .note { margin: 0; }
+.bd { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); align-items: start; }
+.bd-col { background: var(--sunk); border-radius: var(--r); padding: var(--sp-2); min-width: 0; }
+.bd-h { font-size: 12.5px; color: var(--ink-2); margin: 2px 4px var(--sp-2); }
+.bd-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 70vh; overflow: auto; }
+.bd-card { all: unset; box-sizing: border-box; width: 100%; display: grid; gap: 2px; padding: 8px 10px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; font-size: 12.5px; color: var(--ink-2); }
+.bd-card:hover { border-color: var(--ink-3); }
+.bd-card:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.bd-who { color: var(--ink); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bd-mail, .bd-meta { color: var(--ink-3); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bd-what { color: var(--ink); }
+.bd-col .empty { margin: 4px; padding: 0; font-size: 12.5px; }
+@media (max-width: 900px) { .bd { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .bd { grid-template-columns: 1fr; } }
+
+/* The (i)'s popover with Learn more (tiles.js info with a link) */
+.info-pop { width: min(320px, calc(100vw - 32px)); padding: var(--sp-3); gap: 6px; font-size: 13px; color: var(--ink-2); line-height: 1.45; }
+.info-pop p { margin: 0; }
+.info-pop .info-pop-h { font-weight: 650; color: var(--ink); }
+.info-more { font-size: 12.5px; font-weight: 600; color: var(--ink); }
 .sa-opt select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .sa-opt.off { opacity: .6; }
 .sa-opt.off select { cursor: not-allowed; }
@@ -53,6 +115,8 @@
   .sa-opt { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); align-items: center; }
   .sa-opt select { max-width: none; width: 100%; }
   .sa-seg { justify-self: start; }
+  .sa-end { margin-left: 0; flex-wrap: wrap; }
+  .sa-more-body { position: static; box-shadow: none; margin-top: 6px; }
 }
 
 @media print {

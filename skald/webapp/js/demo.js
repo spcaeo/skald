@@ -7,7 +7,8 @@
 //     page (api: {compare: {"A|B": file}, page: {path: file}}); anything else
 //     falls back to what the page works out from its own days
 //   * the lists of what the figures leave out read theirs too (api.people:
-//     {"people/left-out": file, "people/conversions?kind=..": file})
+//     {"people/left-out": file, "people/conversions?kind=..": file}), and the Leads
+//     list its one answer ("people/leads", every period's rows, as a viewer sees them)
 //   * a banner says it is sample data, with links to install it
 
 import { h, ICON } from "./ui.js";
@@ -34,6 +35,8 @@ export function demoFile(url) {
     return DEMO.api.compare[`${p.get("a")}|${p.get("b")}`] || null;
   }
   if (path === "api/page") return DEMO.api.page[p.get("path") || ""] || null;
+  // The Leads list: one answer for every period (the page keeps the rows of its own).
+  if (path === "people/leads") return DEMO.api.people["people/leads"] || null;
   if (path.startsWith("people/")) return DEMO.api.people[String(url)] || null;
   return null;
 }

@@ -46,11 +46,11 @@ export function popper(toggle, pop, { onOpen } = {}) {
    link) always stays. onChange(hiddenKeys). */
 export function chooser(columns, hidden, onChange, caption = "this table") {
   const count = h("span", { class: "tt-meta" });
-  const toggle = h("button", { type: "button", class: "btn tt-btn", html: TT_ICON.cols, "aria-haspopup": "true" }, h("span", null, "Columns"), " ", count);
+  const toggle = h("button", { type: "button", class: "btn tt-btn", html: TT_ICON.cols, "aria-haspopup": "true" }, h("span", { class: "tt-w" }, "Columns"), count);
   const pop = h("div", { class: "tt-pop", role: "group", "aria-label": `Columns shown in ${caption}` });
   const say = () => {
     const shown = columns.length - hidden.length;
-    count.textContent = `${shown} of ${columns.length}`;
+    count.textContent = shown < columns.length ? ` ${shown} of ${columns.length}` : "";   // said only when some are hidden
     toggle.setAttribute("aria-label", `Columns: ${shown} of ${columns.length} shown`);
   };
   pop.append(h("p", { class: "tt-pop-h" }, "Show columns"), ...columns.map((c, i) => {
@@ -66,23 +66,45 @@ export function chooser(columns, hidden, onChange, caption = "this table") {
   return popper(toggle, pop);
 }
 
-/* "Export what you see": the rows that match, in their order, with the columns shown. */
+/* "Export": the rows that match, in their order, with the columns shown, as CSV. The button
+   says only "Export" (one size on every table); what it holds is on hover and to a screen
+   reader ("CSV, 37 rows, 8 columns: what you see"). */
 export function exportButton(onClick) {
-  const meta = h("span", { class: "tt-meta" });
-  const b = h("button", { type: "button", class: "btn tt-btn tt-export", html: TT_ICON.down }, h("span", { class: "tt-xl" }, "Export what you see"), h("span", { class: "tt-xs" }, "CSV"), " ", meta);
+  const b = h("button", { type: "button", class: "btn tt-btn tt-export", html: TT_ICON.down }, h("span", { class: "tt-w" }, "Export"));
   b.addEventListener("click", onClick);
   b.say = (rows, cols, caption) => {
-    meta.textContent = `CSV, ${n(rows)} row${rows === 1 ? "" : "s"}, ${cols} column${cols === 1 ? "" : "s"}`;
-    b.setAttribute("aria-label", `Export what you see in ${caption || "this table"}: CSV, ${n(rows)} rows, ${cols} columns`);
+    const words = `CSV, ${n(rows)} row${rows === 1 ? "" : "s"}, ${cols} column${cols === 1 ? "" : "s"}: what you see`;
+    b.title = words;
+    b.setAttribute("aria-label", `Export ${caption || "this table"}: ${words}`);
     b.disabled = !rows;
   };
   return b;
 }
 
+/* The filters that are on, as chips above the table ("Stage: won ×", "Visits: 3 to 10 ×"),
+   each removable, and "Clear all" with two or more: what is applied is always in sight,
+   as Search Console shows it. say(columns, filters) redraws them; none on: nothing shown. */
+export function filterChips(onRemove) {
+  const el = h("div", { class: "tt-chips", role: "group", "aria-label": "Filters on", hidden: true });
+  el.say = (columns, filters) => {
+    const on = filters.filter(filterOn);
+    el.hidden = !on.length;
+    el.replaceChildren(...on.map((f) => {
+      const c = columns.find((x) => x.key === f.key);
+      const name = c?.label || f.key;
+      const what = f.op === "has" ? `contains “${f.value}”` : f.op === "in" ? f.value.map((v) => v || "Not recorded").join(", ")
+        : f.value[0] != null && f.value[1] != null ? `${f.value[0]} to ${f.value[1]}` : f.value[0] != null ? `at least ${f.value[0]}` : `at most ${f.value[1]}`;
+      return h("span", { class: "chip tt-chip" }, h("b", null, `${name}:`), ` ${what}`,
+        h("button", { type: "button", "aria-label": `Remove the filter on ${name}`, title: "Remove", onclick: () => onRemove(f.key) }, "×"));
+    }), on.length > 1 ? h("button", { type: "button", class: "linkish tt-clear-all", onclick: () => onRemove(null) }, "Clear all") : "");
+  };
+  return el;
+}
+
 /* The filter toggle: shows the row of column filters under the headers; says how many are on. */
 export function filterToggle(onToggle) {
   const k = h("span", { class: "tt-k", hidden: true });
-  const b = h("button", { type: "button", class: "btn tt-btn", html: TT_ICON.funnel, "aria-pressed": "false" }, h("span", null, "Filter columns"), k);
+  const b = h("button", { type: "button", class: "btn tt-btn", html: TT_ICON.funnel, "aria-pressed": "false" }, h("span", { class: "tt-w" }, "Filter"), k);
   b.addEventListener("click", () => onToggle(b.getAttribute("aria-pressed") !== "true"));
   b.say = (open, active) => {
     b.setAttribute("aria-pressed", String(!!open));

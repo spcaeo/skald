@@ -185,7 +185,12 @@ class Build(unittest.TestCase):
         timelines = {k: v for k, v in d.items() if k.startswith("people/visitor?")}
         d = {k: v for k, v in d.items() if k not in timelines}
         self.assertEqual(set(d), {"people/left-out", "people/conversions?kind=cancelled",
-                                  "people/conversions?kind=removed", "people/conversions?kind=test"})
+                                  "people/conversions?kind=removed", "people/conversions?kind=test",
+                                  "people/leads"})
+        leads = json.loads((self.site / d.pop("people/leads")).read_text())
+        self.assertTrue(leads["ok"] and leads["rows"])
+        self.assertFalse(leads["names"], "the demo shows the leads as a viewer sees them")
+        self.assertNotIn("@", json.dumps(leads))
         # 2.12.0: the visitor drawer's timelines, labels and times only
         self.assertTrue(timelines)
         for name in timelines.values():

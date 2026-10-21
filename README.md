@@ -51,6 +51,9 @@
 
 ## What's new
 
+- **2.20.0: Leads & sales redone, and what visitors are doing now** ([changelog](CHANGELOG.md#2200-2026-10-21)).
+  Every lead in one list (names and emails for owners and admins), as a list, board, timeline or
+  map; one question per tab; on Overview, the newest visitors and the pages they read, live.
 - **2.19.0: a site marks its own test leads** ([changelog](CHANGELOG.md#2190-2026-10-21)): send a
   lead with `"test": true`, or mark leads already sent with a signed call; kept and listed, never
   counted.
@@ -413,6 +416,18 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
 The whole dashboard with 60 days of sample data for a made-up site, in your browser: today's Overview,
 the visitor drawer, cities, retention and crawl health, AI answers (made-up answers), Real time with its world map, AI & bots, flags, leads and bookings, the left-out leads and the removed conversions included.
 Nothing to install. Settings, saving and the person search need your own Skald.
+
+### New in 2.20.0: every lead in one list, and visitors live
+
+<p align="center">
+  <img src="docs/screenshots/leads-list.png" alt="Leads and sales, Leads: 99 leads in the last 30 days, 14% more than before, one row per lead with when, name, email (made-up example.com names), what they did, stage now, where it came from, source, first touch and landing page; view buttons for list, board, timeline and map" width="900"><br>
+  <strong>Leads.</strong> Who they are, what they did and where they came from, in one list.
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/overview-live.png" alt="Overview, today: visitors on the site now, the live world map, and under it What visitors are doing now (five visitors with city, source and their page path, now on a page seconds ago) beside Pages read in the last 30 minutes" width="900"><br>
+  <strong>What visitors are doing now.</strong> The newest visitors and the pages they read, live.
+</p>
 
 ### New in 2.17.0: Skald checks your site
 

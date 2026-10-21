@@ -47,7 +47,7 @@ A funnel can also end with steps from your website's lead database: Opened Book 
 
 The chart keeps each kind of step on its own scale, under its own heading. Page steps are visits, each bar a share of the visits at step 1. Lead steps (and beacon event steps) are drawn apart, against the longest bar of their own group, and the heading says how many that is: they are never a share of the visits.
 
-A lead step the lead database has never recorded, or an event step your site has never sent, shows **Not set up** with one line on what is missing, never 0. Demo bookings often come from the booking tool rather than the lead database: they are on [Leads & sales > Bookings](#sales/bookings).
+A lead step the lead database has never recorded, or an event step your site has never sent, shows **Not set up** with one line on what is missing, never 0. Demo bookings often come from the booking tool rather than the lead database: they are on [Leads & sales > Calendar bookings](#sales/bookings).
 
 Lead steps cannot be added from the step list. The built-in funnel **Landing to lead** has them: landed, pricing, a sign-up or contact page, then demo opened, lead and demo booked.
 
@@ -133,7 +133,7 @@ How to read it:
 
 If no goal is set, the section says so, with a link to set one.
 
-For conversions from all sources (bookings, payments, CRM deals), with completion rates and sources, use [Leads & sales > Pipeline](#sales/pipeline) with **Count from: Tools**. See [Leads and conversions](leads-and-conversions.md).
+For conversions from all sources (bookings, payments, CRM deals), with completion rates and sources, use [Leads & sales > Summary](#sales/summary) and [Sources](#sales/sources) with **Count from: Tools**. See [Leads and conversions](leads-and-conversions.md).
 
 ## The Events tab
 

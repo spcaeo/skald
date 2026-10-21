@@ -24,14 +24,15 @@ import { follow } from "./realtime.js";
 import { setupChecklist } from "./checklist.js";
 import { comparisons, delta, running, arrived } from "../by-now.js";
 import { time as tzTime, label as tzLabel } from "../tz.js";
-import { placesCard, newestCard } from "./ov-today-cards.js";
+import { placesCard } from "./ov-today-cards.js";
+import { doingCard } from "./ov-doing.js";
 import { sourcesCard, flowCard, convertedCard, aiCard } from "./ov-today-more.js";
 import { hrefTo } from "./ov-today-bits.js";
 
 const TILE = {
   visitors: ["Visitors", "Visits that read at least one page today so far, counted only when the browser loaded the page's scripts and styles.", "traffic/visitors", "var(--g-people)"],
   pages: ["Pages read", "Page views by visitors today so far.", "traffic/pages", "var(--views)"],
-  leads: ["Leads", "Forms sent and demos booked today so far, completed, from the lead store and the tools; test rows never counted.", "sales/pipeline", "var(--leads)"],
+  leads: ["Leads", "Forms sent and demos booked today so far, completed, from the lead store and the tools; test rows never counted.", "sales/leads", "var(--leads)"],
   ai: ["Visitors from AI", "Visitors who arrived by following a link in an AI assistant's answer today so far.", "ai/assistants", "var(--g-answer_engines)"],
 };
 
@@ -143,9 +144,12 @@ export default function today(m, s, o = {}) {
   strip.append(now.el, h("div", { class: "td-kpis", role: "list", "data-n": String(shownKeys.length) }, shownKeys.map((c) => tile(c, first))));
   out.push(strip);
   if (!t) return [...out, nothing(m, r)];
-  const places = placesCard(m, rt, first), newest = newestCard(m, rt, first);
-  parts.push(places, newest);
-  out.push(h("div", { class: "td-row td-r1" }, places.el, newest.el));
+  // The map full width, and under it what visitors are doing now; each points at the other.
+  let places = null, doing = null;
+  places = placesCard(m, rt, first, { onHover: (k) => doing?.mark(k) });
+  doing = doingCard(m, rt, first, { onHover: (k) => places?.hot(k) });
+  parts.push(places, doing);
+  out.push(h("div", { class: "td-row td-r1" }, places.el), h("div", { class: "td-row td-r1b" }, doing.el));
   out.push(h("div", { class: "td-row td-r2" }, sourcesCard(m, t), flowCard(m, r)));
   const conv = convertedCard(m);
   out.push(h("div", { class: `td-row td-r3${conv ? "" : " one"}` }, conv, aiCard(t)));

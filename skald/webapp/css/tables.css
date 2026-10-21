@@ -7,13 +7,55 @@ th[aria-sort="none"] .dir { opacity: .35; }
 th button:hover .dir { opacity: .8; }
 th[aria-sort="ascending"] .dir, th[aria-sort="descending"] .dir { opacity: 1; }
 
-.tt-btn { font-size: 12.5px; padding-top: 4px; padding-bottom: 4px; }
+/* The tools: one height with every other control (--ctl-h), the same on tables and grids. */
+.tt-btn { font-size: 13px; padding: 4px 11px; }
 .tt-btn .tt-meta { color: var(--ink-3); font-weight: 450; }
 .tt-btn[aria-pressed="true"] { border-color: var(--ink); }
 .tt-k { display: inline-grid; place-items: center; min-width: 17px; height: 17px; border-radius: 999px; font-size: 11px; font-weight: 700;
   background: var(--sel); color: var(--sel-ink); }
 .tt-k[hidden] { display: none; }
-.tt-export .tt-xs { display: none; }
+/* In a small card (a toolbar under 560px wide) the tools are icons; the words stay in their labels and tooltips. */
+@container (max-width: 560px) {
+  .tt-btn .tt-w, .tt-btn .tt-meta { display: none; }
+  .tt-btn { padding: 4px 9px; }
+  .tbl-tools input[type="search"] { width: 100%; flex: 1 1 160px; }
+}
+
+/* A card's table without a search box: its tools sit on the card's title line, at the right,
+   instead of taking a row of their own (the "wide gap" above every small table). */
+.sheet:has(> h3 + .tbl-quiet) { position: relative; }
+.sheet > h3:has(+ .tbl-quiet) { display: flex; align-items: center; min-height: var(--ctl-h); margin: 0 0 var(--sp-2); padding-right: 124px; }
+.sheet > h3 + .tbl-quiet > .tbl-tools { position: absolute; top: var(--sp-3); right: var(--sp-4); margin: 0; flex-wrap: nowrap; gap: 6px; }
+.sheet > h3 + .tbl-quiet > .tbl-tools .grow, .sheet > h3 + .tbl-quiet .tt-btn .tt-w, .sheet > h3 + .tbl-quiet .tt-btn .tt-meta { display: none; }
+.sheet > h3 + .tbl-quiet .tt-btn { padding: 4px 9px; }
+
+/* The same for a section's own table (a heading, its line of words, the table): the tools on
+   the heading's line, at the right. */
+section.s:has(> h2 + .tbl-quiet, > h2 + p.sub + .tbl-quiet, > h2 + .sheet > .tbl-quiet:first-child, > h2 + p.sub + .sheet > .tbl-quiet:first-child) { position: relative; }
+section.s:has(> h2 + .tbl-quiet, > h2 + p.sub + .tbl-quiet, > h2 + .sheet > .tbl-quiet:first-child, > h2 + p.sub + .sheet > .tbl-quiet:first-child) > h2 {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-height: var(--ctl-h); padding-right: 300px; margin-bottom: var(--sp-1); }
+:is(section.s > h2 + .tbl-quiet, section.s > h2 + p.sub + .tbl-quiet, section.s > h2 + .sheet > .tbl-quiet:first-child, section.s > h2 + p.sub + .sheet > .tbl-quiet:first-child) > .tbl-tools {
+  position: absolute; top: 0; right: 0; margin: 0; flex-wrap: nowrap; }
+:is(section.s > h2 + .tbl-quiet, section.s > h2 + p.sub + .tbl-quiet, section.s > h2 + .sheet > .tbl-quiet:first-child, section.s > h2 + p.sub + .sheet > .tbl-quiet:first-child) > .tbl-tools .grow { display: none; }
+:is(section.s > h2 + .tbl-quiet, section.s > h2 + p.sub + .tbl-quiet) { margin-top: var(--sp-2); }
+@media (max-width: 767px) {
+  section.s:has(> h2 + .tbl-quiet, > h2 + p.sub + .tbl-quiet, > h2 + .sheet > .tbl-quiet:first-child, > h2 + p.sub + .sheet > .tbl-quiet:first-child) > h2 { padding-right: 0; }
+  :is(section.s > h2 + .tbl-quiet, section.s > h2 + p.sub + .tbl-quiet, section.s > h2 + .sheet > .tbl-quiet:first-child, section.s > h2 + p.sub + .sheet > .tbl-quiet:first-child) > .tbl-tools {
+    position: static; margin: 0 0 var(--sp-2); }
+}
+
+/* Under the table, at its edges: how many rows, and Show all. */
+.tbl-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-top: var(--sp-2); min-height: 0; }
+.tbl-foot[hidden] { display: none; }
+.tbl-foot .tbl-count:empty { display: none; }
+.tbl-foot .more-rows { margin-left: auto; }
+
+/* The filters that are on, as removable chips (tabletools.js filterChips). */
+.tt-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 var(--sp-2); }
+.tt-chips[hidden] { display: none; }
+.tt-chip { animation: none; }
+.tt-chip button { font-size: 14px; }
+.tt-clear-all { font-size: 12.5px; margin-left: 4px; }
 
 /* A small list that opens under its button: the columns, an enum's values. */
 .tt-pw { position: relative; display: inline-flex; }
@@ -51,16 +93,34 @@ td.c .tt-enum, td.dg-center .tt-enum { justify-content: center; }
 .tbl.tall .scroll { max-height: min(78vh, 920px); overflow: auto; }
 .tbl.tall thead th { z-index: 2; }
 
-/* The data grid's tools sit above it, right-aligned. */
-.sk-grid > .sk-grid-tools { margin: 0 0 8px; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-.ai-g .sk-grid-tools { position: static; }
+/* The data grid (js/grid.js, vendor patch 8): one toolbar row, its search and filter menus
+   on the left and Skald's tools on the right; the same gaps, heights and empty state as a
+   table's; the count and the pager directly under it. */
+.sk-grid { container-type: inline-size; min-width: 0; }
+.sk-grid .dg { gap: var(--sp-2); }
+.sk-grid .dg-toolbar { gap: var(--sp-2); }
+.sk-grid .dg-toolbar-main { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); flex: 1 1 320px; min-width: 0; }
+.sk-grid .dg-toolbar-end { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: auto; justify-content: flex-end; }
+.sk-grid .dg-search { flex: 0 1 280px; }
+.sk-grid .dg-search input, .sk-grid .dg-btn, .sk-grid .dg-toolbar .btn { min-height: var(--ctl-h); box-sizing: border-box; }
+.sk-grid .dg-search input { border-color: var(--rule); border-radius: 8px; }
+.sk-grid .dg-btn { padding: 4px 11px; border-color: var(--rule); border-radius: 8px; font-weight: 560; }
+.sk-grid .dg-btn:hover:not(:disabled) { border-color: var(--ink-3); background: var(--surface); }
+.sk-grid .dg-chips:empty, .sk-grid .dg-segments:empty { display: none; }
+.sk-grid .tt-chips { margin: 0; }
+.sk-grid .dg-pagination { padding: 0 2px; font-size: 12.5px; color: var(--ink-3); gap: var(--sp-2); }
+.sk-grid.sk-no-rows .dg-pagination, .sk-grid.sk-few .dg-pagination label { display: none; }
+/* An empty grid: one compact line, as a table's ("No rows yet." in the frame), not a big box. */
+.sk-grid .dg-state { flex-direction: row; justify-content: center; align-items: center; flex-wrap: wrap; gap: 6px 10px; padding: var(--sp-4); text-align: left; }
+.sk-grid .dg-state-icon { width: 24px; height: 24px; }
+.sk-grid .dg-state-icon svg { width: 14px; height: 14px; }
+.sk-grid .dg-state-empty .dg-state-title { display: none; }
+.sk-grid .dg-state-title { font-size: 13.5px; }
+.sk-grid .dg-state-body { max-width: none; font-size: 13px; color: var(--ink-3); }
+.sk-grid .dg-state-actions { margin: 0; }
 .sk-grid .tt-frow td { padding: 2px 10px 8px; }
 
-@media (max-width: 640px) {
-  .tt-export .tt-xl { display: none; }
-  .tt-export .tt-xs { display: inline; }
-}
 @media print {
-  .tt-pw, .tt-btn, .tt-frow, .sk-grid-tools { display: none !important; }
+  .tt-pw, .tt-btn, .tt-frow, .tt-chips, .dg-toolbar-end { display: none !important; }
   .tbl.tall .scroll { max-height: none; overflow: visible; }
 }

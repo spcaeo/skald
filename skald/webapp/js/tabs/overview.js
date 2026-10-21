@@ -61,14 +61,14 @@ function leadFigures(m, r, both) {
     why: !both ? null : "Not compared: not every day of both periods has checked conversions." };
 }
 
-/* Which count a lead tile is, and where the same figure is listed: Pipeline counts
-   from the lead database unless told otherwise, so the link opens it on the tools
-   when the tile counts from them (the same days, the same figure). */
+/* Which count a lead tile is, and where the same figure is listed: Leads & sales ›
+   Summary counts from the lead database unless told otherwise, so the link opens it on
+   the tools when the tile counts from them (the same days, the same figure). */
 function leadSource(s, key, tools) {
-  const to = key === "demos" ? { tab: "sales/bookings", lsrc: "" } : { tab: "sales/pipeline", lsrc: tools ? "all" : "" };
+  const to = key === "demos" ? { tab: "sales/bookings", lsrc: "" } : { tab: "sales/summary", lsrc: tools ? "all" : "" };
   const words = key === "demos" ? "From the booking tools" : tools ? "From the tools" : "From the lead database";
-  return h("a", { class: "t-src", href: S.hashFor({ ...s, ...to, dd: "" }), title: key === "demos" ? "The same count as Leads & sales › Bookings"
-    : `The same count as Leads & sales › Pipeline, counted from ${tools ? "the tools" : "the lead database"}` }, `${words} · ${key === "demos" ? "Bookings" : "Pipeline"} ›`);
+  return h("a", { class: "t-src", href: S.hashFor({ ...s, ...to, dd: "" }), title: key === "demos" ? "The same count as Leads & sales › Calendar bookings"
+    : `The same count as Leads & sales › Summary, counted from ${tools ? "the tools" : "the lead database"}` }, `${words} · ${key === "demos" ? "Calendar bookings" : "Summary"} ›`);
 }
 
 function tiles(m, r, t, prevT, both, why, s) {

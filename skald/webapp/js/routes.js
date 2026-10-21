@@ -24,8 +24,10 @@ export const REDIRECTS = {
   locations: ["traffic/places"], audience: ["traffic/places"],
   time: ["traffic/time"], hours: ["traffic/time"],
   // Leads & sales: each old page opens the figures it showed
-  leads: ["sales/pipeline", { lsrc: "db" }],
-  conversions: ["sales/pipeline", { lsrc: "all" }],
+  leads: ["sales/summary", { lsrc: "db" }],
+  conversions: ["sales/summary", { lsrc: "all" }],
+  // 2.20: Pipeline became Summary (the figures) and Sources (where from); Leads lists them.
+  "sales/pipeline": ["sales/summary"],
   funnels: ["sales/funnels"],
   events: ["sales/events"],
   // AI & bots

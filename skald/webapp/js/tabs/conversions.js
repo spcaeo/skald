@@ -115,7 +115,7 @@ function demoFunnel(m, t, days) {
   const steps = [["Opened the booking", st.started], ["Chose a time", chosen], ["Booked", (st.completed || 0) + (st.paid || 0)],
     ["Cancelled", st.cancelled], ["Rescheduled", st.rescheduled], ["No-show", st.no_show], ["Won", st.won]];
   const top = Math.max(1, ...steps.map(([, v]) => v || 0));
-  return h("div", { class: "sheet" }, h("h3", null, "Demo bookings"),
+  return h("div", { class: "sheet" },
     h("ul", { class: `blist${reduced() ? "" : " play"}` }, steps.map(([k, v], i) => h("li", null,
       h("span", { class: "bl-bar", style: { width: `${((v || 0) / top) * 100}%`, background: i < 3 ? "var(--g-people)" : "var(--ink-3)", animationDelay: `${i * 0.03}s` } }),
       h("span", { class: "bl-l" }, k), h("span", { class: "bl-v" }, v == null ? "not tracked" : n(v)), h("span", { class: "bl-p" }, "")))),
@@ -143,7 +143,7 @@ function breakdown(dim, t, acts) {
   const rows = [...labels.entries()].map(([k, all]) => ({ k, all, ...Object.fromEntries(acts.map((a) => [a, per[a]?.[k] || 0])) }));
   const cols = [{ key: "k", label: DIM[dim], fmt: dim === "tool" ? toolName : dim === "country" ? (v) => valueLabel("country", v, v) : undefined, country: dim === "country" ? (r) => r.k : undefined, path: dim === "landing" }, { key: "all", label: "All", num: true },
     ...acts.slice(0, 4).map((a) => ({ key: a, label: actionName(a), num: true }))];
-  return h("div", { class: "sheet" }, h("h3", null, `By ${DIM[dim].toLowerCase()}`),
+  return h("div", { class: "sheet" }, h("h3", null, DIM[dim]),
     table(cols, { caption: `Completed conversions by ${DIM[dim].toLowerCase()}`, rows, file: `conversions-by-${dim}.csv`, search: false, limit: 8, sortKey: "all", empty: "None in this range." }));
 }
 

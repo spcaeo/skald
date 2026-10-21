@@ -1,10 +1,7 @@
 /* AI & bots (Assistants, Crawlers, Crawler rules, llms.txt): the AI & bots builder's styles (2.7.0). Tokens come from app.css. */
 
-/* The section's long lists (Data Grid, .ai-g): the CSV button sits on the search row
-   instead of under the pages. (Numbers on the right: spcaeo-ui-skald.css, every grid.) */
-.ai-g .sk-grid { position: relative; }
-.ai-g .sk-grid-tools { position: absolute; top: 0; right: 0; margin: 0; }
-.ai-g .dg-toolbar { padding-right: 88px; }
+/* The section's long lists (Data Grid, .ai-g): their tools sit on the search row, as on
+   every grid since 2.20 (css/tables.css, vendor patch 8). */
 
 /* Today's AI activity on Assistants: the feed reads as one card. */
 .ai-feed .feed { margin-top: 8px; }

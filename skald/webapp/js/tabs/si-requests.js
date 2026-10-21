@@ -147,7 +147,8 @@ export default function requests(m, s, { changed } = {}) {
   const clockEl = h("span", { class: "rq-clock" });
   const pause = h("button", { type: "button", class: "btn", "aria-pressed": String(st.paused) });
   const count = h("span", { class: "tbl-count", "aria-live": "polite" });
-  const dl = h("button", { type: "button", class: "btn", html: ICON.download, "aria-label": "Download the requests shown as CSV" }, "CSV");
+  // The export (every field of each line) sits on the grid's own toolbar row, as on every table.
+  const dl = h("button", { type: "button", class: "btn tt-btn tt-export", html: ICON.download, title: "CSV: every field of the requests shown", "aria-label": "Export the requests shown as CSV, every field" }, h("span", { class: "tt-w" }, "Export"));
   const tog = h("div", { class: "rq-togs", role: "group", "aria-label": "Quick filters" }, TOGGLES.map(([k, label]) =>
     h("button", { type: "button", class: "qt", "aria-pressed": String(on.includes(k)), onclick: () => setToggles(k) }, label)));
   const ipChip = s.ip ? h("span", { class: "chip" }, "Address ", h("b", null, s.ip),
@@ -160,7 +161,6 @@ export default function requests(m, s, { changed } = {}) {
     h("div", { class: "rq-bar" },
       h("div", { class: "rq-live" }, ring, h("div", null, clockEl, h("small", null, "Checks for new lines every 30 seconds while this tab is on screen.")), pause),
       h("div", { class: "rq-filters" }, tog, ipChip)),
-    h("div", { class: "tbl-tools" }, count, h("span", { class: "grow" }), dl),
     none, holder, notes);
 
   let g = null;
@@ -209,6 +209,7 @@ export default function requests(m, s, { changed } = {}) {
           dl.disabled = !rows.length;
         },
         onRow: open,
+        tools: [dl],
       });
       // The export takes every field of each line, not only the columns on screen.
       const reg = REGISTRY.find((x) => x.caption === "Requests, newest first");
@@ -217,6 +218,7 @@ export default function requests(m, s, { changed } = {}) {
     } else g.update(given);
     const total = st.file.total;
     notes.replaceChildren(
+      h("p", { class: "note" }, count),
       st.file.state === "stale" ? h("div", { class: "state bad", html: ICON.info }, h("div", null, `The live run has not written this log since ${tzTime(st.file.until, { seconds: true })}, so these rows are as they were then. The Data quality tab shows when each job last ran.`)) : "",
       h("p", { class: "note" }, st.file.truncated || total > all.length
         ? `The newest ${n(all.length)} requests are here; the other ${n(total - all.length)} of the window are in the server log. ` : "",

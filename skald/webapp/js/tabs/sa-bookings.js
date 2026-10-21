@@ -1,8 +1,9 @@
-// Leads & sales > Bookings (2.7.0): demo bookings and payments as the booking
-// and payment tools (Calendly, Cal.com, Stripe) and the page's script tag
-// reported them: every stage of one booking action, the demo funnel (opened,
-// chose a time, booked, cancelled, rescheduled, no-show, won), where the booked
-// ones came from, and the cancelled, removed and test ones listed in full.
+// Leads & sales > Calendar bookings (2.7.0 as Bookings; renamed in 2.20, the route stays
+// sales/bookings): "Who booked a call?" Calls booked through Calendly and Cal.com, and the
+// payments Stripe reports where a site sends them, as those tools and the page's script tag
+// reported them: every stage of one booking action, the demo funnel (opened, chose a time,
+// booked, cancelled, rescheduled, no-show, won), where the booked ones came from, and the
+// cancelled, removed and test ones listed in full.
 //
 // One file only, the tools' (conversions.json). The lead database's own "Demos
 // booked" stays on Pipeline (Count from: Lead database): the two are never added.
@@ -19,7 +20,7 @@ import { time as tzTime } from "../tz.js";
 import conversions from "./conversions.js";
 import { actionName, toolName, STAGE } from "./leadfigs.js";
 import { grid } from "../grid.js";
-import { optionsRow, select, toggles, listOf, period } from "./sa-options.js";
+import { tabHead, optionsRow, select, toggles, listOf, emptyState, foldNotes } from "./sa-options.js";
 import { convList, CONV_SHOW } from "./sa-lists.js";
 
 // Tools that book or take payment: an action any of them reported is a booking action.
@@ -81,9 +82,12 @@ export default function bookings(m, s, o) {
   const a = acts.some(([k]) => k === s.bact) ? s.bact : acts[0]?.[0];
   const m2 = Object.create(m);
   m2.x = { ...m.x, conversions: ready && a ? narrow(f, a) : f };
-  let body = [conversions(m2, s, o)].flat(Infinity).filter(Boolean);
-  body[0]?.querySelector?.("h1")?.replaceChildren("Bookings");
-  if (!ready) return body;
+  let body = [conversions(m2, s, o)].flat(Infinity).filter(Boolean).filter((el) => !el.classList?.contains("head"));
+  const r = rangeOf(m, s);
+  const top = tabHead("Calendar bookings", "Who booked a call? Bookings made through Calendly and Cal.com, step by step, and payments Stripe reports where your site sends them.", r,
+    { help: "Counted from the booking and payment tools (Calendly, Cal.com, Stripe) with the page's script tag and the lead database. The lead database's own demos booked are on Summary (Count from: Lead database), never added to these.", more: "#help?part=demo-bookings" });
+  if (!ready) return [...top, emptyState("No calendar bookings yet: connect Calendly or Cal.com and each booking shows here, step by step.", ["Connect a booking tool", "#help?part=demo-bookings"])];
+  if (!acts.length) return [...top, emptyState("No booking tool has reported anything yet: connect Calendly or Cal.com and each booking shows here.", ["Connect a booking tool", "#help?part=demo-bookings"])];
   body = body.filter((el) => {
     const t = titleOf(el);
     if (!t) return !el.matches?.("section, details");
@@ -92,14 +96,13 @@ export default function bookings(m, s, o) {
     return !!keep;
   });
   const show = listOf(s.bshow, CONV_SHOW.map(([k]) => k));
-  const row = optionsRow("Bookings options", [
+  const row = optionsRow("Calendar bookings options", [
     select("Booking", a || "", acts, (v) => S.set({ bact: v }), { all: null }),
-    toggles("Show", show, CONV_SHOW, (list) => S.set({ bshow: list.join(",") })),
-    period(s, m),
-  ], "Counted from the tools (conversions.json): what Calendly, Cal.com and Stripe reported, with the page's script tag and the lead database. The lead database's own demos booked are on Pipeline (Count from: Lead database), never added to these.");
+  ], { more: [toggles("Show left out", show, CONV_SHOW, (list) => S.set({ bshow: list.join(",") }))] });
   const lists = show.length && a ? [convList(show, { ns: "bk", only: (x) => x === a, title: `Cancelled, removed and test: ${actionName(a).toLowerCase()}` })] : [];
-  const live = rangeOf(m, s).kind === "today" && a ? today(f, a) : null;
-  const at = body.findIndex((el) => el.classList?.contains("head")) + 1;
-  return [...body.slice(0, at), ...row, ...lists, live, ...body.slice(at),
-    h("p", { class: "note" }, "Time to convert, the touches and the pages seen before are on ", h("a", { href: S.hashFor({ ...s, tab: "sales/pipeline", lsrc: "all", lact: a || "" }) }, "Pipeline, counted from the tools"), ".")];
+  const live = r.kind === "today" && a ? today(f, a) : null;
+  foldNotes(body);
+  if (live) foldNotes([live]);
+  return [...top, ...row, live, ...body, ...lists,
+    h("p", { class: "note" }, "Time to convert, the touches and the pages seen before are on ", h("a", { href: S.hashFor({ ...s, tab: "sales/sources", lsrc: "all", lact: a || "" }) }, "Sources, counted from the tools"), ".")].filter(Boolean);
 }

@@ -212,7 +212,7 @@ export function unsentStep(m, x) {
     const never = neverRecorded(f);
     if (!x.types.every((t) => never.has(t))) return null;
     const demo = x.types.some((t) => t.startsWith("demo_"));
-    return `Not set up: the lead store has never recorded ${x.types.map((t) => LEAD[t].toLowerCase()).join(" or ")}${f.since ? ` (read since ${short(f.since)})` : ""}.${demo ? " Demo bookings are counted from the booking tool, on Leads & sales › Bookings." : ""}`;
+    return `Not set up: the lead store has never recorded ${x.types.map((t) => LEAD[t].toLowerCase()).join(" or ")}${f.since ? ` (read since ${short(f.since)})` : ""}.${demo ? " Demo bookings are counted from the booking tool, on Leads & sales › Calendar bookings." : ""}`;
   }
   return null;
 }

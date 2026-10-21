@@ -57,6 +57,8 @@ If __SITE__ is a Next.js site
   then: sudo nginx -t && sudo systemctl reload nginx
   (Apache: sudo apachectl configtest && sudo systemctl reload apache2)
   check.sh says whether the log has it. Neither script ever edits nginx or Apache.
+  It is safe: it only adds one header's value (1, or - when absent) to what nginx already
+  writes in its own log. No port, no route, no access changes.
 
 What it keeps on this server
   /srv/skald/ship-token   the token (root:adm, 0640)

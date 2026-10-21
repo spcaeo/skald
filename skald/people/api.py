@@ -12,6 +12,16 @@
                                        one visitor's every visit, from one kept
                                        visit (people/timeline.py): admins and
                                        owners only; written to the audit log
+    GET <page>/people/leads?first=D&last=D[&names=1]
+                                       Leads & sales > Leads: the period's leads,
+                                       one row per lead (people/leadlist.py), for
+                                       every member; names=1 adds names and emails
+                                       for admins and owners only, with the
+                                       session's CSRF value (basic mode: a
+                                       same-origin request), where the site keeps
+                                       them; written to the audit log ("lead list
+                                       viewed", the period and the row count,
+                                       never a value)
     GET <page>/people/cohort?grain=week|day&start=D&k=K[&split=S&value=V][&deep=1]
                                        the visits behind one retention cell
                                        (retention_page.visitors): admins and
@@ -32,7 +42,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
-PEOPLE_PATH = re.compile(PAGE + r"people(?:/(?P<act>left-out|conversions|visitor|cohort))?$")
+PEOPLE_PATH = re.compile(PAGE + r"people(?:/(?P<act>left-out|conversions|visitor|cohort|leads))?$")
 PRIVATE_ROLES = ("owner", "admin")
 KINDS = ("cancelled", "removed", "test")
 
@@ -87,6 +97,9 @@ def handle(h, config, live_dir, history_path=None, config_path=None, sessions_mo
     if act == "visitor":
         return _visitor(h, q, cfg, folder, site, private, config, live_dir,
                         h.who if sessions_mode else None, user)
+    if act == "leads":
+        return _leads(h, q, cfg, folder, site, private, config, live_dir,
+                      h.who if sessions_mode else None, user)
     if act == "cohort":
         return _cohort(h, q, cfg, folder, site, private, config, live_dir,
                        h.who if sessions_mode else None, user, history_path)
@@ -119,6 +132,40 @@ def _visitor(h, q: dict, cfg, folder, site: str, private: bool, config, live_dir
     detail = f"visit {day}#{seq} visits={len(got['visits'])} leads={len(got['leads'])}"
     _audit(config, live_dir, site, who, user, "people.visitor", detail)
     return h._json(200, got)
+
+
+def _names_allowed(h, who) -> bool:
+    """A request for names and emails comes from the page itself: in sessions mode it
+    carries the session's CSRF value; in basic mode the browser says same-origin."""
+    if who is not None:
+        from ..auth_api import csrf_ok
+        return csrf_ok(who, h.headers)
+    return h.headers.get("Sec-Fetch-Site") == "same-origin"
+
+
+def _leads(h, q: dict, cfg, folder, site: str, private: bool, config, live_dir, who,
+           user: str):
+    """people/leads?first=&last=[&names=1]: the period's leads (people/leadlist.py)."""
+    from ..window import today, zone
+    from .leadlist import rows, span
+    names = q.get("names") == "1"
+    if names and not private:
+        return h._json(403, {"ok": False, "error": "Only an admin or an owner sees the leads' "
+                                                   "names and emails."})
+    if names and not _names_allowed(h, who):
+        return h._json(403, {"ok": False, "error": "The page is out of date. Reload it and "
+                                                   "try again."})
+    try:
+        first, last = span(str(q.get("first") or ""), str(q.get("last") or ""),
+                           today(zone(cfg)))
+    except ValueError as why:
+        return h._json(400, {"ok": False, "error": str(why)})
+    got = rows(cfg, folder, site, first, last, names)
+    if got.get("ok") and got.get("names"):
+        _audit(config, live_dir, site, who, user, "people.leads",
+               f"lead list viewed {first.isoformat()}..{last.isoformat()} "
+               f"rows={len(got['rows'])}")
+    return h._json(200 if got.get("ok") else 500, got)
 
 
 def _cohort(h, q: dict, cfg, folder, site: str, private: bool, config, live_dir, who,

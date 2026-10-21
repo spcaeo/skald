@@ -149,6 +149,16 @@ export function createDataGrid(host, config) {
       style: "position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)",
     }),
   };
+  /* Skald patch 8: the host's own tools (column filters, the column chooser, export) sit
+     at the end of the grid's toolbar, on the same row as the search and filters. Only
+     the main part is rebuilt on each render; the host's part is built once, so an open
+     menu or a focused checkbox in it stays as it is. */
+  el.tbMain = h("div", { class: "dg-toolbar-main" });
+  el.tbEnd = h("div", { class: "dg-toolbar-end" });
+  const ends = (config.toolbarEnd || []).filter(Boolean);
+  el.tbEnd.append(...ends);
+  el.tbEnd.hidden = !ends.length;
+  el.toolbar.append(el.tbMain, el.tbEnd);
   host.append(el.segments, el.toolbar, el.chips, el.selection, el.frame, el.pagination, el.live);
 
   // --- url ----------------------------------------------------------------
@@ -222,7 +232,7 @@ export function createDataGrid(host, config) {
     const typing = el.toolbar.contains(document.activeElement) && document.activeElement.type === "search"
       ? [document.activeElement.selectionStart, document.activeElement.selectionEnd]
       : null;
-    el.toolbar.replaceChildren();
+    el.tbMain.replaceChildren();
 
     const input = h("input", {
       type: "search",
@@ -259,19 +269,19 @@ export function createDataGrid(host, config) {
           })
         : null,
     );
-    el.toolbar.append(search);
+    el.tbMain.append(search);
     if (typing) {
       input.focus({ preventScroll: true });
       input.setSelectionRange(...typing);
     }
 
-    for (const field of filters) el.toolbar.append(filterMenu(field));
+    for (const field of filters) el.tbMain.append(filterMenu(field));
 
-    el.toolbar.append(h("div", { class: "dg-toolbar-spacer" }));
+    el.tbMain.append(h("div", { class: "dg-toolbar-spacer" }));
 
     const active = query.filter.conditions.length || query.q || query.segment;
     if (active) {
-      el.toolbar.append(
+      el.tbMain.append(
         h("button", {
           class: "dg-btn",
           type: "button",
@@ -806,7 +816,8 @@ export function createDataGrid(host, config) {
           onClick: () => commit({ ...query, page: query.page + 1 }, "page"),
         }),
       ),
-      pages ? h("span", { text: `Page ${query.page} of ${pages}` }) : null,
+      // Skald patch 9: "" rather than null: append(null) prints "null" while the rows load.
+      pages ? h("span", { text: `Page ${query.page} of ${pages}` }) : "",
     );
   }
 
