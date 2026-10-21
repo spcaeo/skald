@@ -142,7 +142,7 @@ _TOUCH = frozenset({"referrer", "landing", "utm_source", "utm_medium", "utm_camp
                     "fbclid", "li_fat_id", "at", "skv"})
 _LEAD = frozenset({"external_ref", "action", "stage", "at", "vid", "first_touch",
                    "last_touch", "landing", "campaign", "source", "country", "device",
-                   "visits_before", "first_touch_at", "label"}) | _TOUCH
+                   "visits_before", "first_touch_at", "label", "test"}) | _TOUCH
 SPOOL_KEYS = {
     "lead": _LEAD,
     "json": _LEAD | {"records"},

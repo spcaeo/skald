@@ -376,7 +376,7 @@ def conversions_listing(config: dict, folder, site: str, kind: str, private: boo
             cols = {r[1] for r in db.execute("PRAGMA table_info(conversions)")}
             if kind == "test" and "test" not in cols:
                 return {"ok": True, "kind": kind, "rows": []}
-            where = "c.test = 1" if kind == "test" else \
+            where = "c.test <> 0" if kind == "test" else \
                 f"c.stage IN ({','.join('?' * len(CANCELLED))})"
             args = () if kind == "test" else CANCELLED
             rows = [dict(r) for r in db.execute(

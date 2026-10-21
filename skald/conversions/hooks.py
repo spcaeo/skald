@@ -45,6 +45,10 @@ hook delivered, read only, signed with that hook's secret over the method
 and the request target (reconcile.py). Every other GET is 405 as before.
 It writes no delivery row: one line on the helper's log with the site, the
 outcome, the row count and the parameter names, never their values.
+
+One more POST (2.19): /traffic-hooks/<site>/leads/test (marks.py), the site
+marking its own leads as test or not, signed like the lead POST; one
+delivery row (the counts, never a ref) and one audit entry per call.
 """
 from __future__ import annotations
 
@@ -59,9 +63,9 @@ from pathlib import Path
 
 from ..beacon import visitor_ids
 from ..config import setting, site_name
-from . import LEAD_SHAPED, MAX_BODY, TOOLS, event_types, geo, reconcile, spool, store
+from . import LEAD_SHAPED, MAX_BODY, TOOLS, event_types, geo, marks, reconcile, spool, store
 from .adapters import Invalid, adapter
-from .adapters.lead import LABEL_NOTE, verify_get
+from .adapters.lead import LABEL_NOTE, TEST_NOTE, verify_get
 from .normalise import row as make_row
 from .secrets_store import Exposed, find
 
@@ -242,30 +246,22 @@ class Receiver:
         """(status, answer) for one request on the handler; reads its body."""
         if handler.command == "GET" and reconcile.site_of(handler.path):
             return self.leads(handler)
+        if marks.site_of(handler.path):
+            if handler.command != "POST":
+                return 405, {"error": "POST only"}
+            return self.mark(handler)
         found = _PATH.match(handler.path.split("?", 1)[0])
         if not found:
             return 404, {"error": "not found"}
         site, tool = found.groups()
         if handler.command != "POST":
             return 405, {"error": "POST only"}
-        try:
-            secret = self.secret(site, tool)
-        except Exposed:
-            self._log(site, tool, "error", 500, "the secrets file is not 0600")
-            return 500, {"error": "not set up"}
-        if not secret:
-            return 404, {"error": "not found"}
-        try:
-            length = int(handler.headers.get("Content-Length") or -1)
-        except ValueError:
-            length = -1
-        if length < 0:
-            self._log(site, tool, "no_length", 411)
-            return 411, {"error": "length required"}
-        if length > MAX_BODY:
-            self._log(site, tool, "too_large", 413, f"{length} bytes")
-            return 413, {"error": "body over 64 KiB"}
-        body = handler.rfile.read(length)
+        secret = self._secret_or_answer(site, tool)
+        if isinstance(secret, tuple):
+            return secret
+        body = self._body(handler, site, tool)
+        if isinstance(body, tuple):
+            return body
         headers = {k.lower(): v for k, v in handler.headers.items()}
         headers[":method"], headers[":uri"] = "POST", self.uri(handler)
         # The signature first (cheap): only a verified delivery spends the
@@ -279,6 +275,69 @@ class Receiver:
             self._limited(site, tool)
             return 429, {"error": "too many"}
         return self.process(site, tool, headers, body, secret, verified=True)
+
+    def _secret_or_answer(self, site: str, tool: str):
+        """The hook's secret, or the (status, answer) refusing the request:
+        404 not set up, 500 a secrets file others can read."""
+        try:
+            secret = self.secret(site, tool)
+        except Exposed:
+            self._log(site, tool, "error", 500, "the secrets file is not 0600")
+            return 500, {"error": "not set up"}
+        return secret or (404, {"error": "not found"})
+
+    def _body(self, handler, site: str, tool: str):
+        """The raw body, or the (status, answer): 411 without a length, 413
+        over MAX_BODY."""
+        try:
+            length = int(handler.headers.get("Content-Length") or -1)
+        except ValueError:
+            length = -1
+        if length < 0:
+            self._log(site, tool, "no_length", 411)
+            return 411, {"error": "length required"}
+        if length > MAX_BODY:
+            self._log(site, tool, "too_large", 413, f"{length} bytes")
+            return 413, {"error": "body over 64 KiB"}
+        return handler.rfile.read(length)
+
+    def mark(self, handler) -> tuple[int, dict]:
+        """POST /traffic-hooks/<site>/leads/test (marks.py): the lead hook's
+        secret and signature over the raw body, then the site's bucket, then
+        the body. One delivery row and one audit entry per answered call."""
+        site, tool = marks.site_of(handler.path), marks.TOOL
+        secret = self._secret_or_answer(site, tool)
+        if isinstance(secret, tuple):
+            return secret
+        body = self._body(handler, site, tool)
+        if isinstance(body, tuple):
+            return body
+        headers = {k.lower(): v for k, v in handler.headers.items()}
+        if not adapter(tool).verify(headers, body, secret, self.clock()):
+            self._refused(site, tool, "bad_signature", 401)
+            if not self.preauth.allow(self.client(handler)):
+                return 429, {"error": "too many"}
+            return 401, {"error": "bad signature"}
+        if not self.reads.allow(f"{site}/test"):
+            self._limited(site, tool)
+            return 429, {"error": "too many"}
+        try:
+            refs, on = marks.read_body(body)
+        except marks.BadBody as why:
+            self._log(site, tool, "bad_body", 400, f"leads/test: {why}")
+            return 400, {"error": str(why)}
+        try:
+            got = marks.apply(self.db_path, site, refs, on)
+        except Exception as why:            # noqa: BLE001 - the sender will ask again
+            self._log(site, tool, "error", 500, f"leads/test: {type(why).__name__}")
+            return 500, {"error": "nothing changed, send again"}
+        marks.recount(self.folder)
+        try:
+            marks.audit(self.config, self.folder, site, refs, got)
+        except Exception as why:            # noqa: BLE001 - the marks stand; say so
+            sys.stderr.write(f"hooks: leads/test {site}: the audit entry failed: "
+                             f"{type(why).__name__}\n")
+        return 200, got
 
     def leads(self, handler) -> tuple[int, dict]:
         """GET /traffic-hooks/<site>/leads (reconcile.py): 404 not set up,
@@ -411,8 +470,9 @@ class Receiver:
             self._log(site, tool, "error", 500, f"store: {type(why).__name__}", at=received)
             return 500, {"error": "not kept, send again"}
         out = {"ok": True, "recorded": new, "duplicates": len(kept) - new}
-        if any(r.get("label_dropped") for r in records):
-            out["notes"] = [LABEL_NOTE]
+        notes = [n for n in soft_notes(records, tz) if n in (LABEL_NOTE, TEST_NOTE)]
+        if notes:
+            out["notes"] = notes
         return 200, out
 
     def _test(self, site, tool, mod, payload, received, full, keep_vid=True,
@@ -443,7 +503,7 @@ class Receiver:
                      "would_keep": len(kept), "notes": notes,
                      "read": [{k: r.get(k) for k in ("action", "stage", "at", "vid",
                                                      "source_type", "campaign", "country",
-                                                     "device", "label")}
+                                                     "device", "label", "test")}
                               for r in kept[:5]]}
 
     def _booked(self, site: str, tool: str, ref: str) -> bool:
@@ -485,6 +545,8 @@ def soft_notes(records: list[dict], tz) -> list[str]:
         out.append(naive_note(tz))
     if any(r.get("label_dropped") for r in records):
         out.append(LABEL_NOTE)
+    if any(r.get("test_dropped") for r in records):
+        out.append(TEST_NOTE)
     return out
 
 

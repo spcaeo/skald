@@ -20,8 +20,12 @@ address and user agent of a visit are in `visits` only, and only while the
 site keeps them (people/policy.py, `privacy.keep_ips`; with `short` the
 address is kept shortened, policy.shorten).
 
-A row marked `test` (`skald conversions mark-test`) is kept and listed, but
-left out of every figure; the second count leaves it out by its own SQL.
+A row marked `test` is kept and listed, but left out of every figure; the
+second count leaves it out by its own SQL. `test` is 0 (counted), TEST_MARKED
+(1: `skald conversions mark-test`, or the site's own POST .../leads/test,
+marks.py; a later delivery of the same ref is test too) or TEST_SENT (2,
+since 2.19: the lead body's own `test: true`; that row only, nothing passes
+on). Read it as "test <> 0"; only the inheritance tells 1 from 2.
 Rows a lead-database sync takes away are copied whole into `removed` first
 (`remove`), so nothing disappears unseen; only `forget` deletes for good.
 """
@@ -48,6 +52,8 @@ RETENTION_DAYS = 400
 DELIVERY_DAYS = 90
 REPLAY_DAYS = 30         # a Cal.com/Typeform body's hash is kept this long
 ABANDON_HOURS = 24
+TEST_MARKED = 1          # marked (CLI or leads/test): later deliveries of the ref follow
+TEST_SENT = 2            # the delivery itself said test: true; that row only
 
 CONVERSIONS_V2 = """CREATE TABLE IF NOT EXISTS {name} (
   id INTEGER PRIMARY KEY, site TEXT NOT NULL, action TEXT NOT NULL,
@@ -317,8 +323,9 @@ def record_conversion(db: sqlite3.Connection, rec: dict) -> bool:
     """Keep one conversion. Idempotent on (site, tool, external_ref, stage):
     the first delivery wins, a repeat changes nothing and returns False.
 
-    `rec` holds COLUMNS plus `site`, optional `received_at`, and optional
-    `identity` {email, name}: pass it only when the site's identity is full."""
+    `rec` holds COLUMNS plus `site`, optional `received_at`, optional
+    `test` (True: the delivery said so, TEST_SENT) and optional `identity`
+    {email, name}: pass it only when the site's identity is full."""
     if rec.get("stage") not in STAGES:
         raise ValueError(f"stage {rec.get('stage')!r} is not one of {STAGES}")
     for need in ("site", "action", "at", "external_ref", "tool"):
@@ -333,10 +340,13 @@ def record_conversion(db: sqlite3.Connection, rec: dict) -> bool:
             return False
         identity_id = _identity(db, rec["site"], rec.get("identity"))
         values = [rec.get(c) for c in COLUMNS]
-        # A later stage of a booking or lead marked test is test too.
-        test = db.execute("SELECT MAX(test) FROM conversions WHERE site = ? AND tool = ? AND "
-                          "external_ref = ?", (rec["site"], rec["tool"], rec["external_ref"])
-                          ).fetchone()[0] or 0
+        # A later stage of a booking or lead marked test is test too; one an
+        # earlier delivery only sent as test passes nothing on.
+        marked = db.execute("SELECT 1 FROM conversions WHERE site = ? AND tool = ? AND "
+                            "external_ref = ? AND test = ? LIMIT 1",
+                            (rec["site"], rec["tool"], rec["external_ref"], TEST_MARKED)
+                            ).fetchone()
+        test = TEST_MARKED if marked else TEST_SENT if rec.get("test") is True else 0
         db.execute(f"INSERT INTO conversions (site, {', '.join(COLUMNS)}, identity_id, "
                    f"received_at, test) VALUES ({', '.join('?' * (len(COLUMNS) + 4))})",
                    [rec["site"], *values, identity_id, rec.get("received_at") or stamp(),
@@ -369,10 +379,11 @@ def remove(db, row_id: int, why: str) -> int:
 def mark_test(db, site: str, ids, on: bool = True) -> list[dict]:
     """Mark conversions (by id) as test, or not (`on` False). Every row of
     the same booking or lead (site, tool, external ref) is marked with it,
-    so its later stages are test too. The rows changed: {id, tool,
-    external_ref, action, stage, at}. Raises ValueError for an id that is
-    not this site's."""
+    so its later stages are test too (TEST_MARKED; a row only sent as
+    test becomes marked). The rows changed: {id, tool, external_ref,
+    action, stage, at}. Raises ValueError for an id that is not this site's."""
     out = []
+    to = TEST_MARKED if on else 0
     with tx(db):
         for cid in ids:
             row = db.execute("SELECT tool, external_ref FROM conversions WHERE id = ? AND "
@@ -381,10 +392,36 @@ def mark_test(db, site: str, ids, on: bool = True) -> list[dict]:
                 raise ValueError(f"no conversion {cid} on {site}")
             for r in db.execute("SELECT id, tool, external_ref, action, stage, at FROM "
                                 "conversions WHERE site = ? AND tool = ? AND external_ref = ? "
-                                "AND test != ?", (site, row[0], row[1], int(on))).fetchall():
-                db.execute("UPDATE conversions SET test = ? WHERE id = ?", (int(on), r[0]))
+                                "AND test != ?", (site, row[0], row[1], to)).fetchall():
+                db.execute("UPDATE conversions SET test = ? WHERE id = ?", (to, r[0]))
                 out.append(dict(r))
     return out
+
+
+def mark_refs(db, site: str, tool: str, refs, on: bool = True) -> dict:
+    """Mark every stage of each external ref of one site and tool as test
+    (TEST_MARKED, so later deliveries of the ref follow), or not (`on`
+    False). {"changed": rows whose counting changed, "already": rows that
+    were so already, "not_found": refs with no row}. A row only sent as test
+    (TEST_SENT) that is marked becomes TEST_MARKED and counts as already."""
+    changed = already = 0
+    unknown: list[str] = []
+    with tx(db):
+        for ref in refs:
+            rows = db.execute("SELECT id, test FROM conversions WHERE site = ? AND tool = ? "
+                              "AND external_ref = ?", (site, tool, ref)).fetchall()
+            if not rows:
+                unknown.append(ref)
+                continue
+            for rid, test in rows:
+                if bool(test) == on:
+                    already += 1
+                else:
+                    changed += 1
+                if test != (TEST_MARKED if on else 0):
+                    db.execute("UPDATE conversions SET test = ? WHERE id = ?",
+                               (TEST_MARKED if on else 0, rid))
+    return {"changed": changed, "already": already, "not_found": unknown}
 
 
 def _identity(db, site: str, identity: dict | None) -> int | None:

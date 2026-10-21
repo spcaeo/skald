@@ -275,24 +275,10 @@ def cmd_mark_test(ctx) -> int:
 
 
 def _audit(ctx, action: str, site: str, detail: str) -> None:
-    """One row in the accounts audit log (actor "cli"), when there is one."""
-    from .settings_store import accounts_file
-    path = accounts_file(ctx.config, _folder(ctx))
-    if path is None:                     # basic mode: privacy.log beside the history
-        from .privacy import LOG
-        log = _folder(ctx) / LOG
-        with open(log, "a", encoding="utf-8") as handle:
-            handle.write(f"{datetime.now(timezone.utc).isoformat(timespec='seconds')} "
-                         f"{action} site={site} ids={detail[:400]} by=cli\n")
-        log.chmod(0o640)
-        return
-    from .accounts import auditlog, connect
-    db = connect(path)
-    try:
-        org = db.execute("SELECT org_id FROM sites WHERE name = ?", (site,)).fetchone()
-        auditlog.record(db, org[0] if org else None, "cli", action, site, detail[:500])
-    finally:
-        db.close()
+    """One row in the accounts audit log (actor "cli"), when there is one,
+    else a line in privacy.log (conversions/marks.audit_entry)."""
+    from .conversions.marks import audit_entry
+    audit_entry(ctx.config, _folder(ctx), action, site, detail)
 
 
 def cmd_conversions_list(ctx) -> int:
@@ -305,7 +291,7 @@ def cmd_conversions_list(ctx) -> int:
     db = store.connect(db_path)
     try:
         rows = db.execute("SELECT id, at, tool, action, stage, external_ref, test, label FROM "
-                          "conversions WHERE site = ?" + (" AND test = 1" if a.test else "")
+                          "conversions WHERE site = ?" + (" AND test <> 0" if a.test else "")
                           + " ORDER BY id DESC LIMIT ?", (a.site, a.limit)).fetchall()
     finally:
         db.close()

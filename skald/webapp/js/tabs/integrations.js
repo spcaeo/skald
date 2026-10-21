@@ -48,7 +48,7 @@ const EVENT_WORDS = {
   "alert.opened": "any alert opened (site down, AI citations, a crawler gone silent, ...): its text and figures; a Slack address gets Slack's text",
 };
 const STATE = { OK: ["on", "OK"], "NEEDS ATTENTION": ["warn", "Needs attention"], OFF: ["off", "Off"] };
-const OUTCOME = { recorded: "kept", duplicate: "already had it", ignored: "not a conversion", test: "test, read and not kept", test_failed: "test refused", bad_signature: "bad signature", bad_body: "not readable", too_large: "too large", no_length: "no length", rate_limited: "too many", error: "error" };
+const OUTCOME = { recorded: "kept", duplicate: "already had it", ignored: "not a conversion", test: "test, read and not kept", test_failed: "test refused", bad_signature: "bad signature", bad_body: "not readable", too_large: "too large", no_length: "no length", rate_limited: "too many", error: "error", marked_test: "leads marked test by the site", unmarked_test: "test mark taken off by the site" };
 
 // A secret just made: kept in this page's memory only, until it is copied.
 let fresh = null;

@@ -404,11 +404,11 @@ curl -sS -X POST 'https://www.example.com/traffic-hooks/example.com/lead' \
 | `visits_before`, `first_touch_at` | | when the site knows them |
 | `name`, `email` | | kept only when the site's identity is `full` (Privacy, below) |
 | `label` | | 2.18: a short lowercase token that sorts the leads of one action, e.g. a contact form's topic (`sales`, `support`, `partnership`): `^[a-z0-9][a-z0-9_-]{0,39}$` (`conversions.LABEL`), trimmed and lower-cased first. Anything else (a longer one, a space, a number, an object) is no label: the lead is kept without one, never refused for it; the answer carries `"notes"` and the delivery log's error column says so (never the value sent). Each row keeps its own: a later stage of the same `external_ref` has the label it sends, else none. A resend of a kept ref and stage changes nothing, its label neither |
+| `test` | | 2.19: a JSON boolean. `true` keeps this delivery's row marked test (kept and listed, never counted); `false` or absent, a real lead. That row only: a later stage of the ref is test only if it says so too, or if the ref was marked (`leads/test`, `mark-test`). Not a boolean: ignored with a note, like `label`. A resend differing only in `test` changes nothing |
 
 `json` takes the same object, a list of them, or `{"records": [...]}` (at most 100).
 
-Where the label is kept and shown, and the signed `GET /traffic-hooks/<site>/leads` a site's
-server uses to check that Skald has every lead it sent (2.18): [INTEGRATIONS-LEADS.md](INTEGRATIONS-LEADS.md).
+Where the label is kept and shown, the signed `GET /traffic-hooks/<site>/leads` a site's server uses to check that Skald has every lead it sent (2.18), and `POST /traffic-hooks/<site>/leads/test`, the site marking its own leads as test (2.19): [INTEGRATIONS-LEADS.md](INTEGRATIONS-LEADS.md).
 
 ### Lead stages: a lead counts once, won and lost are outcomes
 
@@ -753,10 +753,10 @@ blocks. Run `nginx -t` before every reload.
 - **Test marks.** `./bin/skald conversions list SITE [--test]` shows the latest
   rows with their ids; `./bin/skald conversions mark-test SITE ID... [--unmark]`
   marks them test (every row of the same tool and reference, so a booking's
-  later stages too). A test row is kept and listed (Leads > Left out,
-  Conversions > Marked test), never counted: not in `conversions.json`, not
-  abandoned, and the second count leaves it out by its own SQL. Each change
-  is a row in the accounts audit log (`conversions.test`, `conversions.untest`).
+  later stages too); a site's server marks its own `lead` refs with `POST
+  .../leads/test` (INTEGRATIONS-LEADS.md). A test row is kept and listed, never counted: not in
+  `conversions.json`, not abandoned; the second count leaves it out by its own SQL. Each
+  change is an audit-log row (`conversions.test`/`untest`; actor `cli` or `hook:lead`).
 - **Delete on request:** `./bin/skald conversions forget --email ADDRESS`,
   `--vid skv_...` or `--lead REF` (or `./bin/skald forget` with the same flags;
   try `--dry-run` first) deletes the conversions, the removed rows, the
@@ -783,7 +783,7 @@ spooled, so neither road counts it. It reads the beacon spool too (people's even
 a visitor ID, one per ID, action and stage within 30 minutes), with its own
 parsing, for the conversions the beacon made, and the lead database by its
 own SQL (above). Rows marked test are left out of every road: the audit
-reads their tool and reference from `conversions.sqlite` by its own SQL
+reads their tool, reference and stage from `conversions.sqlite` by its own SQL
 (`audit_conversions.test_keys`) and skips them in the spool, the beacon and
 the lead recounts. run-daily compares the last 30 days
 (`conversions.audit_days`) with `conversions.sqlite`; a day that disagrees

@@ -124,8 +124,10 @@ def hook_states(site_config: dict, folder, site: str, db, now: datetime | None =
                          fix=_fix_for(last["outcome"], tool, site, cmd, last.get("error")))
         else:
             what = {"recorded": "kept", "duplicate": "a repeat",
-                    "ignored": "not counted", "replay": "a repeat"}.get(last["outcome"],
-                                                                     last["outcome"])
+                    "ignored": "not counted", "replay": "a repeat",
+                    "marked_test": "leads marked test",
+                    "unmarked_test": "test marks taken off"}.get(last["outcome"],
+                                                                  last["outcome"])
             detail = f", {last['error']}" if last.get("error") else ""
             entry.update(state="received", words=f"last received {when} ({what}{detail})")
         out.append(entry)
