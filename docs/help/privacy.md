@@ -82,7 +82,7 @@ When the site keeps shortened addresses, type the full address: it finds the vis
 
 Each search is written to the [audit log](#settings/audit): who searched, when, and what kind of value. Never the value itself.
 
-Viewers cannot look a person up. An API token or an AI assistant can, only with the **Read private files** scope. See [API](api.md) and [MCP](mcp.md).
+Viewers cannot look a person up. An API token or an AI assistant can, only with the **Reading visitor addresses** scope (read_private). See [Connections](connections.md), [API](api.md) and [MCP](mcp.md).
 
 ## Where addresses appear
 

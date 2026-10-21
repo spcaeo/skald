@@ -55,6 +55,9 @@ APP_USER, APP_ID = "skald", 10001
 REAL_IP_HEADER = re.compile(r"^[A-Za-z][A-Za-z0-9-]{0,63}$")
 SITE_NAME = re.compile(r"^[a-z0-9][a-z0-9.-]{0,252}$")
 TIME_ZONE = re.compile(r"^[A-Za-z0-9_+-]+(?:/[A-Za-z0-9_+-]+)*$")
+# The image a site's shipper kit runs (Settings > Connections, skald/kit):
+# this image, at its major version, unless SKALD_KIT_IMAGE or ingest.kit_image names another.
+KIT_IMAGE = "ghcr.io/spcaeo/skald"
 
 
 def log(msg: str) -> None:
@@ -505,6 +508,21 @@ def health(env: dict) -> int:
     return 0
 
 
+def kit_defaults() -> None:
+    """SKALD_KIT_IMAGE (this image at its major version) and SKALD_KIT_SHIP_PATH
+    (the shipper inside it), unless the environment already names them (empty
+    counts as unset)."""
+    try:
+        major = (APP / "VERSION").read_text().strip().split(".")[0]
+    except OSError:
+        major = ""
+    tag = major if major.isdigit() else "latest"
+    if not (os.environ.get("SKALD_KIT_IMAGE") or "").strip():      # compose passes it empty
+        os.environ["SKALD_KIT_IMAGE"] = f"{KIT_IMAGE}:{tag}"
+    if not (os.environ.get("SKALD_KIT_SHIP_PATH") or "").strip():
+        os.environ["SKALD_KIT_SHIP_PATH"] = str(APP / "tools" / "skald-ship.py")
+
+
 def main(argv: list[str]) -> int:
     args = argv or ["serve"]
     drop_privileges(fix_data=args[0] not in ("health", "peers"))
@@ -517,6 +535,7 @@ def main(argv: list[str]) -> int:
     if DATA.is_dir() and os.access(DATA, os.W_OK):
         ensure_visitor_key()
     load_environment()
+    kit_defaults()
     env = dict(os.environ)
     if args[0] == "serve":
         return serve(env)

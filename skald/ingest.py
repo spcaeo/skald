@@ -38,7 +38,9 @@ Each request, in this order, before anything is kept:
      acknowledged with "duplicate": true and nothing written. A full day
      is 429 with the seconds to midnight UTC.
 
-Nothing about the sender is kept: no address, no user agent.
+Nothing about the sender is kept: no address, no user agent. Every answer
+for a site this install knows is noted in ingest_status.py (the time, the
+counts, or the refusal's code and reason word) for the Test button.
 
 With `?format=vercel` or `?format=netlify` the post is a platform's log
 drain instead of a shipper's batch, and with `?format=edge` an edge record
@@ -276,6 +278,8 @@ def guard(db, config, org_id, ingest_root) -> tuple | None:
 # ------------------------------------------------------------------- HTTP
 
 def _answer(h, code: int, body: dict, headers: dict | None = None) -> None:
+    from . import ingest_status            # what the Test button reads (no address, no token)
+    ingest_status.note(h, code, body)      # before the answer, so a caller then sees it
     data = json.dumps(body, separators=(",", ":")).encode()
     h.send_response(code)
     h.send_header("Content-Type", "application/json; charset=utf-8")
@@ -317,6 +321,7 @@ def history_folder(config, live_dir) -> Path:
 
 def handle(h, config, live_dir, config_path=None) -> None:
     """Answer one request to /traffic-ingest/ on the helper's handler."""
+    h._skald_ingest = None                 # set once the path names a site (keep-alive)
     try:
         return _handle(h, config or {}, live_dir, config_path)
     except Exception as why:               # noqa: BLE001 - never a traceback to a caller
@@ -337,6 +342,11 @@ def _handle(h, config, live_dir, config_path) -> None:
     site = m.group("site")
     from . import ingest_drain                # ?format=vercel|netlify|edge
     drain = ingest_drain.platform(h.path)
+    root = ingest_log.root(config, history_folder(config, live_dir))
+    h._skald_ingest = {
+        "base": history_folder(config, live_dir), "site": site, "shipper": drain,
+        "known": lambda: (ingest_log.site_folder(root, site).is_dir()
+                          or site in site_configs(config, config_path))}
     if drain is not None:
         return ingest_drain.handle(h, config, live_dir, config_path, site, drain)
     from .accounts import apitokens, db as base, site_configs as dsites

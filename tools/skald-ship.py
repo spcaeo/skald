@@ -144,11 +144,12 @@ def url_problem(url: str) -> str | None:
 
 def read_token(path: str, err=None) -> str:
     """The token in `path`, stripped. Warns (never echoing it) when the file
-    can be read by its group or by everyone."""
+    can be read by everyone or written by anyone but its owner. 640 is fine:
+    the shipper often reads it through its group (the Docker kit: root:adm)."""
     err = err or sys.stderr
     mode = os.stat(path).st_mode
-    if mode & 0o077:
-        print(f"skald-ship: warning: {path} is readable by others (mode "
+    if mode & 0o027:
+        print(f"skald-ship: warning: {path} is open to others (mode "
               f"{mode & 0o777:o}); chmod 600 or 640 it", file=err, flush=True)
     with open(path, encoding="utf-8") as f:
         token = f.read().strip()

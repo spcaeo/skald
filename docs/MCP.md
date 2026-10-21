@@ -81,8 +81,10 @@ mcp:
   enabled: true
 ```
 
-Make a token with the `mcp` scope in Settings > API & tokens, for the sites it
-should read (or on the server: `skald token create NAME --scope mcp`). Add `read_private` only
+Make a token with the `mcp` scope in Settings > Connections (called API & tokens before):
+the card "Connect an AI assistant (MCP)" makes one for the current site, shows the Claude Code
+and Claude Desktop set-up, and tests it with `initialize` and `tools/list`; "Make a token by
+hand" takes several sites (or on the server: `skald token create NAME --scope mcp`). Add `read_private` only
 if the agent must see addresses. The token is shown once; keep it where you
 keep other secrets, never in a repository.
 

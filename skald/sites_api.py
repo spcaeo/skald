@@ -7,15 +7,20 @@ with `access.mode: sessions` (404 otherwise), the way team_api.py is:
                        file or dashboard), active or removed, its log format
                        and what the ingest endpoint has received; whether the
                        caller may add one (and why not)
-  POST sites/add       {host, timezone?, format?}                     admin
+  POST sites/add       {host, timezone?, format?, token?}             admin
                        -> the site, an ingest token (shown once), the shipper
-                          command and the skald.js tag
+                          command and the skald.js tag (with token: false, no
+                          token: the wizard makes a named one later)
   POST sites/token     {name}: a new ingest token for a site          admin
   POST sites/remove    {name, confirm: name}                          owner
                        stops processing; the data stays until an install
                        admin runs `skald site purge <name>`
   POST sites/verify    {name}: look for the site's verification token (DNS
                        TXT or the home page's meta tag, site_verify.py)  admin
+  GET  sites/status, POST sites/kit, POST sites/setup: Settings > Connections
+                       and the "Add a site" wizard (connections_api.py)  admin
+  POST sites/share, GET sites/shares, POST sites/unshare: "Share with your
+                       developer" links (share_api.py)                 admin
 
 With saas on, a site added here starts "pending" (site_verify.py): nothing is
 collected for it until its domain is verified; the listing shows the token.
@@ -42,7 +47,9 @@ from .auth_api import answer, csrf_ok, read_json, text
 from .config import site_name
 
 PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
-PATH = re.compile(PAGE + r"(?P<act>sites(?:/(?:add|token|remove|verify))?)$")
+PATH = re.compile(PAGE + r"(?P<act>sites(?:/(?:add|token|remove|verify|status|kit|setup|share"
+                         r"|shares|unshare))?)$")
+GETS = ("sites", "sites/status", "sites/shares")
 ADMIN = ("owner", "admin")
 SHIP_TOKEN_FILE = "/etc/skald-ship/token"
 VERIFY_PER_HOUR = 10       # checks a site may ask for (each a DNS query and a fetch)
@@ -160,7 +167,7 @@ def handle(h, write: bool, config, live_dir, allowed: set[str], same_origin,
         return answer(h, 404, {"ok": False, "error": "not found"})
     m = match(h.path)
     act = m.group("act")
-    if write == (act == "sites"):
+    if write == (act in GETS):
         return answer(h, 405, {"ok": False, "error": "wrong method"})
     if write and not same_origin(h.headers, allowed):
         return answer(h, 403, {"ok": False, "error": "same-origin requests only"})
@@ -225,10 +232,15 @@ def listing(c: Ctx, form):
                  "verify": site_verify.shown(c.db, name)}
         out.append(entry)
     refusal = _refusal(c)
+    from . import connections_api
+    more = connections_api.extras(c, [s["name"] for s in out]) if c.role in ADMIN else {}
+    for entry in out:
+        entry.update((more.get("progress") or {}).get(entry["name"]) or {})
+    more.pop("progress", None)
     return c.ok(org=c.org["name"], role=c.role, sites=out, can_add=refusal is None,
                 add_refused=refusal, formats=list(site_configs.FORMATS),
                 ingest_enabled=ingest.enabled(c.config),
-                ingest_url=f"{_base(c.config, c.allowed)}{ingest.PREFIX}")
+                ingest_url=f"{_base(c.config, c.allowed)}{ingest.PREFIX}", **more)
 
 
 def _new_token(c: Ctx, name: str) -> str:
@@ -250,7 +262,7 @@ def add(c: Ctx, form):
                 timezone=text(form, "timezone", 64) or None,
                 fmt=text(form, "format", 40) or "auto", log_dir=str(folder),
                 taken=config_sites(c.config, c.config_path))
-            token = _new_token(c, name)
+            token = _new_token(c, name) if form.get("token") is not False else None
             if saas_on(c.config):
                 site_verify.start(c.db, name)
     except ValueError as why:
@@ -317,5 +329,21 @@ def saas_on(config) -> bool:
     return enabled(config)
 
 
+def _share(name):
+    def call(c, form):
+        from . import share_api
+        return getattr(share_api, name)(c, form)
+    return call
+
+
+def _more(name):
+    def call(c, form):
+        from . import connections_api
+        return getattr(connections_api, name)(c, form)
+    return call
+
+
 ROUTES = {"sites": listing, "sites/add": add, "sites/token": new_token, "sites/remove": remove,
-          "sites/verify": verify}
+          "sites/verify": verify, "sites/status": _more("status"), "sites/kit": _more("kit_zip"),
+          "sites/setup": _more("setup"), "sites/share": _share("share"),
+          "sites/shares": _share("shares"), "sites/unshare": _share("unshare")}

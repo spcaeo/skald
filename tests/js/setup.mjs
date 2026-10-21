@@ -1,8 +1,9 @@
 // The first-run checklist's items (js/setup-items.js): each read from what the
 // page has (the live count, the stored days) and the two answers it already
 // uses (GET integrations: the doctor's lines and each hook's state; GET
-// settings), each with a link to its fix; done when every item that is not
-// optional is done.
+// settings), each with one plain line, the Set up dialog that fixes it (act)
+// and the doctor's own words for the server admin (tech); done when every item
+// that is not optional is done.
 //
 //   node tests/js/setup.mjs
 import assert from "node:assert/strict";
@@ -18,7 +19,7 @@ const S = (value, source = "default") => ({ value, source });
   const got = by(setupItems(model(null)));
   assert.deepEqual(Object.keys(got), ["logs", "assets", "countries", "script", "lead", "mail", "privacy"]);
   assert.equal(got.logs.state, "todo");
-  assert.equal(got.logs.fix[1], "#settings/sites");
+  assert.equal(got.logs.act, "logs");
   assert.equal(got.assets.state, "wait");
   assert.equal(got.countries.state, "wait");
   assert.equal(got.script.state, "unknown", "without the integrations answer it is not guessed");
@@ -32,11 +33,14 @@ const S = (value, source = "default") => ({ value, source });
   let got = by(setupItems(model({ requests: 40, hits: { people: 0 }, by: { country: {} } })));
   assert.equal(got.logs.state, "done");
   assert.equal(got.assets.state, "todo");
-  assert.match(got.assets.says, /no visit counted as people/);
+  assert.match(got.assets.says, /none counts as a person yet/);
+  assert.equal(got.assets.act, "assets");
   got = by(setupItems(model({ requests: 40, hits: { people: 12 }, by: { country: { Unknown: 12 } } })));
   assert.equal(got.assets.state, "done");
   assert.equal(got.countries.state, "todo");
-  assert.equal(got.countries.fix[1], "#help?part=faq");
+  assert.equal(got.countries.act, "countries");
+  assert.match(got.countries.tech, /GeoIP/);
+  assert.doesNotMatch(got.countries.says, /GeoIP/);
   // No live count today: the last whole day stands in.
   got = by(setupItems(model(null, [{ day: "2026-10-17", state: "ok", requests: 9, readers: 3, by: { country: { CA: 3 } } }])));
   assert.equal(got.countries.state, "done");
@@ -51,7 +55,8 @@ const S = (value, source = "default") => ({ value, source });
   const settings = { "mail.to": S(["owner@example.com"], "site"), "mail.daily": S(true), "mail.weekly": S(false), "privacy.keep_ips": S(true, "site"), "privacy.keep_days": S(30, "site") };
   let got = by(setupItems(model({ requests: 9, hits: { people: 3 }, by: { country: { US: 3 } } }), { status, tools, settings, waiting: [] }));
   assert.equal(got.logs.state, "todo", "the doctor says the log is not there");
-  assert.equal(got.logs.fix[0], "Set logs.dir");
+  assert.match(got.logs.tech, /Fix: Set logs.dir/);
+  assert.doesNotMatch(got.logs.says, /logs\.dir|\/logs/, "the plain line has no config words");
   assert.equal(got.assets.state, "done", "a rule turned off is not a problem");
   assert.equal(got.script.state, "done");
   assert.equal(got.lead.state, "done");
@@ -69,8 +74,34 @@ const S = (value, source = "default") => ({ value, source });
   assert.equal(got.mail.state, "todo");
   assert.match(got.mail.says, /1 recipient has not confirmed/);
   assert.equal(got.privacy.state, "todo");
-  assert.equal(got.privacy.fix[1], "#settings/retention");
+  assert.equal(got.privacy.act, "privacy");
   got = by(setupItems(model(null), { status, tools: [], settings: { ...settings, "mail.daily": S(false) }, waiting: [] }));
   assert.match(got.mail.says, /both off/);
+}
+
+// ---- the script tag's doctor line in plain words; its server words only in tech
+{
+  const status = [{ id: "logs", state: "OK", says: "readable" },
+    { id: "script", part: "Script tag", state: "NEEDS ATTENTION", says: "origins the helper's --origin; no event has arrived yet",
+      fix: "Put the tag on every page, from one of these origins. nginx must send /traffic-beacon and /traffic-js/ to the helper (docs/INTEGRATIONS.md)." }];
+  let got = by(setupItems(model(null), { status, tools: [], settings: null }));
+  assert.equal(got.script.state, "todo");
+  assert.equal(got.script.act, "script");
+  for (const word of ["--origin", "helper", "nginx", "origins"]) assert.ok(!got.script.says.includes(word), word);
+  assert.match(got.script.tech, /--origin/);
+  assert.match(got.script.tech, /nginx must send/);
+  status[1] = { id: "script", state: "OK", says: "origins the helper's --origin; the last event came 2 minutes ago" };
+  got = by(setupItems(model(null), { status, tools: [], settings: null }));
+  assert.equal(got.script.says, "The tag works: the last event came 2 minutes ago.");
+  assert.equal(got.script.act, null);
+  status[1] = { id: "script", state: "OFF", says: "not set up (no beacon.origins); hooks work without it" };
+  got = by(setupItems(model(null), { status, tools: [], settings: null }));
+  assert.ok(got.script.optional && got.script.act === "script" && !got.script.tech);
+  assert.doesNotMatch(got.script.says, /beacon/);
+  // Any hook tool that passed a test ticks the lead line, not only the lead hook.
+  got = by(setupItems(model(null), { status, tools: [{ tool: "lead", name: "Your site's server (lead)", state: "needs_secret", words: "needs a secret" },
+    { tool: "calcom", name: "Cal.com", state: "ready", words: "ready: a test passed 1 minute ago; nothing real yet" }], settings: null }));
+  assert.equal(got.lead.state, "done");
+  assert.match(got.lead.says, /^Cal.com: ready/);
 }
 console.log("setup: all passed");

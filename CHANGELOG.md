@@ -2,6 +2,45 @@
 
 All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versioning](https://semver.org).
 
+## 2.16.0 (2026-10-21)
+
+Connecting a site, step by step: from the address to "Connected", with a test at the end and
+plain-words fixes when something is wrong.
+
+### Added
+
+- **Settings > Connections** (was API & tokens). Three tasks, each a short guided dialog:
+  - **Send this site's visits to Skald**: choose how (a Linux server with Docker, the same
+    without Docker, Cloudflare, Vercel or Netlify, or only the script tag), make a sending token
+    for this one site, follow the steps with the address and token filled in, and **Test
+    connection**: "Waiting for the first lines", "Connected: 1,240 lines received, the last at
+    10:42", or "Refused at 10:41: the token is not for this site" with the fix.
+  - **Read your figures (API)**: a read token, a curl command filled in, and a Test.
+  - **Connect an AI assistant (MCP)**: a token, the Claude Code command and Claude Desktop
+    config, and a Test that lists the tools.
+  - **Your tokens**: what each one is for, its sites, and Revoke. Sending tokens can now be made
+    in the dashboard, not only on the server.
+- **Install kit (.zip)** for the Docker and systemd shippers: `install.sh`, `uninstall.sh` (removes
+  only what it made), `check.sh` (checks Docker, nginx, the log file, the way out to Skald, the
+  token file and the shipper, one line each with the fix, and ends with a report to send, with no
+  token or address in it) and a README. The token is never in the zip unless you tick the box.
+- **Add a site, step by step**: your site, prove it is yours, how its visits reach Skald,
+  install, test and finish. Progress is kept on the server: close it and continue later; the site
+  picker shows "Setup: step 3 of 5, continue", and a site with no visits for 24 hours says so.
+- **Share with your developer**: a private link to one task's steps for one site, filled in, with
+  the kit and the Test. It ends after 7 days (1 or 30 if you choose) or when you revoke it; the
+  token or secret it needs is made when the developer presses Show, and shown once.
+- **Set up this site** on Overview: each open line is one plain sentence and a Set up button that
+  opens its guided dialog (logs, the script tag, the lead hook, mail, privacy). The technical
+  detail is folded under "For your server admin".
+- **Help:** Connections, and Troubleshooting connections (the common problems and their fixes).
+
+### Fixed
+
+- `skald-ship` warned that a token file at mode 640 was "readable by others", the very mode its
+  message recommends. It warns now only when the file is open to everyone or writable by others.
+- The install steps named `www.<site>` even for a site without www.
+
 ## 2.15.0 (2026-10-20)
 
 Two privacy controls, from a community question: "does it also track visitors who don't accept the

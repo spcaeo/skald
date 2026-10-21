@@ -69,7 +69,7 @@ const FEATURES = [
     ["settings/account", "Your name, password, two-step sign-in and where you are signed in."],
     ["settings/team", "Invite people and choose what each may do."],
     ["settings/users", "Who may look and who may change things: admins and viewers."],
-    ["settings/api", "Every figure as JSON, with the dashboard login or a token; tokens for scripts, and the MCP address for AI assistants."],
+    ["settings/api", "Connections: send a site's visits to Skald, read every figure as JSON with a token, connect an AI assistant (MCP), and your tokens."],
     ["settings/internal", "Our own machines and the heartbeat, and the addresses that count as ours."],
     ["settings/integrations", "Webhooks from booking, form and payment tools, and the skald.js tag, for Conversions."],
     ["settings/retention", "How long each kind of record is kept."],

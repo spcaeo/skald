@@ -4,12 +4,13 @@
 // and the site's settings (GET settings). No DOM and no other module here, so
 // tests/js/setup.mjs runs it in node. It reads; it counts nothing.
 //
-// Each item: {id, title, optional, state, says, fix: [words, href] | null}
+// Each item: {id, title, optional, state, says, tech, act}
 //   state  done | todo | wait (nothing to judge yet: no visitor today) | unknown
-//          (the answer needs a page this reader cannot load)
+//          (the answer could not be loaded)
+//   says   one plain line for the site's owner: no config keys, no server words
+//   tech   the doctor's own line and fix, for the server admin (shown folded), or null
+//   act    the Set up dialog that fixes it (js/tabs/setup-dialogs.js), or null
 
-// The doctor says "requests for /x/ seen in the log": a sentence here.
-const said = (t) => { const s = String(t || "").trim(); return s ? `${s[0].toUpperCase()}${s.slice(1)}${/[.!?]$/.test(s) ? "" : "."}` : s; };
 const DOC = (status, id) => (status || []).find((x) => x.id === id) || null;
 const latest = (m) => {
   if (m?.live?.state === "ok" && m.live.day === m.today) return m.live.figures || null;
@@ -17,6 +18,20 @@ const latest = (m) => {
   return days.length ? days[days.length - 1] : null;
 };
 const someone = (f) => (f?.hits?.people || 0) > 0 || (f?.readers || 0) > 0;
+// The doctor's line and fix, kept as written, for whoever runs the server.
+const techOf = (d) => (d ? [`${d.part || d.id}: ${d.says}`, d.fix && d.state !== "OK" ? `Fix: ${d.fix}` : ""].filter(Boolean).join("\n") : null);
+const UNKNOWN = "Could not be checked just now. Open this page again in a minute.";
+
+// The script tag in plain words, from the doctor's line (doctor.script_tag).
+function scriptWords(d) {
+  const says = String(d?.says || "");
+  const when = /the last event came (.+)$/.exec(says)?.[1];
+  if (d?.state === "OK") return `The tag works: the last event came ${when || "lately"}.`;
+  if (!d || d.state === "OFF") return "Optional. One line on your pages adds form steps, clicks and bookings.";
+  if (/does not serve/.test(says)) return "The tag is switched on, but Skald's server does not hand it out yet. Your server admin can fix it.";
+  if (when) return `No event from the tag since ${when}. Check that it is still on your pages.`;
+  return "The tag is not sending yet. Put it on your pages, then test it.";
+}
 
 export function setupItems(m, { status = null, tools = null, settings = null, waiting = [] } = {}) {
   const f = latest(m);
@@ -24,58 +39,61 @@ export function setupItems(m, { status = null, tools = null, settings = null, wa
 
   // 1. The log is read: the doctor's access-log line, else a live count with requests in it.
   const logs = DOC(status, "logs");
-  if (logs) out.push({ id: "logs", title: "Logs arriving", state: logs.state === "OK" ? "done" : "todo", says: said(logs.says), fix: logs.state === "OK" ? null : [logs.fix || "Check the log file", "#settings/sites"] });
-  else if (f && (f.requests || 0) > 0) out.push({ id: "logs", title: "Logs arriving", state: "done", says: "The server's access log is being read.", fix: null });
-  else out.push({ id: "logs", title: "Logs arriving", state: "todo", says: "No request read yet today.", fix: ["Where the log is: Settings > Sites > Log file", "#settings/sites"] });
+  const read = f && (f.requests || 0) > 0;
+  if (logs?.state === "OK" || (!logs && read)) out.push({ id: "logs", title: "Logs arriving", state: "done", says: "Visits are arriving: the server's log is read.", tech: null, act: null });
+  else out.push({ id: "logs", title: "Logs arriving", state: "todo", says: read ? "Visits arrived before, but the server's log cannot be read now." : "No visit has reached Skald yet. Connect the site's server so its visits arrive.", tech: techOf(logs), act: "logs" });
 
   // 2. Page assets: the doctor's line; without it, whether any visit counted as people.
   const assets = DOC(status, "assets");
-  if (assets) out.push({ id: "assets", title: "Pages render (page assets)", state: assets.state === "NEEDS ATTENTION" ? "todo" : "done", says: said(assets.says), fix: assets.state === "NEEDS ATTENTION" ? [assets.fix || "Set the page assets", "#settings/sites"] : null });
-  else if (someone(f)) out.push({ id: "assets", title: "Pages render (page assets)", state: "done", says: "Visits are counted as people: their browsers fetched the pages' own files.", fix: null });
-  else if (f && (f.requests || 0) > 0) out.push({ id: "assets", title: "Pages render (page assets)", state: "todo", says: "Requests arrive, but no visit counted as people: no browser fetched the page assets Skald looks for.", fix: ["Set the page assets: Settings > Sites > Page assets", "#settings/sites"] });
-  else out.push({ id: "assets", title: "Pages render (page assets)", state: "wait", says: "Waits for the first visitor.", fix: null });
+  const T2 = "Visits count as people";
+  if (assets?.state === "NEEDS ATTENTION") out.push({ id: "assets", title: T2, state: "todo", says: "Visits arrive, but none counts as a person yet: tell Skald where your pages load their own files.", tech: techOf(assets), act: "assets" });
+  else if (assets?.state === "OFF" && /not needed/.test(assets.says)) out.push({ id: "assets", title: T2, state: "done", says: "Nothing to set: every visit from a browser counts.", tech: null, act: null });
+  else if (assets?.state === "OK" || someone(f)) out.push({ id: "assets", title: T2, state: "done", says: "Visits count as people: their browsers load your pages' own files.", tech: null, act: null });
+  else if (read) out.push({ id: "assets", title: T2, state: "todo", says: "Visits arrive, but none counts as a person yet: tell Skald where your pages load their own files.", tech: null, act: "assets" });
+  else out.push({ id: "assets", title: T2, state: "wait", says: "Waits for the first visitor.", tech: null, act: null });
 
   // 3. Countries: a visit with a country, or the GeoIP file to set.
   const cc = Object.keys(f?.by?.country || {}).filter((k) => k && k !== "Unknown" && !k.startsWith("("));
-  if (cc.length) out.push({ id: "countries", title: "Countries on", state: "done", says: "Visits carry a country.", fix: null });
-  else if (someone(f)) out.push({ id: "countries", title: "Countries on", state: "todo", says: "Visits come with no country: this log has none, and no GeoIP file is set.", fix: ["How to set a GeoIP country file", "#help?part=faq"] });
-  else out.push({ id: "countries", title: "Countries on", state: "wait", says: "Waits for the first visitor.", fix: null });
+  if (cc.length) out.push({ id: "countries", title: "Countries shown", state: "done", says: "Visits show their country.", tech: null, act: null });
+  else if (someone(f)) out.push({ id: "countries", title: "Countries shown", state: "todo", says: "Visits come without a country. A country file on Skald's server adds it.", tech: "The log carries no country, and no GeoIP country file is set (logs.country_db, or SKALD_COUNTRY_DB in Docker).", act: "countries" });
+  else out.push({ id: "countries", title: "Countries shown", state: "wait", says: "Waits for the first visitor.", tech: null, act: null });
 
   // 4. The script tag (optional): the doctor's line.
   const script = DOC(status, "script");
-  if (!status) out.push({ id: "script", title: "Script tag events", optional: true, state: "unknown", says: "An admin sees this in Settings > Integrations.", fix: null });
-  else if (script?.state === "OK") out.push({ id: "script", title: "Script tag events", optional: true, state: "done", says: said(script.says), fix: null });
-  else out.push({ id: "script", title: "Script tag events", optional: true, state: "todo", says: script ? said(script.says) : "Not set up.", fix: [script?.state === "OFF" ? "Add the script tag (optional)" : script?.fix || "Check the script tag", "#settings/integrations"] });
+  if (!status) out.push({ id: "script", title: "Script tag events", optional: true, state: "unknown", says: UNKNOWN, tech: null, act: null });
+  else if (script?.state === "OK") out.push({ id: "script", title: "Script tag events", optional: true, state: "done", says: scriptWords(script), tech: null, act: null });
+  else out.push({ id: "script", title: "Script tag events", optional: true, state: "todo", says: scriptWords(script), tech: script?.state === "NEEDS ATTENTION" ? techOf(script) : null, act: "script" });
 
-  // 5. The lead hook (optional): tested or receiving.
-  const lead = (tools || []).find((t) => t.tool === "lead");
-  if (!tools) out.push({ id: "lead", title: "Lead hook tested", optional: true, state: "unknown", says: "An admin sees this in Settings > Integrations.", fix: null });
-  else if (lead && (lead.state === "ready" || lead.state === "received")) out.push({ id: "lead", title: "Lead hook tested", optional: true, state: "done", says: `Lead hook: ${lead.words}.`, fix: null });
-  else out.push({ id: "lead", title: "Lead hook tested", optional: true, state: "todo", says: lead ? `Lead hook: ${lead.words}.` : "Not set up.", fix: ["Make its secret and send a test: Settings > Integrations", "#settings/integrations"] });
+  // 5. A lead hook (optional): any tool tested or receiving.
+  const ok = (tools || []).filter((t) => t.state === "ready" || t.state === "received");
+  const lead = ok.find((t) => t.state === "received") || ok[0] || (tools || []).find((t) => t.tool === "lead");
+  if (!tools) out.push({ id: "lead", title: "Lead hook tested", optional: true, state: "unknown", says: UNKNOWN, tech: null, act: null });
+  else if (ok.length) out.push({ id: "lead", title: "Lead hook tested", optional: true, state: "done", says: `${lead.name}: ${lead.words}.`, tech: null, act: null });
+  else out.push({ id: "lead", title: "Lead hook tested", optional: true, state: "todo", says: "Optional. Your forms or booking tool tell Skald about each lead.", tech: lead?.attention && lead.fix ? `${lead.name}: ${lead.words}.\nFix: ${lead.fix}` : null, act: "lead" });
 
   // 6. Mail: a report on, and a recipient who confirmed.
-  if (!settings) out.push({ id: "mail", title: "Mail recipient confirmed", state: "unknown", says: "An admin sees this in Settings > Mail.", fix: null });
+  if (!settings) out.push({ id: "mail", title: "Mail recipient confirmed", state: "unknown", says: UNKNOWN, tech: null, act: null });
   else {
     const to = settings["mail.to"]?.value || [];
     const on = settings["mail.daily"]?.value || settings["mail.weekly"]?.value;
-    const ok = on && to.length && !waiting.length;
-    out.push({ id: "mail", title: "Mail recipient confirmed", state: ok ? "done" : "todo",
-      says: ok ? `The ${settings["mail.daily"]?.value ? "daily" : "weekly"} mail goes to ${to.length} confirmed recipient${to.length === 1 ? "" : "s"}.`
+    const done = on && to.length && !waiting.length;
+    out.push({ id: "mail", title: "Mail recipient confirmed", state: done ? "done" : "todo",
+      says: done ? `The ${settings["mail.daily"]?.value ? "daily" : "weekly"} mail goes to ${to.length} confirmed recipient${to.length === 1 ? "" : "s"}.`
         : waiting.length ? `${waiting.length} recipient${waiting.length === 1 ? " has" : "s have"} not confirmed yet (the link in their mail).`
-          : !to.length ? "No recipient yet." : "The daily and the weekly mail are both off.",
-      fix: ok ? null : ["Settings > Mail", "#settings/mail"] });
+          : !to.length ? "Nobody gets the daily mail yet." : "The daily and the weekly mail are both off.",
+      tech: null, act: done ? null : "mail" });
   }
 
   // 7. Privacy: someone chose what is kept about people (not left at the default).
-  if (!settings) out.push({ id: "privacy", title: "Privacy settings chosen", state: "unknown", says: "An admin sees this in Settings > Data retention.", fix: null });
+  if (!settings) out.push({ id: "privacy", title: "Privacy settings chosen", state: "unknown", says: UNKNOWN, tech: null, act: null });
   else {
     const ips = settings["privacy.keep_ips"];
     // full, short or off (2.15.0); true and false from an older answer.
     const mode = ips?.value === true ? "full" : ips?.value === false || !ips?.value ? "off" : ips.value;
     const chosen = ips && ips.source && ips.source !== "default";
     out.push({ id: "privacy", title: "Privacy settings chosen", state: chosen ? "done" : "todo",
-      says: chosen ? `IP addresses ${mode !== "off" ? `kept${mode === "short" ? " shortened" : ""} with each visit${settings["privacy.keep_days"]?.value ? ` for ${settings["privacy.keep_days"].value} days` : ""}` : "not kept"}.` : "The defaults apply: choose what is kept about people, and say so in your privacy notice.",
-      fix: chosen ? null : ["Settings > Data retention > People", "#settings/retention"] });
+      says: chosen ? `IP addresses ${mode !== "off" ? `kept${mode === "short" ? " shortened" : ""} with each visit${settings["privacy.keep_days"]?.value ? ` for ${settings["privacy.keep_days"].value} days` : ""}` : "not kept"}.` : "Choose what is kept about visitors, then copy the wording for your privacy notice.",
+      tech: null, act: chosen ? null : "privacy" });
   }
   return out;
 }

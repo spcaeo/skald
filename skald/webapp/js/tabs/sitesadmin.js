@@ -1,15 +1,21 @@
 // Settings > Add or remove sites (accounts, access.mode: sessions): the
 // organisation's sites, where each is defined (a config file on the server, or
 // made here), and what the log endpoint has received for it. An admin adds a
-// site: it gets a log folder and an ingest token, shown once, with the command
-// that ships the server's log and the skald.js tag. An owner removes a site made
-// here, typing its name: processing stops, the data stays until an install admin
-// purges it on the server. The helper behind <page>/sites checks role and CSRF.
+// site step by step (site-wizard.js): its address, proof it is theirs, how its
+// visits reach Skald, the install and a test; a set-up left half way shows
+// "Setup: step 3 of 5, continue", and one that heard nothing for a day "No
+// visits yet: test the connection". #settings/sitesadmin?setup=new|<site> and
+// ?test=<site> open the wizard (the site picker links there). An owner removes
+// a site made here, typing its name: processing stops, the data stays until an
+// install admin purges it on the server. The helper behind <page>/sites checks
+// role and CSRF.
 
 import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { ME, sessions } from "../access.js";
-import { head1, copyable, field, input, status, when, why } from "./forms.js";
+import { head1, copyable, input, status, when, why } from "./forms.js";
+import * as S from "../state.js";
+import { siteWizard, STEPS } from "./site-wizard.js";
 
 const FORMAT_NAME = {
   auto: "Detect it", nginx_combined: "nginx (combined)", nginx_extended: "nginx (Skald's extended format)", apache_combined: "Apache (combined)",
@@ -37,7 +43,10 @@ function freshNote(slot) {
     h("div", { class: "acts" }, done))));
 }
 
-export default function sitesadmin() {
+// A wizard asked for by the address (?setup= / ?test=), opened once per ask.
+let asked = "";
+
+export default function sitesadmin(m, s = {}) {
   const title = head1("Add or remove sites", ME.org ? `The sites ${ME.org} reports on.` : "The sites this organisation reports on.");
   if (!sessions()) {
     return [title, h("div", { class: "state" }, h("div", null, "Adding sites here comes with accounts. On this server, sites are listed in the config file."))];
@@ -47,9 +56,43 @@ export default function sitesadmin() {
   const slot = h("div");
   const reload = () => call("sites").then(draw);
 
+  let data = {};
   function draw(r) {
     if (!r.ok) { box.replaceChildren(h("div", { class: "state" }, h("div", null, why(r, "The sites could not be loaded.")))); return; }
+    data = r;
     box.replaceChildren(table(r.sites || []), pendingBox(r.sites || []), addForm(r));
+    openAsked(r);
+  }
+
+  // The wizard for a site: from its saved step, or at the Test (step 5).
+  function resume(site, test = false) {
+    const step = test ? STEPS : Math.max(1, Math.min(STEPS, site.setup?.step || 1));
+    siteWizard({ data, name: site.name, start: step - 1, method: site.setup?.method || "", verify: site.verify, onChange: reload });
+  }
+  function openAsked(r) {
+    const want = s.setup ? `setup:${s.setup}` : s.test ? `test:${s.test}` : "";
+    if (!want || want === asked || !admin()) return;
+    asked = want;
+    if (s.setup === "new") { if (r.can_add) siteWizard({ data: r, onChange: reload }); }
+    else {
+      const site = (r.sites || []).find((x) => x.name === (s.setup || s.test));
+      if (site) resume(site, Boolean(s.test));
+    }
+    S.set({ setup: "", test: "" }, { replace: true });
+  }
+  function setupCell(site) {
+    if (!admin() || site.status !== "active") return "";
+    if (site.setup && !site.setup.done) {
+      const b = h("button", { type: "button", class: "btn cn-badge" }, `Setup: step ${site.setup.step} of ${STEPS}, continue`);
+      b.addEventListener("click", () => resume(site));
+      return b;
+    }
+    if (site.quiet) {
+      const b = h("button", { type: "button", class: "btn cn-badge warn" }, "No visits yet: test the connection");
+      b.addEventListener("click", () => resume(site, true));
+      return b;
+    }
+    return "";
   }
 
   // A site waiting for its domain to be verified collects nothing (site_verify.py).
@@ -135,7 +178,7 @@ export default function sitesadmin() {
         h("tbody", null, list.map((s) => {
           const cell = h("td", { class: "n" });
           actions(s, cell);
-          return h("tr", null, h("td", { class: "path nm" }, s.name), h("td", null, s.source === "dashboard" ? "these pages" : "config file"),
+          return h("tr", null, h("td", { class: "path nm" }, s.name, h("div", null, setupCell(s))), h("td", null, s.source === "dashboard" ? "these pages" : "config file"),
             h("td", null, s.status === "removed" ? `removed ${when(s.removed_at, "")}` : waiting(s) ? "waiting for verification" : "active"),
             h("td", { class: "muted" }, s.format ? FORMAT_NAME[s.format] || s.format : ""), h("td", { class: "muted" }, received(s)), cell);
         })))));
@@ -144,32 +187,11 @@ export default function sitesadmin() {
   function addForm(r) {
     if (!admin()) return h("section", { class: "s" }, h("h2", null, "Add a site"), h("p", { class: "note" }, "Only an admin can add a site."));
     if (!r.can_add) return h("section", { class: "s" }, h("h2", null, "Add a site"), h("p", { class: "note" }, r.add_refused || "Adding sites is not available here."));
-    const host = input({ name: "host", autocomplete: "off", required: true, placeholder: "shop.example.com", maxlength: "100" });
-    const zone = input({ name: "timezone", autocomplete: "off", placeholder: "UTC", maxlength: "64" });
-    const fmt = h("select", { name: "format" }, (r.formats || ["auto"]).map((f) => h("option", { value: f }, FORMAT_NAME[f] || f)));
-    const make = h("button", { type: "submit", class: "btn primary" }, "Add site");
-    const form = h("form", { class: "af-col", novalidate: true },
-      field("Host name", host, "The site's address without https://. It is also the site's name here."),
-      field("Time zone", zone, "Days are counted in this zone, like Europe/London. Empty: UTC."),
-      field("Log format", fmt, "The web server writing the log. Lines in another format are refused and counted."),
-      h("div", null, make));
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const name = host.value.trim().toLowerCase();
-      if (!/^[a-z0-9.-]+\.[a-z0-9-]+$/.test(name)) { msg.say("Type a host name, like shop.example.com."); host.focus(); return; }
-      make.disabled = true;
-      const res = await call("sites/add", { host: name, timezone: zone.value.trim(), format: fmt.value });
-      make.disabled = false;
-      if (!res.ok || !res.token) { msg.say(why(res, "The site was not added.")); return; }
-      fresh = { site: res.site, token: res.token, ship_command: res.ship_command, token_file: res.token_file, tag: res.tag };
-      host.value = ""; zone.value = "";
-      msg.say(`${res.site} is added. Its page is ready now (choose it in the site menu); figures appear once its log lines arrive.`, true);
-      freshNote(slot);
-      reload();
-    });
+    const go = h("button", { type: "button", class: "btn primary" }, "Add a site, step by step");
+    go.addEventListener("click", () => siteWizard({ data: r, onChange: reload }));
     return h("section", { class: "s" }, h("h2", null, "Add a site"),
-      h("p", { class: "sub" }, "The site's own server sends its access log here with a small program, skald-ship. Nothing is read from the site itself."),
-      h("div", { class: "sheet" }, form));
+      h("p", { class: "sub" }, "Five short steps: the site's address, proof it is yours, how its visits reach Skald, the install, and a test. You can stop at any step and continue later."),
+      h("div", { class: "acts" }, go));
   }
 
   freshNote(slot);

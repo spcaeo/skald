@@ -33,6 +33,7 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import quote
 
 from . import access, auth_api
 from .files import slug
@@ -124,7 +125,20 @@ def listing(h, out: Path | None, who: dict, config=None, live_dir=None,
                  for n in _order(out, mine)]
         sites = site_picker.enrich(sites, out, config, live_dir, config_path)
         admin = [n for n in _order(out, set(who.get("admin_sites") or []))]
-        add = f"{slug(admin[0])}/#settings/sitesadmin" if admin else None
+        wizard = f"{slug(admin[0])}/#settings/sitesadmin" if admin else None
+        add = f"{wizard}?setup=new" if admin else None
+        # A set-up left half way, or a site that heard nothing for a day: a link
+        # that reopens the wizard (connections_api.badges; admins only).
+        from . import connections_api
+        try:
+            marks = connections_api.badges(config, live_dir, config_path, admin)
+        except Exception:                 # noqa: BLE001 - the picker never fails for a badge
+            marks = {}
+        for s in sites:
+            got = marks.get(s.get("name"))
+            if got:
+                s["badge"] = {"words": got[0],
+                              "href": f"{wizard}?{got[1]}={quote(s['name'])}"}
         page = site_picker.render(sites, datetime.now(timezone.utc), who.get("email"), add)
         return _send(h, 200, page.encode("utf-8"), "text/html; charset=utf-8")
     current = SITES_JSON.match(path).group("site")
