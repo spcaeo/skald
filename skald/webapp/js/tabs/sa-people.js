@@ -19,7 +19,7 @@ import { grid } from "../grid.js";
 import { mayFind, openPerson, SEARCH_HINT } from "./person.js";
 import { openVisitor } from "./visitor.js";
 import { countryWords } from "./readers.js";
-import { actionName, toolName, STAGE } from "./leadfigs.js";
+import { actionName, toolName, STAGE, labelTag } from "./leadfigs.js";
 
 const at = (ts) => (ts ? tzTime(ts, { date: true, label: false }) : "-");
 const dash = (v) => (v == null || v === "" ? "-" : shown(String(v)));
@@ -47,14 +47,14 @@ function search() {
 function story(x) {
   const first = x.visits?.[0]?.day;
   const dayN = (d) => (first ? Math.round((Date.parse(`${d}T00:00:00Z`) - Date.parse(`${first}T00:00:00Z`)) / 864e5) + 1 : 1);
-  const facts = [["Converted", `${actionName(x.action)}, ${at(x.at)}`], ["Reported by", toolName(x.tool)], ["Converted from", dash(x.source)], ["First came from", dash(x.first_source)],
+  const facts = [["Converted", `${actionName(x.action)}, ${at(x.at)}`], ...(x.label ? [["Label", labelTag(x.label)]] : []), ["Reported by", toolName(x.tool)], ["Converted from", dash(x.source)], ["First came from", dash(x.first_source)],
     ["Campaign", dash(x.campaign)], ["Landed on", dash(x.landing)], ["Country", x.country ? countryWords(x.country) : "-"], ["Device", dash(x.device)],
     ["Visits before", x.visits_before == null ? "-" : n(x.visits_before)]];
   // The visitor drawer (visitor.js), the same as every visit's: its visits by day, its steps, and these facts.
   openVisitor({ conversion: x, facts: [h("dl", { class: "dw-dl" }, facts.flatMap(([t, v]) => [h("dt", null, t), h("dd", null, v)])),
     (x.visits || []).length ? h("p", { class: "note" }, `Days with visits: ${x.visits.map((v) => `day ${dayN(v.day)} (${short(v.day)})`).join(", ")}.`) : null,
     h("ol", { class: "pp-trail" }, (x.steps || []).map((st) =>
-      h("li", null, `${at(st.at)} `, h("b", null, `${actionName(st.action)} ${STAGE[st.stage] || st.stage}`), ` (${toolName(st.tool)})`)))].filter(Boolean) });
+      h("li", null, `${at(st.at)} `, h("b", null, `${actionName(st.action)} ${STAGE[st.stage] || st.stage}`), labelTag(st.label), ` (${toolName(st.tool)})`)))].filter(Boolean) });
 }
 
 function recent(m) {
@@ -63,14 +63,17 @@ function recent(m) {
   const head = h("h2", null, "Recent people ", h("small", { class: "note" }, `${period} · its own period`));
   if (!f || !f.available) return h("section", { class: "s" }, head, h("p", { class: "empty" }, "No conversions file yet: the people who converted show here once a source of conversions is on (Settings > Integrations)."));
   const rows = (f.timeline || []).map((x) => ({ ...x, visits_n: (x.visits || []).length }));
+  const labelled = rows.some((r) => r.label);
   return h("section", { class: "s" }, head,
     h("p", { class: "sub" }, "The latest conversions, newest first: each one browser, or one lead without a browser. No name, email or visitor ID here; a row opens its visits and steps."),
     grid({ ns: "pp", caption: "Recent people", file: "recent-conversions.csv", rows, sortKey: "at", dir: "desc", onRow: story,
       columns: [{ key: "at", label: "When", type: "date", fmt: (v) => at(v) }, { key: "action", label: "Action", fmt: (v) => actionName(v || ""), csv: (r) => r.action },
+        ...(labelled ? [{ key: "label", label: "Label", fmt: (v) => labelTag(v) || "-", csv: (r) => r.label || "" }] : []),
         { key: "tool", label: "Reported by", fmt: (v) => toolName(v), csv: (r) => r.tool }, { key: "source", label: "Converted from", fmt: dash }, { key: "first_source", label: "First came from", fmt: dash },
         { key: "landing", label: "Landed on", fmt: dash }, { key: "country", label: "Country", fmt: (v) => (v ? countryWords(v) : "-"), country: (r) => r.country || "" },
         { key: "visits_n", label: "Days with visits", num: true }],
       filters: [{ key: "action", label: "Action", options: [...new Set(rows.map((r) => r.action))].map((k) => [k, actionName(k)]) },
+        ...(labelled ? [{ key: "label", label: "Label", options: [...new Set(rows.map((r) => r.label).filter(Boolean))].sort().map((k) => [k, k]) }] : []),
         { key: "tool", label: "Reported by", options: [...new Set(rows.map((r) => r.tool))].map((k) => [k, toolName(k)]) }],
       empty: "No completed conversion in this period." }));
 }

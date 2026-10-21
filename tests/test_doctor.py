@@ -170,6 +170,51 @@ class Doctor(unittest.TestCase):
         self.assertEqual(got[1]["state"], "NEEDS ATTENTION")
         self.assertIn("site.asset_prefixes", got[1]["fix"])
 
+    def next_item(self, lines):
+        from skald.config import load_config
+        self.box.log(lines)
+        got = doctor.integration_checks(load_config(self.box.config), self.box.root, "example.com")
+        self.assertEqual([x["id"] for x in got[:3]][:2], ["logs", "assets"])
+        return next((x for x in got if x["id"] == "rsc"), None), got
+
+    def test_next_pages_only_for_a_log_with_payloads(self):
+        """No ?_rsc= line: no line at all; payloads without the prefetch field:
+        NEEDS ATTENTION with the nginx and Apache lines; with it (either
+        value): OK. It comes right after the page assets line."""
+        at = datetime(2026, 10, 8, 12, tzinfo=timezone.utc)
+        found, _ = self.next_item(readers(date(2026, 10, 8), 2))
+        self.assertIsNone(found)
+        plain = [line(at, path="/"), line(at + timedelta(seconds=3), path="/pricing/?_rsc=1x2y")]
+        found, got = self.next_item(plain)
+        self.assertEqual(got[2]["id"], "rsc")
+        self.assertEqual(found["state"], "NEEDS ATTENTION")
+        self.assertEqual(found["part"], "Next.js pages")
+        self.assertIn("pages opened inside the site are not counted", found["says"])
+        self.assertIn("rsc_prefetch=$http_next_router_prefetch", found["fix"])
+        self.assertIn("rsc_prefetch=%{Next-Router-Prefetch}i", found["fix"])
+        self.assertIn("nginx -t", found["fix"])
+        for value in ("-", "1"):
+            marked = [plain[0], plain[1].rstrip("\n") + f" rsc_prefetch={value}\n"]
+            found, _ = self.next_item(marked)
+            self.assertEqual(found["state"], "OK", value)
+            self.assertIn("are counted", found["says"])
+
+    def test_next_pages_in_a_drain_cannot_be_told(self):
+        drain = json.dumps({"id": "a1", "timestamp": 1791460800000, "requestId": "r1",
+                            "proxy": {"timestamp": 1791460800000, "method": "GET",
+                                      "host": "example.com", "path": "/pricing/?_rsc=1x2y",
+                                      "userAgent": ["Mozilla/5.0"], "statusCode": 200,
+                                      "clientIp": "203.0.113.20"}}) + "\n"
+        found, _ = self.next_item([drain])
+        self.assertEqual(found["state"], "OFF")
+        self.assertIn("cannot tell a click from a prefetch", found["says"])
+
+    def test_the_cli_shows_the_next_pages_line(self):
+        at = datetime(2026, 10, 8, 12, tzinfo=timezone.utc)
+        self.box.log([line(at, path="/about/?_rsc=9z")])
+        _, out, _ = self.doctor()
+        self.assertIn("NEEDS ATTENTION  Next.js pages: the log has Next.js page requests", out)
+
     def test_a_missing_or_unreadable_log(self):
         text = self.box.config.read_text().replace(str(self.box.root / "logs"),
                                                    str(self.box.root / "nowhere"))

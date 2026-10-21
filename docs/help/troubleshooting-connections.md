@@ -40,7 +40,33 @@ The same table is under the Test in the dialog, folded as **Common problems, and
 | Refused: too many batches (429) | The shipper sent many batches at once, usually right after it started. | Nothing to do. The shipper slows down and sends the rest. |
 | Refused: the site is not verified (403) | The site waits for proof that the domain is yours. | Finish step 2 of the site's set-up (Settings > Add or remove sites). |
 | Docker is missing | The kit with Docker needs Docker on the web server. | Install Docker, or choose The same, without Docker, and download that kit. |
+| Pages opened inside a Next.js site are not counted | The log does not record Next.js's prefetch header, so a click cannot be told from a prefetch. Only the first page of each visit counts. | Add one line to the site's log format (below, "Next.js sites"). check.sh and Overview's checklist say when it is missing. |
 | The site check could not reach the site | The site is not live yet, turns automated visitors away, or its name points to a private address, which Skald never fetches. | Choose the way by hand in step 3: nothing else depends on the check. Press Check again once the site is live. |
+
+## Next.js sites: pages opened inside the site
+
+On a Next.js site, a click on a link inside the site loads no new page from your server. The browser asks only for the next page's data, an address that ends in `?_rsc=...`. Next.js asks for the same addresses to get links on screen ready (a prefetch), even when nobody clicks them. A plain log cannot tell the two apart, so Skald counts none of them, and only the first page of each visit shows. Nothing is guessed.
+
+Next.js marks a prefetch with a header. Add one field at the very end of the site's nginx `log_format`, inside its quotes:
+
+```nginx
+ rsc_prefetch=$http_next_router_prefetch
+```
+
+For Apache, add this to the end of its `LogFormat`:
+
+```apache
+ rsc_prefetch=%{Next-Router-Prefetch}i
+```
+
+Then check and reload:
+
+```sh
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+From then on, a page opened inside the site counts as a page view, and a prefetch never does. Lines written before stay as they were. **Set up** on Overview's **Pages opened inside the site are not counted yet** has the same steps, a Copy button, **Share with your developer**, and a Test that waits until lines with the field arrive. Caddy already logs the header: nothing to add. The Vercel and Netlify log drains carry no headers, so there these pages are still not counted.
 
 ## What the Test of a log says
 

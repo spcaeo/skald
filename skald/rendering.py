@@ -28,6 +28,12 @@ that a browser drew the page. Any one of these is enough:
   * returning  its 30-day keyed hash (visitors.py) was a counted reader on an
              earlier day, for the same reason a day later.
 
+A Next.js navigation (parse.Hit.soft_navigation: ?_rsc= on a line that
+records the prefetch header, sent without it) is a page of the visit and,
+being a payload, its own evidence: only the page's running script asks for
+one. A visit whose only pages are such navigations (a tab left open, a page
+restored from the cache) counts as people on that alone.
+
 A visit counts whole or not at all: once any of its pages rendered, every
 request of the visit is people's. Every request of a visit that did not
 render moves to bots, as NOT_RENDERED, so the groups still add up to the log.
@@ -135,7 +141,9 @@ class Rendering:
             return
         when = _aware(hit.when)
         if self.renders(hit):
-            item = (when, None, True)
+            # A Next.js navigation (parse.Hit.soft_navigation) is a page of
+            # its own, and the payload it is shows the page's script drew it.
+            item = (when, hit.path if hit.soft_navigation else None, True)
         elif self.document(hit):
             item = (when, hit.path, False)
         else:

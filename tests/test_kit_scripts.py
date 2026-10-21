@@ -369,5 +369,69 @@ class Check(unittest.TestCase):
         self.assertIn("shipper: 429 slowed down (x1)", block)
 
 
+@unittest.skipIf(BASH is None, "bash is not installed")
+class CheckNextjs(unittest.TestCase):
+    """check.sh's Next.js line: silent for other sites, advice (never a problem) when the
+    log has ?_rsc= requests but does not record Next.js's prefetch header."""
+
+    setUp, put, nginx, token = Check.setUp, Check.put, Check.nginx, Check.token
+    docker_shim, run_check = Check.docker_shim, Check.run_check
+
+    def working(self, lines, log_format=""):
+        self.nginx()
+        if log_format:
+            self.put("/etc/nginx/conf.d/skald-log.conf", log_format)
+        self.put(LOG, lines)
+        self.token()
+        self.put("/srv/skald/ship.conf", f"METHOD=docker\nLOG={LOG}\nURL={URL}\nSITE={SITE}\n",
+                 0o640)
+        self.put("/srv/skald/ship-state/state.json", '{"offset": 10}\n', 0o600)
+        self.docker_shim("running false 0",
+                         "skald-ship: sent batch 1: 5 lines, 5 accepted, 0 rejected\n")
+        shim(self.bin, "curl", "printf 401\n")
+        shim(self.bin, "pgrep", 'case "$*" in *nginx*) exit 0 ;; esac\nexit 1\n')
+        return self.run_check()
+
+    @staticmethod
+    def lines(url="/pricing/?_rsc=1x2y", tail=""):
+        return "".join(f'192.0.2.{n} - - [21/Oct/2026:10:00:0{n} +0000] "GET {url} HTTP/1.1" '
+                       f'200 512 "-" "Mozilla/5.0"{tail}\n' for n in range(1, 6))
+
+    def test_silent_for_a_site_that_is_not_nextjs(self):
+        code, out, block = self.working(self.lines(url="/pricing/"))
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("Next.js", out)
+        self.assertNotIn("ADVICE", out)
+
+    def test_advice_with_the_lines_and_no_problem(self):
+        code, out, block = self.working(self.lines())
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("✗", out)
+        self.assertIn("! ADVICE  pages opened inside this Next.js site are not counted", out)
+        self.assertIn("append rsc_prefetch=$http_next_router_prefetch at the end of the site's "
+                      "nginx log_format", out)
+        self.assertIn("rsc_prefetch=%{Next-Router-Prefetch}i", out)
+        self.assertIn("sudo nginx -t && sudo systemctl reload nginx", out)
+        self.assertIn("This script never edits nginx.", out)
+        self.assertIn("ADVICE   pages opened inside this Next.js site are not counted", block)
+        self.assertNotIn("PROBLEM", block)
+
+    def test_ok_when_the_log_records_the_header(self):
+        code, out, _ = self.working(self.lines(tail=" rsc_prefetch=-"))
+        self.assertEqual(code, 0, out)
+        self.assertIn("✓ OK  pages opened inside this Next.js site are counted", out)
+        self.assertNotIn("ADVICE", out)
+
+    def test_reload_advice_when_the_format_has_it_but_the_log_not(self):
+        code, out, _ = self.working(
+            self.lines(), "log_format intel '$remote_addr [$time_local] \"$request\" $status "
+                          "rsc_prefetch=$http_next_router_prefetch';\n")
+        self.assertEqual(code, 0, out)
+        self.assertIn("! ADVICE  the log_format has rsc_prefetch= but the log does not show it "
+                      "yet", out)
+        self.assertIn("fix: sudo nginx -t && sudo systemctl reload nginx", out)
+        self.assertNotIn("not counted", out)
+
+
 if __name__ == "__main__":
     unittest.main()

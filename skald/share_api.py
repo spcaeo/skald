@@ -3,7 +3,7 @@ and the page the link opens, with no sign-in.
 
 Admin routes (sites_api.py routes them: session, owner or admin, CSRF):
 
-  POST sites/share     {site, task: send|script|hook, method?, days: 1|7|30}
+  POST sites/share     {site, task: send|script|hook|nextjs, method?, days: 1|7|30}
                        -> {link, ref, expires_at}; the link is shown once
   GET  sites/shares    -> {shares: [{ref, site, task, method, created_at,
                        expires_at, state, views, viewed_at, revealed_at}]}

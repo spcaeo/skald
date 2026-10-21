@@ -5,6 +5,8 @@
 #
 # One line per check: "✓ OK" or "✗ PROBLEM" with a fix under it. At the end, a block to copy
 # and send us. That block holds no token and no IP address. Exit 0 when all is OK, else 1.
+# "! ADVICE" is a change that makes the figures better (a Next.js site whose log does not
+# record the prefetch header): it does not count as a problem and never changes the exit.
 #
 # For tests only; leave these unset on a real server:
 #   SKALD_CHECK_ROOT   a folder put in front of every absolute path this script reads
@@ -42,6 +44,11 @@ WANT_GROUP="${SKALD_CHECK_GROUP:-$GROUP_DEFAULT}"
 YES='✓ OK  '
 NO='✗ PROBLEM  '
 MAYBE='? CANNOT TELL  '
+TIP='! ADVICE  '
+# Next.js: the field that records its prefetch header, for nginx and for Apache. Single
+# quotes: these are the log_format words, not shell variables.
+NEXT_NGINX=' rsc_prefetch=$http_next_router_prefetch'
+NEXT_APACHE=' rsc_prefetch=%{Next-Router-Prefetch}i'
 
 PROBLEMS=0
 SUMMARY=""
@@ -57,6 +64,11 @@ problem() {
   printf '%s%s\n  fix: %s\n' "$NO" "$1" "$2"
   PROBLEMS=$((PROBLEMS + 1))
   SUMMARY="${SUMMARY}PROBLEM  $1
+"
+}
+advice() {
+  printf '%s%s\n  fix: %s\n' "$TIP" "$1" "$2"
+  SUMMARY="${SUMMARY}ADVICE   $1
 "
 }
 unsure() {
@@ -254,6 +266,35 @@ EOF
     problem "$LOG is shared with other host names:$others" \
       "give www.$SITE its own log file; README.txt says how"
   fi
+}
+
+# ---------------------------------------------------------------- 4b. Next.js pages
+# A Next.js site (?_rsc= in the log's last lines): does each line record Next.js's prefetch
+# header? Without it, a page opened by a click inside the site is not counted. Says nothing
+# for any other site. Reads only: never edits nginx or Apache.
+check_nextjs() {
+  local lp tail files
+  [ -n "$LOG" ] || return
+  lp="$(p "$LOG")"
+  [ -f "$lp" ] || return
+  tail="$(tail -n 5000 "$lp" 2>/dev/null)"
+  printf '%s\n' "$tail" | grep -q '_rsc=' || return
+  if printf '%s\n' "$tail" | grep -q ' rsc_prefetch='; then
+    ok "pages opened inside this Next.js site are counted: the log records its prefetch header"
+    return
+  fi
+  files="$(conf_files '*' "$(p /etc/nginx/nginx.conf)" "$(p /etc/nginx/sites-enabled)"
+           conf_files '*.conf' "$(p /etc/nginx/conf.d)" "$(p /etc/apache2/apache2.conf)" \
+             "$(p /etc/apache2/conf-enabled)" "$(p /etc/apache2/sites-enabled)" \
+             "$(p /etc/httpd/conf.d)" "$(p /etc/httpd/conf/httpd.conf)")"
+  if [ -n "$files" ] && (IFS='
+'; grep -isE '^[^#]*(log_format|LogFormat).*rsc_prefetch=' $files) >/dev/null 2>&1; then
+    advice "the log_format has rsc_prefetch= but the log does not show it yet" \
+      "sudo nginx -t && sudo systemctl reload nginx (Apache: sudo apachectl configtest && sudo systemctl reload apache2), then open a page and click a link inside the site"
+    return
+  fi
+  advice "pages opened inside this Next.js site are not counted: the log does not record Next.js's prefetch header, so a click cannot be told from a prefetch" \
+    "append${NEXT_NGINX} at the end of the site's nginx log_format (Apache LogFormat:${NEXT_APACHE}), then sudo nginx -t && sudo systemctl reload nginx. This script never edits nginx."
 }
 
 # ---------------------------------------------------------------- 5. outbound HTTPS
@@ -488,6 +529,7 @@ main() {
   check_web
   check_log
   check_www
+  check_nextjs
   check_https
   check_token
   check_shipper

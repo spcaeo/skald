@@ -20,6 +20,12 @@ withheld, a block too. A figure not recorded is "Unknown", never a guess
 logs). The same file is written on every page: the
 conversions do not know about views.
 
+`labels` per day (2.18): the rows that carry a lead's label (the lead hook's
+optional token), {action: {label: {stage: n}}}, and `labels_abandoned`,
+the abandoned starts among them, {action: {label: n}}; a row without a
+label is in neither. Pipeline's Label narrows "Every action" with them;
+audit_conversions_figures counts both again by SQL.
+
 `likely_ai` per day (inferred, ai_likely.py): finished rows by the
 assistant likely behind their first touch - {action: {label: n}}. The
 first touch is the row's own (first_source, first_touch_at, landing) when
@@ -102,7 +108,13 @@ def set_up(config: dict, folder: Path, site: str) -> dict:
 
 def _empty(journeys: bool) -> dict:
     return {"stages": {}, "abandoned": {}, "by": {d: {} for d in DIMS}, "visits_before": {},
-            "time_to_convert": {}, "assisted": {} if journeys else None, "likely_ai": {}}
+            "time_to_convert": {}, "assisted": {} if journeys else None, "likely_ai": {},
+            "labels": {}, "labels_abandoned": {}}
+
+
+def _add_label(f: dict, action: str, label: str, stage: str) -> None:
+    per = f["labels"].setdefault(action, {}).setdefault(label, {})
+    per[stage] = per.get(stage, 0) + 1
 
 
 def _add(table: dict, a: str, b: str) -> None:
@@ -153,6 +165,8 @@ def figures(db, site: str, tz, first: date, last: date, now: str, hours: float,
                         "AND test = 0 ORDER BY at, id", (site, lo, hi)).fetchall():
         f = out.setdefault(_day(r["at"], tz), _empty(journeys))
         _add(f["stages"], r["action"], r["stage"])
+        if r["label"]:
+            _add_label(f, r["action"], r["label"], r["stage"])
         if r["stage"] not in FINISHED:
             continue
         for dim in DIMS:
@@ -170,6 +184,8 @@ def figures(db, site: str, tz, first: date, last: date, now: str, hours: float,
     for r in store.abandoned(db, site, lo, hi, hours, now):
         f = out.setdefault(_day(r["at"], tz), _empty(journeys))
         f["abandoned"][r["action"]] = f["abandoned"].get(r["action"], 0) + 1
+        if r.get("label"):
+            _add(f["labels_abandoned"], r["action"], r["label"])
     return out
 
 
@@ -230,7 +246,7 @@ def timeline(db, site: str, tz, lo: str, hi: str, held: set) -> list[dict]:
             continue
         done.add(key)
         if r["vid"]:
-            steps = db.execute("SELECT at, action, stage, tool FROM conversions WHERE site = ? "
+            steps = db.execute("SELECT at, action, stage, tool, label FROM conversions WHERE site = ? "
                                "AND vid = ? AND test = 0 ORDER BY at, id",
                                (site, r["vid"])).fetchall()
             visits: dict[str, dict] = {}
@@ -244,7 +260,7 @@ def timeline(db, site: str, tz, lo: str, hi: str, held: set) -> list[dict]:
                     v["paths"].append(path)
             days = list(visits.values())[-TIMELINE_DAYS:]
         else:
-            steps = db.execute("SELECT at, action, stage, tool FROM conversions WHERE site = ? "
+            steps = db.execute("SELECT at, action, stage, tool, label FROM conversions WHERE site = ? "
                                "AND tool = ? AND external_ref = ? AND test = 0 ORDER BY at, id",
                                (site, r["tool"], r["external_ref"])).fetchall()
             days = []
@@ -254,9 +270,10 @@ def timeline(db, site: str, tz, lo: str, hi: str, held: set) -> list[dict]:
                     "landing": r["landing"], "country": r["country"], "device": r["device"],
                     "visits_before": r["visits_before"],
                     "first_touch": _local(r["first_touch_at"], tz),
-                    "browser": bool(r["vid"]), "visits": days,
+                    "browser": bool(r["vid"]), "visits": days, "label": r["label"],
                     "steps": [{"at": _local(s[0], tz), "action": s[1], "stage": s[2],
-                               "tool": s[3]} for s in steps[-TIMELINE_STEPS:]]})
+                               "tool": s[3], "label": s[4]}
+                              for s in steps[-TIMELINE_STEPS:]]})
         if len(out) >= TIMELINE:
             break
     return out

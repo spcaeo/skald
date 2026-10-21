@@ -48,6 +48,18 @@ If www and another subdomain write to the same log file
   Apache: a CustomLog line in its VirtualHost, then: sudo apachectl configtest && sudo systemctl reload apache2
   Then run sudo bash install.sh again and give the new file.
 
+If __SITE__ is a Next.js site
+  A click inside a Next.js site loads no HTML page, only a ?_rsc= request, and Next.js
+  sends the same request to prefetch the links in view. Skald tells them apart only
+  when the log records Next.js's prefetch header. Add this at the end of the site's
+  nginx log_format (before the closing quote and semicolon):
+    rsc_prefetch=$http_next_router_prefetch
+  Apache, at the end of its LogFormat:
+    rsc_prefetch=%{Next-Router-Prefetch}i
+  then: sudo nginx -t && sudo systemctl reload nginx
+  (Apache: sudo apachectl configtest && sudo systemctl reload apache2)
+  check.sh says whether the log has it. Neither script ever edits nginx or Apache.
+
 What it puts on this server
   /usr/local/bin/skald-ship               the shipper (skald-ship.py from this kit)
   the skald-ship system user              in group adm, which may read the web server's logs

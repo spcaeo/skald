@@ -51,6 +51,10 @@
 
 ## What's new
 
+- **2.18.0: Next.js pages counted, lead labels, and a lead check** ([changelog](CHANGELOG.md#2180-2026-10-21)).
+  Pages opened by a click inside a Next.js site now count, with one line in the site's nginx log
+  format. Leads can carry a label (sales, support). A signed, read-only address lets your server
+  check that Skald has every lead and resend any it missed.
 - **2.17.0: Skald checks your site** ([changelog](CHANGELOG.md#2170-2026-10-21)). Type the
   address in Add a site and Skald works out the server, any platform in front, the framework, the
   host names and the page assets, and suggests the way in. You confirm or change it.
@@ -188,7 +192,8 @@ counts, and counted twice.
 Your own server's log, or the host's: **Vercel and Netlify log drains**, a **Cloudflare Worker**
 that reports pages served from cache on any plan, CloudFront and Fastly logs, or a small shipper
 from any server. Settings > Connections walks you through each one, with an install kit and a
-**Test connection** button; step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md).
+**Test connection** button; step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md). A Next.js
+site adds one line to its log format so clicks inside the site count as pages.
 
 </td>
 </tr>

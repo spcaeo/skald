@@ -32,6 +32,11 @@
 .sa-says { margin: 4px 2px 0; max-width: 72rem; }
 .sa-says + .sa-says { margin-top: 2px; }
 
+/* a lead's label (2.18, leadfigs.js labelTag): a small tag beside its action */
+.lbl-tag { display: inline-block; margin-left: 6px; padding: 0 7px; border: 1px solid var(--rule); border-radius: 999px;
+  background: var(--sunk); color: var(--ink-2); font-size: 11.5px; font-weight: 600; line-height: 1.6; white-space: nowrap;
+  vertical-align: 1px; }
+
 /* ------------------------------------------ the lists of what is left out */
 .sa-list { margin-top: 14px; }
 .sa-list-body > .empty { margin: 0; }

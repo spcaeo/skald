@@ -68,7 +68,7 @@ Once the tag is on a page, it reports these events with no extra work:
 
 | Event | When |
 | --- | --- |
-| Page view | the page loads, and each time a single-page app changes the address |
+| Page view | the page loads; each time a single-page app changes the address (a link inside the page, the back and forward buttons); and when the browser shows the page again from its back-forward cache |
 | Form started | a field of a form is first used (once per form per page) |
 | Form sent | a form is submitted |
 | Sign-up started, Sign-up sent | the same, for a form marked `data-skald="signup"` |
@@ -108,6 +108,10 @@ skald('track', 'demo_booked', {id: 'header'})
 A booking made inside a Calendly, Cal.com or HubSpot embed is already counted by the tag as Calendly booked, Cal.com booked or HubSpot meeting booked.
 
 Time on page, pages per visit and one-page visits come from your server log, not from the tag.
+
+### Page views from the tag are not the log's page views
+
+On a Next.js or other single-page site, a click inside the site loads no new HTML page. The tag still sends a page view then, and when the browser restores a page from its back-forward cache (the back button, with no request to your server at all). These are the tag's own events, a separate road: they can show that a browser really drew the page, and with visitor IDs on they make up the visitor's journey, but they never add people or page views to the figures Skald counts from your server's log. For the log to count a page opened inside a Next.js site, its `log_format` needs one more field: see [Troubleshooting connections](troubleshooting-connections.md).
 
 ## What it never collects
 

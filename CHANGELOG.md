@@ -2,6 +2,43 @@
 
 All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versioning](https://semver.org).
 
+## 2.18.0 (2026-10-21)
+
+Next.js pages counted, lead labels, and a way for a site's server to check every lead reached Skald.
+
+### Added
+
+- **Pages opened inside a Next.js site count.** A click inside a Next.js site loads no page from
+  the server, only a `?_rsc=` request, and Next.js sends the same request to prefetch links, so a
+  plain log cannot tell them apart and Skald counted neither: every page after the first was
+  missed. When the site's log records Next.js's prefetch header, Skald counts each real click as a
+  page view of its path, never a prefetch, and an HTML page and a click of the same path within 2
+  seconds once. The line to add: nginx ` rsc_prefetch=$http_next_router_prefetch` at the end of the
+  `log_format`; Apache ` rsc_prefetch=%{Next-Router-Prefetch}i`; Caddy logs headers already. Without
+  it, nothing changes. Counted twice, by the audit's own reader. The doctor, Set up this site (with
+  a dialog, the lines to copy, Share with your developer and a Test), the install kit's `check.sh`
+  and the site check tell a Next.js site, and no other.
+- **A label on a lead:** `label` in the lead body, such as `sales` or `support`
+  (`^[a-z0-9][a-z0-9_-]{0,39}$`). Kept with each stage, shown as a tag in Pipeline, People and the
+  person drawer, and a Label filter in Pipeline's Tools view; the per-label counts are recounted by
+  the conversions audit. The MCP `conversions` tool takes `label`. Conversions schema 7.
+- **Check that Skald has every lead:** `GET /traffic-hooks/<site>/leads?since=<time>`, signed
+  with the lead hook's secret over `"<t>.GET <path>?<query>"`, read-only: `external_ref`, `action`,
+  `stage`, `at`, `label`, `test` and `received_at` only, never a name, email or address, in pages
+  of up to 500. Resending a lead Skald has is a no-op, so a daily reconcile can resend every ref
+  missing from the answer. The image's nginx now passes GET on `/traffic-hooks/`.
+- **The script tag** counts a page restored from the browser's back-forward cache.
+
+### Fixed
+
+- **Leads & sales > Pipeline was empty for a site with no lead database.** It counts from the
+  lead database by default, so a site whose leads come only from its server's lead hook, the script
+  tag or a booking tool showed nothing until you chose "Count from: Tools". With no lead database
+  and no choice made, it now opens the tools' view. (Reported for freshlycited.com.)
+- **The word "null" in setup dialogs** (Get the daily mail, Add a site step 3): a step's left-out
+  part was printed. The shared dialog now drops empty parts, and the tests fail if any page ever
+  draws null or undefined.
+
 ## 2.17.0 (2026-10-21)
 
 Add a site now looks at the site itself, so you do not have to know how it is hosted.

@@ -16,6 +16,9 @@ class Node {
   set textContent(v) { this.childNodes = []; if (v !== "" && v != null) this.append(String(v)); }
   append(...kids) {
     for (const k of kids.flat()) {
+      // A real browser prints null and undefined as words ("null" in a dialog, seen twice):
+      // a page must leave them out, so the tests fail on them.
+      if (k === null || k === undefined) throw new Error(`appended ${k}: the page would print "${k}"`);
       const node = k instanceof Node ? k : new Text(String(k));
       if (node instanceof Fragment) { for (const c of [...node.childNodes]) this.append(c); continue; }
       node.parentNode?.removeChild?.(node);

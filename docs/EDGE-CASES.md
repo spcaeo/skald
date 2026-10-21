@@ -160,13 +160,13 @@ never up.
 
 ### B1. Next.js navigation payloads (`?_rsc=`)
 - **Seen:** 10,386 of 17,065 requests (61%).
-- **Count:** never a page view; evidence of a visit, and of an in-site move for journeys.
-- **Status:** Handled (`RSC_PAYLOAD`).
+- **Count:** a page view of its path only when the line records Next.js's `Next-Router-Prefetch` header (the trailing ` rsc_prefetch=` field, `-` = not sent) and it was not sent; a prefetch, or a line without the field, never. Always evidence of a visit. An HTML page and a navigation of one path within 2 seconds are one page view.
+- **Status:** Handled (`RSC_PAYLOAD`, `Hit.soft_navigation`, `parse.one_click`; COUNTING-TRAPS.md trap 10).
 
 ### B2. Prefetch and prerender
 - **Seen:** Chrome Privacy Preserving Prefetch Proxy asked for `/.well-known/traffic-advice` 3 times (404).
 - **Wrong:** Next.js `<Link>` prefetches pages in view (as `_rsc` payloads); Chrome speculation rules can prerender whole HTML pages the person never opens; the Chrome prefetch proxy fetches from Google's network. A prerendered HTML document is logged as a 200 GET for a page.
-- **Detect:** the `Sec-Purpose: prefetch` / `Purpose: prefetch` and `Next-Router-Prefetch` request headers. They are not in the log format today (H12).
+- **Detect:** the `Sec-Purpose: prefetch` / `Purpose: prefetch` and `Next-Router-Prefetch` request headers. `Next-Router-Prefetch` is read when the line ends with ` rsc_prefetch=` (docs/INGEST.md); the others are not in the log format today (H12).
 - **Count:** not a page view; the visit only counts if a real navigation follows.
 - **Test:** a line with `purpose=prefetch` is not a page view; the prefetch proxy agent is a bot.
 - **Status:** Gap, ROADMAP P0-5 (log format) then a one-line rule. Also serve `/.well-known/traffic-advice` (or a 404 is fine; it just means no proxy prefetch).

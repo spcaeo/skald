@@ -24,6 +24,11 @@ export const TOOL = { beacon: "The page (script tag)", site: "Lead database", le
 export const toolName = (t) => TOOL[t] || t;
 export const actionName = (a) => ACTION[a] || a.replace(/[_.:-]/g, " ").replace(/^./, (c) => c.toUpperCase());
 export const oneAction = (a) => ONE[a] || actionName(a).replace(/s$/, "");
+// A lead's label (2.18: the lead hook's optional token, e.g. a contact form's topic) as a
+// small tag; null without one (h() leaves null out, so it never prints).
+export const labelTag = (label) => (label ? h("span", { class: "lbl-tag", title: `Label: ${label}` }, String(label)) : null);
+// An action with its label's tag beside it: one node, for a table cell.
+export const actionWithLabel = (action, label) => h("span", null, actionName(action || ""), labelTag(label));
 
 const LEADS = ["contact", "signup", "waitlist", "trial", "demo"];
 // The log's breakdown name -> conversions.json's (last touch for sources).

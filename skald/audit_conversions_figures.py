@@ -8,6 +8,8 @@ assisted sources and pages by joins. It shares only the name lists in
 conversions/__init__.py (the finished stages, the labels for what was not
 recorded, the bucket names) and the file's location. Called by
 audit_conversions.check_file; a day or block it disagrees with is withheld.
+A lead's label (2.18) is counted by its own GROUP BY over the column: the
+labelled rows by stage, and the abandoned starts among them.
 
 likely_ai (inferred, ai_likely.py): each finished row's first touch is
 picked in SQL (the row's own, else the visitor ID's earliest journeys row),
@@ -109,8 +111,9 @@ def recount(path: Path, site: str, tz, first: date, last: date, now: str,
             hours: float, history=None, config: dict | None = None) -> dict[str, Counter]:
     """{day: Counter} keyed ("stages", action, stage), ("abandoned", action),
     ("by", column, action, label), ("visits", action, bucket), ("ttc",
-    action, bucket), ("likely", action, label) and, when the site has
-    journeys, ("assisted", action, source)."""
+    action, bucket), ("likely", action, label), ("labels", action, lead
+    label, stage), ("labels_abandoned", action, lead label) and, when the
+    site has journeys, ("assisted", action, source)."""
     head, args = _bounds(tz, first, last)
     # A row marked test is never a figure: left out here by this road's own SQL.
     join = ("FROM conversions c JOIN b ON c.at >= b.lo AND c.at < b.hi WHERE c.site = ? "
@@ -127,6 +130,10 @@ def recount(path: Path, site: str, tz, first: date, last: date, now: str,
             return db.execute(head + sql, [*args, site, *extra]).fetchall()
 
         put(q(f"SELECT b.day, c.action, c.stage, COUNT(*) {join}GROUP BY 1, 2, 3"), "stages")
+        # 2.18: the rows with a lead's label, by label and stage.
+        labelled = "AND c.label IS NOT NULL AND c.label <> '' "
+        put(q(f"SELECT b.day, c.action, c.label, c.stage, COUNT(*) {join}{labelled}"
+              f"GROUP BY 1, 2, 3, 4"), "labels")
         for col in COLUMNS:
             rows = db.execute(head + f"SELECT b.day, c.action, COALESCE(NULLIF(c.{col}, ''), "
                               f"?), COUNT(*) {join}AND c.stage IN {_fin()} GROUP BY 1, 2, 3",
@@ -137,12 +144,16 @@ def recount(path: Path, site: str, tz, first: date, last: date, now: str,
         put(q(f"SELECT b.day, c.action, {CONVERT}, COUNT(*) {join}AND c.stage IN {_fin()} "
               f"GROUP BY 1, 2, 3"), "ttc")
         cutoff = (datetime.strptime(now, STAMP) - timedelta(hours=hours)).strftime(STAMP)
-        put(q(f"SELECT b.day, c.action, COUNT(*) {join}AND c.stage = 'started' AND c.vid IS "
-              f"NOT NULL AND c.at <= ? AND NOT EXISTS (SELECT 1 FROM conversions f WHERE "
-              f"f.site = c.site AND f.test = 0 AND (f.vid = c.vid OR (c.identity_id IS NOT NULL AND "
-              f"f.identity_id = c.identity_id)) AND f.action = c.action AND f.stage IN "
-              f"{_fin()} AND f.at >= c.at AND f.at <= strftime('%Y-%m-%dT%H:%M:%SZ', c.at, "
-              f"'+{float(hours)} hours')) GROUP BY 1, 2", (cutoff,)), "abandoned")
+        gone = (f"AND c.stage = 'started' AND c.vid IS "
+                f"NOT NULL AND c.at <= ? AND NOT EXISTS (SELECT 1 FROM conversions f WHERE "
+                f"f.site = c.site AND f.test = 0 AND (f.vid = c.vid OR (c.identity_id IS NOT NULL AND "
+                f"f.identity_id = c.identity_id)) AND f.action = c.action AND f.stage IN "
+                f"{_fin()} AND f.at >= c.at AND f.at <= strftime('%Y-%m-%dT%H:%M:%SZ', c.at, "
+                f"'+{float(hours)} hours')) ")
+        put(q(f"SELECT b.day, c.action, COUNT(*) {join}{gone}GROUP BY 1, 2", (cutoff,)),
+            "abandoned")
+        put(q(f"SELECT b.day, c.action, c.label, COUNT(*) {join}{gone}{labelled}"
+              f"GROUP BY 1, 2, 3", (cutoff,)), "labels_abandoned")
         on, window = _attribution(config)
         fetched = _fetches(history, site_name(config or {}),
                            last - timedelta(days=_keep() + 1), last) if on else None
@@ -174,6 +185,13 @@ def _flat(day: dict) -> Counter:
             out[("stages", action, stage)] += n
     for action, n in (day.get("abandoned") or {}).items():
         out[("abandoned", action)] += n
+    for action, per in (day.get("labels") or {}).items():
+        for label, stages in per.items():
+            for stage, n in stages.items():
+                out[("labels", action, label, stage)] += n
+    for action, per in (day.get("labels_abandoned") or {}).items():
+        for label, n in per.items():
+            out[("labels_abandoned", action, label)] += n
     for col, table in (day.get("by") or {}).items():
         for action, per in table.items():
             for label, n in per.items():

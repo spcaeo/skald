@@ -104,4 +104,28 @@ const S = (value, source = "default") => ({ value, source });
   assert.equal(got.lead.state, "done");
   assert.match(got.lead.says, /^Cal.com: ready/);
 }
+// ---- Next.js pages: only while the doctor's rsc line needs attention, never otherwise
+{
+  const base = [{ id: "logs", state: "OK", says: "readable" }];
+  const rsc = (state) => ({ id: "rsc", part: "Next.js pages", state, says: "the log has Next.js page requests (?_rsc=) but not the header",
+    fix: "Append ` rsc_prefetch=$http_next_router_prefetch` at the end of the site's nginx log_format" });
+  const live = model({ requests: 9, hits: { people: 3 }, by: { country: { US: 3 } } });
+  let items = setupItems(live, { status: [...base, rsc("NEEDS ATTENTION")], tools: [], settings: null });
+  const got = by(items);
+  assert.deepEqual(items.map((i) => i.id).slice(0, 3), ["logs", "assets", "rsc"]);
+  assert.equal(got.rsc.state, "todo");
+  assert.equal(got.rsc.act, "rsc");
+  assert.ok(!got.rsc.optional, "a page not counted holds the list open");
+  assert.equal(got.rsc.title, "Pages opened inside the site are not counted yet");
+  assert.match(got.rsc.says, /Next\.js/);
+  for (const word of ["rsc_prefetch", "nginx", "_rsc", "log_format"]) assert.ok(!got.rsc.says.includes(word), word);
+  assert.match(got.rsc.tech, /rsc_prefetch=\$http_next_router_prefetch/);
+  assert.ok(!setupDone(items));
+  for (const state of ["OK", "OFF"]) {
+    items = setupItems(live, { status: [...base, rsc(state)], tools: [], settings: null });
+    assert.ok(!items.some((i) => i.id === "rsc"), state);
+  }
+  assert.ok(!setupItems(live, { status: base, tools: [], settings: null }).some((i) => i.id === "rsc"), "no line: not Next.js");
+  assert.ok(!setupItems(live, { status: null, tools: [], settings: null }).some((i) => i.id === "rsc"), "not loaded: not guessed");
+}
 console.log("setup: all passed");

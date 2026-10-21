@@ -62,7 +62,8 @@ if(o=="https://calendly.com")go(c&&"calendly_"+c);
 else if(o=="https://app.cal.com")go(t=="linkReady"?"cal_open":/^bookingSuccessful/.test(t)&&"cal_booked");
 else if(/^https:\/\/meetings(-\w+)?\.hubspot\.com$/.test(o)&&(m.meetingBookSucceeded||m.meetingsPayload))go("hubspot_meeting_booked")});
 ["pushState","replaceState"].forEach(k=>{var f=H[k];H[k]=function(){f.apply(this,arguments);pv()}});
-on(w,"popstate",pv);
+// back/forward; a page restored from the back-forward cache is opened again
+on(w,"popstate",pv);on(w,"pageshow",e=>{if(e.persisted){last=null;pv()}});
 on(d,"copy",()=>once("c","copy_text"));
 on(w,"scroll",()=>w.scrollY+w.innerHeight>=.75*d.documentElement.scrollHeight&&once("s","scroll_75"),{passive:!0});
 new MutationObserver(()=>{clearTimeout(T);T=setTimeout(scan,50)}).observe(d.documentElement,{childList:!0,subtree:!0});

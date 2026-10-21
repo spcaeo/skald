@@ -6,6 +6,8 @@
 //               Stripe and the other webhooks, and the lead database)   lsrc=db|all
 //   Source      the global source filter (the lead database splits by it)
 //   Action      one kind of lead or action                                lact
+//   Label       one lead label (2.18, the tools only: the lead hook's
+//               optional token, e.g. a contact form's topic)              llabel
 //   Stage       one status (the lead database's statuses)                 lstage
 //   Show        the lists of what the figures leave out, on the page      lshow
 //   Period      the same period as the top bar's
@@ -61,15 +63,31 @@ function narrowLeads(f, s) {
   return g;
 }
 
-function narrowConv(f, s) {
-  if (!f || !f.available || !s.lact) return f;
-  const a = s.lact;
+export function narrowConv(f, s) {
+  if (!f || !f.available || (!s.lact && !s.llabel)) return f;
+  const g = s.lact ? byAction(f, s.lact) : f;
+  return s.llabel ? byLabel(g, s.llabel) : g;
+}
+
+function byAction(f, a) {
   const pick = (o) => (o && a in o ? { [a]: o[a] } : {});
   return { ...f, days: (f.days || []).map((d) => (d.state !== "ok" ? d : { ...d, stages: pick(d.stages), abandoned: pick(d.abandoned),
     by: Object.fromEntries(Object.entries(d.by || {}).map(([dim, per]) => [dim, pick(per)])),
     visits_before: pick(d.visits_before), time_to_convert: pick(d.time_to_convert),
+    labels: pick(d.labels), labels_abandoned: pick(d.labels_abandoned),
     // A day that records assisted sources keeps saying so, with this action's alone.
     assisted: d.assisted ? pick(d.assisted) : d.assisted, likely_ai: d.likely_ai ? pick(d.likely_ai) : d.likely_ai })) };
+}
+
+/* One lead label: each day's stages and abandoned starts become that label's own (the
+   file's `labels` and `labels_abandoned`, counted again by the second count). The parts
+   not split by label (where they came from, touches, time to convert) are emptied here
+   and left off the page by the tab, with a note: never shown as another label's figures. */
+function byLabel(f, label) {
+  const only = (per) => Object.fromEntries(Object.entries(per || {}).filter(([, x]) => x && label in x).map(([a, x]) => [a, x[label]]));
+  return { ...f, days: (f.days || []).map((d) => (d.state !== "ok" ? d : { ...d, stages: only(d.labels), abandoned: only(d.labels_abandoned),
+    by: Object.fromEntries(Object.keys(d.by || {}).map((dim) => [dim, {}])), visits_before: {}, time_to_convert: {},
+    assisted: d.assisted ? {} : d.assisted, likely_ai: d.likely_ai ? {} : d.likely_ai })) };
 }
 
 // The model the renderer reads: the same, with one file narrowed.
@@ -90,6 +108,18 @@ function convActions(f) {
   for (const d of f?.days || []) if (d.state === "ok") for (const [a, per] of Object.entries(d.stages || {})) total[a] = (total[a] || 0) + Object.values(per).reduce((x, y) => x + y, 0);
   return Object.keys(total).sort((a, b) => total[b] - total[a] || a.localeCompare(b)).map((a) => [a, actionName(a)]);
 }
+// The lead labels the tools' file holds on its checked days (of the chosen action), most rows first.
+export function convLabels(f, action = "") {
+  const total = {};
+  for (const d of f?.days || []) {
+    if (d.state !== "ok") continue;
+    for (const [a, per] of Object.entries(d.labels || {})) {
+      if (action && a !== action) continue;
+      for (const [k, st] of Object.entries(per || {})) total[k] = (total[k] || 0) + Object.values(st || {}).reduce((x, y) => x + y, 0);
+    }
+  }
+  return Object.keys(total).sort((a, b) => total[b] - total[a] || a.localeCompare(b)).map((k) => [k, k]);
+}
 function leadSources(m, f) {
   const seen = new Set(m.options?.source || []);
   if (Array.isArray(f?.attribution_rows)) {
@@ -100,8 +130,14 @@ function leadSources(m, f) {
 }
 
 // What the chosen options narrow, and what they cannot.
+export const LABEL_WORDS = "Where the completed ones came from, the touches, the time to convert and the pages seen before are not split by label: they show with Every label.";
 function narrowWords(s, all) {
-  if (all) return s.lact ? `Narrowed to ${actionName(s.lact).toLowerCase()}. Pages seen before converting is not split by action.` : "";
+  if (all) {
+    const bits = [];
+    if (s.lact) bits.push(`Narrowed to ${actionName(s.lact).toLowerCase()}.${s.llabel ? "" : " Pages seen before converting is not split by action."}`);
+    if (s.llabel) bits.push(`Label “${s.llabel}”: Every action counts only the leads your site's server sent with this label. ${LABEL_WORDS}`);
+    return bits.join(" ");
+  }
   const bits = [];
   if (s.lact) {
     bits.push(`Narrowed to ${(TYPE[s.lact] || s.lact).toLowerCase()}.`);
@@ -112,6 +148,14 @@ function narrowWords(s, all) {
   return bits.join(" ");
 }
 
+// Label: the tools' lead labels; greyed, with the reason, where there are none to choose.
+function labelSelect(s, f, all) {
+  const options = all ? convLabels(f, s.lact) : [];
+  const off = !all ? "The lead database keeps no label: labels come with the leads your site's server sends (Count from: Tools)."
+    : !options.length && !s.llabel ? "No lead in this file has a label: your site's server can send one with each lead (label)." : "";
+  return select("Label", all ? s.llabel : "", options, (v) => S.set({ llabel: v }), { off, all: "Every label" });
+}
+
 function optionsFor(m, s, f, all) {
   const known = (all ? CONV_SHOW : LEAD_SHOW).map(([k]) => k);
   const show = listOf(s.lshow, known);
@@ -119,9 +163,10 @@ function optionsFor(m, s, f, all) {
   const controls = [
     choice("Count from", all ? "all" : "db", [["db", "Lead database", "Forms sent on the site, as your team marks them"],
       ["all", "Tools", "conversions.json: the page's script tag, booking and payment tools, and the lead database"]],
-    (k) => S.set({ lsrc: k, lact: "", lstage: "", lshow: "" })),
+    (k) => S.set({ lsrc: k, lact: "", llabel: "", lstage: "", lshow: "" })),
     select("Source", s.source, all ? [] : leadSources(m, f), (v) => S.set({ source: v }), { off: all ? notSplit : "", all: "Every source" }),
     select("Action", s.lact, all ? convActions(f) : leadActions(f), (v) => S.set({ lact: v }), { all: all ? "Every action" : "Every kind" }),
+    labelSelect(s, f, all),
     select("Stage", all ? "" : s.lstage, all ? [] : STATUS, (v) => S.set({ lstage: v }),
       { off: all ? "The tools' file keeps every stage side by side (the table below); where they came from counts completed ones only." : "", all: all ? "Every stage" : "Every status" }),
     toggles("Show left out", show, all ? CONV_SHOW : LEAD_SHOW, (list) => S.set({ lshow: list.join(",") })),
@@ -139,7 +184,7 @@ function optionsFor(m, s, f, all) {
    same sum (leadfigs.js leadsOn, the same days) as Overview's Leads and Demos booked
    tiles, so the two places say the same number. */
 function overviewLine(m, s) {
-  if (s.lact) return null;
+  if (s.lact || s.llabel) return null;
   const r = rangeOf(m, s);
   const got = leadsOn(m, r.kind === "today" ? [m.today] : r.days.map((d) => d.day));
   if (!got || !got.ok) return null;
@@ -148,21 +193,33 @@ function overviewLine(m, s) {
 }
 
 // A part's heading: a section's h2, or a fold's summary (its first words).
-const titleOf = (el) => (el?.matches?.("section") ? el.querySelector(":scope > h2")?.firstChild?.textContent
-  : el?.matches?.("details") ? el.querySelector(":scope > summary")?.firstChild?.textContent : null)?.trim();
+function titleOf(el) {
+  const want = { section: "h2", details: "summary" }[String(el?.tagName || "").toLowerCase()];
+  if (!want) return undefined;
+  const top = [...(el.childNodes || [])].find((k) => String(k.tagName || "").toLowerCase() === want);
+  return top?.firstChild?.textContent?.trim();
+}
 const MOVED = new Set(["Demo funnel", "Latest conversions", "Cancelled, removed and test"]);
 
 export default function pipeline(m, s, o) {
   const all = tools(s);
   const name = all ? "conversions" : "leads";
   const f = m.x[name];
+  // No lead database on this site, and no one chose one: the leads it has came from its tools
+  // (its server's lead hook, the script tag, bookings), so open those rather than an empty page.
+  if (!all && !s.lsrc && f && f.available === false && /not set/.test(String(f.error || ""))) {
+    queueMicrotask(() => S.set({ lsrc: "all" }, { replace: true }));
+    return h("p", { class: "empty" }, "This site has no lead database: opening the leads from its tools...");
+  }
   const g = all ? narrowConv(f, s) : narrowLeads(f, s);
   let body = [(all ? conversions : leads)(withFile(m, name, g), s, o)].flat(Infinity).filter(Boolean);
   if (all) body = body.filter((el) => !MOVED.has(titleOf(el)));
+  // One label: only the parts it splits (Every action); the others say so in the options' note.
+  if (all && s.llabel) body = body.filter((el) => { const t = titleOf(el); return t == null || t === "Every action"; });
   const { row, show } = optionsFor(m, s, f, all);
-  // The lists follow the chosen action too (a listing, never added to a figure).
+  // The lists follow the chosen action and label too (a listing, never added to a figure).
   const only = s.lact ? (a) => a === s.lact : null;
-  const lists = show.length ? [all ? convList(show, { only }) : leadList(show, { only })] : [];
+  const lists = show.length ? [all ? convList(show, { only, label: s.llabel || "" }) : leadList(show, { only })] : [];
   const moved = all && f?.available ? h("p", { class: "note" }, "The demo funnel is on ", h("a", { href: S.hashFor({ ...s, tab: "sales/bookings" }) }, "Bookings"),
     "; the latest conversions are on ", h("a", { href: S.hashFor({ ...s, tab: "sales/people" }) }, "People"), ".") : null;
   // The options under the tab's heading (its period line), the lists under the options.

@@ -97,7 +97,9 @@ def kind_of(hit) -> str:
     if CRAWLER_PATH.search(hit.path):
         return "crawler_file"
     if RSC_PAYLOAD.search(hit.url):
-        return "rsc"
+        # A Next.js navigation on a log that records the prefetch header
+        # is a page view (parse.Hit.soft_navigation); any other payload is not.
+        return "page" if hit.is_page else "rsc"
     if ASSET.search(hit.path):
         return "asset"
     if BEACON.search(hit.path):
@@ -354,7 +356,7 @@ def before_midnight(config: dict, feed: Feed, midnight: datetime, now: datetime,
     yesterday's whole window (as collect will). `upto`: the live run's byte
     limits (parse.read)."""
     from .config import setting
-    from .parse import geo_database, read
+    from .parse import geo_database, one_click, read
     from .window import ordered_classifier, within, window_paths
     if feed.cutoff >= midnight:
         return
@@ -370,8 +372,8 @@ def before_midnight(config: dict, feed: Feed, midnight: datetime, now: datetime,
         config, lambda: within(read(paths, fmt, upto=upto), tz_day_start, midnight),
         tz_day_start, midnight)
     wanted = {str(h).lower() for h in (setting(config, "site", "hosts") or [])}
-    for hit in within(read(paths, fmt, geo=geo_database(config), upto=upto), feed.cutoff,
-                      midnight):
+    for hit in one_click(within(read(paths, fmt, geo=geo_database(config), upto=upto),
+                                feed.cutoff, midnight)):
         if wanted and hit.host and hit.host.lower() not in wanted:
             feed.excluded(hit)
         else:

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import http.client
 import json
+import shutil
+import subprocess
 import sys
 import tempfile
 import threading
@@ -333,6 +335,16 @@ class SkaldJs(unittest.TestCase):
             self.assertIn(key, text)
         self.assertNotIn("cookie", text.split("*/", 1)[1])
         self.assertNotIn("localStorage", text)
+        # A page opening on links inside the page, back/forward and the back-forward cache.
+        for word in ('"pushState"', '"replaceState"', '"popstate"', '"pageshow"', "persisted"):
+            self.assertIn(word, text)
+
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_behaviour_in_a_fake_dom(self):
+        """tests/js/skald-beacon-only.mjs: one page view per page opening."""
+        script = Path(__file__).resolve().parent / "js" / "skald-beacon-only.mjs"
+        got = subprocess.run(["node", str(script)], capture_output=True, text=True, timeout=120)
+        self.assertEqual(got.returncode, 0, got.stdout + got.stderr)
 
 
 class HooksOnly(unittest.TestCase):

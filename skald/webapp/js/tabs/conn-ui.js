@@ -28,7 +28,10 @@ export function wizard({ title, subtitle = "", steps, start = 0, onStep = null, 
     const step = steps[w.at];
     bar.replaceChildren(...steps.map((s, i) => h("li", { class: i === w.at ? "on" : i < w.at ? "past" : null, "aria-current": i === w.at ? "step" : null },
       h("span", { class: "cn-n" }, String(i + 1)), h("span", { class: "cn-t" }, s.name))));
-    body.replaceChildren(h("h3", { class: "cn-h" }, `Step ${w.at + 1} of ${steps.length}: ${step.name}`), ...[].concat(step.draw(w) || []));
+    // A step may return null, false or nested lists for parts it leaves out: drop them here,
+    // or the DOM would print "null" (seen on the mail dialog and Add a site, step 3).
+    const parts = [].concat(step.draw(w) || []).flat(Infinity).filter((x) => x !== null && x !== undefined && x !== false && x !== "");
+    body.replaceChildren(h("h3", { class: "cn-h" }, `Step ${w.at + 1} of ${steps.length}: ${step.name}`), ...parts);
     back.hidden = w.at === 0;
     next.textContent = w.at === steps.length - 1 ? done : "Next";
     next.disabled = false;

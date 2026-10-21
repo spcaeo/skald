@@ -80,8 +80,8 @@ server for `X-Forwarded-For`. Details: docs/BEACON.md, "Several sites".
 
 ### What it does by itself
 
-- `page_view` on load and on each client-side navigation (`history.pushState`,
-  `replaceState`, back and forward), once per path.
+- `page_view` on load, on each client-side navigation (`history.pushState`, `replaceState`, back and
+  forward; once per path) and on a page restored from the back-forward cache: the tag's own events, never added to the log's counts.
 - `form_start` the first time a field of a form gets focus (once per form per
   page) and `form_submit` on submit, with the form's `id` or `name` only.
   `data-skald="signup"` on a form sends `signup_start` / `signup_submit`
@@ -326,7 +326,7 @@ bot rules. The how-to: docs/help/leads-from-your-backend.md.
 | 400 | the body is not JSON, or not the tool's event (`lead`: a missing `external_ref` or `action`, an unknown `stage`, a time that is not a time, an event more than a day ahead) |
 | 401 | the signature does not match, or its time is more than 5 minutes off. Failed attempts are written once a minute per hook, as a count |
 | 404 | unknown site or tool, no secret set, or (saas) a site still waiting for its domain to be verified |
-| 405 | not a POST (nginx refuses it first) |
+| 405 | not a POST; the one GET taken is `/traffic-hooks/<site>/leads` (2.18, INTEGRATIONS-LEADS.md) |
 | 411 / 413 | no length / a body over 64 KiB |
 | 429 | over `hooks.per_minute` (default 60) verified deliveries per site and tool, burst `hooks.burst` (30); or a sender address with too many failed signatures (`hooks.preauth_per_minute`, default 30, burst `hooks.preauth_burst`, 10) |
 | 500 | not kept (disk or database); the tool should send again. Also when `secrets.json` can be read by others (it must be 0600) |
@@ -403,8 +403,12 @@ curl -sS -X POST 'https://www.example.com/traffic-hooks/example.com/lead' \
 | `device` or `user_agent` | | `Desktop`/`Mobile`/`Tablet`, or the agent: Skald works out the device and drops the agent |
 | `visits_before`, `first_touch_at` | | when the site knows them |
 | `name`, `email` | | kept only when the site's identity is `full` (Privacy, below) |
+| `label` | | 2.18: a short lowercase token that sorts the leads of one action, e.g. a contact form's topic (`sales`, `support`, `partnership`): `^[a-z0-9][a-z0-9_-]{0,39}$` (`conversions.LABEL`), trimmed and lower-cased first. Anything else (a longer one, a space, a number, an object) is no label: the lead is kept without one, never refused for it; the answer carries `"notes"` and the delivery log's error column says so (never the value sent). Each row keeps its own: a later stage of the same `external_ref` has the label it sends, else none. A resend of a kept ref and stage changes nothing, its label neither |
 
 `json` takes the same object, a list of them, or `{"records": [...]}` (at most 100).
+
+Where the label is kept and shown, and the signed `GET /traffic-hooks/<site>/leads` a site's
+server uses to check that Skald has every lead it sent (2.18): [INTEGRATIONS-LEADS.md](INTEGRATIONS-LEADS.md).
 
 ### Lead stages: a lead counts once, won and lost are outcomes
 
@@ -677,8 +681,10 @@ than 5 minutes off. The body:
 ## nginx
 
 The receiver runs inside the beacon helper (`skald/beacon_server.py`,
-127.0.0.1:8766). nginx forwards one path to it: public, POST only, small
-bodies, rate-limited, not logged (the delivery log is Skald's own).
+127.0.0.1:8766). nginx forwards one path to it: public, POST and GET, small
+bodies, rate-limited, not logged (the delivery log is Skald's own). GET only for the signed
+`GET /traffic-hooks/<site>/leads` (2.18; any other GET is 405): a block from before 2.18 with
+`limit_except POST { deny all; }` answers it 403 until it reads `limit_except GET POST`.
 
 Since 2.2.2 that helper runs on every install, whether or not the script tag is
 on: the Docker image always starts it, `install.sh` enables it, and `skald upgrade`
@@ -693,7 +699,7 @@ limit_req_zone $binary_remote_addr zone=skald_hooks:1m rate=60r/m;
 
 # the site's server {} block
 location ^~ /traffic-hooks/ {
-    limit_except POST { deny all; }
+    limit_except GET POST { deny all; }
     client_max_body_size 64k;
     limit_req zone=skald_hooks burst=30 nodelay;
     limit_req_status 429;
@@ -982,21 +988,12 @@ that is usually a tracking break.
 
 ## AI answers
 
-What ChatGPT, Perplexity, Gemini and Claude say when asked the questions
-buyers ask, joined with what the same assistant read on the site and the
-visitors and leads it sent. Every detail (providers, fields, cost, the cap,
-the second count): [docs/AI-ANSWERS.md](AI-ANSWERS.md). In short:
-
-- **Keys:** one per assistant, Settings › Integrations › "AI answers:
-  assistants' API keys" (install admins), write-only, 0600 in `secrets.json`;
-  the environment wins: `SKALD_OPENAI_API_KEY`, `SKALD_PERPLEXITY_API_KEY`,
-  `SKALD_GEMINI_API_KEY`, `SKALD_ANTHROPIC_API_KEY`. Never printed or logged.
-- **Opt-in:** nothing is asked until a key is set and a site admin makes a
-  tracking profile that names that assistant (Settings › AI answers).
-- **Costs:** every answer costs on your provider account. The profile's panel
-  shows the estimate before it runs (questions × tries × assistants × price
-  an answer × runs a month) and each profile has a daily cap in US dollars;
-  a run past it goes on the next day.
-- **Privacy:** the questions, and the profile's place and language, are sent
-  to the providers you choose, under their terms. Nothing about visitors is.
-  Answers are kept 400 days (per site, `keep_days`).
+What ChatGPT, Perplexity, Gemini and Claude say when asked the questions buyers ask, joined
+with what the same assistant read on the site and the visitors and leads it sent. In short:
+one key per assistant (Settings › Integrations, write-only, 0600 in `secrets.json`; the
+environment's `SKALD_OPENAI_API_KEY`, `SKALD_PERPLEXITY_API_KEY`, `SKALD_GEMINI_API_KEY`,
+`SKALD_ANTHROPIC_API_KEY` win; never printed or logged); nothing is asked until a site admin
+makes a tracking profile (Settings › AI answers); every answer costs on your provider account,
+estimated before it runs, with a daily cap in US dollars per profile; the questions go to the
+providers you choose, under their terms, nothing about visitors; answers kept 400 days
+(`keep_days`). Every detail: [docs/AI-ANSWERS.md](AI-ANSWERS.md).

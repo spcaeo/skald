@@ -115,6 +115,10 @@ BEACON_REPEAT_SECONDS = 30 * 60
 
 # A lead's action: a short lowercase token ("demo", "trial", "contact").
 ACTION = re.compile(r"^[a-z0-9][a-z0-9_.:-]{0,39}$")
+# A lead's label (2.18): a short lowercase token that sorts the leads of one
+# action, e.g. a contact form's topic ("sales", "support", "partnership").
+# Anything else is no label: the lead is kept without one.
+LABEL = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
 
 
 def action_name(raw) -> str:
@@ -138,7 +142,7 @@ _TOUCH = frozenset({"referrer", "landing", "utm_source", "utm_medium", "utm_camp
                     "fbclid", "li_fat_id", "at", "skv"})
 _LEAD = frozenset({"external_ref", "action", "stage", "at", "vid", "first_touch",
                    "last_touch", "landing", "campaign", "source", "country", "device",
-                   "visits_before", "first_touch_at"}) | _TOUCH
+                   "visits_before", "first_touch_at", "label"}) | _TOUCH
 SPOOL_KEYS = {
     "lead": _LEAD,
     "json": _LEAD | {"records"},

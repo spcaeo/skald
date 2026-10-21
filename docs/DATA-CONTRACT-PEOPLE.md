@@ -77,6 +77,12 @@ which marks every row of the same tool and reference. A test row is never
 counted: not in `conversions.json` (stages, breakdowns, abandoned, pages
 before, timeline), not by `store.day_counts`.
 
+`conversions.label` (schema 7, 2.18): the lead hook's optional token
+(`^[a-z0-9][a-z0-9_-]{0,39}$`), NULL when none was sent or it was not one.
+Each row its own: a later stage keeps the label it was sent with, never an
+earlier stage's. Every conversion row in the answers below carries it, and a
+removed row's `row` JSON too; the lists show it as a tag.
+
 Written by the daily run (whole days, `cli.collect_day`) and every live run
 (today, `live.build`), only while `keep_ips` is on and the day is inside
 `keep_days`. Pruned at each daily run: rows older than the site's

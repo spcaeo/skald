@@ -646,9 +646,11 @@ location = /traffic-hooks/_billing/stripe {
 
 # Signed hooks from the site's server and its tools, POST
 # /traffic-hooks/<site>/<tool> (docs/INTEGRATIONS.md): to the beacon helper.
+# GET too, for the signed GET /traffic-hooks/<site>/leads (2.18; the helper
+# answers 405 to a GET of any other hook).
 # X-Forwarded-Proto: some tools sign the public address.
 location ^~ /traffic-hooks/ {
-    limit_except POST { deny all; }
+    limit_except GET POST { deny all; }
     client_max_body_size 64k;
     limit_req zone=skald_hooks burst=30 nodelay;
     limit_req_status 429;

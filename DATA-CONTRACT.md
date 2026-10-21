@@ -316,7 +316,7 @@ A row:
 | `agent` | string | the browser family (`Chrome`, `Safari`, `LinkedIn app`, ...) for a browser, else the crawler or tool name (`GPTBot`, `curl`, `(no user agent)`) |
 | `os`, `device` | string | from the user agent (`macOS`, `iOS`, ... / `Desktop`, `Mobile`, `Tablet`); bots usually `Other` / `Desktop` |
 | `group` | string | `people`, `answer_engines`, `search_engines`, `bots`, `ours`, or `excluded` |
-| `rule` | string | why it is in that group, in words: `"people: reader"`, `"people: asset"`, `"people: Next.js payload (_rsc)"`, `"people: reader from chatgpt.com"`, `"ours: Office Mac (Morgan)"`, `"AI asked: ChatGPT-User"`, `"AI training: GPTBot"`, `"search: Googlebot"`, `"bot: meta-webindexer"`, `"bot: scanner probe"`, `"bot: link preview: Slack"`, `"bot: claims to be Googlebot"`, `"bot: browser-like crawler (robots.txt or sitemap, no rendering)"`, `"bot: browser-like, never rendered the page"`, `"excluded: other host"` |
+| `rule` | string | why it is in that group, in words: `"people: reader"`, `"people: asset"`, `"people: Next.js payload (_rsc)"` (a prefetch, or a line without the `rsc_prefetch=` field; a Next.js navigation on a line with it is `kind` `"page"`, `page_view` true), `"people: reader from chatgpt.com"`, `"ours: Office Mac (Morgan)"`, `"AI asked: ChatGPT-User"`, `"AI training: GPTBot"`, `"search: Googlebot"`, `"bot: meta-webindexer"`, `"bot: scanner probe"`, `"bot: link preview: Slack"`, `"bot: claims to be Googlebot"`, `"bot: browser-like crawler (robots.txt or sitemap, no rendering)"`, `"bot: browser-like, never rendered the page"`, `"excluded: other host"` |
 | `kind` | string | what was asked for: `page`, `rsc`, `asset`, `beacon`, `crawler_file`, `redirect`, `not_modified`, `not_found`, `client_error`, `server_error`, `post` (a form or API call the site's own pages sent), `script_event` (the script tag's events posted to Skald's own `/traffic-beacon` or `/traffic-js/`: never a form post), `skald_endpoint` (a call to `/traffic-hooks/` or `/traffic-ingest/`), `other` |
 | `page_view` | bool | counted as a page view in its group |
 | `assistant` | string | the AI assistant: the crawler's name, or the assistant a reader came from; `""` |
@@ -871,6 +871,15 @@ Every figure is counted twice (`audit_conversions.py`,
 `audit_conversions_figures.py`); a day or block that disagrees is withheld.
 Every field: [docs/DATA-CONTRACT-CONVERSIONS.md](docs/DATA-CONTRACT-CONVERSIONS.md); the
 per-day `likely_ai` (an estimate): [docs/DATA-CONTRACT-AI-LIKELY.md](docs/DATA-CONTRACT-AI-LIKELY.md).
+Since 2.18 a lead may carry a `label` (the lead hook's optional token): each day's `labels`
+and `labels_abandoned` count the labelled rows, recounted by the same SQL audit; the
+timeline's rows and steps name it. `conversions.sqlite` is schema 7 (`conversions.label`).
+
+The site's server reads back what its `lead` hook delivered with the signed
+`GET /traffic-hooks/<site>/leads` (2.18; `conversions/reconcile.py`, INTEGRATIONS.md): rows
+`{external_ref, action, stage, at, label, test, received_at}` ordered by `received_at`, then id,
+paged by an opaque `next_cursor`; never a name, email, address, user agent, visitor ID or source.
+A listing for reconciling, not a figure.
 
 ## People (2.4.0)
 

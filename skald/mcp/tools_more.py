@@ -466,6 +466,11 @@ BY_WORDS = {"source_type": "source (last touch)", "first_source": "first touch",
               "action": {"type": "string", "maxLength": 40,
                          "description": "Only this action, e.g. 'demo', 'contact', "
                                         "'signup', 'paid'."},
+              "label": {"type": "string", "maxLength": 40,
+                        "description": "Only the leads with this label (a lead hook's "
+                                       "optional token, e.g. 'sales', 'support'): the "
+                                       "stages and abandoned starts; the breakdowns are "
+                                       "not split by label and are left out."},
               "by": {"type": "string", "enum": list(BY_DIMS),
                      "description": "Break the completed ones (and the leads) down by: "
                                     "source_type (last touch, the default), first_source "
@@ -483,6 +488,7 @@ def conversions(ctx, args):
     anchor = parse_day(today, "today") if today else anchor_of(ov)
     first, last = period(args, anchor)
     only = str(args.get("action") or "").strip().lower() or None
+    label = str(args.get("label") or "").strip().lower() or None
     dim = str(args.get("by") or "source_type")
     if dim not in BY_DIMS:
         dim = "source_type"
@@ -506,16 +512,23 @@ def conversions(ctx, args):
             missing.append(day.isoformat())
         else:
             counted += 1
-            for action, per in (e.get("stages") or {}).items():
-                if only and action != only:
+            # With a label: its own rows by stage and its abandoned starts (the
+            # file's `labels`, counted again by the audit); no breakdown.
+            day_stages = ({a: per.get(label, {}) for a, per in (e.get("labels") or {}).items()}
+                          if label else e.get("stages") or {})
+            day_gone = ({a: per.get(label, 0) for a, per in
+                         (e.get("labels_abandoned") or {}).items()}
+                        if label else e.get("abandoned") or {})
+            for action, per in day_stages.items():
+                if (only and action != only) or (label and not per):
                     continue
                 mine = stages.setdefault(action, {})
                 for stage, v in per.items():
                     mine[stage] = mine.get(stage, 0) + int(v)
-            for action, v in (e.get("abandoned") or {}).items():
-                if not only or action == only:
+            for action, v in day_gone.items():
+                if v and (not only or action == only):
                     abandoned[action] = abandoned.get(action, 0) + int(v)
-            for action, per in (dig(e, "by", dim) or {}).items():
+            for action, per in ({} if label else dig(e, "by", dim) or {}).items():
                 if not only or action == only:
                     for k, v in per.items():
                         sources[k] = sources.get(k, 0) + int(v)
@@ -538,14 +551,18 @@ def conversions(ctx, args):
     leads = sum(a["completed"] for k, a in actions.items() if k in lead_acts)
     demos = sum(a["completed"] for k, a in actions.items() if k in demo_acts)
     data = {"site": site, "available": True, "from": first.isoformat(),
-            "to": last.isoformat(), "action": only, "days_counted": counted,
-            "actions": actions, "by": dim, "by_source": ranked(sources),
+            "to": last.isoformat(), "action": only, "label": label, "days_counted": counted,
+            "actions": actions, "by": None if label else dim,
+            "by_source": None if label else ranked(sources),
             "leads": leads if counted else None, "demos_booked": demos if counted else None,
-            "lead_actions": sorted(lead_acts), "leads_by": ranked(leads_by),
+            "lead_actions": sorted(lead_acts), "leads_by": None if label else ranked(leads_by),
             "withheld": withheld, "not_recorded": missing,
             "note": doc.get("as_known")}
     lines = [f"{site}, {first} to {last}: conversions ({counted} day"
              f"{'s' if counted != 1 else ''} counted)."]
+    if label:
+        lines.append(f"Only the leads labelled {label!r} (the label a site's lead hook sends); "
+                     "the breakdowns by source and the others are not split by label.")
     if counted:
         for action, a in actions.items():
             rate = (f", {a['completion_rate'] * 100:.1f}% completed" if a["completion_rate"]

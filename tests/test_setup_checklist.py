@@ -75,6 +75,20 @@ class Drawn(TenantServer):
                           cookie, csrf)
         self.assertEqual(saved.status, 200, saved.json)
         given["saved_mail"] = saved.json
+        # A Next.js site: payloads in the log without the prefetch field, then with it.
+        logs = Path(self.config["logs"]["dir"])
+        logs.mkdir(parents=True, exist_ok=True)
+        raw = ('203.0.113.5 - - [08/Oct/2026:12:00:00 +0000] "GET /pricing/?_rsc=1x2y HTTP/2.0" '
+               '200 512 "https://www.example.com/" "Mozilla/5.0 (X11; Linux x86_64) Chrome/130.0"')
+        (logs / "access.log").write_text(raw + "\n")
+        given["integ_rsc"] = self.get(f"integrations?site={A}", cookie)
+        rsc = next(x for x in given["integ_rsc"]["status"] if x["id"] == "rsc")
+        self.assertEqual(rsc["state"], "NEEDS ATTENTION", rsc)
+        (logs / "access.log").write_text(raw + " rsc_prefetch=1\n")
+        given["integ_rsc_ok"] = self.get(f"integrations?site={A}", cookie)
+        rsc = next(x for x in given["integ_rsc_ok"]["status"] if x["id"] == "rsc")
+        self.assertEqual(rsc["state"], "OK", rsc)
+        self.assertNotIn("rsc", [x["id"] for x in given["integ"]["status"]])
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "answers.json"
             path.write_text(json.dumps(given))

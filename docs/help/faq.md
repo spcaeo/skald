@@ -71,6 +71,10 @@ Only when Google says so. A click from Google whose address carries `udm=50` (Go
 
 It suggests one; it never writes it to your website. Open [AI & bots > llms.txt](#ai/llms) and see **Suggested llms.txt**: links to the pages people and AI assistants read most over the last 90 days, grouped by section, in the llmstxt.org format. Write the one-line summary yourself, check the links, then copy or download it and publish it at `/llms.txt`. See [Settings and retention](settings-and-retention.md).
 
+## Why are pages opened inside my Next.js site not counted?
+
+A click on a link inside a Next.js site loads no new page from your server: the browser fetches only the next page's data. Next.js fetches the same data for links on screen that nobody clicked (a prefetch). Unless the server's log records the header Next.js sends with a prefetch, Skald cannot tell a click from a prefetch, so it counts neither. Only the first page of each visit shows, and a visit from a tab left open may count as no visit at all. One line in the web server's log format fixes it: see [Troubleshooting connections](troubleshooting-connections.md), "Next.js sites". Overview's checklist shows **Pages opened inside the site are not counted yet** while it is missing.
+
 ## Why is my own visit not counted?
 
 Your team's addresses are probably listed as internal. Visits from them go to the "Our own" group, kept apart from people, so your own testing does not inflate the figures. See [Internal traffic](internal-traffic.md) and [Internal traffic settings](#settings/internal).

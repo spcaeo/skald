@@ -21,6 +21,7 @@ import { call } from "./ipmanager.js";
 import { ME } from "../access.js";
 import { openVisitor } from "./visitor.js";
 import { copyButton } from "./reqdetail.js";
+import { labelTag } from "./leadfigs.js";
 
 export const SEARCH_HINT = "IP address, email, lead or visitor ID";
 export const mayFind = () => ["owner", "admin"].includes(ME.role);
@@ -54,13 +55,13 @@ function leadsPart(rows) {
 function conversionsPart(rows) {
   if (!rows.length) return empty("No conversion.");
   return grid("Conversions", ["When", "Action", "Stage", "Reported by", "Source", "Landing", "Lead or reference", "Visitor ID", "Email"], rows.map((r) => [
-    at(r.at), dash(r.action), [STAGE[r.stage] || r.stage, r.test ? h("b", { class: "pp-bad" }, " test (not counted)") : null],
+    at(r.at), [dash(r.action), labelTag(r.label)], [STAGE[r.stage] || r.stage, r.test ? h("b", { class: "pp-bad" }, " test (not counted)") : null],
     dash(r.tool), dash(r.source_type), h("span", { class: "mono" }, dash(r.landing)), key(r.external_ref), key(r.vid), r.email ? key(r.email) : "-"]));
 }
 
 function removedPart(rows) {
   return grid("Removed conversions", ["Removed", "Why", "Was", "Lead or reference"], rows.map((r) => [
-    at(r.removed_at), dash(r.why), `${dash(r.action)} ${STAGE[r.stage] || dash(r.stage)} at ${at(r.at)}`, key(r.external_ref)]));
+    at(r.removed_at), dash(r.why), [`${dash(r.action)} ${STAGE[r.stage] || dash(r.stage)} at ${at(r.at)}`, labelTag(r.row?.label)], key(r.external_ref)]));
 }
 
 /* A person (people?q=) opens in the visitor drawer (visitor.js), the same

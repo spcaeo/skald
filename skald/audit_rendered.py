@@ -11,7 +11,9 @@ default /_next/static/) or a ?_rsc= payload from 5 s before to
 site.render_seconds (30) after a page request - or a beacon page opening
 vouches for it, or the same address and agent drew earlier that day, or its
 30-day hash was a counted reader on an earlier day. Everything else of a
-browser-like visit is a bot.
+browser-like visit is a bot. A Next.js navigation (the audit's own test,
+audit.navigation) is a page request, and a payload that draws: a visit of
+such navigations alone drew.
 """
 from __future__ import annotations
 
@@ -134,10 +136,13 @@ def stored_readers(config: dict, first: date) -> set[str]:
 # ------------------------------------------------------------------ rule
 
 def never_drawn(config: dict, lines: list, gap: timedelta, hosts: set, start: datetime,
-                end: datetime, tz, is_asset, is_beacon, family, keyed, secret) -> dict:
+                end: datetime, tz, is_asset, is_beacon, family, keyed, secret,
+                is_navigation=None) -> dict:
     """{(address, agent): [(first, last)]} of browser-like visits that drew
     nothing. `lines` is the window's lines; the helpers are the audit's own
-    (its asset and beacon path tests, its browser/system label, its hash)."""
+    (its asset and beacon path tests, its browser/system label, its hash,
+    and its Next.js navigation test: such a payload is a page request too,
+    and draws as every payload does)."""
     if not switched_on(config):
         return {}
     own = prefixes(config)
@@ -166,6 +171,8 @@ def never_drawn(config: dict, lines: list, gap: timedelta, hosts: set, start: da
         visits.append((pair, group))
 
     def page_request(line) -> bool:
+        if is_navigation is not None and is_navigation(line):
+            return True
         return (line.method in ("GET", "HEAD") and not _RSC.search(line.url)
                 and not is_asset(line) and not is_beacon(line.path))
 
