@@ -32,6 +32,11 @@
   --shadow: 0 1px 0 rgba(23, 33, 43, .04), 0 8px 24px -12px rgba(23, 33, 43, .18);
   --r: 10px;
   --rail: 236px;
+  /* One spacing scale for every page (2.20): between blocks inside a section sp-2/sp-3,
+     between sections sp-5. One height for every control: buttons, search boxes, selects. */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
+  --ctl-h: 32px;
+  --read: 92ch;   /* a note or a line of help never runs wider than this */
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --round: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -138,8 +143,8 @@ button, input, select { font: inherit; color: inherit; }
   border: 1px solid var(--rule); background: var(--surface); border-radius: 8px; padding: 4px 8px; font-size: 13px; min-width: 0;
 }
 .ctl input[type="date"] { padding: 3px 6px; }
-.btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rule); background: var(--surface);
-  border-radius: 8px; padding: 5px 11px; cursor: pointer; font-size: 13px; font-weight: 560; color: var(--ink); white-space: nowrap; }
+.btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rule); background: var(--surface); box-sizing: border-box;
+  min-height: var(--ctl-h); border-radius: 8px; padding: 4px 12px; cursor: pointer; font-size: 13px; font-weight: 560; color: var(--ink); white-space: nowrap; }
 .btn:hover { border-color: var(--ink-3); }
 .btn.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
 .btn svg { width: 14px; height: 14px; }
@@ -176,12 +181,14 @@ button, input, select { font: inherit; color: inherit; }
 .lede { color: var(--ink-2); font-size: 13.5px; margin: 2px 0 14px; }
 h2 { font-size: 14px; font-weight: 650; margin: 0 0 2px; letter-spacing: -.005em; }
 h3 { font-size: 14px; font-weight: 620; margin: 0 0 6px; }
-.sub { color: var(--ink-3); font-size: 12.5px; margin: 0 0 8px; }
-.note { color: var(--ink-3); font-size: 12px; margin: 6px 0 0; }
-section.s { margin: 0 0 22px; }
-.sheet { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); padding: 12px 14px; }
-.cols { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); }
-.cols { margin-bottom: 22px; }
+.sub { color: var(--ink-3); font-size: 12.5px; margin: 0 0 var(--sp-2); max-width: var(--read); }
+.note { color: var(--ink-3); font-size: 12px; margin: 6px 0 0; max-width: var(--read); }
+section.s { margin: 0 0 var(--sp-5); }
+/* A note drawn just after a section (older renderers) belongs to it: no gap above, the gap below. */
+section.s + p.note { margin: calc(var(--sp-2) - var(--sp-5)) 0 var(--sp-5); }
+.sheet { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); padding: var(--sp-3) var(--sp-4); }
+.cols { display: grid; gap: var(--sp-4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); }
+.cols { margin-bottom: var(--sp-5); }
 .cols > section.s { margin-bottom: 0; }
 .cols.four { grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); }
 .cols.three { grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
@@ -276,12 +283,15 @@ button.kpi:hover { background: color-mix(in srgb, var(--surface) 92%, var(--ink)
 .empty { color: var(--ink-3); font-size: 13.5px; padding: 6px 0; }
 
 /* --------------------------------------------------------------- tables */
-.tbl { min-width: 0; }
-.tbl-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 8px; }
-.tbl-tools .grow { flex: 1; }
-.tbl-tools input[type="search"] { border: 1px solid var(--rule); background: var(--surface); border-radius: 8px;
-  padding: 4px 9px; font-size: 13px; width: 200px; max-width: 100%; }
-.tbl-count { font-size: 12px; color: var(--ink-3); }
+/* A table measures its own width (css/tables.css narrows its tools to icons in a small card). */
+.tbl { min-width: 0; container-type: inline-size; }
+/* One toolbar row (2.20): the search on the left, Filter, Columns and Export on the right;
+   the count under the table. */
+.tbl-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin: 0 0 var(--sp-2); }
+.tbl-tools .grow { flex: 1 1 0; min-width: 0; }
+.tbl-tools input[type="search"] { box-sizing: border-box; height: var(--ctl-h); border: 1px solid var(--rule); background: var(--surface); border-radius: 8px;
+  padding: 4px 10px; font-size: 13px; width: 260px; max-width: 100%; }
+.tbl-count { font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: var(--r); background: var(--surface); }
 table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
 th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--grid); vertical-align: top; }
@@ -302,7 +312,7 @@ td.muted { color: var(--ink-3); }
 /* Every cell sits at the top of its row, a row with a select or buttons in it too (owner, 2026-10-18). */
 tbody tr:hover td { background: color-mix(in srgb, var(--surface) 94%, var(--ink)); }
 tr.withheld td { color: var(--ink-3); background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--hatch) 18%, transparent) 6px 7px); }
-.more-rows { margin-top: 8px; }
+.more-rows { margin: 0; }
 
 /* journeys */
 .journeys { display: grid; gap: 8px; }

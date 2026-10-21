@@ -46,7 +46,7 @@ One JSON object per lead:
 
 | `test` | optional | `true` for a lead your own team made (a team account, a QA run): Skald keeps it and lists it, and never counts it. `false` or left out: a real lead. Only `true` or `false` (not `"true"`, not `1`); anything else is ignored, the lead counts, and the answer and the delivery log say so |
 
-Each stage keeps its own label: send it again with a later stage if that stage should carry it too. Pipeline (Count from: Tools) filters by label, and the lists of conversions show it as a small tag.
+Each stage keeps its own label: send it again with a later stage if that stage should carry it too. Leads and Summary (Count from: Tools) filter by label, and the lists of leads and conversions show it as a small tag.
 
 Always send the offset. A time without one ("2026-09-25" or "2026-09-25T14:30:00") is read in the site's own time zone, and the delivery log says so. That guess is right only when your server writes local times in the same zone.
 

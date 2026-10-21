@@ -1,28 +1,53 @@
-// Leads & sales (2.7.0): the options row above a tab's figures. One row of
-// labelled controls, each kept in the address by the tab's `keep` list
-// (s-sales.js), so a link or a reload brings back the same view:
+// Leads & sales (2.7.0, laid out again in 2.20): every tab has the same shape, top to bottom:
 //
-//   #sales/pipeline?lsrc=all&lact=demo&lshow=cancelled,removed
+//   tabHead(title, question, r, help)   the title, the question the tab answers (its
+//                                       subtitle, in plain words), an (i) with Learn more,
+//                                       and the period line (the period itself is chosen
+//                                       once, in the top bar)
+//   optionsRow(label, controls, opts)   at most one row of the filters that matter for that
+//                                       question; the rest folded under "More"; the view
+//                                       switcher, when the tab has views, at its right end
+//   a number row (optional), the main table or chart, and small notes at the bottom
 //
-//   optionsRow(label, [controls], ...notes)    the row, then its notes
-//   choice(name, value, [[key, words]], pick)  one of a few (segmented buttons)
+// Each control is kept in the address by the tab's `keep` list (s-sales.js), so a link or
+// a reload brings back the same view:
+//
+//   #sales/leads?lact=demo&lnow=won&lview=board
+//
+//   choice(name, value, [[key, words, title]], pick)   one of a few (segmented buttons)
 //   select(name, value, [[key, words]], pick, {off})  one of many; off: why it does not apply
-//   toggles(name, list, [[key, words]], pick)  on/off buttons, any number on
-//   period(s, m)                               the period, the same as the bar's
+//   toggles(name, list, [[key, words]], pick)          on/off buttons, any number on
 //
-// A control that does not apply to the chosen file stays in its place, greyed,
-// with the reason on hover and to a screen reader (never silently ignored).
+// A control that does not apply stays in its place, greyed, with the reason on hover and
+// to a screen reader (never silently ignored).
 
 import { h } from "../ui.js";
-import * as S from "../state.js";
-import { rangeOf } from "../data.js";
+import { head } from "./common.js";
+import { info } from "./tiles.js";
 
 let seq = 0;
 const uid = (p) => `${p}-${++seq}`;
 
-export function optionsRow(label, controls, ...notes) {
-  return [h("div", { class: "sa-block" }, h("div", { class: "sa-opts", role: "group", "aria-label": label }, controls.filter(Boolean)),
-    ...notes.filter(Boolean).map((x) => (x instanceof Node ? x : h("p", { class: "note sa-says" }, x))))];
+/* The tab's head: its title, the question it answers, an (i) with the longer words and a
+   Learn more link into the guide, and the period line (common.js head). */
+export function tabHead(title, question, r, { help = "", more = "", period } = {}) {
+  const top = head(title, r, null, { banner: false, period });
+  const bar = top[0];
+  if (help) bar.insertBefore(info(help, title, more), bar.querySelector(".period"));
+  return [bar, question ? h("p", { class: "lede sa-q" }, question) : null].filter(Boolean);
+}
+
+/* One options row. opts: {more: [controls] folded under "More", end: a node at the right
+   end (the view switcher), notes: [words] said behind an (i) at the row's end, help: a
+   Learn more address for them}. */
+export function optionsRow(label, controls, { more = [], end = null, notes = [], help = "" } = {}) {
+  const extra = more.filter(Boolean);
+  const words = notes.filter(Boolean);
+  const fold = extra.length ? h("details", { class: "sa-more" }, h("summary", null, "More"), h("div", { class: "sa-more-body" }, extra)) : null;
+  const row = h("div", { class: "sa-opts", role: "group", "aria-label": label }, controls.filter(Boolean), fold,
+    words.length ? h("span", { class: "sa-why" }, info(words.join(" "), label, help)) : null,
+    end ? h("span", { class: "sa-end" }, end) : null);
+  return [h("div", { class: "sa-block" }, row)];
 }
 
 export function choice(name, value, options, pick) {
@@ -58,9 +83,29 @@ export function toggles(name, on, options, pick) {
 // A comma list kept in one address key ("spam,test"), only the known keys.
 export const listOf = (v, known) => String(v || "").split(",").filter((k) => known.includes(k));
 
-// The period, the same choice as the top bar's (one state: changing either changes both).
-export function period(s, m) {
-  return select("Period", s.range, S.RANGES, (k) => {
-    if (k === "custom") { const r = rangeOf(m, s); S.set({ range: "custom", from: r.first, to: r.last }); } else S.set({ range: k });
-  }, { all: null });
+/* An empty state, the same on every tab: one line on what is missing and one button (or
+   link) that fixes it. action: [words, onclick] or [words, href]. */
+export function emptyState(words, action = null, { bad = false } = {}) {
+  const [label, go] = action || [];
+  const btn = !action ? null : typeof go === "string" ? h("a", { class: "btn", href: go }, label) : h("button", { type: "button", class: "btn primary", onclick: go }, label);
+  return h("div", { class: `sa-empty${bad ? " bad" : ""}`, role: bad ? "alert" : "status" }, h("p", null, words), btn);
+}
+
+/* Long notes inside the parts a tab draws (renderers older than the redesign) go behind
+   an (i) beside the part's heading: the page keeps its headings, figures and tables, and
+   the explanations are one press away. A note that says something is missing or withheld
+   (.state) stays in place. */
+export function foldNotes(nodes, { min = 140 } = {}) {
+  for (const el of nodes) {
+    if (!el?.querySelectorAll) continue;
+    const top = el.querySelector("h2, summary");
+    if (!top) continue;
+    const said = [];
+    for (const p of [...el.querySelectorAll("p.note, p.sub")]) {
+      const t = (p.textContent || "").trim();
+      if (t.length >= min) { said.push(t); p.remove(); }
+    }
+    if (said.length) top.append(" ", info(said.join(" "), (top.firstChild?.textContent || "About this").trim()));
+  }
+  return nodes;
 }

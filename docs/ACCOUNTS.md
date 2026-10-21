@@ -42,6 +42,10 @@ and the MCP tool `find_person`). Every search writes one audit row, action
 `people.search`, target the site, detail the kind of value (ip, email, vid,
 lead), a SHA-256 prefix of it and how much was found: never the value
 itself. In basic mode the same line goes to `privacy.log` beside the history.
+Leads & sales > Leads (2.20) shows the leads' names and emails to owners and
+admins only, with the session's CSRF value; each load that shows them writes
+one audit row, action `people.leads`, detail `lead list viewed` with the
+period and the number of rows: never a name or an email.
 
 The lists of what the figures leave out (`<page>/people/left-out`,
 `<page>/people/conversions?kind=cancelled|removed|test`) are for every

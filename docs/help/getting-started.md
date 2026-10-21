@@ -73,7 +73,7 @@ The sidebar has five sections. Each section has tabs along its top.
 | --- | --- |
 | Overview | Summary, Real time, Insights |
 | Traffic | Visitors, Sources, Pages, Places & devices, Search, Retention, Time |
-| Leads & sales | Pipeline, Bookings, Funnels, Events, People |
+| Leads & sales | Leads, Summary, Sources, Calendar bookings, Funnels, Events, Find a person |
 | AI & bots | Assistants, Crawlers, Crawl health, Crawler rules, llms.txt |
 | Site | Health, Alerts, Requests, Not found, Speed, Data quality |
 
@@ -145,7 +145,7 @@ Every figure is counted twice, by two separate roads. A day is shown only when b
 
 A withheld day is never shown as zero. A figure that was not recorded is left blank, not zero. It is never guessed. When a period holds such days, the page says how many and which.
 
-Something your site has never sent shows **Not set up**, with one line on how to set it up, never 0 or 0%: an event the tracking tag never sent (Leads & sales > Events), a kind of lead the lead store never recorded (Pipeline, Funnels), a heartbeat that never ran (Site > Health), or page speed never tested (Site > Speed).
+Something your site has never sent shows **Not set up**, with one line on how to set it up, never 0 or 0%: an event the tracking tag never sent (Leads & sales > Events), a kind of lead the lead store never recorded (Summary, Funnels), a heartbeat that never ran (Site > Health), or page speed never tested (Site > Speed).
 
 On [Site > Data quality](#site/quality), the reasons a day is **Worth a look** or **Not trusted** are listed above the days, each with how many days it covers. A stretch with no log line counts only when it is long for your site: an hour at least, and longer on a quiet site, where a night's lull is normal.
 
@@ -266,7 +266,7 @@ Select **Compare with…** in the top bar and choose what to put beside the peri
 
 Tables then show A (the period in the top bar), B (the one you chose) and the change. Charts show B as a dashed line. A tab that does not compare says so in one line. Previous period and last year compare only when both periods are whole and checked; a custom period counts whole days and names any it left out. **Turn compare off** in the same menu.
 
-These tabs compare: Overview > Summary, Traffic > Sources, Pages and Places & devices, Leads & sales > Pipeline, AI & bots > Assistants and Crawlers, and Site > Health. Leads, demos booked and every completed action are compared too, when every day of both periods has checked conversions.
+These tabs compare: Overview > Summary, Traffic > Sources, Pages and Places & devices, Leads & sales > Summary, AI & bots > Assistants and Crawlers, and Site > Health. Leads, demos booked and every completed action are compared too, when every day of both periods has checked conversions.
 
 Today is never compared: turning on **Today · Live** turns Compare off.
 
@@ -302,7 +302,7 @@ Letters to use after `g`:
 | l | Overview > Summary with Today · Live on |
 | c | Overview > Summary compared with the previous period |
 | v, s, p, d, t | Traffic > Visitors, Sources, Pages, Places & devices, Time |
-| e, x, f, n | Leads & sales > Pipeline, Bookings, Funnels, Events |
+| e, x, f, n | Leads & sales > Leads, Calendar bookings, Funnels, Events |
 | b | AI & bots > Assistants |
 | h, a, r, k, w, q | Site > Health, Alerts, Requests, Not found, Speed, Data quality |
 | u | Settings > Internal traffic |

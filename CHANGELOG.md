@@ -2,6 +2,142 @@
 
 All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versioning](https://semver.org).
 
+## 2.20.0 (2026-10-21)
+
+Leads & sales, redone: one question per tab, every lead in one list (with names and emails for
+owners and admins), and the same tidy toolbars, gaps and empty states on every page.
+
+### Added
+
+- **Leads & sales > Leads: who are my leads?** One row per lead of the period, newest first:
+  when, name and email, what they did (with its label), its stage now (completed, won, lost,
+  cancelled, no-show), where it came from (the lead database, a booking tool, the page's script tag
+  or the site's server), the source and the first touch, the landing page and the country. A row
+  opens the visitor drawer with the lead's steps and pages. Until now no page listed leads with
+  their names: only Find a person showed one at a time (the owner asked where they were).
+  - **Who sees names and emails:** owners and admins only, and only on a site that keeps them
+    (`conversions.identity: full`, Settings > Data retention > People). Everyone else gets the
+    same list without those columns, and one line saying why. The names come from a new helper
+    call, `GET <page>/people/leads?first=&last=[&names=1]`: `names=1` needs an owner or admin
+    and the session's CSRF value (basic mode: a same-origin request), and each answer with names
+    writes one audit row, `people.leads`, "lead list viewed" with the period and the row count,
+    never a name or an email. Names never go into a data file a viewer could fetch; the public
+    demo shows the list as a viewer sees it.
+  - **No new figure:** the count above the list is the Leads figure itself (the same sum as
+    Overview's Leads tile), with the change against the period before. The list's counted rows are
+    the very rows that figure counts; `tests/test_people_leadlist.py` checks they are equal.
+  - **One options row:** What, Label, Stage now, Source; under **More**, **Show left out** (test,
+    spam and duplicate leads, marked, never counted).
+  - **Four views of the same leads**, picked with small icon buttons at the right of the row and
+    kept in the address (`lview`): **List**; **Board** (a column per stage now; read-only, stages
+    come from the site's tools); **Timeline** (leads per day, split by what they did or by source;
+    a day's bar opens the list on that day); **Map** (leads by country). The timeline and the map
+    draw the Leads figure's own days and breakdowns, so no view can disagree with the count. The
+    switcher (`js/viewswitch.js`) is built for other sections to use later.
+- **Help in context, on Leads & sales first:** an (i) beside a tab's title, its options row and
+  each number opens a short popover with **Learn more** into the right part of the guide; the long
+  paragraphs that sat in the page moved into the (i) beside their heading. Summary's numbers say
+  what they count, the days they cover and how they compare with the period before. The (i) is the
+  shared one (`tiles.js info`), so any page can add a Learn more link.
+- **Overview, Today · Live: "What visitors are doing now".** The map now runs across the page,
+  and under it one block shows, on the left, the five visitors with the newest activity (active in
+  the last 30 minutes): flag and city, device, where they came from, and their pages in order,
+  `/ → /pricing → /book-a-demo`, the page they are on now marked ("now on /pricing · 20 s ago");
+  a long path is cut in the middle, whole in its tooltip. It follows the live answer every 15
+  seconds: a new visitor slides in at the top, one who moved gets the new page appended, one who
+  went quiet fades out (no motion with reduced motion). On the right, **Pages read in the last 30
+  minutes**, the same figure and audit as before: a page narrows the list to the visitors who read
+  it, a second press opens its detail. A row under the pointer pulses its city on the map, and a
+  city marks its rows; a row opens the visitor drawer. With a drill-down (`dd=country:CA`, a city,
+  a source, a referring site or assistant, a device, a landing page or a page read), the map shows
+  that place and the list only its visitors, with "N shown"; a kind the live rows do not carry (a
+  campaign, an hour) says "Live list shows every visitor: this filter can't apply to it". It
+  replaces the Newest visits panel and the pages list under the map, so a visit is shown once.
+  The rows come from Real time's answer, which now carries `doing` (the active visits, newest
+  activity first, at most 50, each with its pages in order: labels and paths only, as the newest
+  visits and the journeys); `ti.py audit --live` recounts each row's start, country, pages and
+  newest request, and that every active visit is listed.
+- **Filters you set show as chips above every table and grid** ("Stage: completed ×"); the ×
+  takes one off, **Clear all** takes them all off.
+
+### Changed
+
+- **Leads & sales has seven tabs, each answering one question in plain words under its title:**
+  Leads, Summary ("How many leads came in, and is it better than before?": Leads, Demos booked, Won
+  and Lost against the period before, every action side by side, the best sources), Sources ("Where
+  did the leads come from?": where the completed ones came from, first, last and assisted touch,
+  likely from AI, the time to convert, the pages seen before), Calendar bookings, Funnels, Events
+  and Find a person. **Pipeline** is now Summary and Sources: every figure is the same, counted by
+  the same code; nothing is counted anew. **Count from** (lead database or tools, never added) is a
+  quiet option at the right of Summary's and Sources' row. Old links keep working:
+  `#sales/pipeline` opens Summary with its options, `#leads` and `#conversions` open Summary from
+  the lead database or the tools. The keyboard's `g e` opens Leads.
+- **Bookings is now Calendar bookings,** and says plainly what it holds: calls booked through
+  Calendly and Cal.com, and payments Stripe reports where a site sends them. The route stays
+  `#sales/bookings`.
+- **People is now Find a person.** Its "Recent people" list is gone: the Leads list replaces it,
+  one row per lead, with names for owners and admins.
+- **The period is chosen in one place, the top bar.** The Period select is gone from Leads &
+  sales' options rows.
+- **One toolbar row on every table and grid.** Search and filters on the left; Filter, Columns
+  and Export on the right, on the same row (it wraps when narrow); the row count and the pager sit
+  under the table. On grids the tools used to sit on a row of their own above the search, so the
+  toolbar was split over two rows with a gap (the owner's screenshot of Bookings); a small card's
+  table now puts its tools, as icons, on the card's title line, and a section's table on the
+  section's heading line, instead of a row of their own. The export button says **Export** on
+  every table; what it writes ("CSV, 37 rows, 8 columns") is on hover and read to a screen
+  reader. **Columns** shows "6 of 8" only when some are hidden. Grids: no "0 of 0" and no page-size
+  choice under an empty or short list; the request log's export moved onto its grid's row.
+- **One spacing scale and one control height.** Sections, cards and options rows use the same
+  gaps (8, 12, 16, 24 px), buttons, search boxes and selects are one height (32 px), and notes and
+  help lines never run wider than about 90 characters.
+- **Empty states are one line and one button** ("This site has no lead database connected. Its
+  leads come from its tools" with **Show leads from the tools**), and an empty grid is one compact
+  line instead of a big box.
+
+### Fixed
+
+- **Summary from the lead database on a site that has none** (`#sales/summary?lsrc=db`, the old
+  Pipeline's "Count from: Lead database") showed an empty, silent page. It now says "This site has
+  no lead database connected. Its leads come from its tools (the lead hook, the script tag, booking
+  tools)", with **Show leads from the tools** and a link to the help on connecting one.
+- **A grid printed the word "null" under its rows for a moment while they loaded** (its pager
+  appended an empty page count). Vendored data grid, Skald patch 9.
+
+### Who it affects, and what to do
+
+Everyone who opens Leads & sales: nothing to set up. Owners and admins of a site that keeps names
+and emails see them on Leads; to stop keeping them, set **Leads' names and emails** to anonymous in
+Settings > Data retention > People. Links and bookmarks to the old tabs keep working.
+
+### How it was checked
+
+`python3 -m unittest discover tests` ends OK. New: `tests/js/live-doing.mjs` (the paths, folded; the live diff; a page narrowing the list; `dd=country:CA` showing only Canadian rows and an unsupported filter its line) and `test_realtime` (`doing` lists every active visit, newest activity first, and the audit fails on a tampered row); `tests/test_people_leadlist.py` (the list's
+counted rows equal the Leads figure; names only for owners and admins, only with the CSRF value or
+same-origin, never on an anonymous site; one audit row with no value in it; a bad period refused;
+test rows listed, not counted) and `tests/js/sales-leads.mjs` (the tab names; Name and Email columns
+only in an answer that holds them, a viewer never asks for them; Show left out; the board; a row
+opens the drawer; the view switcher). Changed: `tests/js/tables.mjs` (one toolbar row, the count
+under the table, the chips), `tests/js/pipeline-label.mjs` (Summary's Label option; the
+no-lead-database message and its button), `tests/test_routes.py` (the old addresses). Every tab and
+Settings page, the visitor drawer and the setup dialogs were screenshotted before and after at
+1440 and 1280 px wide, and the main pages at 390.
+
+### Changed
+
+- **Onboarding: the Next.js log line is a requirement, with why it is safe, and a new site is
+  checked end to end.** The owner's own phone visit to spaceo.ai showed only its first page: on
+  a Next.js site, pages opened by a click inside it need ` rsc_prefetch=$http_next_router_prefetch`
+  at the end of the server's nginx `log_format` (Apache: ` rsc_prefetch=%{Next-Router-Prefetch}i`).
+  The client runbook (`deployments/skaldanalytics.com/ADD-A-CLIENT-SITE.md`), Help > Connections
+  and the install kit's READMEs now say it is required for every Next.js site and why it is safe
+  (it adds one header's value to the server's own log; no port, route or access changes; nginx
+  escapes odd values; the log already travels over HTTPS with the site's token). A new section,
+  "Check a new site end to end", lists the proof a site is live: a desktop and a phone visit with
+  clicks inside the site, the doctor, the live audit, a test lead and the setup checklist.
+  Who: anyone adding a site. What to do: nothing for existing sites, except spaceo.ai's admin
+  adding the line. Checked: the docs build (tools/build-about.py) and the suite.
+
 ## 2.19.0 (2026-10-21)
 
 A site's server can keep its own team's leads out of the figures, without asking Skald's admin.

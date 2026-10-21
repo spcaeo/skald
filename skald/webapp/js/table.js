@@ -8,7 +8,7 @@ import { link, drillRow } from "./drill.js";
 import { shownText } from "./labels.js";
 import { code3, countryName } from "./countries.js";
 import { HASH, writeKeys, nsOf, compare, sortRows, nextSort, sortParam, readSort, readFilters, writeFilters, readHidden, testFilter, filterKind, parseAmount, visibleColumns } from "./tablestate.js";
-import { chooser, exportButton, filterToggle, filterCell } from "./tabletools.js";
+import { chooser, exportButton, filterToggle, filterCell, filterChips } from "./tabletools.js";
 
 /* Every table drawn in the current render, so "Export this view" and the
    report can take them all: {caption, file, columns, rows()}. main.js
@@ -133,7 +133,8 @@ export function table(columns, opts) {
   let frowOpen = filters.length > 0;
   const save = () => { if (ns) writeKeys({ [key("sort")]: sortParam(sort), [key("cf")]: writeFilters(filters), [key("hide")]: isDefault(hidden) ? "" : hidden.join(",") || "-", [key("q")]: query.trim() }); };
 
-  const wrap = h("div", { class: "tbl" });
+  // A table without a search box (most cards): its tools sit beside the card's title (css/tables.css).
+  const wrap = h("div", { class: search ? "tbl" : "tbl tbl-quiet" });
   const count = h("span", { class: "tbl-count", "aria-live": "polite" });
   const input = search ? h("input", { type: "search", value: query, placeholder: opts.placeholder || "Search rows", "aria-label": `Search ${caption}` }) : null;
   const shownCols = () => visibleColumns(columns, hidden);
@@ -145,9 +146,13 @@ export function table(columns, opts) {
   const tbody = h("tbody");
   const tableEl = h("table", null, h("caption", { class: "vh" }, caption), thead, tbody);
   const more = h("button", { type: "button", class: "btn more-rows" });
-  const bar = h("div", { class: "tbl-tools" }, input, ftog, pick, h("span", { class: "grow" }), count, dl || plainDl);
+  // One toolbar row: the search on the left, the tools on the right; the filters that are on
+  // as chips under it; the row count and "Show all" directly under the table, at its edges.
+  const bar = h("div", { class: "tbl-tools" }, input, h("span", { class: "grow" }), ftog, pick, dl || plainDl);
+  const chips = tools ? filterChips((k) => { filters = k == null ? [] : filters.filter((f) => f.key !== k); frowFor = null; save(); render(); }) : null;
   const scroll = h("div", { class: "scroll" }, tableEl);
-  wrap.append(bar, scroll, more);
+  const foot = h("div", { class: "tbl-foot" }, count, more);
+  wrap.append(...[input || ftog || pick || dl || plainDl ? bar : null, chips, scroll, foot].filter(Boolean));
   if (note) wrap.append(h("p", { class: "note" }, note));
 
   // What a cell shows (its visible words: a column filter and the value lists match these,
@@ -243,11 +248,15 @@ export function table(columns, opts) {
     count.textContent = rows.length ? (all.length === rows.length ? `${n(rows.length)} row${rows.length === 1 ? "" : "s"}` : `${n(all.length)} of ${n(rows.length)} rows`) : "";
     more.hidden = all.length <= limit;
     more.textContent = showAll ? "Show fewer" : `Show all ${n(all.length)}`;
+    // A table of one row says nothing under it; otherwise the count, and Show all when there is more.
+    if (rows.length < 2 && all.length === rows.length) count.textContent = "";
+    foot.hidden = !count.textContent && more.hidden;
     // Every row on screen: the header stays in view while the box scrolls.
     wrap.classList.toggle("tall", showAll && all.length > 25);
     dl?.say(all.length, csvWidth(cols), caption);
     if (plainDl) plainDl.disabled = !all.length;
     ftog?.say(frowOpen, filters.length);
+    chips?.say(columns, filters);
     if (before) [...tbody.children].forEach((tr) => {
       const was = before.get(tr.dataset.k);
       if (was == null) return;

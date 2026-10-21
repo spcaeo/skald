@@ -25,7 +25,7 @@ export async function call(path, body) {
   let res;
   try {
     res = await fetch(path, body ? { method: "POST", credentials: "same-origin", cache: "no-store", headers: { "Content-Type": "application/json", ...csrfHeaders() }, body: JSON.stringify(body) }
-      : { credentials: "same-origin", cache: "no-store" });
+      : { credentials: "same-origin", cache: "no-store", headers: csrfHeaders() });   // a read of names (people/leads) needs it too
   } catch {
     return { ok: false, error: "The server could not be reached." };
   }

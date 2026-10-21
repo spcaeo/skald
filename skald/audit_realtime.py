@@ -28,6 +28,8 @@ classify.py's name lists are shared, through the audit.
                   crawlers by the judge's name, other bots as one count
   newest          the newest visits by their first line: start to the
                   minute, country and pages read
+  doing           the active visits by their newest line (2.20): start to
+                  the minute, country, pages read and the newest line
   cities          with a city file only: every reader's visit today by the
                   audit's own city of its first page (audit_cities.py), and
                   of those the ones active; a visit with no city is in no
@@ -46,6 +48,7 @@ OTHER = "(all others)"
 MINUTES = 30
 SHORT = 5
 NEWEST = 10
+DOING = 50
 
 
 def _minute(when: datetime) -> int:
@@ -136,7 +139,8 @@ class Recount:
             elif group == "bots":
                 bots += 1
         newest = sorted(self.visits, key=lambda v: v[0], reverse=True)
-        return {"active": active, "under": under, "started": started, "requests": requests,
+        doing = sorted((v for v in self.visits if v[1] >= since), key=lambda v: v[1], reverse=True)
+        return {"doing": doing,"active": active, "under": under, "started": started, "requests": requests,
                 "starts": starts, "countries": countries, "cities": cities,
                 "sources": sources,
                 "devices": devices, "pages": pages, "ai": ai, "search": search, "bots": bots,
@@ -191,6 +195,8 @@ class Recount:
                 Counter(machines.get("search_engines") or {}), got["search"], same)
         same("real time: bot and scanner requests", int(machines.get("bots", 0)), got["bots"])
         _newest(part.get("newest") or [], got["newest"], self.tz, same, problems)
+        if "doing" in part:
+            _doing(part.get("doing") or [], got["doing"], self.tz, same, problems)
 
 
 def _cities(stored: dict | None, counted: dict | None, same, problems: list) -> None:
@@ -233,6 +239,25 @@ def _newest(listed: list, visits: list, tz, same, problems: list) -> None:
         if stored[k] != counted[k]:
             problems.append(f"real time: newest visits, {k}: listed {stored[k]}, "
                             f"recounted {counted[k]}")
+
+
+def _doing(listed: list, active: list, tz, same, problems: list) -> None:
+    """What visitors are doing now (2.20): the DOING active visits by their newest line,
+    each by start (to the minute), country and pages read, as a set (two visits whose
+    newest lines came in the same second may be listed either way), and its newest line
+    to the second; never more rows than visits active."""
+    same("real time: active visits listed with their pages", len(listed), min(len(active), DOING))
+    if len(active) > DOING and active[DOING - 1][1] == active[DOING][1]:
+        return
+    def key(start, country, pages, last):
+        return f"{start} {country} {pages} {last}"
+    stored = Counter(key(v.get("start"), v.get("country"), int(v.get("pages", 0)), v.get("last")) for v in listed)
+    counted = Counter(key(first.astimezone(tz).strftime("%Y-%m-%dT%H:%M"), labels["country"], n,
+                          final.astimezone(tz).isoformat(timespec="seconds"))
+                      for first, final, labels, n, _ in active[:DOING])
+    for k in sorted(set(stored) | set(counted)):
+        if stored[k] != counted[k]:
+            problems.append(f"real time: active visit, {k}: listed {stored[k]}, recounted {counted[k]}")
 
 
 # ------------------------------------------------------------------ the tail

@@ -1,5 +1,6 @@
 // A lead's label (2.18) on the page: the small tag (leadfigs.js labelTag) in the lists
-// that show conversions, and Pipeline's Label option in the Tools view (sa-pipeline.js):
+// that show conversions, and Summary's Label option in the Tools view (sa-pipeline.js;
+// Pipeline until 2.18):
 // its choices from the file's checked days, Every action narrowed to that label's own
 // rows (the file's `labels`, counted again by the second count), the parts not split by
 // label left off with a note, and the label kept in the address. dom-lite throws on a
@@ -14,7 +15,7 @@ const JS = new URL("../../skald/webapp/js/", import.meta.url);
 const { labelTag, actionWithLabel } = await import(new URL("tabs/leadfigs.js", JS));
 const { convRow } = await import(new URL("tabs/sa-lists.js", JS));
 const P = await import(new URL("tabs/sa-pipeline.js", JS));
-const pipeline = P.default;
+const pipeline = P.summary;
 const text = (el) => (el == null ? "" : typeof el === "string" ? el : el.textContent);
 
 // ---- the tag
@@ -67,9 +68,9 @@ assert.deepEqual(P.convLabels({ days: [] }), []);
   assert.equal(P.narrowConv(f, {}), f, "nothing chosen: the file itself");
 }
 
-// ---- the tab, counting from the tools, narrowed to one label
+// ---- the tab (Summary), counting from the tools, narrowed to one label
 const m = { today: "2026-10-20", anchor: "2026-10-20", byDay: new Map(), x: { conversions: f, events: null }, options: {}, days: [] };
-const s = { tab: "sales/pipeline", lsrc: "all", llabel: "sales", lact: "", lshow: "", range: "custom", from: "2026-10-19", to: "2026-10-20" };
+const s = { tab: "sales/summary", lsrc: "all", llabel: "sales", lact: "", range: "custom", from: "2026-10-19", to: "2026-10-20" };
 const flat = (out) => [out].flat(Infinity).filter(Boolean);
 const find = (nodes, pred) => { for (const el of nodes) { const got = walk(el, pred); if (got) return got; } return null; };
 function walk(el, pred) {
@@ -80,13 +81,14 @@ function walk(el, pred) {
 }
 {
   const out = flat(pipeline(m, s, {}));
-  const label = find(out, (el) => el.tagName === "SELECT" && el.parentNode && text(el.parentNode).startsWith("Label"))
-    || find(out, (el) => (el.tagName || "").toLowerCase() === "select" && text(el.parentNode).startsWith("Label"));
+  const label = find(out, (el) => (el.tagName || "").toLowerCase() === "select" && text(el.parentNode).startsWith("Label"));
   assert.ok(label, "a Label option in the Tools view");
   assert.ok(!label.hasAttribute("disabled"), "labels to choose: not greyed");
-  const words = out.map(text).join(" ");
-  assert.match(words, /Label “sales”: Every action counts only the leads/);
-  assert.match(words, /not split by label/);
+  // The row's longer words are behind its (i): what the label narrows and what it cannot.
+  const why = find(out, (el) => (el.className || "").includes("sa-why"));
+  const said = why.querySelector(".info-i").getAttribute("aria-label");
+  assert.match(said, /Label “sales”: Every action counts only the leads/);
+  assert.match(said, /not split by label/);
   const h2 = (t) => find(out, (el) => (el.tagName || "").toLowerCase() === "h2" && text(el).startsWith(t));
   assert.ok(h2("Every action"), "Every action is shown");
   const every = text(h2("Every action").parentNode);
@@ -94,14 +96,37 @@ function walk(el, pred) {
   assert.doesNotMatch(every, /Demos/, "demo has no row labelled sales");
   assert.equal(h2("Where the completed ones came from"), null, "a part not split by label is left off");
   assert.equal(h2("Time to convert"), null);
-  assert.doesNotMatch(words, /Leads: \d/, "Overview's total is not a label's figure: left out");
+  assert.equal(h2("Best sources"), null, "the sources are not split by label: left off");
+  const tile = find(out, (el) => (el.className || "") === "info-i" && /^About Leads:/.test(el.getAttribute("aria-label") || ""));
+  assert.ok(tile, "the Leads number says what it counts");
+  assert.match(tile.getAttribute("aria-label"), /not Overview's figure/, "a label's count never claims to be Overview's figure");
 }
 {
-  // The lead database's view: Label greyed, with the reason.
+  // The lead database's view: no Label (it keeps none); its own Status instead.
   const db = { ...m, x: { ...m.x, leads: { available: true, types: ["contact"], days: [] } } };
   const out = flat(pipeline(db, { ...s, lsrc: "db" }, {}));
-  const opt = find(out, (el) => (el.className || "").includes("sa-opt") && text(el).startsWith("Label"));
-  assert.ok(opt && opt.className.includes("off"), "greyed in the lead database's view");
-  assert.match(text(opt), /keeps no label/);
+  const opt = (name) => find(out, (el) => (el.className || "").includes("sa-opt") && text(el).startsWith(name));
+  assert.equal(opt("Label"), null, "no Label from the lead database");
+  assert.ok(opt("Status"), "its statuses instead");
+}
+{
+  // A site with no lead database, asked to count from one: one message and one button, never
+  // an empty page; the button switches to the tools.
+  const none = { ...m, x: { ...m.x, leads: { available: false, error: "leads.db not set" } } };
+  const S = await import(new URL("state.js", JS));
+  S.addSections([{ key: "sales", name: "Leads & sales", tabs: [{ route: "sales/summary", name: "Summary", keep: ["lsrc", "lact", "llabel", "lstage"] }] }]);
+  location.hash = "#sales/summary?lsrc=db";
+  const out = flat(pipeline(none, { ...s, lsrc: "db", llabel: "" }, {}));
+  const words = out.map(text).join(" ");
+  assert.match(words, /This site has no lead database connected\. Its leads come from its tools/);
+  const btn = find(out, (el) => el.tagName === "BUTTON" && text(el) === "Show leads from the tools");
+  assert.ok(btn, "one button to the tools");
+  const help = find(out, (el) => el.tagName === "A" && /help\?part=leads-and-conversions/.test(el.getAttribute("href") || ""));
+  assert.ok(help, "and a link to the help on connecting a lead database");
+  btn.click();
+  assert.match(location.hash, /lsrc=all/, "the button counts from the tools");
+  // Not asked (no lsrc): the tools at once, silently; a site with a lead database: that.
+  assert.equal(P.tools({}, none), true);
+  assert.equal(P.tools({}, { x: { leads: { available: true, days: [] } } }), false);
 }
 console.log("pipeline-label: all passed");

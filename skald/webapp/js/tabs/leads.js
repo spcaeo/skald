@@ -65,11 +65,9 @@ export default function leads(m, s, { first }) {
   const r = rangeOf(m, s);
   const out = [...head("Pipeline", r, "Sign-ups, contact forms, early-access requests and demo bookings: how many, and where the people who sent them first came from. Counts only; names and messages stay in the website's admin.", { banner: false })];
   const f = m.x.leads;
-  const how = h("div", { class: "state", html: ICON.info }, h("div", null, h("strong", null, "Names, emails and messages are not here. "),
-    f?.admin_note || "They stay in the website's admin: open it through the private connection described in the server runbook, never on a public address."));
-  if (!f) return [...out, h("div", { class: "state", html: ICON.info }, h("div", null, "Lead counts are not written beside this page yet. They come from the website's lead store as daily totals with no names; when the first file lands this tab fills in. Until then the Sources tab shows where visitors come from.")), how,
+  if (!f) return [...out, h("div", { class: "state", html: ICON.info }, h("div", null, "Lead counts are not written beside this page yet. They come from the website's lead store as daily totals with no names; when the first file lands this tab fills in. Until then the Sources tab shows where visitors come from.")),
     howTo("leads-and-conversions", "How do leads reach Skald?")];
-  if (f.available === false) return [...out, h("div", { class: "state bad", html: ICON.info }, h("div", null, `The lead store could not be read${f.error ? `: ${f.error}` : ""}. Nothing is shown rather than zeros.`)), how, howTo("leads-and-conversions", "How do leads reach Skald?")];
+  if (f.available === false) return [...out, h("div", { class: "state bad", html: ICON.info }, h("div", null, `The lead store could not be read${f.error ? `: ${f.error}` : ""}. Nothing is shown rather than zeros.`)), howTo("leads-and-conversions", "How do leads reach Skald?")];
 
   // Days before `since` (when the lead store began to be read) are not recorded, whatever they hold.
   // A day the second count disagreed with is withheld: no figures, said once.
@@ -87,7 +85,7 @@ export default function leads(m, s, { first }) {
     ranged(r, f, s, new Set(inRange.map((d) => d.day)), wanted.length, out);
   }
   tail(f, s, out);
-  out.push(how);
+  // (2.20) Names and emails: Leads & sales > Leads lists them for admins and owners, where the site keeps them.
   return out;
 }
 
@@ -96,7 +94,7 @@ function notSent(k, s) {
   const demo = k === "demo_opened" || k === "demo_booked";
   return h("div", { class: "kpi not-set" }, h("div", { class: "k-l" }, name(k)), h("div", { class: "k-n" }, "never recorded by the lead store"),
     h("div", { class: "k-v", title: "Not recorded, never zero" }, "Not set up"),
-    h("div", { class: "k-c" }, demo ? h("a", { href: S.hashFor({ ...s, tab: "sales/bookings", dd: "" }) }, "From the booking tool: Bookings ›")
+    h("div", { class: "k-c" }, demo ? h("a", { href: S.hashFor({ ...s, tab: "sales/bookings", dd: "" }) }, "From the booking tool: Calendar bookings ›")
       : "The website's lead store sends none of these"));
 }
 

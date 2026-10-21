@@ -89,7 +89,9 @@ class LeadSources(unittest.TestCase):
     def test_pipeline_tools_says_overviews_figure_from_the_same_sum(self):
         src = (JS / "tabs" / "sa-pipeline.js").read_text()
         self.assertIn("const got = leadsOn(m,", src)
-        self.assertIn("all ? overviewLine(m, s) : null", src)
+        # 2.20: Summary's Leads number (Pipeline's line until 2.18) says it is Overview's figure.
+        self.assertIn("The same figure as Overview's Leads tile.", src)
+        self.assertIn("leadsOn(m2, daysOf(m, r))", (JS / "tabs" / "sa-leads.js").read_text())
         # Overview's tiles sum with the same function.
         self.assertIn("leadsOn(m, r.kind", (JS / "tabs" / "overview.js").read_text())
 

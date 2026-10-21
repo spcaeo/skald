@@ -197,10 +197,12 @@ class Page(unittest.TestCase):
         self.assertIn('if (isLive(s)) return today(m, s, o);', summary)
         for gone in ("rightNow", "leadsToday", "realtimeBlock", "thisHour"):
             self.assertNotIn(gone, summary)
-        today = (js / "ov-today.js").read_text() + (js / "ov-today-cards.js").read_text()
+        today = (js / "ov-today.js").read_text() + (js / "ov-today-cards.js").read_text() + (js / "ov-doing.js").read_text()
         self.assertEqual(today.count('"Pause live"'), 1, "one Pause for the whole page")
-        self.assertEqual(today.count('"Newest visits"'), 1)
-        self.assertIn("openNewest", today, "a newest visit opens the visitor drawer")
+        # 2.20: the newest visits are "What visitors are doing now", under the map, once.
+        self.assertEqual(today.count('cardHead("td-doing-h", "What visitors are doing now"'), 1)
+        self.assertNotIn('"Newest visits"', today, "a visit is shown once")
+        self.assertIn("openNewest", today, "a visitor opens the visitor drawer")
         css = (ROOT / "skald" / "webapp" / "css" / "today.css").read_text()
         self.assertIn("@media (prefers-reduced-motion: no-preference)", css)
         motion = css.split("@media (prefers-reduced-motion: no-preference)")[1].split("@keyframes")[0]

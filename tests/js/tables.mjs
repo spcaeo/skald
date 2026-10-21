@@ -112,7 +112,15 @@ const header = (t, label) => t.querySelectorAll("thead th").find((th) => th.text
   location.hash = "#traffic/pages?pagesread_sort=when:desc";
 
   // Filter columns: the row under the headers, a range on a number.
-  const tog = t.querySelectorAll(".tbl-tools button").find((b) => b.textContent.startsWith("Filter columns"));
+  // One toolbar row (2.20): the search first, then Filter, Columns and Export, all in .tbl-tools;
+  // the row count under the table (.tbl-foot), never in the toolbar.
+  const bar = t.querySelector(".tbl-tools");
+  assert.equal(t.querySelectorAll(".tbl-tools").length, 1, "one toolbar row");
+  const order = bar.children.map((el) => (el.tagName === "INPUT" ? "search" : el.classList.contains("tt-export") ? "export" : el.classList.contains("tt-pw") ? "columns" : el.classList.contains("grow") ? "|" : el.textContent.replace(/\d+$/, "")));
+  assert.deepEqual(order, ["search", "|", "Filter", "columns", "export"], "search left; Filter, Columns, Export right, on one row");
+  assert.equal(bar.querySelector(".tbl-count"), null, "the count is not in the toolbar");
+  assert.ok(t.querySelector(".tbl-foot .tbl-count"), "the count sits under the table");
+  const tog = bar.children.find((b) => b.textContent.startsWith("Filter"));
   tog.click();
   const frow = t.querySelector("thead tr.tt-frow");
   assert.ok(frow, "the filter row opens under the headers");
@@ -123,6 +131,10 @@ const header = (t, label) => t.querySelectorAll("thead th").find((th) => th.text
   assert.deepEqual(cellsOf(t, 0), ["/pricing/", "/blog/b"], "views at least 20; not recorded is never in a range");
   assert.equal(hashKey("pagesread_cf"), "views:range:20..", "the filter is kept in the address");
   assert.match(t.querySelector(".tbl-count").textContent, /2 of 4 rows/);
+  // The filter that is on, as a chip above the table; its × takes it off.
+  const chip = t.querySelector(".tt-chips .tt-chip");
+  assert.ok(chip && !t.querySelector(".tt-chips").hidden, "a chip says which filter is on");
+  assert.match(chip.textContent, /Views: at least 20/);
 
   // The column chooser, and the CSV of what is on screen: these rows, these columns, this order.
   const box = t.querySelectorAll(".tt-pop input").find((x) => x.parentNode.textContent.includes("Kind"));
@@ -134,7 +146,9 @@ const header = (t, label) => t.querySelectorAll("thead th").find((th) => th.text
   assert.ok(reg, "the table is in the registry, by its name");
   assert.equal(csv(cols.filter((c) => c.key !== "kind"), reg.rows()), "Page,Views,Last seen\r\n/pricing/,40,2026-10-02\r\n/blog/b,90,2026-09-12\r\n");
   const ex = t.querySelector(".tt-export");
-  assert.match(ex.textContent, /CSV, 2 rows, 3 columns/, "the button says what it will write");
+  assert.equal(ex.textContent, "Export", "one short word on every table");
+  assert.match(ex.getAttribute("title"), /CSV, 2 rows, 3 columns/, "what it will write, on hover");
+  assert.match(ex.getAttribute("aria-label"), /CSV, 2 rows, 3 columns/, "and to a screen reader");
 
   // A redraw (a reload, a link) brings the same table back.
   REGISTRY.length = 0;
@@ -142,6 +156,11 @@ const header = (t, label) => t.querySelectorAll("thead th").find((th) => th.text
   assert.deepEqual(cellsOf(again, 0), ["/pricing/", "/blog/b"]);
   assert.equal(again.querySelectorAll("thead tr")[0].children.length, 3);
   assert.ok(again.querySelector("thead tr.tt-frow"), "a table with filters on opens with its filter row");
+  // Removing the chip removes the filter, from the rows and from the address.
+  again.querySelector(".tt-chips .tt-chip button").click();
+  assert.equal(cellsOf(again, 0).length, 4, "every row again");
+  assert.equal(hashKey("pagesread_cf"), null);
+  assert.ok(again.querySelector(".tt-chips").hidden, "no filter on: no chips");
 }
 // A table kept out of the address, and a table with no tools.
 {

@@ -4,7 +4,7 @@ How to connect Calendly, Cal.com, HubSpot, Typeform, Stripe, Zapier, Make and yo
 
 ## How it works
 
-Each tool gets its own address in Skald and its own secret. When something happens (a booking, a payment, a form), the tool sends a signed message to that address. Skald checks the signature, records the conversion once, and shows it on [Leads & sales > Pipeline](#sales/pipeline) (with **Count from: Tools**) and, for a booking or a payment, on [Bookings](#sales/bookings).
+Each tool gets its own address in Skald and its own secret. When something happens (a booking, a payment, a form), the tool sends a signed message to that address. Skald checks the signature, records the conversion once, and lists it on [Leads & sales > Leads](#sales/leads), counts it on [Summary](#sales/summary) (with **Count from: Tools**) and, for a booking or a payment, on [Calendar bookings](#sales/bookings).
 
 All of this is set up on one page: **Settings > This site > Integrations**, or [Integrations](#settings/integrations).
 

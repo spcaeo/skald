@@ -283,3 +283,20 @@ header showed it, and descending turned it to point up. The header button now en
 `<span class="dir">` holding the marks every Skald table uses (`js/table.js`): ▲ ascending,
 ▼ descending (biggest first), a faint ↕ on a sortable column not sorted (`css/tables.css`).
 `ICON.sort` is no longer drawn. Checked by `tests/e2e/spcaeo-ui.mjs`.
+
+## Patch 9 (2.20): no "null" under the rows while they load
+
+`data-grid/vanilla/data-grid.js` `renderPagination`: "Page N of M" was `null` while the total is
+not known yet (the rows loading), and `append(null)` prints the word "null". It is "" now. Found
+by `tests/js/sales-leads.mjs` (dom-lite throws on a null child).
+
+## Patch 8 (2.20): the host's tools on the toolbar's own row
+
+`data-grid/vanilla/data-grid.js`: `config.toolbarEnd`, an array of the host's own controls
+(Skald's "Filter columns", "Columns" and "Export": `js/grid.js`), placed at the end of the
+grid's toolbar, on the same row as the search and the filter menus. The toolbar is now two
+parts: `.dg-toolbar-main` (search, filters, Reset), rebuilt on each render as before, and
+`.dg-toolbar-end` (the host's controls), built once, so an open column menu or a focused
+checkbox in it is never thrown away by a render. Before, Skald drew its tools in a row of
+their own above the grid, so every grid's toolbar was split over two rows (the owner's
+screenshot of Leads & sales > Bookings, 2026-10-21).

@@ -71,6 +71,7 @@ import demo_traffic as dt  # noqa: E402
 MARKER = ".skald-demo"
 REPO_URL = "https://github.com/spcaeo/skald"
 UTC = timezone.utc
+DEMO_LEAD_DAYS = 120   # the Leads list's answer covers every period the demo offers
 
 # ------------------------------------------------------------- the install
 
@@ -175,6 +176,16 @@ CREATE TABLE `submissions` (
 """
 
 
+# Made-up names for the demo's leads (Leads & sales > Leads shows them to admins). Picked
+# by the lead's number, not drawn from the seeded random source, so the traffic stays as it was.
+FIRST_NAMES = ("Avery", "Jordan", "Riley", "Morgan", "Casey", "Quinn", "Rowan", "Sasha", "Taylor", "Emerson", "Hayden", "Parker", "Reese")
+LAST_NAMES = ("Lane", "Pike", "Okafor", "Lindqvist", "Moreau", "Tanaka", "Haddad", "Novak", "Silva", "Brennan", "Kowalski")
+
+
+def demo_name(i: int) -> str:
+    return f"{FIRST_NAMES[i % len(FIRST_NAMES)]} {LAST_NAMES[(i * 7) % len(LAST_NAMES)]}"
+
+
 def _iso(t: datetime) -> str:
     return t.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
@@ -203,10 +214,10 @@ def leads_db(path: Path, traffic: dt.Traffic, rnd) -> None:
         made = _iso(r["at"])
         status = "spam" if r.get("spam") else ("new" if (traffic.now - r["at"]).days < 3 else _pick(rnd, statuses))
         first = r["first"] if r["first"] is not None and "referrerHost" in r["first"] else None
-        db.execute("INSERT INTO submissions (id, type, email, fields, locale, updated_at, created_at, status, page, "
+        db.execute("INSERT INTO submissions (id, type, email, name, fields, locale, updated_at, created_at, status, page, "
                    "first_touch, last_touch, visits, session_id, ip_country) "
-                   "VALUES (?, ?, ?, '{}', 'en-us', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                   (i, r["type"], f"lead{i}@example.com", made, made, status,
+                   "VALUES (?, ?, ?, ?, '{}', 'en-us', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                   (i, r["type"], f"lead{i}@example.com", demo_name(i), made, made, status,
                     "/signup/" if r["type"] == "signup" else "/contact/",
                     touch(first or r["last"]), touch(r["last"]), r["visits"], r["vid"], r["cc"] or None))
     # Left out of the figures and listed (Leads > "Left out"): a few forms sent
@@ -544,6 +555,14 @@ def helper_answers(root: Path, site_dir: Path) -> dict:
         if got.get("ok"):
             (folder / f"{stem}.json").write_text(json.dumps(got, separators=(",", ":")))
             answers["people"][url] = f"data/demo/{stem}.json"
+    # Leads & sales > Leads (people/leads): every lead of the demo's days, as a member who
+    # is not an admin sees them: no name or email (an admin on an install that keeps them
+    # sees both). One answer for every period: the page keeps the rows of the period it shows.
+    from skald.people import leadlist
+    got = leadlist.rows(cfg, root, dt.SITE, today - timedelta(days=DEMO_LEAD_DAYS), today, names=False)
+    if got.get("ok"):
+        (folder / "leads.json").write_text(json.dumps(got, separators=(",", ":")))
+        answers["people"]["people/leads"] = "data/demo/leads.json"
     # The visitor drawer's timeline (people/visitor, admins and owners on an
     # install): for each visit the page holds whose visitor came before, and
     # every visit of today. Labels, times and pages: no address, no visitor ID.

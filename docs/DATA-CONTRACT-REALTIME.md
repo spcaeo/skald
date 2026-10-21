@@ -34,6 +34,7 @@ The snapshot's `realtime` part (times in the site's zone):
 | `page_views` | int | people's page views in the last 30 minutes |
 | `machines` | `{"answer_engines": {name: n}, "search_engines": {name: n}, "bots": n}` | requests in the last 30 minutes; the two named lists top 15 and `"(all others)"` |
 | `newest[]` | `{"start", "country", "city", "device", "browser", "source", "via", "landing", "pages", "in_app", "active", "first_touch", "seq"}` (`in_app` the steps seen only in the browser, shown beside `pages`; `city` `""` when not recorded; `first_touch` the visitor's first known visit or null, `seq` the visit's place in the day, see DATA-CONTRACT-PEOPLE.md) | the 10 newest visits by first request; `start` to the minute; `active` `"5"`, `"30"` or `""` |
+| `doing[]` (2.20) | `{"start", "last", "country", "city", "device", "source", "via", "landing", "pages", "trail", "seq", "first_touch", "active"}` (`last` the visit's newest request, local, to the second; `trail` its pages in order as the day's journeys hold them, a page loaded twice in a row once, at most 20: the first two and the newest) | the active visits (last 30 minutes), newest activity first, at most 50: Overview's "What visitors are doing now". Labels and paths only, as `newest` and the journeys. The audit recounts each row's start, country, pages and newest request, and that it lists every active visit up to 50 |
 
 ### Real time's helper route: GET `<page>/api/realtime`
 

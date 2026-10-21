@@ -45,8 +45,12 @@ TABLE = [
     ("audience", "traffic/places", {}),
     ("time", "traffic/time", {}),
     ("hours", "traffic/time", {}),
-    ("leads", "sales/pipeline", {"lsrc": "db"}),
-    ("conversions", "sales/pipeline", {"lsrc": "all"}),
+    ("leads", "sales/summary", {"lsrc": "db"}),
+    ("conversions", "sales/summary", {"lsrc": "all"}),
+    # 2.20: Pipeline is Summary now (Leads lists the leads); its options ride along
+    ("sales/pipeline", "sales/summary", {}),
+    ("sales/pipeline?lsrc=all&lact=demo&llabel=sales", "sales/summary", {"lsrc": "all", "lact": "demo", "llabel": "sales"}),
+    ("sales/bookings?bact=demo", "sales/bookings", {"bact": "demo"}),
     ("funnels?fn=%2F%3E%2Fpricing%2F&fsrc=Email&fstep=1&fmode=list", "sales/funnels", {"fn": "/>/pricing/", "fsrc": "Email", "fstep": "1", "fmode": "list"}),
     ("events", "sales/events", {}),
     ("bots", "ai/assistants", {}),
@@ -71,7 +75,7 @@ TABLE = [
     ("requests?dd=country%3ACA", "site/requests", {"dd": "country:CA"}),
     # a bare section opens its first tab
     ("traffic", "traffic/visitors", {}),
-    ("sales", "sales/pipeline", {}),
+    ("sales", "sales/leads", {}),
     ("ai", "ai/assistants", {}),
     ("site", "site/health", {}),
     # settings' short names, help's
@@ -150,7 +154,7 @@ class Redirects(unittest.TestCase):
         self.assertEqual([s["key"] for s in reg], ["overview", "traffic", "sales", "ai", "site"])
         routes = {t["route"] for s in reg for t in s["tabs"]}
         for r in ("overview/summary", "overview/insights", "traffic/visitors", "traffic/sources", "traffic/pages", "traffic/places", "traffic/time",
-                  "sales/pipeline", "sales/bookings", "sales/funnels", "sales/events", "sales/people",
+                  "sales/leads", "sales/summary", "sales/sources", "sales/bookings", "sales/funnels", "sales/events", "sales/people",
                   "ai/assistants", "ai/crawlers", "ai/rules", "ai/llms",
                   "site/health", "site/alerts", "site/requests", "site/notfound", "site/speed", "site/quality"):
             self.assertIn(r, routes)
@@ -161,7 +165,7 @@ class Redirects(unittest.TestCase):
             with self.subTest(asked=asked):
                 self.assertEqual(tab, route)
                 self.assertEqual(split(hash_), (route, params))
-        self.assertEqual(split(got[-2][0]), ("sales/pipeline", {"range": "7d", "lsrc": "all"}))
+        self.assertEqual(split(got[-2][0]), ("sales/summary", {"range": "7d", "lsrc": "all"}))
         self.assertEqual(split(got[-1][0]), ("ai/assistants", {"range": "7d"}))
 
     def test_compare_keys_ride_along_only_while_compare_is_on(self):

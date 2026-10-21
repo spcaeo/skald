@@ -1,15 +1,23 @@
-// Leads & sales: Pipeline · Bookings · Funnels · Events · People. The Leads & sales
-// builder owns this file. Tab entries and their options: see s-overview.js.
+// Leads & sales (2.20): Leads · Summary · Sources · Calendar bookings · Funnels · Events ·
+// Find a person. The Leads & sales builder owns this file. Tab entries and their options:
+// see s-overview.js. Each tab answers one question (its subtitle), with at most one row of
+// options (sa-options.js), an optional row of numbers and one main table or chart.
 //
-// Pipeline counts from the lead database by default (leads.json; the owner's
-// decision, 2026-10-12) or from the tools (conversions.json, lsrc=all): never
-// both in one figure. Old #leads opens lsrc=db, old #conversions lsrc=all
-// (routes.js), so each old link shows the figures it showed. Bookings is the
-// tools' booking actions; People the person search and the recent conversions.
-// The tabs' own files: sa-pipeline.js, sa-bookings.js, sa-people.js, with
-// sa-options.js (the options row) and sa-lists.js (what the figures leave out).
+//   Leads              who are my leads? one row per lead, as a list, board, timeline or map
+//                      (sa-leads.js, sa-views.js); names and emails for admins and owners
+//   Summary            how many, and is it better than before? (sa-pipeline.js)
+//   Sources            where did they come from? (sa-pipeline.js)
+//   Calendar bookings  who booked a call? Calendly, Cal.com, Stripe (sa-bookings.js)
+//   Find a person      everything kept about one person (sa-people.js)
+//
+// Summary and Sources count from the lead database by default where the site has one
+// (leads.json; the owner's decision, 2026-10-12) or from the tools (conversions.json,
+// lsrc=all): never both in one figure. Old #sales/pipeline opens Summary, #leads Summary
+// from the lead database, #conversions Summary from the tools (routes.js), so each old
+// link shows the figures it showed.
 
-import pipeline, { tools } from "./sa-pipeline.js";
+import { summary, sources, tools } from "./sa-pipeline.js";
+import leadsTab from "./sa-leads.js";
 import bookings from "./sa-bookings.js";
 import people from "./sa-people.js";
 import funnels from "./funnels.js";
@@ -22,9 +30,11 @@ const filters = (s) => (tools(s) ? [] : ["source"]);
 
 // One line per tab: tests/test_routes.py reads each tab's keep list from its line.
 export default [
-  ["pipeline", "Pipeline", pipeline, { file, filters, keep: ["lsrc", "lact", "llabel", "lstage", "lshow"], compare: true }],
-  ["bookings", "Bookings", bookings, { file: "conversions", filters: [], keep: ["bact", "bshow"] }],
+  ["leads", "Leads", leadsTab, { file: "conversions", filters: [], keep: ["lact", "llabel", "lnow", "lby", "lshow", "lview", "lsplit"] }],
+  ["summary", "Summary", summary, { file, filters, keep: ["lsrc", "lact", "llabel", "lstage"], compare: true }],
+  ["sources", "Sources", sources, { file, filters, keep: ["lsrc", "lact", "llabel", "lstage"] }],
+  ["bookings", "Calendar bookings", bookings, { file: "conversions", filters: [], keep: ["bact", "bshow"] }],
   ["funnels", "Funnels", funnels, { file: "funnels", filters: ALL, rules: "visit", keep: ["fn", "fsrc", "fstep", "fmode"] }],
   ["events", "Events", events, { file: "events", filters: ["path", "source"] }],
-  ["people", "People", people, { figures: false, period: (s, m) => (m?.x?.conversions?.available ? "The latest conversions" : null) }],
+  ["people", "Find a person", people, { figures: false, ranged: false, period: "Everything kept" }],
 ];

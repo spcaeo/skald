@@ -55,7 +55,11 @@ Select any page, source, device or crawler to open its detail.
 Overview › Summary with **Today · Live** on keeps one place for each answer, each with a link to the tab that lists it all:
 
 1. **The live strip.** Visitors on the site now (a request in the last 5 minutes), how many arrived in the last 5 minutes, and the last 30 minutes as bars. Beside it, **Visitors**, **Pages read**, **Leads** and **Visitors from AI** for today so far.
-2. **Where visitors are** (the map, today by country, the pages read in the last 30 minutes) and **Newest visits**. Select a visit to open the visitor drawer with its journey.
+2. **Where visitors are**, the map across the page (today by country, a pulsing dot for each city with someone on the site in the last 30 minutes), and under it **What visitors are doing now**:
+   - on the left, the five visitors with the newest activity: where they are, their device, where they came from, and the pages they read in order, `/ → /pricing → /book-a-demo`, the page they are on now marked, with "now on /pricing · 20 s ago". A long path is cut in the middle; point at it for the whole path. As visitors move, a new page joins their path, a new visitor slides in at the top, and one who has gone quiet fades out. Select one to open the visitor drawer with its journey. **See every visit** opens Traffic › Visitors.
+   - on the right, **Pages read in the last 30 minutes**, the same figure as before. Press a page to see only the visitors who read it; press it again for the page's detail.
+   - Point at a row and its city pulses on the map; point at a city and its rows stand out.
+   - With a drill-down open (for example a country, `dd=country:CA`), the map shows that country and the list only its visitors, with a line saying how many are shown. The list can follow a country, a city, a source, a referring site or assistant, a device, a landing page or a page read; another kind of filter (a campaign, an hour) says so in one line and the list shows everyone. The pages read are always every visitor's.
 3. **Where today's visitors came from** and **How today's visits moved** (the flow, two pages deep).
 4. **What converted today** (forms sent and demos booked) and **AI & bots today** (pages assistants fetched for people, visitors they sent, crawler requests by bot).
 

@@ -73,7 +73,9 @@ export function project(lon, lat) {
 // The cities a map can place: a known point, not the folded tail.
 export const placed = (cities) => Object.entries(cities || {}).filter(([k, r]) => k !== "(all others)" && Number.isFinite(r?.lat) && Number.isFinite(r?.lon) && r.visits > 0);
 
-export function worldMap({ onPick, onCity, label = "World map of today's visits" } = {}) {
+// unit: what a country's number counts ("leads", Leads & sales > Leads); live: false leaves out the "active now" bubbles and words.
+export function worldMap({ onPick, onCity, onHover, label = "World map of today's visits", unit = "", live: activeNow = true } = {}) {
+  const one = unit ? unit.replace(/s$/, "") : "visit", many = unit || "visits today";
   const box = svg("svg", { viewBox: `0 0 ${WORLD.width} ${WORLD.height}`, class: "rt-svg", role: "group", "aria-label": label });
   const land = svg("g", { class: "rt-land" });
   const bubbles = svg("g", { class: "rt-bubbles", "aria-hidden": "true" });
@@ -98,14 +100,15 @@ export function worldMap({ onPick, onCity, label = "World map of today's visits"
 
   const words = (cc) => {
     const row = data[cc] || { visits: 0, active: 0 };
-    return [`${country(cc)}, ${countryName(cc)}`, `${n(row.visits)} visit${row.visits === 1 ? "" : "s"} today`, `${n(row.active)} active in the last 30 minutes`];
+    const counted = unit ? `${n(row.visits)} ${row.visits === 1 ? one : many}` : `${n(row.visits)} visit${row.visits === 1 ? "" : "s"} today`;
+    return [`${country(cc)}, ${countryName(cc)}`, counted, ...(activeNow ? [`${n(row.active)} active in the last 30 minutes`] : [])];
   };
   const show = (cc, x, y) => {
     const [name, v, a] = words(cc);
     const row = data[cc] || {};
-    tip(x, y, name, [{ color: row.visits ? "var(--g-people)" : null, value: n(row.visits || 0), label: "visits today" },
-      { color: row.active ? "var(--rt-live)" : null, value: n(row.active || 0), label: "active in the last 30 minutes" }]);
-    return `${name}: ${v}, ${a}`;
+    tip(x, y, name, [{ color: row.visits ? "var(--g-people)" : null, value: n(row.visits || 0), label: many },
+      ...(activeNow ? [{ color: row.active ? "var(--rt-live)" : null, value: n(row.active || 0), label: "active in the last 30 minutes" }] : [])]);
+    return a ? `${name}: ${v}, ${a}` : `${name}: ${v}`;
   };
   const target = (e) => e.target.closest?.("[data-cc]");
   land.addEventListener("pointermove", (e) => { const t = target(e); if (t) show(t.dataset.cc, e.clientX, e.clientY); else untip(); });
@@ -124,7 +127,8 @@ export function worldMap({ onPick, onCity, label = "World map of today's visits"
     tip(e.clientX, e.clientY, cityName(k), [{ color: "var(--g-people)", value: n(row.visits || 0), label: "visits today" },
       { color: row.active ? "var(--rt-live)" : null, value: n(row.active || 0), label: "active in the last 30 minutes" }]);
   });
-  towns.addEventListener("pointerleave", untip);
+  towns.addEventListener("pointerleave", () => { untip(); onHover?.(null); });
+  towns.addEventListener("pointerover", (e) => { const k = e.target.closest?.("[data-city]")?.dataset.city; if (k) onHover?.(k); });
   towns.addEventListener("click", (e) => { const k = e.target.closest?.("[data-city]")?.dataset.city; if (k && onCity) { untip(); onCity(k); } });
 
   function update(countries, cities) {
@@ -189,14 +193,18 @@ export function worldMap({ onPick, onCity, label = "World map of today's visits"
     }
     if (focused) shapes.get(focused)?.focus();
     legend.replaceChildren(
-      h("span", { class: "rt-lg-h" }, "Visits today"),
+      h("span", { class: "rt-lg-h" }, unit ? many.replace(/^./, (c) => c.toUpperCase()) : "Visits today"),
       ...(list.length ? list.map((b, i) => h("span", { class: "rt-lg-i" }, h("i", { class: `rt-sw s${stepOf(i, list.length)}` }), rangeWords(b)))
         : [h("span", { class: "rt-lg-i" }, h("i", { class: "rt-sw s0" }), "none yet")]),
-      h("span", { class: "rt-lg-i" }, h("i", { class: "rt-sw rt-sw-bub" }), "active in the last 30 minutes (size: how many)"),
+      activeNow ? h("span", { class: "rt-lg-i" }, h("i", { class: "rt-sw rt-sw-bub" }), "active in the last 30 minutes (size: how many)") : "",
       dots.length ? h("span", { class: "rt-lg-i" }, h("i", { class: "rt-sw rt-sw-town" }), "a city with visits today") : "");
   }
+  // A city to make stand out (Overview's live list: a row under the pointer pulses its city), or none.
+  function hot(k) {
+    for (const g of towns.querySelectorAll(".rt-town")) g.classList.toggle("rt-hot", !!k && g.dataset.city === k);
+  }
   update({});
-  return { el, update };
+  return { el, update, hot };
 }
 
 // For a test or a print: the countries the map can draw, as a set.

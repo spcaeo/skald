@@ -101,10 +101,32 @@ shortened form, which may hold other people's visits too.
 | `GET <page>/people?q=Q` | owners and admins (403 otherwise) | the person, below |
 | `GET <page>/people/left-out` | every member | `{"ok","private","leads":[...],"conversions":[...]}`: the lead database's spam, duplicate and test leads (status `test`, or a flag mentioning test), each with `why`; conversions marked test |
 | `GET <page>/people/conversions?kind=cancelled\|removed\|test` | every member | `{"ok","kind","private","rows":[...]}`, each with `journey` (the visitor ID's page views) |
+| `GET <page>/people/leads?first=D&last=D[&names=1]` | every member; `names=1` owners and admins only (403 otherwise), with the session's CSRF value (`X-Skald-CSRF`; basic mode: `Sec-Fetch-Site: same-origin`) | `{"ok","names","why","first","last","truncated","rows":[...]}`: Leads & sales > Leads (2.20), below |
 | `GET /traffic-api/v1/<site>/people?q=Q` | an API token with `read_private` | the person, below |
 
 In the two lists `email`, `name` and `vid` are left out unless the caller is
 an owner or admin (`private: true`) and the site keeps identities.
+
+The lead list (`people/leadlist.py`, 2.20): one row per lead of the local days
+`first`..`last` (at most 400 days, never after today), newest first, at most
+2,000. A lead is a finished row (`completed` or `paid`) of a lead action
+(`conversions.LEAD_ACTIONS`) in the conversions store: the very rows
+`conversions_data.figures` counts as Leads, so the rows not left out equal the
+Leads figure of the same days (tests/test_people_leadlist.py checks it). Each
+row: `id`, `at` (local), `action`, `label`, `stage` (its own), `now` (the latest
+later stage of the same lead: won, lost, cancelled, no_show, rescheduled; else
+its own), `tool` (`site` is the lead database), `source` (last touch),
+`first_source`, `campaign`, `landing`, `country`, `device`, `browser` (it has a
+visitor ID), `steps` (every stage of the same lead) and `journey` (the visitor
+ID's page views up to the lead, at most 60: paths, times and sources only).
+`left_out`: `test` for a row marked test, and `spam`, `duplicate` or `test` for
+the lead database's left-out leads (they make no conversion row); listed, never
+counted. `name` and `email` are in a row only with `names: true`: asked for
+(`names=1`) by an owner or admin, on a site that keeps identities; else the
+keys are absent and `why` says why when names were asked for. A visitor ID is
+never in a row. Each answer with names writes one audit row, `people.leads`,
+detail `lead list viewed <first>..<last> rows=<n>`: never a name or an email
+(basic mode: a line in `privacy.log`).
 
 The person (`lookup.person`): `query` `{kind: ip|email|vid|lead, value}`,
 plus `short` (the shortened form) when the site keeps addresses shortened and

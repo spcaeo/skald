@@ -6,16 +6,23 @@ import { h, n, tip, untip } from "../ui.js";
 import { color } from "../data.js";
 import * as S from "../state.js";
 import { blist } from "./common.js";
+import { popper } from "../tabletools.js";
 
-// An (i) that says what something counts, on hover and on keyboard focus.
-export function info(text, label) {
+/* An (i) that says what something counts, on hover and on keyboard focus. With `more` (a
+   help address, "#help?part=..."), a press opens a small popover instead: the same words
+   and "Learn more" into the guide at the right part (2.20, the help-in-context rule). */
+export function info(text, label, more = "") {
   const b = h("button", { type: "button", class: "info-i", "aria-label": `About ${label}: ${text}` }, "i");
-  const show = () => { const r = b.getBoundingClientRect(); tip(r.left + r.width / 2, r.top, label, [{ value: "", label: text }]); };
+  const show = () => { if (b.getAttribute("aria-expanded") === "true") return; const r = b.getBoundingClientRect(); tip(r.left + r.width / 2, r.top, label, [{ value: "", label: text }]); };
   b.addEventListener("pointerenter", show);
   b.addEventListener("pointerleave", untip);
   b.addEventListener("focus", show);
   b.addEventListener("blur", untip);
-  return b;
+  if (!more) return b;
+  const pop = h("div", { class: "tt-pop info-pop", role: "dialog", "aria-label": label },
+    h("p", { class: "info-pop-h" }, label), h("p", null, text), h("a", { href: more, class: "info-more" }, "Learn more"));
+  b.addEventListener("click", untip);
+  return popper(b, pop);
 }
 
 /* items: [{label, value (number|string|null), info, line (node|string), trend (node), fmt}]
@@ -23,7 +30,7 @@ export function info(text, label) {
    with no empty cell: the last row's tiles share its width. */
 export function tiles(items) {
   return h("div", { class: "tiles", role: "list" }, items.filter(Boolean).map((x) => h("div", { class: "tile", role: "listitem" },
-    h("div", { class: "t-top" }, h("span", { class: "t-l" }, x.label), x.info ? info(x.info, x.label) : null),
+    h("div", { class: "t-top" }, h("span", { class: "t-l" }, x.label), x.info ? info(x.info, x.label, x.more) : null),
     h("div", { class: "t-v" }, x.value == null ? "-" : typeof x.value === "number" ? (x.fmt || n)(x.value) : x.value),
     typeof x.line === "string" ? h("span", { class: "t-c t-wrap" }, x.line) : x.line || h("span", { class: "t-c none" }, ""),
     x.trend || h("div", { class: "spark" }))));

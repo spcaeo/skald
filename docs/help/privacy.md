@@ -8,6 +8,7 @@ What Skald keeps about the people who visit, who can see it, for how long, and h
 - It can keep the name and email of each lead with its conversions. Also a switch, on by default for a new install.
 - An install upgraded from before version 2.4.0 keeps neither until you turn them on.
 - Only owners and admins can look a person up. Every search is written to the audit log.
+- Only owners and admins see the leads' names and emails on [Leads & sales > Leads](#sales/leads). Each time the list shows them, the audit log gets one line, "lead list viewed", with the period and the number of rows: never a name or an email. Other members see the same list without them.
 - Stored history (the totals) never holds an address.
 - Nothing is hidden: spam, duplicate and test leads, and cancelled, removed and test conversions, are listed, not only counted.
 - One command on the server removes a person everywhere Skald keeps them.
@@ -55,11 +56,11 @@ These visits are kept apart from the history, in the conversions file on your se
 
 When **Leads' names and emails** is **full**, the name and email of each lead are kept with its conversions. With **anonymous**, neither is kept.
 
-Skald reads your website's lead database without changing it. Leads marked spam or duplicate there, and leads marked test, are left out of every figure. They are listed in full: on [Leads & sales > Pipeline](#sales/pipeline), turn on **Show left out**.
+Skald reads your website's lead database without changing it. Leads marked spam or duplicate there, and leads marked test, are left out of every figure. They are listed in full: on [Leads & sales > Leads](#sales/leads), open **More** and turn on **Show left out**.
 
 ## Looking a person up
 
-Owners and admins see a **Find a person** box at the top of every page; on a narrower screen it is a search icon. The same search is on [Leads & sales > People](#sales/people), and **Ctrl K** (or **Cmd K**) also offers **Find a person**. Type one of these:
+Owners and admins see a **Find a person** box at the top of every page; on a narrower screen it is a search icon. The same search is on [Leads & sales > Find a person](#sales/people), and **Ctrl K** (or **Cmd K**) also offers **Find a person**. Type one of these:
 
 - an IP address
 - an email
