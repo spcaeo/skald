@@ -203,16 +203,16 @@ function testPanel(st) {
     h("div", { class: "acts" }, t.set ? test : null, live), out);
 }
 
-export async function hookDialog(site, { onClose = null } = {}) {
+export async function hookDialog(site, { onClose = null, route = null, start = 0 } = {}) {
   const r = await call(`integrations?site=${encodeURIComponent(site)}`);
   const tools = r.ok ? (r.tools || []).filter((t) => WAYS[t.tool]) : [];
   const st = { site, tool: null, fresh: null, pick: (tools.find((t) => t.set) || tools[0])?.tool || "" };
   st.tool = () => tools.find((t) => t.tool === st.pick) || tools[0];
   if (!tools.length) {
-    return wizard({ title: "Connect your leads", subtitle: `For ${site}. Optional.`, key: "setup-lead", onClose,
+    return wizard({ route, start, title: "Connect your leads", subtitle: `For ${site}. Optional.`, key: "setup-lead", onClose,
       steps: [{ name: "Not available", draw: () => [h("p", { class: "msg err" }, why(r, "The hooks could not be loaded."))] }] });
   }
-  return wizard({
+  return wizard({ route, start,
     title: "Connect your leads", subtitle: `For ${site}. Optional.`, key: "setup-lead", onClose, state: st,
     steps: [
       { name: "Where leads come from",

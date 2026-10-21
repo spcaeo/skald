@@ -11,6 +11,8 @@
 // state.js carries these keys while the tab stays (TABLE_KEY), as it does a grid's.
 
 import { URL_SUFFIX } from "../vendor/spcaeo-ui/data-grid/core/url-state.js";
+import { mask, unmask } from "./routemask.js";
+import { ALWAYS_MASKED } from "./routekeys.js";
 
 // A table's own keys: the data grid's suffixes, plus the column filters and the chooser's.
 export const EXTRA_SUFFIX = ["cf", "hide"];
@@ -23,11 +25,14 @@ function split() {
   return at < 0 ? [raw, ""] : [raw.slice(0, at), raw.slice(at + 1)];
 }
 // Writing keeps the route and every other key and never fires hashchange, so a
-// table's change does not redraw the page.
+// table's change does not redraw the page. Values pass through routemask.js both
+// ways: an address or an email typed in a search box is a token in the address.
 export const HASH = {
-  read: () => new URLSearchParams(split()[1]),
+  read: () => { const p = new URLSearchParams(split()[1]); for (const [k, v] of [...p]) if (v.includes("~")) p.set(k, unmask(v)); return p; },
   write(params, { push = false } = {}) {
-    const qs = params.toString();
+    const safe = new URLSearchParams();
+    for (const [k, v] of params) safe.append(k, mask(v, ALWAYS_MASKED.has(k)));
+    const qs = safe.toString();
     const hash = `#${split()[0]}${qs ? `?${qs}` : ""}`;
     if (hash === location.hash) return;
     const url = `${location.pathname}${location.search}${hash}`;
@@ -40,6 +45,15 @@ export function writeKeys(patch) {
   const p = HASH.read();
   for (const [k, v] of Object.entries(patch)) { if (v == null || v === "") p.delete(k); else p.set(k, v); }
   HASH.write(p);
+}
+
+/* A sub-tab or a switch inside a tab, kept in the address as <ns>_view (2.21): it stays
+   while the tab stays, a link or a reload brings it back, and changing it replaces the
+   history entry (no redraw, no Back step per click).
+     const pick = subView("al");  pick.get("open");  pick.set("all") */
+export function subView(ns) {
+  const k = `${ns}_view`;
+  return { key: k, get: (def = "") => HASH.read().get(k) || def, set: (v, def = "") => writeKeys({ [k]: v === def ? "" : v }) };
 }
 
 // A namespace from a caption: "Each visit" -> "eachvisit". Lower-case letters and digits,

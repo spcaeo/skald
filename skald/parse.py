@@ -63,6 +63,10 @@ class Hit:
     # "" when the request did not send it, its value when it did. None: the
     # line has no such field, so a click cannot be told from a prefetch.
     rsc_prefetch: str | None = None
+    # The request's whole size in bytes (nginx's $request_length: line, headers
+    # and body), when the line records it (the trailing request_length= field,
+    # Security's large POST bodies); None when it does not.
+    request_length: int | None = None
     # Set by one_click (in_time_order): this page view repeats a page view of
     # the other kind (an HTML page and a Next.js navigation) of the same path
     # in the same visit, CLICK_SECONDS or less before it. Not a page view.
@@ -165,6 +169,10 @@ RSC_QUERY = re.compile(r"[?&]_rsc=", re.I)
 RSC_PREFETCH_FIELD = "rsc_prefetch"
 RSC_PREFETCH = re.compile(r"(?:^|\s)rsc_prefetch=(\S*)")
 NAVIGATION_VALUES = ("-", "")
+# The request's size (Security, 2.21; docs/INGEST.md): nginx
+#   request_length=$request_length
+# anywhere after the user agent, as its own field. A number of bytes, or "-".
+REQUEST_LENGTH = re.compile(r"(?:^|\s)request_length=(\S*)")
 # Two page views of one path, one an HTML page and one a Next.js navigation,
 # in one visit this many seconds apart or less, are one click (one_click).
 CLICK_SECONDS = 2
@@ -269,15 +277,25 @@ def _prefetch_field(rest: str) -> tuple[str | None, str]:
     return found.group(1), rest[:found.start()] + rest[found.end():]
 
 
+def _length_field(rest: str) -> tuple[int | None, str]:
+    """(the request_length= value as bytes or None, `rest` without that field)."""
+    found = REQUEST_LENGTH.search(rest)
+    if not found:
+        return None, rest
+    value = found.group(1)
+    return (int(value) if value.isdigit() else None), rest[:found.start()] + rest[found.end():]
+
+
 def _from_match(m: re.Match, when: datetime, fmt: str = "") -> Hit:
     got = m.groupdict()
     # Everything after the user agent's closing quote holds the trailing fields.
     prefetch, rest = _prefetch_field(m.string[m.end("user_agent") + 1:].rstrip("\n"))
+    length, rest = _length_field(rest)
     rid = RID.search(rest) if fmt == "nginx_extended" else None
     request = REQUEST.match(got["request"])
     host = got.get("host", "") or ""
     if not host and got.get("tail"):
-        found = TAIL_HOST.search(_prefetch_field(got["tail"])[1])
+        found = TAIL_HOST.search(_length_field(_prefetch_field(got["tail"])[1])[1])
         host = found.group("host").lower() if found else ""
     return Hit(
         when=when,
@@ -294,6 +312,7 @@ def _from_match(m: re.Match, when: datetime, fmt: str = "") -> Hit:
         fmt=fmt,
         rid=rid.group(1) if rid else "",
         rsc_prefetch=prefetch,
+        request_length=length,
     )
 
 

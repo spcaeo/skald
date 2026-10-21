@@ -69,7 +69,7 @@ function today(f, a) {
     grid({ ns: "bt", caption: `Today's ${actionName(a).toLowerCase()}`, file: "bookings-today.csv", rows, sortKey: "at", dir: "desc",
       columns: [{ key: "at", label: "Time", type: "date", fmt: (v) => at(v) }, { key: "stage", label: "Stage", fmt: (v, r) => h("span", null, STAGE[v] || dash(v), r.test ? h("b", { class: "pp-bad" }, " test (not counted)") : null), csv: (r) => `${r.stage}${r.test ? " (test)" : ""}` },
         { key: "tool", label: "Reported by", fmt: (v) => (v ? toolName(v) : "-"), csv: (r) => r.tool }, { key: "source", label: "Source", fmt: dash }, { key: "campaign", label: "Campaign", fmt: dash },
-        { key: "landing", label: "Landing", fmt: dash }, { key: "country", label: "Country", fmt: dash }, { key: "device", label: "Device", fmt: dash }],
+        { key: "landing", label: "Landing", path: true, fmt: dash }, { key: "country", label: "Country", fmt: dash }, { key: "device", label: "Device", fmt: dash }],
       filters: [{ key: "stage", label: "Stage", options: [...new Set(rows.map((r) => r.stage))].map((k) => [k, STAGE[k] || k]) }],
       empty: "None so far today." }),
     t.tests ? h("p", { class: "note" }, `${n(t.tests)} row${t.tests === 1 ? "" : "s"} marked test today, kept apart.`) : null);

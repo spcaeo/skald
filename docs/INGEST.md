@@ -264,6 +264,21 @@ The doctor's "Next.js pages" line, the Overview checklist ("Pages opened
 inside the site are not counted yet") and `check.sh` say so when the log has
 `?_rsc=` lines and none carries the field. Nothing edits nginx for you.
 
+### The request's size (optional, Security)
+
+Security's "Log signs worth a look" can name unusually large POST bodies when the log records
+each request's size. In nginx, add at the end of the `log_format`:
+
+```nginx
+                        ' request_length=$request_length';
+```
+
+then `sudo nginx -t` and `sudo systemctl reload nginx`. `$request_length` is the whole request
+(the request line, the headers and the body) in bytes. The token is `request_length=`, a field
+of its own after the user agent, like `rsc_prefetch=`; it works beside it, a trailing request
+time, `"$host"` and `rid=`. Lines without it are read as before, and Security says the size is
+not recorded (never 0). A POST of `security.large_post_bytes` (1,000,000) or more is large.
+
 **Countries.** A shipped line with no country of its own (Caddy, a plain
 combined log) gets its address's country from the install's `logs.country_db`
 (Docker: `SKALD_COUNTRY_DB`), a GeoIP `.mmdb` file on Skald's server; DB-IP's

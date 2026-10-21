@@ -72,12 +72,20 @@ export function setupItems(m, { status = null, tools = null, settings = null, wa
   else if (script?.state === "OK") out.push({ id: "script", title: "Script tag events", optional: true, state: "done", says: scriptWords(script), tech: null, act: null });
   else out.push({ id: "script", title: "Script tag events", optional: true, state: "todo", says: scriptWords(script), tech: script?.state === "NEEDS ATTENTION" ? techOf(script) : null, act: "script" });
 
-  // 5. A lead hook (optional): any tool tested or receiving.
-  const ok = (tools || []).filter((t) => t.state === "ready" || t.state === "received");
-  const lead = ok.find((t) => t.state === "received") || ok[0] || (tools || []).find((t) => t.tool === "lead");
+  // 5. A lead hook (optional): a tool tested or receiving, and none whose last real delivery
+  // was refused. roads.hook_states keeps state "received" with attention for a refusal (a
+  // signature that did not match...): that hook is never done, whatever another tool says
+  // (2.21: the line showed a tick above "was refused").
+  const all = tools || [];
+  const hurt = all.find((t) => t.attention && t.state !== "needs_secret");
+  const ok = all.filter((t) => !t.attention && (t.state === "ready" || t.state === "received"));
+  const lead = hurt || ok.find((t) => t.state === "received") || ok[0] || all.find((t) => t.tool === "lead");
   if (!tools) out.push({ id: "lead", title: "Lead hook tested", optional: true, state: "unknown", says: UNKNOWN, tech: null, act: null });
+  else if (hurt) out.push({ id: "lead", title: "Lead hook tested", optional: true, state: "todo",
+    says: hurt.state === "received" ? `${hurt.name}: leads are not arriving. The last one it sent was refused.` : `${hurt.name}: not working yet.`,
+    tech: [`${hurt.name}: ${hurt.words}.`, hurt.fix ? `Fix: ${hurt.fix}` : ""].filter(Boolean).join("\n"), act: "lead" });
   else if (ok.length) out.push({ id: "lead", title: "Lead hook tested", optional: true, state: "done", says: `${lead.name}: ${lead.words}.`, tech: null, act: null });
-  else out.push({ id: "lead", title: "Lead hook tested", optional: true, state: "todo", says: "Optional. Your forms or booking tool tell Skald about each lead.", tech: lead?.attention && lead.fix ? `${lead.name}: ${lead.words}.\nFix: ${lead.fix}` : null, act: "lead" });
+  else out.push({ id: "lead", title: "Lead hook tested", optional: true, state: "todo", says: "Optional. Your forms or booking tool tell Skald about each lead.", tech: null, act: "lead" });
 
   // 6. Mail: a report on, and a recipient who confirmed.
   if (!settings) out.push({ id: "mail", title: "Mail recipient confirmed", state: "unknown", says: UNKNOWN, tech: null, act: null });

@@ -254,6 +254,8 @@ def _forget_visits(ctx, ip: str, dry_run: bool) -> int:
     short = (ctx.site,) if policy.ip_mode(ctx.config, folder) == policy.SHORT else ()
     db = store.connect(path)
     try:
+        from .security_kept import forget_ip as forget_scanner   # Security's rows (2.21)
+        forget_scanner(db, ip, dry_run, short)
         return forget_ip(db, ip, dry_run, short)
     finally:
         db.close()

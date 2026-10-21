@@ -8,6 +8,9 @@
 
 import { resolve, cmpOf, spanOf } from "./routes.js";
 import { TABLE_KEY as GRID_KEY } from "./tablestate.js";
+import { OVERLAY, ALWAYS_MASKED, isPersonal } from "./routekeys.js";
+import { mask, unmask } from "./routemask.js";
+// Every key, its owner and what it means: js/routekeys.js (and docs/ROUTES.md).
 
 // A table's or a data grid's own keys in the hash (search, sort, column filters, hidden
 // columns, page: js/tablestate.js, js/grid.js), e.g. pg_q, eachvisit_cf.
@@ -32,7 +35,7 @@ export const shown = (key) => !HIDDEN.has(key);
 export const SECTIONS = [];
 export const MENU = [];
 const FIRST = {};                                   // section key -> its first tab's route
-const KEEP = { help: ["part"], about: ["part", "note"], "settings/sitesadmin": ["setup", "test"] };   // route -> parameters it keeps in its address
+const KEEP = { help: ["part"], about: ["part", "note"], "settings/sitesadmin": ["test"] };   // route -> parameters it keeps in its address
 export function addSections(list) {
   for (const sec of list) {
     const tabs = sec.tabs.map((t) => [t.route, t.name]);
@@ -88,7 +91,10 @@ export const FILTERS = ["country", "path", "source", "device", "browser", "campa
 const GLOBAL = ["range", "view", "from", "to", "pathmode", "rules", "cmp", "dd", "tz"];
 // Kept while Compare is on (2.7.0): the custom B, "Per day", the old Compare page's chart keys.
 const CMP_KEYS = ["cb", "cnorm", "cgran", "cm"];
-const DEFAULT = { tab: "overview/summary", range: "today", view: "all", from: "", to: "", pathmode: "contains", rules: "", page: "", since: "", cmp: "", ip: "", rq: "", dd: "", tz: "", part: "", note: "", fn: "", fsrc: "", fstep: "", fmode: "", strat: "", ca: "", cb: "", cnorm: "", cgran: "", cm: "", cdim: "", pubfrom: "", pubto: "", rg: "", rm: "", rs: "", rv: "", setup: "", test: "" };
+const DEFAULT = { tab: "overview/summary", range: "today", view: "all", from: "", to: "", pathmode: "contains", rules: "", page: "", since: "", cmp: "", ip: "", rq: "", dd: "", tz: "", part: "", note: "", fn: "", fsrc: "", fstep: "", fmode: "", strat: "", ca: "", cb: "", cnorm: "", cgran: "", cm: "", cdim: "", pubfrom: "", pubto: "", rg: "", rm: "", rs: "", rv: "", test: "",
+  ...Object.fromEntries(OVERLAY.map((k) => [k, ""])) };
+// Every key read() knows, for the route keys' test (tests/js/routes.mjs).
+export const KNOWN = () => [...Object.keys(DEFAULT).filter((k) => k !== "tab"), ...FILTERS];
 
 // The state in the address. `moved`: the address was an older one (or the old compare
 // switch), and emit() writes the new one in its place.
@@ -98,9 +104,17 @@ export function read() {
   const p = new URLSearchParams(q);
   const r = route(asked, p);
   const s = { ...DEFAULT, tab: TABS.some(([k]) => k === r.tab) ? r.tab : DEFAULT.tab };
-  for (const k of [...Object.keys(DEFAULT), ...FILTERS]) if (k !== "tab" && p.get(k)) s[k] = p.get(k);
+  // A personal value (an address, an email) is a token in the address (js/routemask.js);
+  // an older link that carries one as it is is rewritten with the token.
+  let personal = false;
+  for (const k of [...Object.keys(DEFAULT), ...FILTERS]) {
+    const v = k !== "tab" ? p.get(k) : "";
+    if (!v) continue;
+    if (isPersonal(v)) personal = true;
+    s[k] = unmask(v);
+  }
   Object.assign(s, r.patch);
-  s.moved = r.moved && s.tab === r.tab;
+  s.moved = (r.moved || personal) && s.tab === r.tab;
   if (p.get("cmp") === "1") s.moved = true;
   s.cmp = cmpOf(s.cmp);
   // Compare mode (js/mode-compare.js): a custom B needs its period, else the previous one.
@@ -118,7 +132,9 @@ export function read() {
 }
 
 export function hashFor(s) {
-  const p = new URLSearchParams();
+  const all = new URLSearchParams();
+  // Every value goes in through mask(): no address or email is ever in the address.
+  const p = { set: (k, v) => all.set(k, mask(v, ALWAYS_MASKED.has(k))), toString: () => all.toString() };
   if (s.range !== DEFAULT.range) p.set("range", s.range);
   if (s.range === "custom") { p.set("from", s.from); p.set("to", s.to); }
   if (s.view && s.view !== "all") p.set("view", s.view);
@@ -138,10 +154,22 @@ export function hashFor(s) {
     const [here, query = ""] = location.hash.slice(1).split("?");
     if (here === s.tab) for (const [k, v] of new URLSearchParams(query)) if (GRID_KEY.test(k)) p.set(k, v);
   }
-  // The drill-down trail, last: it opens over whichever tab it started from.
+  // A drawer or a dialog open over the tab (js/overlays.js), on its own tab only: a link
+  // drawn to another tab (the menu, the tab strip) never carries it. Then the drill-down
+  // trail, last: it opens over whichever tab it started from.
+  const at = typeof location !== "undefined" ? location.hash.replace(/^#\/?/, "").split("?")[0] : s.tab;
+  if (at === s.tab || route(at).tab === s.tab) for (const k of OVERLAY) if (s[k]) p.set(k, s[k]);
   if (s.dd) p.set("dd", s.dd);
   const q = p.toString();
   return `#${s.tab}${q ? `?${q}` : ""}`;
+}
+
+/* Whether two states differ only in what is open over the tab (a drawer, a dialog, its
+   step): main.js then opens or closes it without drawing the tab again. */
+export function onlyOverlay(a, b) {
+  if (!a || !b) return false;
+  for (const k of [...Object.keys(DEFAULT), ...FILTERS]) if (!OVERLAY.includes(k) && (a[k] ?? "") !== (b[k] ?? "")) return false;
+  return true;
 }
 
 const listeners = new Set();
@@ -154,11 +182,12 @@ export function set(patch, { replace = false, mark = null } = {}) {
   const cur = read();
   const next = { ...cur, ...patch };
   if (patch.tab) { const r = route(patch.tab); Object.assign(next, r.patch, { tab: r.tab }); }
-  // Going to another tab leaves a drill-down behind unless the move carries one.
-  if (next.tab !== cur.tab && !("dd" in patch)) next.dd = "";
+  // Going to another tab leaves a drill-down, a drawer and a dialog behind unless the move carries them.
+  if (next.tab !== cur.tab) for (const k of ["dd", ...OVERLAY]) if (!(k in patch)) next[k] = "";
   const hash = hashFor(next);
   if (hash === location.hash) return;
-  if (replace) history.replaceState(mark, "", hash);
+  // A change in place keeps the entry's mark (a drill-down's depth, a drawer's), unless it names one.
+  if (replace) history.replaceState(mark ?? history.state ?? null, "", hash);
   else history.pushState(mark, "", hash);
   emit();
 }

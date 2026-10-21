@@ -13,9 +13,9 @@ Four short guides take you from nothing to a working install:
 - [Send leads from your backend in 5 minutes](leads-from-your-backend.md): the signed lead hook, with copy-paste examples.
 - [Demo bookings](demo-bookings.md): Calendly and Cal.com, embedded, linked or by webhook, and keeping only your own event types.
 
-### Set up this site
+### Set up your site
 
-For owners and admins, a new site's Overview > Summary starts with a **Set up this site** list. Each line says in one plain sentence what works or what is left. A line that is left has a **Set up** button: it opens a short dialog that walks you through the fix, step by step. Each line ticks itself once the server's own checks see it working.
+For owners and admins, a new site's Overview > Summary starts with a **Set up** list named for the site, for example **Set up example.com**. Each line says in one plain sentence what works or what is left. A line that is left has a **Set up** button: it opens a short dialog that walks you through the fix, step by step. Each line ticks itself once the server's own checks see it working.
 
 | Line | Done when | What Set up does |
 | --- | --- | --- |
@@ -23,7 +23,7 @@ For owners and admins, a new site's Overview > Summary starts with a **Set up th
 | Visits count as people | Browsers load the pages' own scripts and styles | Asks what the site is built with (Next.js, WordPress, something else, or files from a CDN) and saves it |
 | Countries shown | Visits carry a country | Says what a country file adds, and writes the mail for whoever runs your Skald server |
 | Script tag events (optional) | The script tag's events arrive | What the tag adds; the exact tag for this site with Copy, and where it goes (site builder or plain HTML, WordPress, Next.js); **Send these steps to your developer** or **Share with your developer**; a Test that waits for the first event |
-| Lead hook tested (optional) | A hook passed a test or received a lead | Where your leads come from (your own form or backend, Zapier or Make, Calendly, Cal.com, Typeform, Stripe, HubSpot); makes the secret; the steps with the address and secret filled in; **Send a test lead**, then waits for a real one |
+| Lead hook tested (optional) | A hook passed a test or received a lead, and no hook's last real lead was refused | Where your leads come from (your own form or backend, Zapier or Make, Calendly, Cal.com, Typeform, Stripe, HubSpot); makes the secret; the steps with the address and secret filled in; **Send a test lead**, then waits for a real one |
 | Mail recipient confirmed | The daily or weekly mail is on, with a recipient who opened the confirm link | Turns the mail on, takes the addresses, shows who still has to confirm, and sends a test mail |
 | Privacy settings chosen | Someone chose whether IP addresses are kept | The three IP choices (full, shortened, none), leads' names and emails, then the wording for your privacy notice with Copy |
 
@@ -31,7 +31,11 @@ The server's own technical words (config keys, commands) are not on the line. Wh
 
 The mail to your developer opens in your own mail program. For the script tag it holds the whole tag: the tag needs no secret. For a lead hook it holds the address and the steps but never the secret: give the secret separately, never by mail or chat.
 
-The list goes away once every line that is not optional is done. **Hide this list** hides it for this site in this browser; to see it again, search for `setup` and choose **Setup checklist**.
+A hook whose last real lead was refused (for example, its signature did not match) is never ticked: the line says leads are not arriving, and the fix is under **For your server admin**. A test that Skald itself sends (Send a test, or `skald hooks test`) and that fails is a failed test, never a refused lead.
+
+On Overview the list goes away once every line that is not optional is done. **Hide on Overview** hides it there, for this site, in this browser. The same list is always at the top of **Settings › Connections**, even when every line is done (then it shows every tick and **All set**). To show it on Overview again, search for `setup` and choose **Setup checklist**.
+
+Each Set up dialog has its own link, with its step: for example `#overview/summary?setup=rsc&step=2`. Send it to a colleague who is an owner or admin, and it opens the same dialog at that step (or at the first step that still needs a choice).
 
 ## What Skald counts
 
@@ -86,6 +90,29 @@ The sidebar has five sections. Each section has tabs along its top.
 - **Site** is the server: what it answered, open alerts, the request log line by line, pages not found, page speed and the data's own checks.
 
 The address names the section and the tab, for example `#traffic/sources`. Older links, such as `#sources` or `#live`, still open the right tab.
+
+### Every view has its own link
+
+Everything you open is in the address, so you can copy it from the address bar and send it, bookmark it, or reload the page and come back to the same place:
+
+- the section and tab, the period, page group, filters and drill-down
+- each table's sort, column filters, columns, search and page, and a tab's own switches (for example All or AI on Site > Alerts, or the engine and period on Traffic > Search)
+- the drawer or dialog that is open, with what it shows: a visitor, a lead, a request, a cohort, a search row, a Set up or Connections dialog and its step, the saved views, the report builder, the shortcuts
+
+Opening a drawer or a dialog adds one step to the browser's history, so **Back** closes it before it leaves the page. Closing it takes it out of the address.
+
+A link opens what it names only for someone allowed to see it. When it names something you may not see, or something no longer kept, the page opens with one plain line instead, for example "That visitor is no longer kept (journeys are kept 7 days)" or "Not available to your role."
+
+No address ever holds a visitor's IP address, an email or a person search. Where one would be (an address filter on Site > Requests, a drill-down by address, a person search), the link holds a short code instead that only your own browser can read back. Opened in another browser, it says so in one line. Every key the address can hold is listed in [docs/ROUTES.md](https://github.com/spcaeo/skald/blob/main/docs/ROUTES.md).
+
+### Copy a page's link, or open it
+
+Wherever a page of your site or a web address is shown (the Pages and Landing pages tables, referring sites, requests, Search pages, AI and crawler pages, pages not found, a visitor's journey, a lead's landing page, the Live lists, the set-up dialogs and the site switcher), pointing at it or moving to it with Tab shows two small icons at its end:
+
+- **Copy** copies the full address, with your site's own address in front of a path (`/pricing/` becomes `https://example.com/pricing/`). The icon turns into a green tick for a moment. If your browser does not allow copying, it says **Copy failed: select and copy**.
+- **Open in a new tab** opens the full address in a new tab.
+
+On a phone or a tablet the two icons are always shown. They never open the row's own detail: the row still does that when you select it elsewhere.
 
 Two switches sit in the top bar on every page:
 

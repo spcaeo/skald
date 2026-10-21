@@ -13,6 +13,7 @@ import * as S from "../state.js";
 import { blist, panel, notBuiltNote } from "./common.js";
 import { time as tzTime } from "../tz.js";
 import { eventLabel } from "./events.js";
+import { withUrl } from "../urlactions.js";
 
 const hasApi = (m) => Array.isArray(m.files) && m.files.includes("page_index");
 const STORIES = new Map();
@@ -114,7 +115,7 @@ export function pageStory(m, s) {
     const full = panelEl ? panelEl.clientWidth - parseFloat(getComputedStyle(panelEl).paddingLeft) * 2 : 900;
     const width = Math.round(innerWidth > 1000 ? ((full - 18) * 2.2) / 3.2 - 34 : full - 34);
     body.replaceChildren(...[
-      h("div", { class: "ps-head" }, h("div", null, h("h2", { class: "ps-path" }, path), st.title ? h("p", { class: "ps-title" }, st.title) : null,
+      h("div", { class: "ps-head" }, h("div", null, h("h2", { class: "ps-path" }, withUrl(h("span", null, path), path, { cls: "ua-after" })), st.title ? h("p", { class: "ps-title" }, st.title) : null,
         h("p", { class: "ps-meta" }, st.published ? `Published ${long(st.published)}` : `First seen ${long(st.first_seen)}; the website does not give a publish date`,
           st.updated ? `, updated ${long(st.updated)}` : "", since ? `. Day ${since} since ${st.published ? "publishing" : "first seen"}.` : ".")), cmp),
       st.local ? h("p", { class: "note" }, "This server does not keep page histories yet, so the story below is what the stored days show: the first day the page was read and fetched, its page views and the visitors who started on it.") : null,

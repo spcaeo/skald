@@ -20,8 +20,12 @@ import { flagEl, country, countryName } from "./readers.js";
 import { convFile, leadsOn, oneAction } from "./leadfigs.js";
 import { time as tzTime } from "../tz.js";
 import { goLink, cardHead } from "./ov-today-bits.js";
+import { subView } from "../tablestate.js";
+import { withUrl } from "../urlactions.js";
 
 const pick = { sort: "visitors" };
+// The sources' order stays in the address (tsrc_view=name: tablestate.js subView).
+const SORT = subView("tsrc");
 const todayJourneys = (m) => keptFor(m, { kind: "today" }).journeys;
 
 // ------------------------------------------------------------- sources
@@ -39,10 +43,11 @@ export function sourcesCard(m, t) {
   const aiRows = Object.entries(ai).sort((a, b) => b[1] - a[1]);
   const aiWhole = js.length && aiRows.reduce((a, [, v]) => a + v, 0) === (t.by?.source?.["AI assistant"] || 0);
   const most = Math.max(1, ...all.map(([, v]) => v));
+  pick.sort = SORT.get() === "name" ? "name" : "visitors";
   const draw = () => {
     const rows = [...all].sort(pick.sort === "name" ? (a, b) => shown(a[0]).localeCompare(shown(b[0])) : (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
     seg.replaceChildren(...[["visitors", "Most visitors"], ["name", "Name"]].map(([k, w]) =>
-      h("button", { type: "button", "aria-pressed": String(pick.sort === k), onclick: () => { pick.sort = k; draw(); } }, w)));
+      h("button", { type: "button", "aria-pressed": String(pick.sort === k), onclick: () => { pick.sort = k; SORT.set(k, "visitors"); draw(); } }, w)));
     const line = (cls, name, v, sh, bar, colour) => h("div", { class: cls, role: "row" },
       h("span", { role: "cell", class: "td-sn" }, h("i", { class: "td-sbar", style: { width: `${bar}%`, background: colour }, "aria-hidden": "true" }), name),
       h("span", { role: "cell", class: "td-num" }, n(v)), h("span", { role: "cell", class: "td-num td-sh" }, sh));
@@ -132,7 +137,7 @@ export function convertedCard(m) {
     const first = x.first_source && x.first_source !== x.source ? `First came from ${shown(x.first_source)}` : "";
     return h("div", { class: "td-cr", role: "row" },
       h("span", { role: "cell", class: "td-vt" }, tzTime(x.at, { label: false })),
-      h("span", { role: "cell" }, h("span", { class: `td-badge${demo ? " demo" : ""}` }, demo ? "Demo booked" : oneAction(x.action)), x.landing ? h("small", { class: "td-mono" }, x.landing) : null),
+      h("span", { role: "cell" }, h("span", { class: `td-badge${demo ? " demo" : ""}` }, demo ? "Demo booked" : oneAction(x.action)), x.landing ? h("small", { class: "td-mono" }, withUrl(h("span", null, x.landing), x.landing, { cls: "ua-after" })) : null),
       h("span", { role: "cell" }, x.country ? h("span", { class: "td-vc", title: countryName(x.country) }, flagEl(x.country), h("b", null, country(x.country))) : h("span", { class: "muted" }, "Country not recorded"),
         x.device ? h("small", null, x.device) : null),
       h("span", { role: "cell" }, h("b", null, shown(x.source) || "Source not recorded"), first ? h("small", null, first) : null));

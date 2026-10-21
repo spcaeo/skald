@@ -10,6 +10,7 @@ import { withFlag, country } from "./readers.js";
 import { link } from "../drill.js";
 import { assistantName } from "../labels.js";
 import { mark } from "../icons.js";
+import { withUrl } from "../urlactions.js";
 
 const KIND = { asked: "asked", training: "training", referred: "referred visitor" };
 const KIND_LONG = { asked: "Fetched to answer a question someone just asked", training: "Fetched to train or index", referred: "A visitor who came from this assistant" };
@@ -34,7 +35,7 @@ function row(e) {
     chip(e.name || "?"),
     h("div", { class: "f-w" },
       h("b", null, e.name ? (e.kind === "referred" ? link("referrer", e.name, { bare: true, text: assistantName(e.name) }) : link("bot", e.name, { bare: true })) : "not recorded"), " ", h("span", { class: "kind", title: KIND_LONG[e.kind] || "" }, KIND[e.kind] || e.kind),
-      h("span", { class: "f-p" }, e.path),
+      h("span", { class: "f-p" }, withUrl(h("span", null, e.path), e.path, { cls: "ua-after" })),
       h("div", { class: "f-m" },
         e.country ? link("country", e.country) : h("span", null, "country not recorded"),
         e.status ? h("span", { class: e.status >= 400 ? "status-bad" : null }, `status ${e.status}`) : null,

@@ -20,6 +20,7 @@
 import { h, n, pct1, short, long, tip, untip, esc, MIN_SHARE, stateNote } from "../ui.js";
 import * as S from "../state.js";
 import { openDrawer } from "../drawer.js";
+import { withUrl } from "../urlactions.js";
 import { shown } from "../labels.js";
 import { rove } from "../place.js";
 import { DEMO, demoFile } from "../demo.js";
@@ -249,8 +250,9 @@ async function openCell(g, c, k, part, dim, value, metric, road) {
   const what = k === 0 ? "New visitors" : metric === "deep" ? `Came back and read 2 or more pages, ${step(g, k)}` : `Came back, ${step(g, k)}`;
   const seg = dim ? ` · ${SPLITS.find(([d]) => d === dim)?.[1]}: ${valueName(dim, value)}` : "";
   const figure = k === 0 ? part.size : (part.cells?.[String(k)] || [0, 0])[metric === "deep" ? 1 : 0];
+  // In the address as cohort=<first day>.<step> (the grain, count and split are rg, rm, rs, rv).
   const d = openDrawer({ title: what, subtitle: `First ${unit(g)} ${cohortName(g, c)}${seg}: ${n(figure)} visitor${figure === 1 ? "" : "s"}`, key: "cohort", scope: "page",
-    body: h("p", { class: "empty" }, "Looking in the kept visits…") });
+    body: h("p", { class: "empty" }, "Looking in the kept visits…"), route: { key: "cohort", value: `${c.start}.${k}` } });
   const url = askUrl(g, c, k, dim, value, metric);
   if (road !== "address") { d.body.replaceChildren(h("p", { class: "note" }, "The 30-day code names nobody: only kept visits (Settings › Data retention › People, keep IP addresses) can list the visitors behind a cell.")); return d; }
   if (!(mayFind() || (DEMO.on && demoFile(url)))) {
@@ -263,7 +265,7 @@ async function openCell(g, c, k, part, dim, value, metric, road) {
   if (!got.found) { d.body.replaceChildren(h("p", { class: "note" }, got.why || "No kept visit is behind this cell.")); return d; }
   const rows = got.rows.map((r) => h("tr", { class: "ret-row", tabindex: "0", onclick: () => openVisitor(r), onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openVisitor(r); } } },
     h("td", null, tzTime(r.start, { date: true, label: false }) || short(r.day)), h("td", null, shown(r.via || r.source) || "-"),
-    h("td", null, h("span", { class: "mono" }, r.landing || "-")), h("td", { class: "num" }, n(r.pages)),
+    h("td", null, withUrl(h("span", { class: "mono" }, r.landing || "-"), r.landing)), h("td", { class: "num" }, n(r.pages)),
     h("td", null, r.country ? countryName(r.country) || r.country : "-"), h("td", null, shown(r.device) || "-")));
   d.body.replaceChildren(...[
     h("p", { class: "note" }, k === 0 ? "Each new visitor's first visit of the cohort. A row opens the visitor." : `Each visitor's first visit in ${step(g, k)}${metric === "deep" ? " that read 2 or more pages" : ""}. A row opens the visitor.`),
@@ -274,6 +276,30 @@ async function openCell(g, c, k, part, dim, value, metric, road) {
     got.differs ? h("p", { class: "note" }, got.differs) : null,
     h("p", { class: "note" }, "Shown to admins and owners, and written to the audit log (never the address).")].filter(Boolean));
   return d;
+}
+
+/* What the tab shows for a state: the grain, the cohorts, the count and the split. */
+function viewOf(file, s) {
+  const g = s.rg === "day" ? "day" : "week";
+  const cohorts = [...(file.grains?.[g]?.cohorts || [])].filter((c) => !file.begun || c.start >= file.begun).reverse();
+  const hash = file.identity.by === "hash";
+  const metric = s.rm === "deep" && !hash ? "deep" : "back";
+  const dims = hash ? SPLITS.slice(0, 2) : SPLITS;
+  const dim = dims.some(([d]) => d === s.rs) ? s.rs : "";
+  const values = dim ? valuesOf(cohorts, dim) : [];
+  const value = dim ? (values.includes(s.rv) ? s.rv : values[0] || "") : "";
+  return { g, cohorts, hash, metric, dims, dim, values, value };
+}
+
+/* cohort=<first day>.<step>, from a link: the cell's visitors, else the plain line. */
+export function openCohortKey(m, s, v) {
+  const file = m?.x?.retention;
+  const [, start, k] = /^(\d{4}-\d\d-\d\d)\.(\d+)$/.exec(String(v)) || [];
+  if (!file?.identity || !start) return "That group of visitors is not in the figures on this page.";
+  const { g, cohorts, dim, value, metric } = viewOf(file, s);
+  const c = cohorts.find((x) => x.start === start && x.state === "ok");
+  if (!c) return `That group of visitors is no longer in the figures (${g === "week" ? "the last 12 weeks" : "the last 30 days"} of first visits are shown).`;
+  return openCell(g, c, Number(k), partOf(c, dim, value), dim, value, metric, file.identity.by);
 }
 
 // ------------------------------------------------------------------ the tab
@@ -299,13 +325,7 @@ export default function retention(m, s) {
   if (!file.identity) return [...out, stateNote(file.words || "Retention is not counted for this site.")];
   const K = file.offsets?.[g] || (g === "week" ? 8 : 14);
   // Newest first; none from before what is kept begins (nothing there to count).
-  const cohorts = [...(file.grains?.[g]?.cohorts || [])].filter((c) => !file.begun || c.start >= file.begun).reverse();
-  const hash = file.identity.by === "hash";
-  const metric = s.rm === "deep" && !hash ? "deep" : "back";
-  const dims = hash ? SPLITS.slice(0, 2) : SPLITS;
-  const dim = dims.some(([d]) => d === s.rs) ? s.rs : "";
-  const values = dim ? valuesOf(cohorts, dim) : [];
-  const value = dim ? (values.includes(s.rv) ? s.rv : values[0] || "") : "";
+  const { cohorts, hash, metric, dims, dim, values, value } = viewOf(file, s);
 
   const seg = (label, opts, cur, set) => h("div", { class: "seg plain", role: "group", "aria-label": label },
     opts.map(([k, w, off]) => h("button", { type: "button", "aria-pressed": String(cur === k), disabled: off || null, title: off || null, onclick: () => set(k) }, w)));

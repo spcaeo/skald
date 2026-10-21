@@ -8,6 +8,16 @@ Open **Settings > Team & access > Connections**, or go straight to [Connections]
 
 The page was called **API & tokens** before. Old links to it still work.
 
+### Set up your site
+
+For owners and admins, the page starts with **Set up example.com** (your site's name): the same list as on Overview, with every line of the site's set-up, each with its **Set up** button while it is left. Here it is always shown. Once every line is done it shows every tick and **All set**, so you can check the site's set-up at any time. **Hide on Overview** on Overview's copy of the list hides only that copy: this one stays. See [Set up your site](getting-started.md#set-up-your-site) for every line.
+
+The **Lead hook tested** line is ticked only while no hook's last real lead was refused. When one was (say its signature did not match, because the tool signs with an old secret), the line says leads are not arriving, its Set up button opens the lead hook's dialog, and the cause and fix are under **For your server admin**.
+
+### Links to a dialog
+
+Each dialog has its own link, with its step: **Read your figures (API)** at step 2 is `#settings/api?conn=api&step=2`, and the checklist's script tag dialog is `#settings/api?setup=script&step=1`. Copy it from the address bar and send it to another owner or admin: it opens the same dialog, at that step or at the first step that still needs a choice. **Back** closes the dialog; closing it takes it out of the address. Someone who may not use the dialog (a viewer) sees the page with one line: "Not available to your role." The link a **Share with your developer** form makes is never in the address.
+
 At the top are three cards. Each has a **Set up** button that opens a short dialog with steps. Press **Next** to go on and **Back** to go back.
 
 | Card | What it is for |
@@ -183,7 +193,7 @@ A site is ready when a real visit shows up the way you expect:
 
 1. In a private window, open the site and click two links inside it. Within about 2 minutes, Overview shows the visit and Traffic › Visitors lists it with every page you clicked. On a Next.js site, if only the first page shows, the line above is missing.
 2. Do the same on a phone on mobile data, in a new private tab (a tab that is already open shows the page from memory and sends nothing).
-3. Overview › Set up this site: every line is ticked, or marked optional on purpose.
+3. The site's **Set up** list (on Overview, and always at the top of Settings › Connections): every line is ticked, or marked optional on purpose.
 4. If the site sends leads: a lead sent with `"test": true` is listed under Left out and not counted.
 
 | What Skald sees | The way it suggests |
@@ -218,6 +228,8 @@ A site with an unfinished set-up shows a button in **Add or remove sites** and o
 | Setup: step 3 of 5, continue | The set-up stopped at that step. Press it to carry on |
 | No visits yet: test the connection | Set-up was finished, but nothing has reached Skald in 24 hours. Press it to open the Test step |
 
+The wizard is in the address while it is open: `#settings/sitesadmin?setup=new&step=1` for a new site, `setup=example.com&step=3` for one already started. **Back** closes it.
+
 Until the site's first log lines arrive, its own address says so: **example.com is waiting for its first log lines** (with its own name), with the step it reached, the same **Continue setup** (or **Test the connection**) button, and a link to [If a connection does not work](troubleshooting-connections.md). A site removed in Add or remove sites says that it was removed instead: nothing is collected for it, and its data stays until an install admin purges it.
 
 Each new step, way chosen, and finish is written to the audit log.
@@ -225,6 +237,8 @@ Each new step, way chosen, and finish is written to the audit log.
 > If you choose Cloudflare for a new site that has received nothing yet, Skald sets its log format to edge records for you. This is written to the audit log too.
 
 ## Share with your developer
+
+The form is in the address while it is open (`share=1` beside the dialog's own link), so a reload brings it back. The link it makes is never in the address.
 
 Someone else may do the install: your web developer, or whoever runs your server. They need no sign-in. In the send dialog (step Install), in Add a site (step 4) and in the Set up dialogs of the script tag and the lead hook, press **Share with your developer**:
 

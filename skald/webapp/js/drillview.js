@@ -19,6 +19,7 @@ import { DIMS, chainOf, encode, label, link, said, titled, drillRow, close as cl
 import { openVisitor } from "./tabs/visitor.js";
 import { blist, panel } from "./tabs/common.js";
 import { openDrawer } from "./drawer.js";
+import { withUrl } from "./urlactions.js";
 import { encode as encodeRules } from "./rules.js";
 import { botDetail } from "./tabs/crawlercost.js";
 import { drillFlow } from "./tabs/flowview.js";
@@ -323,7 +324,8 @@ export function drillView(m, s) {
   body.append(h("section", { class: "s" }, h("h3", null, "Recent requests behind it"), rq));
   requestPart(m, s, chain, rq);
   const d = openDrawer({
-    title: label(dim, value), head: [back, crumbs(m, s, chain)], className: "dd", key: "drill", scope: "page", still: wasOpen,
+    // A page: copy and open in a new tab beside its name (urlactions.js).
+    title: dim === "path" || dim === "landing" ? withUrl(label(dim, value), value, { cls: "ua-after" }) : label(dim, value), head: [back, crumbs(m, s, chain)], className: "dd", key: "drill", scope: "page", still: wasOpen,
     subtitle: chain.length > 1 ? `${chain.map(([d, v]) => `${DIMS[d].name.toLowerCase()} ${said(d, v)}`).join(", and ")}. Select any value below to narrow further.`
       : `${DIMS[dim].name}. Select any value below to narrow further.`,
     body, onClose: () => { wasOpen = false; if (S.read().dd) closeDrill(); },

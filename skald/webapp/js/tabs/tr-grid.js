@@ -43,8 +43,11 @@ export function countRows(obj, { dim, keep, label, whole } = {}) {
 const by = (f) => (x) => (x.k === UNKNOWN ? null : f(x));
 const dash = (title) => h("span", { class: "few", title }, "-");
 
+// A row's own address, when it has one: a page (path, landing) or a referring site.
+const hrefOf = (x) => (x.dim === "path" || x.dim === "landing" ? x.k : x.dim === "referrer" && /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(x.k || "") ? `https://${x.k}` : "");
 export function labelCol(name) {
-  return { key: "label", label: name, sort: by((x) => x.label),
+  // url: copy and open in a new tab on a page's or a referring site's cell (urlactions.js).
+  return { key: "label", label: name, url: true, href: hrefOf, sort: by((x) => x.label),
     fmt: (v, x) => labelCell(x.dim, x.k, v ?? x.k), csv: (x) => (x.k === UNKNOWN ? "Not recorded" : x.label ?? x.k) };
 }
 

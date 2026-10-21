@@ -79,7 +79,7 @@ DEMO_LEAD_DAYS = 120   # the Leads list's answer covers every period the demo of
 def config_text(root: Path) -> str:
     return f"""site:
   name: example.com
-  hosts: [example.com, www.example.com]
+  hosts: [example.com, www.example.com, app.example.com]
   require_rendering: false
   logo_color: "#1d4ed8"     # the letter tile on blue (the page has no helper to serve an image)
 logs:
@@ -468,6 +468,12 @@ def install(root: Path, traffic: dt.Traffic, say=print) -> Path:
             cdb.close()
     if got["problems"]:
         raise SystemExit(f"demo: the retention recount does not match: {got['problems'][:3]}")
+    # Security > Your stack: the daily check, answered by the demo's made-up servers.
+    import demo_security
+    from types import SimpleNamespace
+    from skald import stack
+    stack.daily(SimpleNamespace(config=load_config(cfgp), live_dir=root, site=dt.SITE, now=traffic.now,
+                                tz=tz, out=lambda *_: None, err=say), demo_security.stack_fetch())
     # The live run at the demo's own clock, not at --today's noon: today so far ends
     # where the traffic does, and Real time's last 30 minutes are the traffic's.
     from unittest import mock
@@ -555,6 +561,13 @@ def helper_answers(root: Path, site_dir: Path) -> dict:
         if got.get("ok"):
             (folder / f"{stem}.json").write_text(json.dumps(got, separators=(",", ":")))
             answers["people"][url] = f"data/demo/{stem}.json"
+    # Security (people/security): the addresses behind every day's rows, as an owner sees them
+    # (documentation addresses only), one answer for every period.
+    from skald import security_kept
+    got = security_kept.listing(cfg, root, dt.SITE, date(2000, 1, 1), today)
+    if got.get("rows"):
+        (folder / "security-addresses.json").write_text(json.dumps(got, separators=(",", ":")))
+        answers["people"]["people/security"] = "data/demo/security-addresses.json"
     # Leads & sales > Leads (people/leads): every lead of the demo's days, as a member who
     # is not an admin sees them: no name or email (an admin on an install that keeps them
     # sees both). One answer for every period: the page keeps the rows of the period it shows.

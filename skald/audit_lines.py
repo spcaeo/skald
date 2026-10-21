@@ -36,6 +36,8 @@ _RID = re.compile(r"\srid=([0-9A-Za-z-]{8,64})\s*$")
 # The field a line ends with to record Next.js's Next-Router-Prefetch header
 # (docs/INGEST.md): the documented token, written here again, not imported.
 _PREFETCH_KEY = "rsc_prefetch="
+# The request's size in bytes (Security; docs/INGEST.md), the same way.
+_LENGTH_KEY = "request_length="
 
 
 @dataclass
@@ -59,6 +61,8 @@ class Line:
     prefetch: str | None = None
     # A page view of one click already counted (audit.same_click): not a page view.
     repeat: bool = False
+    # The request_length= field's bytes, or None (not recorded).
+    length: int | None = None
 
     @property
     def path(self) -> str:
@@ -82,6 +86,8 @@ def line_hit(raw: str) -> Line | None:
             got = _line(when, m.group(2), m.group(3), m.group(4), m.group(5),
                         m.group(7), m.group(8), m.group(10))
             got.prefetch, rest = _prefetch(raw[m.end(8) + 1:].rstrip("\n"))
+            raw_length, rest = _prefetch(rest, _LENGTH_KEY)
+            got.length = int(raw_length) if raw_length and raw_length.isdigit() else None
             rid = _RID.search(rest)
             got.rid = rid.group(1) if rid else ""
             got.size, got.seconds = _byte_count(m.group(6)), _secs(m.group(9))
@@ -93,31 +99,33 @@ def line_hit(raw: str) -> Line | None:
         except ValueError:
             return None
         prefetch, tail = _prefetch(m.group(8))
+        raw_length, tail = _prefetch(tail, _LENGTH_KEY)
         got = _line(when, m.group(1), _named_host(tail), m.group(3), m.group(4),
                     m.group(6), m.group(7), None)
         got.size, got.seconds = _byte_count(m.group(5)), _tail_seconds(tail)
         got.prefetch = prefetch
+        got.length = int(raw_length) if raw_length and raw_length.isdigit() else None
         return got
     return None
 
 
-def _prefetch(rest: str) -> tuple[str | None, str]:
+def _prefetch(rest: str, key: str = _PREFETCH_KEY) -> tuple[str | None, str]:
     """(the value of the rsc_prefetch= field, the line's trailing part
     without it). The field is a word of its own (a space or the start
     before it) anywhere after the user agent; the first one is read. None
     when there is none: the line cannot tell a click from a prefetch."""
     start = 0
     while True:
-        at = rest.find(_PREFETCH_KEY, start)
+        at = rest.find(key, start)
         if at < 0:
             return None, rest
         if at == 0 or rest[at - 1].isspace():
             break
         start = at + 1
-    end = at + len(_PREFETCH_KEY)
+    end = at + len(key)
     while end < len(rest) and not rest[end].isspace():
         end += 1
-    return rest[at + len(_PREFETCH_KEY):end], rest[:at] + rest[end:]
+    return rest[at + len(key):end], rest[:at] + rest[end:]
 
 
 def _byte_count(raw: str | None) -> int | None:

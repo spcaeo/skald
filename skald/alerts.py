@@ -32,6 +32,10 @@ laid over the config by `apply`; a name in `settings.locked` stays the config's)
                     first cited visit, visits from AI answers against the
                     same weekday's median, a crawler gone silent: whole days,
                     once per day (alerts_history.py)
+  security_exposure, scan_wave
+                    a scanner probe answered 2xx with a size unlike the host's
+                    fallback page; scanner probes far above the usual
+                    day (alerts_security.py)
 
 Fatigue rules: an alert is mailed once, when it opens. While it stays open,
 and if it reopens within `cooldown_hours` (6) of its last mail, nothing more
@@ -58,7 +62,7 @@ import statistics
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from . import alerts_ai, alerts_history
+from . import alerts_ai, alerts_history, alerts_security
 from .files import write_atomic
 
 STATE = "alerts-state.json"
@@ -79,12 +83,14 @@ CAUSES = ("site_down", "logging_stopped", "server_errors", "not_found_surge", "c
           "new_crawler", "traffic_drop")
 SEVERITY = {"site_down": "high", "logging_stopped": "high", "server_errors": "high",
             "not_found_surge": "medium", "crawler_burst": "medium", "new_crawler": "low",
-            "traffic_drop": "medium", **alerts_ai.SEVERITY, **alerts_history.SEVERITY}
+            "traffic_drop": "medium", **alerts_ai.SEVERITY, **alerts_history.SEVERITY,
+            **alerts_security.SEVERITY}
 RESOLVED = ("site_down", "logging_stopped")
 # Each rule's switch on Site > Alerts: its settings_store key (the config name in `alerts`).
 SETTING = {**{c: f"alerts.{c}" for c in CAUSES},
            **{c: f"alerts.ai_{r}" for c, r in alerts_ai.RULE.items()},
-           **{c: f"alerts.{r}" for c, r in alerts_history.RULE.items()}}
+           **{c: f"alerts.{r}" for c, r in alerts_history.RULE.items()},
+           **{c: f"alerts.{r}" for c, r in alerts_security.RULE.items()}}
 AI_LOOKING = re.compile(r"\bai\b|ai[-_ ]?bot|gpt|llm|agent|assistant|-user\b|fetcher|claude"
                         r"|perplexity|gemini|mistral|cohere|anthropic|openai", re.I)
 
@@ -422,6 +428,9 @@ def run(ctx, snap: dict | None, signals: dict, send=_send) -> int:
     """The check on a live run: evaluate, update the state, mail. Exit 0."""
     from . import runs  # noqa: F401  (recorded by the caller)
     from .config import ours_rules, setting
+    from . import security_notify       # each person's own security alerts (2.21)
+    if not getattr(ctx.args, "today", None):
+        security_notify.live(ctx, snap)
     cfg = settings(ctx.config)
     if not cfg["enabled"]:
         return 0
@@ -437,6 +446,7 @@ def run(ctx, snap: dict | None, signals: dict, send=_send) -> int:
         heartbeat_on = any(r["label"] == label for r in ours_rules(ctx.config))
         found = check(cfg, signals, snap, history, ctx.site, ctx.tz, now, known, heartbeat_on)
         found += _ai(ctx, state, history, now)
+        found += _security(ctx, state, snap, history)
     to_mail, resolved = apply(state, found, now, cfg)
     state["figures"] = figures(cfg, signals, now, ctx.now)
     if snap and snap.get("state") == "ok":
@@ -483,6 +493,17 @@ def _ai(ctx, state: dict, history, now: datetime) -> list[dict]:
         ctx.err(f"alerts: citation and crawler rules: {type(why).__name__}: {why}")
         found += [dict(f) for f in (state.get("history") or {}).get("found") or []]
     return found
+
+
+def _security(ctx, state: dict, snap: dict | None, history) -> list[dict]:
+    """Security's rules (alerts_security.py); a failure is one line on stderr."""
+    day = ctx.now.astimezone(ctx.tz).date() - timedelta(days=1)
+    try:
+        return alerts_security.findings(state, ctx.config, snap, history, ctx.site, day,
+                                        ctx.live_dir)
+    except Exception as why:            # noqa: BLE001 - never stops the other alerts
+        ctx.err(f"alerts: security rules: {type(why).__name__}: {why}")
+        return []
 
 
 # ------------------------------------------------------------- webhooks
@@ -548,7 +569,8 @@ def build(p) -> dict:
     closed = sorted((a for a in alerts if a.get("closed_at") is not None),
                     key=lambda a: a["closed_at"], reverse=True)
     every = (rules(cfg) + alerts_ai.rules(alerts_ai.settings(p.config))
-             + alerts_history.rules(alerts_history.settings(p.config)))
+             + alerts_history.rules(alerts_history.settings(p.config))
+             + alerts_security.rules(alerts_security.settings(p.config)))
     return {"enabled": cfg["enabled"], "mail": bool(state.get("mail", False)),
             "mail_on": cfg["mail"],
             "checked_at": state.get("checked_at"),
@@ -583,6 +605,7 @@ def cmd_alerts(ctx) -> int:
         found = check(cfg, feed.signals(), snap, history, ctx.site, ctx.tz, now, known,
                       any(r["label"] == label for r in ours_rules(ctx.config)))
         found += _ai(ctx, {}, history, now)
+        found += _security(ctx, {}, snap, history)
     if getattr(ctx.args, "json", False):
         ctx.out(json.dumps(found, indent=1, default=str))
     else:

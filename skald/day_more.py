@@ -32,7 +32,9 @@ KINDS = {"funnels": "funnel_days", "engagement": "engagement",
          # people from search engines by engine and landing page: Skald's side
          # of the Search tab's cross-check with Search Console (search/)
          "search_landing": "search_landing",
-         "crawl_health": "crawl_health"}
+         "crawl_health": "crawl_health",
+         # scanners, exposures, attack attempts, fake browsers (security.py)
+         "security": "security"}
 
 
 def modules() -> dict:

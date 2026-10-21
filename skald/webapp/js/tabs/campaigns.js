@@ -6,6 +6,8 @@ import { h, n } from "../ui.js";
 import { table } from "../table.js";
 import { blist, panel, fileName } from "./common.js";
 import { link } from "../drill.js";
+import { subView } from "../tablestate.js";
+import { withUrl } from "../urlactions.js";
 
 const UTM = [["utm_source", "Source"], ["utm_medium", "Medium"], ["utm_campaign", "Campaign"], ["utm_term", "Term"], ["utm_content", "Content"]];
 const NONE = "(none)";
@@ -69,7 +71,7 @@ function tagProblems(m, f, r) {
     // Each problem: its examples (path + utm_ tags), then its largest landing paths.
     const paths = (x) => Object.entries(x.paths).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([p, v]) => [p, v]);
     out.push(h("div", { class: "cols" }, ...rows.map((x) => panel(`${x.label}: ${n(x.total)} visit${x.total === 1 ? "" : "s"}`, x.why,
-      x.total ? h("div", { class: "prose" }, ...x.examples.map((e) => h("div", null, h("code", null, `${e.path}${e.tags ? `?${e.tags}` : ""}`), e.click_id ? ` (${e.click_id} click id)` : ""))) : null,
+      x.total ? h("div", { class: "prose" }, ...x.examples.map((e) => h("div", null, withUrl(h("code", null, `${e.path}${e.tags ? `?${e.tags}` : ""}`), e.path, { cls: "ua-after" }), e.click_id ? ` (${e.click_id} click id)` : ""))) : null,
       x.total ? blist(paths(x), { color: "var(--g-bots)", limit: 5, drill: "landing", empty: "" }) : null))),
     h("p", { class: "note" }, `Out of ${n(visits)} visits on ${n(counted.length)} counted day${counted.length === 1 ? "" : "s"}${counted.length < days.length ? ` (${n(days.length - counted.length)} day${days.length - counted.length === 1 ? "" : "s"} not counted for tags)` : ""}. A visit can show more than one problem. Examples keep the landing path and its utm_ tags only.`));
   }
@@ -104,7 +106,9 @@ export function campaigns(m, s, r) {
   const want = (rows) => rows.filter((x) => x.name !== NONE && (!s.campaign || x.name === s.campaign));
 
   // UTM table, switchable by tag.
-  let dim = "utm_source";
+  // The tag chosen stays in the address (utm_view=utm_medium: tablestate.js subView).
+  const kept = subView("utm");
+  let dim = UTM.some(([k]) => k === kept.get()) ? kept.get() : "utm_source";
   const holder = h("div");
   const seg = h("div", { class: "seg plain", role: "group", "aria-label": "UTM tag" });
   const draw = () => {
@@ -113,7 +117,7 @@ export function campaigns(m, s, r) {
     holder.replaceChildren(table(COLS(label, dim === "utm_campaign" ? "campaign" : undefined), { caption: `Visits by ${label.toLowerCase()}`, rows: want(dims[dim] || []), file: fileName(dim.replace("_", "-"), r), sortKey: "visits",
       empty: "No visit in this range carried this tag." }));
   };
-  seg.append(...UTM.map(([k, label]) => { const b = h("button", { type: "button", "data-k": k, onclick: () => { dim = k; draw(); } }, label); return b; }));
+  seg.append(...UTM.map(([k, label]) => { const b = h("button", { type: "button", "data-k": k, onclick: () => { dim = k; kept.set(k, "utm_source"); draw(); } }, label); return b; }));
   draw();
 
   // Referring sites, each opening to the pages on that site that linked here.
@@ -129,7 +133,8 @@ export function campaigns(m, s, r) {
       if (open.has(x.name)) for (const p of kids) rows.push({ ...p, __k: `${x.name}>${p.name}`, sub: true });
     }
     const cols = COLS("Referring site");
-    cols[0] = { key: "name", label: "Referring site", fmt: (v, row) => (row.sub ? v : row.kids?.length
+    // A referring site or its page, as the full URL that sent the visit: copy and open (urlactions.js).
+    cols[0] = { key: "name", label: "Referring site", url: true, href: (row) => (/^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(row.name || "") ? `https://${row.name}` : ""), fmt: (v, row) => (row.sub ? v : row.kids?.length
       ? h("span", { class: "named" }, h("button", { type: "button", class: "exp", "aria-expanded": String(open.has(v)), "aria-label": `Show the pages on ${v} that linked here`, onclick: () => { open.has(v) ? open.delete(v) : open.add(v); drawRefs(); } }, h("i", { "aria-hidden": "true" }, "›")), link("referrer", v))
       : link("referrer", v)) };
     refHolder.replaceChildren(table(cols, { caption: "Referring sites", rows, file: fileName("referrers", r), sortKey: "__none", search: true, limit: 50,

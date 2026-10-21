@@ -79,8 +79,8 @@ export function nextTest(ask, { every = 5000, tries = 24 } = {}) {
 
 const rscOf = (r) => (r && r.ok ? (r.status || []).find((x) => x.id === "rsc") || { state: "", says: "" } : { error: (r && r.error) || "No answer." });
 
-export function nextDialog(site, { item = null, onClose = null } = {}) {
-  return wizard({
+export function nextDialog(site, { item = null, onClose = null, route = null, start = 0 } = {}) {
+  return wizard({ route, start,
     title: "Count pages opened inside the site", subtitle: `For ${site}.`, key: "setup-rsc", onClose,
     steps: [
       { name: "What is missing",

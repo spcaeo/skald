@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "updated": "2026-10-21",
+  "about": "Security advisories Security > Your stack matches against what serves each site (skald/advisories.py). Shipped with each release; docs/DATA-CONTRACT-SECURITY.md says how to add one. Facts only from the vendor's own advisory.",
+  "advisories": [
+    {
+      "id": "php-2026-10-21",
+      "product": "php",
+      "cves": ["CVE-2026-109618", "CVE-2026-109619"],
+      "title": "PHP: unauthenticated remote code execution",
+      "severity": "critical",
+      "score": "CVSS v4 9.2",
+      "published": "2026-10-21",
+      "branch": "minor",
+      "fixed": {"8.5": "8.5.12", "8.4": "8.4.27", "8.3": "8.3.36", "8.2": "8.2.35"},
+      "no_fix_below": "8.2",
+      "no_fix_words": "PHP 8.1 and older have no official release with the fix; only source backports exist for 7.4, 8.0 and 8.1.",
+      "affected": "Sites run by PHP-FPM, mod_php (the highest risk), php-cgi, FrankenPHP or LiteSpeed.",
+      "summary": "A flaw in PHP lets anyone on the internet run code on the server, without signing in.",
+      "action": "Update PHP to the fixed release of its branch, then restart PHP (the FPM pool or the web server).",
+      "mitigations": [
+        "Set memory_limit=-1 through php_admin_value in the pool or virtual host.",
+        "Set post_max_size to 8M (32M on a site that takes uploads).",
+        "Set session.upload_progress.enabled=0, then restart the PHP workers.",
+        "On PHP 8.5, set fatal_error_backtraces=0.",
+        "At the proxy, limit the request size, the number of form fields and the number of multipart parts."
+      ],
+      "mitigations_note": "These reduce the exposure; they do not make a site safe. Update.",
+      "sources": ["https://www.php.net/archive/2026.php#2026-10-21-5"]
+    },
+    {
+      "id": "nodejs-2026-10",
+      "product": "nodejs",
+      "cves": ["CVE-2026-111497"],
+      "title": "Node.js October 2026 security releases",
+      "severity": "high",
+      "score": "highest of ten fixes",
+      "published": "2026-10-21",
+      "branch": "major",
+      "fixed": {"22": "22.23.4", "24": "24.22.1", "26": "26.12.1"},
+      "no_fix_below": "22",
+      "no_fix_words": "Node.js branches that have reached end of life get no fix: move to a supported branch (22, 24 or 26).",
+      "affected": "Every Node.js server on a branch below the fixed release, a Next.js site's included.",
+      "summary": "The most serious flaw, a Brotli decoder out-of-bounds write (CVE-2026-111497), can let a crafted request run code on the server; others are DNS NUL truncation, TLS hostname verification and keep-alive issues.",
+      "action": "Update Node.js to the fixed release of its branch, rebuild the app's image if it runs in a container, and restart it.",
+      "mitigations": [],
+      "mitigations_note": "",
+      "sources": ["https://nodejs.org/en/blog/vulnerability/october-2026-security-releases"]
+    }
+  ]
+}

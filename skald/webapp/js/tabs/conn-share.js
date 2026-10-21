@@ -9,15 +9,25 @@ import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { why, when, confirmIn } from "./forms.js";
 import { codeBlock } from "./conn-ui.js";
+import { stepped } from "../overlays.js";
+import { read } from "../state.js";
 
 const TASK_WORDS = { send: "sending this site's visits", script: "the script tag", hook: "the lead hook", nextjs: "counting pages opened inside the site" };
 
 // task: "send" (method docker|systemd|cloudflare|vercel), "script", "nextjs", or "hook" (method: the tool).
+// The form open is in the address as share=1 beside the dialog's key (js/overlays.js);
+// the link it makes never is: it opens the steps with no sign-in.
 export function shareBox(site, task, method = "") {
   const box = h("div", { class: "cn-share" });
   const open = h("button", { type: "button", class: "btn" }, "Share with your developer");
   const draw = () => box.replaceChildren(open);
+  const mark = (on) => {
+    const s = read();
+    const fam = s.setup ? "setup" : s.conn ? "conn" : "";
+    if (fam) stepped(fam, s[fam], { share: on ? "1" : "" });
+  };
   open.addEventListener("click", () => {
+    mark(true);
     const days = h("select", { name: "share-days", "aria-label": "The link works for" },
       [[1, "1 day"], [7, "7 days"], [30, "30 days"]].map(([v, t]) => h("option", { value: String(v), selected: v === 7 }, t)));
     days.value = "7";
@@ -49,6 +59,8 @@ export function shareBox(site, task, method = "") {
       h("div", { class: "acts" }, days, make), said));
   });
   draw();
+  // Opened from a link with share=1: the form, ready (the dialog draws this box afterwards).
+  if (read().share === "1") queueMicrotask(() => { if (box.firstChild === open) open.click(); });
   return box;
 }
 

@@ -19,6 +19,7 @@ import * as S from "./state.js";
 import { TAB_ICONS, GEAR } from "./tabs/index.js";
 import { store } from "./extras.js";
 import { logoOf, tile, setTabIcon } from "./logo.js";
+import { withUrl } from "./urlactions.js";
 
 const app = document.getElementById("app");
 const rail = document.getElementById("rail");
@@ -172,7 +173,7 @@ export function buildNav() {
   // On a phone the drawer has its own close button, beside the brand.
   document.getElementById("brand").append(h("button", { type: "button", class: "btn icon drawer-x", "aria-label": "Close the menu", html: CLOSE, onclick: () => closeDrawer(true) }));
   // The phone's bottom bar: the five sections and Menu (the drawer: Settings, Help, About, the reader's choices).
-  tabbar.replaceChildren(...sections().map((x) => h("a", { class: "tb-i", href: `#${x.key}`, "data-tab": x.key, html: TAB_ICONS[x.key] || "", "aria-label": x.short !== x.name ? x.name : null, onclick: (e) => go(e, x.key) },
+  tabbar.replaceChildren(...sections().filter((x) => x.bar !== false).map((x) => h("a", { class: "tb-i", href: `#${x.key}`, "data-tab": x.key, html: TAB_ICONS[x.key] || "", "aria-label": x.short !== x.name ? x.name : null, onclick: (e) => go(e, x.key) },
     h("span", { "aria-hidden": x.short !== x.name ? "true" : null }, x.short))),
   h("button", { type: "button", class: "tb-i", id: "tb-menu", "aria-label": "Menu: settings, help and your choices", "aria-controls": "rail", "aria-expanded": "false", onclick: openDrawer,
     html: MENU_ICON }, h("span", { "aria-hidden": "true" }, "Menu")));
@@ -255,11 +256,12 @@ function siteMenu() {
   return h("div", { class: "pop menu site-menu", role: "menu", hidden: true, "aria-label": "Switch site" },
     list.map((x) => {
       const here = x.name === site;
-      return h("a", { class: "menu-i site-i", role: "menuitem", href: here ? "./" : `../${x.path}`, "aria-current": here ? "page" : null },
+      // The site's own address: copy and open in a new tab at the row's end (urlactions.js).
+      return withUrl(h("a", { class: "menu-i site-i", role: "menuitem", href: here ? "./" : `../${x.path}`, "aria-current": here ? "page" : null },
         tile(logoOf(x, x.name), 24, "si-logo"),
         h("b", null, x.name, x.live ? h("span", { class: "live-dot", title: "Live: today is redrawn every 2 minutes" }, h("span", { class: "vh" }, ", live")) : null),
         here ? h("span", { class: "si-end si-check", html: CHECK, "aria-label": "this site", role: "img" })
-          : today(x) ? h("small", { class: "si-end" }, today(x)) : null);
+          : today(x) ? h("small", { class: "si-end" }, today(x)) : null), /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(x.name || "") ? `https://${x.name}` : "", { label: x.name, tag: "div", cls: "si-row" });
     }),
     h("a", { class: "menu-i site-all", role: "menuitem", href: "../" }, "All sites"));
 }
@@ -280,11 +282,11 @@ function switcher(btn, float) {
       const r = btn.getBoundingClientRect(), beside = rail.contains(btn);
       Object.assign(menu.style, { position: "fixed", top: `${beside ? r.top : r.bottom + 6}px`, left: `${beside ? r.right + 8 : Math.max(8, r.left)}px` });
     } else menu.removeAttribute("style");
-    if (open) menu.querySelector("a")?.focus();
+    if (open) menu.querySelector("a.menu-i")?.focus();
   });
   menu.addEventListener("keydown", (e) => {
     if (e.key === "Escape") { close(); btn.focus(); return; }
-    const items = [...menu.querySelectorAll("a")], i = items.indexOf(document.activeElement);
+    const items = [...menu.querySelectorAll("a.menu-i")], i = items.indexOf(document.activeElement);
     const j = { ArrowDown: i + 1, ArrowUp: i - 1 }[e.key];
     if (j != null && items.length) { e.preventDefault(); items[(j + items.length) % items.length].focus(); }
   });

@@ -245,6 +245,9 @@ class Tally:
         self.extras.attribution = options.get("attribution")
         # The sitemap list the day is judged by (sitemap.for_day), or None.
         self.extras.crawl_health.sitemap = options.get("sitemap")
+        # Security's thresholds (security_names.settings) and the site's hosts.
+        self.extras.security.set_rules(options.get("security"))
+        self.extras.security.own = self.own_hosts
         self.ai_seen: dict[tuple[str, str], list] = {}
         self.totals.ours_labels = Counter()
         # quality.Quality for the whole site's tally only: it is fed every
@@ -259,6 +262,8 @@ class Tally:
         self.totals.parsed += 1
         self.totals.other_hosts += 1
         self.totals.other_host_names[hit.host[:40]] += 1
+        if self.extras.security is not None:     # a bare-IP line: Security only
+            self.extras.security.other_host(hit)
 
     def add(self, hit: Hit, verdict, unfiltered: bool = False) -> None:
         totals = self.totals
@@ -434,8 +439,10 @@ def summarise_views(
     whole.quality = Quality(tz)
     tallies = {name: (test, Tally(session_gap_minutes, tz, wanted, options))
                for name, test in (views or {}).items()}
-    for _, t in tallies.values():        # crawl health is the whole site's
+    for _, t in tallies.values():        # crawl health and security are the whole site's
         t.extras.crawl_health = None
+        t.extras.security = None
+    whole.extras.security.verifier = getattr(classifier, "verifier", None)
     for hit in hits:
         whole.quality.add(hit)
         chosen = [t for test, t in tallies.values() if test(hit)]

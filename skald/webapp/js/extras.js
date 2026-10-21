@@ -174,8 +174,9 @@ export function saved() {
 export function savedDialog() {
   const box = h("div", { class: "dw-sec dw-saved" });
   const d = openDrawer({ title: "Saved views", subtitle: "Open a tab with the period and filters you saved, or save what is on screen now.",
-    size: "md", key: "saved", body: box });
+    size: "md", key: "saved", body: box, route: { key: "dlg", value: "views" } });
   savedContent(box, (focusBack) => d.close({ focusBack }), { heading: false });
+  return d;
 }
 
 // "Requests, 7 days, Country is CAN" from a saved hash, so a name is not the only clue.

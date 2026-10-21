@@ -22,6 +22,7 @@ import { sendState, methodChooser, chooseCheck, tokenPanel, testPanel, troubleTa
 import { detectCard, recommendFor, suggestionsFor } from "./conn-detect.js";
 import { installFor } from "./conn-install.js";
 import { methodOf } from "./conn-words.js";
+import { withUrl } from "../urlactions.js";
 
 export const STEPS = 5;
 const NAME = /^(?=.{3,100}$)[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)+$/;
@@ -129,13 +130,15 @@ function stepHow(wz) {
   return [h("p", null, "Where does the site run? Choose the way its visits reach Skald."), lost, methodChooser(st.send, () => wz.say(""), rec)].filter(Boolean);
 }
 
+// In the address as setup=new or setup=<site>, with its step (js/overlays.js; on Settings >
+// Add or remove sites: tabs/sitesadmin.js openSiteKey reopens it from a link).
 export function siteWizard({ data = {}, name = null, start = 0, method = "", verify = null, found = null, onChange = null } = {}) {
   const send = sendState(name || "", data);
   send.method = method || "";
   const state = { site: name, verify, data, send, onChange, typed: "", zone: "", found: found || null, useFound: found ? found.use !== false : true };
   const w = wizard({
     title: name ? `Set up ${name}` : "Add a site", subtitle: "Five short steps. You can close this and continue later: nothing is lost.",
-    key: "site-wizard", state, start, done: "Finish later",
+    key: "site-wizard", state, start, done: "Finish later", route: { key: "setup", value: name || "new" },
     onStep: (i, wz) => { if (wz.state.site && i > 0) save(wz, { step: i + 1 }); },
     onClose: () => { if (onChange) onChange(); },
     steps: [
@@ -145,7 +148,7 @@ export function siteWizard({ data = {}, name = null, start = 0, method = "", ver
         check: (wz) => chooseCheck(wz.state.send), next: async (wz) => { await save(wz, { step: 4, method: wz.state.send.method }); return true; } },
       { name: "Install", draw: (wz) => {
         const st = wz.state.send;
-        return [h("p", { class: "sub" }, `${methodOf(st.method)?.title || ""}. The send address: `, h("code", null, st.url)),
+        return [h("p", { class: "sub" }, `${methodOf(st.method)?.title || ""}. The send address: `, withUrl(h("code", null, st.url), st.url, { cls: "ua-after" })),
           ...tokenPanel(st, { onMade: (r) => save(wz, { token_id: r.id || "" }) }),
           h("h4", null, "Install"), ...installFor(st.method, st), shareFor(st)];
       } },

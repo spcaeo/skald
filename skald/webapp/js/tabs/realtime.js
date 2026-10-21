@@ -26,6 +26,7 @@ import { table, REGISTRY } from "../table.js";
 import { link, open as openDrill } from "../drill.js";
 import { flagEl, country, countryName, city, cityName } from "./readers.js";
 import { mark } from "../icons.js";
+import { withUrl } from "../urlactions.js";
 import { time as tzTime, label as tzLabel } from "../tz.js";
 import { worldMap } from "./rt-map.js";
 import { DEMO } from "../demo.js";
@@ -181,7 +182,7 @@ function newest(P, m) {
       v.via ? [" from ", link(v.source === "AI assistant" ? "assistant" : "referrer", v.via, { bare: true })] : v.source ? ` · ${v.source}` : "",
       `: ${pagesWords(v, { soFar: true })}`,
       v.active ? h("span", { class: `rt-now${v.active === "5" ? " on" : ""}` }, v.active === "5" ? "active now" : "active, 30 min") : null,
-      h("small", null, `landed on ${v.landing || "a page not recorded"}`),
+      h("small", null, "landed on ", v.landing ? withUrl(h("span", null, v.landing), v.landing, { cls: "ua-after" }) : "a page not recorded"),
       touchLine(v) ? h("small", { class: "v-ft" }, touchLine(v)) : null)));
   return card("Newest visits", `times in ${tzLabel()}, newest first; no address, no browser string`,
     rows.length ? h("ul", { class: "stream live-stream" }, rows) : h("p", { class: "empty" }, "No visitor has read a page yet today."));

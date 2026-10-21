@@ -18,6 +18,8 @@ import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { why } from "./forms.js";
 import { wizard, helpLink } from "./conn-ui.js";
+import { DEMO } from "../demo.js";
+import { ME, sessions } from "../access.js";
 import { sendDialog } from "./conn-send.js";
 import { adminFold, choices, loading, mailButton, copyButton } from "./setup-common.js";
 import { tagDialog } from "./setup-tag.js";
@@ -26,11 +28,13 @@ import { mailDialog } from "./setup-mail.js";
 import { privacyDialog } from "./setup-privacy.js";
 import { nextDialog } from "./setup-nextjs.js";
 
-export async function openSetup(act, site, { item = null, onClose = null } = {}) {
-  const opts = { item, onClose };
+// Each dialog is in the address as setup=<act>&step=<n> (js/overlays.js); start: a link's step, 0 first.
+export const ACTS = ["logs", "assets", "rsc", "countries", "script", "lead", "mail", "privacy"];
+export async function openSetup(act, site, { item = null, onClose = null, start = 0 } = {}) {
+  const opts = { item, onClose, route: { key: "setup", value: act }, start };
   if (act === "logs") {
     const r = await call("sites");
-    return sendDialog(site, r.ok ? r : {}, { onClose });
+    return sendDialog(site, r.ok ? r : {}, opts);
   }
   if (act === "assets") return assetsDialog(site, opts);
   if (act === "rsc") return nextDialog(site, opts);
@@ -40,6 +44,17 @@ export async function openSetup(act, site, { item = null, onClose = null } = {})
   if (act === "mail") return mailDialog(site, opts);
   if (act === "privacy") return privacyDialog(site, opts);
   return null;
+}
+
+/* setup=<act>&step=<n>, from a link: the dialog at that step for an owner or an admin;
+   the line, for anyone else. The checklists on the page ask again when it closes. */
+export async function openSetupKey(act, m, step = 1) {
+  if (!ACTS.includes(act)) return "That set-up step is not in this version of the page.";
+  if (DEMO.on) return "Setting up needs a running Skald: not available in the demo.";
+  if (!sessions() || !(["owner", "admin"].includes(ME.role) || ME.install_admin)) return "Not available to your role.";
+  const { itemFor, refreshChecklists } = await import("./checklist.js");
+  const item = await itemFor(m, act);
+  return openSetup(act, m.site, { item, start: Math.max(0, step - 1), onClose: refreshChecklists });
 }
 
 // ------------------------------------------------- visits count as people
@@ -52,7 +67,7 @@ const BUILT = [
 ];
 const pathsOf = (text) => String(text || "").split(/[\s,]+/).filter((p) => p.startsWith("/"));
 
-export function assetsDialog(site, { item = null, onClose = null } = {}) {
+export function assetsDialog(site, { item = null, onClose = null, route = null, start = 0 } = {}) {
   const st = { kind: "", custom: "/assets/\n/static/", r: null };
   const load = () => (st.r ? Promise.resolve(st.r) : call("settings").then((r) => { st.r = r; return r; }));
   const box = (w) => {
@@ -62,7 +77,7 @@ export function assetsDialog(site, { item = null, onClose = null } = {}) {
     const other = h("div", { hidden: st.kind !== "other" }, area, h("p", { class: "note" }, "One folder per line, at most 10. Each starts with /."));
     return [choices(st, "kind", BUILT, "What is the site built with?", (id) => { other.hidden = id !== "other"; w.say(""); }), other];
   };
-  return wizard({
+  return wizard({ route, start,
     title: "Count visits as people", subtitle: `For ${site}.`, key: "setup-assets", onClose, state: st,
     steps: [
       { name: "What the site is built with",
@@ -103,8 +118,8 @@ function countryMail(site) {
     "", "Thank you."].join("\n");
 }
 
-export function countriesDialog(site, { item = null, onClose = null } = {}) {
-  return wizard({
+export function countriesDialog(site, { item = null, onClose = null, route = null, start = 0 } = {}) {
+  return wizard({ route, start,
     title: "Show each visit's country", subtitle: `For ${site}.`, key: "setup-countries", onClose,
     steps: [
       { name: "What it adds",

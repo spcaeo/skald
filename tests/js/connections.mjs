@@ -169,7 +169,11 @@ assert.deepEqual(siteFrom("https://WWW.Example.org/pricing"), { name: "www.examp
 assert.ok(siteFrom("not a site").error);
 assert.ok(siteFrom("203.0.113.5").error);
 const admin = document.createElement("div");
-admin.append(...sitesadmin({ site: SITE }, { setup: "new" }));
+admin.append(...sitesadmin({ site: SITE }, {}));
+await tick();
+// #settings/sitesadmin?setup=new: the router opens the wizard (js/overlays.js -> openSiteKey).
+const { openSiteKey } = await import(new URL("tabs/sitesadmin.js", JS));
+await openSiteKey("new", 1);
 await tick();
 d = dialog();
 assert.ok(d.textContent.includes("Step 1 of 5: Your site"), d.textContent.slice(0, 200));

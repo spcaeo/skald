@@ -9,6 +9,7 @@ import { shownText } from "./labels.js";
 import { code3, countryName } from "./countries.js";
 import { HASH, writeKeys, nsOf, compare, sortRows, nextSort, sortParam, readSort, readFilters, writeFilters, readHidden, testFilter, filterKind, parseAmount, visibleColumns } from "./tablestate.js";
 import { chooser, exportButton, filterToggle, filterCell, filterChips } from "./tabletools.js";
+import { withUrl, isUrlColumn } from "./urlactions.js";
 
 /* Every table drawn in the current render, so "Export this view" and the
    report can take them all: {caption, file, columns, rows()}. main.js
@@ -89,9 +90,12 @@ export function alignOf(c) {
 }
 const ALIGN_CLS = { right: "n", center: "c" };
 
-/* columns: [{key, label, num?, type?, path?, cls?, title? (a hint on the header), fmt?(v,row), csv?(row), sort?(row), drill?: dimension,
+/* columns: [{key, label, num?, type?, path?, url?, href?(row), cls?, title? (a hint on the header), fmt?(v,row), csv?(row), sort?(row), drill?: dimension,
              filter?: "text"|"num"|"enum"|false (the column filter; tablestate.js filterKind decides when not given),
              hide?: true - a secondary column, left out until "Columns" shows it (only with the tools; never the first)}]
+   A column of site paths (path: true, or drilled by page or landing page) or of URLs (url: true)
+   draws copy and open-in-a-new-tab at each cell's end (urlactions.js); href(row): the URL when
+   the cell's value is not it.
    opts: {caption, rows, file, limit=15, empty, sortKey, dir, search=true, rowClass?(row), note, onRow?(row), placeholder, rowDrill?: false,
           groups?: [[label, span]] - a header row above the columns that names groups of them,
           ns?: the table's name in the address (default: its caption made short); ns: false keeps nothing there,
@@ -238,7 +242,10 @@ export function table(columns, opts) {
         for (const c of cols) {
           const v = r[c.key];
           const text = c.fmt ? c.fmt(v, r) : c.num ? n(v) : v ?? "";
-          tr.append(h("td", { class: [ALIGN_CLS[alignOf(c)] || (c.path ? "path" : null), c.cls].filter(Boolean).join(" ") || null }, text instanceof Node ? text : String(text)));
+          const shown = text instanceof Node ? text : String(text);
+          // A page or a URL: copy and open in a new tab at the cell's end (urlactions.js).
+          const cellEl = isUrlColumn(c) ? withUrl(shown, c.href ? c.href(r) : v) : shown;
+          tr.append(h("td", { class: [ALIGN_CLS[alignOf(c)] || (c.path ? "path" : null), c.cls].filter(Boolean).join(" ") || null }, cellEl));
         }
         // A row about a value opens it, the whole row (drill.js drillRow); onRow wins.
         if (!onRow && opts.rowDrill !== false) drillRow(tr);

@@ -51,6 +51,10 @@
 
 ## What's new
 
+- **2.21.0: Security from your server log, and a link for every view** ([changelog](CHANGELOG.md#2210-2026-10-21)).
+  Is anything exposed, who is scanning you, attack attempts, fake browsers, a block list, your
+  stack with the October 2026 PHP and Node.js advisories, and alerts to your team. Every open
+  view has its own link, and every URL has copy and open buttons.
 - **2.20.1: scanners never count as visitors** ([changelog](CHANGELOG.md#2201-2026-10-21)). An
   address that asks for secret or config files is a bot for the whole day; plus a visitor-drawer
   fix and a page for sites still being set up.
@@ -82,23 +86,23 @@
   chain only your log can show: cited → read → sent → leads. A cost estimate before anything runs
   and a daily cap; it needs each provider's API key. A sample of API answers, labelled so.
 - **2.13.0: a new Overview and Visitors; first touch and cities; search, reports, retention and
-  crawl health; advanced filters** ([changelog](CHANGELOG.md#2130-2026-10-18)). Today on one live
+  crawl health; advanced filters** ([changelog](docs/CHANGELOG-2.8-2.13.md#2130-2026-10-18)). Today on one live
   page, each figure against yesterday at this hour. Each visit with its city and where the
   visitor first came from, and one visitor drawer that replays their journey. Google Search
   Console's and Bing's queries, impressions and position, synced every 6 hours. Branded client
   reports with a PDF. Retention cohorts. Which sitemap pages each crawler reaches. Filters with
   AND, OR and groups, saved as views, and sort, column filters, columns and export on every table.
-- **2.11.0: real time, on a world map; AI alerts in Slack** ([changelog](CHANGELOG.md#2110-2026-10-18)).
+- **2.11.0: real time, on a world map; AI alerts in Slack** ([changelog](docs/CHANGELOG-2.8-2.13.md#2110-2026-10-18)).
   Who is on your site now, minute by minute, on a live world map, with the pages being read and
   the AI and crawlers fetching right now, every figure counted twice. Alerts for an assistant's
   first citation, a page's first, AI-answer visits against the usual for that weekday, and a
   crawler gone silent, sent to Slack or any webhook. "Direct" and "Not recorded" instead of
   "unknown".
-- **2.10.0: what AI reads, asks for and costs** ([changelog](CHANGELOG.md#2100-2026-10-18)). What
+- **2.10.0: what AI reads, asks for and costs** ([changelog](docs/CHANGELOG-2.8-2.13.md#2100-2026-10-18)). What
   an assistant read just before it sent you a visitor. What AI fetches ask for: pages, `llms.txt`,
   Markdown, `robots.txt`, sitemaps. Google's AI Mode told apart. What each crawler costs your
   server, with a detail view per crawler.
-- **2.9.0: the script tag on every site of one install** ([changelog](CHANGELOG.md#290-2026-10-18)),
+- **2.9.0: the script tag on every site of one install** ([changelog](docs/CHANGELOG-2.8-2.13.md#290-2026-10-18)),
   each site's events kept and audited apart. Google Ads clicks from iOS read as paid.
 
 [Full changelog](CHANGELOG.md) · [All releases](https://github.com/spcaeo/skald/releases)
@@ -419,6 +423,28 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
 The whole dashboard with 60 days of sample data for a made-up site, in your browser: today's Overview,
 the visitor drawer, cities, retention and crawl health, AI answers (made-up answers), Real time with its world map, AI & bots, flags, leads and bookings, the left-out leads and the removed conversions included.
 Nothing to install. Settings, saving and the person search need your own Skald.
+
+### New in 2.21.0: Security from your server log
+
+<p align="center">
+  <img src="docs/screenshots/security-exposed.png" alt="Security, Is anything exposed?: a red verdict '1 possible exposure: check it now'; 2,145 scanner probes, 1,073 answered with a page, 1,072 the host's harmless page, 1 possible exposure; the row for /.env.production answered 200 with 1,873 bytes and what to do; each host's fallback page size, including the bare IP" width="900"><br>
+  <strong>Is anything exposed?</strong> Every probe that got a page, set against the host's own harmless page.
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/security-stack.png" alt="Security, Your stack: an 'Update needed' card for the PHP remote code execution flaws (CVE-2026-109618, CVE-2026-109619) naming PHP 8.3.10 and 8.1.2 on the demo hosts with the fixed releases, a 'Check your version' card for the Node.js October 2026 releases, and what serves each host" width="900"><br>
+  <strong>Your stack.</strong> What serves each site, and which advisories apply, with what to do.
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/security-scanners.png" alt="Security, Who is scanning us?: probes per day, what scanners looked for (secret files, cloud and deploy configs, admin panels, WordPress), and one row per scanner with requests, probes, what the server answered and signs such as a forged referrer or the bare IP" width="900"><br>
+  <strong>Who is scanning us?</strong> Every scanner, what it looked for and what your server answered.
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/links-copy-open.png" alt="Traffic, Pages: hovering /about/ shows a copy button and an open-in-a-new-tab button at the end of the path" width="900"><br>
+  <strong>Copy and open on every URL.</strong> And every open view has its own link.
+</p>
 
 ### New in 2.20.0: every lead in one list, and visitors live
 

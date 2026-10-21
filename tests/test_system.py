@@ -652,11 +652,13 @@ class TestRunDaily(unittest.TestCase):
             parsed = cli.parser().parse_args(
                 ["--config", str(self.box.config), "--today", today, "run-daily"])
             return [n for n, _ in cli.daily_steps(cli.Context(parsed))]
+        # 2.21: "stack" (Security > Your stack) and its recheck ("recounts", audit_stack).
         self.assertEqual(names("2026-10-06"),
-                         ["check", "collect", "audit", "logo", "updates", "dashboard", "daily mail"])
+                         ["check", "collect", "audit", "recounts", "logo", "updates", "stack",
+                          "security mail", "dashboard", "daily mail"])
         self.assertEqual(names("2026-10-05"),
-                         ["check", "collect", "audit", "logo", "updates", "dashboard", "daily mail",
-                          "weekly mail"])
+                         ["check", "collect", "audit", "recounts", "logo", "updates", "stack",
+                          "security mail", "dashboard", "daily mail", "weekly mail"])
 
     def test_a_failed_check_stores_draws_and_sends_nothing(self):
         self.box.log(open(FIXTURES / "unparsable.log").readlines())

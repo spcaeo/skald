@@ -20,6 +20,7 @@ import { leadsOver } from "./overview.js";
 import { aiFeed } from "./aifeed.js";
 import { time as tzTime, hourLabels, label as tzLabel, when } from "../tz.js";
 import { convFile, convDay, dayLeads, oneAction, STAGE, toolName, LEAD_WORDS } from "./leadfigs.js";
+import { withUrl } from "../urlactions.js";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const KIND = { asked: "answering a question", training: "collecting for training", referred: "sent a visitor" };
@@ -59,7 +60,7 @@ function aiRow(e, fresh) {
     h("span", { class: "s-i" }, mark("assistant", e.name || "?")),
     h("span", { class: "s-w" }, h("b", null, link(e.kind === "referred" ? "referrer" : "bot", e.name, { bare: true })), ` ${KIND[e.kind] || e.kind}`,
       flag(e.country) ? h("span", { class: "flag s-f", title: e.country_name || country(e.country) }, ` ${flag(e.country)}`) : null,
-      h("small", null, e.path)));
+      h("small", null, withUrl(h("span", null, e.path), e.path, { cls: "ua-after" }))));
 }
 
 // " · the last one 59 min ago": a quiet hour reads as quiet, not as a stalled feed.

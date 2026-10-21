@@ -22,6 +22,8 @@ import { setZone, time as tzTime } from "./tz.js";
 import { keys, help, whatsNew, newUnseen, palette } from "./keys.js";
 import { drillView } from "./drillview.js";
 import { closeDrawers } from "./drawer.js";
+import { sync as syncOverlays, addRestorer } from "./overlays.js";
+import { setSiteBase } from "./urlactions.js";
 import { chainOf, DIMS, said, titled, close as closeDrill } from "./drill.js";
 import { setFavicons } from "./icons.js";
 import { REGISTRY, showAllRows } from "./table.js";
@@ -430,6 +432,7 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
   setFavicons(model.x?.favicons, "data/");
   REGISTRY.length = 0;
   setContext(model, s);
+  setSiteBase(model.site);
   const name = S.nameOf(s.tab), sec = S.sectionOf(s.tab);
   document.title = `${model.site} · ${sec ? `${name} · ${sec.name}` : name} — ${toolName()}`;
   const file = opt(s.tab, "file", s, null), broken = file && model.failed?.[file];
@@ -459,6 +462,8 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
     window.scrollTo({ top: 0, behavior: "auto" });
   }
   firstPaint = false;
+  // What the address opens over the tab (a drawer, a dialog: overlays.js), then the drill-down on top.
+  syncOverlays(model, s);
   drillView(model, s);
 }
 
@@ -530,7 +535,10 @@ async function boot() {
     S.set({ range: "today" }, { replace: true });
   }
   app.dataset.state = "ready";
-  S.on((next) => render(next));
+  // A drawer or a dialog opening or closing (its key only) is not a redraw: overlays.js opens or closes it.
+  S.on((next) => { if (current && S.onlyOverlay(current, next)) { current = next; syncOverlays(model, next); } else render(next); });
+  addRestorer("dlg:report", () => builder(model, S.read(), (next) => load(next, { previous: model })));
+  addRestorer("dlg:filters", () => openFilters(model, S.read(), document.querySelector(".fp-btn")));
   S.emit(true);
   // Keep "today" current while the page is open: the live snapshot is rewritten every two minutes.
   setInterval(async () => {

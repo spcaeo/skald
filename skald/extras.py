@@ -94,6 +94,10 @@ class Extras:
         # hit (crawl_health.py). The whole site's tally only: None for a view.
         from .crawl_health import Collector
         self.crawl_health = Collector()
+        # Scanners, exposures, attack attempts and fake browsers (security.py):
+        # a view across the groups. The whole site's tally only: None for a view.
+        from .security import Collector as Security
+        self.security = Security()
         # The same hourly figures keyed by the UTC hour they started
         # ("YYYY-MM-DDTHH"), so a reader's chosen zone can re-bucket them
         # exactly - the day the clocks go back has two local 01:00 hours.
@@ -154,6 +158,8 @@ class Extras:
         self.crawler_cost.add(hit, verdict)
         if self.crawl_health is not None:
             self.crawl_health.add(hit, verdict)
+        if self.security is not None:
+            self.security.add(hit, verdict)
         hour = dim.hour(hit.when, self.tz)
         row = self.hours.get(hour)
         if row is None:

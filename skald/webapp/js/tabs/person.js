@@ -22,6 +22,7 @@ import { ME } from "../access.js";
 import { openVisitor } from "./visitor.js";
 import { copyButton } from "./reqdetail.js";
 import { labelTag } from "./leadfigs.js";
+import { withUrl } from "../urlactions.js";
 
 export const SEARCH_HINT = "IP address, email, lead or visitor ID";
 export const mayFind = () => ["owner", "admin"].includes(ME.role);
@@ -56,7 +57,7 @@ function conversionsPart(rows) {
   if (!rows.length) return empty("No conversion.");
   return grid("Conversions", ["When", "Action", "Stage", "Reported by", "Source", "Landing", "Lead or reference", "Visitor ID", "Email"], rows.map((r) => [
     at(r.at), [dash(r.action), labelTag(r.label)], [STAGE[r.stage] || r.stage, r.test ? h("b", { class: "pp-bad" }, " test (not counted)") : null],
-    dash(r.tool), dash(r.source_type), h("span", { class: "mono" }, dash(r.landing)), key(r.external_ref), key(r.vid), r.email ? key(r.email) : "-"]));
+    dash(r.tool), dash(r.source_type), withUrl(h("span", { class: "mono" }, dash(r.landing)), r.landing), key(r.external_ref), key(r.vid), r.email ? key(r.email) : "-"]));
 }
 
 function removedPart(rows) {
@@ -87,10 +88,10 @@ export function personParts(got) {
     got.requests.length ? sec("Requests in the last 6 hours", grid("Requests", ["Time", "Request", "Status", "Group"], got.requests.map((r) => [at(r.at), h("span", { class: "mono" }, `${r.method} ${r.path}`), String(r.status), dash(r.group)]))) : null,
     sec("Leads", leadsPart(got.leads)),
     cand.length ? sec("Leads and the visits that sent a form at their time", h("p", { class: "note" }, "Matched by time only: a form sent from 2 minutes before the lead to 30 seconds after. Likely the same person, never certain: the lead database keeps no address."),
-      grid("Visits at a lead's time", ["Lead", "IP address", "Started", "Landing"], cand.map((c) => [key(c.lead, `#${c.lead}`), key(c.ip), at(c.start), h("span", { class: "mono" }, dash(c.landing))]))) : null,
+      grid("Visits at a lead's time", ["Lead", "IP address", "Started", "Landing"], cand.map((c) => [key(c.lead, `#${c.lead}`), key(c.ip), at(c.start), withUrl(h("span", { class: "mono" }, dash(c.landing)), c.landing)]))) : null,
     sec("Conversions", conversionsPart(got.conversions)),
     got.removed.length ? sec("Removed by a sync", removedPart(got.removed)) : null,
-    got.journeys.length ? sec("Pages seen by its visitor IDs", grid("Pages", ["When", "Page", "Source"], got.journeys.map((j) => [at(j.at), h("span", { class: "mono" }, j.path), dash(j.source_type)]))) : null,
+    got.journeys.length ? sec("Pages seen by its visitor IDs", grid("Pages", ["When", "Page", "Source"], got.journeys.map((j) => [at(j.at), withUrl(h("span", { class: "mono" }, j.path), j.path), dash(j.source_type)]))) : null,
   ].filter(Boolean);
 }
 
@@ -106,7 +107,7 @@ export function openSearch() {
   const field = h("input", { type: "search", class: "pp-in", placeholder: SEARCH_HINT, "aria-label": `Find a person: ${SEARCH_HINT}`, autocomplete: "off", spellcheck: "false", maxlength: "320" });
   const form = h("form", { class: "af-row" }, field, h("button", { type: "submit", class: "btn primary" }, "Find"));
   form.addEventListener("submit", (e) => { e.preventDefault(); if (field.value.trim()) openPerson(field.value); });
-  openDrawer({ title: "Find a person", subtitle: SEARCH_HINT, size: "md", key: "person", focus: field,
+  return openDrawer({ title: "Find a person", subtitle: SEARCH_HINT, size: "md", key: "person", focus: field, route: { key: "dlg", value: "find" },
     body: [form, h("p", { class: "note" }, mayFind() ? "Every visit kept, every lead and conversion, linked. Each search is written to the audit log." : "Only an admin or an owner can look a person up.")] });
 }
 
@@ -126,10 +127,11 @@ export function searchBox() {
 
 // The Leads page's "Left out" line: spam, duplicates and test leads, and test conversions.
 export async function openLeftOut() {
-  const d = openDrawer({ title: "Left out of the figures", subtitle: "Spam, duplicates and test", key: "left-out", scope: "page", body: h("p", { class: "empty" }, "Loading…") });
+  const d = openDrawer({ title: "Left out of the figures", subtitle: "Spam, duplicates and test", key: "left-out", scope: "page", body: h("p", { class: "empty" }, "Loading…"),
+    route: { key: "list", value: "leftout" } });
   const got = await call("people/left-out");
-  if (!d.el.isConnected) return;
-  if (!got.ok) { d.body.replaceChildren(h("div", { class: "state bad" }, h("div", null, got.error || "The list could not be loaded."))); return; }
+  if (!d.el.isConnected) return d;
+  if (!got.ok) { d.body.replaceChildren(h("div", { class: "state bad" }, h("div", null, got.error || "The list could not be loaded."))); return d; }
   d.body.replaceChildren(
     sec(`Leads (${n(got.leads.length)})`, got.leads.length ? leadsPart(got.leads) : empty("No spam, duplicate or test lead.")),
     sec(`Conversions marked test (${n(got.conversions.length)})`, got.conversions.length ? conversionsPart(got.conversions) : empty("No conversion is marked test.")),
@@ -139,10 +141,11 @@ export async function openLeftOut() {
 // The Conversions page's lists: cancelled, removed and test conversions, with row and journey.
 const LISTS = { cancelled: "Cancelled and no-show", removed: "Removed by a sync", test: "Marked test" };
 export async function openConversionList(kind) {
-  const d = openDrawer({ title: `Conversions: ${LISTS[kind] || kind}`, key: "conv-list", scope: "page", body: h("p", { class: "empty" }, "Loading…") });
+  const d = openDrawer({ title: `Conversions: ${LISTS[kind] || kind}`, key: "conv-list", scope: "page", body: h("p", { class: "empty" }, "Loading…"),
+    route: { key: "list", value: `conv-${kind}` } });
   const got = await call(`people/conversions?kind=${encodeURIComponent(kind)}`);
-  if (!d.el.isConnected) return;
-  if (!got.ok) { d.body.replaceChildren(h("div", { class: "state bad" }, h("div", null, got.error || "The list could not be loaded."))); return; }
+  if (!d.el.isConnected) return d;
+  if (!got.ok) { d.body.replaceChildren(h("div", { class: "state bad" }, h("div", null, got.error || "The list could not be loaded."))); return d; }
   const rows = got.rows || [];
   const tabs = h("div", { class: "acts", role: "group", "aria-label": "Which conversions" }, Object.entries(LISTS).map(([k, t]) =>
     h("button", { type: "button", class: `btn${k === kind ? " primary" : ""}`, "aria-pressed": String(k === kind), onclick: () => openConversionList(k) }, t)));
@@ -152,6 +155,14 @@ export async function openConversionList(kind) {
   const list = kind === "removed" ? (rows.length ? removedPart(rows) : empty("Nothing was removed."))
     : rows.length ? conversionsPart(rows) : empty("None.");
   const journeys = rows.filter((r) => (r.journey || []).length).map((r) => h("details", null, h("summary", null, `${dash(r.action || r.row?.action)} at ${at(r.at)}: ${r.journey.length} page${r.journey.length === 1 ? "" : "s"} before`),
-    h("ol", { class: "pp-trail" }, r.journey.map((j) => h("li", null, at(j.at), " ", h("span", { class: "mono" }, j.path))))));
+    h("ol", { class: "pp-trail" }, r.journey.map((j) => h("li", null, at(j.at), " ", withUrl(h("span", { class: "mono" }, j.path), j.path, { cls: "ua-after" }))))));
   d.body.replaceChildren(...[tabs, h("p", { class: "note" }, words), list, journeys.length ? sec("Journeys", ...journeys) : null].filter(Boolean));
+  return d;
+}
+
+/* list=leftout | conv-<kind>, from a link. */
+export function openListKey(value) {
+  if (value === "leftout") return openLeftOut();
+  const kind = String(value).replace(/^conv-/, "");
+  return LISTS[kind] ? openConversionList(kind) : "That list is not in this version of the page.";
 }
