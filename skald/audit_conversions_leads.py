@@ -114,7 +114,7 @@ def check_today(path: Path, site: str, tz, today: date, block: dict | None) -> l
     db = _open(path)
     try:
         got = {(a, s, bool(t)): n for a, s, t, n in db.execute(
-            f"SELECT action, stage, test, COUNT(*) FROM conversions WHERE site = ? AND "
+            f"SELECT action, stage, test <> 0, COUNT(*) FROM conversions WHERE site = ? AND "
             f"action IN {_in(LEAD_ACTIONS)} AND at >= ? AND at < ? GROUP BY 1, 2, 3",
             (site, lo, hi))}
     finally:

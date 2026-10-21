@@ -72,10 +72,13 @@ or past keep_days): never zero.
 with the identity's email and name when it had one). Pruned with
 `conversions.retention_days`.
 
-`conversions.test`: 1 for a row marked test (`skald conversions mark-test`),
-which marks every row of the same tool and reference. A test row is never
-counted: not in `conversions.json` (stages, breakdowns, abandoned, pages
-before, timeline), not by `store.day_counts`.
+`conversions.test`: 0 counted; 1 for a row marked test (`skald conversions
+mark-test`, or the site's `POST /traffic-hooks/<site>/leads/test`), which
+marks every row of the same tool and reference, and a later delivery of it;
+2 (2.19) for a row whose own lead body said `test: true`, that row only. Read
+it as `test <> 0`. A test row is never counted: not in `conversions.json`
+(stages, breakdowns, abandoned, pages before, timeline), not by
+`store.day_counts`.
 
 `conversions.label` (schema 7, 2.18): the lead hook's optional token
 (`^[a-z0-9][a-z0-9_-]{0,39}$`), NULL when none was sent or it was not one.

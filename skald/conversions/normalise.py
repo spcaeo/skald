@@ -79,7 +79,7 @@ def row(rec: dict, site: str, tool: str, received_at: str, own_hosts: set[str],
            "country": country or None, "device": dev,
            "first_touch_at": rec.get("first_touch_at") or (first or {}).get("at"),
            "visits_before": rec.get("visits_before"), "received_at": received_at,
-           "label": rec.get("label") or None}
+           "label": rec.get("label") or None, "test": rec.get("test") is True}
     if identity_full and rec.get("email"):
         out["identity"] = {"email": rec["email"], "name": rec.get("name")}
     return out

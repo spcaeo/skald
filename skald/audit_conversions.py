@@ -234,8 +234,9 @@ def _lines(spool: Path):
 
 
 def test_keys(db_path: Path, site: str) -> frozenset:
-    """{(tool, external ref)} of the rows marked test (`conversions
-    mark-test`), by this road's own SQL over the file opened read-only. A
+    """{(tool, external ref, stage)} of the rows marked test (`conversions
+    mark-test`, POST .../leads/test, or a lead body's `test: true`: that
+    stage only), by this road's own SQL over the file opened read-only. A
     test row stays in the spools; this road leaves it out of its count."""
     import sqlite3
     if not Path(db_path).is_file():
@@ -245,8 +246,9 @@ def test_keys(db_path: Path, site: str) -> frozenset:
         cols = {r[1] for r in db.execute("PRAGMA table_info(conversions)")}
         if "test" not in cols:
             return frozenset()
-        return frozenset(db.execute("SELECT DISTINCT tool, external_ref FROM conversions "
-                                    "WHERE site = ? AND test <> 0", (site,)).fetchall())
+        return frozenset(db.execute("SELECT DISTINCT tool, external_ref, stage FROM "
+                                    "conversions WHERE site = ? AND test <> 0",
+                                    (site,)).fetchall())
     finally:
         db.close()
 
@@ -254,7 +256,7 @@ def test_keys(db_path: Path, site: str) -> frozenset:
 def recount(spool: Path, site: str, tz, first: date, last: date,
             skip: frozenset = frozenset()) -> dict:
     """{local day: {(action, stage): n}} from the spool, first..last; a
-    (tool, ref) in `skip` (test_keys) is not counted."""
+    (tool, ref, stage) in `skip` (test_keys) is not counted."""
     seen: set = set()
     out: dict = {}
     for line in _lines(spool):
@@ -277,7 +279,7 @@ def recount(spool: Path, site: str, tz, first: date, last: date,
                 continue
             seen.add(key)
             day = at.astimezone(tz).date()
-            if (tool, ref) not in skip and first <= day <= last:
+            if (tool, ref, stage) not in skip and first <= day <= last:
                 per = out.setdefault(day.isoformat(), {})
                 per[(action, stage)] = per.get((action, stage), 0) + 1
     return out
@@ -329,7 +331,7 @@ def recount_beacon(spool: Path, tz, first: date, last: date,
                 kept[key] = at if last_kept is None else max(at, last_kept)
                 day = at.astimezone(tz).date()
                 ref = f"{vid}:{pair[0]}:{pair[1]}:{at.strftime('%Y-%m-%dT%H:%M:%SZ')}"
-                if ("beacon", ref) not in skip and first <= day <= last:
+                if ("beacon", ref, pair[1]) not in skip and first <= day <= last:
                     per = out.setdefault(day.isoformat(), {})
                     per[pair] = per.get(pair, 0) + 1
     return out
@@ -468,7 +470,7 @@ def findings(config: dict, folder: Path, site: str, tz, first: date, last: date,
                                                 refresh, skip))
     if leads is not None and leads.is_file():
         counted = _merge(counted, recount_leads(
-            leads, tz, first, last, frozenset(r for t, r in skip if t == LEADS_TOOL)))
+            leads, tz, first, last, frozenset(r for t, r, _ in skip if t == LEADS_TOOL)))
     return compare(stored, counted, first, last)
 
 

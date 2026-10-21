@@ -44,6 +44,8 @@ One JSON object per lead:
 | `name`, `email` | | Kept only when the site's **Leads' names and emails** is **full**; otherwise dropped |
 | `label` | optional | A short word that sorts leads of one action, such as a contact form's topic: `sales`, `support`, `partnership`. Lowercase letters, digits, `-` and `_`, at most 40, starting with a letter or digit (`Sales` is read as `sales`). Anything else is dropped: the lead is still kept, without a label, and the answer and the delivery log say so |
 
+| `test` | optional | `true` for a lead your own team made (a team account, a QA run): Skald keeps it and lists it, and never counts it. `false` or left out: a real lead. Only `true` or `false` (not `"true"`, not `1`); anything else is ignored, the lead counts, and the answer and the delivery log say so |
+
 Each stage keeps its own label: send it again with a later stage if that stage should carry it too. Pipeline (Count from: Tools) filters by label, and the lists of conversions show it as a small tag.
 
 Always send the offset. A time without one ("2026-09-25" or "2026-09-25T14:30:00") is read in the site's own time zone, and the delivery log says so. That guess is right only when your server writes local times in the same zone.
@@ -337,6 +339,108 @@ function skald_leads_since(string $since): array {
 Two cautions: never send again a lead that was deleted on request, or it comes back. And a lead older than the keeping time (400 days) is gone from the answer on purpose. A lead sent again keeps the label of its first delivery.
 
 The answers: 200 as above; 400 a parameter is wrong (the answer says which; any other parameter name is refused); 401 no signature, a wrong one, or `t` more than 5 minutes off; 404 the site is not set up or its lead hook has no secret (the same answer for both); 429 more than 60 a minute for the site (`hooks.leads_per_minute`), wait and ask again. A 403 from an install set up before 2.18 means its nginx lets only POST through to `/traffic-hooks/`: the line `limit_except POST { deny all; }` must read `limit_except GET POST { deny all; }` (INSTALL.md, DEPLOY.md).
+
+## 10. Mark leads as test
+
+Leads your own team makes, from a team account or a QA run, should not count. **Send your team's own accounts with `test: true`; to fix ones already sent, call `leads/test`.** Either way Skald keeps the lead, lists it (Leads > Left out, the person drawer, and the check above with `"test": true`), and never counts it.
+
+**When you send it.** Add `"test": true` to the body (section 2). It marks that message only: send it on every stage of a test lead (`started`, `completed`, `won`...). Sending a lead again with only `test` changed does nothing, like any repeat. Use the call below to change one Skald already has.
+
+**After you sent it.** Post the refs to mark, signed with the **same secret** and the same way as a lead (section 3):
+
+```
+POST /traffic-hooks/example.com/leads/test
+X-Skald-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<raw body>">
+
+{"refs": ["L-1001", "L-1002"], "test": true}
+```
+
+| Field | | |
+| --- | --- | --- |
+| `refs` | required | 1 to 100 of your `external_ref`s |
+| `test` | default `true` | `false` takes the mark off, and the lead counts again |
+
+It marks every stage of each ref that came through this site's lead hook (not Zapier's `json` hook, a booking tool or the lead database). And a stage you send later for a marked ref is marked too, so a team account's next steps stay out. The answer:
+
+```
+{"ok": true, "test": true, "marked": 3, "already": 0, "not_found": ["L-1002"]}
+```
+
+`marked` is how many rows changed (one per stage), `already` how many were so already, `not_found` the refs Skald has no lead for. Calling it twice is safe.
+
+curl:
+
+```
+URL='https://stats.example.com/traffic-hooks/example.com/leads/test'
+BODY='{"refs":["L-1001","L-1002"],"test":true}'
+T=$(date +%s)
+SIG=$(printf '%s.%s' "$T" "$BODY" | openssl dgst -sha256 -hmac "$SKALD_HOOK_SECRET" -hex | sed 's/^.* //')
+curl -s -X POST "$URL" -H 'Content-Type: application/json' -H "X-Skald-Signature: t=$T,v1=$SIG" --data-raw "$BODY"
+```
+
+Node (18 or later):
+
+```
+import crypto from "node:crypto";
+
+const URL = "https://stats.example.com/traffic-hooks/example.com/leads/test";
+
+// Mark (test = true) or unmark (test = false) up to 100 leads by your own ids.
+export async function markTest(refs, test = true) {
+  const body = JSON.stringify({ refs, test });
+  const t = Math.floor(Date.now() / 1000);
+  const sig = crypto.createHmac("sha256", process.env.SKALD_HOOK_SECRET).update(`${t}.${body}`).digest("hex");
+  const res = await fetch(URL, { method: "POST", body,
+    headers: { "Content-Type": "application/json", "X-Skald-Signature": `t=${t},v1=${sig}` } });
+  if (!res.ok) throw new Error(`Skald answered ${res.status}`);
+  return res.json();
+}
+```
+
+Python (standard library only):
+
+```
+import hashlib, hmac, json, os, time, urllib.request
+
+URL = "https://stats.example.com/traffic-hooks/example.com/leads/test"
+
+def mark_test(refs: list, test: bool = True) -> dict:
+    """Mark (or unmark) up to 100 leads by your own ids."""
+    body = json.dumps({"refs": refs, "test": test}).encode()
+    t = str(int(time.time()))
+    sig = hmac.new(os.environ["SKALD_HOOK_SECRET"].encode(), t.encode() + b"." + body,
+                   hashlib.sha256).hexdigest()
+    req = urllib.request.Request(URL, data=body, method="POST", headers={
+        "Content-Type": "application/json", "X-Skald-Signature": f"t={t},v1={sig}"})
+    with urllib.request.urlopen(req, timeout=10) as res:
+        return json.load(res)
+```
+
+PHP:
+
+```
+function skald_mark_test(array $refs, bool $test = true): array {
+    $url = 'https://stats.example.com/traffic-hooks/example.com/leads/test';
+    $body = json_encode(['refs' => array_values($refs), 'test' => $test]);
+    $t = time();
+    $sig = hash_hmac('sha256', $t . '.' . $body, getenv('SKALD_HOOK_SECRET'));
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $body,
+        CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json', "X-Skald-Signature: t=$t,v1=$sig"]]);
+    $answer = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($code !== 200) throw new RuntimeException("Skald answered $code");
+    return json_decode($answer, true);
+}
+```
+
+The figures follow at the next update of the dashboard: a lead marked today leaves the day it happened, even weeks ago, and comes back when unmarked. The check above (section 9) shows the change at once. Each call is in the delivery log and the audit log, with the refs it named.
+
+The answers: 200 as above; 400 the body is wrong (not JSON, no `refs`, more than 100, an empty ref, `test` not `true` or `false`, or another field), the answer says which; 401 the signature does not match, or `t` is more than 5 minutes off; 404 the site is not set up or its lead hook has no secret; 429 more than 60 calls a minute for the site, wait and try again.
+
+Not the same as section 8's test: a message with the header `X-Skald-Test: 1` is only read and checked, never kept. A lead with `"test": true` is kept, as a test lead.
 
 ## What Skald answers
 

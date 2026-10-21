@@ -47,7 +47,9 @@ The lists of what the figures leave out (`<page>/people/left-out`,
 `<page>/people/conversions?kind=cancelled|removed|test`) are for every
 member; names, emails and visitor IDs in them only for owners and admins.
 `skald conversions mark-test` writes `conversions.test` or
-`conversions.untest` rows (actor `cli`).
+`conversions.untest` rows (actor `cli`); a site's own
+`POST /traffic-hooks/<site>/leads/test` the same, with actor `hook:lead`,
+the counts and the refs it named (INTEGRATIONS-LEADS.md).
 
 ## Signing in
 

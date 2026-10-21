@@ -26,12 +26,14 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-21-2.18.1",
+  id: "2026-10-21-2.19.0",
   items: [
-    ["Leads on every site", "a site added in the dashboard showed no leads in Pipeline or the Leads tile, though they were stored and counted. Every site now shows them.", "leads-and-conversions"],
+    ["Your own test leads", "a site's server can send a lead with \"test\": true, or mark leads it already sent as test: kept and listed, never counted.", "leads-from-your-backend"],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.18.1
+    ["Leads on every site", "a site added in the dashboard showed no leads in Pipeline or the Leads tile, though they were stored and counted. Every site now shows them.", "leads-and-conversions"],
     // 2.18.0
     ["Next.js pages counted", "on a Next.js site, pages opened by a click inside the site count, once its log records Next.js's prefetch header: one line in nginx, shown in Set up this site.", "troubleshooting-connections"],
     ["Lead labels", "a lead can carry a label, such as sales or support; Pipeline (Tools) filters by it.", "leads-from-your-backend"],

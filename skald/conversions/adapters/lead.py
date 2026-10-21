@@ -27,12 +27,20 @@ with the hook's secret; refused when t is more than 5 minutes off. Body:
                   one action ("sales", "support"; conversions.LABEL), trimmed
                   and lower-cased first. Not one: the lead is kept without a
                   label and the delivery log says so (never refused for it)
+    test          optional, a JSON boolean: true keeps this delivery's row
+                  marked test (store.TEST_SENT: listed, never counted); false
+                  or absent, a real lead. Each delivery says it for itself: an
+                  earlier stage sent as test makes no later one test. Not a
+                  boolean: ignored with a note, like a bad label
 
 GET /traffic-hooks/<site>/leads (conversions/reconcile.py), the leads Skald
 holds, is signed with the same secret over the method and the request target
 (the path and the query exactly as sent; no "?" without a query):
 
     X-Skald-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.GET <target>">
+
+POST /traffic-hooks/<site>/leads/test (conversions/marks.py) marks every
+stage of some refs as test, or not; signed exactly like the lead POST.
 """
 from __future__ import annotations
 
@@ -42,6 +50,7 @@ from . import Invalid, naive, sign_timed, text, touch, verify_timed, when
 HEADER = "x-skald-signature"
 LABEL_NOTE = ("the label was not a short lowercase token (letters, digits, - or _, at most "
               "40): kept without a label")
+TEST_NOTE = "test was not true or false: ignored, kept as a real lead"
 
 
 def verify(headers: dict, body: bytes, secret: str, now: float) -> bool:
@@ -76,6 +85,14 @@ def label_of(raw) -> tuple[str | None, bool]:
     return (got, False) if LABEL.match(got) else (None, True)
 
 
+def test_of(raw) -> tuple[bool, bool]:
+    """(sent as test, True when `test` was sent but is not a JSON boolean).
+    null is as absent."""
+    if raw is None or isinstance(raw, bool):
+        return raw is True, False
+    return False, True
+
+
 def record(item: dict, tz=None) -> dict:
     """One lead object as a record. Invalid when it breaks the shape. Times
     without an offset are read in `tz`, the site's zone; `naive_at` is then
@@ -107,8 +124,9 @@ def record(item: dict, tz=None) -> dict:
     times = [item.get("at"), item.get("first_touch_at"),
              *[t.get("at") for t in (item.get("first_touch"), last) if isinstance(t, dict)]]
     label, dropped = label_of(item.get("label"))
+    test, test_dropped = test_of(item.get("test"))
     return {
-        "label": label, "label_dropped": dropped,
+        "label": label, "label_dropped": dropped, "test": test, "test_dropped": test_dropped,
         "action": action, "stage": stage, "external_ref": ref, "at": at, "vid": vid,
         "first_touch": first, "last_touch": touch(last, tz),
         "landing": text(item.get("landing"), 300), "campaign": text(item.get("campaign"), 120),

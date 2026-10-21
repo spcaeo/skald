@@ -51,6 +51,9 @@
 
 ## What's new
 
+- **2.19.0: a site marks its own test leads** ([changelog](CHANGELOG.md#2190-2026-10-21)): send a
+  lead with `"test": true`, or mark leads already sent with a signed call; kept and listed, never
+  counted.
 - **2.18.1:** leads show on every site of an install, not only the first
   ([changelog](CHANGELOG.md#2181-2026-10-21)).
 - **2.18.0: Next.js pages counted, lead labels, and a lead check** ([changelog](CHANGELOG.md#2180-2026-10-21)).
