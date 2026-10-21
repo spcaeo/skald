@@ -2,6 +2,17 @@
 
 All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versioning](https://semver.org).
 
+## 2.18.1 (2026-10-21)
+
+### Fixed
+
+- **Leads did not show for sites added in the dashboard.** Their leads were stored and counted,
+  and the lead check returned them, but Leads & sales and the Overview Leads tile looked for them
+  in the site's own state folder instead of the install's, found none, and said "no conversions
+  yet". Only the first site of an install showed its leads. Every site now reads the one store the
+  lead hook, the script tag and the booking tools write to. Seen on three sites of one install;
+  nothing was lost.
+
 ## 2.18.0 (2026-10-21)
 
 Next.js pages counted, lead labels, and a way for a site's server to check every lead reached Skald.

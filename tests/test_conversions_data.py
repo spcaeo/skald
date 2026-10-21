@@ -165,6 +165,23 @@ class Data(Server):
         self.assertIs(conversions_data.build(page), one, "once per run")
         self.assertEqual(one["withheld"], {})
 
+    def test_a_site_added_in_the_dashboard_finds_the_installs_conversions(self):
+        """Its page's live folder is its own state folder (sites/<site>/), but
+        its conversions are in the history's folder, where the hook writes:
+        before the fix every such site said "no conversions yet"."""
+        state = self.folder / "sites" / "example.com"
+        state.mkdir(parents=True)
+        from skald.store import History
+        history = History(self.folder / "history.sqlite")
+        page = SimpleNamespace(key="example.com", config=self.config, tz=UTC, today=TODAY,
+                               now=NOW + timedelta(seconds=1), live_dir=state, history=history)
+        self.assertEqual(conversions_data.store_folder(page), self.folder)
+        got = conversions_data.build(page)
+        self.assertTrue(got["available"], got.get("reason"))
+        self.assertTrue(got["set_up"]["store"])
+        lost = SimpleNamespace(**{**vars(page), "history": None, "now": NOW + timedelta(seconds=2)})
+        self.assertEqual(conversions_data.store_folder(lost), state, "no history: the live folder, as before")
+
 
 if __name__ == "__main__":
     unittest.main()
