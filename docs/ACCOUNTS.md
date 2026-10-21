@@ -110,8 +110,11 @@ and the codes.
 
 Tokens belong to an organisation and read only its sites (or the sites
 named). They look like `skald_<id>_<secret>`; the secret is shown once, only
-its hash is kept. Admins make them in Settings > API & tokens, or on the server
-with `skald token create NAME --scope ...`.
+its hash is kept. Admins make them in Settings > Connections (route `settings/api`, called
+API & tokens before; docs/help/connections.md), or on the server with
+`skald token create NAME --scope ...`. The page lists each token by what it is for, from its
+scopes ("Sending logs", "Reading figures", "Reading figures and addresses", "AI assistant
+(MCP)"), and revokes it with a confirm.
 
 | Scope | Lets the token |
 | --- | --- |

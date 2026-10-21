@@ -469,19 +469,24 @@ class Cli(unittest.TestCase):
         self.assertIsNotNone(ship.url_problem("http://www.example.com/traffic-ingest/x"))
         self.assertIsNotNone(ship.url_problem("ftp://www.example.com/x"))
 
-    def test_token_file_warns_when_readable_by_others(self):
+    def test_token_file_warns_only_when_open_to_others(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "token"
             path.write_text(TOKEN + "\n")
             os.chmod(path, 0o644)
             err = io.StringIO()
             self.assertEqual(ship.read_token(str(path), err), TOKEN)
-            self.assertIn("readable", err.getvalue())
+            self.assertIn("open to others", err.getvalue())
             self.assertNotIn(TOKEN, err.getvalue())
-            os.chmod(path, 0o600)
+            for quiet in (0o600, 0o640, 0o400, 0o440):
+                os.chmod(path, quiet)
+                err = io.StringIO()
+                ship.read_token(str(path), err)
+                self.assertEqual(err.getvalue(), "", oct(quiet))
+            os.chmod(path, 0o660)
             err = io.StringIO()
             ship.read_token(str(path), err)
-            self.assertEqual(err.getvalue(), "")
+            self.assertIn("open to others", err.getvalue())
 
     def test_main_once(self):
         with tempfile.TemporaryDirectory() as tmp:

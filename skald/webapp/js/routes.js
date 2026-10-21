@@ -39,7 +39,7 @@ export const REDIRECTS = {
   "health/speed": ["site/speed"], speed: ["site/speed"],
   "health/quality": ["site/quality"], quality: ["site/quality"],
   // Short names of settings pages and of Help (unchanged by the sections)
-  ours: ["settings/internal"], internal: ["settings/internal"], api: ["settings/api"], tokens: ["settings/api"], "settings/tokens": ["settings/api"],
+  ours: ["settings/internal"], internal: ["settings/internal"], api: ["settings/api"], tokens: ["settings/api"], "settings/tokens": ["settings/api"], connections: ["settings/api"], "settings/connections": ["settings/api"],
   team: ["settings/team"], users: ["settings/users"], account: ["settings/account"], billing: ["settings/billing"], security: ["settings/security"],
   audit: ["settings/audit"], mail: ["settings/mail"], reports: ["settings/reports"], retention: ["settings/retention"], integrations: ["settings/integrations"], sites: ["settings/sites"],
   guides: ["help"], docs: ["help"], "settings/help": ["help"],

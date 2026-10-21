@@ -103,12 +103,12 @@ On [Leads & sales > Pipeline](#sales/pipeline): leads per day by kind, at which 
 
 - **Export what you see** above any table: its matching rows, in their order, with the columns shown, as a CSV.
 - **Export** in the top bar: every table on the tab as CSV files in a ZIP, the tab as JSON, a printable report, or the report builder for several tabs at once.
-- **API**: every figure as JSON, for a script. Tokens are made in **Settings > Team & access > API & tokens**. See [API](api.md).
+- **API**: every figure as JSON, for a script. Tokens are made in **Settings > Team & access > Connections**. See [API](api.md) and [Connections](connections.md).
 - **MCP**: let an AI assistant read your figures. See [MCP](mcp.md).
 
 ## Who can see visitor addresses?
 
-Only people signed in to your organisation: [Site > Requests](#site/requests) (the last 6 hours), today's AI activity (on AI & bots > Assistants, when the period is Today), and the internal-address list (admins). When your site keeps IP addresses, owners and admins also see each kept visit's address in the person search; every search goes to the audit log. Stored history never holds an address. API tokens see addresses only with the private scope. See [Privacy](privacy.md).
+Only people signed in to your organisation: [Site > Requests](#site/requests) (the last 6 hours), today's AI activity (on AI & bots > Assistants, when the period is Today), and the internal-address list (admins). When your site keeps IP addresses, owners and admins also see each kept visit's address in the person search; every search goes to the audit log. Stored history never holds an address. API tokens see addresses only with **Reading visitor addresses**. See [Privacy](privacy.md).
 
 ## How do I delete someone's data on request?
 

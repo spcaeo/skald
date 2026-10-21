@@ -51,6 +51,13 @@
 
 ## What's new
 
+- **2.16.0: connect a site in a few guided steps** ([changelog](CHANGELOG.md#2160-2026-10-21)).
+  Settings > Connections sends a site's visits to Skald, reads your figures (API) or connects an
+  AI assistant, each as a short dialog with everything filled in and a **Test** at the end. Add a
+  site in five steps you can leave and resume. An install kit with a check script that says what
+  is wrong in plain words, and a private link to share the steps with your developer.
+- **2.15.0: shortened IP addresses and the wording for your privacy notice**
+  ([changelog](CHANGELOG.md#2150-2026-10-20)).
 - **2.14.0: AI answers** ([changelog](CHANGELOG.md#2140-2026-10-18)). What ChatGPT, Perplexity,
   Gemini and Claude answer to your customers' questions, per tracking profile (a place and a
   language): whether they name you, the pages they cite, the competitors they name, and the
@@ -177,7 +184,8 @@ counts, and counted twice.
 ### Works where your site lives
 Your own server's log, or the host's: **Vercel and Netlify log drains**, a **Cloudflare Worker**
 that reports pages served from cache on any plan, CloudFront and Fastly logs, or a small shipper
-from any server. Step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md).
+from any server. Settings > Connections walks you through each one, with an install kit and a
+**Test connection** button; step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md).
 
 </td>
 </tr>
@@ -392,6 +400,22 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
 The whole dashboard with 60 days of sample data for a made-up site, in your browser: today's Overview,
 the visitor drawer, cities, retention and crawl health, AI answers (made-up answers), Real time with its world map, AI & bots, flags, leads and bookings, the left-out leads and the removed conversions included.
 Nothing to install. Settings, saving and the person search need your own Skald.
+
+### New in 2.16.0: connect a site, step by step
+
+<p align="center">
+  <img src="docs/screenshots/connections.png" alt="Settings, Connections: three tasks, send this site's visits to Skald, read your figures (API) and connect an AI assistant (MCP), each with a Set up button; below, your tokens and shared links" width="900"><br>
+  <strong>Connections.</strong> Three tasks, each a short guided dialog with a Test at the end.
+</p>
+
+| | |
+| :---: | :---: |
+| <img src="docs/screenshots/connections-install.png" alt="Send this site's visits to Skald, step 3 of 4, Install: download the install kit (.zip), the copy-and-paste commands to unpack it and run sudo bash install.sh, and Share with your developer" width="440"><br>**Install, filled in.** The kit, the commands, and a private link for your developer. | <img src="docs/screenshots/add-site-wizard.png" alt="Add a site, step 3 of 5, how visits reach Skald: a Linux server with Docker (recommended), the same without Docker, Cloudflare, Vercel or Netlify, or only the script tag" width="440"><br>**Add a site in five steps.** Close it any time; it continues where you left off. |
+
+<p align="center">
+  <img src="docs/screenshots/setup-checklist.png" alt="Overview, Set up this site: logs arriving, visits count as people and countries shown, then the script tag, the lead hook, mail and privacy, each open line with a Set up button" width="900"><br>
+  <strong>Set up this site.</strong> Every open line has a Set up button that walks you through it.
+</p>
 
 ### New in 2.14.0: AI answers
 

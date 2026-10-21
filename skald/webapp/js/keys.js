@@ -26,14 +26,21 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-20-2.15.0",
+  id: "2026-10-21-2.16.0",
   items: [
-    ["Shortened addresses", "keep each visit's IP address with its last part removed: country, city and counts still work, and no exact address is kept. Settings > Data retention > People.", "privacy"],
-    ["Wording for your privacy notice", "a short text to paste into your privacy page, made from what this site really keeps, with a Copy button. Settings > Data retention.", "privacy"],
-    ["FAQ", "does Skald count visitors who decline or ignore the cookie banner? Yes: the answer is in Help > FAQ.", "faq"],
+    ["Connections", "Settings > Connections: send a site's visits to Skald, read your figures (API) or connect an AI assistant, each in a few guided steps with a Test.", "connections"],
+    ["Add a site, step by step", "five steps from the address to \"Connected\"; close it any time and continue where you left off.", "connections"],
+    ["Install kit", "a zip with the installer, a check script that says what is wrong in plain words, and the uninstaller.", "connections"],
+    ["Share with your developer", "a private link with one task's steps, filled in, that ends after 7 days or when you revoke it.", "connections"],
+    ["Set up this site", "each open line on Overview now has a Set up button that walks you through it.", "connections"],
+    ["Troubleshooting", "the common problems and their fixes, in Help.", "troubleshooting-connections"],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.15.0
+    ["Shortened addresses", "keep each visit's IP address with its last part removed: country, city and counts still work, and no exact address is kept. Settings > Data retention > People.", "privacy"],
+    ["Wording for your privacy notice", "a short text to paste into your privacy page, made from what this site really keeps, with a Copy button. Settings > Data retention.", "privacy"],
+    ["FAQ", "does Skald count visitors who decline or ignore the cookie banner? Yes: the answer is in Help > FAQ.", "faq"],
     // 2.14.1
     ["Crawl health", "the table fits the screen: Kind and Fetches per page start hidden; Columns shows them again.", "crawl-health"],
     ["Leads won or lost", "a lead counts once, on the day it was completed or paid; a later won or lost is shown apart and changes no count.", "leads-and-conversions"],
@@ -148,7 +155,7 @@ const NEW = {
     ["Conversions", "bookings, forms and payments: started, completed and abandoned, where they came from, first, last and assisted touch, and time to convert.", "leads-and-conversions"],
     ["Webhooks", "Calendly, Cal.com, HubSpot, Typeform, Stripe, Zapier or Make, and your own site send signed events; a test button; webhooks out to your CRM or Slack.", "webhooks"],
     ["Tracking script", "skald.js: one line in your pages for clicks, form steps and bookings; consent mode, other domains, and the visitor ID on Calendly links.", "tracking-script"],
-    ["API & tokens", "tokens with scopes, made and revoked in Settings; the MCP address to copy.", "api"],
+    ["Connections", "send a site's visits to Skald, read the figures with a token, connect an AI assistant; your tokens, made and revoked in Settings.", "api"],
     ["MCP", "ask Claude, ChatGPT or another assistant about your traffic in plain words. Read-only.", "mcp"],
     ["Yesterday", "a period of its own in the top bar."],
     ["Funnel history", "a saved funnel is counted every day, by source and device, with drop-off and time to go through.", "funnels-and-goals"],

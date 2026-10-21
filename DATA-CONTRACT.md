@@ -534,6 +534,42 @@ sources, assistants, countries; read for a `page=` filter) and kind
 `page_counts` (the same pages, compact: `{path: [views, readers, ai_asked,
 ai_training, search]}`; read for the page views of an unfiltered compare).
 
+## Connections status (helper API)
+
+`GET <page>/sites/status?site=<name>` (owner or admin; `skald/connections_api.py`):
+what has reached Skald for one site, for the Test in Settings > Connections and in Add a
+site. Not a data file and not a figure: counts of lines received, never visits.
+
+```json
+{"ok": true, "site": "example.com", "ingest_enabled": true,
+ "send_url": "https://stats.example.com/traffic-ingest/example.com", "folder": true,
+ "received": {"batches": 42, "accepted": 51200, "rejected": 3, "last_at": "...", "shippers": 1},
+ "last_batch": {"at": "2026-10-21T10:42:05Z", "lines": 120, "rejected": 0, "shipper": "a1b2c3"},
+ "last_contact": "2026-10-21T10:42:05Z",
+ "today": {"day": "2026-10-21", "lines": 1240},
+ "last_refusal": {"at": "2026-10-21T10:41:00Z", "code": 403, "reason": "wrong_site",
+                  "words": "The token is not for this site."},
+ "verify": {"state": "verified", "verified_at": "...", "method": "dns"},
+ "beacon": {"day": "2026-10-21", "updated_at": "...", "events": 15, "last_open_at": "..."},
+ "setup": {"name": "example.com", "org_id": 1, "step": 5, "method": "docker", "verified": true,
+           "token_id": "ab12cd34", "started_at": "...", "updated_at": "...", "updated_by": "...",
+           "done_at": "...", "done": true},
+ "now": "2026-10-21T10:44:00Z"}
+```
+
+- `received`: the ingest folder's totals (`ingest_log.summary`), null with no folder.
+- `last_batch`, `last_contact`, `today`, `last_refusal`: the site's
+  `<history folder>/ingest-status/<site>.json` (`ingest_status.py`; docs/INGEST.md, "What
+  the endpoint notes for the Test"), each null until it happened. `today.day` is the UTC
+  day; a file from an earlier day reads `lines: 0`. `reason` is one of `ingest_status.REASONS`,
+  `words` its plain sentence. No address, user agent, token or log line, ever.
+- `verify`: null for a site with no check; pending: `{"state":"pending","token","txt","meta"}`.
+- `beacon`: null when the script tag is off on the install; else the newest day's events
+  kept and when its counters and the last page open were written.
+- `setup`: the Add a site row (`accounts/site_setup.py`), or null. `token_id` is the
+  sending token's id, never the token.
+- 403 for a viewer, 404 for a site of another organisation.
+
 ## Page lifecycle
 
 What happened to a page since it was published.

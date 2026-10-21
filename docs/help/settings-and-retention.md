@@ -15,7 +15,7 @@ A page you may not change is shown read-only, with the reason beside each field.
 | Group | Pages |
 | --- | --- |
 | You | Your account |
-| Team & access | Team, API & tokens (Users, on a server with one shared login) |
+| Team & access | Team, Connections (Users, on a server with one shared login) |
 | This site | Sites, Internal traffic, Data retention, Mail, Reports, Integrations, AI answers |
 | Organisation | Add or remove sites, Security, Audit log, Billing |
 
@@ -24,7 +24,7 @@ A page you may not change is shown read-only, with the reason beside each field.
 These pages have guides of their own:
 
 - Your account and Team: [Sign-in and team](sign-in-and-team.md).
-- API & tokens: [API](api.md) and [MCP](mcp.md).
+- Connections (called API & tokens before): [Connections](connections.md), [API](api.md) and [MCP](mcp.md).
 - Internal traffic: [Internal traffic](internal-traffic.md).
 - Integrations: [Tracking script](tracking-script.md) and [Webhooks](webhooks.md).
 - Reports: [Client reports](client-reports.md).
@@ -178,7 +178,9 @@ Press **Save**. Owners and admins can change the logo; everyone else sees it.
 
 ## Add or remove sites
 
-[Add or remove sites](#settings/sitesadmin) lists your organisation's sites. If your server offers it, an admin can add a site here. A new site gets a page at once, with a short "Getting ready" note until its first figures arrive.
+[Add or remove sites](#settings/sitesadmin) lists your organisation's sites. If your server offers it, an admin adds a site here with **Add a site, step by step**: the site's address, proof it is yours, how its visits reach Skald, the install, and a test. You can stop at any step and continue later. A site not finished shows **Setup: step 3 of 5, continue**; a finished one that has received nothing for a day shows **No visits yet: test the connection**. See [Connections](connections.md), "Add a site, step by step".
+
+A new site gets a page at once, with a short "Getting ready" note until its first figures arrive.
 
 Only an owner can remove a site. A removed site stops being processed. Its data is kept until the server admin deletes it.
 

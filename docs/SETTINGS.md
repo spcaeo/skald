@@ -290,15 +290,45 @@ origin and the session's `X-Skald-CSRF` value.
 | GET `<page>/settings/report-log?id=` | admin | `{sends}`: when, started by, period, addresses, ok, detail |
 | GET, POST `<page>/settings/agency-logo` | admin | the organisation's logo (404: none); POST `{data: base64}` (PNG or JPEG, 256 KB at most) or `{data: null}` to remove |
 | GET `<page>/settings/audit?action=&limit=&format=csv` | admin | `{entries, actions}` or a CSV file; install admins see every organisation |
-| GET `<page>/sites` | every member | the organisation's sites: config file or dashboard, active or removed, log received |
-| POST `<page>/sites/add` | admin | `{host, timezone?, format?}` -> the site, an ingest token (shown once), the shipper command, the tag. Needs `ingest.enabled` (docs/INGEST.md) |
+| GET `<page>/sites` | every member | the organisation's sites: config file or dashboard, active or removed, log received. To admins also `kit {docker, systemd, why, image, ship_path}`, `api_base`, `mcp_url`, `mcp_enabled`, `beacon_on`, and per site `setup` and `quiet` (below) |
+| POST `<page>/sites/add` | admin | `{host, timezone?, format?, token?}` -> the site, an ingest token (shown once), the shipper command, the tag. `token: false` makes no token (the Add a site wizard makes a named one later). Needs `ingest.enabled` (docs/INGEST.md) |
 | POST `<page>/sites/token` | admin | `{name}`: a new ingest token for one of the organisation's sites |
 | POST `<page>/sites/remove` | owner | `{name, confirm: name}`: a dashboard site stops being processed; data kept until `skald site purge` |
 | POST `<page>/sites/verify` | admin | `{name}`: looks for the site's `skald-verify` token (DNS TXT or the home page's meta tag); 10 checks an hour per site |
+| GET `<page>/sites/status?site=<name>` | admin | what has reached Skald for the site, for the Test in Settings > Connections (DATA-CONTRACT.md, "Connections status") |
+| POST `<page>/sites/kit` | admin | `{site, method: docker\|systemd, include_token?, token?}` -> the install kit, `application/zip` (docs/INGEST.md, "The install kit and check.sh"). The token goes in only with `include_token: true` and a valid sending token of that site; else 400 |
+| POST `<page>/sites/setup` | admin | `{name, step?, method?, token_id?, done?}` -> `{setup}`: the Add a site wizard's progress (`accounts/site_setup.py`; audit `site.setup`). A method chosen for a dashboard site that has received nothing sets its format (`cloudflare`: `edge_json`, else `auto`; audit `site.format`) |
+| POST `<page>/sites/share` | admin | `{site, task: send\|script\|hook, method?, days: 1\|7\|30}` -> `{link, ref, expires_at, ...}`: a "Share with your developer" link, shown once (`share_links.py`; audit `share.create`) |
+| GET `<page>/sites/shares` | admin | `{shares: [{ref, site, task, method, created_at, expires_at, state, views, viewed_at, revealed_at}]}` |
+| POST `<page>/sites/unshare` | admin | `{ref}`: revoke a link (audit `share.revoke`) |
+| GET `/traffic-auth/setup/<id>` and `/info`, `/status`; POST `/reveal`, `/kit`, `/test` | anyone with the link | the shared page (`share_api.py`, `share_page.py`): one task for one site; the secret made and shown once (`share.reveal`); every view `share.view`; rate-limited per caller in memory; 410 once expired or revoked |
 | GET `<page>/logo` | every member | the logo as an image (`?src=fetched\|upload` for one stored file); 404 while the site shows its letter. Also in basic mode |
 | GET `<page>/logo/state` | every member | `{source, color, colors, letter, logo, found, checked_at, next_check, error, upload, hosts, editable, reason}` |
 | POST `<page>/logo/upload` | admin | `{data: base64, name}`: PNG, ICO or a safe SVG, square, at least 64 x 64, at most 256 KB; sets `site.logo.source` to `upload` |
 | POST `<page>/logo/check` | admin | asks the site for its icon now; once a minute per site (429 after) |
+
+The three routes after `sites/verify` are `skald/connections_api.py`; they sit under
+`sites/` so the nginx route every install already has reaches them. `setup` in the `sites`
+answer is the site's wizard row (or absent); `quiet` is true for a site whose set-up is done
+and that nothing (no batch, no script-tag event) reached for 24 hours.
+
+## The install kit's image (config only)
+
+Settings > Connections offers a shipper install kit (docs/INGEST.md). Two keys say what the
+Docker kit runs. They are read from `config.yml` or the environment only; no page changes
+them.
+
+| Key | Values | Environment variable | Default |
+| --- | --- | --- | --- |
+| `ingest.kit_image` | a Docker image name, like `ghcr.io/<owner>/<image>:2` | `SKALD_KIT_IMAGE` | none: the page offers no Docker kit and says why |
+| `ingest.kit_ship_path` | the shipper's path inside that image | `SKALD_KIT_SHIP_PATH` | `/opt/skald/tools/skald-ship.py` (the Docker image: its own app folder) |
+
+The config key wins over the variable. The Docker image's entrypoint sets both variables
+(`kit_defaults` in `docker/entrypoint.py`): the image itself at its major version, and the
+shipper inside it, unless the environment already names them. The kit without Docker
+(systemd) needs no image, only `tools/skald-ship.py` on the server.
+
+## Sites added in the dashboard
 
 Sites added in Settings > Add or remove sites live in accounts.sqlite (`site_config`), not in
 config files; their host names, views, time zone and log paths are then changed on the Sites

@@ -187,6 +187,10 @@ height:100%;padding:22px;border:1.5px dashed var(--gap);border-radius:12px;color
 font-size:16px;font-weight:600;text-decoration:none}
 .pk-add:hover{color:var(--ink);border-color:var(--ink-3)}
 .pk-note{margin:0;font-size:13px;color:var(--ink-3)}
+.pk-setup{display:block;margin-top:8px;padding:8px 12px;border:1px solid var(--gap);
+border-radius:8px;background:var(--sunk);color:var(--ink);font-size:13.5px;font-weight:600;
+text-decoration:none}.pk-setup:hover{border-color:var(--ink-3)}
+.pk-grid>li{display:flex;flex-direction:column}.pk-grid>li>.pk-card{height:auto;flex:1}
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);
 white-space:nowrap}
 .pk-empty{padding:22px;border:1px solid var(--rule);border-radius:12px;background:var(--surface)}
@@ -240,7 +244,16 @@ def card(site: dict) -> str:
             + _figure(t.get("visitors"), "visitor", "visitors", why)
             + _figure(t.get("leads"), "lead", "leads", why)
             + _figure(t.get("demos"), "demo booked", "demos booked", why)
-            + "</dl></a></li>")
+            + "</dl></a>" + badge(site) + "</li>")
+
+
+def badge(site: dict) -> str:
+    """The wizard's link under a card: "Setup: step 3 of 5, continue", or
+    "No visits yet: test the connection" (helper_sessions.py fills it)."""
+    got = site.get("badge") or {}
+    if not got.get("href") or not got.get("words"):
+        return ""
+    return f'<a class="pk-setup" href="{esc(got["href"])}">{esc(got["words"])}</a>'
 
 
 def lede(sites: list[dict]) -> str:

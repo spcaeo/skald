@@ -1,6 +1,7 @@
 // The tab registry: one render function per route, and the menu's icons.
 
-import { api, users } from "./settings.js";
+import { users } from "./settings.js";
+import connections from "./connections.js";
 import ours from "./ours.js";
 import team from "./team.js";
 import account from "./account.js";
@@ -18,7 +19,7 @@ import { TAB, SECTION_ICONS } from "../sections.js";
 // The five sections' tabs come from the registry (js/sections.js, js/tabs/s-*.js); Settings'
 // pages, Help and About are here.
 export const TAB_RENDER = { ...Object.fromEntries(Object.entries(TAB).map(([k, t]) => [k, t.render])),
-  "settings/internal": ours, "settings/api": api, "settings/users": users,
+  "settings/internal": ours, "settings/api": connections, "settings/users": users,
   "settings/team": team, "settings/account": account, "settings/retention": retention, "settings/mail": mail, "settings/reports": reports,
   "settings/sites": sites, "settings/sitesadmin": sitesadmin, "settings/integrations": integrations, "settings/aianswers": aiAnswersSettings, "settings/security": security, "settings/audit": auditlog, "settings/billing": billing, help, about };
 

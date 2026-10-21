@@ -79,7 +79,10 @@ prefix, never the value. A listing, not a figure.
 ### Sessions mode (`access.mode: sessions`, docs/ACCOUNTS.md)
 
 Tokens belong to an organisation and read only its sites, or the sites named.
-Admins make them in Settings > API & tokens, or on the server:
+Admins make them in Settings > Connections (route `settings/api`; called API & tokens
+before), or on the server. The page's card "Read your figures (API)" makes a `read` token for
+the current site (with `read_private` when "Can also read visitor addresses" is ticked) and
+tests it against `overview`; "Make a token by hand" takes any sites and scopes:
 
 ```sh
 skald token create "Weekly sheet" --scope read --site example.com

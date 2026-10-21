@@ -14,7 +14,9 @@ You need three things:
 
 - **MCP switched on for your server.** Whoever runs your Skald server turns it on. If it is off, the address below answers "MCP is not switched on here".
 - **Team accounts.** MCP works only on servers where people sign in with their own accounts. It is not available on servers with one shared login.
-- **A token with the MCP scope.** Only an owner or admin can make one.
+- **A token for the assistant** (the MCP scope). Only an owner or admin can make one.
+
+The quickest way is the card **Connect an AI assistant (MCP)** in [Connections](#settings/api). Its **Set up** button makes the token, shows what to paste where, and tests it. This guide has each step in full.
 
 ## The address to use
 
@@ -24,23 +26,24 @@ The MCP address is your dashboard's address, followed by `/traffic-mcp`:
 https://analytics.example.com/traffic-mcp
 ```
 
-Copy yours from **Settings > Team & access > API & tokens**, under **For an AI assistant (MCP)**. The same box has the Claude Code command, ready to copy.
+Copy yours from **Settings > Team & access > Connections** > **Connect an AI assistant (MCP)**, step **Connect**. That step has the Claude Code command and the Claude Desktop config too, with your token filled in.
 
 > The address is the same for every site on your server. The token decides which sites the assistant may read.
 
 ## Make a token for the assistant
 
-1. Open **Settings > Team & access > API & tokens**, or go to [API & tokens](#settings/api).
-2. Under **Make a token**, type a **Name**, for example "Claude".
-3. Under **Sites it may read**, tick the sites the assistant may read.
-4. Under **Scopes**, tick **MCP**. You can untick **Read** if this token is only for the assistant.
-5. Leave **Private** off. With it on, the assistant can see visitor addresses in today's AI activity and look a person up (`find_person`: their visits, emails and names). Turn it on only if you truly need that.
-6. Press **Make token** and copy the token. It is shown only once.
-7. Press **I have copied it**.
+1. Open [Connections](#settings/api) and press **Set up** on **Connect an AI assistant (MCP)**.
+2. Keep the **Name** it suggests, or type one, for example "Claude".
+3. Press **Make the token** and copy the token. It is shown only once.
+4. Press **Next** for the address and the set-up of each assistant, then **Next** again to **Test** it.
+
+That token reads the site you are on, and sees no visitor addresses. For an assistant that reads several sites, open **Make a token by hand** under **Your tokens**: tick the **Sites**, and **AI assistant (MCP)** under **What it may do**.
+
+Tick **Reading visitor addresses** there only if you truly need it. With it, the assistant can see visitor addresses in today's AI activity and look a person up (`find_person`: their visits, emails and names).
 
 The token looks like `skald_<id>_<secret>`. In every step below, put your own token where you see `skald_<id>_<secret>`.
 
-See [The read-only API](api.md) for more on tokens.
+See [Connections](connections.md) and [The read-only API](api.md) for more on tokens.
 
 ## Connect Claude Code
 
@@ -114,7 +117,7 @@ The assistant chooses these tools itself. Dates are in your site's own time zone
 | `data_quality` | Per day: whether the log was read whole and passed its checks |
 | `site_health` | Open alerts, heartbeat uptime, errors today, late runs, page speed |
 | `conversions` | Demos, forms, sign-ups and payments by stage: started, completed, abandoned, won, lost. The completed ones and the leads, by source, first touch, landing page, country, campaign, device or tool |
-| `find_person` | One person by IP address, email, visitor ID or lead: their visits, leads and conversions. Only with **Private**; each search goes to the audit log |
+| `find_person` | One person by IP address, email, visitor ID or lead: their visits, leads and conversions. Only with **Reading visitor addresses**; each search goes to the audit log |
 
 It also offers a ready prompt, **weekly_report**, which asks the assistant for a short weekly report.
 
@@ -146,23 +149,26 @@ Skald gives the assistant the same rules the dashboard follows:
 
 - **Read-only.** Every tool only reads. The assistant cannot change settings, delete data, or add anything.
 - **Only your sites.** The token reads only your organisation's sites, and only the ones you ticked. Every tool checks this again on each call.
-- **No addresses by default.** Without **Private**, no answer carries a visitor's address, and the assistant cannot look a person up.
-- **Turn it off at once.** To cut off an assistant, revoke its token: open **Settings > Team & access > API & tokens**, press **Revoke**, then **Yes, revoke**. It stops working immediately.
+- **No addresses by default.** Without **Reading visitor addresses**, no answer carries a visitor's address, and the assistant cannot look a person up.
+- **Turn it off at once.** To cut off an assistant, revoke its token: open **Settings > Team & access > Connections**, find it under **Your tokens**, press **Revoke**, then **Yes, revoke**. It stops working immediately.
 - **Tied to the maker.** If the person who made the token leaves the team or stops being an admin, the token stops too.
 - **Keep the token secret.** It sits in your assistant's settings. Do not paste it into a chat or a shared file.
 
 ## If it does not connect
 
+First press **Test** in the dialog's last step. It says in words what is wrong. Every answer is in [If a connection does not work](troubleshooting-connections.md).
+
 | What you see | What to check |
 | --- | --- |
 | "MCP is not switched on here" | Ask whoever runs your server to switch MCP on |
-| 401, "Unauthorized" | The token is wrong, revoked, or has no **MCP** scope. Make a new one with **MCP** ticked |
-| "this token is not for that site" | Tick that site when you make the token |
+| 401, "Unauthorized" | The token is wrong, revoked, or has no MCP scope. Make a new one with **Connect an AI assistant (MCP)** |
+| "this token is not for that site" | Make the token from that site's page, or tick that site in **Make a token by hand** |
 | 403, "this Origin may not call the MCP server" | You are calling from a web page. Use an assistant app or command line instead |
 | 405 | The client tried to open an event stream. Pick the HTTP (Streamable HTTP) transport |
 
 ## Related guides
 
+- [Connections](connections.md): the page, its dialogs and Your tokens.
 - [The read-only API](api.md): tokens and scopes in full.
 - [Sign-in and team](sign-in-and-team.md): who is an admin.
 - [Privacy](privacy.md): what holds visitor addresses.

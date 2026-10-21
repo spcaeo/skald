@@ -19,14 +19,15 @@ Both ways show exactly the same files.
 
 ## Where to find it
 
-Open **Settings > Team & access > API & tokens**, or go straight to [API & tokens](#settings/api). Settings opens from the gear at the foot of the sidebar.
+Open **Settings > Team & access > Connections**, or go straight to [Connections](#settings/api). Settings opens from the gear at the foot of the sidebar. The page was called **API & tokens** before; old links still work.
 
-The page shows:
+For the API, the page has:
 
-- the address of the overview file for this site, ready to copy, both for a signed-in browser and for a token;
-- a curl command for each, ready to copy;
-- **Files this page serves**: every file name you can put in place of `overview`;
-- the list of tokens, and the form to make a new one (admins only).
+- the card **Read your figures (API)**: its **Set up** button makes a token, shows the base address, a curl command with your token, and the files this site serves, then tests the token (admins only);
+- **Your tokens**: every token of your organisation (admins only);
+- **Quick look while you are signed in**, folded at the foot: the address of the overview file in this browser, and every file name you can put in place of `overview`.
+
+The whole page is explained in [Connections](connections.md).
 
 ## Tokens
 
@@ -44,20 +45,20 @@ Only an owner or an admin of the organisation can make, see or revoke tokens. A 
 
 ### Make a token
 
-1. Open **Settings > Team & access > API & tokens**.
-2. Under **Make a token**, type a **Name** that says what it is for, for example "Weekly sheet".
-3. Under **Sites it may read**, tick each site the token may read. At least one is needed.
-4. Under **Scopes**, tick what the token may do. **Read** is ticked for you. The scopes are explained below.
-5. Leave **Private** off unless the script really needs visitor addresses.
-6. Press **Make token**.
-7. Copy the token from the green box. It is shown only this once.
-8. Press **I have copied it**.
+1. Open [Connections](#settings/api) and press **Set up** on **Read your figures (API)**.
+2. Keep the **Name** it suggests, or type one that says what it is for, for example "Weekly sheet".
+3. Leave **Can also read visitor addresses** off unless the script really needs them.
+4. Press **Make the token**.
+5. Copy the token from the green box. It is shown only this once.
+6. Press **Next** for the address and a curl command, then **Next** again to **Test** it.
+
+The token made there reads the site you are on. For a token that reads several sites, or does several things, open **Make a token by hand** under **Your tokens**: tick the **Sites** and what it may do, then press **Make token**.
 
 > Skald keeps only a fingerprint of the token, never the token itself. If you lose it, nobody can show it to you again. Revoke it and make a new one.
 
 ### The token list
 
-The list shows each token's **Name**, **Sites**, **Scopes**, when it was **Made** and by whom, and when it was **Last used**. The token itself is never shown again.
+**Your tokens** shows each token's **Name**, **What it is for** (in words, such as "Reading figures"), **Sites**, when it was **Made** and by whom, and when it was **Last used**. The token itself is never shown again.
 
 ### How long a token lasts
 
@@ -70,8 +71,8 @@ The second rule means a token stops at once when its maker leaves the team. Make
 
 ### Revoke a token
 
-1. Open **Settings > Team & access > API & tokens**.
-2. Find the token in the list and press **Revoke**.
+1. Open [Connections](#settings/api).
+2. Find the token under **Your tokens** and press **Revoke**.
 3. Press **Yes, revoke**.
 
 Every script using it stops at once. Revoking cannot be undone.
@@ -82,15 +83,14 @@ A scope is what a token may do. A token can have more than one.
 
 | Scope | Label in the app | What it allows |
 | --- | --- | --- |
-| `read` | Read | Read every figure these pages show, as JSON, through the API |
-| `read_private` | Read private files | Also read the two files that hold visitor addresses, `requests` and `ai_activity`, and look a person up |
-| `mcp` | MCP | Let an AI assistant ask about your traffic through the MCP server |
+| `read` | Reading figures | Read every figure these pages show, as JSON, through the API |
+| `read_private` | Reading visitor addresses | Also read the two files that hold visitor addresses, `requests` and `ai_activity`, and look a person up |
+| `mcp` | AI assistant (MCP) | Let an AI assistant ask about your traffic through the MCP server |
+| `ingest` | Sending logs | Send a site's log lines into Skald. It reads nothing |
 
-The **Private** box on the form does the same as **Read private files**. Ticking either one is enough.
+The box **Can also read visitor addresses** in the API dialog adds **Reading visitor addresses**. A sending token is made in **Send this site's visits to Skald** (see [Connections](connections.md)).
 
-There is a fourth scope, `ingest`. It sends log lines into Skald and reads nothing. You do not make it on this page; it comes with adding a site.
-
-> A token with only **MCP** cannot read the API, and a token with only **Read** cannot be used by an AI assistant. Tick both if one token must do both.
+> A token with only **AI assistant (MCP)** cannot read the API, and a token with only **Reading figures** cannot be used by an AI assistant. Use **Make a token by hand** and tick both if one token must do both.
 
 ## The addresses to call
 
@@ -114,7 +114,7 @@ https://analytics.example.com/traffic/<site>/<view>/api/v1/<file>
 - `<view>` is a part of the site, such as `us-english`. Leave it out for the whole site.
 - `<file>` is a file name without `.json`, for example `overview`.
 
-The signed-in address also lists the files a page has: end it at `api/v1/`. The token address has no list; use **Files this page serves** on the API & tokens page instead.
+The signed-in address also lists the files a page has: end it at `api/v1/`. The token address has no list; use the list in the API dialog's **Use it** step, or under **Quick look while you are signed in**, instead.
 
 ## The main files
 
@@ -135,11 +135,11 @@ The signed-in address also lists the files a page has: end it at `api/v1/`. The 
 | `health` | Server health |
 | `alerts` | Open alerts |
 | `ours` | Your own traffic and the heartbeat |
-| `ai_activity` | What AI assistants did (holds addresses: needs **Read private files**) |
-| `requests` | The recent request log (holds addresses: needs **Read private files**) |
-| `people?q=...` | One person by IP address, email, visitor ID or lead: their visits, leads and conversions, linked. Needs **Read private files**; each search goes to the audit log |
+| `ai_activity` | What AI assistants did (holds addresses: needs **Reading visitor addresses**) |
+| `requests` | The recent request log (holds addresses: needs **Reading visitor addresses**) |
+| `people?q=...` | One person by IP address, email, visitor ID or lead: their visits, leads and conversions, linked. Needs **Reading visitor addresses**; each search goes to the audit log |
 
-The API & tokens page lists every file your site really has.
+The Connections page lists every file your site really has.
 
 ## Examples with curl
 
@@ -202,10 +202,10 @@ Each day has a `state`. Check it before you use any figure.
 | Status | Body | When |
 | --- | --- | --- |
 | 200 | The file | All went well |
-| 401 | `{"ok": false, "error": "..."}` | No token, a wrong or revoked token, a token for another site, a token without **Read**, or a private file without **Read private files** |
+| 401 | `{"ok": false, "error": "..."}` | No token, a wrong or revoked token, a token for another site, a token without **Reading figures**, or a private file without **Reading visitor addresses** |
 | 404 | `{"ok": false, "error": "no such file"}` | The site, view or file does not exist |
 
-The `error` text says which problem it was, for example "unrecognised or revoked token" or "this token is not for that site".
+The `error` text says which problem it was, for example "unrecognised or revoked token" or "this token is not for that site". The **Test** step of the API dialog says each answer in words; see [If a connection does not work](troubleshooting-connections.md).
 
 Answers are never cached. Ask again for fresh figures; they change every 2 minutes.
 
@@ -217,7 +217,7 @@ Skald sets no request limit of its own on the API today, so you will not see a 4
 
 Some Skald servers have no team accounts. Everyone signs in with one shared name and password set on the server. On those servers:
 
-- the API & tokens page shows **With your dashboard login** instead of **While you are signed in**;
+- the Connections page says its set-up dialogs need team accounts. Under **Read the figures with the dashboard login, or a token made on the server** it shows the address and curl command with your login, and with a token;
 - tokens are not made on the page. Whoever runs the server makes them with a command, and the page shows that command;
 - the signed-in address also works from curl with `curl -u <your name>`, using the dashboard password;
 - the MCP server is not available. See [MCP](mcp.md).
@@ -226,6 +226,7 @@ Everything else in this guide is the same.
 
 ## Related guides
 
+- [Connections](connections.md): the page, its dialogs and Your tokens.
 - [MCP](mcp.md): let an AI assistant read your figures.
 - [Sign-in and team](sign-in-and-team.md): roles, and who may make tokens.
 - [Privacy](privacy.md): which files hold addresses.

@@ -15,7 +15,7 @@ import { TABLE_KEY as GRID_KEY } from "./tablestate.js";
 // Every page outside the sections, in the menu's order. The sections' tabs are put in
 // front of these by addSections, so TABS is every route, in the menu's order.
 export const TABS = [
-  ["settings/account", "Your account"], ["settings/team", "Team"], ["settings/users", "Users"], ["settings/api", "API & tokens"],
+  ["settings/account", "Your account"], ["settings/team", "Team"], ["settings/users", "Users"], ["settings/api", "Connections"],
   ["settings/sites", "Sites"], ["settings/internal", "Internal traffic"], ["settings/retention", "Data retention"], ["settings/mail", "Mail"], ["settings/reports", "Reports"], ["settings/integrations", "Integrations"], ["settings/aianswers", "AI answers"],
   ["settings/sitesadmin", "Add or remove sites"], ["settings/security", "Security"], ["settings/audit", "Audit log"], ["settings/billing", "Billing"], ["help", "Help"], ["about", "About Skald"],
 ];
@@ -32,7 +32,7 @@ export const shown = (key) => !HIDDEN.has(key);
 export const SECTIONS = [];
 export const MENU = [];
 const FIRST = {};                                   // section key -> its first tab's route
-const KEEP = { help: ["part"], about: ["part", "note"] };   // route -> parameters it keeps in its address
+const KEEP = { help: ["part"], about: ["part", "note"], "settings/sitesadmin": ["setup", "test"] };   // route -> parameters it keeps in its address
 export function addSections(list) {
   for (const sec of list) {
     const tabs = sec.tabs.map((t) => [t.route, t.name]);
@@ -88,7 +88,7 @@ export const FILTERS = ["country", "path", "source", "device", "browser", "campa
 const GLOBAL = ["range", "view", "from", "to", "pathmode", "rules", "cmp", "dd", "tz"];
 // Kept while Compare is on (2.7.0): the custom B, "Per day", the old Compare page's chart keys.
 const CMP_KEYS = ["cb", "cnorm", "cgran", "cm"];
-const DEFAULT = { tab: "overview/summary", range: "today", view: "all", from: "", to: "", pathmode: "contains", rules: "", page: "", since: "", cmp: "", ip: "", rq: "", dd: "", tz: "", part: "", note: "", fn: "", fsrc: "", fstep: "", fmode: "", strat: "", ca: "", cb: "", cnorm: "", cgran: "", cm: "", cdim: "", pubfrom: "", pubto: "", rg: "", rm: "", rs: "", rv: "" };
+const DEFAULT = { tab: "overview/summary", range: "today", view: "all", from: "", to: "", pathmode: "contains", rules: "", page: "", since: "", cmp: "", ip: "", rq: "", dd: "", tz: "", part: "", note: "", fn: "", fsrc: "", fstep: "", fmode: "", strat: "", ca: "", cb: "", cnorm: "", cgran: "", cm: "", cdim: "", pubfrom: "", pubto: "", rg: "", rm: "", rs: "", rv: "", setup: "", test: "" };
 
 // The state in the address. `moved`: the address was an older one (or the old compare
 // switch), and emit() writes the new one in its place.

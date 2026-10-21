@@ -48,14 +48,44 @@ switches it on.
 
 ## Adding a site
 
-In the dashboard: **Settings > Add or remove sites > Add a site** (an owner
-or admin of the organisation). Give the host name (it is also the site's
-name), the time zone and the log format. Skald then:
+In the dashboard: **Settings > Add or remove sites > Add a site, step by step**
+(an owner or admin of the organisation; the site picker at `/traffic/` has
+"+ Add a site" too). Five steps (`webapp/js/tabs/site-wizard.js`, guide:
+docs/help/connections.md):
 
-- makes the site, owned by your organisation, with its log folder under the
-  ingest root;
-- makes an **ingest token** for that one site, and shows it **once**;
-- shows the shipper command and the optional `skald.js` tag.
+1. **Your site**: an address such as `https://www.example.com/` becomes the
+   site name `www.example.com`, the way the server cleans it; the time zone.
+   `POST sites/add` with `token: false` makes the site (format `auto`), owned
+   by the organisation, with its log folder under the ingest root, and no
+   token yet.
+2. **Prove it's yours**: the DNS TXT record or meta tag, with "Check now"
+   (`sites/verify`; docs/SAAS.md). When the install asks no proof, the step
+   says so.
+3. **How visits reach Skald**: Docker shipper, systemd shipper, Cloudflare
+   (the Skald Worker), Vercel or Netlify (log drain), or only the script tag.
+   Choosing Cloudflare for a dashboard site that has received nothing yet
+   sets its format to `edge_json` (audit `site.format`); any other choice sets
+   `auto` on the same terms.
+4. **Install**: a named sending token (`tokens/create`, scope `ingest`, this
+   site only, shown once), the steps for the method with the send address
+   and token filled in, and the install kit (below).
+5. **Test and finish**: `sites/status`, polled every 5 s for up to 2 minutes,
+   says what arrived or why it was refused (below). Lines arrived: "Done:
+   <site> is receiving visits".
+
+The progress is kept per site in `accounts.sqlite`, table `site_setup`
+(`accounts/site_setup.py`): the step reached, the method, whether the domain
+was verified at the last save (read from `site_verify`, never from the page),
+the sending token's **id** (never its value), and the start, update and done
+times. A change of step, method or done is one audit row (`site.setup`). A
+site not finished shows "Setup: step 3 of 5, continue" in Settings > Add or
+remove sites and on the site picker; a finished one that nothing reached for
+24 hours (no batch, no beacon event) shows "No visits yet: test the
+connection", which opens step 5.
+
+For a site that exists already, **Settings > Connections > Send this site's
+visits to Skald** has the same steps 3 to 5 (choose how, sending token,
+install, test).
 
 The first figures appear after the next daily run. On a SaaS install the
 plan decides how many sites an organisation may have.
@@ -64,10 +94,48 @@ On the server, an install admin can do the same with
 `skald site add shop.example.com --org <slug>` and make the token with
 `skald token create shipper --scope ingest --site shop.example.com`.
 A site from a config file can ship its log too: make an ingest token for it
-(Settings > Add or remove sites > New token) and point its `logs.dir` at
-`<ingest root>/<site>`.
+(Settings > Connections > Send this site's visits to Skald, or Settings > Add
+or remove sites > New token) and point its `logs.dir` at `<ingest root>/<site>`.
 
-## Installing the shipper (Ubuntu or Debian)
+## The install kit and check.sh
+
+A zip the site's admin runs on their own web server, with no SSH from Skald's
+side. Settings > Connections (and step 4 of Add a site) offers it as
+"Download the install kit (.zip)" (`POST <page>/sites/kit`); the same zip
+comes from the command line:
+
+```sh
+python3 -m skald.kit --site www.example.com --method docker \
+  --url https://stats.example.com/traffic-ingest/www.example.com \
+  --image <image> --out skald-ship-www.example.com.zip
+```
+
+(`--method systemd` needs no image; `--ship-path`, `--dashboard` and `--help-url`
+are optional.) `skald-ship-<site>.zip` holds one folder `skald-ship-<site>/`:
+
+| File | What it does |
+| --- | --- |
+| `install.sh` | Docker: runs `skald-ship` from the image as a container (128 MB, user 10001, group `adm`, the log mounted read-only, `--from-end`). systemd: installs the shipper, its user and the unit of "Installing the shipper by hand". Lists nginx's or Apache's log files and asks for the site's access log and the token. `--dry-run` shows every command and changes nothing |
+| `uninstall.sh` | Removes only what `install.sh` made |
+| `check.sh` | Read-only checks, one line each (`✓ OK`, `✗ PROBLEM` with a fix, `? CANNOT TELL`): Docker, the web server, the log and its group `adm`, that the log grows, that www writes to it, the send address (401 without a token means the path works), the token file's owner and mode, the shipper running, its last 20 lines, lines leaving. Ends with a block "Copy this and send it to us": no token, every IP address masked. Exit 0 when all is OK |
+| `README.txt` | The steps, what it keeps on the server, how to undo it |
+| `skald-ship.py` | systemd kit only: the shipper (`tools/skald-ship.py`) |
+| `ship-token` | Only when the admin ticks "Put the token in the zip (only if you will send the zip privately)" (off by default): mode 0600; `install.sh` moves it into place and deletes it |
+
+The token goes in only when `include_token` is true and the token is a valid
+`ingest` token of that site (else 400); it is never logged or kept by the
+helper. Templates: `skald/kit/` (`install-docker.sh`,
+`install-systemd.sh`, `uninstall.sh`, `check.sh`, `README-docker.txt`,
+`README-systemd.txt`), filled by `skald/kit/__init__.py`.
+
+The Docker kit needs the image name: `ingest.kit_image` in the config, else
+the `SKALD_KIT_IMAGE` environment variable. The Docker image's entrypoint sets
+`SKALD_KIT_IMAGE` to itself at its major version, and `SKALD_KIT_SHIP_PATH` to
+the shipper inside it (`ingest.kit_ship_path` overrides it). Without an image
+the page offers no Docker kit and says why; without `tools/skald-ship.py`, no
+systemd kit (SETTINGS.md).
+
+## Installing the shipper by hand (Ubuntu or Debian)
 
 skald-ship is one file, `tools/skald-ship.py`, Python 3.9 or newer, nothing
 else. On the site's server:
@@ -206,7 +274,7 @@ file set, such lines stay Not recorded (stored as `Unknown`).
 
 - **The token** can only add lines to one site. It cannot read anything
   (no `read` scope), and a read token cannot ship. It is stored on Skald's
-  side as a hash only, shown once, and revoked in Settings > API & tokens. A token
+  side as a hash only, shown once, and revoked in Settings > Connections (Your tokens). A token
   made by a person stops when that person leaves the organisation or stops
   being an admin.
 - **One organisation cannot write into another's site:** the token must
@@ -241,6 +309,37 @@ Over a limit, the batch gets 429 with the reason and `Retry-After: 3600`; the
 shipper waits at most 10 minutes (its cap) and tries again, so nothing is lost
 while the plan is changed. Without
 that module there is no limit.
+
+## What the endpoint notes for the Test
+
+Every answer of `/traffic-ingest/<site>` is noted in one small file per site,
+`<history folder>/ingest-status/<site>.json` (`skald/ingest_status.py`),
+which the Test of Settings > Connections and of Add a site reads through
+`sites/status`:
+
+```json
+{"last_batch":   {"at": "2026-10-21T10:42:05Z", "lines": 120, "rejected": 0, "shipper": "a1b2c3"},
+ "last_contact": "2026-10-21T10:42:05Z",
+ "today":        {"day": "2026-10-21", "lines": 1240},
+ "last_refusal": {"at": "2026-10-21T10:41:00Z", "code": 403, "reason": "wrong_site",
+                  "words": "The token is not for this site."}}
+```
+
+- **Holds:** the time of the last accepted batch with its lines kept and
+  refused and the shipper's own id (from `X-Skald-Batch`, or the drain's
+  name); the last time any batch was answered 200; today's lines (UTC); the
+  last refusal with its HTTP code and a reason word (`REASONS`: `no_token`,
+  `bad_token`, `wrong_site`, `not_sending`, `not_verified`, `removed`,
+  `not_here`, `rate_limited`, `day_full`, `plan_limit`, `read_only`, `disk`,
+  `bad_format`, `bad_batch`, `too_large`, `no_accounts`, `off`, `other`) and
+  its plain words.
+- **Never holds:** an IP address, a user agent, a token, a log line, or the
+  server's own refusal text.
+- Written only for a site this install knows (its ingest folder exists, or a
+  config names it), and at most one refusal a second per site, so a stream of
+  bad posts cannot fill the disk. A duplicate batch is not noted. A write is a
+  temp file and a rename under a per-site lock; a failure is swallowed and
+  never changes the answer.
 
 ## Removing a site
 
@@ -326,3 +425,19 @@ the body one log line per line.
 | 429 | too many batches, the day's file is full, the organisation's bytes for the day are used up, or the plan's limit (`Retry-After`) |
 | 503 | accounts are not set up |
 | 507 | less than `ingest.min_free_gb` free on the ingest root's disk |
+
+### The helper's set-up routes
+
+Under `<page>/sites/...`, so the nginx route every install already has
+(`sites(?:/[a-z]+)?`) reaches them (`skald/connections_api.py`, routed
+by `sites_api.py`). Owner or admin only; POSTs need the session's
+`X-Skald-CSRF`.
+
+| Method, path | Answer |
+| --- | --- |
+| GET `sites/status?site=<name>` | `{ok, site, ingest_enabled, send_url, folder, received, last_batch, last_contact, today, last_refusal, verify, beacon, setup, now}` (DATA-CONTRACT.md, "Connections status") |
+| POST `sites/kit` | `{site, method: docker\|systemd, include_token?, token?}` -> the zip (`application/zip`, `skald-ship-<site>.zip`); 400 for a token that is not a sending token of that site, or a kit this server cannot build |
+| POST `sites/setup` | `{name, step?, method?, token_id?, done?}` -> `{setup}`, the wizard's progress |
+| POST `sites/add` | as before; `token: false` makes no token (the wizard makes a named one later) |
+| POST `sites/share`, GET `sites/shares`, POST `sites/unshare` | "Share with your developer" links (`share_links.py`, `share_api.py`): a private page at `/traffic-auth/setup/<id>` with one task's steps for one site, no sign-in, 1, 7 or 30 days. Only the id's SHA-256 is kept. The sending token is made when the developer presses Show the secret, once, in the name of the admin who made the link |
+| GET `sites` | as before; to admins also `kit {docker, systemd, why, image, ship_path}`, `api_base`, `mcp_url`, `mcp_enabled`, `beacon_on`, and per site `setup` and `quiet` (set up, and nothing reached Skald for 24 hours) |

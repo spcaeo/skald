@@ -1,0 +1,13 @@
+/* "Set up this site" on Overview (js/tabs/checklist.js) and its dialogs
+   (js/tabs/setup-*.js): the Set up button under an open line, the fold with
+   the server admin's words, and the mail button. The dialogs reuse
+   css/connections.css (cn-ways, cn-code, cn-list, cn-answer). Tokens from app.css. */
+
+.su-acts { margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; }
+.su-go { padding: 3px 12px; font-size: 12.5px; }
+.su-tech { margin-top: 6px; font-size: 12px; color: var(--ink-3); }
+.su-tech summary { cursor: pointer; font-weight: 600; }
+.su-tech p { margin: 4px 0 0; overflow-wrap: anywhere; }
+.su-tech code { font: 11.5px/1.45 var(--mono); }
+.cn-step .su-tech { font-size: 12.5px; }
+a.btn.su-mail { text-decoration: none; }

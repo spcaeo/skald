@@ -51,6 +51,8 @@ The tag sends events to the address of the page it is on. So when your site runs
 
 The person who runs your Skald server must also tell it to trust your site's server for the visitor's address. Without that, every visitor looks like one address, and the limit on events per visitor applies to all of them together. Skald uses the address only in memory and never keeps it.
 
+[Connections](#settings/api) > **Send this site's visits to Skald** > **Only the script tag** shows these steps for your site, with the nginx block filled in, and tests the tag. See [Connections](connections.md).
+
 ## Options
 
 | Tick box on the page | Adds to the tag | What it does |
@@ -184,6 +186,8 @@ With visitor IDs on, the tag adds the visitor ID to every Calendly embed and Cal
 5. At the bottom of the Events tab, a line says what the beacon took in today: accepted, declined, from machines, from your own addresses, refused.
 
 > Your own office is likely marked as internal traffic. Its events are kept apart as "ours" and not shown with people's. Test from a phone on mobile data, or see [Internal traffic](internal-traffic.md).
+
+An admin can also press **Test connection** in [Connections](#settings/api) > **Send this site's visits to Skald**, with **Only the script tag** chosen. It says whether a page opened with the tag and how many events were counted.
 
 If you know your browser's developer tools, open the Network panel. Each event is a request to `/traffic-beacon`. An answer of 204 means it was counted. An answer of 202 means it was taken and nothing was kept, which is normal for page views when visitor IDs are off.
 

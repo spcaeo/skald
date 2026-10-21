@@ -73,6 +73,10 @@ services:
       SKALD_SCHEDULER: "${SKALD_SCHEDULER:-on}"
       SKALD_BEACON_ORIGINS: "${SKALD_BEACON_ORIGINS:-}"
       SKALD_ORIGIN: "${SKALD_ORIGIN:-}"
+      # The image a site's install kit runs (Settings > Connections). Empty: this
+      # image at its major version; and where the shipper is inside it.
+      SKALD_KIT_IMAGE: "${SKALD_KIT_IMAGE:-}"
+      SKALD_KIT_SHIP_PATH: "${SKALD_KIT_SHIP_PATH:-}"
       # Both recipes put a proxy on the Docker network in front (your web server
       # through the published port, or Caddy), and both send X-Real-IP: believe
       # it from the private ranges only. Set SKALD_TRUSTED_PROXIES=none when

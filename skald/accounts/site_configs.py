@@ -171,6 +171,23 @@ def set_hosts(db, name, hosts, actor) -> dict:
     return get(db, name)
 
 
+def set_format(db, name, fmt, actor) -> dict:
+    """Change an active dashboard site's log format; one audit row."""
+    ensure(db)
+    fmt = str(fmt or "").strip()
+    if fmt not in FORMATS:
+        raise ValueError(f"A log format is one of: {', '.join(FORMATS)}.")
+    with base.tx(db):
+        got = get(db, name)
+        if got is None or got["removed_at"]:
+            raise ValueError(f"{name} is not an active site made from the dashboard.")
+        if got["format"] != fmt:
+            db.execute("UPDATE site_config SET format = ? WHERE name = ?", (fmt, got["name"]))
+            auditlog.record(db, got["org_id"], actor, "site.format", got["name"],
+                            f"{got['format']} -> {fmt}")
+    return get(db, name)
+
+
 def purge(db, name, actor) -> dict:
     """Forget a removed dashboard site in accounts.sqlite: its row, its
     organisation link, its settings rows; tokens that read only it are
@@ -189,6 +206,8 @@ def purge(db, name, actor) -> dict:
                 db.execute("UPDATE tokens SET revoked_at = ? WHERE id = ?", (base.now(), tid))
                 revoked += 1
         db.execute("DELETE FROM settings WHERE scope = ?", (f"site:{got['name']}",))
+        from . import site_setup
+        site_setup.forget(db, got["name"])
         db.execute("DELETE FROM sites WHERE name = ?", (got["name"],))
         db.execute("DELETE FROM site_config WHERE name = ?", (got["name"],))
         auditlog.record(db, got["org_id"], actor, "site.purge", got["name"],

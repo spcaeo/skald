@@ -96,7 +96,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from . import access, auth_api, bot_policy_api, helper_sessions, settings_api, team_api
-from . import ingest, integrations_api, logo_api, realtime_api, sites_api, updates
+from . import ingest, integrations_api, logo_api, realtime_api, share_api, sites_api, updates
 from .search import api as search_api
 from . import client_reports_api
 from .saas import billing_api, signup_api
@@ -445,6 +445,9 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
             if signup_api.is_signup(self.path):         # before auth_api: /traffic-auth/signup
                 return signup_api.handle(self, True, config, live_dir, allowed, same_origin,
                                          config_path, out)
+            if share_api.is_public(self.path):          # a shared set-up link, no sign-in
+                return share_api.handle(self, True, config, live_dir, allowed, same_origin,
+                                        config_path)
             if auth_api.is_auth(self.path):
                 return auth_api.handle(self, True, config, live_dir, allowed, same_origin)
             if billing_api.is_billing(self.path):       # Settings > Billing (saas)
@@ -505,6 +508,9 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
             if signup_api.is_signup(self.path):
                 return signup_api.handle(self, False, config, live_dir, allowed, same_origin,
                                          config_path, out)
+            if share_api.is_public(self.path):
+                return share_api.handle(self, False, config, live_dir, allowed, same_origin,
+                                        config_path)
             if auth_api.is_auth(self.path):
                 return auth_api.handle(self, False, config, live_dir, allowed, same_origin)
             if billing_api.is_billing(self.path):

@@ -15,17 +15,21 @@ Four short guides take you from nothing to a working install:
 
 ### Set up this site
 
-For owners and admins, a new site's Overview > Summary starts with a **Set up this site** list. Each line reads the server's own checks and links to its fix:
+For owners and admins, a new site's Overview > Summary starts with a **Set up this site** list. Each line says in one plain sentence what works or what is left. A line that is left has a **Set up** button: it opens a short dialog that walks you through the fix, step by step. Each line ticks itself once the server's own checks see it working.
 
-| Line | Done when |
-| --- | --- |
-| Logs arriving | The server's access log is read (the doctor's access log check, else today's count has requests) |
-| Pages render (page assets) | Browsers fetch the pages' own scripts and styles, so visits count as people |
-| Countries on | Visits carry a country (from the log, or a GeoIP file) |
-| Script tag events (optional) | The script tag's last event arrived lately |
-| Lead hook tested (optional) | The lead hook passed a test or received a lead |
-| Mail recipient confirmed | The daily or weekly mail is on, with a recipient who opened the confirm link |
-| Privacy settings chosen | Someone chose, in Settings > Data retention > People, whether IP addresses are kept |
+| Line | Done when | What Set up does |
+| --- | --- | --- |
+| Logs arriving | The server's access log is read | Opens **Send this site's visits to Skald**, as in Settings > Connections: choose how, a sending token, install, test |
+| Visits count as people | Browsers load the pages' own scripts and styles | Asks what the site is built with (Next.js, WordPress, something else, or files from a CDN) and saves it |
+| Countries shown | Visits carry a country | Says what a country file adds, and writes the mail for whoever runs your Skald server |
+| Script tag events (optional) | The script tag's events arrive | What the tag adds; the exact tag for this site with Copy, and where it goes (site builder or plain HTML, WordPress, Next.js); **Send these steps to your developer** or **Share with your developer**; a Test that waits for the first event |
+| Lead hook tested (optional) | A hook passed a test or received a lead | Where your leads come from (your own form or backend, Zapier or Make, Calendly, Cal.com, Typeform, Stripe, HubSpot); makes the secret; the steps with the address and secret filled in; **Send a test lead**, then waits for a real one |
+| Mail recipient confirmed | The daily or weekly mail is on, with a recipient who opened the confirm link | Turns the mail on, takes the addresses, shows who still has to confirm, and sends a test mail |
+| Privacy settings chosen | Someone chose whether IP addresses are kept | The three IP choices (full, shortened, none), leads' names and emails, then the wording for your privacy notice with Copy |
+
+The server's own technical words (config keys, commands) are not on the line. Where there are some, they are folded under **For your server admin**.
+
+The mail to your developer opens in your own mail program. For the script tag it holds the whole tag: the tag needs no secret. For a lead hook it holds the address and the steps but never the secret: give the secret separately, never by mail or chat.
 
 The list goes away once every line that is not optional is done. **Hide this list** hides it for this site in this browser; to see it again, search for `setup` and choose **Setup checklist**.
 
