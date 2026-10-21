@@ -107,8 +107,11 @@ def _whole(history, site: str, day: date) -> dict | None:
 
 
 def exposures(blobs: list[tuple[str, dict | None]]) -> list[dict]:
+    from .security import current
     out, seen = [], set()
     for when, blob in blobs:
+        if not current(blob):           # counted before 2.21.1's rule: recount it first
+            continue
         for r in ((blob or {}).get("exposure") or {}).get("rows") or []:
             if r.get("verdict") != "possible":
                 continue

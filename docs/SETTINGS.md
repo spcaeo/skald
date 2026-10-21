@@ -237,6 +237,60 @@ turns it off. `security.advisories_fetch: true` (off by default) lets the mornin
 the newest advisories list from Skald's public repository; without it the list changes only
 with a Skald release, and nothing is fetched.
 
+### Public check (optional, 2.22)
+
+A public "Is my site exposed?" check for a marketing page: anyone types an address and gets
+what that site's home page shows (server, PHP, WordPress, Next.js and Node.js, with versions
+or "not shown by the server"), the shipped advisories that match, and whether
+`/wp-login.php` is open. Off by default; nothing about it runs until it is switched on.
+
+```yaml
+security:
+  public_check: true                    # Docker: SKALD_PUBLIC_CHECK=true
+  public_check_origins: ["https://www.example.com"]   # SKALD_PUBLIC_CHECK_ORIGINS
+  public_check_info_url: "https://www.example.com/check/"   # SKALD_PUBLIC_CHECK_INFO_URL
+  public_check_per_hour: 10             # checks an hour from one address
+  public_check_global_per_hour: 300     # checks that fetch, an hour, from everyone
+```
+
+- **Endpoint:** `POST /traffic-hooks/_public/stack-check` on the beacon helper, body
+  `{"url": "https://example.com"}`; answers JSON (`products`, `cards`, `hosts`, `reached`,
+  `error`, `checked_at`, `cached`). 400 with plain words when the address is not checked, 403
+  for a page of another origin, 429 at a limit (with `Retry-After`), 503 when 4 checks are
+  already running. With `"cached_only": true` it answers only a check made in the last hour
+  (404 otherwise) and never fetches: a page's "send this report" reads its findings back this
+  way, so a report carries only what this check found. Off, the path is an unknown hook. Put it behind your marketing site's own
+  name (an nginx `location` that proxies to it) so the page calls it same-origin.
+- **Origins:** a browser's `Origin`, when sent, must be one of `public_check_origins`; only
+  that origin gets CORS headers. A request with no `Origin` (curl) is allowed and rate-limited.
+- **What it fetches,** in this order while the limit allows: `https://<host>/` (or `http://`
+  when typed so) and its redirects (at most 3); the site's `/wp-login.php` when the site is
+  WordPress; then one content origin within the site's own domain (`wp.example.com` for
+  `example.com`, the host the page loads most `/wp-content/` files from): its `/wp-login.php`
+  and redirects, its `/wp-json/` (HEAD) and its home page (HEAD). At most 4 requests, 5 seconds
+  and 512 KB each, 9 seconds in all; what the limit leaves out is listed as not fetched. GET and
+  HEAD only, no cookie, no credentials, User-Agent `SkaldStackCheck/1.0 (+<public_check_info_url>)`.
+- **Proof, or "could not check":** every card carries what was seen, exactly as received (the
+  header line, the generator tag, the page's references with a count and the first examples),
+  the URL it was read from, what it means, why an advisory matched (product, version or
+  "version not shown", host) and `curl` commands to check it yourself; the answer lists every
+  request (method, URL, status, size, redirect, error), its time and the User-Agent. A home page
+  that is not a 2xx, or a bot challenge, is "could not check" with nothing read from it. "Update
+  needed" only for a version the server showed; otherwise "check your version". The login page
+  is "open" only when it ends in WordPress's login form; a redirect elsewhere, a page without
+  the form, 401, 403, 404 or 410 is "hidden (good)"; anything else is "could not check". A web
+  server showing its exact version that no advisory names gets a tip to hide it, never a flaw.
+- **Never fetched:** an IP address in any form (`127.0.0.1`, `[::ffff:127.0.0.1]`,
+  `2130706433`, `0x7f.1`, `127.1`), ports other than 80 and 443, `user:password@`, names that
+  only work inside a network (`localhost`, `*.local`, `*.internal`, `*.lan`, `*.home.arpa`...),
+  and any name with even one address that is loopback, private, link-local, CGNAT, multicast,
+  reserved or a cloud metadata address (IPv4 and IPv6, IPv4 inside IPv6 too). The name is
+  resolved once per request and the connection goes to that address, with the name as Host
+  and TLS name, so it cannot be rebound; every redirect is checked again the same way.
+- **Kept:** nothing written. Each answer is cached in memory for an hour (5 minutes when the
+  site did not answer); the limits are in memory. The address typed is never logged; once an
+  hour the helper writes one line of counts to stderr.
+
 Each person's own security mail (Security > Alerts, "Your security alerts") reminds while
 an item stays open every `security.remind_days` (3) days.
 

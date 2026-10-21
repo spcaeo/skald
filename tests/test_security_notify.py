@@ -23,7 +23,7 @@ CONFIG = {"dashboard": {"url": "https://stats.example.com/traffic/example.com/"}
           "mail": {"host": "smtp.example.com", "port": 587, "from": "skald@example.com",
                    "to": ["owner@example.com"]},
           "access": {"mode": "sessions"}}
-EXPOSURE = {"exposure": {"rows": [{"host": "example.com", "path": "/.env.production", "status": "200",
+EXPOSURE = {"rules": {"exposure_rule": 2}, "exposure": {"rows": [{"host": "example.com", "path": "/.env.production", "status": "200",
                                    "size": 1873, "verdict": "possible", "category": "secrets"}]}}
 STACK = {"matches": [{"advisory": "php-2026-10-21", "product": "php", "host": "media.example.com",
                       "version": "8.3.10", "state": "update_needed"},

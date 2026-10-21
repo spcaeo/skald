@@ -4,7 +4,8 @@ The site check is asked for by an admin with an address they typed, so this
 client must never become a way to reach what sits behind Skald's server
 (server-side request forgery). Every request, and every redirect it gets:
 
-  * is http or https only, on port 80 or 443, with no user:password@ part;
+  * is http or https only, on port 80 or 443, with no user:password@ part,
+    and never a host that ends in numbers (127.1, 0x7f.1: an address in disguise);
   * has its name resolved here (`resolve`), and is refused when ANY address
     the name gives is loopback, private, link-local, shared (CGNAT, 100.64/10),
     multicast, reserved, unspecified, a cloud metadata address, or anything
@@ -51,6 +52,9 @@ NAME = re.compile(r"^(?=.{3,253}$)[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?"
 METADATA = {ipaddress.ip_address(a) for a in (
     "169.254.169.254", "169.254.170.2", "169.254.169.253", "100.100.100.200",
     "fd00:ec2::254")}
+# A last label of digits or hex (0x7f) is an address in an odd form that a resolver may
+# read as one (127.1, 2130706433.0); no real name ends in one.
+NUMERIC_LABEL = re.compile(r"^(?:\d+|0x[0-9a-f]*)$", re.I)
 CGNAT = ipaddress.ip_network("100.64.0.0/10")
 NAT64 = ipaddress.ip_network("64:ff9b::/96")
 NAT64_LOCAL = ipaddress.ip_network("64:ff9b:1::/48")
@@ -199,6 +203,9 @@ def check_url(url: str) -> tuple[str, str, int, str]:
             raise Refused("That is not a host name Skald can fetch.") from None
     if not host or (not is_ip and (not NAME.match(host) or host.endswith(".localhost"))):
         raise Refused("That is not a host name Skald can fetch.")
+    if not is_ip and NUMERIC_LABEL.match(host.rsplit(".", 1)[-1]):
+        # 127.1, 0x7f.1, 017700000001.0: an address in an odd form, never a name.
+        raise Refused("An address written as numbers is not fetched.")
     target = (parts.path or "/") + (f"?{parts.query}" if parts.query else "")
     return scheme, host, port or PORTS[scheme], target
 
@@ -230,14 +237,15 @@ class _PinnedHTTPS(http.client.HTTPSConnection):
 
 
 def open_pinned(scheme: str, host: str, address: str, port: int, method: str, target: str,
-                timeout: float, max_bytes: int) -> Answer:
-    """One request to `address`, named `host` (Host header and TLS name)."""
+                timeout: float, max_bytes: int, agent: str | None = None) -> Answer:
+    """One request to `address`, named `host` (Host header and TLS name). `agent` is the
+    User-Agent (default: the site check's own, user_agent())."""
     cls = _PinnedHTTPS if scheme == "https" else _PinnedHTTP
     conn = cls(host, address, port, timeout)
     shown = host if port == PORTS[scheme] else f"{host}:{port}"
     try:
         conn.request(method, target, headers={
-            "Host": shown, "User-Agent": user_agent(), "Accept-Encoding": "identity",
+            "Host": shown, "User-Agent": agent or user_agent(), "Accept-Encoding": "identity",
             "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5", "Connection": "close"})
         res = conn.getresponse()
         headers: dict[str, list[str]] = {}

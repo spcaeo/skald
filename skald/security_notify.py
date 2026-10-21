@@ -119,8 +119,11 @@ def items(config: dict, site: str, blobs: list, stack_read: dict | None) -> list
     """[{item, kind, title, todo}] open now: possible exposures of the blobs given (today
     so far, the last whole day) and the stack's advisory matches that need something done."""
     from .alerts_security import advice
+    from .security import current
     out, seen = [], set()
     for blob in blobs:
+        if not current(blob):           # counted before 2.21.1's rule: never mailed
+            continue
         for r in ((blob or {}).get("exposure") or {}).get("rows") or []:
             if r.get("verdict") != "possible":
                 continue

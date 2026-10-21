@@ -58,7 +58,7 @@ export function sumOf(blobs) {
     for (const [host, x] of Object.entries(e.hosts || {})) {
       const h = t.exposure.hosts[host] || (t.exposure.hosts[host] = { host, bare_ip: !!x.bare_ip, answered: 0, shell: 0, empty: 0, possible: 0, unknown: 0, sizes: [] });
       for (const k of ["answered", "shell", "empty", "possible", "unknown"]) h[k] += x[k] || 0;
-      if (x.shell_size != null && !h.sizes.includes(x.shell_size)) h.sizes.push(x.shell_size);
+      for (const z of x.shell_sizes || (x.shell_size != null ? [x.shell_size] : [])) if (!h.sizes.includes(z)) h.sizes.push(z);
     }
     const a = b.attacks || {};
     t.injection.requests += a.injection?.requests || 0; add(t.injection.kinds, a.injection?.kinds);

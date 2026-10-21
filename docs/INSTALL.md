@@ -105,6 +105,7 @@ the container has them (`history.db: /var/lib/skald/history.sqlite`,
 | `SKALD_EMAIL` | | who gets the mails (also the sender unless `SKALD_MAIL_FROM`) |
 | `SKALD_SMTP_HOST`, `SKALD_SMTP_PORT`, `SKALD_SMTP_SECURITY` | `587`, `starttls` | the mail server; mails stay off without a host (or set it in Settings > Mail) |
 | `SMTP_USER`, `SMTP_PASSWORD` | | the SMTP login: environment only, never in a file you commit |
+| `SKALD_PUBLIC_CHECK`, `SKALD_PUBLIC_CHECK_ORIGINS`, `SKALD_PUBLIC_CHECK_INFO_URL` | off | `true` switches on the public "Is my site exposed?" check (`POST /traffic-hooks/_public/stack-check`), answered with CORS for the listed origin(s) only; the info URL goes in its User-Agent ([SETTINGS.md](SETTINGS.md), "Public check") |
 | `SKALD_BEACON_ORIGINS` | | your site's origin(s), to switch on the script tag and in-page events ([BEACON.md](BEACON.md)). Not needed for webhooks (Calendly, Stripe, the `lead` hook): those work without it since 2.2.2 |
 | `SKALD_INGEST` | | `true` takes logs from other servers and log drains ([INGEST.md](INGEST.md)); set `SKALD_LOG_DIR` with it |
 | `SKALD_KIT_IMAGE`, `SKALD_KIT_SHIP_PATH` | this image at its major version; the shipper's path inside it | the image and shipper path a site's install kit runs (Settings > Connections; `ingest.kit_image` in a config wins) |
