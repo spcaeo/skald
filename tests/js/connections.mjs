@@ -4,6 +4,9 @@
 // CONN_JSON): the three cards, Your tokens with each token's purpose, the send
 // dialog walked step by step to a Test that reads the real status, the API and
 // MCP tests, and the wizard from an address to its last step, then resumed.
+// The site check (sites/detect) answers as the helper answered for a new site
+// (nginx with Next.js) and for this one (behind Cloudflare's proxy): the "What
+// Skald found" card, and the way it suggests chosen in the chooser.
 //
 //   CONN_JSON=answers.json node tests/js/connections.mjs
 import assert from "node:assert/strict";
@@ -36,9 +39,10 @@ globalThis.fetch = async (path, opts = {}) => {
   }
   if (path === "sites/add") return answer({ ok: true, site: "www.example.org", token: null, verify: null });
   if (path === "sites/setup") return answer({ ok: true, setup: { name: body.name, step: body.step || 1 } });
+  if (path === "sites/detect") return answer(body.address === SITE ? given.detect_here : given.detect_new);
   return answer({ ok: false, error: "not found" }, 404);
 };
-const tick = () => new Promise((r) => setTimeout(r, 15));
+const tick = (ms = 15) => new Promise((r) => setTimeout(r, ms));
 const JS = new URL("../../skald/webapp/js/", import.meta.url);
 const { ME } = await import(new URL("access.js", JS));
 Object.assign(ME, { mode: "sessions", role: "owner", user: "owner@example.com" });
@@ -48,6 +52,8 @@ const read = await import(new URL("tabs/conn-read.js", JS));
 const { default: connections } = await import(new URL("tabs/connections.js", JS));
 const { default: sitesadmin } = await import(new URL("tabs/sitesadmin.js", JS));
 const { siteFrom } = await import(new URL("tabs/site-wizard.js", JS));
+const detect = await import(new URL("tabs/conn-detect.js", JS));
+const radio = (root, id) => root.querySelectorAll("input").find((i) => i.getAttribute("value") === id);
 
 const button = (root, text) => root.querySelectorAll("button").find((b) => b.textContent.trim() === text);
 const dialog = () => document.body.querySelectorAll("dialog").filter((d) => d.open).pop();
@@ -72,15 +78,34 @@ assert.ok(purposes.includes("Sending logs"), purposes.join("|"));
 assert.ok(purposes.includes("Reading figures"), purposes.join("|"));
 assert.equal(root.querySelectorAll(".cn-card").length, 3);
 
-// The send dialog: choose, token, install, test.
+// The card's lines, from the helper's answer for a new site.
+const lines = detect.foundLines(given.detect_new.found);
+assert.deepEqual(lines.map((x) => [x.name, x.known]), [["Server", true], ["Platform", true], ["Built with", true], ["Host names", true]]);
+assert.equal(lines[0].value, "nginx, on Ubuntu");
+assert.equal(lines[2].value, "Next.js");
+assert.equal(lines[3].value, "www.example.org and example.org");
+assert.deepEqual(detect.foundLines({ reachable: true, server: "unknown", hosts: [] }).map((x) => x.value), ["could not tell", "could not tell", "could not tell", "could not tell"]);
+assert.equal(detect.recommendFor({ found: given.detect_new.found, useFound: false }), null);
+
+// The send dialog: what Skald found for this site, choose, token, install, test.
 root.querySelectorAll(".cn-card button")[0].click();
 await tick();
 let d = dialog();
 assert.ok(d, "the dialog opened");
 assert.equal(d.querySelectorAll(".cn-bar li").length, 4);
+assert.ok(d.textContent.includes("What Skald found"), "the card");
+assert.ok(d.textContent.includes("Cloudflare (proxied)"), d.querySelector(".cn-found").textContent);
+assert.deepEqual(posted.find(([p]) => p === "sites/detect")[1], { address: SITE, name: SITE });
+assert.ok(radio(d, "cloudflare").checked, "the found way is chosen");
+assert.ok(d.textContent.includes(`Recommended for ${SITE}`));
+const use = d.querySelector('input[name="use-found"]');
+use.checked = false;
+use.dispatchEvent(new Ev("change"));
+assert.ok(!radio(d, "cloudflare").checked, "Use these off: the found way is dropped");
+assert.ok(!d.textContent.includes(`Recommended for ${SITE}`));
 await next();
 assert.ok(d.textContent.includes("Choose how the visits get to Skald."), "Next needs a choice");
-const docker = d.querySelectorAll("input").find((i) => i.getAttribute("value") === "docker");
+const docker = radio(d, "docker");
 docker.checked = true;
 docker.dispatchEvent(new Ev("change"));
 await next();
@@ -152,12 +177,26 @@ const addr = d.querySelector('input[name="site-address"]');
 addr.value = "https://WWW.Example.org/x";
 addr.dispatchEvent(new Ev("input"));
 assert.ok(d.textContent.includes("The site will be www.example.org"));
+await tick(detect.DETECT_WAIT_MS + 100);             // the check waits for the typing to stop
+const card = d.querySelector(".cn-found").textContent;
+for (const t of ["What Skald found", "Server: nginx, on Ubuntu", "Built with: Next.js", "Host names: www.example.org and example.org", "Page assets: /_next/static/", "Use these", "Check again"]) assert.ok(card.includes(t), `${t} in ${card}`);
+assert.ok(card.includes("www.example.org runs on its own nginx server (Ubuntu), so the log shipper kit is the way."), card);
+assert.equal(posted.filter(([p]) => p === "sites/detect").pop()[1].address, "www.example.org");
 await next();
-assert.deepEqual(posted.find(([p]) => p === "sites/add")[1].host, "www.example.org");
-assert.equal(posted.find(([p]) => p === "sites/add")[1].token, false);
+const added = posted.find(([p]) => p === "sites/add")[1];
+assert.equal(added.host, "www.example.org");
+assert.equal(added.token, false);
+assert.deepEqual(added.hosts, ["www.example.org", "example.org"]);
+assert.deepEqual(added.asset_prefixes, ["/_next/static/"]);
+const kept = posted.find(([p, b]) => p === "sites/setup" && b.step === 2)[1];
+assert.equal(kept.found.recommended_method, "docker");
+assert.equal(kept.found.use, true);
 assert.ok(d.textContent.includes("Step 2 of 5") && d.textContent.includes("No proof needed"));
 await next();
-const script = d.querySelectorAll("input").find((i) => i.getAttribute("value") === "script");
+assert.ok(radio(d, "docker").checked, "step 3 chooses the found way");
+assert.ok(d.textContent.includes("Recommended for www.example.org"));
+assert.equal(d.querySelectorAll("em.cn-rec").length, 1);
+const script = radio(d, "script");
 script.checked = true;
 script.dispatchEvent(new Ev("change"));
 await next();
@@ -168,7 +207,8 @@ assert.ok(d.textContent.includes("Step 5 of 5: Test and finish"));
 assert.ok(button(d, "Finish later"));
 
 // Resumed: a site at step 3 shows its badge, and the badge reopens the wizard there.
-sites = { ...given.sites, sites: [...given.sites.sites, { name: "half.example.com", status: "active", source: "dashboard", setup: { step: 3, method: "", done: false }, quiet: false }] };
+const halfFound = { site: "half.example.com", reachable: true, use: true, server: "unknown", platform: "vercel", platform_label: "Vercel", hosts: ["half.example.com"], recommended_method: "vercel", reason: "half.example.com runs on Vercel, so its log drain sends each request to Skald." };
+sites = { ...given.sites, sites: [...given.sites.sites, { name: "half.example.com", status: "active", source: "dashboard", setup: { step: 3, method: "", done: false, found: halfFound }, quiet: false }] };
 const again = document.createElement("div");
 again.append(...sitesadmin({ site: SITE }, {}));
 await tick();
@@ -177,6 +217,10 @@ assert.ok(badge, "the badge");
 badge.click();
 await tick();
 assert.ok(dialog().textContent.includes("Step 3 of 5: How visits reach Skald"));
+assert.ok(!/\bnull\b|\bundefined\b/.test(dialog().textContent), "no stray null or undefined on step 3");
+assert.ok(radio(dialog(), "vercel").checked, "resumed: the kept facts choose the way");
+assert.ok(dialog().textContent.includes("Recommended for half.example.com"));
+assert.ok(dialog().textContent.includes("its log drain sends each request"));
 // The shared link's page: the steps, the secret shown once, the Test.
 const { draw: drawShare } = await import(new URL("tabs/share-page.js", JS));
 const page = document.createElement("main");

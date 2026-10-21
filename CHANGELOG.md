@@ -2,6 +2,32 @@
 
 All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versioning](https://semver.org).
 
+## 2.17.0 (2026-10-21)
+
+Add a site now looks at the site itself, so you do not have to know how it is hosted.
+
+### Added
+
+- **Skald checks your site.** Type an address in Add a site (or open Send this site's visits) and
+  Skald looks at it from outside, like a browser: the web server (nginx, Apache, LiteSpeed, Caddy,
+  IIS), a platform in front (Cloudflare's proxy, Vercel, Netlify, CloudFront, Fastly, GitHub Pages;
+  or a hosted builder such as Shopify, Wix, Squarespace or Webflow), the framework (Next.js,
+  WordPress, Nuxt, Gatsby, Astro), both host names, and the page assets to count people by. It
+  then suggests the way in, with the reason, and marks it "Recommended for <site>" on step 3.
+  Every fact is a suggestion you can change; the host names and page assets are saved with the site.
+  A hosted builder gets the script tag, with the reason: Skald cannot read its server log.
+- **Safe by design:** the check reaches only public addresses on ports 80 and 443 (never a private,
+  loopback, link-local or cloud-metadata address, checked again on every redirect, and connected to
+  the address it checked), sends no cookies, reads at most 256 KB, is for admins only and
+  rate-limited, and logs only the host and the outcome.
+- **The site list** (`/traffic/`) shows the same footer line as every dashboard page: "Live ·
+  v2.17.0 · released ...", in the sites' time zone (UTC when they differ), with the release and
+  commit in its tooltip.
+
+### Fixed
+
+- Add a site, step 3, showed the word "null" when the site was reachable.
+
 ## 2.16.0 (2026-10-21)
 
 Connecting a site, step by step: from the address to "Connected", with a test at the end and

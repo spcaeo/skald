@@ -7,12 +7,19 @@
 // accounts/site_setup.py): the step reached, the way chosen, the sending
 // token's id (never the token). Closing the dialog or the browser loses
 // nothing; the site's row and the picker offer "Setup: step 3 of 5, continue".
+//
+// Step 1 also looks at the site (conn-detect.js, POST <page>/sites/detect) once
+// the address is typed: its server, platform, framework and host names. With
+// "Use these" on, the site is added with the found host names and page assets,
+// step 3 chooses the suggested way, and the facts are kept in the progress
+// (sites/setup `found`), so a resumed wizard shows them again.
 
 import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { input, field, why } from "./forms.js";
 import { wizard, codeBlock, answerBox, helpLink } from "./conn-ui.js";
-import { sendState, methodChooser, chooseCheck, tokenPanel, testPanel, troubleTable, shareFor } from "./conn-send.js";
+import { sendState, methodChooser, chooseCheck, tokenPanel, testPanel, troubleTable, shareFor, preselect } from "./conn-send.js";
+import { detectCard, recommendFor, suggestionsFor } from "./conn-detect.js";
 import { installFor } from "./conn-install.js";
 import { methodOf } from "./conn-words.js";
 
@@ -40,10 +47,15 @@ async function save(w, body) {
   if (!r.ok) w.say(`Your progress was not saved: ${why(r)}`);
 }
 
+// The found facts as the progress keeps them, with the toggle.
+const kept = (st) => ({ ...st.found, use: st.useFound !== false });
+
 function stepSite(w, data) {
   const st = w.state;
   if (st.site) {
-    return [h("p", null, "The site: ", h("strong", null, st.site), ". It is made already; press Next to go on."),
+    const card = detectCard(st, { address: () => st.site, name: st.site, auto: !st.found,
+      onFound: (f, why) => { if (why === "toggle" && f) save(w, { found: kept(st) }); } });
+    return [h("p", null, "The site: ", h("strong", null, st.site), ". It is made already; press Next to go on."), card,
       h("p", { class: "note" }, "Its host names can be changed in Settings > Sites.")];
   }
   if (data.can_add === false) return [answerBox("bad", data.add_refused || "Adding sites is not available here.")];
@@ -52,17 +64,19 @@ function stepSite(w, data) {
   const zone = input({ name: "timezone", autocomplete: "off", maxlength: "64" });
   try { zone.value = st.zone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { zone.value = "UTC"; }
   const shown = h("p", { class: "note" });
+  const card = detectCard(st, { address: () => siteFrom(addr.value).name || "" });
   const say = () => {
     st.typed = addr.value;
     st.zone = zone.value;
     const got = siteFrom(addr.value);
     shown.textContent = addr.value.trim() ? (got.error || `The site will be ${got.name}: visits to ${got.name} count for it.`) : "";
+    if (got.name && got.name !== st.found?.site) card.later(got.name);
   };
   addr.addEventListener("input", say);
   zone.addEventListener("input", say);
   say();
   return [h("p", null, "The address of the site, as people type it. A whole link works too."),
-    field("Site address", addr, "For example https://www.example.com/. Its host name becomes the site's name here."), shown,
+    field("Site address", addr, "For example https://www.example.com/. Its host name becomes the site's name here."), shown, card,
     field("Time zone", zone, "Days are counted in this zone, like Europe/London.")];
 }
 
@@ -71,12 +85,13 @@ async function makeSite(w) {
   if (st.site) return true;
   const got = siteFrom(st.typed);
   if (got.error) { w.say(got.error); return false; }
-  const r = await call("sites/add", { host: got.name, timezone: String(st.zone || "").trim(), format: "auto", token: false });
+  const r = await call("sites/add", { host: got.name, timezone: String(st.zone || "").trim(), format: "auto", token: false, ...suggestionsFor(st, got.name) });
   if (!r.ok) { w.say(why(r, "The site was not added.")); return false; }
   st.site = r.site;
   st.verify = r.verify || null;
   Object.assign(st.send, sendState(r.site, st.data));
-  await save(w, { step: 2 });
+  if (st.found && st.found.site !== r.site) st.found = null;     // a check of another address
+  await save(w, st.found ? { step: 2, found: kept(st) } : { step: 2 });
   if (st.onChange) st.onChange();
   return true;
 }
@@ -104,10 +119,20 @@ function stepProve(w) {
     h("p", { class: "note" }, "You can go on and install now; the check can wait. Lines sent before it are refused and sent again by the shipper later.")];
 }
 
-export function siteWizard({ data = {}, name = null, start = 0, method = "", verify = null, onChange = null } = {}) {
+// Step 3: the ways, the check's one chosen (conn-send.js preselect) and marked.
+function stepHow(wz) {
+  const st = wz.state;
+  const rec = recommendFor(st);
+  preselect(st.send, rec);
+  const lost = st.found && !st.found.reachable
+    ? h("p", { class: "note" }, `Skald could not reach ${st.found.site} to suggest a way. Choose it by hand.`) : null;
+  return [h("p", null, "Where does the site run? Choose the way its visits reach Skald."), lost, methodChooser(st.send, () => wz.say(""), rec)].filter(Boolean);
+}
+
+export function siteWizard({ data = {}, name = null, start = 0, method = "", verify = null, found = null, onChange = null } = {}) {
   const send = sendState(name || "", data);
   send.method = method || "";
-  const state = { site: name, verify, data, send, onChange, typed: "", zone: "" };
+  const state = { site: name, verify, data, send, onChange, typed: "", zone: "", found: found || null, useFound: found ? found.use !== false : true };
   const w = wizard({
     title: name ? `Set up ${name}` : "Add a site", subtitle: "Five short steps. You can close this and continue later: nothing is lost.",
     key: "site-wizard", state, start, done: "Finish later",
@@ -116,7 +141,7 @@ export function siteWizard({ data = {}, name = null, start = 0, method = "", ver
     steps: [
       { name: "Your site", draw: (wz) => stepSite(wz, data), next: makeSite },
       { name: "Prove it's yours", draw: stepProve },
-      { name: "How visits reach Skald", draw: (wz) => [h("p", null, "Where does the site run? Choose the way its visits reach Skald."), methodChooser(wz.state.send, () => wz.say(""))],
+      { name: "How visits reach Skald", draw: stepHow,
         check: (wz) => chooseCheck(wz.state.send), next: async (wz) => { await save(wz, { step: 4, method: wz.state.send.method }); return true; } },
       { name: "Install", draw: (wz) => {
         const st = wz.state.send;

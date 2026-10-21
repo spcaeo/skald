@@ -51,6 +51,9 @@
 
 ## What's new
 
+- **2.17.0: Skald checks your site** ([changelog](CHANGELOG.md#2170-2026-10-21)). Type the
+  address in Add a site and Skald works out the server, any platform in front, the framework, the
+  host names and the page assets, and suggests the way in. You confirm or change it.
 - **2.16.0: connect a site in a few guided steps** ([changelog](CHANGELOG.md#2160-2026-10-21)).
   Settings > Connections sends a site's visits to Skald, reads your figures (API) or connects an
   AI assistant, each as a short dialog with everything filled in and a **Test** at the end. Add a
@@ -400,6 +403,13 @@ fix; Settings > Integrations shows the same for each hook and the script tag.
 The whole dashboard with 60 days of sample data for a made-up site, in your browser: today's Overview,
 the visitor drawer, cities, retention and crawl health, AI answers (made-up answers), Real time with its world map, AI & bots, flags, leads and bookings, the left-out leads and the removed conversions included.
 Nothing to install. Settings, saving and the person search need your own Skald.
+
+### New in 2.17.0: Skald checks your site
+
+<p align="center">
+  <img src="docs/screenshots/site-check.png" alt="Add a site, step 1: example.com typed in, and What Skald found: server nginx on Ubuntu, no platform in front, built with Next.js, host names example.com and www.example.com, page assets /_next/static/, and the suggestion: a Linux server with Docker, the log shipper kit" width="800"><br>
+  <strong>What Skald found.</strong> The server, platform, framework and host names, and the way in it suggests.
+</p>
 
 ### New in 2.16.0: connect a site, step by step
 

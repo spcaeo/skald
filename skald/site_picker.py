@@ -23,7 +23,7 @@ from html import escape as esc
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from . import site_logos
+from . import brand, site_logos
 from .files import slug
 
 LIVE_MINUTES = 15            # a count older than this is not called live
@@ -187,6 +187,7 @@ height:100%;padding:22px;border:1.5px dashed var(--gap);border-radius:12px;color
 font-size:16px;font-weight:600;text-decoration:none}
 .pk-add:hover{color:var(--ink);border-color:var(--ink-3)}
 .pk-note{margin:0;font-size:13px;color:var(--ink-3)}
+.pk-build{margin:8px 0 0;font-size:12px;color:var(--ink-3)}
 .pk-setup{display:block;margin-top:8px;padding:8px 12px;border:1px solid var(--gap);
 border-radius:8px;background:var(--sunk);color:var(--ink);font-size:13.5px;font-weight:600;
 text-decoration:none}.pk-setup:hover{border-color:var(--ink-3)}
@@ -278,6 +279,9 @@ def render(sites: list[dict], now: datetime, who: str | None = None,
             else '<p class="pk-empty">No sites recorded yet.</p>')
     me = (f'<span class="pk-me"><b aria-hidden="true">{esc(who[:1].upper())}</b>'
           f'<span>{esc(who)}</span></span>' if who else "")
+    zones = {(s.get("today") or {}).get("timezone") for s in sites if isinstance(s, dict)} - {None}
+    text, tip = brand.release_line(next(iter(zones)) if len(zones) == 1 else None)
+    foot = f'<p class="pk-build" title="{esc(tip)}">{esc(text)}</p>' if text else ""
     return (
         "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">"
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -289,7 +293,7 @@ def render(sites: list[dict], now: datetime, who: str | None = None,
         f"{grid}"
         '<p class="pk-note">No logo found on a site? Skald shows its first letter on the '
         "site's colour instead. Logos are fetched from each site itself, never from an outside "
-        f'icon service. Updated {now:%H:%M %Z}.</p></main></body></html>\n')
+        f'icon service. Updated {now:%H:%M %Z}.</p>{foot}</main></body></html>\n')
 
 
 def static_page(names: list[str], now: datetime, out: Path | None) -> str:

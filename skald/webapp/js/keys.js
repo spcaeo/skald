@@ -26,17 +26,20 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-21-2.16.0",
+  id: "2026-10-21-2.17.0",
   items: [
+    ["Skald checks your site", "type a site's address in Add a site: Skald looks at it like a browser and fills in its server, platform, framework, host names and page assets, and suggests the way in.", "connections"],
+    ["Release line on the site list", "the site list shows the version and release time at the bottom, like every other page."],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.16.0
     ["Connections", "Settings > Connections: send a site's visits to Skald, read your figures (API) or connect an AI assistant, each in a few guided steps with a Test.", "connections"],
     ["Add a site, step by step", "five steps from the address to \"Connected\"; close it any time and continue where you left off.", "connections"],
     ["Install kit", "a zip with the installer, a check script that says what is wrong in plain words, and the uninstaller.", "connections"],
     ["Share with your developer", "a private link with one task's steps, filled in, that ends after 7 days or when you revoke it.", "connections"],
     ["Set up this site", "each open line on Overview now has a Set up button that walks you through it.", "connections"],
     ["Troubleshooting", "the common problems and their fixes, in Help.", "troubleshooting-connections"],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.15.0
     ["Shortened addresses", "keep each visit's IP address with its last part removed: country, city and counts still work, and no exact address is kept. Settings > Data retention > People.", "privacy"],
     ["Wording for your privacy notice", "a short text to paste into your privacy page, made from what this site really keeps, with a Copy button. Settings > Data retention.", "privacy"],

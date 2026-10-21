@@ -59,6 +59,7 @@ export const TROUBLE = [
   ["Refused: too many batches (429)", "The shipper sent many batches at once, usually right after it started.", "Nothing to do. The shipper slows down and sends the rest."],
   ["Refused: the site is not verified (403)", "The site waits for proof that the domain is yours.", "Finish step 2 of the site's set-up (Settings > Add or remove sites)."],
   ["Docker is missing", "The kit with Docker needs Docker on the web server.", "Install Docker, or choose The same, without Docker, and download that kit."],
+  ["The site check could not reach the site", "The site is not live yet, turns automated visitors away, or its name points to a private address, which Skald never fetches.", "Choose the way by hand in step 3: nothing else depends on the check. Press Check again once the site is live."],
 ];
 
 // An answer of the read-only API, in words.

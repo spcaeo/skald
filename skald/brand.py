@@ -60,6 +60,33 @@ def line(b: dict | None = None) -> str:
     return " · ".join(parts)
 
 
+def release_line(zone: str | None = None, b: dict | None = None) -> tuple[str, str]:
+    """(text, title) for a page footer, as the dashboard's own footer has it:
+    "Live · v2.16.0 · released 21 Oct 2026 08:56 EDT", the time in `zone`
+    (UTC when none or unknown); the title holds the release and the commit.
+    No version known: ("", "")."""
+    from datetime import datetime, timezone
+    b = b or load()
+    if not b.get("version"):
+        return "", ""
+    when = ""
+    try:
+        t = datetime.fromisoformat(str(b.get("deployed_at") or "").replace("Z", "+00:00"))
+        try:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo(zone) if zone else timezone.utc
+        except Exception:                       # noqa: BLE001 - an unknown zone: UTC
+            tz = timezone.utc
+        local = t.astimezone(tz)
+        when = f" · released {local.day} {local:%b %Y %H:%M} {local.tzname() or 'UTC'}"
+    except ValueError:
+        pass
+    title = " · ".join(str(x) for x in (f"{b['name']} v{b['version']}",
+                                         f"release {b['release']}" if b.get("release") is not None else None,
+                                         b.get("commit")) if x)
+    return f"Live · v{b['version']}{when}", title
+
+
 def prefix(b: dict | None = None) -> str:
     """The subject prefix when the config sets none: "[Skald]"."""
     return f"[{(b or load())['name']}]"
