@@ -63,6 +63,11 @@ once from the URL before any of it and attached to every verdict, so a probe is
     SEARCH_ENGINE     matches the agent      -> SEARCH_ENGINE
       (proven fake                           -> BOTS, "claims to be <name>")
 6.  probing                                  -> BOTS, probe=True
+6b. this address and agent asked the site's hosts for a secret or config
+      file (SECRET_PROBE) or sent an attack in a URL (PROBE_QUERY) in the
+      window (the day), before this request or after it
+                                               -> BOTS ("scanner (asked for
+                                                   secret or config files)")
 7.  OTHER_BOT matches, "(compatible; ...)"
       naming no browser engine, no agent at
       all, or an /.well-known/acme-challenge/
@@ -100,6 +105,37 @@ once per page it read. A browser renders; a crawler does not. That covers an
 SEO extension fetching robots.txt and an office sharing one address and
 browser. "At least once per page", not "at all": the audited day's largest
 crawler session read 99 pages and loaded 2 assets.
+
+Rule 6b (2.20.1, COUNTING-TRAPS.md trap 17) is the same two-pass idea for
+scanners: **one probe marks the whole visitor.** A scanner that sends a
+browser's name asks for a page or two between its probes, and before the
+rule those pages were people: a visit, a landing, a source, a live visitor,
+a city dot. So the first pass (`classify.Scanners`) keeps every address and
+user agent that asked the site's hosts for a secret or config file in the
+window (`SECRET_PROBE` on the path: the dotfile, dump and backup, key and
+credential, infrastructure and package families of `PROBE`) or sent an
+attack in a URL (`PROBE_QUERY`), not under `site.legacy_paths`, and the
+classifier files every other request of that pair, before the probe or
+after it, under bots as `"scanner (asked for secret or config files)"`. The
+probes themselves stay rule 6 (`probe`, counted in `probes`).
+
+The other `PROBE` families - WordPress paths, server-side scripts, admin
+panels and consoles, an app's settings file (`/config.json`,
+`/appsettings.json`, `/env.js`) - still make their own request a probe, but
+mark no one: a real reader asks for them too (every reader of a WordPress
+site loads `/wp-content/` and `/wp-json/`; the owner opens their own
+`/admin`; an app loads its settings as it starts). Marking on them would
+have filed every reader of a WordPress site as a scanner.
+
+It is per address **and** agent: someone else behind
+the same address, with another browser, stays a person. It is per window:
+the daily run's window is the site's day, so a probe at 23:50 moves a page
+read at 10:00; the live run reads the day so far, so a visitor shown at one
+run disappears at the next run after its probe. The rules above it come
+first, as for rule 6: our own traffic, a named crawler and a link preview
+keep their group whatever path they asked for. The audit finds the same
+pairs with its own code (`audit.Judge._scanners`), sharing only the name
+lists `SECRET_PROBE` and `PROBE_QUERY`.
 
 Rule 9 is the same two-pass idea made general (`rendering.py`, added
 2026-10-11 - COUNTING-TRAPS.md trap 13). A browser that opens a page goes
@@ -531,16 +567,41 @@ of them matches. Roughly:
 - dumps and backups shaped like files: `/backup.zip`, `/db.sql`,
   `/dump.sql.gz`, any `.sql`, `.bak`, `.sqlite`, and a bare `/backup/`
 - keys and credentials shaped like files: `id_rsa`, `.pem`, `.key`,
-  `.tfstate`, `/credentials.json`, `/secrets.yml`, `/config.json`,
-  `/service-account*.json`, `/docker-compose*.yml`, `/env.js`
+  `/credentials.json`, `/secrets.yml`, `/service-account*.json`,
+  `/docker-compose*.yml`
+- an app's settings shaped like files: `/config.json`, `/settings.yml`,
+  `/appsettings.json`, `/firebase*.json`, `/key.json`, `/env.js`
+- infrastructure and deployment files (2.20.1): any file ending `.tf`,
+  `.tfvars`, `.tfvars.json`, `.tf.json`, `.tfstate` or `.tfstate.backup`;
+  `/.terraform/`, `/.kube/`, `/.circleci/`, `/.github/`, `/.gitlab-ci.yml`,
+  `/.travis.yml` (dotfiles, as above); `cdk.out`, `cdk.json`,
+  `cdk.context.json`; `appspec`, `buildspec`, `serverless`, `cloudbuild`,
+  `bitbucket-pipelines`, `azure-pipelines`, `kustomization` and `skaffold`
+  `.yml`/`.yaml`; `samconfig.toml`, `kubeconfig`, `Jenkinsfile`,
+  `Dockerfile`; and **at the root only** `/template.yaml`, `/values.yaml`
+  and `/Chart.yaml` (CloudFormation, Helm), names a real page could carry
+  deeper in a site
+- a project's package files: lock files anywhere (`composer.lock`,
+  `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `Gemfile.lock`,
+  `Pipfile.lock`, `poetry.lock`, `Cargo.lock`); manifests **at the root
+  only** (`/composer.json`, `/package.json`, `/Gemfile`, `/Pipfile`,
+  `/requirements.txt`, `/go.mod`, `/Cargo.toml`, `/pyproject.toml`)
 - admin panels and consoles as a segment: `/admin`, `/phpmyadmin`,
   `/cgi-bin`, `/jenkins`, `/actuator`, `/telescope`, ...
 - framework debug endpoints that are remote-code-execution routes:
   `/_ignition`, `/_debugbar`, `/_profiler`, `/vendor/phpunit`, `eval-stdin`,
   `invokefunction`, `/containers/json`, `/HNAP1`, `/owa`, `/sdk`, ...
 
+`SECRET_PROBE` is the part that marks the whole visitor (rule 6b): the
+dotfile, dump and backup, key and credential, infrastructure and package
+families. Scripts, WordPress, an app's settings, admin panels and debug
+routes stay probes of their own request only, because real readers ask for
+them too.
+
 `/administration-guide/` is not `/admin`; `/blog/wp-alternatives` is not
-WordPress; `/sitemap.xml.gz` is not a backup.
+WordPress; `/sitemap.xml.gz` is not a backup; `/terraform/`,
+`/main-features/`, `/composer/`, `/templates/` and `/fonts/x.ttf` are not
+infrastructure files (`tests/test_scanner_visitor.py`).
 
 `PROBE_QUERY` catches the few attacks that live in the query string instead:
 `../`, `/etc/passwd`, `${jndi:`, `UNION SELECT`, `XDEBUG_SESSION`.

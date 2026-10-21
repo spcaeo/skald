@@ -47,7 +47,8 @@ from __future__ import annotations
 from collections import Counter
 from datetime import timedelta, timezone
 
-from .classify import AI_ASKED, CRAWLER_SESSION, LINK_PREVIEW, NOT_RENDERED, TOO_FAST, Group
+from .classify import (AI_ASKED, CRAWLER_SESSION, LINK_PREVIEW, NOT_RENDERED, SCANNER, TOO_FAST,
+                       Group)
 
 TOP = 50
 PAGES = 10
@@ -60,7 +61,7 @@ UNKNOWN = "Unknown"
 GROUPS = (Group.ANSWER_ENGINE, Group.SEARCH_ENGINE, Group.BOTS)
 SUMMED = ("requests", "bytes", "sized", "ms", "timed")
 # Bots whose user-agent strings are not kept: they may be a person's browser.
-NO_AGENTS = (PROBES, NOT_RENDERED, TOO_FAST, CRAWLER_SESSION, "browser-like agent",
+NO_AGENTS = (PROBES, SCANNER, NOT_RENDERED, TOO_FAST, CRAWLER_SESSION, "browser-like agent",
              "Googlebot template, no Googlebot")
 
 

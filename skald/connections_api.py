@@ -276,7 +276,7 @@ def badges(config, live_dir, config_path, names) -> dict:
     a set-up left unfinished, or one finished that has heard nothing for a day.
     `names`: the sites the caller is an admin of."""
     from .accounts import db as base
-    from .accounts import site_setup
+    from .accounts import site_configs, site_setup
     path = base.path_for(config, ingest.history_folder(config, live_dir))
     if path is None or not Path(path).is_file() or not names:
         return {}
@@ -285,10 +285,14 @@ def badges(config, live_dir, config_path, names) -> dict:
         site_setup.ensure(db)
         rows = {r["name"]: r for r in db.execute("SELECT name, step, done_at FROM site_setup")
                 if r["name"] in set(names)}
+        # A removed site collects nothing: no "continue" link for it (setup_page.py).
+        removed = {r["name"] for r in site_configs.listing(db) if not r["active"]}
     finally:
         db.close()
     out = {}
     for name, row in rows.items():
+        if name in removed:
+            continue
         if not row["done_at"]:
             out[name] = (f"Setup: step {row['step']} of {site_setup.STEPS}, continue", "setup")
             continue

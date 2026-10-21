@@ -359,7 +359,8 @@ class TestIndependence(unittest.TestCase):
         got = {(n.module, a.name) for n in ast.walk(tree)
                if isinstance(n, ast.ImportFrom) and n.level for a in n.names}
         self.assertEqual(got, {("classify", "CRAWLER_SESSION"), ("classify", "LINK_PREVIEW"),
-                               ("classify", "NOT_RENDERED"), ("classify", "TOO_FAST")})
+                               ("classify", "NOT_RENDERED"), ("classify", "SCANNER"),
+                               ("classify", "TOO_FAST")})
 
 
 if __name__ == "__main__":

@@ -44,7 +44,7 @@ from urllib.parse import urlsplit
 
 # The name lists - the only thing shared with the package.
 from .classify import (AI_ASKED, AI_REFERRER_HOSTS, AI_TRAINING, AI_UTM, OTHER_BOT,
-                       OWN_AGENTS, PROBE, PROBE_QUERY, SEARCH_ENGINE)
+                       OWN_AGENTS, PROBE, PROBE_QUERY, SEARCH_ENGINE, SECRET_PROBE)
 from .store import History, READER_KINDS
 from . import (audit_cities, audit_drains, audit_extras, audit_more, audit_release2,
                audit_rendered, audit_too_fast, audit_visits)
@@ -179,6 +179,9 @@ class Judge:
         self.legacy = tuple(str(p) for p in (raw.split() if isinstance(raw, str) else raw)
                             if str(p).startswith("/"))
         self.bursts = audit_release2.bursts(lines, self.hosts)
+        # Rule 6b: an address and agent that asked the site's hosts for a
+        # secret or config file in the window is a scanner on every line of it.
+        self.scanners = self._scanners(lines)
         # Browser-like visits that drew nothing (audit_rendered): bots.
         first, last = window or ((min(l.when for l in lines), max(l.when for l in lines))
                                  if lines else (None, None))
@@ -212,6 +215,20 @@ class Judge:
 
     def ours_label(self, line: Line) -> str:
         return self._ours(line)
+
+    def _scanners(self, lines: list[Line]) -> set:
+        """Every (address, agent) with a line on the site's hosts asking for
+        a secret or config file or carrying an attack in its URL (the shared
+        SECRET_PROBE and PROBE_QUERY lists; not under an old-site path)."""
+        found = set()
+        for line in lines:
+            if self.hosts and line.host and line.host.lower() not in self.hosts:
+                continue
+            if not (SECRET_PROBE.search(line.path) or PROBE_QUERY.search(line.url)):
+                continue
+            if not any(line.path.startswith(p) for p in self.legacy):
+                found.add((line.address, line.agent))
+        return found
 
     def _crawlers(self, lines: list[Line], gap: timedelta) -> dict:
         """Visits that asked for robots.txt or a sitemap on the site and did
@@ -278,6 +295,9 @@ class Judge:
             probe = False
         if probe:
             self.info = {"probe": True}
+            return "bots", False
+        if (line.address, line.agent) in self.scanners:
+            self.info = {"scanner": True}
             return "bots", False
         compatible_only = ("(compatible;" in agent.lower() and not re.search(
             r"AppleWebKit|Gecko|Trident|Presto|Chrome/|Safari/|Firefox/", agent, re.I))

@@ -299,8 +299,9 @@ def ordered_classifier(config: dict, lines, start: datetime | None = None,
 
 def _classifier(config: dict, first_pass, start: datetime | None = None,
                 end: datetime | None = None) -> Classifier:
-    """The config's classifier, told which sessions are crawlers and which
-    browser-like visits never rendered a page (rendering.py).
+    """The config's classifier, told which sessions are crawlers, which
+    browser-like visits never rendered a page (rendering.py) and which
+    address and agent asked for a scanner probe (classify.Scanners).
 
     That takes a pass of its own: a crawler may fetch robots.txt after the
     pages, and a page's assets come after it, so every one of its requests
@@ -309,7 +310,7 @@ def _classifier(config: dict, first_pass, start: datetime | None = None,
     the beacon's page openings and the readers of the days before it.
     """
     from . import rendering, too_fast
-    from .classify import FanOut
+    from .classify import FanOut, Scanners
     classifier = Classifier.from_config(config)
     gap = int(setting(config, "report", "session_gap_minutes", 30))
     hosts = setting(config, "site", "hosts")
@@ -328,8 +329,12 @@ def _classifier(config: dict, first_pass, start: datetime | None = None,
     pages, seconds = too_fast.limits(config)
     fast = too_fast.TooFast(hosts, gap, pages, seconds) if pages else None
 
+    # Rule 6b: one probe marks its address and agent for the whole window.
+    scan = Scanners(classifier.legacy)
+
     def also(hit) -> None:
         fan(hit)
+        scan(hit)
         if drawn is not None:
             drawn(hit)
         if fast is not None:
@@ -337,6 +342,7 @@ def _classifier(config: dict, first_pass, start: datetime | None = None,
 
     classifier.crawler_visits = crawler_visits(first_pass, gap, hosts, also=also)
     classifier.fan_out = fan.pairs()
+    classifier.scanners = scan.pairs
     if drawn is not None:
         classifier.unrendered = drawn.unrendered()
         classifier.rendering = drawn.counts

@@ -34,14 +34,14 @@ from __future__ import annotations
 from collections import Counter
 from datetime import timezone
 
-from .classify import CRAWLER_SESSION, LINK_PREVIEW, NOT_RENDERED, TOO_FAST
+from .classify import CRAWLER_SESSION, LINK_PREVIEW, NOT_RENDERED, SCANNER, TOO_FAST
 
 GROUPS = ("answer_engines", "search_engines", "bots")
 OTHER = "(all others)"
 PROBES = "(scanner probes)"
 NO_AGENT = "(no user agent)"
 # Bots whose strings may be a person's browser: their agents are not kept.
-UNKEPT = {PROBES, NOT_RENDERED, TOO_FAST, CRAWLER_SESSION, "browser-like agent",
+UNKEPT = {PROBES, SCANNER, NOT_RENDERED, TOO_FAST, CRAWLER_SESSION, "browser-like agent",
           "Googlebot template, no Googlebot"}
 
 
@@ -88,6 +88,8 @@ def _name(line, group: str, info: dict) -> str:
         return CRAWLER_SESSION
     if info.get("probe"):
         return PROBES
+    if info.get("scanner"):
+        return SCANNER
     return short_name(line.agent)
 
 

@@ -354,6 +354,18 @@ class DrawerOutcome(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertIn("visitor-drawer: all passed", done.stdout)
 
+    def test_a_browser_seen_step_is_a_normal_chip(self):
+        """2.20.1: the dashed step carried the shell's class "app" (a full-window
+        grid) and drew a screen-tall box in the drawer's journey."""
+        import shutil
+        import subprocess
+        if not shutil.which("node"):
+            self.skipTest("node not installed")
+        js = Path(__file__).resolve().parent / "js" / "journey-steps.mjs"
+        done = subprocess.run(["node", str(js)], capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("journey-steps: all passed", done.stdout)
+
 
 class Words(unittest.TestCase):
     def test_no_unknown_in_the_new_pages(self):

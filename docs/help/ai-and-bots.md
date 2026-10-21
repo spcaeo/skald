@@ -15,7 +15,7 @@ Pick the period at the top as on any other page: today, yesterday, a number of d
 
 | Column | What it is |
 |---|---|
-| Name | The name the crawler gives itself. Bots without a known name go by the name in their user agent. Scanner probes are one row, **(scanner probes)**. |
+| Name | The name the crawler gives itself. Bots without a known name go by the name in their user agent. Scanner probes are one row, **(scanner probes)**; everything else a scanner asked for that day (its home page, say, between two probes) is another, **scanner (asked for secret or config files)**. |
 | Requests | Every request it made in the period. |
 | Bytes sent | How much your server sent it, from the size field of each log line. |
 | Mean time | How long your server took per request, on average. |
@@ -57,7 +57,7 @@ Select a name in the table, or any crawler name elsewhere on AI & bots. The deta
 - **Pages it fetched**: the pages it asked for most.
 - **Status mix**: how the server answered.
 - **Countries of its requests**: from the log's country field or the GeoIP file.
-- **User agents it sent**: the exact strings, the five most used each day. These are the crawler's own, never a person's. For scanner probes, link previews and browser-like bots the strings are not kept, because they may be a real person's browser.
+- **User agents it sent**: the exact strings, the five most used each day. These are the crawler's own, never a person's. For scanner probes and the rest of a scanner's requests, link previews and browser-like bots the strings are not kept, because they may be a real person's browser.
 - **Last seen**.
 
 Pages, countries and user agents are kept for the last 30 days. For an older period the detail says how many of its days have them. No address is ever shown.

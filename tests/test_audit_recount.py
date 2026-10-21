@@ -237,7 +237,9 @@ class TestIndependence(AuditCase):
                 imported |= {(node.module, a.name) for a in node.names}
         allowed = {("classify", n) for n in ("AI_ASKED", "AI_REFERRER_HOSTS", "AI_TRAINING",
                                              "AI_UTM", "OTHER_BOT", "OWN_AGENTS", "PROBE", "PROBE_QUERY",
-                                             "SEARCH_ENGINE")}
+                                             "SEARCH_ENGINE",
+                                             # the probes that mark a whole visitor (rule 6b)
+                                             "SECRET_PROBE")}
         allowed |= {("store", "History"), ("store", "READER_KINDS")}
         # The audit's own visits recount, itself independent (test_visits_audit).
         allowed |= {(None, "audit_visits"), (None, "audit_extras")}
