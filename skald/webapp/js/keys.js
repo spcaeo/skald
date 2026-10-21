@@ -26,16 +26,20 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-21-2.20.0",
+  id: "2026-10-21-2.20.1",
   items: [
+    ["Scanners never count as visitors", "an address that asks for secret or config files (.env, cloud and Terraform files, keys) is a bot for the whole day: none of its requests count as people or show live.", "ai-and-bots"],
+    ["Visitor drawer", "a page seen only in the browser is a normal step again, not a tall empty box."],
+    ["A site still being set up", "its address shows how far setup got and a Continue setup button, instead of a page not found.", "connections"],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.20.0
     ["Leads, in one list", "Leads & sales opens on every lead of the period: who (name and email for owners and admins), what they did, stage, source, landing page. As a list, a board, a timeline or a map.", "leads-and-conversions"],
     ["Leads & sales, simpler", "one question per tab: Leads, Summary, Sources, Calendar bookings, Funnels, Events, Find a person; one options row; help behind the (i).", "leads-and-conversions"],
     ["What visitors are doing now", "on Overview, under the map: the newest visitors and the pages they read, live, beside the pages read in the last 30 minutes; it follows a country or source drill-down.", "real-time"],
     ["Tidier pages", "every table has one toolbar row, removable filter chips and a compact empty state; the same spacing everywhere."],
     ["Setting up a Next.js site", "the log line that counts clicks inside the site is now part of setup, with why it is safe, and a new site is checked end to end.", "connections"],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.19.0
     ["Your own test leads", "a site's server can send a lead with \"test\": true, or mark leads it already sent as test: kept and listed, never counted.", "leads-from-your-backend"],
     // 2.18.1

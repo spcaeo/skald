@@ -7,8 +7,10 @@ under 1000 lines); the rules there apply.
 
 `days[]` and `today`: `requests` int, `probes` int (scanner probes),
 `agents` `{short name: requests}` (monitors, SEO suites, unfurlers,
-crawler sessions in browser clothes; null in `today`), `statuses` (bots'
-status classes).
+crawler sessions in browser clothes, and from 2.20.1 `"scanner (asked for
+secret or config files)"`: every other request of an address and agent that
+asked for a secret or config file that day, CLASSIFICATION.md rule 6b; null in `today`),
+`statuses` (bots' status classes).
 
 From release 2 (null on days collected before it; `today` has them too):
 
@@ -84,7 +86,7 @@ The day kind, `{"groups": {group: {name: entry}}}`, one entry per name:
 | `paths` | int | distinct paths (query string cut, first 200 characters) |
 | `pages` | `{path: n}` | the 10 paths it fetched most, and `"(all others)"`: adds up to `requests` |
 | `countries` | `{code: n}` | its requests by the line's country (cc= or the GeoIP file), `"Unknown"` for none; top 10 and `"(all others)"` |
-| `agents` | `{user agent: n}` or null | the user-agent strings it sent, first 200 characters; top 5 and `"(all others)"`. A named crawler's own strings only: **null (not kept)** for the bots whose string may be a person's browser - `"(scanner probes)"`, link previews (iMessage sends the sender's Safari string), browser-like crawler sessions, visits that never rendered, `"browser-like agent"` and the Googlebot template. The only user-agent strings history or the live snapshot holds |
+| `agents` | `{user agent: n}` or null | the user-agent strings it sent, first 200 characters; top 5 and `"(all others)"`. A named crawler's own strings only: **null (not kept)** for the bots whose string may be a person's browser - `"(scanner probes)"`, `"scanner (asked for secret or config files)"`, link previews (iMessage sends the sender's Safari string), browser-like crawler sessions, visits that never rendered, `"browser-like agent"` and the Googlebot template. The only user-agent strings history or the live snapshot holds |
 | `last` | ISO | its last request of the day, UTC |
 
 Each group keeps its 50 busiest names; the rest are one `"(all others)"` entry

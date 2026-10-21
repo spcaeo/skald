@@ -358,6 +358,11 @@ NOT_RENDERED = "browser-like, never rendered the page"
 # A browser-like visit that read pages faster than a person can (too_fast.py):
 # at least site.too_fast_pages page views, all within site.too_fast_seconds.
 TOO_FAST = "too fast to be a person"
+# An address and user agent that asked the site for a secret or config file
+# that day (Scanners, SECRET_PROBE): every other request it made that day,
+# before the probe or after it, is this. One probe marks the whole visitor (CLASSIFICATION.md
+# rule 6b, COUNTING-TRAPS.md trap 17).
+SCANNER = "scanner (asked for secret or config files)"
 
 
 def crawler_visits(hits, gap_minutes: int = 30,
@@ -434,33 +439,67 @@ def crawler_visits(hits, gap_minutes: int = 30,
 # page's own business (an image URL inside one mentioned "backup" too).
 _SEG = r"(?:^|/)"          # starts a path segment
 _END = r"(?:[/.]|$)"       # ends one: a slash, an extension, or the end
-PROBE = re.compile(
+# The families that mark the whole visitor (rule 6b, Scanners): secret,
+# config and infrastructure files that no site serves to a reader.
+_SECRETS = (
     # Dotfiles and version control: no site serves these on purpose.
     _SEG + r"\.(?:env|git|svn|hg|bzr|aws|ssh|docker|vscode|idea|npmrc|htpasswd"
-    r"|htaccess|bash_history|ds_store|config)(?:[._/-]|$)"
-    # Server-side scripts that a static or Node site never runs.
-    r"|\.(?:php\d?|phtml|asp|aspx|jsp|jspa|cgi|pl|cfm)(?:/|$)"
-    # WordPress and its kin.
-    r"|" + _SEG + r"(?:wp-admin|wp-login|wp-content|wp-includes|wp-json|wp-config"
-    r"|xmlrpc|wordpress|wp)" + _END +
+    r"|htaccess|bash_history|ds_store|config|terraform|kube|circleci|travis|gitlab-ci"
+    r"|github)(?:[._/-]|$)",
     # Dumps and backups, shaped like files.
-    r"|" + _SEG + r"(?:backups?|bak|db|database|dump|site|www|web|html|public_html"
+    _SEG + r"(?:backups?|bak|db|database|dump|site|www|web|html|public_html"
     r"|wwwroot|data|old|test)\.(?:zip|tar|tar\.gz|tgz|gz|rar|7z|sql|bak)$"
-    r"|\.(?:sql|sql\.gz|sqlite3?|bak|swp)$|" + _SEG + r"backups?/?$"
+    r"|\.(?:sql|sql\.gz|sqlite3?|bak|swp)$|" + _SEG + r"backups?/?$",
     # Keys and credentials, shaped like files.
-    r"|" + _SEG + r"id_(?:rsa|dsa|ecdsa|ed25519)(?:\.pub)?$|\.(?:pem|key|p12|pfx|tfstate)$"
-    r"|" + _SEG + r"(?:credentials?|secrets?|service-account[^/]*|firebase[^/]*|config"
-    r"|settings|appsettings|parameters|key)\.(?:json|ya?ml|xml|ini|env|txt)$"
-    r"|" + _SEG + r"docker-compose[^/]*\.ya?ml$|" + _SEG + r"env\.js$"
+    _SEG + r"id_(?:rsa|dsa|ecdsa|ed25519)(?:\.pub)?$|\.(?:pem|key|p12|pfx)$"
+    r"|" + _SEG + r"(?:credentials?|secrets?|service-account[^/]*)"
+    r"\.(?:json|ya?ml|xml|ini|env|txt)$"
+    r"|" + _SEG + r"docker-compose[^/]*\.ya?ml$",
+    # Infrastructure and deployment files (2.20.1). A scanner on a live site
+    # asked for /main.tf, /outputs.tf, /cdk.out and /appspec.yml in the same
+    # two seconds as six .env files, sending a Chrome agent: the .env rows
+    # were probes, these were "people: client error". Terraform (any file
+    # ending .tf, .tfvars, .tf.json or .tfstate), AWS CDK, CodeDeploy and
+    # CodeBuild, Serverless, SAM, Kubernetes and Helm, CI files. Names a
+    # real page could carry (template, values, Chart) only at the root.
+    r"\.tf(?:vars)?(?:\.json)?$|\.tfstate(?:\.backup)?$"
+    r"|" + _SEG + r"cdk\.out(?:/|$)|" + _SEG + r"cdk(?:\.context)?\.json$"
+    r"|" + _SEG + r"(?:appspec|buildspec|serverless|cloudbuild|bitbucket-pipelines"
+    r"|azure-pipelines|kustomization|skaffold)\.ya?ml$"
+    r"|" + _SEG + r"(?:samconfig\.toml|kubeconfig(?:\.ya?ml)?|Jenkinsfile|Dockerfile)$"
+    r"|^/(?:template|values|Chart)\.ya?ml$",
+    # A project's package and lock files: lock files anywhere, manifests only
+    # at the root (a sitemap may have a /package/ or /composer/ page).
+    _SEG + r"(?:composer\.lock|package-lock\.json|yarn\.lock|pnpm-lock\.yaml"
+    r"|Gemfile\.lock|Pipfile\.lock|poetry\.lock|Cargo\.lock)$"
+    r"|^/(?:composer\.json|package\.json|Gemfile|Pipfile|requirements\.txt|go\.mod"
+    r"|Cargo\.toml|pyproject\.toml)$",
+)
+# Probes too, but each moves only its own request: a real site may serve
+# them to real readers - a WordPress site's /wp-content/ and /wp-json/, a PHP
+# site's scripts, the owner's own /admin, an app that loads /config.json,
+# /appsettings.json or /env.js as it starts.
+_SERVED = (
+    # Server-side scripts that a static or Node site never runs.
+    r"\.(?:php\d?|phtml|asp|aspx|jsp|jspa|cgi|pl|cfm)(?:/|$)",
+    # WordPress and its kin.
+    _SEG + r"(?:wp-admin|wp-login|wp-content|wp-includes|wp-json|wp-config"
+    r"|xmlrpc|wordpress|wp)" + _END,
+    # An app's settings, shaped like files.
+    _SEG + r"(?:firebase[^/]*|config|settings|appsettings|parameters|key)"
+    r"\.(?:json|ya?ml|xml|ini|env|txt)$|" + _SEG + r"env\.js$",
     # Admin panels, app-server consoles and framework debug routes (several
     # are remote-code-execution endpoints that send a Chrome user agent).
-    r"|" + _SEG + r"(?:admin|administrator|phpmyadmin|pma|myadmin|adminer|cpanel"
+    _SEG + r"(?:admin|administrator|phpmyadmin|pma|myadmin|adminer|cpanel"
     r"|cgi-bin|boaform|hudson|jenkins|solr|struts|actuator|telescope|_ignition"
     r"|_debugbar|_profiler|laravel|druid|geoserver|HNAP1|owa|autodiscover"
     r"|vendor/phpunit|containers/json|api/config|sdk)" + _END +
     r"|phpinfo|eval-stdin|invokefunction|" + _SEG + r"\.well-known/ALFA",
-    re.I,
 )
+PROBE = re.compile("|".join(_SECRETS + _SERVED), re.I)
+# The probes that mark the whole visitor (Scanners, rule 6b): a name list
+# the audit shares, as it shares PROBE.
+SECRET_PROBE = re.compile("|".join(_SECRETS), re.I)
 
 # Attack strings that arrive in the query string instead of the path.
 PROBE_QUERY = re.compile(
@@ -468,6 +507,30 @@ PROBE_QUERY = re.compile(
     r"|XDEBUG_SESSION|allow_url_include|auto_prepend_file",
     re.I,
 )
+
+
+class Scanners:
+    """The first pass of rule 6b (CLASSIFICATION.md): fed every hit of the
+    window on the site's hosts, it keeps each (address, agent) that asked
+    for a secret or config file (SECRET_PROBE on the path) or sent an attack
+    in the URL (PROBE_QUERY), not under a legacy path. The classifier then
+    files every request of those pairs under bots, as SCANNER - the ones
+    before the probe too, which is why it takes a pass of its own. The other
+    probes (_SERVED) move only themselves: real readers ask for them too."""
+
+    def __init__(self, legacy: tuple = ()) -> None:
+        self.legacy = tuple(legacy or ())
+        self.pairs: set[tuple[str, str]] = set()
+
+    def __call__(self, hit: Hit) -> None:
+        key = (hit.address, hit.user_agent)
+        if key in self.pairs:
+            return
+        if not (SECRET_PROBE.search(hit.path) or PROBE_QUERY.search(hit.url)):
+            return
+        if self.legacy and any(hit.path.startswith(p) for p in self.legacy):
+            return
+        self.pairs.add(key)
 
 # "Mozilla/5.0 (compatible; Name)" is how crawlers write a browser-shaped
 # agent. A real browser that says "compatible;" - Internet Explorer - names
@@ -525,6 +588,8 @@ class Classifier:
       2. engines   - named agents, the most specific signal there is
       3. search    - also named, and wanted
       4. probe     - a scanner, whatever it claims to be
+      4b. scanner  - every other request of an address and agent that asked
+                     for a secret or config file that day (Scanners)
       5. bots      - automated by any other sign
       6. people    - a browser, and nothing above matched
 
@@ -579,6 +644,9 @@ class Classifier:
         # Browser-like visits that read pages too fast for a person
         # (too_fast.py), from the same first pass. Empty: the rule is off.
         self.too_fast: dict[tuple[str, str], list] = {}
+        # (address, agent) pairs that asked for a scanner probe in the window
+        # (Scanners, the same first pass). Empty: no scanner, or the rule off.
+        self.scanners: set[tuple[str, str]] = set()
 
     # A user agent repeats across thousands of hits, and the case-insensitive
     # alternations below were nine-tenths of the time spent per hit. What
@@ -728,6 +796,11 @@ class Classifier:
 
         if probing:
             return Verdict(Group.BOTS, probe=True)
+
+        if self.scanners and (hit.address, agent) in self.scanners:
+            # The same address and agent asked for a secret file that day: a
+            # scanner, whatever this one request was (rule 6b).
+            return Verdict(Group.BOTS, engine=SCANNER, legacy=legacy)
 
         if other_bot or not agent or MACHINE_PATH.search(hit.path):
             return Verdict(Group.BOTS, legacy=legacy)

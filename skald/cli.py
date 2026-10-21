@@ -325,6 +325,8 @@ def cmd_dashboard(ctx: Context) -> int:
             written += multisite.write_sites(out, sites, live_names)
         except Exception as why:        # noqa: BLE001 - the switcher's list, never the redraw
             ctx.err(f"sites.json: {type(why).__name__}: {why}")
+        from . import setup_page        # a waiting or removed site: a page saying so, not a 404
+        written += setup_page.write_missing(out, sites, ctx.config, ctx.config_path, ctx.err)
     for path in written:
         if path.suffix == ".html":
             ctx.out(f"wrote {path}")

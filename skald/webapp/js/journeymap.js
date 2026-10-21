@@ -74,7 +74,7 @@ function steps(v) {
     const prev = trail[i - 1];
     out.push(gap(i && p.at != null && prev?.at != null ? duration(Math.max(0, p.at - prev.at)) : ""));
     const at = p.at != null ? `+${p.at < 1 ? "0 s" : duration(p.at)} from the first request` : "time in the visit not kept";
-    const btn = withTip(h("button", { type: "button", class: `jm-n pg${p.page === false ? " app" : ""}${p.nf ? " nf" : ""}`,
+    const btn = withTip(h("button", { type: "button", class: `jm-n pg${p.page === false ? " jm-app" : ""}${p.nf ? " nf" : ""}`,
       "aria-label": `Page ${p.path}, ${at}. Opens its page detail.` }, mark("path", p.path), h("span", { class: "jm-w" }, p.path), p.times > 1 ? h("small", null, `×${p.times}`) : null),
     p.path, [{ label: at }, ...(p.page === false ? [{ label: "seen in the browser: moved inside the site, no page loaded from the server" }] : []), ...(p.nf ? [{ label: "page not found (404)" }] : [])]);
     btn.addEventListener("click", () => { untip(); open("path", p.path); });

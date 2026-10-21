@@ -341,6 +341,16 @@ folder of the dashboard's output (only when none is there), then its first build
 (`skald --site <site> dashboard`, `skald/first_page.py`). Its address never answers
 nginx's 404 while it waits for the next run.
 
+After that, every dashboard write (`skald dashboard`, every live run) gives each known site with
+no page of its own a page saying why (`skald/setup_page.py`, 2.20.1): a site still
+waiting for its first log lines (the wizard step it reached, **Continue setup** or **Test the
+connection**, the troubleshooting guide, a reload each minute), or a removed site (removed on
+that day, nothing collected, its data kept until purged; no setup button). That covers a
+folder lost when the container is made again, and a removed site still listed for its
+organisation. The page is written only where there is no page or where the page is this one,
+behind the same sign-in as the dashboard, and the site's own run draws its dashboard over it.
+The picker no longer offers "Setup: step N of 5, continue" for a removed site.
+
 ## Client reports (2.13)
 
 Settings > Reports (`skald/client_reports*.py`, `client_report_*.py`, `pdf_writer.py`;

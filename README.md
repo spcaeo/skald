@@ -51,6 +51,9 @@
 
 ## What's new
 
+- **2.20.1: scanners never count as visitors** ([changelog](CHANGELOG.md#2201-2026-10-21)). An
+  address that asks for secret or config files is a bot for the whole day; plus a visitor-drawer
+  fix and a page for sites still being set up.
 - **2.20.0: Leads & sales redone, and what visitors are doing now** ([changelog](CHANGELOG.md#2200-2026-10-21)).
   Every lead in one list (names and emails for owners and admins), as a list, board, timeline or
   map; one question per tab; on Overview, the newest visitors and the pages they read, live.

@@ -447,6 +447,54 @@ when it must, so the order is exact without holding the day in memory.
 and one line hours late) is stored exactly as the same day written in order,
 and the audit says "all match".
 
+## 17. A scanner counted as a live person (2026-10-21)
+
+**What happened.** Overview's "What visitors are doing now" showed a person
+in Sheung Wan (HK), "from wp.<site>, now on /". In about two seconds that
+address and its "Chrome" agent, with a forged referrer of the site's own
+`wp.` subdomain, asked for six `.env` files and for `/cdk.out`,
+`/outputs.tf`, `/variables.tf`, `/terraform.tfvars.json`, `/appspec.yml` and
+`/main.tf`. The `.env` rows were "bots: scanner probe". The cloud and
+Terraform files matched no probe shape, so they were "people: client error",
+and with its `/` they made a visit: a reader, a landing, a source, a city
+dot and a live visitor. Two faults: `PROBE` did not know infrastructure
+files, and a probe only ever moved itself - the requests around it, even
+from the same address and agent in the same second, stayed people.
+
+**How this package prevents it.** `PROBE` knows Terraform, AWS CDK,
+CodeDeploy and CodeBuild, Serverless, SAM, Kubernetes and Helm, CI and
+package files, by file shape (CLASSIFICATION.md, "PROBE"). And one probe
+marks the whole visitor (rule 6b): a first pass over the window keeps every
+address and agent that asked the site's hosts for a secret or config file
+(`SECRET_PROBE`) or sent an attack in a URL, and every request of that
+pair, before the probe or after it, is filed under bots as "scanner (asked
+for secret or config files)". Because the window is read twice (as for
+rendering, rule 9), a probe at the end of the day still moves a page read in
+the morning, and the groups still partition the log.
+
+**The trap inside the fix.** "Any probe marks the visitor" was the first
+version, and the suite caught it: every reader of a WordPress site loads
+`/wp-content/` and `/wp-json/`, which are probes on a site without them, so
+every one of them became a scanner. WordPress paths, server-side scripts,
+admin panels and an app's settings file (`/config.json`, `/env.js`) still
+make their own request a probe, but mark no one.
+
+**The check that catches it.** The audit finds the same pairs with its own
+code (`audit.Judge._scanners`, sharing only the name lists `SECRET_PROBE`
+and `PROBE_QUERY`); a main road that marked only what came after the probe
+keeps a page as people, and the audit withholds the day.
+
+**The test.** `tests/test_scanner_visitor.py`: the live scanner's paths and
+more are probes and the made-up sitemap still matches none; a probe first, a
+probe last and the live scanner all move whole, an honest visitor on the
+scanner's address with another browser stays a person, and so does a reader
+of a WordPress site or of an app that loads its settings; the audit agrees,
+catches the streaming mutation, and the live "doing" list never shows a
+visitor with a probe.
+
+**Stored days.** Days collected before 2.20.1 keep the old figures until
+they are recounted (`backfill --force`).
+
 ## The pattern in the first five
 
 Every one of these was a number that answered a slightly different question

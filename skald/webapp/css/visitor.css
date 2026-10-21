@@ -72,7 +72,9 @@ dialog.dw.vz-dw { --dw-w: min(660px, 100vw); }
 .jm-n.pg:hover { background: color-mix(in srgb, var(--views) 16%, var(--surface)); }
 .jm-n.pg .jm-w { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .jm-n.pg small { font-family: var(--sans); color: var(--ink-3); }
-.jm-n.pg.app { border-style: dashed; }
+/* A step seen only in the browser: the same chip, only its border dashed. Never the bare class
+   "app": that is the page shell's (app.css: a grid, min-height 100vh), and drew a screen-tall box. */
+.jm-n.pg.jm-app { border-style: dashed; }
 .jm-n.pg.nf { border-color: color-mix(in srgb, var(--bad) 50%, var(--rule)); background: color-mix(in srgb, var(--bad) 8%, var(--surface)); }
 .jm-n.end { display: inline-flex; align-items: center; gap: 6px; padding: 1px 10px; border-radius: 999px; font-size: 12.5px;
   border: 1px solid var(--gap); background: var(--sunk); color: var(--ink-2); }
