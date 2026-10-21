@@ -51,6 +51,8 @@
 
 ## What's new
 
+- **2.21.1: Security's counts fixed** ([changelog](CHANGELOG.md#2211-2026-10-21)). Bursts and login
+  hammering agree with their audit on real logs, and two false "possible exposure" rules are gone.
 - **2.21.0: Security from your server log, and a link for every view** ([changelog](CHANGELOG.md#2210-2026-10-21)).
   Is anything exposed, who is scanning you, attack attempts, fake browsers, a block list, your
   stack with the October 2026 PHP and Node.js advisories, and alerts to your team. Every open

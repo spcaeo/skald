@@ -73,6 +73,11 @@ services:
       SKALD_SCHEDULER: "${SKALD_SCHEDULER:-on}"
       SKALD_BEACON_ORIGINS: "${SKALD_BEACON_ORIGINS:-}"
       SKALD_ORIGIN: "${SKALD_ORIGIN:-}"
+      # The public "Is my site exposed?" check (docs/SETTINGS.md, "Public check"): off
+      # unless true; answered with CORS for the listed origin(s) only.
+      SKALD_PUBLIC_CHECK: "${SKALD_PUBLIC_CHECK:-}"
+      SKALD_PUBLIC_CHECK_ORIGINS: "${SKALD_PUBLIC_CHECK_ORIGINS:-}"
+      SKALD_PUBLIC_CHECK_INFO_URL: "${SKALD_PUBLIC_CHECK_INFO_URL:-}"
       # The image a site's install kit runs (Settings > Connections). Empty: this
       # image at its major version; and where the shipper is inside it.
       SKALD_KIT_IMAGE: "${SKALD_KIT_IMAGE:-}"

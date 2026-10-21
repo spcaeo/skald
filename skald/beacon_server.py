@@ -27,6 +27,9 @@ decides whether to take it:
     conversions, conversions/from_beacon.py), with the country from the
     address and the device from the user agent, both then dropped
 
+With `security.public_check: true` it also answers POST /traffic-hooks/_public/stack-check,
+the public "Is my site exposed?" check (stack_public_api.py, its own limits and cache).
+
 With no allowed origin (no --origin, no beacon.origins) the helper runs for the
 signed tool hooks only: /traffic-beacon and /traffic-js/skald.js answer 404, so
 a site cannot send events until its own origin is named. The Docker image always
@@ -369,6 +372,8 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
     """`sink` is a Sites, or one Sink with its `allowed` origins."""
     sites = sink if isinstance(sink, Sites) else Sites(sink, allowed)
     main = sites.main
+    from . import stack_public_api
+    public = stack_public_api.Service.from_config(main.config)   # None unless switched on
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "skald-beacon"
@@ -392,6 +397,8 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
 
         def do_POST(self):
             self.site = None
+            if public is not None and self.path.split("?", 1)[0] == stack_public_api.PATH:
+                return stack_public_api.handle(self, public)     # the public stack check
             if self.path.startswith("/traffic-hooks/"):    # signed tool hooks
                 from .conversions.hooks import handle
                 return handle(self, main.config, None, getattr(main, "config_path", None))
@@ -477,6 +484,12 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
                 self.wfile.write(raw)
 
         def _not_allowed(self):
+            self._send(405)
+
+        def do_OPTIONS(self):
+            self.site = None
+            if public is not None and self.path.split("?", 1)[0] == stack_public_api.PATH:
+                return stack_public_api.handle(self, public)     # its CORS preflight
             self._send(405)
 
         do_PUT = do_DELETE = do_PATCH = _not_allowed

@@ -131,6 +131,12 @@ def render_config(env: dict) -> dict:
     if origins:
         config["beacon"] = {"enabled": True, "origins": origins,
                             "log": "/var/log/nginx/skald-beacon.log"}
+    # 2.22: the public "Is my site exposed?" check (stack_public_api.py), off unless asked.
+    if str(env.get("SKALD_PUBLIC_CHECK", "")).strip().lower() in ("1", "true", "on", "yes"):
+        config["security"] = {"public_check": True,
+                              "public_check_origins": _words(env.get("SKALD_PUBLIC_CHECK_ORIGINS")),
+                              "public_check_info_url":
+                                  (env.get("SKALD_PUBLIC_CHECK_INFO_URL") or "").strip()}
     if str(env.get("SKALD_INGEST", "")).lower() in ("1", "true", "on", "yes"):
         config["ingest"] = {"enabled": True, "root": str(DATA / "ingest")}
     # 2.4.0: keep each visit's IP address and leads' names and emails. Unset,

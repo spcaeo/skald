@@ -2,6 +2,144 @@
 
 All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versioning](https://semver.org).
 
+## Unreleased
+
+### Added
+
+- **A public "Is my site exposed?" check, off by default** (`security.public_check: true`, or
+  `SKALD_PUBLIC_CHECK=true` with `SKALD_PUBLIC_CHECK_ORIGINS` and `SKALD_PUBLIC_CHECK_INFO_URL`
+  in Docker and docker-compose.yml). `POST /traffic-hooks/_public/stack-check` with
+  `{"url": ...}` on the beacon helper (`stack_public.py`, `stack_public_cards.py`,
+  `stack_public_api.py`) reads a site's home page from outside, as Security > Your stack does,
+  then one WordPress host of the site's own domain that the page loads `/wp-content/` files
+  from (a headless WordPress), and `/wp-login.php` on each WordPress host. It matches the
+  shipped advisories (PHP CVE-2026-109618 and CVE-2026-109619; Node.js October 2026) and
+  answers JSON cards: update needed, check your version, login page open, could not check,
+  your server shows its exact version (a tip, never a flaw), headless WordPress, login page
+  hidden (good), has the fix, nothing known applies. Why: a free page anyone can use the week
+  PHP fixed two critical flaws. Who it affects: no one until an admin switches it on. What to
+  do: nothing, or the settings guide's "Public check" to offer it. With `"cached_only": true`
+  it answers only a check made in the last hour, never fetching: a page's "send this report"
+  reads its findings back this way, so a report carries only what the check found.
+- **Every finding shows its proof** (owner: "everything has to be true and authenticated").
+  Each card says what was seen, exactly as received (`Server: nginx/1.18.0 (Ubuntu)`,
+  `X-Powered-By: Next.js`, the generator tag, the `api.w.org` Link header, "289 files loaded
+  from https://wp.<site>/wp-content/..." with the first examples), the URL it was read from,
+  what it means ("This means..." only for what the facts prove), why an advisory matched
+  (product, version or "version not shown", host), and `curl` commands to check it yourself,
+  with every URL shell-quoted. The answer lists every request (method, URL, status, size,
+  redirect, error, or "not fetched: the limit of 4 requests"), its time and the User-Agent.
+  "Update needed" only for a version the server showed; "could not check" for a home page that
+  is not a 2xx or is a bot challenge (Cloudflare's "Just a moment"), with nothing read from it.
+  The login page is followed to its final page and its body read: "open" only for WordPress's
+  login form; a redirect to a page without it (a security plugin's `/not_found`), 401, 403,
+  404 or 410 is "hidden (good)"; anything else "could not check". Checked against responses
+  recorded from a real headless site on 2026-10-21 (renamed to example.com in the tests): it
+  gives WordPress (PHP) and Next.js (Node.js) "check your version" with their advisories, the
+  nginx version tip, the headless set-up and the login page hidden.
+- **Its safety rules, because it fetches addresses strangers type.** Only http and https,
+  ports 80 and 443, no `user:password@`; never an IP address in any form (literal,
+  `[::ffff:127.0.0.1]`, `2130706433`, `017700000001`, `0x7f.1`, `127.1`), never a name that
+  only works inside a network (`localhost`, `*.local`, `*.internal`, `*.lan`, `*.home.arpa`,
+  `*.test`...); the name is resolved once and refused whole when any address is loopback,
+  private, link-local, CGNAT, multicast, reserved or a cloud metadata address (IPv4 and IPv6,
+  mapped and embedded IPv4 too); the connection goes to the address checked, with the name as
+  Host and TLS name, so DNS rebinding has nothing to switch; at most 3 redirects, each checked
+  again; login redirects followed only within the site's domain; 5 seconds and 512 KB per
+  request, 4 requests and 9 seconds per check; GET and HEAD only, no cookie or credentials.
+  Limits in memory: 10 checks an hour per address (X-Real-IP only on the proxy's loopback
+  connection), 300 fetching checks an hour in all, 4 at once; each answer cached an hour (a
+  site that did not answer, 5 minutes). CORS only for the configured origin; a page of another
+  origin gets 403. Nothing is written or logged but one hourly line of counts. Checked by 28
+  tests (`tests/test_stack_public.py`): every refusal above, rebinding in both directions and
+  between redirect hops, redirects inside and to odd ports, the caps against a local server,
+  the rate limits, the cache, the HTTP side, the challenge, blocked and redirect-to-not-found
+  cases, and that every card carries non-empty evidence.
+- **skaldanalytics.com: the page `/check/`** ("Is your site exposed? Check it in 10 seconds"),
+  in the marketing site's own source (not in this repository's public copy). The form; result
+  cards with their proof, "check it yourself" folds and a "What we fetched" table; a shareable
+  `/check/?url=...` that runs the check again and is never indexed (a robots meta set by the
+  page, and an `X-Robots-Tag` from nginx); "Send this report to your admin"; about 1,000 words
+  of indexable guidance (what happened, am I affected, how to check your PHP version, what to
+  do now with PHP's mitigations, Node.js, what the check can and can't see, how to see who is
+  probing your site); a 7-question FAQ with `FAQPage`, `WebApplication` and `BreadcrumbList`
+  JSON-LD; a 1200x630 Open Graph image; `article:modified_time`, an "Updated 21 Oct 2026" line,
+  the sitemap with its date, links from the home page, What's new and the privacy page. The
+  privacy page says what the check and the report keep. Checked by a build ("problems: none"),
+  a test that parses the built page's JSON-LD and head, Lighthouse on mobile (accessibility
+  100, best practices 96, SEO 100 but for the pre-launch `Disallow: /` in robots.txt), a
+  throttled phone trace (LCP 1.7 s, CLS 0), and screenshots at 1440 and 390 px, light and dark.
+- **skaldanalytics.com: "Send this report to my admin"** (the sign-up helper's `report.py` and
+  `report_mail.py`, `POST /api/report`). Mails the fixed report, with every finding's proof,
+  every request, the User-Agent and the result link, to the admin, with a copy to the person;
+  no free text and no tracking. Limits: 3 an hour per sender, 1 a day per admin address (a
+  salted hash in memory), a daily cap, a honeypot, a minimum fill time, an MX record for the
+  admin's domain, no role address of our own domains. The person becomes a Skald lead
+  (`contact`, label `exposure-report`, or `exposure-report-alerts` when they ticked "email me
+  when a new advisory matches my site"; `test` for our own and test domains); the admin's
+  address is never stored, logged or sent to Skald. Checked by 15 tests (template, each limit,
+  honeypot, MX parsing and a mocked lookup, the lead body with test marking, no admin address
+  anywhere, consent only when ticked).
+
+### Changed
+
+- **The site check refuses a host that ends in numbers** (`127.1`, `0x7f.1`): an address in
+  disguise that a resolver may read as one. Before, such a name was looked up and the address
+  it gave was then refused, so nothing was reachable; now it is refused before any lookup, for
+  the Add a site check too. Who it affects: no real site (no name ends in a number). Checked by
+  the existing site check tests and the new ones.
+- **`site_fetch.open_pinned` takes the User-Agent** (`agent`), so the public check names itself
+  `SkaldStackCheck/1.0`; the Add a site check is unchanged.
+
+## 2.21.1 (2026-10-21)
+
+Bursts and login hammering now counted the same way by both roads, two false "possible exposure"
+rules fixed, and no alert from a day counted by 2.21.0. Stored days need a recount.
+
+### Fixed
+
+- **Security's bursts and login hammering failed the audit on real logs** (live, 2026-10-21:
+  "bursts.episodes" 2 against 198 on one site, an episode's end a second or more apart on
+  others; every other figure matched). Two order bugs, one in each count. The main count read
+  each address's requests as they arrived and assumed time order, which a real log does not
+  keep (nginx writes a line when the answer ends; shipped files are merged), so a late line
+  broke its 60-second or 5-minute window and an episode ended at the last line read. The second
+  count listed an address's requests agent by agent, so an address that rotates user agents
+  (most scrapers) was read out of time order. Both now work the episodes out on each
+  address's requests sorted by time (then status, path and agent), whatever order they were
+  read in; an episode ends at its latest time; the list of episodes has a full tie-break; a
+  scanner's country is its earliest line's.
+- **False "possible exposure" alarms, found in real data** (2.21.0 counted both as
+  possible exposures, which a site's people would have been mailed about):
+  - **One page, two sizes on one host.** On 17 Oct a server's bare IP answered 134 probe paths
+    with its default page at 404 bytes (compressed), and 18 WordPress probes from one scanner
+    that did not ask for compression with the same 626-byte page uncompressed. Only the most
+    common size counted as harmless, so the 18 became "possible". Now every size at least 3
+    probe paths of the host share is a fallback size (`shell_sizes`); a lone path with its own
+    size stays possible.
+  - **An injection in the query of an ordinary page.** On 20 Oct `/` with an injection in its
+    query string was answered 200 with the home page (101,804 bytes, its usual size); the host
+    had no fallback page, so it was "possible". "Is anything exposed?" is about files served
+    for probe paths: a probe whose path is an ordinary page is no candidate now
+    (`query_only`); Attack attempts lists it with what was answered.
+  - **No alert or mail from a day counted before this:** each day records its exposure rule
+    (`rules.exposure_rule`: 2). The site's alert and each person's security mail read only days
+    counted with it, so a day stored by 2.21.0 never alerts until it is recounted; today's
+    figures are counted again at the next live run. Items no longer found close at the next run.
+- **Who it affects:** every site with a burst or a login-hammering episode, and every site with
+  a possible exposure in 2.21.0's figures. **What to do:**
+  recount the stored days with `backfill --force` for the days the raw log still holds (the
+  owner's release does it); days collected by 2.21.0 keep their old episode figures until then.
+- **How it was checked:** `tests/test_security_order.py` (the same figures from both counts on
+  a day read in order and shuffled twice; an address rotating three agents in a burst and
+  coming back slowly all morning; two bursts 62 seconds apart; 19 POSTs never an episode; the
+  latest time as the end; the collector alone forwards and backwards; a burst across midnight
+  in the site's time zone). The 2.21.0 code reproduces the live mismatch on these.
+  `tests/test_security_fallbacks.py` (the 404/626 shape with 134 and 18 paths, both harmless,
+  and a lone 1,873-byte file still possible; the home page answered to a query injection is no
+  candidate and is listed under Attack attempts; both counts agree and the audit catches a
+  dropped fallback size; a day without the rule stamp opens no alert and sends no mail).
+
 ## 2.21.0 (2026-10-21)
 
 Two parts: **Security**, a new section built from the server's own log (exposure check, scanners,

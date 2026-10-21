@@ -97,6 +97,12 @@ LIMITS = {"shell_paths": (2, 50), "tolerance": (0, 4096), "login_posts": (3, 10_
           "login_seconds": (10, 86_400), "burst_requests": (20, 1_000_000),
           "burst_seconds": (5, 3_600), "large_post_bytes": (10_000, 1_000_000_000)}
 
+# The exposure rule a day was counted with (the day's `rules.exposure_rule`). 2 (2.21.1): a
+# host may have several fallback sizes, and a probe whose path is an ordinary page (only its
+# query string is an attack) is no exposure candidate. A day counted with an older rule is
+# never alerted on (alerts_security, security_notify) until it is recounted.
+EXPOSURE_RULE = 2
+
 # How much a day keeps (the day kind `security`).
 WHO = 300            # suspect (address, agent) rows kept per day, worst first
 TOP_PATHS = 20       # probed paths per day, then "(all others)"

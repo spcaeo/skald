@@ -58,7 +58,8 @@ second count is audit_security.py.
 """
 from __future__ import annotations
 
-from collections import Counter, deque
+import bisect
+from collections import Counter
 from datetime import timedelta, timezone
 from urllib.parse import urlsplit
 
@@ -145,43 +146,47 @@ class _Pair:
 
 
 class Runs:
-    """Episodes of one kind (login posts or requests) per address, streamed in
-    time order: see the module for the rule."""
+    """Episodes of one kind (login posts or requests) per address (see the module for the
+    rule). Every request is kept and the episodes are worked out at the end over the
+    address's requests sorted by (time, status, path, pair): never in the order lines
+    arrive, which a real log does not keep (nginx writes at the answer's end; shippers
+    merge files). An episode's end is its latest time."""
 
     def __init__(self, need: int, seconds: int) -> None:
-        self.need, self.span = need, timedelta(seconds=seconds)
+        self.need, self.span = need, float(seconds)
         self.per: dict[str, list] = {}
 
     def add(self, address: str, when, item: tuple) -> None:
-        st = self.per.get(address)
-        if st is None:
-            st = self.per[address] = [deque(), 0, -1, None, []]
-        dq = st[0]
-        idx = st[1]
-        st[1] += 1
-        dq.append((idx, when, item))
-        while when - dq[0][1] > self.span:
-            dq.popleft()
-        if len(dq) < self.need:
-            return
-        fresh = []
-        for entry in reversed(dq):
-            if entry[0] <= st[2]:
-                break
-            fresh.append(entry)
-        for i, t, it in reversed(fresh):
-            if st[3] is None or t - st[3] > self.span:
-                st[4].append([t, t, 0, Counter(), Counter(), Counter()])
-            ep = st[4][-1]
-            ep[1] = t
-            ep[2] += 1
-            ep[3][it[0]] += 1          # status class
-            ep[4][it[1]] += 1          # path
-            ep[5][it[2]] += 1          # pair
-            st[2], st[3] = i, t
+        self.per.setdefault(address, []).append((_utc(when).timestamp(), when, item))
 
     def episodes(self) -> list[tuple[str, list]]:
-        return [(a, ep) for a, st in self.per.items() for ep in st[4]]
+        out = []
+        for address, got in self.per.items():
+            if len(got) < self.need:
+                continue
+            got.sort(key=lambda e: (e[0], e[2][0], e[2][1], e[2][2]))
+            stamps = [e[0] for e in got]
+            marks = [0] * (len(got) + 1)
+            for k, t in enumerate(stamps):
+                j = bisect.bisect_left(stamps, t - self.span)
+                if k - j + 1 >= self.need:
+                    marks[j] += 1
+                    marks[k + 1] -= 1
+            on, last, ep = 0, None, None
+            for k, (t, when, it) in enumerate(got):
+                on += marks[k]
+                if on <= 0:
+                    continue
+                if ep is None or t - last > self.span:
+                    ep = [_utc(when), _utc(when), 0, Counter(), Counter(), Counter()]
+                    out.append((address, ep))
+                ep[1] = max(ep[1], _utc(when))
+                ep[2] += 1
+                ep[3][it[0]] += 1          # status class
+                ep[4][it[1]] += 1          # path
+                ep[5][it[2]] += 1          # pair
+                last = t
+        return out
 
 
 class Collector:
@@ -195,7 +200,7 @@ class Collector:
         self.pairs: dict[tuple, _Pair] = {}
         self.answered: list[tuple] = []        # (host, path, when, status, size, cat, pair)
         self.sizes: dict[str, dict] = {}       # host -> {size: {paths}}
-        self.probes = self.probes_other = self.probes_bare = 0
+        self.probes = self.probes_other = self.probes_bare = self.query_only = 0
         self.inj: dict[tuple, list] = {}       # (pair, kind) -> [n, first, last, statuses]
         self.login = Runs(self.rules["login_posts"], self.rules["login_seconds"])
         self.bursts = Runs(self.rules["burst_requests"], self.rules["burst_seconds"])
@@ -226,8 +231,9 @@ class Collector:
         if p is None:
             p = self.pairs[key] = _Pair(when, (hit.country or "").upper())
         p.requests += 1
-        if when < p.first:
+        if when < p.first:              # a line read late: the earliest one names the country
             p.first = when
+            p.country = (hit.country or "").upper()
         if when > p.last:
             p.last = when
         p.status[status_class(hit.status)] += 1
@@ -273,7 +279,11 @@ class Collector:
             got[0] += 1
             got[1], got[2] = min(got[1], when), max(got[2], when)
             got[3][cls] += 1
-        if cls == "2xx":
+        if cls == "2xx" and not PROBE.search(hit.path):
+            # Only the query string is an attack: the path is an ordinary page, answered as
+            # one. Attack attempts lists it; no file was asked for, so it is no exposure.
+            self.query_only += 1
+        elif cls == "2xx":
             host = (hit.host or "").lower()[:100]
             self.answered.append((host, hit.path[:200], _utc(hit.when), hit.status, hit.size,
                                   cat, key))
@@ -371,7 +381,7 @@ class Collector:
                 fake_pages.update(p.pages)
                 fake_pairs += 1
         return {
-            "rules": dict(rules),
+            "rules": dict(rules, exposure_rule=N.EXPOSURE_RULE),
             "probes": self.probes, "probes_other": self.probes_other,
             "scanners": len(scanners), "addresses": len({k[0] for k, _ in scanners}),
             "requests": sum(p.requests for _, p in scanners),
@@ -442,23 +452,33 @@ class Collector:
                          "path": sorted(ep[4].items(), key=lambda kv: (-kv[1], kv[0]))[0][0],
                          "paths": len(ep[4]),
                          "who": sorted(seq[k] for k in ep[5] if k in seq)})
-        rows.sort(key=lambda r: (-r[unit], r["start"], r["who"]))
+        rows.sort(key=lambda r: (-r[unit], r["start"], r["end"], r["path"], r["who"],
+                                 sorted(r["status"].items())))
         return {unit: int(sum(r[unit] for r in rows)), "episodes": len(rows),
                 "rows": rows[:N.EPISODES]}
 
     def _exposure(self, seq: dict) -> dict:
         tol, need = self.rules["tolerance"], self.rules["shell_paths"]
-        shells = {}
+
+        def near(host: str, size: int) -> int:
+            """Distinct probe paths of the host answered 2xx within the tolerance of `size`."""
+            paths = set()
+            for other, got in self.sizes.get(host, {}).items():
+                if abs(other - size) <= tol:
+                    paths |= got
+            return len(paths)
+        shells, fallbacks = {}, {}
         for host, by_size in self.sizes.items():
-            best = None
-            for size in sorted(by_size):
-                paths = set()
-                for other, got in by_size.items():
-                    if abs(other - size) <= tol:
-                        paths |= got
-                if best is None or len(paths) > best[1]:
-                    best = (size, len(paths))
-            shells[host] = best if best and best[1] >= need else None
+            # Every size shared by `shell_paths` probe paths is a fallback size (a host can
+            # send its page compressed and not: 404 and 626 bytes); the one most paths share
+            # (the smallest of a tie) is its main one. Listed once per tolerance.
+            ranked = sorted(((near(host, s), s) for s in by_size), key=lambda c: (-c[0], c[1]))
+            picked = []
+            for n, s in ranked:
+                if n >= need and all(abs(s - q) > tol for q, _ in picked):
+                    picked.append((s, n))
+            shells[host] = picked[0] if picked else None
+            fallbacks[host] = sorted(s for s, _ in picked)
         hosts: dict[str, dict] = {}
         rows = []
         counts = Counter()
@@ -468,7 +488,7 @@ class Collector:
                 verdict = "unknown"
             elif int(size) == 0:
                 verdict = "empty"
-            elif shell is not None and abs(int(size) - shell[0]) <= tol:
+            elif near(host, int(size)) >= need:
                 verdict = "shell"
             else:
                 verdict = "possible"
@@ -476,6 +496,7 @@ class Collector:
             h = hosts.setdefault(host, {"bare_ip": N.bare_ip(host),
                                         "shell_size": shell[0] if shell else None,
                                         "shell_paths": shell[1] if shell else 0,
+                                        "shell_sizes": fallbacks.get(host, []),
                                         "answered": 0, "shell": 0, "empty": 0,
                                         "possible": 0, "unknown": 0})
             h["answered"] += 1
@@ -486,7 +507,7 @@ class Collector:
                              "category": cat, "shell_size": shell[0] if shell else None,
                              "who": seq.get(key)})
         rows.sort(key=lambda r: (r["verdict"] != "possible", r["at"], r["host"], r["path"]))
-        return {"answered": len(self.answered),
+        return {"answered": len(self.answered), "query_only": self.query_only,
                 **{v: int(counts.get(v, 0)) for v in ("shell", "empty", "possible", "unknown")},
                 "hosts": dict(sorted(hosts.items())), "rows": rows[:N.EXPOSURE_ROWS],
                 "folded": max(0, len(rows) - N.EXPOSURE_ROWS)}
@@ -503,6 +524,12 @@ def finish(extras, totals, journeys, page_visits, readers_by_hour) -> dict | Non
     # security_kept.py while the site keeps addresses.
     totals.security_kept = got.kept
     return blob
+
+
+def current(blob: dict | None) -> bool:
+    """A day counted with today's exposure rule (alerts read nothing older)."""
+    return bool(blob) and int(((blob.get("rules") or {}).get("exposure_rule")) or 1) >= \
+        N.EXPOSURE_RULE
 
 
 def _sum(d) -> int:
@@ -524,7 +551,7 @@ def check(totals, blob, differs, problems) -> None:
     if int(blob["addresses"]) > int(blob["scanners"]):
         bad.append("more scanner addresses than scanners")
     ex = blob["exposure"]
-    differs("security: probes answered 2xx", int(ex["answered"]),
+    differs("security: probes answered 2xx", int(ex["answered"]) + int(ex.get("query_only") or 0),
             int((blob.get("status") or {}).get("2xx", 0)), "requests")
     differs("security: answered by verdict",
             sum(int(ex[v]) for v in ("shell", "empty", "possible", "unknown")),

@@ -39,7 +39,9 @@ Many sites answer every path they do not have with the same page:
 - a single-page app (React, Vue, Next.js exported) sends its `index.html` for any path;
 - a server's default page answers anything sent straight to the server's IP address.
 
-So a scanner asking for `/.env` often gets a **200** with that page, not the file. That is harmless. Skald learns each host's fallback page from the day's own answers: the size that the most different probe paths of that host were answered with, if at least three paths share it (within 16 bytes). A probe answered with that size is **harmless**; one answered with another size is a **possible exposure**.
+So a scanner asking for `/.env` often gets a **200** with that page, not the file. That is harmless. Skald learns each host's fallback page from the day's own answers: any size that at least three different probe paths of that host were answered with (within 16 bytes). A host can have more than one: the same page sent compressed to most scanners and uncompressed to one that did not ask for compression. A probe answered with such a size is **harmless**; one answered with a size no other probe path got is a **possible exposure**.
+
+A probe that is an ordinary page with an attack in its query string (for example `/?id=1 union select`) asked for no file: its answer is that page. It is listed under **Attack attempts**, with what was answered, never as an exposure.
 
 Each host has its own fallback page, and so does the server's bare IP. The size in the log is the size **sent**, after compression, so the same page can show as two sizes: for example 392 bytes through your site's name (compressed by your CDN) and 404 bytes when asked of the server's IP directly (compressed by the server). Both are harmless.
 
@@ -90,6 +92,10 @@ Each card says what the flaw is in plain words, what to do, the mitigations from
 The list updates when you upgrade Skald. Skald fetches nothing by itself; your server admin can let it fetch the newest list from Skald's public repository once a day with `security.advisories_fetch: true` in the config (off by default).
 
 The stack is checked once a day, in the morning run. To check it now (after an install, or after an upgrade brings a new advisory list), your server admin runs `skald stack`, then `skald dashboard`.
+
+### Public check (optional)
+
+Your server admin can offer the same outside look to anyone, as a page on your own website: a visitor types an address and sees what that site's home page shows, which advisories match, and whether its WordPress login page is open. It is off unless switched on (`security.public_check: true`, or `SKALD_PUBLIC_CHECK=true` in Docker); the settings guide (SETTINGS.md, "Public check") has the details. It reads only public pages, at most four requests per check, never an address inside a network, and keeps nothing but an hour's answers in memory. Every finding shows its proof: the exact header line or page reference it was read from, the address, and a command to check it yourself, with the list of every request made. What it could not read says "could not check". Like Your stack, it tells what applies; it never tests for the flaw.
 
 ## Who is scanning us?
 

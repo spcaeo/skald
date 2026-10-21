@@ -39,12 +39,15 @@ Thresholds: the config's `security:` section (`shell_paths`, `tolerance`,
 
 | verdict | rule |
 |---|---|
-| `shell` | the size is within `tolerance` (16) bytes of the host's shell: the size (within the tolerance) that the most distinct probe paths of that host were answered 2xx with that day, the smallest of a tie, when at least `shell_paths` (3) distinct paths share it |
+| `shell` | at least `shell_paths` (3) distinct probe paths of that host were answered 2xx that day with a size within `tolerance` (16) bytes of this one: a fallback size. A host may have several (2.21.1): the same page sent compressed and not (404 and 626 bytes on a real server) |
 | `empty` | a body of 0 bytes |
 | `possible` | any other size: a possible exposure |
 | `unknown` | the line has no size: cannot tell, never counted as safe |
 
-Each host has its own shell, and an IP literal is a host of its own: the log's
+Only a probe whose **path** is a probe is judged (2.21.1): a probe that is an ordinary page
+with an attack in its query string (`/?id=1 union select`) asked for no file, and its answer is
+that page; it is counted in `query_only` and listed under Attack attempts with what was
+answered. Each host has its own fallback sizes, and an IP literal is a host of its own: the log's
 size is the size sent after compression, so the same page can be 392 bytes
 through the host name (a CDN's compression) and 404 bytes through the bare IP
 (the server's). The log never records the content (nor, in Skald's formats,
@@ -61,7 +64,7 @@ counts it for a day whose raw lines are still on the server.
 
 | field | type | meaning |
 |---|---|---|
-| `rules` | object | the thresholds the day was counted with |
+| `rules` | object | the thresholds the day was counted with, and `exposure_rule` (2 since 2.21.1; absent: a day counted by 2.21.0, which no alert and no mail reads until it is recounted) |
 | `probes` | int | scanner probes, the bare-IP lines of other hosts included |
 | `probes_other` | int | of which lines of a host the site does not list (bare IP only), counted in no group |
 | `scanners` | int | pairs with a probe |
@@ -74,7 +77,7 @@ counts it for a day whose raw lines are still on the server.
 | `forged` | int | suspects with a forged referrer |
 | `bare_ip` | int | probes sent to a bare IP |
 | `paths` | `{path: n}` | probes by path (no query string, 200 characters), top 20 and `(all others)`; adds up to `probes` |
-| `exposure` | object | `answered` (probes answered 2xx = `status["2xx"]`), `shell`, `empty`, `possible`, `unknown` (add up to `answered`), `hosts` (`{host: {"bare_ip","shell_size" (null: none found),"shell_paths","answered","shell","empty","possible","unknown"}}`), `rows` (every `possible` and `unknown` answer, possible first, then by time, at most 200: `{"host","path","at" (UTC),"status","size" (null: not recorded),"verdict","category","shell_size","who"}`), `folded` (answers beyond the 200) |
+| `exposure` | object | `answered` (probes whose path is a probe, answered 2xx), `query_only` (query-only probes answered 2xx, never judged; `answered + query_only = status["2xx"]`), `shell`, `empty`, `possible`, `unknown` (add up to `answered`), `hosts` (`{host: {"bare_ip","shell_size" (the fallback size most paths share; null: none found),"shell_paths","shell_sizes" (every fallback size, once per tolerance),"answered","shell","empty","possible","unknown"}}`), `rows` (every `possible` and `unknown` answer, possible first, then by time, at most 200: `{"host","path","at" (UTC),"status","size" (null: not recorded),"verdict","category","shell_size","who"}`), `folded` (answers beyond the 200) |
 | `attacks.injection` | object | `requests` (= `categories.injection`), `kinds` (`{kind: n}`, adds up to `requests`), `rows` (per pair and kind: `{"who","kind","requests","first","last","status"}`, most first, at most 100) |
 | `attacks.login` | object | `posts` (every POST in an episode), `episodes`, `rows` (`{"start","end","posts","status","path" (the most posted),"paths","who": [seq]}`, most first, at most 100) |
 | `attacks.bursts` | object | the same with `requests` |

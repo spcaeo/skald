@@ -94,6 +94,10 @@ def _kind(url: str) -> str:
     return next((key for key, _, rx in N.INJECTION if rx.search(url)), "other")
 
 
+def _aware(when):
+    return when if when.tzinfo else when.replace(tzinfo=timezone.utc)
+
+
 def _stamp(when) -> str:
     w = when if when.tzinfo else when.replace(tzinfo=timezone.utc)
     return w.astimezone(timezone.utc).isoformat(timespec="seconds")
@@ -177,7 +181,7 @@ class Recount:
         answered = []                              # (host, path, when, status, size, cat, pair)
         sizes = defaultdict(list)                  # host -> [(size, path)]
         inj = {}
-        probes = other_probes = bare_probes = 0
+        probes = other_probes = bare_probes = query_only = 0
         watched = defaultdict(list)                # address -> [(when, cls, path, pair)]
         posts = defaultdict(list)
         for key in self.order:
@@ -217,7 +221,9 @@ class Recount:
                         slot[0] += 1
                         slot[1].append(line.when)
                         slot[2][c] += 1
-                    if c == "2xx":
+                    if c == "2xx" and not PROBE.search(line.path):
+                        query_only += 1             # an ordinary page, its query an attack
+                    elif c == "2xx":
                         host = (line.host or "").lower()[:100]
                         answered.append((host, line.path[:200], line.when, line.status,
                                          line.size, what, key))
@@ -272,7 +278,7 @@ class Recount:
             fakes += r["fakes"]
             fake_pages += r["pages"]
         blob = {
-            "rules": dict(self.rules),
+            "rules": {**self.rules, "exposure_rule": N.EXPOSURE_RULE},
             "probes": probes, "probes_other": other_probes,
             "scanners": len(scanners), "addresses": len({k[0] for k in scanners}),
             "requests": sum(rows[k]["requests"] for k in scanners),
@@ -280,7 +286,7 @@ class Recount:
             "countries": _ranked(where, N.TOP_COUNTRIES), "hosting": hosting,
             "forged": sum(1 for k in suspect if rows[k]["own_ref"] and not rows[k]["rendered"]),
             "bare_ip": bare_probes, "paths": _ranked(paths, N.TOP_PATHS),
-            "exposure": self._exposure(answered, sizes, seq),
+            "exposure": self._exposure(answered, sizes, seq, query_only),
             "attacks": {"injection": self._inj(inj, seq),
                         "login": self._eps(logins, seq, "posts"),
                         "bursts": self._eps(bursts, seq, "requests")},
@@ -345,6 +351,9 @@ class Recount:
             n = len(items)
             if n < need:
                 continue
+            # The address's requests in time order, whatever order they were read in or
+            # which of its agents made them; ties by status, path and pair.
+            items = sorted(items, key=lambda it: (_aware(it[0]), it[1], it[2], it[3]))
             times = [it[0] for it in items]
             diff = [0] * (n + 1)
             j = 0
@@ -379,7 +388,8 @@ class Recount:
                  "path": min(e["paths"].items(), key=lambda kv: (-kv[1], kv[0]))[0],
                  "paths": len(e["paths"]),
                  "who": sorted(seq[k] for k in e["pairs"] if k in seq)} for e in eps]
-        rows.sort(key=lambda r: (-r[unit], r["start"], r["who"]))
+        rows.sort(key=lambda r: (-r[unit], r["start"], r["end"], r["path"], r["who"],
+                                 sorted(r["status"].items())))
         return {unit: sum(r[unit] for r in rows), "episodes": len(rows),
                 "rows": rows[:N.EPISODES]}
 
@@ -396,20 +406,29 @@ class Recount:
         return {"requests": sum(kinds.values()), "kinds": _plain(kinds),
                 "rows": rows[:N.EPISODES]}
 
-    def _exposure(self, answered: list, sizes: dict, seq: dict) -> dict:
+    def _exposure(self, answered: list, sizes: dict, seq: dict, query_only: int = 0) -> dict:
         tol, need = self.rules["tolerance"], self.rules["shell_paths"]
-        shell = {}
-        for host, pairs in sizes.items():
+        for pairs in sizes.values():
             pairs.sort()
-            keys = [s for s, _ in pairs]
-            best = None
-            for s in sorted(set(keys)):
-                lo = bisect.bisect_left(keys, s - tol)
-                hi = bisect.bisect_right(keys, s + tol)
-                n = len({p for _, p in pairs[lo:hi]})
-                if best is None or n > best[1]:
-                    best = (s, n)
-            shell[host] = best if best[1] >= need else None
+
+        def around(host, s) -> int:
+            pairs = sizes.get(host) or []
+            keys = [k for k, _ in pairs]
+            lo = bisect.bisect_left(keys, s - tol)
+            hi = bisect.bisect_right(keys, s + tol)
+            return len({p for _, p in pairs[lo:hi]})
+        shell, every = {}, {}
+        for host, pairs in sizes.items():
+            counted = [(around(host, s), s) for s in sorted({k for k, _ in pairs})]
+            counted.sort(key=lambda c: (-c[0], c[1]))
+            kept = []
+            for n, s in counted:
+                if n < need:
+                    break
+                if not any(abs(s - q) <= tol for q, _ in kept):
+                    kept.append((s, n))
+            shell[host] = kept[0] if kept else None
+            every[host] = sorted(s for s, _ in kept)
         hosts, rows, tally = {}, [], Counter()
         for host, path, when, status, size, what, key in answered:
             sh = shell.get(host)
@@ -417,14 +436,15 @@ class Recount:
                 v = "unknown"
             elif int(size) == 0:
                 v = "empty"
-            elif sh and abs(int(size) - sh[0]) <= tol:
+            elif around(host, int(size)) >= need:
                 v = "shell"
             else:
                 v = "possible"
             tally[v] += 1
             if host not in hosts:
                 hosts[host] = {"bare_ip": _ip_host(host), "shell_size": sh[0] if sh else None,
-                               "shell_paths": sh[1] if sh else 0, "answered": 0, "shell": 0,
+                               "shell_paths": sh[1] if sh else 0,
+                               "shell_sizes": every.get(host, []), "answered": 0, "shell": 0,
                                "empty": 0, "possible": 0, "unknown": 0}
             hosts[host]["answered"] += 1
             hosts[host][v] += 1
@@ -434,7 +454,8 @@ class Recount:
                              "category": what, "shell_size": sh[0] if sh else None,
                              "who": seq.get(key)})
         rows.sort(key=lambda r: (r["verdict"] != "possible", r["at"], r["host"], r["path"]))
-        return {"answered": len(answered), "shell": tally["shell"], "empty": tally["empty"],
+        return {"answered": len(answered), "query_only": query_only,
+                "shell": tally["shell"], "empty": tally["empty"],
                 "possible": tally["possible"], "unknown": tally["unknown"],
                 "hosts": {h: hosts[h] for h in sorted(hosts)},
                 "rows": rows[:N.EXPOSURE_ROWS], "folded": max(0, len(rows) - N.EXPOSURE_ROWS)}
