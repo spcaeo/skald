@@ -27,6 +27,7 @@ The other options narrow what you see:
 
 - **Source**: one source (lead database only; the tools do not split their stages by source, so it is greyed with the reason).
 - **Action**: one kind of lead or action, for example Demo booking or Sign-up.
+- **Label**: one label your site's server sent with its leads, for example a contact form's topic: sales, support or partnership (tools only; see [Send leads from your backend](leads-from-your-backend.md)). **Every action** then counts only the leads with that label. Where they came from, the touches and the time to convert are not split by label, so they are left out while a label is chosen. The lists of conversions show each lead's label as a small tag.
 - **Stage**: one status: New, Contacted, Qualified, Won or Lost (lead database only).
 - **Show left out**: list what the figures leave out, right under the options. With the lead database: Spam, Duplicates, Test. With the tools: Cancelled or no-show, Removed, Test. These are lists, never added to a figure.
 - **Period**: the same period as the top bar's. Changing one changes both.

@@ -150,7 +150,7 @@ helper knew the site (2.9.0).
 | `scroll_75` | the reader reaches 75% of the page, once per page | - |
 | `copy_text` | text is copied, once per page (never the text) | - |
 | `404_view` | the not-found page is shown | - |
-| `page_view` | a page loads, or a client-side navigation; counted in beacon-only mode or with visitor IDs on. Otherwise (since 2.10.1) kept only as proof the page was drawn: path and time in `opens-<day>.jsonl`, read by the render test, never counted as an event | - |
+| `page_view` | a page loads, a client-side navigation (`pushState`, `replaceState`, back and forward), or a page restored from the back-forward cache (`pageshow` with `persisted`); counted in beacon-only mode or with visitor IDs on. Otherwise (since 2.10.1) kept only as proof the page was drawn: path and time in `opens-<day>.jsonl`, read by the render test, never counted as an event | - |
 | `form_start` | a field of a form is first used, once per form per page | the form's `id` or `name` |
 | `form_submit` | a form is submitted | the form's `id` or `name` |
 | `calendly_open` | a Calendly embed shows its page | - |
@@ -360,11 +360,18 @@ the body as JSON whatever the type says.
 
 Some sites cannot give Skald a log: a static host, a platform that keeps
 its logs to itself. For them, `beacon/skald.js` (under 1 KB) posts a
-`page_view` on load and on every client-side navigation, with the same
-fields and the same rules: no cookie, no storage, nothing when Do Not Track
+`page_view` on load, on every client-side navigation (`pushState`,
+`replaceState`, back and forward) and when a page is restored from the
+back-forward cache, with the same fields and the same rules: no cookie, no storage, nothing when Do Not Track
 or GPC is on. The full snippet, `/traffic-js/skald.js` (docs/INTEGRATIONS.md,
 "The script tag"), sends page views the same way and tracks forms, links
 and booking embeds too; with visitor IDs off it stores nothing either.
+
+These page openings are the script's own events, a separate road: they are
+never added to the people or page views counted from a server log (a Next.js
+navigation counts there only from the log line itself, CLASSIFICATION.md,
+"What decides a page view"). Without a log, in beacon-only mode, they are the
+only page views there are.
 
 ```html
 <script src="/skald.js" defer></script>

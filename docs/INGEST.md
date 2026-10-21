@@ -218,6 +218,52 @@ format are refused and counted (the shipper's journal says "N rejected").
 Ship the log of the server that sees the visitors. Behind a CDN, that is the
 CDN's log (CDN-LOGS.md), never both.
 
+### Next.js: pages opened inside the site
+
+On a Next.js App Router site a tap on a link inside the site sends no HTML
+request. The browser fetches `GET /path?_rsc=<hash>` and the route's script.
+Next.js sends the same URL to *prefetch* links in view, with the request
+header `Next-Router-Prefetch`. A plain log cannot tell the two apart, so
+Skald counts no `?_rsc=` request as a page view (COUNTING-TRAPS.md trap 10):
+only the first page of each visit is seen, and a visit from a tab left open
+sends no HTML request at all.
+
+One field at the very end of the line fixes it. Append it inside the
+`log_format` quotes (any format above: Skald's extended one, after `rid=`, or
+nginx's `combined`):
+
+```nginx
+log_format combined_rsc '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" "$http_user_agent"'
+                        ' rsc_prefetch=$http_next_router_prefetch';
+```
+
+That is, add ` rsc_prefetch=$http_next_router_prefetch` at the end. Apache's `LogFormat`:
+` rsc_prefetch=%{Next-Router-Prefetch}i`. Then `sudo nginx -t` and `sudo systemctl reload nginx`
+(Apache: `apachectl configtest`, then reload). Both write `-` when the
+header was not sent.
+
+- The token is `rsc_prefetch=`, a field of its own after the user agent;
+  the end of the line is the place for it. It works alongside a trailing
+  request time, a trailing `"$host"` (before or after it) and `rid=`.
+- `-` (or nothing): a navigation, counted as a page view of its path when
+  answered 2xx or 304. Any other value (`1`; newer Next.js also sends `2`
+  to `4`): a prefetch, never a page view. A POST (a server action) never is.
+- An HTML page and a navigation of the same path in one visit, 2 seconds or
+  less apart, are one page view (one click that fell back to a full load).
+- Lines without the field are read exactly as before; old lines stay as
+  they were (a backfill does not change them).
+- Caddy's JSON log already holds the request headers: nothing to add. The
+  Vercel and Netlify drains and the Skald Worker's edge records carry no
+  request headers, so on those a navigation is still not counted.
+- What stays unseen: a navigation Next.js answers from its own cache sends
+  nothing; a `<Link prefetch={true}>` prefetch is sent without the header
+  and counts as a view (the default `<Link>` sends it).
+
+The doctor's "Next.js pages" line, the Overview checklist ("Pages opened
+inside the site are not counted yet") and `check.sh` say so when the log has
+`?_rsc=` lines and none carries the field. Nothing edits nginx for you.
+
 **Countries.** A shipped line with no country of its own (Caddy, a plain
 combined log) gets its address's country from the install's `logs.country_db`
 (Docker: `SKALD_COUNTRY_DB`), a GeoIP `.mmdb` file on Skald's server; DB-IP's

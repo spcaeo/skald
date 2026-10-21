@@ -10,7 +10,9 @@
 //              server admin (nothing to save here)
 //
 // The others: setup-tag.js (the script tag), setup-hook.js (a lead hook),
-// setup-mail.js (the daily and weekly mail), setup-privacy.js (what is kept).
+// setup-mail.js (the daily and weekly mail), setup-privacy.js (what is kept),
+// setup-nextjs.js (rsc: the log_format line that counts pages opened inside a
+// Next.js site).
 
 import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
@@ -22,6 +24,7 @@ import { tagDialog } from "./setup-tag.js";
 import { hookDialog } from "./setup-hook.js";
 import { mailDialog } from "./setup-mail.js";
 import { privacyDialog } from "./setup-privacy.js";
+import { nextDialog } from "./setup-nextjs.js";
 
 export async function openSetup(act, site, { item = null, onClose = null } = {}) {
   const opts = { item, onClose };
@@ -30,6 +33,7 @@ export async function openSetup(act, site, { item = null, onClose = null } = {})
     return sendDialog(site, r.ok ? r : {}, { onClose });
   }
   if (act === "assets") return assetsDialog(site, opts);
+  if (act === "rsc") return nextDialog(site, opts);
   if (act === "countries") return countriesDialog(site, opts);
   if (act === "script") return tagDialog(site, opts);
   if (act === "lead") return hookDialog(site, opts);

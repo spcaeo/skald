@@ -10,9 +10,9 @@ import { call } from "./ipmanager.js";
 import { why, when, confirmIn } from "./forms.js";
 import { codeBlock } from "./conn-ui.js";
 
-const TASK_WORDS = { send: "sending this site's visits", script: "the script tag", hook: "the lead hook" };
+const TASK_WORDS = { send: "sending this site's visits", script: "the script tag", hook: "the lead hook", nextjs: "counting pages opened inside the site" };
 
-// task: "send" (method docker|systemd|cloudflare|vercel), "script", or "hook" (method: the tool).
+// task: "send" (method docker|systemd|cloudflare|vercel), "script", "nextjs", or "hook" (method: the tool).
 export function shareBox(site, task, method = "") {
   const box = h("div", { class: "cn-share" });
   const open = h("button", { type: "button", class: "btn" }, "Share with your developer");
@@ -41,7 +41,7 @@ export function shareBox(site, task, method = "") {
       box.replaceChildren(h("div", { class: "state ok", role: "status" }, h("div", null,
         h("p", null, h("strong", null, "The link. "), "Copy it now: it is shown only here. It opens these steps for ", h("b", null, site), " with no sign-in, until ", when(r.expires_at, r.expires_at), "."),
         codeBlock(r.link, "the link for your developer"),
-        h("p", { class: "note" }, task === "script" ? "The tag needs no secret." : "The page can show the secret once: it is made when your developer presses Show the secret. Send the link privately."),
+        h("p", { class: "note" }, task === "script" ? "The tag needs no secret." : task === "nextjs" ? "These steps need no secret." : "The page can show the secret once: it is made when your developer presses Show the secret. Send the link privately."),
         h("div", { class: "acts" }, h("a", { class: "btn", href: mail }, "Send it by mail"), cell))));
     });
     box.replaceChildren(h("div", { class: "cn-share-new" },

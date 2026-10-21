@@ -265,7 +265,20 @@ class TestIndependence(AuditCase):
         # Its own city of a visit (logs.city_db), which shares only the
         # file's reader (test_city_lookup).
         allowed |= {(None, "audit_cities")}
+        # Its own line reader, moved out whole (audit_lines.py, below).
+        allowed |= {("audit_lines", n) for n in (
+            "_COMBINED", "_EXTENDED", "_LAST_QUOTED", "_OWN", "_PREFETCH_KEY", "_REQUEST",
+            "_RID", "Line", "_byte_count", "_line", "_named_host", "_prefetch", "_read",
+            "_secs", "_tail_seconds", "line_hit", "log_files", "raw_lines")}
         self.assertLessEqual(imported, allowed)
+
+    def test_its_line_reader_imports_only_its_drain_reader(self):
+        import ast
+        from skald import audit_lines
+        tree = ast.parse(Path(audit_lines.__file__).read_text())
+        imported = {(n.module, a.name) for n in ast.walk(tree)
+                    if isinstance(n, ast.ImportFrom) and n.level for a in n.names}
+        self.assertEqual(imported, {(None, "audit_drains")})
 
     def test_its_cities_share_only_the_file_reader(self):
         import ast

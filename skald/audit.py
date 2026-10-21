@@ -35,11 +35,9 @@ kept visits or codes they could have read are pruned (its `expired`).
 """
 from __future__ import annotations
 
-import gzip
 import ipaddress
 import re
 from collections import Counter
-from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -61,192 +59,18 @@ OTHER = "(all others)"          # the label history folds a long tail into
 
 # ------------------------------------------------------------------ lines
 
-_EXTENDED = re.compile(
-    r'^(\S+) (\S+) (\S+) "([^"]*)" (\d{3}) (\S+) "([^"]*)" "([^"]*)"'
-    r'(?:\s+(\S+))?(?:\s+cc=(\S+))?')
-_COMBINED = re.compile(
-    r'^(\S+) \S+ \S+ \[([^\]]+)\] "([^"]*)" (\d{3}) (\S+) "([^"]*)" "([^"]*)"(.*)$')
-# A combined line's last field, when it is quoted and a host name (a name with
-# a letter and a dot; a port dropped). An address list or "-" is not one.
-_LAST_QUOTED = re.compile(r'"([^"]*)"\s*$')
-_REQUEST = re.compile(r"^([A-Z]+) (\S*)")
-# Skald's own endpoints (script-tag events, its file, hooks, shipped logs): a
-# POST to one is no form post.
-_OWN = re.compile(r"/traffic-(?:beacon(?:$|[/?])|js/|hooks/|ingest/)")
-# nginx's $request_id, the last field of the extended layout since it was
-# added; older lines have none.
-_RID = re.compile(r"\srid=([0-9A-Za-z-]{8,64})\s*$")
-
-
-@dataclass
-class Line:
-    when: datetime
-    address: str
-    host: str
-    method: str
-    url: str
-    status: str
-    referrer: str
-    agent: str
-    country: str
-    rid: str = ""
-    # Body bytes sent and the response time in seconds, when the line has
-    # them (None: not logged). What each crawler costs (audit_crawler_cost).
-    size: int | None = None
-    seconds: float | None = None
-
-    @property
-    def path(self) -> str:
-        return self.url.partition("?")[0]
-
-
-def line_hit(raw: str) -> Line | None:
-    """One log line, or None if no layout reads it: nginx's extended or
-    combined (Apache's too), a Caddy JSON line, or a Vercel / Netlify drain
-    record kept by the ingest endpoint (audit_drains, its own reader)."""
-    if raw.lstrip().startswith("{"):
-        got = audit_drains.fields(raw)
-        return Line(**got) if got else None
-    m = _EXTENDED.match(raw)
-    if m:
-        try:
-            when = datetime.fromisoformat(m.group(1))
-        except ValueError:
-            when = None
-        if when is not None:
-            got = _line(when, m.group(2), m.group(3), m.group(4), m.group(5),
-                        m.group(7), m.group(8), m.group(10))
-            rid = _RID.search(raw.rstrip("\n"))
-            got.rid = rid.group(1) if rid else ""
-            got.size, got.seconds = _byte_count(m.group(6)), _secs(m.group(9))
-            return got
-    m = _COMBINED.match(raw)
-    if m:
-        try:
-            when = datetime.strptime(m.group(2), "%d/%b/%Y:%H:%M:%S %z")
-        except ValueError:
-            return None
-        got = _line(when, m.group(1), _named_host(m.group(8)), m.group(3), m.group(4),
-                    m.group(6), m.group(7), None)
-        got.size, got.seconds = _byte_count(m.group(5)), _tail_seconds(m.group(8))
-        return got
-    return None
-
-
-def _byte_count(raw: str | None) -> int | None:
-    """The size field: a whole number of bytes, or None ("-", absent)."""
-    if not raw or not raw.isdigit():
-        return None
-    try:
-        return int(raw)
-    except ValueError:
-        return None
-
-
-def _secs(raw: str | None) -> float | None:
-    """A response time in seconds: a number from 0 up to a day, else None."""
-    try:
-        value = float(raw) if raw else None
-    except ValueError:
-        return None
-    return value if value is not None and 0 <= value < 86400 else None
-
-
-def _tail_seconds(tail: str) -> float | None:
-    """The combined layout's optional response time: the first field after
-    the user agent, when it is digits with at most one decimal point and
-    a space or the end after it."""
-    if not tail[:1].isspace():
-        return None
-    first = tail.split(None, 1)[0] if tail.strip() else ""
-    whole, dot, frac = first.partition(".")
-    if not whole.isdecimal() or (dot and not frac.isdecimal()):
-        return None
-    return _secs(first)
-
-
-def _named_host(tail: str) -> str:
-    found = _LAST_QUOTED.search(tail or "")
-    if not found or found.start() == 0 or not tail[found.start() - 1].isspace():
-        return ""
-    name = found.group(1).rsplit(":", 1)[0] if found.group(1).count(":") == 1 \
-        else found.group(1)
-    labels = name.split(".")
-    if len(labels) < 2 or not any(c.isalpha() for c in name):
-        return ""
-    if not all(lab and all(c.isalnum() or c == "-" for c in lab) for lab in labels):
-        return ""
-    return name.lower()
-
-
-def _line(when, address, host, request, status, referrer, agent, cc) -> Line:
-    if when.tzinfo is None:
-        when = when.replace(tzinfo=timezone.utc)
-    req = _REQUEST.match(request)
-    cc = (cc or "").strip()
-    return Line(when, address, host or "", req.group(1) if req else "",
-                req.group(2) if req else "", status,
-                "" if referrer == "-" else referrer, "" if agent == "-" else agent,
-                "" if cc in ("", "-", "XX", "ZZ") else cc.upper())
-
-
-def log_files(config: dict) -> list[Path]:
-    """Every rotation of the log, oldest first: base.N.gz ... base.1, base."""
-    logs = config.get("logs") or {}
-    folder = Path(logs.get("dir") or "/var/log/nginx")
-    base = str(logs.get("base") or "access.log")
-    found = []
-    for path in folder.glob(base + "*"):
-        rest = path.name[len(base):]
-        m = re.fullmatch(r"(?:\.(\d+))?(?:\.gz)?", rest)
-        if m:
-            found.append((-(int(m.group(1)) if m.group(1) else 0), path))
-    return [p for _, p in sorted(found)]
-
-
-def raw_lines(path: Path, upto: dict | None = None):
-    """A file's text lines. `upto` ({file name: bytes}) is how far the live
-    run read each plain file (the snapshot's `read_upto`): only the lines
-    wholly inside that many bytes, so lines appended since are not counted.
-    No limit (a day's audit, an older snapshot): the whole file."""
-    limit = None if path.suffix == ".gz" else (upto or {}).get(path.name)
-    if limit is None:
-        opener = gzip.open if path.suffix == ".gz" else open
-        with opener(path, "rt", errors="replace") as handle:
-            yield from handle
-        return
-    left = int(limit)
-    with open(path, "rb") as handle:
-        while left > 0:
-            raw = handle.readline(left)
-            left -= len(raw)
-            if not raw.endswith(b"\n"):
-                return              # a line cut at the limit (or still being written)
-            text = raw[:-1].decode("utf-8", "replace")
-            yield (text[:-1] if text.endswith("\r") else text) + "\n"
-
-
-def _read(paths, upto: dict | None = None):
-    """Every readable line, without a second copy of any request id: a line
-    repeating an earlier rid= is the same request written twice. `upto`:
-    raw_lines."""
-    rids = set()
-    for path in paths:
-        for raw in raw_lines(path, upto):
-            got = line_hit(raw)
-            if got is None:
-                continue
-            if got.rid:
-                if got.rid in rids:
-                    continue
-                rids.add(got.rid)
-            yield got
+# The audit's own line reader (audit_lines.py), its names kept here.
+from .audit_lines import (  # noqa: E402,F401
+    _COMBINED, _EXTENDED, _LAST_QUOTED, _OWN, _PREFETCH_KEY, _REQUEST, _RID, Line,
+    _byte_count, _line, _named_host, _prefetch, _read, _secs, _tail_seconds, line_hit,
+    log_files, raw_lines)
 
 
 def in_time_order(lines: list) -> list:
     """The lines by timestamp, lines with the same timestamp in the order
     they were read (CLASSIFICATION.md, "Line order"): a whole sort of the
-    window, where the main road streams through a hold."""
+    window, where the main road streams through a hold. Each count then
+    marks one click's second page view (same_click)."""
     return [line for _, _, line in sorted(
         (line.when, n, line) for n, line in enumerate(lines))]
 
@@ -266,18 +90,56 @@ _BEACON = re.compile(r"^/(?:api/|api$|__analytics\b|collect\b|beacon\b|ping\b)",
                      re.I)
 
 
+_CLICK = timedelta(seconds=2)    # one click: an HTML page and a navigation this close
+
+
 def _asset(line: Line) -> bool:
     path = line.path.lower()
     return path.endswith(_ASSET_EXT) or path.startswith(_ASSET_DIRS)
 
 
+def navigation(line: Line) -> bool:
+    """A Next.js navigation, by the audit's own reading: a GET whose URL asks
+    for ?_rsc= (or &_rsc=), on a line with the rsc_prefetch= field saying the
+    prefetch header was not sent ("-" or nothing), for no asset or beacon."""
+    url = line.url.lower()
+    return (line.method == "GET" and line.prefetch in ("-", "")
+            and ("?_rsc=" in url or "&_rsc=" in url)
+            and not _asset(line) and not _BEACON.search(line.path))
+
+
 def is_page(line: Line) -> bool:
     """A 2xx (or 304: the cached copy, shown) GET or HEAD for a document: no
-    payload, asset or beacon."""
-    return ((line.status.startswith("2") or line.status == "304")
-            and line.method in ("GET", "HEAD")
-            and not _PAYLOAD.search(line.url) and not _asset(line)
-            and not _BEACON.search(line.path))
+    asset or beacon, and no payload unless it is a Next.js navigation. Not a
+    page view same_click marked as one click's second."""
+    if line.repeat or line.method not in ("GET", "HEAD") \
+            or not (line.status.startswith("2") or line.status == "304"):
+        return False
+    if _PAYLOAD.search(line.url):
+        return navigation(line)
+    return not _asset(line) and not _BEACON.search(line.path)
+
+
+def same_click(lines: list) -> list:
+    """`lines` (in time order), with `repeat` set on each page view that is
+    the second of one click: of the same path in the same visit (address,
+    agent, host), 2 seconds or less after a counted page view of the other
+    kind (an HTML page, a Next.js navigation). Written apart from
+    parse.one_click; the rule is CLASSIFICATION.md's."""
+    for line in lines:
+        line.repeat = False
+    counted: dict[tuple, list] = {}
+    for line in lines:
+        if not is_page(line):
+            continue
+        key = (line.address, line.agent, line.host.lower(), line.path)
+        mine = navigation(line)
+        got = counted.get(key)
+        if got and got[-1][1] != mine and line.when - got[-1][0] <= _CLICK:
+            line.repeat = True
+            continue
+        counted[key] = [(line.when, mine)]
+    return lines
 
 
 _CRAWLER_FILES = {"/robots.txt", "/ads.txt", "/app-ads.txt", "/security.txt",
@@ -324,7 +186,7 @@ class Judge:
             config, lines, gap, self.hosts, first, last, tz or timezone.utc, _asset,
             lambda path: bool(_BEACON.search(path)),
             lambda agent: f"{browser_of(agent)}/{system_of(agent)}",
-            audit_extras.keyed, audit_extras.secret(config)) if lines else {}
+            audit_extras.keyed, audit_extras.secret(config), navigation) if lines else {}
         # Browser-like visits that read pages too fast for a person (audit_too_fast).
         self.too_fast = audit_too_fast.too_fast(config, lines, gap, self.hosts, is_page)
         # What the last call found beyond the group (audit_release2.BotsRecount).
@@ -504,7 +366,7 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
     gap = timedelta(minutes=int((config.get("report") or {}).get(
         "session_gap_minutes") or 30))
 
-    lines = in_time_order([l for l in _read(files, upto) if start <= l.when < end])
+    lines = same_click(in_time_order([l for l in _read(files, upto) if start <= l.when < end]))
     _countries(config, lines)
     judge = Judge(config, lines, gap, window=(start, end), tz=tz)
     bots = audit_release2.BotsRecount(gap)
@@ -616,7 +478,7 @@ def judged(config: dict, tz, start: datetime, end: datetime, paths=None,
         first, last = window(day, tz)
         if first >= end:
             break
-        part = [l for l in lines if first <= l.when < min(last, end)]
+        part = same_click([l for l in lines if first <= l.when < min(last, end)])
         judge = Judge(config, part, gap, window=(first, min(last, end)), tz=tz)
         for line in part:
             if line.when < start:

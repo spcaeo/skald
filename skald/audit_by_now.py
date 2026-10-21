@@ -37,7 +37,8 @@ def recount(config: dict, tz, start: datetime, end: datetime, paths=None,
     files = [Path(p) for p in paths] if paths else audit.log_files(config)
     wanted = {str(h).lower() for h in ((config.get("site") or {}).get("hosts") or [])}
     gap = timedelta(minutes=int((config.get("report") or {}).get("session_gap_minutes") or 30))
-    lines = audit.in_time_order([l for l in audit._read(files, upto) if start <= l.when < end])
+    lines = audit.same_click(audit.in_time_order(
+        [l for l in audit._read(files, upto) if start <= l.when < end]))
     audit._countries(config, lines)
     judge = audit.Judge(config, lines, gap, window=(start, end), tz=tz)
     hour = lambda line: f"{line.when.astimezone(tz).hour:02d}"   # noqa: E731

@@ -197,7 +197,11 @@ location ~ ^/traffic(?:$|/|-(?:auth|api|ingest|mcp|hooks|beacon|js)(?:/|$)) {
 }
 ```
 
-then `sudo nginx -t && sudo systemctl reload nginx`.
+then `sudo nginx -t && sudo systemctl reload nginx`. It passes every method
+as sent: the signed `GET /traffic-hooks/<site>/leads` (2.18, a site's server
+checking that Skald has every lead) needs GET as well as POST. If your own
+block for `/traffic-hooks/` has `limit_except POST { deny all; }`, make it
+`limit_except GET POST { deny all; }`.
 
 Caddy, inside the site's block:
 

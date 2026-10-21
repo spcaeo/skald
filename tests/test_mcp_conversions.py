@@ -79,6 +79,26 @@ class Conversions(Base):
         self.assertIn("Leads (forms sent and demos booked, completed): 3, of them 2", text)
         self.assertIn("Leads, by landing page: /pricing/ 2, / 1.", text)
 
+    def test_one_label(self):
+        """2.18: a lead label narrows the stages and abandoned starts to the file's
+        `labels`; the breakdowns are not split by label, so none is given."""
+        d = day("2026-10-03", 3, 2, contact=4, abandoned=1)
+        d["labels"] = {"contact": {"sales": {"completed": 3}, "support": {"completed": 1}},
+                       "demo": {"sales": {"started": 1}}}
+        d["labels_abandoned"] = {"demo": {"sales": 1}}
+        self.file(days=[d])
+        text, data = self.run_tool("conversions", label="Sales",
+                                   **{"from": "2026-10-03", "to": "2026-10-03"})
+        self.assertEqual(data["label"], "sales")
+        self.assertEqual(data["actions"]["contact"]["completed"], 3)
+        self.assertEqual((data["actions"]["demo"]["started"], data["actions"]["demo"]["completed"],
+                          data["actions"]["demo"]["abandoned"]), (1, 0, 1))
+        self.assertIsNone(data["by_source"], "not split by label: none, never zero")
+        self.assertIn("not split by label", text)
+        _, none = self.run_tool("conversions", label="partnership",
+                                **{"from": "2026-10-03", "to": "2026-10-03"})
+        self.assertEqual(none["actions"], {})
+
     def test_not_available(self):
         self.file(available=False, reason="no conversions yet")
         text, data = self.run_tool("conversions")

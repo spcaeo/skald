@@ -25,6 +25,7 @@ import gzip
 import heapq
 import json
 import re
+from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -57,6 +58,15 @@ class Hit:
     # nginx's $request_id (the trailing rid= field), unique per request.
     # Empty for lines written before the log carried it.
     rid: str = ""
+    # Next.js's Next-Router-Prefetch request header, when the line records
+    # it (the trailing rsc_prefetch= field; Caddy's logged headers): "-" or
+    # "" when the request did not send it, its value when it did. None: the
+    # line has no such field, so a click cannot be told from a prefetch.
+    rsc_prefetch: str | None = None
+    # Set by one_click (in_time_order): this page view repeats a page view of
+    # the other kind (an HTML page and a Next.js navigation) of the same path
+    # in the same visit, CLICK_SECONDS or less before it. Not a page view.
+    repeat: bool = False
 
     @property
     def path(self) -> str:
@@ -74,6 +84,18 @@ class Hit:
         Skald's own endpoints: the script tag posts its events to
         /traffic-beacon from every page, which made every visit "form sent"."""
         return self.method == "POST" and not OWN_ENDPOINT.match(self.path)
+
+    @property
+    def soft_navigation(self) -> bool:
+        """A Next.js App Router navigation: a GET for ?_rsc= (or &_rsc=) whose
+        line records the prefetch header (rsc_prefetch=) and says the request
+        did not send it. A click inside the site sends no HTML request, only
+        this; a prefetch of a link in view sends the same URL with the header.
+        Never an asset or beacon path. Whatever its answer: is_page asks for
+        a 2xx or 304 on top."""
+        return (self.method == "GET" and self.rsc_prefetch is not None
+                and self.rsc_prefetch in NAVIGATION_VALUES and bool(RSC_QUERY.search(self.url))
+                and not ASSET.search(self.path) and not BEACON.search(self.path))
 
     @property
     def is_page(self) -> bool:
@@ -103,11 +125,17 @@ class Hit:
         source. Counted as anything else, a reader coming back from a search
         to a page they had cached lost their source to the next page they
         opened ("This site"), or was no reader at all.
+
+        A Next.js navigation (soft_navigation: ?_rsc= on a line that records
+        the prefetch header, and the header was not sent) is the one payload
+        that is a page view: of its path, like the HTML page it replaces.
+        Without the field no payload is (COUNTING-TRAPS.md, trap 10). A page
+        one_click marked as a repeat is not one either.
         """
         if (self.status[:1] != "2" and self.status != "304") or \
-                self.method not in ("GET", "HEAD"):
+                self.method not in ("GET", "HEAD") or self.repeat:
             return False
-        if RSC_PAYLOAD.search(self.url):
+        if RSC_PAYLOAD.search(self.url) and not self.soft_navigation:
             return False
         if ASSET.search(self.path) or BEACON.search(self.path):
             return False
@@ -122,6 +150,24 @@ OWN_ENDPOINT = re.compile(r"^/traffic-(?:beacon(?:$|[/?])|js/|hooks/|ingest/)")
 # Next.js/React Server Components fetch a payload for the page you clicked.
 # Other frameworks have their own: add them here rather than in the classifier.
 RSC_PAYLOAD = re.compile(r"[?&](_rsc|__flight__|_data)=", re.I)
+# Next.js App Router's own payload: the only one a navigation can be told
+# from a prefetch by (Hit.soft_navigation).
+RSC_QUERY = re.compile(r"[?&]_rsc=", re.I)
+
+# The field a log line ends with to record Next.js's prefetch header
+# (docs/INGEST.md, "Next.js: pages opened inside the site"):
+#   nginx   rsc_prefetch=$http_next_router_prefetch
+#   Apache  rsc_prefetch=%{Next-Router-Prefetch}i
+# Both write "-" when the request did not send the header. Read anywhere
+# after the user agent, as its own space-separated field; the first one
+# counts. Next.js sends "1" on a prefetch (and 2, 3 or 4 for its newer
+# runtime prefetches): any value but "-" or "" is a prefetch.
+RSC_PREFETCH_FIELD = "rsc_prefetch"
+RSC_PREFETCH = re.compile(r"(?:^|\s)rsc_prefetch=(\S*)")
+NAVIGATION_VALUES = ("-", "")
+# Two page views of one path, one an HTML page and one a Next.js navigation,
+# in one visit this many seconds apart or less, are one click (one_click).
+CLICK_SECONDS = 2
 
 # Files, not pages. Release 2 added the ones the real log showed being
 # counted as page views (/sitemap.xsl, 4 people "pages" in a day) and their
@@ -213,13 +259,25 @@ def _country(raw: str) -> str:
     return "" if country in ("", "-", "XX", "ZZ") else country
 
 
+def _prefetch_field(rest: str) -> tuple[str | None, str]:
+    """(the rsc_prefetch= value or None, `rest` without that field): the
+    other trailing fields (a quoted host, rid=) are read as if it were not
+    there, wherever it was put after the user agent."""
+    found = RSC_PREFETCH.search(rest)
+    if not found:
+        return None, rest
+    return found.group(1), rest[:found.start()] + rest[found.end():]
+
+
 def _from_match(m: re.Match, when: datetime, fmt: str = "") -> Hit:
     got = m.groupdict()
-    rid = RID.search(m.string) if fmt == "nginx_extended" else None
+    # Everything after the user agent's closing quote holds the trailing fields.
+    prefetch, rest = _prefetch_field(m.string[m.end("user_agent") + 1:].rstrip("\n"))
+    rid = RID.search(rest) if fmt == "nginx_extended" else None
     request = REQUEST.match(got["request"])
     host = got.get("host", "") or ""
     if not host and got.get("tail"):
-        found = TAIL_HOST.search(got["tail"])
+        found = TAIL_HOST.search(_prefetch_field(got["tail"])[1])
         host = found.group("host").lower() if found else ""
     return Hit(
         when=when,
@@ -235,6 +293,7 @@ def _from_match(m: re.Match, when: datetime, fmt: str = "") -> Hit:
         size=_size(got.get("size")),
         fmt=fmt,
         rid=rid.group(1) if rid else "",
+        rsc_prefetch=prefetch,
     )
 
 
@@ -270,6 +329,10 @@ def _caddy(line: str) -> Hit | None:
             country=_country(header("cf-ipcountry")),
             size=row.get("size") if isinstance(row.get("size"), int) else None,
             fmt="caddy_json",
+            # Caddy logs every request header: a record that holds them
+            # records whether Next-Router-Prefetch was sent ("-" when not).
+            rsc_prefetch=(header("next-router-prefetch").strip() or "-")
+            if isinstance(req.get("headers"), dict) else None,
         )
     except (ValueError, KeyError, TypeError):
         return None
@@ -607,6 +670,7 @@ def in_time_order(hits, hold: timedelta = HOLD, seen: Lateness | None = None):
     with a later timestamp stays where it went, and `seen.inverted` says so.
     A hold of at least `seen.most` from an earlier read of the same lines
     (Lateness.hold) is exact: no hit is ever behind by more than the hold.
+    Every count reads its window through one_click as well (window.py).
     """
     heap: list = []
     newest = None
@@ -630,3 +694,36 @@ def in_time_order(hits, hold: timedelta = HOLD, seen: Lateness | None = None):
             yield out
     while heap:
         yield heapq.heappop(heap)[2]
+
+
+def one_click(hits):
+    """The hits, each page view that repeats one click marked `repeat`.
+
+    A Next.js navigation that falls back to loading the HTML page (or an
+    HTML page whose link Next.js then fetches as a payload) logs both, for
+    one click. So a page view of one path, in one visit (address and user
+    agent, on one host), CLICK_SECONDS or less after a counted page view of
+    the other kind (HTML page vs Next.js navigation), is not a page view.
+    Two of the same kind are two page views, as before. Fed in time order
+    (in_time_order, as window.py does), the earlier of the two is counted. Only the
+    last CLICK_SECONDS are remembered."""
+    click = timedelta(seconds=CLICK_SECONDS)
+    last: dict[tuple, tuple] = {}            # visit and path -> (when, soft)
+    recent: deque = deque()                  # (when, key) in the order seen
+    for hit in hits:
+        hit.repeat = False
+        if hit.is_page:
+            when = hit.when if hit.when.tzinfo else hit.when.replace(tzinfo=timezone.utc)
+            while recent and when - recent[0][0] > click:
+                old, key = recent.popleft()
+                if last.get(key, (None,))[0] == old:
+                    del last[key]
+            soft = hit.soft_navigation
+            key = (hit.address, hit.user_agent, hit.host.lower(), hit.path)
+            before = last.get(key)
+            if before is not None and before[1] != soft and when - before[0] <= click:
+                hit.repeat = True
+            else:
+                last[key] = (when, soft)
+                recent.append((when, key))
+        yield hit

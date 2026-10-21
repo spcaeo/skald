@@ -26,7 +26,9 @@ Caddy's JSON access log too (https://caddyserver.com/docs/caddyfile/directives/l
 `ts` is Unix seconds, the request is under `request` (`client_ip` when
 Caddy has trusted proxies, else `remote_ip`; `host`, `method`, `uri`, and
 `headers` as lists of values, any letter case), `status` is a number.
-Country only from a logged CF-IPCountry header.
+Country only from a logged CF-IPCountry header. Its Next-Router-Prefetch
+header, when the record holds headers, tells a Next.js click from a prefetch
+(audit.navigation).
 """
 from __future__ import annotations
 
@@ -271,7 +273,11 @@ def _caddy(row: dict) -> dict | None:
             # Caddy's own size field, a whole number; its duration is not read
             # (the main road does not read it either).
             "size": row.get("size") if isinstance(row.get("size"), int) else None,
-            "seconds": None}
+            "seconds": None,
+            # Caddy logs the request's headers: whether Next.js's prefetch
+            # header came ("" when not), or None for a record without them.
+            "prefetch": _header(headers, "next-router-prefetch").strip()
+            if isinstance(headers, dict) else None}
 
 
 def fields(raw: str) -> dict | None:

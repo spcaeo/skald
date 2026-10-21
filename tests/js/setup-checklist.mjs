@@ -3,7 +3,7 @@
 // (tests/test_setup_checklist.py writes them to SETUP_JSON): plain lines with no
 // server words outside "For your server admin", a Set up button on each open
 // line (none for a reader who may not manage), and each dialog - logs, script
-// tag, lead hook, mail, privacy, page assets, countries - opened and walked;
+// tag, lead hook, mail, privacy, page assets, countries, Next.js pages - opened and walked;
 // the mails to the developer hold the snippet or the steps and never the secret.
 //
 //   SETUP_JSON=answers.json node tests/js/setup-checklist.mjs
@@ -24,12 +24,14 @@ Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: a
 
 const posted = [];
 let hooked = false;     // after the test: the lead hook is ready, then a real one arrives
+let rscState = "";      // "", "missing" (payloads without the field) or "fixed"
 globalThis.fetch = async (path, opts = {}) => {
   const body = opts.body ? JSON.parse(opts.body) : null;
   if (opts.method === "POST") posted.push([path, body]);
   const answer = (data, status = 200) => ({ ok: status < 300, status, json: async () => structuredClone(data) });
   if (path === "settings") return answer(given.settings);
   if (path.startsWith("integrations?site=")) {
+    if (rscState) return answer(rscState === "fixed" ? given.integ_rsc_ok : given.integ_rsc);
     if (!hooked) return answer(given.integ);
     const after = structuredClone(given.integ_after);
     const lead = after.tools.find((t) => t.tool === "lead");
@@ -248,6 +250,54 @@ await next();
 const geo = mailBody(mailOf(d));
 assert.ok(geo.includes("SKALD_COUNTRY_DB") && geo.includes(SITE));
 await closeDialog();
+
+// ---- Next.js pages: only on a log whose payloads lack the prefetch field
+rscState = "missing";
+const nbox = setupChecklist(m);
+document.body.append(nbox);
+await nbox.refresh();
+await tick();
+const nrow = nbox.querySelectorAll("li.su-i").find((li) => li.getAttribute("data-item") === "rsc");
+assert.ok(nrow, "the Next.js line shows");
+assert.ok(nrow.textContent.includes("Pages opened inside the site are not counted yet"));
+for (const word of ["rsc_prefetch", "nginx", "_rsc"]) assert.ok(!plain(nrow).includes(word), word);
+assert.ok(nrow.querySelector("details.fold").textContent.includes("rsc_prefetch=$http_next_router_prefetch"));
+button(nrow, "Set up").click();
+await tick(30);
+d = dialog();
+assert.match(stepName(), /Step 1 of 4: What is missing/);
+assert.ok(d.textContent.includes("prefetch") && d.textContent.includes("Nothing is guessed"));
+await next();
+const codes = d.querySelectorAll(".cn-code").map((c) => c.textContent);
+assert.ok(codes.some((c) => c.includes(" rsc_prefetch=$http_next_router_prefetch")), "the nginx line");
+assert.ok(codes.some((c) => c.includes("log_format") && c.includes("rsc_prefetch=$http_next_router_prefetch';")), "a whole log_format, the field last");
+assert.ok(codes.some((c) => c.includes("rsc_prefetch=%{Next-Router-Prefetch}i")), "the Apache line");
+for (const words of ["sudo nginx -t", "sudo systemctl reload nginx"]) assert.ok(d.textContent.includes(words), words);
+button(d, "Copy").click();
+await tick();
+assert.equal(copied.pop(), " rsc_prefetch=$http_next_router_prefetch");
+await next();
+const nmail = mailBody(mailOf(d));
+for (const words of ["rsc_prefetch=$http_next_router_prefetch", "rsc_prefetch=%{Next-Router-Prefetch}i", "nginx -t", SITE]) assert.ok(nmail.includes(words), words);
+assert.ok(button(d, "Share with your developer"), "a private page for the developer");
+button(d, "Share with your developer").click();
+await tick();
+button(d, "Make the link").click();
+await tick(30);
+assert.equal(posted.filter(([p]) => p === "sites/share").pop()[1].task, "nextjs");
+await next();
+assert.match(stepName(), /Step 4 of 4: Test/);
+rscState = "fixed";
+button(d, "Test").click();
+await tick(30);
+assert.ok(d.textContent.includes("It works: the log records the header"), d.textContent);
+await closeDialog();
+await nbox.refresh();
+await tick();
+assert.ok(!nbox.querySelectorAll("li.su-i").some((li) => li.getAttribute("data-item") === "rsc"), "fixed: the line goes away");
+nbox.remove();
+rscState = "";
+await box.refresh();
 
 // ---- Hide this list
 button(box, "Hide this list").click();

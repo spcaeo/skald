@@ -7,7 +7,8 @@ it, after finding the link usable): only its one task, for its one site.
            (hook); once per link, then 410 with "already shown"
   status   send and script: the fields of sites/status the Test reads (the
            batches, today's lines, the last refusal, verified or not, the
-           tag's counters); hook: the hook's state and its last deliveries
+           tag's counters); hook: the hook's state and its last deliveries;
+           nextjs: the doctor's Next.js line (doctor.next_pages: state, says)
   kit      the install kit (send, docker or systemd); with include_token, only
            a valid sending token of this site goes in
   test     hook: a signed sample lead posted to the receiver here, marked as
@@ -63,8 +64,9 @@ def info(c: Ctx, form):
 
 def reveal(c: Ctx, form):
     e = c.entry
-    if e["task"] == "script":
-        return c.no(400, "The script tag needs no secret.")
+    if e["task"] in share_links.NO_SECRET:
+        return c.no(400, "The script tag needs no secret." if e["task"] == "script"
+                    else "These steps need no secret.")
     if not share_links.claim_reveal(c.db, e):
         return c.no(410, "The secret was shown already. Ask for a new link.", shown=True)
     if e["task"] == "send":
@@ -103,6 +105,8 @@ def status(c: Ctx, form):
     e = c.entry
     if e["task"] == "hook":
         return c.ok(**hook_status(c))
+    if e["task"] == "nextjs":
+        return c.ok(**next_status(c))
     base = ingest.history_folder(c.config, c.live_dir)
     _, summary = connections_api.received(c.config, c.live_dir, c.site)
     verify = site_verify.shown(c.db, c.site)
@@ -110,6 +114,17 @@ def status(c: Ctx, form):
                 **ingest_status.status(base, c.site),
                 verify={"state": verify["state"]} if verify else None,
                 beacon=connections_api.beacon_status(c.config, c.live_dir, c.config_path, c.site))
+
+
+def next_status(c: Ctx) -> dict:
+    """The doctor's Next.js line for the site's log: OK once its newest lines
+    record the prefetch header; "" when the log holds no Next.js payload."""
+    from .conversions import hooks as hooks_mod
+    from .doctor import next_pages
+    conf = hooks_mod.site_configs(c.config, c.config_path).get(c.site) or c.config
+    got = next_pages(conf) or {"state": "", "says": "no Next.js page request in the log's "
+                                                   "newest lines yet"}
+    return {"site": c.site, "state": got["state"], "says": got["says"]}
 
 
 def hook_status(c: Ctx) -> dict:

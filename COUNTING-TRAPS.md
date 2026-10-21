@@ -256,10 +256,48 @@ changed have no host and no country. They were counted and reported as
 "could not be filtered"; now each day's `quality.json` says how many
 (`old_format`) and the feed flags each such row. They age out with the logs.
 
-**10. Next.js payloads are never page views - verified.** `?_rsc=` (and
-`&_rsc=`) is a payload whether it is a prefetch or a navigation: never a
-page view, in the package and in the audit. Tests pin it for paths in every
-locale.
+**10. Next.js payloads are page views only when the log can tell a click
+from a prefetch - verified.** On a Next.js App Router site a tap on a link
+inside the site sends no HTML request: the browser fetches
+`GET /path?_rsc=<hash>` (and the route's script). Next.js sends the same URL
+to prefetch links in view, which nobody opened. A plain log cannot tell the
+two apart, and counting them once inflated a site's figures; so without more
+on the line, `?_rsc=` (and `&_rsc=`) is never a page view, in the package and
+in the audit, and tests pin it for paths in every locale. The cost was real:
+on such a site every page after the first was invisible, and a visit from a
+tab left open (no HTML request at all) was filed under bots.
+
+Next.js marks a prefetch with the request header `Next-Router-Prefetch`
+(`1`; newer versions also `2`, `3`, `4` for their runtime prefetches) and
+sends no such header on a navigation. A log that records it ends each line
+with ` rsc_prefetch=$http_next_router_prefetch` (nginx; Apache:
+` rsc_prefetch=%{Next-Router-Prefetch}i`), which is `-` when the header was
+not sent. Caddy's JSON log holds the request headers already. Then, exactly:
+
+- A GET for `?_rsc=` or `&_rsc=`, answered 2xx or 304, on a line that
+  carries the field with `-` (or nothing), is a page view of its path, in
+  its visit, like an HTML page (`parse.Hit.soft_navigation`).
+- With any other value it is a prefetch: never a page view, still evidence
+  that a browser drew the page (rule 9 of CLASSIFICATION.md).
+- Without the field: as before, never a page view.
+- One click is one page view: an HTML page and a navigation of the same
+  path, in the same visit (address and agent, on one host), 2 seconds or
+  less apart, count once - the earlier (`parse.one_click`). Two of the same
+  kind still count twice.
+- A POST (a server action), a HEAD, and every other method are never one.
+
+The audit applies the same rule by its own code (`audit.navigation`,
+`audit.same_click`, `audit_lines._prefetch`), sharing only the token.
+`tests/test_nextjs_navigation.py` pins every format with and without the
+field, and a main road that kept both halves of a click or counted a
+prefetch is caught by the audit.
+
+What it cannot know: a navigation Next.js answers from its own client cache
+sends nothing, so it is still missed. A `<Link prefetch={true}>` (a "full"
+prefetch) is sent without the header - Next.js treats it as a navigation
+ahead of time - so on a site that uses it, those prefetches count as page
+views; the default `<Link>` sends the header. `router.refresh()` is a GET
+without the header too, and counts as a view of the page it refreshes.
 
 **11. Link previews filed as search engines.** facebookexternalhit,
 Twitterbot and LinkedInBot sat in the search group; Slack, Teams, WhatsApp,

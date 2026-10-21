@@ -77,6 +77,8 @@ function body(st) {
   const out = [h("ul", { class: "cn-found-list" }, foundLines(f).map(lineEl))];
   if (f.asset_prefixes?.length) out.push(h("p", { class: "note" }, `Page assets: ${f.asset_prefixes.join(", ")}. ${f.assets_note || ""}`.trim()));
   else if (f.assets_note) out.push(h("p", { class: "note" }, f.assets_note));
+  // A Next.js site on its own nginx or Apache: the one log_format field (site_detect.LOG_NOTE).
+  if (f.log_note) out.push(h("p", { class: "note cn-log-note" }, f.log_note));
   if (f.hosted_builder) out.push(h("p", { class: "cn-builder" }, h("strong", null, `${f.platform_label} keeps its server log to itself. `), "Skald cannot read it, so the script tag is the way."));
   out.push(h("p", { class: "cn-found-why" }, way ? h("b", null, `Suggested: ${way.title}. `) : h("b", null, "No way suggested. "), f.reason || ""));
   return out;

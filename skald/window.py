@@ -28,7 +28,7 @@ from .aggregate import Totals, summarise_views
 from .classify import Classifier, crawler_visits
 from .config import setting
 from .parse import (HOLD, Hit, Lateness, ReadStats, geo_database, in_time_order, log_files,
-                    oldest_first, read, sizes)
+                    oldest_first, one_click, read, sizes)
 
 # A line can land in the file after the one its timestamp belongs to: the
 # server buffers writes, and reopens its log some time after the rename. Six
@@ -168,8 +168,8 @@ def analyse_window_views(config: dict, start: datetime, end: datetime,
     stats = ReadStats()
     edges = _Edges()
     whole, by_view = summarise_views(
-        edges.watch(in_time_order(
-            within(read(paths, fmt, stats, geo_database(config), upto), start, end), hold)),
+        edges.watch(one_click(in_time_order(
+            within(read(paths, fmt, stats, geo_database(config), upto), start, end), hold))),
         classifier,
         int(setting(config, "report", "session_gap_minutes", 30)),
         top=top,
@@ -250,7 +250,7 @@ def analyse_paths(config: dict, paths: list[Path], top: int = 8,
     classifier, hold = ordered_classifier(config, lambda: read(paths, fmt))
     stats = ReadStats()
     totals = summarise_views(
-        in_time_order(read(paths, fmt, stats, geo_database(config)), hold),
+        one_click(in_time_order(read(paths, fmt, stats, geo_database(config)), hold)),
         classifier,
         int(setting(config, "report", "session_gap_minutes", 30)),
         top=top,
@@ -290,9 +290,10 @@ def ordered_classifier(config: dict, lines, start: datetime | None = None,
     count's own pass is then given that hold, and is exact.
     """
     seen = Lateness()
-    classifier = _classifier(config, in_time_order(lines(), HOLD, seen), start, end)
+    classifier = _classifier(config, one_click(in_time_order(lines(), HOLD, seen)), start, end)
     if seen.inverted:
-        classifier = _classifier(config, in_time_order(lines(), seen.hold()), start, end)
+        classifier = _classifier(config, one_click(in_time_order(lines(), seen.hold())),
+                                 start, end)
     return classifier, seen.hold()
 
 

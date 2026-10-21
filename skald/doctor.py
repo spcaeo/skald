@@ -12,6 +12,9 @@ The parts, in order:
     access log     logs.dir/logs.base there, readable, written in the last day
     page assets    a request for site.asset_prefixes (default /_next/static/) in the
                    log's last lines: without one no browser counts as a person
+    Next.js pages  only when the log's last lines hold Next.js payloads (?_rsc=):
+                   whether they record the prefetch header (rsc_prefetch=), without
+                   which a page opened inside the site is not counted
     web app        dashboard.app on
     hook receiver  the beacon helper answers on its port (127.0.0.1:8766)
     hook <tool>    each hook set up: its secret, its last delivery (roads.py)
@@ -217,14 +220,8 @@ def access_log(config: dict, now: datetime, cmd: str) -> dict:
                 f"{path} is readable, last written {_ago(written.isoformat(), now)}")
 
 
-def page_assets(config: dict) -> dict:
-    """A request for one of the site's asset prefixes in the log's last
-    lines: the evidence that a browser drew a page (rendering.py)."""
-    from . import rendering
-    part = "Page assets"
-    if not rendering.required(config):
-        return item("assets", part, OFF, "not needed (site.require_rendering: false)")
-    prefixes = rendering.asset_prefixes(config)
+def _tail(config: dict) -> bytes:
+    """The log's last TAIL_BYTES (the live file, then its first rotation)."""
     folder, path = _log_path(config)
     tail = b""
     for one in (path, folder / f"{path.name}.1"):
@@ -237,6 +234,62 @@ def page_assets(config: dict) -> dict:
             continue
         if len(tail) >= TAIL_BYTES:
             break
+    return tail
+
+
+# Formats that keep no request header, so cannot record Next.js's prefetch one.
+NO_HEADERS = ("vercel_json", "netlify_json", "edge_json", "cloudflare_json", "fastly_json",
+              "cloudfront_w3c")
+NEXT_LINE = " rsc_prefetch=$http_next_router_prefetch"
+NEXT_APACHE = " rsc_prefetch=%{Next-Router-Prefetch}i"
+
+
+def next_pages(config: dict) -> dict | None:
+    """Next.js payloads (?_rsc=) in the log's last lines, and whether their
+    lines record the prefetch header (parse.Hit.rsc_prefetch): without it a
+    page opened inside the site is not counted (COUNTING-TRAPS.md, trap 10).
+    No payload in the tail: no line at all, so a site that is not Next.js
+    is never told about it."""
+    from .parse import AUTO_ORDER, PARSERS, detect
+    part = "Next.js pages"
+    lines = [raw for raw in _tail(config).decode("utf-8", "replace").splitlines()
+             if "_rsc=" in raw]
+    if not lines:
+        return None
+    first = PARSERS[detect(lines[-200:])]
+    hits = []
+    for raw in lines:
+        hit = first(raw)
+        if hit is None:
+            hit = next((h for h in (PARSERS[n](raw) for n in AUTO_ORDER) if h is not None), None)
+        if hit is not None:
+            hits.append(hit)
+    if not hits:
+        return None
+    if any(hit.rsc_prefetch is not None for hit in hits):
+        return item("rsc", part, OK, "the log records Next.js's prefetch header: pages "
+                                     "opened inside the site are counted")
+    if all(hit.fmt in NO_HEADERS for hit in hits):
+        return item("rsc", part, OFF, "this log format carries no request header, so it "
+                                      "cannot tell a click from a prefetch: pages opened "
+                                      "inside the site are not counted")
+    return item("rsc", part, ATTENTION,
+                "the log has Next.js page requests (?_rsc=) but not the header that tells a "
+                "click from a prefetch: pages opened inside the site are not counted",
+                f"Append `{NEXT_LINE}` at the end of the site's nginx log_format (Apache "
+                f"LogFormat: `{NEXT_APACHE}`), then `sudo nginx -t` and reload nginx. Lines "
+                "from then on count.")
+
+
+def page_assets(config: dict) -> dict:
+    """A request for one of the site's asset prefixes in the log's last
+    lines: the evidence that a browser drew a page (rendering.py)."""
+    from . import rendering
+    part = "Page assets"
+    if not rendering.required(config):
+        return item("assets", part, OFF, "not needed (site.require_rendering: false)")
+    prefixes = rendering.asset_prefixes(config)
+    tail = _tail(config)
     if not tail:
         return item("assets", part, OFF, "cannot check: the log is empty or not readable")
     seen = [p for p in prefixes if p.encode() in tail] or (
@@ -458,6 +511,7 @@ def checks(ctx, send_test: bool = False, helper_state: dict | None = None) -> li
                  now, ctx.live_dir, cmd)
     out += _safe("logs", "Access log", access_log, config, now, cmd)
     out += _safe("assets", "Page assets", page_assets, config)
+    out += _safe("rsc", "Next.js pages", next_pages, config)
     out += _safe("app", "Web app", web_app, config)
     out += _safe("receiver", "Hook receiver", receiver, config, state)
     out += _safe("hooks", "Hooks", hook_items, config, folder, ctx.site, now, cmd)
@@ -483,6 +537,7 @@ def integration_checks(site_config: dict, folder, site: str, live_dir=None,
     out = []
     out += _safe("logs", "Access log", access_log, site_config, now, cmd)
     out += _safe("assets", "Page assets", page_assets, site_config)
+    out += _safe("rsc", "Next.js pages", next_pages, site_config)
     out += _safe("receiver", "Hook receiver", receiver, site_config, state)
     out += _safe("script", "Script tag", script_tag, site_config, state,
                  live_dir if live_dir is not None else folder, now, config_path)

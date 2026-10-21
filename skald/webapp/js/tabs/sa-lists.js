@@ -16,7 +16,7 @@ import { call } from "./ipmanager.js";
 import { mayFind, openPerson } from "./person.js";
 import { openVisitor } from "./visitor.js";
 import { grid } from "../grid.js";
-import { actionName, toolName, STAGE } from "./leadfigs.js";
+import { actionName, toolName, STAGE, labelTag } from "./leadfigs.js";
 
 export const LEAD_SHOW = [["spam", "Spam"], ["duplicate", "Duplicates"], ["test", "Test"]];
 export const CONV_SHOW = [["cancelled", "Cancelled or no-show"], ["removed", "Removed"], ["test", "Test"]];
@@ -88,18 +88,19 @@ export function leadList(kinds, { ns = "lo", only = null } = {}) {
 }
 
 // One conversion row, the same shape whichever list it came from.
-function convRow(kind, r) {
+export function convRow(kind, r) {
   if (kind === "removed") {
     const was = r.row || {};
     return { kind, at: r.at || was.at, action: r.action || was.action, stage: r.stage || was.stage, tool: r.tool || was.tool, source: was.source_type ?? null,
-      landing: was.landing ?? null, ref: r.external_ref, vid: null, email: null, why: [r.why, r.removed_at ? `removed ${at(r.removed_at)}` : ""].filter(Boolean).join(", "), journey: r.journey || [] };
+      landing: was.landing ?? null, ref: r.external_ref, vid: null, email: null, label: was.label || null,
+      why: [r.why, r.removed_at ? `removed ${at(r.removed_at)}` : ""].filter(Boolean).join(", "), journey: r.journey || [] };
   }
   return { kind, at: r.at, action: r.action, stage: r.stage, tool: r.tool, source: r.source_type, landing: r.landing, ref: r.external_ref, vid: r.vid || null,
-    email: r.email || null, why: kind === "test" ? "marked test (kept, never counted)" : "", journey: r.journey || [] };
+    email: r.email || null, label: r.label || null, why: kind === "test" ? "marked test (kept, never counted)" : "", journey: r.journey || [] };
 }
 
 function convDetail(r) {
-  const dl = h("dl", { class: "dw-dl" }, [["List", KIND[r.kind]], ["When", at(r.at)], ["Action", actionName(r.action || "")], ["Stage", STAGE[r.stage] || dash(r.stage)],
+  const dl = h("dl", { class: "dw-dl" }, [["List", KIND[r.kind]], ["When", at(r.at)], ["Action", actionName(r.action || "")], ["Label", r.label ? labelTag(r.label) : "-"], ["Stage", STAGE[r.stage] || dash(r.stage)],
     ["Reported by", toolName(r.tool)], ["Source (last touch)", dash(r.source)], ["Landing", dash(r.landing)], ["Lead or reference", key(r.ref)], ["Visitor ID", key(r.vid)], ["Why", dash(r.why)]]
     .flatMap(([t, v]) => [h("dt", null, t), h("dd", null, v)]));
   // The visitor drawer (visitor.js): the visitor ID's pages as visits, this row's facts below.
@@ -108,19 +109,22 @@ function convDetail(r) {
 }
 
 /* The tools' cancelled, removed and test conversions, of the kinds asked for.
-   only: (action) => bool, to keep one tab's actions (Bookings). */
-export function convList(kinds, { ns = "lo", only = null, title = "Cancelled, removed and test conversions" } = {}) {
+   only: (action) => bool, to keep one tab's actions (Bookings); label: only the rows
+   with this lead label (Pipeline's Label). */
+export function convList(kinds, { ns = "lo", only = null, label = "", title = "Cancelled, removed and test conversions" } = {}) {
   const [sec, body] = holder(title,
     "Every conversion stays visible: cancelled bookings and no-shows as the tool reported them, rows a lead-database sync took away (with when and why), and conversions marked test (kept, never counted). A row opens its journey.");
   Promise.all(kinds.map((k) => fetchList(`people/conversions?kind=${encodeURIComponent(k)}`).then((got) => [k, got]))).then((answers) => fill(body, () => {
     const bad = answers.find(([, got]) => !got?.ok);
     if (bad) return failed(bad[1]);
-    const rows = answers.flatMap(([k, got]) => (got.rows || []).map((r) => convRow(k, r))).filter((r) => !only || only(r.action));
+    const rows = answers.flatMap(([k, got]) => (got.rows || []).map((r) => convRow(k, r))).filter((r) => (!only || only(r.action)) && (!label || r.label === label));
     const named = rows.some((r) => r.email || r.vid);
+    const labelled = rows.some((r) => r.label);
     const cols = [
       { key: "at", label: "When", type: "date", fmt: (v) => at(v) },
       { key: "kind", label: "List", fmt: (v) => KIND[v] || v, csv: (r) => KIND[r.kind] || r.kind },
       { key: "action", label: "Action", fmt: (v) => (v ? actionName(v) : "-"), csv: (r) => r.action },
+      ...(labelled ? [{ key: "label", label: "Label", fmt: (v) => labelTag(v) || "-", csv: (r) => r.label || "" }] : []),
       { key: "stage", label: "Stage", fmt: (v) => STAGE[v] || dash(v) },
       { key: "tool", label: "Reported by", fmt: (v) => (v ? toolName(v) : "-"), csv: (r) => r.tool },
       { key: "source", label: "Source", fmt: dash },
@@ -131,7 +135,9 @@ export function convList(kinds, { ns = "lo", only = null, title = "Cancelled, re
     ];
     return [grid({ ns, caption: title, file: "conversions-left-out.csv", columns: cols, rows, sortKey: "at", dir: "desc", onRow: convDetail,
       filters: [...(kinds.length > 1 ? [{ key: "kind", label: "List", options: kinds.map((k) => [k, KIND[k]]) }] : []),
-        { key: "action", label: "Action", options: seen(rows, "action", actionName) }, { key: "tool", label: "Reported by", options: seen(rows, "tool", toolName) }],
+        { key: "action", label: "Action", options: seen(rows, "action", actionName) },
+        ...(labelled ? [{ key: "label", label: "Label", options: seen(rows, "label", String) }] : []),
+        { key: "tool", label: "Reported by", options: seen(rows, "tool", toolName) }],
       empty: kinds.length ? "None of these." : "Choose what to show above." }),
     h("p", { class: "note" }, `Cancelled and no-shows are counted under their own stage, never as completed. A removed row is kept whole; only a deletion request (skald forget) deletes for good.${answers.some(([, got]) => got.private) ? "" : " Emails and visitor IDs show to admins and owners only."}`)];
   }));

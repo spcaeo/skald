@@ -3,7 +3,10 @@ identities (name and email; on unless a site sets `conversions.identity:
 anonymous`), the log of hook deliveries, the outgoing webhooks with their
 outbox (conversions/outgoing.py), and - since 2.4.0 - the people's visits
 with their address (people/visits.py, `visits` and `visit_days`), the rows
-a sync removed (`removed`) and the `test` mark on a conversion.
+a sync removed (`removed`) and the `test` mark on a conversion; since 2.18
+a lead's `label` (the lead hook's optional token; each row its own, a later
+stage never takes an earlier one's) and `hook_rows`, a hook's rows in the
+order they arrived (GET /traffic-hooks/<site>/leads, reconcile.py).
 
 Beside the history (`conversions.db` to move it), apart from it because it
 may hold personal data. 0640. Opened with `connect(path)` once per call
@@ -37,7 +40,7 @@ from ..config import setting
 from ..files import own_like_folder
 from . import ALIASES, FINISHED, STAGES
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 STAMP = "%Y-%m-%dT%H:%M:%SZ"
 FILE = "conversions.sqlite"
 VID_DAYS = 30
@@ -59,13 +62,18 @@ CONVERSIONS_V2 = """CREATE TABLE IF NOT EXISTS {name} (
 """
 # Schema 4: `test` (1: kept and listed, never counted), added by ALTER to an
 # older file, part of the table for a new one.
+# Schema 7 (2.18): `label`, the lead hook's optional token (conversions.LABEL;
+# NULL: none), added the same way.
 CONVERSIONS = CONVERSIONS_V2.replace(
     "  received_at TEXT NOT NULL,\n",
-    "  received_at TEXT NOT NULL, test INTEGER NOT NULL DEFAULT 0,\n")
+    "  received_at TEXT NOT NULL, test INTEGER NOT NULL DEFAULT 0, label TEXT,\n")
 INDEXES = """
 CREATE INDEX IF NOT EXISTS conversions_at ON conversions (site, at);
 CREATE INDEX IF NOT EXISTS conversions_vid ON conversions (site, vid);
 """
+# Schema 7: a hook's rows in the order Skald got them (GET .../leads, reconcile.py).
+RECEIVED_INDEX = ("CREATE INDEX IF NOT EXISTS conversions_received ON conversions "
+                  "(site, tool, received_at, id)")
 
 # Schema 4 (2.4.0): each reader's visit with its address and user agent
 # (people/visits.py; written only while the site keeps them), the days
@@ -93,7 +101,8 @@ CREATE INDEX IF NOT EXISTS removed_ref ON removed (site, external_ref);
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-""" + CONVERSIONS.format(name="conversions") + INDEXES + """CREATE TABLE IF NOT EXISTS journeys (
+""" + CONVERSIONS.format(name="conversions") + INDEXES + RECEIVED_INDEX + """;
+CREATE TABLE IF NOT EXISTS journeys (
   vid TEXT NOT NULL, site TEXT NOT NULL, at TEXT NOT NULL, path TEXT NOT NULL,
   source_type TEXT, via TEXT);
 CREATE INDEX IF NOT EXISTS journeys_vid ON journeys (site, vid, at);
@@ -153,7 +162,10 @@ UPGRADES: dict[int, list[str]] = {2: [
     5: ["ALTER TABLE visits ADD COLUMN city TEXT"],
     # 6: the page view's referring host (the beacon's `r`; "" none, NULL a
     # row from before): a visitor ID's first touch (firsttouch.py).
-    6: ["ALTER TABLE journeys ADD COLUMN via TEXT"]}
+    6: ["ALTER TABLE journeys ADD COLUMN via TEXT"],
+    # 7 (2.18): a lead's label (NULL for every older row: none was sent), and
+    # a hook's rows in the order received (GET /traffic-hooks/<site>/leads).
+    7: ["ALTER TABLE conversions ADD COLUMN label TEXT", RECEIVED_INDEX]}
 
 # The SCHEMA this code set a file up with (see accounts/db.py): a file
 # stamped with it at SCHEMA_VERSION skips the script on connect.
@@ -161,7 +173,7 @@ SCHEMA_STAMP = hashlib.sha256(SCHEMA.encode()).hexdigest()[:16]
 
 COLUMNS = ("action", "stage", "at", "vid", "external_ref", "tool", "source_type",
            "first_source", "campaign", "landing", "country", "device", "first_touch_at",
-           "visits_before")
+           "visits_before", "label")
 
 
 def path_for(config: dict, folder: Path | None) -> Path | None:
@@ -434,6 +446,32 @@ def deliveries(db, site: str, tool: str | None = None, limit: int = 50) -> list[
                          "ORDER BY id DESC LIMIT ?", (site, tool, limit))
     return _rows(db, "SELECT * FROM deliveries WHERE site = ? ORDER BY id DESC LIMIT ?",
                  (site, limit))
+
+
+def hook_rows(db, site: str, tool: str, since: str | None = None, after=None,
+              at_since: str | None = None, at_until: str | None = None,
+              limit: int = 200) -> list[dict]:
+    """One hook's rows in the order Skald got them (received_at, then id),
+    test rows too: received at or after `since`, after `after` (the
+    (received_at, id) of a page's last row), with `at` in [at_since,
+    at_until). Only what a sender may see again: never a visitor ID, a
+    source, an identity. At most `limit`."""
+    sql = ("SELECT id, external_ref, action, stage, at, label, test, received_at FROM "
+           "conversions WHERE site = ? AND tool = ?")
+    args: list = [site, tool]
+    if since:
+        sql += " AND received_at >= ?"
+        args.append(since)
+    if after:
+        sql += " AND (received_at > ? OR (received_at = ? AND id > ?))"
+        args += [after[0], after[0], int(after[1])]
+    if at_since:
+        sql += " AND at >= ?"
+        args.append(at_since)
+    if at_until:
+        sql += " AND at < ?"
+        args.append(at_until)
+    return _rows(db, sql + " ORDER BY received_at, id LIMIT ?", (*args, int(limit)))
 
 
 def abandoned(db, site: str, since: str, until: str, hours: float = ABANDON_HOURS,

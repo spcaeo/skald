@@ -220,6 +220,10 @@ class Detecting(unittest.TestCase):
         self.assertEqual(got["recommended_method"], "docker")
         self.assertEqual(got["reason"], "example.com runs on its own nginx server (Ubuntu), "
                                         "so the log shipper kit is the way.")
+        # Next.js on its own nginx: the one log_format field for pages opened inside the site.
+        self.assertEqual(got["log_note"], d.LOG_NOTE)
+        self.assertIn("rsc_prefetch=$http_next_router_prefetch", got["log_note"])
+        self.assertIn("rsc_prefetch=%{Next-Router-Prefetch}i", got["log_note"])
         # HEAD said enough (X-Powered-By): no GET was needed.
         self.assertEqual({m for m, _ in net.calls}, {"HEAD"})
         # The log line: the host and the outcome, never an address.
@@ -240,6 +244,7 @@ class Detecting(unittest.TestCase):
         self.assertEqual(got["asset_prefixes"], ["/wp-content/", "/wp-includes/"])
         self.assertIn(("GET", "https://www.example.com/"), net.calls)   # the page was needed
         self.assertEqual(got["recommended_method"], "docker")
+        self.assertEqual(got["log_note"], "")        # WordPress: nothing to add
 
     def test_two_different_sites_are_not_merged(self):
         answers = {"https://example.com/": (200, {"Server": "nginx"}, b"<title>One</title>"),
@@ -263,6 +268,16 @@ class Detecting(unittest.TestCase):
         got, _, _ = run("www.example.com", answers)
         self.assertEqual((got["platform"], got["recommended_method"]), ("cloudflare", "cloudflare"))
         self.assertEqual(got["platform_label"], "Cloudflare (proxied)")
+        # Next.js behind the Worker: no nginx log is read, so no log_format line.
+        self.assertEqual(got["log_note"], "")
+
+    def test_log_note_only_for_next_js_on_an_own_log_format_server(self):
+        base = {"framework": "nextjs", "server": "nginx", "recommended_method": "docker"}
+        self.assertEqual(d.log_note(base), d.LOG_NOTE)
+        self.assertEqual(d.log_note({**base, "server": "apache"}), d.LOG_NOTE)
+        for other in ({"framework": "wordpress"}, {"server": "caddy"},
+                      {"recommended_method": "vercel"}, {"framework": None}):
+            self.assertEqual(d.log_note({**base, **other}), "", other)
 
     def test_http_when_https_cannot_connect(self):
         answers = {"http://www.example.com/": (200, {"Server": "nginx"}, b"<title>x</title>")}
@@ -314,6 +329,9 @@ class Kept(unittest.TestCase):
         self.assertFalse(got["use"])
         self.assertEqual(got["redirects"], [{"from": "example.com", "to": "www.example.com"}])
         self.assertEqual(got["framework_label"], "Next.js")
+        self.assertEqual(got["log_note"], "")
+        self.assertEqual(d.clean_found({"log_note": d.LOG_NOTE})["log_note"], d.LOG_NOTE)
+        self.assertEqual(d.clean_found({"log_note": "<b>x</b>"})["log_note"], "")
 
 
 class Api(TenantServer):

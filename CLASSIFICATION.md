@@ -110,11 +110,15 @@ that a browser drew the page, any one of:
 
 - **assets**: it fetched something under `site.asset_prefixes` (default
   `/_next/static/`; per site also in Settings > Sites > Page assets,
-  docs/SETTINGS.md) or a `?_rsc=` payload, from 5 seconds before to
+  docs/SETTINGS.md) or a `?_rsc=` payload (a prefetch or a navigation),
+  from 5 seconds before to
   `site.render_seconds` (30) after one of its page requests. Before, too,
   because a streamed page is logged when it ends, after its styles were
   asked for. Images, `/og/` cards and favicons do not count: link
   unfurlers fetch those.
+  A Next.js navigation (above) is a page request and a payload at once, so
+  a visit whose only pages are navigations (a tab left open, a page restored
+  from the cache) drew: the page's running script asked for it.
 - **beacon**: an event from the page's own script (the beacon spool) was
   sent from one of its pages, opened within the same window. The spool
   holds no address, so the match is by path and time: one page opening
@@ -596,9 +600,20 @@ from who asked. It is true only for a 2xx or 304 response to a GET or HEAD
 that is none of:
 
 - **`RSC_PAYLOAD`** - `?_rsc=`, `?__flight__=`, `?_data=`. A React or Next
-  client fetching the page you just clicked. One navigation produces one of
-  these, so counting them doubles every click; counting them *instead* of pages
-  is what produced "56 people".
+  client fetching the page you just clicked, or prefetching a link in view.
+  Counting them *instead* of pages is what produced "56 people". One
+  exception, only when the line can tell a click from a prefetch: a Next.js
+  navigation (`Hit.soft_navigation`) - a GET for `?_rsc=` or `&_rsc=` on a
+  line that carries the trailing ` rsc_prefetch=` field (nginx
+  `$http_next_router_prefetch`, Apache `%{Next-Router-Prefetch}i`; Caddy's
+  logged headers) with `-` or nothing, for no asset or beacon path - is a
+  page view of its path. Any other value (`1`; `2` to `4` in newer Next.js)
+  is a prefetch, never a page view. Without the field no payload is one
+  (COUNTING-TRAPS.md trap 10). One click is one page view: an HTML page and
+  a navigation of the same path in the same visit (address, agent, host),
+  2 seconds or less apart, count once, the earlier (`parse.one_click`, run on
+  every window read in time order; the audit's `audit.same_click`). A POST
+  (a Next.js server action) or HEAD never is.
 - **`ASSET`** - by extension (`css`, `js`, `mjs`, `map`, images, fonts, `txt`,
   `xml`, `json`, `webmanifest`, `xsl`, feeds, `pdf` and office documents,
   archives, audio and video, `wasm`) or by prefix (`/_next/`, `/static/`,

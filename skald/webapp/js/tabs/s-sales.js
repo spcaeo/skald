@@ -22,7 +22,7 @@ const filters = (s) => (tools(s) ? [] : ["source"]);
 
 // One line per tab: tests/test_routes.py reads each tab's keep list from its line.
 export default [
-  ["pipeline", "Pipeline", pipeline, { file, filters, keep: ["lsrc", "lact", "lstage", "lshow"], compare: true }],
+  ["pipeline", "Pipeline", pipeline, { file, filters, keep: ["lsrc", "lact", "llabel", "lstage", "lshow"], compare: true }],
   ["bookings", "Bookings", bookings, { file: "conversions", filters: [], keep: ["bact", "bshow"] }],
   ["funnels", "Funnels", funnels, { file: "funnels", filters: ALL, rules: "visit", keep: ["fn", "fsrc", "fstep", "fmode"] }],
   ["events", "Events", events, { file: "events", filters: ["path", "source"] }],

@@ -173,6 +173,8 @@ When you type the address in step 1, Skald looks at the site from outside, the w
 
 Each line has a tick, or says **could not tell**. Under them: the page assets it suggests for **Settings > This site > Sites > Page assets**, and the way it suggests, with one plain reason. For example: "example.com runs on its own nginx server (Ubuntu), so the log shipper kit is the way."
 
+A Next.js site on its own nginx, Apache or LiteSpeed server also gets one more line: add ` rsc_prefetch=$http_next_router_prefetch` at the end of the site's nginx `log_format` (Apache: ` rsc_prefetch=%{Next-Router-Prefetch}i`), then reload nginx. Without it, a page opened by a click inside the site is not counted, because Next.js loads it without an HTML request. The install kit's `check.sh` says whether the log has it.
+
 | What Skald sees | The way it suggests |
 | --- | --- |
 | nginx, Apache, LiteSpeed or Caddy, nothing in front | A Linux server with Docker (the shipper kit) |

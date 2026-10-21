@@ -39,12 +39,19 @@ type).
 The sender's address is read only for the pre-auth bucket, kept in memory:
 X-Real-IP on the proxy's connection (loopback, or `hooks.trusted_proxies`),
 else the connection's own address.
+
+One GET (2.18): /traffic-hooks/<site>/leads, the leads the site's `lead`
+hook delivered, read only, signed with that hook's secret over the method
+and the request target (reconcile.py). Every other GET is 405 as before.
+It writes no delivery row: one line on the helper's log with the site, the
+outcome, the row count and the parameter names, never their values.
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import re
+import sys
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -52,8 +59,9 @@ from pathlib import Path
 
 from ..beacon import visitor_ids
 from ..config import setting, site_name
-from . import LEAD_SHAPED, MAX_BODY, TOOLS, event_types, geo, spool, store
+from . import LEAD_SHAPED, MAX_BODY, TOOLS, event_types, geo, reconcile, spool, store
 from .adapters import Invalid, adapter
+from .adapters.lead import LABEL_NOTE, verify_get
 from .normalise import row as make_row
 from .secrets_store import Exposed, find
 
@@ -142,6 +150,11 @@ class Receiver:
                                float(setting(config, "hooks", "preauth_burst", 10)),
                                float(setting(config, "hooks", "preauth_all_per_second", 20)),
                                clock=time.monotonic)
+        # GET .../leads (reconcile.py), per site, verified requests only.
+        self.reads = Limiter(float(setting(config, "hooks", "leads_per_minute", 60)),
+                             float(setting(config, "hooks", "leads_burst", 20)),
+                             float(setting(config, "hooks", "all_per_second", 20)),
+                             clock=time.monotonic)
         self.lock = threading.Lock()
         self.refused: dict[tuple[str, str, str], list] = {}
 
@@ -227,6 +240,8 @@ class Receiver:
 
     def http(self, handler) -> tuple[int, dict]:
         """(status, answer) for one request on the handler; reads its body."""
+        if handler.command == "GET" and reconcile.site_of(handler.path):
+            return self.leads(handler)
         found = _PATH.match(handler.path.split("?", 1)[0])
         if not found:
             return 404, {"error": "not found"}
@@ -264,6 +279,56 @@ class Receiver:
             self._limited(site, tool)
             return 429, {"error": "too many"}
         return self.process(site, tool, headers, body, secret, verified=True)
+
+    def leads(self, handler) -> tuple[int, dict]:
+        """GET /traffic-hooks/<site>/leads (reconcile.py): 404 not set up,
+        401 a missing or wrong signature, 429 too many, 400 a bad query."""
+        site = reconcile.site_of(handler.path)
+        try:
+            secret = self.secret(site, reconcile.TOOL)
+        except Exposed:
+            self._said(site, "error")
+            return 500, {"error": "not set up"}
+        if not secret:
+            return 404, {"error": "not found"}
+        headers = {k.lower(): v for k, v in handler.headers.items()}
+        if not verify_get(headers, handler.path, secret, self.clock()):
+            self._said(site, "bad_signature")
+            if not self.preauth.allow(self.client(handler)):
+                return 429, {"error": "too many"}
+            return 401, {"error": "bad signature"}
+        if not self.reads.allow(site):
+            self._said(site, "rate_limited")
+            return 429, {"error": "too many"}
+        try:
+            query = reconcile.read_query(handler.path)
+        except reconcile.BadQuery as why:
+            self._said(site, "bad_query")
+            return 400, {"error": str(why)}
+        try:
+            got = reconcile.answer(self.db_path, site, query)
+        except Exception as why:            # noqa: BLE001 - never a traceback to a caller
+            self._said(site, f"error {type(why).__name__}")
+            return 500, {"error": "failed, ask again"}
+        self._said(site, "ok", len(got["rows"]), query["params"])
+        return 200, got
+
+    def _said(self, site: str, outcome: str, rows: int | None = None, params=()) -> None:
+        """The helper's log line for a GET .../leads: the site, the outcome, the
+        row count and the parameter names. A refusal at most once a minute
+        per site and outcome, with its count."""
+        count = 1
+        if rows is None:
+            now = self.clock()
+            with self.lock:
+                entry = self.refused.setdefault((site, "leads", outcome), [0, 0.0])
+                entry[0] += 1
+                if now - entry[1] < REFUSED_EVERY:
+                    return
+                count, entry[0], entry[1] = entry[0], 0, now
+        words = f"rows={rows}" if rows is not None else f"count={count}"
+        sys.stderr.write(f"hooks: GET leads {site} {outcome} {words}"
+                         + (f" params={','.join(params)}" if params else "") + "\n")
 
     def process(self, site: str, tool: str, headers: dict, body: bytes,
                 secret: str, verified: bool = False) -> tuple[int, dict]:
@@ -337,15 +402,18 @@ class Receiver:
                 new = sum(kept)
                 if digest:
                     store.keep_replay(db, site, digest, received)
+                notes = soft_notes(records, tz)
                 store.log_delivery(db, site, tool, "recorded" if new else "duplicate", 200,
-                                   naive_note(tz) if naive else None,
-                                   rows[0]["external_ref"], received)
+                                   "; ".join(notes) or None, rows[0]["external_ref"], received)
             finally:
                 db.close()
         except Exception as why:            # noqa: BLE001 - the tool will send again
             self._log(site, tool, "error", 500, f"store: {type(why).__name__}", at=received)
             return 500, {"error": "not kept, send again"}
-        return 200, {"ok": True, "recorded": new, "duplicates": len(kept) - new}
+        out = {"ok": True, "recorded": new, "duplicates": len(kept) - new}
+        if any(r.get("label_dropped") for r in records):
+            out["notes"] = [LABEL_NOTE]
+        return 200, out
 
     def _test(self, site, tool, mod, payload, received, full, keep_vid=True,
               skipped=None, tz=None) -> tuple[int, dict]:
@@ -365,8 +433,7 @@ class Receiver:
             notes.append("visitor IDs are off for this site: the visitor ID is dropped")
             for r in rows:
                 r["vid"] = None
-        if any(r.get("naive_at") for r in records):
-            notes.append(naive_note(tz))
+        notes += soft_notes(records, tz)
         if skipped:
             notes.append(f"{skipped}: a real one would be answered 200 and not kept")
         self._log(site, tool, "test", 200, f"{len(rows)} record(s) read, none kept"
@@ -376,7 +443,7 @@ class Receiver:
                      "would_keep": len(kept), "notes": notes,
                      "read": [{k: r.get(k) for k in ("action", "stage", "at", "vid",
                                                      "source_type", "campaign", "country",
-                                                     "device")}
+                                                     "device", "label")}
                               for r in kept[:5]]}
 
     def _booked(self, site: str, tool: str, ref: str) -> bool:
@@ -409,6 +476,16 @@ class Receiver:
 
 def naive_note(tz) -> str:
     return f"a time without an offset was read in the site's zone, {tz}"
+
+
+def soft_notes(records: list[dict], tz) -> list[str]:
+    """What was kept, but not as sent: the delivery log's and a test's notes."""
+    out = []
+    if any(r.get("naive_at") for r in records):
+        out.append(naive_note(tz))
+    if any(r.get("label_dropped") for r in records):
+        out.append(LABEL_NOTE)
+    return out
 
 
 _RECEIVERS: dict = {}

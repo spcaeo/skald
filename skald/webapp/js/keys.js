@@ -26,13 +26,18 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-21-2.17.0",
+  id: "2026-10-21-2.18.0",
   items: [
-    ["Skald checks your site", "type a site's address in Add a site: Skald looks at it like a browser and fills in its server, platform, framework, host names and page assets, and suggests the way in.", "connections"],
-    ["Release line on the site list", "the site list shows the version and release time at the bottom, like every other page."],
+    ["Next.js pages counted", "on a Next.js site, pages opened by a click inside the site count, once its log records Next.js's prefetch header: one line in nginx, shown in Set up this site.", "troubleshooting-connections"],
+    ["Lead labels", "a lead can carry a label, such as sales or support; Pipeline (Tools) filters by it.", "leads-from-your-backend"],
+    ["Check every lead arrived", "a signed read-only address your server can ask for the leads Skald has, to resend any it missed.", "leads-from-your-backend"],
+    ["Fixes", "Pipeline opens the leads from your tools when a site has no lead database; no stray \"null\" in setup dialogs; the script tag counts a page restored from the browser's cache."],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.17.0
+    ["Skald checks your site", "type a site's address in Add a site: Skald looks at it like a browser and fills in its server, platform, framework, host names and page assets, and suggests the way in.", "connections"],
+    ["Release line on the site list", "the site list shows the version and release time at the bottom, like every other page."],
     // 2.16.0
     ["Connections", "Settings > Connections: send a site's visits to Skald, read your figures (API) or connect an AI assistant, each in a few guided steps with a Test.", "connections"],
     ["Add a site, step by step", "five steps from the address to \"Connected\"; close it any time and continue where you left off.", "connections"],

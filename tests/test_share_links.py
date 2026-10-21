@@ -175,6 +175,27 @@ class Shared(TenantServer):
         self.assertTrue(all("test" in str(d.get("outcome")) for d in status["deliveries"]), status)
         self.assertNotIn(got.json["secret"], str(status))
 
+    def test_a_nextjs_link(self):
+        """The log_format line for a Next.js site: no method, no secret, and a
+        Test that reads the doctor's Next.js line for that site's log."""
+        path = self.link(task="nextjs", method="docker")
+        info = self.call("GET", path + "/info").json
+        self.assertEqual((info["task"], info["method"], info["secret"]), ("nextjs", None, None))
+        self.assertEqual(self.call("POST", path + "/reveal", {}, SAME).status, 400)
+        self.assertEqual(self.call("POST", path + "/kit", {"method": "docker"}, SAME).status, 400)
+        self.assertEqual(self.call("POST", path + "/test", {}, SAME).status, 400)
+        self.assertEqual(self.call("GET", path + "/status").json["state"], "")   # no payload yet
+        logs = Path(self.config["logs"]["dir"])
+        logs.mkdir(parents=True, exist_ok=True)
+        raw = ('203.0.113.5 - - [08/Oct/2026:12:00:00 +0000] "GET /pricing/?_rsc=1x2y HTTP/2.0" '
+               '200 512 "https://www.example.com/" "Mozilla/5.0 (X11; Linux x86_64) Chrome/130.0"')
+        (logs / "access.log").write_text(raw + "\n")
+        got = self.call("GET", path + "/status").json
+        self.assertEqual(got["state"], "NEEDS ATTENTION", got)
+        self.assertNotIn("203.0.113.", str(got))
+        (logs / "access.log").write_text(raw + " rsc_prefetch=-\n")
+        self.assertEqual(self.call("GET", path + "/status").json["state"], "OK")
+
 
 if __name__ == "__main__":
     unittest.main()

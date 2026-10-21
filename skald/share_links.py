@@ -7,7 +7,8 @@ characters (128 bits). Only its SHA-256 is kept, in accounts.sqlite
 (`share_links`, CREATE TABLE IF NOT EXISTS on first use), with:
 
     ref         8 hex characters naming the link in lists and the audit log
-    org_id, site, task ("send", "script" or "hook"), method (send: docker,
+    org_id, site, task ("send", "script", "hook" or "nextjs": the log_format
+                line that counts pages opened inside a Next.js site), method (send: docker,
                 systemd, cloudflare or vercel; hook: the tool, e.g. lead)
     created_by, created_at, expires_at (1, 7 or 30 days), revoked_at, revoked_by
     viewed_at (first), views, revealed_at, secret_ref (the token id or hook)
@@ -17,7 +18,7 @@ secret (hook) is made only when the developer presses "Show the secret", at
 most once per link: a new sending token for that one site, made in the name
 of the admin who made the link (so it stops if that admin is removed), or a
 new hook secret for that tool (an older one for it stops working then). A
-script-tag link has no secret. After the reveal the page says it was shown
+script-tag or Next.js link has no secret. After the reveal the page says it was shown
 and asks for a new link.
 
 Every create, view, reveal and revoke is an audit row. No address, user agent
@@ -37,7 +38,8 @@ TABLE = ("CREATE TABLE IF NOT EXISTS share_links (id_hash TEXT PRIMARY KEY, ref 
          "created_by TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL, "
          "revoked_at TEXT, revoked_by TEXT, viewed_at TEXT, views INTEGER NOT NULL DEFAULT 0, "
          "revealed_at TEXT, secret_ref TEXT)")
-TASKS = ("send", "script", "hook")
+TASKS = ("send", "script", "hook", "nextjs")
+NO_SECRET = ("script", "nextjs")         # tasks with no method and nothing to reveal
 SEND_METHODS = ("docker", "systemd", "cloudflare", "vercel")
 DAYS = (1, 7, 30)
 ID_CHARS = 22
@@ -75,7 +77,7 @@ def create(db, org_id, site: str, task: str, actor, method: str | None = None,
         raise ValueError(f"A way to send is one of: {', '.join(SEND_METHODS)}.")
     if task == "hook" and method not in TOOLS:
         raise ValueError("Choose the tool the leads come from.")
-    if task == "script":
+    if task in NO_SECRET:
         method = None
     try:
         days = int(days)
@@ -127,7 +129,7 @@ def viewed(db, entry: dict) -> None:
 
 def claim_reveal(db, entry: dict) -> bool:
     """Mark the secret shown; False when it was shown before (or never may be)."""
-    if entry["task"] == "script":
+    if entry["task"] in NO_SECRET:
         return False
     with base.tx(db):
         done = db.execute("UPDATE share_links SET revealed_at = ? WHERE ref = ? AND "

@@ -4,6 +4,10 @@
 // and the site's settings (GET settings). No DOM and no other module here, so
 // tests/js/setup.mjs runs it in node. It reads; it counts nothing.
 //
+// "Pages opened inside the site" (id rsc) is there only when the doctor's Next.js
+// line (doctor.next_pages) needs attention: the log has Next.js payloads but not
+// the prefetch header. A site that is not Next.js never sees it.
+//
 // Each item: {id, title, optional, state, says, tech, act}
 //   state  done | todo | wait (nothing to judge yet: no visitor today) | unknown
 //          (the answer could not be loaded)
@@ -51,6 +55,10 @@ export function setupItems(m, { status = null, tools = null, settings = null, wa
   else if (assets?.state === "OK" || someone(f)) out.push({ id: "assets", title: T2, state: "done", says: "Visits count as people: their browsers load your pages' own files.", tech: null, act: null });
   else if (read) out.push({ id: "assets", title: T2, state: "todo", says: "Visits arrive, but none counts as a person yet: tell Skald where your pages load their own files.", tech: null, act: "assets" });
   else out.push({ id: "assets", title: T2, state: "wait", says: "Waits for the first visitor.", tech: null, act: null });
+
+  // 2b. Next.js: only while the log's payloads cannot be told from prefetches.
+  const rsc = DOC(status, "rsc");
+  if (rsc?.state === "NEEDS ATTENTION") out.push({ id: "rsc", title: "Pages opened inside the site are not counted yet", state: "todo", says: "Your site is built with Next.js. A page opened by a link inside the site sends no page request, so Skald does not count it yet. One line in the web server's log format fixes it.", tech: techOf(rsc), act: "rsc" });
 
   // 3. Countries: a visit with a country, or the GeoIP file to set.
   const cc = Object.keys(f?.by?.country || {}).filter((k) => k && k !== "Unknown" && !k.startsWith("("));

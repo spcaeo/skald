@@ -26,6 +26,11 @@ first, following at most 3 redirects by hand, then a GET of the first
                  settings_store's own rule), or None
   recommended_method  one of the wizard's ways (accounts/site_setup.py
                  METHODS), or None, with `reason` in one plain line
+  log_note       LOG_NOTE for a Next.js site whose own nginx, Apache or
+                 LiteSpeed log the kit will read: the one field its
+                 log_format needs so pages opened inside the site count
+                 (parse.Hit.soft_navigation); "" otherwise. Caddy logs the
+                 request headers already; a drain or a Worker carries none.
   checked        per name: reachable, status, final_url, error (words)
 
 The recommendation table is `recommend`. Nothing here names a site.
@@ -56,6 +61,11 @@ ASSETS = {"nextjs": ["/_next/static/"], "nuxt": ["/_nuxt/"],
           "wordpress": ["/wp-content/", "/wp-includes/"], "astro": ["/_astro/"],
           "gatsby": ["/webpack-runtime-", "/page-data/"]}
 METHODS = ("docker", "systemd", "cloudflare", "vercel", "netlify", "script")
+# Servers whose log_format needs the field that records Next.js's prefetch header.
+LOG_FORMAT_SERVERS = ("nginx", "apache", "litespeed")
+LOG_NOTE = ("Next.js: add rsc_prefetch=$http_next_router_prefetch at the end of the site's "
+            "nginx log_format (Apache: rsc_prefetch=%{Next-Router-Prefetch}i), then reload "
+            "nginx, so pages opened by a click inside the site count.")
 PRINTABLE = re.compile(r"[^\x20-\x7e]")
 
 
@@ -418,6 +428,7 @@ def detect(address: str) -> dict:
                      platform=platform_of(headers, main["html"], main["page"]),
                      framework=framework_of(headers, main["html"], main["page"]), error=None)
     facts["recommended_method"], facts["reason"] = recommend(site, facts)
+    facts["log_note"] = log_note(facts)
     if facts["reachable"] and facts["recommended_method"] not in ("script",) \
             and facts["platform"] not in BUILDERS:
         facts["asset_prefixes"], facts["assets_note"] = assets_of(
@@ -432,6 +443,14 @@ def detect(address: str) -> dict:
                  f"{facts['recommended_method'] or 'by hand'}") if facts["reachable"]
           else "not reachable")
     return facts
+
+
+def log_note(facts: dict) -> str:
+    """LOG_NOTE for a Next.js site whose own server's log the kit reads, else ""."""
+    if (facts.get("framework") == "nextjs" and facts.get("server") in LOG_FORMAT_SERVERS
+            and facts.get("recommended_method") == "docker"):
+        return LOG_NOTE
+    return ""
 
 
 def labels(facts: dict) -> dict:
@@ -473,6 +492,7 @@ def clean_found(raw) -> dict | None:
            "recommended_method": raw.get("recommended_method")
            if raw.get("recommended_method") in METHODS else None,
            "reason": _short(raw.get("reason"), 300), "error": _short(raw.get("error"), 200),
+           "log_note": LOG_NOTE if raw.get("log_note") == LOG_NOTE else "",
            "checked_at": _short(raw.get("checked_at"), 25)}
     for r in (raw.get("redirects") or [])[:4] if isinstance(raw.get("redirects"), list) else []:
         if isinstance(r, dict):

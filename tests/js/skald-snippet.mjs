@@ -94,6 +94,7 @@ function page(opts = {}) {
     scroll: (y) => { ctx.scrollY = y; fire("win", "scroll", {}); },
     copy: () => fire("doc", "copy", {}),
     popstate: () => fire("win", "popstate", {}),
+    pageshow: (persisted) => fire("win", "pageshow", { persisted }),
   };
 }
 
@@ -129,6 +130,26 @@ const tests = {
     assert.deepEqual(p.sent.map((s) => s.body.p), ["/pricing/", "/features/", "/pricing/"]);
     assert.ok(p.sent.every((s) => s.body.r === "news.example.org"));
     assert.equal(new Set(p.sent.map((s) => s.body.v)).size, 1);
+  },
+  "a page restored from the back-forward cache is a page opening again"() {
+    const p = page();
+    p.pageshow(false);                  // an ordinary load: already counted
+    assert.deepEqual(p.names(), ["page_view"]);
+    p.pageshow(true);                   // back to it from the cache: no load, no HTML request
+    assert.deepEqual(p.names(), ["page_view", "page_view"]);
+    assert.deepEqual(p.sent.map((s) => s.body.p), ["/pricing/", "/pricing/"]);
+    assert.equal(p.last().t, 0);        // its time on the page starts again
+    p.ctx.history.pushState({}, "", "/features/");
+    p.pageshow(true);
+    assert.deepEqual(p.sent.map((s) => s.body.p), ["/pricing/", "/pricing/", "/features/", "/features/"]);
+  },
+  "no page opening from the cache without consent or with Do Not Track"() {
+    const p = page({ attrs: { "data-consent": "required" } });
+    p.pageshow(true);
+    assert.equal(p.sent.length, 0);
+    const q = page({ dnt: true });
+    q.pageshow(true);
+    assert.equal(q.sent.length, 0);
   },
   "forms: start once per form per page, submit, never a value"() {
     const p = page();

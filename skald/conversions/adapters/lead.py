@@ -23,13 +23,25 @@ with the hook's secret; refused when t is more than 5 minutes off. Body:
                               works out the device and drops the agent
     visits_before             visits before this one, a whole number
     name, email               kept only when the site's identity is full
+    label         optional: a short lowercase token that sorts the leads of
+                  one action ("sales", "support"; conversions.LABEL), trimmed
+                  and lower-cased first. Not one: the lead is kept without a
+                  label and the delivery log says so (never refused for it)
+
+GET /traffic-hooks/<site>/leads (conversions/reconcile.py), the leads Skald
+holds, is signed with the same secret over the method and the request target
+(the path and the query exactly as sent; no "?" without a query):
+
+    X-Skald-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.GET <target>">
 """
 from __future__ import annotations
 
-from .. import ACTION, SITE_VID, STAGES, action_name
+from .. import ACTION, LABEL, SITE_VID, STAGES, action_name
 from . import Invalid, naive, sign_timed, text, touch, verify_timed, when
 
 HEADER = "x-skald-signature"
+LABEL_NOTE = ("the label was not a short lowercase token (letters, digits, - or _, at most "
+              "40): kept without a label")
 
 
 def verify(headers: dict, body: bytes, secret: str, now: float) -> bool:
@@ -38,6 +50,30 @@ def verify(headers: dict, body: bytes, secret: str, now: float) -> bool:
 
 def sign(body: bytes, secret: str, now: float, method: str = "POST", uri: str = "") -> dict:
     return {"X-Skald-Signature": sign_timed(body, secret, now)}
+
+
+def _get_message(target: str) -> bytes:
+    return b"GET " + target.encode("utf-8", "surrogateescape")
+
+
+def verify_get(headers: dict, target: str, secret: str, now: float) -> bool:
+    """A signed GET: the same scheme, window and constant-time compare as a
+    POST, over "GET <target>" in place of the body."""
+    return verify_timed(headers.get(HEADER, ""), _get_message(target), secret, now)
+
+
+def sign_get(target: str, secret: str, now: float) -> dict:
+    return {"X-Skald-Signature": sign_timed(_get_message(target), secret, now)}
+
+
+def label_of(raw) -> tuple[str | None, bool]:
+    """(the label or None, True when one was sent but is not a label)."""
+    if raw is None or (isinstance(raw, str) and not raw.strip()):
+        return None, False
+    if not isinstance(raw, str):
+        return None, True
+    got = raw.strip().lower()
+    return (got, False) if LABEL.match(got) else (None, True)
 
 
 def record(item: dict, tz=None) -> dict:
@@ -70,7 +106,9 @@ def record(item: dict, tz=None) -> dict:
     last = item.get("last_touch")
     times = [item.get("at"), item.get("first_touch_at"),
              *[t.get("at") for t in (item.get("first_touch"), last) if isinstance(t, dict)]]
+    label, dropped = label_of(item.get("label"))
     return {
+        "label": label, "label_dropped": dropped,
         "action": action, "stage": stage, "external_ref": ref, "at": at, "vid": vid,
         "first_touch": first, "last_touch": touch(last, tz),
         "landing": text(item.get("landing"), 300), "campaign": text(item.get("campaign"), 120),

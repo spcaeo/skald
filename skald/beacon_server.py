@@ -446,6 +446,12 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
                 return self._snippet(self.command == "GET")
             if self.path.startswith("/traffic-js/"):
                 return self._send(404)
+            if self.command == "GET" and self.path.startswith("/traffic-hooks/"):
+                # The one signed GET: a site's leads, for its server to reconcile.
+                from .conversions.reconcile import site_of
+                if site_of(self.path):
+                    from .conversions.hooks import handle
+                    return handle(self, main.config, None, getattr(main, "config_path", None))
             self._send(405)
 
         def do_HEAD(self):

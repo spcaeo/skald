@@ -220,7 +220,7 @@ export default function requests(m, s, { changed } = {}) {
       st.file.state === "stale" ? h("div", { class: "state bad", html: ICON.info }, h("div", null, `The live run has not written this log since ${tzTime(st.file.until, { seconds: true })}, so these rows are as they were then. The Data quality tab shows when each job last ran.`)) : "",
       h("p", { class: "note" }, st.file.truncated || total > all.length
         ? `The newest ${n(all.length)} requests are here; the other ${n(total - all.length)} of the window are in the server log. ` : "",
-      "Group colours are the Overview's. A Next.js payload (_rsc) is the site fetching a page's data ahead of or after a click; it is not a page read. Click a row for every field of that line."));
+      "Group colours are the Overview's. A Next.js payload (_rsc) is the site fetching a page's data ahead of or after a click; it is a page read only when the log records Next.js's prefetch header and it was a click. Click a row for every field of that line."));
   }
 
   // The whole window by group (not only the rows kept): the Overview's band, small.

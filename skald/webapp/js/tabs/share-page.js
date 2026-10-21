@@ -3,14 +3,17 @@
 // steps as the dialog (conn-install.js), the secret shown once on request,
 // and the Test. The lead hook adds the body and the signed examples of the
 // guide "Send leads from your backend in 5 minutes", with this site's address.
+// The Next.js task (nextjs) shows the log_format line of setup-nextjs.js and a
+// Test that polls the doctor's Next.js line (share_page.next_status).
 
 import { h } from "../ui.js";
 import { installFor } from "./conn-install.js";
 import { testPanel, troubleTable } from "./conn-send.js";
 import { codeBlock, answerBox, steps } from "./conn-ui.js";
 import { guideParts, hookSteps } from "./setup-hook.js";
+import { nextStepsNodes, nextTest } from "./setup-nextjs.js";
 
-const TITLES = { send: "Send this site's visits to Skald", script: "Add the script tag", hook: "Send leads from the site's backend" };
+const TITLES = { send: "Send this site's visits to Skald", script: "Add the script tag", hook: "Send leads from the site's backend", nextjs: "Count pages opened inside the site" };
 
 async function getJSON(url, body) {
   try {
@@ -74,6 +77,11 @@ export async function draw(root, id) {
     kit: info.kit, kitUrl: `${base}/kit`, tokenHint: "Press Show the secret above: the steps then have the token filled in." };
   const stepsSlot = h("div", { class: "cn-step" });
   const fill = () => {
+    if (info.task === "nextjs") {
+      stepsSlot.replaceChildren(h("p", null, "The site is built with Next.js. A page opened by a link inside it sends no page request, only Next.js's data request, which Next.js also sends for links it prefetches. This one line lets Skald tell the two apart."),
+        ...nextStepsNodes());
+      return;
+    }
     if (info.task === "hook") {
       const how = hookSteps(info.method, info.hook_url, "<the secret above>");
       stepsSlot.replaceChildren(h("h3", null, "The address"), codeBlock(info.hook_url, "the hook address"),
@@ -86,7 +94,10 @@ export async function draw(root, id) {
   fill();
   const head = [h("h1", null, `${TITLES[info.task] || "Set-up steps"}: ${info.site}`),
     h("p", { class: "sub" }, `A private page with only these steps. It works until ${info.expires_at}.`)];
-  const test = info.task === "hook" ? hookTest(base) : h("section", { class: "s" }, h("h2", null, "Test"),
+  const test = info.task === "hook" ? hookTest(base) : info.task === "nextjs"
+    ? h("section", { class: "s" }, h("h2", null, "Test"), h("p", null, "After the reload, open the site and click a link to another page. Then press Test: Skald looks at the log's newest lines every 5 seconds, for up to 2 minutes."),
+      nextTest(() => getJSON(`${base}/status`)))
+    : h("section", { class: "s" }, h("h2", null, "Test"),
     testPanel(st, { statusOf: () => getJSON(`${base}/status`) }), troubleTable());
   root.replaceChildren(...head, secretBox(info, base, (secret) => { if (info.task === "send") { st.token = secret; fill(); } }) || "",
     h("section", { class: "s" }, h("h2", null, "Steps"), stepsSlot), test,
