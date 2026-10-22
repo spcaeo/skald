@@ -1,0 +1,25 @@
+{
+ "about": "Sucuri's own \"Access Denied\" page with 503: its firewall stopped the check, named by its headers and its page",
+ "typed": "www.example.com",
+ "pages": {
+  "GET https://www.example.com/": {
+   "status": 503,
+   "headers": {
+    "Server": "Sucuri/Cloudproxy",
+    "X-Sucuri-ID": "11005",
+    "Content-Type": "text/html"
+   },
+   "body": "<html><head><title>Sucuri WebSite Firewall - Access Denied</title></head><body><h1>Access Denied - Sucuri Website Firewall</h1><p>Block reason: an attempted access was blocked.</p></body></html>"
+  }
+ },
+ "expect": {
+  "summary": "Your site's firewall stopped our check, so we can't see what it shows. That's often good news: it blocks automated scanners too.",
+  "cards": [
+   [
+    "unknown",
+    "www.example.com's firewall stopped our check"
+   ]
+  ],
+  "products": []
+ }
+}

@@ -11,7 +11,7 @@
   }
  },
  "expect": {
-  "summary": "Your site runs Joomla on PHP (version hidden). Nothing to do now, 1 to check, 1 tip.",
+  "summary": "Your site runs Joomla on PHP (version hidden), served by Apache. Nothing to do now, 1 to check, 1 tip.",
   "cards": [
    [
     "hidden",

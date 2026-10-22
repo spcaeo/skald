@@ -35,7 +35,7 @@
   }
  },
  "expect": {
-  "summary": "Your site runs WordPress 6.8.1 on PHP 8.3.10. 1 thing to do now, 2 tips.",
+  "summary": "Your site runs WordPress 6.8.1 on PHP 8.3.10, served by LiteSpeed. 1 thing to do now, 2 tips.",
   "cards": [
    [
     "update",

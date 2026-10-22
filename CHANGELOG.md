@@ -2,6 +2,64 @@
 
 All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versioning](https://semver.org).
 
+## 2.22.2 (2026-10-22)
+
+### Fixed
+
+- **A firewall that stops the public check is "could not check", with what to run instead.**
+  On 2026-10-22 someone told us the check "is not giving correct result": the most-checked site
+  that day was stopped by its firewall every time, and the answer read like a failure. Three
+  sites answered our server with a Cloudflare-style challenge and one with 403 (a visitor
+  elsewhere got a 301). The check still never changes its User-Agent or works around a
+  challenge. Instead `stack_public_blocked.py` reads the answer: a challenge
+  (`cf-mitigated: challenge`, AWS WAF's `x-amzn-waf-action`, "Just a moment..." and the like),
+  401 (a password, said so), 403, 429, or a 503 that is a firewall's own denial page (a 503
+  alone, and Sucuri's "unable to connect to the backend", stay "the home page answered 503").
+  The answer's summary says "Your site's firewall stopped our check, so we can't see what it
+  shows. That's often good news: it blocks automated scanners too."; a new `block` field gives
+  the kind, the status, the firewalls its own headers or page name (Cloudflare, Sucuri, Akamai,
+  AWS WAF, CloudFront, Imperva, Fastly, Wordfence) and the commands to run by hand
+  (`curl -sI https://<host>/ | grep -iE "server|x-powered-by"`, `php -v`); the card shows the
+  proof (the status, the challenge's header or page title, the firewall's header) and the counts
+  stay at 0, so it is never counted as a problem with the site. Who it affects: sites that
+  switched the public check on. What to do: nothing. Checked: `tests/test_stack_public_blocked.py`
+  (a Cloudflare challenge, a plain 403, Sucuri's 503, AWS WAF, Akamai, Wordfence, Imperva, a
+  password, two 503s that are not blocks, one request and no other agent) and three new corpus
+  cases in `tests/fixtures/stack_public/`.
+- **The summary reads in the order people say it.** A site served by nginx, with PHP proven
+  but its version hidden, behind CloudFront read "Your site is served by nginx on PHP (version
+  hidden) behind CloudFront". `stack_public_cards.stack_words` now names the platform or the
+  language first, then the web server, the host and the CDN: "Your site runs PHP (version
+  hidden) on nginx, behind CloudFront." The web server is now named after a platform too
+  ("Your site runs Drupal 10 on PHP (version hidden), served by Apache."), and a language not
+  under the platform is no longer put under it. Who it affects: anyone reading a public check.
+  What to do: nothing. Checked: every summary of the 25-case corpus in a table
+  (`tests/test_stack_public_blocked.py`, with checks on the order of the parts), and 15
+  combinations of platform, language, server, host and CDN.
+
+### skaldanalytics.com (the marketing site, not the Skald image)
+
+- **/check/: a blocked check shows what to run from your own computer.** Under the summary, a
+  box: "To see the details, run the same check from your own computer:" with the command-line
+  check's one-liner, the site's name filled in and a copy button
+  (`curl -sSL https://raw.githubusercontent.com/spcaeo/php2shell-check/main/php2shell_check.py |
+  python3 - <host>`, from the form's `data-cli`, built from `check-news.json`'s `cli_repo`), then
+  the commands by hand. The PDF report is offered for a blocked check too and carries the same
+  words and commands (the one-liner broken after its pipe so it still runs when copied); the
+  agency table says "could not check" with the same summary. Checked: `_src/test_check_ui.py`
+  (headless Chrome, drawing Skald's own answer for the Cloudflare case), `_src/test_check_pdf.mjs`,
+  `_src/test_check_messages.mjs`.
+- **A slim GitHub bar at the bottom of /check/, /security/ and /security/php2shell/** (owner,
+  2026-10-22): "Free & open source: run this check from your terminal or CI" (on phones
+  "Open-source CLI") and "Star on GitHub" to github.com/spcaeo/php2shell-check (MIT; Skald itself
+  stays "source-available"). Its × hides it, remembered in this browser's localStorage (inside
+  try/catch: without storage it shows again); while shown the page gets bottom padding of its own
+  height, so it never covers the form, the PDF button or the footer; hidden when printing and
+  never in the PDF (which is drawn from the answer, not the page). Nothing is tracked. Checked:
+  `_src/test_check_spread.py` (on the three pages only, its link, label and close button, no
+  network call in its script), `_src/test_check_ui.py` (closes, stays closed, padding back to 0),
+  by eye at 1440 and 390 px, light and dark.
+
 ## 2.22.1 (2026-10-22)
 
 ### Fixed

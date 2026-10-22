@@ -31,7 +31,7 @@
   }
  },
  "expect": {
-  "summary": "Your site runs WordPress 7.1.3 on PHP (version hidden) behind Cloudflare. 1 thing to do now, 1 to check, 3 tips.",
+  "summary": "Your site runs WordPress 7.1.3 on PHP (version hidden), behind Cloudflare. 1 thing to do now, 1 to check, 3 tips.",
   "cards": [
    [
     "login",

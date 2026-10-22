@@ -34,7 +34,7 @@
   }
  },
  "expect": {
-  "summary": "Your site runs Shopify behind Cloudflare. Nothing to do now, 1 to check, 3 tips.",
+  "summary": "Your site runs Shopify, behind Cloudflare. Nothing to do now, 1 to check, 3 tips.",
   "cards": [
    [
     "hidden",

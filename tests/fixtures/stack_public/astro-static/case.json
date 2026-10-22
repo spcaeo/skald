@@ -11,7 +11,7 @@
   }
  },
  "expect": {
-  "summary": "Your site runs Astro 4.5.0. Nothing to do now, 1 tip.",
+  "summary": "Your site runs Astro 4.5.0, served by nginx. Nothing to do now, 1 tip.",
   "cards": [
    [
     "tip",

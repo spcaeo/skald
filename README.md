@@ -51,6 +51,8 @@
 
 ## What's new
 
+- **2.22.2: blocked sites explained** ([changelog](CHANGELOG.md#2222-2026-10-22)). When a firewall
+  stops the public check, it says so and gives the one-line command to run it yourself.
 - **2.22.1: the public check, tidier** ([changelog](CHANGELOG.md#2221-2026-10-22)). One card per
   finding across hosts, checks-left counts, and a free CLI and GitHub Action:
   [php2shell-check](https://github.com/spcaeo/php2shell-check).

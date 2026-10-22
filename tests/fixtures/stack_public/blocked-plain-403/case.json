@@ -1,0 +1,24 @@
+{
+ "about": "A live shape (2026-10-22): the site answers 403 to our server, naming no firewall, while a visitor elsewhere gets the page. Could not check, with the commands to see it from home",
+ "typed": "example.com",
+ "pages": {
+  "GET https://example.com/": {
+   "status": 403,
+   "headers": {
+    "Server": "nginx",
+    "Content-Type": "text/html"
+   },
+   "body": "<html><head><title>403 Forbidden</title></head><body><center><h1>403 Forbidden</h1></center><hr><center>nginx</center></body></html>"
+  }
+ },
+ "expect": {
+  "summary": "Your site's firewall stopped our check, so we can't see what it shows. That's often good news: it blocks automated scanners too.",
+  "cards": [
+   [
+    "unknown",
+    "example.com's firewall stopped our check"
+   ]
+  ],
+  "products": []
+ }
+}

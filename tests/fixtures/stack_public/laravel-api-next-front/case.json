@@ -16,7 +16,7 @@
   }
  },
  "expect": {
-  "summary": "Your site runs Next.js on Node.js (version hidden). Nothing to do now, 2 to check, 1 tip.",
+  "summary": "Your site runs Next.js on Node.js (version hidden), served by nginx. Nothing to do now, 2 to check, 1 tip.",
   "cards": [
    [
     "hidden",

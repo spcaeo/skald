@@ -393,8 +393,10 @@ class Answers(unittest.TestCase):
                 self.assertFalse(got["reached"])
                 self.assertEqual(got["reason"], "blocked")
                 self.assertEqual([c["kind"] for c in got["cards"]], ["unknown"])
-                self.assertEqual(got["cards"][0]["title"], "www.example.com's firewall blocked our check")
+                self.assertEqual(got["cards"][0]["title"], "www.example.com's firewall stopped our check")
                 self.assertIn("php -v", got["cards"][0]["commands"])
+                self.assertEqual(got["counts"], {"act": 0, "check": 0, "tips": 0, "good": 0},
+                                 "could not check is not a problem found")
                 self.assertEqual(got["products"], [], "nothing read from a page we could not check")
         got = run("www.example.com", Net(names={"www.example.com": [PUBLIC]},
                                          pages={"https://www.example.com/": (500, {}, b"oops")}))
