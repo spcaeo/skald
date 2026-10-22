@@ -3,6 +3,7 @@
 //
 //   withUrl(node, "/pricing/")          the cell or chip, with the two icons at its end
 //   urlActions("/pricing/")             the two icons alone (a span), or null
+//   withCopy(node, "u-119797")          an ID (2.25): the copy icon alone, the same behaviour
 //   fullUrl("/pricing/")                "https://example.com/pricing/"
 //
 // A path is joined with the site's own address: https:// and the site's name, as the
@@ -62,9 +63,21 @@ const stop = (e) => e.stopPropagation();
 export function urlActions(target, { label = null } = {}) {
   const url = fullUrl(target);
   if (!url) return null;
-  const name = label || String(target).trim();
-  const copy = h("button", { type: "button", class: "ua-b ua-copy", "aria-label": `Copy link to ${name}`, title: `Copy ${url}`, html: ICON_COPY });
-  const open = h("a", { class: "ua-b ua-open", href: url, target: "_blank", rel: "noopener noreferrer", "aria-label": `Open ${name} in a new tab`, title: `Open ${url} in a new tab`, html: ICON_OPEN });
+  return icons(url, label || String(target).trim(), true);
+}
+
+/* The copy icon alone, for an ID (2.25: a lead's reference, an account ID): the same look
+   and behaviour as a URL's, with nothing to open. null for a blank value. */
+export function idActions(value, { label = null } = {}) {
+  const text = value == null ? "" : String(value).trim();
+  if (!text) return null;
+  return icons(text, label || text, false);
+}
+
+function icons(url, name, opens) {
+  const words = opens ? `link to ${name}` : name;
+  const copy = h("button", { type: "button", class: "ua-b ua-copy", "aria-label": `Copy ${words}`, title: `Copy ${url}`, html: ICON_COPY });
+  const open = opens ? h("a", { class: "ua-b ua-open", href: url, target: "_blank", rel: "noopener noreferrer", "aria-label": `Open ${name} in a new tab`, title: `Open ${url} in a new tab`, html: ICON_OPEN }) : null;
   const said = h("span", { class: "ua-msg", role: "status", "aria-live": "polite" });
   const box = h("span", { class: "ua" }, copy, open, said);
   let timer = 0;
@@ -76,10 +89,10 @@ export function urlActions(target, { label = null } = {}) {
     clearTimeout(timer);
     box.classList.remove("ua-ok", "ua-bad");
     copy.innerHTML = ICON_COPY;
-    copy.setAttribute("aria-label", `Copy link to ${name}`);
+    copy.setAttribute("aria-label", `Copy ${words}`);
     said.textContent = "";
   };
-  for (const ev of ["click", "pointerdown", "mousedown", "keydown"]) { copy.addEventListener(ev, stop); open.addEventListener(ev, stop); }
+  for (const ev of ["click", "pointerdown", "mousedown", "keydown"]) { copy.addEventListener(ev, stop); open?.addEventListener(ev, stop); }
   copy.addEventListener("click", async (e) => {
     e.preventDefault();
     reset();
@@ -87,7 +100,7 @@ export function urlActions(target, { label = null } = {}) {
     if (ok) {
       box.classList.add("ua-ok");
       copy.innerHTML = ICON_TICK;
-      copy.setAttribute("aria-label", `Copied the link to ${name}`);
+      copy.setAttribute("aria-label", `Copied ${opens ? "the link to " : ""}${name}`);
       said.textContent = "Copied";
     } else {
       box.classList.add("ua-bad");
@@ -95,9 +108,9 @@ export function urlActions(target, { label = null } = {}) {
     }
     timer = setTimeout(() => { reset(); gone(); copy.blur?.(); }, ok ? TIMING.tick : TIMING.failed);
   });
-  open.addEventListener("click", () => { reset(); gone(); setTimeout(() => open.blur?.(), 0); });
+  open?.addEventListener("click", () => { reset(); gone(); setTimeout(() => open.blur?.(), 0); });
   // Space on the link opens it too, as on a button.
-  open.addEventListener("keydown", (e) => { if (e.key === " ") { e.preventDefault(); open.click(); } });
+  open?.addEventListener("keydown", (e) => { if (e.key === " ") { e.preventDefault(); open.click(); } });
   // Shown again once the reader leaves the cell and comes back.
   box.attach = (el) => {
     el.addEventListener("mouseleave", back);
@@ -111,7 +124,15 @@ export function urlActions(target, { label = null } = {}) {
 /* A cell's or a chip's content with the icons at its end; the content alone when the
    target has no full URL. tag: the wrapper's element (span by default). */
 export function withUrl(content, target, { label = null, tag = "span", cls = "" } = {}) {
-  const ua = urlActions(target, { label });
+  return hosted(content, urlActions(target, { label }), tag, cls);
+}
+
+/* An ID's content with the copy icon at its end; the content alone for a blank value. */
+export function withCopy(content, value, { label = null, tag = "span", cls = "" } = {}) {
+  return hosted(content, idActions(value, { label }), tag, cls);
+}
+
+function hosted(content, ua, tag, cls) {
   if (!ua) return content;
   const kids = [content].flat().filter((x) => x !== null && x !== undefined && x !== false);
   const el = h(tag, { class: `ua-host${cls ? ` ${cls}` : ""}` }, ...kids, ua);

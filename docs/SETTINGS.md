@@ -560,8 +560,12 @@ browser tab (the site's icon with a small Skald badge, drawn in the page).
   (the connection goes to the address that was checked). At most 3 redirects, each to one of the
   same hosts; 6 seconds a request, 20 for the whole check; 512 KB of the home page, 256 KB of an
   image. The Content-Type must say `image/` and the first bytes must agree (PNG, ICO, GIF, JPEG,
-  WebP, or an SVG that passes the check below). Asked again by the daily run once a week (after
-  a failed check, the next day), at once with **Check the site again now** (at most once a
+  WebP, or an SVG that passes the check below). Asked the moment the site is added (2.25:
+  Settings > Sites, the Add a site wizard, sign-up and `skald site add`; on the new site's
+  first-page thread, never holding up the add, a failure only noted), and `sites.json` is
+  rewritten so the switcher shows it at once. Asked again by the daily run once a week (after
+  a failed check, the next day), by the site picker for a site still showing its letter (at
+  most once a day, on a thread), at once with **Check the site again now** (at most once a
   minute), or on the server with `skald logo --check`.
 - **upload**: PNG, ICO or SVG, square (within 10%), at least 64 x 64 (an SVG scales), at most
   256 KB, by owners and admins.

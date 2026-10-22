@@ -36,6 +36,7 @@ import { call } from "./ipmanager.js";
 import { countryWords, flagEl, city, cityPlace, cityName } from "./readers.js";
 import { mayFind, personParts } from "./person.js";
 import { folded, visitFacts, cityShort } from "./visitlist.js";
+import { refBlock, byRef, afterMark } from "./leadref.js";
 
 const LINKS = ["vid", "address", "hash"];
 export const BY = {
@@ -137,9 +138,11 @@ export function pageViewVisits(views) {
 function fromConversion(x) {
   const visits = x.journey ? pageViewVisits(x.journey) : (x.visits || []).map((d) => visitOf({ start: d.day, source: d.source, landing: (d.paths || [])[0],
     trail: (d.paths || []).map((p) => ({ path: p, page: true, at: null })), pages: (d.paths || []).length, seconds: null }, "script"));
-  const steps = (x.steps || []).map((s) => ({ action: s.action, stage: s.stage, at: s.at, tool: s.tool }));
-  return { title: "Visitor", visits, leads: [], conversions: steps.length ? steps : [{ action: x.action, stage: "completed", at: x.at, tool: x.tool }],
-    how: x.browser ? "vid" : null, firstKnown: true, conversion: x };
+  const steps = (x.steps || []).map((s) => ({ action: s.action, stage: s.stage, at: s.at, tool: s.tool, test: !!s.test }));
+  const conversions = steps.length ? steps : [{ action: x.action, stage: x.stage || "completed", at: x.at, tool: x.tool, test: !!x.test }];
+  // Its own reference (2.25): the steps, and Mark as test, in one part (leadref.js).
+  const ref = x.ref ? { id: x.id, ref: String(x.ref), tool: x.tool, test: !!x.test, steps: conversions } : null;
+  return { title: "Visitor", visits, leads: [], conversions, how: x.browser ? "vid" : null, firstKnown: true, conversion: x, ref };
 }
 
 function fromPerson(got) {
@@ -246,14 +249,19 @@ function timeline(model) {
     h("tbody", null, rows)));
 }
 
-function leadsAndConversions(model) {
+/* The leads and conversions linked: a conversion with a reference as its own part (its
+   reference with a copy icon, every step, Mark as test: leadref.js, 2.25); one without, a line. */
+export function leadsAndConversions(model) {
+  const refs = model.ref ? [model.ref] : byRef(model.conversions);
+  const loose = model.ref ? [] : model.conversions.filter((c) => c.external_ref == null || c.external_ref === "");
   const items = [
     ...model.leads.map((l) => h("li", null, h("b", null, `Lead #${l.lead}`), `${l.type ? ` (${l.type})` : ""}, made ${at(l.created_at)}`,
       l.left_out ? h("small", { class: "pp-bad" }, ` ${l.status} (left out)`) : "", h("small", { class: "v-ft" }, `matched by time to the form sent in the visit of ${at(l.visit_start)}: likely, never certain`))),
-    ...model.conversions.map((c) => h("li", null, h("b", null, `${c.action} ${c.stage}`), `, ${at(c.at)}`, c.tool ? h("small", { class: "v-ft" }, `reported by ${c.tool}`) : null)),
+    ...loose.map((c) => h("li", null, h("b", null, `${c.action} ${c.stage}`), `, ${at(c.at)}`, c.tool ? h("small", { class: "v-ft" }, `reported by ${c.tool}`) : null)),
   ];
-  return sec("Leads and conversions", items.length ? h("ul", { class: "conv-tl-visits" }, items)
-    : h("p", { class: "empty" }, model.journey && !model.firstKnown ? "None linked to this visit." : "No lead or conversion linked to these visits."));
+  const blocks = refs.map((x) => refBlock(x)).filter(Boolean);
+  if (!items.length && !blocks.length) return sec("Leads and conversions", h("p", { class: "empty" }, model.journey && !model.firstKnown ? "None linked to this visit." : "No lead or conversion linked to these visits."));
+  return sec("Leads and conversions", items.length ? h("ul", { class: "conv-tl-visits" }, items) : null, ...blocks);
 }
 
 function howNote(model, extra) {
@@ -297,6 +305,7 @@ function draw(d, model, extra) {
 // One answer per visit for 5 minutes: the drawer the address opens again after a redraw
 // (Live, every 2 minutes) does not ask, and write to the audit log, each time.
 const asked = new Map();
+afterMark(() => asked.clear());       // a lead marked test: the visitor's conversions change
 function visitsOf(url) {
   const kept = asked.get(url);
   if (kept && Date.now() - kept.at < 300000) return kept.p;

@@ -594,6 +594,7 @@ def helper_answers(root: Path, site_dir: Path) -> dict:
     # The visitor drawer's timeline (people/visitor, admins and owners on an
     # install): for each visit the page holds whose visitor came before, and
     # every visit of today. Labels, times and pages: no address, no visitor ID.
+    from skald.people.policy import shown_ref
     from skald.people.timeline import visitor
     for j in app.get("journeys") or []:
         ft = j.get("first_touch") or {}
@@ -601,6 +602,8 @@ def helper_answers(root: Path, site_dir: Path) -> dict:
             continue
         url = f"people/visitor?day={j['day']}&seq={j['seq']}"
         got = visitor(cfg, root, dt.SITE, j["day"], int(j["seq"]))
+        for c in got.get("conversions") or []:   # the page script's reference holds the visitor ID
+            c["external_ref"] = shown_ref(c.get("tool"), c.get("external_ref"), False)
         if got.get("found"):
             name = f"visitor-{j['day']}-{int(j['seq']):04d}.json"
             (folder / name).write_text(json.dumps(got, separators=(",", ":")))
@@ -613,6 +616,7 @@ def retention_answers(cfg: dict, root: Path, folder: Path, answers: dict, today:
     """Traffic > Retention: the visitors behind each weekly cell (people/cohort, everyone,
     came back and read 2+ pages), and the visitor drawer's timeline for those that came
     back. Labels, times and pages: no address."""
+    from skald.people.policy import shown_ref
     from skald.retention_page import visitors
     from skald.store import History
     data = json.loads((folder.parent / "retention.json").read_text())
@@ -636,6 +640,8 @@ def retention_answers(cfg: dict, root: Path, folder: Path, answers: dict, today:
                         if vurl in answers["people"] or timelines >= 600:
                             continue
                         tl = visitor(cfg, root, dt.SITE, r["day"], int(r["seq"]))
+                        for c in tl.get("conversions") or []:   # no visitor ID in a reference
+                            c["external_ref"] = shown_ref(c.get("tool"), c.get("external_ref"), False)
                         if tl.get("found"):
                             vname = f"visitor-{r['day']}-{int(r['seq']):04d}.json"
                             (folder / vname).write_text(json.dumps(tl, separators=(",", ":")))

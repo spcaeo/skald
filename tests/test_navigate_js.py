@@ -75,6 +75,14 @@ class Node(unittest.TestCase):
         every tab drawn with nothing null appended."""
         self.assertIn("security: all passed", self.run_js("security.mjs"))
 
+    def test_lead_reference_steps_and_mark_as_test_in_every_drawer(self):
+        """2.25 (js/tabs/leadref.js): the lead's own reference with its copy icon and its
+        tool, every step, Mark as test / Not a test for owners and admins only (never a
+        viewer or an editor), its confirm step, the POST and the toast; the same part in
+        Leads' drawer, the visitor drawer, Find a person, the Conversions lists and
+        Calendar bookings' rows."""
+        self.assertIn("leadref: all passed", self.run_js("leadref.mjs"))
+
 
 if __name__ == "__main__":
     unittest.main()

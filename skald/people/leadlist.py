@@ -8,8 +8,11 @@ A lead is a finished row (completed or paid) of a lead action (conversions.
 LEAD_ACTIONS) in the conversions store, the same rows conversions_data.figures
 counts as Leads on the days of [first, last] (local days, `report.timezone`).
 Each row says where it came from (`tool`: "site" is the lead database, else the
-tool or the page's script tag) and its stage now: the latest later stage of the
-same lead (won, lost, cancelled, no-show, rescheduled), else its own.
+tool or the page's script tag), its own reference there (`ref`: the sender's
+external_ref, e.g. its account ID; not personal, so in every member's rows; the page
+script's own, made from the visitor ID, only for owners and admins: `private`,
+policy.shown_ref) and its stage now: the latest later stage of
+the same lead (won, lost, cancelled, no-show, rescheduled), else its own.
 
 Left out, listed and never counted (`left_out`): rows marked test, and the lead
 database's spam, duplicate and test leads (they make no conversion row).
@@ -52,7 +55,8 @@ def span(first: str, last: str, today: date) -> tuple[date, date]:
     return a, min(b, today)
 
 
-def rows(config: dict, folder, site: str, first: date, last: date, names: bool) -> dict:
+def rows(config: dict, folder, site: str, first: date, last: date, names: bool,
+         private: bool = False) -> dict:
     """{"ok", "rows", "names", "why"}: the period's leads, newest first (see the module)."""
     from ..window import zone
     tz = zone(config)
@@ -67,7 +71,7 @@ def rows(config: dict, folder, site: str, first: date, last: date, names: bool) 
         db = sqlite3.connect(f"file:{path.resolve()}?mode=ro", uri=True)
         db.row_factory = sqlite3.Row
         try:
-            out["rows"], out["truncated"] = _conversions(db, site, lo, hi, tz, full)
+            out["rows"], out["truncated"] = _conversions(db, site, lo, hi, tz, full, private)
         except sqlite3.Error as why:
             return {"ok": False, "error": f"the conversions store could not be read: {why}"}
         finally:
@@ -77,7 +81,8 @@ def rows(config: dict, folder, site: str, first: date, last: date, names: bool) 
     return out
 
 
-def _conversions(db, site: str, lo: str, hi: str, tz, full: bool) -> tuple[list, bool]:
+def _conversions(db, site: str, lo: str, hi: str, tz, full: bool,
+                 private: bool = False) -> tuple[list, bool]:
     cols = {r[1] for r in db.execute("PRAGMA table_info(conversions)")}
     if not cols:
         return [], False
@@ -100,24 +105,30 @@ def _conversions(db, site: str, lo: str, hi: str, tz, full: bool) -> tuple[list,
     for i in range(0, len(refs), 500):
         part = refs[i:i + 500]
         for s in db.execute(f"SELECT tool, external_ref, action, stage, at, {label.replace('c.', '')} "
-                            f"AS label FROM conversions WHERE site = ? AND {test.replace('c.', '')} = 0 "
-                            f"AND external_ref IN ({','.join('?' * len(part))}) ORDER BY at, id",
-                            (site, *part)):
+                            f"AS label, {test.replace('c.', '')} AS test FROM conversions WHERE "
+                            f"site = ? AND external_ref IN ({','.join('?' * len(part))}) "
+                            f"ORDER BY at, id", (site, *part)):
             steps.setdefault((s["tool"], s["external_ref"]), []).append(s)
     journeys = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type = 'table' "
                                          "AND name = 'journeys'")}
     out = []
     for r in found:
-        mine = steps.get((r["tool"], r["external_ref"]), [])
+        # A counted lead's steps are its counted rows; a test lead's, its test rows (2.25:
+        # its drawer lists them too, so marking it never empties its steps).
+        mine = [s for s in steps.get((r["tool"], r["external_ref"]), [])
+                if bool(s["test"]) == bool(r["test"])]
         later = [s for s in mine if s["stage"] in LATER and s["at"] >= r["at"]]
         now = later[-1]["stage"] if later else r["stage"]
         row = {"id": r["id"], "at": _local(r["at"], tz), "action": r["action"], "label": r["label"],
-               "stage": r["stage"], "now": now, "tool": r["tool"], "source": r["source_type"],
+               "stage": r["stage"], "now": now, "tool": r["tool"],
+               "ref": policy.shown_ref(r["tool"], r["external_ref"], private),
+               "source": r["source_type"],
                "first_source": r["first_source"], "campaign": r["campaign"],
                "landing": r["landing"], "country": r["country"], "device": r["device"],
                "left_out": "test" if r["test"] else None, "browser": bool(r["vid"]),
                "steps": [{"at": _local(s["at"], tz), "action": s["action"], "stage": s["stage"],
-                          "tool": s["tool"], "label": s["label"]} for s in mine]}
+                          "tool": s["tool"], "label": s["label"], "test": bool(s["test"])}
+                         for s in mine]}
         if full:
             row["email"], row["name"] = r["email"], r["name"]
         if r["vid"] and journeys:
@@ -147,7 +158,7 @@ def _left_out_leads(config: dict, folder, first: date, last: date, tz, full: boo
             continue
         row = {"id": f"lead-{lead.get('id')}", "at": at, "action": _lead_action(lead.get("type")),
                "label": None, "stage": "completed", "now": lead.get("status") or "new",
-               "tool": "site", "source": lead.get("last_source"), "first_source": lead.get("first_source"),
+               "tool": "site", "ref": None, "source": lead.get("last_source"), "first_source": lead.get("first_source"),
                "campaign": None, "landing": lead.get("landing"), "country": lead.get("ip_country"),
                "device": None, "left_out": "test" if lead.get("test") else lead.get("status"), "browser": False, "steps": []}
         if full:

@@ -396,4 +396,8 @@ def conversions_listing(config: dict, folder, site: str, kind: str, private: boo
                 target.pop("name", None)
             if not private:
                 target.pop("vid", None)
+                # The page script's reference is made from the visitor ID (2.25).
+                if "external_ref" in target:
+                    target["external_ref"] = policy.shown_ref(target.get("tool"),
+                                                              target["external_ref"], False)
     return {"ok": True, "kind": kind, "rows": rows}

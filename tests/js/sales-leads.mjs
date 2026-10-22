@@ -46,7 +46,16 @@ assert.deepEqual(L.keepRows(rows, { lnow: "out", lshow: "out" }, R).map((x) => x
 const labels = (cols) => cols.map((c) => c.label);
 assert.deepEqual(labels(L.columnsFor(true)).slice(0, 3), ["When", "Name", "Email"]);
 assert.ok(!labels(L.columnsFor(false)).includes("Name") && !labels(L.columnsFor(false)).includes("Email"), "no name or email column at all");
-assert.deepEqual(labels(L.columnsFor(false)), ["When", "What", "Stage now", "From", "Source", "First touch", "Landing page", "Country"]);
+assert.deepEqual(labels(L.columnsFor(false)), ["When", "What", "Stage now", "From", "Reference", "Source", "First touch", "Landing page", "Country"]);
+{
+  // 2.25: the sender's own reference, hidden until Columns shows it, always in the CSV.
+  const ref = L.columnsFor(false).find((c) => c.key === "ref");
+  assert.equal(ref.hide, true, "hidden by default");
+  assert.equal(ref.csvAlways, true, "in the CSV even while hidden");
+  assert.equal(ref.csv({ ref: "u-119797" }), "u-119797");
+  assert.equal(ref.csv({ ref: null }), "");
+  assert.equal(text(ref.fmt(null, {})), "-");
+}
 {
   // A left-out row says so in its stage; a row without a label appends nothing (no "null").
   const stage = L.columnsFor(false).find((c) => c.key === "now");

@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Make the skaldanalytics.com share cards (1200 x 630 PNG, the Open Graph and X images).
+"""
+Note (2026-10-22): share-ai-key-thief.png is now made from the story video's cover frame (the
+hooded figure, "It wasn't a visitor."), not from the drawn hero; don't regenerate it here unless
+you mean to replace that card. KEEP_THIEF
+Make the skaldanalytics.com share cards (1200 x 630 PNG, the Open Graph and X images).
 
     python3 tools/make-share-cards.py          # all four, from _src/check-news.json
     python3 tools/make-share-cards.py check    # one

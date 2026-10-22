@@ -8,6 +8,8 @@ did ChatGPT fetch?" "Was any day withheld?"
 It is **read-only**. It reads the same data files the dashboard reads
 (DATA-CONTRACT.md). It never counts anything again and never invents a
 figure. An agent cannot get a figure the dashboard would not show.
+What it can and cannot do with leads (no tool writes one):
+[LEADS-REFERENCE.md](LEADS-REFERENCE.md).
 
 Code: `skald/mcp/`. Protocol version `2025-06-18` (clients asking for
 `2025-03-26` or `2024-11-05` are answered with `2025-06-18`).

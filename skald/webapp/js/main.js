@@ -44,6 +44,7 @@ import { DEMO, demoBanner, demoState, demoTab } from "./demo.js";
 import { startEdges } from "./edges.js";
 import { filtersButton, filterChips, rulesBanner, openFilters } from "./filterpanel.js";
 import { fromState, treeWords } from "./rules.js";
+import { afterMark } from "./tabs/leadref.js";
 
 const app = document.getElementById("app");
 const panel = document.getElementById("panel");
@@ -540,6 +541,14 @@ async function boot() {
   // A drawer or a dialog opening or closing (its key only) is not a redraw: overlays.js opens or closes it.
   S.on((next) => { if (current && S.onlyOverlay(current, next)) { current = next; syncOverlays(model, next); } else render(next); });
   addRestorer("dlg:report", () => builder(model, S.read(), (next) => load(next, { previous: model })));
+  // A lead marked test (or not) from a drawer (2.25, leadref.js): the helper drew the files
+  // again, so read them and redraw; the row moves to or from Show left out, the counts follow.
+  afterMark(async () => {
+    try {
+      model = await load(S.read(), { fresh: true, previous: model });
+      render(S.read(), { keepScroll: true, changed: true });
+    } catch { /* the next two-minute tick reads them */ }
+  });
   addRestorer("dlg:filters", () => openFilters(model, S.read(), document.querySelector(".fp-btn")));
   S.emit(true);
   // Keep "today" current while the page is open: the live snapshot is rewritten every two minutes.

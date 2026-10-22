@@ -19,6 +19,7 @@ import { grid } from "../grid.js";
 import { actionName, toolName, STAGE, labelTag } from "./leadfigs.js";
 import { codeOf } from "../routekeys.js";
 import { withUrl } from "../urlactions.js";
+import { afterMark, refCell } from "./leadref.js";
 
 export const LEAD_SHOW = [["spam", "Spam"], ["duplicate", "Duplicates"], ["test", "Test"]];
 export const CONV_SHOW = [["cancelled", "Cancelled or no-show"], ["removed", "Removed"], ["test", "Test"]];
@@ -26,6 +27,7 @@ const KIND = { spam: "Spam", duplicate: "Duplicate", test: "Test", cancelled: "C
 
 // One answer per address for a minute: a redraw (every 2 minutes today) does not ask again.
 const asked = new Map();
+afterMark(() => asked.clear());       // a conversion marked test (or not): the lists change
 function fetchList(path) {
   const got = asked.get(path);
   if (got && Date.now() - got.at < 60000) return got.p;
@@ -94,10 +96,10 @@ export function convRow(kind, r) {
   if (kind === "removed") {
     const was = r.row || {};
     return { kind, at: r.at || was.at, action: r.action || was.action, stage: r.stage || was.stage, tool: r.tool || was.tool, source: was.source_type ?? null,
-      landing: was.landing ?? null, ref: r.external_ref, vid: null, email: null, label: was.label || null,
+      landing: was.landing ?? null, ref: r.external_ref, vid: null, email: null, label: was.label || null, id: null, test: false,
       why: [r.why, r.removed_at ? `removed ${at(r.removed_at)}` : ""].filter(Boolean).join(", "), journey: r.journey || [] };
   }
-  return { kind, at: r.at, action: r.action, stage: r.stage, tool: r.tool, source: r.source_type, landing: r.landing, ref: r.external_ref, vid: r.vid || null,
+  return { kind, id: r.id ?? null, test: !!r.test, at: r.at, action: r.action, stage: r.stage, tool: r.tool, source: r.source_type, landing: r.landing, ref: r.external_ref, vid: r.vid || null,
     email: r.email || null, label: r.label || null, why: kind === "test" ? "marked test (kept, never counted)" : "", journey: r.journey || [] };
 }
 
@@ -106,10 +108,12 @@ const convCode = (r) => `${r.kind}.${codeOf([r.kind, r.at, r.action, r.stage, r.
 
 function convDetail(r) {
   const dl = h("dl", { class: "dw-dl" }, [["List", KIND[r.kind]], ["When", at(r.at)], ["Action", actionName(r.action || "")], ["Label", r.label ? labelTag(r.label) : "-"], ["Stage", STAGE[r.stage] || dash(r.stage)],
-    ["Reported by", toolName(r.tool)], ["Source (last touch)", dash(r.source)], ["Landing", r.landing ? withUrl(h("span", { class: "mono" }, r.landing), r.landing, { cls: "ua-after" }) : "-"], ["Lead or reference", key(r.ref)], ["Visitor ID", key(r.vid)], ["Why", dash(r.why)]]
+    ["Reported by", toolName(r.tool)], ["Source (last touch)", dash(r.source)], ["Landing", r.landing ? withUrl(h("span", { class: "mono" }, r.landing), r.landing, { cls: "ua-after" }) : "-"], ["Lead or reference", refCell(r.ref, key(r.ref))], ["Visitor ID", key(r.vid)], ["Why", dash(r.why)]]
     .flatMap(([t, v]) => [h("dt", null, t), h("dd", null, v)]));
   // The visitor drawer (visitor.js): the visitor ID's pages as visits, this row's facts below.
-  return openVisitor({ conversion: { action: r.action, at: r.at, tool: r.tool, journey: r.journey, steps: [{ action: r.action, stage: r.stage, at: r.at, tool: r.tool }] },
+  // A removed row has no conversion behind it any more: its reference, no Mark as test (2.25).
+  return openVisitor({ conversion: { action: r.action, at: r.at, tool: r.tool, journey: r.journey, steps: [{ action: r.action, stage: r.stage, at: r.at, tool: r.tool, test: r.test }],
+    id: r.kind === "removed" ? null : r.id, ref: r.ref || null, test: r.test, stage: r.stage },
     facts: [dl, r.journey.length ? null : h("p", { class: "note" }, "No journey: this conversion carries no visitor ID.")].filter(Boolean),
     route: { key: "conv", value: convCode(r) } });
 }
@@ -145,7 +149,7 @@ export function convList(kinds, { ns = "lo", only = null, label = "", title = "C
       { key: "tool", label: "Reported by", fmt: (v) => (v ? toolName(v) : "-"), csv: (r) => r.tool },
       { key: "source", label: "Source", fmt: dash },
       // A booking tool's reference is a long address: its end, the whole on hover (and in the CSV).
-      { key: "ref", label: "Lead or reference", fmt: (v) => h("span", { class: "sa-ref", title: v || null }, key(v, v && v.length > 28 ? `…${v.slice(-26)}` : v)), csv: (r) => r.ref, sortable: false },
+      { key: "ref", label: "Lead or reference", fmt: (v) => refCell(v, h("span", { class: "sa-ref" }, key(v, v && v.length > 28 ? `…${v.slice(-26)}` : v))), csv: (r) => r.ref, sortable: false },
       ...(named ? [{ key: "email", label: "Email", fmt: (v) => key(v) }] : []),
       { key: "why", label: "Why", fmt: dash, sortable: false },
     ];

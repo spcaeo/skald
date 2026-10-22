@@ -168,8 +168,8 @@ def _conversions(db, site: str, vids: set) -> list[dict]:
     out = []
     for vid in sorted(vids):
         out += [dict(r) for r in db.execute(
-            f"SELECT action, stage, at, tool, source_type, landing FROM conversions WHERE "
-            f"site = ? AND vid = ?{test} ORDER BY at", (site, vid))]
+            f"SELECT id, action, stage, at, tool, external_ref, source_type, landing FROM "
+            f"conversions WHERE site = ? AND vid = ?{test} ORDER BY at", (site, vid))]
     return sorted(out, key=lambda r: r["at"], reverse=True)
 
 

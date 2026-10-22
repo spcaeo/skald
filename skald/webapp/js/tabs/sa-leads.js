@@ -21,6 +21,10 @@
 // too; every filter on is a chip in one "Filtered by" line with Clear all (sa-filters.js);
 // the count line says what is applied; a period with no lead says where the leads are
 // (the last 30 days, all time), with a button to each. Leads & sales opens on 7 days.
+//
+// 2.25: a Reference column (the sender's own ID for the lead, with a copy icon), hidden until
+// Columns shows it, searched and in the CSV either way; the lead's drawer lists every step of
+// that reference and, for owners and admins, Mark as test / Not a test (leadref.js).
 
 import { h, n, change, short, long } from "../ui.js";
 import * as S from "../state.js";
@@ -39,6 +43,7 @@ import { viewSwitch, viewOf } from "../viewswitch.js";
 import { board, timeline, map } from "./sa-views.js";
 import { withUrl } from "../urlactions.js";
 import { LEAD_DIMS, activeFilters, filteredBy, appliedWords, figureFile, listOnly, leadsWord, CLEAR_ALL } from "./sa-filters.js";
+import { refCell, afterMark } from "./leadref.js";
 
 export const VIEWS = [["list", "List"], ["board", "Board: by stage now"], ["timeline", "Timeline: leads per day"], ["map", "Map: leads by country"]];
 // A lead's stage now, in words, and the group it joins on the board and in the Stage filter.
@@ -52,6 +57,7 @@ const dash = (v) => (v == null || v === "" ? "-" : String(v));
 
 // One answer per address for a minute: a redraw does not ask again.
 const asked = new Map();
+afterMark(() => asked.clear());       // a lead marked test (or not): ask again, the row moves
 export function fetchLeads(first, last, names) {
   const url = `people/leads?first=${first}&last=${last}${names ? "&names=1" : ""}`;
   const got = asked.get(url);
@@ -95,6 +101,11 @@ export function columnsFor(names) {
     { key: "action", label: "What", fmt: (v, x) => h("span", null, oneAction(v || ""), labelTag(x.label)), csv: (x) => `${oneAction(x.action || "")}${x.label ? ` (${x.label})` : ""}` },
     { key: "now", label: "Stage now", fmt: (_, x) => (x.left_out ? h("b", { class: "pp-bad" }, stageWords(x)) : stageWords(x)), csv: stageWords, sort: stageWords },
     { key: "tool", label: "From", fmt: (v) => toolName(v || ""), csv: (x) => toolName(x.tool || "") },
+    // The sender's own ID for the lead (2.25: e.g. an app's account id, u-1001), to find it in its admin.
+    // Hidden until Columns shows it; the search finds it either way; always in the CSV.
+    // A booking tool's reference is a long address: its end shown, the whole on hover, in the copy and the CSV.
+    { key: "ref", label: "Reference", hide: true, csvAlways: true,
+      fmt: (v) => refCell(v, v && String(v).length > 28 ? `…${String(v).slice(-26)}` : v), csv: (x) => x.ref || "", sortable: false },
     { key: "source", label: "Source", fmt: dash },
     { key: "first_source", label: "First touch", fmt: dash },
     { key: "landing", label: "Landing page", fmt: dash, path: true },
@@ -109,7 +120,9 @@ export function openLead(x) {
     ["Stage now", stageWords(x)], ["From", toolName(x.tool || "")], ["Source (last touch)", dash(x.source)], ["First touch", dash(x.first_source)],
     ["Campaign", dash(x.campaign)], ["Landing page", x.landing ? withUrl(h("span", { class: "mono" }, x.landing), x.landing, { cls: "ua-after" }) : "-"], ["Country", x.country ? countryWords(x.country) : "-"], ["Device", dash(x.device)]];
   // In the address by its row id (lead=1287: js/overlays.js), never a name or an email.
-  return openVisitor({ conversion: { action: x.action, at: x.at, tool: x.tool, browser: x.browser, journey: x.journey || [], steps: x.steps || [] },
+  // id, ref and test (2.25): its reference, every step of it and Mark as test (leadref.js).
+  return openVisitor({ conversion: { action: x.action, at: x.at, tool: x.tool, browser: x.browser, journey: x.journey || [], steps: x.steps || [],
+    id: x.id, ref: x.ref || null, test: x.left_out === "test" },
     facts: [h("dl", { class: "dw-dl" }, facts.flatMap(([t, v]) => [h("dt", null, t), h("dd", null, v)]))],
     route: x.id != null ? { key: "lead", value: String(x.id) } : null });
 }
@@ -274,7 +287,7 @@ export default function leadsTab(m, s) {
     else {
       // The table's own Filter button is not here (2.23): the options row is the filter row.
       parts.push(grid({ ns: "ld", caption: "Leads", file: "leads.csv", rows, columns: columnsFor(names), sortKey: "at", dir: "desc", onRow: openLead, columnFilters: false,
-        placeholder: names ? "Search names, emails, sources, pages" : "Search sources, pages, countries",
+        placeholder: names ? "Search names, emails, references, sources, pages" : "Search references, sources, pages, countries",
         empty: list.length ? "No lead matches these filters." : "No lead in this period." }));
     }
     const notes = [];

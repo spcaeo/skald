@@ -245,7 +245,8 @@ class SiteCli(Cli):
         from skald.site_logos import folder
         self.add_shop()
         logos = folder(self.dir, SHOP)
-        logos.mkdir(parents=True)
+        # 2.25: `site add` asked for the logo already (its state.json is there).
+        self.assertTrue((logos / "state.json").is_file())
         (logos / "state.json").write_text("{}")
         code, _, err = self.run_ti("site", "remove", SHOP)
         self.assertEqual(code, 2)

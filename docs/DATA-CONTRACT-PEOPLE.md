@@ -102,6 +102,7 @@ shortened form, which may hold other people's visits too.
 | `GET <page>/people/left-out` | every member | `{"ok","private","leads":[...],"conversions":[...]}`: the lead database's spam, duplicate and test leads (status `test`, or a flag mentioning test), each with `why`; conversions marked test |
 | `GET <page>/people/conversions?kind=cancelled\|removed\|test` | every member | `{"ok","kind","private","rows":[...]}`, each with `journey` (the visitor ID's page views) |
 | `GET <page>/people/leads?first=D&last=D[&names=1]` | every member; `names=1` owners and admins only (403 otherwise), with the session's CSRF value (`X-Skald-CSRF`; basic mode: `Sec-Fetch-Site: same-origin`) | `{"ok","names","why","first","last","truncated","rows":[...]}`: Leads & sales > Leads (2.20), below |
+| `POST <page>/people/mark-test` | owners and admins (403 otherwise), same-origin, with the session's CSRF value (basic mode: `Sec-Fetch-Site: same-origin`) | (2.25) body `{"id","test"}`: every stage of that row's (tool, `external_ref`) marked test or not, as `skald conversions mark-test`; `{"ok","test","id","tool","ref","changed","ids","redrawn"}`; one audit row `conversions.test`/`conversions.untest` with the user, tool and row ids (docs/INTEGRATIONS-LEADS.md) |
 | `GET /traffic-api/v1/<site>/people?q=Q` | an API token with `read_private` | the person, below |
 
 In the two lists `email`, `name` and `vid` are left out unless the caller is
@@ -117,7 +118,12 @@ row: `id`, `at` (local), `action`, `label`, `stage` (its own), `now` (the latest
 later stage of the same lead: won, lost, cancelled, no_show, rescheduled; else
 its own), `tool` (`site` is the lead database), `source` (last touch),
 `first_source`, `campaign`, `landing`, `country`, `device`, `browser` (it has a
-visitor ID), `steps` (every stage of the same lead) and `journey` (the visitor
+visitor ID), `ref` (2.25: the sender's own `external_ref`, e.g. its account ID; null for the
+lead database's left-out leads; not personal, so in every member's rows, except the page
+script's, made from the visitor ID: owners and admins only, `policy.shown_ref`; the
+Conversions lists' `external_ref` follows the same rule), `steps` (every
+stage of the same lead, each `{"at","action","stage","tool","label","test"}`: a counted
+lead's counted rows, a test lead's test rows) and `journey` (the visitor
 ID's page views up to the lead, at most 60: paths, times and sources only).
 `left_out`: `test` for a row marked test, and `spam`, `duplicate` or `test` for
 the lead database's left-out leads (they make no conversion row); listed, never
@@ -251,7 +257,9 @@ above, the ID's page views no kept visit covers, grouped 30 minutes apart (`kind
 "seen by the script"). The oldest has `first: true`. `leads`: made from 30 seconds before to 2
 minutes after a form one of the visits sent (`lead`, `visit_start`, `created_at`, `type`,
 `status`, `left_out`; matched by time, never certain). `conversions`: the matched IDs'
-(test rows left out). No address, no visitor ID, no email in the answer. The web app's
+(test rows left out), each `{"id","action","stage","at","tool","external_ref","source_type",
+"landing"}` (`id` and `external_ref` since 2.25: the drawer groups them by reference, with
+its copy icon and Mark as test). No address, no visitor ID, no email in the answer. The web app's
 visitor drawer (`webapp/js/tabs/visitor.js`) draws it; the demo writes one file per visit
 it can answer.
 

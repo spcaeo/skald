@@ -344,6 +344,8 @@ The answers: 200 as above; 400 a parameter is wrong (the answer says which; any 
 
 Leads your own team makes, from a team account or a QA run, should not count. **Send your team's own accounts with `test: true`; to fix ones already sent, call `leads/test`.** Either way Skald keeps the lead, lists it (Leads > Left out, the person drawer, and the check above with `"test": true`), and never counts it.
 
+An owner or admin can also do it by hand: open the lead in the dashboard and press **Mark as test** under its reference (or **Not a test** to count it again). It is the same mark as the call below. See [Marking a conversion as a test](leads-and-conversions.md#marking-a-conversion-as-a-test).
+
 **When you send it.** Add `"test": true` to the body (section 2). It marks that message only: send it on every stage of a test lead (`started`, `completed`, `won`...). Sending a lead again with only `test` changed does nothing, like any repeat. Use the call below to change one Skald already has.
 
 **After you sent it.** Post the refs to mark, signed with the **same secret** and the same way as a lead (section 3):

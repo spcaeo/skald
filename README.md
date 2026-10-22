@@ -51,6 +51,8 @@
 
 ## What's new
 
+- **2.25.0: a lead's reference, and Mark as test on screen** ([changelog](CHANGELOG.md#2250-2026-10-22)).
+  The sender's own ID in Leads and every drawer; owners and admins mark test leads in one click.
 - **2.24.0: the script tag just works** ([changelog](CHANGELOG.md#2240-2026-10-22)). No change on
   your web server; the setup Test now says what's wrong when nothing arrives.
 - **2.23.0: Leads & sales opens on 7 days, and a sturdier morning run** ([changelog](CHANGELOG.md#2230-2026-10-22)).

@@ -162,7 +162,9 @@ def _finish(h, db, form, config, config_path=None, live_dir=None, out=None) -> N
                              log_root=ingest_log.root(config, ingest.history_folder(config, live_dir)))
     except ValueError as why:
         return answer(h, 400, {"ok": False, "error": str(why)})
-    first_page.start(out, got["site"], config_path)     # the page is there at once
+    first_page.start(out, got["site"], config_path,     # the page is there at once,
+                     before=first_page.logo_fetch(config, config_path, got["site"], live_dir,
+                                                  out))   # its logo first (2.25)
     cookie, _csrf = sessions.start(db, got["user"]["id"], auth_api.client_ip(h, config),
                                    h.headers.get("User-Agent", ""))
     return answer(h, 200, {"ok": True, "next": f"/traffic/{got['site']}/", "signed_in": True},

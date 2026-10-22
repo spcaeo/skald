@@ -130,7 +130,34 @@ def cmd_add(ctx) -> int:
         db.close()
     folder.mkdir(parents=True, exist_ok=True)
     ctx.out(f"{name} added to {org['name']}; its log folder is {folder}")
+    _logo(ctx, name)
     return 0
+
+
+def _logo(ctx, name: str) -> None:
+    """The new site's logo, asked now (2.25; at most 20 seconds), so the switcher
+    shows it before the morning run. A failure is said, never an error."""
+    from . import site_logos
+    from .settings_store import apply
+    base = Path(ctx.db_path).parent
+    try:
+        cfg = apply(dict(ctx.raw_config), name, base)
+    except Exception:                     # noqa: BLE001 - no accounts file: the config alone
+        cfg = ctx.config
+    got = site_logos.fetch_now(cfg, name, base, _out(ctx))
+    if got.get("ok"):
+        ctx.out("  logo: found on the site")
+    elif got:
+        ctx.out(f"  logo: none yet ({got.get('error')}); the site picker asks again in a day")
+
+
+def _out(ctx):
+    """The dashboard's folder, where sites.json is, or None."""
+    try:
+        from .cli import _path
+        return _path(ctx.raw_config, ctx.config_path, "dashboard", "out", None)
+    except Exception:                     # noqa: BLE001 - no dashboard folder: no sites.json
+        return None
 
 
 def cmd_hosts(ctx) -> int:

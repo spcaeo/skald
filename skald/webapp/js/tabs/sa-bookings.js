@@ -22,6 +22,8 @@ import { actionName, toolName, STAGE } from "./leadfigs.js";
 import { grid } from "../grid.js";
 import { tabHead, optionsRow, select, toggles, listOf, emptyState, foldNotes } from "./sa-options.js";
 import { convList, CONV_SHOW } from "./sa-lists.js";
+import { openVisitor } from "./visitor.js";
+import { refCell } from "./leadref.js";
 
 // Tools that book or take payment: an action any of them reported is a booking action.
 const BOOKING_TOOLS = new Set(["calendly", "calcom", "stripe"]);
@@ -57,6 +59,14 @@ function narrow(f, a) {
 
 const titleOf = (el) => (el?.matches?.("section") ? el.querySelector(":scope > h2")?.firstChild : el?.matches?.("details") ? el.querySelector(":scope > summary")?.firstChild : null);
 
+/* A row of today opens the visitor drawer (2.25): its reference with a copy icon, today's
+   steps of that reference, and Mark as test for owners and admins (leadref.js). */
+export function openStep(r, all) {
+  const same = r.ref ? all.filter((x) => x.tool === r.tool && x.ref === r.ref) : [r];
+  return openVisitor({ conversion: { action: r.action, at: r.at, tool: r.tool, stage: r.stage, id: r.id ?? null, ref: r.ref || null, test: !!r.test,
+    steps: same.map((x) => ({ action: x.action, stage: x.stage, at: x.at, tool: x.tool, test: !!x.test })) } });
+}
+
 // Today's rows of this action, every stage, test marked: a listing, not a figure.
 function today(f, a) {
   const t = f.today;
@@ -69,8 +79,10 @@ function today(f, a) {
     grid({ ns: "bt", caption: `Today's ${actionName(a).toLowerCase()}`, file: "bookings-today.csv", rows, sortKey: "at", dir: "desc",
       columns: [{ key: "at", label: "Time", type: "date", fmt: (v) => at(v) }, { key: "stage", label: "Stage", fmt: (v, r) => h("span", null, STAGE[v] || dash(v), r.test ? h("b", { class: "pp-bad" }, " test (not counted)") : null), csv: (r) => `${r.stage}${r.test ? " (test)" : ""}` },
         { key: "tool", label: "Reported by", fmt: (v) => (v ? toolName(v) : "-"), csv: (r) => r.tool }, { key: "source", label: "Source", fmt: dash }, { key: "campaign", label: "Campaign", fmt: dash },
-        { key: "landing", label: "Landing", path: true, fmt: dash }, { key: "country", label: "Country", fmt: dash }, { key: "device", label: "Device", fmt: dash }],
+        { key: "landing", label: "Landing", path: true, fmt: dash }, { key: "country", label: "Country", fmt: dash }, { key: "device", label: "Device", fmt: dash },
+        { key: "ref", label: "Reference", hide: true, csvAlways: true, fmt: (v) => refCell(v), csv: (r) => r.ref || "", sortable: false }],
       filters: [{ key: "stage", label: "Stage", options: [...new Set(rows.map((r) => r.stage))].map((k) => [k, STAGE[k] || k]) }],
+      onRow: (r) => openStep(r, t.rows || []),
       empty: "None so far today." }),
     t.tests ? h("p", { class: "note" }, `${n(t.tests)} row${t.tests === 1 ? "" : "s"} marked test today, kept apart.`) : null);
 }
