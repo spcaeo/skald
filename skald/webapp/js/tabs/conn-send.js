@@ -7,6 +7,8 @@
 // tokens/create, scope ingest, this site only) and kept in this page's memory
 // only, like tokens.js. The Test reads <page>/sites/status (connections_api.py)
 // and polls it every 5 seconds for up to 2 minutes after the first press.
+// For the script tag, when nothing has arrived, it also looks at the site's
+// home page once per press (conn-tagcheck.js) and says what is wrong there.
 
 import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
@@ -16,6 +18,7 @@ import { METHODS, methodOf, REASON_FIX, TROUBLE } from "./conn-words.js";
 import { wizard, codeBlock, answerBox, helpLink } from "./conn-ui.js";
 import { installFor } from "./conn-install.js";
 import { shareBox } from "./conn-share.js";
+import { tagCheckBox } from "./conn-tagcheck.js";
 import { detectCard, recommendFor, suggestionsFor, saveFound } from "./conn-detect.js";
 import { withUrl } from "../urlactions.js";
 
@@ -126,7 +129,7 @@ export function verdict(r, method) {
     if (!r.beacon) return { kind: "bad", head: "The script tag is switched off on this server.", fix: "Ask whoever runs your Skald server to turn it on (SKALD_BEACON_ORIGINS, or beacon.origins in its config)." };
     if (r.beacon.events > 0) return { kind: "ok", head: `Connected: ${r.beacon.events.toLocaleString("en-GB")} events on ${r.beacon.day}, the counters last written at ${at(r.beacon.updated_at)}.`, fix: "" };
     if (r.beacon.last_open_at) return { kind: "ok", head: `Connected: a page opened with the tag at ${at(r.beacon.last_open_at)}. No event is counted yet.`, fix: "" };
-    return { kind: "wait", head: "Waiting for the first event. Nothing from the tag has reached Skald yet.", fix: "Open a page of the site in a normal browser window, with Do Not Track and Global Privacy Control off. In the browser's developer tools, Network panel, a request to /traffic-beacon answered 204 or 202 means the tag works; 403 means the page's host is not one of the site's host names; 404 means the two addresses are not passed on to Skald." };
+    return { kind: "wait", head: "Waiting for the first event. Nothing from the tag has reached Skald yet.", fix: "Open a page of the site in a normal browser window, with Do Not Track and Global Privacy Control off. In the browser's developer tools, Network panel, a request to traffic-beacon answered 204 or 202 means the tag works; 403 means the page's host is not one of the site's host names. A request to your own site's /traffic-beacon answered 308, 404 or 405 means an older tag or script: copy the tag again from step 2." };
   }
   if (r.ingest_enabled === false) return { kind: "bad", head: "The log endpoint is switched off on this server.", fix: REASON_FIX.off, reason: "off" };
   if (r.verify && r.verify.state === "pending") return { kind: "bad", head: "The site is not verified yet, so nothing is collected for it.", fix: REASON_FIX.not_verified, reason: "not_verified" };
@@ -154,10 +157,11 @@ export function troubleTable() {
 
 /* The Test button and its answer. Polls every POLL_MS for POLL_FOR_MS after the
    first press, until connected; stops when the dialog is gone. */
-export function testPanel(st, { onResult = null, statusOf = (site) => call(`sites/status?site=${encodeURIComponent(site)}`) } = {}) {
+export function testPanel(st, { onResult = null, statusOf = (site) => call(`sites/status?site=${encodeURIComponent(site)}`), pageCheck = tagCheckBox } = {}) {
   const out = h("div", { class: "cn-test-out" });
+  const page = h("div", { class: "cn-test-page" });
   const btn = h("button", { type: "button", class: "btn primary" }, "Test connection");
-  let timer = null, until = 0;
+  let timer = null, until = 0, looked = false;
   const shipper = st.method === "docker" || st.method === "systemd";
   async function once() {
     const r = await statusOf(st.site);
@@ -169,6 +173,9 @@ export function testPanel(st, { onResult = null, statusOf = (site) => call(`site
     if (polling) more.push(h("p", { class: "note" }, "Checking again every 5 seconds, for up to 2 minutes."));
     if (v.kind === "wait" && !polling && until) more.push(h("p", null, "Nothing arrived in 2 minutes. Look at Common problems below, then press Test connection again."));
     out.replaceChildren(answerBox(v.kind, v.head, ...more));
+    // Nothing from the tag yet: look at the page itself, once per press.
+    if (st.method === "script" && v.kind === "wait" && until && !looked && pageCheck) { looked = true; page.replaceChildren(pageCheck(st.site)); }
+    if (v.kind === "ok") page.replaceChildren();
     if (onResult) onResult(v, r);
     if (polling && out.isConnected !== false) timer = setTimeout(once, POLL_MS);
     else { clearTimeout(timer); timer = null; btn.disabled = false; }
@@ -177,12 +184,13 @@ export function testPanel(st, { onResult = null, statusOf = (site) => call(`site
   btn.addEventListener("click", () => {
     clearTimeout(timer);
     until = Date.now() + POLL_FOR_MS;
+    looked = false;
     btn.disabled = true;
     once();
   });
   return h("div", { class: "cn-test" },
     h("p", null, st.method === "script" ? "After a page of the site was opened with the tag, press Test connection." : "After the install, press Test connection. Skald says what it received, or why it refused it."),
-    h("div", { class: "acts" }, btn), out);
+    h("div", { class: "acts" }, btn), out, page);
 }
 
 // "Share with your developer" for the chosen way (conn-share.js).

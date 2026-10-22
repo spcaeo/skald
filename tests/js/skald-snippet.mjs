@@ -31,14 +31,16 @@ function page(opts = {}) {
   const go = (u) => {
     const x = new URL(u, loc.href || url.href);
     Object.assign(loc, { href: x.href, hostname: x.hostname, pathname: x.pathname,
-      search: x.search, hash: x.hash, protocol: x.protocol });
+      search: x.search, hash: x.hash, protocol: x.protocol, origin: x.origin });
   };
   go(url.href);
   const sent = [], fetched = [], cookies = new Map(), cookieWrites = [];
   const listeners = { doc: {}, win: {} };
   const add = (where) => (type, fn) => { (listeners[where][type] ||= []).push(fn); };
   const embeds = opts.embeds || [];
-  const script = el("script", { src: "/traffic-js/skald.js", ...(opts.attrs || {}) });
+  const script = el("script", { src: opts.src || "/traffic-js/skald.js", ...(opts.attrs || {}) });
+  // As in a browser: the element's src property is the absolute address.
+  script.src = new URL(script.attrs.src, url.href).href;
   const document = {
     currentScript: script, referrer: opts.referrer || "", readyState: "complete",
     documentElement: Object.assign(el("html"), { scrollHeight: opts.height || 4000 }),
@@ -381,6 +383,48 @@ const tests = {
     assert.equal(p.fetched[0].url, "/stats/beacon");
     assert.equal(p.fetched[0].init.keepalive, true);
     assert.equal(p.fetched[0].body.e, "page_view");
+  },
+  "loaded from Skald's own address: posts there, beside the script"() {
+    const p = page({ src: "https://skald.example.net/traffic-js/skald.js" });
+    assert.deepEqual(p.sent.map((s) => [s.url, s.type]),
+      [["https://skald.example.net/traffic-beacon", "text/plain"]]);
+    // the ID stays the page's own: its storage, no cookie unless shared subdomains
+    assert.match(p.last().v, VID);
+    assert.equal(p.ctx.localStorage.getItem("skald.vid"), p.last().v);
+    assert.equal(p.cookieWrites.length, 0);
+    const q = page({ src: "https://skald.example.net/traffic-js/skald.js",
+      attrs: { "data-share-subdomains": "true" } });
+    assert.ok(q.cookieWrites[0].includes("domain=example.com"), "the cookie is the page's domain");
+    // fetch, when sendBeacon says no: same address, a simple text body, no credentials asked for
+    const f = page({ src: "https://skald.example.net/traffic-js/skald.js", noBeacon: true });
+    assert.equal(f.fetched[0].url, "https://skald.example.net/traffic-beacon");
+    assert.equal(f.fetched[0].init.credentials, undefined);
+    assert.equal(f.fetched[0].init.headers, undefined);
+  },
+  "loaded from the page's own address: the same relative /traffic-beacon as always"() {
+    for (const src of ["/traffic-js/skald.js", "https://www.example.com/traffic-js/skald.js?v=2"]) {
+      assert.equal(page({ src }).sent[0].url, "/traffic-beacon", src);
+    }
+    // a proxy under a folder keeps it
+    assert.equal(page({ src: "/stats/traffic-js/skald.js" }).sent[0].url, "/stats/traffic-beacon");
+    assert.equal(page({ src: "https://skald.example.net/eu/traffic-js/skald.js" }).sent[0].url,
+      "https://skald.example.net/eu/traffic-beacon");
+    // a copy served from somewhere else (not .../traffic-js/): the page's own, as before
+    assert.equal(page({ src: "https://cdn.example.net/js/skald.min.js" }).sent[0].url, "/traffic-beacon");
+  },
+  "data-endpoint still wins over the script's address"() {
+    const p = page({ src: "https://skald.example.net/traffic-js/skald.js",
+      attrs: { "data-endpoint": "/stats/beacon" } });
+    assert.equal(p.sent[0].url, "/stats/beacon");
+    const q = page({ attrs: { "data-endpoint": "https://skald.example.net/traffic-beacon" } });
+    assert.equal(q.sent[0].url, "https://skald.example.net/traffic-beacon");
+  },
+  "the tag twice on a page (first-party and Skald's): one page view, not two"() {
+    const p = page({ src: "https://skald.example.net/traffic-js/skald.js" });
+    vm.runInContext(SOURCE, p.ctx);
+    assert.deepEqual(p.names(), ["page_view"]);
+    p.ctx.history.pushState({}, "", "/features/");
+    assert.deepEqual(p.names(), ["page_view", "page_view"]);
   },
   "served with visitor IDs off: no ID anywhere"() {
     const p = page({ source: SOURCE.replace("IDS=1", "IDS=0"),

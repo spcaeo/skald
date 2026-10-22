@@ -27,15 +27,18 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-22-2.23.0",
+  id: "2026-10-22-2.24.0",
   items: [
+    ["The script tag just works", "the tag posts its events straight to Skald, so nothing changes on your web server; serving it from your own domain stays an option.", "script-tag"],
+    ["Test tells you what is wrong", "while nothing has arrived, Test checks your page and says what blocks the tag: missing, a wrong address, a redirect, a security policy.", "script-tag"],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.23.0
     ["Leads & sales opens on 7 days", "every Leads & sales tab opens on the last 7 days; a new All time period; \"Today so far: N new leads\" when today has some; a clear message instead of an empty list.", "leads-and-conversions"],
     ["One filter row on Leads", "every filter shows as a chip with Clear all, and the count says what is applied; five filter bugs fixed (Source now narrows the count, top-bar filters apply to Leads)."],
     ["Add a site: zip with or without the token", "step 4 has \"Include the access token in the zip\" (ticked by default); without it, the installer asks for the token.", "connections"],
     ["Morning run, sturdier", "one site's failure no longer skips the other sites, and two redraws at once no longer clash."],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.22.3
     ["Faster live updates", "the live run is about twice as fast; every figure is unchanged."],
     // 2.22.2

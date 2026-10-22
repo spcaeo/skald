@@ -37,16 +37,33 @@ One line in every page's `<head>` gives Skald page views, form steps,
 embeds, each with an anonymous visitor ID when the install keeps them:
 
 ```html
+<script src="https://skald.example.com/traffic-js/skald.js" data-site="example.com" defer></script>
+```
+
+(`skald.example.com` is your Skald's address; Settings > Integrations and the
+set-up dialog give the exact line.) It needs **no change on the site's server**
+(2.24.0): the page loads the file from Skald and posts its events to
+`/traffic-beacon` beside it, on Skald. The file is under 6 KB (the test's
+budget; 5 KB until it sent every event and adopted IDs from other domains),
+plain JavaScript, served by the beacon helper (`GET /traffic-js/skald.js`, an
+ETag and a day's cache). No `eval`, never a field's value; the visitor ID stays
+in the page's own storage. How a cross-site post is taken (the Origin map,
+CORS for that Origin, no preflight): docs/BEACON.md, "Where the tag posts".
+
+**First-party, from the site's own domain (optional).** Where ad blockers
+matter, the site's server can pass `/traffic-js/` and `/traffic-beacon` on to
+Skald and the page loads the tag from itself:
+
+```html
 <script src="/traffic-js/skald.js" data-site="example.com" defer></script>
 ```
 
-The file is under 6 KB (the test's budget; 5 KB until it sent every event
-and adopted IDs from other domains), plain JavaScript, served by the beacon helper
-(`GET /traffic-js/skald.js`, an ETag and a day's cache) from the site's own
-origin, and posts to the site's own `/traffic-beacon` (docs/BEACON.md). No
-third-party code, no `eval`, never a field's value.
+It then posts to the site's own `/traffic-beacon`, exactly as before 2.24.0.
+The set-up dialog's "Advanced: serve it from your own domain" has the nginx,
+Apache and Caddy lines; Skald's nginx must then trust that server for
+`X-Forwarded-For` (docs/BEACON.md).
 
-nginx, in the site's HTTPS `server { }` beside `/traffic-beacon`:
+On Skald's own server, nginx, in its HTTPS `server { }` beside `/traffic-beacon`:
 
 ```nginx
 location = /traffic-js/skald.js {
@@ -62,9 +79,10 @@ site's own spool. The first site takes its listed origins (`beacon.origins`,
 `SKALD_BEACON_ORIGINS`); a site added from the dashboard or a `sites:` file
 takes `https://<each of its hosts>`, while the install has the tag on (the
 first site has an origin). The file is served with the visitor-ID setting of
-the site whose page loads it (by `Referer`). A site on another server passes
-`/traffic-js/` and `/traffic-beacon` through its own server to Skald, so the
-tag and the beacon stay on its own origin; Skald's nginx must then trust that
+the site whose page loads it (by `Referer`). A site on another server uses
+the plain tag (it posts to Skald directly, from the visitor's own address), or
+passes `/traffic-js/` and `/traffic-beacon` through its own server so the tag
+and the beacon stay on its own origin; Skald's nginx must then trust that
 server for `X-Forwarded-For`. Details: docs/BEACON.md, "Several sites".
 
 ### Options (attributes on the tag)
@@ -72,7 +90,7 @@ server for `X-Forwarded-For`. Details: docs/BEACON.md, "Several sites".
 | attribute | default | what |
 | --- | --- | --- |
 | `data-site` | - | the site's own domain, `example.com`; also the shared cookie's domain (below) |
-| `data-endpoint` | `/traffic-beacon` | where to post, on the same origin |
+| `data-endpoint` | `/traffic-beacon` beside the script | where to post. Without it the tag posts beside the address it was loaded from: `https://skald.example.com/traffic-js/skald.js` posts to `https://skald.example.com/traffic-beacon`, `/traffic-js/skald.js` to the page's own `/traffic-beacon` |
 | `data-consent="required"` | not required | send nothing and store nothing until the page calls `skald('consent', true)` |
 | `data-share-subdomains="true"` | off | keep the ID in a first-party cookie too, so `www.` and `app.` share it |
 | `data-link-domains` | - | comma list of other domains you own (`app.example.net, shop.example.org`): links to them get `?skv=<id>` when clicked, and an `skv` arriving from them is adopted (below) |

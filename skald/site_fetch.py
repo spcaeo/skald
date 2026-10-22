@@ -238,16 +238,21 @@ class _PinnedHTTPS(http.client.HTTPSConnection):
 
 
 def open_pinned(scheme: str, host: str, address: str, port: int, method: str, target: str,
-                timeout: float, max_bytes: int, agent: str | None = None) -> Answer:
+                timeout: float, max_bytes: int, agent: str | None = None,
+                headers: dict | None = None) -> Answer:
     """One request to `address`, named `host` (Host header and TLS name). `agent` is the
-    User-Agent (default: the site check's own, user_agent())."""
+    User-Agent (default: the site check's own, user_agent()); `headers`, a few more
+    (tag_check.py's X-Skald-Probe), never a cookie or Authorization. A POST has no body."""
     cls = _PinnedHTTPS if scheme == "https" else _PinnedHTTP
     conn = cls(host, address, port, timeout)
     shown = host if port == PORTS[scheme] else f"{host}:{port}"
+    extra = {k: v for k, v in (headers or {}).items()
+             if k.lower() not in ("cookie", "authorization", "host")}
     try:
         conn.request(method, target, headers={
             "Host": shown, "User-Agent": agent or user_agent(), "Accept-Encoding": "identity",
-            "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5", "Connection": "close"})
+            "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5", "Connection": "close",
+            **extra})
         res = conn.getresponse()
         headers: dict[str, list[str]] = {}
         for name, value in res.getheaders():
@@ -279,8 +284,9 @@ def _words(why: BaseException) -> str:
 
 
 def fetch(url: str, method: str = "GET", deadline: float | None = None,
-          max_bytes: int = MAX_BYTES) -> Answer:
+          max_bytes: int = MAX_BYTES, headers: dict | None = None) -> Answer:
     """One request, checked as the module says; no redirect is followed."""
+    more = {"headers": headers} if headers else {}
     scheme, host, port, target = check_url(url)
     addresses = resolve(host, port)
     last = None
@@ -289,7 +295,8 @@ def fetch(url: str, method: str = "GET", deadline: float | None = None,
         if left <= 0.2:
             raise Unreachable("it did not answer in time")
         try:
-            return open_pinned(scheme, host, address, port, method, target, left, max_bytes)
+            return open_pinned(scheme, host, address, port, method, target, left, max_bytes,
+                               **more)
         except ssl.SSLCertVerificationError as why:
             raise Unreachable(_words(why)) from None        # another address won't fix it
         except (OSError, http.client.HTTPException) as why:

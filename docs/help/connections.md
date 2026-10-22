@@ -98,7 +98,7 @@ If the kit is not offered, the page says why. Each kit also has the same steps b
 
 **Vercel or Netlify.** In the platform's log drain settings, give the address and the header the dialog shows. Vercel needs a Pro or Enterprise plan; Netlify needs Enterprise.
 
-**Only the script tag.** Your web server passes two addresses on to Skald, and the tag goes in the `<head>` of every page. See [The tracking script](tracking-script.md).
+**Only the script tag.** The tag goes in the `<head>` of every page; nothing changes on your web server. To serve it from your own domain instead, the step has the lines under **Advanced: serve it from your own domain**. See [The tracking script](tracking-script.md).
 
 ### Step 4: Test
 

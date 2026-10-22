@@ -214,24 +214,48 @@ function drains(st) {
   ];
 }
 
+// The plain tag: the page loads skald.js from Skald and posts its events there
+// (beside the script), so the site's own server needs no change.
+export const plainTag = (base, site) => `<script src="${base}/traffic-js/skald.js" data-site="${site}" defer></script>`;
+
+// "Advanced: serve it from your own domain": the site's web server passes the
+// two paths on to Skald (nginx, Apache, Caddy; as ADD-A-CLIENT-SITE.md 7.1),
+// and the tag loads from the site itself. Optional; fewer ad blockers stop it.
+export function proxyLines(base) {
+  const sk = host(base);
+  const up = ["  proxy_pass " + base + ";", `  proxy_set_header Host ${sk};`, "  proxy_ssl_server_name on;",
+    "  proxy_set_header X-Forwarded-For $remote_addr;", '  proxy_set_header Cookie "";', '  proxy_set_header Authorization "";', "  proxy_hide_header Set-Cookie;", "}"];
+  return {
+    nginx: ["location = /traffic-beacon {", "  limit_except POST { deny all; }", "  access_log off;", "  client_max_body_size 4k;", ...up,
+      "location ^~ /traffic-js/ {", "  limit_except GET { deny all; }", "  access_log off;", ...up].join("\n"),
+    apache: ["# mod_proxy, mod_proxy_http, mod_ssl and mod_headers on; in the site's HTTPS <VirtualHost>", "SSLProxyEngine on",
+      ...["/traffic-beacon", "/traffic-js/"].flatMap((p) => [`<Location "${p}">`, `  ProxyPass "${base}${p}"`, "  RequestHeader unset Cookie", "  RequestHeader unset Authorization", "  Header unset Set-Cookie", "</Location>"])].join("\n"),
+    caddy: ["@skald path /traffic-beacon /traffic-js/*", "handle @skald {", `\treverse_proxy ${base} {`, `\t\theader_up Host ${sk}`, "\t\theader_up X-Forwarded-For {remote_host}",
+      "\t\theader_up -Cookie", "\t\theader_up -Authorization", "\t\theader_down -Set-Cookie", "\t\ttransport http {", `\t\t\ttls_server_name ${sk}`, "\t\t}", "\t}", "}"].join("\n"),
+  };
+}
+
+export function proxyFold(base, site) {
+  const got = proxyLines(base);
+  return h("details", { class: "fold su-tech cn-proxy" }, h("summary", null, "Advanced: serve it from your own domain"),
+    h("p", null, "Optional. The tag above needs no change on your server. To serve the script and its events from your own domain instead, so fewer ad blockers stop them, your web server passes two addresses on to Skald: /traffic-js/ and /traffic-beacon."),
+    steps(["nginx, in the site's HTTPS server block, then sudo nginx -t and reload:", codeBlock(got.nginx, "the nginx lines")],
+      ["Apache:", codeBlock(got.apache, "the Apache lines")],
+      ["Caddy, in the site's block:", codeBlock(got.caddy, "the Caddy lines")],
+      "Vercel or Netlify: two rewrites, in the tracking script guide.",
+      ["Then put this tag on your pages instead of the one above:", codeBlock(`<script src="/traffic-js/skald.js" data-site="${site}" defer></script>`, "the first-party tag")]),
+    h("p", { class: "note" }, "Whoever runs your Skald server must then trust your server for the visitor's address (X-Forwarded-For); until then every visitor looks like your server. ", helpLink("tracking-script", "The tracking script guide"), " has the details."));
+}
+
 function script(st) {
-  const sk = host(st.base);
-  const tag = `<script src="/traffic-js/skald.js" data-site="${st.site}" defer></script>`;
   return [
     h("p", null, "The tag counts what a log cannot see: clicks, form steps, scroll and booking embeds. It never sees AI crawlers or bots, so a server log is still the best source."),
     steps(
-      ["On the site's own web server, pass two addresses on to Skald. nginx, in the site's HTTPS server block:", codeBlock([
-        "location = /traffic-beacon {", "  limit_except POST { deny all; }", "  access_log off;", "  client_max_body_size 4k;",
-        `  proxy_pass ${st.base};`, `  proxy_set_header Host ${sk};`, "  proxy_ssl_server_name on;",
-        "  proxy_set_header X-Forwarded-For $remote_addr;", '  proxy_set_header Cookie "";', "  proxy_hide_header Set-Cookie;", "}",
-        "location ^~ /traffic-js/ {", "  limit_except GET { deny all; }", "  access_log off;",
-        `  proxy_pass ${st.base};`, `  proxy_set_header Host ${sk};`, "  proxy_ssl_server_name on;",
-        "  proxy_set_header X-Forwarded-For $remote_addr;", '  proxy_set_header Cookie "";', "  proxy_hide_header Set-Cookie;", "}",
-      ].join("\n"), "the nginx block"), "Then sudo nginx -t && sudo systemctl reload nginx. On Vercel, rewrites in vercel.json; on Netlify, two lines in _redirects (the guide has both). A site served by this Skald's own server needs nothing here."],
-      ["Put the tag in the <head> of every page:", codeBlock(tag, "the script tag")],
+      ["Put the tag in the <head> of every page:", codeBlock(plainTag(st.base, st.site), "the script tag")],
       ["Open a page of the site in a normal browser window (Do Not Track off), then press Next and Test connection here."],
     ),
-    h("p", { class: "note" }, "Whoever runs Skald's server must also trust your server for the visitor's address, and the page's host name must be one of the site's host names (Settings > Sites). ", helpLink("tracking-script", "The tracking script guide"), " has the options."),
+    h("p", { class: "note" }, `Nothing changes on your web server: the page loads the script from ${host(st.base)} and sends its events there. The page's host name must be one of the site's host names (Settings > Sites).`),
+    proxyFold(st.base, st.site),
   ];
 }
 

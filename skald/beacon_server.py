@@ -1,15 +1,26 @@
 """The in-page event beacon: a tiny public helper behind nginx.
 
-The website's pages post one small JSON body per event to their own server,
-`POST /traffic-beacon` (navigator.sendBeacon; no cookie, no third party).
-nginx forwards that one path here, to 127.0.0.1 only, with the caller's
-address in X-Real-IP. beacon.py says what a body may contain; this file
-decides whether to take it:
+The website's pages post one small JSON body per event, `POST /traffic-beacon`
+(navigator.sendBeacon with a text/plain body; no cookie). skald.js posts beside
+the address it was loaded from: straight to Skald when the tag loads it from
+Skald (cross-site), or to the site's own server when that server passes both
+paths on (first-party). nginx forwards that one path here, to 127.0.0.1 only,
+with the caller's address in X-Real-IP. beacon.py says what a body may
+contain; this file decides whether to take it:
 
   * POST /traffic-beacon only; anything else 404 / 405
-  * Origin must be one of the site's own (--origin / beacon.origins), and
-    Sec-Fetch-Site, when the browser sends it, "same-origin": 403 otherwise,
-    including no Origin at all
+  * Origin must be one of the site's own (--origin / beacon.origins, and
+    https://<each host> of a dashboard site): that map is the only proof a
+    post is the site's. 403 otherwise, including no Origin at all.
+    Sec-Fetch-Site, when the browser sends it, must be "same-origin",
+    "same-site" or "cross-site" (never "none"): a page of that Origin posting
+    here directly is cross-site, and allowed only because its Origin is in
+    the map. An answer to an Origin in the map carries
+    Access-Control-Allow-Origin: <that origin> and Vary: Origin, never
+    Allow-Credentials. skald.js sends a CORS-simple request (text/plain, no
+    custom header), so there is no preflight; OPTIONS stays 405.
+  * `X-Skald-Probe: 1` (the set-up Test's page check, tag_check.py): 200 with
+    X-Skald-Beacon, before any other rule; nothing read, counted or kept
   * a body of at most 1 KB (413), that beacon.validate accepts (400)
   * at most `beacon.per_minute` events per address per minute (burst of
     `beacon.burst`), and `beacon.site_per_second` for everyone together: 429
@@ -355,12 +366,22 @@ class Sites:
             sink.close()
 
 
+# What a browser's Sec-Fetch-Site may say on a page's post. "none" (typed in
+# the address bar, a bookmark) is never a page's event.
+FETCH_SITES = {"same-origin", "same-site", "cross-site"}
+PROBE_HEADER = "X-Skald-Probe"
+PROBE_ANSWER = "X-Skald-Beacon"
+
+
 def same_site(headers, allowed: set[str]) -> bool:
+    """The Origin is one of `allowed` (the site's own), and the browser's
+    Sec-Fetch-Site, when sent, is a page's. Cross-site is fine here: the
+    Origin, which a page cannot choose, is the proof."""
     origin = headers.get("Origin")
     if not origin or origin not in allowed:
         return False
     site = headers.get("Sec-Fetch-Site")
-    return site is None or site == "same-origin"
+    return site is None or site in FETCH_SITES
 
 
 def declined(headers) -> bool:
@@ -380,11 +401,18 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
         timeout = 5
 
         site = None             # the Sink this request is for (beacon posts)
+        cors = None             # the Origin to answer with CORS (one in the map)
 
-        def _send(self, code: int) -> None:
+        def _send(self, code: int, *more) -> None:
             self.send_response(code)
             self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", "0")
+            if self.cors:
+                # The page's own origin only, never "*", never credentials.
+                self.send_header("Access-Control-Allow-Origin", self.cors)
+                self.send_header("Vary", "Origin")
+            for name, value in more:
+                self.send_header(name, value)
             if self.site is not None:
                 # nginx logs it beside the status: each site's 204s, counted
                 # apart from its spool (events.audit).
@@ -396,7 +424,7 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
             self._send(code)
 
         def do_POST(self):
-            self.site = None
+            self.site = self.cors = None
             if public is not None and self.path.split("?", 1)[0] == stack_public_api.PATH:
                 return stack_public_api.handle(self, public)     # the public stack check
             if self.path.startswith("/traffic-hooks/"):    # signed tool hooks
@@ -404,10 +432,15 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
                 return handle(self, main.config, None, getattr(main, "config_path", None))
             if self.path.split("?", 1)[0] != PATH or not sites:   # no origin: hooks only
                 return self._send(404)
-            sink = sites.for_origin(self.headers.get("Origin"))
+            if self.headers.get(PROBE_HEADER) == "1":
+                # "Does this address reach Skald?" (tag_check.py): no body is
+                # read, nothing counted; 200, so nginx's 204 count is untouched.
+                return self._send(200, (PROBE_ANSWER, "1"))
+            origin = self.headers.get("Origin")
+            sink = sites.for_origin(origin)
             if sink is None:
                 return self._refuse(403, "origin")
-            self.site = sink
+            self.site, self.cors = sink, origin
             if sink.unverified():                      # site_verify.py: collects nothing yet
                 return self._refuse(403, "unverified")
             if not same_site(self.headers, {self.headers.get("Origin")}):
@@ -448,7 +481,7 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
             return self._send(204)
 
         def do_GET(self):
-            self.site = None
+            self.site = self.cors = None
             if self.path.split("?", 1)[0] == SNIPPET_PATH and sites:
                 return self._snippet(self.command == "GET")
             if self.path.startswith("/traffic-js/"):
@@ -487,7 +520,7 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
             self._send(405)
 
         def do_OPTIONS(self):
-            self.site = None
+            self.site = self.cors = None
             if public is not None and self.path.split("?", 1)[0] == stack_public_api.PATH:
                 return stack_public_api.handle(self, public)     # its CORS preflight
             self._send(405)

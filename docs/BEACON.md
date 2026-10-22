@@ -3,7 +3,7 @@
 The access log sees every request, and nothing a reader does once the page
 has loaded. A click on "Book a demo", a form started and not sent, a reader
 who reached the bottom: none of them is a request. The beacon counts them,
-on the site's own server, without cookies and without any third-party code.
+on your own Skald server, without cookies and without any third-party code.
 
 It is optional. A site that does not send beacons loses nothing; the log's
 figures never depend on it.
@@ -11,14 +11,17 @@ figures never depend on it.
 ## How it works
 
 ```
-page  --navigator.sendBeacon('/traffic-beacon', {...})-->  nginx  -->  beacon helper (127.0.0.1:8766)
-                                                             |               |
-                              the beacon log: time, status, site      the site's spool: one line per event
-                                                                             |
-                                                  run-daily: collect -> verify -> audit -> history (400 days)
+page  --navigator.sendBeacon('<Skald>/traffic-beacon', {...})-->  nginx  -->  beacon helper (127.0.0.1:8766)
+                                                                    |               |
+                                     the beacon log: time, status, site      the site's spool: one line per event
+                                                                                    |
+                                                         run-daily: collect -> verify -> audit -> history (400 days)
 ```
 
-1. The page posts one small JSON body per event to its own origin.
+1. The page posts one small JSON body per event to `/traffic-beacon` beside
+   the address it loaded `skald.js` from (below, "Where the tag posts"): with
+   the plain tag, straight to the Skald server; with the first-party set-up,
+   to the site's own server, which passes it on.
 2. nginx rate-limits it, caps the body at 1 KB, writes one line to its own
    beacon log (time, status and the site's name; no address) and forwards it
    to the helper (`skald/beacon_server.py`).
@@ -67,12 +70,74 @@ use the script tag.
   settings (visitor IDs, goals) are read again every 60 seconds. A site
   added from the dashboard takes events within a minute; no restart.
 
-### A site on another server: pass the tag through it
+### Where the tag posts (2.24.0)
 
-The tag posts to its own page's origin, so the page's server must forward two
-paths to the Skald server: `/traffic-js/` and `/traffic-beacon`. The browser
-then sees one origin, and the `Origin` the helper reads is the site's own.
-With Caddy on the site's server (`www.example.net`; Skald at
+The plain tag needs **no change on the site's server**:
+
+```html
+<script src="https://skald.example.com/traffic-js/skald.js" data-site="example.net" defer></script>
+```
+
+`skald.js` posts beside the address it was loaded from: `.../traffic-js/skald.js`
+gives `.../traffic-beacon` on the same origin, under the same folder. Loaded
+from `https://skald.example.com/traffic-js/skald.js`, it posts to
+`https://skald.example.com/traffic-beacon`; loaded from the page's own
+`/traffic-js/skald.js` (the first-party set-up, below), it posts to the page's
+own `/traffic-beacon`, as every version did. `data-endpoint` still wins. A copy
+served from another folder (not `.../traffic-js/`) posts to the page's own
+`/traffic-beacon`, as before. Before 2.24.0 the tag always posted to the page's
+own origin, so the plain tag only worked when the site's server passed the path
+on; without that, a Next.js site answered 308 or 405 and nothing arrived.
+
+A direct post is cross-site, and the helper takes it safely:
+
+- **The Origin is the proof.** It is taken only when its `Origin` is one of the
+  site's (the map above: `https://<each host>`, or the first site's
+  `beacon.origins`), and goes to that site's spool. Any other Origin, `null`, or
+  none at all: `403`, as before.
+- **Sec-Fetch-Site**, when the browser sends it, may be `same-origin`,
+  `same-site` (www. posting to app. of the same domain) or `cross-site`, and
+  only for an Origin in the map. `none` (not a page's post) is refused.
+- **CORS for that one Origin.** The answer carries
+  `Access-Control-Allow-Origin: <the page's origin>` and `Vary: Origin`, never
+  `*` and never `Access-Control-Allow-Credentials`. The request is CORS-simple
+  (`sendBeacon` with a `text/plain` Blob, or `fetch` with `keepalive` and a
+  string body, no custom header), so the browser sends **no preflight**:
+  `OPTIONS` stays `405`, and nginx needs no change. `fetch` sends no cookie to
+  another origin by default, and Skald's own session cookie is
+  `SameSite=Lax`, so a cross-site post never carries it.
+- **Rate limits, the 1 KB body, validation, Do Not Track and the bot rule are
+  the same** for both roads.
+- **Counted once.** Each event is one request, by one road: the tag picks one
+  address. A page with the tag twice (a first-party copy and Skald's, or one in
+  Tag Manager and one in the HTML) runs only the first; the second copy stops
+  at once (`skald.on`), so a page view is never sent twice. nginx logs each
+  answer once, so the audit's two roads are unchanged.
+- **The visitor's address.** A direct post comes from the visitor's own
+  browser, so Skald's nginx sees the visitor's address (`X-Real-IP`): no trust
+  setting is needed.
+- **The ID stays first-party.** The visitor ID lives in the page's own
+  `localStorage` (and, with `data-share-subdomains`, a cookie on the page's own
+  domain), exactly as before. Nothing is stored on Skald's domain.
+- **The set-up Test checks the page.** While nothing has arrived, Settings'
+  "Add the script tag" Test asks `POST <page>/sites/tagcheck`
+  (`skald/tag_check.py`): Skald fetches the site's home page by the site
+  check's safe rules (`site_fetch.py`), finds the tag, works out where it posts
+  by the same rule, and says what is wrong: no tag, a host the site does not
+  have, a script that does not load, a post address that answers 308, 404 or
+  405 (probed with `POST` and `X-Skald-Probe: 1`, which the helper answers
+  `200` with `X-Skald-Beacon` and counts nowhere, so nginx's 204 count is
+  untouched), or a Content-Security-Policy whose `connect-src` leaves Skald out.
+
+Ad blockers block third-party analytics addresses more often than a site's
+own. Where that matters, use the first-party set-up below; it stays supported.
+
+### First-party: pass the tag through the site's server
+
+To keep the script and its events on the site's own domain, the page's server
+forwards two paths to the Skald server: `/traffic-js/` and `/traffic-beacon`.
+The browser then sees one origin, and the `Origin` the helper reads is the
+site's own. With Caddy on the site's server (`www.example.net`; Skald at
 `skald.example.com`):
 
 ```caddy
@@ -133,7 +198,10 @@ neither beacon-only mode nor visitor IDs are on), `400` for a bad body,
 is not verified yet), `411` with no length, `413` over 1 KB
 and `429` over the limit. Until `beacon.origins` names an origin, the beacon
 answers `404`. Each answer to a post carries `X-Skald-Site: <site>` when the
-helper knew the site (2.9.0).
+helper knew the site (2.9.0), and, for an Origin in the map,
+`Access-Control-Allow-Origin: <that origin>` with `Vary: Origin` (2.24.0). A
+post with `X-Skald-Probe: 1` (the set-up Test's page check) answers `200` with
+`X-Skald-Beacon: 1` before any rule, reads no body and counts nothing.
 
 ### Events
 
@@ -332,6 +400,10 @@ location = /traffic-beacon {
   proxy_set_header X-Real-IP $remote_addr;
 }
 ```
+
+The plain tag posts here from the site's pages directly (cross-site): this
+location needs nothing more for it. The helper answers the CORS headers itself,
+and the request is CORS-simple, so there is no `OPTIONS` preflight to allow.
 
 The location's own `access_log` keeps the beacon posts out of the main
 access log, so they are never counted as requests or as a visit's form
