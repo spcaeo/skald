@@ -1,0 +1,16 @@
+{
+ "about": "No address in DNS: could not check",
+ "typed": "gone.example.com",
+ "names": {},
+ "pages": {},
+ "expect": {
+  "summary": null,
+  "cards": [
+   [
+    "unknown",
+    "Could not check gone.example.com"
+   ]
+  ],
+  "products": []
+ }
+}

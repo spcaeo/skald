@@ -1,0 +1,33 @@
+{
+ "about": "Drupal 10, by its generator tag and X-Drupal-Cache",
+ "typed": "www.example.com",
+ "pages": {
+  "GET https://www.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "Apache",
+    "X-Drupal-Cache": "HIT",
+    "X-Generator": "Drupal 10 (https://www.drupal.org)"
+   },
+   "body": "<html><head><meta name=\"Generator\" content=\"Drupal 10 (https://www.drupal.org)\"></head><body><img src=\"/sites/default/files/logo.png\"></body></html>"
+  }
+ },
+ "expect": {
+  "summary": "Your site runs Drupal 10 on PHP (version hidden). Nothing to do now, 1 to check, 1 tip.",
+  "cards": [
+   [
+    "hidden",
+    "PHP on www.example.com: version not shown by the server"
+   ],
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ]
+  ],
+  "products": [
+   "Apache version not shown @www.example.com",
+   "Drupal 10 @www.example.com",
+   "PHP version not shown @www.example.com"
+  ]
+ }
+}

@@ -1,0 +1,31 @@
+{
+ "about": "Joomla by its generator tag and /media/system/ files",
+ "typed": "www.example.com",
+ "pages": {
+  "GET https://www.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "Apache"
+   },
+   "body": "<html><head><meta name=\"generator\" content=\"Joomla! - Open Source Content Management\"><script src=\"/media/system/js/core.min.js\"></script></head></html>"
+  }
+ },
+ "expect": {
+  "summary": "Your site runs Joomla on PHP (version hidden). Nothing to do now, 1 to check, 1 tip.",
+  "cards": [
+   [
+    "hidden",
+    "PHP on www.example.com: version not shown by the server"
+   ],
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ]
+  ],
+  "products": [
+   "Apache version not shown @www.example.com",
+   "Joomla version not shown @www.example.com",
+   "PHP version not shown @www.example.com"
+  ]
+ }
+}

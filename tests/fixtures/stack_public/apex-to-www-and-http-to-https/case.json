@@ -1,0 +1,45 @@
+{
+ "about": "http://example.com goes to https://example.com/ then https://www.example.com/",
+ "typed": "http://example.com",
+ "pages": {
+  "GET http://example.com/": {
+   "status": 301,
+   "headers": {
+    "Location": "https://example.com/"
+   }
+  },
+  "GET https://example.com/": {
+   "status": 301,
+   "headers": {
+    "Location": "https://www.example.com/"
+   }
+  },
+  "GET https://www.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "nginx/1.24.0"
+   },
+   "body": "<html><p>Plain page</p></html>"
+  }
+ },
+ "expect": {
+  "summary": "Your site is served by nginx. Nothing to do now, 2 tips.",
+  "cards": [
+   [
+    "tip",
+    "Your server shows its exact version: nginx 1.24.0"
+   ],
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ],
+   [
+    "nothing",
+    "Nothing we know of applies"
+   ]
+  ],
+  "products": [
+   "nginx 1.24.0 @www.example.com"
+  ]
+ }
+}

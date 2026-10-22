@@ -1,0 +1,64 @@
+{
+ "about": "WordPress and WooCommerce on LiteSpeed, X-Powered-By shows an old PHP 8.3",
+ "typed": "shop.example.com",
+ "pages": {
+  "GET https://shop.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "LiteSpeed",
+    "X-LiteSpeed-Cache": "hit",
+    "X-Powered-By": "PHP/8.3.10"
+   },
+   "body_file": "home.html"
+  },
+  "GET https://shop.example.com/wp-login.php": {
+   "status": 302,
+   "headers": {
+    "Location": "https://shop.example.com/my-account/"
+   },
+   "body": ""
+  },
+  "GET https://shop.example.com/my-account/": {
+   "status": 200,
+   "headers": {},
+   "body": "<html><h1>My account</h1></html>"
+  },
+  "GET https://shop.example.com/xmlrpc.php": {
+   "status": 403,
+   "headers": {},
+   "body": "Forbidden"
+  },
+  "GET https://shop.example.com/readme.html": {
+   "status": 200,
+   "headers": {},
+   "body": "<h1 id=\"logo\">WordPress</h1><br /> Version 6.8.1"
+  }
+ },
+ "expect": {
+  "summary": "Your site runs WordPress 6.8.1 on PHP 8.3.10. 1 thing to do now, 2 tips.",
+  "cards": [
+   [
+    "update",
+    "Update needed: PHP 8.3.10 on shop.example.com"
+   ],
+   [
+    "tip",
+    "readme.html shows WordPress 6.8.1"
+   ],
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ],
+   [
+    "good",
+    "Login page on shop.example.com hidden or blocked (good)"
+   ]
+  ],
+  "products": [
+   "LiteSpeed version not shown @shop.example.com",
+   "PHP 8.3.10 @shop.example.com",
+   "WooCommerce version not shown @shop.example.com",
+   "WordPress 6.8.1 @shop.example.com"
+  ]
+ }
+}

@@ -1,0 +1,72 @@
+{
+ "about": "A Shopify store whose page loads its blog's files from a WordPress on blog.example.com",
+ "typed": "shop.example.com",
+ "pages": {
+  "GET https://shop.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "cloudflare",
+    "X-ShopId": "12345678",
+    "Powered-By": "Shopify",
+    "CF-RAY": "8d2f0c-ORD"
+   },
+   "body": "<html><link rel=\"stylesheet\" href=\"//shop.example.com/cdn/shop/t/1/assets/base.css\"><script src=\"https://cdn.shopify.com/s/files/1/0001/theme.js\"></script><img src=\"https://blog.example.com/wp-content/uploads/2026/09/post.jpg\"></html>"
+  },
+  "GET https://blog.example.com/wp-login.php": {
+   "status": 404,
+   "headers": {
+    "Server": "Apache"
+   },
+   "body": "Not Found"
+  },
+  "HEAD https://blog.example.com/wp-json/": {
+   "status": 200,
+   "headers": {
+    "Server": "Apache",
+    "Link": "<https://blog.example.com/wp-json/>; rel=\"https://api.w.org/\""
+   }
+  },
+  "HEAD https://blog.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "Apache"
+   }
+  }
+ },
+ "expect": {
+  "summary": "Your site runs Shopify behind Cloudflare. Nothing to do now, 1 to check, 3 tips.",
+  "cards": [
+   [
+    "hidden",
+    "PHP on blog.example.com: version not shown by the server"
+   ],
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ],
+   [
+    "info",
+    "A firewall sits in front: Cloudflare"
+   ],
+   [
+    "info",
+    "WordPress at blog.example.com"
+   ],
+   [
+    "hosted",
+    "Hosted by Shopify: they patch PHP and Node.js for you"
+   ],
+   [
+    "good",
+    "Login page on blog.example.com hidden or blocked (good)"
+   ]
+  ],
+  "products": [
+   "Apache version not shown @blog.example.com",
+   "Cloudflare @shop.example.com",
+   "PHP version not shown @blog.example.com",
+   "Shopify @shop.example.com",
+   "WordPress version not shown @blog.example.com"
+  ]
+ }
+}

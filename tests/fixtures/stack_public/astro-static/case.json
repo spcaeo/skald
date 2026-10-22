@@ -1,0 +1,30 @@
+{
+ "about": "A static Astro site: Node.js only builds it; nothing applies",
+ "typed": "www.example.com",
+ "pages": {
+  "GET https://www.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "nginx"
+   },
+   "body": "<html><head><meta name=\"generator\" content=\"Astro v4.5.0\"><link rel=\"stylesheet\" href=\"/_astro/index.abc.css\"></head></html>"
+  }
+ },
+ "expect": {
+  "summary": "Your site runs Astro 4.5.0. Nothing to do now, 1 tip.",
+  "cards": [
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ],
+   [
+    "nothing",
+    "Nothing we know of applies"
+   ]
+  ],
+  "products": [
+   "Astro 4.5.0 @www.example.com",
+   "nginx version not shown @www.example.com"
+  ]
+ }
+}

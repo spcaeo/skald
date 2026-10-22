@@ -1,0 +1,36 @@
+{
+ "about": "X-Powered-By shows PHP/7.4.33: no official fix, upgrade the branch",
+ "typed": "www.example.com",
+ "pages": {
+  "GET https://www.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "Apache/2.4.41 (Ubuntu)",
+    "X-Powered-By": "PHP/7.4.33",
+    "Set-Cookie": "PHPSESSID=abc123; path=/"
+   },
+   "body": "<html><a href=\"/contact.php\">Contact</a></html>"
+  }
+ },
+ "expect": {
+  "summary": "Your site is served by Apache on PHP 7.4.33. 1 thing to do now, 2 tips.",
+  "cards": [
+   [
+    "update",
+    "Update needed: PHP 7.4.33 on www.example.com gets no official fix"
+   ],
+   [
+    "tip",
+    "Your server shows its exact version: Apache 2.4.41"
+   ],
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ]
+  ],
+  "products": [
+   "Apache 2.4.41 @www.example.com",
+   "PHP 7.4.33 @www.example.com"
+  ]
+ }
+}

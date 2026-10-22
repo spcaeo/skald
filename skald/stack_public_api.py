@@ -36,7 +36,7 @@ import sys
 import threading
 import time
 from collections import OrderedDict, deque
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import advisories, stack_public
@@ -148,6 +148,18 @@ class Service:
             while len(self.cache) > CACHE_SIZE:
                 self.cache.popitem(last=False)
 
+    def _retry(self, wait: float) -> dict:
+        """When one more is allowed: seconds, and the wall-clock time (UTC, ISO)."""
+        at = self.now() + timedelta(seconds=int(wait) + 1)
+        return {"retry_in": int(wait) + 1,
+                "retry_at": at.astimezone(timezone.utc).isoformat(timespec="seconds")}
+
+    @staticmethod
+    def _kind(why) -> str:
+        """`address`: not a website address at all; `refused`: one the check does not read
+        (an IP, an inside name, a name that points inside), its words say which."""
+        return "address" if isinstance(why, stack_public.BadAddress) else "refused"
+
     def run(self, sender: str, raw, cached_only: bool = False) -> tuple[int, dict, dict]:
         """(status, body, extra headers) for one request's "url". `cached_only`: the answer
         of a check made in the last hour, or 404; never a new fetch (a report of findings
@@ -156,40 +168,44 @@ class Service:
             wait = self.senders.allow(sender or "?")
         if wait:
             self.count("limited")
-            return 429, {"error": f"That is {self.senders.limit} checks from you this hour. "
-                                  "Please try again later."}, \
+            return 429, {"kind": "rate", "limit": self.senders.limit, **self._retry(wait),
+                         "error": f"You've run {self.senders.limit} checks in the last hour."}, \
                 {"Retry-After": str(int(wait))}
         try:
             scheme, host = stack_public.target(raw)
         except stack_public.Refused as why:
             self.count("refused")
-            return 400, {"error": str(why)}, {}
+            return 400, {"error": str(why), "kind": self._kind(why)}, {}
         key = f"{scheme}://{host}"
         got = self._cached(key)
         if got is not None:
             self.count("cached")
             return 200, {**got, "cached": True}, {}
         if cached_only:
-            return 404, {"error": "Check the site first, then send the report."}, {}
+            return 404, {"error": "Check the site first, then send the report.",
+                         "kind": "not_checked"}, {}
         with self.lock:
             wait = self.everyone.allow("all")
         if wait:
             self.count("limited")
-            return 429, {"error": "Many people are checking their sites right now. "
+            return 429, {"kind": "busy", **self._retry(min(wait, 600)),
+                         "error": "Lots of people are checking right now. "
                                   "Please try again in a few minutes."}, \
                 {"Retry-After": str(int(min(wait, 600)))}
         if not self.slots.acquire(blocking=False):
             self.count("busy")
-            return 503, {"error": "Many checks are running right now. Please try again in a minute."}, \
-                {"Retry-After": "30"}
+            return 503, {"kind": "busy", **self._retry(30),
+                         "error": "Lots of people are checking right now. "
+                                  "Please try again in a few minutes."}, {"Retry-After": "30"}
         try:
             answer = self.checker(key + "/")
         except stack_public.Refused as why:
             self.count("refused")
-            return 400, {"error": str(why)}, {}
+            return 400, {"error": str(why), "kind": self._kind(why)}, {}
         except Exception:                       # noqa: BLE001 - never a traceback to a stranger
             self.count("failed")
-            return 500, {"error": "The check failed. Please try again later."}, {}
+            return 500, {"kind": "failed", "error": "Our checker failed on this site. That's on "
+                                                    "our side, not your site. Try again later."}, {}
         finally:
             self.slots.release()
         self.count("checks")
@@ -262,6 +278,6 @@ def handle(handler, service: Service) -> None:
     except (ValueError, UnicodeDecodeError):
         body, raw = None, None
     if not isinstance(raw, str):
-        return _send(handler, 400, {"error": "Type your site's address, as you would in a browser."}, cors)
+        return _send(handler, 400, {"error": stack_public.NOT_AN_ADDRESS, "kind": "address"}, cors)
     status, answer, extra = service.run(sender(handler), raw, body.get("cached_only") is True)
     _send(handler, status, answer, cors, extra)
