@@ -27,12 +27,14 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-21-2.22.0",
+  id: "2026-10-22-2.22.1",
   items: [
-    ["A public site check (optional)", "an install can offer a free \"Is my site exposed?\" page: what a site shows the world (PHP, WordPress, Next.js, servers, firewalls), which advisories apply, every finding with its proof. Off unless you turn it on.", "security"],
+    ["Public site check: tidier results", "the same finding on two hosts is one card listing both, and the check tells how many checks are left this hour and when the next is free.", "security"],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.22.0
+    ["A public site check (optional)", "an install can offer a free \"Is my site exposed?\" page: what a site shows the world (PHP, WordPress, Next.js, servers, firewalls), which advisories apply, every finding with its proof. Off unless you turn it on.", "security"],
     // 2.21.1
     ["Security counts fixed", "request bursts and login hammering are now counted the same way by both counts on real, out-of-order logs; the same harmless page sent compressed and uncompressed, or a normal page answering an attack in its address, is no longer a possible exposure.", "security"],
     // 2.21.0

@@ -264,7 +264,12 @@ security:
   `reason` (`unreachable`, `blocked` by its firewall, or `error`) and `error` in plain words
   ("no answer in 5 seconds", "the name doesn't exist", "its certificate is invalid"). With `"cached_only": true` it answers only a check made in the last hour
   (404 otherwise) and never fetches: a page's "send this report" reads its findings back this
-  way, so a report carries only what this check found. Off, the path is an unknown hook. Put it behind your marketing site's own
+  way, so a report carries only what this check found. Every 200 answer to a check also says
+  this sender's `limit`, how many checks are `left` this hour (after this one), and `next_at`
+  (the UTC time the oldest counted check stops counting). `{"quota": true}` (no `url`) answers
+  just those three and counts nothing: a page's multi-site mode asks before it starts. The
+  same finding on two hosts of one site (the same exact server version on `www.` and `wp.`) is
+  one card listing both hosts, with each host's evidence. Off, the path is an unknown hook. Put it behind your marketing site's own
   name (an nginx `location` that proxies to it) so the page calls it same-origin.
 - **Origins:** a browser's `Origin`, when sent, must be one of `public_check_origins`; only
   that origin gets CORS headers. A request with no `Origin` (curl) is allowed and rate-limited.
