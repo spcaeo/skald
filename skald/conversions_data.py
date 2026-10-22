@@ -2,7 +2,9 @@
 local day, from conversions.sqlite - the hooks, the beacon's events with
 visitor IDs, and the site's lead DB (conversions/).
 
-Per day: every action's rows by stage; abandoned starts (a start with a
+Per day: every action's rows by stage (2.26: a lead's second finished row,
+a `paid` after its `completed`, is left out of every figure, so one lead
+counts once: store.repeat_finishes); abandoned starts (a start with a
 visitor ID and no finish within `conversions.abandon_hours`, only once that
 window has closed); and, for finished rows (completed or paid), the
 breakdowns by source, first source, campaign, landing page, country,
@@ -161,8 +163,11 @@ def figures(db, site: str, tz, first: date, last: date, now: str, hours: float,
     journeys = db.execute("SELECT 1 FROM journeys WHERE site = ? LIMIT 1",
                           (site,)).fetchone() is not None
     out: dict = {}
+    again = store.repeat_finishes(db, site)     # one lead counts once (2.26)
     for r in db.execute("SELECT * FROM conversions WHERE site = ? AND at >= ? AND at < ? "
                         "AND test = 0 ORDER BY at, id", (site, lo, hi)).fetchall():
+        if r["id"] in again:
+            continue
         f = out.setdefault(_day(r["at"], tz), _empty(journeys))
         _add(f["stages"], r["action"], r["stage"])
         if r["label"]:

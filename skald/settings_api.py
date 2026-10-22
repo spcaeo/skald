@@ -26,6 +26,9 @@ check:
                                        SMTP settings; admins; 3 per 10 minutes;
                                        only to the caller or a confirmed recipient
                                        (mail_confirm.py)
+  GET  settings/views-fill             Settings > Sites > Views: the fill of past days
+  POST settings/views-fill-start       for new groups (views_fill_api.py); a save of
+                                       sites.views answers `views` (what changed)
   GET  settings/audit?action=&limit=&format=csv
                                        the audit log (admins; install admins see
                                        every organisation's rows)
@@ -56,8 +59,12 @@ from .accounts import auditlog, limits, sessions, users
 from .auth_api import answer, csrf_ok, read_json, text
 
 PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
-PATH = re.compile(PAGE + r"(?P<act>settings(?:/(?:save|retention-preview|mail-preview|test-mail|audit))?)$")
-GETS = {"settings", "settings/retention-preview", "settings/mail-preview", "settings/audit"}
+PATH = re.compile(PAGE + r"(?P<act>settings(?:/(?:save|retention-preview|mail-preview|test-mail|audit|"
+                         r"views-fill(?:-start)?))?)$")
+GETS = {"settings", "settings/retention-preview", "settings/mail-preview", "settings/audit",
+        "settings/views-fill"}
+ADMIN_ONLY = ("settings/audit", "settings/test-mail", "settings/retention-preview",
+              "settings/mail-preview", "settings/views-fill", "settings/views-fill-start")
 ADMIN = ("owner", "admin")
 TEST_LIMIT, TEST_MINUTES = 3, 10
 # Values only an install admin sees (a login name, server paths).
@@ -142,8 +149,7 @@ def handle(h, write: bool, config, live_dir, allowed: set[str], same_origin,
         c = Ctx(h, db, session, m.group("site"), role, org, config, live_dir,
                 history_path, config_path)
         c.allowed = allowed
-        if act in ("settings/audit", "settings/test-mail", "settings/retention-preview", "settings/mail-preview") \
-                and not (c.admin or c.install_admin):
+        if act in ADMIN_ONLY and not (c.admin or c.install_admin):
             return c.no(403, "Only an admin can do this.", role=role)
         form = {}
         if write:
@@ -293,7 +299,13 @@ def save(c: Ctx, form):
     if "mail.to" in saved and waiting:
         from .mail_confirm import ask
         ask(c.db, c.config, getattr(c, "allowed", None), c.org, c.site, waiting)
-    return c.ok(saved=saved, settings=described(c), mail_waiting=waiting, notice=notice(c))
+    now = described(c)
+    extra = {}
+    if "sites.views" in saved:          # new groups: the page offers to fill their past days
+        from . import views_fill_api
+        extra["views"] = views_fill_api.after_save(
+            c, (current.get("sites.views") or {}).get("value"), now["sites.views"]["value"])
+    return c.ok(saved=saved, settings=now, mail_waiting=waiting, notice=notice(c), **extra)
 
 
 def _fallback(c: Ctx, name: str, cap: int | None = None):
@@ -545,8 +557,19 @@ def _csv(c: Ctx, entries: list[dict]):
     return None
 
 
+def _fill_status(c: Ctx, form):
+    from . import views_fill_api
+    return views_fill_api.status(c, form)
+
+
+def _fill_start(c: Ctx, form):
+    from . import views_fill_api
+    return views_fill_api.start(c, form)
+
+
 ROUTES = {"settings": settings, "settings/save": save, "settings/retention-preview": preview,
-          "settings/test-mail": test_mail, "settings/mail-preview": mail_preview, "settings/audit": audit}
+          "settings/test-mail": test_mail, "settings/mail-preview": mail_preview, "settings/audit": audit,
+          "settings/views-fill": _fill_status, "settings/views-fill-start": _fill_start}
 
 
 # --------------------------------------------------------------- security

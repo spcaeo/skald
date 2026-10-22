@@ -1,8 +1,9 @@
 # Leads in Skald: the reference for an app that sends them
 
 Everything an app (or an AI session working on it) needs to send leads to Skald, check them,
-correct them and read them back. Checked against the code of version 2.24.0. Where something
-does not exist, this page says **not available**. The details behind each part:
+correct them and read them back. Checked against the code of version 2.24.0, and the changes
+marked "(next release)": lookup by any reference, one lead per ref, `conversions remove` and
+`mark-test --ref`, `SKALD_MCP`. Where something does not exist, this page says **not available**. The details behind each part:
 [INTEGRATIONS.md](INTEGRATIONS.md) (hooks), [INTEGRATIONS-LEADS.md](INTEGRATIONS-LEADS.md)
 (the reconcile GET and test marks), [API.md](API.md), [MCP.md](MCP.md),
 [DATA-CONTRACT-CONVERSIONS.md](DATA-CONTRACT-CONVERSIONS.md).
@@ -43,7 +44,7 @@ every tool is marked `readOnlyHint`, and no MCP tool sends, marks, corrects or d
 | --- | --- |
 | URL | `POST https://<skald-host>/traffic-mcp` (one address for every site; the token decides which sites) |
 | Transport | Streamable HTTP, one JSON answer per POST, no event stream (`GET` is 405), body at most 64 KiB. Protocol `2025-06-18` (`2025-03-26` and `2024-11-05` accepted). Or stdio on the server: `skald mcp [--site S] [--private]` |
-| Switched on | Only when the install's config has `mcp: {enabled: true}` and accounts (`access.mode: sessions`). Off: 404. Ask the Skald admin |
+| Switched on | Only when the install's config has `mcp: {enabled: true}` and accounts (`access.mode: sessions`). On Docker: `SKALD_MCP=true` in the container's environment (next release; before it, a Docker install made its config from the environment and had no way to switch MCP on). Off: 404 `{"error": "MCP is not switched on here"}`. Ask the Skald admin |
 | Auth | `Authorization: Bearer skald_<id>_<secret>`, an organisation API token with the `mcp` scope. 401 without it |
 | Where to make it | **Settings › Team & access › Connections › Connect an AI assistant (MCP) › Set up** (a token for the current site), or **Make a token by hand** (several sites, any scopes). Owners and admins only. On the server: `skald token create NAME --scope mcp --site example.com`. Shown once |
 | Scopes | `mcp` (use the endpoint), plus `read_private` only if the agent must see addresses, emails and names (`find_person`). `read` and `ingest` are not used by MCP |
@@ -81,7 +82,7 @@ The 14 tools (all **READ**). Dates are `YYYY-MM-DD` in the site's zone; no dates
 | `data_quality` | READ | per day: verified, audited, withheld, log gaps |
 | `site_health` | READ | open alerts, uptime, errors today, late runs |
 | `conversions` | READ | **the hook's leads live here**: every action by stage (started, completed, abandoned, cancelled, no-show, won, lost), leads and demos booked, by source or by `first_source`, `landing`, `country`, `campaign`, `device`, `tool`; filters `action` and `label`. Anonymous; test rows never counted |
-| `find_person` | READ | **`read_private` only.** One IP, email, visitor ID or lead ref: visits, leads, every conversion (test, cancelled, removed too). Each call is audit-logged. See the caveat in section 7 |
+| `find_person` | READ | **`read_private` only.** One IP, email, visitor ID or lead ref: visits, leads, every conversion (test, cancelled, removed too). Each call is audit-logged. Any ref is found by its `external_ref` from the next release (section 7) |
 
 Also two resources (`skald://docs/api`, `skald://docs/counting`), two per site
 (`skald://sites/<site>/overview`, `skald://sites/<site>/llms.txt`) and one prompt,
@@ -119,7 +120,7 @@ Sign the encoded query, character for character.
 | `GET /traffic-hooks/<site>/leads` | yes (2.18) | list the leads Skald holds **from the `lead` tool** (not `json`, not other tools) |
 | `POST /traffic-hooks/<site>/leads/test` | yes (2.19) | mark or unmark refs as test (`lead` tool only) |
 | get one lead with its steps | **not available** on the hooks. With an API token that has `read_private`: `GET /traffic-api/v1/<site>/people?q=<ref>` (section 2.2) |
-| delete, correct or soft-remove a lead, a stage, its `at`, action or label | **not available** over HTTP or MCP. Only the admin CLI (`conversions forget`, section 4) |
+| delete, correct or soft-remove a lead, a stage, its `at`, action or label | **not available** over HTTP or MCP. Only the admin CLI: `conversions remove` (soft, next release) or `conversions forget` (hard), section 4 |
 | the delivery log | **not available** over HTTP or MCP. Settings › This site › Integrations (last 50 per hook) and `skald hooks list` (last 5) |
 | view the hook secret | **not available** anywhere: it is shown once, when made |
 | rotate the hook secret | Settings › This site › Integrations › Rotate secret, or `skald hooks secret <site> lead`. The old one stops at once |
@@ -177,7 +178,7 @@ rows stay and are listed, never counted. One delivery row and one audit-log entr
 | --- | --- | --- |
 | `conversions` | `read` | conversions.json: per local day, every action by stage, abandoned, labels, breakdowns. The Leads figure is the finished rows of lead actions (section 3.4) |
 | `leads` | `read` | leads.json: the website's lead database only |
-| `people?q=<value>` | `read_private` | one IP, email, visitor ID or lead ref: every conversion of it (each stage, test, cancelled, removed), the leads, visits and journeys, linked. Audit-logged. The "steps" of one lead |
+| `people?q=<value>` | `read_private` | one IP, email, visitor ID or lead ref: every conversion of it (each stage, test, cancelled, removed), the leads, visits and journeys, linked. Audit-logged. The "steps" of one lead. A visitor ID is only the `skv_` + 22 characters shape; any other ref (`u-1234567`, `u-1001`) is looked up as the lead's `external_ref` on that site (and as a site's own visitor ID) |
 
 ```sh
 curl -sS -H "Authorization: Bearer $SKALD_API_TOKEN" \
@@ -256,16 +257,20 @@ without leaving a row.
 
 - **Duplicates.** One row per (site, tool, `external_ref`, stage): `UNIQUE` in the store. The
   first delivery wins. A resend of a kept ref and stage changes nothing, not its `at`,
-  `action`, `label`, `test` or touches.
+  `action`, `label`, `test` or touches. The action is **not** part of the key: a `trial`
+  `started` for a ref that already has a `signup` `started` is answered
+  `{"ok":true,"recorded":0,"duplicates":1}` and dropped (checked on the live install).
 - **Stages.** `conversions.STAGES` as above. `FINISHED` = `completed`, `paid`. `OUTCOMES` =
   `won`, `lost`: a later outcome of a finished lead, a row of its own on its own `at`, never a
   lead itself. A `won` or `lost` for a ref that never finished is not a lead.
 - **Lead actions** (`LEAD_ACTIONS`): `contact`, `signup`, `waitlist`, `trial`, `demo`
   (`DEMO_ACTIONS` = `demo`, also counted as demos booked).
-- **What counts as a lead.** Each finished row (`completed` or `paid`) of a lead action, test
-  rows left out, on the local day of its `at`. Each such row counts: a ref sent as both
-  `completed` and `paid` under a lead action is two leads. Another action (`paid`, `deal`,
-  `lead`, `purchase`...) is a conversion, never a lead.
+- **What counts as a lead.** One (site, tool, `external_ref`, action) of a lead action is one
+  lead, on the local day of its first finished row (`completed` or `paid`; the earliest `at`,
+  then the stage's name), test rows left out. A ref sent as both `completed` and `paid` under
+  a lead action is one lead (next release; before, two): the later row is a step of it, listed
+  in its drawer, left out of Leads, Every action and the breakdowns. Another action (`paid`,
+  `deal`, `lead`, `purchase`...) is a conversion, never a lead, and counts every row.
 - **Abandoned.** A `started` row with a visitor ID and no `completed` or `paid` of the same
   action, by the same visitor ID or identity, within 24 hours (`conversions.abandon_hours`).
   Counted only once the window has closed; never without a visitor ID; worked out at each
@@ -310,7 +315,8 @@ These are for the Skald admin, not for an app.
 | Command | Flags (from the argparse code) | Does |
 | --- | --- | --- |
 | `conversions list SITE` | `--test` (only rows marked test), `--limit N` (default 50) | the latest rows, newest first: id, at, tool, action, stage, ref, label, TEST |
-| `conversions mark-test SITE ID [ID ...]` | `--unmark` | mark rows by **id** (not ref) as test, with every stage of the same ref; audit-logged |
+| `conversions mark-test SITE [ID ...]` | `--ref REF` (repeat for more; next release), `--tool T` (default `lead`), `--unmark` | mark rows by **id**, or every stage of each **ref** (the same function as `POST .../leads/test`), as test, and later stages of it too; prints the rows changed, already so and refs not found; audit-logged |
+| `conversions remove SITE` | `--ref REF` (required), `--tool T` (default `lead`), `--stage S`, `--action A`, `--why "text"` (required), `--dry-run` | next release: **soft remove** of that ref's rows (or one stage or action of it): each row copied whole into `removed` with when and why, out of every count, listed under Calendar bookings › More › Show left out › Removed and in Find a person. Refused without `--why`; `--dry-run` lists what would go. Audit-logged. A resend of the same ref and stage afterwards is kept as a new row |
 | `conversions forget` | one of `--email`, `--vid`, `--lead REF`; `--dry-run` | **hard delete**: the conversions (every tool), and through their visitor IDs and email the other conversions and page views of the same person, the identity, removed rows, delivery rows and spool lines. Add the global `--site` to keep it to one site; try `--dry-run` first |
 | `forget` | `--ip`, `--email`, `--vid`, `--lead`; `--dry-run` | a deletion request: also the visits kept with an address |
 | `conversions prune` | | delete what is past its keeping time (the daily run does it) |
@@ -326,6 +332,9 @@ Examples:
 ```sh
 docker exec skald skald conversions list example.com --limit 20
 docker exec skald skald conversions mark-test example.com 6 7
+docker exec skald skald conversions mark-test example.com --ref u-1001 --ref u-1002
+docker exec skald skald conversions remove example.com --ref u-1001 --stage paid \
+  --why "paid sent under the signup action" --dry-run
 docker exec skald skald --site example.com conversions forget --lead u-1001 --dry-run
 docker exec skald skald settings get example.com conversions.identity
 docker exec skald skald settings set example.com beacon.visitor_ids true
@@ -341,12 +350,12 @@ on is withheld. To backfill old leads, post them with their real `at` (section 6
 
 | Where | What |
 | --- | --- |
-| **Leads & sales › Leads** | one row per lead (each finished row of a lead action): when, name and email (owners and admins, identity `full` only), action, label, stage now (the latest won, lost, cancelled, no-show or rescheduled of the same lead), where it came from, source, landing, country. A row opens its steps and pages. List, Board, Timeline, Map. Names viewed are audit-logged |
+| **Leads & sales › Leads** | one row per lead (the first finished row of each ref and lead action, section 3.4): when, name and email (owners and admins, identity `full` only), action, label, stage now (the latest won, lost, cancelled, no-show or rescheduled of the same lead), where it came from, source, landing, country. A row opens its steps and pages. List, Board, Timeline, Map. Names viewed are audit-logged |
 | **Leads & sales › Summary** | Count from **Tools** (the hooks) or **Lead database**, never added: Leads, Demos booked, Won, Lost against the period before; Every action (started, completed, abandoned, rate over 10 starts, cancelled, won, lost) |
 | **Leads & sales › Sources** | where finished leads came from: last, first and assisted touch, time to convert |
 | **Leads & sales › Funnels** | pages and events over visits (the script tag), not the hook |
 | **Leads › More › Show left out** | test, spam and duplicate leads, marked, never counted |
-| **Calendar bookings › More › Show left out** | Cancelled or no-show, **Removed** (rows a lead-database sync took away, kept whole), Test |
+| **Calendar bookings › More › Show left out** | Cancelled or no-show, **Removed** (rows a lead-database sync or `conversions remove` took away, kept whole with when and why), Test |
 | **Find a person** | one IP, email, visitor ID or ref, linked (owners and admins) |
 | **Overview › Summary** | the Leads and Demos booked tiles, today live |
 | **Settings › This site › Integrations** | each hook's state, Make/Rotate secret, Send a test event, the last 50 deliveries, Status |
@@ -370,8 +379,11 @@ existed is "not recorded", never zero.
 - **Change the action mid-life.** Keep one `action` per ref. A later stage under another action
   is a row of that other action (its outcome and abandoned are matched per action), and a
   resend of a kept stage keeps the first action.
-- **Send `completed` and `paid` for the same ref under a lead action.** Both are finished: two
-  leads. Report a payment as its own action (`paid`).
+- **Send two actions with the same stage for one ref** (`signup` `started`, then `trial`
+  `started`). The second is a duplicate and is dropped. Use one action per ref.
+- **Send `completed` and `paid` for the same ref under a lead action** to count a payment. It
+  is one lead (next release; before, two), and the `paid` is only a step of it, in no count.
+  Report a payment as its own action (`paid`).
 - **Send names or emails where the site's identity is not `full`.** They are dropped, but they
   should not leave the app at all.
 - **Exceed the rate limits.** Each hook is a token bucket: 30 at once (`hooks.burst`), then
@@ -385,29 +397,33 @@ existed is "not recorded", never zero.
 - **Resend a lead deleted on request.** The `lead` hook keeps no hash of bodies, so it would
   come back.
 
-**Correcting a mistake.** There is no edit and no soft remove for a hook's lead:
+**Correcting a mistake.** There is no edit, and no remove over HTTP or MCP, for a hook's lead:
 
 - a lead that should not count: mark it test (`POST .../leads/test`, the app can do it), or an
-  admin runs `conversions mark-test SITE ID`. Kept and listed, never counted; reversible.
-- a wrong `at`, action, label, source or stage: **ask the Skald admin.** The only way is
-  `skald --site <site> conversions forget --lead <ref> --dry-run`, then without `--dry-run`
-  (a hard delete of every stage of that ref from every tool, its identity, delivery rows and
-  spool lines, and also every other conversion and page view of the visitor IDs it carries),
-  and then the app sends the lead again, correct. Not available over HTTP or MCP.
+  admin runs `conversions mark-test SITE --ref <ref>` (or by row id). Kept and listed, never
+  counted; reversible.
+- a wrong `at`, action, label, source or stage: **ask the Skald admin.** From the next release:
+  `skald conversions remove <site> --ref <ref> [--stage S] --why "..." --dry-run`, then without
+  `--dry-run` (each row kept whole under Calendar bookings › More › Show left out › Removed,
+  with when and why, out of every count), and then the app sends the lead again, correct: a
+  resend after a remove is kept as a new row. Before it, or to erase a person on request:
+  `skald --site <site> conversions forget --lead <ref> --dry-run`, then without `--dry-run` (a
+  hard delete of every stage of that ref from every tool, its identity, delivery rows and spool
+  lines, and also every other conversion and page view of the visitor IDs it carries). Not
+  available over HTTP or MCP.
 - re-sending a different stage never replaces a row: it adds a row of that stage, and the
   wrong one stays.
-- a soft remove (the row copied whole, with when and why, into the list shown under Calendar
-  bookings › More › Show left out › Removed) exists in the code (`store.remove`), but **no CLI
-  command, HTTP call or MCP tool exposes it today**: only the lead-database sync uses it. For a
-  hook's row, **ask the Skald admin**; their only tool today is `forget` (above) or a test mark.
+- a removed ref is no longer in the GET `leads` list, so an app that resends every ref missing
+  from that list sends it back. If the app reconciles that way and the lead must stay out, mark
+  it test instead of removing it.
 
 ## 7. Known limits
 
-- A lead ref of 8 to 80 characters made only of letters, digits, `_ . : -` (for example
-  `u-1234567`) is read as a **visitor ID** by the person lookup (Find a person,
-  `people?q=`, MCP `find_person`), so searching it finds nothing by ref. Shorter refs
-  (`u-1001`) are found. The GET `leads` list and the CLI are not affected.
+- Fixed in the next release: up to 2.25, a lead ref of 8 to 80 characters made only of
+  letters, digits, `_ . : -` (for example `u-1234567`) was read as a **visitor ID** by the
+  person lookup (Find a person, `people?q=`, MCP `find_person`), so it was never found by its
+  ref. Now only the `skv_` shape is a visitor ID; every other ref is found by `external_ref`.
 - The GET `leads` list and `leads/test` cover the `lead` tool only, not `json`.
 - The delivery log and secret rotation are dashboard or CLI only.
-- A hook's row cannot be edited or soft-removed by any command or call; a correction is a
-  `forget` (hard delete) by the admin and a resend.
+- A hook's row cannot be edited by any command or call. A correction is a soft remove by the
+  admin (`conversions remove`, next release) or a `forget` (hard delete), and a resend.

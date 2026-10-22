@@ -83,6 +83,16 @@ mcp:
   enabled: true
 ```
 
+**Docker** (a config made from the `SKALD_*` environment): add `SKALD_MCP=true` to the
+container's environment (`-e`, `--env-file` or Compose) and start the container again
+(2.26). The image's nginx already passes `/traffic-mcp` to the helper; before 2.26 a
+Docker install without its own mounted config had no way to say `mcp.enabled`, so the
+path answered 404 `{"error": "MCP is not switched on here"}`. A mounted config
+(`/etc/skald/config.yml`) keeps using its own `mcp:` key. A front proxy in front
+of the container must pass `POST /traffic-mcp` too (DEPLOY.md has the nginx location).
+Check from the server: `curl -s -X POST http://127.0.0.1:8080/traffic-mcp -d '{}'` answers
+401 (on, no token) instead of 404 (off).
+
 Make a token with the `mcp` scope in Settings > Connections (called API & tokens before):
 the card "Connect an AI assistant (MCP)" makes one for the current site, shows the Claude Code
 and Claude Desktop set-up, and tests it with `initialize` and `tools/list`; "Make a token by

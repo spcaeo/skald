@@ -51,25 +51,23 @@
 
 ## What's new
 
+- **2.26.0: page groups fill their past days, and leads found by their reference** ([changelog](CHANGELOG.md#2260-2026-10-22)).
+  Save a page group and its past days are counted from the raw log, audited; a lead is found by
+  the sender's own ID; one sign-up is one lead even when it also sends paid; MCP switch for Docker.
 - **2.25.0: a lead's reference, and Mark as test on screen** ([changelog](CHANGELOG.md#2250-2026-10-22)).
   The sender's own ID in Leads and every drawer; owners and admins mark test leads in one click.
 - **2.24.0: the script tag just works** ([changelog](CHANGELOG.md#2240-2026-10-22)). No change on
   your web server; the setup Test now says what's wrong when nothing arrives.
 - **2.23.0: Leads & sales opens on 7 days, and a sturdier morning run** ([changelog](CHANGELOG.md#2230-2026-10-22)).
   All time, "Today so far", one filter row with five fixes; the kit zip with or without its token.
-- **2.22.3: a faster live run** ([changelog](CHANGELOG.md#2223-2026-10-22)). About twice as fast,
+- **2.22.3: a faster live run** ([changelog](docs/CHANGELOG-2.21-2.22.md#2223-2026-10-22)). About twice as fast,
   every figure unchanged; the live audit skips a stale Real time snapshot instead of failing.
-- **2.22.0 to 2.22.2: an optional public site check** ([changelog](CHANGELOG.md#2220-2026-10-21)).
+- **2.22.0 to 2.22.2: an optional public site check** ([changelog](docs/CHANGELOG-2.21-2.22.md#2220-2026-10-21)).
   Turn it on and your install answers a free "Is my site exposed?" page: what a site shows the
   world, which advisories apply, and the proof for every finding; a site behind a firewall that
   stops the check is "could not check", with the command to run it yourself. Live at
   https://skaldanalytics.com/check/, and as a free CLI and GitHub Action:
   [php2shell-check](https://github.com/spcaeo/php2shell-check).
-- **2.21.0 and 2.21.1: Security from your server log, and a link for every view**
-  ([changelog](CHANGELOG.md#2210-2026-10-21)). Is anything exposed, who is scanning you, attack
-  attempts, fake browsers, a block list, your stack with the October 2026 PHP and Node.js
-  advisories, and alerts to your team. Every open view has its own link, and every URL has copy
-  and open buttons.
 
 Earlier releases: [CHANGELOG.md](CHANGELOG.md).
 
@@ -469,6 +467,8 @@ person search and the other Settings pages need your own Skald. Every image belo
 | <img src="docs/screenshots/sales-bookings.png" alt="Leads and sales, Calendar bookings: every stage of the demos booked through Calendly, the demo funnel from opened to booked, cancelled, rescheduled and no-show, and where the booked ones came from" width="440"><br>**Calendar bookings.** Every stage, cancelled and no-show too. | <img src="docs/screenshots/funnels.png" alt="Funnels: a saved funnel from landing to lead, its steps, how many visits went through each and the drop between steps" width="440"><br>**Funnels.** Saved once, counted every day. |
 | <img src="docs/screenshots/leads-left-out.png" alt="Leads, Stage now: Left out: 10 spam, duplicate and test leads of the last 30 days, each marked in red, listed beside the counted leads, never counted" width="440"><br>**Left out, still listed.** Spam, duplicates and test, never just dropped. | <img src="docs/screenshots/conversions-removed.png" alt="Conversions removed by a lead-database sync, each with when, why (marked duplicate or spam in the lead database) and what it was, and the journeys before them" width="440"><br>**Removed, with when and why.** |
 | <img src="docs/screenshots/person-search.png" alt="Person search for the IP address 203.0.113.109: seven visits over 33 days, where it first came from (ChatGPT), its city and device, and every visit as a line of pages, newest first" width="440"><br>**Person search** (your own Skald). Every visit kept, across days. | <img src="docs/screenshots/person-lead.png" alt="Person search for lead14@example.com: the lead, the linked IP address, visitor ID and lead row, the visit that sent its form, its conversions and the pages its visitor ID saw" width="440"><br>**One lead, linked.** Its email, address, visitor ID and form visit. |
+| <img src="docs/screenshots/leads-reference.png" alt="Leads with the Reference column switched on: each lead shows the sending app's own ID (made-up u-1048576) with a copy button" width="440"><br>**The lead's own reference** (2.25). The sender's ID, searchable, with a copy button. | <img src="docs/screenshots/lead-drawer-reference.png" alt="A lead's drawer: Reference u-1048576 from the site's server, both of its steps (completed, then paid), and the Mark as test button" width="440"><br>**Every step, and Mark as test** (2.25). One click moves a test lead out of every count. |
+| <img src="docs/screenshots/person-by-reference.png" alt="Find a person: searching u-1048576 finds Lead: u-1048576 with its visits" width="440"><br>**Find a lead by its reference** (2.26). The ID from your own app finds the person. | <img src="docs/screenshots/views-fill.png" alt="Settings, Sites, Views: a new page group saved, and Filling 10 days, 4 of 10, from the raw log" width="440"><br>**Page groups fill their past** (2.26). Save a group; past days are counted from the raw log, audited. |
 
 ### Live (2.11, 2.13, 2.20)
 
@@ -673,6 +673,7 @@ Calendly, Stripe, HubSpot) is in the Help guide "Pick your road"; "Send leads fr
 5 minutes" has signed examples in curl, Node, Python and PHP. Settings > Integrations shows each
 road's state (ready, never received, last received 2 h ago) and flags a lead that arrived by two
 roads, which would count twice. `skald doctor` on the server says the same, with the fix.
+Everything an app needs to send, check, correct and read back its leads is on one page: [docs/LEADS-REFERENCE.md](docs/LEADS-REFERENCE.md).
 
 **Outgoing webhooks.** Signed, HTTPS only, never to a private address, retried five times over about
 15 hours. They never carry a name or an email.

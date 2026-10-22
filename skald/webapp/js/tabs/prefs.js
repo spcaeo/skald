@@ -19,6 +19,7 @@ import { ME, sessions } from "../access.js";
 import { head1, field, input, status, why } from "./forms.js";
 import logoCard from "./sitelogo.js";
 import { mailPreview } from "./mailpreview.js";
+import { fillChoice, fillNote, remember, viewsFill } from "./viewsfill.js";
 
 const SOURCE = { site: "set for this site", org: "set for the organisation", install: "set for the whole install", config: "from config.yml", default: "the default",
   upgrade: "kept off by the upgrade to 2.4.0; turn it on once your privacy notice says so" };
@@ -101,6 +102,8 @@ function control(name, s) {
         return { name: nm, path_prefix: prefix, exclude_prefix: exclude };
       });
     };
+    // Under the box: fill the new groups' past days after saving (viewsfill.js).
+    if (!ro) return { el: h("div", { class: "af-views" }, field(s.label, el, SOURCE[s.source] || ""), fillChoice()), get, input: el };
   } else {
     const num = s.kind === "int";
     el = input({ id, type: num ? "number" : s.kind === "email" ? "email" : "text", value: s.value ?? "", min: s.lo, max: s.hi, inputmode: num ? "numeric" : null, disabled: ro, maxlength: num ? null : "300", autocomplete: s.kind === "email" ? "off" : null });
@@ -136,7 +139,7 @@ let waiting = "";   // recipients that still have to confirm (mail_confirm.py)
 export function card(title, sub, names, all, site, onSaved) {
   const rows = names.filter((k) => all[k]).map((k) => [k, control(k, all[k])]);
   const msg = status();
-  if (saved === title) { msg.say("Saved. It applies from the next run." + waiting, true); saved = null; }
+  if (saved === title) { msg.say(((title === site && fillNote()) || "Saved. It applies from the next run.") + waiting, true); saved = null; }
   const ask = h("div");
   const save = h("button", { type: "submit", class: "btn primary" }, "Save");
   const editable = rows.some(([k]) => all[k].editable && !all[k].hidden);
@@ -253,9 +256,10 @@ export function mail(m) {
 
 export function sites(m) {
   return page("Sites", "What counts as this site, and where its log is.", (all, redraw) => [
-    card(m.site, "Changes apply from the next run. Days already stored are not counted again (backfill --force on the server does that).",
-      ["sites.hosts", "sites.views", "sites.timezone"], all, m.site, redraw),
-    h("p", { class: "note" }, "Views: one per line, as name | path prefix | prefixes to leave out (separated by spaces)."),
+    card(m.site, "Changes apply from the next run. Days already stored are not counted again, except a new page group's: tick the box under Views to fill its past days from the raw log.",
+      ["sites.hosts", "sites.views", "sites.timezone"], all, m.site, (settings, got) => { remember(got?.views); redraw(settings, got); }),
+    h("p", { class: "note" }, "Views (page groups): one per line, as name | path prefix | prefixes to leave out (separated by spaces). For example: Blog | /blog/ or Canada | /ca/ | /ca/fr/"),
+    viewsFill(m),
     logoCard(m),
     card("Log file", "Where the server's access log for this site is. For install admins.", ["sites.log_dir", "sites.log_base"], all, m.site, redraw),
     card("Page assets", "A visit counts as people only when its browser also fetched one of the page's own scripts or styles. Next.js: /_next/static/ (the default). WordPress: /wp-content/ and /wp-includes/. Many other sites: /assets/ or /static/. One path per line, at most 10. Turn the rule off only when the assets come from a CDN host this log never sees. Changes apply from the next run; stored days are recounted with backfill --force on the server.",

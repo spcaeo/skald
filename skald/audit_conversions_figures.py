@@ -28,7 +28,7 @@ from pathlib import Path
 from .audit_leads import _attribution, _bare, _fetches
 from .classify import AI_LIKELY_MANY
 from .config import site_name
-from .conversions import FINISHED, UNKNOWN
+from .conversions import FINISHED, LEAD_ACTIONS, UNKNOWN
 
 COLUMNS = ("source_type", "first_source", "campaign", "landing", "country", "device", "tool")
 STAMP = "%Y-%m-%dT%H:%M:%SZ"
@@ -58,6 +58,19 @@ def _fin() -> str:
     return "(" + ", ".join(f"'{s}'" for s in FINISHED) + ")"
 
 
+def once(c: str = "c") -> str:
+    """An SQL condition on the row `c`: not a lead's repeat finish (2.26). A
+    finished row of a lead action is left out when the same site, tool, ref
+    and action has a finished, unmarked row before it (earlier `at`, or the
+    same `at` and a stage named before its own). By NOT EXISTS, this road's
+    own rule; the main road groups the rows in Python (store.repeat_finishes)."""
+    acts = "(" + ", ".join(f"'{a}'" for a in LEAD_ACTIONS) + ")"
+    return (f"NOT ({c}.action IN {acts} AND {c}.stage IN {_fin()} AND EXISTS (SELECT 1 FROM "
+            f"conversions p WHERE p.site = {c}.site AND p.tool = {c}.tool AND p.external_ref = "
+            f"{c}.external_ref AND p.action = {c}.action AND p.test = 0 AND p.stage IN {_fin()} "
+            f"AND (p.at < {c}.at OR (p.at = {c}.at AND p.stage < {c}.stage)))) ")
+
+
 VISITS = ("CASE WHEN c.visits_before IS NULL OR typeof(c.visits_before) <> 'integer' "
           "OR c.visits_before < 0 THEN 'unknown' WHEN c.visits_before <= 2 "
           "THEN CAST(c.visits_before AS TEXT) WHEN c.visits_before <= 5 THEN '3-5' "
@@ -85,7 +98,7 @@ def _likely_rows(db, head: str, args: list, site: str):
     sql = (head.rstrip() + f", t AS (SELECT b.day AS day, c.action AS action, {pick['src']} AS "
            f"src, {pick['tat']} AS tat, {pick['page']} AS page FROM conversions c JOIN b ON "
            f"c.at >= b.lo AND c.at < b.hi WHERE c.site = ? AND c.test = 0 "
-           f"AND c.stage IN {_fin()}) "
+           f"AND c.stage IN {_fin()} AND {once()}) "
            f"SELECT day, action, src, CASE WHEN tat GLOB {WELL_FORMED} THEN "
            f"CAST(strftime('%s', tat) AS INTEGER) / 60 END, page, COUNT(*) FROM t "
            f"GROUP BY 1, 2, 3, 4, 5")
@@ -115,9 +128,10 @@ def recount(path: Path, site: str, tz, first: date, last: date, now: str,
     label, stage), ("labels_abandoned", action, lead label) and, when the
     site has journeys, ("assisted", action, source)."""
     head, args = _bounds(tz, first, last)
-    # A row marked test is never a figure: left out here by this road's own SQL.
+    # A row marked test is never a figure, nor a lead's repeat finish (2.26): left
+    # out here by this road's own SQL.
     join = ("FROM conversions c JOIN b ON c.at >= b.lo AND c.at < b.hi WHERE c.site = ? "
-            "AND c.test = 0 ")
+            f"AND c.test = 0 AND {once()}")
     out: dict[str, Counter] = {}
 
     def put(rows, *kind):
@@ -162,7 +176,7 @@ def recount(path: Path, site: str, tz, first: date, last: date, now: str,
                                             _likely(src, stamp, page, fetched, window, tz))] += n
         if db.execute("SELECT COUNT(*) FROM journeys WHERE site = ?", (site,)).fetchone()[0]:
             via = join.replace("WHERE", "JOIN journeys j ON j.site = c.site AND j.vid = c.vid "
-                                        "AND j.at < c.at WHERE")
+                                        "AND j.at < c.at WHERE", 1)
             put(q(f"SELECT b.day, c.action, j.source_type, COUNT(DISTINCT c.id) {via}AND "
                   f"c.stage IN {_fin()} AND j.source_type IS NOT NULL AND j.source_type <> '' "
                   f"AND (c.source_type IS NULL OR j.source_type <> c.source_type) "

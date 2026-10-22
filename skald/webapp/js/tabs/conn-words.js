@@ -77,7 +77,7 @@ export function apiWords(status) {
 export function mcpWords(status, error = "") {
   if (status === 401) return "401: the token is wrong, revoked, or has no MCP scope. Make a new token for the AI assistant.";
   if (status === 403) return /origin/i.test(error) ? "403: this browser's address is not allowed to call MCP. The token may still be fine: try it in your assistant." : "403: refused.";
-  if (status === 404) return "404: MCP is not switched on here. Ask whoever runs your Skald server (mcp.enabled).";
+  if (status === 404) return "404: MCP is not switched on here. Ask whoever runs your Skald server (mcp.enabled; on Docker, SKALD_MCP=true).";
   if (status === 405) return "405: the request was not a POST.";
   if (!status) return "No answer: Skald's address could not be reached from this browser.";
   return `${status}: ${error || "refused"}.`;

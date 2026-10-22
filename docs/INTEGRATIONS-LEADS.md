@@ -65,7 +65,9 @@ to `/traffic-hooks/` (INTEGRATIONS.md, "nginx").
 
 A resend is safe: the hook keeps one row per site, tool, `external_ref` and stage
 (`store.record_conversion`), so a lead Skald has is answered `"duplicates": 1` and changes
-nothing (its label neither: the first delivery wins). Never resend a lead deleted on request:
+nothing (its label neither: the first delivery wins). The action is **not** part of that
+key: a `trial` `started` for a ref that already has a `signup` `started` is answered
+`"duplicates": 1` and dropped. Use one action per ref. Never resend a lead deleted on request:
 the `lead` hook keeps no hash of bodies, so it would come back.
 
 Tested in `tests/test_lead_label_reconcile.py` and `tests/js/pipeline-label.mjs`.
@@ -85,7 +87,14 @@ and `external_ref`):
 | --- | --- | --- |
 | an owner or admin, in the dashboard (2.25) | **Mark as test** / **Not a test** in the lead's drawer: `POST <page>/people/mark-test` (below) | the user |
 | the site's server | `"test": true` in the body, or the signed `POST .../leads/test` (below) | `hook:lead` |
-| the server admin | `skald conversions mark-test SITE ID... [--unmark]` | `cli` |
+| the server admin | `skald conversions mark-test SITE [ID...] [--ref REF...] [--tool T] [--unmark]` (by ref since 2.26: `store.mark_refs`, the same function as `leads/test`) | `cli` |
+
+A row that must leave the counts for another reason (a wrong stage or action sent) the server
+admin soft-removes (2.26): `skald conversions remove SITE --ref REF [--stage S] [--action A]
+--why "..." [--dry-run]`. Each row is copied whole into `removed` with when and why (listed
+under Show left out > Removed and in Find a person), out of every count and of the second
+count (its spool lines received before the remove are skipped); one audit row
+`conversions.remove`, actor `cli`. A resend of the ref and stage afterwards is a new row.
 
 ### `POST <page>/people/mark-test` (2.25)
 

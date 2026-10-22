@@ -212,7 +212,7 @@ Open [Leads & sales > Summary](#sales/summary) and set **Count from** to **Tools
 One row per action, with these columns:
 
 - **Started**: starts seen by the script tag. "not seen" means no start was reported, for example an action only a tool reports.
-- **Completed**: completed and paid together.
+- **Completed**: completed and paid together. A lead that sent both counts once.
 - **Abandoned**: see below.
 - **Completion rate**: completed out of started, given over at least 10 starts.
 - **Cancelled or no-show**, **Won**, **Lost**.
@@ -265,7 +265,11 @@ A test booking or form should not count. There are three ways to mark a test lea
 
 1. **In the dashboard (owners and admins).** Open the lead: a row on Leads, a booking on Calendar bookings, a conversion in a visitor's drawer, in **Find a person** or in the **Show left out** lists. Under its reference, press **Mark as test**. Skald asks first: "Mark u-119797 as test? It stays listed under Show left out and leaves every count." Press **Mark as test** again to do it, or **Cancel**. A short message says how many steps were left out, and the list and the counts update. On a test lead the same button says **Not a test**: it counts the lead again. Viewers do not see the button.
 2. **From your site's server.** Send your team's own accounts with `"test": true`, or mark leads you already sent with the signed `leads/test` call. See [Leads from your server](leads-from-your-backend.md#10-mark-leads-as-test).
-3. **On the server.** The server admin runs `skald conversions list example.com` to see the latest conversions with their numbers, then `skald conversions mark-test example.com 6 7` to mark conversions 6 and 7 as test. To count one again: `skald conversions mark-test example.com 6 --unmark`.
+3. **On the server.** The server admin runs `skald conversions list example.com` to see the latest conversions with their numbers, then `skald conversions mark-test example.com 6 7` to mark conversions 6 and 7 as test, or `skald conversions mark-test example.com --ref u-1001` to mark every step of the lead with that reference. To count one again: `skald conversions mark-test example.com 6 --unmark`.
+
+A lead sent with the wrong step or action can be taken out of the counts without deleting it: the server admin runs `skald conversions remove example.com --ref u-1001 --why "sent twice" --dry-run` to see what would go, then the same without `--dry-run`. Each removed step is kept, with when and why, under **Show left out > Removed** on Calendar bookings. Your site can then send the lead again, correct.
+
+One lead counts once: if your site sends both a **completed** and a **paid** step for the same reference and kind of lead (a sign-up that later paid), it is one lead, on the day of the first one. The second step shows in the lead's drawer.
 
 A test conversion is left out of every figure, and of the second count too. It stays listed, marked test, under **Show left out** on Leads and on Calendar bookings. Each change is written to the audit log with who made it, never the reference or a name. A later step of a marked lead (won, lost) is test too.
 

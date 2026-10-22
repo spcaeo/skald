@@ -165,6 +165,12 @@ export function outcome(model) {
   // A person search: the leads and conversions it found are linked, even with no visit shown.
   const leads = (model.person?.leads || []).filter((l) => !l.left_out);
   if (leads.length) return { words: `Lead #${leads[0].id ?? leads[0].lead}${leads.length > 1 ? ` and ${n(leads.length - 1)} more` : ""}`, lead: true, detail: "From the lead database: see Leads below" };
+  // A conversion opened on its own (Leads, Conversions): the stage it reached, never "no lead".
+  if (model.conversion && model.conversions.length) {
+    const last = [...model.conversions].sort((a, b) => String(a.at || "").localeCompare(String(b.at || ""))).pop();
+    const st = String(last.stage || "completed");
+    return { words: st[0].toUpperCase() + st.slice(1), lead: true, detail: "See Reference and steps below" };
+  }
   if (model.person && model.conversions.length) return { words: `${n(model.conversions.length)} conversion${model.conversions.length === 1 ? "" : "s"}`, lead: true, detail: "See Conversions below" };
   // Only this visit known (no address kept, or not an admin): say what is known, not more.
   return { words: model.firstKnown ? "No lead linked" : "No form sent", detail: model.firstKnown ? "No lead or conversion linked to these visits" : "None in this visit; other visits are not known here" };
@@ -189,8 +195,9 @@ function summary(model) {
   const nv = visitCount(model);
   const end = outcome(model);
   // A search that shows no visits (an email, a lead): only what it found, not empty visit facts.
-  if (!nv && model.person) {
-    return h("dl", { class: "vz-sum" }, cell("Visits", ["None shown", h("small", null, "open an IP address under Linked")]),
+  if (!nv && (model.person || model.conversion)) {
+    const why = model.person ? "open an IP address under Linked" : model.conversion.browser ? "no page view is kept for its visitor ID" : "it came without a visitor ID";
+    return h("dl", { class: "vz-sum" }, cell("Visits", [model.person ? "None shown" : "None linked", h("small", null, why)]),
       cell("Outcome", h("span", { title: end.detail || null }, end.words), end.lead ? "vz-out lead" : "vz-out"));
   }
   return h("dl", { class: "vz-sum" },
@@ -208,6 +215,7 @@ function summary(model) {
 /* The drawer's title and the line under it: "Visitor from Toronto", "3 visits over 12 days, one booked demo". */
 function titleOf(model) {
   if (model.person) return null;
+  if (model.conversion && !visitCount(model)) return ["Conversion"];
   const latest = latestOf(model);
   if (latest.city) return ["Visitor from ", cityShort(latest.city)];
   if (latest.country && flagEl(latest.country)) return ["Visitor from ", countryWords(latest.country)];
@@ -215,13 +223,14 @@ function titleOf(model) {
 }
 function subtitleOf(model) {
   const nv = visitCount(model), span = spanDays(model);
-  const bits = [!nv && model.person ? "No visit shown" : `${n(nv)} visit${nv === 1 ? "" : "s"}${span && span.days > 1 ? ` over ${n(span.days)} days` : ""}`];
+  const bits = [!nv && model.person ? "No visit shown" : !nv && model.conversion ? "No visit linked" : `${n(nv)} visit${nv === 1 ? "" : "s"}${span && span.days > 1 ? ` over ${n(span.days)} days` : ""}`];
   const found = (model.person?.leads || []).filter((l) => !l.left_out).length;
   if (found) bits.push(`${n(found)} lead${found === 1 ? "" : "s"}`);
   const booked = model.visits.filter((v) => v.endNode?.kind === "booked").length;
   if (booked) bits.push(booked === 1 ? "one booked demo" : `${n(booked)} booked demos`);
   if (model.leads.length) bits.push(`${n(model.leads.length)} lead${model.leads.length === 1 ? "" : "s"}`);
-  if (model.conversions.length && !booked) bits.push(`${n(model.conversions.length)} conversion${model.conversions.length === 1 ? "" : "s"}`);
+  if (model.conversions.length && !booked) bits.push(model.conversion ? `${n(model.conversions.length)} step${model.conversions.length === 1 ? "" : "s"} reported`
+    : `${n(model.conversions.length)} conversion${model.conversions.length === 1 ? "" : "s"}`);
   return bits.join(", ");
 }
 

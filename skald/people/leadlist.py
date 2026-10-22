@@ -5,8 +5,9 @@ never a figure: the page's count beside it is the Leads figure of conversions.js
     rows(config, folder, site, first, last, names)
 
 A lead is a finished row (completed or paid) of a lead action (conversions.
-LEAD_ACTIONS) in the conversions store, the same rows conversions_data.figures
-counts as Leads on the days of [first, last] (local days, `report.timezone`).
+LEAD_ACTIONS) in the conversions store, its first one only (a paid after its
+completed is a step of the same lead: store.repeat_finishes, 2.26), the same rows
+conversions_data.figures counts as Leads on the days of [first, last] (local days, `report.timezone`).
 Each row says where it came from (`tool`: "site" is the lead database, else the
 tool or the page's script tag), its own reference there (`ref`: the sender's
 external_ref, e.g. its account ID; not personal, so in every member's rows; the page
@@ -33,7 +34,7 @@ from . import policy
 
 LIMIT = 2000
 JOURNEY = 60
-LATER = ("won", "lost", "cancelled", "no_show", "rescheduled")
+LATER = ("paid", "won", "lost", "cancelled", "no_show", "rescheduled")   # paid: a sign-up that paid later (2.26)
 
 
 def _stamp(d: date, tz) -> str:
@@ -98,6 +99,10 @@ def _conversions(db, site: str, lo: str, hi: str, tz, full: bool,
         f"AND c.at < ? AND c.stage IN ({marks}) AND c.action IN ({acts}) "
         f"ORDER BY c.at DESC, c.id DESC LIMIT ?",
         (site, lo, hi, *FINISHED, *LEAD_ACTIONS, LIMIT + 1)).fetchall()
+    # One lead, one row (2.26): a lead's repeat finish (a paid after its completed) is
+    # not a lead; it shows among the lead's steps.
+    again = store.repeat_finishes(db, site) if "test" in cols else set()
+    found = [r for r in found if r["id"] not in again]
     truncated = len(found) > LIMIT
     found = found[:LIMIT]
     steps: dict = {}

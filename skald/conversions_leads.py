@@ -53,7 +53,11 @@ def today_block(db, site: str, tz, today: date, held: set) -> dict:
     # id and ref (2.25): a row opens its drawer, with its reference and Mark as test.
     # The page script's reference holds the visitor ID: never in this file (policy.shown_ref).
     from .people.policy import shown_ref
+    from .conversions.store import repeat_finishes
+    # `repeat` (2.26): the lead finished again (a paid after its completed): listed, not a lead.
+    again = repeat_finishes(db, site)
     rows = [{"id": r["id"], "ref": shown_ref(r["tool"], r["external_ref"], False),
+             "repeat": r["id"] in again,
              "at": _local(r["at"], tz), "action": r["action"], "stage": r["stage"],
              "tool": r["tool"], "source": r["source_type"], "first_source": r["first_source"],
              "campaign": r["campaign"], "landing": r["landing"], "country": r["country"],
@@ -76,13 +80,18 @@ def by_now(db, site: str, tz, today: date, now, held: set, since: str | None) ->
     out = {"day": yday.isoformat(), "until": cut.isoformat(timespec="seconds"),
            "state": "ok", "leads": None, "hours": None, "today_hours": None}
 
+    from .conversions.store import repeat_finishes
+    again = repeat_finishes(db, site)            # one lead counts once (2.26)
+
     def hours(lo, hi) -> list[int]:
         got = [0] * 24
-        for (at,) in db.execute("SELECT at FROM conversions WHERE site = ? AND at >= ? AND at < ? "
-                                "AND test = 0 AND action IN (%s) AND stage IN (%s)" % (
-                                    ",".join("?" * len(LEAD_ACTIONS)), ",".join("?" * len(FINISHED))),
-                                (site, lo, hi, *LEAD_ACTIONS, *FINISHED)):
-            got[parse(at).astimezone(tz).hour] += 1
+        for at, rid in db.execute("SELECT at, id FROM conversions WHERE site = ? AND at >= ? "
+                                  "AND at < ? AND test = 0 AND action IN (%s) AND stage IN (%s)" % (
+                                      ",".join("?" * len(LEAD_ACTIONS)),
+                                      ",".join("?" * len(FINISHED))),
+                                  (site, lo, hi, *LEAD_ACTIONS, *FINISHED)):
+            if rid not in again:
+                got[parse(at).astimezone(tz).hour] += 1
         return got
 
     start = lambda d: stamp(datetime.combine(d, dtime(0), tzinfo=tz))   # noqa: E731

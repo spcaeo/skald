@@ -57,6 +57,9 @@ services:
       # Logs sent from other servers or a Vercel/Netlify drain (docs/INGEST.md):
       # SKALD_INGEST=true and SKALD_LOG_DIR=/var/lib/skald/ingest/<SKALD_SITE>.
       SKALD_INGEST: "${SKALD_INGEST:-}"
+      # MCP for AI agents at POST /traffic-mcp (docs/MCP.md): off unless true; each
+      # agent needs a token with the mcp scope (Settings > Connections).
+      SKALD_MCP: "${SKALD_MCP:-}"
       # Keep each visit's IP address, and leads' names and emails (2.4.0). Empty:
       # on for a new install, off for one upgraded from before 2.4.0. 1, 0 or
       # short (the last part removed); full or anonymous. Your privacy notice

@@ -20,3 +20,6 @@ assert.ok(outcome(person([{ id: 14 }])).lead);
 assert.equal(outcome({ visits: [{ endNode: { kind: "booked" } }], conversions: [], firstKnown: true }).words, "Booked a demo");
 assert.equal(outcome({ visits: [], conversions: [], firstKnown: true }).words, "No lead linked");
 console.log("visitor-drawer: all passed");
+
+// 2.26: a conversion opened on its own, with no visit, says the stage it reached, never "no lead".
+assert.equal(outcome({ visits: [], conversion: { id: 1 }, conversions: [{ stage: "completed", at: "2026-10-21T10:12:00Z" }, { stage: "paid", at: "2026-10-21T10:31:00Z" }], firstKnown: true }).words, "Paid");

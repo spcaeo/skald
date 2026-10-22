@@ -27,14 +27,19 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-22-2.25.0",
+  id: "2026-10-22-2.26.0",
   items: [
-    ["A lead's own reference", "the sender's ID (an account number, a form id) as a Reference column, searchable, with a copy button, and in every lead drawer with all its steps.", "leads-and-conversions"],
-    ["Mark as test from the screen", "owners and admins mark a lead as test, or not, from any drawer that shows it; it moves to Show left out and every count updates.", "leads-and-conversions"],
-    ["Logos straight away", "a site added in the dashboard gets its logo at once, not the next morning."],
+    ["Page groups with their past", "save a page group in Settings › Sites and its past days are counted from the raw log, audited, with the progress shown.", "settings-and-retention"],
+    ["Find a lead by its reference", "the ID your app sent (an account number) finds the person in Find a person.", "leads-and-conversions"],
+    ["One sign-up, one lead", "a sign-up that also reports its payment counts once."],
+    ["Plain words for a lead with no visit", "its drawer says \"No visit linked\" and the stage it reached."],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.25.0
+    ["A lead's own reference", "the sender's ID (an account number, a form id) as a Reference column, searchable, with a copy button, and in every lead drawer with all its steps.", "leads-and-conversions"],
+    ["Mark as test from the screen", "owners and admins mark a lead as test, or not, from any drawer that shows it; it moves to Show left out and every count updates.", "leads-and-conversions"],
+    ["Logos straight away", "a site added in the dashboard gets its logo at once, not the next morning."],
     // 2.24.0
     ["The script tag just works", "the tag posts its events straight to Skald, so nothing changes on your web server; serving it from your own domain stays an option.", "script-tag"],
     ["Test tells you what is wrong", "while nothing has arrived, Test checks your page and says what blocks the tag: missing, a wrong address, a redirect, a security policy.", "script-tag"],

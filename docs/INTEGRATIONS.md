@@ -769,7 +769,7 @@ blocks. Run `nginx -t` before every reload.
   email, or the visits that sent a form within 2 minutes of the lead
   (matched by time, said as not certain).
 - **Test marks.** `./bin/skald conversions list SITE [--test]` shows the latest
-  rows with their ids; `./bin/skald conversions mark-test SITE ID... [--unmark]`
+  rows with their ids; `./bin/skald conversions mark-test SITE ID... | --ref REF [--unmark]`
   marks them test (every row of the same tool and reference, so a booking's
   later stages too); a site's server marks its own `lead` refs with `POST
   .../leads/test` (INTEGRATIONS-LEADS.md). A test row is kept and listed, never counted: not in
