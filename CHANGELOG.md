@@ -4,6 +4,23 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.28.1 (2026-10-22)
+
+### Fixed: a hook dropped the visitor ID when visitor IDs were switched on in Settings
+
+- **What changed:** the hook receiver now reads the site's visitor-ID switch
+  (`beacon.visitor_ids`) with the site's Settings rows applied, as the beacon and the daily run
+  already did.
+- **Why:** on 22 Oct an end-to-end test (three pages on a site, then a sign-up on its app
+  subdomain) arrived with the right visitor ID, and its first-touch time was worked out from it,
+  but the row was stored without the ID, so its visits were not linked to the sign-up. The switch
+  had been turned on in Settings, not in the config file, and the receiver read only the file.
+- **Who:** sites that turned visitor IDs on in Settings (or with `skald settings set`) and send
+  leads by hook. **Do:** nothing. Leads sent before this release keep no visitor ID; a sender can
+  send a later stage again with it.
+- **Checked:** tests/test_conversions_hooks.py (a settings row turns the vid on for hooks; the
+  test fails without the fix), and a live end-to-end run after the deploy.
+
 ## 2.28.0 (2026-10-22)
 
 Leads' 7, 30 and 90 days include today so far, with the exact dates from and to.

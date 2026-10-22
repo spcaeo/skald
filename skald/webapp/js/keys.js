@@ -27,8 +27,9 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-22-2.28.0",
+  id: "2026-10-22-2.28.1",
   items: [
+    ["Visitor IDs from hooks, fixed", "a lead sent by your app now keeps its visitor ID when visitor IDs are switched on in Settings, so its visits are linked."],
     ["Leads: 7 days include today", "today so far plus the 6 days before, with the exact dates from and to, and a comparison up to the same hour.", "leads-and-conversions"],
   ],
   // The earlier releases' notes, folded under the new ones.

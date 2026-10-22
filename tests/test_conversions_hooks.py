@@ -248,6 +248,25 @@ class VisitorIdsOff(Base):
         self.assertEqual(self.rows("SELECT vid FROM conversions"), [(None,)])
         self.assertNotIn(VID, self.spooled())
 
+class VisitorIdsOnInSettings(Base):
+    """2.28.1: the config says off, but Settings > This site turned visitor IDs on (a
+    settings row). The hook keeps the vid, as the beacon does; before, it was dropped."""
+    visitor_ids = False
+
+    def test_a_settings_row_turns_visitor_ids_on_for_hooks_too(self):
+        from skald import accounts, settings_store
+        db = accounts.connect(self.folder / "accounts.sqlite")
+        try:
+            org = accounts.create_org(db, "Org", "cli")
+            accounts.assign_site(db, "example.com", org["id"], "cli")
+            settings_store.put(db, "site:example.com", "beacon.visitor_ids", True, "cli")
+        finally:
+            db.close()
+        status, answer = self.post("lead", lead())
+        self.assertEqual((status, answer["recorded"]), (200, 1))
+        self.assertEqual(self.rows("SELECT vid FROM conversions"), [(VID,)])
+
+
 class FullIdentity(Base):
     identity = "full"
 
