@@ -21,8 +21,9 @@ You need
   - outbound HTTPS (port 443) to __HOST__
   - the token. It only allows sending logs for __SITE__.
     If this folder holds a file named ship-token, the token is in this kit:
-    install.sh uses it and then deletes that file.
-    If not, the token is sent to you separately, never by email; install.sh asks for it.
+    install.sh uses it and then deletes that file. Nothing else to do.
+    If not, the token was sent to you separately (never by email). Give it to
+    install.sh in one of three ways (see "If the token is not in this kit" below).
 
 Steps (about 5 minutes)
   1. Copy this folder to the server and go into it:
@@ -40,6 +41,20 @@ Steps (about 5 minutes)
   5. To check everything at any time:
        sudo bash check.sh
      Its own lines: journalctl -u skald-ship -n 20 -o cat
+
+If the token is not in this kit
+  The zip was made without the token, so the token was sent to you another way.
+  install.sh takes it in this order:
+    1. A file named ship-token in this folder. Make it yourself, then run install.sh
+       (it uses the file and deletes it):
+         nano ship-token          paste the token, save, exit
+         chmod 600 ship-token
+    2. The environment variable SKALD_SHIP_TOKEN. Typed without echo, so it is not
+       kept in the shell history:
+         read -rs SKALD_SHIP_TOKEN && export SKALD_SHIP_TOKEN
+         sudo --preserve-env=SKALD_SHIP_TOKEN bash install.sh
+    3. Pasted when install.sh asks for it (the easiest). It is not shown as you paste.
+  A token already saved on this server by an earlier run is kept unless you say no.
 
 If www and another subdomain write to the same log file
   Give www.__SITE__ its own file first, in its server block (nginx):

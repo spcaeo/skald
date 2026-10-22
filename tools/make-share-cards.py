@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Make the skaldanalytics.com share cards (1200 x 630 PNG, the Open Graph and X images).
 
-    python3 tools/make-share-cards.py          # all three, from _src/check-news.json
+    python3 tools/make-share-cards.py          # all four, from _src/check-news.json
     python3 tools/make-share-cards.py check    # one
 
 Each card is an HTML template in deployments/skaldanalytics.com/site/_src/share/, filled
@@ -11,7 +11,8 @@ headless Chrome's own command line (no Python package needed): Chrome from $CHRO
 the usual places. A card over MAX_BYTES is reduced to a 256-colour palette when Pillow is
 installed (optional), else the script says so.
 
-Writes site/img/share-check.png, share-php2shell.png, share-security.png. Run it, look at
+Writes site/img/share-check.png, share-php2shell.png, share-security.png and
+share-ai-key-thief.png (the story: the hero's last frame, drawn from the log). Run it, look at
 them, commit them. Not part of the tests; tests check the tags and the images' sizes.
 """
 from __future__ import annotations
@@ -57,7 +58,19 @@ def fill(template: str, news: dict) -> str:
     out = out.replace("{{STEPS}}", "".join(f'<div class="step"><b>{e(d)}</b><span>{e(w)}</span></div>'
                                            for d, w in share["timeline"]))
     out = out.replace("{{SOURCES}}", e(share["sources"])).replace("{{SHOT}}", "security-exposed-light.webp")
+    if "{{THIEF_ART}}" in out:
+        out = out.replace("{{THIEF_ART}}", thief_art())
     return out
+
+
+def thief_art() -> str:
+    """The story card's picture: the hero's last frame, drawn by the site's own thief_hero.py from
+    the scanner's log (so the keys and their stamps are the log's)."""
+    sys.path.insert(0, str(SRC))
+    import thief_hero
+    import thief_log
+    reqs = thief_log.parse()
+    return thief_hero.card_art(thief_log.facts(reqs), reqs)
 
 
 def png_size(path: Path) -> tuple[int, int]:
@@ -85,7 +98,7 @@ def main() -> int:
         shot = SITE / "img" / "security-exposed-light.webp"         # the security card only
         if shot.exists():
             shutil.copy(shot, work / shot.name)
-        for name in [a for a in sys.argv[1:] if not a.startswith("-")] or ["check", "php2shell", "security"]:
+        for name in [a for a in sys.argv[1:] if not a.startswith("-")] or ["check", "php2shell", "security", "ai-key-thief"]:
             page = work / f"{name}.html"
             page.write_text(fill((SRC / "share" / f"{name}.html").read_text(encoding="utf-8"), news), encoding="utf-8")
             out = SITE / "img" / f"share-{name}.png"

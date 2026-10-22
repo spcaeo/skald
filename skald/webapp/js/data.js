@@ -89,6 +89,7 @@ export function rangeOf(m, s) {
     const d = addDays(m.today, -1);
     return { kind: "history", first: d, last: d, length: 1, days: daysBetween(m, d, d) };
   }
+  if (s.range === "all") return allTime(m);
   let first, last = m.anchor;
   if (s.range === "custom") { first = s.from; last = s.to; }
   else first = addDays(m.anchor, -(Number.parseInt(s.range, 10) - 1));
@@ -96,6 +97,22 @@ export function rangeOf(m, s) {
   if (first > last) first = last;
   const length = dayDiff(first, last) + 1;
   return { kind: "history", first, last, length, days: daysBetween(m, first, last) };
+}
+
+/* All time (2.23, range=all): from the first day this site has data (history's first day, or
+   the leads' first day, conversions.json `since`, when that is earlier) to the last whole day,
+   summed from the same days as every other range: nothing new is counted. The page holds a
+   window of days (app.json: 180); when the site's data begins before it, the range starts at
+   the window's first day and says so (cut: the day the data begins, held: the days held), so
+   no total claims days it does not have. */
+export function allTime(m) {
+  const conv = m.x?.conversions;
+  const since = conv && conv.available && /^\d{4}-\d\d-\d\d$/.test(conv.since || "") ? conv.since : null;
+  const begins = [m.firstDay, since].filter(Boolean).sort()[0] || m.anchor;
+  const held = [...(m.byDay?.keys?.() || [])].sort()[0] || begins;
+  const first = begins < held ? held : begins > m.anchor ? m.anchor : begins;
+  const length = dayDiff(first, m.anchor) + 1;
+  return { kind: "history", all: true, first, last: m.anchor, length, days: daysBetween(m, first, m.anchor), begins, cut: begins < held ? begins : null };
 }
 
 export function previousOf(m, r) {

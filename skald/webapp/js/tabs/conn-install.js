@@ -13,12 +13,14 @@ import { h } from "../ui.js";
 import { csrfHeaders } from "./ipmanager.js";
 import { DEMO } from "../demo.js";
 import { codeBlock, steps, helpLink } from "./conn-ui.js";
+import { read } from "../state.js";
+import { stepped } from "../overlays.js";
 
 const TOKEN = "<token>";
 const tok = (st) => st.token || TOKEN;
 const host = (base) => { try { return new URL(base).host; } catch { return "<skald server>"; } };
 
-// The zip, posted for and saved as a file. The token goes in only when asked.
+// The zip, posted for and saved as a file. The token goes in only when asked (kitBox's box).
 export async function downloadKit(st, method, withToken) {
   if (DEMO.on) return "The demo has no server: the kit comes from a running Skald.";
   const body = { site: st.site, method, include_token: Boolean(withToken && st.token) };
@@ -48,24 +50,63 @@ export async function downloadKit(st, method, withToken) {
   return "";
 }
 
+// The kit's token choice (the owner, 2026-10-22): the token goes in the zip unless the box
+// is unticked. Unticked, the zip holds no token anywhere and the token is shown here, to
+// send separately. In the address as token=0 beside the dialog's key while unticked (the
+// token itself never is); a page with no dialog key (the shared link's page) keeps it in st.
+export const KIT_WORDS = {
+  label: "Include the access token in the zip",
+  on: "The kit is ready to run. Treat the zip like a password: send it only to the site's admin.",
+  off: "The zip has no token. Send the token separately (copy it below), and the admin pastes it when the installer asks.",
+  none: "This page has no token to put in the zip: a token is shown only once, when it is made. The zip holds none, and the admin pastes the token when the installer asks.",
+};
+const family = (s) => (s.setup ? "setup" : s.conn ? "conn" : "");
+export function kitTokenOn(st) {
+  const s = read();
+  return family(s) ? s.token !== "0" : st.kitToken !== false;
+}
+export function setKitToken(st, on) {
+  st.kitToken = Boolean(on);
+  const s = read();
+  const fam = family(s);
+  if (fam) stepped(fam, s[fam], { token: on ? "" : "0" });
+}
+
 function kitBox(st, method) {
   const ok = st.kit && st.kit[method];
   if (!ok) return h("p", { class: "note" }, (st.kit && st.kit.why && st.kit.why[method]) || "The kit is not available on this server. Use the steps by hand below.");
-  const withToken = h("input", { type: "checkbox", name: "kit-token" });
-  withToken.checked = false;
+  const choice = h("div", { class: "cn-kit-token" });
   const btn = h("button", { type: "button", class: "btn primary" }, "Download the install kit (.zip)");
   const said = h("p", { class: "msg", role: "status", "aria-live": "polite" });
+  let box = null;
+  // Drawn again when a token is made on this page (tokenPanel calls st.onToken).
+  const drawChoice = () => {
+    box = null;
+    if (!st.token) { choice.replaceChildren(h("p", { class: "note" }, KIT_WORDS.none)); return; }
+    const mine = h("input", { type: "checkbox", name: "kit-token" });
+    mine.checked = kitTokenOn(st);
+    const line = h("small");
+    const apart = h("div");
+    const show = () => {
+      line.textContent = mine.checked ? KIT_WORDS.on : KIT_WORDS.off;
+      apart.replaceChildren(...(mine.checked ? [] : [codeBlock(st.token, "the sending token")]));
+    };
+    mine.addEventListener("change", () => { setKitToken(st, mine.checked); show(); said.textContent = ""; });
+    show();
+    box = mine;
+    choice.replaceChildren(h("label", { class: "chk" }, mine, h("span", null, h("b", null, KIT_WORDS.label), line)), apart);
+  };
+  st.onToken = drawChoice;
+  drawChoice();
   btn.addEventListener("click", async () => {
     btn.disabled = true;
-    const why = await downloadKit(st, method, withToken.checked);
+    const withToken = Boolean(box && box.checked && st.token);
+    const why = await downloadKit(st, method, withToken);
     btn.disabled = false;
-    said.textContent = why || (withToken.checked && st.token ? "Saved, with the token in it. Send the zip only privately." : "Saved. It holds no token.");
+    said.textContent = why || (withToken ? "Saved, with the token in it. Send it only to the site's admin." : "Saved. It holds no token: send the token separately.");
     said.className = `msg ${why ? "err" : "ok"}`;
   });
-  return h("div", { class: "cn-kit" }, h("div", { class: "acts" }, btn),
-    st.token ? h("label", { class: "chk" }, withToken, h("span", null, h("b", null, "Put the token in the zip (only if you will send the zip privately)"),
-      h("small", null, "Off: the zip holds no secret, and install.sh asks for the token."))) : null,
-    said,
+  return h("div", { class: "cn-kit" }, choice, h("div", { class: "acts" }, btn), said,
     h("p", { class: "note" }, "The kit holds install.sh, uninstall.sh, check.sh and README.txt. If something seems wrong later, run sudo bash check.sh first."));
 }
 

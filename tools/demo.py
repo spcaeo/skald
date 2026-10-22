@@ -91,6 +91,8 @@ logs:
 ours:
   addresses:
     - {{ip: {dt.OFFICE}, label: office}}
+  user_agents:
+    - {{agent: {dt.HEARTBEAT.split('/')[0]}, label: heartbeat}}
 report:
   session_gap_minutes: 30
   timezone: {dt.TZ_NAME}
@@ -120,6 +122,16 @@ bots:
   ranges_dir: {root / 'ranges'}
 hooks:
   public_url: https://analytics.example.com
+alerts:
+  enabled: true           # checked by every run, shown on the page; no mail is sent
+  mail: false
+privacy:
+  keep_ips: full          # what a new install keeps, chosen here so the set-up list says so
+  keep_days: 395
+search_console:
+  property: "sc-domain:example.com"     # made-up answers (demo_search.py), never Google's
+bing:
+  site_url: https://example.com/
 """
 
 
@@ -468,6 +480,9 @@ def install(root: Path, traffic: dt.Traffic, say=print) -> Path:
             cdb.close()
     if got["problems"]:
         raise SystemExit(f"demo: the retention recount does not match: {got['problems'][:3]}")
+    # Traffic > Search: Search Console and Bing, synced by the real sync from stand-ins.
+    import demo_search
+    demo_search.sync(root, cfgp, dt.SITE, traffic.today, traffic.now, dt.SEED, say)
     # Security > Your stack: the daily check, answered by the demo's made-up servers.
     import demo_security
     from types import SimpleNamespace
@@ -628,6 +643,51 @@ def retention_answers(cfg: dict, root: Path, folder: Path, answers: dict, today:
                             timelines += 1
 
 
+def setup_answers(root: Path, site_dir: Path, now: datetime) -> dict:
+    """Settings > Connections in the demo: the set-up list's two answers (GET settings and
+    GET integrations, worked out by the same code from the demo's install, with the beacon
+    helper taken as running and no folder of this machine named) and a few made-up tokens
+    (names, purposes and dates only: a token's value is never kept, not even on a real
+    install). Returns {settings, integrations, tokens}: files in data/demo/."""
+    from unittest import mock
+    from skald import doctor, settings_store
+    from skald.config import load_config
+    from skald.conversions import roads, store
+    cfg = load_config(root / "config.yml")
+    folder = site_dir / "data" / "demo"
+    hide = (str(root) + "/", str(root))
+    clean = lambda text: (re.sub(r" on http://127\.0\.0\.1:\d+", "", text.replace(hide[0], "").replace(hide[1], ""))
+                          if isinstance(text, str) else text)
+    with mock.patch.object(roads, "helper", lambda *_a, **_k: {"up": True, "script": True, "error": None}):
+        status = doctor.integration_checks(cfg, root, dt.SITE, root, now=now, config_path=root / "config.yml")
+    status = [{k: clean(v) for k, v in s.items()} for s in status]
+    db = store.connect(store.path_for(cfg, root))
+    try:
+        tools = [{k: s.get(k) for k in ("tool", "name", "state", "words", "attention", "fix")}
+                 for s in roads.hook_states(cfg, root, dt.SITE, db, now=now, base="https://analytics.example.com")]
+    finally:
+        db.close()
+    shown = settings_store.explain(cfg, dt.SITE, live_dir=root)
+    keep = ("mail.to", "mail.daily", "mail.weekly", "privacy.keep_ips", "privacy.keep_days", "conversions.identity")
+    settings = {k: {"value": v.get("value"), "source": v.get("source")} for k, v in shown.items() if k in keep}
+    day = lambda n: (now - timedelta(days=n)).isoformat(timespec="seconds")
+    tokens = [
+        {"id": 3, "name": "Weekly sheet", "scopes": ["read"], "sites": [dt.SITE], "created_at": day(41),
+         "created_by": "owner@example.com", "last_used": day(1), "revoked_at": None},
+        {"id": 5, "name": "Claude Desktop", "scopes": ["mcp"], "sites": [dt.SITE], "created_at": day(19),
+         "created_by": "owner@example.com", "last_used": day(0), "revoked_at": None},
+        {"id": 7, "name": "Web server shipper", "scopes": ["ingest"], "sites": [dt.SITE],
+         "created_at": day(9), "created_by": "admin@example.com", "last_used": day(0), "revoked_at": None},
+    ]
+    out = {}
+    for name, body in (("settings", {"ok": True, "settings": settings, "mail_waiting": []}),
+                       ("integrations", {"ok": True, "site": dt.SITE, "status": status, "tools": tools}),
+                       ("tokens", {"ok": True, "tokens": tokens})):
+        (folder / f"setup-{name}.json").write_text(json.dumps(body, separators=(",", ":")))
+        out[name] = f"data/demo/setup-{name}.json"
+    return out
+
+
 def mark_demo(www: Path, answers: dict, repo_url: str) -> None:
     """Every app.json says "demo" (the site's and each view's); a request log
     names no helper address to poll."""
@@ -692,7 +752,9 @@ def prepare(out: Path) -> Path:
 
 def static(out: Path, www: Path, root: Path, now: datetime, repo_url: str) -> None:
     site_dir = www / dt.SITE
-    mark_demo(www, helper_answers(root, site_dir), repo_url)
+    answers = helper_answers(root, site_dir)
+    answers["setup"] = setup_answers(root, site_dir, now)
+    mark_demo(www, answers, repo_url)
     (www / "build.json").write_text(json.dumps(build_file(now)) + "\n")
     shutil.copytree(www, out / "traffic")
     (out / "index.html").write_text(REDIRECT)

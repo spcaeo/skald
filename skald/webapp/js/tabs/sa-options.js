@@ -21,9 +21,26 @@
 // A control that does not apply stays in its place, greyed, with the reason on hover and
 // to a screen reader (never silently ignored).
 
-import { h } from "../ui.js";
-import { head } from "./common.js";
+import { h, n } from "../ui.js";
+import * as S from "../state.js";
+import { head, context } from "./common.js";
 import { info } from "./tiles.js";
+import { leadsOn } from "./leadfigs.js";
+
+/* Today so far, beside a period that ends before today (2.23). Leads & sales opens on whole
+   days (7 days, All time), so a lead that came in today is not in its figures: this one line
+   says how many there are, with a button to Today (live). N is the live Leads figure, the same
+   as Overview's Leads tile today (leadsOn over today: every lead, before this page's filters).
+   It is never added to the period's own figure: verified days and today's live part do not mix.
+   No line when today has no lead, or when the figure for today is not there. */
+export function todayNote(m, s, r) {
+  if (!m || !s || !r || r.kind === "today" || !(r.last < m.today)) return null;
+  const got = leadsOn(m, [m.today]);
+  if (!got || !got.ok || !got.leads) return null;
+  return h("p", { class: "sa-today", role: "status", title: "Today's leads so far, the live Leads figure (the same as Overview's Leads tile today), every lead before this page's filters. Not in the period's figures above, which count whole days." },
+    "Today so far: ", h("b", null, `${n(got.leads)} new lead${got.leads === 1 ? "" : "s"}`), " ",
+    h("button", { type: "button", class: "linkish sa-today-go", onclick: () => S.set({ range: "today" }) }, "Show today (live)", h("span", { "aria-hidden": "true" }, " →")));
+}
 
 let seq = 0;
 const uid = (p) => `${p}-${++seq}`;
@@ -34,7 +51,11 @@ export function tabHead(title, question, r, { help = "", more = "", period } = {
   const top = head(title, r, null, { banner: false, period });
   const bar = top[0];
   if (help) bar.insertBefore(info(help, title, more), bar.querySelector(".period"));
-  return [bar, question ? h("p", { class: "lede sa-q" }, question) : null].filter(Boolean);
+  // Leads & sales only (Security draws its heads here too); a tab with a period of its own
+  // (Find a person) has no "Today so far" line.
+  const { m, s } = context();
+  const today = !period && S.sectionOf(s?.tab)?.key === "sales" ? todayNote(m, s, r) : null;
+  return [bar, question ? h("p", { class: "lede sa-q" }, question) : null, today].filter(Boolean);
 }
 
 /* One options row. opts: {more: [controls] folded under "More", end: a node at the right

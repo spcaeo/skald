@@ -86,13 +86,24 @@ export function nameOf(key) {
   return (TABS.find(([k]) => k === t) || [null, key])[1];
 }
 
-export const RANGES = [["today", "Today"], ["yesterday", "Yesterday"], ["7d", "7 days"], ["30d", "30 days"], ["90d", "90 days"], ["custom", "Custom"]];
+// "all" (2.23): All time, from the first day this site has data (data.js rangeOf).
+export const RANGES = [["today", "Today"], ["yesterday", "Yesterday"], ["7d", "7 days"], ["30d", "30 days"], ["90d", "90 days"], ["all", "All time"], ["custom", "Custom"]];
 export const FILTERS = ["country", "path", "source", "device", "browser", "campaign", "referrer"];
 const GLOBAL = ["range", "view", "from", "to", "pathmode", "rules", "cmp", "dd", "tz"];
 // Kept while Compare is on (2.7.0): the custom B, "Per day", the old Compare page's chart keys.
 const CMP_KEYS = ["cb", "cnorm", "cgran", "cm"];
 const DEFAULT = { tab: "overview/summary", range: "today", view: "all", from: "", to: "", pathmode: "contains", rules: "", page: "", since: "", cmp: "", ip: "", rq: "", dd: "", tz: "", part: "", note: "", fn: "", fsrc: "", fstep: "", fmode: "", strat: "", ca: "", cb: "", cnorm: "", cgran: "", cm: "", cdim: "", pubfrom: "", pubto: "", rg: "", rm: "", rs: "", rv: "", test: "",
   ...Object.fromEntries(OVERLAY.map((k) => [k, ""])) };
+/* The period a section opens on when the address names none (2.23). Leads & sales opens on
+   the last 7 days: a lead is rare, and Today so far was too often empty (the owner,
+   2026-10-22). Every other section opens on Today. An address's own range= always wins.
+   s.auto is the period read() or set() filled in as the tab's default, "" when the period
+   was named (in the address, or picked): hashFor leaves an auto period out, so the next
+   section opens on its own default (Overview's Today is not carried into Leads & sales),
+   and writes a named one, which stays from section to section. A period picked that is the
+   tab's own default (Today on Overview, 7 days on Leads & sales) counts as the default. */
+export const SECTION_RANGE = { sales: "7d" };
+export const defaultRange = (tab) => SECTION_RANGE[String(tab || "").split("/")[0]] || DEFAULT.range;
 // Every key read() knows, for the route keys' test (tests/js/routes.mjs).
 export const KNOWN = () => [...Object.keys(DEFAULT).filter((k) => k !== "tab"), ...FILTERS];
 
@@ -119,8 +130,12 @@ export function read() {
   s.cmp = cmpOf(s.cmp);
   // Compare mode (js/mode-compare.js): a custom B needs its period, else the previous one.
   if (s.cmp === "custom" && !spanOf(s.cb)) s.cmp = "prev";
-  if (!RANGES.some(([k]) => k === s.range)) s.range = DEFAULT.range;
-  if (s.range === "custom" && !(/^\d{4}-\d\d-\d\d$/.test(s.from) && /^\d{4}-\d\d-\d\d$/.test(s.to))) s.range = DEFAULT.range;
+  // No range, or one not known: the section's own (SECTION_RANGE), kept as s.auto (hashFor).
+  // Named: the address's own range= (an old address's, #live, only when not the tab's default).
+  const own = defaultRange(s.tab), named = r.patch?.range || p.get("range");
+  if (!named || !RANGES.some(([k]) => k === s.range)) s.range = own;
+  if (s.range === "custom" && !(/^\d{4}-\d\d-\d\d$/.test(s.from) && /^\d{4}-\d\d-\d\d$/.test(s.to))) s.range = own;
+  s.auto = s.range !== named || (r.patch?.range && s.range === own) ? s.range : "";
   if (s.pathmode !== "starts") s.pathmode = "contains";
   // The time zone: the link's, else the one this browser chose last, else the reader's own.
   if (!["local", "site", "utc"].includes(s.tz)) {
@@ -135,7 +150,9 @@ export function hashFor(s) {
   const all = new URLSearchParams();
   // Every value goes in through mask(): no address or email is ever in the address.
   const p = { set: (k, v) => all.set(k, mask(v, ALWAYS_MASKED.has(k))), toString: () => all.toString() };
-  if (s.range !== DEFAULT.range) p.set("range", s.range);
+  // The period, unless it was filled in as a default (s.auto; a state built without it: the
+  // tab's own default): Overview's Today is not carried into Leads & sales.
+  if (s.range !== (s.auto ?? defaultRange(s.tab))) p.set("range", s.range);
   if (s.range === "custom") { p.set("from", s.from); p.set("to", s.to); }
   if (s.view && s.view !== "all") p.set("view", s.view);
   for (const k of FILTERS) if (s[k]) p.set(k, s[k]);
@@ -182,6 +199,8 @@ export function set(patch, { replace = false, mark = null } = {}) {
   const cur = read();
   const next = { ...cur, ...patch };
   if (patch.tab) { const r = route(patch.tab); Object.assign(next, r.patch, { tab: r.tab }); }
+  // A period picked is named (written, carried), unless it is this tab's own default.
+  if ("range" in patch) next.auto = next.range === defaultRange(next.tab) ? next.range : "";
   // Going to another tab leaves a drill-down, a drawer and a dialog behind unless the move carries them.
   if (next.tab !== cur.tab) for (const k of ["dd", ...OVERLAY]) if (!(k in patch)) next[k] = "";
   const hash = hashFor(next);

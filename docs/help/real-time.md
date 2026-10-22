@@ -5,7 +5,7 @@ See how many people are on your site right now, where they are on a world map, w
 ## Where to find it
 
 - **Overview › Real time**: its own tab. It always shows now, whatever period is picked at the top.
-- **Overview › Summary in Live mode**: turn on **Today · Live** in the top bar. The page opens on the short version: visitors on the site now, how many arrived in the last 5 minutes, the last 30 minutes minute by minute, the map and the newest visits, from the same figures as this tab and under one **Pause live** button. See **Today, live** below.
+- **Overview › Summary in Live mode**: turn on **Today · Live** in the top bar. The page opens on the short version: visitors on the site now, how many arrived in the last 5 minutes, the last 30 minutes minute by minute, the map and what visitors are doing now (the newest visitors and the pages they read), from the same figures as this tab and under one **Pause live** button. See **Today, live** below.
 
 ## How fresh it is
 

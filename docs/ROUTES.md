@@ -48,7 +48,7 @@ kinds.
 
 | Key | Owner | Means |
 | --- | --- | --- |
-| `range` | state.js | the period: `today`, `yesterday`, `7d`, `30d`, `90d`, `custom` |
+| `range` | state.js | the period: `today`, `yesterday`, `7d`, `30d`, `90d`, `all` (all time, from the first day the site has data), `custom`. Absent: the section's own default, `7d` on Leads & sales and `today` everywhere else (2.23). A period the address does not name is not carried into another section; one the reader picked is written and stays |
 | `from`, `to` | state.js | a custom period's first and last day |
 | `view` | state.js | the page group (a view's slug) |
 | `country`, `path`, `source`, `device`, `browser`, `campaign`, `referrer` | filterpanel.js | the single filters |
@@ -71,7 +71,7 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | `fn`, `fsrc`, `fstep`, `fmode` | tabs/funnels.js | Funnels: steps, starting source, step open, reached or left |
 | `lsrc`, `lact`, `llabel`, `lstage` | tabs/s-sales.js, sa-options.js | Leads & sales: count from, kind, label, stage |
 | `lnow`, `lby`, `lshow`, `lview`, `lsplit` | tabs/sa-leads.js | Leads: stage now, source, show left out, the view, the split |
-| `bact`, `bshow` | tabs/sa-bookings.js | Bookings: action, what to show |
+| `bact`, `bshow` | tabs/sa-bookings.js | Calendar bookings: action, what to show |
 | `cw`, `chb`, `co` | tabs/crawlhealth.js | Crawl health: 7 or 30 days, crawler, only problems |
 | `ap`, `aq` | tabs/ai-answers.js | AI answers: the profile and the question open |
 | `ip` | tabs/si-requests.js | Requests: one address only (always a token) |
@@ -80,6 +80,7 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | `part` | tabs/help.js | Help: the guide or its part |
 | `note` | tabs/about.js | About: the note |
 | `test` | tabs/sitesadmin.js | Add or remove sites: a site's wizard at its Test (read once, then `setup`) |
+| `ca`, `cdim` | routes.js | the old Compare page's period A and table: read once and rewritten into the period and `cmp` (`cb` for a custom B) |
 
 ## Drawers and dialogs (overlay keys)
 
@@ -100,6 +101,7 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | `conn` | tabs/connections.js | a Connections dialog: `send`, `api`, `mcp` | `conn=api&step=2` |
 | `step` | tabs/conn-ui.js | the step of the dialog open, 1 first | `step=2` |
 | `share` | tabs/conn-share.js | the Share with your developer form is open (the link it makes never is in the address) | `share=1` |
+| `token` | tabs/conn-install.js | the install kit's "Include the access token in the zip" unticked (absent: ticked, the default); never the token itself | `token=0` |
 | `dlg` | main.js, keys.js, extras.js, report.js, filterpanel.js, tabs/person.js | an app dialog: `keys`, `new`, `views`, `report`, `filters`, `find` | `dlg=views` |
 
 A dialog opened from a link at a later step starts at the first step whose choice is
@@ -118,7 +120,7 @@ Each table and grid keeps its own state under its namespace, `<ns>_<suffix>`
 | `_sort` | the order, `column:asc` or `column:desc` |
 | `_page`, `_size` | the page and rows per page (grids) |
 | `_seg`, `_fx`, `_sel` | a grid's segment, filters and rows chosen |
-| `_cf` | the column filters |
+| `_cf` | the column filters (not on Leads since 2.23: its options row is its filter row, so an older `ld_cf` is not applied) |
 | `_hide` | the columns taken away |
 | `_view` | a sub-tab or a switch inside a tab (`subView(ns)`) |
 

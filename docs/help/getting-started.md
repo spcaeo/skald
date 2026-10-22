@@ -71,14 +71,15 @@ If your site adds the `skald.js` script tag, Skald also counts what happens insi
 
 ## The menu
 
-The sidebar has five sections. Each section has tabs along its top.
+The sidebar has six sections. Each section has tabs along its top.
 
 | Section | Tabs |
 | --- | --- |
 | Overview | Summary, Real time, Insights |
 | Traffic | Visitors, Sources, Pages, Places & devices, Search, Retention, Time |
 | Leads & sales | Leads, Summary, Sources, Calendar bookings, Funnels, Events, Find a person |
-| AI & bots | Assistants, Crawlers, Crawl health, Crawler rules, llms.txt |
+| AI & bots | Assistants, Crawlers, Crawl health, AI answers, Crawler rules, llms.txt |
+| Security | Is anything exposed?, Your stack, Who is scanning us?, Attack attempts, Fake browsers, Block list, Alerts |
 | Site | Health, Alerts, Requests, Not found, Speed, Data quality |
 
 - **Overview > Summary** is where every visit starts: the period's headline figures, leads and demos booked among them.
@@ -86,7 +87,8 @@ The sidebar has five sections. Each section has tabs along its top.
 - **Overview > Insights** lists what is working, what dropped, and what is new or gone, leads too. See [Insights](getting-started.md#insights).
 - **Traffic** is who came, from where, to which pages, on what, and when; **Search** adds Google's and Bing's own queries ([Search](search.md)) and **Retention** how many came back ([Retention](retention.md)). A source of **Direct** means no referrer and no campaign tag. A country, device or touch the log did not carry says **Not recorded**.
 - **Leads & sales** is what the visits brought: leads by stage, demo bookings, funnels, events, and one person's story.
-- **AI & bots** is AI assistants (the pages they fetch to answer a question, and the visitors they send), crawlers, how crawlers find your pages ([Crawl health](crawl-health.md)), which crawlers may come in, and your llms.txt.
+- **AI & bots** is AI assistants (the pages they fetch to answer a question, and the visitors they send), crawlers, how crawlers find your pages ([Crawl health](crawl-health.md)), what the assistants answer about you ([AI answers](ai-answers.md)), which crawlers may come in, and your llms.txt.
+- **Security** is who probes your server and what they tried, from the same log: whether any probe got a real file, scanners, attack attempts, fake browsers, a block list to review, your site's stack against known advisories, and security alerts. See [Security](security.md).
 - **Site** is the server: what it answered, open alerts, the request log line by line, pages not found, page speed and the data's own checks.
 
 The address names the section and the tab, for example `#traffic/sources`. Older links, such as `#sources` or `#live`, still open the right tab.
@@ -116,7 +118,7 @@ On a phone or a tablet the two icons are always shown. They never open the row's
 
 Two switches sit in the top bar on every page:
 
-- **Today · Live** sets every tab to today so far, redrawn every 2 minutes. On Overview > Summary it shows today live: visitors on the site now, today's figures against yesterday at the same time of day, the map and the newest visits, sources and the flow, what converted and AI & bots, each linking to its full tab ([Today, live](real-time.md#today-live)). Turn it off to go back to the period you had.
+- **Today · Live** sets every tab to today so far, redrawn every 2 minutes. On Overview > Summary it shows today live: visitors on the site now, today's figures against yesterday at the same time of day, the map and what visitors are doing now (the newest visitors and their pages), sources and the flow, what converted and AI & bots, each linking to its full tab ([Today, live](real-time.md#today-live)). Turn it off to go back to the period you had.
 - **Compare with…** puts another period beside this one. See Compare, below.
 
 When your site reports leads (a form, a booking), they show beside the visitors on Overview > Summary, Traffic > Sources, Traffic > Pages, Traffic > Places & devices and Overview > Insights, not only under Leads & sales. See [Leads on every page](leads-and-conversions.md#leads-on-every-page).
@@ -130,7 +132,7 @@ The round **You** button beside the gear holds your own choices:
 - **Your account**, **All settings**, **Help**, **Keyboard shortcuts**, **What's new**, **About Skald** and **Plain page** (every figure, without scripts).
 - **Sign out**.
 
-On a phone, the five sections sit in the bottom bar, and a section's tabs scroll sideways. **Menu** in the bottom bar opens Settings, Help, About and your own choices.
+On a phone, five sections sit in the bottom bar, and a section's tabs scroll sideways. **Menu** in the bottom bar opens Security, Settings, Help, About and your own choices.
 
 ## Cities
 
@@ -146,7 +148,9 @@ A city is counted for visitors only, never for bots, at the first page of the vi
 
 ## Choosing a period
 
-The date range sits in the top bar: **Today**, **Yesterday**, **7 days**, **30 days**, **90 days** or **Custom**. The default is 30 days. Every figure on the page follows the period.
+The date range sits in the top bar: **Today · Live**, **Yesterday**, **7 days**, **30 days**, **90 days**, **All time** or **Custom**. Every figure on the page follows the period. Each section opens on its own default when the link names no period: **Leads & sales** on the last 7 days (a lead is rarer than a visit, so today is often empty), every other section on Today. A period you pick is kept in the address and stays as you move between tabs and sections; the default of one section is never carried into another, so moving from Overview's Today to Leads & sales opens on 7 days.
+
+**All time** runs from the first day this site has data (its first recorded day, or its first lead when that is earlier) to the last whole day, and the period line says the day it starts: "All time: since Fri 21 Aug 2026, 62 days". The dashboard holds the last 180 days; when your site's data begins before that, the line says so ("All time held here: the last 180 days ... this site's data begins ..."), and no total counts days it does not have.
 
 A few tabs keep a period of their own, so the date range is not shown there. A fixed **Period** chip takes its place and says the tab's own period: **Now** on Real time, each insight's own two periods on Insights, now and the last 30 days on Alerts, the last few hours on Requests, the rules as they are now on Crawler rules. Settings pages have no period at all. A part of a tab with a shorter period of its own says so beside its heading, for example **Each visit** on Traffic > Visitors (visits are kept 7 days).
 

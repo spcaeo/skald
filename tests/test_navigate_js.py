@@ -45,6 +45,14 @@ class Node(unittest.TestCase):
         them, a viewer never asks; Show left out; the board; a row opens the drawer."""
         self.assertIn("sales-leads: all passed", self.run_js("sales-leads.mjs"))
 
+    def test_leads_period_all_time_empty_state_and_one_filter_row(self):
+        """2.23: Leads & sales opens on 7 days unless the address names a period (Overview's
+        Today is not carried in); All time from the first day with data; a period with no
+        lead says how many the last 30 days or all time hold, counted from the same figure;
+        one Filtered by line with every filter, Clear all; each filter checked against the
+        rows and the figure; the top bar's chips no longer greyed on tabs that apply them."""
+        self.assertIn("leads-period: all passed", self.run_js("leads-period.mjs"))
+
     def test_every_state_is_in_the_address_and_no_address_is(self):
         """2.21 (js/routekeys.js, js/overlays.js): each drawer and dialog writes its key,
         a link reopens it, Back closes it, a link to what is not kept opens the page with

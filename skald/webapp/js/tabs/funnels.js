@@ -12,6 +12,7 @@ import { rangeOf } from "../data.js";
 import * as S from "../state.js";
 import { store } from "../extras.js";
 import { head } from "./common.js";
+import { todayNote } from "./sa-options.js";
 import { journey, journeyFilter } from "./visits.js";
 import { call, installOnly, INSTALL_ONLY } from "./ipmanager.js";
 import { isViewer, VIEWER } from "../access.js";
@@ -345,7 +346,7 @@ export default function funnels(m, s) {
   const covers = !days.length ? "no journeys kept for this range"
     : r.kind === "history" && r.length > days.length ? `Visits: ${span} only, the days journeys are kept (${m.journey_days || 7}); the period above is longer`
       : `${span}, the days journeys are kept`;
-  const out = [...head("Funnels", r, `How many visits went through these pages in order, and where the rest left. The page that met one step may also meet the next, so Any page then /pricing/ counts a visit that landed on pricing. Built from each visit's pages in order, kept ${m.journey_days || 7} days. A saved funnel may end with steps from the lead store, counted by the lead's first-touch source and never joined to a visit.`, { period: covers, banner: false })];
+  const out = [...head("Funnels", r, `How many visits went through these pages in order, and where the rest left. The page that met one step may also meet the next, so Any page then /pricing/ counts a visit that landed on pricing. Built from each visit's pages in order, kept ${m.journey_days || 7} days. A saved funnel may end with steps from the lead store, counted by the lead's first-touch source and never joined to a visit.`, { period: covers, banner: false }), todayNote(m, s, r)].filter(Boolean);
   out.push(savedRow(m, s, fn), builder(m, s, steps));
   const match = saved.find((x) => x.fn === fn && (x.fsrc || "") === (s.fsrc || "") && x.result);
   // A saved funnel's daily history covers any range; an unsaved one has none yet.

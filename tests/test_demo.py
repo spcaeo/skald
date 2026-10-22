@@ -234,6 +234,33 @@ class Build(unittest.TestCase):
         for path in self.out.rglob("data/requests.json"):
             self.assertNotIn("api", json.loads(path.read_text()))
 
+    def test_connections_and_the_setup_list_come_from_files(self):
+        """Settings > Connections in the demo: the set-up list's two answers and made-up tokens,
+        worked out from the demo's install, naming no folder of the machine that built it."""
+        setup = json.loads((self.site / "data" / "app.json").read_text())["demo"]["api"]["setup"]
+        self.assertEqual(set(setup), {"settings", "integrations", "tokens"})
+        got = {k: json.loads((self.site / v).read_text()) for k, v in setup.items()}
+        self.assertTrue(all(g["ok"] for g in got.values()))
+        self.assertEqual(got["settings"]["settings"]["privacy.keep_ips"]["source"], "config")
+        ids = {s["id"] for s in got["integrations"]["status"]}
+        self.assertTrue({"logs", "receiver", "script", "leads"} <= ids, ids)
+        text = json.dumps(got)
+        self.assertNotIn(str(self.keep), text)
+        self.assertNotIn(self.tmp, text)
+        self.assertTrue(all("token" not in t or not t["token"] for t in got["tokens"]["tokens"]))
+
+    def test_search_console_and_bing_are_synced_by_the_real_sync(self):
+        """Traffic > Search in the demo: both engines connected, days stored by the sync
+        (folded, written and read back), the newest one provisional."""
+        search = json.loads((self.site / "data" / "search.json").read_text())
+        for engine in ("google", "bing"):
+            part = search["engines"][engine]
+            self.assertTrue(part["connected"], engine)
+            self.assertTrue(part["days"], engine)
+        days = search["engines"]["google"]["days"]
+        self.assertFalse(days[-1]["final"])
+        self.assertTrue(all(d["final"] for d in days[:-1]))
+
     def test_only_documentation_addresses_reach_the_page(self):
         for path in self.out.rglob("*.json"):
             for found in re.findall(r"(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?![\w.])", path.read_text()):

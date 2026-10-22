@@ -45,7 +45,8 @@ differs from site to site; Skald's first run measures it from the site's own log
 | **SEO and content teams, agencies** | AI visibility they can report to a client without hand-waving | Pages each assistant fetched, crawler names verified, robots.txt beside what each crawler did, figures that reconcile. |
 | **Engineers and site owners** | Analytics with no third-party script, nothing to block, data on their own server | Standard-library Python, SQLite, no build step, no outside requests, Docker or a plain server. |
 | **Privacy-minded organisations** | Counting without cookies or consent prompts for counting, and deletion on request | No script needed, no addresses in history, short windows for raw data, one command to forget an address. |
-| **Teams using AI agents** | Ask about traffic in plain words inside Claude or ChatGPT | An MCP server with 13 read-only tools that name withheld days and never call visits "people". |
+| **Site owners and their admins** | "Is anyone probing our server, and did it hand them anything?" | Security from the same log: scanners and what they asked for, any probe answered with a real file, attack attempts, fake browsers, a block list to review, and the site's stack against known advisories. |
+| **Teams using AI agents** | Ask about traffic in plain words inside Claude or ChatGPT | An MCP server with 14 read-only tools that name withheld days and never call visits "people". |
 
 ## Jobs to be done
 
@@ -57,6 +58,9 @@ differs from site to site; Skald's first run measures it from the site's own log
   team taken out, and ad-blocked visitors put back in.
 - **"Tell me when something breaks."** Site down, logging stopped, 5xx bursts, 404 surges, crawler
   bursts and traffic drops, live, with a deploy marker on the chart.
+- **"Tell me who is probing us."** Scanners and what they looked for (`.env`, `wp-login.php`,
+  Terraform files), whether the server ever answered one with a real file, login hammering and
+  bursts, and which known advisories apply to the site's server, PHP, WordPress or Node.js.
 - **"Let me decide which crawlers may come."** Allow, block, or block only training, per assistant,
   applied by the web server.
 - **"Let me prove the numbers."** Every figure counted twice, a day that disagrees withheld, a
@@ -74,8 +78,8 @@ bots, ad-blocked visitors and live figures. The gap between the two counts is it
 shows how much the tag misses.
 
 **Search Console and Bing Webmaster Tools.** The only source of search queries, impressions and
-ranking, and of the search engine's own AI citation data. Keep them. A Search Console import is on
-Skald's roadmap.
+ranking, and of the search engine's own AI citation data. Keep them. Skald syncs their figures
+every 6 hours and shows them beside its own visits from search, but the figures stay the engines'.
 
 **Plausible, Umami, Fathom.** Simple, privacy-friendly, cookie-free tag analytics that work on any
 host. They filter bots out, so they do not report AI crawlers or live AI fetches; each has added an AI
@@ -108,16 +112,22 @@ checked figures, conversions and accounts.
 - **Finds hidden AI referrals.** Direct visits and leads that an assistant very likely sent, from its
   fetch minutes before; labelled "likely", never mixed into the counts.
 - **Checks names.** Crawlers verified against owners' published addresses or DNS; fakes filed apart.
+- **Security from the same log.** Who probes the server, whether any probe got a real file, attack
+  attempts, a block list, and the site's stack against known advisories. It blocks nothing itself:
+  use it beside your firewall.
 - **Proves its numbers.** Groups add up to the log; a second count checks every figure; a day that
   fails is withheld.
 - **Unblockable and cookie-free.** Nothing runs in the visitor's browser to count a visit.
-- **Live.** Today so far every 2 minutes; each request of the last 6 hours, with its reason.
-- **Results.** Leads, funnels and conversions from the tools you already use, anonymous by default.
+- **Live.** Today so far every 2 minutes, requests every 15 seconds on Real time, what the newest
+  visitors are doing now; each request of the last 6 hours, with its reason.
+- **Results.** Every lead in one list, funnels and conversions from the tools you already use;
+  names and emails only where the site keeps them, and only for owners and admins.
 - **Yours.** Runs on your server, standard library only, SQLite files you can copy, no outside
   requests.
 - **Agent-ready.** MCP and a read-only API.
 - **Works where your site lives.** Vercel and Netlify log drains, a Cloudflare Worker for cached
-  pages on any plan, CloudFront and Fastly logs, or your own server's log.
+  pages on any plan, CloudFront and Fastly logs, or your own server's log; Settings › Connections
+  checks the site, suggests the way in and ends with a connection test.
 
 ## Honest limits
 
@@ -130,7 +140,9 @@ checked figures, conversions and accounts.
   part ("likely from" an assistant, from its fetch minutes before), but an estimate is not a count,
   and an assistant that answers from its memory, without fetching, leaves no trace. Google AI Overview
   clicks look like ordinary Google clicks.
-- No search queries (yet), no ad spend, no session replay.
+- Search queries only as Search Console and Bing report them; no ad spend, no session replay.
+- Security reads only what the access log records: it cannot see request bodies or file contents,
+  and it does not block anything.
 
 ## Pricing and licence intent
 
@@ -138,21 +150,22 @@ checked figures, conversions and accounts.
   for your own sites or your clients' sites.
 - **Offering Skald to others as a hosted or managed service needs a commercial licence** from
   Space-O Technologies. This keeps the project sustainable and protects the hosted version.
-- **A hosted Skald is planned.** Sign-up, plans, limits and Stripe billing are built and switched
-  off. Plans will be set by sites, requests a month, members and how long detail is kept. Prices are
-  not set yet. To be told when it opens, or to licence Skald for your own service:
-  [contact us](https://skaldanalytics.com/contact/).
+- **Hosted Skald is in beta** at [skaldanalytics.com/beta](https://skaldanalytics.com/beta/): 30
+  days free, no card, the account set up by us. In the product, sign-up, plans, limits and Stripe
+  billing are built and switched off. Prices are not set yet. To licence Skald for your own
+  service: [contact us](https://skaldanalytics.com/contact/).
 
 ## Messaging guide
 
 - **Tagline:** Every visit, truly told.
 - **Headline:** Your analytics cannot see the new visitors.
-- **Proof points to use:** every figure counted twice; 13 read-only MCP tools; 1,500+ tests;
+- **Proof points to use:** every figure counted twice; 14 read-only MCP tools; 2,600+ tests;
   standard library only. Never quote one site's AI share as typical: say the reader's own log will
   show theirs.
 - **Words to keep apart:** requests, people, machines. Never call requests or AI fetches "visitors".
 - **Words to avoid:** "100% accurate", "replaces Google Analytics", "open source" (say
-  "source-available"), "real-time" without saying "every 2 minutes".
+  "source-available"), "real-time" without saying how fresh (visitors every 2 minutes, requests
+  every 15 seconds), "blocks attacks" or "WAF" (Skald reports; it does not block).
 
 ## About the author
 

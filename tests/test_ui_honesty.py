@@ -91,7 +91,8 @@ class LeadSources(unittest.TestCase):
         self.assertIn("const got = leadsOn(m,", src)
         # 2.20: Summary's Leads number (Pipeline's line until 2.18) says it is Overview's figure.
         self.assertIn("The same figure as Overview's Leads tile.", src)
-        self.assertIn("leadsOn(m2, daysOf(m, r))", (JS / "tabs" / "sa-leads.js").read_text())
+        # 2.23: Leads counts the same sum over the file its filters narrow (sa-filters.js figureFile).
+        self.assertIn("leadsOn(fm, daysOf(m, r))", (JS / "tabs" / "sa-leads.js").read_text())
         # Overview's tiles sum with the same function.
         self.assertIn("leadsOn(m, r.kind", (JS / "tabs" / "overview.js").read_text())
 

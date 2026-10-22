@@ -79,13 +79,18 @@ Every command has a **Copy** button.
 **With Docker, or without Docker (the install kit).** Press **Download the install kit (.zip)**. The zip is named `skald-ship-<site>.zip`. On the web server:
 
 1. Copy the zip to the server and unzip it.
-2. Run `sudo bash install.sh`. It shows the web server's log files. Give the access log of your site. Then paste the token when it asks.
+2. Run `sudo bash install.sh`. It shows the web server's log files. Give the access log of your site. Then, if the zip has no token, paste the token when it asks.
 3. Open your site once in a browser.
 4. Back in Skald, press **Next**, then **Test connection**.
 
 The kit holds `install.sh`, `uninstall.sh`, `check.sh` and `README.txt`. The kit without Docker also holds the shipper itself. The installer only reads the log. It never changes nginx, Apache or the website. `sudo bash install.sh --dry-run` shows what it would do, without changing anything. `sudo bash uninstall.sh` removes only what the installer made.
 
-> The zip holds no token by default. A box, off by default, says **Put the token in the zip (only if you will send the zip privately)**. Tick it only if you send the zip by a private road. Never send a token by email.
+**Include the access token in the zip** is ticked by default.
+
+- **Ticked:** the kit is ready to run. Treat the zip like a password: send it only to the site's admin.
+- **Unticked:** the zip has no token, in no file. The token shows under the box with a **Copy** button. Send it separately, by another road than the zip. The admin then gives it to the installer in one of three ways: pastes it when `install.sh` asks; or saves it first in a file named `ship-token` next to `install.sh`; or sets it in `SKALD_SHIP_TOKEN` (`read -rs SKALD_SHIP_TOKEN && export SKALD_SHIP_TOKEN`, then `sudo --preserve-env=SKALD_SHIP_TOKEN bash install.sh`). The kit's `README.txt` says the same.
+
+The box shows only where the token was just made, because a token is shown once. Without one, the zip holds no token and the installer asks for it. The choice is kept in the page's address while unticked (`token=0`), never the token itself. Never send a token by email.
 
 If the kit is not offered, the page says why. Each kit also has the same steps by hand, folded under **Without the kit**.
 
@@ -167,7 +172,7 @@ Owners and admins add a site in five short steps. Open **Settings > Organisation
 1. **Your site.** Type the site's address, as people type it. A whole link works too: `https://www.example.com/pricing` becomes the site `www.example.com`. The page shows the name it will use. Choose the time zone its days are counted in.
 2. **Prove it's yours.** Add the DNS TXT record or the meta tag the step shows, then press **Check now**. A new DNS record can take a few minutes to show. Nothing is collected for the site until this is done, but you can go on and install now. When your server asks for no proof, the step says so.
 3. **How visits reach Skald.** The same choice as in Connections: Docker, without Docker, Cloudflare, Vercel or Netlify, or only the script tag. The way Skald suggests is chosen already, marked **Recommended for** your site, with the reason under it.
-4. **Install.** Make the sending token, then follow the steps and download the kit, as in Connections.
+4. **Install.** Make the sending token, then follow the steps and download the kit, as in Connections. The token goes in the zip unless you untick **Include the access token in the zip**; unticked, copy the token and send it to the site's admin separately.
 5. **Test and finish.** Press **Test connection**. When lines arrive it says "Done: example.com is receiving visits", with **Open its dashboard**. If not, it shows the fix and the common problems. **Finish later** closes the dialog.
 
 ### Skald checks your site

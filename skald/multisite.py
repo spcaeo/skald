@@ -219,3 +219,23 @@ def write_sites(out: Path, sites: list[dict], live_names: set[str]) -> list[Path
         write_atomic(path, json.dumps(body, separators=(",", ":")) + "\n")
         written.append(path)
     return written
+
+
+def run_each(contexts: list) -> list[int]:
+    """Run the command for every site, one after another. A site that crashes is
+    reported (its run is already recorded as failed in its runs.json) and counts as
+    2, but the sites after it still run: one site's failure must not cost the
+    others their day (2026-10-22: one site failed at 07:16 and the two sites after it
+    were never collected)."""
+    import traceback
+    codes = []
+    for c in contexts:
+        try:
+            codes.append(c.args.run(c))
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except Exception:               # noqa: BLE001 - the next site still runs
+            sys.stderr.write(f"{c.site}: {c.args.command} crashed; the other sites go on\n")
+            traceback.print_exc()
+            codes.append(2)
+    return codes

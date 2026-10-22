@@ -37,8 +37,13 @@ new install, off on an install upgraded from before 2.4.0 until it is turned on.
 and demo bookings show on every page where they help. People sign in with their own accounts, and
 AI agents can ask it questions through MCP, read-only. Since 2026-10-12 it also estimates which "Direct" visits and leads an AI assistant
 very likely sent (it fetched the page minutes before), labelled as an estimate, and it takes logs
-from Vercel and Netlify drains and a Cloudflare Worker for cached pages. Most new parts are off
-until an install switches them on. The list, part by part:
+from Vercel and Netlify drains and a Cloudflare Worker for cached pages. Since 2.16 a site is
+connected in a few guided steps with a test at the end, and Skald looks at the site first to suggest
+the way in. Since 2.20 every lead is in one list, and Overview shows what the newest visitors are
+doing now. Since 2.21 it also tells of the spies at the door: Security shows who probes the server,
+whether any probe got a real file, what attacks were tried and which advisories apply to the site's
+stack, all from the same log and counted twice. Most new parts are off until an install switches
+them on. The list, part by part:
 [WHY-WE-BUILT-SKALD.md](WHY-WE-BUILT-SKALD.md), "What it does now". How to use each part, in plain
 words: the Help pages, starting with [getting started](help/getting-started.md).
 

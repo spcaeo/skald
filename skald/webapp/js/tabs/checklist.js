@@ -75,7 +75,8 @@ export function row(i, { manage = false, onSetUp = null } = {}) {
    again when the two answers come. */
 export function setupChecklist(m, { where = "overview" } = {}) {
   const always = where === "connections";
-  if (DEMO.on || !mayManage() || (!always && setupHidden(m.site))) return null;
+  // The demo: on Connections only, from the demo's own answers; its Set up buttons say why not.
+  if (DEMO.on ? !always || !DEMO.api.setup.settings : !mayManage() || (!always && setupHidden(m.site))) return null;
   const list = h("ol", { class: "su-list" });
   const left = h("span", { class: "su-left" });
   const hide = always ? null : h("button", { type: "button", class: "btn su-hide" }, "Hide on Overview");
@@ -88,6 +89,7 @@ export function setupChecklist(m, { where = "overview" } = {}) {
 
   // A Set up button: its dialog, then both answers asked again when it closes.
   async function setUp(item, btn) {
+    if (DEMO.on) { btn.replaceWith(h("p", { class: "note" }, "In the demo, setting up needs a running Skald.")); return; }
     btn.disabled = true;
     try {
       const { openSetup } = await import("./setup-dialogs.js");

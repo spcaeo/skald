@@ -18,7 +18,7 @@ import { rangeOf } from "./data.js";
 import { opt } from "./sections.js";
 import { shown } from "./labels.js";
 import { short } from "./ui.js";
-import { DIMS, DIM, OPS, NR, NONE, opsOf, tidy, matcher, without, cannot, fromState, toState, singles, ruleWords, treeWords, leaves, timeWords } from "./rules.js";
+import { DIMS, DIM, OPS, NR, NONE, opsOf, tidy, matcher, without, cannot, fromState, toState, singles, sameRule, ruleWords, treeWords, leaves, timeWords } from "./rules.js";
 import { parseAmount } from "./tablestate.js";
 import { country, countryName, withFlag, flagEl, city, cityName } from "./tabs/readers.js";
 import { encode as encodeDrill } from "./drill.js";
@@ -48,7 +48,7 @@ export function applies(s, item, tree) {
   const kind = kindOf(s);
   if (kind) return leaves({ items: [item] }).every((r) => DIM[r.dim]?.[kind]);
   if (!isLeaf(item)) return false;
-  const one = [...singles(tree)].find(([, x]) => x === item);
+  const one = [...singles(tree)].find(([, x]) => x === item || sameRule(x, item));
   return !!one && supportOf(s).includes(one[0]);
 }
 
@@ -379,7 +379,7 @@ export function rulesBanner(m, s) {
   const scope = opt(s.tab, "rulesScope", s, null);
   if (!off.length) return tree.items.length && scope ? h("div", { class: "filter-banner scope", role: "note" }, h("p", null, scope)) : null;
   const kind = kindOf(s);
-  const one = new Map([...singles(tree)].map(([k, x]) => [x, k]));
+  const one = new Map([...singles(tree, { tidied: true })].map(([k, x]) => [x, k]));
   const crawler = off.some((x) => leaves({ items: [x] }).some((r) => r.dim === "crawler"));
   const go = (x) => {
     const k = one.get(x);

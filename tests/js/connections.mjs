@@ -88,6 +88,9 @@ assert.deepEqual(detect.foundLines({ reachable: true, server: "unknown", hosts: 
 assert.equal(detect.recommendFor({ found: given.detect_new.found, useFound: false }), null);
 
 // The send dialog: what Skald found for this site, choose, token, install, test.
+// The page's own address first, so the dialog's keys are written beside it (state.js hashFor).
+const { read: readState } = await import(new URL("state.js", JS));
+history.replaceState(null, "", `#${readState().tab}`);
 root.querySelectorAll(".cn-card button")[0].click();
 await tick();
 let d = dialog();
@@ -122,8 +125,40 @@ await next();
 const shownSteps = d.textContent;
 assert.ok(shownSteps.includes(`https://www.example.com/traffic-ingest/${SITE}`), "the send address");
 assert.ok(shownSteps.includes("Download the install kit (.zip)"));
-assert.ok(shownSteps.includes("Put the token in the zip (only if you will send the zip privately)"));
 assert.ok(shownSteps.includes("skald_ab12cd34_"), "the fresh token is filled in");
+// The kit's token choice: ticked by default; unticked, token=0 in the address (never the
+// token), the token shown to copy, and the zip asked for without it. Back and Next redraw
+// the step from the address; closing the dialog takes the key away.
+const { KIT_WORDS } = await import(new URL("tabs/conn-install.js", JS));
+const kitTick = () => d.querySelector('input[name="kit-token"]');
+const kitText = () => d.querySelector(".cn-kit").textContent;
+const kitAsked = async () => { button(d, "Download the install kit (.zip)").click(); await tick(); return posted.filter(([p]) => p === "sites/kit").pop()[1]; };
+assert.ok(shownSteps.includes(KIT_WORDS.label) && KIT_WORDS.label === "Include the access token in the zip");
+assert.equal(kitTick().checked, true, "ticked by default");
+assert.ok(kitText().includes(KIT_WORDS.on), kitText());
+assert.equal(d.querySelectorAll(".cn-kit .cn-code").length, 0, "ticked: no token block in the kit box");
+assert.equal(readState().conn, "send");
+assert.equal(readState().token, "", "ticked is the default: no key");
+let asked = await kitAsked();
+assert.equal(asked.include_token, true);
+assert.ok(asked.token.startsWith("skald_ab12cd34_"));
+kitTick().checked = false;
+kitTick().dispatchEvent(new Ev("change"));
+assert.equal(readState().token, "0", location.hash);
+assert.ok(!location.hash.includes("skald_"), "the token itself never goes in the address");
+assert.ok(kitText().includes(KIT_WORDS.off), kitText());
+assert.ok(d.querySelector(".cn-kit .cn-code").textContent.includes("skald_ab12cd34_"), "the token to copy and send apart");
+asked = await kitAsked();
+assert.equal(asked.include_token, false);
+assert.ok(!("token" in asked), "the token is not even sent for a zip without it");
+button(d, "Back").click(); await tick();
+await next();
+assert.equal(kitTick().checked, false, "redrawn from the address (token=0): still unticked");
+kitTick().checked = true;
+kitTick().dispatchEvent(new Ev("change"));
+assert.equal(readState().token, "", "ticked again: the key goes");
+kitTick().checked = false;
+kitTick().dispatchEvent(new Ev("change"));
 button(d, "Share with your developer").click();
 await tick();
 button(d, "Make the link").click();
@@ -134,6 +169,11 @@ await next();
 button(d, "Test connection").click();
 await tick();
 assert.ok(d.textContent.includes("Connected: 4 lines received today"), d.querySelector(".cn-test-out").textContent);
+assert.equal(readState().token, "0", "the choice stays while the dialog is open");
+d.querySelector(".dw-x").click();
+await tick();
+assert.equal(readState().conn, "", "closed");
+assert.equal(readState().token, "", "closing the dialog takes the kit's key away");
 
 // Refusals and waiting, in words.
 const refused = { ...given.status, last_refusal: { at: "2099-01-01T10:41:00Z", code: 403, reason: "wrong_site", words: "The token is not for this site." } };
@@ -200,6 +240,19 @@ await next();
 assert.ok(radio(d, "docker").checked, "step 3 chooses the found way");
 assert.ok(d.textContent.includes("Recommended for www.example.org"));
 assert.equal(d.querySelectorAll("em.cn-rec").length, 1);
+// Step 4 with the kit: no token on the page yet, then one made above: the box appears, ticked.
+const viaKit = radio(d, "docker");
+viaKit.checked = true;
+viaKit.dispatchEvent(new Ev("change"));
+await next();
+assert.ok(d.textContent.includes("Step 4 of 5: Install"));
+assert.ok(d.querySelector(".cn-kit").textContent.includes(KIT_WORDS.none));
+assert.ok(!d.querySelector('input[name="kit-token"]'), "no box without a token");
+button(d, "Make a sending token").click();
+await tick();
+assert.equal(d.querySelector('input[name="kit-token"]').checked, true, "the wizard's box: ticked by default");
+assert.ok(d.querySelector(".cn-kit").textContent.includes(KIT_WORDS.on));
+button(d, "Back").click(); await tick();
 const script = radio(d, "script");
 script.checked = true;
 script.dispatchEvent(new Ev("change"));

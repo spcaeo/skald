@@ -126,15 +126,18 @@ class InstallDryRun(unittest.TestCase):
         self.log = self.tmp / "access.log"
         self.log.write_text('192.0.2.10 - - [21/Oct/2026:10:00:00 +0000] "GET / HTTP/1.1" 200 5\n')
 
-    def run_install(self, template, method, answers, kit_token=True):
+    def run_install(self, template, method, answers, kit_token=True, extra_env=None):
         (self.kit / "install.sh").write_text(fill(template, method), encoding="utf-8")
         (self.kit / "skald-ship.py").write_text("# stand-in\n", encoding="utf-8")
         held = self.kit / "ship-token"
         if kit_token:
             held.write_text(TOKEN + "\n", encoding="utf-8")
             held.chmod(0o600)
+        else:
+            held.unlink(missing_ok=True)
         got = subprocess.run([BASH, "install.sh", "--dry-run"], cwd=self.kit, input=answers,
-                             capture_output=True, text=True, env=env_with(self.bin), timeout=60)
+                             capture_output=True, text=True,
+                             env=env_with(self.bin, **(extra_env or {})), timeout=60)
         out = got.stdout + got.stderr
         self.assertEqual(got.returncode, 0, out)
         self.assertNotIn(TOKEN, out)
@@ -157,6 +160,57 @@ class InstallDryRun(unittest.TestCase):
         out = self.run_install("install-docker.sh", "docker", f"{self.log}\n{TOKEN}\n",
                                kit_token=False)
         self.assertIn("would save the token", out)
+
+    # A zip made without the token (the page's box unticked): install.sh asks for it, or
+    # reads SKALD_SHIP_TOKEN, or a ship-token file the admin made (the kit-token path).
+    def test_without_the_token_in_the_kit_it_reads_the_environment(self):
+        for template, method, saved in (("install-docker.sh", "docker", "/srv/skald/ship-token"),
+                                        ("install-systemd.sh", "systemd", "/etc/skald-ship/token")):
+            out = self.run_install(template, method, f"{self.log}\n", kit_token=False,
+                                   extra_env={"SKALD_SHIP_TOKEN": f"  {TOKEN}\n"})
+            self.assertIn("the token is in SKALD_SHIP_TOKEN; it is used, not shown", out)
+            self.assertIn(f"would save the token to {saved}", out)
+            self.assertNotIn("This kit has no token", out, "the variable is used: nothing is asked")
+
+    def test_without_the_token_in_the_kit_it_asks_on_stdin(self):
+        for template, method in (("install-docker.sh", "docker"), ("install-systemd.sh", "systemd")):
+            out = self.run_install(template, method, f"{self.log}\n{TOKEN}\n", kit_token=False)
+            self.assertIn("This kit has no token: it was sent to you separately.", out)
+            # read -p prints its prompt only on a terminal; the token came from stdin.
+            self.assertIn("would save the token", out)
+
+    def test_a_ship_token_file_the_admin_made_is_used(self):
+        # The README's first way: the admin writes ship-token next to install.sh.
+        out = self.run_install("install-systemd.sh", "systemd", f"{self.log}\n")
+        self.assertIn("would save the token to /etc/skald-ship/token", out)
+        self.assertIn("this kit holds the token (the file ship-token)", out)
+        self.assertNotIn("This kit has no token", out)
+
+    def test_without_any_token_it_stops_and_says_how(self):
+        for template, method in (("install-docker.sh", "docker"), ("install-systemd.sh", "systemd")):
+            (self.kit / "install.sh").write_text(fill(template, method), encoding="utf-8")
+            (self.kit / "skald-ship.py").write_text("# stand-in\n", encoding="utf-8")
+            (self.kit / "ship-token").unlink(missing_ok=True)
+            got = subprocess.run([BASH, "install.sh", "--dry-run"], cwd=self.kit,
+                                 input=f"{self.log}\n\n", capture_output=True, text=True,
+                                 env=env_with(self.bin), timeout=60)
+            self.assertEqual(got.returncode, 1, got.stdout + got.stderr)
+            self.assertIn("no token given", got.stderr)
+            self.assertIn("SKALD_SHIP_TOKEN", got.stderr)
+            got = subprocess.run([BASH, "install.sh", "--dry-run"], cwd=self.kit,
+                                 input=f"{self.log}\n", capture_output=True, text=True,
+                                 env=env_with(self.bin, SKALD_SHIP_TOKEN="short"), timeout=60)
+            self.assertEqual(got.returncode, 1)
+            self.assertIn("SKALD_SHIP_TOKEN does not hold a token", got.stderr)
+
+    def test_the_readmes_say_the_three_ways(self):
+        for name in ("README-docker.txt", "README-systemd.txt"):
+            text = fill(name)
+            for part in ("If the token is not in this kit", "A file named ship-token in this folder",
+                         "read -rs SKALD_SHIP_TOKEN && export SKALD_SHIP_TOKEN",
+                         "sudo --preserve-env=SKALD_SHIP_TOKEN bash install.sh",
+                         "Pasted when install.sh asks for it"):
+                self.assertIn(part, text, name)
 
     def test_docker_refuses_a_short_kit_token(self):
         (self.kit / "install.sh").write_text(fill("install-docker.sh"), encoding="utf-8")

@@ -59,7 +59,9 @@ function chartOf(f, r) {
   });
 }
 
-export function timeline(m, s, r) {
+/* m: the model with the Leads figure's file for the filters on (sa-filters.js figureFile:
+   What, Label and at most one breakdown already applied); fig.dim: the breakdown applied. */
+export function timeline(m, s, r, fig = {}) {
   const f = convFile(m);
   const split = s.lsplit === "source" ? "source" : "what";
   const switcher = choice("Split by", split, [["what", "What they did"], ["source", "Source"]], (k) => S.set({ lsplit: k === "what" ? "" : k }));
@@ -68,13 +70,20 @@ export function timeline(m, s, r) {
     return [h("div", { class: "sa-viewbar" }, switcher), h("div", { class: "sa-empty" }, h("p", null, "The timeline needs a period of two days or more."),
       h("button", { type: "button", class: "btn primary", onclick: () => S.set({ range: "30d" }) }, "Show the last 30 days"))];
   }
+  // By source needs the sources: a label or another breakdown leaves none to split by (2.23:
+  // before, the chart came out empty, as if there were no lead).
+  if (split === "source" && (s.llabel || (fig.dim && fig.dim !== "source_type"))) {
+    return [h("div", { class: "sa-viewbar" }, switcher), h("p", { class: "empty" },
+      `Leads per day by source cannot be shown with ${s.llabel ? "a label" : "this filter"} on: the figure keeps each breakdown on its own. Split by what they did, or remove the filter.`)];
+  }
   const fin = new Set(f.finished || ["completed", "paid"]), lead = (f.lead_actions || []);
   const days = chartOf(f, r);
   let series;
   if (split === "what") {
-    // Each action's completed leads that day; with a source chosen, that source's only (by.source_type).
+    // Each action's completed leads that day: the figure's file is already narrowed to the
+    // filters on (a source, a country, a device or a campaign: by[dim], sa-filters.js).
     series = lead.map((a, i) => ({ name: actionName(a), color: TONES[i % TONES.length],
-      get: (d) => (s.lby ? d.by?.source_type?.[a]?.[s.lby] || 0 : Object.entries(d.stages?.[a] || {}).reduce((x, [st, v]) => x + (fin.has(st) ? v : 0), 0)) }));
+      get: (d) => Object.entries(d.stages?.[a] || {}).reduce((x, [st, v]) => x + (fin.has(st) ? v : 0), 0) }));
   } else {
     const total = {};
     for (const d of days) if (d.state === "ok") for (const a of lead) for (const [k, v] of Object.entries(d.by?.source_type?.[a] || {})) total[k] = (total[k] || 0) + v;
@@ -96,6 +105,9 @@ export function timeline(m, s, r) {
 export function map(m, s, r) {
   const f = convFile(m);
   if (!f) return null;
+  // A label's leads carry no country of their own (conversions.json counts labels by stage
+  // only): said, never an empty map as if none had a country (2.23).
+  if (s.llabel) return h("p", { class: "empty" }, "Leads by country are not split by label: choose Every label to see the map.");
   const days = new Set(r.kind === "today" ? [m.today] : r.days.map((d) => d.day));
   const lead = new Set(f.lead_actions || []);
   const by = {};

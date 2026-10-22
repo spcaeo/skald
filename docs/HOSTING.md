@@ -36,8 +36,9 @@ SKALD_INGEST=true
 SKALD_LOG_DIR=/var/lib/skald/ingest/example.com     # /var/lib/skald/ingest/<SKALD_SITE>
 ```
 
-Then make an ingest token for the site, in the dashboard (**Settings > Add or remove sites >
-New token**) or inside the container:
+Then make an ingest token for the site, in the dashboard (**Settings > Connections > Send this
+site's visits to Skald**, which also fills in the steps and ends with **Test connection**; or
+**Settings > Add or remove sites > New token**) or inside the container:
 
 ```sh
 skald token create my-drain --scope ingest --site example.com
@@ -338,6 +339,15 @@ PROXY protocol), or the controller itself sees only node addresses. Never raise 
 | Fastly | a JSON logging endpoint | **yes** | [below](#fastly) |
 | WordPress | the server's log; `skald.js` without a plugin | yes, with the log | [below](#wordpress) |
 | Shopify, Webflow, Squarespace | `skald.js` (needs a proxy) and webhooks only | **no** | [below](#shopify-webflow-squarespace) |
+
+**Not sure which row is yours?** In the dashboard, **Add a site** (or **Settings > Connections >
+Send this site's visits to Skald**) looks at the site from outside, like a browser: its web server,
+any platform in front (Cloudflare, Vercel, Netlify, CloudFront, Fastly, a hosted builder such as
+Shopify or Wix) and its framework. It suggests the way in, with the reason, then walks you through
+it with your address and token filled in, an install kit for a server (with a `check.sh` that says
+what is wrong in plain words), and a **Test connection** at the end. A Next.js site behind your own
+nginx or Apache also adds one field to its log format so clicks inside the site count as pages
+([INGEST.md](INGEST.md)).
 
 **Why the log matters.** AI crawlers (GPTBot, ClaudeBot, PerplexityBot), search crawlers and
 most bots do not run JavaScript. Only a log of every request shows them. A script in the page
