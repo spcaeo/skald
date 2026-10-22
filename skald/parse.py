@@ -26,7 +26,7 @@ import heapq
 import json
 import re
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterator
@@ -71,6 +71,10 @@ class Hit:
     # the other kind (an HTML page and a Next.js navigation) of the same path
     # in the same visit, CLICK_SECONDS or less before it. Not a page view.
     repeat: bool = False
+    # is_page's answer before `repeat` (worked out on first use: it is asked
+    # for several times per hit). Not an argument, so dataclasses.replace
+    # works it out again.
+    page_shape: bool | None = field(default=None, init=False, repr=False, compare=False)
 
     @property
     def path(self) -> str:
@@ -136,8 +140,16 @@ class Hit:
         Without the field no payload is (COUNTING-TRAPS.md, trap 10). A page
         one_click marked as a repeat is not one either.
         """
+        if self.repeat:
+            return False
+        shape = self.page_shape
+        if shape is None:
+            shape = self.page_shape = self._page_shape()
+        return shape
+
+    def _page_shape(self) -> bool:
         if (self.status[:1] != "2" and self.status != "304") or \
-                self.method not in ("GET", "HEAD") or self.repeat:
+                self.method not in ("GET", "HEAD"):
             return False
         if RSC_PAYLOAD.search(self.url) and not self.soft_navigation:
             return False
@@ -271,7 +283,7 @@ def _prefetch_field(rest: str) -> tuple[str | None, str]:
     """(the rsc_prefetch= value or None, `rest` without that field): the
     other trailing fields (a quoted host, rid=) are read as if it were not
     there, wherever it was put after the user agent."""
-    found = RSC_PREFETCH.search(rest)
+    found = RSC_PREFETCH.search(rest) if RSC_PREFETCH_FIELD in rest else None
     if not found:
         return None, rest
     return found.group(1), rest[:found.start()] + rest[found.end():]
@@ -279,7 +291,7 @@ def _prefetch_field(rest: str) -> tuple[str | None, str]:
 
 def _length_field(rest: str) -> tuple[int | None, str]:
     """(the request_length= value as bytes or None, `rest` without that field)."""
-    found = REQUEST_LENGTH.search(rest)
+    found = REQUEST_LENGTH.search(rest) if "request_length=" in rest else None
     if not found:
         return None, rest
     value = found.group(1)
@@ -291,7 +303,7 @@ def _from_match(m: re.Match, when: datetime, fmt: str = "") -> Hit:
     # Everything after the user agent's closing quote holds the trailing fields.
     prefetch, rest = _prefetch_field(m.string[m.end("user_agent") + 1:].rstrip("\n"))
     length, rest = _length_field(rest)
-    rid = RID.search(rest) if fmt == "nginx_extended" else None
+    rid = RID.search(rest) if fmt == "nginx_extended" and "rid=" in rest else None
     request = REQUEST.match(got["request"])
     host = got.get("host", "") or ""
     if not host and got.get("tail"):

@@ -38,6 +38,17 @@ classify.py's name lists are shared, through the audit.
 
 The tail (recount_tail): every line of the site's hosts in the tail file's
 own window [from, until), per clock minute, against what the helper counted.
+Only a fresh tail is compared: its `until` no more than FRESH_MINUTES before
+the audit's own end (the live snapshot's `until`). The helper writes the tail
+only while someone has Real time open, so the file can be hours old, and a
+line whose time is inside that old window may reach the log long after it
+(a log shipper's lag: docomatic.ai, 2026-10-22, a tail from 20:52 UTC was
+"14, the recount finds 18" four hours later, every run). The raw log does not
+say when a line arrived, only when its request was made, so the recount
+cannot leave out the late ones; age is the one rule it can apply. A stale
+tail is reported as skipped, with its time, never as a mismatch and never
+silently. A fresh tail is compared exactly: lines that reach the log within
+those minutes, but after the helper read it, still show as a mismatch.
 """
 from __future__ import annotations
 
@@ -49,6 +60,8 @@ MINUTES = 30
 SHORT = 5
 NEWEST = 10
 DOING = 50
+# How old the helper's tail may be, against the audit's own end, and still be compared.
+FRESH_MINUTES = 5
 
 
 def _minute(when: datetime) -> int:
@@ -291,11 +304,39 @@ def compare_tail(answer: dict, counted: Counter, same) -> None:
          sum(counted.values()))
 
 
-def live_tail(config: dict, live_dir, site: str, paths=None) -> tuple[list[str], int]:
-    """(mismatches, figures compared) for the helper's last tail file, if any."""
+def _audit_end(live_dir, site: str) -> datetime:
+    """The live audit's own end: the snapshot's `until` (what `audit --live`
+    recounts to), else now."""
+    from .live import load, path_for
+    snap = load(path_for(live_dir, site)) or {}
+    try:
+        return datetime.fromisoformat(snap["until"]).astimezone(timezone.utc)
+    except (KeyError, TypeError, ValueError):
+        return datetime.now(timezone.utc)
+
+
+def stale(answer: dict, end: datetime) -> str | None:
+    """Why the tail is too old to compare (FRESH_MINUTES before `end`), or None."""
+    until = datetime.fromisoformat(answer["until"]).astimezone(timezone.utc)
+    if end.astimezone(timezone.utc) - until <= timedelta(minutes=FRESH_MINUTES):
+        return None
+    when = until.strftime("%H:%M" if until.date() == end.astimezone(timezone.utc).date()
+                          else "%Y-%m-%d %H:%M")
+    return (f"real time requests (15-second count): skipped (snapshot from {when} UTC, "
+            f"older than {FRESH_MINUTES} minutes)")
+
+
+def live_tail(config: dict, live_dir, site: str, paths=None, end: datetime | None = None,
+              say=print) -> tuple[list[str], int]:
+    """(mismatches, figures compared) for the helper's last tail file, if any.
+    A stale one (stale()) is not compared: `say` reports it skipped."""
     from .realtime_tail import load, tail_path
     answer = load(tail_path(live_dir, site))
     if not answer or not answer.get("from") or not answer.get("until"):
+        return [], 0
+    why = stale(answer, end if end is not None else _audit_end(live_dir, site))
+    if why:
+        say(why)
         return [], 0
     problems: list[str] = []
     compared = 0

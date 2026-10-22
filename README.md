@@ -51,6 +51,8 @@
 
 ## What's new
 
+- **2.22.3: a faster live run** ([changelog](CHANGELOG.md#2223-2026-10-22)). About twice as fast,
+  every figure unchanged; the live audit skips a stale Real time snapshot instead of failing.
 - **2.22.2: blocked sites explained** ([changelog](CHANGELOG.md#2222-2026-10-22)). When a firewall
   stops the public check, it says so and gives the one-line command to run it yourself.
 - **2.22.1: the public check, tidier** ([changelog](CHANGELOG.md#2221-2026-10-22)). One card per

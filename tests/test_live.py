@@ -287,7 +287,9 @@ class TestLiveCost(LiveCase):
         snap = self.snap()
         self.assertEqual(snap["requests"], 3_050)
         self.assertNotIn("/decoy", json.dumps(snap))
-        # Measured at about a second; the bound is loose so a slow machine
+        # Measured at about a second before 2.13 tallied yesterday at this hour
+        # too (by_now.py); 3.4 s since 2.22.2 (6.5 s before it, 15 s on CI). The
+        # bound is loose so a slow machine
         # does not fail it, and tight enough to catch classifying all of
         # yesterday or reading every rotation.
         self.assertLess(took, 15, f"live took {took:.1f}s")

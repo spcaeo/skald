@@ -55,6 +55,14 @@ the last one beside the snapshot, `live-<site>-tail.json` (counts only:
 `from`, `until` UTC, `per_minute` keyed by epoch minute, `total`, `newest`,
 `partial`, `read_upto`: each plain file's size when the count began, read no
 further), which `audit --live` counts again from the same bytes of the raw lines.
+Only a fresh tail is compared (2.22.2): one whose `until` is at most 5 minutes
+(`audit_realtime.FRESH_MINUTES`) before the live snapshot's own `until`. The file
+is written only while someone has Real time open, so it can be hours old, and a
+line whose time falls in that old window can reach the log later (a log
+shipper's lag). The log records when a request was made, not when its line
+arrived, so the recount cannot leave the late lines out; an older tail is
+reported as "skipped (snapshot from HH:MM UTC, older than 5 minutes)", never as
+a mismatch and never silently.
 
 ### Yesterday at this hour: the snapshot's `by_now` (2.13)
 
@@ -95,3 +103,11 @@ the last one beside the snapshot, `live-<site>-tail.json` (counts only:
 `from`, `until` UTC, `per_minute` keyed by epoch minute, `total`, `newest`,
 `partial`, `read_upto`: each plain file's size when the count began, read no
 further), which `audit --live` counts again from the same bytes of the raw lines.
+Only a fresh tail is compared (2.22.2): one whose `until` is at most 5 minutes
+(`audit_realtime.FRESH_MINUTES`) before the live snapshot's own `until`. The file
+is written only while someone has Real time open, so it can be hours old, and a
+line whose time falls in that old window can reach the log later (a log
+shipper's lag). The log records when a request was made, not when its line
+arrived, so the recount cannot leave the late lines out; an older tail is
+reported as "skipped (snapshot from HH:MM UTC, older than 5 minutes)", never as
+a mismatch and never silently.
