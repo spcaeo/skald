@@ -292,6 +292,44 @@ class Answers(unittest.TestCase):
         self.assertEqual(got["fetched"][0]["bytes"], len(HEADLESS))
         self.assertEqual(got["agent"], sp.agent(CONFIG))
 
+    def test_the_same_finding_on_two_hosts_is_one_card_with_both(self):
+        """A live site, 2026-10-21: www and wp both sent Server: nginx/1.18.0, and the page showed
+        "Your server shows its exact version: nginx 1.18.0" twice. Now one card, both hosts,
+        each one's evidence, and the counts and the summary count it once."""
+        ng = "nginx/1.18.0 (Ubuntu)"
+        pages = {"https://www.example.com/": (200, {"Server": ng, "X-Powered-By": "Next.js"}, HEADLESS),
+                 "https://wp.example.com/wp-login.php": (302, {"Location": "https://wp.example.com/not_found",
+                                                               "Server": ng}, b""),
+                 "https://wp.example.com/not_found": (404, {"Server": ng}, b"<html>Not found</html>"),
+                 ("HEAD", "https://wp.example.com/wp-json/"): (200, {**WP_JSON, "Server": ng}, b""),
+                 ("HEAD", "https://wp.example.com/"): (404, {"Server": ng}, b"")}
+        got = run("www.example.com", Net(names={"www.example.com": [PUBLIC], "wp.example.com": [PUBLIC2]},
+                                         pages=pages))
+        evidenced(self, got)
+        title = "Your server shows its exact version: nginx 1.18.0"
+        tips = [c for c in got["cards"] if c["title"] == title]
+        self.assertEqual(len(tips), 1, [c["title"] for c in got["cards"]])
+        tip = tips[0]
+        self.assertEqual(tip["hosts"], ["www.example.com", "wp.example.com"])
+        hosts_seen = {site_fetch.urlsplit(s["url"]).hostname for s in tip["saw"]}
+        self.assertEqual(hosts_seen, {"www.example.com", "wp.example.com"}, "each host's evidence")
+        self.assertTrue(tip["means"].endswith("Seen on 2 hosts: www.example.com and wp.example.com."))
+        self.assertEqual(len({c["title"] for c in got["cards"]}), len(got["cards"]), "no title twice")
+        self.assertEqual(got["counts"]["tips"], sum(1 for c in got["cards"] if c["group"] == "tips"))
+        self.assertIn(f"{got['counts']['tips']} tips", got["summary"])
+
+    def test_merge_keeps_a_single_card_as_it_was(self):
+        from skald import stack_public_cards as spc
+        one = {"kind": "tip", "group": "tips", "title": "A", "saw": [{"text": "x", "url": "https://a.example.com/"}],
+               "means": "M.", "hosts": ["a.example.com"]}
+        other = {**one, "title": "B"}
+        self.assertEqual(spc.merge([dict(one), dict(other)]), [one, other])
+        same = {**one, "saw": [{"text": "x", "url": "https://a.example.com/"}]}
+        got = spc.merge([dict(one), dict(same)])
+        self.assertEqual(len(got), 1)
+        self.assertEqual(got[0]["means"], "M.", "one host: nothing added")
+        self.assertEqual(len(got[0]["saw"]), 1, "the same evidence once")
+
     def test_a_plain_wordpress_names_php_not_wordpress_as_hidden(self):
         home = (b'<html><head><meta name="generator" content="WordPress 7.1.3"></head><body>'
                 + b"".join(b'<img src="/wp-content/uploads/a%d.png">' % i for i in range(3))
@@ -523,6 +561,27 @@ class Service(unittest.TestCase):
         self.clock[0] += 3601
         self.assertEqual(self.svc.run("203.0.113.5", "s99.example.com")[0], 200, "the hour slid")
 
+    def test_each_answer_says_how_many_are_left_and_the_quota_counts_nothing(self):
+        """The page's multi-site mode tells people how many checks they can still run, and when."""
+        svc = api.Service(CONFIG, clock=lambda: self.clock[0], checker=lambda raw: {"reached": True},
+                          now=lambda: NOW)
+        self.assertEqual(svc.quota("203.0.113.5"), {"limit": 10, "left": 10, "next_at": None})
+        for _ in range(5):
+            self.assertEqual(svc.quota("203.0.113.5")["left"], 10, "asking counts nothing")
+        status, body, _ = svc.run("203.0.113.5", "a.example.com")
+        self.assertEqual((status, body["limit"], body["left"]), (200, 10, 9))
+        self.assertEqual(body["next_at"], "2026-10-21T19:00:01+00:00", "an hour after the first check")
+        self.clock[0] += 600
+        status, body, _ = svc.run("203.0.113.5", "a.example.com")
+        self.assertEqual((body["cached"], body["left"]), (True, 8), "a cached answer counts too")
+        self.assertEqual(svc.quota("203.0.113.5")["left"], 8)
+        self.assertNotIn("left", svc.cache["https://a.example.com"][1], "the cache keeps no sender's count")
+        for _ in range(8):
+            svc.run("203.0.113.5", "b.example.com")
+        self.assertEqual(svc.quota("203.0.113.5")["left"], 0)
+        self.assertEqual(svc.run("203.0.113.5", "c.example.com")[0], 429)
+        self.assertEqual(svc.quota("203.0.113.6")["left"], 10, "per sender")
+
     def test_each_answer_says_its_kind(self):
         self.assertEqual(self.svc.run("203.0.113.5", "not a site")[1]["kind"], "address")
         self.assertEqual(self.svc.run("203.0.113.5", "ftp://example.com/")[1]["kind"], "address")
@@ -645,7 +704,9 @@ class Http(unittest.TestCase):
         self.assertEqual(self.ask("OPTIONS", origin="https://evil.example.net")[0], 403)
         self.assertEqual(self.ask(body=b"x" * (api.MAX_BODY + 1))[0], 413)
         self.assertEqual(self.ask(body=b"not json")[0], 400)
-        for _ in range(8):                      # 10 checks in all from this sender, with the two above
+        status, _h, raw = self.ask(body={"quota": True})
+        self.assertEqual((status, json.loads(raw)["left"]), (200, 8), "2 counted so far; quota is not")
+        for _ in range(8):                     # 10 checks in all from this sender, with the two above
             self.ask()
         self.assertEqual(self.ask()[0], 429)
         self.assertEqual(self.ask(ip="203.0.113.8")[0], 400, "X-Real-IP from the proxy is the sender")

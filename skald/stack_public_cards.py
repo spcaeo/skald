@@ -22,6 +22,9 @@ Cards, by group (the order shown):
          nothing  the site was read and nothing in the advisory list applies
 
 "Update needed" only for a version actually read; never "affected" without one.
+
+The same finding on two hosts of one site (a tip "Your server shows its exact version: nginx
+1.18.0" on www. and on wp.) is one card (merge): every host listed, each one's evidence kept.
 """
 from __future__ import annotations
 
@@ -257,6 +260,42 @@ def headless_card(origin: dict, site_found: list, site_host: str) -> dict:
                  f"Check PHP on the server behind {origin['host']}.", [origin["host"], site_host])
 
 
+def merge(cards: list[dict]) -> list[dict]:
+    """Cards of the same kind and title (the same finding, seen on several hosts) as one card:
+    its hosts in order, every host's evidence ("saw") kept, and the hosts named in "means".
+    The order of first appearance is kept, so the counts and the summary count each once."""
+    out, seen = [], {}
+    for c in cards:
+        key = (c["kind"], c["title"])
+        first = seen.get(key)
+        if first is None:
+            seen[key] = c
+            out.append(c)
+            continue
+        if first is c:
+            continue
+        if not first.get("merged"):
+            first.update(saw=list(first.get("saw") or []), hosts=list(first.get("hosts") or []),
+                         merged=True, means_one=first.get("means", ""))
+        for s in c.get("saw") or []:
+            if not any(s.get("text") == x.get("text") and s.get("url") == x.get("url")
+                       for x in first["saw"]):
+                first["saw"].append(s)
+        for h in c.get("hosts") or []:
+            if h not in first["hosts"]:
+                first["hosts"].append(h)
+        for f in c.get("facts") or []:
+            first.setdefault("facts", [])
+            if f not in first["facts"]:
+                first["facts"].append(f)
+    for c in out:
+        if c.pop("merged", False):
+            one = c.pop("means_one")
+            if len(c["hosts"]) > 1:
+                c["means"] = f"{one} Seen on {len(c['hosts'])} hosts: {_and(c['hosts'])}.".strip()
+    return out
+
+
 def summary(site: dict, found: list, rts: list, cards: list) -> str:
     here = [f for f in found if f["host"] == site["host"]]
     app = next((f for fam in ("hosted", "cms", "js", "framework") for f in here if f["family"] == fam), None)
@@ -371,6 +410,7 @@ def answer(host: str, blob: dict, doc: dict, now: datetime, ua: str) -> dict:
                            "This is only what anyone can see from outside: keep the server and "
                            "everything on it updated anyway.", [site["host"]]))
     cards.sort(key=lambda c: (ORDER.index(c["group"]), KINDS.index(c["kind"])))
+    cards = merge(cards)
     products = [{"product": f["product"], "name": f["name"], "version": f.get("version"),
                  "shown": f.get("version") or (f"run by {f['patched']}" if f["family"] == "runtime"
                                                and f.get("patched") else "version not shown"

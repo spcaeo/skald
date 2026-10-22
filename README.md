@@ -51,6 +51,9 @@
 
 ## What's new
 
+- **2.22.1: the public check, tidier** ([changelog](CHANGELOG.md#2221-2026-10-22)). One card per
+  finding across hosts, checks-left counts, and a free CLI and GitHub Action:
+  [php2shell-check](https://github.com/spcaeo/php2shell-check).
 - **2.22.0: an optional public site check** ([changelog](CHANGELOG.md#2220-2026-10-21)). Turn it on and
   your install answers a free "Is my site exposed?" page: what a site shows the world, which
   advisories apply, and the proof for every finding. Live at https://skaldanalytics.com/check/.

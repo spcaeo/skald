@@ -10,6 +10,13 @@ default: off, the path is an unknown hook and answers as one).
     POST {"url": ..., "cached_only": true}  ->  the answer of a check made in the last hour,
                                               else 404; never a fetch (a page's "send this
                                               report" reads the findings back from here)
+    POST {"quota": true}                ->  200 {"limit", "left", "next_at"}: how many checks
+                                              this sender may still run this hour, and when
+                                              one more frees up (null when none is used);
+                                              not counted (the page's multi-site mode asks
+                                              before it starts)
+
+Every 200 answer to a check carries the same three fields, after that check is counted.
 
 Every request, in this order:
 
@@ -88,6 +95,13 @@ class Window:
         q.append(now)
         return 0.0
 
+    def state(self, key: str) -> tuple[int, float | None]:
+        """(how many are still allowed now, seconds until the oldest counted one expires, or
+        None when none is counted); counts nothing."""
+        now = self.clock()
+        q = [t for t in self.seen.get(key, ()) if now - t < HOUR]
+        return max(0, self.limit - len(q)), (max(1.0, HOUR - (now - q[0])) if q else None)
+
 
 class Service:
     """The check's state: its limits, its cache and its counters, for one helper."""
@@ -154,6 +168,16 @@ class Service:
         return {"retry_in": int(wait) + 1,
                 "retry_at": at.astimezone(timezone.utc).isoformat(timespec="seconds")}
 
+    def quota(self, sender: str) -> dict:
+        """This sender's checks left this hour, and when one more frees up: never counted."""
+        with self.lock:
+            left, wait = self.senders.state(sender or "?")
+        at = None
+        if wait is not None:
+            when = self.now() + timedelta(seconds=int(wait) + 1)
+            at = when.astimezone(timezone.utc).isoformat(timespec="seconds")
+        return {"limit": self.senders.limit, "left": left, "next_at": at}
+
     @staticmethod
     def _kind(why) -> str:
         """`address`: not a website address at all; `refused`: one the check does not read
@@ -180,7 +204,7 @@ class Service:
         got = self._cached(key)
         if got is not None:
             self.count("cached")
-            return 200, {**got, "cached": True}, {}
+            return 200, {**got, "cached": True, **self.quota(sender)}, {}
         if cached_only:
             return 404, {"error": "Check the site first, then send the report.",
                          "kind": "not_checked"}, {}
@@ -210,7 +234,7 @@ class Service:
             self.slots.release()
         self.count("checks")
         self._keep(key, answer)
-        return 200, {**answer, "cached": False}, {}
+        return 200, {**answer, "cached": False, **self.quota(sender)}, {}
 
 
 def sender(handler) -> str:
@@ -277,6 +301,8 @@ def handle(handler, service: Service) -> None:
         raw = body.get("url") if isinstance(body, dict) else None
     except (ValueError, UnicodeDecodeError):
         body, raw = None, None
+    if isinstance(body, dict) and body.get("quota") is True and raw is None:
+        return _send(handler, 200, service.quota(sender(handler)), cors)
     if not isinstance(raw, str):
         return _send(handler, 400, {"error": stack_public.NOT_AN_ADDRESS, "kind": "address"}, cors)
     status, answer, extra = service.run(sender(handler), raw, body.get("cached_only") is True)

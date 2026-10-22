@@ -2,6 +2,89 @@
 
 All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versioning](https://semver.org).
 
+## 2.22.1 (2026-10-22)
+
+### Fixed
+
+- **The same finding on two hosts is one card now, listing both.** On 2026-10-21 the public
+  check showed spaceo.ai's "Your server shows its exact version: nginx 1.18.0" twice (once for
+  www., once for the headless WordPress at wp., the same title), and counted it as 2 tips.
+  `stack_public_cards.merge` joins cards of the same kind and title: the card lists every host,
+  keeps each host's evidence (each line still says which URL it was read from), ends "Seen on 2
+  hosts: www... and wp...", and the counts and the summary count it once. Who it affects:
+  anyone using the public check (`security.public_check`), on sites with a content origin.
+  What to do: nothing. Checked: `tests/test_stack_public.py` (a headless site whose two hosts
+  send the same `Server` header, and a single card kept as it was); the 22-site corpus in
+  `tests/test_stack_public_cases.py` is unchanged.
+
+### Added
+
+- **The public check says how many checks are left, and when one more is allowed.** Every 200
+  answer from `POST /traffic-hooks/_public/stack-check` now carries `limit`, `left` (after this
+  check) and `next_at` (UTC, when the oldest counted check stops counting); `{"quota": true}`
+  answers just those and counts nothing. Why: the marketing site's new agency mode checks up to
+  10 sites one after another under the same 10-an-hour limit and must tell people how many they
+  can still run, and when. Who it affects: sites that switched the public check on. What to
+  do: nothing. Checked: `tests/test_stack_public.py` (left after fresh and cached checks, per
+  sender, the quota call never counted, over HTTP through the beacon helper).
+
+### skaldanalytics.com (the marketing site, not the Skald image)
+
+- **/check/: the PDF report up front.** In the first 5 hours after launch 21 browsers opened
+  /check/, 13 people ran a check and none downloaded the PDF, whose form sat at the bottom of a
+  long result. A "Download PDF report" button now sits right under the summary, with "Share with
+  your developer", and opens the email form in place (`#get-pdf` in the address, so a reload
+  opens it again); the bottom card stays. Nothing new is tracked in the browser: the lead is
+  still kept server-side only, when the form is sent. Checked in headless Chrome
+  (`_src/test_check_ui.py`).
+- **/check/: "Check another site"** at the top of every result, without leaving the page.
+- **/check/?urls=: an agency mode.** Up to 10 sites, checked one at a time on the same endpoint
+  and limit (10 an hour from one address: every site counts, a site checked in the last hour
+  too). The page says how many checks are left and when (from the endpoint's own `left` and
+  `next_at`; only the rule itself when an older Skald does not say), stops at the limit with
+  the time one more is allowed and a "Check the rest" button, waits and retries when nginx's
+  short burst limit answers, and shows a table: site (with its full result's address to copy or
+  open), worst status, summary. One PDF for every site checked (`SkaldCheckPdf.buildMany`: the
+  table first, then each site's findings) for one email; the lead is labelled
+  `exposure-report-agency` (`-alerts` when ticked) and `report.py` keeps every site and their
+  number (`site_count`, a column added to an existing table on start). The hint says the list is
+  in the page's address and so in our server log (14 days). Checked: `_src/test_check_multi.mjs`
+  (the list, the limit message, the worst status), `_src/test_check_pdf.mjs` (the combined PDF
+  holds every site and finding), `_src/test_check_ui.py` (the limit message, the table and one
+  report with every site, in headless Chrome), `signup/test_report.py` (label, sites, count,
+  limits, an old table).
+- **Share without exposing anyone.** LinkedIn, X, WhatsApp and copy-link buttons on the hero,
+  the result, the bottom of /check/ and the php2shell article: plain links, no third-party
+  script; the address shared is always `https://skaldanalytics.com/check/`, never a result's
+  `?url=`, with "php2shell: I just checked my site. Check yours in 10 seconds." The result's own
+  link is now labelled "it names the site, so keep it to your team". Checked:
+  `_src/test_check_spread.py` reads every share link on every page.
+- **A badge for READMEs and footers:** `https://skaldanalytics.com/check/badge.svg` ("php2shell ·
+  checked with Skald"), static and the same for everyone (no site, no status), with Markdown and
+  HTML to copy in a "Spread the word" fold on /check/. Checked: valid SVG, generic text.
+- **/security/ and /security/php2shell/ are built and linked:** "Security" in the menu, a
+  Security column in the footer (Security, Free site check, php2shell guide), the home band
+  "New: is your site exposed to php2shell?", the sitemap with lastmod, share cards
+  (`share-php2shell.png`, `share-security.png`, problem-first) and the 2.21 screenshots as WebP.
+  The article (about 900 words) lists only what php.net, Cloudflare and nodejs.org confirm, each
+  linked, with our audited scanner figures and the `awk` one-liner to check your own log.
+  Checked: `_src/test_check_spread.py` (title, description, canonical, Open Graph, Twitter,
+  JSON-LD `Article`/`CollectionPage` with `BreadcrumbList`, one h1, sitemap, links in).
+- **"Run it from your terminal or CI"** on /check/ (the hero and under a result) and in the
+  article: the `curl ... | python3 - example.com` line and a 6-line GitHub Action job
+  (`spcaeo/php2shell-check@v1`), each with a copy button, and a link to
+  github.com/spcaeo/php2shell-check (MIT). Behind `show_cli` in `_src/check-news.json`, on now
+  that the repo is public.
+- **The page no longer says a checked site is not logged.** The guide's "Nothing kept" line and
+  the FAQ "Do you keep the address I type?" said the address was not logged; a result page's
+  address (`/check/?url=...`) is in our web server's log for 14 days, read by Skald. Both now
+  say so, as the hint and the privacy note already did (owner's choice, 2026-10-21).
+- Copy buttons keep a snippet's leading spaces (a YAML job pasted under `jobs:`) and add a
+  newline only after a terminal command.
+
+Deploy: the site folder; `signup/report.py` to `/opt/skald-signup/` and a restart (the agency
+label and `site_count`); the merged cards and `left`/`next_at` come with the next Skald image.
+
 ## 2.22.0 (2026-10-21)
 
 ### Added
