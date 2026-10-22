@@ -21,6 +21,7 @@ const { ME } = await import(new URL("access.js", JS));
 const L = await import(new URL("tabs/sa-leads.js", JS));
 const F = await import(new URL("tabs/sa-filters.js", JS));
 const { timeline, map } = await import(new URL("tabs/sa-views.js", JS));
+const P = await import(new URL("tabs/sa-period.js", JS));
 
 const go = (hash) => { location.hash = hash; return S.read(); };
 const qOf = () => new URLSearchParams(location.hash.split("?")[1] || "");
@@ -136,6 +137,9 @@ const ROWS = [
   { id: 2, at: "2026-10-10T09:00:00-04:00", action: "signup", now: "completed", tool: "site", source: "Search engine", country: "US", device: "Mobile", campaign: "google / cpc / fall-launch", left_out: null, label: "sales" },
   { id: 3, at: "2026-10-12T08:00:00-04:00", action: "demo", now: "won", tool: "calendly", source: "Direct or unknown", country: "CA", device: "Desktop", campaign: "(no campaign tag)", left_out: null },
   { id: 4, at: "2026-10-12T08:30:00-04:00", action: "contact", now: "spam", tool: "site", source: null, country: null, device: null, campaign: null, left_out: "spam" },
+  // Today's (2.27): in Leads' 7 days, never in a period of whole days.
+  { id: 5, at: "2026-10-22T09:15:00-04:00", action: "signup", now: "completed", tool: "site", source: "Search engine", country: "US", device: "Mobile", campaign: null, left_out: null },
+  { id: 6, at: "2026-10-22T10:40:00-04:00", action: "signup", now: "completed", tool: "site", source: "Direct or unknown", country: "CA", device: "Desktop", campaign: null, left_out: null },
 ];
 globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ ok: true, names: false, why: "Names and emails show to admins and owners.", rows: ROWS }) });
 ME.role = "viewer";
@@ -154,14 +158,14 @@ const lineOf = (el) => text(el.querySelector(".sa-figure"));
 const figure = (first, last, keep = () => true) => cdays.filter((d) => d.day >= first && d.day <= last)
   .reduce((x, d) => x + Object.entries(d.stages).filter(([a]) => keep(a, d)).reduce((y, [, st]) => y + (st.completed || 0) + (st.paid || 0), 0), 0);
 {
-  // 7 days (15 to 21 Oct) hold no lead; the last 30 days (22 Sep to 21 Oct) hold two.
+  // 7 days (16 Oct to today, 22 Oct) hold no lead; the last 30 days (23 Sep to today) hold two.
   const el = await draw("#sales/leads");
   const empty = el.querySelector(".sa-wider");
   assert.ok(empty, "the smart empty state");
-  const n30 = figure("2026-09-22", "2026-10-21");
+  const n30 = figure("2026-09-23", "2026-10-22");
   assert.equal(n30, 2);
-  assert.equal(leadsOn(m, rangeOf(m, { range: "30d" }).days.map((d) => d.day)).leads, n30, "the same figure as the 30-day period's");
-  assert.equal(text(empty.querySelector("p")), `No new leads in the last 7 days. ${n30} leads in the last 30 days.`);
+  assert.equal(leadsOn(m, P.leadsRange(m, { range: "30d" }).days.map((d) => d.day)).leads, n30, "the same figure as the 30-day period's");
+  assert.equal(text(empty.querySelector("p")), `No new leads in the last 7 days, Fri 16 Oct to Thu 22 Oct (today, so far). ${n30} leads in the last 30 days, Wed 23 Sep to today.`);
   const btns = empty.querySelectorAll("button");
   assert.deepEqual(btns.map(text), ["Show last 30 days", "All time"]);
   assert.match(lineOf(el), /^0 leads/, "the count line says 0, the figure");
@@ -174,14 +178,14 @@ const figure = (first, last, keep = () => true) => cdays.filter((d) => d.day >= 
 {
   // Today has none either: the owner's case.
   const el = await draw("#sales/leads?range=today");
-  assert.equal(text(el.querySelector(".sa-wider p")), "No new leads in today so far. 2 leads in the last 30 days.");
+  assert.equal(text(el.querySelector(".sa-wider p")), "No new leads in today so far. 2 leads in the last 30 days, Wed 23 Sep to today.");
 }
 {
   // The last 30 days hold none with this filter: all time does (one contact form, 5 Sep).
   const el = await draw("#sales/leads?lact=contact");
   const all = figure("2026-09-01", "2026-10-21", (a) => a === "contact");
   assert.equal(all, 1);
-  assert.equal(text(el.querySelector(".sa-wider p")), `No new leads match these filters in the last 7 days. ${all} lead since Tue 1 Sep 2026.`);
+  assert.equal(text(el.querySelector(".sa-wider p")), `No new leads match these filters in the last 7 days, Fri 16 Oct to Thu 22 Oct (today, so far). ${all} lead since Tue 1 Sep 2026.`);
   assert.deepEqual(el.querySelector(".sa-wider").querySelectorAll("button").map(text), ["All time"]);
 }
 {
@@ -302,38 +306,101 @@ assert.deepEqual(ids({ country: "US", lby: "Direct or unknown" }), [], "filters 
   assert.ok(tl.querySelector(".sa-filtered .chip.off"), "Stage now greyed on the timeline, with why");
 }
 {
-  // Today so far, beside a period of whole days: the live Leads figure, never in the period's own.
+  // 2.27: on Leads, 7 days are today so far and the 6 whole days before (the owner: "today is
+  // 1 + last 6 = 7 days"); 30 and 90 the same. Every other tab keeps whole days.
   const { todayNote, tabHead } = await import(new URL("tabs/sa-options.js", JS));
   const R7 = rangeOf(m, { range: "7d" });
-  assert.equal(todayNote(m, { tab: "sales/leads" }, R7), null, "no lead today: no line");
-  const todays = cdays.map((d) => (d.day === "2026-10-22" ? cday(d.day, { signup: fin(2), demo: { completed: 1 }, contact: { started: 4 } }) : d));
-  const mt = { ...m, x: { conversions: { ...f, days: todays } } };
-  const live = leadsOn(mt, ["2026-10-22"]).leads;
-  assert.equal(live, 3, "the live Leads figure: finished rows of the lead actions today");
-  setContext(mt, { ...S.read(), tab: "sales/leads" });
-  location.hash = "#sales/leads";
-  document.body.replaceChildren();
-  const out = flat(L.default(mt, S.read()));
-  document.body.append(...out);
-  const line = document.body.querySelector(".sa-today");
+  assert.deepEqual([R7.first, R7.last], ["2026-10-15", "2026-10-21"], "Summary's 7 days: whole days, as before");
+  const RL = P.leadsRange(m, { range: "7d" });
+  assert.deepEqual([RL.first, RL.last, RL.length, RL.live], ["2026-10-16", "2026-10-22", 7, true]);
+  assert.deepEqual(RL.days.map((d) => d.day), ["2026-10-16", "2026-10-17", "2026-10-18", "2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22"]);
+  assert.deepEqual([P.leadsRange(m, { range: "30d" }).first, P.leadsRange(m, { range: "90d" }).first], ["2026-09-23", "2026-07-25"]);
+  for (const range of ["today", "yesterday", "all", "custom"]) {
+    const x = P.leadsRange(m, { range, from: "2026-10-01", to: "2026-10-05" });
+    assert.ok(!x.live, `${range}: unchanged`);
+    assert.deepEqual(x, rangeOf(m, { range, from: "2026-10-01", to: "2026-10-05" }));
+  }
+  // Clear dates from and to; the year only when the days cross one or are not this year.
+  assert.equal(P.spanWords("2026-10-16", "2026-10-22", "2026-10-22"), "Fri 16 Oct to Thu 22 Oct (today, so far)");
+  assert.equal(P.spanWords("2026-09-23", "2026-10-22", "2026-10-22", true), "Wed 23 Sep to today");
+  assert.equal(P.spanWords("2026-12-28", "2027-01-03", "2027-01-03"), "Mon 28 Dec 2026 to Sun 3 Jan 2027 (today, so far)");
+  assert.equal(P.spanWords("2025-10-01", "2025-10-05", "2026-10-22"), "Wed 1 Oct 2025 to Sun 5 Oct 2025");
+  assert.equal(P.headWords(RL, m), "Last 7 days: Fri 16 Oct to Thu 22 Oct (today, so far)");
+  assert.equal(P.csvName(RL, m), "leads-2026-10-16-to-2026-10-22.csv");
+  assert.equal(P.csvName(rangeOf(m, { range: "today" }), m), "leads-2026-10-22.csv");
+
+  // Today: 3 sign-ups (and 4 starts, never leads); 18 Oct: a contact form. The 7 days before
+  // (9 to 15 Oct): 10 and 12 Oct whole, and 15 Oct to this hour (conversions.json today.same_time).
+  const todays = cdays.map((d) => (d.day === "2026-10-22" ? cday(d.day, { signup: fin(3), contact: { started: 4 } })
+    : d.day === "2026-10-18" ? cday(d.day, { contact: fin(1) }) : d));
+  const cut = { back: 7, day: "2026-10-15", until: "2026-10-15T14:00:00-04:00", state: "ok", leads: 1, actions: { contact: 1 } };
+  const ft = { ...f, days: todays, today: { day: "2026-10-22", state: "ok", same_time: { time: "14:00:00", days: [cut] } } };
+  const mt = { ...m, x: { conversions: ft } };
+  assert.equal(leadsOn(mt, ["2026-10-22"]).leads, 3, "the live Leads figure: finished rows of the lead actions today");
+  const el = await (async () => {
+    location.hash = "#sales/leads";
+    setContext(mt, S.read());
+    document.body.replaceChildren();
+    document.body.append(...flat(L.default(mt, S.read())));
+    for (let i = 0; i < 10; i += 1) await tick();
+    return document.body;
+  })();
+  assert.equal(text(el.querySelector(".period")), "Last 7 days: Fri 16 Oct to Thu 22 Oct (today, so far)", "the heading says it plainly");
+  // The count: today's included; the change like for like, its dates and hour said.
+  const said = lineOf(el);
+  assert.match(said, /^4 leads · ▲?\s*33% more than the 7 days before \(3 leads: Fri 9 Oct to Thu 15 Oct, up to \S+ ?\S*\)/, said);
+  assert.equal(figure("2026-10-09", "2026-10-14") + cut.leads, 3, "the period before: its whole days and 15 Oct to this hour");
+  assert.ok(!/whole days/.test(said), "never a part-day said as whole");
+  // The "Today so far" line, part of the period now, under the count.
+  const line = el.querySelector(".sa-live");
   assert.ok(line, "the line on Leads, 7 days");
-  assert.equal(text(line).replace(/\s+/g, " ").trim(), `Today so far: ${live} new leads Show today (live) →`);
-  assert.match(text(document.body.querySelector(".sa-figure")), /^0 leads/, "and not added to the period's figure (7 days, whole days only)");
+  assert.equal(text(line).replace(/\s+/g, " ").trim(), "Today so far: 3 of these 4 leads Show today (live) → · Fri 16 Oct to Wed 21 Oct are whole days, verified; today is live and verified again once it is whole. Summary and Sources count whole days: Thu 15 Oct to Wed 21 Oct.");
+  assert.equal(el.querySelectorAll(".sa-today").length, 1, "not the old line beside it");
+  // The list: today's leads, newest first, marked live.
+  const g = el.querySelector(".sk-grid");
+  assert.deepEqual(g.filtered().map((x) => x.id), [6, 5], "today's rows, newest first");
+  const when = L.columnsFor(false, "2026-10-22")[0];
+  assert.ok(when.fmt(ROWS[4].at).querySelector(".live-dot"), "each of today's rows carries the live mark");
+  assert.match(text(when.fmt(ROWS[4].at)), /, today, live$/, "said to a screen reader too");
+  assert.equal(typeof when.fmt(ROWS[2].at), "string", "an older row: none");
+  assert.equal(typeof L.columnsFor(false)[0].fmt(ROWS[4].at), "string", "a period of whole days: none");
   line.querySelector("button").click();
-  assert.equal(qOf().get("range"), "today", "the button shows today, live");
-  assert.equal(todayNote(mt, { tab: "sales/leads" }, rangeOf(mt, { range: "today" })), null, "no line on Today itself");
-  assert.ok(todayNote(mt, { tab: "sales/leads" }, rangeOf(mt, { range: "all" })), "All time (whole days) has it too");
-  // Every Leads & sales tab with a period draws it through tabHead; Find a person and Security do not.
+  assert.equal(qOf().get("range"), "today", "Show today (live): today alone");
+  // The URL keeps the period.
+  for (const k of ["7d", "30d", "90d"]) {
+    location.hash = `#sales/leads?range=${k}`;
+    assert.ok(S.hashFor(S.read()).includes(`range=${k}`) || k === "7d", `${k} round-trips`);
+    setContext(mt, S.read());
+    const head = flat(L.default(mt, S.read())).find((x) => x.querySelector?.(".period"));
+    const days = Number.parseInt(k, 10);
+    assert.equal(text(head.querySelector(".period")), `Last ${days} days: ${P.spanWords(P.leadsRange(mt, { range: k }).first, "2026-10-22", "2026-10-22")}`);
+  }
+  // What, like for like: the day before counted by kind (today.same_time actions).
+  const what = P.versusLive({ x: { conversions: ft } }, mt, RL, leadsOn({ x: { conversions: ft } }, RL.days.map((d) => d.day)), {}, {});
+  assert.match(what, /33% more than the 7 days before \(3 leads: Fri 9 Oct to Thu 15 Oct, up to/);
+  const signups = { leads: 2, demos: 0, ok: 7, of: 7, whole: true };
+  const sign = P.versusLive({ x: { conversions: { ...ft, days: ft.days.map((d) => ({ ...d, stages: { signup: d.stages.signup || {} } })) } } }, mt, RL, signups, { lact: "signup" }, {});
+  assert.match(sign, /^▲?\s*100% more than the 7 days before \(1 lead: /, `What = Sign-up: 10 Oct only, 15 Oct's contact form not counted: ${sign}`);
+  assert.match(P.versusLive({ x: { conversions: ft } }, mt, RL, signups, { llabel: "sales" }, {}), /^no change shown with this filter/, "a label: said, never a wrong change");
+  // The day before withheld, or not this today: no change at all.
+  assert.equal(P.versusLive({ x: { conversions: ft } }, { ...mt, x: { conversions: { ...ft, today: { ...ft.today, same_time: { time: "14:00:00", days: [{ ...cut, state: "withheld", leads: null }] } } } } }, RL, signups), "");
+  assert.equal(P.versusLive({ x: { conversions: ft } }, { ...mt, x: { conversions: { ...ft, today: { ...ft.today, day: "2026-10-21" } } } }, RL, signups), "");
+
+  // Summary and the other tabs: whole days and the old line, as before.
+  assert.equal(todayNote(m, { tab: "sales/summary" }, R7), null, "no lead today: no line");
   setContext(mt, { tab: "sales/summary" });
-  assert.ok(flat(tabHead("Summary", "q", R7)).some((el) => (el.className || "").includes("sa-today")), "Summary");
-  assert.ok(!flat(tabHead("Find a person", "q", R7, { period: "Everything kept" })).some((el) => (el.className || "").includes("sa-today")), "Find a person: no");
+  const sum = flat(tabHead("Summary", "q", R7)).find((x) => (x.className || "").includes("sa-today"));
+  assert.equal(text(sum).replace(/\s+/g, " ").trim(), "Today so far: 3 new leads Show today (live) →", "Summary keeps its line");
+  assert.equal(todayNote(mt, { tab: "sales/leads" }, rangeOf(mt, { range: "today" })), null, "no line on Today itself");
+  assert.ok(todayNote(mt, { tab: "sales/leads" }, rangeOf(mt, { range: "all" })), "All time (whole days) has it");
+  assert.ok(!flat(tabHead("Find a person", "q", R7, { period: "Everything kept" })).some((x) => (x.className || "").includes("sa-today")), "Find a person: no");
   setContext(mt, { tab: "threats/overview" });
-  assert.ok(!flat(tabHead("Security", "q", R7)).some((el) => (el.className || "").includes("sa-today")), "Security: no");
+  assert.ok(!flat(tabHead("Security", "q", R7)).some((x) => (x.className || "").includes("sa-today")), "Security: no");
   for (const [mod, tab] of [["tabs/funnels.js", "sales/funnels"], ["tabs/events.js", "sales/events"]]) {
     const draw2 = (await import(new URL(mod, JS))).default;
     setContext(mt, { ...S.read(), tab });
     const got = flat(draw2({ ...mt, x: { ...mt.x, events: null, funnels: null }, journeys: [] }, { ...go(`#${tab}`), tab }));
-    assert.ok(got.some((el) => (el.className || "").includes("sa-today")), `${tab} has the line`);
+    assert.ok(got.some((x) => (x.className || "").includes("sa-today")), `${tab} has the line`);
   }
   setContext(m, S.read());
 }

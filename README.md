@@ -51,6 +51,8 @@
 
 ## What's new
 
+- **2.28.0: Leads' 7 days include today** ([changelog](CHANGELOG.md#2280-2026-10-22)). Today so
+  far plus the 6 days before, with the exact dates from and to, compared up to the same hour.
 - **2.27.0: share the visitor ID across subdomains from Skald** ([changelog](CHANGELOG.md#2270-2026-10-22)).
   One setting per site links a sign-up on app.example.com to the visits before it, with the script tag unchanged.
 - **2.26.0: page groups fill their past days, and leads found by their reference** ([changelog](CHANGELOG.md#2260-2026-10-22)).
@@ -62,8 +64,6 @@
   your web server; the setup Test now says what's wrong when nothing arrives.
 - **2.23.0: Leads & sales opens on 7 days, and a sturdier morning run** ([changelog](CHANGELOG.md#2230-2026-10-22)).
   All time, "Today so far", one filter row with five fixes; the kit zip with or without its token.
-- **2.22.3: a faster live run** ([changelog](docs/CHANGELOG-2.21-2.22.md#2223-2026-10-22)). About twice as fast,
-  every figure unchanged; the live audit skips a stale Real time snapshot instead of failing.
 
 Earlier releases: [CHANGELOG.md](CHANGELOG.md).
 
@@ -453,7 +453,7 @@ person search and the other Settings pages need your own Skald. Every image belo
 ### Leads & sales (2.20)
 
 <p align="center">
-  <img src="docs/screenshots/leads-list.png" alt="Leads and sales, Leads, on its default of the last 7 days: 'Today so far: 4 new leads, Show today (live)', the options row (what, stage now, source), 31 leads, 15% more than the 7 days before, and one row per lead with when, name, email (made-up example.com names), what they did, stage now, where it came from, source, first touch and landing page; view buttons for list, board, timeline and map" width="900"><br>
+  <img src="docs/screenshots/leads-list.png" alt="Leads and sales, Leads, on its default of the last 7 days: the heading Last 7 days, Fri 16 Oct to Thu 22 Oct (today, so far), the count against the same days and hour of the week before, Today so far: 6 of these leads, Show today (live), and one row per lead with today's first, each marked live" width="900"><br>
   <strong>Leads.</strong> Who they are, what they did and where they came from, in one list.
 </p>
 

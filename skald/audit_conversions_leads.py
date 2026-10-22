@@ -14,7 +14,9 @@ counts them apart). It shares only the name lists in conversions/__init__.py
                      action, stage and test mark, each against the SQL;
                      and its `by_now` (check_by_now): yesterday's leads to
                      the same time of day and both days by hour, one SQL
-                     COUNT per local hour
+                     COUNT per local hour; and its `same_time`
+                     (check_same_time, 2.27): the day before each of
+                     Leads' periods (7, 30, 90 days), to the same hour
     check_insights   {index: problems} for the lead findings whose numbers
                      the SQL does not give: `after` and `before` over their
                      periods, by the subject's column; for a "most leads"
@@ -148,6 +150,44 @@ def check_today(path: Path, site: str, tz, today: date, block: dict | None) -> l
         out.append("today: a listed row is not of today")
     if block.get("by_now") is not None:
         out += check_by_now(path, site, tz, today, block["by_now"])
+    if block.get("same_time") is not None:
+        out += check_same_time(path, site, tz, today, block["same_time"])
+    return out
+
+
+def check_same_time(path: Path, site: str, tz, today: date, part: dict) -> list[str]:
+    """Problems with `today.same_time` (2.27): each period's day before, from its
+    midnight to the file's time of day, recounted by one SQL GROUP BY action
+    between UTC bounds this module works out itself (the day's local midnight,
+    and that day at `time`)."""
+    out = []
+    try:
+        hh, mm, ss = (int(x) for x in str(part.get("time") or "").split(":"))
+    except ValueError:
+        return [f"same time: {part.get('time')!r} is not a time of day"]
+    db = _open(path)
+    try:
+        for e in part.get("days") or []:
+            if e.get("state") != "ok":
+                continue
+            day = date.fromisoformat(e["day"])
+            if (today - day).days != e.get("back"):
+                out.append(f"same time {e['day']}: not {e.get('back')} days before today")
+            cut = datetime(day.year, day.month, day.day, hh, mm, ss, tzinfo=tz)
+            if e.get("until") != cut.isoformat(timespec="seconds"):
+                out.append(f"same time {e['day']}: until {e.get('until')}, expected "
+                           f"{cut.isoformat(timespec='seconds')}")
+            hi = cut.astimezone(timezone.utc).strftime(STAMP)
+            got = dict(db.execute(f"SELECT c.action, COUNT(*) {LEADS} GROUP BY 1",
+                                  (site, _utc(day, tz), hi)).fetchall())
+            if e.get("leads") != sum(got.values()):
+                out.append(f"same time {e['day']} to {str(e.get('until'))[11:16]}: file "
+                           f"{e.get('leads')} leads, SQL recount {sum(got.values())}")
+            if {k: v for k, v in (e.get("actions") or {}).items() if v} != got:
+                out.append(f"same time {e['day']} by action: file {e.get('actions')}, "
+                           f"SQL recount {got}")
+    finally:
+        db.close()
     return out
 
 

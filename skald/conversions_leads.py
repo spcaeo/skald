@@ -10,6 +10,8 @@ lead: it is listed, marked, and never counted.
     today_block    conversions.json `today`: today's rows of the lead
                    actions (every stage), newest first, test rows marked.
                    A listing; withheld with today's day
+    same_time      `today.same_time` (2.27): the last day of the period
+                   before Leads' 7, 30 and 90 days, to this time of day
     insights       lead findings for insights.json, from conversions.json's
                    `ok` days only, by insights.py's rules (whole periods,
                    min_after, min_change, confidence)
@@ -104,6 +106,51 @@ def by_now(db, site: str, tz, today: date, now, held: set, since: str | None) ->
     else:
         out["hours"] = hours(start(yday), stamp(cut))
         out["leads"] = sum(out["hours"])
+    return out
+
+
+# The periods Leads & sales > Leads counts as today so far and the whole days before it
+# (2.27): 7, 30 and 90 days. The period before each ends on today minus that many days.
+SAME_TIME_BACK = (7, 30, 90)
+
+
+def same_time(db, site: str, tz, today: date, now, held: set, since: str | None,
+              back=SAME_TIME_BACK) -> dict:
+    """conversions.json `today.same_time` (2.27): for each period of `back` days
+    that ends today so far, the last day of the period before it (today minus
+    `back`) counted from midnight to `now`'s local time of day, so the period
+    before is compared like for like (its whole days, then that day to the same
+    hour). {"time": "HH:MM:SS", "days": [{"back","day","until","state","leads",
+    "actions"}]}: state "ok" (leads, and {action: n}), "withheld" or
+    "not_recorded" (before `since`): no figure then. A lead: a finished row of
+    the lead actions, test rows and a lead's repeat finish left out, the days'
+    own rule."""
+    from datetime import datetime
+    from .conversions.store import repeat_finishes, stamp
+    from .conversions_data import _stamp
+    t = now.astimezone(tz)
+    again = repeat_finishes(db, site)
+    out = {"time": t.strftime("%H:%M:%S"), "days": []}
+    for k in back:
+        d = today - timedelta(days=k)
+        cut = datetime(d.year, d.month, d.day, t.hour, t.minute, t.second, tzinfo=tz)
+        e = {"back": k, "day": d.isoformat(), "until": cut.isoformat(timespec="seconds"),
+             "state": "ok", "leads": None, "actions": None}
+        if d.isoformat() in held:
+            e["state"] = "withheld"
+        elif since is None or d.isoformat() < since:
+            e["state"] = "not_recorded"
+        else:
+            got: Counter = Counter()
+            for action, rid in db.execute(
+                    "SELECT action, id FROM conversions WHERE site = ? AND at >= ? AND at < ? "
+                    "AND test = 0 AND action IN (%s) AND stage IN (%s)" % (
+                        ",".join("?" * len(LEAD_ACTIONS)), ",".join("?" * len(FINISHED))),
+                    (site, _stamp(d, tz), stamp(cut), *LEAD_ACTIONS, *FINISHED)):
+                if rid not in again:
+                    got[action] += 1
+            e["leads"], e["actions"] = sum(got.values()), dict(sorted(got.items()))
+        out["days"].append(e)
     return out
 
 
