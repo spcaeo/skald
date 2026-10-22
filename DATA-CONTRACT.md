@@ -874,6 +874,9 @@ per-day `likely_ai` (an estimate): [docs/DATA-CONTRACT-AI-LIKELY.md](docs/DATA-C
 Since 2.18 a lead may carry a `label` (the lead hook's optional token): each day's `labels`
 and `labels_abandoned` count the labelled rows, recounted by the same SQL audit; the
 timeline's rows and steps name it. `conversions.sqlite` is schema 7 (`conversions.label`).
+Since 2.27 `today.same_time` holds the last day of the period before Leads' 7, 30 and 90
+days, counted to the file's time of day, so Leads compares today so far and the whole days
+before it like for like; recounted by `audit_conversions_leads.check_same_time`.
 
 The site's server reads back what its `lead` hook delivered with the signed
 `GET /traffic-hooks/<site>/leads` (2.18; `conversions/reconcile.py`, INTEGRATIONS.md): rows

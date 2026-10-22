@@ -99,6 +99,20 @@ yesterday's midnight to `until`, by local hour; `today_hours` today's the same w
 carries no figure. `check_by_now` counts the same again with one SQL COUNT per
 local hour between its UTC bounds; a difference withholds the listing as above.
 
+`today.same_time` (2.27, `conversions_leads.same_time`): Leads & sales > Leads counts 7, 30
+and 90 days as today so far and the whole days before it, and compares them like for like
+with the period before: its whole days (from `days[]`), then its last day to the same time of
+day. `{"time": "HH:MM:SS" (the file's own local time), "days": [{"back": 7 | 30 | 90, "day":
+today minus back, "until": that day at "time" (local ISO), "state": "ok" | "withheld" |
+"not_recorded", "leads": n or null, "actions": {action: n} or null}]}`: finished rows
+(completed, paid) of the lead actions, `test = 0`, a lead's repeat finish left out (2.26),
+from the day's midnight to `until`. A day withheld or before `since` carries no figure, and
+the page shows no change. `check_same_time` counts the same again by one SQL GROUP BY action
+between its own UTC bounds (the day's local midnight, and that day at `time`), with the repeat
+finish left out by its own NOT EXISTS (`audit_conversions_figures.once`); a difference
+withholds the listing as above. The period's own days, today's included, are `days[]`,
+recounted by `audit_conversions.py` on every build like every day.
+
 **Lead findings in insights.json (2.5.0).** `conversions_leads.insights` adds
 findings with `metric` `"leads"`, by insights.py's rules (whole periods only,
 `min_after` 5, `min_change` 20%, the same confidence): all leads (`subject`

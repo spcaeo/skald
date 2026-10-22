@@ -25,11 +25,14 @@
 // 2.25: a Reference column (the sender's own ID for the lead, with a copy icon), hidden until
 // Columns shows it, searched and in the CSV either way; the lead's drawer lists every step of
 // that reference and, for owners and admins, Mark as test / Not a test (leadref.js).
+//
+// 2.27: 7, 30 and 90 days are today so far and the whole days before it (sa-period.js): the
+// list holds today's leads, marked live; the change compares the period before to this hour.
 
 import { h, n, change, short, long } from "../ui.js";
 import * as S from "../state.js";
 import { rangeOf, previousOf } from "../data.js";
-import { time as tzTime } from "../tz.js";
+import { time as tzTime, daysNote } from "../tz.js";
 import { DEMO } from "../demo.js";
 import { grid } from "../grid.js";
 import { call } from "./ipmanager.js";
@@ -44,6 +47,7 @@ import { board, timeline, map } from "./sa-views.js";
 import { withUrl } from "../urlactions.js";
 import { LEAD_DIMS, activeFilters, filteredBy, appliedWords, figureFile, listOnly, leadsWord, CLEAR_ALL } from "./sa-filters.js";
 import { refCell, afterMark } from "./leadref.js";
+import { leadsRange, headWords, sentenceWords, versusLive, liveNote, csvName } from "./sa-period.js";
 
 export const VIEWS = [["list", "List"], ["board", "Board: by stage now"], ["timeline", "Timeline: leads per day"], ["map", "Map: leads by country"]];
 // A lead's stage now, in words, and the group it joins on the board and in the Stage filter.
@@ -94,9 +98,12 @@ const stageWords = (x) => (x.left_out ? `${NOW[x.left_out] || x.left_out} (left 
 
 /* The list's columns: Name and Email only when the answer holds them (an admin or an owner,
    on a site that keeps them); for everyone else the columns are not there at all. */
-export function columnsFor(names) {
+export function columnsFor(names, today = "") {
+  // Today's rows (2.27: in a period that ends today) carry the live mark: still being counted.
+  const live = (v) => (today && String(v || "").slice(0, 10) === today
+    ? h("span", null, at(v), h("span", { class: "live-dot", title: "Today, live: still being counted" }, h("span", { class: "vh" }, ", today, live"))) : at(v));
   return [
-    { key: "at", label: "When", type: "date", fmt: (v) => at(v) },
+    { key: "at", label: "When", type: "date", fmt: live, csv: (x) => x.at || "" },
     ...(names ? [{ key: "name", label: "Name", fmt: dash }, { key: "email", label: "Email", fmt: dash, cls: "path nm" }] : []),
     { key: "action", label: "What", fmt: (v, x) => h("span", null, oneAction(v || ""), labelTag(x.label)), csv: (x) => `${oneAction(x.action || "")}${x.label ? ` (${x.label})` : ""}` },
     { key: "now", label: "Stage now", fmt: (_, x) => (x.left_out ? h("b", { class: "pp-bad" }, stageWords(x)) : stageWords(x)), csv: stageWords, sort: stageWords },
@@ -130,7 +137,7 @@ export function openLead(x) {
 /* lead=<id>, from a link: the row in the period on screen (the same answer the list asked
    for), else the plain line. */
 export async function openLeadKey(m, s, value) {
-  const r = rangeOf(m, s);
+  const r = leadsRange(m, s);
   const first = r.kind === "today" ? m.today : r.first, last = r.kind === "today" ? m.today : r.last;
   const ans = await fetchLeads(first, last, mayFind());
   if (!ans?.ok) return ans?.status === 403 ? "Not available to your role." : "The leads could not be loaded just now, so that lead cannot be shown. Open this page again in a minute.";
@@ -155,8 +162,9 @@ export function daysOf(m, r) {
 }
 
 /* The period in words, inside a sentence: "today so far", "the last 7 days", "all time". */
-export function periodName(r, s) {
+export function periodName(r, s, m = null) {
   if (r.kind === "today") return "today so far";
+  if (r.live && m) return sentenceWords(r, m);
   if (r.all) return "all time";
   if (s.range === "yesterday") return "yesterday";
   if (r.length === 1) return long(r.first);
@@ -187,11 +195,11 @@ function countLine(m, s, r, fig, list, view) {
     const fm = withFile(m, "conversions", fig.f);
     const got = leadsOn(fm, daysOf(m, r));
     if (!got || !got.ok) return { node: null, got };
-    const vs = versus(fm, m, r, got);
+    const vs = r.live ? versusLive(fm, m, r, got, s, fig) : versus(fm, m, r, got);
     const node = h("p", { class: "sa-figure", title: TITLE },
       h("b", null, leadsWord(got.leads)), said, vs ? ` · ${vs}` : "", got.demos ? ` · ${n(got.demos)} demo${got.demos === 1 ? "" : "s"} booked` : "",
       got.whole ? "" : ` · ${n(got.ok)} of ${n(got.of)} days recorded, the others not recorded (never zero)`);
-    return { node, got };
+    return { node, got, today: r.live ? leadsOn(fm, [m.today]) : null };
   }
   // The figure before the list's own filters and the breakdowns (What and Label only).
   const base = convFile(m) ? leadsOn(withFile(m, "conversions", narrowConv(convFile(m), s)), daysOf(m, r)) : null;
@@ -206,14 +214,14 @@ function countLine(m, s, r, fig, list, view) {
    days, then all time), with a button to each; none at all: "No leads yet" and the hint. */
 export function emptyLeads(m, s, r, fig, list) {
   const fm = withFile(m, "conversions", fig.f);
-  const count = (range) => { const w = rangeOf(m, { ...s, range }); return { w, got: leadsOn(fm, daysOf(m, w)) }; };
+  const count = (range) => { const w = leadsRange(m, { ...s, range }); return { w, got: leadsOn(fm, daysOf(m, w)) }; };
   const btn = (words, range) => h("button", { type: "button", class: "btn", onclick: () => S.set({ range }) }, words);
   const filtered = list.some((x) => x.applied);
   const none = filtered ? "No new leads match these filters" : "No new leads";
-  const where = `${none} in ${periodName(r, s)}.`;
+  const where = `${none} in ${periodName(r, s, m)}.`;
   const d30 = ["30d", "90d", "all"].includes(s.range) ? null : count("30d");
   if (d30?.got?.leads) {
-    return h("div", { class: "sa-empty sa-wider", role: "status" }, h("p", null, `${where} `, h("b", null, leadsWord(d30.got.leads)), " in the last 30 days."),
+    return h("div", { class: "sa-empty sa-wider", role: "status" }, h("p", null, `${where} `, h("b", null, leadsWord(d30.got.leads)), ` in ${d30.w.live ? sentenceWords(d30.w, m, true) : "the last 30 days"}.`),
       btn("Show last 30 days", "30d"), btn("All time", "all"));
   }
   const all = s.range === "all" ? null : count("all");
@@ -237,11 +245,12 @@ function fill(body, make) {
 }
 
 export default function leadsTab(m, s) {
-  const r = rangeOf(m, s);
+  const r = leadsRange(m, s);
   const f = convFile(m);
   const view = viewOf(s.lview, VIEWS);
   const top = tabHead("Leads", "Who are my leads? One row per lead: who, what they did, and where they came from.", r,
-    { help: "Every lead of the period from every road: the lead database, the booking tools, the page's script tag and your site's server, each row saying which. The count is the Leads figure, the same as Overview's.", more: HELP });
+    { help: "Every lead of the period from every road: the lead database, the booking tools, the page's script tag and your site's server, each row saying which. The count is the Leads figure, the same as Overview's.", more: HELP,
+      ...(r.live ? { period: [headWords(r, m), daysNote()].filter(Boolean).join(" · ") } : {}) });
   if (!f) {
     const raw = m.x.conversions;
     return [...top, emptyState(raw?.state === "error" ? `The leads could not be built: ${raw.error || "no reason given"}.` : "No leads yet: nothing has reported a lead for this site.",
@@ -263,9 +272,11 @@ export default function leadsTab(m, s) {
   const list = activeFilters(s, view);
   // The map counts by country: the other breakdowns are not applied there (their chips say so).
   const fig = figureFile(m, view === "map" ? { ...s, lby: "", source: "", device: "", campaign: "" } : s);
-  const { node: line, got, rowsOnly } = countLine(m, s, r, fig, list, view);
+  const { node: line, got, rowsOnly, today } = countLine(m, s, r, fig, list, view);
   const body = h("div", { class: "sa-view" });
-  const out = [...top, ...row, filteredBy(list), line, body].filter(Boolean);
+  // 2.27: under the count, today's part of the period and what is verified ("Today so far" was above).
+  const live = r.live ? liveNote(m, s, r, today || (rowsOnly ? null : leadsOn(m, [m.today])), today && got ? got.leads : null) : null;
+  const out = [...top, ...row, filteredBy(list), line, live, body].filter(Boolean);
   // The period has no lead (the figure says 0 on checked days): where the leads are instead.
   if (got && got.ok && !got.leads) { body.append(emptyLeads(m, s, r, fig, list)); return out; }
   const m2 = fig.f ? withFile(m, "conversions", fig.f) : m;
@@ -286,7 +297,7 @@ export default function leadsTab(m, s) {
     if (view === "board") parts.push(board(rows, names, openLead));
     else {
       // The table's own Filter button is not here (2.23): the options row is the filter row.
-      parts.push(grid({ ns: "ld", caption: "Leads", file: "leads.csv", rows, columns: columnsFor(names), sortKey: "at", dir: "desc", onRow: openLead, columnFilters: false,
+      parts.push(grid({ ns: "ld", caption: "Leads", file: csvName(r, m), rows, columns: columnsFor(names, r.live ? m.today : ""), sortKey: "at", dir: "desc", onRow: openLead, columnFilters: false,
         placeholder: names ? "Search names, emails, references, sources, pages" : "Search references, sources, pages, countries",
         empty: list.length ? "No lead matches these filters." : "No lead in this period." }));
     }

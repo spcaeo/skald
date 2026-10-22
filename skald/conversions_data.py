@@ -398,11 +398,13 @@ def _today(db, path, site: str, tz, today: date, held: set, audited: bool,
     """conversions.json `today` (conversions_leads.today_block), checked by
     audit_conversions_leads.check_today when audited; withheld (and named
     in `withheld["today"]`) when the recount disagrees or cannot run."""
-    from .conversions_leads import by_now, today_block
+    from .conversions_leads import by_now, same_time, today_block
     block = today_block(db, site, tz, today, held)
     if block["state"] == "ok" and now is not None:
         # Yesterday at this hour, and both days by hour (Overview in Live mode).
         block["by_now"] = by_now(db, site, tz, today, now, held, since)
+        # 2.27: the last day of the 7, 30 and 90 days before, to this hour (Leads' comparison).
+        block["same_time"] = same_time(db, site, tz, today, now, held, since)
     if not audited or block["state"] != "ok":
         return block
     from . import audit_conversions_leads

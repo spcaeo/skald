@@ -46,6 +46,10 @@
   box-sizing: border-box; border-radius: 999px; background: color-mix(in srgb, var(--leads, var(--g-people)) 12%, var(--surface)); font-size: 13px; color: var(--ink-2); }
 .sa-today b { color: var(--ink); }
 .sa-today .sa-today-go { color: var(--ink); font-weight: 600; font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
+/* Leads on 7, 30 or 90 days (2.27): today's part of the period, in a sentence that wraps */
+.sa-today.sa-live { display: block; border-radius: 10px; line-height: 1.5; }
+.sa-live .live-dot, .sa-view .live-dot { display: inline-block; width: 6px; height: 6px; margin: 0 7px 0 2px; border-radius: 50%; background: var(--good); vertical-align: 2px; }
+.sa-view .live-dot { margin: 0 0 0 6px; }
 
 /* The figure line above a list ("37 leads · 12% more than the 30 days before") */
 .sa-figure { margin: 0 0 var(--sp-3); font-size: 13.5px; color: var(--ink-2); }

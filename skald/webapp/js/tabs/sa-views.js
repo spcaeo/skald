@@ -96,8 +96,8 @@ export function timeline(m, s, r, fig = {}) {
   series = series.filter((x) => days.some((d) => d.state === "ok" && x.get(d)));
   return [h("div", { class: "sa-viewbar" }, switcher),
     h("div", { class: "sheet" }, legend([...series.map((x) => [x.name, x.color]), ["Not recorded", "", "hatch"]]),
-      columns(days, series, { label: "Leads per day", unit: "leads", H: 240, onPick: (d) => S.set({ lview: "", range: "custom", from: d.day, to: d.day }) })),
-    h("p", { class: "note" }, `Leads per day: the Leads figure of each day${split === "source" ? ", by the source of the visit they came in on (last touch)" : ""}. A hatched stub is a day not recorded, never zero. Press a day to list its leads.`)];
+      columns(days, series, { label: "Leads per day", unit: "leads", H: 240, onPick: (d) => S.set(d.day === m.today ? { lview: "", range: "today" } : { lview: "", range: "custom", from: d.day, to: d.day }) })),
+    h("p", { class: "note" }, `Leads per day: the Leads figure of each day${split === "source" ? ", by the source of the visit they came in on (last touch)" : ""}. A hatched stub is a day not recorded, never zero.${r.live ? " The last bar is today so far (live)." : ""} Press a day to list its leads.`)];
 }
 
 // --------------------------------------------------------------------- map

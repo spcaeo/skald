@@ -4,6 +4,46 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.28.0 (2026-10-22)
+
+Leads' 7, 30 and 90 days include today so far, with the exact dates from and to.
+
+### Changed: Leads' 7, 30 and 90 days include today
+
+- **What changed:** on Leads & sales > Leads, 7 days are now today so far and the 6 whole days
+  before it (30 and 90 the same way). The heading gives the dates from and to, with weekdays:
+  "Last 7 days: Fri 16 Oct to Thu 22 Oct (today, so far)", the year only when the days cross a
+  year. Today's leads are in the list, newest first, each with a small green live dot. The
+  "Today so far" line is now part of the period, under the count ("Today so far: 2 of these 5
+  leads"), with Show today (live) still going to today alone, and says in one sentence that the
+  whole days are verified and today is live, checked again once whole. The change against the
+  period before is like for like: the period before's whole days, then its last day only up to
+  the time it is now ("25% more than Fri 9 Oct to Thu 15 Oct 14:00 EDT (4), the 7 days before to
+  this hour"), never a part-day against a whole one. With a label or a source, country, device or
+  campaign filter on, no change is shown, and the line says why. The CSV is named after the
+  period's days (`leads-2026-10-16-to-2026-10-22.csv`). In the Timeline, today's bar is said to be
+  so far, and pressing it opens Today (it opened yesterday's day before: a custom day stops at the
+  last whole day). The empty state names its dates too.
+- **Why:** the owner, 2026-10-22: on #sales/leads "if you are looking at 7 days it should also
+  show today ... today is 1 + last 6 = 7 days", and "show clear dates from and to so it's not
+  confusing". The list opened on the last 7 whole days, so a lead that came in today was only in
+  the "Today so far" line.
+- **New figure:** conversions.json `today.same_time` (conversions_leads.same_time): the day that
+  ends each period before (today minus 7, 30, 90), counted from midnight to the file's time of
+  day, by kind. Second count: `audit_conversions_leads.check_same_time`, one SQL GROUP BY between
+  its own bounds; a difference withholds `today` as before. The period's days, today's included,
+  are conversions.json's `days[]`, recounted by audit_conversions.py on every build.
+- **Who:** everyone who opens Leads. Summary, Sources, Calendar bookings, Funnels and Events keep
+  whole days up to yesterday: their figures sit beside visitors, rates and Compare with…, which
+  take whole, verified days only, so a part-day would mix in. The Leads line names their dates. Yesterday, Today,
+  All time and custom periods are unchanged everywhere. The URL keeps `range=7d` etc. as before.
+- **Do:** nothing.
+- **Checked:** tests/test_leads_today_period.py (the period's days with today's rows, the list
+  newest first, the like-for-like count against the SQL recount, a tampered figure withheld),
+  tests/js/leads-period.mjs (the heading words, the dates, the "Today so far" line, the live
+  mark, the change and its filters, the URL, Summary unchanged), the full suite, and the demo
+  (public/docs/screenshots/leads-list.png).
+
 ## 2.27.0 (2026-10-22)
 
 Share the visitor ID across a site's subdomains from Skald's side (a per-site setting, off by
