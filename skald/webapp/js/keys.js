@@ -27,15 +27,18 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-22-2.26.0",
+  id: "2026-10-22-2.27.0",
   items: [
+    ["Share the visitor ID across subdomains from Skald", "Settings › Sites › Script tag: one setting links a sign-up on app.example.com to the visits on www.example.com, with no change to the tag.", "tracking-script"],
+    ["The developer's set-up page, fixed", "the link you share with your developer draws properly again and says when it ends in words."],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.26.0
     ["Page groups with their past", "save a page group in Settings › Sites and its past days are counted from the raw log, audited, with the progress shown.", "settings-and-retention"],
     ["Find a lead by its reference", "the ID your app sent (an account number) finds the person in Find a person.", "leads-and-conversions"],
     ["One sign-up, one lead", "a sign-up that also reports its payment counts once."],
     ["Plain words for a lead with no visit", "its drawer says \"No visit linked\" and the stage it reached."],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.25.0
     ["A lead's own reference", "the sender's ID (an account number, a form id) as a Reference column, searchable, with a copy button, and in every lead drawer with all its steps.", "leads-and-conversions"],
     ["Mark as test from the screen", "owners and admins mark a lead as test, or not, from any drawer that shows it; it moves to Show left out and every count updates.", "leads-and-conversions"],

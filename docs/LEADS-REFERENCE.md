@@ -285,7 +285,10 @@ without leaving a row.
   from before 2.4.0). Phones, other emails, addresses and user agents are never kept.
 - **Visitor ID linking.** A `vid` ties the lead to the browser's journey (pages before, first
   and assisted touch, abandoned). Only when the site has `beacon.visitor_ids` on; with it off,
-  no visitor ID is kept from any road. Matching is never by IP address.
+  no visitor ID is kept from any road. Matching is never by IP address. For `www.` and `app.`
+  to share one ID, the tag takes `data-share-subdomains="true"`, or an admin can switch sharing
+  on in Skald instead of the tag (`beacon.share_subdomains`, Settings > Sites > Script tag;
+  docs/BEACON.md).
 - **One road per lead.** Each tool keeps its own row, so the same ref through `lead` and
   `json` (or a hook and the lead database) counts once per tool. Settings › Integrations ›
   Status flags it as "One lead, two tools".

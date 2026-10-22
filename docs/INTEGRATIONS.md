@@ -43,8 +43,8 @@ embeds, each with an anonymous visitor ID when the install keeps them:
 (`skald.example.com` is your Skald's address; Settings > Integrations and the
 set-up dialog give the exact line.) It needs **no change on the site's server**
 (2.24.0): the page loads the file from Skald and posts its events to
-`/traffic-beacon` beside it, on Skald. The file is under 6 KB (the test's
-budget; 5 KB until it sent every event and adopted IDs from other domains),
+`/traffic-beacon` beside it, on Skald. The file is under 6.5 KB (the test's
+budget; 6 KB until it asked Skald about shared subdomains, 5 KB before),
 plain JavaScript, served by the beacon helper (`GET /traffic-js/skald.js`, an
 ETag and a day's cache). No `eval`, never a field's value; the visitor ID stays
 in the page's own storage. How a cross-site post is taken (the Origin map,

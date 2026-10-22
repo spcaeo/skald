@@ -6,7 +6,7 @@ How to add Skald's one-line `skald.js` tag to your pages, what it sees, what it 
 
 Your server log already counts visits and pages. It cannot see what happens *inside* a page: a form started and not sent, a phone link clicked, a demo booked in a widget. The `skald.js` tag reports those.
 
-- It is under 6 KB of plain JavaScript.
+- It is under 6.5 KB of plain JavaScript.
 - It sends events to your own site's address, never to a third party.
 - It uses no cookies, unless you ask it to share an ID across subdomains (below).
 - Skald's figures from the log never depend on it. Without the tag, you lose nothing you already have.
@@ -64,7 +64,7 @@ The set-up dialog **Add the script tag**, step 2, has these lines for nginx, Apa
 | Tick box on the page | Adds to the tag | What it does |
 | --- | --- | --- |
 | Wait for consent | `data-consent="required"` | sends nothing and keeps no ID until your consent banner says yes |
-| Share across subdomains | `data-share-subdomains="true"` | `www.` and `app.` see the same anonymous ID, kept in a first-party cookie |
+| Share across subdomains | `data-share-subdomains="true"` | `www.` and `app.` see the same anonymous ID, kept in a first-party cookie. An admin can switch this on in Skald instead (below) |
 | Other domains you own | `data-link-domains="..."` | links to those domains carry the anonymous ID |
 | Accept the ID from your other domains | `data-accept-id="true"` | this site takes the ID a link from your other domains brought (below) |
 
@@ -138,6 +138,15 @@ Visitor IDs let Skald follow one browser's anonymous journey up to a conversion.
 - When they are off, the tag makes no ID at all and stores nothing in the browser.
 - When they are on, the ID is kept in the browser's local storage. With "Share across subdomains", it is also kept in a first-party cookie called `skald_vid` for up to 400 days.
 
+### Share across subdomains without changing the tag
+
+If your web developer cannot add `data-share-subdomains="true"` to the tag, an admin can switch sharing on in Skald instead of the tag: **Settings > Sites > Script tag > Share the ID across subdomains**. The tag stays exactly as it is.
+
+- The tag learns it from Skald's answer to its first page view, and remembers the answer for a day in the browser's local storage (`skald.sh`). So a visitor's browser starts sharing on its next visit, and at the latest a day after you switch it on.
+- Switching it off works the same way: within a day, each browser stops sharing and deletes the shared cookie.
+- It needs visitor IDs on. Do Not Track, Global Privacy Control and **Wait for consent** work exactly as before: no ID, no cookie.
+- The Integrations page says, under the tag, when sharing is on in Skald. The privacy notice wording then has the cookie line ready, without "Keep this line only if".
+
 > Turn visitor IDs on only when your privacy notice says so. See [Privacy](privacy.md).
 
 ## Consent and Do Not Track
@@ -177,7 +186,7 @@ When a page opens with a valid `skv` in its address, the tag keeps that ID as th
 - With Do Not Track or Global Privacy Control, the tag does nothing, so `skv` stays in the address.
 - If your other domain does not run the tag, its own code can read `skv` and pass it to Skald, for example as `vid` in your site's lead push. See [Webhooks](webhooks.md).
 
-For subdomains of one domain (`www.` and `app.`), tick **Share across subdomains** instead. If the shared cookie does not work on your host (some free hosting addresses refuse it), the ID still works on each subdomain on its own.
+For subdomains of one domain (`www.` and `app.`), tick **Share across subdomains** instead, or switch it on in Skald (above). If the shared cookie does not work on your host (some free hosting addresses refuse it), the ID still works on each subdomain on its own.
 
 ## Calendly links get utm_content
 

@@ -75,14 +75,21 @@ function page(opts = {}) {
     localStorage: new Store(), sessionStorage: new Store(),
     URL, URLSearchParams, btoa, crypto: globalThis.crypto,
     Blob: class { constructor(parts, o) { this.text = parts.join(""); this.type = o.type; } },
+    // The beacon's answer: X-Skald-Sh as opts.answer says (null: not sent, as before 2.27).
     fetch: (u, init) => { fetched.push({ url: u, init, body: JSON.parse(init.body) });
-      return Promise.resolve(); },
+      if (opts.fetchFails) return Promise.reject(new TypeError("blocked"));
+      const said = "answer" in opts ? opts.answer : "0";
+      return Promise.resolve({ ok: opts.status ? opts.status < 300 : true, status: opts.status || 204,
+        headers: { get: (k) => (k.toLowerCase() === "x-skald-sh" ? said : null) } }); },
     MutationObserver: class { constructor(fn) { this.fn = fn; } observe() {} },
     setTimeout: (fn) => { fn(); return 1; }, clearTimeout: () => {},
     addEventListener: add("win"),
   };
   ctx.window = ctx;
   if (opts.queue) ctx.skald = Object.assign(() => {}, { q: opts.queue });
+  // Sharing known off for a day unless a test says otherwise (opts.sh: a flag, or null for none).
+  const flag = "sh" in opts ? opts.sh : `0|${Date.now()}`;
+  if (flag != null) ctx.localStorage.setItem("skald.sh", flag);
   if (opts.storage) for (const [k, v] of Object.entries(opts.storage)) ctx.localStorage.setItem(k, v);
   vm.createContext(ctx);
   vm.runInContext(opts.source || SOURCE, ctx);
@@ -296,7 +303,7 @@ const tests = {
     // Waiting for consent: nothing kept until consent, then the adopted ID.
     p = page({ url: `https://app.example.net/?skv=${theirs}`,
       attrs: { "data-accept-id": "true", "data-consent": "required" } });
-    assert.equal(p.sent.length + p.ctx.localStorage.m.size, 0);
+    assert.equal(p.sent.length + kept(p), 0);
     assert.equal(p.loc.search, "");
     p.ctx.skald("consent", true);
     assert.equal(p.last().v, theirs);
@@ -307,7 +314,7 @@ const tests = {
     p = page({ source: SOURCE.replace("IDS=1", "IDS=0"), url: `https://app.example.net/?skv=${theirs}`,
       attrs: { "data-accept-id": "true" } });
     assert.ok(!("v" in p.last()));
-    assert.equal(p.ctx.localStorage.m.size, 0);
+    assert.equal(kept(p), 0);
   },
   "Do Not Track and GPC: no ID, no beacon"() {
     for (const o of [{ dnt: true }, { gpc: true }]) {
@@ -318,7 +325,7 @@ const tests = {
       p.message("https://calendly.com", { event: "calendly.event_scheduled" });
       assert.equal(p.sent.length, 0);
       assert.equal(p.ctx.skald("id"), null);
-      assert.equal(p.ctx.localStorage.m.size, 0);
+      assert.equal(kept(p), 0);
       assert.equal(p.ctx.sessionStorage.m.size, 0);
       assert.equal(p.cookieWrites.length, 0);
       assert.equal(frame.attrs.src, "https://calendly.com/acme/demo");
@@ -334,7 +341,7 @@ const tests = {
     assert.equal(p.sent.length, 0);
     assert.equal(p.ctx.skald("id"), null);
     assert.equal(link.href, "https://calendly.com/acme/demo");
-    assert.equal(p.ctx.localStorage.m.size + p.ctx.sessionStorage.m.size + p.cookies.size, 0);
+    assert.equal(kept(p) + p.ctx.sessionStorage.m.size + p.cookies.size, 0);
     p.ctx.skald("consent", true);
     assert.deepEqual(p.names(), ["page_view"]);
     const v = p.ctx.skald("id");
@@ -433,15 +440,124 @@ const tests = {
     p.doc("submit", el("form", { id: "contact" }));
     assert.deepEqual(p.names(), ["page_view", "form_submit"]);
     assert.ok(p.sent.every((s) => !("v" in s.body)));
-    assert.equal(p.ctx.localStorage.m.size + p.cookies.size, 0);
+    assert.equal(kept(p) + p.cookies.size, 0);
     assert.equal(p.ctx.skald("id"), null);
   },
+  // Sharing across subdomains switched on in Skald (beacon.share_subdomains),
+  // the tag unchanged: the beacon's answer says so (X-Skald-Sh), kept a day.
+  async "no flag: the first page view asks, then the cookie is set on .example.com"() {
+    const p = page({ url: "https://www.example.com/", attrs: { "data-site": "example.com" },
+      sh: null, answer: "1", src: "https://skald.example.net/traffic-js/skald.js" });
+    assert.equal(p.sent.length, 0, "the asking page view goes by fetch, not sendBeacon");
+    assert.equal(p.fetched.length, 1);
+    const f = p.fetched[0];
+    assert.equal(f.url, "https://skald.example.net/traffic-beacon");
+    assert.deepEqual([f.init.method, f.init.keepalive, f.init.credentials, f.init.headers],
+      ["POST", true, "omit", undefined]);
+    assert.equal(typeof f.init.body, "string", "the same text/plain body: a CORS-simple request");
+    assert.equal(f.body.e, "page_view");
+    assert.equal(p.cookieWrites.length, 0, "no cookie before the answer");
+    await tick();
+    assert.equal(p.cookieWrites.length, 1);
+    assert.ok(p.cookieWrites[0].includes(";domain=example.com;"), p.cookieWrites[0]);
+    assert.equal(p.cookies.get("skald_vid"), f.body.v);
+    const [on, at] = p.ctx.localStorage.getItem("skald.sh").split("|");
+    assert.equal(on, "1");
+    assert.ok(Math.abs(Date.now() - Number(at)) < 5000);
+    // the next page view of the same page load: sendBeacon again, no second ask
+    p.ctx.history.pushState({}, "", "/features/");
+    assert.deepEqual([p.fetched.length, p.sent.length], [1, 1]);
+  },
+  async "a fresh flag decides at once: no ask; 1 shares, 0 does not"() {
+    const shared = "skv_" + "S".repeat(22);
+    const p = page({ url: "https://app.example.com/", sh: `1|${Date.now() - 3600e3}`,
+      cookies: { skald_vid: shared } });
+    assert.equal(p.fetched.length, 0);
+    assert.equal(p.last().v, shared, "the sibling subdomain's ID");
+    assert.ok(p.cookieWrites[0].includes(";domain=example.com;"));
+    const q = page({ url: "https://app.example.com/", sh: `0|${Date.now()}`,
+      cookies: { skald_vid: shared } });
+    assert.equal(q.fetched.length, 0);
+    assert.notEqual(q.last().v, shared);
+    assert.equal(q.cookieWrites.length, 0);
+  },
+  async "a flag older than a day asks again, adopting a sibling's shared ID"() {
+    const shared = "skv_" + "S".repeat(22);
+    const p = page({ url: "https://app.example.com/", sh: `1|${Date.now() - 25 * 3600e3}`,
+      cookies: { skald_vid: shared }, answer: "1" });
+    assert.equal(p.fetched.length, 1);
+    assert.equal(p.fetched[0].body.v, shared);
+    await tick();
+    assert.equal(p.ctx.localStorage.getItem("skald.sh")[0], "1");
+    assert.equal(p.cookies.get("skald_vid"), shared);
+    // a flag from the future (the clock was moved back) is not fresh either
+    const q = page({ sh: `0|${Date.now() + 3 * 864e5}`, answer: "1" });
+    assert.equal(q.fetched.length, 1);
+  },
+  async "switched off: the answer 0 stops sharing and clears the cookie it wrote"() {
+    const shared = "skv_" + "S".repeat(22);
+    const p = page({ url: "https://app.example.com/", sh: `1|${Date.now() - 25 * 3600e3}`,
+      cookies: { skald_vid: shared }, answer: "0" });
+    await tick();
+    assert.equal(p.ctx.localStorage.getItem("skald.sh")[0], "0");
+    assert.equal(p.cookies.has("skald_vid"), false);
+    assert.ok(/max-age=0;domain=example.com;/.test(p.cookieWrites.at(-1)), p.cookieWrites.at(-1));
+    // never shared: 0 writes nothing
+    const q = page({ sh: null, answer: "0" });
+    await tick();
+    assert.equal(q.cookieWrites.length, 0);
+    assert.equal(q.ctx.localStorage.getItem("skald.sh")[0], "0");
+  },
+  async "an older Skald (no answer header), a refusal or a blocked post"() {
+    const old = page({ sh: null, answer: null });
+    await tick();
+    assert.equal(old.ctx.localStorage.getItem("skald.sh")[0], "0", "no header: not shared");
+    assert.equal(old.cookieWrites.length, 0);
+    const busy = page({ sh: null, answer: "1", status: 429 });
+    await tick();
+    assert.equal(busy.ctx.localStorage.getItem("skald.sh"), null, "asked again next load");
+    assert.equal(busy.cookieWrites.length, 0);
+    const blocked = page({ sh: null, fetchFails: true });
+    await tick();
+    assert.equal(blocked.ctx.localStorage.getItem("skald.sh"), null);
+  },
+  async "the attribute still wins: no ask"() {
+    const p = page({ sh: null, answer: "0", attrs: { "data-share-subdomains": "true" } });
+    assert.equal(p.fetched.length, 0);
+    assert.equal(p.sent.length, 1);
+    assert.ok(p.cookieWrites[0].includes("domain=example.com"));
+    await tick();
+    assert.equal(p.cookies.has("skald_vid"), true);
+  },
+  async "Do Not Track, GPC, waiting for consent, IDs off: no ask, no ID, no cookie"() {
+    for (const opts of [{ dnt: true }, { gpc: true }]) {
+      const p = page({ ...opts, sh: null, answer: "1" });
+      await tick();
+      assert.equal(p.fetched.length + p.sent.length + p.cookieWrites.length, 0);
+      assert.equal(p.ctx.localStorage.m.size, 0);
+    }
+    const c = page({ sh: null, answer: "1", attrs: { "data-consent": "required" } });
+    await tick();
+    assert.equal(c.fetched.length + c.cookieWrites.length, 0);
+    assert.equal(c.ctx.localStorage.getItem("skald.vid"), null);
+    c.ctx.skald("consent", true);                     // consent given: now it asks
+    assert.equal(c.fetched.length, 1);
+    await tick();
+    assert.equal(c.cookies.get("skald_vid"), c.ctx.skald("id"));
+    const off = page({ source: SOURCE.replace("IDS=1", "IDS=0"), sh: null, answer: "1" });
+    await tick();
+    assert.deepEqual([off.fetched.length, off.sent.length, off.cookieWrites.length], [0, 1, 0]);
+  },
 };
+
+function tick() { return new Promise((resolve) => setTimeout(resolve, 0)); }
+// What the script kept in local storage, leaving out the day's flag the harness put there.
+function kept(p) { return [...p.ctx.localStorage.m.keys()].filter((k) => k !== "skald.sh").length; }
 
 let failed = 0;
 for (const [name, fn] of Object.entries(tests)) {
   try {
-    fn();
+    await fn();
     console.log("ok   " + name);
   } catch (err) {
     failed++;

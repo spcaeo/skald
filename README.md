@@ -51,6 +51,8 @@
 
 ## What's new
 
+- **2.27.0: share the visitor ID across subdomains from Skald** ([changelog](CHANGELOG.md#2270-2026-10-22)).
+  One setting per site links a sign-up on app.example.com to the visits before it, with the script tag unchanged.
 - **2.26.0: page groups fill their past days, and leads found by their reference** ([changelog](CHANGELOG.md#2260-2026-10-22)).
   Save a page group and its past days are counted from the raw log, audited; a lead is found by
   the sender's own ID; one sign-up is one lead even when it also sends paid; MCP switch for Docker.
@@ -62,12 +64,6 @@
   All time, "Today so far", one filter row with five fixes; the kit zip with or without its token.
 - **2.22.3: a faster live run** ([changelog](docs/CHANGELOG-2.21-2.22.md#2223-2026-10-22)). About twice as fast,
   every figure unchanged; the live audit skips a stale Real time snapshot instead of failing.
-- **2.22.0 to 2.22.2: an optional public site check** ([changelog](docs/CHANGELOG-2.21-2.22.md#2220-2026-10-21)).
-  Turn it on and your install answers a free "Is my site exposed?" page: what a site shows the
-  world, which advisories apply, and the proof for every finding; a site behind a firewall that
-  stops the check is "could not check", with the command to run it yourself. Live at
-  https://skaldanalytics.com/check/, and as a free CLI and GitHub Action:
-  [php2shell-check](https://github.com/spcaeo/php2shell-check).
 
 Earlier releases: [CHANGELOG.md](CHANGELOG.md).
 
@@ -643,9 +639,11 @@ to read the log (on Debian and Ubuntu, the `adm` group).
 
 **The script tag (optional).** One line in your page's `<head>` adds page views, form steps, phone,
 mail and outbound clicks, 75% scroll, and Calendly, Cal.com and HubSpot meeting bookings. It is under
-6 KB of plain JavaScript, served from your own site and posting to your own site. No third-party code,
-no cookie by default, and Do Not Track and Global Privacy Control are respected. Every site on one
-Skald can use it: each site's events go to that site, and visitor IDs are set per site.
+6.5 KB of plain JavaScript, served by your own Skald and posting back to it (accepted only from
+your site's own addresses). No third-party code, no cookie by default, and Do Not Track and Global
+Privacy Control are respected. Every site on one Skald can use it: each site's events go to that
+site, and visitor IDs are set per site. To link a sign-up on app.example.com to the visits on
+www.example.com, share the visitor ID across subdomains: in the tag, or with one setting in Skald.
 
 ```html
 <script src="/traffic-js/skald.js" data-site="example.com" defer></script>

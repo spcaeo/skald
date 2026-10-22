@@ -97,6 +97,13 @@ def visitor_ids(config: dict | None) -> bool:
     return setting(config or {}, "beacon", "visitor_ids", False) in (True, "true")
 
 
+def share_subdomains(config: dict | None) -> bool:
+    """`beacon.share_subdomains`: the site shares the visitor ID across its
+    subdomains (a first-party cookie), switched on in Skald instead of the
+    tag's data-share-subdomains. The beacon tells the page (X-Skald-Sh)."""
+    return setting(config or {}, "beacon", "share_subdomains", False) in (True, "true")
+
+
 def allowed_events(config: dict | None) -> tuple[str, ...]:
     """page_view counts in beacon-only mode and for visitor journeys."""
     if setting(config or {}, "beacon", "page_views", False) in (True, "true") or \

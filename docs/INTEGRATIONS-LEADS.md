@@ -195,3 +195,12 @@ and leaves exactly those out of the spool recount (per stage since 2.19, since a
 `test` marks one stage only), and the call drops the audit's cached beacon days
 (`conversions-audit.json`) as the CLI does. The two roads agree after a mark and after an
 unmark: tested in `tests/test_lead_test_marks.py`.
+
+## One visitor ID across subdomains, without a tag change (2.27)
+
+A lead's `vid` joins its journey only when the browser kept one ID. For a site on `www.` and
+`app.`, the tag shares it with `data-share-subdomains="true"`; when the site's developer cannot
+change the tag, an admin can switch sharing on in Skald instead of the tag:
+`beacon.share_subdomains` (Settings > Sites > Script tag, or
+`skald settings set example.com beacon.share_subdomains true`). Browsers learn it from the
+beacon's answer within a day. How: docs/BEACON.md, "Sharing the ID across subdomains".

@@ -80,6 +80,7 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `site.logo.source` | Sites (Logo) | auto, upload, letter (auto) | admin | site | `site.logo_source` |
 | `site.logo.color` | Sites (Logo) | `#1d4ed8`, `#0f766e`, `#9a6400`, `#17212b` (one picked from the name) | admin | site | `site.logo_color` |
 | `beacon.visitor_ids` | Sites (Script tag) | true / false (false) | admin | site | `beacon.visitor_ids` |
+| `beacon.share_subdomains` | Sites (Script tag) | true / false (false) | admin | site | `beacon.share_subdomains` |
 | `beacon.goals` | Sites (Goals) | up to 10 event names of `beacon.EVENTS` or `page_view`; `[]` is no goal ([]) | admin | site | `beacon.goals` |
 | `hooks.calendly.event_types` | Integrations (Calendly) | up to 50 event-type URIs, uuids or booking-page slugs; `[]` keeps every event ([]) | admin | site | `hooks.calendly_event_types` (or nested `hooks.calendly.event_types`) |
 | `hooks.calcom.event_types` | Integrations (Cal.com) | up to 50 event-type ids or slugs; `[]` keeps every event ([]) | admin | site | `hooks.calcom_event_types` (or nested `hooks.calcom.event_types`) |
@@ -112,6 +113,14 @@ beacon helper reads it again within a minute, and serves `skald.js` with the val
 whose page loads it. Settings > Sites > Script tag has the switch; Settings > Integrations says
 whether it is on from the same merged value.
 Turn it on only when the site's privacy notice says so, and let a consent banner gate the tag.
+
+`beacon.share_subdomains` (2.27): share the visitor ID across the site's subdomains (a
+first-party cookie `skald_vid`), as `data-share-subdomains="true"` on the tag does, with the
+tag unchanged: an admin can switch sharing on in Skald instead of the tag, for a site whose
+developer cannot edit it. The beacon helper reads it within a minute and says it in its answer
+to a page view (`X-Skald-Sh`); each browser keeps that answer a day (docs/BEACON.md, "Sharing
+the ID across subdomains"). It needs `beacon.visitor_ids` on. Settings > Integrations and the
+privacy notice treat it as the attribute.
 
 `site.asset_prefixes` and `site.require_rendering` (Settings > Sites > Page assets): a visit
 counts as people only when its browser also fetched one of the page's own assets
@@ -165,8 +174,8 @@ starting point, not legal advice. Your notice must match your own situation."
 that decide what is kept (`policy.ip_mode`, `policy.keep_days`, `policy.identity_full`,
 `events.enabled`, `beacon.visitor_ids`): the log is read and sets no cookie; IP addresses
 kept in full, shortened (the rule in plain words) or not, and for how long; names and emails
-kept or not; with the script tag on, visitor IDs (local storage, and the shared cookie as a
-marked line), Do Not Track and Global Privacy Control, and the wait for consent (a marked
+kept or not; with the script tag on, visitor IDs (local storage, and the shared cookie: a
+plain line with `beacon.share_subdomains` on, else a marked line), Do Not Track and Global Privacy Control, and the wait for consent (a marked
 line: the tag attribute is not seen by the server); how to ask for deletion. What the
 server cannot know is a placeholder in [square brackets]: the site's contact, how long its
 web server keeps logs. `notice` in the answer: `{intro, items, text, placeholders, note,
@@ -421,6 +430,7 @@ skald settings list-keys                          # every key: kind, scope, who,
 skald settings get example.com                    # each value and where it comes from
 skald settings get example.com privacy.keep_days
 skald settings set example.com beacon.visitor_ids true
+skald settings set example.com beacon.share_subdomains true    # no tag change needed
 skald settings set example.com site.asset_prefixes '["/wp-content/", "/wp-includes/"]'
 skald settings set example.com conversions.identity anonymous
 skald settings set example.com privacy.keep_days 180 --yes     # smaller: removes data
