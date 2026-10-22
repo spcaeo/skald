@@ -38,6 +38,7 @@ These pages have guides of their own:
 | --- | --- | --- |
 | Data retention | Detail kept for this site | Admin |
 | Data retention | People (IP addresses, names and emails) | Admin |
+| Data retention | Leads (how long leads and their pages are kept) | Admin |
 | Data retention | Backups | Install admin |
 | Mail | Reports | Admin |
 | Mail | Mail server (SMTP), Google PageSpeed | Install admin |
@@ -68,6 +69,8 @@ Viewers see the pages read-only.
 | Returning-visitor matching | How long a visitor can be recognised as returning | 1 to 90 days | 30 |
 | In-page events | Events from the script tag | 30 to 3650 days | 400 |
 | Visits with addresses | Each visit with its IP address and browser (card **People**) | 1 to 3650 days | 395 |
+| Leads and the pages they read | Each lead, its name and email, and the pages its visitor ID read (card **Leads**) | Kept for good, or 1 to 3650 days | 400 days |
+| Pages of visitors who have not signed up yet | The pages read with a visitor ID that has no lead yet (card **Leads**) | 1 to 400 days | 30 |
 | Daily backup copies | Copies of the history on the server, for every site | 1 to 60 | 14 |
 | Weekly backup copies | Weekly copies of the history | 0 to 52 | 8 |
 
@@ -88,11 +91,41 @@ A new install keeps both. An install that was upgraded from a version before 2.4
 
 Below the card, **Wording for your privacy notice** gives a short text made from these settings, with a **Copy** button. Fill in the parts in [square brackets]. It is a starting point, not legal advice.
 
+### Leads
+
+The **Leads** card says how long Skald keeps your leads. A lead is a form sent or a call booked.
+
+- **Leads and the pages they read**: each lead, with its name and email (when **Leads' names and emails** is full), where it came from, the pages its visitor ID read, and the leads a sync removed. Two choices:
+  - **Kept for good**: Skald never deletes them. Nothing is removed at any nightly run, however old.
+  - **N days**: each lead is deleted N days after it came, with its pages. The default is 400 days.
+- **Pages of visitors who have not signed up yet**: the pages read with a visitor ID that has no lead, kept for this many days (1 to 400, default 30). Once that visitor sends a form or books a call, all their pages are kept with the lead, for as long as the lead is kept.
+
+What is kept for good:
+
+- the leads, every stage of each (sent, booked, paid, won, lost), and the ones marked test;
+- the leads a sync removed (under **Show left out > Removed**);
+- the pages read by a visitor ID that became a lead;
+- the name and email of each lead (when you keep them);
+- the raw copy of each hook message, which the second count recounts leads from. So old days still add up.
+
+What still goes: the log of hook deliveries after 90 days, and the pages of visitors who never became a lead, after the days you set.
+
+"Kept for good" means Skald never deletes them by itself. A person's own request to be deleted still works: your server admin runs `skald forget --email ...` (or `--lead`, `--vid`), and everything about that person goes. See [Privacy](privacy.md). Your privacy notice must say how long you keep leads: the **Wording for your privacy notice** card says "until you ask us to delete them" when they are kept for good.
+
+The server admin can set the same from the shell, for one site:
+
+```
+skald settings set example.com conversions.retention_days forever
+skald settings set example.com journeys.vid_days 400
+```
+
+`0` means the same as `forever`.
+
 ### Keeping less
 
 Making a window shorter removes stored data, so Skald asks first.
 
-1. Type the new, smaller number and select **Save**.
+1. Type the new, smaller number (or pick days instead of **Kept for good**) and select **Save**.
 2. The page shows what will go: how many rows and days.
 3. Type the site's name to confirm, then select **Yes, keep less**. Or select **Keep it as it is**.
 

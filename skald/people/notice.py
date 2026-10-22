@@ -9,9 +9,13 @@ so it can never say something the settings do not do:
     IP addresses    policy.ip_mode: kept in full, kept shortened (the rule
                     in plain words, policy.shorten) or not kept; for
                     policy.keep_days days
-    names, emails   policy.identity_full: kept with a lead's conversions, or not
+    names, emails   policy.identity_full: kept with a lead's conversions, or not;
+                    for conversions.retention_days days, or "until you ask us
+                    to delete them" when it is 0 (kept for good, 2.29)
     the script tag  only when the site has the beacon on (events.enabled):
                     visitor IDs (beacon.visitor_ids) and where they are kept,
+                    the pages read with one: journeys.vid_days days, then
+                    kept with the lead once the visitor sends a form,
                     Do Not Track and Global Privacy Control, and the wait for
                     consent (data-consent="required", a tag attribute the
                     server cannot see: a marked line to keep or delete);
@@ -61,13 +65,21 @@ def _address(mode: str, days: int, city: bool) -> str:
             "without its address, and the totals hold no address.")
 
 
-def _beacon(config: dict) -> list[str]:
+def _kept(lead_days: int) -> str:
+    """How long a lead is kept, as the notice says it."""
+    return "until you ask us to delete them" if lead_days == 0 else f"for {_days(lead_days)}"
+
+
+def _beacon(config: dict, lead_days: int, vid_days: int) -> list[str]:
     from ..beacon import share_subdomains, visitor_ids
     out = ["Our pages also load a small script from our own site. It counts clicks and form "
            "steps, never what you type in a form."]
     if visitor_ids(config):
         out += ["The script keeps a random visitor ID in your browser's local storage, so "
                 "visits from the same browser can be linked. It holds no name or email.",
+                f"We keep the pages read with a visitor ID for {_days(vid_days)}. When you "
+                f"send us a form or book a call, the pages read with that ID are kept with "
+                f"it, {_kept(lead_days)}.",
                 # Shared in Skald: certain, so no "keep this line only if".
                 SHARED_LINE if share_subdomains(config) else SHARED]
     else:
@@ -87,6 +99,8 @@ def wording(config: dict, folder=None) -> dict:
     mode = policy.ip_mode(config, folder)
     days = policy.keep_days(config)
     full = policy.identity_full(config, folder)
+    from ..conversions.store import keep_days, vid_days
+    lead_days, page_days = keep_days(config), vid_days(config)
     tag = bool(beacon_on(config))
     ids = tag and visitor_ids(config)
     shared = bool(ids and share_subdomains(config))
@@ -98,13 +112,13 @@ def wording(config: dict, folder=None) -> dict:
         f"kept for {LOG_DAYS}. Our admins can see the last 6 hours of requests, and "
         f"today's AI activity, with their addresses; these are not kept longer.",
         _address(mode, days, city),
-        ("When you send us a form or book a call, we keep your name and email with it, so "
-         "we can see which visits led to it.") if full else
+        (f"When you send us a form or book a call, we keep your name and email with it, so "
+         f"we can see which visits led to it. We keep them {_kept(lead_days)}.") if full else
         ("When you send us a form or book a call, our analytics keep no name or email "
          "with it."),
     ]
     if tag:
-        items += _beacon(config)
+        items += _beacon(config, lead_days, page_days)
     ask = "your IP address" + (" or the email you used" if full else "")
     items.append(f"To ask us to delete what we keep about you, write to {CONTACT} with "
                  f"{ask}. We delete it everywhere our analytics keep it.")
@@ -115,4 +129,5 @@ def wording(config: dict, folder=None) -> dict:
             "placeholders": placeholders, "note": NOTE,
             "uses": {"ip_mode": mode, "keep_days": days,
                      "identity": "full" if full else "anonymous", "script_tag": tag,
-                     "visitor_ids": ids, "share_subdomains": shared}}
+                     "visitor_ids": ids, "share_subdomains": shared,
+                     "lead_days": lead_days, "vid_days": page_days}}

@@ -27,13 +27,16 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-22-2.28.1",
+  id: "2026-10-22-2.29.0",
   items: [
-    ["Visitor IDs from hooks, fixed", "a lead sent by your app now keeps its visitor ID when visitor IDs are switched on in Settings, so its visits are linked."],
-    ["Leads: 7 days include today", "today so far plus the 6 days before, with the exact dates from and to, and a comparison up to the same hour.", "leads-and-conversions"],
+    ["Leads kept for good", "Settings › Data retention › Leads: keep leads and the pages they read for good, and the pages of visitors who have not signed up yet up to 400 days.", "settings-and-retention"],
+    ["A new site waits quietly", "the live check says a site added today has no log lines yet, instead of a mismatch."],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.28.x
+    ["Visitor IDs from hooks, fixed", "a lead sent by your app now keeps its visitor ID when visitor IDs are switched on in Settings, so its visits are linked."],
+    ["Leads: 7 days include today", "today so far plus the 6 days before, with the exact dates from and to, and a comparison up to the same hour.", "leads-and-conversions"],
     // 2.27.0
     ["Share the visitor ID across subdomains from Skald", "Settings › Sites › Script tag: one setting links a sign-up on app.example.com to the visits on www.example.com, with no change to the tag.", "tracking-script"],
     ["The developer's set-up page, fixed", "the link you share with your developer draws properly again and says when it ends in words."],

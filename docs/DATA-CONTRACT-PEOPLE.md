@@ -70,7 +70,8 @@ or past keep_days): never zero.
 `site`, `removed_at`, `why` (in words), `conversion_id`, `tool`,
 `external_ref`, `vid`, `action`, `stage`, `at`, `row` (JSON of the full row,
 with the identity's email and name when it had one). Pruned with
-`conversions.retention_days`.
+`conversions.retention_days` (400; 0 keeps them for good, 2.29: never pruned, only
+`forget` deletes them).
 
 `conversions.test`: 0 counted; 1 for a row marked test (`skald conversions
 mark-test`, or the site's `POST /traffic-hooks/<site>/leads/test`), which

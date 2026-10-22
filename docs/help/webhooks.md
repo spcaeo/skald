@@ -203,7 +203,7 @@ The full how-to, with examples in curl, Node, Python and PHP, retries and backfi
 ## What Skald stores, and what it drops
 
 - **Kept**: the action, its stage, the time, the tool, the tool's own reference, the visitor ID (only when the site has visitor IDs on), and the source, campaign, landing page, country and device when known.
-- **Kept for checking**: a copy of each verified message, cut down to the fields Skald reads. It is kept 400 days, so every figure can be counted a second time.
+- **Kept for checking**: a copy of each verified message, cut down to the fields Skald reads. It is kept as long as the leads (400 days, or for good: **Settings > Data retention > Leads**), so every figure can be counted a second time.
 - **Always dropped**: IP addresses, browser strings, phone numbers, extra email addresses, form answers, customer details, and Calendly's cancel and reschedule links.
 - **Names and emails**: kept only when **Leads' names and emails** is **full** (**Settings > Data retention > People**). That is the default for a new install. An install upgraded from before 2.4.0 drops them until an admin turns it on. Your privacy notice must say so. See [Privacy](privacy.md).
 - **The delivery log**: when, the outcome and the answer, never the message itself. Kept 90 days.

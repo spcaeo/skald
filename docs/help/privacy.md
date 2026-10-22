@@ -102,8 +102,10 @@ They never appear in a stored day's totals, a CSV export of history, or a mail.
 | --- | --- |
 | Raw access logs, with addresses | 14 days on your server |
 | Each visit with its address (when kept) | 395 days, or what you set |
-| Leads' names and emails (when kept) | As long as their conversions: 400 days |
-| Conversions removed by a sync, whole | 400 days |
+| Leads, with their names and emails (when kept) | 400 days, or for good: Settings › Data retention › Leads |
+| Conversions removed by a sync, whole | As long as the leads |
+| Pages read with a visitor ID that became a lead | As long as the lead |
+| Pages read with a visitor ID that has no lead | 30 days, or what you set (1 to 400) |
 | The Requests list, with addresses | Its 6-hour window |
 | Today's AI activity, with addresses | Today only |
 | Returning-visitor codes | 30 days |

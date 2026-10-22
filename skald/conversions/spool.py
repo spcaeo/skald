@@ -24,7 +24,7 @@ from pathlib import Path
 from ..config import setting
 from . import strip
 
-KEEP_DAYS = 400
+KEEP_DAYS = 400          # conversions.retention_days: the same days (0: for good)
 
 
 def spool_dir(config: dict, folder: Path) -> Path:
@@ -87,13 +87,44 @@ def days(spool: Path) -> list[date]:
     return sorted(found)
 
 
-def prune(spool: Path, today: date, keep_days: int = KEEP_DAYS) -> int:
-    cutoff = today - timedelta(days=keep_days)
+def prune(spool: Path, today: date, keep_days: int = KEEP_DAYS,
+          own: dict | None = None) -> int:
+    """Remove the lines older than their site's keeping days: `keep_days`,
+    a site in `own` by its own; 0 keeps them for good (the raw evidence the
+    second count reads, kept as long as the conversions it recounts). A day
+    file with every line past its time is deleted; one with some lines kept
+    is written again without the others. Files deleted."""
+    own = {s: int(n) for s, n in (own or {}).items()}
+
+    def gone_by(days: int, day: date) -> bool:
+        return days != 0 and day < today - timedelta(days=days)
+
     gone = 0
     for day in days(spool):
-        if day < cutoff:
-            day_file(spool, day).unlink(missing_ok=True)
+        if not gone_by(keep_days, day) and not any(gone_by(n, day) for n in own.values()):
+            continue
+        path = day_file(spool, day)
+        if not own:
+            path.unlink(missing_ok=True)
             gone += 1
+            continue
+        keep, dropped = [], 0
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            for raw in handle:
+                try:
+                    site = json.loads(raw).get("site")
+                except (ValueError, AttributeError):
+                    site = None
+                if gone_by(own.get(site, keep_days) if isinstance(site, str) else keep_days,
+                           day):
+                    dropped += 1
+                else:
+                    keep.append(raw)
+        if not keep:
+            path.unlink(missing_ok=True)
+            gone += 1
+        elif dropped:
+            _rewrite(path, "".join(keep))
     return gone
 
 

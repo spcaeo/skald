@@ -662,6 +662,9 @@ def audit_live(ctx: Context) -> int:
     except ValueError as why:
         ctx.err(f"audit --live: {why}")
         return 2
+    if snap.get("state") == "empty" and not figures.get("requests"):   # no log lines yet (2.29)
+        ctx.out(f"audit skipped: live {day}: {ctx.site} has no log lines yet")
+        return 0
     problems, compared = audit.compare_live(figures, snap)
     # The Recent requests feed: its window's requests by group, recounted.
     import json

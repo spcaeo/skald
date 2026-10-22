@@ -45,8 +45,8 @@ def abandon_hours(config: dict) -> float:
 
 def vid_days(config: dict) -> int:
     """`journeys.vid_days` (default 30): how long an ID's page views are kept
-    when it never converted."""
-    return int(setting(config or {}, "journeys", "vid_days", store.VID_DAYS))
+    when it never converted (store.vid_days)."""
+    return store.vid_days(config)
 
 
 def abandoned(db, config: dict, site: str, since: str, until: str,

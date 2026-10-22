@@ -484,7 +484,7 @@ alerts:
 # conversions:
 #   identity: full
 #   abandon_hours: 24
-#   retention_days: 400
+#   retention_days: 400       # 0 or forever: leads, their pages and the spool kept for good
 #   country_db: /usr/share/GeoIP/dbip-country-lite.mmdb
 #   from_leads: true
 # People (2.4.0, docs/SETTINGS.md): keep each visit with its IP address, user
@@ -505,7 +505,9 @@ alerts:
 # privacy:
 #   keep_ips: full
 #   keep_days: 395
-# Page views per visitor ID, deleted after vid_days unless the ID converted.
+# Page views per visitor ID, deleted after vid_days (1 to 400) unless the ID
+# converted: then kept as long as its conversions (conversions.retention_days).
+# Both are also set per site in Settings > Data retention > Leads.
 # journeys:
 #   vid_days: 30
 # Outgoing webhooks (Settings > Integrations, docs/INTEGRATIONS.md): https

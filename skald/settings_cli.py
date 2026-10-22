@@ -15,7 +15,8 @@
 
 VALUE is JSON (`true`, `180`, `'["/wp-content/", "/wp-includes/"]'`,
 `null` to clear the row); a word that is not JSON is taken as text
-(`anonymous`). Run at the server, this is an install admin's tool: it may
+(`anonymous`). conversions.retention_days also takes 0 or `forever`: leads
+and the pages they read kept for good. Run at the server, this is an install admin's tool: it may
 change any key except a locked one (config.yml `settings.locked`) and the
 secrets, which never go through a command line (shell history): set those
 on the Settings page or in the environment. A smaller retention window
@@ -56,7 +57,8 @@ def cmd_list_keys(ctx) -> int:
             default = "secret: set on the page or in $" + key.env
         else:
             default = _shown(key.default)
-        span = f" {key.lo}-{key.hi}" if key.lo is not None else ""
+        span = (f" {key.lo}-{key.hi}" if key.lo is not None else "") + \
+            (" or 0 (forever)" if key.forever else "")
         choices = f" ({'|'.join(key.choices)})" if key.choices else ""
         ctx.out(f"{name:<28} {key.kind}{span}{choices}  saved for {key.scopes[0]}, "
                 f"{key.who}; default {default}  {key.label}")
@@ -117,8 +119,7 @@ def cmd_set(ctx, db) -> int:
         return 1
     scope = store.scope_for(name, site, org[0] if org else None)
     old = store.explain(config, site, db)[name]["value"]
-    if key.shrink and isinstance(old, int) and isinstance(value, int) and value < old \
-            and not a.yes:
+    if key.shrink and store.keeps_less(name, old, value) and not a.yes:
         ctx.err(f"{name} {old} -> {value} removes stored data at the next run; it cannot be "
                 "brought back except from a backup. Run again with --yes")
         return 2
@@ -127,6 +128,9 @@ def cmd_set(ctx, db) -> int:
     now = store.explain(config, site, db)[name]
     if value is None:
         ctx.out(f"  now {_shown(now['value'])} ({now['source']})")
+    if key.forever and value == 0:
+        ctx.out("  0: kept for good; Skald never deletes them (`conversions forget` still "
+                "does, for one person)")
     if name == "mail.to":
         ctx.out("  recipients saved here get no confirm mail and receive nothing until they "
                 "confirm: add them on the Settings > Mail page instead")

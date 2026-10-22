@@ -4,6 +4,56 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.29.0 (2026-10-22)
+
+Leads and the pages they read can be kept for good (Settings > Data retention > Leads), and the
+pages of visitors who have not signed up yet up to 400 days; a site still waiting for its first
+log lines is skipped by the live audit instead of reported as a mismatch.
+
+### Fixed: the live audit said "does not match" for a site with no log lines yet
+
+- **What changed:** `audit --live` says "audit skipped: live <day>: <site> has no log lines yet"
+  when the live snapshot is empty and the recount finds no request either, and ends 0.
+- **Why:** on 22 Oct a site added that afternoon, still waiting for its server to send logs, made
+  the all-sites live audit read "THE RECOUNT DOES NOT MATCH THE SNAPSHOT"; both roads were empty.
+- **Who:** installs with a newly added site. **Do:** nothing.
+- **Checked:** tests/test_audit_recount.py (the test fails without the fix).
+
+### Added: keep leads and the pages they read for good
+
+- **What changed:** `conversions.retention_days` now takes `0` (or the word `forever`): kept for
+  good. Skald's nightly prune then never deletes a lead (every stage, test rows too), the rows a
+  sync removed, the pages read by a visitor ID that became a lead, the lead's name and email, or
+  the hook spool's lines (the raw copy the second count recounts leads from). The delivery log
+  still goes after 90 days. `journeys.vid_days` (the pages of a visitor ID with no lead yet) is
+  1 to 400 days. Both are now settings per site, on a new **Leads** card under Settings > Data
+  retention ("Leads and the pages they read: Kept for good / N days"; "Pages of visitors who have
+  not signed up yet: N days. Once they sign up, their pages are kept with the lead"), and from the
+  shell: `skald settings set <site> conversions.retention_days 0` (or `forever`),
+  `skald settings set <site> journeys.vid_days 400`. Each site is pruned by its own values; a
+  spool day holding lines of sites with different windows is written again with only the lines
+  still kept. Going from kept for good back to days, or to fewer days, asks for the site's name
+  (page) or `--yes` (shell), as every shorter window does, and the page shows what would go.
+  The privacy-notice wording says how long a lead's name and email, and the pages read with a
+  visitor ID, are kept: "until you ask us to delete them" when kept for good, else the days.
+- **Why:** the owner's decision (22 Oct): never delete a lead's pages. Until now a lead and its
+  pages went after 400 days, and the setting was only in the config file, for the whole install.
+- **Who:** sites that take leads. New installs keep the same defaults (400 days for leads, 30 for
+  pages before a sign-up); nothing changes until someone sets it. **Do:** to keep leads for good,
+  set it per site (above) and update the site's privacy notice with the new wording. A person's
+  own request to be deleted still works: `skald forget --email ...` (or `--lead`, `--vid`).
+- **The audit:** the second count still agrees over old days. The hook spool is kept as long as
+  the leads, site by site, so a day older than 400 recounts the same; the beacon's day counts the
+  audit keeps (`conversions-audit.json`) are kept as long as the leads too (they were cut to 400
+  days), so beacon leads older than the beacon spool are still checked against the count made
+  while it held them.
+- **Checked:** tests/test_leads_kept_for_good.py (0 keeps rows, removed rows, linked pages,
+  identities and the spool; a linked page older than `vid_days` stays and an unlinked one goes;
+  each site by its own days; `forget` still deletes; the settings' checks, plan cap and CLI;
+  the page's save, confirm and preview; the notice wording; the audit agrees over a 639-day-old
+  lead after the prune, kept for good or not, and withholds it when the store is kept without
+  its spool), tests/test_privacy_notice.py and tests/js/settings-privacy.mjs (the Leads card).
+
 ## 2.28.1 (2026-10-22)
 
 ### Fixed: a hook dropped the visitor ID when visitor IDs were switched on in Settings

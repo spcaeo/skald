@@ -517,7 +517,7 @@ def findings(config: dict, folder: Path, site: str, tz, first: date, last: date,
     counted = recount(spool, site, tz, first, last, skip, removed_keys(db_path, site))
     if with_beacon:
         counted = _merge(counted, beacon_counts(beacons, folder, tz, first, last, today,
-                                                refresh, skip))
+                                                refresh, skip, store.keep_days(config)))
     if leads is not None and leads.is_file():
         counted = _merge(counted, recount_leads(
             leads, tz, first, last, frozenset(r for t, r, _ in skip if t == LEADS_TOOL)))
@@ -527,6 +527,7 @@ def findings(config: dict, folder: Path, site: str, tz, first: date, last: date,
 # ------------------------------------------------- the beacon's day cache
 
 CACHE = "conversions-audit.json"
+CACHE_DAYS = 400
 
 
 def _load_cache(folder: Path, tz) -> dict:
@@ -540,9 +541,14 @@ def _load_cache(folder: Path, tz) -> dict:
     return got
 
 
-def _save_cache(folder: Path, tz, days: dict) -> None:
+def _save_cache(folder: Path, tz, days: dict, keep_days: int = CACHE_DAYS) -> None:
+    """The last `keep_days` days' counts (at least CACHE_DAYS); every day when
+    conversions are kept for good (0): the beacon spool is kept only
+    beacon.keep_days, so an old day's beacon rows are checked against the
+    count this audit made while the spool still held it."""
     from .files import write_atomic
-    keep = dict(sorted(days.items())[-400:])
+    most = None if keep_days == 0 else max(CACHE_DAYS, int(keep_days))
+    keep = dict(sorted(days.items())[-most:]) if most else dict(sorted(days.items()))
     try:
         write_atomic(Path(folder) / CACHE, json.dumps({"tz": str(tz), "days": keep},
                                                       separators=(",", ":")))
@@ -557,7 +563,7 @@ def forget_cache(folder: Path) -> None:
 
 def beacon_counts(spool: Path, folder: Path, tz, first: date, last: date,
                   today: date | None = None, refresh: bool = True,
-                  skip: frozenset = frozenset()) -> dict:
+                  skip: frozenset = frozenset(), keep_days: int = CACHE_DAYS) -> dict:
     """recount_beacon over first..last, reading only the files it needs: the
     counts of whole days before `today` are kept in CACHE beside the history
     (the audit's own file) and read back unless `refresh`; the days not in
@@ -596,7 +602,7 @@ def beacon_counts(spool: Path, folder: Path, tz, first: date, last: date,
     if run:
         count(run)
     if changed:
-        _save_cache(folder, tz, days)
+        _save_cache(folder, tz, days, keep_days)
     return out
 
 
