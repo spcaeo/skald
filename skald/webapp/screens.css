@@ -347,6 +347,15 @@ td .confirm { flex-wrap: wrap; justify-content: flex-end; }
 .sec-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .sec-row input:not([type="checkbox"]) { flex: 1 1 180px; }
 .set-cards { display: grid; gap: 14px; }
+/* Settings > Sites > Views: the fill of past days (viewsfill.js). */
+.af-views { display: grid; gap: 10px; }
+.vf .vf-said { margin: 0 0 6px; }
+.vf .vf-head { font-weight: 600; margin: 6px 0 4px; }
+.vf .vf-detail { margin: 4px 0; }
+.vf .vf-bar { display: block; width: 100%; max-width: 460px; height: 8px; accent-color: var(--g-people); }
+.vf .vf-bar[hidden] { display: none; }
+.vf .vf-reach { margin-top: 10px; }
+.vf .acts:empty, .vf .vf-said:empty, .vf .vf-detail:empty { display: none; }
 
 /* Settings > Integrations (tabs/integrations.js) */
 .integ { margin: 10px 0; min-width: 0; }

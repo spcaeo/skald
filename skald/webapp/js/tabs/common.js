@@ -51,6 +51,11 @@ export function periodWords(r, cov) {
   return bits.join(" · ");
 }
 
+// On a page group (view): its days begin where they were counted (Settings > Sites > Views).
+function onGroup() {
+  try { return (S.read().view || "all") !== "all"; } catch { return false; }
+}
+
 /* The honest banner: a range with some days missing says, once, at the top,
    what its totals cover. A range with no whole day says it in nothing(). */
 export function periodBanner(r, cov) {
@@ -59,7 +64,7 @@ export function periodBanner(r, cov) {
   if (cov.partial.length) left.push(`${cov.partial.map(short).join(", ")} (partial)`);
   if (cov.withheld.length) left.push(`${cov.withheld.map(short).join(", ")} (did not add up)`);
   if (cov.missing.length) left.push(`${cov.missing.length} day${cov.missing.length === 1 ? "" : "s"} not collected`);
-  if (cov.before) left.push(`${cov.before} day${cov.before === 1 ? "" : "s"} before history began`);
+  if (cov.before) left.push(`${cov.before} day${cov.before === 1 ? "" : "s"} ${onGroup() ? "not recorded for this group" : "before history began"}`);
   return h("div", { class: "period-banner", role: "note", html: ICON.info },
     h("div", null, `${r.length} days selected: ${cov.ok} ${cov.ok === 1 ? "is" : "are"} whole and verified, so every total here covers ${cov.ok} day${cov.ok === 1 ? "" : "s"}. Left out, never counted as zero: ${left.join("; ")}.`));
 }
@@ -124,8 +129,10 @@ export function nothing(m, r, what = "figures") {
   const partial = days.filter((d) => d.state === "partial").map((d) => `${short(d.day)}${d.partial ? ` (${d.partial})` : ""}`);
   const withheld = days.filter((d) => d.state === "withheld").length;
   const before = days.filter((d) => d.state === "before" || d.state === "missing").length;
+  // A page group (view) begins where its days were counted: the days before are not recorded for it.
+  const group = m.view && m.view !== "all";
   const left = [partial.length ? `${partial.join(", ")} ${partial.length === 1 ? "is" : "are"} partial` : "",
-    withheld ? `${withheld} did not add up` : "", before ? `${before} ${before === 1 ? "was" : "were"} not collected (history begins ${short(m.firstDay || r.first)})` : ""].filter(Boolean);
+    withheld ? `${withheld} did not add up` : "", before ? `${before} ${before === 1 ? "was" : "were"} ${group ? "not recorded for this group" : "not collected"} (${group ? "it" : "history"} begins ${short(m.firstDay || r.first)})` : ""].filter(Boolean);
   const note = stateNote(`${r.length} day${r.length === 1 ? "" : "s"} selected, and none is a whole, verified day yet: ${left.join("; ") || "nothing was recorded"}. Totals would cover 0 days, so no ${what} are shown rather than zeros.`);
   const live = m.live && m.live.day === m.today && m.live.state === "ok";
   if (live) note.lastChild.append(" ", h("button", { type: "button", class: "btn", onclick: () => S.set({ range: "today" }) }, "Show today so far"));

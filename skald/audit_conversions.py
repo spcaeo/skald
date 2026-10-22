@@ -5,7 +5,8 @@ This road reads the spool files (<history folder>/hooks/<day>.jsonl) with
 its own line parsing, its own reading of each tool's body, its own time
 parser, its own de-duplication on (site, tool, external ref, stage) - the
 first delivery wins - and counts conversions per local day by action and
-stage. It shares only the name lists in conversions/__init__.py (the
+stage; a lead finished twice (completed and paid) counts once, at its first
+finished stage (2.26), and a line whose row was soft-removed is left out. It shares only the name lists in conversions/__init__.py (the
 stages, the tool events, the action shape) and the file locations.
 
 A day where the two disagree is withheld: `daily` (run-daily's step,
@@ -27,8 +28,8 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from .conversions import (ACTION, ALIASES, BEACON_ACTIONS, BEACON_REPEAT_SECONDS, BEACON_TOOL,
-                          EVENTS, FUTURE_SLACK, HUBSPOT_MEETING, LEAD_EXCLUDED, LEAD_OUTCOMES,
-                          LEAD_TYPES, LEADS_TOOL, STAGES, TOOLS)
+                          EVENTS, FINISHED, FUTURE_SLACK, HUBSPOT_MEETING, LEAD_ACTIONS,
+                          LEAD_EXCLUDED, LEAD_OUTCOMES, LEAD_TYPES, LEADS_TOOL, STAGES, TOOLS)
 
 AUDIT_DAYS = 30
 
@@ -253,12 +254,45 @@ def test_keys(db_path: Path, site: str) -> frozenset:
         db.close()
 
 
+def removed_keys(db_path: Path, site: str) -> dict:
+    """{(tool, external ref, stage): when it was last taken away} for the rows
+    in `removed` (`conversions remove`, a lead-database sync), by this road's
+    own SQL over the file opened read-only. Their spool lines stay; this road
+    leaves out the lines received before the row went (a later resend made a
+    new row, and counts)."""
+    import sqlite3
+    if not Path(db_path).is_file():
+        return {}
+    db = sqlite3.connect(f"file:{Path(db_path).resolve()}?mode=ro", uri=True)
+    try:
+        if not db.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND "
+                          "name = 'removed'").fetchone():
+            return {}
+        rows = db.execute("SELECT tool, external_ref, stage, MAX(removed_at) FROM removed "
+                          "WHERE site = ? GROUP BY 1, 2, 3", (site,)).fetchall()
+    finally:
+        db.close()
+    out = {}
+    for tool, ref, stage, when in rows:
+        at = _instant(when)
+        if at is not None:
+            out[(tool, ref, stage)] = at
+    return out
+
+
 def recount(spool: Path, site: str, tz, first: date, last: date,
-            skip: frozenset = frozenset()) -> dict:
+            skip: frozenset = frozenset(), removed: dict | None = None) -> dict:
     """{local day: {(action, stage): n}} from the spool, first..last; a
-    (tool, ref, stage) in `skip` (test_keys) is not counted."""
+    (tool, ref, stage) in `skip` (test_keys) is not counted, nor a line
+    received before its row was taken away (`removed`, removed_keys).
+
+    One lead counts once (2.26): of the finished stages (FINISHED) of a lead
+    action (LEAD_ACTIONS) under one tool, ref and action, only the earliest
+    (by its time, then the stage's name) is counted; a `paid` sent after a
+    `completed` for the same sign-up is not a second lead."""
+    removed = removed or {}
     seen: set = set()
-    out: dict = {}
+    kept: list[tuple] = []
     for line in _lines(spool):
         tool = line.get("tool")
         if line.get("site") != site or tool not in TOOLS:
@@ -277,11 +311,27 @@ def recount(spool: Path, site: str, tz, first: date, last: date,
             key = (tool, ref, stage)
             if key in seen:
                 continue
+            gone = removed.get(key)
+            if gone is not None and received <= gone:
+                continue                  # taken away after it came: neither kept nor seen
             seen.add(key)
-            day = at.astimezone(tz).date()
-            if (tool, ref, stage) not in skip and first <= day <= last:
-                per = out.setdefault(day.isoformat(), {})
-                per[(action, stage)] = per.get((action, stage), 0) + 1
+            if key not in skip:
+                kept.append((tool, ref, action, stage, at))
+    lead_first: dict = {}
+    for tool, ref, action, stage, at in kept:
+        if action in LEAD_ACTIONS and stage in FINISHED:
+            mine = (at, stage)
+            if lead_first.get((tool, ref, action), mine) >= mine:
+                lead_first[(tool, ref, action)] = mine
+    out: dict = {}
+    for tool, ref, action, stage, at in kept:
+        if action in LEAD_ACTIONS and stage in FINISHED and \
+                lead_first[(tool, ref, action)] != (at, stage):
+            continue                      # the same lead finished again: not a second one
+        day = at.astimezone(tz).date()
+        if first <= day <= last:
+            per = out.setdefault(day.isoformat(), {})
+            per[(action, stage)] = per.get((action, stage), 0) + 1
     return out
 
 
@@ -464,7 +514,7 @@ def findings(config: dict, folder: Path, site: str, tz, first: date, last: date,
         finally:
             db.close()
     skip = test_keys(db_path, site)
-    counted = recount(spool, site, tz, first, last, skip)
+    counted = recount(spool, site, tz, first, last, skip, removed_keys(db_path, site))
     if with_beacon:
         counted = _merge(counted, beacon_counts(beacons, folder, tz, first, last, today,
                                                 refresh, skip))

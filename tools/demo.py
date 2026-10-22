@@ -640,8 +640,10 @@ def retention_answers(cfg: dict, root: Path, folder: Path, answers: dict, today:
                         if vurl in answers["people"] or timelines >= 600:
                             continue
                         tl = visitor(cfg, root, dt.SITE, r["day"], int(r["seq"]))
-                        for c in tl.get("conversions") or []:   # no visitor ID in a reference
-                            c["external_ref"] = shown_ref(c.get("tool"), c.get("external_ref"), False)
+                        # no visitor ID in a reference (`conv`, not `c`: c is the cohort)
+                        for conv in tl.get("conversions") or []:
+                            conv["external_ref"] = shown_ref(conv.get("tool"), conv.get("external_ref"),
+                                                             False)
                         if tl.get("found"):
                             vname = f"visitor-{r['day']}-{int(r['seq']):04d}.json"
                             (folder / vname).write_text(json.dumps(tl, separators=(",", ":")))

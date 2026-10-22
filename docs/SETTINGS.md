@@ -71,7 +71,7 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `brand.agency_name` | Reports (Agency branding) | text, 60 at most | admin | organisation | (none) |
 | `brand.color` | Reports (Agency branding) | a colour `#rrggbb` (none: Skald's ink) | admin | organisation | (none) |
 | `sites.hosts` | Sites | 1-50 host names | admin | site | `site.hosts` |
-| `sites.views` | Sites | up to 20 views | admin | site | `dashboard.views` |
+| `sites.views` | Sites | up to 20 views (page groups; "Page groups: filling past days" below) | admin | site | `dashboard.views` |
 | `sites.timezone` | Sites | an IANA zone (UTC) | admin | site | `report.timezone` |
 | `sites.log_dir` | Sites | absolute path | install admin | site | `logs.dir` |
 | `sites.log_base` | Sites | a file name | install admin | site | `logs.base` |
@@ -195,6 +195,56 @@ Making a retention window (or the number of backups) smaller removes stored data
 A changed returning-visitor window also changes who counts as returning and who counts as a
 reader from an earlier day (rendering rule 9). The audit reads the same window, so the two
 counts still agree.
+
+## Page groups: filling past days
+
+`sites.views` (Settings > Sites > Views) holds the site's page groups, one per line on the
+page: `name | path prefix | prefixes to leave out` (several separated by spaces). For example
+`Blog | /blog/`, or `Canada | /ca/ | /ca/fr/`. The prefix is matched against the path only,
+case-sensitive; `/ca/` also takes the bare `/ca`; no prefix means every path. A group's days
+are stored beside the site's under `<site>::<slug>` (the slug is the name in lower case,
+spaces as `-`, which is also its folder and its address in the "All pages" menu).
+
+A group is counted from the next run. Its earlier days are **not recorded for this group**
+(the page says so, never 0) until they are counted again from the raw log, which holds only
+the days the server keeps (14 on a Debian or Ubuntu logrotate default). So:
+
+- A save that adds a group, or changes a group's rule, answers
+  `views: {changed: [{slug, name}], removed: [...], can_fill, reach, fill}`. A renamed group
+  is a new one. `reach` is `views_fill.reach`: `{days, first, last, kept_days, oldest_line}`,
+  the whole days from the oldest line of the oldest rotation to yesterday (a first day is
+  whole when its oldest line is within `report.coverage_gap_minutes`, 60, of midnight).
+- The page's tick box under Views, **Fill past days for the new groups**, is ticked by
+  default: the page then posts `settings/views-fill-start` with the changed groups at once.
+  Unticked, it offers the same with a button.
+- The fill runs in the background on the server as `skald --site S views refresh --days N
+  --view SLUG ...` (`cli_views.py`, `views_fill.py`), N = `reach.days`. For each day, oldest
+  first, it counts the day once with the same pass and rules as `collect`, stores each chosen
+  group's day with its own check, then recounts each group by the audit's own road
+  (`audit_views.py`: requests, requests by group, people's visits and readers, responses by
+  status class) and withholds a day that does not match. The site's own days are not touched.
+  Then it draws the dashboard. A day with no line in the log stays not recorded.
+- One fill at a time per install (`views-fill.lock`, an flock beside the history). Progress is
+  in `views-fill.json` there: `state` (queued, running, done, failed), `days`, `done`,
+  `filled`, `withheld`, `empty`, `current`, `first`, `last`, `problems`. A queued or running
+  fill whose process is gone reads as failed. The page reads it every 2 seconds: "Filling 9
+  days… 4 of 9", then "Done: 9 days filled, all audited", and below it "Days before 13 Oct
+  can't be filled: the raw log is kept 10 days."
+- A removed group needs no recount: it leaves the menu; its stored days stay in the history.
+- Owners and admins only (or an install admin); same-origin and the CSRF header; audit
+  `views.fill` with the days and groups; a `backfill` marker when it ends.
+
+From the shell (Docker: `docker exec skald skald --site example.com views refresh`):
+
+```sh
+skald --site example.com views list                    # each group, its rule, its first day
+skald --site example.com views refresh                 # every whole day the raw log holds
+skald --site example.com views refresh --days 5 --view blog
+```
+
+Exit 0 every day filled and audited, 1 a day withheld or nothing to fill, 2 no such group,
+3 another fill is running. `backfill --days N --force` still recounts the site and every
+group, as before.
 
 ## Secrets
 
@@ -392,7 +442,7 @@ origin and the session's `X-Skald-CSRF` value.
 | Method, path | Who | Answer |
 | --- | --- | --- |
 | GET `<page>/settings` | every member | `{settings: {key: {value, source, locked, editable, reason, ...}}, notice}`; secrets `{set, env}`. `notice` (2.15.0): the privacy-notice wording, below |
-| POST `<page>/settings/save` | per key | `{key: value, ..., confirm?}`; null clears a row. All keys are checked before any is saved. The answer carries `settings` and `notice` again, made from the saved values |
+| POST `<page>/settings/save` | per key | `{key: value, ..., confirm?}`; null clears a row. All keys are checked before any is saved. The answer carries `settings` and `notice` again, made from the saved values; a save of `sites.views` also `views: {changed, removed, can_fill, reach, fill}` (below) |
 | GET `<page>/settings/retention-preview?key=&value=` | admin | `{shrinks, rows, days, first, last, files}` |
 | GET `<page>/settings/mail-preview?kind=daily\|weekly` | admin | `{kind, subject, html}`: the mail as it would go now, built by `mailer.build` from the verified history and never sent; no SMTP login is read (`mail_preview.py`). 409 with the run's words when the history cannot give it yet |
 | POST `<page>/settings/test-mail` | admin | `{to}`: the caller's own address or a confirmed recipient (403 otherwise); 3 per 10 minutes per user (429 after) |
@@ -405,6 +455,8 @@ origin and the session's `X-Skald-CSRF` value.
 | GET `<page>/settings/report-log?id=` | admin | `{sends}`: when, started by, period, addresses, ok, detail |
 | GET, POST `<page>/settings/agency-logo` | admin | the organisation's logo (404: none); POST `{data: base64}` (PNG or JPEG, 256 KB at most) or `{data: null}` to remove |
 | GET `<page>/settings/audit?action=&limit=&format=csv` | admin | `{entries, actions}` or a CSV file; install admins see every organisation |
+| GET `<page>/settings/views-fill` | admin | `{fill, reach, views}`: the page-group fill's state for this site (another organisation's site only `{state: "busy"}`), the days the raw log holds. Below, "Page groups: filling past days" |
+| POST `<page>/settings/views-fill-start` | admin | `{views?: [slug]}` (default every view of the site) -> `{fill, reach}`; starts `skald --site S views refresh --days N --view ...` in the background. 409 while a fill runs on the install, or when the raw log holds no whole day; audit `views.fill` |
 | GET `<page>/sites` | every member | the organisation's sites: config file or dashboard, active or removed, log received. To admins also `kit {docker, systemd, why, image, ship_path}`, `api_base`, `mcp_url`, `mcp_enabled`, `beacon_on`, and per site `setup` and `quiet` (below) |
 | POST `<page>/sites/add` | admin | `{host, timezone?, format?, token?}` -> the site, an ingest token (shown once), the shipper command, the tag. `token: false` makes no token (the Add a site wizard makes a named one later). Needs `ingest.enabled` (docs/INGEST.md) |
 | POST `<page>/sites/token` | admin | `{name}`: a new ingest token for one of the organisation's sites |

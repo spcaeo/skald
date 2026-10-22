@@ -56,12 +56,21 @@ LEAD_COLUMNS = ("id", "created_at", "updated_at", "type", "status", "page", "fir
                 "last_touch", "session_id", "ip_country", "flags")
 
 
+# A Skald visitor ID, exactly as the page script makes it (beacon.py, skald.js):
+# "skv_" and 22 base64url characters. Only this shape is read as a visitor ID.
+# Anything else of a reference's shape (u-1234567, a site's own session ID) is a
+# lead reference first, and is also tried as a site's own visitor ID (person()).
+SKALD_VID = re.compile(r"^skv_[A-Za-z0-9_-]{22}$")
+
+
 class Invalid(ValueError):
     """A search that is not an address, an email, a visitor ID or a reference."""
 
 
 def kind_of(q: str) -> tuple[str, str]:
-    """(kind, value): ip, email, vid or lead."""
+    """(kind, value): ip, email, vid (the skv_ shape only) or lead. Before
+    2.26 any 8 to 80 characters of [A-Za-z0-9_.:-] were read as a visitor
+    ID, so a lead's reference such as u-1234567 was never found by it."""
     q = str(q or "").strip()
     if not q or len(q) > 320:
         raise Invalid("Type an IP address, an email, a visitor ID or a lead's id.")
@@ -73,7 +82,7 @@ def kind_of(q: str) -> tuple[str, str]:
         if not EMAIL.match(q):
             raise Invalid("That is not an email address.")
         return "email", q.lower()
-    if SITE_VID.match(q):
+    if SKALD_VID.match(q):
         return "vid", q
     if not REF.match(q):
         raise Invalid("Type an IP address, an email, a visitor ID or a lead's id.")
@@ -163,6 +172,8 @@ def person(config: dict, folder, site: str, q: str, live_dir=None) -> dict:
     short = policy.ip_mode(config, folder) == policy.SHORT
     ips, emails, vids, refs = set(), set(), set(), set()
     {"ip": ips, "email": emails, "vid": vids, "lead": refs}[kind].add(value)
+    if kind == "lead" and SITE_VID.match(value):
+        vids.add(value)                 # a site's own visitor ID has this shape too
     query = {"kind": kind, "value": value}
     if kind == "ip" and short:
         query["short"] = policy.shorten(value)
@@ -256,7 +267,11 @@ def person(config: dict, folder, site: str, q: str, live_dir=None) -> dict:
     out["requests"] = _requests(live_dir, site, ips)
     out["withheld"] = _withheld(config, folder, site,
                                 {v["day"] for v in out["visits"] + out["candidates"]})
-    out["keys"] = {"ips": sorted(ips | {v["ip"] for v in out["visits"] + out["candidates"]}
+    if kind == "lead" and value in vids and not (
+            any(r.get("vid") == value for r in out["conversions"] + out["journeys"])
+            or any(r.get("vid") == value for r in leads.values())):
+        vids.discard(value)             # tried as a site's own visitor ID: it is none
+    out["keys"] = {"ips":sorted(ips | {v["ip"] for v in out["visits"] + out["candidates"]}
                                  - {"(removed)"}),
                    "emails": sorted(emails), "vids": sorted(vids), "leads": sorted(refs)}
     if not full:

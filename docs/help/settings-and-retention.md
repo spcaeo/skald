@@ -157,12 +157,33 @@ If the morning run fails, the server can send one short failure mail. It goes to
 [Sites](#settings/sites) says what counts as this site, and where its log is.
 
 - **Host names**: the names this site answers to, such as `www.example.com` and `example.com`. 1 to 50.
-- **Views**: page groups, one per line: a name, the path it starts with, and any paths to leave out. Up to 20. They show in the **Page group** list in the top bar.
+- **Views**: page groups, one per line: a name, the path it starts with, and any paths to leave out. Up to 20. They show in the **Page group** list in the top bar, which reads **All pages** until you pick one. See "Views (page groups)" below.
 - **Time zone**: the site's own zone. Days are counted midnight to midnight in it.
 - **Log file**: the log folder and file name. For install admins.
 - **Goals**: the page events that count as this site's goals, such as Sign-up sent or Demo booked. Tick up to 10. The events your site has already counted are listed first; the others are under **Not counted yet**. See [Funnels and goals](funnels-and-goals.md).
 
-Changes apply from the next run. Days already stored are not counted again.
+Changes apply from the next run. Days already stored are not counted again, except a new page group's (below).
+
+### Views (page groups)
+
+A page group is a part of your site you want to see on its own, such as the blog or the Canada pages. Each one gets its own pages, with the same figures as the whole site, counted the same way. Pick it in the **Page group** list in the top bar (it reads **All pages** until you do).
+
+Write one group per line: its name, the path it starts with, and any paths to leave out, separated by `|`. Several paths to leave out are separated by spaces.
+
+For example:
+
+- `Blog | /blog/`: every page under /blog/, and /blog itself.
+- `Canada | /ca/ | /ca/fr/`: the Canada pages, but not the French ones under /ca/fr/.
+- `Security pages | /security/`: every page under /security/.
+- `Rest of the site | | /blog/ /ca/`: every page except the blog and the Canada pages.
+
+Paths start with `/` and match the start of the address's path, capital letters counted, never the part after `?`. Up to 20 groups.
+
+**What fills automatically.** A new group counts from the next run. Its past days are filled from the server's raw log: under the Views box, **Fill past days for the new groups** is ticked. Press **Save** and Skald counts the new or changed groups again for every whole day the raw log still holds, in the background. The box below shows how far it is: "Filling 9 days… 4 of 9", then "Done: 9 days filled, all audited". Each day is checked by a second, separate count, as every stored day is; a day where the two disagree is held back and not shown. Untick the box and Skald offers the same with a **Fill past days for the new groups** button instead. One fill runs at a time on a server; owners and admins can start one.
+
+**What cannot be filled.** The raw log keeps only the last days, 14 on most servers. The box says so: "Days before 13 Oct can't be filled: the raw log is kept 14 days." In the group's pages those earlier days show as **not recorded for this group**, never as 0.
+
+A renamed group counts as a new one. A removed group leaves the **Page group** list; nothing needs counting again.
 
 ### Logo
 

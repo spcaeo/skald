@@ -125,7 +125,8 @@ export function convertedCard(m) {
     return el;
   }
   const leads = new Set(f.lead_actions || []), demos = new Set(f.demo_actions || ["demo"]), fin = new Set(f.finished || ["completed", "paid"]);
-  const rows = (b.rows || []).filter((x) => leads.has(x.action) && fin.has(x.stage) && !x.test);
+  // repeat (2.26): the same lead finished again (a paid after its completed): one lead, one row.
+  const rows = (b.rows || []).filter((x) => leads.has(x.action) && fin.has(x.stage) && !x.test && !x.repeat);
   const forms = lf.leads - lf.demos;
   const sub = lf.leads ? `${n(lf.leads)} lead${lf.leads === 1 ? "" : "s"}: ${n(forms)} form${forms === 1 ? "" : "s"} sent, ${n(lf.demos)} demo${lf.demos === 1 ? "" : "s"} booked.${rows.length < lf.leads ? ` The latest ${n(rows.length)} are listed.` : ""}`
     : "Forms sent and demos booked today, completed.";

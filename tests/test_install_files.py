@@ -121,6 +121,18 @@ class ContainerConfig(unittest.TestCase):
         self.assertEqual(cfg["report"]["timezone"], "UTC")
         self.assertNotIn("beacon", cfg)
 
+    def test_mcp_is_switched_on_by_the_environment(self):
+        # 2.26: before, a config made from SKALD_* had no mcp key, so /traffic-mcp was 404.
+        from skald.mcp.http import enabled
+        self.assertFalse(enabled(entrypoint.render_config({})))
+        self.assertFalse(enabled(entrypoint.render_config({"SKALD_MCP": "off"})))
+        for on in ("true", "1", " Yes "):
+            cfg = entrypoint.render_config({"SKALD_MCP": on})
+            self.assertTrue(enabled(cfg), on)
+            self.assertEqual(cfg["access"]["mode"], "sessions", "MCP needs accounts")
+        conf = (ROOT / "docker" / "nginx.conf").read_text()
+        self.assertIn("location = /traffic-mcp {", conf, "the image's nginx passes it on")
+
     def test_the_country_file(self):
         self.assertNotIn("country_db", entrypoint.render_config({})["logs"])
         cfg = entrypoint.render_config({"SKALD_COUNTRY_DB": " /geoip/dbip-country-lite.mmdb "})

@@ -440,7 +440,7 @@ switch is one config change and one nginx reload, and so is the way back.
 | `access.trust_proxy_ip` | Default `true`: believe nginx's `X-Real-IP` on the helper's 127.0.0.1 connection (sign-in limits per address, "add my address"). Set `false` if other local users could reach port 8765 and fake it, or use `refresh.socket`. |
 | `refresh.socket` | e.g. `/run/skald/helper.sock`: the helper listens only on this Unix socket (0660), not on 127.0.0.1:8765. |
 | `refresh.socket_group` | The socket's group, default `www-data` (nginx's). The service needs that group: uncomment `RuntimeDirectory=`, `RuntimeDirectoryMode=` and `SupplementaryGroups=` in `systemd/skald-refresh.service`. |
-| `mcp.enabled` | `true` turns on `POST /traffic-mcp` for agents with a token that has the `mcp` scope (docs/MCP.md). Needs sessions mode. |
+| `mcp.enabled` | `true` turns on `POST /traffic-mcp` for agents with a token that has the `mcp` scope (docs/MCP.md). Needs sessions mode. Docker: `SKALD_MCP=true` (2.26). |
 | `ingest.enabled` | `true` turns on `POST /traffic-ingest/<site>` for skald-ship (logs from other servers) and Settings > Add or remove sites (docs/INGEST.md). Needs sessions mode. `ingest.root` (default `<history folder>/ingest`), `per_minute`, `burst`, `keep`, `max_mb`, `url`. |
 
 **Set up the accounts** (as the skald user, before switching nginx;
@@ -775,6 +775,15 @@ nginx`. The accounts file stays and is used again on the next switch;
   Its failures mail once by themselves (no `notify-failure`).
 - `ours.file` must be writable by the skald user (the refresh helper
   writes it); `ours.change_log` too.
+- Settings > Sites > Views, "Fill past days for the new groups": the refresh
+  helper starts `skald --site S views refresh` in the background, as its own
+  user, so that user must be able to write `history.sqlite`, the dashboard
+  folder and the history's folder (`views-fill.json`, `views-fill.lock`,
+  `views-fill.log`) and read the raw logs, as the daily run does. Nothing to
+  change on a Docker install or on one where the helper and cron run as the
+  skald user; no nginx change (the routes are `settings/views-fill`
+  and `settings/views-fill-start`, inside the existing `settings(?:/[a-z-]+)?`).
+  docs/SETTINGS.md, "Page groups: filling past days".
 - `conversions.sqlite` schema 2 (Phase 4b step 3): the stages `won` and
   `lost`, one name per action (`booking` -> `demo`, `checkout` -> `paid`,
   `form` -> `contact`; a Stripe checkout not yet paid becomes `started`, a

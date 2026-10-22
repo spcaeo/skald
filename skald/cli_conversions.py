@@ -7,9 +7,12 @@
                                      checked and read, never kept)
     skald conversions forget --email ADDRESS | --vid ID | --lead REF [--dry-run]
     skald conversions prune          drop what is past its keeping time
-    skald conversions mark-test SITE ID... [--unmark]
+    skald conversions mark-test SITE [ID...] [--ref REF...] [--tool T] [--unmark]
                                      mark conversions as test (kept and listed,
                                      never counted), or not; audit-logged
+    skald conversions remove SITE --ref REF [--stage S] [--action A] --why TEXT [--dry-run]
+                                     soft-remove a ref's rows (kept in `removed`
+                                     with when and why, never counted); audited
     skald conversions list SITE [--test]  the latest conversions with their ids
 
 Registered through cli_more.MODULES ("cli_conversions").
@@ -24,7 +27,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import setting, site_name
-from .conversions import TOOLS, secrets_store, spool, store
+from .conversions import STAGES, TOOLS, secrets_store, spool, store
 from .conversions.adapters import adapter
 
 DEFAULT_URL = "http://127.0.0.1:8766"
@@ -247,17 +250,34 @@ def forget_person(ctx, email: str | None = None, vid: str | None = None,
     return 0
 
 
+def _refs(raw) -> list[str]:
+    """--ref values, trimmed, in order, once each (as leads/test reads refs)."""
+    out: list[str] = []
+    for ref in raw or []:
+        ref = str(ref).strip()[:120]
+        if ref and ref not in out:
+            out.append(ref)
+    return out
+
+
 def cmd_mark_test(ctx) -> int:
-    """Mark conversions as test (or not): kept and listed, never counted."""
+    """Mark conversions as test (or not): kept and listed, never counted. By
+    row id (every stage of the same tool and ref follows), and by --ref (2.26:
+    store.mark_refs, the function POST .../leads/test calls)."""
     a = ctx.args
     on = not a.unmark
+    refs = _refs(a.ref)
+    if not a.ids and not refs:
+        ctx.err("conversions mark-test: give row ids (conversions list) or --ref REF")
+        return 2
     db_path = store.path_for(ctx.config, _folder(ctx))
     if not db_path.exists():
         ctx.err("conversions mark-test: no conversions file here")
         return 2
     db = store.connect(db_path)
     try:
-        changed = store.mark_test(db, a.site, a.ids, on)
+        changed = store.mark_test(db, a.site, a.ids, on) if a.ids else []
+        by_ref = store.mark_refs(db, a.site, a.tool, refs, on) if refs else None
     except ValueError as why:
         ctx.err(f"conversions mark-test: {why}; nothing changed")
         return 2
@@ -265,20 +285,81 @@ def cmd_mark_test(ctx) -> int:
         db.close()
     from .audit_conversions import forget_cache
     forget_cache(_folder(ctx))           # the audit's cached beacon days: count again
-    for r in changed:
-        ctx.out(f"  {r['id']}  {r['tool']}  {r['action']} {r['stage']}  {r['at']}")
-    ctx.out(f"conversions mark-test: {len(changed)} row(s) {'marked' if on else 'unmarked'} "
-            f"test on {a.site}" + ("" if changed else " (they were already)"))
-    _audit(ctx, "conversions.test" if on else "conversions.untest", a.site,
-           ",".join(str(r["id"]) for r in changed))
+    word = "marked" if on else "unmarked"
+    action = "conversions.test" if on else "conversions.untest"
+    if a.ids:
+        for r in changed:
+            ctx.out(f"  {r['id']}  {r['tool']}  {r['action']} {r['stage']}  {r['at']}")
+        ctx.out(f"conversions mark-test: {len(changed)} row(s) {word} test on {a.site}"
+                + ("" if changed else " (they were already)"))
+        _audit(ctx, action, a.site, ",".join(str(r["id"]) for r in changed))
+    if by_ref is not None:
+        missing = by_ref["not_found"]
+        ctx.out(f"conversions mark-test --ref: {by_ref['changed']} row(s) {word} test on "
+                f"{a.site} ({a.tool}), {by_ref['already']} already"
+                + (f"; not found: {', '.join(missing)}" if missing else ""))
+        _audit(ctx, action, a.site, f"{by_ref['changed']} row(s) {word}, {by_ref['already']} "
+               f"already, {len(missing)} not found; tool={a.tool}; refs={','.join(refs)}",
+               key="detail")
     return 0
 
 
-def _audit(ctx, action: str, site: str, detail: str) -> None:
+def cmd_remove(ctx) -> int:
+    """Soft-remove the rows of one ref (2.26): each row copied whole into
+    `removed` with when and why (store.remove), out of every count, listed
+    under Show left out > Removed. Refused without --why; --dry-run lists."""
+    a = ctx.args
+    why = (a.why or "").strip()
+    if not why:
+        ctx.err("conversions remove: say why with --why \"...\" (kept with each row)")
+        return 2
+    ref = str(a.ref or "").strip()[:120]
+    if not ref:
+        ctx.err("conversions remove: --ref is the lead's external_ref")
+        return 2
+    db_path = store.path_for(ctx.config, _folder(ctx))
+    if not db_path.exists():
+        ctx.err("conversions remove: no conversions file here")
+        return 2
+    sql = ("SELECT id, tool, action, stage, at, test FROM conversions WHERE site = ? AND "
+           "tool = ? AND external_ref = ?")
+    args: list = [a.site, a.tool, ref]
+    for column, value in (("stage", a.stage), ("action", a.action)):
+        if value:
+            sql += f" AND {column} = ?"
+            args.append(value)
+    what = " ".join(f"{k} {v}" for k, v in (("stage", a.stage), ("action", a.action)) if v)
+    db = store.connect(db_path)
+    try:
+        rows = db.execute(sql + " ORDER BY at, id", args).fetchall()
+        if not rows:
+            ctx.err(f"conversions remove: no row of {a.site} ({a.tool}) with ref {ref}"
+                    + (f" and {what}" if what else "") + "; nothing changed")
+            return 1
+        for r in rows:
+            ctx.out(f"  {r[0]}  {r[1]}  {r[2]} {r[3]}  {r[4]}" + ("  TEST" if r[5] else ""))
+        if a.dry_run:
+            ctx.out(f"conversions remove (dry run): would remove {len(rows)} row(s) of {ref} on "
+                    f"{a.site}; nothing changed")
+            return 0
+        gone = sum(store.remove(db, r[0], f"removed by the admin: {why}") for r in rows)
+    finally:
+        db.close()
+    from .audit_conversions import forget_cache
+    forget_cache(_folder(ctx))
+    ctx.out(f"conversions remove: {gone} row(s) of {ref} removed on {a.site}: kept under Show "
+            f"left out > Removed, out of every count")
+    _audit(ctx, "conversions.remove", a.site, f"{gone} row(s) removed, ids="
+           f"{','.join(str(r[0]) for r in rows)}; tool={a.tool}; ref={ref}; why={why}",
+           key="detail")
+    return 0
+
+
+def _audit(ctx, action: str, site: str, detail: str, key: str = "ids") -> None:
     """One row in the accounts audit log (actor "cli"), when there is one,
     else a line in privacy.log (conversions/marks.audit_entry)."""
     from .conversions.marks import audit_entry
-    audit_entry(ctx.config, _folder(ctx), action, site, detail)
+    audit_entry(ctx.config, _folder(ctx), action, site, detail, key=key)
 
 
 def cmd_conversions_list(ctx) -> int:
@@ -344,7 +425,8 @@ def add_command(sub) -> None:
     s.add_argument("--url", help=f"the receiver (default hooks.test_url or {DEFAULT_URL})")
     s.set_defaults(run=cmd_test)
 
-    p = sub.add_parser("conversions", help="the conversions file: forget a person, prune")
+    p = sub.add_parser("conversions", help="the conversions file: list, mark test, remove, "
+                       "forget a person, prune")
     cs = p.add_subparsers(dest="conversions_command", required=True)
     f = cs.add_parser("forget", help="delete everything for an email, visitor ID or lead")
     which = f.add_mutually_exclusive_group(required=True)
@@ -360,9 +442,25 @@ def add_command(sub) -> None:
     s = cs.add_parser("mark-test", help="mark conversions as test: kept and listed (Left "
                       "out), never counted; every stage of the same booking or lead too")
     s.add_argument("site")
-    s.add_argument("ids", nargs="+", type=int, help="conversion ids (conversions list)")
+    s.add_argument("ids", nargs="*", type=int, help="conversion ids (conversions list)")
+    s.add_argument("--ref", action="append", metavar="REF",
+                   help="a lead's external_ref: every stage of it (repeat for more)")
+    s.add_argument("--tool", choices=TOOLS, default="lead",
+                   help="the tool the refs came through (default lead)")
     s.add_argument("--unmark", action="store_true", help="count them again")
     s.set_defaults(run=cmd_mark_test)
+    s = cs.add_parser("remove", help="soft-remove a lead's rows: each kept whole under Show "
+                      "left out > Removed with when and why, out of every count")
+    s.add_argument("site")
+    s.add_argument("--ref", required=True, help="the lead's external_ref")
+    s.add_argument("--tool", choices=TOOLS, default="lead",
+                   help="the tool it came through (default lead)")
+    s.add_argument("--stage", choices=STAGES, help="only this stage (default every stage)")
+    s.add_argument("--action", help="only this action")
+    s.add_argument("--why", required=True, help="why it goes (kept with each row)")
+    s.add_argument("--dry-run", dest="dry_run", action="store_true",
+                   help="list what would go; change nothing")
+    s.set_defaults(run=cmd_remove)
     s = cs.add_parser("list", help="the latest conversions of a site, with their ids")
     s.add_argument("site")
     s.add_argument("--test", action="store_true", help="only the ones marked test")

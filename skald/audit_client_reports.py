@@ -101,12 +101,19 @@ def recount_leads(conv_path, site: str, tz, first: date, last: date) -> dict[str
     edge = lambda d: (datetime.combine(d, time(0), tzinfo=tz).astimezone(timezone.utc)  # noqa: E731
                       .strftime("%Y-%m-%dT%H:%M:%SZ"))
     conn = sqlite3.connect(f"file:{Path(conv_path).resolve()}?mode=ro", uri=True)
+    acts, fin = ",".join("?" * len(LEAD_ACTIONS)), ",".join("?" * len(FINISHED))
     try:
+        # One lead counts once (2.26): a finished row with an earlier finished, unmarked
+        # row of the same tool, ref and action (a paid after its completed) is no lead.
         rows = conn.execute(
-            f"SELECT action, COUNT(*) FROM conversions WHERE site = ? AND test = 0 "
-            f"AND action IN ({','.join('?' * len(LEAD_ACTIONS))}) "
-            f"AND stage IN ({','.join('?' * len(FINISHED))}) AND at >= ? AND at < ? GROUP BY action",
-            (site, *LEAD_ACTIONS, *FINISHED, edge(first), edge(last + timedelta(days=1)))).fetchall()
+            f"SELECT c.action, COUNT(*) FROM conversions c WHERE c.site = ? AND c.test = 0 "
+            f"AND c.action IN ({acts}) AND c.stage IN ({fin}) AND c.at >= ? AND c.at < ? "
+            f"AND NOT EXISTS (SELECT 1 FROM conversions e WHERE e.site = c.site AND "
+            f"e.tool = c.tool AND e.external_ref = c.external_ref AND e.action = c.action AND "
+            f"e.test = 0 AND e.stage IN ({fin}) AND (e.at < c.at OR (e.at = c.at AND "
+            f"e.stage < c.stage))) GROUP BY c.action",
+            (site, *LEAD_ACTIONS, *FINISHED, edge(first), edge(last + timedelta(days=1)),
+             *FINISHED)).fetchall()
     finally:
         conn.close()
     return {a: int(n) for a, n in rows if n}

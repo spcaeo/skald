@@ -16,6 +16,16 @@ the timeline. Cancelled, removed and test rows are listed by the helper
 Statuses and cancellations are "as known now": a later change rewrites the
 day the action was taken.
 
+**One lead counts once (2.26).** Of the finished rows (`completed`, `paid`)
+of a lead action under one site, tool, `external_ref` and action, only the
+first (earliest `at`, then the stage's name) is counted; another (a `paid`
+sent after the `completed`) is left out of every block below, as a test row
+is, and stays listed among the lead's steps (`store.repeat_finishes`).
+Before 2.26 such a ref was two leads. A day stored before 2.26 changes when
+it is next built (conversions.json is rebuilt from the store on every run);
+the daily history's stored figures (mails, client reports already sent) do
+not. Other actions (`paid`, `deal`...) count every row, as before.
+
 | field | type |
 |---|---|
 | `available` | bool; false: `reason` says why (no conversions file yet) and every block below is empty (`reason` is null when true) |
@@ -33,7 +43,7 @@ day the action was taken.
 | `pages_before` | null without journeys (visitor IDs off), `{"state": "withheld","why"}`, or `{"converting","other","pages": [[path, converting, other]]}`: browsers with a finished conversion in the period and a journey up to it, and the browsers seen in the period that did not convert; per page, how many of each saw it (the converting ones before converting). Top 50 by converting, then other, then path; exact |
 | `timeline[]` | the latest 50 finished conversions of the period, one per browser (or per lead without one), newest first, withheld days left out: `{"at","action","stage","tool","source","first_source","campaign","landing","country","device","visits_before","first_touch","browser": bool,"visits": [{"day","source","paths": [up to 15]}] (last 10 days with page views up to the conversion; [] without a browser),"steps": [{"at","action","stage","tool","label"}] (up to 20),"label"}`; `label` (2.18) is the row's lead label or null. Times are local ISO. A listing, not a figure |
 | `lead_actions`, `demo_actions` | (2.5.0) the actions that are a lead once finished (`contact`, `signup`, `waitlist`, `trial`, `demo`: a form sent or a demo booked) and the ones also shown as demos booked (`demo`); name lists from `conversions/__init__.py`, never figures |
-| `today` | (2.5.0) null without a conversions file, `{"day","state": "withheld","why"}`, or `{"day","state": "ok","total","tests","rows"}`: today's (local) rows of the lead actions, every stage, newest first, at most 100: `{"id" (the row, 2.25),"ref" (its `external_ref`, the sender's own ID, 2.25; null for the page script's, which holds the visitor ID),"at" (local ISO),"action","stage","tool","source","first_source","campaign","landing","country","device","test": bool}`. `total` counts all of today's such rows, `tests` the ones marked test (listed, marked, never counted: today's `days[]` entry leaves them out). A listing for the Live tab, not a figure; withheld when today's day is withheld or the second count disagrees |
+| `today` | (2.5.0) null without a conversions file, `{"day","state": "withheld","why"}`, or `{"day","state": "ok","total","tests","rows"}`: today's (local) rows of the lead actions, every stage, newest first, at most 100: `{"id" (the row, 2.25),"ref" (its `external_ref`, the sender's own ID, 2.25; null for the page script's, which holds the visitor ID),"at" (local ISO),"action","stage","tool","source","first_source","campaign","landing","country","device","test": bool,"repeat": bool (2.26: the lead finished again, a `paid` after its `completed`: listed, not a lead)}`. `total` counts all of today's such rows, `tests` the ones marked test (listed, marked, never counted: today's `days[]` entry leaves them out). A listing for the Live tab, not a figure; withheld when today's day is withheld or the second count disagrees |
 | `withheld` | `{"days/<day>", "pages_before" or "today": why}` |
 
 A day's `by` tables each add up, per action, to its finished stages; its
@@ -47,6 +57,12 @@ SQL), and every other figure of every day and `pages_before` against
 the file opened read-only. Both roads leave test rows out by their own code:
 the spool, beacon and lead recounts skip the (tool, reference) pairs marked
 test (`audit_conversions.test_keys`), the SQL recount reads `c.test = 0`.
+A lead's repeat finish (2.26) is left out by each road's own rule: the spool
+recount keeps the first finished stage per tool, ref and action from its own
+reading of the lines, the SQL recounts by NOT EXISTS of an earlier finished,
+unmarked row (`audit_conversions_figures.once`). A row soft-removed
+(`skald conversions remove`, kept in `removed`) leaves the spool recount too:
+its lines received before it went are skipped (`audit_conversions.removed_keys`).
 A lead's label (2.18) is recounted there by its own GROUP BY over the column
 (`labels` by day, action, label and stage; `labels_abandoned` by the same
 NOT EXISTS as `abandoned`, grouped by label too).

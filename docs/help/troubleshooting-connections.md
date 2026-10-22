@@ -159,7 +159,7 @@ In **Connect an AI assistant (MCP)**, step **Test**:
 | Connected: N tools. | It works |
 | 401: the token is wrong, revoked, or has no MCP scope. | Make a new token for the AI assistant |
 | 403: this browser's address is not allowed to call MCP. | The token may still be fine: try it in your assistant |
-| 404: MCP is not switched on here. | Ask whoever runs your Skald server (mcp.enabled) |
+| 404: MCP is not switched on here. | Ask whoever runs your Skald server to switch it on: `mcp.enabled` in the config, or `SKALD_MCP=true` on Docker |
 | 405: the request was not a POST. | The client must post each request (Streamable HTTP) |
 | No answer | Skald's address could not be reached from this browser |
 

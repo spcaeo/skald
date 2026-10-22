@@ -139,6 +139,11 @@ def render_config(env: dict) -> dict:
                                   (env.get("SKALD_PUBLIC_CHECK_INFO_URL") or "").strip()}
     if str(env.get("SKALD_INGEST", "")).lower() in ("1", "true", "on", "yes"):
         config["ingest"] = {"enabled": True, "root": str(DATA / "ingest")}
+    # 2.26: MCP over HTTP (POST /traffic-mcp, docs/MCP.md). The image's nginx has
+    # always passed the path on, but a config made from the environment had no way
+    # to say `mcp.enabled`, so the helper answered 404 "MCP is not switched on here".
+    if str(env.get("SKALD_MCP", "")).strip().lower() in ("1", "true", "on", "yes"):
+        config["mcp"] = {"enabled": True}
     # 2.4.0: keep each visit's IP address and leads' names and emails. Unset,
     # a new install keeps them and one upgraded from before 2.4.0 does not
     # (people/policy.py) until this, or Settings > Data retention, says so.

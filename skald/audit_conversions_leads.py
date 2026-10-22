@@ -29,7 +29,7 @@ from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from .audit_conversions_figures import STAMP, _open, _utc
+from .audit_conversions_figures import STAMP, _open, _utc, once
 from .conversions import FINISHED, LEAD_ACTIONS, UNKNOWN
 
 # The subject's column, by this module's own reading of the finding.
@@ -41,8 +41,9 @@ def _in(names) -> str:
     return "(" + ", ".join(f"'{n}'" for n in names) + ")"
 
 
-LEADS = (f"FROM conversions WHERE site = ? AND test = 0 AND action IN {_in(LEAD_ACTIONS)} "
-         f"AND stage IN {_in(FINISHED)} AND at >= ? AND at < ?")
+LEADS = (f"FROM conversions c WHERE c.site = ? AND c.test = 0 AND c.action IN "
+         f"{_in(LEAD_ACTIONS)} AND c.stage IN {_in(FINISHED)} AND c.at >= ? AND c.at < ? "
+         f"AND {once('c')}")
 
 
 def _bounds(tz, first: str, last: str) -> tuple[str, str]:
@@ -117,10 +118,18 @@ def check_today(path: Path, site: str, tz, today: date, block: dict | None) -> l
             f"SELECT action, stage, test <> 0, COUNT(*) FROM conversions WHERE site = ? AND "
             f"action IN {_in(LEAD_ACTIONS)} AND at >= ? AND at < ? GROUP BY 1, 2, 3",
             (site, lo, hi))}
+        # 2.26: the rows that finish a lead again, marked `repeat` and not listed as leads.
+        again = db.execute(f"SELECT COUNT(*) FROM conversions c WHERE c.site = ? AND c.action "
+                           f"IN {_in(LEAD_ACTIONS)} AND c.at >= ? AND c.at < ? AND c.test = 0 "
+                           f"AND NOT ({once('c')})", (site, lo, hi)).fetchone()[0]
     finally:
         db.close()
     out = []
     total, tests = sum(got.values()), sum(n for (_, _, t), n in got.items() if t)
+    if len(block.get("rows") or []) == total and \
+            sum(1 for r in block["rows"] if r.get("repeat")) != again:
+        out.append(f"today: file marks {sum(1 for r in block['rows'] if r.get('repeat'))} "
+                   f"repeat finishes, SQL recount {again}")
     if block.get("total") != total:
         out.append(f"today: file lists {block.get('total')} rows, SQL recount {total}")
     if block.get("tests") != tests:

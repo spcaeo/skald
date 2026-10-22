@@ -175,6 +175,18 @@ class MarkFromDrawer(unittest.TestCase):
         self.assertFalse(api.is_people(PATH), "a GET to it is not a people listing")
 
     # ---------------------------------------------------------------- the lead list
+    def test_a_lead_that_paid_later_says_paid_as_its_stage_now(self):
+        db = store.connect(self.root / store.FILE)
+        try:
+            store.record_conversion(db, {"site": SITE, "action": "signup", "stage": "paid",
+                                         "tool": "lead", "external_ref": "u-2", "at": "2026-10-11T11:20:00Z"})
+        finally:
+            db.close()
+        got = leadlist.rows(self.config, self.root, SITE, date(2026, 10, 11), date(2026, 10, 12), False)
+        row = next(r for r in got["rows"] if r["ref"] == "u-2")
+        self.assertEqual((row["stage"], row["now"]), ("completed", "paid"))
+        self.assertEqual(len([r for r in got["rows"] if r["ref"] == "u-2"]), 1, "still one lead")
+
     def test_the_lead_list_carries_the_reference_and_a_test_leads_steps(self):
         got = leadlist.rows(self.config, self.root, SITE, date(2026, 10, 11), date(2026, 10, 12), False)
         row = next(r for r in got["rows"] if r["ref"] == REF)

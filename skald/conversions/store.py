@@ -567,20 +567,47 @@ def journey_of(db, site: str, vid: str) -> dict:
                                  (site, vid))}
 
 
+def repeat_finishes(db, site: str) -> set[int]:
+    """The ids of the rows that finish a lead again (2.26). One lead is one
+    (site, tool, external_ref, action) of a lead action (LEAD_ACTIONS): of its
+    finished rows (FINISHED), test ones left out, the earliest (by `at`, then
+    the stage's name) is the lead; another (a `paid` after a `completed`) stays
+    a row, listed among the lead's steps, and is never counted. Before 2.26
+    each finished row was a lead, so such a ref was two."""
+    from . import LEAD_ACTIONS
+    rows = db.execute(f"SELECT id, tool, external_ref, action, stage, at FROM conversions "
+                      f"WHERE site = ? AND test = 0 AND stage IN "
+                      f"({','.join('?' * len(FINISHED))}) AND action IN "
+                      f"({','.join('?' * len(LEAD_ACTIONS))})",
+                      (site, *FINISHED, *LEAD_ACTIONS)).fetchall()
+    leads: dict = {}
+    for rid, tool, ref, action, stage, at in rows:
+        leads.setdefault((tool, ref, action), []).append((at, stage, rid))
+    out: set[int] = set()
+    for found in leads.values():
+        if len(found) > 1:
+            out.update(rid for _, _, rid in sorted(found)[1:])
+    return out
+
+
 def day_counts(db, site: str, tz, first: date, last: date,
                tools=None) -> dict[str, dict[tuple[str, str], int]]:
     """{local day: {(action, stage): n}} for conversions whose `at` falls on
-    first..last in `tz`. Days with none are left out."""
+    first..last in `tz`, a lead's repeat finish (repeat_finishes) left out.
+    Days with none are left out."""
     lo = datetime.combine(first, time(0), tzinfo=tz)
     hi = datetime.combine(last + timedelta(days=1), time(0), tzinfo=tz)
-    sql = ("SELECT at, action, stage FROM conversions WHERE site = ? AND at >= ? AND at < ? "
-           "AND test = 0")
+    sql = ("SELECT at, action, stage, id FROM conversions WHERE site = ? AND at >= ? AND "
+           "at < ? AND test = 0")
     args = [site, stamp(lo), stamp(hi)]
     if tools:
         sql += f" AND tool IN ({','.join('?' * len(tools))})"
         args += list(tools)
+    again = repeat_finishes(db, site)
     out: dict = {}
-    for at, action, stage in db.execute(sql, args):
+    for at, action, stage, rid in db.execute(sql, args):
+        if rid in again:
+            continue
         day = parse(at).astimezone(tz).date().isoformat()
         per = out.setdefault(day, {})
         per[(action, stage)] = per.get((action, stage), 0) + 1

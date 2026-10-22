@@ -44,7 +44,7 @@ from .files import slug, write_atomic
 
 PER_SITE = ("live", "run-daily", "dashboard", "check", "collect", "backfill", "audit",
             "verify-bots", "pagespeed", "doctor", "search-console", "bing", "search", "reports",
-            "ai-answers")
+            "ai-answers", "views")
 
 
 def merged(base: dict, over: dict) -> dict:

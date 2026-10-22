@@ -116,7 +116,7 @@ export function markButton(x, { onDone = null, compact = false } = {}) {
 
 /* The section: the reference, every step of it (stage, what, when), and the button.
    x: {id, ref, tool, test, steps: [{at, action, stage, tool, test}]}. */
-export function refBlock(x, { title = "Reference", onDone = null } = {}) {
+export function refBlock(x, { title = "Reference and steps", onDone = null } = {}) {
   // No reference to show (the page script's, made from the visitor ID, outside an owner's
   // answer): the steps and the button still, for a row that can be marked.
   if (!x?.ref && !(markable(x) && mayMark())) return null;

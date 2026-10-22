@@ -141,7 +141,7 @@ export function mcpDialog(site, data = {}, { onClose = null, route = null, start
     title: "Connect an AI assistant (MCP)", subtitle: "Ask Claude, ChatGPT or another assistant about your traffic in plain words.", key: "conn-mcp", state: st, onClose,
     steps: [
       { name: "Token", draw: () => [
-        data.mcp_enabled === false ? answerBox("bad", "MCP is not switched on here.", h("p", null, "Ask whoever runs your Skald server to turn it on (mcp.enabled). You can make the token now.")) : null,
+        data.mcp_enabled === false ? answerBox("bad", "MCP is not switched on here.", h("p", null, "Ask whoever runs your Skald server to turn it on (mcp.enabled; on Docker, SKALD_MCP=true). You can make the token now.")) : null,
         h("p", null, "The assistant uses this token to read this site's figures. It cannot change anything."),
         ...tokenMaker(st, "mcp", { label: "AI assistant", scopes: ["mcp"] })] },
       { name: "Connect", draw: () => [
