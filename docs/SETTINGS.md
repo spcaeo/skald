@@ -51,6 +51,8 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `privacy.keep_ips` | Data retention > People | full / short / off (full); true and false read as full and off | admin | site | `privacy.keep_ips` |
 | `privacy.keep_days` | Data retention > People | 1-3650 (395) | admin | site | `privacy.keep_days` |
 | `conversions.identity` | Data retention > People | full / anonymous (full) | admin | site | `conversions.identity` |
+| `conversions.retention_days` | Data retention > Leads | 1-3650, or 0 / `forever`: kept for good (400) | admin | site | `conversions.retention_days` |
+| `journeys.vid_days` | Data retention > Leads | 1-400 (30) | admin | site | `journeys.vid_days` |
 | `backup.daily` | Data retention | 1-60 (14) | install admin | install | `backup.daily` |
 | `backup.weekly` | Data retention | 0-52 (8) | install admin | install | `backup.weekly` |
 | `mail.daily` | Mail | on / off (on) | admin | site | `mail.daily` |
@@ -179,7 +181,28 @@ plain line with `beacon.share_subdomains` on, else a marked line), Do Not Track 
 line: the tag attribute is not seen by the server); how to ask for deletion. What the
 server cannot know is a placeholder in [square brackets]: the site's contact, how long its
 web server keeps logs. `notice` in the answer: `{intro, items, text, placeholders, note,
-uses}`, `uses` naming the values it was made from.
+uses}`, `uses` naming the values it was made from. Since 2.29 it also says how long a lead's
+name and email, and the pages read with its visitor ID, are kept (`lead_days`, `vid_days` in
+`uses`): "until you ask us to delete them" when `conversions.retention_days` is 0.
+
+**Leads: how long they are kept (2.29).** The card **Leads** holds two keys, per site:
+
+- `conversions.retention_days` (400): the conversions, the rows a sync removed, the journeys
+  of IDs that converted, the identities they point to and the hook spool's lines. `0` (or
+  the word `forever`) keeps them for good: `conversions/store.prune` never deletes them and
+  `spool.prune` keeps the site's lines. The page shows it as two choices, "Kept for good" or
+  N days (`forever` in the answer). The delivery log keeps its own 90 days, the replay hashes
+  their 30. `conversions forget` (and `skald forget`) still deletes one person whatever is
+  set. A plan cap (saas) treats 0 as longer than any cap.
+- `journeys.vid_days` (30, 1-400): the page views of an ID with no conversion. Once the ID
+  converts, its pages are kept with the conversion, as long as it.
+
+Each site is pruned by its own values (`prune_plan`); a spool day file holding lines of sites
+with different windows is written again with only the lines still kept. A shorter window is
+confirmed like the others; any number of days is shorter than 0. The second count of beacon
+conversions keeps its own day counts (`conversions-audit.json`) for as long as the
+conversions, so a day older than `beacon.keep_days` is still checked against the count made
+while the beacon spool held it.
 
 **The upgrade rule.** When neither the page nor `config.yml` sets them, a new install reads
 `keep_ips: full` and `identity: full`. An install whose history predates 2.4.0 reads `off` and
@@ -194,8 +217,10 @@ only when the site's privacy notice says so.
 Making a retention window (or the number of backups) smaller removes stored data. So:
 
 - the page shows what will go: `GET settings/retention-preview?key=&value=` counts the stored
-  rows and days (and beacon or backup files; for `privacy.keep_days` the kept visits) the new
-  value removes;
+  rows and days (and beacon or backup files; for `privacy.keep_days` the kept visits; for
+  `conversions.retention_days` the conversions, removed rows and journeys; for
+  `journeys.vid_days` the page views of IDs with no conversion) the new value removes. A
+  `forever` key's 0 keeps the most: any number of days after it is smaller;
 - the save is refused (409, `needs_confirm`) until the site's name is typed (`"confirm": "<site>"`);
 - nothing is removed at once. Removal happens at the next daily run (`cli.prune_kept`), and
   each site is pruned by its own window: a site with a longer window keeps its rows when
@@ -434,6 +459,8 @@ skald settings set example.com beacon.share_subdomains true    # no tag change n
 skald settings set example.com site.asset_prefixes '["/wp-content/", "/wp-includes/"]'
 skald settings set example.com conversions.identity anonymous
 skald settings set example.com privacy.keep_days 180 --yes     # smaller: removes data
+skald settings set example.com conversions.retention_days forever   # leads kept for good (or 0)
+skald settings set example.com journeys.vid_days 400            # pages before a sign-up
 skald settings set example.com beacon.visitor_ids null         # clear the row
 ```
 

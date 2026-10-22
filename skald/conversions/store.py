@@ -616,22 +616,68 @@ def day_counts(db, site: str, tz, first: date, last: date,
 
 # --------------------------------------------------------- prune and forget
 
+FOREVER = 0              # conversions.retention_days 0: kept for good (2.29)
+FOREVER_WORDS = ("forever", "for good", "for_good")
+
+
+def keep_days_of(raw, default: int = RETENTION_DAYS) -> int:
+    """conversions.retention_days as days: 0 (FOREVER) for 0, "forever" or
+    "for good"; the default when unset or not a whole number of days."""
+    if raw is None or isinstance(raw, bool):
+        return default
+    if isinstance(raw, str) and raw.strip().lower() in FOREVER_WORDS:
+        return FOREVER
+    try:
+        n = int(str(raw).strip())
+    except ValueError:
+        return default
+    return n if n >= 0 else default
+
+
+def keep_days(config: dict) -> int:
+    """How long leads, their removed rows, the pages their IDs read and the
+    hook spool are kept: `conversions.retention_days` (400); 0 for good."""
+    return keep_days_of(setting(config or {}, "conversions", "retention_days"))
+
+
+def vid_days(config: dict) -> int:
+    """`journeys.vid_days` (30): how long an ID's page views are kept while
+    the ID has no conversion; at least 1."""
+    try:
+        return max(1, int(setting(config or {}, "journeys", "vid_days", VID_DAYS)))
+    except (TypeError, ValueError):
+        return VID_DAYS
+
+
 def prune(db, today: date, vid_days: int = VID_DAYS,
-          retention_days: int = RETENTION_DAYS) -> dict:
-    """Delete what is past its time: journeys after vid_days unless their ID
-    converted (kept as long as conversions), conversions after
-    retention_days, identities nothing points to, deliveries after 90 days."""
+          retention_days: int = RETENTION_DAYS, own_vid: dict | None = None,
+          own_keep: dict | None = None) -> dict:
+    """Delete what is past its time, per site (a site in `own_keep` /
+    `own_vid` by its own days): conversions, removed rows and journeys after
+    retention_days - never when it is 0 (FOREVER); the journeys of an ID with
+    no conversion after vid_days; identities nothing points to; deliveries
+    after DELIVERY_DAYS whatever the site keeps."""
     def edge(days: int) -> str:
         return stamp(datetime.combine(today - timedelta(days=days), time(0),
                                       tzinfo=timezone.utc))
+    own_vid, own_keep = own_vid or {}, own_keep or {}
+    conv = old = short = 0
     with tx(db):
-        conv = db.execute("DELETE FROM conversions WHERE at < ?",
-                          (edge(retention_days),)).rowcount
-        db.execute("DELETE FROM removed WHERE removed_at < ?", (edge(retention_days),))
-        old = db.execute("DELETE FROM journeys WHERE at < ?", (edge(retention_days),)).rowcount
-        short = db.execute("DELETE FROM journeys WHERE at < ? AND NOT EXISTS ("
-                           "SELECT 1 FROM conversions c WHERE c.site = journeys.site "
-                           "AND c.vid = journeys.vid)", (edge(vid_days),)).rowcount
+        sites = {r[0] for t in ("conversions", "removed", "journeys")
+                 for r in db.execute(f"SELECT DISTINCT site FROM {t}")}
+        for site in sorted(sites):
+            keep = int(own_keep.get(site, retention_days))
+            if keep != FOREVER:
+                cut = edge(keep)
+                conv += db.execute("DELETE FROM conversions WHERE site = ? AND at < ?",
+                                   (site, cut)).rowcount
+                db.execute("DELETE FROM removed WHERE site = ? AND removed_at < ?", (site, cut))
+                old += db.execute("DELETE FROM journeys WHERE site = ? AND at < ?",
+                                  (site, cut)).rowcount
+            short += db.execute("DELETE FROM journeys WHERE site = ? AND at < ? AND NOT EXISTS "
+                                "(SELECT 1 FROM conversions c WHERE c.site = journeys.site AND "
+                                "c.vid = journeys.vid)",
+                                (site, edge(max(1, int(own_vid.get(site, vid_days)))))).rowcount
         ids = db.execute("DELETE FROM identities WHERE id NOT IN (SELECT identity_id FROM "
                          "conversions WHERE identity_id IS NOT NULL) AND id NOT IN (SELECT "
                          "CAST(json_extract(row, '$.identity_id') AS INTEGER) FROM removed "
@@ -641,6 +687,35 @@ def prune(db, today: date, vid_days: int = VID_DAYS,
         db.execute("DELETE FROM hook_replays WHERE received_at < ?", (edge(REPLAY_DAYS),))
     return {"conversions": conv, "journeys": old + short, "identities": ids,
             "deliveries": dels}
+
+
+def prune_preview(path, site: str, name: str, cutoff: str) -> tuple:
+    """(rows, days, first, last) a shorter conversions.retention_days (its
+    conversions, removed rows and journeys) or journeys.vid_days (the page
+    views of IDs with no conversion) would remove for `site`: rows before
+    `cutoff` (a day), the file opened read-only."""
+    import sqlite3
+    if path is None or not Path(path).is_file():
+        return 0, 0, None, None
+    parts = ["SELECT substr(at, 1, 10) AS d FROM journeys WHERE site = ? AND at < ?" + (
+        "" if name == "conversions.retention_days" else
+        " AND NOT EXISTS (SELECT 1 FROM conversions c WHERE c.site = journeys.site AND "
+        "c.vid = journeys.vid)")]
+    if name == "conversions.retention_days":
+        parts += ["SELECT substr(at, 1, 10) FROM conversions WHERE site = ? AND at < ?",
+                  "SELECT substr(removed_at, 1, 10) FROM removed WHERE site = ? AND "
+                  "removed_at < ?"]
+    sql = ("SELECT COUNT(*), COUNT(DISTINCT d), MIN(d), MAX(d) FROM ("
+           + " UNION ALL ".join(parts) + ")")
+    try:
+        db = sqlite3.connect(f"file:{Path(path).resolve()}?mode=ro", uri=True)
+        try:
+            row = db.execute(sql, [site, cutoff] * len(parts)).fetchone()
+        finally:
+            db.close()
+    except sqlite3.Error:
+        return 0, 0, None, None
+    return int(row[0] or 0), int(row[1] or 0), row[2], row[3]
 
 
 def forget(db, site: str | None, email: str | None = None, vid: str | None = None,

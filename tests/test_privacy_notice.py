@@ -22,7 +22,8 @@ TAGS = {"none": {}, "tag": {"enabled": True}, "ids": {"enabled": True, "visitor_
 
 def config(mode: str, identity: str, tag: str, days: int = 395, city: bool = False) -> dict:
     out = {"privacy": {"keep_ips": mode, "keep_days": days},
-           "conversions": {"identity": identity}, "beacon": dict(TAGS[tag])}
+           "conversions": {"identity": identity}, "beacon": dict(TAGS[tag]),
+           "journeys": {"vid_days": 14}}
     if city:
         out["logs"] = {"city_db": "/var/lib/example/city.mmdb"}
     return out
@@ -42,7 +43,8 @@ class Wording(unittest.TestCase):
                                                "identity": identity,
                                                "script_tag": tag != "none",
                                                "visitor_ids": tag == "ids",
-                                               "share_subdomains": False})
+                                               "share_subdomains": False,
+                                               "lead_days": 400, "vid_days": 14})
                 # Always: the log, no cookie from it, how to ask for deletion.
                 self.assertIn("sets no cookie and stores nothing on your device", text)
                 self.assertIn(notice.CONTACT, text)
@@ -66,6 +68,11 @@ class Wording(unittest.TestCase):
                                  tag == "ids")
                 self.assertEqual("skald_vid" in text, tag == "ids")
                 self.assertEqual("keeps no ID and stores nothing" in text, tag == "tag")
+                # How long (2.29): leads 400 days by default, an ID's pages 14 here.
+                self.assertEqual("We keep them for 400 days." in text, identity == "full")
+                self.assertEqual("pages read with a visitor ID for 14 days" in text,
+                                 tag == "ids")
+                self.assertNotIn("until you ask us to delete them", text)
                 # Every placeholder listed is in the text, and only those.
                 for mark in got["placeholders"]:
                     self.assertIn(mark, text)

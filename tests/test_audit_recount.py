@@ -357,5 +357,18 @@ class TestLive(AuditCase):
             box.close()
 
 
+    def test_a_site_with_no_log_lines_yet_is_skipped_not_a_mismatch(self):
+        # 2.29: a site added today, still waiting for its logs, said "does not match".
+        box = Sandbox()
+        try:
+            box.log([])
+            self.assertEqual(box.run("--today", "2026-10-07", "live")[0], 0)
+            code, out, err = box.run("--today", "2026-10-07", "audit", "--live")
+            self.assertEqual(code, 0, err)
+            self.assertIn("audit skipped: live 2026-10-07: example.com has no log lines yet", out)
+            self.assertNotIn("DOES NOT MATCH", err)
+        finally:
+            box.close()
+
 if __name__ == "__main__":
     unittest.main()

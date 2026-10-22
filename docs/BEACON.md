@@ -281,8 +281,10 @@ helper also writes to `conversions.sqlite`, right after the spool line:
 - **Abandoned** is worked out when a report asks, never stored: a start with
   no completed (or paid) for the same ID and action within
   `conversions.abandon_hours` (default 24).
-- Journeys are deleted after `journeys.vid_days` (default 30) unless the ID
-  converted (then kept as long as the conversion); `skald conversions prune`.
+- Journeys are deleted after `journeys.vid_days` (default 30, 1 to 400)
+  unless the ID converted (then kept as long as the conversion:
+  `conversions.retention_days`, 400, or for good with 0); each site by its
+  own Settings › Data retention › Leads; `skald conversions prune`.
 - `skald conversions forget --vid skv_...` deletes the ID's journeys and
   conversions and takes `v` out of its beacon spool lines (the lines stay:
   the event audit counts them against nginx's log).

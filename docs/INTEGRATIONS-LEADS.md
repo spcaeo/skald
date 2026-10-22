@@ -53,7 +53,8 @@ never an email, a name, an address, a user agent, a visitor ID or a source. Orde
 `received_at`, then the row's id; the cursor is that pair of the page's last row, opaque
 (base64url), so a lead arriving later lands after it and paging neither skips nor repeats one.
 `next_cursor` is `null` on the last page. Rows marked test are in it with `"test": true`. A row
-pruned (`at` older than `conversions.retention_days`, 400) or deleted by `forget` is not.
+pruned (`at` older than `conversions.retention_days`, 400; 0 keeps every row for good) or
+deleted by `forget` is not.
 
 Answers: 401 no or a wrong signature, or `t` off by more than 5 minutes (it spends the sender's
 pre-auth bucket, as the POST does); 404 an unknown site or no `lead` secret, the same body; 429

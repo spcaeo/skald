@@ -179,6 +179,8 @@ def described(c: Ctx) -> dict:
         may, why = store.may_edit(name, c.role, c.install_admin, c.config)
         item = {**entry, "editable": may, "reason": why, "label": key.label, "kind": key.kind,
                 "scope": key.scopes[0], "who": key.who, "shrink": key.shrink}
+        if key.forever:
+            item["forever"] = True          # 0: kept for good
         if key.lo is not None:
             most = store.capped(name, cap)
             item.update(lo=key.lo, hi=min(key.hi, most) if most is not None else key.hi)
@@ -274,7 +276,7 @@ def save(c: Ctx, form):
         key = store.SCHEMA[name]
         old = (current.get(name) or {}).get("value")
         new = checked[name] if checked[name] is not None else _fallback(c, name, cap)
-        if key.shrink and isinstance(old, int) and isinstance(new, int) and new < old:
+        if key.shrink and store.keeps_less(name, old, new):
             shrinking.append(name)
         if name == "security.require_totp" and checked[name] and not _totp_on(c.db, c.uid):
             return c.no(400, "Turn on two-step sign-in for your own account first "
@@ -311,9 +313,7 @@ def save(c: Ctx, form):
 def _fallback(c: Ctx, name: str, cap: int | None = None):
     """What a key falls back to when its row here is cleared (cut to the
     plan's cap, as explain cuts it)."""
-    got = _uncapped_fallback(c, name)
-    most = store.capped(name, cap)
-    return min(got, most) if most is not None and isinstance(got, int) else got
+    return store.within(name, _uncapped_fallback(c, name), store.capped(name, cap))
 
 
 def _uncapped_fallback(c: Ctx, name: str):
@@ -374,7 +374,8 @@ def preview(c: Ctx, form):
     if value is None:
         value = _fallback(c, name, _cap(c))
     old = store.explain(c.config, c.site, c.db)[name]["value"]
-    body = {"key": name, "value": value, "current": old, "shrinks": bool(value < old),
+    body = {"key": name, "value": value, "current": old,
+            "shrinks": store.keeps_less(name, old, value),
             "rows": 0, "days": 0, "first": None, "last": None, "files": 0}
     if not body["shrinks"]:
         return c.ok(**body)
@@ -394,6 +395,10 @@ def preview(c: Ctx, form):
     elif name == "privacy.keep_days":    # visits with addresses (conversions.sqlite)
         from .people.visits import preview as people_preview
         got = people_preview(c.config, Path(history).parent if history else None, c.site, cutoff)
+    elif name in ("conversions.retention_days", "journeys.vid_days"):     # conversions.sqlite
+        from .conversions.store import path_for, prune_preview
+        got = prune_preview(path_for(c.config, Path(history).parent if history else c.live_dir),
+                            c.site, name, cutoff)
     elif name == "visitors.repeat_days":
         got = _count(history, _site_rows("visitor_days"), site_args)
     else:                               # beacon.keep_days: the day's counts

@@ -61,4 +61,21 @@ form.dispatchEvent(new Event("submit"));
 await new Promise((r) => setTimeout(r, 20));
 assert.deepEqual(posted, [{ "privacy.keep_ips": "short" }]);
 assert.ok(root.querySelector("section.notice-card").textContent.includes("Changed wording."));
+
+// 2.29, the Leads card: "Kept for good" or N days, and the days before a sign-up.
+const leads = root.querySelectorAll("section").find((s) => s.querySelector("h2")?.textContent === "Leads");
+assert.ok(leads, "the Leads card is drawn");
+const lt = leads.textContent;
+for (const words of ["Leads and the pages they read", "Kept for good", "Skald never deletes them", "days (1 to 3650)",
+  "Pages of visitors who have not signed up yet", "Once they sign up, their pages are kept with the lead", "1 to 400"]) assert.ok(lt.includes(words), words);
+const keep = leads.querySelectorAll("fieldset").find((f) => f.id === "set-conversions-retention_days");
+const picks = keep.querySelectorAll('input[type="radio"]');
+assert.deepEqual(picks.map((i) => i.getAttribute("value")), ["forever", "days"]);
+assert.ok(picks[1].hasAttribute("checked"), "a new install keeps 400 days");
+picks.forEach((i) => { i.checked = i.getAttribute("value") === "forever"; });
+const lform = keep.closest("form");
+for (const el of lform.querySelectorAll("input")) el.value ??= el.getAttribute("value") ?? "";
+lform.dispatchEvent(new Event("submit"));
+await new Promise((r) => setTimeout(r, 20));
+assert.deepEqual(posted[1], { "conversions.retention_days": 0 }, "kept for good is saved as 0");
 console.log("settings-privacy: all passed");

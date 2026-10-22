@@ -78,6 +78,7 @@ class Key:
     choices: tuple = ()
     limit: int = 0
     shrink: bool = False            # a smaller value removes stored data (preview, typed name)
+    forever: bool = False           # an int that also takes 0 (or "forever"): kept for good
     env: str = ""                   # a secret's name: environment variable and secrets.json key
     label: str = ""
     extra: dict = field(default_factory=dict)
@@ -105,6 +106,16 @@ SCHEMA: dict[str, Key] = {
     "conversions.identity": Key("choice", "admin", SITE_UP, ("conversions", "identity"), "full",
                                 choices=("full", "anonymous"),
                                 label="Leads' names and emails"),
+    # 2.29: how long leads are kept (conversions/store.py prune): each lead, its
+    # removed rows, the pages its visitor ID read, its identity and the hook
+    # spool. 0 (or "forever") keeps them for good: Skald never deletes them;
+    # `conversions forget` still does, for one person. The pages of an ID with
+    # no lead go after journeys.vid_days; once it converts they stay with it.
+    "conversions.retention_days": Key("int", "admin", SITE_UP, ("conversions", "retention_days"),
+                                      400, 1, 3650, shrink=True, forever=True,
+                                      label="Leads and the pages they read"),
+    "journeys.vid_days": Key("int", "admin", SITE_UP, ("journeys", "vid_days"), 30, 1, 400,
+                             shrink=True, label="Pages of visitors who have not signed up yet"),
     "beacon.goals": Key("events", "admin", ("site",), ("beacon", "goals"), [], label="Goals"),
     # 2.9.0: per site. The script tag keeps an anonymous visitor ID in the
     # browser, for journeys and lead matching (docs/BEACON.md); the site's
@@ -326,6 +337,30 @@ def _prefixes(value, key: Key) -> list[str]:
     return out
 
 
+def _days(key: Key | None, value) -> float:
+    """A retention value as days to compare: a `forever` key's 0 is endless."""
+    if key is not None and key.forever and value == 0:
+        return float("inf")
+    return value
+
+
+def keeps_less(name: str, old, new) -> bool:
+    """Whether `new` keeps less than `old` (a shorter window removes stored
+    data): 0 on a `forever` key keeps the most."""
+    if isinstance(old, bool) or isinstance(new, bool) or not isinstance(old, int) \
+            or not isinstance(new, int):
+        return False
+    key = SCHEMA.get(name)
+    return _days(key, new) < _days(key, old)
+
+
+def within(name: str, value, most: int | None):
+    """`value` cut to the cap `most` (capped); a `forever` key's 0 is over any cap."""
+    if most is None or isinstance(value, bool) or not isinstance(value, int):
+        return value
+    return most if _days(SCHEMA.get(name), value) > most else value
+
+
 def capped(name: str, cap: int | None) -> int | None:
     """The most a retention key may hold under a plan's `cap` (saas/limits.py),
     never below the key's own floor; None when no cap applies to `name`."""
@@ -345,9 +380,20 @@ def validate(name: str, value, cap: int | None = None):
         return None
     kind, label = key.kind, key.label or name
     if kind == "int":
-        got = _int(value, key, name)
+        if key.forever:
+            from .conversions.store import FOREVER, FOREVER_WORDS
+            if (isinstance(value, str) and value.strip().lower() in FOREVER_WORDS) or \
+                    (not isinstance(value, bool) and str(value).strip() == "0"):
+                value = FOREVER
+            try:
+                got = FOREVER if value == FOREVER else _int(value, key, name)
+            except Invalid:
+                raise Invalid(f"{label} is from {key.lo} to {key.hi} days, or forever "
+                              f"(0): kept for good.") from None
+        else:
+            got = _int(value, key, name)
         most = capped(name, cap)
-        if most is not None and got > most:
+        if most is not None and within(name, got, most) != got:
             raise Invalid(f"{label} is at most {most} days on this organisation's plan.")
         return got
     if kind == "bool":
@@ -634,6 +680,9 @@ def _from_config(config, key: Key):
         return mode_of(raw)
     if key.kind == "bool" and key.config[0] == "alerts":            # alerts._flag's words
         return raw is True or str(raw).strip().lower() in ("1", "true", "yes", "on")
+    if key.kind == "int" and key.forever:                           # 0 or "forever"
+        from .conversions.store import keep_days_of
+        return keep_days_of(raw, key.default)
     if key.kind == "int":
         try:
             return int(raw)
@@ -688,7 +737,7 @@ def explain(config, site: str | None = None, db=None, live_dir=None) -> dict:
                     value, source = LEGACY_DEFAULTS[name], "upgrade"
         out[name] = {"value": value, "source": source, "locked": lock}
         most = capped(name, cap)
-        if most is not None and isinstance(value, int) and value > most:
+        if within(name, value, most) != value:
             # The plan keeps less than the value says: the cap is what applies.
             out[name].update(value=most, capped=True, set_value=value)
     return out
@@ -802,7 +851,7 @@ def _site_windows(db, name: str, default, lock: bool, caps: dict) -> dict:
     for site, cap in caps.items():
         most = capped(name, cap)
         value = sites.get(site, default)
-        if most is not None and isinstance(value, int) and value > most:
+        if within(name, value, most) != value:
             sites[site] = most
     return {"default": default, "sites": sites}
 

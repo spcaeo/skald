@@ -386,17 +386,22 @@ def cmd_conversions_list(ctx) -> int:
 def cmd_prune(ctx, quiet: bool = False) -> int:
     folder = _folder(ctx)
     db_path = store.path_for(ctx.config, folder)
-    vid_days = int(setting(ctx.config, "journeys", "vid_days", store.VID_DAYS))
-    keep = int(setting(ctx.config, "conversions", "retention_days", store.RETENTION_DAYS))
+    # Each site by its own days when Settings > Data retention set them
+    # (settings_store.prune_plan); conversions.retention_days 0 keeps leads,
+    # their pages and the spool for good.
+    from .settings_store import prune_plan
+    vid_days, own_vid = prune_plan(ctx.config, "journeys.vid_days", store.vid_days(ctx.config))
+    keep, own_keep = prune_plan(ctx.config, "conversions.retention_days",
+                                store.keep_days(ctx.config))
     today = ctx.now.date()
     got = {"conversions": 0, "journeys": 0, "identities": 0, "deliveries": 0}
     if db_path.exists():
         db = store.connect(db_path)
         try:
-            got = store.prune(db, today, vid_days, keep)
+            got = store.prune(db, today, vid_days, keep, own_vid, own_keep)
         finally:
             db.close()
-    files = spool.prune(spool.spool_dir(ctx.config, folder), today, keep)
+    files = spool.prune(spool.spool_dir(ctx.config, folder), today, keep, own_keep)
     if quiet and not (files or any(got.values())):
         return 0                      # the daily run says nothing when nothing went
     ctx.out(f"conversions prune: {got['conversions']} conversion(s), {got['journeys']} page "

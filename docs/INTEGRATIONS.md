@@ -738,15 +738,15 @@ blocks. Run `nginx -t` before every reload.
 
 | what | where | kept |
 | --- | --- | --- |
-| conversions: action, stage, time, visitor ID, external ref, tool, source, campaign, landing, country, device | `conversions.sqlite` beside the history (`conversions.db`), 0640 | `conversions.retention_days` (400) |
-| page views per visitor ID (beacon `page_view` with visitor IDs on) | same file, `journeys` | `journeys.vid_days` (30), longer only for IDs that converted |
+| conversions: action, stage, time, visitor ID, external ref, tool, source, campaign, landing, country, device | `conversions.sqlite` beside the history (`conversions.db`), 0640 | `conversions.retention_days` (400; 0: for good) |
+| page views per visitor ID (beacon `page_view` with visitor IDs on) | same file, `journeys` | `journeys.vid_days` (30, 1 to 400); for an ID that converted, as long as its conversions |
 | conversions from the beacon (tool `beacon`, docs/BEACON.md "Visitor IDs") | same file, `conversions` | as conversions |
 | name and email | same file, `identities` | only when `conversions.identity: full`; else never written |
 | rows a lead sync took away, whole, with when and why | same file, `removed` | as conversions |
 | each visit with its IP address and user agent (2.4.0, `privacy.keep_ips`) | same file, `visits`, `visit_days` | `privacy.keep_days` (395) |
 | delivery log: time, outcome, HTTP status, error, external ref; never a body | same file, `deliveries` | 90 days |
 | hashes of Cal.com and Typeform bodies (replays) | same file, `hook_replays` | 30 days |
-| the verified bodies (and, on a `lead` or `json` line with a time without an offset, the zone it was read in) | `hooks/<day>.jsonl` beside the history (`hooks.spool`), 0640 | `conversions.retention_days` (400) |
+| the verified bodies (and, on a `lead` or `json` line with a time without an offset, the zone it was read in) | `hooks/<day>.jsonl` beside the history (`hooks.spool`), 0640 | `conversions.retention_days` (400; 0: for good), each site's lines by its own |
 | hook secrets | `secrets.json` beside the history (`hooks.secrets`), 0600, or env variables | until replaced |
 
 - **Only what counts.** Before a body is spooled, Skald keeps only the

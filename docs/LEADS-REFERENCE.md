@@ -292,8 +292,9 @@ without leaving a row.
 - **One road per lead.** Each tool keeps its own row, so the same ref through `lead` and
   `json` (or a hook and the lead database) counts once per tool. Settings › Integrations ›
   Status flags it as "One lead, two tools".
-- **Keeping.** Rows older than 400 days (`conversions.retention_days`) are pruned; delivery
-  rows after 90 days.
+- **Keeping.** Rows older than 400 days (`conversions.retention_days`) are pruned; with 0
+  (`forever`, Settings › Data retention › Leads) they are kept for good, with the pages
+  their visitor IDs read and the hook spool. Delivery rows go after 90 days either way.
 
 ### 3.5 Limits
 

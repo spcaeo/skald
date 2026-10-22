@@ -11,7 +11,10 @@
 // which visits count as people (rendering.py). Keeping IP addresses
 // (privacy.keep_ips) is a choice of three: full, shortened or not kept. Under
 // it, "Wording for your privacy notice" (people/notice.py, the answer's
-// `notice`) says what this site's settings keep, with a Copy button.
+// `notice`) says what this site's settings keep, with a Copy button. Leads
+// (2.29): conversions.retention_days is "kept for good" (0) or N days, a
+// choice of two (`forever` in the answer); journeys.vid_days is the days an
+// ID's pages are kept before it signs up.
 
 import { h, toast } from "../ui.js";
 import { call } from "./ipmanager.js";
@@ -30,6 +33,11 @@ const IP_MODES = [
   ["short", "Shortened (last part removed)", "203.0.113.57 is kept as 203.0.113.0; an IPv6 address keeps its first 48 bits. The country and city still come from the full address. One shortened address can be several people."],
   ["off", "Don't keep", "No address is kept with the visits. The visits already kept with one are deleted at the next nightly run."],
 ];
+// A `forever` key's 0 keeps the most: a shorter window is any number after it.
+const endless = (s, v) => (s.forever && v === 0 ? Infinity : v);
+const keepsLess = (s, v) => typeof v === "number" && !Number.isNaN(v) && endless(s, v) < endless(s, s.value);
+// A line before a number's range, for the keys that need one.
+const HINTS = { "journeys.vid_days": "Days. Once they sign up, their pages are kept with the lead. " };
 const IP_SWITCH = "From full to shortened, the addresses already kept are shortened at the next nightly run. From shortened to full, only new visits are kept in full: the ones kept before stay shortened.";
 
 // One field per setting: get() is the value to save, or undefined when unchanged.
@@ -63,6 +71,23 @@ function control(name, s) {
       return !now || now === was ? undefined : now;
     };
     return { el: h("div", { class: "af" }, box, note, ro ? null : h("small", null, IP_SWITCH)), get };
+  }
+  if (s.kind === "int" && s.forever) {
+    // Kept for good (0) or N days: two choices, the days typed beside the second.
+    const good = s.value === 0;
+    const days = input({ type: "number", id: `${id}-days`, value: good ? "" : s.value ?? "", min: s.lo, max: s.hi, inputmode: "numeric", disabled: ro, "aria-label": `${s.label}: days` });
+    const pick = (v, on, ...words) => h("label", { class: "chk" }, h("input", { type: "radio", name: id, value: v, checked: on, disabled: ro }), h("span", null, ...words));
+    const box = h("fieldset", { class: "af-set", id }, h("legend", null, s.label),
+      pick("forever", good, h("b", null, "Kept for good"), h("small", null, "Skald never deletes them. A person's own request to be deleted still removes everything about them.")),
+      pick("days", !good, days, h("small", null, `days (${s.lo} to ${s.hi})`)));
+    days.addEventListener("focus", () => box.querySelectorAll('input[type="radio"]').forEach((r) => { r.checked = r.value === "days"; }));
+    get = () => {
+      const now = [...box.querySelectorAll('input[type="radio"]')].find((i) => i.checked)?.value;
+      const v = now === "forever" ? 0 : days.value.trim() === "" ? undefined : Number(days.value.trim());
+      return v === undefined || v === s.value ? undefined : v;
+    };
+    const capped = s.capped ? `Capped by your plan: ${s.hi} days at most. ` : "";
+    return { el: h("div", { class: "af" }, box, ro ? note : h("small", null, `${capped}${SOURCE[s.source] || ""}`)), get, input: box };
   }
   if (s.kind === "events") {
     const was = s.value || [];
@@ -116,7 +141,7 @@ function control(name, s) {
   }
   // A plan that keeps fewer days than the saved value: the plan's cap is what applies (saas).
   const capped = s.capped ? `Capped by your plan: ${s.hi} days at most (it was set to ${s.set_value}). ` : "";
-  const hint = (s.lo != null ? `${s.lo} to ${s.hi}. ` : "") + capped;
+  const hint = (HINTS[name] || "") + (s.lo != null ? `${s.lo} to ${s.hi}. ` : "") + capped;
   const src = SOURCE[s.source] || "";
   return { el: field(s.label, el, ro ? s.reason : hint && src ? `${hint}${src[0].toUpperCase()}${src.slice(1)}.` : `${hint}${src}`), get, input: el };
 }
@@ -149,12 +174,14 @@ export function card(title, sub, names, all, site, onSaved) {
     const hint = h("small", { class: "shrink", "aria-live": "polite" });
     c.el.append(hint);
     let t;
-    c.input.addEventListener("input", () => {
+    const look = () => {
       clearTimeout(t);
-      const v = Number(c.input.value);
-      if (!(v < s.value)) { hint.textContent = ""; return; }
+      const v = s.forever ? c.get() : Number(c.input.value);
+      if (!keepsLess(s, v)) { hint.textContent = ""; return; }
       t = setTimeout(async () => { hint.textContent = await previewWords(k, v); }, 350);
-    });
+    };
+    c.input.addEventListener("input", look);
+    c.input.addEventListener("change", look);
   }
   const form = h("form", { class: "af-col", novalidate: true }, rows.map(([, c]) => c.el), editable ? h("div", null, save) : null, ask);
   async function send(confirm) {
@@ -223,6 +250,8 @@ export function retention(m) {
       ["report.retention_days", "report.journey_days", "visitors.repeat_days", "beacon.keep_days"], all, m.site, redraw),
     card("People", "Each visit's IP address and browser, with its pages and times, and the names and emails of leads, so a person can be looked up and followed (the search at the top). Not keeping IP addresses deletes the visits kept with them at the next nightly run; keeping them shortened shortens them then. Your privacy notice must say what you keep.",
       ["privacy.keep_ips", "privacy.keep_days", "conversions.identity"], all, m.site, redraw),
+    card("Leads", "A lead is a form sent or a call booked: its name and email (when kept), where it came from, and the pages its visitor ID read. Kept for good means Skald never deletes them; a person's own request to be deleted still removes everything about them. The pages of a visitor who has not signed up yet are kept for the days below; once they sign up, their pages are kept with the lead.",
+      ["conversions.retention_days", "journeys.vid_days"], all, m.site, redraw),
     noticeCard(r.notice),
     card("Backups", "Copies of the history kept on the server, for every site of the install.", ["backup.daily", "backup.weekly"], all, m.site, redraw),
   ]);

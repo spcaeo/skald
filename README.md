@@ -51,19 +51,12 @@
 
 ## What's new
 
+- **2.29.0: keep leads for good** ([changelog](CHANGELOG.md#2290-2026-10-22)). Leads and the pages
+  they read are never deleted when you choose so; visitors' pages before a sign-up up to 400 days.
 - **2.28.0: Leads' 7 days include today** ([changelog](CHANGELOG.md#2280-2026-10-22)). Today so
   far plus the 6 days before, with the exact dates from and to, compared up to the same hour.
 - **2.27.0: share the visitor ID across subdomains from Skald** ([changelog](CHANGELOG.md#2270-2026-10-22)).
   One setting per site links a sign-up on app.example.com to the visits before it, with the script tag unchanged.
-- **2.26.0: page groups fill their past days, and leads found by their reference** ([changelog](CHANGELOG.md#2260-2026-10-22)).
-  Save a page group and its past days are counted from the raw log, audited; a lead is found by
-  the sender's own ID; one sign-up is one lead even when it also sends paid; MCP switch for Docker.
-- **2.25.0: a lead's reference, and Mark as test on screen** ([changelog](CHANGELOG.md#2250-2026-10-22)).
-  The sender's own ID in Leads and every drawer; owners and admins mark test leads in one click.
-- **2.24.0: the script tag just works** ([changelog](CHANGELOG.md#2240-2026-10-22)). No change on
-  your web server; the setup Test now says what's wrong when nothing arrives.
-- **2.23.0: Leads & sales opens on 7 days, and a sturdier morning run** ([changelog](CHANGELOG.md#2230-2026-10-22)).
-  All time, "Today so far", one filter row with five fixes; the kit zip with or without its token.
 
 Earlier releases: [CHANGELOG.md](CHANGELOG.md).
 
