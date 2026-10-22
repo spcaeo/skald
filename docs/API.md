@@ -3,6 +3,8 @@
 Every figure the dashboard shows is a JSON file (DATA-CONTRACT.md). The API
 serves those files, unchanged, so a script, a spreadsheet or another tool can
 read them. It is read-only: nothing can be changed through it.
+For leads (sending, checking, marking test, reading back), see
+[LEADS-REFERENCE.md](LEADS-REFERENCE.md).
 
 ## Two ways in
 

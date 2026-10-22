@@ -176,3 +176,16 @@ def describe(config: dict, folder=None) -> dict:
     return {"keep_ips": mode != OFF, "ip_mode": mode,
             "identity": "full" if identity_full(config, folder) else "anonymous",
             "keep_days": keep_days(config), "legacy": legacy(config, folder)}
+
+
+# A conversion's reference (`external_ref`, 2.25): the sender's own record ID (an account
+# ID, a booking's address), not a name or an email, so shown to every member who sees the
+# lead. One exception: the page's script tag makes its reference from the visitor ID
+# (conversions/from_beacon.py, "<vid>:<action>:<stage>:<at>"), so that one is shown only
+# where a visitor ID may be: to owners and admins, never in a file every member reads.
+VID_REFS = ("beacon",)
+
+
+def shown_ref(tool, ref, private: bool):
+    """The reference as this reader may see it: itself, or None."""
+    return ref if private or tool not in VID_REFS else None

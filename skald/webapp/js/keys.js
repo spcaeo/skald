@@ -27,13 +27,17 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-22-2.24.0",
+  id: "2026-10-22-2.25.0",
   items: [
-    ["The script tag just works", "the tag posts its events straight to Skald, so nothing changes on your web server; serving it from your own domain stays an option.", "script-tag"],
-    ["Test tells you what is wrong", "while nothing has arrived, Test checks your page and says what blocks the tag: missing, a wrong address, a redirect, a security policy.", "script-tag"],
+    ["A lead's own reference", "the sender's ID (an account number, a form id) as a Reference column, searchable, with a copy button, and in every lead drawer with all its steps.", "leads-and-conversions"],
+    ["Mark as test from the screen", "owners and admins mark a lead as test, or not, from any drawer that shows it; it moves to Show left out and every count updates.", "leads-and-conversions"],
+    ["Logos straight away", "a site added in the dashboard gets its logo at once, not the next morning."],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.24.0
+    ["The script tag just works", "the tag posts its events straight to Skald, so nothing changes on your web server; serving it from your own domain stays an option.", "script-tag"],
+    ["Test tells you what is wrong", "while nothing has arrived, Test checks your page and says what blocks the tag: missing, a wrong address, a redirect, a security policy.", "script-tag"],
     // 2.23.0
     ["Leads & sales opens on 7 days", "every Leads & sales tab opens on the last 7 days; a new All time period; \"Today so far: N new leads\" when today has some; a clear message instead of an empty list.", "leads-and-conversions"],
     ["One filter row on Leads", "every filter shows as a chip with Clear all, and the count says what is applied; five filter bugs fixed (Source now narrows the count, top-bar filters apply to Leads)."],

@@ -2,6 +2,69 @@
 
 All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versioning](https://semver.org).
 
+## Unreleased
+
+- **docs/LEADS-REFERENCE.md: one page for an app that sends leads.** *Why:* a site's own
+  developers (and their AI sessions) asked for one place to send, check, mark and read back
+  leads; the facts were spread over five docs. *What:* the lead hook and every other tool, the
+  body and its rules, the answers and limits, the reconcile GET and test marks, the read API
+  and MCP (and what neither can do), the admin commands with their exact flags, the screens,
+  and the mistakes to avoid. Linked from INTEGRATIONS-LEADS.md, API.md and MCP.md.
+  INTEGRATIONS-LEADS.md also said the `leads/test` answer's key was `unknown`; it is
+  `not_found`, as the code always sent. *Who:* anyone sending leads. *Do:* nothing. *Checked:*
+  every statement against the 2.24.0 code; the curl signing recipes against Skald's own verify
+  functions; the test suite.
+
+## 2.25.0 (2026-10-22)
+
+A lead's own reference in Leads and every drawer, Mark as test from the screen, a new site's logo
+at once, and a privacy fix: a script-tag lead's reference (built from its visitor ID) is shown only
+to owners and admins.
+
+- **Leads: the lead's own reference.** *Seen:* 2026-10-22, the owner on a client site's
+  Leads & sales > Leads (today) could not see the client's own account IDs (`u-119797`...), so
+  could not find a lead in the client's admin. *Changed:* a **Reference** column (the sender's
+  `external_ref`), hidden until **Columns** shows it (kept in the address, `ld_hide`), with a copy
+  icon; the search box finds a lead by it either way, and the CSV export always holds it. The
+  lead's drawer says "Reference: u-119797 (from example.com's server)" (or the tool's name) with
+  the copy icon, and lists every step of that reference, oldest first, with its stage and time
+  (a test lead's steps too, which before showed none). *Who sees it:* everyone who can see the
+  leads: it is the sender's record number, not a name or an email, and the Conversions lists
+  have always shown it to every member. Except the page script's own reference, which is made
+  from the visitor ID (`<vid>:<action>:<stage>:<at>`): owners and admins only, like a visitor ID.
+  *Also fixed:* the Conversions lists (cancelled, test) sent that script-tag reference, and so
+  the visitor ID, to every member; now only to owners and admins (`people/policy.shown_ref`).
+  `people/leads` rows gain `ref`, steps gain `test`.
+  *Who must act:* nobody. *Checked:* `tests/test_lead_mark_drawer.py`, `tests/js/sales-leads.mjs`,
+  `tests/js/leadref.mjs`, the demo at 1440 px.
+- **Mark as test / Not a test in every lead's drawer** (owners and admins). *Seen:* marking a
+  team account's lead needed the server's command line or the site's signed call. *Changed:*
+  every drawer that shows a lead or a conversion (Leads' lead drawer, the visitor drawer's
+  "Leads and conversions", Find a person, the Conversions lists, Calendar bookings' rows, which
+  now open a drawer) shows the reference, its steps and **Mark as test** (on a test lead, **Not
+  a test**), from one shared part (`js/tabs/leadref.js`). A confirm step first ("Mark u-119797 as
+  test? It stays listed under Show left out and leaves every count."), then a toast; the page
+  reads its files again, so the row moves to or from Show left out and the counts follow. It
+  calls the new `POST <page>/people/mark-test` (`people/marktest.py`): the same mark as `ti.py
+  conversions mark-test` (`store.mark_test`, every stage of that tool and reference, a later
+  stage follows), same-origin and with the session's CSRF value like every admin write, 403 for
+  a viewer or an editor, one audit row with the user, the tool and the row ids (never the
+  reference or a name), the audit's cache dropped and the live build run. `conversions.json`'s
+  `today.rows` and the visitor timeline's conversions gain `id` and the reference. *Who must
+  act:* nobody. *Checked:* `tests/test_lead_mark_drawer.py` (the endpoint by role, CSRF and
+  same-origin, every stage marked and unmarked, the audit row, the Leads figure and the second
+  count after a mark and an unmark), `tests/js/leadref.mjs` (the button by role in each drawer,
+  the confirm, the POST, the toast), the demo at 1440 px.
+- **A new site's logo is fetched when the site is added.** *Seen:* 2026-10-22, a site added in
+  the dashboard showed its letter "T" until its logo was fetched by hand; before, only the
+  morning run asked. *Changed:* adding a site (Settings > Sites, the Add a site wizard, sign-up,
+  `ti.py site add`) asks the site for its logo at once, on the new site's first-page thread
+  (never holding up the add; a failure is noted in the journal without an address), then
+  rewrites `sites.json` so the switcher shows it. The site picker asks again, on a thread and at
+  most once a day, for a site still showing its letter. *Who must act:* nobody. *Checked:*
+  `tests/test_site_logo_on_add.py` (a local test site; the add in Settings and on the CLI; the
+  picker's once-a-day rule).
+
 ## 2.24.0 (2026-10-22)
 
 The script tag works with no change on the site's server: it posts its events to where it was

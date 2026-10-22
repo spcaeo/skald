@@ -58,7 +58,8 @@ Settings routes (team_api.py), <page>/settings and settings/* the
 settings pages (settings_api.py; Settings > Reports, client_reports_api.py), <page>/integrations and integrations/*
 Settings > Integrations (integrations_api.py; integrations/search and
 integrations/search/* its Search part, search/api.py), <page>/people and people/* the person
-lookup and the left-out lists (people/api.py), <page>/logo and logo/* the site's logo
+lookup and the left-out lists (people/api.py), POST <page>/people/mark-test a drawer's
+Mark as test (people/marktest.py), <page>/logo and logo/* the site's logo
 (logo_api.py; the image itself in basic mode too), /me adds name, org, csrf, mode, install_admin
 and totp_on, every POST but refresh also needs X-Skald-CSRF, an owner counts
 as an admin, and /traffic-api/ checks tokens in accounts.sqlite. Every other
@@ -102,6 +103,7 @@ from . import client_reports_api
 from .saas import billing_api, signup_api
 from .mcp import http as mcp_http
 from .people import api as people_api
+from .people import marktest as people_marks
 from . import security_api
 from .answers import api as answers_api
 
@@ -481,6 +483,10 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
                                        config_path, self.who)
             if bot_policy_api.is_policy(self.path):
                 return bot_policy_api.handle(self, True, config, allowed, same_origin)
+            if people_marks.is_mark(self.path):         # a drawer's Mark as test (2.25)
+                return people_marks.handle(self, config, live_dir, history_path, config_path,
+                                           sessions_mode, allowed, same_origin,
+                                           refresh=lambda: runner.refresh(force=True))
             m = route(FUNNELS_PATH, self.path)
             if m is not None and m.group("act"):
                 return self._funnels(m)

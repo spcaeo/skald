@@ -12,6 +12,9 @@ after the site is made, `start`:
      at most TIMEOUT seconds. The next live run draws it anyway if this
      fails; a failure is noted, never raised.
 
+Before the build, the same thread asks the new site for its logo
+(site_logos.fetch_now, 2.25), so the first sites.json already shows it.
+
 Nothing here fails the request that made the site.
 """
 from __future__ import annotations
@@ -91,18 +94,42 @@ def build(config_path, site: str, out) -> bool:
     return getattr(done, "returncode", 1) == 0
 
 
-def start(out, site: str, config_path=None) -> threading.Thread | None:
-    """The placeholder now, then the real build on a thread (when the
-    config file is known). The thread, or None when no build was started."""
+def start(out, site: str, config_path=None, before=None) -> threading.Thread | None:
+    """The placeholder now, then on a thread `before()` (2.25: the new site's
+    logo, site_logos.fetch_now, so the build below writes it into sites.json)
+    and the real build (when the config file is known). The thread, or None
+    when nothing was started."""
     placeholder(out, site)
-    if config_path is None or out is None:
+    draw = config_path is not None and out is not None
+    if not draw and before is None:
         return None
     from .auth_api import note, spawn
 
     def work():
+        if before is not None:
+            try:
+                got = before()
+                if isinstance(got, dict) and got.get("ok") is False:
+                    note("a new site's logo: none found yet; the site picker asks again "
+                         "in a day")
+            except Exception as why:  # noqa: BLE001 - a logo never fails an add
+                note(f"a new site's logo: {type(why).__name__}")
+        if not draw:
+            return
         try:
             if not build(config_path, site, out):
                 note("a new site's first page: the build did not finish; the next run draws it")
         except Exception as why:      # noqa: BLE001 - a thread must never take the helper down
             note(f"a new site's first page: {type(why).__name__}")
     return spawn(work)
+
+
+def logo_fetch(config, config_path, site: str, live_dir, out):
+    """`before` for start(): the new site's logo, with its Settings laid over
+    its config (its host names), into the logos folder beside the history."""
+    def go():
+        from . import site_logos
+        from .logo_api import _config
+        return site_logos.fetch_now(_config(config, config_path, site, live_dir), site,
+                                    live_dir, out)
+    return go

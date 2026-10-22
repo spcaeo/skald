@@ -23,6 +23,7 @@ import { openVisitor } from "./visitor.js";
 import { copyButton } from "./reqdetail.js";
 import { labelTag } from "./leadfigs.js";
 import { withUrl } from "../urlactions.js";
+import { refBlock, refCell, byRef, markButton, mayMark } from "./leadref.js";
 
 export const SEARCH_HINT = "IP address, email, lead or visitor ID";
 export const mayFind = () => ["owner", "admin"].includes(ME.role);
@@ -53,11 +54,15 @@ function leadsPart(rows) {
     h("span", { class: "mono" }, dash(r.page)), dash(r.first_source), dash(r.last_source), r.email ? key(r.email) : "-", dash(r.name)]));
 }
 
-function conversionsPart(rows) {
+/* marks: a Test column with Mark as test / Not a test on each row (owners and admins; the
+   Conversions lists). Each reference has its copy icon (2.25, leadref.js). */
+function conversionsPart(rows, { marks = false } = {}) {
   if (!rows.length) return empty("No conversion.");
-  return grid("Conversions", ["When", "Action", "Stage", "Reported by", "Source", "Landing", "Lead or reference", "Visitor ID", "Email"], rows.map((r) => [
+  const withMarks = marks && mayMark();
+  return grid("Conversions", ["When", "Action", "Stage", "Reported by", "Source", "Landing", "Lead or reference", "Visitor ID", "Email", ...(withMarks ? ["Test"] : [])], rows.map((r) => [
     at(r.at), [dash(r.action), labelTag(r.label)], [STAGE[r.stage] || r.stage, r.test ? h("b", { class: "pp-bad" }, " test (not counted)") : null],
-    dash(r.tool), dash(r.source_type), withUrl(h("span", { class: "mono" }, dash(r.landing)), r.landing), key(r.external_ref), key(r.vid), r.email ? key(r.email) : "-"]));
+    dash(r.tool), dash(r.source_type), withUrl(h("span", { class: "mono" }, dash(r.landing)), r.landing), refCell(r.external_ref, key(r.external_ref)), key(r.vid), r.email ? key(r.email) : "-",
+    ...(withMarks ? [markButton({ id: r.id, ref: r.external_ref, tool: r.tool, test: !!r.test }, { compact: true }) || "-"] : [])]));
 }
 
 function removedPart(rows) {
@@ -90,6 +95,8 @@ export function personParts(got) {
     cand.length ? sec("Leads and the visits that sent a form at their time", h("p", { class: "note" }, "Matched by time only: a form sent from 2 minutes before the lead to 30 seconds after. Likely the same person, never certain: the lead database keeps no address."),
       grid("Visits at a lead's time", ["Lead", "IP address", "Started", "Landing"], cand.map((c) => [key(c.lead, `#${c.lead}`), key(c.ip), at(c.start), withUrl(h("span", { class: "mono" }, dash(c.landing)), c.landing)]))) : null,
     sec("Conversions", conversionsPart(got.conversions)),
+    // Each reference: its copy icon, every step, Mark as test (2.25, leadref.js).
+    ...byRef(got.conversions).map((x) => refBlock(x)),
     got.removed.length ? sec("Removed by a sync", removedPart(got.removed)) : null,
     got.journeys.length ? sec("Pages seen by its visitor IDs", grid("Pages", ["When", "Page", "Source"], got.journeys.map((j) => [at(j.at), withUrl(h("span", { class: "mono" }, j.path), j.path), dash(j.source_type)]))) : null,
   ].filter(Boolean);
@@ -134,8 +141,8 @@ export async function openLeftOut() {
   if (!got.ok) { d.body.replaceChildren(h("div", { class: "state bad" }, h("div", null, got.error || "The list could not be loaded."))); return d; }
   d.body.replaceChildren(
     sec(`Leads (${n(got.leads.length)})`, got.leads.length ? leadsPart(got.leads) : empty("No spam, duplicate or test lead.")),
-    sec(`Conversions marked test (${n(got.conversions.length)})`, got.conversions.length ? conversionsPart(got.conversions) : empty("No conversion is marked test.")),
-    h("p", { class: "note" }, `A lead is left out when your team marked it spam or duplicate in the lead database, or it is marked test. A conversion is marked test on the server (skald conversions mark-test). Both are kept and listed here, never counted.${got.private ? "" : " Emails and names show to admins and owners only."}`));
+    sec(`Conversions marked test (${n(got.conversions.length)})`, got.conversions.length ? conversionsPart(got.conversions, { marks: true }) : empty("No conversion is marked test.")),
+    h("p", { class: "note" }, `A lead is left out when your team marked it spam or duplicate in the lead database, or it is marked test. A conversion is marked test by an owner or admin (Mark as test in its drawer), by your site's server (leads/test) or on the server (skald conversions mark-test). Both are kept and listed here, never counted.${got.private ? "" : " Emails and names show to admins and owners only."}`));
 }
 
 // The Conversions page's lists: cancelled, removed and test conversions, with row and journey.
@@ -151,9 +158,9 @@ export async function openConversionList(kind) {
     h("button", { type: "button", class: `btn${k === kind ? " primary" : ""}`, "aria-pressed": String(k === kind), onclick: () => openConversionList(k) }, t)));
   const words = { cancelled: "Cancelled bookings and no-shows, as the booking tool reported them. They are counted under their own stage, never as completed.",
     removed: "Rows a lead-database sync took away (the lead was deleted, marked spam or duplicate, or changed), kept whole with when and why. Only a deletion request (skald forget) deletes for good.",
-    test: "Conversions marked test on the server: kept, never counted." }[kind];
+    test: "Conversions marked test (Mark as test in a drawer, your site's server, or the server's command line): kept, never counted." }[kind];
   const list = kind === "removed" ? (rows.length ? removedPart(rows) : empty("Nothing was removed."))
-    : rows.length ? conversionsPart(rows) : empty("None.");
+    : rows.length ? conversionsPart(rows, { marks: true }) : empty("None.");
   const journeys = rows.filter((r) => (r.journey || []).length).map((r) => h("details", null, h("summary", null, `${dash(r.action || r.row?.action)} at ${at(r.at)}: ${r.journey.length} page${r.journey.length === 1 ? "" : "s"} before`),
     h("ol", { class: "pp-trail" }, r.journey.map((j) => h("li", null, at(j.at), " ", withUrl(h("span", { class: "mono" }, j.path), j.path, { cls: "ua-after" }))))));
   d.body.replaceChildren(...[tabs, h("p", { class: "note" }, words), list, journeys.length ? sec("Journeys", ...journeys) : null].filter(Boolean));

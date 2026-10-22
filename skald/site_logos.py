@@ -32,7 +32,11 @@ Kept beside the history, one folder per site:
 The daily run checks a site whose source is auto once a week (a failed check
 again after a day); Settings' "Check the site again now" asks at once, at
 most once a minute (logo_api.py); `skald logo --check` does the same from
-the server. Nothing here raises into a run: a logo is a nicety.
+the server. A site just added is asked at once, on a thread (2.25,
+fetch_now: sites_api, sign-up, `skald site add`), and sites.json is rewritten
+so the switcher shows it; the site picker asks again, at most once a day, for
+a site that still shows its letter (retry_missing). Nothing here raises into a
+run or a request: a logo is a nicety.
 """
 from __future__ import annotations
 
@@ -44,6 +48,7 @@ import os
 import socket
 import ssl
 import tempfile
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
@@ -532,6 +537,84 @@ def checked_recently(base: Path, site: str, now: datetime | None = None) -> int:
         return 0
     left = CHECK_GAP - (_now(now) - at).total_seconds()
     return max(0, int(left + 0.999))
+
+
+# ------------------------------------------------- a new site, the picker
+
+_ASKING: set[str] = set()              # sites whose check runs now (one at a time each)
+_ASKING_LOCK = threading.Lock()
+
+
+def write_sites_json(out, site: str, logo: dict) -> int:
+    """Put `site`'s logo entry into every sites.json already written (the
+    dashboard's root and each site's data folder), so the switcher shows it
+    before the next run. The number of files changed; never raises."""
+    if out is None:
+        return 0
+    root = Path(out)
+    changed = 0
+    for path in [root / "sites.json", *sorted(root.glob("*/data/sites.json"))]:
+        try:
+            body = json.loads(path.read_text())
+            listed = [x for x in body.get("sites") or []
+                      if isinstance(x, dict) and x.get("name") == site]
+            if not listed or all(x.get("logo") == logo for x in listed):
+                continue
+            for x in listed:
+                x["logo"] = logo
+            write_atomic(path, json.dumps(body, separators=(",", ":")) + "\n")
+            changed += 1
+        except (OSError, ValueError, AttributeError, TypeError):
+            continue
+    return changed
+
+
+def fetch_now(config: dict, site: str, base, out=None, now: datetime | None = None,
+              fetcher=None) -> dict:
+    """A site just added (Settings > Sites, the Add a site wizard, sign-up,
+    `skald site add`): ask it for its logo now, when its source is auto, then
+    rewrite sites.json. The new state ({} when not asked); never raises."""
+    try:
+        if base is None or prefs(config, site, Path(base))["source"] != "auto":
+            return {}
+        got = check(config, site, Path(base), now, fetcher)
+        write_sites_json(out, site, entry(config, site, Path(base)))
+        return got
+    except Exception as why:            # noqa: BLE001 - a logo never fails an add
+        return {"ok": False, "error": f"{type(why).__name__}"}
+
+
+def retry_missing(config: dict, site: str, base, out=None, spawn=None,
+                  now: datetime | None = None) -> bool:
+    """The site picker: a site still showing its letter (source auto, nothing
+    fetched) whose last check failed a day ago or more (REFRESH_FAILED), or was
+    never made, is asked again on a thread. At most once a day per site; one
+    check at a time per site. True when a check was started; never raises."""
+    try:
+        if base is None or prefs(config, site, Path(base))["source"] != "auto":
+            return False
+        if chosen(config, site, Path(base)) is not None or not hosts_of(config, site):
+            return False
+        if not due(load_state(folder(Path(base), site)), now):
+            return False
+    except Exception:                   # noqa: BLE001 - the picker never fails for a logo
+        return False
+    with _ASKING_LOCK:
+        if site in _ASKING:
+            return False
+        _ASKING.add(site)
+
+    def work():
+        try:
+            fetch_now(config, site, base, out)
+        finally:
+            with _ASKING_LOCK:
+                _ASKING.discard(site)
+    if spawn is None:
+        threading.Thread(target=work, daemon=True).start()
+    else:
+        spawn(work)
+    return True
 
 
 # ------------------------------------------------------- the daily run, CLI

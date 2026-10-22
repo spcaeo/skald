@@ -3,6 +3,8 @@
 Part of [INTEGRATIONS.md](INTEGRATIONS.md) (kept apart to hold that file under 1000 lines);
 the rules there apply. The end-user guide with copy-paste examples:
 [help/leads-from-your-backend.md](help/leads-from-your-backend.md).
+Everything an app sending leads needs on one page (hooks, the API, MCP, the admin commands,
+the rules): [LEADS-REFERENCE.md](LEADS-REFERENCE.md).
 
 ## A lead's label (2.18)
 
@@ -76,6 +78,43 @@ signed call that marks (or unmarks) leads already sent. Both make the same mark 
 `skald conversions mark-test`: the row is kept, listed (Leads & sales > Leads with Show left
 out, Calendar bookings' Show left out, the person drawer, the GET above with `"test": true`), and never counted.
 
+Three ways to mark a test lead, one mark (`store.TEST_MARKED` on every stage of the same tool
+and `external_ref`):
+
+| who | how | audit actor |
+| --- | --- | --- |
+| an owner or admin, in the dashboard (2.25) | **Mark as test** / **Not a test** in the lead's drawer: `POST <page>/people/mark-test` (below) | the user |
+| the site's server | `"test": true` in the body, or the signed `POST .../leads/test` (below) | `hook:lead` |
+| the server admin | `skald conversions mark-test SITE ID... [--unmark]` | `cli` |
+
+### `POST <page>/people/mark-test` (2.25)
+
+`people/marktest.py`, answered by the refresh helper behind sign-in. Body
+`{"id": <conversion row id>, "test": true | false}` (any other key, a non-integer id or a
+non-boolean `test` is 400); the row's `(tool, external_ref)` is marked or unmarked on every
+stage by `store.mark_test`, the CLI's own function, so any tool's lead can be marked, not only
+the `lead` hook's. Owners and admins only (403 for a viewer or an editor), same-origin only,
+and in sessions mode with the session's `X-Skald-CSRF` value (`helper_sessions.need`, as every
+admin write). 404 for an id not on that site. Answer:
+
+```
+{"ok": true, "test": true, "id": 1287, "tool": "lead", "ref": "u-119797",
+ "changed": 3, "ids": [1286, 1287, 1288], "redrawn": true}
+```
+
+Each call writes one audit entry (`conversions.test` or `conversions.untest`, the user, the
+tool and the row ids changed, never the reference or a name), drops the audit's cached beacon
+days (`marks.recount`), and runs the live build (`redrawn`) so the page's counts follow at once;
+the page then reads its files again and the row moves to or from Show left out. The drawer asks
+first ("Mark u-119797 as test? It stays listed under Show left out and leaves every count.")
+and says what changed in a toast. The reference itself (`external_ref`, the sender's own ID)
+is shown to every member who can see the lead, with a copy icon: it is not a name or an email,
+and the Conversions lists have always shown it. The exception is the page script's (`beacon`)
+reference, `<visitor ID>:<action>:<stage>:<at>` (`from_beacon.py`): it holds the visitor ID, so
+it reaches owners and admins only, as a visitor ID does, and never `conversions.json`
+(`people/policy.shown_ref`; before 2.25 the Conversions lists sent it to every member). Tested in `tests/test_lead_mark_drawer.py` and
+`tests/js/leadref.mjs`.
+
 ### `test` in the lead body
 
 `"test": true` (a JSON boolean) keeps that delivery's row with `conversions.test` =
@@ -118,7 +157,7 @@ and counts under `already`. The answer:
 {"ok": true, "test": true, "marked": 3, "already": 0, "not_found": ["L-1002"]}
 ```
 
-`marked`: rows whose counting changed; `already`: rows that were so already; `unknown`: refs
+`marked`: rows whose counting changed; `already`: rows that were so already; `not_found`: refs
 with no `lead` row on the site (never sent, pruned or forgotten).
 
 Answers: 400 a bad body (not JSON, not an object, no refs, over 100, an empty ref, `test` not a
@@ -130,7 +169,7 @@ apart from the GET's and the POST's, spent only by verified calls; 500 nothing c
 again.
 
 Each answered call writes one delivery row (tool `lead`, outcome `marked_test` or
-`unmarked_test`, error column `"<n> ref(s): <c> row(s) changed, <a> already, <u> unknown"`,
+`unmarked_test`, error column `"<n> ref(s): <c> row(s) changed, <a> already, <u> not found"`,
 never a ref: `forget` could not find it there) in the same transaction as the marks, and one
 audit entry: the accounts audit log (actor `hook:lead`, action `conversions.test` or
 `conversions.untest`, target the site, detail the counts and `refs=<the refs>`, the sender's

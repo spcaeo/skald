@@ -50,7 +50,11 @@ def today_block(db, site: str, tz, today: date, held: set) -> dict:
     found = [r for r in db.execute("SELECT * FROM conversions WHERE site = ? AND at >= ? AND "
                                    "at < ? ORDER BY at DESC, id DESC", (site, lo, hi))
              if r["action"] in LEAD_ACTIONS]
-    rows = [{"at": _local(r["at"], tz), "action": r["action"], "stage": r["stage"],
+    # id and ref (2.25): a row opens its drawer, with its reference and Mark as test.
+    # The page script's reference holds the visitor ID: never in this file (policy.shown_ref).
+    from .people.policy import shown_ref
+    rows = [{"id": r["id"], "ref": shown_ref(r["tool"], r["external_ref"], False),
+             "at": _local(r["at"], tz), "action": r["action"], "stage": r["stage"],
              "tool": r["tool"], "source": r["source_type"], "first_source": r["first_source"],
              "campaign": r["campaign"], "landing": r["landing"], "country": r["country"],
              "device": r["device"], "test": bool(r["test"])} for r in found[:TODAY_ROWS]]

@@ -31,7 +31,8 @@ with `access.mode: sessions` (404 otherwise), the way team_api.py is:
 With saas on, a site added here starts "pending" (site_verify.py): nothing is
 collected for it until its domain is verified; the listing shows the token.
 A new site gets a "Getting ready" page at once and its first build on a
-thread (first_page.py), so its page is never nginx's 404.
+thread (first_page.py), so its page is never nginx's 404; the same thread asks
+the site for its logo first (2.25), so the switcher shows it, not its letter.
 
 "admin" means an owner or admin of the page site's organisation; the new
 site joins that organisation. Adding needs `ingest: {enabled: true}` (the
@@ -289,7 +290,9 @@ def add(c: Ctx, form):
     except ValueError as why:
         return c.no(400, str(why))
     folder.mkdir(parents=True, exist_ok=True)
-    first_page.start(c.out, name, c.config_path)    # its page is there at once, not a 404
+    # Its page is there at once, not a 404; its logo is asked for first (2.25).
+    first_page.start(c.out, name, c.config_path,
+                     before=first_page.logo_fetch(c.config, c.config_path, name, c.live_dir, c.out))
     return c.ok(site=name, token=token, log_dir=str(folder),
                 ingest_url=f"{_base(c.config, c.allowed)}{ingest.PREFIX}{name}",
                 ship_command=ship_command(c.config, c.allowed, name), tag=tag(name, _tag_base(c)),

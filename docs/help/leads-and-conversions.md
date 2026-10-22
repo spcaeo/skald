@@ -22,6 +22,8 @@ Older links keep working: `#sales/pipeline` opens Summary with the same options,
 
 [Leads & sales > Leads](#sales/leads) lists every lead of the period, newest first: when it came in; the name and email (owners and admins only, and only when **Leads' names and emails** is **full**, in **Settings > Data retention > People**); what they did (a sign-up, a contact form, a demo booking), with its label; its stage now (completed, won, lost, cancelled, no-show); where it came from (**Lead database**, a booking tool, the page's script tag, or your site's server); the source of the visit it came in on and the first source the browser remembered; the landing page and the country. A row opens the visitor drawer with the lead's steps and pages.
 
+- **Reference.** Each lead carries the ID the sender gave it: your site's own account ID (`u-119797`), a booking's address at Calendly. Turn on the **Reference** column under **Columns** to see it; the search box finds a lead by it either way, and the CSV export always holds it. The copy icon beside it copies the whole ID, so you can find the lead in your own admin. The lead's drawer shows it too, with where it came from ("Reference: u-119797 (from example.com's server)") and every step of that reference, oldest first. Everyone who can see the leads sees the reference: it is your system's record number, not a name or an email. One exception: a lead the page's script tag reported has a reference made from the browser's visitor ID, so only owners and admins see that one.
+
 - Leads & sales opens on the **last 7 days** when the link names no period. Pick another in the top bar (or **All time**) and it stays while you move between the section's tabs. The 7 days and **All time** are whole days, up to yesterday; when today already has leads, a line above says so ("Today so far: 3 new leads") with **Show today (live)**. Those are the live Leads figure, the same as Overview's tile today, and never added to the period's figures.
 - The count above the list is the **Leads** figure itself, the same as Overview's Leads tile and Summary, with the change against the period before, and what is applied: "5 leads · filtered: Source = Search engine". The list never makes a count of its own.
 - **One filter row.** **What**, **Label**, **Stage now** and **Source** narrow the list; under **More**, **Show left out** adds the test, spam and duplicate leads, marked, never counted. The top bar's **Filters** apply here too, for what a lead carries: its source, country, device and campaign. Every filter that is on, from either place, is one chip in the **Filtered by** line under the row; its **×** takes it off, and **Clear all** takes them all off. A top-bar filter a lead does not carry (a page read, a browser, a referring site) shows greyed, with the reason, and is not applied.
@@ -253,19 +255,19 @@ Nothing is hidden. On Leads, **More > Show left out** lists the test, spam and d
 
 - **Cancelled or no-show**: bookings the booking tool reported as cancelled, or as a no-show.
 - **Removed**: rows a lead-database sync took away. For example, the lead was deleted, or marked spam. Each row is kept whole, with when and why.
-- **Test**: conversions the server admin marked as a test. They are kept and listed, and never counted.
+- **Test**: conversions marked as a test (see below). They are kept and listed, and never counted.
 
 Each one shows its row and, when it had a visitor ID, the pages it read.
 
 ## Marking a conversion as a test
 
-A test booking or form should not count. The server admin marks it on the server:
+A test booking or form should not count. There are three ways to mark a test lead. All three make the same mark, on every stage of the same booking or lead (the same reference from the same tool):
 
-1. `skald conversions list example.com` shows the latest conversions with their numbers.
-2. `skald conversions mark-test example.com 6 7` marks conversions 6 and 7 as test. Every stage of the same booking or lead is marked with it.
-3. To count one again: `skald conversions mark-test example.com 6 --unmark`.
+1. **In the dashboard (owners and admins).** Open the lead: a row on Leads, a booking on Calendar bookings, a conversion in a visitor's drawer, in **Find a person** or in the **Show left out** lists. Under its reference, press **Mark as test**. Skald asks first: "Mark u-119797 as test? It stays listed under Show left out and leaves every count." Press **Mark as test** again to do it, or **Cancel**. A short message says how many steps were left out, and the list and the counts update. On a test lead the same button says **Not a test**: it counts the lead again. Viewers do not see the button.
+2. **From your site's server.** Send your team's own accounts with `"test": true`, or mark leads you already sent with the signed `leads/test` call. See [Leads from your server](leads-from-your-backend.md#10-mark-leads-as-test).
+3. **On the server.** The server admin runs `skald conversions list example.com` to see the latest conversions with their numbers, then `skald conversions mark-test example.com 6 7` to mark conversions 6 and 7 as test. To count one again: `skald conversions mark-test example.com 6 --unmark`.
 
-A test conversion is left out of every figure, and of the second count too. It stays listed, marked test, under **Show left out** on Leads and on Calendar bookings. Each change is written to the audit log.
+A test conversion is left out of every figure, and of the second count too. It stays listed, marked test, under **Show left out** on Leads and on Calendar bookings. Each change is written to the audit log with who made it, never the reference or a name. A later step of a marked lead (won, lost) is test too.
 
 For a lead in your website's lead database, mark it spam there, or give it the status `test`.
 

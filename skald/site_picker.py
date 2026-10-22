@@ -119,6 +119,9 @@ def enrich(sites: list[dict], out, config: dict, base, config_path=None,
             continue
         name = s["name"]
         cfg = configs.get(name, config or {})
+        # A site still showing its letter is asked again, on a thread, at most
+        # once a day (2.25); this answer shows what is there now.
+        site_logos.retry_missing(cfg, name, base, out)
         done.append({**s, "logo": site_logos.entry(cfg, name, base),
                      "today": today(out, name, now)})
     return done

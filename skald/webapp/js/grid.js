@@ -27,7 +27,8 @@
 // opts.tools: more buttons of the caller's own, at the right end of the toolbar row.
 // opts.columnFilters: false leaves out the Filter button and the column filters (the tab's
 // own options row filters the rows instead).
-// Columns take table.js's shape: {key, label, num?, type?, fmt?(v,row), csv?(row), sort?(row), drill?, sortable?};
+// Columns take table.js's shape: {key, label, num?, type?, fmt?(v,row), csv?(row), sort?(row), drill?, sortable?,
+// hide? (starts hidden, shown from Columns), csvAlways? (in the CSV even while hidden)};
 // type lines a column up as in table.js (alignOf): numbers right, tags and yes/no centred.
 
 import { createDataGrid } from "../vendor/spcaeo-ui/data-grid/vanilla/data-grid.js";
@@ -82,7 +83,11 @@ export function grid(opts) {
   // options row is its filter row (Leads); an older link's <ns>_cf is then not applied.
   const colFilters = opts.columnFilters !== false;
   let cfs = colFilters ? readFilters(kept.get(`${ns}_cf`), cols.map((c) => c.key)) : [];
-  let hidden = readHidden(kept.get(`${ns}_hide`), cols.slice(1).map((c) => c.key));
+  // A column marked hide starts hidden (2.25, as in table.js); once the reader chooses, the
+  // address keeps the choice ("-": every column shown), and the defaults again leave it clean.
+  const defHidden = cols.slice(1).filter((c) => c.hide).map((c) => c.key);
+  const isDefault = (x) => x.length === defHidden.length && defHidden.every((k) => x.includes(k));
+  let hidden = kept.has(`${ns}_hide`) ? readHidden(kept.get(`${ns}_hide`), cols.slice(1).map((c) => c.key)) : defHidden;
   let frowOpen = cfs.length > 0;
 
   // A stored label the grid draws as plain text is said as shown ("Direct", not "Direct or unknown").
@@ -179,12 +184,14 @@ export function grid(opts) {
     render: (r) =>(isUrlColumn(c) ? withUrl(cell(c, r) ?? "", c.href ? c.href(r) : r[c.key]) : cell(c, r)) }));
   const drawn = every.filter((c) => !hidden.includes(c.id));
   const shownCols = () => visibleColumns(cols, hidden);
-  const dl = file ? exportButton(() => download(file, csv(shownCols(), filterAll(api.query)))) : null;
+  // A column marked csvAlways is in the CSV even while hidden (Leads' Reference, 2.25).
+  const csvCols = () => cols.filter((c) => !hidden.includes(c.key) || c.csvAlways);
+  const dl = file ? exportButton(() => download(file, csv(csvCols(), filterAll(api.query)))) : null;
   const ftog = !colFilters || (rows.length < 2 && !cfs.length) ? null : filterToggle((on) => { frowOpen = on; frowFor = null; api.refresh(); if (on) setTimeout(() => frow.querySelector("input,button")?.focus(), 0); });
   const pick = cols.length >= 4 ? chooser(cols, hidden, (next) => {
     hidden = next; frowFor = null;
     drawn.splice(0, drawn.length, ...every.filter((c) => !hidden.includes(c.id)));
-    writeKeys({ [`${ns}_hide`]: hidden.join(",") });
+    writeKeys({ [`${ns}_hide`]: isDefault(hidden) ? "" : hidden.join(",") || "-" });
     api.refresh();
   }, caption) : null;
   // One toolbar row: the grid's search and filters on the left, these on the right (patch 8).
