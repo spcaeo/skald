@@ -47,6 +47,19 @@ def _version() -> str:
         return "dev"
 
 
+def _in_flight(path: Path) -> bool:
+    """A temp file write_atomic is writing (.<name>.<random>.tmp)."""
+    return path.name.startswith(".") and path.name.endswith(".tmp")
+
+
+def _stale(path: Path, minutes: int = 60) -> bool:
+    import time
+    try:
+        return time.time() - path.stat().st_mtime > minutes * 60
+    except FileNotFoundError:
+        return False
+
+
 def install(out: Path, sites: list[str]) -> list[Path]:
     """Copy the app into `out` and write each site's shell. Paths written."""
     out = Path(out)
@@ -61,8 +74,15 @@ def install(out: Path, sites: list[str]) -> list[Path]:
         written.append(dest)
     if shared.is_dir():
         for old in shared.rglob("*"):
-            if old.is_file() and old not in keep:
+            # Another run may be writing beside us (the live run every 2 minutes, a
+            # site's daily run): its temp file is not ours to delete until it is
+            # stale (2026-10-22: a deleted temp file failed one site's morning run).
+            if not old.is_file() or old in keep or (_in_flight(old) and not _stale(old)):
+                continue
+            try:
                 old.unlink()
+            except FileNotFoundError:
+                pass
     shell = (HERE / "index.html").read_text(encoding="utf-8")
     v = _version()
     shell = re.sub(r'((?:href|src)="\.\./_app/[^"?]+\.(?:css|js))"', rf'\1?v={v}"', shell)

@@ -5,6 +5,8 @@
 // Options, all optional (a function of the state `s` where it says so):
 //   file     the data file it stands on: "could not be built" when that file failed (s)
 //   filters  the global filters it applies; the others show greyed (s)
+//   chips    "tab": the tab draws every active filter's chip itself, in its own "Filtered by"
+//            line (Leads & sales > Leads, 2.23); the top bar's chip row and banner stand aside
 //   keep     the address parameters that belong to this tab (page, fn, ip...)
 //   ranged   false: the period bar does not apply (s)
 //   period   with ranged false: the tab's own period, in a fixed chip where the bar was (s, m)

@@ -12,13 +12,23 @@ import { time as tzTime, sameAsSite, siteZone, city, daysNote } from "../tz.js";
 
 export function rangeWords(r) {
   if (r.kind === "today") return "Today so far";
+  if (r.all) return allWords(r);
   if (r.length === 1) return long(r.first);
   return `${short(r.first)} to ${short(r.last)}, ${r.length} days`;
+}
+
+/* All time in words (data.js allTime): since its first day; when the site's data begins
+   before the days this page holds, that is said plainly, never summed as if it were all. */
+export function allWords(r) {
+  const days = `${r.length} day${r.length === 1 ? "" : "s"}`;
+  if (r.cut) return `All time held here: the last ${days}, since ${long(r.first)} (this site's data begins ${long(r.cut)}; the dashboard holds ${days})`;
+  return `All time: since ${long(r.first)}, ${days}`;
 }
 
 // The model and state of the draw under way, so every header can name the period and page group the same way.
 let CTX = { m: null, s: null };
 export function setContext(m, s) { CTX = { m, s }; }
+export const context = () => CTX;
 
 /* The one line that says what every number on the page covers: the period,
    the clock for today, how many days are whole, and the page group. */
@@ -31,7 +41,8 @@ export function periodWords(r, cov) {
     bits.push(L && L.day === m.today && L.generated_at ? `Today, ${day}, ${tzTime(L.from, { label: false })} to ${tzTime(L.generated_at)}` : `Today, ${day}`);
   } else {
     const preset = s && s.range !== "custom";
-    bits.push(r.length === 1 ? long(r.first) : preset ? `Last ${r.length} whole days, ${short(r.first)} to ${short(r.last)}` : `${short(r.first)} to ${short(r.last)}, ${r.length} days`);
+    if (r.all) bits.push(allWords(r));
+    else bits.push(r.length === 1 ? long(r.first) : preset ? `Last ${r.length} whole days, ${short(r.first)} to ${short(r.last)}` : `${short(r.first)} to ${short(r.last)}, ${r.length} days`);
     if (cov) bits.push(cov.complete ? "every day whole and verified" : `${cov.ok} whole day${cov.ok === 1 ? "" : "s"} recorded, ${r.length - cov.ok} not`);
   }
   const views = m ? [["all", "All pages"], ...(m.views || []).map((v) => [v.slug, v.name])] : [];

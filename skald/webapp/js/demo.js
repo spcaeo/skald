@@ -9,11 +9,14 @@
 //   * the lists of what the figures leave out read theirs too (api.people:
 //     {"people/left-out": file, "people/conversions?kind=..": file}), and the Leads
 //     list its one answer ("people/leads", every period's rows, as a viewer sees them)
+//   * Settings > Connections shows the set-up list and the tokens from the demo's own
+//     answers (api.setup: {settings, integrations, tokens}); its buttons only say why
+//     they do nothing here
 //   * a banner says it is sample data, with links to install it
 
 import { h, ICON } from "./ui.js";
 
-export const DEMO = { on: false, text: "", install: "", links: [], api: { compare: {}, page: {}, people: {} } };
+export const DEMO = { on: false, text: "", install: "", links: [], api: { compare: {}, page: {}, people: {}, setup: {} } };
 export const DEMO_SAYS = "In the demo, this needs a running Skald.";
 
 export function setDemo(d) {
@@ -22,7 +25,7 @@ export function setDemo(d) {
   DEMO.text = String(d.text || "Demo with sample data");
   DEMO.install = String(d.install || "");
   DEMO.links = (Array.isArray(d.links) ? d.links : []).filter((l) => l && /^https:\/\//.test(String(l.url || "")));
-  DEMO.api = { compare: d.api?.compare || {}, page: d.api?.page || {}, people: d.api?.people || {} };
+  DEMO.api = { compare: d.api?.compare || {}, page: d.api?.page || {}, people: d.api?.people || {}, setup: d.api?.setup || {} };
 }
 
 // A helper address the page would ask ("api/compare?a=..&b=..", "api/page?path=..")
@@ -40,8 +43,13 @@ export function demoFile(url) {
   // Security's addresses: one answer for every period too (the tab keeps the rows of its days).
   if (path === "people/security") return DEMO.api.people["people/security"] || null;
   if (path.startsWith("people/")) return DEMO.api.people[String(url)] || null;
+  // Settings > Connections: the set-up list's two answers and the tokens, one each for the site.
+  if (path === "settings" || path === "integrations" || path === "tokens") return DEMO.api.setup[path] || null;
   return null;
 }
+
+// A settings page the demo can draw from its own answers (Connections, with the set-up list).
+export const demoTab = (tab) => tab === "settings/api" && !!DEMO.api.setup.settings;
 
 // What the helper would answer for `path`, from the demo's own file; else the polite refusal.
 export async function demoAnswer(path, body) {

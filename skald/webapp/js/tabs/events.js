@@ -15,6 +15,7 @@ import { lines, legend } from "../charts.js";
 import { table } from "../table.js";
 import * as S from "../state.js";
 import { head } from "./common.js";
+import { todayNote } from "./sa-options.js";
 import { info } from "./tiles.js";
 import { sessions, isViewer } from "../access.js";
 import { everSent, howToSend } from "../notset.js";
@@ -121,7 +122,7 @@ function refused(f) {
 export default function events(m, s) {
   const f = m.x.events;
   const r = rangeOf(m, s);
-  const out = [...head("Events", r, "What visitors did inside the pages, counted by the site's own beacon on its own server: buttons, forms, demo bookings, links out, reading three quarters of a page, copying text. People only, as totals: no event is tied to a visit or a person.", { banner: false })];
+  const out = [...head("Events", r, "What visitors did inside the pages, counted by the site's own beacon on its own server: buttons, forms, demo bookings, links out, reading three quarters of a page, copying text. People only, as totals: no event is tied to a visit or a person.", { banner: false }), todayNote(m, s, r)].filter(Boolean);
   if (!f) return [...out, h("div", { class: "state" }, h("div", null, "In-page events are not counted on this server yet. They come from the website's own beacon once it is installed (docs/BEACON.md)."))];
   const keep = pathMatch(s);
   const got = eventRows(f, r, m.today);

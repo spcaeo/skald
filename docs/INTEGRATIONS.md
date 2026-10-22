@@ -206,12 +206,12 @@ website") does not need the snippet:
 example.com's website posts a signed `lead` hook for each lead and a signed
 `calendly` hook for each booking. A site whose lead database sits on Skald's
 own server needs no lead hook: Skald reads the leads from that database (next
-section), which it already reads for Leads & sales > Pipeline (Count from:
+section), which it already reads for Leads & sales > Summary and Sources (Count from:
 Lead database).
 
 ## Leads from the lead database
 
-When `leads.db` names the website's lead database (Pipeline's default road), every
+When `leads.db` names the website's lead database (the default road of Leads & sales > Summary), every
 lead there also becomes a conversion, with no change to the website
 (`conversions/from_leads.py`; off with `conversions.from_leads: false`):
 
@@ -233,8 +233,8 @@ below). Every live run (2 minutes) reads the leads changed since the last
 one (by `updated_at`); run-daily reads them all and removes the rows of
 leads deleted from the CMS. A row a sync takes away (the lead deleted,
 marked spam or duplicate, or changed) is first copied whole into the
-`removed` table, with when and why (`store.remove`): Leads & sales > Pipeline
-(Count from: Tools, Show left out) lists it under "Removed". Nothing disappears unseen; only `forget` deletes.
+`removed` table, with when and why (`store.remove`): Leads & sales > Sources
+(Count from: Tools, "Cancelled, removed and test") lists it under "Removed". Nothing disappears unseen; only `forget` deletes.
 A status the team changes later changes the lead's day ("as known").
 The second count reads the same database by its own SQL
 (`audit_conversions.recount_leads`). Device is never known here (NULL).
@@ -421,15 +421,15 @@ the lead database adds a `won` or `lost` row beside the completed one (at `creat
 
 - a lead later won, or later lost, is still one lead, on its completed day; the outcome
   neither adds a lead nor takes one away, and the day the outcome arrives counts none;
-- `won` and `lost` are outcomes, shown apart: as stages on Leads & sales > Pipeline (Tools),
-  Bookings ("Won"), the outgoing `lead.won` / `lead.lost` events; never in a Leads figure;
+- `won` and `lost` are outcomes, shown apart: as stages on Leads & sales > Leads (Stage now) and
+  Summary (Tools), Calendar bookings ("Won"), the outgoing `lead.won` / `lead.lost` events; never in a Leads figure;
 - a `won` or `lost` for a ref that never completed is an outcome with no lead: not counted;
 - a lead marked `spam` or `duplicate` in the lead database stops being a lead (its rows are
   taken away and kept in `removed`), and every past day changes with it.
 
 The same rule everywhere a Leads figure is shown: Overview's Leads tile (conversions.json days,
 `js/tabs/leadfigs.js`), the daily and weekly mails and client reports
-(`conversions_leads.period_leads`), and Leads & sales > Pipeline counting from the tools. Counting
+(`conversions_leads.period_leads`), and Leads & sales > Summary counting from the tools. Counting
 from the lead database (leads.json), a lead is a submission that is not spam or a duplicate, on
 its `created_at` day, whatever its status; won and lost are its status, counted apart. Each is
 recounted on its own road: `audit_conversions_leads.py` and `audit_client_reports.recount_leads`

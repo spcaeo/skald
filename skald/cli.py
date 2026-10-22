@@ -983,7 +983,7 @@ def main(argv: list[str] | None = None) -> int:
             return 2
     elif args.command not in multisite.PER_SITE:
         contexts = contexts[:1]
-    codes = [c.args.run(c) for c in contexts]
+    codes = multisite.run_each(contexts)
     return _deliver_after(args, contexts, max(codes))
 
 

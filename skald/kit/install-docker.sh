@@ -6,8 +6,9 @@
 #   sudo bash install.sh            ask for the log file and the token, then start
 #   sudo bash install.sh --dry-run  show what would run, change nothing
 #
-# The token is never in this file. If a file named ship-token sits next to this script,
-# it is used and then deleted; otherwise it is pasted when asked. Either way it is kept in
+# The token is never in this file. It comes from, in this order: a file named ship-token
+# next to this script (in the kit, or made by the admin; used, then deleted), the
+# environment variable SKALD_SHIP_TOKEN, or pasted when asked. Either way it is kept in
 # /srv/skald/ship-token (root:adm, 0640). check.sh reads /srv/skald/ship.conf (no token).
 set -euo pipefail
 
@@ -69,6 +70,12 @@ if [ -s "$HERE/ship-token" ]; then
   unset TOKEN
   if [ "$DRY" = 1 ]; then echo "   would delete the kit's copy: $HERE/ship-token"
   else rm -f "$HERE/ship-token"; echo "   the kit's copy ($HERE/ship-token) is deleted"; fi
+elif [ -n "${SKALD_SHIP_TOKEN:-}" ]; then
+  echo "   the token is in SKALD_SHIP_TOKEN; it is used, not shown"
+  TOKEN="$(printf '%s' "$SKALD_SHIP_TOKEN" | tr -d '[:space:]')"
+  [ "${#TOKEN}" -ge 20 ] || stop "SKALD_SHIP_TOKEN does not hold a token (too short)"
+  save_token "$TOKEN"
+  unset TOKEN SKALD_SHIP_TOKEN
 else
   KEEP=n
   if [ -s "$BASE/ship-token" ]; then
@@ -76,10 +83,11 @@ else
     KEEP="${KEEP:-Y}"
   fi
   if [ "$KEEP" = n ] || [ "$KEEP" = N ]; then
-    echo "   The token is sent to you separately. It is not shown as you paste it."
+    echo "   This kit has no token: it was sent to you separately. It is not shown as you paste it."
     TOKEN=""
     read -r -s -p "Paste the token, then press Enter: " TOKEN || true; echo
     TOKEN="$(printf '%s' "$TOKEN" | tr -d '[:space:]')"
+    [ -n "$TOKEN" ] || stop "no token given. Paste it when asked, or see README.txt (a file named ship-token next to install.sh, or SKALD_SHIP_TOKEN)"
     [ "${#TOKEN}" -ge 20 ] || stop "that does not look like a token (too short)"
     save_token "$TOKEN"
     unset TOKEN

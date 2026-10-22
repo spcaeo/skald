@@ -6,8 +6,8 @@ tool a business can run on. Everything here was **beyond the release of
 has been built since. EDGE-CASES.md has the
 evidence (entry ids like A5 or H12 point there).
 
-Written 2026-10-07. State brought up to 2.5.0 on 2026-10-12. The P0, P1 and P2
-sections further down are the plan as written then; the tables say what of it is done.
+Written 2026-10-07. State brought up to 2.5.0 on 2026-10-12, and to 2.22.3 on 2026-10-22. The
+P0, P1 and P2 sections further down are the plan as written then; the tables say what of it is done.
 
 ## Where it stands
 
@@ -91,14 +91,30 @@ All released and live on example.com (public/CHANGELOG.md has each version).
 | P2-10 AI crawler policy view | Done (allow, block, block training only, with robots.txt beside each crawler); plus a suggested llms.txt (2.2.0). |
 | Not on this list | Likely sent by an AI assistant, an estimate kept apart (2.1.0); the Cloudflare Worker and Vercel/Netlify drains; safe upgrades and update notices (2.2.0, docs/UPGRADING.md); flags beside countries and a new visit per outside source (2.3.0); `skald doctor` (2.4.0). |
 
-## After 2.13 (2026-10-18): what more is built
+## 2.13.0 and 2.14.0 (2026-10-18): what more is built
 
-On a branch, not yet released.
+Released 2026-10-18 (public/CHANGELOG.md, and docs/CHANGELOG-2.8-2.13.md for 2.13.0).
 
 | Item | State |
 | --- | --- |
 | P1-6 Search Console and GA4 cross-checks | Search Console part done (2026-10-18), with Bing Webmaster Tools too. Synced by their APIs every 6 hours, not imported once: clicks, impressions, CTR and position per day by query, page, country, device and search appearance (Bing: per day, and its top queries and pages), stored in history (`search_days`, schema 14). The last 4 days are fetched again on each sync; provisional days are shown as such; a 3- or 16-month backfill on connect. Connected from the dashboard (Settings > Integrations > Search: upload the service-account key, add the robot in Search Console, find the property, test, connect). Traffic > Search shows the tables, the trend and the cross-check: Search Console clicks beside Skald's people from Google search, by day and landing page, never forced to match, flagged when the ratio moves sharply. Second roads: `audit_search.py`, `audit_search_landing.py`. docs/INTEGRATIONS.md, "Search Console and Bing". **GA4 users and sessions: still open.** |
 | AI answers (new) | Done (2026-10-18). What ChatGPT, Perplexity, Gemini and Claude say for the questions buyers ask, asked through their APIs with the install's own keys (Settings > Integrations), per tracking profile (place, language, questions, brand terms, competitors, assistants, daily/weekly/monthly, 1-5 tries, a daily cap; Settings > AI answers; nothing erased). Per run and assistant: named, own pages cited, competitors, citation rank; recounted by `audit_ai_answers.py`, a run that does not match withheld. AI & bots > AI answers: the cited -> read -> sent -> converted chain, share of voice per run, the profile x assistant matrix in "x of N tries", questions, competitors, the cost estimate. docs/AI-ANSWERS.md. **Open:** a Google Business Profile link per profile (`gbp_location_id` is kept, unused); the leads step is per page, not yet per assistant. |
+
+## 2.15.0 to 2.22.3 (2026-10-20 to 2026-10-22): what more is built
+
+All released and live (public/CHANGELOG.md has each version).
+
+| Item | State |
+| --- | --- |
+| P0-1 Clean the people number | More of it: a client that asks for a secret or config file (`.env`, Terraform, CI and lock files) is a scanner for its whole day, never people (2.20.1, CLASSIFICATION.md rule 6b). HEAD, `/pricing` = `/pricing/` and `%xx` decoding are still open. |
+| P0-5 Data quality and log format | Next.js's prefetch header in the log (`rsc_prefetch=`, 2.18.0): a click inside a Next.js site counts as a page view, a prefetch never. `request_length=` (2.21.0) for large POST bodies. Both optional, documented in docs/INGEST.md. |
+| P0-7 Privacy | Shortened IP addresses (`privacy.keep_ips: short`, 2.15.0) and the wording for a site's privacy notice, made from what it keeps. Key rotation still not done. |
+| P1-5 Scheduled reports | Done in 2.13.0 as client reports: branded, scheduled, with a PDF, verified days only. |
+| P1-11 Saved views | Every view now has its own link (2.21.0): a visitor, a lead, a request, a dialog, a sub-tab; Back closes it (docs/ROUTES.md). |
+| P2-1 Performance | The live run about twice as fast at 2.22.3, every figure unchanged. Incremental reading still not built. |
+| P2-5 Cohorts and retention | Done in 2.13.0 (Traffic › Retention), counted twice. |
+| P2-7 Block-list suggestions | Done in 2.21.0: Security › Block list, exported as nginx `deny` lines, a Cloudflare IP list or a plain list, never applied by Skald. |
+| Not on this list | Settings › Connections and Add a site in guided, resumable steps with a connection test (2.16.0); Skald checks a new site from outside and suggests the way in (2.17.0); lead labels and a signed lead check (2.18.0); a site marks its own test leads (2.19.0); Leads & sales redone with every lead in one list, and "What visitors are doing now" on Overview (2.20.0); Security: exposure, scanners, attack attempts, fake browsers, block list, the site's stack against shipped advisories, alerts to the team (2.21.0); an optional public "Is my site exposed?" check (2.22.0). |
 
 ## Recommended next (top 10)
 
@@ -199,7 +215,7 @@ trustworthy; the next five make them useful for growth. The state at 2.5.0 is in
 - **Why:** logs cannot see impressions or queries; GA cannot see bots. Each checks the other.
 - **What:** daily import of Search Console clicks and impressions by page and query, and GA4 users and sessions by day, through their APIs with a service account. A "cross-check" row: readers vs GA4 users (expect GA lower: blockers, consent) and search-referred readers vs Search Console clicks. Flag when the ratio moves sharply - that is usually a tracking break.
 - **Effort:** M. **Risk:** API credentials on the server; quota; GA4 sampling. **Depends on:** a Google service account (owner).
-- **State (2026-10-18):** the Search Console part is done, with Bing too (table above, "After 2.13"). GA4 is still open.
+- **State (2026-10-18):** the Search Console part is done, with Bing too (table above, "2.13.0 and 2.14.0"). GA4 is still open.
 
 ### P1-7. Network and burst signals
 - **Why:** browser-shaped crawlers from data centres and fan-out crawlers pass as readers (A1, A15, A16).
@@ -247,12 +263,14 @@ trustworthy; the next five make them useful for growth. The state at 2.5.0 is in
 
 ### P2-5. Cohorts and retention
 - Readers grouped by first-seen week, returning in later weeks; limited to 30 days by the hash lifetime, so weekly cohorts over four weeks at most. **Effort:** M. **Risk:** small numbers. **Depends on:** returning hash (this release), P0-7.
+- **State (2.13.0):** done as Traffic › Retention, from the kept visits where a site keeps addresses (8 weeks).
 
 ### P2-6. Lead journey (person level)
 - Showing a named lead the pages their visit read. Technically possible with a shared HMAC between the website and the logs; a privacy decision first (consent wording, retention). The CMS already keeps pages viewed per session, which may be enough. **Effort:** M. **Risk:** high (personal data). **Depends on:** owner decision, P0-7.
 
 ### P2-7. Block-list suggestions
 - Addresses and networks that only probe, offered as a fail2ban/nginx deny list for the owner to apply. Never applied automatically. **Effort:** S. **Depends on:** P1-7.
+- **State (2.21.0):** done as Security › Block list (nginx, Cloudflare IP list, plain list).
 
 ### P2-8. Redirects report
 - Which redirects fire most (apex, trailing slash, legacy URLs), redirect chains, redirects to 404s. **Effort:** S.

@@ -21,7 +21,7 @@
 
 export const ROUTE_KEYS = [
   // ---- global: every tab
-  { key: "range", kind: "global", owner: "state.js", means: "the period: today, yesterday, 7d, 30d, 90d or custom" },
+  { key: "range", kind: "global", owner: "state.js", means: "the period: today, yesterday, 7d, 30d, 90d, all (all time) or custom; absent: the section's own (7d on Leads & sales, today elsewhere)" },
   { key: "from", kind: "global", owner: "state.js", means: "a custom period's first day (YYYY-MM-DD)" },
   { key: "to", kind: "global", owner: "state.js", means: "a custom period's last day" },
   { key: "view", kind: "global", owner: "state.js", means: "the page group (a view's slug); all pages when absent" },
@@ -99,6 +99,7 @@ export const ROUTE_KEYS = [
   { key: "conn", kind: "overlay", owner: "tabs/connections.js", means: "a Connections dialog: send, api or mcp", example: "api" },
   { key: "step", kind: "overlay", owner: "tabs/conn-ui.js", means: "the step of the dialog open (1 is the first)", example: "2" },
   { key: "share", kind: "overlay", owner: "tabs/conn-share.js", means: "Share with your developer: the form is open in the dialog (the link itself never goes in the address)", example: "1" },
+  { key: "token", kind: "overlay", owner: "tabs/conn-install.js", means: "the install kit's token choice: 0 is the zip without the token; absent, the token goes in the zip (the token itself never goes in the address)", example: "0" },
   { key: "dlg", kind: "overlay", owner: "main.js, keys.js, extras.js, report.js, filterpanel.js, tabs/person.js", means: "an app dialog: keys (shortcuts), new (What's new), views (saved views), report (report builder), filters (the Filters panel), find (Find a person, empty)", example: "views" },
 ];
 
@@ -108,8 +109,10 @@ export const TABLE_SUFFIXES = { q: "the search box", sort: "the order (column:as
 
 export const KEYS = new Map(ROUTE_KEYS.map((k) => [k.key, k]));
 export const OVERLAY = ROUTE_KEYS.filter((k) => k.kind === "overlay").map((k) => k.key);
-// The overlay keys that name the drawer or dialog itself; step and share belong to the one open.
-export const OPENERS = OVERLAY.filter((k) => k !== "step" && k !== "share");
+// The keys inside the dialog open (its step, the share form, the kit's token choice); the
+// other overlay keys name the drawer or dialog itself.
+export const INSIDE = ["step", "share", "token"];
+export const OPENERS = OVERLAY.filter((k) => !INSIDE.includes(k));
 // Always a token, whatever the value looks like: a search for a person, an address filter.
 export const ALWAYS_MASKED = new Set(["who", "ip"]);
 

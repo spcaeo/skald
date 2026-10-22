@@ -30,7 +30,7 @@ const filters = (s) => (tools(s) ? [] : ["source"]);
 
 // One line per tab: tests/test_routes.py reads each tab's keep list from its line.
 export default [
-  ["leads", "Leads", leadsTab, { file: "conversions", filters: [], keep: ["lact", "llabel", "lnow", "lby", "lshow", "lview", "lsplit"] }],
+  ["leads", "Leads", leadsTab, { file: "conversions", filters: ["country", "source", "device", "campaign"], chips: "tab", keep: ["lact", "llabel", "lnow", "lby", "lshow", "lview", "lsplit"] }],
   ["summary", "Summary", summary, { file, filters, keep: ["lsrc", "lact", "llabel", "lstage"], compare: true }],
   ["sources", "Sources", sources, { file, filters, keep: ["lsrc", "lact", "llabel", "lstage"] }],
   ["bookings", "Calendar bookings", bookings, { file: "conversions", filters: [], keep: ["bact", "bshow"] }],

@@ -40,7 +40,7 @@ import { buildNav, mark, badge, brand, siteChip, railFoot, openDrawer, trailOf }
 import { ME, loadMe, sessions, signOut } from "./access.js";
 import { planBanner } from "./tabs/billing.js";
 import { updateBanner } from "./updates.js";
-import { DEMO, demoBanner, demoState } from "./demo.js";
+import { DEMO, demoBanner, demoState, demoTab } from "./demo.js";
 import { startEdges } from "./edges.js";
 import { filtersButton, filterChips, rulesBanner, openFilters } from "./filterpanel.js";
 import { fromState, treeWords } from "./rules.js";
@@ -268,7 +268,8 @@ function drawBar(s) {
 
   // Active filters (the single ones and the advanced rules), each removable on its own;
   // greyed where this tab cannot apply it (filterpanel.js).
-  const chips = filterChips(model, s, { noData: noData(s) });
+  // A tab that draws them itself (chips: "tab", Leads) has them in its own "Filtered by" line.
+  const chips = filterChips(model, s, { noData: noData(s) || opt(s.tab, "chips", s, "") === "tab" });
   // A page with no figures (About) keeps only its title, the bell and the palette.
   if (noData(s)) bar.replaceChildren(h("div", { class: "bar-row" }, title, h("div", { class: "bar-mid" }, periodChip(s)), h("div", { class: "bar-right" }, always.filter(Boolean))));
   else bar.replaceChildren(h("div", { class: "bar-row" }, title, h("div", { class: "bar-mid" }, mid), h("div", { class: "bar-right" }, right.filter(Boolean))), chips);
@@ -401,7 +402,7 @@ addEventListener("afterprint", () => { if (current && !document.body.classList.c
 /* Filters this tab cannot apply (logs keep each breakdown on its own): said in one
    clear line at the top, with where they do apply (filterpanel.js rulesBanner). */
 function filterBanner(s) {
-  return noData(s) ? null : rulesBanner(model, s);
+  return noData(s) || opt(s.tab, "chips", s, "") === "tab" ? null : rulesBanner(model, s);
 }
 
 // ------------------------------------------------------------------ router
@@ -437,6 +438,7 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
   document.title = `${model.site} · ${sec ? `${name} · ${sec.name}` : name} — ${toolName()}`;
   const file = opt(s.tab, "file", s, null), broken = file && model.failed?.[file];
   const body = broken ? notBuilt(name, file, broken)
+    : DEMO.on && demoTab(s.tab) ? TAB_RENDER[s.tab](model, s, { first: firstPaint, changed })
     : DEMO.on && S.inSettings(s.tab) ? demoState(name) : DEMO.on && opt(s.tab, "helper", s, false) ? demoState(name) : TAB_RENDER[s.tab](model, s, { first: firstPaint, changed });
   // modeBanner: while Compare is on, what A and B are, or why not (modes.js).
   const banners = [demoBanner(), updateBanner(), planBanner(), modeBanner(model, s), filterBanner(s)].filter(Boolean);

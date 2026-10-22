@@ -9,7 +9,11 @@ and by `python3 -m skald.kit` (a deployment's own make-kit script):
                       check.sh       read-only checks, one line each, and a block to send
                       README.txt     README-docker.txt or README-systemd.txt
                       skald-ship.py  the shipper itself (systemd kit only; tools/skald-ship.py)
-                      ship-token     only when the admin asked for it, mode 0600
+                      ship-token     only when the admin asked for it, mode 0600 (the
+                                     page's "Include the access token in the zip", ticked
+                                     by default); without it, no file holds the token and
+                                     install.sh takes it from a ship-token file the admin
+                                     makes, SKALD_SHIP_TOKEN, or asks
 
 Placeholders, filled with plain str.replace: __SITE__, __URL__ (the send
 address, <base>/traffic-ingest/<site>), __HOST__, __IMAGE__ and

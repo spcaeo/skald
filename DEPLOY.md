@@ -293,6 +293,19 @@ change the `log_format` and `nginx -t && systemctl reload nginx`. A line that
 repeats an earlier line's request id is the same request written twice: it is
 dropped and counted as `duplicates_removed` in quality.json.
 
+### Optional fields at the end of the line (2.18, 2.21)
+
+- **A Next.js site:** append ` rsc_prefetch=$http_next_router_prefetch` (Apache:
+  ` rsc_prefetch=%{Next-Router-Prefetch}i`) so a click inside the site counts as a page
+  view and a link prefetch never does (COUNTING-TRAPS.md trap 10). Required for every
+  Next.js site; without it only the first page of each visit is seen.
+- **Security's large POST bodies:** ` request_length=$request_length` lets Security >
+  Attack attempts list POST bodies of 1,000,000 bytes or more; without it that line says
+  "not recorded".
+
+Both go at the end of the line, beside `rid=`, and both counts read them. The exact lines and
+why they are safe: [docs/INGEST.md](docs/INGEST.md), "Log formats".
+
 ### AI crawler settings (optional)
 
 The dashboard's crawler rules (AI & bots > Crawler rules; Settings > AI crawlers

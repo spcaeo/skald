@@ -95,6 +95,7 @@ export function tokenPanel(st, { onMade = null } = {}) {
     st.tokenId = r.id || "";
     said.textContent = "";
     show();
+    if (st.onToken) st.onToken();       // the install kit's token choice (conn-install.js)
     if (onMade) onMade(r);
   });
   show();

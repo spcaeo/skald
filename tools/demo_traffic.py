@@ -199,10 +199,17 @@ def size_of(path: str, status: int = 200, method: str = "GET") -> int:
 
 def line(when: datetime, address: str, path: str, agent: str, referrer: str = "-", status: int = 200,
          country: str = "US", method: str = "GET", size: int = 512, secs: float = 0.004) -> str:
-    """One nginx_extended line (the format DEPLOY.md sets up), host example.com."""
+    """One nginx_extended line (the format DEPLOY.md sets up), host example.com, with the
+    optional request_length= field (INGEST.md), so Security's large-POST sign is recorded."""
     return (f'{when.isoformat()} {address} {SITE} "{method} {path} HTTP/2.0" '
             f'{status} {size} "{referrer}" "{agent}" {secs:.3f} cc={country} '
-            f'ray=0000000000000000-LHR\n')
+            f'ray=0000000000000000-LHR request_length={request_length(path, agent, referrer, method)}\n')
+
+
+def request_length(path: str, agent: str, referrer: str = "-", method: str = "GET") -> int:
+    """The request's size as nginx's $request_length counts it (line, headers, body): about
+    the request line and headers, a small form body for a POST. No random draw."""
+    return 260 + len(path) + len(agent) + (len(referrer) if referrer != "-" else 0) + (640 if method == "POST" else 0)
 
 
 @dataclass
@@ -311,9 +318,10 @@ class _Maker:
             touch["aiSource"] = host
         return kind, ref, q, host, touch
 
-    def visit(self, t, identity, returning, first_touch, nvisits, force=None, force_path=None):
+    def visit(self, t, identity, returning, first_touch, nvisits, force=None, force_path=None, keen=False):
         """One visit: pages through the site, its assets, its in-page events,
-        and the leads and bookings it ends in."""
+        and the leads and bookings it ends in. keen: a visitor reading on now (right_now),
+        who stays for more pages and moves on sooner."""
         rnd, T = self.rnd, self.t
         ip, ua, vw = identity
         self.cur = (ip, ua)
@@ -333,10 +341,10 @@ class _Maker:
             pages.append((t, cur))
             if vid is not None:
                 self.events(t, cur, vid, host, utm, vw, nvisits, first_touch, touch, path, cc)
-            if rnd.random() > STAY.get(cur, stay):
+            if rnd.random() > STAY.get(cur, 0.82 if keen else stay):
                 break
             stay = 0.5
-            lo, hi = next((v for k, v in DWELL.items() if cur.startswith(k)), (12, 120))
+            lo, hi = (15, 70) if keen else next((v for k, v in DWELL.items() if cur.startswith(k)), (12, 120))
             t += timedelta(seconds=rnd.randrange(lo, hi))
             nxt = self.pick(NEXT.get(cur, [("/", 1)]))
             prev_url, cur, url = "https://example.com" + cur, nxt, nxt
@@ -526,9 +534,11 @@ class _Maker:
         if self.now - start < timedelta(minutes=40):
             return
         for ago in self.NOW_VISITS:
-            t = (self.now - timedelta(minutes=ago, seconds=rnd.randrange(0, 50))).replace(microsecond=0)
+            # Started a few minutes earlier and still reading, so "What visitors are doing now"
+            # shows a path of pages, not one page each.
+            t = (self.now - timedelta(minutes=ago, seconds=rnd.randrange(0, 50) + rnd.randrange(60, 300))).replace(microsecond=0)
             identity = self.new_identity()
-            pages, touch = self.visit(t, identity, False, None, 1)
+            pages, touch = self.visit(t, identity, False, None, 1, keen=True)
             if self.info[identity]["first"] is None:
                 self.info[identity]["first"] = {**touch, "at": t, "landingPath": pages[0][1]}
         for agent, ip, kind in self.NOW_MACHINES:
@@ -567,9 +577,28 @@ def generate(now: datetime, days: int = 62, seed: int = SEED) -> Traffic:
     # Security's scanners and attack attempts, from a generator of their own (demo_security.py).
     import demo_security
     demo_security.add(m.t.lines, m.t.first, m.t.today, m.tz, m.now, seed)
+    heartbeat(m.t.lines, m.t.first, m.now, m.tz)
     T, cut = m.t, m.now
     T.lines = sorted((x for x in T.lines if x.split(" ", 1)[0] <= cut.isoformat()), key=lambda x: x.split(" ", 1)[0])
     T.beacon = sorted((b for b in T.beacon if b[0] <= cut), key=lambda b: b[0])
     T.hooks = sorted((h for h in T.hooks if h[0] <= cut), key=lambda h: h[0])
     T.leads = [x for x in T.leads if x["at"] <= cut]
     return T
+
+
+HEARTBEAT = "example-heartbeat/1.0"     # ours.user_agents labels it "heartbeat" (demo.py's config)
+SERVER = "192.0.2.10"
+
+
+def heartbeat(lines: list, first: date, now: datetime, tz) -> None:
+    """The 5-minute heartbeat the server sends itself (Site > Health's uptime), with one
+    15-minute outage five days before today (three beats answered 502). No random draw."""
+    t = datetime(first.year, first.month, first.day, tzinfo=tz).astimezone(UTC)
+    down = datetime.combine(now.astimezone(tz).date() - timedelta(days=5), datetime.min.time(), tz) \
+        + timedelta(hours=3, minutes=10)
+    while t <= now:
+        failed = down <= t.astimezone(tz) < down + timedelta(minutes=15)
+        lines.append(line(t, SERVER, "/", HEARTBEAT, status=502 if failed else 200,
+                          size=166 if failed else 512, secs=0.9 if failed else 0.012))
+        t += timedelta(minutes=5)
+

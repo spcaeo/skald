@@ -8,11 +8,11 @@ the rules there apply. The end-user guide with copy-paste examples:
 
 The lead body's optional `label` (INTEGRATIONS.md, "The lead body") is kept in
 `conversions.label` (schema 7), spooled with the body, and shown as a small tag in the lists of
-conversions (Pipeline's Show lists, People's recent conversions, the person drawer).
+conversions (Leads & sales > Leads, Calendar bookings' Show left out lists, the person drawer).
 conversions.json counts it per day (`labels`, `labels_abandoned`,
 [DATA-CONTRACT-CONVERSIONS.md](DATA-CONTRACT-CONVERSIONS.md)), recounted by
-`audit_conversions_figures.py`; Pipeline (Count from: Tools) has a **Label** option (`llabel` in
-the address) that narrows Every action to it, and the MCP `conversions` tool takes `label`.
+`audit_conversions_figures.py`; Leads & sales > Leads, and Summary and Sources counting from the
+tools, have a **Label** option (`llabel` in the address) that narrows Every action to it, and the MCP `conversions` tool takes `label`.
 
 ## Check that Skald has every lead: `GET /traffic-hooks/<site>/leads`
 
@@ -73,8 +73,8 @@ Tested in `tests/test_lead_label_reconcile.py` and `tests/js/pipeline-label.mjs`
 A site's own team accounts and QA runs make real-looking leads. Two ways for the site's server
 to keep them out of the figures without the server admin: the lead body's `test`, and a
 signed call that marks (or unmarks) leads already sent. Both make the same mark as
-`skald conversions mark-test`: the row is kept, listed (Pipeline's Show lists, People's
-Left out, the person drawer, the GET above with `"test": true`), and never counted.
+`skald conversions mark-test`: the row is kept, listed (Leads & sales > Leads with Show left
+out, Calendar bookings' Show left out, the person drawer, the GET above with `"test": true`), and never counted.
 
 ### `test` in the lead body
 

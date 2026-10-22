@@ -25,6 +25,8 @@
 //   card.append(g);   // g.update(rows), g.filtered(), g.destroy(), g.api (upstream's)
 //
 // opts.tools: more buttons of the caller's own, at the right end of the toolbar row.
+// opts.columnFilters: false leaves out the Filter button and the column filters (the tab's
+// own options row filters the rows instead).
 // Columns take table.js's shape: {key, label, num?, type?, fmt?(v,row), csv?(row), sort?(row), drill?, sortable?};
 // type lines a column up as in table.js (alignOf): numbers right, tags and yes/no centred.
 
@@ -76,7 +78,10 @@ export function grid(opts) {
   let texts = new WeakMap();  // each row's searchable text, built once per update()
   // The column filters and the hidden columns, from the address (tablestate.js).
   const kept = HASH.read();
-  let cfs = readFilters(kept.get(`${ns}_cf`), cols.map((c) => c.key));
+  // columnFilters: false (2.23): no Filter button and no column filters, for a tab whose own
+  // options row is its filter row (Leads); an older link's <ns>_cf is then not applied.
+  const colFilters = opts.columnFilters !== false;
+  let cfs = colFilters ? readFilters(kept.get(`${ns}_cf`), cols.map((c) => c.key)) : [];
   let hidden = readHidden(kept.get(`${ns}_hide`), cols.slice(1).map((c) => c.key));
   let frowOpen = cfs.length > 0;
 
@@ -175,7 +180,7 @@ export function grid(opts) {
   const drawn = every.filter((c) => !hidden.includes(c.id));
   const shownCols = () => visibleColumns(cols, hidden);
   const dl = file ? exportButton(() => download(file, csv(shownCols(), filterAll(api.query)))) : null;
-  const ftog = rows.length < 2 && !cfs.length ? null : filterToggle((on) => { frowOpen = on; frowFor = null; api.refresh(); if (on) setTimeout(() => frow.querySelector("input,button")?.focus(), 0); });
+  const ftog = !colFilters || (rows.length < 2 && !cfs.length) ? null : filterToggle((on) => { frowOpen = on; frowFor = null; api.refresh(); if (on) setTimeout(() => frow.querySelector("input,button")?.focus(), 0); });
   const pick = cols.length >= 4 ? chooser(cols, hidden, (next) => {
     hidden = next; frowFor = null;
     drawn.splice(0, drawn.length, ...every.filter((c) => !hidden.includes(c.id)));

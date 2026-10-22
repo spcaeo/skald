@@ -93,6 +93,31 @@ class Build(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.build("docker", "not a token")
 
+    def test_with_the_token_it_is_in_ship_token_only_and_without_it_nowhere(self):
+        """The page's box (ticked by default): with it, the token is in ship-token and in no
+        other file; without it, no file of the zip holds the token or any part of it."""
+        secret = TOKEN.split("_", 2)[2]
+        for method in kit.METHODS:
+            got = self.build(method, TOKEN)
+            holders = [n for n, (data, _) in got.items() if secret.encode() in data]
+            self.assertEqual(holders, ["skald-ship-example.com/ship-token"], method)
+            self.assertEqual(got["skald-ship-example.com/ship-token"][0], (TOKEN + "\n").encode())
+            raw = kit.build("example.com", URL, method, "https://stats.example.com/traffic/example.com/",
+                            "", IMAGE, "/opt/skald/tools/skald-ship.py")
+            with zipfile.ZipFile(io.BytesIO(raw)) as z:
+                names = z.namelist()
+                every = {n: z.read(n) for n in names}
+            self.assertNotIn("skald-ship-example.com/ship-token", names)
+            for name, data in every.items():
+                for part in (TOKEN, secret, secret[:16], "skald_ab12cd34_"):
+                    self.assertNotIn(part.encode(), data, f"{method}: {name}")
+                    self.assertNotIn(part, name)
+            # the installer still works without it: it reads the file, the variable or stdin
+            install = every["skald-ship-example.com/install.sh"].decode()
+            self.assertIn('"$HERE/ship-token"', install)
+            self.assertIn("SKALD_SHIP_TOKEN", install)
+            self.assertIn('read -r -s -p "Paste the token', install)
+
     def test_refusals(self):
         with self.assertRaises(ValueError):
             kit.build("Example.com", URL, "docker", "", "", IMAGE)
@@ -156,9 +181,20 @@ class Endpoint(TenantServer):
         data, mode = unzip(got.raw)[f"skald-ship-{A}/ship-token"]
         self.assertEqual(data.decode().strip(), token)
         self.assertEqual(mode, 0o600)
-        # A token is put in only when asked, even when sent.
-        got = self.post(f"/traffic/{A}/sites/kit", {"site": A, "method": "docker", "token": token}, cookie, csrf)
-        self.assertNotIn(f"skald-ship-{A}/ship-token", unzip(got.raw))
+        self.assertEqual([n for n, (d, _) in unzip(got.raw).items() if token.encode() in d],
+                         [f"skald-ship-{A}/ship-token"], "the token is in ship-token only")
+        # A token is put in only when asked, even when sent (the box unticked): nowhere in the zip.
+        for include in (False, None):
+            body = {"site": A, "method": "docker", "token": token}
+            if include is not None:
+                body["include_token"] = include
+            got = self.post(f"/traffic/{A}/sites/kit", body, cookie, csrf)
+            self.assertEqual(got.status, 200, got.raw[:200])
+            files = unzip(got.raw)
+            self.assertNotIn(f"skald-ship-{A}/ship-token", files)
+            for name, (data, _) in files.items():
+                self.assertNotIn(token.encode(), data, name)
+                self.assertNotIn(token.split("_", 2)[2][:16].encode(), data, name)
 
     def test_only_a_sending_token_of_that_site_goes_in(self):
         cookie, csrf = self.session("owner@example.com")

@@ -12,9 +12,10 @@ What it makes, per day:
               lists below, by country; most answered 404 by example.com, some 200 with the
               app's shell or the IP's default page; some with a forged referrer of the
               site's own wp. subdomain; now and then path traversal or Log4Shell
-  one leak    two days before today, /.env.production on example.com answered 200 with
-              1,873 bytes: a possible exposure to check
-  hammering   every ninth day, 24 to 40 POSTs to /login within three minutes
+  one leak    yesterday, /.env.production on example.com answered 200 with 1,873 bytes:
+              a possible exposure to check, and its alert
+  hammering   every ninth day and today, 24 to 40 POSTs to /login within three minutes
+  an upload   yesterday, one POST of 2.6 MB to /index.php, refused with 413 (a log sign)
   a burst     three days before today, 360 requests within 45 seconds
   a crawler   a Chrome agent that reads robots.txt, then ten pages: a browser-like crawler
 """
@@ -49,10 +50,12 @@ PAGES = ["/", "/features/", "/pricing/", "/blog/", "/blog/fall-launch", "/custom
 
 
 def line(when: datetime, address: str, host: str, path: str, agent: str, status: int, size: int,
-         country: str, referrer: str = "-", method: str = "GET") -> str:
+         country: str, referrer: str = "-", method: str = "GET", length: int | None = None) -> str:
+    from demo_traffic import request_length
+    length = length if length is not None else request_length(path, agent, referrer, method)
     return (f'{when.astimezone(UTC).isoformat()} {address} {host} "{method} {path} HTTP/2.0" '
             f'{status} {size} "{referrer}" "{agent}" 0.004 cc={country} '
-            f'ray=0000000000000000-LHR\n')
+            f'ray=0000000000000000-LHR request_length={length}\n')
 
 
 def _scanner(x: random.Random, out: list, start: datetime, span: int, forced=None) -> None:
@@ -97,8 +100,12 @@ def add(lines: list, first: date, today: date, tz, now: datetime, seed: int) -> 
                                   200, size, cc))
         n = 12 if k == days - 6 else x.randrange(2, 6)
         for i in range(n):
-            _scanner(x, lines, start, span, "/.env.production" if (k == days - 2 and i == 0) else None)
-        if k % 9 == 4:                               # login hammering
+            _scanner(x, lines, start, span, "/.env.production" if (k == days - 1 and i == 0) else None)
+        if k == days - 1:                            # one large upload, refused (413)
+            t = start + timedelta(hours=9, minutes=x.randrange(0, 50))
+            lines.append(line(t, x.choice(POOL), "example.com", "/index.php", "python-requests/2.31.0",
+                              413, 176, "NL", method="POST", length=2_621_847))
+        if k % 9 == 4 or k == days:                  # login hammering (and today, so Today shows one)
             t = start + timedelta(seconds=x.randrange(3_600, max(3_601, span - 600)))
             for i in range(x.randrange(24, 41)):
                 status = 429 if i > 30 else 401

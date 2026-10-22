@@ -71,10 +71,23 @@ export async function openConnKey(name, m, step = 1) {
   return openConn(name, m.site, r.ok ? r : {}, { start: Math.max(0, step - 1) });
 }
 
+// The demo: the set-up list, the three tasks and the tokens, from the demo's own answers.
+function demoPage(m, title, guides) {
+  const note = "In the demo, setting up needs a running Skald.";
+  const card = (icon, t, line) => taskCard({ icon, title: t, line, note, disabled: true, onOpen: () => {} });
+  return [setupChecklist(m, { where: "connections" }), title, guides,
+    h("section", { class: "s cn-cards", "aria-label": "Set up a connection" },
+      card(ICONS.send, "Send this site's visits to Skald", `For ${m.site} when its web server is not this Skald's server: a shipper, Cloudflare, Vercel or Netlify, or only the script tag.`),
+      card(ICONS.read, "Read your figures (API)", "Every figure as JSON, for a script or a spreadsheet, with a read-only token."),
+      card(ICONS.mcp, "Connect an AI assistant (MCP)", "Ask Claude, ChatGPT or another assistant about your traffic in plain words.")),
+    tokens(m)];
+}
+
 export default function connections(m) {
   const title = head1("Connections", LEDE);
   const guides = h("div", { class: "howto-row" }, howTo("connections", "How do I connect a site, a script or an assistant?", { block: false }),
     howTo("troubleshooting-connections", "Something does not work?", { block: false }));
+  if (DEMO.on) return demoPage(m, title, guides);
   if (!sessions()) return [title, guides, ...basic()];
   if (isViewer()) {
     return [title, guides, h("div", { class: "state" }, h("div", null,

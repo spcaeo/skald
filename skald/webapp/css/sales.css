@@ -33,6 +33,20 @@
 .vw-b[aria-pressed="true"] { background: var(--sel); color: var(--sel-ink); }
 .vw-b:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
+/* The one "Filtered by" line under the options row (sa-filters.js, 2.23): the row's filters
+   and the top bar's, each a removable chip; a dashboard filter's chip is dashed */
+.sa-filtered { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: calc(-1 * var(--sp-2)) 0 var(--sp-3); font-size: 12.5px; }
+.sa-filtered-l { color: var(--ink-2); font-weight: 560; margin-right: 2px; }
+.sa-filtered .chip.glob { border-style: dashed; }
+.sa-filtered .chip.off::after { content: "not applied here"; }
+.sa-filtered .sa-clear { font-size: 12.5px; margin-left: 4px; }
+.sa-wider b { color: var(--ink); }
+/* "Today so far: 2 new leads → Show today (live)" beside a period of whole days (sa-options.js todayNote) */
+.sa-today { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 0 0 var(--sp-3); padding: 6px 12px; width: fit-content; max-width: 100%;
+  box-sizing: border-box; border-radius: 999px; background: color-mix(in srgb, var(--leads, var(--g-people)) 12%, var(--surface)); font-size: 13px; color: var(--ink-2); }
+.sa-today b { color: var(--ink); }
+.sa-today .sa-today-go { color: var(--ink); font-weight: 600; font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
+
 /* The figure line above a list ("37 leads · 12% more than the 30 days before") */
 .sa-figure { margin: 0 0 var(--sp-3); font-size: 13.5px; color: var(--ink-2); }
 .sa-figure b { color: var(--ink); font-size: 15px; font-weight: 680; font-variant-numeric: tabular-nums; }
@@ -121,7 +135,7 @@
 
 @media print {
   /* the notes under the row say what the page counts from and what it narrows */
-  .sa-opts, .sa-find { display: none; }
+  .sa-opts, .sa-find, .sa-filtered button { display: none; }
 }
 
 /* Something the site never sends (a lead kind, an event, a funnel step): "Not set up" and

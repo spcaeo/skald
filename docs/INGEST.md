@@ -120,7 +120,7 @@ are optional.) `skald-ship-<site>.zip` holds one folder `skald-ship-<site>/`:
 | `check.sh` | Read-only checks, one line each (`✓ OK`, `✗ PROBLEM` with a fix, `? CANNOT TELL`): Docker, the web server, the log and its group `adm`, that the log grows, that www writes to it, the send address (401 without a token means the path works), the token file's owner and mode, the shipper running, its last 20 lines, lines leaving. Ends with a block "Copy this and send it to us": no token, every IP address masked. Exit 0 when all is OK |
 | `README.txt` | The steps, what it keeps on the server, how to undo it |
 | `skald-ship.py` | systemd kit only: the shipper (`tools/skald-ship.py`) |
-| `ship-token` | Only when the admin ticks "Put the token in the zip (only if you will send the zip privately)" (off by default): mode 0600; `install.sh` moves it into place and deletes it |
+| `ship-token` | Only when "Include the access token in the zip" is ticked (the default, when the page holds a token it just made): mode 0600; `install.sh` moves it into place and deletes it. Unticked, no file of the zip holds the token: `install.sh` takes it from a `ship-token` file the admin makes, else `SKALD_SHIP_TOKEN`, else asks for it (not echoed) |
 
 The token goes in only when `include_token` is true and the token is a valid
 `ingest` token of that site (else 400); it is never logged or kept by the

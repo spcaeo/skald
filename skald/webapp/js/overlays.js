@@ -18,12 +18,14 @@
 
 import * as S from "./state.js";
 import { h } from "./ui.js";
-import { OPENERS, hasToken, TOKEN } from "./routekeys.js";
+import { OPENERS, INSIDE, hasToken, TOKEN } from "./routekeys.js";
 import { valueOf } from "./routemask.js";
 
 const open = new Map();        // family -> {value, close(), isOpen()}
 const pending = new Set();     // "family=value" being restored (answers on the way)
 const STEPPED = new Set(["setup", "conn"]);
+// The keys inside a stepped dialog (its step, the share form, the kit's token choice) leave with it.
+const INSIDE_OFF = Object.fromEntries(INSIDE.map((k) => [k, ""]));
 const extra = {};              // restorers main.js adds (the report builder needs its loader)
 
 /* A drawer opened for a key: tracked, and its key written (a new entry, or a replace
@@ -51,7 +53,7 @@ export function closed(family, value) {
   // then, once this click is done, Back over the entry the opening made. A link in the
   // drawer that moved the page on (help, another tab) keeps its move.
   const pushed = history.state?.ov === family;
-  S.set({ [family]: "", ...(STEPPED.has(family) ? { step: "", share: "" } : {}) }, { replace: true });
+  S.set({ [family]: "", ...(STEPPED.has(family) ? INSIDE_OFF : {}) }, { replace: true });
   if (pushed) {
     const here = location.hash;
     setTimeout(() => { if (location.hash === here && history.state?.ov === family) history.back(); }, 0);
@@ -85,7 +87,7 @@ export function say(words) {
 export function missing(family, words) {
   open.delete(family);
   const s = S.read();
-  if (s[family]) S.set({ [family]: "", ...(STEPPED.has(family) ? { step: "", share: "" } : {}) }, { replace: true });
+  if (s[family]) S.set({ [family]: "", ...(STEPPED.has(family) ? INSIDE_OFF : {}) }, { replace: true });
   return say(words);
 }
 
