@@ -27,7 +27,7 @@
   }
  },
  "expect": {
-  "summary": "Your site runs WordPress 6.7 on PHP (version hidden) behind Sucuri. Nothing to do now, 1 to check, 2 tips.",
+  "summary": "Your site runs WordPress 6.7 on PHP (version hidden), behind Sucuri. Nothing to do now, 1 to check, 2 tips.",
   "cards": [
    [
     "hidden",

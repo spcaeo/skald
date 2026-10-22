@@ -11,7 +11,7 @@
   }
  },
  "expect": {
-  "summary": "Your site runs Ghost 5.96 on Node.js (version hidden). Nothing to do now, 1 to check, 1 tip.",
+  "summary": "Your site runs Ghost 5.96 on Node.js (version hidden), served by nginx. Nothing to do now, 1 to check, 1 tip.",
   "cards": [
    [
     "hidden",

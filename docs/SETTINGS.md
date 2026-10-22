@@ -296,7 +296,16 @@ security:
   the URL it was read from, what it means, why an advisory matched (product, version or
   "version not shown", host) and `curl` commands to check it yourself; the answer lists every
   request (method, URL, status, size, redirect, error), its time and the User-Agent. A home page
-  that is not a 2xx, or a bot challenge, is "could not check" with nothing read from it. "Update
+  that is not a 2xx, or a bot challenge, is "could not check" with nothing read from it. When a
+  firewall stopped the check (a challenge such as Cloudflare's `cf-mitigated: challenge` or AWS
+  WAF's, 401, 403, 429, or a firewall's own 503 denial page; a 503 alone is a site that is down)
+  the answer has `reason: "blocked"`, a `summary` that says it is not a problem with the site, a
+  `block` (`kind`: `challenge`, `denied` or `password`; `status`; `firewalls` named by their own
+  headers or page: Cloudflare, Sucuri, Akamai, AWS WAF, CloudFront, Imperva, Fastly, Wordfence;
+  `commands` to run by hand: the headers with curl, `php -v`), a card with that proof, and counts
+  of 0. The check never changes its User-Agent or works around a challenge. The summary of a
+  site read names the platform or language first, then the web server, the host and the CDN:
+  "Your site runs PHP (version hidden) on nginx, behind CloudFront." "Update
   needed" only for a version the server showed; otherwise "check your version". The login page
   is "open" only when it ends in WordPress's login form; a redirect elsewhere, a page without
   the form, 401, 403, 404 or 410 is "hidden (good)"; anything else is "could not check". A web

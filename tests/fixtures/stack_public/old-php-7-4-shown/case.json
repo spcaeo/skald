@@ -13,7 +13,7 @@
   }
  },
  "expect": {
-  "summary": "Your site is served by Apache on PHP 7.4.33. 1 thing to do now, 2 tips.",
+  "summary": "Your site runs PHP 7.4.33 on Apache. 1 thing to do now, 2 tips.",
   "cards": [
    [
     "update",

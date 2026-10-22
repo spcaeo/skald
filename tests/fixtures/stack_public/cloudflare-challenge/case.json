@@ -12,11 +12,11 @@
   }
  },
  "expect": {
-  "summary": null,
+  "summary": "Your site's firewall stopped our check, so we can't see what it shows. That's often good news: it blocks automated scanners too.",
   "cards": [
    [
     "unknown",
-    "www.example.com's firewall blocked our check"
+    "www.example.com's firewall stopped our check"
    ]
   ],
   "products": []

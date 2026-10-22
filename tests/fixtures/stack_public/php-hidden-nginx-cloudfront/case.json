@@ -1,0 +1,39 @@
+{
+ "about": "A live shape (2026-10-22): Server: nginx with no version, PHP proven by its PHPSESSID cookie, CloudFront in front. The summary once read \"served by nginx on PHP (version hidden) behind CloudFront\"; the language comes first now",
+ "typed": "www.example.com",
+ "pages": {
+  "GET https://www.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "nginx",
+    "Set-Cookie": "PHPSESSID=abc123; path=/",
+    "Via": "1.1 0123456789abcdef.cloudfront.net (CloudFront)",
+    "X-Amz-Cf-Id": "EXAMPLE-cf-id-123==",
+    "X-Cache": "Miss from cloudfront"
+   },
+   "body": "<html><head><title>Example</title></head><body><a href=\"/events\">Events</a></body></html>"
+  }
+ },
+ "expect": {
+  "summary": "Your site runs PHP (version hidden) on nginx, behind CloudFront. Nothing to do now, 1 to check, 2 tips.",
+  "cards": [
+   [
+    "hidden",
+    "PHP on www.example.com: version not shown by the server"
+   ],
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ],
+   [
+    "info",
+    "A firewall sits in front: CloudFront"
+   ]
+  ],
+  "products": [
+   "CloudFront @www.example.com",
+   "PHP version not shown @www.example.com",
+   "nginx version not shown @www.example.com"
+  ]
+ }
+}

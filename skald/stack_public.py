@@ -13,7 +13,10 @@ lines it was read from and the URL, and what could not be read is "could not che
 a guess. So:
 
   * a home page that is not a 2xx after its redirects, or a bot challenge (Cloudflare's
-    "Just a moment..."), is "could not check": nothing is read from it;
+    "Just a moment..."), is "could not check": nothing is read from it. When a firewall
+    stopped us (a challenge, 401, 403, 429, or a firewall's own 503 denial page),
+    stack_public_blocked.py says what proves it and how to see the site from a network the
+    firewall lets through; the check never changes who it says it is to get past one;
   * /wp-login.php is followed to its final page (redirects within the site's own domain) and
     its body read: "open" only for a page with WordPress's login form (`id="loginform"`, or
     `name="log"` and `name="pwd"`); a redirect elsewhere, a page without the form, 401, 403,
@@ -60,6 +63,7 @@ from datetime import datetime, timezone
 from urllib.parse import urljoin, urlsplit
 
 from . import advisories, site_detect, site_fetch
+from .stack_public_blocked import CHALLENGE, blocker, challenged  # noqa: F401 (CHALLENGE: tests)
 from .stack_public_detect import PATH_CHARS, WP_ANY, Page, detect, files
 
 TIMEOUT = 5.0              # seconds for one request
@@ -74,8 +78,6 @@ INSIDE = {"localhost", "local", "internal", "intranet", "lan", "home", "corp", "
           "localdomain", "test", "invalid", "example", "arpa", "onion", "alt"}
 LOGIN_FORM = re.compile(r"id\s*=\s*[\"']loginform[\"']", re.I)
 LOG, PWD = (re.compile(rf"name\s*=\s*[\"']{n}[\"']", re.I) for n in ("log", "pwd"))
-CHALLENGE = (b"challenge-platform", b"just a moment...", b"attention required!",
-             b"cf-browser-verification", b"captcha", b"checking your browser")
 HIDDEN = (401, 403, 404, 410)
 Refused = site_fetch.Refused
 Unreachable = site_fetch.Unreachable
@@ -98,7 +100,6 @@ PLAIN = (("did not answer in time", "no answer in 5 seconds"),
          ("https connection failed", "its secure connection failed"),
          ("refused the connection", "it refused the connection"),
          ("could not be read", "its answer could not be read"))
-BLOCKED = (401, 403, 429)
 
 
 def plain(words: str) -> str:
@@ -265,13 +266,6 @@ def follow(url: str, budget: Budget, ua: str) -> site_fetch.Answer:
     raise Refused(f"It redirected more than {MAX_REDIRECTS} times.")
 
 
-def challenged(got) -> bool:
-    """A bot challenge (Cloudflare's and the like) answered instead of the page."""
-    if (got.headers.get("cf-mitigated") or [""])[0].strip().lower() == "challenge":
-        return True
-    return got.status in (403, 429, 503) and any(m in got.body[:30000].lower() for m in CHALLENGE)
-
-
 # ------------------------------------------------------------------ reading
 
 SECURITY_HEADERS = ("strict-transport-security", "content-security-policy", "x-frame-options",
@@ -401,11 +395,13 @@ def read(scheme: str, host: str, ua: str, budget: Budget | None = None) -> dict:
         return unread(plain(str(why)), "unreachable")
     except Spent:
         return unread("it redirected too often", "error")
-    if challenged(home):
-        return unread("a bot challenge (for example Cloudflare's \"Just a moment\") answered "
-                      "instead of the page", "blocked")
-    if home.status in BLOCKED:
-        return unread(f"the home page answered {home.status}", "blocked")
+    block = blocker(home, host_of(home.url) or host)
+    if block:
+        out = unread({"challenge": "a bot challenge answered instead of the page",
+                      "password": f"the home page answered {home.status} (it asks for a password)",
+                      "denied": f"the home page answered {home.status}"}[block["kind"]], "blocked")
+        out["block"] = block
+        return out
     if not 200 <= home.status < 300:
         return unread(f"the home page answered {home.status}", "error")
     pg = page_of(home)

@@ -11,7 +11,7 @@
   }
  },
  "expect": {
-  "summary": "Your site runs Webflow behind Cloudflare. Nothing to do now, 2 tips.",
+  "summary": "Your site runs Webflow, behind Cloudflare. Nothing to do now, 2 tips.",
   "cards": [
    [
     "tip",
