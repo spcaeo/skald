@@ -60,7 +60,7 @@ from __future__ import annotations
 
 import bisect
 from collections import Counter
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
 from .classify import CRAWLER_SESSION, NOT_RENDERED, PROBE, PROBE_QUERY, TOO_FAST, Group
@@ -150,42 +150,64 @@ class Runs:
     rule). Every request is kept and the episodes are worked out at the end over the
     address's requests sorted by (time, status, path, pair): never in the order lines
     arrive, which a real log does not keep (nginx writes at the answer's end; shippers
-    merge files). An episode's end is its latest time."""
+    merge files). An episode's end is its latest time.
+
+    Kept per request: only what an episode reads, (UTC seconds, status class, path, pair),
+    so the natural tuple order is the sort order. An address with fewer requests than
+    the threshold can hold no episode and is never sorted; the episodes are worked out
+    once and kept until the next request is added."""
 
     def __init__(self, need: int, seconds: int) -> None:
         self.need, self.span = need, float(seconds)
         self.per: dict[str, list] = {}
+        self._done: list | None = None
 
     def add(self, address: str, when, item: tuple) -> None:
-        self.per.setdefault(address, []).append((_utc(when).timestamp(), when, item))
+        self._done = None
+        got = self.per.get(address)
+        if got is None:
+            got = self.per[address] = []
+        got.append((_utc(when).timestamp(), item[0], item[1], item[2]))
 
     def episodes(self) -> list[tuple[str, list]]:
+        if self._done is None:
+            self._done = self._episodes()
+        return self._done
+
+    def _episodes(self) -> list[tuple[str, list]]:
         out = []
+        need, span = self.need, self.span
         for address, got in self.per.items():
-            if len(got) < self.need:
+            if len(got) < need:
                 continue
-            got.sort(key=lambda e: (e[0], e[2][0], e[2][1], e[2][2]))
+            got.sort()
             stamps = [e[0] for e in got]
             marks = [0] * (len(got) + 1)
             for k, t in enumerate(stamps):
-                j = bisect.bisect_left(stamps, t - self.span)
-                if k - j + 1 >= self.need:
+                if k + 1 < need:
+                    continue            # fewer than `need` requests up to here
+                j = bisect.bisect_left(stamps, t - span, 0, k + 1)
+                if k - j + 1 >= need:
                     marks[j] += 1
                     marks[k + 1] -= 1
             on, last, ep = 0, None, None
-            for k, (t, when, it) in enumerate(got):
+            for k, (t, status, path, pair) in enumerate(got):
                 on += marks[k]
                 if on <= 0:
                     continue
-                if ep is None or t - last > self.span:
-                    ep = [_utc(when), _utc(when), 0, Counter(), Counter(), Counter()]
+                if ep is None or t - last > span:
+                    ep = [t, t, 0, Counter(), Counter(), Counter()]
                     out.append((address, ep))
-                ep[1] = max(ep[1], _utc(when))
+                if t > ep[1]:
+                    ep[1] = t
                 ep[2] += 1
-                ep[3][it[0]] += 1          # status class
-                ep[4][it[1]] += 1          # path
-                ep[5][it[2]] += 1          # pair
+                ep[3][status] += 1
+                ep[4][path] += 1
+                ep[5][pair] += 1
                 last = t
+        for _, ep in out:                 # the start and end as times, once each
+            ep[0] = datetime.fromtimestamp(ep[0], timezone.utc)
+            ep[1] = datetime.fromtimestamp(ep[1], timezone.utc)
         return out
 
 

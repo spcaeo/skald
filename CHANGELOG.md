@@ -2,6 +2,48 @@
 
 All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versioning](https://semver.org).
 
+## 2.22.3 (2026-10-22)
+
+### Fixed
+
+- **`audit --live` no longer fails on an old Real time request count.** The helper saves its
+  last 15-second count (`live-<site>-tail.json`) only while someone has Real time open, and
+  the live audit recounted that window from the raw log whenever it ran. Lines whose time was
+  inside the old window but that reached the log later (a log shipper's lag) made the recount
+  larger: on docomatic.ai on 2026-10-22 a count from 20:52 UTC read "the helper counted 14,
+  the recount finds 18" four hours later, and `audit --live` failed for that site on every run
+  since. The count is now compared only when its end is at most 5 minutes
+  (`audit_realtime.FRESH_MINUTES`) before the live snapshot's own end; an older one is printed
+  as "real time requests (15-second count): skipped (snapshot from HH:MM UTC, older than 5
+  minutes)", never as a mismatch and never silently. A fresh one is still compared exactly:
+  the log records when a request was made, not when its line arrived, so late lines cannot be
+  told apart and freshness is the rule (module docstring, `docs/DATA-CONTRACT-REALTIME.md`,
+  help "Real time"). Who it affects: every install running `audit --live`, most on sites
+  whose logs are shipped. What to do: nothing. Checked: `tests/test_realtime.py` (a stale tail
+  missing a late line is skipped with its time and exits 0; a fresh one is still compared and
+  a fresh mismatch still fails; the rule at its edges, a day old and newer than the snapshot).
+- **The live run is about twice as fast, with every figure unchanged.** `test_live.TestLiveCost`
+  ("a busy log is read quickly") reached its 15 s limit on GitHub CI on 2026-10-21 (15.1 and
+  15.2 s), and the server's live run took 56 s for six sites. Measured on that test's busy log
+  before changing anything: 6.5 s here, 0.9 s at 2.12.0 and 6.2 s at 2.13.0, so the jump came
+  with 2.13's "yesterday at this hour" (it tallies yesterday up to the same time on every live
+  run), not with 2.21's Security: switching Security's collector off saved about 0.2 s. The
+  profile showed the cost in a few per-request repeats, now each worked out once:
+  `classify.FanOut` ran two case-insensitive alternations per request on the user agent
+  (about a quarter of the run), now once per agent; the link-preview list (18 patterns) joins
+  the classifier's per-agent cache; `Hit.is_page` keeps its answer apart from `repeat`; the
+  parser skips the `rsc_prefetch=`, `request_length=` and `rid=` searches on lines without
+  them; a tally no longer builds a fresh `GroupStats` (a dozen Counters) on every request to
+  find an existing one. Security's episodes (`security.Runs`) keep per request only what an
+  episode reads (time, status class, path, pair), sort each address once by plain tuple order,
+  skip addresses under the threshold, and are worked out once instead of twice. The audit's
+  road is untouched. Result: 6.5 s to 3.4 s for the test's live run here. Who it affects:
+  every install's live run. What to do: nothing. Checked: the full suite; every stored figure,
+  both audits' outputs and the live snapshot equal before and after on Security's day, the
+  order test's day (sorted and shuffled), an ordinary day and the busy log (both roads); a new
+  test compares `Runs` with the rule read plainly on shuffled synthetic days
+  (`tests/test_security_order.py`).
+
 ## 2.22.2 (2026-10-22)
 
 ### Fixed

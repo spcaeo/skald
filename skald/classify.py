@@ -656,7 +656,8 @@ class Classifier:
     AGENT_CACHE_LIMIT = 50_000
 
     def _agent(self, agent: str) -> tuple:
-        """(ours label or "", asked, training, search, other_bot, browser)."""
+        """(ours label or "", asked, training, search, other_bot, browser,
+        link-preview app or "")."""
         facts = self._agents.get(agent)
         if facts is None:
             if len(self._agents) >= self.AGENT_CACHE_LIMIT:
@@ -673,6 +674,7 @@ class Classifier:
                 bool(OTHER_BOT.search(agent))
                 or bool(COMPATIBLE.search(agent) and not ENGINE.search(agent)),
                 bool(BROWSER.search(agent)),
+                link_preview(agent),
             )
             self._agents[agent] = facts
         return facts
@@ -755,7 +757,7 @@ class Classifier:
         legacy = False
         if probing and self.legacy and any(hit.path.startswith(p) for p in self.legacy):
             probing, legacy = False, True
-        ours, asked, training, search, other_bot, browser = self._agent(agent)
+        ours, asked, training, search, other_bot, browser, preview = self._agent(agent)
 
         # An OURS verdict carries the matching rule's label as its engine.
         if ours:
@@ -781,7 +783,6 @@ class Classifier:
             tier = Tier.ASKED if asked else Tier.TRAINING
             return Verdict(Group.ANSWER_ENGINE, tier, named, probing, checked, legacy=legacy)
 
-        preview = link_preview(agent)
         if preview:
             return Verdict(Group.BOTS, engine=LINK_PREVIEW + preview, probe=probing,
                            legacy=legacy)
@@ -867,10 +868,18 @@ class FanOut:
 
     def __init__(self) -> None:
         self.seen: dict[str, list] = {}
+        self._browser: dict[str, bool] = {}    # agent -> browser-like (asked once each)
 
     def __call__(self, hit: Hit) -> None:
         agent = hit.user_agent
-        if agent and BROWSER.search(agent) and not OTHER_BOT.search(agent):
+        if not agent:
+            return
+        like = self._browser.get(agent)
+        if like is None:
+            like = bool(BROWSER.search(agent)) and not OTHER_BOT.search(agent)
+            if len(self._browser) < Classifier.AGENT_CACHE_LIMIT:
+                self._browser[agent] = like
+        if like:
             self.seen.setdefault(agent, []).append((hit.when, hit.address))
 
     def pairs(self) -> set[tuple[str, str]]:

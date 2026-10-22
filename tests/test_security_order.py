@@ -7,6 +7,7 @@ from __future__ import annotations
 import random
 import sys
 import unittest
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -89,6 +90,86 @@ class Order(unittest.TestCase):
         back = run(reversed(range(320)))
         self.assertEqual(straight, back)
         self.assertEqual((straight["episodes"], straight["rows"][0]["end"]), (1, "2026-10-05T08:00:53+00:00"))
+
+
+def reference(rows: list, need: int, seconds: float) -> list:
+    """The episode rule read straight from the module's words, slowly: a request is in an
+    episode when some window [T - seconds, T] that holds it holds `need` requests or more;
+    an address's such requests, in (time, status, path, pair) order, are one episode while
+    each follows the one before within `seconds`. Each episode as (address, start, end,
+    requests, status classes, paths, pairs)."""
+    out = []
+    for address in sorted({r[0] for r in rows}):
+        got = sorted((r[1], r[2], r[3], r[4]) for r in rows if r[0] == address)
+        stamps = [g[0] for g in got]
+        marked = [any(end - seconds <= t <= end and
+                      sum(1 for s in stamps if end - seconds <= s <= end) >= need
+                      for end in stamps)
+                  for t in stamps]
+        episode = None
+        for g, on in zip(got, marked):
+            if not on:
+                continue
+            if episode is None or g[0] - episode[2] > seconds:
+                episode = [address, g[0], g[0], 0, Counter(), Counter(), Counter()]
+                out.append(episode)
+            episode[2] = g[0]
+            episode[3] += 1
+            episode[4][g[1]] += 1
+            episode[5][g[2]] += 1
+            episode[6][g[3]] += 1
+    return sorted((a, datetime.fromtimestamp(s, UTC).isoformat(timespec="seconds"),
+                   datetime.fromtimestamp(e, UTC).isoformat(timespec="seconds"), n,
+                   sorted(st.items()), sorted(pa.items()), sorted(pr.items()))
+                  for a, s, e, n, st, pa, pr in out)
+
+
+class Reference(unittest.TestCase):
+    """2.22.2: Runs keeps only what an episode reads and sorts each address once; its
+    episodes equal the plain reading of the rule on a shuffled synthetic day."""
+
+    def synthetic(self, seed: int) -> list:
+        rnd = random.Random(seed)
+        rows = []
+        for a in range(8):
+            address = f"198.51.100.{30 + a}"
+            for _ in range(rnd.randint(0, 3)):            # a few dense runs, with ties
+                start = rnd.uniform(0, 86_000)
+                for _ in range(rnd.randint(2, 40)):
+                    rows.append((address, start + rnd.choice((0, 0.5, 1, rnd.uniform(0, 12)))))
+            for _ in range(rnd.randint(0, 60)):            # and scattered requests
+                rows.append((address, rnd.uniform(0, 86_400)))
+        out = []
+        for address, offset in rows:
+            out.append((address, (T + timedelta(seconds=round(offset, 3))).timestamp(),
+                        rnd.choice(("2xx", "4xx", "5xx")), rnd.choice(("/", "/login", "/a")),
+                        (address, rnd.choice(AGENTS))))
+        rnd.shuffle(out)
+        return out
+
+    def test_the_same_episodes_as_the_rule_read_plainly(self):
+        for seed in range(1, 7):
+            for need, seconds in ((5, 10), (12, 30), (3, 1)):
+                rows = self.synthetic(seed)
+                runs = security.Runs(need, seconds)
+                for address, ts, status, path, pair in rows:
+                    runs.add(address, datetime.fromtimestamp(ts, UTC), (status, path, pair))
+                got = sorted((a, ep[0].isoformat(timespec="seconds"),
+                              ep[1].isoformat(timespec="seconds"), ep[2],
+                              sorted(ep[3].items()), sorted(ep[4].items()),
+                              sorted(ep[5].items())) for a, ep in runs.episodes())
+                self.assertEqual(got, reference(rows, need, seconds), f"seed {seed}, {need}/{seconds}s")
+                self.assertIs(runs.episodes(), runs.episodes(), "worked out once")
+        self.assertTrue(any(reference(self.synthetic(s), 5, 10) for s in range(1, 7)),
+                        "the synthetic days hold episodes")
+
+    def test_an_address_under_the_threshold_holds_no_episode(self):
+        runs = security.Runs(20, 300)
+        for i in range(19):
+            runs.add("198.51.100.40", T + timedelta(seconds=i), ("4xx", "/login", ("198.51.100.40", "x")))
+        self.assertEqual(runs.episodes(), [])
+        runs.add("198.51.100.40", T + timedelta(seconds=19), ("4xx", "/login", ("198.51.100.40", "x")))
+        self.assertEqual([ep[2] for _, ep in runs.episodes()], [20], "a new request: worked out again")
 
 
 class Midnight(unittest.TestCase):

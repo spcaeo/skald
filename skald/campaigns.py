@@ -96,7 +96,9 @@ def aggregate(journeys: list[dict], top: int = 50) -> dict:
     for j in journeys:
         tagged_n += tagged(j)
         for d, name in _names(j).items():
-            row = per[d].setdefault(name, Counter())
+            row = per[d].get(name)
+            if row is None:
+                row = per[d][name] = Counter()
             row["visits"] += 1
             row["pages"] += int(j.get("pages", 0))
             row["not_found"] += 1 if j.get("not_found") else 0

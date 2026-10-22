@@ -191,6 +191,50 @@ class TestAudit(Case):
         self.assertEqual(code, 1)
         self.assertIn("15-second count", err)
 
+    def tail(self, at: datetime, late: int = 0) -> None:
+        """The helper's tail as read at `at`, missing `late` lines that reached the
+        log after it (a shipper's lag): the recount finds them in its window."""
+        got = realtime_tail.requests_now(self.config(), at)
+        got["per_minute"][str(int(m(10).timestamp()) // 60)] -= late
+        got["total"] -= late
+        realtime_tail.tail_path(self.box.root, "example.com").write_text(json.dumps(got))
+
+    def test_a_stale_tail_is_skipped_and_said_never_a_mismatch(self):
+        # 2.22.2: a tail written hours before the audit (only while Real time is open)
+        # is judged against lines that arrived since; it is skipped, and the audit says so.
+        self.live()
+        self.tail(m(6), late=1)
+        code, out, err = self.audit()
+        self.assertEqual(code, 0, err)
+        self.assertIn("15-second count): skipped (snapshot from 11:54 UTC, older than 5 minutes)", out)
+        self.assertNotIn("15-second count", err)
+
+    def test_a_fresh_tail_is_still_compared(self):
+        self.live()
+        self.tail(m(5))
+        code, out, err = self.audit()
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("skipped", out)
+        self.tail(m(5), late=1)
+        code, out, err = self.audit()
+        self.assertEqual(code, 1, "a fresh tail that differs still fails")
+        self.assertIn("15-second count", err)
+        self.assertNotIn("skipped", out)
+
+    def test_the_freshness_rule(self):
+        from skald import audit_realtime as A
+        answer = {"until": m(A.FRESH_MINUTES).isoformat()}
+        self.assertIsNone(A.stale(answer, NOON))
+        self.assertIsNone(A.stale({"until": (NOON + timedelta(minutes=1)).isoformat()}, NOON),
+                          "a tail newer than the snapshot is fresh")
+        old = A.stale({"until": (NOON - timedelta(days=1, minutes=1)).isoformat()}, NOON)
+        self.assertIn("snapshot from 2026-10-06 11:59 UTC", old)
+        said = []
+        self.live()
+        self.tail(m(6), late=1)
+        got = A.live_tail(self.config(), self.box.root, "example.com", end=NOON, say=said.append)
+        self.assertEqual((got, len(said)), (([], 0), 1))
+
     def config(self):
         from skald.config import load_config
         return load_config(self.box.config)

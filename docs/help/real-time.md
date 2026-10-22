@@ -81,7 +81,7 @@ Real time always covers the whole site. On a page group, a note says so.
 
 ## How the figures are checked
 
-Every Real time figure is counted a second time from the raw log lines by `skald audit --live`, which also recounts the last 15-second request count and yesterday at this hour. If the second count of today's figures disagrees, today's figures are withheld and Real time shows no visitor figures until they match; the request count stays, because it is a plain count of log lines.
+Every Real time figure is counted a second time from the raw log lines by `skald audit --live`, which also recounts the last 15-second request count and yesterday at this hour. If the second count of today's figures disagrees, today's figures are withheld and Real time shows no visitor figures until they match; the request count stays, because it is a plain count of log lines. The 15-second count is recounted only when it is less than 5 minutes older than today's figures: Skald saves it only while someone has Real time open, and lines that reach the log late (from a log shipper, say) would make an old count look wrong. An older one is reported as skipped, with its time.
 
 ## In the demo
 

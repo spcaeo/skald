@@ -162,7 +162,10 @@ class Totals:
     last: object = None
 
     def group(self, which: Group) -> GroupStats:
-        return self.groups.setdefault(which, GroupStats())
+        got = self.groups.get(which)      # not setdefault: a GroupStats per hit is costly
+        if got is None:
+            got = self.groups[which] = GroupStats()
+        return got
 
 
 class _Sessions:
@@ -367,8 +370,11 @@ class Tally:
             # Not a READER_DIMS dimension: only where a city file is set, and
             # stored apart (people_city_visits), so days before it still sum.
             labels["city"] = self.cities(hit.address, hit.country) or UNKNOWN
+        by = stats.by
         for name, value in labels.items():
-            stats.by.setdefault(name, Counter())[value] += 1
+            if name not in by:
+                by[name] = Counter()
+            by[name][value] += 1
         self.visit_cube[(labels["country"], labels["landing"], labels["source"],
                          verdict.engine if cited else "", labels["device"], labels["browser"],
                          labels["os"], labels["campaign"])] += 1
