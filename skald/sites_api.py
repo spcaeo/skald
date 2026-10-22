@@ -21,9 +21,10 @@ with `access.mode: sessions` (404 otherwise), the way team_api.py is:
                        admin runs `skald site purge <name>`
   POST sites/verify    {name}: look for the site's verification token (DNS
                        TXT or the home page's meta tag, site_verify.py)  admin
-  GET  sites/status, POST sites/kit, POST sites/setup, POST sites/detect:
-                       Settings > Connections and the "Add a site" wizard
-                       (connections_api.py; detect: the site check)    admin
+  GET  sites/status, POST sites/kit, POST sites/setup, POST sites/detect,
+  POST sites/tagcheck: Settings > Connections and the "Add a site" wizard
+                       (connections_api.py; detect: the site check;
+                       tagcheck: the script tag's page check)          admin
   POST sites/share, GET sites/shares, POST sites/unshare: "Share with your
                        developer" links (share_api.py)                 admin
 
@@ -52,7 +53,7 @@ from .auth_api import answer, csrf_ok, read_json, text
 from .config import site_name
 
 PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
-PATH = re.compile(PAGE + r"(?P<act>sites(?:/(?:add|token|remove|verify|status|kit|setup|detect"
+PATH = re.compile(PAGE + r"(?P<act>sites(?:/(?:add|token|remove|verify|status|kit|setup|detect|tagcheck"
                          r"|share|shares|unshare))?)$")
 GETS = ("sites", "sites/status", "sites/shares")
 ADMIN = ("owner", "admin")
@@ -137,15 +138,21 @@ def _base(config, allowed) -> str:
     return str(raw or "https://<this server>").rstrip("/")
 
 
+def _tag_base(c) -> str:
+    from .integrations_api import _origin
+    return _origin(c)
+
+
 def ship_command(config, allowed, site: str) -> str:
     return (f"skald-ship --url {_base(config, allowed)}{ingest.PREFIX}{site} "
             f"--token-file {SHIP_TOKEN_FILE} --log /var/log/nginx/access.log")
 
 
-def tag(site: str) -> str:
+def tag(site: str, base: str = "") -> str:
     # The path the beacon helper serves the tag on (beacon_server.SNIPPET_PATH),
-    # on the site's own host: its web server forwards it to this install.
-    return f'<script src="/traffic-js/skald.js" data-site="{site}" defer></script>'
+    # on this install's address (integrations_api._origin): the page loads it
+    # from here and posts its events here too. No change on the site's server.
+    return f'<script src="{base}/traffic-js/skald.js" data-site="{site}" defer></script>'
 
 
 class Ctx:
@@ -285,7 +292,7 @@ def add(c: Ctx, form):
     first_page.start(c.out, name, c.config_path)    # its page is there at once, not a 404
     return c.ok(site=name, token=token, log_dir=str(folder),
                 ingest_url=f"{_base(c.config, c.allowed)}{ingest.PREFIX}{name}",
-                ship_command=ship_command(c.config, c.allowed, name), tag=tag(name),
+                ship_command=ship_command(c.config, c.allowed, name), tag=tag(name, _tag_base(c)),
                 token_file=SHIP_TOKEN_FILE, verify=site_verify.shown(c.db, name))
 
 
@@ -360,5 +367,6 @@ def _more(name):
 ROUTES = {"sites": listing, "sites/add": add, "sites/token": new_token, "sites/remove": remove,
           "sites/verify": verify, "sites/status": _more("status"), "sites/kit": _more("kit_zip"),
           "sites/setup": _more("setup"), "sites/detect": _more("detect"),
+          "sites/tagcheck": _more("tag_check"),
           "sites/share": _share("share"),
           "sites/shares": _share("shares"), "sites/unshare": _share("unshare")}

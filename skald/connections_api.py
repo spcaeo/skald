@@ -19,6 +19,11 @@ role and CSRF checks; every route here is for an owner or admin):
        With `name`, a site of the organisation with set-up progress, the
        facts are kept in that progress too (no progress row is made).
 
+  POST sites/tagcheck {site}: the script tag's set-up Test, when nothing
+       arrived: Skald reads the site's home page (tag_check.py, by site_fetch's
+       safe rules) and says what is wrong -> {check: {state, words, fix, facts}}.
+       Limited like sites/detect, under its own keys.
+
 They live under sites/ so the nginx route every install already has
 (`sites(?:/[a-z]+)?`) reaches them. `extras` adds to the GET sites answer
 what the Connections page needs: the kit's availability, the API and MCP
@@ -225,6 +230,44 @@ def detect(c, form):
         use = (row.get("found") or {}).get("use") is not False
         site_setup.save(c.db, c.org["id"], name, c.uid, found={**found, "use": use})
     return c.ok(found=found)
+
+
+# -------------------------------------------------------- the tag's page
+
+def beacon_origins(config, config_path, site: str) -> set[str]:
+    """The Origins the beacon helper takes for `site`, as beacon_server.Sites
+    builds them: the first site's beacon.origins, a dashboard site's
+    https://<each host>."""
+    from . import beacon, settings_store
+    from .config import setting, site_name
+    if site == site_name(config or {}):
+        got = setting(config, "beacon", "origins") or []
+        return {got} if isinstance(got, str) else {str(o) for o in got if o}
+    own = ingest.site_configs(config, config_path).get(site)
+    if own is None:
+        return set()
+    return {f"https://{h}" for h in beacon.own_hosts(settings_store.apply(own, site))}
+
+
+def tag_check(c, form):
+    """The set-up Test's look at the site's home page when nothing from the
+    tag arrived (tag_check.py). Admins only; rate-limited as the site check."""
+    from . import tag_check as tc
+    from .accounts import limits
+    from .integrations_api import _origin
+    site = _site(c, text(form, "site", 200))
+    if site is None:
+        return c.no(404, "There is no such site in this organisation.")
+    if not beacon_on(c.config):
+        return c.no(409, "The script tag is switched off on this server.")
+    mine, theirs = f"tag-check:user:{c.uid}", f"tag-check:host:{site}"
+    if limits.too_many(c.db, mine, limit=DETECT_PER_ADMIN, minutes=60):
+        return c.no(429, "Too many page checks. Try again in an hour.")
+    if limits.too_many(c.db, theirs, limit=DETECT_PER_TARGET, minutes=10):
+        return c.no(429, f"{site} was checked many times just now. Try again in a few minutes.")
+    limits.note_failure(c.db, mine)
+    limits.note_failure(c.db, theirs)
+    return c.ok(check=tc.check(site, beacon_origins(c.config, c.config_path, site), _origin(c)))
 
 
 # ---------------------------------------------------- the GET sites extras

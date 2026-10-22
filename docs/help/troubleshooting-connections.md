@@ -120,7 +120,20 @@ When you chose **Only the script tag**:
 | Waiting for the first event. | Open a page of the site in a normal browser window, with Do Not Track and Global Privacy Control off |
 | The script tag is switched off on this server. | Ask whoever runs your Skald server to turn it on |
 
-In the browser's developer tools, Network panel, a request to `/traffic-beacon` answered 204 or 202 means the tag works. 403 means the page's host is not one of the site's host names. 404 means the two addresses are not passed on to Skald. See [The tracking script](tracking-script.md).
+While nothing has arrived, the Test also looks at your home page and says what it found there:
+
+| What Skald found on your home page | What to do |
+| --- | --- |
+| The tag is on your page, and its events go to ..., which reaches Skald. | The page is right. Test in a normal browser window without an ad blocker. A browser that opened the site in the last day may still run the older script: empty its cache or use a private window |
+| The tag is not on your home page. | Add the line from step 2 to the `<head>` of every page, then publish |
+| The tag is not in the HTML ... The page loads Google Tag Manager. | Publish the Tag Manager container, with the tag firing on All Pages |
+| The tag is on your page but posts to www.example.com/traffic-beacon, which answers 308. | An older tag or script that posts to your own site. Copy the tag again from step 2, or pass `/traffic-beacon` on to Skald from your server |
+| ... its script answers 404. | You serve the tag from your own domain, and your server does not pass `/traffic-js/` on to Skald. Use the tag from step 2, or add the lines in "Advanced: serve it from your own domain" |
+| Your page is at ..., which is not one of the site's host names. | Add that host name in Settings > Sites |
+| ... Content-Security-Policy does not let it send to ... | Add your Skald server's address to `connect-src` |
+| Skald could not open ... | Check the address opens in a browser |
+
+In the browser's developer tools, Network panel, a request to `traffic-beacon` answered 204 or 202 means the tag works. 403 means the page's host is not one of the site's host names. A request to your own site's `/traffic-beacon` answered 308, 404 or 405 means an older tag or script. See [The tracking script](tracking-script.md).
 
 ## What the API test says
 

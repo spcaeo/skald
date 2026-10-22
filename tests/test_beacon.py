@@ -126,9 +126,13 @@ class Server(unittest.TestCase):
     def test_origin_rules(self):
         self.assertEqual(self.post(origin=None), 403)
         self.assertEqual(self.post(origin="https://evil.example"), 403)
-        self.assertEqual(self.post(**{"Sec-Fetch-Site": "cross-site"}), 403)
+        self.assertEqual(self.post(**{"Sec-Fetch-Site": "none"}), 403)
+        self.assertEqual(self.post(origin="https://evil.example", **{"Sec-Fetch-Site": "cross-site"}),
+                         403)
         self.assertEqual(self.post(**{"Sec-Fetch-Site": "same-origin"}), 204)
-        self.assertEqual(len(self.lines()), 1)
+        # The plain tag posts to Skald directly: cross-site, the site's own Origin (2.24.0)
+        self.assertEqual(self.post(**{"Sec-Fetch-Site": "cross-site"}), 204)
+        self.assertEqual(len(self.lines()), 2)
 
     def test_body_rules(self):
         self.assertEqual(self.post(b"x" * 2000), 413)

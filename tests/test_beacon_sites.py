@@ -116,6 +116,82 @@ class TwoSites(unittest.TestCase):
         self.assertTrue(callable(handler))
 
 
+class Direct(TwoSites):
+    """The plain tag loads skald.js from Skald, so its pages post to Skald
+    directly: cross-site, with the page's own Origin. Taken only for an Origin
+    in the map, answered with CORS for that Origin."""
+
+    def direct(self, origin, fetch_site="cross-site", raw=None):
+        h = {"Content-Type": "text/plain", "Sec-Fetch-Site": fetch_site}
+        if origin:
+            h["Origin"] = origin
+        return self.call("POST", "/traffic-beacon", raw or body(), **h)
+
+    def test_a_cross_site_post_goes_to_that_site_s_spool(self):
+        status, headers, _ = self.direct(SECOND)
+        self.assertEqual(status, 204)
+        self.assertEqual(headers.get("X-Skald-Site"), "second.example.net")
+        self.assertEqual(headers.get("Access-Control-Allow-Origin"), SECOND)
+        self.assertEqual(headers.get("Vary"), "Origin")
+        self.assertNotIn("Access-Control-Allow-Credentials", headers)
+        today = self.first.now().date()
+        self.assertEqual(len(beacon.read_day(self.second.spool, today)), 1)
+        self.assertEqual(beacon.read_day(self.first.spool, today), [])
+        # www. posting to app. of the same site is same-site: taken too
+        status, headers, _ = self.direct(FIRST, "same-site")
+        self.assertEqual((status, headers.get("Access-Control-Allow-Origin")), (204, FIRST))
+        self.assertEqual(len(beacon.read_day(self.first.spool, today)), 1)
+
+    def test_other_origins_and_no_origin_are_refused(self):
+        for origin in ("https://elsewhere.example.org", "http://second.example.net",
+                       "https://second.example.net.example.org", "null", None):
+            status, headers, _ = self.direct(origin)
+            self.assertEqual(status, 403, origin)
+            self.assertNotIn("Access-Control-Allow-Origin", headers)
+        status, _, _ = self.direct(SECOND, "none")        # not a page's post
+        self.assertEqual(status, 403)
+        status, _, _ = self.direct(SECOND, "elsewhere")
+        self.assertEqual(status, 403)
+        today = self.first.now().date()
+        self.assertEqual(beacon.read_day(self.second.spool, today), [])
+
+    def test_refusals_for_a_known_origin_still_say_cors_and_keep_their_rules(self):
+        status, headers, _ = self.direct(SECOND, raw=b"x" * 2000)
+        self.assertEqual((status, headers.get("Access-Control-Allow-Origin")), (413, SECOND))
+        status, _, _ = self.direct(SECOND, raw=body(e="nope"))
+        self.assertEqual(status, 400)
+
+    def test_no_preflight_and_the_probe(self):
+        status, headers, _ = self.call("OPTIONS", "/traffic-beacon", Origin=SECOND)
+        self.assertEqual(status, 405)
+        self.assertNotIn("Access-Control-Allow-Origin", headers)
+        status, headers, _ = self.call("POST", "/traffic-beacon", b"", **{"X-Skald-Probe": "1"})
+        self.assertEqual((status, headers.get("X-Skald-Beacon")), (200, "1"))
+        self.assertNotIn("X-Skald-Site", headers)
+        today = self.first.now().date()
+        self.assertEqual(beacon.read_day(self.first.spool, today), [])
+        self.assertEqual(self.first.stats, {}, "a probe is not counted, not even as refused")
+
+    def test_direct_and_proxied_posts_are_counted_once_each_by_both_roads(self):
+        """nginx logs each answer once, with the site the helper named: the
+        audit's count of 204s matches the spool, whichever way a post came."""
+        answers = [self.direct(SECOND), self.post(SECOND),             # direct, then proxied
+                   self.direct(SECOND, raw=body(e="tel_click")), self.direct(FIRST),
+                   self.direct("https://elsewhere.example.org"), self.direct(SECOND, "none")]
+        at = datetime.now(timezone.utc).isoformat()
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "skald-beacon.log"
+            log.write_text("".join(f"{at} {s} {h.get('X-Skald-Site', '-')}\n"
+                                   for s, h, _ in answers))
+            start = datetime.now(timezone.utc) - timedelta(hours=1)
+            end = start + timedelta(hours=2)
+            nginx = events.count_answered([log], start, end, "second.example.net", False)
+        today = self.second.now().date()
+        people, ours, _, _ = events.recount_spool(beacon.day_file(self.second.spool, today))
+        self.assertEqual(nginx, 3)
+        self.assertEqual(sum(people.values()) + sum(ours.values()), 3)
+
+
 class AnsweredPerSite(unittest.TestCase):
 
     def test_nginx_answers_are_counted_per_site(self):

@@ -1,17 +1,20 @@
-/* Skald: docs/INTEGRATIONS.md "The script tag". First-party; never reads a field's value. */
+/* Skald: docs/INTEGRATIONS.md "The script tag". First-party ID; never reads a field's value. */
 ((w,d,n)=>{
+if((w.skald||0).on)return;// loaded twice
 var IDS=1,S=d.currentScript,L=location,H=history,Q=(w.skald&&w.skald.q)||[],LS,SS,T;
 try{LS=w.localStorage;SS=w.sessionStorage}catch{}
 if(n.doNotTrack=="1"||w.doNotTrack=="1"||n.globalPrivacyControl){w.skald=()=>null;return}
 var lc=s=>String(s||"").toLowerCase(),ga=(el,k)=>el.getAttribute(k),A=k=>S&&ga(S,"data-"+k),
 on=(t,e,f,c)=>t.addEventListener(e,f,c),bare=h=>lc(h).replace(/^www\./,""),
-END=A("endpoint")||"/traffic-beacon",SITE=lc(A("site")),ok=A("consent")!="required",
+END=A("endpoint")||ep(),SITE=lc(A("site")),ok=A("consent")!="required",
 SH=A("share-subdomains")=="true",LD=lc(A("link-domains")).split(/\s*,\s*/),K="skald.vid",
 vid,from,last,t0=Date.now(),seen=[],
 CAL={event_type_viewed:"open",date_and_time_selected:"time_selected",event_scheduled:"booked"},
 tok=v=>lc(v).replace(/[^a-z0-9_.:-]+/g,"_").replace(/^[^a-z0-9]+/,"").slice(0,60),
 ends=(h,m)=>!!m&&(h==m||h.slice(-m.length-1)=="."+m),OK=/^skv_[\w-]{22}$/,P=new URLSearchParams(L.search),IN=P.get("skv"),RH="";
 try{RH=lc(new URL(d.referrer).hostname)}catch{}
+// post beside the script
+function ep(m){m=S&&/^(https?:\/\/[^/]+)(.*)\/traffic-js\/[^/?#]*/.exec(S.src);return(m?(m[1]==L.origin?"":m[1])+m[2]:"")+"/traffic-beacon"}
 // ?skv=<id> from another of your domains: adopt it, drop it from the address
 if(OK.test(IN)&&(A("accept-id")=="true"||LD.some(m=>ends(RH,m)))){P.delete("skv");P+="";try{H.replaceState(H.state,"",L.pathname+(P&&"?"+P)+L.hash)}catch{}}else IN=0;
 // Cookie domain: data-site if it holds this host, else 2 labels (3 after co.uk etc)
@@ -70,6 +73,6 @@ new MutationObserver(()=>{clearTimeout(T);T=setTimeout(scan,50)}).observe(d.docu
 function api(c,a,b){if(c=="id")return id();
 if(c=="consent"){if(ok=!!a){pv();em()}else drop();return}
 if(c=="track")return go(tok(a),b&&b.id);go(tok(c),a)}
-w.skald=api;pv();Q.forEach(q=>api(...q));
+(w.skald=api).on=1;pv();Q.forEach(q=>api(...q));
 d.readyState=="loading"?on(d,"DOMContentLoaded",scan):em();
 })(window,document,navigator);

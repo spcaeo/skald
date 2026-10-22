@@ -51,6 +51,8 @@
 
 ## What's new
 
+- **2.24.0: the script tag just works** ([changelog](CHANGELOG.md#2240-2026-10-22)). No change on
+  your web server; the setup Test now says what's wrong when nothing arrives.
 - **2.23.0: Leads & sales opens on 7 days, and a sturdier morning run** ([changelog](CHANGELOG.md#2230-2026-10-22)).
   All time, "Today so far", one filter row with five fixes; the kit zip with or without its token.
 - **2.22.3: a faster live run** ([changelog](CHANGELOG.md#2223-2026-10-22)). About twice as fast,
@@ -66,20 +68,8 @@
   attempts, fake browsers, a block list, your stack with the October 2026 PHP and Node.js
   advisories, and alerts to your team. Every open view has its own link, and every URL has copy
   and open buttons.
-- **2.20.0 and 2.20.1: Leads & sales redone, and what visitors are doing now**
-  ([changelog](docs/CHANGELOG-2.14-2.20.md#2200-2026-10-21)). Every lead in one list (names and emails for owners
-  and admins), as a list, board, timeline or map; on Overview, the newest visitors and the pages
-  they read, live. An address that asks for secret or config files is a bot for the whole day.
-- **2.16.0 to 2.19.0: connecting a site, and leads you can check**
-  ([changelog](docs/CHANGELOG-2.14-2.20.md#2160-2026-10-21)). Settings > Connections and Add a site walk you
-  through each way in, with a **Test** at the end; Skald looks at the site first and suggests the
-  way. Pages opened inside a Next.js site count. Leads carry a label, a site's server marks its
-  own test leads, and a signed call checks Skald has every lead.
 
-Earlier: AI answers (2.14), a live Overview against yesterday at this hour, first touch, cities,
-Search Console and Bing, client reports, retention and crawl health (2.13), real time on a world
-map (2.11), what AI reads and costs (2.10). [Full changelog](CHANGELOG.md) ·
-[All releases](https://github.com/spcaeo/skald/releases)
+Earlier releases: [CHANGELOG.md](CHANGELOG.md).
 
 ## Your analytics cannot see the new visitors
 

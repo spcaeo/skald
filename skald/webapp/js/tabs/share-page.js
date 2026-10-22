@@ -98,7 +98,7 @@ export async function draw(root, id) {
     ? h("section", { class: "s" }, h("h2", null, "Test"), h("p", null, "After the reload, open the site and click a link to another page. Then press Test: Skald looks at the log's newest lines every 5 seconds, for up to 2 minutes."),
       nextTest(() => getJSON(`${base}/status`)))
     : h("section", { class: "s" }, h("h2", null, "Test"),
-    testPanel(st, { statusOf: () => getJSON(`${base}/status`) }), troubleTable());
+    testPanel(st, { statusOf: () => getJSON(`${base}/status`), pageCheck: null }), troubleTable());   // the page check needs a session
   root.replaceChildren(...head, secretBox(info, base, (secret) => { if (info.task === "send") { st.token = secret; fill(); } }) || "",
     h("section", { class: "s" }, h("h2", null, "Steps"), stepsSlot), test,
     info.task === "send" ? steps("If something seems wrong on the server, run sudo bash check.sh from the kit, and send its last block to whoever gave you this link.") : "");

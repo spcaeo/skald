@@ -25,10 +25,10 @@ You need to be an admin of the site.
 The tag looks like this. Always copy yours from the page, because the address and site name are your own:
 
 ```
-<script src="https://www.example.com/traffic-js/skald.js" data-site="example.com" defer></script>
+<script src="https://skald.example.com/traffic-js/skald.js" data-site="example.com" defer></script>
 ```
 
-> The tag only works when your web server passes two addresses to Skald: `/traffic-js/skald.js` and `/traffic-beacon`. The person who runs your Skald server sets this up once.
+> Nothing changes on your web server. The page loads the tag from your Skald server and sends its events there. You can also serve it from your own domain (below).
 
 If the Integrations page is not in your Settings menu, your server does not use accounts, or you are not an admin. Ask the person who runs your Skald server for the tag.
 
@@ -43,7 +43,13 @@ Since Skald 2.9.0, every site on your Skald can use the tag, not only the first 
 
 ### A site on another server
 
-The tag sends events to the address of the page it is on. So when your site runs on a different server from Skald, that server must pass two addresses on to Skald: `/traffic-js/skald.js` and `/traffic-beacon`. Your developer or host sets this up once (a "reverse proxy" or "rewrite"). The tag then loads from your own site:
+The tag sends its events to the address it was loaded from. With the tag as Skald gives it, that is your Skald server, so a site on any server works with no change there. Skald takes an event only from a page on one of the site's own host names.
+
+Before Skald 2.24.0 the tag sent its events to the page's own address. If your browser's Network panel shows requests to your own site's `/traffic-beacon` answered 308, 404 or 405, the page still has an older tag or an older copy of the script: copy the tag again.
+
+### Serve it from your own domain (optional)
+
+Some ad blockers stop scripts that load from another address. To keep the tag on your own domain, your web server passes two addresses on to Skald: `/traffic-js/` and `/traffic-beacon`. Your developer or host sets this up once (a "reverse proxy" or "rewrite"). The tag then loads from your own site, and sends its events there:
 
 ```
 <script src="/traffic-js/skald.js" data-site="example.net" defer></script>
@@ -51,7 +57,7 @@ The tag sends events to the address of the page it is on. So when your site runs
 
 The person who runs your Skald server must also tell it to trust your site's server for the visitor's address. Without that, every visitor looks like one address, and the limit on events per visitor applies to all of them together. Skald uses the address only in memory and never keeps it.
 
-[Connections](#settings/api) > **Send this site's visits to Skald** > **Only the script tag** shows these steps for your site, with the nginx block filled in, and tests the tag. See [Connections](connections.md).
+The set-up dialog **Add the script tag**, step 2, has these lines for nginx, Apache and Caddy under **Advanced: serve it from your own domain**. [Connections](#settings/api) > **Send this site's visits to Skald** > **Only the script tag** shows them too, and tests the tag. See [Connections](connections.md).
 
 ## Options
 
@@ -193,12 +199,14 @@ With visitor IDs on, the tag adds the visitor ID to every Calendly embed and Cal
 
 An admin can also press **Test connection** in [Connections](#settings/api) > **Send this site's visits to Skald**, with **Only the script tag** chosen. It says whether a page opened with the tag and how many events were counted.
 
-If you know your browser's developer tools, open the Network panel. Each event is a request to `/traffic-beacon`. An answer of 204 means it was counted. An answer of 202 means it was taken and nothing was kept, which is normal for page views when visitor IDs are off.
+If you know your browser's developer tools, open the Network panel. Each event is a request to `traffic-beacon`, on your Skald server (or on your own site, if you serve the tag from there). An answer of 204 means it was counted. An answer of 202 means it was taken and nothing was kept, which is normal for page views when visitor IDs are off.
 
 ### If nothing shows
 
 - The tag is not on the page: view the page's source and look for `skald.js`.
-- `/traffic-js/skald.js` does not load: the web server is not set up for it. Ask the person who runs your Skald server.
+- `skald.js` does not load: copy the tag again. If you serve it from your own domain, your web server does not pass `/traffic-js/` on to Skald yet.
+- Requests go to your own site's `/traffic-beacon` and are answered 308, 404 or 405: an older tag or script. Copy the tag again, or pass `/traffic-beacon` on to Skald.
+- Your page's Content-Security-Policy leaves your Skald server out of `connect-src`: the browser blocks every event. Add it.
 - Requests to `/traffic-beacon` are refused (403): the page's address is not on the server's list of allowed origins. For a site added from the dashboard, check that the page's exact host name (with or without `www.`) is in its **Host names** under **Settings > This site > Sites**.
 - Your browser sends Do Not Track or Global Privacy Control.
 - The tag waits for consent and your banner never calls `skald('consent', true)`.

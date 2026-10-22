@@ -39,7 +39,7 @@ function freshNote(slot) {
     h("p", null, `1. On the site's server, put the token in ${fresh.token_file} (readable by root and the shipper only).`),
     h("p", null, "2. Install tools/skald-ship.py as /usr/local/bin/skald-ship and start it (docs/INGEST.md has the systemd unit):"),
     copyable(fresh.ship_command, "the shipper command"),
-    fresh.tag ? h("p", null, "3. Optional, for in-page events: add this tag to the site's pages. The site's web server must pass /traffic-js/skald.js and /traffic-beacon on to this server (docs/INTEGRATIONS.md).") : null,
+    fresh.tag ? h("p", null, "3. Optional, for in-page events: add this tag to the site's pages. It loads from this server and sends its events here, so the site's web server needs no change (docs/INTEGRATIONS.md).") : null,
     fresh.tag ? copyable(fresh.tag, "the script tag") : null,
     h("div", { class: "acts" }, done))));
 }

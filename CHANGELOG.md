@@ -2,6 +2,75 @@
 
 All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versioning](https://semver.org).
 
+## 2.24.0 (2026-10-22)
+
+The script tag works with no change on the site's server: it posts its events to where it was
+loaded from, and Skald accepts them from the site's own hosts only. The setup Test checks the page
+and says what's wrong.
+
+### The plain script tag works with no change on the site's server
+
+- **The script tag posts to Skald itself.** *Seen:* twice on 2026-10-22 on the live install,
+  two client sites put the documented tag
+  (`<script src="https://<your Skald>/traffic-js/skald.js" data-site="..." defer>`) on their
+  pages; `skald.js` then posted every event to `/traffic-beacon` on the **page's own** address,
+  which only works when the site's server passes that path on to Skald. Without it the site
+  (Next.js) answered 308 or 405, nothing arrived, and the set-up dialog's Test waited forever.
+  *Changed:* with no `data-endpoint`, `skald.js` now posts beside the address it was loaded from
+  (`.../traffic-js/skald.js` gives `.../traffic-beacon`, same origin, same folder). Loaded from
+  Skald, it posts to Skald; loaded from the page's own `/traffic-js/skald.js` (the first-party
+  set-up), it posts to the page's own `/traffic-beacon` exactly as before. `data-endpoint` still
+  wins; a copy served from another folder posts to the page's own address, as before. The
+  visitor ID stays in the page's own storage (and the page's own cookie with
+  `data-share-subdomains`), unchanged. The tag on a page twice (a first-party copy and Skald's,
+  or Tag Manager plus the HTML) now runs once, so a page view is never sent twice. 6,132 bytes,
+  under the 6 KB budget.
+- **The beacon helper takes cross-site posts, safely.** A post is taken only when its `Origin` is
+  `https://<one of that site's hosts>` (the per-site map that already chose each site's spool;
+  the first site's `beacon.origins`); `Sec-Fetch-Site` may be `same-origin`, `same-site` or
+  `cross-site` only for such an Origin, never `none`. Any other Origin, `null` or none: 403 as
+  before. Answers to a known Origin carry `Access-Control-Allow-Origin: <that origin>` and
+  `Vary: Origin`, never `*` or credentials. The request stays CORS-simple (`sendBeacon` with a
+  `text/plain` Blob, or `fetch` with `keepalive`), so there is no preflight and `OPTIONS` stays
+  405. Rate limits, the 1 KB body, validation, Do Not Track and the bot rule are unchanged. A
+  direct post comes from the visitor's own address, so no proxy trust is needed for it. A post
+  with `X-Skald-Probe: 1` answers 200 with `X-Skald-Beacon: 1`, reads no body and counts
+  nothing (for the page check below).
+- **Add the script tag: the simple tag first, the first-party way folded.** Step 2 gives the
+  plain tag and says nothing changes on the web server; "Advanced: serve it from your own domain"
+  holds the nginx, Apache and Caddy lines and the first-party tag (fewer ad blockers stop it),
+  and that Skald must then trust that server for `X-Forwarded-For`. The same in Settings >
+  Connections' "Only the script tag", the developer's mail and the Add a site answer. Tag Manager
+  is listed under "Where it goes".
+- **The Test looks at the page.** While nothing from the tag has arrived, Test connection also
+  asks Skald to fetch the site's home page (`POST <page>/sites/tagcheck`, new
+  `tag_check.py`, by the site check's safe-fetch rules: public addresses only, at
+  most 3 redirects, 256 KB, no cookie) and says what is wrong in plain words: the tag missing (or
+  maybe inside Tag Manager), a page host that is not one of the site's host names (403), a
+  first-party script that does not load, a post address that answers 308, 404 or 405 ("The tag is
+  on your page but posts to www.example.com/traffic-beacon, which answers 308. Update to the
+  latest tag..."), or a Content-Security-Policy whose `connect-src` leaves Skald out. Admins only;
+  30 checks an hour per admin and 6 per site in 10 minutes. The shared developer page does not
+  run it (it needs a session).
+- *Who:* every site that uses the script tag. *What to do:* nothing for sites on the plain tag:
+  they start sending once this version is deployed (a browser that loaded the old `skald.js`
+  keeps it up to a day). First-party set-ups keep working unchanged. A site with a
+  Content-Security-Policy adds the Skald address to `connect-src`. Skald's own nginx needs no
+  change: the existing `location = /traffic-beacon` proxies the POST and passes the helper's
+  CORS headers through. *Counting:* unchanged: each event is still one request by one road, nginx
+  still logs each answer once with the site's name, and the audit's two counts match whichever
+  way a post came (tested). *Checked:* new tests: `skald.js` in a fake DOM (cross-origin,
+  same-origin, a folder, a copy elsewhere, `data-endpoint` overriding, `fetch` without
+  credentials, the tag twice), the helper (a cross-site post into that site's spool with CORS
+  headers; another Origin, `null`, no Origin and `Sec-Fetch-Site: none` refused; refusals keep
+  their rules; no preflight; the probe counts nothing; the audit's nginx and spool counts equal
+  for direct and proxied posts), the page check (each answer, the private-address refusal, the
+  probe carries no cookie) and its endpoint (admins only, 409 with the tag off), and the dialog
+  pieces in a fake DOM. Full suite OK.
+- *Docs:* `docs/BEACON.md` ("Where the tag posts"), `docs/INTEGRATIONS.md`, `docs/HOSTING.md`
+  (and its public copy), `docs/VERCEL.md`, the help guides (the tracking script, connections,
+  troubleshooting connections), and the client-site runbook.
+
 ## 2.23.0 (2026-10-22)
 
 Leads & sales opens on 7 days with All time and "Today so far"; one filter row with five filter

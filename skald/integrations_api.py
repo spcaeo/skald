@@ -239,7 +239,8 @@ def script(c: Ctx, site: str) -> dict:
                          "out of the address (without it: only from a data-link-domains "
                          "referrer)"},
                 {"attr": "data-endpoint", "value": "",
-                 "what": "post somewhere else on the same origin (default /traffic-beacon)"}]}
+                 "what": "post somewhere else (default: /traffic-beacon beside the script's "
+                         "own address, so this Skald for the tag above)"}]}
 
 
 def tools(c: Ctx, site: str, db) -> list[dict]:

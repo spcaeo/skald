@@ -88,7 +88,10 @@ signature (optional)".
 ## 5. Add the tag (any plan; the only source on Hobby)
 
 The tag adds what a log cannot see: forms, clicks, scroll depth and booking embeds such as
-Calendly. In your project's `vercel.json`:
+Calendly. Since 2.24.0 the plain tag needs nothing on Vercel: add
+`<script src="https://stats.example.com/traffic-js/skald.js" data-site="example.com" defer></script>`
+to every page and it posts to Skald directly. To serve it from your own domain instead (fewer
+ad blockers stop it), in your project's `vercel.json`:
 
 ```json
 {
@@ -100,7 +103,7 @@ Calendly. In your project's `vercel.json`:
 ```
 
 On Render, set `SKALD_BEACON_ORIGINS` to your site's address, e.g. `https://www.example.com`.
-Then add to every page (in Next.js, the root layout):
+Then, with the rewrites, add to every page (in Next.js, the root layout):
 
 ```html
 <script src="/traffic-js/skald.js" data-site="example.com" defer></script>
@@ -132,7 +135,7 @@ What it sends and what it never sends: [BEACON.md](BEACON.md) and the in-app gui
 | No traffic in Live after 10 minutes | Check the drain's Sources and Environments, and that `SKALD_HOSTS` lists the host names your site answers on. |
 | "Rejected: no visitor address" | Turn IP Address Visibility on in Vercel. |
 | The country cards are empty | Vercel's drain records carry no country, so Skald cannot show one. Not an error. |
-| The tag sends nothing | The rewrites are missing, or `SKALD_BEACON_ORIGINS` does not match your site's address. The browser's network tab shows `/traffic-beacon` answers. |
+| The tag sends nothing | `SKALD_BEACON_ORIGINS` (or the site's host names) does not match your site's address, or, with the first-party tag, the rewrites are missing. The browser's network tab shows the `traffic-beacon` answers; the set-up dialog's Test also looks at your page and says what is wrong. |
 
 More: [HOSTING.md](HOSTING.md) (every platform), [INGEST.md](INGEST.md) (log intake),
 [INSTALL.md](INSTALL.md) (all install ways).

@@ -420,8 +420,11 @@ variable. If Vercel asks for an `x-vercel-verify` answer header when you create 
 `vercel_verify: <the value Vercel shows>` beside it.
 
 **skald.js on Vercel (optional).** The script adds what a log cannot see: forms, clicks,
-scroll depth, booking embeds. It posts to the site's own address, so let Vercel pass two paths
-to Skald with rewrites in `vercel.json`:
+scroll depth, booking embeds. The plain tag,
+`<script src="https://stats.example.com/traffic-js/skald.js" data-site="example.com" defer></script>`,
+needs nothing on Vercel (2.24.0): it posts to Skald directly (docs/BEACON.md, "Where the tag
+posts"). To serve it from the site's own address instead (fewer ad blockers stop it), let
+Vercel pass two paths to Skald with rewrites in `vercel.json`:
 
 ```json
 {
@@ -462,8 +465,9 @@ country, duration, response size and request id, and drops the rest (account, si
 ids, content type, request size, firewall details). Netlify gives a country, so the country
 cards work.
 
-**skald.js on Netlify (optional):** proxy the two paths in `_redirects` (status 200 is a
-rewrite), then add the tag as for Vercel:
+**skald.js on Netlify (optional):** the plain tag needs nothing on Netlify. To serve it from
+the site's own address, proxy the two paths in `_redirects` (status 200 is a rewrite), then add
+the first-party tag as for Vercel:
 
 ```text
 /traffic-beacon   https://stats.example.com/traffic-beacon    200
@@ -560,9 +564,9 @@ Create an S3 or SFTP logging endpoint with the JSON format given in
   the web server's log, as for [your own server](#your-own-server-nginx-apache-caddy). That
   sees AI crawlers and bots too.
 - **skald.js without a plugin:** add the tag to the theme's `<head>` (a child theme's
-  `header.php`, or your theme's "header scripts" setting) and proxy `/traffic-beacon` and
-  `/traffic-js/` to Skald in the web server, as [INTEGRATIONS.md](INTEGRATIONS.md) shows for
-  nginx.
+  `header.php`, or your theme's "header scripts" setting). Nothing else is needed since
+  2.24.0; to serve it from the site's own domain, proxy `/traffic-beacon` and `/traffic-js/`
+  to Skald in the web server, as [INTEGRATIONS.md](INTEGRATIONS.md) shows.
 - **Managed WordPress without log access:** use Cloudflare in front and read its log, or
   `skald.js` alone (below, what that loses).
 
@@ -576,10 +580,11 @@ path to another server. What remains:
 - **Webhooks** (server to server, no proxy needed): Stripe, Calendly, Cal.com, HubSpot and
   Typeform post to `https://stats.example.com/traffic-hooks/<site>/<tool>`.
   [INTEGRATIONS.md](INTEGRATIONS.md) has each one.
-- **skald.js**, only if a proxy you control sits in front of the domain (for example Cloudflare
-  with a route that sends `/traffic-beacon` and `/traffic-js/*` to Skald). Skald refuses
-  beacons from another site's address by design, so the script cannot post straight to
-  `stats.example.com`.
+- **skald.js**: the plain tag in the theme's head code. Since 2.24.0 it posts straight to
+  `stats.example.com`, and Skald takes it because the page's own address is one of the site's
+  host names (beacons from any other site's address are still refused). A proxy in front of
+  the domain (for example Cloudflare with a route that sends `/traffic-beacon` and
+  `/traffic-js/*` to Skald) is optional: it keeps the tag first-party.
 
 **What you lose without a log:** AI crawlers, search crawlers and bots are **not seen at all**:
 they do not run scripts. Citations from answer engines are seen only when the visitor's browser
