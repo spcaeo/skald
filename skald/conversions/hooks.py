@@ -140,6 +140,7 @@ class Receiver:
         self.config_path = config_path
         self.folder = Path(folder) if folder is not None else history_folder(config, config_path)
         self.sites, self.hosts, self.sites_at, self.zones = {}, {}, None, {}
+        self.settled_at: dict = {}
         self._load_sites()
         self.tz = zone(config)
         self.db_path = store.path_for(config, self.folder)
@@ -422,7 +423,7 @@ class Receiver:
             lambda ref: self._booked(site, tool, ref))
         # Visitor IDs off for the site (beacon.visitor_ids): a hook's `vid` is not
         # kept either, in the spool or the store, whatever the sender put in it.
-        keep_vid = visitor_ids(self.sites[site])
+        keep_vid = visitor_ids(self.settled(site))
         tz = self.site_zone(site) if tool in LEAD_SHAPED else None
         if headers.get("x-skald-test") == "1":
             return self._test(site, tool, mod, payload, received, full, keep_vid, skipped, tz)
@@ -527,6 +528,22 @@ class Receiver:
                 is not None
         finally:
             db.close()
+
+    def settled(self, site: str) -> dict:
+        """The site's config with its Settings rows applied (as run-daily reads
+        it), read again at most every SITES_EVERY seconds. 2.28.1: the visitor-ID
+        switch was read from the bare config, so one set in Settings was ignored
+        and a hook's vid dropped."""
+        got = self.settled_at.get(site)
+        if got is not None and time.monotonic() - got[1] < SITES_EVERY:
+            return got[0]
+        from ..settings_store import apply
+        try:
+            conf = apply(self.sites[site], site, self.folder)
+        except Exception:                  # noqa: BLE001 - the config's own values
+            conf = self.sites[site]
+        self.settled_at[site] = (conf, time.monotonic())
+        return conf
 
     def site_zone(self, site: str):
         """The site's time zone, with its Settings row (as run-daily reads it),
