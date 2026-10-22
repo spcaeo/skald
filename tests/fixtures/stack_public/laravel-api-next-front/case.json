@@ -1,0 +1,42 @@
+{
+ "about": "A Next.js front whose answers set Laravel's cookies (the API behind the same name)",
+ "typed": "app.example.com",
+ "pages": {
+  "GET https://app.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "nginx",
+    "X-Powered-By": "Next.js",
+    "Set-Cookie": [
+     "XSRF-TOKEN=eyJpdiI6IkV4YW1wbGUifQ; path=/; samesite=lax",
+     "laravel_session=eyJpdiI6IkV4YW1wbGUifQ; path=/; httponly; samesite=lax"
+    ]
+   },
+   "body": "<html><script src=\"/_next/static/chunks/app.js\"></script></html>"
+  }
+ },
+ "expect": {
+  "summary": "Your site runs Next.js on Node.js (version hidden). Nothing to do now, 2 to check, 1 tip.",
+  "cards": [
+   [
+    "hidden",
+    "PHP on app.example.com: version not shown by the server"
+   ],
+   [
+    "hidden",
+    "Node.js on app.example.com: version not shown by the server"
+   ],
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ]
+  ],
+  "products": [
+   "Laravel @app.example.com",
+   "Next.js @app.example.com",
+   "Node.js version not shown @app.example.com",
+   "PHP version not shown @app.example.com",
+   "nginx version not shown @app.example.com"
+  ]
+ }
+}

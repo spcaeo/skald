@@ -1,0 +1,32 @@
+{
+ "about": "Magento by its X-Magento headers and /static/version files",
+ "typed": "store.example.com",
+ "pages": {
+  "GET https://store.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "nginx",
+    "X-Magento-Tags": "FPC"
+   },
+   "body": "<html><script src=\"/static/version1761000000/frontend/Magento/luma/en_US/requirejs/require.js\"></script></html>"
+  }
+ },
+ "expect": {
+  "summary": "Your site runs Magento on PHP (version hidden). Nothing to do now, 1 to check, 1 tip.",
+  "cards": [
+   [
+    "hidden",
+    "PHP on store.example.com: version not shown by the server"
+   ],
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ]
+  ],
+  "products": [
+   "Magento version not shown @store.example.com",
+   "PHP version not shown @store.example.com",
+   "nginx version not shown @store.example.com"
+  ]
+ }
+}

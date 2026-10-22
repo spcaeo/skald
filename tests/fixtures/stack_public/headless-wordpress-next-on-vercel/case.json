@@ -1,0 +1,77 @@
+{
+ "about": "Next.js on Vercel taking its content from a headless WordPress at wp.example.com",
+ "typed": "www.example.com",
+ "pages": {
+  "GET https://www.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "Vercel",
+    "X-Vercel-Id": "iad1::abcde-1761090000000-0123456789ab",
+    "X-Powered-By": "Next.js",
+    "Strict-Transport-Security": "max-age=31536000",
+    "X-Content-Type-Options": "nosniff",
+    "Content-Security-Policy": "default-src 'self'; frame-ancestors 'self'",
+    "Referrer-Policy": "strict-origin-when-cross-origin"
+   },
+   "body_file": "home.html"
+  },
+  "GET https://wp.example.com/wp-login.php": {
+   "status": 302,
+   "headers": {
+    "Location": "https://wp.example.com/not_found"
+   },
+   "body": ""
+  },
+  "GET https://wp.example.com/not_found": {
+   "status": 404,
+   "headers": {},
+   "body": "Not found"
+  },
+  "HEAD https://wp.example.com/wp-json/": {
+   "status": 200,
+   "headers": {
+    "Server": "nginx",
+    "Link": "<https://wp.example.com/wp-json/>; rel=\"https://api.w.org/\""
+   }
+  },
+  "HEAD https://wp.example.com/": {
+   "status": 302,
+   "headers": {
+    "Location": "https://www.example.com/"
+   }
+  }
+ },
+ "expect": {
+  "summary": "Your site runs Next.js on Node.js (run by Vercel). Nothing to do now, 1 to check, 1 tip.",
+  "cards": [
+   [
+    "hidden",
+    "PHP on wp.example.com: version not shown by the server"
+   ],
+   [
+    "info",
+    "Headless WordPress at wp.example.com"
+   ],
+   [
+    "hosted",
+    "Node.js on www.example.com is run for you by Vercel"
+   ],
+   [
+    "good",
+    "Login page on wp.example.com hidden or blocked (good)"
+   ],
+   [
+    "good",
+    "Security headers: all 5 set"
+   ]
+  ],
+  "products": [
+   "Next.js @www.example.com",
+   "Node.js run by Vercel @www.example.com",
+   "PHP version not shown @wp.example.com",
+   "Vercel @www.example.com",
+   "WordPress version not shown @wp.example.com",
+   "nginx version not shown @wp.example.com"
+  ]
+ }
+}

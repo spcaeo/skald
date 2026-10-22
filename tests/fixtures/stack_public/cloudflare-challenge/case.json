@@ -1,0 +1,24 @@
+{
+ "about": "Cloudflare answers with a challenge page: could not check",
+ "typed": "www.example.com",
+ "pages": {
+  "GET https://www.example.com/": {
+   "status": 403,
+   "headers": {
+    "Server": "cloudflare",
+    "cf-mitigated": "challenge"
+   },
+   "body": "<html><title>Just a moment...</title><script src='/cdn-cgi/challenge-platform/h/b'></script></html>"
+  }
+ },
+ "expect": {
+  "summary": null,
+  "cards": [
+   [
+    "unknown",
+    "www.example.com's firewall blocked our check"
+   ]
+  ],
+  "products": []
+ }
+}

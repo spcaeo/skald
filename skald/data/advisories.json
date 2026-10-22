@@ -26,6 +26,12 @@
         "At the proxy, limit the request size, the number of form fields and the number of multipart parts."
       ],
       "mitigations_note": "These reduce the exposure; they do not make a site safe. Update.",
+      "also_known_as": "php2shell",
+      "firewall_notes": [
+        {"product": "cloudflare",
+         "words": "Cloudflare says it deployed firewall (WAF) rules against php2shell on 21 October 2026 at 03:02 UTC, on every plan with its WAF, the Free plan included, and that customers should patch even with these protections.",
+         "source": "https://blog.cloudflare.com/php-vulnerabilities-waf-protection/"}
+      ],
       "sources": ["https://www.php.net/archive/2026.php#2026-10-21-5"]
     },
     {

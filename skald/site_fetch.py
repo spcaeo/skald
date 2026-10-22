@@ -75,6 +75,7 @@ class Answer:
     body: bytes = b""
     url: str = ""
     peer: str = ""                                    # the address used; never shown
+    not_after: str | None = None                      # the TLS certificate's end (https)
 
     def header(self, name: str) -> str:
         return ", ".join(self.headers.get(name.lower(), []))
@@ -252,7 +253,13 @@ def open_pinned(scheme: str, host: str, address: str, port: int, method: str, ta
         for name, value in res.getheaders():
             headers.setdefault(name.lower(), []).append(value)
         body = res.read(max_bytes) if method == "GET" else b""
-        return Answer(res.status, headers, body, f"{scheme}://{shown}{target}", address)
+        not_after = None
+        if scheme == "https":
+            try:
+                not_after = (conn.sock.getpeercert() or {}).get("notAfter")
+            except (AttributeError, ValueError, OSError):
+                pass
+        return Answer(res.status, headers, body, f"{scheme}://{shown}{target}", address, not_after)
     finally:
         conn.close()
 

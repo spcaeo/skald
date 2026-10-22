@@ -187,16 +187,17 @@ class Addresses(unittest.TestCase):
 
 
 class Limits(unittest.TestCase):
-    def test_at_most_four_requests_get_and_head_only_with_the_agent(self):
+    def test_at_most_max_fetches_requests_get_and_head_only_with_the_agent(self):
+        hops = {f"https://www.example.com/h{i}": (302, {"Location": f"/h{i + 1}"}, b"") for i in range(9)}
         net = Net(names={"www.example.com": [PUBLIC], "example.com": [PUBLIC],
                          "wp.example.com": [PUBLIC2], "cdn.example.net": [PUBLIC2]},
                   pages={"https://example.com/": (301, {"Location": "https://www.example.com/"}, b""),
                          "https://www.example.com/": (200, {"X-Powered-By": "PHP/8.3.10"}, WP_HOME),
-                         "https://www.example.com/wp-login.php": (404, {}, b"no"),
-                         "https://wp.example.com/wp-login.php": (403, {}, b"no")})
+                         "https://www.example.com/wp-login.php": (302, {"Location": "/h0"}, b""),
+                         **hops})
         got = run("example.com", net)
-        self.assertEqual(len(net.opened), 4)
-        self.assertEqual(got["fetches"], 4)
+        self.assertEqual(len(net.opened), sp.MAX_FETCHES)
+        self.assertEqual(got["fetches"], sp.MAX_FETCHES)
         self.assertEqual({o["method"] for o in net.opened}, {"GET"})
         self.assertEqual({o["agent"] for o in net.opened}, {sp.agent(CONFIG)})
         self.assertTrue(sp.agent(CONFIG).endswith("StackCheck/1.0 (+https://www.example.com/check/)"))
@@ -206,9 +207,12 @@ class Limits(unittest.TestCase):
         origin = [h for h in got["hosts"] if h["role"] == "content origin"]
         self.assertEqual(origin[0]["host"], "wp.example.com")
         skipped = [f for f in got["fetched"] if (f["error"] or "").startswith("not fetched")]
-        self.assertEqual([f["url"] for f in skipped],
-                         ["https://wp.example.com/wp-json/", "https://wp.example.com/"])
-        self.assertEqual([f["status"] for f in got["fetched"][:4]], [301, 200, 404, 403])
+        self.assertEqual([f["url"] for f in skipped][:2], ["https://www.example.com/xmlrpc.php",
+                                                            "https://www.example.com/readme.html"])
+        self.assertIn("https://wp.example.com/wp-login.php", [f["url"] for f in skipped])
+        login = next(c for c in got["cards"] if "Login page" in c["title"])
+        self.assertEqual(login["kind"], "unknown", "a chain past the hop limit is not a finding")
+        self.assertEqual([f["status"] for f in got["fetched"][:3]], [301, 200, 302])
         evidenced(self, got)
 
     def test_the_whole_check_has_a_deadline(self):
@@ -254,18 +258,21 @@ class Answers(unittest.TestCase):
         got = self.headless()
         evidenced(self, got)
         kinds = [c["kind"] for c in got["cards"]]
-        self.assertEqual(kinds, ["hidden", "hidden", "tip", "info", "good"])
+        self.assertEqual(kinds, ["hidden", "hidden", "tip", "tip", "info", "good"])
         php = next(c for c in got["cards"] if c.get("product") == "php")
-        self.assertEqual(php["title"], "WordPress (PHP) on wp.example.com: version not shown by the server")
-        self.assertEqual(php["because"], "WordPress (PHP) version not shown on wp.example.com")
+        self.assertEqual(php["title"], "PHP on wp.example.com: version not shown by the server")
+        self.assertEqual(php["because"], "PHP version not shown on wp.example.com, which runs WordPress")
+        self.assertEqual(php["saw"][0]["text"], "We saw wp.example.com runs WordPress (its files), "
+                                                "and WordPress runs on PHP")
         self.assertEqual(php["command"], "php -v")
         saw = " | ".join(s["text"] for s in php["saw"])
-        self.assertIn("load 289 files from https://wp.example.com/wp-content/", saw)
+        self.assertIn("load 289 different files under /wp-content/ or /wp-includes/ from "
+                      "wp.example.com", saw)
         self.assertIn("https://wp.example.com/wp-content/uploads/2026/01/p0.webp", saw)
         self.assertIn('Link: <https://wp.example.com/wp-json/>; rel="https://api.w.org/"', saw)
         self.assertTrue(php["sources"][0].startswith("https://www.php.net/"))
         node = next(c for c in got["cards"] if c.get("product") == "nodejs")
-        self.assertEqual(node["title"], "Next.js (Node.js) on www.example.com: version not shown by the server")
+        self.assertEqual(node["title"], "Node.js on www.example.com: version not shown by the server")
         self.assertIn("We saw the header X-Powered-By: Next.js", [s["text"] for s in node["saw"]])
         self.assertIn("26.12.1", node["means"])
         tip = next(c for c in got["cards"] if c["kind"] == "tip")
@@ -281,9 +288,41 @@ class Answers(unittest.TestCase):
                           ("GET", "https://wp.example.com/wp-login.php", 302),
                           ("GET", "https://wp.example.com/not_found", 404),
                           ("HEAD", "https://wp.example.com/wp-json/", 200),
-                          ("HEAD", "https://wp.example.com/", None)])
+                          ("HEAD", "https://wp.example.com/", 404)])
         self.assertEqual(got["fetched"][0]["bytes"], len(HEADLESS))
         self.assertEqual(got["agent"], sp.agent(CONFIG))
+
+    def test_a_plain_wordpress_names_php_not_wordpress_as_hidden(self):
+        home = (b'<html><head><meta name="generator" content="WordPress 7.1.3"></head><body>'
+                + b"".join(b'<img src="/wp-content/uploads/a%d.png">' % i for i in range(3))
+                + b'<img src="/wp-content/uploads/a0.png"><img src="https://www.example.com/wp-content/uploads/a0.png">'
+                + b"</body></html>")
+        got = run("www.example.com", Net(names={"www.example.com": [PUBLIC]}, pages={
+            "https://www.example.com/": (200, {"Server": "Apache"}, home),
+            "https://www.example.com/wp-login.php": (200, {}, LOGIN_FORM)}))
+        evidenced(self, got)
+        php = next(c for c in got["cards"] if c.get("product") == "php")
+        self.assertEqual(php["title"], "PHP on www.example.com: version not shown by the server")
+        self.assertEqual(php["saw"][0]["text"], "We saw www.example.com runs WordPress 7.1.3 (generator "
+                                                "tag), and WordPress runs on PHP")
+        self.assertEqual(php["facts"], ["WordPress 7.1.3"])
+        files = next(s for s in php["saw"] if "different file" in s["text"])
+        self.assertIn("We saw links to 4 different files under /wp-content/ or /wp-includes/ on "
+                      "www.example.com", files["text"])
+        self.assertIn("| sort -u | wc -l", files["command"], "the command counts what the text says")
+        self.assertIn(("WordPress", "7.1.3"), {(p["name"], p["shown"]) for p in got["products"]})
+        self.assertIn("login", [c["kind"] for c in got["cards"]])
+
+    def test_a_login_chain_of_three_redirects_ends_hidden(self):
+        got = self.headless(**{
+            "https://wp.example.com/wp-login.php": (302, {"Location": "https://wp.example.com/not_found"}, b""),
+            "https://wp.example.com/not_found": (302, {"Location": "https://www.example.com/not_found"}, b""),
+            "https://www.example.com/not_found": (308, {"Location": "/not_found/"}, b""),
+            "https://www.example.com/not_found/": (404, {}, b"<html>404</html>")})
+        evidenced(self, got)
+        login = next(c for c in got["cards"] if c["kind"] == "good")
+        self.assertEqual(len(login["saw"]), 4, "the whole chain is the proof")
+        self.assertIn("https://www.example.com/not_found/ answered 404", login["saw"][-1]["text"])
 
     def test_the_login_page_open_only_with_a_form(self):
         got = self.headless(**{"https://wp.example.com/wp-login.php": (200, {}, LOGIN_FORM)})
@@ -314,8 +353,14 @@ class Answers(unittest.TestCase):
                                                  pages={"https://www.example.com/": page}))
                 evidenced(self, got)
                 self.assertFalse(got["reached"])
+                self.assertEqual(got["reason"], "blocked")
                 self.assertEqual([c["kind"] for c in got["cards"]], ["unknown"])
+                self.assertEqual(got["cards"][0]["title"], "www.example.com's firewall blocked our check")
+                self.assertIn("php -v", got["cards"][0]["commands"])
                 self.assertEqual(got["products"], [], "nothing read from a page we could not check")
+        got = run("www.example.com", Net(names={"www.example.com": [PUBLIC]},
+                                         pages={"https://www.example.com/": (500, {}, b"oops")}))
+        self.assertEqual((got["reason"], got["error"]), ("error", "the home page answered 500"))
 
     def test_an_old_php_shown_and_a_fixed_one(self):
         net = Net(names={"www.example.com": [PUBLIC]},
@@ -335,7 +380,7 @@ class Answers(unittest.TestCase):
                   pages={"https://www.example.com/": (200, {"X-Powered-By": "PHP/8.4.27"}, b"<p>hi</p>")})
         got = run("www.example.com", net)
         evidenced(self, got)
-        self.assertEqual([c["kind"] for c in got["cards"]], ["fixed", "nothing"])
+        self.assertEqual([c["kind"] for c in got["cards"]], ["tip", "fixed", "nothing"])
         self.assertEqual(got["cards"][-1]["title"], "Nothing we know of applies")
 
     def test_hidden_php_on_a_wordpress_site_and_an_unreachable_one(self):
@@ -351,7 +396,7 @@ class Answers(unittest.TestCase):
         got = run("gone.example.com", net)
         evidenced(self, got)
         self.assertFalse(got["reached"])
-        self.assertIn("no address in DNS", got["error"])
+        self.assertEqual((got["error"], got["reason"]), ("the name doesn't exist", "unreachable"))
         self.assertEqual([c["kind"] for c in got["cards"]], ["unknown"])
 
     def test_commands_quote_what_a_server_sent(self):
@@ -435,7 +480,8 @@ class OverTheWire(unittest.TestCase):
         evidenced(self, got)
         self.assertEqual(got["cards"][0]["title"], "Update needed: PHP 8.4.10 on www.example.com")
         self.assertIn("login", [c["kind"] for c in got["cards"]])
-        self.assertEqual([(m, p) for m, p, _ in site.seen], [("GET", "/"), ("GET", "/wp-login.php")])
+        self.assertEqual([(m, p) for m, p, _ in site.seen], [("GET", "/"), ("GET", "/wp-login.php"),
+                                                             ("GET", "/xmlrpc.php"), ("GET", "/readme.html")])
         for _m, _p, headers in site.seen:
             self.assertEqual(headers["user-agent"], sp.agent(CONFIG))
             self.assertNotIn("cookie", headers)
@@ -454,7 +500,7 @@ class OverTheWire(unittest.TestCase):
             got = sp.check("www.example.com", CONFIG, advisories.load(), NOW)
         self.assertLess(time.monotonic() - started, 1.5)
         self.assertFalse(got["reached"])
-        self.assertEqual(got["error"], "it did not answer in time")
+        self.assertEqual((got["error"], got["reason"]), ("no answer in 5 seconds", "unreachable"))
 
 
 class Service(unittest.TestCase):
@@ -476,6 +522,26 @@ class Service(unittest.TestCase):
         self.assertEqual(self.svc.run("203.0.113.6", "s0.example.com")[0], 200, "another sender")
         self.clock[0] += 3601
         self.assertEqual(self.svc.run("203.0.113.5", "s99.example.com")[0], 200, "the hour slid")
+
+    def test_each_answer_says_its_kind(self):
+        self.assertEqual(self.svc.run("203.0.113.5", "not a site")[1]["kind"], "address")
+        self.assertEqual(self.svc.run("203.0.113.5", "ftp://example.com/")[1]["kind"], "address")
+        status, body, _ = self.svc.run("203.0.113.5", "http://127.0.0.1/")
+        self.assertEqual((status, body["kind"]), (400, "refused"))
+        self.assertIn("not an IP address", body["error"])
+        self.assertEqual(self.svc.run("203.0.113.5", "https://example.com:8443/")[1]["kind"], "refused")
+
+    def test_the_rate_limit_says_when(self):
+        svc = api.Service(CONFIG, clock=lambda: self.clock[0], checker=lambda raw: {"reached": True},
+                          now=lambda: NOW)
+        for i in range(10):
+            svc.run("203.0.113.5", f"s{i}.example.com")
+        self.clock[0] += 600                         # ten minutes after the first
+        status, body, extra = svc.run("203.0.113.5", "s10.example.com")
+        self.assertEqual((status, body["kind"], body["limit"]), (429, "rate", 10))
+        self.assertEqual(body["retry_in"], 3001)
+        self.assertEqual(body["retry_at"], "2026-10-21T18:50:01+00:00")
+        self.assertEqual(extra["Retry-After"], "3000")
 
     def test_refusals_count_against_the_sender_too(self):
         for _ in range(10):
@@ -514,7 +580,8 @@ class Service(unittest.TestCase):
     def test_a_failure_is_plain_words(self):
         svc = api.Service(CONFIG, checker=lambda raw: 1 / 0)
         status, body, _ = svc.run("203.0.113.5", "www.example.com")
-        self.assertEqual((status, body), (500, {"error": "The check failed. Please try again later."}))
+        self.assertEqual((status, body["kind"]), (500, "failed"))
+        self.assertIn("on our side, not your site", body["error"])
 
     def test_too_many_at_once(self):
         gate = threading.Event()

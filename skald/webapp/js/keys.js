@@ -27,12 +27,14 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-21-2.21.1",
+  id: "2026-10-21-2.22.0",
   items: [
-    ["Security counts fixed", "request bursts and login hammering are now counted the same way by both counts on real, out-of-order logs; the same harmless page sent compressed and uncompressed, or a normal page answering an attack in its address, is no longer a possible exposure.", "security"],
+    ["A public site check (optional)", "an install can offer a free \"Is my site exposed?\" page: what a site shows the world (PHP, WordPress, Next.js, servers, firewalls), which advisories apply, every finding with its proof. Off unless you turn it on.", "security"],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.21.1
+    ["Security counts fixed", "request bursts and login hammering are now counted the same way by both counts on real, out-of-order logs; the same harmless page sent compressed and uncompressed, or a normal page answering an attack in its address, is no longer a possible exposure.", "security"],
     // 2.21.0
     ["Security", "a new section: is anything exposed, who is scanning you, attack attempts, fake browsers and a block list to paste into nginx or Cloudflare. All from your server log, every figure counted twice.", "security"],
     ["Your stack and advisories", "what serves each site (PHP, WordPress, Next.js, nginx) and whether a known flaw applies, like the October 2026 PHP and Node.js ones, with what to do.", "security"],

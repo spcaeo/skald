@@ -1,0 +1,55 @@
+{
+ "about": "WordPress behind the Sucuri firewall, login hidden",
+ "typed": "www.example.com",
+ "pages": {
+  "GET https://www.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "Sucuri/Cloudproxy",
+    "X-Sucuri-ID": "11005"
+   },
+   "body_file": "home.html"
+  },
+  "GET https://www.example.com/wp-login.php": {
+   "status": 403,
+   "headers": {},
+   "body": "Access Denied - Sucuri Website Firewall"
+  },
+  "GET https://www.example.com/xmlrpc.php": {
+   "status": 403,
+   "headers": {},
+   "body": "Access Denied"
+  },
+  "GET https://www.example.com/readme.html": {
+   "status": 403,
+   "headers": {},
+   "body": "Access Denied"
+  }
+ },
+ "expect": {
+  "summary": "Your site runs WordPress 6.7 on PHP (version hidden) behind Sucuri. Nothing to do now, 1 to check, 2 tips.",
+  "cards": [
+   [
+    "hidden",
+    "PHP on www.example.com: version not shown by the server"
+   ],
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ],
+   [
+    "info",
+    "A firewall sits in front: Sucuri"
+   ],
+   [
+    "good",
+    "Login page on www.example.com hidden or blocked (good)"
+   ]
+  ],
+  "products": [
+   "PHP version not shown @www.example.com",
+   "Sucuri @www.example.com",
+   "WordPress 6.7 @www.example.com"
+  ]
+ }
+}

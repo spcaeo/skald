@@ -2,7 +2,7 @@
 
 All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versioning](https://semver.org).
 
-## Unreleased
+## 2.22.0 (2026-10-21)
 
 ### Added
 
@@ -28,7 +28,7 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
   what it means ("This means..." only for what the facts prove), why an advisory matched
   (product, version or "version not shown", host), and `curl` commands to check it yourself,
   with every URL shell-quoted. The answer lists every request (method, URL, status, size,
-  redirect, error, or "not fetched: the limit of 4 requests"), its time and the User-Agent.
+  redirect, error, or "not fetched: the limit of 8 requests"), its time and the User-Agent.
   "Update needed" only for a version the server showed; "could not check" for a home page that
   is not a 2xx or is a bot challenge (Cloudflare's "Just a moment"), with nothing read from it.
   The login page is followed to its final page and its body read: "open" only for WordPress's
@@ -46,40 +46,71 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
   mapped and embedded IPv4 too); the connection goes to the address checked, with the name as
   Host and TLS name, so DNS rebinding has nothing to switch; at most 3 redirects, each checked
   again; login redirects followed only within the site's domain; 5 seconds and 512 KB per
-  request, 4 requests and 9 seconds per check; GET and HEAD only, no cookie or credentials.
+  request, 8 requests and 9 seconds per check (5 redirects from a login page); GET and HEAD only, no cookie or credentials.
   Limits in memory: 10 checks an hour per address (X-Real-IP only on the proxy's loopback
   connection), 300 fetching checks an hour in all, 4 at once; each answer cached an hour (a
   site that did not answer, 5 minutes). CORS only for the configured origin; a page of another
-  origin gets 403. Nothing is written or logged but one hourly line of counts. Checked by 28
-  tests (`tests/test_stack_public.py`): every refusal above, rebinding in both directions and
+  origin gets 403. Nothing is written or logged but one hourly line of counts. Checked by
+  `tests/test_stack_public.py`: every refusal above, rebinding in both directions and
   between redirect hops, redirects inside and to odd ports, the caps against a local server,
   the rate limits, the cache, the HTTP side, the challenge, blocked and redirect-to-not-found
   cases, and that every card carries non-empty evidence.
-- **skaldanalytics.com: the page `/check/`** ("Is your site exposed? Check it in 10 seconds"),
-  in the marketing site's own source (not in this repository's public copy). The form; result
-  cards with their proof, "check it yourself" folds and a "What we fetched" table; a shareable
-  `/check/?url=...` that runs the check again and is never indexed (a robots meta set by the
-  page, and an `X-Robots-Tag` from nginx); "Send this report to your admin"; about 1,000 words
-  of indexable guidance (what happened, am I affected, how to check your PHP version, what to
-  do now with PHP's mitigations, Node.js, what the check can and can't see, how to see who is
-  probing your site); a 7-question FAQ with `FAQPage`, `WebApplication` and `BreadcrumbList`
-  JSON-LD; a 1200x630 Open Graph image; `article:modified_time`, an "Updated 21 Oct 2026" line,
-  the sitemap with its date, links from the home page, What's new and the privacy page. The
-  privacy page says what the check and the report keep. Checked by a build ("problems: none"),
-  a test that parses the built page's JSON-LD and head, Lighthouse on mobile (accessibility
-  100, best practices 96, SEO 100 but for the pre-launch `Disallow: /` in robots.txt), a
-  throttled phone trace (LCP 1.7 s, CLS 0), and screenshots at 1440 and 390 px, light and dark.
-- **skaldanalytics.com: "Send this report to my admin"** (the sign-up helper's `report.py` and
-  `report_mail.py`, `POST /api/report`). Mails the fixed report, with every finding's proof,
-  every request, the User-Agent and the result link, to the admin, with a copy to the person;
-  no free text and no tracking. Limits: 3 an hour per sender, 1 a day per admin address (a
-  salted hash in memory), a daily cap, a honeypot, a minimum fill time, an MX record for the
-  admin's domain, no role address of our own domains. The person becomes a Skald lead
-  (`contact`, label `exposure-report`, or `exposure-report-alerts` when they ticked "email me
-  when a new advisory matches my site"; `test` for our own and test domains); the admin's
-  address is never stored, logged or sent to Skald. Checked by 15 tests (template, each limit,
-  honeypot, MX parsing and a mocked lookup, the lead body with test marking, no admin address
-  anywhere, consent only when ticked).
+- **It reads many platforms, each with its evidence** (`stack_public_detect.py`): WordPress
+  (generator, its own files, the wp-json Link, core files' `?ver=`, multisite), WooCommerce,
+  Drupal, Joomla, Magento, Laravel (XSRF-TOKEN plus `<app>_session`), Statamic, Symfony,
+  CodeIgniter, PrestaShop, OpenCart, Craft, TYPO3 and plain PHP; Shopify, Wix, Squarespace,
+  Webflow, HubSpot, WordPress.com and WordPress VIP, which patch for you; Next.js, Nuxt, Gatsby,
+  Remix, SvelteKit, Astro, Hugo, Angular Universal, Express and Ghost; Vercel and Netlify, which
+  run Node.js for you; nginx, Apache, LiteSpeed, OpenResty, IIS, Caddy; Cloudflare, Fastly,
+  Akamai, CloudFront, Sucuri (with Cloudflare's own php2shell note, from `advisories.json`).
+  Extras: security headers, the certificate's end (from the handshake already made), XML-RPC on,
+  readme.html's version. A one-line summary and cards by group (act, check, tips, good). A
+  product that only runs on PHP or Node.js is named by itself ("PHP on <host>: version not
+  shown"), with what runs on it as the evidence. Checked by a corpus of 22 recorded sites
+  (`tests/fixtures/stack_public/`, example.com names, exact cards), and by
+  `tools/verify-public-check.py` on 29 real sites whose stack is public (`tools/public-check-truth.json`,
+  each with how its truth was verified; ours included): both kept out of the public export.
+- **skaldanalytics.com: the page `/check/`** ("php2shell: is your site exposed?"), in the
+  marketing site's own source (not in this repository's public copy). The week's story at the
+  top from `_src/check-news.json`, every item linked to its source (php.net, Cloudflare's blog,
+  nodejs.org), and the build stops on an item without one; the form; while it runs, a scan
+  frame that shows no step that did not happen; the result: a summary line with counts, cards
+  with their proof, brand logos (Simple Icons, CC0, with an ownership line), "check it yourself"
+  folds with copy buttons, "What we saw" chips and a "What we fetched" table; a shareable
+  `/check/?url=...` that runs the check again and is never indexed; about 1,000 words of
+  indexable guidance and a 7-question FAQ (with "What is php2shell?" and "Does Cloudflare
+  protect me?") with `FAQPage`, `WebApplication` and `BreadcrumbList` JSON-LD; a problem-first
+  1200x630 share card (`img/share-check.png`, made by `tools/make-share-cards.py` from the same
+  story) with full Open Graph and X tags; links from the home page, What's new and the privacy
+  page. Every failure is said plainly (below). Checked by the build ("problems: none"), tests
+  that parse the page's JSON-LD and every page's share tags and image sizes, node tests of the
+  messages and of the PDF, Lighthouse on mobile, and screenshots at 1440 and 390 px. The
+  `/security/` hub and the php2shell article are written but not built: the next release.
+- **skaldanalytics.com: "Get this as a PDF report"** (the sign-up helper's `report.py`,
+  `POST /api/report`). The result stays free on the page; the PDF needs the person's email
+  (name and company optional, an unticked "email me when a new advisory matches my site"). The
+  helper records who downloads it and sends them to Skald as a `contact` lead (label
+  `exposure-report`, or `exposure-report-alerts` when ticked; `test` for our own and test
+  domains); it sends no mail and asks for nobody else's address (owner: no emails to admins).
+  Limits: 3 an hour per address, a honeypot, a minimum fill time. The browser then builds the
+  branded PDF from the result on the page (`check-pdf.js` with jsPDF 2.5.2, MIT, vendored, loaded
+  only then): a cover with the host, time, summary and counts; the week's story with its
+  sources; each finding with its badge, quoted evidence, meaning, fix and commands; what was
+  fetched; what the check can and can't see; a last page on reading your server log; page
+  numbers and clickable links; `skald-security-check-<host>-<date>.pdf`. Checked by tests of the
+  lead body, the limits, the honeypot, consent only when ticked, no SMTP anywhere in the path,
+  and a node test that the PDF holds the host, the summary and every finding's title.
+- **Every failure of the check says what happened and what to do** (owner: "Sorry, the check did
+  not go through" was a bad error). The endpoint's errors carry a `kind` (`address`, `refused`,
+  `rate` with `retry_at` and `retry_in`, `busy`, `failed`), and a site it could not read carries
+  a `reason` (`unreachable`, `blocked`, `error`) with plain words ("no answer in 5 seconds", "the
+  name doesn't exist", "its certificate is invalid"). The `/check/` page turns each into one
+  sentence: not a website address (try www.example.com); we couldn't reach the site, and why,
+  with the requests tried; the site's firewall blocked our check (often good news; check the
+  version on your server, with the commands); you've run 10 checks, check again at a given time;
+  lots of people are checking; our checker isn't answering (on our side, not your site); and, on
+  a local preview, the check service isn't running there. Checked by a node test of each case on
+  mocked answers and by the endpoint's own tests.
 
 ### Changed
 
@@ -165,10 +196,10 @@ and every figure counted twice. For owners and admins of any site Skald reads.
   about who reads the site; and its six questions would crowd that strip. The menu has room for
   a sixth row; the phone's bottom bar keeps five sections and Menu, so Security opens from Menu
   there. `#security` still opens Settings > Security, as it always did. Why now: the owner asked
-  to "see all similar logs and double confirm" after a hand check of the sites' logs found 1,858
-  scanner probes from 142 addresses on one site in a day (`/phpinfo.php`, `/.env`,
-  `/storage/logs/laravel.log`, `/serverless.yml`, `/owa/...`), 148 of them answered 200, and
-  wanted it as a selling point. Six tabs, each answering one question:
+  to "see all similar logs and double confirm" after a hand check of the sites' logs found
+  thousands of scanner probes on one site in a day (`/phpinfo.php`, `/.env`,
+  `/storage/logs/laravel.log`, `/serverless.yml`, `/owa/...`), some of them answered 200, and
+  wanted it as a selling point (the figures are now Skald's own, counted twice). Six tabs, each answering one question:
   - **Is anything exposed?** The headline, first: one line, "Nothing exposed in this period",
     "N possible exposures: check these now" or "Can't tell for N answers". Every scanner probe
     the server answered 2xx is set against its host's own fallback page (what a single-page app

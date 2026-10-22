@@ -1,0 +1,34 @@
+{
+ "about": "A Webflow site: hosted",
+ "typed": "www.example.com",
+ "pages": {
+  "GET https://www.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "cloudflare"
+   },
+   "body": "<html data-wf-site=\"64a0000000000000\"><link href=\"https://cdn.prod.website-files.com/64a/css/site.css\"></html>"
+  }
+ },
+ "expect": {
+  "summary": "Your site runs Webflow behind Cloudflare. Nothing to do now, 2 tips.",
+  "cards": [
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ],
+   [
+    "info",
+    "A firewall sits in front: Cloudflare"
+   ],
+   [
+    "hosted",
+    "Hosted by Webflow: they patch PHP and Node.js for you"
+   ]
+  ],
+  "products": [
+   "Cloudflare @www.example.com",
+   "Webflow @www.example.com"
+  ]
+ }
+}

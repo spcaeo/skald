@@ -1,0 +1,30 @@
+{
+ "about": "An Express app: Node.js, version hidden",
+ "typed": "api.example.com",
+ "pages": {
+  "GET https://api.example.com/": {
+   "status": 200,
+   "headers": {
+    "X-Powered-By": "Express"
+   },
+   "body": "<html>ok</html>"
+  }
+ },
+ "expect": {
+  "summary": "Your site runs Express on Node.js (version hidden). Nothing to do now, 1 to check, 1 tip.",
+  "cards": [
+   [
+    "hidden",
+    "Node.js on api.example.com: version not shown by the server"
+   ],
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ]
+  ],
+  "products": [
+   "Express @api.example.com",
+   "Node.js version not shown @api.example.com"
+  ]
+ }
+}

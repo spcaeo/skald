@@ -51,6 +51,9 @@
 
 ## What's new
 
+- **2.22.0: an optional public site check** ([changelog](CHANGELOG.md#2220-2026-10-21)). Turn it on and
+  your install answers a free "Is my site exposed?" page: what a site shows the world, which
+  advisories apply, and the proof for every finding. Live at https://skaldanalytics.com/check/.
 - **2.21.1: Security's counts fixed** ([changelog](CHANGELOG.md#2211-2026-10-21)). Bursts and login
   hammering agree with their audit on real logs, and two false "possible exposure" rules are gone.
 - **2.21.0: Security from your server log, and a link for every view** ([changelog](CHANGELOG.md#2210-2026-10-21)).

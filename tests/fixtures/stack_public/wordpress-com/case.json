@@ -1,0 +1,33 @@
+{
+ "about": "A site hosted on WordPress.com: they patch PHP",
+ "typed": "blog.example.com",
+ "pages": {
+  "GET https://blog.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "nginx",
+    "X-Hacker": "Want root?  Visit join.a8c.com and mention this header."
+   },
+   "body": "<html><head><meta name=\"generator\" content=\"WordPress.com\"><link rel=\"stylesheet\" href=\"/wp-content/themes/pub/twentytwentyfour/style.css\"></head></html>"
+  }
+ },
+ "expect": {
+  "summary": "Your site runs WordPress.com. Nothing to do now, 1 tip.",
+  "cards": [
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ],
+   [
+    "hosted",
+    "Hosted by WordPress.com: they patch PHP and Node.js for you"
+   ]
+  ],
+  "products": [
+   "PHP run by WordPress.com @blog.example.com",
+   "WordPress version not shown @blog.example.com",
+   "WordPress.com @blog.example.com",
+   "nginx version not shown @blog.example.com"
+  ]
+ }
+}

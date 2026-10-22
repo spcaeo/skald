@@ -1,0 +1,30 @@
+{
+ "about": "A Wix site: hosted, Wix patches the servers",
+ "typed": "www.example.com",
+ "pages": {
+  "GET https://www.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "Pepyaka",
+    "X-Wix-Request-Id": "1761090000.123"
+   },
+   "body": "<html><img src=\"https://static.wixstatic.com/media/abc.png\"></html>"
+  }
+ },
+ "expect": {
+  "summary": "Your site runs Wix. Nothing to do now, 1 tip.",
+  "cards": [
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ],
+   [
+    "hosted",
+    "Hosted by Wix: they patch PHP and Node.js for you"
+   ]
+  ],
+  "products": [
+   "Wix @www.example.com"
+  ]
+ }
+}

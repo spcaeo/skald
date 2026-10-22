@@ -257,19 +257,35 @@ security:
   `{"url": "https://example.com"}`; answers JSON (`products`, `cards`, `hosts`, `reached`,
   `error`, `checked_at`, `cached`). 400 with plain words when the address is not checked, 403
   for a page of another origin, 429 at a limit (with `Retry-After`), 503 when 4 checks are
-  already running. With `"cached_only": true` it answers only a check made in the last hour
+  already running. Each error says its `kind`: `address` (not a website address at all),
+  `refused` (an IP, an inside name: its words say which), `rate` (with `limit`, `retry_in`
+  seconds and `retry_at`, the UTC time one more check is allowed), `busy` (everyone's limit or
+  too many at once), `failed`. A site that could not be read is a 200 with `reached: false`,
+  `reason` (`unreachable`, `blocked` by its firewall, or `error`) and `error` in plain words
+  ("no answer in 5 seconds", "the name doesn't exist", "its certificate is invalid"). With `"cached_only": true` it answers only a check made in the last hour
   (404 otherwise) and never fetches: a page's "send this report" reads its findings back this
   way, so a report carries only what this check found. Off, the path is an unknown hook. Put it behind your marketing site's own
   name (an nginx `location` that proxies to it) so the page calls it same-origin.
 - **Origins:** a browser's `Origin`, when sent, must be one of `public_check_origins`; only
   that origin gets CORS headers. A request with no `Origin` (curl) is allowed and rate-limited.
 - **What it fetches,** in this order while the limit allows: `https://<host>/` (or `http://`
-  when typed so) and its redirects (at most 3); the site's `/wp-login.php` when the site is
-  WordPress; then one content origin within the site's own domain (`wp.example.com` for
+  when typed so) and its redirects (at most 3); when the site is WordPress, its `/wp-login.php`
+  followed to its final page (at most 5 redirects), `/xmlrpc.php` and `/readme.html` (one GET
+  each); then one content origin within the site's own domain (`wp.example.com` for
   `example.com`, the host the page loads most `/wp-content/` files from): its `/wp-login.php`
-  and redirects, its `/wp-json/` (HEAD) and its home page (HEAD). At most 4 requests, 5 seconds
+  and redirects, its `/wp-json/` (HEAD) and its home page (HEAD). At most 8 requests, 5 seconds
   and 512 KB each, 9 seconds in all; what the limit leaves out is listed as not fetched. GET and
-  HEAD only, no cookie, no credentials, User-Agent `SkaldStackCheck/1.0 (+<public_check_info_url>)`.
+  HEAD only, no cookie, no credentials, no form, never a secret file or a user list,
+  User-Agent `SkaldStackCheck/1.0 (+<public_check_info_url>)`.
+- **What it detects** (`skald/stack_public_detect.py`, each with its evidence): WordPress,
+  WooCommerce, Drupal, Joomla, Magento, Laravel, Statamic, Symfony, CodeIgniter, PrestaShop,
+  OpenCart, Craft, TYPO3 and plain PHP; Shopify, Wix, Squarespace, Webflow, HubSpot,
+  WordPress.com and WordPress VIP (they patch for you); Next.js, Nuxt, Gatsby, Remix,
+  SvelteKit, Astro, Hugo, Angular Universal, Express, Ghost; Vercel and Netlify (they run
+  Node.js for you); nginx, Apache, LiteSpeed, OpenResty, IIS, Caddy; Cloudflare, Fastly,
+  Akamai, CloudFront, Sucuri. Extras: security headers, the certificate's end (from the
+  handshake made), XML-RPC on, readme.html's version. `tools/verify-public-check.py` checks it
+  on real sites whose stack is public (`tools/public-check-truth.json`).
 - **Proof, or "could not check":** every card carries what was seen, exactly as received (the
   header line, the generator tag, the page's references with a count and the first examples),
   the URL it was read from, what it means, why an advisory matched (product, version or

@@ -1,0 +1,32 @@
+{
+ "about": "Nuxt on Netlify: Node.js run by Netlify",
+ "typed": "www.example.com",
+ "pages": {
+  "GET https://www.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "Netlify",
+    "X-Nf-Request-Id": "01JNUXT"
+   },
+   "body": "<html><script src=\"/_nuxt/entry.abc.js\"></script><script>window.__NUXT__={}</script></html>"
+  }
+ },
+ "expect": {
+  "summary": "Your site runs Nuxt on Node.js (run by Netlify). Nothing to do now, 1 tip.",
+  "cards": [
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ],
+   [
+    "hosted",
+    "Node.js on www.example.com is run for you by Netlify"
+   ]
+  ],
+  "products": [
+   "Netlify @www.example.com",
+   "Node.js run by Netlify @www.example.com",
+   "Nuxt @www.example.com"
+  ]
+ }
+}

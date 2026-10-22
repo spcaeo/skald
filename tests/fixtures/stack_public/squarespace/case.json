@@ -1,0 +1,29 @@
+{
+ "about": "A Squarespace site: hosted",
+ "typed": "www.example.com",
+ "pages": {
+  "GET https://www.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "Squarespace"
+   },
+   "body": "<html><link rel=\"stylesheet\" href=\"https://static1.squarespace.com/static/site.css\"></html>"
+  }
+ },
+ "expect": {
+  "summary": "Your site runs Squarespace. Nothing to do now, 1 tip.",
+  "cards": [
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ],
+   [
+    "hosted",
+    "Hosted by Squarespace: they patch PHP and Node.js for you"
+   ]
+  ],
+  "products": [
+   "Squarespace @www.example.com"
+  ]
+ }
+}

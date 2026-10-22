@@ -1,0 +1,31 @@
+{
+ "about": "Ghost (a Node.js app) by its generator tag",
+ "typed": "www.example.com",
+ "pages": {
+  "GET https://www.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "nginx"
+   },
+   "body": "<html><head><meta name=\"generator\" content=\"Ghost 5.96\"></head></html>"
+  }
+ },
+ "expect": {
+  "summary": "Your site runs Ghost 5.96 on Node.js (version hidden). Nothing to do now, 1 to check, 1 tip.",
+  "cards": [
+   [
+    "hidden",
+    "Node.js on www.example.com: version not shown by the server"
+   ],
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ]
+  ],
+  "products": [
+   "Ghost 5.96 @www.example.com",
+   "Node.js version not shown @www.example.com",
+   "nginx version not shown @www.example.com"
+  ]
+ }
+}
