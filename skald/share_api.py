@@ -119,6 +119,7 @@ PAGE = """<!doctype html>
 <meta name="color-scheme" content="light dark"><title>Set-up steps · Skald</title>
 <link rel="stylesheet" href="/traffic-auth/app/app.css"><link rel="stylesheet" href="/traffic-auth/app/screens.css">
 <link rel="stylesheet" href="/traffic-auth/app/features.css"><link rel="stylesheet" href="/traffic-auth/app/css/connections.css">
+<link rel="stylesheet" href="/traffic-auth/app/css/urlactions.css">
 <style>body{background:var(--page);color:var(--ink);margin:0}main{max-width:860px;margin:0 auto;padding:32px 20px 60px;display:grid;gap:18px}
 main h1{margin:0;font-size:26px}</style></head>
 <body><main id="share" data-id="__ID__"><p>Loading the steps...</p></main><div id="toast" class="toast"></div>

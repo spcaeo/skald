@@ -16,8 +16,9 @@ BEHAVIOUR = ROOT / "tests" / "js" / "skald-snippet.mjs"
 EVENTS_TAB = ROOT / "skald" / "webapp" / "js" / "tabs" / "events.js"
 # The budget: 5 KB until 2026-10-11, 6 KB since the tag sends scroll_75,
 # copy_text, 404_view, contact/waitlist submits and adopts an ID from your
-# other domains.
-BUDGET = 6 * 1024
+# other domains; 6.5 KB since it asks the beacon once a day whether Skald
+# shares the ID across subdomains (beacon.share_subdomains).
+BUDGET = 6656
 # Events the tag builds from two parts: "<data-skald or form>_<start|submit>",
 # "calendly_" + the CAL map's value.
 COMPOSED = {"form_start", "form_submit", "signup_start", "signup_submit", "contact_submit",

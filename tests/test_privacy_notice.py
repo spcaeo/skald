@@ -41,7 +41,8 @@ class Wording(unittest.TestCase):
                 self.assertEqual(got["uses"], {"ip_mode": mode, "keep_days": 30,
                                                "identity": identity,
                                                "script_tag": tag != "none",
-                                               "visitor_ids": tag == "ids"})
+                                               "visitor_ids": tag == "ids",
+                                               "share_subdomains": False})
                 # Always: the log, no cookie from it, how to ask for deletion.
                 self.assertIn("sets no cookie and stores nothing on your device", text)
                 self.assertIn(notice.CONTACT, text)

@@ -14,7 +14,10 @@ so it can never say something the settings do not do:
                     visitor IDs (beacon.visitor_ids) and where they are kept,
                     Do Not Track and Global Privacy Control, and the wait for
                     consent (data-consent="required", a tag attribute the
-                    server cannot see: a marked line to keep or delete)
+                    server cannot see: a marked line to keep or delete);
+                    the shared cookie: a plain line when the site shares
+                    the ID in Skald (beacon.share_subdomains), else a marked
+                    line for the tag's data-share-subdomains="true"
     deletion        how to ask, with the site's own contact as a marked
                     placeholder: Skald does not know it
 
@@ -31,8 +34,9 @@ CONTACT = "[your contact email or page]"
 LOG_DAYS = "[how long your web server keeps its logs]"
 CONSENT = "[Keep this line only if your script tag has data-consent=\"required\":]"
 SHARED_MARK = "[Keep this line only if your script tag has data-share-subdomains=\"true\":]"
-SHARED = (f"{SHARED_MARK} It is also kept in a first-party cookie called skald_vid, for up to 400 days, "
-          "so our subdomains see the same ID.")
+SHARED_LINE = ("It is also kept in a first-party cookie called skald_vid, for up to 400 days, "
+               "so our subdomains see the same ID.")
+SHARED = f"{SHARED_MARK} {SHARED_LINE}"
 INTRO = "How we measure visits to this site:"
 
 
@@ -58,13 +62,14 @@ def _address(mode: str, days: int, city: bool) -> str:
 
 
 def _beacon(config: dict) -> list[str]:
-    from ..beacon import visitor_ids
+    from ..beacon import share_subdomains, visitor_ids
     out = ["Our pages also load a small script from our own site. It counts clicks and form "
            "steps, never what you type in a form."]
     if visitor_ids(config):
         out += ["The script keeps a random visitor ID in your browser's local storage, so "
                 "visits from the same browser can be linked. It holds no name or email.",
-                SHARED]
+                # Shared in Skald: certain, so no "keep this line only if".
+                SHARED_LINE if share_subdomains(config) else SHARED]
     else:
         out.append("The script keeps no ID and stores nothing in your browser.")
     out += ["If your browser sends Do Not Track or Global Privacy Control, the script does "
@@ -77,13 +82,14 @@ def _beacon(config: dict) -> list[str]:
 def wording(config: dict, folder=None) -> dict:
     """{"intro", "items", "text", "placeholders", "note", "uses"} for this
     site (see the module). `uses` says which settings the text was made from."""
-    from ..beacon import visitor_ids
+    from ..beacon import share_subdomains, visitor_ids
     from ..events import enabled as beacon_on
     mode = policy.ip_mode(config, folder)
     days = policy.keep_days(config)
     full = policy.identity_full(config, folder)
     tag = bool(beacon_on(config))
     ids = tag and visitor_ids(config)
+    shared = bool(ids and share_subdomains(config))
     city = bool(setting(config or {}, "logs", "city_db"))
     items = [
         "We count visits from our web server's own access log. Reading the log sets no "
@@ -103,10 +109,10 @@ def wording(config: dict, folder=None) -> dict:
     items.append(f"To ask us to delete what we keep about you, write to {CONTACT} with "
                  f"{ask}. We delete it everywhere our analytics keep it.")
     placeholders = [CONTACT, LOG_DAYS] + ([CONSENT] if tag else []) + \
-        ([SHARED_MARK] if ids else [])
+        ([SHARED_MARK] if ids and not shared else [])
     return {"intro": INTRO, "items": items,
             "text": INTRO + "\n\n" + "\n".join(f"- {i}" for i in items),
             "placeholders": placeholders, "note": NOTE,
             "uses": {"ip_mode": mode, "keep_days": days,
                      "identity": "full" if full else "anonymous", "script_tag": tag,
-                     "visitor_ids": ids}}
+                     "visitor_ids": ids, "share_subdomains": shared}}

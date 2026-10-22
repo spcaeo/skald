@@ -69,6 +69,13 @@ function hookTest(base) {
     h("div", { class: "acts" }, send, look), out);
 }
 
+// "29 Oct 2026, 16:17 UTC" for the link's end, never the raw stamp.
+export function until(stamp) {
+  const t = new Date(stamp);
+  if (Number.isNaN(t.getTime())) return String(stamp || "");
+  return `${t.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}, ${t.toISOString().slice(11, 16)} UTC`;
+}
+
 export async function draw(root, id) {
   const base = `/traffic-auth/setup/${id}`;
   const info = await getJSON(`${base}/info`);
@@ -93,7 +100,7 @@ export async function draw(root, id) {
   };
   fill();
   const head = [h("h1", null, `${TITLES[info.task] || "Set-up steps"}: ${info.site}`),
-    h("p", { class: "sub" }, `A private page with only these steps. It works until ${info.expires_at}.`)];
+    h("p", { class: "sub" }, `A private page with only these steps. It works until ${until(info.expires_at)}.`)];
   const test = info.task === "hook" ? hookTest(base) : info.task === "nextjs"
     ? h("section", { class: "s" }, h("h2", null, "Test"), h("p", null, "After the reload, open the site and click a link to another page. Then press Test: Skald looks at the log's newest lines every 5 seconds, for up to 2 minutes."),
       nextTest(() => getJSON(`${base}/status`)))

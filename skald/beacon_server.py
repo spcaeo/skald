@@ -33,6 +33,12 @@ contain; this file decides whether to take it:
     the day's opens file (beacon.opens_file) when the sender is people or
     ours: proof that a browser drew the page, so a returning reader whose
     browser has every asset cached still counts (rendering.py, "beacon")
+  * the answer to a page_view the site's Origin sent (202 or 204, never
+    another status, never a body: 204 is nginx's count) carries
+    `X-Skald-Sh: 1` when the site shares the ID across subdomains
+    (`beacon.share_subdomains`, set in Skald), else `X-Skald-Sh: 0`, exposed
+    to the page by Access-Control-Expose-Headers. skald.js reads it on its
+    first page_view (fetch) and keeps it a day. No other answer carries it
   * the visitor ID `v` is kept only with `beacon.visitor_ids: true`; then
     people's events with one also go to conversions.sqlite (journeys and
     conversions, conversions/from_beacon.py), with the country from the
@@ -152,6 +158,7 @@ class Sink:
         self.tz = zone(config)
         self.events = beacon.allowed_events(config)
         self.visitor_ids = beacon.visitor_ids(config)
+        self.share = beacon.share_subdomains(config)
         self.hosts = beacon.own_hosts(config)
         self._snippet = None
         self._classifier = None
@@ -371,6 +378,7 @@ class Sites:
 FETCH_SITES = {"same-origin", "same-site", "cross-site"}
 PROBE_HEADER = "X-Skald-Probe"
 PROBE_ANSWER = "X-Skald-Beacon"
+SHARE_ANSWER = "X-Skald-Sh"       # beacon.share_subdomains, on a page_view's answer
 
 
 def same_site(headers, allowed: set[str]) -> bool:
@@ -402,6 +410,7 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
 
         site = None             # the Sink this request is for (beacon posts)
         cors = None             # the Origin to answer with CORS (one in the map)
+        sh = None               # "1" or "0": a page_view's answer (beacon.share_subdomains)
 
         def _send(self, code: int, *more) -> None:
             self.send_response(code)
@@ -411,6 +420,9 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
                 # The page's own origin only, never "*", never credentials.
                 self.send_header("Access-Control-Allow-Origin", self.cors)
                 self.send_header("Vary", "Origin")
+            if self.sh is not None and self.cors:
+                self.send_header(SHARE_ANSWER, self.sh)
+                self.send_header("Access-Control-Expose-Headers", SHARE_ANSWER)
             for name, value in more:
                 self.send_header(name, value)
             if self.site is not None:
@@ -424,7 +436,7 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
             self._send(code)
 
         def do_POST(self):
-            self.site = self.cors = None
+            self.site = self.cors = self.sh = None
             if public is not None and self.path.split("?", 1)[0] == stack_public_api.PATH:
                 return stack_public_api.handle(self, public)     # the public stack check
             if self.path.startswith("/traffic-hooks/"):    # signed tool hooks
@@ -467,6 +479,8 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
                 event = beacon.validate(raw, sink.accepts)
             except beacon.Refused as why:
                 return self._refuse(400, why.reason)
+            if event["e"] == beacon.PAGE_VIEW:    # the page asks: share across subdomains?
+                self.sh = "1" if sink.share else "0"
             agent = self.headers.get("User-Agent") or ""
             group = sink.group(address, agent, event["p"], sink.now())
             if event["e"] not in sink.events:     # page_view, not counted here
@@ -481,7 +495,7 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
             return self._send(204)
 
         def do_GET(self):
-            self.site = self.cors = None
+            self.site = self.cors = self.sh = None
             if self.path.split("?", 1)[0] == SNIPPET_PATH and sites:
                 return self._snippet(self.command == "GET")
             if self.path.startswith("/traffic-js/"):
@@ -520,7 +534,7 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
             self._send(405)
 
         def do_OPTIONS(self):
-            self.site = self.cors = None
+            self.site = self.cors = self.sh = None
             if public is not None and self.path.split("?", 1)[0] == stack_public_api.PATH:
                 return stack_public_api.handle(self, public)     # its CORS preflight
             self._send(405)

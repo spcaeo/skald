@@ -145,7 +145,7 @@ Skald does not know some things, so they are left in [square brackets] for you t
 
 The optional `skald.js` tag counts what happens inside a page. It is served from your own site and posts to your own site. No third-party code. See [Tracking script](tracking-script.md).
 
-- **No cookie by default.** A cookie is set only if your site turns on visitor IDs and also asks to share them across subdomains.
+- **No cookie by default.** A cookie is set only if your site turns on visitor IDs and also asks to share them across subdomains (on the tag, or an admin switches it on in Skald: Settings > Sites > Script tag). When it is switched on in Skald, the privacy notice wording says so plainly.
 - **Do Not Track and Global Privacy Control are respected.** A browser that sends either is not counted at all: no ID, no storage, no event.
 - **Consent first, if you need it.** The tag can wait and send nothing until your consent banner says yes. When a visitor says no, the ID and anything stored are deleted.
 - **Never a field's value.** Form events say which form was used, never what was typed. A click on a phone or email link never keeps the number or the address.

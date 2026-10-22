@@ -81,7 +81,7 @@ Your team's addresses are probably listed as internal. Visits from them go to th
 
 ## Does Skald use cookies?
 
-Not to count visits. Skald reads the server's log, which needs nothing in the browser. The optional script tag sets no cookie by default; a cookie is used only if your site turns on anonymous visitor IDs shared across subdomains. Signing in to the dashboard uses one cookie, for your own session. See [Privacy](privacy.md).
+Not to count visits. Skald reads the server's log, which needs nothing in the browser. The optional script tag sets no cookie by default; a cookie is used only if your site turns on anonymous visitor IDs shared across subdomains (on the tag, or in Skald's settings). Signing in to the dashboard uses one cookie, for your own session. See [Privacy](privacy.md).
 
 ## Does Skald count visitors who decline or ignore the cookie banner?
 

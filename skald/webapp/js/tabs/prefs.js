@@ -264,7 +264,7 @@ export function sites(m) {
     card("Log file", "Where the server's access log for this site is. For install admins.", ["sites.log_dir", "sites.log_base"], all, m.site, redraw),
     card("Page assets", "A visit counts as people only when its browser also fetched one of the page's own scripts or styles. Next.js: /_next/static/ (the default). WordPress: /wp-content/ and /wp-includes/. Many other sites: /assets/ or /static/. One path per line, at most 10. Turn the rule off only when the assets come from a CDN host this log never sees. Changes apply from the next run; stored days are recounted with backfill --force on the server.",
       ["site.asset_prefixes", "site.require_rendering"], all, m.site, redraw),
-    card("Script tag", "Visitor IDs: the tag keeps an anonymous random ID per browser, for journeys, abandoned forms and lead matching; your privacy notice must say so. Off, the tag still sends events but keeps no ID.", ["beacon.visitor_ids"], all, m.site, redraw),
+    card("Script tag", "Visitor IDs: the tag keeps an anonymous random ID per browser, for journeys, abandoned forms and lead matching; your privacy notice must say so. Off, the tag still sends events but keeps no ID. Share the ID across subdomains: www. and app. see the same ID (a first-party cookie), as data-share-subdomains=\"true\" on the tag does, with the tag unchanged; browsers learn it within a day.", ["beacon.visitor_ids", "beacon.share_subdomains"], all, m.site, redraw),
     card("Goals", "The in-page events that count as this site's goals. Events shows each one per 100 visits by source, on checked days. At most 10.", ["beacon.goals"], all, m.site, redraw),
   ]);
 }

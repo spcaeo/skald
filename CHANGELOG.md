@@ -4,6 +4,50 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.27.0 (2026-10-22)
+
+Share the visitor ID across a site's subdomains from Skald's side (a per-site setting, off by
+default), so a sign-up on app.example.com links to the visits on www.example.com without touching
+the site's script tag; and the developer's set-up page draws properly again.
+
+### Fixed: the developer's set-up page drew a page-sized icon
+
+- **What changed:** the private set-up page (Share with your developer) now loads the stylesheet
+  for the copy and open icons beside an address, and says when the link ends in words
+  ("29 Oct 2026, 16:17 UTC"), not as a raw time stamp.
+- **Why:** on 22 Oct the owner opened a hook's set-up page and saw a huge empty box with a dark
+  shape across it: the address's icons (2.21) had no styles on that page, so the icon filled it.
+- **Who:** anyone opening a developer link. **Do:** nothing.
+- **Checked:** a test that every stylesheet the page needs is linked and served.
+
+### New: share the visitor ID across subdomains from Skald, with the tag unchanged
+
+- **What changed:** a new site setting, `beacon.share_subdomains` (admin, off by default;
+  Settings > Sites > Script tag, or `skald settings set <site> beacon.share_subdomains true`),
+  does what `data-share-subdomains="true"` on the script tag does: `www.` and `app.` share one
+  anonymous visitor ID through the first-party cookie `skald_vid`. The beacon's answer to a page
+  view from the site's own Origin now carries `X-Skald-Sh: 1` or `0` (exposed by CORS). Its
+  status and body are unchanged (204 counted, 202 not, no body), so nginx's count and older
+  scripts are untouched; no other answer and no other Origin gets it. `skald.js`, without the
+  attribute, sends its first page view of a load by `fetch` (keepalive, no credentials, the same
+  text/plain body) instead of `sendBeacon`, reads the header, writes the cookie at once on `1`,
+  and keeps the answer a day in `localStorage` (`skald.sh`); a fresh answer decides at start
+  with no ask. On `0` after a `1` it deletes the cookie it wrote. The attribute still wins. Do
+  Not Track, GPC, `data-consent="required"` and visitor IDs off behave as before: no ID, no
+  cookie, no ask. Settings > Integrations says when sharing is on in Skald, and the privacy
+  notice's cookie line is then plain, without "[Keep this line only if...]". `skald.js` grows
+  from 6,132 to 6,628 bytes (3,250 to 3,475 gzipped); the size test's budget is now 6.5 KB.
+- **Why:** a client site's web developer cannot add `data-share-subdomains="true"` to the tag,
+  and we have no access to that site, so its subdomains could not share the ID.
+- **Who:** sites on several subdomains that want one journey across them. **Do:** nothing,
+  unless you want it: an admin switches it on per site (visitor IDs must be on). Browsers pick it
+  up within a day; switching it off stops the sharing within a day too.
+- **Checked:** tests/test_share_subdomains.py (the setting and the CLI; the answer on and off,
+  never for a foreign Origin, other answers and nginx's count unchanged; Integrations; the
+  notice), tests/js/skald-snippet.mjs (first load asks then sets the cookie on `.example.com`, a
+  fresh flag skips the ask, a stale one asks again, `0` clears, the attribute wins, an older
+  Skald, a refusal, DNT/GPC/consent/IDs off), `node --check`, the full suite.
+
 ## 2.26.0 (2026-10-22)
 
 Page groups fill their past days from the screen; a lead is found by its own reference; marking

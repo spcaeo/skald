@@ -111,6 +111,11 @@ SCHEMA: dict[str, Key] = {
     # privacy notice must say so, and its consent banner gates the tag.
     "beacon.visitor_ids": Key("bool", "admin", ("site",), ("beacon", "visitor_ids"), False,
                               label="Visitor IDs (script tag)"),
+    # Per site: share the visitor ID across subdomains (a first-party cookie)
+    # without data-share-subdomains="true" on the tag. The beacon's answer to a
+    # page_view says so (X-Skald-Sh) and skald.js keeps that for a day.
+    "beacon.share_subdomains": Key("bool", "admin", ("site",), ("beacon", "share_subdomains"),
+                                   False, label="Share the ID across subdomains"),
     # Per site: a visit counts as people only when its browser fetched one of
     # the page's own assets (rendering.py; its recount audit_rendered.py reads
     # the same config["site"] keys, which `apply` writes). A dashboard site

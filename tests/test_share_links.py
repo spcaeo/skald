@@ -131,6 +131,14 @@ class Shared(TenantServer):
                     "/traffic-auth/app/index.html"):
             self.assertIn(self.call("GET", bad).status, (401, 403, 404), bad)
 
+    def test_every_stylesheet_the_page_needs_is_linked_and_served(self):
+        # 2.27: without urlactions.css the copy/open icons of an address drew page-sized.
+        page = self.call("GET", self.link(task="hook", method="json"))
+        html = page.raw.decode()
+        for css in ("app.css", "screens.css", "features.css", "css/connections.css", "css/urlactions.css"):
+            self.assertIn(f'href="/traffic-auth/app/{css}"', html, css)
+            self.assertEqual(self.call("GET", f"/traffic-auth/app/{css}").status, 200, css)
+
     def test_every_module_the_page_imports_is_served_without_sign_in(self):
         import re
         seen, todo = set(), ["/traffic-auth/app/js/tabs/share-page.js"]

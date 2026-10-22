@@ -117,8 +117,8 @@ A direct post is cross-site, and the helper takes it safely:
   browser, so Skald's nginx sees the visitor's address (`X-Real-IP`): no trust
   setting is needed.
 - **The ID stays first-party.** The visitor ID lives in the page's own
-  `localStorage` (and, with `data-share-subdomains`, a cookie on the page's own
-  domain), exactly as before. Nothing is stored on Skald's domain.
+  `localStorage` (and, with `data-share-subdomains` or `beacon.share_subdomains`,
+  a cookie on the page's own domain), exactly as before. Nothing is stored on Skald's domain.
 - **The set-up Test checks the page.** While nothing has arrived, Settings'
   "Add the script tag" Test asks `POST <page>/sites/tagcheck`
   (`skald/tag_check.py`): Skald fetches the site's home page by the site
@@ -298,6 +298,41 @@ IDs, and clearing storage makes a new one. Skald never links a new ID to an
 old one, and no figure matches by address. (The 2.4.0 person search, apart
 from the figures, shows the visits kept with an address and the visits that
 sent a form at a lead's time, said as not certain: DATA-CONTRACT-PEOPLE.md.)
+
+### Sharing the ID across subdomains, switched on in Skald (2.27)
+
+`data-share-subdomains="true"` on the tag keeps the ID in a first-party cookie
+`skald_vid` on the registrable domain too, so `www.` and `app.` share it
+(docs/INTEGRATIONS.md, "Subdomains"). Where the site's developer cannot change
+the tag, an admin switches the same thing on in Skald instead:
+`beacon.share_subdomains` (a site setting, admin, default off; Settings > Sites >
+Script tag, or `skald settings set example.com beacon.share_subdomains true`).
+The tag stays `<script src=".../traffic-js/skald.js" data-site="example.com" defer>`.
+
+- **The beacon's answer says it.** The helper's answer to a `page_view` from
+  the site's own Origin carries `X-Skald-Sh: 1` (on) or `X-Skald-Sh: 0` (off),
+  with `Access-Control-Expose-Headers: X-Skald-Sh` beside the CORS header it
+  already sends, so the page can read it. Nothing else changes: the status is
+  the one it always was (204 counted, 202 not), the body stays empty (a 204
+  has none, and 204 is what nginx's beacon log counts), and no other answer
+  carries it: another event, a refusal, the probe, another Origin.
+- **skald.js asks once a day.** Without the attribute and without a fresh
+  answer, the first `page_view` of a page load goes by `fetch` (keepalive,
+  `credentials: "omit"`, the same text/plain body, so still no preflight)
+  instead of `sendBeacon`, and the tag reads the header. It keeps the answer in
+  `localStorage` as `skald.sh` = `1|<epoch ms>` or `0|<epoch ms>`; for 24 hours
+  that flag decides at start, with no ask. Older, it asks again. On `1` it
+  writes the cookie at once; while it does not know yet, it takes a shared ID
+  a sibling subdomain already set. On `0` after a `1`, it clears the cookie
+  (`max-age=0`), so switching the setting off stops the sharing within a day.
+  No answer header (an older Skald) counts as `0`; a refusal (429, 403) or a
+  blocked post keeps nothing and asks again on the next load.
+- **The attribute still wins**, with no ask. Do Not Track, Global Privacy
+  Control, `data-consent="required"` before consent, and visitor IDs off all
+  behave as before: no ID, no cookie, no ask, no flag.
+- Settings > Integrations says, under the tag, when sharing is on in Skald, and
+  the privacy notice's cookie line is then plain, without "[Keep this line only
+  if...]" (people/notice.py).
 
 ## What is kept
 

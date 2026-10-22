@@ -221,17 +221,22 @@ def script(c: Ctx, site: str) -> dict:
     conf = _site_config(c, site)
     # The merged value (Settings > Sites > Script tag, else config.yml), as
     # the beacon reads it (settings_store.apply in beacon_server.py).
-    got = settings_store.explain(conf, site, c.db).get("beacon.visitor_ids") or {}
-    on = got.get("value") in (True, "true")
+    got = settings_store.explain(conf, site, c.db)
+    on, shared = ((got.get(k) or {}).get("value") in (True, "true")
+                  for k in ("beacon.visitor_ids", "beacon.share_subdomains"))
     src = f"{_origin(c)}/traffic-js/skald.js"
     return {"tag": f'<script src="{src}" data-site="{site}" defer></script>',
             "src": src, "visitor_ids": on,
+            # beacon.share_subdomains: shared from Skald's side, the tag unchanged
+            "share_subdomains": shared,
             "options": [
                 {"attr": "data-consent", "value": "required",
                  "what": "send nothing and keep no ID until the page calls "
                          "skald('consent', true)"},
                 {"attr": "data-share-subdomains", "value": "true",
-                 "what": "keep the ID in a first-party cookie too, so www. and app. share it"},
+                 "what": "keep the ID in a first-party cookie too, so www. and app. share it"
+                         + (" (already on for this site in Skald: Settings > Sites > Script "
+                            "tag, so the tag needs no attribute)" if shared else "")},
                 {"attr": "data-link-domains", "value": "",
                  "what": "other domains you own, comma separated: links to them carry the ID"},
                 {"attr": "data-accept-id", "value": "true",
