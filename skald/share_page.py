@@ -152,7 +152,7 @@ def kit_zip(c: Ctx, form):
     from .accounts import apitokens
     e = c.entry
     method = text(form, "method", 20)
-    if e["task"] != "send" or method not in kit.METHODS or method != e["method"]:
+    if e["task"] != "send" or method not in (*kit.METHODS, "server") or method != e["method"]:
         return c.no(400, "This link has no install kit.")
     token = None
     if form.get("include_token") is True:
@@ -161,6 +161,16 @@ def kit_zip(c: Ctx, form):
         if not ok:
             return c.no(400, f"The token cannot go in the kit: {why}.")
     page = f"{c.base()}/traffic/{slug(c.site)}/"
+    if method == "server":                        # the one bash file (kit.one_file)
+        from .kit_api import send_bytes
+        try:
+            data = kit.one_file(c.site, f"{c.base()}{ingest.PREFIX}{c.site}", page,
+                                f"{page}#help?part=troubleshooting-connections",
+                                kit.image(c.config), kit.ship_path(c.config), token)
+        except ValueError as why:
+            return c.no(400, str(why))
+        send_bytes(c.h, data, "text/x-shellscript; charset=utf-8", f"skald-install-{c.site}.sh")
+        return None
     try:
         data = kit.build(c.site, f"{c.base()}{ingest.PREFIX}{c.site}", method, page,
                          f"{page}#help?part=troubleshooting-connections", kit.image(c.config),

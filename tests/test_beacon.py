@@ -12,7 +12,7 @@ import threading
 import unittest
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
-from http.server import ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest import mock
 from types import SimpleNamespace
@@ -21,7 +21,7 @@ from zoneinfo import ZoneInfo
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from skald import beacon, events  # noqa: E402
-from skald.beacon_server import Limiter, Sink, make_handler  # noqa: E402
+from skald.beacon_server import BeaconServer, Limiter, Sink, make_handler  # noqa: E402
 from skald.config import View  # noqa: E402
 from skald.store import History  # noqa: E402
 
@@ -391,6 +391,34 @@ class HooksOnly(unittest.TestCase):
         with mock.patch("skald.conversions.hooks.handle", handle):
             self.assertEqual(self.ask("POST", "/traffic-hooks/example.com/lead", b"{}"), 200)
         self.assertEqual(seen, ["/traffic-hooks/example.com/lead"])
+
+
+class VisitorLeft(unittest.TestCase):
+    """2.29.1: a visitor who closed the page before the answer (the public stack
+    check takes seconds) printed a traceback in the container's log. Not an error."""
+
+    def setUp(self):
+        self.server = BeaconServer(("127.0.0.1", 0), BaseHTTPRequestHandler)
+        self.addCleanup(self.server.server_close)
+
+    def printed(self, error: Exception) -> str:
+        import contextlib
+        import io
+        out = io.StringIO()
+        with contextlib.redirect_stderr(out):
+            try:
+                raise error
+            except Exception:
+                self.server.handle_error(None, ("192.0.2.1", 40000))
+        return out.getvalue()
+
+    def test_a_visitor_who_left_is_not_a_traceback(self):
+        self.assertEqual(self.printed(BrokenPipeError(32, "Broken pipe")), "")
+        self.assertEqual(self.printed(ConnectionResetError(104, "reset")), "")
+
+    def test_a_real_error_still_prints_its_traceback(self):
+        self.assertIn("Traceback", self.printed(ValueError("a real fault")))
+
 
 if __name__ == "__main__":
     unittest.main()

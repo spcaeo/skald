@@ -15,20 +15,26 @@ export function purposeOf(scopes) {
 }
 
 // How a site's visits can reach Skald. `log`: a log is sent to the ingest
-// address (and the Test reads sites/status); `kit`: an install kit exists.
+// address (and the Test reads sites/status); `kit`: an install kit exists;
+// `token`: the steps need a sending token made in the dialog. `server` (2.30) is
+// one way for nginx and Apache, with or without Docker: one command on the
+// server (POST sites/link), or one file (POST sites/kit, method server).
 export const METHODS = [
-  { id: "docker", title: "A Linux server with nginx or Apache, with Docker", sub: "Recommended. A small container reads the access log and sends new lines. Download a kit, run one command.", log: true, kit: true, best: true },
-  { id: "systemd", title: "The same, without Docker", sub: "A small program runs as a system service (systemd). Needs Python 3.9 or newer on the server.", log: true, kit: true },
-  { id: "cloudflare", title: "Cloudflare", sub: "The Skald Worker sends a record of each request Cloudflare serves. Any plan, the free one included.", log: true },
-  { id: "vercel", title: "Vercel or Netlify", sub: "The platform sends its request logs to Skald (a log drain).", log: true },
+  { id: "server", title: "My own server (nginx or Apache)", sub: "With or without Docker. One command on the server.", log: true, kit: true, best: true },
+  { id: "cloudflare", title: "Cloudflare", sub: "The Skald Worker sends a record of each request Cloudflare serves. Any plan, the free one included.", log: true, token: true },
+  { id: "vercel", title: "Vercel or Netlify", sub: "The platform sends its request logs to Skald (a log drain).", log: true, token: true },
   { id: "script", title: "Only the script tag", sub: "In-page events (clicks, forms, scroll) from a one-line tag. No server log, so no AI crawlers or bots.", log: false },
 ];
-export const methodOf = (id) => METHODS.find((x) => x.id === id) || null;
+// The two older ways for a server (2.29 and before), as an old link, the Add a site
+// wizard's saved progress or the site check may still name them: the server way now.
+export const OLD_WAYS = { docker: "server", systemd: "server" };
+export const wayId = (id) => OLD_WAYS[id] || String(id || "");
+export const methodOf = (id) => METHODS.find((x) => x.id === wayId(id)) || null;
 
 // A refusal the log endpoint noted (ingest_status.py REASONS) -> the likely cause and the fix.
 export const REASON_FIX = {
-  no_token: "The shipper sent no token. Run install.sh again and paste the sending token.",
-  bad_token: "The token is wrong or was revoked. Make a new sending token, then run install.sh again and paste it (or put it in the platform's setting).",
+  no_token: "The shipper sent no token. Make a new command and run it again on the server.",
+  bad_token: "The token is wrong or was revoked. Make a new command and run it again on the server (Cloudflare, Vercel or Netlify: a new sending token in the platform's setting).",
   wrong_site: "The token was made for another site. Make a sending token for this site.",
   not_sending: "That token cannot send logs. Make a sending token (Sending logs) for this site.",
   not_verified: "Finish step 2 of the site's set-up (prove the domain is yours). Nothing is lost: the shipper keeps the lines.",
@@ -58,7 +64,7 @@ export const TROUBLE = [
   ["Visits from another host name", "www and another host share one log file.", "Give www its own access_log file (README.txt says how), then run install.sh again."],
   ["Refused: too many batches (429)", "The shipper sent many batches at once, usually right after it started.", "Nothing to do. The shipper slows down and sends the rest."],
   ["Refused: the site is not verified (403)", "The site waits for proof that the domain is yours.", "Finish step 2 of the site's set-up (Settings > Add or remove sites)."],
-  ["Docker is missing", "The kit with Docker needs Docker on the web server.", "Install Docker, or choose The same, without Docker, and download that kit."],
+  ["Docker is missing", "Only the by-hand way with Docker needs Docker on the web server.", "Use the one command (or the one file): it works with or without Docker."],
   ["The site check could not reach the site", "The site is not live yet, turns automated visitors away, or its name points to a private address, which Skald never fetches.", "Choose the way by hand in step 3: nothing else depends on the check. Press Check again once the site is live."],
 ];
 

@@ -39,7 +39,7 @@ The same table is under the Test in the dialog, folded as **Common problems, and
 | Visits from another host name | www and another host share one log file. | Give www its own access_log file (README.txt says how), then run install.sh again. |
 | Refused: too many batches (429) | The shipper sent many batches at once, usually right after it started. | Nothing to do. The shipper slows down and sends the rest. |
 | Refused: the site is not verified (403) | The site waits for proof that the domain is yours. | Finish step 2 of the site's set-up (Settings > Add or remove sites). |
-| Docker is missing | The kit with Docker needs Docker on the web server. | Install Docker, or choose The same, without Docker, and download that kit. |
+| Docker is missing | Nothing to do: the one-command installer runs as a small system service when the server has no Docker. | If it stops with "needs Python 3.9", install python3 and run the command again (make a new one if it was used). |
 | Pages opened inside a Next.js site are not counted | The log does not record Next.js's prefetch header, so a click cannot be told from a prefetch. Only the first page of each visit counts. | Add one line to the site's log format (below, "Next.js sites"). check.sh and Overview's checklist say when it is missing. |
 | The site check could not reach the site | The site is not live yet, turns automated visitors away, or its name points to a private address, which Skald never fetches. | Choose the way by hand in step 3: nothing else depends on the check. Press Check again once the site is live. |
 

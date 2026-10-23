@@ -114,7 +114,7 @@ the container has them (`history.db: /var/lib/skald/history.sqlite`,
 | `SKALD_IDENTITY` | `full` (new install), `anonymous` (upgraded from before 2.4.0) | `full` keeps leads' names and emails with their conversions; `anonymous` keeps neither |
 | `SKALD_DAILY_AT`, `SKALD_BACKUP_AT` | `07:15`, `03:30` | the daily run and the backup, in the site's time zone |
 | `SKALD_LIVE_MINUTES` | `2` | the live snapshot's interval |
-| `SKALD_SEARCH_HOURS`, `SKALD_SEARCH_AT` | `6`, `01:40` | the Search Console and Bing sync: every N hours from that time (0 turns it off; [INTEGRATIONS.md](INTEGRATIONS.md#search-console-and-bing)) |
+| `SKALD_SEARCH_HOURS`, `SKALD_SEARCH_AT` | `6`, `01:40` | the Search Console and Bing sync: every N hours from that time (0 turns it off; [INTEGRATIONS-SEARCH.md](INTEGRATIONS-SEARCH.md#search-console-and-bing)) |
 | `SKALD_GSC_KEY_JSON`, `SKALD_GSC_KEY_FILE` | | the Google service-account key for the Search Console sync: the key file's text, or a path to it inside the container (make it 0600). Not needed when the key is uploaded in Settings > Integrations > Search, which keeps it in `secrets.json` beside the history. Environment only, never in a file you commit |
 | `SKALD_REPORTS_MINUTES` | `15` | how often the client reports that are due are sent (Settings > Reports); `0` stops them |
 | `SKALD_AI_ANSWERS_MINUTES` | `15` | how often the AI answers profiles that are due (or asked to run now) are asked (`ai-answers --due`); `0` stops them |

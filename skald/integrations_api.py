@@ -28,6 +28,13 @@ site's organisation and to install admins:
                                       receiver in this process, marked as a test
                                       (read, logged as "test", never kept); the
                                       answer says what a real one would keep
+  POST integrations/leadfile          {site, lang: php|node|python|wordpress, secret?}:
+                                      the one-file lead helper (kit/leadfiles.py) as a
+                                      download; wordpress is the plugin's zip. The
+                                      secret goes in the file only when the request
+                                      carries it (the page just made it, shown once)
+                                      and it is the lead hook's own; without it the
+                                      file reads SKALD_LEAD_SECRET on the server
 
 The GET also carries `status`: the doctor's lines for the integrations
 (doctor.integration_checks: the receiver, the script tag, each hook, one
@@ -67,7 +74,8 @@ from .conversions.adapters import adapter
 from .conversions.roads import TOOL_NAMES
 
 PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
-PATH = re.compile(PAGE + r"(?P<act>integrations(?:/(?:secret|test|hooks/(?:paste|remove|types)|"
+PATH = re.compile(PAGE + r"(?P<act>integrations(?:/(?:secret|test|leadfile|"
+                         r"hooks/(?:paste|remove|types)|"
                          r"webhooks/(?:add|remove|rotate|test)))?)$")
 GETS = {"integrations"}
 ADMIN = ("owner", "admin")
@@ -481,6 +489,49 @@ def test(c: Ctx, form):
     return c.ok(site=site, tool=tool, status=status, answer=got)
 
 
+def leadfile(c: Ctx, form):
+    """The one-file lead helper for the site's backend, as a download. A
+    secret in the form must be the lead hook's own (never logged); without
+    one the file reads it from the server's environment."""
+    import hmac
+    from .kit import leadfiles
+    site = _target(c, form)
+    if site is None:
+        return None
+    lang = text(form, "lang", 20)
+    if lang not in leadfiles.LANGS:
+        return c.no(400, f"Choose one of: {', '.join(leadfiles.LANGS)}.")
+    given = form.get("secret")
+    given = given.strip() if isinstance(given, str) and given.strip() else None
+    if given is not None:
+        try:
+            value, _ = secrets_store.find(_site_config(c, site), c.folder, site, "lead")
+        except secrets_store.Exposed as why:
+            return c.no(500, f"{why}. Fix it on the server first.")
+        if not value:
+            return c.no(409, "Make the lead hook's secret first.")
+        if not hmac.compare_digest(given.encode("utf-8", "surrogateescape"),
+                                   value.encode("utf-8", "surrogateescape")):
+            return c.no(400, "That is not this site's lead secret (it may have been "
+                             "rotated). Download the file without it, or make a new one.")
+    try:
+        name, data, mime = leadfiles.one(lang, site, f"{_origin(c)}/traffic-hooks/{site}/lead",
+                                         given)
+    except ValueError as why:
+        return c.no(400, str(why))
+    c.log("hook.leadfile", f"{site}/lead",
+          f"{lang}, secret {'in the file' if given else 'from the environment'}")
+    c.h.send_response(200)
+    for k, v in (("Content-Type", mime),
+                 ("Content-Disposition", f'attachment; filename="{name}"'),
+                 ("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff"),
+                 ("Content-Length", str(len(data)))):
+        c.h.send_header(k, v)
+    c.h.end_headers()
+    c.h.wfile.write(data)
+    return None
+
+
 def _wid(c: Ctx, form) -> int | None:
     try:
         return int(form.get("id"))
@@ -580,7 +631,7 @@ def webhook_test(c: Ctx, form):
 
 ROUTES = {"integrations": overview, "integrations/secret": secret, "integrations/test": test,
           "integrations/hooks/paste": paste, "integrations/hooks/remove": remove,
-          "integrations/hooks/types": types,
+          "integrations/hooks/types": types, "integrations/leadfile": leadfile,
           "integrations/webhooks/add": webhook_add, "integrations/webhooks/remove": webhook_remove,
           "integrations/webhooks/rotate": webhook_rotate,
           "integrations/webhooks/test": webhook_test}

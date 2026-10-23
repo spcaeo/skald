@@ -14,7 +14,7 @@ import { read } from "../state.js";
 
 const TASK_WORDS = { send: "sending this site's visits", script: "the script tag", hook: "the lead hook", nextjs: "counting pages opened inside the site" };
 
-// task: "send" (method docker|systemd|cloudflare|vercel), "script", "nextjs", or "hook" (method: the tool).
+// task: "send" (method server|cloudflare|vercel; docker|systemd before 2.30), "script", "nextjs", or "hook" (method: the tool).
 // The form open is in the address as share=1 beside the dialog's key (js/overlays.js);
 // the link it makes never is: it opens the steps with no sign-in.
 export function shareBox(site, task, method = "") {

@@ -1,6 +1,34 @@
 # Send leads from your backend in 5 minutes
 
-Your site's server tells Skald each time a lead is made, in one signed message. This guide has the steps and copy-paste examples in curl, Node, Python and PHP, with retries, and what to do when the backend sits on the same server as Skald.
+Your site's server tells Skald each time a lead is made. The quick way: download one file and call one function after your form is saved. WordPress needs no code at all: a plugin does it. The rest of this guide has the details the file does for you (the body, the signature, retries), for anyone who wants to write it themselves.
+
+## The quick way: one file, one function
+
+1. In the dashboard, open **Settings > Integrations > Your site's server (lead)** and press **Make secret**. The secret is shown once.
+2. In the same box, download the file for your site's language. Downloaded right after you made the secret, the file holds it and works as it is. Downloaded later, it holds no secret: set the environment variable `SKALD_LEAD_SECRET` on your server (every file reads it first, so it is the better place anyway).
+3. Put the file next to your code and add one line where your form is saved:
+
+| Your site | File | The line |
+| --- | --- | --- |
+| PHP | `skald-lead.php` | `require_once __DIR__ . '/skald-lead.php';` then `skald_lead($id, 'contact', $email, $name);` |
+| Node 18 or later | `skald-lead.cjs` | `const { skaldLead } = require("./skald-lead.cjs");` then `await skaldLead(id, "contact", { email, name });` |
+| Python 3.8 or later | `skald_lead.py` | `from skald_lead import skald_lead` then `skald_lead(id, "contact", email=email, name=name)` |
+| WordPress | `skald-leads.zip` | No code: **Plugins > Add New > Upload Plugin**, choose the zip, then **Activate** |
+
+- `id` is your own id for the lead, such as the form entry's id. The same lead always sends the same id: a repeat is never counted twice.
+- The second word is what was done: `contact`, `demo`, `signup`, `trial`.
+- Email and name are optional. Other fields from section 2 go in the last argument: `label`, `stage`, `test`, `vid`. PHP: `skald_lead($id, 'demo', $email, $name, ['label' => 'sales']);`.
+- Each function waits at most 3 seconds, never throws, and returns true when Skald kept the lead. Your form never breaks because of Skald.
+- Node in an ES module: `import { skaldLead } from "./skald-lead.cjs";` works too.
+- The files sign each lead (section 3), so they work with every version of Skald.
+
+**WordPress.** The plugin works with Contact Form 7, WPForms, Gravity Forms, Elementor Pro forms and Ninja Forms. Each form sent becomes a lead with the action `contact`, the email and name fields it finds, and an id like `wpforms-123`. It sends in the background, so a form is never slower. To keep the secret out of the plugin file, add `define('SKALD_LEAD_SECRET', 'your-secret');` to `wp-config.php`, and download the plugin without the secret.
+
+**Join the lead to the visit.** With Skald's script tag on your pages and visitor IDs on, the page knows the visitor's ID as `skald('id')`. Bring it to your server in a hidden form field named `skald_vid`, or read the `skald_vid` cookie (it exists when "Share across subdomains" is on). The PHP file and the WordPress plugin read both by themselves (the plugin also fills the hidden field for you). In Node and Python, pass it as `vid`. See [The tracking script](tracking-script.md).
+
+**No code at all.** Zapier's **Webhooks by Zapier** and form plugins that can add a header send the secret as a plain key instead of signing: `Authorization: Bearer <your secret>`. See [Webhooks](webhooks.md#zapier-and-make).
+
+Keep the secret on your server: in the environment variable, in `wp-config.php`, or in the downloaded file. Never in a web page, never in a public code repository.
 
 ## 1. Make the secret
 
@@ -14,7 +42,7 @@ Or in the dashboard: **Settings > Integrations > Your site's server (lead) > Mak
 
 It prints the secret once, and the address to post to. With `access.base_url` set, the address is the real one, such as `https://stats.example.com/traffic-hooks/example.com/lead`.
 
-Keep the secret in an environment variable on your backend, such as `SKALD_HOOK_SECRET`. Never in the code, never in the browser.
+Keep the secret in an environment variable on your backend, such as `SKALD_LEAD_SECRET`. Never in the code, never in the browser.
 
 ## 2. The body
 
@@ -60,6 +88,14 @@ X-Skald-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<raw body>">
 
 The key is the secret. Sign the exact bytes you send. Skald refuses a `t` more than 5 minutes from its own clock, so keep the server's clock right.
 
+A sender that cannot sign may send the secret itself instead, with no `X-Skald-Signature` header:
+
+```
+Authorization: Bearer <the secret>
+```
+
+It works on the `lead` and `json` hooks only, over `https://` only in practice (the key travels with each message), and a wrong key is refused like a bad signature. Signing is better when you can: a stolen signed message is useless after 5 minutes, a stolen key is not until you rotate it.
+
 Each example below signs, posts, and tries again when the post fails.
 
 curl:
@@ -70,7 +106,7 @@ BODY='{"external_ref":"L-1001","action":"demo","at":"2026-09-25T14:30:00-04:00"}
 for wait in 0 5 30 120; do
   sleep "$wait"
   T=$(date +%s)
-  SIG=$(printf '%s.%s' "$T" "$BODY" | openssl dgst -sha256 -hmac "$SKALD_HOOK_SECRET" -hex | sed 's/^.* //')
+  SIG=$(printf '%s.%s' "$T" "$BODY" | openssl dgst -sha256 -hmac "$SKALD_LEAD_SECRET" -hex | sed 's/^.* //')
   CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$URL" \
     -H 'Content-Type: application/json' -H "X-Skald-Signature: t=$T,v1=$SIG" --data-raw "$BODY")
   case "$CODE" in 2*) break ;; 400|401|404|413) echo "refused: $CODE"; break ;; esac
@@ -89,7 +125,7 @@ export async function sendLead(lead) {
   for (const wait of [0, 5, 30, 120]) {
     await new Promise((r) => setTimeout(r, wait * 1000));
     const t = Math.floor(Date.now() / 1000);
-    const sig = crypto.createHmac("sha256", process.env.SKALD_HOOK_SECRET).update(`${t}.${body}`).digest("hex");
+    const sig = crypto.createHmac("sha256", process.env.SKALD_LEAD_SECRET).update(`${t}.${body}`).digest("hex");
     try {
       const res = await fetch(URL, { method: "POST", body,
         headers: { "Content-Type": "application/json", "X-Skald-Signature": `t=${t},v1=${sig}` } });
@@ -110,7 +146,7 @@ URL = "https://stats.example.com/traffic-hooks/example.com/lead"
 
 def send_lead(lead: dict) -> bool:
     body = json.dumps(lead).encode()
-    secret = os.environ["SKALD_HOOK_SECRET"].encode()
+    secret = os.environ["SKALD_LEAD_SECRET"].encode()
     for wait in (0, 5, 30, 120):
         time.sleep(wait)
         t = str(int(time.time()))
@@ -137,7 +173,7 @@ function skald_send_lead(array $lead): bool {
     foreach ([0, 5, 30, 120] as $wait) {
         sleep($wait);
         $t = time();
-        $sig = hash_hmac('sha256', $t . '.' . $body, getenv('SKALD_HOOK_SECRET'));
+        $sig = hash_hmac('sha256', $t . '.' . $body, getenv('SKALD_LEAD_SECRET'));
         $ch = curl_init($url);
         curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $body,
             CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10,
@@ -243,7 +279,7 @@ BASE='https://stats.example.com'
 P='/traffic-hooks/example.com/leads'
 Q="since=$(date -u -d '2 days ago' +%Y-%m-%dT%H:%M:%SZ)&limit=500"
 T=$(date +%s)
-SIG=$(printf '%s.GET %s?%s' "$T" "$P" "$Q" | openssl dgst -sha256 -hmac "$SKALD_HOOK_SECRET" -hex | sed 's/^.* //')
+SIG=$(printf '%s.GET %s?%s' "$T" "$P" "$Q" | openssl dgst -sha256 -hmac "$SKALD_LEAD_SECRET" -hex | sed 's/^.* //')
 curl -s "$BASE$P?$Q" -H "X-Skald-Signature: t=$T,v1=$SIG"
 ```
 
@@ -262,7 +298,7 @@ export async function leadsInSkald(since) {
   do {
     const q = new URLSearchParams({ since: since.toISOString(), limit: "500", ...(cursor ? { cursor } : {}) }).toString();
     const t = Math.floor(Date.now() / 1000);
-    const sig = crypto.createHmac("sha256", process.env.SKALD_HOOK_SECRET).update(`${t}.GET ${PATH}?${q}`).digest("hex");
+    const sig = crypto.createHmac("sha256", process.env.SKALD_LEAD_SECRET).update(`${t}.GET ${PATH}?${q}`).digest("hex");
     const res = await fetch(`${BASE}${PATH}?${q}`, { headers: { "X-Skald-Signature": `t=${t},v1=${sig}` } });
     if (!res.ok) throw new Error(`Skald answered ${res.status}`);
     const page = await res.json();
@@ -283,7 +319,7 @@ PATH = "/traffic-hooks/example.com/leads"
 
 def leads_in_skald(since: str) -> dict:
     """{(external_ref, stage): row} for every lead Skald received since `since`."""
-    secret = os.environ["SKALD_HOOK_SECRET"].encode()
+    secret = os.environ["SKALD_LEAD_SECRET"].encode()
     found, cursor = {}, None
     while True:
         params = {"since": since, "limit": 500, **({"cursor": cursor} if cursor else {})}
@@ -314,7 +350,7 @@ function skald_leads_since(string $since): array {
         if ($cursor) $params['cursor'] = $cursor;
         $query = http_build_query($params);
         $t = time();
-        $sig = hash_hmac('sha256', "$t.GET $path?$query", getenv('SKALD_HOOK_SECRET'));
+        $sig = hash_hmac('sha256', "$t.GET $path?$query", getenv('SKALD_LEAD_SECRET'));
         $ch = curl_init("$base$path?$query");
         curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20,
             CURLOPT_HTTPHEADER => ["X-Skald-Signature: t=$t,v1=$sig"]]);
@@ -376,7 +412,7 @@ curl:
 URL='https://stats.example.com/traffic-hooks/example.com/leads/test'
 BODY='{"refs":["L-1001","L-1002"],"test":true}'
 T=$(date +%s)
-SIG=$(printf '%s.%s' "$T" "$BODY" | openssl dgst -sha256 -hmac "$SKALD_HOOK_SECRET" -hex | sed 's/^.* //')
+SIG=$(printf '%s.%s' "$T" "$BODY" | openssl dgst -sha256 -hmac "$SKALD_LEAD_SECRET" -hex | sed 's/^.* //')
 curl -s -X POST "$URL" -H 'Content-Type: application/json' -H "X-Skald-Signature: t=$T,v1=$SIG" --data-raw "$BODY"
 ```
 
@@ -391,7 +427,7 @@ const URL = "https://stats.example.com/traffic-hooks/example.com/leads/test";
 export async function markTest(refs, test = true) {
   const body = JSON.stringify({ refs, test });
   const t = Math.floor(Date.now() / 1000);
-  const sig = crypto.createHmac("sha256", process.env.SKALD_HOOK_SECRET).update(`${t}.${body}`).digest("hex");
+  const sig = crypto.createHmac("sha256", process.env.SKALD_LEAD_SECRET).update(`${t}.${body}`).digest("hex");
   const res = await fetch(URL, { method: "POST", body,
     headers: { "Content-Type": "application/json", "X-Skald-Signature": `t=${t},v1=${sig}` } });
   if (!res.ok) throw new Error(`Skald answered ${res.status}`);
@@ -410,7 +446,7 @@ def mark_test(refs: list, test: bool = True) -> dict:
     """Mark (or unmark) up to 100 leads by your own ids."""
     body = json.dumps({"refs": refs, "test": test}).encode()
     t = str(int(time.time()))
-    sig = hmac.new(os.environ["SKALD_HOOK_SECRET"].encode(), t.encode() + b"." + body,
+    sig = hmac.new(os.environ["SKALD_LEAD_SECRET"].encode(), t.encode() + b"." + body,
                    hashlib.sha256).hexdigest()
     req = urllib.request.Request(URL, data=body, method="POST", headers={
         "Content-Type": "application/json", "X-Skald-Signature": f"t={t},v1={sig}"})
@@ -425,7 +461,7 @@ function skald_mark_test(array $refs, bool $test = true): array {
     $url = 'https://stats.example.com/traffic-hooks/example.com/leads/test';
     $body = json_encode(['refs' => array_values($refs), 'test' => $test]);
     $t = time();
-    $sig = hash_hmac('sha256', $t . '.' . $body, getenv('SKALD_HOOK_SECRET'));
+    $sig = hash_hmac('sha256', $t . '.' . $body, getenv('SKALD_LEAD_SECRET'));
     $ch = curl_init($url);
     curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $body,
         CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10,
@@ -450,7 +486,7 @@ Not the same as section 8's test: a message with the header `X-Skald-Test: 1` is
 | --- | --- | --- |
 | 200 | Taken: `{"ok":true,"recorded":1,"duplicates":0}`. A repeat shows as a duplicate | Nothing |
 | 400 | The body is not JSON, or a field is wrong (no `external_ref`, a time that is not a time) | Fix the body; do not retry |
-| 401 | The signature does not match, or `t` is more than 5 minutes off | Check the secret and the clock |
+| 401 | The signature (or the `Bearer` key) does not match, or `t` is more than 5 minutes off | Check the secret and the clock |
 | 404 | No such site or tool, or the hook has no secret | Make the secret; check the address |
 | 413 | The body is over 64 KiB | Send fewer records at once |
 | 429 | Too many at once | Wait and try again |

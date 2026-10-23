@@ -38,37 +38,24 @@ Below the cards is **Your tokens**: every token of your organisation.
 
 Use this when the site's web server is not the server Skald runs on. If Skald reads the site's log in place already, you need nothing here.
 
-The dialog has four steps: **Choose how**, **Sending token**, **Install**, **Test**.
+The dialog has three steps: **Where it runs**, **Run one command** (or the way's own steps), **Test**.
 
-### Step 1: Choose how
+### Step 1: Where it runs
 
 Step 1 first shows **What Skald found** for this site (see **Skald checks your site**, below), and chooses the way it suggests. **Save the host names and page assets to this site** puts the found host names (added to the ones the site has) and page assets in the site's settings. Then pick where the site runs, or keep the suggestion:
 
 | Choice | When to pick it |
 | --- | --- |
-| A Linux server with nginx or Apache, with Docker | Recommended. A small container reads the access log and sends new lines. You download a kit and run one command |
-| The same, without Docker | The same, as a small system service (systemd). Needs Python 3.9 or newer on the server |
+| My own server (nginx or Apache) | Recommended. With or without Docker. One command on the server |
 | Cloudflare | Cloudflare serves the site. The Skald Worker sends a record of each request. Any plan works, the free one too |
 | Vercel or Netlify | The platform sends its request logs to Skald (a "log drain"). Nothing to install |
 | Only the script tag | In-page events only: clicks, forms, scroll. No server log, so no AI crawlers or bots |
 
 A server log is the best source. The script tag alone never sees AI crawlers or bots.
 
-### Step 2: Sending token
+### Step 2: Run one command
 
-A sending token lets the shipper or the platform add log lines to this one site, and nothing else. It cannot read anything.
-
-1. Keep the name it suggests, or change it. The name is what **Your tokens** shows.
-2. Press **Make a sending token**.
-3. Copy the token. It is shown only this once. The next step fills it in for you.
-
-Already have a sending token for this site? Press **Next**. The steps then show `<token>` where it goes.
-
-The script tag needs no token. That step just says so.
-
-### Step 3: Install
-
-The steps for the way you chose, with the send address filled in. The send address looks like this:
+The steps for the way you chose, with the send address and the sending token filled in. You never make the token yourself: Skald makes it when the step opens (a token that can only add log lines to this one site, and cannot read anything). It shows in **Your tokens** as "Sending logs: <site>, <date>". The send address looks like this:
 
 ```
 https://analytics.example.com/traffic-ingest/example.com
@@ -76,23 +63,29 @@ https://analytics.example.com/traffic-ingest/example.com
 
 Every command has a **Copy** button.
 
-**With Docker, or without Docker (the install kit).** Press **Download the install kit (.zip)**. The zip is named `skald-ship-<site>.zip`. On the web server:
+**My own server: one command.** On the web server, run the command the step shows:
 
-1. Copy the zip to the server and unzip it.
-2. Run `sudo bash install.sh`. It shows the web server's log files. Give the access log of your site. Then, if the zip has no token, paste the token when it asks.
-3. Open your site once in a browser.
-4. Back in Skald, press **Next**, then **Test connection**.
+```
+curl -fsSL https://analytics.example.com/traffic-kit/<code> | sudo bash
+```
 
-The kit holds `install.sh`, `uninstall.sh`, `check.sh` and `README.txt`. The kit without Docker also holds the shipper itself. The installer only reads the log. It never changes nginx, Apache or the website. `sudo bash install.sh --dry-run` shows what it would do, without changing anything. `sudo bash uninstall.sh` removes only what the installer made.
+The link works once, for 24 hours, and holds this site's sending token. The installer finds the site's access log in nginx's or Apache's settings by itself, and asks only when it cannot tell. It uses Docker when the server has it, and a small service with Python 3.9 or newer when not. Running it again is safe. A used or expired link prints "This install link was used or has expired" and changes nothing: press **Make a new command**. Coming back to the step after the command was used makes a new one by itself. Opening the link in a browser (or a mail's link preview) only shows the command; it does not use the link up.
 
-**Include the access token in the zip** is ticked by default.
+**Download as one file** gives the same installer as one file, `skald-install-<site>.sh`, with the token inside. Run it with `sudo bash skald-install-<site>.sh`. Add `--dry-run` to see what it would do without changing anything, `--log <path>` to name the log yourself, or `--yes` to answer nothing. It leaves two commands on the server: `sudo skald-ship-check` checks everything and changes nothing; `sudo skald-ship-uninstall` removes only what it installed.
 
-- **Ticked:** the kit is ready to run. Treat the zip like a password: send it only to the site's admin.
-- **Unticked:** the zip has no token, in no file. The token shows under the box with a **Copy** button. Send it separately, by another road than the zip. The admin then gives it to the installer in one of three ways: pastes it when `install.sh` asks; or saves it first in a file named `ship-token` next to `install.sh`; or sets it in `SKALD_SHIP_TOKEN` (`read -rs SKALD_SHIP_TOKEN && export SKALD_SHIP_TOKEN`, then `sudo --preserve-env=SKALD_SHIP_TOKEN bash install.sh`). The kit's `README.txt` says the same.
+**Email it to your server admin** sends the set-up pack (below). **Other ways: by hand with Docker / without Docker** keeps the same steps as plain commands, for a server where you would rather type each one.
 
-The box shows only where the token was just made, because a token is shown once. Without one, the zip holds no token and the installer asks for it. The choice is kept in the page's address while unticked (`token=0`), never the token itself. Never send a token by email.
+The installer only reads the log. It never changes nginx, Apache or the website. The command and the file hold the token: send them only to the site's admin.
 
-If the kit is not offered, the page says why. Each kit also has the same steps by hand, folded under **Without the kit**.
+### Send set-up to someone: the set-up pack
+
+**Send set-up to someone** (at the top of the site's **Set up** list, and in the logs and leads dialogs) mails one zip, `skald-setup-<site>.zip`, to up to 3 addresses, or downloads it. It holds:
+
+- `START-HERE.md`: every case, step by step (own server, Cloudflare, Vercel or Netlify, only the script tag), then leads, then how to check it works.
+- `CLAUDE.md` (and `AGENTS.md`): the same, written for an AI coding agent. Give the folder to Claude Code and say *Set up Skald from CLAUDE.md*. It keeps every key in environment variables, never in code or git.
+- `secrets.env`, the installer, the script tag, and the lead files for PHP, Node, Python and WordPress.
+
+**Include the keys** is ticked by default: the pack then holds this site's sending token and its lead secret (the one the site has, or a new one when it has none), so the person can finish without asking you. Treat that mail like a password: anyone with it can send data for this site. Delete it after the set-up. Untick it to send the pack without keys; the files then say where each key goes. Mailing needs mail set up on the server (**Settings > Mail**); without it, download the pack instead.
 
 **Cloudflare.** Deploy the Skald Worker, give it the send address and the token (as a secret named `SKALD_TOKEN`), and add your site's route to it. The dialog lists each step. When nothing else has reached Skald for the site yet, Skald reads it as edge records.
 
@@ -100,9 +93,9 @@ If the kit is not offered, the page says why. Each kit also has the same steps b
 
 **Only the script tag.** The tag goes in the `<head>` of every page; nothing changes on your web server. To serve it from your own domain instead, the step has the lines under **Advanced: serve it from your own domain**. See [The tracking script](tracking-script.md).
 
-### Step 4: Test
+### Step 3: Test
 
-Press **Test connection**. Skald says what it received for the site, or why it refused it. It checks at once, then again every 5 seconds for up to 2 minutes.
+The Test starts by itself when the step opens: Skald says what it received for the site, or why it refused it. It checks at once, then again every 5 seconds for up to 2 minutes. **Test connection** checks again.
 
 | What you see | What it means |
 | --- | --- |
@@ -171,9 +164,9 @@ Owners and admins add a site in five short steps. Open **Settings > Organisation
 
 1. **Your site.** Type the site's address, as people type it. A whole link works too: `https://www.example.com/pricing` becomes the site `www.example.com`. The page shows the name it will use. Choose the time zone its days are counted in.
 2. **Prove it's yours.** Add the DNS TXT record or the meta tag the step shows, then press **Check now**. A new DNS record can take a few minutes to show. Nothing is collected for the site until this is done, but you can go on and install now. When your server asks for no proof, the step says so.
-3. **How visits reach Skald.** The same choice as in Connections: Docker, without Docker, Cloudflare, Vercel or Netlify, or only the script tag. The way Skald suggests is chosen already, marked **Recommended for** your site, with the reason under it.
-4. **Install.** Make the sending token, then follow the steps and download the kit, as in Connections. The token goes in the zip unless you untick **Include the access token in the zip**; unticked, copy the token and send it to the site's admin separately.
-5. **Test and finish.** Press **Test connection**. When lines arrive it says "Done: example.com is receiving visits", with **Open its dashboard**. If not, it shows the fix and the common problems. **Finish later** closes the dialog.
+3. **How visits reach Skald.** The same choice as in Connections: my own server (with or without Docker), Cloudflare, Vercel or Netlify, or only the script tag. The way Skald suggests is chosen already, marked **Recommended for** your site, with the reason under it.
+4. **Install.** As in Connections: one command for your own server, with the token made for you, or the way's own steps. **Download as one file** and **Email it to your server admin** are there too.
+5. **Test and finish.** The Test starts by itself. When lines arrive it says "Done: example.com is receiving visits", with **Open its dashboard**. If not, it shows the fix and the common problems. **Finish later** closes the dialog.
 
 ### Skald checks your site
 

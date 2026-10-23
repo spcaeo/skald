@@ -95,11 +95,12 @@ export const ROUTE_KEYS = [
   { key: "list", kind: "overlay", owner: "tabs/person.js", means: "a list drawer: leftout, or conv-cancelled, conv-removed, conv-test", example: "leftout" },
   { key: "scan", kind: "overlay", owner: "tabs/sec-scanners.js", means: "Security > Who is scanning us?: one scanner's detail, by its first row: <day>.<seq> (never its address)", example: "2026-10-20.3" },
   { key: "ans", kind: "overlay", owner: "tabs/ai-answers.js", means: "AI answers: one stored answer in full, by its id", example: "412" },
-  { key: "setup", kind: "overlay", owner: "tabs/setup-dialogs.js, tabs/sitesadmin.js", means: "a Set up dialog (logs, assets, rsc, countries, script, lead, mail, privacy); on Add or remove sites, the Add a site wizard (new, or a site's name)", example: "rsc" },
+  { key: "setup", kind: "overlay", owner: "tabs/setup-dialogs.js, tabs/sitesadmin.js", means: "a Set up dialog (logs, assets, rsc, countries, script, lead, mail, privacy, pack: send set-up to someone); on Add or remove sites, the Add a site wizard (new, or a site's name)", example: "rsc" },
   { key: "conn", kind: "overlay", owner: "tabs/connections.js", means: "a Connections dialog: send, api or mcp", example: "api" },
   { key: "step", kind: "overlay", owner: "tabs/conn-ui.js", means: "the step of the dialog open (1 is the first)", example: "2" },
   { key: "share", kind: "overlay", owner: "tabs/conn-share.js", means: "Share with your developer: the form is open in the dialog (the link itself never goes in the address)", example: "1" },
   { key: "token", kind: "overlay", owner: "tabs/conn-install.js", means: "the install kit's token choice: 0 is the zip without the token; absent, the token goes in the zip (the token itself never goes in the address)", example: "0" },
+  { key: "pack", kind: "overlay", owner: "tabs/setup-pack.js", means: "Send set-up to someone: the box is open in the dialog (the addresses typed and the keys never go in the address)", example: "1" },
   { key: "dlg", kind: "overlay", owner: "main.js, keys.js, extras.js, report.js, filterpanel.js, tabs/person.js", means: "an app dialog: keys (shortcuts), new (What's new), views (saved views), report (report builder), filters (the Filters panel), find (Find a person, empty)", example: "views" },
 ];
 
@@ -109,9 +110,9 @@ export const TABLE_SUFFIXES = { q: "the search box", sort: "the order (column:as
 
 export const KEYS = new Map(ROUTE_KEYS.map((k) => [k.key, k]));
 export const OVERLAY = ROUTE_KEYS.filter((k) => k.kind === "overlay").map((k) => k.key);
-// The keys inside the dialog open (its step, the share form, the kit's token choice); the
-// other overlay keys name the drawer or dialog itself.
-export const INSIDE = ["step", "share", "token"];
+// The keys inside the dialog open (its step, the share form, the kit's token choice, the
+// set-up pack's box); the other overlay keys name the drawer or dialog itself.
+export const INSIDE = ["step", "share", "token", "pack"];
 export const OPENERS = OVERLAY.filter((k) => !INSIDE.includes(k));
 // Always a token, whatever the value looks like: a search for a person, an address filter.
 export const ALWAYS_MASKED = new Set(["who", "ip"]);

@@ -1,8 +1,10 @@
 // Settings > Connections, "Send this site's visits to Skald", step Install:
 // the exact steps for each way, with the send address filled in, and the
 // fresh sending token when there is one (else a clear <token>). Every command
-// has a Copy button. For the shippers, the install kit (.zip) built by the
-// helper (POST <page>/sites/kit, skald/kit). The steps follow
+// has a Copy button. For the shippers, the install kit built by the helper
+// (POST <page>/sites/kit, skald/kit): for the server way (2.30) one file,
+// skald-install-<site>.sh, with or without Docker; the older Docker and system
+// service kits (.zip) stay under "Other ways" (byHandFold). The steps follow
 // docs/INGEST.md, docs/VERCEL.md, docs/HOSTING.md, deploy/cloudflare-worker
 // and deployments' ADD-A-CLIENT-SITE.md.
 //
@@ -20,14 +22,20 @@ const TOKEN = "<token>";
 const tok = (st) => st.token || TOKEN;
 const host = (base) => { try { return new URL(base).host; } catch { return "<skald server>"; } };
 
-// The zip, posted for and saved as a file. The token goes in only when asked (kitBox's box).
-export async function downloadKit(st, method, withToken) {
-  if (DEMO.on) return "The demo has no server: the kit comes from a running Skald.";
-  const body = { site: st.site, method, include_token: Boolean(withToken && st.token) };
-  if (body.include_token) body.token = st.token;
+// The file name the server gave (Content-Disposition), else `name`.
+const nameFrom = (res, name) => {
+  const cd = (res.headers && typeof res.headers.get === "function" && res.headers.get("Content-Disposition")) || "";
+  const m = /filename="?([A-Za-z0-9._-]{1,120})"?/.exec(cd);
+  return m ? m[1] : name;
+};
+
+/* A POST whose answer is a file, saved by the browser: "" when saved, else why not in
+   words. Also the set-up pack (setup-pack.js) and the leads file (setup-hook.js). */
+export async function postFile(path, body, name, { failed = "The file was not made" } = {}) {
+  if (DEMO.on) return "The demo has no server: the file comes from a running Skald.";
   let res;
   try {
-    res = await fetch(st.kitUrl || "sites/kit", { method: "POST", credentials: "same-origin", cache: "no-store",
+    res = await fetch(path, { method: "POST", credentials: "same-origin", cache: "no-store",
       headers: { "Content-Type": "application/json", ...csrfHeaders() }, body: JSON.stringify(body) });
   } catch {
     return "The server could not be reached.";
@@ -35,11 +43,11 @@ export async function downloadKit(st, method, withToken) {
   if (!res.ok) {
     let data = null;
     try { data = await res.json(); } catch { /* not JSON */ }
-    return (data && data.error) || `The kit was not made (${res.status}).`;
+    return (data && data.error) || `${failed} (${res.status}).`;
   }
   try {
     const url = URL.createObjectURL(await res.blob());
-    const a = h("a", { href: url, download: `skald-ship-${st.site}.zip`, hidden: true });
+    const a = h("a", { href: url, download: nameFrom(res, name), hidden: true });
     document.body.append(a);
     a.click();
     a.remove();
@@ -48,6 +56,23 @@ export async function downloadKit(st, method, withToken) {
     return "The browser could not save the file.";
   }
   return "";
+}
+
+// The kit's file name: the server way is one installer, the by-hand kits a zip.
+export const kitName = (site, method) => (method === "server" ? `skald-install-${site}.sh` : `skald-ship-${site}.zip`);
+
+// The kit, posted for and saved as a file. The token goes in only when asked (kitBox's box).
+export async function downloadKit(st, method, withToken) {
+  const body = { site: st.site, method, include_token: Boolean(withToken && st.token) };
+  if (body.include_token) body.token = st.token;
+  return postFile(st.kitUrl || "sites/kit", body, kitName(st.site, method), { failed: "The kit was not made" });
+}
+
+// Whether this server makes the kit for a way. The server way: GET sites' kit.server
+// (2.30), else either older kit (a server from before 2.30 answers only those).
+export function kitOn(st, method) {
+  const k = st.kit || {};
+  return method === "server" ? Boolean(k.server ?? (k.docker || k.systemd)) : Boolean(k[method]);
 }
 
 // The kit's token choice (the owner, 2026-10-22): the token goes in the zip unless the box
@@ -72,29 +97,38 @@ export function setKitToken(st, on) {
   if (fam) stepped(fam, s[fam], { token: on ? "" : "0" });
 }
 
+// The same choice for the server way's one file (the installer, skald-install-<site>.sh).
+export const FILE_WORDS = {
+  label: "Include the access token in the file",
+  on: "The file is ready to run. Treat it like a password: send it only to the site's admin.",
+  off: "The file has no token. Send the token separately (copy it below), and the admin pastes it when the installer asks.",
+  none: "This page has no token to put in the file: a token is shown only once, when it is made. The file holds none, and the admin pastes the token when the installer asks.",
+};
+
 function kitBox(st, method) {
-  const ok = st.kit && st.kit[method];
-  if (!ok) return h("p", { class: "note" }, (st.kit && st.kit.why && st.kit.why[method]) || "The kit is not available on this server. Use the steps by hand below.");
+  if (!kitOn(st, method)) return h("p", { class: "note" }, (st.kit && st.kit.why && st.kit.why[method]) || "The kit is not available on this server. Use the steps by hand below.");
+  const one = method === "server";
+  const words = one ? FILE_WORDS : KIT_WORDS;
   const choice = h("div", { class: "cn-kit-token" });
-  const btn = h("button", { type: "button", class: "btn primary" }, "Download the install kit (.zip)");
+  const btn = h("button", { type: "button", class: "btn primary" }, one ? "Download as one file" : "Download the install kit (.zip)");
   const said = h("p", { class: "msg", role: "status", "aria-live": "polite" });
   let box = null;
   // Drawn again when a token is made on this page (tokenPanel calls st.onToken).
   const drawChoice = () => {
     box = null;
-    if (!st.token) { choice.replaceChildren(h("p", { class: "note" }, KIT_WORDS.none)); return; }
+    if (!st.token) { choice.replaceChildren(h("p", { class: "note" }, words.none)); return; }
     const mine = h("input", { type: "checkbox", name: "kit-token" });
     mine.checked = kitTokenOn(st);
     const line = h("small");
     const apart = h("div");
     const show = () => {
-      line.textContent = mine.checked ? KIT_WORDS.on : KIT_WORDS.off;
+      line.textContent = mine.checked ? words.on : words.off;
       apart.replaceChildren(...(mine.checked ? [] : [codeBlock(st.token, "the sending token")]));
     };
     mine.addEventListener("change", () => { setKitToken(st, mine.checked); show(); said.textContent = ""; });
     show();
     box = mine;
-    choice.replaceChildren(h("label", { class: "chk" }, mine, h("span", null, h("b", null, KIT_WORDS.label), line)), apart);
+    choice.replaceChildren(h("label", { class: "chk" }, mine, h("span", null, h("b", null, words.label), line)), apart);
   };
   st.onToken = drawChoice;
   drawChoice();
@@ -107,7 +141,8 @@ function kitBox(st, method) {
     said.className = `msg ${why ? "err" : "ok"}`;
   });
   return h("div", { class: "cn-kit" }, choice, h("div", { class: "acts" }, btn), said,
-    h("p", { class: "note" }, "The kit holds install.sh, uninstall.sh, check.sh and README.txt. If something seems wrong later, run sudo bash check.sh first."));
+    h("p", { class: "note" }, one ? "One file. It works with or without Docker on the server, and finds the site's access log by itself."
+      : "The kit holds install.sh, uninstall.sh, check.sh and README.txt. If something seems wrong later, run sudo bash check.sh first."));
 }
 
 const tokenNote = (st) => (st.token ? codeBlock(st.token, "the sending token")
@@ -175,6 +210,29 @@ function systemd(st) {
         "ReadOnlyPaths=/var/log /etc/skald-ship", "", "[Install]", "WantedBy=multi-user.target",
       ].join("\n"), "the service file"),
       codeBlock("sudo systemctl daemon-reload && sudo systemctl enable --now skald-ship\njournalctl -u skald-ship -n 20 -o cat", "the start commands")),
+  ];
+}
+
+// The older ways, by hand: the Docker kit and the system service kit, each with its
+// steps without the kit. Folded under the server way's one command or one file.
+export function byHandFold(st) {
+  return h("details", { class: "fold cn-byhand" }, h("summary", null, "Other ways: by hand with Docker / without Docker"),
+    h("h4", null, "With Docker"), ...docker(st), h("h4", null, "Without Docker (a system service)"), ...systemd(st));
+}
+
+// The server way without a session (the shared link's page, share-page.js): the one
+// file, then the same by hand. The dialog has the one command first (conn-send.js runPanel).
+function server(st) {
+  const file = kitName(st.site, "server");
+  return [
+    h("p", null, `On the web server of ${st.site}, with sudo. It works with or without Docker, finds the access log by itself, and never changes nginx, Apache or the website.`),
+    kitBox(st, "server"),
+    steps(
+      ["Copy the file to the server:", codeBlock(`scp ${file} <server>:~/`, "the copy command")],
+      ["Run it there:", codeBlock(`sudo bash ${file}`, "the install command")],
+      ["Open https://" + st.site + "/ once in a browser, then press Test connection."],
+    ),
+    byHandFold(st),
   ];
 }
 
@@ -260,6 +318,6 @@ function script(st) {
 }
 
 export function installFor(method, st) {
-  const fn = { docker, systemd, cloudflare, vercel: drains, script }[method];
+  const fn = { server, docker, systemd, cloudflare, vercel: drains, script }[method];
   return fn ? fn(st) : [h("p", { class: "empty" }, "Choose a way first.")];
 }

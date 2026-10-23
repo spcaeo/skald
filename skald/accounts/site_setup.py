@@ -30,7 +30,7 @@ TABLE = ("CREATE TABLE IF NOT EXISTS site_setup (name TEXT PRIMARY KEY, org_id I
          "token_id TEXT, started_at TEXT NOT NULL, updated_at TEXT NOT NULL, updated_by TEXT, "
          "done_at TEXT, found TEXT)")
 STEPS = 5
-METHODS = ("docker", "systemd", "cloudflare", "vercel", "netlify", "script")
+METHODS = ("server", "docker", "systemd", "cloudflare", "vercel", "netlify", "script")
 # The log format a site made from the dashboard is given when its method is
 # chosen and nothing has arrived yet: the Worker's records alone need
 # edge_json (logs.edge_only_cached is off only then); the rest read as auto.

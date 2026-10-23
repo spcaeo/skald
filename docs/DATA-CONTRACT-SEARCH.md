@@ -6,7 +6,7 @@ under 1000 lines); the rules there apply. Code: `skald/search/`
 `skald/search_landing.py` (Skald's own side). Second roads:
 `skald/audit_search.py` (the synced figures) and
 `skald/audit_search_landing.py` (`search_landing`). Setup:
-[INTEGRATIONS.md](INTEGRATIONS.md#search-console-and-bing).
+[INTEGRATIONS.md](INTEGRATIONS-SEARCH.md#search-console-and-bing).
 
 The engines' figures are theirs, never Skald's: nothing here is ever added
 to a Skald figure, and a search figure is never drawn as people.

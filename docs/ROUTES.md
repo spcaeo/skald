@@ -96,7 +96,8 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | `list` | tabs/person.js | a list drawer: `leftout`, `conv-cancelled`, `conv-removed`, `conv-test` | `list=leftout` |
 | `scan` | tabs/sec-scanners.js | Security, Who is scanning us?: one scanner's detail, by its first row (never its address) | `scan=2026-10-20.3` |
 | `ans` | tabs/ai-answers.js | AI answers: one stored answer in full | `ans=412` |
-| `setup` | tabs/setup-dialogs.js | a Set up dialog: `logs`, `assets`, `rsc`, `countries`, `script`, `lead`, `mail`, `privacy` | `setup=rsc&step=2` |
+| `setup` | tabs/setup-dialogs.js | a Set up dialog: `logs`, `assets`, `rsc`, `countries`, `script`, `lead`, `mail`, `privacy`, `pack` (send set-up to someone, 2.30) | `setup=rsc&step=2` |
+| `pack` | tabs/setup-pack.js | `1` while the set-up pack box is open inside the logs or leads dialog (2.30); the addresses and keys never go in the address | `pack=1` |
 | `setup` (on `#settings/sitesadmin`) | tabs/sitesadmin.js | the Add a site wizard: `new`, or a site's name | `setup=new&step=1` |
 | `conn` | tabs/connections.js | a Connections dialog: `send`, `api`, `mcp` | `conn=api&step=2` |
 | `step` | tabs/conn-ui.js | the step of the dialog open, 1 first | `step=2` |

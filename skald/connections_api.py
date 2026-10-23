@@ -5,10 +5,11 @@ role and CSRF checks; every route here is for an owner or admin):
   GET  sites/status?site=<name>   what has reached Skald for the site
        -> {site, ingest_enabled, send_url, folder, received, last_batch,
            last_contact, today, last_refusal, verify, beacon, setup, now}
-  POST sites/kit     {site, method: docker|systemd, token?, include_token}
-       -> the install kit as a zip (skald/kit). The token goes in only
-          when include_token is true, and only a valid sending token of that
-          site; it is never logged or kept.
+  POST sites/kit     {site, method: docker|systemd|server, token?, include_token}
+       -> the install kit as a zip (skald/kit); with "server", the one
+          bash file instead (skald-install-<site>.sh, kit_api.py). The token
+          goes in only when include_token is true, and only a valid sending
+          token of that site; it is never logged or kept.
   POST sites/setup   {name, step?, method?, token_id?, done?, found?}: the
        wizard's progress (accounts/site_setup.py), never a token's value; found:
        a site check's facts, kept cleaned (site_detect.clean_found) -> {setup}
@@ -158,6 +159,9 @@ def kit_zip(c, form):
         ok, why, _ = apitokens.check(c.db, f"Bearer {token}", site, "ingest")
         if not ok:
             return c.no(400, f"The token cannot go in the kit: {why}.")
+    if method == "server":                        # the one bash file (kit_api.py)
+        from . import kit_api
+        return kit_api.server_file(c, site, token)
     page = f"{send_base(c)}/traffic/{slug(site)}/"
     try:
         data = kit.build(site, f"{send_base(c)}{ingest.PREFIX}{site}", method, page,

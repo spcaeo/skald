@@ -4,7 +4,16 @@ POST /traffic-hooks/<site>/lead, signed with Skald's scheme:
 
     X-Skald-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<raw body>">
 
-with the hook's secret; refused when t is more than 5 minutes off. Body:
+with the hook's secret; refused when t is more than 5 minutes off. Or, for
+a sender that cannot sign (Zapier's Webhooks step, a form plugin's custom
+headers), the plain key, read only when no X-Skald-Signature is sent (2.30;
+`lead` and `json` only, hooks.accepted):
+
+    Authorization: Bearer <the hook's secret>
+
+compared in constant time (verify_key), never logged or kept. It has no
+time, so a captured request could be sent again; a lead is kept once per
+(site, tool, ref, stage) anyway. Body:
 
     external_ref  the lead's own id in the site (required)
     action        what was done: "demo", "signup", "contact" (required, a token;
@@ -44,10 +53,13 @@ stage of some refs as test, or not; signed exactly like the lead POST.
 """
 from __future__ import annotations
 
+import hmac
+
 from .. import ACTION, LABEL, SITE_VID, STAGES, action_name
 from . import Invalid, naive, sign_timed, text, touch, verify_timed, when
 
 HEADER = "x-skald-signature"
+KEY_HEADER = "authorization"
 LABEL_NOTE = ("the label was not a short lowercase token (letters, digits, - or _, at most "
               "40): kept without a label")
 TEST_NOTE = "test was not true or false: ignored, kept as a real lead"
@@ -59,6 +71,23 @@ def verify(headers: dict, body: bytes, secret: str, now: float) -> bool:
 
 def sign(body: bytes, secret: str, now: float, method: str = "POST", uri: str = "") -> dict:
     return {"X-Skald-Signature": sign_timed(body, secret, now)}
+
+
+def keyed(headers: dict) -> bool:
+    """True when the plain key road applies: an Authorization header and no
+    X-Skald-Signature (a signature, right or wrong, is always read as one)."""
+    return not headers.get(HEADER) and bool(headers.get(KEY_HEADER))
+
+
+def verify_key(headers: dict, secret: str) -> bool:
+    """`Authorization: Bearer <secret>` with the hook's own secret, compared
+    in constant time."""
+    scheme, _, value = str(headers.get(KEY_HEADER) or "").strip().partition(" ")
+    value = value.strip()
+    if scheme.lower() != "bearer" or not value or not secret:
+        return False
+    return hmac.compare_digest(value.encode("utf-8", "surrogateescape"),
+                               secret.encode("utf-8", "surrogateescape"))
 
 
 def _get_message(target: str) -> bytes:

@@ -8,6 +8,13 @@
 // site's own backend, the guide's body and signed examples (help-data.js,
 // "Send leads from your backend") with this site's address; "Share with your
 // developer" (conn-share.js) makes a private page with the same steps.
+//
+// 2.30, shorter: the first step says what the script tag already counts with no code;
+// the secret is made as soon as its step is shown (when the tool takes one Skald makes
+// and none is set); the site's own backend downloads one file per language and
+// WordPress one plugin (POST integrations/leadfile {site, lang, secret?}: setup-leadfile.js);
+// Zapier, Make and n8n post with an Authorization: Bearer header, no signing. The
+// set-up pack (setup-pack.js) sends all of it to someone in one zip.
 
 import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
@@ -15,15 +22,22 @@ import { input, field, why, confirmIn } from "./forms.js";
 import { wizard, codeBlock, steps, answerBox, helpLink } from "./conn-ui.js";
 import { adminFold, choices, mailButton, copyButton } from "./setup-common.js";
 import { shareBox } from "./conn-share.js";
+import { packToggle, keepKey, keptKey } from "./setup-pack.js";
+import { leadFilePanel, wordpressPanel, bearerSteps } from "./setup-leadfile.js";
 import { blockList } from "../mdview.js";
 
 export const POLL_MS = 5000;
 export const POLL_FOR_MS = 120000;
 export const SECRET = "<the secret>";
 
-// Each tool in plain words: its title and one line.
+// What the script tag counts with no code (the beacon's own events), said first.
+export const NO_CODE = "Already counted with no code, when the script tag is on the site: form sends, Calendly and Cal.com bookings, phone and email clicks.";
+
+// Each way in plain words: its title and one line. "wordpress" is a way, not a tool:
+// the plugin posts to the "lead" hook (toolOf).
 const WAYS = {
-  lead: ["Your site's own form or backend", "Your site's server tells Skald each time a lead is made. A developer adds a few lines."],
+  lead: ["Your site's own form or backend", "Your site's server tells Skald each time a lead is made. Download one file, add one line."],
+  wordpress: ["WordPress forms", "Contact Form 7, WPForms, Gravity Forms, Elementor and Ninja Forms. Upload one plugin; no code."],
   json: ["Zapier, Make or n8n", "A form plugin or a no-code tool sends each lead through Zapier, Make or n8n."],
   calendly: ["Calendly", "Bookings, cancellations and no-shows. Needs a paid Calendly plan (Standard or higher)."],
   calcom: ["Cal.com", "Bookings, cancellations and moved bookings."],
@@ -31,6 +45,10 @@ const WAYS = {
   stripe: ["Stripe", "Each paid Checkout, counted as a payment."],
   hubspot: ["HubSpot", "New contacts, booked meetings and won deals."],
 };
+const ORDER = ["lead", "wordpress", "json", "calendly", "calcom", "typeform", "stripe", "hubspot"];
+export const toolOf = (way) => (way === "wordpress" ? "lead" : way);
+// The lead hook's secret made in this page, for the set-up pack (never stored).
+export const leadSecretFor = (site) => keptKey("lead", site);
 
 /* The steps for one tool: {lines, code}, with the address and the secret (or
    SECRET when it is not to be shown) filled in. From docs/help/webhooks.md. */
@@ -45,11 +63,7 @@ export function hookSteps(tool, addr, secret = SECRET) {
     code: [`BODY='{"external_ref":"L-1001","action":"demo"}'`, "T=$(date +%s)",
       `SIG=$(printf '%s.%s' "$T" "$BODY" | openssl dgst -sha256 -hmac "${secret}" -hex | sed 's/^.* //')`,
       `curl -X POST '${addr}' \\`, `  -H 'Content-Type: application/json' -H "X-Skald-Signature: t=$T,v1=$SIG" --data-raw "$BODY"`].join("\n") };
-    case "json": return { lines: [
-      "Keep the secret in the tool's own secure storage, not in a plain text step.",
-      `Zapier: add a "Code by Zapier" step that signs the body and posts it to ${addr}`,
-      `Make: use the HTTP module to post to ${addr} with the header X-Skald-Signature set to t={{timestamp}},v1={{sha256(timestamp + "." + body; "hex"; secret)}}, using the secret.`,
-      "One message can carry one lead, a list of them, or {\"records\": [...]}, up to 100."] };
+    case "json": return bearerSteps(addr, secret);
     case "calendly": return { lines: [
       `Make a webhook subscription in Calendly with the address ${addr}. Calendly has no screen for it: it is made through Calendly's API, usually by a developer.`,
       "Use the secret as the subscription's signing key.",
@@ -75,6 +89,13 @@ export function hookSteps(tool, addr, secret = SECRET) {
     default: return { lines: [`Send each lead to ${addr}`] };
   }
 }
+// The signed way for Zapier and Make (before 2.30 the only one), folded under the Bearer header.
+const signedJson = (addr) => [
+  "Keep the secret in the tool's own secure storage, not in a plain text step.",
+  `Zapier: add a "Code by Zapier" step that signs the body and posts it to ${addr}`,
+  `Make: use the HTTP module to post to ${addr} with the header X-Skald-Signature set to t={{timestamp}},v1={{sha256(timestamp + "." + body; "hex"; secret)}}, using the secret.`,
+  "One message can carry one lead, a list of them, or {\"records\": [...]}, up to 100."];
+
 // The guide's parts 2 and 3 (the body; sign it and send it), its example address
 // replaced with this hook's, as the shared page shows them (share-page.js).
 const GUIDE_URL = "https://stats.example.com/traffic-hooks/example.com/lead";
@@ -125,9 +146,13 @@ function secretPanel(st, w) {
   if (!ownSecret(t)) {
     const acts = h("div", { class: "acts" });
     const make = async () => {
+      st.making = t.tool;
+      acts.replaceChildren(h("p", { class: "empty" }, "Making the secret..."));
       const r = await call("integrations/secret", { site: st.site, tool: t.tool });
-      if (!r.ok || !r.secret) { draw(); w.say(why(r, "The secret was not made.")); return; }
+      st.making = "";
+      if (!r.ok || !r.secret) { st.failed = t.tool; draw(); w.say(why(r, "The secret was not made.")); return; }
       st.fresh = { tool: t.tool, secret: r.secret, url: r.url || t.url };
+      if (t.tool === "lead") keepKey("lead", st.site, r.secret);
       t.set = true;
       w.redraw();
     };
@@ -139,7 +164,9 @@ function secretPanel(st, w) {
       });
       acts.replaceChildren(btn);
     }
-    draw();
+    // None set and none made here: made at once, with no press (once; a failure shows the button).
+    if (!t.set && !fresh && st.failed !== t.tool) { if (st.making !== t.tool) make(); else acts.replaceChildren(h("p", { class: "empty" }, "Making the secret...")); }
+    else draw();
     if (t.set && !fresh) out.push(h("p", { class: "note" }, "This hook has a secret already. Make a new one only if you lost it."));
     out.push(acts);
   }
@@ -203,11 +230,44 @@ function testPanel(st) {
     h("div", { class: "acts" }, t.set ? test : null, live), out);
 }
 
+/* Step 3, Set it up: the way's own steps with the address and the secret filled in, the
+   mail and the share for a developer, and the set-up pack for someone else. */
+function setUpPanel(st, w) {
+  const t = st.tool();
+  const site = st.site;
+  const fresh = st.fresh?.tool === t.tool ? st.fresh : null;
+  const addr = fresh?.url || t.url;
+  const secret = fresh && !ownSecret(t) ? fresh.secret : "";
+  const shown = hookSteps(t.tool, addr, secret || SECRET);
+  const [pack, packBody] = packToggle(site, "Send set-up to someone");
+  const mail = mailButton("Send these steps to your developer", { subject: `Connect ${t.name} to Skald for ${site}`, body: hookMail(site, { ...t, url: addr }) });
+  const sendOn = [h("div", { class: "acts" }, copyButton("Copy the steps", asText(shown), "the steps"), mail, pack), packBody,
+    shareBox(site, "hook", t.tool),
+    h("p", { class: "note" }, ownSecret(t) ? "The mail holds the address and the steps." : "The mail holds the address and the steps, not the secret: give the secret separately, never by mail or chat.")];
+  const filled = h("p", null, secret ? "The address and the secret are filled in." : `The address is filled in. Put the secret where you see ${SECRET}.`);
+  if (st.pick === "wordpress") {
+    return [...wordpressPanel(site, { secret }), h("div", { class: "acts" }, pack), packBody, helpLink("webhooks", "WordPress forms, step by step")];
+  }
+  if (st.pick === "lead") {
+    return [...leadFilePanel(st, { secret, onLang: () => w.redraw() }),
+      h("details", { class: "fold" }, h("summary", null, "By hand: the signed request"), filled, steps(...shown.lines), shown.code ? codeBlock(shown.code, "the example") : null),
+      examples(addr), ...sendOn, helpLink("leads-from-your-backend", "Examples in Node, Python and PHP")];
+  }
+  return [filled, steps(...shown.lines), shown.code ? codeBlock(shown.code, "the example") : null,
+    t.tool === "json" ? h("details", { class: "fold" }, h("summary", null, "Signed instead (optional)"), steps(...signedJson(addr))) : null,
+    ...sendOn, helpLink("webhooks", `${t.name}, step by step`)];
+}
+
 export async function hookDialog(site, { onClose = null, route = null, start = 0 } = {}) {
   const r = await call(`integrations?site=${encodeURIComponent(site)}`);
   const tools = r.ok ? (r.tools || []).filter((t) => WAYS[t.tool]) : [];
-  const st = { site, tool: null, fresh: null, pick: (tools.find((t) => t.set) || tools[0])?.tool || "" };
-  st.tool = () => tools.find((t) => t.tool === st.pick) || tools[0];
+  // A lead secret made earlier in this page is still known (setup-pack.js keeps it).
+  const kept = keptKey("lead", site);
+  const st = { site, tool: null, lang: "php", fresh: kept ? { tool: "lead", secret: kept, url: tools.find((t) => t.tool === "lead")?.url || "" } : null,
+    pick: (tools.find((t) => t.set) || tools[0])?.tool || "" };
+  st.tool = () => tools.find((t) => t.tool === toolOf(st.pick)) || tools[0];
+  // The ways offered: each tool the server takes, and WordPress when it takes "lead".
+  const ways = ORDER.filter((id) => tools.some((t) => t.tool === toolOf(id)));
   if (!tools.length) {
     return wizard({ route, start, title: "Connect your leads", subtitle: `For ${site}. Optional.`, key: "setup-lead", onClose,
       steps: [{ name: "Not available", draw: () => [h("p", { class: "msg err" }, why(r, "The hooks could not be loaded."))] }] });
@@ -216,29 +276,17 @@ export async function hookDialog(site, { onClose = null, route = null, start = 0
     title: "Connect your leads", subtitle: `For ${site}. Optional.`, key: "setup-lead", onClose, state: st,
     steps: [
       { name: "Where leads come from",
-        draw: (w) => [h("p", null, "Where are your leads made? Skald then counts each one with the visit and the source that brought it."),
+        draw: (w) => [h("div", { class: "state ok su-nocode", role: "note" }, h("div", null, h("p", null, NO_CODE))),
+          h("p", null, "Where else are your leads made? Skald then counts each one with the visit and the source that brought it."),
           r.locked ? h("p", { class: "msg err" }, r.locked) : null,
           r.takes_hooks === false ? h("p", { class: "msg err" }, "This Skald does not report on this site yet, so its hooks are not answered.") : null,
-          choices(st, "pick", tools.map((t) => ({ id: t.tool, title: WAYS[t.tool][0], sub: `${WAYS[t.tool][1]} Now: ${t.words}.` })), "Where do your leads come from?", () => w.say("")),
+          choices(st, "pick", ways.map((id) => { const t = tools.find((x) => x.tool === toolOf(id)); return { id, title: WAYS[id][0], sub: `${WAYS[id][1]} Now: ${t.words}.` }; }),
+            "Where do your leads come from?", () => w.say("")),
           helpLink("webhooks", "Each tool, step by step")],
         check: () => (st.pick ? "" : "Choose where your leads come from.") },
       { name: "The secret", draw: (w) => secretPanel(st, w),
         check: () => { const t = st.tool(); return t.set || !t.rotatable ? "" : ownSecret(t) ? `Paste the signing secret from ${t.name} first.` : "Make the secret first."; } },
-      { name: "Set it up",
-        draw: () => {
-          const t = st.tool();
-          const fresh = st.fresh?.tool === t.tool ? st.fresh : null;
-          const addr = fresh?.url || t.url;
-          const shown = hookSteps(t.tool, addr, fresh && !ownSecret(t) ? fresh.secret : SECRET);
-          return [h("p", null, fresh ? "The address and the secret are filled in." : `The address is filled in. Put the secret where you see ${SECRET}.`),
-            steps(...shown.lines), shown.code ? codeBlock(shown.code, "the example") : null,
-            h("div", { class: "acts" }, copyButton("Copy the steps", asText(shown), "the steps"),
-              mailButton("Send these steps to your developer", { subject: `Connect ${t.name} to Skald for ${site}`, body: hookMail(site, { ...t, url: addr }) })),
-            shareBox(site, "hook", t.tool),
-            t.tool === "lead" ? examples(addr) : null,
-            h("p", { class: "note" }, ownSecret(t) ? "The mail holds the address and the steps." : "The mail holds the address and the steps, not the secret: give the secret separately, never by mail or chat."),
-            t.tool === "lead" ? helpLink("leads-from-your-backend", "Examples in Node, Python and PHP") : helpLink("webhooks", `${t.name}, step by step`)];
-        } },
+      { name: "Set it up", draw: (w) => setUpPanel(st, w) },
       { name: "Test", draw: () => [testPanel(st)] },
     ],
   });
