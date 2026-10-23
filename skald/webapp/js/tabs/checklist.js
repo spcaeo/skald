@@ -4,7 +4,8 @@
 // recipient and the privacy choice. Each open line is one plain sentence and a Set up
 // button that opens a short guided dialog (js/tabs/setup-dialogs.js, loaded when first
 // pressed; in the address as setup=<item>&step=<n>); the server's own technical words
-// stay folded under "For your server admin".
+// stay folded under "For your server admin". At the top, "Send set-up to someone" (2.30,
+// setup=pack): the whole set-up in one zip, mailed or saved (setup-pack.js).
 //
 // Two places, for owners and admins:
 //   Overview              until every item that is not optional is done, or until they
@@ -80,7 +81,9 @@ export function setupChecklist(m, { where = "overview" } = {}) {
   const list = h("ol", { class: "su-list" });
   const left = h("span", { class: "su-left" });
   const hide = always ? null : h("button", { type: "button", class: "btn su-hide" }, "Hide on Overview");
-  const head = h("div", { class: "su-head" }, h("h2", null, `Set up ${m.site}`), left, h("span", { class: "grow" }),
+  // 2.30: the whole set-up, mailed or saved as one zip (setup=pack, setup-dialogs.js).
+  const pack = h("button", { type: "button", class: "btn primary su-pack-go" }, "Send set-up to someone");
+  const head = h("div", { class: "su-head" }, h("h2", null, `Set up ${m.site}`), left, h("span", { class: "grow" }), pack,
     hide ? h("span", { class: "su-hide-w" }, hide, h("small", { class: "su-where" }, "Always in Settings › Connections")) : null);
   const box = h("section", { class: `sheet su${always ? " su-always" : ""}`, "aria-label": `Set up ${m.site}` }, head,
     h("p", { class: "sub" }, always ? "What works and what is left for this site. Set up walks you through each step; a line ticks itself once Skald sees it working."
@@ -96,6 +99,7 @@ export function setupChecklist(m, { where = "overview" } = {}) {
       await openSetup(item.act, m.site, { item, onClose: () => refresh() });
     } finally { btn.disabled = false; }
   }
+  pack.addEventListener("click", () => setUp({ act: "pack" }, pack));
   const draw = (items) => {
     const todo = items.filter((i) => !i.optional && i.state !== "done").length;
     left.textContent = todo ? `${todo} of ${items.filter((i) => !i.optional).length} left` : "All set";

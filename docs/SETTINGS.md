@@ -500,7 +500,9 @@ origin and the session's `X-Skald-CSRF` value.
 | POST `<page>/sites/remove` | owner | `{name, confirm: name}`: a dashboard site stops being processed; data kept until `skald site purge` |
 | POST `<page>/sites/verify` | admin | `{name}`: looks for the site's `skald-verify` token (DNS TXT or the home page's meta tag); 10 checks an hour per site |
 | GET `<page>/sites/status?site=<name>` | admin | what has reached Skald for the site, for the Test in Settings > Connections (DATA-CONTRACT.md, "Connections status") |
-| POST `<page>/sites/kit` | admin | `{site, method: docker\|systemd, include_token?, token?}` -> the install kit, `application/zip` (docs/INGEST.md, "The install kit and check.sh"). The token goes in only with `include_token: true` and a valid sending token of that site; else 400 |
+| POST `<page>/sites/kit` | admin | `{site, method: server\|docker\|systemd, include_token?, token?}` -> for `server`, the one-file installer `skald-install-<site>.sh`, `text/x-shellscript` (docs/INGEST.md, "One command: the one-file installer and the install link"); for `docker` or `systemd`, the zip kit, `application/zip` (docs/INGEST.md, "The install kit and check.sh"). The token goes in only with `include_token: true` and a valid sending token of that site; else 400 |
+| POST `<page>/sites/link` | admin | `{site}` -> `{ok, url, command, expires_at, token, token_id}`: a new sending token (shown once) and the one-time install command, `curl -fsSL <url> \| sudo bash`, for 24 hours (`kit_api.py`, `kit/link.py`; docs/INGEST.md). 409 when the log endpoint is off |
+| POST `<page>/sites/pack`, `<page>/sites/packmail` | admin | the set-up pack, `skald-setup-<site>.zip`, downloaded or mailed to up to 3 addresses (`kit_api.py`, `kit/pack.py`; docs/INGEST.md, "The set-up pack") |
 | POST `<page>/sites/setup` | admin | `{name, step?, method?, token_id?, done?}` -> `{setup}`: the Add a site wizard's progress (`accounts/site_setup.py`; audit `site.setup`). A method chosen for a dashboard site that has received nothing sets its format (`cloudflare`: `edge_json`, else `auto`; audit `site.format`) |
 | POST `<page>/sites/share` | admin | `{site, task: send\|script\|hook, method?, days: 1\|7\|30}` -> `{link, ref, expires_at, ...}`: a "Share with your developer" link, shown once (`share_links.py`; audit `share.create`) |
 | GET `<page>/sites/shares` | admin | `{shares: [{ref, site, task, method, created_at, expires_at, state, views, viewed_at, revealed_at}]}` |
@@ -511,20 +513,22 @@ origin and the session's `X-Skald-CSRF` value.
 | POST `<page>/logo/upload` | admin | `{data: base64, name}`: PNG, ICO or a safe SVG, square, at least 64 x 64, at most 256 KB; sets `site.logo.source` to `upload` |
 | POST `<page>/logo/check` | admin | asks the site for its icon now; once a minute per site (429 after) |
 
-The three routes after `sites/verify` are `skald/connections_api.py`; they sit under
+`sites/status`, `sites/kit` and `sites/setup` are `skald/connections_api.py`
+(`sites/link`, `sites/pack` and `sites/packmail` are `skald/kit_api.py`); they sit under
 `sites/` so the nginx route every install already has reaches them. `setup` in the `sites`
 answer is the site's wizard row (or absent); `quiet` is true for a site whose set-up is done
 and that nothing (no batch, no script-tag event) reached for 24 hours.
 
 ## The install kit's image (config only)
 
-Settings > Connections offers a shipper install kit (docs/INGEST.md). Two keys say what the
-Docker kit runs. They are read from `config.yml` or the environment only; no page changes
-them.
+Settings > Connections offers the one command and the one file for a server, and the zip
+kits by hand (docs/INGEST.md). Two keys say what the shipper runs with Docker: the Docker
+way of the one command and one file, and the Docker kit. They are read from `config.yml` or
+the environment only; no page changes them.
 
 | Key | Values | Environment variable | Default |
 | --- | --- | --- | --- |
-| `ingest.kit_image` | a Docker image name, like `ghcr.io/<owner>/<image>:2` | `SKALD_KIT_IMAGE` | none: the page offers no Docker kit and says why |
+| `ingest.kit_image` | a Docker image name, like `ghcr.io/<owner>/<image>:2` | `SKALD_KIT_IMAGE` | none: the page offers no Docker kit and says why, and the one file runs as a systemd service only |
 | `ingest.kit_ship_path` | the shipper's path inside that image | `SKALD_KIT_SHIP_PATH` | `/opt/skald/tools/skald-ship.py` (the Docker image: its own app folder) |
 
 The config key wins over the variable. The Docker image's entrypoint sets both variables

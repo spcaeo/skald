@@ -82,7 +82,7 @@ stored, never mailed. Recounted from the raw lines by `skald audit --live`
 | `hours` | `{"visitors", "pages", "ai_visitors"}` of 24 ints, or null | yesterday by local hour to the cut: readers by the hour of their first page, page views and AI-sent visits by the hour of the request that counted them; null when one does not add up to its figure |
 | `today_hours` | the same, or null | today so far, by the same rules (adds up to the snapshot's `people.readers`, `people.views`, `people.cited_visits`) |
 
-conversions.json `today.by_now` holds the leads ([DATA-CONTRACT-CONVERSIONS.md](docs/DATA-CONTRACT-CONVERSIONS.md)).
+conversions.json `today.by_now` holds the leads ([DATA-CONTRACT-CONVERSIONS.md](DATA-CONTRACT-CONVERSIONS.md)).
 
 ### Real time's helper route: GET `<page>/api/realtime`
 

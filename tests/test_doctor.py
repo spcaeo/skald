@@ -272,6 +272,25 @@ class Doctor(unittest.TestCase):
         self.assertIn("NEEDS ATTENTION  Disk: could not check: OSError: no such disk", out)
 
 
+class WaitingSite(unittest.TestCase):
+    """2.29.1: a dashboard site whose server has not sent a line yet said
+    NEEDS ATTENTION with a wrong fix (set logs.base); it waits, as the daily
+    run and Days stored already say."""
+
+    def check(self, **extra):
+        import tempfile
+        with tempfile.TemporaryDirectory() as folder:
+            return doctor.access_log({"logs": {"dir": folder}, **extra}, NOW, "skald")
+
+    def test_a_dashboard_site_with_no_line_yet_waits(self):
+        got = self.check(_dashboard_site=True)
+        self.assertEqual(got["state"], doctor.OK)
+        self.assertIn("waits for its first log lines", got["says"])
+
+    def test_a_missing_log_on_a_configured_site_still_needs_attention(self):
+        self.assertEqual(self.check()["state"], doctor.ATTENTION)
+
+
 class Helper(unittest.TestCase):
     def serve(self, status: int):
         class Handler(BaseHTTPRequestHandler):

@@ -484,7 +484,7 @@ upstream skald_helper {
     # server unix:/run/skald/helper.sock;
 }
 upstream skald_beacon {
-    server 127.0.0.1:8766;          # beacon_server.py: /traffic-beacon, /traffic-hooks/, /traffic-js/
+    server 127.0.0.1:8766;          # beacon_server.py: /traffic-beacon, /traffic-hooks/, /traffic-js/, /traffic-kit/
 }
 # Sign-in, forgot-password and sign-up POSTs: 10 a minute per address, a burst
 # of 5. (GETs of the pages are not counted: their key is empty.) Behind a CDN,
@@ -697,6 +697,16 @@ location = /traffic-beacon {
 location ^~ /traffic-js/ {
     limit_except GET { deny all; }
     access_log off;
+    include snippets/skald-beacon.conf;
+}
+
+# One-time install links, `curl -fsSL <base>/traffic-kit/<code> | sudo bash`
+# (docs/INGEST.md): to the beacon helper. The code is a secret: never logged.
+location ^~ /traffic-kit/ {
+    limit_except GET { deny all; }
+    access_log off;
+    add_header Cache-Control "no-store" always;
+    add_header X-Robots-Tag "noindex, nofollow" always;
     include snippets/skald-beacon.conf;
 }
 ```

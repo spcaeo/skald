@@ -9,7 +9,8 @@ it, after finding the link usable): only its one task, for its one site.
            batches, today's lines, the last refusal, verified or not, the
            tag's counters); hook: the hook's state and its last deliveries;
            nextjs: the doctor's Next.js line (doctor.next_pages: state, says)
-  kit      the install kit (send, docker or systemd); with include_token, only
+  kit      send: the link's own way only: server, the one-file installer;
+           docker or systemd, the older zip kit; with include_token, only
            a valid sending token of this site goes in
   test     hook: a signed sample lead posted to the receiver here, marked as
            a test (X-Skald-Test), so it is read, logged as "test" and never kept
@@ -152,7 +153,8 @@ def kit_zip(c: Ctx, form):
     from .accounts import apitokens
     e = c.entry
     method = text(form, "method", 20)
-    if e["task"] != "send" or method not in kit.METHODS or method != e["method"]:
+    server = ("server", *kit.METHODS)       # one server way since 2.30: the one file, or a zip under "Other ways"
+    if e["task"] != "send" or method not in server or e["method"] not in server:
         return c.no(400, "This link has no install kit.")
     token = None
     if form.get("include_token") is True:
@@ -161,6 +163,16 @@ def kit_zip(c: Ctx, form):
         if not ok:
             return c.no(400, f"The token cannot go in the kit: {why}.")
     page = f"{c.base()}/traffic/{slug(c.site)}/"
+    if method == "server":                        # the one bash file (kit.one_file)
+        from .kit_api import send_bytes
+        try:
+            data = kit.one_file(c.site, f"{c.base()}{ingest.PREFIX}{c.site}", page,
+                                f"{page}#help?part=troubleshooting-connections",
+                                kit.image(c.config), kit.ship_path(c.config), token)
+        except ValueError as why:
+            return c.no(400, str(why))
+        send_bytes(c.h, data, "text/x-shellscript; charset=utf-8", f"skald-install-{c.site}.sh")
+        return None
     try:
         data = kit.build(c.site, f"{c.base()}{ingest.PREFIX}{c.site}", method, page,
                          f"{page}#help?part=troubleshooting-connections", kit.image(c.config),

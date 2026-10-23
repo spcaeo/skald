@@ -151,18 +151,33 @@ Skald counts a paid Checkout as a Payment. A Checkout paid by a delayed method c
 
 ## Zapier and Make
 
-Use the **Zapier, Make, n8n (json)** box. This hook takes the same fields as your own site's lead push (next section), signed the same way.
+Use the **Zapier, Make, n8n (json)** box. This hook takes the same fields as your own site's lead push (next section).
 
 1. Press **Make secret** in that box, and copy the address and the secret.
 2. Keep the secret in the tool's own secure storage, not in a plain text step.
-3. In **Zapier**, add a "Code by Zapier" step that signs the body and posts it (the example in the next section works).
-4. In **Make**, use the HTTP module. Set the header `X-Skald-Signature` to `t={{timestamp}},v1={{sha256(timestamp + "." + body; "hex"; secret)}}`.
+3. Send the secret as a plain key, with no code: a POST to the address with these headers and a JSON body.
+
+```
+POST https://analytics.example.com/traffic-hooks/example.com/json
+Authorization: Bearer <your-secret>
+Content-Type: application/json
+
+{"external_ref": "form-123", "action": "contact", "email": "person@example.com", "name": "A Person"}
+```
+
+- In **Zapier**: add **Webhooks by Zapier**, event **POST**. URL: the address. Payload Type: `json`. Data: `external_ref` (map the entry's id), `action` (such as `contact`), and `email`, `name` if you like. Headers: `Authorization` with the value `Bearer <your-secret>`.
+- In **Make** or **n8n**: the HTTP module or node, method POST, body type JSON, the same header.
+- **Form plugins** that post a webhook with your own headers (WordPress form add-ons, Webflow, Tally and others) work the same way. For a WordPress site, the Skald Leads plugin needs no set-up at all: see [Send leads from your backend](leads-from-your-backend.md).
+
+The plain key works on this hook and on **Your site's server (lead)** only, and only when the message has no `X-Skald-Signature`. A wrong key is refused like a bad signature. Use the address exactly as shown, starting with `https://`: the key travels with each message. A tool that can sign may sign instead (next section); in Make, set the header `X-Skald-Signature` to `t={{timestamp}},v1={{sha256(timestamp + "." + body; "hex"; secret)}}`.
 
 One message can carry one record, a list of them, or `{"records": [...]}`, up to 100.
 
 ## Your own site's lead push
 
 If your website's database is not read by Skald directly, your site's server can tell Skald each time a lead is made. Use the **Your site's server (lead)** box.
+
+The quickest way: download the one file for your site's language from that box (PHP, Node, Python, or a WordPress plugin that needs no code) and call one function when a form is saved. See [Send leads from your backend](leads-from-your-backend.md). To write it yourself:
 
 1. Press **Make secret**, and copy the address and the secret.
 2. Give both to your developer. They keep the secret in the server's settings, never in the code.
@@ -172,7 +187,7 @@ If your website's database is not read by Skald directly, your site's server can
 X-Skald-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<raw body>">
 ```
 
-The key is the secret. Skald refuses a time more than 5 minutes off its own clock.
+The key is the secret. Skald refuses a time more than 5 minutes off its own clock. A sender that cannot sign can send `Authorization: Bearer <your-secret>` instead (see Zapier and Make, above).
 
 | Field | Needed | What |
 | --- | --- | --- |
@@ -260,7 +275,7 @@ Open the tool's box and look at **Last deliveries**. The **Outcome** column says
 | already had it | a repeat of a message already kept | nothing |
 | not a conversion | an event Skald does not count, or (with a detail "other event type") a Calendly or Cal.com event type this site does not keep | choose the events listed above; or add the event type to the list |
 | test, read and not kept | a test | nothing |
-| bad signature | the secret does not match, or the time is more than 5 minutes off | paste the secret again, or rotate it and give the new one; check the sender's clock |
+| bad signature | the secret (or the `Bearer` key) does not match, or the time is more than 5 minutes off | paste the secret again, or rotate it and give the new one; check the sender's clock |
 | not readable | the message is not what this tool sends | check you used the address for the right tool |
 | too large | the message is over 64 KB | send fewer records at once |
 | too many | over 60 messages a minute | the tool will retry; send in smaller batches |

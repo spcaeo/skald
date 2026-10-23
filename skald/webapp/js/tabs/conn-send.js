@@ -1,25 +1,32 @@
 // "Send this site's visits to Skald": the dialog in Settings > Connections,
 // and the steps the "Add a site" wizard shares with it (site-wizard.js):
-// choose how, a sending token, install, test.
+// where it runs, then for a server one command and the test (2.30); for
+// Cloudflare and Vercel a sending token, install, test; for the tag install, test.
 //
 // Step 1 shows the site check's card (conn-detect.js) and chooses its way.
-// The sending token is made with the tokens endpoint (team_api.py,
-// tokens/create, scope ingest, this site only) and kept in this page's memory
-// only, like tokens.js. The Test reads <page>/sites/status (connections_api.py)
-// and polls it every 5 seconds for up to 2 minutes after the first press.
-// For the script tag, when nothing has arrived, it also looks at the site's
-// home page once per press (conn-tagcheck.js) and says what is wrong there.
+// The server way's command comes from POST <page>/sites/link {site}: Skald makes
+// the sending token itself and answers {command, url, expires_at, token,
+// token_id}, a one-time `curl ... | sudo bash` that works once, for 24 hours. It is
+// asked for once, when the Run step is first drawn, and kept in this page's memory
+// only (LINKS), like the token. Cloudflare's and Vercel's token is made with the
+// tokens endpoint (team_api.py, tokens/create, scope ingest, this site only) when
+// their token step is drawn, and kept in this page's memory only (FRESH), like
+// tokens.js. The Test reads <page>/sites/status (connections_api.py) and polls it
+// every 5 seconds for up to 2 minutes, from when the step is shown. For the script
+// tag, when nothing has arrived, it also looks at the site's home page once per
+// press (conn-tagcheck.js) and says what is wrong there.
 
 import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
-import { input, field, why } from "./forms.js";
+import { why } from "./forms.js";
 import { time } from "../tz.js";
-import { METHODS, methodOf, REASON_FIX, TROUBLE } from "./conn-words.js";
+import { METHODS, methodOf, wayId, REASON_FIX, TROUBLE } from "./conn-words.js";
 import { wizard, codeBlock, answerBox, helpLink } from "./conn-ui.js";
-import { installFor } from "./conn-install.js";
+import { installFor, byHandFold, downloadKit, kitOn, kitName } from "./conn-install.js";
 import { shareBox } from "./conn-share.js";
 import { tagCheckBox } from "./conn-tagcheck.js";
 import { detectCard, recommendFor, suggestionsFor, saveFound } from "./conn-detect.js";
+import { packToggle, keepKey } from "./setup-pack.js";
 import { withUrl } from "../urlactions.js";
 
 export const POLL_MS = 5000;
@@ -28,6 +35,11 @@ export const POLL_FOR_MS = 120000;
 // Sending tokens made in this page, by site: {token, name, id}. Never stored anywhere else.
 const FRESH = new Map();
 export const freshFor = (site) => FRESH.get(site) || null;
+// The server way's one-time commands made in this page, by site: {command, expires_at,
+// token_id}. Never in the address, never stored anywhere else.
+const LINKS = new Map();
+export const linkFor = (site) => LINKS.get(site) || null;
+const MAKING = new Map();      // site -> the sites/link or tokens/create on its way, asked once
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -51,7 +63,7 @@ export function methodChooser(st, onPick = null, rec = null) {
   return h("fieldset", { class: "cn-ways" }, h("legend", { class: "vh" }, "How should Skald get this site's visits?"),
     METHODS.map((x) => {
       const radio = h("input", { type: "radio", name, value: x.id });
-      radio.checked = st.method === x.id;
+      radio.checked = wayId(st.method) === x.id;
       radio.addEventListener("change", () => { st.method = x.id; st.methodBy = "owner"; if (onPick) onPick(x.id); });
       const mine = rec && rec.id === x.id;
       const badge = mine ? h("em", { class: "cn-rec" }, ` Recommended for ${rec.site}`) : !rec && x.best ? h("em", null, " Recommended") : null;
@@ -71,43 +83,125 @@ export const chooseCheck = (st) => (st.method ? "" : "Choose how the visits get 
 
 // ----------------------------------------------------------------- token
 
+/* Cloudflare's and Vercel's step: the sending token, made as soon as the step is shown
+   (none made in this page yet); "Make another token" for a new one. */
 export function tokenPanel(st, { onMade = null } = {}) {
-  if (st.method === "script") return [h("p", null, "The script tag needs no token: the page sends its events itself. Press Next.")];
+  if (wayId(st.method) === "script") return [h("p", null, "The script tag needs no token: the page sends its events itself. Press Next.")];
   const slot = h("div");
-  const name = input({ name: "token-name", autocomplete: "off", maxlength: "60" });
-  name.value = `Sending logs: ${st.site}, ${today()}`;
-  const make = h("button", { type: "button", class: "btn primary" }, "Make a sending token");
   const said = h("p", { class: "msg", role: "status", "aria-live": "polite" });
+  const another = h("button", { type: "button", class: "btn" }, "Make another token");
   const show = () => {
     const got = freshFor(st.site);
     if (!got) { slot.replaceChildren(); return; }
+    st.token = got.token;
+    st.tokenId = got.id;
     slot.replaceChildren(h("div", { class: "state ok", role: "status" }, h("div", null,
       h("p", null, h("strong", null, `"${got.name}". `), "Copy it now: it is shown only this once. It can only send logs for ", h("b", null, st.site), "."),
       codeBlock(got.token, "the sending token"),
       h("p", { class: "note" }, "The next step fills it in for you. Only a fingerprint of it is kept on the server."))));
   };
-  make.addEventListener("click", async () => {
-    const words = name.value.trim();
-    if (!words) { said.textContent = "Give the token a name first."; said.className = "msg err"; return; }
-    make.disabled = true;
-    const r = await call("tokens/create", { name: words, sites: [st.site], scopes: ["ingest"] });
-    make.disabled = false;
+  const make = async () => {
+    another.disabled = true;
+    said.className = "msg";
+    said.textContent = "Making the sending token...";
+    const name = `Sending logs: ${st.site}, ${today()}`;
+    if (!MAKING.has(`t:${st.site}`)) {
+      MAKING.set(`t:${st.site}`, call("tokens/create", { name, sites: [st.site], scopes: ["ingest"] }).then((r) => {
+        MAKING.delete(`t:${st.site}`);
+        if (r.ok && r.token) { FRESH.set(st.site, { token: r.token, name, id: r.id || "" }); keepKey("token", st.site, r.token); }
+        return r;
+      }));
+    }
+    const r = await MAKING.get(`t:${st.site}`) || {};
+    another.disabled = false;
     if (!r.ok || !r.token) { said.textContent = why(r, "The token was not made."); said.className = "msg err"; return; }
-    FRESH.set(st.site, { token: r.token, name: words, id: r.id || "" });
-    st.token = r.token;
-    st.tokenId = r.id || "";
     said.textContent = "";
     show();
     if (st.onToken) st.onToken();       // the install kit's token choice (conn-install.js)
     if (onMade) onMade(r);
-  });
-  show();
+  };
+  another.addEventListener("click", make);
+  if (freshFor(st.site)) show(); else make();
   return [
-    h("p", null, "A sending token lets the shipper or the platform add log lines to this one site, and nothing else. It cannot read anything."),
-    field("Name", name, "What it is for, so Your tokens says whose it is. You can change it."),
-    h("div", { class: "acts" }, make), said, slot,
+    h("p", null, "A sending token lets the platform add log lines to this one site, and nothing else. It cannot read anything. It is in Your tokens, named for this site and today."),
+    said, slot, h("div", { class: "acts" }, another),
     h("p", { class: "note" }, "Already have one? Press Next: the steps show <token> where it goes."),
   ];
+}
+
+// ------------------------------------------------- the server way: one command
+
+/* POST sites/link once per site and page (a second draw waits for the same answer). */
+export function makeLink(st) {
+  const key = `l:${st.site}`;
+  if (!MAKING.has(key)) {
+    MAKING.set(key, call("sites/link", { site: st.site }).then((r) => {
+      MAKING.delete(key);
+      if (r.ok && r.command) {
+        LINKS.set(st.site, { command: r.command, expires_at: r.expires_at || "", token_id: r.token_id || "" });
+        if (r.token) { FRESH.set(st.site, { token: r.token, name: `Sending logs: ${st.site}, ${today()}`, id: r.token_id || "" }); keepKey("token", st.site, r.token); }
+      }
+      return r;
+    }));
+  }
+  return MAKING.get(key);
+}
+
+/* False when the link is past its time or the server says it was used (410 to a HEAD,
+   which never uses it up); true when it cannot tell, so a network fault keeps it. */
+export async function stillGood(got, ask = (url) => fetch(url, { method: "HEAD", cache: "no-store", credentials: "omit" })) {
+  if (got.expires_at && Date.parse(got.expires_at) <= Date.now()) return false;
+  const url = String(got.command || "").split(" ").find((x) => /\/traffic-kit\//.test(x));
+  if (!url) return true;
+  try { return (await ask(url)).status !== 410; } catch { return true; }
+}
+
+/* The server way's Run step: the one-time command (asked for on the first draw), one file
+   with the same token, the set-up by mail, and the older ways by hand. */
+export function runPanel(st, w, { onMade = null } = {}) {
+  const got = linkFor(st.site);
+  const slot = h("div", { class: "cn-run" });
+  const said = h("p", { class: "msg", role: "status", "aria-live": "polite" });
+  const again = h("button", { type: "button", class: "btn" }, got ? "Make a new command" : "Try again");
+  const ask = async () => {
+    again.disabled = true;
+    const r = await makeLink(st);
+    again.disabled = false;
+    if (!r.ok || !r.command) {
+      again.hidden = false;
+      slot.replaceChildren(answerBox("bad", why(r, "The command was not made."), h("p", null, "Press Try again, or use the other ways below.")));
+      return;
+    }
+    if (onMade) onMade(r);
+    if (slot.isConnected !== false) w.redraw();       // drawn again with the command and its token
+  };
+  again.addEventListener("click", () => { LINKS.delete(st.site); slot.replaceChildren(h("p", { class: "empty" }, "Making a new command...")); ask(); });
+  const fresh = freshFor(st.site);
+  if (fresh) { st.token = fresh.token; st.tokenId = fresh.id; }
+  const out = [h("p", null, `One command installs a small program on the web server of ${st.site}. It works with or without Docker, finds the access log by itself, and never changes nginx, Apache or the website.`), slot];
+  if (!got) {
+    again.hidden = true;
+    slot.replaceChildren(h("p", { class: "empty" }, "Making the command..."));
+    ask();
+    return [...out, h("div", { class: "acts" }, again), byHandFold(st), shareFor(st)];
+  }
+  // A command already used (or past its 24 hours) is not shown again: a HEAD never uses it up.
+  stillGood(got).then((ok) => { if (!ok && linkFor(st.site) === got) { LINKS.delete(st.site); if (slot.isConnected !== false) w.redraw(); } });
+  slot.replaceChildren(codeBlock(got.command, "the install command"),
+    h("p", null, `Paste it on the web server of ${st.site}. It works once, for 24 hours.`),
+    h("p", { class: "note" }, "It holds this site's sending token, so send it only to the site's admin. Then press Next: the Test starts by itself."));
+  const file = kitOn(st, "server") ? h("button", { type: "button", class: "btn" }, "Download as one file") : null;
+  if (file) {
+    file.addEventListener("click", async () => {
+      file.disabled = true;
+      const no = await downloadKit(st, "server", Boolean(st.token));
+      file.disabled = false;
+      said.textContent = no || `Saved, with the token in it. On the server: sudo bash ${kitName(st.site, "server")}. Send it only to the site's admin.`;
+      said.className = `msg ${no ? "err" : "ok"}`;
+    });
+  }
+  const [mail, box] = packToggle(st.site, "Email it to your server admin");
+  return [...out, h("div", { class: "acts" }, file, mail, again), said, box, byHandFold(st), shareFor(st)];
 }
 
 // --------------------------------------------------------------- the Test
@@ -156,20 +250,22 @@ export function troubleTable() {
 }
 
 /* The Test button and its answer. Polls every POLL_MS for POLL_FOR_MS after the
-   first press, until connected; stops when the dialog is gone. */
-export function testPanel(st, { onResult = null, statusOf = (site) => call(`sites/status?site=${encodeURIComponent(site)}`), pageCheck = tagCheckBox } = {}) {
+   first press, until connected; stops when the dialog is gone. auto: starts when
+   drawn, with no press (the dialogs; the shared link's page waits for the press). */
+export function testPanel(st, { onResult = null, statusOf = (site) => call(`sites/status?site=${encodeURIComponent(site)}`), pageCheck = tagCheckBox, auto = false } = {}) {
   const out = h("div", { class: "cn-test-out" });
   const page = h("div", { class: "cn-test-page" });
   const btn = h("button", { type: "button", class: "btn primary" }, "Test connection");
   let timer = null, until = 0, looked = false;
-  const shipper = st.method === "docker" || st.method === "systemd";
+  const shipper = wayId(st.method) === "server";
   async function once() {
     const r = await statusOf(st.site);
     const v = verdict(r, st.method);
     const polling = Date.now() < until && v.kind !== "ok";
     const more = [];
     if (v.fix) more.push(h("p", null, v.kind === "ok" ? v.fix : ["What to do: ", v.fix]));
-    if (v.kind !== "ok" && shipper) more.push(h("p", null, "On the web server, run check.sh from the kit: ", h("code", null, "sudo bash check.sh"), ". It checks each part and says what to fix."));
+    // Every server way, a wizard saved before 2.30 ("docker", "systemd") too: the one command left skald-ship-check.
+    if (v.kind !== "ok" && shipper) more.push(h("p", null, "On the web server, run ", h("code", null, "sudo skald-ship-check"), ": it checks each part and says what to fix (an older zip kit has ", h("code", null, "sudo bash check.sh"), " in its folder). What the shipper says: ", h("code", null, "sudo docker logs --tail 20 skald-ship"), " with Docker, or ", h("code", null, "journalctl -u skald-ship -n 20"), " without."));
     if (polling) more.push(h("p", { class: "note" }, "Checking again every 5 seconds, for up to 2 minutes."));
     if (v.kind === "wait" && !polling && until) more.push(h("p", null, "Nothing arrived in 2 minutes. Look at Common problems below, then press Test connection again."));
     out.replaceChildren(answerBox(v.kind, v.head, ...more));
@@ -181,36 +277,42 @@ export function testPanel(st, { onResult = null, statusOf = (site) => call(`site
     else { clearTimeout(timer); timer = null; btn.disabled = false; }
     return v;
   }
-  btn.addEventListener("click", () => {
+  const start = () => {
     clearTimeout(timer);
     until = Date.now() + POLL_FOR_MS;
     looked = false;
     btn.disabled = true;
     once();
-  });
+  };
+  btn.addEventListener("click", start);
+  if (auto) start();
+  const tag = wayId(st.method) === "script";
   return h("div", { class: "cn-test" },
-    h("p", null, st.method === "script" ? "After a page of the site was opened with the tag, press Test connection." : "After the install, press Test connection. Skald says what it received, or why it refused it."),
+    h("p", null, auto ? (tag ? "Open a page of the site with the tag. Skald is looking now, and says what it received." : "Skald is looking now: it says what it received, or why it refused it. Run the install first, if not done yet.")
+      : tag ? "After a page of the site was opened with the tag, press Test connection." : "After the install, press Test connection. Skald says what it received, or why it refused it."),
     h("div", { class: "acts" }, btn), out, page);
 }
 
 // "Share with your developer" for the chosen way (conn-share.js).
 export function shareFor(st) {
-  if (!st.method) return "";
-  return st.method === "script" ? shareBox(st.site, "script") : shareBox(st.site, "send", st.method === "vercel" ? "vercel" : st.method);
+  const way = wayId(st.method);
+  if (!way) return "";
+  return way === "script" ? shareBox(st.site, "script") : shareBox(st.site, "send", way);
 }
 
 // ------------------------------------------------- the Connections dialog
 
 // Step 1 of the dialog: the site check's card for this site (checked once on
 // opening), and the ways with the check's one chosen.
-function chooseStep(w, st, site) {
+function chooseStep(w, st, site, onWay = null) {
   const ways = h("div");
   const saved = h("p", { class: "msg", role: "status", "aria-live": "polite" });
   const keep = h("button", { type: "button", class: "btn", hidden: true }, "Save the host names and page assets to this site");
   const drawWays = () => {
     const rec = recommendFor(st);
     preselect(st, rec);
-    ways.replaceChildren(methodChooser(st, () => w.say(""), rec));
+    if (onWay) onWay();
+    ways.replaceChildren(methodChooser(st, () => { w.say(""); if (onWay) onWay(); }, rec));
     const got = suggestionsFor(st, site);
     keep.hidden = !(got.hosts || got.asset_prefixes);
   };
@@ -226,16 +328,25 @@ function chooseStep(w, st, site) {
   return [card, h("div", { class: "acts" }, keep), saved, h("p", null, "Where does the site run? Choose the way its visits reach Skald."), ways];
 }
 
+/* The steps after "Where it runs", for the way chosen (none yet: the server's). The
+   server way has no token step: sites/link makes the token with the command. */
+export function stepsAfter(st) {
+  const way = wayId(st.method) || "server";
+  const test = { name: "Test", draw: () => [testPanel(st, { auto: true }), troubleTable()] };
+  if (way === "server") return [{ name: "Run one command", draw: (w) => runPanel(st, w) }, test];
+  const install = { name: "Install", draw: () => [h("p", { class: "sub" }, `${methodOf(way)?.title || ""}. The send address: `, withUrl(h("code", null, st.url), st.url, { cls: "ua-after" })), ...installFor(way, st), shareFor(st)] };
+  return methodOf(way)?.token ? [{ name: "Sending token", draw: () => tokenPanel(st) }, install, test] : [install, test];
+}
+
 export function sendDialog(site, data, { onClose = null, route = null, start = 0 } = {}) {
   const st = sendState(site, data);
-  return wizard({ route, start,
+  const steps = [];
+  let w = null;
+  // A way chosen (or found by the check): the later steps follow it, and the bar with them.
+  const fit = () => { steps.splice(1, steps.length - 1, ...stepsAfter(st)); if (w) w.drawBar(); };
+  steps.push({ name: "Where it runs", draw: (wz) => chooseStep(wz, st, site, fit), check: () => chooseCheck(st) }, ...stepsAfter(st));
+  w = wizard({ route, start,
     title: "Send this site's visits to Skald", subtitle: `For ${site}, when its web server is not this Skald's server.`,
-    key: "conn-send", state: st, onClose,
-    steps: [
-      { name: "Choose how", draw: (w) => chooseStep(w, st, site), check: () => chooseCheck(st) },
-      { name: "Sending token", draw: () => tokenPanel(st) },
-      { name: "Install", draw: () => [h("p", { class: "sub" }, `${methodOf(st.method)?.title || ""}. The send address: `, withUrl(h("code", null, st.url), st.url, { cls: "ua-after" })), ...installFor(st.method, st), shareFor(st)] },
-      { name: "Test", draw: () => [testPanel(st), troubleTable()] },
-    ],
-  });
+    key: "conn-send", state: st, onClose, steps });
+  return w;
 }

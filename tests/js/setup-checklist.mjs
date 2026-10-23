@@ -23,12 +23,17 @@ const copied = [];
 Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async (t) => { copied.push(t); } }, configurable: true });
 
 const posted = [];
+const LINK_TOKEN = "skald_cd34ef56_" + "u".repeat(43);
 let hooked = false;     // after the test: the lead hook is ready, then a real one arrives
 let rscState = "";      // "", "missing" (payloads without the field) or "fixed"
 globalThis.fetch = async (path, opts = {}) => {
   const body = opts.body ? JSON.parse(opts.body) : null;
   if (opts.method === "POST") posted.push([path, body]);
-  const answer = (data, status = 200) => ({ ok: status < 300, status, json: async () => structuredClone(data) });
+  const answer = (data, status = 200) => ({ ok: status < 300, status, json: async () => structuredClone(data), blob: async () => new Blob(["file"]), headers: { get: () => null } });
+  // 2.30: the one command, the leads files and the set-up pack, as their contracts say.
+  if (path === "sites/link") return answer({ ok: true, url: "https://www.example.com/traffic-kit/kkkkkkkkkkkkkkkkkkkkkk", command: "curl -fsSL https://www.example.com/traffic-kit/kkkkkkkkkkkkkkkkkkkkkk | sudo bash", expires_at: "2099-01-02T12:00:00Z", token: LINK_TOKEN, token_id: "cd34ef56" });
+  if (path === "integrations/leadfile" || path === "sites/pack") return answer(null);
+  if (path === "sites/packmail") return answer({ ok: true, sent_to: body.to });
   if (path === "settings") return answer(given.settings);
   if (path.startsWith("integrations?site=")) {
     if (rscState) return answer(rscState === "fixed" ? given.integ_rsc_ok : given.integ_rsc);
@@ -107,10 +112,17 @@ button(byId("logs"), "Set up").click();
 await tick(30);
 let d = dialog();
 assert.ok(d.textContent.includes("Send this site's visits to Skald"));
-assert.equal(d.querySelectorAll(".cn-bar li").length, 4);
-pick(d, "docker");
+assert.equal(d.querySelectorAll(".cn-bar li").length, 3, "the server way: where it runs, one command, test");
+pick(d, "server");
 await next();
-assert.match(stepName(), /Step 2 of 4: Sending token/);
+await tick();
+assert.match(stepName(), /Step 2 of 3: Run one command/);
+assert.deepEqual(posted.filter(([p]) => p === "sites/link").map(([, b]) => b), [{ site: SITE }]);
+assert.ok(d.textContent.includes("| sudo bash") && d.textContent.includes("It works once, for 24 hours."));
+await next();
+await tick(30);
+assert.match(stepName(), /Step 3 of 3: Test/);
+assert.ok(d.querySelector(".cn-answer"), "the Test started by itself");
 await closeDialog();
 assert.ok(!dialog(), "closed");
 
@@ -153,18 +165,48 @@ const secret = given.secret.secret;
 button(box.querySelectorAll("li.su-i").find((li) => li.getAttribute("data-item") === "lead"), "Set up").click();
 await tick(30);
 d = dialog();
-for (const words of ["Your site's own form or backend", "Zapier, Make or n8n", "Calendly", "Cal.com", "Stripe", "HubSpot"]) assert.ok(d.textContent.includes(words), words);
+for (const words of ["Your site's own form or backend", "WordPress forms", "Zapier, Make or n8n", "Calendly", "Cal.com", "Stripe", "HubSpot"]) assert.ok(d.textContent.includes(words), words);
+// What the script tag counts with no code, said before the choice.
+const { NO_CODE } = await import(new URL("tabs/setup-hook.js", JS));
+assert.equal(NO_CODE, "Already counted with no code, when the script tag is on the site: form sends, Calendly and Cal.com bookings, phone and email clicks.");
+assert.ok(d.querySelector(".su-nocode").textContent.includes(NO_CODE));
+assert.ok(d.textContent.indexOf(NO_CODE) < d.textContent.indexOf("Your site's own form or backend"), "first, before the tools");
 pick(d, "lead");
 await next();
 assert.match(stepName(), /The secret/);
-await next();
-assert.ok(d.textContent.includes("Make the secret first."), "Next waits for the secret");
-button(d, "Make the secret").click();
+// None set: made when the step is shown, with no press, once.
 await tick();
+assert.deepEqual(posted.filter(([p]) => p === "integrations/secret").map(([, b]) => b), [{ site: SITE, tool: "lead" }]);
 assert.ok(d.querySelector(".cn-code").textContent.includes(secret), "shown once");
+assert.ok(!button(d, "Make the secret"), "no button to press");
+assert.ok(button(d, "Make a new secret"), "a new one stays possible, with its confirm");
+button(d, "Back").click(); await tick();
+await next(); await tick();
+assert.equal(posted.filter(([p]) => p === "integrations/secret").length, 1, "drawn again: no second secret");
 await next();
 assert.match(stepName(), /Set it up/);
 assert.ok(d.textContent.includes(given.secret.url) && d.textContent.includes(secret), "the address and the secret filled in");
+// The own backend: a language, its file (with the fresh secret) and the one line to call.
+const { LANGS, leadLines, leadFileBody } = await import(new URL("tabs/setup-leadfile.js", JS));
+assert.ok(d.textContent.includes(`SKALD_LEAD_SECRET=${secret}`), "where the secret goes");
+assert.ok(d.textContent.includes('skald_lead("L-1001", "demo", $email);'), "PHP first");
+button(d, "Download skald-lead.php").click();
+await tick();
+assert.deepEqual(posted.filter(([p]) => p === "integrations/leadfile").pop()[1], { site: SITE, lang: "php", secret });
+pick(d, "node");
+await tick();
+assert.ok(d.textContent.includes('await skaldLead("L-1001", "demo", { email, name });') && d.textContent.includes('require("./skald-lead.cjs")'));
+button(d, "Download skald-lead.cjs").click();
+await tick();
+assert.deepEqual(posted.filter(([p]) => p === "integrations/leadfile").pop()[1], { site: SITE, lang: "node", secret });
+pick(d, "python");
+await tick();
+assert.ok(d.textContent.includes("from skald_lead import skald_lead") && button(d, "Download skald_lead.py"));
+assert.equal(leadLines("python"), 'from skald_lead import skald_lead\nskald_lead("L-1001", "demo", email)');
+assert.equal(leadLines("php"), 'require_once __DIR__ . "/skald-lead.php";\nskald_lead("L-1001", "demo", $email);');
+assert.deepEqual(Object.keys(LANGS), ["php", "node", "python"]);
+assert.deepEqual(leadFileBody(SITE, "php", ""), { site: SITE, lang: "php" }, "no secret held: none sent");
+assert.ok(d.querySelector("details.fold").textContent.includes("X-Skald-Signature"), "the signed request stays, folded");
 const hookMail = mailBody(mailOf(d));
 assert.ok(hookMail.includes(given.secret.url) && hookMail.includes("X-Skald-Signature"), "the mail holds the steps");
 assert.ok(!hookMail.includes(secret) && !mailOf(d).getAttribute("href").includes(encodeURIComponent(secret)), "never the secret");
@@ -189,9 +231,50 @@ assert.ok(d.querySelector(".cn-answer").textContent.includes("The test was signe
 button(d, "Wait for a real one").click();
 await tick();
 assert.ok(d.querySelector(".cn-answer").textContent.includes("Connected: Your site's server (lead), last received just now"));
-assert.deepEqual(posted.filter(([p]) => p.startsWith("integrations/")).map(([p, b]) => [p, b.tool]), [["integrations/secret", "lead"], ["integrations/test", "lead"]]);
+assert.deepEqual(posted.filter(([p]) => p.startsWith("integrations/") && p !== "integrations/leadfile").map(([p, b]) => [p, b.tool]), [["integrations/secret", "lead"], ["integrations/test", "lead"]]);
 assert.ok(!posted.some(([p, b]) => p === "sites/share" && JSON.stringify(b).includes(secret)), "the share asks for no secret");
 await closeDialog();
+
+// ---- WordPress forms: the lead hook again (done now, so opened as a link would), its secret
+// kept by the page; the plugin
+await openSetup("lead", SITE, { route: { key: "setup", value: "lead" } });
+await tick(30);
+d = dialog();
+pick(d, "wordpress");
+await next();
+assert.ok(d.querySelector(".cn-code").textContent.includes(secret), "the secret made before, still in this page");
+assert.equal(posted.filter(([p]) => p === "integrations/secret").length, 1, "set already: nothing made");
+await next();
+assert.match(stepName(), /Set it up/);
+for (const words of ["Plugins > Add New > Upload Plugin", "skald-leads.zip", "Activate"]) assert.ok(d.textContent.includes(words), words);
+button(d, "Download the plugin (.zip)").click();
+await tick();
+assert.deepEqual(posted.filter(([p]) => p === "integrations/leadfile").pop()[1], { site: SITE, lang: "wordpress", secret });
+// Send set-up to someone, from here: pack=1, the lead secret and the sending token this page made.
+button(d, "Send set-up to someone").click();
+let qp = new URLSearchParams(location.hash.split("?")[1]);
+assert.equal(qp.get("pack"), "1", location.hash);
+d.querySelector('input[name="pack-to-1"]').value = "dev@example.com";
+button(d, "Send by email").click();
+await tick();
+assert.deepEqual(posted.filter(([p]) => p === "sites/packmail").pop()[1], { site: SITE, to: ["dev@example.com"], include_secrets: true, token: LINK_TOKEN, lead_secret: secret });
+assert.ok(!location.hash.includes("@") && !location.hash.includes(secret.slice(0, 12)), location.hash);
+await closeDialog();
+// Zapier and forms: the address, the Bearer header and a JSON body; the signed way folded.
+const { hookSteps, SECRET: PLACE } = await import(new URL("tabs/setup-hook.js", JS));
+const zap = hookSteps("json", "https://www.example.com/traffic-hooks/example.com/json", PLACE);
+assert.ok(zap.lines.some((l) => l.includes("Authorization") && l.includes(`Bearer ${PLACE}`)) && zap.code.includes(`-H 'Authorization: Bearer ${PLACE}'`));
+assert.ok(!zap.lines.join(" ").includes("X-Skald-Signature"), "no signing needed");
+
+// ---- The set-up pack's bodies: the keys only when ticked and held; never the addresses in the URL
+const P = await import(new URL("tabs/setup-pack.js", JS));
+assert.deepEqual(P.packBody(SITE, { keys: true, token: "t", secret: "s" }), { site: SITE, include_secrets: true, token: "t", lead_secret: "s" });
+assert.deepEqual(P.packBody(SITE, { keys: true }), { site: SITE, include_secrets: true }, "none held: the server makes them");
+assert.deepEqual(P.packBody(SITE, { keys: false, token: "t", secret: "s", to: ["a@example.com"], note: " hi " }), { site: SITE, include_secrets: false, to: ["a@example.com"], note: "hi" });
+assert.deepEqual(P.packTo(["a@example.com", " ", "a@example.com"]), { to: ["a@example.com"] });
+assert.match(P.packTo(["", ""]).error, /at least one/);
+assert.match(P.packTo(["not-an-address"]).error, /not an email address/);
+assert.equal(P.packName(SITE), `skald-setup-${SITE}.zip`);
 
 // ---- Mail: turn on, who gets it, confirm and test
 button(box.querySelectorAll("li.su-i").find((li) => li.getAttribute("data-item") === "mail"), "Set up").click();
@@ -329,6 +412,39 @@ location.hash = "#overview/summary?setup=assets&step=2";
 await openSetupKey("assets", m, 2);
 await tick(30);
 assert.match(stepName(), /Step 1 of 2/, "the choice first");
+await closeDialog();
+// "Send set-up to someone" at the top of the list: setup=pack, its own address; a link opens it.
+location.hash = "#overview/summary";
+button(box.querySelector(".su-head"), "Send set-up to someone").click();
+await tick(30);
+q = new URLSearchParams(location.hash.split("?")[1]);
+assert.equal(q.get("setup"), "pack", location.hash);
+assert.equal(q.get("step"), "1");
+d = dialog();
+assert.ok(d.textContent.includes("Send set-up to someone") && d.textContent.includes(P.PACK_WORDS.keys));
+assert.ok(d.textContent.includes("Set up Skald from CLAUDE.md") && d.textContent.includes("START-HERE.md"));
+assert.ok(d.textContent.includes("Treat the mail like a password: anyone with it can send data for this site."));
+assert.equal(d.querySelector('input[name="pack-keys"]').checked, true, "the keys go in by default");
+d.querySelector('input[name="pack-to-1"]').value = "one@example.com";
+d.querySelector('input[name="pack-to-2"]').value = "two@example.com";
+d.querySelector('textarea[name="pack-note"]').value = "For the new site.";
+button(d, "Send by email").click();
+await tick();
+assert.deepEqual(posted.filter(([p]) => p === "sites/packmail").pop()[1],
+  { site: SITE, to: ["one@example.com", "two@example.com"], include_secrets: true, token: LINK_TOKEN, lead_secret: secret, note: "For the new site." });
+assert.ok(!location.hash.includes("@"), location.hash);
+const keysBox = d.querySelector('input[name="pack-keys"]');
+keysBox.checked = false;
+keysBox.dispatchEvent(new Ev("change"));
+button(d, "Download (.zip)").click();
+await tick();
+assert.deepEqual(posted.filter(([p]) => p === "sites/pack").pop()[1], { site: SITE, include_secrets: false }, "unticked: no key sent");
+assert.ok(d.textContent.includes(`Saved skald-setup-${SITE}.zip.`));
+await closeDialog();
+location.hash = "#overview/summary?setup=pack&step=1";
+await openSetupKey("pack", m, 1);
+await tick(30);
+assert.match(stepName(), /Step 1 of 1: Send or download/);
 await closeDialog();
 // Not for a viewer, and nothing for an unknown item.
 ME.role = "viewer";

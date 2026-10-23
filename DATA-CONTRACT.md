@@ -878,6 +878,9 @@ Since 2.27 `today.same_time` holds the last day of the period before Leads' 7, 3
 days, counted to the file's time of day, so Leads compares today so far and the whole days
 before it like for like; recounted by `audit_conversions_leads.check_same_time`.
 
+A lead sent with the plain key (2.30, `Authorization: Bearer`, INTEGRATIONS.md) is the same
+row as a signed one: it changes how a sender proves itself, never a figure.
+
 The site's server reads back what its `lead` hook delivered with the signed
 `GET /traffic-hooks/<site>/leads` (2.18; `conversions/reconcile.py`, INTEGRATIONS.md): rows
 `{external_ref, action, stage, at, label, test, received_at}` ordered by `received_at`, then id,

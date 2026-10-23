@@ -182,7 +182,7 @@ class Recommending(unittest.TestCase):
             ({"platform": "cloudfront", "server": "apache"}, "docker", "cache"),
             ({"platform": "fastly"}, None, "by hand"),
             ({"server": "nginx", "os": "Ubuntu"}, "docker",
-             "runs on its own nginx server (Ubuntu), so the log shipper kit is the way."),
+             "runs on its own nginx server (Ubuntu), so one command on that server sends its log."),
             ({"server": "apache"}, "docker", "own Apache server"),
             ({"server": "litespeed"}, "docker", "LiteSpeed"),
             ({"server": "caddy"}, "docker", "Caddy"),
@@ -202,7 +202,7 @@ class Recommending(unittest.TestCase):
 class Detecting(unittest.TestCase):
     def test_an_own_nginx_server_with_next_js_on_both_names(self):
         """The brief's case: the same nginx answers both names, no redirect,
-        no proxy in front: the shipper kit, both names, /_next/static/."""
+        no proxy in front: the one-command install, both names, /_next/static/."""
         answers = {u: (200, OWN_NGINX, NEXT_PAGE) for u in
                    ("https://example.com/", "https://www.example.com/")}
         got, net, said = run("https://Example.com/pricing", answers)
@@ -219,7 +219,7 @@ class Detecting(unittest.TestCase):
         self.assertEqual(got["asset_prefixes"], ["/_next/static/"])
         self.assertEqual(got["recommended_method"], "docker")
         self.assertEqual(got["reason"], "example.com runs on its own nginx server (Ubuntu), "
-                                        "so the log shipper kit is the way.")
+                                        "so one command on that server sends its log.")
         # Next.js on its own nginx: the one log_format field for pages opened inside the site.
         self.assertEqual(got["log_note"], d.LOG_NOTE)
         self.assertIn("rsc_prefetch=$http_next_router_prefetch", got["log_note"])

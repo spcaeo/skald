@@ -4,6 +4,151 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.30.0 (2026-10-23)
+
+Connecting a site and its leads in one step: one command on the server (with or without Docker,
+the token made for you), one file and one line for leads (or a WordPress plugin, or a plain key
+for Zapier and form tools), and the whole set-up in one zip, by mail, that a person or Claude Code
+can follow alone. Plus two fixes from a 24-hour review of the live server's logs.
+
+### Added: one command connects a server's logs
+
+- **What changed:** Send this site's visits to Skald (and Add a site) has one choice, "My own
+  server (nginx or Apache)", for servers with or without Docker, and three steps instead of four.
+  The Run step shows `curl -fsSL <your Skald>/traffic-kit/<code> | sudo bash`. Skald makes the
+  sending token itself. The link works once, for 24 hours; Skald keeps only a hash of the code
+  and the token sealed with it, so its disk never holds a usable token. A browser or a mail's
+  link preview only sees the command and never uses the link up; a used link prints "This
+  install link was used or has expired" and changes nothing. The new `/traffic-kit/` path is
+  answered by the beacon helper (docker/nginx.conf has its route).
+- **The installer** (one file, also **Download as one file**, `skald-install-<site>.sh`) uses
+  Docker when the server has it, else a systemd service with Python 3.9 or newer (the shipper is
+  inside the file). It finds the site's access log in nginx's or Apache's settings by itself and
+  asks only when it cannot tell (`--log`, `--dry-run`, `--yes`). It leaves `skald-ship-check` and
+  `skald-ship-uninstall` on the server. Running it again is safe and keeps the place in the log.
+  The Test step starts by itself.
+- **Why:** the owner: adding a site was "very long and confusing": four steps, a token to make by
+  hand, a zip to copy, unzip and run, and a question for the log file.
+- **Who:** owners and admins adding a site. Sites already sending need nothing. **Do:** nothing.
+- **Checked:** tests/test_kit_server.py and tests/test_kit_link_pack.py; on a clean Ubuntu 24.04
+  with systemd and nginx (two sites), the real command against a Skald built from this release:
+  it picked the right site's log, installed without Docker, all lines arrived, the Test said
+  Connected, a second run of the same command was refused with the message, a re-run of the
+  installer kept its place, and uninstall removed everything. The Docker road checked by dry run.
+
+### Added: send the whole set-up to someone, in one zip
+
+- **What changed:** **Send set-up to someone** (top of a site's Set up list, and in the logs and
+  leads dialogs) mails `skald-setup-<site>.zip` to up to 3 addresses through Skald's own mail, or
+  downloads it. It holds START-HERE.md (every case step by step), CLAUDE.md and AGENTS.md (the
+  same for an AI coding agent: "give the folder to Claude Code and say Set up Skald from
+  CLAUDE.md"; keys only in environment variables, never in code or git), secrets.env, the
+  installer, Cloudflare and Vercel/Netlify steps, the script tag, and the lead files. **Include
+  the keys** (ticked by default) puts in the sending token and the site's lead secret (a new one
+  when it has none); each pack is in the audit log, never its keys. 10 mails an hour per site.
+  The Node lead file is `.cjs`, because Gmail refuses zips holding `.js` files.
+- **Why:** the owner's clients use Claude Code: one zip it can follow alone.
+- **Who:** owners and admins. **Do:** nothing; mailing needs mail set up (Settings > Mail).
+- **Checked:** tests/test_kit_link_pack.py (contents with and without keys, the mail with its
+  attachment, refused without mail, the limit); downloaded from the browser and opened.
+
+### Added: leads in one file and one line, a WordPress plugin, and a plain key
+
+- **What changed:** Connect your leads first says what the script tag already counts with no
+  code (form sends, Calendly and Cal.com bookings, phone and email clicks). The secret is made by
+  itself when the site has none (a set one is never replaced without the confirm). For the site's
+  own backend: pick PHP, Node or Python, download one file (`skald-lead.php`, `skald-lead.cjs`,
+  `skald_lead.py`), and call one function, e.g. `skald_lead("L-1001", "demo", $email)`; the file
+  signs each lead, reads `SKALD_LEAD_SECRET` first, waits at most 3 seconds and never breaks the
+  form. **WordPress forms**: a plugin (Plugins > Add New > Upload) that sends Contact Form 7,
+  WPForms, Gravity Forms, Elementor Pro and Ninja Forms leads with no code. The `lead` and `json`
+  hooks also take `Authorization: Bearer <secret>` when no signature is sent, so Zapier's plain
+  webhook step and form plugins work without signing code; a wrong key is refused like a bad
+  signature, and the header is never logged. New endpoint: `POST <page>/integrations/leadfile`.
+- **Why:** the owner: connecting leads needed a developer to write signing code.
+- **Who:** sites that send leads. Signed hooks work as before. **Do:** nothing.
+- **Checked:** tests/test_hooks_plain_key.py, tests/test_lead_files.py (the Python helper's real
+  request accepted by the receiver), tests/test_integrations_leadfile.py; `php -l`, `node --check`
+  and each helper posting to a local receiver; a plain-key lead kept and a wrong key refused
+  through nginx on a local build. The WordPress plugin was checked against stubbed WordPress
+  hooks, not a real WordPress install.
+
+### Changed: docs/INTEGRATIONS.md split
+
+- Search Console, Bing and AI answers moved to docs/INTEGRATIONS-SEARCH.md (the file was over
+  1000 lines). **Do:** nothing.
+
+### Fixed: a visitor who left during the public stack check printed a traceback
+
+- **What changed:** the beacon helper no longer prints a Python traceback when a visitor closes
+  the page before its answer is sent (a broken pipe or a reset connection). Any other error still
+  prints its traceback.
+- **Why:** the 24-hour log review on 23 Oct found one in the live container's log at 05:04 UTC: a
+  visitor left during the public stack check, which takes a few seconds. Nothing was lost; it
+  only looked like a crash.
+- **Who:** every install. **Do:** nothing.
+- **Checked:** tests/test_beacon.py `VisitorLeft` (fails without the fix).
+
+### Fixed: `doctor` gave a wrong fix for a site still waiting for its first log lines
+
+- **What changed:** for a site added from the dashboard whose server has not sent a line yet,
+  `doctor`'s Access log line says "none yet: the site waits for its first log lines" (OK), as
+  its Daily run and Days stored lines already did. A site set up by hand with a missing log
+  still needs attention.
+- **Why:** on 23 Oct `doctor` said NEEDS ATTENTION for a site added the day before, with the fix
+  "Set logs.base to the log's file name", which was wrong: nothing had been shipped yet.
+- **Who:** installs with a newly added site. **Do:** nothing.
+- **Checked:** tests/test_doctor.py `WaitingSite` (fails without the fix).
+
+### Fixed: a test of the new installer passed only on machines without systemd
+
+- **What changed:** the test "no Docker and no systemd says what to install" now runs the
+  installer with a PATH that holds the system's own tools less `docker` and `systemctl`.
+- **Why:** on 23 Oct GitHub's tests failed on every Python version: the Ubuntu test machine has
+  a real `/usr/bin/systemctl`, so the installer rightly found systemd and the test's "neither"
+  case never happened. The installer was right; the test was not sealed.
+- **Who:** nobody using Skald; anyone running the tests on Linux. **Do:** nothing.
+- **Checked:** the kit tests in a Linux container with a real `systemctl`: they fail without
+  the fix and pass with it.
+
+### Fixed: help, docs and page words still described the old zip kit
+
+- **What changed:** the site check's reason says "so one command on that server sends its log"
+  (was "the log shipper kit is the way"). The Common problems table, the refusal fixes and the
+  shared link's page say `sudo skald-ship-check` and `sudo skald-ship-uninstall`, and an older
+  zip kit's `check.sh` is still named. The help guides Connections and If a connection does
+  not work, INGEST.md, SETTINGS.md (`sites/kit` takes `server`; `sites/link`, `sites/pack` and
+  `sites/packmail` listed), HOSTING.md, INSTALL.md, ROUTES.md and ADD-A-CLIENT-SITE.md match the
+  code. LEADS-REFERENCE.md said "next release" for nine things that shipped in 2.26.0; it now says
+  "since 2.26.0". A broken link in DATA-CONTRACT-REALTIME.md is fixed. The public copy no longer
+  carries a link to the private design folder in ROADMAP.md.
+- **Why:** a check of every document after the 2.30.0 work found them still telling people to
+  download a zip kit and run `sudo bash check.sh`, which the page no longer offers for a server.
+- **Who:** anyone reading the help or the Connections dialogs. **Do:** nothing.
+- **Checked:** the full test suite; a grep for check.sh, "install kit", "shipper kit" and "next
+  release" across the docs and the page's code; every relative link in the public copy resolves.
+
+### Fixed: a failed Test gave the old kit's advice for a set-up saved before 2.30
+
+- **What changed:** for every server way, a Test that has not heard from the site says: run
+  `sudo skald-ship-check` (or an older zip kit's `sudo bash check.sh`), then where to see what
+  the shipper says.
+- **Why:** a set-up saved with the old choice "docker" or "systemd" opened the new one-command
+  step, but a failed Test still said "run check.sh from the kit", a file the one command does
+  not leave.
+- **Who:** sites whose set-up was started before 2.30. **Do:** nothing.
+- **Checked:** tests/js/tag-check.mjs, for "docker", "systemd" and "server" (fails without the fix).
+
+### Fixed: a developer's shared link for a server refused the zip kits under "Other ways"
+
+- **What changed:** a shared set-up link for "My own server" gives the one file, and the zip
+  kits with and without Docker under "Other ways".
+- **Why:** the link took only the method it was made with, so those buttons answered "This link
+  has no install kit."
+- **Who:** developers sent a set-up link. **Do:** nothing.
+- **Checked:** tests/test_share_links.py `test_a_server_link_gives_every_server_kit` (fails
+  without the fix).
+
 ## 2.29.0 (2026-10-22)
 
 Leads and the pages they read can be kept for good (Settings > Data retention > Leads), and the

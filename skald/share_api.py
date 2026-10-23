@@ -16,7 +16,7 @@ passes on without a session, unlogged and noindex):
   GET  /traffic-auth/setup/<id>/info       what the page draws
   POST /traffic-auth/setup/<id>/reveal     the secret, made now, once
   GET  /traffic-auth/setup/<id>/status     the Test: what reached Skald
-  POST /traffic-auth/setup/<id>/kit        the install kit (send: docker, systemd)
+  POST /traffic-auth/setup/<id>/kit        the install kit (send: docker, systemd, server)
   POST /traffic-auth/setup/<id>/test       a signed test lead (hook), never kept
   GET  /traffic-auth/app/<file>.js|.css    the app's own code the page runs
                                            (webapp/js, webapp/css, webapp/vendor:
