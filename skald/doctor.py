@@ -200,6 +200,8 @@ def access_log(config: dict, now: datetime, cmd: str) -> dict:
                     "Set logs.dir to the folder the web server writes its access log in "
                     "(Docker: mount that folder at /logs).")
     if not path.exists():
+        if (config or {}).get("_dashboard_site"):     # 2.29.1: was a wrong logs.base fix
+            return item("logs", part, OK, "none yet: the site waits for its first log lines")
         return item("logs", part, ATTENTION, f"{path} is not there",
                     "Set logs.base to the log's file name (access.log by default).")
     try:

@@ -27,13 +27,18 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-22-2.29.0",
+  id: "2026-10-23-2.30.0",
   items: [
-    ["Leads kept for good", "Settings › Data retention › Leads: keep leads and the pages they read for good, and the pages of visitors who have not signed up yet up to 400 days.", "settings-and-retention"],
-    ["A new site waits quietly", "the live check says a site added today has no log lines yet, instead of a mismatch."],
+    ["One command connects a server", "Set up › logs: \"My own server\", with or without Docker. Copy one command to the server; the token is made for you, the log is found by itself, and the Test starts on its own.", "connections"],
+    ["Send set-up to someone", "one zip by mail (or download) with every way, the keys, and a CLAUDE.md: give the folder to Claude Code and say \"Set up Skald from CLAUDE.md\".", "connections"],
+    ["Leads in one file", "download one file for PHP, Node or Python and call one function; a WordPress plugin with no code; or a plain key for Zapier and form tools.", "leads-from-your-backend"],
+    ["Quieter logs, truer doctor", "no error printed when a visitor leaves early; the doctor says a new site is waiting for its first lines."],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.29.0
+    ["Leads kept for good", "Settings › Data retention › Leads: keep leads and the pages they read for good, and the pages of visitors who have not signed up yet up to 400 days.", "settings-and-retention"],
+    ["A new site waits quietly", "the live check says a site added today has no log lines yet, instead of a mismatch."],
     // 2.28.x
     ["Visitor IDs from hooks, fixed", "a lead sent by your app now keeps its visitor ID when visitor IDs are switched on in Settings, so its visits are linked."],
     ["Leads: 7 days include today", "today so far plus the 6 days before, with the exact dates from and to, and a comparison up to the same hour.", "leads-and-conversions"],

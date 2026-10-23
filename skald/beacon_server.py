@@ -52,6 +52,10 @@ signed tool hooks only: /traffic-beacon and /traffic-js/skald.js answer 404, so
 a site cannot send events until its own origin is named. The Docker image always
 starts it this way or with origins, so incoming hooks never depend on the beacon.
 
+GET /traffic-kit/<code> answers a one-time install link (kit/link.py): the
+one-file installer with its token to curl or Wget, once; words to anything
+else. Limited per address (KIT_PER_MINUTE); the code is never logged.
+
 GET /traffic-js/skald.js serves the snippet (webapp/snippet/skald.js) with
 an ETag and a day's cache; with visitor IDs off it is served with IDS=0, so
 browsers make no ID at all.
@@ -86,6 +90,8 @@ PATH = "/traffic-beacon"
 SNIPPET_PATH = "/traffic-js/skald.js"
 SNIPPET_FILE = Path(__file__).resolve().parent / "webapp" / "snippet" / "skald.js"
 SNIPPET_CACHE = "public, max-age=86400, stale-while-revalidate=604800"
+KIT_PREFIX = "/traffic-kit/"     # one-time install links (kit/link.py)
+KIT_PER_MINUTE = 10              # tries per address a minute, a burst of 5
 RELOAD_SECONDS = 60       # the classifier re-reads our own addresses this often
 FLUSH_SECONDS = 5         # counters are written at most this often
 
@@ -403,6 +409,7 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
     main = sites.main
     from . import stack_public_api
     public = stack_public_api.Service.from_config(main.config)   # None unless switched on
+    kit_limiter = Limiter(KIT_PER_MINUTE, 5, 5)
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "skald-beacon"
@@ -498,6 +505,8 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
             self.site = self.cors = self.sh = None
             if self.path.split("?", 1)[0] == SNIPPET_PATH and sites:
                 return self._snippet(self.command == "GET")
+            if self.path.startswith(KIT_PREFIX):
+                return self._kit()
             if self.path.startswith("/traffic-js/"):
                 return self._send(404)
             if self.command == "GET" and self.path.startswith("/traffic-hooks/"):
@@ -530,6 +539,17 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
             if with_body and not fresh:
                 self.wfile.write(raw)
 
+        def _kit(self) -> None:
+            """A one-time install link (kit/link.py)."""
+            from .accounts.links import base_url
+            from .conversions.hooks import history_folder
+            from .kit import link
+            peer = self.client_address[0]
+            address = ((self.headers.get("X-Real-IP") or "").strip()
+                       if peer == "127.0.0.1" else "") or peer
+            folder = history_folder(main.config, getattr(main, "config_path", None))
+            link.serve(self, folder, base_url(main.config) or "", kit_limiter, address)
+
         def _not_allowed(self):
             self._send(405)
 
@@ -553,6 +573,14 @@ class BeaconServer(ThreadingHTTPServer):
     listen queue of 128, not Python's default 5, so none is dropped."""
     daemon_threads = True
     request_queue_size = 128
+
+    def handle_error(self, request, client_address):
+        """A visitor who left before the answer (a closed page during the public
+        stack check's seconds) is not an error: no traceback in the log (2.29.1)."""
+        if isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError)):
+            return
+        super().handle_error(request, client_address)
+
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])

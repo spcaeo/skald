@@ -8,7 +8,7 @@ characters (128 bits). Only its SHA-256 is kept, in accounts.sqlite
 
     ref         8 hex characters naming the link in lists and the audit log
     org_id, site, task ("send", "script", "hook" or "nextjs": the log_format
-                line that counts pages opened inside a Next.js site), method (send: docker,
+                line that counts pages opened inside a Next.js site), method (send: server, docker,
                 systemd, cloudflare or vercel; hook: the tool, e.g. lead)
     created_by, created_at, expires_at (1, 7 or 30 days), revoked_at, revoked_by
     viewed_at (first), views, revealed_at, secret_ref (the token id or hook)
@@ -40,7 +40,7 @@ TABLE = ("CREATE TABLE IF NOT EXISTS share_links (id_hash TEXT PRIMARY KEY, ref 
          "revealed_at TEXT, secret_ref TEXT)")
 TASKS = ("send", "script", "hook", "nextjs")
 NO_SECRET = ("script", "nextjs")         # tasks with no method and nothing to reveal
-SEND_METHODS = ("docker", "systemd", "cloudflare", "vercel")
+SEND_METHODS = ("docker", "systemd", "server", "cloudflare", "vercel")
 DAYS = (1, 7, 30)
 ID_CHARS = 22
 GONE = "This link has expired or was revoked. Ask for a new one."

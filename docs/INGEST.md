@@ -61,14 +61,19 @@ docs/help/connections.md):
 2. **Prove it's yours**: the DNS TXT record or meta tag, with "Check now"
    (`sites/verify`; docs/SAAS.md). When the install asks no proof, the step
    says so.
-3. **How visits reach Skald**: Docker shipper, systemd shipper, Cloudflare
-   (the Skald Worker), Vercel or Netlify (log drain), or only the script tag.
+3. **How visits reach Skald**: my own server (nginx or Apache, with or
+   without Docker: method `server`; the older `docker` and `systemd` ids, in
+   saved progress, old links or the site check, map to it), Cloudflare (the
+   Skald Worker), Vercel or Netlify (log drain), or only the script tag.
    Choosing Cloudflare for a dashboard site that has received nothing yet
    sets its format to `edge_json` (audit `site.format`); any other choice sets
    `auto` on the same terms.
-4. **Install**: a named sending token (`tokens/create`, scope `ingest`, this
-   site only, shown once), the steps for the method with the send address
-   and token filled in, and the install kit (below).
+4. **Install**: for a server, the one command (`sites/link` makes its
+   sending token; below), "Download as one file" and "Email it to your server
+   admin" (the set-up pack), with the by-hand ways folded under it. For the
+   other ways, a named sending token (`tokens/create`, scope `ingest`, this
+   site only, shown once) where the way needs one, and its steps with the send
+   address and token filled in.
 5. **Test and finish**: `sites/status`, polled every 5 s for up to 2 minutes,
    says what arrived or why it was refused (below). Lines arrived: "Done:
    <site> is receiving visits".
@@ -84,8 +89,9 @@ remove sites and on the site picker; a finished one that nothing reached for
 connection", which opens step 5.
 
 For a site that exists already, **Settings > Connections > Send this site's
-visits to Skald** has the same steps 3 to 5 (choose how, sending token,
-install, test).
+visits to Skald** has the same steps 3 to 5: where it runs, then for a server
+"Run one command" and "Test" (three steps), for Cloudflare or Vercel "Sending
+token", "Install" and "Test", for the script tag "Install" and "Test".
 
 The first figures appear after the next daily run. On a SaaS install the
 plan decides how many sites an organisation may have.
@@ -97,12 +103,91 @@ A site from a config file can ship its log too: make an ingest token for it
 (Settings > Connections > Send this site's visits to Skald, or Settings > Add
 or remove sites > New token) and point its `logs.dir` at `<ingest root>/<site>`.
 
+## One command: the one-file installer and the install link
+
+The shortest way onto a Linux web server is one command the site's admin runs there:
+
+```sh
+curl -fsSL https://stats.example.com/traffic-kit/<code> | sudo bash
+```
+
+Settings > Connections makes it (`POST <page>/sites/link`): a new sending token for that
+one site (named "Sending logs: <site>, <day> (one-command install)", in the audit log as
+`token.create`, then `kit.link`) and a link that works **once, for 24 hours**. The link
+answers the installer with the token inside to curl or Wget, then never again; a used,
+expired or unknown link answers 200 with a two-line script that says so and exits 1 (a 410
+would make `curl -f` show only its own error, so `| sudo bash` would never show the
+words). A browser or a mail's link preview gets the words "Run this on your server: ..."
+and does not use the link up. Options go after
+`bash -s --`: `curl -fsSL <link> | sudo bash -s -- --log /var/log/nginx/x.log`.
+
+The link's store, `kit-links.json` beside the history (0600, expired entries dropped on
+each write), keeps only the SHA-256 of the code, the site, the expiry and the token
+XORed with a keystream made from the code (HMAC-SHA256): the server's disk never holds a
+usable token. `/traffic-kit/` is answered by the beacon helper (`beacon_server.py`,
+`skald/kit/link.py`), limited to 10 tries a minute per address, `Cache-Control:
+no-store`, `X-Robots-Tag: noindex`, and never logged (nginx: `access_log off`, DEPLOY.md).
+
+The same installer is one file to download: "Download as one file",
+`POST <page>/sites/kit` with `method: "server"` -> `skald-install-<site>.sh`, the token
+inside only when `include_token` is true. From `skald/kit/install-server.sh`,
+filled by `kit.one_file`:
+
+- **How it runs:** with Docker when Docker works on the server and the install knows its
+  image (`ingest.kit_image`), else as a systemd service with Python 3.9 or newer, the
+  shipper inside the file (base64). Neither: it stops and says what to install. A shipper
+  installed before keeps its way and its place in the log, so running it again is safe
+  (and a shipper of the other way is removed, so only one sends).
+- **The log:** found by itself. It reads nginx's settings (`nginx.conf`, `conf.d/`,
+  `sites-enabled/`) and Apache's (`sites-enabled/`, `conf.d/`, `httpd.conf`) for the server
+  block whose `server_name` / `ServerName` / `ServerAlias` is the site or `www.<site>` and
+  takes its `access_log` / `CustomLog` (`${APACHE_LOG_DIR}` and nginx's `$host` are filled
+  in). A block with no `access_log` writes the http block's. Several: it asks, from the
+  terminal (`/dev/tty`, so it works under `curl | sudo bash`), the biggest first; none: the
+  usual places. `--log <path>` names it; `--yes` asks nothing and takes what was found;
+  `--dry-run` shows every step and changes nothing.
+- **The token:** inside the file when it was made with one (never printed), else
+  `SKALD_SHIP_TOKEN`, else asked for, hidden. Kept as the kits keep it: Docker
+  `/srv/skald/ship-token` (root:adm, 0640), systemd `/etc/skald-ship/token`
+  (root:skald-ship, 0640).
+- **What it leaves:** `/usr/local/bin/skald-ship-check` (check.sh below, read-only) and
+  `/usr/local/bin/skald-ship-uninstall` (uninstall.sh, which also removes these two), for
+  the way it used. It ends with a short "Done" block and the dashboard link.
+
+## The set-up pack: everything in one zip, for a person or an AI agent
+
+Settings > Connections can download or mail `skald-setup-<site>.zip`
+(`skald/kit/pack.py`, `skald/kit_api.py`). One folder, `skald-setup-<site>/`:
+
+| File | What it is |
+| --- | --- |
+| `START-HERE.md` | For a person: what Skald is, then "pick your case" (own Linux server, Cloudflare, Vercel or Netlify, only the script tag), leads, and how to check it works |
+| `CLAUDE.md`, `AGENTS.md` | The same for an AI coding agent: find out how the site is hosted, do the matching steps, the tag in the shared `<head>`, leads in the backend, secrets only in environment variables or the host's secret settings (never in code, git or chat), the checks, then report back |
+| `secrets.env` | `SKALD_INGEST_URL`, `SKALD_INGEST_TOKEN`, `SKALD_LEAD_URL`, `SKALD_LEAD_SECRET` (mode 0600). Without keys: the two addresses, empty token and secret, and where to get them |
+| `logs/install-server.sh` | The one-file installer (the token inside when keys are included) |
+| `logs/cloudflare.md`, `logs/vercel-netlify.md` | The Worker's and the log drains' steps with the send address (and the token when included) |
+| `tag/script-tag.html`, `tag/README.md` | The script tag and where to put it |
+| `leads/` | The lead code per language (`skald/kit/leadfiles.py`), else a README that points to Settings > Integrations. A file name mail filters block (`.js`, `.mjs` and the like) gets `.txt` added |
+
+With `include_secrets`, the pack holds a new sending token ("(set-up pack)") unless the
+page gives one, and the lead secret: the one the page just made (checked against the
+store), else the one the site has, else a new one (audit `hook.secret`, "put in a set-up
+pack" or "made (set-up pack)"). A lead secret kept in the server's environment is not put
+in: the pack says to ask whoever runs Skald. Mailed (`sites/packmail`): through the
+install's mail settings (Settings > Mail), to up to 3 addresses, subject "Set up Skald for <site>", 10 mails per site an hour.
+A mail that does not go takes its new token back (revoked) and its new lead secret.
+Audit `kit.pack` and `kit.packmail`: who, the site, how many recipients, keys or not;
+never an address or a key.
+
 ## The install kit and check.sh
 
-A zip the site's admin runs on their own web server, with no SSH from Skald's
-side. Settings > Connections (and step 4 of Add a site) offers it as
-"Download the install kit (.zip)" (`POST <page>/sites/kit`); the same zip
-comes from the command line:
+For a server, the page now offers the one command and the one file (above);
+both leave `check.sh` on the server as `sudo skald-ship-check`. The older zip
+kits remain: from the command line, and under "Other ways: by hand with Docker
+/ without Docker" in Settings > Connections and step 4 of Add a site ("Download
+the install kit (.zip)", `POST <page>/sites/kit` with method `docker` or
+`systemd`). A zip the site's admin runs on their own web server, with no SSH
+from Skald's side:
 
 ```sh
 python3 -m skald.kit --site www.example.com --method docker \
@@ -128,12 +213,14 @@ helper. Templates: `skald/kit/` (`install-docker.sh`,
 `install-systemd.sh`, `uninstall.sh`, `check.sh`, `README-docker.txt`,
 `README-systemd.txt`), filled by `skald/kit/__init__.py`.
 
-The Docker kit needs the image name: `ingest.kit_image` in the config, else
-the `SKALD_KIT_IMAGE` environment variable. The Docker image's entrypoint sets
-`SKALD_KIT_IMAGE` to itself at its major version, and `SKALD_KIT_SHIP_PATH` to
-the shipper inside it (`ingest.kit_ship_path` overrides it). Without an image
-the page offers no Docker kit and says why; without `tools/skald-ship.py`, no
-systemd kit (SETTINGS.md).
+The Docker kit, and the Docker way of the one file, need the image name:
+`ingest.kit_image` in the config, else the `SKALD_KIT_IMAGE` environment
+variable. The Docker image's entrypoint sets `SKALD_KIT_IMAGE` to itself at its
+major version, and `SKALD_KIT_SHIP_PATH` to the shipper inside it
+(`ingest.kit_ship_path` overrides it). Without an image the page offers no
+Docker kit and says why, and the one file runs as a systemd service only;
+without `tools/skald-ship.py`, no systemd kit and no systemd way in the one
+file; with neither, no one file (SETTINGS.md).
 
 ## Installing the shipper by hand (Ubuntu or Debian)
 
@@ -261,7 +348,7 @@ header was not sent.
   and counts as a view (the default `<Link>` sends it).
 
 The doctor's "Next.js pages" line, the Overview checklist ("Pages opened
-inside the site are not counted yet") and `check.sh` say so when the log has
+inside the site are not counted yet") and `skald-ship-check` (`check.sh` in a zip kit) say so when the log has
 `?_rsc=` lines and none carries the field. Nothing edits nginx for you.
 
 ### The request's size (optional, Security)
@@ -497,8 +584,11 @@ by `sites_api.py`). Owner or admin only; POSTs need the session's
 | Method, path | Answer |
 | --- | --- |
 | GET `sites/status?site=<name>` | `{ok, site, ingest_enabled, send_url, folder, received, last_batch, last_contact, today, last_refusal, verify, beacon, setup, now}` (DATA-CONTRACT.md, "Connections status") |
-| POST `sites/kit` | `{site, method: docker\|systemd, include_token?, token?}` -> the zip (`application/zip`, `skald-ship-<site>.zip`); 400 for a token that is not a sending token of that site, or a kit this server cannot build |
+| POST `sites/kit` | `{site, method: docker\|systemd\|server, include_token?, token?}` -> the zip (`application/zip`, `skald-ship-<site>.zip`), or with `server` the one bash file (`text/x-shellscript`, `skald-install-<site>.sh`); 400 for a token that is not a sending token of that site, or a kit this server cannot build |
+| POST `sites/link` | `{site}` -> `{ok, url, command, expires_at, token, token_id}`: a new sending token (shown once) and the one-time install link, `curl -fsSL <url> \| sudo bash`, for 24 hours; 409 when the log endpoint is off |
+| POST `sites/pack` | `{site, include_secrets, token?, lead_secret?}` -> `skald-setup-<site>.zip` (`application/zip`); a token made for it is named in `X-Skald-Token-Id` |
+| POST `sites/packmail` | `{site, to: [up to 3], include_secrets, token?, lead_secret?, note?}` -> `{ok, sent_to, token_id, lead_secret_made}`; 400 for a bad address, 409 when mail is not set up, 429 after 10 an hour per site, 502 when the mail server refused it |
 | POST `sites/setup` | `{name, step?, method?, token_id?, done?}` -> `{setup}`, the wizard's progress |
 | POST `sites/add` | as before; `token: false` makes no token (the wizard makes a named one later) |
 | POST `sites/share`, GET `sites/shares`, POST `sites/unshare` | "Share with your developer" links (`share_links.py`, `share_api.py`): a private page at `/traffic-auth/setup/<id>` with one task's steps for one site, no sign-in, 1, 7 or 30 days. Only the id's SHA-256 is kept. The sending token is made when the developer presses Show the secret, once, in the name of the admin who made the link |
-| GET `sites` | as before; to admins also `kit {docker, systemd, why, image, ship_path}`, `api_base`, `mcp_url`, `mcp_enabled`, `beacon_on`, and per site `setup` and `quiet` (set up, and nothing reached Skald for 24 hours) |
+| GET `sites` | as before; to admins also `kit {docker, systemd, server, why, image, ship_path}`, `api_base`, `mcp_url`, `mcp_enabled`, `beacon_on`, and per site `setup` and `quiet` (set up, and nothing reached Skald for 24 hours) |

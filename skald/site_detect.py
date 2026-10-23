@@ -27,7 +27,7 @@ first, following at most 3 redirects by hand, then a GET of the first
   recommended_method  one of the wizard's ways (accounts/site_setup.py
                  METHODS), or None, with `reason` in one plain line
   log_note       LOG_NOTE for a Next.js site whose own nginx, Apache or
-                 LiteSpeed log the kit will read: the one field its
+                 LiteSpeed log the shipper will read: the one field its
                  log_format needs so pages opened inside the site count
                  (parse.Hit.soft_navigation); "" otherwise. Caddy logs the
                  request headers already; a drain or a Worker carries none.
@@ -293,9 +293,13 @@ def recommend(site: str, facts: dict) -> tuple[str | None, str]:
         of nginx/Apache/LiteSpeed/Caddy  docker  the origin's log (cached pages missed)
         of an unseen server         None    choose by hand
       nginx, Apache, LiteSpeed,
-      Caddy                         docker  the shipper kit
-      Microsoft IIS                 script  the kit is for Linux servers
+      Caddy                         docker  the one-command install on that server
+      Microsoft IIS                 script  the one-command install is for Linux servers
       anything else                 None    choose by hand
+
+    "docker" is the id this has always returned for a site's own server; the
+    page shows it as the one server way, "My own server" (conn-words.js
+    OLD_WAYS), and log_note keys on it.
     """
     if not facts.get("reachable"):
         why = facts.get("error") or "no answer"
@@ -316,18 +320,18 @@ def recommend(site: str, facts: dict) -> tuple[str | None, str]:
     if platform in ("cloudfront", "fastly"):
         if server in OWN_SERVERS:
             return "docker", (f"{site} is served through {label} from its own "
-                              f"{SERVERS[server]} server, so the log shipper kit reads that "
-                              f"server's log (pages {label} answers from its cache are not in it).")
+                              f"{SERVERS[server]} server, so one command on that server sends "
+                              f"its log (pages {label} answers from its cache are not in it).")
         return None, (f"{site} is served through {label}, and the server behind it could not be "
-                      f"seen. Choose by hand: the shipper kit if that server is yours, else the "
-                      f"script tag.")
+                      f"seen. Choose by hand: the one command on that server if it is yours, else "
+                      f"the script tag.")
     if server in OWN_SERVERS:
         on = f" ({facts['os']})" if facts.get("os") else ""
-        return "docker", (f"{site} runs on its own {SERVERS[server]} server{on}, so the log "
-                          f"shipper kit is the way.")
+        return "docker", (f"{site} runs on its own {SERVERS[server]} server{on}, so one "
+                          f"command on that server sends its log.")
     if server == "iis":
-        return "script", (f"{site} runs on Microsoft IIS (Windows). The shipper kit is for Linux "
-                          f"servers, so the script tag is the way.")
+        return "script", (f"{site} runs on Microsoft IIS (Windows). The one-command install is for "
+                          f"Linux servers, so the script tag is the way.")
     return None, f"Skald could not tell how {site} is hosted. Choose the way by hand."
 
 
@@ -446,7 +450,7 @@ def detect(address: str) -> dict:
 
 
 def log_note(facts: dict) -> str:
-    """LOG_NOTE for a Next.js site whose own server's log the kit reads, else ""."""
+    """LOG_NOTE for a Next.js site whose own server's log the shipper reads, else ""."""
     if (facts.get("framework") == "nextjs" and facts.get("server") in LOG_FORMAT_SERVERS
             and facts.get("recommended_method") == "docker"):
         return LOG_NOTE

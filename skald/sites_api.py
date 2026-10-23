@@ -27,6 +27,9 @@ with `access.mode: sessions` (404 otherwise), the way team_api.py is:
                        tagcheck: the script tag's page check)          admin
   POST sites/share, GET sites/shares, POST sites/unshare: "Share with your
                        developer" links (share_api.py)                 admin
+  POST sites/link, POST sites/pack, POST sites/packmail: the one-command
+                       install link and the set-up pack, downloaded or
+                       mailed (kit_api.py)                             admin
 
 With saas on, a site added here starts "pending" (site_verify.py): nothing is
 collected for it until its domain is verified; the listing shows the token.
@@ -55,7 +58,7 @@ from .config import site_name
 
 PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
 PATH = re.compile(PAGE + r"(?P<act>sites(?:/(?:add|token|remove|verify|status|kit|setup|detect|tagcheck"
-                         r"|share|shares|unshare))?)$")
+                         r"|share|shares|unshare|link|pack|packmail))?)$")
 GETS = ("sites", "sites/status", "sites/shares")
 ADMIN = ("owner", "admin")
 SHIP_TOKEN_FILE = "/etc/skald-ship/token"
@@ -360,6 +363,13 @@ def _share(name):
     return call
 
 
+def _kit(name):
+    def call(c, form):
+        from . import kit_api
+        return getattr(kit_api, name)(c, form)
+    return call
+
+
 def _more(name):
     def call(c, form):
         from . import connections_api
@@ -371,5 +381,7 @@ ROUTES = {"sites": listing, "sites/add": add, "sites/token": new_token, "sites/r
           "sites/verify": verify, "sites/status": _more("status"), "sites/kit": _more("kit_zip"),
           "sites/setup": _more("setup"), "sites/detect": _more("detect"),
           "sites/tagcheck": _more("tag_check"),
+          "sites/link": _kit("link"), "sites/pack": _kit("pack_zip"),
+          "sites/packmail": _kit("pack_mail"),
           "sites/share": _share("share"),
           "sites/shares": _share("shares"), "sites/unshare": _share("unshare")}

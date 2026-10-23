@@ -88,6 +88,18 @@ class Shared(TenantServer):
         self.assertNotIn(path.rsplit("/", 1)[1], links)                    # only the id's hash is kept
         self.assertNotIn("192.0.2.", self.call("GET", path + "/status").raw.decode())
 
+    def test_a_server_link_gives_every_server_kit(self):
+        # 2.30: a "server" link offers the one file, and the zips under "Other ways" too.
+        path = self.link(method="server")
+        one = self.call("POST", path + "/kit", {"method": "server"}, SAME)
+        self.assertEqual(one.status, 200)
+        self.assertTrue(one.raw.startswith(b"#!"))
+        for method in ("docker", "systemd"):
+            got = self.call("POST", path + "/kit", {"method": method}, SAME)
+            self.assertEqual(got.status, 200, method)
+            self.assertTrue(got.raw.startswith(b"PK"), method)
+        self.assertEqual(self.call("POST", path + "/kit", {"method": "cloudflare"}, SAME).status, 400)
+
     def test_expiry_and_revoke(self):
         path = self.link(days=1)
         self.tick(86400 + 1)

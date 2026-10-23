@@ -344,8 +344,8 @@ PROXY protocol), or the controller itself sees only node addresses. Never raise 
 Send this site's visits to Skald**) looks at the site from outside, like a browser: its web server,
 any platform in front (Cloudflare, Vercel, Netlify, CloudFront, Fastly, a hosted builder such as
 Shopify or Wix) and its framework. It suggests the way in, with the reason, then walks you through
-it with your address and token filled in, an install kit for a server (with a `check.sh` that says
-what is wrong in plain words), and a **Test connection** at the end. A Next.js site behind your own
+it with your address and token filled in, one command for a server (with a `skald-ship-check` it
+leaves there that says what is wrong in plain words), and a **Test connection** at the end. A Next.js site behind your own
 nginx or Apache also adds one field to its log format so clicks inside the site count as pages
 ([INGEST.md](INGEST.md)).
 

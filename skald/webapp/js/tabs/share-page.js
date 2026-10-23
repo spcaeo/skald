@@ -108,7 +108,7 @@ export async function draw(root, id) {
     testPanel(st, { statusOf: () => getJSON(`${base}/status`), pageCheck: null }), troubleTable());   // the page check needs a session
   root.replaceChildren(...head, secretBox(info, base, (secret) => { if (info.task === "send") { st.token = secret; fill(); } }) || "",
     h("section", { class: "s" }, h("h2", null, "Steps"), stepsSlot), test,
-    info.task === "send" ? steps("If something seems wrong on the server, run sudo bash check.sh from the kit, and send its last block to whoever gave you this link.") : "");
+    info.task === "send" ? steps("If something seems wrong on the server, run sudo skald-ship-check there (an older zip kit: sudo bash check.sh in its folder), and send its last block to whoever gave you this link.") : "");
 }
 
 const root = typeof document !== "undefined" ? document.getElementById("share") : null;

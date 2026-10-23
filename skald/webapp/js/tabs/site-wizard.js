@@ -18,10 +18,10 @@ import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { input, field, why } from "./forms.js";
 import { wizard, codeBlock, answerBox, helpLink } from "./conn-ui.js";
-import { sendState, methodChooser, chooseCheck, tokenPanel, testPanel, troubleTable, shareFor, preselect } from "./conn-send.js";
+import { sendState, methodChooser, chooseCheck, tokenPanel, runPanel, testPanel, troubleTable, shareFor, preselect } from "./conn-send.js";
 import { detectCard, recommendFor, suggestionsFor } from "./conn-detect.js";
 import { installFor } from "./conn-install.js";
-import { methodOf } from "./conn-words.js";
+import { methodOf, wayId } from "./conn-words.js";
 import { withUrl } from "../urlactions.js";
 
 export const STEPS = 5;
@@ -134,7 +134,7 @@ function stepHow(wz) {
 // Add or remove sites: tabs/sitesadmin.js openSiteKey reopens it from a link).
 export function siteWizard({ data = {}, name = null, start = 0, method = "", verify = null, found = null, onChange = null } = {}) {
   const send = sendState(name || "", data);
-  send.method = method || "";
+  send.method = wayId(method);
   const state = { site: name, verify, data, send, onChange, typed: "", zone: "", found: found || null, useFound: found ? found.use !== false : true };
   const w = wizard({
     title: name ? `Set up ${name}` : "Add a site", subtitle: "Five short steps. You can close this and continue later: nothing is lost.",
@@ -148,14 +148,17 @@ export function siteWizard({ data = {}, name = null, start = 0, method = "", ver
         check: (wz) => chooseCheck(wz.state.send), next: async (wz) => { await save(wz, { step: 4, method: wz.state.send.method }); return true; } },
       { name: "Install", draw: (wz) => {
         const st = wz.state.send;
-        return [h("p", { class: "sub" }, `${methodOf(st.method)?.title || ""}. The send address: `, withUrl(h("code", null, st.url), st.url, { cls: "ua-after" })),
-          ...tokenPanel(st, { onMade: (r) => save(wz, { token_id: r.id || "" }) }),
-          h("h4", null, "Install"), ...installFor(st.method, st), shareFor(st)];
+        const way = wayId(st.method);
+        // The server way: one command (sites/link makes its token); the others as before.
+        if (way === "server") return runPanel(st, wz, { onMade: (r) => save(wz, { token_id: r.token_id || "" }) });
+        return [h("p", { class: "sub" }, `${methodOf(way)?.title || ""}. The send address: `, withUrl(h("code", null, st.url), st.url, { cls: "ua-after" })),
+          ...(methodOf(way)?.token ? tokenPanel(st, { onMade: (r) => save(wz, { token_id: r.id || "" }) }) : []),
+          h("h4", null, "Install"), ...installFor(way, st), shareFor(st)];
       } },
       { name: "Test and finish", draw: (wz) => {
         const st = wz.state.send;
         const done = h("div");
-        return [testPanel(st, { onResult: async (v) => {
+        return [testPanel(st, { auto: true, onResult: async (v) => {
           if (v.kind !== "ok") return;
           await save(wz, { step: STEPS, done: true });
           done.replaceChildren(answerBox("ok", `Done: ${st.site} is receiving visits.`,

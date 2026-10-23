@@ -103,6 +103,13 @@ const SK = "https://skald.example.net";
   shared.querySelectorAll("button")[0].click();
   await tick();
   assert.equal(posted.length, 2);
+  // a server way, old saved id or new, not yet connected: skald-ship-check first (2.30)
+  for (const method of ["docker", "systemd", "server"]) {
+    const p = method === "docker" ? other : send.testPanel({ site: "example.com", method }, { statusOf: async () => ({ ok: true }) });
+    if (p !== other) { p.querySelectorAll("button")[0].click(); await tick(); }
+    assert.match(p.textContent, /run sudo skald-ship-check: it checks each part/, method);
+    assert.doesNotMatch(p.textContent, /run check\.sh from the kit/, method);
+  }
   document.body.childNodes = [];
 }
 console.log("tag-check: all passed");

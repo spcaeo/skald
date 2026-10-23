@@ -7,7 +7,9 @@ Each request, in this order, before anything is kept:
      its domain to be verified (site_verify.py): 404 otherwise
   2. a body of at most 64 KiB: 411 without a length, 413 over it
   3. the tool's signature over the raw bytes, checked BEFORE the body is
-     parsed and before any per-hook bucket is spent: 401. A failure spends
+     parsed and before any per-hook bucket is spent: 401. `lead` and `json`
+     also take the plain key, `Authorization: Bearer <secret>`, when no
+     X-Skald-Signature is sent (2.30, accepted()). A failure spends
      the sender's small pre-auth bucket (`hooks.preauth_per_minute`, burst
      `hooks.preauth_burst`): 429 once it is empty
   4. at most `hooks.per_minute` verified deliveries a minute per site and
@@ -65,7 +67,7 @@ from ..beacon import visitor_ids
 from ..config import setting, site_name
 from . import LEAD_SHAPED, MAX_BODY, TOOLS, event_types, geo, marks, reconcile, spool, store
 from .adapters import Invalid, adapter
-from .adapters.lead import LABEL_NOTE, TEST_NOTE, verify_get
+from .adapters.lead import LABEL_NOTE, TEST_NOTE, keyed, verify_get, verify_key
 from .normalise import row as make_row
 from .secrets_store import Exposed, find
 
@@ -95,6 +97,15 @@ def replay_digest(tool: str, payload, body: bytes) -> str | None:
     event = payload.get("event_id") if tool == "typeform" else \
         f"{payload.get('triggerEvent')}:{inner.get('uid')}"
     return hashlib.sha256(f"{tool}\0{event}\0".encode() + body).hexdigest()
+
+
+def accepted(tool: str, headers: dict, body: bytes, secret: str, now: float) -> bool:
+    """The tool's own check of a delivery. `lead` and `json` also take the
+    plain key (`Authorization: Bearer <secret>`) when no X-Skald-Signature is
+    sent; a wrong key is refused like a bad signature. No other tool does."""
+    if tool in LEAD_SHAPED and keyed(headers):
+        return verify_key(headers, secret)
+    return adapter(tool).verify(headers, body, secret, now)
 
 
 def history_folder(config: dict, config_path=None) -> Path:
@@ -277,7 +288,7 @@ class Receiver:
         headers[":method"], headers[":uri"] = "POST", self.uri(handler)
         # The signature first (cheap): only a verified delivery spends the
         # hook's bucket, so an unsigned flood cannot starve the real tool.
-        if not adapter(tool).verify(headers, body, secret, self.clock()):
+        if not accepted(tool, headers, body, secret, self.clock()):
             self._bad_signature(site, tool, headers)
             if not self.preauth.allow(self.client(handler)):
                 return 429, {"error": "too many"}
@@ -407,7 +418,7 @@ class Receiver:
         mod = adapter(tool)
         now = self.clock()
         received = store.stamp(datetime.fromtimestamp(now, tz=timezone.utc))
-        if not verified and not mod.verify(headers, body, secret, now):
+        if not verified and not accepted(tool, headers, body, secret, now):
             self._bad_signature(site, tool, headers)
             return 401, {"error": "bad signature"}
         try:

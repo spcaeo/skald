@@ -58,7 +58,7 @@ stored beyond what the item states; standard library on the server.
 
 Built on 2026-10-11 and released as 2.0.0 (live on example.com since release 165;
 HANDOVER/00-START-HERE.md says what runs now). Each new part is off until an install
-switches it on. Designs: [plans/](plans/).
+switches it on.
 
 | Item | State |
 | --- | --- |

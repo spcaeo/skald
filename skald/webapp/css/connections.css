@@ -77,3 +77,16 @@
 .cn-found-why, .cn-builder { font-size: 13px; }
 .cn-way small.cn-why { color: var(--ink-2); }
 .cn-way.rec em.cn-rec { color: var(--good); }
+
+/* 2.30: the server way's one command (conn-send.js), the older ways folded, and the
+   set-up pack (setup-pack.js): up to 3 addresses, a note, the keys choice */
+.cn-run { display: grid; gap: 8px; }
+.cn-run p { margin: 0; }
+.cn-byhand h4 { margin: 12px 0 6px; font-size: 13.5px; }
+.su-pack { display: grid; gap: 10px; padding: 12px 14px; border: 1px dashed var(--gap); border-radius: var(--r); }
+.su-pack p { margin: 0; }
+.su-pack-to { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.su-pack-to legend { padding: 0; margin-bottom: 4px; font-size: 13px; font-weight: 600; }
+.su-pack-to input, .su-pack textarea { width: 100%; max-width: 420px; box-sizing: border-box; }
+.su-pack .chk small { display: block; color: var(--ink-3); font-size: 12.5px; }
+.su-nocode p { margin: 0; }

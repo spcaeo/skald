@@ -8,6 +8,8 @@
 //              POST settings/save site.asset_prefixes (or site.require_rendering)
 //   countries  a country file on the server: what it adds, and a mail to the
 //              server admin (nothing to save here)
+//   pack       "Send set-up to someone" at the top of the checklist (2.30): the
+//              whole set-up in one zip, mailed or saved (setup-pack.js)
 //
 // The others: setup-tag.js (the script tag), setup-hook.js (a lead hook),
 // setup-mail.js (the daily and weekly mail), setup-privacy.js (what is kept),
@@ -27,9 +29,10 @@ import { hookDialog } from "./setup-hook.js";
 import { mailDialog } from "./setup-mail.js";
 import { privacyDialog } from "./setup-privacy.js";
 import { nextDialog } from "./setup-nextjs.js";
+import { packBox } from "./setup-pack.js";
 
 // Each dialog is in the address as setup=<act>&step=<n> (js/overlays.js); start: a link's step, 0 first.
-export const ACTS = ["logs", "assets", "rsc", "countries", "script", "lead", "mail", "privacy"];
+export const ACTS = ["logs", "assets", "rsc", "countries", "script", "lead", "mail", "privacy", "pack"];
 export async function openSetup(act, site, { item = null, onClose = null, start = 0 } = {}) {
   const opts = { item, onClose, route: { key: "setup", value: act }, start };
   if (act === "logs") {
@@ -43,7 +46,15 @@ export async function openSetup(act, site, { item = null, onClose = null, start 
   if (act === "lead") return hookDialog(site, opts);
   if (act === "mail") return mailDialog(site, opts);
   if (act === "privacy") return privacyDialog(site, opts);
+  if (act === "pack") return packDialog(site, opts);
   return null;
+}
+
+// "Send set-up to someone": the box alone, with the keys this page made (setup-pack.js).
+export function packDialog(site, { onClose = null, route = null, start = 0 } = {}) {
+  return wizard({ route, start,
+    title: "Send set-up to someone", subtitle: `For ${site}. Logs, the script tag and leads, in one zip.`, key: "setup-pack", onClose, done: "Close",
+    steps: [{ name: "Send or download", draw: () => [packBox(site)] }] });
 }
 
 /* setup=<act>&step=<n>, from a link: the dialog at that step for an owner or an admin;

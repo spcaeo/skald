@@ -16,7 +16,7 @@
 import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { why } from "./forms.js";
-import { methodOf } from "./conn-words.js";
+import { methodOf, wayId } from "./conn-words.js";
 
 export const DETECT_WAIT_MS = 700;
 
@@ -46,7 +46,7 @@ export function foundLines(f) {
 export function recommendFor(st) {
   const f = st.found;
   if (!f || st.useFound === false || !f.recommended_method || !methodOf(f.recommended_method)) return null;
-  return { id: f.recommended_method, reason: f.reason || "", site: f.site || st.site || "" };
+  return { id: wayId(f.recommended_method), reason: f.reason || "", site: f.site || st.site || "" };
 }
 
 // What the add-site and settings paths take from the check: {hosts, asset_prefixes}.
