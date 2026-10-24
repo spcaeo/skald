@@ -311,6 +311,8 @@ button.al-sw { border: 0; font-family: inherit; min-height: 24px; cursor: pointe
 button.al-sw:disabled { cursor: default; }
 button.al-sw:not(:disabled):hover { box-shadow: inset 0 0 0 1px currentColor; }
 .al-types small.al-why { display: block; font-style: italic; }
+.al-least-edit { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.al-least-edit .al-least { flex: 1 1 220px; min-width: 0; max-width: 360px; }
 
 /* -------------------------------------------------------- data quality */
 .q-strip i.q-green { background: var(--good); }

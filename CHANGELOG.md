@@ -4,6 +4,19 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+### Website: the 11 feature pages rebuilt and graded (group E, live 2026-10-24)
+
+- **Changed.** /features/ and its ten pages (dashboard, real time, alerts, counted twice,
+  pages and sources, page groups, visitors and journeys, reports and exports, team and
+  access, privacy and retention), each its own design from the code it describes and graded
+  on `_src/pages/RUBRIC.md`; the features hub now names revenue on leads (2.32.0). /docs/
+  links to /docs/guides/ and /llms.txt, and its FAQ names the guides first. **Why:** the
+  owner's rebuild plan, approved 2026-10-24 ("finish all"). **Who:** readers of
+  skaldanalytics.com. **Do:** nothing. **Checked:** the site build ends "problems: none"
+  (61 pages graded); the 12 pages load at 1440 and 390 px with one h1, no sideways scroll,
+  no NaN or "undefined", and no script error (the only failed request is the site's own
+  `/traffic-js/skald.js`, which only the live server serves).
+
 ### Website: log and set-up pages rebuilt and graded (group D, live 2026-10-24)
 
 - **Changed.** 20 pages, each its own design from the code it describes, graded 81 or more of
@@ -134,6 +147,79 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
   now and then, on the last commit too); the full test suite; every sitemap URL opened at 1440 and 390 px wide
   (no sideways scroll, no script errors, no broken assets, every switch and tab has a choice).
   Words checked against the product's own limits (`_src/pages/FEATURES.md`).
+
+## 2.33.0 (2026-10-24)
+
+Direct traffic gets a likely cause, and sales can alert you. Sources shows which Direct
+visits were likely a payment return, an in-app browser or a shared link, always as an
+estimate and counted twice. A new sale alert (off until you turn it on) tells you about each
+counted sale, and optionally each refund, by mail, Slack or webhook.
+
+### Added: Direct, likely
+
+- **What changed.** Each Direct visit (no referrer, no campaign tag) gets at most one likely
+  reason, first match wins: a **checkout or payment return** (a Stripe, PayPal, Razorpay,
+  Checkout.com or Adyen return parameter with its own prefix, or a checkout's end page such
+  as `order-received`; a bare `/success` or `/thank-you` is left out, as a form's thank-you
+  page looks the same), else an **in-app browser** (Facebook, Instagram, LinkedIn, Gmail,
+  Google app, X, TikTok, Snapchat, Pinterest, WeChat, Line, or an unnamed web view), else a
+  **shared link** (a share marker such as `igshid=` or `ref=whatsapp`, or an app's link
+  preview of the same page up to 30 minutes before). The rest stays plain Direct. Shown under
+  the Sources grid as "Direct, likely (inferred)" and in the visitor drawer; nothing is moved
+  out of the Direct row. New day kind `direct_likely` in `campaigns.json`, `likely_direct` on
+  journeys. Only the reason, the app or provider and counts are kept, never a query value.
+  A known weakness, written in the docs: a link preview is matched by page and time only, so
+  a page previewed often (the home page) marks more of its Direct visits as likely shared.
+- **Why:** most visits are Direct, and owners could not tell what they were; the request
+  line and the log often say more.
+- **Who:** every site, from the first day collected after the upgrade; earlier days say
+  "Not recorded". **Do:** nothing. `attribution.direct_likely: false` turns it off;
+  `attribution.share_window_minutes` changes the preview window.
+- **Checked:** a second count, `audit_direct_likely.py`, from the raw lines with its own
+  code, sharing only the name lists (`direct_names.py`), in the daily and live audits (a
+  day that disagrees is withheld); unit tests for each reason, the order, the non-matches,
+  the switch and window, and the audit agreeing and failing; a node test of the page's
+  reading; the panel drawn on a demo build.
+
+### Added: sale alerts
+
+- **What changed.** When a lead gains a sale value that Leads & sales > Revenue counts,
+  Skald opens one alert, sent the way every alert is: the site's alert mail, the
+  `alert.opened` webhook (Slack included) and Site > Alerts. A second switch alerts on each
+  counted refund part. Both are per site and off by default, with an optional minimum per
+  currency (`alerts.sale_minimum`, for example `USD 100, EUR 90.50`; a currency not listed
+  alerts at any amount). One alert per sale, ever: a hashed key is saved before anything is
+  sent, so a restart, recount, rebuilt file or replayed delivery never repeats one (a crash
+  at that moment loses that one alert rather than sending it twice). Only sales received
+  after the switch was turned on and made in the last 72 hours alert; test leads and days
+  before `revenue_since` never do; at most 20 a run, the rest on the next. The message has
+  the site, the amount as the dashboard shows it, the stage, the tool, the lead's source,
+  first touch, campaign, landing page and label, new customer or renewal, and the time;
+  never a name, email, address or customer reference. The sale alert also needs "All
+  alerts" on; when that switch comes back on, sales of the last 72 hours received while it
+  was off alert then.
+- **Why:** the owner wanted to hear about sales as they happen, without watching the
+  Revenue tab.
+- **Who:** sites that send sale values (2.32); nothing changes until an admin turns it on.
+  **Do:** nothing; to use it, turn on All alerts and Sale on Site > Alerts.
+- **Checked:** `tests/test_alerts_sales.py` (18 tests: sent once, not resent after restart,
+  replay or rebuilt file, minimum, off by default, test lead skipped, `revenue_since`,
+  refunds, the per-run limit, currency formatting checked against the browser's formatter
+  for all 170 currencies, a failed mail, a crash while sending, Slack retry).
+
+### Release checks
+
+- Each feature was built on its own copy of 2.32.0 and passed the full suite there (2,970
+  tests each); merged, with the generated help files rebuilt from the merged guides, the
+  full suite and the JavaScript tests pass.
+- **Fixed before release.** The merged suite found one error: `data_reports.campaigns` now
+  reads the page's config for the Direct, likely note, and an older test's stand-in page had
+  none. The stand-in now has one (a real page always does). **Who:** no one; caught before
+  release. **Checked:** that test and the Direct, likely tests.
+- **Demo.** The sample site now has Direct visits with a likely cause (a few share markers,
+  a Stripe return, and about one iPhone visitor in eight browsing inside the Instagram app),
+  chosen by time and address, never by a random draw, so every other demo figure stays as it
+  was. Screenshots: `direct-likely.png` and `alerts-sale.png`, from the rebuilt demo.
 
 ## 2.32.0 (2026-10-24)
 

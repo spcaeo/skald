@@ -246,6 +246,8 @@ class Tally:
         self.extras.funnels = options.get("funnels")
         # attribution.ai_likely / ai_window_minutes (ai_likely.settings).
         self.extras.attribution = options.get("attribution")
+        # attribution.direct_likely / share_window_minutes (direct_likely.settings).
+        self.extras.direct_likely = options.get("direct_likely")
         # The sitemap list the day is judged by (sitemap.for_day), or None.
         self.extras.crawl_health.sitemap = options.get("sitemap")
         # Security's thresholds (security_names.settings) and the site's hosts.
@@ -411,6 +413,7 @@ class Tally:
             totals.visitor_seen = seen
         people = totals.groups.get(Group.PEOPLE)
         self.extras.visit_firsts = self.journeys.firsts
+        self.extras.visit_landings = self.journeys.landings
         totals.extras = self.extras.finish(totals, totals.journeys, self.journeys.pages,
                                            people.by.get("hour") if people else {})
         if self.quality is not None:

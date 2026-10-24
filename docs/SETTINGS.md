@@ -88,7 +88,8 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `hooks.calcom.event_types` | Integrations (Cal.com) | up to 50 event-type ids or slugs; `[]` keeps every event ([]) | admin | site | `hooks.calcom_event_types` (or nested `hooks.calcom.event_types`) |
 | `alerts.enabled` | Site > Alerts | on / off (off) | admin | site | `alerts.enabled` |
 | `alerts.mail` | Site > Alerts | on / off (on) | admin | site | `alerts.mail` |
-| `alerts.<rule>` | Site > Alerts | on / off (on), one per rule: `site_down`, `logging_stopped`, `server_errors`, `not_found_surge`, `crawler_burst`, `new_crawler`, `traffic_drop`, `ai_started_reading`, `ai_stopped_reading`, `ai_sending_people`, `first_citation`, `first_cited_page`, `cited_visits`, `crawler_silent` | admin | site | `alerts.<rule>` (the AI three also nested `alerts.ai.<rule without ai_>`) |
+| `alerts.<rule>` | Site > Alerts | on / off (on), one per rule: `site_down`, `logging_stopped`, `server_errors`, `not_found_surge`, `crawler_burst`, `new_crawler`, `traffic_drop`, `ai_started_reading`, `ai_stopped_reading`, `ai_sending_people`, `first_citation`, `first_cited_page`, `cited_visits`, `crawler_silent`, `security_exposure`, `stack_advisory`; off by default: `scan_wave`, `sale`, `sale_refund` | admin | site | `alerts.<rule>` (the AI three also nested `alerts.ai.<rule without ai_>`) |
+| `alerts.sale_minimum` | Site > Alerts (under Sale) | the least amount per currency that makes a sale alert, as text: `USD 100, EUR 90.50` (stored by currency, each with its decimals: `EUR 90.50, USD 100.00`); at most 10 currencies; a currency not listed alerts at any amount; empty: any amount (none) | admin | site | `alerts.sale_minimum` (the same text, or a map `{USD: 100}`) |
 | `security.require_totp` | Security | on / off (off) | owner | organisation | none |
 | `security.session_days` | Security | 1-90 (14) | owner | organisation | none |
 
@@ -413,6 +414,20 @@ Its alerts are switched on Site > Alerts like the others: `alerts.security_expos
 (off by default; the
 config's `scan_wave_factor` 3, `scan_wave_days` 14, `scan_wave_min_days` 7 and
 `scan_wave_minimum` 200 set its rule).
+
+## Sale alerts
+
+`alerts.sale` (a lead gained a counted sale value) and `alerts.sale_refund` (a counted refund
+took money back from one) are off by default and follow the site's `alerts.enabled` and
+`alerts.mail` like every rule (skald/alerts_sales.py). What counts is the Revenue
+tab's rule (conversions_revenue.Book): never a test-marked lead, never before the site's
+`revenue_since`. `alerts.sale_minimum` holds back a sale under its currency's minimum, and a
+refund on such a sale; currencies are never converted, so each has its own. An alert goes for
+a sale or refund Skald received after the switch was turned on and made in the last 72 hours,
+once (kept by a hashed key in the alert state; docs/DATA-CONTRACT-ALERTS.md). The message
+has the site, the amount as the dashboard shows it, the stage, the tool, the lead's source,
+first touch, campaign, landing page (no query string) and label, new customer or renewal, and
+the time; never a name, email, address, visitor ID, `customer_ref` or the tool's own id.
 
 ## Mail recipients confirm first
 

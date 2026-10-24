@@ -149,6 +149,8 @@ def journey(j: dict, day: str | None = None) -> dict:
     # city: only when a city file named one (logs.city_db), "Toronto, Ontario, CA".
     extra = {k: j[k] for k in ("utm", "paid", "ref_param", "ref_host", "ref_page", "search_terms",
                                "returning", "days_seen_30d", "likely_ai", "ai_read", "city",
+                               # direct_likely.py: a Direct visit's likely reason (inferred)
+                               "likely_direct",
                                # firsttouch.py: the visitor's first known visit; seq, the
                                # day's place of the visit (the visitor timeline asks by it)
                                "first_touch", "seq",

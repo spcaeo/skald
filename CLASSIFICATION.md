@@ -306,6 +306,96 @@ they always land on a fetched page. A citation from an assistant with no
 known user fetcher (You.com, Phind, Poe) is not recorded, never 0.
 Recounted in `audit_ai_likely.py`, with its own reading of the citation.
 
+## Inferred, not classified: Direct, likely a checkout return, an in-app browser or a shared link
+
+Not a rule either. It moves no request and no visit: the Direct row keeps
+every visit below. It is an estimate laid under that row, shown as
+"Direct, likely <reason>" with an (i), and never as fact.
+
+Many Direct visits ("Direct or unknown": no referrer, no `utm_source` or
+`utm_medium`, no ad click id) say a little more in their own request or in
+the log just before them. Each Direct visit gets **at most one** reason,
+tested in this order; the first that matches wins, and anything else stays
+plain Direct. The name lists are in `skald/direct_names.py`.
+
+```
+1. checkout   "Direct, likely checkout or payment return"
+   the first page's address carries a payment provider's return parameter,
+     its value starting with the provider's prefix:
+       Stripe        session_id=cs_...  payment_intent=pi_...  setup_intent=seti_...
+       PayPal        PayerID=<any>      ba_token=BA-...
+       Razorpay      razorpay_payment_id=pay_...
+       Checkout.com  cko-session-id=sid_...
+       Adyen         redirectResult=<any>
+   or its path is a checkout's end:
+       a segment such as order-received, order-confirmation, payment-success,
+       checkout-complete (CHECKOUT_PAGES), or
+       a done word (success, thank-you, thanks, complete, confirmation,
+       return, done, receipt) after a checkout section earlier in the path
+       (checkout, order, payment, purchase, billing, pay, cart, subscribe)
+   detail: the provider, or "(return page)" for a path
+
+2. in_app     "Direct, likely in-app browser"
+   the visit's browser label is an app's own browser: Facebook app,
+   Instagram app, LinkedIn app, Gmail app, Google app, X (Twitter) app,
+   TikTok app, Snapchat app, Pinterest app, WeChat, Line app, or an
+   unnamed web view, "In-app browser (iOS)" / "(Android)"
+   detail: the browser label
+
+3. shared     "Direct, likely shared link"
+   the first page's address carries a share marker:
+       igshid= or igsh= (Instagram), mibextid= (Facebook), or
+       a ref=, source=, src=, via=, from= or share= value naming a share
+       or a messaging app (ref=whatsapp, source=share, via=copy-link,
+       from=sms; SHARE_WORDS)
+   or an app fetched a link preview (LINK_PREVIEWS: WhatsApp, Slack,
+   iMessage, Telegram, Discord, Teams, ...) of the page the visit landed
+   on, in the same minute as the visit's first request or up to
+   attribution.share_window_minutes (default 30) minutes before
+   detail: the app, "(share tag)" for a marker that names none, or
+   "(more than one)" when two or more apps previewed the page
+```
+
+- **What is left out on purpose.** A bare `/success` or `/thank-you` (a
+  form's thank-you page looks the same as a shop's); PayPal's bare
+  `token=` (many sites use one); `si=` (YouTube and Spotify put it on their
+  own links, never on a link to another site); `ref=` values that name a
+  site, such as `ref=producthunt` (a source, not a share); `fbclid`, `gclid`
+  and the other click ids (they are not Direct at all: rule "The source
+  type of a visit"). A visit with any referrer or a `utm_source` is not
+  Direct and is never split.
+- **Why this order.** A provider's return parameter is the narrowest sign,
+  so it goes first: a PayPal return opened in Instagram's browser is a
+  checkout return. The browser label is read from the visit's own request,
+  so it comes before the shared link, which is read from the link or from
+  the log around it: a `ref=whatsapp` link opened in Facebook's browser is
+  an in-app visit. Inside shared, a marker on the link comes before a
+  preview.
+- **The preview is matched by page and time, not by visitor.** It comes
+  from the app's servers (Slack, Discord, Telegram) or from the sender's
+  phone (WhatsApp, iMessage), never from the person who clicks. The pages
+  are compared as the likely-AI figure compares them (no query, 70
+  characters, a trailing `/` ignored), to the minute in UTC. A page that
+  is previewed often (the home page on a busy site) makes more of its
+  Direct visits "likely shared": that is why it is only likely.
+- **The two estimates are apart.** A visit can be "likely from an AI
+  assistant" and "Direct, likely in-app browser" at once; neither is added
+  to the other, nor to any count.
+- **Settings.** `attribution.direct_likely` (default true) turns it on or
+  off; `attribution.share_window_minutes` sets the preview window. Each day
+  keeps the window it was counted with. Off: the figure is "not recorded",
+  never 0.
+- **Nothing personal is kept.** Only the reason, the detail (a provider,
+  a browser label or an app) and counts. A landing address's query values
+  (a Stripe session, a PayPal payer) are read in memory and never stored.
+
+It is counted twice like every figure: `direct_likely.py` in the tally
+pass, and `audit_direct_likely.py` from the raw lines with its own code
+(its own query split, its own path reading, the audit's own browser and
+source labels), sharing only `direct_names.py`. A day the two disagree on
+is withheld (DATA-CONTRACT.md: the day kind `direct_likely`, campaigns.json
+`direct_likely`, visits.json `likely_direct`).
+
 ## The patterns
 
 All are case-insensitive. The names are the constants in `classify.py`.
@@ -863,7 +953,9 @@ to HTTP transitions. Every citation count is therefore a floor, not a figure.
 Skald estimates part of the rest, labelled as an estimate: a direct visit
 to a page an assistant's user fetcher had just fetched is "likely" from
 that assistant ("Inferred, not classified" above). It is never added to
-the citation count.
+the citation count. The rest of Direct is split the same way, as an
+estimate under the Direct row: likely a checkout return, an in-app browser
+or a shared link ("Direct, likely ..." above).
 
 **Sessions are approximate.** A visit is one address plus one user agent inside
 a 30-minute gap; for people, a page view arriving from a new outside source (an

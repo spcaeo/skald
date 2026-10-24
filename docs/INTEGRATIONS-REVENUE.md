@@ -222,3 +222,7 @@ name, email or address. Details: [INTEGRATIONS.md](INTEGRATIONS.md), "Stripe".
 - `GET /traffic-hooks/<site>/leads` ([INTEGRATIONS-LEADS.md](INTEGRATIONS-LEADS.md)) and
   `skald conversions list` return value, currency, customer reference and tags, so a site can
   check that Skald holds every sale it sent.
+- Sale alerts (2.33, off by default): one alert per counted sale, and per counted refund
+  part, through the site's alert mail and the `alert.opened` webhook (Slack too), with an
+  optional minimum per currency; settings and rules in [SETTINGS.md](SETTINGS.md) "Sale
+  alerts", the alert's fields in [DATA-CONTRACT-ALERTS.md](DATA-CONTRACT-ALERTS.md).

@@ -103,6 +103,50 @@ reads each visit's first page line again with `parse_qsl` and its own rules, and
 Likely sent by an AI assistant (inferred, never a count; `ai_likely.py`, `ai_fetches.py`,
 second count `audit_ai_likely.py`): [docs/DATA-CONTRACT-AI-LIKELY.md](DATA-CONTRACT-AI-LIKELY.md).
 
+### Day kind `direct_likely` (campaigns.json)
+
+Direct, likely a checkout return, an in-app browser or a shared link (inferred, never a count;
+`direct_likely.py`, name lists `direct_names.py`, second count `audit_direct_likely.py`; the
+rules are in [CLASSIFICATION.md](../CLASSIFICATION.md), "Inferred, not classified: Direct,
+likely ..."). Per day from the day's journeys. campaigns.json `days[].direct_likely` and
+`today.direct_likely`: the blob, or `null` on a day it was not recorded (before this release,
+or `attribution.direct_likely: false`), never zeros.
+
+| field | type |
+|---|---|
+| `share_window_minutes` | int: the link-preview window the day was counted with |
+| `visits` | int: the visits looked at (= the day's visits) |
+| `direct` | int: of which Direct (source `Direct or unknown`) = the Sources tab's Direct row |
+| `likely` | int: of which given a likely reason |
+| `plain` | int: of which not (`direct - likely`) |
+| `reasons` | `{"checkout","in_app","shared": visits}`: always all three; adds up to `likely` |
+| `details` | `{reason: {detail: visits}}`: `checkout` by provider (`Stripe`, `PayPal`, `Razorpay`, `Checkout.com`, `Adyen`) or `"(return page)"`; `in_app` by browser label (`Instagram app`, `Facebook app`, ..., `In-app browser (iOS)`); `shared` by app (`WhatsApp`, `Slack`, `Instagram`, ...), `"(share tag)"` or `"(more than one)"`. Each adds up to its reason |
+
+```json
+{"share_window_minutes": 30, "visits": 18, "direct": 15, "likely": 10, "plain": 5,
+ "reasons": {"checkout": 4, "in_app": 2, "shared": 4},
+ "details": {"checkout": {"(return page)": 2, "PayPal": 1, "Stripe": 1},
+             "in_app": {"Facebook app": 1, "Instagram app": 1},
+             "shared": {"(more than one)": 1, "(share tag)": 1, "Instagram": 1, "WhatsApp": 1}}}
+```
+
+The top-level `direct_likely` of campaigns.json: `{"on", "share_window_minutes", "method",
+"reasons"}` (the setting, the window now, the method in one sentence, each reason's words).
+Each likely visit's journey (visits.json, the live snapshot, app.json) carries
+`likely_direct` `{"reason", "detail"}`, and `"minutes"` (from the nearest preview) for a link
+preview. No query value of a landing address is ever kept: only the reason, the detail and
+counts.
+
+Verify withholds the day when `reasons` does not add up to `likely`, `likely + plain` is not
+`direct`, a reason's `details` do not add up to it, `visits` is not the day's visits, `direct`
+is not the visits whose source is Direct, or the journeys marked with each reason are not its
+count. Second count: `audit_direct_likely.py` (registered in `audit_more.RECOUNTS`, so the
+daily audit and `audit --live` both compare it) reads each Direct visit's first page line
+again, splits its query by hand, reads the path and the audit's own browser label with its
+own code, rebuilds the link previews from the audit judge's own verdicts, and compares
+`visits`, `direct`, `likely`, `plain`, every reason and every detail, with the window the
+stored day says it used. It shares only `direct_names.py`'s lists.
+
 ### Day kind `ai_formats` (app.json)
 
 Since 2.10.0: every answer-engine request by what its path names (`ai_formats.py`; second count

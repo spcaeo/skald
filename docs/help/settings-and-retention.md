@@ -180,6 +180,7 @@ Admins and owners switch alerts on or off for this site under **Which alerts are
 - **All alerts**: the switch for every rule. While it is off, nothing is checked, and the page offers **Turn alerts on**.
 - **Mail alerts**: off, alerts are only shown here, never mailed.
 - **Each rule** (site down, server errors, a crawl burst, AI started reading, and the rest): on or off by itself.
+- **Sale** and **Refund on a sale** (off until you turn them on): one alert for each sale or refund the Revenue tab counts, with an optional **Sale alert minimum** per currency. See [Revenue](revenue.md#sale-alerts).
 
 A change applies from the next live run, within 2 minutes. How much makes an alert (the thresholds) is set in the server's config. A switch the server's config locks shows its reason and cannot be changed here. Viewers see the switches but cannot change them.
 

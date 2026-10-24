@@ -24,7 +24,7 @@ An alert: `id` (string), `cause` (`site_down`, `logging_stopped`,
 `server_errors`, `not_found_surge`, `crawler_burst`, `new_crawler`,
 `traffic_drop`, `ai_started_reading`, `ai_stopped_reading`, `ai_sending_people`,
 `ai_first_citation`, `ai_first_cited_page`, `ai_cited_visits`, `crawler_silent`,
-`security_exposure`, `scan_wave`, `stack_advisory`), `subject` (what it is about: a crawler name, a path, or
+`security_exposure`, `scan_wave`, `stack_advisory`, `sale`, `sale_refunded`), `subject` (what it is about: a crawler name, a path, or
 `""`), `severity` (`high`, `medium`, `low`), `title` (one plain line),
 `detail` (a few lines: the figure, the threshold, what to look at), `figure`
 (number or null), `threshold` (number or null), `opened_at`, `last_seen_at`,
@@ -73,6 +73,39 @@ shipped with Skald matches the site's stack in the latest daily check (update ne
 official fix, check your version), one per advisory, host and product; on by default. Rows of
 `rules[]` for them carry `"group": "security"`. Each person's own security mail is
 docs/DATA-CONTRACT-SECURITY.md, "Alerts to the people on the site".
+
+The sale alerts (alerts_sales.py, 2.33) are events, not conditions: each is opened and
+closed at once (`closed_at` = `opened_at`), so it is listed in `closed[]`, mailed once and
+never reopens. Both are off by default (`alerts.sale`, `alerts.sale_refund`; the minimum
+`alerts.sale_minimum`, docs/SETTINGS.md "Sale alerts"); `rules[]` rows for them carry
+`"group": "revenue"`. `id` is `"<cause>-<16 hex>"` and `subject` the 16 hex: the start of
+the sha256 of the stable key, the same on every run, so the webhook outbox drops a repeat
+too. `severity` `low`; `figure`, `threshold` and `unit` null. `data`:
+
+- `sale` `{"kind": "sale", "value_minor", "currency", "amount" (as the dashboard shows it,
+  e.g. `"$49.99"`), "stage" (`paid`/`completed`), "renewal" (bool), "at" (the sale's UTC
+  time), "source", "first_source" (shown words: "Direct", "Not recorded"), "campaign",
+  "landing" (the path without its query string), "label", "tool"}` (null: not sent). The
+  key: site, `sale`, tool, external ref.
+- `sale_refunded` `{"kind": "refund", "value_minor" (this part), "refunded_minor" (the
+  sale's refunded total after it), "sale_minor", "currency", "amount", "stage": "refunded",
+  "at" (the part's UTC time), ...the same attribution}`. The key: site, `refund`, tool,
+  external ref, the refunded total after the part.
+
+What counts is the Revenue tab's rule (conversions_revenue.Book): a sale or a counted refund
+part, never a test row, nothing before `revenue_since`. Nothing new is counted, so there is
+no second count: the amount is the row's own.
+
+The alert state (`alerts-state.json`) keeps them under `sales`: `{"since":
+{"sale"/"sale_refunded": UTC stamp (the run that first saw the switch on; gone while it is
+off)}, "done": {key hash (32 hex): [UTC stamp, "sent" | "below" (under the minimum)]},
+"signature": [...] (the settings and the last ids the last look saw: unchanged, nothing is
+read)}`. An alert goes only for a sale or part received (`received_at`) at or after `since`
+and made (`at`) in the last 72 hours; `done` keys are dropped 72 hours + 14 days after their
+stamp, when nothing that old can alert. The state is written with them before any mail or
+webhook goes, so a crash while sending never sends one twice (at most once); a failed mail is
+noted on the alert (`mail_error`) and not retried. At most 20 a run; the rest wait for the
+next. Never from a replay (`--today`).
 
 ## quality.json
 

@@ -36,6 +36,9 @@ KINDS = ("hourly", "ours", "not_found", "pages", "campaigns", "returning",
          # user fetches it rests on, kept ai_likely.FETCH_DAYS; what an AI
          # visit's assistant fetched before it (ai_read.py)
          "ai_likely", "ai_fetches", "ai_read",
+         # Direct, likely a checkout return, an in-app browser or a shared
+         # link (inferred, direct_likely.py)
+         "direct_likely",
          # every AI fetch by what it asked for: page, llms.txt, Markdown, ...
          # (ai_formats.py)
          "ai_formats",

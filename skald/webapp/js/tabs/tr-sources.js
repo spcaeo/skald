@@ -22,6 +22,7 @@ import { campaigns } from "./campaigns.js";
 import { firstTouch } from "./tr-firsttouch.js";
 import { leadsBy, leadNote, viewNote } from "./leadfigs.js";
 import { leadRows, labelCol, countCols, leadCols, goTo, compareOf, compareRows, compareCols, compareNote } from "./tr-grid.js";
+import { directPanel } from "./likelydirect.js";
 
 const TOUCH = "last touch: the source of the visit the lead was sent from";
 const only = (value) => (value ? (k) => k === value : () => true);
@@ -138,6 +139,9 @@ export default function sources(m, s) {
     viewNote(m, s),
     goTo(ai, "Visitors sent by AI assistants, counted and likely (inferred), are under", "AI & bots › Assistants"),
     goTo(S.hashFor({ ...s, tab: "traffic/pages", dd: "" }), "The pages these visitors landed on, with their leads, are on", "Pages")));
+  // Under Direct: its likely causes (inferred, direct_likely.py), never added to any row.
+  // Not in compare mode: the split is the range's own, not A against B.
+  if (!c.ok) out.push(h("section", { class: "s" }, directPanel(m, r)));
   out.push(firstTouch(t, r, { live: r.kind === "today" }));
   out.push(h("section", { class: "s" }, h("h2", null, "Campaigns and referrers"), campaignParts(m, s, r)));
   out.push(unmeasured(t));
