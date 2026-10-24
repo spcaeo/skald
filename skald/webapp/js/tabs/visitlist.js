@@ -15,6 +15,7 @@ import { ranked } from "../data.js";
 import { country, countryName, countryWords, flag, flagEl, withFlag, city, cityPlace, cityName } from "./readers.js";
 import { fileName } from "./common.js";
 import { visitLikely, visitRead } from "./likelyai.js";
+import { visitDirect } from "./likelydirect.js";
 import { openVisitor, touchLine, touchName, ago } from "./visitor.js";
 import { pagesWords, visitPages } from "../visitpages.js";
 
@@ -87,6 +88,7 @@ export function visitFacts(j) {
     ["Came from", j.via ? h("span", { class: "named" }, src.icon, h("span", { class: "nm" }, j.via)) : ""],
     ["First came from", touchLine(j) ? touchLine(j).replace(/^first came from /, "") : ""],
     ["Likely AI", visitLikely(j)],
+    ["Likely cause", visitDirect(j)],
     ["Referring page", j.ref_page], ["Campaign", j.campaign ? j.campaign.split(" / ").filter((x) => x && x !== "-").join(" / ") : ""], ["Tags", utm], ["Paid", j.paid], ["Searched for", j.search_terms],
     ["Visitor", visitor(j) ? `${visitor(j)}${j.days_seen_30d != null ? `, seen on ${j.days_seen_30d} day${j.days_seen_30d === 1 ? "" : "s"} in 30` : ""}` : ""],
     ["Ended on", j.exit],

@@ -27,6 +27,9 @@ KINDS = {"funnels": "funnel_days", "engagement": "engagement",
          "utm_hygiene": "utm_hygiene", "ai_fetches": "ai_fetches", "ai_likely": "ai_likely",
          # after ai_likely: it reads the visits that kind marks
          "ai_read": "ai_read",
+         # Direct, likely a checkout return, an in-app browser or a shared link
+         # (inferred, direct_likely.py)
+         "direct_likely": "direct_likely",
          "ai_formats": "ai_formats",
          "crawler_cost": "crawler_cost",
          # people from search engines by engine and landing page: Skald's side

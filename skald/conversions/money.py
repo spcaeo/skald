@@ -93,6 +93,30 @@ def shown(value_minor, currency) -> str | None:
     return f"{got:.{places}f}"
 
 
+# The dashboard shows money with Intl.NumberFormat("en-US", {style: "currency"})
+# (webapp/js/tabs/revfigs.js `money`). Its symbols for en-US, read from that
+# formatter; every other currency is its code and a no-break space ("CHF 49.00").
+SYMBOLS = {"AUD": "A$", "BRL": "R$", "CAD": "CA$", "CNY": "CN¥", "EUR": "€",
+           "GBP": "£", "HKD": "HK$", "ILS": "₪", "INR": "₹", "JPY": "¥",
+           "KRW": "₩", "MXN": "MX$", "NZD": "NZ$", "PHP": "₱", "TWD": "NT$",
+           "USD": "$", "VND": "₫", "XCD": "EC$"}
+SPACED = {"XAF": "FCFA", "XCG": "Cg.", "XOF": "F CFA", "XPF": "CFPF"}
+
+
+def display(value_minor, currency) -> str | None:
+    """Minor units as the dashboard shows them: 4900 USD -> "$49.00", 1200 JPY
+    -> "¥1,200", 4900 CHF -> "CHF 49.00" (a no-break space). None: no amount."""
+    if value_minor is None or not currency:
+        return None
+    places = decimals(currency)
+    whole, part = divmod(abs(int(value_minor)), 10 ** places)
+    number = f"{whole:,}" + (f".{part:0{places}d}" if places else "")
+    sign = "-" if int(value_minor) < 0 else ""
+    if currency in SYMBOLS:
+        return f"{sign}{SYMBOLS[currency]}{number}"
+    return f"{sign}{SPACED.get(currency, currency)} {number}"
+
+
 def stripe_minor(amount, currency: str | None) -> int | None:
     """A Stripe amount (its smallest unit) in Skald's minor units."""
     if currency is None or isinstance(amount, bool) or not isinstance(amount, int) \

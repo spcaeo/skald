@@ -78,9 +78,24 @@ What to map, in short (amounts these tools send are in cents: divide by 100 for 
 
 For every tool, send `action` and `stage` as `paid`, and a refund as `stage` `refunded` on the sale's own `external_ref`. To join a sale to its visits, pass the page's visitor ID into the tool's custom data at checkout (Polar and Dodo `metadata.skv`, Paddle `custom_data.skv`, Lemon Squeezy `checkout[custom][skv]`, Gumroad `?skv=` on the product link) and map it back as `vid`.
 
+## Sale alerts
+
+Skald can tell you when a sale comes in. It is off until an admin turns it on, per site, on [Site > Alerts](#site/alerts) under **Which alerts are on**:
+
+- **Sale**: one alert when a lead gains a sale value that this tab counts (a paid row with a value, or a completed one). Test leads never alert.
+- **Refund on a sale**: one alert when a refund that this tab counts takes money back from a sale. Off by default too.
+- **Sale alert minimum**: type the least amount per currency, for example `USD 100, EUR 90.50`, and press **Save minimum**. A sale under it does not alert, nor does a refund on it. A currency you do not list alerts at any amount. Leave it empty for every sale.
+
+The alert goes the same way as the site's other alerts: it shows on Site > Alerts (under **Closed recently**, since a sale is a one-off notice), it is mailed to the site's confirmed alert recipients when **Mail alerts** is on, and it goes to your webhooks with the event `alert.opened`, Slack included ([Webhooks](webhooks.md)). **All alerts** must be on.
+
+It says the site, the amount as this tab shows it (for example `$49.99`), the stage, the tool that reported it, where the lead came from (source, first touch, campaign, landing page, label), whether it is a new customer or a renewal, and the time. It never holds a name, an email, an address, the customer reference or your tool's own id.
+
+Each sale alerts once, ever: not again after a restart, a recount or a delivery sent twice. Only sales Skald gets after you turn the alert on, and made in the last 72 hours, alert, so turning it on or loading old sales never sends a flood. At most 20 go in one check; the rest follow 2 minutes later. A mail that fails is noted on the alert and not sent again, as for every alert.
+
 ## Troubleshooting
 
 - **"No revenue yet"**: no sale has arrived with a value and a currency. Look at **Settings > Integrations > Status**: a delivery whose value was dropped says why.
 - **The numbers look 100 times too big**: the tool sent cents and they were posted as `value`. Divide by 100 in the mapping.
 - **A renewal shows as a new customer**: the renewal was sent without the same `customer_ref` as the first sale.
 - **Two currencies, one total**: there is none, on purpose. Pick each currency with the **Currency** switch.
+- **No sale alert came**: check that **All alerts** and **Sale** are on at Site > Alerts, that the sale is over its currency's minimum, and that it is not a test lead. A sale made more than 72 hours before Skald got it never alerts.

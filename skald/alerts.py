@@ -36,6 +36,11 @@ laid over the config by `apply`; a name in `settings.locked` stays the config's)
                     a scanner probe answered 2xx with a size unlike the host's
                     fallback page; scanner probes far above the usual
                     day (alerts_security.py)
+  sale, sale_refunded
+                    a lead gained a counted sale value, or a counted refund
+                    took money back from one: events, not conditions, one
+                    alert each ever, opened and closed at once, off by
+                    default (alerts_sales.py)
 
 Fatigue rules: an alert is mailed once, when it opens. While it stays open,
 and if it reopens within `cooldown_hours` (6) of its last mail, nothing more
@@ -62,7 +67,7 @@ import statistics
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from . import alerts_ai, alerts_history, alerts_security
+from . import alerts_ai, alerts_history, alerts_sales, alerts_security
 from .files import write_atomic
 
 STATE = "alerts-state.json"
@@ -84,13 +89,14 @@ CAUSES = ("site_down", "logging_stopped", "server_errors", "not_found_surge", "c
 SEVERITY = {"site_down": "high", "logging_stopped": "high", "server_errors": "high",
             "not_found_surge": "medium", "crawler_burst": "medium", "new_crawler": "low",
             "traffic_drop": "medium", **alerts_ai.SEVERITY, **alerts_history.SEVERITY,
-            **alerts_security.SEVERITY}
+            **alerts_security.SEVERITY, **alerts_sales.SEVERITY}
 RESOLVED = ("site_down", "logging_stopped")
 # Each rule's switch on Site > Alerts: its settings_store key (the config name in `alerts`).
 SETTING = {**{c: f"alerts.{c}" for c in CAUSES},
            **{c: f"alerts.ai_{r}" for c, r in alerts_ai.RULE.items()},
            **{c: f"alerts.{r}" for c, r in alerts_history.RULE.items()},
-           **{c: f"alerts.{r}" for c, r in alerts_security.RULE.items()}}
+           **{c: f"alerts.{r}" for c, r in alerts_security.RULE.items()},
+           **{c: f"alerts.{r}" for c, r in alerts_sales.RULE.items()}}
 AI_LOOKING = re.compile(r"\bai\b|ai[-_ ]?bot|gpt|llm|agent|assistant|-user\b|fetcher|claude"
                         r"|perplexity|gemini|mistral|cohere|anthropic|openai", re.I)
 
@@ -448,6 +454,13 @@ def run(ctx, snap: dict | None, signals: dict, send=_send) -> int:
         found += _ai(ctx, state, history, now)
         found += _security(ctx, state, snap, history)
     to_mail, resolved = apply(state, found, now, cfg)
+    if not replay:                      # sales: kept as done before anything is sent
+        sold = _sales(ctx, state, now)
+        if sold:
+            state["alerts"].extend(sold)
+            to_mail += sold
+            write_atomic(state_path(ctx.live_dir), json.dumps(state, indent=1, sort_keys=True)
+                         + "\n")
     state["figures"] = figures(cfg, signals, now, ctx.now)
     if snap and snap.get("state") == "ok":
         state["known_names"] = sorted(known | set(_named(snap, signals)))
@@ -459,7 +472,10 @@ def run(ctx, snap: dict | None, signals: dict, send=_send) -> int:
         notify(ctx, to_mail)
     if mail_on:
         for alert in to_mail:
-            error = send(ctx.config, f"ALERT: {alert['title']}", _body(alert, url), now)
+            subject, text = (alerts_sales.mail(alert, ctx.site, url)
+                             if alert["cause"] in alerts_sales.CAUSES
+                             else (f"ALERT: {alert['title']}", _body(alert, url)))
+            error = send(ctx.config, subject, text, now)
             if error:
                 alert["mail_error"] = error
             else:
@@ -493,6 +509,17 @@ def _ai(ctx, state: dict, history, now: datetime) -> list[dict]:
         ctx.err(f"alerts: citation and crawler rules: {type(why).__name__}: {why}")
         found += [dict(f) for f in (state.get("history") or {}).get("found") or []]
     return found
+
+
+def _sales(ctx, state: dict, now: datetime) -> list[dict]:
+    """The sale alerts due now (alerts_sales.py); a failure is one line on stderr."""
+    try:
+        from .conversions import store
+        path = store.path_for(ctx.config, Path(ctx.db_path).parent)
+        return alerts_sales.run(state, ctx.config, path, ctx.site, ctx.tz, now)
+    except Exception as why:            # noqa: BLE001 - never stops the other alerts
+        ctx.err(f"alerts: sale rules: {type(why).__name__}: {why}")
+        return []
 
 
 def _security(ctx, state: dict, snap: dict | None, history) -> list[dict]:
@@ -570,7 +597,8 @@ def build(p) -> dict:
                     key=lambda a: a["closed_at"], reverse=True)
     every = (rules(cfg) + alerts_ai.rules(alerts_ai.settings(p.config))
              + alerts_history.rules(alerts_history.settings(p.config))
-             + alerts_security.rules(alerts_security.settings(p.config)))
+             + alerts_security.rules(alerts_security.settings(p.config))
+             + alerts_sales.rules(alerts_sales.settings(p.config)))
     return {"enabled": cfg["enabled"], "mail": bool(state.get("mail", False)),
             "mail_on": cfg["mail"],
             "checked_at": state.get("checked_at"),

@@ -254,7 +254,7 @@ class TagHygiene(unittest.TestCase):
                             per_day=lambda f: [{"day": "2026-10-05", "state": "ok",
                                                 **f("2026-10-05", {})}],
                             today_block=lambda: None, live_ok=False, snap=None,
-                            anchor=DAY)
+                            anchor=DAY, config=None)
         got = data_reports.campaigns(p)
         self.assertEqual(got["days"][0]["utm_hygiene"], blob)
 

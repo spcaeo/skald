@@ -115,6 +115,12 @@ class Extras:
         self.ai_formats = Formats()
         self.attribution: dict | None = None
         self.visit_firsts: list | None = None
+        # Link-preview fetches by minute and page (direct_likely.py); its
+        # settings and the visits' landing addresses are set by aggregate.Tally.
+        from .direct_likely import Previews
+        self.link_previews = Previews()
+        self.direct_likely: dict | None = None
+        self.visit_landings: list | None = None
 
     def _page(self, path: str) -> Counter:
         got = self.page_hits.get(path)
@@ -152,6 +158,7 @@ class Extras:
     def add(self, hit, verdict) -> None:
         self.bots.add(hit, verdict)
         self.ai_fetches.add(hit, verdict)
+        self.link_previews.add(hit, verdict)
         self.ai_formats.add(hit, verdict)
         self.firsts_of(hit, verdict)
         self.crawler_paths.add(hit, verdict)

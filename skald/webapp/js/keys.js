@@ -27,16 +27,19 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-24-2.32.0",
+  id: "2026-10-24-2.33.0",
   items: [
+    ["Direct, likely", "Sources shows which Direct visits were likely a payment return, an in-app browser or a shared link, as an estimate; nothing leaves the Direct row.", "where-visitors-come-from"],
+    ["Sale alerts", "hear about each new sale (and, if you like, each refund) by mail, Slack or webhook, with a minimum per currency. Off until you turn it on in Site › Alerts.", "settings-and-retention"],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.32.0
     ["Revenue", "Leads & sales › Revenue: which sources (AI assistants among them), pages and campaigns made money, per currency, refunds taken off, never converted.", "revenue"],
     ["New customers, renewals, lifetime value", "a renewal joins its first sale by the customer's ID; lifetime value by first source.", "revenue"],
     ["Value from any payment tool", "send value and currency with a lead, or through Zapier, Make or n8n: recipes for Polar, Dodo, Paddle, Lemon Squeezy and Gumroad.", "revenue"],
     ["Stripe amounts", "Stripe sales keep their amount and customer; renewals and refunds are read too. Add invoice_payment.paid and charge.refunded to the endpoint's events.", "webhooks"],
     ["Your own tags", "up to five tags per sale, such as plan = pro, to split revenue your way.", "revenue"],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.31.x
     ["A page about WordPress is a page", "a site's own page such as /integrations/wordpress/ counted as a WordPress probe and set off a Security alert; now only scanners' /wordpress/ and /wp/ at the start of the path do.", "security"],
     ["One line for your AI agent", "Add a site: pick Claude Code, Codex or Cursor, copy one line into it, and watch it set up the site and report back. The line holds a one-time code, never a key; set it up by hand is one click away.", "connections"],

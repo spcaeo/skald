@@ -1,6 +1,6 @@
 # Where visitors come from, and their journeys
 
-Most visits say **Direct**: the browser sent no referrer. Many of them are people coming back, who first found you through a search, an AI assistant or a post days before. This guide covers how Skald finds a visitor's first visit, where you see it, and the visitor drawer with every visit of one visitor.
+Most visits say **Direct**: the browser sent no referrer. Many of them are people coming back, who first found you through a search, an AI assistant or a post days before. Others came back from a payment page, opened your link inside an app, or followed a shared link. This guide covers how Skald finds a visitor's first visit, what a Direct visit likely was, where you see both, and the visitor drawer with every visit of one visitor.
 
 ## First touch: the first visit we know of
 
@@ -19,6 +19,25 @@ One address can be several people (an office), and one person on two devices is 
 - **Traffic › Visitors**, in **Each visit**: under a visit's source, a line such as "First came from google.com, 3 days ago". It shows only when the first visit came from somewhere else.
 - **Overview › Real time**, in **Newest visits**: the same line, and each visit opens the visitor drawer.
 - **Traffic › Sources**, in **Where returning visitors first came from**: for the period, how many Direct visits came before, by where they first came from and by the site that sent them; and every returning visit by where it first came from. Each day's figures are counted twice, by two separate roads; a day where the two disagree is withheld. A day counted before this existed is left out and said.
+
+## Direct, likely: what a Direct visit probably was
+
+Some Direct visits say more in their own request, or in the log just before them. Skald shows those as **likely** a cause, never as fact. Each Direct visit gets one reason at most, checked in this order:
+
+1. **Direct, likely checkout or payment return.** The visit landed on a page with a payment provider's return code in its address (Stripe, PayPal, Razorpay, Checkout.com, Adyen), or on a checkout's end page, such as `/checkout/order-received/` or `/order/thank-you`. A bare `/thank-you` is not enough: a form's thank-you page looks the same.
+2. **Direct, likely in-app browser.** The visit was opened inside an app's own browser: Instagram, Facebook, LinkedIn, TikTok, Snapchat, Pinterest, X, Gmail, the Google app, WeChat, Line, or an app that did not say its name. Those apps often send no referrer.
+3. **Direct, likely shared link.** The link carried a share marker (such as `igshid=` from Instagram or `ref=whatsapp`), or an app such as WhatsApp, Slack, iMessage or Discord fetched a preview of the same page up to 30 minutes before. The preview comes from the app or the sender's phone, not from the person who clicked, so it is matched by page and time only.
+
+Anything else stays plain Direct.
+
+Where you see it:
+
+- **Traffic › Sources**, in **Direct, likely (inferred)** under the sources grid: each reason, its visits, its share of Direct and what it showed (for example "Stripe 3" or "WhatsApp 2"), and how many stayed plain Direct. The Direct row above keeps every one of these visits: nothing is moved out of it. The (i) says how it is worked out. In Compare mode it is not shown.
+- **The visitor drawer**, under **This visit**: a line such as "Direct, likely in-app browser (Instagram app)".
+
+Each day is counted twice, by two separate roads; a day where the two disagree is withheld, and a range that does not add up shows "Withheld". A day counted before this release says "Not recorded", never zero. Only the reason, the app or provider and counts are kept: never the codes in the address. An admin can turn it off, or change the 30-minute preview window, with `attribution.direct_likely` and `attribution.share_window_minutes` in the config file.
+
+This is a different estimate from **Likely from AI assistants** (AI & bots › Assistants). A visit can be in both.
 
 ## The visitor drawer
 

@@ -125,7 +125,7 @@ def _via(hit, source: str, cited: bool, engine: str) -> str:
 
 class _Visit:
     __slots__ = ("first", "last", "prev", "trail", "times", "pages", "labels",
-                 "not_found", "posted", "visitor", "origin", "who")
+                 "not_found", "posted", "visitor", "origin", "who", "entry")
 
     def __init__(self, when) -> None:
         self.first = self.last = self.prev = when
@@ -141,6 +141,9 @@ class _Visit:
         # POSTs: memory only, handed to people/visits.py (Journeys.people),
         # never put on the anonymous journey.
         self.who = None
+        # Its first page view's address (path and query), memory only, for
+        # direct_likely.py; never put on the journey or stored.
+        self.entry = ""
 
 
 @dataclass
@@ -233,6 +236,7 @@ class Journeys:
         self.key = key
         self.visitor_keys: list[str] | None = None
         self.firsts: list | None = None
+        self.landings: list | None = None
         self.people: list | None = None
         self.pages: dict[str, dict] = {}
         self.tz = tz
@@ -291,6 +295,7 @@ class Journeys:
                                                  reader_family(hit.user_agent))
             if not visit.pages:
                 visit.who["referrer"] = (hit.referrer or "")[:300]
+                visit.entry = hit.url
             visit.pages += 1
             visit.trail.append((path, True))
             visit.times.append(hit.when)
@@ -334,6 +339,9 @@ class Journeys:
         # Each visit's first request, aligned with the journeys, in memory
         # only (ai_likely.py compares it with the AI fetches before it).
         self.firsts = [v.first for v in visits]
+        # Each visit's first page address, aligned too, in memory only
+        # (direct_likely.py reads its query for a return or a share marker).
+        self.landings = [v.entry for v in visits]
         self.pages = _page_figures(visits)
         for v in visits:
             trail = [p for p, _ in v.trail]

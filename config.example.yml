@@ -297,6 +297,12 @@ alerts:
   crawler_silent: true         # an AI or search crawler stopped coming
   silent_days: 7               # no request for this many whole days ...
   silent_active_days: 7        # ... after requests on at least this many of the 28 days before
+  # Sales (alerts_sales.py): one alert when a lead gains a counted sale value
+  # (the Revenue tab's rule: never a test lead), received after the switch was
+  # turned on and made in the last 72 hours. Never twice. Off by default.
+  sale: false
+  sale_refund: false           # a counted refund taking money back from a sale
+  sale_minimum: ""             # e.g. "USD 100, EUR 90.50"; a currency not listed: any amount
   # Sending alerts out: add an outgoing webhook for the event alert.opened on
   # Settings > Integrations (per site, admins; https only; signed; its secret in
   # secrets.json). A Slack incoming-webhook address gets Slack's {"text"} shape.
@@ -314,9 +320,18 @@ alerts:
 # "likely" from that assistant, on Sources, AI & crawlers, Leads and
 # Conversions. The fetches (minute, assistant, path; no address) are kept
 # 180 days. Defaults below; false turns it off (figures "not recorded").
+#
+# Direct, likely <reason> (direct_likely.py): an estimate, never a count. A
+# Direct visit is shown on Sources and in the visitor drawer as likely a
+# checkout or payment return, an in-app browser, or a shared link (a share
+# marker on the link, or an app's link preview of the page in the same
+# minute or up to share_window_minutes before). Nothing is moved out of
+# Direct. false turns it off (figures "not recorded").
 # attribution:
 #   ai_likely: true
 #   ai_window_minutes: 15
+#   direct_likely: true
+#   share_window_minutes: 30
 
 # Leads from the website's CMS database, opened read-only, aggregates only
 # (leads.py). Leave it out when there is none.

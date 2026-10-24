@@ -164,7 +164,12 @@ FETCHED = [("/pricing/", 30), ("/guides/getting-started", 25), ("/features/", 15
 VIDCH = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
 
 
-HUMAN = frozenset(ua for ua, _, _ in UAS)
+# About one iPhone visitor in eight browses inside the Instagram app, picked by
+# address, never by a draw, so the other figures stay as they were: their Direct
+# visits are "likely an in-app browser".
+INAPP = UAS[2][0].replace(" Version/18.0", "").replace(" Safari/604.1", "") \
+    + " Instagram 350.0.0.0.10 (iPhone15,2; iOS 18_0; en_US; scale=3.00; 1179x2556)"
+HUMAN = frozenset([ua for ua, _, _ in UAS] + [INAPP])
 
 
 def crawl_kind(agent: str) -> str:
@@ -279,7 +284,10 @@ class _Maker:
         while True:
             ua, vw = self.pick(self.uaw)
             if self.pools[ua]:
-                identity = (self.pools[ua].pop(), ua, vw)
+                ip = self.pools[ua].pop()
+                if ua == UAS[2][0] and sum(map(ord, ip)) % 8 == 0:
+                    ua = INAPP
+                identity = (ip, ua, vw)
                 break
         self.vid_of[identity] = self.vid() if self.rnd.random() < tracked else None
         self.seen.append(identity)
@@ -332,6 +340,17 @@ class _Maker:
         path = force_path or self.pick(LAND[kind])
         if kind == "ai":
             self.cited.append((t, host, path))
+        if kind == "direct" and not q and force_path is None:
+            # Some Direct visits carry what says why (the "Direct, likely" split),
+            # chosen by the second, never by a draw: a link shared from Instagram
+            # or WhatsApp, or the return from a Stripe checkout.
+            n = int(t.timestamp()) % 29
+            if n == 0:
+                q = "?igshid=ZGVtbzE="
+            elif n == 1:
+                q = "?ref=whatsapp"
+            elif n == 2:
+                q = "?session_id=cs_test_demo0001"
         pages, cur, prev_url, url, stay = [], path, ref, path + q, 0.62
         while True:
             T.lines.append(self.line(t, ip, url, ua, prev_url, country=cc))

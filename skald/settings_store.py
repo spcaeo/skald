@@ -68,7 +68,7 @@ class Invalid(ValueError):
 class Key:
     kind: str                       # int bool email emails text choice host hosts views zone
     #                                 path filename secret events prefixes searchprop bingsite
-    #                                 ipmode
+    #                                 ipmode minimums
     who: str                        # admin, install or owner
     scopes: tuple                   # where it may be saved; the first is where the page saves
     config: tuple | None            # (section, key) in config.yml
@@ -224,14 +224,19 @@ ALERT_RULES = {"site_down": "Site down", "logging_stopped": "Logging stopped",
                "first_cited_page": "Page's first AI citation",
                "cited_visits": "Visits from AI answers", "crawler_silent": "Crawler gone silent",
                "security_exposure": "Possible exposure", "scan_wave": "New scan wave",
-               "stack_advisory": "Advisory matches your stack"}
+               "stack_advisory": "Advisory matches your stack",
+               "sale": "Sale", "sale_refund": "Refund on a sale"}
+ALERTS_OFF = ("scan_wave", "sale", "sale_refund")          # off until switched on
 SCHEMA["alerts.enabled"] = Key("bool", "admin", ("site",), ("alerts", "enabled"), False,
                                label="Alerts")
 SCHEMA["alerts.mail"] = Key("bool", "admin", ("site",), ("alerts", "mail"), True,
                             label="Mail alerts")
 for _rule, _label in ALERT_RULES.items():
     SCHEMA[f"alerts.{_rule}"] = Key("bool", "admin", ("site",), ("alerts", _rule),
-                                    _rule != "scan_wave", label=f"Alert: {_label}")
+                                    _rule not in ALERTS_OFF, label=f"Alert: {_label}")
+# Sale alerts (alerts_sales.py): the least amount per currency that alerts.
+SCHEMA["alerts.sale_minimum"] = Key("minimums", "admin", ("site",), ("alerts", "sale_minimum"),
+                                    None, label="Sale alert minimum")
 
 # Keys that are not secrets, in SCHEMA order.
 PLAIN = tuple(k for k, v in SCHEMA.items() if v.kind != "secret")
@@ -481,6 +486,12 @@ def validate(name: str, value, cap: int | None = None):
         return _goals(value)
     if kind == "prefixes":
         return _prefixes(value, key)
+    if kind == "minimums":
+        from .alerts_sales import clean_minimum
+        try:
+            return clean_minimum(value)
+        except ValueError as why:
+            raise Invalid(str(why)) from None
     if kind == "eventtypes":
         from .conversions.event_types import validate as event_types
         try:
@@ -678,6 +689,12 @@ def _from_config(config, key: Key):
     if key.kind == "ipmode":                                        # true / false too
         from .people.policy import mode_of
         return mode_of(raw)
+    if key.kind == "minimums":                                      # alerts_sales's words
+        from .alerts_sales import clean_minimum
+        try:
+            return clean_minimum(raw)
+        except ValueError:
+            return str(raw)
     if key.kind == "bool" and key.config[0] == "alerts":            # alerts._flag's words
         return raw is True or str(raw).strip().lower() in ("1", "true", "yes", "on")
     if key.kind == "int" and key.forever:                           # 0 or "forever"

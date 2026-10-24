@@ -55,7 +55,8 @@ RECOUNTS = {"funnels": "audit_funnels", "engagement": "audit_engagement",
             "people": "audit_people", "ai_formats": "audit_ai_formats",
             "crawler_cost": "audit_crawler_cost", "realtime": "audit_realtime",
             "first_touch": "audit_firsttouch", "search_landing": "audit_search_landing",
-            "crawl_health": "audit_crawl_health", "security": "audit_security"}
+            "crawl_health": "audit_crawl_health", "security": "audit_security",
+            "direct_likely": "audit_direct_likely"}
 DAILY: dict[str, str] = {"conversions": "audit_conversions", "alerts": "audit_alerts",
                          "search": "audit_search", "retention": "audit_retention",
                          "ai_answers": "audit_ai_answers",

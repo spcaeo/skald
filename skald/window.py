@@ -266,11 +266,14 @@ def options(config: dict, day: date | None = None) -> dict:
     funnels to count on `day` (funnel_days.wanted)."""
     from .ai_likely import settings as attribution
     from .conversions.geo import cities
+    from .direct_likely import settings as direct_likely
     from .funnel_days import wanted
     from .sitemap import for_day
     from .visitors import load_key
     from .security_names import settings as security_settings
     return {"visitor_key": load_key(config), "attribution": attribution(config),
+            # attribution.direct_likely / share_window_minutes (direct_likely.py)
+            "direct_likely": direct_likely(config),
             "heartbeat": str(setting(config, "report", "heartbeat_label", "heartbeat")),
             "funnels": wanted(config, day, zone(config)),
             # the site's sitemap paths kept for `day` (crawl_health.py)

@@ -16,7 +16,8 @@ export const CAUSE = { site_down: "Site down", logging_stopped: "Logging stopped
   crawler_burst: "Crawl burst", new_crawler: "New crawler", traffic_drop: "Traffic drop",
   ai_started_reading: "AI started reading", ai_stopped_reading: "AI stopped reading", ai_sending_people: "AI sending people",
   ai_first_citation: "First AI citation", ai_first_cited_page: "Page's first AI citation", ai_cited_visits: "Visits from AI answers", crawler_silent: "Crawler gone silent",
-  security_exposure: "Possible exposure", scan_wave: "New scan wave", stack_advisory: "Advisory matches your stack" };
+  security_exposure: "Possible exposure", scan_wave: "New scan wave", stack_advisory: "Advisory matches your stack",
+  sale: "Sale", sale_refunded: "Refund on a sale" };
 // The AI alerts (alerts_ai.py, alerts_history.py): the "AI" filter here, and the panel on AI & crawlers.
 const isAI = (a) => String(a.cause || "").startsWith("ai_");
 // All or only AI, kept in the address (alerts_view=ai: tablestate.js subView).
@@ -24,7 +25,9 @@ const ONLY = subView("alerts");
 let only = "all";
 // In the reader's chosen zone, with the date (alerts span days).
 const when = (ts) => tzTime(ts, { date: true });
-const lasted = (a) => (a.closed_at ? duration((Date.parse(a.closed_at) - Date.parse(a.opened_at)) / 1000) : null);
+// A sale or refund (alerts_sales.py) is an event: opened and closed at once, so it lasted nothing.
+const once = (a) => !!a.closed_at && a.closed_at === a.opened_at;
+const lasted = (a) => (a.closed_at && !once(a) ? duration((Date.parse(a.closed_at) - Date.parse(a.opened_at)) / 1000) : null);
 
 // An alert about a path opens the request log narrowed to it, where the lines behind it are.
 function look(a) {
@@ -43,7 +46,7 @@ function card(a, today) {
 }
 
 export default function alerts(m, s) {
-  const out = [healthTabs(m, "health/alerts"), ...head("Alerts", rangeOf(m, { ...s, range: "today" }), "Problems the system watches for: the site down, server errors, a surge of broken links, logging stopped, a crawl burst, a new AI assistant, AI assistants starting or stopping reading a page, first AI citations, visits from AI answers far above or below the usual, and a crawler gone silent. An alert opens when its rule is met and closes on its own when the problem is gone.", { period: "Now, and the last 30 days · the date range above does not apply" })];
+  const out = [healthTabs(m, "health/alerts"), ...head("Alerts", rangeOf(m, { ...s, range: "today" }), "Problems the system watches for: the site down, server errors, a surge of broken links, logging stopped, a crawl burst, a new AI assistant, AI assistants starting or stopping reading a page, first AI citations, visits from AI answers far above or below the usual, and a crawler gone silent. An alert opens when its rule is met and closes on its own when the problem is gone. Sale and refund alerts, when switched on, are one-off notices: each opens and closes at once.", { period: "Now, and the last 30 days · the date range above does not apply" })];
   const f = m.x.alerts;
   if (!f) return [...out, h("div", { class: "state", html: ICON.info }, h("div", null, "No alerts file beside this page yet. Alerts are checked by the server with every live run and written here; until the first check, nothing is shown, and nothing here means \"no alerts\" only once the file exists."))];
   // The master switch's banner and the switches (alertswitch.js): admins change them here.
@@ -66,7 +69,7 @@ export default function alerts(m, s) {
     open.length ? h("div", { class: "al-grid" }, open.map((a) => card(a, m.today)))
       : h("div", { class: `state${f.checked_at ? " ok" : ""}`, html: f.checked_at ? ICON.check : ICON.info }, h("div", null, f.checked_at
         ? `No ${ai ? "AI " : ""}alert is open. Every rule that is switched on was checked and none is met right now.` : "The alert check has not run yet, so no alert can be open.")))];
-  const closed = closedAll.filter(keep).map((a) => ({ ...a, __k: a.id, type_name: CAUSE[a.cause] || a.cause, lasted_s: a.closed_at ? (Date.parse(a.closed_at) - Date.parse(a.opened_at)) / 1000 : null }));
+  const closed = closedAll.filter(keep).map((a) => ({ ...a, __k: a.id, type_name: CAUSE[a.cause] || a.cause, lasted_s: a.closed_at && !once(a) ? (Date.parse(a.closed_at) - Date.parse(a.opened_at)) / 1000 : null }));
   shown.push(h("section", { class: "s" }, h("h2", null, "Closed recently"), h("p", { class: "sub" }, "The last 30 days, newest first."),
     table([
       { key: "opened_at", label: "Opened", type: "date", fmt: (v) => when(v, m.today), csv: (r) => r.opened_at },

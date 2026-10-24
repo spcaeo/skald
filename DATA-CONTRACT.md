@@ -201,6 +201,9 @@ entry, bucketed: [docs/DATA-CONTRACT-TRACKING.md](docs/DATA-CONTRACT-TRACKING.md
 or `""`), `ref_host`, `ref_page` (host + path, other websites only),
 `search_terms` (or `""`), `returning` (bool or null), `days_seen_30d` (int or
 null), `likely_ai` (only on a visit likely sent by an AI assistant, an estimate),
+`likely_direct` (only on a Direct visit with a likely cause, an estimate: `{"reason"`:
+`"checkout"|"in_app"|"shared"`, `"detail"`, and `"minutes"` for a link preview`}`:
+[docs/DATA-CONTRACT-TRACKING.md](docs/DATA-CONTRACT-TRACKING.md#day-kind-direct_likely-campaignsjson)),
 `ai_read` (only on an AI visit whose assistant fetched pages just before it, at most 10:
 [docs/DATA-CONTRACT-AI-LIKELY.md](docs/DATA-CONTRACT-AI-LIKELY.md)). Source types: `AI assistant`, `Search engine`, `Social media`,
 `Email`, `Other website`, `This site`, `Tagged link`, `Direct or unknown` (stored names; people read **Direct** and, for `Unknown`, **Not recorded**: `labels.py`).
@@ -774,6 +777,12 @@ days of the last 30.
 returning visitor's first visit within 30 days. `posts` are form POSTs
 (conversions). Only these query parameters are ever kept; every other one
 is dropped before anything is stored.
+`days[].utm_hygiene` and `today.utm_hygiene`: campaign tag problems;
+`days[].direct_likely` and `today.direct_likely`: Direct, likely a checkout
+return, an in-app browser or a shared link (an estimate), `null` on a day it
+was not recorded; the top-level `direct_likely` `{"on","share_window_minutes",
+"method","reasons"}` says how it is made. Both:
+[docs/DATA-CONTRACT-TRACKING.md](docs/DATA-CONTRACT-TRACKING.md).
 
 ## pages.json
 
@@ -924,8 +933,8 @@ Moved to [docs/DATA-CONTRACT-REPORTS.md](docs/DATA-CONTRACT-REPORTS.md#client-re
 
 ## Tracking additions
 
-The day kinds `funnels`, `engagement`, `utm_hygiene`, `ai_likely`, `ai_fetches`, `ai_read` and
-`ai_formats` (also app.json `days[].ai_formats`), leads.json
+The day kinds `funnels`, `engagement`, `utm_hygiene`, `ai_likely`, `ai_fetches`, `ai_read`,
+`direct_likely` and `ai_formats` (also app.json `days[].ai_formats`), leads.json
 `attribution_rows` and time to convert, and events.json goals: [docs/DATA-CONTRACT-TRACKING.md](docs/DATA-CONTRACT-TRACKING.md).
 
 ## search.json (P1-6)
