@@ -143,11 +143,11 @@ Stripe makes its own signing secret, which starts with `whsec_`.
 
 1. In Stripe, go to **Developers > Webhooks > Add endpoint**.
 2. **Endpoint URL**: paste the address from the **Stripe** box.
-3. Events: `checkout.session.completed` and `checkout.session.async_payment_succeeded`.
+3. Events: `checkout.session.completed` and `checkout.session.async_payment_succeeded`; for revenue (2.32.0) also `invoice.paid` (a subscription's renewals), `invoice_payment.paid` (ties a renewal's payment to its invoice on Stripe's API 2025-03-31 and later, so its refund is found) and `charge.refunded` (refunds).
 4. Save, then reveal the endpoint's **Signing secret**.
 5. In Skald's **Stripe** box, paste it into **Paste the signing secret from Stripe** and press **Save secret**. Skald cannot make a secret for Stripe.
 
-Skald counts a paid Checkout as a Payment. A Checkout paid by a delayed method counts as started first, then paid. To join it to the journey, set the visitor ID as the Checkout Session's `client_reference_id`, or as `metadata.skv`. Skald never reads customer details.
+Skald counts a paid Checkout as a Payment. A Checkout paid by a delayed method counts as started first, then paid. To join it to the journey, set the visitor ID as the Checkout Session's `client_reference_id`, or as `metadata.skv`. Skald keeps each payment's amount and currency, and the Stripe customer ID (`cus_...`) so a renewal joins its first sale; a refund takes its amount off on the day it arrives, and a later, larger total takes the difference off on its own day. All of it shows on [Leads & sales > Revenue](#sales/revenue) ([Revenue](revenue.md)). Skald never reads the customer's name, email or address.
 
 ## Zapier and Make
 
@@ -164,6 +164,8 @@ Content-Type: application/json
 
 {"external_ref": "form-123", "action": "contact", "email": "person@example.com", "name": "A Person"}
 ```
+
+A sale carries its value too: `{"external_ref": "inv_1042", "action": "paid", "stage": "paid", "value": 49.00, "currency": "USD", "customer_ref": "cus_1001"}`. Polar, Dodo Payments, Paddle, Lemon Squeezy and Gumroad reach Skald this way: [Revenue](revenue.md) lists what to map for each.
 
 - In **Zapier**: add **Webhooks by Zapier**, event **POST**. URL: the address. Payload Type: `json`. Data: `external_ref` (map the entry's id), `action` (such as `contact`), and `email`, `name` if you like. Headers: `Authorization` with the value `Bearer <your-secret>`.
 - In **Make** or **n8n**: the HTTP module or node, method POST, body type JSON, the same header.

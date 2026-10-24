@@ -18,6 +18,12 @@
  * For developers: the filter 'skald_leads_action' ($action, $plugin, $fields)
  * changes the action; 'skald_leads_lead' ($lead, $plugin, $fields) changes the
  * whole lead, or drops it when it returns false.
+ *
+ * Money (Skald 2.32) comes only from your own code on the server, in that
+ * filter: add 'value' (49.99), 'currency' ('USD'), 'customer_ref' (your own
+ * customer id, never an email) or 'tags' => array('plan' => 'pro'), worked out
+ * from your own records. Never from the form post itself: any visitor can put
+ * any amount in a form.
  */
 
 if (!defined('ABSPATH')) {
@@ -37,8 +43,8 @@ function skald_leads_secret()
 function skald_leads_vid()
 {
     foreach (array('_POST', '_COOKIE') as $from) {
-        $got = $from === '_POST' ? (isset($_POST['skald_vid']) ? $_POST['skald_vid'] : null)
-                                 : (isset($_COOKIE['skald_vid']) ? $_COOKIE['skald_vid'] : null);
+        $got = $from === '_POST' ? (isset($_POST['skald_vid']) ? wp_unslash($_POST['skald_vid']) : null)
+                                 : (isset($_COOKIE['skald_vid']) ? wp_unslash($_COOKIE['skald_vid']) : null);
         if (is_string($got) && preg_match('/^skv_[A-Za-z0-9_-]{22}$/', $got)) {
             return $got;
         }

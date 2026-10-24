@@ -20,6 +20,11 @@
  * action  a short lowercase word: "contact", "demo", "signup", "trial"
  * fields  { email, name } and any other field, such as { label: "sales",
  *         stage: "won", vid: req.cookies.skald_vid, test: true }. See README.md.
+ *         Money (Skald 2.32): { value: 49.99, currency: "USD",
+ *         customer_ref: "your-customer-id", tags: { plan: "pro" } } (the
+ *         amount in the currency's units; never an email as customer_ref).
+ *         A refund: stage "refunded" on the sale's ref, value = the total
+ *         refunded so far (no value: all of it).
  */
 const crypto = require("node:crypto");
 

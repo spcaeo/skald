@@ -22,6 +22,9 @@ Names and emails (`names` True) only when the site keeps them
 (`conversions.identity: full`); the caller checks the role, the CSRF value and
 writes the audit row (people/api.py). Without them the keys are not in a row at
 all. A visitor ID is never in a row: the journey (page views, labels only) is.
+Since 2.32 each row carries its money: value_minor and currency (its paid
+step's, else its own), refunded_minor (the total refunded so far), customer_ref and
+tags; the steps carry their value. None where none was kept, never 0.
 Read-only, like everything in people/.
 """
 from __future__ import annotations
@@ -35,6 +38,7 @@ from . import policy
 LIMIT = 2000
 JOURNEY = 60
 LATER = ("paid", "won", "lost", "cancelled", "no_show", "rescheduled")   # paid: a sign-up that paid later (2.26)
+MONEY = ("value_minor", "currency", "customer_ref", "tags")             # 2.32
 
 
 def _stamp(d: date, tz) -> str:
@@ -89,13 +93,15 @@ def _conversions(db, site: str, lo: str, hi: str, tz, full: bool,
         return [], False
     test = "c.test" if "test" in cols else "0"
     label = "c.label" if "label" in cols else "NULL"
+    # 2.32: the money a lead carries (an older, not yet upgraded file has none).
+    cash = ", ".join(f"c.{k} AS {k}" if k in cols else f"NULL AS {k}" for k in MONEY)
     who = ", i.email AS email, i.name AS name" if full else ""
     join = " LEFT JOIN identities i ON i.id = c.identity_id" if full else ""
     marks, acts = ",".join("?" * len(FINISHED)), ",".join("?" * len(LEAD_ACTIONS))
     found = db.execute(
         f"SELECT c.id, c.action, c.stage, c.at, c.vid, c.external_ref, c.tool, c.source_type, "
         f"c.first_source, c.campaign, c.landing, c.country, c.device, {test} AS test, "
-        f"{label} AS label{who} FROM conversions c{join} WHERE c.site = ? AND c.at >= ? "
+        f"{label} AS label, {cash}{who} FROM conversions c{join} WHERE c.site = ? AND c.at >= ? "
         f"AND c.at < ? AND c.stage IN ({marks}) AND c.action IN ({acts}) "
         f"ORDER BY c.at DESC, c.id DESC LIMIT ?",
         (site, lo, hi, *FINISHED, *LEAD_ACTIONS, LIMIT + 1)).fetchall()
@@ -110,7 +116,8 @@ def _conversions(db, site: str, lo: str, hi: str, tz, full: bool,
     for i in range(0, len(refs), 500):
         part = refs[i:i + 500]
         for s in db.execute(f"SELECT tool, external_ref, action, stage, at, {label.replace('c.', '')} "
-                            f"AS label, {test.replace('c.', '')} AS test FROM conversions WHERE "
+                            f"AS label, {test.replace('c.', '')} AS test, "
+                            f"{cash.replace('c.', '')} FROM conversions WHERE "
                             f"site = ? AND external_ref IN ({','.join('?' * len(part))}) "
                             f"ORDER BY at, id", (site, *part)):
             steps.setdefault((s["tool"], s["external_ref"]), []).append(s)
@@ -132,8 +139,10 @@ def _conversions(db, site: str, lo: str, hi: str, tz, full: bool,
                "landing": r["landing"], "country": r["country"], "device": r["device"],
                "left_out": "test" if r["test"] else None, "browser": bool(r["vid"]),
                "steps": [{"at": _local(s["at"], tz), "action": s["action"], "stage": s["stage"],
-                          "tool": s["tool"], "label": s["label"], "test": bool(s["test"])}
-                         for s in mine]}
+                          "tool": s["tool"], "label": s["label"], "test": bool(s["test"]),
+                          "value_minor": s["value_minor"], "currency": s["currency"]}
+                         for s in mine],
+               **_money(r, mine)}
         if full:
             row["email"], row["name"] = r["email"], r["name"]
         if r["vid"] and journeys:
@@ -144,6 +153,27 @@ def _conversions(db, site: str, lo: str, hi: str, tz, full: bool,
                                                   (site, r["vid"], r["at"], JOURNEY))][::-1]
         out.append(row)
     return out, truncated
+
+
+def _money(r, steps) -> dict:
+    """A lead's money (2.32): its sale's value and currency (a paid step with one,
+    else its own: conversions_revenue's rule), the refunded amount (the refunded step's, the total so far;
+    None: none), the customer ref and the tags (the sale's when it has them, else its own). None where none was kept."""
+    import json
+    sale = next((s for s in steps if s["stage"] == "paid" and s["value_minor"] is not None),
+                r if r["value_minor"] is not None else None)
+    back = next((s for s in steps if s["stage"] == "refunded"), None)
+    # The customer and tags are the sale's, as Revenue counts them; else the lead's own.
+    own = sale if sale is not None and (sale["customer_ref"] or sale["tags"]) else r
+    try:
+        tags = json.loads(own["tags"]) if own["tags"] else None
+    except ValueError:
+        tags = None
+    return {"value_minor": sale["value_minor"] if sale else None,
+            "currency": sale["currency"] if sale else None,
+            "refunded_minor": back["value_minor"] if back else None,
+            "refunded_currency": back["currency"] if back else None,
+            "customer_ref": own["customer_ref"], "tags": tags}
 
 
 def _left_out_leads(config: dict, folder, first: date, last: date, tz, full: bool) -> list:
@@ -165,7 +195,9 @@ def _left_out_leads(config: dict, folder, first: date, last: date, tz, full: boo
                "label": None, "stage": "completed", "now": lead.get("status") or "new",
                "tool": "site", "ref": None, "source": lead.get("last_source"), "first_source": lead.get("first_source"),
                "campaign": None, "landing": lead.get("landing"), "country": lead.get("ip_country"),
-               "device": None, "left_out": "test" if lead.get("test") else lead.get("status"), "browser": False, "steps": []}
+               "device": None, "left_out": "test" if lead.get("test") else lead.get("status"), "browser": False, "steps": [],
+               "value_minor": None, "currency": None, "refunded_minor": None,
+               "refunded_currency": None, "customer_ref": None, "tags": None}
         if full:
             row["email"], row["name"] = lead.get("email"), lead.get("name")
         out.append(row)

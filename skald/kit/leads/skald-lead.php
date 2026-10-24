@@ -17,6 +17,11 @@
  * $action  a short lowercase word: 'contact', 'demo', 'signup', 'trial'
  * $extra   other fields, such as ['label' => 'sales', 'stage' => 'won',
  *          'vid' => '...', 'test' => true]. See README.md.
+ *          Money (Skald 2.32): ['value' => 49.99, 'currency' => 'USD',
+ *          'customer_ref' => 'your-customer-id', 'tags' => ['plan' => 'pro']]
+ *          (the amount in the currency's units; never an email as
+ *          customer_ref). A refund: 'stage' => 'refunded' on the sale's ref,
+ *          'value' = the total refunded so far (no value: all of it).
  *
  * The visitor ID (to join the lead to the visit) is read by itself from the
  * skald_vid cookie or a form field named skald_vid, when your page has one.
@@ -34,6 +39,9 @@ if (!function_exists('skald_lead')) {
                 return false;
             }
             $lead = is_array($extra) ? $extra : array();
+            if (isset($lead['tags']) && is_array($lead['tags']) && !$lead['tags']) {
+                unset($lead['tags']);       // an empty PHP array is a JSON list, not tags
+            }
             $lead['external_ref'] = (string) $ref;
             $lead['action'] = (string) $action;
             if ($email !== null && $email !== '') {

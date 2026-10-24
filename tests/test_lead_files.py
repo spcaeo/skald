@@ -163,6 +163,30 @@ class PythonHelperIsKept(Base):
         self.assertEqual(self.rows("SELECT external_ref, action, label, vid FROM conversions"),
                          [("PY-1", "contact", "sales", "skv_" + "Q" * 22)])
 
+    def test_money_arguments_are_passed_through(self):
+        from decimal import Decimal
+        mod = self.helper(SECRET)
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SKALD_LEAD_SECRET", None)
+            got, sent = self.send(mod, "PY-9", "signup", stage="paid", value=Decimal("49.99"),
+                                  currency="USD", customer_ref="cust_7", tags={"plan": "pro"})
+        self.assertTrue(got)
+        body = json.loads(sent[0].data)
+        self.assertEqual((body["value"], body["currency"], body["customer_ref"], body["tags"]),
+                         ("49.99", "USD", "cust_7", {"plan": "pro"}))
+        self.assertEqual(self.rows("SELECT value_minor, currency, customer_ref, tags FROM "
+                                   "conversions"), [(4999, "USD", "cust_7", '{"plan":"pro"}')])
+
+    def test_every_helper_names_the_money_fields(self):
+        got = leadfiles.files("example.com", URL, None)
+        for name in ("skald-lead.php", "skald-lead.cjs", "skald_lead.py", "README.md"):
+            for word in (b"value", b"currency", b"customer_ref", b"refunded"):
+                self.assertIn(word, got[name], (name, word))
+        # The plugin takes money only from the server-side filter (2.32 review):
+        # a form post is the visitor's own and may say any amount.
+        self.assertIn(b"'customer_ref'", got[leadfiles.PLUGIN])
+        self.assertNotIn(b"skald_value", got[leadfiles.PLUGIN])
+
     def test_the_environment_wins_and_a_wrong_secret_is_refused(self):
         mod = self.helper(None)
         with mock.patch.dict(os.environ, {"SKALD_LEAD_SECRET": SECRET}):

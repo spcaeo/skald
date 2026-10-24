@@ -30,6 +30,8 @@ class Drawn(TenantServer):
         super().setUp()
         self.spool = Path(self._tmp.name) / "spool"
         self.config["beacon"] = {"enabled": True, "origins": [ORIGIN], "spool": str(self.spool)}
+        # No beacon helper, whatever listens on this machine's 127.0.0.1:8766 (port 9 refuses).
+        self.config.setdefault("hooks", {})["test_url"] = "http://127.0.0.1:9"
 
     def get(self, path, cookie):
         got = self.call("GET", f"/traffic/{A}/{path}", cookie=cookie)

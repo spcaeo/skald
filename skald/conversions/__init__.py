@@ -21,8 +21,11 @@ import re
 
 # What happened to an action, in the order a report lists them. "won" and
 # "lost" are a lead's outcome, set later by the team (the lead DB, a CRM).
+# "refunded" (2.32): money given back on a sale (the same external ref); never
+# a lead or a finish.
 STAGES = ("started", "completed", "cancelled", "rescheduled", "no_show", "paid", "won",
-          "lost")
+          "lost", "refunded")
+REFUNDED = "refunded"
 # A started action counts as finished (not abandoned) by one of these.
 FINISHED = ("completed", "paid")
 # Stages that are a later outcome of a finished action, never a finish themselves.
@@ -52,6 +55,7 @@ LEAD_EXCLUDED = ("spam", "duplicate")
 
 # conversions.json's labels for what a row did not record, and its buckets.
 UNKNOWN = "Unknown"
+NO_LABEL = "(no label)"          # revenue by label (2.32): a sale sent without one
 VISIT_BUCKETS = ("0", "1", "2", "3-5", "6-10", "11+", "unknown")
 CONVERT_BUCKETS = ("<1h", "<1d", "1-7d", "8-30d", "31-90d", ">90d", "unknown", "clock_error")
 # A rate is shown only over at least this many starts (or browsers).
@@ -76,9 +80,13 @@ EVENTS = {
                "BOOKING_CANCELLED": ("demo", "cancelled"),
                "BOOKING_RESCHEDULED": ("demo", "rescheduled")},
     # A checkout finished but not yet paid (a bank debit) is a payment started.
+    # 2.32: a subscription's renewal invoice paid, and a charge refunded (the
+    # sale's row, found by its payment intent).
     "stripe": {"checkout.session.completed": ("paid", "paid"),
                "checkout.session.completed+unpaid": ("paid", "started"),
-               "checkout.session.async_payment_succeeded": ("paid", "paid")},
+               "checkout.session.async_payment_succeeded": ("paid", "paid"),
+               "invoice.paid+subscription_cycle": ("paid", "paid"),
+               "charge.refunded": ("paid", "refunded")},
     "typeform": {"form_response": ("contact", "completed")},
     # "object.creation+0-47": a meeting booked (HubSpot's object type 0-47).
     # A workflow's webhook is "contact" unless its property skald_action
@@ -120,6 +128,54 @@ ACTION = re.compile(r"^[a-z0-9][a-z0-9_.:-]{0,39}$")
 # Anything else is no label: the lead is kept without one.
 LABEL = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
 
+# Money on a lead (2.32). `value` is in the currency's major units ("49.99");
+# Skald keeps whole minor units (cents): value_minor = value * 10**decimals,
+# at most MAX_MINOR. Currencies are never converted into one another: every
+# sum is per currency. CURRENCIES: the ISO 4217 codes (a few withdrawn ones a
+# payment tool may still send); a code not listed is no currency.
+CURRENCIES = frozenset("""
+AED AFN ALL AMD ANG AOA ARS AUD AWG AZN BAM BBD BDT BGN BHD BIF BMD BND BOB BOV BRL BSD
+BTN BWP BYN BZD CAD CDF CHE CHF CHW CLF CLP CNY COP COU CRC CUC CUP CVE CZK DJF DKK DOP
+DZD EGP ERN ETB EUR FJD FKP GBP GEL GHS GIP GMD GNF GTQ GYD HKD HNL HRK HTG HUF IDR ILS
+INR IQD IRR ISK JMD JOD JPY KES KGS KHR KMF KPW KRW KWD KYD KZT LAK LBP LKR LRD LSL LYD
+MAD MDL MGA MKD MMK MNT MOP MRU MUR MVR MWK MXN MXV MYR MZN NAD NGN NIO NOK NPR NZD OMR
+PAB PEN PGK PHP PKR PLN PYG QAR RON RSD RUB RWF SAR SBD SCR SDG SEK SGD SHP SLE SLL SOS
+SRD SSP STN SVC SYP SZL THB TJS TMT TND TOP TRY TTD TWD TZS UAH UGX USD USN UYI UYU UYW
+UZS VED VES VND VUV WST XAF XCD XCG XOF XPF YER ZAR ZMW ZWG ZWL""".split())
+# Decimals of a currency's minor unit, ISO 4217; every other currency has 2.
+# MGA counts as 0, as Stripe and most payment tools send it.
+DECIMALS = {**{c: 0 for c in ("BIF", "CLP", "DJF", "GNF", "ISK", "JPY", "KMF", "KRW", "MGA",
+                              "PYG", "RWF", "UGX", "UYI", "VND", "VUV", "XAF", "XOF", "XPF")},
+            **{c: 3 for c in ("BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND")},
+            "CLF": 4, "UYW": 4}
+# Stripe still sends these zero-decimal currencies as two-decimal amounts (500
+# is 5 ISK): its amount is divided by 100, and must divide evenly.
+STRIPE_HUNDREDS = ("ISK", "UGX")
+MAX_MINOR = 10 ** 12
+# An amount's text longer than this is no amount (read before any parsing: a
+# 4400-digit number is past what Python turns into an integer).
+MAX_AMOUNT_TEXT = 30
+# customer_ref: the customer's own opaque id in the site (never an email: no @),
+# and never a phone number or an address: one made only of digits and phone
+# marks (CUSTOMER_PHONE) with more than TAG_MAX_DIGITS digits, or shaped like
+# an IPv4 address (TAG_IP), is dropped. customer() is the rule, for the store
+# and the spool alike.
+CUSTOMER_REF = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
+CUSTOMER_PHONE = re.compile(r"^[0-9 +().-]+$")
+# tags: at most MAX_TAGS {key: value}, both short lowercase tokens. A value
+# with more than TAG_MAX_DIGITS digits in all (a phone number, written with
+# - or . or not) or shaped like an IPv4 address is not a tag, nor a personal
+# key (phone, email, ip...: _personal). tag() is the one rule, for the store
+# and the spool alike.
+MAX_TAGS = 5
+TAG_KEY = re.compile(r"^[a-z0-9_]{1,24}$")
+TAG_VALUE = re.compile(r"^[a-z0-9_.-]{1,40}$")
+TAG_MAX_DIGITS = 6
+TAG_IP = re.compile(r"[0-9]{1,3}(?:[.-][0-9]{1,3}){3}")
+# Containers whose own keys are the sender's (a tag's name), kept in the
+# spool when they are tag keys and not personal.
+FREE_KEYS = frozenset({"tags"})
+
 
 def action_name(raw) -> str:
     """A sender's action as Skald names it: lower case, ALIASES applied.
@@ -142,7 +198,8 @@ _TOUCH = frozenset({"referrer", "landing", "utm_source", "utm_medium", "utm_camp
                     "fbclid", "li_fat_id", "at", "skv"})
 _LEAD = frozenset({"external_ref", "action", "stage", "at", "vid", "first_touch",
                    "last_touch", "landing", "campaign", "source", "country", "device",
-                   "visits_before", "first_touch_at", "label", "test"}) | _TOUCH
+                   "visits_before", "first_touch_at", "label", "test", "value", "currency",
+                   "customer_ref", "tags"}) | _TOUCH
 SPOOL_KEYS = {
     "lead": _LEAD,
     "json": _LEAD | {"records"},
@@ -151,7 +208,10 @@ SPOOL_KEYS = {
     "calcom": frozenset({"triggerevent", "createdat", "payload", "uid", "metadata",
                          "responses", "value"}) | _TOUCH,
     "stripe": frozenset({"id", "object", "created", "type", "data", "payment_status",
-                         "client_reference_id", "metadata"}) | _TOUCH,
+                         "client_reference_id", "metadata", "amount_total", "currency",
+                         "customer", "payment_intent", "invoice", "amount_paid",
+                         "billing_reason", "subscription_details", "parent",
+                         "amount_refunded", "payment"}) | _TOUCH,
     "typeform": frozenset({"event_id", "event_type", "form_response", "token",
                            "submitted_at", "hidden"}) | _TOUCH,
     "hubspot": frozenset({"objectid", "properties", "hs_object_id", "createdate",
@@ -180,6 +240,33 @@ def _personal(low: str) -> bool:
             or low.endswith(PERSONAL_NAME_ENDS))
 
 
+def tag(key, value) -> tuple[str, str] | None:
+    """(key, value) of one tag as Skald keeps it, lower-cased; None when it is
+    not one (never a phone number, an address or a personal key)."""
+    if not isinstance(key, str) or isinstance(value, bool) or not isinstance(value, (str, int)):
+        return None
+    k, v = key.strip().lower(), str(value).strip().lower()
+    if not TAG_KEY.match(k) or _personal(k) or not TAG_VALUE.match(v):
+        return None
+    if sum(ch.isdigit() for ch in v) > TAG_MAX_DIGITS or TAG_IP.search(v):
+        return None
+    return k, v
+
+
+def customer(raw) -> str | None:
+    """A customer_ref as Skald keeps it, trimmed; None when it is not one (an
+    email, a phone number, an address, anything but a short opaque id)."""
+    if isinstance(raw, bool) or not isinstance(raw, (str, int)) or \
+            (isinstance(raw, str) and len(raw) > 200):
+        return None
+    got = str(raw).strip()
+    if not CUSTOMER_REF.match(got) or TAG_IP.search(got):
+        return None
+    if CUSTOMER_PHONE.match(got) and sum(ch.isdigit() for ch in got) > TAG_MAX_DIGITS:
+        return None
+    return got
+
+
 def strip(value, identity_full: bool, tool: str | None = None):
     """A copy of a decoded JSON body with only the keys the tool's adapter
     and the audit read (SPOOL_KEYS; every tool's when `tool` is None), plus
@@ -205,6 +292,11 @@ def _strip(value, identity_full: bool, allowed: frozenset):
                 continue
             if low in TEXT_ONLY and not isinstance(item, str):
                 continue
+            if low in FREE_KEYS and isinstance(item, dict):
+                out[key] = {k: v for k, v in item.items() if tag(k, v) is not None}
+                continue
+            if low == "customer_ref" and customer(item) is None:
+                continue                      # never an email or a phone, whatever was sent
             out[key] = _strip(item, identity_full, allowed)
         return out
     if isinstance(value, list):

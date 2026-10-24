@@ -44,10 +44,103 @@ not. Other actions (`paid`, `deal`...) count every row, as before.
 | `timeline[]` | the latest 50 finished conversions of the period, one per browser (or per lead without one), newest first, withheld days left out: `{"at","action","stage","tool","source","first_source","campaign","landing","country","device","visits_before","first_touch","browser": bool,"visits": [{"day","source","paths": [up to 15]}] (last 10 days with page views up to the conversion; [] without a browser),"steps": [{"at","action","stage","tool","label"}] (up to 20),"label"}`; `label` (2.18) is the row's lead label or null. Times are local ISO. A listing, not a figure |
 | `lead_actions`, `demo_actions` | (2.5.0) the actions that are a lead once finished (`contact`, `signup`, `waitlist`, `trial`, `demo`: a form sent or a demo booked) and the ones also shown as demos booked (`demo`); name lists from `conversions/__init__.py`, never figures |
 | `today` | (2.5.0) null without a conversions file, `{"day","state": "withheld","why"}`, or `{"day","state": "ok","total","tests","rows"}`: today's (local) rows of the lead actions, every stage, newest first, at most 100: `{"id" (the row, 2.25),"ref" (its `external_ref`, the sender's own ID, 2.25; null for the page script's, which holds the visitor ID),"at" (local ISO),"action","stage","tool","source","first_source","campaign","landing","country","device","test": bool,"repeat": bool (2.26: the lead finished again, a `paid` after its `completed`: listed, not a lead)}`. `total` counts all of today's such rows, `tests` the ones marked test (listed, marked, never counted: today's `days[]` entry leaves them out). A listing for the Live tab, not a figure; withheld when today's day is withheld or the second count disagrees |
-| `withheld` | `{"days/<day>", "pages_before" or "today": why}` |
+| `currencies` | (2.32) `{currency: decimals}` for every currency the site's counted sales are in (ISO 4217; minor units = value × 10^decimals; `{}` when the only money is refunds without a sale), or null when the site has no counted value at all: then no day carries `revenue` |
+| `ltv` | (2.32) null (no money), `{"state": "withheld","why"}`, or `{"window": "every row kept","currencies": {currency: {"customers","net_minor","renewals","repeat_customers","first_day","by_first_source": {source: {"customers","net_minor","renewals","repeat_customers"}}}}}`: see "Revenue" below |
+| `refunds_without_sale` | (2.32) null (no money), `{"state": "withheld","why"}`, or `{"count": n, "currencies": {currency: total minor units}}`: every refund row kept (every row kept, test rows left out) that no figure counts: its sale is not counted (Stripe sends `charge.refunded` for every charge of the account; the sale may never have reached Skald, been a test or been taken away), its value could not be read, or it was sent in another currency than its sale (kept without a value). `currencies` sums those kept with a value over 0. Stored and shown here, never subtracted from any figure; a refund that waits for its sale leaves this count when the sale comes |
+| `revenue_since` | (2.32) null (no value kept), `{"state": "withheld","why"}`, or the local day (`YYYY-MM-DD`) of the site's first counted row (not test) with a value and a currency: a sale or a refund. Days before it carry no `revenue` (not recorded, never zero) |
+| `withheld` | `{"days/<day>", "pages_before", "ltv", "refunds_without_sale", "revenue_since" or "today": why}` |
 
 A day's `by` tables each add up, per action, to its finished stages; its
 `visits_before` and `time_to_convert` too. A `withheld` day shows no figures.
+
+**Revenue (2.32, `conversions_revenue.py`).** When `currencies` is not null,
+every `ok` day from `revenue_since` on carries `revenue`: `{}` (no sale and no
+refund that day: a known none), else per currency, never converted and never
+summed across. An `ok` day before `revenue_since` has no `revenue` at all: a
+site that sent sales without amounts before then did not sell nothing.
+
+    "revenue": {"USD": {"gross_minor": 6999, "refunded_minor": 999, "net_minor": 6000,
+                        "sales": 2, "refunds": 1, "new_customers": 1, "renewals": 1,
+                        "by": {"source": {name: {"net_minor", "sales"}}, "first_source": {...},
+                               "campaign": {...}, "landing": {...}, "country": {...},
+                               "device": {...}, "tool": {...}, "label": {...},
+                               "tag": {key: {value: {"net_minor", "sales"}}}}}}
+
+- Amounts are whole minor units of the currency (`currencies` gives the
+  decimals). A value is what the sender gave (`value`, `currency` on the
+  `lead` and `json` hooks; Stripe's `amount_total`, `amount_paid`,
+  `amount_refunded`); a row without one is no money, never 0.
+- **A sale** is a finished row (`completed` or `paid`) with a value, counted
+  once per (tool, `external_ref`): its `paid` row when that carries a value,
+  else its `completed` one. This is not the leads' rule (2.26): a `paid` after
+  a `completed` for the same ref is one lead (the completed row) and one sale
+  (the paid row).
+- **A refund** is a `refunded` row with a value, one per sale, its amount the
+  total refunded so far (a later, larger total raises it; Stripe's
+  `amount_refunded` is cumulative; a refund sent without a value is the whole
+  sale's value). It counts only when its sale counts, in the sale's currency;
+  every other refund row (no counted sale, a value that could not be read,
+  or another currency than the sale's) is in `refunds_without_sale`, never
+  subtracted. A refund of 0, or a part of 0, is no refund. When the sale is
+  known a refund is never more than it (cut to the sale's value) nor in
+  another currency (kept without a value), each with a note to the sender. A
+  refund that came before its sale (a refund sent first, or Stripe's events
+  out of order) is moved onto the sale when the sale comes, and a whole one
+  takes the sale's value then; a whole one sent after an unreadable one waits
+  for the sale's value too. A refund cut or emptied when its sale comes later
+  gets no note: its answer went out before the sale was known. **Each part counts on the day it arrived**:
+  the first amount on its day, each larger total's difference on its own day
+  (`refund_parts`, with each part's time), one refund each, under the sale's
+  attribution (`net_minor` can be negative there, with `sales` 0), never on
+  the sale's day. So `refunds` counts refunds that arrived, and a raise 40
+  days later shows in that later day. `net_minor` = gross − refunded.
+- **Attribution** (`source` = last touch, `first_source`, `campaign`,
+  `landing`, `country`, `device`, `label`) is the (tool, ref)'s first finished
+  row: where the visitor came from. `tool` is the row's. "Unknown" for a value
+  not recorded; a sale without a label is "(no label)". `tag` holds the
+  sale's tags (a refund: its sale's), only the tags sent.
+- **Customers.** A customer is a `customer_ref` within one currency; a sale
+  without one is its own customer. Of a customer's sales (every row kept, any
+  day, by `at`, then id) the first is a new customer, every later one a
+  renewal: `new_customers` + `renewals` = `sales`. A renewal whose first sale
+  is past `conversions.retention_days` counts as new.
+- **`ltv`** is over every row kept (`conversions.retention_days`; 400 days by
+  default, or for good), not a period: per currency, the customers, their
+  net (their sales less the refunds on those sales; a refund whose sale is not
+  counted belongs to no customer), the renewals (sales after a customer's
+  first), the repeat customers (more than one sale) and the first day of a
+  sale; and the same by the first source of each customer's first sale (a
+  renewal sent without a visitor ID is joined to it by `customer_ref`). An
+  average or a repeat rate is the page's own division of two of these.
+- Test rows and removed rows are never money.
+- `value` text longer than 30 characters (`MAX_AMOUNT_TEXT`) is never parsed:
+  the row is kept without a value, with a note. `customer_ref` is dropped with
+  a note when it is shaped like an IP address or is a phone number (only
+  digits and `+ ( ) . -`, with more than 6 digits).
+
+Second count: `audit_revenue.py`, on every build (from
+`audit_conversions.check_file`). (1) SQL over the file opened read-only:
+the sales by NOT EXISTS, attribution by a correlated sub-select, renewals by
+EXISTS of an earlier sale, tags by `json_each`, every figure and every cell
+by GROUP BY over each refund part, `ltv` the same but from the refund rows'
+own totals (the main count adds up their parts, so a part changed by hand
+withholds `ltv` too), `refunds_without_sale` as the refund rows not counted,
+and `revenue_since` by MIN over the rows with a value (each `ok` day must
+carry `revenue` exactly from that day on). (2) The hook
+spool replayed in the order it came: its own reading of `value`, `currency`,
+`customer_ref` and Stripe's amounts (text arithmetic, no Decimal), its own
+first-delivery-wins, refund rule (one per sale, the sale's currency, never
+more than the sale, each rise a part with its time, an early refund moved
+onto its sale), Stripe refund matching (including `invoice_payment.paid`
+links) and each removal (the `removed` table) replayed at the time it
+happened, between the lines received before and after it, on the row's ref
+at that time: per day and currency the gross, refunded and net sums and the
+counts of sales, refunds, new customers and renewals, `ltv`'s totals,
+`refunds_without_sale` and the first day with a value. A day either
+disagrees on is withheld (as every conversion figure), and `ltv`,
+`refunds_without_sale` and `revenue_since` too. A sale written
+into the table by hand, not through a hook, is in no spool: its day is
+withheld.
 
 **Second count.** `audit_conversions.check_file` runs on every build: the
 stages per day against the hook spool, the beacon spool (whole days from

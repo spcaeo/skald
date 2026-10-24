@@ -878,6 +878,21 @@ Since 2.27 `today.same_time` holds the last day of the period before Leads' 7, 3
 days, counted to the file's time of day, so Leads compares today so far and the whole days
 before it like for like; recounted by `audit_conversions_leads.check_same_time`.
 
+Since 2.32 (revenue on leads) a day carries `revenue` per currency (gross, refunded and net
+minor units; sales, refunds, new customers, renewals; by source, first source, campaign, landing,
+country, device, tool, label and tag) and the file `currencies`, `ltv` (lifetime value by
+first source over every row kept), `refunds_without_sale` (refunds kept that no figure counts:
+stored, never subtracted) and `revenue_since` (the first local day with a value: a day before it
+has no `revenue`, never zero); never converted between currencies, absent when the site has
+no value at all. A refund counts only on its counted sale, in its currency, never more than it;
+each part of a refund counts on the day it arrived. `conversions.sqlite` is schema 9: the stage
+`refunded` (the table rebuilt, every row kept), `value_minor`, `currency`, `customer_ref`, `tags`,
+`pay_ref`, and the tables `refund_parts` (each rise of a refund with its time) and `pay_links`
+(Stripe's `invoice_payment.paid`: which payment paid which invoice). Recounted by
+`audit_revenue.py` (SQL and the hook spool); a day it disagrees with is withheld, `ltv`,
+`refunds_without_sale` and `revenue_since` too.
+Every field: [docs/DATA-CONTRACT-CONVERSIONS.md](docs/DATA-CONTRACT-CONVERSIONS.md), "Revenue".
+
 A lead sent with the plain key (2.30, `Authorization: Bearer`, INTEGRATIONS.md) is the same
 row as a signed one: it changes how a sender proves itself, never a figure.
 
@@ -885,6 +900,8 @@ The site's server reads back what its `lead` hook delivered with the signed
 `GET /traffic-hooks/<site>/leads` (2.18; `conversions/reconcile.py`, INTEGRATIONS.md): rows
 `{external_ref, action, stage, at, label, test, received_at}` ordered by `received_at`, then id,
 paged by an opaque `next_cursor`; never a name, email, address, user agent, visitor ID or source.
+Since 2.32 each row also has `value` (exact text, major units), `value_minor`, `currency`,
+`customer_ref` and `tags`.
 A listing for reconciling, not a figure.
 
 ## People (2.4.0)

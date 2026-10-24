@@ -137,6 +137,8 @@ def _read(tool: str, body, naive_zone=timezone.utc) -> list[tuple]:
         name = str(body.get("type") or "")
         if name == "checkout.session.completed" and data.get("payment_status") == "unpaid":
             name = "checkout.session.completed+unpaid"
+        if name == "invoice.paid":
+            name += "+" + str(data.get("billing_reason") or "")
         if name not in EVENTS["stripe"]:
             return []
         ref = _txt(data.get("id"), 120)
@@ -281,7 +283,8 @@ def removed_keys(db_path: Path, site: str) -> dict:
 
 
 def recount(spool: Path, site: str, tz, first: date, last: date,
-            skip: frozenset = frozenset(), removed: dict | None = None) -> dict:
+            skip: frozenset = frozenset(), removed: dict | None = None,
+            removals: list | None = None) -> dict:
     """{local day: {(action, stage): n}} from the spool, first..last; a
     (tool, ref, stage) in `skip` (test_keys) is not counted, nor a line
     received before its row was taken away (`removed`, removed_keys).
@@ -289,10 +292,16 @@ def recount(spool: Path, site: str, tz, first: date, last: date,
     One lead counts once (2.26): of the finished stages (FINISHED) of a lead
     action (LEAD_ACTIONS) under one tool, ref and action, only the earliest
     (by its time, then the stage's name) is counted; a `paid` sent after a
-    `completed` for the same sign-up is not a second lead."""
+    `completed` for the same sign-up is not a second lead.
+
+    Refunds (2.32) are the rows audit_revenue.replay keeps: one per sale, a
+    refund that came before its sale moved onto it, as the store does, each
+    removal (`removals`, audit_revenue._removals; else `removed`) replayed at
+    its time."""
     removed = removed or {}
     seen: set = set()
     kept: list[tuple] = []
+    refunds = False
     for line in _lines(spool):
         tool = line.get("tool")
         if line.get("site") != site or tool not in TOOLS:
@@ -308,6 +317,9 @@ def recount(spool: Path, site: str, tz, first: date, last: date,
         except _Bad:
             continue
         for action, stage, ref, at in found:
+            if stage == "refunded":
+                refunds = True
+                continue
             key = (tool, ref, stage)
             if key in seen:
                 continue
@@ -317,6 +329,11 @@ def recount(spool: Path, site: str, tz, first: date, last: date,
             seen.add(key)
             if key not in skip:
                 kept.append((tool, ref, action, stage, at))
+    if refunds:
+        from .audit_revenue import replay
+        for key, r in replay(spool, site, removed if removals is None else removals).items():
+            if key[2] == "refunded" and key not in skip:
+                kept.append((key[0], key[1], r["action"], "refunded", r["at"]))
     lead_first: dict = {}
     for tool, ref, action, stage, at in kept:
         if action in LEAD_ACTIONS and stage in FINISHED:
@@ -514,7 +531,9 @@ def findings(config: dict, folder: Path, site: str, tz, first: date, last: date,
         finally:
             db.close()
     skip = test_keys(db_path, site)
-    counted = recount(spool, site, tz, first, last, skip, removed_keys(db_path, site))
+    from .audit_revenue import _removals
+    counted = recount(spool, site, tz, first, last, skip, removed_keys(db_path, site),
+                      _removals(db_path, site) if db_path.exists() else None)
     if with_beacon:
         counted = _merge(counted, beacon_counts(beacons, folder, tz, first, last, today,
                                                 refresh, skip, store.keep_days(config)))
@@ -643,7 +662,8 @@ def check_file(config: dict, folder: Path, site: str, tz, first: date, last: dat
     """Every figure conversions.json shows, against the second counts:
     the stages against the spools and the lead DB (findings), and every
     day's figures and the pages block against audit_conversions_figures'
-    SQL. {"days/<day>" or "pages_before": problems}."""
+    SQL, and the revenue and ltv against audit_revenue.py. {"days/<day>",
+    "pages_before" or "ltv": problems}."""
     from . import audit_conversions_figures as figures
     from .conversions import store
     out: dict[str, list[str]] = {}
@@ -657,6 +677,11 @@ def check_file(config: dict, folder: Path, site: str, tz, first: date, last: dat
     for day, problems in figures.check_days(path, site, tz, first, last, now, hours,
                                             blob["days"], history, config).items():
         out.setdefault(f"days/{day}", []).extend(problems)
+    # 2.32: revenue and lifetime value, by SQL and from the spool (audit_revenue.py).
+    from . import audit_revenue
+    for key, problems in audit_revenue.check(config, folder, site, tz, first, last,
+                                             blob).items():
+        out.setdefault(key, []).extend(problems)
     period = blob.get("period") or {}
     if period:
         problems = figures.check_pages(path, site, tz, date.fromisoformat(period["first"]),

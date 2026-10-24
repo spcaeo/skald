@@ -46,7 +46,7 @@ class Store(unittest.TestCase):
         self.assertTrue({"conversions", "journeys", "identities", "deliveries", "meta"} <= tables)
 
     def test_newer_schema_is_refused(self):
-        self.db.execute("UPDATE meta SET value = '9' WHERE key = 'schema_version'")
+        self.db.execute("UPDATE meta SET value = '99' WHERE key = 'schema_version'")
         with self.assertRaises(RuntimeError):
             store.connect(self.path)
 

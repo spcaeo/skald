@@ -51,16 +51,15 @@
 
 ## What's new
 
+- **2.32.0: revenue on leads** ([changelog](CHANGELOG.md#2320-2026-10-24)). Send a value and a
+  currency with each sale; Leads & sales > Revenue shows which sources, pages and AI assistants
+  made money, per currency, with refunds, renewals and lifetime value, every figure counted twice.
 - **2.31.0: one line for your AI agent** ([changelog](CHANGELOG.md#2310-2026-10-24)). Add a site
   gives one line to paste into Claude Code, Codex or Cursor. It holds a one-time code, never a key:
   the agent takes the keys once, connects the site and reports back while you watch each step.
 - **2.30.0: set up in one step** ([changelog](CHANGELOG.md#2300-2026-10-23)). One command connects a
   server's logs, with or without Docker; leads in one file or a WordPress plugin; the whole set-up
   in one zip by mail, ready for a person or Claude Code.
-- **2.29.0: keep leads for good** ([changelog](CHANGELOG.md#2290-2026-10-22)). Leads and the pages
-  they read are never deleted when you choose so; visitors' pages before a sign-up up to 400 days.
-- **2.28.0: Leads' 7 days include today** ([changelog](CHANGELOG.md#2280-2026-10-22)). Today so
-  far plus the 6 days before, with the exact dates from and to, compared up to the same hour.
 
 Earlier releases: [CHANGELOG.md](CHANGELOG.md).
 
@@ -325,8 +324,11 @@ your firewall, not instead of it.
   disagrees withheld. A sample of API answers, labelled so, not what every user sees.
 
 **Results**
-- One section, **Leads & sales**, one question per tab: Leads, Summary, Sources, Calendar
-  bookings, Funnels, Events and Find a person.
+- One section, **Leads & sales**, one question per tab: Leads, Summary, Sources, Revenue,
+  Calendar bookings, Funnels, Events and Find a person.
+- **Revenue (2.32):** which sources (AI assistants among them), pages and campaigns made money: net revenue, sales, refunds,
+  new customers, renewals and revenue per visitor, per currency, never converted; by source, campaign, page, country or your own
+  tags; lifetime value by first source. Stripe's amounts are read; Polar, Dodo, Paddle, Lemon Squeezy, Gumroad or your own server send `value` and `currency` through the lead hook, Zapier, Make or n8n. Counted twice; a day that disagrees is withheld.
 - **Leads:** every lead of the period, newest first: when, name and email (owners and admins
   only, where the site keeps them), what they did and its label, its stage now, where it came
   from, the source, first touch, landing page and country; as a list, a board, a timeline or a
@@ -461,6 +463,8 @@ person search and the other Settings pages need your own Skald. Every image belo
   <img src="docs/screenshots/leads-list.png" alt="Leads and sales, Leads, on its default of the last 7 days: the heading Last 7 days, Fri 16 Oct to Thu 22 Oct (today, so far), the count against the same days and hour of the week before, Today so far: 6 of these leads, Show today (live), and one row per lead with today's first, each marked live" width="900"><br>
   <strong>Leads.</strong> Who they are, what they did and where they came from, in one list.
 </p>
+
+<p align="center"><img src="docs/screenshots/revenue.png" alt="Leads and sales, Revenue, on the demo's sample data for the last 90 days: a Currency switch with USD chosen and EUR beside it, Breakdown and Tag options; net revenue $16,798.40 ($16,818.00 sold, $19.60 refunded), 33 sales, 1 refund, 29 new customers, 4 renewals and $3.78 revenue per visitor over 4,440 visitors of the 58 days with values; the line Also in this period, never added: €488.40 net from 8 sales; and the start of Revenue by source (last touch)" width="900"><br><strong>Revenue (2.32).</strong> Which sources made money, per currency, never converted; refunds, renewals and lifetime value.</p>
 
 | | |
 | :---: | :---: |

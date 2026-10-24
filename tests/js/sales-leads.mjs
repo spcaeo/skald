@@ -24,7 +24,7 @@ const flat = (out) => [out].flat(Infinity).filter(Boolean);
 const tick = () => new Promise((r) => setTimeout(r, 5));
 
 // ---- the tab's name and the section's order
-assert.deepEqual(sales.map((t) => t[1]), ["Leads", "Summary", "Sources", "Calendar bookings", "Funnels", "Events", "Find a person"]);
+assert.deepEqual(sales.map((t) => t[1]), ["Leads", "Summary", "Sources", "Revenue", "Calendar bookings", "Funnels", "Events", "Find a person"]);
 assert.equal(sales.find((t) => t[0] === "bookings")[1], "Calendar bookings", "the route stays sales/bookings");
 
 // ---- the rows the options keep

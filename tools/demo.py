@@ -15,7 +15,7 @@ one). It is served as it is, from any path, e.g. GitHub Pages at /<repo>/:
 The data: a small fictional SaaS on example.com (tools/demo_traffic.py), with
 RFC 5737 addresses and made-up names. It goes in through the same roads a real
 install uses: an nginx access log, the beacon spool (and what the beacon helper
-records for journeys and conversions), signed Calendly and Stripe webhooks through
+records for journeys and conversions), signed Calendly, Stripe and lead webhooks through
 the hook receiver, and the site's lead store. Then `backfill` day by day, the
 in-page events, and `live`, in a temporary install that is removed afterwards
 (--keep DIR keeps it in DIR).
@@ -323,15 +323,16 @@ def spool_beacon(root: Path, cfg: dict, traffic: dt.Traffic) -> None:
 
 
 def post_hooks(root: Path, cfgp: Path, cfg: dict, traffic: dt.Traffic, rnd) -> dict:
-    """Calendly and Stripe webhooks, signed with the site's secrets and posted
-    to the hook receiver with its clock set to each event's time."""
+    """Calendly and Stripe webhooks (Stripe's with amounts, renewals and refunds,
+    stripe_events), signed with the site's secrets and posted to the hook
+    receiver with its clock set to each event's time."""
     from conversions_support import FakeHandler
     from skald.conversions import secrets_store
     from skald.conversions.adapters import adapter
     from skald.conversions.hooks import Receiver
     path = secrets_store.path_for(cfg, root)
     secret = {}
-    for tool in ("calendly", "stripe"):
+    for tool in ("calendly", "stripe", "lead"):
         secret[tool] = "demo-" + "".join(rnd.choice("abcdef0123456789") for _ in range(32))   # made up, local
         secrets_store.put(path, secrets_store.key(dt.SITE, tool), secret[tool])
     rcfg = json.loads(json.dumps(cfg, default=str))
@@ -360,9 +361,8 @@ def post_hooks(root: Path, cfgp: Path, cfg: dict, traffic: dt.Traffic, rnd) -> d
                                           "payload": {"uri": f"https://api.calendly.com/invitee_no_shows/NS{i:04d}",
                                                       "invitee": uri}}))
         else:
-            events.append((when, tool, {"object": "event", "type": "checkout.session.completed", "created": int(when.timestamp()),
-                                        "data": {"object": {"id": f"cs_demo_{i:05d}", "payment_status": "paid",
-                                                            "client_reference_id": d["vid"]}}}))
+            events += stripe_events(i, when, d["vid"], hook_touch(d.get("last")))
+    events += server_sales(traffic)
     for when, tool, payload in sorted(events, key=lambda x: x[0]):
         if when > traffic.now:
             continue
@@ -374,6 +374,65 @@ def post_hooks(root: Path, cfgp: Path, cfg: dict, traffic: dt.Traffic, rnd) -> d
         status, _ = rx.http(FakeHandler(p, body, headers))
         tally["ok" if status == 200 else "refused"] += 1
     return tally
+
+
+def hook_touch(t: dict | None) -> dict:
+    """A demo visit's touch in the keys a hook carries (adapters.TOUCH_KEYS)."""
+    if not t:
+        return {}
+    got = {"referrer": f"https://{t['referrerHost']}/" if t.get("referrerHost") else None,
+           "landing": t.get("landingPath"), "utm_source": t.get("utmSource"),
+           "utm_medium": t.get("utmMedium"), "utm_campaign": t.get("utmCampaign"), "gclid": t.get("gclid")}
+    return {k: v for k, v in got.items() if v}
+
+
+def stripe_events(i: int, when: datetime, vid: str, meta: dict) -> list:
+    """One demo Checkout (2.32: with its amount, currency and customer), and from
+    the sale's number alone, never the seeded draws: every fifth in euros, a
+    team plan now and then, monthly renewals for every third, a part refund on
+    one sale in nine and a whole refund on one in thirteen."""
+    cur = "eur" if i % 5 == 3 else "usd"
+    amount = {"usd": (4900, 19900), "eur": (3900, 15900)}[cur][1 if i % 4 == 1 else 0]
+    cus, pi = f"cus_demo{i:04d}", f"pi_demo_{i:05d}"
+    def ev(at, kind, obj):
+        return (at, "stripe", {"object": "event", "type": kind, "created": int(at.timestamp()), "data": {"object": obj}})
+    out = [ev(when, "checkout.session.completed",
+              {"id": f"cs_demo_{i:05d}", "payment_status": "paid", "client_reference_id": vid,
+               "amount_total": amount, "currency": cur, "customer": cus, "payment_intent": pi, "metadata": meta})]
+    if i % 3 == 0:
+        for k in (1, 2):
+            at = when + timedelta(days=30 * k)
+            out.append(ev(at, "invoice.paid", {"id": f"in_demo_{i:05d}_{k}", "billing_reason": "subscription_cycle",
+                                               "amount_paid": amount, "currency": cur, "customer": cus,
+                                               "payment_intent": f"{pi}_{k}", "subscription_details": {"metadata": {"skv": vid, **meta}}}))
+    refunded = amount * 2 // 5 if i % 9 == 4 else amount if i % 13 == 7 else 0
+    if refunded:
+        out.append(ev(when + timedelta(days=3), "charge.refunded",
+                      {"id": f"ch_demo_{i:05d}", "payment_intent": pi, "amount_refunded": refunded, "currency": cur}))
+    return out
+
+
+def server_sales(traffic: dt.Traffic) -> list:
+    """Trials the site's own server sends through the lead hook (2.32), for one
+    sign-up in seven (picked by number, not drawn): the trial a minute after the
+    sign-up, with its touches, then 14 days later the same ref paid for an annual
+    plan, with a value, a currency, the account as customer_ref and two tags (on
+    both rows, so the lead's drawer shows them)."""
+    out = []
+    signups = [x for x in traffic.leads if x["type"] == "signup"]
+    for j, x in enumerate(signups):
+        if j % 7 != 3:
+            continue
+        plan = "team" if j % 2 else "pro"
+        mine = {"external_ref": f"trial-{j:04d}", "action": "trial", "customer_ref": f"acct-{j:04d}",
+                "tags": {"plan": plan, "billing": "annual"}}
+        first = x["first"] if x["first"] and "referrerHost" in x["first"] else x["last"]
+        out.append((x["at"] + timedelta(minutes=1), "lead",
+                    {**mine, "stage": "completed", "vid": x["vid"], "country": x["cc"] or None,
+                     "first_touch": hook_touch(first), "last_touch": hook_touch(x["last"])}))
+        out.append((x["at"] + timedelta(days=14), "lead",
+                    {**mine, "stage": "paid", "value": "1990.00" if plan == "team" else "490.00", "currency": "USD"}))
+    return out
 
 
 def run(cfgp: Path, *argv: str) -> tuple[int, str]:

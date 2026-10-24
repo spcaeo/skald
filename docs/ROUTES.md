@@ -71,6 +71,7 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | `fn`, `fsrc`, `fstep`, `fmode` | tabs/funnels.js | Funnels: steps, starting source, step open, reached or left |
 | `lsrc`, `lact`, `llabel`, `lstage` | tabs/s-sales.js, sa-options.js | Leads & sales: count from, kind, label, stage |
 | `lnow`, `lby`, `lshow`, `lview`, `lsplit` | tabs/sa-leads.js | Leads: stage now, source, show left out, the view, the split |
+| `cur`, `by`, `tag` | tabs/sa-revenue.js | Revenue: the currency (never converted), the breakdown, one tag `key:value` |
 | `bact`, `bshow` | tabs/sa-bookings.js | Calendar bookings: action, what to show |
 | `cw`, `chb`, `co` | tabs/crawlhealth.js | Crawl health: 7 or 30 days, crawler, only problems |
 | `ap`, `aq` | tabs/ai-answers.js | AI answers: the profile and the question open |

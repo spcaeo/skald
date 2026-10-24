@@ -371,13 +371,18 @@ def cmd_conversions_list(ctx) -> int:
         return 0
     db = store.connect(db_path)
     try:
-        rows = db.execute("SELECT id, at, tool, action, stage, external_ref, test, label FROM "
-                          "conversions WHERE site = ?" + (" AND test <> 0" if a.test else "")
+        rows = db.execute("SELECT id, at, tool, action, stage, external_ref, test, label, "
+                          "value_minor, currency FROM conversions WHERE site = ?"
+                          + (" AND test <> 0" if a.test else "")
                           + " ORDER BY id DESC LIMIT ?", (a.site, a.limit)).fetchall()
     finally:
         db.close()
+    from .conversions.money import shown
     for r in rows:
+        # 2.32: the money a row carries, in the currency's major units.
+        cash = shown(r[8], r[9])
         ctx.out(f"  {r[0]:>6}  {r[1]}  {r[2]:<9} {r[3]} {r[4]}  ref {str(r[5])[:40]}"
+                + (f"  {cash} {r[9]}" if cash else "")
                 + (f"  [{r[7]}]" if r[7] else "") + ("  TEST" if r[6] else ""))
     ctx.out(f"conversions list: {len(rows)} row(s), newest first")
     return 0

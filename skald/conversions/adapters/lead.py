@@ -41,6 +41,20 @@ time, so a captured request could be sent again; a lead is kept once per
                   or absent, a real lead. Each delivery says it for itself: an
                   earlier stage sent as test makes no later one test. Not a
                   boolean: ignored with a note, like a bad label
+    value, currency  optional (2.32): the money the lead made, in the
+                  currency's major units ("49.99", or 49.99) and its ISO 4217
+                  code; kept as whole minor units (conversions/money.py). A
+                  value without a valid currency, or with more decimals than
+                  the currency has, is dropped with a note (never refused)
+    customer_ref  optional: the customer's own opaque id in the site, so a
+                  renewal (a new `paid` with its own external_ref) is joined
+                  to the first sale. Never an email: dropped with a note
+    tags          optional: {key: value}, at most 5 short lowercase tokens
+                  ("plan": "pro"); a bad one is dropped with a note
+    stage "refunded"  money given back on the sale with the same external_ref:
+                  `value` is the total refunded so far (a partial refund is
+                  allowed; a later, larger total raises it, never adds a
+                  second refund); without `value`, the whole sale
 
 GET /traffic-hooks/<site>/leads (conversions/reconcile.py), the leads Skald
 holds, is signed with the same secret over the method and the request target
@@ -56,6 +70,7 @@ from __future__ import annotations
 import hmac
 
 from .. import ACTION, LABEL, SITE_VID, STAGES, action_name
+from .. import money
 from . import Invalid, naive, sign_timed, text, touch, verify_timed, when
 
 HEADER = "x-skald-signature"
@@ -165,6 +180,7 @@ def record(item: dict, tz=None) -> dict:
         "email": text(item.get("email"), 320), "visits_before": visits,
         "first_touch_at": when(item.get("first_touch_at"), tz) or (first or {}).get("at"),
         "naive_at": any(naive(t) for t in times),
+        **money.read(item),
     }
 
 

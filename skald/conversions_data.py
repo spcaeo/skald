@@ -28,6 +28,16 @@ the abandoned starts among them, {action: {label: n}}; a row without a
 label is in neither. Pipeline's Label narrows "Every action" with them;
 audit_conversions_figures counts both again by SQL.
 
+`revenue` per day and `ltv` (2.32, conversions_revenue.py): the money on
+sales and refunds per currency, never converted; present only when the site
+has a value at all, and only from `revenue_since` (the local day of the first
+counted row with a value) on: a day before it has no `revenue` (not
+recorded, never {}). `currencies` names them with their decimals (counted
+sales'). `refunds_without_sale` ({count, currencies: {currency: total}}, every
+row kept): the refunds kept whose sale is not counted, never subtracted.
+Recounted by audit_revenue.py; a day it disagrees with is withheld, `ltv` and
+`refunds_without_sale` too.
+
 `likely_ai` per day (inferred, ai_likely.py): finished rows by the
 assistant likely behind their first touch - {action: {label: n}}. The
 first touch is the row's own (first_source, first_touch_at, landing) when
@@ -44,6 +54,7 @@ from collections import Counter
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
+from . import conversions_revenue
 from .config import setting
 from .conversions import (BEACON_REPEAT_SECONDS, CONVERT_BUCKETS, DEMO_ACTIONS, FINISHED,
                           LEAD_ACTIONS, MIN_RATE, STAGES, TOOLS, UNKNOWN, VISIT_BUCKETS)
@@ -332,7 +343,8 @@ def _unavailable(reason: str, found: dict) -> dict:
             "convert_buckets": list(CONVERT_BUCKETS), "since": None, "days": [],
             "lead_actions": list(LEAD_ACTIONS), "demo_actions": list(DEMO_ACTIONS),
             "period": None, "pages_before": None, "timeline": [], "today": None,
-            "withheld": {}}
+            "withheld": {}, "currencies": None, "ltv": None,
+            "refunds_without_sale": None, "revenue_since": None}
 
 
 def blob(config: dict, folder: Path, site: str, tz, today: date, now: datetime,
@@ -366,7 +378,9 @@ def blob(config: dict, folder: Path, site: str, tz, today: date, now: datetime,
                "since": since, "days": [], "likely_ai": likely_note(config),
                "lead_actions": list(LEAD_ACTIONS), "demo_actions": list(DEMO_ACTIONS),
                "period": {"first": start.isoformat(), "last": today.isoformat()},
-               "pages_before": pages, "timeline": [], "withheld": {}}
+               "pages_before": pages, "timeline": [], "withheld": {},
+               "currencies": None, "ltv": None, "refunds_without_sale": None,
+               "revenue_since": None}
         for i in range(DAYS):
             d = (first + timedelta(days=i)).isoformat()
             if since is None or d < since:
@@ -374,6 +388,22 @@ def blob(config: dict, folder: Path, site: str, tz, today: date, now: datetime,
             else:
                 out["days"].append({"day": d, "state": "ok", **(per.get(d) or _empty(
                     pages is not None))})
+        # 2.32: revenue (conversions_revenue.py), only when the site has money at
+        # all; then every counted day carries it ({}: no sale, no refund that day).
+        money = None
+        if conversions_revenue.has_money(db, site):
+            book = conversions_revenue.Book(db, site)
+            money = conversions_revenue.days(db, site, tz, first, today, book)
+            out["currencies"] = conversions_revenue.currencies(book)
+            out["ltv"] = {"window": "every row kept", "currencies":
+                          conversions_revenue.ltv(db, site, tz, book)}
+            out["refunds_without_sale"] = conversions_revenue.without_sale(book)
+            # Recorded from the first day with a value on; before it, not recorded.
+            since_money = conversions_revenue.first_day(db, site, tz)
+            out["revenue_since"] = since_money
+            for d in out["days"]:
+                if d["state"] == "ok" and since_money is not None and d["day"] >= since_money:
+                    d["revenue"] = money.get(d["day"], {})
         held = {}
         if audited:
             from . import audit_conversions
@@ -421,7 +451,8 @@ def _today(db, path, site: str, tz, today: date, held: set, audited: bool,
 
 
 def withhold(out: dict, found: dict[str, list[str]]) -> dict:
-    """Days ("days/<day>") and blocks ("pages_before") the second count
+    """Days ("days/<day>") and blocks ("pages_before", "ltv",
+    "refunds_without_sale", "revenue_since") the second count
     disagrees with, replaced by {"state": "withheld", "why"}; "*" all."""
     def why(problems: list[str]) -> str:
         more = f" (and {len(problems) - 3} more)" if len(problems) > 3 else ""
@@ -429,11 +460,14 @@ def withhold(out: dict, found: dict[str, list[str]]) -> dict:
                 + "; ".join(problems[:3]) + more)
     if "*" in found:
         found = {"pages_before": found["*"],
+                 **{k: found["*"] for k in ("ltv", "refunds_without_sale", "revenue_since")
+                    if out.get(k)},
                  **{f"days/{d['day']}": found["*"] for d in out["days"]
                     if d["state"] == "ok"}}
     said = {k: why(v) for k, v in found.items() if v}
-    if "pages_before" in said and out.get("pages_before") is not None:
-        out["pages_before"] = {"state": "withheld", "why": said["pages_before"]}
+    for block in ("pages_before", "ltv", "refunds_without_sale", "revenue_since"):
+        if block in said and (out.get(block) is not None or block == "revenue_since"):
+            out[block] = {"state": "withheld", "why": said[block]}
     out["days"] = [{"day": d["day"], "state": "withheld", "why": said[f"days/{d['day']}"]}
                    if f"days/{d['day']}" in said else d for d in out["days"]]
     out["withheld"] = said
