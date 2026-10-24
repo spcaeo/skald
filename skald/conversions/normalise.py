@@ -79,7 +79,14 @@ def row(rec: dict, site: str, tool: str, received_at: str, own_hosts: set[str],
            "country": country or None, "device": dev,
            "first_touch_at": rec.get("first_touch_at") or (first or {}).get("at"),
            "visits_before": rec.get("visits_before"), "received_at": received_at,
-           "label": rec.get("label") or None, "test": rec.get("test") is True}
+           "label": rec.get("label") or None, "test": rec.get("test") is True,
+           # 2.32: money (conversions/money.py); pay_ref is Stripe's payment
+           # intent (or invoice), to find the sale a refund is for.
+           "value_minor": rec.get("value_minor"), "currency": rec.get("currency"),
+           "customer_ref": rec.get("customer_ref"), "tags": rec.get("tags"),
+           "pay_ref": rec.get("pay_ref"), "value_sent": rec.get("value_sent", True)}
+    if rec.get("refund_of"):
+        out["refund_of"] = list(rec["refund_of"])
     if identity_full and rec.get("email"):
         out["identity"] = {"email": rec["email"], "name": rec.get("name")}
     return out

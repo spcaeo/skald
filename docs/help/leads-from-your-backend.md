@@ -18,6 +18,7 @@ Your site's server tells Skald each time a lead is made. The quick way: download
 - `id` is your own id for the lead, such as the form entry's id. The same lead always sends the same id: a repeat is never counted twice.
 - The second word is what was done: `contact`, `demo`, `signup`, `trial`.
 - Email and name are optional. Other fields from section 2 go in the last argument: `label`, `stage`, `test`, `vid`. PHP: `skald_lead($id, 'demo', $email, $name, ['label' => 'sales']);`.
+- A sale with its value (2.32.0): PHP `skald_lead($order_id, 'paid', $email, $name, ['stage' => 'paid', 'value' => 49.00, 'currency' => 'USD', 'customer_ref' => $customer_id, 'tags' => ['plan' => 'pro']]);`, Node `await skaldLead(orderId, "paid", { stage: "paid", value: 49.00, currency: "USD", customer_ref: customerId })`, Python `skald_lead(order_id, "paid", stage="paid", value=49.00, currency="USD", customer_ref=customer_id)`. A refund: the same order ID with `stage` `refunded` and the total refunded on it so far as `value`. See [Revenue](revenue.md).
 - Each function waits at most 3 seconds, never throws, and returns true when Skald kept the lead. Your form never breaks because of Skald.
 - Node in an ES module: `import { skaldLead } from "./skald-lead.cjs";` works too.
 - The files sign each lead (section 3), so they work with every version of Skald.
@@ -64,14 +65,16 @@ One JSON object per lead:
 | --- | --- | --- |
 | `external_ref` | required | The lead's own id in your system. Keep it stable: the same lead always sends the same id |
 | `action` | required | What was done, a short lowercase word: `demo`, `contact`, `signup`, `trial` |
-| `stage` | default `completed` | `started`, `completed`, `cancelled`, `rescheduled`, `no_show`, `paid`, `won`, `lost` |
+| `stage` | default `completed` | `started`, `completed`, `cancelled`, `rescheduled`, `no_show`, `paid`, `won`, `lost`, and `refunded` (2.32.0: a refund on the sale's own `external_ref`, never a lead) |
 | `at` | default: when it arrived | When it happened. A full ISO time with its offset: `2026-09-25T14:30:00-04:00` or `2026-09-25T18:30:00Z` |
 | `vid` | | The visitor ID the page had. Kept only when the site has visitor IDs on |
 | `first_touch`, `last_touch` | | Where the visitor came from: `referrer`, `landing`, `utm_source`, `utm_medium`, `utm_campaign`, `at` |
 | `ip`, `user_agent` | | Skald looks up the country and the device, then drops both |
 | `name`, `email` | | Kept only when the site's **Leads' names and emails** is **full**; otherwise dropped |
 | `label` | optional | A short word that sorts leads of one action, such as a contact form's topic: `sales`, `support`, `partnership`. Lowercase letters, digits, `-` and `_`, at most 40, starting with a letter or digit (`Sales` is read as `sales`). Anything else is dropped: the lead is still kept, without a label, and the answer and the delivery log say so |
-
+| `value`, `currency` | optional | 2.32.0: a sale's amount in the currency's normal units (`49.00`, not cents) and its three-letter code (`USD`). Shown on Leads & sales > Revenue, summed per currency, never converted. See [Revenue](revenue.md) |
+| `customer_ref` | optional | Your customer's own ID (`u-119797`, never an email): it joins a renewal to the first sale |
+| `tags` | optional | Up to 5 labels of your own, such as `{"plan": "pro"}`: lowercase names and values |
 | `test` | optional | `true` for a lead your own team made (a team account, a QA run): Skald keeps it and lists it, and never counts it. `false` or left out: a real lead. Only `true` or `false` (not `"true"`, not `1`); anything else is ignored, the lead counts, and the answer and the delivery log say so |
 
 Each stage keeps its own label: send it again with a later stage if that stage should carry it too. Leads and Summary (Count from: Tools) filter by label, and the lists of leads and conversions show it as a small tag.

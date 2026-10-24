@@ -406,6 +406,14 @@ def conversions_listing(config: dict, folder, site: str, kind: str, private: boo
                     "ORDER BY at LIMIT 200", (site, vid))] if vid else []
     for row in rows:
         for target in (row, row.get("row") or {}):
+            # 2.32: Stripe's payment reference is Skald's own join key, never shown;
+            # tags as an object.
+            target.pop("pay_ref", None)
+            if isinstance(target.get("tags"), str):
+                try:
+                    target["tags"] = json.loads(target["tags"])
+                except ValueError:
+                    target["tags"] = None
             if not full:
                 target.pop("email", None)
                 target.pop("name", None)

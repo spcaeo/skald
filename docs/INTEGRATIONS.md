@@ -456,7 +456,7 @@ The dashboard serves them at `POST <page>/integrations/leadfile` (below).
 | --- | --- | --- |
 | `external_ref` | required | the lead's own id in the site |
 | `action` | required | what was done, a lowercase token: `demo`, `trial`, `contact` |
-| `stage` | default `completed` | `started`, `completed`, `cancelled`, `rescheduled`, `no_show`, `paid`, `won`, `lost` (a `won` or `lost` row stands on its own and counts on its own `at`) |
+| `stage` | default `completed` | `started`, `completed`, `cancelled`, `rescheduled`, `no_show`, `paid`, `won`, `lost` (a `won` or `lost` row stands on its own and counts on its own `at`), `refunded` (2.32.0: a refund on the sale's `external_ref`, never a lead or a finish) |
 | `at` | default: when it arrived | ISO time with its offset (`2026-09-25T14:30:00-04:00`, `...Z`) or Unix seconds. A time without an offset (`2026-09-25`, `2026-09-25T08:00:00`) is read in the site's time zone (2.4.0; before, as UTC, which put a bare date on the day before for a site west of UTC); the delivery log says so, and so does the hook test. The same for `first_touch_at` and a touch's `at` |
 | `vid` | | the visitor ID the page had (`skv_...`, or the site's own ID). Kept only when the site has visitor IDs on (`beacon.visitor_ids`); off, it is dropped from the spool and the store (2.2.3) |
 | `first_touch`, `last_touch` | | `{referrer, landing, utm_source, utm_medium, utm_campaign, utm_content, utm_term, gclid, gbraid, wbraid, msclkid, fbclid, li_fat_id, at}`, each optional. `gbraid` and `wbraid` are Google Ads clicks from iOS: like `gclid`, they make the touch a paid Search engine visit |
@@ -467,6 +467,12 @@ The dashboard serves them at `POST <page>/integrations/leadfile` (below).
 | `name`, `email` | | kept only when the site's identity is `full` (Privacy, below) |
 | `label` | | 2.18: a short lowercase token that sorts the leads of one action, e.g. a contact form's topic (`sales`, `support`, `partnership`): `^[a-z0-9][a-z0-9_-]{0,39}$` (`conversions.LABEL`), trimmed and lower-cased first. Anything else (a longer one, a space, a number, an object) is no label: the lead is kept without one, never refused for it; the answer carries `"notes"` and the delivery log's error column says so (never the value sent). Each row keeps its own: a later stage of the same `external_ref` has the label it sends, else none. A resend of a kept ref and stage changes nothing, its label neither |
 | `test` | | 2.19: a JSON boolean. `true` keeps this delivery's row marked test (kept and listed, never counted); `false` or absent, a real lead. That row only: a later stage of the ref is test only if it says so too, or if the ref was marked (`leads/test`, `mark-test`). Not a boolean: ignored with a note, like `label`. A resend differing only in `test` changes nothing |
+
+| `value`, `currency` | | 2.32.0: a sale's amount, in the currency's normal units (`49.00`), at most its decimals, kept as integer minor units; ISO 4217 code, upper-cased, needed with `value`. A bad one is dropped with a note, never refused |
+| `customer_ref` | | 2.32.0: the customer's own ID, 1 to 128 of `[A-Za-z0-9_.:-]`, never an `@`. A `paid` whose customer paid before is a renewal |
+| `tags` | | 2.32.0: at most 5 `{key: value}` pairs, key `[a-z0-9_]{1,24}`, value `[a-z0-9_.-]{1,40}` lower-cased, never 7 or more digits in all (`-` and `.` not counted) nor an IP address's shape, and no key naming a person's detail (`email`, `phone`, a name); a bad pair is dropped with a note |
+
+The revenue fields, the rules and recipes for Polar, Dodo Payments, Paddle, Lemon Squeezy and Gumroad: [INTEGRATIONS-REVENUE.md](INTEGRATIONS-REVENUE.md).
 
 `json` takes the same object, a list of them, or `{"records": [...]}` (at most 100).
 
@@ -559,12 +565,19 @@ rest works as for Calendly above.
 ### Stripe
 
 Dashboard > Developers > Webhooks > Add endpoint. URL: the hook address.
-Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`.
+Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, and for
+revenue (2.32.0) `invoice.paid` (a renewal: `billing_reason` `subscription_cycle`, its invoice
+id as the ref), `invoice_payment.paid` (Stripe's API 2025-03-31 and later: it ties a renewal's
+payment intent to its invoice) and `charge.refunded` (stage `refunded` on the sale its
+`payment_intent` paid, the cumulative `amount_refunded` kept as the latest total; a larger
+total counts the difference on its own day, never past the sale's value).
 Then give Skald the endpoint's signing secret (`whsec_...`): paste it on the
 Integrations page, or `hooks secret example.com stripe --value -`. Set the visitor ID as the
 Checkout Session's `client_reference_id` (or `metadata.skv`). Action `paid`:
 a session paid by a delayed method counts as started first, then paid.
-Customer details are never read.
+2.32.0: the amount (`amount_total`, an invoice's `amount_paid`), the currency and the Stripe
+customer (`customer`, `cus_...`, as `customer_ref`) are kept, with the payment intent to match
+refunds. Customer details (name, email, address) are never read.
 
 ### Typeform
 
@@ -595,7 +608,8 @@ differ from the address HubSpot calls.
 
 ### Zapier, Make, n8n (`json`)
 
-Post the lead body (above) to `/traffic-hooks/example.com/json` with Skald's
+A sale adds `value`, `currency` and `customer_ref` (above; recipes per payment tool in
+[INTEGRATIONS-REVENUE.md](INTEGRATIONS-REVENUE.md)). Post the lead body (above) to `/traffic-hooks/example.com/json` with Skald's
 signature, or with the plain key (2.30, above): Zapier's "Webhooks by Zapier"
 POST, payload type json, header `Authorization: Bearer <secret>`. Zapier can
 also sign in a "Code by Zapier" (Python) step running the Python example

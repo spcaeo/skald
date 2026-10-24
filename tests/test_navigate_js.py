@@ -89,6 +89,13 @@ class Node(unittest.TestCase):
         Calendar bookings' rows."""
         self.assertIn("leadref: all passed", self.run_js("leadref.mjs"))
 
+    def test_revenue_per_currency_withheld_days_address_and_drawer(self):
+        """2.32.0 (js/tabs/sa-revenue.js, revfigs.js): money per currency in minor units by the
+        file's decimals, never converted or added across; withheld days said in the
+        conversions' words; currency, breakdown and tag in the address; copy and open on
+        landing pages; the how-to when no value was ever sent; the lead drawer's sale facts."""
+        self.assertIn("revenue: all passed", self.run_js("revenue.mjs"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -28,6 +28,9 @@
 //
 // 2.27: 7, 30 and 90 days are today so far and the whole days before it (sa-period.js): the
 // list holds today's leads, marked live; the change compares the period before to this hour.
+//
+// 2.32.0: a sale's drawer shows its value and currency, what was refunded on it, its customer
+// reference (with a copy icon) and its tags (saleFacts); the sums are on Revenue (sa-revenue.js).
 
 import { h, n, change, short, long } from "../ui.js";
 import * as S from "../state.js";
@@ -44,7 +47,8 @@ import { narrowConv, withFile, convLabels } from "./sa-pipeline.js";
 import { tabHead, optionsRow, select, toggles, listOf, emptyState } from "./sa-options.js";
 import { viewSwitch, viewOf } from "../viewswitch.js";
 import { board, timeline, map } from "./sa-views.js";
-import { withUrl } from "../urlactions.js";
+import { withUrl, withCopy } from "../urlactions.js";
+import { money } from "./revfigs.js";
 import { LEAD_DIMS, activeFilters, filteredBy, appliedWords, figureFile, listOnly, leadsWord, CLEAR_ALL } from "./sa-filters.js";
 import { refCell, afterMark } from "./leadref.js";
 import { leadsRange, headWords, sentenceWords, versusLive, liveNote, csvName } from "./sa-period.js";
@@ -120,11 +124,24 @@ export function columnsFor(names, today = "") {
   ];
 }
 
+/* A sale's own facts (2.32.0), only those it carries: its value and currency, what was refunded
+   on it, the customer reference your tool sent (an opaque ID, with its copy icon) and its tags. */
+export function saleFacts(x) {
+  const out = [];
+  if (x.value_minor != null && x.currency) out.push(["Value", h("span", { class: "mono" }, money(x.value_minor, x.currency), ` ${x.currency}`)]);
+  const back = x.refunded_currency || x.currency;
+  if (x.refunded_minor != null && back) out.push(["Refunded", money(x.refunded_minor, back)]);
+  if (x.customer_ref) out.push(["Customer", withCopy(h("span", { class: "mono lr-id" }, x.customer_ref), x.customer_ref, { label: `customer ${x.customer_ref}`, cls: "ua-after" })]);
+  const tags = Object.entries(x.tags && typeof x.tags === "object" ? x.tags : {});
+  if (tags.length) out.push(["Tags", h("span", null, tags.map(([k, v]) => h("span", { class: "lbl-tag", title: `Tag: ${k} = ${v}` }, `${k}: ${v}`)))]);
+  return out;
+}
+
 /* A lead in the visitor drawer: its steps (every stage the tools and the lead database
    reported), its pages up to the moment (the page script's, by its visitor ID), its facts. */
 export function openLead(x) {
   const facts = [["When", at(x.at)], ...(x.name || x.email ? [["Name", dash(x.name)], ["Email", dash(x.email)]] : []), ["What", h("span", null, oneAction(x.action || ""), labelTag(x.label))],
-    ["Stage now", stageWords(x)], ["From", toolName(x.tool || "")], ["Source (last touch)", dash(x.source)], ["First touch", dash(x.first_source)],
+    ...saleFacts(x), ["Stage now", stageWords(x)], ["From", toolName(x.tool || "")], ["Source (last touch)", dash(x.source)], ["First touch", dash(x.first_source)],
     ["Campaign", dash(x.campaign)], ["Landing page", x.landing ? withUrl(h("span", { class: "mono" }, x.landing), x.landing, { cls: "ua-after" }) : "-"], ["Country", x.country ? countryWords(x.country) : "-"], ["Device", dash(x.device)]];
   // In the address by its row id (lead=1287: js/overlays.js), never a name or an email.
   // id, ref and test (2.25): its reference, every step of it and Mark as test (leadref.js).

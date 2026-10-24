@@ -372,7 +372,7 @@ class _Maker:
             self.ev(t + 6 * s, "signup_start", cur, vid, host, utm, vw, id="signup_form")
             if rnd.random() < (0.55 if nvisits > 1 else 0.2):
                 if rnd.random() < 0.25:
-                    T.hooks.append((t + timedelta(hours=rnd.choice([1, 5, 30, 70, 150])), "stripe", {"vid": vid}))
+                    T.hooks.append((t + timedelta(hours=rnd.choice([1, 5, 30, 70, 150])), "stripe", {"vid": vid, "last": last}))
                 at = t + timedelta(seconds=rnd.randrange(40, 160))
                 self.form_sent(at, "signup", cur, cc)
                 T.leads.append({"at": at, "type": "signup", "vid": vid,

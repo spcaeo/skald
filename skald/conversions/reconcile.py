@@ -26,7 +26,11 @@ Parameters (each at most once; any other name is refused):
 
 Answer: {"ok", "site", "since", "at_since", "at_until", "limit", "rows",
 "next_cursor"}, rows {external_ref, action, stage, at, label, test,
-received_at} ordered by received_at, then the row's id. Rows marked test are
+received_at, value, value_minor, currency, customer_ref, tags} ordered by
+received_at, then the row's id. Since 2.32: `value` is the amount kept in the
+currency's major units as exact text ("49.99"), `value_minor` the same in
+whole minor units, `tags` an object; each null when none was kept (a
+`refunded` row's value is the total refunded so far). Rows marked test are
 in it (test: true). Never an email, a name, an address, a user agent, a
 visitor ID or a source. The cursor is the last row's (received_at, id),
 opaque: a new lead arrives after it, so paging never skips or repeats one.
@@ -34,17 +38,20 @@ opaque: a new lead arrives after it, so paging never skips or repeats one.
 from __future__ import annotations
 
 import base64
+import json
 import re
 from urllib.parse import parse_qsl
 
-from . import store
+from . import money, store
 from .adapters import when
 
 PATH = re.compile(r"^/traffic-hooks/([A-Za-z0-9][A-Za-z0-9._-]{0,99})/leads$")
 TOOL = "lead"
 LIMIT, MAX_LIMIT = 200, 500
 PARAMS = ("since", "at_since", "at_until", "cursor", "limit")
-ROW_KEYS = ("external_ref", "action", "stage", "at", "label", "test", "received_at")
+STORED_KEYS = ("external_ref", "action", "stage", "at", "label", "test", "received_at")
+# 2.32: the money kept (`value` is value_minor as exact major-unit text).
+ROW_KEYS = STORED_KEYS + ("value", "value_minor", "currency", "customer_ref", "tags")
 _STAMP = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
 
 
@@ -119,5 +126,12 @@ def answer(db_path, site: str, query: dict) -> dict:
     last = rows[-1] if rows else None
     return {"ok": True, "site": site, "since": query["since"], "at_since": query["at_since"],
             "at_until": query["at_until"], "limit": query["limit"],
-            "rows": [{**{k: r[k] for k in ROW_KEYS}, "test": bool(r["test"])} for r in rows],
+            "rows": [_row(r) for r in rows],
             "next_cursor": cursor_for(last["received_at"], last["id"]) if more else None}
+
+
+def _row(r: dict) -> dict:
+    return {**{k: r[k] for k in STORED_KEYS}, "test": bool(r["test"]),
+            "value": money.shown(r["value_minor"], r["currency"]),
+            "value_minor": r["value_minor"], "currency": r["currency"],
+            "customer_ref": r["customer_ref"], "tags": json.loads(r["tags"]) if r["tags"] else None}

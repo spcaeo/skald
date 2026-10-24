@@ -7,6 +7,7 @@
 //                      (sa-leads.js, sa-views.js); names and emails for admins and owners
 //   Summary            how many, and is it better than before? (sa-pipeline.js)
 //   Sources            where did they come from? (sa-pipeline.js)
+//   Revenue            which sources, pages and campaigns made money? (sa-revenue.js, 2.32.0)
 //   Calendar bookings  who booked a call? Calendly, Cal.com, Stripe (sa-bookings.js)
 //   Find a person      everything kept about one person (sa-people.js)
 //
@@ -18,6 +19,7 @@
 
 import { summary, sources, tools } from "./sa-pipeline.js";
 import leadsTab from "./sa-leads.js";
+import revenue from "./sa-revenue.js";
 import bookings from "./sa-bookings.js";
 import people from "./sa-people.js";
 import funnels from "./funnels.js";
@@ -33,6 +35,7 @@ export default [
   ["leads", "Leads", leadsTab, { file: "conversions", filters: ["country", "source", "device", "campaign"], chips: "tab", keep: ["lact", "llabel", "lnow", "lby", "lshow", "lview", "lsplit"] }],
   ["summary", "Summary", summary, { file, filters, keep: ["lsrc", "lact", "llabel", "lstage"], compare: true }],
   ["sources", "Sources", sources, { file, filters, keep: ["lsrc", "lact", "llabel", "lstage"] }],
+  ["revenue", "Revenue", revenue, { file: "conversions", filters: [], keep: ["cur", "by", "tag"] }],
   ["bookings", "Calendar bookings", bookings, { file: "conversions", filters: [], keep: ["bact", "bshow"] }],
   ["funnels", "Funnels", funnels, { file: "funnels", filters: ALL, rules: "visit", keep: ["fn", "fsrc", "fstep", "fmode"] }],
   ["events", "Events", events, { file: "events", filters: ["path", "source"] }],

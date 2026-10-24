@@ -15,6 +15,11 @@ ref     your own id for the lead (the same lead always sends the same id)
 action  a short lowercase word: "contact", "demo", "signup", "trial"
 extra   any other field, such as label="sales", stage="won", test=True,
         vid=request.cookies.get("skald_vid"). See README.md.
+        Money (Skald 2.32): value=49.99, currency="USD" (the amount in the
+        currency's units), customer_ref="your-customer-id" (never an email),
+        tags={"plan": "pro"}. A renewal: stage="paid" with the invoice's own
+        ref and the same customer_ref. A refund: stage="refunded" on the
+        sale's ref, value = the total refunded so far (no value: all of it).
 """
 import hashlib
 import hmac
@@ -42,7 +47,7 @@ def skald_lead(ref, action, email=None, name=None, **extra):
             lead["name"] = str(name)
         if "vid" in lead and not VID.match(str(lead["vid"] or "")):
             del lead["vid"]
-        body = json.dumps(lead).encode("utf-8")
+        body = json.dumps(lead, default=str).encode("utf-8")   # a Decimal value as its text
         t = str(int(time.time()))
         sig = hmac.new(secret.encode("utf-8"), t.encode() + b"." + body,
                        hashlib.sha256).hexdigest()

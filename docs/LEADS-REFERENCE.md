@@ -147,12 +147,16 @@ curl -sS "https://stats.example.com$TARGET" -H "X-Skald-Signature: t=$T,v1=$SIG"
  "at_until": null, "limit": 200,
  "rows": [{"external_ref": "u-1001", "action": "signup", "stage": "completed",
            "at": "2026-10-19T14:30:00Z", "label": null, "test": false,
-           "received_at": "2026-10-19T14:30:02Z"}],
+           "received_at": "2026-10-19T14:30:02Z", "value": "49.99", "value_minor": 4999,
+           "currency": "USD", "customer_ref": "cust_1001", "tags": {"plan": "pro"}}],
  "next_cursor": null}
 ```
 
 Rows never carry an email, name, address, user agent, visitor ID or source. Test rows are in
-it with `"test": true`. Rows pruned (older than 400 days) or forgotten are not.
+it with `"test": true`. Since 2.32 each row carries the money kept: `value` (exact text in the
+currency's units), `value_minor` (whole minor units), `currency`, `customer_ref`, `tags`; each
+`null` when none was kept. A `refunded` row's value is the total refunded so far, never more than
+its sale. Rows pruned (older than 400 days) or forgotten are not.
 
 **Mark test** (`conversions/marks.py`), signed like a POST. Body takes only `refs` (1 to 100)
 and `test` (a JSON boolean, default `true`; `false` unmarks):
@@ -201,17 +205,40 @@ secret; without one it answers 404.
 | `json` | Zapier, Make, n8n, scripts | the same as `lead`; body one lead, a list, or `{"records": [...]}` (at most 100) |
 | `calendly` | Calendly webhook subscriptions | `Calendly-Webhook-Signature: t=..,v1=..` (the same scheme), 300 s; secret = the subscription's `signing_key` |
 | `calcom` | Cal.com webhooks | `X-Cal-Signature-256: <hex HMAC-SHA256(body)>` (an optional `sha256=` prefix); no timestamp, so a body seen in the last 30 days is a replay |
-| `stripe` | Stripe Checkout | `Stripe-Signature: t=..,v1=..`, 300 s; secret = the endpoint's `whsec_...`, pasted in |
+| `stripe` | Stripe Checkout, subscriptions and refunds | `Stripe-Signature: t=..,v1=..`, 300 s; secret = the endpoint's `whsec_...`, pasted in |
 | `typeform` | Typeform webhooks | `Typeform-Signature: sha256=<base64 HMAC-SHA256(body)>`; no timestamp, replay check as Cal.com |
 | `hubspot` | HubSpot app and workflow webhooks | `X-HubSpot-Signature-v3` (base64 HMAC-SHA256 of method + URI + body + timestamp) with `X-HubSpot-Request-Timestamp` in ms, 300 s; secret = the app's client secret, pasted in |
 
 What each provider event becomes (`conversions.EVENTS`): Calendly `invitee.created` demo
 completed, `invitee.canceled` cancelled (or rescheduled), `invitee_no_show.created` no_show;
 Cal.com `BOOKING_CREATED` / `CANCELLED` / `RESCHEDULED`; Stripe `checkout.session.completed`
-paid (started while unpaid), `async_payment_succeeded` paid; Typeform `form_response` contact
+paid (started while unpaid), `async_payment_succeeded` paid, (2.32) `invoice.paid` with
+`billing_reason` `subscription_cycle` paid (a renewal), `charge.refunded` refunded,
+`invoice_payment.paid` no row (it joins a payment to its invoice); Typeform `form_response` contact
 completed; HubSpot `contact.creation` contact, a meeting (`0-47`) demo, a deal moved to
 `closedwon` deal won, a workflow contact (or its `skald_action`). Other events are taken and
 ignored.
+
+**Stripe: the events to subscribe the endpoint to** (Developers › Webhooks › the endpoint ›
+Events): `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+`invoice.paid`, `charge.refunded` and `invoice_payment.paid`. Since 2.32 each keeps its money: a checkout's
+`amount_total` (its ref the Checkout Session id), a renewal's `amount_paid` (its ref the
+invoice id; the first invoice of a subscription is the checkout's sale, not a renewal), in
+Stripe's smallest unit (ISK and UGX are sent in hundredths and divided by 100), the
+`currency`, `customer_ref` = the `customer` id (`cus_...`) and the payment intent, so a refund
+finds its sale. `charge.refunded` carries the total refunded so far (`amount_refunded`): one
+`refunded` row per sale, raised by a later, larger total, never a second row; each rise counts
+on the day it arrived. Stripe sends `charge.refunded` for every charge of the account: a refund
+whose sale never reached Skald is kept, never subtracted, and counted in conversions.json's
+`refunds_without_sale`. A refund that arrives before its sale is moved onto it when the sale
+comes. Since Stripe's API version 2025-03-31 ("basil") an Invoice has no `payment_intent` and a
+Charge no `invoice`, so a renewal's refund names only its payment intent. Stripe's
+`invoice_payment.paid` (an InvoicePayment: `invoice` and `payment.payment_intent`) joins the
+two: subscribe to it, or a basil renewal's refund stays without its sale. Older API versions
+send both fields and need no link. A renewal's
+visitor ID is the subscription's `metadata.skv` when set; without it the renewal is joined to
+its first sale by the customer id when lifetime value is counted. Customer details (name,
+email, address) are never read.
 
 ### 3.2 The lead body (`lead` and `json`, `adapters/lead.py`)
 
@@ -219,7 +246,7 @@ ignored.
 | --- | --- | --- |
 | `external_ref` | required | the lead's own id, text, trimmed, at most 120 characters |
 | `action` | required | a lowercase token `^[a-z0-9][a-z0-9_.:-]{0,39}$`. Aliases: `booking`, `meeting`, `demo_booked`, `call_booked` read as `demo`; `checkout`, `payment` as `paid`; `form`, `contact_form` as `contact`; `sign_up` as `signup` |
-| `stage` | default `completed` | one of `started`, `completed`, `cancelled`, `rescheduled`, `no_show`, `paid`, `won`, `lost` |
+| `stage` | default `completed` | one of `started`, `completed`, `cancelled`, `rescheduled`, `no_show`, `paid`, `won`, `lost`, `refunded` (2.32: money given back on the sale with the same `external_ref`; it counts only once that sale is kept, in the sale's currency) |
 | `at` | default: when it arrived | ISO 8601 with an offset (`...Z`, `...-04:00`) or Unix seconds (milliseconds accepted). Without an offset it is read in the site's time zone, and the delivery log says so. More than a day in the future: 400 |
 | `vid` | | the visitor ID the page had (`skald('id')` in the browser gives the `skv_...` one), or the site's own ID: `^[A-Za-z0-9_.:-]{8,80}$`, else dropped. Dropped too when the site has visitor IDs off (`beacon.visitor_ids`) |
 | `first_touch`, `last_touch` | | objects with `referrer`, `landing`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`, `gclid`, `gbraid`, `wbraid`, `msclkid`, `fbclid`, `li_fat_id`, `at`. The source comes from `last_touch` (else `first_touch`) |
@@ -231,6 +258,10 @@ ignored.
 | `name`, `email` | | kept only when the site's `conversions.identity` is `full`; else dropped before anything is written |
 | `label` | | a short token `^[a-z0-9][a-z0-9_-]{0,39}$`, trimmed and lower-cased. Anything else: kept without a label, with a note |
 | `test` | | a JSON boolean. `true`: this row is kept and listed, never counted. Anything else but `false`/`null`: ignored, with a note |
+| `value` | (2.32) | the money, in the currency's major units: a JSON number (`49.99`) or a numeric string (`"49.99"`), at least 0, with no more decimals than the currency has (JPY 0, USD 2, KWD 3). Kept as whole minor units (`4999`), at most 10^12; text longer than 30 characters is never read. On a `refunded` row: the total refunded so far, in the sale's currency; left out, the whole sale. More than the sale: kept as the sale's value, with a note; in another currency than the sale's: kept without a value, with a note. Not one (`"49.999"` in USD, `-1`, `"1e3"`, `"1,000"`, `true`): kept without a value, with a note |
+| `currency` | with `value` | ISO 4217, three letters, upper-cased first (`usd` is `USD`). Missing or not an ISO code: the value and the currency are dropped, with a note. Skald never converts currencies |
+| `customer_ref` | (2.32) | the customer's own opaque id in your app, `^[A-Za-z0-9_.:-]{1,128}$` (a number is read as text). Never an email, a phone number or an address: one with `@`, one shaped like an IPv4 address (`198.51.100.7`), one of only digits and `+ ( ) . -` with 7 or more digits (`15551234567`, `555.123.4567`), or anything else, is dropped with a note, in the store and the spool. Ids such as `cus_9`, `c_10293847` or a UUID are kept. Joins a renewal to the first sale |
+| `tags` | (2.32) | an object of at most 5 `{key: value}`: key `^[a-z0-9_]{1,24}$`, value a token `^[a-z0-9_.-]{1,40}$`, both lower-cased. Never a phone number, an address or a personal key: a value with 7 or more digits in all (`555-123-4567`, `555.123.4567`), a value shaped like an IPv4 address (`192.0.2.10`) and a key such as `phone`, `email` or `ip` are not tags, in the store or the spool. A bad tag (or a sixth, by key order) is dropped with a note, the others kept. Stored sorted, as canonical JSON |
 
 Any other key is dropped before the body is spooled.
 
@@ -238,10 +269,10 @@ Any other key is dropped before the body is spooled.
 
 | Status | Body | When |
 | --- | --- | --- |
-| 200 | `{"ok":true,"recorded":1,"duplicates":0}` | kept. `"notes":[...]` is added when a `label` or `test` was ignored |
+| 200 | `{"ok":true,"recorded":1,"duplicates":0}` | kept (or a `refunded` row's total raised). `"notes":[...]` is added when a `label`, `test`, `value`/`currency`, `customer_ref` or tag was ignored, or a refund was cut to its sale's value or kept without a value (another currency than the sale's) |
 | 200 | `{"ok":true,"recorded":0,"duplicates":1}` | Skald has that ref and stage already (or a Cal.com/Typeform replay); nothing changed |
 | 200 | `{"ok":true,"recorded":0,"duplicates":0,"outcome":"ignored: other event type"}` | Calendly/Cal.com with the site's event types named, another type |
-| 200 | `{"ok":true,"test":true,"records":1,"would_keep":1,"notes":[...],"read":[{action, stage, at, vid, source_type, campaign, country, device, label, test}]}` | the request had `X-Skald-Test: 1` (still signed): checked and read, never kept or counted |
+| 200 | `{"ok":true,"test":true,"records":1,"would_keep":1,"notes":[...],"read":[{action, stage, at, vid, source_type, campaign, country, device, label, test, value_minor, currency, customer_ref, tags}]}` | the request had `X-Skald-Test: 1` (still signed): checked and read, never kept or counted |
 | 400 | `{"error":"..."}` (and `"test":true` for a test) | not JSON, or the body breaks a rule (no `external_ref`, a bad `action` or `stage`, `at` not a time or a day ahead, over 100 records) |
 | 401 | `{"error":"bad signature"}` | wrong or missing signature, or `t` more than 300 s off |
 | 404 | `{"error":"not found"}` | unknown site or tool, no secret, or a site waiting for domain verification |
@@ -271,6 +302,28 @@ without leaving a row.
   a lead action is one lead (since 2.26.0; before, two): the later row is a step of it, listed
   in its drawer, left out of Leads, Every action and the breakdowns. Another action (`paid`,
   `deal`, `lead`, `purchase`...) is a conversion, never a lead, and counts every row.
+- **Money (2.32).** A sale is a finished row (`completed` or `paid`) with a `value`, counted
+  once per (tool, `external_ref`): the `paid` row when it carries a value, else the
+  `completed` one. So a sign-up sent `completed` and then `paid` with the amount is one lead
+  and one sale. A refund is `stage: "refunded"` on the sale's `external_ref`, with `value`
+  the total refunded so far (send 10, then 25 for a second partial refund of 15; a smaller
+  or repeated total changes nothing; no `value`: the whole sale). Each part counts on the day
+  it arrived (the 10 on its day, the 15 on the later one), against the sale's source, campaign
+  and the rest. A refund counts only once its sale is kept, in the sale's currency, and never
+  more than the sale; a refund of 0 is no refund. One sent before its sale waits for it
+  (conversions.json's `refunds_without_sale` until then) and is then moved onto it; if the
+  sale then cuts it to its value, or empties it for another currency, no note is sent (the
+  refund's answer went out before the sale was known). A refund kept without a value (not
+  readable, or another currency than its sale) stays in `refunds_without_sale`. **Renewals:** send each renewal as a new
+  `paid` row with its own `external_ref` (the invoice's id) and the same `customer_ref`; the
+  first sale of a `customer_ref` in a currency is a new customer, every later one a renewal.
+  Money is summed per currency, never converted. Test rows and removed rows are never money.
+  Example:
+
+  ```json
+  {"external_ref": "inv_2026_10", "action": "signup", "stage": "paid", "value": "49.00",
+   "currency": "USD", "customer_ref": "cust_1001", "tags": {"plan": "pro"}}
+  ```
 - **Abandoned.** A `started` row with a visitor ID and no `completed` or `paid` of the same
   action, by the same visitor ID or identity, within 24 hours (`conversions.abandon_hours`).
   Counted only once the window has closed; never without a visitor ID; worked out at each
@@ -385,9 +438,16 @@ existed is "not recorded", never zero.
   resend of a kept stage keeps the first action.
 - **Send two actions with the same stage for one ref** (`signup` `started`, then `trial`
   `started`). The second is a duplicate and is dropped. Use one action per ref.
-- **Send `completed` and `paid` for the same ref under a lead action** to count a payment. It
-  is one lead (since 2.26.0; before, two), and the `paid` is only a step of it, in no count.
-  Report a payment as its own action (`paid`).
+- **Send `completed` and `paid` for the same ref under a lead action** to count a payment
+  without a `value`. It is one lead (since 2.26.0; before, two), and the `paid` is only a step
+  of it, in no lead count. Since 2.32 send the amount on the `paid` row (`value`, `currency`):
+  it is then the sale, in Revenue, while the lead stays one.
+- **Send a refund as a negative value, or each partial refund on its own.** Send `refunded`
+  with the running total (10, then 25), never -10, and never a second ref for it.
+- **Put an email, a phone number or a name in `customer_ref` or `tags`.** They are dropped, but
+  they should not leave the app at all. Use your own opaque customer id.
+- **Add up two currencies.** Skald never converts: send each sale in the currency it was paid
+  in, and read Revenue per currency.
 - **Send names or emails where the site's identity is not `full`.** They are dropped, but they
   should not leave the app at all.
 - **Exceed the rate limits.** Each hook is a token bucket: 30 at once (`hooks.burst`), then

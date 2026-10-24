@@ -68,6 +68,8 @@ from ..config import setting, site_name
 from . import LEAD_SHAPED, MAX_BODY, TOOLS, event_types, geo, marks, reconcile, spool, store
 from .adapters import Invalid, adapter
 from .adapters.lead import LABEL_NOTE, TEST_NOTE, keyed, verify_get, verify_key
+from .money import (CUSTOMER_NOTE, REFUND_CURRENCY_NOTE, REFUND_OVER_NOTE, TAGS_NOTE,
+                    VALUE_NOTE)
 from .normalise import row as make_row
 from .secrets_store import Exposed, find
 
@@ -422,7 +424,7 @@ class Receiver:
             self._bad_signature(site, tool, headers)
             return 401, {"error": "bad signature"}
         try:
-            payload = json.loads(body.decode("utf-8"))
+            payload = json.loads(body.decode("utf-8"), parse_int=_whole)
         except (UnicodeDecodeError, ValueError):
             self._log(site, tool, "bad_body", 400, "not JSON", at=received)
             return 400, {"error": "not JSON"}
@@ -473,26 +475,33 @@ class Receiver:
         except Invalid as why:
             self._log(site, tool, "bad_body", 400, str(why), at=received)
             return 400, {"error": str(why)}
-        if not rows:
+        # Stripe's invoice_payment.paid: no conversion, a payment's link to its invoice.
+        links = mod.links(payload) if bad is None and hasattr(mod, "links") else []
+        if not rows and not links:
             self._log(site, tool, "ignored", 200, at=received)
             return 200, {"ok": True, "recorded": 0, "duplicates": 0}
+        said: list = []
         try:
             db = store.connect(self.db_path)
             try:
-                kept = [store.record_conversion(db, r) for r in rows]
+                if links:
+                    store.link_payments(db, site, tool, links, received)
+                kept = [store.record_conversion(db, r, said) for r in rows]
                 new = sum(kept)
                 if digest:
                     store.keep_replay(db, site, digest, received)
-                notes = soft_notes(records, tz)
-                store.log_delivery(db, site, tool, "recorded" if new else "duplicate", 200,
-                                   "; ".join(notes) or None, rows[0]["external_ref"], received)
+                notes = soft_notes(records, tz) + [n for n in dict.fromkeys(said)]
+                store.log_delivery(db, site, tool, "recorded" if new or links else "duplicate",
+                                   200, "; ".join(notes) or None,
+                                   rows[0]["external_ref"] if rows else links[0][0], received)
             finally:
                 db.close()
         except Exception as why:            # noqa: BLE001 - the tool will send again
             self._log(site, tool, "error", 500, f"store: {type(why).__name__}", at=received)
             return 500, {"error": "not kept, send again"}
         out = {"ok": True, "recorded": new, "duplicates": len(kept) - new}
-        notes = [n for n in soft_notes(records, tz) if n in (LABEL_NOTE, TEST_NOTE)]
+        notes = [n for n in soft_notes(records, tz) + list(dict.fromkeys(said))
+                 if n in SENDER_NOTES]
         if notes:
             out["notes"] = notes
         return 200, out
@@ -525,7 +534,9 @@ class Receiver:
                      "would_keep": len(kept), "notes": notes,
                      "read": [{k: r.get(k) for k in ("action", "stage", "at", "vid",
                                                      "source_type", "campaign", "country",
-                                                     "device", "label", "test")}
+                                                     "device", "label", "test",
+                                                     "value_minor", "currency",
+                                                     "customer_ref", "tags")}
                               for r in kept[:5]]}
 
     def _booked(self, site: str, tool: str, ref: str) -> bool:
@@ -572,6 +583,13 @@ class Receiver:
         return tz
 
 
+def _whole(text: str):
+    """A JSON integer; one too long to be any figure (Python refuses past 4300
+    digits) is kept as its text, which no reader takes for an amount: the
+    lead is kept without it, never the whole body refused."""
+    return int(text) if len(text) <= 100 else text
+
+
 def naive_note(tz) -> str:
     return f"a time without an offset was read in the site's zone, {tz}"
 
@@ -585,7 +603,16 @@ def soft_notes(records: list[dict], tz) -> list[str]:
         out.append(LABEL_NOTE)
     if any(r.get("test_dropped") for r in records):
         out.append(TEST_NOTE)
+    for flag, note in (("value_dropped", VALUE_NOTE), ("customer_dropped", CUSTOMER_NOTE),
+                       ("tags_dropped", TAGS_NOTE)):
+        if any(r.get(flag) for r in records):
+            out.append(note)
     return out
+
+
+# The notes a lead's sender gets back in the answer (what was kept, but not as sent).
+SENDER_NOTES = (LABEL_NOTE, TEST_NOTE, VALUE_NOTE, CUSTOMER_NOTE, TAGS_NOTE, REFUND_OVER_NOTE,
+                REFUND_CURRENCY_NOTE)
 
 
 _RECEIVERS: dict = {}

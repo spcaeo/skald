@@ -11,6 +11,7 @@ Everything about results sits in **Leads & sales** in the menu. Each tab answers
 | [Leads](#sales/leads) | Who are my leads? One row per lead: when, who (name and email, owners and admins), what they did, its stage now, where it came from |
 | [Summary](#sales/summary) | How many leads came in, and is it better than before? |
 | [Sources](#sales/sources) | Where did the leads come from? First, last and assisted touch, the time to convert, the pages seen before |
+| [Revenue](#sales/revenue) | Which sources, pages and campaigns made money? Sales with a value, per currency, refunds taken off, new customers, renewals and lifetime value. See [Revenue](revenue.md) |
 | [Calendar bookings](#sales/bookings) | Who booked a call? Bookings made through Calendly and Cal.com, step by step, and payments Stripe reports where your site sends them |
 | [Funnels](#sales/funnels) | Any series of pages and events. See [Funnels and goals](funnels-and-goals.md) |
 | [Events](#sales/events) | What visitors did inside your pages, from the script tag |

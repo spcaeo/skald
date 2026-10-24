@@ -31,7 +31,7 @@ const tick = () => new Promise((r) => setTimeout(r, 5));
 
 // ---- 1. the period a section opens on
 const SALES = S.SECTIONS.find((x) => x.key === "sales").tabs.map(([k]) => k);
-assert.deepEqual(SALES, ["sales/leads", "sales/summary", "sales/sources", "sales/bookings", "sales/funnels", "sales/events", "sales/people"]);
+assert.deepEqual(SALES, ["sales/leads", "sales/summary", "sales/sources", "sales/revenue", "sales/bookings", "sales/funnels", "sales/events", "sales/people"]);
 for (const tab of SALES) assert.equal(go(`#${tab}`).range, "7d", `${tab} with no range opens on 7 days`);
 assert.equal(go("#sales").range, "7d", "the bare section too");
 for (const tab of ["overview/summary", "traffic/sources", "ai/assistants", "site/health"]) assert.equal(go(`#${tab}`).range, "today", `${tab} keeps Today`);

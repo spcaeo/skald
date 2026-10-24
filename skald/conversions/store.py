@@ -6,7 +6,10 @@ with their address (people/visits.py, `visits` and `visit_days`), the rows
 a sync removed (`removed`) and the `test` mark on a conversion; since 2.18
 a lead's `label` (the lead hook's optional token; each row its own, a later
 stage never takes an earlier one's) and `hook_rows`, a hook's rows in the
-order they arrived (GET /traffic-hooks/<site>/leads, reconcile.py).
+order they arrived (GET /traffic-hooks/<site>/leads, reconcile.py); since
+2.32 (schema 9, the tables in schema.py) a row's money: `value_minor` in
+`currency`, the sender's `customer_ref` and `tags`, Stripe's `pay_ref`, and
+the stage `refunded` (one row per sale, record_conversion).
 
 Beside the history (`conversions.db` to move it), apart from it because it
 may hold personal data. 0640. Opened with `connect(path)` once per call
@@ -42,9 +45,14 @@ from pathlib import Path
 
 from ..config import setting
 from ..files import own_like_folder
-from . import ALIASES, FINISHED, STAGES
+from . import FINISHED, REFUNDED, STAGES
+from .money import REFUND_CURRENCY_NOTE, REFUND_OVER_NOTE
+# The tables and their upgrades (schema.py, split out in 2.32), re-exported.
+from .schema import (COLUMNS, CONVERSIONS, CONVERSIONS_V2, CONVERSIONS_V8,  # noqa: F401
+                     CONVERSIONS_V9, INDEXES, MONEY_INDEXES, MONEY_TABLES, PEOPLE_TABLES,
+                     RECEIVED_INDEX,
+                     SCHEMA, SCHEMA_STAMP, SCHEMA_VERSION, SECURITY_TABLES, UPGRADES)
 
-SCHEMA_VERSION = 8
 STAMP = "%Y-%m-%dT%H:%M:%SZ"
 FILE = "conversions.sqlite"
 VID_DAYS = 30
@@ -54,147 +62,6 @@ REPLAY_DAYS = 30         # a Cal.com/Typeform body's hash is kept this long
 ABANDON_HOURS = 24
 TEST_MARKED = 1          # marked (CLI or leads/test): later deliveries of the ref follow
 TEST_SENT = 2            # the delivery itself said test: true; that row only
-
-CONVERSIONS_V2 = """CREATE TABLE IF NOT EXISTS {name} (
-  id INTEGER PRIMARY KEY, site TEXT NOT NULL, action TEXT NOT NULL,
-  stage TEXT NOT NULL CHECK (stage IN ('started', 'completed', 'cancelled',
-                                       'rescheduled', 'no_show', 'paid', 'won', 'lost')),
-  at TEXT NOT NULL, vid TEXT, external_ref TEXT NOT NULL, tool TEXT NOT NULL,
-  source_type TEXT, first_source TEXT, campaign TEXT, landing TEXT, country TEXT,
-  device TEXT, first_touch_at TEXT, visits_before INTEGER, identity_id INTEGER
-    REFERENCES identities(id) ON DELETE SET NULL,
-  received_at TEXT NOT NULL,
-  UNIQUE (site, tool, external_ref, stage));
-"""
-# Schema 4: `test` (1: kept and listed, never counted), added by ALTER to an
-# older file, part of the table for a new one.
-# Schema 7 (2.18): `label`, the lead hook's optional token (conversions.LABEL;
-# NULL: none), added the same way.
-CONVERSIONS = CONVERSIONS_V2.replace(
-    "  received_at TEXT NOT NULL,\n",
-    "  received_at TEXT NOT NULL, test INTEGER NOT NULL DEFAULT 0, label TEXT,\n")
-INDEXES = """
-CREATE INDEX IF NOT EXISTS conversions_at ON conversions (site, at);
-CREATE INDEX IF NOT EXISTS conversions_vid ON conversions (site, vid);
-"""
-# Schema 7: a hook's rows in the order Skald got them (GET .../leads, reconcile.py).
-RECEIVED_INDEX = ("CREATE INDEX IF NOT EXISTS conversions_received ON conversions "
-                  "(site, tool, received_at, id)")
-
-# Schema 4 (2.4.0): each reader's visit with its address and user agent
-# (people/visits.py; written only while the site keeps them), the days
-# written, and the rows a sync removed, kept whole.
-PEOPLE_TABLES = """CREATE TABLE IF NOT EXISTS visits (
-  id INTEGER PRIMARY KEY, site TEXT NOT NULL, day TEXT NOT NULL, seq INTEGER NOT NULL,
-  ip TEXT NOT NULL, user_agent TEXT, start TEXT NOT NULL, end TEXT NOT NULL,
-  source TEXT, via TEXT, referrer TEXT, campaign TEXT, landing TEXT, exit TEXT,
-  country TEXT, device TEXT, browser TEXT, os TEXT, pages INTEGER NOT NULL,
-  seconds INTEGER, trail TEXT NOT NULL, posts TEXT, city TEXT, UNIQUE (site, day, seq));
-CREATE INDEX IF NOT EXISTS visits_ip ON visits (site, ip, start);
-CREATE INDEX IF NOT EXISTS visits_day ON visits (day);
-CREATE TABLE IF NOT EXISTS visit_days (
-  site TEXT NOT NULL, day TEXT NOT NULL,
-  state TEXT NOT NULL CHECK (state IN ('whole', 'today')),
-  visits INTEGER NOT NULL, pages INTEGER NOT NULL, written_at TEXT NOT NULL,
-  PRIMARY KEY (site, day));
-CREATE TABLE IF NOT EXISTS removed (
-  id INTEGER PRIMARY KEY, site TEXT NOT NULL, removed_at TEXT NOT NULL, why TEXT NOT NULL,
-  conversion_id INTEGER, tool TEXT, external_ref TEXT, vid TEXT, action TEXT, stage TEXT,
-  at TEXT, row TEXT NOT NULL);
-CREATE INDEX IF NOT EXISTS removed_site ON removed (site, removed_at);
-CREATE INDEX IF NOT EXISTS removed_ref ON removed (site, external_ref);
-"""
-
-# Schema 8 (2.21): the addresses behind Security's suspect rows (security_kept.py;
-# written only while the site keeps addresses): one row per (day, seq) of the
-# day kind `security`'s `who` list, and the days written.
-SECURITY_TABLES = """CREATE TABLE IF NOT EXISTS security_rows (
-  site TEXT NOT NULL, day TEXT NOT NULL, seq INTEGER NOT NULL, ip TEXT NOT NULL,
-  user_agent TEXT, PRIMARY KEY (site, day, seq));
-CREATE INDEX IF NOT EXISTS security_rows_ip ON security_rows (ip);
-CREATE TABLE IF NOT EXISTS security_days (
-  site TEXT NOT NULL, day TEXT NOT NULL,
-  state TEXT NOT NULL CHECK (state IN ('whole', 'today')),
-  rows INTEGER NOT NULL, written_at TEXT NOT NULL, PRIMARY KEY (site, day));
-"""
-
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-""" + CONVERSIONS.format(name="conversions") + INDEXES + RECEIVED_INDEX + """;
-CREATE TABLE IF NOT EXISTS journeys (
-  vid TEXT NOT NULL, site TEXT NOT NULL, at TEXT NOT NULL, path TEXT NOT NULL,
-  source_type TEXT, via TEXT);
-CREATE INDEX IF NOT EXISTS journeys_vid ON journeys (site, vid, at);
-CREATE INDEX IF NOT EXISTS journeys_at ON journeys (at);
-CREATE INDEX IF NOT EXISTS journeys_site_at ON journeys (site, at);
-CREATE TABLE IF NOT EXISTS identities (
-  id INTEGER PRIMARY KEY, site TEXT NOT NULL, email_hash TEXT NOT NULL,
-  email TEXT, name TEXT, created_at TEXT NOT NULL, UNIQUE (site, email_hash));
-CREATE TABLE IF NOT EXISTS deliveries (
-  id INTEGER PRIMARY KEY, site TEXT NOT NULL, tool TEXT NOT NULL,
-  received_at TEXT NOT NULL, outcome TEXT NOT NULL, http_status INTEGER NOT NULL,
-  error TEXT, external_ref TEXT);
-CREATE INDEX IF NOT EXISTS deliveries_tool ON deliveries (site, tool, id);
-CREATE TABLE IF NOT EXISTS webhooks (
-  id INTEGER PRIMARY KEY, site TEXT NOT NULL, url TEXT NOT NULL, events TEXT NOT NULL,
-  created_at TEXT NOT NULL, created_by TEXT, active INTEGER NOT NULL DEFAULT 1);
-CREATE TABLE IF NOT EXISTS outbox (
-  id INTEGER PRIMARY KEY, webhook_id INTEGER NOT NULL
-    REFERENCES webhooks(id) ON DELETE CASCADE,
-  site TEXT NOT NULL, event TEXT NOT NULL, ref TEXT NOT NULL, body TEXT NOT NULL,
-  created_at TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, next_at TEXT NOT NULL,
-  state TEXT NOT NULL DEFAULT 'pending' CHECK (state IN ('pending', 'sent', 'failed')),
-  http_status INTEGER, error TEXT, sent_at TEXT, UNIQUE (webhook_id, event, ref));
-CREATE INDEX IF NOT EXISTS outbox_due ON outbox (state, next_at);
-CREATE TABLE IF NOT EXISTS hook_replays (
-  site TEXT NOT NULL, digest TEXT NOT NULL, received_at TEXT NOT NULL,
-  PRIMARY KEY (site, digest));
-""" + PEOPLE_TABLES + SECURITY_TABLES
-
-# Schema 2 (Phase 4b step 3): the stages "won" and "lost" (a CHECK cannot be
-# changed in place, so the table is copied into a new one), one name per
-# action (ALIASES; Stripe's unpaid checkout is a payment started, HubSpot's
-# deal won is "won"), and the outgoing webhooks' tables (made by SCHEMA).
-_V2_COLUMNS = ("id, site, action, stage, at, vid, external_ref, tool, source_type, "
-               "first_source, campaign, landing, country, device, first_touch_at, "
-               "visits_before, identity_id, received_at")
-UPGRADES: dict[int, list[str]] = {2: [
-    CONVERSIONS_V2.format(name="conversions_v2"),
-    f"INSERT INTO conversions_v2 ({_V2_COLUMNS}) SELECT {_V2_COLUMNS} FROM conversions",
-    "DROP TABLE conversions",
-    "ALTER TABLE conversions_v2 RENAME TO conversions",
-    "UPDATE conversions SET stage = 'started' WHERE tool = 'stripe' AND action = 'checkout' "
-    "AND stage = 'completed'",
-    "UPDATE conversions SET stage = 'won' WHERE tool = 'hubspot' AND action = 'deal' "
-    "AND stage = 'paid'",
-    *(f"UPDATE conversions SET action = '{new}' WHERE action = '{old}'"
-      for old, new in ALIASES.items()),
-    *INDEXES.strip().splitlines(),
-],
-    # 3: a site's journeys by time (pages before converting, the audit's
-    # recount): a range in one site, not every journey of the site.
-    3: ["CREATE INDEX IF NOT EXISTS journeys_site_at ON journeys (site, at)"],
-    # 4: the test mark, the people's visits, the removed rows (PEOPLE_TABLES).
-    4: ["ALTER TABLE conversions ADD COLUMN test INTEGER NOT NULL DEFAULT 0",
-        *[sql.strip() + ";" for sql in PEOPLE_TABLES.split(";\n") if sql.strip()]],
-    # 5: each kept visit's city, when a city file named one (logs.city_db).
-    5: ["ALTER TABLE visits ADD COLUMN city TEXT"],
-    # 6: the page view's referring host (the beacon's `r`; "" none, NULL a
-    # row from before): a visitor ID's first touch (firsttouch.py).
-    6: ["ALTER TABLE journeys ADD COLUMN via TEXT"],
-    # 7 (2.18): a lead's label (NULL for every older row: none was sent), and
-    # a hook's rows in the order received (GET /traffic-hooks/<site>/leads).
-    7: ["ALTER TABLE conversions ADD COLUMN label TEXT", RECEIVED_INDEX],
-    # 8 (2.21): the addresses behind Security's suspect rows (SECURITY_TABLES).
-    8: [sql.strip() + ";" for sql in SECURITY_TABLES.split(";\n") if sql.strip()]}
-
-# The SCHEMA this code set a file up with (see accounts/db.py): a file
-# stamped with it at SCHEMA_VERSION skips the script on connect.
-SCHEMA_STAMP = hashlib.sha256(SCHEMA.encode()).hexdigest()[:16]
-
-COLUMNS = ("action", "stage", "at", "vid", "external_ref", "tool", "source_type",
-           "first_source", "campaign", "landing", "country", "device", "first_touch_at",
-           "visits_before", "label")
 
 
 def path_for(config: dict, folder: Path | None) -> Path | None:
@@ -235,6 +102,7 @@ def connect(path: Path | str) -> sqlite3.Connection:
         if not _set_up(db):
             db.executescript(SCHEMA)
             _upgrade(db, None if memory else path)
+            db.executescript(MONEY_INDEXES)
             db.execute("INSERT INTO meta (key, value) VALUES ('schema_stamp', ?) "
                        "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (SCHEMA_STAMP,))
     except BaseException:
@@ -334,25 +202,40 @@ def email_hash(db: sqlite3.Connection, email: str) -> str:
 
 # ------------------------------------------------------------------ writes
 
-def record_conversion(db: sqlite3.Connection, rec: dict) -> bool:
+def record_conversion(db: sqlite3.Connection, rec: dict, notes: list | None = None) -> bool:
     """Keep one conversion. Idempotent on (site, tool, external_ref, stage):
     the first delivery wins, a repeat changes nothing and returns False.
 
     `rec` holds COLUMNS plus `site`, optional `received_at`, optional
     `test` (True: the delivery said so, TEST_SENT) and optional `identity`
-    {email, name}: pass it only when the site's identity is full."""
+    {email, name}: pass it only when the site's identity is full.
+
+    A `refunded` row (2.32) is the one exception: one per sale, its amount the
+    total refunded so far. A later delivery with a larger amount in the same
+    currency raises it (Stripe's amount_refunded is cumulative) and returns
+    True; anything else changes nothing. Each rise is kept in refund_parts
+    with its own time, so it counts on the day it came. `refund_of` (Stripe's
+    payment intent and invoice, and what pay_links joins them to) names the
+    sale: the refund takes that row's external_ref. A refund sent without a
+    value (`value_sent` False) is the whole sale's value; one whose value
+    could not be read keeps none (not money). When its sale is known, a refund
+    is never more than the sale (cut to it) nor in another currency (kept
+    without a value); `notes` gets the note for each. A refund that came
+    before its sale is moved onto the sale when the sale comes (_claim)."""
     if rec.get("stage") not in STAGES:
         raise ValueError(f"stage {rec.get('stage')!r} is not one of {STAGES}")
     for need in ("site", "action", "at", "external_ref", "tool"):
         if not rec.get(need):
             raise ValueError(f"a conversion needs {need}")
     with tx(db):
-        hit = db.execute("SELECT 1 FROM conversions WHERE site = ? AND tool = ? AND "
-                         "external_ref = ? AND stage = ?",
+        if rec["stage"] == REFUNDED:
+            rec = _refund(db, rec, notes if notes is not None else [])
+        hit = db.execute("SELECT id, value_minor, currency FROM conversions WHERE site = ? AND "
+                         "tool = ? AND external_ref = ? AND stage = ?",
                          (rec["site"], rec["tool"], rec["external_ref"], rec["stage"])
                          ).fetchone()
         if hit:
-            return False
+            return rec["stage"] == REFUNDED and _raise_refund(db, hit, rec)
         identity_id = _identity(db, rec["site"], rec.get("identity"))
         values = [rec.get(c) for c in COLUMNS]
         # A later stage of a booking or lead marked test is test too; one an
@@ -362,11 +245,188 @@ def record_conversion(db: sqlite3.Connection, rec: dict) -> bool:
                             (rec["site"], rec["tool"], rec["external_ref"], TEST_MARKED)
                             ).fetchone()
         test = TEST_MARKED if marked else TEST_SENT if rec.get("test") is True else 0
-        db.execute(f"INSERT INTO conversions (site, {', '.join(COLUMNS)}, identity_id, "
-                   f"received_at, test) VALUES ({', '.join('?' * (len(COLUMNS) + 4))})",
-                   [rec["site"], *values, identity_id, rec.get("received_at") or stamp(),
-                    int(test)])
+        got = db.execute(f"INSERT INTO conversions (site, {', '.join(COLUMNS)}, identity_id, "
+                         f"received_at, test) VALUES ({', '.join('?' * (len(COLUMNS) + 4))})",
+                         [rec["site"], *values, identity_id, rec.get("received_at") or stamp(),
+                          int(test)])
+        if rec["stage"] == REFUNDED:
+            if rec.get("value_minor") is not None or rec.get("whole_later"):
+                _part(db, got.lastrowid, rec, rec.get("value_minor"))
+        elif rec["stage"] in FINISHED and rec.get("value_minor") is not None:
+            _claim(db, rec["site"], rec["tool"], rec["external_ref"])
     return True
+
+
+def sale_of(db, site: str, tool: str, ref: str):
+    """The sale of one (tool, external ref): its `paid` row when that carries a
+    value, else its `completed` row with one; None. (A `paid` after a
+    `completed` is one lead, store.repeat_finishes, but the paid row is the
+    sale: conversions_revenue.py.)"""
+    return db.execute("SELECT id, value_minor, currency FROM conversions WHERE site = ? AND "
+                      "tool = ? AND external_ref = ? AND stage IN ('paid', 'completed') AND "
+                      "value_minor IS NOT NULL AND currency IS NOT NULL ORDER BY "
+                      "stage = 'paid' DESC LIMIT 1", (site, tool, ref)).fetchone()
+
+
+def _linked(db, site: str, tool: str, keys) -> list[str]:
+    """`keys` (payment intents, invoices, refs) and what pay_links joins them to."""
+    keys = sorted({k for k in keys if k})
+    if not keys:
+        return []
+    marks = ",".join("?" * len(keys))
+    more = {k for r in db.execute(
+        f"SELECT invoice, payment FROM pay_links WHERE site = ? AND tool = ? AND (invoice IN "
+        f"({marks}) OR payment IN ({marks}))", (site, tool, *keys, *keys)) for k in r}
+    return sorted(set(keys) | more)
+
+
+def _refund(db, rec: dict, notes: list) -> dict:
+    """A refund's sale found by `refund_of` (its external ref taken); its whole
+    value when none was sent; checked against the sale when there is one."""
+    rec = dict(rec)
+    keys = _linked(db, rec["site"], rec["tool"], rec.get("refund_of") or ())
+    if keys:
+        marks = ",".join("?" * len(keys))
+        got = db.execute(f"SELECT external_ref FROM conversions WHERE site = ? AND tool = ? "
+                         f"AND stage IN ('paid', 'completed') AND (pay_ref IN ({marks}) OR "
+                         f"external_ref IN ({marks})) ORDER BY at, id LIMIT 1",
+                         (rec["site"], rec["tool"], *keys, *keys)).fetchone()
+        if got:
+            rec["external_ref"] = got[0]
+    sale = sale_of(db, rec["site"], rec["tool"], rec["external_ref"])
+    if rec.get("value_minor") is None and rec.get("value_sent") is False:
+        if sale is not None:
+            rec["value_minor"], rec["currency"] = sale[1], sale[2]
+        else:
+            rec["whole_later"] = True       # filled in when the sale comes (_claim)
+    elif rec.get("value_minor") is not None and sale is not None:
+        if rec.get("currency") != sale[2]:
+            rec["value_minor"] = rec["currency"] = None
+            notes.append(REFUND_CURRENCY_NOTE)
+        elif int(rec["value_minor"]) > int(sale[1]):
+            rec["value_minor"] = int(sale[1])
+            notes.append(REFUND_OVER_NOTE)
+    return rec
+
+
+def _part(db, row_id: int, rec: dict, value) -> None:
+    """One part of a refund (None: a whole one, its value when the sale comes);
+    a part of 0 is no refund and is not kept."""
+    if value is not None and int(value) == 0:
+        return
+    db.execute("INSERT INTO refund_parts (conversion_id, at, value_minor, received_at) VALUES "
+               "(?, ?, ?, ?)", (row_id, rec["at"], value, rec.get("received_at") or stamp()))
+
+
+def _raise_refund(db, hit, rec: dict) -> bool:
+    """A repeat refund: the larger amount in the same currency wins, its rise
+    kept as a part of its own time."""
+    new, cur = rec.get("value_minor"), rec.get("currency")
+    if new is None and rec.get("whole_later") and hit[1] is None:
+        # A whole refund after one whose value could not be read: it waits for
+        # the sale's value, as if it had come first (never a duplicate).
+        if db.execute("SELECT 1 FROM refund_parts WHERE conversion_id = ? AND value_minor IS "
+                      "NULL", (hit[0],)).fetchone():
+            return False
+        _part(db, hit[0], rec, None)
+        return True
+    if new is None or not cur:
+        return False
+    if hit[1] is not None and (hit[2] != cur or int(new) <= int(hit[1])):
+        return False
+    db.execute("DELETE FROM refund_parts WHERE conversion_id = ? AND value_minor IS NULL",
+               (hit[0],))
+    db.execute("UPDATE conversions SET value_minor = ?, currency = ? WHERE id = ?",
+               (int(new), cur, hit[0]))
+    _part(db, hit[0], rec, int(new) - int(hit[1] or 0))
+    return True
+
+
+def _claim(db, site: str, tool: str, ref: str) -> None:
+    """A sale was kept: the refunds that came before it (on its ref, its
+    payment, or what pay_links joins them to) are moved onto it and fitted to
+    it: a whole one takes its value, one in another currency keeps none, one
+    over it is cut to it, its latest parts first. A refund already on the
+    sale wins; the other stays where it is (a refund without a sale)."""
+    sale = sale_of(db, site, tool, ref)
+    if sale is None:
+        return
+    pays = [r[0] for r in db.execute("SELECT pay_ref FROM conversions WHERE site = ? AND "
+                                     "tool = ? AND external_ref = ? AND pay_ref IS NOT NULL",
+                                     (site, tool, ref))]
+    keys = _linked(db, site, tool, [ref, *pays])
+    marks = ",".join("?" * len(keys))
+    for rid, their in db.execute(
+            f"SELECT id, external_ref FROM conversions WHERE site = ? AND tool = ? AND stage = "
+            f"'refunded' AND (external_ref IN ({marks}) OR pay_ref IN ({marks})) ORDER BY id",
+            (site, tool, *keys, *keys)).fetchall():
+        if their != ref:
+            # Another sale's own refund, or the sale has one already: left where it is.
+            busy = db.execute("SELECT 1 FROM conversions WHERE site = ? AND tool = ? AND ((("
+                              "external_ref = ? AND stage IN ('completed', 'paid')) OR ("
+                              "external_ref = ? AND stage = 'refunded'))) LIMIT 1",
+                              (site, tool, their, ref)).fetchone()
+            if busy:
+                continue
+            marked = db.execute("SELECT 1 FROM conversions WHERE site = ? AND tool = ? AND "
+                                "external_ref = ? AND test = ? LIMIT 1",
+                                (site, tool, ref, TEST_MARKED)).fetchone()
+            db.execute("UPDATE conversions SET external_ref = ?" +
+                       (", test = ?" if marked else "") + " WHERE id = ?",
+                       (ref, TEST_MARKED, rid) if marked else (ref, rid))
+        _fit(db, rid, sale)
+
+
+def _fit(db, rid: int, sale) -> None:
+    """One refund row fitted to its sale (_claim)."""
+    value, cur = db.execute("SELECT value_minor, currency FROM conversions WHERE id = ?",
+                            (rid,)).fetchone()
+    parts = db.execute("SELECT id, value_minor FROM refund_parts WHERE conversion_id = ? "
+                       "ORDER BY at, id", (rid,)).fetchall()
+    whole, top = int(sale[1]), sale[2]
+    if value is None:
+        pending = [p for p in parts if p[1] is None]
+        if pending:
+            db.execute("UPDATE refund_parts SET value_minor = ? WHERE id = ?", (whole, pending[0][0]))
+            db.execute("DELETE FROM refund_parts WHERE conversion_id = ? AND (value_minor IS NULL "
+                       "OR value_minor = 0)", (rid,))
+            db.execute("UPDATE conversions SET value_minor = ?, currency = ? WHERE id = ?",
+                       (whole, top, rid))
+        return
+    if cur != top:
+        db.execute("DELETE FROM refund_parts WHERE conversion_id = ?", (rid,))
+        db.execute("UPDATE conversions SET value_minor = NULL, currency = NULL WHERE id = ?",
+                   (rid,))
+        return
+    if int(value) <= whole:
+        return
+    left = whole
+    for pid, part in parts:
+        keep = min(int(part or 0), left)
+        left -= keep
+        if keep:
+            db.execute("UPDATE refund_parts SET value_minor = ? WHERE id = ?", (keep, pid))
+        else:
+            db.execute("DELETE FROM refund_parts WHERE id = ?", (pid,))
+    db.execute("UPDATE conversions SET value_minor = ? WHERE id = ?", (whole, rid))
+
+
+def link_payments(db, site: str, tool: str, links, received_at: str) -> int:
+    """Keep Stripe's (invoice, payment intent) links (invoice_payment.paid) and
+    move onto their sale the refunds that were waiting for one. The new ones."""
+    new = 0
+    with tx(db):
+        for invoice, payment in links:
+            new += db.execute("INSERT OR IGNORE INTO pay_links (site, tool, invoice, payment, "
+                              "received_at) VALUES (?, ?, ?, ?, ?)",
+                              (site, tool, invoice, payment, received_at)).rowcount
+            for (ref,) in db.execute(
+                    "SELECT DISTINCT external_ref FROM conversions WHERE site = ? AND tool = ? "
+                    "AND stage IN ('completed', 'paid') AND value_minor IS NOT NULL AND "
+                    "(external_ref IN (?, ?) OR pay_ref IN (?, ?))",
+                    (site, tool, invoice, payment, invoice, payment)).fetchall():
+                _claim(db, site, tool, ref)
+    return new
 
 
 def remove(db, row_id: int, why: str) -> int:
@@ -380,6 +440,10 @@ def remove(db, row_id: int, why: str) -> int:
     if row is None:
         return 0
     kept = dict(row)
+    parts = [dict(p) for p in db.execute("SELECT at, value_minor, received_at FROM refund_parts "
+                                         "WHERE conversion_id = ? ORDER BY at, id", (row_id,))]
+    if parts:
+        kept["refund_parts"] = parts            # gone with the row (CASCADE), kept here
     with tx(db):
         db.execute("INSERT INTO removed (site, removed_at, why, conversion_id, tool, "
                    "external_ref, vid, action, stage, at, row) VALUES "
@@ -508,8 +572,8 @@ def hook_rows(db, site: str, tool: str, since: str | None = None, after=None,
     (received_at, id) of a page's last row), with `at` in [at_since,
     at_until). Only what a sender may see again: never a visitor ID, a
     source, an identity. At most `limit`."""
-    sql = ("SELECT id, external_ref, action, stage, at, label, test, received_at FROM "
-           "conversions WHERE site = ? AND tool = ?")
+    sql = ("SELECT id, external_ref, action, stage, at, label, test, received_at, value_minor, "
+           "currency, customer_ref, tags FROM conversions WHERE site = ? AND tool = ?")
     args: list = [site, tool]
     if since:
         sql += " AND received_at >= ?"
@@ -685,6 +749,11 @@ def prune(db, today: date, vid_days: int = VID_DAYS,
         dels = db.execute("DELETE FROM deliveries WHERE received_at < ?",
                           (edge(DELIVERY_DAYS),)).rowcount
         db.execute("DELETE FROM hook_replays WHERE received_at < ?", (edge(REPLAY_DAYS),))
+        for site in sorted(sites):
+            keep = int(own_keep.get(site, retention_days))
+            if keep != FOREVER:
+                db.execute("DELETE FROM pay_links WHERE site = ? AND received_at < ?",
+                           (site, edge(keep)))
     return {"conversions": conv, "journeys": old + short, "identities": ids,
             "deliveries": dels}
 
