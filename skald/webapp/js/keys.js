@@ -27,15 +27,17 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-23-2.30.0",
+  id: "2026-10-24-2.31.0",
   items: [
+    ["One line for your AI agent", "Add a site: pick Claude Code, Codex or Cursor, copy one line into it, and watch it set up the site and report back. The line holds a one-time code, never a key; set it up by hand is one click away.", "connections"],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.30.0
     ["One command connects a server", "Set up › logs: \"My own server\", with or without Docker. Copy one command to the server; the token is made for you, the log is found by itself, and the Test starts on its own.", "connections"],
     ["Send set-up to someone", "one zip by mail (or download) with every way, the keys, and a CLAUDE.md: give the folder to Claude Code and say \"Set up Skald from CLAUDE.md\".", "connections"],
     ["Leads in one file", "download one file for PHP, Node or Python and call one function; a WordPress plugin with no code; or a plain key for Zapier and form tools.", "leads-from-your-backend"],
     ["Quieter logs, truer doctor", "no error printed when a visitor leaves early; the doctor says a new site is waiting for its first lines."],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.29.0
     ["Leads kept for good", "Settings › Data retention › Leads: keep leads and the pages they read for good, and the pages of visitors who have not signed up yet up to 400 days.", "settings-and-retention"],
     ["A new site waits quietly", "the live check says a site added today has no log lines yet, instead of a mismatch."],

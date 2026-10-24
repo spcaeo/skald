@@ -226,6 +226,15 @@ await tick();
 assert.ok(!qOf().get("setup"));
 await load("#settings/sitesadmin?setup=other.example.com");
 assert.match(panel.textContent, /That site is not one of this organisation's sites\./);
+// 2.31: a site's wizard on Connections too (Set up with your AI agent), its agent in the address.
+answers.set("sites", { ok: true, can_add: true, sites: [{ name: "example.com", status: "active", setup: { step: 3 } }], tokens: [] });
+await load("#settings/api?setup=example.com&step=3&agent=codex");
+assert.ok(top()?.textContent.includes("Step 3 of 5: Which AI agent are you using?"), top()?.textContent.slice(0, 200));
+assert.equal(top().querySelector('button.ag-tile[data-agent="codex"]').getAttribute("aria-pressed"), "true", "the agent from the address");
+assert.equal(qOf().get("agent"), "codex");
+top().querySelector(".dw-x").click();
+await tick();
+assert.ok(!qOf().get("setup") && !qOf().get("agent") && !qOf().get("step"), `closing takes the keys away: ${location.hash}`);
 
 // ---- a sub-tab's choice stays in the address: <ns>_view
 const { subView } = await import(new URL("tablestate.js", JS));

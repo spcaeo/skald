@@ -25,6 +25,12 @@ dashboard, help, image, shipper path): nothing secret.
 
 Cache-Control no-store and X-Robots-Tag noindex on every answer, a limit per
 caller address (in memory), and the code and the token are never logged.
+
+The same store keeps the AI agent's codes (agent.py): entries with
+`kind: "agent"` (an entry with no kind is an install link). `look` and
+`take` never hand one out, and an agent code is kept a day past its expiry
+(its seals wiped), so the wizard can still say "expired" and show the
+agent's report.
 """
 from __future__ import annotations
 
@@ -50,6 +56,7 @@ HOURS = 24
 CODE = re.compile(r"^[A-Za-z0-9_-]{43}$")
 FIELDS = ("url", "dashboard", "help", "image", "ship_path", "base")
 AGENTS = ("curl/", "wget/")
+KEPT_AFTER = 24 * 3600      # an agent code's entry is kept this long past its expiry
 
 
 def path_for(folder) -> Path:
@@ -62,23 +69,25 @@ def stamp(seconds: float) -> str:
 
 # ------------------------------------------------------------- sealing
 
-def _stream(code: str, size: int) -> bytes:
+def _stream(code: str, size: int, label: bytes = b"skald-kit-link") -> bytes:
+    """The keystream; each sealed value has its own `label`."""
     out, n = b"", 0
     while len(out) < size:
-        out += hmac.new(code.encode(), b"skald-kit-link" + n.to_bytes(4, "big"),
-                        hashlib.sha256).digest()
+        out += hmac.new(code.encode(), label + n.to_bytes(4, "big"), hashlib.sha256).digest()
         n += 1
     return out[:size]
 
 
-def seal(token: str, code: str) -> str:
+def seal(token: str, code: str, label: bytes = b"skald-kit-link") -> str:
     raw = token.encode()
-    return base64.b64encode(bytes(a ^ b for a, b in zip(raw, _stream(code, len(raw))))).decode()
+    return base64.b64encode(bytes(a ^ b for a, b in
+                                  zip(raw, _stream(code, len(raw), label)))).decode()
 
 
-def unseal(sealed: str, code: str) -> str:
+def unseal(sealed: str, code: str, label: bytes = b"skald-kit-link") -> str:
     raw = base64.b64decode(sealed)
-    return bytes(a ^ b for a, b in zip(raw, _stream(code, len(raw)))).decode("utf-8", "replace")
+    return bytes(a ^ b for a, b in
+                 zip(raw, _stream(code, len(raw), label))).decode("utf-8", "replace")
 
 
 def digest(code: str) -> str:
@@ -107,9 +116,19 @@ def _load(path: Path) -> dict:
     return links if isinstance(links, dict) else {}
 
 
+def _kept(entry: dict, now: float) -> bool:
+    end = float(entry.get("expires_at") or 0)
+    if entry.get("kind") == "agent":
+        if end <= now:                              # expired: nothing usable stays on disk
+            entry.update(sealed=None, sealed_lead=None, sealed_report=None)
+        return end + KEPT_AFTER > now
+    return end > now
+
+
 def _save(path: Path, links: dict, now: float) -> None:
-    """Written 0600 and renamed into place; expired entries dropped."""
-    links = {k: v for k, v in links.items() if float(v.get("expires_at") or 0) > now}
+    """Written 0600 and renamed into place; expired entries dropped (an
+    agent code's a day later, its seals wiped at once)."""
+    links = {k: v for k, v in links.items() if _kept(v, now)}
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
@@ -149,7 +168,7 @@ def look(folder, code: str, now: float | None = None) -> tuple[str, dict | None]
     if not CODE.match(code or ""):
         return "unknown", None
     entry = _load(path_for(folder)).get(digest(code))
-    if entry is None:
+    if entry is None or entry.get("kind", "install") != "install":
         return "unknown", None
     if entry.get("used_at") or not entry.get("sealed") or float(entry["expires_at"]) <= now:
         return "gone", entry
@@ -168,7 +187,7 @@ def take(folder, code: str, now: float | None = None) -> tuple[str, dict | None,
         links = _load(path)
         key = digest(code)
         entry = links.get(key)
-        if entry is None:
+        if entry is None or entry.get("kind", "install") != "install":
             return "unknown", None, None
         if entry.get("used_at") or not entry.get("sealed") or float(entry["expires_at"]) <= now:
             return "gone", entry, None
@@ -200,10 +219,14 @@ def _answer(h, code: int, body: str, kind: str = "text/plain; charset=utf-8") ->
 def serve(h, folder, base: str, limiter, address: str) -> None:
     """Answer GET or HEAD /traffic-kit/<code> on the beacon helper's handler.
     `base`: the install's address, for the words when the link is unknown."""
-    from . import one_file
     if not limiter.allow(address):
         return _answer(h, 429, "Too many tries. Wait a minute and try again.\n")
-    code = h.path.split("?", 1)[0][len(PREFIX):]
+    answer_code(h, folder, base, h.path.split("?", 1)[0][len(PREFIX):])
+
+
+def answer_code(h, folder, base: str, code: str) -> None:
+    """The install link's answer, after the limit (serve, agent.serve)."""
+    from . import one_file
     tool = (h.headers.get("User-Agent") or "").lower().startswith(AGENTS)
     burn = tool and h.command == "GET"
     if burn:

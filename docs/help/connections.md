@@ -1,6 +1,6 @@
 # Connections: send, read and connect
 
-Settings > Connections is where a site's visits reach Skald from another server, a script reads your figures, and an AI assistant connects. This guide covers the three set-up dialogs, how to test each one, your tokens, and adding a site step by step.
+Settings > Connections is where a site's visits reach Skald from another server, a script reads your figures, and an AI assistant connects. This guide covers the three set-up dialogs, how to test each one, your tokens, and adding a site step by step, by one line to your AI agent or by hand.
 
 ## Where to find it
 
@@ -22,7 +22,7 @@ At the top are three cards. Each has a **Set up** button that opens a short dial
 
 | Card | What it is for |
 | --- | --- |
-| Send this site's visits to Skald | A site whose web server is not your Skald server: its log, or its events, must be sent to Skald |
+| Send this site's visits to Skald | A site whose web server is not your Skald server: its log, or its events, must be sent to Skald. **Set up with your AI agent** on this card gives you one line for your agent instead (see [Add a site, step by step](connections.md#add-a-site-step-by-step)) |
 | Read your figures (API) | A script or a spreadsheet that reads your figures as JSON |
 | Connect an AI assistant (MCP) | Claude, ChatGPT or another assistant that answers questions about your traffic |
 
@@ -162,11 +162,73 @@ The cards above are simpler for one task.
 
 Owners and admins add a site in five short steps. Open **Settings > Organisation > Add or remove sites** ([Add or remove sites](#settings/sitesadmin)) and press **Add a site, step by step**. The site picker at `/traffic/` has **+ Add a site** too.
 
+The quickest way is to let your AI agent do it. You copy one line from Skald and paste it into your agent. The agent reads Skald's steps, sets up the site, and reports back. You watch each step tick.
+
 1. **Your site.** Type the site's address, as people type it. A whole link works too: `https://www.example.com/pricing` becomes the site `www.example.com`. The page shows the name it will use. Choose the time zone its days are counted in.
-2. **Prove it's yours.** Add the DNS TXT record or the meta tag the step shows, then press **Check now**. A new DNS record can take a few minutes to show. Nothing is collected for the site until this is done, but you can go on and install now. When your server asks for no proof, the step says so.
+2. **Prove it's yours.** Add the DNS TXT record or the meta tag the step shows, then press **Check now**. A new DNS record can take a few minutes to show. Nothing is collected for the site until this is done, but you can go on now. When your server asks for no proof, the step says so.
+3. **Your AI agent.** "Which AI agent are you using?" Pick one: **Claude Code**, **Codex**, **Cursor**, **Claude.ai or ChatGPT** (chat only), or **Another agent** (one that can run shell commands). No agent? Press **No AI agent: set it up by hand** (below).
+4. **Send this line.** Skald writes one line for your agent, like this:
+
+   ```
+   set up Skald for example.com — read https://analytics.example.com/traffic-kit/llms.txt and use code •••••••••••• (works once, 24 hours)
+   ```
+
+   The code is hidden until you press **Show code**. Press **Copy** (it turns into a green tick), and paste the line where the step says:
+
+   | Agent | Where to paste the line |
+   | --- | --- |
+   | Claude Code, Codex | In a terminal in the site's project folder, or on the site's server |
+   | Cursor | In the site's project, in the chat, in Agent mode |
+   | Another agent | In the site's project folder or on its server. It must be able to run shell commands there |
+   | Claude.ai or ChatGPT | A chat in the browser cannot run commands on your server. So this step shows the one command to paste on the server yourself, as in Connections |
+
+   **Make a new line** gives a new code. **Cancel this line** stops it at once. The step says until when the line works. Opened from a link straight at step 4, it asks you to press **Make the line** first, so an old link never ends a line your agent is already using.
+5. **Watch it connect.** A list ticks itself while the step is open: your agent read the steps, it took the keys (with the time), it sent its report, and the first log lines arrived. When the agent says it added the script tag or a lead form, Skald also looks for the tag on your home page and waits for a test lead. When the first log lines arrive it says "Done: example.com is receiving visits", with **Open its dashboard**. **Finish later** closes the dialog.
+
+Your agent asks you what it cannot find out alone: how the site is hosted, if the code does not say, and whether to keep visitors' IP addresses, for how many days, and the link to your privacy notice. It asks before it changes a server or your web server's settings.
+
+### Is it safe to paste this into a chat?
+
+The same box is under the line in step 4:
+
+- Yes. The line holds a one-time code, not a password or a key.
+- The keys come out once. When your agent takes them, the code can never give them again. A code nobody uses stops after 24 hours.
+- Your agent is told to save the keys straight into a locked file and never show them in the chat. Skald gives them only to a command-line download such as curl, and turns away web readers and fetch tools, which could pass them into a chat.
+- The keys work for this one site only. The sending key can only send log lines. The lead secret sends leads and can read back this site's lead list (reference, stage, time), never names, emails, addresses or visitor IDs. Neither can open your dashboard or see your visitors.
+- Skald keeps only a scrambled copy of the code (a hash), never the code itself, and never writes it to a log.
+- Until the keys are taken, treat the line like a house key: paste it only into your own agent. Changed your mind? Press Cancel this line and it stops at once. A new line also cancels an older one whose keys were not taken yet.
+- If your site already has a lead secret, the agent gets that same one (unless your Skald keeps it in the server's settings; then the keys hold none). After the set-up you can remove the agent's sending key in Settings > Connections > Your tokens, and make a new lead secret in Settings > Integrations.
+
+Your agent reads Skald's steps with `curl` too, so the code does not pass through a fetch tool. If it tries a web reader or a fetch tool for the keys, Skald refuses it and the keys stay unused. If it fetches the keys twice, the second try never overwrites the keys file it already has. After the keys are taken, the code still opens the steps, the installer and the lead files until it stops: none of them holds a key.
+
+### Your agent took the keys
+
+Step 5 says **Your agent took the keys at 10:42. The code is used up: it cannot give the keys again.** If it was not your agent, press **Cancel this line**, remove the key in **Settings > Connections**, under **Your tokens**, and make a new line.
+
+### What your agent reported
+
+When the agent is done, it sends Skald a short report, and step 5 shows it in plain words. Only the agent that took the keys can send it. If it sends a newer one (say after a fix), step 5 shows that one: how the site is hosted, the web server, the access log, what the site is built with, its page assets, where the script tag went, its lead forms, the privacy answers, the files it changed, and anything **Left for you**.
+
+The report is a suggestion. Skald changes no setting by itself. When the agent found other page assets than the site has, **Use these page assets** saves them. Set the privacy answers yourself, in **Settings > Data retention > People**.
+
+### When the line stops
+
+| What step 4 or 5 says | What to do |
+| --- | --- |
+| This line ran out. | Nobody took the keys in 24 hours. Press **Make a new line** and send that one |
+| Cancelled. This line no longer works. | You cancelled it. Make a new line when you are ready |
+| The old line was cancelled. | You made a new line, so the older one stopped. Send the new one |
+| This line was made before the page was reloaded, so it is not shown again. | Already sent it? Press **Next** to watch it connect. If not, make a new line, or cancel this one |
+
+### Set it up by hand
+
+On step 3, press **No AI agent: set it up by hand**. Steps 3 to 5 then become these. **Use an AI agent instead** takes you back.
+
 3. **How visits reach Skald.** The same choice as in Connections: my own server (with or without Docker), Cloudflare, Vercel or Netlify, or only the script tag. The way Skald suggests is chosen already, marked **Recommended for** your site, with the reason under it.
 4. **Install.** As in Connections: one command for your own server, with the token made for you, or the way's own steps. **Download as one file** and **Email it to your server admin** are there too.
 5. **Test and finish.** The Test starts by itself. When lines arrive it says "Done: example.com is receiving visits", with **Open its dashboard**. If not, it shows the fix and the common problems. **Finish later** closes the dialog.
+
+A site you added already can use its AI agent too: in **Settings > Connections**, press **Set up with your AI agent** on the **Send this site's visits to Skald** card. It opens the site's wizard at step 3.
 
 ### Skald checks your site
 
@@ -226,7 +288,7 @@ A site with an unfinished set-up shows a button in **Add or remove sites** and o
 | Setup: step 3 of 5, continue | The set-up stopped at that step. Press it to carry on |
 | No visits yet: test the connection | Set-up was finished, but nothing has reached Skald in 24 hours. Press it to open the Test step |
 
-The wizard is in the address while it is open: `#settings/sitesadmin?setup=new&step=1` for a new site, `setup=example.com&step=3` for one already started. **Back** closes it.
+The wizard is in the address while it is open: `#settings/sitesadmin?setup=new&step=1` for a new site, `setup=example.com&step=3` for one already started. The agent you chose is there too (`agent=claude-code`, or `agent=hand` for by hand), and in step 5 the line being watched (`link=` and 16 letters and digits, a scrambled copy of the code). The line and its code are never in the address. **Back** closes it.
 
 Until the site's first log lines arrive, its own address says so: **example.com is waiting for its first log lines** (with its own name), with the step it reached, the same **Continue setup** (or **Test the connection**) button, and a link to [If a connection does not work](troubleshooting-connections.md). A site removed in Add or remove sites says that it was removed instead: nothing is collected for it, and its data stays until an install admin purges it.
 

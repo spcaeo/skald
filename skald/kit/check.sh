@@ -302,7 +302,7 @@ check_https() {
   local code="" rc=0
   if has curl; then
     code="$(curl -s -o /dev/null -w '%{http_code}' -X POST --max-time 15 \
-            -H 'Content-Type: text/plain' --data '' "$URL" 2>/dev/null)"; rc=$?
+            -H 'Content-Type: text/plain' -H 'X-Skald-Check: 1' --data '' "$URL" 2>/dev/null)"; rc=$?
   elif has python3; then
     code="$(python3 - "$URL" 2>/dev/null <<'PY'
 import socket, ssl, sys, urllib.error, urllib.request
@@ -311,7 +311,8 @@ class Stay(urllib.request.HTTPRedirectHandler):
         return None
 try:
     got = urllib.request.build_opener(Stay).open(
-        urllib.request.Request(sys.argv[1], data=b"", method="POST"), timeout=15)
+        urllib.request.Request(sys.argv[1], data=b"", method="POST",
+                               headers={"X-Skald-Check": "1"}), timeout=15)
     print(got.status)
 except urllib.error.HTTPError as why:
     print(why.code)

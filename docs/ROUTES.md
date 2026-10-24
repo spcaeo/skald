@@ -98,7 +98,9 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | `ans` | tabs/ai-answers.js | AI answers: one stored answer in full | `ans=412` |
 | `setup` | tabs/setup-dialogs.js | a Set up dialog: `logs`, `assets`, `rsc`, `countries`, `script`, `lead`, `mail`, `privacy`, `pack` (send set-up to someone, 2.30) | `setup=rsc&step=2` |
 | `pack` | tabs/setup-pack.js | `1` while the set-up pack box is open inside the logs or leads dialog (2.30); the addresses and keys never go in the address | `pack=1` |
-| `setup` (on `#settings/sitesadmin`) | tabs/sitesadmin.js | the Add a site wizard: `new`, or a site's name | `setup=new&step=1` |
+| `setup` (on `#settings/sitesadmin`) | tabs/sitesadmin.js | the Add a site wizard: `new`, then the site's name once step 1 made it (replaced in place, so a reload finds the site); a site's name (it has a dot) opens its wizard on any tab, as Connections' Set up with your AI agent does (2.31) | `setup=new&step=1`, `setup=example.com&step=3` |
+| `agent` | tabs/site-wizard.js | Add a site, step 3: the AI agent chosen (`claude-code`, `codex`, `cursor`, `chat`, `other`), or `hand` for set it up by hand (2.31) | `agent=claude-code` |
+| `link` | tabs/agent-setup.js | Add a site, steps 4 and 5: the agent's line being watched, by its link id (the first 16 hex of the code's SHA-256). The line and its code never go in the address (2.31) | `link=0f3a9c2e7b1d4a58` |
 | `conn` | tabs/connections.js | a Connections dialog: `send`, `api`, `mcp` | `conn=api&step=2` |
 | `step` | tabs/conn-ui.js | the step of the dialog open, 1 first | `step=2` |
 | `share` | tabs/conn-share.js | the Share with your developer form is open (the link it makes never is in the address) | `share=1` |

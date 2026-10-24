@@ -700,13 +700,21 @@ location ^~ /traffic-js/ {
     include snippets/skald-beacon.conf;
 }
 
-# One-time install links, `curl -fsSL <base>/traffic-kit/<code> | sudo bash`
-# (docs/INGEST.md): to the beacon helper. The code is a secret: never logged.
+# One-time install links, `curl -fsSL <base>/traffic-kit/<code> | sudo bash`,
+# and the AI agent's codes (llms.txt, <code>/steps, keys, install.sh, leads/;
+# docs/INGEST.md): to the beacon helper. The code is a secret: never logged,
+# in the access log or the error log (whose lines hold the request line; the
+# nested location inherits it). The helper sends no-store and noindex itself.
+# GET only, but an agent's report: POST, at most 16 KiB.
 location ^~ /traffic-kit/ {
-    limit_except GET { deny all; }
+    error_log stderr crit;
     access_log off;
-    add_header Cache-Control "no-store" always;
-    add_header X-Robots-Tag "noindex, nofollow" always;
+    location ~ "^/traffic-kit/[A-Za-z0-9_-]{43}/report$" {
+        limit_except POST { deny all; }
+        client_max_body_size 16k;
+        include snippets/skald-beacon.conf;
+    }
+    limit_except GET { deny all; }
     include snippets/skald-beacon.conf;
 }
 ```

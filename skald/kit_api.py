@@ -22,6 +22,26 @@ or admin role, same-origin and CSRF checks):
           through the install's mail settings. 409 when mail is not set up,
           429 after PACKMAIL_PER_HOUR mails of a site in an hour. A token made
           for a mail that did not go is revoked again.
+  POST sites/agentlink {site, leads: bool = true}
+       -> {ok, line, llms_url, steps_url, expires_at, token_id, link_id,
+          cancelled}: the
+          one line for an AI agent (kit/agent.py). A new sending token ("AI
+          agent set-up") and, with leads, the site's lead secret (the one it
+          has, else one made now), both sealed under a one-time code for 24
+          hours. Never answers the token or the secret. 409 when the log
+          endpoint is off. link_id: the first 16 hex of the code's sha256.
+          One live line per site: in the same lock as the new code, the site's
+          older codes whose keys were not taken are cancelled and their unused
+          tokens revoked (`cancelled`: how many), and expired ones whose keys
+          were never taken give up their token too.
+  POST sites/agentstatus {site, link_id}
+       -> {ok, state: waiting | opened | keys_taken | expired | cancelled |
+          unknown, opened_at, keys_at, reported_at, report, cancelled_at,
+          expires_at}: that site's agent code only.
+  POST sites/agentcancel {site, link_id}
+       -> {ok, state: "cancelled"}: the code ends at once (its keys can no
+          longer be taken; every route answers as expired); its token is
+          revoked when the keys were never taken. 404 for an unknown code.
 
 Every route writes the audit log (who, site, how many recipients, keys or
 not); no token, secret, code or address is ever logged.
@@ -132,7 +152,8 @@ def link(c, form):
 
 # ------------------------------------------------------------------ pack
 
-def _lead_secret(c, site: str, form, include: bool) -> tuple[str | None, str, str | None]:
+def _lead_secret(c, site: str, form, include: bool,
+                 why: str = "set-up pack") -> tuple[str | None, str, str | None]:
     """(the lead secret for the pack, the note's kind, why not: a refusal)."""
     from .conversions import hooks, secrets_store
     if not include:
@@ -151,11 +172,12 @@ def _lead_secret(c, site: str, form, include: bool) -> tuple[str | None, str, st
             return None, "none", "That lead secret is not this site's. Make it again and retry."
         return given, "included", None
     if had:      # the owner (2026-10-23): the pack holds every key it needs, not a placeholder
-        _audit(c, "hook.secret", f"{site}/lead", "put in a set-up pack")
+        _audit(c, "hook.secret", f"{site}/lead",
+               "put in a set-up pack" if why == "set-up pack" else f"copied ({why})")
         return had, "included", None
     value = secrets_store.make()
     secrets_store.put(path, secrets_store.key(site, "lead"), value)
-    _audit(c, "hook.secret", f"{site}/lead", "made (set-up pack)")
+    _audit(c, "hook.secret", f"{site}/lead", f"made ({why})")
     return value, "made", None
 
 
@@ -256,3 +278,96 @@ def pack_mail(c, form):
                                     f"{'yes' if include else 'no'}")
     return c.ok(sent_to=to, token_id=made["token_id"],
                 lead_secret_made=made["lead_secret_made"])
+
+
+# ------------------------------------------------------------- AI agent
+
+def agent_link(c, form):
+    from .accounts import site_setup
+    from .integrations_api import _origin
+    from .kit import agent
+    from .sites_api import tag
+    site = _site(c, form)
+    if site is None:
+        return c.no(404, "There is no such site in this organisation.")
+    if not ingest.enabled(c.config):
+        return c.no(409, "The log endpoint is switched off on this server "
+                         "(ingest.enabled in the server's config).")
+    leads = form.get("leads") is not False
+    got = fields(c, site)
+    try:
+        installer(site, got)                   # it can be built here, before a token is made
+    except ValueError as why:
+        return c.no(400, str(why))
+    secret, kind, refusal = _lead_secret(c, site, {}, leads, "AI agent set-up")
+    if refusal:
+        return c.no(500, refusal)
+    origin = _origin(c)
+    got.update(lead_url=f"{origin}/traffic-hooks/{site}/lead", tag=tag(site, origin))
+    token, tid = _new_token(c, site, "AI agent set-up")
+    found = (site_setup.get(c.db, site) or {}).get("found")
+    code, expires, ended = agent.make(_folder(c), site, token, tid, got, lead_secret=secret,
+                                      lead_note="included" if secret else kind, leads=leads,
+                                      found=found, replace=True)
+    lid = agent.link_id(code)
+    older = _ended(c, site, ended, "a new line replaced it")
+    _audit(c, "kit.agentlink", site, f"token {tid}; link {lid}; lead secret "
+                                     f"{kind if leads else 'not asked'}; keys once, for "
+                                     f"{agent.link.HOURS} hours; {older} older line(s) "
+                                     "cancelled")
+    base = got["base"]
+    llms = f"{base}{agent.link.PREFIX}llms.txt"
+    return c.ok(line=f"set up Skald for {site} — read {llms} and use code {code} "
+                     f"(works once, {agent.link.HOURS} hours)",
+                llms_url=llms, steps_url=f"{base}{agent.link.PREFIX}{code}/steps",
+                expires_at=agent.link.stamp(expires), token_id=tid, link_id=lid,
+                cancelled=older)
+
+
+def _ended(c, site: str, ended, why: str) -> int:
+    """Revoke the tokens of ended agent codes that were never handed out, one
+    audit row per cancelled code (agent.make's `ended`, agent.cancel's answer
+    as (link_id, token_id, "cancelled")); how many were cancelled."""
+    from .accounts import apitokens
+    cancelled = 0
+    for one, unused, how in ended:
+        if unused:
+            try:
+                apitokens.revoke(c.db, c.org["id"], unused, c.uid)
+            except ValueError:                 # the token is gone already
+                pass
+        if how != "cancelled":                 # an expired line's unused token: token.revoke
+            continue
+        cancelled += 1
+        _audit(c, "kit.agentcancel", site, f"link {one}; {why}; " + (
+            f"its unused token {unused} revoked" if unused else
+            "its keys were taken, so its token stays (revoke it in Settings > Connections)"))
+    return cancelled
+
+
+def agent_cancel(c, form):
+    from .kit import agent
+    site = _site(c, form)
+    if site is None:
+        return c.no(404, "There is no such site in this organisation.")
+    lid = text(form, "link_id", 40).strip().lower()
+    if not agent.LINK_ID.match(lid):
+        return c.no(400, "link_id is the 16 hex characters sites/agentlink answered.")
+    was = agent.status(_folder(c), site, lid)["state"]
+    if was == "unknown":
+        return c.no(404, "There is no such line for this site (it may have run out a day ago).")
+    if was != "cancelled":
+        _ended(c, site, [(one, unused, "cancelled")
+                         for one, unused in agent.cancel(_folder(c), site, lid)], "cancelled")
+    return c.ok(state="cancelled")
+
+
+def agent_status(c, form):
+    from .kit import agent
+    site = _site(c, form)
+    if site is None:
+        return c.no(404, "There is no such site in this organisation.")
+    lid = text(form, "link_id", 40).strip().lower()
+    if not agent.LINK_ID.match(lid):
+        return c.no(400, "link_id is the 16 hex characters sites/agentlink answered.")
+    return c.ok(**agent.status(_folder(c), site, lid))

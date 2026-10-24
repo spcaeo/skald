@@ -51,6 +51,9 @@
 
 ## What's new
 
+- **2.31.0: one line for your AI agent** ([changelog](CHANGELOG.md#2310-2026-10-24)). Add a site
+  gives one line to paste into Claude Code, Codex or Cursor. It holds a one-time code, never a key:
+  the agent takes the keys once, connects the site and reports back while you watch each step.
 - **2.30.0: set up in one step** ([changelog](CHANGELOG.md#2300-2026-10-23)). One command connects a
   server's logs, with or without Docker; leads in one file or a WordPress plugin; the whole set-up
   in one zip by mail, ready for a person or Claude Code.
@@ -58,8 +61,6 @@
   they read are never deleted when you choose so; visitors' pages before a sign-up up to 400 days.
 - **2.28.0: Leads' 7 days include today** ([changelog](CHANGELOG.md#2280-2026-10-22)). Today so
   far plus the 6 days before, with the exact dates from and to, compared up to the same hour.
-- **2.27.0: share the visitor ID across subdomains from Skald** ([changelog](CHANGELOG.md#2270-2026-10-22)).
-  One setting per site links a sign-up on app.example.com to the visits before it, with the script tag unchanged.
 
 Earlier releases: [CHANGELOG.md](CHANGELOG.md).
 
@@ -369,9 +370,12 @@ your firewall, not instead of it.
   the end ("Connected: 1,240 lines received, the last at 10:42", or what is wrong and the fix).
 - **Skald checks your site** from outside: the web server, any platform in front, the framework,
   the host names and page assets, and suggests the way in. You confirm or change it.
-- **Add a site** in five steps you can leave and resume; one command on the server (or one file),
-  with `skald-ship-check` to say what is wrong in plain words; a private link to share the steps
-  with your developer.
+- **Add a site** in five steps you can leave and resume. Pick your AI agent (Claude Code, Codex,
+  Cursor or another) and paste one line: it holds a one-time code that gives the keys once, for
+  this site only, then stops; the agent connects the logs, the script tag and the lead file, and
+  Skald ticks each step as it happens. Or set it up by hand: one command on the server (or one
+  file), with `skald-ship-check` to say what is wrong in plain words; a private link to share the
+  steps with your developer.
 - **Send set-up to someone:** one zip by mail with every way in, the keys, and a `CLAUDE.md`, so a
   client gives the folder to Claude Code and says "Set up Skald from CLAUDE.md".
 - **Leads in one file:** PHP, Node or Python, one function to call; a WordPress plugin with no
@@ -479,7 +483,7 @@ person search and the other Settings pages need your own Skald. Every image belo
 | <img src="docs/screenshots/overview-today.png" alt="Overview, today in Live mode: visitors on the site now with visitors a minute, then Visitors, Pages read, Leads and Visitors from AI, each against yesterday at this hour with both days' running lines, and the map of today's visits" width="440"><br>**Overview, today.** Every figure against yesterday at this hour. | <img src="docs/screenshots/realtime.png" alt="Overview, Real time: visitors active now and in the last 30 minutes, visitors minute by minute, requests per minute labelled as requests, a world map with each active city, and tables by country and by city" width="440"><br>**Real time.** Visitors and requests apart, both counted twice. |
 | <img src="docs/screenshots/live-mode.png" alt="Today · Live switched on: visitors on the site now, and today's visitors, pages read, leads and visitors from AI, each against yesterday at this hour" width="440"><br>**Today · Live.** One switch, on every section. | <img src="docs/screenshots/live-leads.png" alt="What converted today: today's demos booked, sign-up and contact form, each with its time, page, country and where it came from" width="440"><br>**Live leads.** Each lead and booking as it lands. |
 
-### Connecting a site (2.16, 2.17)
+### Connecting a site (2.16, 2.17, 2.31)
 
 <p align="center">
   <img src="docs/screenshots/connections.png" alt="Settings, Connections: Set up example.com, 1 of 5 left (logs arriving, visits count as people, countries shown, the script tag, the lead hook and privacy ticked; the mail recipient with a Set up button), then three tasks: send this site's visits to Skald, read your figures (API) and connect an AI assistant (MCP), and the organisation's tokens with what each is for" width="900"><br>
@@ -488,7 +492,8 @@ person search and the other Settings pages need your own Skald. Every image belo
 
 | | |
 | :---: | :---: |
-| <img src="docs/screenshots/site-check.png" alt="Add a site, step 1: example.com typed in, and What Skald found: server nginx on Ubuntu, no platform in front, built with Next.js, host names example.com and www.example.com, page assets /_next/static/, and the suggestion: a Linux server with Docker" width="440"><br>**Skald checks your site** (your own Skald). And suggests the way in. | <img src="docs/screenshots/add-site-wizard.png" alt="Set up example.com, step 3 of 5, how visits reach Skald: my own server, nginx or Apache, with or without Docker (recommended), Cloudflare, Vercel or Netlify, or only the script tag" width="440"><br>**Add a site in five steps.** Close it any time; it continues. |
+| <img src="docs/screenshots/site-check.png" alt="Add a site, step 1: example.com typed in, and What Skald found: server nginx on Ubuntu, no platform in front, built with Next.js, host names example.com and www.example.com, page assets /_next/static/, and the suggestion: a Linux server with Docker" width="440"><br>**Skald checks your site** (your own Skald). And suggests the way in. | <img src="docs/screenshots/add-site-wizard.png" alt="Add a site, step 3 of 5, Which AI agent are you using: Claude Code, Codex, Cursor, Claude.ai or ChatGPT, Another agent, and No AI agent: set it up by hand" width="440"><br>**Add a site in five steps** (2.31). Pick your AI agent, or set it up by hand. |
+| <img src="docs/screenshots/add-site-agent-line.png" alt="Add a site, step 4 of 5, Send this line: set up Skald for example.org, read https://stats.example.com/traffic-kit/llms.txt and use code (hidden), works once, 24 hours; Copy, Show code, Make a new line, Cancel this line, and Is it safe to paste this into a chat?" width="440"><br>**One line for your AI agent** (2.31). A one-time code, never a key. | <img src="docs/screenshots/add-site-agent-watch.png" alt="Add a site, step 5 of 5, Watch it connect: the agent read the steps, took the keys once, sent its report, the first log lines arrived; then what the agent did: hosting, web server, access log, framework" width="440"><br>**Watch it connect** (2.31). Each step ticks; the agent's report in plain words. |
 | <img src="docs/screenshots/connections-install.png" alt="Send this site's visits to Skald, step 2 of 3, Run one command: curl -fsSL https://stats.example.com/traffic-kit/ and a one-time code, piped to sudo bash, with Copy, Download as one file, Email it to your server admin and Make a new command" width="440"><br>**One command** (2.30). With or without Docker; the token is made for you. | <img src="docs/screenshots/setup-checklist.png" alt="Set up example.com: six lines ticked and one open, Mail recipient confirmed: 'Nobody gets the daily mail yet', with a Set up button" width="440"><br>**Set up this site.** Each open line has a Set up button. |
 | <img src="docs/screenshots/lead-setup-file.png" alt="Connect your leads, step 3 of 4: choose PHP, Node or Python, Download skald-lead.php, then require it and call skald_lead with the lead's ID, the action and the email; the secret goes in SKALD_LEAD_SECRET" width="440"><br>**Leads in one file** (2.30). One function to call; WordPress needs no code. | <img src="docs/screenshots/setup-pack.png" alt="Send set-up to someone: up to three email addresses, a note, Include the keys ticked, Send by email and Download (.zip), and the line: give the folder to Claude Code and say Set up Skald from CLAUDE.md" width="440"><br>**Send set-up to someone** (2.30). One zip a person or Claude Code can follow. |
 

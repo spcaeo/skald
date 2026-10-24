@@ -31,7 +31,7 @@ export async function call(path, body) {
   }
   let data = null;
   try { data = await res.json(); } catch { /* not JSON: the helper does not answer this yet */ }
-  if (!data) return { ok: false, missing: res.status === 404 || res.status === 405 || res.status === 502, error: `The address list is not available yet (${res.status}).` };
+  if (!data) return { ok: false, status: res.status, missing: res.status === 404 || res.status === 405 || res.status === 502, error: `The address list is not available yet (${res.status}).` };
   if (!res.ok || !data.ok) return { ...data, ok: false, status: res.status, error: data.error || ERRORS[res.status] || `Refused (${res.status}).` };
   return data;
 }

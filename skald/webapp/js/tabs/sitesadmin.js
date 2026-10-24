@@ -1,11 +1,12 @@
 // Settings > Add or remove sites (accounts, access.mode: sessions): the
 // organisation's sites, where each is defined (a config file on the server, or
 // made here), and what the log endpoint has received for it. An admin adds a
-// site step by step (site-wizard.js): its address, proof it is theirs, how its
-// visits reach Skald, the install and a test; a set-up left half way shows
+// site step by step (site-wizard.js): its address, proof it is theirs, then one
+// line for an AI agent and a watch as it connects, or by hand how its visits reach
+// Skald, the install and a test; a set-up left half way shows
 // "Setup: step 3 of 5, continue", and one that heard nothing for a day "No
-// visits yet: test the connection". #settings/sitesadmin?setup=new|<site>&step=<n> is the
-// wizard open (2.21: kept while it is open, Back closes it; js/overlays.js), and ?test=<site>
+// visits yet: test the connection". #settings/sitesadmin?setup=new|<site>&step=<n>&agent=<id>&link=<id>
+// is the wizard open (2.21: kept while it is open, Back closes it; js/overlays.js), and ?test=<site>
 // opens a site's wizard at its Test (the site picker links there). An owner removes
 // a site made here, typing its name: processing stops, the data stays until an
 // install admin purges it on the server. The helper behind <page>/sites checks
@@ -49,17 +50,21 @@ let asked = "";
 // The latest answer and its reload, for a wizard a link opens (openSiteKey).
 let latest = null;
 
-/* setup=new|<site>&step=<n>, from a link: the Add a site wizard, for an owner or an admin. */
-export async function openSiteKey(value, step = 1) {
+/* setup=new|<site>&step=<n>&agent=<id>&link=<id>, from a link: the Add a site wizard, for an
+   owner or an admin (on Connections too: its "Set up with your AI agent" opens a site's at step 3).
+   The page's last answer, unless it does not have the site yet (one the wizard just made). */
+export async function openSiteKey(value, step = 1, s = {}) {
   if (!sessions() || !admin()) return "Not available to your role.";
-  const r = latest?.data?.sites ? latest.data : await call("sites");
+  const has = (d) => d?.sites && (value === "new" || d.sites.some((x) => x.name === value));
+  const r = has(latest?.data) ? latest.data : await call("sites");
   if (!r.ok && !r.sites) return why(r, "The sites could not be loaded, so the wizard cannot open. Open this page again in a minute.");
-  const reload = latest?.reload || (() => {});
-  if (value === "new") return r.can_add ? siteWizard({ data: r, onChange: reload }) : "Adding a site is not open to this organisation now.";
+  const reload = location.hash.includes("settings/sitesadmin") && latest?.reload || (() => {});
+  if (value === "new") return r.can_add ? siteWizard({ data: r, onChange: reload, agent: s.agent || "" }) : "Adding a site is not open to this organisation now.";
   const site = (r.sites || []).find((x) => x.name === value);
   if (!site) return "That site is not one of this organisation's sites.";
-  return siteWizard({ data: r, name: site.name, start: Math.max(0, Math.min(STEPS, step) - 1), method: site.setup?.method || "", verify: site.verify,
-    found: site.setup?.found || null, onChange: reload });
+  // pick: Connections' "Set up with your AI agent" asks which agent, whatever way was saved.
+  return siteWizard({ data: r, name: site.name, start: Math.max(0, Math.min(STEPS, step) - 1), method: s.pick ? "" : site.setup?.method || "", verify: site.verify,
+    found: site.setup?.found || null, onChange: reload, agent: s.agent || "", link: s.link || "" });
 }
 
 export default function sitesadmin(m, s = {}) {
@@ -206,7 +211,7 @@ export default function sitesadmin(m, s = {}) {
     const go = h("button", { type: "button", class: "btn primary" }, "Add a site, step by step");
     go.addEventListener("click", () => siteWizard({ data: r, onChange: reload }));
     return h("section", { class: "s" }, h("h2", null, "Add a site"),
-      h("p", { class: "sub" }, "Five short steps: the site's address, proof it is yours, how its visits reach Skald, the install, and a test. You can stop at any step and continue later."),
+      h("p", { class: "sub" }, "Five short steps: the site's address, proof it is yours, then one line for your AI agent (or set it up by hand), and a check that its visits arrive. You can stop at any step and continue later."),
       h("div", { class: "acts" }, go));
   }
 

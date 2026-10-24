@@ -90,3 +90,47 @@
 .su-pack-to input, .su-pack textarea { width: 100%; max-width: 420px; box-sizing: border-box; }
 .su-pack .chk small { display: block; color: var(--ink-3); font-size: 12.5px; }
 .su-nocode p { margin: 0; }
+
+/* 2.31: "Set up with your AI agent" in the Add a site wizard (js/tabs/agent-setup.js,
+   agent-watch.js): the agents as tiles, the line with its hidden code, the checklist
+   that ticks itself, the agent's report */
+.ag-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; }
+.ag-tile { display: grid; gap: 3px; justify-items: start; align-content: start; min-height: 44px; padding: 14px; text-align: left; font: inherit; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); cursor: pointer; }
+.ag-tile:hover { border-color: var(--ink-3); }
+.ag-tile[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink) inset; }
+.ag-tile b { font-size: 14px; }
+.ag-tile small { color: var(--ink-3); font-size: 12.5px; }
+.ag-ic { width: 30px; height: 30px; display: grid; place-items: center; margin-bottom: 4px; border-radius: 8px; background: var(--sunk); color: var(--ink); }
+.ag-ic svg { width: 18px; height: 18px; }
+.ag-or { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding-top: 4px; }
+.ag-or small { color: var(--ink-3); font-size: 12.5px; }
+.ag-back { margin-left: 4px; padding: 2px 9px; font-size: 12.5px; }
+.ag-line pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.ag-copy.ok { background: var(--good); border-color: var(--good); color: var(--surface); }
+.ag-slot { display: grid; gap: 8px; }
+.ag-why { font-weight: 600; }
+.ag-watch { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13.5px; }
+.ag-watch li { display: flex; gap: 8px; align-items: baseline; min-width: 0; overflow-wrap: anywhere; }
+.ag-watch li.wait { color: var(--ink-3); }
+.ag-watch li.wait .cn-tick { color: var(--ink-3); }
+.ag-watch li.bad .cn-tick { color: var(--warn); }
+.ag-watch small { color: var(--ink-3); font-size: 12px; }
+.ag-report { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: var(--r); background: var(--surface); }
+.ag-report h4 { margin: 0; font-size: 13.5px; }
+.ag-report dl { margin: 0; display: grid; gap: 6px; font-size: 13px; }
+.ag-rep-row { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 2px 12px; }
+.ag-rep-row dt { color: var(--ink-2); font-weight: 600; }
+.ag-rep-row dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.ag-rep-row dd ul { margin: 0; padding-left: 18px; }
+.ag-rep-note { display: block; color: var(--ink-3); font-size: 12px; }
+.ag-rep-row.warn dd { color: var(--warn); font-weight: 600; }
+.ag-use p, .ag-use .msg { margin: 0 0 6px; }
+@media (max-width: 600px) {
+  .ag-tiles { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ag-rep-row { grid-template-columns: minmax(0, 1fr); }
+}
+.ag-slot:empty { display: none; }
+/* "Is it safe to paste this into a chat?": the app's fold (features.css), its list inside */
+.ag-safe { margin: 0; }
+.ag-safe ul { margin: 0; padding: 0 14px 12px 34px; display: grid; gap: 6px; font-size: 13px; line-height: 1.5; color: var(--ink-2); overflow-wrap: anywhere; }

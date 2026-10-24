@@ -61,6 +61,26 @@ docs/help/connections.md):
 2. **Prove it's yours**: the DNS TXT record or meta tag, with "Check now"
    (`sites/verify`; docs/SAAS.md). When the install asks no proof, the step
    says so.
+3. **Your AI agent** ("Which AI agent are you using?", 2.31): Claude Code,
+   Codex, Cursor, Claude.ai or ChatGPT (chat only), Another agent, and a
+   quieter **No AI agent: set it up by hand**. An agent that can run shell
+   commands gets steps 4 and 5 below (method `agent`). A chat-only agent
+   cannot run commands on a server, so its step 4 is the server way's one
+   command (method `server`). By hand turns steps 3 to 5 into the ones that
+   follow ("Use an AI agent instead" turns them back).
+4. **Send this line**: the one line for the agent (`sites/agentlink`; "One
+   line for your AI agent", below), the code hidden until "Show code", with
+   Copy, "Make a new line", "Cancel this line" and "Is it safe to paste this
+   into a chat?".
+5. **Watch it connect**: a checklist that ticks itself (`sites/agentstatus`
+   every 5 s for 15 minutes, then every 30 s): the agent read the steps, took
+   the keys (with the time, and what to do if it was not your agent), sent its
+   report, the first log lines arrived (the Test below); the script tag and a
+   test lead too, when the report says the agent added them. Done is the
+   first log lines, as by hand.
+
+By hand, steps 3 to 5 are:
+
 3. **How visits reach Skald**: my own server (nginx or Apache, with or
    without Docker: method `server`; the older `docker` and `systemd` ids, in
    saved progress, old links or the site check, map to it), Cloudflare (the
@@ -88,8 +108,10 @@ remove sites and on the site picker; a finished one that nothing reached for
 24 hours (no batch, no beacon event) shows "No visits yet: test the
 connection", which opens step 5.
 
-For a site that exists already, **Settings > Connections > Send this site's
-visits to Skald** has the same steps 3 to 5: where it runs, then for a server
+For a site that exists already, **Settings > Connections** has **Set up with
+your AI agent** on the send card: it opens the site's wizard at step 3
+(`setup=<site>&step=3`), whatever way was saved. **Send this site's
+visits to Skald** has the by-hand steps 3 to 5: where it runs, then for a server
 "Run one command" and "Test" (three steps), for Cloudflare or Vercel "Sending
 token", "Install" and "Test", for the script tag "Install" and "Test".
 
@@ -102,6 +124,191 @@ On the server, an install admin can do the same with
 A site from a config file can ship its log too: make an ingest token for it
 (Settings > Connections > Send this site's visits to Skald, or Settings > Add
 or remove sites > New token) and point its `logs.dir` at `<ingest root>/<site>`.
+
+## One line for your AI agent
+
+Since 2.31 this is Add a site's first way (`skald/kit/agent.py`, `kit_api.py`,
+`webapp/js/tabs/agent-setup.js`, `agent-watch.js`, `agent-words.js`). Skald writes one line,
+the admin pastes it into an AI agent that can run shell commands (Claude Code, Codex, Cursor
+in Agent mode), and the agent does the set-up and reports back:
+
+```
+set up Skald for example.com — read https://stats.example.com/traffic-kit/llms.txt and use code <code> (works once, 24 hours)
+```
+
+The address is the install's own (`kit_api.fields(...)["base"]`). The code is 43 URL-safe
+characters (`secrets.token_urlsafe(32)`). It is not a key. It lets the agent take the keys
+**once**, with curl, straight into a 0600 file. The keys never pass through the chat or the
+dashboard page.
+
+**The line.** `POST <page>/sites/agentlink {site, leads: true}` (owner or admin, as
+`sites/link`) does four things:
+
+- It makes a new sending token, "Sending logs: <site>, <day> (AI agent set-up)", with scope
+  `ingest`, for this one site.
+- With leads, it gets the site's lead secret. An existing secret is copied, not replaced
+  (audit `hook.secret`, "copied (AI agent set-up)"). With none, one is made ("made (AI agent
+  set-up)"). A secret kept in the server's environment is not put in: the steps tell the
+  agent to ask whoever runs Skald.
+- It makes a report key, so that only the agent that took the keys can send the report.
+- It seals all three under a new code for 24 hours. In the same lock it cancels the site's
+  older lines whose keys were not taken, and revokes the unused token of an expired one
+  (below).
+
+It answers `{line, llms_url, steps_url, expires_at, token_id, link_id, cancelled}`, and never
+the token or the secret. `link_id` is the first 16 hex of the code's SHA-256: the only thing
+the page puts in the address (`link=`). The page keeps the line in memory only. After a reload
+it says the line is not shown again, and offers a new line or Cancel. The audit row is
+`kit.agentlink`: the token id, the link id, the lead secret's kind and how many older lines
+were cancelled. It never holds the code. 409 when the log endpoint is off.
+
+**The routes,** on the beacon helper under `/traffic-kit/` (`agent.serve`):
+
+| Route | Who | Answer |
+| --- | --- | --- |
+| `GET /traffic-kit/llms.txt` | anyone | The public guide for an agent (`kit/agent/llms.txt`): what Skald is, its rules, and "read `<base>/traffic-kit/<code>/steps`". No code, no secret, no rate limit. POST: 405 |
+| `GET /traffic-kit/<code>` | anyone | To curl or Wget, a script that prints "This code is for an AI agent: read .../steps" and exits 1, so `\| sudo bash` never runs Markdown. Anything else gets the same words as text. It never uses anything up. An install link's code answers as before (`link.answer_code`) |
+| `GET /traffic-kit/<code>/steps` | anyone (the guide says: curl) | The site's own steps in Markdown (`kit/agent/steps.md`): the site, the send and lead addresses, the dashboard, what the site check found and which way fits, the script tag, the rules, and the 8 steps (find the hosting, ask the privacy question, take the keys, connect the logs, the tag, leads, check, report). No secret. The first GET sets `opened_at`. It works until the expiry or a cancel, also after the keys are taken. A site check value is cut to 120 characters, put in a code span, and can never look like a placeholder; a page that cannot be made answers 500 in words |
+| `GET /traffic-kit/<code>/keys` | curl or Wget only | The keys once, as an env file, each value shell-quoted: `SKALD_SITE`, `SKALD_INGEST_URL`, `SKALD_INGEST_TOKEN`, `SKALD_LEAD_URL`, `SKALD_LEAD_SECRET` when it was included, and `SKALD_REPORT_KEY`. Then the seals are wiped and `keys_at` is set. Again: 410. Any other user agent: 403 "Fetch this with curl in a shell into a file...", and nothing is used up. HEAD: the status only, never used up |
+| `GET /traffic-kit/<code>/install.sh` | anyone | The one-file installer without a token. It reads `SKALD_SHIP_TOKEN` from the environment, which the steps fill from the keys file |
+| `GET /traffic-kit/<code>/leads/<file>` | anyone | The lead files (`kit/leadfiles.py`: `README.md`, `skald-lead.php`, `skald-lead.cjs`, `skald_lead.py`, `skald-leads.zip`) without a secret. They read `SKALD_LEAD_SECRET` from the environment |
+| `POST /traffic-kit/<code>/report` | the agent that took the keys | The agent's report: one JSON object, at most 16 KiB, with a Content-Length (411 without, 413 over, 400 not an object), and the header `X-Skald-Report-Key: <SKALD_REPORT_KEY>`. The steps pipe that header into `curl -H @-` (grep the keys file, sed it into a header), so the key is never on a command line or in a file; an agent run from an allow list may not redirect into a file, so the steps write none. No key, or a wrong one: 403, nothing kept. `{"ok": true}`. It can be sent again until the expiry or a cancel. The latest replaces the earlier one |
+
+**After the keys are taken,** only `/keys` stops (410). `/steps`, `/install.sh`, `/leads/<file>`
+and `POST /report` keep answering until the expiry or a cancel, so the agent can finish and
+report. None of them holds a secret. The bare code keeps answering its words too.
+
+Every answer has `Cache-Control: no-store` and `X-Robots-Tag: noindex, nofollow`. Every route
+but `llms.txt` shares the kit's limit per address (10 a minute, a burst of 5; then 429 "Too
+many tries"). An unknown code answers 404 under a sub-path. An expired or cancelled code
+answers 410 with words that say to make a new line.
+
+**What is stored.** One entry in `kit-links.json` (0600, beside the history, the same file and
+lock as the install links), keyed by the code's SHA-256, with `kind: "agent"`. It holds the
+site, `made_at`, `expires_at`, `token_id`, the token, the lead secret and the report key each
+XORed with its own HMAC-SHA256 keystream from the code (`sealed`, `sealed_lead`,
+`sealed_report`; labels `skald-kit-agent`, `skald-kit-lead`, `skald-kit-report`, never the
+install link's, so an older image that does not know agent codes cannot hand the token out
+as an install link), the report key's SHA-256 only (`report_key`, to check the report), the
+fields (the
+addresses and the tag: nothing secret), whether leads were asked for and the lead note, the
+site check's facts (`found`), `opened_at`, `keys_at`, `reported_at`, `cancelled_at`, and the
+cleaned report. It never holds the code itself, so the disk never holds a usable key. The
+seals are wiped when the keys are taken, on a cancel, and on the first write to the file
+after the expiry (an expired code gives nothing either way). The entry is kept a
+day after the expiry, so the wizard can still say "expired" and show the report. Then it is
+dropped. Nothing logs the code: the container's nginx has `access_log off` and
+`error_log stderr crit;` for `/traffic-kit/` (an error line holds the request line, so a
+refused method, a report over 16 KiB or an upstream failure would otherwise write the code),
+the beacon helper logs no request, and the audit holds only the link id.
+
+**The report.** Only these keys are kept, each cleaned (one line, printable) and capped:
+`hosting`, `server`, `framework`, `log_path`, `asset_paths` (up to 10, as the
+setting allows, each starting with `/`), `script_tag` (where it was added), `leads` (up to 10 `{tool, file}`), `privacy`
+(`keep_ips` true or false, `days` 0 to 3650, `notice_url` http or https), `nextjs_log_field`
+(true or false), `changed_files` (up to 50), `left_for_user` (up to 20), and `notes` (at most
+1000 characters). An unknown key or a wrong kind is dropped. Text shaped like a sending token
+or a lead secret becomes `[removed]`. The wizard shows the report in plain words. It changes
+no setting by itself: the admin applies what fits. "Use these page assets" saves the report's
+`asset_paths` through the usual settings call when they differ from the site's, and the
+privacy answers are for the admin to set in Settings > Data retention > People.
+
+**The states** (`POST <page>/sites/agentstatus {site, link_id}`, that site's codes only):
+
+| State | Means |
+| --- | --- |
+| `waiting` | made, the agent has not read the steps yet |
+| `opened` | the agent read the steps (`opened_at`) |
+| `keys_taken` | the keys were taken (`keys_at`). This stays after the expiry: the outcome is settled |
+| `expired` | 24 hours passed before the keys were taken |
+| `cancelled` | ended by Cancel this line, or by a newer line |
+| `unknown` | no such code for this site, or dropped a day after the expiry |
+
+It answers `{state, opened_at, keys_at, reported_at, cancelled_at, expires_at, report}`.
+
+**Cancel.** `POST <page>/sites/agentcancel {site, link_id}` ends a line at once: the seals
+are wiped and every route answers as for an expired code (410). When the keys were never
+taken, its token is revoked too. When they were, the token stays: remove it in Settings >
+Connections, under Your tokens. One audit row `kit.agentcancel`. 404 for an unknown line.
+**A new line cancels an older unused one:** `sites/agentlink` cancels the site's lines that
+are waiting or opened and revokes their unused tokens (`cancelled` says how many; audit "a
+new line replaced it"). This runs inside the same lock that writes the new code, and touches
+only lines made before it, so two lines made at the same moment never cancel each other. An
+expired line's unused token is revoked then too. So a site has one live line at a time. A
+line whose keys were taken is left as it is: its keys are out already. The wizard makes a line
+by itself only when the admin reached step 4 by Next or a tile; step 4 opened from an address
+shows a button instead, so an old link cannot cancel the line an agent is working from.
+
+**Why web readers cannot take the keys.** A web reader or fetch tool (a chat's "read this
+URL") may pass the page through another model, and so put the keys in a chat history. So
+`/keys` answers only a user agent that starts with `curl/` or `wget/`. Anything else gets 403
+and uses nothing up, so a mistake costs nothing. The guide tells the agent to fetch the steps
+with curl too, so the code is not handed to a fetch tool's provider. The steps first check
+that the keys file is not there already, take the keys with
+`curl -sS -o $HOME/.config/skald/<site>.env.part` under `umask 077`, and move the file into
+place only on HTTP 200: a repeated fetch (its 410 words) can never overwrite good keys. They
+check only the names (`cut -d= -f1`) and never print the file. The user-agent check guards
+against mistakes. It is not a lock: anyone can send `curl/` as a user agent. The protection is
+that the code works once, for 24 hours, and can be cancelled.
+
+**What the keys can do.**
+
+- The sending token has only the `ingest` scope, for this one site. It can add log lines to
+  `POST /traffic-ingest/<site>` and nothing else. It cannot read any figure, open the
+  dashboard or see a visitor.
+- The lead secret only signs this site's leads: `POST /traffic-hooks/<site>/lead`. It also
+  signs the site's own read-back of the leads it sent (`GET /traffic-hooks/<site>/leads`:
+  refs, stages, times and labels, never a name, email or visitor ID) and the marking of its
+  own leads as test (`POST .../leads/test`). It cannot open the dashboard.
+
+After the set-up, the admin can remove the agent's token ("AI agent set-up") in Settings >
+Connections > Your tokens, and make a new lead secret in Settings > Integrations.
+
+**What the wizard tells the admin** ("Is it safe to paste this into a chat?",
+`agent-words.js` `SAFE`; the help has the same words). Each line holds because of the
+behaviour above:
+
+- Yes. The line holds a one-time code, not a password or a key.
+- The keys come out once. When your agent takes them, the code can never give them again. A
+  code nobody uses stops after 24 hours.
+- Your agent is told to save the keys straight into a locked file and never show them in the
+  chat. Skald gives them only to a command-line download such as curl, and turns away web
+  readers and fetch tools, which could pass them into a chat.
+- The keys work for this one site only. The sending key can only send log lines. The lead
+  secret sends leads and can read back this site's lead list (reference, stage, time), never
+  names, emails, addresses or visitor IDs. Neither can open your dashboard or see your
+  visitors.
+- Skald keeps only a scrambled copy of the code (a hash), never the code itself, and never
+  writes it to a log.
+- Until the keys are taken, treat the line like a house key: paste it only into your own agent.
+  Changed your mind? Press Cancel this line and it stops at once. A new line also cancels an
+  older one whose keys were not taken yet.
+- If your site already has a lead secret, the agent gets that same one (unless your Skald keeps
+  it in the server's settings; then the keys hold none). After the set-up you can remove the
+  agent's sending key in Settings > Connections > Your tokens, and make a new lead secret in
+  Settings > Integrations.
+
+**nginx.** `/traffic-kit/` stays GET only, logs nothing, and a nested location lets POST
+through for the report alone, with `client_max_body_size 16k` (DEPLOY.md's sample):
+
+```nginx
+location ^~ /traffic-kit/ {
+    error_log stderr crit;
+    access_log off;
+    location ~ "^/traffic-kit/[A-Za-z0-9_-]{43}/report$" {
+        limit_except POST { deny all; }
+        client_max_body_size 16k;
+        include snippets/skald-beacon.conf;
+    }
+    limit_except GET { deny all; }
+    include snippets/skald-beacon.conf;
+}
+```
+
+`docker/nginx.conf` has it. A self-hosted front nginx made from DEPLOY.md's sample before 2.31
+must take this block: without the nested location the agent's report is refused (403), and
+without `error_log stderr crit;` nginx's error log can hold the code. The helper sends
+`no-store` and `noindex` itself.
 
 ## One command: the one-file installer and the install link
 
@@ -588,7 +795,10 @@ by `sites_api.py`). Owner or admin only; POSTs need the session's
 | POST `sites/link` | `{site}` -> `{ok, url, command, expires_at, token, token_id}`: a new sending token (shown once) and the one-time install link, `curl -fsSL <url> \| sudo bash`, for 24 hours; 409 when the log endpoint is off |
 | POST `sites/pack` | `{site, include_secrets, token?, lead_secret?}` -> `skald-setup-<site>.zip` (`application/zip`); a token made for it is named in `X-Skald-Token-Id` |
 | POST `sites/packmail` | `{site, to: [up to 3], include_secrets, token?, lead_secret?, note?}` -> `{ok, sent_to, token_id, lead_secret_made}`; 400 for a bad address, 409 when mail is not set up, 429 after 10 an hour per site, 502 when the mail server refused it |
-| POST `sites/setup` | `{name, step?, method?, token_id?, done?}` -> `{setup}`, the wizard's progress |
+| POST `sites/agentlink` | `{site, leads: bool = true}` -> `{ok, line, llms_url, steps_url, expires_at, token_id, link_id, cancelled}`: the one line for an AI agent ("One line for your AI agent", above); never the token or the lead secret; the site's older unused lines are cancelled; 409 when the log endpoint is off |
+| POST `sites/agentstatus` | `{site, link_id}` -> `{ok, state, opened_at, keys_at, reported_at, cancelled_at, expires_at, report}`: how far the agent got, for that site's line only |
+| POST `sites/agentcancel` | `{site, link_id}` -> `{ok, state: "cancelled"}`: the line ends at once; its token is revoked when the keys were never taken; 404 for an unknown line |
+| POST `sites/setup` | `{name, step?, method?, token_id?, done?}` -> `{setup}`, the wizard's progress (method `agent` on the AI agent's way) |
 | POST `sites/add` | as before; `token: false` makes no token (the wizard makes a named one later) |
 | POST `sites/share`, GET `sites/shares`, POST `sites/unshare` | "Share with your developer" links (`share_links.py`, `share_api.py`): a private page at `/traffic-auth/setup/<id>` with one task's steps for one site, no sign-in, 1, 7 or 30 days. Only the id's SHA-256 is kept. The sending token is made when the developer presses Show the secret, once, in the name of the admin who made the link |
 | GET `sites` | as before; to admins also `kit {docker, systemd, server, why, image, ship_path}`, `api_base`, `mcp_url`, `mcp_enabled`, `beacon_on`, and per site `setup` and `quiet` (set up, and nothing reached Skald for 24 hours) |
