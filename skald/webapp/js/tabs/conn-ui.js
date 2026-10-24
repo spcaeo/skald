@@ -2,20 +2,23 @@
 // (a step bar, Back and Next, in the app's one drawer, js/drawer.js), a task
 // card, and a block of commands with its Copy button.
 //
-//   const w = wizard({ title, subtitle, steps: [{ name, draw(w) -> nodes,
+//   const w = wizard({ title, subtitle, steps: [{ name, title?, draw(w) -> nodes,
 //                      check(w) -> "" or why Next is refused, next(w) -> async, false stops }],
+//                      (name: the step bar's short word; title, when given: the heading's)
 //                      start, onStep(i), onClose, done: "Done", route: {key, value} });
 //   w.go(i); w.redraw(); w.close(); w.say(text, ok); w.state (the dialog's own memory)
 //
 // route (2.21): the dialog in the address, e.g. setup=rsc&step=2 (js/overlays.js): opening
 // adds a history entry (Back closes it), each step replaces it, closing takes it away.
 // A dialog opened from a link at a later step starts at the first step whose check() is
-// not met yet, so it never skips a choice that later steps need.
+// not met yet, so it never skips a choice that later steps need. w.keep({agent}) writes a
+// key inside the dialog (routekeys.js INSIDE); w.rename(value) changes what the address
+// names, e.g. setup=new to setup=<site> once Add a site made it, so a reload finds it.
 
 import { h } from "../ui.js";
 import { openDrawer } from "../drawer.js";
 import { status } from "./forms.js";
-import { stepped } from "../overlays.js";
+import { stepped, renamed } from "../overlays.js";
 import { withUrl } from "../urlactions.js";
 
 export function wizard({ title, subtitle = "", steps, start = 0, onStep = null, onClose = null, done = "Done", key = "conn-wizard", state = {}, route = null }) {
@@ -28,8 +31,11 @@ export function wizard({ title, subtitle = "", steps, start = 0, onStep = null, 
   // From a link at a later step: no further than the first step still waiting for its choice.
   for (let i = 0; i < w.at; i++) if (steps[i].check && steps[i].check(w)) { w.at = i; break; }
   const d = openDrawer({ title, subtitle, size: "md", key, className: "cn-dw", body: [bar, body, msg],
-    footer: [h("span", { class: "grow" }), back, next], onClose, route: route ? { ...route, step: w.at + 1 } : null });
+    footer: [h("span", { class: "grow" }), back, next], onClose, route: route ? Object.assign(route, { step: w.at + 1 }) : null });
   w.el = d.el;
+  // The drawer holds the same route, so its close takes away the name the address has then.
+  w.keep = (patch) => { if (route) stepped(route.key, route.value, patch); };
+  w.rename = (value) => { if (!route || route.value === String(value)) return; renamed(route.key, route.value, value); route.value = String(value); };
   w.close = () => d.close();
   w.say = (text, ok = false) => msg.say(text, ok);
 
@@ -39,7 +45,7 @@ export function wizard({ title, subtitle = "", steps, start = 0, onStep = null, 
     bar.replaceChildren(...steps.map((s, i) => h("li", { class: i === w.at ? "on" : i < w.at ? "past" : null, "aria-current": i === w.at ? "step" : null },
       h("span", { class: "cn-n" }, String(i + 1)), h("span", { class: "cn-t" }, s.name))));
     const head = body.firstChild;
-    if (head && head.tagName === "H3") head.textContent = `Step ${w.at + 1} of ${steps.length}: ${steps[w.at].name}`;
+    if (head && head.tagName === "H3") head.textContent = `Step ${w.at + 1} of ${steps.length}: ${steps[w.at].title || steps[w.at].name}`;
     next.textContent = w.at === steps.length - 1 ? done : "Next";
   };
   w.redraw = () => {
@@ -47,7 +53,7 @@ export function wizard({ title, subtitle = "", steps, start = 0, onStep = null, 
     // A step may return null, false or nested lists for parts it leaves out: drop them here,
     // or the DOM would print "null" (seen on the mail dialog and Add a site, step 3).
     const parts = [].concat(step.draw(w) || []).flat(Infinity).filter((x) => x !== null && x !== undefined && x !== false && x !== "");
-    body.replaceChildren(h("h3", { class: "cn-h" }, `Step ${w.at + 1} of ${steps.length}: ${step.name}`), ...parts);
+    body.replaceChildren(h("h3", { class: "cn-h" }, `Step ${w.at + 1} of ${steps.length}: ${step.title || step.name}`), ...parts);
     w.drawBar();       // after the draw: drawing a step may change the later steps
     back.hidden = w.at === 0;
     next.disabled = false;
@@ -79,12 +85,13 @@ export function wizard({ title, subtitle = "", steps, start = 0, onStep = null, 
   return w;
 }
 
-// A task card at the top of Connections: an icon, a title, one line, a Set up button.
-export function taskCard({ icon, title, line, button = "Set up", onOpen, note = null, disabled = false }) {
+// A task card at the top of Connections: an icon, a title, one line, a Set up button
+// (and `more`, a second button beside it).
+export function taskCard({ icon, title, line, button = "Set up", onOpen, note = null, disabled = false, more = null }) {
   const btn = h("button", { type: "button", class: "btn primary", disabled, "aria-label": `${button}: ${title}` }, button);
   btn.addEventListener("click", onOpen);
   return h("div", { class: "cn-card" }, h("span", { class: "cn-ic", html: icon }), h("h3", null, title), h("p", null, line),
-    note ? h("p", { class: "note" }, note) : null, h("div", { class: "acts" }, btn));
+    note ? h("p", { class: "note" }, note) : null, h("div", { class: "acts" }, btn, more));
 }
 
 // A command or snippet, kept as typed (several lines), with a Copy button.

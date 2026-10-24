@@ -4,6 +4,170 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+### Website: the main button is a warm orange with white text (not deployed yet)
+
+- **What changed:** the main button on every page (`.btn-p`, `.sk-btn-p`) is now `#c84a16`
+  with white text, `#b03f12` on hover, from two new colour tokens (`--sk-cta`,
+  `--sk-cta-hover`). The owner also approved the first 28 rebuilt pages (A, B, C); from here
+  pages ship on the rubric without a review page by page.
+- **Why:** the owner asked for every page to be built around its CTA buttons ("very focused CRO
+  and CTA buttons"); the main button now stands apart from the page's other colours.
+- **Who:** website visitors. **Do:** nothing.
+- **Checked:** the site build, "problems: none"; white on `#c84a16` is about 4.7 to 1 (AA);
+  the colour and hover read back in a browser at 1440 and 390 wide.
+
+### Website: the 11 AI traffic pages rebuilt and graded (not deployed yet)
+
+- **What changed:** the AI crawlers, ChatGPT, Claude, Perplexity, Google AI Mode, AI referrals,
+  crawl health, block AI crawlers and llms.txt pages, the AI traffic guide and What is GEO are
+  rebuilt, each with its own hero and folds drawn from its own code (classify, bot_verify,
+  bot_policy, robots, ai_likely, ai_read, ai_formats, llms_txt, crawl_health, crawler_cost,
+  alerts). The robots.txt tester, the llms.txt file maker and the format sorter are JavaScript
+  copies of the Python code, checked to give the same answers. All 11 graded on the rubric:
+  77-84 before, 86-87 of 90 after.
+- **Facts corrected on the way:** Google and Anthropic do publish address lists (Skald simply has
+  no check for some of their names); Google-Extended is only a robots.txt line, no request
+  carries it; the guide's referrer is the second quoted field, and its command counts requests,
+  not visits; "about 60" or "about 40" names is now the 39 in the code. Claims the code does not
+  back were removed (most AI Mode clicks lose their referrer, the big crawlers follow
+  robots.txt, fakes probe /.env, a reason Gemini makes no fetches, any AI Overview click figure).
+- **Why:** the owner: every page unique and deep, and no AI-sounding pages.
+- **Who:** site visitors, once deployed. **Do:** nothing. First-hand details wait for the
+  owner's OK (listed in RUBRIC.md).
+- **Checked:** build "problems: none" with 29 pages graded; each page at 1440 and 390 px with no
+  JS errors, 4xx, sideways scroll or raw placeholders; every visible control clicked and kept in
+  the URL.
+
+### Website: AI visibility and leads pages rebuilt; every page graded on a rubric (not deployed yet)
+
+- **What changed:** the 5 AI visibility pages and the 12 leads and journeys pages are rebuilt
+  with their own parts, each from its own code (answers/, conversions/ and its adapters,
+  funnels, firsttouch, utm_hygiene, the WordPress plugin, the lead files). A rubric now grades
+  every page out of 100 (`_src/pages/RUBRIC.md`: title pays its promise, sourced numbers,
+  plain voice, every term explained, no fake proof, SEO basics, the answer in the first 100
+  words, one first-hand detail). `_src/rubric.py` runs its machine checks in the build for
+  graded pages. The first 18 pages were graded and fixed: 75-82 before, 84-86 of 90 after.
+  "More on wordPress" headings now keep the name's capital. Facts corrected on the way:
+  Perplexity is sent "en", not "en-GB"; leads count finished bookings and forms, not
+  payments; the funnel "Contains" match is written in the funnel's link only.
+- **Why:** the owner: every page unique and deep, and no AI-sounding pages.
+- **Who:** site visitors, once deployed. **Do:** nothing. First-hand details wait for the
+  owner's OK (listed in RUBRIC.md).
+- **Checked:** build "problems: none" with 18 pages graded; site tests; each page at 1440 and
+  390 px with no errors or sideways scroll.
+
+### Website: every page its own, starting with AI traffic (not deployed yet)
+
+- **What changed:** /ai-traffic-analytics/ rebuilt top to bottom: a hero that sorts sample log
+  lines live, a drag-to-compare of a script tag against the log, a step-through of one ChatGPT
+  question, a crawler check that stamps Verified or Spoofed, a look-back window you drag to
+  see a "likely from ChatGPT" visit appear, llms.txt demand and a suggested file, crawler cost
+  beside a sitemap grid, and a rule builder that writes Skald's real nginx lines. The tag line
+  under the logo is plain and sharp (no italics). A page can now load its own CSS and JS
+  (`css`, `js` in page.json; the build dropped them before). `_src/pages/REBUILD.md` tracks
+  every page; `_src/pages/LEDGER.md` lists every signature part so none repeats.
+- **Why:** the owner: 71 of 90 pages opened on the same log window, and every fold must speak
+  to a problem or an outcome, be engaging, and rest on the real code.
+- **Who:** site visitors, once deployed. **Do:** nothing.
+- **Checked:** build "problems: none"; site tests; all 111 pages at 1440 and 390 px; every
+  control on the page tried (window 20 and 8 minutes, the rule builder, the URL keeps each
+  choice).
+
+### Website: skaldanalytics.com rebuilt, one page per feature (not deployed yet)
+
+- **What changed:** the marketing site has 100 new pages built from `_src/pages/` (a page.json
+  and its HTML parts each): the home page, AI traffic (crawlers, live fetches, clicks, cost,
+  crawl health, rules), AI visibility, leads and journeys, server log analytics, self-hosting,
+  docs, features, comparisons, Google Analytics alternative, security, roles, integrations,
+  insights, pricing, demo and the author page. A new dark header with a light menu panel (the
+  dark-on-dark menu was hard to read), the tag line under the logo, and a new footer on every
+  page, old ones too. The old pages (security, check, install, about, story, privacy, contact,
+  beta, what's new, 404) keep their words.
+- **Fixed on the way:** the dark button in the orange end band showed no text (owner's
+  screenshot); the yearly price switch did nothing; browsers kept old CSS and JS (each link now
+  carries a hash of the file); `{{TRIAL}}` and `{{DEMO}}` were left as raw text in some heroes;
+  related-card titles lost their capitals ("ai traffic").
+- **Why:** the owner asked for every feature to have a page that says what it is, why it
+  matters and what to do next, with the same look and motion as the new home page, and each
+  page built for search.
+- **Who:** visitors of skaldanalytics.com, once it is deployed. **Do:** before deploying, the
+  live Skald's render test for skaldanalytics.com must accept `/css/`, `/js/` and `/fonts/`
+  as page assets, or real visits to the new pages may count as bots. Prices still show
+  "Proposed prices, not final yet" (`PRICES_PROPOSED` in `_src/conf.py`).
+- **Checked:** the build ends "problems: none" (one H1, title and description lengths, dead
+  links, banned claims); the site's tests (one browser test of the check page's agency mode fails
+  now and then, on the last commit too); the full test suite; every sitemap URL opened at 1440 and 390 px wide
+  (no sideways scroll, no script errors, no broken assets, every switch and tab has a choice).
+  Words checked against the product's own limits (`_src/pages/FEATURES.md`).
+
+## 2.31.0 (2026-10-24)
+
+Add a site gives one line to paste into your AI agent. The line holds a one-time code, never a
+key; the agent takes the keys once, connects the site and reports back while you watch.
+
+### Added: one line for your AI agent sets up a site
+
+- **What changed:** Add a site's step 3 is now **Your AI agent** ("Which AI agent are you
+  using?": Claude Code, Codex, Cursor, Claude.ai or ChatGPT, Another agent). Step 4 shows one
+  line to paste into the agent: `set up Skald for <site> — read <your Skald>/traffic-kit/llms.txt
+  and use code <code> (works once, 24 hours)`. The agent reads the site's steps, takes the
+  keys once with curl into a 0600 file (a new sending token, ingest only for that site, and the
+  site's lead secret, copied when it has one), connects the logs, adds the script tag and the
+  lead file, asks the privacy question, and sends a short report. Step 5, **Watch it connect**,
+  ticks each step and shows the report in plain words; the admin applies what fits ("Use these
+  page assets"). The code is hidden until **Show code**. Under it, "Is it safe to paste this
+  into a chat?" says what the code is. **Cancel this line** ends it at once, a new line cancels
+  an older one whose keys were not taken yet, and step 5 says when the keys were taken. Skald keeps only the code's hash and
+  the keys sealed with it. The keys answer only curl or Wget, and the agent fetches its steps
+  with curl too, so a web reader or fetch tool cannot pass them into a chat. The keys file also
+  holds a report key: the report needs it in the `X-Skald-Report-Key` header (403 without), so
+  only the agent that took the keys can send or replace it. The sending key can only send log lines; the lead secret sends leads and reads
+  back the site's lead list (reference, stage, time; no personal details). After the keys are
+  taken, the steps, installer, lead files and report keep answering until the expiry (no
+  secret in any). Chat-only agents get the one command instead. **No AI agent: set it up by hand**
+  keeps the old steps. Connections has **Set up with your AI agent** for a site that exists.
+  New routes: `/traffic-kit/llms.txt` and `/traffic-kit/<code>/steps`, `keys`, `install.sh`,
+  `leads/<file>`, and `POST .../report`; dashboard calls `sites/agentlink`, `sites/agentstatus`
+  and `sites/agentcancel`. The address keeps `agent=` and `link=` (a hash, never the code).
+- **Why:** the owner: adding a site should be as easy as treg's onboarding, one line to paste
+  into an agent. Unlike treg's long-lived token, Skald's line holds a one-time code.
+- **Who:** owners and admins adding a site. Sites already sending need nothing.
+- **Do:** self-hosters who run their own front nginx from DEPLOY.md's sample must take its new
+  `location ^~ /traffic-kit/` block: the nested `location` for `/traffic-kit/<code>/report`
+  (POST, 16 KiB), or the agent's report is refused, and `error_log stderr crit;`, or nginx's
+  error log can hold the code. Then `nginx -t` and reload. Everyone else (the Docker image has
+  both): nothing.
+- **Checked:** the full suite, 2875 OK, with new tests (tests/test_kit_agent.py, 36;
+  tests/js/agent-setup.mjs); a real curl run against the routes; the wizard walked in a sandbox,
+  67 of 67 checks. A real Claude Code run on a local Docker test site passed all 7 checks, with
+  the first log lines in about 2 minutes. That run found two problems, both fixed: a dry run
+  with no token stopped, and the check script's probe showed as a refusal. An independent
+  review found 8 problems, all fixed before release:
+  - nginx's error log wrote the request line, code included;
+  - anyone with the code could send or replace the report;
+  - two lines made at the same moment cancelled each other;
+  - step 4 restored from an address made a new line, cancelling the one already sent;
+  - a repeated key fetch wiped the keys file;
+  - a downgrade to an older image would hand out the agent's token as an install link;
+  - a site value shaped like a placeholder broke the steps page;
+  - a second report was not shown.
+
+  Re-run after the fixes: a second real Claude Code run passed every check, with the first
+  log lines in about 1 minute 19 seconds. Two lines made at once left one live, no code was in
+  the container's logs, a report without its key got 403, and a second key fetch kept the keys.
+  It found one more problem, fixed: Claude Code run from an allow list refuses to write a file
+  with `>`, so step 8 now pipes the report key into `curl -H @-` and writes no header file.
+
+  A second independent review of the fixes found five more, fixed before release: two
+  lines made in the same instant could both stay live (each read the clock before the lock); a
+  failed **Make the line** left no Try again button; step 3 could lose the keys if the agent
+  skipped moving the file into place (the one fetch line now moves it only when it holds the
+  keys); the check script's marker hid any refusal, not only the 401 it expects; and step 5
+  kept asking when the organisation was read only (402). The reviewer's race probes now always
+  end with one live line (30 runs of 8 at once). Left as known: nginx's own 403 and 413 pages on
+  `/traffic-kit/` carry no `no-store` header (they hold no code); the step 8 report needs curl
+  7.55 or newer (the steps say so).
+
 ## 2.30.0 (2026-10-23)
 
 Connecting a site and its leads in one step: one command on the server (with or without Docker,

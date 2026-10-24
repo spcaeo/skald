@@ -53,6 +53,12 @@ class Node(unittest.TestCase):
         rows and the figure; the top bar's chips no longer greyed on tabs that apply them."""
         self.assertIn("leads-period: all passed", self.run_js("leads-period.mjs"))
 
+    def test_add_a_site_with_your_ai_agent(self):
+        """2.31 (js/tabs/agent-setup.js, agent-watch.js): the agent tiles, one line per site
+        with its code hidden and never in the address, the watch that ticks itself and stops
+        when the dialog closes or the line runs out, the chat-only command, reloads."""
+        self.assertIn("agent-setup: all passed", self.run_js("agent-setup.mjs"))
+
     def test_every_state_is_in_the_address_and_no_address_is(self):
         """2.21 (js/routekeys.js, js/overlays.js): each drawer and dialog writes its key,
         a link reopens it, Back closes it, a link to what is not kept opens the page with

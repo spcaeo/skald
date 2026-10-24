@@ -69,6 +69,15 @@ export function stepped(family, value, patch) {
   S.set(next, { replace: true });
 }
 
+/* What the open dialog names changed (Add a site: setup=new, then setup=<site> once the
+   site is made): the same entry, the new value, in place. */
+export function renamed(family, from, to) {
+  const cur = open.get(family);
+  if (!cur || cur.value !== String(from)) return;
+  cur.value = String(to);
+  if (S.read()[family] === String(from)) S.set({ [family]: String(to) }, { replace: true });
+}
+
 export const isOpen = (family) => !!open.get(family)?.isOpen?.();
 export const openValue = (family) => open.get(family)?.value ?? null;
 
@@ -109,7 +118,9 @@ const RESTORE = {
   list: async (v) => (await import("./tabs/person.js")).openListKey(v),
   scan: async () => null,   // Security's scanner rows load with the tab, which opens it (sec-scanners.js)
   ans: async (v) => (/^[A-Za-z0-9_-]{1,40}$/.test(v) ? (await import("./tabs/ai-answers.js")).openAnswer(v) : "That answer is not one Skald keeps."),
-  setup: async (v, m, s) => (s.tab === "settings/sitesadmin" ? (await import("./tabs/sitesadmin.js")).openSiteKey(v, Number(s.step) || 1)
+  // A site's name (it has a dot; the set-up dialogs' names never do) is its Add a site wizard
+  // on any tab: Connections' "Set up with your AI agent" opens it there.
+  setup: async (v, m, s) => (s.tab === "settings/sitesadmin" || v.includes(".") ? (await import("./tabs/sitesadmin.js")).openSiteKey(v, Number(s.step) || 1, s)
     : (await import("./tabs/setup-dialogs.js")).openSetupKey(v, m, Number(s.step) || 1, s.share === "1")),
   conn: async (v, m, s) => (await import("./tabs/connections.js")).openConnKey(v, m, Number(s.step) || 1, s.share === "1"),
   dlg: async (v, m, s) => {

@@ -287,10 +287,12 @@ export function testPanel(st, { onResult = null, statusOf = (site) => call(`site
   btn.addEventListener("click", start);
   if (auto) start();
   const tag = wayId(st.method) === "script";
-  return h("div", { class: "cn-test" },
+  const panel = h("div", { class: "cn-test" },
     h("p", null, auto ? (tag ? "Open a page of the site with the tag. Skald is looking now, and says what it received." : "Skald is looking now: it says what it received, or why it refused it. Run the install first, if not done yet.")
       : tag ? "After a page of the site was opened with the tag, press Test connection." : "After the install, press Test connection. Skald says what it received, or why it refused it."),
     h("div", { class: "acts" }, btn), out, page);
+  panel.start = start;      // the agent's watch (agent-watch.js) looks again when the agent moves on
+  return panel;
 }
 
 // "Share with your developer" for the chosen way (conn-share.js).

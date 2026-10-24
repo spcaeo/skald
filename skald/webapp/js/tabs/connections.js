@@ -7,12 +7,14 @@
 // tokens (tokens.js). The dialogs need accounts (access.mode: sessions); a
 // server with one shared login keeps the server-command way, folded away.
 // A viewer reads what each part is for; tokens and dialogs are for admins.
-// Each dialog is in the address as conn=send|api|mcp&step=<n> (js/overlays.js).
+// Each dialog is in the address as conn=send|api|mcp&step=<n> (js/overlays.js). The send
+// card's "Set up with your AI agent" opens this site's Add a site wizard at its step 3,
+// "Which AI agent are you using?" (setup=<site>&step=3, site-wizard.js).
 
 import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { ME, isViewer, VIEWER, sessions } from "../access.js";
-import { head1, copyable } from "./forms.js";
+import { head1, copyable, status } from "./forms.js";
 import { howTo } from "./help.js";
 import { taskCard, ICONS } from "./conn-ui.js";
 import { sendDialog } from "./conn-send.js";
@@ -100,11 +102,18 @@ export default function connections(m) {
   const loaded = call("sites").then((r) => { data = r.ok ? r : {}; return data; });
   let reloadTokens = () => {};
   const open = (name) => async () => { const d = data || await loaded; openConn(name, site, d, { onClose: () => reloadTokens() }); };
+  // The AI agent's way: the site's wizard at "Which AI agent are you using?", whatever was saved.
+  const msg = status();
+  const agent = h("button", { type: "button", class: "btn", "aria-label": `Set up ${site} with your AI agent` }, "Set up with your AI agent");
+  agent.addEventListener("click", async () => {
+    const got = await (await import("./sitesadmin.js")).openSiteKey(site, 3, { pick: true });
+    if (typeof got === "string") msg.say(got);
+  });
   const cards = h("section", { class: "s cn-cards", "aria-label": "Set up a connection" },
-    taskCard({ icon: ICONS.send, title: "Send this site's visits to Skald", line: `For ${site} when its web server is not this Skald's server: a shipper, Cloudflare, Vercel or Netlify, or only the script tag.`, onOpen: open("send") }),
+    taskCard({ icon: ICONS.send, title: "Send this site's visits to Skald", line: `For ${site} when its web server is not this Skald's server: a shipper, Cloudflare, Vercel or Netlify, or only the script tag. Or one line for your AI agent.`, onOpen: open("send"), more: agent }),
     taskCard({ icon: ICONS.read, title: "Read your figures (API)", line: "Every figure as JSON, for a script or a spreadsheet, with a read-only token.", onOpen: open("api") }),
     taskCard({ icon: ICONS.mcp, title: "Connect an AI assistant (MCP)", line: "Ask Claude, ChatGPT or another assistant about your traffic in plain words.", onOpen: open("mcp") }));
-  return [setupChecklist(m, { where: "connections" }), title, guides, cards,
+  return [setupChecklist(m, { where: "connections" }), title, guides, cards, msg,
     tokens(m, { reloadHook: (fn) => { reloadTokens = fn; } }), sharesSection(),
     h("details", { class: "fold" }, h("summary", null, "Quick look while you are signed in"),
       h("p", { class: "sub" }, "The figures as JSON in this browser, with no token, while you are signed in here."),

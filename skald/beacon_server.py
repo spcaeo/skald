@@ -54,7 +54,10 @@ starts it this way or with origins, so incoming hooks never depend on the beacon
 
 GET /traffic-kit/<code> answers a one-time install link (kit/link.py): the
 one-file installer with its token to curl or Wget, once; words to anything
-else. Limited per address (KIT_PER_MINUTE); the code is never logged.
+else. /traffic-kit/llms.txt and an AI agent's code (kit/agent.py: its steps,
+keys once to curl or Wget, installer, lead files, and POST .../report) are
+answered there too. Limited per address (KIT_PER_MINUTE; llms.txt is not);
+the code is never logged.
 
 GET /traffic-js/skald.js serves the snippet (webapp/snippet/skald.js) with
 an ETag and a day's cache; with visitor IDs off it is served with IDS=0, so
@@ -90,7 +93,7 @@ PATH = "/traffic-beacon"
 SNIPPET_PATH = "/traffic-js/skald.js"
 SNIPPET_FILE = Path(__file__).resolve().parent / "webapp" / "snippet" / "skald.js"
 SNIPPET_CACHE = "public, max-age=86400, stale-while-revalidate=604800"
-KIT_PREFIX = "/traffic-kit/"     # one-time install links (kit/link.py)
+KIT_PREFIX = "/traffic-kit/"     # one-time install links and agent codes (kit/link.py, agent.py)
 KIT_PER_MINUTE = 10              # tries per address a minute, a burst of 5
 RELOAD_SECONDS = 60       # the classifier re-reads our own addresses this often
 FLUSH_SECONDS = 5         # counters are written at most this often
@@ -446,6 +449,8 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
             self.site = self.cors = self.sh = None
             if public is not None and self.path.split("?", 1)[0] == stack_public_api.PATH:
                 return stack_public_api.handle(self, public)     # the public stack check
+            if self.path.startswith(KIT_PREFIX):          # an AI agent's report (kit/agent.py)
+                return self._kit()
             if self.path.startswith("/traffic-hooks/"):    # signed tool hooks
                 from .conversions.hooks import handle
                 return handle(self, main.config, None, getattr(main, "config_path", None))
@@ -540,15 +545,15 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
                 self.wfile.write(raw)
 
         def _kit(self) -> None:
-            """A one-time install link (kit/link.py)."""
+            """A one-time install link (kit/link.py) or an AI agent's code (kit/agent.py)."""
             from .accounts.links import base_url
             from .conversions.hooks import history_folder
-            from .kit import link
+            from .kit import agent
             peer = self.client_address[0]
             address = ((self.headers.get("X-Real-IP") or "").strip()
                        if peer == "127.0.0.1" else "") or peer
             folder = history_folder(main.config, getattr(main, "config_path", None))
-            link.serve(self, folder, base_url(main.config) or "", kit_limiter, address)
+            agent.serve(self, folder, base_url(main.config) or "", kit_limiter, address)
 
         def _not_allowed(self):
             self._send(405)

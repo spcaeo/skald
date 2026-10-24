@@ -1,6 +1,6 @@
 #!/bin/bash
 # Skald log shipper for __SITE__: one file that installs it on this web server.
-# Sends new lines of the site's access log to __HOST__ over HTTPS.
+# Sends new lines of the site's access log to __URL__.
 # Reads the log only; never touches nginx, Apache or the website.
 #
 #   curl -fsSL <install link> | sudo bash             the one-command install
@@ -280,6 +280,10 @@ token_step() {   # $1 = the token file, $2 = its group
     if [ -s "$1" ]; then
       ask "A token is already saved. Keep it? [Y/n]: " Y
       case "$ANSWER" in n|N|no|No) ;; *) echo "   the saved token is kept"; return ;; esac
+    fi
+    if [ "$ASK" != 1 ] && [ "$DRY" = 1 ]; then   # nobody to ask, and nothing is changed
+      echo "   no token in this dry run: the real run reads SKALD_SHIP_TOKEN (or asks for it)"
+      return
     fi
     [ "$ASK" = 1 ] || stop "no token. Run it with SKALD_SHIP_TOKEN set (sudo SKALD_SHIP_TOKEN=... bash), or where it can ask you"
     echo "   It is not shown as you paste it."

@@ -1,11 +1,19 @@
 // "Add a site", step by step (Settings > Add or remove sites, and "+ Add a
-// site" in the site picker): 1 your site, 2 prove it's yours, 3 how Skald gets
-// its visits, 4 install, 5 test and finish. Steps 3 to 5 are the ones of
-// Settings > Connections' "Send this site's visits to Skald" (conn-send.js).
+// site" in the site picker): 1 your site, 2 prove it's yours, 3 which AI agent
+// you use, 4 send it one line, 5 watch it connect (agent-setup.js, agent-watch.js).
+// "No AI agent: set it up by hand" on step 3 turns steps 3 to 5 into the ones of
+// Settings > Connections' "Send this site's visits to Skald" (conn-send.js): how
+// Skald gets its visits, install, test and finish. Back on that step 3, "Use an AI
+// agent instead" turns them back. Five steps either way.
+//
+// In the address: setup=new, then setup=<site> once step 1 made it, with step=<n>,
+// agent=<id> (an agent's, or hand) and link=<link id> (the line being watched, never
+// the line or its code). A reload at any step comes back there.
 //
 // The progress is kept on the server per site (POST <page>/sites/setup,
-// accounts/site_setup.py): the step reached, the way chosen, the sending
-// token's id (never the token). Closing the dialog or the browser loses
+// accounts/site_setup.py): the step reached, the way chosen ("agent" on the AI
+// agent's way; a chat-only agent runs the server way's command, so "server"), the
+// sending token's id (never the token). Closing the dialog or the browser loses
 // nothing; the site's row and the picker offer "Setup: step 3 of 5, continue".
 //
 // Step 1 also looks at the site (conn-detect.js, POST <page>/sites/detect) once
@@ -23,6 +31,9 @@ import { detectCard, recommendFor, suggestionsFor } from "./conn-detect.js";
 import { installFor } from "./conn-install.js";
 import { methodOf, wayId } from "./conn-words.js";
 import { withUrl } from "../urlactions.js";
+import { HAND, agentOf, agentKey, isLinkId } from "./agent-words.js";
+import { agentChooser, linePanel } from "./agent-setup.js";
+import { watchPanel } from "./agent-watch.js";
 
 export const STEPS = 5;
 const NAME = /^(?=.{3,100}$)[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)+$/;
@@ -89,6 +100,7 @@ async function makeSite(w) {
   const r = await call("sites/add", { host: got.name, timezone: String(st.zone || "").trim(), format: "auto", token: false, ...suggestionsFor(st, got.name) });
   if (!r.ok) { w.say(why(r, "The site was not added.")); return false; }
   st.site = r.site;
+  w.rename(r.site);         // setup=new becomes setup=<site>: a reload finds the site
   st.verify = r.verify || null;
   Object.assign(st.send, sendState(r.site, st.data));
   if (st.found && st.found.site !== r.site) st.found = null;     // a check of another address
@@ -120,53 +132,101 @@ function stepProve(w) {
     h("p", { class: "note" }, "You can go on and install now; the check can wait. Lines sent before it are refused and sent again by the shipper later.")];
 }
 
-// Step 3: the ways, the check's one chosen (conn-send.js preselect) and marked.
-function stepHow(wz) {
+// Step 3 by hand: the ways, the check's one chosen (conn-send.js preselect) and marked.
+function stepHow(wz, fit) {
   const st = wz.state;
   const rec = recommendFor(st);
   preselect(st.send, rec);
   const lost = st.found && !st.found.reachable
     ? h("p", { class: "note" }, `Skald could not reach ${st.found.site} to suggest a way. Choose it by hand.`) : null;
-  return [h("p", null, "Where does the site run? Choose the way its visits reach Skald."), lost, methodChooser(st.send, () => wz.say(""), rec)].filter(Boolean);
+  const agent = h("button", { type: "button", class: "btn ag-back" }, "Use an AI agent instead");
+  agent.addEventListener("click", () => { st.agent = ""; wz.keep({ agent: "" }); fit(); wz.redraw(); });
+  return [h("p", null, "Where does the site run? Choose the way its visits reach Skald."), lost, methodChooser(st.send, () => wz.say(""), rec),
+    h("p", { class: "note" }, "Have an AI agent like Claude Code, Codex or Cursor? It can do this for you. ", agent)].filter(Boolean);
+}
+
+// Today's steps 3 to 5, by hand.
+function handSteps(fit) {
+  return [
+    { name: "How visits reach Skald", draw: (wz) => stepHow(wz, fit),
+      check: (wz) => chooseCheck(wz.state.send), next: async (wz) => { await save(wz, { step: 4, method: wz.state.send.method }); return true; } },
+    { name: "Install", draw: (wz) => {
+      const st = wz.state.send;
+      const way = wayId(st.method);
+      // The server way: one command (sites/link makes its token); the others as before.
+      if (way === "server") return runPanel(st, wz, { onMade: (r) => save(wz, { token_id: r.token_id || "" }) });
+      return [h("p", { class: "sub" }, `${methodOf(way)?.title || ""}. The send address: `, withUrl(h("code", null, st.url), st.url, { cls: "ua-after" })),
+        ...(methodOf(way)?.token ? tokenPanel(st, { onMade: (r) => save(wz, { token_id: r.id || "" }) }) : []),
+        h("h4", null, "Install"), ...installFor(way, st), shareFor(st)];
+    } },
+    { name: "Test and finish", draw: (wz) => {
+      const st = wz.state.send;
+      const done = h("div");
+      return [testPanel(st, { auto: true, onResult: async (v) => {
+        if (v.kind !== "ok") return;
+        await save(wz, { step: STEPS, done: true });
+        done.replaceChildren(answerBox("ok", `Done: ${st.site} is receiving visits.`,
+          h("div", { class: "acts" }, h("a", { class: "btn primary", href: `/traffic/${st.site}/` }, "Open its dashboard"))));
+      } }), done, troubleTable(),
+      h("p", { class: "note" }, "Not connected yet? Finish later: the site's row says how far it got, and ", helpLink("troubleshooting-connections", "the troubleshooting guide"), " has the common fixes.")];
+    } },
+  ];
+}
+
+// The AI agent's steps 3 to 5. A chat-only agent gets the server way's one command.
+const methodFor = (st) => (agentOf(st.agent)?.shell === false ? "server" : "agent");
+function agentSteps(fit, state) {
+  const pick = async (wz, id) => {
+    const st = wz.state;
+    st.agent = id;
+    wz.keep({ agent: id });
+    fit();
+    wz.say("");
+    if (id === HAND) { wz.redraw(); await save(wz, { step: 3 }); return; }
+    st.autoLine = true;       // reached step 4 here: it may make the line by itself
+    await save(wz, { step: 4, method: methodFor(st) });
+    wz.go(3);
+  };
+  return [
+    { name: "Your AI agent", title: "Which AI agent are you using?", draw: (wz) => agentChooser(wz.state, (id) => pick(wz, id)),
+      check: (wz) => (agentOf(wz.state.agent) ? "" : "Choose your AI agent, or No AI agent to set it up by hand."),
+      next: async (wz) => { wz.state.autoLine = true; await save(wz, { step: 4, method: methodFor(wz.state) }); return true; } },
+    { name: methodFor(state) === "server" ? "Run one command" : "Send this line", draw: (wz) => linePanel(wz.state, wz, { onMade: (r) => {
+      if (r.link_id) wz.keep({ link: r.link_id });
+      save(wz, { token_id: r.token_id || "" });
+    } }) },
+    { name: "Watch it connect", draw: (wz) => [watchPanel(wz.state, { onDone: () => save(wz, { step: STEPS, done: true }) }),
+      h("p", { class: "note" }, "Not connected yet? Finish later: the site's row says how far it got, and ", helpLink("troubleshooting-connections", "the troubleshooting guide"), " has the common fixes.")] },
+  ];
 }
 
 // In the address as setup=new or setup=<site>, with its step (js/overlays.js; on Settings >
-// Add or remove sites: tabs/sitesadmin.js openSiteKey reopens it from a link).
-export function siteWizard({ data = {}, name = null, start = 0, method = "", verify = null, found = null, onChange = null } = {}) {
+// Add or remove sites: tabs/sitesadmin.js openSiteKey reopens it from a link). agent: the
+// address's (an agent's id or hand); none, then a saved way means by hand, a saved "agent"
+// an agent not named ("Another agent"), nothing saved the choice on step 3. link: the
+// address's link id, the line step 5 watches.
+export function siteWizard({ data = {}, name = null, start = 0, method = "", verify = null, found = null, onChange = null, agent = "", link = "" } = {}) {
   const send = sendState(name || "", data);
-  send.method = wayId(method);
-  const state = { site: name, verify, data, send, onChange, typed: "", zone: "", found: found || null, useFound: found ? found.use !== false : true };
-  const w = wizard({
+  const kept = agentKey(agent) || (method === "agent" ? "other" : method && method !== "agent" ? HAND : "");
+  send.method = kept === HAND ? wayId(method) : agentOf(kept)?.shell === false ? "server" : "";
+  const state = { site: name, verify, data, send, onChange, typed: "", zone: "", found: found || null, useFound: found ? found.use !== false : true,
+    agent: kept, link: isLinkId(link) ? link : "" };
+  const steps = [
+    { name: "Your site", draw: (wz) => stepSite(wz, data), next: makeSite },
+    { name: "Prove it's yours", draw: stepProve },
+  ];
+  let w = null;
+  // The agent chosen (or by hand): steps 3 to 5 follow it, and the bar with them.
+  const fit = () => { steps.splice(2, steps.length - 2, ...(state.agent === HAND ? handSteps(fit) : agentSteps(fit, state))); if (w) w.drawBar(); };
+  fit();
+  w = wizard({
     title: name ? `Set up ${name}` : "Add a site", subtitle: "Five short steps. You can close this and continue later: nothing is lost.",
     key: "site-wizard", state, start, done: "Finish later", route: { key: "setup", value: name || "new" },
     onStep: (i, wz) => { if (wz.state.site && i > 0) save(wz, { step: i + 1 }); },
     onClose: () => { if (onChange) onChange(); },
-    steps: [
-      { name: "Your site", draw: (wz) => stepSite(wz, data), next: makeSite },
-      { name: "Prove it's yours", draw: stepProve },
-      { name: "How visits reach Skald", draw: stepHow,
-        check: (wz) => chooseCheck(wz.state.send), next: async (wz) => { await save(wz, { step: 4, method: wz.state.send.method }); return true; } },
-      { name: "Install", draw: (wz) => {
-        const st = wz.state.send;
-        const way = wayId(st.method);
-        // The server way: one command (sites/link makes its token); the others as before.
-        if (way === "server") return runPanel(st, wz, { onMade: (r) => save(wz, { token_id: r.token_id || "" }) });
-        return [h("p", { class: "sub" }, `${methodOf(way)?.title || ""}. The send address: `, withUrl(h("code", null, st.url), st.url, { cls: "ua-after" })),
-          ...(methodOf(way)?.token ? tokenPanel(st, { onMade: (r) => save(wz, { token_id: r.id || "" }) }) : []),
-          h("h4", null, "Install"), ...installFor(way, st), shareFor(st)];
-      } },
-      { name: "Test and finish", draw: (wz) => {
-        const st = wz.state.send;
-        const done = h("div");
-        return [testPanel(st, { auto: true, onResult: async (v) => {
-          if (v.kind !== "ok") return;
-          await save(wz, { step: STEPS, done: true });
-          done.replaceChildren(answerBox("ok", `Done: ${st.site} is receiving visits.`,
-            h("div", { class: "acts" }, h("a", { class: "btn primary", href: `/traffic/${st.site}/` }, "Open its dashboard"))));
-        } }), done, troubleTable(),
-        h("p", { class: "note" }, "Not connected yet? Finish later: the site's row says how far it got, and ", helpLink("troubleshooting-connections", "the troubleshooting guide"), " has the common fixes.")];
-      } },
-    ],
+    steps,
   });
+  // A link's agent and line stay in the address (the wizard writes its step itself).
+  w.keep({ agent: state.agent, link: state.link });
   return w;
 }

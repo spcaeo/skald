@@ -277,8 +277,9 @@ class DryRun(unittest.TestCase):
         self.assertIn("the token is in SKALD_SHIP_TOKEN; it is used, not shown", out)
         out = self.run_it(token=None, tty=f"{TOKEN}\n")
         self.assertIn("would save the token to /srv/skald/ship-token", out)
-        out = self.run_it(token=None, code=1)
-        self.assertIn("no token", out)
+        out = self.run_it(token=None)          # a dry run with nobody to ask goes on (2.31)
+        self.assertIn("no token in this dry run: the real run reads SKALD_SHIP_TOKEN", out)
+        self.assertIn("Dry run: nothing is changed.", out)
         out = self.run_it(token=None, tty="not-a-token-at-all\n", code=1)
         self.assertIn("not a Skald sending token", out)
 

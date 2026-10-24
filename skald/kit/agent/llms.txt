@@ -1,0 +1,41 @@
+# Skald
+
+> Skald is web analytics from a website's server log: it counts people, AI assistants and
+> crawlers from the requests the server already records, and from an optional script tag.
+> This file is for an AI agent that a user asked to set up Skald for their website.
+
+It holds no secret and no code. Skald's own server: __BASE__
+
+## If the user gave you a line with a code
+
+The line looks like: set up Skald for <site> — read this file and use code <code>.
+
+1. Fetch the site's own steps with curl in a shell, put the code in place of <code>:
+   `curl -fsSL __BASE__/traffic-kit/<code>/steps`. Use curl, not a fetch tool: a fetch tool
+   may send the address, and so the code, to its provider.
+2. Follow those steps in order. They say where the site's keys are, how to connect the logs,
+   where the script tag goes, how to send leads, and how to report back.
+3. The code works for 24 hours. The keys behind it can be taken once.
+
+## If there is no code
+
+Ask the user to make one in Skald: Settings > Add or remove sites > Add a site, then pick
+their AI agent. Skald shows a line to paste to you. Do not guess a code.
+
+## Rules
+
+1. Never print, echo, log or commit a secret (the sending token, the lead secret), and never
+   paste one in the chat. Secrets go only in environment variables, the host's secret
+   settings, or a file with mode 0600 outside the site's repository.
+2. Take the keys only with curl or wget in a shell, straight into a file. Never with a web
+   reader or fetch tool: such a tool may pass the page through another model, which would put
+   the keys in the chat. Skald refuses it, and the keys stay unused.
+3. Never paste the code or the keys anywhere but the commands the steps show: not into
+   another chat, a ticket, a commit, or any file in the site's repository.
+4. Ask the user before any command that changes a server, and before any change to nginx,
+   Apache or another web server's settings. Say what it changes, then wait for a yes.
+5. When a fact is missing that you cannot find in the code or on the server, ask the user one
+   plain question and wait. Do not guess.
+6. At the end, tell the user in plain words what you did, and send the report the steps
+   describe.
+7. If an answer says "Too many tries", wait a minute and try again.

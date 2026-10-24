@@ -109,6 +109,35 @@ class Recorded(TenantServer):
         for word in (token, other, reader, "192.0.2."):
             self.assertNotIn(word, self.raw_file(A))
 
+    def test_the_checks_probe_is_not_a_refusal(self):
+        """skald-ship-check posts with no token and X-Skald-Check: 1 (check.sh),
+        expecting the 401: that is not written as a refusal."""
+        token = self.token(self.alpha, sites=[A])
+        self.ship(A, token, lines(2), batch="s:1")              # the site is known now
+        probe = {"Content-Type": "text/plain", "X-Skald-Check": "1"}
+        got = self.call("POST", f"/traffic-ingest/{A}", headers=probe, raw=b"")
+        self.assertEqual(got.status, 401)
+        self.assertIsNone(self.status().json["last_refusal"])
+        got = self.call("POST", f"/traffic-ingest/{A}", raw=b"",
+                        headers={"Content-Type": "text/plain"})
+        self.assertEqual(got.status, 401)
+        self.assertEqual(self.status().json["last_refusal"]["reason"], "no_token",
+                         "without the marker a tokenless post is a refusal, as before")
+        ingest_status._LAST_REFUSAL.clear()
+        self.assertEqual(self.ship(A, "skald_00000000_" + "z" * 43, lines(1), batch="s:2",
+                                   headers={"X-Skald-Check": "1"}).status, 401)
+        self.assertEqual(self.status().json["last_refusal"]["reason"], "bad_token",
+                         "the marker never hides a refused token")
+        check = (Path(__file__).resolve().parent.parent / "skald" / "kit"
+                 / "check.sh").read_text()
+        self.assertEqual(check.count("X-Skald-Check"), 2, "curl and python3 both send it")
+        # The marker skips only the 401 the probe expects: any other refusal is kept.
+        ingest_status._LAST_REFUSAL.clear()
+        h = type("H", (), {"headers": {"X-Skald-Check": "1"},
+                           "_skald_ingest": {"base": self.live, "site": A}})()
+        ingest_status.note(h, 403, {"error": "this site is paused"})
+        self.assertEqual(self.status().json["last_refusal"]["code"], 403)
+
     def test_a_site_this_install_does_not_know_leaves_no_file(self):
         self.assertEqual(self.ship("unknown.example", "skald_00000000_" + "z" * 43, lines(1)).status, 401)
         self.assertFalse(ingest_status.path_for(self.live, "unknown.example").exists())

@@ -20,6 +20,10 @@ per-site lock in this process, and any failure is swallowed. A refusal is
 written only for a site this install knows (its ingest folder exists, or a
 config names it), and at most once a second per site, so a stream of bad
 posts cannot fill the disk or slow the endpoint.
+
+skald-ship-check's own probe (check.sh: a POST with no token and the header
+`X-Skald-Check: 1`, which expects the 401) is not a refusal: it is not
+written, so a good set-up never shows one.
 """
 from __future__ import annotations
 
@@ -160,6 +164,7 @@ def refused(base, site: str, code: int, error: str, now: float | None = None) ->
     _write(base, site, change)
 
 
+CHECK_HEADER = "X-Skald-Check"      # check.sh's tokenless probe of the send address
 BATCH = re.compile(r"^(?P<shipper>[A-Za-z0-9_-]{1,64}):\d{1,18}$")
 
 
@@ -182,6 +187,8 @@ def note(h, code: int, body: dict) -> None:
             accepted(base, site, int(body.get("accepted") or 0),
                      int(body.get("rejected") or 0), shipper)
             return
+        if code == 401 and h.headers.get(CHECK_HEADER) == "1" and not h.headers.get("Authorization"):
+            return                        # skald-ship-check's probe: the 401 it expects
         known = ctx.get("known")
         if path_for(base, site).exists() or (known is not None and known()):
             refused(base, site, code, str(body.get("error") or ""))
