@@ -563,7 +563,9 @@ of them matches. Roughly:
   `/.hg`, `/.aws`, `/.ssh`, `/.vscode`, `/.idea`, `/.npmrc`, `/.htpasswd`,
   `/.DS_Store`, ...
 - server-side scripts by extension: `.php`, `.asp(x)`, `.jsp`, `.cgi`, ...
-- WordPress as a segment: `/wp-admin`, `/wp-login`, `/wp-content`, `/xmlrpc`
+- WordPress as a segment: `/wp-admin`, `/wp-login`, `/wp-content`, `/xmlrpc`; the bare words
+  `wordpress` and `wp` only at the start of the path (`/wordpress/`, `//wp/...`), so a site's
+  own page about WordPress (`/integrations/wordpress/`) is a page (2.31.1)
 - dumps and backups shaped like files: `/backup.zip`, `/db.sql`,
   `/dump.sql.gz`, any `.sql`, `.bak`, `.sqlite`, and a bare `/backup/`
 - keys and credentials shaped like files: `id_rsa`, `.pem`, `.key`,

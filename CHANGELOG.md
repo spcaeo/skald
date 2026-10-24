@@ -4,7 +4,7 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
-### Website: the main button is a warm orange with white text (not deployed yet)
+### Website: the main button is a warm orange with white text (live 2026-10-24)
 
 - **What changed:** the main button on every page (`.btn-p`, `.sk-btn-p`) is now `#c84a16`
   with white text, `#b03f12` on hover, from two new colour tokens (`--sk-cta`,
@@ -16,7 +16,7 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 - **Checked:** the site build, "problems: none"; white on `#c84a16` is about 4.7 to 1 (AA);
   the colour and hover read back in a browser at 1440 and 390 wide.
 
-### Website: the 11 AI traffic pages rebuilt and graded (not deployed yet)
+### Website: the 11 AI traffic pages rebuilt and graded (live 2026-10-24)
 
 - **What changed:** the AI crawlers, ChatGPT, Claude, Perplexity, Google AI Mode, AI referrals,
   crawl health, block AI crawlers and llms.txt pages, the AI traffic guide and What is GEO are
@@ -38,7 +38,7 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
   JS errors, 4xx, sideways scroll or raw placeholders; every visible control clicked and kept in
   the URL.
 
-### Website: AI visibility and leads pages rebuilt; every page graded on a rubric (not deployed yet)
+### Website: AI visibility and leads pages rebuilt; every page graded on a rubric (live 2026-10-24)
 
 - **What changed:** the 5 AI visibility pages and the 12 leads and journeys pages are rebuilt
   with their own parts, each from its own code (answers/, conversions/ and its adapters,
@@ -56,7 +56,7 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 - **Checked:** build "problems: none" with 18 pages graded; site tests; each page at 1440 and
   390 px with no errors or sideways scroll.
 
-### Website: every page its own, starting with AI traffic (not deployed yet)
+### Website: every page its own, starting with AI traffic (live 2026-10-24)
 
 - **What changed:** /ai-traffic-analytics/ rebuilt top to bottom: a hero that sorts sample log
   lines live, a drag-to-compare of a script tag against the log, a step-through of one ChatGPT
@@ -73,7 +73,7 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
   control on the page tried (window 20 and 8 minutes, the rule builder, the URL keeps each
   choice).
 
-### Website: skaldanalytics.com rebuilt, one page per feature (not deployed yet)
+### Website: skaldanalytics.com rebuilt, one page per feature (live 2026-10-24)
 
 - **What changed:** the marketing site has 100 new pages built from `_src/pages/` (a page.json
   and its HTML parts each): the home page, AI traffic (crawlers, live fetches, clicks, cost,
@@ -99,6 +99,25 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
   now and then, on the last commit too); the full test suite; every sitemap URL opened at 1440 and 390 px wide
   (no sideways scroll, no script errors, no broken assets, every switch and tab has a choice).
   Words checked against the product's own limits (`_src/pages/FEATURES.md`).
+
+## 2.31.1 (2026-10-24)
+
+### Fixed: a site's own page about WordPress counted as a probe
+
+- **What changed:** the bare path words `wordpress` and `wp` mark a WordPress probe only at the
+  start of the path (`/wordpress/`, `//wp/wp-includes/...`, as scanners send them). WordPress's own
+  names (`wp-admin`, `wp-login`, `wp-content`, `wp-includes`, `wp-json`, `wp-config`, `xmlrpc`)
+  still mark one anywhere. Same rule in the classifier and in Security's categories.
+- **Why:** skaldanalytics.com's new page `/integrations/wordpress/` (about the WordPress plugin)
+  was read as a probe: its readers' page views left the counts, and Security mailed "Possible
+  exposure ... answered 200 (45,715 bytes)" for it, an hour after the page went live.
+- **Who:** sites with a page whose path has a `wordpress` or `wp` segment after the first
+  (`/blog/category/wordpress/`).
+- **Do:** nothing. Close the alert in Security if it is still open.
+- **Checked:** a new test (`tests/test_wordpress_pages.py`: 6 pages are not probes, 12 scanner
+  paths still are); the full suite; a scan of every kept log on Skald's own server (68 files,
+  8 sites): the fix moves exactly one request, today's read of that page, so no day needs a
+  recount.
 
 ## 2.31.0 (2026-10-24)
 

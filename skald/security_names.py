@@ -36,7 +36,7 @@ CATEGORIES = (
         r"|netlify\.toml$|(?:^|/)(?:config|settings|appsettings|parameters)\."
         r"(?:json|ya?ml|xml|ini)$|containers/json")),
     ("wordpress", "WordPress", re.compile(
-        r"(?:^|/)(?:wp-[a-z]+|xmlrpc|wordpress|wp)(?:[/.]|$)")),
+        r"(?:^|/)(?:wp-[a-z]+|xmlrpc)(?:[/.]|$)|^/+(?:wordpress|wp)(?:[/.]|$)")),
     ("dumps", "Database dumps and backups", re.compile(
         r"\.(?:sql|sqlite3?|db|bak|swp|old|orig|save|zip|tar|tgz|gz|rar|7z)$"
         r"|(?:^|/)backups?(?:/|$)|(?:^|/)dump")),

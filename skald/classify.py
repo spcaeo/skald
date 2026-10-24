@@ -482,9 +482,11 @@ _SECRETS = (
 _SERVED = (
     # Server-side scripts that a static or Node site never runs.
     r"\.(?:php\d?|phtml|asp|aspx|jsp|jspa|cgi|pl|cfm)(?:/|$)",
-    # WordPress and its kin.
+    # WordPress and its kin. The bare words only at the start of the path (a
+    # scanner's /wordpress/ or //wp/...): a site may have its own page about
+    # WordPress, such as /integrations/wordpress/ or /blog/category/wp/.
     _SEG + r"(?:wp-admin|wp-login|wp-content|wp-includes|wp-json|wp-config"
-    r"|xmlrpc|wordpress|wp)" + _END,
+    r"|xmlrpc)" + _END + r"|^/+(?:wordpress|wp)" + _END,
     # An app's settings, shaped like files.
     _SEG + r"(?:firebase[^/]*|config|settings|appsettings|parameters|key)"
     r"\.(?:json|ya?ml|xml|ini|env|txt)$|" + _SEG + r"env\.js$",
