@@ -27,8 +27,9 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-24-2.31.0",
+  id: "2026-10-24-2.31.1",
   items: [
+    ["A page about WordPress is a page", "a site's own page such as /integrations/wordpress/ counted as a WordPress probe and set off a Security alert; now only scanners' /wordpress/ and /wp/ at the start of the path do.", "security"],
     ["One line for your AI agent", "Add a site: pick Claude Code, Codex or Cursor, copy one line into it, and watch it set up the site and report back. The line holds a one-time code, never a key; set it up by hand is one click away.", "connections"],
   ],
   // The earlier releases' notes, folded under the new ones.
