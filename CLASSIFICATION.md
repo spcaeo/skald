@@ -540,6 +540,7 @@ that is none of these four:
   | `trackback` | the last segment `trackback` or `wp-trackback.php` |
   | `author_number` | the query key `author` with digits only (`?author=2`) |
   | `reply_to_comment` | the query key `replytocom` |
+  | `sitemap_page` | the last segment `sitemap`, `site-map`, `html-sitemap`, `sitemap.html` or `sitemap.htm` (an HTML sitemap page; since 2.36) |
 
   Segments and keys are compared whole and in any case (ASCII letters; trailing
   slashes ignored), so `/blog/feed-the-world/`, `/integrations/markdown/` and
@@ -551,7 +552,7 @@ that is none of these four:
   a request in its group; only page views, readers, landings, exits and journey
   steps leave it out. `quality.json`'s `not_pages` counts them per day by entry,
   and the Requests feed files them as kind `not_page`. Pages a person opens are
-  not on it: an HTML `/sitemap/` page, search results, a cart, a sign-in page,
+  not on it: search results, a cart, a sign-in page,
   an app's dashboard, a thank-you page. The audit matches the same lists by its
   own code (`audit_not_pages.py`, segments and keys, no regular expression).
 

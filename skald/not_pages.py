@@ -18,9 +18,14 @@ stylesheet.
 Every site gets DEFAULT. A site can count any entry as pages again
 (site.not_pages_off, Settings > Sites > Not pages) and add its own
 addresses (site.not_pages_extra). Things a person does open stay pages:
-an HTML sitemap page, search results, a cart, a sign-in page, an app's
-dashboard, a thank-you page. A site that wants one of them out adds it as
-its own address.
+search results, a cart, a sign-in page, an app's dashboard, a thank-you
+page. A site that wants one of them out adds it as its own address.
+
+2.36 added the HTML sitemap page (owner: "a user never looks at
+/sitemap/"). On one site in a day, its visits were Googlebot, PetalBot,
+Amazonbot, Ahrefs' site audit, a "research-check" tool and four browser
+signatures with no referrer: the last were counted as people and put
+/sitemap/ in the people's pages.
 
 The lists below are data. The audit (audit_not_pages.py) shares them and
 nothing else: it matches them by its own code. Matching, on both roads:
@@ -81,6 +86,11 @@ RULES: dict[str, tuple[str, dict]] = {
         "?replytocom=: WordPress's reply link for browsers without scripts, "
         "followed by crawlers; the same post without it is the page.",
         {"keys": ("replytocom",)}),
+    "sitemap_page": (
+        "An HTML sitemap page (/sitemap/, /site-map/, /sitemap.html): crawlers, "
+        "link checkers and test browsers walk it; people use the menu and search.",
+        {"tails": (("sitemap",), ("site-map",), ("html-sitemap",), ("sitemap.html",),
+                   ("sitemap.htm",))}),
 }
 DEFAULT: tuple[str, ...] = tuple(RULES)
 

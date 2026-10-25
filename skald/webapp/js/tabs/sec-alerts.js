@@ -2,8 +2,10 @@
 // (alerts_security.py): a possible exposure and an advisory that matches the stack (on with
 // the site's alerts) and a new scan wave (off until switched on), their state, and the open
 // and recent security alerts from alerts.json; the switches are on Site > Alerts. Then "Your
-// security alerts": each person's own mail (security_notify.py), on or off, right away or in
-// the daily mail, and, for owners and admins, a test send (settings/security-*).
+// security alerts": each person's own mail (security_notify.py), on or off, in the daily
+// summary (summary_mail.py: one mail a day for all their sites, the default) or right away
+// (one mail per run with everything due), and, for owners and admins, a test send
+// (settings/security-*).
 
 import { h, toast } from "../ui.js";
 import { table } from "../table.js";
@@ -23,7 +25,12 @@ export function ruleRows(f, al) {
     state: !on ? "Off: alerts are off for this site" : r.on ? (al?.mail ? "On: shown and mailed" : "On: shown here (not mailed)") : "Off" }));
 }
 
-/* Your own security alerts for this site: on or off, right away or in the daily mail. */
+/* Your own security alerts for this site: on or off, in the daily summary or right away. */
+const summaryLabel = (t) => (t && t !== "off" ? `In the daily summary (${t})` : "In the daily summary");
+const summaryWords = (t) => (t === "off"
+  ? "The daily summary is off on this server, so only Right away sends anything."
+  : `The daily summary is one mail a day at ${t || "01:00"} for all your sites (security items, to-dos and set-up problems), and none when nothing is open.`);
+
 export function mine() {
   const box = h("div", { class: "card sec-mine" }, h("h2", null, "Your security alerts"), h("p", { class: "empty" }, "Loading…"));
   if (DEMO.on) { box.replaceChildren(h("h2", null, "Your security alerts"), h("p", { class: "note" }, DEMO_SAYS)); return box; }
@@ -33,10 +40,10 @@ export function mine() {
     const save = (patch) => call("settings/security-prefs", { alerts: p.alerts, mode: p.mode, ...patch })
       .then((r) => { if (r.ok) { draw(r); said.textContent = "Saved."; } else said.textContent = r.error || "Not saved."; });
     box.replaceChildren(...[h("h2", null, "Your security alerts"),
-      h("p", { class: "note" }, `Mail to ${p.email} when Skald finds a possible exposure or an advisory that matches this site's stack: once per item, and a reminder while it stays open.${p.default ? " This is the default for your role; choose to keep it." : ""}`),
+      h("p", { class: "note" }, `Mail to ${p.email} when Skald finds a possible exposure or an advisory that matches this site's stack. ${summaryWords(p.summary_at)} Right away: one mail per run with everything due on your sites, never one per item. Each item comes once, then a reminder while it stays open.${p.default ? " This is the default for your role; choose to keep it." : ""}`),
       h("div", { class: "sa-opts" },
         choice("Security alerts", p.alerts ? "on" : "off", [["on", "On"], ["off", "Off"]], (v) => save({ alerts: v === "on" })),
-        choice("When", p.mode, [["now", "Right away"], ["daily", "In the daily mail"]], (v) => save({ mode: v }))),
+        choice("When", p.mode, [["daily", summaryLabel(p.summary_at)], ["now", "Right away"]], (v) => save({ mode: v }))),
       mayFind() ? h("p", null, h("button", { type: "button", class: "btn", onclick: () => call("settings/security-test", {}).then((r) => toast(r.ok ? `A test alert went to ${r.sent_to}.` : r.error || "Not sent.")) }, "Send a test security alert")) : null,
       (p.open || []).length ? h("p", { class: "note" }, `Open now: ${p.open.length} item${p.open.length === 1 ? "" : "s"}.`) : null,
       said].filter(Boolean));

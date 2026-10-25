@@ -213,6 +213,8 @@ The Security section shows, from the log alone:
 - **Your stack and advisories:** what serves each site, matched against advisories shipped with each
   release (currently php2shell and the Node.js October 2026 releases).
 - **A block list** (nginx, Cloudflare, fail2ban) and **alerts** by email or Slack.
+- **One summary mail a day** (01:00 in your time zone): each person gets one mail with every
+  site's open security items, to-dos and set-up problems, never a mail per item.
 
 What it is not: Skald does not block traffic, is not a WAF or intrusion prevention system, and
 cannot see request bodies or file contents, only what the access log records. Use it alongside

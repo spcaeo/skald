@@ -152,7 +152,19 @@ Release 2 adds a nightly backup (any quiet hour; not 11:10-11:30 UTC):
 30 5 * * * skald . /etc/skald/env && cd /opt/skald && ./bin/skald --config /etc/skald/config.yml backup >>/var/log/skald/backup.log 2>&1 || echo "skald backup failed; see /var/log/skald/backup.log"
 ```
 
-and nothing else: run-daily runs `verify-bots` first when `bots.ranges_dir`
+Release 2.36 adds the daily summary: one mail per person with what to look at on every site
+they get security alerts for (security items, to-dos, set-up problems; nothing when nothing is
+open, never twice a day). Run it every hour with `--after 01:00`: it sends once the site's
+local time (`report.timezone`) is past 01:00, whatever the server clock and summer time do:
+
+```cron
+0 * * * * skald . /etc/skald/env && cd /opt/skald && ./bin/skald --config /etc/skald/config.yml summary-mail --after 01:00 >>/var/log/skald/summary.log 2>&1
+```
+
+`summary-mail --dry-run` prints the mails without sending them. Docker runs it by itself at
+`SKALD_SUMMARY_AT` (01:00; `off` stops it).
+
+That is all: run-daily runs `verify-bots` first when `bots.ranges_dir`
 is set, and the live run checks the alerts and markers itself. Set it: without
 `bots.ranges_dir` no crawler claim is checked (a fake Googlebot counts as
 Googlebot, a browser from a cloud is not flagged), and `doctor` says "crawler

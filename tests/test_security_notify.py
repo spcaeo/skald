@@ -1,7 +1,8 @@
 """Security alerts to the people on a site (security_notify.py, security_api.py): who gets
 one (owners and admins by default, a viewer who opts in, never an unconfirmed or disabled
-account), once per item and a reminder while it stays open, the daily-mail digest, the test
-send, the link straight to the item, and every send in the audit log without its content."""
+account), the daily summary as the default, right away as one mail per person, once per item
+and a reminder while it stays open, the test send, the link straight to the item, and every
+send in the audit log without its content. The summary itself: test_summary_mail.py."""
 from __future__ import annotations
 
 import io
@@ -89,15 +90,28 @@ class Team(unittest.TestCase):
                          "the same id every run")
         self.assertNotIn("example.com", it["item"])
 
+    def right_away(self, *emails):
+        for e in emails:
+            sn.set_prefs(self.db, self.ids[e], SITE, True, "now")
+
+    def test_the_default_is_the_summary(self):
+        self.assertEqual(sn.prefs_of(self.db, self.ids["owner@example.com"], "owner", SITE),
+                         {"alerts": True, "mode": "daily", "default": True})
+        self.assertEqual(sn.run(self.db, CONFIG, SITE, self.found, NOW, "now", self.box), [],
+                         "nobody chose right away: nothing until the summary")
+        self.assertEqual(self.box.sent, [])
+        self.assertEqual(len(sn.open_items(self.db, SITE)), 2, "the items are still tracked")
+
     def test_once_per_item_then_a_reminder(self):
         cfg = {**CONFIG, "mail": {**CONFIG["mail"], "to": []}}
+        self.right_away("owner@example.com", "admin@example.com")
         got = sn.run(self.db, cfg, SITE, self.found, NOW, "now", self.box)
         self.assertEqual(sorted((e, h) for e, _, h in got),
                          [("admin@example.com", "first")] * 2 + [("owner@example.com", "first")] * 2)
-        self.assertEqual(len(self.box.sent), 4, "right away: one mail per item")
+        self.assertEqual(len(self.box.sent), 2, "right away: one mail per person, never per item")
         to, subject, text = self.box.sent[0]
         self.assertIn("What to do:", text)
-        self.assertIn("#threats/", text)
+        self.assertEqual(text.count("#threats/"), 2, "both items in the one mail")
         self.assertIn(SITE, subject)
         self.assertEqual(sn.run(self.db, cfg, SITE, self.found, NOW + timedelta(hours=5), "now", self.box), [],
                          "once per item")
@@ -114,21 +128,17 @@ class Team(unittest.TestCase):
 
     def test_the_site_alert_mail_is_not_doubled(self):
         cfg = {**CONFIG, "alerts": {"enabled": True, "mail": True}}
+        self.right_away("owner@example.com")
         got = sn.run(self.db, cfg, SITE, self.found, NOW, "now", self.box)
         owner = [(i, h) for e, i, h in got if e == "owner@example.com"]
         self.assertEqual([i[:1] for i, _ in owner], ["a"], "the owner gets the exposure in the site's alert mail")
 
-    def test_the_daily_mail(self):
+    def test_the_old_daily_choice_mails_nothing_by_itself(self):
         cfg = {**CONFIG, "mail": {**CONFIG["mail"], "to": []}}
         sn.set_prefs(self.db, self.ids["owner@example.com"], SITE, True, "daily")
-        now = sn.run(self.db, cfg, SITE, self.found, NOW, "now", self.box)
-        self.assertNotIn("owner@example.com", {e for e, _, _ in now})
-        before = len(self.box.sent)
-        daily = sn.run(self.db, cfg, SITE, self.found, NOW, "daily", self.box)
-        self.assertEqual(sorted(h for e, _, h in daily if e == "owner@example.com"), ["daily", "daily"])
-        self.assertEqual(len(self.box.sent), before + 1, "one mail with both items")
-        self.assertIn("2 items", self.box.sent[-1][1])
-        self.assertEqual(sn.run(self.db, cfg, SITE, self.found, NOW + timedelta(hours=1), "daily", self.box), [])
+        self.assertEqual(sn.run(self.db, cfg, SITE, self.found, NOW, "daily", self.box), [])
+        self.assertEqual(self.box.sent, [], "the summary carries them (summary_mail.py)")
+        self.assertEqual(len(sn.open_items(self.db, SITE)), 2)
 
     def test_the_test_send(self):
         user = {"user_id": self.ids["admin@example.com"], "email": "admin@example.com"}

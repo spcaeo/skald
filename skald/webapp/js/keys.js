@@ -27,8 +27,14 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-25-2.35.0",
+  id: "2026-10-25-2.36.0",
   items: [
+    ["One summary mail a day", "one mail per person at 01:00 with every site's open security items, to-dos and set-up problems, instead of a mail per item; Security › Alerts can still send right away, one mail per run.", "security"],
+    ["The sitemap page is not a page", "/sitemap/ and /sitemap.html leave the page views (crawlers and checkers walk them, people do not); Settings › Sites › Not pages can count them again.", "settings-and-retention"],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.35.0
     ["What changed: is it working?", "Overview › Summary compares the period with the one before, with the exact dates, an Include today switch, five key figures with their change, the sources and landing pages that rose or fell, and whether a page needs work or more traffic.", "getting-started"],
     ["New and updated pages", "pages your sitemap says changed lately, and whether people, search and Google have found them; Traffic › Pages sorts by Rising and Falling and shows when each page changed.", "getting-started"],
     ["A to-do list", "Overview › Insights lists what to fix, with the proof and what to do; mark one done and Skald re-checks it each day: did it work?", "what-to-fix"],
@@ -39,9 +45,6 @@ const NEW = {
     ["Test a log before you rely on it", "Settings › Connections › Test a sample, or skald try-log: Skald reads a sample of a log, says which format it is and what it would count, and stores nothing.", "connections"],
     ["Copy any value", "an address, user agent, email, search term, crawler name or ID shows a copy icon on hover, like links do.", "getting-started"],
     ["Truer counts", "link checkers, probe sweeps and scanners using a crawler's name are bots; feeds, WordPress's API and Markdown copies are not page views; Copilot, Meta AI, DeepSeek and Grok are AI assistants; crawler address checks are on in Docker.", "ai-and-bots"],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.34.0
     ["Social networks", "Traffic › Sources › Social network: X, LinkedIn, Facebook, Instagram, Reddit, YouTube and more, one row each, every address of a network added up (t.co, x.com and twitter.com are X). A row shows how its visitors were matched and where they landed.", "where-visitors-come-from"],
     ["All your sites side by side", "All sites has a table: Search, Social, X, LinkedIn, Facebook, Instagram, Reddit, YouTube, AI and Direct for each site, today, 7, 30 or 90 days; each figure opens that site's Sources.", "where-visitors-come-from"],

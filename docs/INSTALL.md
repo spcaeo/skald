@@ -119,6 +119,7 @@ the container has them (`history.db: /var/lib/skald/history.sqlite`,
 | `SKALD_GSC_KEY_JSON`, `SKALD_GSC_KEY_FILE` | | the Google service-account key for the Search Console sync: the key file's text, or a path to it inside the container (make it 0600). Not needed when the key is uploaded in Settings > Integrations > Search, which keeps it in `secrets.json` beside the history. Environment only, never in a file you commit |
 | `SKALD_REPORTS_MINUTES` | `15` | how often the client reports that are due are sent (Settings > Reports); `0` stops them |
 | `SKALD_AI_ANSWERS_MINUTES` | `15` | how often the AI answers profiles that are due (or asked to run now) are asked (`ai-answers --due`); `0` stops them |
+| `SKALD_SUMMARY_AT` | `01:00` | the daily summary mail (`summary-mail`): one mail per person with what to look at on every site they get security alerts for (security items, to-dos, set-up problems), in the schedule's time zone; `off` stops it |
 | `SKALD_SCHEDULER` | `on` | `off` stops the container's own schedule (live, daily run, backup) |
 | `SKALD_ORIGIN` | from `SKALD_BASE_URL` | the browser origin(s) the dashboard's buttons are accepted from |
 | `SKALD_TRUSTED_PROXIES` | none (Compose: `private`) | the proxy in front, whose word on the visitor's address is believed: ranges such as `10.0.0.0/8`, or `private` (the private ranges). Empty: nobody, right when the container faces the internet. Per platform: [HOSTING.md](HOSTING.md) |

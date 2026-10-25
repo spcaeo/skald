@@ -67,6 +67,10 @@ CASES = {
                        "/?coauthor=1", "/?author=%31"]),
     "reply_to_comment": (["/post/?replytocom=12", "/?replytocom=1#respond"],
                          ["/post/?reply=12", "/post/replytocom/"]),
+    "sitemap_page": (["/sitemap/", "/sitemap", "/SiteMap/", "/site-map/", "/html-sitemap/",
+                      "/sitemap.html", "/en/sitemap/", "/sitemap/?utm_source=x"],
+                     ["/sitemaps-guide/", "/sitemap-tool/", "/sitemap/page-2/",
+                      "/blog/xml-sitemap-tips/", "/my-sitemap/"]),
 }
 
 
@@ -107,9 +111,10 @@ class TestEachEntry(unittest.TestCase):
                     self.assertEqual(both(url), ("", ""))
 
     def test_the_judgement_calls_stay_pages(self):
-        # A person opens these: an HTML sitemap page, search results, a cart,
-        # a sign-in page, an app's dashboard, a thank-you page, short links.
-        for url in ("/sitemap/", "/sitemap", "/site-map/", "/search/", "/?s=shoes", "/cart/",
+        # A person opens these: search results, a cart, a sign-in page, an
+        # app's dashboard, a thank-you page, short links. (The HTML sitemap
+        # page left this list in 2.36: sitemap_page.)
+        for url in ("/search/", "/?s=shoes", "/cart/",
                     "/checkout/", "/my-account/", "/sign-in", "/login/", "/dashboard",
                     "/thank-you/", "/?p=12", "/?page_id=7", "/status", "/embed/", "/amp/"):
             with self.subTest(url=url):
