@@ -231,6 +231,25 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
   (no sideways scroll, no script errors, no broken assets, every switch and tab has a choice).
   Words checked against the product's own limits (`_src/pages/FEATURES.md`).
 
+## 2.36.1 (2026-10-25)
+
+A fix found by the dry run of the first summary mail on the live server.
+
+### Mail links open the site they are about
+
+- **Fixed.** In an install with several sites, a site that sets no `dashboard.url` of its own
+  took the first site's, so every link in its mails (the security alerts, the daily summary,
+  the daily and weekly reports, alert mails, a to-do sent to a teammate) opened the first
+  site's dashboard. Each site now gets the first site's address with its own name in place of
+  the first site's last segment (`.../traffic/example.com/` becomes `.../traffic/example.org/`).
+  A site with its own `dashboard.url` keeps it; an address that does not end with the first
+  site's name is left as it is.
+- **Why.** The dry run of the 2.36.0 summary showed every site's links opening the first site.
+  The 2.35.0 security mails had the same wrong links.
+- **Who.** Installs with more than one site. **Do:** nothing.
+- **Checked.** New tests (inherited, own, other shapes, the first site unchanged); the full
+  test suite passes; `summary-mail --dry-run` on the live server after the upgrade.
+
 ## 2.36.0 (2026-10-25)
 
 One summary mail a day instead of a mail per security item, and the HTML sitemap page out of the page views.
