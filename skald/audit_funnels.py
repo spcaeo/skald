@@ -33,7 +33,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -41,7 +40,7 @@ from urllib.parse import urlsplit
 
 from .audit_labels import _bare, _host_of, _tags
 from .audit_visits import _bucket, _is_asset_path, _is_beacon_path
-from .classify import AI_REFERRER_HOSTS, AI_REFERRER_PATHS, ASSISTANT_ALIASES
+from .classify import AI_REFERRER_HOSTS, AI_REFERRER_PATHS, AI_UTM, ASSISTANT_ALIASES
 
 KEEP = 50                      # trail entries a journey keeps (visits.TRAIL_KEEP)
 LEFT = "(left the site)"
@@ -54,9 +53,10 @@ TIME_LABELS = ((0, 10, "under 10s"), (10, 30, "10-30s"), (30, 60, "30s-1m"),
 SHOWN = {"chatgpt.com": "ChatGPT", "perplexity.ai": "Perplexity", "claude.ai": "Claude",
          "gemini.google.com": "Gemini", "copilot.microsoft.com": "Copilot",
          "you.com": "You.com", "phind.com": "Phind", "poe.com": "Poe",
-         "mistral.ai": "Mistral"}
-_TAGGED = re.compile(r"utm_source=(chatgpt|openai|perplexity|claude|gemini|copilot|mistral)",
-                     re.I)
+         "mistral.ai": "Mistral", "meta.ai": "Meta AI", "deepseek.com": "DeepSeek",
+         "grok.com": "Grok"}
+# The utm_source tags an assistant puts on its links: the shared name list.
+_TAGGED = AI_UTM
 
 
 def _time_label(seconds: int) -> str:

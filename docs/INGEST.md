@@ -517,7 +517,7 @@ format are refused and counted (the shipper's journal says "N rejected").
 | nginx | `nginx_extended` | Skald's own format with host, time taken and request id (DEPLOY.md) |
 | Apache | `apache_combined` | `LogFormat "%h %l %u %t \"%r\" %>s %O \"%{Referer}i\" \"%{User-Agent}i\"" combined` |
 | Caddy | `caddy_json` | Caddy's default JSON access log (`log { output file ... }`) |
-| Cloudflare, CloudFront, Fastly | `cloudflare_json`, `cloudfront_w3c`, `fastly_json` | see CDN-LOGS.md |
+| Cloudflare, CloudFront, Fastly, Akamai | `cloudflare_json`, `cloudfront_w3c`, `fastly_json`, `akamai_json` | see CDN-LOGS.md |
 | Vercel, Netlify (log drains) | `vercel_json`, `netlify_json` | no shipper: the platform posts its own request logs (below, and HOSTING.md) |
 | Cloudflare on any plan (the Skald Worker) | `edge_json` | no shipper: the Worker posts one edge record per request (below, and CDN-LOGS.md) |
 | any of these | `auto` | each line is read by whichever format reads it |

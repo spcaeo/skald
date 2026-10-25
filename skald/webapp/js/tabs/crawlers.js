@@ -15,6 +15,7 @@ import { call, installOnly, INSTALL_ONLY } from "./ipmanager.js";
 import { isViewer, VIEWER } from "../access.js";
 import { getJSON, base } from "../data.js";
 import { download } from "../table.js";
+import { copyIf } from "../urlactions.js";
 // The policy applies to every site of the install: with accounts only an install admin saves it.
 const lockWhy = () => (isViewer() ? VIEWER : INSTALL_ONLY);
 
@@ -125,7 +126,7 @@ function owner(a, counts, viewer, redraw) {
         const own = h("select", { "aria-label": `${c.name}: set on its own`, disabled: viewer, title: viewer ? lockWhy() : null, onchange: (e) => { if (e.target.value) DRAFT.crawlers[c.name] = e.target.value; else delete DRAFT.crawlers[c.name]; redraw(); } },
           h("option", { value: "", selected: !DRAFT.crawlers[c.name] }, `As ${a.owner}`), h("option", { value: "allow", selected: DRAFT.crawlers[c.name] === "allow" }, "Always allow"), h("option", { value: "block", selected: DRAFT.crawlers[c.name] === "block" }, "Always block"));
         const eff = would(c);
-        return h("tr", null, h("th", { scope: "row" }, c.name, c.robots_only ? h("span", { class: "bp-ro", title: "The server cannot block it: only a robots.txt line can ask it to stay away" }, "robots.txt only") : null),
+        return h("tr", null, h("th", { scope: "row" }, copyIf("text", c.name, null, { label: "crawler" }), c.robots_only ? h("span", { class: "bp-ro", title: "The server cannot block it: only a robots.txt line can ask it to stay away" }, "robots.txt only") : null),
           h("td", null, TIER[c.tier] || c.tier), h("td", null, own),
           h("td", { class: "c" }, h("span", { class: `rb ${eff === "block" ? (c.robots_only ? "warn" : "bad") : "ok"}` }, eff === "block" ? (c.robots_only ? "Ask in robots.txt" : "Blocked") : "Allowed")),
           h("td", { class: "num" }, counts[c.name] ? n(counts[c.name]) : "0"));

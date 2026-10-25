@@ -6,7 +6,7 @@ import { ranked, coverage } from "../data.js";
 import { table } from "../table.js";
 import * as S from "../state.js";
 import { link, drillRow } from "../drill.js";
-import { withUrl } from "../urlactions.js";
+import { withUrl, copyIf, dimKind } from "../urlactions.js";
 import { info } from "./tiles.js";
 import { time as tzTime, sameAsSite, siteZone, city, daysNote } from "../tz.js";
 
@@ -42,6 +42,8 @@ export function periodWords(r, cov) {
   } else {
     const preset = s && s.range !== "custom";
     if (r.all) bits.push(allWords(r));
+    // Include today (data.js withToday): the whole days and today so far.
+    else if (r.inc) bits.push(`Last ${r.length} days including today, ${short(r.first)} to ${short(r.last)} (today so far)`);
     else bits.push(r.length === 1 ? long(r.first) : preset ? `Last ${r.length} whole days, ${short(r.first)} to ${short(r.last)}` : `${short(r.first)} to ${short(r.last)}, ${r.length} days`);
     if (cov) bits.push(cov.complete ? "every day whole and verified" : `${cov.ok} whole day${cov.ok === 1 ? "" : "s"} recorded, ${r.length - cov.ok} not`);
   }
@@ -142,7 +144,7 @@ export function nothing(m, r, what = "figures") {
 // Ranked labels with a proportional bar behind each. rows: [[label, n, extra?]]
 /* drill: the dimension the labels are (country, path, source...): each label
    then opens its detail, with its mark. from: "drill" inside the detail view. */
-export function blist(rows, { color = "var(--g-people)", total, limit = 10, label = (x) => x, empty = "None recorded.", change, drill, from, value = (k) => k } = {}) {
+export function blist(rows, { color = "var(--g-people)", total, limit = 10, label = (x) => x, empty = "None recorded.", change, drill, from, value = (k) => k, copy = null } = {}) {
   if (!rows.length) return h("p", { class: "empty" }, empty);
   const max = rows[0][1] || 1, sum = total ?? rows.reduce((s, r) => s + r[1], 0);
   const ul = h("ul", { class: `blist${reduced() ? "" : " play"}` });
@@ -151,7 +153,9 @@ export function blist(rows, { color = "var(--g-people)", total, limit = 10, labe
     // A row may carry a third item: the value to drill into, when its label is not the value itself.
     const lab = drill ? link(drill, value(k), { from, text: typeof label(k) === "string" && label(k) !== value(k) ? label(k) : undefined }) : label(k);
     // A page: copy and open in a new tab at the label's end (urlactions.js).
-    const words = drill === "path" || drill === "landing" ? withUrl(lab, value(k)) : lab;
+    // Text to paste elsewhere (an address, a referrer, a crawler, a user agent; copy: its kind): the copy icon.
+    const kind = copy || dimKind(drill);
+    const words = drill === "path" || drill === "landing" ? withUrl(lab, value(k)) : kind ? copyIf(kind, lab, kind === "text" ? null : value(k), { cls: "" }) : lab;
     const li = h("li", null, bar, h("span", { class: "bl-l", title: typeof lab === "string" ? lab : k }, words), h("span", { class: "bl-v" }, n(v)),
       change ? h("span", { class: "bl-c" }, change(k)) : h("span", { class: "bl-p" }, share(v, sum)));
     // The whole line opens the value, not only its words (drill.js drillRow).

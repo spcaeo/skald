@@ -37,7 +37,12 @@ KINDS = {"funnels": "funnel_days", "engagement": "engagement",
          # people from search engines by engine and landing page: Skald's side
          # of the Search tab's cross-check with Search Console (search/)
          "search_landing": "search_landing",
+         # visits by the page they started on: one-page visits, search and AI
+         # (landings.py; Summary's page cards, Traffic > Pages)
+         "landings": "landings",
          "crawl_health": "crawl_health",
+         # what AI crawlers and assistants got back, by address (ai_status.py)
+         "ai_status": "ai_status",
          # scanners, exposures, attack attempts, fake browsers (security.py)
          "security": "security"}
 

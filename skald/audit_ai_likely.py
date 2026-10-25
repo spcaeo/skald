@@ -19,6 +19,13 @@ with its own code, written apart from ai_likely.py:
   likely            a fetch of the visit's page whose minute is the visit's
                     first minute or up to the window before it; two or more
                     assistants make it "(more than one)"
+  by chance         an assistant's fetches of a page are left out of
+                    "likely" when the day's direct visits landing on that
+                    page, times the distinct minutes its fetches of it reach
+                    (each fetch's minute and the window after), come to
+                    the stored day's chance_limit x 24 x 60 or more (no
+                    chance_limit stored: the day was counted before the
+                    rule, and nothing is left out)
 
 The window is the one the stored day says it used, so a later change of
 `attribution.ai_window_minutes` never makes an old day disagree. Only
@@ -133,14 +140,27 @@ class Recount:
             return
         self.direct.append((start, _page(labels["landing"]), labels["landing"]))
 
-    def _read(self, window: int) -> dict:
+    def _weak(self, window: int, limit) -> set:
+        """The (assistant, page) pairs whose fetches chance explains."""
+        if limit is None:
+            return set()
+        landings = Counter(page for _, page, _ in self.direct)
+        reach: dict[tuple, set] = {}
+        for m, w, p in self.fetches:
+            if landings[p]:
+                reach.setdefault((w, p), set()).update(range(m, m + window + 1))
+        return {pair for pair, minutes in reach.items()
+                if landings[pair[1]] * len(minutes) >= float(limit) * 24 * 60}
+
+    def _read(self, window: int, weak: set = frozenset()) -> dict:
         """The `ai_read` figures, from the visits and the raw fetch rows."""
         rows = {"cited": Counter(), "fetched": Counter(), "same_page": Counter(),
                 "likely": Counter()}
         marked = listed = beyond = 0
         visits = [("cited", stamp, who, {who}, page) for stamp, who, page in self.cited]
         for stamp, page, _ in self.direct:
-            near = {w for m, w, p in self.fetches if p == page and m <= stamp <= m + window}
+            near = {w for m, w, p in self.fetches
+                    if p == page and m <= stamp <= m + window and (w, p) not in weak}
             if near:
                 one = next(iter(near)) if len(near) == 1 else AI_LIKELY_MANY
                 visits.append(("likely", stamp, one, near, page))
@@ -158,8 +178,9 @@ class Recount:
                 beyond += max(0, len(pairs) - LISTED)
         return {"rows": rows, "marked": marked, "listed": listed, "beyond": beyond}
 
-    def _compare_read(self, blob, same) -> None:
-        got = self._read(int(blob.get("window_minutes", 0)))
+    def _compare_read(self, blob, same, limit) -> None:
+        window = int(blob.get("window_minutes", 0))
+        got = self._read(window, self._weak(window, limit))
         rows = got["rows"]
         same("ai_read: cited visits", int(blob.get("cited", 0)), sum(rows["cited"].values()))
         same("ai_read: likely visits", int(blob.get("likely", 0)), sum(rows["likely"].values()))
@@ -172,11 +193,12 @@ class Recount:
                 same(f"ai_read: {field} for {who}", int((mine.get(who) or {}).get(field, 0)),
                      rows[field][who])
 
-    def _count(self, window: int) -> dict:
+    def _count(self, window: int, weak: set = frozenset()) -> dict:
         assistants: Counter = Counter()
         pages: Counter = Counter()
         for stamp, page, landing in self.direct:
-            who = {w for m, w, p in self.fetches if p == page and m <= stamp <= m + window}
+            who = {w for m, w, p in self.fetches
+                   if p == page and m <= stamp <= m + window and (w, p) not in weak}
             if who:
                 assistants[who.pop() if len(who) == 1 else AI_LIKELY_MANY] += 1
                 pages[landing] += 1
@@ -202,12 +224,19 @@ class Recount:
                 counted[(at.strftime("%Y-%m-%dT%H:%M"), who, path)] += n
             for key in sorted(set(kept) | set(counted)):
                 same(f"ai_fetches: {key[1]} on {key[2]} at {key[0]}", kept[key], counted[key])
-        if stored.get("ai_read") is not None:
-            self._compare_read(stored["ai_read"], same)
         blob = stored.get("ai_likely")
+        limit = (blob or {}).get("chance_limit")
+        if stored.get("ai_read") is not None:
+            self._compare_read(stored["ai_read"], same, limit)
         if blob is None:
             return
-        got = self._count(int(blob.get("window_minutes", 0)))
+        window = int(blob.get("window_minutes", 0))
+        weak = self._weak(window, limit)
+        kept = {(w, p) for w, ps in (blob.get("by_chance") or {}).items() for p in ps}
+        for w, p in sorted(kept | weak):
+            same(f"ai_likely: {w}'s fetches of {p} by chance", int((w, p) in kept),
+                 int((w, p) in weak))
+        got = self._count(window, weak)
         same("ai_likely: visits", int(blob.get("visits", 0)), self.visits)
         same("ai_likely: direct untagged visits", int(blob.get("direct", 0)), len(self.direct))
         same("ai_likely: likely visits", int(blob.get("likely", 0)),

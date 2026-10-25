@@ -79,6 +79,8 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `sites.log_base` | Sites | a file name | install admin | site | `logs.base` |
 | `site.asset_prefixes` | Sites (Page assets) | 1-10 path prefixes, each starting with `/`, not `/` alone (`/_next/static/`) | admin | site | `site.asset_prefixes` |
 | `site.require_rendering` | Sites (Page assets) | true / false (true) | admin | site | `site.require_rendering` |
+| `site.not_pages_off` | Sites (Not pages) | entries of the not-a-page list counted as pages again: `markdown`, `wp_rest`, `wp_files`, `feeds`, `oembed`, `trackback`, `author_number`, `reply_to_comment` (none) | admin | site | `site.not_pages_off` |
+| `site.not_pages_extra` | Sites (Not pages) | up to 20 of the site's own: `/path`, `/prefix*` or `?key`, not `/` alone (none) | admin | site | `site.not_pages_extra` |
 | `site.logo.source` | Sites (Logo) | auto, upload, letter (auto) | admin | site | `site.logo_source` |
 | `site.logo.color` | Sites (Logo) | `#1d4ed8`, `#0f766e`, `#9a6400`, `#17212b` (one picked from the name) | admin | site | `site.logo_color` |
 | `beacon.visitor_ids` | Sites (Script tag) | true / false (false) | admin | site | `beacon.visitor_ids` |
@@ -134,6 +136,17 @@ a site whose assets come from a CDN host this log never sees. `settings_store.ap
 row into `config["site"]`, where the first pass (`rendering.py`), its recount
 (`audit_rendered.py`) and the doctor's "Page assets" line read it, so both roads count with the
 same paths. A change counts from the next run; `backfill --days N --force` recounts stored days.
+
+`site.not_pages_off` and `site.not_pages_extra` (Settings > Sites > Not pages, 2.35): the
+not-a-page list (`not_pages.py`, CLASSIFICATION.md "What decides a page view") applies to
+every site from code, so a dashboard site has it without a row. A request on it is no page
+view; it stays a request in its group. The first key names the entries the site counts as
+pages again (a site that serves a real `/feed/` page unticks `feeds`); the second adds the
+site's own addresses (`/status`, `/preview/*`, `?preview`), compared in any case.
+`settings_store.apply` writes both into `config["site"]`, where `parse.read` (through
+`not_pages.from_config`) and the audit (`audit_not_pages.Marker`) read them. A value that does
+not check out counts as unset on both roads. From the next run; `backfill --days N --force`
+recounts stored days.
 
 A test mail with no sender address, or no SMTP server, is refused with a plain sentence
 ("Set the sender address first ..."), not with config key names.

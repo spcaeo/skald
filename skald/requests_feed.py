@@ -52,7 +52,8 @@ KIND_WORDS = {"page": "page view", "rsc": "Next.js payload (_rsc)", "asset": "as
               "not_modified": "not modified (304)", "not_found": "not found",
               "client_error": "client error", "server_error": "server error",
               "post": "form post", "script_event": "script tag event",
-              "skald_endpoint": "Skald endpoint", "other": "other"}
+              "skald_endpoint": "Skald endpoint", "other": "other",
+              "not_page": "not a page (a machine address)"}
 
 
 def settings(config: dict) -> tuple[int, int]:
@@ -96,6 +97,9 @@ def kind_of(hit) -> str:
         return "client_error"
     if CRAWLER_PATH.search(hit.path):
         return "crawler_file"
+    if hit.not_page_rule:
+        # Shaped like a page, on the site's not-a-page list (not_pages.py).
+        return "not_page"
     if RSC_PAYLOAD.search(hit.url):
         # A Next.js navigation on a log that records the prefetch header
         # is a page view (parse.Hit.soft_navigation); any other payload is not.
@@ -220,7 +224,7 @@ def row(hit, verdict, tz, hidden, duplicate: bool, source: str = "") -> dict:
     if verdict is not None and (verdict.group is Group.ANSWER_ENGINE
                                 or verdict.tier is Tier.CITED):
         assistant = verdict.engine
-    return {
+    out = {
         "at": when.astimezone(tz).isoformat(timespec="seconds"),
         "ip": REMOVED if hidden(hit.address) else hit.address,
         "country": cc, "country_name": NAMES.get(cc, ""),
@@ -237,6 +241,9 @@ def row(hit, verdict, tz, hidden, duplicate: bool, source: str = "") -> dict:
         "verified": verdict.verified if verdict is not None else None,
         "flags": flags,
     }
+    if kind == "not_page":
+        out["not_page"] = hit.not_page_rule         # the entry (not_pages.py)
+    return out
 
 
 # ------------------------------------------------------------- the feed
@@ -368,12 +375,15 @@ def before_midnight(config: dict, feed: Feed, midnight: datetime, now: datetime,
     paths = oldest_first(paths)
     fmt = (config.get("logs") or {}).get("format") or "auto"
     tz_day_start = _day_start(config, midnight)
+    from .not_pages import from_config
+    rules = from_config(config)
     classifier, _ = ordered_classifier(
-        config, lambda: within(read(paths, fmt, upto=upto), tz_day_start, midnight),
+        config, lambda: within(read(paths, fmt, upto=upto, page_rules=rules), tz_day_start,
+                               midnight),
         tz_day_start, midnight)
     wanted = {str(h).lower() for h in (setting(config, "site", "hosts") or [])}
-    for hit in one_click(within(read(paths, fmt, geo=geo_database(config), upto=upto),
-                                feed.cutoff, midnight)):
+    for hit in one_click(within(read(paths, fmt, geo=geo_database(config), upto=upto,
+                                     page_rules=rules), feed.cutoff, midnight)):
         if wanted and hit.host and hit.host.lower() not in wanted:
             feed.excluded(hit)
         else:

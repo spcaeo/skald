@@ -14,6 +14,7 @@ import { time as tzTime } from "./tz.js";
 import { adapt } from "./adapt.js";
 import { csrfHeaders } from "./tabs/ipmanager.js";
 import { DEMO, DEMO_SAYS, setDemo, demoFile } from "./demo.js";
+import { incOn, INC_RANGES } from "./period-dates.js";
 
 export const GROUPS = [
   ["people", "People"], ["answer_engines", "AI assistants"], ["search_engines", "Search engines"],
@@ -40,7 +41,11 @@ export const base = (view) => (view && view !== "all" ? `${view}/data/` : "data/
 
 // Files the data layer writes beside app.json (DATA-CONTRACT.md). Each is
 // optional: a tab whose file is not there yet says so instead of failing.
-export const EXTRA = ["insights", "not_found", "ai_activity", "campaigns", "pages", "overview", "ours", "bots", "alerts", "quality", "markers", "leads", "favicons", "sites", "robots", "speed", "funnels", "page_index", "events", "conversions", "realtime", "search", "retention", "ai_answers"];
+export const EXTRA = ["insights", "not_found", "ai_activity", "campaigns", "pages", "overview", "ours", "bots", "alerts", "quality", "markers", "leads", "favicons", "sites", "robots", "speed", "funnels", "page_index", "events", "conversions", "realtime", "search", "retention", "ai_answers", "page_trends",
+  // 2.35: Overview > Insights' to-dos, Site > Not found's lost pages (todos.py, lost_pages.py)
+  "todos", "lost_pages",
+  // Traffic › Pages › a page: did my change work? (page_changes.py)
+  "page_changes"];
 // requests.json is today's whole request log: the Requests tab fetches it itself, only when it is open.
 
 export async function load(s, { fresh = false } = {}) {
@@ -90,6 +95,7 @@ export function rangeOf(m, s) {
     return { kind: "history", first: d, last: d, length: 1, days: daysBetween(m, d, d) };
   }
   if (s.range === "all") return allTime(m);
+  if (incOn(s)) return withToday(m, INC_RANGES[s.range]);
   let first, last = m.anchor;
   if (s.range === "custom") { first = s.from; last = s.to; }
   else first = addDays(m.anchor, -(Number.parseInt(s.range, 10) - 1));
@@ -97,6 +103,20 @@ export function rangeOf(m, s) {
   if (first > last) first = last;
   const length = dayDiff(first, last) + 1;
   return { kind: "history", first, last, length, days: daysBetween(m, first, last) };
+}
+
+/* "Include today" (period-dates.js; Summary and Pages only): the k calendar days ending
+   today. The whole days before today are history's, as in any range (a day after the last
+   recorded one is "missing", never zero); today is the live snapshot, one more day marked
+   `live`, "ok" only while the live count is whole and verified. It is summed like any
+   other day; charts leave it out (chartDays), and Compare does not compare it. */
+export function withToday(m, k) {
+  const first = addDays(m.today, -(k - 1));
+  const days = daysBetween(m, first, addDays(m.today, -1));
+  const L = m.live && m.live.day === m.today ? m.live : null;
+  days.push(L && L.state === "ok" && L.figures ? { ...L.figures, day: m.today, state: "ok", live: true }
+    : { day: m.today, state: L?.state === "withheld" ? "withheld" : "missing", live: true });
+  return { kind: "history", inc: true, first, last: m.today, length: k, days };
 }
 
 /* All time (2.23, range=all): from the first day this site has data (history's first day, or
@@ -134,6 +154,7 @@ export function daysBetween(m, first, last) {
 // The days a chart draws: from the first day history holds, never a run of
 // empty slots before it - but at least a week, so one day is not one wide bar.
 export function chartDays(r) {
+  if (r.inc) r = { ...r, days: r.days.filter((d) => !d.live) };
   const i = r.days.findIndex((d) => d.state !== "before");
   if (i < 0) return r.days;
   return r.days.slice(Math.max(0, Math.min(i, r.days.length - 7)));

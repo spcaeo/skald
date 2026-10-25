@@ -101,6 +101,11 @@ def refresh(config: dict, directory, now: datetime | None = None, fetch=None) ->
     return state
 
 
+def state(directory) -> dict:
+    """The last fetch's state (robots-state.json), {} when there is none."""
+    return _state(directory) if directory is not None else {}
+
+
 def cached(directory) -> str | None:
     try:
         return (Path(directory) / TEXT).read_text(encoding="utf-8", errors="replace")

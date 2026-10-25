@@ -61,6 +61,13 @@ AI traffic is not people. A person who clicks a link inside an AI answer is coun
 
 A browser that reads too fast is not a person either. A visit that loads 6 pages or more, all inside 2 seconds, is counted under bots as "too fast to be a person". A quick reader clicking 3 pages in 2 seconds is still a person. A site can change both numbers (`site.too_fast_pages`, `site.too_fast_seconds`).
 
+Two kinds of tool also send a browser's name, and both are bots:
+
+- **A scanner trying many paths.** A visitor that asks for 5 or more different scanner paths your site does not have (`/info.php`, `/wp-login.php`, `/admin/` and the like, each answered "not found") is a scanner for that whole day, with every page it read between them. One or two missing paths are not enough: a person can mistype.
+- **A link checker.** A browser opens a page with an ordinary request. A visit that asks for two or more pages with `HEAD` (a request for the headers only) is a tool checking links, and every request of that visit is a bot.
+
+What Skald does not do: call a visit a bot because it was short. Real people open one page and leave. A visit from a hosting or cloud network is flagged, not moved, because people on a VPN come from there too.
+
 **A visit's pages.** A visit shows the pages it loaded from your server and the steps seen in the browser, both: "3 pages (2 seen in the browser)". A step seen in the browser is a page shown from the browser's cache, or a click your site handled without loading a page. Skald sees it from the next request's referrer. It is drawn dashed in the journey, and it is never counted as a page view.
 
 On **Site › Requests**, the script tag's own events to Skald (`/traffic-beacon`) say **script tag event**, and calls to Skald's hooks or log upload say **Skald endpoint**. Only a POST your own pages sent is a **form post**.
@@ -82,7 +89,7 @@ The sidebar has six sections. Each section has tabs along its top.
 | Security | Is anything exposed?, Your stack, Who is scanning us?, Attack attempts, Fake browsers, Block list, Alerts |
 | Site | Health, Alerts, Requests, Not found, Speed, Data quality |
 
-- **Overview > Summary** is where every visit starts: the period's headline figures, leads and demos booked among them.
+- **Overview > Summary** is where every visit starts: the period's five key figures (leads among them) with their change, what changed, and whether to work on a page or on its traffic. See [Summary and Pages: is it working?](getting-started.md#summary-and-pages-is-it-working).
 - **Overview > Real time** is who is on the site now, on a live world map. See [Real time](real-time.md).
 - **Overview > Insights** lists what is working, what dropped, and what is new or gone, leads too. See [Insights](getting-started.md#insights).
 - **Traffic** is who came, from where, to which pages, on what, and when; **Search** adds Google's and Bing's own queries ([Search](search.md)) and **Retention** how many came back ([Retention](retention.md)). A source of **Direct** means no referrer and no campaign tag. A country, device or touch the log did not carry says **Not recorded**.
@@ -107,14 +114,26 @@ A link opens what it names only for someone allowed to see it. When it names som
 
 No address ever holds a visitor's IP address, an email or a person search. Where one would be (an address filter on Site > Requests, a drill-down by address, a person search), the link holds a short code instead that only your own browser can read back. Opened in another browser, it says so in one line. Every key the address can hold is listed in [docs/ROUTES.md](https://github.com/spcaeo/skald/blob/main/docs/ROUTES.md).
 
-### Copy a page's link, or open it
+### The trail and Back
+
+When you go deeper (Summary, then a source, then a page, then a visitor), a line over the tab shows the path you took: **← Back to** the step before, then each step. Each step is a link to that exact view, with its period, filters, sort and what was open. The last one is where you are; its copy and open icons copy or open this exact view.
+
+- The browser's **Back** and **Forward** go through the same steps, and put the page back where you had scrolled it.
+- Going back to a step on the trail (with Back, a step or a link) cuts the trail back to it. Moving along a section's tabs does not add steps.
+- The trail belongs to this browser tab. A reload keeps it; closing the tab forgets it. Nothing is sent anywhere.
+- A link someone sent you starts its own short trail from the link: the section and tab, then what it opens (for example **Traffic › Pages**, then **/pricing/**).
+- On a phone the line shows **← Back to** and where you are.
+
+### Copy a page's link, or open it; copy any value
 
 Wherever a page of your site or a web address is shown (the Pages and Landing pages tables, referring sites, requests, Search pages, AI and crawler pages, pages not found, a visitor's journey, a lead's landing page, the Live lists, the set-up dialogs and the site switcher), pointing at it or moving to it with Tab shows two small icons at its end:
 
 - **Copy** copies the full address, with your site's own address in front of a path (`/pricing/` becomes `https://example.com/pricing/`). The icon turns into a green tick for a moment. If your browser does not allow copying, it says **Copy failed: select and copy**.
 - **Open in a new tab** opens the full address in a new tab.
 
-On a phone or a tablet the two icons are always shown. They never open the row's own detail: the row still does that when you select it elsewhere.
+Any other value you may want to paste somewhere else shows the **Copy** icon alone, the same way: an IP address, a user agent, an email, a name, a visitor ID or a lead's reference, a search query, a referring site, a campaign or UTM tag, a crawler or an AI assistant, a network, a host, a reason or an error, a token's name, a robots.txt line or a suggested server line. It copies the whole value, even where the cell shows a shortened one (a long user agent). Labels, headings, numbers and percentages have none.
+
+On a phone or a tablet the icons are always shown. They never open the row's own detail: the row still does that when you select it elsewhere.
 
 Two switches sit in the top bar on every page:
 
@@ -246,7 +265,7 @@ Select any country, city, page, source, AI assistant, campaign, referring site, 
 
 When the panel has visits behind it, **How these visitors moved** draws them as a flow map. See [Visitor flow](getting-started.md#visitor-flow).
 
-On [Traffic > Pages](#traffic/pages), select a page to see its story: when it was published, its first crawl, its first AI fetch, its first person and its first lead.
+On [Traffic > Pages](#traffic/pages), select a page to see its story: when it was published, its first crawl, its first AI fetch, its first person and its first lead, and each time it changed according to your sitemap. **Pages by publish date** has a **Changed** column and a **Changed since** filter from the same dates. See [Change dates from your sitemap](crawl-health.md#change-dates-from-your-sitemap).
 
 ## Traffic > Visitors
 
@@ -280,6 +299,8 @@ The drill-down panel draws the same map for its visits (**How these visitors mov
 
 [Overview > Insights](#overview/insights) says what changed, in plain words: what is working, what dropped, what is new or gone, what looks unusual and what is worth fixing.
 
+Above the cards, **To do now** lists what to fix this week, worst leak first, each with its proof, its list, a CSV and a link; mark one done and Skald re-checks it. See [What to fix](what-to-fix.md).
+
 - **The five biggest come first.** Size is how much moved and what it is worth: a lead counts more than a visit, an AI fetch or a crawl less, and a finding on small numbers less. **Show all** lists the rest.
 - **One card per subject.** A site that is both a referring site and an AI assistant, or a source's visitors and its leads, is one card; the other findings about it are under **more about this**.
 - **One sentence, one number, one link** on each card. The link opens the tab that shows it, filtered to it.
@@ -300,6 +321,87 @@ Tables then show A (the period in the top bar), B (the one you chose) and the ch
 These tabs compare: Overview > Summary, Traffic > Sources, Pages and Places & devices, Leads & sales > Summary, AI & bots > Assistants and Crawlers, and Site > Health. Leads, demos booked and every completed action are compared too, when every day of both periods has checked conversions.
 
 Today is never compared: turning on **Today · Live** turns Compare off.
+
+## Summary and Pages: is it working?
+
+Overview > Summary and Traffic > Pages answer one question: did what you changed work?
+
+### The period line
+
+Under the title of [Overview > Summary](#overview/summary) and [Traffic > Pages](#traffic/pages) there are two switches and one line with the exact dates.
+
+- **Include today**: with 7, 30 or 90 days, the period ends today and counts today so far. Off, it ends yesterday and counts whole days only. Other periods ignore it. It is kept in the address (`inc=1`) and stays on as you move between Summary and Pages.
+- **Compare with the period before**: puts the same number of days just before beside the period. It is the same as **Compare with… > Previous period** in the top bar.
+
+The line says the dates in words. On 15 Jan:
+
+| Period | Dates | The period before |
+|---|---|---|
+| 7 days, including today | 9–15 Jan | 2–8 Jan |
+| 7 days, whole days | 8–14 Jan | 1–7 Jan |
+| Today · Live | today until now | yesterday until the same time |
+
+A period that includes today is **never compared**. Today is not over, so its figures would always look lower than a whole day's, and Skald keeps no earlier day cut at the same hour (only yesterday, for Today · Live). Turn **Include today** off to compare whole days.
+
+When the period before was not measured (it is before Skald started on your site), the line says **before: not measured** and the first day a full comparison comes, for example "The first full 7 days against the 7 before is on 5 Nov (29 Oct–4 Nov against 22–28 Oct)". Until then, use Yesterday or Today. It never shows 0 for the earlier period and never a rise against nothing.
+
+### Key figures and their change
+
+Summary shows five figures: **People**, **From search engines**, **Returning people**, **Leads** and **Sent by AI assistants**. Select one to open the tab it comes from. With Compare on, each says its change:
+
+- **▼ 40% · before: 125**: down 40% from 125.
+- **≈ about the same · before: 12**: the gap is 3 or fewer. At the small numbers most sites have, that is normal day-to-day swing.
+- **before: not measured**: the earlier period was not counted. **before: not recorded**: the figure was not kept for those days (for leads, not every day's conversions are checked).
+
+### What changed: is it working?
+
+With Compare on and both periods whole and checked, this card lists **Sources** and **Landing pages**, each with **Now**, **Before** and **Change**, and one sentence on the biggest rise and drop. Select a row for its detail.
+
+### Work on the page, or on traffic?
+
+**Left at once** means: the visit loaded that one page and no other (one page view in the server's log). A step a single-page app shows without asking the server is not in the log, so on such a site the share is an upper bound.
+
+- **Improve the page**: at least 10 visits started on the page, 9 in 10 of them left at once, and no lead began there. The page, not the traffic, is the problem.
+- **Both**: search found the page at least 3 times and 8 in 10 of its visits left at once. Work on the page and on how it is found.
+
+Each list shows at most 5 pages. Leads come from the conversions data; when they are not recorded for those days, a page says **forms: not recorded**. Every page, in the same order, is on Traffic > Pages with the **Needs work** sort.
+
+### New and updated pages: are they getting found?
+
+The pages whose change date is in the last 30 days: the website's own date when it sends a page list, else the sitemap's "last changed" (`<lastmod>`). Each shows the change date, the visits and search visits since, the first day with a search visit, and whether Google fetched it since. Its period is always the last 30 days to yesterday, whatever the top bar says.
+
+When more than half of the sitemap's dates fall on one day, the card says **Dates look like build times**: some sites stamp every page each time they are built, so every page looks changed.
+
+### Traffic > Pages: sort and filter
+
+The landing pages grid adds **Pages per visit**, **Left after one page**, **AI reads** (live fetches by ChatGPT-User, Perplexity-User, Claude-User and other assistants answering someone) and **Changed**. The sort chips: **Most visits** (the default), **Rising** and **Falling** (the biggest gain or drop against the period before; they need Compare, and without it the grid stays on Most visits and says so), **Recently changed**, and **Needs work** (pages with 10 visits or more, the most left at once first). The chip is kept in the address (`psort`); a column header click sorts by that column instead.
+
+**Changed in the last 30 days** (above the grids, and in **Filters** as a preset) keeps only the pages changed since then. It is the **Changed since** date in the address (`chgfrom`).
+
+### Did my change work?
+
+Changed a page? Open it on [Traffic > Pages](#traffic/pages) and select **+ Mark a change**: pick the day it changed, what changed (content, title, a link to it, a redirect, other) and add a short note if you like. When your sitemap or your website says the page changed on a day you have not marked, the page asks **Track that change?**.
+
+Skald then compares the same number of whole days before and after that day, up to 28 on each side. The day of the change is in neither side. For each of these it shows the figure a day before, after, the change and what it says:
+
+- visits that started on the page
+- leads and conversions that landed there
+- visits from search engines
+- visits from AI assistants
+- AI reads (assistants fetching the page live for someone)
+- the share who left at once (lower is better)
+
+Until 14 whole days have passed it says **Too early to tell**, how many days it has and the day the verdict comes. After that each figure says **Up**, **Down** or **No clear change** (the difference is within the normal day-to-day swing). **Too few to tell** means fewer than 10 on both sides together. A day that is not whole or not recorded is in neither side; when the two sides then have different numbers of days, they are compared per day and the page says so. A figure not recorded says **not recorded**, never 0.
+
+The change shows as a marker on every day chart. **Copy link** copies the address of this change; **Stop tracking** removes it from the list (the mark stays in the history). Every change marked on the site is listed on [Overview > Insights](#overview/insights), under **Done, and did it work?**. Every figure is counted twice, the second time straight from the stored days; a change the two counts disagree on is left out and named.
+
+Only owners and admins can mark a change, and only with accounts (signing in). A change marked today shows its figures from the next data update.
+
+### AI reads by page
+
+On [AI & bots > Assistants](#ai/assistants), **AI reads by page** lists each page's live fetches by assistants answering someone, now and in the period before (Compare's B when Compare is on), by assistant, then the visits that followed an AI answer's link to the page and the leads that began there. A fetch is not a reader. No AI model is asked anything.
+
+These figures come from one day figure, **visits by landing page**, kept from the first day collected after the upgrade. Older days say **not recorded**, never zero. Each has a second count from the raw log. A page group shows these cards for the whole site only.
 
 ## Export
 

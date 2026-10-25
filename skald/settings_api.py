@@ -188,6 +188,9 @@ def described(c: Ctx) -> dict:
             item["choices"] = list(key.choices)
         if key.kind == "events":
             item["events"] = _goal_choices(c)
+        if key.kind == "notpages":          # the built-in not-a-page list (not_pages.py)
+            from .not_pages import RULES
+            item["entries"] = [{"name": n, "reason": r} for n, (r, _) in RULES.items()]
         if name in INSTALL_ONLY and not c.install_admin:
             item.update(value=None, hidden=True)
         out[name] = item

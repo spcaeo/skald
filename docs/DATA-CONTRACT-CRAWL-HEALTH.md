@@ -23,13 +23,68 @@ the fetch off (nothing is fetched, no list is used).
 
 | file | what |
 |---|---|
-| `sitemaps/days.json` | `{day: {"list", "paths", "fetched_at", "sources": [url], "skipped", "truncated"}}`: one entry per local day a fetch worked, written once and never rewritten; kept 400 days |
+| `sitemaps/days.json` | `{day: {"list", "paths", "fetched_at", "sources": [url], "skipped", "truncated", "lastmod"}}`: one entry per local day a fetch worked, written once and never rewritten; kept 400 days. `lastmod` (below) is missing on a day kept before change dates were read |
 | `sitemaps/<list>.json` | `{"paths": [path]}` sorted; `<list>` is the first 16 hex characters of the SHA-256 of the paths joined by newlines. A list is stored once however many days name it, and removed when no day does |
-| `sitemap-state.json` | the last try: `tried_at`, `ok`, `error`, `fetched_at`, `urls`, `paths`, `skipped`, `truncated`, `file_errors` |
+| `sitemaps/lastmod/history.json` | each path's change dates across days, version 1 (below) |
+| `sitemap-state.json` | the last try: `tried_at`, `ok`, `error`, `fetched_at`, `urls`, `paths`, `lastmod`, `skipped`, `truncated`, `file_errors` |
 
 A path is the URL's path (no query string, no fragment, first 200
 characters), compared with a log line's path as it stands. A day is judged by
 the list kept that day, else the latest kept before it (`sitemap.for_day`).
+
+## Change dates (`<lastmod>`)
+
+The same fetch reads each `<url>`'s `<lastmod>` (`sitemap_dates.py`); nothing
+more is fetched, and the path list (what crawl health is judged by) is built
+exactly as before, from every `<loc>`. A sitemap index's own `<lastmod>` (when
+a child file changed) is no page's and is not read; a plain-text sitemap has
+none. A lastmod is when the site says a page last changed, **not a publish
+date**.
+
+- **Accepted:** the W3C datetime forms with a day: `YYYY-MM-DD` (taken as it
+  stands), or with a time and a zone (`Z` or `±hh:mm`, seconds and fractions
+  optional), turned into the site's time zone (`report.timezone`). A time with
+  no zone (not W3C) is read as the site's own time. A year or a month alone,
+  any other text, a date that does not exist and a year before 1990 are
+  **invalid**; a date after the fetch's local day is **future**. Both are
+  left out and counted.
+- **Per day:** each path of the day's list counts once, in `days.json`'s
+  `lastmod`: `{"version": 1, "dated", "missing", "invalid", "future",
+  "digest"}`, dated + missing + invalid + future = `paths`. Two URLs with one
+  path keep the latest valid date. `digest`: the first 16 hex characters of
+  the SHA-256 of the day's sorted `path<TAB>date` lines joined by newlines.
+- **Across days**, `sitemaps/lastmod/history.json` (version 1), merged once
+  per local day with the day's first good fetch:
+
+```json
+{"version": 1, "day": "2026-10-25", "cap": 20,
+ "paths": {"/pricing/": {"now": "2026-10-24", "last": "2026-10-25",
+                         "seen": [["2026-10-02", "2026-10-21"], ["2026-10-24", "2026-10-25"]]}}}
+```
+
+  `seen`: each lastmod the path had, with the first local day Skald saw it,
+  oldest first, at most `cap` (the oldest dropped). `now`: the date the last
+  day merged gave (null when it gave none or no longer listed the path).
+  `last`: the last day the path had a date; a path whose `last` is 400 days
+  old is dropped. The file lives in a subfolder, so the lists' clean-up never
+  removes it. A file of another version is not read (no dates shown).
+- **Shown:** `page_index.json` and the page story (DATA-CONTRACT.md, "Page
+  lifecycle"): `lastmod`, `lastmod_seen`, and `updated` with `updated_source`
+  "sitemap" when the website's own list gives no updated date.
+  `crawl_health.json`'s `sitemap.lastmod` is the day's counts.
+
+The second count is `audit_lastmod.py` (run-daily's recounts, `audit_more.DAILY`
+`sitemap_lastmod`). It re-reads the history file, `days.json`, the day's list
+and the website's page list with its own code: real dates, none after the day
+it was seen, the days rising, at most `cap`; `now` the last date seen and on
+the file's day; the day's `dated` equal to the paths with a `now`, the counts
+adding up to the list, the digest matching, every dated path in the day's
+list, every day named kept in `days.json`. Then it works out each page's
+`lastmod`, `lastmod_seen`, `updated` and `updated_source` again by the rule
+(the path cut at `?`, a `/` added unless it ends with one; every spelling's
+pairs sorted by day then date, a date kept once, the last `cap`; the latest
+date; the website's `updated` first) and compares them with what the page
+shows. A mismatch ends the run "withheld".
 
 ## The day kind `crawl_health`
 
@@ -95,7 +150,7 @@ Beside each page (a view's says `{"whole_site_only": true}`):
 
 | field | what |
 |---|---|
-| `sitemap` | `{"enabled", "url", "sources", "tried_at", "ok", "error", "fetched_at", "day", "paths", "skipped", "truncated"}`: the list kept for today (or the latest before); `paths` null when none |
+| `sitemap` | `{"enabled", "url", "sources", "tried_at", "ok", "error", "fetched_at", "day", "paths", "skipped", "truncated", "lastmod"}`: the list kept for today (or the latest before); `paths` null when none; `lastmod` that day's change-date counts, null when not recorded |
 | `slow_ms`, `large_bytes` | the thresholds |
 | `windows` | `{"7": w, "30": w}`: the last 7 or 30 recorded days ending yesterday, and today so far when the live snapshot is ok |
 | `pages` | `{"total", "rows": [{"path", "crawls": {crawler: [fetches in 7 days, fetches in 30 days, last ISO]}}]}`: every page of today's list (the 3,000 least fetched), null with no list |

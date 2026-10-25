@@ -47,7 +47,8 @@ and it is how the old report's tiers over-summed by 56. See
 
 From `Classifier.__call__`, in exactly the order it runs. `probing` is computed
 once from the URL before any of it and attached to every verdict, so a probe is
-*flagged* wherever it lands without being *moved* there.
+*flagged* wherever it lands without being *moved* there (except by rule 2b: a
+crawler name not proven its owner's does not keep a probe out of bots).
 
 ```
 0.  probing = PROBE.search(path) or PROBE_QUERY.search(url)   # recorded, not yet decisive
@@ -56,6 +57,10 @@ once from the URL before any of it and attached to every verdict, so a probe is
 1.  ours.user_agents  matches the agent      -> OURS
 2.  ours.referrers    matches the referrer,
       or ours.addresses holds the address    -> OURS
+2b. AI_ASKED, AI_TRAINING or SEARCH_ENGINE names the agent, the request
+      is scanning (probing, or rule 6b's pair), and bot_verify has not
+      proven the address the owner's (not verified, not proven fake)
+                                             -> BOTS, as rule 6 or 6b files it
 3.  AI_ASKED          matches the agent      -> ANSWER_ENGINE, tier asked
 4.  AI_TRAINING       matches the agent      -> ANSWER_ENGINE, tier training
       (3 and 4: proven fake by bot_verify    -> BOTS, "claims to be <name>")
@@ -68,6 +73,10 @@ once from the URL before any of it and attached to every verdict, so a probe is
       window (the day), before this request or after it
                                                -> BOTS ("scanner (asked for
                                                    secret or config files)")
+6c. this address and agent asked the site's hosts, in the window, for 5 or
+      more different PROBE paths answered 4xx or 5xx (no asset, nothing
+      under site.legacy_paths)            -> BOTS ("scanner (asked for many
+                                                   missing probe paths)")
 7.  OTHER_BOT matches, "(compatible; ...)"
       naming no browser engine, no agent at
       all, or an /.well-known/acme-challenge/
@@ -75,6 +84,9 @@ once from the URL before any of it and attached to every verdict, so a probe is
 8.  BROWSER matches, and this visit (address + agent, no gap over 30
       minutes, on the site's hosts) fetched robots.txt, a sitemap, ads.txt
       or security.txt without rendering its pages        -> BOTS
+8b. BROWSER matches, and this visit sent HEAD for 2 or more different
+      documents (no asset, payload or beacon)  -> BOTS ("browser-like link
+                                                   checker (HEAD requests)")
 9.  BROWSER matches, and this visit never rendered a page: no own script,
       style or ?_rsc= payload near one of its pages, no beacon event, and
       this address and agent did not render earlier that day or read on an
@@ -89,6 +101,16 @@ once from the URL before any of it and attached to every verdict, so a probe is
       or AI_UTM matches the URL              -> PEOPLE, tier cited
 11. anything left                            -> BOTS
 ```
+
+Rule 2b (2026-10-25) stops a crawler's name from carrying a scanner out of
+bots. Rules 3 to 5 believe a name unless its owner's list proves it fake, and a
+proof needs fresh lists. On a day without them (no `bots.ranges_dir`, a failed
+fetch, a list older than 7 days, or a crawler with no list at all) a scanner
+that wrote `OAI-AdsBot` in its user agent and asked for `/.env` was filed as
+OpenAI's crawler with a probe flag. Now a claimed crawler that scans is a bot
+unless it is proven its owner's: a verified Googlebot that follows a link to
+`/wp-login.php` is still Googlebot, with the probe flag. A proven fake still
+goes to "claims to be <name>", so the crawler checks keep counting it.
 
 Rule 8 needs to know the whole visit before it files any of its hits, so
 every analysis reads its window twice: once to find the crawler visits
@@ -136,6 +158,53 @@ first, as for rule 6: our own traffic, a named crawler and a link preview
 keep their group whatever path they asked for. The audit finds the same
 pairs with its own code (`audit.Judge._scanners`), sharing only the name
 lists `SECRET_PROBE` and `PROBE_QUERY`.
+
+Rules 6c and 8b (`tool_visits.py`, 2026-10-25, COUNTING-TRAPS.md trap 18)
+catch two tools that render, so rule 9 lets them in, and that send a
+browser's name. Neither reads how long a visit lasted, how many pages it
+read, a hosting network or reverse DNS: they work the same with or without
+`bots.ranges_dir`.
+
+- **6c, a probe sweep.** A scanner on a live Next.js site asked for
+  `/index.php`, `/info.php`, `/phpinfo.php`, `/login.php`, `/admin/`,
+  `/wp-login.php`, `/dashboard.php`, `/cart.php` and more, all 404, and
+  read `/` between them. Those are the `PROBE` families a real site may
+  serve, which move only their own request, so its `/` were people's pages.
+  A reader may ask for one such path; a reader does not ask for five
+  different ones that the site does not have. So an address and agent with
+  at least 5 different `PROBE` paths answered 4xx or 5xx in the window is a
+  scanner on every request of the window, before the probes or after, as in
+  6b. Left out of the count: redirects (a WordPress admin at work gets
+  302s), assets by extension (a page that still embeds an old site's
+  `/wp-content/...png` makes a reader's browser ask), and paths under
+  `site.legacy_paths`.
+- **8b, a link checker.** The same site's office ran a checker with a Chrome
+  agent: it opened a page with GET, loaded its assets, then sent HEAD for
+  every link, 560 page views in one visit. A browser never opens a page with
+  HEAD. So a browser-like visit (the visit of rule 9) that sent HEAD for at
+  least 2 different documents is a tool, every request of it. Two, not one: a
+  page's own script may check one URL with HEAD.
+
+The audit recounts both on its own road (`audit_tools.py`), sharing only the
+name lists `PROBE` and `OTHER_BOT`. Like 6b, a named crawler, a link
+preview and our own traffic keep their group.
+
+`PROBE_QUERY` (rule 0) also reads encoded traversal (2026-10-25): the dots
+and slashes of `../` and `/etc/passwd` encoded once or again and again
+(`%2e%2e%2f`, `%252e%252e%252f`, `%25252e...`). A live attack sent
+`?page_id=1&pagename=templates%252f%252e%252e%252f...` with five browser
+agents from two addresses, loaded the site's fonts between attempts (so it
+"rendered") and posted to `/` every few seconds: 1,260 people page views and
+1,485 people's form posts in a day. Now every request of those addresses and
+agents is a scanner (rule 6b), its posts included.
+
+**Not done: a verdict from a short visit or a hosting network.** On the same
+site 174 of 398 people visits read one page in 3 seconds or less. A short
+visit is no evidence: real people bounce. Many come from hosting networks
+(phones, too, which a data centre does not hold), but a VPN exits there as
+well, so a hosting network stays a flag (`hosting_network`), not a verdict.
+Those visits stay people, and the flag shows them once `bots.ranges_dir` is
+set.
 
 Rule 9 is the same two-pass idea made general (`rendering.py`, added
 2026-10-11 - COUNTING-TRAPS.md trap 13). A browser that opens a page goes
@@ -230,7 +299,9 @@ engine that happens to request a silly path is still that engine. File it under
 scanners instead and it leaves the `answer_engines` group total while the tier
 counters still see it - which is precisely how the old report's answer-engine
 tiers ended up 82 higher than the group they were supposed to divide. The
-verdict keeps both facts: group `ANSWER_ENGINE`, `probe=True`.
+verdict keeps both facts: group `ANSWER_ENGINE`, `probe=True`. That holds for
+an engine proven its owner's. An unproven name that scans is moved whole to
+bots by rule 2b, with no tier, so the tiers still divide their group exactly.
 
 **`BROWSER` is last, and only as a fallback.** "Looks like a browser" is the
 weakest claim in the file, because every scanner in the world copies a Chrome
@@ -273,6 +344,15 @@ A visit is "likely referred by" an assistant when
 - **The time.** Compared to the minute, in UTC.
 - **Two or more assistants** fetched the page in the window: the visit
   counts once, under "(more than one)". Never once per assistant.
+- **Not when chance explains it** (2026-10-25). For each assistant and page
+  of the day: the day's direct untagged visits landing on the page, times
+  the distinct minutes its fetches of the page reach (each fetch's minute
+  and the window after it), over 1440. At 0.25 or more (a quarter of a visit
+  expected there by chance alone) its fetches of that page that day are no
+  evidence. On example.net ChatGPT-User fetched the home page 78 times in four
+  days, and 25 typed-in home-page visits were "likely ChatGPT" where chance
+  gives about 19. The home page's Markdown copy (`/index.md`) is its own
+  page: a fetch of it never made a visit to `/` likely.
 - **Settings.** `attribution.ai_likely` (default true) turns it on or off;
   `attribution.ai_window_minutes` sets the window. Each day keeps the
   window it was counted with. Off: the figure is "not recorded", never 0.
@@ -419,7 +499,7 @@ this file under the 1000-line limit. Its sections:
 
 `parse.Hit.is_page` answers "could a person have read this", and it is separate
 from who asked. It is true only for a 2xx or 304 response to a GET or HEAD
-that is none of:
+that is none of these four:
 
 - **`RSC_PAYLOAD`** - `?_rsc=`, `?__flight__=`, `?_data=`. A React or Next
   client fetching the page you just clicked, or prefetching a link in view.
@@ -446,6 +526,34 @@ that is none of:
   evidence of a visit, never a visit of their own. Before 2.8.1 only
   `/api/events` and `/api/analytics` were; a site's JSON API (`/api/v1/...`)
   then showed up as pages where visits ended and as steps between pages.
+- **The not-a-page list** (since 2.35, `not_pages.py`; COUNTING-TRAPS.md trap 19) -
+  machine and utility addresses no person reads, which answer like a page. On by
+  default for every site, each with its reason:
+
+  | Entry | Matches |
+  | --- | --- |
+  | `markdown` | the path ends `.md`, `.mdx` or `.markdown` (a Markdown copy of a page) |
+  | `wp_rest` | a path segment `wp-json`, or the query key `rest_route` |
+  | `wp_files` | the last segment `xmlrpc.php`, `wp-cron.php` or `admin-ajax.php` |
+  | `feeds` | the path ends `/feed`, `/feed/rss`, `/feed/rss2`, `/feed/atom` or `/feed/rdf` (so `/comments/feed/` too), or the query key `feed` |
+  | `oembed` | a path segment `oembed` |
+  | `trackback` | the last segment `trackback` or `wp-trackback.php` |
+  | `author_number` | the query key `author` with digits only (`?author=2`) |
+  | `reply_to_comment` | the query key `replytocom` |
+
+  Segments and keys are compared whole and in any case (ASCII letters; trailing
+  slashes ignored), so `/blog/feed-the-world/`, `/integrations/markdown/` and
+  `?author=jane` stay pages. The query is everything after the first `?` up to a
+  `#`; a key is the text before `=`, as written. The first entry in this order
+  names the match. A site counts an entry as pages again with
+  `site.not_pages_off` and adds its own with `site.not_pages_extra` (`/path`,
+  `/prefix*`, `?key`; Settings > Sites > Not pages). A request on the list stays
+  a request in its group; only page views, readers, landings, exits and journey
+  steps leave it out. `quality.json`'s `not_pages` counts them per day by entry,
+  and the Requests feed files them as kind `not_page`. Pages a person opens are
+  not on it: an HTML `/sitemap/` page, search results, a cart, a sign-in page,
+  an app's dashboard, a thank-you page. The audit matches the same lists by its
+  own code (`audit_not_pages.py`, segments and keys, no regular expression).
 
 Redirects are excluded by the 2xx rule. A 301 is not a page: the browser lands
 somewhere else and that page is logged separately as its own 200, so counting
@@ -462,6 +570,8 @@ reader at all.
 Probe paths are *not* excluded here. A scanner asking for `/.env` and getting a
 200 counts as a page view inside the `bots` card, which is where the scanner
 already is. If that bothers you, the honest fix is to stop serving a 200.
+(A probe whose address is also on the not-a-page list, such as `/xmlrpc.php` or
+`/wp-json/`, is no page view in any group, since 2.35.)
 
 ## What an AI fetch asked for
 

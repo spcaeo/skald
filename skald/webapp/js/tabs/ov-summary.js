@@ -19,6 +19,12 @@ import overview from "./overview.js";
 import today from "./ov-today.js";
 import { goTo } from "./ov-live.js";
 import { setupChecklist } from "./checklist.js";
+import { figures } from "../data.js";
+import { compareOf } from "../mode-compare.js";
+import { periodLine } from "../period-line.js";
+import { whatChanged } from "./ov-changed.js";
+import { workCard } from "./ov-work.js";
+import { freshCard } from "./ov-fresh.js";
 
 /* Live mode is the period Today (the map, section 3): the address keeps
    range=today, so every today-path in data.js stays as it is. */
@@ -57,7 +63,24 @@ function inOrder(out) {
   return out.flatMap((el) => (el === tops ? [where, from, ...(others ? [others] : [])] : el === others ? [] : [el]));
 }
 
+/* Release 2's cards (Main.dc.html S3, S6, S10, S11): the period line under the title,
+   "What changed" after the main chart, then "Work on the page, or on traffic?" beside
+   "New and updated pages", before the server requests line. */
+function release2(m, s, out) {
+  const at = (test) => out.findIndex((el) => el instanceof Element && test(el));
+  const head = at((el) => is(el, "head"));
+  out.splice(head + 1, 0, periodLine(m, s));
+  const { r, t } = figures(m, s);
+  if (!t) return out;
+  const chart = at((el) => el.matches("section.s") && !!el.querySelector(":scope > .sheet"));
+  if (chart >= 0) out.splice(chart + 1, 0, whatChanged(m, s, r, t, compareOf(m, s)));
+  const server = at((el) => is(el, "ov-line"));
+  out.splice(server >= 0 ? server : out.length, 0, h("div", { class: "cols wf" }, workCard(m, s, r, t), freshCard(m, s)));
+  return out;
+}
+
 export default function summary(m, s, o) {
+  // Live mode is today itself: no Include today, no whole period to compare; the period line stays off.
   if (isLive(s)) return today(m, s, o);
   let out = [overview(m, s, o)].flat(Infinity).filter(Boolean);
   const strip = out.find((el) => is(el, "tiles"));
@@ -66,6 +89,7 @@ export default function summary(m, s, o) {
   const i = out.findIndex((el) => el instanceof Element && el.matches("details.fold") && /^Server requests/.test(el.querySelector("summary")?.textContent || ""));
   if (i >= 0) out[i] = serverLine(out[i]);
   out = inOrder(out);
+  out = release2(m, s, out);
   // A new site's first-run checklist (owners and admins, until done or hidden): first under the title.
   const setup = setupChecklist(m);
   if (setup) out.splice(out.findIndex((el) => is(el, "head")) + 1, 0, setup);

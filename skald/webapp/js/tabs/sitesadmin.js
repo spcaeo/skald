@@ -18,10 +18,12 @@ import { ME, sessions } from "../access.js";
 import { head1, copyable, input, status, when, why } from "./forms.js";
 import * as S from "../state.js";
 import { siteWizard, STEPS } from "./site-wizard.js";
+import { withUrl } from "../urlactions.js";
 
 const FORMAT_NAME = {
   auto: "Detect it", nginx_combined: "nginx (combined)", nginx_extended: "nginx (Skald's extended format)", apache_combined: "Apache (combined)",
   caddy_json: "Caddy (JSON)", cloudflare_json: "Cloudflare Logpush (JSON)", cloudfront_w3c: "CloudFront (W3C)", fastly_json: "Fastly (JSON)",
+  akamai_json: "Akamai DataStream 2 (JSON)",
   vercel_json: "Vercel log drain", netlify_json: "Netlify log drain", edge_json: "Edge records (Skald Worker)",
 };
 
@@ -199,7 +201,7 @@ export default function sitesadmin(m, s = {}) {
         h("tbody", null, list.map((s) => {
           const cell = h("td", { class: "n" });
           actions(s, cell);
-          return h("tr", null, h("td", { class: "path nm" }, s.name, h("div", null, setupCell(s))), h("td", null, s.source === "dashboard" ? "these pages" : "config file"),
+          return h("tr", null, h("td", { class: "path nm" }, withUrl(h("span", null, s.name), /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(s.name || "") ? `https://${s.name}` : "", { label: s.name, cls: "ua-after" }), h("div", null, setupCell(s))), h("td", null, s.source === "dashboard" ? "these pages" : "config file"),
             h("td", null, s.status === "removed" ? `removed ${when(s.removed_at, "")}` : waiting(s) ? "waiting for verification" : "active"),
             h("td", { class: "muted" }, s.format ? FORMAT_NAME[s.format] || s.format : ""), h("td", { class: "muted" }, received(s)), cell);
         })))));

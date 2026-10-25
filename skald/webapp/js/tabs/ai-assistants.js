@@ -21,6 +21,8 @@ import { aiChanges } from "./alerts.js";
 import { aiFeed } from "./aifeed.js";
 import { kpi, tierChart, countGrid, tabLink, formatsSection } from "./ai-parts.js";
 import { costSection } from "./crawlercost.js";
+import { aiTrend } from "./ai-trend.js";
+import { notReadWell } from "./aiready.js";
 
 const LEDE = "AI assistants at work for someone waiting on an answer: the pages they fetched for a question, the visitors who then came from their answers, and changes in how they read the site. Fetched is not read. Crawlers with nobody waiting (training, search, bots) are on Crawlers.";
 
@@ -56,6 +58,10 @@ export default function assistants(m, s, { first }) {
   }
   out.push(tierChart(m, s, r, { title: "Pages fetched to answer a question, per day", name: "Answering a question now", tier: "asked", group: "people", label: "AI fetches for a question per day" }));
   out.push(byName(m, s, r, t));
+  // Release 2 (L1): AI reads by page, now against before, followed to visits and leads.
+  out.push(aiTrend(m, s, r, t));
+  // Release 2 (L2): the pages AI can't read well (ai_ready.json, its own last 30 days).
+  out.push(notReadWell(m, s));
   out.push(formatsSection(t, r, "asked", { who: "assistants", file: "ai-assistants-fetch" }));
   out.push(costSection(m, s, r, { id: "assistants", title: "What each assistant costs",
     sub: "Per assistant answering a question: requests, bytes the server sent, its time per request, failed requests, distinct paths and how often it fetched them again. Select a name for its detail.",

@@ -82,7 +82,8 @@ class NotSetUp(unittest.TestCase):
 
 class LeadSources(unittest.TestCase):
     def test_overview_lead_tiles_name_their_count(self):
-        src = (JS / "tabs" / "overview.js").read_text()
+        # Summary's tiles moved to ov-tiles.js (release 2); the Leads tile still names its count.
+        src = (JS / "tabs" / "ov-tiles.js").read_text()
         self.assertIn("function leadSource", src)
         self.assertIn('lsrc: tools ? "all" : ""', src)
 
@@ -94,7 +95,7 @@ class LeadSources(unittest.TestCase):
         # 2.23: Leads counts the same sum over the file its filters narrow (sa-filters.js figureFile).
         self.assertIn("leadsOn(fm, daysOf(m, r))", (JS / "tabs" / "sa-leads.js").read_text())
         # Overview's tiles sum with the same function.
-        self.assertIn("leadsOn(m, r.kind", (JS / "tabs" / "overview.js").read_text())
+        self.assertIn("leadsOn(m, r.kind", (JS / "tabs" / "ov-tiles.js").read_text())
 
     def test_bookings_collapse_breakdowns_never_recorded(self):
         src = (JS / "tabs" / "conversions.js").read_text()

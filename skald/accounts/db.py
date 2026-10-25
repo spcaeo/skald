@@ -139,6 +139,12 @@ def path_for(config: dict, live_dir: Path | None) -> Path | None:
     raw = ((config or {}).get("access") or {}).get("accounts")
     if raw:
         return Path(str(raw))
+    # Beside the history, not the site's live folder: with several sites, the
+    # second site's live folder is sites/<slug>/, and an accounts file opened
+    # there is a new empty one (2.35: security mail found no team for them).
+    history = ((config or {}).get("_resolved") or {}).get("history_db")
+    if history:
+        return Path(str(history)).parent / "accounts.sqlite"
     return Path(live_dir) / "accounts.sqlite" if live_dir is not None else None
 
 

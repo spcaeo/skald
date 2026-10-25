@@ -102,6 +102,12 @@ export function compareOf(m, s) {
   const a = rangeOf(m, s);
   const base = { on: true, ok: false, kind, name: NAME[kind], a };
   if (a.kind === "today") return { ...base, why: "Today is live and partial, so it is never compared. Turn Today · Live off, or pick Yesterday or longer, to compare." };
+  // Include today (period-dates.js): today is not over, and no earlier day is kept cut at the
+  // same hour, so a period that ends today is never set against whole days.
+  if (a.inc) {
+    const whole = rangeOf(m, { ...s, inc: "" });
+    return { ...base, inc: true, b: previousOf(m, a), why: `Not compared while today is included: today is not over, so its figures would always look lower than a whole day's. Turn Include today off to compare ${spanWords(whole)} with the ${whole.length} days before.` };
+  }
   const b = rangeB(m, s, a, kind);
   if (!b) return { ...base, why: "Not compared: choose the custom period's dates under Compare with…" };
   const ca = coverage(a), cb = coverage(b);

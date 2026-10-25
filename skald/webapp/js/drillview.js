@@ -19,7 +19,7 @@ import { DIMS, chainOf, encode, label, link, said, titled, drillRow, close as cl
 import { openVisitor } from "./tabs/visitor.js";
 import { blist, panel } from "./tabs/common.js";
 import { openDrawer } from "./drawer.js";
-import { withUrl } from "./urlactions.js";
+import { withUrl, copyIf } from "./urlactions.js";
 import { encode as encodeRules } from "./rules.js";
 import { botDetail } from "./tabs/crawlercost.js";
 import { drillFlow } from "./tabs/flowview.js";
@@ -163,7 +163,7 @@ function requestPart(m, s, chain, holder) {
       h("ul", { class: "stream" }, rows.slice(0, 12).map((r) => h("li", null, h("span", { class: "s-t" }, tzTime(r.at, { seconds: true, label: false })),
         h("span", { class: "s-d", style: { background: color(r.group) }, "aria-hidden": "true" }),
         h("span", { class: "s-w" }, `${r.status} ${r.method || ""} `, link("path", r.path, { from: "drill" }), ` ${r.rule}`,
-          h("small", null, r.ip && r.ip !== "(removed)" ? link("ip", r.ip, { from: "drill" }) : "", r.country ? [" ", label("country", r.country)] : ""))))),
+          h("small", null, r.ip && r.ip !== "(removed)" ? copyIf("ip", link("ip", r.ip, { from: "drill" }), r.ip, { label: "address" }) : "", r.country ? [" ", label("country", r.country)] : ""))))),
       h("button", { type: "button", class: "btn", onclick: () => S.set(patch) }, "Open these in the Requests tab"));
   }).catch((e) => holder.replaceChildren(h("p", { class: "empty" }, `The recent requests could not be loaded: ${e.message || e}.`)));
 }

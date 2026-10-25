@@ -360,7 +360,8 @@ class TestIndependence(unittest.TestCase):
                if isinstance(n, ast.ImportFrom) and n.level for a in n.names}
         self.assertEqual(got, {("classify", "CRAWLER_SESSION"), ("classify", "LINK_PREVIEW"),
                                ("classify", "NOT_RENDERED"), ("classify", "SCANNER"),
-                               ("classify", "TOO_FAST")})
+                               ("classify", "TOO_FAST"), ("classify", "SWEEP"),
+                               ("classify", "LINK_CHECKER")})
 
 
 if __name__ == "__main__":

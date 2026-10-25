@@ -147,7 +147,8 @@ def ranges(root: Path, now: datetime) -> None:
 def robots(root: Path, now: datetime) -> None:
     """The site's robots.txt, as if fetched a minute ago (so no run fetches it)."""
     (root / "robots.txt").write_text("User-agent: *\nDisallow: /signup/thanks\n\nUser-agent: CCBot\nDisallow: /\n\n"
-                                     "User-agent: Bytespider\nDisallow: /\n\nSitemap: https://example.com/sitemap.xml\n")
+                                     "User-agent: Bytespider\nDisallow: /\n\nUser-agent: Google-Extended\nDisallow: /guides/\n\n"
+                                     "Sitemap: https://example.com/sitemap.xml\n")
     stamp = now.isoformat(timespec="seconds")
     (root / "robots-state.json").write_text(json.dumps({"ok": True, "error": None, "url": "https://www.example.com/robots.txt",
                                                         "fetched_at": stamp, "tried_at": stamp}, sort_keys=True) + "\n")
@@ -157,17 +158,29 @@ def sitemaps(root: Path, traffic: dt.Traffic) -> None:
     """The site's sitemap as the live run keeps it (sitemap.py), one list per day, as if
     each had been fetched that morning (so no run fetches it). It lists pages no crawler
     asks for, a guide that is gone (404) and, from ten days ago, a changelog; it leaves
-    out one guide the crawlers do fetch."""
+    out one guide the crawlers do fetch. Each page but the changelog (never visited, so it has
+    no page story for the demo to answer) has a <lastmod>: a few changed lately,
+    the rest spread over the first three weeks (so the dates do not look like build times)."""
+    from zoneinfo import ZoneInfo
     from skald import sitemap
     pages = sorted({p for p, _ in dt._PAGES} - {dt.GUIDES[-1]}
                    | {"/customers/", "/about/", "/contact/", "/blog/", "/book-a-demo/", "/guides/api-v1"})
+    lately = {"/pricing/": 12, "/guides/team-roles": 6, "/blog/fall-launch": 20, "/about/": 2,
+              "/features/": 15, "/guides/getting-started": 3, "/blog/server-logs-vs-tags": 25}
+    early = {p: traffic.first + timedelta(days=(i * 3) % 21) for i, p in enumerate(pages)}
+
+    def lastmod(p: str, d: date) -> str | None:
+        got = [x for x in (early[p], traffic.today - timedelta(days=lately[p]) if p in lately else None) if x and x <= d]
+        return max(got).isoformat() if got else None
+
     d = traffic.first
     while d <= traffic.today:
         listed = pages + (["/changelog/"] if (traffic.today - d).days < 10 else [])
+        dates = {p: [w] for p in pages if (w := lastmod(p, d))}
         got = {"paths": sorted(listed), "sources": ["https://example.com/sitemap.xml",
                                                     "https://example.com/sitemap-blog.xml"],
-               "skipped": 0, "truncated": False}
-        sitemap.keep(root, d, got, datetime(d.year, d.month, d.day, 11, tzinfo=UTC).isoformat())
+               "skipped": 0, "truncated": False, "lastmod": dates}
+        sitemap.keep(root, d, got, datetime(d.year, d.month, d.day, 11, tzinfo=UTC).isoformat(), tz=ZoneInfo(dt.TZ_NAME))
         d += timedelta(days=1)
     stamp = traffic.now.isoformat(timespec="seconds")
     (root / sitemap.STATE).write_text(json.dumps({"ok": True, "error": None, "tried_at": stamp, "fetched_at": stamp,
@@ -548,6 +561,10 @@ def install(root: Path, traffic: dt.Traffic, say=print) -> Path:
     from skald import stack
     stack.daily(SimpleNamespace(config=load_config(cfgp), live_dir=root, site=dt.SITE, now=traffic.now,
                                 tz=tz, out=lambda *_: None, err=say), demo_security.stack_fetch())
+    # Traffic > Pages > a page: three changes the team marked (demo_changes.py), counted by
+    # the live run's page_changes.json.
+    import demo_changes
+    demo_changes.seed(root, load_config(cfgp), dt.SITE, traffic.today, say)
     # The live run at the demo's own clock, not at --today's noon: today so far ends
     # where the traffic does, and Real time's last 30 minutes are the traffic's.
     from unittest import mock

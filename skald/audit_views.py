@@ -71,7 +71,7 @@ def recount(config: dict, day: date, tz, raw_views: list, paths=None) -> dict:
     gap = timedelta(minutes=int((config.get("report") or {}).get(
         "session_gap_minutes") or 30))
     lines = audit.same_click(audit.in_time_order(
-        [l for l in audit._read(files) if start <= l.when < end]))
+        [l for l in audit._read(files, None, config) if start <= l.when < end]))
     audit._countries(config, lines)
     judge = audit.Judge(config, lines, gap, window=(start, end), tz=tz)
     chosen = rules(raw_views)

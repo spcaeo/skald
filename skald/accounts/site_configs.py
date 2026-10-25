@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS site_config (
 """
 # The log formats a site can name (parse.PARSERS, and auto-detection).
 FORMATS = ("auto", "nginx_extended", "nginx_combined", "apache_combined", "caddy_json",
-           "cloudflare_json", "cloudfront_w3c", "fastly_json", "vercel_json",
+           "cloudflare_json", "cloudfront_w3c", "fastly_json", "akamai_json", "vercel_json",
            "netlify_json", "edge_json")
 # A site name is its host: what the dashboard's paths and nginx's routes accept.
 NAME = re.compile(r"^(?=.{3,100}$)[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?"

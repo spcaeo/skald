@@ -337,6 +337,7 @@ PROXY protocol), or the controller itself sees only node addresses. Never raise 
 | Cloudflare, any plan | the Skald Worker posts each request | **yes** | [below](#cloudflare-on-any-plan-the-skald-worker) |
 | AWS CloudFront | standard logs in S3, read as a CDN log | **yes** | [below](#aws-cloudfront) |
 | Fastly | a JSON logging endpoint | **yes** | [below](#fastly) |
+| Akamai | DataStream 2 to S3, read as a CDN log | **yes** | [below](#akamai) |
 | WordPress | the server's log; `skald.js` without a plugin | yes, with the log | [below](#wordpress) |
 | Shopify, Webflow, Squarespace | `skald.js` (needs a proxy) and webhooks only | **no** | [below](#shopify-webflow-squarespace) |
 
@@ -557,6 +558,11 @@ CloudFront's standard logs have no country.
 
 Create an S3 or SFTP logging endpoint with the JSON format given in
 [CDN-LOGS.md](CDN-LOGS.md), and read it with format `fastly_json`.
+
+### Akamai
+
+Create a DataStream 2 stream, log format JSON, to an S3 bucket; sync the bucket and read
+the appended log with format `akamai_json`. [CDN-LOGS.md](CDN-LOGS.md) lists the fields.
 
 ### WordPress
 

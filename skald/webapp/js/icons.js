@@ -41,7 +41,9 @@ const GLYPH = {
 // Known names: [pattern, letters or glyph, tone]. First match wins, so the
 // specific come before the general.
 const KNOWN = [
-  [/chatgpt|openai|gptbot|oai-?search|^gpt/i, "O", "#10a37f"],
+  [/chatgpt|openai|gptbot|oai-?(?:search|ads)|^gpt/i, "O", "#10a37f"],
+  [/deepseek/i, "Ds", "#4d6bfe"],
+  [/grok/i, "Gk", "#14171a"],
   [/claude|anthropic/i, "A", "#c96442"],
   [/perplexity/i, "P", "#20808d"],
   [/gemini|bard/i, "Ge", "#4285f4"],

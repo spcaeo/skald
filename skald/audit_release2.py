@@ -352,6 +352,12 @@ def compare(stored: dict, got_bots: dict, got_quality: dict | None, same, proble
         same("quality: duplicates removed", int(q.get("duplicates_removed") or 0),
              int(got_quality.get("duplicates_removed", 0)))
     same("quality: gaps", len(q.get("gaps") or []), int(got_quality["gaps"]))
+    if "not_pages" in q and "not_pages" in got_quality:   # stored since 2.35 (not_pages.py)
+        kept, mine = q.get("not_pages") or {}, got_quality["not_pages"]
+        for entry in sorted(set(kept) | set(mine)):
+            for k in ("requests", "people"):
+                same(f"not counted as pages, {entry}: {k}",
+                     int((kept.get(entry) or {}).get(k, 0)), int((mine.get(entry) or {}).get(k, 0)))
 
 
 # ------------------------------------------- release 3b: compare and lifecycle
@@ -362,7 +368,7 @@ def assistant_of(line) -> str:
     behind any other referrer), named by the shared alias list - written
     again, not called."""
     from urllib.parse import urlsplit
-    from .classify import AI_REFERRER_HOSTS, AI_UTM, ASSISTANT_ALIASES
+    from .classify import AI_REFERRER_HOSTS, AI_REFERRER_PATHS, AI_UTM, ASSISTANT_ALIASES
     ref = line.referrer
     if ref:
         try:
@@ -373,8 +379,9 @@ def assistant_of(line) -> str:
         for domain in AI_REFERRER_HOSTS:
             if host == domain or host.endswith("." + domain):
                 return ASSISTANT_ALIASES.get(domain, domain)
-        if (host == "bing.com" or host.endswith(".bing.com")) and parts.path.startswith("/chat"):
-            return ASSISTANT_ALIASES.get("bing.com/chat", "bing.com/chat")
+        for domain, prefix in AI_REFERRER_PATHS.items():
+            if (host == domain or host.endswith("." + domain)) and parts.path.startswith(prefix):
+                return ASSISTANT_ALIASES.get(domain + prefix, domain + prefix)
     found = AI_UTM.search(line.url)
     if not found:
         return ""

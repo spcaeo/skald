@@ -25,7 +25,7 @@ import { info } from "./tiles.js";
 import { mark } from "../icons.js";
 import { call } from "./ipmanager.js";
 import { isViewer, sessions } from "../access.js";
-import { detail, statusTone, GROUP_NAME, copyButton, FLAG_WORDS, norm } from "./reqdetail.js";
+import { detail, statusTone, GROUP_NAME, ipCopy, FLAG_WORDS, norm } from "./reqdetail.js";
 import { grid } from "../grid.js";
 import { codeOf } from "../routekeys.js";
 
@@ -121,12 +121,12 @@ const columns = () => [
       (r.flags || []).filter((f) => FLAG_WORDS[f] && f !== "probe").map((f) => h("span", { class: "flag-chip", title: FLAG_WORDS[f][1] }, FLAG_WORDS[f][0]))) },
   { key: "ip", label: "From", csv: (r) => r.ip,
     fmt: (_, r) => h("span", { class: "si-rq-ip" }, r.country ? h("span", { class: "cc", title: r.country_name || r.country }, link("country", r.country, { text: r.country })) : null,
-      r.ip && r.ip !== "(removed)" ? h("span", { class: "ip" }, link("ip", r.ip, { bare: true }), copyButton(r.ip)) : h("span", { class: "muted" }, r.ip || "-")) },
+      r.ip && r.ip !== "(removed)" ? h("span", { class: "ip" }, ipCopy(r.ip, link("ip", r.ip, { bare: true }))) : h("span", { class: "muted" }, r.ip || "-")) },
   { key: "referrer", label: "Referrer and tags", url: true, href: (r) => (r.ref_host && /^[a-z0-9.-]+$/i.test(r.ref_host) ? `https://${r.ref_host}${r.ref_path || "/"}` : ""), csv: (r) => r.referrer,
     fmt: (_, r) => h("span", { class: "si-rq-r", title: r.referrer || null }, r.assistant && r.group === "people" ? h("span", { class: "ai-tag" }, r.assistant) : null,
       r.referrer ? h("span", { class: "ref" }, r.ref_host, r.ref_path && r.ref_path !== "/" ? h("small", null, r.ref_path) : null) : r.assistant ? "" : "-",
       ...Object.entries(r.utm || {}).map(([k, v]) => h("span", { class: "utm", title: `utm_${k}` }, `${k}: ${v}`))) },
-  { key: "agent", label: "Device", csv: (r) => [r.agent, r.os, r.device].filter(Boolean).join(", "),
+  { key: "agent", label: "Device", copy: true, csv: (r) => [r.agent, r.os, r.device].filter(Boolean).join(", "),
     fmt: (_, r) => h("span", { class: "si-rq-d" }, h("span", { class: "named" }, mark(r.group === "people" || r.group === "ours" ? "browser" : "bot", r.agent), mark("os", r.os), mark("device", r.device),
       h("span", { class: "nm" }, [r.agent, r.os !== "Other" ? r.os : "", r.device].filter(Boolean).join(", ") || "-"))) },
   { key: "ms", label: "Server time", num: true, fmt: (v) => (v == null ? "-" : `${n(v)} ms`) },

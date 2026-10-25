@@ -22,9 +22,12 @@ with `access.mode: sessions` (404 otherwise), the way team_api.py is:
   POST sites/verify    {name}: look for the site's verification token (DNS
                        TXT or the home page's meta tag, site_verify.py)  admin
   GET  sites/status, POST sites/kit, POST sites/setup, POST sites/detect,
-  POST sites/tagcheck: Settings > Connections and the "Add a site" wizard
-                       (connections_api.py; detect: the site check;
-                       tagcheck: the script tag's page check)          admin
+  POST sites/tagcheck, POST sites/trylog: Settings > Connections and the
+                       "Add a site" wizard (connections_api.py; detect: the
+                       site check; tagcheck: the script tag's page check;
+                       trylog: Test a sample, the dry run of a pasted log
+                       sample, try_log.py; its body may be up to
+                       try_log.WEB_BYTES + 4 KiB)                      admin
   POST sites/share, GET sites/shares, POST sites/unshare: "Share with your
                        developer" links (share_api.py)                 admin
   POST sites/link, POST sites/pack, POST sites/packmail: the one-command
@@ -60,7 +63,7 @@ from .auth_api import answer, csrf_ok, read_json, text
 from .config import site_name
 
 PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
-PATH = re.compile(PAGE + r"(?P<act>sites(?:/(?:add|token|remove|verify|status|kit|setup|detect|tagcheck"
+PATH = re.compile(PAGE + r"(?P<act>sites(?:/(?:add|token|remove|verify|status|kit|setup|detect|tagcheck|trylog"
                          r"|share|shares|unshare|link|pack|packmail"
                          r"|agentlink|agentstatus|agentcancel))?)$")
 GETS = ("sites", "sites/status", "sites/shares")
@@ -216,7 +219,9 @@ def handle(h, write: bool, config, live_dir, allowed: set[str], same_origin,
                 return c.no(402, frozen)
         form = {}
         if write:
-            form = read_json(h)
+            from .try_log import WEB_BYTES
+            form = read_json(h, WEB_BYTES + auth_api.MAX_BODY if act == "sites/trylog"
+                             else auth_api.MAX_BODY)
             if form is None:
                 return None
         return ROUTES[act](c, form)
@@ -384,7 +389,7 @@ def _more(name):
 ROUTES = {"sites": listing, "sites/add": add, "sites/token": new_token, "sites/remove": remove,
           "sites/verify": verify, "sites/status": _more("status"), "sites/kit": _more("kit_zip"),
           "sites/setup": _more("setup"), "sites/detect": _more("detect"),
-          "sites/tagcheck": _more("tag_check"),
+          "sites/tagcheck": _more("tag_check"), "sites/trylog": _more("try_sample"),
           "sites/link": _kit("link"), "sites/pack": _kit("pack_zip"),
           "sites/packmail": _kit("pack_mail"),
           "sites/agentlink": _kit("agent_link"), "sites/agentstatus": _kit("agent_status"),

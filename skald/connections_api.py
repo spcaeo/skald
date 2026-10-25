@@ -25,6 +25,12 @@ role and CSRF checks; every route here is for an owner or admin):
        safe rules) and says what is wrong -> {check: {state, words, fix, facts}}.
        Limited like sites/detect, under its own keys.
 
+  POST sites/trylog {site, text, format?}: Test a sample, the dry run of
+       try_log.py on the first try_log.WEB_LINES lines pasted (text, at most
+       try_log.WEB_BYTES), judged with the site's settings -> {report}.
+       Nothing is stored, kept or logged: not the lines, not the report.
+       TRY_PER_ADMIN runs an hour per admin.
+
 They live under sites/ so the nginx route every install already has
 (`sites(?:/[a-z]+)?`) reaches them. `extras` adds to the GET sites answer
 what the Connections page needs: the kit's availability, the API and MCP
@@ -43,6 +49,7 @@ from .files import slug
 QUIET_HOURS = 24
 DETECT_PER_ADMIN = 30              # site checks an admin may ask for in an hour
 DETECT_PER_TARGET = 6              # checks of one address in 10 minutes, by anyone
+TRY_PER_ADMIN = 60                 # sample tests an admin may run in an hour
 
 
 def _site(c, name: str) -> str | None:
@@ -272,6 +279,37 @@ def tag_check(c, form):
     limits.note_failure(c.db, mine)
     limits.note_failure(c.db, theirs)
     return c.ok(check=tc.check(site, beacon_origins(c.config, c.config_path, site), _origin(c)))
+
+
+# ------------------------------------------------------ test a sample
+
+def try_sample(c, form):
+    """Test a sample: the dry run (try_log.py) on pasted lines, with the
+    site's own settings (hosts, own traffic, page assets, time zone)."""
+    from . import settings_store, try_log
+    from .accounts import limits
+    site = _site(c, text(form, "site", 200))
+    if site is None:
+        return c.no(404, "There is no such site in this organisation.")
+    raw = form.get("text")
+    if not isinstance(raw, str) or not raw.strip():
+        return c.no(400, "Paste some lines of the log first.")
+    if len(raw.encode("utf-8", "replace")) > try_log.WEB_BYTES:
+        return c.no(413, f"Paste at most {try_log.WEB_BYTES // 1024} KB: about "
+                         f"{try_log.WEB_LINES} lines.")
+    mine = f"try-log:user:{c.uid}"
+    if limits.too_many(c.db, mine, limit=TRY_PER_ADMIN, minutes=60):
+        return c.no(429, "Too many tests in an hour. Try again later.")
+    limits.note_failure(c.db, mine)
+    own = ingest.site_configs(c.config, c.config_path).get(site)
+    config = settings_store.apply(own, site, c.live_dir) if own is not None else None
+    try:
+        report = try_log.dry_run(try_log.sample_text(raw), text(form, "format", 40) or "auto",
+                                 config, site, site_known=own is not None)
+    except try_log.SampleError as why:
+        return c.no(400, str(why))
+    report["site_name"] = site
+    return c.ok(report=report)
 
 
 # ---------------------------------------------------- the GET sites extras

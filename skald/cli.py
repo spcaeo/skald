@@ -960,13 +960,14 @@ def parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
+    if getattr(args, "bare", None) and not Path(args.config).exists():   # try-log needs none
+        return args.bare(args)
     if getattr(args, "days", None) is not None and args.days < 1:
         print("--days must be at least 1", file=sys.stderr)
         return 2
     ctx = Context(args)
     from . import multisite
-    # The other sites are laid over config.yml as read; each Context then
-    # adds its own site's settings.
+    # The other sites are laid over config.yml as read; each Context adds its own settings.
     others = multisite.site_configs(ctx.raw_config, ctx.config_path)
     if not others:
         if args.only_site and args.only_site != ctx.site:
@@ -991,8 +992,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _deliver_after(args, contexts: list, code: int) -> int:
-    """live and run-daily only queue outgoing webhooks per site; the
-    deliveries are one pass after every site (conversions/jobs.py)."""
+    """live and run-daily queue webhooks per site; one delivery pass after all (conversions/jobs.py)."""
     if args.command in ("live", "run-daily"):
         from .conversions import jobs
         jobs.deliver(contexts)

@@ -2,7 +2,7 @@
 
 Ways a traffic report says something false while every line of its
 plumbing works. The first five came from the report this package replaced;
-four of them shipped. Traps 6 to 15 were found later, in the real log. They
+four of them shipped. Traps 6 to 19 were found later, in the real log. They
 are written out because the code that prevents them looks arbitrary until
 you know what it is for.
 
@@ -494,6 +494,157 @@ visitor with a probe.
 
 **Stored days.** Days collected before 2.20.1 keep the old figures until
 they are recounted (`backfill --force`).
+
+## 18. Tools that render, counted as people (2026-10-25)
+
+**What was reported.** On example.net, 21 to 24 Oct, 398 people visits, 174
+of them one page in 3 seconds or less; 1,163 people page views on 21 Oct
+against 195 the next day. On example.org, 1,934 people page views and
+1,486 people's form posts on 23 Oct, against 594 and 27 the day before.
+
+**What was true.** Three tools sending browser agents, each passing the
+rendering test (rule 9) because each fetched the page's assets:
+
+- a **link checker** in the site's own office: GET a page, load its assets,
+  then HEAD every link on it - 560 page views in one 17-minute "visit", and
+  1,259 requests that day;
+- a **scanner** asking for `/index.php`, `/info.php`, `/phpinfo.php`,
+  `/login.php`, `/admin/`, `/wp-login.php`, `/dashboard.php`, `/cart.php`...
+  on a site that runs none of them, every one a 404, reading `/` in between.
+  Those probe families move only their own request (trap 17's lesson: a
+  WordPress reader asks for them too), so its `/` were people's pages;
+- an **attack** whose traversal was encoded twice
+  (`?page_id=1&pagename=templates%252f%252e%252e%252f...`), from two
+  addresses with five browser agents, fetching the site's fonts between
+  attempts and posting to `/` every few seconds. `PROBE_QUERY` knew `%2e%2e`,
+  not `%252e%252e`.
+
+**How this package prevents it.** Three rules, each read from what the
+requests asked for, none from how long a visit lasted (CLASSIFICATION.md,
+rules 0, 6c and 8b):
+
+- `PROBE_QUERY` reads the dots and slashes of `../` and `/etc/passwd`
+  encoded any number of times (`%(?:25)*2e`), so the attack is a probe and
+  its address and agent a scanner for the day (rule 6b), posts included;
+- 5 or more different probe paths the site answered 4xx or 5xx make the
+  address and agent a scanner for the day (rule 6c, `tool_visits.ProbeSweep`).
+  Redirects, assets and `site.legacy_paths` never count, so a WordPress admin
+  at work and a page embedding an old site's images stay people;
+- a browser-like visit that sends HEAD for 2 or more different documents is a
+  link checker, the whole visit (rule 8b, `tool_visits.HeadChecks`).
+
+**The trap inside the fix.** The obvious rule was "one page in 3 seconds is
+a bot", and it would have halved the figure. It is not evidence: real people
+open one page and leave. In a local recount with the hosting list, 66 of 143
+short visits came from hosting networks (42 of them phone agents), against
+34 of 170 longer ones: suggestive, and still no proof, because VPNs exit
+there. So the short visits stay people, a hosting network stays a flag, and
+the live install shows that flag only once `bots.ranges_dir` is set (it was
+not, on 2026-10-25).
+
+**Recount, from the raw logs, every day still on disk** (people readers and
+page views, before -> after): example.net 386 -> 376 readers and 1,601 -> 498
+page views over 21-24 Oct (21 Oct: 81 -> 73, 1,163 -> 94); example.org
+1,120 -> 1,105 readers, 2,956 -> 1,575 page views and 1,664 -> 134 form
+posts over 22-24 Oct (23 Oct: 402 -> 392, 1,934 -> 646, 1,486 -> 1);
+docomatic.ai 280 -> 275, site.example 437 -> 434, skaldanalytics.com
+753 -> 752; example.com and freshlycited.com unchanged. Every day's audit said
+"all match", but one that also fails with the unchanged code (freshlycited.com
+17 Oct, Security's exposure rows in a tied order).
+
+**The check that catches it.** The audit finds the same pairs and visits by
+its own code (`audit_tools.py`, sharing only `PROBE` and `OTHER_BOT`; the
+query list is shared as before); a main road without either pass keeps people
+the audit does not, and the day is withheld.
+
+**The test.** `tests/test_tool_visits.py`: the encoded attack and plain
+queries that are not one, the sweep and the readers that are not one (four
+misses, served probes, 302s, old images, legacy paths), the link checker and
+one HEAD from a page's script, both roads agreeing and catching a main road
+with either pass removed.
+
+## 19. Machine addresses counted as pages (2026-10-25)
+
+**What was reported.** The owner asked whether example.net's `/sitemap/` "visitors" were real,
+and that addresses which are "not really traffic in any sense" be kept out of page and
+people figures on every site. A survey of the eight live sites found, counted as people's
+page views: `/?rest_route=...` and `/?feed=...` on docomatic.ai (no longer WordPress, so it
+answers those probes with its home page), `/?author=2` user-number lookups, and Markdown
+copies of pages (`/okf/index.md` on example.net, `.md` on example.org).
+
+**What was true.** None of them is a page anyone reads. `is_page` asked only about the
+status, the method, the file extension and the framework payload, and a feed, an API call by
+query or a `.md` file passed all four. In every other group the same addresses were "page
+views" too: 874 AI and bot fetches of `.md` copies on skaldanalytics.com in 13 days, 2,875
+on example.org in 3.
+
+`/sitemap/` is different: example.net's is a real HTML page (title, links, indexed). Its 24
+one-page "visits" are a question of who visited (a browser-like tool with a phone screen),
+which belongs to the classifier, not to a path list. It stays a page.
+
+**How this package prevents it.** A default list of machine and utility addresses
+(`not_pages.py`; CLASSIFICATION.md, "What decides a page view"), each with its reason:
+Markdown copies, WordPress's REST API (`/wp-json/`, `?rest_route=`) and machine files
+(`xmlrpc.php`, `wp-cron.php`, `admin-ajax.php`), feeds (`/feed/`, `?feed=`), oEmbed,
+trackbacks, `?author=N` and `?replytocom=`. A request on it is no page view in any group; it
+stays a request in its group, so the five groups still add up to the log. Pages a person
+opens stay pages: an HTML sitemap, search results, a cart, a sign-in page, an app's
+dashboard (freshlycited.com's `/sign-in` and `/dashboard` are its real users), a thank-you
+page. A site counts an entry as pages again, or adds its own, in Settings > Sites > Not
+pages (`site.not_pages_off`, `site.not_pages_extra`).
+
+**The trap inside the fix.** A path pattern is a blunt tool: `/feed` is a feed on a blog and
+could be a real page on an app. So the entries match whole segments and query keys, never a
+word inside one (`/blog/feed-the-world/`, `/integrations/markdown/` and `?author=jane` stay
+pages), none matches the made-up sitemap of 477 real-shaped paths, and every site can switch
+any entry off. And it is not a way to hide a bot: a page filled by a tool is fixed by asking
+who sent it, as trap 18 did.
+
+**Recount, from the raw logs, every whole day on disk** (people page views and readers,
+before -> after, on top of trap 18's rules): docomatic.ai 566 -> 565 and 267 -> 266
+(14 days); example.net 498 -> 494, readers 376 unchanged (4 days); example.org 1,575 ->
+1,570, readers 1,105 unchanged (3 days); skaldanalytics.com, example.com, site.example and
+freshlycited.com unchanged. All groups' page views: skaldanalytics.com 6,426 -> 5,551,
+example.org 28,964 -> 26,018, example.net 11,154 -> 10,808, freshlycited.com 14,111 ->
+13,904, site.example 26,912 -> 26,793, docomatic.ai 169,753 -> 169,552, example.com 16,197 ->
+16,189. Requests in every group: unchanged. All 70 days' audits said "all match". (Trap
+18's rules had already moved most of the survey's people views to bots.)
+
+**The check that catches it.** The audit reads the same name lists by its own code
+(`audit_not_pages.py`: path segments and query keys, no regular expression), applies the
+site's setting itself, and recounts `quality.json`'s `not_pages` per entry. A main road
+without the list, or one that ignores the site's setting, keeps page views the audit does
+not, and the day is withheld.
+
+**The test.** `tests/test_not_pages.py`: each entry with its matches and near misses on both
+roads, the judgement calls staying pages, the made-up sitemap matching nothing, 3,000 awkward
+URLs answered alike by both roads, the switch and the site's own entries, a request leaving
+the page views but not its group, the audit agreeing (with and without a setting) and
+catching a main road without the list.
+
+## 20. A redirect counted as a failure, a probe counted as a page (2026-10-25)
+
+**What happened.** The first draft of "Pages AI can't read well" (AI readiness, L2), run
+read-only on example.net's real log, listed 607 pages for redirects, and its top rows were
+`/_next/image/` (GPTBot 429 ×48), `/.env/` and `/sitemap_index.xml/`.
+
+**What was true.** example.net's plugin sends AI assistants from every page to its `.md` copy
+with a 302, on purpose. The log has no Location header, so a redirect says nothing about
+where it leads: counting it as a failure put every page on the list and hid the real one
+(437 pages whose `.md` copy answered 404 or another error). And an image resizer, a scanner's probe and a
+sitemap with a "/" added are no pages anyone could make readable.
+
+**How this package prevents it.** A redirect is said beside a page's needs and orders rows
+that tie, but never puts a page on the list; the page's errors line says "good" and names
+the redirects. Only addresses shaped like a page count: a Markdown copy, or what the AI
+fetch kinds call a page (also with a closing "/" taken off), with no part starting with ".",
+that the not-a-page list does not name (DATA-CONTRACT-AI-READY.md).
+
+**The check that catches it.** `audit_ai_ready.py` works out the page shape with the audit's
+own readers (`audit_ai_formats.kind_of`, `audit_not_pages.Marker`) and its own needs, so a
+main road that lists redirects or probes disagrees with it. **The test.**
+`tests/test_ai_ready.py` writes an image resizer, a `/.env` probe, `/sitemap_index.xml/` and a
+redirect-only page and checks that none is listed.
 
 ## The pattern in the first five
 

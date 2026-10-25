@@ -18,6 +18,7 @@ import { visitLikely, visitRead } from "./likelyai.js";
 import { visitDirect } from "./likelydirect.js";
 import { openVisitor, touchLine, touchName, ago } from "./visitor.js";
 import { pagesWords, visitPages } from "../visitpages.js";
+import { withUrl, copyIf } from "../urlactions.js";
 
 export const NOTE = { not_found: "met a page not found (404)", posted: "sent a form", in_app: "moved inside the site without loading a page" };
 const BADGE = { posted: "form sent", not_found: "404" };
@@ -85,13 +86,14 @@ export function visitFacts(j) {
     ["Browser", withMark("browser", j.browser)],
     ["System", j.os ? withMark("os", j.os) : ""],
     ["Source type", j.source ? named("source", j.source) : ""],
-    ["Came from", j.via ? h("span", { class: "named" }, src.icon, h("span", { class: "nm" }, j.via)) : ""],
+    ["Came from", j.via ? copyIf("text", h("span", { class: "named" }, src.icon, h("span", { class: "nm" }, j.via)), j.via, { label: "referrer" }) : ""],
     ["First came from", touchLine(j) ? touchLine(j).replace(/^first came from /, "") : ""],
     ["Likely AI", visitLikely(j)],
     ["Likely cause", visitDirect(j)],
-    ["Referring page", j.ref_page], ["Campaign", j.campaign ? j.campaign.split(" / ").filter((x) => x && x !== "-").join(" / ") : ""], ["Tags", utm], ["Paid", j.paid], ["Searched for", j.search_terms],
+    ["Referring page", j.ref_page ? withUrl(h("span", { class: "mono" }, j.ref_page), /^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(j.ref_page) ? `https://${j.ref_page}` : "", { cls: "ua-after" }) : ""],
+    ["Campaign", j.campaign ? copyIf("text", j.campaign.split(" / ").filter((x) => x && x !== "-").join(" / ")) : ""], ["Tags", utm ? copyIf("text", utm) : ""], ["Paid", j.paid], ["Searched for", j.search_terms ? copyIf("text", j.search_terms) : ""],
     ["Visitor", visitor(j) ? `${visitor(j)}${j.days_seen_30d != null ? `, seen on ${j.days_seen_30d} day${j.days_seen_30d === 1 ? "" : "s"} in 30` : ""}` : ""],
-    ["Ended on", j.exit],
+    ["Ended on", j.exit ? withUrl(h("span", { class: "mono" }, j.exit), j.exit, { cls: "ua-after" }) : ""],
     ...(j.flags || []).map((f) => ["Note", NOTE[f] || f]),
   ].filter(([, v]) => v);
   const seen = j.trail || [];

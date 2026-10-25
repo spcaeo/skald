@@ -107,6 +107,10 @@ CATALOG = (
     Crawler("Amzn-SearchBot", "Amazon", "index"),
     Crawler("Amzn-User", "Amazon", "asked"),
     Crawler("cohere-training-data-crawler", "Cohere", "training"),
+    # Added 2026-10-25: OpenAI's check of ad landing pages. Not training and
+    # nobody waits on it, so it sits with the index crawlers: "block
+    # training" leaves it alone.
+    Crawler("OAI-AdsBot", "OpenAI", "index"),
 )
 BY_NAME = {c.name: c for c in CATALOG}
 OWNERS = tuple(dict.fromkeys(c.owner for c in CATALOG))

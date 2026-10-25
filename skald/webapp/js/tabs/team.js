@@ -8,6 +8,7 @@ import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { ME, isViewer, lockForViewer, sessions, VIEWER } from "../access.js";
 import { head1, copyable, field, input, status, confirmIn, when, why, ROLE_NAME } from "./forms.js";
+import { copyIf } from "../urlactions.js";
 
 const NO_MAIL = "Mail is not set up; send this link yourself.";
 
@@ -75,7 +76,7 @@ export default function team() {
       };
       drawCell();
       const on = m.totp_on ?? m.two_step;
-      return h("tr", null, h("td", { class: "path nm" }, m.email, me ? h("span", { class: "you" }, " (you)") : null), h("td", null, m.name || ""),
+      return h("tr", null, h("td", { class: "path nm" }, copyIf("email", m.email || "", m.email, { label: "email", cls: "" }), me ? h("span", { class: "you" }, " (you)") : null), h("td", null, copyIf("text", m.name || "", null, { label: "name", cls: "" })),
         h("td", null, sel), h("td", { class: "muted n" }, when(m.last_seen ?? m.last_sign_in)),
         h("td", { class: "c" }, on == null ? h("span", { class: "muted" }, "not known") : h("span", { class: `tf ${on ? "on" : "off"}` }, on ? "On" : "Off")), cell);
     });
@@ -108,8 +109,8 @@ export default function team() {
           if (isViewer()) lockForViewer(cell);
         };
         drawCell();
-        return h("tr", null, h("td", { class: "path nm" }, v.email), h("td", null, ROLE_NAME[v.role] || v.role || ""),
-          h("td", { class: "muted" }, v.invited_by || ""), h("td", { class: "muted n" }, when(v.expires_at, "")), cell);
+        return h("tr", null, h("td", { class: "path nm" }, copyIf("email", v.email || "", v.email, { label: "email", cls: "" })), h("td", null, ROLE_NAME[v.role] || v.role || ""),
+          h("td", { class: "muted" }, copyIf("text", v.invited_by || "", null, { label: "invited by", cls: "" })), h("td", { class: "muted n" }, when(v.expires_at, "")), cell);
       }))));
     return h("section", { class: "s" }, h("h2", null, "Pending invites"), h("p", { class: "sub" }, "An invite link works for 7 days, once."), body);
   }
