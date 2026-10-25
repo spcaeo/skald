@@ -39,13 +39,18 @@ export const ROUTE_KEYS = [
   { key: "cnorm", kind: "global", owner: "mode-compare.js", means: "Compare: per day" },
   { key: "cgran", kind: "global", owner: "mode-compare.js", means: "Compare's chart grain" },
   { key: "cm", kind: "global", owner: "mode-compare.js", means: "Compare's chart figure" },
+  { key: "inc", kind: "global", owner: "period-line.js", means: "Include today: 1 makes 7, 30 and 90 days end today, with today so far (Overview › Summary and Traffic › Pages; other tabs ignore it); never compared" },
   { key: "tz", kind: "global", owner: "tz.js", means: "the time zone: local or utc (the site's when absent)" },
   { key: "dd", kind: "global", owner: "drill.js", means: "the drill-down trail, dim:value|dim:value (an address as a token)" },
   // ---- tab: one tab's own
   { key: "page", kind: "tab", owner: "tabs/pagestory.js", means: "Traffic > Pages: the page whose story is open" },
+  { key: "psec", kind: "tab", owner: "tabs/aiready.js", means: "Traffic > Pages: the part of the page's story to open at: ai (AI readiness)" },
+  { key: "arw", kind: "tab", owner: "tabs/aiready.js", means: "AI & bots > Assistants, Pages AI can't read well: the problem shown (copy, 404, errors, robots, redirects; every one when absent)" },
   { key: "net", kind: "tab", owner: "tabs/tr-social.js", means: "Traffic > Sources: the social network open under the grid (x, linkedin, facebook, ...; with src_seg=social)" },
   { key: "pubfrom", kind: "tab", owner: "tabs/tr-pages.js", means: "Traffic > Pages: published from" },
   { key: "pubto", kind: "tab", owner: "tabs/tr-pages.js", means: "Traffic > Pages: published to" },
+  { key: "chgfrom", kind: "tab", owner: "tabs/tr-pages.js", means: "Traffic > Pages: changed since (the website's date, else the sitemap's lastmod)" },
+  { key: "psort", kind: "tab", owner: "tabs/tr-pages.js", means: "Traffic > Pages: the landing pages' order: visits (most visits, when absent), rising, falling (both need Compare), changed (recently changed) or work (needs work)" },
   { key: "rg", kind: "tab", owner: "tabs/tr-retention.js", means: "Retention: the cohorts' grain" },
   { key: "rm", kind: "tab", owner: "tabs/tr-retention.js", means: "Retention: the measure" },
   { key: "rs", kind: "tab", owner: "tabs/tr-retention.js", means: "Retention: the segment" },
@@ -85,6 +90,12 @@ export const ROUTE_KEYS = [
   { key: "sxc", kind: "tab", owner: "tabs/sec-scanners.js", means: "Security > Who is scanning us?: what they looked for" },
   { key: "sxk", kind: "tab", owner: "tabs/sec-scanners.js", means: "Security > Who is scanning us?: all: every suspect, not only scanners" },
   { key: "sxa", kind: "tab", owner: "tabs/sec-attacks.js", means: "Security > Attack attempts: injection, login or burst" },
+  // ---- 2.35: Insights' to-dos and Not found's lost pages (tabs/todos.js, tabs/nf-lost.js)
+  { key: "todo", kind: "tab", owner: "tabs/todos.js", means: "Insights: the to-do whose list is open, by its id (lost-pages, server-errors, ai-markdown, sitemap, or leave- and 8 hex for a page)" },
+  { key: "nfk", kind: "tab", owner: "tabs/nf-lost.js", means: "Not found: the lost pages' tab: md (AI asks for Markdown) or fixed (After the fix); Lost pages when absent" },
+  { key: "nfsrv", kind: "tab", owner: "tabs/nf-lost.js", means: "Not found: the server lines for apache (nginx when absent)" },
+  { key: "pchg", kind: "tab", owner: "tabs/pagechange.js", means: "Traffic > Pages (a page) and Insights: the tracked page change open, by its id (c and 8 hex, a hash of the site, the page and the day)" },
+  // ---- end 2.35
   // Read by the old Compare page's address only, then rewritten (routes.js).
   { key: "ca", kind: "tab", owner: "routes.js", means: "the old Compare page's period A (rewritten)" },
   { key: "cdim", kind: "tab", owner: "routes.js", means: "the old Compare page's table (rewritten)" },
@@ -100,13 +111,20 @@ export const ROUTE_KEYS = [
   { key: "scan", kind: "overlay", owner: "tabs/sec-scanners.js", means: "Security > Who is scanning us?: one scanner's detail, by its first row: <day>.<seq> (never its address)", example: "2026-10-20.3" },
   { key: "ans", kind: "overlay", owner: "tabs/ai-answers.js", means: "AI answers: one stored answer in full, by its id", example: "412" },
   { key: "setup", kind: "overlay", owner: "tabs/setup-dialogs.js, tabs/sitesadmin.js", means: "a Set up dialog (logs, assets, rsc, countries, script, lead, mail, privacy, pack: send set-up to someone); on Add or remove sites, the Add a site wizard (new, or a site's name); a site's name on any tab is its wizard too (Connections' Set up with your AI agent)", example: "rsc" },
-  { key: "conn", kind: "overlay", owner: "tabs/connections.js", means: "a Connections dialog: send, api or mcp", example: "api" },
+  { key: "conn", kind: "overlay", owner: "tabs/connections.js", means: "a Connections dialog: send, api, mcp or sample (Test a sample of a log)", example: "api" },
+  { key: "lfmt", kind: "overlay", owner: "tabs/conn-sample.js", means: "Test a sample: the reader chosen (a try_log format name); absent: Detect it. The pasted lines never go in the address", example: "caddy_json" },
   { key: "step", kind: "overlay", owner: "tabs/conn-ui.js", means: "the step of the dialog open (1 is the first)", example: "2" },
   { key: "agent", kind: "overlay", owner: "tabs/site-wizard.js", means: "Add a site: the AI agent chosen (claude-code, codex, cursor, chat, other), or hand (set it up by hand)", example: "claude-code" },
   { key: "link", kind: "overlay", owner: "tabs/agent-setup.js", means: "Add a site: the agent line being watched, by its link id (16 hex, a hash of the code; the line and its code never go in the address)", example: "0f3a9c2e7b1d4a58" },
   { key: "share", kind: "overlay", owner: "tabs/conn-share.js", means: "Share with your developer: the form is open in the dialog (the link itself never goes in the address)", example: "1" },
   { key: "token", kind: "overlay", owner: "tabs/conn-install.js", means: "the token choice of a by-hand kit (the zips under Other ways): 0 is the zip without the token; absent, the token goes in the zip (the token itself never goes in the address)", example: "0" },
   { key: "pack", kind: "overlay", owner: "tabs/setup-pack.js", means: "Send set-up to someone: the box is open in the dialog (the addresses typed and the keys never go in the address)", example: "1" },
+  // 2.35: Send to team (tabs/todo-send.js); who it goes to never goes in the address.
+  { key: "tdsend", kind: "overlay", owner: "tabs/todo-send.js", means: "Insights: the Send to team dialog for a to-do, by its id", example: "lost-pages" },
+  // Traffic > Pages > a page: Mark a change (tabs/pagechange.js); the note typed never goes in the address.
+  { key: "pcm", kind: "overlay", owner: "tabs/pagechange.js", means: "Traffic > Pages > a page: the Mark a change dialog (new)", example: "new" },
+  { key: "pcd", kind: "overlay", owner: "tabs/pagechange.js", means: "Mark a change: the day it changed (YYYY-MM-DD; today when absent)", example: "2026-10-21" },
+  { key: "pck", kind: "overlay", owner: "tabs/pagechange.js", means: "Mark a change: what changed (content, title, backlink, redirect, other; content when absent)", example: "title" },
   { key: "dlg", kind: "overlay", owner: "main.js, keys.js, extras.js, report.js, filterpanel.js, tabs/person.js", means: "an app dialog: keys (shortcuts), new (What's new), views (saved views), report (report builder), filters (the Filters panel), find (Find a person, empty)", example: "views" },
 ];
 
@@ -117,9 +135,9 @@ export const TABLE_SUFFIXES = { q: "the search box", sort: "the order (column:as
 export const KEYS = new Map(ROUTE_KEYS.map((k) => [k.key, k]));
 export const OVERLAY = ROUTE_KEYS.filter((k) => k.kind === "overlay").map((k) => k.key);
 // The keys inside the dialog open (its step, the share form, the kit's token choice, the
-// set-up pack's box, Add a site's agent and the line it watches); the other overlay keys
+// set-up pack's box, Add a site's agent and the line it watches, Test a sample's reader); the other overlay keys
 // name the drawer or dialog itself.
-export const INSIDE = ["step", "share", "token", "pack", "agent", "link"];
+export const INSIDE = ["step", "share", "token", "pack", "agent", "link", "lfmt", "pcd", "pck"];
 export const OPENERS = OVERLAY.filter((k) => !INSIDE.includes(k));
 // Always a token, whatever the value looks like: a search for a person, an address filter.
 export const ALWAYS_MASKED = new Set(["who", "ip"]);

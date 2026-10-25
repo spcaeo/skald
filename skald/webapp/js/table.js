@@ -9,7 +9,7 @@ import { shownText } from "./labels.js";
 import { code3, countryName } from "./countries.js";
 import { HASH, writeKeys, nsOf, compare, sortRows, nextSort, sortParam, readSort, readFilters, writeFilters, readHidden, testFilter, filterKind, parseAmount, visibleColumns } from "./tablestate.js";
 import { chooser, exportButton, filterToggle, filterCell, filterChips } from "./tabletools.js";
-import { withUrl, isUrlColumn } from "./urlactions.js";
+import { withUrl, isUrlColumn, copyCell } from "./urlactions.js";
 
 /* Every table drawn in the current render, so "Export this view" and the
    report can take them all: {caption, file, columns, rows()}. main.js
@@ -244,7 +244,7 @@ export function table(columns, opts) {
           const text = c.fmt ? c.fmt(v, r) : c.num ? n(v) : v ?? "";
           const shown = text instanceof Node ? text : String(text);
           // A page or a URL: copy and open in a new tab at the cell's end (urlactions.js).
-          const cellEl = isUrlColumn(c) ? withUrl(shown, c.href ? c.href(r) : v) : shown;
+          const cellEl = isUrlColumn(c) ? withUrl(shown, c.href ? c.href(r) : v) : copyCell(c, r, shown);
           tr.append(h("td", { class: [ALIGN_CLS[alignOf(c)] || (c.path ? "path" : null), c.cls].filter(Boolean).join(" ") || null }, cellEl));
         }
         // A row about a value opens it, the whole row (drill.js drillRow); onRow wins.

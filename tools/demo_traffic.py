@@ -97,7 +97,8 @@ BOTS = [  # (user agent, address, (fewest, most) requests a day)
 ]
 # The published address lists the demo's bot check reads (bots.ranges_dir).
 RANGES = {"openai-gptbot": ["198.51.100.0/28"], "openai-searchbot": ["198.51.100.0/28"],
-          "openai-chatgpt-user": ["198.51.100.0/28"], "anthropic": ["198.51.100.16/28"],
+          "openai-chatgpt-user": ["198.51.100.0/28"], "openai-adsbot": ["198.51.100.0/28"],
+          "anthropic": ["198.51.100.16/28"],
           "perplexity-bot": ["198.51.100.32/28"], "perplexity-user": ["198.51.100.32/28"],
           "google-common": ["198.51.100.48/28"], "google-special": ["198.51.100.48/28"],
           "google-user": ["198.51.100.48/28"], "google-user-google": ["198.51.100.48/28"],
@@ -165,7 +166,8 @@ CRAWL = {   # what each kind of crawler asks for (one draw each: the main sequen
 }
 TRAINING = ("GPTBot", "ClaudeBot", "PerplexityBot", "OAI-SearchBot", "meta-externalagent")
 SEARCHERS = ("Googlebot", "bingbot", "Applebot")
-GONE = ["/blog/old-launch-post", "/guides/api-v1", "/blog/2024-roadmap", "/blog/old-launch-post.md"]
+GONE = ["/blog/old-launch-post", "/guides/api-v1", "/blog/2024-roadmap", "/blog/old-launch-post.md",
+        "/guides/webhooks.md", "/guides/webhooks.md"]   # a docs plugin points AI at a copy never made
 SIZES = {"/robots.txt": 168, "/llms.txt": 5_812, "/llms-full.txt": 214_377, "/sitemap.xml": 7_406,
          "/sitemap-blog.xml": 3_118, "/assets/site.css": 38_412, "/assets/site.js": 96_850, "/assets/logo.svg": 3_920}
 FETCHED = [("/pricing/", 30), ("/guides/getting-started", 25), ("/features/", 15), ("/guides/webhooks", 10)] + [(b, 5) for b in BLOG]

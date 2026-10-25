@@ -39,6 +39,12 @@ site:
   # Off only when the page assets are served from a host this log never sees
   # (a separate CDN): then nobody could ever render, and nobody would count.
   # require_rendering: true
+  # Machine addresses are never page views (not_pages.py): Markdown copies,
+  # WordPress's API and machine files, feeds, oEmbed, trackbacks, ?author=N,
+  # ?replytocom=. They stay requests in their group. Count an entry as pages
+  # again, or add your own (/path, /prefix* or ?key):
+  # not_pages_off: [feeds]
+  # not_pages_extra: [/status, /preview/*]
   # A browser-like visit that read too_fast_pages page views or more, all
   # within too_fast_seconds of the first, is no person (too_fast.py,
   # CLASSIFICATION.md rule 9b): its requests are bots, "too fast to be a
@@ -62,6 +68,7 @@ logs:
   #   cloudflare_json - Cloudflare Logpush, http_requests (docs/CDN-LOGS.md)
   #   cloudfront_w3c  - AWS CloudFront standard logs (docs/CDN-LOGS.md)
   #   fastly_json     - Fastly, the JSON format in docs/CDN-LOGS.md
+  #   akamai_json     - Akamai DataStream 2, JSON (docs/CDN-LOGS.md)
   # "auto" tries each on the first lines that parse and picks the richest.
   format: auto
   # A GeoIP country file (MaxMind .mmdb format; DB-IP's free country file
@@ -227,9 +234,10 @@ mail:
 # owner's published address list (Google, Bing, Apple, OpenAI, Perplexity,
 # Anthropic, DuckDuckGo, Meta's network) and the hosting networks into this
 # directory, and looks up reverse DNS for the rest; run-daily runs it first.
-# Counting only reads these files. Leave it out to check nothing.
-# bots:
-#   ranges_dir: /var/lib/skald/ranges
+# Counting only reads these files. Without it nothing is checked: a fake
+# Googlebot counts as Googlebot and `doctor` says "crawler checks off".
+bots:
+  ranges_dir: /var/lib/skald/ranges
 
 # The Recent requests tab (requests.json): the last window_hours hours, at
 # most cap rows. Private: it holds raw addresses, and only its window.

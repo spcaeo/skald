@@ -134,13 +134,14 @@ def query(path: str) -> dict:
     return dict(parse_qsl(raw, keep_blank_values=True)[:20])
 
 
-def read_json(h) -> dict | None:
-    """The JSON object in the body (at most 4 KiB), or None after answering 400."""
+def read_json(h, limit: int = MAX_BODY) -> dict | None:
+    """The JSON object in the body (at most `limit` bytes, 4 KiB unless a route
+    says more), or None after answering 400 or 413."""
     try:
         length = int(h.headers.get("Content-Length") or 0)
     except ValueError:
         length = -1
-    if length < 0 or length > MAX_BODY:
+    if length < 0 or length > limit:
         h._json(400 if length < 0 else 413, {"ok": False, "error": "The request is too large."})
         return None
     raw = h.rfile.read(length) if length else b""

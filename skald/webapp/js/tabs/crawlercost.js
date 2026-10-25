@@ -107,7 +107,7 @@ export function botDetail(m, s, r, name) {
         panel("Pages it fetched", null, blist(ranked(d.lists.pages), { drill: "path", from: "drill", limit: 10, color: "var(--views)", empty: "Not recorded for these days." })),
         panel("Status mix", null, blist(ranked(d.status), { limit: 6, color: "var(--g-bots)" })),
         panel("Countries of its requests", "From the log's country field or the GeoIP file.", blist(ranked(d.lists.countries), { drill: "country", from: "drill", limit: 8, color: "var(--g-bots)", empty: "Not recorded for these days." }))),
-      panel("User agents it sent", "The crawler's own strings, the 5 most used each day.", blist(ranked(d.lists.agents), { limit: 5, color: "var(--g-bots)",
+      panel("User agents it sent", "The crawler's own strings, the 5 most used each day.", blist(ranked(d.lists.agents), { limit: 5, color: "var(--g-bots)", copy: "ua",
         empty: d.agentsHidden ? "Not kept: these requests may come from a person's browser, so their strings are not stored." : "Not recorded for these days." })),
       h("p", { class: "note" }, [`From ${r.kind === "today" ? "today so far" : `${d.days} whole day${d.days === 1 ? "" : "s"}, ${short(r.first)} to ${short(r.last)}`}. No address is kept.`,
         "Each day keeps the top 10 pages and countries and the top 5 user agents, so these lists are sums of each day's top.", listNote].filter(Boolean).join(" ")),

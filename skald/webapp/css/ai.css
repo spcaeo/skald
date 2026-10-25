@@ -35,3 +35,35 @@
 
 /* Crawl health: the kind and the last crawl keep one line at 1440 (table.js cls). */
 .ch-tab :is(th, td).nowrap { white-space: nowrap; }
+
+/* AI readiness (2.35, js/tabs/aiready.js): the block in a page's story and the
+   "Pages AI can't read well" list on Assistants. A line: a dot, its title and state, one
+   short line of evidence, what to do. */
+.ar .card-h { flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
+.ar .card-h h3 { margin: 0; }
+.ar-sum { font-size: 13px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
+.ar-sum.good { color: var(--good); background: color-mix(in srgb, var(--good) 13%, transparent); }
+.ar-sum.attention { color: var(--warn); background: color-mix(in srgb, var(--warn) 15%, transparent); }
+.ar-lines { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.ar-line { display: flex; gap: 10px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); min-width: 0; }
+.ar-line.ar-attention { border-color: color-mix(in srgb, var(--warn) 45%, var(--rule)); }
+.ar-dot { flex: none; width: 9px; height: 9px; margin-top: 6px; border-radius: 50%; background: var(--ink-3); }
+.ar-good .ar-dot { background: var(--good); }
+.ar-attention .ar-dot { background: var(--warn); }
+.ar-unknown .ar-dot { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+.ar-body { min-width: 0; flex: 1; }
+.ar-top { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.ar-st { font-size: 12px; font-weight: 600; color: var(--ink-3); }
+.ar-st.good { color: var(--good); }
+.ar-st.attention { color: var(--warn); }
+.ar-says { margin: 4px 0 0; color: var(--ink-2); overflow-wrap: anywhere; }
+.ar-ev { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--ink-2); }
+.ar-ev li { margin: 2px 0; overflow-wrap: anywhere; }
+.ar-ev code, .ar-says code { font-family: var(--mono); font-size: 12.5px; }
+.ar-do { margin: 8px 0 0; font-weight: 600; color: var(--ink); }
+.ar-arrow { color: var(--warn); }
+.ar-snip-host { display: block; margin-top: 8px; }
+.ar-snip { margin: 0; padding: 8px 10px; font-family: var(--mono); font-size: 12.5px; background: var(--sunk); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ar-list .ar-chips { margin: 4px 0 10px; flex-wrap: wrap; }
+.ar-nb { white-space: nowrap; }
+@media (max-width: 999px) { .ar-lines { grid-template-columns: minmax(0, 1fr); } }

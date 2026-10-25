@@ -20,9 +20,8 @@ import { openDrawer } from "../drawer.js";
 import { call } from "./ipmanager.js";
 import { ME } from "../access.js";
 import { openVisitor } from "./visitor.js";
-import { copyButton } from "./reqdetail.js";
 import { labelTag } from "./leadfigs.js";
-import { withUrl } from "../urlactions.js";
+import { withUrl, copyIf } from "../urlactions.js";
 import { refBlock, refCell, byRef, markButton, mayMark } from "./leadref.js";
 
 export const SEARCH_HINT = "IP address, email, lead or visitor ID";
@@ -39,19 +38,21 @@ function grid(caption, heads, rows) {
     h("tbody", null, rows.map((r) => h("tr", null, r.map((c) => h("td", null, c)))))));
 }
 
-// A key that opens its own person: an address, an email, a visitor ID, a lead.
-function key(value, label = value) {
+// A key that opens its own person: an address, an email, a visitor ID, a lead; with its
+// copy icon (copy: false where the caller adds its own, a reference's refCell).
+function key(value, label = value, copy = true) {
   if (!value || value === "(removed)") return value === "(removed)" ? "removed on request" : "-";
-  if (!mayFind()) return label;
-  return h("button", { type: "button", class: "pp-link", title: `Find ${value}`, onclick: () => openPerson(value) }, label);
+  const el = mayFind() ? h("button", { type: "button", class: "pp-link", title: `Find ${value}`, onclick: () => openPerson(value) }, label) : label;
+  return copy ? copyIf("text", el, String(value)) : el;
 }
+const text = (v) => copyIf("text", dash(v));
 
 function leadsPart(rows) {
   if (!rows.length) return empty("No lead in the lead database.");
   return grid("Leads", ["Made", "Lead", "Type", "Status", "Page", "First touch", "Last touch", "Email", "Name"], rows.map((r) => [
     at(r.created_at), key(String(r.id), `#${r.id}`), dash(r.type),
     r.left_out ? h("b", { class: "pp-bad" }, `${r.test ? "test" : r.status} (left out)`) : dash(r.status),
-    h("span", { class: "mono" }, dash(r.page)), dash(r.first_source), dash(r.last_source), r.email ? key(r.email) : "-", dash(r.name)]));
+    withUrl(h("span", { class: "mono" }, dash(r.page)), r.page, { cls: "ua-after" }), dash(r.first_source), dash(r.last_source), r.email ? key(r.email) : "-", text(r.name)]));
 }
 
 /* marks: a Test column with Mark as test / Not a test on each row (owners and admins; the
@@ -61,13 +62,13 @@ function conversionsPart(rows, { marks = false } = {}) {
   const withMarks = marks && mayMark();
   return grid("Conversions", ["When", "Action", "Stage", "Reported by", "Source", "Landing", "Lead or reference", "Visitor ID", "Email", ...(withMarks ? ["Test"] : [])], rows.map((r) => [
     at(r.at), [dash(r.action), labelTag(r.label)], [STAGE[r.stage] || r.stage, r.test ? h("b", { class: "pp-bad" }, " test (not counted)") : null],
-    dash(r.tool), dash(r.source_type), withUrl(h("span", { class: "mono" }, dash(r.landing)), r.landing), refCell(r.external_ref, key(r.external_ref)), key(r.vid), r.email ? key(r.email) : "-",
+    dash(r.tool), dash(r.source_type), withUrl(h("span", { class: "mono" }, dash(r.landing)), r.landing), refCell(r.external_ref, key(r.external_ref, r.external_ref, false)), key(r.vid), r.email ? key(r.email) : "-",
     ...(withMarks ? [markButton({ id: r.id, ref: r.external_ref, tool: r.tool, test: !!r.test }, { compact: true }) || "-"] : [])]));
 }
 
 function removedPart(rows) {
   return grid("Removed conversions", ["Removed", "Why", "Was", "Lead or reference"], rows.map((r) => [
-    at(r.removed_at), dash(r.why), [`${dash(r.action)} ${STAGE[r.stage] || dash(r.stage)} at ${at(r.at)}`, labelTag(r.row?.label)], key(r.external_ref)]));
+    at(r.removed_at), text(r.why), [`${dash(r.action)} ${STAGE[r.stage] || dash(r.stage)} at ${at(r.at)}`, labelTag(r.row?.label)], key(r.external_ref)]));
 }
 
 /* A person (people?q=) opens in the visitor drawer (visitor.js), the same
@@ -78,7 +79,7 @@ function removedPart(rows) {
 export function personParts(got) {
   const k = got.keys || {};
   const linked = h("dl", { class: "dw-dl" }, [["IP addresses", k.ips], ["Emails", k.emails], ["Visitor IDs", k.vids], ["Leads and references", k.leads]]
-    .flatMap(([t, list]) => [h("dt", null, t), h("dd", null, (list || []).length ? (list || []).map((v) => h("span", { class: "pp-key" }, key(v), " ", copyButton(v, "value"))) : "-")]));
+    .flatMap(([t, list]) => [h("dt", null, t), h("dd", null, (list || []).length ? (list || []).map((v) => h("span", { class: "pp-key" }, key(v))) : "-")]));
   const cand = got.candidates || [];
   const noVisits = !got.visits.length ? empty(got.query.kind !== "ip"
     ? "No visit is shown: the search was not for an IP address. Open an address under Linked (or under the visits that sent a form at a lead's time) to see its visits."
@@ -90,7 +91,7 @@ export function personParts(got) {
     short,
     noVisits,
     sec("Linked", linked, h("p", { class: "note" }, `Kept: addresses ${addresses}; names and emails ${got.kept?.identity === "full" ? "kept" : "not kept"}.`)),
-    got.requests.length ? sec("Requests in the last 6 hours", grid("Requests", ["Time", "Request", "Status", "Group"], got.requests.map((r) => [at(r.at), h("span", { class: "mono" }, `${r.method} ${r.path}`), String(r.status), dash(r.group)]))) : null,
+    got.requests.length ? sec("Requests in the last 6 hours", grid("Requests", ["Time", "Request", "Status", "Group"], got.requests.map((r) => [at(r.at), withUrl(h("span", { class: "mono" }, `${r.method} ${r.path}`), r.path, { label: r.path }), String(r.status), dash(r.group)]))) : null,
     sec("Leads", leadsPart(got.leads)),
     cand.length ? sec("Leads and the visits that sent a form at their time", h("p", { class: "note" }, "Matched by time only: a form sent from 2 minutes before the lead to 30 seconds after. Likely the same person, never certain: the lead database keeps no address."),
       grid("Visits at a lead's time", ["Lead", "IP address", "Started", "Landing"], cand.map((c) => [key(c.lead, `#${c.lead}`), key(c.ip), at(c.start), withUrl(h("span", { class: "mono" }, dash(c.landing)), c.landing)]))) : null,

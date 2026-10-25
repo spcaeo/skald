@@ -8,6 +8,7 @@ import { h, n } from "../ui.js";
 import { ago } from "../tz.js";
 import { table } from "../table.js";
 import { fixed, notBuiltNote } from "./common.js";
+import { withUrl, copyIf } from "../urlactions.js";
 
 export const robotsOf = (m) => new Map((m.x.robots?.crawlers || []).map((c) => [c.name, c]));
 
@@ -27,14 +28,15 @@ export const robotsWords = (c) => verdict(c)?.[1] || "";
 function rules(file) {
   const r = file.robots || {};
   if (!r.ok) return h("div", { class: "state bad" }, h("div", null, `robots.txt could not be read${r.error ? `: ${r.error}` : ""}. The verdicts above use the last copy that was.`));
-  const line = (k, v) => h("div", { class: "rt-l" }, h("span", { class: "rt-k" }, `${k}:`), " ", h("span", { class: "rt-v" }, v));
+  // Each line with its copy icon: the line as robots.txt has it.
+  const line = (k, v) => copyIf("text", h("div", { class: "rt-l" }, h("span", { class: "rt-k" }, `${k}:`), " ", h("span", { class: "rt-v" }, v)), `${k}: ${v === "(nothing)" ? "" : v}`.trim(), { label: "line", cls: "ua-block" });
   return h("div", null,
     h("div", { class: "rt-groups" }, (r.groups || []).map((g) => h("div", { class: "rt-g" },
       (g.agents || []).map((a) => line("User-agent", a)),
       (g.allow || []).map((p) => line("Allow", p)),
       (g.disallow || []).map((p) => line("Disallow", p || "(nothing)")),
       g.crawl_delay != null ? line("Crawl-delay", String(g.crawl_delay)) : null))),
-    (r.sitemaps || []).length ? h("p", { class: "note" }, "Sitemaps: ", r.sitemaps.map((u, i) => [i ? ", " : "", h("code", null, u)])) : null);
+    (r.sitemaps || []).length ? h("p", { class: "note" }, "Sitemaps: ", r.sitemaps.map((u, i) => [i ? ", " : "", withUrl(h("code", null, u), u, { cls: "ua-after" })])) : null);
 }
 
 export function robotsSection(m) {

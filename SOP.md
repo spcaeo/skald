@@ -126,7 +126,8 @@ without the fallback every new-format line was silently dropped.
 
 A site behind a CDN needs the CDN's log, not the origin's: pages served from
 the CDN's cache never reach the origin. `cloudflare_json` (Logpush),
-`cloudfront_w3c` (CloudFront standard logs) and `fastly_json` read them, and
+`cloudfront_w3c` (CloudFront standard logs), `fastly_json` and `akamai_json`
+(Akamai DataStream 2) read them, and
 `auto` picks each. How to ship each log to the server, and which fields to
 turn on, is in [docs/CDN-LOGS.md](docs/CDN-LOGS.md).
 

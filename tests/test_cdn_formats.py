@@ -1,4 +1,4 @@
-"""CDN logs: Cloudflare Logpush, CloudFront standard logs and Fastly JSON.
+"""CDN logs: Cloudflare Logpush, CloudFront standard logs, Fastly JSON, Akamai DataStream 2.
 
 A CDN log counts the pages the CDN served from its cache, which the origin
 never saw. Each fixture holds the same seven requests: a person (Chrome)
@@ -31,7 +31,8 @@ CHROME = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
           "(KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36")
 CDN = {"cloudflare_logpush.jsonl": "cloudflare_json",
        "cloudfront.log": "cloudfront_w3c",
-       "fastly.jsonl": "fastly_json"}
+       "fastly.jsonl": "fastly_json",
+       "akamai_datastream2.jsonl": "akamai_json"}
 
 
 def cloudflare_line(**over) -> str:

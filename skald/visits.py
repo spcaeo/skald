@@ -58,7 +58,7 @@ ASSISTANTS = {
     "chatgpt.com": "ChatGPT", "perplexity.ai": "Perplexity", "claude.ai": "Claude",
     "gemini.google.com": "Gemini", "copilot.microsoft.com": "Copilot",
     "you.com": "You.com", "phind.com": "Phind", "poe.com": "Poe", "mistral.ai": "Mistral",
-    "meta.ai": "Meta AI",
+    "meta.ai": "Meta AI", "deepseek.com": "DeepSeek", "grok.com": "Grok",
 }
 
 

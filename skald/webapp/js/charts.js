@@ -49,8 +49,8 @@ let MARKS = new Map(), MARKS_ON = true;
 export function setMarkers(byDay, on) { MARKS = byDay || new Map(); MARKS_ON = on !== false; }
 const marksOf = (d) => (MARKS_ON && d.day ? MARKS.get(d.day) || [] : []);
 const MARK_WORDS = { website_release: "Website release", skald_deploy: "Traffic tool deploy", config_change: "Counting rules changed",
-  ours_change: "Internal address change", backfill: "History recounted" };
-const markRows = (d) => marksOf(d).map((k) => ({ color: "var(--opp)", value: "", label: `${MARK_WORDS[k.kind] || "Marker"}${k.at ? ` at ${tzTime(k.at)}` : ""}: ${k.label}` }));
+  ours_change: "Internal address change", backfill: "History recounted", page_change: "Page changed" };
+const markRows = (d) => marksOf(d).map((k) => ({ color: "var(--opp)", value: "", label: `${MARK_WORDS[k.kind] || "Marker"}${k.at && k.kind !== "page_change" ? ` at ${tzTime(k.at)}` : ""}: ${k.label}` }));
 const markWords = (d) => marksOf(d).map((k) => `; marker: ${k.label}`).join("");
 function markLines(days, L, T, ph, slot) {
   const out = [];

@@ -1,0 +1,22 @@
+/* The breadcrumb line with Back (js/crumbs.js), over every tab. Tokens from app.css. */
+
+/* ---- the breadcrumb line (js/crumbs.js) */
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 13px; color: var(--ink-3); margin: 0 0 10px; min-height: 28px; }
+.crumbs ol { display: contents; list-style: none; }
+.crumbs li { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.crumbs li + li::before { content: "/"; color: var(--ink-3); opacity: .6; }
+.crumbs a { color: var(--link, var(--ink-2)); text-decoration: none; overflow-wrap: anywhere; }
+.crumbs a:hover, .crumbs a:focus-visible { color: var(--ink); text-decoration: underline; }
+.crumbs .cr-now { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
+.crumbs .cr-back { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border: 1px solid var(--rule); border-radius: 7px;
+  background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; margin-right: 4px; text-decoration: none; }
+.crumbs .cr-back:hover { border-color: var(--ink-3); }
+.crumbs .cr-more { border: 0; background: none; color: var(--ink-2); font: inherit; cursor: pointer; padding: 0 2px; }
+/* A phone: Back and where you are, one line; the steps between are Back's to walk. */
+@media (max-width: 767px) {
+  .crumbs { flex-wrap: nowrap; }
+  .crumbs li:not(:last-child) { display: none; }
+  .crumbs li:last-child::before { content: none; }
+  .crumbs .cr-back { flex: 0 1 auto; min-width: 0; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; line-height: 26px; }
+}
+@media print { .crumbs { display: none; } }

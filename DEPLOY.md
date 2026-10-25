@@ -94,7 +94,10 @@ sudo -u skald sh -c '. /etc/skald/env && cd /opt/skald && \
 ```
 
 `check` must say `ok`. If it says "nothing parsed", the log format or
-`logs.dir` is wrong; fix that before going further. The two dry runs print
+`logs.dir` is wrong; fix that before going further. Before the first run, or
+when it fails, `./bin/skald try-log /var/log/nginx/access.log` reads a sample and
+says which reader fits, which lines fail and why, and what Skald would count
+(it stores nothing; docs/INSTALL.md, "Try a log first"). The two dry runs print
 the mail without sending it - read them. Then `./bin/skald --config
 /etc/skald/config.yml doctor` lists every part, OK or NEEDS ATTENTION
 with the fix (docs/INSTALL.md, "Check it"); after a deploy too.
@@ -150,7 +153,13 @@ Release 2 adds a nightly backup (any quiet hour; not 11:10-11:30 UTC):
 ```
 
 and nothing else: run-daily runs `verify-bots` first when `bots.ranges_dir`
-is set, and the live run checks the alerts and markers itself. The server
+is set, and the live run checks the alerts and markers itself. Set it: without
+`bots.ranges_dir` no crawler claim is checked (a fake Googlebot counts as
+Googlebot, a browser from a cloud is not flagged), and `doctor` says "crawler
+checks off". The Docker image sets it by default (`SKALD_VERIFY_BOTS`). A first
+fetch is about 37 requests (8 MB down, 1.3 MB kept, under a minute); lists
+fetched in the last 12 hours are not fetched again, so several sites share one
+fetch a morning. The server
 needs outbound HTTPS for the lists (Google, Bing, Apple, OpenAI, Perplexity,
 Anthropic, DuckDuckGo, stat.ripe.net) and DNS; a failure keeps the last
 good copy and never stops a run. List `site-version-check` in

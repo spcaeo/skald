@@ -18,7 +18,7 @@ import { openVisitor } from "./visitor.js";
 import { grid } from "../grid.js";
 import { actionName, toolName, STAGE, labelTag } from "./leadfigs.js";
 import { codeOf } from "../routekeys.js";
-import { withUrl } from "../urlactions.js";
+import { withUrl, copyFact, copyIf } from "../urlactions.js";
 import { afterMark, refCell } from "./leadref.js";
 
 export const LEAD_SHOW = [["spam", "Spam"], ["duplicate", "Duplicates"], ["test", "Test"]];
@@ -109,7 +109,7 @@ const convCode = (r) => `${r.kind}.${codeOf([r.kind, r.at, r.action, r.stage, r.
 function convDetail(r) {
   const dl = h("dl", { class: "dw-dl" }, [["List", KIND[r.kind]], ["When", at(r.at)], ["Action", actionName(r.action || "")], ["Label", r.label ? labelTag(r.label) : "-"], ["Stage", STAGE[r.stage] || dash(r.stage)],
     ["Reported by", toolName(r.tool)], ["Source (last touch)", dash(r.source)], ["Landing", r.landing ? withUrl(h("span", { class: "mono" }, r.landing), r.landing, { cls: "ua-after" }) : "-"], ["Lead or reference", refCell(r.ref, key(r.ref))], ["Visitor ID", key(r.vid)], ["Why", dash(r.why)]]
-    .flatMap(([t, v]) => [h("dt", null, t), h("dd", null, v)]));
+    .flatMap(([t, v]) => [h("dt", null, t), h("dd", null, copyFact(t, v))]));
   // The visitor drawer (visitor.js): the visitor ID's pages as visits, this row's facts below.
   // A removed row has no conversion behind it any more: its reference, no Mark as test (2.25).
   return openVisitor({ conversion: { action: r.action, at: r.at, tool: r.tool, journey: r.journey, steps: [{ action: r.action, stage: r.stage, at: r.at, tool: r.tool, test: r.test }],

@@ -61,6 +61,7 @@ LISTS = {
     "openai-gptbot": "https://openai.com/gptbot.json",
     "openai-searchbot": "https://openai.com/searchbot.json",
     "openai-chatgpt-user": "https://openai.com/chatgpt-user.json",
+    "openai-adsbot": "https://openai.com/adsbot.json",
     "perplexity-bot": "https://www.perplexity.ai/perplexitybot.json",
     "perplexity-user": "https://www.perplexity.ai/perplexity-user.json",
     "anthropic": "https://claude.com/crawling/bots.json",
@@ -87,7 +88,8 @@ VENDORS = {
     "bing": (("bing",), ("search.msn.com",)),
     "apple": (("apple",), ("applebot.apple.com",)),
     "yandex": ((), ("yandex.ru", "yandex.net", "yandex.com")),
-    "openai": (("openai-gptbot", "openai-searchbot", "openai-chatgpt-user"), ()),
+    "openai": (("openai-gptbot", "openai-searchbot", "openai-chatgpt-user", "openai-adsbot"),
+               ()),
     "perplexity": (("perplexity-bot", "perplexity-user"), ()),
     "anthropic": (("anthropic",), ()),
     "duckduckgo": (("duckduckgo",), ()),
@@ -99,7 +101,7 @@ CLAIMS = (
     (re.compile(r"^(?:bingbot|bingpreview)$"), "bing"),
     (re.compile(r"^applebot(?:-extended)?$"), "apple"),
     (re.compile(r"^yandexbot$"), "yandex"),
-    (re.compile(r"^(?:gptbot|oai-searchbot|chatgpt-user)$"), "openai"),
+    (re.compile(r"^(?:gptbot|oai-searchbot|chatgpt-user|oai-adsbot)$"), "openai"),
     (re.compile(r"^(?:perplexitybot|perplexity-user)$"), "perplexity"),
     (re.compile(r"^(?:claudebot|claude-user|claude-searchbot|anthropic-ai)$"), "anthropic"),
     (re.compile(r"^(?:duckduckbot|duckassistbot)$"), "duckduckgo"),
@@ -111,6 +113,9 @@ LOCAL_TOOL = re.compile(r"claude-code/", re.I)
 
 # A list older than this is not trusted to say "spoofed" any more.
 MAX_LIST_AGE = timedelta(days=7)
+# Lists all fetched this recently are not fetched again: run-daily runs
+# verify-bots once per site, and every site shares the one folder.
+REFETCH_AFTER = timedelta(hours=12)
 DNS_FILE = "dns.json"
 DNS_TTL = timedelta(days=7)
 FETCH_TIMEOUT = 10
@@ -345,6 +350,21 @@ def refresh_lists(folder: Path, now: datetime | None = None, fetch=_get,
     return done
 
 
+def lists_current(folder: Path, now: datetime) -> bool:
+    """Every list (and the hosting networks) fetched without error within
+    REFETCH_AFTER: another site's run this morning already fetched them."""
+    for name in [*LISTS, "hosting"]:
+        entry = load_list(folder, name)
+        if not entry or entry.get("error") or not entry.get("networks"):
+            return False
+        try:
+            if now - datetime.fromisoformat(entry["fetched"]) > REFETCH_AFTER:
+                return False
+        except (KeyError, TypeError, ValueError):
+            return False
+    return True
+
+
 # ------------------------------------------------------------------- DNS
 
 def _reverse_forward(address: str, suffixes: tuple[str, ...]) -> tuple[str, str]:
@@ -437,7 +457,9 @@ def run(ctx, lists: bool = True, budget_s: float = 30.0) -> int:
         ctx.err("verify-bots: set bots.ranges_dir in the config first")
         return 2
     now = ctx.now.astimezone(timezone.utc)
-    if lists:
+    if lists and lists_current(folder, now):
+        ctx.out(f"lists: all fetched within {REFETCH_AFTER.seconds // 3600} hours; kept")
+    elif lists:
         for name, said in refresh_lists(folder, now).items():
             ctx.out(f"list {name}: {said}")
     start = day_window(yesterday(ctx.tz, ctx.now), ctx.tz)[0]

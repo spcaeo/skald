@@ -395,7 +395,8 @@ def build(p) -> dict:
             "day": found[0] if found else None,
             "paths": len(current) if current is not None else None,
             "skipped": found[1].get("skipped") if found else None,
-            "truncated": found[1].get("truncated") if found else None}
+            "truncated": found[1].get("truncated") if found else None,
+            "lastmod": found[1].get("lastmod") if found else None}
     first = p.anchor - timedelta(days=max(WINDOWS) - 1)
     stored = p.history.extras(p.key, first, p.anchor, ("crawl_health",))
     days, kept = [], []

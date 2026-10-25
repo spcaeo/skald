@@ -22,6 +22,7 @@ import { info } from "./tiles.js";
 import { head, notBuiltNote } from "./common.js";
 import { figures } from "../data.js";
 import { subView } from "../tablestate.js";
+import { withUrl, copyIf } from "../urlactions.js";
 
 const PERIODS = [["7", "7 days"], ["28", "28 days"], ["90", "3 months"], ["480", "16 months"]];
 const ENGINES = [["google", "Google"], ["bing", "Bing"]];
@@ -214,7 +215,8 @@ function rowDrawer(kind, row, part, period, s, file) {
   }
   if (kind === "query") body.push(h("p", { class: "note" }, "The engine does not give, in this table, which page each query led to."));
   // In the address as sq=<kind>.<engine>:<key> (js/overlays.js): a link reopens it.
-  return openDrawer({ title: textOf(kind, row.key), subtitle: `${nameOf(e)} search, ${KINDS.find((x) => x[0] === kind)[2].toLowerCase()}`, body: h("div", null, body), size: "md", key: "search-row",
+  const title = kind === "query" ? copyIf("text", textOf(kind, row.key), String(row.key), { label: "query" }) : kind === "page" ? withUrl(textOf(kind, row.key), String(row.key), { cls: "ua-after" }) : textOf(kind, row.key);
+  return openDrawer({ title, subtitle: `${nameOf(e)} search, ${KINDS.find((x) => x[0] === kind)[2].toLowerCase()}`, body: h("div", null, body), size: "md", key: "search-row",
     route: { key: "sq", value: `${kind}.${e}:${row.key}` } });
 }
 

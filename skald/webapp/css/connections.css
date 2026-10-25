@@ -134,3 +134,10 @@
 /* "Is it safe to paste this into a chat?": the app's fold (features.css), its list inside */
 .ag-safe { margin: 0; }
 .ag-safe ul { margin: 0; padding: 0 14px 12px 34px; display: grid; gap: 6px; font-size: 13px; line-height: 1.5; color: var(--ink-2); overflow-wrap: anywhere; }
+/* Test a sample (conn-sample.js): the pasted lines and the report. */
+.ts-box { width: 100%; box-sizing: border-box; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre; overflow-x: auto; }
+.ts-groups { border-collapse: collapse; font-size: 13px; margin: 4px 0; }
+.ts-groups th, .ts-groups td { padding: 3px 12px 3px 0; text-align: left; font-weight: normal; border-bottom: 1px solid var(--rule); }
+.ts-groups thead th { color: var(--ink-3); font-size: 12px; }
+.ts-groups .num { text-align: right; font-variant-numeric: tabular-nums; }
+.ts-pages li, .ts-hosts li, .ts-why li { overflow-wrap: anywhere; }

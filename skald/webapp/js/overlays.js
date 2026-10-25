@@ -23,7 +23,8 @@ import { valueOf } from "./routemask.js";
 
 const open = new Map();        // family -> {value, close(), isOpen()}
 const pending = new Set();     // "family=value" being restored (answers on the way)
-const STEPPED = new Set(["setup", "conn"]);
+// pcm (Mark a change): its day and kind (pcd, pck) leave with it, as a step does.
+const STEPPED = new Set(["setup", "conn", "pcm"]);
 // The keys inside a stepped dialog (its step, the share form, the kit's token choice) leave with it.
 const INSIDE_OFF = Object.fromEntries(INSIDE.map((k) => [k, ""]));
 const extra = {};              // restorers main.js adds (the report builder needs its loader)
@@ -117,6 +118,10 @@ const RESTORE = {
   sq: async (v, m, s) => (await import("./tabs/tr-search.js")).openSearchKey(m, s, v),
   list: async (v) => (await import("./tabs/person.js")).openListKey(v),
   scan: async () => null,   // Security's scanner rows load with the tab, which opens it (sec-scanners.js)
+  // 2.35: Send to team, for a to-do (js/tabs/todo-send.js).
+  tdsend: async (v, m) => (await import("./tabs/todo-send.js")).openSendKey(v, m),
+  // Traffic > Pages > a page: Mark a change (js/tabs/pagechange.js).
+  pcm: async (v, m, s) => (await import("./tabs/pagechange.js")).openMarkKey(v, m, s),
   ans: async (v) => (/^[A-Za-z0-9_-]{1,40}$/.test(v) ? (await import("./tabs/ai-answers.js")).openAnswer(v) : "That answer is not one Skald keeps."),
   // A site's name (it has a dot; the set-up dialogs' names never do) is its Add a site wizard
   // on any tab: Connections' "Set up with your AI agent" opens it there.

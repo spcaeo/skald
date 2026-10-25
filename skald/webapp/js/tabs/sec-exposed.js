@@ -13,6 +13,7 @@ import { table } from "../table.js";
 import { tiles } from "./tiles.js";
 import { optionsRow, choice, emptyState } from "./sa-options.js";
 import { verdictOf } from "../sec-data.js";
+import { copyIf } from "../urlactions.js";
 import { secTab, at, adviceOf, LOOKED, missingNote } from "./sec-common.js";
 
 export const HELP_TEXT = "Skald reads each probe's status and the size of the answer from the log. A single-page app or a default server page answers every path it does not have with the same page (its fallback page), so a 2xx with that size is harmless. A 2xx of another size may be a real file: check it. The log never shows the content, so this is a reason to look, not proof; and the size is the size sent after compression, so the same page can show as two sizes through two doors (the host name and the bare IP). Each host has its own.";
@@ -46,12 +47,12 @@ function rowsTable(t, s) {
   const rows = t.exposure.rows.filter((r) => !VERDICT[s.sxv] || r.verdict === VERDICT[s.sxv]);
   return table([
     { key: "at", label: "When", type: "date", fmt: (v) => at(v) },
-    { key: "host", label: "Host", fmt: (v, r) => h("span", null, v || "(no host)", r.host && /^[\d.:[\]]+$/.test(r.host) ? h("span", { class: "sec-tag" }, "bare IP") : "") },
+    { key: "host", label: "Host", copyValue: (r) => r.host || "", fmt: (v, r) => h("span", null, v || "(no host)", r.host && /^[\d.:[\]]+$/.test(r.host) ? h("span", { class: "sec-tag" }, "bare IP") : "") },
     { key: "path", label: "Path", path: true },
     { key: "status", label: "Status" },
     { key: "size", label: "Size (bytes)", num: true, fmt: (v) => (v == null ? "Not recorded" : n(v)) },
     { key: "verdict", label: "Why it is listed", fmt: (v, r) => why(r), sort: (r) => r.verdict },
-    { key: "category", label: "What to do", fmt: (v) => { const [words, code] = adviceOf(v); return h("span", null, words, code ? h("code", { class: "sec-code" }, code) : ""); }, csv: (r) => adviceOf(r.category).join(" ") },
+    { key: "category", label: "What to do", fmt: (v) => { const [words, code] = adviceOf(v); return h("span", null, words, code ? copyIf("text", h("code", { class: "sec-code" }, code), code, { label: "line" }) : ""); }, csv: (r) => adviceOf(r.category).join(" ") },
   ], { caption: "Possible exposures", ns: "sx", file: "possible-exposures.csv", rows, sortKey: "at", dir: -1, limit: 20,
     empty: s.sxv === "nosize" ? "No answer without a size." : "No possible exposure in this period." });
 }

@@ -80,7 +80,7 @@ export default function attacks(m, s) {
             blist(ranked(t.injection.kinds), { color: "var(--bad)", total: t.injection.requests, label: (k) => KINDS[k] || k, empty: "No injection attempt." }));
           if (t.injection.rows.length) out.push(table([
             { key: "first", label: "When", type: "date", fmt: (v) => at(v) },
-            { key: "who", label: "Address", fmt: (v, row) => whoOf(row, map), sort: (row) => whoOf(row, map) },
+            { key: "who", label: "Address", copy: true, fmt: (v, row) => whoOf(row, map), sort: (row) => whoOf(row, map) },
             { key: "kind", label: "Kind", fmt: (v) => KINDS[v] || v },
             { key: "requests", label: "Requests", num: true },
             { key: "status", label: "Answered", fmt: (v) => answered(v), sort: (row) => row.status?.["2xx"] || 0 },
@@ -90,7 +90,7 @@ export default function attacks(m, s) {
           out.push(...part("Login and form hammering", t.login.rows, [
             { key: "start", label: "From", type: "date", fmt: (v) => at(v) },
             { key: "end", label: "To", type: "date", fmt: (v) => at(v) },
-            { key: "who", label: "Address", fmt: (v, row) => whoOf(row, map), sort: (row) => whoOf(row, map) },
+            { key: "who", label: "Address", copy: true, fmt: (v, row) => whoOf(row, map), sort: (row) => whoOf(row, map) },
             { key: "posts", label: "POSTs", num: true },
             { key: "path", label: "Path", path: true },
             { key: "status", label: "Answered", fmt: (v) => answered(v), sort: (row) => row.status?.["2xx"] || 0 },
@@ -100,7 +100,7 @@ export default function attacks(m, s) {
           out.push(...part("Bursts", t.bursts.rows, [
             { key: "start", label: "From", type: "date", fmt: (v) => at(v) },
             { key: "end", label: "To", type: "date", fmt: (v) => at(v) },
-            { key: "who", label: "Address", fmt: (v, row) => whoOf(row, map), sort: (row) => whoOf(row, map) },
+            { key: "who", label: "Address", copy: true, fmt: (v, row) => whoOf(row, map), sort: (row) => whoOf(row, map) },
             { key: "requests", label: "Requests", num: true },
             { key: "path", label: "Most asked", path: true },
             { key: "status", label: "Answered", fmt: (v) => answered(v), sort: (row) => row.status?.["2xx"] || 0 },

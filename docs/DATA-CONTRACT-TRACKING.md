@@ -276,3 +276,52 @@ log's readers by source (on a view, the view's). The app sums any range and show
 100 visits by source, and no rate over fewer than `min_rate` visits ("too few to say").
 Second count: `events.audit` recounts the spool's `s` field with its own pattern and compares
 people's events by event and source; visits by source are the audited readers by source.
+
+### Day kind `landings` (visits by the page they started on)
+
+`landings.py`, from the day's journeys (and the live snapshot's, for today). Each people
+visit is counted once, on its first page, as the readers' landing breakdown counts it:
+
+    {"fields": ["visits", "one_page", "views", "search", "ai"], "top": 200,
+     "folded": 0, "pages": {"/pricing/": [12, 9, 17, 4, 1], ...}}
+
+| field | meaning |
+|---|---|
+| `visits` | visits that started on the page |
+| `one_page` | of them, visits that loaded that one page and no other: one page view in the log. This is **"left at once"** on Summary and Pages. A step a single-page app shows without asking the server is not in the log, so on such a site it is an upper bound |
+| `views` | the page views those visits made, on every page |
+| `search` | of the visits, those whose source is `Search engine` |
+| `ai` | of the visits, those whose source is `AI assistant` (a referrer or a tag; "likely" AI visits are never here) |
+
+The 200 pages with most visits (ties by path) are kept; the rest are summed into one
+`(all others)` row and `folded` says how many paths it holds. `check` (verify) holds every
+row to one_page <= visits <= views and search + ai <= visits, and the sums to the day's
+visits, one-page visits, people's page views and visits by source. A day collected before
+this kind existed has no blob: **not recorded** (null), until the day is recounted.
+Second count: `audit_landings.py` (audit_more.RECOUNTS), from the raw lines with the
+audit's own landing label, page rule and source labels: every kept row field by field, the
+`(all others)` row against every page it does not keep, and `folded`.
+
+### page_trends.json (each page by day, pages changed lately)
+
+`page_trends.py` (data_more.FILES). Nothing new is counted: stored, audited day figures
+put side by side per page, for Overview > Summary, Traffic > Pages and AI & bots >
+Assistants. A view (page group) gets `{"whole_site_only": true}`: crawl health and the
+change dates are the whole site's.
+
+| field | meaning |
+|---|---|
+| `fields` | the landings row fields, as above |
+| `first_day` | the first day with a `landings` blob, or null |
+| `days[]` | one per day of the window: `{"day","state"}`, and on an `ok` or `partial` day `landings` (the stored blob or null: not recorded) and `fetches` |
+| `days[].fetches` | the assistants' user fetches (day kind `ai_fetches`: ChatGPT-User, Perplexity-User, Claude-User and the other user fetchers) as `{"paths": {path: {assistant: n}}, "folded": n}`; the 200 paths with most fetches kept (ties by path), the rest summed per assistant into `(all others)`; null when not recorded |
+| `today` | the snapshot's `{"state","from","until"}` with the same `landings` and `fetches`, or null |
+| `changed` | `{"days": 30, "since", "until", "rules", "pages": [...], "counts"}`: the pages whose change date (`updated`: the website's own date, else the sitemap's `<lastmod>`) falls in the last 30 days to the last whole day |
+| `changed.pages[]` | `path`, `changed`, `source` (`website`/`sitemap`), `visits` and `search` (visits that started on the page from the change date on, over whole verified days; null when no such day has a blob), `first_search` (the first of those days with a search visit), `counted_from`, `unmeasured` (days from the change date that were not whole, verified and recorded), `at_least` (a day folded the page into `(all others)`: the figures are a floor), `google` (the verified Google crawler fetched the page on such a day, by crawl health; null when no such day has crawl health), `google_last` |
+| `changed.counts` | `pages`, `measured`, `visited`, `searched`, `none` (measured with no visit), `google` |
+| `same_day` | the sitemap's dates look like build times: more than half of at least 10 dated pages carry one date: `{"day","pages","of"}`, else null |
+
+Paths are compared with `?` and `#` cut and a trailing `/` added. Second count:
+`audit_page_trends.py` (audit_more.DAILY): its own SQL for the day states and the blobs,
+its own fold of the fetches, the change dates by `audit_lastmod.expected`, and every
+field of `days[]`, `changed` and `same_day` worked out again.

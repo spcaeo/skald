@@ -18,6 +18,7 @@ import { rangeOf } from "./data.js";
 import { opt } from "./sections.js";
 import { shown } from "./labels.js";
 import { short } from "./ui.js";
+import { changedSince } from "./page-figs.js";
 import { DIMS, DIM, OPS, NR, NONE, opsOf, tidy, matcher, without, cannot, fromState, toState, singles, sameRule, ruleWords, treeWords, leaves, timeWords } from "./rules.js";
 import { parseAmount } from "./tablestate.js";
 import { country, countryName, withFlag, flagEl, city, cityName } from "./tabs/readers.js";
@@ -266,7 +267,11 @@ export function openFilters(m, s, from) {
     main.replaceChildren(
       h("div", { class: "fp-top" },
         h("div", null, h("h2", { id: "fp-h" }, "Filter visits"),
-          h("p", null, "Lists of single visits apply every rule; a tab that counts breakdowns applies the ones it can and says which it cannot. The count updates as you edit.")),
+          h("p", null, "Lists of single visits apply every rule; a tab that counts breakdowns applies the ones it can and says which it cannot. The count updates as you edit."),
+          // Release 2 (P3): new and updated pages are a page filter of Traffic › Pages (chgfrom).
+          h("p", { class: "fp-presets" }, h("span", null, "Page: "), h("button", { type: "button", class: "linkish", "data-k": "chg30",
+            title: "Traffic › Pages, only the pages whose change date (the website's, else your sitemap's) is in the last 30 days",
+            onclick: () => { close(false); S.set({ tab: "traffic/pages", chgfrom: changedSince(m), psort: "changed", page: "" }); } }, "Changed in the last 30 days →"))),
         status),
       h("div", { class: "fp-box" },
         h("div", { class: "fp-mode" }, h("span", null, "Show visits that match"),

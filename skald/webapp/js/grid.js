@@ -41,7 +41,7 @@ import { REGISTRY, csv, csvWidth, download, alignOf } from "./table.js";
 import { track } from "./mounts.js";
 import { HASH, TABLE_KEY, writeKeys, sortRows, nextSort, readFilters, writeFilters, readHidden, testFilter, filterKind, parseAmount, visibleColumns } from "./tablestate.js";
 import { chooser, exportButton, filterToggle, filterCell, filterChips } from "./tabletools.js";
-import { withUrl, isUrlColumn } from "./urlactions.js";
+import { withUrl, isUrlColumn, copyCell } from "./urlactions.js";
 
 // ---- the hash's query, where every Skald key lives -----------------------------
 // What upstream's `params` option asks for (tablestate.js HASH): read and write a
@@ -181,7 +181,7 @@ export function grid(opts) {
   // The columns the grid draws: the same array, changed in place when the chooser hides one.
   // A page or a URL column: copy and open in a new tab at each cell's end (urlactions.js, as in table.js).
   const every = cols.map((c) => ({ id: c.key, label: c.label, sortable: c.sortable !== false, align: alignOf(c),
-    render: (r) =>(isUrlColumn(c) ? withUrl(cell(c, r) ?? "", c.href ? c.href(r) : r[c.key]) : cell(c, r)) }));
+    render: (r) => (isUrlColumn(c) ? withUrl(cell(c, r) ?? "", c.href ? c.href(r) : r[c.key]) : copyCell(c, r, cell(c, r) ?? "")) }));
   const drawn = every.filter((c) => !hidden.includes(c.id));
   const shownCols = () => visibleColumns(cols, hidden);
   // A column marked csvAlways is in the CSV even while hidden (Leads' Reference, 2.25).

@@ -34,7 +34,7 @@ function aiKeys() {
   return box;
 }
 import { searchBox } from "./search-connect.js";
-import { withUrl } from "../urlactions.js";
+import { withUrl, copyIf } from "../urlactions.js";
 
 const EVENT_WORDS = {
   "conversion.started": "an action started (a form or booking opened)",
@@ -189,7 +189,7 @@ export default function integrations() {
     const log = h("details", null, h("summary", null, `Last deliveries (${t.deliveries.length})`),
       deliveriesTable(t.deliveries, `Deliveries from ${t.name}`, [
         ["When", (d) => when(d.received_at, ""), "muted n"], ["Answer", (d) => String(d.http_status), "c"],
-        ["Outcome", (d) => OUTCOME[d.outcome] || d.outcome], ["Detail", (d) => d.error || "", "muted"]]));
+        ["Outcome", (d) => OUTCOME[d.outcome] || d.outcome], ["Detail", (d) => copyIf("text", d.error || "", null, { label: "detail", cls: "" }), "muted"]]));
     return h("div", { class: "sheet integ" }, h("h3", null, t.name, " ", badge),
       t.problem ? h("p", { class: "msg err" }, t.problem) : null, state, copyable(t.url, `the address for ${t.name}`),
       t.paste && t.rotatable ? pasteForm(t) : null, t.event_types ? typesForm(t) : null, acts, log);
@@ -257,9 +257,9 @@ export default function integrations() {
     drawActs();
     const log = h("details", null, h("summary", null, `Last deliveries (${w.deliveries.length})`),
       deliveriesTable(w.deliveries, "Outgoing deliveries", [
-        ["Made", (d) => when(d.created_at, ""), "muted n"], ["Event", (d) => d.event],
+        ["Made", (d) => when(d.created_at, ""), "muted n"], ["Event", (d) => copyIf("text", d.event || "", null, { label: "event", cls: "" })],
         ["State", (d) => (d.state === "pending" ? `waiting, try ${d.attempts + 1} at ${when(d.next_at, "")}` : d.state)],
-        ["Answer", (d) => (d.http_status == null ? "" : String(d.http_status)), "c"], ["Detail", (d) => d.error || "", "muted"]]));
+        ["Answer", (d) => (d.http_status == null ? "" : String(d.http_status)), "c"], ["Detail", (d) => copyIf("text", d.error || "", null, { label: "detail", cls: "" }), "muted"]]));
     return h("div", { class: "sheet integ" }, h("h3", { class: "path" }, withUrl(h("span", null, w.url), w.url, { cls: "ua-after" })),
       h("p", { class: "muted" }, `${w.events.join(", ")}. Added ${when(w.created_at, "")}${w.created_by ? ` by ${w.created_by}` : ""}.`), acts, log);
   }

@@ -11,6 +11,7 @@ import { call } from "./ipmanager.js";
 import { isViewer, VIEWER } from "../access.js";
 import { copyable, field, input, status, confirmIn, when, why } from "./forms.js";
 import { purposeOf } from "./conn-words.js";
+import { copyIf } from "../urlactions.js";
 
 const SCOPES = [
   ["read", "Reading figures", "every figure these pages show, as JSON"],
@@ -62,7 +63,7 @@ export default function tokens(m, { reloadHook = null } = {}) {
         };
         drawCell();
         const sites = Array.isArray(t.sites) ? t.sites.join(", ") : t.sites || "all sites";
-        return h("tr", null, h("td", null, t.name || `#${t.id}`), h("td", { class: "cn-purpose" }, purposeOf(t.scopes)), h("td", { class: "path nm" }, sites),
+        return h("tr", null, h("td", null, copyIf("text", t.name || `#${t.id}`, null, { label: "token name", cls: "" })), h("td", { class: "cn-purpose" }, purposeOf(t.scopes)), h("td", { class: "path nm" }, sites),
           h("td", { class: "muted n" }, when(t.created_at, ""), t.created_by ? ` by ${t.created_by}` : ""), h("td", { class: "muted n" }, when(t.last_used)), cell);
       })))));
   }

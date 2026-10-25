@@ -183,6 +183,7 @@ How Skald guesses:
 1. The touch came with no referrer and no campaign tag.
 2. When someone asks an assistant, the assistant fetches the page from your server at that moment. Skald keeps those fetches: which assistant, which page, which minute.
 3. If an assistant fetched the touch's landing page in the same minute or up to 15 minutes before, the touch is **likely** from that assistant. Your server's admin can change the window (`attribution.ai_window_minutes`).
+4. Unless chance explains it: when an assistant fetched a page so often that day that the page's ordinary direct visits would land after its fetches anyway (your home page, typically), its fetches of that page that day are left out.
 
 What it shows:
 

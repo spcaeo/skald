@@ -27,6 +27,7 @@ from zoneinfo import ZoneInfo
 from .aggregate import Totals, summarise_views
 from .classify import Classifier, crawler_visits
 from .config import setting
+from . import not_pages
 from .parse import (HOLD, Hit, Lateness, ReadStats, geo_database, in_time_order, log_files,
                     oldest_first, one_click, read, sizes)
 
@@ -163,13 +164,16 @@ def analyse_window_views(config: dict, start: datetime, end: datetime,
     paths = oldest_first(paths)
     tests = {v.slug: (lambda hit, v=v: v.matches(hit.path)) for v in (views or [])}
     fmt = logs.get("format") or "auto"
+    rules = not_pages.from_config(config)
     classifier, hold = ordered_classifier(
-        config, lambda: within(read(paths, fmt, upto=upto), start, end), start, end)
+        config, lambda: within(read(paths, fmt, upto=upto, page_rules=rules), start, end),
+        start, end)
     stats = ReadStats()
     edges = _Edges()
     whole, by_view = summarise_views(
         edges.watch(one_click(in_time_order(
-            within(read(paths, fmt, stats, geo_database(config), upto), start, end), hold))),
+            within(read(paths, fmt, stats, geo_database(config), upto, rules), start, end),
+            hold))),
         classifier,
         int(setting(config, "report", "session_gap_minutes", 30)),
         top=top,
@@ -247,10 +251,12 @@ def analyse_paths(config: dict, paths: list[Path], top: int = 8,
     logs = config.get("logs") or {}
     paths = oldest_first(paths)
     fmt = fmt or logs.get("format") or "auto"
-    classifier, hold = ordered_classifier(config, lambda: read(paths, fmt))
+    rules = not_pages.from_config(config)
+    classifier, hold = ordered_classifier(config, lambda: read(paths, fmt, page_rules=rules))
     stats = ReadStats()
     totals = summarise_views(
-        one_click(in_time_order(read(paths, fmt, stats, geo_database(config)), hold)),
+        one_click(in_time_order(read(paths, fmt, stats, geo_database(config),
+                                     page_rules=rules), hold)),
         classifier,
         int(setting(config, "report", "session_gap_minutes", 30)),
         top=top,
@@ -306,8 +312,10 @@ def ordered_classifier(config: dict, lines, start: datetime | None = None,
 def _classifier(config: dict, first_pass, start: datetime | None = None,
                 end: datetime | None = None) -> Classifier:
     """The config's classifier, told which sessions are crawlers, which
-    browser-like visits never rendered a page (rendering.py) and which
-    address and agent asked for a scanner probe (classify.Scanners).
+    browser-like visits never rendered a page (rendering.py), which
+    address and agent asked for a scanner probe (classify.Scanners) or for
+    many missing probe paths, and which visits sent HEAD for pages
+    (tool_visits.py).
 
     That takes a pass of its own: a crawler may fetch robots.txt after the
     pages, and a page's assets come after it, so every one of its requests
@@ -315,7 +323,7 @@ def _classifier(config: dict, first_pass, start: datetime | None = None,
     the window is simply read twice. `start` and `end` name the window, for
     the beacon's page openings and the readers of the days before it.
     """
-    from . import rendering, too_fast
+    from . import rendering, too_fast, tool_visits
     from .classify import FanOut, Scanners
     classifier = Classifier.from_config(config)
     gap = int(setting(config, "report", "session_gap_minutes", 30))
@@ -337,10 +345,15 @@ def _classifier(config: dict, first_pass, start: datetime | None = None,
 
     # Rule 6b: one probe marks its address and agent for the whole window.
     scan = Scanners(classifier.legacy)
+    # Rules 6c and 8b (tool_visits.py): a probe sweep, a link checker.
+    sweep = tool_visits.ProbeSweep(hosts, classifier.legacy)
+    heads = tool_visits.HeadChecks(hosts, gap)
 
     def also(hit) -> None:
         fan(hit)
         scan(hit)
+        sweep(hit)
+        heads(hit)
         if drawn is not None:
             drawn(hit)
         if fast is not None:
@@ -349,6 +362,8 @@ def _classifier(config: dict, first_pass, start: datetime | None = None,
     classifier.crawler_visits = crawler_visits(first_pass, gap, hosts, also=also)
     classifier.fan_out = fan.pairs()
     classifier.scanners = scan.pairs
+    classifier.sweepers = sweep.pairs
+    classifier.link_checkers = heads.spans()
     if drawn is not None:
         classifier.unrendered = drawn.unrendered()
         classifier.rendering = drawn.counts

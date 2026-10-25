@@ -20,7 +20,7 @@ export default [
   ["alerts", "Alerts", alerts, { file: "alerts", ranged: false, period: "Now and the last 30 days", badge: (m) => { const n = (m.x?.alerts?.open || []).length; return n ? [n, `${n} open`] : null; } }],
   // The request log polls every 30 seconds on its own; a redraw would close its detail panel.
   ["requests", "Requests", requests, { file: "requests", filters: ALL, rules: "request", keep: ["ip", "rq"], polls: true, ranged: false, period: logPeriod }],
-  ["notfound", "Not found", notFound, { file: "not_found", filters: ["path", "source"] }],
+  ["notfound", "Not found", notFound, { file: "not_found", filters: ["path", "source"], keep: ["nfk", "nfsrv"] }],
   ["speed", "Speed", speed, { file: "speed", keep: ["strat"] }],
   ["quality", "Data quality", quality],
 ];

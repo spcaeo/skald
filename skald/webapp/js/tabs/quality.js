@@ -26,6 +26,13 @@ const files = (f) => { const k = Array.isArray(f) ? f.length : f; return k ? `, 
    tells nothing about one: it is said once above the days, not graded per day. */
 let AUDITS = true;
 
+// quality.json's not_pages ({entry: {requests, people}}): [requests, people, "entry N, ..."].
+const notPages = (v) => {
+  const rows = Object.entries(v || {});
+  return [rows.reduce((t, [, x]) => t + (x.requests || 0), 0), rows.reduce((t, [, x]) => t + (x.people || 0), 0),
+    rows.map(([k, x]) => `${k} ${n(x.requests)}`).join(", ")];
+};
+
 // Why a day is the colour it is: the first reasons are the worst.
 export function grade(d) {
   if (!d || d.lines == null && d.verify == null) return ["none", []];
@@ -148,6 +155,10 @@ export default function quality(m, s) {
         { key: "not_rendered", label: "Browser-like requests moved to bots", num: true, sort: (x) => x.not_rendered?.requests ?? null,
           fmt: (v) => (v == null ? h("span", { class: "muted", title: "Not recorded on this day" }, "not recorded") : h("span", { title: movedNote(v) }, `${n(v.requests)} (${n(v.readers)} visits)`)),
           csv: (x) => x.not_rendered?.requests ?? "" },
+        // 2.35: requests shaped like pages that the site's not-a-page list kept out of the page views (Settings > Sites > Not pages), by entry.
+        { key: "not_pages", label: "Not counted as pages", num: true, sort: (x) => (x.not_pages ? notPages(x.not_pages)[0] : null),
+          fmt: (v) => (v == null ? h("span", { class: "muted", title: "Not recorded on this day" }, "not recorded") : h("span", { title: notPages(v)[2] || "None" }, `${n(notPages(v)[0])} (${n(notPages(v)[1])} people)`)),
+          csv: (x) => (x.not_pages ? notPages(x.not_pages)[0] : "") },
         { key: "first_line", label: "Log covers (site time)", type: "date", fmt: (v, x) => (v ? `${v} to ${x.last_line}` : "-") },
         { key: "gaps", label: "Silent stretches", num: true, sort: (x) => x.gaps?.length ?? null, fmt: (v) => (v == null ? "-" : v.length ? h("span", { class: "gaps", title: v.map((g) => `${g.from}-${g.to}`).join(", ") }, v.length > 2 ? `${n(v.length)}: ${v[0].from}-${v[0].to} and ${n(v.length - 1)} more` : v.map((g) => `${g.from}-${g.to}`).join(", ")) : "0"), csv: (x) => (x.gaps || []).map((g) => `${g.from}-${g.to}`).join(" ") },
         { key: "audit", label: "Audit", fmt: (v) => (v ? AUDIT[v.state] || v.state : "-"), csv: (x) => x.audit?.state || "" },
@@ -160,7 +171,7 @@ export default function quality(m, s) {
   const failing = f.builders_failing;
   if (Array.isArray(failing)) out.push(h("section", { class: "s" }, h("h2", null, "Data files, last redraw"),
     failing.length ? [h("p", { class: "sub" }, `${failing.length} file${failing.length === 1 ? "" : "s"} could not be built; every other file was. The tabs that stand on them say so instead of showing empty figures.`),
-      table([{ key: "file", label: "File", fmt: (v) => h("span", null, h("span", { class: "q-tag q-amber" }, "Not built"), " ", v), csv: (x) => x.file }, { key: "error", label: "Why" }, { key: "since", label: "Failing since", type: "date", fmt: (v) => (v ? stamp(v) : "-") }],
+      table([{ key: "file", label: "File", copyValue: (x) => x.file, fmt: (v) => h("span", null, h("span", { class: "q-tag q-amber" }, "Not built"), " ", v), csv: (x) => x.file }, { key: "error", label: "Why" }, { key: "since", label: "Failing since", type: "date", fmt: (v) => (v ? stamp(v) : "-") }],
         { caption: "Data files that could not be built", rows: failing.map((b) => ({ ...b, __k: b.file })), file: "builders-failing.csv", search: false, rowClass: () => "q-fail" })]
       : h("p", { class: "q-ok" }, h("span", { class: "q-tag q-green" }, "All built"), " Every data file was built on the last redraw.")));
   const jobs = Object.entries(f.runs || {}).map(([job, j]) => ({ job, ...j, state: jobState(j, now), __k: job }));

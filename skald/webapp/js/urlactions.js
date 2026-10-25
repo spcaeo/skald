@@ -5,6 +5,9 @@
 //   urlActions("/pricing/")             the two icons alone (a span), or null
 //   withCopy(node, "u-119797")          an ID (2.25): the copy icon alone, the same behaviour
 //   fullUrl("/pricing/")                "https://example.com/pricing/"
+//   copyCell(column, row, content)      a table's or a grid's cell (2.35): the copy icon when
+//                                       its column holds text to paste elsewhere (copyKind)
+//   copyIf("ip", node, "192.0.2.4")     a drawer's or a card's value of a kind: the icon or not
 //
 // A path is joined with the site's own address: https:// and the site's name, as the
 // site is named in Skald (setSiteBase, from main.js on each draw). A full URL is used as
@@ -16,6 +19,11 @@
 // full URL in a new tab (noopener noreferrer) and hides them. A failed copy says
 // "Copy failed: select and copy" instead of the tick. Neither click reaches the row under
 // it, so a row that opens a drawer or a page's story keeps doing so.
+//
+// The owner's rule (2026-10-25): every URL or path gets copy and open; every text value
+// someone may paste elsewhere (an address, a user agent, an email, a name, a search term,
+// a crawler, a campaign, a reference, a reason) gets the copy icon alone, the same look.
+// Labels, headings, buttons, plain numbers and percentages get none; chart tooltips none.
 
 import { h } from "./ui.js";
 
@@ -143,3 +151,90 @@ function hosted(content, ua, tag, cls) {
 /* A table's or a grid's column whose values are site paths or URLs (table.js, grid.js):
    path: true or url: true, or a column drilled by page or landing page. */
 export const isUrlColumn = (c) => !!(c && (c.path || c.url || c.drill === "path" || c.drill === "landing"));
+
+/* ---- text to paste elsewhere (2.35) -------------------------------------------------
+   A table's or a grid's column that holds such text gets the copy icon on each cell by
+   itself: by its key or its label, or a drilled value (an address, a referrer, a campaign,
+   a crawler, an assistant). copy: "ip" | "ua" | "email" | "text" | true says it outright,
+   copy: false leaves a column out; copyValue(row) gives the words when the cell shows
+   something shorter (a user agent cut down to its browser). */
+const COPY_DIMS = { ip: "ip", referrer: "text", campaign: "text", bot: "text", assistant: "text" };
+const RAW_DIMS = new Set(["bot", "referrer", "campaign", "ip"]);
+const COPY_KEYS = { ip: "ip", email: "email", ua: "ua", user_agent: "ua" };
+export const COPY_LABELS = {
+  "IP address": "ip", Address: "ip", "User agent": "ua", Email: "email",
+  Name: "text", Company: "text", Phone: "text", Crawler: "text", Assistant: "text", "Likely assistant": "text",
+  "AI assistant": "text", Competitor: "text", Question: "text", "Search term": "text", Query: "text",
+  "Referring site": "text", Campaign: "text", "Campaign or UTM tag": "text", utm: "text", Reference: "text",
+  "Lead or reference": "text", "Visitor ID": "text", Network: "text", Host: "text", Why: "text", Error: "text",
+  "What happened": "text", File: "text", Title: "text", "Page title": "text", Token: "text",
+};
+/* The copy kind of a drilled dimension's values (a bar list's, a link's), or null. */
+export const dimKind = (dim) => COPY_DIMS[dim] || null;
+export function copyKind(c) {
+  if (!c || c.copy === false || isUrlColumn(c) || c.num || ["num", "date", "badge"].includes(c.type)) return null;
+  if (c.copy) return c.copy === true ? "text" : String(c.copy);
+  return COPY_DIMS[c.drill] || COPY_KEYS[c.key] || COPY_LABELS[c.label] || null;
+}
+
+// Words that stand for "nothing here": no icon.
+const BLANK = /^(-|–|—|none|none yet|none close|not listed|not shown|\((none|removed|not set|all others|no host|no campaign tag|this site)\)|removed|removed on request|not recorded|not known|not set|unknown|n\/a)$/i;
+const FITS = {
+  ip: (t) => /^[0-9a-f:.]+(\/\d{1,3})?$/i.test(t) && /[.:]/.test(t),
+  email: (t) => /^[^\s@]+@[^\s@]+$/.test(t),
+};
+
+/* What a cell shows, as text: the words a reader sees (not .vh, [hidden], a decorative
+   mark's letters or the icons). */
+export function shownWords(x) {
+  if (x == null || x === false) return "";
+  if (typeof x !== "object") return String(x);
+  if (typeof x.tagName !== "string") return x.childNodes?.length ? [...x.childNodes].map(shownWords).join("") : (x.textContent || "");
+  if (x.classList?.contains("vh") || x.classList?.contains("ua") || x.hasAttribute?.("hidden") || x.getAttribute?.("aria-hidden") === "true") return "";
+  return [...(x.childNodes || [])].map(shownWords).join("");
+}
+
+/* The words the copy icon writes for a value of this kind, or "" for none: text copies what
+   the cell shows; an address, an email or a user agent its whole stored value (or text
+   whose value is given: given). */
+export function copyWords(kind, raw, content, given = false) {
+  let r = typeof raw === "string" || typeof raw === "number" ? String(raw).trim() : "";
+  // A drilled crawler, referrer or campaign copies its own name ("ChatGPT-User"), not the
+  // words its link adds ("ChatGPT-User user fetcher"): the value its link opens (drill.js).
+  const dl = content && typeof content === "object" ? (content.classList?.contains("dl") ? content : content.querySelector?.("button.dl")) : null;
+  if (kind === "text" && !given && dl && RAW_DIMS.has(dl.dataset?.dim) && dl.dataset.value) { r = dl.dataset.value; given = true; }
+  const seen = () => shownWords(content).replace(/\s+/g, " ").trim();
+  const t = kind === "text" && !given ? seen() || r : r || seen();
+  if (!t || BLANK.test(t)) return "";
+  if (FITS[kind] && !FITS[kind](t)) return "";
+  return t;
+}
+
+const hasIcons = (x) => !!(x && typeof x === "object" && (x.classList?.contains("ua-host") || x.querySelector?.(".ua")));
+const said = (what, value) => `${what ? `${what} ` : ""}${value.length > 60 ? `${value.slice(0, 57)}...` : value}`;
+
+/* A table's or a grid's cell with the copy icon at its end when its column holds text to
+   paste (copyKind); the content alone otherwise, or when it already has its icons. */
+export function copyCell(c, row, content) {
+  const kind = copyKind(c);
+  if (!kind || hasIcons(content)) return content;
+  const value = copyWords(kind, c.copyValue ? c.copyValue(row) : row?.[c.key], content, !!c.copyValue);
+  return value ? withCopy(content, value, { label: said((c.copyLabel || c.label || "").toLowerCase(), value) }) : content;
+}
+
+/* A drawer's fact (a <dt> and its <dd>): the copy icon when its name is one of the column
+   names above or these, the content alone otherwise. raw: the whole value, as for copyIf. */
+const FACT_LABELS = { Agent: "text", "Campaign tags": "text", "Decided by": "text", Tags: "text", Customer: "text", Rule: "text" };
+export function copyFact(name, content, raw = null) {
+  const kind = COPY_LABELS[name] || FACT_LABELS[name];
+  return kind ? copyIf(kind, content, raw, { label: String(name).toLowerCase() }) : content;
+}
+
+/* A drawer's, a card's or a list's value of a kind ("ip", "ua", "email", "text"): the copy
+   icon at its end (ua-after: after the words, not over them), or the content alone when
+   there is nothing to copy. raw: the whole value when the node shows less. */
+export function copyIf(kind, content, raw = null, { label = "", cls = "ua-after" } = {}) {
+  if (hasIcons(content)) return content;
+  const value = copyWords(kind, raw, content, raw != null);
+  return value ? withCopy(content, value, { label: said(label, value), cls }) : content;
+}

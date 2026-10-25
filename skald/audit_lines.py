@@ -63,6 +63,11 @@ class Line:
     repeat: bool = False
     # The request_length= field's bytes, or None (not recorded).
     length: int | None = None
+    # The site's not-a-page list as the audit reads it (audit_not_pages.Marker,
+    # set by _read with a config; None: the built-in list), and the entry
+    # that matched this line ("" none; None not worked out yet).
+    marker: object = None
+    not_page: str | None = None
 
     @property
     def path(self) -> str:
@@ -221,10 +226,13 @@ def raw_lines(path: Path, upto: dict | None = None):
             yield (text[:-1] if text.endswith("\r") else text) + "\n"
 
 
-def _read(paths, upto: dict | None = None):
+def _read(paths, upto: dict | None = None, config: dict | None = None):
     """Every readable line, without a second copy of any request id: a line
     repeating an earlier rid= is the same request written twice. `upto`:
-    raw_lines."""
+    raw_lines. With `config`, each line carries the site's not-a-page list
+    (audit_not_pages.Marker; without it the built-in list applies)."""
+    from .audit_not_pages import Marker
+    marker = Marker(config) if config is not None else None
     rids = set()
     for path in paths:
         for raw in raw_lines(path, upto):
@@ -235,4 +243,5 @@ def _read(paths, upto: dict | None = None):
                 if got.rid in rids:
                     continue
                 rids.add(got.rid)
+            got.marker = marker
             yield got

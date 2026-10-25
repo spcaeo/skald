@@ -83,7 +83,11 @@ AI_TRAINING = re.compile(
     # the owners' own crawler pages: Amazon's search index for Alexa (not
     # training, but nobody waits on it either), Google's Vertex AI agent
     # crawler, and Cohere's training crawler.
-    r"|Amzn-SearchBot|Google-CloudVertexBot|cohere-training-data-crawler",
+    r"|Amzn-SearchBot|Google-CloudVertexBot|cohere-training-data-crawler"
+    # Added 2026-10-25: OpenAI's ads crawler, which checks the landing pages
+    # of ads submitted on ChatGPT (developers.openai.com/api/docs/bots; not
+    # training, but nobody waits on it). Checked against openai.com/adsbot.json.
+    r"|OAI-AdsBot",
     re.I,
 )
 
@@ -141,11 +145,18 @@ AI_REFERRER_HOSTS = (
     "chatgpt.com", "chat.openai.com", "openai.com", "perplexity.ai", "claude.ai",
     "gemini.google.com", "copilot.microsoft.com", "you.com", "phind.com",
     "poe.com", "mistral.ai",
+    # Added 2026-10-25: Copilot's newer host, Meta AI, DeepSeek's chat (not
+    # its other hosts: platform. and api-docs. are for developers) and Grok.
+    "copilot.com", "meta.ai", "chat.deepseek.com", "grok.com",
     "com.openai.chatgpt", "ai.perplexity.app.android", "com.anthropic.claude",
     "com.google.android.apps.bard", "com.microsoft.copilot",
+    # Their Android apps (Google Play ids): DeepSeek, Grok, Meta AI.
+    "com.deepseek.chat", "ai.x.grok", "com.facebook.stella",
 )
-# Bing's assistant shares its host with Bing search; only its path tells.
-AI_REFERRER_PATHS = {"bing.com": "/chat"}
+# Assistants that share their host with something else; only the path tells.
+# Bing's assistant shares bing.com with Bing search; Grok inside X shares
+# x.com with X itself (x.com alone is the social network, never Grok).
+AI_REFERRER_PATHS = {"bing.com": "/chat", "x.com": "/i/grok"}
 
 
 # One name per assistant, whichever signal found it: a referrer from its
@@ -159,10 +170,15 @@ ASSISTANT_ALIASES = {
     "perplexity": "perplexity.ai", "claude": "claude.ai",
     "gemini": "gemini.google.com", "copilot": "copilot.microsoft.com",
     "bing.com/chat": "copilot.microsoft.com", "mistral": "mistral.ai",
+    "copilot.com": "copilot.microsoft.com",
+    "chat.deepseek.com": "deepseek.com", "deepseek": "deepseek.com",
+    "x.com/i/grok": "grok.com", "grok": "grok.com",
     # Android apps, by package id.
     "com.openai.chatgpt": "chatgpt.com", "ai.perplexity.app.android": "perplexity.ai",
     "com.anthropic.claude": "claude.ai", "com.google.android.apps.bard": "gemini.google.com",
     "com.microsoft.copilot": "copilot.microsoft.com",
+    "com.deepseek.chat": "deepseek.com", "ai.x.grok": "grok.com",
+    "com.facebook.stella": "meta.ai",
 }
 
 
@@ -188,9 +204,12 @@ def cited_by(referrer: str) -> str:
                 parts.path.startswith(prefix):
             return assistant_name(domain + prefix)
     return ""
-# Some assistants tag the link instead of sending a referrer.
+# Some assistants tag the link instead of sending a referrer. Meta AI only
+# as "meta.ai": a bare utm_source=meta is how many advertisers tag their
+# Facebook and Instagram ads.
 AI_UTM = re.compile(
-    r"utm_source=(chatgpt|openai|perplexity|claude|gemini|copilot|mistral)", re.I
+    r"utm_source=(chatgpt|openai|perplexity|claude|gemini|copilot|mistral|deepseek|grok"
+    r"|meta\.ai)", re.I
 )
 
 # Campaign tag hygiene (utm_hygiene.py, its recount audit_utm.py): the ad
@@ -363,6 +382,12 @@ TOO_FAST = "too fast to be a person"
 # before the probe or after it, is this. One probe marks the whole visitor (CLASSIFICATION.md
 # rule 6b, COUNTING-TRAPS.md trap 17).
 SCANNER = "scanner (asked for secret or config files)"
+# An address and agent that asked for many probe paths the site does not
+# have (tool_visits.ProbeSweep, rule 6c): every request it made that day.
+SWEEP = "scanner (asked for many missing probe paths)"
+# A browser-like visit that sent HEAD for pages (tool_visits.HeadChecks,
+# rule 8b): a link checker. A browser opens a page with GET.
+LINK_CHECKER = "browser-like link checker (HEAD requests)"
 
 
 def crawler_visits(hits, gap_minutes: int = 30,
@@ -504,8 +529,15 @@ PROBE = re.compile("|".join(_SECRETS + _SERVED), re.I)
 SECRET_PROBE = re.compile("|".join(_SECRETS), re.I)
 
 # Attack strings that arrive in the query string instead of the path.
+# The dots of "../" and the slashes of "/etc/passwd" may come encoded once
+# (%2e%2e) or again and again (%252e%252e: a live attack on 2026-10-23 sent
+# templates%252f%252e%252e%252f... to reach a PHP tool and was counted as
+# 1,260 people page views): %(?:25)* is "%", "%25", "%2525", ...
+_DOT = r"(?:\.|%(?:25)*2e)"
+_SLASH = r"(?:/|\\|%(?:25)*(?:2f|5c))"
 PROBE_QUERY = re.compile(
-    r"\.\./|%2e%2e|/etc/passwd|\$\{jndi:|<script|union(?:\s|%20|\+)+select"
+    r"\.\./|%(?:25)*2e%(?:25)*2e|" + _DOT + _DOT + _SLASH
+    + r"|" + _SLASH + r"etc" + _SLASH + r"passwd|\$\{jndi:|<script|union(?:\s|%20|\+)+select"
     r"|XDEBUG_SESSION|allow_url_include|auto_prepend_file",
     re.I,
 )
@@ -591,7 +623,8 @@ class Classifier:
       3. search    - also named, and wanted
       4. probe     - a scanner, whatever it claims to be
       4b. scanner  - every other request of an address and agent that asked
-                     for a secret or config file that day (Scanners)
+                     for a secret or config file that day (Scanners), or for
+                     5+ probe paths the site does not have (tool_visits)
       5. bots      - automated by any other sign
       6. people    - a browser, and nothing above matched
 
@@ -649,6 +682,12 @@ class Classifier:
         # (address, agent) pairs that asked for a scanner probe in the window
         # (Scanners, the same first pass). Empty: no scanner, or the rule off.
         self.scanners: set[tuple[str, str]] = set()
+        # (address, agent) pairs that asked for many missing probe paths
+        # (tool_visits.ProbeSweep, rule 6c), and browser-like visits that
+        # sent HEAD for pages (tool_visits.HeadChecks, rule 8b), from the
+        # same first pass. Empty: none, or the rule off.
+        self.sweepers: set[tuple[str, str]] = set()
+        self.link_checkers: dict[tuple[str, str], list] = {}
 
     # A user agent repeats across thousands of hits, and the case-insensitive
     # alternations below were nine-tenths of the time spent per hit. What
@@ -745,6 +784,14 @@ class Classifier:
         return any(first <= when <= last for first, last in spans)
 
     @staticmethod
+    def _within(spans_by_pair: dict, hit: Hit) -> bool:
+        spans = spans_by_pair.get((hit.address, hit.user_agent)) if spans_by_pair else None
+        if not spans:
+            return False
+        when = _aware(hit.when)
+        return any(first <= when <= last for first, last in spans)
+
+    @staticmethod
     def _any_of(patterns: list[str] | None) -> re.Pattern | None:
         cleaned = [re.escape(p) for p in (patterns or []) if p]
         return re.compile("|".join(cleaned), re.I) if cleaned else None
@@ -772,6 +819,18 @@ class Classifier:
             label = self._ours_address(hit.address, hit.when)
             if label:
                 return Verdict(Group.OURS, engine=label, probe=probing)
+
+        # Rule 2b (2026-10-25): a claimed crawler that is scanning (this
+        # request is a probe, or this address and agent asked for secrets
+        # this day: rules 6 and 6b) and is not proven its owner's is not
+        # believed: bots, as those rules file it. A proven fake still goes on
+        # to "claims to be <name>" below. Without this, a day with no fresh
+        # lists moved a fake OAI-AdsBot's .env requests out of bots.
+        claimed = asked or training or (None if preview else search)
+        if claimed and (probing or (self.scanners and (hit.address, agent) in self.scanners)) \
+                and self._checked(claimed, hit) not in ("verified", "spoofed"):
+            return Verdict(Group.BOTS, engine="" if probing else SCANNER, probe=probing,
+                           legacy=legacy)
 
         # A named crawler is checked against its owner's addresses
         # (bot_verify). One that is proven not to be what it says is a bot
@@ -805,6 +864,10 @@ class Classifier:
             # scanner, whatever this one request was (rule 6b).
             return Verdict(Group.BOTS, engine=SCANNER, legacy=legacy)
 
+        if self.sweepers and (hit.address, agent) in self.sweepers:
+            # Five or more probe paths the site does not have (rule 6c).
+            return Verdict(Group.BOTS, engine=SWEEP, legacy=legacy)
+
         if other_bot or not agent or MACHINE_PATH.search(hit.path):
             return Verdict(Group.BOTS, legacy=legacy)
 
@@ -813,6 +876,10 @@ class Classifier:
             # same session: a crawler in a browser's clothes. All of its
             # requests are bots, so the groups still partition the log.
             return Verdict(Group.BOTS, engine=CRAWLER_SESSION, legacy=legacy)
+
+        if browser and self._within(self.link_checkers, hit):
+            # HEAD for pages: a link checker, whatever it rendered (rule 8b).
+            return Verdict(Group.BOTS, engine=LINK_CHECKER, legacy=legacy)
 
         if browser and self._never_rendered(hit):
             # Took the page and never drew it: no script, no style, no

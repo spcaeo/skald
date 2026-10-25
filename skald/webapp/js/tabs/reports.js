@@ -11,6 +11,7 @@ import { ME, sessions } from "../access.js";
 import { head1, field, input, status, when, why, confirmIn } from "./forms.js";
 import { reportForm, scheduleWords, previewBox, downloadPdf } from "./reportform.js";
 import { DEMO, DEMO_SAYS } from "../demo.js";
+import { copyIf } from "../urlactions.js";
 
 const BASIC = "Client reports come with accounts (access.mode: sessions).";
 const fmtDay = (d) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
@@ -25,8 +26,8 @@ const SAVED = {
 
 function sendRow(x) {
   return h("tr", null, h("td", null, when(x.at)), h("td", null, x.by === "schedule" ? "The schedule" : x.by),
-    h("td", null, x.first ? span(x.first, x.last) : "—"), h("td", null, x.recipients.length ? x.recipients.join(", ") : "—"),
-    h("td", null, h("span", { class: `tf ${x.ok ? "on" : "off"}` }, x.ok ? "sent" : "not sent"), " ", x.detail));
+    h("td", null, x.first ? span(x.first, x.last) : "—"), h("td", null, x.recipients.length ? copyIf("text", x.recipients.join(", "), null, { label: "recipients", cls: "" }) : "—"),
+    h("td", null, h("span", { class: `tf ${x.ok ? "on" : "off"}` }, x.ok ? "sent" : "not sent"), " ", copyIf("text", x.detail || "", null, { label: "detail" })));
 }
 
 function history(sends) {

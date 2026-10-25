@@ -71,7 +71,8 @@ def synthetic(day: date = DAY) -> list[str]:
     ]
 
 
-WANT = {"window_minutes": 15, "visits": 5, "direct": 3, "likely": 2,
+WANT = {"window_minutes": 15, "chance_limit": 0.25, "by_chance": {},
+        "visits": 5, "direct": 3, "likely": 2,
         "by_assistant": {"(more than one)": 1, "chatgpt.com": 1},
         "pages": {"/docs": 1, "/pricing/": 1},
         "fetches": {"chatgpt.com": 1, "claude.ai": 1, "perplexity.ai": 1},

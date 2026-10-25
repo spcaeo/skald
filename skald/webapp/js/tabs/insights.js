@@ -10,6 +10,8 @@ import { pathMatch } from "../data.js";
 import * as S from "../state.js";
 import { info } from "./tiles.js";
 import { fold, sentence, headline } from "../insight-rank.js";
+// 2.35: the to-do list above the cards (js/tabs/todos.js).
+import { todoSection } from "./todos.js";
 
 export const TYPES = [
   ["working", "Working", "var(--good)", '<path d="M3 11l4-4 3 3 4-5"/><path d="M10 5h4v4"/>'],
@@ -70,6 +72,7 @@ export default function insights(m, s) {
   const out = [h("div", { class: "head" }, h("h1", null, "Insights"),
     info("What changed, in plain words: what is working, what dropped, what is new or gone, what looks unusual, and what is worth fixing. Each compares whole, verified days only and opens the tab that shows it. The five with the most impact come first: a lead counts more than a visit, and a finding on small numbers counts less.", "Insights"),
     h("span", { class: "period" }, "Whole days, compared with the days before · the date range above does not apply"))];
+  out.push(todoSection(m, s), h("h2", { class: "ins-h2" }, "What changed"));
   if (!file) return [...out, stateNote("Insights are coming: the data layer has not written insights.json yet. They appear here on the first run that writes it.")];
   const all = [...(file.insights || []).map((i) => ({ ...i, win: length(i) })), ...(file.today || []).map((i) => ({ ...i, win: "today" }))];
   const counts = Object.fromEntries(WINDOWS.map(([k]) => [k, all.filter((i) => i.win === k).length]));
@@ -96,7 +99,7 @@ export default function insights(m, s) {
   }
   const cards = fold(filtered);
   const grid = h("div", { class: "ins-grid" }, cards.slice(0, TOP).map(card));
-  out.push(h("section", { class: "s" }, h("h2", null, cards.length > TOP ? `The ${TOP} biggest` : "What changed"), grid));
+  out.push(h("section", { class: "s" }, cards.length > TOP ? h("h3", null, `The ${TOP} biggest`) : null, grid));
   if (cards.length > TOP) {
     const rest = h("div", { class: "ins-grid", hidden: true }, cards.slice(TOP).map(card));
     const btn = h("button", { type: "button", class: "btn ins-all", "aria-expanded": "false" }, `Show all ${cards.length}`);

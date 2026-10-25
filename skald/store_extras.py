@@ -49,10 +49,14 @@ KINDS = ("hourly", "ours", "not_found", "pages", "campaigns", "returning",
          # each crawler beside the site's sitemap; problems crawlers hit
          # (crawl_health.py)
          "crawl_health",
+         # what AI crawlers and assistants got back, by address (ai_status.py)
+         "ai_status",
          # where each visit's visitor first came from (firsttouch.py)
          "first_touch",
          # people from search engines by engine and landing page (search_landing.py)
          "search_landing",
+         # visits by the page they started on (landings.py)
+         "landings",
          # scanners, exposures, attack attempts, fake browsers (security.py)
          "security")
 

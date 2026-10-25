@@ -94,6 +94,10 @@ class Extras:
         # hit (crawl_health.py). The whole site's tally only: None for a view.
         from .crawl_health import Collector
         self.crawl_health = Collector()
+        # What AI crawlers and assistants got back, by address (ai_status.py,
+        # AI readiness). The whole site's tally only: None for a view.
+        from .ai_status import Collector as AiStatus
+        self.ai_status = AiStatus()
         # Scanners, exposures, attack attempts and fake browsers (security.py):
         # a view across the groups. The whole site's tally only: None for a view.
         from .security import Collector as Security
@@ -165,6 +169,8 @@ class Extras:
         self.crawler_cost.add(hit, verdict)
         if self.crawl_health is not None:
             self.crawl_health.add(hit, verdict)
+        if self.ai_status is not None:
+            self.ai_status.add(hit, verdict)
         if self.security is not None:
             self.security.add(hit, verdict)
         hour = dim.hour(hit.when, self.tz)

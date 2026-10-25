@@ -229,6 +229,7 @@ tr.vs-mover td { background: color-mix(in srgb, var(--va) 4%, transparent); }
 .ps-i.ai .ps-dot { background: var(--g-answer_engines); }
 .ps-i.people .ps-dot { background: var(--g-people); }
 .ps-i.lead .ps-dot { background: var(--opp); }
+.ps-i.change .ps-dot { background: var(--ink-3); }
 .ps-i.not .ps-dot { background: var(--surface); box-shadow: 0 0 0 1.5px var(--gap); }
 .ps-i.not b { font-weight: 450; color: var(--ink-3); }
 .ps-pub .card-h { flex-wrap: wrap; gap: 8px 16px; align-items: center; }

@@ -10,7 +10,7 @@ import { countryWords } from "./readers.js";
 import { call, installOnly, INSTALL_ONLY } from "./ipmanager.js";
 import { isViewer, VIEWER } from "../access.js";
 import { openDrawer } from "../drawer.js";
-import { withUrl } from "../urlactions.js";
+import { withUrl, withCopy, copyIf } from "../urlactions.js";
 
 export const GROUP_NAME = { ...Object.fromEntries(GROUPS), excluded: "Other hosts (not counted)" };
 
@@ -26,7 +26,8 @@ export const FLAG_WORDS = {
 };
 const KIND_WORDS = { page: "a page", rsc: "Next.js page data (_rsc)", asset: "a file (script, style, image)", beacon: "a beacon", crawler_file: "robots.txt, a sitemap or similar",
   redirect: "a redirect", not_modified: "not modified (cached)", not_found: "not found", client_error: "a client error", server_error: "a server error", post: "a form post",
-  script_event: "a script tag event (sent to Skald, not a form)", skald_endpoint: "a call to a Skald endpoint (hooks or shipped logs, not a form)", other: "other" };
+  script_event: "a script tag event (sent to Skald, not a form)", skald_endpoint: "a call to a Skald endpoint (hooks or shipped logs, not a form)", other: "other",
+  not_page: "a machine address, not a page (feed, API, Markdown copy...)" };
 
 // One row as the screens read it; the file's own fields stay as they are.
 export function norm(r) {
@@ -40,14 +41,8 @@ export function statusTone(st) {
   return "s2";
 }
 
-export function copyButton(text, what = "address") {
-  const b = h("button", { type: "button", class: "copy", "aria-label": `Copy ${what} ${text}` }, "Copy");
-  b.addEventListener("click", async (e) => {
-    e.stopPropagation();
-    try { await navigator.clipboard.writeText(text); toast(`Copied ${text}`); } catch { toast("Copy is not allowed here; select the text instead"); }
-  });
-  return b;
-}
+/* An address with its copy icon (the shared one, urlactions.js), for a cell or a line. */
+export const ipCopy = (ip, content = ip, cls = "ua-after") => copyIf("ip", content, ip, { label: "address", cls });
 
 const yes = (v) => (v == null ? "-" : v ? "yes" : "no");
 const VERIFIED = { verified: "verified: its address belongs to who it says", unverified: "not verifiable: no published address list", spoofed: "spoofed: claims a name its address does not belong to" };
@@ -62,7 +57,7 @@ export function detail(m, row, ours, code = null) {
   const sec = (title, ...kids) => h("section", { class: "dw-sec" }, h("h3", null, title), ...kids);
   const request = dl([
     ["Time", tzTime(row.at, { seconds: true, date: true })],
-    ["Host", row.host || "-"],
+    ["Host", copyIf("text", row.host || "-")],
     ["Request", withUrl(h("span", { class: "mono" }, `${row.method || "(no method)"} ${row.path}${row.query ? `?${row.query}` : ""}`), row.host && /^[a-z0-9.-]+(:\d+)?$/i.test(row.host) ? `https://${row.host}${row.path}` : row.path, { label: row.path })],
     ["What it was", KIND_WORDS[row.kind] || row.kind || "-"],
     ["Status", h("span", { class: `st ${statusTone(row.status)}` }, String(row.status))],
@@ -70,22 +65,22 @@ export function detail(m, row, ours, code = null) {
     ["Server time", row.ms == null ? "not logged" : `${n(row.ms)} ms`],
   ]);
   const who = dl([
-    ["Address", row.ip && !removed ? h("span", { class: "ip" }, row.ip, copyButton(row.ip)) : removed ? "removed on request" : "-"],
+    ["Address", row.ip && !removed ? h("span", { class: "ip" }, ipCopy(row.ip)) : removed ? "removed on request" : "-"],
     ["Country", row.country ? countryWords(row.country) : "Not recorded"],
     ["System", [row.os, row.device].filter((x) => x && x !== "Other").join(", ") || "-"],
-    ["Agent", row.agent || "-"],
+    ["Agent", copyIf("text", row.agent || "-")],
     ["Verified", row.verified ? VERIFIED[row.verified] || row.verified : "only named assistants and search crawlers are checked"],
     ["Warning signs", row.flags.length ? h("ul", { class: "flag-list" }, row.flags.map((f) => h("li", null, FLAG_WORDS[f] ? `${FLAG_WORDS[f][0]}: ${FLAG_WORDS[f][1].toLowerCase()}` : f))) : "none"],
   ]);
   const counted = dl([
     ["Group", h("span", { class: "grp" }, h("i", { style: { background: color(row.group) } }), GROUP_NAME[row.group] || row.group)],
-    ["Decided by", row.rule || "-"],
-    ["Page view", row.page_view ? "yes, counted as a page view" : "no"],
+    ["Decided by", copyIf("text", row.rule || "-")],
+    ["Page view", row.page_view ? "yes, counted as a page view" : row.not_page ? h("span", null, "no: on the not-a-page list (", withCopy(h("span", { class: "mono" }, row.not_page), row.not_page, { label: `entry ${row.not_page}` }), "; Settings > Sites)") : "no"],
   ]);
   const from = dl([
     ["Referrer", row.referrer ? withUrl(h("span", { class: "mono" }, row.referrer), row.ref_host && /^[a-z0-9.-]+$/i.test(row.ref_host) ? `https://${row.referrer}` : "") : "none"],
-    ["AI assistant", row.assistant || "-"],
-    ["Campaign tags", utm || "none"],
+    ["AI assistant", copyIf("text", row.assistant || "-")],
+    ["Campaign tags", copyIf("text", utm || "none")],
   ]);
 
   // Our own traffic: say so, or offer to add the address (admins only).

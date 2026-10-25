@@ -68,7 +68,7 @@ class Invalid(ValueError):
 class Key:
     kind: str                       # int bool email emails text choice host hosts views zone
     #                                 path filename secret events prefixes searchprop bingsite
-    #                                 ipmode minimums
+    #                                 ipmode minimums notpages pagepatterns
     who: str                        # admin, install or owner
     scopes: tuple                   # where it may be saved; the first is where the page saves
     config: tuple | None            # (section, key) in config.yml
@@ -137,6 +137,13 @@ SCHEMA: dict[str, Key] = {
                                label="Page asset paths"),
     "site.require_rendering": Key("bool", "admin", ("site",), ("site", "require_rendering"),
                                   True, label="Count a visit only when its page drew"),
+    # 2.35, per site: the not-a-page list (not_pages.py). Entries counted as
+    # pages again, and the site's own machine addresses; both roads read them
+    # from config["site"], which `apply` writes.
+    "site.not_pages_off": Key("notpages", "admin", ("site",), ("site", "not_pages_off"), [],
+                              label="Not pages"),
+    "site.not_pages_extra": Key("pagepatterns", "admin", ("site",),
+                                ("site", "not_pages_extra"), [], label="Also not pages"),
     "backup.daily": Key("int", "install", ("install",), ("backup", "daily"), 14, 1, 60,
                         shrink=True, label="Daily backup copies"),
     "backup.weekly": Key("int", "install", ("install",), ("backup", "weekly"), 8, 0, 52,
@@ -486,6 +493,12 @@ def validate(name: str, value, cap: int | None = None):
         return _goals(value)
     if kind == "prefixes":
         return _prefixes(value, key)
+    if kind in ("notpages", "pagepatterns"):
+        from . import not_pages
+        try:
+            return (not_pages.clean_off if kind == "notpages" else not_pages.clean_extra)(value)
+        except ValueError as why:
+            raise Invalid(str(why)) from None
     if kind == "minimums":
         from .alerts_sales import clean_minimum
         try:
@@ -709,7 +722,7 @@ def _from_config(config, key: Key):
         return raw is True or str(raw).lower() == "true"
     if key.kind in ("emails", "hosts") and isinstance(raw, str):
         return [raw]
-    if key.kind in ("events", "prefixes") and isinstance(raw, str):
+    if key.kind in ("events", "prefixes", "notpages", "pagepatterns") and isinstance(raw, str):
         return raw.replace(",", " ").split()
     return raw
 
@@ -823,7 +836,7 @@ SHRINKING = tuple(k for k in PLAIN if SCHEMA[k].shrink and "site" in SCHEMA[k].s
 # page milestones and the rest are kept for good.
 DETAIL_KINDS = ("pages", "visit_cube", "cube", "crawler_paths", "page_firsts",
                 "not_found", "page_counts", "funnels", "crawler_cost",
-                "crawl_health", "security")
+                "crawl_health", "security", "ai_status")
 
 
 def apply(config: dict, site: str | None = None, live_dir=None) -> dict:

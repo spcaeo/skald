@@ -134,7 +134,8 @@ def cmd_set(ctx, db) -> int:
     if name == "mail.to":
         ctx.out("  recipients saved here get no confirm mail and receive nothing until they "
                 "confirm: add them on the Settings > Mail page instead")
-    if name in ("site.asset_prefixes", "site.require_rendering", "sites.hosts"):
+    if name in ("site.asset_prefixes", "site.require_rendering", "sites.hosts",
+                "site.not_pages_off", "site.not_pages_extra"):
         ctx.out("  from the next run; recount stored days with `backfill --days N --force`")
     return 0
 

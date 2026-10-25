@@ -20,15 +20,19 @@ the sitemap the way robots.py reads robots.txt:
               day, else the latest one kept before it (a failed fetch keeps the
               last good copy). None when no list was ever kept.
 
+Each <url>'s <lastmod> is read in the same pass (sitemap_dates.py): the
+path list, and so what Crawl health is judged by, does not depend on it.
+
 Storage, beside the history (the live folder):
 
   sitemaps/days.json         {day: {"list", "paths", "fetched_at", "sources",
-                              "skipped", "truncated"}} - one entry per local day
+                              "skipped", "truncated", "lastmod"}} - one entry per local day
                               a fetch worked (the day's first good fetch; it is
                               never rewritten, so a day stays judged by one list)
   sitemaps/<list>.json       {"paths": [path, ...]} sorted; <list> is the first
                               16 hex characters of the SHA-256 of the paths, one
                               per line: a list that did not change is kept once
+  sitemaps/lastmod/          each path's lastmod dates across days (sitemap_dates.py)
   sitemap-state.json         the last try: urls, tried_at, ok, error, fetched_at
 
 A path is the URL's path (no query string, no fragment), as the log writes it,
@@ -60,6 +64,8 @@ DAYS_FILE = "days.json"
 STATE = "sitemap-state.json"
 KEEP_DAYS = 400
 _LOC = re.compile(r"<loc>\s*([^<]+?)\s*</loc>", re.I)
+_URL = re.compile(r"<url(?:\s[^>]*)?>(.*?)</url\s*>", re.I | re.S)
+_LASTMOD = re.compile(r"<lastmod>\s*([^<]*?)\s*</lastmod>", re.I)
 _UNSAFE = re.compile(rb"<!(?:DOCTYPE|ENTITY)", re.I)
 
 
@@ -151,6 +157,14 @@ def _unzip(body: bytes, url: str) -> bytes:
 
 def read_body(body: bytes, url: str) -> tuple[str, list[str]]:
     """("index" | "urlset" | "text", [URL]) from one sitemap file's bytes."""
+    kind, locs, _ = read_entries(body, url)
+    return kind, locs
+
+
+def read_entries(body: bytes, url: str) -> tuple[str, list[str], list[tuple[str, str]]]:
+    """read_body's (kind, [URL]) and, for a urlset, [(URL, <lastmod> text)]
+    for each <url> that has a <lastmod> (its first <loc>, its first <lastmod>).
+    The URL list is every <loc> in the file, as before: lastmod never changes it."""
     if len(body) > MAX_BYTES:
         raise ValueError(f"{url}: over {MAX_BYTES:,} bytes")
     body = _unzip(body, url)
@@ -163,19 +177,27 @@ def read_body(body: bytes, url: str) -> tuple[str, list[str]]:
         if "<urlset" not in head and "<sitemapindex" not in head:
             raise ValueError(f"{url}: neither a urlset nor a sitemap index")
         from html import unescape
-        return kind, [unescape(m.group(1)) for m in _LOC.finditer(text)]
+        stamps = []
+        if kind == "urlset":
+            for block in _URL.finditer(text):
+                loc, mod = _LOC.search(block.group(1)), _LASTMOD.search(block.group(1))
+                if loc and mod:
+                    stamps.append((unescape(loc.group(1)), unescape(mod.group(1))))
+        return kind, [unescape(m.group(1)) for m in _LOC.finditer(text)], stamps
     return "text", [ln.strip() for ln in text.splitlines()
-                    if ln.strip().lower().startswith(("http://", "https://"))]
+                    if ln.strip().lower().startswith(("http://", "https://"))], []
 
 
 def collect(config: dict, robots_text: str | None, fetch=None) -> dict:
-    """Every page path the site's sitemaps list. Raises when no sitemap
-    could be read at all."""
+    """Every page path the site's sitemaps list, and each kept path's
+    <lastmod> texts ("lastmod": {path: [text]}). Raises when no sitemap could
+    be read at all."""
     hosts = hosts_of(config)
     fetch = fetch or _getter(hosts)
     queue = candidates(config, robots_text)
     seen: set[str] = set()
     paths: set[str] = set()
+    raws: dict[str, list[str]] = {}
     sources, errors = [], []
     skipped = 0
     truncated = False
@@ -191,7 +213,7 @@ def collect(config: dict, robots_text: str | None, fetch=None) -> dict:
             truncated = True
             break
         try:
-            kind, locs = read_body(fetch(url), url)
+            kind, locs, stamps = read_entries(fetch(url), url)
         except Exception as why:            # noqa: BLE001 - try the others
             errors.append(f"{url}: {type(why).__name__}: {why}"[:200])
             continue
@@ -210,10 +232,14 @@ def collect(config: dict, robots_text: str | None, fetch=None) -> dict:
                 truncated = True
                 continue
             paths.add(p)
+        for loc, text in stamps:
+            p = path_of(loc) if on_site(loc, hosts) else None
+            if p is not None and p in paths:
+                raws.setdefault(p, []).append(text[:64])
     if not sources:
         raise ValueError("; ".join(errors) or "no sitemap on the site's hosts")
     return {"paths": sorted(paths), "sources": sources, "skipped": skipped,
-            "truncated": truncated, "errors": errors}
+            "truncated": truncated, "errors": errors, "lastmod": raws}
 
 
 # ------------------------------------------------------------- storage
@@ -242,8 +268,10 @@ def state(directory) -> dict:
     return _state(directory) if directory is not None else {}
 
 
-def keep(directory: Path, day: date, got: dict, fetched_at: str) -> dict:
-    """Write the day's list (once per content) and its entry in days.json."""
+def keep(directory: Path, day: date, got: dict, fetched_at: str, tz=None) -> dict:
+    """Write the day's list (once per content) and its entry in days.json;
+    with `tz` and the fetch's lastmod texts, the day's lastmod dates too
+    (sitemap_dates.py: their counts in the entry, the dates in its history)."""
     folder = Path(directory) / FOLDER
     folder.mkdir(parents=True, exist_ok=True)
     lid = list_id(got["paths"])
@@ -254,6 +282,12 @@ def keep(directory: Path, day: date, got: dict, fetched_at: str) -> dict:
     days[day.isoformat()] = {"list": lid, "paths": len(got["paths"]),
                              "fetched_at": fetched_at, "sources": got["sources"][:FILES],
                              "skipped": got["skipped"], "truncated": got["truncated"]}
+    if tz is not None and "lastmod" in got:
+        from . import sitemap_dates
+        found, counts = sitemap_dates.dates(got["paths"], got["lastmod"], tz, day)
+        sitemap_dates.merge(directory, day, found)
+        days[day.isoformat()]["lastmod"] = {"version": sitemap_dates.VERSION, **counts,
+                                            "digest": sitemap_dates.digest(found)}
     oldest = (day - timedelta(days=KEEP_DAYS)).isoformat()
     days = {d: e for d, e in sorted(days.items()) if d >= oldest}
     write_atomic(folder / DAYS_FILE, json.dumps(days, indent=1, sort_keys=True) + "\n")
@@ -289,9 +323,9 @@ def refresh(config: dict, directory, now: datetime | None = None, fetch=None) ->
     try:
         got = collect(config, cached(directory), fetch)
         stamp = now.isoformat(timespec="seconds")
-        entry = keep(Path(directory), day, got, stamp)
+        entry = keep(Path(directory), day, got, stamp, zone(config))
         st.update(ok=True, error=None, fetched_at=stamp, urls=got["sources"][:FILES],
-                  paths=entry["paths"], skipped=got["skipped"],
+                  paths=entry["paths"], lastmod=entry.get("lastmod"), skipped=got["skipped"],
                   truncated=got["truncated"], file_errors=got["errors"][:5])
     except Exception as why:            # noqa: BLE001 - keep the last good copy
         st.update(ok=False, error=f"{type(why).__name__}: {why}"[:300])

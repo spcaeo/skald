@@ -12,6 +12,9 @@ for today so far:
                     the same request written twice, dropped by parse.read()
                     and counted by window.py
   old_format        lines in the old combined layout: no host, no country
+  not_pages         requests of the site's hosts shaped like a page view that
+                    the site's not-a-page list kept out of the page views, by
+                    entry (not_pages.py): {entry: {"requests", "people"}}
   gaps              stretches of more than GAP_MINUTES with no line at all
   first/last line   when the window's own lines start and stop
 
@@ -72,6 +75,15 @@ class Quality:
         self.first = None
         self.last = None
         self.dups = Duplicates()
+        self.not_pages: dict[str, list] = {}
+
+    def not_page(self, rule: str, people: bool) -> None:
+        """A request of the site's hosts the not-a-page list took out of the
+        page views (aggregate.Tally.add): by entry, and how many of them
+        were people's."""
+        got = self.not_pages.setdefault(rule, [0, 0])
+        got[0] += 1
+        got[1] += people
 
     def add(self, hit) -> None:
         self.parsed += 1
@@ -102,7 +114,9 @@ class Quality:
                 "old_format": self.old_format, "gaps": gaps,
                 "first_line": self._hhmm(self.first) if self.first else None,
                 "last_line": self._hhmm(self.last) if self.last else None,
-                "newest_line": self.last.isoformat(timespec="seconds") if self.last else None}
+                "newest_line": self.last.isoformat(timespec="seconds") if self.last else None,
+                "not_pages": {rule: {"requests": n, "people": p}
+                              for rule, (n, p) in sorted(self.not_pages.items())}}
 
 
 def check(blob: dict | None, parsed: int) -> list:
@@ -169,6 +183,8 @@ def _day(p, entry: dict, stored: dict[str, tuple]) -> dict:
         "duplicates": q.get("duplicates") if q else None,
         "duplicates_removed": q.get("duplicates_removed") if q else None,
         "old_format": q.get("old_format") if q else None,
+        # Shaped like pages, not counted as pages (not_pages.py); None: not recorded.
+        "not_pages": q.get("not_pages") if q else None,
         "first_line": q.get("first_line") if q else None,
         "last_line": q.get("last_line") if q else None,
         "gaps": q.get("gaps") if q else None,
@@ -196,7 +212,7 @@ def build(p) -> dict:
         today = {"state": p.snap.get("state"), "lines": p.snap.get("lines_read"),
                  "unparsed": p.snap.get("unparsed"),
                  **{k: (q or {}).get(k) for k in ("duplicates", "duplicates_removed",
-                                                   "old_format", "gaps",
+                                                   "old_format", "not_pages", "gaps",
                                                    "first_line", "last_line", "files")},
                  "not_rendered": (((p.snap.get("extras") or {}).get("bots") or {})
                                   .get("not_rendered")) if p.live_ok else None,

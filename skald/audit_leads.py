@@ -195,13 +195,21 @@ def _fetches(history, site: str, first: date, last: date) -> tuple[set, dict] | 
             "AND d.verified = 1 AND COALESCE(d.partial_from, '') = '' "
             "AND COALESCE(d.partial_until, '') = '' AND json_valid(x.data) "
             "AND json_type(x.data, '$.rows') = 'array'", span)}
+        # The fetches the day's ai_likely calls "by chance" (its own recount
+        # checks that list): left out here too.
+        ruled = set(db.execute(
+            "SELECT x.day, b.key, p.value FROM day_extras x, json_each(x.data, '$.by_chance') b, "
+            "json_each(b.value) p WHERE x.site = ? AND x.kind = 'ai_likely' AND x.day BETWEEN "
+            "? AND ? AND json_valid(x.data) AND json_type(x.data, '$.by_chance') = 'object'",
+            span))
         pages: dict = {}
         for day, stamp, who, path in db.execute(
                 "SELECT x.day, CAST(strftime('%s', json_extract(r.value, '$[0]')) AS INTEGER) "
                 "/ 60, json_extract(r.value, '$[1]'), json_extract(r.value, '$[2]') "
                 "FROM day_extras x, json_each(x.data, '$.rows') r WHERE x.site = ? AND "
                 "x.kind = 'ai_fetches' AND x.day BETWEEN ? AND ? AND json_valid(x.data)", span):
-            if day in days and stamp is not None:
+            if day in days and stamp is not None and \
+                    (day, str(who), _bare(str(path))) not in ruled:
                 pages.setdefault(_bare(str(path)), []).append((stamp, str(who)))
     finally:
         db.close()

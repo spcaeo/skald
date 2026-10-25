@@ -22,7 +22,7 @@ At the top are three cards. Each has a **Set up** button that opens a short dial
 
 | Card | What it is for |
 | --- | --- |
-| Send this site's visits to Skald | A site whose web server is not your Skald server: its log, or its events, must be sent to Skald. **Set up with your AI agent** on this card gives you one line for your agent instead (see [Add a site, step by step](connections.md#add-a-site-step-by-step)) |
+| Send this site's visits to Skald | A site whose web server is not your Skald server: its log, or its events, must be sent to Skald. **Set up with your AI agent** on this card gives you one line for your agent instead (see [Add a site, step by step](connections.md#add-a-site-step-by-step)). **Test a sample** checks that Skald can read a log before you send it (see [Test a sample of a log](connections.md#test-a-sample-of-a-log)) |
 | Read your figures (API) | A script or a spreadsheet that reads your figures as JSON |
 | Connect an AI assistant (MCP) | Claude, ChatGPT or another assistant that answers questions about your traffic |
 
@@ -103,9 +103,46 @@ The Test starts by itself when the step opens: Skald says what it received for t
 | Connected: 1,240 lines received today, the last at 10:42 (2 min ago). | It works |
 | Connected before: the last lines came at ... Nothing today yet. | It worked before. Open the site, then test again |
 | Refused at 10:41: the token is not for this site. | Skald refused the lines. The fix is shown under it |
-| Lines arrive, but none could be read | The log's format does not match the site's setting |
+| Lines arrive, but none could be read | The log's format does not match the site's setting. [Test a sample](connections.md#test-a-sample-of-a-log) says which format the lines are in |
 
 For your own server, a wrong answer also says: run `sudo skald-ship-check` on the web server, which checks each part and names the fix (an older zip kit has `sudo bash check.sh` in its folder instead), and where to see what the shipper says: `sudo docker logs --tail 20 skald-ship` with Docker, or `journalctl -u skald-ship -n 20` without. A set-up saved before 2.30 gets the same advice. Under the answer is a folded table, **Common problems, and the fix**. Every answer and its fix are in [If a connection does not work](troubleshooting-connections.md).
+
+## Test a sample of a log
+
+Can Skald read this log, and what would it count? **Test a sample** on the **Send this site's visits to Skald** card tells you now, not after the next daily run. It is for owners and admins.
+
+1. Paste up to 200 lines of the log: the first lines of your web server's access log (nginx, Apache, Caddy), or of an export from Cloudflare, CloudFront, Fastly, Akamai, Vercel or Netlify.
+2. Leave **Format** on **Detect it (auto)**, or choose the one you expect.
+3. Press **Next**. Skald reads the lines with the same readers and the same rules as the daily run, with this site's settings. Nothing is stored.
+
+The report says:
+
+| Part | What it tells you |
+| --- | --- |
+| Format | The reader Skald picked, how sure it is, and how many lines each reader could read |
+| Lines | How many lines it read, and the ones it could not, with the main reasons and up to 3 line numbers each. A line itself is never shown |
+| Times | The first and last time in the lines, and the time zone they are written in |
+| Hosts | The host names in the lines, and whether each is one of this site's |
+| Skald's five groups | Real people, answer engines, search engines, bots and scanners, and your own traffic, for these lines. They add up to the lines read |
+| Pages | The pages people viewed most |
+| Warnings | What to fix before you send the log |
+
+The warnings, and what to do:
+
+| Warning | What to do |
+| --- | --- |
+| This looks like an error log | Use the access log, often `access.log` in the same folder |
+| No line has a referrer | Every visit's source would be Direct. Add the Referer header to the log format |
+| No line has a user agent | Skald cannot tell people from bots. Add the User-Agent header to the log format |
+| No line carries a host name | Fine when the server serves one site. Otherwise add `$host` to the log format |
+| Lines for `www.` are not one of the site's hosts | Add the host name in Settings > Sites, or those lines are counted apart |
+| This site is set to read another format | Set the site's log format to Detect it (auto) |
+| No asset request is under the site's page assets | Set the site's page assets, or people show as bots |
+| More than 1% of the lines cannot be read | A daily run would hold the day back. The reasons above say why |
+
+The pasted lines stay in your browser and are sent once for the test. They are not kept, and they never go in the page address. The dialog's link is `#settings/api?conn=sample&step=1`; a link to step 2 opens step 1, since the lines are not in it.
+
+On the server, the same test reads a whole file: `docker exec skald skald try-log /var/lib/skald/ingest/example.com/access.log --site example.com` (Docker), or `skald try-log <the log file>`. It reads the first 500 lines (`--lines` for more), plain or gzip.
 
 ## Read your figures (API)
 
