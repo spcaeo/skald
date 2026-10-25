@@ -59,6 +59,20 @@ class Node(unittest.TestCase):
         when the dialog closes or the line runs out, the chat-only command, reloads."""
         self.assertIn("agent-setup: all passed", self.run_js("agent-setup.mjs"))
 
+    def test_the_period_dates_include_today_and_not_measured(self):
+        """Release 2 (js/period-dates.js, data.js withToday): on 15 Jan, 7 days including
+        today are 9-15 Jan against 2-8 Jan and 7 whole days 8-14 Jan against 1-7 Jan; a period
+        before history says "before: not measured" and the first full comparison, never 0 or a
+        rise; a change of 3 or fewer is about the same; inc and psort in the address, Back and
+        Forward."""
+        self.assertIn("period: all passed", self.run_js("period.mjs"))
+
+    def test_page_figures_work_on_the_page_and_new_pages(self):
+        """Release 2 (js/page-figs.js and the Summary cards): sums over whole days only, the
+        work lists and their thresholds, the sorts, AI reads now against before, the new and
+        updated pages card with its build-times note, the key figures and What changed."""
+        self.assertIn("page-work: all passed", self.run_js("page-work.mjs"))
+
     def test_every_state_is_in_the_address_and_no_address_is(self):
         """2.21 (js/routekeys.js, js/overlays.js): each drawer and dialog writes its key,
         a link reopens it, Back closes it, a link to what is not kept opens the page with
@@ -69,6 +83,13 @@ class Node(unittest.TestCase):
         """2.21 (js/urlactions.js): copy (the full URL, a tick, then hidden; a failure said)
         and open in a new tab on every path and URL; every page column draws them."""
         self.assertIn("urlactions: all passed", self.run_js("urlactions.mjs"))
+
+    def test_copy_on_every_value_to_paste(self):
+        """2.35 (the owner's rule, 2026-10-25): an IP address, a user agent, an email, a name,
+        a crawler, a search term, a campaign or a reason gets the copy icon (a URL copy and
+        open); tables, bar lists and drawers drawn with sample data; none on a blank or a
+        number; no raw address, email or user agent in a cell, no second copy helper."""
+        self.assertIn("copy-values: all passed", self.run_js("copy-values.mjs"))
 
     def test_what_visitors_are_doing_now(self):
         """Overview, Live (2.20): the newest visitors' paths, folded; the live diff; the pages
@@ -95,6 +116,26 @@ class Node(unittest.TestCase):
         conversions' words; currency, breakdown and tag in the address; copy and open on
         landing pages; the how-to when no value was ever sent; the lead drawer's sale facts."""
         self.assertIn("revenue: all passed", self.run_js("revenue.mjs"))
+
+    def test_insights_todos_and_lost_pages(self):
+        """2.35 (js/tabs/todos.js, todo-marks.js, todo-send.js, nf-lost.js): the to-dos from
+        todos.json, Show the list and Copy link in the address, marks only with accounts,
+        Send to team only with a mail server and a team, the lost pages' tabs and server
+        lines, and the copy icons on every path, line and word value."""
+        self.assertIn("todos: all passed", self.run_js("todos.mjs"))
+
+    def test_page_change_tracker(self):
+        """T8 (js/tabs/pagechange.js): Did my change work? on a page's view: the figures'
+        words, too early with the verdict's day, unequal coverage and leads not recorded said,
+        the sitemap's hint, the dialog's keys and POST (the note never in the address), and
+        Insights' list with copy + open on every page."""
+        self.assertIn("pagechange: all passed", self.run_js("pagechange.mjs"))
+
+    def test_breadcrumbs_back_forward_and_scroll(self):
+        """T9 (js/crumbs.js): the trail of places, cut back, sideways and capped; the line and
+        Back to with a browser-like history (Back, Forward, a crumb), each step's scroll put
+        back; a reload keeps the trail, a copied address starts its own."""
+        self.assertIn("crumbs: all passed", self.run_js("crumbs.mjs"))
 
 
 if __name__ == "__main__":

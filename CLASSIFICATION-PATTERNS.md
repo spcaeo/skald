@@ -8,6 +8,17 @@ order of the rules"; "above" and "below" mean in this file.
 
 All are case-insensitive. The names are the constants in `classify.py`.
 
+**The list as a file.** Every crawler and assistant fetcher these patterns name (with the
+search engines, the SEO crawlers inside `OTHER_BOT` and the assistants' referrers) is
+published as JSON at <https://skaldanalytics.com/bots.json>: for each name its pattern as
+written here, its owner, its purpose (training, live fetch, search index, ads, SEO tool,
+other), the group Skald files it in, and how its claim is checked (the owner's published
+list with its address, reverse DNS, the owner's network, or not checked). It is built from
+these constants, `bot_policy.CATALOG` and `bot_verify.py` by the website's build, carries
+the Skald version, and a test fails while the file and the code differ. `Google-Extended`
+is in it with no pattern, marked as a robots.txt token. (Not the dashboard's `bots.json`
+data file, [docs/DATA-CONTRACT-BOTS.md](docs/DATA-CONTRACT-BOTS.md).)
+
 ### `AI_TRAINING` - matched against the user agent
 
 Assistants fetching to train a model or build their own index. Nobody is
@@ -18,12 +29,22 @@ waiting on the response.
 `Amazonbot`, `Applebot-Extended`, `cohere-ai`, `Diffbot`, `omgili`, `AI2Bot`,
 `Timpibot`, `ImagesiftBot`, `YouBot`, `PanguBot`, `Kangaroo Bot`,
 `DuckAssistBot`, `Amzn-SearchBot`, `Google-CloudVertexBot`,
-`cohere-training-data-crawler`.
+`cohere-training-data-crawler`, `OAI-AdsBot`.
 
 Added 2026-10-18 (below, "Checking the name lists"): `Amzn-SearchBot` builds
 Amazon's search index for Alexa (Amazon says it does not train);
 `Google-CloudVertexBot` crawls for Vertex AI agents a site owner builds;
 `cohere-training-data-crawler` is Cohere's training crawler.
+
+Added 2026-10-25: `OAI-AdsBot` is OpenAI's check of the landing pages of ads
+submitted on ChatGPT (OpenAI's crawler page, developers.openai.com/api/docs/bots:
+it visits only pages submitted as ads, and what it collects is not used for
+training). Nobody waits on it, so it sits here like `OAI-SearchBot`, and it is
+checked the same way, against `openai.com/adsbot.json` (`bot_verify.LISTS`
+`openai-adsbot`, vendor `openai`). On the live sites every request carrying
+the name, up to that day, came from outside OpenAI's list and asked for
+`.env` files and keys: a scanner wearing the name. Rule 2b keeps those in bots
+even on a day with no fresh lists.
 
 `OAI-SearchBot` and `PerplexityBot` build the assistants' own search indexes
 ahead of any question, exactly as `Googlebot` does, so nobody is waiting on
@@ -63,7 +84,10 @@ their user agent is an ordinary browser's and says nothing.
 The referrer's **host** must be one of these or a subdomain of one -
 `chatgpt.com`, `chat.openai.com`, `openai.com`, `perplexity.ai`, `claude.ai`,
 `gemini.google.com`, `copilot.microsoft.com`, `you.com`, `phind.com`,
-`poe.com`, `mistral.ai` - or `bing.com` with a path under `/chat`. A substring
+`poe.com`, `mistral.ai`, `copilot.com`, `meta.ai`, `chat.deepseek.com`, `grok.com` -
+or a host that an assistant shares, by its path (`AI_REFERRER_PATHS`): `bing.com`
+under `/chat` (Copilot in Bing) and `x.com` under `/i/grok` (Grok inside X; any
+other x.com address is X, the social network). A substring
 match counted `thank-you.com` as `you.com`; `notperplexity.ai` and a
 `?ref=chatgpt.com` query are not citations either.
 
@@ -71,13 +95,21 @@ An assistant's Android app sends `android-app://<package id>/`, so its package
 id is the host. These count as the assistant: `com.openai.chatgpt`
 (ChatGPT), `ai.perplexity.app.android` (Perplexity), `com.anthropic.claude`
 (Claude), `com.google.android.apps.bard` (Gemini), `com.microsoft.copilot`
-(Copilot). Without them an app citation was "Other website" (or, for Gemini,
-"Search engine").
+(Copilot), and since 2026-10-25 `com.deepseek.chat` (DeepSeek), `ai.x.grok`
+(Grok) and `com.facebook.stella` (Meta AI), each checked on its Google Play
+page. Without them an app citation was "Other website" (or, for Gemini,
+"Search engine"). iPhone apps send no app id: an iOS app opens a link in Safari
+or its own web view, which sends either no referrer (Direct) or the
+assistant's web address, which the hosts above already count. So Copilot's
+iOS app has no id to add; no `ios-app://` referrer appears in any site's log.
 
 Every signal for one assistant gives it one name - its main domain:
 `chat.openai.com`, `openai.com` and `utm_source=chatgpt` are all
 `chatgpt.com`; `bing.com/chat` and `utm_source=copilot` are
-`copilot.microsoft.com`; each app's package id is its assistant's domain
+`copilot.microsoft.com`, and so is `copilot.com` (Copilot's newer host: the
+name stays the one history already holds); `chat.deepseek.com` and
+`utm_source=deepseek` are `deepseek.com`; `x.com/i/grok` and `utm_source=grok`
+are `grok.com`; each app's package id is its assistant's domain
 (`classify.assistant_name`). History written with an
 older name of an assistant is read back under the canonical one.
 
@@ -85,7 +117,9 @@ older name of an assistant is read back under the canonical one.
 
 Some assistants tag the outbound link instead of sending a referrer:
 `utm_source=` followed by `chatgpt`, `openai`, `perplexity`, `claude`,
-`gemini`, `copilot` or `mistral`. Checked as a fallback for the same question,
+`gemini`, `copilot`, `mistral`, `deepseek`, `grok` or `meta.ai`. Meta AI only
+as `meta.ai`: a bare `utm_source=meta` is how advertisers commonly tag their
+Facebook and Instagram ads, and counting it would turn paid social into AI. Checked as a fallback for the same question,
 so a tagged link still counts when the referrer was stripped. It applies
 whatever the referrer: a tagged link that arrives with a search engine's or
 this site's referrer is a citation too, in the count and in the audit.
@@ -304,7 +338,18 @@ WordPress; `/sitemap.xml.gz` is not a backup; `/terraform/`,
 infrastructure files (`tests/test_scanner_visitor.py`).
 
 `PROBE_QUERY` catches the few attacks that live in the query string instead:
-`../`, `/etc/passwd`, `${jndi:`, `UNION SELECT`, `XDEBUG_SESSION`.
+`../`, `/etc/passwd`, `${jndi:`, `UNION SELECT`, `XDEBUG_SESSION`. Since
+2026-10-25 the dots and slashes of `../` and `/etc/passwd` count encoded
+once or many times over: `%2e%2e%2f`, `.%2e/`, `%2e.%5c`, `%252e%252e%252f`,
+`%252fetc%252fpasswd` (`%(?:25)*2e` is `%2e`, `%252e`, `%25252e`, ...). A
+live attack sent `pagename=templates%252f%252e%252e%252f...` and the single
+`%2e%2e` did not see it. `?page=2`, `?q=v1..v2` and `?v=1.5.0` are not
+attacks, and no page of the made-up sitemap matches (`tests/test_tool_visits.py`).
+
+Rule 6c counts `PROBE` paths too: 5 or more different ones that the site
+answered 4xx or 5xx (no asset, nothing under `site.legacy_paths`) make the
+address and agent a scanner for the window, **scanner (asked for many
+missing probe paths)**. Redirects and served probes never count.
 
 That last family is the one worth remembering: it exists because somebody read
 a real log and found those requests sitting in the "people" column.
@@ -312,7 +357,9 @@ a real log and found those requests sitting in the "people" column.
 ### `BROWSER` - matched against the user agent
 
 `Mozilla/`, `Opera/`, `Safari/`, `Chrome/`, `Firefox/`. The weakest signal in
-the file, checked last.
+the file, checked last. A browser-like visit that sends `HEAD` for 2 or more
+different documents is a link checker (rule 8b): a browser opens pages with
+GET.
 
 ### `ours` - from your config
 

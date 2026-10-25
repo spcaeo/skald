@@ -287,6 +287,8 @@ class Tally:
         if hit.is_page:
             stats.views += 1
             stats.pages[hit.path[:70]] += 1
+        elif self.quality is not None and hit.not_page_rule:
+            self.quality.not_page(hit.not_page_rule, verdict.group is Group.PEOPLE)
         sessions = self.sessions[verdict.group]
         origin = None
         if hit.is_page and verdict.group is Group.PEOPLE:
@@ -450,6 +452,7 @@ def summarise_views(
                for name, test in (views or {}).items()}
     for _, t in tallies.values():        # crawl health and security are the whole site's
         t.extras.crawl_health = None
+        t.extras.ai_status = None
         t.extras.security = None
     whole.extras.security.verifier = getattr(classifier, "verifier", None)
     for hit in hits:

@@ -195,8 +195,40 @@ If the morning run fails, the server can send one short failure mail. It goes to
 - **Time zone**: the site's own zone. Days are counted midnight to midnight in it.
 - **Log file**: the log folder and file name. For install admins.
 - **Goals**: the page events that count as this site's goals, such as Sign-up sent or Demo booked. Tick up to 10. The events your site has already counted are listed first; the others are under **Not counted yet**. See [Funnels and goals](funnels-and-goals.md).
+- **Not pages**: machine addresses that are never a person reading a page, such as feeds and WordPress's API. See "Not pages" below.
 
 Changes apply from the next run. Days already stored are not counted again, except a new page group's (below).
+
+### Not pages
+
+Some addresses answer like a page but nobody reads them: a feed for feed readers, WordPress's API, a Markdown copy of a page that an AI agent fetches. Skald does not count a request for one as a page view, on every site. The request still counts as a request, in its usual group (people, bots and the rest), so the groups still add up to the log. It is left out of page views, visitors who read a page, landing pages, exits and journeys.
+
+The list, each one ticked by default:
+
+- **markdown**: a Markdown copy of a page (`/docs/index.md`, `.mdx`, `.markdown`). People read the page itself; tools and AI agents fetch the copy. AI fetches of it still show under **What they fetch** on AI & bots, as Markdown. If you publish `.md` copies for AI on purpose and want them in the pages' AI columns, untick it.
+- **wp_rest**: WordPress's API, `/wp-json/` and `?rest_route=`.
+- **wp_files**: WordPress's machine files, `xmlrpc.php`, `wp-cron.php` and `admin-ajax.php`.
+- **feeds**: feeds, `/feed/`, `/comments/feed/`, `/feed/atom/` and `?feed=`.
+- **oembed**: `/oembed/`, what another site asks for to embed a link.
+- **trackback**: `/trackback/` and `wp-trackback.php`, notices one blog sends another.
+- **author_number**: `?author=2`, a lookup that lists a WordPress site's user names.
+- **reply_to_comment**: `?replytocom=`, WordPress's reply link for browsers without scripts.
+
+**Count one as pages again.** If your site serves a real page at one of these, for example a page called `/feed/`, untick it and press **Save**.
+
+**Add your own.** Under **Also not pages**, one per line, up to 20:
+
+- `/status`: that path, with or without a slash at the end.
+- `/preview/*`: every path that starts with `/preview/`.
+- `?preview`: every address with `preview` in its query, such as `/?preview=1`.
+
+Capital letters do not matter. `/` alone is refused: it would take every page out.
+
+**What stays a page.** Pages a person opens are never on the list: an HTML sitemap page (`/sitemap/`), search results, a cart or checkout, a sign-in page, an app's dashboard, a thank-you page. If one of them is filled by a bot, that is a question of who visited, which Skald answers by itself; add it under **Also not pages** only if you never want it counted.
+
+**Where you see it.** [Site health > Data quality](#site/quality) shows each day's **Not counted as pages**: the requests, how many were people's, and which entry (hover the number). In [Requests](#site/requests) such a request says "a machine address, not a page" and names the entry.
+
+A change counts from the next run. Days already stored keep their figures until the server recounts them (`backfill --days N --force`).
 
 ### Views (page groups)
 

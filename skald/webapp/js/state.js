@@ -89,10 +89,10 @@ export function nameOf(key) {
 // "all" (2.23): All time, from the first day this site has data (data.js rangeOf).
 export const RANGES = [["today", "Today"], ["yesterday", "Yesterday"], ["7d", "7 days"], ["30d", "30 days"], ["90d", "90 days"], ["all", "All time"], ["custom", "Custom"]];
 export const FILTERS = ["country", "path", "source", "device", "browser", "campaign", "referrer"];
-const GLOBAL = ["range", "view", "from", "to", "pathmode", "rules", "cmp", "dd", "tz"];
+const GLOBAL = ["range", "view", "from", "to", "pathmode", "rules", "cmp", "dd", "tz", "inc"];
 // Kept while Compare is on (2.7.0): the custom B, "Per day", the old Compare page's chart keys.
 const CMP_KEYS = ["cb", "cnorm", "cgran", "cm"];
-const DEFAULT = { tab: "overview/summary", range: "today", view: "all", from: "", to: "", pathmode: "contains", rules: "", page: "", since: "", cmp: "", ip: "", rq: "", dd: "", tz: "", part: "", note: "", fn: "", fsrc: "", fstep: "", fmode: "", strat: "", ca: "", cb: "", cnorm: "", cgran: "", cm: "", cdim: "", pubfrom: "", pubto: "", rg: "", rm: "", rs: "", rv: "", test: "",
+const DEFAULT = { tab: "overview/summary", range: "today", view: "all", from: "", to: "", inc: "", pathmode: "contains", rules: "", page: "", since: "", cmp: "", ip: "", rq: "", dd: "", tz: "", part: "", note: "", fn: "", fsrc: "", fstep: "", fmode: "", strat: "", ca: "", cb: "", cnorm: "", cgran: "", cm: "", cdim: "", pubfrom: "", pubto: "", chgfrom: "", rg: "", rm: "", rs: "", rv: "", test: "",
   ...Object.fromEntries(OVERLAY.map((k) => [k, ""])) };
 /* The period a section opens on when the address names none (2.23). Leads & sales opens on
    the last 7 days: a lead is rare, and Today so far was too often empty (the owner,
@@ -137,6 +137,8 @@ export function read() {
   if (s.range === "custom" && !(/^\d{4}-\d\d-\d\d$/.test(s.from) && /^\d{4}-\d\d-\d\d$/.test(s.to))) s.range = own;
   s.auto = s.range !== named || (r.patch?.range && s.range === own) ? s.range : "";
   if (s.pathmode !== "starts") s.pathmode = "contains";
+  // Include today (period-dates.js): "1" or nothing; only Summary and Pages honour it.
+  if (s.inc !== "1") s.inc = "";
   // The time zone: the link's, else the one this browser chose last, else the reader's own.
   if (!["local", "site", "utc"].includes(s.tz)) {
     let kept = "";
@@ -163,6 +165,8 @@ export function hashFor(s) {
   // Compare mode's own keys, on every tab while it is on: the custom B, "Per day".
   if (cmpOf(s.cmp)) for (const k of CMP_KEYS) if (s[k] && (k !== "cb" || s.cmp === "custom")) p.set(k, s[k]);
   if (s.tz && s.tz !== "site") p.set("tz", s.tz);
+  // Include today: kept on every tab, so Summary and Pages share it (others ignore it).
+  if (s.inc === "1") p.set("inc", "1");
   // What belongs to one tab only (a page's story, the insights' "since", a funnel's
   // steps, the request log's toggles...): the tab's `keep` list, js/tabs/s-*.js.
   for (const k of KEEP[s.tab] || []) if (s[k] && !GLOBAL.includes(k)) p.set(k, s[k]);

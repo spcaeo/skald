@@ -320,8 +320,9 @@ A row:
 | `os`, `device` | string | from the user agent (`macOS`, `iOS`, ... / `Desktop`, `Mobile`, `Tablet`); bots usually `Other` / `Desktop` |
 | `group` | string | `people`, `answer_engines`, `search_engines`, `bots`, `ours`, or `excluded` |
 | `rule` | string | why it is in that group, in words: `"people: reader"`, `"people: asset"`, `"people: Next.js payload (_rsc)"` (a prefetch, or a line without the `rsc_prefetch=` field; a Next.js navigation on a line with it is `kind` `"page"`, `page_view` true), `"people: reader from chatgpt.com"`, `"ours: Office Mac (Morgan)"`, `"AI asked: ChatGPT-User"`, `"AI training: GPTBot"`, `"search: Googlebot"`, `"bot: meta-webindexer"`, `"bot: scanner probe"`, `"bot: scanner (asked for secret or config files)"` (any other request of an address and agent that asked for a secret or config file that day, CLASSIFICATION.md rule 6b), `"bot: link preview: Slack"`, `"bot: claims to be Googlebot"`, `"bot: browser-like crawler (robots.txt or sitemap, no rendering)"`, `"bot: browser-like, never rendered the page"`, `"excluded: other host"` |
-| `kind` | string | what was asked for: `page`, `rsc`, `asset`, `beacon`, `crawler_file`, `redirect`, `not_modified`, `not_found`, `client_error`, `server_error`, `post` (a form or API call the site's own pages sent), `script_event` (the script tag's events posted to Skald's own `/traffic-beacon` or `/traffic-js/`: never a form post), `skald_endpoint` (a call to `/traffic-hooks/` or `/traffic-ingest/`), `other` |
+| `kind` | string | what was asked for: `page`, `rsc`, `asset`, `beacon`, `crawler_file`, `redirect`, `not_modified`, `not_found`, `client_error`, `server_error`, `post` (a form or API call the site's own pages sent), `script_event` (the script tag's events posted to Skald's own `/traffic-beacon` or `/traffic-js/`: never a form post), `skald_endpoint` (a call to `/traffic-hooks/` or `/traffic-ingest/`), `not_page` (2.35: shaped like a page view, on the site's not-a-page list: a feed, WordPress's API, a Markdown copy...; CLASSIFICATION.md "What decides a page view"), `other` |
 | `page_view` | bool | counted as a page view in its group |
+| `not_page` | string, only when `kind` is `not_page` | the entry of the not-a-page list that matched: `markdown`, `wp_rest`, `wp_files`, `feeds`, `oembed`, `trackback`, `author_number`, `reply_to_comment`, or `"own: <entry>"` (the site's own, `site.not_pages_extra`) |
 | `assistant` | string | the AI assistant: the crawler's name, or the assistant a reader came from; `""` |
 | `source` | string | people rows: the source type of the visit the request belongs to (same words as journeys: `AI assistant`, `Search engine`, `Social media`, `Email`, `Other website`, `This site`, `Tagged link`, `Direct or unknown`) - the source of the visit's first page view, or of its first request until a page is read; a page from a new outside source starts a new visit (SOP.md, "What a visit is"), as in the journeys; `""` for every other group |
 | `utm` | object | `{"source","medium","campaign","term","content"}`, only those present |
@@ -398,6 +399,10 @@ Moved to [docs/DATA-CONTRACT-BOTS.md](docs/DATA-CONTRACT-BOTS.md#robotsjson).
 ## crawler_cost.json
 
 Moved to [docs/DATA-CONTRACT-BOTS.md](docs/DATA-CONTRACT-BOTS.md#crawler_costjson).
+
+## ai_ready.json
+
+AI readiness per page and the day kind `ai_status` (2.35): [docs/DATA-CONTRACT-AI-READY.md](docs/DATA-CONTRACT-AI-READY.md).
 
 ## realtime.json
 
@@ -578,18 +583,30 @@ site. Not a data file and not a figure: counts of lines received, never visits.
 What happened to a page since it was published.
 
 `page_index.json` (the site's data folder): one row per page the website
-lists or the logs saw.
+lists, its sitemap dates or the logs saw.
 
 | field | type |
 |---|---|
-| `meta` | `{"source": "website" or null, "generated": date or null}`: where publish dates come from (`/etc/skald/pages.json`, written from the website at deploy) |
-| `pages[]` | `{"path","title" or null,"locale" or null,"published" (date or null),"updated","date_source" ("website" or "first seen"),"first_seen" (date: the first day any request for it was logged),"days_since_publish" (int or null),"milestones": {"googlebot","bingbot","human","from_search","from_ai","lead"} (ISO or null),"views_7d","views_30d","readers_30d"}` |
+| `meta` | `{"source": "website" or null, "generated": date or null, "lastmod": {"day","dated","missing","invalid","future"} or null}`: where publish dates come from (`/etc/skald/pages.json`, written from the website at deploy); `lastmod` the sitemap's change-date counts of the last day read (DATA-CONTRACT-CRAWL-HEALTH.md, "Change dates") |
+| `pages[]` | `{"path","title" or null,"locale" or null,"published" (date or null),"date_source" ("website" or "first seen": where `published` comes from),"updated" (date or null),"updated_source" ("website", "sitemap" or null),"lastmod" (date or null),"lastmod_seen" ([[date, day first seen]]),"first_seen" (date: the first day any request for it was logged),"days_since_publish" (int or null),"milestones": {"googlebot","bingbot","human","from_search","from_ai","lead"} (ISO or null),"views_7d","views_30d","readers_30d"}` |
+
+- `updated` is a **change date**: the website's own (`updated_source`
+  "website") when its page list gives one, else the latest `<lastmod>` the
+  sitemap gave (`"sitemap"`), else null. A lastmod is never a publish date:
+  without the website's list, `published` stays the first day seen.
+- `lastmod`: the latest change date the sitemap gave the page (shown even
+  when the website's own `updated` wins); `lastmod_seen`: each date, with the
+  first local day Skald read it, oldest first, at most 20. "Changed since day
+  X" is `lastmod >= X`. Both spellings of a path (with and without the
+  trailing slash) are one page. A page only the sitemap lists has a row with
+  `published` and `first_seen` null.
 
 `GET <page>/api/page?path=/x` (helper; also `skald page /x`):
 
 ```json
 {"ok":true,"path":"/x/","title":"...","published":"2026-10-01","updated":"2026-10-06",
- "date_source":"website","first_seen":"2026-10-06","days_since_publish":7,
+ "date_source":"website","updated_source":"website","lastmod":"2026-10-06",
+ "lastmod_seen":[["2026-10-06","2026-10-07"]],"first_seen":"2026-10-06","days_since_publish":7,
  "milestones":{"googlebot":{"at":"2026-10-06T19:02:11-04:00"},"bingbot":null,
    "ai_training":[{"who":"GPTBot","at":"..."}],"ai_asked":[{"who":"ChatGPT-User","at":"..."}],
    "human":{"at":"..."},"from_search":{"at":"...","who":"google.com"},
@@ -834,6 +851,17 @@ the lead findings the second count (`audit_conversions_leads.py`) disagreed
 with, left out. Rules and second count:
 [docs/DATA-CONTRACT-CONVERSIONS.md](docs/DATA-CONTRACT-CONVERSIONS.md).
 
+## todos.json and lost_pages.json (2.35)
+
+Overview > Insights' to-do list and Site > Not found's lost pages, their second count
+(`audit_todos.py`) and the marks (`todo_marks.py`):
+[docs/DATA-CONTRACT-TODOS.md](docs/DATA-CONTRACT-TODOS.md).
+
+## page_changes.json (2.35)
+
+"Did my change work?" on Traffic > Pages > a page, its marks and its second count
+(`audit_page_changes.py`): [docs/DATA-CONTRACT-PAGE-CHANGES.md](docs/DATA-CONTRACT-PAGE-CHANGES.md).
+
 ## events.json
 
 In-page events from the beacon (`events.py`, docs/BEACON.md): what readers
@@ -938,8 +966,9 @@ Moved to [docs/DATA-CONTRACT-REPORTS.md](docs/DATA-CONTRACT-REPORTS.md#client-re
 ## Tracking additions
 
 The day kinds `funnels`, `engagement`, `utm_hygiene`, `ai_likely`, `ai_fetches`, `ai_read`,
-`direct_likely`, `social_networks` and `ai_formats` (also app.json `days[].ai_formats`), leads.json
-`attribution_rows` and time to convert, and events.json goals: [docs/DATA-CONTRACT-TRACKING.md](docs/DATA-CONTRACT-TRACKING.md).
+`direct_likely`, `social_networks`, `ai_formats` (also app.json `days[].ai_formats`) and `landings`
+(visits by landing page, one-page visits), page_trends.json (each page by day, pages changed lately),
+leads.json `attribution_rows` and time to convert, and events.json goals: [docs/DATA-CONTRACT-TRACKING.md](docs/DATA-CONTRACT-TRACKING.md).
 
 ## search.json (P1-6)
 

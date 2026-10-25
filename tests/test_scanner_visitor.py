@@ -30,7 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from skald import Group, requests_feed  # noqa: E402
-from skald import classify  # noqa: E402
+from skald import classify, tool_visits  # noqa: E402
 from skald.classify import PROBE, SCANNER, SECRET_PROBE, Classifier  # noqa: E402
 from skald.parse import Hit  # noqa: E402
 from skald.store import History  # noqa: E402
@@ -214,7 +214,20 @@ class TestMainRoad(unittest.TestCase):
 
         def hit(address, agent, path="/"):
             return Hit(at(9), address, "example.com", "GET", path, "200", "", agent)
+        # A crawler name proves nothing on its own (rule 2b): unchecked, the
+        # scanning "Googlebot" is a scanner; proven Google's, it is Googlebot.
+        got = c(hit("198.51.100.8", GOOGLEBOT))
+        self.assertEqual((got.group, got.engine), (Group.BOTS, SCANNER))
+
+        class Proven:
+            def status(self, name, address, agent=""):
+                return "verified"
+
+            def hosting(self, address):
+                return False
+        c.verifier = Proven()
         self.assertIs(c(hit("198.51.100.8", GOOGLEBOT)).group, Group.SEARCH_ENGINE)
+        c.verifier = None
         self.assertIs(c(hit("198.51.100.9", "OfficeBrowser/1.0")).group, Group.OURS)
         got = c(hit(SCANNER_IP, CHROME))
         self.assertEqual((got.group, got.engine, got.probe), (Group.BOTS, SCANNER, False))
@@ -263,7 +276,10 @@ class TestBothRoads(unittest.TestCase):
 
     def test_the_audit_catches_a_pre_probe_page_kept_as_people(self):
         with mock.patch("skald.window.Classifier", Streaming), \
-                mock.patch.object(classify.Scanners, "__call__", lambda self, hit: None):
+                mock.patch.object(classify.Scanners, "__call__", lambda self, hit: None), \
+                mock.patch.object(tool_visits.ProbeSweep, "__call__", lambda self, hit: None):
+            # (The live scanner's twelve missing probes would make it a probe
+            # sweep too, rule 6c: that pass is off in the mutation as well.)
             code, out, err = self.collect_and_audit()
         # The live scanner's / and the probe-last visitor's two pages came
         # before their probes: the mutation kept both visits as people.

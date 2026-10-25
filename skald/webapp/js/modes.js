@@ -18,6 +18,7 @@ import { DEMO } from "./demo.js";
 import { time as tzTime } from "./tz.js";
 import { isLive, setLive, backRange, liveState } from "./mode-live.js";
 import { compareOn, compareOf, rangeB, spanWords, KINDS, MAX_DAYS } from "./mode-compare.js";
+import { incTab } from "./period-dates.js";
 
 const CMP = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12l3.5-4 3 2.5L14 4"/><path d="M2 13.5h12" stroke-dasharray="2 2"/></svg>';
 const SHORT = { prev: "previous period", year: "last year" };
@@ -120,6 +121,8 @@ function compareMenu(m, s) {
 export function modeBanner(m, s) {
   if (!compareOn(s) || !S.sectionOf(s.tab) || opt(s.tab, "figures", s, true) === false) return null;
   if (!opt(s.tab, "compare", s, false)) return h("p", { class: "cmp-none mode-banner" }, "No compare on this tab: its figures are not set against another period.");
+  // Summary and Pages say A and B in their own period line (period-line.js).
+  if (incTab(s)) return null;
   const c = compareOf(m, s);
   if (!c.ok) return h("p", { class: "cmp-why mode-banner", role: "note" }, c.why);
   const perDay = c.kind === "custom" && c.differ ? h("label", { class: "rb-check cmp-per" },

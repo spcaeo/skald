@@ -27,13 +27,24 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-24-2.34.0",
+  id: "2026-10-25-2.35.0",
   items: [
-    ["Social networks", "Traffic › Sources › Social network: X, LinkedIn, Facebook, Instagram, Reddit, YouTube and more, one row each, every address of a network added up (t.co, x.com and twitter.com are X). A row shows how its visitors were matched and where they landed.", "where-visitors-come-from"],
-    ["All your sites side by side", "All sites has a table: Search, Social, X, LinkedIn, Facebook, Instagram, Reddit, YouTube, AI and Direct for each site, today, 7, 30 or 90 days; each figure opens that site's Sources.", "where-visitors-come-from"],
+    ["What changed: is it working?", "Overview › Summary compares the period with the one before, with the exact dates, an Include today switch, five key figures with their change, the sources and landing pages that rose or fell, and whether a page needs work or more traffic.", "getting-started"],
+    ["New and updated pages", "pages your sitemap says changed lately, and whether people, search and Google have found them; Traffic › Pages sorts by Rising and Falling and shows when each page changed.", "getting-started"],
+    ["A to-do list", "Overview › Insights lists what to fix, with the proof and what to do; mark one done and Skald re-checks it each day: did it work?", "what-to-fix"],
+    ["Did my change work?", "in a page's story, mark the day you changed the page; Skald compares the same number of days before and after (visits, leads, search, AI) and says Up, Down, No clear change or too early to tell.", "what-to-fix"],
+    ["A trail, and Back", "a line over every tab shows the way you came, each step a link to that exact view; the browser's Back and Forward return there, scroll included.", "getting-started"],
+    ["Lost pages", "Site › Not found: old addresses people, search engines and AI still ask for, each with the closest live page and the nginx or Apache line to copy.", "what-to-fix"],
+    ["AI readiness per page", "a page's story says whether robots.txt lets each AI crawler in, what AI got back, whether the page is in the sitemap and its Markdown copy works; AI & bots › Assistants lists the pages AI can't read well.", "ai-and-bots"],
+    ["Test a log before you rely on it", "Settings › Connections › Test a sample, or skald try-log: Skald reads a sample of a log, says which format it is and what it would count, and stores nothing.", "connections"],
+    ["Copy any value", "an address, user agent, email, search term, crawler name or ID shows a copy icon on hover, like links do.", "getting-started"],
+    ["Truer counts", "link checkers, probe sweeps and scanners using a crawler's name are bots; feeds, WordPress's API and Markdown copies are not page views; Copilot, Meta AI, DeepSeek and Grok are AI assistants; crawler address checks are on in Docker.", "ai-and-bots"],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.34.0
+    ["Social networks", "Traffic › Sources › Social network: X, LinkedIn, Facebook, Instagram, Reddit, YouTube and more, one row each, every address of a network added up (t.co, x.com and twitter.com are X). A row shows how its visitors were matched and where they landed.", "where-visitors-come-from"],
+    ["All your sites side by side", "All sites has a table: Search, Social, X, LinkedIn, Facebook, Instagram, Reddit, YouTube, AI and Direct for each site, today, 7, 30 or 90 days; each figure opens that site's Sources.", "where-visitors-come-from"],
     // 2.33.0
     ["Direct, likely", "Sources shows which Direct visits were likely a payment return, an in-app browser or a shared link, as an estimate; nothing leaves the Direct row.", "where-visitors-come-from"],
     ["Sale alerts", "hear about each new sale (and, if you like, each refund) by mail, Slack or webhook, with a minimum per currency. Off until you turn it on in Site › Alerts.", "settings-and-retention"],

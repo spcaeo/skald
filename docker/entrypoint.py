@@ -46,6 +46,8 @@ APP = Path(os.environ.get("SKALD_APP", "/opt/skald"))
 DATA = Path(os.environ.get("SKALD_DATA", "/var/lib/skald"))
 MOUNTED_CONFIG = Path("/etc/skald/config.yml")
 GENERATED_CONFIG = DATA / "config.yml"
+RANGES = DATA / "ranges"             # bots.ranges_dir: the crawler owners' address lists
+VERIFY_OFF = ("0", "false", "off", "no")
 ENV_FILES = (Path("/etc/skald/env"), DATA / "env")
 RUN = Path("/tmp/skald-nginx")
 BEAT = Path("/tmp/skald-scheduler.beat")
@@ -144,6 +146,12 @@ def render_config(env: dict) -> dict:
     # to say `mcp.enabled`, so the helper answered 404 "MCP is not switched on here".
     if str(env.get("SKALD_MCP", "")).strip().lower() in ("1", "true", "on", "yes"):
         config["mcp"] = {"enabled": True}
+    # Crawler address checks (bot_verify.py), on unless SKALD_VERIFY_BOTS says
+    # off. Without bots.ranges_dir nothing was ever checked in Docker: a fake
+    # Googlebot counted as Googlebot, no hosting-network flag, and run-daily skipped
+    # verify-bots. The folder is made at start (ranges_folder).
+    if str(env.get("SKALD_VERIFY_BOTS", "")).strip().lower() not in VERIFY_OFF:
+        config["bots"] = {"ranges_dir": str(RANGES)}
     # 2.4.0: keep each visit's IP address and leads' names and emails. Unset,
     # a new install keeps them and one upgraded from before 2.4.0 does not
     # (people/policy.py) until this, or Settings > Data retention, says so.
@@ -373,6 +381,19 @@ def runtime_nginx_files(env: dict) -> None:
     (DATA / "nginx").mkdir(exist_ok=True)
 
 
+def ranges_folder(config: dict) -> None:
+    """Make the config's bots.ranges_dir, so the first run-daily's verify-bots
+    has somewhere to keep the lists. A folder it cannot make is only logged:
+    verify-bots makes it again, and counting goes on without the checks."""
+    raw = ((config or {}).get("bots") or {}).get("ranges_dir")
+    if not raw:
+        return
+    try:
+        Path(str(raw)).mkdir(parents=True, exist_ok=True)
+    except OSError as why:
+        log(f"bots.ranges_dir {raw}: {why}; crawler checks wait for it")
+
+
 def build_json() -> None:
     """The footer's build.json: what the image says it is."""
     src = APP / "build.json"
@@ -488,6 +509,7 @@ def serve(env: dict) -> int:
     cfg_path = config_path(env)
     config = read_config(cfg_path)
     runtime_nginx_files(env)
+    ranges_folder(config)
     build_json()
     log(f"config {cfg_path}; dashboard on port {int(env.get('SKALD_PORT') or 8080)} "
         f"at /traffic/; site {config.get('site', {}).get('name') or 'site'}")

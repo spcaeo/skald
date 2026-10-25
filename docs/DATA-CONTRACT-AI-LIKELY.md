@@ -14,6 +14,16 @@ more assistants: once, under `"(more than one)"`. It is never added to the
 "AI assistant" source, to people or to any other figure. Every place that
 shows it says "likely" and gives the window.
 
+**Unless chance explains it** (2026-10-25). An assistant's fetches of a page
+are no evidence for that day when chance alone would put a quarter of a
+visit or more after them: the day's direct untagged visits landing on the
+page, times the distinct minutes its fetches of the page reach (each fetch's
+minute to the window after it), divided by 1440, is `chance_limit` (0.25,
+`ai_likely.CHANCE_LIMIT`) or more. A site's home page, which people type in
+all day, and an assistant fetches over and over, is the usual case. Leads and
+conversions leave the same fetches out (`by_chance`). A day counted before the
+rule has no `chance_limit` and was counted without it.
+
 Assistants are named as their citations are (`classify.AI_FETCHER_OWNERS`):
 `chatgpt.com`, `perplexity.ai`, `claude.ai`, `gemini.google.com`,
 `copilot.microsoft.com` (BingPreview), `mistral.ai`, `meta.ai`.
@@ -30,6 +40,8 @@ snapshot. `null` when off or when the visits were not counted.
 | field | type |
 |---|---|
 | `window_minutes` | int: the window this day was counted with |
+| `chance_limit` | float: the limit this day was counted with; absent on days counted before the rule (no limit) |
+| `by_chance` | `{assistant: [page, ...]}`: the pages (query cut, 70 characters, no trailing `/`) whose fetches by that assistant were no evidence that day |
 | `visits` | int: the day's visits (journeys) |
 | `direct` | int: of which direct and untagged - what the estimate can explain |
 | `likely` | int: of which likely referred by an assistant |

@@ -4,13 +4,13 @@
 // history), whether that visitor has been seen before, and how often.
 
 import { time as tzTime, label as tzLabel } from "../tz.js";
-import { h, n, clock, short, toast, ICON } from "../ui.js";
+import { h, n, clock, short, ICON } from "../ui.js";
 import { csv, download } from "../table.js";
 import { withFlag, country } from "./readers.js";
 import { link } from "../drill.js";
 import { assistantName } from "../labels.js";
 import { mark } from "../icons.js";
-import { withUrl } from "../urlactions.js";
+import { withUrl, copyIf } from "../urlactions.js";
 
 const KIND = { asked: "asked", training: "training", referred: "referred visitor" };
 const KIND_LONG = { asked: "Fetched to answer a question someone just asked", training: "Fetched to train or index", referred: "A visitor who came from this assistant" };
@@ -19,14 +19,6 @@ function chip(name) {
   const el = mark("assistant", name || "?");
   el?.classList.add("big");
   return el;
-}
-
-function copy(ip) {
-  const b = h("button", { type: "button", "aria-label": `Copy address ${ip}` }, "Copy");
-  b.addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText(ip); toast(`Copied ${ip}`); } catch { toast("Copy is not allowed here; select the address instead"); }
-  });
-  return b;
 }
 
 function row(e) {
@@ -39,8 +31,8 @@ function row(e) {
       h("div", { class: "f-m" },
         e.country ? link("country", e.country) : h("span", null, "country not recorded"),
         e.status ? h("span", { class: e.status >= 400 ? "status-bad" : null }, `status ${e.status}`) : null,
-        e.ip ? h("span", { class: "ip" }, link("ip", e.ip, { bare: true }), copy(e.ip)) : null,
-        ...Object.entries(e.utm || {}).map(([k, v]) => h("span", { class: "utm", title: `utm_${k}` }, `${k}: ${v}`)))),
+        e.ip ? h("span", { class: "ip" }, copyIf("ip", link("ip", e.ip, { bare: true }), e.ip, { label: "address" })) : null,
+        ...Object.entries(e.utm || {}).map(([k, v]) => copyIf("text", h("span", { class: "utm", title: `utm_${k}` }, `${k}: ${v}`), String(v), { label: `utm_${k}` })))),
     h("div", { class: "f-r" },
       e.repeat == null ? h("span", { class: "rep", title: "Repeat visits are not counted: the visitor key is not set" }, "repeat: -")
         : h("span", { class: `rep${e.repeat ? " yes" : ""}` }, e.repeat ? "Repeat" : "First time"),

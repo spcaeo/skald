@@ -79,7 +79,7 @@ In **Send this site's visits to Skald**, step **Test**, and in the last step of 
 | Waiting for the first lines. Nothing has reached Skald yet. | No batch has arrived. It checks again every 5 seconds for up to 2 minutes. If nothing comes, see Common problems above |
 | Connected: N lines received today, the last at 10:42 (2 min ago). | It works |
 | Connected before: the last lines came at ... Nothing today yet. | Lines came on an earlier day. Open the site in a browser, then test again |
-| Lines arrive, but none could be read | Batches reach Skald, but no line is in a format the site reads. Set the site's log format to Detect it (auto) in Settings > Add or remove sites |
+| Lines arrive, but none could be read | Batches reach Skald, but no line is in a format the site reads. Set the site's log format to Detect it (auto) in Settings > Add or remove sites. **Test a sample** in Settings > Connections says which format the lines are in and why they fail ([Test a sample of a log](connections.md#test-a-sample-of-a-log)) |
 | The log endpoint is switched off on this server. | Ask whoever runs Skald's server to switch the log endpoint on (ingest.enabled) |
 | The site is not verified yet, so nothing is collected for it. | Finish step 2 of the site's set-up (prove the domain is yours) |
 | Refused at 10:41: ... | Skald refused the last batch. The reason and the fix are in the next table |

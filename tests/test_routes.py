@@ -43,6 +43,7 @@ TABLE = [
     ("visits", "traffic/visitors", {}),
     ("sources", "traffic/sources", {}),
     ("pages?page=%2Fpricing%2F&pubfrom=2026-09-01&pubto=2026-09-30", "traffic/pages", {"page": "/pricing/", "pubfrom": "2026-09-01", "pubto": "2026-09-30"}),
+    ("traffic/pages?chgfrom=2026-10-13", "traffic/pages", {"chgfrom": "2026-10-13"}),
     ("locations", "traffic/places", {}),
     ("audience", "traffic/places", {}),
     ("time", "traffic/time", {}),

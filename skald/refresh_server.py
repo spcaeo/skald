@@ -59,7 +59,8 @@ settings pages (settings_api.py; Settings > Reports, client_reports_api.py), <pa
 Settings > Integrations (integrations_api.py; integrations/search and
 integrations/search/* its Search part, search/api.py), <page>/people and people/* the person
 lookup and the left-out lists (people/api.py), POST <page>/people/mark-test a drawer's
-Mark as test (people/marktest.py), <page>/logo and logo/* the site's logo
+Mark as test (people/marktest.py), <page>/settings/todos and settings/todo-send
+Insights' to-dos and Not found's fixes (todo_api.py), <page>/logo and logo/* the site's logo
 (logo_api.py; the image itself in basic mode too), /me adds name, org, csrf, mode, install_admin
 and totp_on, every POST but refresh also needs X-Skald-CSRF, an owner counts
 as an admin, and /traffic-api/ checks tokens in accounts.sqlite. Every other
@@ -104,7 +105,7 @@ from .saas import billing_api, signup_api
 from .mcp import http as mcp_http
 from .people import api as people_api
 from .people import marktest as people_marks
-from . import security_api
+from . import security_api, todo_api
 from .answers import api as answers_api
 
 MIN_GAP = 15          # seconds between two runs
@@ -471,6 +472,9 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
             if security_api.is_security(self.path):     # Security > Alerts: your own (2.21)
                 return security_api.handle(self, True, config, live_dir, allowed, same_origin,
                                            config_path)
+            if todo_api.is_todos(self.path):            # Insights' to-dos, Not found's fixes (2.35)
+                return todo_api.handle(self, True, config, live_dir, allowed, same_origin,
+                                       config_path, out)
             if settings_api.is_settings(self.path):     # before team_api: settings/audit
                 return settings_api.handle(self, True, config, live_dir, allowed, same_origin,
                                            history_path, config_path)
@@ -541,6 +545,9 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
             if security_api.is_security(self.path):
                 return security_api.handle(self, False, config, live_dir, allowed, same_origin,
                                            config_path)
+            if todo_api.is_todos(self.path):
+                return todo_api.handle(self, False, config, live_dir, allowed, same_origin,
+                                       config_path, out)
             if settings_api.is_settings(self.path):
                 return settings_api.handle(self, False, config, live_dir, allowed, same_origin,
                                            history_path, config_path)

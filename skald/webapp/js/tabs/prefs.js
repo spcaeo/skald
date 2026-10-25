@@ -23,6 +23,7 @@ import { head1, field, input, status, why } from "./forms.js";
 import logoCard from "./sitelogo.js";
 import { mailPreview } from "./mailpreview.js";
 import { fillChoice, fillNote, remember, viewsFill } from "./viewsfill.js";
+import { withCopy, withUrl } from "../urlactions.js";
 
 const SOURCE = { site: "set for this site", org: "set for the organisation", install: "set for the whole install", config: "from config.yml", default: "the default",
   upgrade: "kept off by the upgrade to 2.4.0; turn it on once your privacy notice says so" };
@@ -104,18 +105,38 @@ function control(name, s) {
     };
     return { el: h("div", { class: "af" }, el, note), get };
   }
+  if (s.kind === "notpages") {
+    // site.not_pages_off (2.35): ticked = not counted as a page (the default); the value
+    // saved is the entries left unticked, counted as pages again.
+    const off = s.value || [];
+    const all = s.entries || [];
+    el = h("fieldset", { class: "af-set", id }, h("legend", null, s.label),
+      all.map((e) => h("label", { class: "chk" }, h("input", { type: "checkbox", value: e.name, checked: !off.includes(e.name), disabled: ro }),
+        h("span", null, withCopy(h("b", null, e.name), e.name, { label: `entry ${e.name}` }), withCopy(h("small", null, e.reason), e.reason, { label: `why ${e.name}` })))));
+    get = () => {
+      const now = [...el.querySelectorAll("input")].filter((c) => !c.checked).map((c) => c.value);
+      return now.join(" ") === off.join(" ") ? undefined : now;
+    };
+    return { el: h("div", { class: "af" }, el, note), get };
+  }
   if (s.kind === "choice") {
     el = h("select", { id, disabled: ro }, h("option", { value: "" }, name === "mail.smtp.security" ? "from the port" : "the default"), (s.choices || []).map((c) => h("option", { value: c, selected: c === s.value }, c)));
     get = () => ((el.value || null) === (s.value || null) ? undefined : el.value || null);
-  } else if (s.kind === "emails" || s.kind === "hosts" || s.kind === "prefixes") {
+  } else if (s.kind === "emails" || s.kind === "hosts" || s.kind === "prefixes" || s.kind === "pagepatterns") {
     const text = (s.value || []).join("\n");
-    el = h("textarea", { id, rows: "3", spellcheck: "false", disabled: ro, placeholder: s.kind === "prefixes" ? "/wp-content/\n/wp-includes/" : null }, text);
+    el = h("textarea", { id, rows: "3", spellcheck: "false", disabled: ro, placeholder: s.kind === "prefixes" ? "/wp-content/\n/wp-includes/" : s.kind === "pagepatterns" ? "/status\n/preview/*\n?preview" : null }, text);
     get = () => {
       const items = el.value.split(/[\s,]+/).filter(Boolean);
       if (items.join("\n") === text) return undefined;
       // An empty list of asset paths clears the row: the default (/_next/static/) applies.
-      return s.kind === "prefixes" && !items.length ? null : items;
+      return (s.kind === "prefixes" || s.kind === "pagepatterns") && !items.length ? null : items;
     };
+    if (s.kind === "pagepatterns" && (s.value || []).length) {
+      // The saved entries, each with its icons: an exact path opens on the site; /prefix* and ?key copy only.
+      const saved = h("p", { class: "note" }, "Saved: ", (s.value || []).map((v, i) => [i ? ", " : "",
+        /^\/[^*?]*$/.test(v) ? withUrl(h("span", { class: "mono" }, v), v) : withCopy(h("span", { class: "mono" }, v), v, { label: `entry ${v}` })]));
+      return { el: h("div", { class: "af" }, field(s.label, el, ro ? s.reason : SOURCE[s.source] || ""), saved), get, input: el };
+    }
   } else if (s.kind === "views") {
     const line = (v) => [v.name, v.path_prefix || "", v.exclude_prefix || ""].join(" | ").replace(/( \| )+$/, "");
     const text = (s.value || []).map(line).join("\n");
@@ -293,6 +314,8 @@ export function sites(m) {
     card("Log file", "Where the server's access log for this site is. For install admins.", ["sites.log_dir", "sites.log_base"], all, m.site, redraw),
     card("Page assets", "A visit counts as people only when its browser also fetched one of the page's own scripts or styles. Next.js: /_next/static/ (the default). WordPress: /wp-content/ and /wp-includes/. Many other sites: /assets/ or /static/. One path per line, at most 10. Turn the rule off only when the assets come from a CDN host this log never sees. Changes apply from the next run; stored days are recounted with backfill --force on the server.",
       ["site.asset_prefixes", "site.require_rendering"], all, m.site, redraw),
+    card("Not pages", "Machine addresses that are never a person reading a page: feeds, WordPress's API, Markdown copies for AI agents. Ticked, a request for one is not a page view; it still counts as a request, in its group. Untick one this site serves as a real page. Also not pages: your own, one per line, as /path, /prefix* or ?key, at most 20. Changes apply from the next run; stored days are recounted with backfill --force on the server.",
+      ["site.not_pages_off", "site.not_pages_extra"], all, m.site, redraw),
     card("Script tag", "Visitor IDs: the tag keeps an anonymous random ID per browser, for journeys, abandoned forms and lead matching; your privacy notice must say so. Off, the tag still sends events but keeps no ID. Share the ID across subdomains: www. and app. see the same ID (a first-party cookie), as data-share-subdomains=\"true\" on the tag does, with the tag unchanged; browsers learn it within a day.", ["beacon.visitor_ids", "beacon.share_subdomains"], all, m.site, redraw),
     card("Goals", "The in-page events that count as this site's goals. Events shows each one per 100 visits by source, on checked days. At most 10.", ["beacon.goals"], all, m.site, redraw),
   ]);

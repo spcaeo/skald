@@ -45,6 +45,7 @@ import { startEdges } from "./edges.js";
 import { filtersButton, filterChips, rulesBanner, openFilters } from "./filterpanel.js";
 import { fromState, treeWords } from "./rules.js";
 import { afterMark } from "./tabs/leadref.js";
+import { crumbLine, crumbUpdate, restore as restoreScroll, start as startCrumbs } from "./crumbs.js";
 
 const app = document.getElementById("app");
 const panel = document.getElementById("panel");
@@ -452,8 +453,8 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
     });
     const strip = tabStrip(tabs, s.tab, (k) => S.set({ tab: k }), { label: sec.name });
     strip.panel.append(...banners, ...content);
-    panel.replaceChildren(printHead(s, `${sec.name}: ${name}`), strip.root);
-  } else panel.replaceChildren(printHead(s, name), ...banners, ...content);
+    panel.replaceChildren(printHead(s, `${sec.name}: ${name}`), crumbLine(model, s), strip.root);
+  } else panel.replaceChildren(printHead(s, name), crumbLine(model, s), ...banners, ...content);
   quietKpis(panel);
   const tabChanged = !prev || prev.tab !== s.tab;
   if (tabChanged && !reduced()) {
@@ -468,6 +469,8 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
   // What the address opens over the tab (a drawer, a dialog: overlays.js), then the drill-down on top.
   syncOverlays(model, s);
   drillView(model, s);
+  // Back, Forward, a breadcrumb or a reload: the step's scroll back (crumbs.js).
+  restoreScroll();
 }
 
 function fail(e) {
@@ -478,6 +481,7 @@ function fail(e) {
 }
 
 async function boot() {
+  startCrumbs();
   startEdges();
   buildNav();
   keys(actions, finds);
@@ -539,7 +543,7 @@ async function boot() {
   }
   app.dataset.state = "ready";
   // A drawer or a dialog opening or closing (its key only) is not a redraw: overlays.js opens or closes it.
-  S.on((next) => { if (current && S.onlyOverlay(current, next)) { current = next; syncOverlays(model, next); } else render(next); });
+  S.on((next) => { if (current && S.onlyOverlay(current, next)) { current = next; syncOverlays(model, next); crumbUpdate(model, next); } else render(next); });
   addRestorer("dlg:report", () => builder(model, S.read(), (next) => load(next, { previous: model })));
   // A lead marked test (or not) from a drawer (2.25, leadref.js): the helper drew the files
   // again, so read them and redraw; the row moves to or from Show left out, the counts follow.

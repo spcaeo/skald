@@ -35,3 +35,90 @@
 /* Which count a lead tile is, linked to where the same figure is listed (overview.js leadSource). */
 .tile .t-src { display: block; margin-top: 2px; font-size: 11.5px; color: var(--ink-3); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile .t-src:hover, .tile .t-src:focus-visible { color: var(--ink); text-decoration: underline; }
+
+/* ------------------------------------------- Release 2 (Summary, Pages) */
+/* The period line (period-line.js): two switches, the dates, what they mean. */
+.pl { display: grid; gap: 4px; margin: 0 0 14px; }
+.pl-sws { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.pl-sw { display: inline-flex; align-items: center; gap: 7px; height: 30px; font-size: 13px; }
+.pl-sw .pl-knob { width: 22px; height: 12px; border-radius: 6px; background: var(--rule); position: relative; flex: 0 0 auto; transition: background .15s; }
+.pl-sw .pl-knob::after { content: ""; position: absolute; top: 2px; left: 2px; width: 8px; height: 8px; border-radius: 50%; background: var(--surface); transition: transform .15s; }
+.pl-sw.on { border-color: var(--ink); color: var(--ink); }
+.pl-sw.on .pl-knob { background: var(--ink); }
+.pl-sw.on .pl-knob::after { transform: translateX(10px); }
+.pl-sw[disabled] { opacity: .55; cursor: not-allowed; }
+.pl-now { margin: 0; font-size: 14px; color: var(--ink); }
+.pl-vs { color: var(--ink-2); }
+.pl-how { margin: 0; font-size: 12.5px; color: var(--ink-3); }
+.pl-why { margin: 2px 0; padding: 9px 12px; font-size: 13px; line-height: 1.45; color: var(--ink-2); background: var(--sunk); border-radius: 8px; max-width: 110ch; }
+@media (prefers-reduced-motion: reduce) { .pl-sw .pl-knob, .pl-sw .pl-knob::after { transition: none; } }
+
+/* The five key figures (ov-tiles.js): one row on a wide screen, the whole tile opens its tab. */
+.ov-cap { margin: 0 0 6px; font-size: 13px; color: var(--ink-2); }
+.tiles.ov-tiles.ov-five { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.tiles.ov-tiles.ov-five > .tile { grid-column: auto; }
+.tile.t-link { position: relative; }
+.tile.t-link .t-l { color: inherit; text-decoration: none; }
+.tile.t-link .t-l::after { content: ""; position: absolute; inset: 0; }
+.tile.t-link:hover { background: var(--sunk); }
+.tile.t-link .t-l:focus-visible { outline: none; }
+.tile.t-link:focus-within { outline: 2px solid var(--focus); outline-offset: -2px; }
+.tile.t-link .t-top button, .tile.t-link .t-top [role=button], .tile.t-link .t-src { position: relative; z-index: 1; }
+.t-c.t-cmp { font-weight: 600; white-space: normal; }
+.t-c.t-cmp.up { color: var(--good); }
+.t-c.t-cmp.down { color: var(--bad); }
+.t-c.t-cmp.same, .t-c.t-cmp.none { color: var(--ink-3); font-weight: 500; }
+.t-c.t-cmp .was { font-weight: 500; }
+.tile .t-n { font-size: 12px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) { .tiles.ov-tiles.ov-five { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* What changed (ov-changed.js) */
+.wc .card-h { align-items: flex-start; }
+.wc .card-h .sub { margin: 2px 0 0; }
+.wc-say { margin: 4px 0 10px; font-size: 14px; line-height: 1.5; max-width: 110ch; }
+.wc-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px 24px; }
+.wc-none { margin-top: 8px; padding: 12px 14px; background: var(--sunk); border-radius: 8px; font-size: 13.5px; line-height: 1.5; max-width: 110ch; }
+.wc-none .btn { margin-left: 6px; }
+.wc-c { font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.wc-c.up { color: var(--good); }
+.wc-c.down { color: var(--bad); }
+.wc-c.same, .wc-c.none { color: var(--ink-3); font-weight: 500; }
+
+/* Work on the page, or on traffic? and New and updated pages, side by side */
+.cols.wf { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px 24px; align-items: start; }
+/* The changed pages' table has six columns: it gets the wider share. */
+@media (min-width: 1180px) { .cols.wf { grid-template-columns: minmax(0, 5fr) minmax(0, 8fr); } }
+.cols.wf > section { min-width: 0; }
+.wk-g { margin-top: 12px; }
+.wk-gh { display: flex; gap: 8px; align-items: center; font-size: 13.5px; }
+.wk-improve { background: color-mix(in srgb, var(--bad) 13%, var(--surface)); color: var(--bad); }
+.wk-both { background: color-mix(in srgb, var(--warn) 15%, var(--surface)); color: var(--warn); }
+.wk-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.wk-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--rule); font-size: 13px; }
+.wk-list .ua-host { min-width: 0; overflow: hidden; }
+.wk-p { color: var(--ink); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wk-p:hover { text-decoration: underline; }
+.wk-t { color: var(--ink-2); font-size: 12.5px; text-align: right; }
+.wk-empty { margin: 6px 0 0; font-size: 13px; }
+.fr-same { border-left: 3px solid var(--warn); padding-left: 10px; }
+.fr td .mono, .fr td a.mono { white-space: nowrap; }
+.wc td, .fr td.n { white-space: nowrap; }
+@media (max-width: 640px) {
+  .cols.wf, .wc-cols { grid-template-columns: minmax(0, 1fr); }
+  .wk-list li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .wk-t { text-align: left; }
+}
+
+/* Traffic > Pages: the sort chips and the changed filter (tr-pages.js); the filter panel's preset */
+.r2-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.r2-chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: 8px; border: 1px solid var(--rule);
+  background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
+.r2-chip:hover { border-color: var(--ink-3); }
+.r2-chip.on { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.r2-chip:focus-visible, .r2-x:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.r2-x { border: 0; background: none; color: inherit; font: inherit; font-size: 15px; cursor: pointer; padding: 0 0 0 2px; }
+.pg-sorts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 6px 0 10px; }
+.pg-l { font-size: 13px; color: var(--ink-2); }
+.pg-need { flex-basis: 100%; margin: 0; }
+.pg-chg { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 13px; }
+.fp-presets { margin: 6px 0 0; font-size: 13px; }

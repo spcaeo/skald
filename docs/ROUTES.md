@@ -55,6 +55,7 @@ kinds.
 | `pathmode` | filterpanel.js | `starts`: the page filter matches the start of paths |
 | `rules` | rules.js | the advanced filters' rules |
 | `cmp` | modes.js | Compare with: `prev`, `year`, `custom` |
+| `inc` | period-line.js | `1`: Include today. On Overview > Summary and Traffic > Pages with `7d`, `30d` or `90d` only: the last N days end today (part of today, counted so far) instead of yesterday. Elsewhere it is kept but does nothing. While it is on, Compare does not compare (today is not complete), and says so: `#overview/summary?range=7d&inc=1` |
 | `cb`, `cnorm`, `cgran`, `cm` | mode-compare.js | Compare's custom B, per day, the chart's grain and figure |
 | `tz` | tz.js | `local` or `utc` (the site's zone when absent) |
 | `dd` | drill.js | the drill-down trail, `dim:value` steps joined by a bar (an address as a token) |
@@ -65,15 +66,21 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 
 | Key | Owner | Means |
 | --- | --- | --- |
-| `page`, `pubfrom`, `pubto` | tabs/pagestory.js, tr-pages.js | Traffic > Pages: the page's story, published from, to |
+| `page`, `pubfrom`, `pubto`, `chgfrom` | tabs/pagestory.js, tr-pages.js | Traffic > Pages: the page's story, published from, to, changed since (the website's or the sitemap's change date) |
+| `psort` | tabs/tr-pages.js | Traffic > Pages: the sort chips, `visits` (absent), `rising`, `falling`, `changed` (newest change date first), `work` (needs work: many visits, most left at once, no forms). `rising` and `falling` need Compare (`cmp`); without it they say so and sort by visits. While a column header's own sort (`lp_sort`) is set, no chip is lit; a chip clears it: `#traffic/pages?range=30d&cmp=prev&psort=rising`. The filter panel's preset writes `chgfrom=<30 days ago>&psort=changed` |
 | `net` | tabs/tr-social.js | Traffic > Sources: the social network open under the grid, by its id (`x`, `linkedin`, `facebook`, ...); with `src_seg=social`, the Social network segment: `#traffic/sources?src_seg=social&net=x` |
 | `rg`, `rm`, `rs`, `rv` | tabs/tr-retention.js | Retention: grain, measure, split, value |
 | `since` | tabs/insights.js | Insights: the window |
+| `todo` | tabs/todos.js | Insights: the to-do whose list is open, by its id (`lost-pages`, `server-errors`, `ai-markdown`, `sitemap`, or `leave-` and 8 hex, a hash of the page): `#overview/insights?todo=lost-pages` (2.35). A to-do not on the list now opens the page with one plain line |
+| `pchg` | tabs/pagechange.js | Traffic > Pages (with `page`) and Insights: one tracked change open, by its id (`c` and 8 hex, a hash of the site, the page and the day): `#traffic/pages?page=%2Fpricing%2F&pchg=c22e50cf9` (2.35). A change no longer tracked opens the page with one plain line |
+| `nfk`, `nfsrv` | tabs/nf-lost.js | Not found's lost pages: the tab (`md` AI asks for Markdown, `fixed` After the fix; Lost pages when absent) and the server lines (`apache`; nginx when absent) (2.35) |
 | `fn`, `fsrc`, `fstep`, `fmode` | tabs/funnels.js | Funnels: steps, starting source, step open, reached or left |
 | `lsrc`, `lact`, `llabel`, `lstage` | tabs/s-sales.js, sa-options.js | Leads & sales: count from, kind, label, stage |
 | `lnow`, `lby`, `lshow`, `lview`, `lsplit` | tabs/sa-leads.js | Leads: stage now, source, show left out, the view, the split |
 | `cur`, `by`, `tag` | tabs/sa-revenue.js | Revenue: the currency (never converted), the breakdown, one tag `key:value` |
 | `bact`, `bshow` | tabs/sa-bookings.js | Calendar bookings: action, what to show |
+| `psec` | tabs/pagestory.js, aiready.js | Traffic > Pages: the part of a page's story to open at; `ai` scrolls to its AI readiness (a row of "Pages AI can't read well" writes it): `#traffic/pages?page=/guides/webhooks/&psec=ai`. Back from the story clears it |
+| `arw` | tabs/aiready.js | AI & bots > Assistants: the filter of "Pages AI can't read well", `copy` (a Markdown copy that does not answer), `404`, `errors` (5xx and other 4xx), `robots` (robots.txt shuts a crawler out), `slow`; all when absent: `#ai/assistants?arw=copy` |
 | `cw`, `chb`, `co` | tabs/crawlhealth.js | Crawl health: 7 or 30 days, crawler, only problems |
 | `ap`, `aq` | tabs/ai-answers.js | AI answers: the profile and the question open |
 | `ip` | tabs/si-requests.js | Requests: one address only (always a token) |
@@ -103,16 +110,43 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | `setup` (on `#settings/sitesadmin`) | tabs/sitesadmin.js | the Add a site wizard: `new`, then the site's name once step 1 made it (replaced in place, so a reload finds the site); a site's name (it has a dot) opens its wizard on any tab, as Connections' Set up with your AI agent does (2.31) | `setup=new&step=1`, `setup=example.com&step=3` |
 | `agent` | tabs/site-wizard.js | Add a site, step 3: the AI agent chosen (`claude-code`, `codex`, `cursor`, `chat`, `other`), or `hand` for set it up by hand (2.31) | `agent=claude-code` |
 | `link` | tabs/agent-setup.js | Add a site, steps 4 and 5: the agent's line being watched, by its link id (the first 16 hex of the code's SHA-256). The line and its code never go in the address (2.31) | `link=0f3a9c2e7b1d4a58` |
-| `conn` | tabs/connections.js | a Connections dialog: `send`, `api`, `mcp` | `conn=api&step=2` |
+| `conn` | tabs/connections.js | a Connections dialog: `send`, `api`, `mcp`, `sample` (Test a sample of a log, 2.35) | `conn=api&step=2` |
+| `lfmt` | tabs/conn-sample.js | Test a sample: the reader chosen (a format name; absent: Detect it). The pasted lines never go in the address, so a link or a reload opens step 1 to paste again | `conn=sample&step=1&lfmt=caddy_json` |
 | `step` | tabs/conn-ui.js | the step of the dialog open, 1 first | `step=2` |
 | `share` | tabs/conn-share.js | the Share with your developer form is open (the link it makes never is in the address) | `share=1` |
 | `token` | tabs/conn-install.js | a by-hand zip kit's "Include the access token in the zip" unticked, under "Other ways" in the send dialog or Add a site (absent: ticked, the default); never the token itself | `token=0` |
+| `tdsend` | tabs/todo-send.js | Insights: Send to team, for a to-do, by its id (2.35). Who it goes to never goes in the address; without a mail server or a team the page says why instead | `tdsend=lost-pages` |
+| `pcm`, `pcd`, `pck` | tabs/pagechange.js | Traffic > Pages > a page: the Mark a change dialog (`new`), its day (`YYYY-MM-DD`, today or before) and what changed (`content`, `title`, `backlink`, `redirect`, `other`); a pick replaces the entry. The note never goes in the address. Owners and admins only; elsewhere the page says why (2.35) | `pcm=new&pcd=2026-10-21&pck=title` |
 | `dlg` | main.js, keys.js, extras.js, report.js, filterpanel.js, tabs/person.js | an app dialog: `keys`, `new`, `views`, `report`, `filters`, `find` | `dlg=views` |
 
 A dialog opened from a link at a later step starts at the first step whose choice is
 still missing (`wizard()` runs each earlier step's `check`). Who may open each: the Set
 up and Connections dialogs and the Add a site wizard are for owners and admins; Find a
 person (`who`) for owners and admins; everything else for whoever may open the tab.
+
+## The breadcrumb line and Back (2.35)
+
+Over every tab, a line shows the path taken in this browser tab: `← Back to <the step
+before>`, then each step, the current one last with copy and open icons for this exact
+view (`js/crumbs.js`, `css/crumbs.css`). The address stays the source of truth: a step is
+the address it had (period, filters, sort, what was open), and a crumb goes to that address
+as a new history entry.
+
+- **A step** is a place: the tab and what is open in it (`page`, `todo`, Help's `part`, the
+  drill-down's `dd` steps, a record drawer: `vis`, `lead`, `conv`, `req`, `cohort`, `sq`,
+  `list`, `scan`, `ans`, `who`). A change in place (a period, a filter, a sort) keeps the
+  step and takes its new address. A place already on the trail (Back, a crumb, a link to
+  it) cuts the trail back to it. A move along one section's tabs with nothing open replaces
+  the last step. At most 12 steps; past 5 the middle folds into `…`.
+- **The trail** lives in the tab's `sessionStorage` (`ti-crumbs`), never sent and gone with
+  the tab. A reload, or Back into the page, keeps it; a copied address opened in a new tab
+  starts its own from the address alone: section › tab, then the item (`Traffic › Pages`,
+  then `/pricing/`).
+- **Scrolling.** Each step keeps where the page was scrolled, and the last 40 addresses
+  too (`ti-crumbs-y`). Back, Forward, a crumb or a reload put it back once the tab is drawn
+  (`history.scrollRestoration` is `manual`); a scroll made while it is being put back is
+  not saved, and once the reader scrolls it is left alone.
+- On a phone the line is `← Back to` and where you are; the steps between are Back's.
 
 ## Tables and sub-tabs
 

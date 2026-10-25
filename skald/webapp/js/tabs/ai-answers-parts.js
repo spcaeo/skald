@@ -16,6 +16,7 @@ import { table, csv, download } from "../table.js";
 import { exportButton } from "../tabletools.js";
 import { link } from "../drill.js";
 import { flagEl, country, countryName } from "./readers.js";
+import { copyIf } from "../urlactions.js";
 
 export const COLOR = { openai: "var(--p-openai)", perplexity: "var(--p-perplexity)", gemini: "var(--p-gemini)", anthropic: "var(--p-anthropic)" };
 const pctOf = (a, b) => (b ? Math.round((a / b) * 100) : null);
@@ -152,7 +153,7 @@ export function questionsTable(last, providers, prof, onPick, onOpen, selected) 
     { key: "named", label: "Named you", num: true, fmt: (v, r) => h("span", { class: "aa-named" }, h("span", { class: `pill ${r.of && v / r.of >= 0.5 ? "good" : r.of && v / r.of >= 0.25 ? "" : "bad"}` }, `${v} of ${r.of}`),
       h("span", { class: "aa-bars", "aria-hidden": "true" }, r.by.map(([p, c]) => h("i", { style: { background: COLOR[p], opacity: c.answered ? (0.2 + (c.mentioned / c.answered) * 0.8).toFixed(2) : "0.1" } })))), csv: (r) => `${r.named} of ${r.of}` },
     { key: "pages", label: "Page it cited", fmt: (v) => (v.length ? h("span", { class: "aa-pages" }, v.map((p) => link("path", p))) : h("span", { class: "muted" }, "No page cited")), csv: (r) => r.pages.join(" ") },
-    { key: "comps", label: "Others it named", fmt: (v) => (v.length ? h("span", { class: "aa-chips" }, v.map((c) => h("span", { class: "aa-chip" }, c))) : h("span", { class: "muted" }, "None")), csv: (r) => r.comps.join("; ") },
+    { key: "comps", label: "Others it named", fmt: (v) => (v.length ? h("span", { class: "aa-chips" }, v.map((c) => copyIf("text", h("span", { class: "aa-chip" }, c), c, { label: "competitor" }))) : h("span", { class: "muted" }, "None")), csv: (r) => r.comps.join("; ") },
   ];
   return h("section", { class: "s aa-card", "aria-labelledby": "aa-qs-h" },
     h("h2", { id: "aa-qs-h" }, `Questions, ${prof}`),

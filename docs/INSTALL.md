@@ -109,6 +109,7 @@ the container has them (`history.db: /var/lib/skald/history.sqlite`,
 | `SKALD_BEACON_ORIGINS` | | your site's origin(s), to switch on the script tag and in-page events ([BEACON.md](BEACON.md)). Not needed for webhooks (Calendly, Stripe, the `lead` hook): those work without it since 2.2.2 |
 | `SKALD_INGEST` | | `true` takes logs from other servers and log drains ([INGEST.md](INGEST.md)); set `SKALD_LOG_DIR` with it |
 | `SKALD_MCP` | off | `true` switches on MCP for AI agents at `POST /traffic-mcp` (`mcp.enabled`; since 2.26). Each agent needs a token with the `mcp` scope: Settings > Connections > Connect an AI assistant, or `docker exec skald skald token create NAME --scope mcp --site example.com` ([MCP.md](MCP.md)). Unset, the path answers 404 |
+| `SKALD_VERIFY_BOTS` | on | crawler address checks: the generated config sets `bots.ranges_dir` to `/var/lib/skald/ranges` (made at start), and the daily run fetches the crawler owners' address lists and the hosting networks there first (about 37 requests and 8 MB downloaded, 1.3 MB kept, under a minute; once per 12 hours for all sites). A fake Googlebot or GPTBot is then filed under bots as "claims to be ...", and browsers from hosting networks are flagged. Needs outbound HTTPS and DNS; a failed fetch keeps the last good lists and never stops counting. `off` switches it off (doctor then says OFF). Before this release a Docker install never checked crawlers |
 | `SKALD_KIT_IMAGE`, `SKALD_KIT_SHIP_PATH` | this image at its major version; the shipper's path inside it | the image and shipper path a site's shipper runs with Docker: the one command and one file, and the Docker zip kit (Settings > Connections; `ingest.kit_image` in a config wins) |
 | `SKALD_KEEP_IPS` | on (new install), off (upgraded from before 2.4.0) | `1` keeps each visit's IP address and browser with its pages for `privacy.keep_days` (395 days), so a person can be looked up; `short` keeps each address with its last part removed (203.0.113.57 as 203.0.113.0; since 2.15.0); `0` keeps none (only the last 6 hours of requests show addresses). Also Settings > Data retention > People. Your privacy notice must say so |
 | `SKALD_IDENTITY` | `full` (new install), `anonymous` (upgraded from before 2.4.0) | `full` keeps leads' names and emails with their conversions; `anonymous` keeps neither |
@@ -345,6 +346,34 @@ then the folders in DEPLOY.md section 2 if the data should go too.
 
 ---
 
+## Try a log first: `try-log`
+
+Can Skald read this log, and what would it count? Ask before the next daily run:
+
+```sh
+docker exec skald skald try-log /logs/access.log                 # Docker
+docker exec skald skald try-log /var/lib/skald/ingest/example.com/access.log --site example.com
+sudo skald try-log /var/log/nginx/access.log.2.gz --site example.com  # install.sh
+python3 bin/skald try-log export.json --format cloudflare_json   # from the code, no config needed
+```
+
+It reads the file's first 500 lines (`--lines N`; plain or gzip) and stores nothing. With
+`--format auto` (the default) it tries every reader and keeps the one that reads the most
+lines, and says how sure it is. It prints: the lines read and not read, with the main
+reasons and up to 3 line numbers each (never a raw line); the first and last time and the
+time zone in the lines; the hosts, and whether they are the site's; Skald's five groups for
+the sample, which add up to the lines read; the pages people viewed most; and warnings, such
+as no referrer (every source would be Direct), no user agent, no host name, an error log
+instead of an access log, or page assets that do not match the site's settings. `--site`
+judges the lines with that site's settings (hosts, own traffic, page assets, time zone);
+`--json` prints the report as JSON. Exit 0: Skald can read it; 1: nothing can be read, or a
+daily run would withhold the day; 2: the file cannot be opened.
+
+In the dashboard, **Settings > Connections > Test a sample** does the same on up to 200
+pasted lines (owners and admins).
+
+---
+
 ## Check it: `doctor`
 
 ```sh
@@ -381,7 +410,7 @@ shows the integration lines under **Status**. Every check only reads.
 
 | What you see | Why, and what to do |
 | --- | --- |
-| `nothing parsed` from `check` | Wrong file or format, or no permission. Docker: `docker exec skald ls -l /logs` (the container's user is in group `adm`, gid 4, which reads `/var/log/nginx` on Ubuntu and Debian). Script: `sudo -u skald head -1 /var/log/nginx/access.log`. Then `check --day today`. |
+| `nothing parsed` from `check` | Wrong file or format, or no permission. Docker: `docker exec skald ls -l /logs` (the container's user is in group `adm`, gid 4, which reads `/var/log/nginx` on Ubuntu and Debian). Script: `sudo -u skald head -1 /var/log/nginx/access.log`. Then `check --day today`. `try-log <the file>` (above) says which reader fits and why the lines fail. |
 | The sign-in page loops back to itself | The browser dropped the `Secure` cookie: use HTTPS (recipe A or B), or `http://localhost:8080` on the same machine. |
 | Links in mails say `localhost` | Set `SKALD_BASE_URL` (Docker) or `access.base_url` (config) to the public address. |
 | The first daily run "failed" | There is no whole day in the history yet. It sorts itself out the next day, or run `backfill --days 14`. |

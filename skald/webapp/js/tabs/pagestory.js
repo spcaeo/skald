@@ -4,6 +4,9 @@
 // From GET <page>/api/page?path= (milestones kept for good, days from the
 // publish date); without it, what the stored days show, said as such.
 // Also the Pages filter "Published between", from page_index.json.
+// Change dates: `updated` is the website's own date, else the latest <lastmod> of the
+// sitemap (`updated_source` "sitemap"), said as "changed (from your sitemap)": a change
+// date, never a publish date. `lastmod_seen` lists each date with the day Skald first saw it.
 
 import { h, n, short, long, addDays, dayDiff } from "../ui.js";
 import { getJSON, ranked } from "../data.js";
@@ -14,6 +17,8 @@ import { blist, panel, notBuiltNote } from "./common.js";
 import { time as tzTime } from "../tz.js";
 import { eventLabel } from "./events.js";
 import { withUrl } from "../urlactions.js";
+import { readyBlock } from "./aiready.js";
+import { changeTracker } from "./pagechange.js";
 
 const hasApi = (m) => Array.isArray(m.files) && m.files.includes("page_index");
 const STORIES = new Map();
@@ -53,9 +58,16 @@ function after(at, start) {
   if (!Number.isFinite(d)) return "";
   return d < 0 ? "before publishing" : d === 0 ? "the same day" : d === 1 ? "the next day" : `${d} days after`;
 }
+// "changed 24 Oct (from your sitemap)" / "updated 24 Oct": the change date and where it comes from.
+export const changedWords = (p, fmt = short) => (!p?.updated ? "" : p.updated_source === "sitemap" ? `changed ${fmt(p.updated)} (from your sitemap)` : `updated ${fmt(p.updated)}`);
+// Each change date the sitemap gave, with the day Skald first saw it: timeline entries.
+function changes(st) {
+  return (st.lastmod_seen || []).map(([d, seen]) => ({ key: "lastmod", kind: "change", at: d, words: "Changed (from your sitemap)",
+    when: `${long(d)}${seen && seen !== d ? `, in the sitemap Skald read on ${long(seen)}` : ""}` }));
+}
 function timeline(st) {
   const start = st.published || st.first_seen;
-  const items = [], missing = [];
+  const items = changes(st), missing = [];
   for (const [key, words, kind, yet] of MILESTONES) {
     const v = st.milestones?.[key];
     if (v === undefined) continue;
@@ -65,9 +77,9 @@ function timeline(st) {
   }
   items.sort((a, b) => (a.at < b.at ? -1 : 1));
   return h("ol", { class: "ps-line" },
-    h("li", { class: "ps-i start" }, h("span", { class: "ps-dot" }), h("div", null, h("b", null, st.published ? "Published" : "First seen in the logs"), h("span", { class: "ps-when" }, long(start)))),
+    h("li", { class: "ps-i start" }, h("span", { class: "ps-dot" }), h("div", null, h("b", null, st.published ? "Published" : start ? "First seen in the logs" : "Not seen in the logs yet"), start ? h("span", { class: "ps-when" }, long(start)) : null)),
     items.map((x) => h("li", { class: `ps-i ${x.kind}` }, h("span", { class: "ps-dot" }), h("div", null, h("b", null, x.words),
-      h("span", { class: "ps-when" }, x.day ? `${long(x.at)} (the first day in the stored days)` : `${tzTime(x.at, { date: true })}, ${after(x.at, start)}`)))),
+      h("span", { class: "ps-when" }, x.when || (x.day ? `${long(x.at)} (the first day in the stored days)` : `${tzTime(x.at, { date: true })}, ${after(x.at, start)}`))))),
     missing.map(([yet, kind]) => h("li", { class: `ps-i ${kind} not` }, h("span", { class: "ps-dot" }), h("div", null, h("b", null, yet)))));
 }
 
@@ -91,7 +103,7 @@ function inside(m, path, since) {
 // --------------------------------------------------------------- the page
 export function pageStory(m, s) {
   const path = s.page;
-  const back = h("button", { type: "button", class: "btn ps-back", onclick: () => S.set({ page: "" }) }, "← All pages");
+  const back = h("button", { type: "button", class: "btn ps-back", onclick: () => S.set({ page: "", psec: "" }) }, "← All pages");
   const body = h("div", { class: "ps" }, h("p", { class: "empty" }, "Telling the page's story…"));
   story(m, path).then((st) => {
     if (!st) { body.replaceChildren(h("p", { class: "empty" }, `Nothing was recorded for ${path} in the stored days.`)); return; }
@@ -116,19 +128,22 @@ export function pageStory(m, s) {
     const width = Math.round(innerWidth > 1000 ? ((full - 18) * 2.2) / 3.2 - 34 : full - 34);
     body.replaceChildren(...[
       h("div", { class: "ps-head" }, h("div", null, h("h2", { class: "ps-path" }, withUrl(h("span", null, path), path, { cls: "ua-after" })), st.title ? h("p", { class: "ps-title" }, st.title) : null,
-        h("p", { class: "ps-meta" }, st.published ? `Published ${long(st.published)}` : `First seen ${long(st.first_seen)}; the website does not give a publish date`,
-          st.updated ? `, updated ${long(st.updated)}` : "", since ? `. Day ${since} since ${st.published ? "publishing" : "first seen"}.` : ".")), cmp),
+        h("p", { class: "ps-meta" }, st.published ? `Published ${long(st.published)}` : st.first_seen ? `First seen ${long(st.first_seen)}; the website does not give a publish date` : "Listed in your sitemap, not seen in the logs yet",
+          st.updated ? `, ${changedWords(st, long)}` : "", since ? `. Day ${since} since ${st.published ? "publishing" : "first seen"}.` : ".")), start ? cmp : null),
       st.local ? h("p", { class: "note" }, "This server does not keep page histories yet, so the story below is what the stored days show: the first day the page was read and fetched, its page views and the visitors who started on it.") : null,
+      changeTracker(m, s),        // Did my change work? (pagechange.js)
       h("div", { class: "ps-grid" },
         h("section", { class: "s ps-tl" }, h("h3", null, "Firsts"), timeline(st)),
         h("section", { class: "s" }, h("h3", null, "Every day since"), series.length && ok.length > 1 ? h("div", { class: "sheet" }, legend(series.map((x) => [x.name, x.color]), true),
           lines(days, series, { label: `${path}, every day since ${st.published ? "publishing" : "first seen"}`, H: 220, width })) : h("p", { class: "empty" }, "Fewer than two whole days so far."),
           gaps.length ? h("p", { class: "note" }, `Not drawn: ${gaps.join(", ")} (not whole, verified days).`) : null)),
+      // AI readiness (2.35): can AI read it well? psec=ai opens the story here.
+      readyBlock(m, s, path),
       h("div", { class: "cols three" },
         panel("Where its visitors came from", "since publishing", blist(ranked(sum("sources")), { drill: "source", empty: st.local ? "Needs the server's page history." : "No visitor yet." })),
         panel("Countries", "since publishing", blist(ranked(sum("countries")), { drill: "country", empty: st.local ? "Needs the server's page history." : "No visitor yet." })),
         panel("AI assistants that sent people", "since publishing", blist(ranked(sum("assistants")), { drill: "assistant", color: "var(--g-answer_engines)", empty: st.local ? "Needs the server's page history." : "None yet." }))),
-      inside(m, path, start)].filter(Boolean));
+      start ? inside(m, path, start) : null].filter(Boolean));
   }).catch((e) => body.replaceChildren(h("div", { class: "state bad" }, h("div", null, `The page's story could not be loaded: ${e.message || e}.`))));
   return [h("div", { class: "head" }, h("h1", null, "Page story"), h("span", { class: "period" }, "since the page was published")), back, body];
 }
@@ -143,26 +158,38 @@ export function published(m, s) {
   const to = h("input", { type: "date", value: s.pubto || "", "aria-label": "Published to", onchange: (e) => set({ pubto: e.target.value }) });
   const month = (k) => { const d = new Date(`${m.anchor}T12:00:00Z`); d.setUTCMonth(d.getUTCMonth() - k, 1); const f = d.toISOString().slice(0, 10); d.setUTCMonth(d.getUTCMonth() + 1, 0); return [f, d.toISOString().slice(0, 10)]; };
   const quick = [["This month", month(0)], ["Last month", month(1)], ["Last 90 days", [addDays(m.anchor, -89), m.anchor]], ["Any time", ["", ""]]];
-  const all = idx.pages.filter((p) => (!s.pubfrom || (p.published && p.published >= s.pubfrom)) && (!s.pubto || (p.published && p.published <= s.pubto)));
+  const all = idx.pages.filter((p) => (!s.pubfrom || (p.published && p.published >= s.pubfrom)) && (!s.pubto || (p.published && p.published <= s.pubto))
+    && (!s.chgfrom || (p.updated && p.updated >= s.chgfrom)));
   // A Markdown copy of a post (/blog/post.md) is not a page of its own: the copies are one row that opens to list them.
   const rows = all.filter((p) => !isCopy(p.path)), copies = all.filter((p) => isCopy(p.path));
   const rel = (at, p) => (at ? after(at, p.published || p.first_seen) || short(at.slice(0, 10)) : "not yet");
+  const dated = idx.pages.some((p) => p.updated);
+  const changed = dated ? h("span", { class: "ps-range" }, "Changed since", h("input", { type: "date", value: s.chgfrom || "", "aria-label": "Changed since", onchange: (e) => set({ chgfrom: e.target.value }) }),
+    s.chgfrom ? h("button", { type: "button", class: "linkish", onclick: () => set({ chgfrom: "" }) }, "Any time") : null) : null;
+  const file = (what) => `pages-${what}-${s.pubfrom || "any"}-to-${s.pubto || "any"}${s.chgfrom ? `-changed-since-${s.chgfrom}` : ""}.csv`;
+  const lm = idx.meta?.lastmod;
+  const odd = lm ? [lm.invalid ? `${n(lm.invalid)} with a date that does not parse` : "", lm.future ? `${n(lm.future)} dated in the future` : ""].filter(Boolean) : [];
   return h("section", { class: "s ps-pub" },
     h("div", { class: "card-h start" }, h("h2", null, "Pages by publish date"),
       h("span", { class: "ps-range" }, "Published between", from, "and", to),
-      h("span", { class: "ps-quick" }, quick.map(([w, [f, t]]) => h("button", { type: "button", class: "linkish", onclick: () => set({ pubfrom: f, pubto: t }) }, w)))),
-    pubTable(rows, rel, { caption: "Pages by publish date", file: `pages-published-${s.pubfrom || "any"}-to-${s.pubto || "any"}.csv`, empty: "No page was published in these dates." }),
+      h("span", { class: "ps-quick" }, quick.map(([w, [f, t]]) => h("button", { type: "button", class: "linkish", onclick: () => set({ pubfrom: f, pubto: t }) }, w))), changed),
+    pubTable(rows, rel, { caption: "Pages by publish date", file: file("published"), empty: s.chgfrom ? "No page in these dates changed since then." : "No page was published in these dates.", dated }),
     copies.length ? h("details", { class: "md-copies" }, h("summary", null, `.md copies (${copies.length}): Markdown versions of pages, kept for AI assistants`),
-      pubTable(copies, rel, { caption: "Markdown copies by publish date", file: `pages-published-md-copies-${s.pubfrom || "any"}-to-${s.pubto || "any"}.csv`, empty: "" })) : null,
-    h("p", { class: "note" }, `Publish dates come from ${idx.meta?.source === "website" ? "the website" : "the first day the page was seen in the logs"}; * marks a page the website gives no date for. Select a page for its story.`));
+      pubTable(copies, rel, { caption: "Markdown copies by publish date", file: file("published-md-copies"), empty: "", dated })) : null,
+    h("p", { class: "note" }, `Publish dates come from ${idx.meta?.source === "website" ? "the website" : "the first day the page was seen in the logs"}; * marks a page the website gives no date for.`,
+      dated ? ` Changed: the website's own updated date, else the last change date your sitemap gives (its lastmod), a change date, not a publish date${lm?.day ? `; ${n(lm.dated || 0)} of the sitemap's pages had one on ${short(lm.day)}${odd.length ? ` (${odd.join(", ")}: left out)` : ""}` : ""}.` : "",
+      " Select a page for its story."));
 }
 
 export const isCopy = (path) => /\.md\/?$/i.test(path || "");
 
-function pubTable(rows, rel, { caption, file, empty }) {
+function pubTable(rows, rel, { caption, file, empty, dated }) {
   return table([
     { key: "path", label: "Page", path: true, fmt: (v, p) => h("span", null, v, p.title ? h("small", { class: "ps-t" }, p.title) : null) },
-    { key: "published", label: "Published", type: "date", fmt: (v, p) => (v ? short(v) : h("span", { class: "muted", title: "The website gives no date; first seen" }, `${short(p.first_seen)}*`)), sort: (p) => p.published || p.first_seen },
+    { key: "published", label: "Published", type: "date", fmt: (v, p) => (v ? short(v) : p.first_seen ? h("span", { class: "muted", title: "The website gives no date; first seen" }, `${short(p.first_seen)}*`) : h("span", { class: "muted", title: "Listed in your sitemap; no request for it in the logs yet" }, "not seen yet")), sort: (p) => p.published || p.first_seen || "" },
+    ...(dated ? [{ key: "updated", label: "Changed", type: "date", sort: (p) => p.updated || "",
+      fmt: (v, p) => (!v ? h("span", { class: "muted" }, "no date") : p.updated_source === "sitemap" ? h("span", { title: "From your sitemap (lastmod): a change date, not a publish date" }, short(v), h("small", { class: "ps-t" }, "from your sitemap")) : h("span", { title: "From the website's own page list" }, short(v))),
+      csv: (p) => (p.updated ? `${p.updated}${p.updated_source === "sitemap" ? " (sitemap)" : ""}` : "") }] : []),
     { key: "days_since_publish", label: "Days since", num: true },
     { key: "views_7d", label: "Views, 7 days", num: true },
     { key: "views_30d", label: "Views, 30 days", num: true },

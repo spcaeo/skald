@@ -8,6 +8,7 @@ import { call } from "./ipmanager.js";
 import { download } from "../table.js";
 import { ME, sessions, signOut } from "../access.js";
 import { head1, copyable, field, input, status, when, why, passwordProblem, POLICY } from "./forms.js";
+import { copyIf } from "../urlactions.js";
 
 const pw = (auto) => input({ type: "password", autocomplete: auto, required: true, maxlength: "1024" });
 const card = (title, sub, ...body) => h("section", { class: "sheet acct-card" }, h("h2", null, title), sub ? h("p", { class: "sub" }, sub) : null, ...body);
@@ -150,7 +151,7 @@ function sessionsCard(acc) {
   const msg = status();
   const others = list.filter((s) => !s.current).length;
   const rows = list.map((s) => h("tr", null,
-    h("td", null, device(s.agent), s.current ? h("span", { class: "you" }, " (this browser)") : null),
+    h("td", null, copyIf("ua", device(s.agent), s.agent || "", { label: "user agent", cls: "ua-after" }), s.current ? h("span", { class: "you" }, " (this browser)") : null),
     h("td", { class: "muted n" }, when(s.created_at, "")), h("td", { class: "muted n" }, when(s.last_seen, ""))));
   const all = h("button", { type: "button", class: "btn danger" }, "Sign out everywhere else");
   const slot = h("div", { class: "acts" }, all);

@@ -2,7 +2,7 @@
 
 A site behind a CDN is mostly served by the CDN. When a page is in the CDN's
 cache, the request never reaches your server, so your server's access log
-never sees it. The CDN's own log sees every request. Skald reads three
+never sees it. The CDN's own log sees every request. Skald reads four
 CDNs' logs, and the records of its own Cloudflare Worker:
 
 | `logs.format` | CDN | What it reads |
@@ -10,6 +10,7 @@ CDNs' logs, and the records of its own Cloudflare Worker:
 | `cloudflare_json` | Cloudflare | Logpush, dataset `http_requests`, one JSON object a line |
 | `cloudfront_w3c` | AWS CloudFront | Standard logs (legacy): W3C, tab-separated |
 | `fastly_json` | Fastly | The JSON log format below, written in the logging endpoint |
+| `akamai_json` | Akamai | DataStream 2, log format JSON, one object a line |
 | `edge_json` | Cloudflare, any plan | Edge records the Skald Worker posts ([below](#cloudflare-on-any-plan-the-skald-worker)) |
 
 `format: auto` picks each one from the first lines. It also reads a file
@@ -30,7 +31,7 @@ that mixes them with nginx lines, for the day you move a site behind a CDN.
 - **Logs arrive late.** Logpush pushes batches as they fill, often more than
   once a minute. CloudFront usually delivers within an hour, but says some
   entries can be up to 24 hours late. Fastly writes a file each period (an
-  hour by default). Run the daily report late enough for yesterday's files
+  hour by default). DataStream 2 uploads every 30 or 60 seconds. Run the daily report late enough for yesterday's files
   to be in.
 - **Lines are not always in time order.** CloudFront says so outright. Skald
   places each request by its own timestamp, so the day's totals are right.
@@ -39,8 +40,8 @@ that mixes them with nginx lines, for the day you move a site behind a CDN.
 - **The independent audit (`skald audit`) does not read CDN logs.** Its own
   reader knows the nginx and Apache layouts, the Vercel and Netlify log
   drain lines (HOSTING.md) and the Skald Worker's edge records. It does not
-  read `cloudflare_json`, `cloudfront_w3c` or `fastly_json` lines (nor
-  Caddy's). Today, on a CDN log, the recount finds no request, does not
+  read `cloudflare_json`, `cloudfront_w3c`, `fastly_json` or `akamai_json`
+  lines (nor Caddy's). Today, on a CDN log, the recount finds no request, does not
   match, and run-daily withholds the day.
 
 ## Getting the files to the server
@@ -289,9 +290,64 @@ may work as it is:
 one (a `request` object) and a Cloudflare one (`ClientRequestURI`) by its
 keys.
 
+## Akamai: DataStream 2
+
+DataStream 2 streams the edge's request logs to a destination you choose.
+Send them to **Amazon S3** (or any S3-compatible bucket), then sync as
+above. In Akamai Control Center, **DataStream > Create stream**:
+
+1. **Properties:** the property (or properties) that serve the site.
+2. **Data sets:** turn on the fields below. Akamai logs only the fields you
+   pick, in JSON with Akamai's own names.
+3. **Delivery:** log format **JSON**; destination **Amazon S3**, with a
+   folder path of its own; push frequency 30 or 60 seconds. DataStream 2
+   uploads gzip files. If their names do not end in `.gz`, set the file
+   suffix to `.gz` under **Delivery options**, so the sync script above
+   finds them.
+4. Activate the stream, and turn on the **DataStream** behavior in the
+   property's rules if the wizard did not.
+
+| DataStream 2 field | Skald reads it as |
+| --- | --- |
+| `cliIP` | the address (required: a line without it is counted as unreadable) |
+| `reqTimeSec` | the time (required): Unix seconds, with or without a fraction |
+| `reqPath` | the path (required) |
+| `queryStr` | the query, added after `?`. Akamai logs it only when the **Cache Key Query Parameters** behavior includes all parameters |
+| `statusCode` | the status (required; `0`, the client gone before the answer, is not read) |
+| `reqMethod` | the method |
+| `reqHost` | the host, for `site.hosts` (a `:port` is dropped) |
+| `bytes` | the size (the response body) |
+| `UA` | the user agent, URL-decoded once. Needs the **User Agent** behavior or **Log Request Details** |
+| `referer` | the referrer, URL-decoded once. Needs **Log Request Details** with the Referer header |
+| `country` | the country (a two-letter code) |
+| `turnAroundTimeMSec` | the request time, in milliseconds: first byte out, as for Cloudflare |
+| `reqId` | drops a record delivered twice |
+| `cacheStatus` | not used (`1` from the edge cache): worth adding for your own checks |
+
+A WebSocket line (`recordTag` `W`) and a midgress line (`midgressType` 2,
+4 or 6: Akamai fetching from its own peers and parents) is not a
+visitor's request. Skald does not read it, nor a `statusCode` of `0`, so
+each counts as an unreadable line, never as traffic. Skald reads one JSON
+object a line.
+Check the first day of a new stream: unreadable lines in **Site >
+Data quality** mean the stream is not writing what this table says.
+
+Not the HTTPS destination: Skald's ingest address needs `Authorization:
+Bearer <token>`, and DataStream 2 sends no such header to a custom endpoint
+(Basic only; a custom header may not be called `Authorization`).
+
 ## Sources
 
-Checked on 2026-10-08 (the Worker's sources on 2026-10-12).
+Checked on 2026-10-08 (the Worker's sources on 2026-10-12, Akamai's on 2026-10-25).
+
+- Akamai, DataStream 2 log fields (`cliIP`, `reqTimeSec`, `reqPath`, `queryStr`, `UA`, ...):
+  <https://techdocs.akamai.com/datastream2/docs/data-set-parameters>
+- Akamai, DataStream 2 log format (JSON sample, every value a string):
+  <https://techdocs.akamai.com/datastream2/docs/log-format>
+- Akamai, stream logs to Amazon S3 (gzip files, push frequency, file suffix):
+  <https://techdocs.akamai.com/datastream2/docs/stream-amazon-s3>
+- Akamai, stream logs to a custom HTTPS endpoint (no `Authorization` custom header):
+  <https://techdocs.akamai.com/datastream2/docs/stream-custom-https>
 
 - Cloudflare Workers, `ctx.waitUntil` and `ctx.passThroughOnException`:
   <https://developers.cloudflare.com/workers/runtime-apis/context/>

@@ -23,7 +23,9 @@ The parts, in order:
     lead database  leads.db readable (only when set)
     mail           the mail settings are complete; nothing is sent unless --send-test
     version        a newer release, from updates.json only: never the network
-    disk           free space where the history lives
+    crawler checks bots.ranges_dir set (else NEEDS ATTENTION: "crawler checks off",
+                   or OFF when SKALD_VERIFY_BOTS says off), and its lists fresh
+    disk          free space where the history lives
 
 Every check reads only (--send-test sends one mail to the recipients). A
 check that fails to run is reported as NEEDS ATTENTION with its error, never
@@ -241,7 +243,7 @@ def _tail(config: dict) -> bytes:
 
 # Formats that keep no request header, so cannot record Next.js's prefetch one.
 NO_HEADERS = ("vercel_json", "netlify_json", "edge_json", "cloudflare_json", "fastly_json",
-              "cloudfront_w3c")
+              "cloudfront_w3c", "akamai_json")
 NEXT_LINE = " rsc_prefetch=$http_next_router_prefetch"
 NEXT_APACHE = " rsc_prefetch=%{Next-Router-Prefetch}i"
 
@@ -473,6 +475,40 @@ def version(config: dict, folder, now: datetime, cmd: str) -> dict:
                 f"{_ago(state['checked_at'], now)})")
 
 
+def crawler_checks(config: dict, now: datetime, cmd: str) -> dict:
+    """Are crawler claims checked against their owners' lists (bot_verify)?"""
+    from . import bot_verify
+    part = "Crawler checks"
+    folder = bot_verify.ranges_dir(config)
+    if folder is None:
+        what = ("crawler checks off: a fake Googlebot or GPTBot counts as the crawler it "
+                "names, and browsers from hosting networks are not flagged")
+        if str(os.environ.get("SKALD_VERIFY_BOTS", "")).strip().lower() in \
+                ("0", "false", "off", "no"):
+            return item("crawlers", part, OFF, what + " (SKALD_VERIFY_BOTS is off)")
+        fix = ("Docker: start the container from this release (it sets bots.ranges_dir) "
+               "without SKALD_VERIFY_BOTS=off, or add bots.ranges_dir to your mounted "
+               "config." if in_docker() else
+               "Add `bots: {ranges_dir: <a folder>}` to the config, then run "
+               f"`{cmd} verify-bots` (run-daily runs it first from then on).")
+        return item("crawlers", part, ATTENTION, what, fix)
+    verifier = bot_verify.Verifier(folder, now)
+    names = list(bot_verify.LISTS)
+    if not verifier.sets:
+        return item("crawlers", part, OK, "on; the owners' lists are not fetched yet (the "
+                    f"next daily run fetches them, or `{cmd} verify-bots` now)")
+    fresh = sum(1 for n in names if n in verifier.fresh)
+    if not fresh:
+        return item("crawlers", part, ATTENTION,
+                    f"on, but every list is older than {bot_verify.MAX_LIST_AGE.days} days: "
+                    "no crawler is called fake until they are fetched again",
+                    f"Run `{cmd} verify-bots` and read what each list says.")
+    says = f"on; {fresh} of {len(names)} owners' lists fresh"
+    if verifier.hosting_set is None:
+        says += "; hosting networks not fetched"
+    return item("crawlers", part, OK, says)
+
+
 def disk(folder) -> dict:
     try:
         got = shutil.disk_usage(folder)
@@ -522,6 +558,7 @@ def checks(ctx, send_test: bool = False, helper_state: dict | None = None) -> li
     out += _safe("leads", "Lead database", lead_database, config)
     out += _safe("mail", "Mail", mail, config, send_test)
     out += _safe("version", "Version", version, config, folder, now, cmd)
+    out += _safe("crawlers", "Crawler checks", crawler_checks, config, now, cmd)
     out += _safe("disk", "Disk", disk, folder)
     return out
 

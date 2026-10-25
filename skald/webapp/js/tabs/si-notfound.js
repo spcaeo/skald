@@ -15,6 +15,9 @@ import * as S from "../state.js";
 import { head, nothing, fileName, panel, blist, fixed } from "./common.js";
 import { tiles } from "./tiles.js";
 import { grid } from "../grid.js";
+// 2.35: the old addresses still asked for, with the closest live page (js/tabs/nf-lost.js).
+import { lostPages } from "./nf-lost.js";
+import { copyIf } from "../urlactions.js";
 
 const FIX = {
   fixed: ["fixed", "Fixed: the path answers again"],
@@ -35,7 +38,7 @@ function fixBadge(row) {
 function sources(obj) {
   const list = ranked(obj).slice(0, 4);
   if (!list.length) return h("span", { class: "muted" }, "no referrer");
-  return h("span", { class: "srcs" }, list.map(([k, v]) => h("span", { class: "src" }, `${k} ${n(v)}`)));
+  return h("span", { class: "srcs" }, list.map(([k, v]) => h("span", { class: "src" }, copyIf("text", h("span", null, k), k, { label: "referrer" }), ` ${n(v)}`)));
 }
 
 /* The pages people could not find in the period (the day figures' not_found): Page,
@@ -60,6 +63,8 @@ export default function notFound(m, s) {
   const { r, t, cov } = figures(m, s);
   const out = [...head("Not found", r, "Pages that answered 404 (not found) or 410 (gone). The ones real people hit come first: each is a visitor who wanted something and did not get it. Scanner probes are folded away at the bottom.")];
   const f = m.x.not_found;
+  const lost = lostPages(m, s);
+  if (lost) out.push(lost);
   if (!t) return [...out, nothing(m, r, "broken links")];
   const keep = pathMatch(s);
   // Without not_found.json: the 404s people met, by path, from the day figures.

@@ -15,6 +15,31 @@ the page from the server at that moment. So:
   compared to the minute, in UTC. Two or more assistants in the window: the
   visit counts once, under classify.AI_LIKELY_MANY.
 
+  Unless chance explains it (2026-10-25). An assistant that fetches a page
+  all day long covers so many minutes that ordinary direct visits land in
+  them anyway: on one site ChatGPT-User fetched the home page 78 times in
+  four days, its windows covered 12 to 29 % of each day, and of the 15 to 38
+  direct home-page visits a day, 25 in all were "likely ChatGPT", where
+  chance alone gives about 19. So for each assistant and page of the day:
+
+    covered   the minutes in which a visit would match: every minute from
+              one of its fetches of the page to `window` minutes after it,
+              each minute once
+    chance    the day's direct untagged visits landing on the page x
+              covered / 1440: the visits expected in those minutes if those
+              visits came at random times through the day
+    by chance chance >= CHANCE_LIMIT (a quarter of a visit): its fetches of
+              that page that day are no evidence, and a visit there is not
+              made likely by that assistant
+
+  At a quarter, one such page in five or fewer gets a chance visit (1 -
+  e^-0.25). The direct visits counted include the real ones, so the rule
+  errs towards saying nothing. A rarely visited page (one direct visit, a
+  few fetches) stays well under it; the home page of a site people type in
+  does not. No page is named: a page is weak evidence only when its own
+  figures say so. The home page's Markdown copy (/index.md) is not the home
+  page: a fetch of it never made a visit to / likely.
+
 It is an estimate, labelled as one wherever it shows: a fetch can be for a
 person who never clicked, and a click can come from someone else. It is
 never added to the AI assistant source or to any real count. A visit in the
@@ -25,6 +50,11 @@ The blob (kind `ai_likely`; None when `attribution.ai_likely` is false or
 the visits were not counted - "not recorded", never 0):
 
   window_minutes  the window the day was counted with
+  chance_limit    the limit the day was counted with (absent: counted
+                  before the rule, with none)
+  by_chance       {assistant: [pages]} (page as the window compares it)
+                  whose fetches that day were no evidence; leads and
+                  conversions leave the same fetches out (fetch_index)
   visits          the day's visits (journeys)
   direct          of which direct and untagged: what the figure can explain
   likely          of which likely referred by an assistant
@@ -59,6 +89,8 @@ from datetime import date, datetime, timedelta, timezone
 from .classify import AI_FETCHER_OWNERS, AI_LIKELY_MANY, Group, Tier
 
 WINDOW = 15
+CHANCE_LIMIT = 0.25          # visits chance alone may put in the windows
+DAY_MINUTES = 1440
 FETCH_DAYS = 180
 TOP = 20
 OTHER = "(all others)"
@@ -67,8 +99,9 @@ NOT_RECORDED = "(not recorded)"
 NONE = "(none)"
 METHOD = ("Inferred, not counted: a visit with no referrer and no campaign tag that landed "
           "on a page an AI assistant's user fetcher (ChatGPT-User, Perplexity-User, "
-          "Claude-User, ...) had fetched in the same minute or up to {w} minutes before. "
-          "Likely, never certain.")
+          "Claude-User, ...) had fetched in the same minute or up to {w} minutes before, "
+          "unless that assistant fetched the page so often that day that direct visits "
+          "would land after its fetches by chance. Likely, never certain.")
 
 
 def settings(config: dict | None) -> dict:
@@ -135,6 +168,24 @@ def direct_untagged(j: dict) -> bool:
     return j.get("source") == DIRECT and not j.get("utm") and not j.get("paid")
 
 
+def by_chance(by_page: dict, direct: Counter, window: int,
+              limit: float = CHANCE_LIMIT) -> set:
+    """The (assistant, page) pairs whose fetches of the day are no evidence
+    (see the module's note): {page: [(minute, assistant)]} of the fetches,
+    {page: direct untagged visits landing on it}."""
+    out = set()
+    for key, got in by_page.items():
+        if not direct.get(key):
+            continue
+        covered: dict[str, set] = {}
+        for fm, who in got:
+            covered.setdefault(who, set()).update(range(fm, fm + window + 1))
+        for who, minutes in covered.items():
+            if direct[key] * len(minutes) / DAY_MINUTES >= limit:
+                out.add((who, key))
+    return out
+
+
 def _fold(paths: Counter) -> dict:
     ordered = sorted(paths.items(), key=lambda kv: (-kv[1], kv[0]))
     out = dict(ordered[:TOP])
@@ -157,19 +208,18 @@ def finish(extras, totals, journeys, page_visits, readers_by_hour) -> dict | Non
         by_page.setdefault(page_key(path), []).append((m, who))
     for got in by_page.values():
         got.sort()
-    direct = 0
+    directs = [(j, minute(first), page_key(j.get("landing") or ""))
+               for j, first in zip(journeys, firsts) if direct_untagged(j)]
+    direct = len(directs)
+    chance = by_chance(by_page, Counter(key for _, _, key in directs), window)
     by_assistant: Counter = Counter()
     pages: Counter = Counter()
     landed: dict[str, list[int]] = {}
-    for j, first in zip(journeys, firsts):
-        if not direct_untagged(j):
-            continue
-        direct += 1
-        m, key = minute(first), page_key(j.get("landing") or "")
+    for j, m, key in directs:
         landed.setdefault(key, []).append(m)
         near: dict[str, int] = {}
         for fm, who in by_page.get(key, ()):
-            if 0 <= m - fm <= window:
+            if 0 <= m - fm <= window and (who, key) not in chance:
                 near[who] = min(near.get(who, m - fm), m - fm)
         if not near:
             continue
@@ -186,7 +236,11 @@ def finish(extras, totals, journeys, page_visits, readers_by_hour) -> dict | Non
         seen = landed.get(page_key(path), [])
         if bisect_right(seen, m + window) > bisect_left(seen, m):
             followed[who] += 1
-    return {"window_minutes": window, "visits": len(journeys), "direct": direct,
+    ruled: dict[str, list] = {}
+    for who, key in sorted(chance):
+        ruled.setdefault(who, []).append(key)
+    return {"window_minutes": window, "chance_limit": CHANCE_LIMIT, "by_chance": ruled,
+            "visits": len(journeys), "direct": direct,
             "likely": int(sum(by_assistant.values())),
             "by_assistant": dict(sorted(by_assistant.items())), "pages": _fold(pages),
             "fetches": dict(sorted(fetches.items())),
@@ -225,18 +279,22 @@ def fetch_index(history, site: str, first: date, last: date) -> dict:
     """The stored user fetches of the verified, whole days in [first, last]:
     {"days": {local day}, "pages": {page_key: [(minute, assistant)]}}.
     A day not in "days" was not recorded: a touch whose window reaches into
-    it is "(not recorded)", never "none"."""
+    it is "(not recorded)", never "none". A day's fetches its `ai_likely`
+    blob calls "by chance" are left out, as they are for the day's visits."""
     days = {e["day"].isoformat() for e in history.daily(site, first, last)
             if e.get("state") == "ok"}
     pages: dict[str, list] = {}
     kept: set = set()
-    for day, blobs in history.extras(site, first, last, ("ai_fetches",)).items():
+    for day, blobs in history.extras(site, first, last, ("ai_fetches", "ai_likely")).items():
         rows = (blobs.get("ai_fetches") or {}).get("rows")
         if day not in days or rows is None:
             continue
         kept.add(day)
+        ruled = {(who, key) for who, keys in
+                 ((blobs.get("ai_likely") or {}).get("by_chance") or {}).items() for key in keys}
         for at, who, path, _n in rows:
-            pages.setdefault(page_key(path), []).append((_stored_minute(at), who))
+            if (who, page_key(path)) not in ruled:
+                pages.setdefault(page_key(path), []).append((_stored_minute(at), who))
     for got in pages.values():
         got.sort()
     return {"days": kept, "pages": pages}

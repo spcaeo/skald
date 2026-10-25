@@ -264,12 +264,40 @@ def _directory(page) -> Path | None:
     return Path(str(raw)).expanduser().parent
 
 
+CHANGE_WORDS = {"content": "content update", "title": "new title", "backlink": "new backlink",
+                "redirect": "redirect", "other": "changed"}
+
+
+def page_changes(config: dict, site: str, live_dir, now: datetime, tz, days: int = DAYS) -> list[dict]:
+    """The page changes people marked (todo_marks.py, Traffic > Pages > a page), as markers
+    of the kind page_change on their day: a day, no time (`day`; `at` its midnight)."""
+    from .todo_marks import read_changes
+    since = (_aware(now).astimezone(tz) - timedelta(days=days)).date().isoformat()
+    out = []
+    for c in read_changes(config, site, live_dir) or []:
+        if c["day"] < since:
+            continue
+        at = datetime.fromisoformat(c["day"]).replace(tzinfo=tz)
+        words = CHANGE_WORDS.get(c.get("kind"), "changed")
+        out.append({"at": at.isoformat(timespec="seconds"), "day": c["day"], "kind": "page_change",
+                     "label": _clean(f"{c['path']}: {words}" + (f", {c['note']}" if c.get("note") else ""),
+                                     LABEL_MAX),
+                     "detail": "", "change": c["id"], "path": c["path"]})
+    return out
+
+
 def build(page) -> dict:
-    """markers.json (docs/DATA-CONTRACT-ALERTS.md): the same on every page."""
+    """markers.json (docs/DATA-CONTRACT-ALERTS.md): the same on every page, with the page
+    changes people marked (page_change, by day)."""
     directory = getattr(page, "live_dir", None) or _directory(page)
     version = _read_version(directory).get("version") if directory is not None else None
-    return {"markers": collect(page.config, directory, page.now, page.tz),
-            "website_version": version}
+    found = collect(page.config, directory, page.now, page.tz)
+    try:
+        found += page_changes(page.config, page.key.split("::", 1)[0], directory, page.now, page.tz)
+    except Exception:                    # noqa: BLE001 - the marks unreadable: the other markers stand
+        pass
+    found.sort(key=lambda m: (m["at"], m["kind"], m["label"]), reverse=True)
+    return {"markers": found, "website_version": version}
 
 
 # ----------------------------------------------------------------- commands

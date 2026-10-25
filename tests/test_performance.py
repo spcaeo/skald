@@ -132,7 +132,8 @@ def old_story(history, site, path, config, tz, today):
     meta, _ = L.load_meta(config)
     seen = L._first_seen(history, site)
     if path not in meta and path not in seen:
-        return {"ok": False, "error": "no such page in the website's list or the logs"}
+        return {"ok": False, "error": "no such page in the website's list, its sitemap or "
+                                      "the logs"}
     published, updated, source = L._published(path, meta, seen)
     marks = (L.milestones(history, site, None, tz).get(path)
              or {k: None for k in L.SINGLE} | {k: [] for k in L.MULTI})
@@ -168,7 +169,10 @@ def old_story(history, site, path, config, tz, today):
             days.append(row)
     entry = meta.get(path) or {}
     return {"ok": True, "path": path, "title": entry.get("title"), "locale": entry.get("locale"),
+            # the sitemap's change dates (added later): none in this sandbox
             "published": published, "updated": updated, "date_source": source,
+            "updated_source": "website" if updated else None, "lastmod": None,
+            "lastmod_seen": [],
             "first_seen": seen.get(path),
             "days_since_publish": (today - date.fromisoformat(published)).days
             if published else None,

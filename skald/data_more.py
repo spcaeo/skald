@@ -13,7 +13,12 @@ FILES = {"requests": "requests_feed", "alerts": "alerts", "quality": "quality",
          "llms_txt": "llms_txt", "crawler_cost": "crawler_cost",
          "crawl_health": "crawl_health",
          "realtime": "realtime", "search": "search.data", "retention": "retention_page",
-         "ai_answers": "answers.data", "security": "security_page"}
+         "ai_answers": "answers.data", "security": "security_page",
+         "page_trends": "page_trends", "ai_ready": "ai_ready",
+         # 2.35: Overview > Insights' to-dos and Site > Not found's lost pages
+         "todos": "todos", "lost_pages": "lost_pages",
+         # Traffic > Pages > a page: did my change work? (the page changes marked)
+         "page_changes": "page_changes"}
 
 
 def builders() -> dict:

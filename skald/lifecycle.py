@@ -8,6 +8,16 @@ Publish and update dates come from the website itself, when it gives them:
 "updated"}]}). Without it - or for a page it does not list - the page's
 "published" is the first day the logs saw it, and `date_source` says so.
 
+Change dates come from the site's sitemap too (sitemap_dates.py: each
+<lastmod>, read once a day with the Crawl health fetch, kept across days).
+A lastmod is when the site says the page last changed, never a publish
+date: it fills "updated" only when the website's own list gives none
+(`updated_source` "sitemap"; pages_meta wins, "website"). Each page also
+carries `lastmod` (the latest change date its sitemap gave) and
+`lastmod_seen` ([[date, the first day Skald saw it], ...], oldest first, at
+most sitemap_dates.CAP), so "changed since day X" is lastmod >= X. A page
+the sitemap lists but the logs never saw has a row too (published null).
+
 Milestones - Googlebot's and Bingbot's first fetch, each AI crawler's and
 assistant's, the first person, the first from a search engine and from each
 assistant - are each page's earliest times, kept for good in history
@@ -150,6 +160,80 @@ def _published(path: str, meta: dict, seen: dict) -> tuple[str | None, str | Non
     return seen.get(path), None, "first seen"
 
 
+# ------------------------------------------------------------ change dates
+
+def site_folder(config: dict, site: str | None = None) -> Path | None:
+    """The site's live folder (its sitemaps/ are there): the config's own,
+    or sites/<slug> beside it when the config is another site's (the helper
+    and MCP answer every site with the main config)."""
+    raw = ((config or {}).get("_resolved") or {}).get("live_dir")
+    if not raw:
+        return None
+    from .config import site_name
+    from .files import slug
+    if site and site != site_name(config or {}):
+        return Path(raw) / "sites" / slug(site)
+    return Path(raw)
+
+
+def sitemap_changes(config: dict, folder) -> tuple[dict, dict | None]:
+    """({normalised path: {"lastmod", "lastmod_seen"}}, about) from the
+    sitemap's lastmod history. Both spellings of a path are one page: their
+    [date, day seen] pairs together, sorted by the day seen (then the date), a
+    date kept once (the first day seen), the last CAP; `lastmod` the latest
+    date. `about`: {"day", "dated", "missing", "invalid", "future"} of the
+    last day merged, or None."""
+    from . import sitemap, sitemap_dates
+    if folder is None or not sitemap.enabled(config):
+        return {}, None
+    kept = sitemap_dates.load(folder)
+    pairs: dict[str, list] = {}
+    for path, entry in kept.items():
+        pairs.setdefault(_norm(path), []).extend(
+            (str(d), str(day)) for d, day in entry.get("seen") or [])
+    out = {}
+    for path, got in pairs.items():
+        got.sort(key=lambda x: (x[1], x[0]))
+        dates, seen = set(), []
+        for d, day in got:
+            if d not in dates:
+                dates.add(d)
+                seen.append([d, day])
+        out[path] = {"lastmod": max(dates) if dates else None,
+                     "lastmod_seen": seen[-sitemap_dates.CAP:]}
+    day = sitemap_dates.last_day(folder)
+    entry = (sitemap.entry_for(folder, date.fromisoformat(day)) if day else None)
+    counts = (entry[1].get("lastmod") or {}) if entry and entry[0] == day else {}
+    about = ({"day": day, **{k: counts.get(k) for k in ("dated", "missing", "invalid",
+                                                       "future")}} if day else None)
+    return out, about
+
+
+def _updated(path: str, meta: dict, changes: dict) -> tuple[str | None, str | None]:
+    """(updated, updated_source): the website's own date wins, then the sitemap's."""
+    got = (meta.get(path) or {}).get("updated")
+    if got:
+        return got, "website"
+    got = (changes.get(path) or {}).get("lastmod")
+    return (got, "sitemap") if got else (None, None)
+
+
+def _dated(path: str, meta: dict, changes: dict) -> dict:
+    updated, source = _updated(path, meta, changes)
+    mine = changes.get(path) or {}
+    return {"updated": updated, "updated_source": source, "lastmod": mine.get("lastmod"),
+            "lastmod_seen": mine.get("lastmod_seen") or []}
+
+
+def page_dates(config: dict, folder) -> dict:
+    """{path: {"updated", "updated_source", "lastmod", "lastmod_seen"}} for every
+    page the website or the sitemap dates: what page_index.json and the story
+    show (audit_lastmod.py compares them with its own reading)."""
+    meta, _ = load_meta(config)
+    changes, _ = sitemap_changes(config, Path(folder) if folder is not None else None)
+    return {path: _dated(path, meta, changes) for path in set(meta) | set(changes)}
+
+
 # ------------------------------------------------------------ page_index.json
 
 # page_index.json is the same on a site's every page (a view gets the
@@ -170,6 +254,9 @@ def build(p) -> dict:
 
 def _build(p, site: str) -> dict:
     meta, about = load_meta(p.config)
+    folder = getattr(p, "live_dir", None)
+    changes, about["lastmod"] = sitemap_changes(
+        p.config, Path(folder) if folder is not None else site_folder(p.config, site))
     seen = _first_seen(p.history, site)
     marks = milestones(p.history, site, None, p.tz)
     landed, sent = _leads(p.config, p.tz)
@@ -184,14 +271,14 @@ def _build(p, site: str) -> dict:
             if recent:
                 views["7"][k] += int(v.get("views", 0))
     rows = []
-    for path in sorted(set(meta) | set(seen)):
-        published, updated, source = _published(path, meta, seen)
+    for path in sorted(set(meta) | set(seen) | set(changes)):
+        published, _, source = _published(path, meta, seen)
         m = marks.get(path) or {}
         first_ai = [x["at"] for x in m.get("from_ai") or []]
         rows.append({
             "path": path, "title": (meta.get(path) or {}).get("title"),
             "locale": (meta.get(path) or {}).get("locale"),
-            "published": published, "updated": updated, "date_source": source,
+            "published": published, "date_source": source, **_dated(path, meta, changes),
             "first_seen": seen.get(path),
             "days_since_publish": ((p.today - date.fromisoformat(published)).days
                                    if published else None),
@@ -221,9 +308,11 @@ def story(history, site: str, path: str, config: dict, tz, today: date) -> dict:
             seen.setdefault(_norm(p), day)
         if pages is not None:
             mine[day] = [(p, v) for p, v in pages.items() if _norm(p) == path]
-    if path not in meta and path not in seen:
-        return {"ok": False, "error": "no such page in the website's list or the logs"}
-    published, updated, source = _published(path, meta, seen)
+    changes, _ = sitemap_changes(config, site_folder(config, site))
+    if path not in meta and path not in seen and path not in changes:
+        return {"ok": False, "error": "no such page in the website's list, its sitemap or "
+                                      "the logs"}
+    published, _, source = _published(path, meta, seen)
     marks = (milestones(history, site, None, tz).get(path)
              or {k: None for k in SINGLE} | {k: [] for k in MULTI})
     landed, sent = _leads(config, tz)
@@ -255,7 +344,7 @@ def story(history, site: str, path: str, config: dict, tz, today: date) -> dict:
             days.append(row)
     entry = meta.get(path) or {}
     return {"ok": True, "path": path, "title": entry.get("title"), "locale": entry.get("locale"),
-            "published": published, "updated": updated, "date_source": source,
+            "published": published, "date_source": source, **_dated(path, meta, changes),
             "first_seen": seen.get(path),
             "days_since_publish": (today - date.fromisoformat(published)).days
             if published else None,
@@ -275,6 +364,10 @@ def cmd_page(ctx) -> int:
     ctx.out(f"{got['path']}  {got.get('title') or ''}")
     ctx.out(f"  published {got['published']} ({got['date_source']}), "
             f"{got['days_since_publish']} days ago; first seen {got['first_seen']}")
+    if got.get("updated"):
+        ctx.out(f"  changed {got['updated']} (from the {got['updated_source']})")
+    for d, day in got.get("lastmod_seen") or []:
+        ctx.out(f"  sitemap lastmod {d}, first seen {day}")
     for kind, value in got["milestones"].items():
         if isinstance(value, list):
             for m in value:

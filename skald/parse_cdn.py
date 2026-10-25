@@ -11,13 +11,21 @@ How to ship each CDN's logs to the box Skald runs on is in docs/CDN-LOGS.md.
   cloudfront_w3c   CloudFront standard (legacy) logs: W3C, tab-separated.
   fastly_json      a JSON log format written in Fastly's VCL. Fastly has no
                    fixed format, so the common field names are all accepted.
+  akamai_json      Akamai DataStream 2, log format JSON, one object a line.
+                   Fields, checked 2026-10-25:
+                   https://techdocs.akamai.com/datastream2/docs/data-set-parameters
+                   https://techdocs.akamai.com/datastream2/docs/log-format
+
+Like the drain readers (parse_drains.py), the Akamai one reads no line
+without the client's address: without it every person would be one visitor.
+Unknown stays unknown, so such a line is unreadable, and counted so.
 """
 from __future__ import annotations
 
 import json
 import re
 from datetime import datetime, timedelta, timezone
-from urllib.parse import unquote
+from urllib.parse import unquote, unquote_plus
 
 from .parse import Hit, _country, _when_clf
 
@@ -305,11 +313,13 @@ def fastly(line: str) -> Hit | None:
     full name, and a name is not turned into a code by guessing.
 
     A Caddy line (a "request" object), a Cloudflare one (ClientRequestURI),
-    a Vercel drain record (a "proxy" object) or a Netlify one (log_type) is
-    not read as Fastly's, so auto-detection tells them apart.
+    a Vercel drain record (a "proxy" object), a Netlify one (log_type) or an
+    Akamai one (reqTimeSec) is not read as Fastly's, so auto-detection tells
+    them apart.
     """
     row = _json_object(line)
     if row is None or "ClientRequestURI" in row or "log_type" in row or \
+            "reqTimeSec" in row or \
             isinstance(row.get("request"), dict) or isinstance(row.get("proxy"), dict):
         return None
     stamp = _first(row, "timestamp", "time")
@@ -345,4 +355,86 @@ def fastly(line: str) -> Hit | None:
         request_time=took,
         size=_bytes(_first(row, "response_body_size", "response_bytes", "bytes")),
         fmt="fastly_json",
+    )
+
+
+# ------------------------------------------------------------------ akamai
+
+def _akamai_host(value) -> str:
+    """reqHost is the Host header, "host[:port]": the port is dropped."""
+    host = _text(value).strip().lower()
+    if host.startswith("["):
+        return host[1:].split("]", 1)[0]
+    name, colon, port = host.rpartition(":")
+    return name if colon and port.isdigit() and ":" not in name else host
+
+
+def akamai(line: str) -> Hit | None:
+    """One Akamai DataStream 2 record, log format JSON (Akamai's own keys).
+
+    Every value is a string in Akamai's sample ("statusCode": "206"); numbers
+    are read too. A field logged as "-" or null is left out of a JSON line.
+
+      cliIP        the client's address (required)
+      reqTimeSec   when the edge took the request: Unix seconds, a fraction
+                   or milliseconds read by their size; RFC 3339 too (required)
+      reqPath      the path, without the query (required); a leading "/" is
+                   added when it has none. queryStr, the query, is added
+                   after a "?" when the stream logs it
+      statusCode   three digits (required). "0", the client gone before the
+                   answer, is no status: the line is not read
+      reqMethod, reqHost (its :port dropped), bytes (the body bytes sent)
+      UA, referer  RFC 1738 URL-encoded: decoded once (a "+" in UA is a space,
+                   as in Akamai's sample)
+      country      a two-letter code, kept as the visitor's country
+      turnAroundTimeMSec  the request time: the last request header in to the
+                   first answer byte out, in milliseconds, the same measure
+                   the Cloudflare reader takes
+      reqId / reqID  Akamai's request id: a record seen twice is read once
+      cacheStatus  "1" served from the edge cache, "0" not. Not counted: as
+                   with every CDN log, read it alone, never with the origin's
+
+    A WebSocket line (recordTag "W") and a midgress one (midgressType 2, 4 or
+    6: Akamai's own peer and parent fetches, not a visitor) are not requests.
+    """
+    row = _json_object(line)
+    if row is None or "reqTimeSec" not in row or "cliIP" not in row:
+        return None
+    if _text(row.get("recordTag")).strip().upper() == "W" or \
+            _text(row.get("midgressType")).strip() in ("2", "4", "6"):
+        return None
+    address = _text(row.get("cliIP")).strip()
+    path = row.get("reqPath")
+    if not address or not isinstance(path, str) or not path.strip() or path == "-":
+        return None
+    try:
+        when = _when(row["reqTimeSec"])
+    except (ValueError, OverflowError, OSError):
+        return None
+    status = _text(row.get("statusCode")).strip()
+    if not re.fullmatch(r"[1-5]\d\d", status):
+        return None
+    path = path.strip()
+    url = path if path.startswith("/") else "/" + path
+    query = _text(row.get("queryStr")).strip().lstrip("?")
+    if query:
+        url += "?" + query
+    country = _text(row.get("country")).strip().upper()
+    if not re.fullmatch(r"[A-Z]{2}", country):
+        country = ""
+    rid = _text(_first(row, "reqId", "reqID"))
+    return Hit(
+        when=when,
+        address=address,
+        host=_akamai_host(row.get("reqHost")),
+        method=_text(row.get("reqMethod")).strip().upper(),
+        url=url,
+        status=status,
+        referrer=unquote(_text(row.get("referer"))),
+        user_agent=unquote_plus(_text(row.get("UA"))),
+        country=_country(country),
+        request_time=_duration(row.get("turnAroundTimeMSec"), 1000),
+        size=_bytes(row.get("bytes")),
+        fmt="akamai_json",
+        rid=rid[:128],
     )

@@ -43,11 +43,12 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 # The name lists - the only thing shared with the package.
-from .classify import (AI_ASKED, AI_REFERRER_HOSTS, AI_TRAINING, AI_UTM, OTHER_BOT,
+from .classify import (AI_ASKED, AI_REFERRER_HOSTS, AI_REFERRER_PATHS, AI_TRAINING, AI_UTM,
+                       OTHER_BOT,
                        OWN_AGENTS, PROBE, PROBE_QUERY, SEARCH_ENGINE, SECRET_PROBE)
 from .store import History, READER_KINDS
-from . import (audit_cities, audit_drains, audit_extras, audit_more, audit_release2,
-               audit_rendered, audit_too_fast, audit_visits)
+from . import (audit_cities, audit_drains, audit_extras, audit_more, audit_not_pages,
+               audit_release2, audit_rendered, audit_too_fast, audit_tools, audit_visits)
 # The audit's own labels (moved out whole; still audit.browser_of etc.).
 from .audit_labels import (_bare, _host_of, browser_of, campaign_of,  # noqa: F401
                            device_of, referrer_of, source_of, status_of, system_of)
@@ -111,13 +112,34 @@ def navigation(line: Line) -> bool:
 def is_page(line: Line) -> bool:
     """A 2xx (or 304: the cached copy, shown) GET or HEAD for a document: no
     asset or beacon, and no payload unless it is a Next.js navigation. Not a
-    page view same_click marked as one click's second."""
-    if line.repeat or line.method not in ("GET", "HEAD") \
+    page view same_click marked as one click's second, nor an address on
+    the site's not-a-page list (not_page_of)."""
+    if line.repeat:
+        return False
+    return _shaped(line) and not not_page_of(line)
+
+
+def _shaped(line: Line) -> bool:
+    if line.method not in ("GET", "HEAD") \
             or not (line.status.startswith("2") or line.status == "304"):
         return False
     if _PAYLOAD.search(line.url):
         return navigation(line)
     return not _asset(line) and not _BEACON.search(line.path)
+
+
+def not_page_of(line: Line) -> str:
+    """The not-a-page entry this line matches (audit_not_pages, by its own
+    matching), or "". Worked out once per line."""
+    if line.not_page is None:
+        line.not_page = (line.marker or audit_not_pages.STANDARD)(line.path, line.url)
+    return line.not_page
+
+
+def not_page_entry(line: Line) -> str:
+    """The entry that kept a line shaped like a page view out of the page
+    views (quality.json's not_pages), or ""."""
+    return not_page_of(line) if _shaped(line) else ""
 
 
 def same_click(lines: list) -> list:
@@ -182,6 +204,11 @@ class Judge:
         # Rule 6b: an address and agent that asked the site's hosts for a
         # secret or config file in the window is a scanner on every line of it.
         self.scanners = self._scanners(lines)
+        # Rules 6c and 8b (audit_tools): many missing probe paths; HEAD for pages.
+        self.sweepers = audit_tools.sweepers(lines, self.hosts, self.legacy, _asset)
+        self.checkers = audit_tools.link_checkers(
+            lines, gap, self.hosts, _asset, lambda l: bool(_PAYLOAD.search(l.url)),
+            lambda l: bool(_BEACON.search(l.path)))
         # Browser-like visits that drew nothing (audit_rendered): bots.
         first, last = window or ((min(l.when for l in lines), max(l.when for l in lines))
                                  if lines else (None, None))
@@ -280,6 +307,19 @@ class Judge:
         self.info = {}
         if self._ours(line):
             return "ours", False
+        # Rule 2b: a claimed crawler that is scanning (a probe now, or a
+        # scanner this day) and not proven its owner's is a bot.
+        claimed = AI_ASKED.search(agent) or AI_TRAINING.search(agent) or (
+            None if audit_release2.preview_app(agent) else SEARCH_ENGINE.search(agent))
+        if claimed:
+            probe = bool(PROBE.search(line.path) or PROBE_QUERY.search(line.url)) and not any(
+                line.path.startswith(p) for p in self.legacy)
+            if probe or (line.address, line.agent) in self.scanners:
+                checked = self.checks.verdict(claimed.group(0), line.address, line.agent) \
+                    if self.checks.on else None
+                if checked not in ("verified", "spoofed"):
+                    self.info = {"probe": True} if probe else {"scanner": True}
+                    return "bots", False
         named = AI_ASKED.search(agent) or AI_TRAINING.search(agent)
         if named:
             return self._claim(named.group(0), line, "answer_engines"), False
@@ -299,6 +339,9 @@ class Judge:
         if (line.address, line.agent) in self.scanners:
             self.info = {"scanner": True}
             return "bots", False
+        if (line.address, line.agent) in self.sweepers:
+            self.info = {"sweep": True}
+            return "bots", False
         compatible_only = ("(compatible;" in agent.lower() and not re.search(
             r"AppleWebKit|Gecko|Trident|Presto|Chrome/|Safari/|Firefox/", agent, re.I))
         if (not agent or OTHER_BOT.search(agent) or compatible_only
@@ -310,6 +353,10 @@ class Judge:
         for first, last in self.crawlers.get((line.address, line.agent), ()):
             if first <= line.when <= last:
                 self.info = {"crawler": True}
+                return "bots", False
+        for first, last in self.checkers.get((line.address, line.agent), ()):
+            if first <= line.when <= last:
+                self.info = {"link_checker": True}
                 return "bots", False
         for first, last in self.unrendered.get((line.address, line.agent), ()):
             if first <= line.when <= last:
@@ -338,9 +385,11 @@ def _cited(line: Line) -> bool:
     if host:
         if any(host == d or host.endswith("." + d) for d in AI_REFERRER_HOSTS):
             return True
-        if (host == "bing.com" or host.endswith(".bing.com")) and \
-                urlsplit(line.referrer).path.startswith("/chat"):
-            return True
+        # An assistant that shares its host (bing.com/chat, x.com/i/grok).
+        for domain, prefix in AI_REFERRER_PATHS.items():
+            if (host == domain or host.endswith("." + domain)) and \
+                    urlsplit(line.referrer).path.startswith(prefix):
+                return True
     return bool(AI_UTM.search(line.url))
 
 
@@ -386,10 +435,12 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
     gap = timedelta(minutes=int((config.get("report") or {}).get(
         "session_gap_minutes") or 30))
 
-    lines = same_click(in_time_order([l for l in _read(files, upto) if start <= l.when < end]))
+    lines = same_click(in_time_order([l for l in _read(files, upto, config)
+                                      if start <= l.when < end]))
     _countries(config, lines)
     judge = Judge(config, lines, gap, window=(start, end), tz=tz)
     bots = audit_release2.BotsRecount(gap)
+    not_pages: dict = {}            # entry -> {"requests", "people"} (quality.json)
 
     requests = {g: 0 for g in GROUPS}
     posts = {g: 0 for g in GROUPS}
@@ -415,6 +466,11 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
         if line.method == "POST" and not _OWN.match(line.path):
             posts[group] += 1
         statuses[group][status_of(line.status)] += 1
+        entry = not_page_entry(line)
+        if entry:
+            got = not_pages.setdefault(entry, {"requests": 0, "people": 0})
+            got["requests"] += 1
+            got["people"] += group == "people"
         label = tier = name = ""
         if group == "people":
             people.setdefault((line.address, line.agent), []).append((line, cited))
@@ -478,7 +534,8 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
         "ours": ours_labels,
         "extras": extras.figures(),
         "bots": bots.figures(),
-        "quality": audit_release2.quality(files, start, end, line_hit, upto),
+        "quality": {**audit_release2.quality(files, start, end, line_hit, upto),
+                    "not_pages": not_pages},
         "page_firsts": firsts.got,
         "more": more,
     }
@@ -493,7 +550,7 @@ def judged(config: dict, tz, start: datetime, end: datetime, paths=None,
     wanted = {str(h).lower() for h in ((config.get("site") or {}).get("hosts") or [])}
     gap = timedelta(minutes=int((config.get("report") or {}).get(
         "session_gap_minutes") or 30))
-    lines = in_time_order([l for l in _read(files, upto) if l.when < end])
+    lines = in_time_order([l for l in _read(files, upto, config) if l.when < end])
     day = start.astimezone(tz).date()
     while True:
         first, last = window(day, tz)

@@ -13,6 +13,7 @@ import { table } from "../table.js";
 import { columns } from "../charts.js";
 import { openDrawer } from "../drawer.js";
 import { tokenFor } from "../routemask.js";
+import { copyIf } from "../urlactions.js";
 import { tiles } from "./tiles.js";
 import { blist } from "./common.js";
 import { ranked } from "../data.js";
@@ -40,12 +41,12 @@ export function detail(r, f) {
   const hours = f?.requests_hours || 6;
   const fold = (r.paths || {})["(all others)"] || 0;
   const lines = Object.entries(r.paths || {}).filter(([p]) => p !== "(all others)").sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
-    .map(([p, c]) => h("li", null, h("code", null, p), ` ${n(c)}`));
+    .map(([p, c]) => h("li", null, copyIf("text", h("code", null, p), p, { label: "path" }), ` ${n(c)}`));
   if (fold) lines.push(h("li", { class: "note" }, `and ${n(fold)} more probes of other paths`));
   const body = h("div", { class: "sec-detail" },
     h("dl", { class: "sec-dl" },
-      h("dt", null, "Address"), h("dd", null, label(r)),
-      h("dt", null, "User agent"), h("dd", null, r.agent || (r.ip ? "(none)" : "-")),
+      h("dt", null, "Address"), h("dd", null, copyIf("ip", label(r), r.ip || "", { label: "address" })),
+      h("dt", null, "User agent"), h("dd", null, copyIf("ua", h("span", { class: "mono" }, r.agent || (r.ip ? "(none)" : "-")), r.agent || "", { label: "user agent" })),
       h("dt", null, "Country"), h("dd", null, flagOf(r.country)),
       h("dt", null, "Network"), h("dd", null, r.hosting == null ? "Not known (no hosting list)" : r.hosting ? "A hosting or cloud network" : "Not a listed hosting network"),
       h("dt", null, "Seen"), h("dd", null, `${at(r.first)} to ${at(r.last)}, on ${r.days.length} day${r.days.length === 1 ? "" : "s"}`),

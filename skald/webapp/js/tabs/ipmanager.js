@@ -8,6 +8,7 @@ import { time as tzTime } from "../tz.js";
 import { lockForViewer, isViewer, sessions, ME } from "../access.js";
 import { howTo } from "./help.js";
 import { DEMO, demoAnswer } from "../demo.js";
+import { copyIf } from "../urlactions.js";
 
 const LOCK = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>';
 const ERRORS = { 400: "That is not a valid address or range.", 403: "Refused: changes only work from this page.", 409: "The list is full. Remove an entry first." };
@@ -123,7 +124,7 @@ export function ipManager(given = API) {
       });
       acts.append(h("span", { class: "acts" }, edit, del));
     }
-    tr.append(h("td", { class: "path" }, e.ip), h("td", null, e.label || ""), h("td", { class: "muted" }, since), state, acts);
+    tr.append(h("td", { class: "path" }, copyIf("ip", e.ip || "", e.ip, { label: "address", cls: "" })), h("td", null, copyIf("text", e.label || "", null, { label: "label", cls: "" })), h("td", { class: "muted" }, since), state, acts);
     return tr;
   }
 

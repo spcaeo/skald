@@ -47,7 +47,7 @@ import { narrowConv, withFile, convLabels } from "./sa-pipeline.js";
 import { tabHead, optionsRow, select, toggles, listOf, emptyState } from "./sa-options.js";
 import { viewSwitch, viewOf } from "../viewswitch.js";
 import { board, timeline, map } from "./sa-views.js";
-import { withUrl, withCopy } from "../urlactions.js";
+import { withUrl, withCopy, copyFact } from "../urlactions.js";
 import { money } from "./revfigs.js";
 import { LEAD_DIMS, activeFilters, filteredBy, appliedWords, figureFile, listOnly, leadsWord, CLEAR_ALL } from "./sa-filters.js";
 import { refCell, afterMark } from "./leadref.js";
@@ -133,7 +133,7 @@ export function saleFacts(x) {
   if (x.refunded_minor != null && back) out.push(["Refunded", money(x.refunded_minor, back)]);
   if (x.customer_ref) out.push(["Customer", withCopy(h("span", { class: "mono lr-id" }, x.customer_ref), x.customer_ref, { label: `customer ${x.customer_ref}`, cls: "ua-after" })]);
   const tags = Object.entries(x.tags && typeof x.tags === "object" ? x.tags : {});
-  if (tags.length) out.push(["Tags", h("span", null, tags.map(([k, v]) => h("span", { class: "lbl-tag", title: `Tag: ${k} = ${v}` }, `${k}: ${v}`)))]);
+  if (tags.length) out.push(["Tags", h("span", null, tags.map(([k, v]) => withCopy(h("span", { class: "lbl-tag", title: `Tag: ${k} = ${v}` }, `${k}: ${v}`), String(v), { label: `tag ${k}`, cls: "ua-after" })))]);
   return out;
 }
 
@@ -147,7 +147,7 @@ export function openLead(x) {
   // id, ref and test (2.25): its reference, every step of it and Mark as test (leadref.js).
   return openVisitor({ conversion: { action: x.action, at: x.at, tool: x.tool, browser: x.browser, journey: x.journey || [], steps: x.steps || [],
     id: x.id, ref: x.ref || null, test: x.left_out === "test" },
-    facts: [h("dl", { class: "dw-dl" }, facts.flatMap(([t, v]) => [h("dt", null, t), h("dd", null, v)]))],
+    facts: [h("dl", { class: "dw-dl" }, facts.flatMap(([t, v]) => [h("dt", null, t), h("dd", null, copyFact(t, v))]))],
     route: x.id != null ? { key: "lead", value: String(x.id) } : null });
 }
 

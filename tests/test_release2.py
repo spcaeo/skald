@@ -50,7 +50,7 @@ def ranges(folder: Path, fetched: datetime | None = None, **lists) -> None:
 
 def openai_lists(folder: Path, fetched=None) -> None:
     ranges(folder, fetched, openai_gptbot=["198.51.100.0/28"], openai_searchbot=["198.51.100.16/28"],
-           openai_chatgpt_user=["198.51.100.32/28"])
+           openai_chatgpt_user=["198.51.100.32/28"], openai_adsbot=["198.51.100.48/28"])
 
 
 # ------------------------------------------------------------- the parser

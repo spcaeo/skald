@@ -31,6 +31,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterator
 
+from .not_pages import STANDARD
+
 
 @dataclass(slots=True)
 class Hit:
@@ -75,6 +77,12 @@ class Hit:
     # for several times per hit). Not an argument, so dataclasses.replace
     # works it out again.
     page_shape: bool | None = field(default=None, init=False, repr=False, compare=False)
+    # The site's not-a-page list (not_pages.Rules), set by read(page_rules=...);
+    # None: the built-in one (not_pages.STANDARD).
+    page_rules: object = field(default=None, repr=False, compare=False)
+    # The entry of that list that kept this request out of the page views,
+    # or "" (worked out with page_shape; not_page_rule).
+    not_page: str = field(default="", init=False, repr=False, compare=False)
 
     @property
     def path(self) -> str:
@@ -139,6 +147,9 @@ class Hit:
         that is a page view: of its path, like the HTML page it replaces.
         Without the field no payload is (COUNTING-TRAPS.md, trap 10). A page
         one_click marked as a repeat is not one either.
+
+        Nor is a machine or utility address on the site's not-a-page list
+        (not_pages.py: a feed, WordPress's API, a Markdown copy; trap 19).
         """
         if self.repeat:
             return False
@@ -155,7 +166,18 @@ class Hit:
             return False
         if ASSET.search(self.path) or BEACON.search(self.path):
             return False
-        return True
+        # A machine or utility address (not_pages.py): no page, in any group.
+        self.not_page = (self.page_rules or STANDARD).match(self.path, self.url)
+        return not self.not_page
+
+    @property
+    def not_page_rule(self) -> str:
+        """The not-a-page entry (not_pages.py) that kept this request, shaped
+        like a page view in every other way, out of the page views; "" for
+        any other request."""
+        if self.page_shape is None:
+            self.page_shape = self._page_shape()
+        return self.not_page
 
 
 # Skald's own endpoints on the site's server: the script tag's events and its
@@ -385,7 +407,7 @@ def _line_parser(pattern: re.Pattern, when, fmt: str):
 
 # The CDN formats live in their own module; it imports Hit and the helpers
 # above, which is why this import sits here and not at the top.
-from .parse_cdn import W3C_HEADER, CloudFront, cloudflare, fastly  # noqa: E402
+from .parse_cdn import W3C_HEADER, CloudFront, akamai, cloudflare, fastly  # noqa: E402
 from .parse_drains import edge, netlify, vercel  # noqa: E402
 
 PARSERS = {
@@ -395,6 +417,7 @@ PARSERS = {
     "cloudflare_json": cloudflare,
     "cloudfront_w3c": CloudFront(follow=False),
     "fastly_json": fastly,
+    "akamai_json": akamai,
     "vercel_json": vercel,
     "netlify_json": netlify,
     "edge_json": edge,
@@ -406,7 +429,7 @@ PARSERS["apache_combined"] = PARSERS["nginx_combined"]
 # apart by their key names, CloudFront by its tabs - so the order only
 # settles a sample none of them reads.
 AUTO_ORDER = ["nginx_extended", "nginx_combined", "caddy_json",
-              "cloudflare_json", "fastly_json", "cloudfront_w3c",
+              "cloudflare_json", "fastly_json", "akamai_json", "cloudfront_w3c",
               "vercel_json", "netlify_json", "edge_json"]
 
 
@@ -559,7 +582,7 @@ def lines_of(path: Path, upto: dict | None = None) -> Iterator[str]:
 
 def read(paths: list[str] | list[Path], fmt: str = "auto",
          stats: ReadStats | None = None, geo: str | None = None,
-         upto: dict | None = None) -> Iterator[Hit]:
+         upto: dict | None = None, page_rules=None) -> Iterator[Hit]:
     """Every parsable hit in these files. Unparsable lines are skipped.
 
     A line that will not parse is not an error worth stopping for - logs
@@ -596,6 +619,9 @@ def read(paths: list[str] | list[Path], fmt: str = "auto",
 
     `upto` ({file name: bytes}, sizes()) reads each plain file named in it
     only up to that many bytes (lines_of): the live run's same bytes.
+
+    `page_rules` (not_pages.from_config(config)) is the site's not-a-page
+    list, given to every hit; without it the built-in list applies.
     """
     paths = [Path(p) for p in paths]
     fill = _country_filler(geo)
@@ -659,6 +685,8 @@ def read(paths: list[str] | list[Path], fmt: str = "auto",
                 if fill is not None and not hit.country:
                     hit.country = fill(hit.address)
                 hit.line_id = hash(line.rstrip("\n"))
+                if page_rules is not None:
+                    hit.page_rules = page_rules
                 if waiting:
                     stats.placed.extend([hit.when] * waiting)
                     waiting = 0

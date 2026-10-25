@@ -308,18 +308,33 @@ class TestClassifier(unittest.TestCase):
                 self.assertIs(verdict.group, Group.BOTS)
                 self.assertTrue(verdict.probe)
 
-    def test_an_engine_asking_for_a_probe_path_stays_an_engine(self):
-        """probe sits below the named engines, and that is deliberate.
+    def test_a_proven_engine_asking_for_a_probe_path_stays_an_engine(self):
+        """probe sits below the named engines, and that is deliberate for a
+        crawler proven its owner's (rule 2b).
 
         Filing this under scanners removes it from the engine group total
         while the tier counters still see it. That is exactly how the old
-        report's tiers ended up 82 higher than their own group.
+        report's tiers ended up 82 higher than their own group. The verdict
+        is whole: bots with no tier, or the engine with its tier.
         """
-        verdict = self.classify(hit(url="/wp-login.php", status="404",
-                                    agent=GPTBOT))
+        class Proven:
+            def status(self, name, address, agent=""):
+                return "verified"
+
+            def hosting(self, address):
+                return False
+        c = Classifier()
+        c.verifier = Proven()
+        verdict = c(hit(url="/wp-login.php", status="404", agent=GPTBOT))
         self.assertIs(verdict.group, Group.ANSWER_ENGINE)
         self.assertIs(verdict.tier, Tier.TRAINING)
         self.assertTrue(verdict.probe)
+
+    def test_an_unproven_engine_asking_for_a_probe_path_is_a_bot(self):
+        """Rule 2b: no list to check it against, so its probe stays in bots."""
+        verdict = self.classify(hit(url="/wp-login.php", status="404", agent=GPTBOT))
+        self.assertEqual((verdict.group, verdict.tier, verdict.probe),
+                         (Group.BOTS, None, True))
 
     def test_asked_wins_over_training_for_the_same_request(self):
         """Both lists can match one agent. "Someone is waiting" is the fact
@@ -472,15 +487,16 @@ class TestMixedLog(unittest.TestCase):
 
     def test_every_group_holds_what_it_should(self):
         counts = {g.value: s.hits for g, s in self.totals.groups.items()}
-        self.assertEqual(counts, {"people": 6, "answer_engines": 4,
-                                  "search_engines": 1, "bots": 4, "ours": 1})
+        # GPTBot's /wp-login.php is a bot: no list proves it OpenAI's (rule 2b).
+        self.assertEqual(counts, {"people": 6, "answer_engines": 3,
+                                  "search_engines": 1, "bots": 5, "ours": 1})
 
     def test_tiers_partition_the_answer_engine_group(self):
         engines = self.totals.groups[Group.ANSWER_ENGINE]
         # OAI-SearchBot indexes ahead of any question, so it is training too.
-        self.assertEqual(dict(engines.tiers), {"training": 4})
+        self.assertEqual(dict(engines.tiers), {"training": 3})
         self.assertEqual(sum(engines.tiers.values()), engines.hits)
-        self.assertEqual(dict(engines.engines), {"GPTBot": 3, "OAI-SearchBot": 1})
+        self.assertEqual(dict(engines.engines), {"GPTBot": 2, "OAI-SearchBot": 1})
 
     def test_a_citation_click_is_not_in_the_engine_tiers(self):
         """Cited is on the people card. It is a person, counted once."""
@@ -488,10 +504,11 @@ class TestMixedLog(unittest.TestCase):
         self.assertNotIn("cited", engines.tiers)
         self.assertEqual(self.totals.groups[Group.PEOPLE].cited_visits, 1)
 
-    def test_a_probing_engine_is_counted_in_both_its_group_and_the_probes(self):
+    def test_an_unproven_probing_engine_is_a_bot_and_a_probe(self):
+        """Rule 2b: with no lists, GPTBot's /wp-login.php is a bot's probe."""
         engines = self.totals.groups[Group.ANSWER_ENGINE]
-        self.assertEqual(engines.probes, 1)
-        self.assertLessEqual(engines.probes, engines.hits)
+        self.assertEqual(engines.probes, 0)
+        self.assertEqual(self.totals.groups[Group.BOTS].probes, 3)
 
     def test_views_exclude_payloads_assets_and_redirects(self):
         people = self.totals.groups[Group.PEOPLE]
@@ -514,8 +531,8 @@ class TestMixedLog(unittest.TestCase):
 
     def test_scanners_are_counted_whatever_agent_they_send(self):
         bots = self.totals.groups[Group.BOTS]
-        self.assertEqual(bots.hits, 4)
-        self.assertEqual(bots.probes, 2)
+        self.assertEqual(bots.hits, 5)
+        self.assertEqual(bots.probes, 3)
         # The two that are not probes: curl, and one with no user agent.
         self.assertEqual(sorted(bots.agents), ["(no user agent)", "curl"])
 
