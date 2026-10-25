@@ -474,7 +474,8 @@ its logs to itself. For them, `beacon/skald.js` (under 1 KB) posts a
 back-forward cache, with the same fields and the same rules: no cookie, no storage, nothing when Do Not Track
 or GPC is on. The full snippet, `/traffic-js/skald.js` (docs/INTEGRATIONS.md,
 "The script tag"), sends page views the same way and tracks forms, links
-and booking embeds too; with visitor IDs off it stores nothing either.
+and booking embeds too; with visitor IDs off it keeps no ID, and stores only the
+visit's source in the tab's `sessionStorage` (`skald.src`, docs/INTEGRATIONS.md).
 
 These page openings are the script's own events, a separate road: they are
 never added to the people or page views counted from a server log (a Next.js

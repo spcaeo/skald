@@ -67,7 +67,12 @@ class Wording(unittest.TestCase):
                 self.assertEqual("random visitor ID in your browser's local storage" in text,
                                  tag == "ids")
                 self.assertEqual("skald_vid" in text, tag == "ids")
-                self.assertEqual("keeps no ID and stores nothing" in text, tag == "tag")
+                self.assertEqual("The script keeps no ID." in text, tag == "tag")
+                self.assertNotIn("The script keeps no ID and stores nothing", text)
+                # skald.js keeps the visit's source in session storage, IDs on or off.
+                self.assertEqual(notice.SOURCE in text, tag != "none")
+                self.assertEqual("session storage" in text, tag != "none")
+                self.assertNotIn("from our own site", text)
                 # How long (2.29): leads 400 days by default, an ID's pages 14 here.
                 self.assertEqual("We keep them for 400 days." in text, identity == "full")
                 self.assertEqual("pages read with a visitor ID for 14 days" in text,

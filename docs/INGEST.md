@@ -179,8 +179,10 @@ and `POST /report` keep answering until the expiry or a cancel, so the agent can
 report. None of them holds a secret. The bare code keeps answering its words too.
 
 Every answer has `Cache-Control: no-store` and `X-Robots-Tag: noindex, nofollow`. Every route
-but `llms.txt` shares the kit's limit per address (10 a minute, a burst of 5; then 429 "Too
-many tries"). An unknown code answers 404 under a sub-path. An expired or cancelled code
+but `llms.txt` has its own limit per address (10 a minute, a burst of 5; then 429 "Too
+many tries"): the bare code, `steps`, `keys`, `install.sh`, `leads/`, `report` and any other
+sub-path each count apart (`agent.ROUTES`), so an agent that reads the steps many times still
+has its tries for the keys. An unknown code answers 404 under a sub-path. An expired or cancelled code
 answers 410 with words that say to make a new line.
 
 **What is stored.** One entry in `kit-links.json` (0600, beside the history, the same file and
@@ -193,9 +195,12 @@ as an install link), the report key's SHA-256 only (`report_key`, to check the r
 fields (the
 addresses and the tag: nothing secret), whether leads were asked for and the lead note, the
 site check's facts (`found`), `opened_at`, `keys_at`, `reported_at`, `cancelled_at`, and the
-cleaned report. It never holds the code itself, so the disk never holds a usable key. The
-seals are wiped when the keys are taken, on a cancel, and on the first write to the file
-after the expiry (an expired code gives nothing either way). The entry is kept a
+cleaned report, and `token_revoked` once the unused token was revoked. It never holds the
+code itself, so the disk never holds a usable key. The file is written only when something
+changes: a refused or late report, a second read of the steps or a second try for the keys
+leave it as it is. The seals are wiped when the keys are taken, on a cancel, and on the first
+write to the file after the expiry, which the daily run makes at the latest (an expired code
+gives nothing either way). The entry is kept a
 day after the expiry, so the wizard can still say "expired" and show the report. Then it is
 dropped. Nothing logs the code: the container's nginx has `access_log off` and
 `error_log stderr crit;` for `/traffic-kit/` (an error line holds the request line, so a
@@ -234,7 +239,15 @@ Connections, under Your tokens. One audit row `kit.agentcancel`. 404 for an unkn
 are waiting or opened and revokes their unused tokens (`cancelled` says how many; audit "a
 new line replaced it"). This runs inside the same lock that writes the new code, and touches
 only lines made before it, so two lines made at the same moment never cancel each other. An
-expired line's unused token is revoked then too. So a site has one live line at a time. A
+expired line's unused token is revoked then too. So a site has one live line at a time.
+**Revoking.** A line is marked `token_revoked` only after the revoke succeeded. When it fails
+(the accounts file busy, say), the line stays as it was: `sites/agentcancel` and
+`sites/agentlink` answer `not_revoked: [token ids]`, the audit row says "could not be
+revoked", and it is tried again by the next cancel, line, status or daily run. An expired
+line's unused token is revoked as soon as `sites/agentstatus` finds it expired or cancelled,
+and the daily run (step `kit tokens`, each site, also a site still waiting for its first
+lines) revokes every ended line's unused token, so it goes within a day even when no one opens
+the wizard again, before the entry is dropped. A
 line whose keys were taken is left as it is: its keys are out already. The wizard makes a line
 by itself only when the admin reached step 4 by Next or a tile; step 4 opened from an address
 shows a button instead, so an old link cannot cancel the line an agent is working from.

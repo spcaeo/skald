@@ -136,7 +136,7 @@ On a server without the Settings pages, the server admin sets `privacy: keep_ips
 - that the raw log, the 6-hour Requests list and today's AI activity hold full addresses for that short time, in every choice;
 - whether IP addresses are kept in full, shortened or not at all, and for how long;
 - whether leads' names and emails are kept;
-- if the site uses the script tag: whether it keeps a visitor ID and where, that Do Not Track and Global Privacy Control are respected, and that it can wait for consent;
+- if the site uses the script tag: whether it keeps a visitor ID and where, that it keeps the visit's source in the tab's session storage, that Do Not Track and Global Privacy Control are respected, and that it can wait for consent;
 - how a person can ask for their data to be deleted.
 
 Skald does not know some things, so they are left in [square brackets] for you to fill in or delete: your contact for deletion requests, how long your web server keeps its logs, and the script tag lines that depend on how you added the tag. Save a change on the page and the wording is made again.
@@ -145,11 +145,12 @@ Skald does not know some things, so they are left in [square brackets] for you t
 
 ## The script tag
 
-The optional `skald.js` tag counts what happens inside a page. It is served from your own site and posts to your own site. No third-party code. See [Tracking script](tracking-script.md).
+The optional `skald.js` tag counts what happens inside a page. As Skald gives it, it loads from your Skald server and posts its events there. If your web server passes `/traffic-js/` and `/traffic-beacon` on to Skald, it loads from your own site and posts there instead. No third-party code. See [Tracking script](tracking-script.md).
 
+- **The visit's source, for the tab only.** With visitor IDs on or off, the tag keeps the site a visit came from and its `utm_source` tag in the tab's session storage, which the browser deletes when the tab is closed. See [Tracking script](tracking-script.md), "What the tag keeps in the browser".
 - **No cookie by default.** A cookie is set only if your site turns on visitor IDs and also asks to share them across subdomains (on the tag, or an admin switches it on in Skald: Settings > Sites > Script tag). When it is switched on in Skald, the privacy notice wording says so plainly.
 - **Do Not Track and Global Privacy Control are respected.** A browser that sends either is not counted at all: no ID, no storage, no event.
-- **Consent first, if you need it.** The tag can wait and send nothing until your consent banner says yes. When a visitor says no, the ID and anything stored are deleted.
+- **Consent first, if you need it.** The tag can wait and send nothing until your consent banner says yes. When a visitor says no, the ID, the cookie and the stored source are deleted.
 - **Never a field's value.** Form events say which form was used, never what was typed. A click on a phone or email link never keeps the number or the address.
 
 Visitor IDs are off by default, and set per site. With them on, the browser keeps a random ID. Turn them on for a site only when that site's privacy notice says so, and let its consent banner gate the tag where consent is needed.

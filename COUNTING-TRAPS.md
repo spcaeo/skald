@@ -463,7 +463,7 @@ from the same address and agent in the same second, stayed people.
 
 **How this package prevents it.** `PROBE` knows Terraform, AWS CDK,
 CodeDeploy and CodeBuild, Serverless, SAM, Kubernetes and Helm, CI and
-package files, by file shape (CLASSIFICATION.md, "PROBE"). And one probe
+package files, by file shape (CLASSIFICATION-PATTERNS.md, "PROBE"). And one probe
 marks the whole visitor (rule 6b): a first pass over the window keeps every
 address and agent that asked the site's hosts for a secret or config file
 (`SECRET_PROBE`) or sent an attack in a URL, and every request of that

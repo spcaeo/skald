@@ -145,7 +145,7 @@ Grouped by address and network, with the pages they took. Named crawlers that ar
 The worst addresses and networks of the period, ranked by probes, then attack attempts, for owners and admins on a site that keeps addresses. Export them three ways:
 
 - **nginx deny lines**: paste into your `server { }` block, then run `nginx -t` and reload nginx.
-- **Cloudflare IP list (CSV)**: upload in Cloudflare under **Manage account › Configurations › Lists**, then use the list in a WAF rule.
+- **Cloudflare IP list (CSV)**: in the Cloudflare dashboard go to **Settings › Lists**, select **Create new list** with the IP content type (or **Edit** next to a list you have), then **Add items › Upload CSV**. Then use the list in a WAF rule. These are the steps in Cloudflare's own guide, [Create a list in the dashboard](https://developers.cloudflare.com/waf/tools/lists/create-dashboard/), as of 24 October 2026.
 - **Plain list**: one address or network per line, for fail2ban, ipset or a firewall.
 
 **Review before you block.** A shared address (an office, a mobile network, a VPN) or a CDN can carry real visitors too, and a scanner moves to a new address within days. Blocking stops requests; it does not fix a file that should not be served: fix that first.

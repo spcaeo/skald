@@ -83,7 +83,7 @@ function scriptBox(r) {
   links.addEventListener("input", draw);
   draw();
   return h("section", { class: "s" }, h("h2", null, "The script tag"),
-    h("p", { class: "sub" }, "One line in every page's <head>: page views, form steps, phone and email clicks, and Calendly, Cal.com and HubSpot booking embeds. It loads from your own site, never a third party."),
+    h("p", { class: "sub" }, "One line in every page's <head>: page views, form steps, phone and email clicks, and Calendly, Cal.com and HubSpot booking embeds. It loads from your Skald server and posts there (or from your own site, if your server passes it on to Skald), never a third party."),
     out,
     h("div", { class: "af-col" },
       h("label", { class: "chk" }, consent, h("span", null, h("b", null, "Wait for consent"), h("small", null, "send nothing and keep no ID until the page calls skald('consent', true)"))),

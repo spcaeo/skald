@@ -168,10 +168,13 @@ To call it before the file has loaded, put this before the tag:
   helper then serves the file so that it makes no ID, and drops any `v`
   it is sent. Turn them on for a site only when its privacy notice says so,
   and let its consent banner gate the tag (`data-consent="required"`).
+- With IDs on or off, the visit's source (the referring host without
+  `www.`, a space, and the `utm_source` value) is kept in `sessionStorage`
+  (`skald.src`): written when a page has another site's referrer or a
+  `utm_source`, read by the visit's later pages. It ends with the tab.
 - With IDs on, the ID (`skv_` + 16 random bytes) is kept in `localStorage`
-  (`skald.vid`), the visit's source in `sessionStorage` (`skald.src`), and
-  with `data-share-subdomains="true"` in a cookie `skald_vid` (400 days,
-  `SameSite=Lax; Secure`).
+  (`skald.vid`), and with `data-share-subdomains="true"` in a cookie
+  `skald_vid` (400 days, `SameSite=Lax; Secure`).
 - Where consent is needed first (the EU, Quebec's Law 25, often the rest of
   Canada), use `data-consent="required"` and call `skald('consent', true)`
   from your consent banner on every page once the visitor agrees.

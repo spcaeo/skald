@@ -15,6 +15,8 @@ What is pinned:
 - the landing pages fold to the top and "(all others)", still adding up;
 - the audit rebuilds the figure from the raw lines, a tampered figure fails it
   (the live audit too); the two roads agree on a list of referrers and links;
+- a day stored before 2.34.0 (no social_networks) is filled by `backfill --force`
+  from the raw log, and `audit --day` runs the second count on it;
 - campaigns.json carries each day's blob and the names; the recount shares only
   social_names.py's lists.
 Addresses are RFC 5737, hosts example.com and the networks' own.
@@ -346,6 +348,38 @@ class TestTheAudit(unittest.TestCase):
         got = snap["extras"]["social_networks"]
         self.assertGreater(got["social"], 0)
         self.assertEqual(sum(got["networks"].values()), got["social"])
+
+    def test_a_day_from_before_2_34_is_filled_by_backfill_force(self):
+        # A day stored before 2.34.0 has no social_networks: "Not recorded".
+        self.assertEqual(self.box.run("--today", TODAY, "collect")[0], 0)
+        db = sqlite3.connect(str(self.box.db))
+        with db:
+            db.execute("DELETE FROM day_extras WHERE kind = 'social_networks'")
+        db.close()
+        self.assertNotIn("social_networks", self.stored())
+        code, out, err = self.box.run("--today", TODAY, "audit", "--day", DAY.isoformat())
+        self.assertEqual(code, 0, err)            # not recorded is skipped, never 0
+        # A plain backfill leaves a stored, verified day alone ...
+        code, out, err = self.box.run("--today", TODAY, "backfill", "--days", "1")
+        self.assertEqual(code, 0, err)
+        self.assertIn("skipped 1", out)
+        self.assertNotIn("social_networks", self.stored())
+        # ... --force counts it again from the raw log, social_networks included.
+        code, out, err = self.box.run("--today", TODAY, "backfill", "--days", "1", "--force")
+        self.assertEqual(code, 0, err)
+        self.assertIn("ok 1", out)
+        got = self.stored()["social_networks"]
+        self.assertTrue(same(got, want()))
+        # The audit of the recounted day runs the second count, and matches.
+        code, out, err = self.box.run("--today", TODAY, "audit", "--day", DAY.isoformat())
+        self.assertEqual(code, 0, err)
+        self.assertIn("all match", out)
+        wrong = json.loads(json.dumps(got))
+        wrong["networks"]["x"] = 99
+        self.tamper(wrong)
+        code, _, err = self.box.run("--today", TODAY, "audit", "--day", DAY.isoformat())
+        self.assertEqual(code, 1)
+        self.assertIn("social_networks: x: history has 99, the recount finds 7", err)
 
     def test_campaigns_json_carries_it(self):
         self.assertEqual(self.box.run("--today", TODAY, "collect")[0], 0)

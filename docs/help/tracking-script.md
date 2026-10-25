@@ -7,8 +7,8 @@ How to add Skald's one-line `skald.js` tag to your pages, what it sees, what it 
 Your server log already counts visits and pages. It cannot see what happens *inside* a page: a form started and not sent, a phone link clicked, a demo booked in a widget. The `skald.js` tag reports those.
 
 - It is under 6.5 KB of plain JavaScript.
-- It sends events to your own site's address, never to a third party.
-- It uses no cookies, unless you ask it to share an ID across subdomains (below).
+- It sends events to the address it loads from: your Skald server, or your own site if you serve the tag from there (below). Never to anyone else.
+- It uses no cookies, unless you ask it to share an ID across subdomains (below). What it keeps in the browser is listed under "What the tag keeps in the browser" below.
 - Skald's figures from the log never depend on it. Without the tag, you lose nothing you already have.
 
 ## Add the tag
@@ -124,10 +124,16 @@ On a Next.js or other single-page site, a click inside the site loads no new HTM
 - No text a person typed, and no form field's value.
 - No phone number or email address from a link.
 - No IP address and no browser details are stored. Skald uses the address only in memory, to find the country and to limit abuse, and then drops it.
-- No third-party code, and nothing sent anywhere but your own site.
+- No third-party code, and nothing sent anywhere but your Skald server (or your own site, if you serve the tag from there).
 - No fingerprinting.
 
 With visitor IDs on, the tag also keeps one random ID per browser (below). It holds no name or email.
+
+## What the tag keeps in the browser
+
+- **Always, with visitor IDs on or off: the visit's source, for the tab only.** When a page is opened from another site, or from an address with a `utm_source` tag, the tag keeps that site's name (for example `news.example.org`) and the `utm_source` value in the tab's session storage, under `skald.src`. Later pages of the same visit then send the same source, after the address has lost its tag. Session storage belongs to that one tab, and the browser deletes it when the tab is closed. It holds no ID, no name and no email.
+- **With visitor IDs on, also:** the random ID in local storage (`skald.vid`), which stays until the visitor clears the site's data; a note of whether Skald shares the ID across subdomains, renewed each day (`skald.sh`, below; not when the tag itself has `data-share-subdomains="true"`); and with sharing on, the `skald_vid` cookie.
+- **Nothing at all** when the browser sends Do Not Track or Global Privacy Control, and nothing before consent with **Wait for consent**. When your banner calls `skald('consent', false)`, the tag deletes the ID, the cookie and the stored source.
 
 ## Anonymous visitor IDs
 
@@ -135,7 +141,7 @@ Visitor IDs let Skald follow one browser's anonymous journey up to a conversion.
 
 - They are **off by default**. The person who runs your Skald server turns them on per site.
 - The Integrations page says, under the tag, whether they are on for your site.
-- When they are off, the tag makes no ID at all and stores nothing in the browser.
+- When they are off, the tag makes no ID at all. It still keeps the visit's source in the tab's session storage until the tab is closed (above).
 - When they are on, the ID is kept in the browser's local storage. With "Share across subdomains", it is also kept in a first-party cookie called `skald_vid` for up to 400 days.
 
 ### Share across subdomains without changing the tag

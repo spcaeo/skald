@@ -215,7 +215,8 @@ export function signsOf(f, r) {
 }
 
 /* Cloudflare IP list CSV: one address or CIDR and a description per line, no header
-   (Account > Manage account > Configurations > Lists > Upload CSV). */
+   (Cloudflare dashboard: Settings > Lists > Edit > Add items > Upload CSV;
+   developers.cloudflare.com/waf/tools/lists/create-dashboard/, read 2026-10-24). */
 export function cloudflare(list) {
   const q = (s) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
   return [...entries(list).map(({ value, x }) => `${value},${q(`Skald: ${what(x)}`)}`), ""].join("\n");
