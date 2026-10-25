@@ -66,6 +66,22 @@ def merged(base: dict, over: dict) -> dict:
     return out
 
 
+def own_url(first: dict, got: dict) -> dict:
+    """A site that sets no dashboard.url of its own gets the first site's with its own
+    name in place of the first site's last segment (.../traffic/<first>/ becomes
+    .../traffic/<site>/). Inherited as it was, every link in another site's mails (the
+    security alerts, the summary, the daily mail) opened the first site (2.36.1)."""
+    url = str(((first or {}).get("dashboard") or {}).get("url") or "")
+    mine = str(((got or {}).get("dashboard") or {}).get("url") or "")
+    head, sep, tail = url.partition("#")
+    one, other = slug(site_name(first)), slug(site_name(got))   # the dashboard folder names
+    if not url or mine != url or one == other or not head.endswith(f"/{one}/"):
+        return got
+    got["dashboard"] = {**got["dashboard"],
+                        "url": head[:-len(one) - 1] + f"{other}/" + sep + tail}
+    return got
+
+
 def site_configs(config: dict, config_path: Path) -> list[dict]:
     """The other sites' merged configs, in the order listed. Raises
     SystemExit for a missing file or a name used twice."""
@@ -79,7 +95,7 @@ def site_configs(config: dict, config_path: Path) -> list[dict]:
             path = Path(config_path).resolve().parent / path
         if not path.exists():
             raise SystemExit(f"sites: {path} not found")
-        got = merged(config, load_config(path))
+        got = own_url(config, merged(config, load_config(path)))
         name = site_name(got)
         if name in names:
             raise SystemExit(f"sites: two sites are both named {name!r}")
@@ -141,7 +157,7 @@ def dashboard_site_configs(config: dict, config_path: Path, taken: set[str]) -> 
                   "is skipped", file=sys.stderr)
             continue
         default_dir = site_folder(ingest_root(config, folder), entry["name"])
-        found.append(merged(start, site_configs.as_config(entry, default_dir)))
+        found.append(own_url(config, merged(start, site_configs.as_config(entry, default_dir))))
         taken = taken | {entry["name"]}
     return found
 

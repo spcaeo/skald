@@ -27,9 +27,10 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-25-2.36.0",
+  id: "2026-10-25-2.36.1",
   items: [
     ["One summary mail a day", "one mail per person at 01:00 with every site's open security items, to-dos and set-up problems, instead of a mail per item; Security › Alerts can still send right away, one mail per run.", "security"],
+    ["Mail links open the right site", "with several sites, every mail's links opened the first site's dashboard; each now opens the site it is about.", "security"],
     ["The sitemap page is not a page", "/sitemap/ and /sitemap.html leave the page views (crawlers and checkers walk them, people do not); Settings › Sites › Not pages can count them again.", "settings-and-retention"],
   ],
   // The earlier releases' notes, folded under the new ones.
