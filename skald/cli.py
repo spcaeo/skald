@@ -798,9 +798,9 @@ def daily_steps(ctx: Context) -> list[tuple[str, Callable[[], int]]]:
         steps.append(("events", lambda: events.daily(ctx, day)))
     if setting(ctx.config, "dashboard", "favicons", False) in (True, "true"):
         steps.append(("favicons", lambda: _favicons(ctx, None, limit=40, days=90) or 0))
-    from . import security_notify, site_logos, stack, updates   # logo, stack, a release; never fail
+    from . import kit_api, security_notify, site_logos, stack, updates   # these never fail
     steps += [("logo", lambda: site_logos.daily(ctx)), ("updates", lambda: updates.daily(ctx)),
-              ("stack", lambda: stack.daily(ctx)),
+              ("stack", lambda: stack.daily(ctx)), ("kit tokens", lambda: kit_api.daily(ctx)),
               ("security mail", lambda: security_notify.daily(ctx)),
               ("dashboard", lambda: cmd_dashboard(ctx))]
     # Each mail can be turned off in Settings > Mail (mail.daily, mail.weekly).
@@ -820,7 +820,7 @@ def daily_steps(ctx: Context) -> list[tuple[str, Callable[[], int]]]:
 
 
 WHILE_WAITING = ("verify-bots", "conversions", "check", "favicons", "logo", "updates",
-                 "dashboard")
+                 "kit tokens", "dashboard")
 
 
 def _unless_waiting(ctx: Context, step: Callable[[], int]) -> Callable[[], int]:

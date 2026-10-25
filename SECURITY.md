@@ -9,11 +9,11 @@ sign-in, for admins and owners only, and every search is written to the audit lo
 
 | Version | Supported |
 | --- | --- |
-| 2.5.x (the newest) | ✓ Security fixes |
-| 2.0 to 2.4 | ✗ Please upgrade (`skald upgrade`, or the `:2` Docker tag) |
+| The newest 2.x minor release (the top version in [CHANGELOG.md](CHANGELOG.md)) | ✓ Security fixes |
+| Older 2.x minor releases | ✗ Please upgrade (`skald upgrade`, or the `:2` Docker tag) |
 | 1.x | ✗ Please upgrade to 2.x |
 
-Fixes go into the newest minor release. Upgrading keeps your history: newer code upgrades the
+Fixes go into the newest minor release. `skald version` says which one you run. Upgrading keeps your history: newer code upgrades the
 history file in place, after copying it to `history.sqlite.schema-v<N>.bak`.
 
 ## Reporting a vulnerability

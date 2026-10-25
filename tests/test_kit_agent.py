@@ -214,6 +214,7 @@ class Store(unittest.TestCase):
                                           agent.link_id(code))["state"], want)
         self.assertEqual(agent.status(self.folder, "other.example.com",
                                       agent.link_id(other))["state"], "waiting")
+        agent.mark_revoked(self.folder, [(one, tid) for one, tid, _ in got])  # revoked
         third, _, got = agent.make(self.folder, "example.com", TOKEN, "dd00dd00", FIELDS,
                                    replace=True)
         self.assertEqual(got, [(agent.link_id(new), "cc00cc00", "cancelled")],

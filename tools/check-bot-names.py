@@ -7,7 +7,7 @@ CRAWLERS.txt holds real crawler and bot user agents, one per line; DEVICES.txt
 real browser and device user agents. Crawler-Detect's test fixtures are the
 corpus this was written for (tests/data/user_agent/crawlers.txt and
 devices.txt in github.com/JayBizzle/Crawler-Detect); download them by hand
-into a folder of their own. CLASSIFICATION.md, "Checking the name lists",
+into a folder of their own. CLASSIFICATION-PATTERNS.md, "Checking the name lists",
 gives the commands.
 
 It prints:

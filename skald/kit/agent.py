@@ -24,7 +24,13 @@ its link_id, the first 16 hex of the code's sha256 (`sites/agentstatus`).
 `replace` ends the site's older live codes whose keys were not taken, inside
 the same lock (`sites/agentlink`: one live line per site): seals wiped, every
 route then answers as for an expired code. Both hand back the ids of tokens
-that were never given out, for kit_api.py to revoke.
+that were never given out, for kit_api.py to revoke; `unrevoked` lists the
+ended codes whose token is still to revoke (an expired code's, or one whose
+revoke failed), for sites/agentstatus and the daily run. An entry is marked
+`token_revoked` only by `mark_revoked`, once the revoke has succeeded.
+
+A request that changes nothing (a refused report, a second read of the
+steps) never rewrites kit-links.json.
 
 On the beacon helper (beacon_server.py), `serve` answers:
 
@@ -50,8 +56,9 @@ On the beacon helper (beacon_server.py), `serve` answers:
                                       kept, each cleaned and capped. {"ok": true}
 
 Cache-Control no-store and X-Robots-Tag noindex on every answer (link._answer),
-the kit's limit per caller address on every route but llms.txt, and no code,
-token or secret is ever logged.
+a limit per caller address on every route but llms.txt, each route (ROUTES) with
+its own, so steps read many times never use up the keys' tries; no code, token
+or secret is ever logged.
 """
 from __future__ import annotations
 
@@ -78,6 +85,8 @@ HOST = re.compile(r"^[A-Za-z0-9.-]{1,253}(?::[0-9]{1,5})?$")
 REPORT_MOST = 16 * 1024
 NOTES_MOST = 1000
 STATES = ("waiting", "opened", "keys_taken", "expired", "cancelled", "unknown")
+# The routes, each with its own limit (beacon_server.py); "code" is the bare code.
+ROUTES = ("code", "steps", "keys", "install.sh", "leads", "report", "other")
 WEB_READER = ("Fetch this with curl in a shell into a file; never with a web reader, which "
               "would put the keys in a chat. Nothing was used up: the keys are still there.\n")
 # What the site check's recommended method means in the steps' cases.
@@ -114,9 +123,9 @@ def make(folder, site: str, token: str, token_id: str, fields: dict,
          replace: bool = False) -> tuple[str, int, list[tuple[str, str | None, str]]]:
     """(the code, when it expires, ended). Only the code's hash and the sealed
     keys are kept. With `replace`, under the same lock: the site's older live
-    codes whose keys were not taken are cancelled, and expired ones whose keys
-    were never taken give up their token. `ended`: [(link_id, the token_id to
-    revoke or None, "cancelled" or "expired")]."""
+    codes whose keys were not taken are cancelled, and ended ones whose keys
+    were never taken give up their token (until mark_revoked). `ended`:
+    [(link_id, the token_id to revoke or None, "cancelled" or "expired")]."""
     now = time.time() if now is None else now
     code = secrets.token_urlsafe(32)
     report_key = secrets.token_urlsafe(24)
@@ -145,7 +154,8 @@ def make(folder, site: str, token: str, token_id: str, fields: dict,
 def _replace(links: dict, site: str, now: float) -> list[tuple[str, str | None, str]]:
     """make's sweep, inside its lock: every code already in the store is older
     than the new one, whatever its made_at says (two calls may read the clock
-    in one order and take the lock in the other)."""
+    in one order and take the lock in the other). An older ended code whose
+    token is still to revoke (expired, or its revoke failed) is "expired"."""
     out = []
     for key, entry in links.items():
         if entry.get("kind") != KIND or entry.get("site") != site:
@@ -153,12 +163,52 @@ def _replace(links: dict, site: str, now: float) -> list[tuple[str, str | None, 
         was = state(entry, now)
         if was in ("waiting", "opened"):
             entry.update(cancelled_at=int(now), sealed=None, sealed_lead=None,
-                         sealed_report=None, token_revoked=bool(entry.get("token_id")))
-            out.append((key[:16], entry.get("token_id") or None, "cancelled"))
-        elif was == "expired" and entry.get("token_id") and not entry.get("token_revoked"):
-            entry["token_revoked"] = True
+                         sealed_report=None)
+            out.append((key[:16], _unused(entry), "cancelled"))
+        elif _unused(entry):
             out.append((key[:16], entry["token_id"], "expired"))
     return out
+
+
+def _unused(entry: dict) -> str | None:
+    """The token_id of a code whose keys were never taken and whose token is
+    not revoked yet, else None."""
+    if entry.get("keys_at") or entry.get("token_revoked"):
+        return None
+    return entry.get("token_id") or None
+
+
+def unrevoked(folder, site: str, now: float | None = None) -> list[tuple[str, str]]:
+    """[(link_id, token_id)]: the site's ended codes (expired or cancelled)
+    whose keys were never taken and whose token is not revoked yet. Read
+    only: the caller revokes, then mark_revoked."""
+    now = time.time() if now is None else now
+    return [(key[:16], _unused(entry)) for key, entry in
+            link._load(link.path_for(folder)).items()
+            if entry.get("kind") == KIND and entry.get("site") == site
+            and ended(entry, now) and _unused(entry)]
+
+
+def mark_revoked(folder, done, now: float | None = None) -> int:
+    """Mark the codes in `done` [(link_id, token_id)] token_revoked, once
+    their revoke has succeeded; how many. Saved only when one changed or the
+    store holds an expired code's seals or an entry past its keeping (the
+    daily run calls it with nothing, to tidy)."""
+    now = time.time() if now is None else now
+    path = link.path_for(folder)
+    if not path.exists():
+        return 0
+    marked = 0
+    with link._locked(path):
+        links = link._load(path)
+        for key, entry in links.items():
+            if entry.get("kind") == KIND and not entry.get("token_revoked") and any(
+                    key.startswith(lid) and entry.get("token_id") == tid for lid, tid in done):
+                entry["token_revoked"] = True
+                marked += 1
+        if marked or link.stale(links, now):
+            link._save(path, links, now)
+    return marked
 
 
 def find(folder, code: str) -> dict | None:
@@ -191,8 +241,9 @@ def ended(entry: dict, now: float | None = None) -> bool:
 
 
 def _change(folder, code: str, change, now: float):
-    """Run `change(entry)` on the code's entry under the store's lock and
-    save; (its answer, the entry) or (None, None) when the code is unknown."""
+    """Run `change(entry)` on the code's entry under the store's lock: it
+    answers (its answer, whether it changed the entry), and the store is saved
+    only then. (its answer, the entry) or (None, None) when the code is unknown."""
     if not link.CODE.match(code or ""):
         return None, None
     path = link.path_for(folder)
@@ -203,8 +254,9 @@ def _change(folder, code: str, change, now: float):
         entry = links.get(link.digest(code))
         if entry is None or entry.get("kind") != KIND:
             return None, None
-        got = change(entry)
-        link._save(path, links, now)
+        got, changed = change(entry)
+        if changed:
+            link._save(path, links, now)
     return got, entry
 
 
@@ -215,6 +267,8 @@ def opened(folder, code: str, now: float | None = None) -> dict | None:
     def change(entry):
         if not entry.get("opened_at") and not ended(entry, now):
             entry["opened_at"] = int(now)
+            return None, True
+        return None, False
     return _change(folder, code, change, now)[1]
 
 
@@ -226,7 +280,7 @@ def take(folder, code: str, now: float | None = None):
     def change(entry):
         was = state(entry, now)
         if was in ("keys_taken", "expired", "cancelled") or not entry.get("sealed"):
-            return "keys_taken" if was == "keys_taken" else "expired", None
+            return ("keys_taken" if was == "keys_taken" else "expired", None), False
 
         def opened_seal(name, label):
             return link.unseal(entry[name], code, label) if entry.get(name) else None
@@ -234,7 +288,7 @@ def take(folder, code: str, now: float | None = None):
                 "lead": opened_seal("sealed_lead", LEAD_LABEL),
                 "report_key": opened_seal("sealed_report", REPORT_LABEL)}
         entry.update(keys_at=int(now), sealed=None, sealed_lead=None, sealed_report=None)
-        return "ok", keys
+        return ("ok", keys), True
     got, entry = _change(folder, code, change, now)
     if got is None:
         return "unknown", None, None
@@ -244,17 +298,18 @@ def take(folder, code: str, now: float | None = None):
 def keep_report(folder, code: str, report: dict, key: str | None,
                 now: float | None = None) -> str:
     """"ok", "refused" (no report key, or the wrong one), "expired" (or
-    cancelled) or "unknown"; the latest report replaces an earlier one."""
+    cancelled) or "unknown"; the latest report replaces an earlier one. Only
+    "ok" writes the store."""
     now = time.time() if now is None else now
 
     def change(entry):
         want = entry.get("report_key") or ""
         if not key or not want or not hmac.compare_digest(_key_hash(key), want):
-            return "refused"
+            return "refused", False
         if ended(entry, now):
-            return "expired"
+            return "expired", False
         entry.update(report=report, reported_at=int(now))
-        return "ok"
+        return "ok", True
     got, _ = _change(folder, code, change, now)
     return got or "unknown"
 
@@ -263,7 +318,8 @@ def cancel(folder, site: str, lid: str,
            now: float | None = None) -> list[tuple[str, str | None]]:
     """End the agent code of `site` whose link_id is `lid` at once, whatever
     its state. [(link_id, the token_id when its token was never handed out
-    and not yet revoked, for the caller to revoke, else None)]."""
+    and not yet revoked, for the caller to revoke and then mark_revoked,
+    else None)]."""
     now = time.time() if now is None else now
     path = link.path_for(folder)
     if not LINK_ID.match(lid or "") or not path.exists():
@@ -275,12 +331,9 @@ def cancel(folder, site: str, lid: str,
             if entry.get("kind") != KIND or entry.get("site") != site \
                     or entry.get("cancelled_at") or not key.startswith(lid):
                 continue
-            unused = None if entry.get("keys_at") or entry.get("token_revoked") \
-                else entry.get("token_id") or None
             entry.update(cancelled_at=int(now), sealed=None, sealed_lead=None,
-                         sealed_report=None, token_revoked=bool(unused or
-                                                                entry.get("token_revoked")))
-            done.append((key[:16], unused))
+                         sealed_report=None)
+            done.append((key[:16], _unused(entry)))
         if done:
             link._save(path, links, now)
     return done
@@ -530,13 +583,25 @@ def _own_base(h) -> str:
     return f"{proto}://{host}"
 
 
-def serve(h, folder, base: str, limiter, address: str) -> None:
-    """Every /traffic-kit/ request on the beacon helper (GET, HEAD, POST)."""
+def route(path: str) -> str:
+    """Which of ROUTES a path after /traffic-kit/ is (llms.txt excepted)."""
+    sub = path.partition("/")[2]
+    if not sub:
+        return "code"
+    if sub.startswith("leads/"):
+        return "leads"
+    return sub if sub in ROUTES else "other"
+
+
+def serve(h, folder, base: str, limits, address: str) -> None:
+    """Every /traffic-kit/ request on the beacon helper (GET, HEAD, POST).
+    `limits`: {route: a Limiter} (one per ROUTES), or one Limiter for all."""
     path = h.path.split("?", 1)[0][len(link.PREFIX):]
     if path == "llms.txt":
         if h.command == "POST":
             return _send(h, 405, "Read this with GET.\n")
         return _send(h, 200, guide((base or "").rstrip("/") or _own_base(h)))
+    limiter = limits[route(path)] if isinstance(limits, dict) else limits
     if not limiter.allow(address):
         return _send(h, 429, "Too many tries. Wait a minute and try again.\n")
     code, _, sub = path.partition("/")

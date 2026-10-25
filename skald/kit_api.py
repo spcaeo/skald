@@ -33,20 +33,30 @@ or admin role, same-origin and CSRF checks):
           One live line per site: in the same lock as the new code, the site's
           older codes whose keys were not taken are cancelled and their unused
           tokens revoked (`cancelled`: how many), and expired ones whose keys
-          were never taken give up their token too.
+          were never taken give up their token too. A token is marked revoked
+          only once its revoke succeeded; one that failed stays as it was, is
+          listed in `not_revoked` (and the audit row), and is tried again.
   POST sites/agentstatus {site, link_id}
        -> {ok, state: waiting | opened | keys_taken | expired | cancelled |
           unknown, opened_at, keys_at, reported_at, report, cancelled_at,
-          expires_at}: that site's agent code only.
+          expires_at}: that site's agent code only. Once it reads expired or
+          cancelled, the site's ended codes' unused tokens are revoked.
   POST sites/agentcancel {site, link_id}
        -> {ok, state: "cancelled"}: the code ends at once (its keys can no
           longer be taken; every route answers as expired); its token is
-          revoked when the keys were never taken. 404 for an unknown code.
+          revoked when the keys were never taken (`not_revoked` when that
+          failed). 404 for an unknown code.
+
+The daily run (`daily`, a step of run-daily for each site) revokes the
+unused tokens of the site's expired or cancelled codes still to revoke, so an
+expired line's token goes within a day, before its entry is dropped.
 
 Every route writes the audit log (who, site, how many recipients, keys or
 not); no token, secret, code or address is ever logged.
 """
 from __future__ import annotations
+
+import sqlite3
 
 from datetime import datetime, timezone
 from pathlib import Path
@@ -310,7 +320,7 @@ def agent_link(c, form):
                                       lead_note="included" if secret else kind, leads=leads,
                                       found=found, replace=True)
     lid = agent.link_id(code)
-    older = _ended(c, site, ended, "a new line replaced it")
+    older, failed = _ended(c, site, ended, "a new line replaced it")
     _audit(c, "kit.agentlink", site, f"token {tid}; link {lid}; lead secret "
                                      f"{kind if leads else 'not asked'}; keys once, for "
                                      f"{agent.link.HOURS} hours; {older} older line(s) "
@@ -321,28 +331,64 @@ def agent_link(c, form):
                      f"(works once, {agent.link.HOURS} hours)",
                 llms_url=llms, steps_url=f"{base}{agent.link.PREFIX}{code}/steps",
                 expires_at=agent.link.stamp(expires), token_id=tid, link_id=lid,
-                cancelled=older)
+                cancelled=older, **({"not_revoked": failed} if failed else {}))
 
 
-def _ended(c, site: str, ended, why: str) -> int:
+NOT_REVOKED = "Skald tries again in the daily run, or revoke it in Settings > Connections"
+
+
+def revoke_unused(db, folder, org_of, actor, done) -> tuple[list, list]:
+    """Revoke each (link_id, token_id) of `done`, then mark in the store only
+    those whose revoke succeeded (a token already gone counts). `org_of(tid)`:
+    the org to revoke it in. (revoked, [(link_id, token_id, why it failed)])."""
+    from .accounts import apitokens
+    from .kit import agent
+    revoked, failed = [], []
+    for one, tid in done:
+        try:
+            apitokens.revoke(db, org_of(tid), tid, actor)
+        except ValueError:                     # the token is gone already: nothing to do
+            pass
+        except (sqlite3.Error, OSError) as why:
+            failed.append((one, tid, type(why).__name__))
+            continue
+        revoked.append((one, tid))
+    if revoked:
+        agent.mark_revoked(folder, revoked)
+    return revoked, failed
+
+
+def _ended(c, site: str, ended, why: str) -> tuple[int, list[str]]:
     """Revoke the tokens of ended agent codes that were never handed out, one
     audit row per cancelled code (agent.make's `ended`, agent.cancel's answer
-    as (link_id, token_id, "cancelled")); how many were cancelled."""
-    from .accounts import apitokens
+    as (link_id, token_id, "cancelled")), and one per token whose revoke
+    failed. (how many were cancelled, the token ids not revoked)."""
+    _, failed = revoke_unused(c.db, _folder(c), lambda _tid: c.org["id"], c.uid,
+                              [(one, unused) for one, unused, _ in ended if unused])
+    bad = {tid: err for _, tid, err in failed}
     cancelled = 0
     for one, unused, how in ended:
-        if unused:
-            try:
-                apitokens.revoke(c.db, c.org["id"], unused, c.uid)
-            except ValueError:                 # the token is gone already
-                pass
-        if how != "cancelled":                 # an expired line's unused token: token.revoke
-            continue
-        cancelled += 1
-        _audit(c, "kit.agentcancel", site, f"link {one}; {why}; " + (
-            f"its unused token {unused} revoked" if unused else
-            "its keys were taken, so its token stays (revoke it in Settings > Connections)"))
-    return cancelled
+        if unused in bad:
+            words = (f"its unused token {unused} could not be revoked ({bad[unused]}); "
+                     f"{NOT_REVOKED}")
+        elif unused:
+            words = f"its unused token {unused} revoked"
+        else:
+            words = "its keys were taken, so its token stays (revoke it in Settings > Connections)"
+        if how == "cancelled":
+            cancelled += 1
+            _audit(c, "kit.agentcancel", site, f"link {one}; {why}; {words}")
+        elif unused in bad:                    # an expired line's: token.revoke when it went
+            _audit(c, "kit.agenttoken", site, f"link {one}; {how}; {words}")
+    return cancelled, list(bad)
+
+
+def _sweep(c, site: str) -> list[str]:
+    """Revoke the unused tokens of the site's ended codes still to revoke;
+    the token ids that failed."""
+    from .kit import agent
+    return _ended(c, site, [(one, tid, "expired") for one, tid in
+                            agent.unrevoked(_folder(c), site)], "found ended")[1]
 
 
 def agent_cancel(c, form):
@@ -357,9 +403,11 @@ def agent_cancel(c, form):
     if was == "unknown":
         return c.no(404, "There is no such line for this site (it may have run out a day ago).")
     if was != "cancelled":
-        _ended(c, site, [(one, unused, "cancelled")
-                         for one, unused in agent.cancel(_folder(c), site, lid)], "cancelled")
-    return c.ok(state="cancelled")
+        failed = _ended(c, site, [(one, unused, "cancelled") for one, unused in
+                                  agent.cancel(_folder(c), site, lid)], "cancelled")[1]
+    else:                                      # again: a revoke that failed is tried again
+        failed = _sweep(c, site)
+    return c.ok(state="cancelled", **({"not_revoked": failed} if failed else {}))
 
 
 def agent_status(c, form):
@@ -370,4 +418,41 @@ def agent_status(c, form):
     lid = text(form, "link_id", 40).strip().lower()
     if not agent.LINK_ID.match(lid):
         return c.no(400, "link_id is the 16 hex characters sites/agentlink answered.")
-    return c.ok(**agent.status(_folder(c), site, lid))
+    got = agent.status(_folder(c), site, lid)
+    if got["state"] in ("expired", "cancelled"):   # found ended: its unused token goes now
+        _sweep(c, site)
+    return c.ok(**got)
+
+
+def daily(ctx) -> int:
+    """run-daily's step for each site: revoke the unused tokens of the
+    site's expired or cancelled agent codes still to revoke, and tidy the
+    store (an expired code's seals wiped, old entries dropped). Never stops
+    the run: a failure is one line on stderr, and the next run tries again."""
+    from .accounts import db as base
+    from .kit import agent
+    folder = Path(ctx.db_path).parent
+    try:
+        todo = agent.unrevoked(folder, ctx.site)
+        accounts = base.path_for(ctx.config, folder)
+        if todo and accounts is not None and Path(accounts).is_file():
+            db = base.connect(accounts)
+            try:
+                def org_of(tid):
+                    row = db.execute("SELECT org_id FROM tokens WHERE id = ?", (tid,)).fetchone()
+                    if row is None:
+                        raise ValueError("gone")
+                    return row[0]
+                revoked, failed = revoke_unused(db, folder, org_of, "run-daily", todo)
+            finally:
+                db.close()
+            if revoked:
+                ctx.out(f"kit tokens: {len(revoked)} unused token(s) of ended AI agent "
+                        "line(s) revoked")
+            for one, tid, why in failed:
+                ctx.err(f"kit tokens: link {one}: token {tid} could not be revoked "
+                        f"({why}); tried again tomorrow")
+        agent.mark_revoked(folder, [])         # tidy: an expired code's seals, old entries
+    except Exception as why:                   # noqa: BLE001 - never stops a run
+        ctx.err(f"kit tokens: {type(why).__name__}: {why}")
+    return 0

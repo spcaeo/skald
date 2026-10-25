@@ -10,7 +10,7 @@ Part of [DATA-CONTRACT.md](../DATA-CONTRACT.md).
 
 The live run reads the site's sitemaps after robots.txt (`sitemap.refresh`),
 as Skald's own fetcher `site-version-check/1` (always our own traffic,
-CLASSIFICATION.md): the `Sitemap:` lines of the robots.txt robots.py keeps,
+CLASSIFICATION-PATTERNS.md, `ours`): the `Sitemap:` lines of the robots.txt robots.py keeps,
 `https://<host>/sitemap.xml` (the `www.` host when listed, else the first of
 `site.hosts`) and any URL in `crawl_health.sitemaps`. A sitemap index is
 followed to its sitemaps; gzip and plain-text sitemaps are read. Only URLs

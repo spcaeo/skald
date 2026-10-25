@@ -125,6 +125,20 @@ def _kept(entry: dict, now: float) -> bool:
     return end > now
 
 
+def stale(links: dict, now: float) -> bool:
+    """True when _save would change the store: an entry past its keeping, or
+    an expired agent code that still holds a seal. Changes nothing."""
+    for entry in links.values():
+        end = float(entry.get("expires_at") or 0)
+        if entry.get("kind") != "agent":
+            if end <= now:
+                return True
+        elif end + KEPT_AFTER <= now or (end <= now and any(
+                entry.get(k) for k in ("sealed", "sealed_lead", "sealed_report"))):
+            return True
+    return False
+
+
 def _save(path: Path, links: dict, now: float) -> None:
     """Written 0600 and renamed into place; expired entries dropped (an
     agent code's a day later, its seals wiped at once)."""

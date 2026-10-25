@@ -13,6 +13,10 @@ so it can never say something the settings do not do:
                     for conversions.retention_days days, or "until you ask us
                     to delete them" when it is 0 (kept for good, 2.29)
     the script tag  only when the site has the beacon on (events.enabled):
+                    where it loads from (the analytics server, or the site
+                    when it passes the tag on: either way, "our analytics
+                    server"), the visit's source it keeps in the tab's
+                    session storage (skald.src, IDs on or off, SOURCE),
                     visitor IDs (beacon.visitor_ids) and where they are kept,
                     the pages read with one: journeys.vid_days days, then
                     kept with the lead once the visitor sends a form,
@@ -41,6 +45,11 @@ SHARED_MARK = "[Keep this line only if your script tag has data-share-subdomains
 SHARED_LINE = ("It is also kept in a first-party cookie called skald_vid, for up to 400 days, "
                "so our subdomains see the same ID.")
 SHARED = f"{SHARED_MARK} {SHARED_LINE}"
+# skald.js's src(): the referring site and utm_source, in sessionStorage, IDs on or off.
+SOURCE = ("When you arrive from another site or a campaign link, the script keeps that site's "
+          "name and the link's campaign source in your browser's session storage, so the "
+          "visit's later pages carry the same source. Your browser deletes it when you close "
+          "the tab.")
 INTRO = "How we measure visits to this site:"
 
 
@@ -72,8 +81,8 @@ def _kept(lead_days: int) -> str:
 
 def _beacon(config: dict, lead_days: int, vid_days: int) -> list[str]:
     from ..beacon import share_subdomains, visitor_ids
-    out = ["Our pages also load a small script from our own site. It counts clicks and form "
-           "steps, never what you type in a form."]
+    out = ["Our pages also load a small script from our analytics server. It counts clicks "
+           "and form steps, never what you type in a form."]
     if visitor_ids(config):
         out += ["The script keeps a random visitor ID in your browser's local storage, so "
                 "visits from the same browser can be linked. It holds no name or email.",
@@ -83,11 +92,12 @@ def _beacon(config: dict, lead_days: int, vid_days: int) -> list[str]:
                 # Shared in Skald: certain, so no "keep this line only if".
                 SHARED_LINE if share_subdomains(config) else SHARED]
     else:
-        out.append("The script keeps no ID and stores nothing in your browser.")
-    out += ["If your browser sends Do Not Track or Global Privacy Control, the script does "
+        out.append("The script keeps no ID.")
+    out += [SOURCE,
+            "If your browser sends Do Not Track or Global Privacy Control, the script does "
             "nothing at all.",
             f"{CONSENT} The script waits for your consent in our consent banner: until you "
-            f"agree, it sends nothing and keeps no ID."]
+            f"agree, it sends nothing, keeps no ID and stores nothing in your browser."]
     return out
 
 

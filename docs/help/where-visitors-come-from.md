@@ -10,7 +10,20 @@ A visit from X can arrive as `t.co`, `x.com`, `twitter.com` or the X app; one fr
 - A tagged link with no referrer counts for the network its `utm_source` names (`utm_source=twitter` or `x` is X), else its `utm_medium`, else its ad click id (`fbclid` is Facebook, `li_fat_id` LinkedIn, `ttclid` TikTok, `twclid` X). A tag that names two networks, or only "social", counts as **Social, network not named**.
 - Every visit counts once, in one network, and the networks add up to the **Social media** row of Source type. Nothing is reclassified: a site Skald does not call social (Product Hunt, threads.com, fb.me, a Mastodon server other than mastodon.social) stays under Other website.
 
-Click a network to open it under the grid: **how they were matched** (each host, app or tag, with its visitors) and **where they landed**. The address keeps it, for example `#traffic/sources?src_seg=social&net=x`, so you can copy the link, and Back closes it. Before, Change, the trend and Compare mode work as for source types, when every day of both periods recorded the networks. Each day is counted twice, by two separate roads; a day where they disagree is withheld. A day counted before this release says "Not recorded", never zero.
+Click a network to open it under the grid: **how they were matched** (each host, app or tag, with its visitors) and **where they landed**. The address keeps it, for example `#traffic/sources?src_seg=social&net=x`, so you can copy the link, and Back closes it. Before, Change, the trend and Compare mode work as for source types, when every day of both periods recorded the networks. Each day is counted twice, by two separate roads; a day where they disagree is withheld. A day counted before this release (2.34.0) says "Not recorded", never zero.
+
+### Fill in the days before 2.34.0
+
+The person who runs your Skald server can count those days again from the raw log, for the days the log still holds: 14 by default (the web server's log rotation, and the folder that keeps shipped logs). Older days stay "Not recorded". After the upgrade, away from the daily run (07:15 in the site's time zone):
+
+```
+docker exec skald skald backfill --days 14 --force
+docker exec skald skald audit --day 2026-10-20 --withhold
+```
+
+- `backfill --force` counts each of the last 14 days again with the current version, for every site (`--site example.com` before `backfill` picks one). It fills in the networks, and any other figure those days did not record yet, such as Direct, likely.
+- Then run `audit --day ... --withhold` for each of those days, one date at a time. The audit counts the networks a second time from the raw log, and must end with "all match". With `--withhold`, as in the daily run, a day that does not match is withheld and not shown; find why before you go on.
+- The recount also counts the rest of those days again with the current rules, so a figure of those days can change a little if a rule changed since they were stored. The chart marks the recount.
 
 ## All your sites side by side
 

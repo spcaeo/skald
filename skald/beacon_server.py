@@ -56,8 +56,8 @@ GET /traffic-kit/<code> answers a one-time install link (kit/link.py): the
 one-file installer with its token to curl or Wget, once; words to anything
 else. /traffic-kit/llms.txt and an AI agent's code (kit/agent.py: its steps,
 keys once to curl or Wget, installer, lead files, and POST .../report) are
-answered there too. Limited per address (KIT_PER_MINUTE; llms.txt is not);
-the code is never logged.
+answered there too. Limited per address, each route on its own
+(KIT_PER_MINUTE, agent.ROUTES; llms.txt is not); the code is never logged.
 
 GET /traffic-js/skald.js serves the snippet (webapp/snippet/skald.js) with
 an ETag and a day's cache; with visitor IDs off it is served with IDS=0, so
@@ -94,7 +94,7 @@ SNIPPET_PATH = "/traffic-js/skald.js"
 SNIPPET_FILE = Path(__file__).resolve().parent / "webapp" / "snippet" / "skald.js"
 SNIPPET_CACHE = "public, max-age=86400, stale-while-revalidate=604800"
 KIT_PREFIX = "/traffic-kit/"     # one-time install links and agent codes (kit/link.py, agent.py)
-KIT_PER_MINUTE = 10              # tries per address a minute, a burst of 5
+KIT_PER_MINUTE = 10              # tries per address and route a minute, a burst of 5
 RELOAD_SECONDS = 60       # the classifier re-reads our own addresses this often
 FLUSH_SECONDS = 5         # counters are written at most this often
 
@@ -412,7 +412,8 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
     main = sites.main
     from . import stack_public_api
     public = stack_public_api.Service.from_config(main.config)   # None unless switched on
-    kit_limiter = Limiter(KIT_PER_MINUTE, 5, 5)
+    from .kit.agent import ROUTES
+    kit_limits = {name: Limiter(KIT_PER_MINUTE, 5, 5) for name in ROUTES}   # one per route
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "skald-beacon"
@@ -553,7 +554,7 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
             address = ((self.headers.get("X-Real-IP") or "").strip()
                        if peer == "127.0.0.1" else "") or peer
             folder = history_folder(main.config, getattr(main, "config_path", None))
-            agent.serve(self, folder, base_url(main.config) or "", kit_limiter, address)
+            agent.serve(self, folder, base_url(main.config) or "", kit_limits, address)
 
         def _not_allowed(self):
             self._send(405)
