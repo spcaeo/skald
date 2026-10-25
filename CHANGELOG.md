@@ -231,6 +231,66 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
   (no sideways scroll, no script errors, no broken assets, every switch and tab has a choice).
   Words checked against the product's own limits (`_src/pages/FEATURES.md`).
 
+## 2.36.0 (2026-10-25)
+
+One summary mail a day instead of a mail per security item, and the HTML sitemap page out of the page views.
+
+### Upgrade
+
+- Docker: nothing; the scheduler sends the summary at 01:00 (`SKALD_SUMMARY_AT`). Without Docker: add the hourly `summary-mail --after 01:00` cron line (DEPLOY.md section 5).
+- Recount the stored days so the sitemap page leaves them: `backfill --days 14 --force`, then `audit --day D --withhold` for each day.
+
+### Counting: an HTML sitemap page is not a page any more
+
+- **Changed.** `/sitemap/`, `/site-map/`, `/html-sitemap/` and `/sitemap.html` joined the
+  not-a-page list as `sitemap_page`, ticked by default on every site. Its visits stay in the
+  log's requests, in the same group, and show in Site health > Data quality under "Not
+  counted as pages"; they leave the page views, readers, landings, exits and journeys.
+- **Why.** The owner saw `/sitemap/` among one client site's people's pages: "a user never
+  looks at" it. That day's log had 45 requests for it: Googlebot, PetalBot, Amazonbot, an SEO
+  site audit, a "research-check" tool and four browser signatures with no referrer. The last
+  four were counted as people. 2.35.0 had kept the HTML sitemap page as a page on purpose; this
+  reverses that call.
+- **Who it affects.** Every site with an HTML sitemap page. A site that wants it counted again
+  unticks `sitemap_page` in Settings > Sites > Not pages.
+- **What to do.** Nothing. Stored days keep their figures until recounted
+  (`backfill --days N --force`); the live server is recounted at deploy.
+- **Checked.** Tests on both counting roads (the audit matches the same list by its own code):
+  matches, near misses (`/sitemaps-guide/`, `/sitemap/page-2/`, `/my-sitemap/`) and the
+  made-up sitemap of 400+ paths, which still matches nothing.
+
+### One summary mail a day per person, at 01:00, instead of one security mail per item
+
+- **Changed.** Each person's security mail now comes by default in a daily summary: one mail
+  per person a day at 01:00 in the schedule's time zone, covering every site they get security
+  alerts for, with a section per site (only sites with something open): the open security
+  items (marked New the first time, then "still open"), the open to-dos from Overview ›
+  Insights (less the ones marked done or "not now"), and the set-up problems the doctor finds
+  from local files (the daily run, days stored, the access log, the script tag, hooks, crawler
+  checks, the disk). At most 10 lines per part and site, then a link to the rest; each line says
+  what it is, what to do and links straight to it. No mail when nothing is open; never two the
+  same day (each send is recorded, a failed one is retried by the next run). At 01:00 the to-dos
+  are the ones the last daily run found; the security items are current from the live runs.
+  A new command `summary-mail` (`--dry-run` prints the mails; `--after HH:MM` for an hourly
+  cron line); Docker runs it at `SKALD_SUMMARY_AT` (default `01:00`, `off` stops it).
+- **Changed.** "Right away" stays as a person's own choice, but one run now sends ONE mail per
+  person with every item due on all their sites, never one mail per item. The morning run's
+  separate security mail step no longer mails anyone; it only keeps the open items up to date.
+  Security › Alerts, "Your security alerts", now offers "In the daily summary" (first, the
+  default) or "Right away", and says what each sends.
+- **Why:** on 2026-10-25 one person got 44 security mails in a minute: the first run after a
+  fix sent every open item, one mail per item and per site, across 6 sites.
+- **Who:** everyone on a site's team with security alerts on (owners and admins by default).
+  Someone who had saved "Right away" keeps it, now batched.
+- **Do:** nothing on Docker (the scheduler runs it). Without Docker, add the hourly
+  `summary-mail --after 01:00` cron line (DEPLOY.md section 5; `install.sh` now writes it).
+  To keep a mail per run, choose "Right away" on Security › Alerts.
+- **Checked:** new tests for one mail per person across several sites and organisations,
+  nothing sent when nothing is open, not sent twice the same day, a failed send retried, the
+  10-line limit, the doctor lines read without any network call, right away batched into one
+  mail, the old daily step mailing nobody, and the scheduler's job time and `off`; the
+  existing security alert tests updated; the full test suite passes.
+
 ## 2.35.1 (2026-10-25)
 
 A fix found by the recount after the 2.35.0 deploy.

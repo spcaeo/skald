@@ -992,8 +992,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _deliver_after(args, contexts: list, code: int) -> int:
-    """live and run-daily queue webhooks per site; one delivery pass after all (conversions/jobs.py)."""
+    """live and run-daily: webhooks, then the right-away security mail, once after all sites."""
     if args.command in ("live", "run-daily"):
-        from .conversions import jobs
-        jobs.deliver(contexts)
+        from . import summary_mail
+        summary_mail.after_run(contexts)
     return code

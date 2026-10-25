@@ -374,7 +374,7 @@ PY
 ) || die "--daily-at '$DAILY_AT': give HH:MM"
   local run="cd $APP && . $ETC/env &&"
   local ti="$PY $APP/bin/skald --config $cfg"
-  say "writing $CRON_FILE (run-daily at $DAILY_AT ${tz:-UTC}, live every 2 minutes, nightly backup)"
+  say "writing $CRON_FILE (run-daily at $DAILY_AT ${tz:-UTC}, live every 2 minutes, nightly backup, summary mail)"
   cat > "$CRON_FILE" <<EOF
 # skald (install.sh). Server clock. Failures mail the daily recipients (notify-failure).
 SHELL=/bin/sh
@@ -382,6 +382,8 @@ MAILTO=""
 $hm * * * $SVC_USER $run $ti run-daily >>$LOGS/run.log 2>&1 || $ti notify-failure --job run-daily --exit \$? --log $LOGS/run.log >>$LOGS/run.log 2>&1
 */2 * * * * $SVC_USER $run flock -n $DATA/live.lock $ti live >>$LOGS/live.log 2>&1
 30 4 * * * $SVC_USER $run $ti backup >>$LOGS/backup.log 2>&1 || $ti notify-failure --job backup --exit \$? --log $LOGS/backup.log >>$LOGS/backup.log 2>&1
+# The daily summary mail (2.36): hourly, it sends once the site's time is past 01:00, once a day.
+0 * * * * $SVC_USER $run $ti summary-mail --after 01:00 >>$LOGS/summary.log 2>&1
 # Heartbeat (DEPLOY.md section 5): list {agent: skald-heartbeat, label: heartbeat} in ours.user_agents first.
 # */5 * * * * $SVC_USER curl -s -o /dev/null -A "skald-heartbeat" https://${site:-www.example.com}/robots.txt
 EOF

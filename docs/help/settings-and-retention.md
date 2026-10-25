@@ -213,6 +213,7 @@ The list, each one ticked by default:
 - **trackback**: `/trackback/` and `wp-trackback.php`, notices one blog sends another.
 - **author_number**: `?author=2`, a lookup that lists a WordPress site's user names.
 - **reply_to_comment**: `?replytocom=`, WordPress's reply link for browsers without scripts.
+- **sitemap_page**: an HTML sitemap page, `/sitemap/`, `/site-map/`, `/html-sitemap/` and `/sitemap.html`. Crawlers, link checkers and test browsers walk it; people find pages through the menu and search. Its visits show in Site health > Data quality, not in the pages.
 
 **Count one as pages again.** If your site serves a real page at one of these, for example a page called `/feed/`, untick it and press **Save**.
 
@@ -224,7 +225,7 @@ The list, each one ticked by default:
 
 Capital letters do not matter. `/` alone is refused: it would take every page out.
 
-**What stays a page.** Pages a person opens are never on the list: an HTML sitemap page (`/sitemap/`), search results, a cart or checkout, a sign-in page, an app's dashboard, a thank-you page. If one of them is filled by a bot, that is a question of who visited, which Skald answers by itself; add it under **Also not pages** only if you never want it counted.
+**What stays a page.** Pages a person opens are never on the list: search results, a cart or checkout, a sign-in page, an app's dashboard, a thank-you page. If one of them is filled by a bot, that is a question of who visited, which Skald answers by itself; add it under **Also not pages** only if you never want it counted.
 
 **Where you see it.** [Site health > Data quality](#site/quality) shows each day's **Not counted as pages**: the requests, how many were people's, and which entry (hover the number). In [Requests](#site/requests) such a request says "a machine address, not a page" and names the entry.
 

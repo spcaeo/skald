@@ -419,8 +419,10 @@ security:
   site did not answer); the limits are in memory. The address typed is never logged; once an
   hour the helper writes one line of counts to stderr.
 
-Each person's own security mail (Security > Alerts, "Your security alerts") reminds while
-an item stays open every `security.remind_days` (3) days.
+Each person's own security mail (Security > Alerts, "Your security alerts") goes in the
+daily summary by default (`skald summary-mail`, 01:00, `SKALD_SUMMARY_AT`; one mail per person
+for all their sites), or right away as one mail per run; it reminds while an item stays open
+every `security.remind_days` (3) days.
 
 Its alerts are switched on Site > Alerts like the others: `alerts.security_exposure` and
 `alerts.stack_advisory` (on by default: they follow the site's alerts) and `alerts.scan_wave`

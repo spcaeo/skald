@@ -2,8 +2,10 @@
 the `settings/` prefix nginx already passes on:
 
   GET  settings/security-prefs     your choice for this site: {alerts, mode, default, role,
-                                   email, open: [the open items]}
-  POST settings/security-prefs     {alerts: true|false, mode: "now"|"daily"}
+                                   email, summary_at, open: [the open items]}
+  POST settings/security-prefs     {alerts: true|false, mode: "now"|"daily"}: "daily" is the
+                                   daily summary (summary_mail.py) at `summary_at` ("off"
+                                   when this server does not send it), the default
   POST settings/security-test      a test security alert to you (owners and admins), at most
                                    TEST_LIMIT in TEST_MINUTES; written to the audit log
 
@@ -70,14 +72,15 @@ def handle(h, write: bool, config, live_dir, allowed, same_origin, config_path=N
                 form = _form(h)
                 if form is None:
                     return None
-                mode = str(form.get("mode") or "now")
+                mode = str(form.get("mode") or security_notify.DEFAULT_MODE)
                 if mode not in ("now", "daily"):
                     return answer(h, 400, {"ok": False, "error": "mode is now or daily"})
                 pref = security_notify.set_prefs(db, uid, site, bool(form.get("alerts")), mode)
             else:
                 pref = security_notify.prefs_of(db, uid, role, site)
+            from .summary_mail import at
             return answer(h, 200, {"ok": True, **pref, "role": role, "email": session["email"],
-                                   **security_notify.public(db, site)})
+                                   "summary_at": at(), **security_notify.public(db, site)})
         if role not in ("owner", "admin"):
             return answer(h, 403, {"ok": False, "error": "Only an owner or an admin can send a "
                                                          "test security alert."})

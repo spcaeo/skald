@@ -7,13 +7,21 @@ webhooks (Slack too). This adds a mail to each person on the site's team who wan
   who        the members of the site's organisation (accounts.sqlite) whose account is
              confirmed (a password set: the invite link was used) and not disabled
   choice     per person and site (Security > Alerts, "Your security alerts"): on or off,
-             right away or in the daily mail. Defaults: owners and admins on, right away;
-             viewers off until they turn it on
+             in the daily summary or right away. Defaults: owners and admins on, in the
+             summary; viewers off until they turn it on. The summary (summary_mail.py,
+             01:00 in the schedule's zone) is one mail per person a day for every site;
+             it is stored as mode "daily"
   what       a possible exposure (security.py's `possible` answers, today so far and the
              last whole day) and an advisory that matches the site's stack (stack.py:
              update needed, no official fix, check your version)
+  tracked    every live run and run-daily keep `security_items` up to date (open, still
+             open, closed); neither mails by itself any more (2.36: one mail per item and
+             per site made 44 mails in a minute for one person)
+  right away after every site of a live run or run-daily, right_away(): ONE mail per
+             person with every item due on every site they chose "right away" for
   once       each person gets each item once; a reminder only while the item is still
              open after `security.remind_days` (3) days, then every as many days again
+             (a summary that carried the item counts as a mail)
   the mail   names the site, what was found, what to do (one line) and the link straight
              to it: <dashboard url>#threats/exposed?item=<id> (or #threats/stack?item=),
              the id an opaque hash of the site and the item, never an address
@@ -40,6 +48,7 @@ SENDS = ("CREATE TABLE IF NOT EXISTS security_sends (site TEXT NOT NULL, item TE
          "user_id INTEGER NOT NULL, how TEXT NOT NULL, sent_at TEXT NOT NULL)")
 ON_ROLES = ("owner", "admin")
 REMIND_DAYS = 3
+DEFAULT_MODE = "daily"                  # in the daily summary (summary_mail.py), since 2.36
 TAB = {"exposure": "exposed", "advisory": "stack"}
 
 
@@ -76,7 +85,7 @@ def prefs_of(db, user_id: int, role: str | None, site: str) -> dict:
     row = db.execute("SELECT alerts, mode FROM security_prefs WHERE user_id = ? AND site = ?",
                      (int(user_id), site)).fetchone()
     if row is None:
-        return {"alerts": role in ON_ROLES, "mode": "now", "default": True}
+        return {"alerts": role in ON_ROLES, "mode": DEFAULT_MODE, "default": True}
     return {"alerts": bool(row[0]), "mode": row[1], "default": False}
 
 
@@ -214,47 +223,99 @@ def _skip(config: dict, it: dict, email: str) -> bool:
     return it["kind"] == "exposure" and on and email.strip().lower() in mailed
 
 
-def run(db, config: dict, site: str, found: list, now: datetime, mode: str, send=None) -> list:
-    """Track the items, then mail each person whose choice is `mode` what is due.
-    "now": one mail per item; "daily": one mail with every item due. [(email, item, how)]."""
+def track(db, site: str, found: list, now: datetime) -> None:
+    """Keep `security_items` up to date for one site; nothing is mailed."""
     _ready(db)
     _track(db, site, found, now)
-    every = remind_days(config)
-    done = []
-    for person in recipients(db, site):
-        if person["mode"] != mode:
+    db.commit()
+
+
+def open_items(db, site: str) -> list[dict]:
+    """[{item, kind, title, todo, first_at}] open now on `site`, the oldest first."""
+    _ready(db)
+    rows = db.execute("SELECT item, kind, title, todo, first_at FROM security_items WHERE "
+                      "site = ? AND closed_at IS NULL ORDER BY first_at, item", (site,)).fetchall()
+    return [dict(zip(("item", "kind", "title", "todo", "first_at"), r)) for r in rows]
+
+
+def run(db, config: dict, site: str, found: list, now: datetime, mode: str, send=None) -> list:
+    """Track the items of one site. "now": then the right-away mail for this site alone (one
+    mail per person); "daily": nothing is mailed (the summary does it). [(email, item, how)]."""
+    track(db, site, found, now)
+    if mode != "now":
+        return []
+    return [(e, i, h) for e, _, i, h in send_due(db, [(site, config)], now, send)]
+
+
+def send_due(db, sites: list, now: datetime, send=None) -> list:
+    """The people who chose "right away": ONE mail per person with every open item due on
+    every site given ([(site, config)]), never one per item. [(email, site, item, how)]."""
+    _ready(db)
+    configs = dict(sites)
+    people: dict[int, dict] = {}
+    for site, config in sites:
+        found = open_items(db, site)
+        if not found:
             continue
-        due_items = []
-        for it in found:
-            how = due(db, site, person["user_id"], it["item"], now, every)
-            if how and not _skip(config, it, person["email"]):
-                due_items.append((it, how))
-        if not due_items:
-            continue
-        if mode == "now":
-            batches = [[x] for x in due_items]
-        else:
-            batches = [due_items]
-        for batch in batches:
-            subject = (f"Security: {batch[0][0]['title']}" if len(batch) == 1
-                       else f"Security: {len(batch)} items on {site}")
-            lines = [f"{'Reminder: ' if how == 'reminder' else ''}{it['title']}\n"
-                     f"What to do: {it['todo']}\nOpen it: {link(config, it['kind'], it['item'])}\n"
-                     for it, how in batch]
-            text = (f"Skald found this on {site}:\n\n" + "\n".join(lines) +
-                    "\nYou get each item once, and a reminder while it stays open. Change this "
-                    "on Security > Alerts, Your security alerts.\n")
-            if _mail(config, person["email"], subject, text, now, send) is not None:
+        every = remind_days(config)
+        for person in recipients(db, site):
+            if person["mode"] != "now":
                 continue
-            for it, how in batch:
-                kind = "daily" if mode == "daily" else how
-                db.execute("INSERT INTO security_sends (site, item, user_id, how, sent_at) "
-                           "VALUES (?, ?, ?, ?, ?)", (site, it["item"], person["user_id"], kind,
-                                                      _stamp(now)))
-                _log(db, person["org_id"], person["email"], it["item"], it["kind"], kind)
-                done.append((person["email"], it["item"], kind))
+            for it in found:
+                how = due(db, site, person["user_id"], it["item"], now, every)
+                if how and not _skip(config, it, person["email"]):
+                    got = people.setdefault(person["user_id"], {"email": person["email"],
+                                                                "config": config, "due": []})
+                    got["due"].append((site, person["org_id"], it, how))
+    done = []
+    for uid, got in people.items():
+        batch = got["due"]
+        names = list(dict.fromkeys(site for site, _, _, _ in batch))
+        where = names[0] if len(names) == 1 else f"{len(names)} sites"
+        subject = (f"Security: {batch[0][2]['title']}" if len(batch) == 1
+                   else f"Security: {len(batch)} items on {where}")
+        lines = [f"{'Reminder: ' if how == 'reminder' else ''}{it['title']}\n"
+                 f"What to do: {it['todo']}\n"
+                 f"Open it: {link(configs[site], it['kind'], it['item'])}\n"
+                 for site, _, it, how in batch]
+        text = (f"Skald found this on {', '.join(names)}:\n\n" + "\n".join(lines) +
+                "\nYou chose these right away: one mail per run with everything due. You get "
+                "each item once, and a reminder while it stays open. Change this on Security > "
+                "Alerts, Your security alerts (the daily summary is the default).\n")
+        if _mail(got["config"], got["email"], subject, text, now, send) is not None:
+            continue                    # not recorded: the next run tries again
+        for site, org_id, it, how in batch:
+            db.execute("INSERT INTO security_sends (site, item, user_id, how, sent_at) "
+                       "VALUES (?, ?, ?, ?, ?)", (site, it["item"], uid, how, _stamp(now)))
+            _log(db, org_id, got["email"], it["item"], it["kind"], how)
+            done.append((got["email"], site, it["item"], how))
     db.commit()
     return done
+
+
+def right_away(contexts: list, send=None) -> list:
+    """After every site of a live run or run-daily: the right-away mail. Never raises."""
+    if not contexts:
+        return []
+    first = contexts[0]
+    try:
+        from .auth_api import open_db, sessions_mode
+        if not sessions_mode(first.config):
+            return []
+        db = open_db(first.config, first.live_dir)
+        if db is None:
+            return []
+        try:
+            got = send_due(db, [(c.site, c.config) for c in contexts], first.now, send)
+        finally:
+            db.close()
+        if got:
+            first.out(f"security alerts right away: {len({e for e, _, _, _ in got})} people, "
+                      f"{len(got)} items, one mail each")
+        return got
+    except Exception as why:            # noqa: BLE001 - never stops the run
+        first.err(f"security alerts: {type(why).__name__}: {why}")
+        return []
 
 
 def test_send(db, config: dict, site: str, user: dict, org_id, now: datetime | None = None,
@@ -290,7 +351,8 @@ def _found(config: dict, live_dir, history, site: str, snap: dict | None, day) -
 
 
 def live(ctx, snap: dict | None, send=None) -> None:
-    """Every live run: the people who chose "right away". Never raises."""
+    """Every live run: the items tracked; the mail is right_away()'s, after every site.
+    Never raises."""
     try:
         from .auth_api import open_db, sessions_mode
         if not sessions_mode(ctx.config):
@@ -302,8 +364,7 @@ def live(ctx, snap: dict | None, send=None) -> None:
             with ctx.history() as history:
                 day = ctx.now.astimezone(ctx.tz).date() - timedelta(days=1)
                 found = _found(ctx.config, ctx.live_dir, history, ctx.site, snap, day)
-            for email, item, how in run(db, ctx.config, ctx.site, found, ctx.now, "now", send):
-                ctx.out(f"security alert: {item} ({how}) mailed")
+            track(db, ctx.site, found, ctx.now)
         finally:
             db.close()
     except Exception as why:            # noqa: BLE001 - never stops the live run
@@ -311,7 +372,8 @@ def live(ctx, snap: dict | None, send=None) -> None:
 
 
 def daily(ctx, send=None) -> int:
-    """run-daily's step: the people who chose the daily mail. Always 0."""
+    """run-daily's step: the items tracked from the last whole day and the stack check. It
+    mails nobody (2.36): the 01:00 summary (summary_mail.py) carries them. Always 0."""
     try:
         from .auth_api import open_db, sessions_mode
         if not sessions_mode(ctx.config):
@@ -323,8 +385,9 @@ def daily(ctx, send=None) -> int:
             with ctx.history() as history:
                 day = ctx.now.astimezone(ctx.tz).date() - timedelta(days=1)
                 found = _found(ctx.config, ctx.live_dir, history, ctx.site, None, day)
-            got = run(db, ctx.config, ctx.site, found, ctx.now, "daily", send)
-            ctx.out(f"security mail: {len({e for e, _, _ in got})} people, {len(got)} items")
+            track(db, ctx.site, found, ctx.now)
+            ctx.out(f"security items: {len(open_items(db, ctx.site))} open; they go in the "
+                    "daily summary")
         finally:
             db.close()
     except Exception as why:            # noqa: BLE001 - never stops the run

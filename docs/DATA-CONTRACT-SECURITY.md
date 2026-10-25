@@ -167,25 +167,32 @@ Kept in accounts.sqlite, tables made on first use:
 
 | table | columns |
 |---|---|
-| `security_prefs` | `user_id`, `site`, `alerts` (1/0), `mode` (`now` / `daily`), `updated_at`. No row: owners and admins on, `now`; viewers off |
+| `security_prefs` | `user_id`, `site`, `alerts` (1/0), `mode` (`now` / `daily`), `updated_at`. No row: owners and admins on, `daily` (the daily summary, since 2.36); viewers off |
 | `security_items` | `site`, `item`, `kind` (`exposure` / `advisory`), `title`, `todo`, `first_at`, `last_seen_at`, `closed_at` (null while open) |
-| `security_sends` | `site`, `item`, `user_id`, `how` (`first`, `reminder`, `daily`, `test`), `sent_at` |
+| `security_sends` | `site`, `item`, `user_id`, `how` (`first`, `reminder`, `daily` (before 2.36), `summary`, `test`), `sent_at` |
+| `summary_sends` | `user_id`, `day` (the schedule zone's date), `sent_at`, `items`, `sites`; one row per person and day (summary_mail.py, 2.36) |
+| `summary_items` | `user_id`, `day`, `site`, `part` (`security`, `todos`, `setup`), `item`: what each summary carried |
 
 An item's id is `x` (an exposure) or `a` (an advisory match) and the first 12 hex characters
 of the SHA-256 of its kind, site and parts (host and path; advisory, host and product): the
 same every run, never an address. `security.json` carries it on each exposure row and stack
 match (`item`), and the page opens `#threats/exposed?item=<id>` or `#threats/stack?item=<id>`
 with that item first. Items come from the live snapshot (today), the last whole, verified day
-and the latest stack check; one no longer found is closed. The live run mails the people who
-chose `now` (one mail per item), run-daily's `security mail` step those who chose `daily` (one
-mail); each person gets each item once, then a reminder every `security.remind_days` (3) days
-while it is open. Recipients: members of the site's organisation with a password set (the
+and the latest stack check; one no longer found is closed. Since 2.36 the live run and
+run-daily's `security mail` step only keep `security_items` up to date. The people who chose
+`daily` (the default) get the items in the daily summary (summary_mail.py, `skald summary-mail`,
+01:00 in the schedule's zone: one mail per person and day for all their sites, with the open
+to-dos and set-up problems; a `summary` row per item carried). The people who chose `now` get,
+after every site of a live run or run-daily, ONE mail with every item due on all the sites they
+chose it for (never one per item); each person gets each item once, then a reminder every
+`security.remind_days` (3) days while it is open (a summary that carried it counts). Recipients: members of the site's organisation with a password set (the
 invite used) and not disabled; an exposure is not mailed again to an address the site's alert
 mail already reaches (alerts on, mail on, `security_exposure` on). Each send is an audit row
-`security.alert.sent` (actor `skald`, target the address, detail `<item> <kind> <how>`).
+`security.alert.sent` (actor `skald`, target the address, detail `<item> <kind> <how>`); each
+summary one `summary.sent` per organisation it covered (detail `<day> <n> items on <k> sites`).
 
 Routes (security_api.py, sessions mode; 404 in basic mode), under `settings/` which nginx
-already passes: `GET settings/security-prefs` (`{alerts, mode, default, role, email, open}`),
+already passes: `GET settings/security-prefs` (`{alerts, mode, default, role, email, summary_at, open}`),
 `POST settings/security-prefs` (`{alerts, mode}`, the caller's own choice, any member), `POST
 settings/security-test` (owners and admins; 3 in 10 minutes; the CSRF value and same-origin).
 

@@ -21,6 +21,10 @@
                 that an admin asked to run now (answers/run.py). Nothing is asked
                 until an install admin saved a provider's key and a site admin made
                 a profile; a profile past its daily cap waits for the next day.
+    summary     `summary-mail` at SKALD_SUMMARY_AT (01:00; "off" turns it off) in the
+                same zone: one mail per person with what to look at on every site
+                (security items, to-dos, set-up problems; summary_mail.py). It
+                records each send, so a restart the same day sends nothing again.
 
 Like cron with `flock -n`: a job still running when it is next due is not
 started twice; a time missed while the container was down is not caught up.
@@ -148,7 +152,7 @@ class Job:
 class Scheduler:
     def __init__(self, config: str, tz: str, live_minutes: int, daily_at: str, backup_at: str,
                  report_minutes: int = 15, search_hours: int = 0, search_at: str = "01:40",
-                 answers_minutes: int = 0):
+                 answers_minutes: int = 0, summary_at: str | None = None):
         self.config = config
         ti = [sys.executable, str(APP / "bin/skald"), "--config", config]
         self.ti = ti
@@ -169,6 +173,9 @@ class Scheduler:
         if answers_minutes > 0:
             self.jobs.append(Job("ai-answers", ti + ["ai-answers", "--due"],
                                  lambda t: next_every(t, answers_minutes)))
+        if summary_at:
+            self.jobs.append(Job("summary-mail", ti + ["summary-mail"],
+                                 lambda t: next_daily(t, summary_at, tz)))
         self.stopping = False
 
     def log_path(self, job: Job) -> Path:
@@ -266,6 +273,15 @@ def site_timezone(config: str) -> str:
     return str(setting(load_config(Path(config)), "report", "timezone", "UTC"))
 
 
+def summary_time(raw: str | None) -> str | None:
+    """SKALD_SUMMARY_AT: "01:00" when unset, None for "off"; a bad time raises."""
+    text = str(raw if raw is not None else "01:00").strip() or "01:00"
+    if text.lower() in ("off", "0", "no", "false"):
+        return None
+    parse_hhmm(text)
+    return text
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--config", required=True)
@@ -282,12 +298,13 @@ def main(argv: list[str] | None = None) -> int:
     search_at = os.environ.get("SKALD_SEARCH_AT") or "01:40"
     parse_hhmm(search_at)
     answers = int(os.environ.get("SKALD_AI_ANSWERS_MINUTES") or 15)
+    summary = summary_time(os.environ.get("SKALD_SUMMARY_AT"))
     say(f"times in {tz}: run-daily {daily}, backup {backup}, live every {minutes} min, "
         f"client reports every {reports} min, search sync every {search_hours} h from {search_at}, "
-        f"AI answers every {answers} min")
+        f"AI answers every {answers} min, summary mail {summary or 'off'}")
     return Scheduler(a.config, tz, minutes, daily, backup, report_minutes=reports,
                      search_hours=search_hours, search_at=search_at,
-                     answers_minutes=answers).run()
+                     answers_minutes=answers, summary_at=summary).run()
 
 
 if __name__ == "__main__":
