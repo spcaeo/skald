@@ -66,6 +66,7 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | Key | Owner | Means |
 | --- | --- | --- |
 | `page`, `pubfrom`, `pubto` | tabs/pagestory.js, tr-pages.js | Traffic > Pages: the page's story, published from, to |
+| `net` | tabs/tr-social.js | Traffic > Sources: the social network open under the grid, by its id (`x`, `linkedin`, `facebook`, ...); with `src_seg=social`, the Social network segment: `#traffic/sources?src_seg=social&net=x` |
 | `rg`, `rm`, `rs`, `rv` | tabs/tr-retention.js | Retention: grain, measure, split, value |
 | `since` | tabs/insights.js | Insights: the window |
 | `fn`, `fsrc`, `fstep`, `fmode` | tabs/funnels.js | Funnels: steps, starting source, step open, reached or left |

@@ -30,6 +30,8 @@ KINDS = {"funnels": "funnel_days", "engagement": "engagement",
          # Direct, likely a checkout return, an in-app browser or a shared link
          # (inferred, direct_likely.py)
          "direct_likely": "direct_likely",
+         # the Social media visits by network: X, LinkedIn, ... (social_networks.py)
+         "social_networks": "social_networks",
          "ai_formats": "ai_formats",
          "crawler_cost": "crawler_cost",
          # people from search engines by engine and landing page: Skald's side

@@ -39,6 +39,8 @@ KINDS = ("hourly", "ours", "not_found", "pages", "campaigns", "returning",
          # Direct, likely a checkout return, an in-app browser or a shared
          # link (inferred, direct_likely.py)
          "direct_likely",
+         # the Social media visits by network: X, LinkedIn, ... (social_networks.py)
+         "social_networks",
          # every AI fetch by what it asked for: page, llms.txt, Markdown, ...
          # (ai_formats.py)
          "ai_formats",

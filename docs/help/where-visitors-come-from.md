@@ -1,6 +1,22 @@
 # Where visitors come from, and their journeys
 
-Most visits say **Direct**: the browser sent no referrer. Many of them are people coming back, who first found you through a search, an AI assistant or a post days before. Others came back from a payment page, opened your link inside an app, or followed a shared link. This guide covers how Skald finds a visitor's first visit, what a Direct visit likely was, where you see both, and the visitor drawer with every visit of one visitor.
+Most visits say **Direct**: the browser sent no referrer. Many of them are people coming back, who first found you through a search, an AI assistant or a post days before. Others came back from a payment page, opened your link inside an app, or followed a shared link. This guide covers visitors by social network (X, LinkedIn, ...) on each site and across all your sites, how Skald finds a visitor's first visit, what a Direct visit likely was, where you see both, and the visitor drawer with every visit of one visitor.
+
+## Social networks: X, LinkedIn and the rest
+
+A visit from X can arrive as `t.co`, `x.com`, `twitter.com` or the X app; one from LinkedIn as `linkedin.com`, `lnkd.in` or the LinkedIn app. **Traffic › Sources › Social network** puts each network in one row, so you see at once how many visitors X sent:
+
+- **X**: t.co, x.com, twitter.com (and mobile.twitter.com), the X app. **LinkedIn**: linkedin.com, lnkd.in, the LinkedIn app. **Facebook**: facebook.com (and l., m., lm.facebook.com), fb.com, the Facebook app. **Instagram**, **Threads**, **Reddit**, **YouTube** (youtube.com, youtu.be, its app), **TikTok**, **Pinterest** (any country domain), **Bluesky**, **Mastodon** (mastodon.social only), **Hacker News**, **Quora**, **Telegram**, **WhatsApp**, **Slack** and **Discord**.
+- A tagged link with no referrer counts for the network its `utm_source` names (`utm_source=twitter` or `x` is X), else its `utm_medium`, else its ad click id (`fbclid` is Facebook, `li_fat_id` LinkedIn, `ttclid` TikTok, `twclid` X). A tag that names two networks, or only "social", counts as **Social, network not named**.
+- Every visit counts once, in one network, and the networks add up to the **Social media** row of Source type. Nothing is reclassified: a site Skald does not call social (Product Hunt, threads.com, fb.me, a Mastodon server other than mastodon.social) stays under Other website.
+
+Click a network to open it under the grid: **how they were matched** (each host, app or tag, with its visitors) and **where they landed**. The address keeps it, for example `#traffic/sources?src_seg=social&net=x`, so you can copy the link, and Back closes it. Before, Change, the trend and Compare mode work as for source types, when every day of both periods recorded the networks. Each day is counted twice, by two separate roads; a day where they disagree is withheld. A day counted before this release says "Not recorded", never zero.
+
+## All your sites side by side
+
+On the site picker (**All sites**, `/traffic/`), **Where visitors came from, all your sites** has one row per site you may open: visitors from **Search**, **Social** and its top networks (**X**, **LinkedIn**, **Facebook**, **Instagram**, **Reddit**, **YouTube**), **AI** and **Direct**, for **Today**, **7 days**, **30 days** or **90 days**. The period is in the address (`#sources-30d`), and Back and Forward move between periods. Each figure opens that site's Sources with the network open.
+
+It shows no new figure: each cell is the site's own verified figure, the same its Sources tab shows. A site's row says how many days of the period are verified; a withheld day is left out and named. A cell no verified day recorded says **Not recorded**, never zero. A site you may not open is not listed at all. One person who visited two sites counts on both.
 
 ## First touch: the first visit we know of
 

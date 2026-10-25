@@ -22,7 +22,8 @@ export default [
   ["visitors", "Visitors", visitors, { filters: ALL, rules: "visit",
     rulesScope: "The filters narrow the visitor flow and the visit list, and, within the days visits are kept, the new and returning and engagement cards and where visits ended; a table they do not narrow says so." }],
   // Each list narrows by its own filter; the landing pages (path) moved to Pages.
-  ["sources", "Sources", sources, { filters: ["source", "referrer", "campaign"], compare: true }],
+  // net: the social network open under the grid (tr-social.js).
+  ["sources", "Sources", sources, { filters: ["source", "referrer", "campaign"], compare: true, keep: ["net"] }],
   // A page's story (?page=) has a period of its own.
   ["pages", "Pages", pages, { filters: ["path"], keep: ["page", "pubfrom", "pubto"], ranged: (s) => !s.page, compare: (s) => !s.page }],
   ["places", "Places & devices", places, { filters: ["country", "device", "browser"], compare: true }],

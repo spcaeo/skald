@@ -139,7 +139,11 @@ def listing(h, out: Path | None, who: dict, config=None, live_dir=None,
             if got:
                 s["badge"] = {"words": got[0],
                               "href": f"{wizard}?{got[1]}={quote(s['name'])}"}
-        page = site_picker.render(sites, datetime.now(timezone.utc), who.get("email"), add)
+        # Where visitors came from on each of the caller's sites (across_sites.py):
+        # only the sites listed here, so another organisation's never shows.
+        from .across_sites import section
+        page = site_picker.render(sites, datetime.now(timezone.utc), who.get("email"), add,
+                                  across=section(out, sites))
         return _send(h, 200, page.encode("utf-8"), "text/html; charset=utf-8")
     current = SITES_JSON.match(path).group("site")
     file = (Path(out) / "sites.json" if current is None

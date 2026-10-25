@@ -4,6 +4,29 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+### Website: comparisons, Google Analytics alternative and security pages rebuilt (groups F and G)
+
+- **Changed.** The /compare/ hub and its eight comparisons (Google Analytics, Plausible,
+  Matomo, PostHog, GoAccess, Cloudflare, Known Agents, Search Console); the hub carries the
+  "they see clicks, Skald sees the reads" block. Every claim about another product is quoted
+  from its own public pages, read on 24 October 2026, with the source and date beside the
+  claim; claims we could not check, and all prices, were left out. /google-analytics-alternative/
+  and its cookieless and privacy-friendly pages: the cookieless page now says exactly what the
+  optional tag keeps in the browser (the visit's source in the tab's session storage; a random
+  ID only when visitor IDs are on), checked against the tag's code, and "nothing goes to a third
+  party" now reads "unless you connect a service". /security/scanners/, /security/block-list/,
+  /security/stack-advisories/ and /tools/php2shell-check/, built from the code (the fallback-page
+  rule, the three block-list formats, the PHP fixed releases and the five advisory answers, the
+  CLI's labels and exit codes); the Cloudflare and PHP facts link Cloudflare's and php.net's own
+  pages. No page says Skald blocks traffic or detects exploits. **Why:** the owner's rebuild
+  plan, approved 2026-10-24. **Who:** readers of skaldanalytics.com. **Do:** nothing.
+  **Checked:** the site build ends "problems: none" (77 pages graded); the 16 pages at 1440 and
+  390 px (one h1, no sideways scroll, no script errors, no 4xx); graded on `_src/pages/RUBRIC.md`:
+  ten at 90/90, six at 82 to 89 with the grader's last fixes applied after grading.
+- **Found while grading, not fixed yet:** `docs/help/tracking-script.md` says the tag stores
+  nothing in the browser when visitor IDs are off, but the tag keeps the visit's source in the
+  tab's session storage; `docs/help/security.md` gives Cloudflare's old menu path for lists.
+
 ### Website: the 11 feature pages rebuilt and graded (group E, live 2026-10-24)
 
 - **Changed.** /features/ and its ten pages (dashboard, real time, alerts, counted twice,
@@ -147,6 +170,65 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
   now and then, on the last commit too); the full test suite; every sitemap URL opened at 1440 and 390 px wide
   (no sideways scroll, no script errors, no broken assets, every switch and tab has a choice).
   Words checked against the product's own limits (`_src/pages/FEATURES.md`).
+
+## 2.34.0 (2026-10-24)
+
+Traffic from each social network, on one row and across all your sites. Traffic › Sources
+has a Social network tab (X, LinkedIn, Facebook and more, every address of a network added
+up), and All sites has one table with every site's Search, Social, X, LinkedIn, Facebook,
+Instagram, Reddit, YouTube, AI and Direct.
+
+### Added: social networks, per site and across sites
+
+- **What changed.** Traffic › Sources has a new segment, **Social network**: one row per
+  network (X, LinkedIn, Facebook, Instagram, Threads, Reddit, YouTube, TikTok, Pinterest,
+  Bluesky, Mastodon, Hacker News, Quora, Telegram, WhatsApp, Slack, Discord, and "Social,
+  network not named"), each adding up its hosts, apps and tags: X is `t.co`, `x.com`,
+  `twitter.com` and the X app; LinkedIn is `linkedin.com`, `lnkd.in` and its app. A row opens
+  how its visitors were matched and the pages they landed on, in the address
+  (`#traffic/sources?src_seg=social&net=x`). The site picker (All sites) has a new table,
+  **Where visitors came from, all your sites**, for today, 7, 30 or 90 days
+  (`#sources-30d`), each figure linking to that site's Sources with the network open; it
+  shows only the sites the viewer may open.
+- **The rule.** A visit counts once, in one network: by its referrer host or app; with no
+  referrer, by the words of `utm_source`, then `utm_medium`, then a social ad click id
+  (`fbclid` Facebook, `li_fat_id` LinkedIn, `ttclid` TikTok, `twclid` X). A tag naming two
+  networks or none counts as "Social, network not named". The networks add up to the
+  Social media row. No source is reclassified: `producthunt.com`, `threads.com`, `fb.me` and
+  Mastodon servers other than mastodon.social stay Other website.
+- **Why:** the owner wanted traffic from X, LinkedIn and the other common networks without
+  drilling down, and across all sites. X arrived as separate `t.co`, `x.com` and
+  `twitter.com` rows, and nothing grouped them.
+- **Who:** everyone with a dashboard. **Do:** nothing. Figures start from the first day
+  collected with this release; earlier days say "Not recorded". The X and LinkedIn apps
+  often send no referrer: those visits stay in Direct, where Direct, likely (2.33.0) can
+  show them as an in-app browser.
+- **Checked:** stored as the day kind `social_networks`, counted a second time by
+  `audit_social.py` from the raw lines, sharing only `social_names.py`; a day that disagrees
+  is withheld. The across-sites table adds no figure: it reads each site's stored, verified
+  days. Unit tests for every network's hosts, app referrers, hosts that are not social, the
+  tag rule, the audit agreeing and failing (also live), the address keys and the
+  across-sites rights rule (one organisation never sees another's row); a node test of the
+  page logic; the rebuilt demo viewed at desktop and phone width (the across-sites Social
+  and X figures match the site's own Sources tab).
+- **Demo.** Some X, LinkedIn and Reddit visits now arrive by `x.com`, `twitter.com`,
+  `lnkd.in`, the X and LinkedIn apps, `l.facebook.com` and `l.instagram.com`, chosen by the
+  visit's second, never by a random draw, so no other demo figure moves.
+
+### Tests
+
+- `test_accounts_hardening.ScryptSlots` (at most two password checks at once) failed once
+  on the 2.33.0 records commit under a machine load of about 25 and passed on the rerun and
+  5 of 5 times alone: a timing test, not a code change. Noted as an open item.
+- **A wrong tag, removed.** The first publish of 2.34.0 failed on a timing test
+  (`test_live`, "live took 18.0s", limit 15 s) and merged nothing, but `v2.34.0` was tagged
+  on the public repo anyway, on the 2.33.0 commit (23:38 UTC). It was deleted about a minute
+  later; its Docker image and release runs were cancelled during their tests, so no image or
+  release was made. The timing test fails on the 2.33.0 code too on a machine with a load of
+  90 or more; 2.34.0 was published again once the load dropped.
+- The second publish stopped on the public copy's privacy sweep: a test referrer with a user
+  part before the host looked like an email address. It is now `https://u:@x.com:443/a`, which
+  checks the same thing (a user part before the host is ignored); the social tests pass.
 
 ## 2.33.0 (2026-10-24)
 
