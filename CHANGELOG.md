@@ -231,6 +231,23 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
   (no sideways scroll, no script errors, no broken assets, every switch and tab has a choice).
   Words checked against the product's own limits (`_src/pages/FEATURES.md`).
 
+## 2.35.1 (2026-10-25)
+
+A fix found by the recount after the 2.35.0 deploy.
+
+### Security: tied attack rows keep one order on both counts
+
+- **Fixed.** Security > Attacks lists each attack try by its requests, first time, kind and
+  address number. Two tries from addresses without a number, in the same second and of the same
+  kind, differed only in their answer (one 3xx, one 4xx), and the stored day and the second
+  count put them in opposite orders. **Effect:** the audit after the 2.35.0 recount found 4 of
+  32,710 figures out of order on one site's 24 Oct and withheld that day, so its figures were
+  not shown. **Now:** both counts break the tie by the last time and the answers. **Who:** any
+  site with such tries; only the order of two rows changes, no figure. **Do:** nothing; the
+  withheld day is counted again after the upgrade. **Checked:** `tests/test_security_tie.py`
+  (fails before the fix: both orders seen, both counts, one result); the stored day read on
+  the live server (rows 79 and 80: no number, traversal, 1 request, 19:37:14, 3xx and 4xx).
+
 ## 2.35.0 (2026-10-25)
 
 Is it working, and what to fix next. Overview › Summary answers "what changed" against the
@@ -769,6 +786,10 @@ crawler address checks that were off in Docker.
   remark checked that Python's own robots.txt reader takes the first rule. Python 3.14's reader
   takes the longest, as RFC 9309 says, so the remark no longer held. The remark is gone; Skald's
   own reader (`robots_match.py`) is tested the same on every version. Nothing else changed.
+- The second publish stopped before pushing: the local public copy was still on the first
+  publish's branch with the new export written over it, and switching back to main was refused.
+  `tools/publish-update.sh` now switches with `-f` (that copy holds only generated files). The
+  third publish (pull request 69) passed every check and was merged.
 
 ## Older versions
 

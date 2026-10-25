@@ -399,7 +399,8 @@ class Recount:
                  "first": _stamp(min(v[1])), "last": _stamp(max(v[1])), "status": _plain(v[2])}
                 for (key, kind), v in inj.items()]
         rows.sort(key=lambda r: (-r["requests"], r["first"], r["kind"],
-                                 -1 if r["who"] is None else r["who"]))
+                                 -1 if r["who"] is None else r["who"], r["last"],
+                                 sorted(r["status"].items())))
         kinds = Counter()
         for (_, kind), v in inj.items():
             kinds[kind] += v[0]

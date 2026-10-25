@@ -438,8 +438,11 @@ class Collector:
         rows = [{"who": seq.get(key), "kind": kind, "requests": v[0], "first": _iso(v[1]),
                  "last": _iso(v[2]), "status": {k: int(n) for k, n in sorted(v[3].items())}}
                 for (key, kind), v in self.inj.items()]
+        # Rows without an address number tie on everything but their answers: the last
+        # time and the status counts settle the order, the same on both roads (2.35.1).
         rows.sort(key=lambda r: (-r["requests"], r["first"], r["kind"],
-                                 -1 if r["who"] is None else r["who"]))
+                                 -1 if r["who"] is None else r["who"], r["last"],
+                                 sorted(r["status"].items())))
         kinds = Counter()
         for (_, kind), v in self.inj.items():
             kinds[kind] += v[0]
