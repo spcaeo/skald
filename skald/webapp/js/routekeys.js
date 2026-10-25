@@ -43,6 +43,7 @@ export const ROUTE_KEYS = [
   { key: "dd", kind: "global", owner: "drill.js", means: "the drill-down trail, dim:value|dim:value (an address as a token)" },
   // ---- tab: one tab's own
   { key: "page", kind: "tab", owner: "tabs/pagestory.js", means: "Traffic > Pages: the page whose story is open" },
+  { key: "net", kind: "tab", owner: "tabs/tr-social.js", means: "Traffic > Sources: the social network open under the grid (x, linkedin, facebook, ...; with src_seg=social)" },
   { key: "pubfrom", kind: "tab", owner: "tabs/tr-pages.js", means: "Traffic > Pages: published from" },
   { key: "pubto", kind: "tab", owner: "tabs/tr-pages.js", means: "Traffic > Pages: published to" },
   { key: "rg", kind: "tab", owner: "tabs/tr-retention.js", means: "Retention: the cohorts' grain" },

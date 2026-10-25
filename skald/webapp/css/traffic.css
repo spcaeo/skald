@@ -48,7 +48,7 @@
 
 /* Sources: a referring site or a campaign has no trend and no lead split, so its
    segment shows the first three columns only (Source, Visitors, Share). */
-.tr-src:not([data-seg="type"]) .dg-table :is(th, td):nth-child(n+4) { display: none; }
+.tr-src:not([data-seg="type"]):not([data-seg="social"]) .dg-table :is(th, td):nth-child(n+4) { display: none; }
 
 @media (max-width: 640px) {
   .tr-grid .cell-l { max-width: 20ch; }

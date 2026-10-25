@@ -24,6 +24,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from . import brand, site_logos
+from .across_sites import CSS as ACROSS_CSS, section as across_section
 from .files import slug
 
 LIVE_MINUTES = 15            # a count older than this is not called live
@@ -269,10 +270,11 @@ def lede(sites: list[dict]) -> str:
 
 
 def render(sites: list[dict], now: datetime, who: str | None = None,
-           add_href: str | None = None, title: str = "Choose a site") -> str:
+           add_href: str | None = None, title: str = "Choose a site", across: str = "") -> str:
     """The picker page. `sites`: sites.json entries with `logo` and `today`
     (enrich); `who`: the signed-in email; `add_href`: where "Add a site"
-    goes (an admin's Settings > Add or remove sites), or None for no card."""
+    goes (an admin's Settings > Add or remove sites), or None for no card;
+    `across`: the sources table under the cards (across_sites.section)."""
     cards = "".join(card(s) for s in sites if isinstance(s, dict) and s.get("name"))
     add = (f'<li><a class="pk-add" href="{esc(add_href)}"><svg width="22" height="22" '
            'viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" '
@@ -290,10 +292,10 @@ def render(sites: list[dict], now: datetime, who: str | None = None,
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         '<meta name="robots" content="noindex, nofollow, noarchive">'
         '<meta name="referrer" content="no-referrer"><meta name="color-scheme" content="light dark">'
-        f"<title>{esc(title)} · Skald</title><style>{CSS}</style></head><body>"
+        f"<title>{esc(title)} · Skald</title><style>{CSS}{ACROSS_CSS}</style></head><body>"
         f'<header class="pk-top"><span class="pk-brand">{MARK}Skald</span>{me}</header>'
         f'<main><div><h1>{esc(title)}</h1><p class="pk-lede">{esc(lede(sites))}</p></div>'
-        f"{grid}"
+        f"{grid}{across}"
         '<p class="pk-note">No logo found on a site? Skald shows its first letter on the '
         "site's colour instead. Logos are fetched from each site itself, never from an outside "
         f'icon service. Updated {now:%H:%M %Z}.</p>{foot}</main></body></html>\n')
@@ -318,4 +320,4 @@ def static_page(names: list[str], now: datetime, out: Path | None) -> str:
                      "color": (s.get("logo") or {}).get("color") or site_logos.default_color(name)}
         s["today"] = today(out, name, now)
         sites.append(s)
-    return render(sites, now)
+    return render(sites, now, across=across_section(out, sites))

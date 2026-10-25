@@ -147,6 +147,51 @@ own code, rebuilds the link previews from the audit judge's own verdicts, and co
 `visits`, `direct`, `likely`, `plain`, every reason and every detail, with the window the
 stored day says it used. It shares only `direct_names.py`'s lists.
 
+### Day kind `social_networks` (campaigns.json)
+
+The Social media visits by network: X, LinkedIn, Facebook, ... (a count, not an estimate;
+`social_networks.py`, name lists `social_names.py`, second count `audit_social.py`; the rules
+are in [CLASSIFICATION.md](../CLASSIFICATION.md), "The source type of a visit", Social
+networks). Per day from the day's journeys, each visit's first page's referrer and landing
+address. campaigns.json `days[].social_networks` and `today.social_networks`: the blob, or
+`null` on a day it was not recorded (before this release), never zeros.
+
+| field | type |
+|---|---|
+| `visits` | int: the visits looked at (= the day's visits) |
+| `social` | int: of which Social media = the Sources tab's Social media row |
+| `networks` | `{id: visits}`, most first: only networks with a visit; adds up to `social`. Ids: `x`, `linkedin`, `facebook`, `threads`, `instagram`, `reddit`, `youtube`, `tiktok`, `pinterest`, `bluesky`, `mastodon`, `hackernews`, `quora`, `telegram`, `whatsapp`, `slack`, `discord`, and `other` (Social, network not named) |
+| `via` | `{id: {how: visits}}`: a referring host (`t.co`, `l.facebook.com`, no `www.`), an app (`android-app://com.linkedin.android`), or a tag (`(utm_source)`, `(utm_medium)`, `(fbclid)`, `(li_fat_id)`, `(ttclid)`, `(twclid)`); each adds up to its network |
+| `landings` | `{id: {path: visits}}`: the landing pages, the top 20 (most first, then the path) and `"(all others)"`; each adds up to its network |
+
+```json
+{"visits": 12, "social": 6,
+ "networks": {"x": 3, "linkedin": 2, "other": 1},
+ "via": {"x": {"t.co": 1, "android-app://com.twitter.android": 1, "(utm_source)": 1},
+         "linkedin": {"lnkd.in": 2}, "other": {"(utm_source)": 1}},
+ "landings": {"x": {"/": 2, "/blog/a": 1}, "linkedin": {"/pricing": 2}, "other": {"/": 1}}}
+```
+
+The top-level `social_networks` of campaigns.json: `{"names": {id: name}, "order": [ids],
+"method"}` (each network's name as shown, the list's order, the method in one sentence). Only
+hosts, app ids, tag names, paths and counts are kept: never a query value, an address or a
+whole referrer.
+
+Verify withholds the day when `networks` does not add up to `social`, a network's `via` or
+`landings` do not add up to it or name other networks, a network is not in the list or kept
+with no visit, `visits` is not the day's visits, or `social` is not the visits whose source is
+Social media. Second count: `audit_social.py` (registered in `audit_more.RECOUNTS`, so the daily
+audit and `audit --live` both compare it) reads each Social media visit's first page line
+again (the audit's own source label), reads its referrer's host and splits its query by hand,
+with its own code, and compares `visits`, `social`, every network, every `via` entry and every
+folded landing page. It shares only `social_names.py`'s lists.
+
+**Across sites** (the site picker, `across_sites.py`): no new figure. It reads each site's
+`data/app.json` (`days[].state`, `days[].by.source`, `live`) and `data/campaigns.json`
+(`days[].social_networks`, `today`) and sums verified days only, as the page does; a figure no
+verified day recorded is "Not recorded", a network figure whose day does not add up to its
+Social media readers is "Withheld". Only the sites the viewer's organisations hold are read.
+
 ### Day kind `ai_formats` (app.json)
 
 Since 2.10.0: every answer-engine request by what its path names (`ai_formats.py`; second count

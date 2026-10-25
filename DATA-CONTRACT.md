@@ -783,6 +783,10 @@ return, an in-app browser or a shared link (an estimate), `null` on a day it
 was not recorded; the top-level `direct_likely` `{"on","share_window_minutes",
 "method","reasons"}` says how it is made. Both:
 [docs/DATA-CONTRACT-TRACKING.md](docs/DATA-CONTRACT-TRACKING.md).
+`days[].social_networks` and `today.social_networks`: the Social media visits by
+network (X, LinkedIn, ...), `null` on a day it was not recorded; the top-level
+`social_networks` `{"names","order","method"}`:
+[docs/DATA-CONTRACT-TRACKING.md](docs/DATA-CONTRACT-TRACKING.md#day-kind-social_networks-campaignsjson).
 
 ## pages.json
 
@@ -934,7 +938,7 @@ Moved to [docs/DATA-CONTRACT-REPORTS.md](docs/DATA-CONTRACT-REPORTS.md#client-re
 ## Tracking additions
 
 The day kinds `funnels`, `engagement`, `utm_hygiene`, `ai_likely`, `ai_fetches`, `ai_read`,
-`direct_likely` and `ai_formats` (also app.json `days[].ai_formats`), leads.json
+`direct_likely`, `social_networks` and `ai_formats` (also app.json `days[].ai_formats`), leads.json
 `attribution_rows` and time to convert, and events.json goals: [docs/DATA-CONTRACT-TRACKING.md](docs/DATA-CONTRACT-TRACKING.md).
 
 ## search.json (P1-6)

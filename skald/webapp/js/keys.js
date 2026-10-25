@@ -27,13 +27,16 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-24-2.33.0",
+  id: "2026-10-24-2.34.0",
   items: [
-    ["Direct, likely", "Sources shows which Direct visits were likely a payment return, an in-app browser or a shared link, as an estimate; nothing leaves the Direct row.", "where-visitors-come-from"],
-    ["Sale alerts", "hear about each new sale (and, if you like, each refund) by mail, Slack or webhook, with a minimum per currency. Off until you turn it on in Site › Alerts.", "settings-and-retention"],
+    ["Social networks", "Traffic › Sources › Social network: X, LinkedIn, Facebook, Instagram, Reddit, YouTube and more, one row each, every address of a network added up (t.co, x.com and twitter.com are X). A row shows how its visitors were matched and where they landed.", "where-visitors-come-from"],
+    ["All your sites side by side", "All sites has a table: Search, Social, X, LinkedIn, Facebook, Instagram, Reddit, YouTube, AI and Direct for each site, today, 7, 30 or 90 days; each figure opens that site's Sources.", "where-visitors-come-from"],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.33.0
+    ["Direct, likely", "Sources shows which Direct visits were likely a payment return, an in-app browser or a shared link, as an estimate; nothing leaves the Direct row.", "where-visitors-come-from"],
+    ["Sale alerts", "hear about each new sale (and, if you like, each refund) by mail, Slack or webhook, with a minimum per currency. Off until you turn it on in Site › Alerts.", "settings-and-retention"],
     // 2.32.0
     ["Revenue", "Leads & sales › Revenue: which sources (AI assistants among them), pages and campaigns made money, per currency, refunds taken off, never converted.", "revenue"],
     ["New customers, renewals, lifetime value", "a renewal joins its first sale by the customer's ID; lifetime value by first source.", "revenue"],

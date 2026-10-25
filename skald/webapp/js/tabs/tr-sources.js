@@ -1,6 +1,7 @@
 // Traffic > Sources (2.7.0): where visitors came from, in one grid.
 //
-// One Data Grid, three segments: Source type (by.source), Referring site
+// One Data Grid, four segments: Source type (by.source), Social network (campaigns.json's
+// social_networks: the Social media row by network, tr-social.js), Referring site
 // (by.referrer) and Campaign (by.campaign). Each segment is its own breakdown,
 // stored apart in the log, so the segments are never added together and each
 // share is over its own list (as the lists they replace: the source types over
@@ -23,12 +24,14 @@ import { firstTouch } from "./tr-firsttouch.js";
 import { leadsBy, leadNote, viewNote } from "./leadfigs.js";
 import { leadRows, labelCol, countCols, leadCols, goTo, compareOf, compareRows, compareCols, compareNote } from "./tr-grid.js";
 import { directPanel } from "./likelydirect.js";
+import { SEGMENT as SOCIAL, socialRows, netCell, socialNote, networkPanel } from "./tr-social.js";
 
 const TOUCH = "last touch: the source of the visit the lead was sent from";
 const only = (value) => (value ? (k) => k === value : () => true);
 
 export const SEGMENTS = [
   { id: "type", label: "Source type", dim: "source", noLeads: null },
+  SOCIAL,
   { id: "site", label: "Referring site", dim: "referrer", noLeads: "Leads are split by source type only, not by referring site" },
   { id: "campaign", label: "Campaign", dim: "campaign", noLeads: "Leads are split by source type only, not by campaign" },
 ];
@@ -47,7 +50,11 @@ function before(m, r, cov) {
    "Each source over time" had them, and only when the range before is comparable;
    Per day only over several days. */
 export function sourceColumns({ prev, perDay, leads, c }) {
-  const cols = [labelCol("Source"), ...countCols("Visitors"), ...compareCols(c)];
+  // A social network's label opens its detail (net=, tr-social.js) instead of a drill-down.
+  const label = labelCol("Source");
+  const own = label.fmt;
+  label.fmt = (v, x) => (x.dim === SOCIAL.dim ? netCell(x) : own(v, x));
+  const cols = [label, ...countCols("Visitors"), ...compareCols(c)];
   if (prev) cols.push(
     { key: "before", label: "Before", num: true, csv: (x) => x.before ?? "" },
     { key: "chg", label: "Change", num: true, sort: (x) => (x.before ? (x.v - x.before) / x.before : null),
@@ -80,11 +87,15 @@ export function sourceRows(m, s, r, t, cov) {
   }
   const other = (seg, obj, keep) => leadRows(obj, null, { dim: seg.dim, keep, noLeads: seg.noLeads }).map((x) => ({ ...x, seg: seg.id }));
   const bBy = c.ok ? c.bT?.by || {} : {};
+  const seg = (id) => SEGMENTS.find((x) => x.id === id);
+  // The networks only while no source filter names another type (they break down Social media).
+  const social = !s.source || s.source === "Social media" ? socialRows(m, s, r, c) : { rows: [], a: null };
   return {
-    lb, prev: !!p, perDay: r.kind === "history" && r.length > 1, c,
+    lb, prev: !!p, perDay: r.kind === "history" && r.length > 1, c, social,
     rows: [...compareRows(c, types, bBy.source, { dim: "source", keep: only(s.source), whole: t.readers }),
-      ...compareRows(c, other(SEGMENTS[1], t.by.referrer, only(s.referrer)), bBy.referrer, { dim: "referrer", keep: only(s.referrer) }),
-      ...compareRows(c, other(SEGMENTS[2], t.by.campaign, only(s.campaign)), bBy.campaign, { dim: "campaign", keep: only(s.campaign) })],
+      ...social.rows,
+      ...compareRows(c, other(seg("site"), t.by.referrer, only(s.referrer)), bBy.referrer, { dim: "referrer", keep: only(s.referrer) }),
+      ...compareRows(c, other(seg("campaign"), t.by.campaign, only(s.campaign)), bBy.campaign, { dim: "campaign", keep: only(s.campaign) })],
   };
 }
 
@@ -108,7 +119,7 @@ export default function sources(m, s) {
   const { r, t, cov } = figures(m, s);
   const out = [...head("Sources", r, "Where visitors came from, by the referrer of the first page they read. Direct: no referrer and no campaign tag. Referrers are often stripped, so Direct includes everyone whose browser did not say. Source types, referring sites and campaigns are stored apart, so each segment adds up on its own and they are never added together.")];
   if (!t || !t.by) return [...out, nothing(m, r, "sources")];
-  const { lb, prev, perDay, rows, c } = sourceRows(m, s, r, t, cov);
+  const { lb, prev, perDay, rows, c, social } = sourceRows(m, s, r, t, cov);
   const leads = !!(lb && lb.days);
   // The segment on show, for the styles: a referring site or a campaign has no
   // trend or lead split, so only its label, visitors and share are shown.
@@ -119,7 +130,7 @@ export default function sources(m, s) {
     rows,
     segments: SEGMENTS.map((x) => ({ id: x.id, label: x.label, test: (row) => row.seg === x.id })),
     sortKey: "v",
-    placeholder: "Search sources, sites, campaigns",
+    placeholder: "Search sources, networks, sites, campaigns",
     empty: "No visitor recorded for this segment.",
     onFiltered: (_, q) => { box.dataset.seg = q.segment || SEGMENTS[0].id; },
   });
@@ -128,17 +139,20 @@ export default function sources(m, s) {
   const ai = S.hashFor({ ...s, tab: "ai/assistants", dd: "" });
   out.push(h("section", { class: "s" }, h("h2", null, "Sources"),
     h("p", { class: "sub" }, c.ok
-      ? "Visitors by source type, referring site or campaign, in A against B. Each segment is its own list."
+      ? "Visitors by source type, social network, referring site or campaign, in A against B. Each segment is its own list."
       : prev
-      ? "Visitors by source type, referring site or campaign. Before, Change and the trend compare source types with the range before, only when both are fully verified; a change under 20% is not called either way."
-      : "Visitors by source type, referring site or campaign. Each segment is its own list."),
+      ? "Visitors by source type, social network, referring site or campaign. Before, Change and the trend compare source types and networks with the range before, only when both are fully verified; a change under 20% is not called either way."
+      : "Visitors by source type, social network, referring site or campaign. Each segment is its own list. Open a network for the hosts it rolls up and where its visitors landed."),
     box,
     compareNote(c),
+    socialNote(social),
     lb ? leadNote(lb, TOUCH) : null,
-    leads ? h("p", { class: "note" }, "Leads are split by source type only, so referring sites and campaigns list their visitors alone.") : null,
+    leads ? h("p", { class: "note" }, "Leads are split by source type only, so social networks, referring sites and campaigns list their visitors alone.") : null,
     viewNote(m, s),
     goTo(ai, "Visitors sent by AI assistants, counted and likely (inferred), are under", "AI & bots › Assistants"),
     goTo(S.hashFor({ ...s, tab: "traffic/pages", dd: "" }), "The pages these visitors landed on, with their leads, are on", "Pages")));
+  // The open social network (net=x): how its visitors were matched and where they landed.
+  out.push(networkPanel(m, s, r));
   // Under Direct: its likely causes (inferred, direct_likely.py), never added to any row.
   // Not in compare mode: the split is the range's own, not A against B.
   if (!c.ok) out.push(h("section", { class: "s" }, directPanel(m, r)));

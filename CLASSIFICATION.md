@@ -848,6 +848,20 @@ or unknown (the stored name; shown to a person as Direct, see
   `li_fat_id`, `ttclid` (TikTok) and `twclid` (X) are Social media. The
   campaign is the network's name, never the id's value
   (`google / cpc / (gbraid)`).
+- **Social networks** (day kind `social_networks`). A breakdown of Social
+  media, never a new type: each Social media visit gets exactly one network
+  (`skald/social_names.py` lists them), by its first page's referrer
+  host or app (X: `t.co`, `x.com`, `twitter.com` and under them,
+  `com.twitter*`; LinkedIn: `linkedin.com`, `lnkd.in`, `com.linkedin*`;
+  Facebook: `facebook.com`, `fb.com`; Threads, before Instagram, owns the
+  app `com.instagram.barcelona`; Pinterest any `pinterest.<tld>`; ...),
+  else by the words of `utm_source`, then of `utm_medium` (`x`/`twitter`,
+  `linkedin`, `facebook`, `instagram`, `reddit`, `youtube`, `tiktok`), else
+  by a social click id. A tag naming two networks, or none
+  (`utm_source=social`), is "Social, network not named". The networks add up
+  to the Social media visits. Only hosts already Social media are listed:
+  `producthunt.com`, `threads.com`, `fb.me` and Mastodon servers other than
+  `mastodon.social` stay Other website. Second count: `audit_social.py`.
 
 ## Reading a log line
 

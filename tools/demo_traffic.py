@@ -131,6 +131,14 @@ SOURCES = [("search", 34), ("direct", 21), ("social", 10), ("ai", 8), ("referral
 SEARCH = [("https://www.google.com/", 80), ("https://www.bing.com/", 12), ("https://duckduckgo.com/", 8)]
 SOCIAL = [("https://www.linkedin.com/", 55), ("https://t.co/", 15), ("https://www.reddit.com/", 18),
           ("https://news.ycombinator.com/", 12)]
+# (a SOCIAL referrer, the visit's second % 7) -> the referrer used instead.
+SOCIAL_ALSO = {("https://www.linkedin.com/", 0): "https://lnkd.in/dEmO123",
+               ("https://www.linkedin.com/", 1): "android-app://com.linkedin.android/",
+               ("https://t.co/", 0): "https://x.com/",
+               ("https://t.co/", 1): "android-app://com.twitter.android/",
+               ("https://t.co/", 2): "https://twitter.com/",
+               ("https://www.reddit.com/", 0): "https://l.facebook.com/",
+               ("https://www.reddit.com/", 1): "https://l.instagram.com/"}
 AI = [("https://chatgpt.com/", 52), ("https://www.perplexity.ai/", 20), ("https://claude.ai/", 15),
       ("https://gemini.google.com/", 9), ("https://copilot.microsoft.com/", 4)]
 REFERRAL = [("https://news.example.org/a/small-team-tools", 45), ("https://blog.example.net/review", 35),
@@ -298,13 +306,18 @@ class _Maker:
         self.t.beacon.append((t, self.cur[0], self.cur[1],
                               {"e": e, "p": p, "id": id, "r": host, "u": utm, "vw": vw, "t": tt, "v": vid}))
 
-    def source(self, returning: bool, force=None):
+    def source(self, returning: bool, force=None, t=None):
         kind = force or ("direct" if returning and self.rnd.random() < 0.45 else self.pick(SOURCES))
         ref, q, touch = "-", "", {}
         if kind == "search":
             ref = self.pick(SEARCH)
         elif kind == "social":
             ref = self.pick(SOCIAL)
+            # Some of each network's visits come by its other hosts or its app (the
+            # "Social network" rows roll them up), chosen by the second, never by a draw,
+            # so every other figure stays as it was.
+            if t is not None:
+                ref = SOCIAL_ALSO.get((ref, int(t.timestamp()) % 7), ref)
         elif kind == "ai":
             ref = self.pick(AI)
         elif kind == "referral":
@@ -333,7 +346,7 @@ class _Maker:
         rnd, T = self.rnd, self.t
         ip, ua, vw = identity
         self.cur = (ip, ua)
-        kind, ref, q, host, touch = self.source(returning, force)
+        kind, ref, q, host, touch = self.source(returning, force, t)
         utm = touch.get("utmSource") or ""
         cc = T.country_of[ip]
         vid = self.vid_of[identity]
@@ -514,7 +527,7 @@ class _Maker:
             identity = self.new_identity(tracked=1.0)
             ip, ua, vw = identity
             self.cur = (ip, ua)
-            _, ref, q, host, touch = self.source(False, kind)
+            _, ref, q, host, touch = self.source(False, kind, t)
             if kind == "ai":
                 self.cited.append((t, host, landing))
             utm, cc, vid = touch.get("utmSource") or "", T.country_of[ip], self.vid_of[identity]

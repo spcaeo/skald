@@ -152,10 +152,12 @@ def _visitor_days(p) -> dict[str, dict]:
 def campaigns(p) -> dict:
     def figures(d, e):
         blob = _blob(p, d, "campaigns")
-        # Tag hygiene (utm_hygiene.py) and Direct, likely <reason> (inferred,
-        # direct_likely.py): null on a day it was not counted.
+        # Tag hygiene (utm_hygiene.py), Direct, likely <reason> (inferred,
+        # direct_likely.py) and the Social media visits by network
+        # (social_networks.py): null on a day it was not counted.
         hygiene = {"utm_hygiene": _blob(p, d, "utm_hygiene"),
-                   "direct_likely": _blob(p, d, "direct_likely")}
+                   "direct_likely": _blob(p, d, "direct_likely"),
+                   "social_networks": _blob(p, d, "social_networks")}
         if blob is None:
             return {"rows": None, "tagged": None, "first_touch": None, **hygiene}
         return {"rows": blob.get("rows"), "tagged": blob.get("tagged"),
@@ -167,14 +169,16 @@ def campaigns(p) -> dict:
         today.update({"rows": blob.get("rows"), "tagged": blob.get("tagged"),
                       "first_touch": blob.get("first_touch"),
                       "utm_hygiene": _live_blob(p, "utm_hygiene"),
-                      "direct_likely": _live_blob(p, "direct_likely")})
+                      "direct_likely": _live_blob(p, "direct_likely"),
+                      "social_networks": _live_blob(p, "social_networks")})
     days = p.per_day(figures)
     first = (p.anchor - timedelta(days=29)).isoformat()
     month = merge([r for r in days if r["day"] >= first and r["state"] == "ok"
                    and r.get("rows") is not None])
     from .direct_likely import note
+    from .social_networks import note as networks
     return {"days": days, "today": today, "last_30_days": month,
-            "direct_likely": note(p.config)}
+            "direct_likely": note(p.config), "social_networks": networks()}
 
 
 PAGE_SUMS = ("views", "readers", "visits", "entries", "exits", "after_pages", "not_found_from",
