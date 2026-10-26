@@ -2,7 +2,8 @@
 one JSON answer per POST, no event stream, no session id).
 
     handle_http(handler, config, live_dir, out_dir, token_checker=None,
-                history_path=None, allowed_origins=())
+                history_path=None, allowed_origins=(), config_path=None,
+                setup_checker=None)
 
 `handler` is the helper's BaseHTTPRequestHandler. The rules, in order:
 
@@ -23,6 +24,11 @@ The token is then checked again for each site a tool reads:
 `site` None asks only "is this a valid token with the mcp scope". The
 default checker reads the organisation tokens in accounts.sqlite
 (accounts/apitokens.py), so it needs `access: {mode: sessions}`.
+
+`setup_checker(authorization, site) -> (allowed, why, token entry)` (2.39.0):
+the same token with the setup scope for that site, for the setup_line tool.
+The default reads accounts.sqlite too; with a `token_checker` given and no
+`setup_checker`, no call may make a set-up line.
 """
 from __future__ import annotations
 
@@ -67,6 +73,37 @@ def accounts_checker(config: dict | None, live_dir):
     return check
 
 
+def accounts_setup(config: dict | None, live_dir):
+    """The setup scope's check (2.39.0): organisation tokens in accounts.sqlite."""
+    from ..accounts import apitokens
+    from ..accounts import db as base
+    path = base.path_for(config or {}, live_dir)
+    mode = ((config or {}).get("access") or {}).get("mode")
+
+    def check(header, site):
+        if mode != "sessions" or path is None or not Path(path).is_file():
+            return False, NO_ACCOUNTS, None
+        db = base.connect(path)
+        try:
+            ok, why, entry = apitokens.check(db, header, site, scope="setup")
+            return ok, why, entry if ok else None
+        finally:
+            db.close()
+    return check
+
+
+def origin_of(handler, config: dict | None) -> str:
+    """This install's address as integrations_api._origin says it:
+    hooks.public_url, access.base_url, else the request's own host."""
+    from ..config import setting
+    for got in (setting(config or {}, "hooks", "public_url"),
+                setting(config or {}, "access", "base_url")):
+        if got:
+            return str(got).rstrip("/")
+    proto = handler.headers.get("X-Forwarded-Proto") or "https"
+    return f"{proto}://{handler.headers.get('Host') or 'localhost'}"
+
+
 def _valid(db, header) -> tuple[bool, str, bool]:
     """A real, unrevoked token with the mcp scope, whatever site it reads."""
     from ..accounts import apitokens
@@ -107,7 +144,7 @@ def _refuse(handler, code: int, why: str, headers: dict | None = None) -> None:
 
 
 def handle_http(handler, config, live_dir, out_dir, token_checker=None, history_path=None,
-                allowed_origins=()) -> None:
+                allowed_origins=(), config_path=None, setup_checker=None) -> None:
     """Answer one request to /traffic-mcp, whatever its method."""
     if not enabled(config):
         return _send(handler, 404, {"ok": False, "error": "MCP is not switched on here"})
@@ -145,8 +182,12 @@ def handle_http(handler, config, live_dir, out_dir, token_checker=None, history_
         message = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, ValueError):
         return _send(handler, 400, protocol.error(None, protocol.PARSE_ERROR, "Parse error"))
+    if setup_checker is None and token_checker is None:
+        setup_checker = accounts_setup(config, live_dir)
     ctx = Context(out_dir, config=config, live_dir=live_dir, history_path=history_path,
-                  checker=lambda site: checker(auth, site))
+                  checker=lambda site: checker(auth, site), config_path=config_path,
+                  setup=(lambda site: setup_checker(auth, site)) if setup_checker else None,
+                  allowed=allowed_origins, origin=origin_of(handler, config))
     answer = protocol.handle(message, ctx)
     if answer is None:
         return _send(handler, 202)

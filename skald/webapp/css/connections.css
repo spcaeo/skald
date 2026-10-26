@@ -126,6 +126,19 @@
 .ag-rep-note { display: block; color: var(--ink-3); font-size: 12px; }
 .ag-rep-row.warn dd { color: var(--warn); font-weight: 600; }
 .ag-use p, .ag-use .msg { margin: 0 0 6px; }
+/* 2.39: By hand chosen (the set-up dialogs' first step), the agent's recommendations with
+   Apply (agent-recs.js), and the MCP dialog's guide button above its steps. */
+.ag-hand[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink) inset; }
+.ag-recs { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: var(--r); background: var(--surface); }
+.ag-recs h4 { margin: 0; font-size: 13.5px; }
+.ag-recs > .note { margin: 0; }
+.ag-rec { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--rule); min-width: 0; overflow-wrap: anywhere; }
+.ag-rec p, .ag-rec .msg { margin: 0; }
+.ag-rec .msg:empty { display: none; }
+.ag-paths { margin: 0; padding-left: 18px; display: grid; gap: 2px; font-size: 13px; }
+.cn-guide { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0 0 12px; }
+.cn-guide a.btn { text-decoration: none; }
+.cn-guide small { color: var(--ink-3); font-size: 12.5px; min-width: 0; }
 @media (max-width: 600px) {
   .ag-tiles { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .ag-rep-row { grid-template-columns: minmax(0, 1fr); }

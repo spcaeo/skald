@@ -10,7 +10,8 @@ Registered here: list_sites, overview, breakdown, top_pages, ai_activity,
 leads. The rest: funnel, compare, page_story, live_today, data_quality,
 site_health and conversions in tools_more.py; find_person in tools_people.py;
 what_changed, todos and lost_pages in tools_insights.py; page_changes,
-ai_readiness and changed_pages in tools_pages.py.
+ai_readiness and changed_pages in tools_pages.py; setup_left and setup_line
+(2.39.0, the one tool that makes something) in tools_setup.py.
 """
 from __future__ import annotations
 
@@ -48,13 +49,15 @@ def schema(props: dict, required=()) -> dict:
             "additionalProperties": False}
 
 
-def tool(name: str, title: str, description: str, input_schema: dict):
-    """Register a tool: `fn(ctx, args) -> (text, structured)`."""
+def tool(name: str, title: str, description: str, input_schema: dict,
+         read_only: bool = True):
+    """Register a tool: `fn(ctx, args) -> (text, structured)`. Every tool
+    reads, except setup_line (2.39.0: `read_only=False`), which makes a line."""
     def add(fn):
         TOOLS[name] = {"name": name, "title": title, "description": description,
                        "inputSchema": input_schema,
-                       "annotations": {"title": title, "readOnlyHint": True,
-                                       "destructiveHint": False, "idempotentHint": True,
+                       "annotations": {"title": title, "readOnlyHint": read_only,
+                                       "destructiveHint": False, "idempotentHint": read_only,
                                        "openWorldHint": False},
                        "run": fn}
         return fn
@@ -465,3 +468,5 @@ from . import tools_people  # noqa: E402,F401 - registers find_person (2.4.0)
 from . import tools_insights  # noqa: E402,F401 - what_changed, todos, lost_pages (2.35)
 
 from . import tools_pages  # noqa: E402,F401 - page_changes, ai_readiness, changed_pages (2.35)
+
+from . import tools_setup  # noqa: E402,F401 - setup_left, setup_line (2.39.0)

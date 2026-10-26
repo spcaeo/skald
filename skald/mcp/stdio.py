@@ -4,7 +4,8 @@ Newline-delimited JSON-RPC: one message per line on stdin, one answer per
 line on stdout, nothing else on stdout; logs go to stderr. Local trust: no
 token - whoever runs this on the server can already read the data files.
 `--site` limits the server to one site. The two files that hold visitors'
-addresses (requests, ai_activity) are read only with `--private`.
+addresses (requests, ai_activity) are read only with `--private`. No token
+means no setup scope: setup_line answers that it needs one (HTTP only).
 """
 from __future__ import annotations
 
@@ -52,5 +53,5 @@ def cmd_mcp(ctx) -> int:
     server = Context(out, config=ctx.config, live_dir=ctx.live_dir,
                      history_path=ctx.db_path, checker=lambda site: (True, "", private),
                      only_sites=[only] if only else None, configs=configs,
-                     default_site=only or ctx.site)
+                     default_site=only or ctx.site, config_path=ctx.config_path)
     return serve(server)

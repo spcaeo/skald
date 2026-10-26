@@ -12,11 +12,13 @@ The page was called **API & tokens** before. Old links to it still work.
 
 For owners and admins, the page starts with **Set up example.com** (your site's name): the same list as on Overview, with every line of the site's set-up, each with its **Set up** button while it is left. Here it is always shown. Once every line is done it shows every tick and **All set**, so you can check the site's set-up at any time. **Hide on Overview** on Overview's copy of the list hides only that copy: this one stays. See [Set up your site](getting-started.md#set-up-your-site) for every line.
 
+When two or more open lines are jobs your AI agent can do, the list starts with **Set up everything left with your AI agent**: one line for your agent that covers all of them. See [Your AI agent, in every set-up dialog](connections.md#your-ai-agent-in-every-set-up-dialog).
+
 The **Lead hook tested** line is ticked only while no hook's last real lead was refused. When one was (say its signature did not match, because the tool signs with an old secret), the line says leads are not arriving, its Set up button opens the lead hook's dialog, and the cause and fix are under **For your server admin**.
 
 ### Links to a dialog
 
-Each dialog has its own link, with its step: **Read your figures (API)** at step 2 is `#settings/api?conn=api&step=2`, and the checklist's script tag dialog is `#settings/api?setup=script&step=1`. Copy it from the address bar and send it to another owner or admin: it opens the same dialog, at that step or at the first step that still needs a choice. **Back** closes the dialog; closing it takes it out of the address. Someone who may not use the dialog (a viewer) sees the page with one line: "Not available to your role." The link a **Share with your developer** form makes is never in the address.
+Each dialog has its own link, with its step: **Read your figures (API)** at step 2 is `#settings/api?conn=api&step=2`, and the checklist's script tag dialog is `#settings/api?setup=script&step=1`. Copy it from the address bar and send it to another owner or admin: it opens the same dialog, at that step or at the first step that still needs a choice. The way you chose is in the link too: `agent=claude-code` (or `agent=hand` for by hand), and, while your agent works, `link=` and the line's 16 letters and digits (never the line or its code). **Back** closes the dialog; closing it takes it out of the address. Someone who may not use the dialog (a viewer) sees the page with one line: "Not available to your role." The link a **Share with your developer** form makes is never in the address.
 
 At the top are three cards. Each has a **Set up** button that opens a short dialog with steps. Press **Next** to go on and **Back** to go back.
 
@@ -156,7 +158,9 @@ More on the files and the answers: [The read-only API](api.md).
 
 ## Connect an AI assistant (MCP)
 
-The dialog has three steps: **Token**, **Connect**, **Test**.
+**Read the MCP guide**, at the top of the dialog, opens the full guide in a new tab. The dialog starts with **Your AI agent, or by hand?**. Pick your agent (Claude Code, Codex, Cursor or another) and Skald writes one line for it: the agent connects itself to Skald with a read-only token for this site, and reports back. See [Your AI agent, in every set-up dialog](connections.md#your-ai-agent-in-every-set-up-dialog).
+
+By hand, three steps follow: **Token**, **Connect**, **Test**.
 
 1. **Token.** Make a token for the assistant and copy it. If MCP is not switched on for your server, the dialog says so at the top. You can make the token anyway.
 2. **Connect.** The MCP address, the Claude Code command, the Claude Desktop config (it uses `mcp-remote`), and what ChatGPT can and cannot do today. Your token is filled in.
@@ -246,7 +250,12 @@ Step 5 says **Your agent took the keys at 10:42. The code is used up: it cannot 
 
 When the agent is done, it sends Skald a short report, and step 5 shows it in plain words. Only the agent that took the keys can send it. If it sends a newer one (say after a fix), step 5 shows that one: how the site is hosted, the web server, the access log, what the site is built with, its page assets, where the script tag went, its lead forms, the privacy answers, the files it changed, and anything **Left for you**.
 
-The report is a suggestion. Skald changes no setting by itself. When the agent found other page assets than the site has, **Use these page assets** saves them. Set the privacy answers yourself, in **Settings > Data retention > People**.
+The report is a suggestion. Skald changes no setting by itself. Under it, **What your agent recommends** shows what the report suggests for Skald's own settings, each with **Apply**:
+
+- **Page assets.** When the agent found other folders than the site has, Apply saves them, as **Count visits as people** does.
+- **IP addresses.** When the agent read your privacy notice, Apply saves its choice (keep IP addresses, and for how many days, or keep none), as **Choose what is kept** does, then shows the wording for your notice.
+
+Nothing is applied until you press Apply. The report also lists each job (done, already there, skipped, or left for you), and for leads each tool whose hook the agent set or left for you.
 
 ### When the line stops
 
@@ -266,6 +275,37 @@ On step 3, press **No AI agent: set it up by hand**. Steps 3 to 5 then become th
 5. **Test and finish.** The Test starts by itself. When lines arrive it says "Done: example.com is receiving visits", with **Open its dashboard**. If not, it shows the fix and the common problems. **Finish later** closes the dialog.
 
 A site you added already can use its AI agent too: in **Settings > Connections**, press **Set up with your AI agent** on the **Send this site's visits to Skald** card. It opens the site's wizard at step 3.
+
+### Your AI agent, in every set-up dialog
+
+Every **Set up** dialog your agent can do starts with one choice: **Your AI agent, or by hand?**. These are: logs arriving, visits count as people (page assets), pages opened inside a Next.js site, the script tag, the lead hook, the privacy choice, and **Connect an AI assistant (MCP)**. Countries and mail stay by hand: a country file goes on Skald's own server, and each mail recipient confirms their own address.
+
+- **Your AI agent.** Pick Claude Code, Codex, Cursor or another agent that runs commands. (A chat in the browser cannot change your site, so it is not offered here.) Skald writes one line for that job, like `finish setting up Skald for example.com (add the script tag) — read https://<your Skald>/traffic-kit/llms.txt and use code <code>`. Paste it into your agent. The agent first checks what is already done, changes only what is missing, and asks you before any server change. Then **Watch your agent work** ticks each step, shows its report, and ends with **Done** when the report arrives (or, for logs, when the first log lines arrive).
+- **By hand.** The dialog's own steps, as before, from step 2. **Back** on its first step returns to the choice.
+
+The line works once, for 24 hours, as in [Add a site](connections.md#add-a-site-step-by-step). A site has one live line: a new one ends an older one whose keys were not taken.
+
+**Set up everything left with your AI agent**, at the top of the site's **Set up** list, makes one line for every open line your agent can do (when there are two or more). Its link is `setup=all`, with the jobs (`jobs=logs.script.lead`).
+
+Your agent's recommendations for Skald's settings (page assets, IP addresses) wait for your **Apply**: see [What your agent reported](connections.md#what-your-agent-reported).
+
+The jobs, and what your agent gets for each:
+
+| Job | What your agent does | What it gets |
+| --- | --- | --- |
+| Connect the logs | Connects your server's log, as in Add a site | A sending key for this site |
+| Add the script tag | Puts the tag once in your site's shared `<head>` | Nothing |
+| Leads and tool webhooks | Calls Skald from your own forms, and connects Calendly, Cal.com, Typeform, Stripe, HubSpot or Zapier when your site uses them | The lead secret; a secret for each tool it connects |
+| Add the Next.js log field | Adds one field to nginx's or Apache's log line, so pages opened inside a Next.js site count | Nothing |
+| Find the page assets | Finds where your pages load their own files | Nothing |
+| Check the privacy settings | Reads your privacy notice and suggests what Skald keeps | Nothing |
+| Connect the AI assistant (MCP) | Connects your assistant to Skald, so you can ask about your traffic | A read-only key for this site's figures |
+
+Your agent first checks whether each job is done already, and changes only what is missing. It asks you before it changes a server, your web server or your site. It never changes a setting in Skald: the page assets and the privacy answers it finds are shown to you, and **Apply** saves them.
+
+For a booking, form or payment tool, your agent connects the tool itself only when it can reach the tool (its API, command line or MCP server, with a key you gave it). The tool's secret then goes from Skald straight into a locked file, or from the tool straight to Skald, never through the chat. A tool it cannot reach is left for you, with the clicks and the address filled in: you make or paste its secret in **Settings > Integrations** yourself. If Skald has a secret for a tool already, your agent leaves it, unless you say to replace it.
+
+When a line stops before its keys are taken, every key it made is removed again.
 
 ### Skald checks your site
 

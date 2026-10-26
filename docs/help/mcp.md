@@ -16,7 +16,10 @@ You need three things:
 - **Team accounts.** MCP works only on servers where people sign in with their own accounts. It is not available on servers with one shared login.
 - **A token for the assistant** (the MCP scope). Only an owner or admin can make one.
 
-The quickest way is the card **Connect an AI assistant (MCP)** in [Connections](#settings/api). Its **Set up** button makes the token, shows what to paste where, and tests it. This guide has each step in full.
+The quickest way is the card **Connect an AI assistant (MCP)** in [Connections](#settings/api). Its **Set up** button opens a dialog with **Read the MCP guide** (this guide) at the top, then one choice:
+
+- **Your AI agent.** Pick Claude Code, Codex, Cursor or another agent that runs commands. Skald writes one line for it. Paste the line into the agent: it takes a read-only token for this site, connects itself to Skald (for Claude Code, `claude mcp add ...`), checks it works, and reports back. The token never shows in the chat. See [Your AI agent, in every set-up dialog](connections.md#your-ai-agent-in-every-set-up-dialog).
+- **By hand.** The dialog makes the token, shows what to paste where, and tests it. This guide has each step in full.
 
 ## The address to use
 
@@ -32,7 +35,7 @@ Copy yours from **Settings > Team & access > Connections** > **Connect an AI ass
 
 ## Make a token for the assistant
 
-1. Open [Connections](#settings/api) and press **Set up** on **Connect an AI assistant (MCP)**.
+1. Open [Connections](#settings/api) and press **Set up** on **Connect an AI assistant (MCP)**, then **By hand**.
 2. Keep the **Name** it suggests, or type one, for example "Claude".
 3. Press **Make the token** and copy the token. It is shown only once.
 4. Press **Next** for the address and the set-up of each assistant, then **Next** again to **Test** it.
@@ -124,8 +127,34 @@ The assistant chooses these tools itself. Dates are in your site's own time zone
 | `ai_readiness` | **Pages AI can't read well**, worst first; or one page's **AI readiness**: robots.txt for each main AI crawler, errors, the Markdown copy, the sitemap and the last AI read |
 | `changed_pages` | Summary's **New and updated pages**: pages changed in the last 30 days, their visits and search visits since, and whether Google fetched them |
 | `find_person` | One person by IP address, email, visitor ID or lead: their visits, leads and conversions. Only with **Reading visitor addresses**; each search goes to the audit log |
+| `setup_left` | What is left to set up for a site: the open lines of **Set up <site>** in [Connections](#settings/api), each with its Set up dialog's address, and the job an AI agent can do for it |
+| `setup_line` | Makes the one set-up line for an AI agent, for the jobs you name. Only with **Set-up lines (AI agent)**; see below |
 
 It also offers a ready prompt, **weekly_report**, which asks the assistant for a short weekly report.
+
+## Finish setting up a site with your AI agent
+
+Your AI assistant can also finish a site's set-up for you. It asks Skald what is left (`setup_left`), makes the set-up line for the jobs it can do (`setup_line`), and then follows that line itself: the same line **Your AI agent** gives in each Set up dialog.
+
+The jobs an AI agent can do: connect the server's log (**logs**), put the script tag on your pages (**script**), send leads from your forms (**lead**), the Next.js line in the web server's log format (**rsc**), find where your pages load their own files (**assets**), and read your privacy notice and recommend what Skald keeps (**privacy**). The country file and the mail recipient stay with a person.
+
+**The token.** Making a line needs one more permission. Only an owner or admin can give it:
+
+1. Open [Connections](#settings/api), then **Make a token by hand** under **Your tokens**.
+2. Tick **one** site only.
+3. Under **What it may do**, tick **AI assistant (MCP)** and **Set-up lines (AI agent)**. That one "can make set-up lines for an AI agent". It reads nothing by itself.
+4. Press **Make token**, and connect your assistant with it as above.
+
+Skald refuses this token for more than one site, without **AI assistant (MCP)**, or for someone who is not an owner or admin.
+
+**Example.** Say to your assistant: "finish setting up kiwi.example". It then:
+
+1. asks what is left: "kiwi.example: 5 of 5 needed set-up lines left, and 2 optional", with logs, script, lead and privacy as AI agent jobs, and the mail recipient for you;
+2. makes the line for those four jobs: `finish setting up Skald for kiwi.example (...) — read <address>/traffic-kit/llms.txt and use code <code>`, which works once, for 24 hours;
+3. follows it: takes its keys into a file (never into the chat), checks what is already done, changes only what is missing, and asks you before any change on your server;
+4. asks again what is left. Each line ticks itself once Skald sees it working.
+
+What it recommends for your privacy settings waits for you: press **Apply** in the dialog. The mail line stays yours: its dialog's address is in the answer.
 
 ## Questions to try
 
@@ -144,6 +173,7 @@ It also offers a ready prompt, **weekly_report**, which asks the assistant for a
 - "Can ChatGPT and Claude read our guides page?"
 - "Which sources and landing pages rose or fell against the week before?"
 - "Write a short weekly report for example.com."
+- "What is left to set up for example.com?"
 
 ## How honest the answers are
 
@@ -158,7 +188,7 @@ Skald gives the assistant the same rules the dashboard follows:
 
 ## Safety
 
-- **Read-only.** Every tool only reads. The assistant cannot change settings, delete data, or add anything.
+- **Read-only.** Every tool only reads, except `setup_line`, which makes a set-up line, and only with a token that has **Set-up lines (AI agent)** for that one site. The assistant cannot change settings or delete data. Each line made goes to the audit log.
 - **Only your sites.** The token reads only your organisation's sites, and only the ones you ticked. Every tool checks this again on each call.
 - **No addresses by default.** Without **Reading visitor addresses**, no answer carries a visitor's address, and the assistant cannot look a person up.
 - **Turn it off at once.** To cut off an assistant, revoke its token: open **Settings > Team & access > Connections**, find it under **Your tokens**, press **Revoke**, then **Yes, revoke**. It stops working immediately.

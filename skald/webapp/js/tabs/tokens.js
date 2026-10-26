@@ -18,6 +18,8 @@ const SCOPES = [
   ["read_private", "Reading visitor addresses", "also the request log and AI activity, which hold visitor addresses"],
   ["mcp", "AI assistant (MCP)", "for an AI assistant, through the MCP server"],
   ["ingest", "Sending logs", "a shipper or a platform adds log lines to the site; reads nothing"],
+  // 2.39.0: the MCP tool setup_line. The server refuses it unless an owner or admin makes it, for one site, with mcp.
+  ["setup", "Set-up lines (AI agent)", "can make set-up lines for an AI agent; reads nothing by itself. One site only, with AI assistant (MCP); owners and admins only"],
 ];
 
 // The token just made by hand: kept in this page's memory only, so a redraw does not lose it before it is copied.

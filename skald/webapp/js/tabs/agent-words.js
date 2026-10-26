@@ -3,8 +3,9 @@
 // agent's report in plain words, and the checklist of what has happened so far.
 // No DOM here, so tests/js/agent-setup.mjs reads it directly.
 //
-// The line comes from POST <page>/sites/agentlink {site, leads} (kit_api.py):
-// {line, llms_url, steps_url, expires_at, token_id, link_id, cancelled}. A site has one
+// The line comes from POST <page>/sites/agentlink {site, leads} (kit_api.py), or with
+// jobs (2.39, every set-up dialog: agent-first.js) {site, jobs: [id, ...]}:
+// {line, llms_url, steps_url, expires_at, token_id, link_id, cancelled, jobs}. A site has one
 // live line: a new one ends the older ones whose keys were not taken (`cancelled`). It holds a one-time
 // code that the agent swaps once for the keys, by curl, into a file on the server.
 // The code is never in the address, never kept, never logged; link_id (16 hex, a
@@ -48,6 +49,34 @@ export const OLD_CANCELLED = "The old line was cancelled.";
 export const keysWords = (at) => [`Your agent took the keys at ${at}. The code is used up: it cannot give the keys again.`,
   `Didn't your agent do this? Cancel the line, remove the key in ${TOKENS_AT}, and make a new line.`];
 
+// 2.39: the jobs a line can carry (docs/plans/2026-10-26-agent-everywhere.md), in the
+// contract's order. act: the checklist line's Set up dialog (js/setup-items.js), null for
+// MCP (Settings > Connections). title: the job in plain words; short: in a list of them.
+export const JOBS = [
+  { id: "logs", act: "logs", title: "Connect the server's log", short: "the server's log" },
+  { id: "script", act: "script", title: "Add the script tag", short: "the script tag" },
+  { id: "lead", act: "lead", title: "Connect your leads", short: "your leads" },
+  { id: "rsc", act: "rsc", title: "Count pages opened inside the site", short: "pages opened inside the site" },
+  { id: "assets", act: "assets", title: "Find the page assets", short: "the page assets" },
+  { id: "privacy", act: "privacy", title: "Read the privacy notice", short: "the privacy choice" },
+  { id: "mcp", act: null, title: "Connect your assistant to Skald (MCP)", short: "your assistant (MCP)" },
+];
+/* "the server's log, the script tag and your leads" */
+export function jobsWords(ids) {
+  const words = jobsInOrder(ids).map((id) => jobOf(id).short);
+  return words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}` : words[0] || "";
+}
+export const jobOf = (id) => JOBS.find((j) => j.id === id) || null;
+/* Known job ids only, once each, in the contract's order. */
+export const jobsInOrder = (ids) => JOBS.map((j) => j.id).filter((id) => (ids || []).includes(id));
+/* The jobs in the address (jobs=logs.script.lead), or [] when none is known. */
+export const jobsFrom = (v) => jobsInOrder(String(v || "").split("."));
+// The report's jobs, {id: done | already | skipped | left}, in plain words.
+export const JOB_RESULT = { done: "done", already: "already there", skipped: "skipped", left: "left for you" };
+// The lead tools a report may name (integrations_api TOOLS), in plain words.
+export const TOOL_NAMES = { lead: "Your site's own form or backend", json: "Zapier, Make or n8n", calendly: "Calendly", calcom: "Cal.com",
+  typeform: "Typeform", stripe: "Stripe", hubspot: "HubSpot" };
+
 export const agentOf = (id) => AGENTS.find((a) => a.id === id) || null;
 export const isAgent = (id) => Boolean(agentOf(id));
 // The ids the address may hold: an agent's, or hand.
@@ -82,7 +111,7 @@ export function timeLeft(expires, now = Date.now()) {
 }
 export const expired = (expires, now = Date.now()) => Boolean(expires) && (Date.parse(expires) || 0) <= now;
 
-export const PRIVACY_AT = "Set this in Settings > Data retention > People.";
+export const PRIVACY_AT = "Apply it below, or set it in Settings > Data retention > People.";
 export const REPORT_NOTE = "Sent by your agent. Check it before you use it.";
 const list = (x) => (Array.isArray(x) ? x.map((v) => String(v)).filter(Boolean) : []);
 const text = (x) => (x == null ? "" : String(x).trim());
@@ -94,6 +123,11 @@ export function reportLines(report) {
   const r = report || {};
   const out = [];
   const add = (name, value, kind = "") => { if (Array.isArray(value) ? value.length : value) out.push({ name, value, kind }); };
+  // 2.39: each job of the line, and each lead tool's hook (only what the report names).
+  const jobs = r.jobs && typeof r.jobs === "object" && !Array.isArray(r.jobs) ? r.jobs : {};
+  add("Each job", JOBS.filter((j) => JOB_RESULT[jobs[j.id]]).map((j) => `${j.title}: ${JOB_RESULT[jobs[j.id]]}`), "list");
+  const tools = (Array.isArray(r.tools) ? r.tools : []).filter((t) => t && text(t.tool) && ["set", "left"].includes(t.hook));
+  add("Lead tools", tools.map((t) => `${TOOL_NAMES[text(t.tool)] || text(t.tool)}: ${t.hook === "set" ? "hook set" : "left for you"}`), "list");
   add("Hosting", text(r.hosting));
   add("Web server", text(r.server));
   add("Access log", text(r.log_path));
@@ -134,8 +168,10 @@ export function newAssets(report, current) {
 /* The checklist on "Watch it connect": [{id, done, words, at}], from agentstatus's
    answer and what the page saw itself (seen: {lines, tag, lead}, each true, false
    for a problem, null when the check could not tell, or undefined while waiting). The script tag and the test lead
-   are only on it when the agent's report says it added them. */
-export function watchItems(status, seen = {}) {
+   are only on it when the agent's report says it added them. jobs (2.39): the line's; the
+   first log lines are on it only when they include logs (none given, Add a site's: they do). */
+export const hasLogs = (jobs) => !jobs || !jobs.length || jobs.includes("logs");
+export function watchItems(status, seen = {}, jobs = null) {
   const s = status || {};
   const report = s.report || null;
   const items = [
@@ -143,7 +179,7 @@ export function watchItems(status, seen = {}) {
     { id: "keys", done: Boolean(s.keys_at), at: s.keys_at || "", words: s.keys_at ? "It took the keys, once" : "Waiting for it to take the keys" },
     { id: "report", done: Boolean(s.reported_at), at: s.reported_at || "", words: s.reported_at ? "It sent its report" : "Waiting for its report" },
     { id: "lines", done: seen.lines === true, at: "", words: seen.lines === true ? "The first log lines arrived" : "Waiting for the first log lines" },
-  ];
+  ].filter((x) => x.id !== "lines" || hasLogs(jobs));
   if (text(report?.script_tag)) {
     items.push({ id: "tag", done: seen.tag === true, bad: seen.tag === false, at: "",
       words: seen.tag === true ? "The script tag is on the home page" : seen.tag === false ? "The script tag is not working yet"

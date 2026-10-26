@@ -663,8 +663,9 @@ class Endpoints(TenantServer):
         self.assertEqual(got.status, 200, got.json)
         body = got.json
         self.assertEqual(set(body), {"ok", "line", "llms_url", "steps_url", "expires_at",
-                                     "token_id", "link_id", "cancelled"})
+                                     "token_id", "link_id", "cancelled", "jobs"})
         self.assertEqual(body["cancelled"], 0)
+        self.assertEqual(body["jobs"], ["logs", "script", "lead"], "2.39: the default jobs")
         code = self.code_of(body)
         self.assertEqual(body["llms_url"], "https://www.example.com/traffic-kit/llms.txt")
         self.assertEqual(body["line"], f"set up Skald for {A} — read {body['llms_url']} and use "

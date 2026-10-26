@@ -57,6 +57,8 @@ CODE = re.compile(r"^[A-Za-z0-9_-]{43}$")
 FIELDS = ("url", "dashboard", "help", "image", "ship_path", "base")
 AGENTS = ("curl/", "wget/")
 KEPT_AFTER = 24 * 3600      # an agent code's entry is kept this long past its expiry
+# An agent code's sealed keys (agent.py): wiped together, never one left behind.
+SEALS = ("sealed", "sealed_lead", "sealed_report", "sealed_mcp")
 
 
 def path_for(folder) -> Path:
@@ -120,7 +122,7 @@ def _kept(entry: dict, now: float) -> bool:
     end = float(entry.get("expires_at") or 0)
     if entry.get("kind") == "agent":
         if end <= now:                              # expired: nothing usable stays on disk
-            entry.update(sealed=None, sealed_lead=None, sealed_report=None)
+            entry.update(dict.fromkeys(SEALS))
         return end + KEPT_AFTER > now
     return end > now
 
@@ -133,8 +135,7 @@ def stale(links: dict, now: float) -> bool:
         if entry.get("kind") != "agent":
             if end <= now:
                 return True
-        elif end + KEPT_AFTER <= now or (end <= now and any(
-                entry.get(k) for k in ("sealed", "sealed_lead", "sealed_report"))):
+        elif end + KEPT_AFTER <= now or (end <= now and any(entry.get(k) for k in SEALS)):
             return True
     return False
 

@@ -38,11 +38,11 @@ that mixes them with nginx lines, for the day you move a site behind a CDN.
   Fetch files in name order (they carry the date and hour) to keep visits
   whole.
 - **The independent audit (`skald audit`) does not read CDN logs.** Its own
-  reader knows the nginx and Apache layouts, the Vercel and Netlify log
-  drain lines (HOSTING.md) and the Skald Worker's edge records. It does not
-  read `cloudflare_json`, `cloudfront_w3c`, `fastly_json` or `akamai_json`
-  lines (nor Caddy's). Today, on a CDN log, the recount finds no request, does not
-  match, and run-daily withholds the day.
+  reader knows the nginx and Apache layouts, Caddy's JSON access log, the Vercel
+  and Netlify log drain lines (HOSTING.md) and the Skald Worker's edge records
+  (`audit_lines.py`, `audit_drains.py`). It does not read `cloudflare_json`,
+  `cloudfront_w3c`, `fastly_json` or `akamai_json` lines. Today, on a CDN log, the
+  recount finds no request, does not match, and run-daily withholds the day.
 
 ## Getting the files to the server
 

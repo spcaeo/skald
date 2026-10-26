@@ -340,14 +340,14 @@ export function stepsAfter(st) {
   return methodOf(way)?.token ? [{ name: "Sending token", draw: () => tokenPanel(st) }, install, test] : [install, test];
 }
 
-export function sendDialog(site, data, { onClose = null, route = null, start = 0 } = {}) {
+export function sendDialog(site, data, { onClose = null, route = null, start = 0, wrap = null } = {}) {
   const st = sendState(site, data);
   const steps = [];
   let w = null;
   // A way chosen (or found by the check): the later steps follow it, and the bar with them.
   const fit = () => { steps.splice(1, steps.length - 1, ...stepsAfter(st)); if (w) w.drawBar(); };
   steps.push({ name: "Where it runs", draw: (wz) => chooseStep(wz, st, site, fit), check: () => chooseCheck(st) }, ...stepsAfter(st));
-  w = wizard({ route, start,
+  w = wizard({ route, start, wrap,
     title: "Send this site's visits to Skald", subtitle: `For ${site}, when its web server is not this Skald's server.`,
     key: "conn-send", state: st, onClose, steps });
   return w;

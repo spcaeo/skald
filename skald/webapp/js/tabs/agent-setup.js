@@ -27,23 +27,32 @@ import { runPanel } from "./conn-send.js";
 import { withUrl, copyText, TIMING } from "../urlactions.js";
 import { AGENTS, HAND, HAND_WORDS, SAFE, SAFE_TITLE, CANCELLED_WORDS, OLD_CANCELLED, agentOf, codeOf, masked, timeLeft, expired } from "./agent-words.js";
 
-// The lines made in this page, by site: sites/agentlink's answer. Never stored anywhere else.
+// The lines made in this page, by site and jobs: sites/agentlink's answer. Never stored
+// anywhere else. jobs (2.39): the set-up dialogs' (agent-first.js), in the contract's order;
+// none: Add a site's line, asked for as before ({site, leads: true}).
 const LINES = new Map();
-export const lineFor = (site) => LINES.get(site) || null;
-const MAKING = new Map();      // site -> the sites/agentlink on its way, asked once
+const keyOf = (site, jobs) => (jobs && jobs.length ? `${site}|${jobs.join(",")}` : site);
+const ofSite = (site) => [...LINES.keys()].filter((k) => k === site || k.startsWith(`${site}|`));
+export const lineFor = (site, jobs = null) => LINES.get(keyOf(site, jobs)) || null;
+const MAKING = new Map();      // site (and jobs) -> the sites/agentlink on its way, asked once
 
-/* POST sites/agentlink once per site and page (a second draw waits for the same answer). */
-export function makeLine(site) {
-  if (!MAKING.has(site)) {
-    MAKING.set(site, call("sites/agentlink", { site, leads: true }).then((r) => {
-      MAKING.delete(site);
-      if (r.ok && r.line) LINES.set(site, { line: r.line, llms_url: r.llms_url || "", steps_url: r.steps_url || "", expires_at: r.expires_at || "", token_id: r.token_id || "", link_id: r.link_id || "", cancelled: r.cancelled || 0 });
+/* POST sites/agentlink once per site, jobs and page (a second draw waits for the same answer).
+   A new line ends the site's older ones on the server, so the page forgets them too. */
+export function makeLine(site, jobs = null) {
+  const k = keyOf(site, jobs);
+  if (!MAKING.has(k)) {
+    MAKING.set(k, call("sites/agentlink", jobs && jobs.length ? { site, jobs } : { site, leads: true }).then((r) => {
+      MAKING.delete(k);
+      if (r.ok && r.line) {
+        for (const old of ofSite(site)) LINES.delete(old);
+        LINES.set(k, { line: r.line, llms_url: r.llms_url || "", steps_url: r.steps_url || "", expires_at: r.expires_at || "", token_id: r.token_id || "", link_id: r.link_id || "", cancelled: r.cancelled || 0 });
+      }
       return r;
     }));
   }
-  return MAKING.get(site);
+  return MAKING.get(k);
 }
-export const forgetLine = (site) => { LINES.delete(site); };
+export const forgetLine = (site, jobs = null) => { LINES.delete(keyOf(site, jobs)); };
 // The link ids cancelled in this page: step 4 says so instead of offering the line again.
 const CANCELLED = new Set();
 export const wasCancelled = (link) => CANCELLED.has(link);
@@ -53,7 +62,7 @@ export async function cancelLine(site, link) {
   const r = await call("sites/agentcancel", { site, link_id: link });
   if (r.ok) {
     CANCELLED.add(link);
-    if (lineFor(site)?.link_id === link) forgetLine(site);
+    for (const k of ofSite(site)) if (LINES.get(k)?.link_id === link) LINES.delete(k);
   }
   return r;
 }
@@ -85,20 +94,24 @@ const CHAT = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="cu
 const EDITOR = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7 3 12l5 5M16 7l5 5-5 5M13.5 5l-3 14"/></svg>';
 const iconFor = (a) => (a.id === "chat" ? CHAT : a.id === "cursor" ? EDITOR : TERMINAL);
 
+export const CHOOSER_INTRO = "Skald writes one line for your agent. The agent reads the steps, installs Skald on the site, and reports back here. You watch each step.";
+
 /* Step 3: the agents as tiles (aria-pressed shows the one chosen), and the quieter
-   by-hand way below. onPick(id) with an agent's id or HAND. */
-export function agentChooser(st, onPick) {
-  const tiles = AGENTS.map((a) => {
+   by-hand way below. onPick(id) with an agent's id or HAND. 2.39, the set-up dialogs'
+   first step (agent-first.js): agents (the ones that run commands), hand ({title, sub},
+   or null for none) and intro, their own words. */
+export function agentChooser(st, onPick, { agents = AGENTS, hand: words = HAND_WORDS, intro = CHOOSER_INTRO } = {}) {
+  const tiles = agents.map((a) => {
     const b = h("button", { type: "button", class: "ag-tile", "aria-pressed": st.agent === a.id ? "true" : "false", "aria-label": `${a.title}: ${a.sub}`, "data-agent": a.id },
       h("span", { class: "ag-ic", html: iconFor(a) }), h("b", null, a.title), h("small", null, a.sub));
     b.addEventListener("click", () => onPick(a.id));
     return b;
   });
-  const hand = h("button", { type: "button", class: "btn ag-hand", "data-agent": HAND, "aria-label": `${HAND_WORDS.title}. ${HAND_WORDS.sub}` }, HAND_WORDS.title);
-  hand.addEventListener("click", () => onPick(HAND));
-  return [h("p", null, "Skald writes one line for your agent. The agent reads the steps, installs Skald on the site, and reports back here. You watch each step."),
+  const hand = words ? h("button", { type: "button", class: "btn ag-hand", "data-agent": HAND, "aria-pressed": st.agent === HAND ? "true" : "false", "aria-label": `${words.title}. ${words.sub}` }, words.title) : null;
+  if (hand) hand.addEventListener("click", () => onPick(HAND));
+  return [intro ? h("p", null, intro) : null,
     h("div", { class: "ag-tiles", role: "group", "aria-label": "Your AI agent" }, tiles),
-    h("div", { class: "ag-or" }, hand, h("small", null, HAND_WORDS.sub))];
+    hand ? h("div", { class: "ag-or" }, hand, h("small", null, words.sub)) : null];
 }
 
 /* The line in its box: hidden code by default, Copy with a green tick, Show code. */
@@ -136,15 +149,16 @@ export function linePanel(st, w, { onMade = null } = {}) {
     st.send.method = "server";
     return [h("p", { class: "ag-why" }, a.where), runPanel(st.send, w, { onMade: (r) => { if (onMade) onMade({ token_id: r.token_id || "" }); } })];
   }
-  const got = lineFor(site);
+  const jobs = st.jobs || null;
+  const got = lineFor(site, jobs);
   const slot = h("div", { class: "ag-slot" });
   const again = h("button", { type: "button", class: "btn" }, got ? "Make a new line" : "Try again");
   const ask = async () => {
     again.disabled = true;
-    const r = await makeLine(site);
+    const r = await makeLine(site, jobs);
     again.disabled = false;
     if (!r.ok || !r.line) {
-      slot.replaceChildren(answerBox("bad", why(r, "The line was not made."), h("p", null, "Press Try again, or go Back and choose No AI agent to set it up by hand.")));
+      slot.replaceChildren(answerBox("bad", why(r, "The line was not made."), h("p", null, jobs ? "Press Try again, or go Back and choose By hand." : "Press Try again, or go Back and choose No AI agent to set it up by hand.")));
       again.textContent = "Try again";
       again.hidden = false;
       return;
@@ -154,7 +168,7 @@ export function linePanel(st, w, { onMade = null } = {}) {
     if (onMade) onMade(r);
     if (slot.isConnected !== false) w.redraw();       // still on this step: drawn with the line
   };
-  const fresh = () => { forgetLine(site); again.textContent = "Making a new line..."; ask(); };
+  const fresh = () => { forgetLine(site, jobs); again.textContent = "Making a new line..."; ask(); };
   again.addEventListener("click", fresh);
   const intro = h("p", null, `${a.where} Skald's steps tell it what to do for ${site}.`);
   // Cancelled (here, or a line from before a reload): it is gone; a new one on request.

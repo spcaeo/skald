@@ -1,33 +1,43 @@
 """The one line for an AI agent: "set up Skald for <site> — read
 <base>/traffic-kit/llms.txt and use code <code> (works once, 24 hours)".
 
-`POST <page>/sites/agentlink` (kit_api.py) makes a sending token and, when
-leads are included, gets the site's lead secret, then an **agent code**: an
-entry in link.py's store (kit-links.json, 0600, under its lock) with
-`kind: "agent"`:
+A line carries one or more jobs (agent_jobs.py: logs, script, lead, rsc,
+assets, privacy, mcp; Add a site's default is logs, script, lead).
+`POST <page>/sites/agentlink` (kit_api.py) makes only the keys its jobs need
+(a sending token for "logs", the site's lead secret for "lead", a read-only
+MCP token for "mcp"), then an **agent code**: an entry in link.py's store
+(kit-links.json, 0600, under its lock) with `kind: "agent"`:
 
-    {"kind": "agent", "site", "made_at", "expires_at", "token_id",
-     "sealed", "sealed_lead",   the token, the lead secret and the report key, each
-     "sealed_report"            sealed with its own keystream label (link.seal; never
-                                the install link's, so no other code can hand them
-                                out); null once the keys are taken, the code expired
-                                or was cancelled
+    {"kind": "agent", "site", "made_at", "expires_at", "jobs",
+     "token_id", "mcp_token_id" the tokens it made (null when its jobs need none)
+     "sealed", "sealed_lead",   the sending token, the lead secret, the report key and
+     "sealed_report",           the MCP token, each sealed with its own keystream
+     "sealed_mcp"               label (link.seal; never the install link's, so no other
+                                code can hand them out); null when not made, once the
+                                keys are taken, the code expired or was cancelled
      "report_key"               the report key's sha256: POST .../report needs the key
-     "fields"                   link.FIELDS plus lead_url and tag: nothing secret
+     "fields"                   link.FIELDS plus lead_url, tag, mcp_url, hooks_url:
+                                nothing secret
      "leads", "lead_note"       leads asked for; "included", "env" or "none"
      "found"                    the site check's facts (site_setup `found`)
-     "opened_at", "keys_at", "reported_at", "report", "cancelled_at"}
+     "facts"                    what Skald had when the line was made, for the steps'
+                                "Check first" (hook secrets set, MCP on, privacy and
+                                asset settings): nothing secret
+     "opened_at", "keys_at", "reported_at", "report", "cancelled_at",
+     "token_revoked", "revoked_ids"}
 
 The code itself is never kept or logged; the dashboard knows the entry by
 its link_id, the first 16 hex of the code's sha256 (`sites/agentstatus`).
 `cancel` ends a code at once (`sites/agentcancel`), and `make` with
 `replace` ends the site's older live codes whose keys were not taken, inside
 the same lock (`sites/agentlink`: one live line per site): seals wiped, every
-route then answers as for an expired code. Both hand back the ids of tokens
-that were never given out, for kit_api.py to revoke; `unrevoked` lists the
-ended codes whose token is still to revoke (an expired code's, or one whose
-revoke failed), for sites/agentstatus and the daily run. An entry is marked
-`token_revoked` only by `mark_revoked`, once the revoke has succeeded.
+route then answers as for an expired code. Both hand back the ids of every
+token the code made that was never given out (the sending token and the MCP
+token), for kit_api.py to revoke; `unrevoked` lists them for the ended codes
+still to revoke (an expired code's, or one whose revoke failed), for
+sites/agentstatus and the daily run. `mark_revoked` notes each token once its
+revoke has succeeded (`revoked_ids`), and the entry `token_revoked` once all
+of them are.
 
 A request that changes nothing (a refused report, a second read of the
 steps) never rewrites kit-links.json.
@@ -42,7 +52,8 @@ On the beacon helper (beacon_server.py), `serve` answers:
   GET  /traffic-kit/<code>/steps      the site's steps in Markdown, no secret; the first
                                       GET sets opened_at. Valid until expiry or a cancel.
   GET  /traffic-kit/<code>/keys       curl or Wget only: the keys once, as an env file
-                                      (values shell-quoted; with SKALD_REPORT_KEY),
+                                      (values shell-quoted; only the keys the jobs need,
+                                      and SKALD_REPORT_KEY always),
                                       then the seals are wiped (keys_at). Again: 410.
                                       Another user agent (a web reader, which may pass the
                                       page through a model): 403 and nothing burned. HEAD:
@@ -54,6 +65,8 @@ On the beacon helper (beacon_server.py), `serve` answers:
                                       X-Skald-Report-Key (from the keys file; missing or
                                       wrong: 403, nothing kept): only REPORT's keys are
                                       kept, each cleaned and capped. {"ok": true}
+  POST /traffic-kit/<code>/hooksecret a booking, form or payment tool's hook secret, for
+                                      a line with the lead job (agent_hooks.py)
 
 Cache-Control no-store and X-Robots-Tag noindex on every answer (link._answer),
 a limit per caller address on every route but llms.txt, each route (ROUTES) with
@@ -67,44 +80,32 @@ import hmac
 import json
 import re
 import secrets
-import shlex
 import time
 from pathlib import Path
 
-from . import link
+from . import agent_jobs, link
+from .agent_jobs import FOUND_MOST, LEAD_WORDS, WAYS, keys_file, steps  # noqa: F401
 
 KIND = "agent"
 HERE = Path(__file__).resolve().parent / "agent"
 TOKEN_LABEL = b"skald-kit-agent"     # never the install link's label (link.seal's default)
 LEAD_LABEL = b"skald-kit-lead"
 REPORT_LABEL = b"skald-kit-report"
+MCP_LABEL = b"skald-kit-mcp"
 REPORT_HEADER = "X-Skald-Report-Key"
-FOUND_MOST = 120                      # a site check value's length in the steps
+WIPED = dict.fromkeys(link.SEALS)     # every seal of a code, wiped together
 LINK_ID = re.compile(r"^[0-9a-f]{16}$")
 HOST = re.compile(r"^[A-Za-z0-9.-]{1,253}(?::[0-9]{1,5})?$")
 REPORT_MOST = 16 * 1024
 NOTES_MOST = 1000
 STATES = ("waiting", "opened", "keys_taken", "expired", "cancelled", "unknown")
 # The routes, each with its own limit (beacon_server.py); "code" is the bare code.
-ROUTES = ("code", "steps", "keys", "install.sh", "leads", "report", "other")
+ROUTES = ("code", "steps", "keys", "install.sh", "leads", "report", "hooksecret", "other")
 WEB_READER = ("Fetch this with curl in a shell into a file; never with a web reader, which "
               "would put the keys in a chat. Nothing was used up: the keys are still there.\n")
-# What the site check's recommended method means in the steps' cases.
-WAYS = {"docker": "case A, the site's own server (the one-file installer)",
-        "systemd": "case A, the site's own server (the one-file installer)",
-        "cloudflare": "case B, Cloudflare (the Skald Worker)",
-        "vercel": "case C, Vercel (a log drain)", "netlify": "case C, Netlify (a log drain)",
-        "script": "case D, the script tag only"}
-LEAD_WORDS = {
-    "included": "The lead secret is `SKALD_LEAD_SECRET` in the keys file (step 3).",
-    "env": ("The lead secret is kept in the Skald server's environment, so it is not in the "
-            "keys file. Ask the user to get it from whoever runs their Skald."),
-    "none": ("Leads were not included in this line, so the keys file has no lead secret. If "
-             "the site makes leads, ask the user to make a new line with leads, or to make the "
-             "secret in Skald (Settings > Integrations > Lead)."),
-}
 # A value an agent might paste by mistake: a sending token or a lead secret.
-SECRETISH = re.compile(r"skald_[0-9a-f]{4,16}_[A-Za-z0-9_-]{8,}|skh_[A-Za-z0-9_-]{8,}")
+SECRETISH = re.compile(r"skald_[0-9a-f]{4,16}_[A-Za-z0-9_-]{8,}|skh_[A-Za-z0-9_-]{8,}"
+                       r"|whsec_[A-Za-z0-9_-]{8,}")
 
 
 def link_id(code: str) -> str:
@@ -117,20 +118,27 @@ def _key_hash(key: str) -> str:
     return hashlib.sha256(("skald-report-key:" + key).encode()).hexdigest()
 
 
-def make(folder, site: str, token: str, token_id: str, fields: dict,
+def make(folder, site: str, token: str | None, token_id: str | None, fields: dict,
          lead_secret: str | None = None, lead_note: str = "none", leads: bool = True,
          found: dict | None = None, now: float | None = None, hours: int = link.HOURS,
-         replace: bool = False) -> tuple[str, int, list[tuple[str, str | None, str]]]:
+         replace: bool = False, jobs=None, mcp_token: str | None = None,
+         mcp_token_id: str | None = None,
+         facts: dict | None = None) -> tuple[str, int, list[tuple[str, str | None, str]]]:
     """(the code, when it expires, ended). Only the code's hash and the sealed
-    keys are kept. With `replace`, under the same lock: the site's older live
-    codes whose keys were not taken are cancelled, and ended ones whose keys
-    were never taken give up their token (until mark_revoked). `ended`:
-    [(link_id, the token_id to revoke or None, "cancelled" or "expired")]."""
+    keys are kept. `jobs`: agent_jobs.JOBS ids (None: the default, without
+    "lead" when not `leads`). With `replace`, under the same lock: the site's
+    older live codes whose keys were not taken are cancelled, and ended ones
+    whose keys were never taken give up their tokens (until mark_revoked).
+    `ended`: [(link_id, a token_id to revoke, or None when its keys were
+    taken, or "" when it made no token, "cancelled" or "expired")], one row
+    for each token to revoke."""
     now = time.time() if now is None else now
+    jobs = agent_jobs.default(leads) if jobs is None else agent_jobs.clean(list(jobs))
     code = secrets.token_urlsafe(32)
     report_key = secrets.token_urlsafe(24)
     path = link.path_for(folder)
-    keep = {k: str(fields.get(k) or "") for k in (*link.FIELDS, "lead_url", "tag")}
+    keep = {k: str(fields.get(k) or "") for k in (*link.FIELDS, "lead_url", "tag", "mcp_url",
+                                                  "hooks_url")}
     ended_now = []
     with link._locked(path):
         links = link._load(path)
@@ -138,14 +146,17 @@ def make(folder, site: str, token: str, token_id: str, fields: dict,
             ended_now = _replace(links, site, now)
         links[link.digest(code)] = {
             "kind": KIND, "site": site, "made_at": int(now),
-            "expires_at": int(now + hours * 3600), "token_id": token_id,
-            "sealed": link.seal(token, code, TOKEN_LABEL),
+            "expires_at": int(now + hours * 3600), "jobs": jobs,
+            "token_id": token_id or None, "mcp_token_id": mcp_token_id or None,
+            "sealed": link.seal(token, code, TOKEN_LABEL) if token else None,
             "sealed_lead": link.seal(lead_secret, code, LEAD_LABEL) if lead_secret else None,
             "sealed_report": link.seal(report_key, code, REPORT_LABEL),
+            "sealed_mcp": link.seal(mcp_token, code, MCP_LABEL) if mcp_token else None,
             "report_key": _key_hash(report_key),
-            "fields": keep, "leads": bool(leads),
+            "fields": keep, "leads": "lead" in jobs,
             "lead_note": lead_note if lead_note in LEAD_WORDS else "none",
             "found": found if isinstance(found, dict) else None,
+            "facts": facts if isinstance(facts, dict) else None,
             "opened_at": None, "keys_at": None, "reported_at": None, "report": None}
         link._save(path, links, now)
     return code, int(now + hours * 3600), ended_now
@@ -155,45 +166,62 @@ def _replace(links: dict, site: str, now: float) -> list[tuple[str, str | None, 
     """make's sweep, inside its lock: every code already in the store is older
     than the new one, whatever its made_at says (two calls may read the clock
     in one order and take the lock in the other). An older ended code whose
-    token is still to revoke (expired, or its revoke failed) is "expired"."""
+    tokens are still to revoke (expired, or a revoke failed) is "expired"."""
     out = []
     for key, entry in links.items():
         if entry.get("kind") != KIND or entry.get("site") != site:
             continue
         was = state(entry, now)
         if was in ("waiting", "opened"):
-            entry.update(cancelled_at=int(now), sealed=None, sealed_lead=None,
-                         sealed_report=None)
-            out.append((key[:16], _unused(entry), "cancelled"))
-        elif _unused(entry):
-            out.append((key[:16], entry["token_id"], "expired"))
+            entry.update(cancelled_at=int(now), **WIPED)
+            out += [(key[:16], tid, "cancelled") for tid in _ended_rows(entry)]
+        else:
+            out += [(key[:16], tid, "expired") for tid in _pending(entry)]
     return out
 
 
-def _unused(entry: dict) -> str | None:
-    """The token_id of a code whose keys were never taken and whose token is
-    not revoked yet, else None."""
+def _tokens(entry: dict) -> list[str]:
+    """Every token the code made: the sending token, the MCP token."""
+    return [tid for tid in (entry.get("token_id"), entry.get("mcp_token_id")) if tid]
+
+
+def _pending(entry: dict) -> list[str]:
+    """The token ids of a code whose keys were never taken that are not
+    revoked yet."""
     if entry.get("keys_at") or entry.get("token_revoked"):
-        return None
-    return entry.get("token_id") or None
+        return []
+    done = set(entry.get("revoked_ids") or ())
+    return [tid for tid in _tokens(entry) if tid not in done]
+
+
+def _ended_rows(entry: dict) -> list[str | None]:
+    """An ended code's rows for the caller: each token to revoke; else one
+    row, None (its keys were taken, so its tokens stay) or "" (no token)."""
+    return _pending(entry) or [None if _tokens(entry) else ""]
+
+
+def _unused(entry: dict) -> str | None:
+    """The first token id still to revoke, else None."""
+    got = _pending(entry)
+    return got[0] if got else None
 
 
 def unrevoked(folder, site: str, now: float | None = None) -> list[tuple[str, str]]:
-    """[(link_id, token_id)]: the site's ended codes (expired or cancelled)
-    whose keys were never taken and whose token is not revoked yet. Read
-    only: the caller revokes, then mark_revoked."""
+    """[(link_id, token_id)]: each token of the site's ended codes (expired
+    or cancelled) whose keys were never taken and that is not revoked yet.
+    Read only: the caller revokes, then mark_revoked."""
     now = time.time() if now is None else now
-    return [(key[:16], _unused(entry)) for key, entry in
-            link._load(link.path_for(folder)).items()
-            if entry.get("kind") == KIND and entry.get("site") == site
-            and ended(entry, now) and _unused(entry)]
+    return [(key[:16], tid) for key, entry in link._load(link.path_for(folder)).items()
+            if entry.get("kind") == KIND and entry.get("site") == site and ended(entry, now)
+            for tid in _pending(entry)]
 
 
 def mark_revoked(folder, done, now: float | None = None) -> int:
-    """Mark the codes in `done` [(link_id, token_id)] token_revoked, once
-    their revoke has succeeded; how many. Saved only when one changed or the
-    store holds an expired code's seals or an entry past its keeping (the
-    daily run calls it with nothing, to tidy)."""
+    """Note each token in `done` [(link_id, token_id)] revoked, once its
+    revoke has succeeded (`revoked_ids`; `token_revoked` once every token of
+    the code is); how many. Saved only when one changed or the store holds an
+    expired code's seals or an entry past its keeping (the daily run calls it
+    with nothing, to tidy)."""
     now = time.time() if now is None else now
     path = link.path_for(folder)
     if not path.exists():
@@ -202,10 +230,20 @@ def mark_revoked(folder, done, now: float | None = None) -> int:
     with link._locked(path):
         links = link._load(path)
         for key, entry in links.items():
-            if entry.get("kind") == KIND and not entry.get("token_revoked") and any(
-                    key.startswith(lid) and entry.get("token_id") == tid for lid, tid in done):
+            if entry.get("kind") != KIND or entry.get("token_revoked"):
+                continue
+            had = set(entry.get("revoked_ids") or ())
+            hit = [tid for tid in _tokens(entry) if tid not in had and any(
+                key.startswith(lid) and tid == one for lid, one in done)]
+            if not hit:
+                continue
+            marked += len(hit)
+            gone = [tid for tid in _tokens(entry) if tid in had or tid in hit]
+            if len(gone) == len(_tokens(entry)):
                 entry["token_revoked"] = True
-                marked += 1
+                entry.pop("revoked_ids", None)
+            else:
+                entry["revoked_ids"] = gone
         if marked or link.stale(links, now):
             link._save(path, links, now)
     return marked
@@ -279,7 +317,8 @@ def take(folder, code: str, now: float | None = None):
 
     def change(entry):
         was = state(entry, now)
-        if was in ("keys_taken", "expired", "cancelled") or not entry.get("sealed"):
+        if was in ("keys_taken", "expired", "cancelled") or not (
+                entry.get("sealed") or entry.get("sealed_report")):
             return ("keys_taken" if was == "keys_taken" else "expired", None), False
 
         def opened_seal(name, label):
@@ -287,7 +326,9 @@ def take(folder, code: str, now: float | None = None):
         keys = {"token": opened_seal("sealed", TOKEN_LABEL),
                 "lead": opened_seal("sealed_lead", LEAD_LABEL),
                 "report_key": opened_seal("sealed_report", REPORT_LABEL)}
-        entry.update(keys_at=int(now), sealed=None, sealed_lead=None, sealed_report=None)
+        if entry.get("sealed_mcp"):
+            keys["mcp"] = opened_seal("sealed_mcp", MCP_LABEL)
+        entry.update(keys_at=int(now), **WIPED)
         return ("ok", keys), True
     got, entry = _change(folder, code, change, now)
     if got is None:
@@ -308,7 +349,7 @@ def keep_report(folder, code: str, report: dict, key: str | None,
             return "refused", False
         if ended(entry, now):
             return "expired", False
-        entry.update(report=report, reported_at=int(now))
+        entry.update(report=_for_line(report, agent_jobs.of(entry)), reported_at=int(now))
         return "ok", True
     got, _ = _change(folder, code, change, now)
     return got or "unknown"
@@ -317,9 +358,10 @@ def keep_report(folder, code: str, report: dict, key: str | None,
 def cancel(folder, site: str, lid: str,
            now: float | None = None) -> list[tuple[str, str | None]]:
     """End the agent code of `site` whose link_id is `lid` at once, whatever
-    its state. [(link_id, the token_id when its token was never handed out
-    and not yet revoked, for the caller to revoke and then mark_revoked,
-    else None)]."""
+    its state. [(link_id, a token_id never handed out and not yet revoked,
+    for the caller to revoke and then mark_revoked)], one row for each such
+    token; else one row with None (its keys were taken) or "" (it made no
+    token)."""
     now = time.time() if now is None else now
     path = link.path_for(folder)
     if not LINK_ID.match(lid or "") or not path.exists():
@@ -331,9 +373,8 @@ def cancel(folder, site: str, lid: str,
             if entry.get("kind") != KIND or entry.get("site") != site \
                     or entry.get("cancelled_at") or not key.startswith(lid):
                 continue
-            entry.update(cancelled_at=int(now), sealed=None, sealed_lead=None,
-                         sealed_report=None)
-            done.append((key[:16], _unused(entry)))
+            entry.update(cancelled_at=int(now), **WIPED)
+            done += [(key[:16], tid) for tid in _ended_rows(entry)]
         if done:
             link._save(path, links, now)
     return done
@@ -351,10 +392,13 @@ def status(folder, site: str, lid: str, now: float | None = None) -> dict:
 
     def when(key):
         return link.stamp(entry[key]) if entry and entry.get(key) else None
+    report = (entry or {}).get("report")
     return {"state": state(entry, now), "opened_at": when("opened_at"),
             "keys_at": when("keys_at"), "reported_at": when("reported_at"),
             "cancelled_at": when("cancelled_at"),
-            "report": (entry or {}).get("report"), "expires_at": when("expires_at")}
+            "report": report, "expires_at": when("expires_at"),
+            "jobs": (report or {}).get("jobs"), "tools": (report or {}).get("tools"),
+            "line_jobs": agent_jobs.of(entry) if entry else None}
 
 
 # -------------------------------------------------------------- report
@@ -410,7 +454,44 @@ def _leads(value) -> list[dict] | None:
     return out
 
 
+def _job_states(value) -> dict | None:
+    """{job id: done | already | skipped | left}, known ids only."""
+    if not isinstance(value, dict):
+        return None
+    return {job: value[job] for job in agent_jobs.JOBS
+            if isinstance(value.get(job), str) and value[job] in agent_jobs.STATES}
+
+
+def _tools(value) -> list[dict] | None:
+    """[{tool, hook: set | left}]: the hook tools only, each once."""
+    from ..conversions import TOOLS
+    if not isinstance(value, list):
+        return None
+    out = []
+    for one in value[:len(TOOLS) * 5]:
+        if not isinstance(one, dict):
+            continue
+        tool, hook = one.get("tool"), one.get("hook")
+        if isinstance(tool, str) and tool in TOOLS and hook in ("set", "left") \
+                and tool not in [got["tool"] for got in out]:
+            out.append({"tool": tool, "hook": hook})
+    return out
+
+
+def _for_line(report: dict, jobs: list[str]) -> dict:
+    """Only the line's own jobs in `jobs`, and `tools` only with the lead job."""
+    out = dict(report)
+    if isinstance(out.get("jobs"), dict):
+        out["jobs"] = {job: how for job, how in out["jobs"].items() if job in jobs}
+        if not out["jobs"]:
+            del out["jobs"]
+    if "lead" not in jobs:
+        out.pop("tools", None)
+    return out
+
+
 REPORT = {
+    "jobs": _job_states, "tools": _tools,
     "hosting": lambda v: _text(v, 100), "server": lambda v: _text(v, 100),
     "log_path": lambda v: _text(v, 300), "framework": lambda v: _text(v, 60),
     "asset_paths": lambda v: _texts(v, 10, 200,
@@ -448,90 +529,8 @@ def _base(entry: dict | None, base: str) -> str:
 def guide(base: str) -> str:
     """llms.txt, filled: no code, no secret."""
     text = (HERE / "llms.txt").read_text(encoding="utf-8")
-    return _fill(text, {"BASE": base.rstrip("/") or "the address you read this file from"})
-
-
-def _fill(text: str, values: dict) -> str:
-    """The template filled; ValueError when a placeholder is left."""
-    from . import LEFT, fill
-    text = fill(text, values)
-    left = LEFT.findall(text)
-    if left:
-        raise ValueError(f"a placeholder is left: {left[0]}")
-    return text
-
-
-def _plain(value) -> str:
-    """A site check value as the steps show it: one line, capped, and never
-    a placeholder (`__` split) or the end of a code span."""
-    got = " ".join(str(value).split())[:FOUND_MOST].replace("`", "'")
-    while "__" in got:
-        got = got.replace("__", "_ _")
-    return got
-
-
-# Values the site's own answers set (its Server header...): shown as code.
-FROM_SITE = ("server", "server_detail", "platform", "framework")
-
-
-def _found(found: dict | None) -> str:
-    if not found:
-        return "- Nothing: the check did not run. Find it out in step 1."
-    lines = []
-    for label, key in (("The site answers", "reachable"), ("HTTPS", "https"),
-                       ("Web server", "server"), ("Server details", "server_detail"),
-                       ("Hosting", "platform"), ("Framework", "framework"),
-                       ("Its addresses", "hosts"),
-                       ("Its own files are served from", "asset_prefixes"),
-                       ("Why that way", "reason"), ("Note", "assets_note")):
-        value = found.get(key)
-        if value in (None, "", [], "unknown"):
-            continue
-        if isinstance(value, bool):
-            value = "yes" if value else "no"
-        elif isinstance(value, list):
-            value = ", ".join(f"`{_plain(v)}`" for v in value[:10])
-        elif key in FROM_SITE:
-            value = f"`{_plain(value)}`"
-        else:
-            value = _plain(value)
-        lines.append(f"- {label}: {value}")
-    return "\n".join(lines) or "- Nothing certain. Find it out in step 1."
-
-
-def steps(entry: dict, code: str, base: str) -> str:
-    """The site's steps in Markdown: addresses and words, never a key."""
-    fields = entry.get("fields") or {}
-    site, root = entry["site"], _base(entry, base)
-    here = f"{root}{link.PREFIX}{code}"
-    found = entry.get("found") or None
-    way = WAYS.get((found or {}).get("recommended_method") or "")
-    note = LEAD_WORDS.get(entry.get("lead_note") or "none", LEAD_WORDS["none"])
-    text = (HERE / "steps.md").read_text(encoding="utf-8")
-    return _fill(text, {
-        "SITE": site, "EXPIRES": link.stamp(entry["expires_at"]).replace("T", " ")[:16],
-        "DASHBOARD": fields.get("dashboard") or "", "HELP": fields.get("help") or "",
-        "INGEST_URL": fields.get("url") or "", "LEAD_URL": fields.get("lead_url") or "",
-        "TAG": fields.get("tag") or "", "FOUND": _found(found),
-        "WAY": way or "not settled by the check: find it out in step 1.",
-        "ENV_FILE": f"$HOME/.config/skald/{site}.env", "KEYS_URL": f"{here}/keys",
-        "INSTALL_URL": f"{here}/install.sh", "LEADS_URL": f"{here}/leads/",
-        "REPORT_URL": f"{here}/report", "LEADS": note})
-
-
-def keys_file(entry: dict, keys: dict) -> str:
-    """The env file: each value shell-quoted (sourced with `.`)."""
-    fields = entry.get("fields") or {}
-    values = [("SKALD_SITE", entry["site"]), ("SKALD_INGEST_URL", fields.get("url") or ""),
-              ("SKALD_INGEST_TOKEN", keys["token"]),
-              ("SKALD_LEAD_URL", fields.get("lead_url") or "")]
-    if keys.get("lead"):
-        values.append(("SKALD_LEAD_SECRET", keys["lead"]))
-    if keys.get("report_key"):
-        values.append(("SKALD_REPORT_KEY", keys["report_key"]))
-    lines = [f"# Skald keys for {entry['site']}. Keep this file 0600 and out of any "
-             "repository;", "# never print it or paste it in a chat."]
-    return "\n".join(lines + [f"{k}={shlex.quote(str(v))}" for k, v in values]) + "\n"
+    return agent_jobs.fill(text, {"BASE": base.rstrip("/") or
+                                  "the address you read this file from"})
 
 
 def _lead_file(entry: dict, name: str) -> tuple[bytes, str] | None:
@@ -593,9 +592,11 @@ def route(path: str) -> str:
     return sub if sub in ROUTES else "other"
 
 
-def serve(h, folder, base: str, limits, address: str) -> None:
+def serve(h, folder, base: str, limits, address: str, config: dict | None = None,
+          config_path=None) -> None:
     """Every /traffic-kit/ request on the beacon helper (GET, HEAD, POST).
-    `limits`: {route: a Limiter} (one per ROUTES), or one Limiter for all."""
+    `limits`: {route: a Limiter} (one per ROUTES), or one Limiter for all.
+    `config`, `config_path`: the install's, for POST .../hooksecret."""
     path = h.path.split("?", 1)[0][len(link.PREFIX):]
     if path == "llms.txt":
         if h.command == "POST":
@@ -606,9 +607,12 @@ def serve(h, folder, base: str, limits, address: str) -> None:
         return _send(h, 429, "Too many tries. Wait a minute and try again.\n")
     code, _, sub = path.partition("/")
     if h.command == "POST":
-        if sub != "report":
-            return _send(h, 405, "Only the report is sent with POST.\n")
-        return _report(h, folder, code)
+        if sub == "report":
+            return _report(h, folder, code)
+        if sub == "hooksecret":
+            from . import agent_hooks
+            return agent_hooks.answer(h, folder, code, config, config_path)
+        return _send(h, 405, "Only the report and a hook secret are sent with POST.\n")
     entry = find(folder, code)
     if not sub:
         if entry is None:                          # an install link, or unknown: as before

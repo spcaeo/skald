@@ -22,7 +22,7 @@ import { call } from "./ipmanager.js";
 import { ME, sessions } from "../access.js";
 import { DEMO } from "../demo.js";
 import { store } from "../extras.js";
-import { setupItems, setupDone } from "../setup-items.js";
+import { setupItems, setupDone, agentJobsLeft } from "../setup-items.js";
 import { adminFold } from "./setup-common.js";
 
 const KEY = (site) => `ti-setup-hidden:${site}`;
@@ -51,6 +51,10 @@ async function ask(site, fresh = false) {
 /* The line a Set up dialog fixes, for a dialog opened from a link (its words for the server admin). */
 export async function itemFor(m, act) {
   try { return setupItems(m, await ask(m.site)).find((i) => i.act === act) || null; } catch { return null; }
+}
+/* The open lines an AI agent can do (setup=all from a link), as job ids. */
+export async function agentJobsFor(m) {
+  try { return agentJobsLeft(setupItems(m, await ask(m.site))); } catch { return []; }
 }
 /* Every list on the page asks again (a dialog opened from a link closed). */
 export function refreshChecklists() {
@@ -85,9 +89,13 @@ export function setupChecklist(m, { where = "overview" } = {}) {
   const pack = h("button", { type: "button", class: "btn primary su-pack-go" }, "Send set-up to someone");
   const head = h("div", { class: "su-head" }, h("h2", null, `Set up ${m.site}`), left, h("span", { class: "grow" }), pack,
     hide ? h("span", { class: "su-hide-w" }, hide, h("small", { class: "su-where" }, "Always in Settings › Connections")) : null);
+  // 2.39: one line for the AI agent for every open line it can do, when two or more are left
+  // (setup=all&jobs=..., agent-first.js allDialog).
+  const everything = h("button", { type: "button", class: "btn primary su-agent-go" }, "Set up everything left with your AI agent");
+  const agentRow = h("div", { class: "su-agent", hidden: true }, everything, h("small", { class: "su-agent-what" }));
   const box = h("section", { class: `sheet su${always ? " su-always" : ""}`, "aria-label": `Set up ${m.site}` }, head,
     h("p", { class: "sub" }, always ? "What works and what is left for this site. Set up walks you through each step; a line ticks itself once Skald sees it working."
-      : "What works and what is left. Set up walks you through each step; a line ticks itself once Skald sees it working."), list);
+      : "What works and what is left. Set up walks you through each step; a line ticks itself once Skald sees it working."), agentRow, list);
   if (hide) hide.addEventListener("click", () => { store.set(KEY(m.site), true); box.remove(); });
 
   // A Set up button: its dialog, then both answers asked again when it closes.
@@ -100,10 +108,15 @@ export function setupChecklist(m, { where = "overview" } = {}) {
     } finally { btn.disabled = false; }
   }
   pack.addEventListener("click", () => setUp({ act: "pack" }, pack));
+  let jobs = [];
+  everything.addEventListener("click", () => setUp({ act: "all", jobs }, everything));
   const draw = (items) => {
     const todo = items.filter((i) => !i.optional && i.state !== "done").length;
     left.textContent = todo ? `${todo} of ${items.filter((i) => !i.optional).length} left` : "All set";
     list.replaceChildren(...items.map((i) => row(i, { manage: true, onSetUp: setUp })));
+    jobs = agentJobsLeft(items);
+    agentRow.hidden = jobs.length < 2;
+    agentRow.lastChild.textContent = jobs.length < 2 ? "" : `One line for your agent: ${items.filter((i) => jobs.includes(i.act)).map((i) => i.title).join(", ")}.`;
   };
   const show = (got) => {
     const items = setupItems(m, got);

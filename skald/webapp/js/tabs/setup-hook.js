@@ -258,7 +258,7 @@ function setUpPanel(st, w) {
     ...sendOn, helpLink("webhooks", `${t.name}, step by step`)];
 }
 
-export async function hookDialog(site, { onClose = null, route = null, start = 0 } = {}) {
+export async function hookDialog(site, { onClose = null, route = null, start = 0, wrap = null } = {}) {
   const r = await call(`integrations?site=${encodeURIComponent(site)}`);
   const tools = r.ok ? (r.tools || []).filter((t) => WAYS[t.tool]) : [];
   // A lead secret made earlier in this page is still known (setup-pack.js keeps it).
@@ -269,10 +269,10 @@ export async function hookDialog(site, { onClose = null, route = null, start = 0
   // The ways offered: each tool the server takes, and WordPress when it takes "lead".
   const ways = ORDER.filter((id) => tools.some((t) => t.tool === toolOf(id)));
   if (!tools.length) {
-    return wizard({ route, start, title: "Connect your leads", subtitle: `For ${site}. Optional.`, key: "setup-lead", onClose,
+    return wizard({ route, start, wrap, title: "Connect your leads", subtitle: `For ${site}. Optional.`, key: "setup-lead", onClose,
       steps: [{ name: "Not available", draw: () => [h("p", { class: "msg err" }, why(r, "The hooks could not be loaded."))] }] });
   }
-  return wizard({ route, start,
+  return wizard({ route, start, wrap,
     title: "Connect your leads", subtitle: `For ${site}. Optional.`, key: "setup-lead", onClose, state: st,
     steps: [
       { name: "Where leads come from",

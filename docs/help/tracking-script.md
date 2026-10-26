@@ -32,6 +32,8 @@ The tag looks like this. Always copy yours from the page, because the address an
 
 If the Integrations page is not in your Settings menu, your server does not use accounts, or you are not an admin. Ask the person who runs your Skald server for the tag.
 
+Or let your AI agent add it: on the site's **Set up** list, press **Set up** on **Script tag events**, then pick your agent. It gets one line, checks whether the tag is already in your shared `<head>`, adds it only if it is missing, and reports back. See [Your AI agent, in every set-up dialog](connections.md#your-ai-agent-in-every-set-up-dialog).
+
 ## More than one site
 
 Since Skald 2.9.0, every site on your Skald can use the tag, not only the first one.

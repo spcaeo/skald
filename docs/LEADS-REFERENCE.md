@@ -64,7 +64,7 @@ Then `/mcp` in Claude Code shows `skald` connected. The JSON form, for a project
   "headers": {"Authorization": "Bearer ${SKALD_MCP_TOKEN}"}}}}
 ```
 
-The 20 tools (all **READ**). Dates are `YYYY-MM-DD` in the site's zone; no dates means the last
+The 22 tools (all **READ** but `setup_line`). Dates are `YYYY-MM-DD` in the site's zone; no dates means the last
 7 whole days.
 
 | Tool | | What it answers |
@@ -88,6 +88,8 @@ The 20 tools (all **READ**). Dates are `YYYY-MM-DD` in the site's zone; no dates
 | `page_changes` | READ | the page changes marked, and the before/after verdict of each measure (leads among them) |
 | `ai_readiness` | READ | pages AI can't read well, or one page's AI readiness |
 | `changed_pages` | READ | pages changed in the last 30 days and whether they get found |
+| `setup_left` | READ | (2.39.0) the site's open set-up lines, each with the job an AI agent can do and its dialog's address |
+| `setup_line` | MAKES A LINE | (2.39.0) **`setup` scope only.** The one-time line for an AI agent for the jobs given, as the dashboard's **Your AI agent** makes it |
 | `find_person` | READ | **`read_private` only.** One IP, email, visitor ID or lead ref: visits, leads, every conversion (test, cancelled, removed too). Each call is audit-logged. Any ref is found by its `external_ref` since 2.26.0 (section 7) |
 
 Also two resources (`skald://docs/api`, `skald://docs/counting`), two per site

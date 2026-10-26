@@ -8,7 +8,8 @@
     skald account reset-link | disable | enable | totp-off EMAIL
     skald account install-admin EMAIL on|off
     skald site assign SITE --org SLUG
-    skald token create NAME [--scope read|read_private|mcp|ingest ...] [--site S] [--org SLUG]
+    skald token create NAME [--scope read|read_private|mcp|ingest|setup ...] [--site S]
+                           [--org SLUG]
 
 `account` (one person's sign-in) is singular on purpose: `skald user` is
 already the htpasswd command of `access.mode: basic` (access.py) and stays

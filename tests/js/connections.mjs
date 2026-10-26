@@ -75,6 +75,7 @@ assert.equal(words.purposeOf(["read"]), "Reading figures");
 assert.equal(words.purposeOf(["read", "read_private"]), "Reading figures and addresses");
 assert.equal(words.purposeOf("mcp"), "AI assistant (MCP)");
 assert.equal(words.purposeOf(["read", "mcp"]), "Reading figures, AI assistant (MCP)");
+assert.equal(words.purposeOf(["mcp", "setup"]), "AI assistant (MCP), Making set-up lines for an AI agent");
 
 // The page: three cards, then Your tokens with the real tokens and their purposes.
 const root = document.createElement("div");
@@ -264,6 +265,12 @@ assert.equal(rpc, 2);
 root.querySelectorAll(".cn-card button").find((b) => b.getAttribute("aria-label") === "Set up: Connect an AI assistant (MCP)").click();
 await tick();
 assert.ok(dialog().textContent.includes("Connect an AI assistant (MCP)"));
+// 2.39: the guide at the top, then Your AI agent or By hand; by hand, the steps as before.
+assert.equal(dialog().querySelector(".cn-guide a").textContent, "Read the MCP guide");
+assert.match(dialog().querySelector("h3.cn-h").textContent, /^Step 1 of 3: Your AI agent, or by hand\?/);
+dialog().querySelector("button.ag-hand").click();
+await tick();
+assert.match(dialog().querySelector("h3.cn-h").textContent, /^Step 2 of 4: Token/);
 await next();
 assert.ok(dialog().textContent.includes("claude mcp add --transport http skald"));
 

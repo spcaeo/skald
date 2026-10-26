@@ -16,7 +16,8 @@ ROOT = Path(__file__).resolve().parent.parent
 NAMES = {"list_sites", "overview", "breakdown", "top_pages", "ai_activity", "leads", "funnel",
          "compare", "page_story", "live_today", "data_quality", "site_health", "conversions",
          "find_person", "what_changed", "todos", "lost_pages", "page_changes", "ai_readiness",
-         "changed_pages"}
+         "changed_pages", "setup_left", "setup_line"}
+WRITES = {"setup_line"}     # 2.39.0: the one tool that makes something (a set-up line)
 
 
 def rpc(method, params=None, mid=1):
@@ -100,7 +101,8 @@ class Protocol(unittest.TestCase):
             with self.subTest(tool=t["name"]):
                 self.assertEqual(t["inputSchema"]["type"], "object")
                 self.assertTrue(t["description"])
-                self.assertIs(t["annotations"]["readOnlyHint"], True)
+                self.assertIs(t["annotations"]["readOnlyHint"], t["name"] not in WRITES)
+                self.assertIs(t["annotations"]["destructiveHint"], False)
                 self.assertNotIn("run", t)
                 for name, p in t["inputSchema"]["properties"].items():
                     self.assertTrue(p.get("description"), name)

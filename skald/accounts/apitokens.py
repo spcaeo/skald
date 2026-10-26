@@ -9,6 +9,11 @@ organisation (and, if it names sites, only those). Scopes:
   read_private   also the files that hold addresses (tokens.PRIVATE)
   mcp            the MCP endpoint
   ingest         post log lines to /traffic-ingest/<site> (ingest.py)
+  setup          (2.39.0) the MCP tool setup_line: make a set-up line for an AI
+                 agent. Reads nothing by itself (not even with read: the MCP
+                 endpoint needs mcp too). Only an owner or admin of the
+                 organisation (or the server: "cli") may make it, only for exactly
+                 one site, and only together with mcp.
 
 `private=True` is the old flag and means `read_private`. `check` writes
 `last_used` at most once a minute per token.
@@ -30,7 +35,7 @@ from .. import tokens as old_tokens
 from . import auditlog
 from . import db as base
 
-SCOPES = ("read", "read_private", "mcp", "ingest")
+SCOPES = ("read", "read_private", "mcp", "ingest", "setup")
 PRIVATE = old_tokens.PRIVATE
 DENIED = "unrecognised or revoked token"
 
@@ -68,6 +73,19 @@ def creator_ok(db, org_id, created_by) -> bool:
     return row is not None and not row[0] and row[1] in ("owner", "admin")
 
 
+def _setup_ok(db, org_id, sites, scopes, actor) -> None:
+    """The setup scope's rules (2.39.0), or ValueError in plain words."""
+    if "setup" not in scopes:
+        return
+    if not creator_ok(db, org_id, actor):
+        raise ValueError("Only an owner or admin may make a token that makes set-up lines.")
+    if not sites or len(sites) != 1:
+        raise ValueError("A token that makes set-up lines is for exactly one site: choose one.")
+    if "mcp" not in scopes:
+        raise ValueError("A token that makes set-up lines works through the MCP server: "
+                         "give it the mcp scope too.")
+
+
 def create(db, org_id, name, sites=None, private=False, scopes=("read",), actor="cli") -> str:
     """The token, to show once; only its hash is kept."""
     name = " ".join(str(name or "").split())[:60]
@@ -78,6 +96,7 @@ def create(db, org_id, name, sites=None, private=False, scopes=("read",), actor=
     with base.tx(db):
         if not db.execute("SELECT 1 FROM orgs WHERE id = ?", (org_id,)).fetchone():
             raise ValueError("There is no such organisation.")
+        _setup_ok(db, org_id, sites, scopes, actor)
         own = {r[0] for r in db.execute("SELECT name FROM sites WHERE org_id = ?", (org_id,))}
         foreign = [s for s in sites or () if s not in own]
         if foreign:

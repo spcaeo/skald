@@ -27,16 +27,22 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-26-2.38.0",
+  id: "2026-10-26-2.39.0",
   items: [
+    ["Your AI agent, in every set-up job", "each Set up dialog (logs, the script tag, leads, Next.js pages, page assets, privacy, MCP) asks: your AI agent, or by hand? The agent checks first and changes only what is missing.", "connections"],
+    ["Set up everything left", "one line for your AI agent for every open set-up job, at the top of a site's Set up list.", "connections"],
+    ["Its findings wait for you", "the page assets and privacy settings your agent finds show with Apply; Skald changes its own settings only when you press it.", "connections"],
+    ["Ask your assistant what is left", "two MCP tools: setup_left lists what is left to set up; setup_line makes the line, with a token that has Set-up lines (AI agent).", "mcp"],
+    ["Fewer false alarms", "a tie at a list's \"(all others)\" cut no longer withholds a day; a quiet site no longer shows \"no page assets\".", "connections"],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.38.0
     ["Sites grouped by organisation", "in two or more organisations, the site switcher and All sites list your sites under each organisation's name; Team says whose team it is and which sites it sees.", "sign-in-and-team"],
     ["410 gone counts as handled", "Site › Not found and the to-dos no longer list an address you answer 410 on purpose; a redirect, to your site or another, counts as fixed.", "what-to-fix"],
     ["Setup continues where you stopped", "All sites' bright Setup button opens the wizard at the step you reached, in the site's own organisation, and saves there.", "sign-in-and-team"],
     ["Moving a site keeps everything working", "a site given to another organisation takes its settings, its set-up progress and the tokens made for it alone along.", "sign-in-and-team"],
     ["Visitor IDs off means none from your tools either", "a booking, form or payment tool's own field for the visitor ID is no longer kept when the site has visitor IDs off.", "privacy"],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.37.0
     ["Ask your AI assistant what to fix", "the MCP server has six new read-only tools: what changed, the to-dos, lost pages, page changes and their verdict, AI readiness and changed pages.", "mcp"],
     ["The live count is readable again", "Overview's \"visitors on the site now\" shows its number full size (since 2.35.0 it was a small dot).", "getting-started"],

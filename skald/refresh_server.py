@@ -443,7 +443,8 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
                                         config_path, out)
             if mcp_http.is_mcp(self.path):
                 return mcp_http.handle_http(self, config, live_dir, out, None,
-                                            history_path=history_path, allowed_origins=allowed)
+                                            history_path=history_path, allowed_origins=allowed,
+                                            config_path=config_path)
             if billing_api.is_hook(self.path):          # Stripe's signed events (saas)
                 return billing_api.hook(self, config, live_dir)
             if signup_api.is_signup(self.path):         # before auth_api: /traffic-auth/signup
@@ -518,7 +519,8 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
                                         config_path, out)
             if mcp_http.is_mcp(self.path):
                 return mcp_http.handle_http(self, config, live_dir, out, None,
-                                            history_path=history_path, allowed_origins=allowed)
+                                            history_path=history_path, allowed_origins=allowed,
+                                            config_path=config_path)
             if signup_api.is_signup(self.path):
                 return signup_api.handle(self, False, config, live_dir, allowed, same_origin,
                                          config_path, out)

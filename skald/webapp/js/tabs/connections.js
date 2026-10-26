@@ -21,6 +21,7 @@ import { taskCard, ICONS } from "./conn-ui.js";
 import { sendDialog } from "./conn-send.js";
 import { apiDialog, mcpDialog } from "./conn-read.js";
 import { sampleDialog } from "./conn-sample.js";
+import { agentFirst } from "./agent-first.js";
 import tokens from "./tokens.js";
 import { sharesSection } from "./conn-share.js";
 import { setupChecklist } from "./checklist.js";
@@ -62,17 +63,21 @@ function basic() {
 }
 
 const DIALOGS = { send: sendDialog, api: apiDialog, mcp: mcpDialog, sample: sampleDialog };
-function openConn(name, site, data, { onClose = null, start = 0 } = {}) {
-  return DIALOGS[name](site, data, { onClose, route: { key: "conn", value: name }, start });
+// 2.39: the MCP dialog opens on "Your AI agent, or by hand?" (agent-first.js, job mcp);
+// agent and link: the address's.
+function openConn(name, site, data, { onClose = null, start = 0, agent = "", link = "" } = {}) {
+  const wrap = name === "mcp" ? agentFirst(["mcp"], site, { agent, link }) : null;
+  return DIALOGS[name](site, data, { onClose, route: { key: "conn", value: name }, start, wrap });
 }
 
-/* conn=send|api|mcp&step=<n>, from a link: the dialog at that step for an admin; the line otherwise. */
-export async function openConnKey(name, m, step = 1) {
+/* conn=send|api|mcp&step=<n>(&agent=<id>&link=<id>), from a link: the dialog at that step for
+   an admin; the line otherwise. s: the address's state. */
+export async function openConnKey(name, m, step = 1, share = false, s = {}) {
   if (!DIALOGS[name]) return "That connection dialog is not in this version of the page.";
   if (DEMO.on) return "Setting up a connection needs a running Skald: not available in the demo.";
   if (!sessions() || isViewer()) return "Not available to your role.";
   const r = await call("sites");
-  return openConn(name, m.site, r.ok ? r : {}, { start: Math.max(0, step - 1) });
+  return openConn(name, m.site, r.ok ? r : {}, { start: Math.max(0, step - 1), agent: s.agent || "", link: s.link || "" });
 }
 
 // The demo: the set-up list, the three tasks and the tokens, from the demo's own answers.
