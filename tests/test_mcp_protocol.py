@@ -16,8 +16,9 @@ ROOT = Path(__file__).resolve().parent.parent
 NAMES = {"list_sites", "overview", "breakdown", "top_pages", "ai_activity", "leads", "funnel",
          "compare", "page_story", "live_today", "data_quality", "site_health", "conversions",
          "find_person", "what_changed", "todos", "lost_pages", "page_changes", "ai_readiness",
-         "changed_pages", "setup_left", "setup_line"}
-WRITES = {"setup_line"}     # 2.39.0: the one tool that makes something (a set-up line)
+         "changed_pages", "setup_left", "setup_line", "fix_todo", "mark_todo_done"}
+# 2.39.0: setup_line makes a set-up line; 2.41: mark_todo_done marks a to-do done.
+WRITES = {"setup_line", "mark_todo_done"}
 
 
 def rpc(method, params=None, mid=1):

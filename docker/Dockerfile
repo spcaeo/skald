@@ -49,7 +49,8 @@ json.dump({"schema_version": 1, "name": r("NAME"), "version": r("VERSION"), "tag
       > /usr/local/bin/skald \
  && chmod 0755 /usr/local/bin/skald /opt/skald/docker/entrypoint.py \
  && python3 -m compileall -q /opt/skald/skald \
- && nginx -V 2>&1 | grep -q http_auth_request_module
+ && nginx -V 2>&1 | grep -q http_auth_request_module \
+ && nginx -V 2>&1 | grep -q http_gzip_static_module
 
 WORKDIR /opt/skald
 # No USER line on purpose: the entrypoint starts as root only to give a data disk

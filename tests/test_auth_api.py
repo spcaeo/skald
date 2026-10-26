@@ -6,6 +6,7 @@ from __future__ import annotations
 import io
 import sys
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -13,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from auth_support import A, B, PW, SAME, FakeRunner, Server  # noqa: E402
 
 from skald import accounts, auth_api  # noqa: E402
-from skald.accounts import auditlog, totp  # noqa: E402
+from skald.accounts import auditlog, sessions, totp  # noqa: E402
 from skald.refresh_server import make_handler  # noqa: E402
 
 
@@ -190,6 +191,59 @@ class Check(Server):
 
         handler(Socket(), ("198.51.100.9", 5555), None)
         self.assertEqual(int(out.getvalue().split()[1]), 403)
+
+
+class SharedCodePass(Server):
+    """The app's code: a session that passed the full check in the last 30 s goes
+    through again without the accounts database; a site's files never do."""
+
+    def setUp(self):
+        super().setUp()
+        auth_api._shared.clear()
+        self.now = [1000.0]
+        patcher = mock.patch.object(auth_api.time, "monotonic", lambda: self.now[0])
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.addCleanup(auth_api._shared.clear)
+
+    def end_elsewhere(self, cookie):
+        db = self.db()
+        try:
+            sessions.end(db, cookie)
+        finally:
+            db.close()
+
+    def test_code_passes_for_a_while_a_site_file_never(self):
+        cookie = self.login("bob@example.com").cookie
+        code = "/traffic/_app/js/main.js?v=0a1b2c3d4e5f"
+        self.assertEqual(self.check(code, cookie).status, 200)
+        self.end_elsewhere(cookie)                       # e.g. signed out on another device
+        got = self.check(code, cookie)
+        self.assertEqual(got.status, 200)
+        self.assertEqual(got.header("X-Skald-User"), "bob@example.com")
+        self.assertEqual(self.check(f"/traffic/{B}/data/overview.json", cookie).status, 401)
+        self.now[0] += auth_api.SHARED_SECONDS
+        self.assertEqual(self.check(code, cookie).status, 401)
+
+    def test_no_pass_without_a_full_check_first(self):
+        cookie = self.login("bob@example.com").cookie
+        self.assertEqual(self.check(f"/traffic/{B}/", cookie).status, 200)   # a site page
+        self.end_elsewhere(cookie)
+        self.assertEqual(self.check("/traffic/_app/app.css?v=3", cookie).status, 401)
+        self.assertEqual(self.check("/traffic/_app/app.css?v=3").status, 401)
+        self.assertEqual(self.check("/traffic/_app/app.css?v=3", "made-up").status, 401)
+
+    def test_signing_out_here_ends_the_pass_at_once(self):
+        cookie = self.login().cookie
+        self.assertEqual(self.check("/traffic/_app/app.css?v=3", cookie).status, 200)
+        self.call("POST", "/traffic-auth/logout", None, SAME, cookie=cookie)
+        self.assertEqual(self.check("/traffic/_app/app.css?v=3", cookie).status, 401)
+
+    def test_the_pass_is_kept_by_a_hash_never_the_cookie(self):
+        cookie = self.login().cookie
+        self.check("/traffic/build.json", cookie)
+        self.assertTrue(auth_api._shared)
+        self.assertNotIn(cookie, auth_api._shared)
 
 
 class Logout(Server):

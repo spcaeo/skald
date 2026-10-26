@@ -128,16 +128,60 @@ const written = csv(T.columnsOf(lostTodo), lostTodo.rows);
 assert.ok(written.startsWith("Old address,People,Closest live page,How close"));
 assert.ok(written.includes("/old-pricing/,7,/pricing/,Same topic") && written.includes("/gone/,2,,No good match"));
 
-// ---- Copy link: this to-do's address, a green tick for 1.5 s
+// ---- 2.41, one button: "Fix this" replaces Download CSV, Copy link and Send to team;
+// the link is the copy icon beside the title (green tick for 1.5 s)
+go("#overview/insights");
+box = T.todoSection(m, S.read());
+const lostCard = box.querySelectorAll("article.td").find((a) => a.id === "td-lost-pages");
+const btnWords = (el) => el.querySelectorAll(".td-acts button").map(text);
+assert.deepEqual(btnWords(lostCard), ["Fix this", "Show the list (2)", "Mark done", "Not now"], "one main button, no row of choices");
+for (const gone of ["Download CSV", "Copy link", "Send to team"]) assert.ok(!text(box).includes(gone), `${gone}: inside Fix this now`);
+assert.ok(lostCard.querySelector("a.td-open") && text(lostCard.querySelector("a.td-open")).startsWith("See it in "), "where it shows: a quiet link");
 mock.timers.enable({ apis: ["setTimeout"] });
-const copyLink = box.querySelectorAll("button.td-copy")[0];
+const copyLink = lostCard.querySelector(".td-title button.ua-copy");
+assert.equal(copyLink.getAttribute("aria-label"), 'Copy the link to "Send old pages somewhere useful"');
 copyLink.click();
 await Promise.resolve(); await Promise.resolve();
 assert.ok(copied.at(-1).endsWith("#overview/insights?todo=lost-pages") && copied.at(-1).startsWith("https://app.example.com/traffic/example.com/"), copied.at(-1));
-assert.ok(copyLink.classList.contains("ok") && text(copyLink).includes("Copied"));
+assert.ok(lostCard.querySelector(".td-title .ua").classList.contains("ua-ok"), "the green tick");
 mock.timers.tick(U.TIMING.tick);
-assert.ok(!copyLink.classList.contains("ok") && text(copyLink) === "Copy link");
+assert.ok(!lostCard.querySelector(".td-title .ua").classList.contains("ua-ok"));
 mock.timers.reset();
+// Fix all (N): every open to-do an agent can fix (lost and leave here; the done one is not).
+const fixAll = box.querySelector(".td-top button.td-fixall");
+assert.equal(text(fixAll), "Fix all (2)");
+fixAll.click();
+let q = new URLSearchParams(location.hash.split("?")[1]);
+assert.equal(q.get("fix"), "all");
+go("#overview/insights");
+lostCard.querySelectorAll("button").find((b) => text(b) === "Fix this").click();
+q = new URLSearchParams(location.hash.split("?")[1]);
+assert.equal(q.get("todo"), "lost-pages");
+assert.equal(q.get("fix"), "1");
+// New to-dos (first_seen in the window's last 7 days): one line on top.
+assert.deepEqual(T.newOnes([{ id: "a", first_seen: "2026-10-24" }, { id: "b", first_seen: "2026-10-23" }, { id: "c" }], { last: "2026-10-30" }).map((t) => t.id), ["a"]);
+const fresh = { x: { todos: { ...todos, todos: [{ ...lostTodo, first_seen: "2026-10-29" }, leaveTodo] } } };
+go("#overview/insights");
+box = T.todoSection(fresh, S.read());
+assert.ok(text(box.querySelector(".td-new")).includes("1 new to-do your AI agent can fix."));
+box.querySelector(".td-new a.td-go").click();
+q = new URLSearchParams(location.hash.split("?")[1]);
+assert.deepEqual([q.get("todo"), q.get("fix"), q.get("fixby")], ["lost-pages", "1", "agent"]);
+go("#overview/insights");
+
+// ---- Me's lines: the same rules as closest_page.rules
+const FX = await import(new URL("tabs/todo-fix.js", JS));
+assert.deepEqual(FX.rules("/old-pricing/", "/pricing/"), { nginx: "location = /old-pricing/ { return 301 /pricing/; }", apache: "Redirect 301 /old-pricing/ /pricing/" });
+assert.deepEqual(FX.rules("/gone/", null), { nginx: "location = /gone/ { return 410; }", apache: "Redirect gone /gone/" });
+assert.deepEqual(FX.rules("/caf%C3%A9 x/", "/"), { nginx: null, apache: null }, "a space: written by hand");
+assert.deepEqual(FX.rules("/a/?utm=1", "/b/"), FX.rules("/a/", "/b/"), "the query is not part of the rule");
+assert.equal(FX.serverOf({ server: "Apache/2.4" }), "apache");
+assert.equal(FX.serverOf({ server: "LiteSpeed" }), "apache");
+assert.equal(FX.serverOf({}), "nginx");
+const lines = FX.linesFor(lostTodo, lostTodo.rows, "nginx");
+assert.ok(lines.text.includes("location = /old-pricing/ { return 301 /pricing/; }") && lines.text.includes("location = /gone/ { return 410; }   # no live page close to it"));
+assert.equal(lines.count, 2);
+assert.ok(FX.linesFor({ kind: "markdown" }, [{ path: "/pricing.md", page: "/pricing/" }], "apache").text.includes("RewriteCond %{REQUEST_FILENAME} !-f"));
 
 // ---- a to-do the address names that is not on the list
 go("#overview/insights?todo=sitemap");
@@ -152,8 +196,149 @@ helper = { marks: {}, role: "admin", can_mark: true, mail: { ready: true, why: "
 await M.loadMarks(true);
 go("#overview/insights");
 box = T.todoSection(m, S.read());
-assert.ok(box.querySelectorAll("button").some((b) => text(b) === "Send to team"), "offered");
+assert.ok(!box.querySelectorAll("button").some((b) => text(b) === "Send to team"), "inside Fix this, not on the card");
 assert.ok(!box.querySelector("article.td-done"), "the helper's marks win: the done to-do is open again");
+
+// ---- 2.41: Fix this, "Who will do it?" (js/tabs/todo-fix.js): every choice in the address,
+// the line and its code never; a reload watches the same line; closing takes it all away.
+{
+  const CODE = "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcd";
+  const LINK = "0f3a9c2e7b1d4a58";
+  const fullRows = [...lostTodo.rows, { path: "/older/", people: 1, target: "/new/", match: "exact" }];
+  let reports = {};
+  const base = globalThis.fetch;
+  globalThis.fetch = async (path, opts = {}) => {
+    const body = opts.body ? JSON.parse(opts.body) : null;
+    if (path === "settings/todo-agent") {
+      posted.push([path, body]);
+      if (body.act === "make") return { ok: true, status: 200, json: async () => ({ ok: true, line: `fix the Skald to-do "${lostTodo.title}" for example.com — read https://app.example.com/traffic-kit/llms.txt and use code ${CODE} (works once, 24 hours)`,
+        steps_url: `https://app.example.com/traffic-kit/${CODE}/steps`, link_id: LINK, expires_at: new Date(Date.now() + 864e5).toISOString(), todos: body.items }) };
+      if (body.act === "status") return { ok: true, status: 200, json: async () => ({ ok: true, state: "opened", opened_at: "2026-10-26T10:00:00Z", keys_at: "2026-10-26T10:00:05Z", reports }) };
+      return { ok: true, status: 200, json: async () => ({ ok: true, state: "cancelled" }) };
+    }
+    if (String(path).startsWith("settings/todo-rows")) {
+      posted.push([path, null]);
+      return { ok: true, status: 200, json: async () => ({ ok: true, todo: { ...lostTodo, rows: fullRows, rows_total: 3 } }) };
+    }
+    return base(path, opts);
+  };
+  FX.setPoll({ every: 5, slow: 5 });
+  const realCreate = document.createElement;
+  document.createElement = (t) => { const el = realCreate(t); if (t === "dialog") Object.assign(el, { open: false, showModal() { this.open = true; }, close() { this.open = false; } }); return el; };
+  const qs = () => new URLSearchParams(location.hash.split("?")[1]);
+  const tile = (d, who) => d.el.querySelectorAll("button.fx-who").find((b) => b.dataset.who === who);
+
+  // A to-do the address names that is not on the list.
+  go("#overview/insights?todo=sitemap&fix=1");
+  assert.equal(await FX.openFixKey("1", m, S.read()), FX.GONE);
+
+  // Fix this: one question, three answers, nothing chosen yet.
+  go("#overview/insights?todo=lost-pages");
+  let d = FX.fixDialog([lostTodo], "1");
+  assert.equal(qs().get("fix"), "1");
+  assert.ok(text(d.el).includes("Who will do it?"));
+  assert.deepEqual(d.el.querySelectorAll("button.fx-who").map((b) => b.querySelector("b").textContent), ["My AI agent", "Me", "Someone else"]);
+
+  // Me: every row from Skald (not the browser's cut-down file), the server's lines, the CSV as a link.
+  tile(d, "me").click();
+  assert.equal(qs().get("fixby"), "me");
+  await tick();
+  assert.ok(posted.some(([p]) => p === "settings/todo-rows?item=lost-pages"), "every row asked for");
+  const pre = d.el.querySelector("pre.fx-lines");
+  assert.ok(text(pre).includes("location = /older/ { return 301 /new/; }"), "the row the browser file did not have");
+  assert.ok(pre.parentNode.querySelector("button.ua-copy"), "the lines: copy icon");
+  assert.ok(d.el.querySelectorAll("button").some((b) => text(b) === "Copy the lines"));
+  assert.ok(d.el.querySelector("a.fx-csv") && text(d.el.querySelector("a.fx-csv")) === "Download CSV", "the CSV: a small link");
+  assert.ok(text(d.el).includes("3 rows"));
+  d.el.querySelectorAll(".fx-me .seg button").find((b) => text(b) === "Apache").click();
+  assert.ok(text(d.el.querySelector("pre.fx-lines")).includes("Redirect 301 /older/ /new/"));
+  assert.ok(text(d.el).includes(FX.UNDO_WORDS), "marking done changes no figure: said");
+
+  // Someone else: Send to team inside the same dialog.
+  tile(d, "someone").click();
+  assert.equal(qs().get("fixby"), "someone");
+  d.el.querySelector("select.td-to").value = "2";
+  d.el.querySelectorAll("button").find((b) => text(b) === "Send").click();
+  await tick();
+  assert.deepEqual(posted.at(-1), ["settings/todo-send", { item: "lost-pages", to: "2" }]);
+
+  // My AI agent: pressed, the line is made at once; the address gets its link id, never the code.
+  tile(d, "agent").click();
+  await tick();
+  assert.deepEqual(posted.filter(([p, b]) => p === "settings/todo-agent" && b.act === "make").at(-1)[1], { act: "make", items: ["lost-pages"] });
+  assert.equal(qs().get("fixby"), "agent");
+  assert.equal(qs().get("link"), LINK);
+  assert.ok(!location.hash.includes(CODE), "the code is never in the address");
+  assert.ok(!text(d.el.querySelector(".ag-line pre")).includes(CODE), "the code is hidden until Show code");
+  d.el.querySelectorAll("button").find((b) => text(b) === "Copy").click();
+  await tick();
+  assert.ok(copied.at(-1).includes(`use code ${CODE}`) && copied.at(-1).startsWith('fix the Skald to-do "Send old pages somewhere useful" for example.com'));
+  assert.ok(text(d.el).includes("Is it safe to paste this into a chat?") && text(d.el).includes("The worst a leaked line can do is mark one of these to-dos done"));
+  // The watch: the agent's report shows, with the exact change and the rows it left.
+  reports = { "lost-pages": { state: "done", at: "2026-10-26T10:05:00Z", change: "location = /old-pricing/ { return 301 /pricing/; }", files: ["deploy/nginx/site.conf"],
+    left: [{ row: "/gone/", why: "no live page close to it; asked before a 410" }], notes: "Tested with nginx -t and reloaded after your yes.", link_id: LINK } };
+  await tick(40);
+  const watch = d.el.querySelector(".fx-watch");
+  assert.ok(text(watch).includes("It read Skald's steps") && text(watch).includes("Send old pages somewhere useful: Done"), text(watch));
+  assert.ok(watch.querySelector(".fx-change pre") && text(watch.querySelector(".fx-change pre")).includes("return 301 /pricing/"));
+  assert.ok(watch.querySelector(".fx-change button.ua-copy"), "the change: copy icon");
+  assert.ok(text(watch).includes("Left for you (1)") && text(watch).includes("/gone/"));
+  const polls = posted.filter(([p, b]) => p === "settings/todo-agent" && b.act === "status").length;
+  await tick(40);
+  assert.equal(posted.filter(([p, b]) => p === "settings/todo-agent" && b.act === "status").length, polls, "every to-do reported: the watch stops");
+  d.close({ instant: true });
+  await tick();
+  assert.ok(!qs().get("fix") && !qs().get("fixby") && !qs().get("link"), "closed: the choice leaves the address");
+
+  // A reload (or a copied link) with fixby=agent&link=…: no new line, the same line watched.
+  FX.forgetLines();
+  go(`#overview/insights?todo=lost-pages&fix=1&fixby=agent&link=${LINK}`);
+  const makes = posted.filter(([p, b]) => p === "settings/todo-agent" && b.act === "make").length;
+  d = await FX.openFixKey("1", m, S.read());
+  await tick(20);
+  assert.equal(posted.filter(([p, b]) => p === "settings/todo-agent" && b.act === "make").length, makes, "an address never makes a line");
+  assert.equal(tile(d, "agent").getAttribute("aria-pressed"), "true");
+  assert.ok(text(d.el).includes("reported every to-do in this line") && text(d.el).includes("Send old pages somewhere useful: Done"), "all reported: said, no Make the line");
+  assert.ok(!d.el.querySelectorAll("button").some((b) => text(b) === "Make the line"));
+  // Cancel this line: it stops, and the link leaves the address.
+  d.el.querySelectorAll("button").find((b) => text(b) === "Cancel this line").click();
+  await tick();
+  assert.deepEqual(posted.at(-1), ["settings/todo-agent", { act: "cancel", link_id: LINK }]);
+  assert.ok(!qs().get("link") && text(d.el).includes("Cancelled. This line no longer works."));
+  d.close({ instant: true });
+
+  // Fix all (N): one line for every open to-do an agent can fix.
+  go("#overview/insights");
+  d = await FX.openFixKey("all", m, { ...S.read(), fixby: "agent" });
+  await tick();
+  assert.ok(text(d.el.querySelector(".dw-title")).includes("Fix all (3)"), "the helper's marks: the errors to-do is open again");
+  assert.ok(!posted.slice(-3).some(([p, b]) => p === "settings/todo-agent" && b.act === "make"), "from an address: only on Make the line");
+  d.el.querySelectorAll("button").find((b) => text(b) === "Make the line").click();
+  await tick();
+  assert.deepEqual(posted.filter(([p, b]) => p === "settings/todo-agent" && b.act === "make").at(-1)[1], { act: "make", items: ["lost-pages", "leave-0a1b2c3d", "server-errors"] });
+  d.close({ instant: true });
+
+  // A viewer: no line, said why.
+  helper.can_mark = false;
+  await M.loadMarks(true);
+  go("#overview/insights?todo=lost-pages");
+  d = FX.fixDialog([lostTodo], "1", { ...S.read(), fixby: "agent" });
+  assert.ok(text(d.el).includes("Only an owner or an admin can make the line for an AI agent."));
+  d.close({ instant: true });
+  helper.can_mark = true;
+
+  // The agent's report on the card, beside its marks (settings/todos' fixes).
+  helper.fixes = { "lost-pages": reports["lost-pages"] };
+  await M.loadMarks(true);
+  go("#overview/insights");
+  box = T.todoSection(m, S.read());
+  const note = box.querySelectorAll("article.td").find((a) => a.id === "td-lost-pages").querySelector(".fx-card");
+  assert.ok(note && text(note).includes("Your AI agent: Done") && text(note).includes("Tested with nginx -t"));
+  delete helper.fixes;
+  document.createElement = realCreate;
+  globalThis.fetch = base;
+}
+
 const doIt = box.querySelectorAll("button").find((b) => text(b) === "Mark done" && !b.hasAttribute("disabled"));
 doIt.click();
 await tick();
@@ -163,9 +348,7 @@ const notNow = box.querySelectorAll("button").find((b) => text(b) === "Not now" 
 notNow.click();
 await tick();
 assert.ok(text(box).includes("Not now (1)"));
-// Send to team: the dialog writes tdsend; who it goes to never goes in the address.
-box.querySelectorAll("button").find((b) => text(b) === "Send to team")?.click();
-assert.ok(/[?&]tdsend=/.test(location.hash));
+// Send to team: an older link with tdsend still opens it; who it goes to never goes in the address.
 const HTMLDialog = { open: false, showModal() { this.open = true; }, close() { this.open = false; } };
 const realCreate = document.createElement;
 document.createElement = (t) => { const el = realCreate(t); if (t === "dialog") Object.assign(el, HTMLDialog); return el; };

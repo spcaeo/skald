@@ -19,11 +19,11 @@ from __future__ import annotations
 from .data import SITE, Refused
 from .tools import SITE_ARG, schema, tool
 
-JOBS_ARG = {"type": "array", "minItems": 1, "maxItems": 6,
+JOBS_ARG = {"type": "array", "minItems": 1, "maxItems": 7,
             "items": {"type": "string", "enum": ["logs", "script", "lead", "rsc", "assets",
-                                                 "privacy"]},
+                                                 "privacy", "search"]},
             "description": "The jobs the line carries, as setup_left names them: logs, script, "
-                           "lead, rsc, assets, privacy. At least one."}
+                           "lead, rsc, assets, privacy, search. At least one."}
 STATE_WORDS = {"todo": "to do", "wait": "waiting", "unknown": "not checked"}
 
 
@@ -71,11 +71,13 @@ def dialog(base: str, site: str, act: str) -> str:
 @tool("setup_left", "What is left to set up",
       "The site's set-up checklist lines that are not done (the same lines as Settings › "
       "Set-up checklist): logs arriving, visits counted as people, Next.js "
-      "pages, countries, the script tag, a lead hook, a mail recipient, the privacy choice. "
+      "pages, countries, the script tag, a lead hook, a mail recipient, the privacy choice, "
+      "Search Console. "
       "Each open line has its state, one plain sentence, the address of its Set up dialog, "
-      "and `job` when an AI agent can do it (logs, script, lead, rsc, assets, privacy; "
-      "countries and mail are done by a person). Pass the jobs to setup_line to get one "
-      "line an AI agent follows.",
+      "and `job` when an AI agent can do it (logs, script, lead, rsc, assets, privacy, "
+      "search; countries and mail are done by a person). Pass the jobs to setup_line to get "
+      "one line an AI agent follows. When the user says \"Set up Skald for this site\", "
+      "start here.",
       schema({"site": SITE_ARG}))
 def setup_left(ctx, args):
     from .. import setup_items
@@ -139,15 +141,20 @@ def _maker():
       "Makes the one line an AI agent follows to set up the given jobs on the site "
       "(\"finish setting up Skald for <site> (...) - read <llms.txt> and use code <code>\"), "
       "exactly as the dashboard's \"Your AI agent\" choice makes it: works once, for 24 hours, "
-      "and ends the site's older lines whose keys were not taken. Needs a token with the "
-      "setup scope for this one site (made by an owner or admin). The agent fetches its keys "
+      "and ends the site's older lines whose keys were not taken (never another site's). "
+      "Needs a token with the setup scope for this one site (made by an owner or admin); "
+      "without `site`, the one site the token is for. If you work in the site's own code or "
+      "server, follow the line yourself at once. The agent fetches its keys "
       "with curl or Wget into a file, never in a chat; it checks first and changes only what "
       "is missing, and asks before any server change. Written to the audit log.",
       schema({"site": {**SITE_ARG, "description": "The site's name, e.g. example.com: the one "
-                                                  "site the setup token is for."},
-              "jobs": JOBS_ARG}, required=("site", "jobs")), read_only=False)
+                                                  "site the setup token is for (left out: "
+                                                  "that site)."},
+              "jobs": JOBS_ARG}, required=("jobs",)), read_only=False)
 def setup_line(ctx, args):
     site = args.get("site")
+    if site in (None, "") and ctx.setup is not None:
+        site = ctx.site(None)                        # the one site this token reads
     if not isinstance(site, str) or not SITE.match(site):
         raise Refused(f"{site!r} is not a site name; list_sites gives the names.")
     jobs = _jobs(args.get("jobs"))
@@ -192,12 +199,14 @@ def setup_line(ctx, args):
     data = {"site": site, "jobs": list(got.get("jobs") or jobs),
             **{k: got[k] for k in keep if k in got}}
     older = got.get("cancelled") or 0
-    text = [f"A set-up line for {site} ({', '.join(data['jobs'])}). Give it to the AI agent "
-            "that works on the site's code or server, as it is:",
+    text = [f"A set-up line for {site} ({', '.join(data['jobs'])}):",
             str(got.get("line") or ""),
             f"It works once, until {got.get('expires_at') or 'it runs out (24 hours)'}."
             + (f" It ended {older} older line{'s' if older != 1 else ''} whose keys were not "
                "taken." if older else ""),
+            "If you are the AI agent working in this site's own code or server, follow the "
+            "line yourself now: fetch its llms.txt and steps with curl in a shell, as they say. "
+            "Else give it, as it is, to the agent that works on the site.",
             "The agent reads the steps, checks first and changes only what is missing, asks "
             "before any server change, and takes its keys with curl or Wget into a file, never "
             "into a chat. Call setup_left afterwards: a line ticks itself once Skald sees it "

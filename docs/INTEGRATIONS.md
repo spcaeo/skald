@@ -701,6 +701,7 @@ most 10 webhooks a site):
 | `lead.won`, `lead.lost` | the team marked the lead (the lead database, a CRM) |
 | `ai.reading_changed` | a new AI alert (alerts_ai.py, alerts on): an assistant started or stopped reading a page, or its likely visits jumped or vanished; once per alert, never from a replay |
 | `alert.opened` | any new alert (alerts.py, alerts on), of every cause; once per alert, never from a replay |
+| `todo.new` | a to-do that newly qualified on Overview > Insights (todo_rows.py, at the data update); once per to-do and first day; 2.41 |
 
 `alert.opened` is `{"event","id","site","alert": {"id","cause","subject","severity","title"},
 "text" ("[<site>] <title>\n<detail>"),"figures": {"figure","threshold","unit" ("visits",
@@ -709,6 +710,11 @@ whose address is on `hooks.slack.com` (a Slack incoming webhook) is sent `{"text
 instead, for every event: the body's `text`, or one line made from a conversion's event,
 action, stage, source and landing page (outgoing.wire). It is still signed; Slack ignores
 the header.
+
+`todo.new` is `{"event","id","site","todo": {"id","kind","subject","title","proof","todo",
+"check"},"figures","rows_total","link" (the dashboard address that opens Fix this > My AI
+agent: `...#overview/insights?todo=<id>&fix=1&fixby=agent`),"first_seen" (the day),"text"}`.
+It never carries a code, a line or a row: the person makes the line by pressing.
 
 `ai.reading_changed` carries no conversion fields: `{"event","id","site","alert_id","cause"
 ("ai_started_reading"/"ai_stopped_reading"/"ai_sending_people"),"kind" ("started"/"stopped"/

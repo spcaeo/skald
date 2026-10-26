@@ -10,6 +10,8 @@ MCP token for "mcp"), then an **agent code**: an entry in link.py's store
 
     {"kind": "agent", "site", "made_at", "expires_at", "jobs",
      "token_id", "mcp_token_id" the tokens it made (null when its jobs need none)
+     "made_by"                  who made the line (a user id, "cli"): the search key
+                                route checks they are still an install admin
      "sealed", "sealed_lead",   the sending token, the lead secret, the report key and
      "sealed_report",           the MCP token, each sealed with its own keystream
      "sealed_mcp"               label (link.seal; never the install link's, so no other
@@ -67,11 +69,25 @@ On the beacon helper (beacon_server.py), `serve` answers:
                                       kept, each cleaned and capped. {"ok": true}
   POST /traffic-kit/<code>/hooksecret a booking, form or payment tool's hook secret, for
                                       a line with the lead job (agent_hooks.py)
+  POST /traffic-kit/<code>/searchkey  a Search Console service-account key file, read
+                                      from stdin, for a line with the search job
+                                      (agent_search.py)
+  GET  /traffic-kit/<code>/todo/<id>  a to-do line's to-do with every row, as JSON, with
+                                      the report key header (agent_todos.py, 2.41)
+  POST /traffic-kit/<code>/fix        a to-do line's report for one to-do, at most 256 KiB
+                                      (agent_todos.py): "done" marks it done in Skald
+
+A to-do line (Overview > Insights' Fix this, 2.41) is an agent code whose entry has
+`todos` ([{id, kind, title}]) and `fixes` ({id: {state, at}}); its jobs are todo-<kind>.
+It makes no token. A new to-do line ends only the site's older to-do lines; a set-up line
+only older set-up lines. `latest` reads one family at a time.
 
 Cache-Control no-store and X-Robots-Tag noindex on every answer (link._answer),
-a limit per caller address on every route but llms.txt, each route (ROUTES) with
-its own, so steps read many times never use up the keys' tries; no code, token
-or secret is ever logged.
+a limit per caller address and code on every route but llms.txt, each route
+(ROUTES) with its own, so steps read many times never use up the keys' tries,
+and one more per address across every code ("any"), so ten sessions on one
+machine can each set up their own site at the same time; no code, token or
+secret is ever logged.
 """
 from __future__ import annotations
 
@@ -100,7 +116,8 @@ REPORT_MOST = 16 * 1024
 NOTES_MOST = 1000
 STATES = ("waiting", "opened", "keys_taken", "expired", "cancelled", "unknown")
 # The routes, each with its own limit (beacon_server.py); "code" is the bare code.
-ROUTES = ("code", "steps", "keys", "install.sh", "leads", "report", "hooksecret", "other")
+ROUTES = ("code", "steps", "keys", "install.sh", "leads", "report", "hooksecret", "searchkey",
+          "todo", "fix", "other")
 WEB_READER = ("Fetch this with curl in a shell into a file; never with a web reader, which "
               "would put the keys in a chat. Nothing was used up: the keys are still there.\n")
 # A value an agent might paste by mistake: a sending token or a lead secret.
@@ -122,8 +139,9 @@ def make(folder, site: str, token: str | None, token_id: str | None, fields: dic
          lead_secret: str | None = None, lead_note: str = "none", leads: bool = True,
          found: dict | None = None, now: float | None = None, hours: int = link.HOURS,
          replace: bool = False, jobs=None, mcp_token: str | None = None,
-         mcp_token_id: str | None = None,
-         facts: dict | None = None) -> tuple[str, int, list[tuple[str, str | None, str]]]:
+         mcp_token_id: str | None = None, facts: dict | None = None,
+         made_by: str | None = None,
+         todos=None) -> tuple[str, int, list[tuple[str, str | None, str]]]:
     """(the code, when it expires, ended). Only the code's hash and the sealed
     keys are kept. `jobs`: agent_jobs.JOBS ids (None: the default, without
     "lead" when not `leads`). With `replace`, under the same lock: the site's
@@ -131,9 +149,16 @@ def make(folder, site: str, token: str | None, token_id: str | None, fields: dic
     whose keys were never taken give up their tokens (until mark_revoked).
     `ended`: [(link_id, a token_id to revoke, or None when its keys were
     taken, or "" when it made no token, "cancelled" or "expired")], one row
-    for each token to revoke."""
+    for each token to revoke. `todos` (2.41): [{id, kind, title}] makes a to-do line
+    (agent_todos.py): its jobs are the to-dos' kinds, and `replace` ends only the
+    site's older to-do lines (a set-up line only older set-up lines)."""
+    from . import agent_todos
     now = time.time() if now is None else now
-    jobs = agent_jobs.default(leads) if jobs is None else agent_jobs.clean(list(jobs))
+    if todos:
+        todos = agent_todos.clean(list(todos))
+        jobs = agent_todos.jobs_of(todos)
+    else:
+        jobs = agent_jobs.default(leads) if jobs is None else agent_jobs.clean(list(jobs))
     code = secrets.token_urlsafe(32)
     report_key = secrets.token_urlsafe(24)
     path = link.path_for(folder)
@@ -143,7 +168,7 @@ def make(folder, site: str, token: str | None, token_id: str | None, fields: dic
     with link._locked(path):
         links = link._load(path)
         if replace:
-            ended_now = _replace(links, site, now)
+            ended_now = _replace(links, site, now, bool(todos))
         links[link.digest(code)] = {
             "kind": KIND, "site": site, "made_at": int(now),
             "expires_at": int(now + hours * 3600), "jobs": jobs,
@@ -157,19 +182,24 @@ def make(folder, site: str, token: str | None, token_id: str | None, fields: dic
             "lead_note": lead_note if lead_note in LEAD_WORDS else "none",
             "found": found if isinstance(found, dict) else None,
             "facts": facts if isinstance(facts, dict) else None,
-            "opened_at": None, "keys_at": None, "reported_at": None, "report": None}
+            "made_by": str(made_by) if made_by is not None else None,
+            "opened_at": None, "keys_at": None, "reported_at": None, "report": None,
+            **({"todos": todos, "fixes": {}} if todos else {})}
         link._save(path, links, now)
     return code, int(now + hours * 3600), ended_now
 
 
-def _replace(links: dict, site: str, now: float) -> list[tuple[str, str | None, str]]:
+def _replace(links: dict, site: str, now: float,
+             todo: bool = False) -> list[tuple[str, str | None, str]]:
     """make's sweep, inside its lock: every code already in the store is older
     than the new one, whatever its made_at says (two calls may read the clock
     in one order and take the lock in the other). An older ended code whose
-    tokens are still to revoke (expired, or a revoke failed) is "expired"."""
+    tokens are still to revoke (expired, or a revoke failed) is "expired".
+    Only codes of the same family: a to-do line (`todo`) or a set-up line."""
     out = []
     for key, entry in links.items():
-        if entry.get("kind") != KIND or entry.get("site") != site:
+        if entry.get("kind") != KIND or entry.get("site") != site \
+                or bool(entry.get("todos")) != todo:
             continue
         was = state(entry, now)
         if was in ("waiting", "opened"):
@@ -398,7 +428,26 @@ def status(folder, site: str, lid: str, now: float | None = None) -> dict:
             "cancelled_at": when("cancelled_at"),
             "report": report, "expires_at": when("expires_at"),
             "jobs": (report or {}).get("jobs"), "tools": (report or {}).get("tools"),
-            "line_jobs": agent_jobs.of(entry) if entry else None}
+            "line_jobs": agent_jobs.of(entry) if entry else None,
+            **({"todos": entry["todos"], "fixes": entry.get("fixes") or {}}
+               if entry and entry.get("todos") else {})}
+
+
+def latest(folder, sites, now: float | None = None, todo: bool = False) -> dict:
+    """{site: its newest agent line's status (as `status`, plus link_id)},
+    for the sites given that have one: the "Lines for your sites" view
+    (kit_left.py) watches each site's own line after a reload. Read only.
+    `todo`: the newest to-do line instead (Insights' Fix this)."""
+    now = time.time() if now is None else now
+    want, best = set(sites), {}
+    for key, entry in link._load(link.path_for(folder)).items():
+        site = entry.get("site")
+        if entry.get("kind") != KIND or site not in want or bool(entry.get("todos")) != todo:
+            continue
+        if site not in best or float(entry.get("made_at") or 0) > best[site][1]:
+            best[site] = (key[:16], float(entry.get("made_at") or 0))
+    return {site: {"link_id": lid, **status(folder, site, lid, now)}
+            for site, (lid, _) in best.items()}
 
 
 # -------------------------------------------------------------- report
@@ -437,6 +486,28 @@ def _privacy(value) -> dict | None:
     url = _text(value.get("notice_url"), 300)
     if url and url.startswith(("https://", "http://")) and " " not in url:
         out["notice_url"] = url
+    return out
+
+
+PROPERTY = re.compile(r"^(?:sc-domain:[a-z0-9.-]{1,253}|https?://[^\s]{1,250}/)$")
+
+
+def _search(value) -> dict | None:
+    """{google_property, robot_added, bing_site}: a Search Console property
+    (sc-domain:<host> or an address ending in /), whether the user said they
+    added Skald's robot, the site's address in Bing. A recommendation only:
+    the user connects it in Skald."""
+    if not isinstance(value, dict):
+        return None
+    out = {}
+    prop = _text(value.get("google_property"), 260)
+    if prop and PROPERTY.match(prop):
+        out["google_property"] = prop
+    if isinstance(value.get("robot_added"), bool):
+        out["robot_added"] = value["robot_added"]
+    bing = _text(value.get("bing_site"), 260)
+    if bing and bing.startswith(("https://", "http://")) and " " not in bing:
+        out["bing_site"] = bing
     return out
 
 
@@ -487,6 +558,8 @@ def _for_line(report: dict, jobs: list[str]) -> dict:
             del out["jobs"]
     if "lead" not in jobs:
         out.pop("tools", None)
+    if "search" not in jobs:
+        out.pop("search", None)
     return out
 
 
@@ -497,7 +570,7 @@ REPORT = {
     "asset_paths": lambda v: _texts(v, 10, 200,
                                     lambda p: p.startswith("/") and " " not in p),
     "script_tag": lambda v: _text(v, 300),
-    "leads": _leads, "privacy": _privacy,
+    "leads": _leads, "privacy": _privacy, "search": _search,
     "nextjs_log_field": lambda v: v if isinstance(v, bool) else None,
     "changed_files": lambda v: _texts(v, 50, 300),
     "left_for_user": lambda v: _texts(v, 20, 300),
@@ -565,6 +638,9 @@ def _script(words: str) -> str:
 def _expired(entry: dict, base: str) -> str:
     page = (entry.get("fields") or {}).get("dashboard") or f"{_base(entry, base)}/traffic/"
     what = "was cancelled" if entry.get("cancelled_at") else "has expired"
+    if entry.get("todos"):
+        return (f"This code {what}. Ask the user to press Fix this again in Skald: "
+                f"{page} (Overview > Insights).\n")
     return (f"This code {what}. Ask the user to make a new line in Skald: "
             f"{page} (Settings > Sites).\n")
 
@@ -589,6 +665,8 @@ def route(path: str) -> str:
         return "code"
     if sub.startswith("leads/"):
         return "leads"
+    if sub.startswith("todo/"):
+        return "todo"
     return sub if sub in ROUTES else "other"
 
 
@@ -603,16 +681,27 @@ def serve(h, folder, base: str, limits, address: str, config: dict | None = None
             return _send(h, 405, "Read this with GET.\n")
         return _send(h, 200, guide((base or "").rstrip("/") or _own_base(h)))
     limiter = limits[route(path)] if isinstance(limits, dict) else limits
-    if not limiter.allow(address):
-        return _send(h, 429, "Too many tries. Wait a minute and try again.\n")
+    anyone = limits.get("any") if isinstance(limits, dict) else None
     code, _, sub = path.partition("/")
+    # Per address AND code: ten sessions on one machine (one address) each set up their
+    # own site at once; "any" still caps one address across every code.
+    if (anyone is not None and not anyone.allow(address)) or \
+            not limiter.allow(f"{address} {code[:16]}"):
+        return _send(h, 429, "Too many tries. Wait a minute and try again.\n")
     if h.command == "POST":
         if sub == "report":
             return _report(h, folder, code)
         if sub == "hooksecret":
             from . import agent_hooks
             return agent_hooks.answer(h, folder, code, config, config_path)
-        return _send(h, 405, "Only the report and a hook secret are sent with POST.\n")
+        if sub == "searchkey":
+            from . import agent_search
+            return agent_search.answer(h, folder, code, config)
+        if sub == "fix":
+            from . import agent_todos
+            return agent_todos.fix(h, folder, code, config, config_path)
+        return _send(h, 405, "Only the report, a hook secret, a search key and a to-do's fix "
+                             "are sent with POST.\n")
     entry = find(folder, code)
     if not sub:
         if entry is None:                          # an install link, or unknown: as before
@@ -644,6 +733,9 @@ def serve(h, folder, base: str, limits, address: str, config: dict | None = None
             return _send(h, 500, _script("The installer could not be made. Ask the user to "
                                          "make a new line in Skald."))
         return _send(h, 200, data)
+    if sub.startswith("todo/"):
+        from . import agent_todos
+        return agent_todos.rows(h, folder, code, sub[len("todo/"):], now)
     if sub.startswith("leads/"):
         got = _lead_file(entry, sub[len("leads/"):])
         if got is None:

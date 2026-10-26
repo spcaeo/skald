@@ -840,7 +840,9 @@ def static(out: Path, www: Path, root: Path, now: datetime, repo_url: str) -> No
     answers["setup"] = setup_answers(root, site_dir, now)
     mark_demo(www, answers, repo_url)
     (www / "build.json").write_text(json.dumps(build_file(now)) + "\n")
-    shutil.copytree(www, out / "traffic")
+    # Without the gzip copies (<file>.gz, for nginx's gzip_static): a static host sends the
+    # files themselves, and mark_demo changed some files after their copies were made.
+    shutil.copytree(www, out / "traffic", ignore=shutil.ignore_patterns("*.gz"))
     (out / "index.html").write_text(REDIRECT)
     (out / ".nojekyll").write_text("")
     (out / MARKER).write_text("Written by tools/demo.py, which wipes and rewrites this folder.\n")

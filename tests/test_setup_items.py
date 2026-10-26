@@ -37,8 +37,10 @@ def hook(tool, state, attention=False, words="ready", fix=None, name=None):
             "words": words, "fix": fix}
 
 
-def settings(to=(), daily=False, weekly=False, ips=None, ips_source="default", days=None):
-    return {"mail.to": {"value": list(to), "source": "site" if to else "default"},
+def settings(to=(), daily=False, weekly=False, ips=None, ips_source="default", days=None,
+             search=None):
+    return {"search.google_property": {"value": search, "source": "site" if search else "default"},
+            "mail.to": {"value": list(to), "source": "site" if to else "default"},
             "mail.daily": {"value": daily, "source": "default"},
             "mail.weekly": {"value": weekly, "source": "default"},
             "privacy.keep_ips": {"value": ips, "source": ips_source},
@@ -51,7 +53,7 @@ ALL_OK = [doc("logs", "OK", "read 2 minutes ago"), doc("assets", "OK", "seen"),
 FINISHED = {"app": app(PEOPLE), "status": ALL_OK,
             "tools": [hook("lead", "received", words="last received 1 hour ago (kept)")],
             "settings": settings(["owner@example.com"], daily=True, ips="short",
-                                 ips_source="site", days=30)}
+                                 ips_source="site", days=30, search="sc-domain:example.com")}
 
 CASES = [
     {},                                                            # nothing answered yet
@@ -98,6 +100,8 @@ CASES = [
                           ips_source="upgrade", days=90)},
     {"settings": settings(ips=False, ips_source="site")},
     {"settings": settings(ips="off", ips_source="install", days=14)},
+    {"settings": settings(search="https://example.com/")},             # 2.40: Search Console
+    {"settings": {k: v for k, v in settings().items() if k != "search.google_property"}},
     FINISHED,
 ]
 
@@ -129,11 +133,12 @@ class Lines(unittest.TestCase):
         got = {i["id"]: i for i in setup_items.items(None, status=[], tools=[],
                                                      settings=settings())}
         self.assertEqual(list(got), ["logs", "assets", "countries", "script", "lead", "mail",
-                                     "privacy"])
+                                     "privacy", "search"])
         self.assertEqual(got["logs"]["state"], "todo")
         self.assertEqual({k: setup_items.job_of(v) for k, v in got.items()},
                          {"logs": "logs", "assets": None, "countries": None, "script": "script",
-                          "lead": "lead", "mail": None, "privacy": "privacy"})
+                          "lead": "lead", "mail": None, "privacy": "privacy",
+                          "search": "search"})
         self.assertFalse(setup_items.done(list(got.values())))
 
     def test_a_finished_site(self):
@@ -146,7 +151,8 @@ class Lines(unittest.TestCase):
                       next(i for i in got if i["id"] == "privacy")["says"])
 
     def test_jobs_are_the_agent_jobs_and_never_countries_or_mail(self):
-        self.assertEqual(setup_items.JOBS, ("logs", "script", "lead", "rsc", "assets", "privacy"))
+        self.assertEqual(setup_items.JOBS, ("logs", "script", "lead", "rsc", "assets", "privacy",
+                                            "search"))
         for act in ("countries", "mail"):
             self.assertIsNone(setup_items.job_of({"state": "todo", "act": act}))
 

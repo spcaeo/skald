@@ -47,6 +47,7 @@ const EVENT_WORDS = {
   "ai.reading_changed": "an AI assistant started or stopped reading a page, or its likely visits jumped or vanished",
   "lead.lost": "a lead marked lost",
   "alert.opened": "any alert opened (site down, AI citations, a crawler gone silent, ...): its text and figures; a Slack address gets Slack's text",
+  "todo.new": "a new to-do on Overview > Insights: its title, proof and figures, and the link that opens Fix this (never a code, never its rows)",
 };
 const STATE = { OK: ["on", "OK"], "NEEDS ATTENTION": ["warn", "Needs attention"], OFF: ["off", "Off"] };
 const OUTCOME = { recorded: "kept", duplicate: "already had it", ignored: "not a conversion", test: "test, read and not kept", test_failed: "test refused", bad_signature: "bad signature", bad_body: "not readable", too_large: "too large", no_length: "no length", rate_limited: "too many", error: "error", marked_test: "leads marked test by the site", unmarked_test: "test mark taken off by the site" };
@@ -317,6 +318,7 @@ export function integrationsPart(part = "all") {
         (r.webhooks || []).length ? r.webhooks.map(hookRow) : h("p", { class: "empty" }, "No outgoing webhooks yet."),
         howTo("webhooks", "How do I send each conversion to my CRM, Zapier or Slack?"),
         addForm(r)),
+      want("search") ? agentSearch(r.site) : "",
       want("search") ? searchBox(r.site) : "");
   }
 
@@ -325,3 +327,11 @@ export function integrationsPart(part = "all") {
   return [title, shown, body, part === "all" ? aiKeys() : null, msg];
 }
 export default function integrations() { return integrationsPart("all"); }
+
+// 2.40: the Search Console & Bing tab's way to hand it to an AI agent: the checklist's
+// "search" Set up dialog (setup-search.js, agent-first.js), opened here with setup=search.
+function agentSearch(site) {
+  const go = h("button", { type: "button", class: "btn" }, "Let your AI agent do it");
+  go.addEventListener("click", async () => (await import("./setup-dialogs.js")).openSetup("search", site, {}));
+  return h("p", { class: "sub" }, "Your AI agent can find the property and make Skald's robot account, and tells you the one click left. ", go);
+}

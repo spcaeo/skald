@@ -15,6 +15,7 @@
 //   total and a link to Site > Health, then each day's figures.
 
 import { h } from "../ui.js";
+import { later } from "../lazy.js";
 import overview from "./overview.js";
 import today from "./ov-today.js";
 import { goTo } from "./ov-live.js";
@@ -75,7 +76,10 @@ function release2(m, s, out) {
   const chart = at((el) => el.matches("section.s") && !!el.querySelector(":scope > .sheet"));
   if (chart >= 0) out.splice(chart + 1, 0, whatChanged(m, s, r, t, compareOf(m, s)));
   const server = at((el) => is(el, "ov-line"));
-  out.splice(server >= 0 ? server : out.length, 0, h("div", { class: "cols wf" }, workCard(m, s, r, t), freshCard(m, s)));
+  // Each card waits for its page files on its own (lazy.js): the figures above do not wait.
+  out.splice(server >= 0 ? server : out.length, 0, h("div", { class: "cols wf" },
+    later(m, ["page_trends"], () => workCard(m, s, r, t), "Work on the page, or on traffic?"),
+    later(m, ["page_trends", "page_index"], () => freshCard(m, s), "New and updated pages: are they getting found?")));
   return out;
 }
 

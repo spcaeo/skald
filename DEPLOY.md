@@ -519,6 +519,18 @@ limit_req_zone $binary_remote_addr zone=skald_beacon:1m rate=60r/m;
 log_format skald_beacon '$time_iso8601 $status $upstream_http_x_skald_site';
 # Signed hooks from the site and its tools (docs/INTEGRATIONS.md).
 limit_req_zone $binary_remote_addr zone=skald_hooks:1m rate=60r/m;
+# How long a browser may keep a /traffic/ file. The app's code, asked for with
+# its version in the address (?v=, a hash of the code), for a year: a new
+# release is a new address. The data files only after asking again each time
+# (a cheap 304 while a file is unchanged), so a figure is never stale.
+# Everything else, and every helper answer, not at all.
+map $request_uri $skald_cache {
+    default "private, no-store";
+    "~^/traffic/_app/[^?]*\?v=[0-9A-Za-z._-]+$" "private, max-age=31536000, immutable";
+    "~^/traffic/_app/" "private, no-cache";
+    "~^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?data/sites\.json" "private, no-store";
+    "~^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?data/(?:slim/)?[a-z0-9_]+\.json(?:\?|$)" "private, no-cache";
+}
 ```
 
 Two snippets, the proxy settings every route shares. An empty value means
@@ -609,20 +621,36 @@ location ^~ /traffic/ {
     autoindex off;
     access_log off;
     add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
-    add_header Cache-Control "private, no-store" always;
+    add_header Cache-Control $skald_cache always;   # the map at the http level
     add_header Referrer-Policy "no-referrer" always;
     add_header X-Frame-Options "DENY" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Content-Security-Policy "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" always;
+    # Compression: the app's code and the data files go gzipped. A data file's
+    # .json.gz, written beside it by every run, is sent as it is (gzip_static);
+    # anything else is packed here. The helper's answers below are not
+    # (gzip off): they can hold the session's CSRF token next to what the
+    # request asked for, the shape BREACH needs. gzip_http_version 1.0: a
+    # proxy in front (the host's nginx before the Docker image) asks in HTTP/1.0.
+    gzip on;
+    gzip_static on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_http_version 1.0;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_types application/json text/css application/javascript text/javascript image/svg+xml;
 
     # The site switcher and the sites list: from the helper, with only the
     # caller's own organisations' sites (the static files list every site).
     location ~ ^/traffic/(?:index\.html)?$ {
         set $skald_path $uri;
+        gzip off;
         include snippets/skald-helper.conf;
     }
     location ~ ^/traffic/(?:[a-z0-9.-]+/data/)?sites\.json$ {
         set $skald_path $uri;
+        gzip off;
         include snippets/skald-helper.conf;
     }
     # Every per-site route the helper answers, /traffic/<site>/[<view>/]<route>:
@@ -636,6 +664,7 @@ location ^~ /traffic/ {
     location ~ ^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?(?:refresh|me|ours(?:/(?:add|remove|add-mine|pause|resume|edit))?|funnels(?:/(?:save|delete))?|bot-policy|api/(?:v1/(?:[a-z_]+)?|compare|page|realtime)|team(?:/[a-z-]+)?|account(?:/[a-z-]+(?:/[a-z]+)?)?|tokens(?:/[a-z]+)?|audit|settings(?:/[a-z-]+)?|sites(?:/[a-z]+)?|billing(?:/[a-z]+)?|integrations(?:/[a-z]+(?:/[a-z]+)?)?|ai-answers(?:/[a-z]+(?:/[a-z]+)?)?|people(?:/[a-z-]+)?|logo(?:/[a-z]+)?)$ {
         limit_except GET POST { deny all; }
         set $skald_path $uri;
+        gzip off;
         include snippets/skald-helper.conf;
     }
 }
@@ -726,13 +755,19 @@ location ^~ /traffic-js/ {
 # docs/INGEST.md): to the beacon helper. The code is a secret: never logged,
 # in the access log or the error log (whose lines hold the request line; the
 # nested location inherits it). The helper sends no-store and noindex itself.
-# GET only, but an agent's report and hook secret: POST, at most 16 KiB.
+# GET only, but an agent's report, hook secret and Search Console key: POST, at most 16 KiB;
+# and a to-do's fix (the exact change it made, as text): POST, at most 256 KiB.
 location ^~ /traffic-kit/ {
     error_log stderr crit;
     access_log off;
-    location ~ "^/traffic-kit/[A-Za-z0-9_-]{43}/(report|hooksecret)$" {
+    location ~ "^/traffic-kit/[A-Za-z0-9_-]{43}/(report|hooksecret|searchkey)$" {
         limit_except POST { deny all; }
         client_max_body_size 16k;
+        include snippets/skald-beacon.conf;
+    }
+    location ~ "^/traffic-kit/[A-Za-z0-9_-]{43}/fix$" {
+        limit_except POST { deny all; }
+        client_max_body_size 256k;
         include snippets/skald-beacon.conf;
     }
     limit_except GET { deny all; }
@@ -769,6 +804,48 @@ link works; after signing in, `/traffic/<site>/` loads and
 back (keep a copy before the switch) and `nginx -t && systemctl reload
 nginx`. The accounts file stays and is used again on the next switch;
 `users.json`, `tokens.json` and the htpasswd file were never changed.
+
+### Compression and caching (2.41)
+
+The sessions-mode block above (and the Docker image, built from it) sends the
+dashboard compressed and lets the browser keep what it may:
+
+| path | Cache-Control | compressed |
+|---|---|---|
+| `/traffic/_app/<file>?v=<version>` (the app's code) | `private, max-age=31536000, immutable` | yes |
+| `/traffic/_app/<file>` without a version | `private, no-cache` | yes |
+| `/traffic/<site>/[<view>/]data/<name>.json`, `data/slim/<name>.json` | `private, no-cache` (ETag: a 304 while unchanged) | yes, the `.json.gz` written beside it |
+| the page itself, `sites.json`, `build.json`, every helper route (`me`, `settings`, `api`, tokens...) | `private, no-store` | helper answers: never |
+
+- **The version** in a code address is a hash of the app's files, and every import
+  inside the modules carries it, so a new release is a new address and a browser never
+  mixes two releases. The page itself is never kept, so it always names the current one.
+- **The data files** change every live run; `no-cache` means the browser asks again each
+  time and gets a 304 when nothing changed. Every run writes `<file>.json.gz` beside each
+  data file over 1 KB, atomically, and nginx sends it as it is (`gzip_static`): no
+  compression work per request.
+- **Still behind the session check.** Every file under `/traffic/`, the code included,
+  needs a session. `private` keeps shared caches from storing any of it. To keep the
+  check cheap when a page asks for its 250 code files at once, a session that passed the
+  full check in the last 30 seconds passes again for the shared code (`_app/`,
+  `build.json`) without opening the accounts database; a site's files and the helper's
+  routes are checked in full every time, and signing out ends it at once. The code is the
+  published app and holds nothing of any site.
+- **BREACH.** Compressing a response that holds a secret next to text the request
+  chose lets an attacker guess the secret from the size. The static files hold no secret
+  and echo nothing from the request; the helper's answers can hold the session's CSRF
+  token, so they are never compressed (`gzip off` in each helper location).
+- **A web server in front** (the host's nginx before the Docker image, Caddy): pass the
+  answers through as they are. nginx does by default (it does not compress an answer
+  twice, and `gzip_http_version 1.0` here covers its HTTP/1.0 proxy requests); do not add
+  your own `Cache-Control` for `/traffic/` or strip `Content-Encoding`. A front server
+  that compresses by itself (`gzip on` for JSON, Caddy `encode`) is fine too.
+- **Basic mode** keeps `no-store` for everything; the same `gzip` lines can be added to
+  its `/traffic/` location.
+- **Rolling back below 2.41** with this nginx block in place: older code does not write
+  the `.json.gz` copies, so nginx would send stale ones. Delete them first:
+  `find <dashboard.out> -name '*.json.gz' -delete`, or drop `gzip_static on;`. The Docker
+  image's nginx goes back with the image.
 
 ## 7. Backups and upgrades
 

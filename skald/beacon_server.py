@@ -56,8 +56,9 @@ GET /traffic-kit/<code> answers a one-time install link (kit/link.py): the
 one-file installer with its token to curl or Wget, once; words to anything
 else. /traffic-kit/llms.txt and an AI agent's code (kit/agent.py: its steps,
 keys once to curl or Wget, installer, lead files, POST .../report and
-POST .../hooksecret) are answered there too. Limited per address, each route on its own
-(KIT_PER_MINUTE, agent.ROUTES; llms.txt is not); the code is never logged.
+POST .../hooksecret, POST .../searchkey) are answered there too. Limited per address, each route on its own
+(KIT_PER_MINUTE per address, code and route, agent.ROUTES, and
+KIT_ANY_PER_MINUTE per address; llms.txt is not); the code is never logged.
 
 GET /traffic-js/skald.js serves the snippet (webapp/snippet/skald.js) with
 an ETag and a day's cache; with visitor IDs off it is served with IDS=0, so
@@ -94,7 +95,8 @@ SNIPPET_PATH = "/traffic-js/skald.js"
 SNIPPET_FILE = Path(__file__).resolve().parent / "webapp" / "snippet" / "skald.js"
 SNIPPET_CACHE = "public, max-age=86400, stale-while-revalidate=604800"
 KIT_PREFIX = "/traffic-kit/"     # one-time install links and agent codes (kit/link.py, agent.py)
-KIT_PER_MINUTE = 10              # tries per address and route a minute, a burst of 5
+KIT_PER_MINUTE = 10              # tries per address, code and route a minute, a burst of 5
+KIT_ANY_PER_MINUTE = 120         # tries per address across every code: ten sessions at once
 RELOAD_SECONDS = 60       # the classifier re-reads our own addresses this often
 FLUSH_SECONDS = 5         # counters are written at most this often
 
@@ -414,6 +416,7 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
     public = stack_public_api.Service.from_config(main.config)   # None unless switched on
     from .kit.agent import ROUTES
     kit_limits = {name: Limiter(KIT_PER_MINUTE, 5, 5) for name in ROUTES}   # one per route
+    kit_limits["any"] = Limiter(KIT_ANY_PER_MINUTE, 60, 20)    # one address, every code
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "skald-beacon"

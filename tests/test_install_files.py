@@ -109,6 +109,37 @@ class SchedulerClock(unittest.TestCase):
             self.assertFalse(scheduler.rotate(log), "an empty log is not rotated")
 
 
+class SchedulerNice(unittest.TestCase):
+    """Every job at a lower CPU priority than nginx and the helper (SKALD_JOB_NICE)."""
+
+    def test_the_setting(self):
+        self.assertEqual(scheduler.job_nice(""), 10)
+        self.assertEqual(scheduler.job_nice("lots"), 10)
+        self.assertEqual(scheduler.job_nice("0"), 0)
+        self.assertEqual(scheduler.job_nice(" 5 "), 5)
+        self.assertEqual(scheduler.job_nice("40"), 19)
+        self.assertEqual(scheduler.job_nice("-5"), 0, "a job never above the clock")
+        self.assertIsNone(scheduler.lower_priority(0))
+
+    @unittest.skipUnless(hasattr(scheduler.os, "nice"), "no os.nice here")
+    def test_a_job_runs_niced(self):
+        import os
+        mine = os.nice(0)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "nice.txt"
+            job = scheduler.Job("live", [sys.executable, "-c",
+                                         f"import os; open({str(out)!r}, 'w').write(str(os.nice(0)))"],
+                                lambda t: t)
+            from unittest import mock
+            with mock.patch.dict(scheduler.os.environ, {"SKALD_JOB_NICE": "7"}), \
+                    mock.patch.object(scheduler, "LOGS", Path(tmp)), mock.patch.object(scheduler, "APP", Path(tmp)):
+                sched = scheduler.Scheduler.__new__(scheduler.Scheduler)
+                sched.start(job)
+                self.assertEqual(job.proc.wait(30), 0)
+                job.out.close()
+            self.assertEqual(int(out.read_text()), min(19, mine + 7))
+
+
 class ContainerConfig(unittest.TestCase):
     def test_defaults(self):
         cfg = entrypoint.render_config({})

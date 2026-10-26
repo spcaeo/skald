@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from skald import Group, check  # noqa: E402
 from skald import cli, dashboard, mailer  # noqa: E402
 from skald.store import SCHEMA_VERSION, History  # noqa: E402
-from skald import data_files  # noqa: E402
+from skald import data_files, slim  # noqa: E402
 from skald.verify import Problem  # noqa: E402
 from skald.window import (analyse_window, day_window, files_for,  # noqa: E402
                                  range_window)
@@ -373,7 +373,9 @@ class TestDashboard(unittest.TestCase):
         self.assertEqual([n for n in names if "/exports/" in n],
                          sorted(f"example.com/exports/{f}" for f in dashboard.EXPORTS))
         self.assertEqual([n for n in names if not n.endswith(".html") and "/exports/" not in n],
-                         sorted(f"example.com/data/{f}.json" for f in data_files.files()))
+                         sorted([f"example.com/data/{f}.json" for f in data_files.files()]
+                                # the app's slim copies of the biggest files (slim.py)
+                                + [f"example.com/data/slim/{f}.json" for f in slim.NAMES]))
         self.assertEqual([p.name for p in out.rglob(".*")], [])
         self.assertIn('href="example.com/"', (out / "index.html").read_text())
         self.assertEqual(oct(os.stat(out / "index.html").st_mode & 0o777), "0o644")

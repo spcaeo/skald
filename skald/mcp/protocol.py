@@ -43,7 +43,13 @@ INSTRUCTIONS = (
     "whole, verified days; withheld, partial and missing days are named and never counted. "
     "Call visits 'visits (an upper bound on people)', never users. Requests are not people. "
     "Start with list_sites; dates are YYYY-MM-DD in the site's time zone and default to the "
-    "last 7 whole days. Read skald://docs/counting for what the figures cannot know.")
+    "last 7 whole days. Read skald://docs/counting for what the figures cannot know. "
+    "When the user asks to set Skald up for a site (\"Set up Skald for this site\"), call "
+    "setup_left, then setup_line with its jobs (a token with the setup scope), then follow "
+    "the line it answers. When the user asks to fix Skald's to-dos (\"Fix my Skald to-dos\"), "
+    "call fix_todo for the list, then fix_todo with each id for every row and the steps, do "
+    "the work in the site's own code or server (ask before any server change), then "
+    "mark_todo_done (a token with the setup scope).")
 
 
 class RpcError(Exception):

@@ -28,6 +28,9 @@
 
 Like cron with `flock -n`: a job still running when it is next due is not
 started twice; a time missed while the container was down is not caught up.
+Every job runs at a lower CPU priority (nice SKALD_JOB_NICE, 10; 0 turns it off),
+so nginx and the helper, which answer the person reading the dashboard, come
+first when the live run and the daily run want the same CPUs (2026-10-26).
 Each job's output goes to /var/log/skald/<job>.log; one line per run
 goes to the container's log. Standard library only.
 """
@@ -140,6 +143,22 @@ def rotate_job() -> int:
 
 # ------------------------------------------------------------------ jobs
 
+def job_nice(raw: str | None = None) -> int:
+    """How much lower than the clock's own priority a job runs: SKALD_JOB_NICE,
+    0 to 19 (10 when unset or not a number)."""
+    raw = os.environ.get("SKALD_JOB_NICE") if raw is None else raw
+    try:
+        n = int(str(raw).strip()) if str(raw).strip() else 10
+    except ValueError:
+        n = 10
+    return max(0, min(19, n))
+
+
+def lower_priority(n: int):
+    """The child's first step (Popen preexec_fn): nice itself by n; None for 0."""
+    return (lambda: os.nice(n)) if n > 0 else None
+
+
 class Job:
     def __init__(self, name: str, args: list[str] | None, due, notify: bool = False, fn=None):
         self.name, self.args, self.due_after, self.notify, self.fn = name, args, due, notify, fn
@@ -198,7 +217,8 @@ class Scheduler:
         except OSError:
             job.out = subprocess.DEVNULL
         job.proc = subprocess.Popen(job.args, cwd=str(APP), stdout=job.out,
-                                    stderr=subprocess.STDOUT)
+                                    stderr=subprocess.STDOUT,
+                                    preexec_fn=lower_priority(job_nice()))
         job.started = time.monotonic()
 
     def finish(self, job: Job, code: int) -> None:

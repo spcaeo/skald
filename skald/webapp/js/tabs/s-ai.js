@@ -15,7 +15,7 @@ import answers from "./ai-answers.js";
 export default [
   // bots.json gives only the Check column here, so its failure is said beside it, not over the whole tab.
   // arw: "Pages AI can't read well", the problem shown (aiready.js).
-  ["assistants", "Assistants", assistants, { filters: ["path"], compare: true, keep: ["arw"] }],
+  ["assistants", "Assistants", assistants, { needs: ["page_trends"], filters: ["path"], compare: true, keep: ["arw"] }],
   ["crawlers", "Crawlers", crawlers, { file: "bots", filters: [], compare: true }],
   // crawl_health.json, its own 7 or 30 days and today (cw), a crawler (cb), orphans or all (co).
   ["crawl", "Crawl health", crawlHealth, { file: "crawl_health", ranged: false, filters: [], keep: ["cw", "chb", "co"], period: (s) => `Last ${s.cw === "7" ? 7 : 30} days and today` }],

@@ -112,19 +112,23 @@ export const ROUTE_KEYS = [
   { key: "scan", kind: "overlay", owner: "tabs/sec-scanners.js", means: "Security > Who is scanning us?: one scanner's detail, by its first row: <day>.<seq> (never its address)", example: "2026-10-20.3" },
   { key: "ans", kind: "overlay", owner: "tabs/ai-answers.js", means: "AI answers: one stored answer in full, by its id", example: "412" },
   { key: "setup", kind: "overlay", owner: "tabs/setup-dialogs.js, tabs/sitesadmin.js", means: "a Set up dialog (logs, assets, rsc, countries, script, lead, mail, privacy, pack: send set-up to someone, all: everything left with your AI agent); on Settings › Sites, the Add a site wizard (new, or a site's name); a site's name on any tab is its wizard too (Set up with your AI agent)", example: "rsc" },
+  { key: "lines", kind: "overlay", owner: "tabs/agent-many.js", means: "Settings › Sites › Set up many sites with your AI agent: all (every site, its own line each), site.<site> (that site's line and its watch open), mcp.<site> (its two lines: MCP, then \"Set up Skald for this site\") or add (the box that adds several sites). Never a line, a code or a token", example: "site.shop.example.com" },
   { key: "sact", kind: "overlay", owner: "tabs/site-actions.js", means: "Settings › Sites: a site's action dialog, <act>.<site> (act: pause, resume, remove, restore, clear or delete)", example: "pause.shop.example.com" },
   { key: "conn", kind: "overlay", owner: "tabs/connections.js", means: "a connection dialog: send or sample (Test a sample of a log) on Collect data, api on Read figures (API), mcp on AI assistant (MCP)", example: "api" },
   { key: "asst", kind: "overlay", owner: "tabs/conn-read.js", means: "the MCP dialog, by hand: the assistant chosen (claude-desktop, chatgpt, other; Claude Code when absent)", example: "claude-desktop" },
   { key: "lfmt", kind: "overlay", owner: "tabs/conn-sample.js", means: "Test a sample: the reader chosen (a try_log format name); absent: Detect it. The pasted lines never go in the address", example: "caddy_json" },
   { key: "step", kind: "overlay", owner: "tabs/conn-ui.js", means: "the step of the dialog open (1 is the first)", example: "2" },
   { key: "agent", kind: "overlay", owner: "tabs/site-wizard.js, tabs/agent-first.js", means: "Add a site, a Set up dialog or the MCP dialog: the AI agent chosen (claude-code, codex, cursor, chat, other), or hand (set it up by hand)", example: "claude-code" },
-  { key: "link", kind: "overlay", owner: "tabs/agent-setup.js", means: "Add a site, a Set up dialog or the MCP dialog: the agent line being watched, by its link id (16 hex, a hash of the code; the line and its code never go in the address)", example: "0f3a9c2e7b1d4a58" },
+  { key: "link", kind: "overlay", owner: "tabs/agent-setup.js, tabs/todo-fix.js", means: "Add a site, a Set up dialog, the MCP dialog or Fix this (My AI agent): the agent line being watched, by its link id (16 hex, a hash of the code; the line and its code never go in the address)", example: "0f3a9c2e7b1d4a58" },
   { key: "jobs", kind: "overlay", owner: "tabs/agent-first.js", means: "Set up everything left with your AI agent (setup=all): the jobs its line carries, joined by dots (logs, script, lead, rsc, assets, privacy)", example: "logs.script.lead" },
   { key: "share", kind: "overlay", owner: "tabs/conn-share.js", means: "Share with your developer: the form is open in the dialog (the link itself never goes in the address)", example: "1" },
   { key: "token", kind: "overlay", owner: "tabs/conn-install.js", means: "the token choice of a by-hand kit (the zips under Other ways): 0 is the zip without the token; absent, the token goes in the zip (the token itself never goes in the address)", example: "0" },
   { key: "pack", kind: "overlay", owner: "tabs/setup-pack.js", means: "Send set-up to someone: the box is open in the dialog (the addresses typed and the keys never go in the address)", example: "1" },
   // 2.35: Send to team (tabs/todo-send.js); who it goes to never goes in the address.
   { key: "tdsend", kind: "overlay", owner: "tabs/todo-send.js", means: "Insights: the Send to team dialog for a to-do, by its id", example: "lost-pages" },
+  // 2.41: Fix this (tabs/todo-fix.js): "Who will do it?"; the line and its code never go in the address.
+  { key: "fix", kind: "overlay", owner: "tabs/todo-fix.js", means: "Insights: the Fix this dialog: 1 for the to-do named by todo=<id>, or all (Fix all: every open to-do an AI agent can fix)", example: "1" },
+  { key: "fixby", kind: "overlay", owner: "tabs/todo-fix.js", means: "Fix this: who will do it: agent (My AI agent: the line, then its watch), me (the lines to paste and the CSV) or someone (send it to a teammate)", example: "agent" },
   // Traffic > Pages > a page: Mark a change (tabs/pagechange.js); the note typed never goes in the address.
   { key: "pcm", kind: "overlay", owner: "tabs/pagechange.js", means: "Traffic > Pages > a page: the Mark a change dialog (new)", example: "new" },
   { key: "pcd", kind: "overlay", owner: "tabs/pagechange.js", means: "Mark a change: the day it changed (YYYY-MM-DD; today when absent)", example: "2026-10-21" },
@@ -141,7 +145,7 @@ export const OVERLAY = ROUTE_KEYS.filter((k) => k.kind === "overlay").map((k) =>
 // The keys inside the dialog open (its step, the share form, the kit's token choice, the
 // set-up pack's box, Add a site's agent and the line it watches, Test a sample's reader); the other overlay keys
 // name the drawer or dialog itself.
-export const INSIDE = ["step", "share", "token", "pack", "agent", "link", "jobs", "lfmt", "pcd", "pck", "asst"];
+export const INSIDE = ["step", "share", "token", "pack", "agent", "link", "jobs", "lfmt", "pcd", "pck", "asst", "fixby"];
 export const OPENERS = OVERLAY.filter((k) => !INSIDE.includes(k));
 // Always a token, whatever the value looks like: a search for a person, an address filter.
 export const ALWAYS_MASKED = new Set(["who", "ip"]);

@@ -26,7 +26,7 @@ or admin role, same-origin and CSRF checks):
        -> {ok, line, llms_url, steps_url, expires_at, token_id, link_id,
           cancelled, jobs, mcp_token_id?}: the one line for an AI agent
           (kit/agent.py), for the jobs asked (kit/agent_jobs.py: logs,
-          script, lead, rsc, assets, privacy, mcp; without `jobs`: logs,
+          script, lead, rsc, assets, privacy, search, mcp; without `jobs`: logs,
           script, lead, or logs, script with leads false). Only the keys the
           jobs need, sealed under a one-time code for 24 hours: a new sending
           token ("AI agent set-up") for logs, the site's lead secret (the one
@@ -392,7 +392,8 @@ def make_agent_line(db, config, org, site: str, jobs, actor, *, live_dir=None,
     code, expires, ended = agent.make(_folder(c), site, token, tid, got, lead_secret=secret,
                                       lead_note="included" if secret else kind, leads=leads,
                                       found=found, replace=True, jobs=jobs, mcp_token=mcp,
-                                      mcp_token_id=mcp_tid, facts=_facts(c, site, jobs))
+                                      mcp_token_id=mcp_tid, facts=_facts(c, site, jobs),
+                                      made_by=str(actor))
     lid = agent.link_id(code)
     older, failed = _ended(c, site, ended, "a new line replaced it")
     _audit(c, "kit.agentlink", site, f"token {tid or 'none'}; link {lid}; jobs {','.join(jobs)}; "
@@ -446,6 +447,8 @@ def _facts(c, site: str, jobs) -> dict:
         out["hooks"] = states
     if "mcp" in jobs:
         out["mcp_on"] = mcp_on(c.config)
+    if "search" in jobs:
+        out.update(_search_facts(c, conf, site))
     if "privacy" in jobs or "assets" in jobs:
         got = settings_store.explain(conf, site, c.db)
         ips, days = got.get("privacy.keep_ips") or {}, got.get("privacy.keep_days") or {}
@@ -453,6 +456,23 @@ def _facts(c, site: str, jobs) -> dict:
                    keep_source=ips.get("source"),
                    asset_prefixes=list((got.get("site.asset_prefixes") or {}).get("value") or []))
     return out
+
+
+def _search_facts(c, conf: dict, site: str) -> dict:
+    """The search job's facts: the Google key's robot address (never the
+    key), whether a Bing key is set, the site's connected property and Bing
+    site, and whether this line may hand Skald a new Google key (its maker is
+    an install admin: kit/agent_search.py checks again then)."""
+    from . import settings_store
+    from .kit.agent_search import install_admin
+    from .search import bing, google
+    gkey = google.key_state(c.config, _folder(c))
+    got = settings_store.explain(conf, site, c.db)
+    return {"google_key": {"set": bool(gkey.get("set")), "client_email": gkey.get("client_email")},
+            "bing_key": bool(bing.key_state(c.config, _folder(c)).get("set")),
+            "search_property": (got.get("search.google_property") or {}).get("value") or None,
+            "bing_site": (got.get("search.bing_site") or {}).get("value") or None,
+            "may_upload_key": install_admin(c.config, _folder(c), c.uid)}
 
 
 NOT_REVOKED = "Skald tries again in the daily run, or revoke it in Settings > Tokens & links"

@@ -115,7 +115,7 @@ export function agentChooser(st, onPick, { agents = AGENTS, hand: words = HAND_W
 }
 
 /* The line in its box: hidden code by default, Copy with a green tick, Show code. */
-function lineBox(got) {
+export function lineBox(got) {
   const code = codeOf(got);
   let shown = false;
   const text = h("code", null, masked(got.line, code));

@@ -136,6 +136,8 @@ The assistant chooses these tools itself. Dates are in your site's own time zone
 | `find_person` | One person by IP address, email, visitor ID or lead: their visits, leads and conversions. Only with **Reading visitor addresses**; each search goes to the audit log |
 | `setup_left` | What is left to set up for a site: the open lines of **Set up <site>** in [Set-up checklist](#settings/site/setup), each with its Set up dialog's address, and the job an AI agent can do for it |
 | `setup_line` | Makes the one set-up line for an AI agent, for the jobs you name. Only with **Set-up lines (AI agent)**; see below |
+| `fix_todo` | One of **Overview > Insights**' to-dos with every row behind it (not only the 1,000 the page shows) and the steps to fix it in your site's own code or server. Without an id: the to-dos it can fix. See below |
+| `mark_todo_done` | After a fix: keeps what the assistant changed (the exact change, the files, the rows left and why) beside the to-do, and with **done** marks it done. Only with **Set-up lines (AI agent)** for that one site |
 
 It also offers a ready prompt, **weekly_report**, which asks the assistant for a short weekly report.
 
@@ -143,7 +145,7 @@ It also offers a ready prompt, **weekly_report**, which asks the assistant for a
 
 Your AI assistant can also finish a site's set-up for you. It asks Skald what is left (`setup_left`), makes the set-up line for the jobs it can do (`setup_line`), and then follows that line itself: the same line **Your AI agent** gives in each Set up dialog.
 
-The jobs an AI agent can do: connect the server's log (**logs**), put the script tag on your pages (**script**), send leads from your forms (**lead**), the Next.js line in the web server's log format (**rsc**), find where your pages load their own files (**assets**), and read your privacy notice and recommend what Skald keeps (**privacy**). The country file and the mail recipient stay with a person.
+The jobs an AI agent can do: connect the server's log (**logs**), put the script tag on your pages (**script**), send leads from your forms (**lead**), the Next.js line in the web server's log format (**rsc**), find where your pages load their own files (**assets**), read your privacy notice and recommend what Skald keeps (**privacy**), and connect Google Search Console (**search**). The country file and the mail recipient stay with a person.
 
 **The token.** Making a line needs one more permission. Only an owner or admin can give it:
 
@@ -162,6 +164,34 @@ Skald refuses this token for more than one site, without **AI assistant (MCP)**,
 4. asks again what is left. Each line ticks itself once Skald sees it working.
 
 What it recommends for your privacy settings waits for you: press **Apply** in the dialog. The mail line stays yours: its dialog's address is in the answer.
+
+## Fix your to-dos with your assistant
+
+Say to your assistant, in the site's project folder or on its server: "Fix my Skald to-dos". It then:
+
+1. asks which to-dos it can fix (`fix_todo` without an id): old pages to redirect, server errors, Markdown copies AI asks for, the sitemap address, pages people leave;
+2. reads one with every row and its steps (`fix_todo` with the id). Rows are page paths and counts, never a visitor's address or email;
+3. checks first where your site keeps its redirects or rules (nginx, Apache, Next.js, `vercel.json`, Netlify, WordPress, Cloudflare), changes only what is missing, touches nothing the to-do does not list, asks you before any change on a server, and tests it (`nginx -t`) before a reload;
+4. reports it (`mark_todo_done`): the exact change shows beside the to-do on [Overview > Insights](#overview/insights), and **done** marks it done, so Skald checks it on the days after. That changes no figure; **Undo** there is one click.
+
+Reading needs any token for the site. Marking done needs the same token as making a set-up line (above: **AI assistant (MCP)** and **Set-up lines (AI agent)**, one site, made by an owner or admin). Without it, the assistant tells you what it did, and you press **Mark done** yourself. No MCP? Press **Fix this > My AI agent** on the to-do instead: the same work, from one line. See [What to fix](what-to-fix.md).
+
+## Two lines for each site
+
+If you work on each site in its own folder, with its own Claude Code or Codex, connect each one once. Then one sentence sets the site up.
+
+1. Open [Settings › Sites](#settings/org/sites) and press **Set up many sites with your AI agent**.
+2. On the site's card, press **Two lines (MCP)**, then **Make the token for <site>**. The token is for that one site only: it reads that site and makes set-up lines for it. It is shown once.
+3. **Line 1.** Copy it into a terminal in that site's own folder.
+   - Claude Code: `claude mcp add --transport http skald <your Skald>/traffic-mcp --header "Authorization: Bearer <token>"`. Claude Code keeps it to that folder, so each site's folder has its own token.
+   - Codex: a line that adds a server named after the site (`skald-shop-example-com`) to `~/.codex/config.toml`.
+4. **Line 2.** Say to the assistant: `Set up Skald for this site`. It asks Skald what is left, makes its line, and does the jobs, as above.
+
+Do the same for each site. Ten sites can be set up at the same time: each site has its own token and its own line, and one site's line never ends another's.
+
+Never paste the token into a chat message. See or remove it in [Tokens & links](#settings/ai/tokens).
+
+No MCP? Each site's card also has **Make its line**: one plain line to paste into that site's session. See [Set up many sites](connections.md#set-up-many-sites-with-your-ai-agent).
 
 ## Questions to try
 
@@ -195,7 +225,7 @@ Skald gives the assistant the same rules the dashboard follows:
 
 ## Safety
 
-- **Read-only.** Every tool only reads, except `setup_line`, which makes a set-up line, and only with a token that has **Set-up lines (AI agent)** for that one site. The assistant cannot change settings or delete data. Each line made goes to the audit log.
+- **Read-only.** Every tool only reads, except `setup_line`, which makes a set-up line, and `mark_todo_done`, which keeps a to-do's report and marks it done; both only with a token that has **Set-up lines (AI agent)** for that one site. The assistant cannot change settings or delete data. Each line made and each to-do marked goes to the audit log.
 - **Only your sites.** The token reads only your organisation's sites, and only the ones you ticked. Every tool checks this again on each call.
 - **No addresses by default.** Without **Reading visitor addresses**, no answer carries a visitor's address, and the assistant cannot look a person up.
 - **Turn it off at once.** To cut off an assistant, revoke its token: open **Settings > AI & API > Tokens & links**, find it under **Your tokens**, press **Revoke**, then **Yes, revoke**. It stops working immediately. The **AI assistant (MCP)** page lists the assistants' tokens too.

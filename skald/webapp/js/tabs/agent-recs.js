@@ -6,6 +6,8 @@
 // privacy.keep_ips; the report's days as privacy.keep_days). Nothing is applied without the
 // press: a leaked code must never change what Skald keeps. The settings are the report's
 // site's own (GET <that site's page>/settings), so a new site's are not the page's.
+// 2.40: a Search Console property is "Connect it" (POST integrations/search/connect, as
+// Settings > Leads & integrations > Search Console & Bing does, with all 16 months of history).
 
 import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
@@ -46,14 +48,23 @@ export function privacySave(privacy, settings) {
   return Object.keys(body).length ? body : null;
 }
 
-/* One recommendation: its words, Apply, and what the save said. after(r): nodes shown once saved. */
-function rec(site, { kind, head, says, body, done, after = null }) {
+/* The Search Console connect a report suggests, or null: none, or the one connected already. */
+export function searchSave(report, settings) {
+  const prop = String(report?.search?.google_property || "").trim();
+  if (!prop || !settings) return null;
+  if (settings["search.google_property"]?.value === prop) return null;
+  return { engine: "google", source: prop, backfill_months: 16 };
+}
+
+/* One recommendation: its words, Apply, and what the save said. after(r): nodes shown once saved.
+   path: the save (settings/save, or integrations/search/connect with the site). */
+function rec(site, { kind, head, says, body, done, after = null, path = "settings/save" }) {
   const btn = h("button", { type: "button", class: "btn primary", "aria-label": `Apply: ${head}` }, "Apply");
   const said = h("p", { class: "msg", role: "status", "aria-live": "polite" });
   const more = h("div");
   btn.addEventListener("click", async () => {
     btn.disabled = true;
-    const r = await siteCall(site, "settings/save", body);
+    const r = await siteCall(site, path, body);
     btn.disabled = false;
     said.className = `msg ${r.ok ? "ok" : "err"}`;
     said.textContent = r.ok ? done : why(r, "It was not saved.");
@@ -68,7 +79,7 @@ function rec(site, { kind, head, says, body, done, after = null }) {
 export function recsBox(report, site) {
   const box = h("div", { class: "ag-recs-w" });
   const r = report || {};
-  if (!r.asset_paths?.length && typeof r.privacy?.keep_ips !== "boolean") return box;
+  if (!r.asset_paths?.length && typeof r.privacy?.keep_ips !== "boolean" && !r.search?.google_property) return box;
   siteCall(site, "settings").then((now) => {
     if (!now.ok || !now.settings) return;
     const s = now.settings;
@@ -93,6 +104,13 @@ export function recsBox(report, site) {
         says: [h("p", null, "Your agent read the site's privacy notice and suggests this."),
           h("p", { class: "note" }, `Now: ${MODE_WORDS[modeOf(ips.value)]}${!ips.source || ips.source === "default" ? " (not chosen yet)" : ""}.`)],
         done: "Saved. Copy this wording into your privacy notice.", after: (got) => (got.notice ? [noticeBox(got.notice)] : []) }));
+    }
+    const search = searchSave(r, s);
+    if (search) {
+      recs.push(rec(site, { kind: "search", head: `Connect Google Search Console: ${search.source}`, body: { site, ...search }, path: "integrations/search/connect",
+        says: [h("p", null, "Your agent found the site's Search Console property."),
+          h("p", { class: "note" }, r.search.robot_added === true ? "It says Skald's robot address was added as a user there." : "Add Skald's robot address as a Restricted user there first (Settings > Leads & integrations > Search Console & Bing shows it), or the connect is refused.")],
+        done: "Connected. Skald syncs its figures in the background: the last 16 months first." }));
     }
     if (!recs.length) return;
     box.replaceChildren(h("section", { class: "ag-recs", "aria-label": "What your agent recommends" }, h("h4", null, "What your agent recommends"),

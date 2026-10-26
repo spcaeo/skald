@@ -234,3 +234,68 @@ def changes(db, site: str) -> list[dict]:
            for (path, day), v in last.items() if v["state"] == "changed"]
     out.sort(key=lambda c: (c["day"], c["path"]), reverse=True)
     return out
+
+
+# ------------------------------------------------------------------ an AI agent's fixes (2.41)
+#
+# What the person's own AI agent did for a to-do (kit/agent_todos.py's POST <code>/fix, and
+# the MCP tool mark_todo_done): one row per report, never rewritten, the newest one says.
+#
+#     todo_fixes (site, item, at, state, change, files, left_rows, notes, link_id, by_who)
+#
+# `state` is "done", "partly" or "left"; `change` the exact change as text (the redirect
+# lines it added, a diff), at most FIX_CHANGE_MOST characters; `files` and `left_rows` JSON
+# lists; `by_who` "ai-agent" (a line) or "mcp:<token id>". "done" also marks the to-do
+# done (mark()), so the re-check runs on the whole days after; "Undo" puts it back.
+
+FIX_TABLE = ("CREATE TABLE IF NOT EXISTS todo_fixes (site TEXT NOT NULL, item TEXT NOT NULL, "
+             "at TEXT NOT NULL, state TEXT NOT NULL CHECK (state IN ('done', 'partly', 'left')), "
+             "change TEXT, files TEXT, left_rows TEXT, notes TEXT, link_id TEXT, by_who TEXT)")
+FIX_STATES = ("done", "partly", "left")
+FIX_CHANGE_MOST = 200_000
+
+
+def keep_fix(db, site: str, item: str, state: str, change: str = "", files=(), left=(),
+             notes: str = "", link_id: str | None = None, by_who: str = "ai-agent",
+             now: datetime | None = None) -> dict:
+    """Keep one fix report (cleaned by the caller); the row as fixes() reads it."""
+    import json
+    if state not in FIX_STATES:
+        raise ValueError("state is done, partly or left")
+    if not TODO_ID.match(item or ""):
+        raise ValueError("not a to-do's id")
+    db.execute(FIX_TABLE)
+    at = _stamp(now)
+    change = (change or "")[:FIX_CHANGE_MOST]
+    db.execute("INSERT INTO todo_fixes (site, item, at, state, change, files, left_rows, notes, "
+               "link_id, by_who) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+               (site, item, at, state, change, json.dumps(list(files)), json.dumps(list(left)),
+                notes or "", link_id, by_who))
+    _commit(db)
+    return {"item": item, "at": at, "state": state, "change": change, "files": list(files),
+            "left": list(left), "notes": notes or "", "link_id": link_id, "by": by_who}
+
+
+def fixes(db, site: str) -> dict[str, dict]:
+    """{item: the newest fix report} of the site's to-dos."""
+    import json
+    try:
+        rows = db.execute("SELECT item, at, state, change, files, left_rows, notes, link_id, by_who "
+                          "FROM todo_fixes WHERE site = ? ORDER BY at, rowid", (site,)).fetchall()
+    except Exception:                    # noqa: BLE001 - no table yet: no fix reported
+        return {}
+    out = {}
+    for item, at, state, change, files, left, notes, lid, by in rows:
+        out[item] = {"item": item, "at": at, "state": state, "change": change or "",
+                     "files": json.loads(files or "[]"), "left": json.loads(left or "[]"),
+                     "notes": notes or "", "link_id": lid, "by": by}
+    return out
+
+
+def agent_done(db, site: str, item: str, day: str, by_who: str) -> bool:
+    """Mark a to-do done for an agent's "done" report, unless it is done already
+    (the re-check keeps counting from the first day). True when a row was written."""
+    if (current(db, site).get(item) or {}).get("state") == "done":
+        return False
+    mark(db, site, item, "done", day, None)
+    return True

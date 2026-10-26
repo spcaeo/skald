@@ -42,11 +42,13 @@ the config, never from the request's Host header.
 """
 from __future__ import annotations
 
+import hashlib
 import hmac
 import json
 import re
 import sys
 import threading
+import time
 from http.cookies import CookieError, SimpleCookie
 from pathlib import Path
 from urllib.parse import parse_qsl, urlsplit
@@ -83,9 +85,19 @@ SITE_NAME = re.compile(r"^[a-z0-9.-]+$")
 # user. sites.json is answered by the helper, filtered to the caller's sites.
 ANY_SIGNED_IN = ("", "index.html", "_app", "sites.json", "build.json")
 BUSY_WAIT = 2
+# The app's shared code and build.json (site ""): a page's first load after a release
+# asks for about 250 of them at once, each through nginx's check. A session that
+# passed the full check in the last SHARED_SECONDS is let through again for them
+# without opening accounts.sqlite. Those files hold nothing of any site (the code
+# is the published app); a site's files and the helper's routes are checked in
+# full every time. Signing out here drops the session from it at once.
+SHARED_SECONDS = 30
+SHARED_MAX = 4096
 
 _threads: list[threading.Thread] = []
 _threads_lock = threading.Lock()
+_shared: dict[str, tuple[float, dict]] = {}
+_shared_lock = threading.Lock()
 
 
 # ------------------------------------------------------------ shared helpers
@@ -360,21 +372,63 @@ def site_of_request(raw, normalised) -> str | None:
     return site
 
 
+def _shared_key(cookie) -> str | None:
+    return hashlib.sha256(cookie.encode()).hexdigest() if cookie and len(cookie) <= 512 else None
+
+
+def _shared_seen(key: str | None) -> dict | None:
+    """The check's answer headers for a session that passed in the last SHARED_SECONDS."""
+    if key is None:
+        return None
+    with _shared_lock:
+        got = _shared.get(key)
+        if got is not None and time.monotonic() - got[0] < SHARED_SECONDS:
+            return got[1]
+        _shared.pop(key, None)
+    return None
+
+
+def _shared_keep(key: str | None, headers: dict) -> None:
+    if key is None:
+        return
+    with _shared_lock:
+        if len(_shared) >= SHARED_MAX:
+            now = time.monotonic()
+            for k in [k for k, (at, _) in _shared.items() if now - at >= SHARED_SECONDS]:
+                del _shared[k]
+            if len(_shared) >= SHARED_MAX:
+                _shared.clear()
+        _shared[key] = (time.monotonic(), headers)
+
+
+def forget_shared(cookie) -> None:
+    """Sign-out: the session's shared-code pass ends now."""
+    key = _shared_key(cookie)
+    if key is not None:
+        with _shared_lock:
+            _shared.pop(key, None)
+
+
 def _check(h, config, live_dir) -> None:
     if h.client_address[0] != access.PROXY:
         return answer(h, 403)
+    cookie = cookie_of(h.headers)
+    normalised = h.headers.get("X-Original-Path")
+    site = site_of_request(h.headers.get("X-Original-URI"), normalised)
+    key = _shared_key(cookie) if site == "" else None
+    seen = _shared_seen(key)
+    if seen is not None:
+        return answer(h, 200, None, seen)
     db = open_db(config, live_dir)
     if db is None:
         return answer(h, 401)
     try:
-        who = sessions.resolve(db, cookie_of(h.headers))
+        who = sessions.resolve(db, cookie)
         if who is None:
             return answer(h, 401)
-        normalised = h.headers.get("X-Original-Path")
         if not normalised:
             note("check: no X-Original-Path from nginx; every page is refused until the "
                  "nginx config passes it (DEPLOY.md, sessions mode)")
-        site = site_of_request(h.headers.get("X-Original-URI"), normalised)
         if site is None:
             return answer(h, 403)
         role, org = "", None
@@ -392,9 +446,11 @@ def _check(h, config, live_dir) -> None:
             code = refusal(db, who, org)
             if code is not None:
                 return answer(h, code)
-        return answer(h, 200, None, {"X-Skald-User": who["email"],
-                                     "X-Skald-Role": role or "viewer",
-                                     "X-Skald-Org": org["slug"] if org else ""})
+        passed = {"X-Skald-User": who["email"], "X-Skald-Role": role or "viewer",
+                  "X-Skald-Org": org["slug"] if org else ""}
+        if site == "":
+            _shared_keep(key, passed)
+        return answer(h, 200, None, passed)
     finally:
         db.close()
 
@@ -505,6 +561,7 @@ def _setup_totp(h, db, user, form) -> tuple[list[str] | None, bool]:
 
 def _logout(h, db) -> None:
     sessions.end(db, cookie_of(h.headers))
+    forget_shared(cookie_of(h.headers))
     h.send_response(303)
     h.send_header("Location", PREFIX + "login")
     h.send_header("Set-Cookie", CLEAR_COOKIE)

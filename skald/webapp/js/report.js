@@ -8,7 +8,7 @@
 
 import { h, n, long, toast, ICON } from "./ui.js";
 import * as S from "./state.js";
-import { rangeOf, viewList, figures } from "./data.js";
+import { rangeOf, viewList, figures, need } from "./data.js";
 import { TAB_RENDER } from "./tabs/index.js";
 import { REGISTRY, csv, download, showAllRows } from "./table.js";
 import { zip } from "./zip.js";
@@ -183,6 +183,9 @@ export function builder(m, s, loadView) {
   const act = (fn) => async () => {
     if (!chosen.size) { count(); return; }
     const [model, next, tabs] = await settings();
+    // A report is drawn once: every big file its sections and their panels stand on, first (data.js LAZY).
+    const { tabFiles } = await import("./sections.js");
+    await need(model, tabs.flatMap((t) => tabFiles(t, next, { panels: true }))).catch(() => null);
     // At once: the preview takes the focus, and a closing drawer would still hold the page inert.
     d.close({ instant: true, focusBack: false });
     fn(model, next, tabs);

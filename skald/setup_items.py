@@ -23,7 +23,7 @@ import re
 import sys
 from pathlib import Path
 
-JOBS = ("logs", "script", "lead", "rsc", "assets", "privacy")
+JOBS = ("logs", "script", "lead", "rsc", "assets", "privacy", "search")
 UNKNOWN = "Could not be checked just now. Open this page again in a minute."
 _WHEN = re.compile(r"the last event came ([^\n\r  ]+)\Z")   # JS: /(.+)$/
 
@@ -219,6 +219,20 @@ def items(app=None, status=None, tools=None, settings=None, waiting=()) -> list[
             says = "Choose what is kept about visitors, then copy the wording for your privacy notice."
         out.append(_line("privacy", title, "done" if chosen else "todo", says, None,
                          None if chosen else "privacy"))
+
+    # 8. Search Console (optional, 2.40): the site's Google property connected.
+    title = "Search Console connected"
+    if settings is None:
+        out.append(_line("search", title, "unknown", UNKNOWN, optional=True))
+    else:
+        prop = (settings.get("search.google_property") or {}).get("value")
+        if prop:
+            out.append(_line("search", title, "done",
+                             f"Google search figures come in from {prop}.", optional=True))
+        else:
+            out.append(_line("search", title, "todo",
+                             "Optional. Connect Google Search Console to see the searches that "
+                             "bring people here.", None, "search", optional=True))
     return out
 
 

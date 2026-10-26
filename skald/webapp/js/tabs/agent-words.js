@@ -59,6 +59,7 @@ export const JOBS = [
   { id: "rsc", act: "rsc", title: "Count pages opened inside the site", short: "pages opened inside the site" },
   { id: "assets", act: "assets", title: "Find the page assets", short: "the page assets" },
   { id: "privacy", act: "privacy", title: "Read the privacy notice", short: "the privacy choice" },
+  { id: "search", act: "search", title: "Connect Google Search Console", short: "Google Search Console" },
   { id: "mcp", act: null, title: "Connect your assistant to Skald (MCP)", short: "your assistant (MCP)" },
 ];
 /* "the server's log, the script tag and your leads" */
@@ -145,6 +146,10 @@ export function reportLines(report) {
     if (keep) add("Privacy", [keep, PRIVACY_AT], "noted");
     if (/^https?:\/\/\S+$/.test(text(p.notice_url))) add("Privacy notice", text(p.notice_url), "url");
   }
+  // 2.40: the Search Console property it found (the user connects it with Apply).
+  const se = r.search && typeof r.search === "object" ? r.search : {};
+  if (text(se.google_property)) add("Search Console", `${text(se.google_property)}${se.robot_added === true ? ", Skald's robot added" : se.robot_added === false ? ", Skald's robot not added yet" : ""}`);
+  if (/^https?:\/\/\S+$/.test(text(se.bing_site))) add("Bing site", text(se.bing_site), "url");
   if (r.nextjs_log_field === true) add("Next.js", "the log field for pages opened inside the site was added");
   else if (r.nextjs_log_field === false) add("Next.js", "the log field was not added");
   add("Files changed", list(r.changed_files), "list");

@@ -154,3 +154,20 @@
 .ts-groups thead th { color: var(--ink-3); font-size: 12px; }
 .ts-groups .num { text-align: right; font-variant-numeric: tabular-nums; }
 .ts-pages li, .ts-hosts li, .ts-why li { overflow-wrap: anywhere; }
+/* 2.40: Lines for your sites (js/tabs/agent-many.js): one card per site, its own line. */
+.am { display: grid; gap: 12px; }
+.am-list { display: grid; gap: 10px; }
+.am-site { display: grid; gap: 6px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: var(--r); background: var(--surface); }
+.am-site.open { border-color: var(--accent, var(--rule)); }
+.am-site .sub, .am-site .note { margin: 0; }
+.am-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; }
+.am-head h3 { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+.am-state { font-size: 12.5px; color: var(--muted); }
+.am-state.live { color: inherit; font-weight: 600; }
+.am-more { display: grid; gap: 8px; padding-top: 6px; border-top: 1px dashed var(--rule); }
+.am-add { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: var(--r); }
+.am-add h3 { margin: 0; font-size: 14px; }
+.am-add textarea { width: 100%; box-sizing: border-box; font-family: var(--mono, monospace); }
+.am-added { margin: 0; padding-left: 18px; }
+.am-added .bad { color: var(--bad, #b42318); }
+.am-safe { margin: 0; padding-left: 18px; font-size: 13px; }

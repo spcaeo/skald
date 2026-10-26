@@ -19,6 +19,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from statistics import mean
 
+from . import slim
 from .classify import Group, ads_checks
 from .files import write_atomic
 from .visits import VisitStats, sentence
@@ -448,7 +449,12 @@ def write(folder: Path, page: Page) -> list[Path]:
     for name in names:
         body = {**page.envelope(), **build_one(name, builders[name], page, failures)}
         path = Path(folder) / "data" / f"{name}.json"
-        write_atomic(path, json.dumps(body, ensure_ascii=False, separators=(",", ":")) + "\n")
+        # With its gzip copy beside it, which nginx sends (gzip_static, DEPLOY.md).
+        write_atomic(path, json.dumps(body, ensure_ascii=False, separators=(",", ":")) + "\n",
+                     pack=True)
         written.append(path)
+        # The app's smaller copy of the biggest files, checked against them (slim.py).
+        if name in slim.NAMES and (copy := slim.write(folder, name, body)):
+            written.append(copy)
     failures.save()
     return written

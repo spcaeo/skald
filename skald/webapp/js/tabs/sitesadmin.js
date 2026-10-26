@@ -212,9 +212,12 @@ export default function sitesadmin(m, s = {}) {
     if (!r.can_add) return h("section", { class: "s" }, h("h2", null, "Add a site"), h("p", { class: "note" }, r.add_refused || "Adding sites is not available here."));
     const go = h("button", { type: "button", class: "btn primary" }, "Add a site, step by step");
     go.addEventListener("click", () => siteWizard({ data: r, onChange: reload }));
+    // 2.40: every site its own line for its AI agent, and several new sites at once (agent-many.js).
+    const lines = h("button", { type: "button", class: "btn" }, "Set up many sites with your AI agent");
+    lines.addEventListener("click", async () => (await import("./agent-many.js")).openLines());
     return h("section", { class: "s" }, h("h2", null, "Add a site"),
       h("p", { class: "sub" }, "Five short steps: the site's address, proof it is yours, then one line for your AI agent (or set it up by hand), and a check that its visits arrive. You can stop at any step and continue later."),
-      h("div", { class: "acts" }, go));
+      h("div", { class: "acts" }, go, lines));
   }
 
   freshNote(slot);
