@@ -786,9 +786,11 @@ tag or beacon.</sub>
 - **What people searched for, and where you rank:** Search Console and Bing Webmaster Tools.
 - **Clicks, scrolls, funnels and ad spend inside the page:** GA4 or PostHog.
 - **Simple cookie-free counts on any host:** Plausible.
-- **Every visitor, crawler and AI fetch, with checked figures, on your own server:** Skald. It sits
-  beside the tools above. Even the gap between Skald's count and GA4's is useful: it shows how much
-  the script misses.
+- **What AI engines say about you, often with content or audit tools to change it:** an AI visibility
+  platform such as Searchable, Profound, Peec AI, Otterly.AI or Promptwatch (hosted services). Skald adds every
+  request in your own log, crawler names checked for nine owners, and the leads AI sent.
+- **Every visitor, crawler and AI fetch, with checked figures, on your own server:** Skald. It sits beside
+  the tools above. Even the gap between Skald's count and GA4's is useful: it shows how much the script misses.
 
 ## Who it is for
 
