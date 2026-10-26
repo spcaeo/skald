@@ -1,4 +1,4 @@
-"""Settings > Reports in the dashboard (client_reports.py), with accounts
+"""Settings > Mail & reports > Client reports in the dashboard (client_reports.py), with accounts
 (`access.mode: sessions`). Served by the refresh helper like settings_api.py,
 under the same `settings/` prefix nginx already passes on:
 
@@ -188,7 +188,7 @@ def reports(c: Ctx, form):
 
 
 def _search_connected(c: Ctx) -> bool:
-    """Search Console connected for this site (Settings > Integrations > Search)."""
+    """Search Console connected for this site (Settings > Leads & integrations > Search Console & Bing)."""
     from .search.sync import google_property
     return bool(google_property(c.config))
 

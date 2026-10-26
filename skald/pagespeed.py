@@ -250,7 +250,7 @@ def test_day(history, site: str, config: dict, day: date, now: datetime, force: 
 
 def _key(config: dict) -> str | None:
     """PSI_API_KEY from the environment, else from secrets.json (typed in
-    Settings > Mail by an install admin). Never printed."""
+    Settings > Mail & reports by an install admin). Never printed."""
     from .settings_store import secret_value
     try:
         return (secret_value(config, "pagespeed.api_key") or "").strip() or None

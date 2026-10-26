@@ -1,4 +1,4 @@
-// Settings > Connections, "Send this site's visits to Skald", step Install:
+// Settings > Collect data > Send logs, "Send this site's visits to Skald", step Install:
 // the exact steps for each way, with the send address filled in, and the
 // fresh sending token when there is one (else a clear <token>). Every command
 // has a Copy button. For the shippers, the install kit built by the helper
@@ -312,7 +312,7 @@ function script(st) {
       ["Put the tag in the <head> of every page:", codeBlock(plainTag(st.base, st.site), "the script tag")],
       ["Open a page of the site in a normal browser window (Do Not Track off), then press Next and Test connection here."],
     ),
-    h("p", { class: "note" }, `Nothing changes on your web server: the page loads the script from ${host(st.base)} and sends its events there. The page's host name must be one of the site's host names (Settings > Sites).`),
+    h("p", { class: "note" }, `Nothing changes on your web server: the page loads the script from ${host(st.base)} and sends its events there. The page's host name must be one of the site's host names (Settings > Site details).`),
     proxyFold(st.base, st.site),
   ];
 }

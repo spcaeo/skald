@@ -1,6 +1,6 @@
 // "Set up this site" > Mail recipient confirmed: turn the daily and the weekly
 // mail on, enter or confirm who gets it, then see who still has to press the
-// link in their confirm mail and send a test. The endpoints of Settings > Mail
+// link in their confirm mail and send a test. The endpoints of Settings > Mail & reports
 // (prefs.js mail, settings_api.py): GET settings, POST settings/save
 // {mail.daily, mail.weekly, mail.to} (only what changed), POST settings/test-mail {to}.
 

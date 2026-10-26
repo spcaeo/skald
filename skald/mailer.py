@@ -18,7 +18,7 @@ variable is named and not set, that is a refusal too: sending anonymously
 because a password went missing is the kind of quiet fallback that ends with
 a relay rejecting mail for a week while the cron log says nothing.
 
-With Settings > Mail (settings_store.py) an install admin may type the SMTP
+With Settings > Mail & reports (settings_store.py) an install admin may type the SMTP
 login instead: `mail.user` (a plain setting) and the password, kept in
 secrets.json beside the history under the same name as its environment
 variable (`mail.password_env`, else SKALD_SMTP_PASSWORD). The
@@ -119,7 +119,7 @@ def login(config: dict) -> tuple[str | None, str | None]:
             raise Refused(f"the secrets file cannot be used: {why}") from None
         if not value:
             raise Refused(f"{what} is not set (environment variable {name}, "
-                          "or Settings > Mail)")
+                          "or Settings > Mail & reports)")
         return value
 
     user = str(mail.get("user") or "").strip() or None

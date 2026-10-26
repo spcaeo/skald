@@ -127,8 +127,21 @@ function testWords(name, r) {
   return `${name}: the test was signed, received and read. A real one would keep ${kept} of ${a.records ?? 0}${facts}. Nothing was kept.${(a.notes || []).length ? ` Note: ${a.notes.join("; ")}.` : ""}`;
 }
 
-export default function integrations() {
-  const title = head1("Integrations", "The script tag, incoming hooks, outgoing webhooks, and Search Console and Bing.");
+/* 2.40: Settings shows one part per place (settings-pages.js): "hooks" (Status and the incoming
+   hooks: Leads & integrations), "webhooks" (outgoing), "search" (Search Console and Bing),
+   "script" (the tag to copy: Collect data › Script tag & goals), "aikeys" (AI answers › API
+   keys), or "all" (every part, as the page was). */
+const LEDE = {
+  all: "The script tag, incoming hooks, outgoing webhooks, and Search Console and Bing.",
+  hooks: "Your site's server and the tools you use tell Skald about each lead: a booking, a payment, a form.",
+  webhooks: "Skald posts a signed summary of each conversion to your CRM, Zapier or Slack.",
+  search: "Queries, impressions, clicks and position from Google and Bing, synced every 6 hours.",
+  script: "One line in every page's head: page views, form steps, clicks and booking embeds.",
+  aikeys: "Each assistant's API key, so Skald can ask it the tracking profiles' questions.",
+};
+export function integrationsPart(part = "all") {
+  const title = head1(part === "all" ? "Integrations" : "", LEDE[part] || LEDE.all);
+  if (part === "aikeys") return [title, aiKeys()];
   if (!sessions()) return [title, h("div", { class: "state" }, h("div", null, "Integrations are set up here with accounts. On this server, use skald hooks secret, skald doctor and docs/INTEGRATIONS.md."))];
   if (isViewer()) return [title, h("div", { class: "state" }, h("div", null, `${VIEWER} Integrations are for admins.`))];
   const body = h("div", null, h("p", { class: "empty" }, "Loading the integrations..."));
@@ -288,25 +301,27 @@ export default function integrations() {
     chosen = r.site;
     const pick = (r.sites || []).length > 1 ? h("select", { "aria-label": "Site" }, r.sites.map((s) => h("option", { value: s, selected: s === r.site }, s))) : null;
     if (pick) pick.addEventListener("change", () => { chosen = pick.value; fresh = null; showFresh(); msg.say(""); reload(); });
+    const want = (k) => part === "all" || part === k;
     body.replaceChildren(
       pick ? h("section", { class: "s" }, field("Site", pick, r.install_admin ? "As an install admin you may set up any site." : "The sites of your organisation.")) : "",
       r.locked ? h("p", { class: "msg err" }, r.locked) : "",
-      statusBox(r) || "",
-      scriptBox(r),
-      h("section", { class: "s" }, h("h2", null, "Incoming hooks"),
+      want("hooks") ? statusBox(r) || "" : "",
+      want("script") ? scriptBox(r) : "",
+      !want("hooks") ? "" : h("section", { class: "s" }, h("h2", null, "Incoming hooks"),
         h("p", { class: "sub" }, "Your site's server and the tools you use tell Skald what happened: a booking, a payment, a form. Give each tool its address and its secret; Stripe and HubSpot make their own secret, which you paste here. The Webhooks guide says where in each tool."),
         howTo("webhooks", "How do I connect Calendly, Cal.com, HubSpot, Typeform, Stripe, Zapier or my own site?"),
         r.takes_hooks ? null : h("p", { class: "msg err" }, "This install does not report on this site yet, so its hooks are not answered."),
         (r.tools || []).map(toolRow)),
-      h("section", { class: "s" }, h("h2", null, "Outgoing webhooks"),
+      !want("webhooks") ? "" : h("section", { class: "s" }, h("h2", null, "Outgoing webhooks"),
         h("p", { class: "sub" }, "Skald posts a signed summary of each conversion to your CRM, Zapier or Slack: the action, its source, campaign, landing page, country, device, visits and time before converting, and the anonymous journey. Never a name or an email. A failed delivery is tried again for about 15 hours."),
         (r.webhooks || []).length ? r.webhooks.map(hookRow) : h("p", { class: "empty" }, "No outgoing webhooks yet."),
         howTo("webhooks", "How do I send each conversion to my CRM, Zapier or Slack?"),
         addForm(r)),
-      searchBox(r.site));
+      want("search") ? searchBox(r.site) : "");
   }
 
   showFresh();
   reload();
-  return [title, shown, body, aiKeys(), msg];
+  return [title, shown, body, part === "all" ? aiKeys() : null, msg];
 }
+export default function integrations() { return integrationsPart("all"); }

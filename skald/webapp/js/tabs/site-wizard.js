@@ -1,8 +1,8 @@
-// "Add a site", step by step (Settings > Add or remove sites, and "+ Add a
+// "Add a site", step by step (Settings > Sites, and "+ Add a
 // site" in the site picker): 1 your site, 2 prove it's yours, 3 which AI agent
 // you use, 4 send it one line, 5 watch it connect (agent-setup.js, agent-watch.js).
 // "No AI agent: set it up by hand" on step 3 turns steps 3 to 5 into the ones of
-// Settings > Connections' "Send this site's visits to Skald" (conn-send.js): how
+// Settings > Collect data > Send logs' "Send this site's visits to Skald" (conn-send.js): how
 // Skald gets its visits, install, test and finish. Back on that step 3, "Use an AI
 // agent instead" turns them back. Five steps either way.
 //
@@ -68,7 +68,7 @@ function stepSite(w, data) {
     const card = detectCard(st, { address: () => st.site, name: st.site, auto: !st.found,
       onFound: (f, why) => { if (why === "toggle" && f) save(w, { found: kept(st) }); } });
     return [h("p", null, "The site: ", h("strong", null, st.site), ". It is made already; press Next to go on."), card,
-      h("p", { class: "note" }, "Its host names can be changed in Settings > Sites.")];
+      h("p", { class: "note" }, "Its host names can be changed in Settings > Site details.")];
   }
   if (data.can_add === false) return [answerBox("bad", data.add_refused || "Adding sites is not available here.")];
   const addr = input({ name: "site-address", autocomplete: "off", inputmode: "url", maxlength: "200", placeholder: "www.example.com" });

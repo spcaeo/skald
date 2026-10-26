@@ -29,12 +29,12 @@ from ..accounts import db as base
 
 READ_ONLY_PAST_DUE = ("The last payment failed more than {days} days ago, so this "
                       "organisation is read-only until it is paid. Nothing is deleted. "
-                      "The owner can fix it in Settings > Billing.")
+                      "The owner can fix it in Settings > Billing & usage.")
 READ_ONLY_TRIAL = ("The trial ended more than {days} days ago, so this organisation is "
                    "read-only until a plan is chosen. Nothing is deleted. The owner can "
-                   "choose one in Settings > Billing.")
+                   "choose one in Settings > Billing & usage.")
 READ_ONLY_CANCELED = ("The subscription was cancelled, so this organisation is read-only. "
-                      "Nothing is deleted. The owner can choose a plan in Settings > Billing.")
+                      "Nothing is deleted. The owner can choose a plan in Settings > Billing & usage.")
 
 
 def limits_for(db, org_id, config) -> dict | None:
@@ -93,7 +93,7 @@ def can_add_member(db, org_id, config, email: str | None = None) -> tuple[bool, 
         return True, ""
     return False, (f"The {got['plan']} plan allows {_plural(got['members'], 'member')}, "
                    "open invites included. Cancel an invite, remove a member, or choose a "
-                   "bigger plan in Settings > Billing.")
+                   "bigger plan in Settings > Billing & usage.")
 
 
 def can_add_site(db, org_id, config) -> tuple[bool, str]:
@@ -104,7 +104,7 @@ def can_add_site(db, org_id, config) -> tuple[bool, str]:
     if sites_used(db, org_id) < got["sites"]:
         return True, ""
     return False, (f"The {got['plan']} plan allows {_plural(got['sites'], 'site')}. Choose a "
-                   "bigger plan in Settings > Billing to add another.")
+                   "bigger plan in Settings > Billing & usage to add another.")
 
 
 def retention_cap(db, org_id, config) -> int | None:
@@ -211,14 +211,22 @@ def read_only(db, org_id, config) -> str | None:
 def summary(db, org_id, config, history_path=None) -> dict | None:
     """The `plan` block of /me: {name, status, usage, limits, used, over,
     read_only, read_only_why, trial_days_left, trial_ends_at}; None when saas
-    is off or the organisation has no plan."""
+    is off or the organisation has no plan. usage adds `percent` (of
+    requests_month, rounded down), `resets_on` and `mark` (80, 90, 100: the
+    usage alerts' highest mark reached; None when they are switched off)."""
     got = limits_for(db, org_id, config)
     if got is None:
         return None
+    from . import usage_alerts
     sites = [r[0] for r in db.execute("SELECT name FROM sites WHERE org_id = ?", (org_id,))]
     why = read_only(db, org_id, config)
+    month = month_now()
+    used = usage(history_path, sites, month)
+    share = usage_alerts.percent(used["requests"], got["requests_month"])
     return {"name": got["plan"], "known": got["known"], "status": got["status"],
-            "usage": usage(history_path, sites, month_now()),
+            "usage": {**used, "percent": share, "resets_on": usage_alerts.resets_on(month),
+                      "mark": usage_alerts.mark(used["requests"], got["requests_month"])
+                      if usage_alerts.on(config) else None},
             "limits": {f: got[f] for f in plan_table.LIMITS},
             "used": {"sites": len(sites), "members": members_used(db, org_id)},
             "over": over_limit(db, org_id, config, history_path),

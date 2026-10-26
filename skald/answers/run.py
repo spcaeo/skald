@@ -187,7 +187,9 @@ def run_site(folder: Path, site: str, config: dict, tz, now: datetime, live_dir=
     try:
         lists = store.lists(db, site)
         keep = int(lists.get("keep_days") or KEEP_DAYS)
-        store.prune(db, site, today - timedelta(days=keep))
+        from ..keep_everything import Keeper
+        if not Keeper(config, live_dir)(site):      # keep everything: no run goes
+            store.prune(db, site, today - timedelta(days=keep))
         for p in profiles.listed(db, site):
             if only is not None and p["id"] != int(only):
                 continue

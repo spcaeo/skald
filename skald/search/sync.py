@@ -1,6 +1,6 @@
 """The sync: Search Console and Bing figures into history, by themselves.
 
-Once a site is connected (Settings > Integrations > Search), the container's
+Once a site is connected (Settings > Leads & integrations > Search Console & Bing), the container's
 scheduler runs `skald search sync` every EVERY_HOURS hours (docker/scheduler.py,
 SKALD_SEARCH_HOURS), one site after another under each site's lock. A sync:
 
@@ -103,7 +103,7 @@ def google_client(job: Job) -> google.Client:
     text, where = google.find_key(job.config, job.folder)
     if not text:
         raise http.Failed(0, "No service-account key: an install admin uploads one in "
-                             "Settings > Integrations > Search.")
+                             "Settings > Leads & integrations > Search Console & Bing.")
     extra = {}
     if job.api.get("google_api"):
         extra["api"] = job.api["google_api"]
@@ -119,7 +119,7 @@ def bing_client(job: Job) -> bing.Client:
     key, _ = bing.find_key(job.config, job.folder)
     if not key:
         raise http.Failed(0, "No Bing API key: an install admin types one in "
-                             "Settings > Integrations > Search.")
+                             "Settings > Leads & integrations > Search Console & Bing.")
     try:
         return bing.Client(key, opener=job.opener, sleep=job.sleep,
                            **({"api": job.api["bing_api"]} if job.api.get("bing_api") else {}))
@@ -345,7 +345,7 @@ def run(job: Job, engine: str, **options) -> int:
             if hosts and not props.covers(source, hosts):
                 return _failed(job, engine, source, f"{source} does not cover this site's host "
                                f"names ({', '.join(map(str, hosts))}); connect a property "
-                               "of this site in Settings > Integrations > Search.", started)
+                               "of this site in Settings > Leads & integrations > Search Console & Bing.", started)
             try:
                 if engine == "google":
                     got = sync_google(job, **options)
@@ -422,7 +422,7 @@ def _mail(job: Job, engine: str, why: str) -> bool:
         "", f"Why: {why}", "",
         "Search figures already synced stay on the Search tab. Skald keeps trying every "
         f"{EVERY_HOURS} hours; the first good sync clears this.",
-        "Status and the fix: Settings > Integrations > Search.", "",
+        "Status and the fix: Settings > Leads & integrations > Search Console & Bing.", "",
         "One mail per run of failures: no more mails until it works again and then fails.",
     ]) + "\n")
     try:

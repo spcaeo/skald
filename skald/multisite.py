@@ -22,7 +22,10 @@ to the first site's owner: no mail recipients (daily and weekly mail and alert
 mail off until the site's own admin sets them in Settings), no leads, page
 speed, hooks, conversions or markers, and no beacon origins or goals. A
 config-file site of the same name wins and the row is skipped. A removed
-row is not loaded: its processing stops, its data stays. Until a dashboard
+row is not loaded: its processing stops, its data stays. A site paused or
+removed in Settings > Sites (site_lifecycle.py, any site) is left out of the
+collecting commands by `contexts`, and a removed one out of the dashboard's
+list of sites. Until a dashboard
 site's first log line, run-daily and live report it as "waiting for its first
 log lines" (waiting()) and go on: exit 0, nothing stored, no failure mail.
 
@@ -199,9 +202,12 @@ def describe(configs: list[dict], history) -> list[dict]:
     its logo (site_logos.py; the files beside the history)."""
     from . import site_logos
     base = Path(history.path).parent if getattr(history, "path", None) else None
+    from .site_lifecycle import skipped
+    held = skipped(configs[0], base) if configs and base is not None else {}
     out = []
     for config in configs:
         name = site_name(config)
+        why = held.get(name) or ""
         try:
             views = config_views(config)
         except ValueError:
@@ -214,6 +220,8 @@ def describe(configs: list[dict], history) -> list[dict]:
                     "first_day": first.isoformat() if first else None, "last_day": last,
                     # A dashboard site with no day stored yet (waiting()).
                     "waiting": bool(config.get("_dashboard_site")) and first is None,
+                    # Paused in Settings > Sites: the day it was paused, else null.
+                    "paused": why[len("paused since "):] if why.startswith("paused") else None,
                     "logo": site_logos.entry(config, name, base)})
     return out
 
@@ -235,6 +243,43 @@ def write_sites(out: Path, sites: list[dict], live_names: set[str]) -> list[Path
         write_atomic(path, json.dumps(body, separators=(",", ":")) + "\n")
         written.append(path)
     return written
+
+
+# The commands that collect or count. A paused or removed site (Settings > Sites,
+# site_lifecycle.py) is left out of them; `dashboard`, `doctor` and `audit` still
+# see a paused site, and a removed one is left out of everything unless --site names it.
+COLLECTING = ("live", "run-daily", "check", "collect", "backfill", "verify-bots", "pagespeed",
+              "search-console", "bing", "search", "reports", "ai-answers", "views")
+
+
+def contexts(ctx, args, make) -> tuple[int | None, list, bool]:
+    """(an exit code to stop with or None, the contexts to run, whether the
+    install has one site). `make(args, config, live_dir)` builds a Context."""
+    from .site_lifecycle import skipped
+    held = skipped(ctx.config, ctx.db_path.parent)
+    others = site_configs(ctx.raw_config, ctx.config_path)
+    found = [ctx] + [make(args, c, state_dir(ctx.db_path.parent, site_name(c)))
+                     for c in others]
+    gone = {n for n, why in held.items() if why.startswith("removed")}
+    if others:
+        every = [c.config for c in found if c.site not in gone]
+        for c in found:
+            c.all_configs = every
+    if args.only_site:
+        found = [c for c in found if c.site == args.only_site]
+        if not found:
+            print(f"no site named {args.only_site!r}" + ("" if others else
+                  f"; this config is {ctx.site!r}"), file=sys.stderr)
+            return 2, [], not others
+    else:
+        found = [c for c in found if c.site not in gone or c is ctx]
+        if args.command not in PER_SITE:
+            found = found[:1]
+    if args.command in COLLECTING:
+        for c in [c for c in found if c.site in held]:
+            print(f"{c.site}: {held[c.site]} in Settings > Sites; not collected")
+        found = [c for c in found if c.site not in held]
+    return None, found, not others
 
 
 def run_each(contexts: list) -> list[int]:

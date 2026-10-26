@@ -772,6 +772,14 @@ nginx`. The accounts file stays and is used again on the next switch;
 
 ## 7. Backups and upgrades
 
+- **Keep everything (internal and enterprise installs).** `retention.keep_everything: true` in
+  `config.yml` (Docker: `SKALD_KEEP_EVERYTHING=1` in the env file, then recreate the
+  container) stops every automatic deletion and clearing on every site of the install:
+  retention windows, the People days, a plan's cap, the hook and beacon spools and the
+  conversions file's backup rotation. `skald doctor` then shows "Keep everything: on". The
+  history's own backups still rotate (`backup.daily`, `backup.weekly`), and the disk grows
+  with what is kept: watch the doctor's Disk line. A person's deletion request
+  (`skald forget`, `skald conversions forget`) still works. [docs/SETTINGS.md](docs/SETTINGS.md#keep-everything).
 - `history.sqlite` is the only state that cannot be rebuilt from the logs. Back
   it up with
   `sqlite3 /var/lib/skald/history.sqlite ".backup '/path/backup.sqlite'"`.

@@ -124,9 +124,11 @@ const RESTORE = {
   pcm: async (v, m, s) => (await import("./tabs/pagechange.js")).openMarkKey(v, m, s),
   ans: async (v) => (/^[A-Za-z0-9_-]{1,40}$/.test(v) ? (await import("./tabs/ai-answers.js")).openAnswer(v) : "That answer is not one Skald keeps."),
   // A site's name (it has a dot; the set-up dialogs' names never do) is its Add a site wizard
-  // on any tab: Connections' "Set up with your AI agent" opens it there.
-  setup: async (v, m, s) => (s.tab === "settings/sitesadmin" || v.includes(".") ? (await import("./tabs/sitesadmin.js")).openSiteKey(v, Number(s.step) || 0, s)
+  // on any tab: "Set up with your AI agent" (Set-up checklist, Collect data) opens it there.
+  setup: async (v, m, s) => (s.tab === "settings/org/sites" || v.includes(".") ? (await import("./tabs/sitesadmin.js")).openSiteKey(v, Number(s.step) || 0, s)
     : (await import("./tabs/setup-dialogs.js")).openSetupKey(v, m, Number(s.step) || 1, s.share === "1", s)),
+  // A site's Pause, Remove, Clear data or Delete all data dialog (js/tabs/site-actions.js).
+  sact: async (v) => (await import("./tabs/site-actions.js")).openSiteActKey(v),
   conn: async (v, m, s) => (await import("./tabs/connections.js")).openConnKey(v, m, Number(s.step) || 1, s.share === "1", s),
   dlg: async (v, m, s) => {
     if (extra[`dlg:${v}`]) return extra[`dlg:${v}`](m, s);

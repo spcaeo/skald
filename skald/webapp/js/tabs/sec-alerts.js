@@ -77,7 +77,7 @@ export default function alerts(m, s) {
         { key: "mailed", label: "Mailed", num: true, hide: true },
       ], { caption: "Security alerts", ns: "sxo", file: "security-alerts.csv", rows, sortKey: "opened_at", dir: -1, limit: 12,
         empty: "No security alert in the last 30 days." }));
-      parts.push(h("p", { class: "note" }, "Switch each rule on or off, and the mail, on ", h("a", { href: "#site/alerts" }, "Site > Alerts"), ". Slack and other webhooks: Settings > Integrations (the event alert.opened)."));
+      parts.push(h("p", { class: "note" }, "Switch each rule on or off, and the mail, on ", h("a", { href: "#site/alerts" }, "Site > Alerts"), ". Slack and other webhooks: Settings > Leads & integrations > Outgoing webhooks (the event alert.opened)."));
       return parts;
     },
   });

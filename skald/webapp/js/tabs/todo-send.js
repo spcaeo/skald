@@ -1,7 +1,7 @@
 // "Send to team" (2.35): one to-do by mail to a member of the site's team, with its
 // list as a CSV file attached and the link that opens it in Skald. The address holds
 // tdsend=<to-do id> while the dialog is open (js/overlays.js); who it goes to never goes
-// in the address. The mail goes through the install's own mail server (Settings > Mail),
+// in the address. The mail goes through the install's own mail server (Settings > Mail & reports),
 // sent by the helper (skald/todo_api.py); the dialog is offered only when there is
 // one and a team to send to (js/tabs/todo-marks.js sendable()).
 

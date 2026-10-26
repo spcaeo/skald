@@ -169,37 +169,9 @@ def cmd_check(ctx: Context) -> int:
 
 
 def prune_kept(ctx: Context, history: History) -> None:
-    """Delete what is kept only for a while (the windows in Settings > Data
-    retention, else config.yml); totals are kept for good."""
-    # Anonymous journeys are kept report.journey_days days; totals for good.
-    # A site whose window was changed in Settings keeps its own (settings_store).
-    from .settings_store import DETAIL_KINDS, prune_plan
-    from .visitors import repeat_days
-    today = ctx.now.date()
-    keep, own = prune_plan(ctx.config, "report.journey_days", journey_days(ctx.config))
-    history.prune_journeys(today - timedelta(days=keep),
-                           {s: today - timedelta(days=n) for s, n in own.items()})
-    keep, own = prune_plan(ctx.config, "visitors.repeat_days", repeat_days(ctx.config))
-    history.prune_visitors(today, keep, own)
-    # The per-page and per-visit detail behind compare and page history is
-    # kept report.retention_days (400); totals and milestones for good.
-    keep, own = prune_plan(ctx.config, "report.retention_days",
-                           int(setting(ctx.config, "report", "retention_days", 400)))
-    history.prune_extras(today, keep, DETAIL_KINDS, own)
-    # The AI user fetches behind "likely sent by an AI assistant" (no person
-    # in them) are kept as long as the leads look back (ai_likely.py).
-    from .ai_likely import FETCH_DAYS
-    history.prune_extras(today, FETCH_DAYS, ("ai_fetches",))
-    from .people.visits import prune_kept as prune_people   # privacy.keep_days
-    prune_people(ctx)
-    # The conversions file's own keeping times (conversions.retention_days,
-    # journeys.vid_days, deliveries 90 days, the spool): before 2.5.3 only by
-    # hand (`conversions prune`), so nothing was ever pruned.
-    from .cli_conversions import cmd_prune as prune_conversions
-    try:
-        prune_conversions(ctx, quiet=True)
-    except Exception as why:          # noqa: BLE001 - a prune never stops the run
-        ctx.err(f"conversions prune: {type(why).__name__}: {why}")
+    """Delete what is kept only for a while; a keep-everything site nothing (prune.py)."""
+    from .prune import prune_kept as run
+    run(ctx, history)
 
 
 def collect_day(ctx: Context, history: History, day: date,
@@ -214,8 +186,13 @@ def collect_day(ctx: Context, history: History, day: date,
 
     Each configured view is stored beside the site, under its own key, with
     its own verify result: a view that does not reconcile is withheld on its
-    own page without taking the site down with it.
+    own page without taking the site down with it. A day before the site's
+    last Clear data (site_lifecycle.before_clear) is never stored again.
     """
+    from .site_lifecycle import before_clear
+    if before_clear(ctx.config, ctx.db_path.parent, ctx.site, day):
+        ctx.err(f"{day}: before this site's data was cleared; nothing stored")
+        return "empty"
     prune_kept(ctx, history)
     if figures is None:
         figures = ctx.analyse(day, logs)
@@ -803,7 +780,7 @@ def daily_steps(ctx: Context) -> list[tuple[str, Callable[[], int]]]:
               ("stack", lambda: stack.daily(ctx)), ("kit tokens", lambda: kit_api.daily(ctx)),
               ("security mail", lambda: security_notify.daily(ctx)),
               ("dashboard", lambda: cmd_dashboard(ctx))]
-    # Each mail can be turned off in Settings > Mail (mail.daily, mail.weekly).
+    # Each mail can be turned off in Settings > Mail & reports (mail.daily, mail.weekly).
     if _mail_on(ctx.config, "daily"):
         steps.append(("daily mail", lambda: mail(ctx, "daily", ctx.args.dry_run)))
     if ctx.now.date().weekday() == 0 and _mail_on(ctx.config, "weekly"):
@@ -968,32 +945,19 @@ def main(argv: list[str] | None = None) -> int:
     ctx = Context(args)
     from . import multisite
     # The other sites are laid over config.yml as read; each Context adds its own settings.
-    others = multisite.site_configs(ctx.raw_config, ctx.config_path)
-    if not others:
-        if args.only_site and args.only_site != ctx.site:
-            print(f"no site named {args.only_site!r}; this config is {ctx.site!r}",
-                  file=sys.stderr)
-            return 2
-        return _deliver_after(args, [ctx], args.run(ctx))
-    contexts = [ctx] + [Context(args, c, multisite.state_dir(ctx.db_path.parent, site_name(c)))
-                        for c in others]
-    every = [c.config for c in contexts]
-    for c in contexts:
-        c.all_configs = every
-    if args.only_site:
-        contexts = [c for c in contexts if c.site == args.only_site]
-        if not contexts:
-            print(f"no site named {args.only_site!r}", file=sys.stderr)
-            return 2
-    elif args.command not in multisite.PER_SITE:
-        contexts = contexts[:1]
+    # Paused and removed sites are left out of the collecting commands (multisite.contexts).
+    stop, contexts, alone = multisite.contexts(ctx, args, Context)
+    if stop is not None:
+        return stop
+    if alone and contexts:
+        return _deliver_after(args, contexts, args.run(ctx))
     codes = multisite.run_each(contexts)
-    return _deliver_after(args, contexts, max(codes))
+    return _deliver_after(args, contexts, max(codes, default=0))
 
 
 def _deliver_after(args, contexts: list, code: int) -> int:
     """live and run-daily: webhooks, then the right-away security mail, once after all sites."""
     if args.command in ("live", "run-daily"):
         from . import summary_mail
-        summary_mail.after_run(contexts)
+        summary_mail.after_run(contexts, args.command)
     return code

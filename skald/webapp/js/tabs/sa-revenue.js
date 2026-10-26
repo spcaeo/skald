@@ -131,7 +131,7 @@ function lifetime(f, cur) {
   return fixed("Lifetime value, by first source", period,
     h("p", { class: "sub" }, `Every ${cur} customer, by the first source of their first paid sale: how many, what they paid in all (refunds taken off), the average per customer, their renewals and the share who paid again.`),
     h("div", { class: "sheet" }, table(cols, { caption: `Lifetime value by first source, ${cur}`, ns: "revl", rows, file: `revenue-lifetime-${cur.toLowerCase()}.csv`, search: false, limit: 12, sortKey: "net_minor" })),
-    h("p", { class: "note" }, `A customer is one customer reference your tool sends (a Stripe customer, your app's account ID); a sale without one is its own customer. Counted over every sale Skald keeps (Settings > Data retention applies), not the date range above. The average and the repeat rate are worked out here from two counted figures; the repeat rate is given over at least ${n(min)} customers.`));
+    h("p", { class: "note" }, `A customer is one customer reference your tool sends (a Stripe customer, your app's account ID); a sale without one is its own customer. Counted over every sale Skald keeps (Settings > Privacy & retention applies), not the date range above. The average and the repeat rate are worked out here from two counted figures; the repeat rate is given over at least ${n(min)} customers.`));
 }
 
 export default function revenue(m, s) {

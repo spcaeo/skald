@@ -183,7 +183,7 @@ def mail_settings(config: dict) -> dict:
             raise Refused(f"environment variable {name} (mail.{key}) is not set")
         return value
 
-    # Settings > Mail: a typed user, and the password in secrets.json.
+    # Settings > Mail & reports: a typed user, and the password in secrets.json.
     user = str(mail.get("user") or "").strip() or secret("user_env")
     if mail.get("password_env"):
         password = secret("password_env")
@@ -191,7 +191,7 @@ def mail_settings(config: dict) -> dict:
         name = "SKALD_SMTP_PASSWORD"
         password = os.environ.get(name) or _stored(config, name)
         if not password:
-            raise Refused(f"the SMTP password is not set ({name} or Settings > Mail)")
+            raise Refused(f"the SMTP password is not set ({name} or Settings > Mail & reports)")
     else:
         password = None
     if (user or password) and security == "none":

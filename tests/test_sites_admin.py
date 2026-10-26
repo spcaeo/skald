@@ -304,10 +304,7 @@ class Cli(AccountsCase):
         code, out, _ = self.run_ti("site", "list")
         self.assertIn("shop.example.com", out)
         self.assertIn("dashboard", out)
-        code, _, err = self.run_ti("site", "purge", "shop.example.com", "--yes")
-        self.assertEqual(code, 1)
-        self.assertIn("still active", err)
-        site_configs.remove(self.db, self.org["id"], "shop.example.com", "cli")
+        # An active site may be deleted too (2.40: "Delete all data" needs no Remove first).
         from skald.store import History
         h = History(self.dir / "history.sqlite")
         h.db.execute("INSERT INTO counts (site, day, kind, name, n) VALUES (?,?,?,?,?)",
@@ -331,10 +328,10 @@ class Cli(AccountsCase):
         self.assertFalse((self.dir / "ingest" / "shop.example.com").exists())
         self.assertIsNone(site_configs.get(self.db, "shop.example.com"))
 
-    def test_a_config_site_cannot_be_purged(self):
+    def test_the_main_site_cannot_be_purged(self):
         code, _, err = self.run_ti("site", "purge", "main.example", "--yes")
         self.assertEqual(code, 1)
-        self.assertIn("not a dashboard site", err)
+        self.assertIn("main site", err)
 
 
 if __name__ == "__main__":

@@ -75,12 +75,12 @@ class SignInPages(unittest.TestCase):
 
 class SettingsPages(unittest.TestCase):
     def test_team_and_account_are_settings_tabs_with_a_render(self):
-        state = (APP / "js" / "state.js").read_text(encoding="utf-8")
-        self.assertIn('["settings/team", "Team"]', state)
-        self.assertIn('["settings/account", "Your account"]', state)
-        index = (APP / "js" / "tabs" / "index.js").read_text(encoding="utf-8")
-        self.assertIn('"settings/team": team', index)
-        self.assertIn('"settings/account": account', index)
+        menu = (APP / "js" / "settings-menu.js").read_text(encoding="utf-8")
+        self.assertIn('route: "settings/org/team", name: "Team"', menu)
+        self.assertIn('route: "settings/you/account", name: "Your account"', menu)
+        pages = (APP / "js" / "tabs" / "settings-pages.js").read_text(encoding="utf-8")
+        self.assertIn('"settings/org/team": team', pages)
+        self.assertIn('"settings/you/account": account', pages)
 
     def test_every_post_can_carry_the_csrf_value(self):
         ipm = (APP / "js" / "tabs" / "ipmanager.js").read_text(encoding="utf-8")

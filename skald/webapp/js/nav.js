@@ -6,7 +6,7 @@
 // js/sections.js) - Overview, Traffic, Leads & sales, AI & bots, Site - each
 // opening its tabs (the strip under the top bar, main.js); Settings, Help and
 // About in the foot. While a settings page is open, Settings' own menu takes
-// its place (SETTINGS_MENU), with a way back at its top.
+// its place (SETTINGS_MENU, js/settings-menu.js), with a way back at its top.
 //
 //   full   wide screens, unless collapsed ([ or the toggle; remembered)
 //   icons  a 64px rail with tooltips; the default below 1100px
@@ -134,7 +134,7 @@ function group([heading, keys], i, labelled) {
   const on = keys.filter(S.shown);
   if (!on.length) return null;
   const id = `nav-g-${i}`;
-  return h("div", { class: "nav-group", role: "group", "aria-labelledby": labelled ? id : null, "aria-label": labelled ? null : heading },
+  return h("div", { class: "nav-group", role: "group", "aria-labelledby": labelled ? id : null, "aria-label": labelled ? null : heading || nameOf(on[0]) },
     labelled ? h("p", { class: "nav-h", id }, heading) : null,
     h("ul", null, on.map((key) => h("li", null, link(key)))));
 }
@@ -155,7 +155,8 @@ function draw(settings) {
   }
   const back = h("a", { href: "#overview", class: "tab nav-back", id: "nav-back", html: BACK, onclick: (e) => go(e, lastApp) }, h("span", { class: "tab-name" }, "Back to the dashboard"));
   tooltip(back, "Back to the dashboard");
-  list.replaceChildren(ind, back, h("p", { class: "nav-title" }, "Settings"), ...S.SETTINGS_MENU.map((g, i) => group(g, i, true)).filter(Boolean));
+  // 2.40: All settings first (no heading), then This site, AI & API, Organisation, You, Help & docs.
+  list.replaceChildren(ind, back, h("p", { class: "nav-title" }, "Settings"), ...S.SETTINGS_MENU.map((g, i) => group(g, i, !!g[0])).filter(Boolean));
 }
 
 export function buildNav() {
@@ -234,7 +235,8 @@ export function trailOf(key) {
   const sec = S.sectionOf(key);
   if (sec) return [[sec.name]];
   const group = S.groupOf(key);
-  if (S.inSettings(key)) return [["Settings", "settings"], group !== nameOf(key) ? [group, null, "crumb-g"] : null, [nameOf(key)]].filter(Boolean);
+  if (key === "settings/home") return [["Settings", "settings"]];
+  if (S.inSettings(key)) return [["Settings", "settings"], group && group !== nameOf(key) ? [group, null, "crumb-g"] : null, [nameOf(key)]].filter(Boolean);
   return [[nameOf(key)]];
 }
 

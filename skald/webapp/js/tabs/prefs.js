@@ -170,6 +170,7 @@ function control(name, s) {
 // "At the next run this removes ..." for a smaller retention window.
 async function previewWords(name, value) {
   const r = await call(`settings/retention-preview?key=${encodeURIComponent(name)}&value=${encodeURIComponent(value)}`);
+  if (r.ok && r.kept) return `${r.words} A shorter window removes nothing on this site.`;
   if (!r.ok || !r.shrinks) return "";
   if (name.startsWith("backup.")) return `${r.files} backup cop${r.files === 1 ? "y" : "ies"} will be deleted.`;
   const spool = r.files ? ` and ${r.files} beacon files` : "";
@@ -265,11 +266,17 @@ function noticeCard(nt) {
     h("div", { class: "acts" }, copy));
 }
 
+// keep_everything.py: an internal or enterprise site deletes nothing by itself.
+function keptAll(r) {
+  return r && r.keep_everything && r.keep_everything.on ? r.keep_everything.words : "";
+}
+
 export function retention(m) {
   return page("Data retention", "How long the detail is kept. Totals are kept for good.", (all, redraw, r) => [
+    keptAll(r) ? h("div", { class: "state ok", role: "status" }, h("div", null, h("p", null, h("strong", null, keptAll(r)), " The windows below are not applied on this site: Skald deletes and clears nothing by itself. A person's own request to be deleted, run by an admin, still removes what is kept about them."))) : null,
     card("Detail kept for this site", "Days of each kind of detail. Totals, page milestones and every day's figures are kept forever and are not a setting.",
       ["report.retention_days", "report.journey_days", "visitors.repeat_days", "beacon.keep_days"], all, m.site, redraw),
-    card("People", "Each visit's IP address and browser, with its pages and times, and the names and emails of leads, so a person can be looked up and followed (the search at the top). Not keeping IP addresses deletes the visits kept with them at the next nightly run; keeping them shortened shortens them then. Your privacy notice must say what you keep.",
+    card("People", (keptAll(r) ? `${keptAll(r)} ` : "") + "Each visit's IP address and browser, with its pages and times, and the names and emails of leads, so a person can be looked up and followed (the search at the top). Visits with addresses, when you set it shorter than the leads, is also the most a lead's name and email are kept: after it the lead stays, counted, without them. Not keeping IP addresses deletes the visits kept with them at the next nightly run; keeping them shortened shortens them then. Your privacy notice must say what you keep.",
       ["privacy.keep_ips", "privacy.keep_days", "conversions.identity"], all, m.site, redraw),
     card("Leads", "A lead is a form sent or a call booked: its name and email (when kept), where it came from, and the pages its visitor ID read. Kept for good means Skald never deletes them; a person's own request to be deleted still removes everything about them. The pages of a visitor who has not signed up yet are kept for the days below; once they sign up, their pages are kept with the lead.",
       ["conversions.retention_days", "journeys.vid_days"], all, m.site, redraw),
@@ -304,20 +311,26 @@ export function mail(m) {
   ]);
 }
 
-export function sites(m) {
-  return page("Sites", "What counts as this site, and where its log is.", (all, redraw) => [
-    card(m.site, "Changes apply from the next run. Days already stored are not counted again, except a new page group's: tick the box under Views to fill its past days from the raw log.",
+/* 2.40: Settings shows the site's cards in three places (settings-pages.js): "details" (host
+   names, page groups, time zone, logo: Site details), "logs" (the log file: Collect data › Send
+   logs), "script" (the tag's visitor IDs and the goals: Script tag & goals) and "counting" (page
+   assets, not pages: What counts). "all": every card, as the page was. bare: no title (a tab). */
+export function sites(m, part = "all", { bare = false } = {}) {
+  const want = (k) => part === "all" || part === k;
+  const framed = (title, lede, build) => (bare ? page(title, lede, build).slice(1) : page(title, lede, build));
+  return framed("Sites", "What counts as this site, and where its log is.", (all, redraw) => [
+    !want("details") ? null : card(m.site, "Changes apply from the next run. Days already stored are not counted again, except a new page group's: tick the box under Views to fill its past days from the raw log.",
       ["sites.hosts", "sites.views", "sites.timezone"], all, m.site, (settings, got) => { remember(got?.views); redraw(settings, got); }),
-    h("p", { class: "note" }, "Views (page groups): one per line, as name | path prefix | prefixes to leave out (separated by spaces). For example: Blog | /blog/ or Canada | /ca/ | /ca/fr/"),
-    viewsFill(m),
-    logoCard(m),
-    card("Log file", "Where the server's access log for this site is. For install admins.", ["sites.log_dir", "sites.log_base"], all, m.site, redraw),
-    card("Page assets", "A visit counts as people only when its browser also fetched one of the page's own scripts or styles. Next.js: /_next/static/ (the default). WordPress: /wp-content/ and /wp-includes/. Many other sites: /assets/ or /static/. One path per line, at most 10. Turn the rule off only when the assets come from a CDN host this log never sees. Changes apply from the next run; stored days are recounted with backfill --force on the server.",
+    want("details") ? h("p", { class: "note" }, "Views (page groups): one per line, as name | path prefix | prefixes to leave out (separated by spaces). For example: Blog | /blog/ or Canada | /ca/ | /ca/fr/") : null,
+    want("details") ? viewsFill(m) : null,
+    want("details") ? logoCard(m) : null,
+    !want("logs") ? null : card("Log file", "Where the server's access log for this site is. For install admins.", ["sites.log_dir", "sites.log_base"], all, m.site, redraw),
+    !want("counting") ? null : card("Page assets", "A visit counts as people only when its browser also fetched one of the page's own scripts or styles. Next.js: /_next/static/ (the default). WordPress: /wp-content/ and /wp-includes/. Many other sites: /assets/ or /static/. One path per line, at most 10. Turn the rule off only when the assets come from a CDN host this log never sees. Changes apply from the next run; stored days are recounted with backfill --force on the server.",
       ["site.asset_prefixes", "site.require_rendering"], all, m.site, redraw),
-    card("Not pages", "Machine addresses that are never a person reading a page: feeds, WordPress's API, Markdown copies for AI agents. Ticked, a request for one is not a page view; it still counts as a request, in its group. Untick one this site serves as a real page. Also not pages: your own, one per line, as /path, /prefix* or ?key, at most 20. Changes apply from the next run; stored days are recounted with backfill --force on the server.",
+    !want("counting") ? null : card("Not pages", "Machine addresses that are never a person reading a page: feeds, WordPress's API, Markdown copies for AI agents. Ticked, a request for one is not a page view; it still counts as a request, in its group. Untick one this site serves as a real page. Also not pages: your own, one per line, as /path, /prefix* or ?key, at most 20. Changes apply from the next run; stored days are recounted with backfill --force on the server.",
       ["site.not_pages_off", "site.not_pages_extra"], all, m.site, redraw),
-    card("Script tag", "Visitor IDs: the tag keeps an anonymous random ID per browser, for journeys, abandoned forms and lead matching; your privacy notice must say so. Off, the tag still sends events but keeps no ID. Share the ID across subdomains: www. and app. see the same ID (a first-party cookie), as data-share-subdomains=\"true\" on the tag does, with the tag unchanged; browsers learn it within a day.", ["beacon.visitor_ids", "beacon.share_subdomains"], all, m.site, redraw),
-    card("Goals", "The in-page events that count as this site's goals. Events shows each one per 100 visits by source, on checked days. At most 10.", ["beacon.goals"], all, m.site, redraw),
+    !want("script") ? null : card("Script tag", "Visitor IDs: the tag keeps an anonymous random ID per browser, for journeys, abandoned forms and lead matching; your privacy notice must say so. Off, the tag still sends events but keeps no ID. Share the ID across subdomains: www. and app. see the same ID (a first-party cookie), as data-share-subdomains=\"true\" on the tag does, with the tag unchanged; browsers learn it within a day.", ["beacon.visitor_ids", "beacon.share_subdomains"], all, m.site, redraw),
+    !want("script") ? null : card("Goals", "The in-page events that count as this site's goals. Events shows each one per 100 visits by source, on checked days. At most 10.", ["beacon.goals"], all, m.site, redraw),
   ]);
 }
 
@@ -325,6 +338,6 @@ export function security(m) {
   return page("Security", "Sign-in rules for everyone in the organisation.", (all, redraw, r) => [
     card("Sign-in", "Two-step sign-in: members without it set it up the next time they sign in. Session length: how long a sign-in lasts at most.",
       ["security.require_totp", "security.session_days"], all, m.site, redraw),
-    r.totp_on ? null : h("p", { class: "note" }, "Turn on two-step sign-in for your own account first (Settings > Your account) before you require it."),
+    r.totp_on ? null : h("p", { class: "note" }, "Turn on two-step sign-in for your own account first (Settings › Your account) before you require it."),
   ]);
 }

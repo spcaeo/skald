@@ -1,6 +1,6 @@
 """The page at /traffic/<site>/ for a known site that has no dashboard page.
 
-Owner-reported (21 Oct 2026): a site added in Settings > Add or remove sites,
+Owner-reported (21 Oct 2026): a site added in Settings > Sites,
 its wizard at step 3 of 5, still had a card in the site picker with "Setup:
 step 3 of 5, continue", but its address answered nginx's bare 404. nginx
 serves /traffic/<site>/ from the dashboard's folder, and nothing had drawn a
@@ -19,7 +19,7 @@ has no page, saying why there is no dashboard:
             its own run draws the real page within minutes
   removed   a site made from the dashboard and removed (site_config.removed_at):
             it was removed on that day, nothing is collected, its data stays
-            until an install admin purges it. No setup button: a removed
+            until an owner restores it or deletes its data. No setup button: a removed
             site's wizard would collect nothing.
 
 The wizard and the guide open inside the web app, as the site picker's badge
@@ -150,9 +150,10 @@ def render(name: str, state: dict, host: str | None) -> str:
     links = []
     if removed:
         title = f"{name} was removed"
-        lines = [f"It was removed in Settings &gt; Add or remove sites on "
+        lines = [f"It was removed in Settings &gt; Sites on "
                  f"{esc(str(removed)[:10])} (UTC). Nothing is collected for it any more; "
-                 "the data it had stays until an install admin purges it on the server."]
+                 "the data it had stays until an owner restores the site or deletes its "
+                 "data there."]
         if step and not state.get("done"):
             lines.append(f"Its setup had reached step {int(step)} of {STEPS}.")
         reload = ""

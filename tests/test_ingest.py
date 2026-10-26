@@ -93,6 +93,22 @@ class WriterCase(unittest.TestCase):
                            start + timedelta(days=1))
         self.assertIn(self.folder / "access.log.1", chosen)
 
+    def test_keep_everything_moves_the_oldest_day_to_the_archive(self):
+        w = ingest_log.Writer(self.folder, keep=3, max_mb=1, clock=self.clock, archive=True)
+        for day in range(6):
+            self.clock.t = DAY + day * 86400
+            w.append("s1", day + 1, f"day{day}\n".encode(), 1)
+            self.touch(w.log, self.clock.t)
+        names = sorted(p.name for p in self.folder.iterdir() if not p.name.startswith("."))
+        self.assertEqual(names, ["access.log", "access.log.1", "access.log.2.gz",
+                                 "access.log.3.gz", "archive"])  # run-daily's layout unchanged
+        shelf = self.folder / ingest_log.ARCHIVE
+        self.assertEqual(sorted(p.name for p in shelf.iterdir()),
+                         ["access.log.2026-10-11.gz", "access.log.2026-10-12.gz"])
+        self.assertEqual(gzip.decompress((shelf / "access.log.2026-10-11.gz").read_bytes()),
+                         b"day0\n")                            # nothing dropped
+        self.assertNotIn(shelf, log_files(self.folder, "access.log", 99))
+
     def test_never_more_than_one_rotation_a_day(self):
         self.w.append("s1", 1, b"a\n", 1)
         self.touch(self.w.log, DAY)

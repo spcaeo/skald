@@ -22,7 +22,7 @@ The best of both: embed the booking on your page, and turn on the webhook. Then 
 
 ## Set up the Calendly webhook
 
-1. In Skald: **Settings > Integrations > Calendly > Make secret**. Copy the secret and the address.
+1. In Skald: **Settings > This site > Leads & integrations > Incoming hooks > Calendly > Make secret**. Copy the secret and the address.
 2. In Calendly: make a personal access token (on Calendly's integrations page, under API and webhooks).
 3. Find your organisation's URI:
 
@@ -41,7 +41,7 @@ curl -sS -X POST https://api.calendly.com/webhook_subscriptions \
        "scope": "organization", "signing_key": "<the hook secret>"}'
 ```
 
-5. Press **Send a test event** on the Integrations page. Then book a test call.
+5. Press **Send a test event** on the Incoming hooks tab. Then book a test call.
 
 A booking counts as a demo completed; a cancellation as cancelled (or rescheduled, when Calendly says so); a no-show as no-show.
 
@@ -49,7 +49,7 @@ A booking counts as a demo completed; a cancellation as cancelled (or reschedule
 
 One Calendly account often books for several businesses. A Calendly webhook cannot be limited to some event types: it sends every booking of the account. So Skald filters them.
 
-In **Settings > Integrations > Calendly**, fill **Only these Calendly event types**, one per line. Any of these works:
+In **Settings > This site > Leads & integrations > Incoming hooks > Calendly**, fill **Only these Calendly event types**, one per line. Any of these works:
 
 - The event type's URI: `https://api.calendly.com/event_types/AAAA1111`. This always matches.
 - Its id alone: `AAAA1111`.
@@ -86,7 +86,7 @@ With PyYAML installed, the nested form works too: `hooks: {calendly: {event_type
 - **The webhook:** Settings > Developer > Webhooks > New. Subscriber URL: the `calcom` hook's address. Triggers: Booking Created, Booking Cancelled, Booking Rescheduled. Secret: the hook's secret.
 - **The embed:** with the script tag on the page, Skald sees the booking open (`cal_open`) and booked (`cal_booked`).
 - **The visitor ID:** pass it in the embed as `metadata[skv]=skv_...`, or as a hidden booking question named `skv`.
-- **Event types:** **Only these Cal.com event types** on the Integrations page takes event type ids (`1234`) or slugs (`30min`, or the page's address `https://cal.com/example/30min`). Config: `hooks: {calcom_event_types: [...]}`.
+- **Event types:** **Only these Cal.com event types** on the Incoming hooks tab takes event type ids (`1234`) or slugs (`30min`, or the page's address `https://cal.com/example/30min`). Config: `hooks: {calcom_event_types: [...]}`.
 
 ## A relay of your own
 

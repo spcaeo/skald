@@ -7,7 +7,7 @@ Where a logo comes from is a setting per site, `site.logo.source`:
           names (<link rel="apple-touch-icon">, then <link rel="icon">), then
           /apple-touch-icon.png, then /favicon.ico. Never an outside icon
           service, which would learn which sites this install reports on.
-  upload  a file an admin or owner sent from Settings > Sites (logo_api.py):
+  upload  a file an admin or owner sent from Settings > Site details (logo_api.py):
           PNG, ICO or a safe SVG, square, at least 64 x 64, at most 256 KB.
   letter  the site's first letter on a colour, `site.logo.color`, one of four.
           Also what every place shows while there is no logo.
@@ -59,7 +59,7 @@ from . import logo_image
 from .files import slug, write_atomic
 
 SOURCES = ("auto", "upload", "letter")
-# Letter colours (Settings > Sites > Logo): blue, teal, amber, ink.
+# Letter colours (Settings > Site details > Logo): blue, teal, amber, ink.
 COLORS = ("#1d4ed8", "#0f766e", "#9a6400", "#17212b")
 MAX_IMAGE = 256 * 1024
 MAX_HTML = 512 * 1024
@@ -225,7 +225,7 @@ def entry(config: dict, site: str, base: Path | None) -> dict:
 
 
 def status(config: dict, site: str, base: Path, now: datetime | None = None) -> dict:
-    """What Settings > Sites > Logo shows: the choice, what the site gave,
+    """What Settings > Site details > Logo shows: the choice, what the site gave,
     when it was checked and when it will be again, the upload."""
     where = folder(base, site)
     state = load_state(where)
@@ -502,7 +502,7 @@ def check(config: dict, site: str, base: Path, now: datetime | None = None,
     hosts = fetcher.hosts if fetcher is not None else hosts_of(config, site)
     try:
         if not hosts:
-            raise FetchError("the site has no host name to ask (Settings > Sites, Host names)")
+            raise FetchError("the site has no host name to ask (Settings > Site details, Host names)")
         got = find(fetcher or Fetcher(hosts), hosts[0])
         kept = _keep(where, "fetched", got["body"], got["kind"])
         state.update(fetched={**kept, "url": got["url"],

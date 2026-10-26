@@ -164,7 +164,7 @@ counts, and counted twice.
 Your own server's log, or the host's: **Vercel and Netlify log drains**, a **Cloudflare Worker**
 that reports pages served from cache on any plan, CloudFront and Fastly logs, or a small shipper
 from any server: **one command** (`curl … | sudo bash`, with or without Docker; it finds the log
-by itself). Settings > Connections walks you through each one, with a **Test** that starts by itself; step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md). A Next.js
+by itself). Settings › This site › Collect data walks you through each one, with a **Test** that starts by itself; step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md). A Next.js
 site adds one line to its log format so clicks inside the site count as pages.
 
 </td>
@@ -185,7 +185,7 @@ certain. For admins and owners; every search is in the audit log.
 Spam, duplicate and test leads, and cancelled, removed and test conversions, are listed in full,
 never just dropped. Add a site looks at the site first and suggests the way in; each connection ends
 with a **Test**. `skald doctor` checks every part of the install, one line each, with the exact
-fix; Settings > Integrations shows the same for each hook and the script tag.
+fix; Settings › This site › Leads & integrations shows the same for each hook and the script tag.
 
 </td>
 </tr>
@@ -390,8 +390,10 @@ your firewall, not instead of it.
 - Addresses for owners and admins only, where the site keeps them. Skald blocks nothing itself.
 
 **Connecting a site**
-- **Settings › Connections:** send a site's visits, read your figures (API) or connect an AI
-  assistant (MCP), each a short dialog with your address and token filled in and a **Test** at
+- **Settings, by what you came to do** (2.40): five groups (This site, AI & API, Organisation,
+  You, Help & docs), a page per task, Help and Docs under every title, and every old link still
+  working. Send a site's visits (This site › Collect data), read your figures (AI & API › Read
+  figures) or connect an AI assistant (AI & API › AI assistant), each a short dialog with your address and token filled in and a **Test** at
   the end ("Connected: 1,240 lines received, the last at 10:42", or what is wrong and the fix).
 - **Skald checks your site** from outside: the web server, any platform in front, the framework,
   the host names and page assets, and suggests the way in. You confirm or change it.
@@ -408,8 +410,16 @@ your firewall, not instead of it.
   client gives the folder to Claude Code and says "Set up Skald from CLAUDE.md".
 - **Leads in one file:** PHP, Node or Python, one function to call; a WordPress plugin with no
   code; or a plain key for Zapier and form tools.
-- **Set up this site** on Overview, and always in Settings › Connections: each open line one plain
+- **Set up this site** on Overview, and always in Settings › This site › Set-up checklist: each open line one plain
   sentence and a Set up button.
+- **Pause, remove or delete a site** (2.40): each site's ⋯ menu in Settings › Organisation ›
+  Sites. Pause deletes nothing; Clear data and Delete all data need the site's name typed and
+  write an archive first.
+- **Keep everything** (2.40): on internal and enterprise sites Skald deletes nothing by itself
+  (`SKALD_KEEP_EVERYTHING=1`); elsewhere, names and emails on leads follow the site's own
+  People days.
+- **Usage mails** (hosted, 2.40): owners and admins get one mail at 80%, 90% and 100% of the
+  month's requests, and a banner from 80%, before any line is turned away.
 - **Test a sample** (or `skald try-log <file>` on the server): paste a few lines of a new log and
   see which reader fits, what it could not read and why, and the five groups adding up. Nothing kept.
 - **Next.js:** one field in the site's log format and every click inside the site counts as a
@@ -472,7 +482,7 @@ your firewall, not instead of it.
 The whole dashboard with 60 days of sample data for a made-up site: today's Overview live, the
 Summary and Insights to-dos, Real time on a world map, the visitor drawer, Search Console and Bing
 figures and AI answers (both made up), AI & bots, every Security tab, every lead in one list, and
-Settings › Connections. Nothing to install; saving, the person search and the other Settings pages
+Settings › This site › Set-up checklist. Nothing to install; saving, the person search and the other Settings pages
 need your own Skald. Every image below is from the demo's sample data.
 
 ### Is it working, and what to fix next (2.35)
@@ -535,6 +545,11 @@ need your own Skald. Every image below is from the demo's sample data.
 | <img src="docs/screenshots/live-mode.png" alt="Today · Live switched on: visitors on the site now, and today's visitors, pages read, leads and visitors from AI, each against yesterday at this hour" width="440"><br>**Today · Live.** One switch, on every section. | <img src="docs/screenshots/live-leads.png" alt="What converted today: today's demos booked, sign-up and contact form, each with its time, page, country and where it came from" width="440"><br>**Live leads.** Each lead and booking as it lands. |
 
 ### Connecting a site (2.16, 2.17, 2.31)
+
+<p align="center">
+  <img src="docs/screenshots/settings.png" alt="All settings: What do you want to do? with one-click tasks (Set up this site, Connect an AI assistant (MCP), Send a site's logs, Get the script tag, Connect a form or booking tool, Add, pause or delete a site, Invite someone, Choose what is kept about people, Revoke a token, Change your password), then the pages of This site and AI and API, with the Settings menu on the left" width="900"><br>
+  <strong>Settings</strong> (2.40). Grouped by what you came to do, with the tasks one click away.
+</p>
 
 <p align="center">
   <img src="docs/screenshots/connections.png" alt="Settings, Connections: Set up example.com, 1 of 5 left (logs arriving, visits count as people, countries shown, the script tag, the lead hook and privacy ticked; the mail recipient with a Set up button), then three tasks: send this site's visits to Skald, read your figures (API) and connect an AI assistant (MCP), and the organisation's tokens with what each is for" width="900"><br>
@@ -708,7 +723,7 @@ shared across subdomains ([docs/INTEGRATIONS.md](docs/INTEGRATIONS.md#the-script
 **Incoming webhooks**, each checked against its tool's own signature on the raw body (a repeat
 changes nothing): Calendly and Cal.com bookings, HubSpot meetings, contacts and deals, Stripe
 payments, Typeform, the signed `json` hook for Zapier, Make, n8n or any script, and the signed
-`lead` hook from your own server. Settings > Integrations shows each road's state and flags a lead
+`lead` hook from your own server. Settings › This site › Leads & integrations shows each road's state and flags a lead
 that arrived by two roads. The Help guides "Pick your road" and "Send leads from your backend in 5
 minutes" cover each kind of site; everything an app needs to send, check and read back its leads is
 on one page: [docs/LEADS-REFERENCE.md](docs/LEADS-REFERENCE.md).
@@ -864,13 +879,13 @@ flowchart LR
 - **People, as a switch.** A new install keeps each visit with its IP address and browser
   (`privacy.keep_ips`, 395 days by default) and leads' names and emails (`conversions.identity:
   full`), apart from history and behind sign-in, so admins can follow a person across days. An
-  install upgraded from before 2.4.0 keeps neither until you turn them on (Settings > Data
-  retention > People, or `SKALD_KEEP_IPS=1` / `SKALD_IDENTITY=full`). Your privacy notice must say
+  install upgraded from before 2.4.0 keeps neither until you turn them on (Settings › This site ›
+  Privacy & retention > People, or `SKALD_KEEP_IPS=1` / `SKALD_IDENTITY=full`). Your privacy notice must say
   so first.
 - **Shortened addresses** (2.15). Keep each visit's IP with its last part removed (203.0.113.57 is
   kept as 203.0.113.0; IPv6 keeps its first 48 bits): country, city and counts still work, and no
   exact address is kept (`privacy.keep_ips: short`, `SKALD_KEEP_IPS=short`). Counted twice too.
-- **Wording for your privacy notice** (2.15). Settings > Data retention writes a short text for your
+- **Wording for your privacy notice** (2.15). Settings › This site › Privacy & retention writes a short text for your
   privacy page from what the site really keeps, ready to copy. A starting point, not legal advice. Off, raw addresses stay only in your own log (14 days), the 6-hour request log (Site > Requests) and
   today's AI activity.
 - **One true delete.** `skald forget` removes a person's address, visits, conversions, name and
@@ -926,7 +941,7 @@ visitor's device to count them. The optional script tag is the one part that fol
 can wait for consent (`data-consent="required"`), does nothing when Do Not Track or Global Privacy
 Control is on, and keeps no visitor ID unless you turn IDs on. The log holds IP addresses, which are
 personal data in places like the EU: you choose whether Skald keeps them in full, shortened (the last
-part removed) or not at all, and for how long, and Settings > Data retention writes the wording for
+part removed) or not at all, and for how long, and Settings › This site › Privacy & retention writes the wording for
 your privacy notice.
 
 **What if my site is on Vercel, Netlify or a static host?**

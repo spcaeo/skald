@@ -10,7 +10,7 @@ Skald keeps these visits apart. They are not deleted. They go into their own gro
 
 ## Where to find it
 
-Open **Settings > This site > Internal traffic**, or go straight to [Internal traffic](#settings/internal). Settings opens from the gear at the foot of the sidebar.
+Open **Settings > This site > Internal traffic**, or go straight to [Internal traffic](#settings/site/internal). Settings opens from the gear at the foot of the sidebar.
 
 The page is headed **Our own traffic**. The list of addresses is in the section **Internal addresses**.
 

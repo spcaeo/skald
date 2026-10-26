@@ -93,8 +93,8 @@ export function addressWords(ans, f) {
   if (!mayAddresses()) return "Addresses show to owners and admins only.";
   if (!ans) return "";
   if (!ans.ok) return ans.error || "The addresses could not be loaded.";
-  if (ans.mode === "off") return "This site does not keep addresses (Settings > Data retention), so each day's rows stand alone, without one.";
-  if (ans.mode === "short") return "This site keeps addresses shortened (Settings > Data retention): each row is a network (/24 or /48), never one address.";
+  if (ans.mode === "off") return "This site does not keep addresses (Settings > Privacy & retention), so each day's rows stand alone, without one.";
+  if (ans.mode === "short") return "This site keeps addresses shortened (Settings > Privacy & retention): each row is a network (/24 or /48), never one address.";
   if (DEMO.on) return "In the demo, the addresses are from the documentation ranges, shown as an owner sees them.";
   if (ans.kept_from && f) return `Addresses are kept from ${short(ans.kept_from)} (privacy.keep_days ${ans.keep_days}); an older row has none.`;
   return "";

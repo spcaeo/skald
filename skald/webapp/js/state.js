@@ -10,6 +10,7 @@ import { resolve, cmpOf, spanOf } from "./routes.js";
 import { TABLE_KEY as GRID_KEY } from "./tablestate.js";
 import { OVERLAY, ALWAYS_MASKED, isPersonal } from "./routekeys.js";
 import { mask, unmask } from "./routemask.js";
+import { SETTINGS_PAGES, SETTINGS_GROUPS, SETTINGS_HOME } from "./settings-menu.js";
 // Every key, its owner and what it means: js/routekeys.js (and docs/ROUTES.md).
 
 // A table's or a data grid's own keys in the hash (search, sort, column filters, hidden
@@ -17,15 +18,15 @@ import { mask, unmask } from "./routemask.js";
 
 // Every page outside the sections, in the menu's order. The sections' tabs are put in
 // front of these by addSections, so TABS is every route, in the menu's order.
-export const TABS = [
-  ["settings/account", "Your account"], ["settings/team", "Team"], ["settings/users", "Users"], ["settings/api", "Connections"],
-  ["settings/sites", "Sites"], ["settings/internal", "Internal traffic"], ["settings/retention", "Data retention"], ["settings/mail", "Mail"], ["settings/reports", "Reports"], ["settings/integrations", "Integrations"], ["settings/aianswers", "AI answers"],
-  ["settings/sitesadmin", "Add or remove sites"], ["settings/security", "Security"], ["settings/audit", "Audit log"], ["settings/billing", "Billing"], ["help", "Help"], ["about", "About Skald"],
-];
+// Settings' pages come from js/settings-menu.js (2.40: grouped by what a person comes to do).
+export const TABS = [...SETTINGS_PAGES.map((p) => [p.route, p.name]), ["help", "Help"], ["about", "About Skald"]];
 // Sections this server does not offer: Team, Your account and the settings pages come with
 // accounts (access.mode: sessions), which replace Users; Billing also needs saas (docs/SAAS.md).
 // access.js changes the set once /me has answered (and hides what the reader's role may not open).
-export const ACCOUNT_TABS = ["settings/team", "settings/account", "settings/retention", "settings/mail", "settings/reports", "settings/sites", "settings/sitesadmin", "settings/integrations", "settings/aianswers", "settings/security", "settings/audit", "settings/billing"];
+// Every settings page but All settings, Help & docs, Internal traffic, the API and MCP pages
+// (they say how it works without accounts) and Users (the one shared login's own page).
+const WITHOUT_ACCOUNTS = new Set([SETTINGS_HOME, "settings/help", "settings/site/internal", "settings/ai/api", "settings/ai/mcp", "settings/org/users"]);
+export const ACCOUNT_TABS = SETTINGS_PAGES.map((p) => p.route).filter((k) => !WITHOUT_ACCOUNTS.has(k));
 export const HIDDEN = new Set(ACCOUNT_TABS);
 export const shown = (key) => !HIDDEN.has(key);
 
@@ -35,7 +36,9 @@ export const shown = (key) => !HIDDEN.has(key);
 export const SECTIONS = [];
 export const MENU = [];
 const FIRST = {};                                   // section key -> its first tab's route
-const KEEP = { help: ["part"], about: ["part", "note"], "settings/sitesadmin": ["test"] };   // route -> parameters it keeps in its address
+const KEEP = { help: ["part"], about: ["part", "note"], "settings/org/sites": ["test"] };   // route -> parameters it keeps in its address
+// A settings page with in-page tabs keeps the tab open (sub=, js/settings-menu.js).
+for (const p of SETTINGS_PAGES) if (p.tabs) KEEP[p.route] = ["sub"];
 export function addSections(list) {
   for (const sec of list) {
     const tabs = sec.tabs.map((t) => [t.route, t.name]);
@@ -52,23 +55,19 @@ export function addSections(list) {
 // The section a route sits in, or null (Settings, Help, About).
 export const sectionOf = (key) => SECTIONS.find((x) => String(key).split("/")[0] === x.key) || null;
 
-// Settings has a menu of its own, which takes the sidebar's place while a settings page is open.
-// (AI crawlers moved to AI & bots > Crawler rules in 2.7.0; its address redirects.)
-export const SETTINGS_MENU = [
-  ["You", ["settings/account"]],
-  ["Team & access", ["settings/team", "settings/users", "settings/api"]],
-  ["This site", ["settings/sites", "settings/internal", "settings/retention", "settings/mail", "settings/reports", "settings/integrations", "settings/aianswers"]],
-  ["Organisation", ["settings/sitesadmin", "settings/security", "settings/audit", "settings/billing"]],
-];
+// Settings has a menu of its own, which takes the sidebar's place while a settings page is open:
+// All settings, then the groups of js/settings-menu.js (This site, AI & API, Organisation, You,
+// Help & docs). (AI crawlers moved to AI & bots > Crawler rules in 2.7.0; its address redirects.)
+export const SETTINGS_MENU = [["", [SETTINGS_HOME]], ...SETTINGS_GROUPS.map((g) => [g.name, g.pages.map((p) => p.route)])];
 export const inSettings = (key) => key.startsWith("settings/");
 // The group a page sits in: its section's name ("Traffic"), its settings group, or null.
 export function groupOf(key) {
   const sec = sectionOf(key);
   if (sec) return sec.name;
-  for (const [name, keys] of SETTINGS_MENU) if (keys.includes(key)) return name;
+  for (const [name, keys] of SETTINGS_MENU) if (name && keys.includes(key)) return name;
   return null;
 }
-// The first settings page this reader may open: where #settings lands.
+// Where #settings lands: All settings (every page, with what each is for), shown to everyone.
 export const firstSetting = () => SETTINGS_MENU.flatMap(([, keys]) => keys).find(shown) || "about";
 
 // Where an asked-for route opens: #settings opens the first settings page this reader may see;
@@ -92,7 +91,7 @@ export const FILTERS = ["country", "path", "source", "device", "browser", "campa
 const GLOBAL = ["range", "view", "from", "to", "pathmode", "rules", "cmp", "dd", "tz", "inc"];
 // Kept while Compare is on (2.7.0): the custom B, "Per day", the old Compare page's chart keys.
 const CMP_KEYS = ["cb", "cnorm", "cgran", "cm"];
-const DEFAULT = { tab: "overview/summary", range: "today", view: "all", from: "", to: "", inc: "", pathmode: "contains", rules: "", page: "", since: "", cmp: "", ip: "", rq: "", dd: "", tz: "", part: "", note: "", fn: "", fsrc: "", fstep: "", fmode: "", strat: "", ca: "", cb: "", cnorm: "", cgran: "", cm: "", cdim: "", pubfrom: "", pubto: "", chgfrom: "", rg: "", rm: "", rs: "", rv: "", test: "",
+const DEFAULT = { tab: "overview/summary", range: "today", view: "all", from: "", to: "", inc: "", pathmode: "contains", rules: "", page: "", since: "", cmp: "", ip: "", rq: "", dd: "", tz: "", part: "", note: "", fn: "", fsrc: "", fstep: "", fmode: "", strat: "", ca: "", cb: "", cnorm: "", cgran: "", cm: "", cdim: "", pubfrom: "", pubto: "", chgfrom: "", rg: "", rm: "", rs: "", rv: "", test: "", sub: "",
   ...Object.fromEntries(OVERLAY.map((k) => [k, ""])) };
 /* The period a section opens on when the address names none (2.23). Leads & sales opens on
    the last 7 days: a lead is rare, and Today so far was too often empty (the owner,
@@ -178,8 +177,8 @@ export function hashFor(s) {
   // A drawer or a dialog open over the tab (js/overlays.js), on its own tab only: a link
   // drawn to another tab (the menu, the tab strip) never carries it. Then the drill-down
   // trail, last: it opens over whichever tab it started from.
-  const at = typeof location !== "undefined" ? location.hash.replace(/^#\/?/, "").split("?")[0] : s.tab;
-  if (at === s.tab || route(at).tab === s.tab) for (const k of OVERLAY) if (s[k]) p.set(k, s[k]);
+  const [at, atQuery = ""] = typeof location !== "undefined" ? location.hash.replace(/^#\/?/, "").split("?") : [s.tab];
+  if (at === s.tab || route(at, new URLSearchParams(atQuery)).tab === s.tab) for (const k of OVERLAY) if (s[k]) p.set(k, s[k]);
   if (s.dd) p.set("dd", s.dd);
   const q = p.toString();
   return `#${s.tab}${q ? `?${q}` : ""}`;

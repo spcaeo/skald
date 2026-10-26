@@ -5,6 +5,7 @@
       plans:
         pro: {sites: 5, requests_month: 1000000, retention_days_max: 400,
               members: 10, price_id: price_..., trial_days: 14, label: "Pro"}
+        enterprise: {keep_everything: true, label: "Enterprise"}
 
 or, for the small config parser (no PyYAML), a flow list with `name`:
 
@@ -23,7 +24,7 @@ audited ("billing.plan").
 """
 from __future__ import annotations
 
-from . import STATUSES, section
+from . import STATUSES, flag, section
 from ..accounts import auditlog
 from ..accounts import db as base
 
@@ -75,6 +76,9 @@ def plans(config) -> dict[str, dict]:
         plan["price_id"] = price or None
         plan["trial_days"] = _limit(name, "trial_days", entry.get("trial_days")) or 0
         plan["label"] = str(entry.get("label") or "").strip()[:80]
+        # The owner's rule (2026-10-26): an Enterprise plan keeps everything:
+        # nothing of its sites is deleted by itself (keep_everything.py).
+        plan["keep_everything"] = flag(entry.get("keep_everything"))
         out[name] = plan
     return out
 

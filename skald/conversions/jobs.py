@@ -80,8 +80,15 @@ def _each(ctx, full: bool) -> int:
 
 
 def live(ctx) -> None:
-    """After the live snapshot: cheap, incremental."""
+    """After the live snapshot: cheap, incremental. The first one after the
+    upgrade also clears the names and emails already past their site's
+    People days (people_days.once; then a meta row says it ran)."""
     _each(ctx, full=False)
+    try:
+        from . import people_days
+        people_days.once(ctx)
+    except Exception as why:                # noqa: BLE001 - never stops a run
+        ctx.err(f"conversions people days: {type(why).__name__}: {why}")
 
 
 def daily_steps(ctx) -> list:

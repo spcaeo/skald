@@ -453,13 +453,13 @@ check_said() {
     ok "the shipper has said nothing yet (it speaks when it sends a batch)"; return
   fi
   local before=$PROBLEMS sent rejected
-  local again="make a new sending token in the site's Connections page, run sudo bash install.sh again and paste it"
+  local again="make a new sending token in Skald (Settings > Collect data > Send logs), run sudo bash install.sh again and paste it"
   reason "$(count 'HTTP 401')" "401 wrong or revoked token" \
     "the token is wrong or was revoked (HTTP 401)" "$again"
   reason "$(count 'HTTP 403 .*not for that site')" "403 token for another site" \
-    "the token is for another site (HTTP 403)" "make a sending token for $SITE in Connections, then run sudo bash install.sh again"
+    "the token is for another site (HTTP 403)" "make a sending token for $SITE in Skald (Settings > Collect data > Send logs), then run sudo bash install.sh again"
   reason "$(count 'HTTP 403 .*scope')" "403 not a sending token" \
-    "the token is not a sending (ingest) token (HTTP 403)" "make a token with the sending scope in Connections, then run sudo bash install.sh again"
+    "the token is not a sending (ingest) token (HTTP 403)" "make a token with the sending scope in Skald (Settings > Tokens & links), then run sudo bash install.sh again"
   reason "$(count 'HTTP 403 .*verified')" "403 site not verified yet" \
     "$SITE is waiting for its domain to be verified (HTTP 403)" "finish step 2 of the site's set-up; the shipper keeps the lines until then"
   reason "$(printf '%s\n' "$SHIP_LINES" | grep -E 'HTTP 403' | grep -viE 'not for that site|scope|verified' | grep -c .)" \

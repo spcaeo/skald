@@ -35,8 +35,8 @@ It shows no new figure: each cell is the site's own verified figure, the same it
 
 For every visit, Skald looks for the same visitor's first visit it knows of. It tries three links, in this order, and the first one that finds an earlier visit wins:
 
-1. **The visitor ID**, when the script tag has visitor IDs on (Settings › Tracking). The visit is the ID's when the ID's page view of the landing page arrived within seconds of the visit, and no other ID did. Its first touch is the ID's earliest page view.
-2. **The address and browser**, when the site keeps addresses (Settings › Data retention › People). The earliest kept visit from the same address with the same browser and system, even earlier the same day.
+1. **The visitor ID**, when the script tag has visitor IDs on (Settings › This site › Collect data › Script tag & goals). The visit is the ID's when the ID's page view of the landing page arrived within seconds of the visit, and no other ID did. Its first touch is the ID's earliest page view.
+2. **The address and browser**, when the site keeps addresses (Settings › This site › Privacy & retention › People). The earliest kept visit from the same address with the same browser and system, even earlier the same day.
 3. **The 30-day code**, when the visitor key is set. It gives the day and the source type of the first visit within 30 days, not the site that sent it.
 
 When none finds an earlier visit, the visit says **first visit we know of**. Skald never guesses. A site that keeps no addresses uses only the visitor ID and the 30-day code, and says which one linked each visit.

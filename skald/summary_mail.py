@@ -35,7 +35,8 @@ one mail per item and per site. This is the one mail that replaces them:
              day, how many items and sites, never the content
 
 The pass after every site of a live run or run-daily is here too (after_run): the
-conversions' webhook delivery, then the right-away security mail (security_notify.right_away).
+conversions' webhook delivery, then the right-away security mail (security_notify.right_away),
+then the plans' usage alerts (saas/usage_alerts.py).
 Kept in accounts.sqlite, tables made here on first use. Nothing is sent without accounts.
 """
 from __future__ import annotations
@@ -136,7 +137,7 @@ def setup_part(s: dict, now: datetime) -> list[dict]:
             page = f["id"] in ON_PAGE or f["id"].startswith("hook:")
             got.append({"item": "setup:" + f["id"], "title": f"{f['part']}: {f['says']}",
                         "todo": f["fix"] or f"`{cmd} doctor` says more.",
-                        "link": f"{base}#settings/integrations" if page and base else None,
+                        "link": f"{base}#settings/site/leads" if page and base else None,
                         "where": None if page and base else f"on the server: `{cmd} doctor`",
                         "says": f["says"]})
     return got
@@ -145,7 +146,7 @@ def setup_part(s: dict, now: datetime) -> list[dict]:
 def more_link(config: dict, part: str) -> str:
     base = _base(config)
     return base + {"security": "#threats/exposed", "todos": "#overview/insights",
-                   "setup": "#settings/integrations"}[part]
+                   "setup": "#settings/site/leads"}[part]
 
 
 # ------------------------------------------------------------------ the mail
@@ -385,10 +386,13 @@ def add_command(sub) -> None:
 
 # ------------------------------------------------- after every site of a run
 
-def after_run(contexts: list) -> None:
+def after_run(contexts: list, command: str = "live") -> None:
     """live and run-daily: the webhooks each site queued (conversions/jobs.py), then the
-    right-away security mail, one per person for every site (security_notify.right_away)."""
+    right-away security mail, one per person for every site (security_notify.right_away),
+    then the plans' usage alerts (saas/usage_alerts.py; nothing while saas is off)."""
     from . import security_notify
     from .conversions import jobs
+    from .saas import usage_alerts
     jobs.deliver(contexts)
     security_notify.right_away(contexts)
+    usage_alerts.after_run(contexts, command)

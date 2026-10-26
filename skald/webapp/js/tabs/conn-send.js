@@ -1,4 +1,4 @@
-// "Send this site's visits to Skald": the dialog in Settings > Connections,
+// "Send this site's visits to Skald": the dialog in Settings > Collect data > Send logs,
 // and the steps the "Add a site" wizard shares with it (site-wizard.js):
 // where it runs, then for a server one command and the test (2.30); for
 // Cloudflare and Vercel a sending token, install, test; for the tag install, test.
@@ -123,7 +123,7 @@ export function tokenPanel(st, { onMade = null } = {}) {
   another.addEventListener("click", make);
   if (freshFor(st.site)) show(); else make();
   return [
-    h("p", null, "A sending token lets the platform add log lines to this one site, and nothing else. It cannot read anything. It is in Your tokens, named for this site and today."),
+    h("p", null, "A sending token lets the platform add log lines to this one site, and nothing else. It cannot read anything. It is in Settings > Tokens & links, named for this site and today."),
     said, slot, h("div", { class: "acts" }, another),
     h("p", { class: "note" }, "Already have one? Press Next: the steps show <token> where it goes."),
   ];

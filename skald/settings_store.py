@@ -170,7 +170,7 @@ SCHEMA: dict[str, Key] = {
     # P1-6: search figures (search/). The property and Bing site are per site
     # (checked against the site's hosts, search/props.py); the Bing key is the
     # install's. The Search Console key file is uploaded through
-    # Settings > Integrations > Search (search/api.py), never through here.
+    # Settings > Leads & integrations > Search Console & Bing (search/api.py), never through here.
     "search.google_property": Key("searchprop", "admin", ("site",),
                                   ("search_console", "property"), None,
                                   label="Search Console property"),
@@ -199,7 +199,7 @@ SCHEMA: dict[str, Key] = {
                             choices=LOGO_SOURCES, label="Logo"),
     "site.logo.color": Key("choice", "admin", ("site",), ("site", "logo_color"), None,
                            choices=LOGO_COLORS, label="Letter colour"),
-    # Settings > Integrations: the booking tools' event types this site keeps
+    # Settings > Leads & integrations: the booking tools' event types this site keeps
     # (conversions/event_types.py); [] keeps every event.
     "hooks.calendly.event_types": Key("eventtypes", "admin", ("site",),
                                       ("hooks", "calendly_event_types"), [],
@@ -207,7 +207,7 @@ SCHEMA: dict[str, Key] = {
     "hooks.calcom.event_types": Key("eventtypes", "admin", ("site",),
                                     ("hooks", "calcom_event_types"), [],
                                     label="Cal.com event types"),
-    # Settings > Reports (client_reports.py): the agency's name and colour on
+    # Settings > Mail & reports > Client reports (client_reports.py): the agency's name and colour on
     # every client report of the organisation; its logo is a file (logos/org-<id>/).
     "brand.agency_name": Key("text", "admin", ("org",), None, None, limit=60,
                              label="Agency name"),
@@ -857,6 +857,9 @@ def apply(config: dict, site: str | None = None, live_dir=None) -> dict:
         caps = _caps(db, config)
         plan = {name: _site_windows(db, name, install[name]["value"], name in locks, caps)
                 for name in SHRINKING}
+        for name, got in plan.items():      # the default was set, not the code's (promised)
+            got["set"] = install[name]["source"] in ("install", "config") or \
+                bool(install[name].get("capped"))
     finally:
         db.close()
     out = {k: (dict(v) if isinstance(v, dict) else v) for k, v in (config or {}).items()}
@@ -905,6 +908,17 @@ def prune_plan(config, name: str, fallback: int) -> tuple[int, dict]:
     if not plan:
         return int(fallback), {}
     return int(plan["default"]), {s: int(v) for s, v in (plan["sites"] or {}).items()}
+
+
+def promised(config, name: str) -> bool:
+    """Whether a retention key's days for every site without its own were
+    set (an install row, config.yml, a plan's cap), not the code's default:
+    a site with its own row (prune_plan) set its own."""
+    plan = (((config or {}).get("_settings") or {}).get("prune") or {}).get(name)
+    if plan and "set" in plan:
+        return bool(plan["set"])
+    section, key = SCHEMA[name].config
+    return setting(config or {}, section, key) is not None
 
 
 # --------------------------------------------------------------- secrets

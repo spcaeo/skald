@@ -1,4 +1,4 @@
-"""Settings > Mail > Preview (2.13): the daily or weekly mail exactly as the site
+"""Settings > Mail & reports > Preview (2.13): the daily or weekly mail exactly as the site
 would send it now, built by the same code (mailer.build, mail_html.render) from
 the same verified history, and never sent.
 

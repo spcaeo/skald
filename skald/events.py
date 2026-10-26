@@ -163,8 +163,10 @@ def _people_views(history, site: str, day: date) -> int | None:
 
 
 def collect(history, config: dict, site: str, spool: Path, day: date,
-            now: datetime | None = None) -> dict:
-    """Count a day's spool into history. Returns the event_days row as a dict."""
+            now: datetime | None = None, spare=None) -> dict:
+    """Count a day's spool into history. Returns the event_days row as a dict.
+    The site's rows past beacon.keep_days go, unless it keeps everything
+    (`spare`, keep_everything.Keeper; by default the install's)."""
     ensure(history.db)
     rows = beacon.read_day(spool, day)
     got = tally(rows)
@@ -192,9 +194,13 @@ def collect(history, config: dict, site: str, spool: Path, day: date,
              json.dumps({a: dict(c) for a, c in got["ai"].items()}),
              json.dumps(helper) if helper else None, json.dumps(anomalies),
              "; ".join(problems) or None, stamp))
-        cutoff = (day - timedelta(days=keep_days(config))).isoformat()
-        db.execute("DELETE FROM event_counts WHERE site = ? AND day < ?", (site, cutoff))
-        db.execute("DELETE FROM event_days WHERE site = ? AND day < ?", (site, cutoff))
+        if spare is None:
+            from .keep_everything import Keeper
+            spare = Keeper(config)
+        if not spare(site):
+            cutoff = (day - timedelta(days=keep_days(config))).isoformat()
+            db.execute("DELETE FROM event_counts WHERE site = ? AND day < ?", (site, cutoff))
+            db.execute("DELETE FROM event_days WHERE site = ? AND day < ?", (site, cutoff))
     return {"day": day.isoformat(), "state": state, "events": sum(got["people"].values()),
             "ours": sum(got["ours"].values()), "anomalies": anomalies, "problems": problems}
 
@@ -542,12 +548,16 @@ def daily(ctx, day: date) -> int:
     if not enabled(ctx.config):
         return 0
     spool = beacon.spool_dir(ctx.config, ctx.config_path, ctx.live_dir)
+    from .keep_everything import of
+    spare = of(ctx)
     try:
         with ctx.history() as history:
-            got = collect(history, ctx.config, ctx.site, spool, day)
+            got = collect(history, ctx.config, ctx.site, spool, day, spare=spare)
             checked = audit(history, ctx.config, ctx.site, spool, day, ctx.tz,
                             first=_first(ctx))
-        beacon.prune(spool, ctx.now.date(), keep_days(ctx.config))
+        # The spool holds every site's lines: kept whole while any site keeps everything.
+        if not spare.any((ctx.site,)):
+            beacon.prune(spool, ctx.now.date(), keep_days(ctx.config))
     except Exception as why:            # noqa: BLE001 - never fails the day
         ctx.err(f"events {day}: {type(why).__name__}: {why}")
         return 0

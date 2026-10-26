@@ -2,7 +2,7 @@
 
 How to sign in, keep your account safe with two-step sign-in, and invite your team with the right role.
 
-These pages come with accounts. If your server uses one shared login instead, its users are listed under **Settings > Team & access > Users**, and the server admin manages them.
+These pages come with accounts. If your server uses one shared login instead, its users are listed under **Settings > Organisation > Users**, and the server admin manages them.
 
 ## Sign in
 
@@ -16,7 +16,7 @@ Every password field has a **Show** button at its right edge. Select it to see w
 
 **Keep me signed in** is ticked by default. You then stay signed in for 14 days on that device, counted from your last use. Untick it on a shared computer: you are signed out when the browser closes.
 
-Your organisation can set a shorter session length. See [Settings and retention](settings-and-retention.md).
+Your organisation can set a shorter session length, in **Settings > Organisation > Sign-in rules**. See [Settings and retention](settings-and-retention.md).
 
 ### Too many tries
 
@@ -48,7 +48,7 @@ Two-step sign-in asks for a 6-digit code from an app on your phone, after your p
 
 ### Turn it on
 
-1. Go to **Settings > You > Your account**, or open [Your account](#settings/account).
+1. Go to **Settings > You > Your account**, or open [Your account](#settings/you/account).
 2. Under **Two-step sign-in**, type your password and select **Turn on two-step sign-in**.
 3. In your authenticator app, add an account and type the key the page shows. If your app takes an address instead, use the address shown.
 4. Type the 6-digit code the app shows, then select **Confirm**.
@@ -66,7 +66,7 @@ Codes change every 30 seconds. If a code is refused, try the one the app shows n
 
 ### Turn it off
 
-1. Go to [Your account](#settings/account).
+1. Go to [Your account](#settings/you/account).
 2. Under **Two-step sign-in**, type your password and select **Turn off**.
 
 If your organisation requires two-step sign-in, the sign-in page asks you to set it up the next time you sign in.
@@ -91,7 +91,7 @@ A person has one role in each organisation.
 | Role | May |
 | --- | --- |
 | Viewer | See every page of the organisation's sites and the team list. Change their own name, password and two-step sign-in. Changes nothing else. Cannot look a person up, and sees the left-out lists without names, emails or visitor IDs |
-| Admin | All of that, plus: invite, remove and change members (not owners), make API tokens, read the audit log, change the site's settings, and look a person up (the search at the top: visits with their IP address, emails, names) |
+| Admin | All of that, plus: invite, remove and change members (not owners), make API tokens, read the audit log and Billing, change the site's settings, and look a person up (the search at the top: visits with their IP address, emails, names) |
 | Owner | All of that, plus: make, change or remove owners, set the security rules, remove a site, and handle billing |
 
 An organisation always keeps at least one owner.
@@ -105,7 +105,7 @@ People are given sites through organisations, never one site at a time. Everyone
 When you are in two or more:
 
 - The site switcher at the top of the sidebar lists your sites under each organisation's name, and so does **All sites**. With one organisation the list is plain, as before.
-- **Settings > Team** shows the team of the organisation that owns the site you have open. Its title names the organisation ("Team of Kiwi"), with the sites it sees ("These people see kiwi.example only.") and links to your other organisations' teams. Inviting someone there adds them to that organisation only.
+- **Settings > Organisation > Team** shows the team of the organisation that owns the site you have open. Its title names the organisation ("Team of Kiwi"), with the sites it sees ("These people see kiwi.example only.") and links to your other organisations' teams. Inviting someone there adds them to that organisation only.
 
 ### Give someone one site only
 
@@ -113,7 +113,7 @@ To let a partner or a client see one site and nothing else, the server admin put
 
 1. On the server: `skald org create "Kiwi"`, then `skald site assign kiwi.example --org kiwi`. The site's data, settings and address stay as they were.
 2. Still on the server, make yourself a member of the new organisation too (`skald member invite you@example.com --role owner --org kiwi`, then follow the link and select **Join**), or you stop seeing the site.
-3. Open the site, go to [Team](#settings/team) and invite the person with the role they need.
+3. Open the site, go to [Team](#settings/org/team) and invite the person with the role they need.
 
 The site's settings and its set-up progress move with it, and so do the tokens that read only that site, such as its log shipper's. A token for several sites, or for all of the old organisation's, stays where it was and no longer reads the moved site: make a new one in the new organisation if you need it.
 
@@ -121,7 +121,7 @@ The site's settings and its set-up progress move with it, and so do the tokens t
 
 You must be an admin or owner.
 
-1. Go to **Settings > Team & access > Team**, or open [Team](#settings/team).
+1. Go to **Settings > Organisation > Team**, or open [Team](#settings/org/team).
 2. Under **Invite someone**, type the person's **Email**.
 3. Pick a **Role**. Only an owner can invite another owner.
 4. Select **Send invite**.
@@ -149,7 +149,7 @@ You cannot change your own role or remove yourself. Viewers see the team list wi
 ## Sign out
 
 - Select the round **You** button at the foot of the sidebar, then **Sign out**.
-- Or, on [Your account](#settings/account), select **Sign out of this browser**.
+- Or, on [Your account](#settings/you/account), select **Sign out of this browser**.
 
 ## Related guides
 

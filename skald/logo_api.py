@@ -6,7 +6,7 @@
                              shows its letter. Any member of the site.
                              ?src=fetched|upload: that stored file (Settings'
                              preview of each choice)
-  GET  <page>/logo/state     what Settings > Sites > Logo shows (accounts)
+  GET  <page>/logo/state     what Settings > Site details > Logo shows (accounts)
   POST <page>/logo/upload    {"data": base64, "name"}: PNG, ICO or a safe SVG,
                              at most 256 KB; sets site.logo.source to upload.
                              Owners and admins, with the CSRF value (accounts)
@@ -56,7 +56,7 @@ def _query(path: str) -> dict:
 
 def _config(config, config_path, site: str, live_dir=None) -> dict:
     """The site's config with its settings rows laid over it (its host names
-    as Settings > Sites has them)."""
+    as Settings > Site details has them)."""
     from .settings_api import site_config
     got = site_config(config, config_path, site)
     try:

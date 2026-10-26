@@ -82,16 +82,36 @@ TABLE = [
     ("sales", "sales/leads", {}),
     ("ai", "ai/assistants", {}),
     ("site", "site/health", {}),
-    # settings' short names, help's
-    ("ours", "settings/internal", {}), ("internal", "settings/internal", {}), ("api", "settings/api", {}), ("tokens", "settings/api", {}),
-    ("settings/tokens", "settings/api", {}), ("connections", "settings/api", {}), ("settings/connections", "settings/api", {}), ("team", "settings/team", {}), ("users", "settings/users", {}), ("account", "settings/account", {}),
-    ("billing", "settings/billing", {}), ("security", "settings/security", {}), ("audit", "settings/audit", {}), ("mail", "settings/mail", {}), ("reports", "settings/reports", {}),
-    ("retention", "settings/retention", {}), ("integrations", "settings/integrations", {}), ("sites", "settings/sites", {}),
-    ("guides", "help", {}), ("docs", "help", {}), ("settings/help", "help", {}),
+    # settings' pages before 2.40 and their short names (js/settings-menu.js OLD_SETTINGS), help's
+    ("ours", "settings/site/internal", {}), ("internal", "settings/site/internal", {}), ("settings/internal", "settings/site/internal", {}),
+    ("tokens", "settings/ai/tokens", {}), ("settings/tokens", "settings/ai/tokens", {}),
+    ("mcp", "settings/ai/mcp", {}), ("settings/mcp", "settings/ai/mcp", {}),
+    ("team", "settings/org/team", {}), ("settings/team", "settings/org/team", {}),
+    ("users", "settings/org/users", {}), ("settings/users", "settings/org/users", {}),
+    ("account", "settings/you/account", {}), ("settings/account", "settings/you/account", {}),
+    ("billing", "settings/org/billing", {}), ("settings/billing", "settings/org/billing", {}),
+    ("security", "settings/org/security", {}), ("settings/security", "settings/org/security", {}),
+    ("audit", "settings/org/audit", {}), ("settings/audit", "settings/org/audit", {}),
+    ("mail", "settings/site/mail", {}), ("settings/mail", "settings/site/mail", {}),
+    ("reports", "settings/site/mail", {"sub": "reports"}), ("settings/reports", "settings/site/mail", {"sub": "reports"}),
+    ("retention", "settings/site/privacy", {}), ("settings/retention", "settings/site/privacy", {}), ("settings/privacy", "settings/site/privacy", {}),
+    ("integrations", "settings/site/leads", {}), ("settings/integrations", "settings/site/leads", {}),
+    ("sites", "settings/site/details", {}), ("settings/sites", "settings/site/details", {}),
+    ("settings/aianswers", "settings/site/aianswers", {}),
+    ("settings/sitesadmin?setup=new&step=2", "settings/org/sites", {"setup": "new", "step": "2"}),
+    # the old Connections page opens where its dialog lives now, the dialog's keys kept
+    ("api", "settings/site/setup", {}), ("connections", "settings/site/setup", {}), ("settings/connections", "settings/site/setup", {}),
+    ("settings/api", "settings/site/setup", {}),
+    ("settings/api?conn=mcp&step=2&agent=hand", "settings/ai/mcp", {"conn": "mcp", "step": "2", "agent": "hand"}),
+    ("settings/api?conn=api&step=2", "settings/ai/api", {"conn": "api", "step": "2"}),
+    ("settings/api?conn=send&step=3", "settings/site/collect", {"conn": "send", "step": "3"}),
+    ("settings/api?setup=example.com&step=3&agent=codex", "settings/site/setup", {"setup": "example.com", "step": "3", "agent": "codex"}),
+    ("guides", "help", {}), ("docs", "help", {}),
     # unchanged addresses stay as they are
     ("help?part=webhooks", "help", {"part": "webhooks"}),
     ("about?part=compare&note=x", "about", {"part": "compare", "note": "x"}),
-    ("settings/internal", "settings/internal", {}),
+    ("settings/help", "settings/help", {}),
+    ("settings/site/collect?sub=script", "settings/site/collect", {"sub": "script"}),
     ("traffic/sources?range=7d", "traffic/sources", {"range": "7d"}),
 ]
 
@@ -208,12 +228,15 @@ console.log(JSON.stringify(out));
     def test_every_redirect_row_is_tested_and_lands_on_a_route(self):
         text = (JS / "routes.js").read_text(encoding="utf-8")
         body = text.split("export const REDIRECTS = {", 1)[1].split("\n};", 1)[0]
+        menu = (JS / "settings-menu.js").read_text(encoding="utf-8")
+        body += menu.split("export const OLD_SETTINGS = {", 1)[1].split("\n};", 1)[0]
         rows = dict(re.findall(r'"?([a-z/]+)"?: \["([a-z/]+)"', body))
         self.assertGreaterEqual(len(rows), 48)
         asked = {a.split("?")[0] for a, _, _ in TABLE}
         self.assertEqual(sorted(set(rows) - asked), [], "a redirect without a test row")
         routes = {t["route"] for s in registry() for t in s["tabs"]}
         routes |= set(re.findall(r'\["([a-z/]+)", "[^"]+"\]', (JS / "state.js").read_text(encoding="utf-8")))
+        routes |= set(re.findall(r'route: "(settings/[a-z/]+)"', menu)) | {"settings/home"}
         for old, new in rows.items():
             self.assertIn(new, routes, f"{old} -> {new}")
 

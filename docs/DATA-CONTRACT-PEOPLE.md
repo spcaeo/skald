@@ -17,6 +17,16 @@ beside the history) and helper answers behind sign-in.
 | `privacy.keep_days` | 395 | how long a kept visit stays (1 to 3650) |
 | `conversions.identity` | `full` on a new install; `anonymous` on one upgraded from before 2.4.0 | keep a lead's name and email with its conversions |
 
+**Keep everything** (`keep_everything.py`, [SETTINGS.md](SETTINGS.md#keep-everything)): on
+an internal or enterprise site (`retention.keep_everything: true`, Docker
+`SKALD_KEEP_EVERYTHING=1`; hosted, an organisation with no plan or a plan with
+`keep_everything: true`) none of these tables loses or changes a row by itself:
+`privacy.keep_days`, turning `keep_ips` off or short, the People days that clear names and
+emails, `conversions.retention_days` and `journeys.vid_days` all leave `visits`,
+`visit_days`, `security_rows`, `security_days`, `conversions`, `removed`, `journeys`,
+`identities`, `deliveries`, `hook_replays`, `pay_links`, `outbox` and the hook spool as they
+are. Only `skald forget` / `skald conversions forget`, run by hand, delete a person.
+
 "Upgraded" is read from the history file: history schema 13 adds no table,
 but an upgrade from 12 or older writes the meta row `privacy_legacy`; a file
 still at 12 or older counts the same. No history file is a new install.
@@ -72,6 +82,28 @@ or past keep_days): never zero.
 with the identity's email and name when it had one). Pruned with
 `conversions.retention_days` (400; 0 keeps them for good, 2.29: never pruned, only
 `forget` deletes them).
+
+Names and emails past the People days (`conversions/people_days.py`, since the
+release after 2.38.0). When a site set `privacy.keep_days` (its own row, the install's
+row or config.yml; never the code's 395) and it is shorter than
+`conversions.retention_days` (any number is shorter than 0), a name or an email is
+kept that many days, then cleared; the row stays and keeps counting. Per site, a row by
+its `at`, a spool line by its day:
+
+| Where | Older than the People days |
+| --- | --- |
+| `identities` | all its rows older: `email` and `name` NULL, `email_hash` a random `cleared:...` (the email no longer finds it) |
+| `identities` with a younger row | the older rows move to a new blank identity (no email, no name); a row within `conversions.abandon_hours` (24) of a kept one stays with it, so no started row loses the finish matched to it |
+| `removed.row` | `email` and `name` null; `identity_id` follows its rows |
+| hook spool lines | `name`, `email`, `firstname`, `lastname` dropped from `body` at any depth (what an anonymous site writes) |
+| `conversions.sqlite.v<N>.bak` | the same, in each copy a schema upgrade left |
+
+No row is deleted and no row changes its day, stage, visitor ID or identity match, so
+every figure and both counting roads read the same. It runs in the daily prune and once
+on the first live run after the upgrade (meta row `people_days_swept`); per site it
+writes counts (never a value) to the run's output, `privacy.log` and the audit log
+(`privacy.cleared`). A site that set no People days, or longer ones, keeps the old rule:
+names and emails go with the lead.
 
 `conversions.test`: 0 counted; 1 for a row marked test (`skald conversions
 mark-test`, or the site's `POST /traffic-hooks/<site>/leads/test`), which

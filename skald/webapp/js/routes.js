@@ -9,6 +9,8 @@
 // parameters (ip, rq, page, fn, strat...) are kept by the new tab when it
 // keeps them (its `keep` list in js/tabs/s-*.js).
 
+import { OLD_SETTINGS, CONNECTIONS, connectionsHome } from "./settings-menu.js";
+
 export const REDIRECTS = {
   // Overview
   overview: ["overview/summary"], home: ["overview/summary"],
@@ -40,11 +42,10 @@ export const REDIRECTS = {
   "health/broken": ["site/notfound"], broken: ["site/notfound"],
   "health/speed": ["site/speed"], speed: ["site/speed"],
   "health/quality": ["site/quality"], quality: ["site/quality"],
-  // Short names of settings pages and of Help (unchanged by the sections)
-  ours: ["settings/internal"], internal: ["settings/internal"], api: ["settings/api"], tokens: ["settings/api"], "settings/tokens": ["settings/api"], connections: ["settings/api"], "settings/connections": ["settings/api"],
-  team: ["settings/team"], users: ["settings/users"], account: ["settings/account"], billing: ["settings/billing"], security: ["settings/security"],
-  audit: ["settings/audit"], mail: ["settings/mail"], reports: ["settings/reports"], retention: ["settings/retention"], integrations: ["settings/integrations"], sites: ["settings/sites"],
-  guides: ["help"], docs: ["help"], "settings/help": ["help"],
+  // Settings' pages before 2.40 and their short names: js/settings-menu.js (OLD_SETTINGS; the
+  // old Connections page by the dialog it named, connectionsHome). Help's short names:
+  ...OLD_SETTINGS,
+  guides: ["help"], docs: ["help"],
 };
 
 // The compare switch was "1"; it is "prev" (the previous period) now.
@@ -91,6 +92,8 @@ function fromCompare(p) {
 export function resolve(asked, first = {}, params = null) {
   const key = String(asked || "").replace(/^\/+|\/+$/g, "");
   if (key === "compare" && params) return fromCompare(params);
+  // The old Connections page (#settings/api): the page of the dialog it named (2.40).
+  if (CONNECTIONS.has(key)) { const [tab, patch] = connectionsHome(params); return { tab, patch: { ...(patch || {}) }, moved: true }; }
   const row = REDIRECTS[key];
   if (row) return { tab: row[0], patch: { ...(row[1] || {}) }, moved: true };
   if (first[key]) return { tab: first[key], patch: {}, moved: true };

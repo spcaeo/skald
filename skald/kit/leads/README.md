@@ -35,13 +35,13 @@ The files sign each lead with your lead hook's secret, so nobody else can send f
 - If you downloaded a file with the secret written in it, it works as it is. Still, move the secret to the environment variable (or `wp-config.php`) when you can, and never put the file in a public place or a public code repository.
 - Never put the secret in a web page or in the browser's JavaScript.
 
-Lost the secret? Make a new one in Skald (**Settings > Integrations > Your site's server (lead) > Rotate secret**). The old one stops working at once.
+Lost the secret? Make a new one in Skald (**Settings > Leads & integrations > Your site's server (lead) > Rotate secret**). The old one stops working at once.
 
 ## Join the lead to the visit
 
 Skald can show the pages a lead read before the form, when the lead carries the visitor's ID.
 
-1. Put Skald's script tag on your pages (Skald: **Settings > Integrations**, copy the tag), and ask your Skald admin to turn visitor IDs on for the site:
+1. Put Skald's script tag on your pages (Skald: **Settings > Collect data > Script tag & goals**, copy the tag), and ask your Skald admin to turn visitor IDs on for the site:
 
    ```
    <script src="__ORIGIN__/traffic-js/skald.js" data-site="__SITE__" defer></script>
@@ -71,4 +71,4 @@ In Zapier: **Webhooks by Zapier > POST**, Payload Type `json`, the fields `exter
 
 ## Check it
 
-Send one form, then open Skald: **Settings > Integrations > Your site's server (lead)**. **Last deliveries** shows it as "kept", or says why it was refused ("bad signature": the secret does not match).
+Send one form, then open Skald: **Settings > Leads & integrations > Your site's server (lead)**. **Last deliveries** shows it as "kept", or says why it was refused ("bad signature": the secret does not match).

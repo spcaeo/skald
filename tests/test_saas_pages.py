@@ -1,6 +1,6 @@
 """Phase 5a pages: signup.html and signup-finish.html follow the sign-in
 pages' rules (no inline script or handler, nothing from elsewhere, a POST
-form, auth.js and auth.css only), and Settings > Billing is a tab that is
+form, auth.js and auth.css only), and Settings > Billing & usage is a tab that is
 hidden unless /me says the server sells plans to this owner.
 """
 from __future__ import annotations
@@ -45,13 +45,17 @@ class SignUpPages(unittest.TestCase):
 
 class BillingTab(unittest.TestCase):
     def test_registered_and_hidden_unless_saas(self):
-        state = (APP / "js" / "state.js").read_text(encoding="utf-8")
-        self.assertIn('["settings/billing", "Billing"]', state)
-        index = (APP / "js" / "tabs" / "index.js").read_text(encoding="utf-8")
-        self.assertIn('"settings/billing": billing', index)
-        self.assertIn('"settings/billing": I(', index)
+        # 2.40: Settings › Organisation › Billing & usage (js/settings-menu.js).
+        menu = (APP / "js" / "settings-menu.js").read_text(encoding="utf-8")
+        self.assertIn('route: "settings/org/billing", name: "Billing & usage"', menu)
+        pages = (APP / "js" / "tabs" / "settings-pages.js").read_text(encoding="utf-8")
+        self.assertIn('"settings/org/billing": billing', pages)
+        icons = (APP / "js" / "tabs" / "icons.js").read_text(encoding="utf-8")
+        self.assertIn('"settings/org/billing": I(', icons)
         access = (APP / "js" / "access.js").read_text(encoding="utf-8")
-        self.assertIn('if (!ME.saas || ME.role !== "owner") HIDDEN.add("settings/billing");', access)
+        # Owners, and admins to read it (they get the usage alerts); never viewers.
+        self.assertIn('if (!ME.saas || !["owner", "admin"].includes(ME.role)) '
+                      'HIDDEN.add("settings/org/billing");', access)
 
     def test_goes_only_to_stripe(self):
         js = (APP / "js" / "tabs" / "billing.js").read_text(encoding="utf-8")

@@ -550,6 +550,7 @@ alerts:
 #   allowed_domains: [example.com]   # leave out to let any address sign up
 #   billing: stripe
 #   grace_days: 7                    # past due this long: read-only, nothing deleted
+#   usage_alerts: true               # mail owners and admins at 80, 90, 100 % of requests_month
 #   default_plan: starter
 #   plans: [{name: starter, sites: 1, requests_month: 300000, retention_days_max: 90, members: 3, trial_days: 14, price_id: price_123, label: Starter}, {name: team, sites: 10, requests_month: 3000000, retention_days_max: 400, members: 20, price_id: price_456, label: Team}]
 

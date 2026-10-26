@@ -8,7 +8,7 @@ Service accounts > Keys > Add key > JSON). It is found, in this order:
   2. SKALD_GSC_KEY_FILE in the environment, else `search_console.key_file`
      in config.yml: a path to the file (0600, readable by Skald only)
   3. secrets.json beside the history, key SKALD_GSC_KEY_JSON: what an
-     install admin uploaded in Settings > Integrations
+     install admin uploaded in Settings > Leads & integrations
 
 `check_key` reads it: type "service_account", a client_email, an RSA private
 key search/rsa.py can load. Only the client email is ever shown again; the
@@ -244,7 +244,7 @@ def words_for(why: http.Failed, email: str, token: bool = False) -> str:
     if token:
         if why.code in (400, 401):
             return ("Google refused the service account's key: it may have been deleted or "
-                    "disabled in Google Cloud. Upload a new key in Settings > Integrations."
+                    "disabled in Google Cloud. Upload a new key in Settings > Leads & integrations > Search Console & Bing."
                     + detail)
         return f"Could not get a token from Google: {why}"
     if why.code == 403:
