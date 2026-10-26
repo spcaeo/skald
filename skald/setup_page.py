@@ -133,6 +133,14 @@ def host_of(name: str, known: dict, order: list[str], out: Path) -> str | None:
     return None
 
 
+def app_for(name: str, known: dict, order: list[str], out: Path) -> str | None:
+    """Where `name`'s wizard opens (the site picker's "Setup: step n of 5,
+    continue"): its own dashboard when drawn, else host_of. The wizard saves
+    to the organisation of the page it opens in, so another organisation's
+    site will not do (2.38.0: it opened at step 1 and saved nothing)."""
+    return name if _drawn(out, name) else host_of(name, known, order, out)
+
+
 def render(name: str, state: dict, host: str | None) -> str:
     """The page for one site. `state`: its entry of `states` plus `waiting`."""
     from .site_picker import MARK as LOGO

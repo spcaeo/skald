@@ -45,6 +45,8 @@ Open [Site > Not found](#site/notfound). At the top, **Old addresses still asked
 - **AI asks for Markdown:** the `.md` addresses AI asked for whose page is live, and the other `.md` copies of old pages.
 - **After the fix:** each address you marked fixed, with what came for it on the whole days after the mark: not-found answers, and the times it was served as a page. Zero not-found answers after the mark: fixed.
 
+A **410 gone** is your own answer, so it counts as dealt with: an address that answers 410 leaves the lists, and a 410 is never counted as a not-found answer. A **redirect** counts as fixed wherever it goes, to a page on your site or to another site, because it leaves no not-found answer behind. An address you redirected stays on **Lost pages** until its last not-found answer is older than the 30 days shown; the re-check and **After the fix** already say fixed.
+
 ## The line to copy
 
 Pick **nginx** or **Apache**. Each row has the line to add: a 301 redirect to the closest live page, or 410 gone. When a redirect is suggested, the 410 line is under it, so you can choose. Point at a line to copy it; the icon turns into a green tick.

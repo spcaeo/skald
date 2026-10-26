@@ -32,6 +32,7 @@ def lead(ref: str = "L-1") -> dict:
 
 class Base(unittest.TestCase):
     hooks: dict = {}
+    visitor_ids = False             # the default; with it off no ID is spooled (2.38.0)
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -40,7 +41,8 @@ class Base(unittest.TestCase):
                        "history": {"db": str(self.folder / "history.sqlite")},
                        "hooks": {"per_minute": 600, "burst": 100, **self.hooks},
                        # Anonymous on purpose: 2.4.0 keeps names and emails by default.
-                       "conversions": {"identity": "anonymous"}}
+                       "conversions": {"identity": "anonymous"},
+                       "beacon": {"visitor_ids": self.visitor_ids}}
         path = secrets_store.path_for(self.config, self.folder)
         for tool in ("lead", "calendly", "typeform", "calcom", "hubspot"):
             secrets_store.put(path, secrets_store.key("example.com", tool), SECRET)
@@ -181,6 +183,8 @@ class AllowLists(unittest.TestCase):
 
 
 class SpooledThroughTheReceiver(Base):
+    visitor_ids = True              # so the ID is a field the spool must keep
+
     def test_a_hubspot_workflow_body_is_spooled_without_extra_fields(self):
         status, _ = self.post("hubspot", REVIEW_BODY)
         self.assertEqual(status, 200)

@@ -110,6 +110,23 @@ class Team(Server):
         for path in ("tokens", "audit"):
             self.assertEqual(self.call("GET", T + path, cookie=cookie).status, 403, path)
 
+    def test_the_team_names_its_sites_and_the_readers_other_teams(self):
+        """2.38.0: a person in two organisations sees which one a Team page is."""
+        cookie, _ = self.session()
+        got = self.call("GET", T + "team", cookie=cookie).json
+        self.assertEqual((got["org"], got["sites"], got["others"]), ("Alpha", [A], []))
+        db = self.db()
+        try:
+            accounts.add_member(db, self.beta["id"], self.uids["owner@example.com"], "viewer",
+                                "cli")
+        finally:
+            db.close()
+        got = self.call("GET", T + "team", cookie=cookie).json
+        self.assertEqual(got["others"], [{"org": "Beta", "sites": 1, "path": f"{B}/"}])
+        got = self.call("GET", f"/traffic/{B}/team", cookie=cookie).json
+        self.assertEqual((got["org"], got["sites"], [o["org"] for o in got["others"]]),
+                         ("Beta", [B], ["Alpha"]))
+
     def test_other_orgs_are_out_of_reach(self):
         cookie, csrf = self.session()
         self.assertEqual(self.call("GET", f"/traffic/{B}/team", cookie=cookie).status, 403)

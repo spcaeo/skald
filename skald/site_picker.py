@@ -162,6 +162,9 @@ main{max-width:1040px;margin:0 auto;padding:44px 32px 56px;display:flex;flex-dir
 gap:26px}
 h1{margin:0;font-size:30px;font-weight:720;letter-spacing:-.02em;line-height:1.15}
 .pk-lede{margin:6px 0 0;color:var(--ink-2);font-size:15.5px}
+.pk-org h2{margin:0;font-size:19px;font-weight:680;letter-spacing:-.01em}
+.pk-org h2 small{margin-left:6px;color:var(--ink-2);font-size:14px;font-weight:500}
+.pk-org .pk-grid{margin-top:12px}
 .pk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;
 list-style:none;margin:0;padding:0}
 .pk-card{display:flex;flex-direction:column;gap:18px;height:100%;padding:22px;
@@ -192,9 +195,12 @@ font-size:16px;font-weight:600;text-decoration:none}
 .pk-add:hover{color:var(--ink);border-color:var(--ink-3)}
 .pk-note{margin:0;font-size:13px;color:var(--ink-3)}
 .pk-build{margin:8px 0 0;font-size:12px;color:var(--ink-3)}
-.pk-setup{display:block;margin-top:8px;padding:8px 12px;border:1px solid var(--gap);
-border-radius:8px;background:var(--sunk);color:var(--ink);font-size:13.5px;font-weight:600;
-text-decoration:none}.pk-setup:hover{border-color:var(--ink-3)}
+.pk-setup{display:flex;align-items:center;justify-content:space-between;gap:8px;
+margin-top:8px;padding:10px 14px;border-radius:8px;background:#1d64c2;color:#fff;
+font-size:14px;font-weight:650;text-decoration:none;box-shadow:0 1px 0 rgba(0,0,0,.08),
+0 6px 16px -8px rgba(29,100,194,.7)}.pk-setup:after{content:"\\2192";font-size:16px}
+.pk-setup:hover{background:#1857a8}.pk-setup:focus-visible{outline:2px solid var(--ink);
+outline-offset:2px}
 .pk-grid>li{display:flex;flex-direction:column}.pk-grid>li>.pk-card{height:auto;flex:1}
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);
 white-space:nowrap}
@@ -269,19 +275,41 @@ def lede(sites: list[dict]) -> str:
     return f"Each site shows its own logo, taken from the site itself. {when}"
 
 
+def _groups(sites: list[dict], orgs: dict[str, str]) -> list[tuple[str, list[dict]]]:
+    """[(organisation, its sites)] in the order the sites come, for a reader
+    in two or more organisations (`orgs`: {site: organisation}); a site with
+    no organisation named goes last, under "Other sites"."""
+    out: dict[str, list[dict]] = {}
+    for s in sites:
+        out.setdefault(orgs.get(s["name"]) or "", []).append(s)
+    return sorted(out.items(), key=lambda kv: kv[0] == "")
+
+
 def render(sites: list[dict], now: datetime, who: str | None = None,
-           add_href: str | None = None, title: str = "Choose a site", across: str = "") -> str:
+           add_href: str | None = None, title: str = "Choose a site", across: str = "",
+           orgs: dict[str, str] | None = None) -> str:
     """The picker page. `sites`: sites.json entries with `logo` and `today`
     (enrich); `who`: the signed-in email; `add_href`: where "Add a site"
     goes (an admin's Settings > Add or remove sites), or None for no card;
-    `across`: the sources table under the cards (across_sites.section)."""
-    cards = "".join(card(s) for s in sites if isinstance(s, dict) and s.get("name"))
+    `across`: the sources table under the cards (across_sites.section);
+    `orgs`: {site: organisation} for a reader in two or more (2.38.0): the
+    cards are grouped under each organisation's name."""
+    named = [s for s in sites if isinstance(s, dict) and s.get("name")]
+    cards = "".join(card(s) for s in named)
     add = (f'<li><a class="pk-add" href="{esc(add_href)}"><svg width="22" height="22" '
            'viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" '
            'stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
            'Add a site</a></li>' if add_href else "")
-    grid = (f'<ul class="pk-grid">{cards}{add}</ul>' if cards or add
-            else '<p class="pk-empty">No sites recorded yet.</p>')
+    if orgs and named:
+        grid = "".join(
+            f'<section class="pk-org"><h2>{esc(name or "Other sites")} <small>'
+            f'{len(group)} site{"" if len(group) == 1 else "s"}</small></h2>'
+            f'<ul class="pk-grid">{"".join(card(s) for s in group)}</ul></section>'
+            for name, group in _groups(named, orgs))
+        grid += f'<ul class="pk-grid">{add}</ul>' if add else ""
+    else:
+        grid = (f'<ul class="pk-grid">{cards}{add}</ul>' if cards or add
+                else '<p class="pk-empty">No sites recorded yet.</p>')
     me = (f'<span class="pk-me"><b aria-hidden="true">{esc(who[:1].upper())}</b>'
           f'<span>{esc(who)}</span></span>' if who else "")
     zones = {(s.get("today") or {}).get("timezone") for s in sites if isinstance(s, dict)} - {None}

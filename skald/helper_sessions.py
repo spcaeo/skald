@@ -128,22 +128,27 @@ def listing(h, out: Path | None, who: dict, config=None, live_dir=None,
         wizard = f"{slug(admin[0])}/#settings/sitesadmin" if admin else None
         add = f"{wizard}?setup=new" if admin else None
         # A set-up left half way, or a site that heard nothing for a day: a link
-        # that reopens the wizard (connections_api.badges; admins only).
-        from . import connections_api
+        # that reopens the wizard (connections_api.badges; admins only), in a
+        # dashboard of the site's own organisation (setup_page.app_for); none
+        # drawn yet: no link, and its card leads to its waiting page.
+        from . import connections_api, setup_page
         try:
             marks = connections_api.badges(config, live_dir, config_path, admin)
+            known = setup_page.states(config, config_path) if marks and out else {}
         except Exception:                 # noqa: BLE001 - the picker never fails for a badge
-            marks = {}
+            marks, known = {}, {}
+        order = [s["name"] for s in sites]
         for s in sites:
             got = marks.get(s.get("name"))
-            if got:
-                s["badge"] = {"words": got[0],
-                              "href": f"{wizard}?{got[1]}={quote(s['name'])}"}
+            home = got and setup_page.app_for(s["name"], known, order, Path(out))
+            if home:
+                s["badge"] = {"words": got[0], "href": f"{slug(home)}/#settings/sitesadmin"
+                                                       f"?{got[1]}={quote(s['name'])}"}
         # Where visitors came from on each of the caller's sites (across_sites.py):
         # only the sites listed here, so another organisation's never shows.
         from .across_sites import section
         page = site_picker.render(sites, datetime.now(timezone.utc), who.get("email"), add,
-                                  across=section(out, sites))
+                                  across=section(out, sites), orgs=org_names(who))
         return _send(h, 200, page.encode("utf-8"), "text/html; charset=utf-8")
     current = SITES_JSON.match(path).group("site")
     file = (Path(out) / "sites.json" if current is None
@@ -157,8 +162,21 @@ def listing(h, out: Path | None, who: dict, config=None, live_dir=None,
     body["sites"] = site_picker.enrich(
         [s for s in body.get("sites") or [] if isinstance(s, dict) and s.get("name") in mine],
         out, config, live_dir, config_path)
+    orgs = org_names(who)
+    for s in body["sites"] if orgs else ():
+        s["org"] = orgs.get(s.get("name"))
     data = (json.dumps(body, separators=(",", ":")) + "\n").encode()
     return _send(h, 200, data, "application/json; charset=utf-8")
+
+
+def org_names(who: dict) -> dict[str, str]:
+    """{site: its organisation's name} for a caller in two or more
+    organisations with sites (2.38.0: the switcher and the picker group by
+    it), else {}: one organisation needs no heading."""
+    orgs = [o for o in who.get("orgs") or [] if o.get("sites")]
+    if len(orgs) < 2:
+        return {}
+    return {s: o["name"] for o in orgs for s in o["sites"]}
 
 
 def _listed(out: Path | None) -> list[dict]:

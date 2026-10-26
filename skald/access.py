@@ -108,8 +108,8 @@ def proxy_ip(headers, peer: str, config: dict | None = None) -> str | None:
 def session_caller(config: dict | None, live_dir, headers, site: str | None = None):
     """Sessions mode: who holds the session cookie in `headers`, as a dict
     {user_id, email, name, install_admin, csrf, session_id, role, org,
-    member_sites, admin_sites}; `role` and `org` are for `site` (None when
-    not a member, or no site). None without a valid session. Headers such
+    member_sites, admin_sites, orgs}; `role` and `org` are for `site` (None when
+    not a member, or no site); `orgs`: [{name, sites}] the caller belongs to. None without a valid session. Headers such
     as X-Skald-User are never read."""
     from . import accounts
     from .auth_api import cookie_of
@@ -122,14 +122,16 @@ def session_caller(config: dict | None, live_dir, headers, site: str | None = No
         if who is None:
             return None
         role, org = (accounts.site_role(db, who["user_id"], site) if site else (None, None))
-        member, admin = [], []
+        member, admin, orgs = [], [], []
         for o in accounts.list_orgs(db, who["user_id"]):
             names = accounts.sites_of_org(db, o["id"])
             member += names
+            orgs.append({"name": o["name"], "sites": names})
             if o["role"] in ("owner", "admin"):
                 admin += names
         return {**who, "role": role, "org": org if role else None,
-                "member_sites": sorted(set(member)), "admin_sites": sorted(set(admin))}
+                "member_sites": sorted(set(member)), "admin_sites": sorted(set(admin)),
+                "orgs": orgs}
     finally:
         db.close()
 

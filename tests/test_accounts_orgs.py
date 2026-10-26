@@ -42,6 +42,55 @@ class OrgTest(AccountsCase):
         with self.assertRaises(ValueError):
             orgs.assign_site(self.db, "example.com", 999, actor="cli")
 
+    def test_a_sites_own_tokens_move_with_it(self) -> None:
+        """2.38.0: a token reads only its organisation's sites, so moving a site
+        used to cut off its log shipper (kiwiform.com, 26 Oct 2026)."""
+        from skald.accounts import apitokens
+        a = orgs.create_org(self.db, "A", actor="cli")
+        b = orgs.create_org(self.db, "B", actor="cli")
+        for site in ("example.com", "shop.example.com"):
+            orgs.assign_site(self.db, site, a["id"], actor="cli")
+        own = apitokens.create(self.db, a["id"], "ship example.com", sites=["example.com"],
+                               scopes=("ingest",))
+        both = apitokens.create(self.db, a["id"], "two sites",
+                                sites=["example.com", "shop.example.com"])
+        every = apitokens.create(self.db, a["id"], "all of A")
+        orgs.assign_site(self.db, "example.com", b["id"], actor="cli")
+        self.assertTrue(apitokens.check(self.db, f"Bearer {own}", "example.com", "ingest")[0])
+        for token in (both, every):
+            self.assertFalse(apitokens.check(self.db, f"Bearer {token}", "example.com")[0])
+            self.assertTrue(apitokens.check(self.db, f"Bearer {token}",
+                                            "shop.example.com")[0])
+        self.assertIn("token.move", self.audit_actions(b["id"]))
+        orgs.assign_site(self.db, "example.com", b["id"], actor="cli")      # same org: no-op
+        self.assertEqual(self.audit_actions(b["id"]).count("token.move"), 1)
+
+    def test_a_sites_settings_and_setup_move_with_it(self) -> None:
+        """2.38.0: a site made from the dashboard and moved kept its settings and
+        set-up progress in the old organisation: the old Settings > Sites listed it,
+        and its wizard said "There is no such site in this organisation" (26 Oct 2026)."""
+        from skald.accounts import site_configs, site_setup
+        a = orgs.create_org(self.db, "A", actor="cli")
+        b = orgs.create_org(self.db, "B", actor="cli")
+        site_configs.create(self.db, a["id"], "example.com", "cli")
+        site_setup.save(self.db, a["id"], "example.com", "cli", step=4)
+        orgs.assign_site(self.db, "example.com", b["id"], actor="cli")
+        self.assertEqual([r["name"] for r in site_configs.listing(self.db, a["id"])], [])
+        self.assertEqual([r["name"] for r in site_configs.listing(self.db, b["id"])],
+                         ["example.com"])
+        self.assertEqual(site_setup.save(self.db, b["id"], "example.com", "cli", step=5)["step"], 5)
+        with self.assertRaises(ValueError):
+            site_setup.save(self.db, a["id"], "example.com", "cli", step=5)
+        self.assertEqual(self.audit_actions(b["id"]).count("site.move"), 2)
+        # A move made before 2.38.0 (the site moved, its rows not): assigning it again mends it.
+        site_configs.create(self.db, a["id"], "shop.example.com", "cli")
+        site_setup.save(self.db, a["id"], "shop.example.com", "cli", step=3)
+        self.db.execute("UPDATE sites SET org_id = ? WHERE name = ?", (b["id"], "shop.example.com"))
+        orgs.assign_site(self.db, "shop.example.com", b["id"], actor="cli")
+        self.assertEqual(site_setup.for_org(self.db, b["id"])["shop.example.com"]["step"], 3)
+        self.assertEqual(sorted(r["name"] for r in site_configs.listing(self.db, b["id"])),
+                         ["example.com", "shop.example.com"])
+
 
 class UserTest(AccountsCase):
     def test_create_and_find(self) -> None:

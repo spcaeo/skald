@@ -54,8 +54,9 @@ let latest = null;
 
 /* setup=new|<site>&step=<n>&agent=<id>&link=<id>, from a link: the Add a site wizard, for an
    owner or an admin (on Connections too: its "Set up with your AI agent" opens a site's at step 3).
-   The page's last answer, unless it does not have the site yet (one the wizard just made). */
-export async function openSiteKey(value, step = 1, s = {}) {
+   The page's last answer, unless it does not have the site yet (one the wizard just made).
+   No step in the address (the site picker's "Setup: step 4 of 5, continue"): the saved one. */
+export async function openSiteKey(value, step = 0, s = {}) {
   if (!sessions() || !admin()) return "Not available to your role.";
   const has = (d) => d?.sites && (value === "new" || d.sites.some((x) => x.name === value));
   const r = has(latest?.data) ? latest.data : await call("sites");
@@ -65,7 +66,8 @@ export async function openSiteKey(value, step = 1, s = {}) {
   const site = (r.sites || []).find((x) => x.name === value);
   if (!site) return "That site is not one of this organisation's sites.";
   // pick: Connections' "Set up with your AI agent" asks which agent, whatever way was saved.
-  return siteWizard({ data: r, name: site.name, start: Math.max(0, Math.min(STEPS, step) - 1), method: s.pick ? "" : site.setup?.method || "", verify: site.verify,
+  const at = step || (site.setup && !site.setup.done && site.setup.step) || 1;
+  return siteWizard({ data: r, name: site.name, start: Math.max(0, Math.min(STEPS, at) - 1), method: s.pick ? "" : site.setup?.method || "", verify: site.verify,
     found: site.setup?.found || null, onChange: reload, agent: s.agent || "", link: s.link || "" });
 }
 

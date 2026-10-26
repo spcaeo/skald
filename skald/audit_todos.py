@@ -78,15 +78,20 @@ def _sort(path: str) -> str | None:
 
 
 def asks(db, key: str, days: list[str]) -> dict[str, dict]:
-    """{path: {"people", "search", "ai", "ai_asked", "ai_training", "last"}} of the days'
-    404 and 410 rows, probes left out."""
+    """{path: {"people", "search", "ai", "ai_asked", "ai_training", "last", "gone"}} of the
+    days' 404 rows, probes left out; "gone" is the last day of a 410 (2.38.0: an answer
+    given on purpose, never an ask), "last" the last day of a 404."""
     out: dict[str, dict] = {}
     for d, rows in sorted(_blobs(db, key, days, "not_found").items()):
         for r in rows if isinstance(rows, list) else []:
-            if r.get("probe") is True or int(r.get("status") or 0) not in (404, 410):
+            status = int(r.get("status") or 0)
+            if r.get("probe") is True or status not in (404, 410):
                 continue
             slot = out.setdefault(r["path"], {"people": 0, "search": 0, "ai": 0, "ai_asked": 0,
-                                              "ai_training": 0, "last": ""})
+                                              "ai_training": 0, "last": "", "gone": ""})
+            if status == 410:
+                slot["gone"] = d if d > slot["gone"] else slot["gone"]
+                continue
             who = WHO.get(r.get("group"))
             if who is not None:
                 slot[who] += int(r["n"])
@@ -140,7 +145,7 @@ def recount_lost(db, key: str, first, last, live_dir, anchor: str | None) -> dic
     for path, f in found.items():
         kind = _sort(path)
         if kind == "page" and f["people"] + f["search"] + f["ai"] and path not in listed \
-                and seen.get(path, "") < f["last"]:
+                and seen.get(path, "") < f["last"] and not (f["gone"] and f["gone"] >= f["last"]):
             lost[path] = (f["people"], f["search"], f["ai"])
         elif kind == "markdown" and f["ai"]:
             stem = path.partition("?")[0]
@@ -243,7 +248,8 @@ def figures_of(db, key: str, todo: dict, days: list[str], live_dir=None, anchor=
         return {"pages": len(got["md_live"]), "asks": sum(got["md_live"].values())} if before is None \
             else {"asked": sum(got["md_live"].values()) + sum(got["md_other"].values())}
     if kind == "sitemap":
-        mine = {p: f for p, f in asks(db, key, days).items() if _sort(p) == "sitemap"}
+        mine = {p: f for p, f in asks(db, key, days).items() if _sort(p) == "sitemap"
+                and (before is not None or not (f["gone"] and f["gone"] >= f["last"]))}
         got = {p: f["search"] + f["ai"] for p, f in mine.items() if f["search"] + f["ai"]}
         return {"paths": len(got), "asked": sum(got.values()),
                 "search": sum(f["search"] for f in mine.values())} if before is None else \

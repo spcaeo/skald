@@ -34,7 +34,8 @@ function linkNote(slot) {
 }
 
 export default function team() {
-  const title = head1("Team", ME.org ? `Who may see ${ME.org}'s sites, and what they may change.` : "Who may see these sites, and what they may change.");
+  // 2.38.0: the organisation in the title, since a person in two sees a different team per site.
+  const title = head1(ME.org ? `Team of ${ME.org}` : "Team", ME.org ? `Who may see ${ME.org}'s sites, and what they may change.` : "Who may see these sites, and what they may change.");
   if (!sessions()) {
     return [title, h("div", { class: "state" }, h("div", null, "Team comes with accounts. This server uses one shared login; users are listed under ",
       h("a", { href: "#settings/users" }, "Settings > Users"), "."))];
@@ -49,8 +50,19 @@ export default function team() {
       box.replaceChildren(h("div", { class: "state" }, h("div", null, isViewer() ? `${VIEWER} The team list is for admins.` : why(r, "The team could not be loaded."))));
       return;
     }
-    box.replaceChildren(members(r.members || []), invites(r.invites || []), inviteForm());
+    box.replaceChildren(...[scope(r.sites || [], r.others || []), members(r.members || []), invites(r.invites || []), inviteForm()].filter(Boolean));
     lockForViewer(box);
+  }
+
+  // Which sites this team sees, and the reader's other organisations: each opens its own team.
+  function scope(sites, others) {
+    if (!sites.length && !others.length) return null;
+    const seen = sites.length === 1 ? ["These people see ", h("b", null, sites[0]), " only."]
+      : sites.length ? [`These people see these ${sites.length} sites: `, sites.join(", "), "."] : [];
+    const also = others.length ? h("p", { class: "sub" }, "You are also in ", others.flatMap((o, i) => [i ? ", " : "",
+      h("a", { href: `../${o.path}#settings/team` }, `${o.org} (${o.sites} site${o.sites === 1 ? "" : "s"})`)]),
+      ". Each organisation has its own team.") : null;
+    return h("section", { class: "s team-scope" }, seen.length ? h("p", null, ...seen) : null, also);
   }
 
   function members(list) {

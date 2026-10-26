@@ -366,7 +366,7 @@ The install's sites (accounts mode): assign, list, add, hosts, remove, purge, ve
 
 | Command | Argument | What it does |
 | --- | --- | --- |
-| `site assign` | | Give a site to an organisation. |
+| `site assign` | | Give a site to an organisation; its settings, set-up progress and the tokens for that site alone move with it. |
 | | `site` | the site's name |
 | | `--org` SLUG | the organisation's slug (required) |
 | `site list` | | Every site, where it is defined, and its organisation. |

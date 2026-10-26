@@ -322,10 +322,10 @@ A site with an unfinished set-up shows a button in **Add or remove sites** and o
 
 | Button | What it means |
 | --- | --- |
-| Setup: step 3 of 5, continue | The set-up stopped at that step. Press it to carry on |
+| Setup: step 3 of 5, continue | The set-up stopped at that step. Press it to carry on from that step, in the site's own organisation |
 | No visits yet: test the connection | Set-up was finished, but nothing has reached Skald in 24 hours. Press it to open the Test step |
 
-The wizard is in the address while it is open: `#settings/sitesadmin?setup=new&step=1` for a new site, `setup=example.com&step=3` for one already started. The agent you chose is there too (`agent=claude-code`, or `agent=hand` for by hand), and in step 5 the line being watched (`link=` and 16 letters and digits, a scrambled copy of the code). The line and its code are never in the address. **Back** closes it.
+The wizard is in the address while it is open: `#settings/sitesadmin?setup=new&step=1` for a new site, `setup=example.com&step=3` for one already started. A link with no `step` opens the step the set-up reached. The agent you chose is there too (`agent=claude-code`, or `agent=hand` for by hand), and in step 5 the line being watched (`link=` and 16 letters and digits, a scrambled copy of the code). The line and its code are never in the address. **Back** closes it.
 
 Until the site's first log lines arrive, its own address says so: **example.com is waiting for its first log lines** (with its own name), with the step it reached, the same **Continue setup** (or **Test the connection**) button, and a link to [If a connection does not work](troubleshooting-connections.md). A site removed in Add or remove sites says that it was removed instead: nothing is collected for it, and its data stays until an install admin purges it.
 
