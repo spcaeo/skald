@@ -24,7 +24,9 @@ Events that are not conversions come through `notify`: the alert check
 queues "ai.reading_changed" once per new AI alert (alerts_ai.py; its body is
 the assistant, pages, days and numbers - nothing about a person), and
 "alert.opened" once per new alert of any kind (alerts.hook_body: {site,
-alert, text, figures, at}).
+alert, text, figures, at}), and "todo.new" once per to-do new on Overview >
+Insights (todo_rows.hook_body: {site, todo, figures, rows_total, link,
+first_seen, text}; never a row and never an agent's code).
 
 Slack: an address on hooks.slack.com (a Slack incoming webhook) takes only
 {"text": ...}, so it gets the body's `text` (or one line made from a
@@ -63,7 +65,7 @@ from .adapters import sign_timed
 
 EVENTS = ("conversion.started", "conversion.completed", "conversion.cancelled",
           "conversion.rescheduled", "conversion.no_show", "conversion.abandoned", "lead.won",
-          "lead.lost", "ai.reading_changed", "alert.opened")
+          "lead.lost", "ai.reading_changed", "alert.opened", "todo.new")
 STAGE_EVENT = {"started": "conversion.started", "completed": "conversion.completed",
                "paid": "conversion.completed", "cancelled": "conversion.cancelled",
                "rescheduled": "conversion.rescheduled", "no_show": "conversion.no_show",

@@ -111,6 +111,14 @@ export function setupItems(m, { status = null, tools = null, settings = null, wa
       says: chosen ? `IP addresses ${mode !== "off" ? `kept${mode === "short" ? " shortened" : ""} with each visit${settings["privacy.keep_days"]?.value ? ` for ${settings["privacy.keep_days"].value} days` : ""}` : "not kept"}.` : "Choose what is kept about visitors, then copy the wording for your privacy notice.",
       tech: null, act: chosen ? null : "privacy" });
   }
+
+  // 8. Search Console (optional, 2.40): the site's Google property connected.
+  if (!settings) out.push({ id: "search", title: "Search Console connected", optional: true, state: "unknown", says: UNKNOWN, tech: null, act: null });
+  else {
+    const prop = settings["search.google_property"]?.value;
+    if (prop) out.push({ id: "search", title: "Search Console connected", optional: true, state: "done", says: `Google search figures come in from ${prop}.`, tech: null, act: null });
+    else out.push({ id: "search", title: "Search Console connected", optional: true, state: "todo", says: "Optional. Connect Google Search Console to see the searches that bring people here.", tech: null, act: "search" });
+  }
   return out;
 }
 
@@ -120,6 +128,6 @@ export const setupDone = (items) => items.every((i) => i.optional || i.state ===
 // 2.39: the lines an AI agent can do (their act is the job's id), in the contract's order
 // (docs/plans/2026-10-26-agent-everywhere.md). countries and mail stay by hand. The server's
 // setup_left mirrors this.
-export const AGENT_JOBS = ["logs", "script", "lead", "rsc", "assets", "privacy"];
+export const AGENT_JOBS = ["logs", "script", "lead", "rsc", "assets", "privacy", "search"];
 /* The open lines an agent can do, as job ids in that order: their Set up is offered. */
 export const agentJobsLeft = (items) => AGENT_JOBS.filter((id) => (items || []).some((i) => i.act === id && i.state !== "done"));

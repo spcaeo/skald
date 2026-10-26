@@ -28,7 +28,7 @@ from .files import slug, write_atomic
 from .firsttouch import for_app
 from .kpi import KPIS
 from .store import History, view_key
-from . import webapp
+from . import slim, webapp
 
 DATA = "data/app.json"
 DAYS = 180          # 90 days shown, and the 90 before them for comparisons
@@ -253,6 +253,8 @@ def write(out: Path, history: History, site: str, tz, now: datetime, snap: dict 
         path = (folder / view.slug if view else folder) / DATA
         # The data layer's own files beside this one, so the app asks only for those that exist.
         data["files"] = sorted(p.stem for p in path.parent.glob("*.json") if p.name != path.name)
-        write_atomic(path, json.dumps(data, separators=(",", ":"), default=str) + "\n")
+        # The slim copies the app reads in place of the full files (slim.py), when written.
+        data["slim"] = slim.listed(path.parent)
+        write_atomic(path, json.dumps(data, separators=(",", ":"), default=str) + "\n", pack=True)
         written.append(path)
     return written + webapp.install(out, [site])

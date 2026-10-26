@@ -19,19 +19,35 @@ A to-do shows only when its figure passes a threshold over the last whole days (
 - **Fix the sitemap address crawlers ask for:** a sitemap file search engines or AI crawlers asked for that is not there.
 - **Make a page lead somewhere:** a page many visits started on, where nearly every one left after that page and no form was sent (from the stored visits).
 
-## What you can do with a to-do
+## Fix this: who will do it?
 
+Each to-do has one main button, **Fix this**. It asks one question, **Who will do it?**, and shows only what your answer needs. Above the list, **Fix all (N)** asks the same for every open to-do an AI agent can fix. The address keeps your choice (`fix=1&fixby=agent`, `me` or `someone`), so a link or a reload opens the same dialog.
+
+- **My AI agent** (Claude Code, Codex, Cursor, or another agent that runs commands). Skald makes one line, for example `fix the Skald to-do "Send old pages somewhere useful" for example.com — read <address>/traffic-kit/llms.txt and use code <code> (works once, 24 hours)`. Press **Copy** and paste it into your agent, in the site's project folder or on its server. Your agent then:
+  1. fetches every row of the to-do from Skald itself, with curl, into a locked file. Nothing to download, nothing to copy. It gets page paths and counts only, never a visitor's address or email;
+  2. checks first: where does your site keep its redirects or rules (nginx, Apache, Next.js, `vercel.json`, Netlify, WordPress, Cloudflare)? What is already there?
+  3. changes only what is missing, touches nothing the to-do does not list, asks you before any change on a server, and tests it (`nginx -t`) before a reload;
+  4. reports back. The dialog shows each step as it happens, and the agent's report: **Done**, **Partly done** or **Left for you**, the exact change it made (with a copy icon), the files, and the rows it left for you and why.
+
+  A **Done** report marks the to-do done, so Skald starts checking it on the days after. That changes no figure, and **Undo** is one click. The report also shows on the to-do itself.
+- **Me.** The exact lines to paste for your web server, from every row (not only the 1,000 the page shows): the redirect lines for old pages, one rule for the Markdown copies, the sitemap line. Skald picks nginx or Apache from what its site check found; switch it if that is wrong. **Copy the lines** or **Download the lines**, and the CSV is a small link under them. When you are done, press **Mark done**.
+- **Someone else.** Send it to a member of the site's team: the mail has the to-do, its rows as a CSV and the link that opens it. It needs a mail server (Settings > This site > Mail & reports) and a confirmed teammate; otherwise the dialog says why and gives you the link to copy. Someone who opens the link without rights to the site sees "not available to you".
+
+**Is the line safe to paste into a chat?** Yes. It holds a one-time code, not a password. The code gives your agent a key that can only read the paths and counts of the to-dos in that line, for that one site, and send back what it changed. Everything stops after 24 hours, or at once with **Cancel this line**. The worst a leaked line can do is mark one of those to-dos done, which changes no figure and is undone with one click. Skald never puts a code in a mail.
+
+## What else you can do with a to-do
+
+- **The copy icon by the title** copies the address of this to-do, with its list open. It turns into a green tick.
 - **Show the list** opens its rows under it. The address keeps it open, so a link brings the same list back.
-- **Download CSV** saves the rows. A list longer than 1,000 rows says so; the CSV has the first 1,000.
-- **Copy link** copies the address of this to-do, with its list open. The button turns into a green tick.
-- **Send to team** mails the to-do to a member of the site's team, with its rows as a CSV attached and the link. It shows only when Skald has a mail server (Settings > This site > Mail & reports) and the team has a confirmed member; otherwise the page says why. Someone who opens the link without rights to the site sees "not available to you"; the CSV works for anyone.
-- **Open in** goes to the tab that shows it.
+- **See it in** goes to the tab that shows it.
 - **Mark done** moves it to **Done, and did it work?**. From the next data update, Skald re-checks it on every whole day after the day you marked it, with the same measure: "Fixed: 0 not-found answers since 25 Oct", or "Not yet: 5 not-found answers since 25 Oct". **Undo** puts it back.
 - **Not now** folds it away under **Not now**. **Put back** brings it back.
 
+**New to-dos.** A to-do that came onto the list in the last 7 days is new. The page says "N new to-dos your AI agent can fix" above the list, with one button that opens **Fix this > My AI agent**. The summary mail says the same and links to that dialog (never with a code: you make the line when you press). A webhook can say it too: tick `todo.new` under **Outgoing webhooks** in [Leads & integrations](#settings/site/leads). It sends the to-do's title, proof, figures and link, never a code or a row.
+
 Under the done to-dos, **Pages you changed: did it work?** lists every page change marked on [Traffic > Pages](#traffic/pages), with its visits a day before and after and what Skald says. Select one to open the page with that change. See [Did my change work?](getting-started.md#did-my-change-work).
 
-Marks are kept by Skald, so the whole team sees the same list. Only owners and admins can mark or send. Without accounts (signing in), the list shows but nothing can be marked or sent.
+Marks are kept by Skald, so the whole team sees the same list. Only owners and admins can mark, send, or make a line for an AI agent. Without accounts (signing in), the list shows but nothing can be marked or sent; **Fix this > Me** still gives the lines to paste.
 
 ## Lost pages
 

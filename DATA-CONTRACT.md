@@ -102,6 +102,33 @@ a version change; a field is never renamed or removed without one.
   in `bots.json`; `favicons.json` in the site's folder only. They are listed in `overview.json`'s `files` like the others.
   `alerts.json`, `markers.json` and `leads.json` are the same for the site
   and every view (`view` in the envelope says which page wrote it).
+- **Gzip copies** (2.41): every file over 1 KB has `<name>.json.gz` beside it, the same
+  bytes compressed, written atomically with it, for nginx to send as it is. Read the
+  `.json`; the copy is the web server's.
+
+## The app's slim copies (2.41)
+
+Three files grow with the site, mostly in parts the web app never draws. Beside each,
+`data/slim/<name>.json` is the same file without those parts, and the app reads it in
+their place (app.json `slim` lists the copies written). The app fetches these files, and
+`page_trends.json`, only when a tab or panel first needs them, never with the Overview.
+
+| copy | left out | kept whole |
+|---|---|---|
+| `slim/not_found.json` | each day's `rows` | each day's `day`, `state`, `totals`; `today` with its rows; `paths` (the 30 days' list with trends) |
+| `slim/pages.json` | each page's `daily`, `sources`, `countries`, `assistants`, also under `prev` | every page, every count (`views`, `readers`, `visits`, `entries`, `exits`, `exit_rate`, `change_pct`, `ai_asked`...), `prev`'s counts, `period`, `today` |
+| `slim/page_index.json` | each page's `lastmod_seen`, its `milestones` other than `googlebot` and `human` | every page and every other field, `meta` |
+
+Each copy adds `"slim": {"of": "<name>.json", "left_out": [...]}`. **The trade-off:** a
+copy is a projection, never a recount. Every row is kept, in the same order, and every
+value kept is the full file's, so every figure the app shows reconciles with the full
+file. Before a copy is written the audit's own walk (`audit_slim.py`, no code shared with
+`slim.py`) checks exactly that, and the totals counted again from the rows; a copy that
+fails is not written (an old one is removed) and the app reads the full file. The full
+files do not change: the API (`api/v1/<name>`), MCP and the files themselves keep every
+part, so the full list, each day's 404 rows or a page's day-by-day views, is always there
+on demand. On a sample of 3000 pages (gzipped, as sent): not_found 306 KB to 14 KB,
+pages 188 KB to 51 KB, page_index 59 KB to 41 KB.
 
 ---
 

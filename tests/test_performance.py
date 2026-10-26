@@ -10,6 +10,7 @@ upgrades (history 12, accounts 5, conversions 3) only add indexes.
 """
 from __future__ import annotations
 
+import gzip
 import json
 import os
 import shutil
@@ -77,7 +78,11 @@ def draw(out: Path) -> dict[str, object]:
         if not path.is_file() or "_app" in path.parts:
             continue
         raw = path.read_bytes()
-        if path.suffix == ".json":
+        if path.name.endswith(".json.gz"):          # a data file's gzip copy (files.write_atomic)
+            raw = gzip.decompress(raw)
+            assert raw == path.with_suffix("").read_bytes(), f"{path.name} is not its file"
+            raw = _timeless(json.loads(raw))
+        elif path.suffix == ".json":
             raw = _timeless(json.loads(raw))
         got[str(path.relative_to(out))] = raw
     return got

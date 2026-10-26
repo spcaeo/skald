@@ -14,7 +14,7 @@
 import * as S from "./state.js";
 import { opened as routeOpened, closed as routeClosed } from "./overlays.js";
 import { h, n, toast, reduced, ICON } from "./ui.js";
-import { rangeOf } from "./data.js";
+import { rangeOf, need } from "./data.js";
 import { opt } from "./sections.js";
 import { shown } from "./labels.js";
 import { short } from "./ui.js";
@@ -271,7 +271,8 @@ export function openFilters(m, s, from) {
           // Release 2 (P3): new and updated pages are a page filter of Traffic › Pages (chgfrom).
           h("p", { class: "fp-presets" }, h("span", null, "Page: "), h("button", { type: "button", class: "linkish", "data-k": "chg30",
             title: "Traffic › Pages, only the pages whose change date (the website's, else your sitemap's) is in the last 30 days",
-            onclick: () => { close(false); S.set({ tab: "traffic/pages", chgfrom: changedSince(m), psort: "changed", page: "" }); } }, "Changed in the last 30 days →"))),
+            // The change dates' own first day is in page_trends.json, fetched when first needed (data.js LAZY).
+            onclick: async () => { close(false); await need(m, ["page_trends"]).catch(() => null); S.set({ tab: "traffic/pages", chgfrom: changedSince(m), psort: "changed", page: "" }); } }, "Changed in the last 30 days →"))),
         status),
       h("div", { class: "fp-box" },
         h("div", { class: "fp-mode" }, h("span", null, "Show visits that match"),

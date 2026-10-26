@@ -307,6 +307,7 @@ The jobs, and what your agent gets for each:
 | Add the Next.js log field | Adds one field to nginx's or Apache's log line, so pages opened inside a Next.js site count | Nothing |
 | Find the page assets | Finds where your pages load their own files | Nothing |
 | Check the privacy settings | Reads your privacy notice and suggests what Skald keeps | Nothing |
+| Connect Google Search Console | Finds your Search Console property, makes Skald a robot account with gcloud if you agree and Skald has none, and tells you the one click left | Nothing; the robot's key goes from a file straight to Skald |
 | Connect the AI assistant (MCP) | Connects your assistant to Skald, so you can ask about your traffic | A read-only key for this site's figures |
 
 Your agent first checks whether each job is done already, and changes only what is missing. It asks you before it changes a server, your web server or your site. It never changes a setting in Skald: the page assets and the privacy answers it finds are shown to you, and **Apply** saves them.
@@ -314,6 +315,19 @@ Your agent first checks whether each job is done already, and changes only what 
 For a booking, form or payment tool, your agent connects the tool itself only when it can reach the tool (its API, command line or MCP server, with a key you gave it). The tool's secret then goes from Skald straight into a locked file, or from the tool straight to Skald, never through the chat. A tool it cannot reach is left for you, with the clicks and the address filled in: you make or paste its secret in **Settings > This site > Leads & integrations** (tab **Incoming hooks**) yourself. If Skald has a secret for a tool already, your agent leaves it, unless you say to replace it.
 
 When a line stops before its keys are taken, every key it made is removed again.
+
+**Google Search Console.** One Search Console key serves every site in this Skald, so only whoever runs Skald (an install admin) may set it. If that is you and Skald has no key yet, your agent can make a robot account in your Google Cloud project with `gcloud`, if you agree, and send its key file straight to Skald from the file, never through the chat. If Skald has a key already, it is kept. One click is always yours: in Search Console, **Settings > Users and permissions > Add user**, the robot's address, **Restricted**. Then **Apply** in the report connects the property. Bing has no way to make a key from a command: copy the API key from Bing Webmaster Tools (**Settings > API access**) into [Leads & integrations › Search Console & Bing](#settings/site/leads?sub=search) yourself. That tab also has **Let your AI agent do it**.
+
+### Set up many sites with your AI agent
+
+Work on several sites? Each one gets its own line. Open [Settings › Sites](#settings/org/sites) and press **Set up many sites with your AI agent**. You see every site of your organisation, with what is left on each.
+
+- **Make its line** makes that site's line, for the jobs left on it. **Make a line for each site** makes one separate line per site in one go.
+- **Show its line** shows the line to copy into the AI agent working on that site, and **Watch its agent work** ticks its steps.
+- **Two lines (MCP)** makes a token for that one site and shows the two lines: connect the assistant, then `Set up Skald for this site`. See [Two lines for each site](mcp.md#two-lines-for-each-site).
+- **Add several sites** takes several names at once (one per line, up to 25). Each is added as **Add a site** adds it, with the same checks and your plan's limit, and then shows in the list with its own line to make. A site that must prove its domain first shows that, with no line yet.
+
+The lines never end each other, so ten sessions can set up ten sites at the same time. Each site keeps one live line: a new line for a site ends that site's older line whose keys were not taken. Its link is `lines=all`, or `lines=site.<site>` for one site's line; the line and its code are never in the link.
 
 ### Skald checks your site
 

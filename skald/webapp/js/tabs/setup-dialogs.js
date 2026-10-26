@@ -10,13 +10,15 @@
 //              server admin (nothing to save here)
 //   pack       "Send set-up to someone" at the top of the checklist (2.30): the
 //              whole set-up in one zip, mailed or saved (setup-pack.js)
+//   search     (2.40) Google Search Console: Settings > Leads & integrations > Search Console & Bing's own
+//              wizard, in a dialog (setup-search.js)
 //
 // The others: setup-tag.js (the script tag), setup-hook.js (a lead hook),
 // setup-mail.js (the daily and weekly mail), setup-privacy.js (what is kept),
 // setup-nextjs.js (rsc: the log_format line that counts pages opened inside a
 // Next.js site).
 //
-// 2.39: the dialogs with an agent job (logs, script, lead, rsc, assets, privacy) open on
+// 2.39: the dialogs with an agent job (logs, script, lead, rsc, assets, privacy; search, 2.40) open on
 // "Your AI agent, or by hand?" (agent-first.js); countries and mail stay by hand. all:
 // "Set up everything left with your AI agent", one line for every open line an agent can do.
 
@@ -34,13 +36,14 @@ import { mailDialog } from "./setup-mail.js";
 import { privacyDialog } from "./setup-privacy.js";
 import { nextDialog } from "./setup-nextjs.js";
 import { packBox } from "./setup-pack.js";
+import { searchDialog } from "./setup-search.js";
 import { agentFirst, allDialog } from "./agent-first.js";
 import { jobsFrom } from "./agent-words.js";
 import { AGENT_JOBS } from "../setup-items.js";
 
 // Each dialog is in the address as setup=<act>&step=<n> (js/overlays.js); start: a link's step, 0 first.
 // agent, link: the address's (agent-first.js); jobs: setup=all's.
-export const ACTS = ["logs", "assets", "rsc", "countries", "script", "lead", "mail", "privacy", "pack", "all"];
+export const ACTS = ["logs", "assets", "rsc", "countries", "script", "lead", "mail", "privacy", "search", "pack", "all"];
 export async function openSetup(act, site, { item = null, onClose = null, start = 0, agent = "", link = "", jobs = null } = {}) {
   const route = { key: "setup", value: act };
   if (act === "all") return allDialog(site, jobs || item?.jobs || [], { onClose, route, start, agent, link });
@@ -57,6 +60,7 @@ export async function openSetup(act, site, { item = null, onClose = null, start 
   if (act === "lead") return hookDialog(site, opts);
   if (act === "mail") return mailDialog(site, opts);
   if (act === "privacy") return privacyDialog(site, opts);
+  if (act === "search") return searchDialog(site, opts);
   if (act === "pack") return packDialog(site, opts);
   return null;
 }

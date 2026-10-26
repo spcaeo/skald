@@ -470,3 +470,5 @@ from . import tools_insights  # noqa: E402,F401 - what_changed, todos, lost_page
 from . import tools_pages  # noqa: E402,F401 - page_changes, ai_readiness, changed_pages (2.35)
 
 from . import tools_setup  # noqa: E402,F401 - setup_left, setup_line (2.39.0)
+
+from . import tools_todos  # noqa: E402,F401 - fix_todo, mark_todo_done (2.41)

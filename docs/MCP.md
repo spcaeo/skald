@@ -5,9 +5,10 @@ Claude Desktop, ChatGPT, or any MCP client - can ask about your traffic in
 plain words. "How did last week compare with the week before?" "Which pages
 did ChatGPT fetch?" "Was any day withheld?"
 
-It is **read-only**, with one exception (2.39.0): `setup_line` makes a set-up
-line for an AI agent, and only with a token that has the `setup` scope (below,
-"Setting a site up"). It reads the same data files the dashboard reads
+It is **read-only**, with two exceptions: `setup_line` (2.39.0) makes a set-up
+line for an AI agent, and `mark_todo_done` (Unreleased) keeps an agent's report on a
+to-do and marks it done; both only with a token that has the `setup` scope for that one
+site (below, "Setting a site up" and "Fixing the to-dos"). It reads the same data files the dashboard reads
 (DATA-CONTRACT.md). It never counts anything again and never invents a
 figure. An agent cannot get a figure the dashboard would not show.
 What it can and cannot do with leads (no tool writes one):
@@ -57,8 +58,10 @@ be left out when the token reads only one site. `view` is a part of a site
 | `page_changes` | site, path, id | the page changes marked on Traffic > Pages (page_changes.json): day, kind, note, status (waiting, too early, ready, and the day the verdict comes), and per measure (visits, leads, search, AI visits, AI reads, left at once) the before and after sides with the change and the verdict (up, down, no clear change, too few, not enough days, not recorded). `path` matches with or without the closing `/` |
 | `ai_readiness` | site, path, need, limit | without `path`: AI & bots > Assistants' "Pages AI can't read well" (ai_ready.json `attention`), worst first, `need` `copy`, `404`, `errors`, `robots` or `slow`, and the crawlers robots.txt keeps out of the whole site; with `path`: that page's AI readiness: robots.txt for each of the 9 main AI crawlers with the deciding rule (`robots_match.decide`), what AI got back in the last 30 days (`ai_ready.needs`), the Markdown copy, the sitemap entry and lastmod, and the last AI read from page_trends.json. Not known stays not known |
 | `changed_pages` | site, limit | Summary's "New and updated pages: are they getting found?" (page_trends.json `changed`): the pages changed in the last 30 days, the visits and search visits since, the first search visit, whether Google's verified crawler fetched them, and the note when sitemap dates look like build times |
-| `setup_left` | site | (2.39.0) the site's set-up checklist lines that are not done, the same lines as Settings › Connections' "Set up <site>" (worked out by `setup_items.py`, held to `js/setup-items.js` by a test): each with its state (`todo`, `wait`, `unknown`), its plain sentence, `job` when an AI agent can do it (`logs`, `script`, `lead`, `rsc`, `assets`, `privacy`; `countries` and `mail` are a person's) and `dialog`, the address of its Set up dialog (`.../traffic/<site>/#settings/api?setup=<act>`). Also `done`, `needed_left` of `needed`, and `jobs`: the open jobs, ready for `setup_line`. Any token that may read the site. A site just added (no dashboard folder yet) is answered too |
-| `setup_line` | site, jobs | (2.39.0) **setup scope only; the one tool that writes.** Makes the line for an AI agent for the given jobs exactly as POST `sites/agentlink` does (`kit_api.make_agent_line`): works once, for 24 hours, and ends the site's older lines whose keys were not taken. Answers `line`, `llms_url`, `steps_url`, `expires_at`, `link_id`, `cancelled`, `jobs`. Jobs are `setup_left`'s six, at least one, given in any order (answered in the table's order, each once); `countries`, `mail` or an unknown id is refused. The sending token it makes is made as the setup token's maker. One audit row `mcp.setup_line` (the token's id, the jobs, the line's id), never the code. Over stdio (no token) it is refused |
+| `setup_left` | site | (2.39.0) the site's set-up checklist lines that are not done, the same lines as Settings › Connections' "Set up <site>" (worked out by `setup_items.py`, held to `js/setup-items.js` by a test): each with its state (`todo`, `wait`, `unknown`), its plain sentence, `job` when an AI agent can do it (`logs`, `script`, `lead`, `rsc`, `assets`, `privacy`, and `search`, Unreleased; `countries` and `mail` are a person's) and `dialog`, the address of its Set up dialog (`.../traffic/<site>/#settings/api?setup=<act>`). Also `done`, `needed_left` of `needed`, and `jobs`: the open jobs, ready for `setup_line`. Any token that may read the site. A site just added (no dashboard folder yet) is answered too |
+| `setup_line` | site, jobs | (2.39.0) **setup scope only; the one tool that writes.** `site` may be left out (Unreleased): a setup token is for one site, so it is that site. Makes the line for an AI agent for the given jobs exactly as POST `sites/agentlink` does (`kit_api.make_agent_line`): works once, for 24 hours, and ends the site's older lines whose keys were not taken. Answers `line`, `llms_url`, `steps_url`, `expires_at`, `link_id`, `cancelled`, `jobs`. Jobs are `setup_left`'s, at least one, given in any order (answered in the table's order, each once); `countries`, `mail` or an unknown id is refused. The sending token it makes is made as the setup token's maker. One audit row `mcp.setup_line` (the token's id, the jobs, the line's id), never the code. Over stdio (no token) it is refused |
+| `fix_todo` | site, id?, offset, limit | (Unreleased) one of Overview › Insights' to-dos with EVERY row (`todo_rows.py`'s file beside the history, the same rows the kit's `GET /traffic-kit/<code>/todo/<id>` hands an agent; never the browser's `todos.json`, which carries at most 1,000), paged by `offset` and `limit` (at most 5,000), plus `steps`: the job text (`kit/agent_todos.guide`: check first, change only what is missing, never touch what the to-do does not list, ask before a server change, `nginx -t` before a reload, then `mark_todo_done`). Rows are paths and counts; an email or IPv4 address inside a value is `[removed]` (`scrubbed` says how many). Without `id`: the to-dos an agent can fix (`lost`, `errors`, `markdown`, `sitemap`, `leave`) with `rows_total` and `first_seen`. Any token that may read the site |
+| `mark_todo_done` | site?, id, state, change, files, left, notes | (Unreleased) **setup scope only, one site.** Keeps the report (`todo_marks.keep_fix`: state `done`/`partly`/`left`, the exact change as text at most 200,000 characters, files, rows left with why, notes; anything shaped like a token removed) and, for `done`, marks the to-do done (`todo_marks.agent_done`: once; the re-check then runs on every whole day after). The dashboard shows the report beside the to-do. Refused for a to-do not in the rows file, another organisation's site, a read-only plan. One audit row `mcp.todo_done` (token id, to-do, state, rows left), never the change |
 | `find_person` | site, q | **read_private only.** One IP address, email, visitor ID or lead id: every visit kept with the address, the last 6 hours of requests, the leads (spam, duplicates and test too), every conversion (test, cancelled and removed too), linked. The same lookup as the page's search (`people/lookup.py`); each call is written to the audit log by its kind and a hash, never the value. A listing, not a figure |
 
 A site you may not read, a bad date or a missing file comes back as a tool
@@ -110,6 +113,71 @@ the endpoint, and read the site for `setup_left`) and `setup` (to make a line).
    recommendation waits for the owner's Apply.
 4. `setup_left` again: the lines Skald sees working have ticked themselves.
    The mail line stays for the owner (the dialog's address is in the answer).
+
+## Fixing the to-dos (Unreleased)
+
+"Fix my Skald to-dos" works with the MCP token alone: `fix_todo` (no id) lists what an
+agent can fix; `fix_todo {"site", "id"}` gives every row and the steps; the agent fixes it
+in the site's own code or server; `mark_todo_done {"id", "state": "done", "change": ...}`
+keeps the report and marks it done. Without MCP, the dashboard's **Fix this > My AI agent**
+makes a to-do line (`fix the Skald to-do "<title>" for <site> — read <llms> and use code
+<code>`) whose steps do the same through `/traffic-kit/<code>/todo/<id>` and
+`/traffic-kit/<code>/fix` (kit/agent_todos.py). Plan:
+[plans/2026-10-26-todos-to-agents.md](plans/2026-10-26-todos-to-agents.md).
+
+## Two lines for one site (Unreleased)
+
+A user who works on each site in its own folder, with its own Claude Code or
+Codex session, connects each session to Skald once and then says one sentence.
+Each site has its own token and its own line; ten sites can be set up at the
+same time by ten sessions, and no line ends another site's line (one live line
+per site stays the rule: a new line for a site ends that site's older line
+whose keys were not taken).
+
+**Make the token.** Settings › Organisation › Sites (`#settings/org/sites`) ›
+**Set up many sites with your AI agent** › the site's **Two lines (MCP)** › **Make the token for
+<site>**. It makes a token named `AI agent (MCP + set-up): <site>` with the
+`mcp` and `setup` scopes for that one site (an owner or admin only), shows it
+once, and writes line 1 with it, ready to paste. The address keeps
+`lines=mcp.<site>`, never the token. (On the server: `skald token create NAME
+--scope mcp --scope setup --site <site>`.)
+
+**Line 1, in a terminal in the site's own folder.**
+
+Claude Code (its default `local` scope keeps the server to that folder, so ten
+folders keep ten tokens apart):
+
+```sh
+claude mcp add --transport http skald https://stats.example.com/traffic-mcp \
+  --header "Authorization: Bearer skald_<id>_<secret>"
+```
+
+Codex (a server of its own per site in `~/.codex/config.toml`, named after the
+site; Codex's MCP settings are `url` and `http_headers` for a Streamable HTTP
+server, as OpenAI's Codex MCP page says:
+https://developers.openai.com/codex/mcp):
+
+```sh
+printf '\n[mcp_servers.skald-shop-example-com]\nurl = "https://stats.example.com/traffic-mcp"\nhttp_headers = { Authorization = "Bearer skald_<id>_<secret>" }\n' >> ~/.codex/config.toml
+```
+
+**Line 2, to the assistant:** `Set up Skald for this site`. The server's
+instructions tell it what to do: `setup_left`, then `setup_line` with the open
+jobs (no site needed), then it follows the line in that folder: reads
+llms.txt and the steps, takes the keys with curl into a file, does the jobs,
+and reports back.
+
+**Without MCP**, the plain form is one line per site: the site's **Make its
+line** (or **Make a line for each site**) gives `finish setting up Skald for
+<site> (...) — read https://stats.example.com/traffic-kit/llms.txt and use code
+<code> (works once, 24 hours)`, pasted into that site's session.
+
+**Safety.** The token goes only into the assistant's settings, never into a
+chat message, a commit or a ticket. It reads that one site and makes lines for
+it; it cannot add a site, read another one, or change Skald's settings (the
+recommendations wait for the user's Apply). Remove it in Settings › AI &
+API › Tokens & links (`#settings/ai/tokens`); it also stops at once when its maker is disabled,
+removed or no longer an owner or admin.
 
 ## Resources and prompt
 
@@ -221,4 +289,8 @@ every one refusing a site the caller may not read), `tests/test_setup_items.py` 
 server's checklist lines against `js/setup-items.js` in node, on the same answers) and
 `tests/test_mcp_setup.py` (`setup_left` on a real helper equals the page's own lines, a
 finished site has none left; `setup_line`'s scope, site and job refusals, its audit row,
-and who may make a `setup` token).
+and who may make a `setup` token), and `tests/test_agent_many.py` (Unreleased: ten sites' lines
+used at once from one address, the two lines' token making its site's line without naming
+it, and two sites' tokens never ending each other's lines), and `tests/test_todo_agent.py`
+(Unreleased: `fix_todo` hands every row and the steps, refuses another site; `mark_todo_done`'s
+scope refusals, its mark and its audit row without the change).

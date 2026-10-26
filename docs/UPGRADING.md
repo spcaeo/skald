@@ -131,6 +131,12 @@ sudo rm -f /var/lib/skald/history.sqlite-wal /var/lib/skald/history.sqlite-shm
 sudo systemctl start skald-refresh skald-beacon
 ```
 
+Going back below 2.41 while nginx keeps its 2.41 lines (`gzip_static on`): older code
+does not write the data files' `.json.gz` copies, so nginx would send stale ones. Delete
+them, `sudo find /var/www/skald -name '*.json.gz' -delete`, or take
+`gzip_static on;` out ([DEPLOY.md](../DEPLOY.md#compression-and-caching-241)). Docker: the
+image's nginx goes back with the image; nothing to do.
+
 ### Rolling back by hand
 
 If a rollback says "ROLLBACK INCOMPLETE", the copies are in the folder it names.

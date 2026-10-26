@@ -15,7 +15,11 @@ import { sessions } from "../access.js";
 import { DEMO } from "../demo.js";
 
 // `changes`: the page changes tracked now (Traffic > Pages > a page: js/tabs/pagechange.js).
-export const MARKS = { loaded: false, ok: false, marks: {}, changes: [], can_mark: false, mail: null, team: [], why: "" };
+// 2.41: `fixes` the AI agent's newest report per to-do ({state, change, files, left, notes, at}),
+// `server` what the site check found about the web server (Fix this > Me's lines), `line`
+// the site's newest to-do line (never its code: owners and admins only).
+export const MARKS = { loaded: false, ok: false, marks: {}, changes: [], can_mark: false, mail: null, team: [], why: "",
+  fixes: {}, server: {}, line: null };
 let pending = null;
 
 // Why nothing can be marked here, in plain words.
@@ -34,7 +38,8 @@ export function loadMarks(force = false) {
     const r = await call("settings/todos");
     if (!r.ok) return Object.assign(MARKS, { loaded: true, ok: false, why: r.error || "The marks could not be read." });
     return Object.assign(MARKS, { loaded: true, ok: true, marks: r.marks || {}, changes: r.changes || [], can_mark: !!r.can_mark,
-      mail: r.mail || null, team: r.team || [], why: r.can_mark ? "" : WHY.viewer });
+      mail: r.mail || null, team: r.team || [], why: r.can_mark ? "" : WHY.viewer,
+      fixes: r.fixes || {}, server: r.server || {}, line: r.line || null });
   })();
   pending = asked;
   asked.finally(() => { if (pending === asked) pending = null; });
@@ -66,3 +71,16 @@ export function sendable() {
 }
 
 export const sendTodo = (item, to) => call("settings/todo-send", { item, to });
+
+// ---- 2.41: Fix this (js/tabs/todo-fix.js) -------------------------------------------
+//   makeTodoLine(items)   POST settings/todo-agent {act: "make", items}: the line for the AI agent
+//   lineStatus(link)      POST settings/todo-agent {act: "status", link_id}
+//   cancelTodoLine(link)  POST settings/todo-agent {act: "cancel", link_id}
+//   todoRows(id)          GET settings/todo-rows?item=<id>: every row (for Me's lines and the CSV)
+export const makeTodoLine = (items) => call("settings/todo-agent", { act: "make", items });
+export const lineStatus = (link) => call("settings/todo-agent", { act: "status", link_id: link });
+export const cancelTodoLine = (link) => call("settings/todo-agent", { act: "cancel", link_id: link });
+export const todoRows = (id) => call(`settings/todo-rows?item=${encodeURIComponent(id)}`);
+
+/* The AI agent's newest report on a to-do, or null. */
+export const fixOf = (id) => (MARKS.ok ? MARKS.fixes[id] || null : null);

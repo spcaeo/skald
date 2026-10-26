@@ -17,7 +17,7 @@ const S = (value, source = "default") => ({ value, source });
 // ---- a brand-new site: nothing read yet
 {
   const got = by(setupItems(model(null)));
-  assert.deepEqual(Object.keys(got), ["logs", "assets", "countries", "script", "lead", "mail", "privacy"]);
+  assert.deepEqual(Object.keys(got), ["logs", "assets", "countries", "script", "lead", "mail", "privacy", "search"]);
   assert.equal(got.logs.state, "todo");
   assert.equal(got.logs.act, "logs");
   assert.equal(got.assets.state, "wait");

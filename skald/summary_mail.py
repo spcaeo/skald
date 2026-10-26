@@ -13,7 +13,11 @@ one mail per item and per site. This is the one mail that replaces them:
                               advisories); "New" for one this person was never mailed (in a
                               summary or right away), then the ones still open (a reminder)
                To-dos to fix  the open Insights to-dos (todos.json, todos.py), less the ones
-                              marked done or "not now" since it was written (todo_marks.py)
+                              marked done or "not now" since it was written (todo_marks.py);
+                              "New" for one this person was never mailed, first, with "N new
+                              to-dos your AI agent can fix" and each one's link that opens
+                              Fix this > My AI agent (fix=1&fixby=agent, 2.41). Never a line or
+                              a code: a code in a mail would be a key in an inbox
                Set-up         doctor's NEEDS ATTENTION lines that read local files only
                               (SETUP): the daily run, days stored, the access log, page
                               assets, Next.js pages, the script tag, hooks, the lead database,
@@ -53,6 +57,8 @@ SENDS = ("CREATE TABLE IF NOT EXISTS summary_sends (user_id INTEGER NOT NULL, da
 ITEMS = ("CREATE TABLE IF NOT EXISTS summary_items (user_id INTEGER NOT NULL, day TEXT NOT NULL, "
          "site TEXT NOT NULL, part TEXT NOT NULL, item TEXT NOT NULL)")
 MOST = 10                               # lines per part and site, then "and N more"
+# The to-do kinds an AI agent can fix (todos.AGENT_KINDS; kept here so the mail does not load todos.py).
+AGENT_KINDS = ("lost", "errors", "markdown", "sitemap", "leave")
 AT = "01:00"
 PARTS = (("security", "Security"), ("todos", "To-dos to fix"), ("setup", "Set-up problems"))
 # doctor's checks that read local files only, and the ones the Integrations page shows.
@@ -108,9 +114,20 @@ def todo_part(db, site: str, config: dict, out) -> list[dict]:
         if (marks.get(t["id"]) or {}).get("state") in ("done", "notnow"):
             continue
         what = f"{t.get('title') or t['id']}. {t.get('proof') or ''}".strip()
-        got.append({"item": t["id"], "title": what, "todo": t.get("todo") or "",
-                    "link": todo_api.link(config, t["id"])})
+        link = todo_api.link(config, t["id"])
+        got.append({"item": t["id"], "title": what, "todo": t.get("todo") or "", "link": link,
+                    # 2.41: the dialog that makes the line, on the person's press: a code in
+                    # a mail would be a key in an inbox, so the mail never holds one.
+                    "fix": f"{link}&fix=1&fixby=agent" if t.get("agent", t.get("kind") in AGENT_KINDS) and link.split("#")[0]
+                    else None})
     return got
+
+
+def _was_listed(db, user_id: int, site: str, part: str, item: str) -> bool:
+    """A summary mail carried this item to this person before (summary_items)."""
+    row = db.execute("SELECT 1 FROM summary_items WHERE user_id = ? AND site = ? AND part = ? "
+                     "AND item = ? LIMIT 1", (int(user_id), site, part, item)).fetchone()
+    return row is not None
 
 
 def setup_part(s: dict, now: datetime) -> list[dict]:
@@ -159,7 +176,8 @@ def _was_mailed(db, site: str, item: str, user_id: int) -> bool:
 
 def _line(it: dict, mark: str = "") -> str:
     where = f"Open it: {it['link']}" if it.get("link") else f"Where: {it.get('where')}"
-    return f"- {mark}{it['title']}\n  What to do: {it['todo']}\n  {where}\n"
+    fix = f"\n  Fix it with your AI agent: {it['fix']}" if it.get("fix") else ""
+    return f"- {mark}{it['title']}\n  What to do: {it['todo']}\n  {where}{fix}\n"
 
 
 def compose(db, person: dict, sites: dict, day: str) -> dict | None:
@@ -185,6 +203,18 @@ def compose(db, person: dict, sites: dict, day: str) -> dict | None:
                 found = new + old
                 marks = {it["item"]: ("New: " if it in new else "Still open: ") for it in found}
                 head = f"{name} ({len(found)}, {len(new)} new)" if new else f"{name} ({len(found)})"
+            elif part == "todos":
+                # 2.41: the to-dos this person was never mailed first, said as work their AI
+                # agent can do; the line itself is made only when they press (never mailed).
+                new = [it for it in found if not _was_listed(db, person["user_id"], site, part, it["item"])]
+                found = new + [it for it in found if it not in new]
+                marks = {it["item"]: ("New: " if it in new else "") for it in found}
+                head = f"{name} ({len(found)})"
+                agent = [it for it in new if it.get("fix")]
+                if agent:
+                    head += (f"\n{len(agent)} new to-do{'s' if len(agent) != 1 else ''} your AI agent "
+                             "can fix: open one with the link below, choose My AI agent, and paste the "
+                             "line into your agent.")
             else:
                 head = f"{name} ({len(found)})"
             shown = found[:MOST]

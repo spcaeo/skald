@@ -37,7 +37,7 @@ const lineAnswer = (body) => {
     ...(body.jobs.includes("mcp") ? { mcp_token_id: `cd34ef5${made}` } : {}), link_id: `1f3a9c2e7b1d4a5${made}`, cancelled: 0, jobs: body.jobs };
 };
 // As the server builds it: bad ids, an empty list or not a list are a 400.
-const JOB_IDS = ["logs", "script", "lead", "rsc", "assets", "privacy", "mcp"];
+const JOB_IDS = ["logs", "script", "lead", "rsc", "assets", "privacy", "search", "mcp"];
 const badJobs = (jobs) => jobs !== undefined && (!Array.isArray(jobs) || !jobs.length || jobs.some((j) => !JOB_IDS.includes(j)));
 const REPORT = { framework: "Next.js", asset_paths: ["/_next/static/"], privacy: { keep_ips: false },
   jobs: { script: "already", lead: "done", assets: "done", privacy: "left" }, tools: [{ tool: "calendly", hook: "set" }, { tool: "stripe", hook: "left" }] };
@@ -47,6 +47,7 @@ let status = STATUS;
 const SETTINGS = { "mail.to": { value: [], source: "default", editable: true }, "mail.daily": { value: false, source: "default", editable: true },
   "privacy.keep_ips": { value: "full", source: "default", editable: true }, "privacy.keep_days": { value: 395, source: "default", editable: true },
   "conversions.identity": { value: "full", source: "default", editable: true },
+  "search.google_property": { value: "sc-domain:www.example.org", source: "site", editable: true },
   "site.asset_prefixes": { value: ["/assets/"], source: "site", editable: true }, "site.require_rendering": { value: false, source: "site", editable: true } };
 // The checklist's answers: logs, assets, rsc, script, lead and privacy open; countries and mail by hand.
 let doctor = [{ id: "logs", state: "NEEDS ATTENTION", says: "no line yet" }, { id: "assets", state: "NEEDS ATTENTION", says: "no asset seen" },
@@ -95,11 +96,11 @@ const m = { site: SITE, today: new Date().toISOString().slice(0, 10), live: null
 history.replaceState(null, "", "#overview/summary");
 
 // ---- the words: jobs in the contract's order, from the address, in a list
-assert.deepEqual(W.JOBS.map((j) => j.id), ["logs", "script", "lead", "rsc", "assets", "privacy", "mcp"]);
+assert.deepEqual(W.JOBS.map((j) => j.id), ["logs", "script", "lead", "rsc", "assets", "privacy", "search", "mcp"]);
 assert.deepEqual(W.jobsInOrder(["privacy", "logs", "nope", "logs", "lead"]), ["logs", "lead", "privacy"]);
 assert.deepEqual(W.jobsFrom("assets.logs.<script>"), ["logs", "assets"], "only known ids from the address");
 assert.equal(W.jobsWords(["logs", "script", "lead"]), "the server's log, the script tag and your leads");
-assert.deepEqual(AGENT_JOBS, ["logs", "script", "lead", "rsc", "assets", "privacy"]);
+assert.deepEqual(AGENT_JOBS, ["logs", "script", "lead", "rsc", "assets", "privacy", "search"]);
 const rep = W.reportLines(REPORT);
 assert.deepEqual(rep.find((x) => x.name === "Each job").value,
   ["Add the script tag: already there", "Connect your leads: done", "Find the page assets: done", "Read the privacy notice: left for you"]);

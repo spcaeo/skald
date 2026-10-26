@@ -7,6 +7,7 @@
 // tab. Older addresses redirect (routes.js).
 
 import * as S from "./state.js";
+import { LAZY } from "./data.js";
 import overview from "./tabs/s-overview.js";
 import traffic from "./tabs/s-traffic.js";
 import sales from "./tabs/s-sales.js";
@@ -50,4 +51,13 @@ export function opt(route, name, s, fallback) {
   const v = TAB[route]?.[name];
   if (v === undefined) return fallback;
   return typeof v === "function" ? v(s) : v;
+}
+
+/* The big files (data.js LAZY) a tab is drawn with: its `file` and its `needs`, fetched before
+   it is drawn. With panels: also its `later`, the files its panels wait for on their own
+   (lazy.js), for a report, which is drawn once and printed. */
+export function tabFiles(route, s, { panels = false } = {}) {
+  const file = opt(route, "file", s, null);
+  const all = [file, ...(opt(route, "needs", s, null) || []), ...(panels ? opt(route, "later", s, null) || [] : [])];
+  return [...new Set(all.filter((n) => LAZY.includes(n)))];
 }

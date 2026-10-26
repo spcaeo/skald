@@ -30,6 +30,11 @@ accounts nothing can be marked (`marks: false`).
 
 Second count: audit_todos.check_todos, for every figure and every re-check; a
 to-do it disagrees with is left out and named in `withheld`.
+
+The person's own AI agent (2.41): every kind is a job of the kit (`todo-<kind>`,
+kit/agent_todos.py); `agent` says so on each to-do. The full rows go to
+todo_rows.py's file beside the history (never the browser's), and `first_seen`
+is the day the to-do first qualified (new ones queue the "todo.new" webhook).
 """
 from __future__ import annotations
 
@@ -53,6 +58,8 @@ ROWS_MOST = 1000                # rows a to-do carries for its list and CSV
 OTHER = "(all others)"
 GROUPS = ("people", "answer_engines", "search_engines", "bots", "ours")
 ORDER = ("lost", "errors", "markdown", "sitemap", "leave")
+# The kinds the person's own AI agent can work on (kit/agent_todos.py: job todo-<kind>).
+AGENT_KINDS = ("lost", "errors", "markdown", "sitemap", "leave")
 TAB_NAMES = {"site/notfound": "Site > Not found", "site/health": "Site > Health",
              "traffic/pages": "Traffic > Pages"}
 
@@ -329,7 +336,7 @@ def _cols(*spec) -> list[dict]:
 
 def build(p) -> dict:
     """todos.json's body (DATA-CONTRACT.md)."""
-    from . import audit_todos, todo_marks
+    from . import audit_todos, todo_marks, todo_rows
     found = lost_pages.Found(p)
     site = p.key.split("::", 1)[0]
     marks = todo_marks.read(p.config, site, p.live_dir)
@@ -339,7 +346,7 @@ def build(p) -> dict:
     for t in made:
         t["window"] = {"first": found.first, "last": found.last, "days": len(found.days)}
     made += _leaving(p, found, marks, _cols)
-    todos = []
+    todos, full = [], {}
     for t in made:
         mark = (marks or {}).get(t["id"])
         t["state"] = mark["state"] if mark and mark["state"] in ("done", "notnow") else "open"
@@ -348,7 +355,9 @@ def build(p) -> dict:
         if t["state"] == "open" and not t["qualifies"]:
             continue                     # under its threshold and not marked: not a to-do
         t["rows_total"] = len(t["rows"])
+        full[t["id"]] = t["rows"]
         t["rows"] = t["rows"][:ROWS_MOST]
+        t["agent"] = t["kind"] in AGENT_KINDS
         t["open"]["name"] = TAB_NAMES.get(t["open"]["tab"], t["open"]["tab"])
         todos.append(t)
     todos.sort(key=lambda t: (ORDER.index(t["kind"]), -t["figures"].get("visits", 0), t["id"]))
@@ -356,6 +365,11 @@ def build(p) -> dict:
     held = audit_todos.check_todos(p.history.db, p.key, todos, p.live_dir, p.anchor.isoformat())
     withheld = [{"id": t["id"], "title": t["title"], "why": held[t["id"]]} for t in todos if t["id"] in held]
     todos = [t for t in todos if t["id"] not in held]
-    return {"window": {"first": found.first, "last": found.last, "days": len(found.days),
-                       "of": lost_pages.WINDOW_DAYS},
+    window = {"first": found.first, "last": found.last, "days": len(found.days),
+              "of": lost_pages.WINDOW_DAYS}
+    # Every row, beside the history, for the person's own AI agent (todo_rows.py).
+    seen = todo_rows.keep(p, todos, full, list(held), window)
+    for t in todos:
+        t["first_seen"] = seen.get(t["id"])
+    return {"window": window,
             "limits": LIMITS, "marks": marks is not None, "todos": todos, "withheld": withheld}

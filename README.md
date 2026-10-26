@@ -57,7 +57,7 @@
   re-checks each fix; "Did my change work?" on each page; Not found suggests the closest live page
   for old addresses; each page has an AI readiness check. Also a trail with Back over every tab, a
   dry run for a new log, a copy icon on every value, and counting fixes (recount after upgrading).
-- **2.36: one summary mail a day** ([changelog](CHANGELOG.md#2360-2026-10-25)). At 01:00 each person
+- **2.36: one summary mail a day** ([changelog](docs/CHANGELOG-2.36-2.38.md#2360-2026-10-25)). At 01:00 each person
   gets one mail with every site's open security items, to-dos and set-up problems, not a mail per item;
   an HTML sitemap page (`/sitemap/`) is no longer a page view. 2.36.1: each site's mail links open its own dashboard.
 
@@ -420,6 +420,14 @@ your firewall, not instead of it.
   People days.
 - **Usage mails** (hosted, 2.40): owners and admins get one mail at 80%, 90% and 100% of the
   month's requests, and a banner from 80%, before any line is turned away.
+- **Opens fast** (2.41): code and data are compressed, code is cached until the next release, and
+  the big lists load only when their tab opens. On a 3,000-page sample over a slow line, a first
+  load went from 8.0 s to 1.4 s and a site switch from 7.9 s to 0.4 s.
+- **Fix this, with your AI agent** (2.41): each Insights to-do asks who will fix it. Your agent
+  gets the full list from Skald with a one-time line (or `fix_todo` over MCP), changes only what
+  is missing, asks before any server change and reports back; Skald then checks it worked.
+- **One line per site** (2.41): set up ten sites at once, each with its own line, or connect each
+  site's Claude Code or Codex session with two lines through MCP. Search Console is an agent job.
 - **Test a sample** (or `skald try-log <file>` on the server): paste a few lines of a new log and
   see which reader fits, what it could not read and why, and the five groups adding up. Nothing kept.
 - **Next.js:** one field in the site's log format and every click inside the site counts as a
@@ -545,6 +553,16 @@ need your own Skald. Every image below is from the demo's sample data.
 | <img src="docs/screenshots/live-mode.png" alt="Today · Live switched on: visitors on the site now, and today's visitors, pages read, leads and visitors from AI, each against yesterday at this hour" width="440"><br>**Today · Live.** One switch, on every section. | <img src="docs/screenshots/live-leads.png" alt="What converted today: today's demos booked, sign-up and contact form, each with its time, page, country and where it came from" width="440"><br>**Live leads.** Each lead and booking as it lands. |
 
 ### Connecting a site (2.16, 2.17, 2.31)
+
+<p align="center">
+  <img src="docs/screenshots/todo-fix-agent.png" alt="Fix this, for the to-do Send old pages somewhere useful: Who will do it? My AI agent, Me or Someone else; the agent's report says it added 2 redirects, nginx -t passed and nginx was reloaded after the person's yes, with the two redirect lines it added" width="900"><br>
+  <strong>Fix this</strong> (2.41). The agent's report, with the exact change it made.
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/agent-lines-per-site.png" alt="Lines for your sites: blog.example.org, docs.example.net, example.com and shop.example.com, each with what is left, what an agent can do, and its own Make its line and Two lines (MCP) buttons" width="900"><br>
+  <strong>One line per site</strong> (2.41). Each site's own line, so many sessions can work at once.
+</p>
 
 <p align="center">
   <img src="docs/screenshots/settings.png" alt="All settings: What do you want to do? with one-click tasks (Set up this site, Connect an AI assistant (MCP), Send a site's logs, Get the script tag, Connect a form or booking tool, Add, pause or delete a site, Invite someone, Choose what is kept about people, Revoke a token, Change your password), then the pages of This site and AI and API, with the Settings menu on the left" width="900"><br>

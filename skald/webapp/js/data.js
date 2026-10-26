@@ -27,7 +27,9 @@ export async function getJSON(url, fresh) {
   // The demo has no helper: its answers are files beside the page, or there is none to ask.
   if (DEMO.on && /^api\//.test(url)) { url = demoFile(url); if (!url) return null; }
   if (!fresh && cache.has(url)) return cache.get(url);
-  const res = await fetch(url, { cache: "no-store", credentials: "same-origin" });
+  // no-cache: the browser keeps the file and asks again each time (If-None-Match), so an
+  // unchanged file costs a 304 and a changed one is never shown stale (DEPLOY.md, Cache-Control).
+  const res = await fetch(url, { cache: "no-cache", credentials: "same-origin" });
   // A body nobody reads keeps the connection busy: let it go.
   if (res.status === 404) { res.body?.cancel(); return null; }
   if (!res.ok) { res.body?.cancel(); throw new Error(`${url} answered ${res.status}`); }
@@ -48,7 +50,36 @@ export const EXTRA = ["insights", "not_found", "ai_activity", "campaigns", "page
   "page_changes"];
 // requests.json is today's whole request log: the Requests tab fetches it itself, only when it is open.
 
-export async function load(s, { fresh = false } = {}) {
+/* The big files no Overview figure stands on (2.41): fetched when a tab or a panel first needs
+   one, never with the page, so a site opens on its key figures without waiting for megabytes
+   of page lists. A tab names them (its `file`, its `needs`: sections.js tabFiles) and is drawn
+   once they are here; an Overview panel waits on its own (lazy.js later). The two-minute
+   refresh reads again the ones this page has already fetched. */
+export const LAZY = ["not_found", "pages", "page_index", "page_trends"];
+
+// A file into the model: its figures, or why its builder failed (kept apart: "could not be built").
+function take(raw, n, got) {
+  if (got?.state === "error") raw.failed[n] = got.error || "no reason given";
+  else delete raw.failed[n];
+  raw.x[n] = got && got.schema_version === 1 && got.state !== "error" ? got : null;
+}
+
+/* Every big file in `names` is in the model (or was asked for and is not there). */
+export function has(m, names) {
+  return !m?.lazy || names.every((n) => !LAZY.includes(n) || m.lazy.done.has(n));
+}
+
+/* Fetch the big files in `names` the model does not have yet (once, however many ask). */
+export function need(m, names) {
+  if (!m?.lazy) return Promise.resolve();
+  const { done, wait, fetch: get } = m.lazy;
+  return Promise.all(names.filter((n) => LAZY.includes(n) && !done.has(n)).map((n) => {
+    if (!wait.has(n)) wait.set(n, get(n).then((got) => { take(m, n, got); done.add(n); wait.delete(n); }));
+    return wait.get(n);
+  })).then(() => undefined);
+}
+
+export async function load(s, { fresh = false, previous = null } = {}) {
   const get = (name) => getJSON(base(s.view) + name, fresh);
   const raw = await adapt(get);
   setDemo(raw.demo);
@@ -57,12 +88,22 @@ export async function load(s, { fresh = false } = {}) {
   // files app.json lists, so it is always asked for (2.6.0: before, the switcher never had it).
   const listed = (n) => n === "sites" || !Array.isArray(raw.files) || raw.files.includes(n);
   // favicons.json, sites.json and realtime.json (the whole site's, now) live in the site's own data folder only; a view's page reads those.
-  const fetchOne = (n) => (n === "favicons" || n === "sites" || n === "realtime" ? getJSON(`data/${n}.json`, fresh) : get(`${n}.json`));
-  const extra = await Promise.all(EXTRA.map((n) => (listed(n) ? fetchOne(n).catch(() => null) : null)));
+  // The biggest files have the app's slim copy (data/slim/, slim.py: every row and figure the
+  // app draws, without the parts it never draws), when app.json lists it; else the file itself.
+  const slim = new Set(Array.isArray(raw.slim) ? raw.slim : []);
+  const fetchOne = (n) => (n === "favicons" || n === "sites" || n === "realtime" ? getJSON(`data/${n}.json`, fresh)
+    : slim.has(n) ? get(`slim/${n}.json`).then((got) => got ?? get(`${n}.json`)) : get(`${n}.json`));
+  const lazyOne = (n) => (listed(n) ? fetchOne(n).catch(() => null) : Promise.resolve(null));
+  // A big file comes now only when this page already had it (the refresh); else when asked (need).
+  const had = new Set([...(previous?.lazy?.done || [])].filter((n) => LAZY.includes(n)));
+  const now = (n) => !LAZY.includes(n) || had.has(n);
+  const extra = await Promise.all(EXTRA.map((n) => (now(n) ? lazyOne(n) : null)));
   // A file whose builder failed holds only {"state": "error", "error"}: kept apart, so a tab says
   // "could not be built" rather than showing it empty.
-  raw.failed = Object.fromEntries(EXTRA.map((n, i) => [n, extra[i]?.state === "error" ? extra[i].error || "no reason given" : null]).filter(([, e]) => e));
-  raw.x = Object.fromEntries(EXTRA.map((n, i) => [n, extra[i] && extra[i].schema_version === 1 && extra[i].state !== "error" ? extra[i] : null]));
+  raw.failed = {};
+  raw.x = {};
+  EXTRA.forEach((n, i) => take(raw, n, extra[i]));
+  raw.lazy = { done: had, wait: new Map(), fetch: lazyOne };
   // Returning readers come from overview.json; merge them into the days they belong to.
   for (const d of raw.x.overview?.days || []) {
     const day = raw.byDay.get(d.day);

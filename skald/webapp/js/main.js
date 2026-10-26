@@ -10,10 +10,10 @@
 
 import * as S from "./state.js";
 import { h, ICON, reduced, toast, untip, short } from "./ui.js";
-import { load, refresh as postRefresh, viewList, rangeOf, markersByDay } from "./data.js";
+import { load, refresh as postRefresh, viewList, rangeOf, markersByDay, has, need } from "./data.js";
 import { TAB_RENDER } from "./tabs/index.js";
 import { framed } from "./tabs/settings-frame.js";
-import { TAB, opt } from "./sections.js";
+import { TAB, opt, tabFiles } from "./sections.js";
 import { tabStrip } from "./tabstrip.js";
 import { barModes, modeBanner, modeActions } from "./modes.js";
 import { country, countryName, withFlag, city, cityCode, cityName } from "./tabs/readers.js";
@@ -430,6 +430,18 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
   if (viewChanged) {
     app.classList.add("loading");
     try { model = await load(s, { previous: model }); } catch (e) { return fail(e); } finally { app.classList.remove("loading"); }
+  }
+  // The big files this tab is drawn with (data.js LAZY), when the page does not have them yet:
+  // a "Loading" line in the panel meanwhile, never a blank page (2.41). The 2-minute refresh
+  // may swap the model while we wait: ask the new one too.
+  const want = tabFiles(s.tab, s);
+  if (!has(model, want)) {
+    panel.replaceChildren(h("div", { class: "state lazy-wait", role: "status", "aria-busy": "true" },
+      h("div", null, h("strong", null, `Loading ${S.nameOf(s.tab)}…`), " Its page lists are fetched the first time it opens.")));
+    while (!has(model, want)) {
+      await need(model, want);
+      if (current !== s) return;
+    }
   }
   untip();
   // A page's drawers (drill-down, request detail) belong to the render that opened them.

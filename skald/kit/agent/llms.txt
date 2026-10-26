@@ -2,20 +2,33 @@
 
 > Skald is web analytics from a website's server log: it counts people, AI assistants and
 > crawlers from the requests the server already records, and from an optional script tag.
-> This file is for an AI agent that a user asked to set up Skald for their website.
+> This file is for an AI agent that a user asked to set up Skald for their website, or to fix
+> a to-do Skald found on it (old pages to redirect, server errors, and the like).
 
 It holds no secret and no code. Skald's own server: __BASE__
 
 ## If the user gave you a line with a code
 
-The line has one of two shapes:
+The line has one of three shapes:
 
 - set up Skald for <site> — read this file and use code <code> (a new site: connect its logs,
   add the script tag, and send its leads)
 - finish setting up Skald for <site> (<jobs, comma separated>) — read this file and use code
   <code> (only the jobs named, for a site already in Skald: for example "add the script tag",
   "send leads and tool webhooks", "add the Next.js log field", "find the page assets", "check
-  the privacy settings", "connect the AI assistant (MCP)")
+  the privacy settings", "connect Google Search Console", "connect the AI assistant (MCP)")
+- fix the Skald to-do "<title>" for <site> — read this file and use code <code> (one of the
+  to-dos on Skald's Overview > Insights; "fix the Skald to-dos for <site> (<n>: "<title>",
+  ...)" for several). The steps fetch every row of each to-do from Skald with curl (old
+  addresses and the closest live page, Markdown copies AI asks for, server errors by
+  address...), find where the site keeps its redirects or rules, change only what is missing,
+  and send Skald a report per to-do. Nothing to download, nothing to copy. A "done" report
+  marks the to-do done; Skald then checks it on the days after
+
+Each line is for ONE site, with its own code. A user with several sites gets one line per
+site and pastes each into the session that works on that site (its own folder, repository or
+server). The lines never end each other: several sessions can set up several sites at the
+same time. Work only on the site your line names.
 
 Either way:
 
@@ -27,11 +40,40 @@ Either way:
    and how to report back.
 3. The code works for 24 hours. The keys behind it can be taken once.
 
+## If you are connected to Skald's MCP server
+
+The user may say only "Set up Skald for this site". Then:
+
+1. Call the tool `setup_left`: what is left on the site, and the jobs you can do.
+2. Call `setup_line` with those jobs (the token the user connected you with is for this one
+   site and has the setup scope; without it, ask the user for a line instead).
+3. Follow the line it answers, as below, in this site's own folder or on its server.
+
+"Fix my Skald to-dos": call `fix_todo` (no id: the to-dos you can fix; with an id: every row
+and the steps), fix it in the site's code or server as the steps say, then `mark_todo_done`
+with the exact change (it needs the setup scope; without it, tell the user what you did).
+
 ## If there is no code
 
-Ask the user to make one in Skald: Settings > Sites > Add a site, then pick
-their AI agent, or, for a site already in Skald, a set-up job's "Your AI agent" choice. Skald
-shows a line to paste to you. Do not guess a code.
+Ask the user to make one in Skald: Settings > Sites > Add a site, then pick their AI agent;
+for a site already in Skald, a set-up job's "Your AI agent" choice; for several sites,
+Settings > Sites > "Set up many sites with your AI agent", which gives each site its own line.
+Skald shows a line to paste to you. Do not guess a code.
+
+## Connecting a session to Skald's MCP server (the two lines)
+
+The user makes a token for one site in Skald (Settings > Sites > "Set up many sites with your
+AI agent", the site's "Two lines (MCP)") and pastes line 1 into a terminal in that site's own
+folder:
+
+- Claude Code: `claude mcp add --transport http skald __BASE__/traffic-mcp --header
+  "Authorization: Bearer <token>"` (its default scope keeps it to that folder).
+- Codex: a server of its own per site in `~/.codex/config.toml`: `[mcp_servers.skald-<site
+  with dashes>]`, `url = "__BASE__/traffic-mcp"`, `http_headers = { Authorization = "Bearer
+  <token>" }`.
+
+Line 2 is "Set up Skald for this site". The token goes only into the assistant's settings,
+never into a chat message; the user removes it in Settings > AI & API > Tokens & links.
 
 ## Rules
 
@@ -51,3 +93,6 @@ shows a line to paste to you. Do not guess a code.
    At the end, tell the user in plain words what you did, and send the report the steps
    describe.
 7. If an answer says "Too many tries", wait a minute and try again.
+8. Some things only a person can do, such as giving Skald's robot address access in Google
+   Search Console, or copying a Bing API key from Bing's own page. Give the user the exact
+   clicks and put them in the report as left for them.

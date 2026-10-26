@@ -14,6 +14,16 @@
                             account id), with its rows as a CSV file attached and the
                             link to it; owners and admins, at most SEND_LIMIT in
                             SEND_MINUTES
+  POST settings/todo-agent  {act: make | status | cancel, ...}: Fix this > My AI agent, the
+                            to-do line for the person's own AI agent (todo_agent.py, 2.41);
+                            owners and admins
+  GET  settings/todo-rows   ?item=<id>: one to-do with every row (todo_rows.py), for Fix this
+                            > Me (the lines to paste, the CSV); anyone who may read the site
+
+GET settings/todos also answers `fixes` (the AI agent's newest report per to-do: what it
+changed, the rows it left and why), `server` (what the site check found about the web
+server, for Me's lines) and, for owners and admins, `line` (the site's newest to-do line,
+never its code).
 
 Every change and every mail is a row in the organisation's audit log ("todo.marked",
 "todo.sent": who, which item, never the rows). The mail goes through the install's own
@@ -32,12 +42,12 @@ import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import auth_api, todo_marks
+from . import auth_api, todo_agent, todo_marks, todo_rows
 from .accounts import sessions, users
 from .auth_api import answer, csrf_ok
 
 PATH = re.compile(r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
-                  r"(?P<act>settings/(?:todos|todo-send))$")
+                  r"(?P<act>settings/(?:todos|todo-send|todo-agent|todo-rows))$")
 SEND_LIMIT, SEND_MINUTES = 10, 60
 MARKERS = ("owner", "admin")
 
@@ -95,7 +105,9 @@ def handle(h, write: bool, config, live_dir, allowed, same_origin, config_path=N
         return answer(h, 404, {"ok": False, "error": "not found"})
     m = match(h.path)
     act = m.group("act")
-    if act == "settings/todo-send" and not write:
+    if act in ("settings/todo-send", "settings/todo-agent") and not write:
+        return answer(h, 405, {"ok": False, "error": "wrong method"})
+    if act == "settings/todo-rows" and write:
         return answer(h, 405, {"ok": False, "error": "wrong method"})
     if write and not same_origin(h.headers, allowed):
         return answer(h, 403, {"ok": False, "error": "same-origin requests only"})
@@ -113,17 +125,24 @@ def handle(h, write: bool, config, live_dir, allowed, same_origin, config_path=N
         if org is None or role is None:
             return answer(h, 403, {"ok": False, "error": "Not available to you."})
         cfg = _config(config, config_path, site, live_dir)
+        folder = todo_agent.folder_of(config, live_dir, config_path)
+        if act == "settings/todo-rows":
+            return _rows(h, folder, site)
         if not write:
             body = {"ok": True, "marks": todo_marks.current(db, site), "changes": todo_marks.changes(db, site),
-                    "role": role, "can_mark": role in MARKERS, "mail": mail_state(cfg)}
+                    "role": role, "can_mark": role in MARKERS, "mail": mail_state(cfg),
+                    "fixes": todo_marks.fixes(db, site), "server": todo_agent.server_of(db, site)}
             if role in MARKERS:
                 body["team"] = team(db, site)
+                body["line"] = todo_agent.latest(db, folder, site)
             return answer(h, 200, body)
         if role not in MARKERS:
             return answer(h, 403, {"ok": False, "error": "Only an owner or an admin can do this."})
         form = _form(h)
         if form is None:
             return None
+        if act == "settings/todo-agent":
+            return _agent(h, db, config, config_path, live_dir, allowed, folder, site, org, session, form)
         item = form.get("item")
         if not todo_marks.valid_item(item):
             return answer(h, 400, {"ok": False, "error": "Not a to-do or a site path."})
@@ -141,6 +160,53 @@ def handle(h, write: bool, config, live_dir, allowed, same_origin, config_path=N
         return _send(h, db, cfg, site, m.group("view"), org, session, item, form.get("to"), out, send)
     finally:
         db.close()
+
+
+def _rows(h, folder, site: str) -> None:
+    """GET settings/todo-rows?item=<id>: one to-do with every row (todo_rows.py)."""
+    from urllib.parse import parse_qs, urlsplit
+    item = (parse_qs(urlsplit(h.path).query).get("item") or [""])[0]
+    if not todo_marks.TODO_ID.match(item):
+        return answer(h, 400, {"ok": False, "error": "Name a to-do: item=<id>."})
+    got = todo_rows.one(folder, site, item)
+    if got is None:
+        return answer(h, 404, {"ok": False, "error": "That to-do is not on the list now."})
+    return answer(h, 200, {"ok": True, "todo": got})
+
+
+def _agent(h, db, config, config_path, live_dir, allowed, folder, site, org, session, form) -> None:
+    """POST settings/todo-agent: make, watch or cancel the to-do line (todo_agent.py)."""
+    from . import kit_api
+    from .kit import agent
+    from .sites_api import read_only
+    act = str(form.get("act") or "make")
+    if act == "make":
+        frozen = read_only(db, config, org["id"])
+        if frozen:
+            return answer(h, 402, {"ok": False, "error": frozen})
+        try:
+            got = todo_agent.make_todo_line(db, config, org, site, form.get("items"), session["user_id"],
+                                            live_dir=live_dir, config_path=config_path, allowed=allowed)
+        except todo_agent.Refused as why:
+            return answer(h, why.status, {"ok": False, "error": str(why)})
+        except ValueError as why:
+            return answer(h, 400, {"ok": False, "error": str(why)})
+        return answer(h, 200, {"ok": True, **got})
+    lid = str(form.get("link_id") or "").strip().lower()
+    if act not in ("status", "cancel") or not agent.LINK_ID.match(lid):
+        return answer(h, 400, {"ok": False, "error": 'act is make, status or cancel; status and cancel '
+                                                     'need the link_id "make" answered.'})
+    got = todo_agent.status(db, folder, site, lid)
+    if got["state"] == "unknown":
+        return answer(h, 404, {"ok": False, "error": "There is no such to-do line for this site "
+                                                     "(it may have run out a day ago)."})
+    if act == "status":
+        return answer(h, 200, {"ok": True, **got})
+    if got["state"] != "cancelled":
+        c = kit_api._Core(db, config, org, session["user_id"], live_dir, config_path, allowed)
+        kit_api._ended(c, site, [(one, unused, "cancelled") for one, unused in
+                                 agent.cancel(folder, site, lid)], "cancelled")
+    return answer(h, 200, {"ok": True, "state": "cancelled"})
 
 
 def _page_change(h, db, cfg, site, org, session, path, form) -> None:

@@ -58,3 +58,36 @@
 
 /* "none close" in a path column: words, not a path (no path font, no copy or open icons). */
 .td-none, td.path .td-none { font-family: var(--sans, system-ui, sans-serif); word-break: normal; }
+
+/* 2.41: Fix this (js/tabs/todo-fix.js, todo-report.js): one button, then "Who will do it?" */
+.td-fix, .td-fixall { font-weight: 640; }
+.td-top .td-fixall { margin-left: auto; }
+.td-title { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: 4px; }
+.td-title h3 { flex: 0 1 auto; }
+.td-open { font-size: 13px; white-space: nowrap; }
+.td-new { margin-top: var(--sp-3); max-width: var(--read); }
+.td-go { font-weight: 640; white-space: nowrap; }
+.fx { display: grid; gap: 14px; }
+.fx-q { margin: 0; font-size: 15px; }
+.fx-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fx-part { display: grid; gap: 12px; min-width: 0; }
+.fx-part > p, .fx-line p, .fx-me p { margin: 0; }
+.fx-line { display: grid; gap: 8px; }
+.fx-watch h4, .fx-me h4 { margin: 0 0 6px; font-size: 13.5px; }
+.fx-me { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: var(--r); background: var(--surface); min-width: 0; }
+.fx-pre { margin: 0; padding: 10px 12px; background: var(--sunk); border-radius: var(--r); font-family: var(--mono); font-size: 12.5px;
+  white-space: pre-wrap; overflow-wrap: anywhere; max-height: 320px; overflow: auto; }
+.fx-csv { font-size: 12.5px; }
+.fx-mark { font-size: 13px; }
+.fx-rep { display: grid; gap: 4px; min-width: 0; }
+.fx-rep p { margin: 0; }
+.fx-left { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 2px; font-size: 13px; }
+.fx-links { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; }
+.fx-card { display: grid; gap: 4px; padding: 8px 12px; border-radius: var(--r); background: var(--sunk); font-size: 13.5px; max-width: var(--read); }
+.fx-card p { margin: 0; }
+.fx-card.fx-done b { color: var(--good); }
+.fx-card.fx-partly b, .fx-card.fx-left b { color: var(--warn); }
+@media (max-width: 600px) {
+  .fx-tiles { grid-template-columns: minmax(0, 1fr); }
+  .td-top .td-fixall { margin-left: 0; }
+}

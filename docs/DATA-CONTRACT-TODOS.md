@@ -27,7 +27,19 @@ Each to-do: `id` (`lost-pages`, `server-errors`, `ai-markdown`, `sitemap`, or
 `window`, `state` (`open`, `done`, `notnow`), `marked` (the mark, or null) and
 `recheck` (for `done`: `{"marked_day","days","first","last","figures","verdict":
 "waiting"/"fixed"/"not_yet","words"}`, the same measure over the whole days after
-the day it was marked).
+the day it was marked). 2.41 adds `agent` (bool: an AI agent can fix this kind, `todos.AGENT_KINDS`:
+all five) and `first_seen` (the first day this to-do was on the list, open; null for one
+withheld or not open; a to-do that left the list and came back is new again).
+
+**The agents' rows file (2.41, `todo_rows.py`).** `todos.json` holds at most 1,000 rows a
+to-do. The same build writes every row (at most 20,000) beside the history, never in the
+dashboard folder: `<history folder>/todo-rows/<site>.json`, mode 0600,
+`{"site","generated_at","window","todos": [{id, kind, subject, tag, title, proof, todo,
+check, figures, window, columns, rows, rows_total, file, open, first_seen}], "seen": {id: day}}`.
+Only the to-dos the second count agreed with. It is read by the kit's
+`GET /traffic-kit/<code>/todo/<id>`, by `settings/todo-rows` and by the MCP's `fix_todo`;
+each scrubs an email or IPv4 address found inside a value to `[removed]` before handing
+it out. A to-do new to `seen` queues the outgoing webhook `todo.new` (no code, no row).
 
 Where each comes from: `lost` and `markdown` and `sitemap` from the day kind
 `not_found` (as lost_pages.json below); `errors` from the counts
@@ -79,11 +91,24 @@ row is the mark (for a page change: the newest per page and day). Page changes:
 (`todo_api.py`); every change and every mail sent is an audit-log row
 (`todo.marked`, `todo.sent`).
 
+The AI agents' reports (2.41): table `todo_fixes` in accounts.sqlite, append-only,
+`(site, item, at, state, change, files, left_rows, notes, link_id, by_who)`; `state`
+`done`, `partly` or `left`; `change` the exact change as text (at most 200,000
+characters, anything shaped like a token removed); `files` and `left_rows` JSON
+(`[path]`, `[{"row","why"}]`); `link_id` the to-do line's id (null from the MCP);
+`by_who` `ai-agent` or `mcp:<token id>`. The newest row per to-do is shown. A `done`
+report also writes a `done` mark (`by_user` null) unless the to-do is done already, so
+the re-check runs as for a person's mark. Audit rows: `kit.todoline` (a line made: its id
+and to-dos, never the code), `todo.fixed` (a kit report: the to-do, the state, the link
+id), `mcp.todo_done` (an MCP report); never the change itself.
+
 The helper's routes (sessions mode; 404 in basic mode), under `settings/`, which nginx already
 passes:
 
 | Method, path | Body -> answer |
 | --- | --- |
-| GET `settings/todos` | -> `{ok, marks: {item: {state, day, at, first_day}}, changes, role, can_mark, mail: {ready, why}, team: [{id, email, role}]}`; `team` (who a to-do can be sent to) only for owners and admins |
+| GET `settings/todos` | -> `{ok, marks: {item: {state, day, at, first_day}}, changes, role, can_mark, mail: {ready, why}, team: [{id, email, role}], fixes: {item: the newest report}, server: {server, platform, framework}, line}`; `team` (who a to-do can be sent to) and `line` (the site's newest to-do line's status, never its code) only for owners and admins |
 | POST `settings/todos` | `{item, state}`: `done`, `notnow` or `open` for a to-do; `fixed` or `open` for `path:/old/`; `{item: "page:/x/", state: "changed", day, kind, note}` marks a page change, `{item, state: "open", day}` stops tracking it -> `{ok, ...the mark, marks}` (a page change: `changes` instead). Owners and admins; the CSRF value |
+| POST `settings/todo-agent` | `{act: "make", items: [id, ...] or "all"}` -> `{ok, line, llms_url, steps_url, expires_at, link_id, cancelled, todos}`: one to-do line (kit/agent_todos.py), works once, 24 hours, ends the site's older to-do lines whose keys were not taken (never a set-up line); `"all"`: every open to-do an agent can fix. `{act: "status", link_id}` -> the line's state, `opened_at`, `keys_at`, `todos`, `fixes` and `reports` (its to-dos' kept reports). `{act: "cancel", link_id}` -> `{ok, state: "cancelled"}`. Owners and admins; read-only plans cannot make one (402) |
+| GET `settings/todo-rows?item=<id>` | -> `{ok, todo}`: the to-do with every row from the rows file (Fix this > Me's lines and CSV). Anyone who may read the site |
 | POST `settings/todo-send` | `{item, to}` (`to`: a confirmed member's account id) -> `{ok, sent_to, file}`: mails one to-do with its rows as a CSV file and the link to it, through the install's mail server; owners and admins; 10 an hour (429). Without a mail server the answer says why |

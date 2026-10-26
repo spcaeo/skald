@@ -40,6 +40,13 @@ class Node {
   removeChild(k) { this.childNodes = this.childNodes.filter((c) => c !== k); k.parentNode = null; return k; }
   replaceChildren(...kids) { for (const c of this.childNodes) c.parentNode = null; this.childNodes = []; this.append(...kids); }
   remove() { this.parentNode?.removeChild(this); }
+  replaceWith(...kids) {
+    const p = this.parentNode;
+    if (!p) return;
+    for (const k of kids.flat()) p.insertBefore(k instanceof Node ? k : new Text(String(k)), this);
+    p.removeChild(this);
+  }
+  get lastChild() { return this.childNodes[this.childNodes.length - 1] || null; }
 }
 class Text extends Node { constructor(t) { super(); this.data = t; } get textContent() { return this.data; } set textContent(v) { this.data = String(v); } }
 class Fragment extends Node {}

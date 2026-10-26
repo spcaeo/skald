@@ -95,7 +95,7 @@ document.body.append(box);
 await tick();
 assert.ok(!box.hidden, "something is left, so the list shows");
 const items = box.querySelectorAll("li.su-i");
-assert.deepEqual(items.map((li) => li.getAttribute("data-item")), ["logs", "assets", "countries", "script", "lead", "mail", "privacy"]);
+assert.deepEqual(items.map((li) => li.getAttribute("data-item")), ["logs", "assets", "countries", "script", "lead", "mail", "privacy", "search"]);
 const said = plain(box);
 for (const word of ["--origin", "helper", "nginx", "beacon.origins", "logs.dir"]) assert.ok(!said.includes(word), `no "${word}" for the site owner: ${said}`);
 const folds = box.querySelectorAll("details.fold").map((d) => d.textContent).join(" ");
@@ -104,7 +104,7 @@ assert.ok(folds.includes("nginx"), "the doctor's words stay, folded, for the ser
 const byId = (id) => items.find((li) => li.getAttribute("data-item") === id);
 for (const li of items) {
   const open = li.classList.contains("su-todo");
-  assert.equal(Boolean(button(li, "Set up")), open && ["logs", "assets", "countries", "script", "lead", "mail", "privacy"].includes(li.getAttribute("data-item")), li.textContent);
+  assert.equal(Boolean(button(li, "Set up")), open && ["logs", "assets", "countries", "script", "lead", "mail", "privacy", "search"].includes(li.getAttribute("data-item")), li.textContent);
 }
 for (const id of ["logs", "script", "lead", "mail", "privacy"]) assert.ok(button(byId(id), "Set up"), `${id} has Set up`);
 assert.ok(byId("script").textContent.includes("optional") && byId("lead").textContent.includes("optional"));

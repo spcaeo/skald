@@ -164,6 +164,49 @@ The cost: about 5% on the 1x history file, 2% at 10x.
   same release fixed that order (below).
 - The full test suite passes.
 
+## Dashboard load (2.41)
+
+What a browser fetches to open a site, and how long until its key figures show
+(the owner, 2026-10-26: a new site's Overview took too long as the data grew).
+
+```sh
+PLAYWRIGHT=/path/to/node_modules/playwright/index.mjs \
+python3 tools/bench_load.py --keep /tmp/loadbench            # build the sample, measure
+python3 tools/bench_load.py --keep /tmp/loadbench --reuse --json after.json --against before.json
+python3 tools/bench_load.py --keep /tmp/loadbench --reuse --latency 200     # a longer round trip
+python3 tools/bench_load.py --keep /tmp/loadbench --serve    # serve it; prints the address and cookie
+```
+
+It builds a sample (2 sites, 120 days, 3000 pages, 2500 lost-address lines a day; RFC 5737
+addresses, example.com hosts), redraws it with this checkout's code, runs the image's own
+nginx config (docker/nginx.conf) on local ports behind a TLS + HTTP/2 front like the
+host's, with the real helper, and opens the dashboard signed in with Chromium on a
+throttled line (2.5 MB/s down, 40 ms). Five loads, the median of `--repeat` runs each:
+cold (empty cache), warm (the same page again), switch (the second site), period (the
+Overview over 30 days, until its page cards are drawn) and pages (Traffic > Pages, until
+its leaderboard is drawn). Needs nginx with auth_request, openssl, node and Playwright.
+
+| load | requests before | after | bytes before | after | key figures before | after | drawn before | after |
+|---|---|---|---|---|---|---|---|---|
+| cold | 293 | 290 | 17.79 MB | 1.42 MB | 7.97 s | 1.37 s | | |
+| warm | 293 | 30 | 17.79 MB | 44 kB | 7.87 s | 0.29 s | | |
+| switch | 293 | 30 | 17.74 MB | 0.36 MB | 7.87 s | 0.39 s | | |
+| period | 292 | 31 | 17.78 MB | 0.23 MB | 7.93 s | 0.30 s | 7.94 s | 0.41 s |
+| pages | 290 | 30 | 17.76 MB | 66 kB | | | 7.60 s | 0.38 s |
+
+Step by step (cold key figures, cold bytes): gzip 8.0 s to 1.45 s and 17.8 to 2.1 MB;
+caching left cold alone and took warm to 44 kB and 0.4 s; loading the four big files when
+needed 1.42 MB; the slim copies made the tabs that need them small (Traffic > Pages 66 kB
+warm); modulepreload showed no change beyond noise here, at 40 ms or 200 ms (Chromium's
+throttling adds its delay per request, so the import chain's round trips are not what it
+measures well); it costs one line per module in the page. Gzip at level 6 for the copies:
+26 MB of data in 265 ms on a laptop (level 9: 1.3 s for 10% less).
+
+What a cold load still waits for: the code and styles (about 0.9 MB compressed, 255 files), then
+app.json, then the core files, then the helper's `me` and, in Live mode, its realtime
+answer. A bundle of the code, or app.json asked for from the page itself, are the next
+steps if a first load must be faster still.
+
 ## Left for later
 
 - Done in the same release (2.2.0): tied insights are now ordered by their title, so

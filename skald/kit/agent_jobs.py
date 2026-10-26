@@ -11,8 +11,19 @@ steps.
   rsc      Next.js's log field in nginx or Apache         none
   assets   finds where the pages load their own files     none
   privacy  reads the privacy notice, recommends a keep    none
+  search   Google Search Console: the robot's address,     none; a new Search Console key
+           and the one click the user makes                through POST <code>/searchkey
+                                                           (agent_search.py), only when
+                                                           Skald has none and an install
+                                                           admin made the line
   mcp      connects the user's assistant to Skald's MCP   SKALD_MCP_TOKEN (mcp scope,
                                                           this site, no addresses)
+
+2.41: a to-do line (Overview > Insights' Fix this, kit/agent_todos.py) carries TODO_JOBS
+instead: todo-lost, todo-errors, todo-markdown, todo-sitemap, todo-leave, one per kind of
+to-do it holds; its keys file holds SKALD_SITE and SKALD_REPORT_KEY only, and its steps
+are agent_todos.steps' (todo-head.md, keys.md, todo-rows.md, todo-where.md,
+jobs/todo-<kind>.md, todo-finish.md). The two families never mix in one line.
 
 SKALD_REPORT_KEY is in every keys file. A line with no `jobs` (Add a site, and
 every caller and stored entry from before 2.39) has DEFAULT, without "lead"
@@ -33,18 +44,21 @@ from pathlib import Path
 from . import link
 
 HERE = Path(__file__).resolve().parent / "agent"
-JOBS = ("logs", "script", "lead", "rsc", "assets", "privacy", "mcp")
+JOBS = ("logs", "script", "lead", "rsc", "assets", "privacy", "search", "mcp")
 DEFAULT = ("logs", "script", "lead")
 STATES = ("done", "already", "skipped", "left")     # the report's `jobs` values
 # The line's words (after "finish setting up Skald for <site>").
 TITLES = {"logs": "connect the logs", "script": "add the script tag",
           "lead": "send leads and tool webhooks", "rsc": "add the Next.js log field",
           "assets": "find the page assets", "privacy": "check the privacy settings",
-          "mcp": "connect the AI assistant (MCP)"}
+          "search": "connect Google Search Console", "mcp": "connect the AI assistant (MCP)"}
 MOST = 20                                            # ids looked at in one request
 FOUND_MOST = 120                      # a site check value's length in the steps
-COND = re.compile(r"<!-- if (not )?([a-z|]+) -->\n(.*?)(?:<!-- else -->\n(.*?))?<!-- end -->\n",
+COND = re.compile(r"<!-- if (not )?([a-z|-]+) -->\n(.*?)(?:<!-- else -->\n(.*?))?<!-- end -->\n",
                   re.S)
+# 2.41: a to-do line's jobs (agent_todos.py), one per kind of Insights' to-dos it carries.
+# Never mixed with the set-up jobs above in one line.
+TODO_JOBS = ("todo-lost", "todo-errors", "todo-markdown", "todo-sitemap", "todo-leave")
 # What the site check's recommended method means in the steps' cases.
 WAYS = {"docker": "case A, the site's own server (the one-file installer)",
         "systemd": "case A, the site's own server (the one-file installer)",
@@ -94,7 +108,8 @@ def _unknown(job: str):
 def of(entry: dict | None) -> list[str]:
     """A stored line's jobs; an entry from before 2.39 has the default."""
     got = (entry or {}).get("jobs")
-    if isinstance(got, list) and got and all(one in JOBS for one in got):
+    if isinstance(got, list) and got and (all(one in JOBS for one in got)
+                                          or all(one in TODO_JOBS for one in got)):
         return list(got)
     return default((entry or {}).get("leads", True) is not False)
 
@@ -258,11 +273,77 @@ def _example(jobs: list[str], site: str) -> str:
         out["privacy"] = {"keep_ips": True, "days": 30, "notice_url": f"https://{site}/privacy"}
     if "logs" in jobs or "rsc" in jobs:
         out["nextjs_log_field"] = True
+    if "search" in jobs:
+        out["search"] = {"google_property": f"sc-domain:{site}", "robot_added": True}
     out["changed_files"] = ["app/layout.tsx"] if "script" in jobs else []
-    out["left_for_user"] = ["Set Settings > Privacy & retention > People to 30 days"] \
-        if "logs" in jobs or "privacy" in jobs else []
+    out["left_for_user"] = (["Set Settings > Privacy & retention > People to 30 days"]
+                            if "logs" in jobs or "privacy" in jobs else []) + \
+        (["Search Console: add the robot address as a Restricted user"]
+         if "search" in jobs else [])
     out["notes"] = "Anything else, in one or two plain sentences."
     return json.dumps({k: v for k, v in out.items() if v != []})
+
+
+def _search_now(facts: dict) -> str:
+    """What Skald had for the search job, for its Check first."""
+    google = facts.get("google_key") if isinstance(facts.get("google_key"), dict) else {}
+    prop, bing = facts.get("search_property"), facts.get("bing_site")
+    lines = [f"- Google Search Console: connected to `{_plain(prop)}`" if prop
+             else "- Google Search Console: not connected"]
+    if google.get("set") and google.get("client_email"):
+        lines.append("- Skald's Google key: set; its robot address is "
+                     f"`{_plain(google['client_email'])}`")
+    elif google.get("set"):
+        lines.append("- Skald's Google key: set, but it cannot be read (ask whoever runs Skald)")
+    else:
+        lines.append("- Skald's Google key: none yet")
+    lines.append(f"- Bing: connected to `{_plain(bing)}`" if bing else "- Bing: not connected")
+    lines.append("- Skald's Bing key: " + ("set" if facts.get("bing_key") else "none yet"))
+    return "\n".join(lines)
+
+
+def _search_robot(facts: dict, site: str, env_dir: str, env_file: str, url: str) -> str:
+    """Step 2 of the search job: the robot address Skald has, or how to make
+    one (only an install admin's line may), or who to ask."""
+    google = facts.get("google_key") if isinstance(facts.get("google_key"), dict) else {}
+    if google.get("set") and google.get("client_email"):
+        return (f"Skald's robot address is `{_plain(google['client_email'])}`. It is the same "
+                "for every site of this Skald: nothing to make. Go on to 3.")
+    if not facts.get("may_upload_key"):
+        return ("Skald has no Search Console key yet, and only whoever runs the user's Skald may "
+                "set one (it serves every site). Put this in `left_for_user`: \"Ask whoever runs "
+                "Skald to upload a Google service-account key in Settings > Integrations > "
+                "Search; its robot address then shows there.\" Then do 3 once it is there.")
+    key = f"{env_dir}/{site}.gsc-key.json"
+    return f"""Skald has no Search Console key yet. You can make one with `gcloud`, if it is installed
+and signed in (`gcloud config list`). Ask the user first, and wait for a yes:
+
+"May I make a Google Cloud service account for Skald in your project <project id>, with one
+key? It can only read Search Console figures, and Skald keeps the key on its own server."
+
+Without `gcloud`, or without a yes, put this in `left_for_user` instead: "Make a service
+account and a JSON key in Google Cloud (IAM > Service accounts), turn on the Search Console
+API, and upload the key in Skald, Settings > Leads & integrations > Search Console & Bing." Then go on to 3.
+
+With a yes, put the project's id in place of `<project id>`:
+
+    P='<project id>'
+    gcloud services enable searchconsole.googleapis.com --project "$P"
+    gcloud iam service-accounts create skald-search --display-name 'Skald (reads Search Console)' --project "$P"
+    umask 077 && mkdir -p {env_dir} && gcloud iam service-accounts keys create {key} --iam-account "skald-search@$P.iam.gserviceaccount.com"
+
+Never `cat` the key file. Send it to Skald from stdin (bash or zsh), then remove it:
+
+    curl -sS -w '\\nHTTP %{{http_code}}\\n' -X POST -H @<(grep '^SKALD_REPORT_KEY=' {env_file} | sed 's/^SKALD_REPORT_KEY=/X-Skald-Report-Key: /') -H 'Content-Type: application/json' --data-binary @- '{url}' < {key}
+
+- **HTTP 200:** Skald answers `{{"ok": true, "client_email": "..."}}`: that is the robot
+  address. Remove the file: `rm -f {key}`.
+- **HTTP 409:** Skald has a key already: its answer names the robot address. Remove the file,
+  and, with the user's yes, the key you made (`gcloud iam service-accounts delete`).
+- **Anything else:** show Skald's words (they hold no secret) and remove the file.
+
+If Google refuses to make a key (an organisation policy such as
+`iam.disableServiceAccountKeyCreation`), tell the user and put the upload in `left_for_user`."""
 
 
 def _read(name: str) -> str:
@@ -271,6 +352,9 @@ def _read(name: str) -> str:
 
 def steps(entry: dict, code: str, base: str) -> str:
     """The line's steps in Markdown: addresses and words, never a key."""
+    if entry.get("todos"):                           # a to-do line (2.41)
+        from . import agent_todos
+        return agent_todos.steps(entry, code, base)
     fields = entry.get("fields") or {}
     facts = entry.get("facts") if isinstance(entry.get("facts"), dict) else {}
     jobs = of(entry)
@@ -287,7 +371,12 @@ def steps(entry: dict, code: str, base: str) -> str:
     text = choose("\n".join(parts), jobs)
     dashboard = fields.get("dashboard") or ""
     hooks = fields.get("hooks_url") or (fields.get("lead_url") or "").rpartition("/")[0] + "/"
+    env_dir, env_file = "$HOME/.config/skald", f"$HOME/.config/skald/{site}.env"
     values = {
+        "SEARCH_NOW": _search_now(facts) if "search" in jobs else "",
+        "SEARCH_ROBOT": _search_robot(facts, site, env_dir, env_file, f"{here}/searchkey")
+        if "search" in jobs else "",
+        "SITE_DASHED": site.replace(".", "-"),
         "SITE": site, "EXPIRES": link.stamp(entry["expires_at"]).replace("T", " ")[:16],
         "JOB_LIST": ", ".join(TITLES[job] for job in jobs),
         "DASHBOARD": dashboard, "HELP": fields.get("help") or "",
@@ -296,7 +385,7 @@ def steps(entry: dict, code: str, base: str) -> str:
         "TAG": fields.get("tag") or "", "MCP_URL": fields.get("mcp_url") or "",
         "FOUND": found_lines(found),
         "WAY": way or "not settled by the check: find it out as the logs step says.",
-        "ENV_FILE": f"$HOME/.config/skald/{site}.env", "ENV_DIR": "$HOME/.config/skald",
+        "ENV_FILE": env_file, "ENV_DIR": env_dir,
         "KEYS_URL": f"{here}/keys", "INSTALL_URL": f"{here}/install.sh",
         "LEADS_URL": f"{here}/leads/", "REPORT_URL": f"{here}/report",
         "HOOKSECRET_URL": f"{here}/hooksecret", "HOOKS": hooks, "LEADS": note,

@@ -50,6 +50,9 @@ with `access.mode: sessions` (404 otherwise), the way team_api.py is:
   POST sites/agentlink, sites/agentstatus, sites/agentcancel: the one line
                        for an AI agent, how far its agent got, and ending
                        it at once (kit_api.py, kit/agent.py)            admin
+  GET  sites/agentleft  every site's open set-up lines, the jobs an agent can
+                       do and its newest line: "Lines for your sites", one
+                       line per site (kit_left.py)                     admin
 
 With saas on, a site added here starts "pending" (site_verify.py): nothing is
 collected for it until its domain is verified; the listing shows the token.
@@ -81,8 +84,8 @@ PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
 PATH = re.compile(PAGE + r"(?P<act>sites(?:/(?:add|token|remove|verify|status|kit|setup|detect|tagcheck|trylog"
                          r"|pause|resume|restore|clear|purge"
                          r"|share|shares|unshare|link|pack|packmail"
-                         r"|agentlink|agentstatus|agentcancel))?)$")
-GETS = ("sites", "sites/status", "sites/shares")
+                         r"|agentlink|agentstatus|agentcancel|agentleft))?)$")
+GETS = ("sites", "sites/status", "sites/shares", "sites/agentleft")
 ADMIN = ("owner", "admin")
 SHIP_TOKEN_FILE = "/etc/skald-ship/token"
 VERIFY_PER_HOUR = 10       # checks a site may ask for (each a DNS query and a fetch)
@@ -392,6 +395,11 @@ def _more(name):
     return call
 
 
+def _left(c, form):
+    from .kit_left import agent_left
+    return agent_left(c, form)
+
+
 def _lifecycle():
     from .site_actions_api import ROUTES as acts
     return acts
@@ -404,6 +412,6 @@ ROUTES = {"sites": listing, "sites/add": add, "sites/token": new_token, **_lifec
           "sites/link": _kit("link"), "sites/pack": _kit("pack_zip"),
           "sites/packmail": _kit("pack_mail"),
           "sites/agentlink": _kit("agent_link"), "sites/agentstatus": _kit("agent_status"),
-          "sites/agentcancel": _kit("agent_cancel"),
+          "sites/agentcancel": _kit("agent_cancel"), "sites/agentleft": _left,
           "sites/share": _share("share"),
           "sites/shares": _share("shares"), "sites/unshare": _share("unshare")}

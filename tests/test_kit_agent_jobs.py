@@ -46,6 +46,7 @@ HEADINGS = {"logs": "Connect the logs", "script": "Add the script tag",
             "lead": "Leads, and the booking, form or payment tools",
             "rsc": "Add the Next.js log field", "assets": "Find where the pages load their own",
             "privacy": "Check the privacy settings",
+            "search": "Connect Google Search Console",
             "mcp": "Connect the user's AI assistant to Skald (MCP)"}
 NAMES = {"logs": ["SKALD_SITE", "SKALD_INGEST_URL", "SKALD_INGEST_TOKEN", "SKALD_LEAD_URL",
                   "SKALD_REPORT_KEY"],
@@ -53,6 +54,7 @@ NAMES = {"logs": ["SKALD_SITE", "SKALD_INGEST_URL", "SKALD_INGEST_TOKEN", "SKALD
          "lead": ["SKALD_SITE", "SKALD_LEAD_URL", "SKALD_LEAD_SECRET", "SKALD_REPORT_KEY"],
          "rsc": ["SKALD_SITE", "SKALD_REPORT_KEY"], "assets": ["SKALD_SITE", "SKALD_REPORT_KEY"],
          "privacy": ["SKALD_SITE", "SKALD_REPORT_KEY"],
+         "search": ["SKALD_SITE", "SKALD_REPORT_KEY"],
          "mcp": ["SKALD_SITE", "SKALD_MCP_URL", "SKALD_MCP_TOKEN", "SKALD_REPORT_KEY"]}
 MCP = "skald_ee11ff22_" + "Mq4Wn7Xs2Ty5Vc8Bd1Fg3Hj6Kk9Lm0Np2Qr5St8Uv1Wx"
 STRIPE = "whsec_" + "Tq2Wm5Xr8Tz1Vb4Nc7Pd0Hf3Jg6Kk9Ms2"
@@ -149,7 +151,7 @@ class Jobs(unittest.TestCase):
                           mcp_token=MCP, mcp_token_id="ee11ff22")[0]
         text = agent.steps(agent.find(self.folder, code), code, "")
         heads = [h for _, h in re.findall(r"^## Step (\d+)\. (.*)$", text, re.M)]
-        self.assertEqual(len(heads), 9)
+        self.assertEqual(len(heads), 10)
         for n, job in enumerate(agent_jobs.JOBS, 1):
             self.assertTrue(heads[n].startswith(HEADINGS[job]), (n, heads[n]))
         self.assertIn("the log field Next.js needs is step\n   5", text,

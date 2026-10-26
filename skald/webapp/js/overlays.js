@@ -24,7 +24,8 @@ import { valueOf } from "./routemask.js";
 const open = new Map();        // family -> {value, close(), isOpen()}
 const pending = new Set();     // "family=value" being restored (answers on the way)
 // pcm (Mark a change): its day and kind (pcd, pck) leave with it, as a step does.
-const STEPPED = new Set(["setup", "conn", "pcm"]);
+// fix (Fix this, 2.41): who will do it (fixby) and the line watched (link) leave with it.
+const STEPPED = new Set(["setup", "conn", "pcm", "fix"]);
 // The keys inside a stepped dialog (its step, the share form, the kit's token choice) leave with it.
 const INSIDE_OFF = Object.fromEntries(INSIDE.map((k) => [k, ""]));
 const extra = {};              // restorers main.js adds (the report builder needs its loader)
@@ -120,6 +121,8 @@ const RESTORE = {
   scan: async () => null,   // Security's scanner rows load with the tab, which opens it (sec-scanners.js)
   // 2.35: Send to team, for a to-do (js/tabs/todo-send.js).
   tdsend: async (v, m) => (await import("./tabs/todo-send.js")).openSendKey(v, m),
+  // 2.41: Fix this, one to-do (fix=1, with todo=<id>) or all of them (fix=all) (js/tabs/todo-fix.js).
+  fix: async (v, m, s) => (v === "1" || v === "all" ? (await import("./tabs/todo-fix.js")).openFixKey(v, m, s) : "That dialog is not in this version of the page."),
   // Traffic > Pages > a page: Mark a change (js/tabs/pagechange.js).
   pcm: async (v, m, s) => (await import("./tabs/pagechange.js")).openMarkKey(v, m, s),
   ans: async (v) => (/^[A-Za-z0-9_-]{1,40}$/.test(v) ? (await import("./tabs/ai-answers.js")).openAnswer(v) : "That answer is not one Skald keeps."),
@@ -129,6 +132,7 @@ const RESTORE = {
     : (await import("./tabs/setup-dialogs.js")).openSetupKey(v, m, Number(s.step) || 1, s.share === "1", s)),
   // A site's Pause, Remove, Clear data or Delete all data dialog (js/tabs/site-actions.js).
   sact: async (v) => (await import("./tabs/site-actions.js")).openSiteActKey(v),
+  lines: async (v) => (await import("./tabs/agent-many.js")).openLinesKey(v),
   conn: async (v, m, s) => (await import("./tabs/connections.js")).openConnKey(v, m, Number(s.step) || 1, s.share === "1", s),
   dlg: async (v, m, s) => {
     if (extra[`dlg:${v}`]) return extra[`dlg:${v}`](m, s);

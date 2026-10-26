@@ -116,6 +116,7 @@ the container has them (`history.db: /var/lib/skald/history.sqlite`,
 | `SKALD_KEEP_EVERYTHING` | off | `1` (or `true`): keep everything, for an internal or enterprise install. Skald then deletes and clears nothing by itself on any site of the install: no retention window, People days or plan cap removes a row, a file line or a conversions backup (`retention.keep_everything` in [SETTINGS.md](SETTINGS.md#keep-everything)). A person's own deletion request, run by an admin (`forget`, `conversions forget`), still works. The privacy notice wording then says "until you ask us to delete it" |
 | `SKALD_DAILY_AT`, `SKALD_BACKUP_AT` | `07:15`, `03:30` | the daily run and the backup, in the site's time zone |
 | `SKALD_LIVE_MINUTES` | `2` | the live snapshot's interval |
+| `SKALD_JOB_NICE` | `10` | how much lower the scheduled jobs (live, daily, backup...) run than nginx and the helper, 0 to 19; `0` turns it off |
 | `SKALD_SEARCH_HOURS`, `SKALD_SEARCH_AT` | `6`, `01:40` | the Search Console and Bing sync: every N hours from that time (0 turns it off; [INTEGRATIONS-SEARCH.md](INTEGRATIONS-SEARCH.md#search-console-and-bing)) |
 | `SKALD_GSC_KEY_JSON`, `SKALD_GSC_KEY_FILE` | | the Google service-account key for the Search Console sync: the key file's text, or a path to it inside the container (make it 0600). Not needed when the key is uploaded in Settings > Integrations > Search, which keeps it in `secrets.json` beside the history. Environment only, never in a file you commit |
 | `SKALD_REPORTS_MINUTES` | `15` | how often the client reports that are due are sent (Settings > Reports); `0` stops them |
@@ -219,8 +220,11 @@ location ~ ^/traffic(?:$|/|-(?:auth|api|ingest|mcp|hooks|beacon|js)(?:/|$)) {
 }
 ```
 
-then `sudo nginx -t && sudo systemctl reload nginx`. It passes every method
-as sent: the signed `GET /traffic-hooks/<site>/leads` (2.18, a site's server
+then `sudo nginx -t && sudo systemctl reload nginx`. Skald compresses the
+dashboard's files and says how long a browser may keep each (2.41,
+[DEPLOY.md](../DEPLOY.md#compression-and-caching-241)); this block passes both
+through as they are. Do not add a `Cache-Control` of your own for these paths.
+It passes every method as sent: the signed `GET /traffic-hooks/<site>/leads` (2.18, a site's server
 checking that Skald has every lead) needs GET as well as POST. If your own
 block for `/traffic-hooks/` has `limit_except POST { deny all; }`, make it
 `limit_except GET POST { deny all; }`.

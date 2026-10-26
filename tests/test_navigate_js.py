@@ -67,6 +67,13 @@ class Node(unittest.TestCase):
         saves and nothing is saved without it; the address round trip; the MCP guide button."""
         self.assertIn("agent-jobs: all passed", self.run_js("agent-jobs.mjs"))
 
+    def test_lines_for_your_sites(self):
+        """2.40 (js/tabs/agent-many.js): every site its own line, made one per site in one
+        go with each site's own jobs; a site's line and watch, its two lines (an MCP token with
+        mcp and setup for that one site); several sites added at once through sites/add; the
+        address round trip (lines=all | site.<site> | mcp.<site> | add), never a code or token."""
+        self.assertIn("agent-many: all passed", self.run_js("agent-many.mjs"))
+
     def test_the_period_dates_include_today_and_not_measured(self):
         """Release 2 (js/period-dates.js, data.js withToday): on 15 Jan, 7 days including
         today are 9-15 Jan against 2-8 Jan and 7 whole days 8-14 Jan against 1-7 Jan; a period

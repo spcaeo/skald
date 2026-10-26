@@ -25,7 +25,7 @@ export default [
   // net: the social network open under the grid (tr-social.js).
   ["sources", "Sources", sources, { filters: ["source", "referrer", "campaign"], compare: true, keep: ["net"] }],
   // A page's story (?page=) has a period of its own.
-  ["pages", "Pages", pages, { filters: ["path"], keep: ["page", "psec", "pubfrom", "pubto", "chgfrom", "psort", "pchg"], ranged: (s) => !s.page, compare: (s) => !s.page }],
+  ["pages", "Pages", pages, { needs: ["pages", "page_index", "page_trends"], filters: ["path"], keep: ["page", "psec", "pubfrom", "pubto", "chgfrom", "psort", "pchg"], ranged: (s) => !s.page, compare: (s) => !s.page }],
   ["places", "Places & devices", places, { filters: ["country", "device", "browser"], compare: true }],
   // Search (P1-6): Search Console's and Bing's own figures, synced every 6 hours
   // (search.json). Its own engine and period chips: the engines' days, not the bar's.

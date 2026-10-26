@@ -8,6 +8,7 @@ the app that could carry a visitor's address or user agent.
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 import tempfile
@@ -79,8 +80,76 @@ class Install(unittest.TestCase):
                 specs += re.findall(r"""^\s*import\s*["'](\.{1,2}/[^"']+)["']""", code, re.M)
                 specs += re.findall(r"""\bimport\(\s*["'](\.{1,2}/[^"']+)["']\s*\)""", code)
                 for spec in specs:
-                    self.assertTrue((js.parent / spec).resolve().is_file(), f"{js.relative_to(app)} imports {spec}, which is not installed")
+                    self.assertTrue((js.parent / spec.split("?", 1)[0]).resolve().is_file(), f"{js.relative_to(app)} imports {spec}, which is not installed")
             self.assertFalse(list(app.rglob("*.mjs")))
+
+    def test_every_import_carries_the_version(self):
+        # The code is kept a year by the browser (DEPLOY.md): an import without the
+        # version would be a second copy of the module, or an old one after a release.
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(webapp, "_version", return_value="abc1234"):
+            out = Path(tmp)
+            webapp.install(out, ["example.com"])
+            seen = 0
+            for js in (out / "_app").rglob("*.js"):
+                code = js.read_text()
+                specs = re.findall(r"""^\s*(?:import|export|\})[^\n;]*?\bfrom\s*["'](\.{1,2}/[^"']+)["']""", code, re.M)
+                specs += re.findall(r"""^\s*import\s*["'](\.{1,2}/[^"']+)["']""", code, re.M)
+                specs += re.findall(r"""\bimport\(\s*["'](\.{1,2}/[^"']+)["']\s*\)""", code)
+                for spec in specs:
+                    seen += 1
+                    self.assertTrue(spec.endswith(".js?v=abc1234"), f"{js.name} imports {spec}")
+            self.assertGreater(seen, 500)
+            # The sources themselves stay plain: node and the JS tests import them as they are.
+            self.assertNotIn("?v=", (APP / "js" / "main.js").read_text())
+
+    def test_the_version_follows_the_code(self):
+        webapp._version.cache_clear()
+        try:
+            first = webapp._version()
+            self.assertRegex(first, r"^[0-9a-f]{12}$")
+            from unittest import mock
+            real = Path.read_bytes
+            changed = lambda p: real(p) + (b"//x" if p.name == "main.js" else b"")  # noqa: E731
+            webapp._version.cache_clear()
+            with mock.patch.object(Path, "read_bytes", changed):
+                self.assertNotEqual(webapp._version(), first)
+        finally:
+            webapp._version.cache_clear()
+
+    def test_the_shell_preloads_main_js_whole_graph(self):
+        # One round of requests for the code instead of one per level of imports (seven).
+        from unittest import mock
+        graph = webapp.static_graph()
+        self.assertGreater(len(graph), 150)
+        self.assertIn("js/data.js", graph)
+        self.assertIn("js/lazy.js", graph)
+        self.assertNotIn("js/main.js", graph)
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(webapp, "_version", return_value="abc1234"):
+            out = Path(tmp)
+            webapp.install(out, ["example.com"])
+            shell = (out / "example.com" / "index.html").read_text()
+            links = re.findall(r'<link rel="modulepreload" href="\.\./_app/([^"?]+)\?v=abc1234">', shell)
+            self.assertEqual(links, list(graph))
+            self.assertLess(shell.index("modulepreload"), shell.index('<script type="module"'))
+            # Closed: every static import of a preloaded module is preloaded too.
+            have = set(links) | {"js/main.js"}
+            for rel in have:
+                code = (out / "_app" / rel).read_text()
+                for spec in re.findall(r"""^\s*(?:import|export|\})[^\n;]*?\bfrom\s*["'](\.{1,2}/[^"'?]+)""", code, re.M):
+                    dep = os.path.normpath(os.path.join(os.path.dirname(rel), spec))
+                    self.assertIn(dep, have, f"{rel} imports {spec}, not preloaded")
+
+    def test_an_unchanged_file_is_not_written_again(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            webapp.install(out, ["example.com"])
+            main = out / "_app" / "js" / "main.js"
+            self.assertTrue((out / "_app" / "js" / "main.js.gz").is_file())
+            inode = main.stat().st_ino
+            webapp.install(out, ["example.com"])
+            self.assertEqual(main.stat().st_ino, inode, "rewritten though nothing changed")
+            self.assertTrue((out / "_app" / "js" / "main.js.gz").is_file(), "the copy was removed")
 
     def test_without_script_the_shell_sends_the_reader_to_the_static_page(self):
         shell = (APP / "index.html").read_text()

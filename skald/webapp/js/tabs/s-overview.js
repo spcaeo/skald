@@ -16,6 +16,10 @@
 //   polls    true: it refreshes itself; the 2-minute redraw leaves it alone
 //   helper   true: it needs the helper; the demo says so instead of drawing it
 //   badge    (model) => [count, words] or null: a small number on the tab (open alerts)
+//   needs    the big files (data.js LAZY) it is drawn with, beyond its `file`: fetched first,
+//            a "Loading" line meanwhile (s)
+//   later    the big files its panels wait for on their own (lazy.js later), so the tab is
+//            drawn without them (s)
 
 import summary from "./ov-summary.js";
 import insights from "./insights.js";
@@ -28,7 +32,8 @@ import realtime from "./realtime.js";
 // sources and the flow, what converted and AI & bots, each linking to its full tab.
 
 export default [
-  ["summary", "Summary", summary, { live: true, compare: true }],
+  // Its work and new-pages cards wait for page_trends and page_index (2.41): the key figures do not.
+  ["summary", "Summary", summary, { live: true, compare: true, later: ["page_trends", "page_index"] }],
   // Real time (js/tabs/realtime.js): always now, whatever the period; it asks for
   // fresh figures every 15 seconds itself, so the 2-minute redraw leaves it alone.
   ["realtime", "Real time", realtime, { live: true, polls: true, ranged: false, period: "Now" }],

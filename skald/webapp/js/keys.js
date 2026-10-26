@@ -27,16 +27,21 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-26-2.40.0",
+  id: "2026-10-26-2.41.0",
   items: [
+    ["Opens fast", "code and data are compressed, code is cached until the next release, and the big lists load only when you open their tab. A site switch takes well under a second.", null],
+    ["Fix this, with your AI agent", "every Insights to-do has one Fix this button. Choose who: your AI agent gets the full list from Skald and reports back, or you get the exact server lines.", "what-to-fix"],
+    ["One line per site", "Settings › Organisation › Sites › Set up many sites with your AI agent: a separate line for each site, so ten sessions can work at once.", "connections"],
+    ["Search Console by your agent", "your AI agent can make the Google key and hand it to Skald; you add one user in Search Console.", "search"],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.40.0
     ["Settings, by what you came to do", "a menu in five groups (This site, AI & API, Organisation, You, Help & docs), a page per task, and Help and Docs under every title. Old links still work.", "settings-and-retention"],
     ["MCP and the API, easy to find", "Settings › AI & API: how it works first, then one button; the token is made inside the step that needs it.", "mcp"],
     ["Pause, remove or delete a site", "each site in Settings › Organisation › Sites has a ⋯ menu: Pause (nothing deleted), Remove and Restore, Clear data, Delete all data. An archive is written first.", "settings-and-retention"],
     ["A mail before your plan is full", "hosted plans mail owners and admins at 80%, 90% and 100% of the month's requests, with a banner from 80% and a usage bar in Billing & usage.", "settings-and-retention"],
     ["Keep everything", "on internal and enterprise sites Skald deletes nothing by itself; elsewhere, names and emails on leads follow the site's own People days.", "privacy"],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.39.0
     ["Your AI agent, in every set-up job", "each Set up dialog (logs, the script tag, leads, Next.js pages, page assets, privacy, MCP) asks: your AI agent, or by hand? The agent checks first and changes only what is missing.", "connections"],
     ["Set up everything left", "one line for your AI agent for every open set-up job, at the top of a site's Set up list.", "connections"],

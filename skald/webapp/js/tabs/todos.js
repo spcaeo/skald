@@ -3,24 +3,32 @@
 // skald/todos.py), with its proof (a figure and its window), what to do, how
 // Skald will know it worked, and the list behind it.
 //
+//   Fix this        2.41, the one main button: "Who will do it?" (js/tabs/todo-fix.js,
+//                   todo=<id>&fix=1&fixby=agent|me|someone): My AI agent (one line; the
+//                   agent fetches every row and reports back), Me (the lines to paste and
+//                   the CSV), Someone else (Send to team, the link). "Fix all (N)" above
+//                   the list asks the same for every open to-do (fix=all)
 //   Show the list   the rows, as a table; the address keeps it open (todo=<id>), so
-//                   "Copy link" and the mail's link open the same to-do with its list
-//   Download CSV    the rows as table.js writes every CSV
-//   Copy link       the address of this to-do; the button turns into a green tick
-//   Send to team    a dialog (tdsend=<id>, js/tabs/todo-send.js), only when the install
-//                   has a mail server and the site a team; otherwise left out, and said why
-//   Open in <tab>   the tab that shows it, with its filter
+//                   the link and the mail's link open the same to-do with its list
+//   the title       its copy icon copies the address of this to-do (green tick)
+//   See it in <tab> a quiet link to the tab that shows it, with its filter
 //   Mark done       moves it to "Done, and did it work?", re-checked on every whole day
 //                   after the mark with the measure that raised it; "Not now" folds it away
+//   the agent's     what the person's AI agent reported (todo-report.js): its change,
+//   report          the rows it left and why; on a done to-do, beside "Working" / "Not yet"
+//
+// New to-dos (first_seen in the window's last 7 days) that an agent can fix get one line
+// at the top with "Fix them with my AI agent" (2.41).
 //
 // The marks are Skald's (js/tabs/todo-marks.js), never this browser's. The figures are
 // the data layer's, checked by a second count; one it disagreed with is left out and named.
 
 import { h, n, short, stateNote } from "../ui.js";
-import { csv, download, table } from "../table.js";
+import { table } from "../table.js";
 import * as S from "../state.js";
 import { copyText, TIMING, withCopy, withUrl } from "../urlactions.js";
-import { MARKS, loadMarks, markItem, markOf, sendable } from "./todo-marks.js";
+import { MARKS, loadMarks, markItem, markOf, fixOf } from "./todo-marks.js";
+import { agentNote } from "./todo-report.js";
 import { info } from "./tiles.js";
 import { trackedList } from "./pagechange.js";
 
@@ -79,28 +87,35 @@ function markButton(words, item, state, redraw) {
   return b;
 }
 
+/* 2.41, the owner's one-button rule: "Fix this" asks who will do it (js/tabs/todo-fix.js);
+   Download CSV and Send to team moved into it, Copy link is the icon beside the title. */
 function acts(t, s, redraw, { done = false } = {}) {
   const shown = s.todo === t.id;
-  const go = { tab: t.open.tab, ...Object.fromEntries(Object.entries(t.open).filter(([k]) => !["tab", "name"].includes(k))) };
-  const send = sendable();
   return h("div", { class: "td-acts" },
+    done ? null : h("button", { type: "button", class: "btn primary td-fix", onclick: () => S.set({ todo: t.id, fix: "1", fixby: "", link: "" }) }, "Fix this"),
     h("button", { type: "button", class: "btn", "aria-expanded": String(shown), onclick: () => S.set({ todo: shown ? "" : t.id }) },
       shown ? "Hide the list" : `Show the list (${n(t.rows_total ?? t.rows.length)})`),
-    h("button", { type: "button", class: "btn", onclick: () => download(t.file, csv(columnsOf(t), t.rows || [])) }, "Download CSV"),
-    copyButton("Copy link", () => linkTo(t.id), `Copy the link to "${t.title}"`),
-    send.ok && !done ? h("button", { type: "button", class: "btn", onclick: () => S.set({ tdsend: t.id }) }, "Send to team") : null,
-    h("a", { class: "btn", href: S.hashFor({ ...S.read(), ...go, todo: "", dd: "" }), onclick: (e) => { e.preventDefault(); S.set(go); } }, `Open in ${S.nameOf(t.open.tab)}`),
     done ? markButton("Undo", t.id, "open", redraw) : [markButton("Mark done", t.id, "done", redraw), markButton("Not now", t.id, "notnow", redraw)]);
 }
+
+/* Where the to-do shows in its own tab: a quiet link, not a button. */
+function openLink(t) {
+  const go = { tab: t.open.tab, ...Object.fromEntries(Object.entries(t.open).filter(([k]) => !["tab", "name"].includes(k))) };
+  return h("a", { class: "td-open", href: S.hashFor({ ...S.read(), ...go, todo: "", dd: "" }), onclick: (e) => { e.preventDefault(); S.set(go); } }, `See it in ${S.nameOf(t.open.tab)}`);
+}
+
+/* The title, with the copy icon for the link to this to-do. */
+const titleOf = (t) => withCopy(h("h3", null, t.title), linkTo(t.id), { label: `the link to "${t.title}"`, cls: "td-title" });
 
 function card(t, i, s, redraw) {
   const shown = s.todo === t.id;
   return h("article", { class: `td${shown ? " td-on" : ""}`, id: `td-${t.id}`, style: { "--tone": TONES[t.tone] || "var(--ink-3)" } },
-    h("header", { class: "td-head" }, h("span", { class: "td-n" }, String(i + 1)), h("h3", null, t.title), h("span", { class: "td-tag" }, t.tag)),
+    h("header", { class: "td-head" }, h("span", { class: "td-n" }, String(i + 1)), titleOf(t), h("span", { class: "td-tag" }, t.tag)),
     t.subject ? h("p", { class: "td-sub" }, "Page: ", withUrl(h("code", null, t.subject), t.subject)) : null,
-    h("p", null, h("b", null, "Proof: "), t.proof),
+    h("p", null, h("b", null, "Proof: "), t.proof, " ", openLink(t)),
     h("p", null, h("b", null, "Do: "), t.todo),
     h("p", { class: "td-check" }, `Skald will check: ${t.check}.`),
+    agentNote(fixOf(t.id)),
     acts(t, s, redraw),
     shown ? list(t) : null);
 }
@@ -112,9 +127,10 @@ function doneItem(t, s, mark, redraw) {
   const verdict = rc ? rc.verdict : "waiting";
   const words = rc ? rc.words : `Marked done ${short(mark.day)}. Skald re-checks it on the next data update, then on every whole day after.`;
   return h("article", { class: `td td-done${shown ? " td-on" : ""}`, id: `td-${t.id}` },
-    h("header", { class: "td-head" }, h("h3", null, t.title), h("span", { class: `td-verdict v-${verdict}` }, { fixed: "Fixed", not_yet: "Not yet", waiting: "Waiting" }[verdict] || "Waiting")),
+    h("header", { class: "td-head" }, titleOf(t), h("span", { class: `td-verdict v-${verdict}` }, { fixed: "Fixed", not_yet: "Not yet", waiting: "Waiting" }[verdict] || "Waiting")),
     h("p", null, words),
-    h("p", { class: "td-check" }, `Measured as: ${t.check}.`),
+    h("p", { class: "td-check" }, `Measured as: ${t.check}. Marking it done changed no figure; Undo puts it back on the list.`),
+    agentNote(fixOf(t.id)),
     acts(t, s, redraw, { done: true }),
     shown ? list(t) : null);
 }
@@ -123,6 +139,18 @@ function notNowItem(t, s, redraw) {
   return h("li", { class: "td-later" }, h("span", null, t.title), " ", h("span", { class: "muted" }, t.proof), " ",
     markButton("Put back", t.id, "open", redraw), " ", h("button", { type: "button", class: "btn", onclick: () => S.set({ todo: s.todo === t.id ? "" : t.id }) }, s.todo === t.id ? "Hide the list" : "Show the list"),
     s.todo === t.id ? list(t) : null);
+}
+
+const AGENT_KINDS = ["lost", "errors", "markdown", "sitemap", "leave"];
+const NEW_DAYS = 7;
+
+/* The open to-dos that first qualified in the last NEW_DAYS days of the window (first_seen). */
+export function newOnes(todos, w) {
+  if (!w?.last) return [];
+  const since = new Date(`${w.last}T00:00:00Z`);
+  since.setUTCDate(since.getUTCDate() - (NEW_DAYS - 1));
+  const from = since.toISOString().slice(0, 10);
+  return todos.filter((t) => t.first_seen && t.first_seen >= from);
 }
 
 /* The to-do section: drawn now from what is known, again once the marks have answered. */
@@ -141,11 +169,24 @@ function body(m, s, redraw) {
     info("Problems the site has now, worst leak first, each with its proof and the full list behind it. Built only from what Skald counts, over the last whole days; a to-do shows once its figure passes a threshold. Mark one done and Skald re-checks it, with the same measure, on every whole day after.", "To do now"));
   if (!file) return [head, stateNote("The to-do list comes with the next data update: the data layer has not written todos.json yet.")];
   const w = file.window || {};
-  const out = [head, h("p", { class: "sub" }, `Each one shows its proof and the full list behind it. Download it, copy its link${sendable().ok ? ", or send it to your team" : ""}. Built from ${w.first ? `${short(w.first)} to ${short(w.last)}` : "no whole day yet"}${w.days ? ` (${w.days} whole day${w.days === 1 ? "" : "s"})` : ""}.`)];
-  if (S.activeFilters(s).length) out.push(h("p", { class: "note" }, "The to-dos cover the whole site: the filters above apply to the cards below, not to these."));
   const all = file.todos || [];
   const state = (t) => markOf(t.id, t.marked);
   const open = all.filter((t) => !state(t));
+  // 2.41: one "Fix all (N)" for every open to-do an AI agent can fix, and the new ones said.
+  const doable = open.filter((t) => t.agent ?? AGENT_KINDS.includes(t.kind));
+  if (doable.length > 1) head.append(h("button", { type: "button", class: "btn primary td-fixall", onclick: () => S.set({ fix: "all", todo: "", fixby: "", link: "" }) }, `Fix all (${doable.length})`));
+  const out = [head, h("p", { class: "sub" }, `Each one shows its proof and the full list behind it. Press Fix this: your AI agent, you, or a teammate. Built from ${w.first ? `${short(w.first)} to ${short(w.last)}` : "no whole day yet"}${w.days ? ` (${w.days} whole day${w.days === 1 ? "" : "s"})` : ""}.`)];
+  const fresh = newOnes(doable, w);
+  if (fresh.length) {
+    // One quiet link, not another button (the owner: one main button a to-do).
+    const go = fresh.length === 1 ? { todo: fresh[0].id, fix: "1", fixby: "agent", link: "" } : { fix: "all", todo: "", fixby: "agent", link: "" };
+    const words = fresh.length === 1 ? "Fix it with my AI agent" : fresh.length === doable.length ? "Fix them with my AI agent" : `Fix all ${doable.length} with my AI agent`;
+    out.push(h("p", { class: "note td-new", role: "status" },
+      h("strong", null, `${fresh.length} new to-do${fresh.length === 1 ? "" : "s"} your AI agent can fix. `),
+      "One line for your agent: it fetches every row from Skald, fixes what is missing, and reports back here. ",
+      h("a", { class: "td-go", href: S.hashFor({ ...S.read(), ...go }), onclick: (e) => { e.preventDefault(); S.set(go); } }, `${words} →`)));
+  }
+  if (S.activeFilters(s).length) out.push(h("p", { class: "note" }, "The to-dos cover the whole site: the filters above apply to the cards below, not to these."));
   const done = all.filter((t) => state(t)?.state === "done");
   const later = all.filter((t) => state(t)?.state === "notnow");
   if (s.todo && !all.some((t) => t.id === s.todo)) out.push(stateNote("That to-do is not on the list now: it was fixed, it fell under its threshold, or it is not available to you."));
@@ -153,7 +194,6 @@ function body(m, s, redraw) {
     : h("p", { class: "empty" }, all.length ? "Nothing left to do now." : "Nothing to do now: no problem passes its threshold in these days."));
   for (const x of file.withheld || []) out.push(h("p", { class: "note", role: "note" }, `"${x.title}" is left out: the second count disagreed. `, withCopy(x.why, x.why)));
   if (MARKS.loaded && MARKS.why) out.push(h("p", { class: "note" }, MARKS.why));
-  else if (MARKS.loaded && !sendable().ok) out.push(h("p", { class: "note" }, `Send to team is not offered here: ${sendable().why}`));
   if (done.length || open.length) {
     out.push(h("h3", { class: "td-h3" }, "Done, and did it work?"),
       h("p", { class: "sub" }, "Each item marked done is re-checked on every whole day after the mark, with the same measure that raised it."),

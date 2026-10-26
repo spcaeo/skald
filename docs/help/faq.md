@@ -95,6 +95,10 @@ The log holds IP addresses, which are personal data in places like the EU. You c
 
 Today's figures are recounted about every two minutes. The foot of every page says when they were last updated and when the next update is due. If your server allows it, **Refresh** in the top bar recounts at once. Yesterday becomes a whole, checked day after the morning's run.
 
+## Why does a card say Loading?
+
+A site opens on its key figures first. The long page lists (every page, every page not found, each page's dates) come only when a tab or a card needs them: **Traffic > Pages**, **Site > Not found**, **AI & bots > Assistants**, **Funnels**, and Overview's **Work on the page, or on traffic?** and **New and updated pages** cards. Those show their title and "Loading" for a moment the first time, then their figures. The page keeps what it fetched, so moving between tabs does not fetch it again; the two-minute update refreshes it. Nothing is left out: the same figures, sooner.
+
 ## Why does a whole day appear only the next morning?
 
 The daily run checks each finished day by both counts before it is stored. Until then, today's figures are a live count, and can change.
