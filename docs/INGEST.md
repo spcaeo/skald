@@ -756,18 +756,30 @@ which the Test of Settings > Connections and of Add a site reads through
 
 ## Removing a site
 
-Settings > Add or remove sites > Remove (an owner, typing the site's name).
-Processing stops at once: the daily run skips the site and the endpoint
-answers 410. Its figures and log files stay. An install admin deletes them
-for good with `skald site purge <site> --yes` (take a backup first): the
-history rows, the dashboard folder, the state folder, the ingest folder,
-its settings and the tokens that read only that site. Stop the shipper on
-the site's server too.
+Each site's ⋯ menu in Settings > Add or remove sites (docs/help/settings-and-retention.md,
+"Pause, remove or delete a site"; `skald site pause|resume|remove|restore|clear|purge`):
 
-The purge also deletes the site's conversions (every conversions.sqlite table
-with a `site` column: conversions, journeys, identities, deliveries, webhooks,
-outbox, and its outbox cursor), its lines in the hook spool and its secrets
-(`hooks/<site>/*`, `outgoing/<site>/*`). The name is then held for 30 days:
+- **Pause** (an owner or an admin): the endpoint answers **503 with Retry-After: 3600**
+  ("This site is paused..."), so the shipper keeps its lines and sends them once the site
+  is resumed; the daily and live runs skip the site. A log drain does not keep what it
+  could not send: those lines are lost, and those days stay Not recorded.
+- **Remove** (an owner, typing the site's name): processing stops at once, the runs skip
+  the site and the endpoint answers 410. Its figures and log files stay; **Restore**
+  undoes it.
+- **Clear data** and **Delete all data** (an owner, typing the name and ticking a box):
+  one archive of what goes is written to the backups folder first (kept 30 days), then
+  the site's stores are deleted (`skald/site_data.py` lists each one). Delete all
+  data also revokes the site's tokens: stop the shipper on the site's server too.
+
+`skald site purge <site> --yes` does what Delete all data does: the history rows (the
+site's and its page groups'), the dashboard folder, the state folder, the ingest folder,
+its settings, its set-up links and the tokens that read only that site (a token for
+several sites loses this one). It also deletes the site's conversions (every
+conversions.sqlite table with a `site` column: conversions, journeys, identities,
+deliveries, webhooks, outbox, and its outbox cursor), its AI answers, its lines in the
+hook spool and its secrets (`hooks/<site>/*`, `outgoing/<site>/*`). A site from the
+server's config file keeps its entry and becomes removed, with no data. A dashboard
+site's name is then held for 30 days:
 `skald site add`, Settings > Add or remove sites and sign-up refuse it, unless an install
 admin passes `skald site add <site> --allow-reuse`.
 
@@ -833,10 +845,10 @@ the body one log line per line.
 | 404 | ingest is off, or the site is not processed here |
 | 405 | not a POST |
 | 402 | the organisation is read-only (saas: cancelled, or unpaid past the grace days) |
-| 410 | the site was removed |
+| 410 | the site was removed (Settings > Add or remove sites, any site) |
 | 411 / 413 / 415 | no length / over 5 MiB / an encoding other than gzip |
 | 429 | too many batches, the day's file is full, the organisation's bytes for the day are used up, or the plan's limit (`Retry-After`) |
-| 503 | accounts are not set up |
+| 503 | accounts are not set up; or the site is paused (`Retry-After: 3600`: the shipper keeps its lines) |
 | 507 | less than `ingest.min_free_gb` free on the ingest root's disk |
 
 ### The helper's set-up routes

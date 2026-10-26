@@ -19,7 +19,7 @@ For owners and admins, a new site's Overview > Summary starts with a **Set up** 
 
 | Line | Done when | What Set up does |
 | --- | --- | --- |
-| Logs arriving | The server's access log is read | Opens **Send this site's visits to Skald**, as in Settings > Connections: choose how, a sending token, install, test |
+| Logs arriving | The server's access log is read | Opens **Send this site's visits to Skald**, as in Settings > This site > Collect data > Send logs: choose how, a sending token, install, test |
 | Visits count as people | Browsers load the pages' own scripts and styles | Asks what the site is built with (Next.js, WordPress, something else, or files from a CDN) and saves it |
 | Countries shown | Visits carry a country | Says what a country file adds, and writes the mail for whoever runs your Skald server |
 | Script tag events (optional) | The script tag's events arrive | What the tag adds; the exact tag for this site with Copy, and where it goes (site builder or plain HTML, WordPress, Next.js); **Send these steps to your developer** or **Share with your developer**; a Test that waits for the first event |
@@ -35,7 +35,7 @@ The mail to your developer opens in your own mail program. For the script tag it
 
 A hook whose last real lead was refused (for example, its signature did not match) is never ticked: the line says leads are not arriving, and the fix is under **For your server admin**. A test that Skald itself sends (Send a test, or `skald hooks test`) and that fails is a failed test, never a refused lead.
 
-On Overview the list goes away once every line that is not optional is done. **Hide on Overview** hides it there, for this site, in this browser. The same list is always at the top of **Settings › Connections**, even when every line is done (then it shows every tick and **All set**). To show it on Overview again, search for `setup` and choose **Setup checklist**.
+On Overview the list goes away once every line that is not optional is done. **Hide on Overview** hides it there, for this site, in this browser. The same list is always in **Settings > This site > Set-up checklist** ([Set-up checklist](#settings/site/setup)), even when every line is done (then it shows every tick and **All set**). To show it on Overview again, search for `setup` and choose **Setup checklist**.
 
 Each Set up dialog has its own link, with its step: for example `#overview/summary?setup=rsc&step=2`. Send it to a colleague who is an owner or admin, and it opens the same dialog at that step (or at the first step that still needs a choice).
 
@@ -108,7 +108,7 @@ Everything you open is in the address, so you can copy it from the address bar a
 
 - the section and tab, the period, page group, filters and drill-down
 - each table's sort, column filters, columns, search and page, and a tab's own switches (for example All or AI on Site > Alerts, or the engine and period on Traffic > Search)
-- the drawer or dialog that is open, with what it shows: a visitor, a lead, a request, a cohort, a search row, a Set up or Connections dialog and its step, the saved views, the report builder, the shortcuts
+- the drawer or dialog that is open, with what it shows: a visitor, a lead, a request, a cohort, a search row, a Set up dialog or a settings dialog (send logs, API, MCP) and its step, a settings page's tab, the saved views, the report builder, the shortcuts
 
 Opening a drawer or a dialog adds one step to the browser's history, so **Back** closes it before it leaves the page. Closing it takes it out of the address.
 
@@ -144,7 +144,7 @@ Two switches sit in the top bar on every page:
 
 When your site reports leads (a form, a booking), they show beside the visitors on Overview > Summary, Traffic > Sources, Traffic > Pages, Traffic > Places & devices and Overview > Insights, not only under Leads & sales. See [Leads on every page](leads-and-conversions.md#leads-on-every-page).
 
-**Settings**, **Help** and **About** sit at the foot of the sidebar. Settings (the gear) has its own menu. See [Settings and retention](settings-and-retention.md).
+**Settings**, **Help** and **About** sit at the foot of the sidebar; on a phone, they are in **Menu**. Settings (the gear) opens on **All settings**: every settings page, with one line on what it is for. Its own menu groups the pages by what you came to do: **This site**, **AI & API**, **Organisation**, **You** and **Help & docs**. Every settings page has **Help** and **Docs** links under its title. See [Settings and retention](settings-and-retention.md).
 
 The round **You** button beside the gear holds your own choices:
 
@@ -180,7 +180,7 @@ To choose your own dates:
 1. Select **Custom** in the top bar.
 2. Pick the first day in **From** and the last day in **To**.
 
-Days are counted midnight to midnight in the site's own time zone, whatever time zone you choose for display. The site's zone is set in **Settings > This site > Sites**.
+Days are counted midnight to midnight in the site's own time zone, whatever time zone you choose for display. The site's zone is set in **Settings > This site > Site details**.
 
 > A brand-new site has no whole day yet, so it opens on Today.
 
@@ -245,7 +245,7 @@ The sort, column filters, columns and search stay in the address, so a reload, a
 The magnifier in the top bar (or **Ctrl K**, **Cmd K** on a Mac) searches the figures and the dashboard at once. Type a few letters:
 
 - **Pages, countries, sources, referring sites, campaigns, AI assistants and crawlers** seen in the period on screen. Type `pricing` to find /pricing/, `canada` or `CA` for Canada, `claude` for ClaudeBot and claude.ai. Each result says what it is and the period it was seen in. Choose one to open the tab that lists it with its detail panel open.
-- **Tabs, Settings pages, Help guides, periods, saved views and actions**, such as `mail` for Settings > Mail.
+- **Tabs, Settings pages, Help guides, periods, saved views and actions**, such as `mail` for Settings > This site > Mail & reports. Every settings page is there by its name, such as **AI assistant (MCP)**, and so is every guide.
 - When nothing in the period matches, the days kept before it are searched, and the result says so.
 
 Use the arrow keys and Enter, or click. The search only lists names; the figures are on the tab it opens.
@@ -440,8 +440,8 @@ Letters to use after `g`:
 | e, x, f, n | Leads & sales > Leads, Calendar bookings, Funnels, Events |
 | b | AI & bots > Assistants |
 | h, a, r, k, w, q | Site > Health, Alerts, Requests, Not found, Speed, Data quality |
-| u | Settings > Internal traffic |
-| , (comma) | Settings |
+| u | Settings > This site > Internal traffic |
+| , (comma) | Settings: All settings |
 
 ## Your site on Vercel, Netlify or behind Cloudflare
 

@@ -1,4 +1,4 @@
-"""Settings > Integrations, with `access.mode: sessions` (docs/INTEGRATIONS.md).
+"""Settings > Leads & integrations, with `access.mode: sessions` (docs/INTEGRATIONS.md).
 
 Served by the refresh helper (refresh_server.py) like settings_api.py, for
 every site page, `/traffic/<site>/[<view>/]...`, to admins and owners of the
@@ -227,7 +227,7 @@ def script(c: Ctx, site: str) -> dict:
     """The tag to copy and what its options do (docs/INTEGRATIONS.md)."""
     from . import settings_store
     conf = _site_config(c, site)
-    # The merged value (Settings > Sites > Script tag, else config.yml), as
+    # The merged value (Settings > Collect data > Script tag & goals, else config.yml), as
     # the beacon reads it (settings_store.apply in beacon_server.py).
     got = settings_store.explain(conf, site, c.db)
     on, shared = ((got.get(k) or {}).get("value") in (True, "true")
@@ -243,7 +243,7 @@ def script(c: Ctx, site: str) -> dict:
                          "skald('consent', true)"},
                 {"attr": "data-share-subdomains", "value": "true",
                  "what": "keep the ID in a first-party cookie too, so www. and app. share it"
-                         + (" (already on for this site in Skald: Settings > Sites > Script "
+                         + (" (already on for this site in Skald: Settings > Collect data > Script "
                             "tag, so the tag needs no attribute)" if shared else "")},
                 {"attr": "data-link-domains", "value": "",
                  "what": "other domains you own, comma separated: links to them carry the ID"},

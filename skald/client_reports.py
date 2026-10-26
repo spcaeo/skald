@@ -1,4 +1,4 @@
-"""Client reports (Settings > Reports): branded reports a site's admins
+"""Client reports (Settings > Mail & reports > Client reports): branded reports a site's admins
 schedule for their clients, sent as an HTML mail with a PDF attached.
 
 A report is one row per site in accounts.sqlite (`client_reports`, made

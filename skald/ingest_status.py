@@ -1,5 +1,5 @@
 """What the log endpoint last did for a site, for the Test button in
-Settings > Connections and the set-up wizard (sites/status, connections_api.py).
+Settings > Collect data > Send logs and the set-up wizard (sites/status, connections_api.py).
 
 One small JSON file per site in the live folder (the history's folder):
 

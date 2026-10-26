@@ -85,7 +85,7 @@ def leads_missing(leads: dict | None) -> str:
     """Why the Leads section has no figures, or "" when it has them."""
     if leads is None:
         return ("Leads are not recorded for this site: no lead database, hook or script tag "
-                "sends them (Settings > Integrations).")
+                "sends them (Settings > Leads & integrations).")
     if leads.get("state") == "not_recorded":
         since = leads.get("since")
         return (f"Leads are recorded from {date.fromisoformat(since).day} "
@@ -302,7 +302,7 @@ def search_console_lines(sc: dict | None) -> list[str]:
     none), then the days left out. Shared by the mail, its text and the PDF."""
     if not sc or not sc.get("connected"):
         return ["Search Console is not connected for this site "
-                "(Settings > Integrations > Search)."]
+                "(Settings > Leads & integrations > Search Console & Bing)."]
     short = lambda days: ", ".join(f"{date.fromisoformat(d).day} {date.fromisoformat(d):%b}"
                                    for d in days)
     t = sc.get("totals")

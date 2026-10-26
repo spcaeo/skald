@@ -1,4 +1,4 @@
-"""Settings > Connections and the "Add a site" wizard: the parts the helper
+"""Settings > Set-up checklist, Collect data > Send logs and the "Add a site" wizard: the parts the helper
 answers beside Settings > Sites (sites_api.py routes them, with its session,
 role and CSRF checks; every route here is for an owner or admin):
 

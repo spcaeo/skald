@@ -4,7 +4,7 @@
 The key. An API key from Bing Webmaster Tools (Settings > API access > API
 key). It is found in BING_WEBMASTER_API_KEY in the environment, else in
 secrets.json beside the history under the same name (typed by an install
-admin in Settings > Integrations). It travels in the query string, as Bing's
+admin in Settings > Leads & integrations). It travels in the query string, as Bing's
 API requires, so every error text is scrubbed of it.
 
 The calls (Bing's JSON endpoint, https://ssl.bing.com/webmaster/api.svc/json/,
@@ -156,7 +156,7 @@ def _pos(value):
 def words_for(why: http.Failed) -> str:
     detail = f" (Bing said: {why.detail})" if why.detail else ""
     if why.code in (400, 401, 403) and "key" in (why.detail or "").lower():
-        return "Bing refused the API key. Check it in Settings > Integrations." + detail
+        return "Bing refused the API key. Check it in Settings > Leads & integrations > Search Console & Bing." + detail
     if why.code in (400, 401, 403):
         return ("Bing refused: the key's account may not hold this site, or the site is not "
                 "verified in Bing Webmaster Tools." + detail)

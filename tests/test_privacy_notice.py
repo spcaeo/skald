@@ -44,7 +44,9 @@ class Wording(unittest.TestCase):
                                                "script_tag": tag != "none",
                                                "visitor_ids": tag == "ids",
                                                "share_subdomains": False,
-                                               "lead_days": 400, "vid_days": 14})
+                                               "lead_days": 400, "name_days": 30,
+                                               "keep_everything": False,
+                                               "vid_days": 14})
                 # Always: the log, no cookie from it, how to ask for deletion.
                 self.assertIn("sets no cookie and stores nothing on your device", text)
                 self.assertIn(notice.CONTACT, text)
@@ -55,7 +57,10 @@ class Wording(unittest.TestCase):
                 self.assertEqual("We do not keep IP addresses" in text, mode == "off")
                 self.assertEqual("We keep each visit's IP address with its browser" in text,
                                  mode == "full")
-                self.assertEqual("for 30 days" in text, mode != "off")
+                self.assertEqual("for 30 days, so that" in text or "shortened" in text and
+                                 "for 30 days." in text, mode != "off")
+                # The People days also say how long names and emails are kept.
+                self.assertEqual("for 30 days" in text, mode != "off" or identity == "full")
                 # Names and emails.
                 self.assertEqual("we keep your name and email" in text, identity == "full")
                 self.assertEqual("keep no name or email" in text, identity == "anonymous")
@@ -74,7 +79,11 @@ class Wording(unittest.TestCase):
                 self.assertEqual("session storage" in text, tag != "none")
                 self.assertNotIn("from our own site", text)
                 # How long (2.29): leads 400 days by default, an ID's pages 14 here.
-                self.assertEqual("We keep them for 400 days." in text, identity == "full")
+                # The People days set here (30) are shorter: names and emails go
+                # after them, the lead stays without them (people_days.py).
+                self.assertEqual("We keep them for 30 days. After that we keep the form or "
+                                 "booking without your name and email, for 400 days." in text,
+                                 identity == "full")
                 self.assertEqual("pages read with a visitor ID for 14 days" in text,
                                  tag == "ids")
                 self.assertNotIn("until you ask us to delete them", text)

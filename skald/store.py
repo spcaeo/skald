@@ -418,14 +418,15 @@ class History:
         return made
 
     def prune_extras(self, today: date, days: int, kinds: tuple[str, ...],
-                     per_site: dict | None = None) -> int:
+                     per_site: dict | None = None, spare=None) -> int:
         """Delete the per-day blobs of `kinds` older than `days` days; a site
-        in `per_site` ({site: days}, its own report.retention_days) by its own."""
+        in `per_site` ({site: days}, its own report.retention_days) by its own;
+        a site `spare` names (keep_everything) keeps them all."""
         marks = ",".join("?" * len(kinds))
         return sv.prune_sites(self.db, "day_extras", (today - timedelta(days=days)).isoformat(),
                               {s: (today - timedelta(days=n)).isoformat()
                                for s, n in (per_site or {}).items()},
-                              f" AND kind IN ({marks})", tuple(kinds))
+                              f" AND kind IN ({marks})", tuple(kinds), spare=spare)
 
     def milestones(self, site: str, path: str | None = None) -> list[tuple]:
         """(path, kind, who, at, via) rows, earliest first."""
@@ -897,14 +898,15 @@ class History:
         return sx.read(self.db, site, first, last, kinds)
 
     def prune_visitors(self, today: date, days: int | None = None,
-                       per_site: dict | None = None) -> int:
+                       per_site: dict | None = None, spare=None) -> int:
         from .visitors import REPEAT_DAYS, prune
-        return prune(self.db, today, days or REPEAT_DAYS, per_site)
+        return prune(self.db, today, days or REPEAT_DAYS, per_site, spare)
 
-    def prune_journeys(self, keep_from: date, per_site: dict | None = None) -> int:
+    def prune_journeys(self, keep_from: date, per_site: dict | None = None,
+                       spare=None) -> int:
         """Delete journeys from before `keep_from`, for every site (a site in
-        `per_site`, {site: date}, from its own date)."""
-        return sv.prune(self.db, keep_from, per_site)
+        `per_site`, {site: date}, from its own date; one `spare` names: none)."""
+        return sv.prune(self.db, keep_from, per_site, spare)
 
     def breakdown_days(self, site: str, first: date, last: date) -> set[str]:
         """Days in the range whose breakdowns were counted (schema 7 on)."""

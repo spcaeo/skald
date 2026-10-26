@@ -14,7 +14,7 @@ period cannot add up; a scheduled report whose period's last day is not
 stored yet waits for the morning run until 18:00. Every try is recorded.
 
 The agency's logo: one PNG or JPEG per organisation, at most 256 KB, kept
-in <history folder>/logos/org-<id>/agency.<png|jpg> (Settings > Reports).
+in <history folder>/logos/org-<id>/agency.<png|jpg> (Settings > Mail & reports > Client reports).
 """
 from __future__ import annotations
 
@@ -296,7 +296,7 @@ def cmd_reports(ctx) -> int:
 
 def add_command(sub) -> None:
     p = sub.add_parser("reports", help="client reports: send the due ones, list, send or "
-                       "write one (Settings > Reports)")
+                       "write one (Settings > Mail & reports > Client reports)")
     which = p.add_mutually_exclusive_group()
     which.add_argument("--due", action="store_true", help="send every report that is due")
     which.add_argument("--list", action="store_true", help="each report and its sends")

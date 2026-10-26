@@ -11,7 +11,7 @@ Open [Leads & sales > Revenue](#sales/revenue). The period is the one in the top
 - **Currency.** With sales in more than one currency, a **Currency** switch picks which one the numbers show. The others are listed under the numbers, never added. Skald never converts one currency into another: an exchange rate is not something it can check.
 - **Breakdown.** The table shows net revenue and sales by **Source (last touch)**, **First touch**, **Campaign**, **Landing page**, **Country**, **Device**, **Reported by** (the tool), **Label** or **Tag**. A landing page has copy and open icons at its end, as every page does.
 - **Tag.** Choose one tag (for example `plan = pro`) and the numbers become that tag's own net revenue and sales, and the table lists every value of that tag. Refunds, customers, renewals and the other breakdowns are not split by tag, so they show with **Every tag**.
-- **Lifetime value, by first source** (folded at the bottom). Every customer, by the first source of their first paid sale: how many customers, what they paid in all (refunds taken off), the average per customer, their renewals and the share who paid again (given over at least 10 customers). It counts every sale Skald keeps, not the period in the top bar; **Settings > Data retention** applies.
+- **Lifetime value, by first source** (folded at the bottom). Every customer, by the first source of their first paid sale: how many customers, what they paid in all (refunds taken off), the average per customer, their renewals and the share who paid again (given over at least 10 customers). It counts every sale Skald keeps, not the period in the top bar; **Settings > This site > Privacy & retention** applies.
 
 The currency, the breakdown and the tag are in the page's address (`#sales/revenue?cur=EUR&by=campaign&tag=plan:pro`), so a link or a reload opens the same view.
 
@@ -94,7 +94,7 @@ Each sale alerts once, ever: not again after a restart, a recount or a delivery 
 
 ## Troubleshooting
 
-- **"No revenue yet"**: no sale has arrived with a value and a currency. Look at **Settings > Integrations > Status**: a delivery whose value was dropped says why.
+- **"No revenue yet"**: no sale has arrived with a value and a currency. Look at **Settings > This site > Leads & integrations > Incoming hooks > Status**: a delivery whose value was dropped says why.
 - **The numbers look 100 times too big**: the tool sent cents and they were posted as `value`. Divide by 100 in the mapping.
 - **A renewal shows as a new customer**: the renewal was sent without the same `customer_ref` as the first sale.
 - **Two currencies, one total**: there is none, on purpose. Pick each currency with the **Currency** switch.

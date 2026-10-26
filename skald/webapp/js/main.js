@@ -12,6 +12,7 @@ import * as S from "./state.js";
 import { h, ICON, reduced, toast, untip, short } from "./ui.js";
 import { load, refresh as postRefresh, viewList, rangeOf, markersByDay } from "./data.js";
 import { TAB_RENDER } from "./tabs/index.js";
+import { framed } from "./tabs/settings-frame.js";
 import { TAB, opt } from "./sections.js";
 import { tabStrip } from "./tabstrip.js";
 import { barModes, modeBanner, modeActions } from "./modes.js";
@@ -182,6 +183,12 @@ const actions = () => [
   { label: "Colour theme: next", hint: "", run: cycleTheme },
   { label: "Sidebar: collapse or expand", hint: "[", run: () => document.getElementById("rail-toggle")?.click() },
   { label: "Settings: every settings page", hint: "g ,", run: () => S.set({ tab: "settings" }) },
+  // 2.40: the settings people looked for and could not find, by the words they would type.
+  ...(S.shown("settings/ai/mcp") ? [{ label: "MCP: connect Claude, ChatGPT or another AI assistant", hint: "", group: "Settings, AI & API", run: () => S.set({ tab: "settings/ai/mcp" }) }] : []),
+  ...(S.shown("settings/ai/api") ? [{ label: "API: read your figures from a script", hint: "", group: "Settings, AI & API", run: () => S.set({ tab: "settings/ai/api" }) }] : []),
+  ...(S.shown("settings/ai/tokens") ? [{ label: "Tokens: see or revoke a token", hint: "", group: "Settings, AI & API", run: () => S.set({ tab: "settings/ai/tokens" }) }] : []),
+  ...(S.shown("settings/org/sites") ? [{ label: "Sites: add, pause, remove or delete a site", hint: "", group: "Settings, Organisation", run: () => S.set({ tab: "settings/org/sites" }) }] : []),
+  { label: "Help & docs: guides, public docs, API and MCP pages", hint: "", group: "Help", run: () => S.set({ tab: "settings/help" }) },
   ...(model?.canRefresh ? [{ label: "Refresh now: recount today", hint: "", run: () => document.querySelector(".bar .refresh")?.click() }] : []),
   { label: "Report builder: print, PDF or download", hint: "", run: () => builder(model, S.read(), (next) => load(next, { previous: model })) },
   ...(!DEMO.on && sessions() && (["owner", "admin"].includes(ME.role) || ME.install_admin) ? [{ label: "Setup checklist: show it again on Overview", hint: "", run: () => showSetup(model.site) }] : []),
@@ -192,7 +199,7 @@ const actions = () => [
 
 // Pages without figures keep only their title and the buttons that always apply; a section's tab says so itself (figures: false).
 // Every settings page is a form, not figures: no period, page group or filters there.
-const NO_DATA = new Set(["about", "help", "settings/api", "settings/users", "settings/team", "settings/account", ...S.ACCOUNT_TABS]);
+const NO_DATA = new Set(["about", "help"]);
 const noData = (s) => NO_DATA.has(s.tab) || S.inSettings(s.tab) || opt(s.tab, "figures", s, true) === false;
 
 /* A tab with a period of its own (Real time, Insights, Alerts, the request log...):
@@ -441,7 +448,7 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
   const file = opt(s.tab, "file", s, null), broken = file && model.failed?.[file];
   const body = broken ? notBuilt(name, file, broken)
     : DEMO.on && demoTab(s.tab) ? TAB_RENDER[s.tab](model, s, { first: firstPaint, changed })
-    : DEMO.on && S.inSettings(s.tab) ? demoState(name) : DEMO.on && opt(s.tab, "helper", s, false) ? demoState(name) : TAB_RENDER[s.tab](model, s, { first: firstPaint, changed });
+    : DEMO.on && S.inSettings(s.tab) ? framed(s.tab, () => demoState(name))(model, s) : DEMO.on && opt(s.tab, "helper", s, false) ? demoState(name) : TAB_RENDER[s.tab](model, s, { first: firstPaint, changed });
   // modeBanner: while Compare is on, what A and B are, or why not (modes.js).
   const banners = [demoBanner(), updateBanner(), planBanner(), modeBanner(model, s), filterBanner(s)].filter(Boolean);
   const content = [body].flat(Infinity).filter(Boolean);
@@ -524,10 +531,11 @@ async function boot() {
     who ? h("p", { class: "set-who" }, "Signed in as ", h("b", null, who), ME.role ? ` (${ME.role})` : "") : h("p", { class: "pop-h" }, "Your choices"),
     h("div", { class: "set-row" }, h("span", null, "Theme"), seg),
     h("div", { class: "set-row" }, h("span", null, "Time zone"), zonePicker(s)),
-    sessions() ? h("a", { class: "menu-i set-i", href: "#settings/account" }, h("b", null, "Your account"), h("small", null, "name, password, two-step sign-in")) : null,
-    h("a", { class: "menu-i set-i", href: "#settings" }, h("b", null, "All settings"), h("small", null, "every settings page, in groups")),
+    sessions() ? h("a", { class: "menu-i set-i", href: "#settings/you/account" }, h("b", null, "Your account"), h("small", null, "name, password, two-step sign-in")) : null,
+    h("a", { class: "menu-i set-i", href: "#settings" }, h("b", null, "All settings"), h("small", null, "every settings page, with what each is for")),
     h("hr", { class: "set-rule" }),
     h("a", { class: "menu-i set-i", href: "#help" }, h("b", null, "Help"), h("small", null, "guides: webhooks, API, MCP, leads and more")),
+    h("a", { class: "menu-i set-i", href: "#settings/help" }, h("b", null, "Help & docs"), h("small", null, "the public docs, API and MCP pages, What's new")),
     row("Keyboard shortcuts", help, h("kbd", null, "?")),
     row("What's new", () => whatsNew(dot), dot),
     h("a", { class: "menu-i set-i", href: "#about" }, h("b", null, "About Skald")),

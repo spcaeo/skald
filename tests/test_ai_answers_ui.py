@@ -113,7 +113,7 @@ class CostWords(unittest.TestCase):
 
     def test_it_says_what_is_missing(self):
         self.assertEqual(self.words(questions=5),
-                         "Nothing to ask yet: add an assistant with an API key (Settings › Integrations).")
+                         "Nothing to ask yet: add an assistant with an API key (Settings › AI answers › API keys).")
         self.assertEqual(self.words(assistants=2), "Nothing to ask yet: add questions.")
         self.assertIn("questions and an assistant", self.words())
         self.assertEqual(self.words(answers=10, questions=5, assistants=2, cap=5),

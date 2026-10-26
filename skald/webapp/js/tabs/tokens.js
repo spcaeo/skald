@@ -1,4 +1,5 @@
-// Settings > Connections, "Your tokens" (accounts, access.mode: sessions):
+// Settings › Tokens & links, "Your tokens" (accounts, access.mode: sessions; 2.40: also on the
+// MCP page with only: "mcp", the assistants' tokens alone, with no form):
 // the organisation's tokens in one table, each said by what it is for
 // (conn-words.js purposeOf), and revoked here with a confirm. The dialogs
 // above make tokens for one task; "Make a token by hand" keeps the full
@@ -30,8 +31,8 @@ const sitesOf = (m) => {
   return names.length ? [...new Set(names)] : [m.site];
 };
 
-export default function tokens(m, { reloadHook = null } = {}) {
-  if (isViewer()) return h("section", { class: "s" }, h("h2", null, "Your tokens"), h("p", { class: "note" }, `${VIEWER} Tokens are for admins.`));
+export default function tokens(m, { reloadHook = null, only = "", title = "Your tokens" } = {}) {
+  if (isViewer()) return h("section", { class: "s" }, h("h2", null, title), h("p", { class: "note" }, `${VIEWER} Tokens are for admins.`));
   const list = h("div", null, h("p", { class: "empty" }, "Loading the tokens..."));
   const msg = status();
   const shown = h("div");
@@ -49,9 +50,10 @@ export default function tokens(m, { reloadHook = null } = {}) {
 
   function draw(r) {
     if (!r.ok) { list.replaceChildren(h("p", { class: "empty" }, why(r, "The tokens could not be loaded."))); return; }
-    const all = (r.tokens || []).filter((t) => !t.revoked_at);
-    if (!all.length) { list.replaceChildren(h("p", { class: "empty" }, "No tokens yet. The cards above make one for each task.")); return; }
-    list.replaceChildren(h("div", { class: "scroll" }, h("table", { class: "rows-mid cn-tokens" }, h("caption", { class: "vh" }, "Your tokens"),
+    const scopesOf = (t) => (Array.isArray(t.scopes) ? t.scopes : String(t.scopes || "").split(/[\s,]+/));
+    const all = (r.tokens || []).filter((t) => !t.revoked_at && (!only || scopesOf(t).includes(only)));
+    if (!all.length) { list.replaceChildren(h("p", { class: "empty" }, only ? "No token for an assistant yet. Connect an assistant above: it makes one." : "No tokens yet. Each set-up makes the token it needs: Collect data for sending logs, AI assistant (MCP), Read figures (API).")); return; }
+    list.replaceChildren(h("div", { class: "scroll" }, h("table", { class: "rows-mid cn-tokens" }, h("caption", { class: "vh" }, title),
       h("thead", null, h("tr", null, [["Name"], ["What it is for"], ["Sites"], ["Made", "n"], ["Last used", "n"]].map(([t, cls]) => h("th", { scope: "col", class: cls }, t)), h("th", { scope: "col", class: "n" }, h("span", { class: "vh" }, "Action")))),
       h("tbody", null, all.map((t) => {
         const cell = h("td", { class: "n" });
@@ -108,9 +110,10 @@ export default function tokens(m, { reloadHook = null } = {}) {
 
   showFresh();
   reload();
-  return h("section", { class: "s" }, h("h2", null, "Your tokens"),
+  if (only) return h("section", { class: "s" }, h("h2", null, title), h("p", { class: "sub" }, "Revoke one and that assistant stops at once. Every token is under Tokens & links."), list, msg);
+  return h("section", { class: "s" }, h("h2", null, title),
     h("p", { class: "sub" }, "Every token of this organisation, by what it is for. A token is shown once, when it is made; only a fingerprint of it is kept. Revoke one and whatever uses it stops at once."),
     shown, list, msg,
     h("details", { class: "fold" }, h("summary", null, "Make a token by hand"),
-      h("p", { class: "sub" }, "For advanced use: any sites, any mix of scopes. The cards above are simpler."), form));
+      h("p", { class: "sub" }, "For advanced use: any sites, any mix of scopes. The set-up pages make the right token for each task and are simpler."), form));
 }

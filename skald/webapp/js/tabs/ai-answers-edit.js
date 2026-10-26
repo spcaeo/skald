@@ -31,7 +31,7 @@ export function estimate(p, questions, providers) {
 export function costWords(e) {
   const line = `${e.answers} answers a run (${e.questions} question${e.questions === 1 ? "" : "s"} × ${e.tries} tr${e.tries === 1 ? "y" : "ies"} × ${e.assistants} assistant${e.assistants === 1 ? "" : "s"}), about ${usd(e.perRun)} a run.`;
   // Say what is missing: the questions, an assistant with a key, or both.
-  const need = [!e.questions ? "questions" : null, !e.assistants ? "an assistant with an API key (Settings › Integrations)" : null].filter(Boolean);
+  const need = [!e.questions ? "questions" : null, !e.assistants ? "an assistant with an API key (Settings › AI answers › API keys)" : null].filter(Boolean);
   const cap = !e.answers ? `Nothing to ask yet: add ${need.join(" and ") || "questions"}.`
     : e.fits ? `A run stays under the ${usd(e.cap)} daily cap.`
       : `A run would pass the ${usd(e.cap)} daily cap: Skald stops at the cap and finishes over ${e.days} days.`;
@@ -116,7 +116,7 @@ export function profileEditor(api, p, onSaved) {
     const on = () => v.providers.includes(x.id);
     const b = h("button", { type: "button", role: "switch", class: "aa-sw", "aria-checked": String(on()), disabled: ro },
       h("span", { class: "box", "aria-hidden": "true" }),
-      h("span", { class: "aa-sw-t" }, h("b", null, x.name), h("small", null, `${x.how}. About ${usd(x.price, 3)} an answer.${x.key ? "" : " No API key yet: Settings › Integrations."}`)),
+      h("span", { class: "aa-sw-t" }, h("b", null, x.name), h("small", null, `${x.how}. About ${usd(x.price, 3)} an answer.${x.key ? "" : " No API key yet: Settings › AI answers › API keys."}`)),
       h("span", { class: `tag ${x.location === "api" ? "good" : "warn"}` }, x.location === "api" ? "API location" : "In question"));
     b.addEventListener("click", () => { v.providers = on() ? v.providers.filter((y) => y !== x.id) : [...v.providers, x.id]; b.setAttribute("aria-checked", String(on())); refresh(); });
     return b;

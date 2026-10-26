@@ -145,6 +145,12 @@ class Node(unittest.TestCase):
         back; a reload keeps the trail, a copied address starts its own."""
         self.assertIn("crumbs: all passed", self.run_js("crumbs.mjs"))
 
+    def test_settings_menu_frame_and_old_addresses(self):
+        """2.40 (js/settings-menu.js, tabs/settings-frame.js): the groups by user flow, every
+        page drawn with Help and Docs (copy and open icons), the phone's select, each in-page
+        tab its own address, and every old settings address opening its new home."""
+        self.assertIn("settings-menu: all passed", self.run_js("settings-menu.mjs"))
+
 
 if __name__ == "__main__":
     unittest.main()

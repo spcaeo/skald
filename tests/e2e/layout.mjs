@@ -17,7 +17,7 @@ const { chromium } = await import(process.env.PLAYWRIGHT || "playwright");
 if (!base) { console.error("usage: node layout.mjs <page url> [user:password] [--quick]"); process.exit(2); }
 
 const TABS = ["overview/summary", "overview/insights", "site/requests", "traffic/visitors", "traffic/sources", "traffic/pages", "sales/pipeline", "sales/bookings", "sales/funnels", "sales/events",
-  "traffic/places", "traffic/time", "ai/assistants", "ai/rules", "site/health", "site/alerts", "site/quality", "site/speed", "site/notfound", "settings/internal", "settings/api", "settings/users", "about"];
+  "traffic/places", "traffic/time", "ai/assistants", "ai/rules", "site/health", "site/alerts", "site/quality", "site/speed", "site/notfound", "settings/home", "settings/site/internal", "settings/site/collect", "settings/ai/mcp", "settings/help", "about"];
 const SECTIONS = ["overview", "traffic", "leads & sales", "ai & bots", "site"];
 const OLD = [/recounted every two minutes/i, /covering 00:00/i, /in five groups that add up exactly/i, /Live and partial/i, /Today from local midnight/i];
 const fails = [];
@@ -151,7 +151,7 @@ for (const [old, name, tab] of [["visits", "Traffic", "Visitors"], ["audience", 
 // page that needs a signed-in helper shows its own state on the demo; that is checked too.
 await p.setViewportSize({ width: 390, height: 800 });
 for (const tab of [...TABS, "overview/realtime", "traffic/search", "traffic/retention", "sales/people", "ai/crawl", "ai/crawlers",
-  "settings/sites", "settings/mail", "settings/reports", "settings/integrations", "settings/team", "help"]) {
+  "settings/site/details", "settings/site/mail", "settings/site/leads", "settings/ai/tokens", "settings/org/team", "help"]) {
   where = `${tab} at 390`;
   await p.goto(`${base}#${tab}?range=30d`, { waitUntil: "networkidle" });
   await p.waitForTimeout(250);

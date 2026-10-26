@@ -179,7 +179,7 @@ class Summary(Base):
             if s["site"] == "a.example.com":
                 got.append({"item": "setup:script", "title": "Script tag: no event has arrived yet",
                             "todo": "Put the tag on every page.",
-                            "link": "https://stats.example.com/traffic/a.example.com/#settings/integrations",
+                            "link": "https://stats.example.com/traffic/a.example.com/#settings/site/leads",
                             "where": None})
             return got
         self.summarise(setup=setup)
@@ -187,7 +187,7 @@ class Summary(Base):
         self.assertEqual(text.count("Disk: 0.5 GB free"), 1, "install-wide: once per mail")
         self.assertIn("Set-up problems (2)", text)
         self.assertNotIn("== b.example.com ==", text, "nothing else there: no section")
-        self.assertIn("#settings/integrations", text)
+        self.assertIn("#settings/site/leads", text)
         self.assertIn("Where: on the server", text)
 
     def test_the_real_set_up_checks_never_use_the_network(self):

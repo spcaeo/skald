@@ -169,21 +169,28 @@ def shorten_kept(db, site: str) -> int:
 
 
 def prune(db, today: date, keep: int, own: dict | None = None,
-          off: tuple = (), short: tuple = ()) -> int:
+          off: tuple = (), short: tuple = (), spare=None) -> int:
     """Delete visits older than `keep` days (a site in `own` by its own
     days), and every visit of a site in `off` (it no longer keeps
     addresses); shorten the full addresses of a site in `short`. Rows
-    deleted."""
+    deleted. A site `spare` names (keep_everything) loses and changes
+    nothing."""
     gone = 0
     own = own or {}
+    spare = spare or (lambda site: False)
     for site in short:
-        shorten_kept(db, site)
+        if not spare(site):
+            shorten_kept(db, site)
     with store.tx(db):
         for site in off:
+            if spare(site):
+                continue
             gone += db.execute("DELETE FROM visits WHERE site = ?", (site,)).rowcount
             db.execute("DELETE FROM visit_days WHERE site = ?", (site,))
         sites = [r[0] for r in db.execute("SELECT DISTINCT site FROM visit_days")]
         for site in sites:
+            if spare(site):
+                continue
             cut = (today - timedelta(days=int(own.get(site, keep)))).isoformat()
             gone += db.execute("DELETE FROM visits WHERE site = ? AND day < ?",
                                (site, cut)).rowcount
@@ -204,9 +211,10 @@ def prune_kept(ctx) -> int | None:
     mode = policy.ip_mode(ctx.config, folder)
     off = (ctx.site,) if mode == policy.OFF else ()
     short = (ctx.site,) if mode == policy.SHORT else ()
+    from ..keep_everything import of
     db = store.connect(path)
     try:
-        gone = prune(db, ctx.now.date(), keep, own, off, short)
+        gone = prune(db, ctx.now.date(), keep, own, off, short, of(ctx))
     finally:
         db.close()
     from ..security_kept import prune_kept as prune_scanners  # the same days (2.21)

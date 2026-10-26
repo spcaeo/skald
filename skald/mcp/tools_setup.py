@@ -56,7 +56,7 @@ def _base(ctx) -> str:
 
 
 def checklist(base: str, site: str) -> str:
-    """Settings › Connections, where the checklist always is."""
+    """Settings › Set-up checklist (old address; it redirects)."""
     from ..files import slug
     return f"{base}/traffic/{slug(site)}/#settings/api"
 
@@ -70,7 +70,7 @@ def dialog(base: str, site: str, act: str) -> str:
 
 @tool("setup_left", "What is left to set up",
       "The site's set-up checklist lines that are not done (the same lines as Settings › "
-      "Connections' \"Set up <site>\"): logs arriving, visits counted as people, Next.js "
+      "Set-up checklist): logs arriving, visits counted as people, Next.js "
       "pages, countries, the script tag, a lead hook, a mail recipient, the privacy choice. "
       "Each open line has its state, one plain sentence, the address of its Set up dialog, "
       "and `job` when an AI agent can do it (logs, script, lead, rsc, assets, privacy; "
@@ -163,7 +163,7 @@ def setup_line(ctx, args):
     maker = _maker()
     if maker is None:
         raise Refused("This Skald cannot make a set-up line over MCP yet. Make it on the "
-                      "dashboard: Settings › Connections, Set up, Your AI agent.")
+                      "dashboard: Settings › Set-up checklist, Set up with your AI agent.")
     from ..accounts import auditlog
     from ..accounts import db as base
     from ..accounts.orgs import org_of_site
@@ -204,5 +204,5 @@ def setup_line(ctx, args):
             "working."]
     if got.get("not_revoked"):
         text.append("An older line's token could not be revoked; Skald tries again in the "
-                    "daily run, or revoke it in Settings › Connections.")
+                    "daily run, or revoke it in Settings › Tokens & links.")
     return "\n".join(text), data

@@ -11,7 +11,9 @@ time without an offset (read in that zone, since 2.4.0).
 The body is the tool's JSON with only the keys its adapter and the audit
 read (conversions.SPOOL_KEYS, an allow-list per tool), plus the name and the
 primary email when the site's identity is full (conversions.strip). The spool is what the second count
-(audit_conversions.py) reads; `forget` scrubs it with the store.
+(audit_conversions.py) reads; `forget` scrubs it with the store, and
+people_days.py drops a line's name and email once older than the site's
+People days (when set and shorter), leaving the rest of the line.
 """
 from __future__ import annotations
 
@@ -88,13 +90,21 @@ def days(spool: Path) -> list[date]:
 
 
 def prune(spool: Path, today: date, keep_days: int = KEEP_DAYS,
-          own: dict | None = None) -> int:
+          own: dict | None = None, spare=None) -> int:
     """Remove the lines older than their site's keeping days: `keep_days`,
     a site in `own` by its own; 0 keeps them for good (the raw evidence the
     second count reads, kept as long as the conversions it recounts). A day
     file with every line past its time is deleted; one with some lines kept
-    is written again without the others. Files deleted."""
+    is written again without the others. Files deleted. A site `spare`
+    names (keep_everything) keeps every line; with every site spared (the
+    install keeps everything) nothing is read or written."""
+    if spare is not None and getattr(spare, "all", False):
+        return 0
     own = {s: int(n) for s, n in (own or {}).items()}
+    if spare is not None:
+        found = {row["site"] for day in days(spool) for row in read(spool, day)
+                 if isinstance(row.get("site"), str)}
+        own.update({s: 0 for s in found if spare(s)})
 
     def gone_by(days: int, day: date) -> bool:
         return days != 0 and day < today - timedelta(days=days)

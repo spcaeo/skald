@@ -42,6 +42,11 @@ class HelpData(unittest.TestCase):
         tabs |= {t["route"] for s in registry() for t in s["tabs"]} | {s["key"] for s in registry()}
         redirects = (JS / "routes.js").read_text(encoding="utf-8").split("export const REDIRECTS = {", 1)[1].split("\n};", 1)[0]
         tabs |= set(re.findall(r'"?([a-z/]+)"?: \["[a-z/]+"', redirects))
+        # Settings' pages (2.40): js/settings-menu.js, All settings included.
+        menu = (JS / "settings-menu.js").read_text(encoding="utf-8")
+        tabs |= set(re.findall(r'route: "([a-z/]+)"', menu)) | set(re.findall(r'SETTINGS_HOME = "([a-z/]+)"', menu))
+        old = menu.split("export const OLD_SETTINGS = {", 1)[1].split("\n};", 1)[0]
+        tabs |= set(re.findall(r'"?([a-z/]+)"?: \["[a-z/]+"', old))   # older settings addresses redirect
         for href in re.findall(r'"href":"([^"]+)"', text):
             if href.startswith("https://"):
                 continue

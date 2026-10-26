@@ -1,24 +1,27 @@
-// Settings > Add or remove sites (accounts, access.mode: sessions): the
+// Settings › Organisation › Sites (accounts, access.mode: sessions): the
 // organisation's sites, where each is defined (a config file on the server, or
 // made here), and what the log endpoint has received for it. An admin adds a
 // site step by step (site-wizard.js): its address, proof it is theirs, then one
 // line for an AI agent and a watch as it connects, or by hand how its visits reach
 // Skald, the install and a test; a set-up left half way shows
 // "Setup: step 3 of 5, continue", and one that heard nothing for a day "No
-// visits yet: test the connection". #settings/sitesadmin?setup=new|<site>&step=<n>&agent=<id>&link=<id>
+// visits yet: test the connection". #settings/org/sites?setup=new|<site>&step=<n>&agent=<id>&link=<id>
 // is the wizard open (2.21: kept while it is open, Back closes it; js/overlays.js), and ?test=<site>
-// opens a site's wizard at its Test (the site picker links there). An owner removes
-// a site made here, typing its name: processing stops, the data stays until an
-// install admin purges it on the server. The helper behind <page>/sites checks
-// role and CSRF.
+// opens a site's wizard at its Test (the site picker links there). Each site's ⋯ menu
+// (site-actions.js, ?sact=<act>.<site>) pauses or resumes it (owner or admin), and for
+// an owner removes or restores it, clears its data, or deletes all of it, typing its
+// name; removed sites are listed apart, under Removed sites. The helper behind
+// <page>/sites checks role and CSRF.
 
 import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { ME, sessions } from "../access.js";
-import { head1, copyable, input, status, when, why } from "./forms.js";
+import { head1, copyable, status, when, why } from "./forms.js";
 import * as S from "../state.js";
 import { siteWizard, STEPS } from "./site-wizard.js";
-import { withUrl } from "../urlactions.js";
+import { withCopy, withUrl } from "../urlactions.js";
+import { setReload, siteMenu } from "./site-actions.js";
+import { stateWords } from "./site-act-words.js";
 
 const FORMAT_NAME = {
   auto: "Detect it", nginx_combined: "nginx (combined)", nginx_extended: "nginx (Skald's extended format)", apache_combined: "Apache (combined)",
@@ -61,7 +64,7 @@ export async function openSiteKey(value, step = 0, s = {}) {
   const has = (d) => d?.sites && (value === "new" || d.sites.some((x) => x.name === value));
   const r = has(latest?.data) ? latest.data : await call("sites");
   if (!r.ok && !r.sites) return why(r, "The sites could not be loaded, so the wizard cannot open. Open this page again in a minute.");
-  const reload = location.hash.includes("settings/sitesadmin") && latest?.reload || (() => {});
+  const reload = location.hash.includes("settings/org/sites") && latest?.reload || (() => {});
   if (value === "new") return r.can_add ? siteWizard({ data: r, onChange: reload, agent: s.agent || "" }) : "Adding a site is not open to this organisation now.";
   const site = (r.sites || []).find((x) => x.name === value);
   if (!site) return "That site is not one of this organisation's sites.";
@@ -86,8 +89,23 @@ export default function sitesadmin(m, s = {}) {
     if (!r.ok) { box.replaceChildren(h("div", { class: "state" }, h("div", null, why(r, "The sites could not be loaded.")))); return; }
     data = r;
     latest = { data: r, reload };
-    box.replaceChildren(table(r.sites || []), pendingBox(r.sites || []), addForm(r));
+    setReload(reload);
+    const all = r.sites || [];
+    box.replaceChildren(table(all.filter((x) => x.status !== "removed")), removedBox(all.filter((x) => x.status === "removed")),
+      pendingBox(all), addForm(r));
     openAsked(r);
+  }
+
+  // Removed sites: their data is kept; an owner restores one (or deletes its data) from its menu.
+  function removedBox(list) {
+    if (!list.length) return h("div");
+    return h("section", { class: "s" }, h("h2", null, "Removed sites"),
+      h("p", { class: "sub" }, "Nothing is collected for these sites and they are hidden from the dashboard. Their data is kept until an owner deletes it."),
+      h("div", { class: "scroll" }, h("table", { class: "rows-mid" }, h("caption", { class: "vh" }, "Removed sites"),
+        h("thead", null, h("tr", null, ["Site", "Defined in", "State"].map((t) => h("th", { scope: "col" }, t)), h("th", { scope: "col", class: "n" }, h("span", { class: "vh" }, "Actions")))),
+        h("tbody", null, list.map((s) => h("tr", null, h("td", { class: "path nm" }, withCopy(h("span", null, s.name), s.name)),
+          h("td", null, s.source === "dashboard" ? "these pages" : "config file"), h("td", null, stateWords(s)),
+          h("td", { class: "n" }, siteMenu(s))))))));
   }
 
   // The wizard for a site: from its saved step, or at the Test (step 5).
@@ -154,7 +172,7 @@ export default function sitesadmin(m, s = {}) {
   function actions(s, cell) {
     const draw1 = () => {
       const parts = [];
-      if (admin() && s.status === "active") {
+      if (admin() && s.status !== "removed") {
         const tok = h("button", { type: "button", class: "btn", "aria-label": `A new ingest token for ${s.name}` }, "New token");
         tok.addEventListener("click", async () => {
           tok.disabled = true;
@@ -167,44 +185,24 @@ export default function sitesadmin(m, s = {}) {
         });
         parts.push(tok);
       }
-      if (ME.role === "owner" && s.source === "dashboard" && s.status === "active") {
-        const rm = h("button", { type: "button", class: "btn danger", "aria-label": `Remove ${s.name}` }, "Remove");
-        rm.addEventListener("click", () => confirmRemove(s, cell, draw1));
-        parts.push(rm);
-      }
+      // Pause/Resume, Remove/Restore, Clear data, Delete all data (js/tabs/site-actions.js).
+      parts.push(siteMenu(s));
       cell.replaceChildren(...parts);
     };
     draw1();
   }
 
-  function confirmRemove(s, cell, back) {
-    const typed = input({ name: "confirm", autocomplete: "off", placeholder: s.name, "aria-label": `Type ${s.name} to confirm` });
-    const yes = h("button", { type: "button", class: "btn danger" }, "Remove the site");
-    const no = h("button", { type: "button", class: "btn" }, "Keep it");
-    cell.replaceChildren(h("span", { class: "confirm" }, `Processing of ${s.name} stops. Its figures stay until an install admin purges them. Type its name:`, typed, yes, no));
-    typed.focus();
-    no.addEventListener("click", back);
-    yes.addEventListener("click", async () => {
-      if (typed.value.trim() !== s.name) { msg.say(`Type ${s.name} exactly to confirm.`); typed.focus(); return; }
-      yes.disabled = true; no.disabled = true;
-      const r = await call("sites/remove", { name: s.name, confirm: typed.value.trim() });
-      if (!r.ok) { msg.say(why(r)); back(); return; }
-      msg.say(`${s.name} is removed. Its data stays on the server until it is purged.`, true);
-      reload();
-    });
-  }
-
   function table(list) {
     if (!list.length) return h("section", { class: "s" }, h("h2", null, "Sites"), h("p", { class: "empty" }, "No sites yet."));
     return h("section", { class: "s" }, h("h2", null, "Sites"),
-      h("p", { class: "sub" }, "A site from the server's config file is changed there. A site made here gets its log through the shipper."),
+      h("p", { class: "sub" }, "A site from the server's config file is changed there. A site made here gets its log through the shipper. The ⋯ menu pauses a site (nothing is deleted), removes it, or deletes its data."),
       h("div", { class: "scroll" }, h("table", { class: "rows-mid" }, h("caption", { class: "vh" }, "Sites"),
         h("thead", null, h("tr", null, ["Site", "Defined in", "State", "Log format", "Log received"].map((t) => h("th", { scope: "col" }, t)), h("th", { scope: "col", class: "n" }, h("span", { class: "vh" }, "Actions")))),
         h("tbody", null, list.map((s) => {
           const cell = h("td", { class: "n" });
           actions(s, cell);
           return h("tr", null, h("td", { class: "path nm" }, withUrl(h("span", null, s.name), /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(s.name || "") ? `https://${s.name}` : "", { label: s.name, cls: "ua-after" }), h("div", null, setupCell(s))), h("td", null, s.source === "dashboard" ? "these pages" : "config file"),
-            h("td", null, s.status === "removed" ? `removed ${when(s.removed_at, "")}` : waiting(s) ? "waiting for verification" : "active"),
+            h("td", null, stateWords(s, waiting(s))),
             h("td", { class: "muted" }, s.format ? FORMAT_NAME[s.format] || s.format : ""), h("td", { class: "muted" }, received(s)), cell);
         })))));
   }

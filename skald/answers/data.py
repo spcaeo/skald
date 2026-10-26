@@ -218,7 +218,7 @@ def _leads(p, site, first, last) -> dict | None:
 def setup_steps(keyed: dict, lists: dict, listed: list, done_runs: int) -> list[dict]:
     return [
         {"id": "key", "done": any(keyed.values()), "words": "An install admin adds an API key for "
-         "at least one assistant: Settings > Integrations > AI answers."},
+         "at least one assistant: Settings > AI answers > API keys."},
         {"id": "lists", "done": bool(lists["brands"]) or any(x.get("brands") for x in listed),
          "words": "Write the site's brand terms, "
          "competitors and questions: Settings > AI answers."},

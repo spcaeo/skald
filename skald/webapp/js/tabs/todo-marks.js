@@ -60,7 +60,7 @@ export async function markItem(item, state) {
 export function sendable() {
   if (!MARKS.ok) return { ok: false, team: [], why: MARKS.why };
   if (!MARKS.can_mark) return { ok: false, team: [], why: "Only an owner or an admin can send a to-do." };
-  if (!MARKS.mail?.ready) return { ok: false, team: [], why: MARKS.mail?.why || "No mail server is set up. An admin sets one in Settings > Mail." };
+  if (!MARKS.mail?.ready) return { ok: false, team: [], why: MARKS.mail?.why || "No mail server is set up. An admin sets one in Settings > Mail & reports." };
   if (!MARKS.team.length) return { ok: false, team: [], why: "Nobody on this site's team has confirmed their account yet. Invite someone in Settings > Team." };
   return { ok: true, team: MARKS.team, why: "" };
 }

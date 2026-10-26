@@ -168,10 +168,10 @@ assert.deepEqual(calls("sites/agentlink").pop()[1], { site: SITE, jobs: ["mcp"] 
 assert.equal(readState().agent, "claude-code");
 assert.ok(d.querySelector(".cn-guide a.btn"), "the guide stays on every step");
 await close();
-// By hand: today's dialog, from step 2.
-await openConnKey("mcp", m, 3, false, { agent: "hand" });
+// By hand (2.40): one step holds the choice, the token and the command; then Test.
+await openConnKey("mcp", m, 2, false, { agent: "hand" });
 await tick(30);
-assert.match(heading(), /^Step 3 of 4: Connect/);
+assert.match(heading(), /^Step 2 of 3: Connect your assistant/);
 assert.ok(dialog().textContent.includes("claude mcp add --transport http skald"));
 await close();
 

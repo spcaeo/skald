@@ -12,6 +12,10 @@ export let BUILD = null;
 // Skald's own home: the public repository (source, releases, issues). Every install links
 // to it from About, the footer and the account menu, so people can star it and report.
 export const REPO = "https://github.com/spcaeo/skald";
+// Skald's own public home, as REPO: its docs (one page per Help guide, /docs/<guide>/), the API
+// and MCP pages, What's new and the contact page. Settings links each page to its docs (2.40).
+// A build.json "home" (a fork's own site) takes its place.
+export const home = () => String(BUILD?.home || "https://skaldanalytics.com").replace(/\/+$/, "");
 
 export async function loadBuild() {
   try {

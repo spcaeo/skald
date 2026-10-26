@@ -290,7 +290,7 @@ def render(sites: list[dict], now: datetime, who: str | None = None,
            orgs: dict[str, str] | None = None) -> str:
     """The picker page. `sites`: sites.json entries with `logo` and `today`
     (enrich); `who`: the signed-in email; `add_href`: where "Add a site"
-    goes (an admin's Settings > Add or remove sites), or None for no card;
+    goes (an admin's Settings > Sites), or None for no card;
     `across`: the sources table under the cards (across_sites.section);
     `orgs`: {site: organisation} for a reader in two or more (2.38.0): the
     cards are grouped under each organisation's name."""

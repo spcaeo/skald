@@ -146,7 +146,7 @@ def site_configs(config: dict, config_path=None) -> dict[str, dict]:
         for got in others(config, Path(config_path)):
             if got.get("_dashboard_site") and moved:
                 # A dashboard site inherits no `hooks:`, but its secret is
-                # kept in the install's secrets file (Settings > Integrations).
+                # kept in the install's secrets file (Settings > Leads & integrations).
                 got = {**got, "hooks": {"secrets": moved}}
             out[site_name(got)] = got
     except SystemExit:

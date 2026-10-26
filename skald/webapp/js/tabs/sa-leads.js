@@ -249,7 +249,7 @@ export function emptyLeads(m, s, r, fig, list) {
   }
   if (filtered) return h("div", { class: "sa-empty", role: "status" }, h("p", null, `No lead matches these filters, in any period the dashboard holds.`),
     h("button", { type: "button", class: "btn", onclick: () => S.set(CLEAR_ALL) }, "Clear all filters"));
-  return emptyState("No leads yet: nothing has reported a lead for this site.", ["Connect a source of leads", "#settings/integrations"]);
+  return emptyState("No leads yet: nothing has reported a lead for this site.", ["Connect a source of leads", "#settings/site/leads"]);
 }
 
 function fill(body, make) {
@@ -271,7 +271,7 @@ export default function leadsTab(m, s) {
   if (!f) {
     const raw = m.x.conversions;
     return [...top, emptyState(raw?.state === "error" ? `The leads could not be built: ${raw.error || "no reason given"}.` : "No leads yet: nothing has reported a lead for this site.",
-      ["Connect a source of leads", "#settings/integrations"], { bad: raw?.state === "error" })];
+      ["Connect a source of leads", "#settings/site/leads"], { bad: raw?.state === "error" })];
   }
   const acts = (f.lead_actions || []).map((a) => [a, actionName(a)]);
   const labels = convLabels(f, s.lact);
@@ -323,7 +323,7 @@ export default function leadsTab(m, s) {
     const counted = keepRows(ans.rows, { ...s, lnow: "", lshow: "" }, r).length;
     if (got && counted !== got.leads) notes.push(`The list holds ${leadsWord(counted)} as known now; the figure above counts ${n(got.leads)} (the days checked at the last redraw).`);
     if (!names) notes.push(DEMO.on ? "In the demo, names and emails are hidden: on your own install, admins and owners see them here."
-      : ans.why || "Names and emails show to admins and owners, on a site that keeps them (Settings > Data retention > People).");
+      : ans.why || "Names and emails show to admins and owners, on a site that keeps them (Settings > Privacy & retention > People).");
     parts.push(...notes.map((t) => h("p", { class: "note" }, t)));
     return parts;
   }));

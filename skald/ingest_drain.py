@@ -57,7 +57,8 @@ Who may post, in this order:
    unsigned post without a token is answered 200 with nothing kept, so
    Vercel's ownership check passes (it sends no signature).
 
-Then the shipper's checks, unchanged: removed site 410, site waiting for
+Then the shipper's checks, unchanged: removed site 410, paused site 503 (a
+drain does not keep what it could not send, so those lines are lost), site waiting for
 verification 403, rate limit 429, read-only organisation 402, disk 507,
 plan quota and the organisation's bytes a day 429. A drain sends no batch
 number: the batch id is the platform plus a hash of the body, so a delivery
@@ -80,6 +81,7 @@ from pathlib import Path
 from urllib.parse import parse_qs
 
 from . import ingest, ingest_log
+from .keep_everything import Keeper
 from .config import setting
 from .parse_drains import _url
 
@@ -276,7 +278,7 @@ def handle(h, config, live_dir, config_path, site: str, name: str) -> None:
     """Answer one drain post (ingest._handle has checked on, POST, path)."""
     if name not in PLATFORMS:
         return ingest.no(h, 400, "format is vercel, netlify or edge (or none, for the shipper)")
-    from .accounts import db as base, site_configs as dsites
+    from .accounts import db as base
     verify = drain_setting(config, site, "vercel_verify") if name == "vercel" else None
     extra = {"x-vercel-verify": str(verify)} if verify else {}
     acc = base.path_for(config, ingest.history_folder(config, live_dir))
@@ -295,9 +297,9 @@ def handle(h, config, live_dir, config_path, site: str, name: str) -> None:
                                                "skipped": 0, "duplicate": False}, extra)
             hdrs = dict(extra, **({"WWW-Authenticate": "Bearer"} if code == 401 else {}))
             return ingest.no(h, code, why, hdrs)
-        row = dsites.get(db, site)
-        if row is not None and not row["active"]:
-            return ingest.no(h, 410, "this site was removed; nothing is kept for it", extra)
+        stop = ingest.held(db, site)          # removed 410, paused 503
+        if stop:
+            return ingest.no(h, stop[0], stop[1], dict(extra, **(stop[2] or {})))
         from .site_verify import PENDING_WORDS, pending
         if pending(db, site):
             return ingest.no(h, 403, PENDING_WORDS, extra)
@@ -342,7 +344,8 @@ def _keep(h, db, config, live_dir, site, name, org, fmt, raw, body, ingest_root,
     folder = ingest_log.site_folder(ingest_root, site)
     writer = ingest_log.Writer(
         folder, keep=int(setting(config, "ingest", "keep", ingest_log.KEEP)),
-        max_mb=float(setting(config, "ingest", "max_mb", ingest_log.MAX_MB)))
+        max_mb=float(setting(config, "ingest", "max_mb", ingest_log.MAX_MB)),
+        archive=Keeper(config, live_dir)(site))
     dup = {"ok": True, "accepted": 0, "rejected": 0, "skipped": 0, "duplicate": True}
     if seq is not None and writer.seen(shipper, seq):
         return ingest._answer(h, 200, dup, extra)

@@ -1,4 +1,4 @@
-// Settings > Integrations > Search (P1-6): connecting Google Search Console and Bing
+// Settings > Leads & integrations > Search Console & Bing (P1-6): connecting Google Search Console and Bing
 // Webmaster Tools from the dashboard, no shell. GET/POST <page>/integrations/search
 // (skald/search/api.py).
 //
@@ -31,7 +31,7 @@ function ext(href, words) {
   return h("a", { href, target: "_blank", rel: "noopener noreferrer" }, words);
 }
 
-/* The Search part of Settings > Integrations for one site. */
+/* The Search Console & Bing tab of Settings > Leads & integrations for one site. */
 export function searchBox(site) {
   const box = h("section", { class: "s se-connect" }, h("h2", null, "Search: Google Search Console and Bing"),
     h("p", { class: "sub" }, "Queries, impressions, clicks and position come only from the search engines. Connect them once and Skald syncs their figures every 6 hours, shown under Traffic › Search beside its own."),

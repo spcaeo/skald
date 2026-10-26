@@ -1,4 +1,4 @@
-"""The one-command install and the set-up pack: Settings > Connections'
+"""The one-command install and the set-up pack: Settings > Collect data > Send logs'
 routes beside sites/kit (sites_api.py routes them, with its session, owner
 or admin role, same-origin and CSRF checks):
 
@@ -274,7 +274,7 @@ def pack_mail(c, form):
     from .accounts.mails import configured
     if not configured(c.config):
         return c.no(409, "Mail is not set up on this server, so the pack cannot be mailed. "
-                         "Download it instead, or set up mail in Settings > Mail.")
+                         "Download it instead, or set up mail in Settings > Mail & reports.")
     key = f"kit-packmail:site:{site}"
     if limits.too_many(c.db, key, limit=PACKMAIL_PER_HOUR, minutes=60):
         return c.no(429, "Too many set-up mails for this site. Try again in an hour.")
@@ -455,7 +455,7 @@ def _facts(c, site: str, jobs) -> dict:
     return out
 
 
-NOT_REVOKED = "Skald tries again in the daily run, or revoke it in Settings > Connections"
+NOT_REVOKED = "Skald tries again in the daily run, or revoke it in Settings > Tokens & links"
 
 
 def revoke_unused(db, folder, org_of, actor, done) -> tuple[list, list]:
@@ -509,7 +509,7 @@ def _token_words(unused, bad: dict) -> str:
         return f"its unused token {unused} revoked"
     if unused == "":
         return "it made no token"
-    return "its keys were taken, so its token stays (revoke it in Settings > Connections)"
+    return "its keys were taken, so its token stays (revoke it in Settings > Tokens & links)"
 
 
 def _sweep(c, site: str) -> list[str]:

@@ -195,12 +195,22 @@ answers.set("tokens", { ok: true, tokens: [] });
 await load("#settings/api?conn=api&step=1");
 assert.ok(top()?.textContent.includes("Read your figures (API)"), "the API dialog opens from the link");
 assert.equal(qOf().get("step"), "1");
+assert.ok(location.hash.startsWith("#settings/ai/api?"), `2.40: the old Connections link opens on Read figures (API): ${location.hash}`);
 top().querySelector(".dw-x").click();
 await tick();
 assert.ok(!qOf().get("conn") && !qOf().get("step"), `closing takes both keys away: ${location.hash}`);
+// 2.40: the MCP dialog by hand, the assistant chosen in the address (asst=), kept on reload.
+await load("#settings/ai/mcp?conn=mcp&step=2&agent=hand&asst=claude-desktop");
+assert.ok(top()?.textContent.includes("Connect your assistant"), top()?.textContent.slice(0, 200));
+assert.equal(top().querySelector('button[data-asst="claude-desktop"]').getAttribute("aria-pressed"), "true", "the assistant from the address");
+assert.ok(top().textContent.includes("claude_desktop_config.json"));
+top().querySelector(".dw-x").click();
+await tick();
+assert.ok(!qOf().get("asst") && !qOf().get("conn"), `closing takes the keys away: ${location.hash}`);
 ME.role = "viewer";
 await load("#settings/api?conn=send");
 assert.match(panel.textContent, /Not available to your role\./);
+assert.ok(location.hash.startsWith("#settings/site/collect"), location.hash);
 ME.role = "owner";
 
 // ---- the app's dialogs: dlg=keys | new | views | find
@@ -221,11 +231,20 @@ assert.match(panel.textContent, /That dialog is not in this version of the page\
 answers.set("sites", { ok: true, can_add: true, sites: [], tokens: [] });
 await load("#settings/sitesadmin?setup=new&step=1");
 assert.ok(top()?.textContent.includes("Add a site"), "the wizard opens from the link");
+assert.ok(location.hash.startsWith("#settings/org/sites?"), `2.40: Settings › Organisation › Sites: ${location.hash}`);
 top().querySelector(".dw-x").click();
 await tick();
 assert.ok(!qOf().get("setup"));
 await load("#settings/sitesadmin?setup=other.example.com");
 assert.match(panel.textContent, /That site is not one of this organisation's sites\./);
+// 2.40: an old site-action link (sact=) opens Sites with that site's dialog.
+answers.set("sites", { ok: true, can_add: true, sites: [{ name: "shop.example.com", status: "active" }], tokens: [] });
+await load("#settings/sitesadmin?sact=pause.shop.example.com");
+assert.ok(location.hash.startsWith("#settings/org/sites?") && qOf().get("sact") === "pause.shop.example.com", location.hash);
+assert.ok(top(), "the Pause dialog opens from the old link");
+top().querySelector(".dw-x").click();
+await tick();
+assert.ok(!qOf().get("sact"), `closing takes the key away: ${location.hash}`);
 // 2.31: a site's wizard on Connections too (Set up with your AI agent), its agent in the address.
 answers.set("sites", { ok: true, can_add: true, sites: [{ name: "example.com", status: "active", setup: { step: 3 } }], tokens: [] });
 await load("#settings/api?setup=example.com&step=3&agent=codex");

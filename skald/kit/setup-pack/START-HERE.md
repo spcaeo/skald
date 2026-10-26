@@ -64,8 +64,8 @@ __LEAD_SECRET_NOTE__
 ## 3. Check that it works
 
 1. Open https://__SITE__/ in a normal browser window.
-2. Within a few minutes the visit shows on __DASHBOARD__ (Settings > Connections says what
-   arrived and when).
+2. Within a few minutes the visit shows on __DASHBOARD__ (Settings > Collect data > Send logs
+   says what arrived and when).
 3. On your own server: `sudo skald-ship-check`. Every line should say OK. If one says
    PROBLEM, it says the fix under it.
 
@@ -75,5 +75,5 @@ Help: __HELP__
 
 The sending token and the lead secret work like passwords. Keep them in environment
 variables or the host's secret settings, never in the site's code, in git, or in a chat. If
-one leaks, make a new one in Skald (Settings > Connections or Settings > Integrations): the
+one leaks, make a new one in Skald (Settings > Collect data > Send logs or Settings > Leads & integrations): the
 old one stops at once.

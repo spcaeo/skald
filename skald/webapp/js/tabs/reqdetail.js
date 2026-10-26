@@ -75,7 +75,7 @@ export function detail(m, row, ours, code = null) {
   const counted = dl([
     ["Group", h("span", { class: "grp" }, h("i", { style: { background: color(row.group) } }), GROUP_NAME[row.group] || row.group)],
     ["Decided by", copyIf("text", row.rule || "-")],
-    ["Page view", row.page_view ? "yes, counted as a page view" : row.not_page ? h("span", null, "no: on the not-a-page list (", withCopy(h("span", { class: "mono" }, row.not_page), row.not_page, { label: `entry ${row.not_page}` }), "; Settings > Sites)") : "no"],
+    ["Page view", row.page_view ? "yes, counted as a page view" : row.not_page ? h("span", null, "no: on the not-a-page list (", withCopy(h("span", { class: "mono" }, row.not_page), row.not_page, { label: `entry ${row.not_page}` }), "; Settings > Collect data > What counts)") : "no"],
   ]);
   const from = dl([
     ["Referrer", row.referrer ? withUrl(h("span", { class: "mono" }, row.referrer), row.ref_host && /^[a-z0-9.-]+$/i.test(row.ref_host) ? `https://${row.referrer}` : "") : "none"],
@@ -121,7 +121,7 @@ export function detail(m, row, ours, code = null) {
     body: [
       h("div", { class: "dw-cols" }, sec("The request", request), sec("Who asked", who)),
       h("div", { class: "dw-cols" }, sec("How it was counted", counted, ownPart ? sec("Our own traffic", ownPart) : null), sec("Where it came from", from)),
-      h("p", { class: "note" }, "Addresses are shown on this private page only. The totals in history hold none; a site that keeps IP addresses keeps each visit with its address for the person search (Settings > Data retention > People)."),
+      h("p", { class: "note" }, "Addresses are shown on this private page only. The totals in history hold none; a site that keeps IP addresses keeps each visit with its address for the person search (Settings > Privacy & retention > People)."),
     ],
     footer: [h("button", { type: "button", class: "btn", onclick: () => d.close() }, "Close"), showAll],
   });

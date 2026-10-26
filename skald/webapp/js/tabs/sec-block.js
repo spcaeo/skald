@@ -24,7 +24,7 @@ export default function block(m, s) {
       const [first, last] = spanOf(m, r);
       loadAddresses(first, last).then((ans) => {
         if (!ans?.ok) return holder.replaceChildren(emptyState(ans?.error || "The addresses could not be loaded.", null, { bad: true }));
-        if (ans.mode === "off") return holder.replaceChildren(emptyState("This site does not keep addresses, so there is nothing to block by address. Settings > Data retention.", ["Open Data retention", "#settings/retention"]));
+        if (ans.mode === "off") return holder.replaceChildren(emptyState("This site does not keep addresses, so there is nothing to block by address. Settings > Privacy & retention.", ["Open Privacy & retention", "#settings/site/privacy"]));
         const list = blockList(merge(t.who, ans), ans.mode);
         const site = m.site || "";
         const meta = { site, first, last };

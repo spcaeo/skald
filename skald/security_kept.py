@@ -102,11 +102,15 @@ def keep_live(config: dict, db_path, site: str, day: date, totals) -> None:
 
 
 def prune(db, today: date, keep: int, own: dict | None = None, off: tuple = (),
-          short: tuple = ()) -> int:
+          short: tuple = (), spare=None) -> int:
     """Rows older than `keep` days (a site in `own` by its own), every row of a
-    site in `off`; the full addresses of a site in `short` shortened."""
+    site in `off`; the full addresses of a site in `short` shortened. A site
+    `spare` names (keep_everything) loses and changes nothing."""
     gone = 0
     own = own or {}
+    spare = spare or (lambda site: False)
+    off = tuple(s for s in off if not spare(s))
+    short = tuple(s for s in short if not spare(s))
     with store.tx(db):
         for site in short:
             for (ip,) in db.execute("SELECT DISTINCT ip FROM security_rows WHERE site = ?",
@@ -119,6 +123,8 @@ def prune(db, today: date, keep: int, own: dict | None = None, off: tuple = (),
             gone += db.execute("DELETE FROM security_rows WHERE site = ?", (site,)).rowcount
             db.execute("DELETE FROM security_days WHERE site = ?", (site,))
         for (site,) in db.execute("SELECT DISTINCT site FROM security_days").fetchall():
+            if spare(site):
+                continue
             edge = (today - timedelta(days=int(own.get(site, keep)))).isoformat()
             gone += db.execute("DELETE FROM security_rows WHERE site = ? AND day < ?",
                                (site, edge)).rowcount
@@ -193,10 +199,11 @@ def prune_kept(ctx) -> int | None:
         return None
     keep, own = prune_plan(ctx.config, "privacy.keep_days", policy.keep_days(ctx.config))
     mode = policy.ip_mode(ctx.config, folder)
+    from .keep_everything import of
     db = store.connect(path)
     try:
         return prune(db, ctx.now.date(), keep, own,
                      (ctx.site,) if mode == policy.OFF else (),
-                     (ctx.site,) if mode == policy.SHORT else ())
+                     (ctx.site,) if mode == policy.SHORT else (), of(ctx))
     finally:
         db.close()

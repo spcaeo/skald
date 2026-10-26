@@ -109,7 +109,7 @@ Signs on a row:
 
 Select a row to see its detail: the paths it asked for, and **Open its requests**, which opens **Site › Requests** filtered to that address. The request list keeps only the last few hours of the raw log; older lines of that address have expired from it, and only the counts remain here.
 
-**Addresses.** Only owners and admins see them, and only on a site that keeps addresses (**Settings › Data retention**). A site that keeps them shortened shows networks (`/24` for IPv4, `/48` for IPv6), never one address. Anyone else sees each day's rows without their address. Scanners and addresses are counted per day: one that came back on three days counts three times.
+**Addresses.** Only owners and admins see them, and only on a site that keeps addresses (**Settings › This site › Privacy & retention**). A site that keeps them shortened shows networks (`/24` for IPv4, `/48` for IPv6), never one address. Anyone else sees each day's rows without their address. Scanners and addresses are counted per day: one that came back on three days counts three times.
 
 ## Attack attempts
 

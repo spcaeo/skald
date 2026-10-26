@@ -35,7 +35,7 @@ give them. Nothing to install.
 ## Then
 
 Open a page of the site. Within a few minutes it shows on __DASHBOARD__ (Settings >
-Connections says what arrived).
+Collect data > Send logs says what arrived).
 
 The token works like a password: it goes only in the drain's header setting, never in the
 site's code or in git.

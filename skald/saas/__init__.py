@@ -8,8 +8,9 @@ nothing in the accounts file changes: a self-hosted install is as before.
       enabled: true
       signup: true                 # /traffic-auth/signup
       allowed_domains: [example.com]
-      billing: stripe              # Settings > Billing and the Stripe webhook
+      billing: stripe              # Settings > Billing & usage and the Stripe webhook
       grace_days: 7
+      usage_alerts: true           # 80/90/100 % mails and banner (the default)
       default_plan: pro
       plans: [{name: pro, sites: 5, requests_month: 1000000, ...}]
 
@@ -17,6 +18,7 @@ nothing in the accounts file changes: a self-hosted install is as before.
     signup_api.py   /traffic-auth/signup, signup-finish (the helper)
     plans.py        the plans in the config; an organisation's plan and status
     limits.py       limits_for, can_add_site/member, retention_cap, usage, over_limit
+    usage_alerts.py the 80/90/100 % mails to owners and admins (saas.usage_alerts)
     stripe_client.py, stripe_events.py, billing_api.py   Stripe, by plain HTTPS
     cli.py          bin/skald plan, usage, billing
 """

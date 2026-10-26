@@ -55,8 +55,8 @@ With `access: {mode: sessions}` (accounts; basic is the default and changes
 nothing): /traffic-auth/* signs people in (auth_api.py, with nginx's
 auth_request check), <page>/team, account, tokens and audit are the
 Settings routes (team_api.py), <page>/settings and settings/* the
-settings pages (settings_api.py; Settings > Reports, client_reports_api.py), <page>/integrations and integrations/*
-Settings > Integrations (integrations_api.py; integrations/search and
+settings pages (settings_api.py; Settings > Mail & reports, client_reports_api.py), <page>/integrations and integrations/*
+Settings > Leads & integrations (integrations_api.py; integrations/search and
 integrations/search/* its Search part, search/api.py), <page>/people and people/* the person
 lookup and the left-out lists (people/api.py), POST <page>/people/mark-test a drawer's
 Mark as test (people/marktest.py), <page>/settings/todos and settings/todo-send
@@ -455,16 +455,16 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
                                         config_path)
             if auth_api.is_auth(self.path):
                 return auth_api.handle(self, True, config, live_dir, allowed, same_origin)
-            if billing_api.is_billing(self.path):       # Settings > Billing (saas)
+            if billing_api.is_billing(self.path):       # Settings > Billing & usage (saas)
                 return billing_api.handle(self, True, config, live_dir, allowed, same_origin,
                                           history_path)
-            if search_api.is_search(self.path):   # Settings > Integrations > Search
+            if search_api.is_search(self.path):   # Settings > Leads & integrations > Search
                 return search_api.handle(self, True, config, live_dir, allowed, same_origin,
                                          config_path)
-            if integrations_api.is_integrations(self.path):   # Settings > Integrations
+            if integrations_api.is_integrations(self.path):   # Settings > Leads & integrations
                 return integrations_api.handle(self, True, config, live_dir, allowed,
                                                same_origin, config_path)
-            if client_reports_api.is_reports(self.path):  # Settings > Reports
+            if client_reports_api.is_reports(self.path):  # Settings > Mail & reports
                 return client_reports_api.handle(self, True, config, live_dir, allowed,
                                                  same_origin, history_path, config_path)
             if answers_api.is_answers(self.path):       # AI answers: lists, profiles

@@ -13,7 +13,7 @@ an AI coding agent (POST <page>/sites/pack and sites/packmail, kit_api.py).
       tag/README.md            where to put it
       leads/...                skald.kit.leadfiles.files(site, url, secret) when that
                                module is there, else a README that points to Settings >
-                               Integrations
+                               Leads & integrations
 
 The words come from the templates in setup-pack/, filled with str.replace.
 Mail filters refuse an attachment that holds scripts they block (Gmail: .js,
@@ -45,7 +45,7 @@ LEAD_NOTES = {
     "included": "The lead secret is `SKALD_LEAD_SECRET` in `secrets.env`.",
     "env": ("The lead secret is kept in the Skald server's environment. Ask whoever runs your "
             "Skald for it."),
-    "none": ("The lead secret is not in this folder. Make it in Skald: Settings > Integrations "
+    "none": ("The lead secret is not in this folder. Make it in Skald: Settings > Leads & integrations "
              "> Lead > Make secret (making a new one stops the old one at once)."),
 }
 
@@ -59,7 +59,7 @@ def _secrets_words(token: str | None, lead_secret: str | None) -> str:
                 "do not commit it to git or paste it in a chat, and delete it (and the mail it "
                 "came in) after the set-up.")
     return ("**This folder holds no keys.** The sending token comes separately (or the "
-            "installer asks for it); make one in Skald under Settings > Connections. "
+            "installer asks for it); make one in Skald under Settings > Collect data > Send logs. "
             "`secrets.env` lists the keys and where each comes from.")
 
 
@@ -70,9 +70,9 @@ def secrets_env(site: str, ingest_url: str, lead_url: str, token: str | None,
             "# put each value in an environment variable or the host's secret settings,",
             "# and delete this file after the set-up."]
     if not token:
-        head.append("# SKALD_INGEST_TOKEN: make a sending token in Skald, Settings > Connections.")
+        head.append("# SKALD_INGEST_TOKEN: make a sending token in Skald, Settings > Collect data > Send logs.")
     if not lead_secret:
-        head.append("# SKALD_LEAD_SECRET: make it in Skald, Settings > Integrations > Lead "
+        head.append("# SKALD_LEAD_SECRET: make it in Skald, Settings > Leads & integrations > Lead "
                     "(a new one stops the old one).")
     return "\n".join(head + [f"SKALD_INGEST_URL={ingest_url}",
                              f"SKALD_INGEST_TOKEN={token or ''}",
@@ -103,7 +103,7 @@ The address: {url}
 
 {note}
 
-Skald's page has the code for each backend language: Settings > Integrations > Lead, and its
+Skald's page has the code for each backend language: Settings > Leads & integrations > Lead, and its
 help guide "Send leads from your backend". Keep the secret in an environment variable, never
 in code or in git.
 """

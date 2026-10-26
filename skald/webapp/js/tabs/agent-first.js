@@ -1,6 +1,6 @@
 // Your AI agent, in every set-up job (2.39, docs/plans/2026-10-26-agent-everywhere.md).
 // The set-up dialogs with an agent job (the checklist's logs, script, lead, rsc, assets and
-// privacy, and Settings > Connections' MCP dialog) open on one first choice: Your AI agent
+// privacy, and Settings > AI assistant (MCP)'s dialog) open on one first choice: Your AI agent
 // (the tiles of Add a site's step 3, agent-setup.js agentChooser, without the chat-only one:
 // a chat in the browser cannot change a site) or By hand (the dialog as it was, its steps
 // numbered from 2). Your AI agent then has two steps: Send this line (agent-setup.js

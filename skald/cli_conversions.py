@@ -391,7 +391,7 @@ def cmd_conversions_list(ctx) -> int:
 def cmd_prune(ctx, quiet: bool = False) -> int:
     folder = _folder(ctx)
     db_path = store.path_for(ctx.config, folder)
-    # Each site by its own days when Settings > Data retention set them
+    # Each site by its own days when Settings > Privacy & retention set them
     # (settings_store.prune_plan); conversions.retention_days 0 keeps leads,
     # their pages and the spool for good.
     from .settings_store import prune_plan
@@ -399,14 +399,21 @@ def cmd_prune(ctx, quiet: bool = False) -> int:
     keep, own_keep = prune_plan(ctx.config, "conversions.retention_days",
                                 store.keep_days(ctx.config))
     today = ctx.now.date()
+    from .keep_everything import of
+    spare = of(ctx)                   # a keep-everything site loses nothing
     got = {"conversions": 0, "journeys": 0, "identities": 0, "deliveries": 0}
     if db_path.exists():
         db = store.connect(db_path)
         try:
-            got = store.prune(db, today, vid_days, keep, own_vid, own_keep)
+            got = store.prune(db, today, vid_days, keep, own_vid, own_keep, spare)
         finally:
             db.close()
-    files = spool.prune(spool.spool_dir(ctx.config, folder), today, keep, own_keep)
+    files = spool.prune(spool.spool_dir(ctx.config, folder), today, keep, own_keep, spare)
+    # Names and emails past the site's People days (privacy.keep_days) when
+    # that is shorter than the lead's own: cleared, every figure kept
+    # (conversions/people_days.py). It says its own counts, per site.
+    from .conversions import people_days
+    people_days.run(ctx, today)
     if quiet and not (files or any(got.values())):
         return 0                      # the daily run says nothing when nothing went
     ctx.out(f"conversions prune: {got['conversions']} conversion(s), {got['journeys']} page "

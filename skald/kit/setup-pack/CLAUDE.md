@@ -86,7 +86,7 @@ Keep `data-site="__SITE__"` exactly. Do not add it twice. Commit this change lik
 
 1. Open https://__SITE__/ (or ask the user to), then wait two to five minutes.
 2. Case A: run `sudo skald-ship-check`. All other cases: ask the user to open
-   __DASHBOARD__ and look at Settings > Connections: it says what arrived and when.
+   __DASHBOARD__ and look at Settings > Collect data > Send logs: it says what arrived and when.
 3. Report back to the user, in short plain sentences: how the site is hosted, which case you
    did, which files you changed (paths), which secret settings you set (names only, never the
    values), what the checks showed, and anything left for them to do.

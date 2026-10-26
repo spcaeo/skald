@@ -379,12 +379,21 @@ The install's sites (accounts mode): assign, list, add, hosts, remove, purge, ve
 | `site hosts` | | Replace a dashboard site's host names. |
 | | `name` | the site's name |
 | | `hosts` | every host name it answers to |
-| `site remove` | | Stop processing a dashboard site; its data stays until purge. |
+| `site pause` | | Stop collecting and counting a site; everything is kept. |
+| | `name` | (no help text) |
+| `site resume` | | Start collecting a paused site again. |
+| | `name` | (no help text) |
+| `site remove` | | Stop processing a site and hide it; its data stays. |
 | | `name` | the site's name |
 | | `--yes` | really remove it |
-| `site purge` | | Delete a removed dashboard site and all its data, its logo folder too. |
+| `site restore` | | Process a removed site again. |
+| | `name` | (no help text) |
+| `site clear` | | Archive, then delete a site's collected data; settings and tokens stay. |
+| | `name` | (no help text) |
+| | `--yes` | really delete its data; the archive is kept 30 days |
+| `site purge` | | Archive, then delete all of a site's data and revoke its tokens. |
 | | `name` | the site's name |
-| | `--yes` | really delete; nothing is undone |
+| | `--yes` | really delete; the archive is kept 30 days |
 | `site verify` | | Mark a site's domain as verified. |
 | | `name` | the site's name |
 
@@ -599,7 +608,7 @@ Sync Search Console and Bing figures into history (the scheduler runs `search sy
 
 ### skald reports
 
-Client reports: send the due ones, list, send or write one (Settings > Reports).
+Client reports: send the due ones, list, send or write one (Settings > Mail & reports > Client reports).
 
 | Argument | What it does |
 | --- | --- |

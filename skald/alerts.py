@@ -350,7 +350,8 @@ def _iso(when: datetime) -> str:
     return when.astimezone(timezone.utc).isoformat(timespec="seconds")
 
 
-def apply(state: dict, found: list[dict], now: datetime, cfg: dict) -> tuple[list, list]:
+def apply(state: dict, found: list[dict], now: datetime, cfg: dict,
+          keep: bool = False) -> tuple[list, list]:
     """Open, refresh and close alerts. (to mail now, resolved now)."""
     alerts = state.setdefault("alerts", [])
     by_key = {(a["cause"], a["subject"]): a for a in alerts
@@ -392,7 +393,9 @@ def apply(state: dict, found: list[dict], now: datetime, cfg: dict) -> tuple[lis
             if alert["cause"] in RESOLVED and alert["mailed"]:
                 resolved.append(alert)
     cutoff = _iso(now - timedelta(days=KEEP_DAYS))
-    state["alerts"] = [a for a in alerts if a["closed_at"] is None or a["closed_at"] >= cutoff]
+    if not keep:                        # a keep-everything site keeps its closed alerts
+        state["alerts"] = [a for a in alerts
+                           if a["closed_at"] is None or a["closed_at"] >= cutoff]
     return to_mail, resolved
 
 
@@ -453,7 +456,8 @@ def run(ctx, snap: dict | None, signals: dict, send=_send) -> int:
         found = check(cfg, signals, snap, history, ctx.site, ctx.tz, now, known, heartbeat_on)
         found += _ai(ctx, state, history, now)
         found += _security(ctx, state, snap, history)
-    to_mail, resolved = apply(state, found, now, cfg)
+    from .keep_everything import of
+    to_mail, resolved = apply(state, found, now, cfg, keep=of(ctx)(ctx.site))
     if not replay:                      # sales: kept as done before anything is sent
         sold = _sales(ctx, state, now)
         if sold:

@@ -31,8 +31,8 @@ export const HAND = "hand";
 export const HAND_WORDS = { title: "No AI agent: set it up by hand", sub: "Choose how the visits reach Skald, then install." };
 
 // "Is it safe to paste this into a chat?", under the line (the owner's words, 2026-10-24,
-// checked against the code). The tokens are on Settings > Connections, under Your tokens.
-export const TOKENS_AT = "Settings > Connections > Your tokens";
+// checked against the code). The tokens are on Settings > Tokens & links.
+export const TOKENS_AT = "Settings > Tokens & links";
 export const SAFE_TITLE = "Is it safe to paste this into a chat?";
 export const SAFE = [
   "Yes. The line holds a one-time code, not a password or a key.",
@@ -41,7 +41,7 @@ export const SAFE = [
   "The keys work for this one site only. The sending key can only send log lines. The lead secret sends leads and can read back this site's lead list (reference, stage, time), never names, emails, addresses or visitor IDs. Neither can open your dashboard or see your visitors.",
   "Skald keeps only a scrambled copy of the code (a hash), never the code itself, and never writes it to a log.",
   "Until the keys are taken, treat the line like a house key: paste it only into your own agent. Changed your mind? Press Cancel this line and it stops at once. A new line also cancels an older one whose keys were not taken yet.",
-  `If your site already has a lead secret, the agent gets that same one (unless your Skald keeps it in the server's settings; then the keys hold none). After the set-up you can remove the agent's sending key ("AI agent set-up") in ${TOKENS_AT}, and make a new lead secret in Settings > Integrations.`,
+  `If your site already has a lead secret, the agent gets that same one (unless your Skald keeps it in the server's settings; then the keys hold none). After the set-up you can remove the agent's sending key ("AI agent set-up") in ${TOKENS_AT}, and make a new lead secret in Settings > Leads & integrations.`,
 ];
 export const CANCELLED_WORDS = "Cancelled. This line no longer works.";
 export const OLD_CANCELLED = "The old line was cancelled.";
@@ -51,7 +51,7 @@ export const keysWords = (at) => [`Your agent took the keys at ${at}. The code i
 
 // 2.39: the jobs a line can carry (docs/plans/2026-10-26-agent-everywhere.md), in the
 // contract's order. act: the checklist line's Set up dialog (js/setup-items.js), null for
-// MCP (Settings > Connections). title: the job in plain words; short: in a list of them.
+// MCP (Settings > AI assistant (MCP)). title: the job in plain words; short: in a list of them.
 export const JOBS = [
   { id: "logs", act: "logs", title: "Connect the server's log", short: "the server's log" },
   { id: "script", act: "script", title: "Add the script tag", short: "the script tag" },
@@ -111,7 +111,7 @@ export function timeLeft(expires, now = Date.now()) {
 }
 export const expired = (expires, now = Date.now()) => Boolean(expires) && (Date.parse(expires) || 0) <= now;
 
-export const PRIVACY_AT = "Apply it below, or set it in Settings > Data retention > People.";
+export const PRIVACY_AT = "Apply it below, or set it in Settings > Privacy & retention > People.";
 export const REPORT_NOTE = "Sent by your agent. Check it before you use it.";
 const list = (x) => (Array.isArray(x) ? x.map((v) => String(v)).filter(Boolean) : []);
 const text = (x) => (x == null ? "" : String(x).trim());
@@ -137,7 +137,7 @@ export function reportLines(report) {
   const leads = (Array.isArray(r.leads) ? r.leads : []).filter((l) => l && (l.tool || l.file))
     .map((l) => [text(l.tool), text(l.file) ? `in ${text(l.file)}` : ""].filter(Boolean).join(" "));
   add("Leads", leads, "list");
-  // The agent only reports the owner's choice; it is set on Settings > Data retention > People.
+  // The agent only reports the owner's choice; it is set on Settings > Privacy & retention > People.
   const p = r.privacy;
   if (p && typeof p === "object") {
     const days = Number.isInteger(p.days) && p.days > 0 ? `for ${p.days} days` : "with no end date";

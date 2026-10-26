@@ -1,0 +1,84 @@
+/* Settings (2.40, js/tabs/settings-frame.js, set-*.js): the phone's page menu,
+   Help · Docs under each title, the in-page tabs, Next step, All settings' map, Help & docs,
+   the MCP and API pages' steps. Tokens from app.css; light and dark. */
+
+/* The phone's menu: below 768px the sidebar is a drawer, so every page starts with this. */
+.set-jump { display: none; }
+@media (max-width: 767px) {
+  .set-jump { display: grid; gap: 4px; margin: 0 0 14px; }
+  .set-jump label { font-size: 12px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+  .set-jump select { width: 100%; min-height: 40px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); color: var(--ink); font-size: 15px; padding: 6px 10px; }
+}
+
+/* Help · Docs, under the title */
+.set-links { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; margin: 0 0 14px; font-size: 13px; }
+.set-links a { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); text-decoration: none; min-height: 24px; }
+.set-links a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.set-links a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+.set-links svg { width: 15px; height: 15px; flex: none; color: var(--g-people); }
+.set-help-t { color: var(--ink-3); }
+.set-head .lede { margin-bottom: 8px; }
+.page-head.set-head + .set-links { margin-top: -6px; }
+.set-tab-lede { margin-top: 0; }
+
+/* In-page tabs: the section strip's look, a little room above the panel */
+.set-tabs { margin-top: 4px; }
+.set-tabs .stabs-panel { padding-top: 14px; }
+
+/* Next step */
+.set-next { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 28px 0 8px; padding: 14px 16px;
+  border: 1px solid var(--rule); border-radius: var(--r); background: var(--surface); }
+.set-next-l { font-size: 12px; font-weight: 650; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+.set-next a { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-weight: 600; text-decoration: none; min-width: 0; }
+.set-next a:hover span:first-child { text-decoration: underline; text-underline-offset: 2px; }
+.set-next-i svg { width: 16px; height: 16px; display: block; }
+
+/* How it works: numbered steps */
+.set-steps { list-style: none; counter-reset: st; margin: 0; padding: 0; display: grid; gap: 10px; max-width: 76ch; }
+.set-steps li { counter-increment: st; position: relative; padding-left: 36px; min-height: 24px; color: var(--ink-2); line-height: 1.5; }
+.set-steps li::before { content: counter(st); position: absolute; left: 0; top: 0; width: 24px; height: 24px; border-radius: 12px;
+  display: grid; place-items: center; background: var(--ink); color: var(--surface); font-size: 12px; font-weight: 650; }
+.set-steps b { color: var(--ink); }
+.set-start { margin: 4px 0 8px; }
+.set-asks { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--ink-2); }
+
+/* All settings */
+.set-tasks { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.set-task { display: inline-flex; align-items: center; min-height: 32px; padding: 4px 12px; border: 1px solid var(--rule); border-radius: 16px;
+  background: var(--surface); color: var(--ink); font-size: 13px; font-weight: 560; text-decoration: none; }
+.set-task:hover { border-color: var(--ink-3); background: var(--sunk); }
+.set-cards-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.set-card { display: flex; gap: 12px; align-items: flex-start; height: 100%; box-sizing: border-box; padding: 14px; border: 1px solid var(--rule);
+  border-radius: var(--r); background: var(--surface); color: var(--ink); text-decoration: none; }
+.set-card:hover { border-color: var(--ink-3); }
+.set-card:focus-visible, .set-task:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.set-card-i { flex: none; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; background: var(--sunk); }
+.set-card-i svg { width: 17px; height: 17px; }
+.set-card-t { display: grid; gap: 3px; min-width: 0; }
+.set-card-t span { color: var(--ink-2); font-size: 13px; line-height: 1.45; }
+
+/* Help & docs: the name, its line, and (guides) the public page, in columns */
+.set-docs, .set-guides { list-style: none; margin: 0; padding: 0; display: grid; }
+.set-doc, .set-guides li { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr) auto; align-items: baseline; gap: 4px 16px;
+  padding: 9px 0; border-bottom: 1px solid var(--rule); }
+.set-doc { grid-template-columns: minmax(0, 260px) minmax(0, 1fr); }
+.set-doc a, .set-guide { font-weight: 600; color: var(--ink); }
+.set-doc-l, .set-guide-s { color: var(--ink-2); font-size: 13px; min-width: 0; }
+.set-guide-o { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; }
+.acts a.btn { text-decoration: none; }
+@media (max-width: 767px) {
+  .set-doc, .set-guides li { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* The MCP dialog: choose your assistant; the steps with their parts under them */
+.cn-pick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.cn-pick .btn[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.cn-flow > li > b { display: inline; }
+.cn-in { display: grid; gap: 8px; margin-top: 8px; }
+.cn-in > * { margin: 0; }
+.cn-cards.cn-one { grid-template-columns: minmax(0, 720px); }
+
+@media (max-width: 767px) {
+  .set-cards-grid { grid-template-columns: minmax(0, 1fr); }
+  .set-next { margin-top: 20px; }
+}

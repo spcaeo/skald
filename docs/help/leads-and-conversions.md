@@ -21,7 +21,7 @@ Older links keep working: `#sales/pipeline` opens Summary with the same options,
 
 ### The Leads tab
 
-[Leads & sales > Leads](#sales/leads) lists every lead of the period, newest first: when it came in; the name and email (owners and admins only, and only when **Leads' names and emails** is **full**, in **Settings > Data retention > People**); what they did (a sign-up, a contact form, a demo booking), with its label; its stage now (completed, won, lost, cancelled, no-show); where it came from (**Lead database**, a booking tool, the page's script tag, or your site's server); the source of the visit it came in on and the first source the browser remembered; the landing page and the country. A row opens the visitor drawer with the lead's steps and pages.
+[Leads & sales > Leads](#sales/leads) lists every lead of the period, newest first: when it came in; the name and email (owners and admins only, and only when **Leads' names and emails** is **full**, in **Settings > This site > Privacy & retention > People**); what they did (a sign-up, a contact form, a demo booking), with its label; its stage now (completed, won, lost, cancelled, no-show); where it came from (**Lead database**, a booking tool, the page's script tag, or your site's server); the source of the visit it came in on and the first source the browser remembered; the landing page and the country. A row opens the visitor drawer with the lead's steps and pages.
 
 - **Reference.** Each lead carries the ID the sender gave it: your site's own account ID (`u-119797`), a booking's address at Calendly. Turn on the **Reference** column under **Columns** to see it; the search box finds a lead by it either way, and the CSV export always holds it. The copy icon beside it copies the whole ID, so you can find the lead in your own admin. The lead's drawer shows it too, with where it came from ("Reference: u-119797 (from example.com's server)") and every step of that reference, oldest first. Everyone who can see the leads sees the reference: it is your system's record number, not a name or an email. One exception: a lead the page's script tag reported has a reference made from the browser's visitor ID, so only owners and admins see that one.
 
@@ -89,7 +89,7 @@ The honesty rules are the same as everywhere:
 - **Insights** about leads follow the same rules as the others: two whole periods, at least 5 leads, a change of at least 20%. A finding the second count does not confirm is left out, and the tab says so.
 - Leads are counted for the whole site. On a page group (for example one language), the lead columns are not shown.
 
-> A lead reported by two roads (for example the script tag and the lead database, for the same form) counts on each, as on Summary with Count from: Tools. A lead that arrived from two tools with the same reference (for example the lead hook and Zapier, or a hook and the lead database) is flagged as "One lead, two tools" under **Settings > Integrations > Status** and by the server's doctor command. The script tag's own rows are not part of that check.
+> A lead reported by two roads (for example the script tag and the lead database, for the same form) counts on each, as on Summary with Count from: Tools. A lead that arrived from two tools with the same reference (for example the lead hook and Zapier, or a hook and the lead database) is flagged as "One lead, two tools" under **Settings > This site > Leads & integrations > Incoming hooks > Status** and by the server's doctor command. The script tag's own rows are not part of that check.
 
 ## Where leads and conversions come from
 
@@ -108,7 +108,7 @@ If your website keeps its leads in its own database, the person who runs your Sk
 
 - Leads marked `spam` or `duplicate` are left out of every count, and counted apart. They are listed in full on Leads, under **More > Show left out**.
 - A lead's status (new, contacted, qualified, won, lost) is read as it is now. When your team changes a status, past days change with it.
-- Names and emails are read and kept only when **Leads' names and emails** is **full** (Settings > Data retention > People). Owners and admins then see them on Leads, in the person search and in the left-out lists. See [Privacy](privacy.md).
+- Names and emails are read and kept only when **Leads' names and emails** is **full** (Settings > This site > Privacy & retention > People). Owners and admins then see them on Leads, in the person search and in the left-out lists. See [Privacy](privacy.md).
 
 ### Your site's lead push
 
@@ -306,13 +306,13 @@ Skald ties a conversion to a journey only through an **anonymous visitor ID**: a
 
 The figures never match by IP address, and never link a new ID to an old one. A visitor ID is a *browser*, not a person: one person on a phone and a laptop is two browsers. The person search can show, apart from the figures, the visits that sent a form at a lead's time: a match by time, never certain. See [Privacy](privacy.md).
 
-> Visitor IDs are off by default. An owner or admin turns them on per site in **Settings > This site > Sites > Script tag**. [Integrations](#settings/integrations) says whether they are on. Your privacy notice must say so, and some places need consent first. See [Privacy](privacy.md).
+> Visitor IDs are off by default. An owner or admin turns them on per site in [Settings > This site > Collect data > Script tag & goals](#settings/site/collect?sub=script). That tab says, under the tag, whether they are on. Your privacy notice must say so, and some places need consent first. See [Privacy](privacy.md).
 
 Without visitor IDs, conversions are still counted, but there are no journeys, no abandoned counts, no assisted sources and no pages seen before converting. With them off, Skald keeps no visitor ID from any road: not from the script tag, not from a webhook's `vid`, and not from your lead database's session column.
 
 ## Goals
 
-Skald's goals are not set on Leads & sales' figures. A goal is a page event, such as "demo booked" or "sign-up sent", shown per 100 visits by source on [Leads & sales > Events](#sales/events). Admins choose them in **Settings > This site > Sites > Goals**. See [Funnels and goals](funnels-and-goals.md).
+Skald's goals are not set on Leads & sales' figures. A goal is a page event, such as "demo booked" or "sign-up sent", shown per 100 visits by source on [Leads & sales > Events](#sales/events). Admins choose them in **Settings > This site > Collect data > Script tag & goals**. See [Funnels and goals](funnels-and-goals.md).
 
 ## When a figure is missing
 

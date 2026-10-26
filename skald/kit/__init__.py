@@ -1,7 +1,7 @@
 """The shipper's install kit: a zip a site's admin runs on their own web server.
 
 Built from the templates in this folder with the standard library's zipfile,
-by the helper (Settings > Connections, POST <page>/sites/kit, connections_api.py)
+by the helper (Settings > Collect data > Send logs, POST <page>/sites/kit, connections_api.py)
 and by `python3 -m skald.kit` (a deployment's own make-kit script):
 
     skald-ship-<site>/install.sh     install-docker.sh or install-systemd.sh

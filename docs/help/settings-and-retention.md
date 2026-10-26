@@ -4,31 +4,59 @@ What each settings page does, who may change it, and how long Skald keeps each k
 
 ## Opening Settings
 
-Select the gear at the foot of the sidebar, or press `g` then `,` (comma). The settings menu takes the sidebar's place while a settings page is open.
+Select the gear at the foot of the sidebar, or press `g` then `,` (comma). On a phone, open **Menu** first: the gear is at its foot. Settings opens on **All settings** ([All settings](#settings/home)): every settings page, with one line on what it is for. It is the place to start when you do not know where something is.
 
 Settings pages come with accounts. On a server with one shared login, most of these values are set in the server's config file by whoever runs it, and the pages say so.
 
 A page you may not change is shown read-only, with the reason beside each field. Pages your role cannot use are left out of the menu.
 
+### How the pages are laid out
+
+- **The menu.** On a computer, the settings menu takes the sidebar's place while a settings page is open. On a phone, the menu sits at the top of every settings page as a select, **Settings page**, grouped the same way, so you never need the drawer.
+- **Tabs inside a page.** Some pages have tabs: **Collect data**, **Leads & integrations**, **Mail & reports** and **AI answers**. Each tab has its own address, so a link opens that tab.
+- **Help and Docs.** Under every page's title, **Help** opens this page's guide inside Skald. **Docs** opens the same guide on the public site, skaldanalytics.com/docs/<guide>/, in a new tab. The Docs address has the copy and open icons beside it.
+- **Next step.** At the foot of each page, a **Next step** card names where to go next.
+- **Old addresses.** A link to an old settings page still works. It opens the page the setting is on now.
+
+The palette (**Ctrl K**, **Cmd K** on a Mac) finds every settings page by its name, such as "AI assistant (MCP)".
+
 ## The settings menu
+
+**All settings** is at the top, above the groups.
 
 | Group | Pages |
 | --- | --- |
+| This site | Set-up checklist, Collect data, Site details, Leads & integrations, Internal traffic, Privacy & retention, Mail & reports, AI answers |
+| AI & API | AI assistant (MCP), Read figures (API), Tokens & links |
+| Organisation | Sites, Team, Users (only on a server with one shared login), Sign-in rules, Audit log, Billing & usage |
 | You | Your account |
-| Team & access | Team, Connections (Users, on a server with one shared login) |
-| This site | Sites, Internal traffic, Data retention, Mail, Reports, Integrations, AI answers |
-| Organisation | Add or remove sites, Security, Audit log, Billing |
+| Help & docs | Help & docs: the guides, the public docs, the API and MCP pages, What's new and how to reach us |
+
+**This site** is about the site you have open; its name is beside the group. **Organisation** is about every site and person of your organisation.
 
 **Back to the dashboard**, at the top of the settings menu, returns to the page you came from.
 
+The tabs inside a page:
+
+| Page | Tabs |
+| --- | --- |
+| Collect data | Send logs, Script tag & goals, What counts |
+| Leads & integrations | Incoming hooks, Outgoing webhooks, Search Console & Bing |
+| Mail & reports | Mail, Client reports |
+| AI answers | Questions & profiles, API keys |
+
 These pages have guides of their own:
 
-- Your account and Team: [Sign-in and team](sign-in-and-team.md).
-- Connections (called API & tokens before): [Connections](connections.md), [API](api.md) and [MCP](mcp.md).
+- Set-up checklist: [Getting started](getting-started.md), "Set up your site".
+- Collect data › Send logs, and Organisation › Sites: [Connections](connections.md).
+- Collect data › Script tag & goals: [Tracking script](tracking-script.md) and [Funnels and goals](funnels-and-goals.md).
+- Leads & integrations: [Webhooks](webhooks.md) and [Search](search.md).
 - Internal traffic: [Internal traffic](internal-traffic.md).
-- Integrations: [Tracking script](tracking-script.md) and [Webhooks](webhooks.md).
-- Reports: [Client reports](client-reports.md).
-- AI answers, and its API keys in Integrations: [AI answers](ai-answers.md).
+- Privacy & retention: [Privacy](privacy.md), and this guide below.
+- Mail & reports › Client reports: [Client reports](client-reports.md).
+- AI answers, and its API keys: [AI answers](ai-answers.md).
+- AI assistant (MCP): [MCP](mcp.md). Read figures (API) and Tokens & links: [API](api.md).
+- Team, Users, Sign-in rules and Your account: [Sign-in and team](sign-in-and-team.md).
 
 ## Who may change what
 
@@ -36,31 +64,34 @@ These pages have guides of their own:
 
 | Page | Part | Who may change it |
 | --- | --- | --- |
-| Data retention | Detail kept for this site | Admin |
-| Data retention | People (IP addresses, names and emails) | Admin |
-| Data retention | Leads (how long leads and their pages are kept) | Admin |
-| Data retention | Backups | Install admin |
-| Mail | Reports | Admin |
-| Mail | Mail server (SMTP), Google PageSpeed | Install admin |
-| Reports | Client reports, agency branding | Admin |
-| Sites | Host names, Views, Time zone | Admin |
-| Sites | Log file | Install admin |
-| Sites | Goals | Admin |
-| Integrations | Hooks, event types, outgoing webhooks | Admin |
-| Integrations | AI answers: the assistants' API keys | Install admin |
-| AI answers | The site's lists, tracking profiles | Admin |
-| Security | Sign-in rules | Owner |
+| Privacy & retention | Detail kept for this site | Admin |
+| Privacy & retention | People (IP addresses, names and emails) | Admin |
+| Privacy & retention | Leads (how long leads and their pages are kept) | Admin |
+| Privacy & retention | Backups | Install admin |
+| Mail & reports › Mail | Reports (the daily and weekly mail) | Admin |
+| Mail & reports › Mail | Mail server (SMTP), Google PageSpeed | Install admin |
+| Mail & reports › Client reports | Client reports, agency branding | Admin |
+| Site details | Host names, Views, Time zone, Logo | Admin |
+| Collect data › Send logs | Log file | Install admin |
+| Collect data › Script tag & goals | Visitor IDs, Goals | Admin |
+| Collect data › What counts | Page assets, Not pages | Admin |
+| Leads & integrations | Hooks, event types, outgoing webhooks | Admin |
+| AI answers › Questions & profiles | The site's lists, tracking profiles | Admin |
+| AI answers › API keys | The assistants' API keys | Install admin |
+| AI & API | Tokens, MCP and API set-up, shared links | Admin |
+| Sign-in rules | Require two-step sign-in, session length | Owner |
 | Audit log | (read only) | Admins may read it |
-| AI & bots > Crawler rules | Every crawler | Install admin |
-| Add or remove sites | Add a site | Admin |
-| Add or remove sites | Remove a site | Owner |
-| Billing | Plan and payment | Owner |
+| AI & bots › Crawler rules | Every crawler | Install admin |
+| Organisation › Sites | Add a site | Admin |
+| Organisation › Sites | Pause or resume a site | Admin |
+| Organisation › Sites | Remove, restore, clear data, delete all data | Owner |
+| Billing & usage | Plan and payment | Owner (admins can read it) |
 
 Viewers see the pages read-only.
 
-## Data retention
+## Privacy & retention
 
-[Data retention](#settings/retention) sets how long the detail is kept. Totals, page milestones and every stored day's figures are kept forever. They are not a setting.
+[Privacy & retention](#settings/site/privacy) (**Settings › This site › Privacy & retention**) sets how long the detail is kept. Totals, page milestones and every stored day's figures are kept forever. They are not a setting.
 
 | Setting | What it keeps | Range | Default |
 | --- | --- | --- | --- |
@@ -68,13 +99,15 @@ Viewers see the pages read-only.
 | Journeys | Anonymous visits: start time, country, device, source, pages in order | 1 to 90 days | 7 |
 | Returning-visitor matching | How long a visitor can be recognised as returning | 1 to 90 days | 30 |
 | In-page events | Events from the script tag | 30 to 3650 days | 400 |
-| Visits with addresses | Each visit with its IP address and browser (card **People**) | 1 to 3650 days | 395 |
+| Visits with addresses | Each visit with its IP address and browser (card **People**). When you set it shorter than the leads, also the most a lead's name and email are kept | 1 to 3650 days | 395 |
 | Leads and the pages they read | Each lead, its name and email, and the pages its visitor ID read (card **Leads**) | Kept for good, or 1 to 3650 days | 400 days |
 | Pages of visitors who have not signed up yet | The pages read with a visitor ID that has no lead yet (card **Leads**) | 1 to 400 days | 30 |
 | Daily backup copies | Copies of the history on the server, for every site | 1 to 60 | 14 |
 | Weekly backup copies | Weekly copies of the history | 0 to 52 | 8 |
 
 Each field says where its value comes from: this site, the organisation, the whole server, the config file, or the default.
+
+On an internal or enterprise site the page says **Kept: nothing is deleted (internal or enterprise).** at the top and on the **People** card. The windows are then not applied: Skald deletes and clears nothing by itself on that site, and a shorter window removes nothing. A person's own request to be deleted, run by an admin, still removes what is kept about them. See [Privacy](privacy.md#sites-that-keep-everything).
 
 ### People
 
@@ -84,7 +117,7 @@ The **People** card says what Skald keeps about the people who visit:
   - **Full address**: the whole address.
   - **Shortened (last part removed)**: `203.0.113.57` is kept as `203.0.113.0`. Switching from full shortens the addresses already kept at the next nightly run. Switching back to full keeps only new visits in full.
   - **Don't keep**: no address is kept, and the visits already kept with one are deleted at the next nightly run.
-- **Visits with addresses**: how many days those visits are kept. The default is 395.
+- **Visits with addresses**: how many days those visits are kept. The default is 395. When you set it, and it is fewer days than the leads are kept, it is also the most a lead's name and email are kept: after that the lead stays, counted, without them. See [Privacy](privacy.md), "How long a name and email are kept".
 - **Leads' names and emails**: **full** keeps a lead's name and email with its conversions; **anonymous** keeps neither.
 
 A new install keeps both. An install that was upgraded from a version before 2.4.0 keeps neither until you turn them on. The field then says "kept off by the upgrade to 2.4.0". Your privacy notice must say what you keep before you turn them on. See [Privacy](privacy.md).
@@ -103,9 +136,9 @@ The **Leads** card says how long Skald keeps your leads. A lead is a form sent o
 What is kept for good:
 
 - the leads, every stage of each (sent, booked, paid, won, lost), and the ones marked test;
-- the leads a sync removed (under **Show left out > Removed**);
+- the leads a sync removed (under **Show left out › Removed**);
 - the pages read by a visitor ID that became a lead;
-- the name and email of each lead (when you keep them);
+- the name and email of each lead (when you keep them), unless you set **Visits with addresses** to fewer days: then they are cleared after those days;
 - the raw copy of each hook message, which the second count recounts leads from. So old days still add up.
 
 What still goes: the log of hook deliveries after 90 days, and the pages of visitors who never became a lead, after the days you set.
@@ -129,15 +162,17 @@ Making a window shorter removes stored data, so Skald asks first.
 2. The page shows what will go: how many rows and days.
 3. Type the site's name to confirm, then select **Yes, keep less**. Or select **Keep it as it is**.
 
-Nothing is removed at once. Removal happens at the next daily run.
+Nothing is removed at once. Removal happens at the next daily run. On a site that keeps everything, the page says so instead and nothing is removed.
 
 A change to **Returning-visitor matching** also changes who counts as a returning visitor from then on.
 
 > If your server sells plans, your plan may cap the detail you can keep. The page then says "Capped by your plan".
 
-## Mail
+## Mail & reports
 
-[Mail](#settings/mail) sets the mails Skald sends.
+[Mail & reports](#settings/site/mail) (**Settings › This site › Mail & reports**) has two tabs. **Mail**, below, sets the mails Skald sends. **Client reports** ([Client reports](#settings/site/mail?sub=reports)) sends a client their own report: see [Client reports](client-reports.md).
+
+The **Mail** tab has these cards.
 
 ### Reports
 
@@ -156,7 +191,7 @@ For install admins. The sender address, server, port, security, user and passwor
 
 ### Google PageSpeed
 
-A free API key raises Google's daily limit for the tests on [Site > Speed](#site/speed). It is write-only too.
+A free API key raises Google's daily limit for the tests on [Site › Speed](#site/speed). It is write-only too.
 
 ### Preview the mail
 
@@ -173,9 +208,9 @@ At most 3 test mails in 10 minutes.
 
 ### Alerts and failure mail
 
-Alerts always show on [Site > Alerts](#site/alerts) and on the bell in the top bar. They go to confirmed recipients only.
+Alerts always show on [Site › Alerts](#site/alerts) and on the bell in the top bar. They go to confirmed recipients only.
 
-Admins and owners switch alerts on or off for this site under **Which alerts are on** on [Site > Alerts](#site/alerts):
+Admins and owners switch alerts on or off for this site under **Which alerts are on** on [Site › Alerts](#site/alerts):
 
 - **All alerts**: the switch for every rule. While it is off, nothing is checked, and the page offers **Turn alerts on**.
 - **Mail alerts**: off, alerts are only shown here, never mailed.
@@ -186,50 +221,16 @@ A change applies from the next live run, within 2 minutes. How much makes an ale
 
 If the morning run fails, the server can send one short failure mail. It goes to the same people as the daily mail: the confirmed recipients on this page, or the server's own list when none is set here or none has confirmed yet. It uses the mail server set on this page or on the server. A day held back because it did not add up is not a failure, so it sends no failure mail.
 
-## Sites
+## Site details
 
-[Sites](#settings/sites) says what counts as this site, and where its log is.
+[Site details](#settings/site/details) (**Settings › This site › Site details**) says what counts as this site.
 
 - **Host names**: the names this site answers to, such as `www.example.com` and `example.com`. 1 to 50.
 - **Views**: page groups, one per line: a name, the path it starts with, and any paths to leave out. Up to 20. They show in the **Page group** list in the top bar, which reads **All pages** until you pick one. See "Views (page groups)" below.
 - **Time zone**: the site's own zone. Days are counted midnight to midnight in it.
-- **Log file**: the log folder and file name. For install admins.
-- **Goals**: the page events that count as this site's goals, such as Sign-up sent or Demo booked. Tick up to 10. The events your site has already counted are listed first; the others are under **Not counted yet**. See [Funnels and goals](funnels-and-goals.md).
-- **Not pages**: machine addresses that are never a person reading a page, such as feeds and WordPress's API. See "Not pages" below.
+- **Logo**: see "Logo" below.
 
 Changes apply from the next run. Days already stored are not counted again, except a new page group's (below).
-
-### Not pages
-
-Some addresses answer like a page but nobody reads them: a feed for feed readers, WordPress's API, a Markdown copy of a page that an AI agent fetches. Skald does not count a request for one as a page view, on every site. The request still counts as a request, in its usual group (people, bots and the rest), so the groups still add up to the log. It is left out of page views, visitors who read a page, landing pages, exits and journeys.
-
-The list, each one ticked by default:
-
-- **markdown**: a Markdown copy of a page (`/docs/index.md`, `.mdx`, `.markdown`). People read the page itself; tools and AI agents fetch the copy. AI fetches of it still show under **What they fetch** on AI & bots, as Markdown. If you publish `.md` copies for AI on purpose and want them in the pages' AI columns, untick it.
-- **wp_rest**: WordPress's API, `/wp-json/` and `?rest_route=`.
-- **wp_files**: WordPress's machine files, `xmlrpc.php`, `wp-cron.php` and `admin-ajax.php`.
-- **feeds**: feeds, `/feed/`, `/comments/feed/`, `/feed/atom/` and `?feed=`.
-- **oembed**: `/oembed/`, what another site asks for to embed a link.
-- **trackback**: `/trackback/` and `wp-trackback.php`, notices one blog sends another.
-- **author_number**: `?author=2`, a lookup that lists a WordPress site's user names.
-- **reply_to_comment**: `?replytocom=`, WordPress's reply link for browsers without scripts.
-- **sitemap_page**: an HTML sitemap page, `/sitemap/`, `/site-map/`, `/html-sitemap/` and `/sitemap.html`. Crawlers, link checkers and test browsers walk it; people find pages through the menu and search. Its visits show in Site health > Data quality, not in the pages.
-
-**Count one as pages again.** If your site serves a real page at one of these, for example a page called `/feed/`, untick it and press **Save**.
-
-**Add your own.** Under **Also not pages**, one per line, up to 20:
-
-- `/status`: that path, with or without a slash at the end.
-- `/preview/*`: every path that starts with `/preview/`.
-- `?preview`: every address with `preview` in its query, such as `/?preview=1`.
-
-Capital letters do not matter. `/` alone is refused: it would take every page out.
-
-**What stays a page.** Pages a person opens are never on the list: search results, a cart or checkout, a sign-in page, an app's dashboard, a thank-you page. If one of them is filled by a bot, that is a question of who visited, which Skald answers by itself; add it under **Also not pages** only if you never want it counted.
-
-**Where you see it.** [Site health > Data quality](#site/quality) shows each day's **Not counted as pages**: the requests, how many were people's, and which entry (hover the number). In [Requests](#site/requests) such a request says "a machine address, not a page" and names the entry.
-
-A change counts from the next run. Days already stored keep their figures until the server recounts them (`backfill --days N --force`).
 
 ### Views (page groups)
 
@@ -264,17 +265,86 @@ Choose where it comes from:
 
 Press **Save**. Owners and admins can change the logo; everyone else sees it.
 
-## Add or remove sites
+## Collect data
 
-[Add or remove sites](#settings/sitesadmin) lists your organisation's sites. If your server offers it, an admin adds a site here with **Add a site, step by step**: the site's address, proof it is yours, how its visits reach Skald, the install, and a test. You can stop at any step and continue later. A site not finished shows **Setup: step 3 of 5, continue**; a finished one that has received nothing for a day shows **No visits yet: test the connection**. See [Connections](connections.md), "Add a site, step by step".
+[Collect data](#settings/site/collect) (**Settings › This site › Collect data**) is how this site's visits reach Skald, and what counts. It has three tabs:
+
+- **Send logs**: sending this site's visits to Skald from another server or platform, with your AI agent or by hand, and **Test a sample** of a log. See [Connections](connections.md). It also has the **Log file**: the log folder and file name, for install admins.
+- **Script tag & goals** ([Script tag & goals](#settings/site/collect?sub=script)): the tag to copy into every page, its visitor IDs (and sharing them across subdomains), and the **Goals**: the page events that count as this site's goals, such as Sign-up sent or Demo booked. Tick up to 10. The events your site has already counted are listed first; the others are under **Not counted yet**. See [Tracking script](tracking-script.md) and [Funnels and goals](funnels-and-goals.md).
+- **What counts** ([What counts](#settings/site/collect?sub=counting)): the **Page assets**, the folders your pages load their own files from (without them nobody counts as a person), and the **Not pages**: machine addresses that are never a person reading a page, such as feeds and WordPress's API. See "Not pages" below.
+
+Changes apply from the next run. Days already stored are not counted again.
+
+### Not pages
+
+Some addresses answer like a page but nobody reads them: a feed for feed readers, WordPress's API, a Markdown copy of a page that an AI agent fetches. Skald does not count a request for one as a page view, on every site. The request still counts as a request, in its usual group (people, bots and the rest), so the groups still add up to the log. It is left out of page views, visitors who read a page, landing pages, exits and journeys.
+
+The list, each one ticked by default:
+
+- **markdown**: a Markdown copy of a page (`/docs/index.md`, `.mdx`, `.markdown`). People read the page itself; tools and AI agents fetch the copy. AI fetches of it still show under **What they fetch** on AI & bots, as Markdown. If you publish `.md` copies for AI on purpose and want them in the pages' AI columns, untick it.
+- **wp_rest**: WordPress's API, `/wp-json/` and `?rest_route=`.
+- **wp_files**: WordPress's machine files, `xmlrpc.php`, `wp-cron.php` and `admin-ajax.php`.
+- **feeds**: feeds, `/feed/`, `/comments/feed/`, `/feed/atom/` and `?feed=`.
+- **oembed**: `/oembed/`, what another site asks for to embed a link.
+- **trackback**: `/trackback/` and `wp-trackback.php`, notices one blog sends another.
+- **author_number**: `?author=2`, a lookup that lists a WordPress site's user names.
+- **reply_to_comment**: `?replytocom=`, WordPress's reply link for browsers without scripts.
+- **sitemap_page**: an HTML sitemap page, `/sitemap/`, `/site-map/`, `/html-sitemap/` and `/sitemap.html`. Crawlers, link checkers and test browsers walk it; people find pages through the menu and search. Its visits show in Site health › Data quality, not in the pages.
+
+**Count one as pages again.** If your site serves a real page at one of these, for example a page called `/feed/`, untick it and press **Save**.
+
+**Add your own.** Under **Also not pages**, one per line, up to 20:
+
+- `/status`: that path, with or without a slash at the end.
+- `/preview/*`: every path that starts with `/preview/`.
+- `?preview`: every address with `preview` in its query, such as `/?preview=1`.
+
+Capital letters do not matter. `/` alone is refused: it would take every page out.
+
+**What stays a page.** Pages a person opens are never on the list: search results, a cart or checkout, a sign-in page, an app's dashboard, a thank-you page. If one of them is filled by a bot, that is a question of who visited, which Skald answers by itself; add it under **Also not pages** only if you never want it counted.
+
+**Where you see it.** [Site health › Data quality](#site/quality) shows each day's **Not counted as pages**: the requests, how many were people's, and which entry (hover the number). In [Requests](#site/requests) such a request says "a machine address, not a page" and names the entry.
+
+A change counts from the next run. Days already stored keep their figures until the server recounts them (`backfill --days N --force`).
+
+## Sites
+
+[Sites](#settings/org/sites) (**Settings › Organisation › Sites**) lists your organisation's sites. If your server offers it, an admin adds a site here with **Add a site, step by step**: the site's address, proof it is yours, how its visits reach Skald, the install, and a test. You can stop at any step and continue later. A site not finished shows **Setup: step 3 of 5, continue**; a finished one that has received nothing for a day shows **No visits yet: test the connection**. See [Connections](connections.md), "Add a site, step by step".
 
 A new site gets a page at once, with a short "Getting ready" note until its first figures arrive.
 
-Only an owner can remove a site. A removed site stops being processed. Its data is kept until the server admin deletes it.
+### Pause, remove or delete a site
+
+Each site has a **⋯** menu at the end of its row. Every choice opens a short dialog that says what happens, what stays and how to undo it. The address names the open dialog, so you can send someone the link.
+
+| Choice | Who | What happens | What stays | How to undo |
+| --- | --- | --- | --- | --- |
+| **Pause** (start here) | Owner or admin | Skald stops collecting and counting the site. Its log endpoint asks the shipper to wait, so the shipper keeps its lines. The daily and live runs skip the site. The site shows **Paused since** the day you paused it. | Everything: history, settings, tokens, set-up, dashboard. | **Resume**, in the same menu. |
+| **Remove** | Owner, typing the site's name | Skald stops processing the site and hides it from the dashboard and the site switcher. Its log endpoint refuses new lines. | All of its data. | **Restore**, under **Removed sites** on the same page. |
+| **Clear data** | Owner, typing the name and ticking a box | Skald deletes the site's collected data: its day history, the log lines it holds for it, its leads, sales and conversions, its AI answer runs and today's live figures. | The site, its settings, page groups, funnels, webhooks, tokens and set-up. Collecting goes on. | No undo button: see "The archive" below. |
+| **Delete all data** | Owner, typing the name and ticking a box | Skald deletes everything it keeps for the site: day history, the log lines it holds, leads, sales and conversions, AI answers, settings, tokens (they stop working at once), its dashboard folder, its logo and its set-up links. | A site made here is gone; its name can be added again after 30 days. A site from the server's config file keeps its entry there and becomes **Removed**, with no data. | No undo button: see "The archive" below. |
+
+**Pause first.** If you only want a break, or want to test something, pause the site. Nothing is deleted.
+
+**The days in between.** Days while a site was paused or removed, and the days before you cleared its data, read **Not recorded**, never 0. When you resume, Skald says in plain words whether those days can still be filled:
+
+- a site that sends its log with the shipper: the shipper kept its lines and sends them now; an install admin can then count those days with `skald --site <site> backfill --days <n>`;
+- a site that sends its log by a log drain (Vercel, Netlify): the drain does not keep lines it could not send, so those days stay Not recorded;
+- a site whose log is on the Skald server itself: Skald says which of those days the log still holds.
+
+After **Clear data**, the days before the clear are never counted again, even when the web server's own log still holds them.
+
+**The archive.** Before **Clear data** or **Delete all data** deletes anything, Skald writes one archive of everything it is about to delete into the install's backups folder (where `skald backup` writes), and shows you its path. The archive is kept 30 days. Skald has no one-step restore from it: within those 30 days an install admin can copy data back from it by hand. Secrets such as hook signing keys are deleted and never put in the archive.
+
+**The install's main site** (the one the server's config file is for) can only be paused here. Removing it or deleting its data is done on the server.
+
+Every choice writes one line in the [Audit log](#settings/org/audit): the site, who did it and, for a clear or a delete, the archive's file name.
+
+The same choices exist for an install admin at the server: `skald site pause|resume|remove|restore|clear|purge <site>`; `remove`, `clear` and `purge` need `--yes`.
 
 ## Crawler rules
 
-The rules for AI crawlers are not in Settings any more. They are on [AI & bots > Crawler rules](#ai/rules), next to the crawlers they apply to. Old links to Settings > AI crawlers open that tab.
+The rules for AI crawlers are not in Settings any more. They are on [AI & bots › Crawler rules](#ai/rules), next to the crawlers they apply to. Old links to Settings › AI crawlers open that tab.
 
 Crawler rules lets each AI company's crawlers in, or keeps them out. If your server offers it, each company has three choices:
 
@@ -292,38 +362,49 @@ These rules apply to every site on the server, so only an install admin may chan
 
 ### Suggested llms.txt
 
-[AI & bots > llms.txt](#ai/llms) shows **Suggested llms.txt**: a file you can publish at `/llms.txt` on your site. It follows the format at llmstxt.org: your site's name, a one-line summary, then links to your pages, grouped by section, so an AI assistant knows which pages matter.
+[AI & bots › llms.txt](#ai/llms) shows **Suggested llms.txt**: a file you can publish at `/llms.txt` on your site. It follows the format at llmstxt.org: your site's name, a one-line summary, then links to your pages, grouped by section, so an AI assistant knows which pages matter.
 
 Skald picks the pages people and AI assistants read most over the last 90 days. Only recorded days count; any day left out is named. It leaves out private pages (sign-in, account, cart, search, admin), pages your robots.txt keeps crawlers from, redirects, and pages that are gone. With your website's page list, each link has the page's title; without it, the link is named by its path.
 
 Write the summary line yourself and check the links. Then select **Copy** or **Download** and publish it on your site. Skald never writes it to your website. Your server admin can also print it with `skald llms-txt`.
 
-## Security
+## Sign-in rules
 
-[Security](#settings/security) sets sign-in rules for everyone in the organisation. Only an owner may change them.
+[Sign-in rules](#settings/org/security) (**Settings › Organisation › Sign-in rules**) sets the sign-in rules for everyone in the organisation. Only an owner may change them.
 
 - **Require two-step sign-in**: members without it set it up the next time they sign in. Turn it on for your own account first.
 - **Session length**: how long a sign-in lasts at most, 1 to 90 days. The default is 14.
 
 ## Audit log
 
-[Audit log](#settings/audit) shows who changed what, and when, newest first: settings, the team, tokens, sign-ins and failed sign-ins. Admins may read it. Viewers cannot.
+[Audit log](#settings/org/audit) (**Settings › Organisation › Audit log**) shows who changed what, and when, newest first: settings, the team, tokens, sign-ins and failed sign-ins. Admins may read it. Viewers cannot.
 
 - Pick one kind of change in **Action**, or keep **Every action**.
 - Select **Download CSV** to keep a copy.
 
 No password, token, link or address is ever written to the log. Each person search is written too (`people.search`): what kind of value was searched and a one-way code of it, never the value. So is each conversion marked test or not (`conversions.test`, `conversions.untest`). Install admins see every organisation's rows.
 
-## Billing
+## Billing & usage
 
-[Billing](#settings/billing) shows only on servers that sell plans, and only to owners. Other servers say "This server does not sell plans."
+[Billing & usage](#settings/org/billing) (**Settings › Organisation › Billing & usage**) shows only on servers that sell plans, to owners and admins. Admins can read it; only owners can choose a plan or change the payment. Other servers say "This server does not sell plans."
 
 - **Your plan**: its name, status and trial days left.
+- **Requests this month** as a bar, with marks at 80%, 90% and 100% of what the plan allows, and the day the count starts again.
 - A table of use against the plan's limits: sites, requests this month, members and days of detail kept.
 - **Plans**: select **Choose** and a plan's name to buy it.
 - **Manage billing**: card, invoices and cancelling, on the payment provider's own page.
 
 "Requests this month" counts every request the server logged for your sites, people and machines alike.
+
+### Usage alerts
+
+So that no data is lost, Skald warns before your requests run out. When this month's requests reach **80%**, **90%** and **100%** of your plan, every owner and admin gets one mail. It says how many requests are used, of how many, and the day the count starts again, with a button to Billing. From 80%, owners and admins also see a line at the top of every page, with a link to Billing. Viewers get neither.
+
+You get each mail once a month. If the count jumps past two marks at once, you get one mail, for the higher one. After you choose a bigger plan, the mails start again from the new plan's marks.
+
+Past 100%, Skald turns new log lines away until the month turns or you choose a bigger plan. Skald's shipper keeps them and sends them again later. Lines sent by a Cloudflare Worker are lost. The count includes the days stored so far; today is added after it ends.
+
+Whoever runs the Skald server can switch these alerts off (`saas.usage_alerts: false`).
 
 If your organisation goes over a limit, every page shows a banner. Nothing is deleted. If a payment is overdue, the organisation becomes read-only: you can still read every page, change your own account and pay, but not change settings or the team.
 

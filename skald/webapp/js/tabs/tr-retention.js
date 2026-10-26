@@ -35,7 +35,7 @@ const SPLITS = [["", "Everyone"], ["source", "First source type"], ["country", "
 const GRAINS = [["week", "Weeks"], ["day", "Days"]];
 const STEPS = 5;
 const ROAD = {
-  address: (i) => `the same IP address with the same browser and system, from the visits kept ${n(i.horizon)} days (Settings › Data retention › People)`,
+  address: (i) => `the same IP address with the same browser and system, from the visits kept ${n(i.horizon)} days (Settings › Privacy & retention › People)`,
   hash: (i) => `the 30-day visitor code (an address and browser family, hashed with a secret; no address kept), kept ${n(i.horizon)} days`,
 };
 const NOT = {
@@ -254,7 +254,7 @@ async function openCell(g, c, k, part, dim, value, metric, road) {
   const d = openDrawer({ title: what, subtitle: `First ${unit(g)} ${cohortName(g, c)}${seg}: ${n(figure)} visitor${figure === 1 ? "" : "s"}`, key: "cohort", scope: "page",
     body: h("p", { class: "empty" }, "Looking in the kept visits…"), route: { key: "cohort", value: `${c.start}.${k}` } });
   const url = askUrl(g, c, k, dim, value, metric);
-  if (road !== "address") { d.body.replaceChildren(h("p", { class: "note" }, "The 30-day code names nobody: only kept visits (Settings › Data retention › People, keep IP addresses) can list the visitors behind a cell.")); return d; }
+  if (road !== "address") { d.body.replaceChildren(h("p", { class: "note" }, "The 30-day code names nobody: only kept visits (Settings › Privacy & retention › People, keep IP addresses) can list the visitors behind a cell.")); return d; }
   if (!(mayFind() || (DEMO.on && demoFile(url)))) {
     d.body.replaceChildren(h("p", { class: "note" }, DEMO.on ? "In the demo, the visitors behind this cell need a running Skald." : "Admins and owners see the visitors behind a cell here, each opening in the visitor drawer."));
     return d;

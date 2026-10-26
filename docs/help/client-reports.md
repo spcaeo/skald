@@ -2,14 +2,14 @@
 
 Branded reports for your clients: a mail with a PDF attached, sent on a schedule you set, with your agency's name, colour and logo.
 
-Client reports come with accounts. Owners and admins of the site's organisation set them up in [Settings > Reports](#settings/reports).
+Client reports come with accounts. Owners and admins of the site's organisation set them up in [Settings > This site > Mail & reports > Client reports](#settings/site/mail?sub=reports).
 
 ## Make a report
 
-1. Open **Settings > Reports** for the site and select **New report**.
+1. Open **Settings > This site > Mail & reports**, tab **Client reports**, for the site and select **New report**.
 2. Give it a **name**. The client sees it at the top of the mail and the PDF.
 3. Add the **recipients**, one address per line (20 at most).
-4. Choose **when it goes**: weekly on a weekday, monthly on a day of the month, or every few days from a start date, at a time of day. Times are in the site's time zone (Settings > Sites).
+4. Choose **when it goes**: weekly on a weekday, monthly on a day of the month, or every few days from a start date, at a time of day. Times are in the site's time zone (Settings > This site > Site details).
 5. Choose the **period** it covers.
 6. Tick the **sections** to include, and write any **notes** and a **footer** line.
 7. Select **Preview** to see the mail, or **Download PDF** to see the attachment. Nothing is sent.
@@ -17,7 +17,7 @@ Client reports come with accounts. Owners and admins of the site's organisation 
 
 ## Recipients confirm first
 
-Every address you add gets one short mail with a confirm link, and nothing else until its owner follows the link. This is the rule for every mail Skald sends, so nobody can be put on a list without agreeing. With no mail server set up yet (Settings › Mail), no link goes out and the page says so: save the report again once mail is set up.
+Every address you add gets one short mail with a confirm link, and nothing else until its owner follows the link. This is the rule for every mail Skald sends, so nobody can be put on a list without agreeing. With no mail server set up yet (Settings › This site › Mail & reports), no link goes out and the page says so: save the report again once mail is set up.
 
 The list says how many recipients have confirmed and who is still waiting. A report goes to the confirmed ones only; the send record says how many were left out.
 
@@ -50,7 +50,7 @@ The list shows, for each report, when it goes next and which days that send will
 | Search Console | Google's clicks, impressions, CTR and average position for the period, with the top queries and pages, from the synced Search Console figures |
 | Notes | Your own words, as you typed them |
 
-**Search Console** needs the site connected first (Settings › Integrations › Search); until then the section says it is not connected. Only days Google calls final are counted. The newest days, which Google may still change, are listed as provisional and left out, and so are days not synced yet. Search Console's days run on Pacific Time, and a click is not a visit, so these figures are never added to Skald's own.
+**Search Console** needs the site connected first (Settings › This site › Leads & integrations › Search Console & Bing); until then the section says it is not connected. Only days Google calls final are counted. The newest days, which Google may still change, are listed as provisional and left out, and so are days not synced yet. Search Console's days run on Pacific Time, and a click is not a visit, so these figures are never added to Skald's own.
 
 ## Figures you can stand behind
 
@@ -69,7 +69,7 @@ The **Agency branding** card on the same page is for every report of every site 
 - **Brand colour**: the band at the top of each report. Text on it is white or dark, whichever reads better.
 - **Agency logo**: a PNG or JPEG of at most 256 KB, shown on the right of the header. Untick **Show the agency logo** in a report to leave it out there.
 
-The site's own logo (Settings > Sites > Logo) is shown on the left. An SVG logo cannot travel in a mail or a PDF, so the site's letter is shown instead.
+The site's own logo (Settings > This site > Site details > Logo) is shown on the left. An SVG logo cannot travel in a mail or a PDF, so the site's letter is shown instead.
 
 ## Send now, history and pausing
 
@@ -81,4 +81,4 @@ The site's own logo (Settings > Sites > Logo) is shown on the left. An SVG logo 
 
 A scheduled send that fails (the mail server is down, say) is tried once more 30 minutes later. After that it waits for its next scheduled day. If the period's last day is not stored yet when the report is due, it waits for the morning run until 18:00, then goes with that day listed as not recorded.
 
-A report needs a mail server (Settings > Mail). Without one, reports can still be made, previewed and downloaded, and the page says why they are not sent.
+A report needs a mail server (Settings > This site > Mail & reports). Without one, reports can still be made, previewed and downloaded, and the page says why they are not sent.

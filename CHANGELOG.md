@@ -4,6 +4,8 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+Everything under Unreleased is live on skaldanalytics.com, except the entries marked "not live yet" or "not released yet": the first two website entries since 26 Oct 2026, 18:03 UTC, the rest since 11:44 UTC (the website only; no new Skald version).
+
 ### Website: the MCP pages say 22 tools; What's new has 2.39
 
 - **Changed.** The MCP page, the features page, the developers pages, /for/ and the Searchable
@@ -45,8 +47,6 @@ Not live yet: built and committed, waiting for the owner's go to upload the webs
   "problems: none"; the unit tests pass; /compare/, /compare/jetoctopus/, /compare/goaccess/ and
   the crawl health page at 390 and 1440 px show no sideways scroll; all 19 outside links answer
   200 after redirects.
-
-Everything under Unreleased below is live on skaldanalytics.com since 26 Oct 2026, 11:44 UTC (the website only; no new Skald version).
 
 ### Website: hosted prices are final, and each plan says its limits
 
@@ -512,6 +512,188 @@ Everything under Unreleased below is live on skaldanalytics.com since 26 Oct 202
   now and then, on the last commit too); the full test suite; every sitemap URL opened at 1440 and 390 px wide
   (no sideways scroll, no script errors, no broken assets, every switch and tab has a choice).
   Words checked against the product's own limits (`_src/pages/FEATURES.md`).
+
+## 2.40.0 (2026-10-26)
+
+Settings is rebuilt around what you came to do: a menu in five groups (This site, AI & API, Organisation, You, Help & docs), a page per task, and Help and Docs under every title; every old address still works. Each site has a menu to pause, remove, clear or delete it, with an archive written first. Hosted plans mail owners and admins at 80%, 90% and 100% of the month's requests. A site can keep everything: on internal and enterprise sites Skald deletes nothing by itself. Leads' names and emails follow the site's own People days on every other site.
+
+### Upgrade
+
+- **Read this before you upgrade if you set People days and want nothing cleared.** The first
+  run on 2.40.0 clears the names and emails of leads older than a site's People days (the Fixed
+  entry below). To keep everything, add `SKALD_KEEP_EVERYTHING=1` to the container's env file
+  (or `retention.keep_everything: true` in config.yml) **before** the new container starts.
+  A site with no People days set changes nothing.
+- Bookmarks and links to old Settings addresses (`#settings/api`, `#settings/sitesadmin` and the
+  rest) keep working: they open the new page, with their dialog.
+
+### Settings: a menu by what you came to do, a page per task, Help and Docs on every page
+
+- **Changed.** Settings has a menu of its own, in five groups: **This site** (Set-up checklist,
+  Collect data, Site details, Leads & integrations, Internal traffic, Privacy & retention, Mail &
+  reports, AI answers), **AI & API** (AI assistant (MCP), Read figures (API), Tokens & links),
+  **Organisation** (Sites, Team, Users, Sign-in rules, Audit log, Billing & usage), **You** (Your
+  account) and **Help & docs**. `#settings` opens **All settings**: the common tasks in plain
+  words ("Connect an AI assistant", "Add, pause or delete a site", "Revoke a token") and every
+  page with one line on what it is for. On a phone each page starts with a **Settings page**
+  select, so the menu is one tap away. Long pages have tabs (Collect data: Send logs, Script tag
+  & goals, What counts; Leads & integrations; Mail & reports; AI answers), each with its own
+  address (`sub=`). The old Connections page is split by task: sending logs is under Collect
+  data, MCP and the API have pages of their own, and every token and shared link is under Tokens
+  & links.
+- **Changed.** The MCP and API pages say how it works first, as four numbered steps, then one
+  button. In the MCP dialog, by hand, one step holds it all in order: choose your assistant
+  (Claude Code, Claude Desktop, ChatGPT through the API, other), make its token right there, then
+  the command or config with the token already in it. The API dialog shows the curl command
+  under the token it made. Each Test names the next step. The assistant chosen is in the address
+  (`asst=`); the token never is.
+- **Added.** Every settings page and tab has **Help** (its guide in the app) and **Docs** (the
+  same guide on skaldanalytics.com/docs/, in a new tab, with the copy and open icons) under its
+  title, and a **Next step** at its foot. A **Help & docs** page lists every guide, the public
+  docs, the MCP and API pages, What's new and the contact page. Ctrl K (Cmd K) finds MCP, API,
+  tokens, sites and Help & docs by those words.
+- **Why.** The owner (26 Oct 2026): "every option in settings ... is super confusing and also
+  not as per user flows ... the token was above the steps ... i could not find where the mcp
+  was in ... the help and documents are not easy to access". The pages were a flat list of 15
+  named by what they held, not by what people came to do.
+- **Who.** Everyone who opens Settings. Nothing changes in what each setting does or who may
+  change it.
+- **Do.** Nothing. Every old address still works and opens the new page with its parameters:
+  `#settings/api?conn=mcp` opens AI assistant (MCP) with its dialog, `#settings/sitesadmin?setup=new`
+  Sites with the wizard, `#settings/account` Your account, and so on (docs/ROUTES.md lists
+  them all). Links in mails sent before still land.
+- **Checked.** A new node test (tests/js/settings-menu.mjs): the groups and their order, every
+  page drawn with Help and Docs (copy and open icons), one title, the phone's select, Next step,
+  each tab in the address, every old address opening its new home with its parameters. The
+  connection, route and agent tests walk the new pages and the reordered MCP dialog (choose,
+  token, command, then Test; the assistant in the address and gone on close). The help guides,
+  mails, kit files and CLI words name the new pages. Screenshots before and after at 1440 and
+  390 px, light and dark (docs/plans/settings-shots/), with no sideways scroll at 390 px. The
+  full suite passes.
+
+### Hosted plans: a mail at 80%, 90% and 100% of the month's requests
+
+- **Added.** When an organisation's requests this month reach 80%, 90% and 100% of its plan's
+  `requests_month`, its owners and admins get one mail each: "X of the Y requests its plan
+  allows this month (Z%)", the day the count starts again, what happens past the limit (new log
+  lines turned away; Skald's shipper keeps them and sends them again, a Cloudflare Worker's are
+  lost) and an **Open Billing** button to Settings > Billing on that organisation's own
+  dashboard. One mail per mark and month, never twice: each mark is written before the send
+  (decision D93's rule), so a restart, a recount or a second run repeats nothing. A jump past
+  two marks sends one mail, for the higher; a bigger plan in the month starts from its own marks
+  not yet passed. From 80%, owners and admins also see a banner on every page with a link to
+  `#settings/billing`; viewers see nothing. Settings > Billing shows the month's requests as a
+  bar with the 80, 90 and 100 marks, and admins may now read Billing (only owners choose a plan
+  or change the payment). Each alert is one `billing.usage_alert` row in the audit log, with the
+  mark and the counts, never an address. `/me`'s plan usage gains `percent`, `mark` and
+  `resets_on`. The check runs after every live run and run-daily, at most once per organisation
+  every 5 minutes (run-daily always), never inside an ingest request. `saas.usage_alerts: false`
+  switches the mails and the banner off.
+- **Why.** The owner: "we also send alerts to upgrade your plan when you reach 80%, 90%, 100% so
+  that your data is not lost". Past the limit the ingest answers 429, and nobody was warned
+  before; a Cloudflare Worker's lines are lost then.
+- **Who.** Hosted Skald (saas on) only: owners and admins of an organisation whose plan has a
+  `requests_month`. Self-hosted installs (saas off) see no change, and no table is made.
+- **Do.** Nothing: on by default with saas, through the install's own mail settings.
+  `saas.usage_alerts: false` turns it off.
+- **Checked.** New tests: each mark once, a jump past two, a new month, a bigger plan and one a
+  little bigger, back to the old plan, a restart, a recount down and up, a failed send, saas
+  off, the switch, no plan or no `requests_month`, unknown or withheld usage, viewers and
+  unconfirmed or disabled accounts never mailed, the link on each organisation's own dashboard,
+  one check per 5 minutes; over real HTTP, /me's new fields and Billing for an admin (read
+  only); and the banner and bar drawn in node from those answers (tests/js/billing-usage.mjs).
+  The full suite passes.
+
+### Added: keep everything, for internal and enterprise sites
+
+- **Added.** A site can keep everything: Skald then deletes and clears nothing by itself on it.
+  It applies when the install says so (`retention.keep_everything: true`, Docker
+  `SKALD_KEEP_EVERYTHING=1`), or, on a server that sells plans, when the site's organisation
+  has no plan (the server's own) or its plan says `keep_everything: true` (Enterprise). Every
+  automatic delete skips such a site: the history's journeys, returning-visitor codes, detail
+  and AI fetches; visits with addresses and Security's scanner rows (by days, and when
+  addresses are turned off or shortened); leads, removed rows, lead journeys, identities,
+  deliveries, replay hashes and payment links; the hook spool; the People-days clearing of
+  names and emails (the entry below); the outgoing webhooks' outbox; in-page event counts and
+  the beacon spool; AI answers runs; closed alerts; the conversions file's backup copies;
+  and the shipped raw logs, whose days past 14 move to the site's `archive/` folder instead of
+  being deleted (about 11 MB a day for every site on our server). A person's own deletion request (`forget`, `conversions forget`), run by an admin,
+  still works. Settings > Data retention and its People card say "Kept: nothing is deleted
+  (internal or enterprise).", a shorter window's preview says nothing is removed, the privacy
+  notice wording says "until you ask us to delete it", and `ti.py doctor` shows "Keep
+  everything: on". **Why:** the owner's rule of 2026-10-26: "all our projects that we have on
+  live are internal and enterprise, nothing gets deleted on that". **Who:** our server (every
+  site on it, once `SKALD_KEEP_EVERYTHING=1` is in its env file) and Enterprise plans; a
+  customer plan's sites and every other install are pruned as before. **Do:** on our server,
+  add `SKALD_KEEP_EVERYTHING=1` to the env file at the upgrade that ships this, before the
+  container starts, so the People-days sweep below never runs there; give an Enterprise plan
+  `keep_everything: true`. The history's own backups (copies, not data) still rotate. **Checked:** `tests/test_keep_everything.py`: every prune of the daily
+  run on a keep-everything install leaves every table row and every file byte for byte as it
+  was; the same install with the rule off is pruned; hosted, a site with no plan and an
+  Enterprise site are untouched while a customer plan's site is pruned; the outbox, closed
+  alerts, AI answers, conversions backups and the People-days sweep each kept and, with the
+  rule off, cleared; `tests/test_ingest.py`: a raw log past its 14 days lands in `archive/`,
+  whole, outside run-daily's files; the notice, the env var and the plan flag.
+
+### Fixed: leads' names and emails kept past the site's own promise
+
+- **Fixed.** A site sets in Settings > Data retention > People how many days it keeps what
+  names a person (**Visits with addresses**, `privacy.keep_days`). That number covered only the
+  visits with IP addresses. A lead's name and email lived as long as the lead: 400 days, or for
+  good. Now, when a site has set its People days and they are shorter than the leads, a name
+  and email are kept that many days. Then they are cleared from every place Skald keeps them:
+  the lead's identity, the leads a sync removed, the copy of each hook message, and the copies
+  a schema upgrade keeps (`conversions/people_days.py`). The lead stays, counted, without them.
+  If the same person sent a newer form, the newer lead keeps the email; the older leads lose
+  it. A start and its finish within the abandonment window stay linked, so no lead ever
+  becomes "abandoned". The privacy notice wording now says it: "We keep them for 180 days.
+  After that we keep the form or booking without your name and email, ...". **Why:** the
+  2026-10-26 security review: docomatic.ai promises 180 days, and its emails were kept for
+  good. **Who:** sites that keep names and emails and set People days shorter than their
+  leads. A site that never set People days keeps today's rule: the code's 395 is not a
+  promise. A site that keeps everything (the entry above) is never cleared: on our server,
+  where docomatic.ai promises 180 days and two more sites 365, nothing is cleared once
+  `SKALD_KEEP_EVERYTHING=1` is set.
+  **Do:** nothing. The first live run after the upgrade clears what is already past the
+  promise, then the nightly run each day. Each site's counts go to the run's output,
+  `privacy.log` and the audit log (`privacy.cleared`), never a name or an email. A site whose
+  notice promises a number of days should set it under People. **Checked:**
+  `tests/test_people_days.py` (old rows lose name and email, young keep them; a person with a
+  new and an old lead; a start chained to its finish across the edge; removed rows, spool lines
+  and upgrade copies; no change without a shorter promise; once after the upgrade; the
+  command's counts never show an email). `conversions.json` for April and today, the second
+  count included, and the abandoned starts are the same before and after; with the chain
+  turned off the test sees a lead turn "abandoned", so the check is real.
+
+### Pause, remove, clear or delete a site from the dashboard
+
+- **Added.** Each site in Settings > Add or remove sites has a ⋯ menu: **Pause** and
+  **Resume** (an owner or an admin), **Remove** and **Restore**, **Clear data** and **Delete
+  all data** (an owner). Each opens a dialog that says what happens, what stays and how to
+  undo it; the dialog is in the address (`sact=<act>.<site>`). Pause comes first and deletes
+  nothing: the log endpoint answers 503 with Retry-After, so the shipper keeps its lines, and
+  the daily and live runs skip the site; the site shows "Paused since". Resume says how many
+  days were missed and whether the log can still fill them (a shipper kept its lines, a log
+  drain did not, a local log holds days from a date). Removed sites are listed apart, with
+  Restore. Clear data and Delete all data need the site's name typed and a box ticked; before
+  deleting anything they write one archive of everything that goes into the install's backups
+  folder, kept 30 days, and show its path. Clear data keeps the site, its settings and its
+  tokens; the days before it read Not recorded and are never counted again. Delete all data
+  also deletes settings, set-up links and the logo, and revokes the site's tokens; a site from
+  the server's config file keeps its config entry and becomes Removed. All of this works for
+  config-file sites too (the install's main site can only be paused). One audit row per
+  action (the site, who, the archive's name). New commands: `ti.py site pause|resume|restore|
+  clear`; `site remove` and `site purge` now work on config-file sites and `purge` on an
+  active site, both still with `--yes`. **Fixed.** A purge left the site's page-group rows
+  (`<site>::<view>`) in the history, its AI answers, its security items, its set-up links and
+  its Search sync state; it now takes every one (`site_data.py` lists each store).
+  **Why:** the owner found no way to delete a website he had added, or to clear its data.
+  **Who:** owners and admins of every install. **Do:** nothing. **Checked:**
+  tests/test_site_lifecycle.py (pause stops ingest and the runs, resume restarts them, remove
+  and restore, purge writes the archive then empties every store, clear keeps settings and
+  tokens, roles, the typed name and the tick, config-file sites, audit rows, paused and cleared
+  days read Not recorded), tests/js/site-actions.mjs (the menu per role, the dialog's words,
+  the address, nothing posted until the name is typed and the box ticked), and the full suite.
 
 ## 2.39.0 (2026-10-26)
 

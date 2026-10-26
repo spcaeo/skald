@@ -10,7 +10,7 @@
 // Two places, for owners and admins:
 //   Overview              until every item that is not optional is done, or until they
 //                         press "Hide on Overview" (kept in this browser, for this site)
-//   Settings › Connections  always, at the top: a finished list shows every tick and
+//   Settings › Set-up checklist  always, at the top: a finished list shows every tick and
 //                         "All set". Hiding it on Overview never hides it here.
 // The items are worked out in js/setup-items.js from what the page has and two answers
 // it already uses: GET integrations (the doctor's lines, each hook's state) and GET
@@ -88,7 +88,7 @@ export function setupChecklist(m, { where = "overview" } = {}) {
   // 2.30: the whole set-up, mailed or saved as one zip (setup=pack, setup-dialogs.js).
   const pack = h("button", { type: "button", class: "btn primary su-pack-go" }, "Send set-up to someone");
   const head = h("div", { class: "su-head" }, h("h2", null, `Set up ${m.site}`), left, h("span", { class: "grow" }), pack,
-    hide ? h("span", { class: "su-hide-w" }, hide, h("small", { class: "su-where" }, "Always in Settings › Connections")) : null);
+    hide ? h("span", { class: "su-hide-w" }, hide, h("small", { class: "su-where" }, "Always in Settings › Set-up checklist")) : null);
   // 2.39: one line for the AI agent for every open line it can do, when two or more are left
   // (setup=all&jobs=..., agent-first.js allDialog).
   const everything = h("button", { type: "button", class: "btn primary su-agent-go" }, "Set up everything left with your AI agent");

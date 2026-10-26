@@ -6,7 +6,7 @@ How to connect Calendly, Cal.com, HubSpot, Typeform, Stripe, Zapier, Make and yo
 
 Each tool gets its own address in Skald and its own secret. When something happens (a booking, a payment, a form), the tool sends a signed message to that address. Skald checks the signature, records the conversion once, and lists it on [Leads & sales > Leads](#sales/leads), counts it on [Summary](#sales/summary) (with **Count from: Tools**) and, for a booking or a payment, on [Calendar bookings](#sales/bookings).
 
-All of this is set up on one page: **Settings > This site > Integrations**, or [Integrations](#settings/integrations).
+All of this is set up on one page: **Settings > This site > Leads & integrations**, or [Leads & integrations](#settings/site/leads). It has three tabs: **Incoming hooks** (below), **Outgoing webhooks** and **Search Console & Bing** (see [Search](search.md)).
 
 - You need to be an admin or owner of the site's organisation. Viewers do not see this page.
 - The page needs a server with accounts. Without it, the page says so, and the person who runs your Skald server sets up hooks on the server instead.
@@ -14,11 +14,11 @@ All of this is set up on one page: **Settings > This site > Integrations**, or [
 
 Or let your AI agent do it: on the site's **Set up** list, press **Set up** on **Lead hook tested**, then pick your agent. It gets one line, looks for your form handler and the booking, form or payment tools in the code, adds what is missing, and reports which hooks it set and which it left for you. Secrets go straight from Skald into the tool or your server's settings, never into the chat. See [Your AI agent, in every set-up dialog](connections.md#your-ai-agent-in-every-set-up-dialog).
 
-## The Integrations page
+## The Incoming hooks tab
 
 At the top, **Status** lists each road into Skald for this site, with **OK**, **Needs attention** (and what to do) or **Off**: the hook receiver, the script tag, each hook that is set up, one lead sent by two tools, and the lead database. The server's doctor command (`skald doctor`; Docker: `docker exec skald skald doctor`) shows the same lines, and checks the rest of the install too.
 
-Under **Incoming hooks**, each tool has a box with:
+Below it, each tool has a box with:
 
 - Its **address**, with a copy button. It looks like `https://analytics.example.com/traffic-hooks/example.com/calendly`. Always copy yours from the page.
 - A badge: **no secret**, **secret set**, or **set (environment ...)** when the secret is kept on the server.
@@ -222,9 +222,9 @@ The full how-to, with examples in curl, Node, Python and PHP, retries and backfi
 ## What Skald stores, and what it drops
 
 - **Kept**: the action, its stage, the time, the tool, the tool's own reference, the visitor ID (only when the site has visitor IDs on), and the source, campaign, landing page, country and device when known.
-- **Kept for checking**: a copy of each verified message, cut down to the fields Skald reads. It is kept as long as the leads (400 days, or for good: **Settings > Data retention > Leads**), so every figure can be counted a second time.
+- **Kept for checking**: a copy of each verified message, cut down to the fields Skald reads. It is kept as long as the leads (400 days, or for good: **Settings > This site > Privacy & retention > Leads**), so every figure can be counted a second time.
 - **Always dropped**: IP addresses, browser strings, phone numbers, extra email addresses, form answers, customer details, and Calendly's cancel and reschedule links.
-- **Names and emails**: kept only when **Leads' names and emails** is **full** (**Settings > Data retention > People**). That is the default for a new install. An install upgraded from before 2.4.0 drops them until an admin turns it on. Your privacy notice must say so. See [Privacy](privacy.md).
+- **Names and emails**: kept only when **Leads' names and emails** is **full** (**Settings > This site > Privacy & retention > People**). That is the default for a new install. An install upgraded from before 2.4.0 drops them until an admin turns it on. Your privacy notice must say so. See [Privacy](privacy.md).
 - **The delivery log**: when, the outcome and the answer, never the message itself. Kept 90 days.
 
 ## Duplicates and retries
@@ -248,7 +248,7 @@ Conversions already recorded stay. To delete one person's data, see [Leads and c
 
 ## Sending conversions out (outgoing webhooks)
 
-Skald can tell your CRM, Zapier, Make or Slack each time something happens. This is under **Outgoing webhooks** on the same page.
+Skald can tell your CRM, Zapier, Make or Slack each time something happens. This is the **Outgoing webhooks** tab of the same page ([Outgoing webhooks](#settings/site/leads?sub=webhooks)).
 
 1. Under **Add an outgoing webhook**, paste the **Address**. It must start with `https://`.
 2. Tick the **Events** you want: `conversion.started`, `conversion.completed`, `conversion.cancelled`, `conversion.rescheduled`, `conversion.no_show`, `conversion.abandoned`, `lead.won`, `lead.lost`, `ai.reading_changed` (an AI assistant started or stopped reading a page, or visits likely sent by AI answers jumped or vanished: see the FAQ), and `alert.opened` (any alert, when it opens).

@@ -27,16 +27,22 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-26-2.39.0",
+  id: "2026-10-26-2.40.0",
   items: [
+    ["Settings, by what you came to do", "a menu in five groups (This site, AI & API, Organisation, You, Help & docs), a page per task, and Help and Docs under every title. Old links still work.", "settings-and-retention"],
+    ["MCP and the API, easy to find", "Settings › AI & API: how it works first, then one button; the token is made inside the step that needs it.", "mcp"],
+    ["Pause, remove or delete a site", "each site in Settings › Organisation › Sites has a ⋯ menu: Pause (nothing deleted), Remove and Restore, Clear data, Delete all data. An archive is written first.", "settings-and-retention"],
+    ["A mail before your plan is full", "hosted plans mail owners and admins at 80%, 90% and 100% of the month's requests, with a banner from 80% and a usage bar in Billing & usage.", "settings-and-retention"],
+    ["Keep everything", "on internal and enterprise sites Skald deletes nothing by itself; elsewhere, names and emails on leads follow the site's own People days.", "privacy"],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.39.0
     ["Your AI agent, in every set-up job", "each Set up dialog (logs, the script tag, leads, Next.js pages, page assets, privacy, MCP) asks: your AI agent, or by hand? The agent checks first and changes only what is missing.", "connections"],
     ["Set up everything left", "one line for your AI agent for every open set-up job, at the top of a site's Set up list.", "connections"],
     ["Its findings wait for you", "the page assets and privacy settings your agent finds show with Apply; Skald changes its own settings only when you press it.", "connections"],
     ["Ask your assistant what is left", "two MCP tools: setup_left lists what is left to set up; setup_line makes the line, with a token that has Set-up lines (AI agent).", "mcp"],
     ["Fewer false alarms", "a tie at a list's \"(all others)\" cut no longer withholds a day; a quiet site no longer shows \"no page assets\".", "connections"],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.38.0
     ["Sites grouped by organisation", "in two or more organisations, the site switcher and All sites list your sites under each organisation's name; Team says whose team it is and which sites it sees.", "sign-in-and-team"],
     ["410 gone counts as handled", "Site › Not found and the to-dos no longer list an address you answer 410 on purpose; a redirect, to your site or another, counts as fixed.", "what-to-fix"],

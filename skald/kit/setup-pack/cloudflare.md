@@ -24,7 +24,7 @@ sent. It works on every Cloudflare plan, the free one included.
 4. Add the site's route: in Cloudflare, open the Worker, then Settings > Domains & Routes >
    Add > Route, with `__SITE__/*` (and `www.__SITE__/*`).
 5. Open a page of the site. Within a few minutes it shows on __DASHBOARD__ (Settings >
-   Connections says what arrived).
+   Collect data > Send logs says what arrived).
 
 Skald reads this site's records as edge records (log format `edge_json`) when nothing else
 has arrived for it yet. If you also send the server's log, keep the format "Detect it": then

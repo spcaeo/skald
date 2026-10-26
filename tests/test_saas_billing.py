@@ -1,7 +1,7 @@
 """Phase 5a billing and limits over real HTTP (saas/billing_api.py,
 stripe_client.py, stripe_events.py; the small checks in team_api.py and
 settings_api.py): the Stripe requests built right (a fake opener, never the
-network), Settings > Billing for owners, the signed webhook with its state
+network), Settings > Billing & usage for owners, the signed webhook with its state
 changes and idempotency, the grace period's read-only state, the member and
 retention limits, /me's plan block, and saas off -> 404 and no limit.
 
@@ -155,11 +155,19 @@ class Page(Case):
         self.assertNotIn("price_pro_test", got.raw.decode())
         self.assertNotIn(KEY, got.raw.decode())
 
-    def test_only_owners(self):
+    def test_only_owners_change_admins_read(self):
+        # Admins get the usage alerts, so they may read the page; only owners change it.
         cookie, csrf = self.session("admin@example.com")
-        self.assertEqual(self.call("GET", T + "billing", cookie=cookie).status, 403)
+        got = self.call("GET", T + "billing", cookie=cookie)
+        self.assertEqual(got.status, 200, got.json)
+        self.assertFalse(got.json["can_change"])
         self.assertEqual(self.post(T + "billing/checkout", {"plan": "pro"}, cookie, csrf).status,
                          403)
+        self.assertEqual(self.post(T + "billing/portal", {}, cookie, csrf).status, 403)
+        cookie, _ = self.session("viewer@example.com")
+        self.assertEqual(self.call("GET", T + "billing", cookie=cookie).status, 403)
+        cookie, _ = self.session()
+        self.assertTrue(self.call("GET", T + "billing", cookie=cookie).json["can_change"])
         self.assertEqual(self.call("GET", T + "billing").status, 401)
 
     def test_checkout(self):

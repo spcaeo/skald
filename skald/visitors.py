@@ -99,13 +99,14 @@ def record(db, site: str, day: date, seen: dict) -> None:
         [(site, day.isoformat(), v, k, int(n), src) for (v, k), (n, src) in seen.items()])
 
 
-def prune(db, today: date, days: int = REPEAT_DAYS, per_site: dict | None = None) -> int:
+def prune(db, today: date, days: int = REPEAT_DAYS, per_site: dict | None = None,
+          spare=None) -> int:
     """Delete hashes older than `days`; a site in `per_site` ({site: days})
-    by its own window."""
+    by its own window; a site `spare` names keeps them all."""
     from .store_visits import prune_sites
     return prune_sites(db, "visitor_days", (today - timedelta(days=days)).isoformat(),
                        {s: (today - timedelta(days=n)).isoformat()
-                        for s, n in (per_site or {}).items()})
+                        for s, n in (per_site or {}).items()}, spare=spare)
 
 
 def history_of(db, site: str, day: date, visitors: set[str],

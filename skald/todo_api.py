@@ -17,7 +17,7 @@
 
 Every change and every mail is a row in the organisation's audit log ("todo.marked",
 "todo.sent": who, which item, never the rows). The mail goes through the install's own
-mail server (mailer.py, Settings > Mail); without one the dialog is not offered and the
+mail server (mailer.py, Settings > Mail & reports); without one the dialog is not offered and the
 answer says why. Who it goes to must be a confirmed member of the site's organisation.
 The link in the mail opens the to-do with its list; whoever opens it signs in first, and
 someone without rights to the site sees "not available to you". In basic mode (no
@@ -65,7 +65,7 @@ def mail_state(cfg: dict) -> dict:
                                          "to_waiting": 0}})
     except Exception as why:            # noqa: BLE001 - Refused, Withheld or a bad value
         return {"ready": False, "why": f"No mail server is set up for this site ({why}). "
-                                       "An admin sets one in Settings > Mail."}
+                                       "An admin sets one in Settings > Mail & reports."}
     return {"ready": True, "why": ""}
 
 
@@ -183,7 +183,7 @@ def _send(h, db, cfg, site, view, org, session, item, to, out, send) -> None:
     error = send_one(cfg, site, todo, member["email"], session["email"], send=send)
     if error:
         return answer(h, 502, {"ok": False, "error": f"The mail server did not take it ({error}). "
-                                                     "Check Settings > Mail."})
+                                                     "Check Settings > Mail & reports."})
     auditlog.record(db, org["id"], session["email"], "todo.sent", member["email"], f"{site} {item}")
     return answer(h, 200, {"ok": True, "sent_to": member["email"], "file": todo.get("file")})
 

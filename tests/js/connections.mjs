@@ -1,7 +1,8 @@
-// Settings > Connections (js/tabs/connections.js and conn-*.js) and the "Add a
+// The connection pages (2.40: Collect data's send card, AI & API's MCP, API and Tokens & links
+// pages; js/tabs/set-site.js, set-ai.js, connections.js and conn-*.js) and the "Add a
 // site" wizard (site-wizard.js, sitesadmin.js), drawn from real helper answers
 // (tests/test_connections_page.py writes GET sites, tokens and sites/status to
-// CONN_JSON): the three cards, Your tokens with each token's purpose, the send
+// CONN_JSON): the send card, Your tokens with each token's purpose, the send
 // dialog walked step by step to a Test that reads the real status, the API and
 // MCP tests, and the wizard from an address to its last step, then resumed.
 // The site check (sites/detect) answers as the helper answered for a new site
@@ -59,7 +60,8 @@ Object.assign(ME, { mode: "sessions", role: "owner", user: "owner@example.com" }
 const words = await import(new URL("tabs/conn-words.js", JS));
 const send = await import(new URL("tabs/conn-send.js", JS));
 const read = await import(new URL("tabs/conn-read.js", JS));
-const { default: connections } = await import(new URL("tabs/connections.js", JS));
+const { collectLogs } = await import(new URL("tabs/set-site.js", JS));
+const { mcpPage, apiPage, tokensPage } = await import(new URL("tabs/set-ai.js", JS));
 const { default: sitesadmin } = await import(new URL("tabs/sitesadmin.js", JS));
 const { siteFrom } = await import(new URL("tabs/site-wizard.js", JS));
 const detect = await import(new URL("tabs/conn-detect.js", JS));
@@ -77,17 +79,38 @@ assert.equal(words.purposeOf("mcp"), "AI assistant (MCP)");
 assert.equal(words.purposeOf(["read", "mcp"]), "Reading figures, AI assistant (MCP)");
 assert.equal(words.purposeOf(["mcp", "setup"]), "AI assistant (MCP), Making set-up lines for an AI agent");
 
-// The page: three cards, then Your tokens with the real tokens and their purposes.
+// The pages (2.40): Collect data's send card; Tokens & links with the real tokens and their
+// purposes; the MCP and API pages, each its steps first and then the one button.
+const M = { site: SITE, x: { sites: { sites: [{ name: SITE }] } } };
 const root = document.createElement("div");
 document.body.append(root);
-root.append(...connections({ site: SITE, x: { sites: { sites: [{ name: SITE }] } } }));
+root.append(...[collectLogs(M)].flat(9).filter(Boolean));
+const toks = document.createElement("div");
+toks.append(...tokensPage(M).flat(9).filter(Boolean));
+const mcpRoot = document.createElement("div");
+mcpRoot.append(...mcpPage(M).flat(9).filter(Boolean));
+const apiRoot = document.createElement("div");
+apiRoot.append(...apiPage(M).flat(9).filter(Boolean));
 await tick();
-const text = root.textContent;
-for (const t of ["Connections", "Send this site's visits to Skald", "Read your figures (API)", "Connect an AI assistant (MCP)", "Your tokens", "What it is for", "Make a token by hand"]) assert.ok(text.includes(t), t);
-const purposes = root.querySelectorAll("td.cn-purpose").map((td) => td.textContent);
+assert.ok(root.textContent.includes("Send this site's visits to Skald"));
+assert.ok(button(root, "Set up with your AI agent") && button(root, "Test a sample"), "the AI agent and the sample beside the send card");
+assert.equal(root.querySelectorAll(".cn-card").length, 1);
+for (const t of ["Tokens & links", "Your tokens", "What it is for", "Make a token by hand"]) assert.ok(toks.textContent.includes(t), t);
+assert.ok(!toks.textContent.includes("cards above"), "no card above any more");
+const purposes = toks.querySelectorAll("td.cn-purpose").map((td) => td.textContent);
 assert.ok(purposes.includes("Sending logs"), purposes.join("|"));
 assert.ok(purposes.includes("Reading figures"), purposes.join("|"));
-assert.equal(root.querySelectorAll(".cn-card").length, 3);
+// The MCP page: How it works (numbered), then Connect an assistant, then the address; the
+// assistants' tokens only (none here), never above the steps.
+const mtext = mcpRoot.textContent;
+assert.ok(mtext.indexOf("How it works") < mtext.indexOf("Connect an assistant"), "the steps come first");
+assert.ok(mtext.indexOf("Connect an assistant") < mtext.indexOf("Tokens for assistants"), "the tokens after the button");
+assert.equal(mcpRoot.querySelectorAll(".set-steps li").length, 4);
+assert.ok(mtext.includes("https://www.example.com/traffic-mcp"), "the MCP address");
+assert.ok(mtext.includes("No token for an assistant yet"), "only mcp tokens: none of the two here");
+assert.equal(mcpRoot.querySelectorAll("td.cn-purpose").length, 0);
+assert.ok(apiRoot.textContent.indexOf("How it works") < apiRoot.textContent.indexOf("Set up the API"));
+assert.ok(apiRoot.textContent.includes(`https://www.example.com/traffic-api/v1/${SITE}/`));
 
 // The card's lines, from the helper's answer for a new site.
 const lines = detect.foundLines(given.detect_new.found);
@@ -262,17 +285,38 @@ const mcp = await read.testMcp("https://www.example.com/traffic-mcp", "skald_x",
 });
 assert.equal(mcp.head, "Connected: 3 tools.");
 assert.equal(rpc, 2);
-root.querySelectorAll(".cn-card button").find((b) => b.getAttribute("aria-label") === "Set up: Connect an AI assistant (MCP)").click();
+button(mcpRoot, "Connect an assistant").click();
 await tick();
 assert.ok(dialog().textContent.includes("Connect an AI assistant (MCP)"));
-// 2.39: the guide at the top, then Your AI agent or By hand; by hand, the steps as before.
+// 2.39: the guide at the top, then Your AI agent or By hand. 2.40: by hand, one step that
+// holds the choice, the token and the command, in that order; then Test.
 assert.equal(dialog().querySelector(".cn-guide a").textContent, "Read the MCP guide");
 assert.match(dialog().querySelector("h3.cn-h").textContent, /^Step 1 of 3: Your AI agent, or by hand\?/);
 dialog().querySelector("button.ag-hand").click();
 await tick();
-assert.match(dialog().querySelector("h3.cn-h").textContent, /^Step 2 of 4: Token/);
-await next();
-assert.ok(dialog().textContent.includes("claude mcp add --transport http skald"));
+assert.match(dialog().querySelector("h3.cn-h").textContent, /^Step 2 of 3: Connect your assistant/);
+{
+  const t = dialog().textContent;
+  assert.ok(t.indexOf("Choose your assistant") < t.indexOf("Make a token for it") && t.indexOf("Make a token for it") < t.indexOf("claude mcp add"), "choose, token, command");
+  assert.ok(t.includes("claude mcp add --transport http skald") && t.includes("<token>"), "the command, the token's place marked");
+  const made = posted.filter(([p]) => p === "tokens/create").length;
+  button(dialog(), "Make the token").click();
+  await tick();
+  assert.equal(posted.filter(([p]) => p === "tokens/create").length, made + 1);
+  assert.deepEqual(posted.filter(([p]) => p === "tokens/create").pop()[1].scopes, ["mcp"]);
+  const cmdNow = dialog().querySelectorAll(".cn-code").map((c) => c.textContent).find((x) => x.includes("claude mcp add"));
+  assert.ok(cmdNow.includes("skald_ab12cd34_"), "made: the command holds the token");
+  assert.ok(!location.hash.includes("skald_"), "never in the address");
+  button(dialog(), "Claude Desktop").click();
+  await tick();
+  assert.equal(readState().asst, "claude-desktop", location.hash);
+  assert.ok(dialog().textContent.includes("claude_desktop_config.json") && dialog().textContent.includes("mcp-remote"));
+  await next();
+  assert.match(dialog().querySelector("h3.cn-h").textContent, /^Step 3 of 3: Test/);
+  dialog().querySelector(".dw-x").click();
+  await tick();
+  assert.equal(readState().asst, "", "closed: the assistant's key goes");
+}
 
 // The wizard: an address becomes the site; steps to the end; the progress is saved.
 assert.deepEqual(siteFrom("https://WWW.Example.org/pricing"), { name: "www.example.org" });

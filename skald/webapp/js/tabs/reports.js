@@ -1,4 +1,4 @@
-// Settings > Reports (client_reports_api.py): branded reports an agency sends
+// Settings > Mail & reports > Client reports (client_reports_api.py): branded reports an agency sends
 // its clients, as a mail with a PDF attached, on their own schedule. The list
 // says when each goes next, which period it will cover, who has confirmed and
 // how the last send went; each has Preview, PDF, Send now, History, Edit and
@@ -20,7 +20,7 @@ let said = null;
 // What a save says about the confirm links: the helper's `confirm` (client_reports_api.save).
 const SAVED = {
   asked: "Saved. A confirm link was mailed to each recipient who has not confirmed; the report goes to confirmed recipients only.",
-  no_mail: "Saved. No confirm link was sent: no mail server is set up (Settings > Mail). Set one up, then save the report again.",
+  no_mail: "Saved. No confirm link was sent: no mail server is set up (Settings > Mail & reports). Set one up, then save the report again.",
   none: "Saved.",
 };
 
@@ -121,7 +121,7 @@ function brandCard(r, redraw) {
   remove.addEventListener("click", async () => { const got = await call("settings/agency-logo", { data: null }); said = ["brand", got.ok ? "Logo removed." : why(got), !!got.ok]; redraw(); });
   if (said && said[0] === "brand") { msg.say(said[1], said[2]); said = null; }
   return h("section", { class: "sheet acct-card" }, h("h2", null, "Agency branding"),
-    h("p", { class: "sub" }, `For every report of ${r.org}. The site's own logo (Settings > Sites) sits on the left of each report; yours on the right.`),
+    h("p", { class: "sub" }, `For every report of ${r.org}. The site's own logo (Settings > Site details) sits on the left of each report; yours on the right.`),
     form, h("div", { class: "rp-logo" }, b.logo ? h("img", { src: `settings/agency-logo?v=${Date.now()}`, alt: "The agency logo", height: "40" }) : h("p", { class: "empty" }, "No logo yet: the agency's name is shown instead."),
       field("Agency logo (PNG or JPEG, at most 256 KB)", file), remove), msg);
 }
@@ -142,7 +142,7 @@ export default function reports(m) {
     add.addEventListener("click", () => edit(null));
     const list = r.reports.length ? r.reports.map((rep) => item(rep, r, load, edit)) : [h("p", { class: "empty" }, "No reports yet.")];
     box.replaceChildren(...[
-      r.mail_ready ? null : h("div", { class: "state warn" }, h("div", null, "No mail server is set up yet (Settings > Mail). Reports can be made, previewed and downloaded, but not sent.")),
+      r.mail_ready ? null : h("div", { class: "state warn" }, h("div", null, "No mail server is set up yet (Settings > Mail & reports). Reports can be made, previewed and downloaded, but not sent.")),
       editing !== undefined ? reportForm(r, editing, done)
         : h("section", { class: "sheet acct-card" }, h("h2", null, `Reports for ${m.site}`), h("p", { class: "sub" }, "Figures come from verified days only: a day that did not reconcile is listed and left out, never counted as zero."), ...list, h("div", null, add)),
       brandCard(r, load)].filter(Boolean));

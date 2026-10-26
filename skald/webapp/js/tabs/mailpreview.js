@@ -1,4 +1,4 @@
-// Settings > Mail > Preview (2.13): the daily or the weekly mail as this site
+// Settings > Mail & reports > Preview (2.13): the daily or the weekly mail as this site
 // would send it now, drawn in a frame. GET settings/mail-preview?kind= builds it
 // with the real mail code from the verified history (mail_preview.py) and sends
 // nothing. The frame is sandboxed with nothing allowed: the mail runs no script

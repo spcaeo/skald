@@ -190,7 +190,7 @@ export default function account() {
   const title = head1("Your account", "Your name, password, two-step sign-in and sessions.");
   if (!sessions()) {
     return [title, h("div", { class: "state" }, h("div", null, "Your account comes with accounts. This server uses one shared login, set on the server; see ",
-      h("a", { href: "#settings/users" }, "Settings > Users"), "."))];
+      h("a", { href: "#settings/org/users" }, "Settings › Users"), "."))];
   }
   box = h("div", { class: "acct" }, h("p", { class: "empty" }, "Loading your account..."));
   load();

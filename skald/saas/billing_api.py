@@ -1,17 +1,19 @@
-"""Settings > Billing and Stripe's webhook, on the refresh helper
+"""Settings > Billing & usage and Stripe's webhook, on the refresh helper
 (refresh_server.py). Only with saas.enabled (and access.mode: sessions);
 otherwise every route answers 404.
 
   GET  <page>/billing            plan, status, usage this month against the
                                  limits, trial days left, the plans to choose
-                                 from; the organisation's owners only
+                                 from; the organisation's owners, and its
+                                 admins to read (the usage alerts mail
+                                 them and link here); `can_change` says which
   POST <page>/billing/checkout   {plan}: a Stripe Checkout Session -> {url}
   POST <page>/billing/portal     Stripe's customer portal -> {url}
   POST /traffic-hooks/_billing/stripe
                                  Stripe's signed events (stripe_events.py)
 
 <page> is /traffic/<site>/[<view>/]. The page routes need a session, the
-site's organisation's owner role, and on a POST the same-origin check and
+site's organisation's owner role (admin for the GET), and on a POST the same-origin check and
 X-Skald-CSRF (team_api's rules). Checkout and the portal need
 saas.billing: stripe. The return addresses start with the install's base
 URL (accounts/links.py), never the request's Host header. The routes stay
@@ -48,6 +50,7 @@ MAX_HOOK_BODY = 64 * 1024
 KEY_NAME, KEY_ENV = "billing/stripe_key", "SKALD_STRIPE_KEY"
 HOOK_NAME, HOOK_ENV = "billing/stripe_webhook", "SKALD_STRIPE_WEBHOOK_SECRET"
 OWNER_WORDS = "Only an owner of the organisation can see and change billing."
+CHANGE_WORDS = "Only an owner of the organisation can change billing."
 STRIPE_HOSTS = ("https://checkout.stripe.com/", "https://billing.stripe.com/")
 
 
@@ -108,8 +111,10 @@ def handle(h, write: bool, config, live_dir, allowed: set[str], same_origin,
         role, org = users.site_role(db, session["user_id"], m.group("site"))
         if role is None:
             return answer(h, 403, {"ok": False, "error": "You are not a member here."})
-        if role != "owner":
+        if role not in ("owner", "admin"):
             return answer(h, 403, {"ok": False, "error": OWNER_WORDS, "role": role})
+        if role != "owner" and act != "billing":
+            return answer(h, 403, {"ok": False, "error": CHANGE_WORDS, "role": role})
         form = {}
         if write:
             form = read_json(h)
@@ -117,20 +122,20 @@ def handle(h, write: bool, config, live_dir, allowed: set[str], same_origin,
                 return None
         hist = history_path or limits.history_path(config, live_dir)
         if act == "billing":
-            return _overview(h, db, org, config, hist)
+            return _overview(h, db, org, config, hist, role)
         return _stripe(h, db, act, form, session, org, m.group("site"), config, live_dir,
                        allowed)
     finally:
         db.close()
 
 
-def _overview(h, db, org, config, hist) -> None:
+def _overview(h, db, org, config, hist, role: str = "owner") -> None:
     state = plans.org_state(db, org["id"])
     table = plans.plans(config)
     return answer(h, 200, {
         "ok": True, "org": org["name"], "plan": limits.summary(db, org["id"], config, hist),
         "status": state["plan_status"], "billing": billing_on(config),
-        "has_customer": bool(state["stripe_customer"]),
+        "has_customer": bool(state["stripe_customer"]), "can_change": role == "owner",
         "plans": [{**{k: p[k] for k in ("name", "label", "trial_days", *plans.LIMITS)},
                    "can_buy": bool(p["price_id"]), "current": p["name"] == state["plan"]}
                   for p in table.values()]})

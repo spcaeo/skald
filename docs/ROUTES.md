@@ -107,10 +107,13 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | `ans` | tabs/ai-answers.js | AI answers: one stored answer in full | `ans=412` |
 | `setup` | tabs/setup-dialogs.js | a Set up dialog: `logs`, `assets`, `rsc`, `countries`, `script`, `lead`, `mail`, `privacy`, `pack` (send set-up to someone, 2.30) | `setup=rsc&step=2` |
 | `pack` | tabs/setup-pack.js | `1` while the set-up pack box is open inside the logs or leads dialog (2.30); the addresses and keys never go in the address | `pack=1` |
-| `setup` (on `#settings/sitesadmin`) | tabs/sitesadmin.js | the Add a site wizard: `new`, then the site's name once step 1 made it (replaced in place, so a reload finds the site); a site's name (it has a dot) opens its wizard on any tab, as Connections' Set up with your AI agent does (2.31) | `setup=new&step=1`, `setup=example.com&step=3` |
+| `setup` (on `#settings/org/sites`) | tabs/sitesadmin.js | the Add a site wizard: `new`, then the site's name once step 1 made it (replaced in place, so a reload finds the site); a site's name (it has a dot) opens its wizard on any tab, as Set up with your AI agent does on the Set-up checklist and Collect data (2.31) | `setup=new&step=1`, `setup=example.com&step=3` |
 | `agent` | tabs/site-wizard.js | Add a site, step 3: the AI agent chosen (`claude-code`, `codex`, `cursor`, `chat`, `other`), or `hand` for set it up by hand (2.31) | `agent=claude-code` |
 | `link` | tabs/agent-setup.js | Add a site, steps 4 and 5: the agent's line being watched, by its link id (the first 16 hex of the code's SHA-256). The line and its code never go in the address (2.31) | `link=0f3a9c2e7b1d4a58` |
-| `conn` | tabs/connections.js | a Connections dialog: `send`, `api`, `mcp`, `sample` (Test a sample of a log, 2.35) | `conn=api&step=2` |
+| `sact` (on `#settings/org/sites`) | tabs/site-actions.js | a site's action dialog from its ⋯ menu: `<act>.<site>`, act one of `pause`, `resume`, `remove`, `restore`, `clear`, `delete` (Unreleased). The typed name and the tick never go in the address; a role or a site state that does not offer the action opens the page with one plain line | `sact=pause.shop.example.com` |
+| `conn` | tabs/connections.js | a connection dialog: `send` and `sample` (Test a sample of a log, 2.35) on Collect data, `api` on Read figures (API), `mcp` on AI assistant (MCP) | `conn=api&step=2` |
+| `asst` | tabs/conn-read.js | the MCP dialog by hand: the assistant chosen, `claude-desktop`, `chatgpt` or `other` (absent: Claude Code). The token never goes in the address (Unreleased) | `conn=mcp&step=2&agent=hand&asst=claude-desktop` |
+| `sub` | tabs/settings-frame.js | a settings page's in-page tab (absent: the first): Collect data `logs`, `script`, `counting`; Leads & integrations `hooks`, `webhooks`, `search`; Mail & reports `mail`, `reports`; AI answers `profiles`, `keys` (Unreleased) | `#settings/site/collect?sub=script` |
 | `lfmt` | tabs/conn-sample.js | Test a sample: the reader chosen (a format name; absent: Detect it). The pasted lines never go in the address, so a link or a reload opens step 1 to paste again | `conn=sample&step=1&lfmt=caddy_json` |
 | `step` | tabs/conn-ui.js | the step of the dialog open, 1 first | `step=2` |
 | `share` | tabs/conn-share.js | the Share with your developer form is open (the link it makes never is in the address) | `share=1` |
@@ -118,6 +121,47 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | `tdsend` | tabs/todo-send.js | Insights: Send to team, for a to-do, by its id (2.35). Who it goes to never goes in the address; without a mail server or a team the page says why instead | `tdsend=lost-pages` |
 | `pcm`, `pcd`, `pck` | tabs/pagechange.js | Traffic > Pages > a page: the Mark a change dialog (`new`), its day (`YYYY-MM-DD`, today or before) and what changed (`content`, `title`, `backlink`, `redirect`, `other`); a pick replaces the entry. The note never goes in the address. Owners and admins only; elsewhere the page says why (2.35) | `pcm=new&pcd=2026-10-21&pck=title` |
 | `dlg` | main.js, keys.js, extras.js, report.js, filterpanel.js, tabs/person.js | an app dialog: `keys`, `new`, `views`, `report`, `filters`, `find` | `dlg=views` |
+
+## Settings' pages (Unreleased)
+
+Settings' menu is grouped by what a person comes to do (`js/settings-menu.js`); each page
+has its own route, `#settings/<group>/<page>`, and `#settings` opens All settings.
+
+| Group | Page | Route |
+| --- | --- | --- |
+| | All settings | `#settings/home` |
+| This site | Set-up checklist | `#settings/site/setup` |
+| This site | Collect data (Send logs, Script tag & goals, What counts) | `#settings/site/collect` |
+| This site | Site details | `#settings/site/details` |
+| This site | Leads & integrations (Incoming hooks, Outgoing webhooks, Search Console & Bing) | `#settings/site/leads` |
+| This site | Internal traffic | `#settings/site/internal` |
+| This site | Privacy & retention | `#settings/site/privacy` |
+| This site | Mail & reports (Mail, Client reports) | `#settings/site/mail` |
+| This site | AI answers (Questions & profiles, API keys) | `#settings/site/aianswers` |
+| AI & API | AI assistant (MCP) | `#settings/ai/mcp` |
+| AI & API | Read figures (API) | `#settings/ai/api` |
+| AI & API | Tokens & links | `#settings/ai/tokens` |
+| Organisation | Sites | `#settings/org/sites` |
+| Organisation | Team | `#settings/org/team` |
+| Organisation | Users (one shared login) | `#settings/org/users` |
+| Organisation | Sign-in rules | `#settings/org/security` |
+| Organisation | Audit log | `#settings/org/audit` |
+| Organisation | Billing & usage | `#settings/org/billing` |
+| You | Your account | `#settings/you/account` |
+| Help & docs | Help & docs | `#settings/help` |
+
+The older addresses open their new home with every parameter they carried
+(`js/settings-menu.js` `OLD_SETTINGS`): `#settings/account` and `#account` open Your account,
+`#settings/team` Team, `#settings/users` Users, `#settings/tokens` Tokens & links,
+`#settings/sites` Site details, `#settings/internal` and `#ours` Internal traffic,
+`#settings/retention` Privacy & retention, `#settings/mail` Mail & reports,
+`#settings/reports` Mail & reports with `sub=reports`, `#settings/integrations` Leads &
+integrations, `#settings/aianswers` AI answers, `#settings/sitesadmin` Sites,
+`#settings/security` Sign-in rules, `#settings/audit` Audit log, `#settings/billing` Billing &
+usage. The old Connections page (`#settings/api`, `#settings/connections`, `#connections`,
+`#api`) opens where the dialog it named lives: `conn=mcp` on AI assistant (MCP), `conn=api` on
+Read figures (API), `conn=send` or `conn=sample` on Collect data, anything else on the Set-up
+checklist. `#settings/api?setup=example.com&step=3&agent=codex` still opens that site's wizard.
 
 A dialog opened from a link at a later step starts at the first step whose choice is
 still missing (`wizard()` runs each earlier step's `check`). Who may open each: the Set

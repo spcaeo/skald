@@ -16,9 +16,23 @@ with `access.mode: sessions` (404 otherwise), the way team_api.py is:
                           site.asset_prefixes setting), both checked as
                           Settings checks them: the site check's suggestions
   POST sites/token     {name}: a new ingest token for a site          admin
-  POST sites/remove    {name, confirm: name}                          owner
-                       stops processing; the data stays until an install
-                       admin runs `skald site purge <name>`
+  A site's row menu (site_actions_api.py, site_lifecycle.py), for a site made
+  here and a config-file site alike; the install's main site can only be paused:
+  POST sites/pause     {name}: stop collecting and counting; ingest
+                       answers 503 so the shipper keeps its lines; the runs
+                       skip it; everything is kept                    admin
+  POST sites/resume    {name} -> the days paused, and whether the log can
+                       still fill them ("words")                      admin
+  POST sites/remove    {name, confirm: name}: stop processing, hide it;
+                       the data stays                                 owner
+  POST sites/restore   {name}: undo remove                            owner
+  POST sites/clear     {name, confirm: name, understood: true}: archive,
+                       then delete its collected data; settings and tokens
+                       stay -> {archive}                              owner
+  POST sites/purge     {name, confirm: name, understood: true}: "Delete all
+                       data": archive, then delete every store, revoke its
+                       tokens -> {archive, status: deleted|removed}   owner
+                       (rate limits: site_actions_api.py)
   POST sites/verify    {name}: look for the site's verification token (DNS
                        TXT or the home page's meta tag, site_verify.py)  admin
   GET  sites/status, POST sites/kit, POST sites/setup, POST sites/detect,
@@ -50,7 +64,8 @@ skald.saas.limits exists, the plan's yes (`can_add_site`); a plan
 that is read-only (`read_only`: cancelled, long unpaid) refuses every POST
 with 402 and the reason. Every
 POST needs the same-origin check and the session's X-Skald-CSRF value.
-Sites from config files are listed but changed only on the server.
+Sites from config files are listed; their config is changed only on the
+server, but they can be paused, removed, cleared and deleted here.
 """
 from __future__ import annotations
 
@@ -64,6 +79,7 @@ from .config import site_name
 
 PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
 PATH = re.compile(PAGE + r"(?P<act>sites(?:/(?:add|token|remove|verify|status|kit|setup|detect|tagcheck|trylog"
+                         r"|pause|resume|restore|clear|purge"
                          r"|share|shares|unshare|link|pack|packmail"
                          r"|agentlink|agentstatus|agentcancel))?)$")
 GETS = ("sites", "sites/status", "sites/shares")
@@ -209,8 +225,9 @@ def handle(h, write: bool, config, live_dir, allowed: set[str], same_origin,
             return answer(h, 403, {"ok": False, "error": "You are not a member here."})
         c = Ctx(h, db, session, m.group("site"), role, org, config or {}, live_dir, allowed,
                 config_path, out)
-        if act == "sites/remove" and role != "owner":
-            return c.no(403, "Only an owner can remove a site.", role=role)
+        from .site_actions_api import OWNER_ONLY
+        if act in OWNER_ONLY and role != "owner":
+            return c.no(403, OWNER_ONLY[act], role=role)
         if write and role not in ADMIN:
             return c.no(403, "Only an admin can do this.", role=role)
         if write:
@@ -243,16 +260,23 @@ def listing(c: Ctx, form):
     names = orgs.sites_of_org(c.db, c.org["id"])
     rows = {r["name"]: r for r in site_configs.listing(c.db, c.org["id"])}
     root = c.ingest_root()
+    from .accounts import site_state
+    states = site_state.every(c.db)
+    main = site_name(c.config)
     out = []
     for name in sorted(set(names) | set(rows)):
         row = rows.get(name)
+        st = states.get(name) or {}
+        gone = (row["removed_at"] if row else None) or st.get("removed_at")
         folder = ingest_log.site_folder(root, name)
         entry = {"name": name, "source": "dashboard" if row else "config",
-                 "status": "active" if (row is None or row["active"]) else "removed",
+                 "status": "removed" if gone else "paused" if st.get("paused_at") else "active",
+                 "main": name == main and row is None,
+                 "paused_at": st.get("paused_at"), "cleared_at": st.get("cleared_at"),
                  "format": row["format"] if row else None,
                  "hosts": row["hosts"] if row else None,
                  "created_at": row["created_at"] if row else None,
-                 "removed_at": row["removed_at"] if row else None,
+                 "removed_at": gone,
                  "ingest": ingest_log.summary(folder) if folder.is_dir() else None,
                  "verify": site_verify.shown(c.db, name)}
         out.append(entry)
@@ -327,24 +351,6 @@ def new_token(c: Ctx, form):
                 token_file=SHIP_TOKEN_FILE)
 
 
-def remove(c: Ctx, form):
-    name = text(form, "name", 200)
-    row = site_configs.get(c.db, name)
-    if row is None or row["org_id"] != c.org["id"]:
-        from .accounts import orgs
-        if name in orgs.sites_of_org(c.db, c.org["id"]):
-            return c.no(400, "This site is defined in the server's config files; "
-                             "it is removed there.")
-        return c.no(404, "There is no such site in this organisation.")
-    if text(form, "confirm", 200) != name:
-        return c.no(400, f"Type the site name, {name}, to confirm.")
-    try:
-        site_configs.remove(c.db, c.org["id"], name, c.uid)
-    except ValueError as why:
-        return c.no(400, str(why))
-    return c.ok(site=name, status="removed")
-
-
 def verify(c: Ctx, form):
     from .accounts import limits, orgs
     name = text(form, "name", 200)
@@ -386,7 +392,12 @@ def _more(name):
     return call
 
 
-ROUTES = {"sites": listing, "sites/add": add, "sites/token": new_token, "sites/remove": remove,
+def _lifecycle():
+    from .site_actions_api import ROUTES as acts
+    return acts
+
+
+ROUTES = {"sites": listing, "sites/add": add, "sites/token": new_token, **_lifecycle(),
           "sites/verify": verify, "sites/status": _more("status"), "sites/kit": _more("kit_zip"),
           "sites/setup": _more("setup"), "sites/detect": _more("detect"),
           "sites/tagcheck": _more("tag_check"), "sites/trylog": _more("try_sample"),

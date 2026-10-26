@@ -1,4 +1,4 @@
-// Settings > Reports: one client report's settings (client_reports.py): name,
+// Settings > Mail & reports > Client reports: one client report's settings (client_reports.py): name,
 // recipients, when it goes (weekly on a weekday, monthly on a day, or every N
 // days from a date, at a time in the site's zone), the period, the sections,
 // notes and footer. Save, or look first: Preview draws the mail in a sandboxed
@@ -84,7 +84,7 @@ export function reportForm(r, report, done) {
   const boxes = r.sections.map((k) => {
     const off = k === "search_console" && !r.search_console;
     const el = h("input", { type: "checkbox", value: k, checked: !off && s.sections.includes(k), disabled: off });
-    return h("label", { class: "chk" }, el, h("span", null, h("b", null, r.section_words[k]), off ? h("small", null, "Not connected for this site: Settings > Integrations > Search") : null));
+    return h("label", { class: "chk" }, el, h("span", null, h("b", null, r.section_words[k]), off ? h("small", null, "Not connected for this site: Settings > Leads & integrations > Search Console & Bing") : null));
   });
   const notes = h("textarea", { rows: "4", maxlength: "2000", placeholder: "What we did this month, and what comes next." }, s.notes || "");
   const footer = input({ value: s.footer || "", maxlength: "160", placeholder: "Example Agency · hello@example.com" });

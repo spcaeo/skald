@@ -9,7 +9,7 @@ X-Skald-Report-Key (SKALD_REPORT_KEY from the keys file; missing or wrong:
   {"tool": t, "make": true}   a tool whose secret Skald makes (conversions.TOOLS
                               but lead and integrations_api.OWN_SECRET): a new
                               secret, kept 0600 in the secrets file Settings >
-                              Integrations uses (secrets_store), and answered
+                              Leads & integrations uses (secrets_store), and answered
                               once as one env line, `SKALD_HOOK_SECRET_<TOOL>=...`
                               (text/plain), for the agent's curl -o into a 0600
                               file and then into the tool, never into the chat
@@ -88,11 +88,11 @@ def answer(h, folder, code: str, config: dict | None, config_path=None,
         return _no(h, 410, "This code has expired or was cancelled.")
     if "lead" not in agent_jobs.of(entry):
         return _no(h, 403, "This line has no lead job, so it cannot set a hook's secret. Ask "
-                           "the user to set it in Skald (Settings > Integrations), or for a line "
+                           "the user to set it in Skald (Settings > Leads & integrations), or for a line "
                            "with the lead job.")
     if config is None:
         return _no(h, 503, "Hook secrets cannot be set through this server. Ask the user to set "
-                           "it in Skald (Settings > Integrations).")
+                           "it in Skald (Settings > Leads & integrations).")
     return _keep(h, folder, code, entry, form, config, config_path)
 
 
