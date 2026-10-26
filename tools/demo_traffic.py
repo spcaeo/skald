@@ -13,7 +13,8 @@ What it makes, for the days up to `now`:
           404s, the form posts that make the leads), AI crawlers and
           assistants (training, user fetches), search engines, a fake
           GPTBot, scanners, the team's own office visits; and Security's scanners,
-          a leak, login hammering and a burst (demo_security.py)
+          a leak, login hammering and a burst (demo_security.py); the HTML
+          sitemap page /sitemap/, walked by crawlers and test browsers
   beacon  in-page events from the site's script: page views, CTA clicks,
           scrolls, forms started, a booking widget
   hooks   Calendly bookings and Stripe payments, as the tools would post them
@@ -612,6 +613,7 @@ def generate(now: datetime, days: int = 62, seed: int = SEED) -> Traffic:
     import demo_security
     demo_security.add(m.t.lines, m.t.first, m.t.today, m.tz, m.now, seed)
     heartbeat(m.t.lines, m.t.first, m.now, m.tz)
+    html_sitemap(m.t.lines, m.t.first, m.t.today, m.tz, seed)
     T, cut = m.t, m.now
     T.lines = sorted((x for x in T.lines if x.split(" ", 1)[0] <= cut.isoformat()), key=lambda x: x.split(" ", 1)[0])
     T.beacon = sorted((b for b in T.beacon if b[0] <= cut), key=lambda b: b[0])
@@ -636,3 +638,33 @@ def heartbeat(lines: list, first: date, now: datetime, tz) -> None:
                           size=166 if failed else 512, secs=0.9 if failed else 0.012))
         t += timedelta(minutes=5)
 
+
+
+SITE_AUDIT = "Mozilla/5.0 (compatible; AhrefsSiteAudit/6.1; +http://ahrefs.com/robot/site-audit)"
+TEST_BROWSERS = ("203.0.113.252", "203.0.113.253", "203.0.113.254")   # never in a person's pool
+
+
+def html_sitemap(lines: list, first: date, today: date, tz, seed: int) -> None:
+    """The site's HTML sitemap page, /sitemap/ (2.36: not a page): Googlebot and bingbot walk
+    it, an SEO site audit once a week, and now and then a test browser with no referrer that
+    loads the page and its files, the way the owner saw it on a live site. From a generator of
+    its own, so every other figure stays as it was."""
+    x = random.Random(seed + 11)
+    bot = lambda name: next(b[:2] for b in BOTS if name in b[0])  # noqa: E731
+    bots = ((*bot("Googlebot"), 0.7), (*bot("bingbot"), 0.35))
+    d = first
+    while d <= today:
+        start = datetime(d.year, d.month, d.day, tzinfo=tz)
+        at = lambda: (start + timedelta(seconds=x.randrange(0, 86_400))).astimezone(UTC)  # noqa: E731
+        for agent, ip, chance in bots:
+            if x.random() < chance:
+                lines.append(line(at(), ip, "/sitemap/", agent, size=size_of("/sitemap/"), secs=0.06))
+        if d.weekday() == 0:
+            lines.append(line(at(), "198.51.100.245", "/sitemap/", SITE_AUDIT, size=size_of("/sitemap/"), secs=0.07))
+        if x.random() < 0.4:
+            t, ip, ua = at(), x.choice(TEST_BROWSERS), UAS[0][0]
+            lines.append(line(t, ip, "/sitemap/", ua, size=size_of("/sitemap/"), secs=0.03))
+            for i, path in enumerate(("/assets/site.css", "/assets/site.js", "/assets/logo.svg")):
+                lines.append(line(t + timedelta(seconds=1 + i), ip, path, ua, "https://example.com/sitemap/",
+                                  size=SIZES[path], secs=0.004))
+        d += timedelta(days=1)

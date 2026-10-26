@@ -5,6 +5,9 @@ same data files the dashboard reads, read-only (docs/MCP.md).
   tools.py       list_sites, overview, breakdown, top_pages, ai_activity, leads
   tools_more.py  funnel, compare, page_story, live_today, data_quality, site_health,
                  conversions
+  tools_people.py   find_person (read_private only)
+  tools_insights.py what_changed, todos, lost_pages (2.35)
+  tools_pages.py    page_changes, ai_readiness, changed_pages (2.35)
   resources.py   skald://docs/api, skald://docs/counting, skald://sites/<site>/overview,
                  and the weekly_report prompt
   data.py        reading the data files: sites, ranges, day states

@@ -85,6 +85,7 @@ One line per part, each OK, NEEDS ATTENTION or OFF, and the fix in plain words:
 | Lead database | The website's lead database can be read, when one is set |
 | Mail | The mail settings are complete |
 | Version | A newer release, from the last daily check (it never goes online itself) |
+| Crawler checks | A crawler that names itself (Googlebot, GPTBot) is checked against its owner's published addresses, and browsers from hosting networks are flagged. On by default in the container; `-e SKALD_VERIFY_BOTS=off` turns it off |
 | Disk | Free space where Skald keeps its data |
 
 OFF is a part you have not turned on. It exits 1 when anything needs attention, so a script can watch it. `--json` prints the same list as JSON. `--send-test` also sends one test mail to the recipients.

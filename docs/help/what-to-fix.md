@@ -54,7 +54,7 @@ location = /old-page/ { return 301 /new-page/; }
 Redirect 301 /old-page/ /new-page/
 ```
 
-**Download the lines** saves every suggested line for your server as one file, with loose matches marked. Check each one before you add it. Once a line is on your server, select **Mark fixed** on its row; the address moves to **After the fix** on the next data update.
+**Download the nginx lines** (or **Download the Apache lines**) saves every suggested line for your server as one file, with loose matches marked. Check each one before you add it. Once a line is on your server, select **Mark fixed** on its row; the address moves to **After the fix** on the next data update.
 
 ## How the figures are checked
 

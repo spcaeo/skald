@@ -79,7 +79,7 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `sites.log_base` | Sites | a file name | install admin | site | `logs.base` |
 | `site.asset_prefixes` | Sites (Page assets) | 1-10 path prefixes, each starting with `/`, not `/` alone (`/_next/static/`) | admin | site | `site.asset_prefixes` |
 | `site.require_rendering` | Sites (Page assets) | true / false (true) | admin | site | `site.require_rendering` |
-| `site.not_pages_off` | Sites (Not pages) | entries of the not-a-page list counted as pages again: `markdown`, `wp_rest`, `wp_files`, `feeds`, `oembed`, `trackback`, `author_number`, `reply_to_comment` (none) | admin | site | `site.not_pages_off` |
+| `site.not_pages_off` | Sites (Not pages) | entries of the not-a-page list counted as pages again: `markdown`, `wp_rest`, `wp_files`, `feeds`, `oembed`, `trackback`, `author_number`, `reply_to_comment`, `sitemap_page` (none) | admin | site | `site.not_pages_off` |
 | `site.not_pages_extra` | Sites (Not pages) | up to 20 of the site's own: `/path`, `/prefix*` or `?key`, not `/` alone (none) | admin | site | `site.not_pages_extra` |
 | `site.logo.source` | Sites (Logo) | auto, upload, letter (auto) | admin | site | `site.logo_source` |
 | `site.logo.color` | Sites (Logo) | `#1d4ed8`, `#0f766e`, `#9a6400`, `#17212b` (one picked from the name) | admin | site | `site.logo_color` |

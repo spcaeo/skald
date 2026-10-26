@@ -580,15 +580,18 @@ on example.org in 3.
 
 `/sitemap/` is different: example.net's is a real HTML page (title, links, indexed). Its 24
 one-page "visits" are a question of who visited (a browser-like tool with a phone screen),
-which belongs to the classifier, not to a path list. It stays a page.
+which belongs to the classifier, not to a path list. It stays a page. (Reversed in 2.36: an
+HTML sitemap page's log held crawlers, an SEO audit and browser signatures with no referrer,
+no reader, so `sitemap_page` joined the list, ticked by default; see below.)
 
 **How this package prevents it.** A default list of machine and utility addresses
 (`not_pages.py`; CLASSIFICATION.md, "What decides a page view"), each with its reason:
 Markdown copies, WordPress's REST API (`/wp-json/`, `?rest_route=`) and machine files
 (`xmlrpc.php`, `wp-cron.php`, `admin-ajax.php`), feeds (`/feed/`, `?feed=`), oEmbed,
-trackbacks, `?author=N` and `?replytocom=`. A request on it is no page view in any group; it
-stays a request in its group, so the five groups still add up to the log. Pages a person
-opens stay pages: an HTML sitemap, search results, a cart, a sign-in page, an app's
+trackbacks, `?author=N`, `?replytocom=` and, since 2.36, an HTML sitemap page (`/sitemap/`,
+`/site-map/`, `/html-sitemap/`, `/sitemap.html`). A request on it is no page view in any
+group; it stays a request in its group, so the five groups still add up to the log. Pages a
+person opens stay pages: search results, a cart, a sign-in page, an app's
 dashboard (freshlycited.com's `/sign-in` and `/dashboard` are its real users), a thank-you
 page. A site counts an entry as pages again, or adds its own, in Settings > Sites > Not
 pages (`site.not_pages_off`, `site.not_pages_extra`).

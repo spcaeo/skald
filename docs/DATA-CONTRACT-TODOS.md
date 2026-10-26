@@ -73,3 +73,12 @@ row is the mark (for a page change: the newest per page and day). Page changes:
 [DATA-CONTRACT-PAGE-CHANGES.md](DATA-CONTRACT-PAGE-CHANGES.md). Read and written by the helper's `settings/todos`
 (`todo_api.py`); every change and every mail sent is an audit-log row
 (`todo.marked`, `todo.sent`).
+
+The helper's routes (sessions mode; 404 in basic mode), under `settings/`, which nginx already
+passes:
+
+| Method, path | Body -> answer |
+| --- | --- |
+| GET `settings/todos` | -> `{ok, marks: {item: {state, day, at, first_day}}, changes, role, can_mark, mail: {ready, why}, team: [{id, email, role}]}`; `team` (who a to-do can be sent to) only for owners and admins |
+| POST `settings/todos` | `{item, state}`: `done`, `notnow` or `open` for a to-do; `fixed` or `open` for `path:/old/`; `{item: "page:/x/", state: "changed", day, kind, note}` marks a page change, `{item, state: "open", day}` stops tracking it -> `{ok, ...the mark, marks}` (a page change: `changes` instead). Owners and admins; the CSRF value |
+| POST `settings/todo-send` | `{item, to}` (`to`: a confirmed member's account id) -> `{ok, sent_to, file}`: mails one to-do with its rows as a CSV file and the link to it, through the install's mail server; owners and admins; 10 an hour (429). Without a mail server the answer says why |

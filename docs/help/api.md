@@ -135,6 +135,11 @@ The signed-in address also lists the files a page has: end it at `api/v1/`. The 
 | `health` | Server health |
 | `alerts` | Open alerts |
 | `ours` | Your own traffic and the heartbeat |
+| `todos` | Overview > Insights' to-do list: each to-do's proof, what to do, and whether it is to do, marked done (with its re-check) or not now |
+| `lost_pages` | Site > Not found: old addresses still asked for, the closest live page, and the nginx and Apache lines |
+| `page_changes` | The changes marked on a page, and whether each worked (the days before against the days after) |
+| `ai_ready` | AI readiness: robots.txt for each main AI crawler, what AI got back by page, the sitemap |
+| `page_trends` | Each page's visits and AI reads by day, and the pages changed in the last 30 days |
 | `ai_activity` | What AI assistants did (holds addresses: needs **Reading visitor addresses**) |
 | `requests` | The recent request log (holds addresses: needs **Reading visitor addresses**) |
 | `people?q=...` | One person by IP address, email, visitor ID or lead: their visits, leads and conversions, linked. Needs **Reading visitor addresses**; each search goes to the audit log |

@@ -83,6 +83,23 @@ class Traffic(unittest.TestCase):
                                               for t, p in visits)]
         self.assertGreaterEqual(len(followed), 5)
 
+    def test_the_html_sitemap_page_is_walked_by_crawlers_and_test_browsers(self):
+        """2.36: /sitemap/ is not a page; the demo has it so Data quality's "Not counted as
+        pages" shows it. Its own generator: the other lines are the same as without it."""
+        rows = [line.split('"') for line in self.t.lines if '"GET /sitemap/ ' in line]
+        agents = {r[5] for r in rows}
+        self.assertTrue(any("Googlebot" in a for a in agents) and any("bingbot" in a for a in agents))
+        self.assertTrue(any(a in dt.HUMAN for a in agents))
+        self.assertTrue({line.split()[1] for line in self.t.lines if line.split()[1] in dt.TEST_BROWSERS})
+        rest = [line for line in self.t.lines if line.split()[1] not in dt.TEST_BROWSERS + ("198.51.100.245",)
+                and '"GET /sitemap/ ' not in line]
+        bare = dt.html_sitemap
+        try:
+            dt.html_sitemap = lambda *a, **k: None
+            self.assertEqual(rest, dt.generate(NOW, 12).lines)
+        finally:
+            dt.html_sitemap = bare
+
 
 class Build(unittest.TestCase):
     """One small build (4 days) through the real pipeline."""
@@ -110,6 +127,12 @@ class Build(unittest.TestCase):
         build = json.loads((self.out / "traffic" / "build.json").read_text())
         self.assertEqual(build["name"], (ROOT / "NAME").read_text().strip())
         self.assertEqual(build["version"], (ROOT / "VERSION").read_text().strip())
+
+    def test_the_html_sitemap_page_is_counted_in_data_quality_not_in_pages(self):
+        quality = json.loads((self.site / "data" / "quality.json").read_text())
+        found = [d["not_pages"]["sitemap_page"] for d in quality["days"] if (d.get("not_pages") or {}).get("sitemap_page")]
+        self.assertTrue(found)
+        self.assertNotIn('"/sitemap/"', (self.site / "data" / "pages.json").read_text())
 
     def test_ai_answers_made_up_and_recounted_and_no_key_kept(self):
         # demo_answers.py: runs through answers/run.py with a stand-in for the providers,

@@ -45,7 +45,7 @@ export const ROUTE_KEYS = [
   // ---- tab: one tab's own
   { key: "page", kind: "tab", owner: "tabs/pagestory.js", means: "Traffic > Pages: the page whose story is open" },
   { key: "psec", kind: "tab", owner: "tabs/aiready.js", means: "Traffic > Pages: the part of the page's story to open at: ai (AI readiness)" },
-  { key: "arw", kind: "tab", owner: "tabs/aiready.js", means: "AI & bots > Assistants, Pages AI can't read well: the problem shown (copy, 404, errors, robots, redirects; every one when absent)" },
+  { key: "arw", kind: "tab", owner: "tabs/aiready.js", means: "AI & bots > Assistants, Pages AI can't read well: the problem shown (copy, 404, errors, robots, slow; every one when absent)" },
   { key: "net", kind: "tab", owner: "tabs/tr-social.js", means: "Traffic > Sources: the social network open under the grid (x, linkedin, facebook, ...; with src_seg=social)" },
   { key: "pubfrom", kind: "tab", owner: "tabs/tr-pages.js", means: "Traffic > Pages: published from" },
   { key: "pubto", kind: "tab", owner: "tabs/tr-pages.js", means: "Traffic > Pages: published to" },

@@ -7,8 +7,10 @@ left out by date. A site the caller may not read, a bad date or a file
 that is not there comes back as a tool error (isError) in plain words.
 
 Registered here: list_sites, overview, breakdown, top_pages, ai_activity,
-leads. The rest (funnel, compare, page_story, live_today, data_quality,
-site_health) are in tools_more.py.
+leads. The rest: funnel, compare, page_story, live_today, data_quality,
+site_health and conversions in tools_more.py; find_person in tools_people.py;
+what_changed, todos and lost_pages in tools_insights.py; page_changes,
+ai_readiness and changed_pages in tools_pages.py.
 """
 from __future__ import annotations
 
@@ -459,3 +461,7 @@ def _lead_figures(e) -> bool:
 from . import tools_more  # noqa: E402,F401 - registers the other tools
 
 from . import tools_people  # noqa: E402,F401 - registers find_person (2.4.0)
+
+from . import tools_insights  # noqa: E402,F401 - what_changed, todos, lost_pages (2.35)
+
+from . import tools_pages  # noqa: E402,F401 - page_changes, ai_readiness, changed_pages (2.35)

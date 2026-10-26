@@ -149,7 +149,10 @@ and this is a fetch, not a count): `{"days": {day: check}}`, a check being
 "updated", "advisories": [...]}`, each `{"id","product","cves","title","severity","score",
 "published","branch" ("minor": 8.4, "major": 22),"fixed": {branch: first fixed version},
 "no_fix_below" (a branch below which there is no fix),"no_fix_words","affected","summary",
-"action","mitigations": [..],"mitigations_note","sources": [https URL]}`. To add one, add an
+"action","mitigations": [..],"mitigations_note","sources": [https URL]}`, and optionally
+`"also_known_as"` (the name the flaw is known by, or null) and `"firewall_notes": [{"product",
+"words","source" (https URL)}]` (what a firewall vendor said it deployed, in its own words with
+its date; quoted, never a claim that the site is covered). To add one, add an
 entry from the vendor's own advisory and bump `updated`. With `security.advisories_fetch: true`
 (off by default) the daily run fetches the public repo's copy of the file and keeps a valid,
 newer one beside the live files (`advisories.json`).

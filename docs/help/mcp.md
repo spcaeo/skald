@@ -84,10 +84,10 @@ If you run the Skald server yourself, you can also connect over SSH without a to
 
 ## Connect ChatGPT
 
-Skald does not offer OAuth sign-in yet. ChatGPT can only use Skald where it lets you set the `Authorization` header yourself.
+Skald does not offer OAuth sign-in yet. ChatGPT can only use Skald where it lets you give the token yourself.
 
 - **ChatGPT app (connectors, developer mode):** these screens ask for OAuth or no sign-in. They cannot send the token, so they cannot connect to Skald yet.
-- **OpenAI API:** a developer can add Skald as a remote MCP server, with the server URL `https://analytics.example.com/traffic-mcp` and the header `Authorization: Bearer skald_<id>_<secret>`.
+- **OpenAI API:** a developer can add Skald as a remote MCP server: set `server_url` to `https://analytics.example.com/traffic-mcp` and put the token, `skald_<id>_<secret>`, in the MCP tool's `authorization` field. OpenAI's [connectors guide](https://developers.openai.com/api/docs/guides/tools-connectors-mcp) (read 24 October 2026) says to "Provide this token using the `authorization` field of the MCP tool", and its example has the token alone, with no `Bearer` in front. The value is not stored, so send it in every request.
 
 ## Other MCP clients
 
@@ -117,6 +117,12 @@ The assistant chooses these tools itself. Dates are in your site's own time zone
 | `data_quality` | Per day: whether the log was read whole and passed its checks |
 | `site_health` | Open alerts, heartbeat uptime, errors today, late runs, page speed |
 | `conversions` | Demos, forms, sign-ups and payments by stage: started, completed, abandoned, won, lost. The completed ones and the leads, by source, first touch, landing page, country, campaign, device or tool |
+| `what_changed` | Summary's **What changed: is it working?**: visits by source and by landing page against the period before, with the biggest rise and drop. Only when both periods are whole |
+| `todos` | **Overview > Insights**' to-do list: what to fix, its proof, what to do, and whether each is to do, marked done (fixed or not yet) or not now. Give an id for the list behind one to-do |
+| `lost_pages` | **Site > Not found**: old addresses still asked for, the closest live page and the nginx or Apache line to copy; also the Markdown copies AI asked for, and the addresses marked fixed |
+| `page_changes` | The changes marked with **+ Mark a change** on a page, and for each the days before against the days after: up, down, no clear change or too early to tell |
+| `ai_readiness` | **Pages AI can't read well**, worst first; or one page's **AI readiness**: robots.txt for each main AI crawler, errors, the Markdown copy, the sitemap and the last AI read |
+| `changed_pages` | Summary's **New and updated pages**: pages changed in the last 30 days, their visits and search visits since, and whether Google fetched them |
 | `find_person` | One person by IP address, email, visitor ID or lead: their visits, leads and conversions. Only with **Reading visitor addresses**; each search goes to the audit log |
 
 It also offers a ready prompt, **weekly_report**, which asks the assistant for a short weekly report.
@@ -132,6 +138,11 @@ It also offers a ready prompt, **weekly_report**, which asks the assistant for a
 - "How is the pricing page doing since it was published?"
 - "How many demos were booked last month, and from which sources?"
 - "Is the site healthy right now?"
+- "What should we fix first this week, and did last week's fixes work?"
+- "Which old addresses still get visits, and where should each one redirect?"
+- "Did the change I made to the pricing page work?"
+- "Can ChatGPT and Claude read our guides page?"
+- "Which sources and landing pages rose or fell against the week before?"
 - "Write a short weekly report for example.com."
 
 ## How honest the answers are
