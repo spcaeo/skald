@@ -421,14 +421,14 @@ after one fails; the README's "One log, two answers" and docs and screenshots br
   Node.js October releases, with sources), last week's 50 s story video behind a "Watch" fold,
   share links, copy and open on every URL shown, and a share card
   (`img/share-ai-key-thief.png`, `tools/make-share-cards.py ai-key-thief`). Why: the owner's
-  story of the scanner seen on spaceo.ai on 21 Oct 2026, told with only verified facts. Every
+  story of the scanner seen on one site we measure on 21 Oct 2026, told with only verified facts. Every
   figure about the scanner is counted from the real log (the scanner's address replaced with
   203.0.113.7) on each build (`_src/thief_log.py`), never typed in. Linked from `/security/`
   (a card at the top), the php2shell guide, `/check/` and the home page's security band; in the
   sitemap; `Article` and `BreadcrumbList` JSON-LD. The story video (82 s, 9 MB, served from the site
   itself, `preload="none"`, its cover as poster) sits under the hero, behind `thief.HAS_VIDEO`. One difference from the agreed story, written on
-  the page as the log has it: not every request names wp.spaceo.ai as referrer; 124 do, and the 26
-  that followed a redirect name www.spaceo.ai. Who it affects: readers of skaldanalytics.com.
+  the page as the log has it: not every request names the site's WordPress host as referrer; 124 do, and the 26
+  that followed a redirect name its www address. Who it affects: readers of skaldanalytics.com.
   What to do: nothing until the site is deployed (owner's go). Checked:
   `_src/test_thief_page.py` (the tags and JSON-LD; the chart, families, answers and prose
   recounted from the log by a second road; the quoted lines and the share card's lines found in
