@@ -133,11 +133,19 @@ export async function testMcp(url, token, fetcher = fetch) {
   }
 }
 
-export function mcpDialog(site, data = {}, { onClose = null, route = null, start = 0 } = {}) {
+/* The MCP guide (docs/help/mcp.md), as a clear button at the top of the dialog (2.39, the
+   owner: "there is no documentation link"). It opens in a new tab, so the dialog stays. */
+export function mcpGuideButton() {
+  const href = `${location.pathname || "/"}#help?part=mcp`;
+  return h("div", { class: "cn-guide" }, h("a", { class: "btn", href, target: "_blank", rel: "noopener", "aria-label": "Read the MCP guide (opens in a new tab)" }, "Read the MCP guide"),
+    h("small", null, "Every step for Claude Code, Claude Desktop, ChatGPT and other assistants, and what each tool answers."));
+}
+
+export function mcpDialog(site, data = {}, { onClose = null, route = null, start = 0, wrap = null } = {}) {
   const url = data.mcp_url || `${location.origin}/traffic-mcp`;
   const st = { site, token: "" };
   const tok = () => st.token || "<token>";
-  return wizard({ route, start,
+  return wizard({ route, start, wrap, top: mcpGuideButton(),
     title: "Connect an AI assistant (MCP)", subtitle: "Ask Claude, ChatGPT or another assistant about your traffic in plain words.", key: "conn-mcp", state: st, onClose,
     steps: [
       { name: "Token", draw: () => [

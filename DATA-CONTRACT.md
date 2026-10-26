@@ -48,6 +48,9 @@ a version change; a field is never renamed or removed without one.
   `who`, `path`).
 - **Counters** are objects `{label: int}`. A key `"(all others)"` is the
   folded tail of a longer list; it is a real count and keeps the sums.
+  The kept labels are the largest; among labels with the same count, the
+  first by name (after 2.38.0; before, the first counted, which let two
+  roads that count in a different order keep different labels at a tie).
 - **Hours** are `"00"` to `"23"` in `timezone`.
 - **Countries** are two-letter ISO codes. A request's country is the log
   line's own (nginx `cc=`, Cloudflare's `CF-IPCountry`, a CDN log's country

@@ -143,6 +143,8 @@ Skald does not know some things, so they are left in [square brackets] for you t
 
 > A starting point, not legal advice. Your notice must match your own situation.
 
+Your AI agent can help: on the site's **Set up** list, press **Set up** on **Privacy settings chosen**, then pick your agent. It reads your site's privacy notice and recommends what Skald keeps. Skald changes nothing by itself: the recommendation shows with **Apply**, and only your press saves it. See [Your AI agent, in every set-up dialog](connections.md#your-ai-agent-in-every-set-up-dialog).
+
 ## The script tag
 
 The optional `skald.js` tag counts what happens inside a page. As Skald gives it, it loads from your Skald server and posts its events there. If your web server passes `/traffic-js/` and `/traffic-beacon` on to Skald, it loads from your own site and posts there instead. No third-party code. See [Tracking script](tracking-script.md).

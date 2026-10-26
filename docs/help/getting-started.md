@@ -27,6 +27,8 @@ For owners and admins, a new site's Overview > Summary starts with a **Set up** 
 | Mail recipient confirmed | The daily or weekly mail is on, with a recipient who opened the confirm link | Turns the mail on, takes the addresses, shows who still has to confirm, and sends a test mail |
 | Privacy settings chosen | Someone chose whether IP addresses are kept | The three IP choices (full, shortened, none), leads' names and emails, then the wording for your privacy notice with Copy |
 
+The dialogs for logs, page assets, Next.js pages, the script tag, the lead hook and privacy start with **Your AI agent, or by hand?**: your AI agent gets one line and does the job, or you follow the steps yourself. With two or more of those lines left, **Set up everything left with your AI agent** at the top makes one line for all of them. See [Your AI agent, in every set-up dialog](connections.md#your-ai-agent-in-every-set-up-dialog).
+
 The server's own technical words (config keys, commands) are not on the line. Where there are some, they are folded under **For your server admin**.
 
 The mail to your developer opens in your own mail program. For the script tag it holds the whole tag: the tag needs no secret. For a lead hook it holds the address and the steps but never the secret: give the secret separately, never by mail or chat.

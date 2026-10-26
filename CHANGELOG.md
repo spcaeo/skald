@@ -4,6 +4,48 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+### Website: the MCP pages say 22 tools; What's new has 2.39
+
+- **Changed.** The MCP page, the features page, the developers pages, /for/ and the Searchable
+  comparison say the MCP server has 22 tools: 21 read-only, and `setup_line`, which makes a
+  set-up line only with a token that has the `setup` scope. The MCP page lists `setup_left` and
+  `setup_line`, and no longer lists six tools twice (what_changed to changed_pages were in its
+  tool list two times). What's new has 2.39. **Why:** 2.39.0 added the two tools. **Who:**
+  readers of skaldanalytics.com. **Do:** nothing. **Checked:** the build says "problems: none".
+
+### Website: a JetOctopus comparison page; /compare/ lists 14 tools
+
+Not live yet: built and committed, waiting for the owner's go to upload the website.
+
+- **Added.** /compare/jetoctopus/: Skald beside JetOctopus, a technical SEO platform that crawls
+  large sites and reads their server logs for Googlebot and AI crawlers. Eleven questions
+  answered side by side, each JetOctopus answer linked to its own page (how it gets the log,
+  which lines it keeps, how it checks a Googlebot is real, how fresh, what pages exist, people,
+  search data, MCP, alerts, cost); an echo sounder hero (seven sample pages by crawl depth
+  beside the same pages as Skald reads them) and a postage meter that feeds ten sample lines
+  through each tool's monthly "log lines" quota (theirs meters checked search bot HTML pages,
+  2 of 10; Skald counts all 10). It says where JetOctopus does more (its own crawler with
+  JavaScript rendering, Search Console and GA4 joined per page, an MCP server that can start
+  crawls, unlimited seats) and how to run both. Prices only as listed on jetoctopus.com/pricing
+  on 26 Oct 2026, with that date. **Changed.** /compare/ lists JetOctopus (picker, glance table,
+  the hero's server-log column) and now says 14 tools; the GoAccess and crawl health pages link
+  to the new page; docs/COMPARISON.md has a JetOctopus entry under "Also checked" with sources,
+  and the public README's "Who should use what" names it for crawling and technical SEO. A
+  private gap note (docs/marketing/) records what it does that Skald does not, its prices and
+  what to re-read. **Why:** the owner asked to add JetOctopus to the tracked competitors; it is
+  the nearest one so far, since it reads the same logs Skald reads. **Who:** readers of
+  skaldanalytics.com and of the README. **Do:** nothing. **Checked:** every JetOctopus claim read
+  on its own site, docs, pricing page (rendered in a browser, both tabs and both billing
+  periods) and FAQ on 26 Oct 2026, paraphrased, no quote of 15 words or more; where its pages
+  disagree (Shopify logs, the trial's demo call, log-line limits) the page follows the current
+  pricing page and the gap note marks the rest "?"; every Skald claim matched to the code (nine
+  owners' crawlers checked, sitemap daily and robots.txt hourly, Search Console every 6 hours,
+  20 read-only MCP tools, the hosted plans); a separate grader scored the page 83/90 and its
+  fixes were applied (MCP pause wording, GA4 wording, terms explained); the build ends
+  "problems: none"; the unit tests pass; /compare/, /compare/jetoctopus/, /compare/goaccess/ and
+  the crawl health page at 390 and 1440 px show no sideways scroll; all 19 outside links answer
+  200 after redirects.
+
 Everything under Unreleased below is live on skaldanalytics.com since 26 Oct 2026, 11:44 UTC (the website only; no new Skald version).
 
 ### Website: hosted prices are final, and each plan says its limits
@@ -470,6 +512,88 @@ Everything under Unreleased below is live on skaldanalytics.com since 26 Oct 202
   now and then, on the last commit too); the full test suite; every sitemap URL opened at 1440 and 390 px wide
   (no sideways scroll, no script errors, no broken assets, every switch and tab has a choice).
   Words checked against the product's own limits (`_src/pages/FEATURES.md`).
+
+## 2.39.0 (2026-10-26)
+
+Your AI agent can now do every set-up job, not only a new site's. Each Set up dialog asks **Your AI agent, or by hand?**, the set-up list offers **Set up everything left with your AI agent**, and your assistant can ask Skald over MCP what is left and make the line itself. Also: the agent's findings for Skald's own settings wait for your **Apply**; a tie in a list's "(all others)" cut no longer withholds a day; a quiet site no longer shows a false "no page assets".
+
+### Upgrade
+
+- Nothing to do on the Docker image. A self-hosted install with its **own front nginx that allows only GET** under `/traffic-kit/` must also allow POST to `.../hooksecret`, as it already does for `.../report` (DEPLOY.md, the regex `(report|hooksecret)`). A front nginx that only proxies needs nothing.
+
+### Your AI agent, in every set-up job
+
+- **Added.** The one line for an AI agent works for each set-up job of a site already in Skald:
+  connect the logs, add the script tag, leads and tool webhooks, the Next.js log field, find the
+  page assets, check the privacy settings, and connect the AI assistant (MCP). Every Set up
+  dialog an agent can do (logs, page assets, Next.js pages, script tag, lead hook, privacy, and
+  Connect an AI assistant) opens on **Your AI agent, or by hand?**; by hand is the old dialog,
+  one step later. Countries and mail stay by hand. **Why:** the owner pointed out that the lead
+  set-up (`?setup=lead`) walked a person through by hand while Add a site did it all through one
+  line. **Who:** owners and admins. **Do:** nothing. **Checked:** `tests/js/agent-jobs.mjs` and the
+  checklist and connections tests; the default Add a site line, keys and steps are byte for byte
+  as before.
+- **Added.** **Set up everything left with your AI agent** at the top of a site's Set up list,
+  when two or more open lines are agent jobs: one line for all of them. Its address is
+  `setup=all&jobs=...`. **Checked:** `agent-jobs.mjs` (jobs in order, the address round trip).
+- **Changed.** A line makes only the keys its jobs need: a sending token only with logs, the lead
+  secret only with leads, a read-only token for that one site only with MCP. Cancelling, expiry
+  or a new line revokes every token the line made. **Checked:** endpoint tests on cancel, expiry,
+  a revoke that failed once, and the daily run.
+- **Changed.** The agent's steps give each job its own section, each starting with **Check
+  first**: the agent leaves done work alone, changes only what is missing, and asks before any
+  server or web-server change. Keys still go only into a 0600 file through curl or wget.
+- **Added.** `POST /traffic-kit/<code>/hooksecret` lets the agent set a booking, form or payment
+  tool's webhook secret (Calendly, Cal.com, Typeform, Stripe, HubSpot, Zapier) without the
+  secret passing through the chat: Skald makes one and hands it once into a file, or takes the
+  tool's own from stdin. A tool that has a secret already is left alone unless replacing is
+  asked. Audited, never logged. **Checked:** tests run the steps' own commands with bash and curl.
+- **Added.** The agent's report says which jobs it did ("done", "already there", "skipped",
+  "left for you") and which tool hooks it set. Page assets and privacy show as recommendations
+  with **Apply**, which makes the same save as the by-hand dialogs. **Why:** a leaked code must
+  never change what Skald keeps; Skald changes its own settings only on your press. **Checked:**
+  nothing is saved before the press; the exact save bodies after.
+- **Changed.** Connect an AI assistant (MCP) has **Read the MCP guide** at the top. **Why:** the
+  owner found no documentation link there.
+
+### MCP: what is left to set up, and the line to do it
+
+- **Added.** `setup_left`: a site's open set-up lines, each with the job an agent can do and
+  its dialog's address. Worked out on the server (`setup_items.py`), held to the page's own
+  checklist by a test that runs both on 22 sets of answers.
+- **Added.** `setup_line`: makes the same one-time line as the dashboard's **Your AI agent**, for
+  the jobs given, audited (never the code). It needs a token with the new permission
+  **Set-up lines (AI agent)** (scope `setup`): only an owner or admin may make it, for exactly
+  one site, together with AI assistant (MCP); it reads nothing by itself, and stops if its maker
+  is demoted. **Do:** make such a token only if you want your assistant to start set-ups.
+  **Checked:** `tests/test_mcp_setup.py` (every refusal, the audit row, a real line end to end).
+- **Fixed.** The MCP server reads each site's own config for set-up answers, not the main
+  site's.
+
+### Fixed: a tie at the "(all others)" cut withheld a live panel
+
+- **Fixed.** A list that ends in "(all others)" keeps the pages with the most visits. When
+  several pages had the same count at the cut, it kept whichever it had counted first. The
+  visits and the readers count in a different order, so the two lists could keep different
+  pages, the check "visits by entries match readers by landing" failed, and the figures were
+  withheld. Now, at an equal count, the first by name is kept, whatever order the lines came in
+  (`dimensions.fold`; rule added to DATA-CONTRACT.md, Counters). **Why:** one site's live panel
+  was withheld on 26 Oct (19 landing pages with one reader each, the cut inside them). **Who:**
+  every site; a day or live panel could be withheld. **Do:** nothing: no stored day was withheld
+  for this, nothing needs recounting. **Checked:** `tests/test_landing_ties.py` rebuilds the case
+  (failed before, passes now); the day's real lines, read on the server without writing, verify
+  clean with the new rule; the audit road does not fold and is unchanged.
+
+### Fixed: a quiet site's "no page assets" false alarm
+
+- **Fixed.** The doctor's Page assets line read only the log's last 512 KB. On a quiet site
+  those can all be crawler lines, so it said "no request for /_next/static/" while people loaded
+  the pages all day, and the set-up checklist offered a wrong to-do ("none counts as a person
+  yet"). With nothing in the tail it now reads further back, the live file and its first
+  rotation, 64 MB at most, and says "seen in the log (not in its last lines: a quiet spell)"
+  (`doctor.py`). **Why:** docomatic.ai showed the false alarm. **Who:** quiet sites with the
+  page-assets rule. **Do:** nothing. **Checked:** `tests/test_doctor.py` (an asset request before
+  512 KB of other lines is found; the 64 MB cap holds).
 
 ## 2.38.0 (2026-10-26)
 

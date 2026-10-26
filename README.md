@@ -398,7 +398,10 @@ your firewall, not instead of it.
 - **Add a site** in five steps you can leave and resume. Pick your AI agent (Claude Code, Codex,
   Cursor or another) and paste one line: it holds a one-time code that gives the keys once, for
   this site only, then stops; the agent connects the logs, the script tag and the lead file, and
-  Skald ticks each step as it happens. Or set it up by hand: one command on the server (or one
+  Skald ticks each step as it happens. Every other set-up job works the same way (2.39): each
+  Set up dialog asks **Your AI agent, or by hand?**, and **Set up everything left** makes one line
+  for every open job. The agent checks first and changes only what is missing; what it finds for
+  Skald's own settings waits for your **Apply**. Or set it up by hand: one command on the server (or one
   file), with `skald-ship-check` to say what is wrong in plain words; a private link to share the
   steps with your developer.
 - **Send set-up to someone:** one zip by mail with every way in, the keys, and a `CLAUDE.md`, so a
@@ -442,8 +445,9 @@ your firewall, not instead of it.
 - **Client reports:** branded reports for an agency's clients, a mail with a PDF attached, weekly,
   monthly or every few days, with your name, colour and logo; verified days only, the sums counted
   twice before a report goes.
-- A read-only JSON API and an **MCP server with 20 read-only tools** for Claude, ChatGPT and other
-  AI agents (the person search only with a token that may read private data).
+- A read-only JSON API and an **MCP server with 22 tools** for Claude, ChatGPT and other AI agents:
+  21 read-only, and `setup_line`, which makes a set-up line only with a `setup` token (the person
+  search only with a token that may read private data).
 - In-app Help in plain words with how-to guides, keyboard shortcuts, a command palette, light and
   dark themes, and a phone layout.
 - A notice when a new release is out, and one-command upgrades with a backup and a rollback.
@@ -541,6 +545,7 @@ need your own Skald. Every image below is from the demo's sample data.
 | :---: | :---: |
 | <img src="docs/screenshots/site-check.png" alt="Add a site, step 1: example.com typed in, and What Skald found: server nginx on Ubuntu, no platform in front, built with Next.js, host names example.com and www.example.com, page assets /_next/static/, and the suggestion: a Linux server with Docker" width="440"><br>**Skald checks your site** (your own Skald). And suggests the way in. | <img src="docs/screenshots/add-site-wizard.png" alt="Add a site, step 3 of 5, Which AI agent are you using: Claude Code, Codex, Cursor, Claude.ai or ChatGPT, Another agent, and No AI agent: set it up by hand" width="440"><br>**Add a site in five steps** (2.31). Pick your AI agent, or set it up by hand. |
 | <img src="docs/screenshots/add-site-agent-line.png" alt="Add a site, step 4 of 5, Send this line: set up Skald for example.org, read https://stats.example.com/traffic-kit/llms.txt and use code (hidden), works once, 24 hours; Copy, Show code, Make a new line, Cancel this line, and Is it safe to paste this into a chat?" width="440"><br>**One line for your AI agent** (2.31). A one-time code, never a key. | <img src="docs/screenshots/add-site-agent-watch.png" alt="Add a site, step 5 of 5, Watch it connect: the agent read the steps, took the keys once, sent its report, the first log lines arrived; then what the agent did: hosting, web server, access log, framework" width="440"><br>**Watch it connect** (2.31). Each step ticks; the agent's report in plain words. |
+| <img src="docs/screenshots/setup-agent-or-hand.png" alt="Connect your leads, step 1 of 3, Your AI agent, or by hand: Claude Code, Codex, Cursor or Another agent, and By hand, Skald walks you through it step by step" width="440"><br>**Your AI agent, in every set-up job** (2.39). Each Set up dialog asks: your agent, or by hand? | <img src="docs/screenshots/setup-everything-line.png" alt="Set up everything left with your AI agent, step 2 of 3, Send this line: finish setting up Skald for example.com (connect the logs, add the script tag, send leads and tool webhooks, check the privacy settings), read https://stats.example.com/traffic-kit/llms.txt and use code (hidden), works once, 24 hours" width="440"><br>**Set up everything left** (2.39). One line for every open job; the agent checks first. |
 | <img src="docs/screenshots/connections-install.png" alt="Send this site's visits to Skald, step 2 of 3, Run one command: curl -fsSL https://stats.example.com/traffic-kit/ and a one-time code, piped to sudo bash, with Copy, Download as one file, Email it to your server admin and Make a new command" width="440"><br>**One command** (2.30). With or without Docker; the token is made for you. | <img src="docs/screenshots/setup-checklist.png" alt="Set up example.com: six lines ticked and one open, Mail recipient confirmed: 'Nobody gets the daily mail yet', with a Set up button" width="440"><br>**Set up this site.** Each open line has a Set up button. |
 | <img src="docs/screenshots/lead-setup-file.png" alt="Connect your leads, step 3 of 4: choose PHP, Node or Python, Download skald-lead.php, then require it and call skald_lead with the lead's ID, the action and the email; the secret goes in SKALD_LEAD_SECRET" width="440"><br>**Leads in one file** (2.30). One function to call; WordPress needs no code. | <img src="docs/screenshots/setup-pack.png" alt="Send set-up to someone: up to three email addresses, a note, Include the keys ticked, Send by email and Download (.zip), and the line: give the folder to Claude Code and say Set up Skald from CLAUDE.md" width="440"><br>**Send set-up to someone** (2.30). One zip a person or Claude Code can follow. |
 | <img src="docs/screenshots/links-copy-open.png" alt="Traffic, Pages: pointing at /pricing/ shows a copy button and an open-in-a-new-tab button at the end of the path" width="440"><br>**Copy and open on every URL** (2.21). Every view has its own link. | <img src="docs/screenshots/copy-values.png" alt="A scanner's detail: pointing at its user agent, Go-http-client/1.1, shows the copy button beside it" width="440"><br>**Copy any value** (2.35). Addresses, user agents, emails, names. |
@@ -717,13 +722,14 @@ on one page: [docs/LEADS-REFERENCE.md](docs/LEADS-REFERENCE.md).
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/spcaeo/skald/tree/main/deploy/cloudflare-worker)
 
 **API and MCP.** A read-only JSON API over every dashboard figure, with revocable, scoped tokens
-([docs/API.md](docs/API.md)), and an MCP server with 20 read-only tools for Claude, ChatGPT and any
+([docs/API.md](docs/API.md)), and an MCP server with 22 tools for Claude, ChatGPT and any
 MCP client that can send a header: `overview`, `breakdown`, `top_pages`, `ai_activity`, `leads`,
 `funnel`, `compare`, `page_story`, `live_today`, `data_quality`, `site_health`, `conversions`,
 `list_sites`, what to fix and whether it worked (`what_changed`, `todos`, `lost_pages`,
-`page_changes`, `ai_readiness`, `changed_pages`) and, with the `read_private` scope only,
-`find_person`. Answers call visits "an upper bound on people" and name every withheld day; it
-cannot change anything. OAuth sign-in is not offered yet ([docs/MCP.md](docs/MCP.md)).
+`page_changes`, `ai_readiness`, `changed_pages`), what is left to set up (`setup_left`) and,
+with the `read_private` scope only, `find_person`. Answers call visits "an upper bound on people"
+and name every withheld day. It cannot change anything; the one exception, `setup_line`, makes a
+one-time set-up line for your AI agent, and only with a token that has the `setup` scope. OAuth sign-in is not offered yet ([docs/MCP.md](docs/MCP.md)).
 
 ```sh
 claude mcp add --transport http skald https://stats.example.com/traffic-mcp \
@@ -791,6 +797,9 @@ tag or beacon.</sub>
 - **What AI engines say about you, often with content or audit tools to change it:** an AI visibility
   platform such as Searchable, Profound, Peec AI, Otterly.AI or Promptwatch (hosted services). Skald adds every
   request in your own log, crawler names checked for nine owners, and the leads AI sent.
+- **Crawling a large site and joining its bot logs with Search Console, for technical SEO:** an SEO
+  crawler with a log analyzer such as JetOctopus (hosted). It keeps only the bot lines; Skald adds
+  the people, the leads and every other request in the same log.
 - **Every visitor, crawler and AI fetch, with checked figures, on your own server:** Skald. It sits beside
   the tools above. Even the gap between Skald's count and GA4's is useful: it shows how much the script misses.
 

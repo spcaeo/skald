@@ -141,26 +141,53 @@ characters (`secrets.token_urlsafe(32)`). It is not a key. It lets the agent tak
 **once**, with curl, straight into a 0600 file. The keys never pass through the chat or the
 dashboard page.
 
-**The line.** `POST <page>/sites/agentlink {site, leads: true}` (owner or admin, as
-`sites/link`) does four things:
+**Jobs (2.39).** Since 2.39 a line carries one or more set-up jobs (`kit/agent_jobs.py`), so
+every set-up dialog can offer the same line ([the plan](plans/2026-10-26-agent-everywhere.md)):
 
-- It makes a new sending token, "Sending logs: <site>, <day> (AI agent set-up)", with scope
+| Job | What the agent does | Keys it gets |
+| --- | --- | --- |
+| `logs` | connects the server's log (cases A to D) | `SKALD_INGEST_URL`, `SKALD_INGEST_TOKEN`, `SKALD_LEAD_URL` |
+| `script` | puts the script tag in the shared `<head>` | none |
+| `lead` | the site's own forms (the lead file), and the booking, form or payment tools' webhooks | `SKALD_LEAD_URL`, `SKALD_LEAD_SECRET`; a tool's secret through `POST <code>/hooksecret` |
+| `rsc` | adds Next.js's `rsc_prefetch=` field to nginx's or Apache's log line, with the user's yes | none |
+| `assets` | finds where the pages load their own files, and reports them | none |
+| `privacy` | reads the privacy notice and recommends what Skald keeps | none |
+| `mcp` | connects the user's AI assistant to Skald's MCP server (`claude mcp add ...`) | `SKALD_MCP_URL`, `SKALD_MCP_TOKEN` |
+
+Every keys file also has `SKALD_SITE` and `SKALD_REPORT_KEY`. Without `jobs` (Add a site, and
+every older caller) the jobs are `logs, script, lead` (`logs, script` with `leads: false`): the
+same line, keys and keys file as before 2.39. Any other list makes the line
+`finish setting up Skald for <site> (<the jobs' titles>) — read <llms.txt> and use code <code> (works once, 24 hours)`.
+Each job's steps start with **Check first** (the log already arriving, the tag already in
+`<head>`, a lead call already in the form handler, a hook secret Skald already has...): the
+agent changes only what is missing.
+
+**The line.** `POST <page>/sites/agentlink {site, jobs?: [...], leads: true}` (owner or
+admin, as `sites/link`) makes only what the jobs need:
+
+- `logs`: a new sending token, "Sending logs: <site>, <day> (AI agent set-up)", with scope
   `ingest`, for this one site.
-- With leads, it gets the site's lead secret. An existing secret is copied, not replaced
+- `lead`: the site's lead secret. An existing secret is copied, not replaced
   (audit `hook.secret`, "copied (AI agent set-up)"). With none, one is made ("made (AI agent
   set-up)"). A secret kept in the server's environment is not put in: the steps tell the
   agent to ask whoever runs Skald.
-- It makes a report key, so that only the agent that took the keys can send the report.
-- It seals all three under a new code for 24 hours. In the same lock it cancels the site's
-  older lines whose keys were not taken, and revokes the unused token of an expired one
+- `mcp`: a new token, "AI assistant (MCP): <site>, <day> (AI agent)", with only the `mcp`
+  scope, for this one site: it reads figures, sees no visitor addresses and changes nothing
+  (as the MCP dialog's token).
+- Always a report key, so that only the agent that took the keys can send the report.
+- It seals them under a new code for 24 hours. In the same lock it cancels the site's
+  older lines whose keys were not taken, and revokes the unused tokens of an expired one
   (below).
 
-It answers `{line, llms_url, steps_url, expires_at, token_id, link_id, cancelled}`, and never
-the token or the secret. `link_id` is the first 16 hex of the code's SHA-256: the only thing
+It answers `{line, llms_url, steps_url, expires_at, token_id, link_id, cancelled, jobs}`
+(`mcp_token_id` too with the `mcp` job; `token_id` is null without `logs`), and never a token
+or the secret. An unknown job id, an empty list or a list that is not one: 400 in words.
+`link_id` is the first 16 hex of the code's SHA-256: the only thing
 the page puts in the address (`link=`). The page keeps the line in memory only. After a reload
 it says the line is not shown again, and offers a new line or Cancel. The audit row is
-`kit.agentlink`: the token id, the link id, the lead secret's kind and how many older lines
-were cancelled. It never holds the code. 409 when the log endpoint is off.
+`kit.agentlink`: the token ids, the link id, the jobs, the lead secret's kind and how many
+older lines were cancelled. It never holds the code. 409 when the log endpoint is off and
+the `logs` job is asked.
 
 **The routes,** on the beacon helper under `/traffic-kit/` (`agent.serve`):
 
@@ -168,34 +195,40 @@ were cancelled. It never holds the code. 409 when the log endpoint is off.
 | --- | --- | --- |
 | `GET /traffic-kit/llms.txt` | anyone | The public guide for an agent (`kit/agent/llms.txt`): what Skald is, its rules, and "read `<base>/traffic-kit/<code>/steps`". No code, no secret, no rate limit. POST: 405 |
 | `GET /traffic-kit/<code>` | anyone | To curl or Wget, a script that prints "This code is for an AI agent: read .../steps" and exits 1, so `\| sudo bash` never runs Markdown. Anything else gets the same words as text. It never uses anything up. An install link's code answers as before (`link.answer_code`) |
-| `GET /traffic-kit/<code>/steps` | anyone (the guide says: curl) | The site's own steps in Markdown (`kit/agent/steps.md`): the site, the send and lead addresses, the dashboard, what the site check found and which way fits, the script tag, the rules, and the 8 steps (find the hosting, ask the privacy question, take the keys, connect the logs, the tag, leads, check, report). No secret. The first GET sets `opened_at`. It works until the expiry or a cancel, also after the keys are taken. A site check value is cut to 120 characters, put in a code span, and can never look like a placeholder; a page that cannot be made answers 500 in words |
-| `GET /traffic-kit/<code>/keys` | curl or Wget only | The keys once, as an env file, each value shell-quoted: `SKALD_SITE`, `SKALD_INGEST_URL`, `SKALD_INGEST_TOKEN`, `SKALD_LEAD_URL`, `SKALD_LEAD_SECRET` when it was included, and `SKALD_REPORT_KEY`. Then the seals are wiped and `keys_at` is set. Again: 410. Any other user agent: 403 "Fetch this with curl in a shell into a file...", and nothing is used up. HEAD: the status only, never used up |
+| `GET /traffic-kit/<code>/steps` | anyone (the guide says: curl) | The line's own steps in Markdown (`kit/agent/head.md`, `keys.md`, `jobs/<id>.md`, `finish.md`): the site, its addresses, what the site check found and which way fits, the rules, then step 1 (take the keys), one step per job in the table's order, each starting with **Check first**, and the report last. The default jobs' steps hold everything the 8 steps before 2.39 held (the hosting, the privacy question, the keys, the logs, the tag, leads, the check, the report). No secret. The first GET sets `opened_at`. It works until the expiry or a cancel, also after the keys are taken. A site check value is cut to 120 characters, put in a code span, and can never look like a placeholder; a page that cannot be made answers 500 in words |
+| `GET /traffic-kit/<code>/keys` | curl or Wget only | The keys once, as an env file, each value shell-quoted: `SKALD_SITE`, the jobs' keys (the table above; the default: `SKALD_INGEST_URL`, `SKALD_INGEST_TOKEN`, `SKALD_LEAD_URL`, `SKALD_LEAD_SECRET` when it was included), and `SKALD_REPORT_KEY`. Then the seals are wiped and `keys_at` is set. Again: 410. Any other user agent: 403 "Fetch this with curl in a shell into a file...", and nothing is used up. HEAD: the status only, never used up |
 | `GET /traffic-kit/<code>/install.sh` | anyone | The one-file installer without a token. It reads `SKALD_SHIP_TOKEN` from the environment, which the steps fill from the keys file |
 | `GET /traffic-kit/<code>/leads/<file>` | anyone | The lead files (`kit/leadfiles.py`: `README.md`, `skald-lead.php`, `skald-lead.cjs`, `skald_lead.py`, `skald-leads.zip`) without a secret. They read `SKALD_LEAD_SECRET` from the environment |
 | `POST /traffic-kit/<code>/report` | the agent that took the keys | The agent's report: one JSON object, at most 16 KiB, with a Content-Length (411 without, 413 over, 400 not an object), and the header `X-Skald-Report-Key: <SKALD_REPORT_KEY>`. The steps pipe that header into `curl -H @-` (grep the keys file, sed it into a header), so the key is never on a command line or in a file; an agent run from an allow list may not redirect into a file, so the steps write none. No key, or a wrong one: 403, nothing kept. `{"ok": true}`. It can be sent again until the expiry or a cancel. The latest replaces the earlier one |
+| `POST /traffic-kit/<code>/hooksecret` | the agent that took the keys, curl or Wget only, a line with the `lead` job (`kit/agent_hooks.py`) | A booking, form or payment tool's hook secret. JSON, at most 2 KiB, with the `X-Skald-Report-Key` header. `{"tool": "calendly", "make": true}` (a tool whose secret Skald makes: `json`, `calendly`, `calcom`, `typeform`): Skald makes the secret, keeps it 0600 in the secrets file Settings > Integrations uses, and answers it this once as one env line, `SKALD_HOOK_SECRET_CALENDLY=...` (text/plain), which the steps' curl writes with `-o` into its own 0600 file. `{"tool": "stripe", "secret": "whsec_..."}` (a tool that makes its own: `stripe`, `hubspot`; `calendly`, `calcom` and `typeform` may give theirs): kept as a pasted one, `{"ok": true, "tool", "replaced"}`; the steps pipe the tool's answer straight into it (`sed` builds the JSON from stdin, `curl --data-binary @-`, the report key through `-H @<(...)`), so it is never shown. A secret the site has already: 409 unless `"replace": true`. Refused: another user agent (403, nothing made), no or a wrong key (403), no `lead` job (403), an unknown tool or `lead` (400: its secret is in the keys file), `make` for Stripe or HubSpot (409), a secret kept in the server's environment (409). Each kept secret writes one audit row, `hook.secret`, actor `ai-agent`, "made (AI agent set-up, link <id>)" or "pasted ..."; never the secret |
 
-**After the keys are taken,** only `/keys` stops (410). `/steps`, `/install.sh`, `/leads/<file>`
-and `POST /report` keep answering until the expiry or a cancel, so the agent can finish and
+**After the keys are taken,** only `/keys` stops (410). `/steps`, `/install.sh`, `/leads/<file>`,
+`POST /report` and `POST /hooksecret` keep answering until the expiry or a cancel, so the agent can finish and
 report. None of them holds a secret. The bare code keeps answering its words too.
 
 Every answer has `Cache-Control: no-store` and `X-Robots-Tag: noindex, nofollow`. Every route
 but `llms.txt` has its own limit per address (10 a minute, a burst of 5; then 429 "Too
-many tries"): the bare code, `steps`, `keys`, `install.sh`, `leads/`, `report` and any other
+many tries"): the bare code, `steps`, `keys`, `install.sh`, `leads/`, `report`, `hooksecret` and any other
 sub-path each count apart (`agent.ROUTES`), so an agent that reads the steps many times still
 has its tries for the keys. An unknown code answers 404 under a sub-path. An expired or cancelled code
 answers 410 with words that say to make a new line.
 
 **What is stored.** One entry in `kit-links.json` (0600, beside the history, the same file and
 lock as the install links), keyed by the code's SHA-256, with `kind: "agent"`. It holds the
-site, `made_at`, `expires_at`, `token_id`, the token, the lead secret and the report key each
+site, `made_at`, `expires_at`, `jobs`, `token_id` and `mcp_token_id` (null when not made),
+the sending token, the lead secret, the report key and the MCP token each
 XORed with its own HMAC-SHA256 keystream from the code (`sealed`, `sealed_lead`,
-`sealed_report`; labels `skald-kit-agent`, `skald-kit-lead`, `skald-kit-report`, never the
+`sealed_report`, `sealed_mcp`; labels `skald-kit-agent`, `skald-kit-lead`, `skald-kit-report`,
+`skald-kit-mcp`, never the
 install link's, so an older image that does not know agent codes cannot hand the token out
 as an install link), the report key's SHA-256 only (`report_key`, to check the report), the
 fields (the
 addresses and the tag: nothing secret), whether leads were asked for and the lead note, the
-site check's facts (`found`), `opened_at`, `keys_at`, `reported_at`, `cancelled_at`, and the
-cleaned report, and `token_revoked` once the unused token was revoked. It never holds the
+site check's facts (`found`), what Skald had when the line was made for the steps' Check
+first (`facts`: which hook secrets are set, MCP on, the privacy and asset settings; nothing
+secret), `opened_at`, `keys_at`, `reported_at`, `cancelled_at`, the
+cleaned report, `revoked_ids` (the tokens revoked so far) and `token_revoked` once every
+unused token was revoked. It never holds the
 code itself, so the disk never holds a usable key. The file is written only when something
 changes: a refused or late report, a second read of the steps or a second try for the keys
 leave it as it is. The seals are wiped when the keys are taken, on a cancel, and on the first
@@ -208,12 +241,14 @@ refused method, a report over 16 KiB or an upstream failure would otherwise writ
 the beacon helper logs no request, and the audit holds only the link id.
 
 **The report.** Only these keys are kept, each cleaned (one line, printable) and capped:
-`hosting`, `server`, `framework`, `log_path`, `asset_paths` (up to 10, as the
+`jobs` (`{job id: "done" | "already" | "skipped" | "left"}`, only the line's own jobs),
+`tools` (with the `lead` job only: `[{tool, hook: "set" | "left"}]`, each hook tool once, at
+most 7), `hosting`, `server`, `framework`, `log_path`, `asset_paths` (up to 10, as the
 setting allows, each starting with `/`), `script_tag` (where it was added), `leads` (up to 10 `{tool, file}`), `privacy`
 (`keep_ips` true or false, `days` 0 to 3650, `notice_url` http or https), `nextjs_log_field`
 (true or false), `changed_files` (up to 50), `left_for_user` (up to 20), and `notes` (at most
-1000 characters). An unknown key or a wrong kind is dropped. Text shaped like a sending token
-or a lead secret becomes `[removed]`. The wizard shows the report in plain words. It changes
+1000 characters). An unknown key or a wrong kind is dropped. Text shaped like a token, a
+lead or hook secret or a Stripe signing secret becomes `[removed]`. The wizard shows the report in plain words. It changes
 no setting by itself: the admin applies what fits. "Use these page assets" saves the report's
 `asset_paths` through the usual settings call when they differ from the site's, and the
 privacy answers are for the admin to set in Settings > Data retention > People.
@@ -229,18 +264,21 @@ privacy answers are for the admin to set in Settings > Data retention > People.
 | `cancelled` | ended by Cancel this line, or by a newer line |
 | `unknown` | no such code for this site, or dropped a day after the expiry |
 
-It answers `{state, opened_at, keys_at, reported_at, cancelled_at, expires_at, report}`.
+It answers `{state, opened_at, keys_at, reported_at, cancelled_at, expires_at, report, jobs,
+tools, line_jobs}`: `jobs` and `tools` are the report's (null before a report), `line_jobs`
+the line's job ids.
 
 **Cancel.** `POST <page>/sites/agentcancel {site, link_id}` ends a line at once: the seals
 are wiped and every route answers as for an expired code (410). When the keys were never
-taken, its token is revoked too. When they were, the token stays: remove it in Settings >
+taken, every token it made (the sending token, the MCP token) is revoked too. When they were, the token stays: remove it in Settings >
 Connections, under Your tokens. One audit row `kit.agentcancel`. 404 for an unknown line.
 **A new line cancels an older unused one:** `sites/agentlink` cancels the site's lines that
 are waiting or opened and revokes their unused tokens (`cancelled` says how many; audit "a
 new line replaced it"). This runs inside the same lock that writes the new code, and touches
 only lines made before it, so two lines made at the same moment never cancel each other. An
 expired line's unused token is revoked then too. So a site has one live line at a time.
-**Revoking.** A line is marked `token_revoked` only after the revoke succeeded. When it fails
+**Revoking.** Each token is noted revoked (`revoked_ids`) only after its revoke succeeded,
+and the line `token_revoked` once all of them are. When it fails
 (the accounts file busy, say), the line stays as it was: `sites/agentcancel` and
 `sites/agentlink` answer `not_revoked: [token ids]`, the audit row says "could not be
 revoked", and it is tried again by the next cancel, line, status or daily run. An expired
@@ -273,6 +311,10 @@ that the code works once, for 24 hours, and can be cancelled.
   signs the site's own read-back of the leads it sent (`GET /traffic-hooks/<site>/leads`:
   refs, stages, times and labels, never a name, email or visitor ID) and the marking of its
   own leads as test (`POST .../leads/test`). It cannot open the dashboard.
+- The MCP token (the `mcp` job) has only the `mcp` scope, for this one site: it reads the
+  site's figures through `/traffic-mcp`, sees no visitor addresses and changes nothing.
+- A hook secret (`hooksecret`) only signs that tool's messages to
+  `POST /traffic-hooks/<site>/<tool>`.
 
 After the set-up, the admin can remove the agent's token ("AI agent set-up") in Settings >
 Connections > Your tokens, and make a new lead secret in Settings > Integrations.
@@ -302,13 +344,14 @@ behaviour above:
   Settings > Integrations.
 
 **nginx.** `/traffic-kit/` stays GET only, logs nothing, and a nested location lets POST
-through for the report alone, with `client_max_body_size 16k` (DEPLOY.md's sample):
+through for the report and the hook secret alone, with `client_max_body_size 16k`
+(DEPLOY.md's sample):
 
 ```nginx
 location ^~ /traffic-kit/ {
     error_log stderr crit;
     access_log off;
-    location ~ "^/traffic-kit/[A-Za-z0-9_-]{43}/report$" {
+    location ~ "^/traffic-kit/[A-Za-z0-9_-]{43}/(report|hooksecret)$" {
         limit_except POST { deny all; }
         client_max_body_size 16k;
         include snippets/skald-beacon.conf;
@@ -320,7 +363,9 @@ location ^~ /traffic-kit/ {
 
 `docker/nginx.conf` has it. A self-hosted front nginx made from DEPLOY.md's sample before 2.31
 must take this block: without the nested location the agent's report is refused (403), and
-without `error_log stderr crit;` nginx's error log can hold the code. The helper sends
+without `error_log stderr crit;` nginx's error log can hold the code. One made before 2.39
+needs the nested location's `report` widened to `(report|hooksecret)`, else nginx refuses an
+agent's hook secret (403) and the agent leaves the tool to the user. The helper sends
 `no-store` and `noindex` itself.
 
 ## One command: the one-file installer and the install link

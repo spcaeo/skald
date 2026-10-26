@@ -22,14 +22,21 @@ or admin role, same-origin and CSRF checks):
           through the install's mail settings. 409 when mail is not set up,
           429 after PACKMAIL_PER_HOUR mails of a site in an hour. A token made
           for a mail that did not go is revoked again.
-  POST sites/agentlink {site, leads: bool = true}
+  POST sites/agentlink {site, jobs?: [id, ...], leads: bool = true}
        -> {ok, line, llms_url, steps_url, expires_at, token_id, link_id,
-          cancelled}: the
-          one line for an AI agent (kit/agent.py). A new sending token ("AI
-          agent set-up") and, with leads, the site's lead secret (the one it
-          has, else one made now), both sealed under a one-time code for 24
-          hours. Never answers the token or the secret. 409 when the log
-          endpoint is off. link_id: the first 16 hex of the code's sha256.
+          cancelled, jobs, mcp_token_id?}: the one line for an AI agent
+          (kit/agent.py), for the jobs asked (kit/agent_jobs.py: logs,
+          script, lead, rsc, assets, privacy, mcp; without `jobs`: logs,
+          script, lead, or logs, script with leads false). Only the keys the
+          jobs need, sealed under a one-time code for 24 hours: a new sending
+          token ("AI agent set-up") for logs, the site's lead secret (the one
+          it has, else one made now) for lead, a read-only MCP token for this
+          site for mcp (`mcp_token_id`). token_id: null without logs. Never
+          answers a token or the secret. 400 for an unknown job or an empty
+          list, 409 when the log endpoint is off and logs is asked. link_id:
+          the first 16 hex of the code's sha256. Its core is
+          make_agent_line(db, config, org, site, jobs, actor, ...), which the
+          MCP's setup_line calls too (Refused, a ValueError, for a refusal).
           One live line per site: in the same lock as the new code, the site's
           older codes whose keys were not taken are cancelled and their unused
           tokens revoked (`cancelled`: how many), and expired ones whose keys
@@ -39,13 +46,19 @@ or admin role, same-origin and CSRF checks):
   POST sites/agentstatus {site, link_id}
        -> {ok, state: waiting | opened | keys_taken | expired | cancelled |
           unknown, opened_at, keys_at, reported_at, report, cancelled_at,
-          expires_at}: that site's agent code only. Once it reads expired or
-          cancelled, the site's ended codes' unused tokens are revoked.
+          expires_at, jobs, tools, line_jobs}: that site's agent code only.
+          jobs and tools: the report's ({id: done | already | skipped |
+          left}, [{tool, hook: set | left}]), null before a report;
+          line_jobs: the line's job ids. Once it reads expired or cancelled,
+          the site's ended codes' unused tokens are revoked.
   POST sites/agentcancel {site, link_id}
        -> {ok, state: "cancelled"}: the code ends at once (its keys can no
           longer be taken; every route answers as expired); its token is
           revoked when the keys were never taken (`not_revoked` when that
           failed). 404 for an unknown code.
+
+Every token a line made (its sending token and its MCP token) is revoked when
+the line ends before its keys were taken.
 
 The daily run (`daily`, a step of run-daily for each site) revokes the
 unused tokens of the site's expired or cancelled codes still to revoke, so an
@@ -292,46 +305,154 @@ def pack_mail(c, form):
 
 # ------------------------------------------------------------- AI agent
 
+class Refused(ValueError):
+    """make_agent_line's refusal: plain words, and the status the route answers."""
+
+    def __init__(self, status: int, words: str):
+        super().__init__(words)
+        self.status = status
+
+
+class _Core:
+    """What the helpers above read from a request's context, without one."""
+
+    def __init__(self, db, config, org, actor, live_dir, config_path, allowed):
+        self.db, self.config, self.org, self.uid = db, config, org, actor
+        self.live_dir, self.config_path, self.allowed = live_dir, config_path, allowed
+
+
+def _own_origin(config, allowed) -> str:
+    """integrations_api._origin without a request: hooks.public_url,
+    access.base_url, else the address links point to."""
+    from .config import setting
+    for got in (setting(config, "hooks", "public_url"), setting(config, "access", "base_url")):
+        if got:
+            return str(got).rstrip("/")
+    from .auth_api import base_url
+    from .sites_api import _base
+    return str(base_url(config, allowed) or _base(config, allowed)).rstrip("/")
+
+
 def agent_link(c, form):
-    from .accounts import site_setup
     from .integrations_api import _origin
-    from .kit import agent
-    from .sites_api import tag
+    from .kit import agent_jobs
     site = _site(c, form)
     if site is None:
         return c.no(404, "There is no such site in this organisation.")
-    if not ingest.enabled(c.config):
-        return c.no(409, "The log endpoint is switched off on this server "
-                         "(ingest.enabled in the server's config).")
-    leads = form.get("leads") is not False
-    got = fields(c, site)
     try:
-        installer(site, got)                   # it can be built here, before a token is made
+        jobs = agent_jobs.default(form.get("leads") is not False) if form.get("jobs") is None \
+            else agent_jobs.clean(form.get("jobs"))
+        got = make_agent_line(c.db, c.config, c.org, site, jobs, c.uid, live_dir=c.live_dir,
+                              config_path=c.config_path, allowed=c.allowed, origin=_origin(c))
+    except Refused as why:
+        return c.no(why.status, str(why))
     except ValueError as why:
         return c.no(400, str(why))
+    return c.ok(**got)
+
+
+def make_agent_line(db, config, org, site: str, jobs, actor, *, live_dir=None,
+                    config_path=None, allowed=(), origin=None) -> dict:
+    """The core of POST sites/agentlink, for the route and the MCP's
+    setup_line: one AI agent line for `site` of `org` (a row, org["id"]) and
+    the jobs asked, its tokens made as `actor` (a user id or "cli"), and the
+    kit.agentlink audit row. `db`: accounts.sqlite, open (the caller closes
+    it). `origin`: this install's address (the route: integrations_api._origin;
+    None: the configured one). The route's answer without "ok". Refused (a
+    ValueError, with .status 400 / 404 / 409 / 500) in plain words."""
+    from .accounts import orgs, site_setup
+    from .kit import agent, agent_jobs
+    from .sites_api import tag
+    c = _Core(db, config, org, actor, live_dir, config_path, allowed)
+    if site not in orgs.sites_of_org(db, org["id"]):
+        raise Refused(404, "There is no such site in this organisation.")
+    try:
+        jobs = agent_jobs.clean(list(jobs) if isinstance(jobs, (list, tuple)) else jobs)
+    except ValueError as why:
+        raise Refused(400, str(why)) from None
+    if "logs" in jobs and not ingest.enabled(config):
+        raise Refused(409, "The log endpoint is switched off on this server "
+                           "(ingest.enabled in the server's config).")
+    got = fields(c, site)
+    if "logs" in jobs:
+        try:
+            installer(site, got)               # it can be built here, before a token is made
+        except ValueError as why:
+            raise Refused(400, str(why)) from None
+    leads = "lead" in jobs
     secret, kind, refusal = _lead_secret(c, site, {}, leads, "AI agent set-up")
     if refusal:
-        return c.no(500, refusal)
-    origin = _origin(c)
-    got.update(lead_url=f"{origin}/traffic-hooks/{site}/lead", tag=tag(site, origin))
-    token, tid = _new_token(c, site, "AI agent set-up")
-    found = (site_setup.get(c.db, site) or {}).get("found")
+        raise Refused(500, refusal)
+    origin = str(origin).rstrip("/") if origin else _own_origin(config, allowed)
+    got.update(lead_url=f"{origin}/traffic-hooks/{site}/lead", tag=tag(site, origin),
+               hooks_url=f"{origin}/traffic-hooks/{site}/", mcp_url=_mcp_url(c))
+    token, tid = _new_token(c, site, "AI agent set-up") if "logs" in jobs else (None, None)
+    mcp, mcp_tid = _mcp_token(c, site) if "mcp" in jobs else (None, None)
+    found = (site_setup.get(db, site) or {}).get("found")
     code, expires, ended = agent.make(_folder(c), site, token, tid, got, lead_secret=secret,
                                       lead_note="included" if secret else kind, leads=leads,
-                                      found=found, replace=True)
+                                      found=found, replace=True, jobs=jobs, mcp_token=mcp,
+                                      mcp_token_id=mcp_tid, facts=_facts(c, site, jobs))
     lid = agent.link_id(code)
     older, failed = _ended(c, site, ended, "a new line replaced it")
-    _audit(c, "kit.agentlink", site, f"token {tid}; link {lid}; lead secret "
-                                     f"{kind if leads else 'not asked'}; keys once, for "
-                                     f"{agent.link.HOURS} hours; {older} older line(s) "
-                                     "cancelled")
+    _audit(c, "kit.agentlink", site, f"token {tid or 'none'}; link {lid}; jobs {','.join(jobs)}; "
+                                     f"lead secret {kind if leads else 'not asked'}; "
+                                     + (f"MCP token {mcp_tid}; " if mcp_tid else "")
+                                     + f"keys once, for {agent.link.HOURS} hours; {older} older "
+                                     "line(s) cancelled")
     base = got["base"]
     llms = f"{base}{agent.link.PREFIX}llms.txt"
-    return c.ok(line=f"set up Skald for {site} — read {llms} and use code {code} "
-                     f"(works once, {agent.link.HOURS} hours)",
-                llms_url=llms, steps_url=f"{base}{agent.link.PREFIX}{code}/steps",
+    return dict(line=agent_jobs.line(site, llms, code, jobs), llms_url=llms,
+                steps_url=f"{base}{agent.link.PREFIX}{code}/steps",
                 expires_at=agent.link.stamp(expires), token_id=tid, link_id=lid,
-                cancelled=older, **({"not_revoked": failed} if failed else {}))
+                cancelled=older, jobs=jobs, **({"mcp_token_id": mcp_tid} if mcp_tid else {}),
+                **({"not_revoked": failed} if failed else {}))
+
+
+def _mcp_url(c) -> str:
+    """Skald's MCP address: the dashboard's own (connections_api.extras)."""
+    from .auth_api import base_url
+    from .connections_api import send_base
+    return f"{str(base_url(c.config, c.allowed) or send_base(c)).rstrip('/')}/traffic-mcp"
+
+
+def _mcp_token(c, site: str) -> tuple[str, str]:
+    """A read-only MCP token for this one site, as the MCP dialog makes it
+    (scope mcp only: no visitor addresses, nothing it can change)."""
+    from .accounts import apitokens
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    token = apitokens.create(c.db, c.org["id"], f"AI assistant (MCP): {site}, {day} (AI agent)",
+                             sites=[site], scopes=("mcp",), actor=c.uid)
+    return token, token.split("_", 2)[1]
+
+
+def _facts(c, site: str, jobs) -> dict:
+    """What Skald has now, for the steps' "Check first": the hook secrets
+    set (lead), MCP on (mcp), the privacy and asset settings. Nothing secret;
+    a fact that cannot be read is left out."""
+    from . import settings_store
+    from .conversions import TOOLS, hooks, secrets_store
+    from .mcp.http import enabled as mcp_on
+    conf = hooks.site_configs(c.config, c.config_path).get(site) or c.config
+    out: dict = {}
+    if "lead" in jobs:
+        states = {}
+        for tool in TOOLS:
+            try:
+                value, where = secrets_store.find(conf, _folder(c), site, tool)
+            except secrets_store.Exposed:
+                continue
+            states[tool] = "env" if where.startswith("env") else ("set" if value else "none")
+        out["hooks"] = states
+    if "mcp" in jobs:
+        out["mcp_on"] = mcp_on(c.config)
+    if "privacy" in jobs or "assets" in jobs:
+        got = settings_store.explain(conf, site, c.db)
+        ips, days = got.get("privacy.keep_ips") or {}, got.get("privacy.keep_days") or {}
+        out.update(keep_ips=ips.get("value"), keep_days=days.get("value"),
+                   keep_source=ips.get("source"),
+                   asset_prefixes=list((got.get("site.asset_prefixes") or {}).get("value") or []))
+    return out
 
 
 NOT_REVOKED = "Skald tries again in the daily run, or revoke it in Settings > Connections"
@@ -359,28 +480,36 @@ def revoke_unused(db, folder, org_of, actor, done) -> tuple[list, list]:
 
 
 def _ended(c, site: str, ended, why: str) -> tuple[int, list[str]]:
-    """Revoke the tokens of ended agent codes that were never handed out, one
-    audit row per cancelled code (agent.make's `ended`, agent.cancel's answer
-    as (link_id, token_id, "cancelled")), and one per token whose revoke
-    failed. (how many were cancelled, the token ids not revoked)."""
+    """Revoke every token of ended agent codes that was never handed out
+    (agent.make's `ended`, agent.cancel's answer as (link_id, token_id,
+    "cancelled"): one row per token), one audit row per cancelled code, and
+    one per code with a token whose revoke failed. (how many codes were
+    cancelled, the token ids not revoked)."""
     _, failed = revoke_unused(c.db, _folder(c), lambda _tid: c.org["id"], c.uid,
                               [(one, unused) for one, unused, _ in ended if unused])
     bad = {tid: err for _, tid, err in failed}
-    cancelled = 0
+    lines: dict = {}                           # link id -> (how, its rows), in order
     for one, unused, how in ended:
-        if unused in bad:
-            words = (f"its unused token {unused} could not be revoked ({bad[unused]}); "
-                     f"{NOT_REVOKED}")
-        elif unused:
-            words = f"its unused token {unused} revoked"
-        else:
-            words = "its keys were taken, so its token stays (revoke it in Settings > Connections)"
+        lines.setdefault(one, (how, []))[1].append(unused)
+    cancelled = 0
+    for one, (how, rows) in lines.items():
+        words = "; ".join(_token_words(unused, bad) for unused in rows)
         if how == "cancelled":
             cancelled += 1
             _audit(c, "kit.agentcancel", site, f"link {one}; {why}; {words}")
-        elif unused in bad:                    # an expired line's: token.revoke when it went
+        elif any(unused in bad for unused in rows):  # an expired line's: token.revoke when it went
             _audit(c, "kit.agenttoken", site, f"link {one}; {how}; {words}")
     return cancelled, list(bad)
+
+
+def _token_words(unused, bad: dict) -> str:
+    if unused in bad:
+        return f"its unused token {unused} could not be revoked ({bad[unused]}); {NOT_REVOKED}"
+    if unused:
+        return f"its unused token {unused} revoked"
+    if unused == "":
+        return "it made no token"
+    return "its keys were taken, so its token stays (revoke it in Settings > Connections)"
 
 
 def _sweep(c, site: str) -> list[str]:

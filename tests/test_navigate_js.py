@@ -59,6 +59,14 @@ class Node(unittest.TestCase):
         when the dialog closes or the line runs out, the chat-only command, reloads."""
         self.assertIn("agent-setup: all passed", self.run_js("agent-setup.mjs"))
 
+    def test_your_ai_agent_in_every_set_up_job(self):
+        """2.39 (js/tabs/agent-first.js, agent-recs.js, checklist.js): each set-up dialog with
+        an agent job and the MCP dialog open on Your AI agent or By hand; the line carries that
+        job (sites/agentlink jobs); the checklist's one line for everything left, in the
+        contract's order; the watch without logs ends on the report; Apply makes the by-hand
+        saves and nothing is saved without it; the address round trip; the MCP guide button."""
+        self.assertIn("agent-jobs: all passed", self.run_js("agent-jobs.mjs"))
+
     def test_the_period_dates_include_today_and_not_measured(self):
         """Release 2 (js/period-dates.js, data.js withToday): on 15 Jan, 7 days including
         today are 9-15 Jan against 2-8 Jan and 7 whole days 8-14 Jan against 1-7 Jan; a period

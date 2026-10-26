@@ -5,7 +5,9 @@ Claude Desktop, ChatGPT, or any MCP client - can ask about your traffic in
 plain words. "How did last week compare with the week before?" "Which pages
 did ChatGPT fetch?" "Was any day withheld?"
 
-It is **read-only**. It reads the same data files the dashboard reads
+It is **read-only**, with one exception (2.39.0): `setup_line` makes a set-up
+line for an AI agent, and only with a token that has the `setup` scope (below,
+"Setting a site up"). It reads the same data files the dashboard reads
 (DATA-CONTRACT.md). It never counts anything again and never invents a
 figure. An agent cannot get a figure the dashboard would not show.
 What it can and cannot do with leads (no tool writes one):
@@ -55,6 +57,8 @@ be left out when the token reads only one site. `view` is a part of a site
 | `page_changes` | site, path, id | the page changes marked on Traffic > Pages (page_changes.json): day, kind, note, status (waiting, too early, ready, and the day the verdict comes), and per measure (visits, leads, search, AI visits, AI reads, left at once) the before and after sides with the change and the verdict (up, down, no clear change, too few, not enough days, not recorded). `path` matches with or without the closing `/` |
 | `ai_readiness` | site, path, need, limit | without `path`: AI & bots > Assistants' "Pages AI can't read well" (ai_ready.json `attention`), worst first, `need` `copy`, `404`, `errors`, `robots` or `slow`, and the crawlers robots.txt keeps out of the whole site; with `path`: that page's AI readiness: robots.txt for each of the 9 main AI crawlers with the deciding rule (`robots_match.decide`), what AI got back in the last 30 days (`ai_ready.needs`), the Markdown copy, the sitemap entry and lastmod, and the last AI read from page_trends.json. Not known stays not known |
 | `changed_pages` | site, limit | Summary's "New and updated pages: are they getting found?" (page_trends.json `changed`): the pages changed in the last 30 days, the visits and search visits since, the first search visit, whether Google's verified crawler fetched them, and the note when sitemap dates look like build times |
+| `setup_left` | site | (2.39.0) the site's set-up checklist lines that are not done, the same lines as Settings › Connections' "Set up <site>" (worked out by `setup_items.py`, held to `js/setup-items.js` by a test): each with its state (`todo`, `wait`, `unknown`), its plain sentence, `job` when an AI agent can do it (`logs`, `script`, `lead`, `rsc`, `assets`, `privacy`; `countries` and `mail` are a person's) and `dialog`, the address of its Set up dialog (`.../traffic/<site>/#settings/api?setup=<act>`). Also `done`, `needed_left` of `needed`, and `jobs`: the open jobs, ready for `setup_line`. Any token that may read the site. A site just added (no dashboard folder yet) is answered too |
+| `setup_line` | site, jobs | (2.39.0) **setup scope only; the one tool that writes.** Makes the line for an AI agent for the given jobs exactly as POST `sites/agentlink` does (`kit_api.make_agent_line`): works once, for 24 hours, and ends the site's older lines whose keys were not taken. Answers `line`, `llms_url`, `steps_url`, `expires_at`, `link_id`, `cancelled`, `jobs`. Jobs are `setup_left`'s six, at least one, given in any order (answered in the table's order, each once); `countries`, `mail` or an unknown id is refused. The sending token it makes is made as the setup token's maker. One audit row `mcp.setup_line` (the token's id, the jobs, the line's id), never the code. Over stdio (no token) it is refused |
 | `find_person` | site, q | **read_private only.** One IP address, email, visitor ID or lead id: every visit kept with the address, the last 6 hours of requests, the leads (spam, duplicates and test too), every conversion (test, cancelled and removed too), linked. The same lookup as the page's search (`people/lookup.py`); each call is written to the audit log by its kind and a hash, never the value. A listing, not a figure |
 
 A site you may not read, a bad date or a missing file comes back as a tool
@@ -65,6 +69,47 @@ error (`isError: true`) in plain words, not as a protocol error.
 that means `ai_activity`'s list of today's assistant events, with
 addresses), and only such a token may call `find_person` (addresses, emails
 and names). Without it, no answer carries an address.
+
+## Setting a site up (2.39.0)
+
+`setup_left` and `setup_line` let an agent finish a site's set-up the way the
+dashboard's checklist does. The token for it has two scopes: `mcp` (to reach
+the endpoint, and read the site for `setup_left`) and `setup` (to make a line).
+
+- **The `setup` scope** (accounts/apitokens.py, docs/ACCOUNTS.md): only an owner or
+  admin of the organisation may make it (or the server, `skald token create
+  NAME --scope mcp --scope setup --site <site>`), only for exactly one site,
+  and only together with `mcp`. A viewer, a second site or no `mcp` is
+  refused. It reads nothing by itself (it is not `read`). In the page:
+  Settings › Connections, **Make a token by hand**, tick the one site,
+  **AI assistant (MCP)** and **Set-up lines (AI agent)** ("can make set-up
+  lines for an AI agent"). Like every token made in the page, it stops at
+  once when its maker is disabled, removed or no longer an owner or admin.
+- **The line** is the same line the dashboard's "Your AI agent" choice
+  makes, with the same safety: the agent fetches its keys once with curl or
+  Wget into a file (never in a chat, a commit or a log), checks first and
+  changes only what is missing, and asks the user before any server or
+  web-server change. Skald's own settings change only by the user's Apply.
+
+**Example: "finish setting up kiwi.example".** The agent calls:
+
+1. `setup_left {"site": "kiwi.example"}` on a site just added: "kiwi.example: 5 of 5
+   needed set-up lines left, and 2 optional." Logs arriving (to do, job `logs`),
+   Visits count as people and Countries shown (waiting for the first visitor),
+   Script tag events and Lead hook tested (optional, jobs `script` and `lead`),
+   Mail recipient confirmed (to do, a person's: its dialog's address), Privacy
+   settings chosen (to do, job `privacy`); `jobs: ["logs", "script", "lead",
+   "privacy"]`.
+2. `setup_line {"site": "kiwi.example", "jobs": ["logs", "script", "lead",
+   "privacy"]}`: answers the line, `finish setting up Skald for kiwi.example
+   (...) — read https://stats.example.com/traffic-kit/llms.txt and use code
+   <code> (works once, 24 hours)`.
+3. It follows the line: reads llms.txt and the steps, takes the keys with curl
+   into a file, connects the log, puts the tag in the shared `<head>`, wires the
+   form backend, reads the privacy notice, and reports back. The privacy
+   recommendation waits for the owner's Apply.
+4. `setup_left` again: the lines Skald sees working have ticked themselves.
+   The mail line stays for the owner (the dialog's address is in the answer).
 
 ## Resources and prompt
 
@@ -103,7 +148,8 @@ Make a token with the `mcp` scope in Settings > Connections (called API & tokens
 the card "Connect an AI assistant (MCP)" makes one for the current site, shows the Claude Code
 and Claude Desktop set-up, and tests it with `initialize` and `tools/list`; "Make a token by
 hand" takes several sites (or on the server: `skald token create NAME --scope mcp`). Add `read_private` only
-if the agent must see addresses. The token is shown once; keep it where you
+if the agent must see addresses, and `setup` only for an agent that should make set-up lines
+(one site, above). The token is shown once; keep it where you
 keep other secrets, never in a repository.
 
 The endpoint is `POST https://<your host>/traffic-mcp` on the refresh helper,
@@ -171,4 +217,8 @@ organisation tokens, and stdio in a subprocess), `tests/test_mcp_conversions.py`
 `tests/test_mcp_withheld.py`, `tests/test_mcp_support.py` and `tests/test_mcp_insights.py`
 (the six 2.35 tools: compared only over whole periods, withheld and not-recorded figures
 named and null, a path with or without its slash, robots.txt not known without a copy, and
-every one refusing a site the caller may not read).
+every one refusing a site the caller may not read), `tests/test_setup_items.py` (the
+server's checklist lines against `js/setup-items.js` in node, on the same answers) and
+`tests/test_mcp_setup.py` (`setup_left` on a real helper equals the page's own lines, a
+finished site has none left; `setup_line`'s scope, site and job refusals, its audit row,
+and who may make a `setup` token).

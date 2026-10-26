@@ -120,7 +120,7 @@ its hash is kept. Admins make them in Settings > Connections (route `settings/ap
 API & tokens before; docs/help/connections.md), or on the server with
 `skald token create NAME --scope ...`. The page lists each token by what it is for, from its
 scopes ("Sending logs", "Reading figures", "Reading figures and addresses", "AI assistant
-(MCP)"), and revokes it with a confirm.
+(MCP)", "Making set-up lines for an AI agent"), and revokes it with a confirm.
 
 | Scope | Lets the token |
 | --- | --- |
@@ -128,6 +128,7 @@ scopes ("Sending logs", "Reading figures", "Reading figures and addresses", "AI 
 | `read_private` | Also read the files that hold addresses (`requests`, `ai_activity`), and look a person up (`people?q=`, MCP `find_person`). |
 | `mcp` | Use the MCP endpoint `/traffic-mcp` ([MCP.md](MCP.md)). |
 | `ingest` | Post log lines for the one site it names (`--site`) to `/traffic-ingest/<site>` ([INGEST.md](INGEST.md)): `skald-ship`, log drains. |
+| `setup` | (2.39.0) Make a set-up line for an AI agent with the MCP tool `setup_line` ([MCP.md](MCP.md)), exactly as Settings › Connections' "Your AI agent" makes it. Reads nothing by itself: it does not include `read`, and the MCP endpoint still needs `mcp`. Only an owner or admin may make it (or the server, `skald token create`), only for exactly one site, and only together with `mcp`; anyone else, a second site or no `mcp` is refused in plain words (`accounts/apitokens.py`, the token API and the CLI alike). Each line made is an audit row `mcp.setup_line` (the token's id, the jobs, the line's id; never the code). |
 
 A token made in the page records who made it. It works only while that
 person is enabled and still an owner or admin of the organisation:
@@ -173,7 +174,7 @@ with the actor `cli`.
 | `site hosts NAME HOST [HOST ...]` | Replace a dashboard site's host names (checked like Settings > Sites > Host names; a Host names row saved there is set to the same list). |
 | `site remove NAME --yes` / `site purge NAME --yes` | Stop processing a dashboard site (its data stays); delete a removed site and all its data, its logo folder too. |
 | `settings list-keys` / `settings get SITE [KEY]` / `settings set SITE KEY VALUE [--yes]` | The dashboard's settings from the shell: each value and where it comes from; save one (JSON), checked and audited like the page ([SETTINGS.md](SETTINGS.md), "From the shell"). |
-| `token create NAME [--scope read\|read_private\|mcp\|ingest ...] [--site S ...] [--org SLUG]` / `token list` / `token revoke ID` | API tokens (`--scope` is repeatable; default `read`). |
+| `token create NAME [--scope read\|read_private\|mcp\|ingest\|setup ...] [--site S ...] [--org SLUG]` / `token list` / `token revoke ID` | API tokens (`--scope` is repeatable; default `read`). |
 
 `skald user` is still the basic-mode password-file command.
 

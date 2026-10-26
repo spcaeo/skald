@@ -12,6 +12,8 @@ All of this is set up on one page: **Settings > This site > Integrations**, or [
 - The page needs a server with accounts. Without it, the page says so, and the person who runs your Skald server sets up hooks on the server instead.
 - If you manage more than one site, choose the site at the top first.
 
+Or let your AI agent do it: on the site's **Set up** list, press **Set up** on **Lead hook tested**, then pick your agent. It gets one line, looks for your form handler and the booking, form or payment tools in the code, adds what is missing, and reports which hooks it set and which it left for you. Secrets go straight from Skald into the tool or your server's settings, never into the chat. See [Your AI agent, in every set-up dialog](connections.md#your-ai-agent-in-every-set-up-dialog).
+
 ## The Integrations page
 
 At the top, **Status** lists each road into Skald for this site, with **OK**, **Needs attention** (and what to do) or **Off**: the hook receiver, the script tag, each hook that is set up, one lead sent by two tools, and the lead database. The server's doctor command (`skald doctor`; Docker: `docker exec skald skald doctor`) shows the same lines, and checks the rest of the install too.

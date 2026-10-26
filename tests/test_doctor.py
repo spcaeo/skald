@@ -156,6 +156,23 @@ class Doctor(unittest.TestCase):
         _, out, _ = self.doctor()
         self.assertIn("OK               Page assets: requests for /assets/ seen", out)
 
+    def test_asset_requests_before_the_last_lines_still_count(self):
+        """A quiet site whose last lines are all crawlers (docomatic.ai, 26 Oct 2026):
+        the asset requests earlier in the log are found, and the line is OK."""
+        text = self.box.config.read_text().replace("  require_rendering: false\n",
+                                                   "  asset_prefixes: [/assets/]\n")
+        self.box.config.write_text(text)
+        early = [line(datetime(2026, 10, 8, 9, 0, tzinfo=timezone.utc), path="/assets/app.js")]
+        quiet = readers(date(2026, 10, 8), 2) * (doctor.TAIL_BYTES // 300)
+        self.box.log(readers(date(2026, 10, 8), 2) * 10 + early + quiet)   # past the first KB
+        self.assertGreater(len("\n".join(quiet)), doctor.TAIL_BYTES)
+        _, out, _ = self.doctor()
+        self.assertIn("OK               Page assets: requests for /assets/ seen in the log "
+                      "(not in its last lines", out)
+        with mock.patch.object(doctor, "FAR_BYTES", 1024):     # the cap holds
+            _, out, _ = self.doctor()
+        self.assertIn("NEEDS ATTENTION  Page assets", out)
+
     def test_settings_lines_carry_the_log_and_its_page_assets(self):
         """Settings > Integrations and Overview's first-run checklist (2.13) read the
         access log and page assets lines from integration_checks, first."""

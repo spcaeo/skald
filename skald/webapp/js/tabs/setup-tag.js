@@ -42,7 +42,7 @@ export function tagMail(site, tag, skald = "") {
     "", "Thank you."].join("\n");
 }
 
-export async function tagDialog(site, { item = null, onClose = null, route = null, start = 0 } = {}) {
+export async function tagDialog(site, { item = null, onClose = null, route = null, start = 0, wrap = null } = {}) {
   const [r, data] = await Promise.all([call(`integrations?site=${encodeURIComponent(site)}`), call("sites")]);
   const tag = tagOf(r.ok ? r : null, site);
   const skald = skaldOf(r.ok ? r : null);
@@ -50,7 +50,7 @@ export async function tagDialog(site, { item = null, onClose = null, route = nul
   ts.method = "script";
   const off = data.ok && data.beacon_on === false;
   const tech = item?.tech ? item.tech.split("\n").map((l) => h("p", null, l)) : null;
-  return wizard({ route, start,
+  return wizard({ route, start, wrap,
     title: "Add the script tag", subtitle: `For ${site}. Optional.`, key: "setup-script", onClose, state: ts,
     steps: [
       { name: "What it adds",

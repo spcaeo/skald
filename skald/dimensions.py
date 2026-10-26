@@ -338,10 +338,16 @@ def fold(counter: Counter, top: int) -> Counter:
 
     Cutting a list to its top N loses the tail; folding it keeps the total,
     so a breakdown still adds up to the readers it was taken from.
+
+    Largest first; labels with the same count by name. Never the order they
+    were counted in: two roads that count the same visits in a different
+    order (readers at their first page, visits by their first request) must
+    keep the same labels when a tie sits at the cut.
     """
+    ranked = sorted(counter.items(), key=lambda kv: (-kv[1], str(kv[0])))
     if len(counter) <= top:
-        return Counter(dict(counter.most_common()))
-    kept = counter.most_common(top - 1)
+        return Counter(dict(ranked))
+    kept = ranked[:top - 1]
     rest = sum(counter.values()) - sum(n for _, n in kept)
     out = Counter(dict(kept))
     if rest:

@@ -8,24 +8,35 @@ It holds no secret and no code. Skald's own server: __BASE__
 
 ## If the user gave you a line with a code
 
-The line looks like: set up Skald for <site> — read this file and use code <code>.
+The line has one of two shapes:
+
+- set up Skald for <site> — read this file and use code <code> (a new site: connect its logs,
+  add the script tag, and send its leads)
+- finish setting up Skald for <site> (<jobs, comma separated>) — read this file and use code
+  <code> (only the jobs named, for a site already in Skald: for example "add the script tag",
+  "send leads and tool webhooks", "add the Next.js log field", "find the page assets", "check
+  the privacy settings", "connect the AI assistant (MCP)")
+
+Either way:
 
 1. Fetch the site's own steps with curl in a shell, put the code in place of <code>:
    `curl -fsSL __BASE__/traffic-kit/<code>/steps`. Use curl, not a fetch tool: a fetch tool
    may send the address, and so the code, to its provider.
-2. Follow those steps in order. They say where the site's keys are, how to connect the logs,
-   where the script tag goes, how to send leads, and how to report back.
+2. Follow those steps in order. They hold only the line's jobs. Each job starts with a check:
+   when it is done already, leave it as it is. They say where the keys are, what to change,
+   and how to report back.
 3. The code works for 24 hours. The keys behind it can be taken once.
 
 ## If there is no code
 
 Ask the user to make one in Skald: Settings > Add or remove sites > Add a site, then pick
-their AI agent. Skald shows a line to paste to you. Do not guess a code.
+their AI agent, or, for a site already in Skald, a set-up job's "Your AI agent" choice. Skald
+shows a line to paste to you. Do not guess a code.
 
 ## Rules
 
-1. Never print, echo, log or commit a secret (the sending token, the lead secret), and never
-   paste one in the chat. Secrets go only in environment variables, the host's secret
+1. Never print, echo, log or commit a secret (a token, the lead secret, a tool's secret), and
+   never paste one in the chat. Secrets go only in environment variables, the host's secret
    settings, or a file with mode 0600 outside the site's repository.
 2. Take the keys only with curl or wget in a shell, straight into a file. Never with a web
    reader or fetch tool: such a tool may pass the page through another model, which would put
@@ -36,6 +47,7 @@ their AI agent. Skald shows a line to paste to you. Do not guess a code.
    Apache or another web server's settings. Say what it changes, then wait for a yes.
 5. When a fact is missing that you cannot find in the code or on the server, ask the user one
    plain question and wait. Do not guess.
-6. At the end, tell the user in plain words what you did, and send the report the steps
+6. Never change a setting in Skald itself: report what you found, and the user applies it.
+   At the end, tell the user in plain words what you did, and send the report the steps
    describe.
 7. If an answer says "Too many tries", wait a minute and try again.

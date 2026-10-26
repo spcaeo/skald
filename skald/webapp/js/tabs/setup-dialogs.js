@@ -15,6 +15,10 @@
 // setup-mail.js (the daily and weekly mail), setup-privacy.js (what is kept),
 // setup-nextjs.js (rsc: the log_format line that counts pages opened inside a
 // Next.js site).
+//
+// 2.39: the dialogs with an agent job (logs, script, lead, rsc, assets, privacy) open on
+// "Your AI agent, or by hand?" (agent-first.js); countries and mail stay by hand. all:
+// "Set up everything left with your AI agent", one line for every open line an agent can do.
 
 import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
@@ -30,11 +34,18 @@ import { mailDialog } from "./setup-mail.js";
 import { privacyDialog } from "./setup-privacy.js";
 import { nextDialog } from "./setup-nextjs.js";
 import { packBox } from "./setup-pack.js";
+import { agentFirst, allDialog } from "./agent-first.js";
+import { jobsFrom } from "./agent-words.js";
+import { AGENT_JOBS } from "../setup-items.js";
 
 // Each dialog is in the address as setup=<act>&step=<n> (js/overlays.js); start: a link's step, 0 first.
-export const ACTS = ["logs", "assets", "rsc", "countries", "script", "lead", "mail", "privacy", "pack"];
-export async function openSetup(act, site, { item = null, onClose = null, start = 0 } = {}) {
-  const opts = { item, onClose, route: { key: "setup", value: act }, start };
+// agent, link: the address's (agent-first.js); jobs: setup=all's.
+export const ACTS = ["logs", "assets", "rsc", "countries", "script", "lead", "mail", "privacy", "pack", "all"];
+export async function openSetup(act, site, { item = null, onClose = null, start = 0, agent = "", link = "", jobs = null } = {}) {
+  const route = { key: "setup", value: act };
+  if (act === "all") return allDialog(site, jobs || item?.jobs || [], { onClose, route, start, agent, link });
+  const wrap = AGENT_JOBS.includes(act) ? agentFirst([act], site, { agent, link }) : null;
+  const opts = { item, onClose, route, start, wrap };
   if (act === "logs") {
     const r = await call("sites");
     return sendDialog(site, r.ok ? r : {}, opts);
@@ -57,15 +68,24 @@ export function packDialog(site, { onClose = null, route = null, start = 0 } = {
     steps: [{ name: "Send or download", draw: () => [packBox(site)] }] });
 }
 
-/* setup=<act>&step=<n>, from a link: the dialog at that step for an owner or an admin;
-   the line, for anyone else. The checklists on the page ask again when it closes. */
-export async function openSetupKey(act, m, step = 1) {
+/* setup=<act>&step=<n>(&agent=<id>&link=<id>&jobs=<ids>), from a link: the dialog at that
+   step for an owner or an admin; the line, for anyone else. The checklists on the page ask
+   again when it closes. s: the address's state. */
+export async function openSetupKey(act, m, step = 1, share = false, s = {}) {
   if (!ACTS.includes(act)) return "That set-up step is not in this version of the page.";
   if (DEMO.on) return "Setting up needs a running Skald: not available in the demo.";
   if (!sessions() || !(["owner", "admin"].includes(ME.role) || ME.install_admin)) return "Not available to your role.";
-  const { itemFor, refreshChecklists } = await import("./checklist.js");
+  const { itemFor, refreshChecklists, agentJobsFor } = await import("./checklist.js");
+  const opts = { start: Math.max(0, step - 1), onClose: refreshChecklists, agent: s.agent || "", link: s.link || "" };
+  if (act === "all") {
+    // The jobs the link names (the line being watched was made for them), else the lines left now.
+    const jobs = jobsFrom(s.jobs).filter((j) => AGENT_JOBS.includes(j));
+    const left = jobs.length ? jobs : await agentJobsFor(m);
+    if (!left.length) return "Nothing is left on this site for an AI agent to set up.";
+    return openSetup("all", m.site, { ...opts, jobs: left });
+  }
   const item = await itemFor(m, act);
-  return openSetup(act, m.site, { item, start: Math.max(0, step - 1), onClose: refreshChecklists });
+  return openSetup(act, m.site, { ...opts, item });
 }
 
 // ------------------------------------------------- visits count as people
@@ -78,7 +98,7 @@ const BUILT = [
 ];
 const pathsOf = (text) => String(text || "").split(/[\s,]+/).filter((p) => p.startsWith("/"));
 
-export function assetsDialog(site, { item = null, onClose = null, route = null, start = 0 } = {}) {
+export function assetsDialog(site, { item = null, onClose = null, route = null, start = 0, wrap = null } = {}) {
   const st = { kind: "", custom: "/assets/\n/static/", r: null };
   const load = () => (st.r ? Promise.resolve(st.r) : call("settings").then((r) => { st.r = r; return r; }));
   const box = (w) => {
@@ -88,7 +108,7 @@ export function assetsDialog(site, { item = null, onClose = null, route = null, 
     const other = h("div", { hidden: st.kind !== "other" }, area, h("p", { class: "note" }, "One folder per line, at most 10. Each starts with /."));
     return [choices(st, "kind", BUILT, "What is the site built with?", (id) => { other.hidden = id !== "other"; w.say(""); }), other];
   };
-  return wizard({ route, start,
+  return wizard({ route, start, wrap,
     title: "Count visits as people", subtitle: `For ${site}.`, key: "setup-assets", onClose, state: st,
     steps: [
       { name: "What the site is built with",

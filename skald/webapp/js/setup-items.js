@@ -116,3 +116,10 @@ export function setupItems(m, { status = null, tools = null, settings = null, wa
 
 // Done when every item that is not optional is done.
 export const setupDone = (items) => items.every((i) => i.optional || i.state === "done");
+
+// 2.39: the lines an AI agent can do (their act is the job's id), in the contract's order
+// (docs/plans/2026-10-26-agent-everywhere.md). countries and mail stay by hand. The server's
+// setup_left mirrors this.
+export const AGENT_JOBS = ["logs", "script", "lead", "rsc", "assets", "privacy"];
+/* The open lines an agent can do, as job ids in that order: their Set up is offered. */
+export const agentJobsLeft = (items) => AGENT_JOBS.filter((id) => (items || []).some((i) => i.act === id && i.state !== "done"));

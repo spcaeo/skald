@@ -80,6 +80,12 @@ const plain = (n) => (n instanceof Element && n.tagName === "DETAILS" && n.class
 const mailBody = (a) => decodeURIComponent(/[?&]body=([^&]*)/.exec(a.getAttribute("href"))?.[1] || "");
 const mailOf = (d) => d.querySelector("a.su-mail");
 async function closeDialog() { dialog().querySelector(".dw-x").click(); await tick(); }
+// 2.39: a dialog with an agent job opens on "Your AI agent, or by hand?" (agent-first.js).
+async function byHand() {
+  assert.match(stepName(), /^Step 1 of \d+: Your AI agent, or by hand\?/);
+  dialog().querySelector("button.ag-hand").click();
+  await tick(30);
+}
 
 // ---- the checklist: plain lines, a Set up button on each open line
 const m = { site: SITE, today: new Date().toISOString().slice(0, 10), live: null, byDay: new Map() };
@@ -112,16 +118,17 @@ button(byId("logs"), "Set up").click();
 await tick(30);
 let d = dialog();
 assert.ok(d.textContent.includes("Send this site's visits to Skald"));
-assert.equal(d.querySelectorAll(".cn-bar li").length, 3, "the server way: where it runs, one command, test");
+await byHand();
+assert.equal(d.querySelectorAll(".cn-bar li").length, 4, "by hand, the server way: where it runs, one command, test");
 pick(d, "server");
 await next();
 await tick();
-assert.match(stepName(), /Step 2 of 3: Run one command/);
+assert.match(stepName(), /Step 3 of 4: Run one command/);
 assert.deepEqual(posted.filter(([p]) => p === "sites/link").map(([, b]) => b), [{ site: SITE }]);
 assert.ok(d.textContent.includes("| sudo bash") && d.textContent.includes("It works once, for 24 hours."));
 await next();
 await tick(30);
-assert.match(stepName(), /Step 3 of 3: Test/);
+assert.match(stepName(), /Step 4 of 4: Test/);
 assert.ok(d.querySelector(".cn-answer"), "the Test started by itself");
 await closeDialog();
 assert.ok(!dialog(), "closed");
@@ -130,7 +137,8 @@ assert.ok(!dialog(), "closed");
 button(box.querySelectorAll("li.su-i").find((li) => li.getAttribute("data-item") === "script"), "Set up").click();
 await tick(30);
 d = dialog();
-assert.match(stepName(), /Step 1 of 4: What it adds/);
+await byHand();
+assert.match(stepName(), /Step 2 of 5: What it adds/);
 assert.ok(d.textContent.includes("what a server log cannot see"));
 for (const word of ["--origin", "helper", "nginx"]) assert.ok(!plain(d).includes(word), word);
 await next();
@@ -151,7 +159,7 @@ await tick();
 assert.deepEqual(posted.filter(([p]) => p === "sites/share").pop()[1], { site: SITE, task: "script", days: 7 });
 assert.ok(d.textContent.includes("https://www.example.com/traffic-auth/setup/"));
 await next();
-assert.match(stepName(), /Step 4 of 4: Test/);
+assert.match(stepName(), /Step 5 of 5: Test/);
 assert.equal(verdict(given.status_before, "script").kind, "wait", "before: waiting for the first event");
 button(d, "Test connection").click();
 await tick(30);
@@ -165,6 +173,7 @@ const secret = given.secret.secret;
 button(box.querySelectorAll("li.su-i").find((li) => li.getAttribute("data-item") === "lead"), "Set up").click();
 await tick(30);
 d = dialog();
+await byHand();
 for (const words of ["Your site's own form or backend", "WordPress forms", "Zapier, Make or n8n", "Calendly", "Cal.com", "Stripe", "HubSpot"]) assert.ok(d.textContent.includes(words), words);
 // What the script tag counts with no code, said before the choice.
 const { NO_CODE } = await import(new URL("tabs/setup-hook.js", JS));
@@ -240,6 +249,7 @@ await closeDialog();
 await openSetup("lead", SITE, { route: { key: "setup", value: "lead" } });
 await tick(30);
 d = dialog();
+await byHand();
 pick(d, "wordpress");
 await next();
 assert.ok(d.querySelector(".cn-code").textContent.includes(secret), "the secret made before, still in this page");
@@ -298,6 +308,7 @@ await closeDialog();
 button(box.querySelectorAll("li.su-i").find((li) => li.getAttribute("data-item") === "privacy"), "Set up").click();
 await tick(30);
 d = dialog();
+await byHand();
 for (const words of ["Full address", "Shortened (last part removed)", "Don't keep", "203.0.113.57 is kept as 203.0.113.0"]) assert.ok(d.textContent.includes(words), words);
 pick(d, "short");
 await next();
@@ -318,6 +329,7 @@ await tick();
 await openSetup("assets", SITE, { item: { tech: "Page assets: no request for /_next/static/ in the log's last lines" } });
 await tick(30);
 d = dialog();
+await byHand();
 await next();
 assert.ok(d.textContent.includes("Choose what the site is built with."));
 pick(d, "wordpress");
@@ -348,7 +360,8 @@ assert.ok(nrow.querySelector("details.fold").textContent.includes("rsc_prefetch=
 button(nrow, "Set up").click();
 await tick(30);
 d = dialog();
-assert.match(stepName(), /Step 1 of 4: What is missing/);
+await byHand();
+assert.match(stepName(), /Step 2 of 5: What is missing/);
 assert.ok(d.textContent.includes("prefetch") && d.textContent.includes("Nothing is guessed"));
 await next();
 const codes = d.querySelectorAll(".cn-code").map((c) => c.textContent);
@@ -369,7 +382,7 @@ button(d, "Make the link").click();
 await tick(30);
 assert.equal(posted.filter(([p]) => p === "sites/share").pop()[1].task, "nextjs");
 await next();
-assert.match(stepName(), /Step 4 of 4: Test/);
+assert.match(stepName(), /Step 5 of 5: Test/);
 rscState = "fixed";
 button(d, "Test").click();
 await tick(30);
@@ -381,6 +394,10 @@ assert.ok(!nbox.querySelectorAll("li.su-i").some((li) => li.getAttribute("data-i
 nbox.remove();
 rscState = "";
 await box.refresh();
+
+// ---- 2.39: Set up everything left with your AI agent, at the top (logs, assets, script, lead and privacy are open here)
+assert.ok(!box.querySelector(".su-agent").hidden, "two or more agent jobs left: the button shows");
+assert.ok(button(box, "Set up everything left with your AI agent"));
 
 // ---- 2.21: the list names its site
 assert.equal(box.querySelector(".su-head h2").textContent, `Set up ${SITE}`);
@@ -407,11 +424,23 @@ await openSetupKey("mail", m, 2);
 await tick(30);
 assert.match(stepName(), /Step 2 of 3: Who gets it/);
 await closeDialog();
-// A step that needs an earlier choice waits for it: assets at step 2 opens at step 1.
+// A step that needs an earlier choice waits for it: assets at step 2 opens at step 1
+// (2.39: Your AI agent, or by hand?); by hand from the address, at the dialog's own first
+// step that still waits for its choice.
 location.hash = "#overview/summary?setup=assets&step=2";
 await openSetupKey("assets", m, 2);
 await tick(30);
-assert.match(stepName(), /Step 1 of 2/, "the choice first");
+assert.match(stepName(), /Step 1 of 3: Your AI agent, or by hand\?/, "the choice first");
+await closeDialog();
+location.hash = "#overview/summary?setup=assets&step=3&agent=hand";
+await openSetupKey("assets", m, 3, false, { agent: "hand" });
+await tick(30);
+assert.match(stepName(), /Step 2 of 3: What the site is built with/, "by hand: the built-with choice first");
+assert.equal(new URLSearchParams(location.hash.split("?")[1]).get("agent"), "hand", location.hash);
+button(dialog(), "Back").click();
+await tick();
+assert.match(stepName(), /Step 1 of 3: Your AI agent, or by hand\?/, "Back returns to the choice");
+assert.equal(dialog().querySelector("button.ag-hand").getAttribute("aria-pressed"), "true", "By hand shows as chosen");
 await closeDialog();
 // "Send set-up to someone" at the top of the list: setup=pack, its own address; a link opens it.
 location.hash = "#overview/summary";

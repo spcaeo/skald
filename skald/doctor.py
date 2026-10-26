@@ -48,6 +48,7 @@ OK, ATTENTION, OFF = "OK", "NEEDS ATTENTION", "OFF"
 DAYS = 14
 LATE_HOURS = 26
 TAIL_BYTES = 512 * 1024
+FAR_BYTES = 64 * 1024 * 1024    # page assets: how far back past the tail, at most
 QUIET_HOURS = 48                 # the script tag: no event for this long
 DISK_MIN_BYTES = 1 << 30
 DISK_MIN_SHARE = 0.05
@@ -241,6 +242,33 @@ def _tail(config: dict) -> bytes:
     return tail
 
 
+def _further(config: dict, needles: list[bytes]) -> bytes | None:
+    """The first of `needles` anywhere in the live file and its first rotation,
+    read in 1 MiB pieces, FAR_BYTES at most; None when none is there. For a
+    quiet site whose last lines are all crawlers (docomatic.ai, 2026-10-26: a
+    false "no page assets" while people loaded its pages all day)."""
+    folder, path = _log_path(config)
+    keep, read = max(len(n) for n in needles) - 1, 0
+    for one in (path, folder / f"{path.name}.1"):
+        try:
+            handle = open(one, "rb")
+        except OSError:
+            continue
+        with handle:
+            last = b""
+            while read < FAR_BYTES:
+                piece = handle.read(min(1 << 20, FAR_BYTES - read))
+                if not piece:
+                    break
+                read += len(piece)
+                window = last + piece
+                for needle in needles:
+                    if needle in window:
+                        return needle
+                last = window[-keep:] if keep else b""
+    return None
+
+
 # Formats that keep no request header, so cannot record Next.js's prefetch one.
 NO_HEADERS = ("vercel_json", "netlify_json", "edge_json", "cloudflare_json", "fastly_json",
               "cloudfront_w3c", "akamai_json")
@@ -300,6 +328,11 @@ def page_assets(config: dict) -> dict:
         ["?_rsc="] if b"_rsc=" in tail else [])
     if seen:
         return item("assets", part, OK, f"requests for {seen[0]} seen in the log")
+    far = _further(config, [p.encode() for p in prefixes] + [b"_rsc="]) if prefixes else None
+    if far:
+        shown = "?_rsc=" if far == b"_rsc=" else far.decode()
+        return item("assets", part, OK, f"requests for {shown} seen in the log "
+                                        "(not in its last lines: a quiet spell)")
     return item("assets", part, ATTENTION,
                 f"no request for {', '.join(prefixes) or 'the asset prefixes'} in the log's "
                 "last lines: a visit counts as people only when its browser fetched one",

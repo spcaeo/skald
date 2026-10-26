@@ -107,7 +107,7 @@ assert.equal(W.agentKey("<script>"), "", "only known ids from the address");
 assert.ok(W.isLinkId("0f3a9c2e7b1d4a58") && !W.isLinkId(CODE));
 const rep = W.reportLines(REPORT);
 assert.deepEqual(rep.map((x) => x.name), ["Hosting", "Web server", "Access log", "Built with", "Page assets", "Script tag", "Leads", "Privacy", "Privacy notice", "Next.js", "Files changed", "Left for you", "Notes"]);
-assert.deepEqual(rep.find((x) => x.name === "Privacy").value, ["Keep no IP addresses", "Set this in Settings > Data retention > People."]);
+assert.deepEqual(rep.find((x) => x.name === "Privacy").value, ["Keep no IP addresses", "Apply it below, or set it in Settings > Data retention > People."]);
 assert.equal(rep.find((x) => x.name === "Privacy").kind, "noted");
 assert.equal(W.reportLines({ privacy: { keep_ips: true, days: 30 } })[0].value[0], "Keep IP addresses for 30 days");
 assert.equal(W.reportLines({ privacy: { keep_ips: true } })[0].value[0], "Keep IP addresses with no end date");
@@ -240,7 +240,9 @@ assert.ok(items().some(([c, t]) => c === "ok" && t.includes("The script tag is o
 assert.ok(items().some(([c, t]) => c === "ok" && t.includes("A test lead arrived")), "the test lead seen");
 assert.ok(items().some(([c, t]) => c === "wait" && t.includes("Waiting for the first log lines")));
 assert.ok(got.includes(`/traffic/${SITE}/settings`), "the new site's own settings, not the page's");
-button(d, "Use these page assets").click();
+// 2.39: the page assets are a recommendation with Apply (agent-recs.js); nothing saved before the press.
+assert.equal(calls(`/traffic/${SITE}/settings/save`).length, 0, "nothing applied by itself");
+d.querySelector('.ag-rec[data-rec="assets"] .acts button').click();
 await tick();
 assert.deepEqual(calls(`/traffic/${SITE}/settings/save`).pop()[1], { "site.asset_prefixes": ["/_next/static/"] });
 // The first log lines: done, saved; then the watch stops by itself.
@@ -358,7 +360,7 @@ const hosts = d.querySelectorAll(".ag-report .ua-host").map((x) => x.textContent
 assert.ok(hosts.some((t) => t.includes("https://www.example.org/help/setup")), "a URL inside the words has its icons");
 assert.ok(hosts.some((t) => t.includes("https://www.example.org/privacy")), "the privacy notice too");
 assert.ok(d.textContent.includes("Skald keeps at most 10: these are the first 10."));
-button(d, "Use these page assets").click();
+d.querySelector('.ag-rec[data-rec="assets"] .acts button').click();
 await tick();
 assert.deepEqual(calls(`/traffic/${SITE}/settings/save`).pop()[1], { "site.asset_prefixes": MANY.slice(0, 10) });
 d.querySelector(".dw-x").click();

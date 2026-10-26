@@ -126,8 +126,8 @@ const RESTORE = {
   // A site's name (it has a dot; the set-up dialogs' names never do) is its Add a site wizard
   // on any tab: Connections' "Set up with your AI agent" opens it there.
   setup: async (v, m, s) => (s.tab === "settings/sitesadmin" || v.includes(".") ? (await import("./tabs/sitesadmin.js")).openSiteKey(v, Number(s.step) || 0, s)
-    : (await import("./tabs/setup-dialogs.js")).openSetupKey(v, m, Number(s.step) || 1, s.share === "1")),
-  conn: async (v, m, s) => (await import("./tabs/connections.js")).openConnKey(v, m, Number(s.step) || 1, s.share === "1"),
+    : (await import("./tabs/setup-dialogs.js")).openSetupKey(v, m, Number(s.step) || 1, s.share === "1", s)),
+  conn: async (v, m, s) => (await import("./tabs/connections.js")).openConnKey(v, m, Number(s.step) || 1, s.share === "1", s),
   dlg: async (v, m, s) => {
     if (extra[`dlg:${v}`]) return extra[`dlg:${v}`](m, s);
     if (v === "keys") return (await import("./keys.js")).help();

@@ -14,6 +14,11 @@
 // not met yet, so it never skips a choice that later steps need. w.keep({agent}) writes a
 // key inside the dialog (routekeys.js INSIDE); w.rename(value) changes what the address
 // names, e.g. setup=new to setup=<site> once Add a site made it, so a reload finds it.
+//
+// 2.39: wrap({steps, start}) -> {steps, start, attach(w), sync()}: a dialog's steps behind a
+// first step of its own (agent-first.js: Your AI agent, or By hand); sync() runs before each
+// bar is drawn, so steps a by-hand dialog changes in place follow. top: nodes above the step
+// bar on every step (the MCP dialog's "Read the MCP guide").
 
 import { h } from "../ui.js";
 import { openDrawer } from "../drawer.js";
@@ -21,7 +26,9 @@ import { status } from "./forms.js";
 import { stepped, renamed } from "../overlays.js";
 import { withUrl } from "../urlactions.js";
 
-export function wizard({ title, subtitle = "", steps, start = 0, onStep = null, onClose = null, done = "Done", key = "conn-wizard", state = {}, route = null }) {
+export function wizard({ title, subtitle = "", steps, start = 0, onStep = null, onClose = null, done = "Done", key = "conn-wizard", state = {}, route = null, wrap = null, top = null }) {
+  const wrapped = wrap ? wrap({ steps, start }) : null;
+  if (wrapped) ({ steps, start } = wrapped);
   const w = { at: Math.max(0, Math.min(start, steps.length - 1)), state, steps, route };
   const bar = h("ol", { class: "cn-bar", "aria-label": "Steps" });
   const body = h("div", { class: "cn-step" });
@@ -30,7 +37,7 @@ export function wizard({ title, subtitle = "", steps, start = 0, onStep = null, 
   const next = h("button", { type: "button", class: "btn primary" }, "Next");
   // From a link at a later step: no further than the first step still waiting for its choice.
   for (let i = 0; i < w.at; i++) if (steps[i].check && steps[i].check(w)) { w.at = i; break; }
-  const d = openDrawer({ title, subtitle, size: "md", key, className: "cn-dw", body: [bar, body, msg],
+  const d = openDrawer({ title, subtitle, size: "md", key, className: "cn-dw", body: [...[].concat(top || []), bar, body, msg],
     footer: [h("span", { class: "grow" }), back, next], onClose, route: route ? Object.assign(route, { step: w.at + 1 }) : null });
   w.el = d.el;
   // The drawer holds the same route, so its close takes away the name the address has then.
@@ -42,6 +49,7 @@ export function wizard({ title, subtitle = "", steps, start = 0, onStep = null, 
   // The step bar alone, and the heading's "of N": a dialog whose later steps follow a
   // choice (conn-send.js: the server way has no token step) changes `steps` in place.
   w.drawBar = () => {
+    if (wrapped?.sync) wrapped.sync();
     bar.replaceChildren(...steps.map((s, i) => h("li", { class: i === w.at ? "on" : i < w.at ? "past" : null, "aria-current": i === w.at ? "step" : null },
       h("span", { class: "cn-n" }, String(i + 1)), h("span", { class: "cn-t" }, s.name))));
     const head = body.firstChild;
@@ -67,6 +75,7 @@ export function wizard({ title, subtitle = "", steps, start = 0, onStep = null, 
     if (onStep) onStep(w.at, w);
   };
   back.addEventListener("click", () => w.go(w.at - 1));
+  if (wrapped?.attach) wrapped.attach(w);
   next.addEventListener("click", async () => {
     const step = steps[w.at];
     const why = step.check ? step.check(w) : "";

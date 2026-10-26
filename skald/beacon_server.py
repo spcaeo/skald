@@ -55,8 +55,8 @@ starts it this way or with origins, so incoming hooks never depend on the beacon
 GET /traffic-kit/<code> answers a one-time install link (kit/link.py): the
 one-file installer with its token to curl or Wget, once; words to anything
 else. /traffic-kit/llms.txt and an AI agent's code (kit/agent.py: its steps,
-keys once to curl or Wget, installer, lead files, and POST .../report) are
-answered there too. Limited per address, each route on its own
+keys once to curl or Wget, installer, lead files, POST .../report and
+POST .../hooksecret) are answered there too. Limited per address, each route on its own
 (KIT_PER_MINUTE, agent.ROUTES; llms.txt is not); the code is never logged.
 
 GET /traffic-js/skald.js serves the snippet (webapp/snippet/skald.js) with
@@ -553,8 +553,10 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
             peer = self.client_address[0]
             address = ((self.headers.get("X-Real-IP") or "").strip()
                        if peer == "127.0.0.1" else "") or peer
-            folder = history_folder(main.config, getattr(main, "config_path", None))
-            agent.serve(self, folder, base_url(main.config) or "", kit_limits, address)
+            config_path = getattr(main, "config_path", None)
+            folder = history_folder(main.config, config_path)
+            agent.serve(self, folder, base_url(main.config) or "", kit_limits, address,
+                        main.config, config_path)
 
         def _not_allowed(self):
             self._send(405)

@@ -14,6 +14,11 @@
 // A newer report replaces the one shown. Every URL in the report has its copy and open icons.
 // Before the keys are taken the line can be cancelled here; once they are, it says when, that
 // the code is used up, and what to do if it was not your agent (with Cancel this line).
+//
+// 2.39, every set-up dialog (agent-first.js): st.jobs, the line's jobs. The first log lines
+// (and the log test) are on the list only when they include logs; without, done is the
+// report. The report's page assets and privacy answers are recommendations with Apply
+// (agent-recs.js), and its jobs and lead tools a short list (agent-words.js reportLines).
 
 import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
@@ -23,16 +28,15 @@ import { answerBox } from "./conn-ui.js";
 import { testPanel, troubleTable, POLL_MS } from "./conn-send.js";
 import { tagVerdict } from "./conn-tagcheck.js";
 import { withUrl } from "../urlactions.js";
-import { agentOf, watchItems, stopWords, reportLines, newAssets, keysWords, expired, ASSETS_MAX, REPORT_NOTE, CANCELLED_WORDS, TOKENS_AT } from "./agent-words.js";
+import { agentOf, watchItems, stopWords, reportLines, keysWords, expired, hasLogs, REPORT_NOTE, CANCELLED_WORDS, TOKENS_AT } from "./agent-words.js";
 import { lineFor, cancelButton } from "./agent-setup.js";
+import { recsBox, siteCall } from "./agent-recs.js";
+
+export { siteCall };
 
 // How often it asks: every POLL_MS (5 s) for 15 minutes, then every 30 s; after the line's
 // expiry once a minute, for 30 minutes (the tests make it quicker).
 export const WATCH = { every: POLL_MS, slowAfter: 15 * 60000, slow: 30000, late: 60000, lateFor: 30 * 60000 };
-
-// The page's own site (/traffic/<site>/...): a call for another site goes to that site's page.
-const pageSite = () => { try { return decodeURIComponent((location.pathname.match(/^\/traffic\/([^/]+)\//) || [])[1] || ""); } catch { return ""; } };
-export const siteCall = (site, path, body) => call(site && pageSite() && site !== pageSite() ? `/traffic/${encodeURIComponent(site)}/${path}` : path, body);
 
 const TICK = "✓";
 
@@ -58,42 +62,20 @@ function itemEl(x) {
     h("span", { class: "vh" }, x.done ? " (done)" : x.bad ? " (needs a fix)" : " (waiting)"));
 }
 
-/* The agent's report in plain words, with "Use these" for its page assets (at most
-   ASSETS_MAX, the setting's limit), and under it a line that the agent wrote it. */
+/* The agent's report in plain words, a line that the agent wrote it, and under it what it
+   recommends for Skald's own settings, each with Apply (agent-recs.js). */
 function reportBox(report, site) {
   const rows = reportLines(report).map((x) => h("div", { class: `ag-rep-row${x.kind === "warn" ? " warn" : ""}` }, h("dt", null, x.name),
     h("dd", null, x.kind === "url" ? withUrl(h("span", null, x.value), x.value, { cls: "ua-after" })
       : x.kind === "noted" ? [h("span", null, linked(x.value[0])), h("small", { class: "ag-rep-note" }, x.value[1])]
       : Array.isArray(x.value) ? h("ul", null, x.value.map((v) => h("li", null, linked(v)))) : linked(x.value))));
-  const use = h("div", { class: "ag-use" });
-  if (report?.asset_paths?.length) {
-    siteCall(site, "settings").then((now) => {
-      const cur = now.ok ? now.settings?.["site.asset_prefixes"] : null;
-      if (!cur || cur.editable === false) return;
-      const paths = newAssets(report, cur.value);
-      if (!paths.length) return;
-      const btn = h("button", { type: "button", class: "btn" }, "Use these page assets");
-      const acts = h("div", { class: "acts" }, btn);
-      const said = h("p", { class: "msg", role: "status", "aria-live": "polite" });
-      btn.addEventListener("click", async () => {
-        btn.disabled = true;
-        const r = await siteCall(site, "settings/save", { "site.asset_prefixes": paths });
-        btn.disabled = false;
-        said.className = `msg ${r.ok ? "ok" : "err"}`;
-        said.textContent = r.ok ? `Saved: ${site} counts pages that load ${paths.join(", ")}.` : why(r, "They were not saved.");
-        if (r.ok) acts.hidden = true;
-      });
-      const more = (report.asset_paths.length > ASSETS_MAX) ? ` Skald keeps at most ${ASSETS_MAX}: these are the first ${ASSETS_MAX}.` : "";
-      use.replaceChildren(h("p", { class: "note" }, `The agent found other page assets than ${site} has now (${(cur.value || []).join(", ") || "none"}).${more}`), acts, said);
-    });
-  }
   return [h("section", { class: "ag-report", "aria-label": "What your agent reported" }, h("h4", null, "What your agent did"),
-    rows.length ? h("dl", null, rows) : h("p", { class: "note" }, "The report was empty."), use),
-    h("p", { class: "note ag-rep-who" }, REPORT_NOTE)];
+    rows.length ? h("dl", null, rows) : h("p", { class: "note" }, "The report was empty.")),
+    h("p", { class: "note ag-rep-who" }, REPORT_NOTE), recsBox(report, site)];
 }
 
-/* Step 5. onDone() once the first log lines arrived. statusOf, tagOf and leadsOf are
-   the calls, replaceable for the tests. */
+/* Step 5. onDone() once the first log lines arrived (a line without logs: once the report
+   came). statusOf, tagOf and leadsOf are the calls, replaceable for the tests. */
 export function watchPanel(st, { onDone = null, statusOf = (site, link) => call("sites/agentstatus", { site, link_id: link }),
   tagOf = (site) => call("sites/tagcheck", { site }), leadsOf = (site) => siteCall(site, `integrations?site=${encodeURIComponent(site)}`) } = {}) {
   const site = st.site;
@@ -107,8 +89,10 @@ export function watchPanel(st, { onDone = null, statusOf = (site, link) => call(
   const waitOut = h("div");
   const lateOut = h("div");
   const said = h("p", { class: "msg", role: "status", "aria-live": "polite" });
-  const draw = () => list.replaceChildren(...watchItems(status, seen).map(itemEl));
-  const test = testPanel(st.send, { auto: true, onResult: (v) => {
+  const jobs = st.jobs || null;
+  const logs = hasLogs(jobs);
+  const draw = () => list.replaceChildren(...watchItems(status, seen, jobs).map(itemEl));
+  const test = !logs ? null : testPanel(st.send, { auto: true, onResult: (v) => {
     if (v.kind !== "ok" || seen.lines) return;
     seen.lines = true;
     draw();
@@ -119,10 +103,10 @@ export function watchPanel(st, { onDone = null, statusOf = (site, link) => call(
   const a = agentOf(st.agent);
   // A chat-only agent ran no line: the log test alone, as on the by-hand way.
   if (a && !a.shell) return [test, done, troubleTable()];
-  const link = st.link || lineFor(site)?.link_id || "";
+  const link = st.link || lineFor(site, jobs)?.link_id || "";
   if (!link) {
-    return [h("p", { class: "note" }, "This page has no line to watch: Skald shows the agent's steps only for a line made here. Go Back to make one. The log test below works either way."),
-      test, done, troubleTable()];
+    return [h("p", { class: "note" }, `This page has no line to watch: Skald shows the agent's steps only for a line made here. Go Back to make one.${logs ? " The log test below works either way." : ""}`),
+      test, done, logs ? troubleTable() : null];
   }
   const lookTag = async () => {
     tagOut.replaceChildren(h("p", { class: "empty" }, "Looking at your home page..."));
@@ -161,7 +145,7 @@ export function watchPanel(st, { onDone = null, statusOf = (site, link) => call(
   };
   const started = Date.now();
   let lateSince = 0;          // when the watch first saw the line past its expiry
-  const finished = () => status?.reported_at && seen.lines && (seen.tag !== undefined || !status.report?.script_tag)
+  const finished = () => status?.reported_at && (seen.lines || !logs) && (seen.tag !== undefined || !status.report?.script_tag)
     && (seen.lead || !status.report?.leads?.length);
   async function once() {
     if (list.isConnected === false) return;        // the step or the dialog closed: stop
@@ -185,12 +169,18 @@ export function watchPanel(st, { onDone = null, statusOf = (site, link) => call(
       said.textContent = "";
       status = r;
       // The agent moved on: the 2-minute log test looks again from now.
-      if ((r.keys_at && !before?.keys_at) || (r.reported_at && r.reported_at !== before?.reported_at)) test.start();
+      if (test && ((r.keys_at && !before?.keys_at) || (r.reported_at && r.reported_at !== before?.reported_at))) test.start();
       if (r.keys_at && !before?.keys_at) drawKeys(r);
       drawWait(r);
       if (r.reported_at && r.reported_at !== before?.reported_at) {        // the first report, or a newer one
-        report.replaceChildren(...reportBox(r.report || {}, site));
+        // agentstatus answers the report's jobs and tools at its top level too (2.39).
+        report.replaceChildren(...reportBox({ ...(r.report || {}), ...(r.jobs ? { jobs: r.jobs } : {}), ...(r.tools ? { tools: r.tools } : {}) }, site));
         if (r.report?.script_tag) lookTag();
+        // A line without logs: the report is the end of it.
+        if (!logs && !before?.reported_at) {
+          done.replaceChildren(answerBox("ok", "Done: your agent sent its report.", h("p", null, "Read it below. Skald changes none of its own settings by itself: press Apply on what you want.")));
+          if (onDone) onDone();
+        }
       }
       if (r.report?.leads?.length && !seen.lead) await lookLead();
       draw();
@@ -199,7 +189,7 @@ export function watchPanel(st, { onDone = null, statusOf = (site, link) => call(
       if (r.state === "expired" || finished()) return;
       // Past the expiry the agent can send nothing more: with the log lines in, it is done.
       if (expired(r.expires_at)) {
-        if (seen.lines) return;
+        if (seen.lines || (!logs && status.reported_at)) return;
         lateSince = lateSince || Date.now();
         if (Date.now() - lateSince >= WATCH.lateFor) { lateOut.replaceChildren(stillWaiting()); return; }
         setTimeout(once, WATCH.late);
@@ -211,11 +201,11 @@ export function watchPanel(st, { onDone = null, statusOf = (site, link) => call(
   // After 30 minutes past the expiry: asked again only on request.
   function stillWaiting() {
     const again = h("button", { type: "button", class: "btn" }, "Check again");
-    again.addEventListener("click", () => { lateSince = Date.now(); lateOut.replaceChildren(); test.start(); once(); });
+    again.addEventListener("click", () => { lateSince = Date.now(); lateOut.replaceChildren(); if (test) test.start(); once(); });
     return h("p", { class: "note" }, "Still waiting? Press Check again. ", again);
   }
   draw();
   setTimeout(once, 0);       // once the step is on the page
   return [h("p", null, "Skald ticks each step as your agent does it. This page checks every few seconds while it is open."),
-    list, said, lateOut, waitOut, keysOut, report, tagOut, test, done, troubleTable()];
+    list, said, lateOut, waitOut, keysOut, logs ? null : done, report, tagOut, test, logs ? done : null, logs ? troubleTable() : null];
 }

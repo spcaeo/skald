@@ -11,6 +11,7 @@ export function purposeOf(scopes) {
   if (has.has("read_private")) out.push("Reading figures and addresses");
   else if (has.has("read")) out.push("Reading figures");
   if (has.has("mcp")) out.push("AI assistant (MCP)");
+  if (has.has("setup")) out.push("Making set-up lines for an AI agent");
   return out.length ? out.join(", ") : "Nothing (no scope)";
 }
 
