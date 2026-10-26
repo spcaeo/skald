@@ -27,14 +27,17 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-25-2.36.1",
+  id: "2026-10-25-2.37.0",
   items: [
-    ["One summary mail a day", "one mail per person at 01:00 with every site's open security items, to-dos and set-up problems, instead of a mail per item; Security › Alerts can still send right away, one mail per run.", "security"],
-    ["Mail links open the right site", "with several sites, every mail's links opened the first site's dashboard; each now opens the site it is about.", "security"],
-    ["The sitemap page is not a page", "/sitemap/ and /sitemap.html leave the page views (crawlers and checkers walk them, people do not); Settings › Sites › Not pages can count them again.", "settings-and-retention"],
+    ["Ask your AI assistant what to fix", "the MCP server has six new read-only tools: what changed, the to-dos, lost pages, page changes and their verdict, AI readiness and changed pages.", "mcp"],
+    ["The live count is readable again", "Overview's \"visitors on the site now\" shows its number full size (since 2.35.0 it was a small dot).", "getting-started"],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.36.0 and 2.36.1
+    ["One summary mail a day", "one mail per person at 01:00 with every site's open security items, to-dos and set-up problems, instead of a mail per item; Security › Alerts can still send right away, one mail per run.", "security"],
+    ["Mail links open the right site", "with several sites, every mail's links opened the first site's dashboard; each now opens the site it is about.", "security"],
+    ["The sitemap page is not a page", "/sitemap/ and /sitemap.html leave the page views (crawlers and checkers walk them, people do not); Settings › Sites › Not pages can count them again.", "settings-and-retention"],
     // 2.35.0
     ["What changed: is it working?", "Overview › Summary compares the period with the one before, with the exact dates, an Include today switch, five key figures with their change, the sources and landing pages that rose or fell, and whether a page needs work or more traffic.", "getting-started"],
     ["New and updated pages", "pages your sitemap says changed lately, and whether people, search and Google have found them; Traffic › Pages sorts by Rising and Falling and shows when each page changed.", "getting-started"],

@@ -19,7 +19,24 @@ a data file without `.json`: `overview`, `live`, `visits`, `hourly`,
 `breakdowns`, `health`, `bots`, `ours`, `not_found`, `ai_activity`,
 `campaigns`, `pages`, `insights`, `requests`, `alerts`, `quality`, `markers`,
 `leads`, `cube`, `robots`, `speed`, `funnels`, `page_index`, `events`,
-`conversions`, `llms_txt`, `sites`, and `app` (the page's own bundle).
+`conversions`, `llms_txt`, `crawler_cost`, `crawl_health`, `realtime`, `search`,
+`retention`, `ai_answers`, `security`, `page_trends`, `ai_ready`, `todos`,
+`lost_pages`, `page_changes`, `sites`, and `app` (the page's own bundle). The
+list is `data_files.FILES` and `data_more.FILES`; any file the page's `data/` folder
+holds is served by its name, so `GET .../api/v1/` is the list to trust.
+
+The 2.35 files a script most often asks for: `todos` (Overview > Insights' to-do list,
+each with its state: open, done with its re-check, or not now), `lost_pages` (Site > Not
+found: old addresses still asked for, the closest live page, the nginx and Apache lines),
+`page_changes` (the changes marked on a page and their before/after verdicts), `ai_ready`
+(AI readiness: robots.txt per AI crawler, what AI got back by page, the sitemap) and
+`page_trends` (each page's landings and AI reads by day, the pages changed lately).
+Their fields: [DATA-CONTRACT-TODOS.md](DATA-CONTRACT-TODOS.md),
+[DATA-CONTRACT-PAGE-CHANGES.md](DATA-CONTRACT-PAGE-CHANGES.md),
+[DATA-CONTRACT-AI-READY.md](DATA-CONTRACT-AI-READY.md) and
+[DATA-CONTRACT-TRACKING.md](DATA-CONTRACT-TRACKING.md). None holds an address; the marks
+in them carry no account. Marking a to-do, a fixed address or a page change is not part of
+this API: it is the dashboard's `settings/todos` call, for owners and admins.
 
 `GET .../api/v1/` lists the files a page really has (404 when the page has
 none):
@@ -31,7 +48,10 @@ none):
 Two more answers come from the history, with the dashboard login only (no
 token): `GET <page>/api/compare?a=FROM..TO&b=FROM..TO` (any two date ranges)
 and `GET <page>/api/page?path=/x` (one page's story). DATA-CONTRACT.md,
-"Compare" and "Page lifecycle", has their fields.
+"Compare" and "Page lifecycle", has their fields. A third, `GET <page>/api/realtime`, is
+what Overview > Real time polls every 15 seconds (the live snapshot's visits and the newest
+log lines' requests per minute, no address and no user agent;
+[DATA-CONTRACT-REALTIME.md](DATA-CONTRACT-REALTIME.md)), also with the dashboard login only.
 
 ## Examples
 

@@ -18,7 +18,7 @@ A **probe** is a request for a path no real site serves, or with an attack strin
 - database dumps and backups: `backup.sql`, `site.zip`;
 - admin panels and consoles: `/phpmyadmin/`, `/admin`, `/owa/`, Jenkins, Solr;
 - PHP scripts: `/phpinfo.php`, `/config/auth.php`, `/storage/logs/laravel.log`;
-- path tricks and injection in the address: `../`, `/etc/passwd`, `${jndi:`, `<script`, `union select`.
+- path tricks and injection in the address: `../`, `/etc/passwd`, `${jndi:`, `<script`, `union select`, read even when encoded twice (`%252e%252e` for `..`).
 
 A **scanner** is one address with one user agent that made at least one probe that day. All its requests of the day are counted on its row, not only the probes. A site's own old paths (`site.legacy_paths`) are never probes.
 

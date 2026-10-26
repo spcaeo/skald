@@ -20,7 +20,7 @@ export const pageKey = (p) => { const x = String(p || "").split("?")[0].split("#
 // The first day of "Changed in the last 30 days": page_trends.json's own, else 30 days to the last recorded day.
 export const changedSince = (m) => m?.x?.page_trends?.changed?.since || addDays(m.anchor, -29);
 export const F = { visits: 0, one_page: 1, views: 2, search: 3, ai: 4 };
-// The one definition, said in the UI and the help (docs/help/summary-and-pages.md).
+// The one definition, said in the UI and the help (docs/help/getting-started.md, "Summary and Pages: is it working?").
 export const LEFT_WORDS = "Left at once: the visit loaded that one page and no other (one page view in the server's log).";
 
 /* The thresholds of "Work on the page, or on traffic?" and the "Needs work" sort, in one place.

@@ -64,7 +64,22 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           set -eu
+          # The release's notes are its own section of CHANGELOG.md, with a link to it.
+          python3 - "${TAG#v}" > notes.md <<'PY'
+          import re, sys
+          ver = sys.argv[1]
+          text = open("CHANGELOG.md", encoding="utf-8").read()
+          m = re.search(rf"(?m)^## {re.escape(ver)} \(([0-9-]+)\)\n(.*?)(?=^## |\Z)", text, re.S)
+          if not m:
+              print("See CHANGELOG.md for what changed.")
+              sys.exit()
+          anchor = ver.replace(".", "") + "-" + m.group(1)
+          print(m.group(2).strip())
+          print(f"\n---\nFull release notes: https://github.com/spcaeo/skald/blob/main/CHANGELOG.md#{anchor}")
+          PY
           if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" --verify-tag --title "$TAG" --notes "See CHANGELOG.md for what changed."
+            gh release create "$TAG" --verify-tag --title "$TAG" --notes-file notes.md
+          else
+            gh release edit "$TAG" --notes-file notes.md
           fi
           gh release upload "$TAG" dist/* --clobber

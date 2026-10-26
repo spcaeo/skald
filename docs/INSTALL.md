@@ -120,11 +120,28 @@ the container has them (`history.db: /var/lib/skald/history.sqlite`,
 | `SKALD_REPORTS_MINUTES` | `15` | how often the client reports that are due are sent (Settings > Reports); `0` stops them |
 | `SKALD_AI_ANSWERS_MINUTES` | `15` | how often the AI answers profiles that are due (or asked to run now) are asked (`ai-answers --due`); `0` stops them |
 | `SKALD_SUMMARY_AT` | `01:00` | the daily summary mail (`summary-mail`): one mail per person with what to look at on every site they get security alerts for (security items, to-dos, set-up problems), in the schedule's time zone; `off` stops it |
-| `SKALD_SCHEDULER` | `on` | `off` stops the container's own schedule (live, daily run, backup) |
+| `SKALD_SCHEDULER` | `on` | `off` stops the container's own schedule (every job below) |
+| `SKALD_SCHEDULE_TZ` | the site's `report.timezone` | the zone the daily times above are in (`SKALD_DAILY_AT`, `SKALD_BACKUP_AT`, `SKALD_SEARCH_AT`, `SKALD_SUMMARY_AT`); an unknown zone stops the scheduler at start |
+| `SKALD_MAIL_FROM` | the first `SKALD_EMAIL` | the sender of every mail |
+| `SKALD_CONFIG` | | a config file inside the container to use as it is, instead of a mounted `/etc/skald/config.yml` or the one generated from these variables |
 | `SKALD_ORIGIN` | from `SKALD_BASE_URL` | the browser origin(s) the dashboard's buttons are accepted from |
 | `SKALD_TRUSTED_PROXIES` | none (Compose: `private`) | the proxy in front, whose word on the visitor's address is believed: ranges such as `10.0.0.0/8`, or `private` (the private ranges). Empty: nobody, right when the container faces the internet. Per platform: [HOSTING.md](HOSTING.md) |
 | `SKALD_REAL_IP_HEADER` | `X-Forwarded-For` (Compose: `X-Real-IP`) | the header that proxy puts the visitor's address in; `Fly-Client-IP` on Fly.io |
 | `SKALD_PORT` | `8080` | the port inside the container |
+
+The image sets a few more for itself; leave them: `SKALD_APP` (the code,
+`/opt/skald`), `SKALD_DATA` (the volume, `/var/lib/skald`), `SKALD_JOB_LOGS`
+(each job's log, `/var/log/skald`), and the build's `SKALD_RELEASE` and
+`SKALD_COMMIT` (what `skald version` prints).
+
+The container's schedule (`docker/scheduler.py`, cron's lines without a cron daemon; one line
+per run in `docker logs skald`, each job's output in `/var/log/skald/<job>.log`): `live`
+every `SKALD_LIVE_MINUTES` and once at start; `run-daily` at `SKALD_DAILY_AT` (one
+`notify-failure` mail when it fails, at most one per 12 hours); `backup` at `SKALD_BACKUP_AT`;
+`reports --due` every `SKALD_REPORTS_MINUTES`; the beacon log's rotation at 00:05; `search sync`
+every `SKALD_SEARCH_HOURS` from `SKALD_SEARCH_AT`; `ai-answers --due` every
+`SKALD_AI_ANSWERS_MINUTES`; and `summary-mail` at `SKALD_SUMMARY_AT`. A job still running when
+it is next due is not started twice; a time missed while the container was down is not caught up.
 
 The returning-visitor key is made once, on the first start, into
 `/var/lib/skald/env` (0600, in the volume). Keep the volume.

@@ -15,7 +15,8 @@ from skald.mcp.data import Context  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 NAMES = {"list_sites", "overview", "breakdown", "top_pages", "ai_activity", "leads", "funnel",
          "compare", "page_story", "live_today", "data_quality", "site_health", "conversions",
-         "find_person"}
+         "find_person", "what_changed", "todos", "lost_pages", "page_changes", "ai_readiness",
+         "changed_pages"}
 
 
 def rpc(method, params=None, mid=1):

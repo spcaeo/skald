@@ -64,7 +64,7 @@ Then `/mcp` in Claude Code shows `skald` connected. The JSON form, for a project
   "headers": {"Authorization": "Bearer ${SKALD_MCP_TOKEN}"}}}}
 ```
 
-The 14 tools (all **READ**). Dates are `YYYY-MM-DD` in the site's zone; no dates means the last
+The 20 tools (all **READ**). Dates are `YYYY-MM-DD` in the site's zone; no dates means the last
 7 whole days.
 
 | Tool | | What it answers |
@@ -82,6 +82,12 @@ The 14 tools (all **READ**). Dates are `YYYY-MM-DD` in the site's zone; no dates
 | `data_quality` | READ | per day: verified, audited, withheld, log gaps |
 | `site_health` | READ | open alerts, uptime, errors today, late runs |
 | `conversions` | READ | **the hook's leads live here**: every action by stage (started, completed, abandoned, cancelled, no-show, won, lost), leads and demos booked, by source or by `first_source`, `landing`, `country`, `campaign`, `device`, `tool`; filters `action` and `label`. Anonymous; test rows never counted |
+| `what_changed` | READ | sources and landing pages against the period before (both periods whole) |
+| `todos` | READ | Insights' to-do list with each to-do's state and re-check; `id` for its rows |
+| `lost_pages` | READ | Not found's old addresses, the closest live page, the nginx or Apache line |
+| `page_changes` | READ | the page changes marked, and the before/after verdict of each measure (leads among them) |
+| `ai_readiness` | READ | pages AI can't read well, or one page's AI readiness |
+| `changed_pages` | READ | pages changed in the last 30 days and whether they get found |
 | `find_person` | READ | **`read_private` only.** One IP, email, visitor ID or lead ref: visits, leads, every conversion (test, cancelled, removed too). Each call is audit-logged. Any ref is found by its `external_ref` since 2.26.0 (section 7) |
 
 Also two resources (`skald://docs/api`, `skald://docs/counting`), two per site
