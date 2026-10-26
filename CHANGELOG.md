@@ -4,6 +4,69 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+Everything under Unreleased below is live on skaldanalytics.com since 26 Oct 2026, 11:44 UTC (the website only; no new Skald version).
+
+### Website: hosted prices are final, and each plan says its limits
+
+- **Changed.** /pricing/ no longer says the prices are proposed ($9 Starter, $49 Team, $149
+  Agency, 20% off yearly: the owner's prices, now final). Each plan lists its limits: requests a
+  month shared by its sites (1 million, 5 million, 20 million), team members (3, 10, unlimited)
+  and days of detail kept (400, 400, 800). Enterprise is more than 25 sites or 20 million
+  requests a month; it used to say "about 1 million visits", a unit Skald does not measure. Going
+  over never stops the counting or drops a line; after two months over in a row we ask the
+  customer to move up. The integrations, MCP, API, Slack, "for" and agencies pages dropped
+  "as proposed until launch". Why: the owner set the prices live and asked for limits in the
+  style of telltale.bot's plans, after a gap analysis (kept privately). Who it affects: anyone
+  reading the pricing page; nobody pays yet (trials are set up by a person). What to do:
+  nothing. **Checked:** the limits are the ones the hosted plan settings carry (sites, requests a
+  month, members, days kept); the build says "problems: none"; the page at 1440 and 390 px.
+
+### Website: the author page has Rakesh's photo and profiles; contact says 2 working days and offers a call
+
+- **Changed.** /author/rakesh-patel/ shows his photo (the headshot from his Space-O author page),
+  his role as founder and CEO of Space-O Technologies since 2010, 28+ years in IT, his two books,
+  and links to his LinkedIn, X, Facebook and rakeshpatel.co (from that site's footer); its
+  `Person` data now carries the photo and those profiles (`sameAs`). Why: the page showed only
+  initials, and search engines had no profile to tie the notes to. **Added.** /contact/ and the
+  author page offer a Zoom call with Rakesh (his Calendly, US Eastern), and /contact/ says replies
+  come within 2 working days (the owner's promise). Who it affects: readers of
+  skaldanalytics.com. What to do: nothing. **Checked:** every new link answers 200; both pages at
+  390 and 1440 px with no sideways scroll; the build says "problems: none".
+
+### Website: five new comparison pages for AI visibility tools; /compare/ lists 13 tools
+
+- **Added.** Five pages: /compare/searchable/, /compare/profound/, /compare/peec-ai/,
+  /compare/otterly/ and /compare/promptwatch/. Each takes a reader's questions one by one (how
+  the tool gets AI answers, which crawlers it keeps, how it checks a crawler is real, what
+  follows the click, what it costs), with the tool's answer quoted from its own page or docs
+  and linked, and Skald's answer beside it. Each says where the other tool does more than
+  Skald, and how to use both. Prices are shown only as listed on the tool's own pricing page
+  on 26 Oct 2026, with that date and the link. **Changed.** /compare/ now lists 13 tools
+  (the five new ones as AI visibility tools, beside the eight it had), the eight older
+  comparison pages link "every comparison", and docs/COMPARISON.md and the public README name
+  the five as hosted AI visibility services. **Why:** the home page names Profound and Peec AI
+  with no page of their own, and people ask how Skald differs from these tools. **Who:**
+  readers of skaldanalytics.com and of the README. **Do:** nothing. **Checked:** every claim
+  about each tool was read again on its own site and docs on 26 Oct 2026, and wording the
+  pages did not support was cut or reworded (an Otterly quote corrected, "signed" dropped from
+  forms, which Skald does not sign); every Skald claim was matched to the code or docs (40 AI
+  crawler names, nine owners' crawlers checked by address, 50 questions with 1 to 5 tries,
+  180 days kept, 20 read-only MCP tools); the build ends "problems: none"; the unit tests
+  pass; the six pages at 390 and 1440 px show no sideways scroll and no console error other
+  than the site's own script, which only the live server serves; all 65 outside links answer
+  200 after redirects. The rubric grades in `_src/pages/RUBRIC.md` were not redone after the
+  rewording. **Second audit (same day, by a separate session):** Searchable's rendered pricing
+  page lists ten engines with Claude and Meta Muse as paid add-ons, agency plans (Launch $250,
+  Growth $400, Enterprise Agencies from $999) and unlimited projects only from Enterprise, so
+  the page, hub and COMPARISON.md now say so; Profound's agency workspace add-on ($399 a month)
+  added and Amazon moved out of its "Partially Verified" examples (its docs list Amazon as
+  fully verified); quotes over 15 words shortened (Searchable, Peec AI, hub); Promptwatch's
+  address check limited to providers that publish ranges; Skald's prompt limit is 50
+  questions per tracking profile (up to 10), its address check named as nine owners wherever a
+  line said "where the owner publishes", its AI readiness check acknowledged on the Otterly
+  page, AI Mode clicks named only when udm=50 is present; repeated sentences between pages
+  reworded; three FAQ answers now lead with the answer.
+
 ### Website: live up to 2.37; What's new has 2.37
 
 - **Live.** Every Website section below went up to skaldanalytics.com on 26 Oct 2026 at 00:28
