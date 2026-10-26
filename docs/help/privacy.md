@@ -12,13 +12,13 @@ What Skald keeps about the people who visit, who can see it, for how long, and h
 - Stored history (the totals) never holds an address.
 - Nothing is hidden: spam, duplicate and test leads, and cancelled, removed and test conversions, are listed, not only counted.
 - One command on the server removes a person everywhere Skald keeps them.
-- **Settings > Data retention** gives you wording for your privacy notice, made from what this site keeps.
+- **Settings > This site > Privacy & retention** gives you wording for your privacy notice, made from what this site keeps.
 
 > Your privacy notice must say what you keep before you turn these on. Some places also need the visitor's consent.
 
 ## What is kept about a visit
 
-**Keep visitors' IP addresses** (**Settings > Data retention > People**) has three choices. Only owners and admins can change it.
+**Keep visitors' IP addresses** (**Settings > This site > Privacy & retention > People**) has three choices. Only owners and admins can change it.
 
 - **Full address**: each visit is kept with its whole IP address.
 - **Shortened (last part removed)**: each visit is kept with a shortened address. It no longer points to one device, but visits can still be followed, more loosely.
@@ -56,6 +56,29 @@ These visits are kept apart from the history, in the conversions file on your se
 
 When **Leads' names and emails** is **full**, the name and email of each lead are kept with its conversions. With **anonymous**, neither is kept.
 
+### How long a name and email are kept
+
+A name and email are kept as long as the lead (**Settings > Data retention > Leads**: 400 days by default, or for good).
+
+If your privacy notice promises less, set **Visits with addresses** (**Settings > Data retention > People**) to that number of days. When it is shorter than the leads, it is the most a name or email is kept:
+
+- Once a lead is older than those days, its name and email are cleared everywhere Skald keeps them: with the lead, in the leads removed by a sync, in the copy of each hook message, and in the copies an upgrade keeps.
+- The lead itself stays, without them. Every figure stays the same, and the days still add up.
+- If the same person sent a newer form, the newer lead keeps their name and email. Their older leads lose it.
+- An old email no longer finds the person in **Find a person**.
+
+The nightly run does this every day. The first run after the upgrade clears the leads that are already past the promise. Each site's count is written to the [audit log](#settings/org/audit) ("privacy.cleared"), never a name or an email.
+
+If you have not set **Visits with addresses**, nothing changes: names and emails are kept as long as the leads.
+
+### Sites that keep everything
+
+On an internal or enterprise site nothing is deleted. Settings › Data retention then says **Kept: nothing is deleted (internal or enterprise).** No retention window, no **Visits with addresses** days and no plan cap removes or clears anything: visits with addresses, leads with their names and emails, journeys, events, and the copies of the conversions file all stay. The privacy notice wording says each is kept "until you ask us to delete it".
+
+A person's own request to be deleted still works: an admin removes them by hand ([Removing a person on request](privacy.md#removing-a-person-on-request)).
+
+Your server's admin turns this on for the whole server (`SKALD_KEEP_EVERYTHING=1`), or it comes with an Enterprise plan.
+
 Skald reads your website's lead database without changing it. Leads marked spam or duplicate there, and leads marked test, are left out of every figure. They are listed in full: on [Leads & sales > Leads](#sales/leads), open **More** and turn on **Show left out**.
 
 ## Looking a person up
@@ -81,7 +104,7 @@ Every address, email, lead and visitor ID in the panel is a link. Select it to o
 
 When the site keeps shortened addresses, type the full address: it finds the visits kept under its shortened form. The panel says the address is shortened, and that those visits may be several people's.
 
-Each search is written to the [audit log](#settings/audit): who searched, when, and what kind of value. Never the value itself.
+Each search is written to the [audit log](#settings/org/audit): who searched, when, and what kind of value. Never the value itself.
 
 Viewers cannot look a person up. An API token or an AI assistant can, only with the **Reading visitor addresses** scope (read_private). See [Connections](connections.md), [API](api.md) and [MCP](mcp.md).
 
@@ -92,7 +115,7 @@ Addresses show only behind sign-in:
 - The person search, for owners and admins.
 - [Site > Requests](#site/requests): the last 6 hours of the request log.
 - Today's AI activity, on [AI & bots > Assistants](#ai/assistants) when the period is Today (or **Today · Live** is on): today only.
-- The internal-address list in [Internal traffic](#settings/internal), so your team can manage it.
+- The internal-address list in [Internal traffic](#settings/site/internal), so your team can manage it.
 
 They never appear in a stored day's totals, a CSV export of history, or a mail.
 
@@ -102,8 +125,10 @@ They never appear in a stored day's totals, a CSV export of history, or a mail.
 | --- | --- |
 | Raw access logs, with addresses | 14 days on your server |
 | Each visit with its address (when kept) | 395 days, or what you set |
-| Leads, with their names and emails (when kept) | 400 days, or for good: Settings › Data retention › Leads |
-| Conversions removed by a sync, whole | As long as the leads |
+| Leads | 400 days, or for good: Settings › This site › Privacy & retention › Leads |
+| Leads' names and emails (when kept), in every copy | As long as the lead, or the days you set for Visits with addresses when those are fewer. Then the lead stays without them |
+| Conversions removed by a sync, whole | As long as the leads; their names and emails as above |
+| The copy of each hook message | As long as the leads; their names and emails as above |
 | Pages read with a visitor ID that became a lead | As long as the lead |
 | Pages read with a visitor ID that has no lead | 30 days, or what you set (1 to 400) |
 | The Requests list, with addresses | Its 6-hour window |
@@ -113,16 +138,16 @@ They never appear in a stored day's totals, a CSV export of history, or a mail.
 | Per-visit and per-page detail | 400 days |
 | In-page events from the script tag | 400 days |
 | Totals and labels | For good |
-| Backups of the history and the conversions file (the conversions file holds the kept visits, names and emails) | 14 daily and 8 weekly copies |
+| Backups of the history and the conversions file (the conversions file holds the kept visits, names and emails) | 14 daily and 8 weekly copies. A name or email cleared today stays in the copies made before, up to 8 weeks |
 
-Admins can change most of these. See [Settings and retention](settings-and-retention.md).
+Admins can change most of these. See [Settings and retention](settings-and-retention.md). On a site that keeps everything (internal or enterprise), nothing in this table is deleted by Skald: see [Sites that keep everything](privacy.md#sites-that-keep-everything).
 
 ## Turning it on after an upgrade
 
 An install that ran a version before 2.4.0 keeps working as before: no address and no email is kept. The **People** card says "kept off by the upgrade to 2.4.0". To turn them on:
 
 1. Change your privacy notice first, so it says what Skald keeps.
-2. Open **Settings > Data retention**.
+2. Open **Settings > This site > Privacy & retention**.
 3. Under **People**, choose **Full address** or **Shortened (last part removed)** for **Keep visitors' IP addresses**, and set **Leads' names and emails** to **full**.
 4. Select **Save**. It applies from the next run.
 
@@ -130,7 +155,7 @@ On a server without the Settings pages, the server admin sets `privacy: keep_ips
 
 ## Wording for your privacy notice
 
-**Settings > Data retention** has a card, **Wording for your privacy notice**. It is a short text you can paste into your privacy page, with a **Copy** button. It is made from this site's own settings, so it says exactly what is kept:
+**Settings > This site > Privacy & retention** has a card, **Wording for your privacy notice**. It is a short text you can paste into your privacy page, with a **Copy** button. It is made from this site's own settings, so it says exactly what is kept:
 
 - that Skald reads your server's log to count visits, and that this sets no cookie and stores nothing on the visitor's device;
 - that the raw log, the 6-hour Requests list and today's AI activity hold full addresses for that short time, in every choice;
@@ -150,7 +175,7 @@ Your AI agent can help: on the site's **Set up** list, press **Set up** on **Pri
 The optional `skald.js` tag counts what happens inside a page. As Skald gives it, it loads from your Skald server and posts its events there. If your web server passes `/traffic-js/` and `/traffic-beacon` on to Skald, it loads from your own site and posts there instead. No third-party code. See [Tracking script](tracking-script.md).
 
 - **The visit's source, for the tab only.** With visitor IDs on or off, the tag keeps the site a visit came from and its `utm_source` tag in the tab's session storage, which the browser deletes when the tab is closed. See [Tracking script](tracking-script.md), "What the tag keeps in the browser".
-- **No cookie by default.** A cookie is set only if your site turns on visitor IDs and also asks to share them across subdomains (on the tag, or an admin switches it on in Skald: Settings > Sites > Script tag). When it is switched on in Skald, the privacy notice wording says so plainly.
+- **No cookie by default.** A cookie is set only if your site turns on visitor IDs and also asks to share them across subdomains (on the tag, or an admin switches it on in Skald: Settings > This site > Collect data > Script tag & goals). When it is switched on in Skald, the privacy notice wording says so plainly.
 - **Do Not Track and Global Privacy Control are respected.** A browser that sends either is not counted at all: no ID, no storage, no event.
 - **Consent first, if you need it.** The tag can wait and send nothing until your consent banner says yes. When a visitor says no, the ID, the cookie and the stored source are deleted.
 - **Never a field's value.** Form events say which form was used, never what was typed. A click on a phone or email link never keeps the number or the address.

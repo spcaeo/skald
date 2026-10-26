@@ -566,11 +566,11 @@ def _expired(entry: dict, base: str) -> str:
     page = (entry.get("fields") or {}).get("dashboard") or f"{_base(entry, base)}/traffic/"
     what = "was cancelled" if entry.get("cancelled_at") else "has expired"
     return (f"This code {what}. Ask the user to make a new line in Skald: "
-            f"{page} (Settings > Add or remove sites).\n")
+            f"{page} (Settings > Sites).\n")
 
 
 UNKNOWN = ("This code is not known. Ask the user to make a new line in Skald "
-           "(Settings > Add or remove sites).\n")
+           "(Settings > Sites).\n")
 
 
 def _own_base(h) -> str:
@@ -668,7 +668,7 @@ def _keys(h, folder, entry: dict, code: str, base: str, now: float) -> None:
     was = state(entry, now)
     if was == "keys_taken":
         return _send(h, 410, "The keys were taken already: they work once. Ask the user to make "
-                             "a new line in Skald (Settings > Add or remove sites).\n")
+                             "a new line in Skald (Settings > Sites).\n")
     if was in ("expired", "cancelled"):
         return _send(h, 410, _expired(entry, base))
     if not tool:

@@ -17,7 +17,7 @@ Keep `data-site="__SITE__"` exactly, and add the tag only once.
 The tag counts what a log cannot see: clicks, form steps, scroll and booking embeds. It never
 sees AI crawlers or bots, so a server log is still the best source (`../logs/`). Nothing
 changes on your web server: the page loads the script from Skald and sends its events there.
-The page's host name must be one of the site's host names in Skald (Settings > Sites).
+The page's host name must be one of the site's host names in Skald (Settings > Site details).
 
 Check: open a page in a normal browser window (Do Not Track off). Within a few minutes it
 shows on __DASHBOARD__.

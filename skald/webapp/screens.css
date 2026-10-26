@@ -127,6 +127,7 @@
 .cp-row { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; }
 .cp-row code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-family: var(--mono); font-size: 12.5px; padding: 7px 10px; border-radius: 8px; background: var(--sunk); color: var(--ink); }
 .cp-row .cp { flex: none; }
+.cp-row > .ua-host { flex: 1; min-width: 0; display: flex; align-items: center; }   /* an address with its copy and open icons */
 .api-files { display: flex; flex-wrap: wrap; gap: 6px; }
 .api-f { font-family: var(--mono); font-size: 12.5px; padding: 3px 10px; border: 1px solid var(--rule); border-radius: 999px; background: var(--surface); color: var(--ink-2); text-decoration: none; }
 .api-f:hover { color: var(--ink); border-color: var(--ink-3); }
@@ -491,3 +492,18 @@ td .confirm { flex-wrap: wrap; justify-content: flex-end; }
 .lg-sw[disabled] { cursor: default; opacity: .7; }
 .logo-card .acts { display: flex; gap: 10px; flex-wrap: wrap; margin: 0; }
 .logo-card .acts .btn { min-height: 40px; padding: 0 16px; }
+
+/* Settings > Billing: this month's requests against the plan, with the usage alerts'
+   80, 90 and 100 % marks (tabs/billing.js usageBar). */
+.usage-bar { margin: 4px 0 16px; max-width: 560px; }
+.usage-bar .sub { margin: 0 0 8px; }
+.ub-track { position: relative; height: 12px; border-radius: 6px; background: var(--sunk); overflow: visible; }
+.ub-fill { display: block; height: 100%; border-radius: 6px; background: var(--good); }
+.ub-fill.near { background: var(--warn); }
+.ub-fill.full { background: var(--bad); }
+.ub-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink); opacity: .55; }
+.ub-scale { position: relative; height: 18px; font-size: 12px; color: var(--ink-2); }
+.ub-scale span { position: absolute; top: 2px; transform: translateX(-50%); }
+.ub-scale span:last-child { transform: translateX(-100%); }
+.usage-bar .note { margin: 4px 0 0; }
+.plan-banners { display: grid; gap: 8px; }

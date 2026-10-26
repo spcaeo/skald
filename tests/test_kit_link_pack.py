@@ -180,10 +180,10 @@ class Pack(unittest.TestCase):
         env = got["secrets.env"].decode()
         self.assertIn("SKALD_INGEST_TOKEN=\n", env)
         self.assertIn("SKALD_LEAD_SECRET=\n", env)
-        self.assertIn("Settings > Connections", env)
+        self.assertIn("Settings > Collect data > Send logs", env)
         self.assertIn("This folder holds no keys", got["START-HERE.md"].decode())
         self.assertEqual(got["AGENTS.md"], got["CLAUDE.md"])
-        self.assertIn("Settings > Integrations", got["leads/README.md"].decode())
+        self.assertIn("Settings > Leads & integrations", got["leads/README.md"].decode())
         for name, data in got.items():
             self.assertIsNone(pack.LEFT.search(data.decode()), name)
             self.assertNotIn(b"skald_", data.replace(b"skald_lead", b""), name)

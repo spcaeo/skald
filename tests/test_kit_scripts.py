@@ -360,7 +360,7 @@ class Check(unittest.TestCase):
         self.assertIn("644", out)
         self.assertIn("✗ PROBLEM  skald-ship keeps restarting (7 restarts)", out)
         self.assertIn("the token is wrong or was revoked (HTTP 401) (in 2 of", out)
-        self.assertIn("make a new sending token in the site's Connections page", out)
+        self.assertIn("make a new sending token in Skald (Settings > Collect data > Send logs)", out)
         self.assertIn("the token is for another site (HTTP 403) (in 1 of", out)
         self.assertIn("3 lines were in a log format Skald does not read", out)
         self.assertIn("set the site's log format to auto", out)

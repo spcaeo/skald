@@ -155,7 +155,7 @@ export default function quality(m, s) {
         { key: "not_rendered", label: "Browser-like requests moved to bots", num: true, sort: (x) => x.not_rendered?.requests ?? null,
           fmt: (v) => (v == null ? h("span", { class: "muted", title: "Not recorded on this day" }, "not recorded") : h("span", { title: movedNote(v) }, `${n(v.requests)} (${n(v.readers)} visits)`)),
           csv: (x) => x.not_rendered?.requests ?? "" },
-        // 2.35: requests shaped like pages that the site's not-a-page list kept out of the page views (Settings > Sites > Not pages), by entry.
+        // 2.35: requests shaped like pages that the site's not-a-page list kept out of the page views (Settings > Collect data > What counts), by entry.
         { key: "not_pages", label: "Not counted as pages", num: true, sort: (x) => (x.not_pages ? notPages(x.not_pages)[0] : null),
           fmt: (v) => (v == null ? h("span", { class: "muted", title: "Not recorded on this day" }, "not recorded") : h("span", { title: notPages(v)[2] || "None" }, `${n(notPages(v)[0])} (${n(notPages(v)[1])} people)`)),
           csv: (x) => (x.not_pages ? notPages(x.not_pages)[0] : "") },

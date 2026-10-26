@@ -12,7 +12,7 @@ Profile link has its place (`gbp_location_id`), unused for now.
 The run (run.py, `skald ai-answers --due`, every 15 minutes in the container)
 asks each due profile's questions of each chosen assistant through its
 documented HTTP API (providers.py), with its own key (Settings >
-Integrations, install admins; secrets.json or the environment). Every answer
+AI answers > API keys, install admins; secrets.json or the environment). Every answer
 is stored (store.py, ai_answers.sqlite beside the history): its text
 (trimmed), the URLs it cited, whether a brand term is named (word boundary)
 and where, which own pages it cited and which competitors it names
@@ -34,7 +34,7 @@ NAMES = {"openai": "ChatGPT", "perplexity": "Perplexity", "gemini": "Gemini",
 # (classify.ASSISTANT_ALIASES): its user fetcher's reads and the visits it sends.
 ASSISTANT = {"openai": "chatgpt.com", "perplexity": "perplexity.ai",
              "gemini": "gemini.google.com", "anthropic": "claude.ai"}
-# Settings > Integrations: each provider's key (settings_store, kind secret, install).
+# Settings > AI answers > API keys: each provider's key (settings_store, kind secret, install).
 SECRET = {p: f"ai_answers.{p}_key" for p in PROVIDERS}
 ENV = {"openai": "SKALD_OPENAI_API_KEY", "perplexity": "SKALD_PERPLEXITY_API_KEY",
        "gemini": "SKALD_GEMINI_API_KEY", "anthropic": "SKALD_ANTHROPIC_API_KEY"}

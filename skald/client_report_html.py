@@ -8,7 +8,7 @@ agency's - travel inside the mail as CID parts (`cid:site-logo`,
 `cid:agency-logo`); the preview writes them in as data: addresses. A logo
 that cannot travel (SVG, a bitmap icon) gives way to the site's letter.
 
-Branding comes from the organisation (Settings > Reports > Agency
+Branding comes from the organisation (Settings > Mail & reports > Client reports > Agency
 branding): its name in the header and the From name, its colour as the top
 band (text on it is white or ink, whichever reads), its logo top right.
 """

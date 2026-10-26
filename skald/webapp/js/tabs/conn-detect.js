@@ -1,5 +1,5 @@
 // "What Skald found": the site check's card, in step 1 of the "Add a site"
-// wizard (site-wizard.js) and of Settings > Connections' "Send this site's
+// wizard (site-wizard.js) and of Settings > Collect data > Send logs' "Send this site's
 // visits" dialog (conn-send.js).
 //
 // POST <page>/sites/detect {address, name?} (connections_api.py, site_detect.py)
@@ -138,8 +138,8 @@ export function detectCard(st, { address, name = null, auto = false, onFound = n
 }
 
 /* Connections: put the found host names (added to the site's own) and page
-   assets in this site's settings (POST settings/save, as Settings > Sites
-   saves them). Returns the words to show. */
+   assets in this site's settings (POST settings/save, as Settings > Site details
+   and Collect data save them). Returns the words to show. */
 export async function saveFound(st, site) {
   const got = suggestionsFor(st, site);
   if (!got.hosts && !got.asset_prefixes) return { ok: false, words: "Nothing found to save." };
@@ -151,5 +151,5 @@ export async function saveFound(st, site) {
   if (got.asset_prefixes && now.settings?.["site.asset_prefixes"]?.editable !== false) body["site.asset_prefixes"] = got.asset_prefixes;
   if (!Object.keys(body).length) return { ok: false, words: "You cannot change these settings here." };
   const r = await call("settings/save", body);
-  return r.ok ? { ok: true, words: "Saved in this site's settings (Settings > Sites)." } : { ok: false, words: why(r, "It was not saved.") };
+  return r.ok ? { ok: true, words: "Saved in this site's settings (Settings > Site details and Settings > Collect data)." } : { ok: false, words: why(r, "It was not saved.") };
 }

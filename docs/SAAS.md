@@ -10,7 +10,7 @@ install works exactly as before. It also needs accounts (`access.mode: sessions`
 [ACCOUNTS.md](ACCOUNTS.md)); in basic mode `saas` is ignored.
 
 Code: `skald/saas/` (`signups.py`, `signup_api.py`, `plans.py`, `limits.py`,
-`stripe_client.py`, `stripe_events.py`, `billing_api.py`, `cli.py`), `skald/audit_usage.py`
+`usage_alerts.py`, `stripe_client.py`, `stripe_events.py`, `billing_api.py`, `cli.py`), `skald/audit_usage.py`
 (the second count of usage), `skald/webapp/auth/signup.html`, `signup-finish.html` and
 `skald/webapp/js/tabs/billing.js`.
 
@@ -29,6 +29,7 @@ Code: `skald/saas/` (`signups.py`, `signup_api.py`, `plans.py`, `limits.py`,
      allowed_domains: [example.com]   # optional: only these addresses (and subdomains) may sign up
      billing: stripe                  # Settings > Billing and the webhook; leave out for no payment
      grace_days: 7                    # past due this long: read-only
+     usage_alerts: true               # the 80/90/100 % mails and banner (the default)
      default_plan: starter            # what a sign-up gets
      plans: [{name: starter, sites: 1, requests_month: 300000, retention_days_max: 90, members: 3, trial_days: 14, price_id: price_123, label: Starter}, {name: team, sites: 10, requests_month: 3000000, retention_days_max: 400, members: 20, price_id: price_456, label: Team}]
    ```
@@ -144,14 +145,55 @@ Stripe's customer portal for the organisation's customer.
 
 ## What customers see
 
-- **Settings > Billing** (owners only, and only when saas is on): the plan and its status,
-  trial days left, this month's requests, sites and members against the limits, the plans to
-  choose from, and "Manage billing".
+- **Settings > Billing** (only when saas is on; owners, and admins to read it): the plan and
+  its status, trial days left, this month's requests as a bar with the 80, 90 and 100 % marks,
+  sites and members against the limits, the plans to choose from, and "Manage billing". Only
+  owners see the Choose and Manage buttons; the routes refuse an admin's POST (403).
 - **A banner** on every page for every member when the organisation is over a limit, or
-  read-only.
+  read-only; and, for owners and admins only, when this month's requests reach 80 % of the
+  plan (below).
 - `/me` has `saas: true` and `plan: {name, status, usage, limits, used, over, read_only,
   read_only_why, trial_days_left, trial_ends_at}` (`plan` is null for an organisation with no
-  plan).
+  plan). `usage` adds `percent` (of `requests_month`, rounded down), `resets_on` (the first
+  of next month) and `mark` (80, 90 or 100, the highest reached; null below 80 or with
+  `usage_alerts: false`).
+
+## Usage alerts (80, 90 and 100 %)
+
+The owner's words (2026-10-26): "we also send alerts to upgrade your plan when you reach 80%,
+90%, 100% so that your data is not lost". Past `requests_month` the ingest turns new batches
+away (429): Skald's shipper keeps the lines and sends them again, a Cloudflare Worker's are
+lost. So the owners and admins hear before that happens (`skald/saas/usage_alerts.py`).
+
+- **The figure** is the one `over_limit` reads: the organisation's requests this calendar month
+  from the stored days, counted twice. Unknown or withheld: no alert. Today's requests join
+  after the day is stored, as they do for the limit itself.
+- **The marks**: 80, 90 and 100 % of the plan's `requests_month`. One mail per mark, per
+  organisation, per month. A jump past several marks sends one mail, for the highest; the ones
+  below are kept as skipped. A new month starts again.
+- **Never twice.** Each mark is written to `usage_alerts` in accounts.sqlite before anything is
+  sent (the sale alerts' rule, decision D93): a restart, a recount (the figure going down and up
+  again) or a second run never repeats one. A failed send is noted, not retried.
+- **A plan change** in the month: a bigger limit starts from its own marks that the usage had
+  not passed yet; the ones it had passed are kept as skipped. A smaller limit is new: its
+  highest passed mark mails. Going back to a limit used before this month repeats nothing.
+- **Who**: the organisation's owners and admins with a confirmed, working account, one mail
+  each. Viewers never.
+- **The mail** (the account mails' look): "<org> has used X of the Y requests its <plan> plan
+  allows this month (Z%). The count starts again on <1st of next month>." Then what happens
+  past the limit (new lines turned away until the month turns or the plan is bigger; Skald's
+  shipper keeps them, a Cloudflare Worker's are lost) and one button, **Open Billing**, to
+  `#settings/billing` on the organisation's own dashboard: its first site's `dashboard.url`
+  (each site its own, the 2.36.1 rule), else `access.base_url` + `/traffic/<site>/`.
+- **When**: after every live run and run-daily, once for the whole install
+  (`summary_mail.after_run`). At most one check per organisation every 5 minutes (live runs
+  every 2); run-daily always checks, since it stores the day the figure is made of. Nothing
+  runs inside an ingest request.
+- **The audit log**: one `billing.usage_alert` row per alert, actor `skald`, with the mark and
+  the counts ("850 of 1,000 requests in 2026-10 (85%), small plan; mailed 2 of 2 owners and
+  admins"). Never an address.
+- **The switch**: `saas.usage_alerts: false` stops the mails and the banner; the Billing bar
+  stays. On by default with saas. With saas off nothing runs and no table is made.
 
 ## Over a limit, and read-only
 
@@ -189,7 +231,7 @@ Paying (or `skald plan set ORG PLAN --status active`) ends it at once.
 | `GET /traffic-auth/signup`, `signup-finish` | anyone (pages) |
 | `GET /traffic-auth/signup-info?t=` | anyone with a link |
 | `POST /traffic-auth/signup`, `signup-finish` | anyone, same-origin |
-| `GET <page>/billing` | owners |
+| `GET <page>/billing` | owners, and admins to read (`can_change: false`) |
 | `POST <page>/billing/checkout`, `billing/portal` | owners, same-origin, CSRF |
 | `POST /traffic-hooks/_billing/stripe` | Stripe (signed) |
 

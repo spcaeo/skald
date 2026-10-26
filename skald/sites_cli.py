@@ -1,7 +1,8 @@
-"""`skald site add | list | hosts | remove | purge | verify`: dashboard sites (accounts mode).
+"""`skald site add | list | hosts | pause | resume | remove | restore | clear | purge |
+verify`: the sites of an accounts install.
 
     skald site list                         every site: config file or dashboard,
-                                            active or removed, its organisation
+                                            active, paused or removed, its organisation
     skald site add HOST --org SLUG [--format F] [--timezone Z]
                                             what Settings > Sites does, for an
                                             install admin at the shell (no token:
@@ -10,32 +11,37 @@
                                             purged in the last 30 days needs
                                             --allow-reuse
     skald site hosts NAME HOST [HOST ...]   replace a dashboard site's host names
-                                            (checked like Settings > Sites > Host
+                                            (checked like Settings > Site details > Host
                                             names; an audit row). A Host names row
                                             saved in Settings is set to the same list
-    skald site remove NAME --yes            stop processing a dashboard site (what an
-                                            owner's Remove in Settings does); its data
-                                            stays until `site purge`
-    skald site purge NAME --yes             delete a REMOVED dashboard site for good:
-                                            its history rows, dashboard folder,
-                                            state folder, logo folder, ingest logs,
-                                            its settings
-                                            rows and the tokens that read only it,
-                                            its conversions.sqlite rows (every table
-                                            with a site column, its outbox cursor),
-                                            its hook spool lines and its secrets
-                                            (hooks/<site>/*, outgoing/<site>/*); the
-                                            name is then held for 30 days
+    skald site pause NAME                   stop collecting and counting (any site):
+                                            ingest answers 503 so the shipper keeps
+                                            its lines; live and run-daily skip it
+    skald site resume NAME                  start again, and say whether the paused
+                                            days can be filled from the log
+    skald site remove NAME --yes            stop processing and hide the site; its
+                                            data stays (`site restore` undoes it)
+    skald site restore NAME                 a removed site is processed again
+    skald site clear NAME --yes             archive, then delete the site's collected
+                                            data (history, shipped log, leads and
+                                            conversions); settings and tokens stay;
+                                            the days before read Not recorded
+    skald site purge NAME --yes             "Delete all data": archive, then delete
+                                            every store of the site (site_data.py),
+                                            revoke its tokens. A dashboard site is
+                                            gone and its name held for 30 days; a
+                                            config-file site keeps its config entry
+                                            and becomes removed, with no data
     skald site verify NAME                  mark a site waiting for domain
                                             verification as verified (site_verify.py)
 
-`site assign` stays in cli_accounts.py. Purging cannot be undone; take a
-backup first (`skald backup`). Only dashboard sites can be purged: a
-config-file site is removed by editing the config.
+The actions are site_lifecycle.py's, the same as Settings > Sites. The archive
+of `clear` and `purge` goes to the backups folder and is kept 30 days. The
+install's main site (the config file's own) can only be paused here.
+`site assign` stays in cli_accounts.py.
 """
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 from .config import site_name
@@ -44,7 +50,7 @@ ACTOR = "cli"
 
 
 def add_site_actions(acts) -> None:
-    """Add list, add, hosts, remove, purge and verify under `skald site`
+    """Add list, add, hosts, the lifecycle actions and verify under `skald site`
     (cli_accounts.add_command)."""
     q = acts.add_parser("list", help="every site, where it is defined, and its organisation")
     q.set_defaults(run=cmd_list)
@@ -60,16 +66,21 @@ def add_site_actions(acts) -> None:
     q.add_argument("name")
     q.add_argument("hosts", nargs="+", metavar="HOST")
     q.set_defaults(run=cmd_hosts)
-    q = acts.add_parser("remove", help="stop processing a dashboard site; its data stays "
-                        "until purge")
-    q.add_argument("name")
-    q.add_argument("--yes", action="store_true", help="really remove it")
-    q.set_defaults(run=cmd_remove)
-    q = acts.add_parser("purge", help="delete a removed dashboard site and all its data, "
-                        "its logo folder too")
-    q.add_argument("name")
-    q.add_argument("--yes", action="store_true", help="really delete; nothing is undone")
-    q.set_defaults(run=cmd_purge)
+    for act, words, yes in (
+            ("pause", "stop collecting and counting a site; everything is kept", None),
+            ("resume", "start collecting a paused site again", None),
+            ("remove", "stop processing a site and hide it; its data stays",
+             "really remove it"),
+            ("restore", "process a removed site again", None),
+            ("clear", "archive, then delete a site's collected data; settings and tokens stay",
+             "really delete its data; the archive is kept 30 days"),
+            ("purge", "archive, then delete all of a site's data and revoke its tokens",
+             "really delete; the archive is kept 30 days")):
+        q = acts.add_parser(act, help=words)
+        q.add_argument("name")
+        if yes:
+            q.add_argument("--yes", action="store_true", help=yes)
+        q.set_defaults(run=_action(act))
     q = acts.add_parser("verify", help="mark a site's domain as verified")
     q.add_argument("name")
     q.set_defaults(run=cmd_verify)
@@ -86,19 +97,22 @@ def _ingest_root(ctx) -> Path:
 
 
 def cmd_list(ctx) -> int:
-    from .accounts import orgs, site_configs
+    from .accounts import orgs, site_configs, site_state
     db = _open(ctx)
     if db is None:
         return 1
     try:
         rows = {r["name"]: r for r in site_configs.listing(db)}
+        states = site_state.every(db)
         config_names = [site_name(c) for c in (getattr(ctx, "all_configs", None) or [ctx.config])
                         if not c.get("_dashboard_site")]
-        for name in sorted(set(config_names) | set(rows)):
+        for name in sorted(set(config_names) | set(rows) | set(states)):
             org = orgs.org_of_site(db, name)
-            row = rows.get(name)
+            row, st = rows.get(name), states.get(name) or {}
             where = "dashboard" if row and name not in config_names else "config"
-            state = "removed " + row["removed_at"] if row and row["removed_at"] else "active"
+            gone = (row or {}).get("removed_at") or st.get("removed_at")
+            state = ("removed " + gone if gone else
+                     "paused " + st["paused_at"] if st.get("paused_at") else "active")
             ctx.out(f"{name:<32} {where:<9} {state:<28} "
                     f"{org['slug'] if org else '(no organisation)'}")
     finally:
@@ -190,132 +204,99 @@ def cmd_hosts(ctx) -> int:
     return 0
 
 
-def cmd_remove(ctx) -> int:
-    from .accounts import site_configs
-    name = ctx.args.name
+# ----------------------------------------------------------------- lifecycle
+
+ASK = {"remove": "this stops processing {name} and hides it (ingest answers 410); its data "
+                 "stays. Run again with --yes",
+       "clear": "this archives, then deletes every figure, shipped log line and lead of "
+                "{name}; its settings and tokens stay. Run again with --yes",
+       "purge": "this archives, then deletes every figure, log, lead, setting and token of "
+                "{name}. Run again with --yes"}
+
+
+def _action(act: str):
+    def run(ctx) -> int:
+        return cmd_action(ctx, act)
+    return run
+
+
+def cmd_action(ctx, act: str) -> int:
+    from . import site_lifecycle as life
     db = _open(ctx)
     if db is None:
         return 1
     try:
-        row = site_configs.get(db, name)
-        if row is None:
-            ctx.err(f"{name} is not a dashboard site; a config-file site is removed by "
-                    "editing the config")
-            return 1
-        if not ctx.args.yes:
-            ctx.err(f"this stops processing {name} (ingest answers 410); its data stays "
-                    "until `site purge`. Run again with --yes")
-            return 2
         try:
-            got = site_configs.remove(db, row["org_id"], name, ACTOR)
+            site = life.find(db, ctx.args.name, ctx.raw_config, ctx.config_path)
+            if act in ASK and not ctx.args.yes:
+                ctx.err(ASK[act].format(name=site["name"]))
+                return 2
+            got = _run(ctx, db, life, act, site)
+        except life.Refused as why:
+            ctx.err(str(why))
+            return 1
         except ValueError as why:
             ctx.err(str(why))
             return 1
     finally:
         db.close()
-    ctx.out(f"{name} removed at {got['removed_at']}: processing stopped, data kept until "
-            f"`site purge {name} --yes`")
+    _say(ctx, act, site["name"], got)
     return 0
 
 
-def _history_tables(history) -> list[str]:
-    names = [r[0] for r in history.db.execute(
-        "SELECT name FROM sqlite_master WHERE type = 'table'")]
-    return [n for n in names
-            if any(c[1] == "site" for c in history.db.execute(f"PRAGMA table_info({n})"))]
+def _run(ctx, db, life, act: str, site: dict) -> dict:
+    if act == "pause":
+        return life.pause(db, site, ACTOR)
+    if act == "resume":
+        from .ingest import site_configs
+        own = site_configs(ctx.raw_config, ctx.config_path).get(site["name"]) or ctx.config
+        return life.resume(db, site, ACTOR, own)
+    if act == "remove":
+        return life.remove(db, site, ACTOR)
+    if act == "restore":
+        return life.restore(db, site, ACTOR)
+    from .cli_accounts import _path as accounts_path
+    inst = life.install(ctx.config, ctx.config_path, Path(ctx.db_path).parent, _out(ctx))
+    got = (life.clear if act == "clear" else life.purge)(db, accounts_path(ctx), inst, site,
+                                                         ACTOR)
+    out = _out(ctx)
+    if act == "clear" and out is not None:
+        # Its pages again now, from no data: a paused site's live run would not draw them.
+        from . import first_page
+        first_page.placeholder(out, site["name"])
+        got["drawn"] = first_page.build(ctx.config_path, site["name"], out)
+    return got
 
 
-def cmd_purge(ctx) -> int:
-    from .accounts import site_configs
-    from .files import slug
-    from .multisite import state_dir
-    from .store import History
-    name = ctx.args.name
-    db = _open(ctx)
-    if db is None:
-        return 1
-    try:
-        row = site_configs.get(db, name)
-        if row is None:
-            ctx.err(f"{name} is not a dashboard site; a config-file site is removed by "
-                    "editing the config")
-            return 1
-        if row["active"]:
-            ctx.err(f"{name} is still active: remove it in Settings > Sites first")
-            return 1
-        if not ctx.args.yes:
-            ctx.err(f"this deletes every figure and log of {name} for good; "
-                    "take a backup, then run again with --yes")
-            return 2
-        history = History(ctx.db_path)
-        try:
-            removed = 0
-            for table in _history_tables(history):
-                removed += history.db.execute(f"DELETE FROM {table} WHERE site = ?",
-                                              (name,)).rowcount
-            history.db.commit()
-        finally:
-            history.db.close()
-        gone = []
-        out = getattr(ctx, "out_dir", None) or _dashboard_out(ctx)
-        from .site_logos import folder as logo_folder
-        folders = [state_dir(Path(ctx.db_path).parent, name),
-                   _ingest_root(ctx) / slug(name),
-                   logo_folder(Path(ctx.db_path).parent, name)]
-        if out is not None:
-            folders.append(Path(out) / slug(name))
-        for folder in folders:
-            if folder.is_dir():
-                shutil.rmtree(folder)
-                gone.append(str(folder))
-        found = _purge_conversions(ctx, name)
-        got = site_configs.purge(db, name, ACTOR)
-        from .site_verify import forget, reserve
-        forget(db, name)
-        until = reserve(db, name, ACTOR)
-    except ValueError as why:
-        ctx.err(str(why))
-        return 1
-    finally:
-        db.close()
-    ctx.out(f"{name} purged: {removed} history rows, {found['rows']} conversions rows, "
-            f"{found['spool']} spool lines, {found['secrets']} secrets, {len(gone)} folders, "
-            f"{got['tokens_revoked']} tokens revoked; the name is held until {until[:10]}")
-    for folder in gone:
-        ctx.out(f"  deleted {folder}")
-    return 0
-
-
-def _purge_conversions(ctx, name: str) -> dict:
-    """conversions.sqlite rows of every table with a site column, the
-    site's meta keys, its hook spool lines and its secrets. Counts."""
-    from .conversions import secrets_store, spool, store
-    folder = Path(ctx.db_path).parent
-    out = {"rows": 0, "spool": 0, "secrets": 0}
-    path = store.path_for(ctx.config, folder)
-    if path is not None and Path(path).exists():
-        db = store.connect(path)
-        try:
-            with store.tx(db):
-                tables = [r[0] for r in db.execute(
-                    "SELECT name FROM sqlite_master WHERE type = 'table'")]
-                # outbox before webhooks: its rows point at them
-                for table in sorted(tables, key=lambda t: t != "outbox"):
-                    cols = [c[1] for c in db.execute(f'PRAGMA table_info("{table}")')]
-                    if "site" in cols:
-                        out["rows"] += db.execute(f'DELETE FROM "{table}" WHERE site = ?',
-                                                  (name,)).rowcount
-                for (key,) in db.execute("SELECT key FROM meta").fetchall():
-                    if key.endswith(":" + name):          # outbox_cursor:<site>, ...
-                        db.execute("DELETE FROM meta WHERE key = ?", (key,))
-        finally:
-            db.close()
-    out["spool"] = spool.scrub(spool.spool_dir(ctx.config, folder),
-                               lambda row, texts: row.get("site") == name)
-    out["secrets"] = secrets_store.delete(
-        secrets_store.path_for(ctx.config, folder),
-        lambda key: key.split("/")[:2] in (["hooks", name], ["outgoing", name]))
-    return out
+def _say(ctx, act: str, name: str, got: dict) -> None:
+    if act == "pause":
+        ctx.out(f"{name} paused at {got['paused_at']}: nothing is collected or counted until "
+                f"`site resume {name}`; history, settings and tokens are kept")
+    elif act == "resume":
+        ctx.out(f"{name} resumed. {got['words']}")
+    elif act == "remove":
+        ctx.out(f"{name} removed at {got['removed_at']}: processing stopped, data kept; "
+                f"`site restore {name}` undoes it")
+    elif act == "restore":
+        ctx.out(f"{name} restored: it is {got['status']} again")
+    else:
+        gone = got["deleted"]
+        ctx.out(f"{name}: archive written to {got['archive']} (kept 30 days)")
+        ctx.out(f"  deleted: {gone['rows']} database rows, {gone['files']} files or folders, "
+                f"{gone['spool']} hook spool lines"
+                + (f", {gone['secrets']} secrets, {gone['links']} set-up links, "
+                   f"{got['tokens_revoked']} tokens revoked" if act == "purge" else ""))
+        for line in gone.get("items", []):
+            ctx.out(f"    {line}")
+        if act == "clear":
+            ctx.out("  settings and tokens kept; the days before today read Not recorded; "
+                    + ("its pages are drawn again" if got.get("drawn") else
+                       "the next dashboard run draws its pages again"))
+        elif got.get("status") == "deleted":
+            ctx.out(f"  the site is gone; its name is held until {got['name_held_until'][:10]}")
+        else:
+            ctx.out("  its config entry stays; the site is removed, with no data "
+                    f"(`site restore {name}` collects it again from today)")
 
 
 def cmd_verify(ctx) -> int:
@@ -331,8 +312,3 @@ def cmd_verify(ctx) -> int:
     finally:
         db.close()
     return 0
-
-
-def _dashboard_out(ctx) -> Path | None:
-    from .cli import _path
-    return _path(ctx.config, ctx.config_path, "dashboard", "out", None)

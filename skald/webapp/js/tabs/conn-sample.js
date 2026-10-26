@@ -1,4 +1,4 @@
-// Settings > Connections: "Test a sample" (2.35), the dry run of a log source.
+// Settings > Collect data > Send logs: "Test a sample" (2.35), the dry run of a log source.
 // Paste up to MAX_LINES lines of a log (a server's access log, or a CDN or host
 // export); POST <page>/sites/trylog {site, text, format} (connections_api.try_sample,
 // skald/try_log.py) reads them with Skald's own readers, judged with the

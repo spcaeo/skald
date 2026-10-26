@@ -5,6 +5,7 @@
 
 import { h } from "../ui.js";
 import * as S from "../state.js";
+import { SETTINGS_PAGES } from "../settings-menu.js";
 import { MARK } from "../mark.js";
 import { BUILD, REPO, toolName, toolTagline } from "../build.js";
 import { compare } from "./compare.js";
@@ -65,19 +66,8 @@ const FEATURES = [
     ["health/broken", "Pages people could not find, and whether a redirect fixes them."],
     ["requests", "The last six hours, request by request, each with the rule that put it in its group."],
   ]],
-  ["Settings", [
-    ["settings/account", "Your name, password, two-step sign-in and where you are signed in."],
-    ["settings/team", "Invite people and choose what each may do."],
-    ["settings/users", "Who may look and who may change things: admins and viewers."],
-    ["settings/api", "Connections: send a site's visits to Skald, read every figure as JSON with a token, connect an AI assistant (MCP), and your tokens."],
-    ["settings/internal", "Our own machines and the heartbeat, and the addresses that count as ours."],
-    ["settings/integrations", "Webhooks from booking, form and payment tools, and the skald.js tag, for Conversions."],
-    ["settings/retention", "How long each kind of record is kept."],
-    ["settings/mail", "Reports, alerts and failure mail: who gets what."],
-    ["settings/reports", "Branded client reports: a mail with a PDF, on your schedule, from verified days only."],
-    ["settings/security", "Sign-in rules for everyone in the organisation."],
-    ["settings/audit", "Who changed what, and when."],
-  ]],
+  // 2.40: every settings page, from the menu (js/settings-menu.js), with its own line.
+  ["Settings", SETTINGS_PAGES.filter((p) => p.route !== "settings/home" && p.route !== "settings/help").map((p) => [p.route, p.line])],
   ["Help", [
     ["help", "Guides in plain words: getting started, sign-in and team, internal traffic, leads and conversions, the tracking script, webhooks, funnels, the API, MCP, settings, privacy and questions."],
   ]],

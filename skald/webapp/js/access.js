@@ -20,7 +20,7 @@ export async function loadMe(model) {
   // The demo has no helper to ask: every settings page is in the menu, each saying it needs one.
   if (DEMO.on) {
     HIDDEN.clear();
-    ["settings/users", "settings/billing"].forEach((k) => HIDDEN.add(k));
+    ["settings/org/users", "settings/org/billing"].forEach((k) => HIDDEN.add(k));
     return ME;
   }
   if (!model?.x?.funnels) return ME;
@@ -35,12 +35,13 @@ export async function loadMe(model) {
     setCsrf(r.csrf);
   }
   HIDDEN.clear();
-  if (sessions()) HIDDEN.add("settings/users");
+  if (sessions()) HIDDEN.add("settings/org/users");
   else ACCOUNT_TABS.forEach((k) => HIDDEN.add(k));
-  if (!ME.saas || ME.role !== "owner") HIDDEN.add("settings/billing");
+  if (!ME.saas || !["owner", "admin"].includes(ME.role)) HIDDEN.add("settings/org/billing");   // admins read it
   // What the reader's role cannot open stays out of the menu, the palette and the reports.
-  if (ME.role !== "owner") HIDDEN.add("settings/security");
-  if (isViewer()) ["settings/users", "settings/integrations", "settings/audit", "settings/reports"].forEach((k) => HIDDEN.add(k));
+  if (ME.role !== "owner") HIDDEN.add("settings/org/security");
+  // (2.40: Client reports is a tab of Mail & reports, which says itself that it is for admins.)
+  if (isViewer()) ["settings/org/users", "settings/site/leads", "settings/org/audit"].forEach((k) => HIDDEN.add(k));
   return ME;
 }
 

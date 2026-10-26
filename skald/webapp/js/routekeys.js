@@ -84,7 +84,8 @@ export const ROUTE_KEYS = [
   { key: "strat", kind: "tab", owner: "tabs/speed.js", means: "Speed: desktop (phone when absent)" },
   { key: "part", kind: "tab", owner: "tabs/help.js", means: "Help: the guide or its part open" },
   { key: "note", kind: "tab", owner: "tabs/about.js", means: "About: the note open" },
-  { key: "test", kind: "tab", owner: "tabs/sitesadmin.js", means: "Add or remove sites: open a site's wizard at its Test (the site's name)" },
+  { key: "test", kind: "tab", owner: "tabs/sitesadmin.js", means: "Settings › Sites: open a site's wizard at its Test (the site's name)" },
+  { key: "sub", kind: "tab", owner: "tabs/settings-frame.js", means: "a settings page's in-page tab (2.40): Collect data logs, script, counting; Leads & integrations hooks, webhooks, search; Mail & reports mail, reports; AI answers profiles, keys (the first when absent)" },
   { key: "sxv", kind: "tab", owner: "tabs/sec-exposed.js", means: "Security > Is anything exposed?: possible, nosize (can't tell) or both" },
   { key: "item", kind: "tab", owner: "tabs/sec-exposed.js", means: "Security: the item an alert names, opened first (an opaque id: x or a and 12 hex)" },
   { key: "sxc", kind: "tab", owner: "tabs/sec-scanners.js", means: "Security > Who is scanning us?: what they looked for" },
@@ -110,8 +111,10 @@ export const ROUTE_KEYS = [
   { key: "list", kind: "overlay", owner: "tabs/person.js", means: "a list drawer: leftout, or conv-cancelled, conv-removed, conv-test", example: "leftout" },
   { key: "scan", kind: "overlay", owner: "tabs/sec-scanners.js", means: "Security > Who is scanning us?: one scanner's detail, by its first row: <day>.<seq> (never its address)", example: "2026-10-20.3" },
   { key: "ans", kind: "overlay", owner: "tabs/ai-answers.js", means: "AI answers: one stored answer in full, by its id", example: "412" },
-  { key: "setup", kind: "overlay", owner: "tabs/setup-dialogs.js, tabs/sitesadmin.js", means: "a Set up dialog (logs, assets, rsc, countries, script, lead, mail, privacy, pack: send set-up to someone, all: everything left with your AI agent); on Add or remove sites, the Add a site wizard (new, or a site's name); a site's name on any tab is its wizard too (Connections' Set up with your AI agent)", example: "rsc" },
-  { key: "conn", kind: "overlay", owner: "tabs/connections.js", means: "a Connections dialog: send, api, mcp or sample (Test a sample of a log)", example: "api" },
+  { key: "setup", kind: "overlay", owner: "tabs/setup-dialogs.js, tabs/sitesadmin.js", means: "a Set up dialog (logs, assets, rsc, countries, script, lead, mail, privacy, pack: send set-up to someone, all: everything left with your AI agent); on Settings › Sites, the Add a site wizard (new, or a site's name); a site's name on any tab is its wizard too (Set up with your AI agent)", example: "rsc" },
+  { key: "sact", kind: "overlay", owner: "tabs/site-actions.js", means: "Settings › Sites: a site's action dialog, <act>.<site> (act: pause, resume, remove, restore, clear or delete)", example: "pause.shop.example.com" },
+  { key: "conn", kind: "overlay", owner: "tabs/connections.js", means: "a connection dialog: send or sample (Test a sample of a log) on Collect data, api on Read figures (API), mcp on AI assistant (MCP)", example: "api" },
+  { key: "asst", kind: "overlay", owner: "tabs/conn-read.js", means: "the MCP dialog, by hand: the assistant chosen (claude-desktop, chatgpt, other; Claude Code when absent)", example: "claude-desktop" },
   { key: "lfmt", kind: "overlay", owner: "tabs/conn-sample.js", means: "Test a sample: the reader chosen (a try_log format name); absent: Detect it. The pasted lines never go in the address", example: "caddy_json" },
   { key: "step", kind: "overlay", owner: "tabs/conn-ui.js", means: "the step of the dialog open (1 is the first)", example: "2" },
   { key: "agent", kind: "overlay", owner: "tabs/site-wizard.js, tabs/agent-first.js", means: "Add a site, a Set up dialog or the MCP dialog: the AI agent chosen (claude-code, codex, cursor, chat, other), or hand (set it up by hand)", example: "claude-code" },
@@ -138,7 +141,7 @@ export const OVERLAY = ROUTE_KEYS.filter((k) => k.kind === "overlay").map((k) =>
 // The keys inside the dialog open (its step, the share form, the kit's token choice, the
 // set-up pack's box, Add a site's agent and the line it watches, Test a sample's reader); the other overlay keys
 // name the drawer or dialog itself.
-export const INSIDE = ["step", "share", "token", "pack", "agent", "link", "jobs", "lfmt", "pcd", "pck"];
+export const INSIDE = ["step", "share", "token", "pack", "agent", "link", "jobs", "lfmt", "pcd", "pck", "asst"];
 export const OPENERS = OVERLAY.filter((k) => !INSIDE.includes(k));
 // Always a token, whatever the value looks like: a search for a person, an address filter.
 export const ALWAYS_MASKED = new Set(["who", "ip"]);

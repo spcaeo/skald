@@ -1,4 +1,4 @@
-"""Settings > Integrations > Search: connecting Search Console and Bing from
+"""Settings > Leads & integrations > Search Console & Bing: connecting Search Console and Bing from
 the dashboard, no shell (sessions mode; docs/INTEGRATIONS.md, "Search").
 
 Served by the refresh helper for every site page, beside integrations_api.py
@@ -273,7 +273,7 @@ def properties(c, form):
         return None
     hosts = _hosts(c, site)
     if not hosts:
-        return c.no(409, "Set this site's host names first (Settings > Sites).")
+        return c.no(409, "Set this site's host names first (Settings > Site details).")
     job = _job(c, site)
     try:
         client = sync.google_client(job) if engine == "google" else sync.bing_client(job)

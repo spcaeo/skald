@@ -1,5 +1,5 @@
 """Private links that hand one set-up task to a web developer, no sign-in
-needed: "Share with your developer" in Settings > Connections, Add a site and
+needed: "Share with your developer" in Settings > Collect data > Send logs, Add a site and
 the Set up dialogs. The page they open is share_api.py's.
 
 A link is `<base>/traffic-auth/setup/<id>`, the id 22 random URL-safe

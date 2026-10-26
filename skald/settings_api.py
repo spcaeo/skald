@@ -26,7 +26,7 @@ check:
                                        SMTP settings; admins; 3 per 10 minutes;
                                        only to the caller or a confirmed recipient
                                        (mail_confirm.py)
-  GET  settings/views-fill             Settings > Sites > Views: the fill of past days
+  GET  settings/views-fill             Settings > Site details > Views: the fill of past days
   POST settings/views-fill-start       for new groups (views_fill_api.py); a save of
                                        sites.views answers `views` (what changed)
   GET  settings/audit?action=&limit=&format=csv
@@ -228,7 +228,15 @@ def _goal_choices(c: Ctx) -> list[dict]:
 def settings(c: Ctx, form):
     return c.ok(site=c.site, org=c.org["name"], role=c.role, install_admin=c.install_admin,
                 settings=described(c), totp_on=_totp_on(c.db, c.uid),
-                mail_waiting=_waiting(c), notice=notice(c))
+                mail_waiting=_waiting(c), notice=notice(c), keep_everything=kept(c))
+
+
+def kept(c: Ctx) -> dict:
+    """{"on", "why", "words"}: whether the site keeps everything (internal or
+    enterprise; keep_everything.py), so the page says nothing is deleted."""
+    from .keep_everything import describe
+    folder = Path(c.history_path).parent if c.history_path is not None else c.live_dir
+    return describe(c.config, c.site, folder)
 
 
 def notice(c: Ctx) -> dict:
@@ -382,6 +390,10 @@ def preview(c: Ctx, form):
             "rows": 0, "days": 0, "first": None, "last": None, "files": 0}
     if not body["shrinks"]:
         return c.ok(**body)
+    if not name.startswith("backup.") and kept(c)["on"]:
+        # Keep everything: a shorter window removes nothing on this site.
+        body.update(shrinks=False, kept=True, words=kept(c)["words"])
+        return c.ok(**body)
     if name.startswith("backup."):
         body["files"] = _backups_gone(c, name, value)
         return c.ok(**body)
@@ -473,7 +485,7 @@ def test_mail(c: Ctx, form):
         cfg = mailer.settings({**keep, "mail": section})
         now = datetime.now(timezone.utc)
         words = (f"This is a test mail from Skald for {c.site}, sent by "
-                 f"{c.session['email']} from Settings > Mail.\n\nIf you can read it, the "
+                 f"{c.session['email']} from Settings > Mail & reports.\n\nIf you can read it, the "
                  "mail settings work.")
         msg = mailer._message(cfg, f"Test mail for {c.site}", words,
                               f"<html><body><p>{_esc(words)}</p></body></html>", now)

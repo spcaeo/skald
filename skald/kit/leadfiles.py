@@ -1,7 +1,7 @@
 """The one-file lead helpers: a site's backend tells Skald a lead was made by
 calling one function (docs/help/leads-from-your-backend.md).
 
-Built from the templates in leads/, by the helper (Settings > Integrations,
+Built from the templates in leads/, by the helper (Settings > Leads & integrations,
 POST <page>/integrations/leadfile, integrations_api.py) and by the set-up pack:
 
     files(site, url, secret) -> {path under a leads/ folder: bytes}

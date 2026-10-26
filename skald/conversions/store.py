@@ -18,7 +18,9 @@ inside `with tx(db):`.
 
 Times are UTC, "2026-10-11T14:00:00Z". A figure not recorded is NULL.
 A conversion row holds no address and no user agent; an email is kept only
-in `identities`, and found again by a keyed hash (meta `hash_key`). The
+in `identities` (and the copies in `removed` and the spool), and found again
+by a keyed hash (meta `hash_key`); past a site's People days, when set and
+shorter than the lead's, people_days.py clears them, the rows kept. The
 address and user agent of a visit are in `visits` only, and only while the
 site keeps them (people/policy.py, `privacy.keep_ips`; with `short` the
 address is kept shortened, policy.shorten).
@@ -715,20 +717,27 @@ def vid_days(config: dict) -> int:
 
 def prune(db, today: date, vid_days: int = VID_DAYS,
           retention_days: int = RETENTION_DAYS, own_vid: dict | None = None,
-          own_keep: dict | None = None) -> dict:
+          own_keep: dict | None = None, spare=None) -> dict:
     """Delete what is past its time, per site (a site in `own_keep` /
     `own_vid` by its own days): conversions, removed rows and journeys after
     retention_days - never when it is 0 (FOREVER); the journeys of an ID with
     no conversion after vid_days; identities nothing points to; deliveries
-    after DELIVERY_DAYS whatever the site keeps."""
+    after DELIVERY_DAYS whatever the site keeps. A site `spare` names
+    (keep_everything) loses nothing at all."""
     def edge(days: int) -> str:
         return stamp(datetime.combine(today - timedelta(days=days), time(0),
                                       tzinfo=timezone.utc))
     own_vid, own_keep = own_vid or {}, own_keep or {}
+    spare = spare or (lambda site: False)
     conv = old = short = 0
     with tx(db):
-        sites = {r[0] for t in ("conversions", "removed", "journeys")
+        found = {r[0] for t in ("conversions", "removed", "journeys", "identities",
+                                "deliveries", "hook_replays", "pay_links")
                  for r in db.execute(f"SELECT DISTINCT site FROM {t}")}
+        kept = sorted(s for s in found if spare(s))
+        # " AND site NOT IN (...)": the rows of every site that keeps everything.
+        not_kept = f" AND site NOT IN ({','.join('?' * len(kept))})" if kept else ""
+        sites = {s for s in found if s not in kept}
         for site in sorted(sites):
             keep = int(own_keep.get(site, retention_days))
             if keep != FOREVER:
@@ -745,10 +754,12 @@ def prune(db, today: date, vid_days: int = VID_DAYS,
         ids = db.execute("DELETE FROM identities WHERE id NOT IN (SELECT identity_id FROM "
                          "conversions WHERE identity_id IS NOT NULL) AND id NOT IN (SELECT "
                          "CAST(json_extract(row, '$.identity_id') AS INTEGER) FROM removed "
-                         "WHERE json_extract(row, '$.identity_id') IS NOT NULL)").rowcount
-        dels = db.execute("DELETE FROM deliveries WHERE received_at < ?",
-                          (edge(DELIVERY_DAYS),)).rowcount
-        db.execute("DELETE FROM hook_replays WHERE received_at < ?", (edge(REPLAY_DAYS),))
+                         "WHERE json_extract(row, '$.identity_id') IS NOT NULL)" + not_kept,
+                         kept).rowcount
+        dels = db.execute("DELETE FROM deliveries WHERE received_at < ?" + not_kept,
+                          (edge(DELIVERY_DAYS), *kept)).rowcount
+        db.execute("DELETE FROM hook_replays WHERE received_at < ?" + not_kept,
+                   (edge(REPLAY_DAYS), *kept))
         for site in sorted(sites):
             keep = int(own_keep.get(site, retention_days))
             if keep != FOREVER:

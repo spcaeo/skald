@@ -48,7 +48,7 @@ share. Set up each tool the site uses that is not set up yet:
   key in a 0600 file or an environment variable, never in the chat): make the webhook
   yourself, with the address, events and secret below. Ask the user first, as for any change.
 - **Else** give the user the clicks below, with the address filled in, and ask them to make
-  or paste the secret in Skald themselves (__DASHBOARD__, Settings > Integrations, the tool's
+  or paste the secret in Skald themselves (__DASHBOARD__, Settings > Leads & integrations, the tool's
   box): then the secret never passes through you. Report the tool as `left`.
 
 **A secret Skald makes** (Calendly, Cal.com, Typeform; Zapier, Make and n8n): take it with

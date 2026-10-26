@@ -13,7 +13,7 @@ one place to look a person up.
                 removed), listed
     api.py      the helper's routes for the page, and the token route
     notice.py   wording for the site's privacy notice, made from what the
-                policy functions say it keeps (Settings > Data retention)
+                policy functions say it keeps (Settings > Privacy & retention)
 
 Every visit kept is checked: audit_people.py recounts the day's readers per
 address from the raw log by its own road, and a day that disagrees is

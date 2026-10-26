@@ -51,6 +51,7 @@ LOCK = ".ingest.lock"
 ORG_USAGE = ".org-bytes.json"     # in the ingest root: {"day", "orgs": {org id: bytes}}
 ORG_LOCK = ".org-bytes.lock"
 KEEP = 14
+ARCHIVE = "archive"                  # keep everything: rotated-out days, by UTC day
 MAX_MB = 1024
 MAX_SHIPPERS = 200
 SHIPPER = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
@@ -131,9 +132,10 @@ class Writer:
     """Appends one site's batches. `clock` is Unix seconds (tests move it)."""
 
     def __init__(self, folder: Path, keep: int = KEEP, max_mb: float = MAX_MB,
-                 clock=time.time, base: str = BASE):
+                 clock=time.time, base: str = BASE, archive: bool = False):
         self.folder, self.base = Path(folder), base
         self.keep = max(1, int(keep))
+        self.archive = archive          # keep everything: the oldest file moves to archive/
         self.max_bytes = int(float(max_mb) * 1024 * 1024)
         self.clock = clock
 
@@ -225,12 +227,16 @@ class Writer:
         self.rotate()
 
     def rotate(self) -> None:
-        """access.log -> .1 -> .2.gz ... -> .<keep>.gz, oldest dropped,
-        every file keeping its modification time."""
+        """access.log -> .1 -> .2.gz ... -> .<keep>.gz, oldest dropped (or, on a
+        site that keeps everything, moved to archive/<base>.<its UTC day>.gz, out
+        of run-daily's reach), every file keeping its modification time."""
         b = self.folder / self.base
         last = self.folder / f"{self.base}.{self.keep}.gz"
         if self.keep >= 2 and last.exists():
-            last.unlink()
+            if self.archive:
+                self._to_archive(last)
+            else:
+                last.unlink()
         for n in range(self.keep - 1, 1, -1):
             src = self.folder / f"{self.base}.{n}.gz"
             if src.exists():
@@ -242,6 +248,17 @@ class Writer:
             one.unlink()
         if b.exists():
             os.replace(b, one)
+
+
+    def _to_archive(self, src: Path) -> None:
+        shelf = self.folder / ARCHIVE
+        shelf.mkdir(mode=0o750, exist_ok=True)
+        day = _day(src.stat().st_mtime)
+        dest, n = shelf / f"{self.base}.{day}.gz", 1
+        while dest.exists():
+            n += 1
+            dest = shelf / f"{self.base}.{day}-{n}.gz"
+        os.replace(src, dest)
 
 
 def _gzip(src: Path, dest: Path) -> None:

@@ -4,7 +4,7 @@
 // (POST settings/save; the IP choice is always sent, so the choice is
 // recorded), then "Wording for your privacy notice" made again from the
 // answer (people/notice.py, the answer's `notice`) with a Copy button.
-// The words follow Settings > Data retention (prefs.js).
+// The words follow Settings > Privacy & retention (prefs.js).
 
 import { h, toast } from "../ui.js";
 import { call } from "./ipmanager.js";
@@ -24,7 +24,7 @@ const IDENTITY = [
 const modeOf = (v) => (v === true ? "full" : v === false ? "off" : v || "full");
 
 export function noticeBox(nt) {
-  if (!nt || !Array.isArray(nt.items)) return h("p", { class: "empty" }, "The wording could not be made here. Settings > Data retention shows it.");
+  if (!nt || !Array.isArray(nt.items)) return h("p", { class: "empty" }, "The wording could not be made here. Settings > Privacy & retention shows it.");
   const copy = h("button", { type: "button", class: "btn" }, "Copy");
   copy.addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(nt.text); toast("Copied the wording"); } catch { toast("Copy is not allowed here; select the text instead"); }
@@ -71,7 +71,7 @@ export async function privacyDialog(site, { onClose = null, route = null, start 
         } },
       { name: "Your privacy notice",
         draw: () => [h("p", { class: "msg ok" }, "Saved. Copy this wording into your privacy notice."), noticeBox(st.notice),
-          h("p", { class: "note" }, "You can change both choices later in Settings > Data retention > People.")] },
+          h("p", { class: "note" }, "You can change both choices later in Settings > Privacy & retention > People.")] },
     ],
   });
 }

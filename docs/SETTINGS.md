@@ -159,7 +159,75 @@ The value shown and used is the smaller of the setting and the cap: a site row o
 plan capped at 90 reads 90, marked `capped: true` with the saved value as `set_value`, and the
 page says "Capped by your plan". The input's top is the cap, and a save above it is refused.
 The daily run's pruning uses the capped value too (`settings_store.apply`, `prune_plan`), so a
-smaller plan keeps fewer days from its next run.
+smaller plan keeps fewer days from its next run. A plan with `keep_everything: true` has no
+pruning at all ([Keep everything](#keep-everything)).
+
+## Keep everything
+
+The owner's rule (2026-10-26) for internal and enterprise installs: nothing is deleted. A site
+keeps everything (`skald/keep_everything.py`) when
+
+- **the install says so**: `retention.keep_everything: true` in `config.yml` (Docker:
+  `SKALD_KEEP_EVERYTHING=1`). Every site of the install keeps everything. This is how a
+  server that sells no plans (saas off) turns it on.
+- **hosted (saas on)**: the site's organisation has no plan (the install's own: internal), or
+  its plan says `keep_everything: true` in `saas.plans` (Enterprise):
+
+  ```yaml
+  saas:
+    plans:
+      pro: {sites: 5, retention_days_max: 400, label: "Pro"}
+      enterprise: {keep_everything: true, label: "Enterprise"}
+  ```
+
+  A site no organisation holds is the install's own. A customer plan's sites are pruned as
+  before.
+
+On such a site no automatic deletion or clearing of any kind runs, whatever a retention window,
+the People days or a plan's cap says. Each path below asks the keeper first:
+
+| Path | Code | On a keep-everything site |
+|---|---|---|
+| Anonymous journeys past `report.journey_days` | `prune.prune_kept`, `store_visits.prune_sites` | kept (the site and its views) |
+| Returning-visitor hashes past `visitors.repeat_days` | `visitors.prune` | kept |
+| Per-page and per-visit detail past `report.retention_days`, and the AI fetches past 180 days | `History.prune_extras` | kept |
+| Visits with addresses past `privacy.keep_days`; every visit when `keep_ips` turns off; the shortening when it turns `short` | `people/visits.prune` | kept, unchanged |
+| Security's scanner rows (the same three) | `security_kept.prune` | kept, unchanged |
+| Leads, removed rows and lead journeys past `conversions.retention_days`; journeys of an ID with no lead past `journeys.vid_days`; identities nothing points to; deliveries (90 days), replay hashes and payment links | `conversions/store.prune` | kept |
+| The hook spool's lines | `conversions/spool.prune` | kept (with every site kept, no file is opened) |
+| Names and emails past the People days, in leads, removed rows, the spool and the upgrade copies | `conversions/people_days.run` | kept |
+| The outgoing webhooks' outbox past 30 days | `conversions/outgoing.prune` | kept |
+| In-page event counts past `beacon.keep_days` | `events.collect` | kept |
+| The beacon spool files | `beacon.prune` (from `events.daily`) | kept while any site of the install keeps everything (the spool holds every site's lines) |
+| AI answers runs past their profile's days | `answers/run.run_site` | kept |
+| Closed alerts after 30 days | `alerts.apply` | kept |
+| Daily and weekly copies of the conversions file | `backup.make` (from `skald backup`) | kept while any site keeps everything (one file holds every site's leads) |
+| Shipped raw logs past `ingest.keep` days (14) | `ingest_log.Writer.rotate` | moved to `<site>/archive/access.log.<UTC day>.gz` instead of deleted, outside run-daily's window (owner, 2026-10-26: about 11 MB a day for every live site) |
+
+Still as before, because they are not stored data about a person or a figure: the history's own
+daily and weekly backups (`backup.daily`, `backup.weekly`: one copy a day of a large file), the live files rewritten every
+run (the Requests list's 6 hours, today's AI activity), caches, signed-in sessions, sign-in
+attempts, invites and sign-ups, and the temporary files of an upgrade.
+
+A person's own deletion request still works: `skald forget` and `skald conversions forget`,
+run by an admin by hand, delete what is kept about that person. Removing a site with `sites
+remove` is also by hand.
+
+What a site owner sees: Settings > Data retention says "Kept: nothing is deleted (internal or
+enterprise)." above the cards and on the People card, and a shorter window's preview says it
+removes nothing; the privacy notice wording says each thing is kept "until you ask us to delete
+it"; `skald doctor` shows one line, "Keep everything: on". `GET settings` returns
+`keep_everything: {on, why, words}` (`why`: `install`, `no plan` or `plan <name>`), and the
+retention preview answers `kept: true, shrinks: false` with the words.
+
+## A plan's usage alerts (config only)
+
+`saas.usage_alerts` (on by default when saas is on; `false` turns it off) mails an
+organisation's owners and admins once when this month's requests reach 80, 90 and 100 % of its
+plan's `requests_month`, and shows them a banner on every page from 80 %. Off, the mails and
+the banner stop; Settings > Billing still shows the bar. It is a config key, not a dashboard
+setting: the install's operator decides it for every organisation. Self-hosted installs (saas
+off) have neither. What is sent, when and to whom: docs/SAAS.md, "Usage alerts".
 
 ## People: keeping IPs and emails (2.4.0)
 
@@ -167,6 +235,22 @@ smaller plan keeps fewer days from its next run.
 tables `visits` and `visit_days` in `conversions.sqlite`), for `privacy.keep_days` days.
 `conversions.identity: full` keeps a lead's name and email with its conversions. Turning
 `keep_ips` off deletes the site's kept visits at the next nightly run (`people.visits.prune_kept`).
+
+**The People days cover names and emails too (after 2.38.0).** When a site set
+`privacy.keep_days` (its own or its organisation's row, the install's row, config.yml or a
+plan's cap; `settings_store.promised`, the plan's `set`) and it is shorter than
+`conversions.retention_days` (any number is shorter than 0, kept for good), a lead's name and
+email are kept that many days. Then the nightly prune clears them from every copy: the
+identity (blanked, or its older rows moved to a blank one when the person also has a younger
+lead), the rows a sync removed, the hook spool's lines and the schema-upgrade copies
+(`conversions/people_days.py`, DATA-CONTRACT-PEOPLE.md). The lead stays and keeps counting;
+every figure and the second count are unchanged. The first live run after the upgrade clears
+the rows already past it. A site that set no People days (the code's 395 is not a promise) or
+longer ones keeps the old rule: names and emails go with the lead. The privacy notice's
+wording says it (`name_days` in `uses`): "We keep them for 180 days. After that we keep the form
+or booking without your name and email, for 400 days" (or "until you ask us to delete it").
+Making `privacy.keep_days` smaller is confirmed like any shorter window; the preview counts
+the kept visits only.
 
 **Three values (2.15.0).** `full` keeps the whole address, `short` keeps it shortened, `off`
 keeps none. `true` and `false` (config.yml, settings rows saved before 2.15.0, the CLI) still
@@ -202,7 +286,8 @@ name and email, and the pages read with its visitor ID, are kept (`lead_days`, `
 **Leads: how long they are kept (2.29).** The card **Leads** holds two keys, per site:
 
 - `conversions.retention_days` (400): the conversions, the rows a sync removed, the journeys
-  of IDs that converted, the identities they point to and the hook spool's lines. `0` (or
+  of IDs that converted, the identities they point to and the hook spool's lines (their names
+  and emails only for the People days when the site set those shorter, above). `0` (or
   the word `forever`) keeps them for good: `conversions/store.prune` never deletes them and
   `spool.prune` keeps the site's lines. The page shows it as two choices, "Kept for good" or
   N days (`forever` in the answer). The delivery log keeps its own 90 days, the replay hashes
@@ -524,10 +609,14 @@ origin and the session's `X-Skald-CSRF` value.
 | GET `<page>/settings/audit?action=&limit=&format=csv` | admin | `{entries, actions}` or a CSV file; install admins see every organisation |
 | GET `<page>/settings/views-fill` | admin | `{fill, reach, views}`: the page-group fill's state for this site (another organisation's site only `{state: "busy"}`), the days the raw log holds. Below, "Page groups: filling past days" |
 | POST `<page>/settings/views-fill-start` | admin | `{views?: [slug]}` (default every view of the site) -> `{fill, reach}`; starts `skald --site S views refresh --days N --view ...` in the background. 409 while a fill runs on the install, or when the raw log holds no whole day; audit `views.fill` |
-| GET `<page>/sites` | every member | the organisation's sites: config file or dashboard, active or removed, log received. To admins also `kit {docker, systemd, why, image, ship_path}`, `api_base`, `mcp_url`, `mcp_enabled`, `beacon_on`, and per site `setup` and `quiet` (below) |
+| GET `<page>/sites` | every member | the organisation's sites: config file or dashboard, `status` active, paused or removed (`paused_at`, `removed_at`, `cleared_at`, `main`), log received. To admins also `kit {docker, systemd, why, image, ship_path}`, `api_base`, `mcp_url`, `mcp_enabled`, `beacon_on`, and per site `setup` and `quiet` (below) |
 | POST `<page>/sites/add` | admin | `{host, timezone?, format?, token?}` -> the site, an ingest token (shown once), the shipper command, the tag. `token: false` makes no token (the Add a site wizard makes a named one later). Needs `ingest.enabled` (docs/INGEST.md) |
 | POST `<page>/sites/token` | admin | `{name}`: a new ingest token for one of the organisation's sites |
-| POST `<page>/sites/remove` | owner | `{name, confirm: name}`: a dashboard site stops being processed; data kept until `skald site purge` |
+| POST `<page>/sites/pause`, `<page>/sites/resume` | admin | `{name}`: stop collecting and counting a site (any site: dashboard or config file), or start again. Paused: ingest answers 503 with Retry-After 3600 (the shipper keeps its lines), live and run-daily skip it, everything is kept. Resume answers `{days, first, last, words}`: the whole days the pause missed and whether the log can still fill them. Audit `site.pause`, `site.resume`; 20 changes an hour per site (429) (`site_actions_api.py`, `site_lifecycle.py`) |
+| POST `<page>/sites/remove`, `<page>/sites/restore` | owner | remove: `{name, confirm: name}`: stop processing and hide the site (ingest 410); its data is kept. Restore: `{name}`: undo it. Works for a config-file site too (its entry stays in the config). Audit `site.remove`, `site.restore` |
+| POST `<page>/sites/clear` | owner | `{name, confirm: name, understood: true}` -> `{archive, archive_name, deleted}`: one archive of the site's collected data in the backups folder (kept 30 days), then that data deleted (history, the shipped log, conversions and leads, AI answer runs, the state folder); settings, tokens, webhooks, funnels kept; days before the clear are never collected again. 3 clears or deletes an hour per organisation. Audit `site.clear` with the archive's name |
+| POST `<page>/sites/purge` | owner | `{name, confirm: name, understood: true}` -> `{archive, archive_name, deleted, tokens_revoked, status}`: "Delete all data": the archive, then every store of the site (`site_data.py` lists them), its tokens revoked. `status: "deleted"`: a dashboard site is gone (its name held 30 days); `"removed"`: a config-file site keeps its entry, removed, with no data. Audit `site.purge` with the archive's name |
+| | | The install's main site (the config file's own) answers 400 to remove, restore, clear and purge; it can only be paused |
 | POST `<page>/sites/verify` | admin | `{name}`: looks for the site's `skald-verify` token (DNS TXT or the home page's meta tag); 10 checks an hour per site |
 | GET `<page>/sites/status?site=<name>` | admin | what has reached Skald for the site, for the Test in Settings > Connections (DATA-CONTRACT.md, "Connections status") |
 | POST `<page>/sites/kit` | admin | `{site, method: server\|docker\|systemd, include_token?, token?}` -> for `server`, the one-file installer `skald-install-<site>.sh`, `text/x-shellscript` (docs/INGEST.md, "One command: the one-file installer and the install link"); for `docker` or `systemd`, the zip kit, `application/zip` (docs/INGEST.md, "The install kit and check.sh"). The token goes in only with `include_token: true` and a valid sending token of that site; else 400 |

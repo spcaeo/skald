@@ -24,7 +24,7 @@ Fix the first problem it names, then run it again.
 
 At the end is a block that starts **Copy this and send it to us**. Send that block to whoever runs your Skald server, or to us. It holds no token, and every IP address in it is masked.
 
-> No `skald-ship-check` on the server? The shipper was not installed, was removed, or came from an older zip kit (use its `check.sh`). Make a new command in [Connections](#settings/api) > **Send this site's visits to Skald** > **Run one command**, and run it on the server.
+> No `skald-ship-check` on the server? The shipper was not installed, was removed, or came from an older zip kit (use its `check.sh`). Make a new command in [Send logs](#settings/site/collect) > **Send this site's visits to Skald** > **Run one command**, and run it on the server.
 
 ## Common problems
 
@@ -40,7 +40,7 @@ The same table is under the Test in the dialog, folded as **Common problems, and
 | Nothing received: the log is not growing | Nobody visited yet, or the site logs somewhere else. | Open the site in a browser, then test again. If the file still does not grow, find its access_log line. |
 | Visits from another host name | www and another host share one log file. | Give www its own access_log line in its server block, then run the installer again. |
 | Refused: too many batches (429) | The shipper sent many batches at once, usually right after it started. | Nothing to do. The shipper slows down and sends the rest. |
-| Refused: the site is not verified (403) | The site waits for proof that the domain is yours. | Finish step 2 of the site's set-up (Settings > Add or remove sites). |
+| Refused: the site is not verified (403) | The site waits for proof that the domain is yours. | Finish step 2 of the site's set-up (Settings > Organisation > Sites). |
 | Docker is missing | The server has no Docker. The one command (or the one file) then runs the shipper as a small system service; only the by-hand way with Docker needs Docker. | Nothing to do. If the installer stops with "this server can run the shipper in no way it knows", install Python 3.9 or newer, then run the command again (make a new one if it was used). |
 | Pages opened inside a Next.js site are not counted | The log does not record Next.js's prefetch header, so a click cannot be told from a prefetch. Only the first page of each visit counts. | Add one line to the site's log format (below, "Next.js sites"). sudo skald-ship-check and Overview's checklist say when it is missing. |
 | The site check could not reach the site | The site is not live yet, turns automated visitors away, or its name points to a private address, which Skald never fetches. | Choose the way by hand in step 3: nothing else depends on the check. Press Check again once the site is live. |
@@ -79,7 +79,7 @@ In **Send this site's visits to Skald**, step **Test**, and in the last step of 
 | Waiting for the first lines. Nothing has reached Skald yet. | No batch has arrived. It checks again every 5 seconds for up to 2 minutes. If nothing comes, see Common problems above |
 | Connected: N lines received today, the last at 10:42 (2 min ago). | It works |
 | Connected before: the last lines came at ... Nothing today yet. | Lines came on an earlier day. Open the site in a browser, then test again |
-| Lines arrive, but none could be read | Batches reach Skald, but no line is in a format the site reads. Set the site's log format to Detect it (auto) in Settings > Add or remove sites. **Test a sample** in Settings > Connections says which format the lines are in and why they fail ([Test a sample of a log](connections.md#test-a-sample-of-a-log)) |
+| Lines arrive, but none could be read | Batches reach Skald, but no line is in a format the site reads. Set the site's log format to Detect it (auto) in Settings > Organisation > Sites. **Test a sample** in Settings > This site > Collect data > Send logs says which format the lines are in and why they fail ([Test a sample of a log](connections.md#test-a-sample-of-a-log)) |
 | The log endpoint is switched off on this server. | Ask whoever runs Skald's server to switch the log endpoint on (ingest.enabled) |
 | The site is not verified yet, so nothing is collected for it. | Finish step 2 of the site's set-up (prove the domain is yours) |
 | Refused at 10:41: ... | Skald refused the last batch. The reason and the fix are in the next table |
@@ -99,10 +99,10 @@ Skald notes only the newest refusal for each site, and at most one a second. It 
 | This server does not process this site. | This Skald does not process the site. Check the site name in the send address. |
 | Too many batches at once. The shipper slows down and catches up. | Nothing to do: the shipper waits and sends the lines a little later. |
 | Today's limit of log data is used up. The shipper sends the rest later. | Nothing to do: the lines are sent after midnight UTC. Ask for a bigger daily limit if this happens every day. |
-| Over the plan's limit. | Choose a bigger plan in Settings > Billing. Nothing is lost. |
-| The organisation is read-only (billing). | Settle the bill in Settings > Billing. Nothing is lost. |
+| Over the plan's limit. | Choose a bigger plan in Settings > Organisation > Billing & usage. Nothing is lost. |
+| The organisation is read-only (billing). | Settle the bill in Settings > Organisation > Billing & usage. Nothing is lost. |
 | Skald's server is short of disk space. The shipper tries again later. | Ask whoever runs Skald's server to free disk space. Nothing is lost. |
-| The site's log format does not match what was sent. | Set the site's log format to Detect it (auto) in Settings > Add or remove sites. |
+| The site's log format does not match what was sent. | Set the site's log format to Detect it (auto) in Settings > Organisation > Sites. |
 | The batch was malformed. | Update the shipper: make a new command and run it again on the server. |
 | The batch was too large. | Update the shipper: make a new command and run it again on the server. |
 | Accounts are not set up on Skald's server. | Ask whoever runs Skald's server: accounts must be on for log sending. |
@@ -131,7 +131,7 @@ While nothing has arrived, the Test also looks at your home page and says what i
 | The tag is not in the HTML ... The page loads Google Tag Manager. | Publish the Tag Manager container, with the tag firing on All Pages |
 | The tag is on your page but posts to www.example.com/traffic-beacon, which answers 308. | An older tag or script that posts to your own site. Copy the tag again from step 2, or pass `/traffic-beacon` on to Skald from your server |
 | ... its script answers 404. | You serve the tag from your own domain, and your server does not pass `/traffic-js/` on to Skald. Use the tag from step 2, or add the lines in "Advanced: serve it from your own domain" |
-| Your page is at ..., which is not one of the site's host names. | Add that host name in Settings > Sites |
+| Your page is at ..., which is not one of the site's host names. | Add that host name in Settings > This site > Site details |
 | ... Content-Security-Policy does not let it send to ... | Add your Skald server's address to `connect-src` |
 | Skald could not open ... | Check the address opens in a browser |
 

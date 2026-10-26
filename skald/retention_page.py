@@ -101,7 +101,7 @@ def build(page) -> dict:
     if ident is None:
         out["why"] = "none"
         out["words"] = ("Retention needs a way to know a visitor again: kept visits "
-                        "(Settings > Data retention > People, keep IP addresses) or the 30-day visitor code "
+                        "(Settings > Privacy & retention > People, keep IP addresses) or the 30-day visitor code "
                         "(the visitor key). This site has neither.")
     begun = {}
     for grain, kind in rt.KINDS.items():
@@ -140,7 +140,7 @@ def visitors(config: dict, folder, history_db, site: str, grain: str, start: str
     ident = rt.identity(config, folder)
     out = {"ok": True, "found": False, "rows": [], "stored": None}
     if ident is None or ident["by"] != "address":
-        out["why"] = ("Only kept visits (Settings > Data retention > People, keep IP addresses) can list the "
+        out["why"] = ("Only kept visits (Settings > Privacy & retention > People, keep IP addresses) can list the "
                       "visitors behind a cell; the 30-day code names nobody.")
         return out
     if grain not in rt.KINDS or k < 0 or k > rt.OFFSETS[grain] or \

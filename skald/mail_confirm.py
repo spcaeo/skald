@@ -1,7 +1,7 @@
 """Mail recipients typed on the page must confirm before Skald mails them.
 
 The install's SMTP server sends for every organisation, so an address added
-in Settings > Mail (`mail.to`, a site or organisation row) gets nothing but
+in Settings > Mail & reports (`mail.to`, a site or organisation row) gets nothing but
 one confirm mail until its owner follows the link in it:
 
   * `request` makes the link: at most one per address per day, whichever

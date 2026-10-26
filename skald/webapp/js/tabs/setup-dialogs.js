@@ -1,8 +1,8 @@
 // The "Set up this site" checklist's Set up buttons (checklist.js): one short
-// guided dialog per open line, in the same wizard as Settings > Connections
+// guided dialog per open line, in the same wizard as Settings > Collect data > Send logs
 // (conn-ui.js). This file opens the right one, and holds the three small ones:
 //
-//   logs       Settings > Connections' "Send this site's visits" (conn-send.js),
+//   logs       Settings > Collect data > Send logs' "Send this site's visits" (conn-send.js),
 //              with GET sites' answer
 //   assets     where the pages load their own files: GET settings, then
 //              POST settings/save site.asset_prefixes (or site.require_rendering)
@@ -131,7 +131,7 @@ export function assetsDialog(site, { item = null, onClose = null, route = null, 
         } },
       { name: "Done",
         draw: () => [h("div", { class: "state ok", role: "status" }, h("div", null, h("p", null, h("strong", null, "Saved. "), "It applies from the next daily run, each morning. This line ticks itself once the server sees browsers load those files."))),
-          h("p", { class: "note" }, "You can change it later in Settings > Sites > Page assets."),
+          h("p", { class: "note" }, "You can change it later in Settings > Collect data > What counts."),
           adminFold([...(item?.tech ? [h("p", null, item.tech)] : []), h("p", null, "Days already stored are not counted again. To recount them, run backfill --force on the server.")])] },
     ],
   });

@@ -4,7 +4,7 @@
 // quarters of a page, copying text, meeting the not-found page. People only;
 // every figure is an aggregate with no visit key, so nothing here is joined
 // to a visit. Only verified days count; today's spool is "not yet checked".
-// Goals (beacon.goals, or Settings > Sites > Goals): each goal per 100 visits
+// Goals (beacon.goals, or Settings > Collect data > Script tag & goals): each goal per 100 visits
 // by source, from days whose events, sources and log figures all passed
 // their checks. skald.js sends every event here except CODE_ONLY
 // (beacon.CODE_ONLY), which only the site's own code sends.
@@ -70,10 +70,10 @@ function leftOut(days) {
 const add = (into, obj) => { for (const [k, v] of Object.entries(obj || {})) into[k] = (into[k] || 0) + v; return into; };
 function goals(f, r, s) {
   const g = f.goals;
-  const edit = sessions() && !isViewer() ? h("a", { class: "linkish", href: "#settings/sites" }, "Edit goals") : null;
+  const edit = sessions() && !isViewer() ? h("a", { class: "linkish", href: "#settings/site/collect?sub=script" }, "Edit goals") : null;
   const title = h("div", { class: "card-h start" }, h("h2", null, "Goals"), info("Each goal's events per 100 visits from each source. Visits come from the server log, events from the beacon: two counts side by side, never joined per visit. A day counts only when both passed their checks. No rate is given over fewer than 10 visits.", "Goals"), edit);
   if (!g) return h("section", { class: "s" }, title, h("p", { class: "note" }, sessions()
-    ? "No goal is set. An admin chooses the events that count as goals in Settings > Sites (Edit goals), for example Sign-up sent or Demo booked, to see each one per 100 visits by source."
+    ? "No goal is set. An admin chooses the events that count as goals in Settings > Collect data > Script tag & goals (Edit goals), for example Sign-up sent or Demo booked, to see each one per 100 visits by source."
     : "No goal is set. Name the events that count as goals under beacon.goals in the config (for example demo_booked, signup_submit) to see each one per 100 visits by source."));
   if (r.kind === "today") return h("section", { class: "s" }, title, h("p", { class: "note" }, "Goals count checked days only: today's appear after midnight."));
   const min = g.min_rate || 10;

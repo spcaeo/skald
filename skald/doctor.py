@@ -30,7 +30,7 @@ The parts, in order:
 Every check reads only (--send-test sends one mail to the recipients). A
 check that fails to run is reported as NEEDS ATTENTION with its error, never
 as OK. Exit status: 0 when nothing needs attention, 1 otherwise. --json
-prints the same list as JSON, one object per site (Settings > Integrations
+prints the same list as JSON, one object per site (Settings > Leads & integrations
 shows the integration lines through integration_checks()).
 """
 from __future__ import annotations
@@ -338,7 +338,7 @@ def page_assets(config: dict) -> dict:
                 "last lines: a visit counts as people only when its browser fetched one",
                 "Set site.asset_prefixes to where your pages load their scripts and styles "
                 "(WordPress: /wp-content/ and /wp-includes/; many sites: /assets/ or "
-                "/static/): Settings > Sites > Page assets, or `settings set <site> "
+                "/static/): Settings > Collect data > What counts, or `settings set <site> "
                 "site.asset_prefixes '[\"/wp-content/\"]'`; for the first site also "
                 "config.yml (Docker: SKALD_ASSET_PREFIXES). Turn the rule off "
                 "(site.require_rendering false) when they come from a CDN this log never sees.")
@@ -400,7 +400,7 @@ def hook_items(site_config: dict, folder, site: str, now: datetime, cmd: str) ->
     if not out:
         out.append(item("hooks", "Hooks", OFF, "no hook set up",
                         f"To add one: `{cmd} hooks secret {site} <tool>` (or Settings > "
-                        "Integrations), then give its address and secret to the tool."))
+                        "Leads & integrations), then give its address and secret to the tool."))
     if twice:
         shown = "; ".join(f"{d['ref']} ({' and '.join(d['tools'])})" for d in twice[:3])
         out.append(item("duplicates", "One lead, two tools", ATTENTION,
@@ -420,7 +420,7 @@ def script_tag(config: dict, state: dict, live_dir, now: datetime, config_path=N
     if not origins and state.get("script") is not True:
         return item("script", part, OFF, "not set up (no beacon.origins); hooks work without it",
                     "To add it: set beacon.origins (Docker: SKALD_BEACON_ORIGINS) to the site's "
-                    "address, then put the tag from Settings > Integrations on every page.")
+                    "address, then put the tag from Settings > Collect data > Script tag & goals on every page.")
     shown = ", ".join(origins) or "the helper's --origin"
     if state.get("up") and state.get("script") is False:
         return item("script", part, ATTENTION,
@@ -466,12 +466,12 @@ def mail(config: dict, send_test: bool = False) -> dict:
     section = (config or {}).get("mail") or {}
     if not section.get("host"):
         return item("mail", part, OFF, "no SMTP server set (mail.host)",
-                    "Settings > Mail, or the mail section of the config.")
+                    "Settings > Mail & reports, or the mail section of the config.")
     try:
         cfg = mailer.settings(config)
     except mailer.Refused as why:
         return item("mail", part, ATTENTION, f"cannot send: {why}",
-                    "Settings > Mail, or the mail section of the config.")
+                    "Settings > Mail & reports, or the mail section of the config.")
     if not send_test:
         return item("mail", part, OK, f"set up: {cfg['host']}:{cfg['port']} to "
                     f"{len(cfg['to'])} recipient{'s' if len(cfg['to']) != 1 else ''} "
@@ -556,6 +556,20 @@ def disk(folder) -> dict:
     return item("disk", "Disk", OK, says)
 
 
+def keep_everything(config: dict, site: str, live_dir) -> dict | None:
+    """One line when the site keeps everything (keep_everything.py); none when not."""
+    from .keep_everything import Keeper
+    why = Keeper(config, live_dir).why(site)
+    if why is None:
+        return None
+    said = {"install": "the install says so (retention.keep_everything)",
+            "no plan": "the site's organisation has no plan: the install's own"}.get(why) \
+        or f"its plan, {why[5:]}, says so"
+    return item("keep", "Keep everything", OK,
+                f"on: nothing on this site is deleted or cleared by itself ({said}); "
+                f"a person's own deletion request, run by hand, still works")
+
+
 # ------------------------------------------------------------ all of them
 
 def _safe(ident: str, part: str, fn, *args) -> list[dict]:
@@ -593,12 +607,13 @@ def checks(ctx, send_test: bool = False, helper_state: dict | None = None) -> li
     out += _safe("version", "Version", version, config, folder, now, cmd)
     out += _safe("crawlers", "Crawler checks", crawler_checks, config, now, cmd)
     out += _safe("disk", "Disk", disk, folder)
+    out += _safe("keep", "Keep everything", keep_everything, config, ctx.site, ctx.live_dir)
     return out
 
 
 def integration_checks(site_config: dict, folder, site: str, live_dir=None,
                        now: datetime | None = None, config_path=None) -> list[dict]:
-    """The lines Settings > Integrations shows: the access log and its page
+    """The lines Settings > Leads & integrations shows: the access log and its page
     assets (the first road in, which Overview's first-run checklist also reads),
     the receiver, the script tag, each hook, one lead from two tools, the lead
     database."""

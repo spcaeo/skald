@@ -7,7 +7,7 @@
 whole day the log still holds (or the last N days), each chosen view counted
 with the site's rules, checked, and recounted by the audit's own road
 (audit_views.py); a day that does not match is withheld. The site's own days
-are left as they are. It is what Settings > Sites > Views starts with "Fill
+are left as they are. It is what Settings > Site details > Views starts with "Fill
 past days for the new groups"; one fill at a time per install.
 
 Exit: 0 every day filled and audited, 1 a day withheld or nothing to fill,
@@ -26,7 +26,7 @@ def cmd_list(ctx) -> int:
             ctx.out(f"{v.slug}\t{v.name}\t{v.describe()}\t"
                     f"from {first.isoformat() if first else 'no day stored yet'}")
     if not ctx.views:
-        ctx.out(f"{ctx.site}: no views (Settings > Sites > Views, or dashboard.views)")
+        ctx.out(f"{ctx.site}: no views (Settings > Site details > Views, or dashboard.views)")
     ctx.out(f"the raw log holds {got['days']} whole day(s)"
             + (f", {got['first']} to {got['last']}" if got["days"] else ""))
     return 0

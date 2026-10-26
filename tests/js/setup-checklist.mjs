@@ -493,7 +493,7 @@ assert.ok(!button(conn, "Hide on Overview"), "no Hide on Connections");
 assert.equal(conn.querySelector(".su-head h2").textContent, `Set up ${SITE}`);
 
 // ---- Hide on Overview: hidden on Overview only, with the note that it stays on Connections
-assert.ok(box.textContent.includes("Always in Settings › Connections"));
+assert.ok(box.textContent.includes("Always in Settings › Set-up checklist"));
 button(box, "Hide on Overview").click();
 assert.ok(!box.parentNode, "hidden for this site");
 assert.equal(setupChecklist(m), null, "not on Overview");

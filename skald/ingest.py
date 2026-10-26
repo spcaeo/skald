@@ -13,8 +13,10 @@ Each request, in this order, before anything is kept:
      token, 403 for a token of another organisation or site, or without the
      scope. An unknown site gets the same 403, so a token cannot probe
      which sites exist.
-  3. a site removed in Settings > Sites: 410; a site waiting for its domain
-     to be verified (site_verify.py): 403
+  3. a site removed in Settings > Sites: 410; a site paused there: 503 with
+     Retry-After 3600 (the shipper keeps its lines and tries again;
+     site_lifecycle.py); a site waiting for its domain to be verified
+     (site_verify.py): 403
   4. at most `ingest.per_minute` batches a minute per site (burst
      `ingest.burst`): 429 with Retry-After; then (`guard`) a read-only
      organisation (saas.limits.read_only): 402, and less than
@@ -59,6 +61,7 @@ import zlib
 from pathlib import Path
 
 from . import ingest_log
+from .keep_everything import Keeper
 from .config import setting, site_name
 from .parse import AUTO_ORDER, PARSERS
 from .parse_cdn import W3C_HEADER
@@ -175,7 +178,7 @@ def unpack(raw: bytes, encoding: str) -> bytes:
 
 QUOTA_WORDS = ("This month's requests are over the plan's limit. Nothing is lost: the "
                "shipper keeps the lines and tries again. Choose a bigger plan in "
-               "Settings > Billing.")
+               "Settings > Billing & usage.")
 
 
 def quota(db, config, site: str, org_id, lines: int, nbytes: int,
@@ -208,7 +211,7 @@ def quota(db, config, site: str, org_id, lines: int, nbytes: int,
             return QUOTA_WORDS
         return (f"Over the plan's limit ({', '.join(sorted(got))}). Nothing is lost: the "
                 "shipper keeps the lines and tries again. Change the plan in "
-                "Settings > Billing.")
+                "Settings > Billing & usage.")
     if isinstance(got, dict):
         return (got.get("reason") or "over the plan's limit") if got.get("over") else None
     if isinstance(got, (tuple, list)) and got:
@@ -349,7 +352,7 @@ def _handle(h, config, live_dir, config_path) -> None:
                           or site in site_configs(config, config_path))}
     if drain is not None:
         return ingest_drain.handle(h, config, live_dir, config_path, site, drain)
-    from .accounts import apitokens, db as base, site_configs as dsites
+    from .accounts import apitokens, db as base
     acc = base.path_for(config, history_folder(config, live_dir))
     if acc is None or not Path(acc).is_file():
         return no(h, 503, "accounts are not set up here")
@@ -359,9 +362,9 @@ def _handle(h, config, live_dir, config_path) -> None:
         if not ok:
             code = 403 if ("not for that site" in why or "scope" in why) else 401
             return no(h, code, why, {"WWW-Authenticate": "Bearer"} if code == 401 else None)
-        row = dsites.get(db, site)
-        if row is not None and not row["active"]:
-            return no(h, 410, "this site was removed; nothing is kept for it")
+        stop = held(db, site)
+        if stop:
+            return no(h, *stop)
         from .site_verify import PENDING_WORDS, pending
         if pending(db, site):
             return no(h, 403, PENDING_WORDS)
@@ -388,7 +391,8 @@ def _handle(h, config, live_dir, config_path) -> None:
             ingest_log.root(config, history_folder(config, live_dir)), site)
         writer = ingest_log.Writer(
             folder, keep=int(setting(config, "ingest", "keep", ingest_log.KEEP)),
-            max_mb=float(setting(config, "ingest", "max_mb", ingest_log.MAX_MB)))
+            max_mb=float(setting(config, "ingest", "max_mb", ingest_log.MAX_MB)),
+            archive=Keeper(config, live_dir)(site))
         if writer.seen(shipper, seq):
             writer.append(shipper, seq, b"")          # counted as a duplicate
             return _answer(h, 200, {"ok": True, "accepted": 0, "rejected": 0,
@@ -419,6 +423,25 @@ def _handle(h, config, live_dir, config_path) -> None:
                                 "duplicate": False})
     finally:
         db.close()
+
+
+PAUSED_WORDS = ("This site is paused in Settings > Sites. Nothing is lost: the shipper "
+                "keeps the lines and sends them once it is resumed.")
+REMOVED_WORDS = "this site was removed; nothing is kept for it"
+
+
+def held(db, site: str) -> tuple | None:
+    """(status, words, headers) for a site that takes no lines now, or None:
+    410 for a removed site (from the dashboard, or a config-file site removed
+    in Settings), 503 with Retry-After for a paused one (site_lifecycle.py)."""
+    from .accounts import site_configs as dsites
+    from .site_lifecycle import paused, removed_here
+    row = dsites.get(db, site)
+    if (row is not None and not row["active"]) or removed_here(db, site):
+        return 410, REMOVED_WORDS, None
+    if paused(db, site):
+        return 503, PAUSED_WORDS, {"Retry-After": "3600"}
+    return None
 
 
 def _read_body(h) -> bytes | None:

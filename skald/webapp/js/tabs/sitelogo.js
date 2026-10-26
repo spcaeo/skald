@@ -1,4 +1,4 @@
-// Settings > Sites > Logo (2.6.0; logo_api.py, site_logos.py): the site's
+// Settings > Site details > Logo (2.6.0; logo_api.py, site_logos.py): the site's
 // logo at the three sizes it is shown (picker, menu, browser tab), what the
 // site itself gave and when it is asked again, and where the logo comes
 // from - the site (automatic), an upload, or the first letter on one of four

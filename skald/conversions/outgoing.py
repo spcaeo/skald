@@ -1,5 +1,5 @@
 """Outgoing webhooks: Skald tells the owner's CRM, Zapier or Slack what
-happened (Settings > Integrations > Outgoing, docs/INTEGRATIONS.md).
+happened (Settings > Leads & integrations > Outgoing webhooks, docs/INTEGRATIONS.md).
 
 Each site may have webhooks (table `webhooks`): a URL and the events it
 wants (EVENTS). The live and daily runs call `run(..., deliver=False)` per
@@ -672,9 +672,15 @@ def test(db, config: dict, folder: Path, site: str, wid, now: datetime | None = 
 
 # -------------------------------------------------------------------- run
 
-def prune(db, now: datetime | None = None, keep_days: int = KEEP_DAYS) -> int:
+def prune(db, now: datetime | None = None, keep_days: int = KEEP_DAYS, spare=None) -> int:
+    """Outbox rows older than keep_days, but none of a site `spare` names
+    (keep_everything)."""
     edge = store.stamp(_now(now) - timedelta(days=keep_days))
-    return db.execute("DELETE FROM outbox WHERE created_at < ?", (edge,)).rowcount
+    kept = [s for (s,) in db.execute("SELECT DISTINCT site FROM outbox").fetchall()
+            if spare is not None and spare(s)]
+    marks = f" AND site NOT IN ({','.join('?' * len(kept))})" if kept else ""
+    return db.execute("DELETE FROM outbox WHERE created_at < ?" + marks,
+                      (edge, *kept)).rowcount
 
 
 def run(config: dict, folder: Path, site: str, now: datetime | None = None,
@@ -695,7 +701,8 @@ def run(config: dict, folder: Path, site: str, now: datetime | None = None,
             out["queued"] = enqueue(db, config, site, now)
             if deliver:
                 out.update(deliver_due(db, config, folder, site, now, limit))
-            out["pruned"] = prune(db, now)
+            from ..keep_everything import Keeper
+            out["pruned"] = prune(db, now, spare=Keeper(config))
         finally:
             db.close()
     except Exception as why:            # noqa: BLE001 - a job beside the run, never its end

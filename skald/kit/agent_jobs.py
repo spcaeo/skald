@@ -57,7 +57,7 @@ LEAD_WORDS = {
             "keys file. Ask the user to get it from whoever runs their Skald."),
     "none": ("Leads were not included in this line, so the keys file has no lead secret. If "
              "the site makes leads, ask the user to make a new line with leads, or to make the "
-             "secret in Skald (Settings > Integrations > Lead)."),
+             "secret in Skald (Settings > Leads & integrations > Lead)."),
 }
 TOOL_LABELS = {"lead": "Your site's server (lead)", "json": "Zapier, Make, n8n (json)",
                "calendly": "Calendly", "calcom": "Cal.com", "stripe": "Stripe",
@@ -218,7 +218,7 @@ def _hook_states(facts: dict) -> str:
 def _privacy_now(facts: dict) -> str:
     mode, days = facts.get("keep_ips"), facts.get("keep_days")
     if mode not in KEEP_WORDS:
-        return "not known (ask the user to look at Settings > Data retention > People)"
+        return "not known (ask the user to look at Settings > Privacy & retention > People)"
     words = f"IP addresses {KEEP_WORDS[mode]}"
     if mode != "off" and isinstance(days, int) and not isinstance(days, bool):
         words += f" for {days} days"
@@ -259,7 +259,7 @@ def _example(jobs: list[str], site: str) -> str:
     if "logs" in jobs or "rsc" in jobs:
         out["nextjs_log_field"] = True
     out["changed_files"] = ["app/layout.tsx"] if "script" in jobs else []
-    out["left_for_user"] = ["Set Settings > Data retention > People to 30 days"] \
+    out["left_for_user"] = ["Set Settings > Privacy & retention > People to 30 days"] \
         if "logs" in jobs or "privacy" in jobs else []
     out["notes"] = "Anything else, in one or two plain sentences."
     return json.dumps({k: v for k, v in out.items() if v != []})

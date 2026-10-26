@@ -368,7 +368,8 @@ console.log(JSON.stringify([got.ok, post.ok, post.demo, other.ok, asked]));
         self.assertLess(get.index("DEMO.on"), get.index("fetch("))
         ref = data.split("export async function refresh(m) {", 1)[1]
         self.assertLess(ref.index("if (DEMO.on) return"), ref.index("fetch("))
-        self.assertIn("DEMO.on && S.inSettings(s.tab) ? demoState(name)", (APP_JS / "main.js").read_text())
+        # 2.40: in the frame, so the phone's menu and Help · Docs stay on the demo's settings pages.
+        self.assertIn("DEMO.on && S.inSettings(s.tab) ? framed(s.tab, () => demoState(name))", (APP_JS / "main.js").read_text())
 
 
 if __name__ == "__main__":

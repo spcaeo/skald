@@ -166,6 +166,10 @@ def render_config(env: dict) -> dict:
         if identity not in ("full", "anonymous"):
             raise SystemExit(f"SKALD_IDENTITY {identity!r}: use full or anonymous")
         config["conversions"] = {"identity": identity}
+    # 2026-10-26, the owner's rule for internal and enterprise installs:
+    # nothing is deleted or cleared by itself, on any site (keep_everything.py).
+    if str(env.get("SKALD_KEEP_EVERYTHING", "")).strip().lower() in ("1", "true", "on", "yes"):
+        config["retention"] = {"keep_everything": True}
     return config
 
 

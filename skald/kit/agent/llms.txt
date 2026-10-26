@@ -29,7 +29,7 @@ Either way:
 
 ## If there is no code
 
-Ask the user to make one in Skald: Settings > Add or remove sites > Add a site, then pick
+Ask the user to make one in Skald: Settings > Sites > Add a site, then pick
 their AI agent, or, for a site already in Skald, a set-up job's "Your AI agent" choice. Skald
 shows a line to paste to you. Do not guess a code.
 

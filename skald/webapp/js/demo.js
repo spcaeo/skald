@@ -9,7 +9,7 @@
 //   * the lists of what the figures leave out read theirs too (api.people:
 //     {"people/left-out": file, "people/conversions?kind=..": file}), and the Leads
 //     list its one answer ("people/leads", every period's rows, as a viewer sees them)
-//   * Settings > Connections shows the set-up list and the tokens from the demo's own
+//   * Settings › Set-up checklist shows the set-up list from the demo's own
 //     answers (api.setup: {settings, integrations, tokens}); its buttons only say why
 //     they do nothing here
 //   * a banner says it is sample data, with links to install it
@@ -48,8 +48,10 @@ export function demoFile(url) {
   return null;
 }
 
-// A settings page the demo can draw from its own answers (Connections, with the set-up list).
-export const demoTab = (tab) => tab === "settings/api" && !!DEMO.api.setup.settings;
+// A settings page the demo can draw (2.40): All settings, Help & docs, the MCP and API pages
+// (how it works), and the Set-up checklist from the demo's own answers.
+const DEMO_PAGES = new Set(["settings/home", "settings/help", "settings/ai/mcp", "settings/ai/api"]);
+export const demoTab = (tab) => DEMO_PAGES.has(tab) || (tab === "settings/site/setup" && !!DEMO.api.setup.settings);
 
 // What the helper would answer for `path`, from the demo's own file; else the polite refusal.
 export async function demoAnswer(path, body) {

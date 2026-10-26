@@ -9,9 +9,10 @@ install's config, like a `sites:` file; a config-file site of the same
 name wins.
 
 Removing a site (`remove`) only stops processing: the row is marked
-removed, multisite.py skips it, the ingest endpoint answers 410. Its
-history, dashboard folder and log files stay until an install admin runs
-`skald site purge <name>` (sites_cli.py), which calls `purge` here.
+removed, multisite.py skips it, the ingest endpoint answers 410; `restore`
+undoes it. Its history, dashboard folder and log files stay until an owner's
+"Delete all data" or `skald site purge <name>` (site_lifecycle.py), which
+archives every store of the site, deletes them, and calls `purge` here.
 
 The table is made with CREATE TABLE IF NOT EXISTS on first use (`ensure`),
 outside db.py's numbered schema, so an accounts file without dashboard
@@ -188,30 +189,62 @@ def set_format(db, name, fmt, actor) -> dict:
     return get(db, name)
 
 
-def purge(db, name, actor) -> dict:
-    """Forget a removed dashboard site in accounts.sqlite: its row, its
-    organisation link, its settings rows; tokens that read only it are
-    revoked. The history and files are the caller's (sites_cli.py)."""
+def restore(db, org_id, name, actor) -> dict:
+    """Undo `remove`: the site is processed again (its data was kept)."""
+    ensure(db)
+    with base.tx(db):
+        got = get(db, name)
+        if got is None or got["org_id"] != org_id:
+            raise ValueError("There is no such site made from the dashboard here.")
+        if not got["removed_at"]:
+            raise ValueError(f"{name} is not removed.")
+        db.execute("UPDATE site_config SET removed_at = NULL, removed_by = NULL WHERE name = ?",
+                   (got["name"],))
+        auditlog.record(db, org_id, actor, "site.restore", got["name"],
+                        "processing starts again")
+    return get(db, name)
+
+
+def revoke_tokens(db, org_id, name) -> int:
+    """Tokens that read only this site are revoked; a token for several sites
+    loses this one. How many were revoked."""
+    revoked = 0
+    for tid, sites in db.execute("SELECT id, sites FROM tokens WHERE org_id = ? AND "
+                                 "revoked_at IS NULL", (org_id,)).fetchall():
+        listed = json.loads(sites) if sites else None
+        if not listed or name not in listed:
+            continue
+        if listed == [name]:
+            db.execute("UPDATE tokens SET revoked_at = ? WHERE id = ?", (base.now(), tid))
+            revoked += 1
+        else:
+            db.execute("UPDATE tokens SET sites = ? WHERE id = ?",
+                       (json.dumps([s for s in listed if s != name]), tid))
+    return revoked
+
+
+def purge(db, name, actor, detail: str = "", allow_active: bool = False) -> dict:
+    """Forget a dashboard site in accounts.sqlite: its row, its organisation
+    link, its settings rows; tokens that read only it are revoked (a token for
+    several sites loses it). The history and files are the caller's
+    (site_data.py, through site_lifecycle.py). `allow_active`: an owner's
+    "Delete all data" and `skald site purge` take an active site too, with
+    one audit row."""
     ensure(db)
     with base.tx(db):
         got = get(db, name)
         if got is None:
             raise ValueError(f"{name} is not a site made from the dashboard.")
-        if got["active"]:
+        if got["active"] and not allow_active:
             raise ValueError(f"{name} is still active: remove it in Settings > Sites first.")
-        revoked = 0
-        for tid, sites in db.execute("SELECT id, sites FROM tokens WHERE org_id = ? AND "
-                                     "revoked_at IS NULL", (got["org_id"],)).fetchall():
-            if sites and json.loads(sites) == [got["name"]]:
-                db.execute("UPDATE tokens SET revoked_at = ? WHERE id = ?", (base.now(), tid))
-                revoked += 1
+        revoked = revoke_tokens(db, got["org_id"], got["name"])
         db.execute("DELETE FROM settings WHERE scope = ?", (f"site:{got['name']}",))
         from . import site_setup
         site_setup.forget(db, got["name"])
         db.execute("DELETE FROM sites WHERE name = ?", (got["name"],))
         db.execute("DELETE FROM site_config WHERE name = ?", (got["name"],))
         auditlog.record(db, got["org_id"], actor, "site.purge", got["name"],
-                        f"{revoked} tokens revoked")
+                        f"{detail + '; ' if detail else ''}{revoked} tokens revoked")
     return {**got, "tokens_revoked": revoked}
 
 

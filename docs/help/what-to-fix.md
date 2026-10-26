@@ -24,7 +24,7 @@ A to-do shows only when its figure passes a threshold over the last whole days (
 - **Show the list** opens its rows under it. The address keeps it open, so a link brings the same list back.
 - **Download CSV** saves the rows. A list longer than 1,000 rows says so; the CSV has the first 1,000.
 - **Copy link** copies the address of this to-do, with its list open. The button turns into a green tick.
-- **Send to team** mails the to-do to a member of the site's team, with its rows as a CSV attached and the link. It shows only when Skald has a mail server (Settings > Mail) and the team has a confirmed member; otherwise the page says why. Someone who opens the link without rights to the site sees "not available to you"; the CSV works for anyone.
+- **Send to team** mails the to-do to a member of the site's team, with its rows as a CSV attached and the link. It shows only when Skald has a mail server (Settings > This site > Mail & reports) and the team has a confirmed member; otherwise the page says why. Someone who opens the link without rights to the site sees "not available to you"; the CSV works for anyone.
 - **Open in** goes to the tab that shows it.
 - **Mark done** moves it to **Done, and did it work?**. From the next data update, Skald re-checks it on every whole day after the day you marked it, with the same measure: "Fixed: 0 not-found answers since 25 Oct", or "Not yet: 5 not-found answers since 25 Oct". **Undo** puts it back.
 - **Not now** folds it away under **Not now**. **Put back** brings it back.

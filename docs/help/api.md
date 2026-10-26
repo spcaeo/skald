@@ -19,15 +19,15 @@ Both ways show exactly the same files.
 
 ## Where to find it
 
-Open **Settings > Team & access > Connections**, or go straight to [Connections](#settings/api). Settings opens from the gear at the foot of the sidebar. The page was called **API & tokens** before; old links still work.
+Open **Settings > AI & API > Read figures (API)**, or go straight to [Read figures (API)](#settings/ai/api). Settings opens from the gear at the foot of the sidebar. Old links to Connections or API & tokens still work: they open the page the setting is on now.
 
-For the API, the page has:
+The page has:
 
-- the card **Read your figures (API)**: its **Set up** button makes a token, shows the base address, a curl command with your token, and the files this site serves, then tests the token (admins only);
-- **Your tokens**: every token of your organisation (admins only);
-- **Quick look while you are signed in**, folded at the foot: the address of the overview file in this browser, and every file name you can put in place of `overview`.
+- how it works, first: the base address and the files this site serves;
+- **Set up the API**: a dialog in three steps, **How it works** (the base address, the files), **Token** (with the curl command right under it) and **Test** (admins only);
+- **Quick look while you are signed in**: the address of the overview file in this browser, and every file name you can put in place of `overview`.
 
-The whole page is explained in [Connections](connections.md).
+Your tokens are on their own page, **Settings > AI & API > Tokens & links** ([Tokens & links](#settings/ai/tokens)): every token of your organisation, **Make a token by hand**, and the shared links (admins only).
 
 ## Tokens
 
@@ -45,20 +45,20 @@ Only an owner or an admin of the organisation can make, see or revoke tokens. A 
 
 ### Make a token
 
-1. Open [Connections](#settings/api) and press **Set up** on **Read your figures (API)**.
-2. Keep the **Name** it suggests, or type one that says what it is for, for example "Weekly sheet".
-3. Leave **Can also read visitor addresses** off unless the script really needs them.
+1. Open [Read figures (API)](#settings/ai/api) and press **Set up the API**.
+2. **How it works** shows the base address and the files. Press **Next**.
+3. **Token.** Keep the **Name** it suggests, or type one that says what it is for, for example "Weekly sheet". Leave **Can also read visitor addresses** off unless the script really needs them.
 4. Press **Make the token**.
-5. Copy the token from the green box. It is shown only this once.
-6. Press **Next** for the address and a curl command, then **Next** again to **Test** it.
+5. Copy the token from the green box. It is shown only this once. The curl command right under it has the token in it.
+6. Press **Next** to **Test** it. The test names the next step.
 
-The token made there reads the site you are on. For a token that reads several sites, or does several things, open **Make a token by hand** under **Your tokens**: tick the **Sites** and what it may do, then press **Make token**.
+The token made there reads the site you are on. For a token that reads several sites, or does several things, open **Make a token by hand** in [Tokens & links](#settings/ai/tokens): tick the **Sites** and what it may do, then press **Make token**.
 
 > Skald keeps only a fingerprint of the token, never the token itself. If you lose it, nobody can show it to you again. Revoke it and make a new one.
 
 ### The token list
 
-**Your tokens** shows each token's **Name**, **What it is for** (in words, such as "Reading figures"), **Sites**, when it was **Made** and by whom, and when it was **Last used**. The token itself is never shown again.
+**Your tokens**, in **Settings > AI & API > Tokens & links**, shows each token's **Name**, **What it is for** (in words, such as "Reading figures"), **Sites**, when it was **Made** and by whom, and when it was **Last used**. The token itself is never shown again.
 
 ### How long a token lasts
 
@@ -71,7 +71,7 @@ The second rule means a token stops at once when its maker leaves the team. Make
 
 ### Revoke a token
 
-1. Open [Connections](#settings/api).
+1. Open [Tokens & links](#settings/ai/tokens).
 2. Find the token under **Your tokens** and press **Revoke**.
 3. Press **Yes, revoke**.
 
@@ -88,7 +88,7 @@ A scope is what a token may do. A token can have more than one.
 | `mcp` | AI assistant (MCP) | Let an AI assistant ask about your traffic through the MCP server |
 | `ingest` | Sending logs | Send a site's log lines into Skald. It reads nothing |
 
-The box **Can also read visitor addresses** in the API dialog adds **Reading visitor addresses**. A sending token is made in **Send this site's visits to Skald** (see [Connections](connections.md)).
+The box **Can also read visitor addresses** in the API dialog adds **Reading visitor addresses**. A sending token is made in **Send this site's visits to Skald**, in **Settings > This site > Collect data > Send logs** (see [Connections](connections.md)).
 
 > A token with only **AI assistant (MCP)** cannot read the API, and a token with only **Reading figures** cannot be used by an AI assistant. Use **Make a token by hand** and tick both if one token must do both.
 
@@ -144,7 +144,7 @@ The signed-in address also lists the files a page has: end it at `api/v1/`. The 
 | `requests` | The recent request log (holds addresses: needs **Reading visitor addresses**) |
 | `people?q=...` | One person by IP address, email, visitor ID or lead: their visits, leads and conversions, linked. Needs **Reading visitor addresses**; each search goes to the audit log |
 
-The Connections page lists every file your site really has.
+The **Read figures (API)** page lists every file your site really has.
 
 ## Examples with curl
 
@@ -222,7 +222,7 @@ Skald sets no request limit of its own on the API today, so you will not see a 4
 
 Some Skald servers have no team accounts. Everyone signs in with one shared name and password set on the server. On those servers:
 
-- the Connections page says its set-up dialogs need team accounts. Under **Read the figures with the dashboard login, or a token made on the server** it shows the address and curl command with your login, and with a token;
+- the **Read figures (API)** page says its set-up dialog needs team accounts. Under **Read the figures with the dashboard login, or a token made on the server** it shows the address and curl command with your login, and with a token;
 - tokens are not made on the page. Whoever runs the server makes them with a command, and the page shows that command;
 - the signed-in address also works from curl with `curl -u <your name>`, using the dashboard password;
 - the MCP server is not available. See [MCP](mcp.md).
@@ -231,7 +231,7 @@ Everything else in this guide is the same.
 
 ## Related guides
 
-- [Connections](connections.md): the page, its dialogs and Your tokens.
+- [Connections](connections.md): sending logs, the set-up dialogs, Tokens & links, and adding a site.
 - [MCP](mcp.md): let an AI assistant read your figures.
 - [Sign-in and team](sign-in-and-team.md): roles, and who may make tokens.
 - [Privacy](privacy.md): which files hold addresses.

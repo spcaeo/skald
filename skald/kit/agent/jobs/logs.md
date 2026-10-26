@@ -7,7 +7,7 @@
 - in Cloudflare: a Skald Worker on the route `__SITE__/*`;
 - in Vercel or Netlify: a log drain to `__INGEST_URL__`.
 
-You may also ask the user to look at __DASHBOARD__ (Settings > Connections says when lines
+You may also ask the user to look at __DASHBOARD__ (Settings > Collect data > Send logs says when lines
 last arrived). If lines arrive, this job is done already: skip to the next step.
 
 ### Find out how the site is hosted
@@ -40,7 +40,7 @@ Should it keep visitors' IP addresses? If yes, for how many days? And does your 
 notice cover this? Please send me its link."
 
 Do not change any setting for it. Put the answers in the report (step __STEP_FINISH__): the user sets them
-in Skald, Settings > Data retention > People.
+in Skald, Settings > Privacy & retention > People.
 
 <!-- end -->
 ### Case A. Own Linux server
@@ -130,4 +130,4 @@ user, and report this job as `left`.
 
 1. Open https://__SITE__/ (or ask the user to), then wait two to five minutes.
 2. Case A: run `sudo skald-ship-check`. Other cases: ask the user to open __DASHBOARD__ and
-   look at Settings > Connections: it says what arrived and when.
+   look at Settings > Collect data > Send logs: it says what arrived and when.

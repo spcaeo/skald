@@ -85,7 +85,7 @@ export default function aiAnswersSettings() {
     box.replaceChildren(...[
       r.editable ? null : h("p", { class: "note" }, VIEWER),
       h("div", { class: `state ${keys.length ? "ok" : "warn"}` }, h("div", null, keys.length ? `Keys set: ${keys.join(", ")}. ` : "No assistant has an API key yet. ",
-        "An install admin adds them in ", h("a", { href: "#settings/integrations" }, "Settings › Integrations"), ". The questions are sent to the providers you choose; read docs/INTEGRATIONS.md before turning one on.")),
+        "An install admin adds them in ", h("a", { href: "#settings/site/aianswers?sub=keys" }, "Settings › AI answers › API keys"), ". The questions are sent to the providers you choose; read docs/INTEGRATIONS.md before turning one on.")),
       listsCard(r, done),
       h("section", { class: "sheet acct-card" }, h("h2", null, "Tracking profiles"),
         h("p", { class: "sub" }, "Each profile asks from its own place and language, as often as you choose, under its own daily cap. At most 10."),

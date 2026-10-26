@@ -349,14 +349,20 @@ class WebPages(unittest.TestCase):
     JS = Path(__file__).resolve().parent.parent / "skald" / "webapp" / "js"
 
     def test_registered_and_hidden_without_accounts(self):
+        # 2.40: the pages are in js/settings-menu.js; every one needs accounts but those
+        # state.js's WITHOUT_ACCOUNTS names.
+        menu = (self.JS / "settings-menu.js").read_text()
+        pages = (self.JS / "tabs" / "settings-pages.js").read_text()
         state = (self.JS / "state.js").read_text()
-        index = (self.JS / "tabs" / "index.js").read_text()
         access = (self.JS / "access.js").read_text()
-        for key, name in (("retention", "Data retention"), ("mail", "Mail"), ("sites", "Sites"),
-                          ("security", "Security"), ("audit", "Audit log")):
-            self.assertIn(f'["settings/{key}", "{name}"]', state)
-            self.assertIn(f'"settings/{key}":', index)
-            self.assertIn(f'"settings/{key}"', state.split("ACCOUNT_TABS =")[1].split("\n")[0])
+        without = state.split("WITHOUT_ACCOUNTS = new Set(")[1].split(")")[0]
+        for route, name in (("settings/site/privacy", "Privacy & retention"), ("settings/site/mail", "Mail & reports"),
+                            ("settings/site/details", "Site details"), ("settings/org/security", "Sign-in rules"),
+                            ("settings/org/audit", "Audit log")):
+            self.assertIn(f'route: "{route}", name: "{name}"', menu)
+            self.assertIn(f'"{route}":', pages)
+            self.assertNotIn(f'"{route}"', without)
+        self.assertIn("ACCOUNT_TABS = SETTINGS_PAGES.map((p) => p.route).filter((k) => !WITHOUT_ACCOUNTS.has(k))", state)
         self.assertIn("ACCOUNT_TABS.forEach((k) => HIDDEN.add(k))", access)
 
     def test_no_markup_from_the_server(self):

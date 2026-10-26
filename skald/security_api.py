@@ -97,7 +97,7 @@ def handle(h, write: bool, config, live_dir, allowed, same_origin, config_path=N
                                           org["id"], send=send)
         if error:
             return answer(h, 502, {"ok": False, "error": "The mail server did not take it "
-                                                         f"({error}). Check Settings > Mail."})
+                                                         f"({error}). Check Settings > Mail & reports."})
         return answer(h, 200, {"ok": True, "sent_to": session["email"]})
     finally:
         db.close()

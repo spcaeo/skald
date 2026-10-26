@@ -77,7 +77,7 @@ A click on a link inside a Next.js site loads no new page from your server: the 
 
 ## Why is my own visit not counted?
 
-Your team's addresses are probably listed as internal. Visits from them go to the "Our own" group, kept apart from people, so your own testing does not inflate the figures. See [Internal traffic](internal-traffic.md) and [Internal traffic settings](#settings/internal).
+Your team's addresses are probably listed as internal. Visits from them go to the "Our own" group, kept apart from people, so your own testing does not inflate the figures. See [Internal traffic](internal-traffic.md) and [Internal traffic settings](#settings/site/internal).
 
 ## Does Skald use cookies?
 
@@ -89,7 +89,7 @@ Yes. Skald counts from your web server's own access log, and the server writes a
 
 The optional script tag is the one part that follows the banner. It can wait for consent (`data-consent="required"`, then your banner calls `skald('consent', true)`), it does nothing when Do Not Track or Global Privacy Control is on, and it keeps no visitor ID unless you turn IDs on for the site.
 
-The log holds IP addresses, which are personal data in places like the EU. You choose whether Skald keeps them in full, shortened (the last part removed) or not at all, and for how long ([Data retention](#settings/retention)). The same page writes the wording for your privacy notice from those settings. See [Privacy](privacy.md).
+The log holds IP addresses, which are personal data in places like the EU. You choose whether Skald keeps them in full, shortened (the last part removed) or not at all, and for how long ([Privacy & retention](#settings/site/privacy)). The same page writes the wording for your privacy notice from those settings. See [Privacy](privacy.md).
 
 ## How fresh is today?
 
@@ -107,7 +107,7 @@ On [Leads & sales > Leads](#sales/leads): every lead of the period, one row each
 
 - **Export what you see** above any table: its matching rows, in their order, with the columns shown, as a CSV.
 - **Export** in the top bar: every table on the tab as CSV files in a ZIP, the tab as JSON, a printable report, or the report builder for several tabs at once.
-- **API**: every figure as JSON, for a script. Tokens are made in **Settings > Team & access > Connections**. See [API](api.md) and [Connections](connections.md).
+- **API**: every figure as JSON, for a script. Tokens are made in **Settings > AI & API > Read figures (API)**, or by hand in **Settings > AI & API > Tokens & links**. See [API](api.md) and [Connections](connections.md).
 - **MCP**: let an AI assistant read your figures. See [MCP](mcp.md).
 
 ## Who can see visitor addresses?
@@ -128,7 +128,7 @@ Yes. Times show in the site's own zone unless you choose otherwise. Select the r
 
 ## How do I invite a colleague?
 
-Admins and owners go to **Settings > Team & access > Team** and use **Invite someone**. See [Sign-in and team](sign-in-and-team.md).
+Admins and owners go to **Settings > Organisation > Team** and use **Invite someone**. See [Sign-in and team](sign-in-and-team.md).
 
 ## My site is behind Cloudflare: will cached pages be missed?
 

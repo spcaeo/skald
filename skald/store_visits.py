@@ -91,22 +91,31 @@ def journeys(db, site: str, first: date, last: date) -> list[dict]:
     return out
 
 
-def prune(db, keep_from: date, per_site: dict | None = None) -> int:
+def prune(db, keep_from: date, per_site: dict | None = None, spare=None) -> int:
     """Delete every journey from before `keep_from`; a site in `per_site`
     ({site: date}, from its own report.journey_days) by its own date. Rows
-    deleted."""
+    deleted. `spare`: see prune_sites."""
     return prune_sites(db, "journeys", keep_from.isoformat(),
-                       {s: d.isoformat() for s, d in (per_site or {}).items()})
+                       {s: d.isoformat() for s, d in (per_site or {}).items()}, spare=spare)
 
 
 def prune_sites(db, table: str, cutoff: str, per_site: dict | None = None,
-                where: str = "", args: tuple = ()) -> int:
+                where: str = "", args: tuple = (), spare=None) -> int:
     """Delete `table` rows with day < `cutoff` (ISO), except that a site
     named in `per_site` ({site: its own cutoff}) - with its views - is cut at
     its own day. With no `per_site` this is one DELETE over every site, as
-    before settings existed. `where` adds " AND ..." with `args`."""
+    before settings existed. `where` adds " AND ..." with `args`. `spare`
+    (site -> bool, keep_everything.Keeper): a site it names keeps every row,
+    with its views."""
     from .store import VIEW_MARK
-    per_site = per_site or {}
+    per_site = dict(per_site or {})
+    if spare is not None:
+        if getattr(spare, "all", False):
+            return 0
+        for (name,) in db.execute(f"SELECT DISTINCT site FROM {table}").fetchall():
+            base = str(name).split(VIEW_MARK, 1)[0]
+            if spare(base):
+                per_site[base] = ""     # day < "" is never true: nothing goes
 
     def own(site: str) -> tuple[str, tuple]:
         mark = site + VIEW_MARK

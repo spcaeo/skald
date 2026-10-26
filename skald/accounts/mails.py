@@ -26,7 +26,7 @@ ROLE_WORDS = {"owner": "an owner", "admin": "an admin", "viewer": "a viewer"}
 
 def mail_settings(config: dict | None, to: str) -> dict:
     """mailer.settings for one recipient; mailer.Refused when mail is not set up.
-    The install's SMTP settings from Settings > Mail are laid over config.yml
+    The install's SMTP settings from Settings > Mail & reports are laid over config.yml
     (settings_store.apply), and the password may come from secrets.json."""
     from ..settings_store import apply
     config = apply(config or {}, None)
@@ -44,7 +44,8 @@ def configured(config: dict | None) -> bool:
     return True
 
 
-def _html(title: str, paras: list[str], link: str, button: str, foot: str) -> str:
+def _html(title: str, paras: list[str], link: str | None, button: str, foot: str) -> str:
+    """The account mails' look; no button when `link` is empty."""
     body = "".join(f'<p style="margin:0 0 14px;font:400 15px/1.55 {FONT};color:#17212b">'
                    f"{esc(p)}</p>" for p in paras)
     return (
@@ -55,13 +56,13 @@ def _html(title: str, paras: list[str], link: str, button: str, foot: str) -> st
         'style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #dde3e8;'
         'border-radius:10px"><tr><td style="padding:24px 26px">'
         f'<div style="font:600 18px/1.3 {FONT};color:#17212b;padding-bottom:14px">'
-        f"{esc(title)}</div>{body}"
-        f'<p style="margin:18px 0"><a href="{esc(link)}" style="display:inline-block;'
-        f'background:#17212b;color:#ffffff;text-decoration:none;padding:10px 18px;'
-        f'border-radius:7px;font:600 15px/1.2 {FONT}">{esc(button)}</a></p>'
-        f'<p style="margin:0 0 14px;font:400 13px/1.55 {FONT};color:#5b6670">'
-        f'Or copy this address into your browser:<br><span style="word-break:break-all">'
-        f"{esc(link)}</span></p>"
+        f"{esc(title)}</div>{body}" + (
+            f'<p style="margin:18px 0"><a href="{esc(link)}" style="display:inline-block;'
+            f'background:#17212b;color:#ffffff;text-decoration:none;padding:10px 18px;'
+            f'border-radius:7px;font:600 15px/1.2 {FONT}">{esc(button)}</a></p>'
+            f'<p style="margin:0 0 14px;font:400 13px/1.55 {FONT};color:#5b6670">'
+            f'Or copy this address into your browser:<br><span style="word-break:break-all">'
+            f"{esc(link)}</span></p>" if link else "") +
         f'<p style="margin:0;font:400 13px/1.55 {FONT};color:#5b6670">{esc(foot)}</p>'
         "</td></tr></table></body></html>")
 

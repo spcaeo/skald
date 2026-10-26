@@ -64,7 +64,7 @@ export function shareBox(site, task, method = "") {
   return box;
 }
 
-// Settings > Connections: the links made, and Revoke.
+// Settings > Tokens & links: the links made, and Revoke.
 export function sharesSection() {
   const list = h("div", null, h("p", { class: "empty" }, "Loading the links..."));
   const reload = () => call("sites/shares").then((r) => {

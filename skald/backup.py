@@ -24,6 +24,10 @@ The accounts and conversions databases, when this install has them, are
 copied the same way as accounts-YYYY-MM-DD.sqlite and conversions-YYYY-MM-DD.sqlite
 (with their own weekly copies), tested and pruned alike.
 
+The same folder holds the archive a site's "Clear data" or "Delete all data"
+writes before it deletes anything (site_data.py, site-<name>-<kind>-<stamp>.tar.gz);
+each backup run deletes those older than 30 days.
+
 What a backup holds: the totals, the 7 days of anonymous journeys and the
 30 days of keyed visitor hashes (pseudonymous: HMAC of an address with a
 key that lives only in the env file). The env file, the SMTP login and the
@@ -204,8 +208,10 @@ def weekly_name(day: date, stem: str = "history") -> str:
 
 
 def make(source: Path, folder: Path, day: date, keep: int = 14,
-         weekly_keep: int = 8, stem: str = "history") -> tuple[list[Path], list[str]]:
-    """Back up, prune, and verify what was written: (written, problems)."""
+         weekly_keep: int = 8, stem: str = "history",
+         prune: bool = True) -> tuple[list[Path], list[str]]:
+    """Back up, prune (unless `prune` is False: keep_everything), and verify
+    what was written: (written, problems)."""
     folder.mkdir(parents=True, exist_ok=True)
     try:
         os.chmod(folder, 0o750)
@@ -220,8 +226,9 @@ def make(source: Path, folder: Path, day: date, keep: int = 14,
         _gzip(daily, weekly)
         _write_manifest(weekly, seen)
         written.append(weekly)
-    _prune(_dailies(folder, stem), keep)
-    _prune(_weeklies(folder, stem), weekly_keep)
+    if prune:
+        _prune(_dailies(folder, stem), keep)
+        _prune(_weeklies(folder, stem), weekly_keep)
     problems = []
     for path in written:
         problems += verify(path, seen)
@@ -241,7 +248,7 @@ def pull_command(config: dict, path: Path) -> str:
 def kept(config: dict, keep: int | None = None,
          weekly_keep: int | None = None) -> tuple[int, int]:
     """(daily, weekly) copies to keep: --keep / --weekly-keep when given,
-    else backup.daily / backup.weekly (config.yml, or Settings > Data
+    else backup.daily / backup.weekly (config.yml, or Settings > Privacy &
     retention), else 14 and 8."""
     from .config import setting
 
@@ -300,15 +307,23 @@ def cmd_backup(ctx) -> int:
         ctx.err(f"backup FAILED: {why}")
         runs.record(ctx.live_dir, "backup", 1)
         return 1
+    from .keep_everything import of
+    # The conversions file holds every site's leads: while any site keeps
+    # everything, none of its copies is deleted.
+    kept_whole = of(ctx).any((ctx.site,))
     for stem, source in extra_sources(ctx):
         try:
-            more, bad = make(source, folder, ctx.now.date(), keep, weekly_keep, stem)
+            more, bad = make(source, folder, ctx.now.date(), keep, weekly_keep, stem,
+                             prune=not (stem == "conversions" and kept_whole))
         except (OSError, sqlite3.Error) as why:
             more, bad = [], [f"{stem}: backup FAILED: {why}"]
         written += more
         problems += bad
     for path in written:
         ctx.out(f"wrote {path} ({path.stat().st_size:,} bytes)")
+    from .site_data import KEEP_DAYS, prune as prune_sites     # Clear / Delete all data archives
+    for path in prune_sites(folder, config=ctx.config):
+        ctx.out(f"deleted {path.name}: a site's archive, past its {KEEP_DAYS} days")
     if problems:
         ctx.err("backup written but the restore test FAILED:")
         for p in problems:

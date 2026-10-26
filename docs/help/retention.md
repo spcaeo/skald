@@ -6,7 +6,7 @@
 
 Skald has no cookie. It knows a visitor again in one of two ways, and the page says which one your site uses, at the top of the tab:
 
-- **Kept visits**, when the site keeps IP addresses (Settings › Data retention › People). The same IP address with the same browser and system is the same visitor. Kept 395 days unless you changed it.
+- **Kept visits**, when the site keeps IP addresses (Settings › This site › Privacy & retention › People). The same IP address with the same browser and system is the same visitor. Kept 395 days unless you changed it.
 - **The 30-day code**, when the site keeps no addresses but the visitor key is set. An address and browser family, hashed with a secret. It keeps a day and a source type only, so there is no split by country, device or landing page, and no "read 2 or more pages".
 
 With neither, the tab says so and counts nothing. The page script's visitor ID is not used here: it is kept 30 days and only for visits that ran the script, so it would make the same visitor count once or twice depending on the script.

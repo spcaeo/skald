@@ -215,7 +215,7 @@ def take(folder, code: str, now: float | None = None) -> tuple[str, dict | None,
 # ---------------------------------------------------------------- serve
 
 def gone_words(dashboard: str) -> str:
-    where = f": {dashboard}" if dashboard else " (Settings > Connections)"
+    where = f": {dashboard}" if dashboard else " (Settings > Collect data > Send logs)"
     return f"This install link was used or has expired. Make a new one in Skald{where}"
 
 
