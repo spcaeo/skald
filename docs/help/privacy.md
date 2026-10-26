@@ -165,6 +165,7 @@ Always dropped:
 - phone numbers
 - answers to form questions and any free text
 - cancel and reschedule links
+- the visitor ID, when the site has visitor IDs off: the `vid`, the tool's own field for it (a Typeform hidden field, Cal.com or Calendly tracking, a Stripe reference, a HubSpot property), and one inside a landing address
 
 Kept: the action (for example, a demo or a sign-up), its stage, the time, the tool, the tool's own reference, and the source, campaign, landing page, country and device. The name and email too, when **Leads' names and emails** is **full**. Skald's outgoing webhooks never send a name or an email.
 

@@ -248,6 +248,35 @@ class VisitorIdsOff(Base):
         self.assertEqual(self.rows("SELECT vid FROM conversions"), [(None,)])
         self.assertNotIn(VID, self.spooled())
 
+    def test_tool_fields_lose_the_id_too(self):
+        """2.38.0: each tool's own field for the ID (Typeform hidden.skv, Cal.com
+        metadata.skv, Calendly tracking.utm_content, Stripe client_reference_id,
+        HubSpot's skv property) was spooled and kept 400 days; now none is."""
+        for tool in ("typeform", "calcom", "calendly", "stripe", "hubspot"):
+            with self.subTest(tool=tool):
+                status, _ = self.post(tool, adapter(tool).sample("example.com", self.now))
+                self.assertEqual(status, 200)
+                self.assertNotIn("skv_", self.spooled())
+                self.now += 60
+        self.assertEqual({v for (v,) in self.rows("SELECT vid FROM conversions")}, {None})
+        self.assertEqual(self.rows("SELECT COUNT(*) FROM conversions")[0][0], 5)
+
+    def test_id_inside_a_landing_address_goes(self):
+        self.post("lead", lead(last_touch={"landing": f"/pricing/?skv={VID}&x=1"}))
+        text = self.spooled()
+        self.assertNotIn("skv_", text)
+        self.assertIn("/pricing/?skv=&x=1", text)
+
+
+class VisitorIdsOnKeepToolFields(Base):
+    """Visitor IDs on: the tools' fields still carry the ID to the store."""
+
+    def test_stripe_reference_kept(self):
+        self.post("stripe", adapter("stripe").sample("example.com", self.now))
+        self.assertEqual(self.rows("SELECT vid FROM conversions"), [("skv_" + "A" * 22,)])
+        self.assertIn("skv_" + "A" * 22, self.spooled())
+
+
 class VisitorIdsOnInSettings(Base):
     """2.28.1: the config says off, but Settings > This site turned visitor IDs on (a
     settings row). The hook keeps the vid, as the beacon does; before, it was dropped."""

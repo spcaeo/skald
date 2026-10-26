@@ -5,7 +5,9 @@ request for a site is allowed only for members of its organisation.
 """
 from __future__ import annotations
 
+import json
 import re
+import sqlite3
 
 from . import auditlog
 from . import db as base
@@ -60,6 +62,15 @@ def list_orgs(db, user_id=None) -> list[dict]:
 
 
 def assign_site(db, site, org_id, actor) -> None:
+    """Give `site` to the organisation. A token reads only its own
+    organisation's sites, so the tokens that name this site alone (a site's
+    log shipper, a one-site MCP token) move with it (2.38.0; before, they
+    stopped working). A token naming other sites too, or all of the old
+    organisation's, stays there. Its settings (site_config) and its set-up
+    progress (site_setup) move too, also when the site is already there, so
+    running it again mends a move made before 2.38.0 (left behind, the old
+    organisation's Settings > Sites still listed the site and its wizard
+    could save nothing: "There is no such site in this organisation")."""
     site = str(site or "").strip()
     if not site:
         raise ValueError("Name the site.")
@@ -71,6 +82,21 @@ def assign_site(db, site, org_id, actor) -> None:
                    "ON CONFLICT(name) DO UPDATE SET org_id = excluded.org_id", (site, org_id))
         auditlog.record(db, org_id, actor, "site.assign", site,
                         f"was {before['name']}" if before else "")
+        for table, what in (("site_config", "its settings"), ("site_setup", "its set-up progress")):
+            try:
+                moved = db.execute(f"UPDATE {table} SET org_id = ? WHERE name = ? AND org_id != ?",
+                                   (org_id, site, org_id)).rowcount
+            except sqlite3.OperationalError:    # a table not made yet: nothing to move
+                moved = 0
+            if moved:
+                auditlog.record(db, org_id, actor, "site.move", site, f"{what} moved with it")
+        if before is None or before["id"] == org_id:
+            return
+        for tid, name in db.execute("SELECT id, name FROM tokens WHERE org_id = ? AND sites = ?",
+                                    (before["id"], json.dumps([site]))).fetchall():
+            db.execute("UPDATE tokens SET org_id = ? WHERE id = ?", (org_id, tid))
+            auditlog.record(db, org_id, actor, "token.move", tid,
+                            f"{name}: moved with {site} from {before['name']}")
 
 
 def org_of_site(db, site) -> dict | None:

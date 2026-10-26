@@ -65,7 +65,8 @@ from pathlib import Path
 
 from ..beacon import visitor_ids
 from ..config import setting, site_name
-from . import LEAD_SHAPED, MAX_BODY, TOOLS, event_types, geo, marks, reconcile, spool, store
+from . import (LEAD_SHAPED, MAX_BODY, SKALD_VID, TOOLS, event_types, geo, marks, reconcile,
+               spool, store)
 from .adapters import Invalid, adapter
 from .adapters.lead import LABEL_NOTE, TEST_NOTE, keyed, verify_get, verify_key
 from .money import (CUSTOMER_NOTE, REFUND_CURRENCY_NOTE, REFUND_OVER_NOTE, TAGS_NOTE,
@@ -81,13 +82,28 @@ REPLAY_TOOLS = ("calcom", "typeform")     # no signed timestamp: refused by hash
 PROXIES = ("127.0.0.1", "::1")
 
 
+# A Skald visitor ID inside a longer text: a landing address's ?skv=, a note.
+_SKV_IN_TEXT = re.compile(r"(?<![A-Za-z0-9_-])skv_[A-Za-z0-9_-]{16,43}(?![A-Za-z0-9_-])")
+
+
 def without_vid(value):
-    """The body with every `vid` key removed, at any depth."""
+    """The body with no visitor ID left, at any depth (2.38.0): every `vid`
+    key, every value that is a Skald ID (Typeform's hidden.skv, Cal.com's
+    metadata.skv or utm_content, Calendly's tracking.utm_content, Stripe's
+    client_reference_id, HubSpot's skv property), and a Skald ID inside a
+    longer text. Before, only `vid` went and the tools' own fields kept it."""
     if isinstance(value, dict):
-        return {k: without_vid(v) for k, v in value.items() if k != "vid"}
+        return {k: without_vid(v) for k, v in value.items()
+                if k != "vid" and not _is_vid(v)}
     if isinstance(value, list):
-        return [without_vid(v) for v in value]
+        return [without_vid(v) for v in value if not _is_vid(v)]
+    if isinstance(value, str) and "skv_" in value:
+        return _SKV_IN_TEXT.sub("", value)
     return value
+
+
+def _is_vid(value) -> bool:
+    return isinstance(value, str) and SKALD_VID.match(value.strip()) is not None
 
 
 def replay_digest(tool: str, payload, body: bytes) -> str | None:

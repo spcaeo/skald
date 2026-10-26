@@ -2,17 +2,19 @@
 
 Site > Not found's three tabs, and the to-dos that rest on them (todos.py):
 
-  Lost pages      every page-shaped address that answered 404 or 410 to people,
-                  a search engine or an AI fetcher in the window and is not live
-                  now, most asked first, with the closest live page
+  Lost pages      every page-shaped address that answered 404 to people, a
+                  search engine or an AI fetcher in the window and is not live
+                  now, and has not answered 410 gone since (2.38.0: a 410 is
+                  the site's own answer, so handled), most asked first, with the closest live page
                   (closest_page.py: exact, likely or guess) and the server
                   lines for a redirect or "410 gone", as text to copy
   AI asks for     the .md and .mdx addresses AI fetchers asked for and got 404:
   Markdown        those whose page is live (Skald could serve a Markdown copy
                   there), and the rest (copies of old pages)
   After the fix   the addresses someone marked fixed (todo_marks.py), with what
-                  came for them on the whole days after that day: not-found
-                  answers by who asked, and page views served (2xx or 304)
+                  came for them on the whole days after that day: 404 answers
+                  by who asked, and page views served (2xx or 304). A redirect,
+                  to this site or another, or a 410 leaves no 404: fixed
 
 Counted from what each day already holds, nothing new from the log: the day
 kind `not_found` (every 404 and 410 by path, status, who asked, scanner probe
@@ -57,6 +59,8 @@ PAGE_ENDINGS = ("", ".html", ".htm")
 MARKDOWN_ENDINGS = (".md", ".mdx")
 # Who asked, from a 404 row's group: the three that matter; the rest are left out.
 WHO = {"people": "people", "search_engines": "search", "ai_asked": "ai", "ai_training": "ai"}
+# The answer that says an address is gone on purpose: handled, never lost (2.38.0).
+GONE = "410"
 _ENDING = re.compile(r"\.([A-Za-z0-9]{1,8})$")
 
 
@@ -121,7 +125,9 @@ def sitemap_paths(p) -> tuple[list[str] | None, str | None]:
 
 def tally(rows_by_day: list[tuple[str, list]]) -> dict[str, dict]:
     """{path: figures} over the days' 404 rows, probes left out: n, people, search, ai,
-    ai_asked, ai_training, bots, ours, first_day, last_day, statuses, sources."""
+    ai_asked, ai_training, bots, ours, first_day, last_day, statuses, sources, gone_day.
+    A 410 is answered on purpose (2.38.0): it counts no ask, only `statuses` and
+    `gone_day`, the last day it was given; first_day and last_day are the 404s'."""
     out: dict[str, dict] = {}
     for d, rows in rows_by_day:
         for r in rows or []:
@@ -131,9 +137,14 @@ def tally(rows_by_day: list[tuple[str, list]]) -> dict[str, dict]:
             got = out.get(path)
             if got is None:
                 got = out[path] = {"n": 0, "people": 0, "search": 0, "ai": 0, "ai_asked": 0,
-                                   "ai_training": 0, "bots": 0, "ours": 0, "first_day": d,
-                                   "last_day": d, "statuses": Counter(), "sources": Counter()}
+                                   "ai_training": 0, "bots": 0, "ours": 0, "first_day": None,
+                                   "last_day": "", "statuses": Counter(), "sources": Counter(),
+                                   "gone_day": ""}
             n = int(r["n"])
+            if str(r.get("status")) == GONE:
+                got["statuses"][GONE] += n
+                got["gone_day"] = max(got["gone_day"], d)
+                continue
             got["n"] += n
             group = r.get("group")
             who = WHO.get(group)
@@ -144,9 +155,14 @@ def tally(rows_by_day: list[tuple[str, list]]) -> dict[str, dict]:
             got["statuses"][str(r.get("status"))] += n
             if who:
                 got["sources"][str(r.get("source") or "(none)")] += n
-            got["first_day"] = min(got["first_day"], d)
+            got["first_day"] = d if got["first_day"] is None else min(got["first_day"], d)
             got["last_day"] = max(got["last_day"], d)
     return out
+
+
+def handled(got: dict) -> bool:
+    """Answered 410 gone on or after the last day it answered 404: dealt with on purpose."""
+    return got["gone_day"] >= got["last_day"] and bool(got["gone_day"])
 
 
 class Found:
@@ -179,7 +195,8 @@ class Found:
         """The lost pages, most asked first (people, then everyone who matters)."""
         out = []
         for path, got in self.paths.items():
-            if kind_of(path) != "page" or not self.asked(got) or self.is_live(path, got):
+            if kind_of(path) != "page" or not self.asked(got) or self.is_live(path, got) \
+                    or handled(got):
                 continue
             target, how, why = closest(path, self.live)
             out.append({"path": path, "people": got["people"], "search": got["search"],
@@ -215,7 +232,7 @@ class Found:
                 "statuses": dict(got["statuses"]), "first_day": got["first_day"],
                 "last_day": got["last_day"]}
                for path, got in self.paths.items()
-               if kind_of(path) == "sitemap" and got["search"] + got["ai"]]
+               if kind_of(path) == "sitemap" and got["search"] + got["ai"] and not handled(got)]
         out.sort(key=lambda r: (-(r["search"] + r["ai"]), r["path"]))
         return out
 

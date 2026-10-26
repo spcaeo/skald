@@ -244,7 +244,7 @@ export function trailOf(key) {
    and today's visitors, a check on this one, then All sites. In the icon
    rail the logo alone is the button; on a phone the top bar has its own
    (siteChip). The list is sites.json (the helper's, with only the reader's
-   sites), else this site alone. */
+   sites), else this site alone; grouped by organisation for a reader in two. */
 const CHEV = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 6.5 8 10l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const CHECK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 let SITE = { site: "", sites: [] };
@@ -253,17 +253,25 @@ function siteMenu() {
   const { site, sites } = SITE;
   const list = sites.length ? sites : [{ name: site, path: null }];
   const today = (x) => (x.today?.visitors != null ? `${x.today.visitors.toLocaleString("en-US")} today` : "");
+  const row = (x) => {
+    const here = x.name === site;
+    // The site's own address: copy and open in a new tab at the row's end (urlactions.js).
+    return withUrl(h("a", { class: "menu-i site-i", role: "menuitem", href: here ? "./" : `../${x.path}`, "aria-current": here ? "page" : null },
+      tile(logoOf(x, x.name), 24, "si-logo"),
+      h("b", null, x.name, x.live ? h("span", { class: "live-dot", title: "Live: today is redrawn every 2 minutes" }, h("span", { class: "vh" }, ", live")) : null),
+      here ? h("span", { class: "si-end si-check", html: CHECK, "aria-label": "this site", role: "img" })
+        : today(x) ? h("small", { class: "si-end" }, today(x)) : null), /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(x.name || "") ? `https://${x.name}` : "", { label: x.name, tag: "div", cls: "si-row" });
+  };
+  // 2.38.0: a reader in two or more organisations gets the sites under each one's name
+  // (sites.json names a site's org only then).
+  const orgs = [...new Set(list.map((x) => x.org).filter(Boolean))];
+  const body = orgs.length < 2 ? list.map(row) : [...orgs, null].map((o) => {
+    const mine = list.filter((x) => (x.org || null) === o);
+    return mine.length ? h("div", { class: "site-group", role: "group", "aria-label": o || "Other sites" },
+      h("div", { class: "site-org", "aria-hidden": "true" }, o || "Other sites"), mine.map(row)) : null;
+  });
   return h("div", { class: "pop menu site-menu", role: "menu", hidden: true, "aria-label": "Switch site" },
-    list.map((x) => {
-      const here = x.name === site;
-      // The site's own address: copy and open in a new tab at the row's end (urlactions.js).
-      return withUrl(h("a", { class: "menu-i site-i", role: "menuitem", href: here ? "./" : `../${x.path}`, "aria-current": here ? "page" : null },
-        tile(logoOf(x, x.name), 24, "si-logo"),
-        h("b", null, x.name, x.live ? h("span", { class: "live-dot", title: "Live: today is redrawn every 2 minutes" }, h("span", { class: "vh" }, ", live")) : null),
-        here ? h("span", { class: "si-end si-check", html: CHECK, "aria-label": "this site", role: "img" })
-          : today(x) ? h("small", { class: "si-end" }, today(x)) : null), /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(x.name || "") ? `https://${x.name}` : "", { label: x.name, tag: "div", cls: "si-row" });
-    }),
-    h("a", { class: "menu-i site-all", role: "menuitem", href: "../" }, "All sites"));
+    body, h("a", { class: "menu-i site-all", role: "menuitem", href: "../" }, "All sites"));
 }
 
 // One button and its menu: opens and closes; Escape, a click elsewhere or a

@@ -352,6 +352,12 @@ assert.ok(!/\bnull\b|\bundefined\b/.test(dialog().textContent), "no stray null o
 assert.ok(radio(dialog(), "vercel").checked, "resumed: the kept facts choose the way");
 assert.ok(dialog().textContent.includes("Recommended for half.example.com"));
 assert.ok(dialog().textContent.includes("its log drain sends each request"));
+// The site picker's link names no step (#settings/sitesadmin?setup=<site>): the saved one, not step 1.
+dialog().querySelector(".dw-x").click();
+await tick(400);
+await openSiteKey("half.example.com", 0);
+await tick();
+assert.ok(dialog().textContent.includes("Step 3 of 5"), dialog().querySelector("h3.cn-h")?.textContent);
 // The shared link's page: the steps, the secret shown once, the Test.
 const { draw: drawShare } = await import(new URL("tabs/share-page.js", JS));
 const page = document.createElement("main");

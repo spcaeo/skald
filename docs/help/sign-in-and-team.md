@@ -98,6 +98,25 @@ An organisation always keeps at least one owner.
 
 Some settings apply to every site on the server, not only yours: the AI crawler rules, saved funnels, the internal-address list, the mail server and the log file paths. Only an **install admin** may change those. This is a flag the server admin gives to a person.
 
+## Several organisations
+
+People are given sites through organisations, never one site at a time. Everyone in an organisation sees all of its sites, with the role they have there. One person can be in several organisations, with a different role in each. An install admin sees only the organisations they are a member of.
+
+When you are in two or more:
+
+- The site switcher at the top of the sidebar lists your sites under each organisation's name, and so does **All sites**. With one organisation the list is plain, as before.
+- **Settings > Team** shows the team of the organisation that owns the site you have open. Its title names the organisation ("Team of Kiwi"), with the sites it sees ("These people see kiwi.example only.") and links to your other organisations' teams. Inviting someone there adds them to that organisation only.
+
+### Give someone one site only
+
+To let a partner or a client see one site and nothing else, the server admin puts that site in its own organisation, then you invite them there:
+
+1. On the server: `skald org create "Kiwi"`, then `skald site assign kiwi.example --org kiwi`. The site's data, settings and address stay as they were.
+2. Still on the server, make yourself a member of the new organisation too (`skald member invite you@example.com --role owner --org kiwi`, then follow the link and select **Join**), or you stop seeing the site.
+3. Open the site, go to [Team](#settings/team) and invite the person with the role they need.
+
+The site's settings and its set-up progress move with it, and so do the tokens that read only that site, such as its log shipper's. A token for several sites, or for all of the old organisation's, stays where it was and no longer reads the moved site: make a new one in the new organisation if you need it.
+
 ## Invite people
 
 You must be an admin or owner.

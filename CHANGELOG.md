@@ -471,6 +471,107 @@ Everything under Unreleased below is live on skaldanalytics.com since 26 Oct 202
   (no sideways scroll, no script errors, no broken assets, every switch and tab has a choice).
   Words checked against the product's own limits (`_src/pages/FEATURES.md`).
 
+## 2.38.0 (2026-10-26)
+
+In two organisations? The site switcher, All sites and the Team page now say which organisation each site and each team belongs to. Also: a 410 gone counts as handled and a redirect anywhere as fixed; the Setup button on All sites is bright and continues at the step you reached; moving a site to another organisation takes its settings, set-up progress and own tokens along; and visitor IDs off now keeps no ID from a booking, form or payment tool's webhook either.
+
+### Upgrade
+
+- Nothing to do.
+
+### Sites and teams grouped by organisation
+
+- **Added.** For a person in two or more organisations, the sidebar's site switcher lists the
+  sites under each organisation's name, and **All sites** groups its cards the same way, each
+  heading with its number of sites. A person in one organisation sees the plain list as before.
+  `sites.json` from the helper names each site's `org` only then (`helper_sessions.org_names`;
+  `access.session_caller` gives the caller's organisations). **Why:** the owner gave a business
+  partner one site in its own organisation and, being in both, could not tell from the dashboard
+  which team was which. **Who:** anyone in more than one organisation. **Do:** nothing.
+  **Checked:** `tests/test_org_grouping.py` (one organisation: no names, no headings; two: each
+  site named, two headed groups in order, and the other organisation's own owner sees nothing of
+  the first; "Other sites" last); a sandbox with two organisations in a browser, desktop and
+  390 px wide (no sideways scroll).
+- **Changed.** **Settings > Team** is titled with the organisation ("Team of Kiwi"), says which
+  sites the team sees ("These people see kiwi.example only.") and links to your other
+  organisations' teams. The team answer adds `sites` and `others` (`team_api.py`). **Checked:**
+  `tests/test_team_api.py` (the sites, and the other team seen from both sides).
+- **Docs.** The help's Sign-in and team guide has "Several organisations" and "Give someone one
+  site only"; docs/ACCOUNTS.md and docs/CLI.md say what `site assign` does with tokens.
+
+### A 410 gone counts as handled; a redirect anywhere counts as fixed
+
+- **Changed.** Site > Not found and the to-dos counted a 410 as "not found", like a 404, so an
+  address answered "410 gone" on purpose (the to-do's own advice) kept coming back as lost
+  traffic. Now only a 404 is an ask: a 410 is counted in the address's answers only, and an
+  address that answered 410 on or after the last day it answered 404 is handled and leaves the
+  lost pages and the sitemap addresses. The re-check of a done to-do and **After the fix** count
+  404s only, so a redirect, to the site or to another one, counts as fixed. Both roads changed
+  apart (`lost_pages.py`, `audit_todos.py`). **Why:** one site sent 64 old pages to another
+  site, 8 to its own pages and answered 410 for 80 on 26 Oct; the 410s would have stayed "lost".
+  **Who:** every site with Site > Not found. **Do:** nothing; an address you redirected stays on
+  Lost pages until its last 404 is older than the 30-day window, while its re-check already says
+  fixed. **Checked:** `tests/test_todos.py` (a 404 then a 410: handled; a 410 then a 404: lost,
+  with the 404s only; 410 only: never listed; a sitemap address answering 410: no to-do; the
+  re-check after the mark counts only the address still answering 404; a redirected address
+  marked fixed says fixed; the second count agrees); the tests fail on the old code.
+
+### Fixed: moving a site took its log shipper's access away
+
+- **Fixed.** A token reads only its own organisation's sites, so `skald site assign` to another
+  organisation cut off the tokens made for that site alone, such as its log shipper. They now
+  move with the site, each with a `token.move` audit row; a token for several sites, or for all
+  of the old organisation's, stays (`accounts/orgs.py`). **Why:** on skaldanalytics.com,
+  kiwiform.com was moved to its own organisation on 26 Oct and its log token stopped working
+  until it was moved by hand. **Who:** anyone moving a site between organisations. **Do:**
+  nothing. **Checked:** `tests/test_accounts_orgs.py` (the site's own token works after the move,
+  a two-site token and an all-sites token do not read the moved site, the same organisation
+  again moves nothing); the test fails on the old code.
+- **Fixed.** The move also left the site's settings and its set-up progress in the old
+  organisation. The old organisation's Settings > Add or remove sites still listed the site, and
+  its wizard said "Your progress was not saved: There is no such site in this organisation". Both
+  now move with the site, each with a `site.move` audit row. They move even when the site is
+  already in that organisation, so running `skald site assign` again mends a site moved before
+  2.38.0 (`accounts/orgs.py`). **Who:** anyone who moved a site made from the dashboard. **Do:**
+  for a site moved before 2.38.0, run `skald site assign SITE --org SLUG` once more. **Checked:**
+  `tests/test_accounts_orgs.py` (settings and progress listed and saved in the new organisation,
+  refused in the old one; a move made the old way mended by assigning again).
+
+### Fixed: the site picker's Setup button started over at step 1
+
+- **Fixed.** **Setup: step 4 of 5, continue** under a site's card on All sites opened the wizard
+  at step 1, not the step reached. It also opened the wizard inside the first site you administer,
+  so a site of another organisation could not save its progress. Now the button opens the wizard
+  at the saved step, inside the site's own dashboard or another dashboard of its organisation. With
+  no dashboard of that organisation drawn yet, there is no button; the card leads to the site's
+  waiting page (`helper_sessions.py`, `setup_page.app_for`, `js/tabs/sitesadmin.js`
+  `openSiteKey`). **Why:** the owner pressed it for kiwiform.com on 26 Oct and was sent to step 1
+  with "Your progress was not saved". **Who:** owners and admins with a set-up left half way.
+  **Do:** nothing. **Checked:** `tests/test_site_setup.py` (the link names the site's own
+  dashboard, never another organisation's, and the wizard saves there); `tests/js/connections.mjs`
+  (a link with no step opens the saved step 3).
+- **Changed.** The button is now bright blue with an arrow, so it reads as the next thing to do,
+  not as a grey note under the card. **Checked:** a sample page in a browser, light and dark.
+
+### Privacy: visitor IDs off now means no ID in a tool's webhook either
+
+- **Fixed.** With a site's visitor IDs off, the hook receiver dropped the `vid` key, but a tool's
+  own field for the ID was still written to the hook spool, which is kept 400 days: Typeform's
+  `hidden.skv`, Cal.com's `metadata.skv` or `utm_content`, Calendly's `tracking.utm_content`,
+  Stripe's `client_reference_id` and HubSpot's `skv` property. The store row was right (no ID);
+  the spool line was not. Now every value that is a Skald ID goes, at any depth, and so does a
+  Skald ID inside a longer text, such as a landing address's `?skv=`
+  (`conversions/hooks.py`, `without_vid`). **Why:** found in the security review of
+  26 Oct 2026; visitor IDs off is a promise that no ID is kept. **Who:** a self-hosted install
+  with visitor IDs off that takes Typeform, Cal.com, Calendly, Stripe or HubSpot webhooks.
+  **Do:** nothing after upgrading; spool lines written before it keep what they had until the
+  spool drops them. **Checked:** `tests/test_conversions_hooks.py` posts each tool's sample with
+  IDs off (no `skv_` in the spool, no ID in the store) and a lead whose landing address carries
+  one; the new tests fail on the old code. With IDs on, Stripe's reference still reaches the
+  store. Live (skaldanalytics.com, 26 Oct, counts only): the spool has lines from `lead` hooks
+  only; the sites with IDs off have 0 lines holding an ID, so nothing kept there needs
+  cleaning.
+
 ## 2.37.0 (2026-10-25)
 
 Ask your AI assistant what to fix: six read-only MCP tools for the to-dos, lost pages, page changes, AI readiness and what changed. Also: the live visitor count readable again, a command reference, docs that match 2.36, and release notes on every GitHub release.

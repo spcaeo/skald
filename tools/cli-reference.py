@@ -85,7 +85,7 @@ WORDS = {
     "account install-admin": "make an account an install admin, or stop it being one",
     "account install-admin::email": "the account's email",
     "account install-admin::flag": "on or off",
-    "site assign": "give a site to an organisation",
+    "site assign": "give a site to an organisation; its settings, set-up progress and the tokens for that site alone move with it",
     "site assign::site": "the site's name",
     "site assign::--org": "the organisation's slug",
     "site add::host": "the site's host name, e.g. example.com",

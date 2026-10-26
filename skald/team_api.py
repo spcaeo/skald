@@ -169,7 +169,17 @@ def team(c: Ctx, form):
                                   "disabled_at", "has_password")}
                for m in users.members(c.db, c.org["id"])]
     pending = invites.pending(c.db, c.org["id"]) if c.admin else []
-    return c.ok(org=c.org["name"], role=c.role, members=members, invites=pending)
+    # 2.38.0: the sites this team sees, and the reader's other organisations,
+    # each with a site whose Team page shows that organisation's team.
+    from .files import slug
+    others = []
+    for o in accounts.list_orgs(c.db, c.uid):
+        names = accounts.sites_of_org(c.db, o["id"])
+        if o["id"] != c.org["id"] and names:
+            others.append({"org": o["name"], "sites": len(names),
+                           "path": f"{slug(names[0])}/"})
+    return c.ok(org=c.org["name"], role=c.role, members=members, invites=pending,
+                sites=accounts.sites_of_org(c.db, c.org["id"]), others=others)
 
 
 def _send_invite(c: Ctx, email: str, role: str, kind: str):

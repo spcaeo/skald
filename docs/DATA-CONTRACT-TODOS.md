@@ -43,7 +43,12 @@ and the day kind `pages` (pages served). Who asked: `people`, `search`
 (search engines), `ai` (`ai_asked` and `ai_training`); bots, probes and our own
 traffic are left out. Live pages: the sitemap's paths for the last whole day,
 and every path served as a page in the window (an address served on or after
-the last day it failed counts as live).
+the last day it failed counts as live). Since 2.38.0 only a 404 is an ask: a
+410 is the site's own answer, so it is counted in `statuses` only, and an
+address that answered 410 on or after the last day it answered 404 is handled
+and not listed (lost pages and sitemap addresses alike). `first_day` and
+`last_day` are the 404s'. A redirect, to the site or another one, leaves no
+404, so the re-checks and `fixed` count it as fixed.
 
 | field | type |
 |---|---|

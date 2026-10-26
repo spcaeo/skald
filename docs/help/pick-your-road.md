@@ -33,7 +33,7 @@ Never sign a hook in the browser. The secret must stay on a server. A browser ca
 
 ## What each road costs in privacy
 
-- **Visitor IDs are off by default.** Then the script tag makes no ID, and a hook's `vid` is dropped before anything is kept. Journeys, abandoned forms and assisted sources need the IDs on. Your privacy notice must say so.
+- **Visitor IDs are off by default.** Then the script tag makes no ID, and a hook's visitor ID is dropped before anything is kept: the `vid`, and the ID in a tool's own field (Typeform, Cal.com, Calendly, Stripe, HubSpot) or in a landing address. Journeys, abandoned forms and assisted sources need the IDs on. Your privacy notice must say so.
 - **Names and emails are kept only when Leads' names and emails is full** (**Settings > Data retention > People**). That is the default for a new install; an install upgraded from before 2.4.0 keeps none until an admin turns it on. Then the name and the primary email only. Nothing else, ever: no phone, no address, no message.
 - **Addresses and browsers.** A lead hook may send the visitor's address and browser once. Skald looks up the country and the device, then drops both.
 - **The log itself.** With **Keep visitors' IP addresses** on (also the default for a new install), each visit in the log is kept with its address, so admins can look a person up. See [Privacy](privacy.md).

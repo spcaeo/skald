@@ -104,8 +104,14 @@ class Progress(TenantServer):
         listed = [{"name": s, "slug": s, "path": f"{s}/", "views": []} for s in (A, NEW)]
         (self.out / "sites.json").write_text(json.dumps({"schema_version": 1, "sites": listed}))
         page = self.call("GET", "/traffic/", cookie=cookie).raw.decode()
+        self.assertNotIn("Setup: step", page)       # no dashboard of its organisation drawn yet
+        self.draw(A)
+        page = self.call("GET", "/traffic/", cookie=cookie).raw.decode()
         self.assertIn("Setup: step 3 of 5, continue", page)
-        self.assertIn(f"#settings/sitesadmin?setup={NEW}", page)
+        self.assertIn(f'href="{A}/#settings/sitesadmin?setup={NEW}"', page)
+        self.draw(NEW)                              # drawn: the site's own dashboard
+        page = self.call("GET", "/traffic/", cookie=cookie).raw.decode()
+        self.assertIn(f'href="{NEW}/#settings/sitesadmin?setup={NEW}"', page)
         self.assertIn("#settings/sitesadmin?setup=new", page)   # + Add a site opens the wizard
         self.post(f"/traffic/{A}/sites/setup", {"name": NEW, "step": 5, "done": True}, cookie, csrf)
         page = self.call("GET", "/traffic/", cookie=cookie).raw.decode()
@@ -114,6 +120,35 @@ class Progress(TenantServer):
         cookie, _ = self.session("viewer@example.com")
         page = self.call("GET", "/traffic/", cookie=cookie).raw.decode()
         self.assertNotIn("test the connection", page)
+
+    def draw(self, site):
+        (self.out / site / "data").mkdir(parents=True, exist_ok=True)
+        (self.out / site / "index.html").write_text("<!doctype html><title>Skald</title>")
+
+    def test_the_picker_opens_another_organisations_wizard_in_that_organisation(self):
+        """26 Oct 2026: a site of a second organisation (kiwiform.com) opened its
+        wizard in the first one's dashboard: step 1, and "Your progress was not
+        saved: There is no such site in this organisation"."""
+        db = self.accounts_db()
+        try:
+            from skald import accounts
+            accounts.add_member(db, self.beta["id"], self.uids["owner@example.com"], "admin", "cli")
+            site_setup.save(db, self.beta["id"], B, "cli", step=4)
+        finally:
+            db.close()
+        listed = [{"name": s, "slug": s, "path": f"{s}/", "views": []} for s in (A, B)]
+        (self.out / "sites.json").write_text(json.dumps({"schema_version": 1, "sites": listed}))
+        self.draw(A)
+        cookie, csrf = self.session("owner@example.com")
+        page = self.call("GET", "/traffic/", cookie=cookie).raw.decode()
+        self.assertNotIn(f"{A}/#settings/sitesadmin?setup={B}", page)   # never another org's page
+        self.draw(B)
+        page = self.call("GET", "/traffic/", cookie=cookie).raw.decode()
+        self.assertIn("Setup: step 4 of 5, continue", page)
+        self.assertIn(f'href="{B}/#settings/sitesadmin?setup={B}"', page)
+        # And there the wizard can save: the site is that organisation's.
+        got = self.post(f"/traffic/{B}/sites/setup", {"name": B, "step": 5}, cookie, csrf)
+        self.assertEqual(got.status, 200, got.json)
 
     def test_the_store_itself(self):
         db = self.accounts_db()

@@ -295,6 +295,57 @@ class Todos(unittest.TestCase):
         self.assertEqual(list(held), ["server-errors"])
 
 
+class GoneOnPurpose(unittest.TestCase):
+    """2.38.0: a 410 is the site's own answer, as the to-do advises: handled, never lost.
+    A redirect, to this site or another, leaves no 404 behind: the re-check says fixed.
+    (example.com, 26 Oct 2026: old pages sent to another site, or answered 410.)"""
+
+    def setUp(self):
+        self.f = Fixture()
+        self.f.sitemap(["/", "/pricing/"])
+        self.d1, self.d2 = ANCHOR - timedelta(days=1), ANCHOR
+        self.f.day(self.d1, [nf("/old-a/", 3), nf("/old-b/", 2, "search_engines"), nf("/old-c/", 2),
+                             nf("/only-gone/", 4, status=410), nf("/back-again/", 2, status=410),
+                             nf("/sitemap_index.xml", 2, "search_engines")], {"/": served(views=5)})
+        # The day after: /old-a/ answers 410, /old-b/ and the sitemap redirect (no 404 any
+        # more), /old-c/ still fails, /back-again/ fails after its 410.
+        self.f.day(self.d2, [nf("/old-a/", 2, status=410), nf("/old-c/", 1), nf("/back-again/", 3),
+                             nf("/sitemap_index.xml", 1, "search_engines", status=410)],
+                   {"/": served(views=5)})
+
+    def tearDown(self):
+        self.f.close()
+
+    def test_a_410_is_handled_and_counts_no_ask(self):
+        p = self.f.page()
+        body = lost_pages.build(p)
+        rows = {r["path"]: r for r in body["lost"]}
+        self.assertEqual(set(rows), {"/old-b/", "/old-c/", "/back-again/"})
+        self.assertEqual((rows["/back-again/"]["people"], rows["/back-again/"]["statuses"]),
+                         (3, {"404": 3, "410": 2}))
+        self.assertEqual(body["totals"]["people"], 2 + 1 + 3)
+        found = lost_pages.Found(p)
+        self.assertEqual(found.sitemaps(), [])                 # answered 410 last: handled
+        self.assertEqual(audit_todos.check_lost(p.history.db, SITE, found.first, found.last, body,
+                                                found), [])
+
+    def test_the_recheck_counts_404s_only(self):
+        db = self.f.accounts()
+        for item in ("lost-pages", "sitemap"):
+            todo_marks.mark(db, SITE, item, "done", self.d1.isoformat())
+        todo_marks.mark(db, SITE, "path:/old-b/", "fixed", self.d1.isoformat())
+        db.close()
+        p = self.f.page()
+        body = todos.build(p)
+        self.assertEqual(body["withheld"], [])
+        got = {t["id"]: t for t in body["todos"]}
+        # Of the addresses that failed before the mark, only /old-c/ answered 404 after it.
+        self.assertEqual(got["lost-pages"]["recheck"]["figures"], {"asked": 1})
+        self.assertNotIn("sitemap", got)       # its one address answers 410 now: nothing left
+        fixed = {r["path"]: r for r in lost_pages.build(p)["fixed"]}
+        self.assertEqual(fixed["/old-b/"]["verdict"], "fixed")   # redirected away: no 404
+
+
 class Marks(unittest.TestCase):
     def test_items_states_and_history_kept(self):
         self.assertTrue(todo_marks.valid_item("lost-pages"))
