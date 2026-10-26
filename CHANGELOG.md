@@ -4,6 +4,24 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+### Website: live up to 2.37; What's new has 2.37
+
+- **Live.** Every Website section below went up to skaldanalytics.com on 26 Oct 2026 at 00:28
+  UTC, with 2.37.0 live on the server. **Added.** /whats-new/ has a 2.37 entry (six MCP
+  tools, the live count readable, docs that match); the upload had shown 2.36.1 as the newest.
+  Who it affects: readers of skaldanalytics.com. What to do: nothing. **Checked:** all 151
+  sitemap pages answer 200, the build says "problems: none", no console errors on the home,
+  what-changed and MCP pages.
+
+### Public notes: a measured site no longer named in the 2.23.0 notes
+
+- **Fixed.** The 2.23.0 notes (docs/CHANGELOG-2.23-2.26.md and the v2.23.0 GitHub release)
+  named one of the sites we measure three times. They now say "one site we measure". Why: the
+  public export check let the name through in changelogs, where the company behind it may be
+  credited; it now flags that site's address in every file, changelogs included. Who it
+  affects: nobody running Skald. What to do: nothing. Checked: the export's own tests, and a
+  search of the public repo for the address finds nothing.
+
 ### Website: a GitHub button with the star count on every page; MCP pages say 20 tools; CDN days said to be withheld
 
 - **Added.** The header on every page has a GitHub button: the GitHub mark, "GitHub" and the
