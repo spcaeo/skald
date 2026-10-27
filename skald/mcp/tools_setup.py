@@ -56,21 +56,21 @@ def _base(ctx) -> str:
 
 
 def checklist(base: str, site: str) -> str:
-    """Settings › Set-up checklist (old address; it redirects)."""
+    """Settings › To do: the site's open set-up lines."""
     from ..files import slug
-    return f"{base}/traffic/{slug(site)}/#settings/api"
+    return f"{base}/traffic/{slug(site)}/#settings/todo"
 
 
 def dialog(base: str, site: str, act: str) -> str:
-    """The address of a Set up dialog: the checklist with setup=<act>."""
+    """The address of a Set up dialog: To do with setup=<act>."""
     return f"{checklist(base, site)}?setup={act}"
 
 
 # ---------------------------------------------------------------- setup_left
 
 @tool("setup_left", "What is left to set up",
-      "The site's set-up checklist lines that are not done (the same lines as Settings › "
-      "Set-up checklist): logs arriving, visits counted as people, Next.js "
+      "The site's set-up lines that are not done (the same lines as Settings › "
+      "To do): logs arriving, visits counted as people, Next.js "
       "pages, countries, the script tag, a lead hook, a mail recipient, the privacy choice, "
       "Search Console. "
       "Each open line has its state, one plain sentence, the address of its Set up dialog, "
@@ -170,7 +170,7 @@ def setup_line(ctx, args):
     maker = _maker()
     if maker is None:
         raise Refused("This Skald cannot make a set-up line over MCP yet. Make it on the "
-                      "dashboard: Settings › Set-up checklist, Set up with your AI agent.")
+                      "dashboard: Settings › To do, Finish set-up, My AI agent.")
     from ..accounts import auditlog
     from ..accounts import db as base
     from ..accounts.orgs import org_of_site
@@ -213,5 +213,5 @@ def setup_line(ctx, args):
             "working."]
     if got.get("not_revoked"):
         text.append("An older line's token could not be revoked; Skald tries again in the "
-                    "daily run, or revoke it in Settings › Tokens & links.")
+                    "daily run, or revoke it in Settings › AI assistants › Tokens & links.")
     return "\n".join(text), data

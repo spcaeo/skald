@@ -354,7 +354,7 @@ assert.deepEqual(ids({ country: "US", lby: "Direct or unknown" }), [], "filters 
   // The "Today so far" line, part of the period now, under the count.
   const line = el.querySelector(".sa-live");
   assert.ok(line, "the line on Leads, 7 days");
-  assert.equal(text(line).replace(/\s+/g, " ").trim(), "Today so far: 3 of these 4 leads Show today (live) → · Fri 16 Oct to Wed 21 Oct are whole days, verified; today is live and verified again once it is whole. Summary and Sources count whole days: Thu 15 Oct to Wed 21 Oct.");
+  assert.equal(text(line).replace(/\s+/g, " ").trim(), "Today so far: 3 of these 4 leads Show today (live) → · Fri 16 Oct to Wed 21 Oct are whole days, verified; today is live and verified again once it is whole. Summary and Sources count other leads, so their figures differ: whole days only (Thu 15 Oct to Wed 21 Oct), from the lead database (sign-ups, contact forms and early access, no demos booked).");
   assert.equal(el.querySelectorAll(".sa-today").length, 1, "not the old line beside it");
   // The list: today's leads, newest first, marked live.
   const g = el.querySelector(".sk-grid");

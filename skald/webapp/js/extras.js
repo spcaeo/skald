@@ -2,6 +2,7 @@
 // chart markers, saved views and the alerts bell. Each is small; they live
 // here so main.js stays the router.
 
+import { needsYou } from "./alert-groups.js";
 import { h, toast } from "./ui.js";
 import * as S from "./state.js";
 import { CHOICES, choiceWords } from "./tz.js";
@@ -58,11 +59,12 @@ export function zonePicker(s) {
 export function bell(m) {
   const f = m.x?.alerts;
   if (!f) return null;
-  const open = (f.open || []).length;
+  // 2.41: the bell counts what needs you (alert-groups.js), as the Site badge and the page do.
+  const open = (f.open || []).length, need = needsYou(f);
   const high = (f.open || []).some((a) => a.severity === "high");
-  const b = h("button", { type: "button", class: `btn bell${open ? " on" : ""}${high ? " high" : ""}`, html: BELL,
-    "aria-label": open ? `Alerts: ${open} open. Open the alerts.` : "Alerts: none open. Open the alerts." },
-  open ? h("span", { class: "bell-n", "aria-hidden": "true" }, String(open)) : null);
+  const b = h("button", { type: "button", class: `btn bell${need ? " on" : ""}${high ? " high" : ""}`, html: BELL,
+    "aria-label": need ? `Alerts: ${need} need${need === 1 ? "s" : ""} you (${open} open). Open the alerts.` : open ? `Alerts: nothing needs you (${open} open). Open the alerts.` : "Alerts: none open. Open the alerts." },
+  need ? h("span", { class: "bell-n", "aria-hidden": "true" }, String(need)) : null);
   b.addEventListener("click", () => S.set({ tab: "site/alerts" }));
   return b;
 }

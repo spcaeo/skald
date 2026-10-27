@@ -1,4 +1,4 @@
-"""The one-command install and the set-up pack: Settings > Collect data > Send logs'
+"""The one-command install and the set-up pack: Settings > Data > Send logs'
 routes beside sites/kit (sites_api.py routes them, with its session, owner
 or admin role, same-origin and CSRF checks):
 
@@ -475,7 +475,8 @@ def _search_facts(c, conf: dict, site: str) -> dict:
             "may_upload_key": install_admin(c.config, _folder(c), c.uid)}
 
 
-NOT_REVOKED = "Skald tries again in the daily run, or revoke it in Settings > Tokens & links"
+NOT_REVOKED = ("Skald tries again in the daily run, or revoke it in "
+               "Settings > AI assistants > Tokens & links")
 
 
 def revoke_unused(db, folder, org_of, actor, done) -> tuple[list, list]:
@@ -529,7 +530,8 @@ def _token_words(unused, bad: dict) -> str:
         return f"its unused token {unused} revoked"
     if unused == "":
         return "it made no token"
-    return "its keys were taken, so its token stays (revoke it in Settings > Tokens & links)"
+    return ("its keys were taken, so its token stays (revoke it in "
+            "Settings > AI assistants > Tokens & links)")
 
 
 def _sweep(c, site: str) -> list[str]:

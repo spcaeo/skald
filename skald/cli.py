@@ -643,6 +643,10 @@ def audit_live(ctx: Context) -> int:
         ctx.out(f"audit skipped: live {day}: {ctx.site} has no log lines yet")
         return 0
     problems, compared = audit.compare_live(figures, snap)
+    if getattr(ctx.args, "show_active", False):     # both roads' active visits, listed
+        from .audit_realtime import show_active
+        for text in show_active(snap.get("realtime"), figures.get("more"), ctx.tz):
+            ctx.out(audit.mask(text))
     # The Recent requests feed: its window's requests by group, recounted.
     import json
     from .requests_feed import path_for
@@ -918,6 +922,9 @@ def parser() -> argparse.ArgumentParser:
                    help="mark the day withheld if anything does not match")
     p.add_argument("--live", action="store_true",
                    help="recount today so far and compare with the live snapshot")
+    p.add_argument("--show-active", action="store_true",
+                   help="with --live: list both roads' active visits (labels and times, "
+                        "no address), to read a real-time mismatch")
     p.set_defaults(run=cmd_audit)
 
     p = sub.add_parser("live", help="snapshot today so far and redraw the "

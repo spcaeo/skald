@@ -9,13 +9,13 @@ See what ChatGPT, Perplexity, Gemini and Claude answer when someone asks the que
 ## Where to find it
 
 - [AI & bots › AI answers](#ai/answers): the figures, the chain, the questions and the profile's settings beside them.
-- [Settings › This site › AI answers](#settings/site/aianswers): the site's questions, brand terms and competitors, and the tracking profiles (tab **Questions & profiles**).
-- [Settings › This site › AI answers › API keys](#settings/site/aianswers?sub=keys): the assistants' API keys (install admins).
+- [Settings › AI › AI answers](#settings/ai/answers): the site's questions, brand terms and competitors, and the tracking profiles (tab **Questions & profiles**).
+- [Settings › AI › AI answers › API keys](#settings/ai/answers?sub=keys): the assistants' API keys (install admins).
 
 ## Set it up
 
-1. **Add a key** for at least one assistant: Settings › This site › AI answers › API keys. Each key is your own account with that provider (OpenAI, Perplexity, Google Gemini, Anthropic). It is write-only: the page only says set or not.
-2. **Write the lists**: Settings › This site › AI answers. The questions your buyers ask (at most 50, written as a customer would), your brand terms (your name and your domain) and your competitors (names or domains).
+1. **Add a key** for at least one assistant: Settings › AI › AI answers › API keys. Each key is your own account with that provider (OpenAI, Perplexity, Google Gemini, Anthropic). It is write-only: the page only says set or not.
+2. **Write the lists**: Settings › AI › AI answers. The questions your buyers ask (at most 50, written as a customer would), your brand terms (your name and your domain) and your competitors (names or domains).
 3. **Make a tracking profile**: a place and a language, the assistants to ask, how often, how many tries per question, and a daily spending cap. The panel shows the cost estimate before you save.
 4. **Wait for the first run**, from 06:00 in the site's time zone, or choose **Run now**. The figures appear once every answer of the run is in and has been checked.
 
@@ -36,7 +36,7 @@ A profile asks as if from one place, in one language: Toronto in English, Montr�
 | Tries per question | 1 to 5. Answers vary from one try to the next: with 5 tries you see "named you in 3 of 5", never a single yes or no. |
 | Daily spending cap | In US dollars. A run that would pass it stops and goes on the next day. |
 
-Pause, resume, duplicate and delete are in Settings › This site › AI answers. Nothing is erased: a deleted profile leaves the list and its results stay; an edit makes a new version and earlier runs keep theirs.
+Pause, resume, duplicate and delete are in Settings › AI › AI answers. Nothing is erased: a deleted profile leaves the list and its results stay; an edit makes a new version and earlier runs keep theirs.
 
 ## What the page shows
 

@@ -36,6 +36,10 @@ classify.py's name lists are shared, through the audit.
                   row. Each city the part kept, exactly; its "(all others)"
                   against the rest
 
+`audit --live --show-active` (show_active) lists both roads'
+active visits for the snapshot, side by side, the ones on one road only marked:
+labels and times only, no address.
+
 The tail (recount_tail): every line of the site's hosts in the tail file's
 own window [from, until), per clock minute, against what the helper counted.
 Only a fresh tail is compared: its `until` no more than FRESH_MINUTES before
@@ -271,6 +275,61 @@ def _doing(listed: list, active: list, tz, same, problems: list) -> None:
     for k in sorted(set(stored) | set(counted)):
         if stored[k] != counted[k]:
             problems.append(f"real time: active visit, {k}: listed {stored[k]}, recounted {counted[k]}")
+
+
+# --------------------------------------------- both roads' active visits, listed
+
+def show_active(part: dict | None, more, tz) -> list[str]:
+    """`audit --live --show-active`: both roads' active visits for
+    one snapshot, one line each, so a mismatch in "visits active" can be read in
+    one command. The snapshot's side is its `doing` list (at most DOING), the
+    recount's the audit's own visits; each line by start (to the minute), last
+    request (to the second), country, city, device, source and pages, the ones
+    on one road only marked. Labels and times only: neither side holds an
+    address or a user agent."""
+    recount = next((r for r in getattr(more, "each", ()) if isinstance(r, Recount)), None)
+    if not part or recount is None:
+        return ["real time, active visits: the snapshot has no real-time part"]
+    end = datetime.fromisoformat(part["until"]).astimezone(timezone.utc)
+    since = end - timedelta(minutes=MINUTES)
+    first = datetime.fromtimestamp((_last(end) - MINUTES + 1) * 60, timezone.utc)
+
+    def local(when: datetime, spec: str) -> str:
+        return when.astimezone(tz).isoformat(timespec=spec)
+
+    def row(start, last, country, city, device, source, pages) -> tuple:
+        return (str(start or ""), str(last or ""), str(country or ""), str(city or ""),
+                str(device or ""), str(source or ""), int(pages or 0))
+
+    def city_of(labels: dict) -> str:
+        city = labels.get("city") or ""
+        return "" if city == "Unknown" else city
+
+    kept = [row(v.get("start"), v.get("last"), v.get("country"), v.get("city"),
+                v.get("device"), v.get("source"), v.get("pages")) for v in part.get("doing") or []]
+    got = recount.figures(end)
+    counted = [row(first_at.astimezone(tz).strftime("%Y-%m-%dT%H:%M"), local(final, "seconds"),
+                   labels.get("country"), city_of(labels), labels.get("device"),
+                   labels.get("source"), n)
+               for first_at, final, labels, n, _ in got["doing"]]
+    out = [f"real time, active visits: until {local(end, 'seconds')}, active since "
+           f"{local(since, 'seconds')}, first minute shown {local(first, 'minutes')}",
+           f"  the snapshot: {int((part.get('active') or {}).get(str(MINUTES), 0)):,} active, "
+           f"{len(kept):,} listed (at most {DOING}); the recount: {got['active'][str(MINUTES)]:,} "
+           f"active"]
+    if "doing" not in part:
+        out.append("  the snapshot predates its list of active visits (2.20): only the counts")
+    left, right = Counter(kept), Counter(counted)
+    for r in sorted(set(left) | set(right), key=lambda r: r[1], reverse=True):
+        both = min(left[r], right[r])
+        for side, n in (("both", both), ("snapshot only", left[r] - both),
+                        ("recount only", right[r] - both)):
+            for _ in range(n):
+                start, last, country, city, device, source, pages = r
+                out.append(f"  {side:<13} start {start[11:16]}  last {last[11:19]}  {country}"
+                           f"{'  ' + city if city else ''}  {device}  {source}  "
+                           f"{pages} page{'s' if pages != 1 else ''}")
+    return out
 
 
 # ------------------------------------------------------------------ the tail

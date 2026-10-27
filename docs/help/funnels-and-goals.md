@@ -107,7 +107,7 @@ A goal is an event from the tracking script that counts as success for you, such
 
 You need to be an admin of the site.
 
-1. Open [Leads & sales > Events](#sales/events) and select **Edit goals** beside the Goals heading. Or open **Settings > This site > Collect data > Script tag & goals** ([Script tag & goals](#settings/site/collect?sub=script)).
+1. Open [Leads & sales > Events](#sales/events) and select **Edit goals** beside the Goals heading. Or open **Settings > This site > Data > Script tag & goals** ([Script tag & goals](#settings/site/data?sub=script)).
 2. In the **Goals** box, tick the events that count as success, such as **Sign-up sent** or **Demo booked**. Up to 10.
 3. Select **Save**.
 
@@ -152,7 +152,7 @@ Today's events are shown as "not yet checked". Events are checked each night aga
 
 Badly tagged links split one campaign into several, or hide where visitors came from. Skald finds four kinds of problem.
 
-Open [Traffic > Sources](#traffic/sources) and scroll to **Campaigns and referrers**, then **Tag problems**.
+Open [Traffic > Sources](#traffic/sources), open **Open the details** under the grid, then **Campaigns and referrers** and **Tag problems**.
 
 | Problem | What it means | How to fix it |
 | --- | --- | --- |

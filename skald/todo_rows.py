@@ -162,7 +162,7 @@ def hook_body(config: dict, site: str, t: dict, first_seen: str) -> dict:
     return {"event": EVENT, "site": site,
             "todo": {k: t.get(k) for k in ("id", "kind", "subject", "title", "proof", "todo", "check")},
             "figures": t.get("figures"), "rows_total": t.get("rows_total", len(t.get("rows") or [])),
-            "link": link(config, t["id"]) + "&fix=1&fixby=agent", "first_seen": first_seen,
+            "link": link(config, t["id"]) + "&fix=1&by=agent", "first_seen": first_seen,
             "text": f"[{site}] New to-do: {t.get('title')}. {t.get('proof') or ''}".strip()}
 
 

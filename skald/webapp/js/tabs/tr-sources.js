@@ -9,9 +9,12 @@
 // It replaces Traffic sources, Each source over time, All sources with their leads,
 // Referring sites, All referring sites and Campaigns: the same figures, in one place.
 //
-// Below it: where returning visitors first came from (tr-firsttouch.js), then Campaigns and referrers (campaigns.json: UTM tags, referring sites down
-// to the page, paid networks, tag problems). AI visits live under AI & bots > Assistants
-// (owner's decision, 2026-10-12): this tab links there. Landing pages live on Pages.
+// Below it, under one fold kept in the address (srcx_view=open, 2.42: answer first): the
+// likely causes of Direct, where returning visitors first came from (tr-firsttouch.js), then
+// Campaigns and referrers (campaigns.json: UTM tags, referring sites down to the page, paid
+// networks, tag problems). The grid's method notes are behind its "?". AI visits live under
+// AI & bots > Assistants (owner's decision, 2026-10-12): this tab links there. Landing pages
+// live on Pages.
 
 import { h, change } from "../ui.js";
 import { color, figures, previousOf, total, coverage, chartDays } from "../data.js";
@@ -24,6 +27,8 @@ import { firstTouch } from "./tr-firsttouch.js";
 import { leadsBy, leadNote, viewNote } from "./leadfigs.js";
 import { leadRows, labelCol, countCols, leadCols, goTo, compareOf, compareRows, compareCols, compareNote } from "./tr-grid.js";
 import { directPanel } from "./likelydirect.js";
+import { urlFold } from "../ui/fold.js";
+import { help } from "../ui/help.js";
 import { SEGMENT as SOCIAL, socialRows, netCell, socialNote, networkPanel } from "./tr-social.js";
 
 const TOUCH = "last touch: the source of the visit the lead was sent from";
@@ -137,27 +142,26 @@ export default function sources(m, s) {
   g.classList.add("tr-grid", "lead-tbl");
   box.append(g);
   const ai = S.hashFor({ ...s, tab: "ai/assistants", dd: "" });
-  out.push(h("section", { class: "s" }, h("h2", null, "Sources"),
-    h("p", { class: "sub" }, c.ok
-      ? "Visitors by source type, social network, referring site or campaign, in A against B. Each segment is its own list."
-      : prev
-      ? "Visitors by source type, social network, referring site or campaign. Before, Change and the trend compare source types and networks with the range before, only when both are fully verified; a change under 20% is not called either way."
-      : "Visitors by source type, social network, referring site or campaign. Each segment is its own list. Open a network for the hosts it rolls up and where its visitors landed."),
+  // What the grid counts and how: behind its "?", never a stack of notes under it.
+  const about = [c.ok ? "Visitors by source type, social network, referring site or campaign, in A against B. Each segment is its own list."
+    : prev ? "Visitors by source type, social network, referring site or campaign. Before, Change and the trend compare source types and networks with the period before, only when both are fully verified; a change under 20% is not called either way."
+    : "Visitors by source type, social network, referring site or campaign. Each segment is its own list. Open a network for the hosts it rolls up and where its visitors landed.",
+  compareNote(c), socialNote(social), lb ? leadNote(lb, TOUCH) : null,
+  leads ? "Leads are split by source type only, so social networks, referring sites and campaigns list their visitors alone." : null]
+    .map((x) => (x && typeof x !== "string" ? x.textContent : x)).filter(Boolean);
+  out.push(h("section", { class: "s" }, h("div", { class: "card-h start" }, h("h2", null, "Sources"), help("Sources", { text: about, guide: "where-visitors-come-from" })),
     box,
-    compareNote(c),
-    socialNote(social),
-    lb ? leadNote(lb, TOUCH) : null,
-    leads ? h("p", { class: "note" }, "Leads are split by source type only, so social networks, referring sites and campaigns list their visitors alone.") : null,
     viewNote(m, s),
     goTo(ai, "Visitors sent by AI assistants, counted and likely (inferred), are under", "AI & bots › Assistants"),
     goTo(S.hashFor({ ...s, tab: "traffic/pages", dd: "" }), "The pages these visitors landed on, with their leads, are on", "Pages")));
   // The open social network (net=x): how its visitors were matched and where they landed.
   out.push(networkPanel(m, s, r));
-  // Under Direct: its likely causes (inferred, direct_likely.py), never added to any row.
-  // Not in compare mode: the split is the range's own, not A against B.
-  if (!c.ok) out.push(h("section", { class: "s" }, directPanel(m, r)));
-  out.push(firstTouch(t, r, { live: r.kind === "today" }));
-  out.push(h("section", { class: "s" }, h("h2", null, "Campaigns and referrers"), campaignParts(m, s, r)));
-  out.push(unmeasured(t));
+  out.push(urlFold("srcx", "Open the details: the likely causes of Direct, where returning visitors first came from, campaigns and referrers", () => [
+    // Under Direct: its likely causes (inferred, direct_likely.py), never added to any row.
+    // Not in compare mode: the split is the range's own, not A against B.
+    c.ok ? null : h("section", { class: "s" }, directPanel(m, r)),
+    firstTouch(t, r, { live: r.kind === "today" }),
+    h("section", { class: "s" }, h("h2", null, "Campaigns and referrers"), campaignParts(m, s, r)),
+    unmeasured(t)]));
   return out;
 }

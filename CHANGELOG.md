@@ -513,406 +513,409 @@ Not live yet: built and committed, waiting for the owner's go to upload the webs
   (no sideways scroll, no script errors, no broken assets, every switch and tab has a choice).
   Words checked against the product's own limits (`_src/pages/FEATURES.md`).
 
-## 2.41.0 (2026-10-26)
+## 2.42.0 (2026-10-26)
 
-The dashboard opens fast and stays fast as data grows: code and data are compressed, code is cached until the next release, the four big lists load only when their tab opens, and the counting runs give way to the dashboard. Measured on a 3,000-page sample over a slow line, a first load went from 8.0 s and 17.8 MB to 1.4 s and 1.4 MB, and a site switch from 7.9 s to 0.4 s. Each site gets its own AI agent line, so ten sites can be set up at once, and Search Console is an agent job. Every Insights to-do has one **Fix this** button: your AI agent gets the full list from Skald, fixes it and reports back.
-
-### Upgrade
-
-- **Docker:** nothing to do. The image's nginx compresses and caches by itself.
-- **Self-hosted with your own front nginx built from DEPLOY.md:** copy the new cache `map` and the
-  gzip lines, and widen the kit's POST location to `(report|hooksecret|searchkey)` plus the new
-  `/fix` location (DEPLOY.md). Rolling back below 2.41.0 while keeping those lines: first delete
-  the `*.json.gz` files beside the data files (UPGRADING.md).
-- Scheduled jobs now run at a lower CPU priority (`SKALD_JOB_NICE`, default 10; `0` turns it off).
-
-### The dashboard opens fast, and stays fast as data grows
-
-- **Fixed.** Opening a site fetched every data file at full size, every time: on a sample of
-  3000 pages, 293 files and 17.8 MB before the key figures showed, 8.0 s on a 2.5 MB/s line,
-  and the same again on every reload and site switch. Now 1.4 MB and 1.4 s the first time,
-  42 kB and 0.3 s on a reload, 0.4 s on a site switch. How:
-  - **Compressed.** nginx gzips the app's code and data, and sends each data file's
-    `.json.gz`, written beside it by every run, as it is. The helper's answers are never
-    compressed (they can hold the session's CSRF token: BREACH).
-  - **Kept by the browser.** The code is fetched at an address carrying its version (a hash
-    of the code, on every import too) and kept a year; a new release is a new address. Data
-    files are asked for again each time and answer 304 while unchanged. The page itself,
-    `sites.json` and every helper route stay `no-store`. Every file still needs a session;
-    the session check for the shared code is cheaper (a pass for 30 seconds after a full
-    check, ended at sign-out).
-  - **The big files when needed.** `not_found`, `pages`, `page_index` and `page_trends` load
-    when a tab or card first needs them, never with the Overview. Those cards show their
-    title and "Loading" meanwhile.
-  - **Smaller copies for the app.** `data/slim/` holds `not_found`, `pages` and `page_index`
-    without the parts the app never draws (each day's 404 rows, each page's day-by-day and
-    breakdowns, sitemap date lists). Every row and value kept is the full file's, checked by
-    the audit's own walk before the copy is written; the full files, API and MCP are
-    unchanged (DATA-CONTRACT.md, "The app's slim copies").
-  - **Code asked for at once** (modulepreload), and **scheduled jobs at a lower CPU
-    priority** (`SKALD_JOB_NICE`, 10), so the dashboard comes first during a live run.
-- **Why.** The owner, 2026-10-26: "when we open a new site, it is taking a lot of time ...
-  you cannot wait five minutes for the overview to load."
-- **Who / what to do.** Everyone, on the next upgrade; Docker installs: nothing. A
-  self-hosted nginx made from DEPLOY.md: take the new `map $request_uri $skald_cache` and
-  the `/traffic/` location's gzip and Cache-Control lines (DEPLOY.md, "Compression and
-  caching"). A web server in front passes both through as they are. Rolling back below this
-  release with the new nginx lines: delete the `*.json.gz` copies first.
-- **Checked.** `tools/bench_load.py` (the figures above: a 3000-page sample, real nginx with
-  the image's config behind HTTP/2, Chromium on a throttled line), `tests/test_nginx_cache.py`
-  (the rules from DEPLOY.md, then a real nginx: gzip, HTTP/1.0 proxies, 304, Cache-Control per
-  path, helper answers neither kept nor compressed), `tests/test_gzip_copies.py` (every copy is
-  its file, atomic, removed when it would be stale), `tests/test_lazy_load.py` with
-  `tests/js/lazy-load.mjs` (nothing big at open, each file once, every reader known),
-  `tests/test_slim.py` (copies reconcile on a real run, the audit catches a changed, dropped,
-  reordered or added value), `tests/test_auth_api.py` (the 30-second pass), the scheduler's
-  nice, and the full suite with and without PyYAML.
-
-### Many sites with your AI agent: one line each, two lines through MCP, and Search Console
-
-- **Added.** Settings > Organisation > Sites > **Set up many sites with your AI agent**
-  (`#settings/org/sites?lines=all`): every site with what is left on it, its own **Make its
-  line**, **Make a line for each site** (one separate line per site), each site's line and watch,
-  and **Add several sites** (up to 25 names, each with Add a site's checks and the plan's limit).
-  Each site's **Two lines (MCP)** makes a token for that one site (`mcp` + `setup`) and shows
-  line 1 for Claude Code (`claude mcp add ...`, kept to that folder) or Codex (its own
-  `[mcp_servers.skald-<site>]`), and line 2, `Set up Skald for this site`. MCP `setup_line` no
-  longer needs `site` with a one-site token. New `GET sites/agentleft`.
-- **Added.** A `search` job: the agent finds the Search Console property and, with the user's
-  yes, when Skald has no key and the line's maker is an install admin, makes a service account
-  with gcloud and sends its key file to the new `POST /traffic-kit/<code>/searchkey` from the
-  file (never the chat, never a log; never replaces a key). The one click (add the robot as a
-  Restricted user) and Bing's key stay the user's. Checklist line 8, "Search Console connected"
-  (optional), whose Set up opens This site > Leads & integrations > Search Console & Bing. The
-  report's property is a recommendation with **Apply**.
-- **Fixed.** The AI agent kit's rate limit counted per address only, so ten sessions on one
-  laptop setting up ten sites shared 10 tries a minute and got "Too many tries". It now counts
-  per address and code, with 120 a minute per address across codes.
-- **Why.** The owner: "a user can be working on 10 sites ... i will give permission from 10
-  sites separate". No code or token covers two sites.
-- **Who / what to do.** Owners and admins. A self-hosted front nginx made from DEPLOY.md must
-  widen the kit's POST location to `(report|hooksecret|searchkey)`; the Docker image's nginx has
-  it. Nothing else.
-- **Checked.** `tests/test_agent_many.py` (ten sites' lines used at once from one address, the
-  searchkey route's refusals and its bash + curl command, the two lines' token),
-  `tests/js/agent-many.mjs` (the view and its address), the checklist parity test, and the full
-  suite.
-
-### To-dos your AI agent fixes: one button, "Fix this"
-
-- **Changed.** Each to-do on Overview > Insights has one main button, **Fix this**, in place of
-  Download CSV, Copy link and Send to team. It asks **Who will do it?**: **My AI agent** (one
-  line to paste into Claude Code, Codex or Cursor), **Me** (the exact nginx or Apache lines to
-  paste, from every row, with the CSV as a small link) or **Someone else** (Send to team, or the
-  link). **Fix all (N)** above the list asks the same for every open to-do. The link to a to-do
-  is the copy icon by its title. The address keeps each choice
-  (`todo=<id>&fix=1&fixby=agent|me|someone`, and `link=<id>` for the line being watched; never
-  the line or its code).
-- **Added.** The to-do line: `fix the Skald to-do "<title>" for <site> — read <address>/traffic-kit/llms.txt
-  and use code <code> (works once, 24 hours)`. Its steps fetch every row of the to-do from Skald
-  with curl into a 0600 file (new `GET /traffic-kit/<code>/todo/<id>`: paths and counts only;
-  never the browser's files, which hold at most 1,000 rows), check first where the site keeps
-  its redirects or rules (nginx, Apache, Next.js, vercel.json, Netlify, WordPress, Cloudflare),
-  change only what is missing, ask before any server change, test with `nginx -t`, and report
-  each to-do (new `POST /traffic-kit/<code>/fix`, up to 256 KiB): done, partly or left, the
-  exact change, the rows left and why. The report shows in the dialog and on the to-do; "done"
-  marks the to-do done, so Skald re-checks it on the days after. Marking done changes no figure
-  and is undone with one click; that is the most a leaked line can do. One job per kind:
-  todo-lost, todo-errors, todo-markdown, todo-sitemap, todo-leave. A new to-do line never ends a
-  set-up line.
-- **Added.** MCP tools `fix_todo` (every row and the steps; any token for the site) and
-  `mark_todo_done` (the report and the mark; the setup scope for that one site, owner or
-  admin; audit row `mcp.todo_done`). "Fix my Skald to-dos" now works with the MCP token alone.
-- **Added.** New to-dos are said: "N new to-dos your AI agent can fix" above the list and in
-  the summary mail (each to-do with a link that opens Fix this > My AI agent; never a code in a
-  mail), and the outgoing webhook event `todo.new` (title, proof, figures, link; never a code or
-  a row). `todos.json` gains `agent` and `first_seen`; every row is kept for the agents in
-  `<history folder>/todo-rows/<site>.json` (0600).
-- **Why.** The owner (26 Oct): give the to-do's data to the person's own AI agent so it can do
-  all that is needed, with no download and no copy and paste; and one button that asks what
-  you want, instead of a row of buttons. "Fix the lost pages", from opening Insights to the
-  change made: before, 4 clicks (Open in Site > Not found, Download the nginx lines, back to Insights,
-  Mark done) plus signing in to the server, editing nginx, `nginx -t` and a reload by hand; now
-  3 clicks (Fix this, My AI agent, Copy), one paste into the agent and one "yes" to its server
-  change. The mark is made by the agent's report.
-- **Who / what to do.** Owners and admins make lines; anyone who may read the site sees the
-  reports. A self-hosted front nginx made from DEPLOY.md needs the new
-  `^/traffic-kit/<code>/fix$` location (POST, 256k); the Docker image's nginx has it. Nothing
-  else.
-- **Checked.** `tests/test_todo_agent.py` (the rows equal todos.py's full rows with
-  `todos.json` cut to one row; the steps run as written under bash with curl, the key never on
-  a command line; one line reads only its own site and to-dos; expiry and cancel answer 410;
-  "done" marks and "left" does not; the MCP refusals and audit row; no code in a mail; the
-  webhook body), `tests/js/todos.mjs` (the one button, Fix all, the dialog's three answers,
-  the address round trip after a reload, cancel, the report on the card), the MCP and mail
-  tests, and the full suite with and without PyYAML.
-
-## 2.40.0 (2026-10-26)
-
-Settings is rebuilt around what you came to do: a menu in five groups (This site, AI & API, Organisation, You, Help & docs), a page per task, and Help and Docs under every title; every old address still works. Each site has a menu to pause, remove, clear or delete it, with an archive written first. Hosted plans mail owners and admins at 80%, 90% and 100% of the month's requests. A site can keep everything: on internal and enterprise sites Skald deletes nothing by itself. Leads' names and emails follow the site's own People days on every other site.
+A simpler dashboard, screen by screen. Each screen shows state and one action; help and method
+text sit behind a "?"; every task that has a doer asks one question first, **Who will do it? Me /
+My developer / My AI agent**, then shows only that path. Settings has a menu on the left and
+opens on To do. Measured at 1440 px on the sample data, before → after: AI & bots › Assistants
+5,969 → 830 px; Traffic › Sources 4,653 → 896; Overview › Summary (7 days) 2,584 → 1,393;
+Site › Alerts 3,536 → 856 (14 cards → 3, each with Fix); Leads & tools 3,078 → 712 (one screen);
+Help 2,238 → 830; Add a site 5 steps → 2; Export 47 controls → 6. Compare is on by default.
+Also: "visits active" in Real time no longer misses a visit that ended in the last seconds of the
+30 minutes.
 
 ### Upgrade
 
-- **Read this before you upgrade if you set People days and want nothing cleared.** The first
-  run on 2.40.0 clears the names and emails of leads older than a site's People days (the Fixed
-  entry below). To keep everything, add `SKALD_KEEP_EVERYTHING=1` to the container's env file
-  (or `retention.keep_everything: true` in config.yml) **before** the new container starts.
-  A site with no People days set changes nothing.
-- Bookmarks and links to old Settings addresses (`#settings/api`, `#settings/sitesadmin` and the
-  rest) keep working: they open the new page, with their dialog.
+- Nothing to do. Old addresses (Settings pages, `fixby=`, `#sales/revenue?by=`, Add a site's
+  `step=3/4/5`, `agent=hand`, `dlg=report`) open their new place.
+- Bookmarks of the crumb trail still work; the trail now shows only "← Back to …".
 
-### Settings: a menu by what you came to do, a page per task, Help and Docs on every page
+### A simpler dashboard, part 1: the shared pieces
 
-- **Changed.** Settings has a menu of its own, in five groups: **This site** (Set-up checklist,
-  Collect data, Site details, Leads & integrations, Internal traffic, Privacy & retention, Mail &
-  reports, AI answers), **AI & API** (AI assistant (MCP), Read figures (API), Tokens & links),
-  **Organisation** (Sites, Team, Users, Sign-in rules, Audit log, Billing & usage), **You** (Your
-  account) and **Help & docs**. `#settings` opens **All settings**: the common tasks in plain
-  words ("Connect an AI assistant", "Add, pause or delete a site", "Revoke a token") and every
-  page with one line on what it is for. On a phone each page starts with a **Settings page**
-  select, so the menu is one tap away. Long pages have tabs (Collect data: Send logs, Script tag
-  & goals, What counts; Leads & integrations; Mail & reports; AI answers), each with its own
-  address (`sub=`). The old Connections page is split by task: sending logs is under Collect
-  data, MCP and the API have pages of their own, and every token and shared link is under Tokens
-  & links.
-- **Changed.** The MCP and API pages say how it works first, as four numbered steps, then one
-  button. In the MCP dialog, by hand, one step holds it all in order: choose your assistant
-  (Claude Code, Claude Desktop, ChatGPT through the API, other), make its token right there, then
-  the command or config with the token already in it. The API dialog shows the curl command
-  under the token it made. Each Test names the next step. The assistant chosen is in the address
-  (`asst=`); the token never is.
-- **Added.** Every settings page and tab has **Help** (its guide in the app) and **Docs** (the
-  same guide on skaldanalytics.com/docs/, in a new tab, with the copy and open icons) under its
-  title, and a **Next step** at its foot. A **Help & docs** page lists every guide, the public
-  docs, the MCP and API pages, What's new and the contact page. Ctrl K (Cmd K) finds MCP, API,
-  tokens, sites and Help & docs by those words.
-- **Why.** The owner (26 Oct 2026): "every option in settings ... is super confusing and also
-  not as per user flows ... the token was above the steps ... i could not find where the mcp
-  was in ... the help and documents are not easy to access". The pages were a flat list of 15
-  named by what they held, not by what people came to do.
-- **Who.** Everyone who opens Settings. Nothing changes in what each setting does or who may
-  change it.
-- **Do.** Nothing. Every old address still works and opens the new page with its parameters:
-  `#settings/api?conn=mcp` opens AI assistant (MCP) with its dialog, `#settings/sitesadmin?setup=new`
-  Sites with the wizard, `#settings/account` Your account, and so on (docs/ROUTES.md lists
-  them all). Links in mails sent before still land.
-- **Checked.** A new node test (tests/js/settings-menu.mjs): the groups and their order, every
-  page drawn with Help and Docs (copy and open icons), one title, the phone's select, Next step,
-  each tab in the address, every old address opening its new home with its parameters. The
-  connection, route and agent tests walk the new pages and the reordered MCP dialog (choose,
-  token, command, then Test; the assistant in the address and gone on close). The help guides,
-  mails, kit files and CLI words name the new pages. Screenshots before and after at 1440 and
-  390 px, light and dark (docs/plans/settings-shots/), with no sideways scroll at 390 px. The
-  full suite passes.
+- **Added.** One visual system for every screen (`css/ui.css`, `docs/UI-RULES.md`): one card
+  style, five status pills (good, waiting, broken, off, info), one accent colour kept for the one
+  main button of a screen, a faint tint of each area's colour behind the top bar, and fixed sizes
+  for corners and text. It uses only the colours Skald already had. Why: the owner found screens
+  crowded, with many buttons of the same weight and no colour for status (UX audit of 26 Oct).
+  Who: everyone, as screens move to it. What to do: nothing. Checked: `tests/test_ui_system.py`
+  measures every pill and the main button at 4.5:1 or more in light and dark.
+- **Added.** Four shared pieces in `js/ui/`: the "?" that opens a short help with "Read the
+  guide" (opens on a press, so phones work; Escape closes it), status pills, folds ("3 done"),
+  and the one main button. And "Who will do it? Me / My developer / My AI agent" (`ui/who.js`):
+  the first question of a fix or set-up dialog, which then shows only that path, using the agent
+  line, the developer link and the steps by hand that already exist. The choice is in the address
+  (`by=me|dev|agent`) and remembered per person in this browser. Checked: `tests/js/ui.mjs`.
+- **Changed.** Revenue's breakdown in the address is now `rby=` (was `by=`), because `by=` is
+  the new "Who will do it?" choice. Old links still open the same breakdown. What to do: nothing.
+  Checked: `tests/js/revenue.mjs`, `tests/js/ui.mjs`.
 
-### Hosted plans: a mail at 80%, 90% and 100% of the month's requests
+### A simpler dashboard, part 2: Overview, Site › Alerts and the top bar
 
-- **Added.** When an organisation's requests this month reach 80%, 90% and 100% of its plan's
-  `requests_month`, its owners and admins get one mail each: "X of the Y requests its plan
-  allows this month (Z%)", the day the count starts again, what happens past the limit (new log
-  lines turned away; Skald's shipper keeps them and sends them again, a Cloudflare Worker's are
-  lost) and an **Open Billing** button to Settings > Billing on that organisation's own
-  dashboard. One mail per mark and month, never twice: each mark is written before the send
-  (decision D93's rule), so a restart, a recount or a second run repeats nothing. A jump past
-  two marks sends one mail, for the higher; a bigger plan in the month starts from its own marks
-  not yet passed. From 80%, owners and admins also see a banner on every page with a link to
-  `#settings/billing`; viewers see nothing. Settings > Billing shows the month's requests as a
-  bar with the 80, 90 and 100 marks, and admins may now read Billing (only owners choose a plan
-  or change the payment). Each alert is one `billing.usage_alert` row in the audit log, with the
-  mark and the counts, never an address. `/me`'s plan usage gains `percent`, `mark` and
-  `resets_on`. The check runs after every live run and run-daily, at most once per organisation
-  every 5 minutes (run-daily always), never inside an ingest request. `saas.usage_alerts: false`
-  switches the mails and the banner off.
-- **Why.** The owner: "we also send alerts to upgrade your plan when you reach 80%, 90%, 100% so
-  that your data is not lost". Past the limit the ingest answers 429, and nobody was warned
-  before; a Cloudflare Worker's lines are lost then.
-- **Who.** Hosted Skald (saas on) only: owners and admins of an organisation whose plan has a
-  `requests_month`. Self-hosted installs (saas off) see no change, and no table is made.
-- **Do.** Nothing: on by default with saas, through the install's own mail settings.
-  `saas.usage_alerts: false` turns it off.
-- **Checked.** New tests: each mark once, a jump past two, a new month, a bigger plan and one a
-  little bigger, back to the old plan, a restart, a recount down and up, a failed send, saas
-  off, the switch, no plan or no `requests_month`, unknown or withheld usage, viewers and
-  unconfirmed or disabled accounts never mailed, the link on each organisation's own dashboard,
-  one check per 5 minutes; over real HTTP, /me's new fields and Billing for an admin (read
-  only); and the banner and bar drawn in node from those answers (tests/js/billing-usage.mjs).
-  The full suite passes.
+- **Changed.** Site › Alerts shows one card per kind of alert, the most urgent first, each with a
+  pill, instead of one card per alert (the sample: 14 cards became 3; the page went from 3,536 px
+  to 856 px at 1440 wide, 7,492 to 1,273 on a phone). **Fix** asks "Who will do it? Me / My
+  developer / My AI agent" and shows that path only: the steps (for a possible exposure, the line
+  for nginx with a copy icon; for an advisory, its item on Security › Your stack; for a path, its
+  recent requests), a message for your developer with a link to the alert, or the AI agent line
+  where the kit has the job (logging stopped). In the address: `alfix=<kind>&by=me`. The method
+  text is behind the "?"; closed alerts and **Which alerts are on** are one line each
+  (`alerts_view=switches` opens the switches). Why: the owner found 14 cards with no button on any
+  (UX audit, task 1). Who: everyone with alerts. What to do: nothing.
+- **Changed.** The Site badge, the bell and Site › Alerts count the same thing: the kinds that need
+  you (urgent or worth a look), so 14 open alerts of 3 kinds show 3, not 14.
+- **Changed.** Overview › Summary opens on the figures. The set-up checklist is one line
+  ("Set-up: 1 left · Mail recipient confirmed", **Finish set-up**, **Show the list**); in Live mode
+  the map, what visitors are doing now and the flow are on Real time only (the flow moved there),
+  and the footnote is behind the "?". The live Summary went from 2,942 px to 1,090 px at 1440 wide
+  (5,441 to 2,217 on a phone); its figures start at 232 px instead of 498.
+- **Changed.** The top bar went from 17 controls to 11: 7, 30 and 90 days stay, Yesterday, All
+  time and Custom are under **More** beside them; Refresh (now **Recount today now**), saved views
+  and export are in the three-dot menu at every width; Help is in the menu only; one **Search or
+  jump to** (Ctrl K) also finds a person for admins, so the separate Find a person box is gone.
+- **Changed.** Insights' window buttons count cards, as "Show all N" does (was findings: 31 beside
+  29 cards), and the note says "29 cards from 31 findings". Data quality says "Today's log lines so
+  far: Good" and names the scheduled jobs that are late, failed or never ran beside it.
+- **Changed.** Insights' Fix this uses the same "Who will do it?" step: Me, My developer, My AI
+  agent, in that order, the last answer remembered. Its answer is `by=` (mails now link
+  `&fix=1&by=agent`); older `fixby=` links still open the same answer, `someone` as My developer.
+- Checked: `tests/js/si-alerts.mjs`, `tests/js/ov-setup.mjs`, `tests/js/todos.mjs`,
+  `tests/test_ux_overview_alerts.py`; the full suite with and without PyYAML; before and after
+  screenshots at 1440x830 and 390x844, light and dark, in `docs/plans/ux-build-shots/`.
 
-### Added: keep everything, for internal and enterprise sites
+### Settings v2: a menu on the left, To do first, one button per page
 
-- **Added.** A site can keep everything: Skald then deletes and clears nothing by itself on it.
-  It applies when the install says so (`retention.keep_everything: true`, Docker
-  `SKALD_KEEP_EVERYTHING=1`), or, on a server that sells plans, when the site's organisation
-  has no plan (the server's own) or its plan says `keep_everything: true` (Enterprise). Every
-  automatic delete skips such a site: the history's journeys, returning-visitor codes, detail
-  and AI fetches; visits with addresses and Security's scanner rows (by days, and when
-  addresses are turned off or shortened); leads, removed rows, lead journeys, identities,
-  deliveries, replay hashes and payment links; the hook spool; the People-days clearing of
-  names and emails (the entry below); the outgoing webhooks' outbox; in-page event counts and
-  the beacon spool; AI answers runs; closed alerts; the conversions file's backup copies;
-  and the shipped raw logs, whose days past 14 move to the site's `archive/` folder instead of
-  being deleted (about 11 MB a day for every site on our server). A person's own deletion request (`forget`, `conversions forget`), run by an admin,
-  still works. Settings > Data retention and its People card say "Kept: nothing is deleted
-  (internal or enterprise).", a shorter window's preview says nothing is removed, the privacy
-  notice wording says "until you ask us to delete it", and `ti.py doctor` shows "Keep
-  everything: on". **Why:** the owner's rule of 2026-10-26: "all our projects that we have on
-  live are internal and enterprise, nothing gets deleted on that". **Who:** our server (every
-  site on it, once `SKALD_KEEP_EVERYTHING=1` is in its env file) and Enterprise plans; a
-  customer plan's sites and every other install are pruned as before. **Do:** on our server,
-  add `SKALD_KEEP_EVERYTHING=1` to the env file at the upgrade that ships this, before the
-  container starts, so the People-days sweep below never runs there; give an Enterprise plan
-  `keep_everything: true`. The history's own backups (copies, not data) still rotate. **Checked:** `tests/test_keep_everything.py`: every prune of the daily
-  run on a keep-everything install leaves every table row and every file byte for byte as it
-  was; the same install with the rule off is pruned; hosted, a site with no plan and an
-  Enterprise site are untouched while a customer plan's site is pruned; the outbox, closed
-  alerts, AI answers, conversions backups and the People-days sweep each kept and, with the
-  rule off, cleared; `tests/test_ingest.py`: a raw log past its 14 days lands in `archive/`,
-  whole, outside run-daily's files; the notice, the env var and the plan flag.
+- **Changed.** Settings is a menu on the left and the page on the right, 13 pages in groups:
+  **To do**, **This site** (Data, Leads & tools, Site, Privacy, Mail & reports), **AI** (AI
+  assistants, AI answers), **Organisation** (Sites, People, Billing, Audit log) and **You** (Your
+  account). The card page (All settings), the Set-up checklist page and Help & docs are gone:
+  Help is in the sidebar's foot.
+- **Added.** **Settings > To do** (`#settings/todo`, where Settings opens): one list of what
+  needs you, most important first: the site's open set-up lines, a site waiting for proof or
+  paused, a plan 80% used or more, invites not accepted, two-step sign-in off, tokens unused
+  for 90 days. Done lines fold into **N done**. Empty: "Nothing needs you. Everything is set
+  up for example.com." **Find a setting** at the top.
+- **Changed.** The set-up checklist (To do and Overview) has one title, a correct count
+  ("2 left, 1 optional") and one button, **Finish set-up (N left)**. It asks **Who will do it?
+  Me / My developer / My AI agent** (`setup=finish&by=me|dev|agent`); each open line is one
+  button that asks the same for that line (`setup=finish-<line>`). It replaces **Set up
+  everything left with your AI agent**, **Send set-up to someone** and each line's own Set up.
+  It is the app's one "Who will do it?" (`js/ui/who.js`, shared with every other dialog that
+  asks it): **Me** lists the open lines, each opening its own steps; **My developer** is the
+  set-up pack; **My AI agent** shows **What it does** (each job ticked) and the agent tiles,
+  and makes the line in the same dialog. It opens on the address's choice, else the one this
+  person chose last in this browser.
+- **Changed.** Every page has one title with a **?** (what it is for, its guide and docs, on
+  demand), one primary button beside the title (Connect a tool, Connect the log, Add a site,
+  Invite someone, Connect an assistant...), and rows with a status pill (Working, Waiting, Not
+  working, Off). Long lists show 5 and **Show all (N)**. No glyphs in labels: line icons.
+- **Changed.** **Leads & tools** has no tabs: each connected tool is a row with its pill; the
+  row opens its details in a drawer (`tool=calendly`: address, secret, test event, deliveries,
+  Remove). A red line with **Fix** only when something is broken. The tools not connected are
+  one quiet line. **Send each lead out** (`tool=webhooks`) and **Search Console & Bing**
+  (`tool=search`) are two small rows; **Every check** opens the checks (`tool=checks`).
+- **Changed.** The pages that were forms are rows now: **Site** (Names & time, the logo),
+  **Internal traffic**, **Privacy**, **Mail** and **Client reports**, **AI answers** (the lists,
+  the profiles, the API keys), **Data**'s cards (log file, page assets, not pages, script tag,
+  goals), **Sign-in rules**, **Billing**, **Audit log**, **Your account** and **Tokens &
+  links**. Each setting is a row with its value in words, where it comes from, and a pill for
+  on/off or set/not set; a card nothing in which is yours to change is one **Read-only** line.
+  A row opens the card's form in a drawer, with one **Save** that wakes up on a change; the
+  drawer's part is in the address (`edit=people`, `edit=report-12`, `edit=profile-p1`,
+  `edit=ip-<code>`: an internal address by a code, never the address), so a link or a reload
+  opens it and Back closes it. The page's one button sits by its title: **Add an address**,
+  **Send a test mail**, **New report**, **New profile**, **New token**, **Download CSV**,
+  **Turn on two-step sign-in** (only while it is off). The Audit log's filter is in the address
+  (`aact=`). Internal traffic's figures moved behind a fold under the list. Measured at 1440 px
+  (lines of text / page height in px, before → after, sample data): Site 38/1358 → 16/712,
+  Internal traffic 41/1092 → 7/712, Privacy 36/1334 → 21/771, Client reports 19/796 → 18/712,
+  AI answers 20/1085 → 21/712, its API keys 22/712 → 9/712, Your account 38/936 → 16/712; Mail
+  16/712 → 20/712 (the values now show instead of a folded form) and Audit log 29 → 36 lines
+  (two lines a change instead of a table row) are a little longer, both still one screen.
+- **Changed.** Settings draws with the shared pieces (`js/ui/pill.js`, `primary.js`,
+  `fold.js`, `help.js`, `who.js`, `css/ui.css`); its own copies of the accent, the pills and the
+  "?" are gone from `settings.css`. Pills use the five shared kinds (good, warn, bad, off, info).
+- **Changed.** The set-up dialogs (logs, page assets, Next.js pages, the script tag, the lead
+  hook, privacy, Search Console) and Connect an AI assistant (MCP) open on the app's one
+  "Who will do it?" (`js/ui/who.js` whoStep), in place of "Your AI agent, or by hand?": **Me**
+  (the dialog's own steps, from step 2), **My developer** (the set-up in one mail or one zip,
+  for logs, page assets, Next.js pages, the script tag and the lead hook) and **My AI agent**
+  (the agent tiles, then the line and its watch, as before), in that order, the last answer
+  remembered. In the address: `by=me|dev|agent`; an older `agent=hand` link opens Me. Why: one
+  question, asked the same way everywhere (the coordinator's review of Settings v2). Who:
+  owners and admins setting up a site. What to do: nothing. Checked: `tests/js/agent-jobs.mjs`
+  (the answers per job, My developer's pack, Next refused until chosen, by=me and agent=hand,
+  Back), `tests/js/setup-checklist.mjs`, `tests/js/connections.mjs`.
+- **Added.** **Settings › This site › Alerts** (`#settings/site/alerts`): which alerts are on
+  for this site and whether they are mailed. One line on top says where things stand ("16 of 17
+  rules are checked with every live run, and mailed…"; off: "Alerts are off, so nothing is
+  checked. 16 rules will run when you turn them on", never an "on" count that is not true).
+  **Turn alerts on** is the page's one button, beside the title, only while alerts are off.
+  All alerts and Mail alerts are two switches; the rules are in folds by area (Site health,
+  Traffic, Crawlers & AI, Security, Sales), each "N of M on", a rule one line with its
+  threshold behind its "?"; "not watched" on every row is gone; the sale minimum opens in a
+  panel (`edit=alertmin`). The page is 712 px tall at 1440 wide and 661 px on a phone, where
+  the same switches in one list were 1,450 and 2,720. Site › Alerts' switches fold is now one
+  line, **Which alerts are on: N of M**, with a link here; an older `alerts_view=switches` link
+  opens this page. Why: the switches are a setting, and Site › Alerts is for the alerts
+  themselves (the Overview/Alerts builder's ask; the coordinator's review of the first cut).
+  Who: admins and owners. What to do: nothing. Checked: `tests/js/set-alerts.mjs` (the state
+  line on and off, the one primary, the folds and pills, one line per rule, a locked rule,
+  the drawer), `tests/js/si-alerts.mjs` (the line, its link, the redirect),
+  `tests/js/settings-menu.mjs`; screenshots `after3-settings-site-alerts*` in
+  `docs/plans/settings-v2-shots/`.
+- **Fixed.** The Settings menu cut off its last row at 830 px tall once it had fifteen pages, so
+  **You** showed with nothing under it. Its rows are 28 px now (were 32): every row fits with
+  room for Billing's. Checked in a browser at 1440x830.
+- **Fixed.** Your account's sign-ins card wrote "null" with two to five sessions (a hidden
+  "Show all" that was not there).
+- **Why.** The owner, 2026-10-26: "This is like card card card... There should be a left
+  navigation menu, and then on the right side, the action items"; "this has too many buttons";
+  "such long screens... all the information, notes, etc. should be only on demand". The UX
+  audit (docs/plans/ux-audit-2026-10-26) set the rules: one primary, a plain question first,
+  rows with a pill, help behind a "?".
+- **Who / what to do.** Everyone who opens Settings. Nothing to do: every older address opens
+  its new home with its parameters (`#settings/home`, `#settings/site/setup`,
+  `#settings/site/collect`, `#settings/ai/mcp`, `#settings/org/team`,
+  `#settings/site/leads?sub=search` and the rest; the table is in docs/ROUTES.md).
+- **Checked.** `tests/js/settings-menu.mjs` (the menu, the frame, the one primary beside the
+  title, the old addresses), `tests/js/set-leads.mjs` (rows, pills, the red line and its Fix,
+  the drawer and its address), `tests/js/set-parts.mjs` and `tests/js/set-account.mjs` (the
+  pages that were forms: rows, pills, one primary, each drawer and its `edit=`, a link opening
+  it, a save that updates the rows, an address never in the URL), `tests/js/settings-privacy.mjs`
+  and `tests/js/views-fill.mjs` (their forms, now in the drawer), `tests/js/settings-todo.mjs` (every To do source and the
+  order), `tests/js/routes.mjs` and `tests/test_routes.py` (old addresses, `setup=finish`,
+  `by=`, `tool=`), the checklist and agent tests, before/after screenshots at 1440 and 390 px
+  in light and dark (docs/plans/settings-v2-shots/), and the full suite with and without
+  PyYAML.
 
-### Fixed: leads' names and emails kept past the site's own promise
+### A simpler dashboard, part 3: AI & bots, Traffic, Leads & sales, Security and Compare
 
-- **Fixed.** A site sets in Settings > Data retention > People how many days it keeps what
-  names a person (**Visits with addresses**, `privacy.keep_days`). That number covered only the
-  visits with IP addresses. A lead's name and email lived as long as the lead: 400 days, or for
-  good. Now, when a site has set its People days and they are shorter than the leads, a name
-  and email are kept that many days. Then they are cleared from every place Skald keeps them:
-  the lead's identity, the leads a sync removed, the copy of each hook message, and the copies
-  a schema upgrade keeps (`conversions/people_days.py`). The lead stays, counted, without them.
-  If the same person sent a newer form, the newer lead keeps the email; the older leads lose
-  it. A start and its finish within the abandonment window stay linked, so no lead ever
-  becomes "abandoned". The privacy notice wording now says it: "We keep them for 180 days.
-  After that we keep the form or booking without your name and email, ...". **Why:** the
-  2026-10-26 security review: docomatic.ai promises 180 days, and its emails were kept for
-  good. **Who:** sites that keep names and emails and set People days shorter than their
-  leads. A site that never set People days keeps today's rule: the code's 395 is not a
-  promise. A site that keeps everything (the entry above) is never cleared: on our server,
-  where docomatic.ai promises 180 days and two more sites 365, nothing is cleared once
-  `SKALD_KEEP_EVERYTHING=1` is set.
-  **Do:** nothing. The first live run after the upgrade clears what is already past the
-  promise, then the nightly run each day. Each site's counts go to the run's output,
-  `privacy.log` and the audit log (`privacy.cleared`), never a name or an email. A site whose
-  notice promises a number of days should set it under People. **Checked:**
-  `tests/test_people_days.py` (old rows lose name and email, young keep them; a person with a
-  new and an old lead; a start chained to its finish across the edge; removed rows, spool lines
-  and upgrade copies; no change without a shorter promise; once after the upgrade; the
-  command's counts never show an email). `conversions.json` for April and today, the second
-  count included, and the abandoned starts are the same before and after; with the chain
-  turned off the test sees a lead turn "abandoned", so the check is real.
+- **Changed.** Compare is on by default (the UX audit's task 5). With 7, 30 or 90 days, Yesterday
+  or a custom period, every tab that compares sets the period against the same number of days
+  before it, and the bar says "vs previous period"; no click needed (it was 4: period, Compare,
+  Previous period, Compare). The address leaves that default out; another choice is written
+  (`cmp=year`), and **Turn compare off** writes `cmp=off`, which stays as you move. Today, All
+  time and a period that includes today are never compared, as before. A tab that does not
+  compare has no Compare button and no "No compare on this tab" line unless a link asked for one.
+  Why: the audit found the change against the period before was the figure people looked for
+  and four clicks away. Who: everyone. What to do: nothing; links that said `cmp=prev` still open
+  the same view. The Overview Summary on 7 days grows (2,584 to 2,728 px at 1440) because each
+  tile and "What changed" now show the change.
+- **Changed.** The top bar is the mockup's seven groups: the title, the period (Today, live, as
+  its first choice; 7, 30, 90 days; More), Compare, Filters, Search, Alerts and More. Today was
+  its own "Today · Live" switch; the page group list moved into the Filters panel (at its top),
+  and a chosen group shows as a chip under the bar. That is 10 buttons on a tab that compares
+  (17 on 2.41.0, 11 after part 2), 9 where Compare does not apply; the period group alone is 5
+  of them, as in the mockup. Checked: `tests/test_routes.py` (compare on by default, off kept,
+  Today and back), `tests/e2e/modes.mjs`, `topbar.mjs` and `layout.mjs` updated for the new bar.
+- **Changed.** AI & bots › Assistants opens on the answer (the UX audit's task 4): three figures
+  with their change (Visitors sent by AI, Pages AI read for someone, AI collecting for training),
+  which assistant sent people and which read for someone (five each, then **Show all (N)**), and
+  one card, "7 pages AI can't read well", with the screen's one primary button, **Let AI read
+  the site better**. It asks "Who will do it?": Me (the pages by what to do), My developer (a
+  message and a link), or My AI agent when Insights has a to-do the agent already fixes
+  (Markdown copies, server errors, lost pages; it opens that to-do's Fix this). No new agent job.
+  The day chart, the tables by name, the formats, the costs, the pages fetched, AI reading
+  changes and the full list are under **Open the details** (`ai_view=open`). The page went from
+  5,969 px to 830 px at 1440 (12,324 to 1,365 on a phone). Crawlers folds what they fetch, the
+  costs and the address check the same way (4,139 to 1,819 px). Why: the answer to "which AI
+  sent people" was four screens down. Who: everyone. What to do: nothing; every figure is the
+  one shown before. In the address: `fixit=airead&by=me`. Checked: `tests/js/phase-c.mjs`,
+  `tests/test_ux_sections.py`, before and after shots.
+- **Changed.** One place for each control, and a shorter Summary (the UX build's polish).
+  **Include today** and **Compare with the period before** were switches on Summary and
+  Pages as well as in the top bar; now Compare is only the top bar's menu, and Include today
+  is a check item in the period's **More** menu (the button reads "More · today" while it is
+  on; still `inc=1`). The period line keeps the dates; what the period means is behind its
+  (i). The trail line over each screen ("← Back to … · Overview › Summary › …") is now the
+  **← Back to** link alone, and nothing when you came from nowhere; Back and Forward still
+  walk every step. **Overview › Summary** keeps the key figures, the chart and What changed
+  (5 rows each, then Show all; "About the same" behind its (i)) open, drops the "Key
+  figures, each with its change" caption (each tile says its change), and folds the rest (countries, top pages and sources, AI
+  assistants, who else came, pages to work on, new pages, server requests, each day) into
+  **More for this period** (`ovx_view=open`): 2,728 to 1,393 px at 1440 on the sample data.
+  Who: everyone. What to do: nothing. Checked: `tests/js/crumbs.mjs`,
+  `tests/test_ux_sections.py`, before and after shots.
+- **Changed.** Security, one action per screen (the UX audit's task 9). **Is anything
+  exposed?** shows **Fix** in its verdict line only when there is a possible exposure; it asks
+  **Who will do it?** (`fixit=exposed`): Me sees the paths by kind with the nginx line to copy,
+  My developer gets a message with a link back. **Block list** has **Block them**
+  (`fixit=block`) with the steps for nginx, Cloudflare (Settings › Lists, as in Cloudflare's
+  guide) and fail2ban; its three downloads stay plain buttons and show only when there is
+  something to block. My AI agent is not offered on either: no agent job does this yet, and
+  this release adds none. Each host's answers is under **Open the details** (`sxx_view=open`);
+  the Block list's long warning is behind the "?", one line of it stays. Who: owners and
+  admins (the Block list), everyone (Exposed). What to do: nothing. Checked:
+  `tests/test_ux_sections.py`, shots of both screens and the Fix dialog.
+- **Fixed (words, not counts).** Two figures that looked like a mismatch now say why they
+  differ. On Leads & sales with **7 days**, Leads said 25 and Summary said 19: Leads counts the
+  7 days up to today, so far, from every tool (demos booked too); Summary and Sources count
+  the 7 whole days up to yesterday from the lead database (sign-ups, contact forms and early
+  access, no demos booked). Both are right; neither figure changed. The line under the Leads
+  count now names Summary's dates and what it counts, and a note under Summary's figures
+  links back to Leads. On Traffic › Retention the period chip said "12 weeks of first visits"
+  while the New visitors figure said "the 8 weeks counted": it now says "first seen in 8 of
+  the 12 weeks: 4 before what is kept begins (Tue 25 Aug 2026)". Seen in the UX audit (task
+  3). Who: everyone. What to do: nothing. Checked: `tests/js/leads-period.mjs`,
+  `tests/js/phase-c.mjs`, `tests/test_ux_sections.py`, and the sample data's shots.
+- **Changed.** Traffic, answer first (the UX audit's tasks 7 and 8). **Visitors** opens on the
+  visits: a **List / Flow** switch kept in the address (`vis_view=flow`), the list's first 12
+  rows then **Show all**, the two cards, and **Open the details** (`visx_view=open`) for where
+  visits ended, next steps and the engagement tables (4,747 to 2,718 px at 1440). **Sources**
+  opens on its grid; its five method notes are behind the "?" beside the title, and the likely
+  causes of Direct, where returning visitors first came from and campaigns and referrers are
+  under **Open the details** (`srcx_view=open`; 4,653 to 858 px). **Pages** opens on Landing
+  pages and their leads (search a page, a row opens its story, `page=`); Pages by publish date,
+  the leaderboard and Pages read by people are under **Open the details** (`pgx_view=open`;
+  3,639 to 1,254 px). A page's story has one primary button, **Mark a change**; **Compare this
+  page** is a plain button. Why: the visit list started under a 1,000 px flow map, and Sources
+  repeated the same six sources in 11 sections. Who: everyone. What to do: nothing; every
+  figure and table is still there. Checked: `tests/test_ux_sections.py`, before and after shots.
+- **Changed.** Insights' **Fix this** writes `by=` in the address too (it wrote `fixby=`), so
+  every "Who will do it?" step uses one key. Older links with `fixby=` still open the same answer.
+  Who: anyone who copies an Insights link. What to do: nothing. Checked: `tests/js/todos.mjs`.
 
-### Pause, remove, clear or delete a site from the dashboard
+### A simpler dashboard, part 4: Export, Add a site, the visitor drawer, Help, sign-in and mail
 
-- **Added.** Each site in Settings > Add or remove sites has a ⋯ menu: **Pause** and
-  **Resume** (an owner or an admin), **Remove** and **Restore**, **Clear data** and **Delete
-  all data** (an owner). Each opens a dialog that says what happens, what stays and how to
-  undo it; the dialog is in the address (`sact=<act>.<site>`). Pause comes first and deletes
-  nothing: the log endpoint answers 503 with Retry-After, so the shipper keeps its lines, and
-  the daily and live runs skip the site; the site shows "Paused since". Resume says how many
-  days were missed and whether the log can still fill them (a shipper kept its lines, a log
-  drain did not, a local log holds days from a date). Removed sites are listed apart, with
-  Restore. Clear data and Delete all data need the site's name typed and a box ticked; before
-  deleting anything they write one archive of everything that goes into the install's backups
-  folder, kept 30 days, and show its path. Clear data keeps the site, its settings and its
-  tokens; the days before it read Not recorded and are never counted again. Delete all data
-  also deletes settings, set-up links and the logo, and revokes the site's tokens; a site from
-  the server's config file keeps its config entry and becomes Removed. All of this works for
-  config-file sites too (the install's main site can only be paused). One audit row per
-  action (the site, who, the archive's name). New commands: `ti.py site pause|resume|restore|
-  clear`; `site remove` and `site purge` now work on config-file sites and `purge` on an
-  active site, both still with `--yes`. **Fixed.** A purge left the site's page-group rows
-  (`<site>::<view>`) in the history, its AI answers, its security items, its set-up links and
-  its Search sync state; it now takes every one (`site_data.py` lists each store).
-  **Why:** the owner found no way to delete a website he had added, or to clear its data.
-  **Who:** owners and admins of every install. **Do:** nothing. **Checked:**
-  tests/test_site_lifecycle.py (pause stops ingest and the runs, resume restarts them, remove
-  and restore, purge writes the archive then empties every store, clear keeps settings and
-  tokens, roles, the typed name and the tick, config-file sites, audit rows, paused and cleared
-  days read Not recorded), tests/js/site-actions.mjs (the menu per role, the dialog's words,
-  the address, nothing posted until the name is typed and the box ticked), and the full suite.
+- **Fixed.** "Get the daily mail" waited for good when the install has no mail server: step 3
+  said "Waiting for owner@example.com to press the link in their confirm mail" with **Check
+  again**, and the mail could never go. Saving the recipients also used up the day's confirm link
+  for nothing. Now every step shows one card, "Skald cannot send mail yet", with what is missing in
+  plain words and "Who will set it up?": **Me** (install admins: the form in Settings › Mail &
+  reports) or **My developer** (a message to send, which names where the settings go and holds no
+  secret). The answer is in the address (`setup=mail&step=3&by=dev`). No confirm mail is tried
+  without a mail server, and your own address (the one you sign in with) is never asked to
+  confirm. Why: the UX audit found the dialog stuck. Who: installs without SMTP settings. What to
+  do: nothing; set the mail server when you want mail. Checked: `tests/js/mail-ready.mjs`,
+  `tests/test_mail_confirm.py` (no link used up, own address confirmed), the sandbox shots.
+- **Changed.** GET and POST `settings` answer `mail_server: {ready, missing}`. The helper for any
+  page that shows mail settings is `js/mail-ready.js`.
+- **Changed.** Export is one item under the three-dot menu (and in Search, "Export: a PDF, the
+  tables as CSV, a report by mail or JSON"). It asks "What do you need?" and shows only that
+  path: **A PDF of this page** (this page as on screen; **Change** opens the sections, period,
+  page group and filters of the old Report builder), **The tables, as CSV** (each table on its
+  own, or all in a ZIP), **A report someone gets every month** (who gets it, filled from your
+  last report; how often; this page's part; **Preview**, **Start sending**; owners and admins with
+  accounts) and **Everything, for my own tools** (JSON, the API, MCP). Each path has one main
+  button, and Export opens on your last choice, so a PDF again is three presses. In the address:
+  `dlg=export&kind=pdf|csv|monthly|tools`, `xch=1` while Change is open. Why: four export items,
+  a 33-box Report builder and the client reports in Settings did the same job three ways (UX
+  audit, task 6). Who: everyone who exports. What to do: nothing; old `dlg=report` links open the
+  PDF path with its sections open. Checked: `tests/js/export.mjs` (every path, the address round
+  trip, the old link, no mail server), `tests/test_ux_overview_alerts.py`, the sandbox shots.
+- **Changed.** Add a site is two steps: **Your site** and **Connect it**. Step 1 takes the
+  address, says what Skald found in one line while you type ("Runs on nginx · suggested: one
+  command on the server", details folded), shows the time zone in one line with **Change**, and
+  asks "Who will connect it?": **Me**, **My developer** or **My AI agent**. Step 2 shows only that
+  path: for Me the found way with its one command made at once and the Test below it (**Another
+  way** for the others); for My developer the private link; for My AI agent the agent choice, its
+  line, and "Skald watches your agent" under the line. The proof step shows only when the server
+  asks for one. The site's row says **Finish setting up** in place of "Setup: step 3 of 5,
+  continue". In the address: `setup=<site>&step=1|2&by=me|dev|agent`. Why: the old wizard took
+  five steps and about 11 presses for a site Skald could read itself (UX audit). Who: owners and
+  admins who add sites. What to do: nothing; older links still open (`step=3`, `4` or `5` is
+  Connect it, `agent=hand` is Me), and the server still saves its five-step progress. Checked:
+  `tests/js/add-site.mjs` (both steps, every path, the address round trip, the old links, the
+  proof step only when asked), `tests/js/connections.mjs`, `tests/js/agent-setup.mjs`,
+  `tests/js/routes.mjs`, `tests/test_site_setup.py`, the sandbox shots at 1440 and 390 wide.
+- **Fixed.** In the send steps, a long install command no longer widens the dialog on a phone
+  (the command scrolls inside its box). Seen at 390 px wide in Add a site. Checked: the sandbox
+  shot, measured with no part wider than the dialog.
+- **Changed.** The visitor drawer starts with the state: one card with pills (**Here now**,
+  **Returning** or **First visit**, and how the visits ended), one sentence ("4 visits over 13
+  days. First came from reddit.com, 13 days ago.") and one line of facts (place, device and
+  browser, first seen), each with a copy icon. How the visits are linked moved behind a **?**.
+  The journey draws the newest two visits, then **Show all (N)** (`vall=1` in the address, gone
+  when the drawer closes). Leads and conversions, This visit and Every visit as a table are folds.
+  Why: the drawer opened on a six-box grid and every visit at once (about 1,900 px tall for a
+  visitor with four visits, 295 words). Now about 960 px and 110 words before you open anything.
+  Who: everyone who opens a visit or a person. What to do: nothing. Checked:
+  `tests/js/visitor-short.mjs` (the state, the pills, the copy icons, Show all and its address
+  round trip, the folds, a lead's fold open), `tests/js/visitor-drawer.mjs`, `tests/js/routes.mjs`,
+  `tests/test_firsttouch.py`, the sandbox shots at 1440 and 390 wide.
+- **Changed.** Help lists the guides in six groups (Start here, Your visitors, Leads and sales,
+  AI and bots, Connect and set up, Security and privacy), one line per guide with its summary on
+  hover. The search lists the guides that hold every word, each with the sections they are in;
+  a section opens the guide there. The search words and the section are in the address
+  (`hq=`, `hs=`). A **?** popover can name a guide's section (`guide: "id#section"`), and its
+  **Read the guide** opens it there: Export and the visitor drawer do. Why: the index was a wall
+  of 29 cards, about 1,450 words and 2,240 px tall, before the search. Now about 150 words and
+  one screen at 1440 wide. Who: everyone who opens Help. What to do: nothing; old
+  `#help?part=<guide>` links open as before. Checked: `tests/js/help-guides.mjs` (every guide in
+  one group; every Help link and "?" in the app names a guide and a section that exist; the
+  search and its address round trip; a section link), a browser check (typing keeps the focus;
+  a link with `hs=` opens at that section; Back works), the sandbox shots.
+- **Changed.** The sign-in and invite pages are shorter. Sign in has no line under its title, and
+  the "Keep me signed in" note is behind a **?** beside it. The invite says "As a viewer, for
+  teammate@example.com." in one line, and the password rule in one line. Both cards carry the
+  dashboard's five traffic colours as a thin line on top, in light and dark. Why: the owner asked
+  for less on every screen (38 words on sign in, now 15; the card 460 px tall, now 404). Who:
+  everyone who signs in or accepts an invite. What to do: nothing. Checked:
+  `tests/test_webapp_auth.py`, `tests/test_saas_pages.py`, `tests/test_auth_api.py`, a browser check
+  (the ? opens and closes its words, the box still ticks), the sandbox shots.
+- **Fixed.** Settings › Mail with no mail server. Before, saving a recipient said "A confirm
+  link was mailed to ..." though no mail could go, and nothing on the page said why. Now the
+  card **Skald cannot send mail yet** sits above the recipients, says what is missing and asks
+  **Who will set it up?** (Me for an install admin: the Mail server (SMTP) drawer; My developer:
+  a message to copy). A saved address is told it gets its link once the mail server is set.
+  With a mail server the page is as before. Who: owners and admins of an install with no mail
+  server. What to do: nothing. Checked: `tests/js/prefs-mail.mjs`, drawn from real helper
+  answers by `tests/test_mail_confirm.py`, with and without a mail server.
+- **Changed.** Merged with Settings v2 (branch `ux-int`). Add a site asks who connects it once,
+  in step 1, with the shared "Who will do it?" tiles (`ui/who.js`); step 2's agent tiles no
+  longer carry a second "Me" (press **Change** to go back). Export's links for your own tools
+  open Settings › AI assistants (API, MCP), and the no-mail-server card's **Me** opens the Mail
+  server (SMTP) drawer (`#settings/site/mail?edit=smtp`). Why: Settings v2 renamed the pages and
+  moved every set-up dialog to the same question. Who: owners and admins. What to do: nothing;
+  older links still open. Checked: the node tests of both branches, both full suites.
 
-## 2.39.0 (2026-10-26)
+### Summary and Pages state the period once; the chart's note is behind "?"
 
-Your AI agent can now do every set-up job, not only a new site's. Each Set up dialog asks **Your AI agent, or by hand?**, the set-up list offers **Set up everything left with your AI agent**, and your assistant can ask Skald over MCP what is left and make the line itself. Also: the agent's findings for Skald's own settings wait for your **Apply**; a tie in a list's "(all others)" cut no longer withholds a day; a quiet site no longer shows a false "no page assets".
+The scope line already gave the period's dates, then the period line gave them again, and the
+sentence under the figures said a third time what the changes were against. The period line now
+only says what the period is compared with, and only when Compare is on; the sentence lost its
+"Changes are against …". The by-day chart's two-line explanation is behind a "?" by its title.
+Who: everyone. To do: nothing. Checked in the browser on the sample data at 30 days.
 
-### Upgrade
+### Real time: a visit that ended just under 30 minutes ago counts as active
 
-- Nothing to do on the Docker image. A self-hosted install with its **own front nginx that allows only GET** under `/traffic-kit/` must also allow POST to `.../hooksecret`, as it already does for `.../report` (DEPLOY.md, the regex `(report|hooksecret)`). A front nginx that only proxies needs nothing.
+- **Fixed.** Real time's "active now" (the last 30 minutes) left out a visit whose last request
+  came in the first seconds of that window, before the first clock minute the per-minute bars
+  show. A live run at 12:00:40 counts from 11:30:40, but its bars start at 11:31, and a visit
+  last seen at 11:30:50 was skipped with the bars, so it was missing from the active count and
+  from active by country, city, source and device (it was still listed under "What visitors are
+  doing now", so the list could be one longer than the count).
+- **Why.** `audit --live` on the busiest shipped-log site said now and then "visits active in the
+  last 30 minutes: snapshot 14, recount 15", with US 9 vs 10, one city, a source and a device one
+  higher too, a different visit each run, every other figure matching (seen 2026-10-24 and after
+  the 2.40.0 deploy on 2026-10-26). The recount follows the documented rule, so the snapshot was
+  the one wrong. It was not the order of the shipped lines: both roads count a window in time
+  order (CLASSIFICATION.md, "Line order"), and shuffled shipped batches give the same visits.
+  It happens on any site whose live run does not end on a whole minute; a busy site meets it
+  more often.
+- **Who / what to do.** Anyone looking at Real time. Nothing to do. No stored figure changes: the
+  real-time part is never stored or mailed, and the daily figures were never affected, so no
+  recount is needed.
+- **Added.** `audit --live --show-active` (docs/CLI.md): both roads' active visits for the
+  snapshot, one line each (start, last request, country, city, device, source, pages), the ones
+  on one road only marked. Labels and times only, never an address.
+- **Checked.** `tests/test_realtime_edge.py`: a live run at 12:00:40 with a visit last seen at
+  11:30:50 (failed before the fix: snapshot 1, recount 2, the same pattern as the live runs);
+  shuffled shipped batches against the same lines in time order give the same snapshot, real
+  time, recount and day; `--show-active` prints no address. The full suite, with and without
+  PyYAML.
 
-### Your AI agent, in every set-up job
+### Fixed: the phone's bottom bar showed Menu on a second row
 
-- **Added.** The one line for an AI agent works for each set-up job of a site already in Skald:
-  connect the logs, add the script tag, leads and tool webhooks, the Next.js log field, find the
-  page assets, check the privacy settings, and connect the AI assistant (MCP). Every Set up
-  dialog an agent can do (logs, page assets, Next.js pages, script tag, lead hook, privacy, and
-  Connect an AI assistant) opens on **Your AI agent, or by hand?**; by hand is the old dialog,
-  one step later. Countries and mail stay by hand. **Why:** the owner pointed out that the lead
-  set-up (`?setup=lead`) walked a person through by hand while Add a site did it all through one
-  line. **Who:** owners and admins. **Do:** nothing. **Checked:** `tests/js/agent-jobs.mjs` and the
-  checklist and connections tests; the default Add a site line, keys and steps are byte for byte
-  as before.
-- **Added.** **Set up everything left with your AI agent** at the top of a site's Set up list,
-  when two or more open lines are agent jobs: one line for all of them. Its address is
-  `setup=all&jobs=...`. **Checked:** `agent-jobs.mjs` (jobs in order, the address round trip).
-- **Changed.** A line makes only the keys its jobs need: a sending token only with logs, the lead
-  secret only with leads, a read-only token for that one site only with MCP. Cancelling, expiry
-  or a new line revokes every token the line made. **Checked:** endpoint tests on cancel, expiry,
-  a revoke that failed once, and the daily run.
-- **Changed.** The agent's steps give each job its own section, each starting with **Check
-  first**: the agent leaves done work alone, changes only what is missing, and asks before any
-  server or web-server change. Keys still go only into a 0600 file through curl or wget.
-- **Added.** `POST /traffic-kit/<code>/hooksecret` lets the agent set a booking, form or payment
-  tool's webhook secret (Calendly, Cal.com, Typeform, Stripe, HubSpot, Zapier) without the
-  secret passing through the chat: Skald makes one and hands it once into a file, or takes the
-  tool's own from stdin. A tool that has a secret already is left alone unless replacing is
-  asked. Audited, never logged. **Checked:** tests run the steps' own commands with bash and curl.
-- **Added.** The agent's report says which jobs it did ("done", "already there", "skipped",
-  "left for you") and which tool hooks it set. Page assets and privacy show as recommendations
-  with **Apply**, which makes the same save as the by-hand dialogs. **Why:** a leaked code must
-  never change what Skald keeps; Skald changes its own settings only on your press. **Checked:**
-  nothing is saved before the press; the exact save bodies after.
-- **Changed.** Connect an AI assistant (MCP) has **Read the MCP guide** at the top. **Why:** the
-  owner found no documentation link there.
-
-### MCP: what is left to set up, and the line to do it
-
-- **Added.** `setup_left`: a site's open set-up lines, each with the job an agent can do and
-  its dialog's address. Worked out on the server (`setup_items.py`), held to the page's own
-  checklist by a test that runs both on 22 sets of answers.
-- **Added.** `setup_line`: makes the same one-time line as the dashboard's **Your AI agent**, for
-  the jobs given, audited (never the code). It needs a token with the new permission
-  **Set-up lines (AI agent)** (scope `setup`): only an owner or admin may make it, for exactly
-  one site, together with AI assistant (MCP); it reads nothing by itself, and stops if its maker
-  is demoted. **Do:** make such a token only if you want your assistant to start set-ups.
-  **Checked:** `tests/test_mcp_setup.py` (every refusal, the audit row, a real line end to end).
-- **Fixed.** The MCP server reads each site's own config for set-up answers, not the main
-  site's.
-
-### Fixed: a tie at the "(all others)" cut withheld a live panel
-
-- **Fixed.** A list that ends in "(all others)" keeps the pages with the most visits. When
-  several pages had the same count at the cut, it kept whichever it had counted first. The
-  visits and the readers count in a different order, so the two lists could keep different
-  pages, the check "visits by entries match readers by landing" failed, and the figures were
-  withheld. Now, at an equal count, the first by name is kept, whatever order the lines came in
-  (`dimensions.fold`; rule added to DATA-CONTRACT.md, Counters). **Why:** one site's live panel
-  was withheld on 26 Oct (19 landing pages with one reader each, the cut inside them). **Who:**
-  every site; a day or live panel could be withheld. **Do:** nothing: no stored day was withheld
-  for this, nothing needs recounting. **Checked:** `tests/test_landing_ties.py` rebuilds the case
-  (failed before, passes now); the day's real lines, read on the server without writing, verify
-  clean with the new rule; the audit road does not fold and is unchanged.
-
-### Fixed: a quiet site's "no page assets" false alarm
-
-- **Fixed.** The doctor's Page assets line read only the log's last 512 KB. On a quiet site
-  those can all be crawler lines, so it said "no request for /_next/static/" while people loaded
-  the pages all day, and the set-up checklist offered a wrong to-do ("none counts as a person
-  yet"). With nothing in the tail it now reads further back, the live file and its first
-  rotation, 64 MB at most, and says "seen in the log (not in its last lines: a quiet spell)"
-  (`doctor.py`). **Why:** docomatic.ai showed the false alarm. **Who:** quiet sites with the
-  page-assets rule. **Do:** nothing. **Checked:** `tests/test_doctor.py` (an asset request before
-  512 KB of other lines is found; the 64 MB cap holds).
+On a phone, the bar at the bottom has six sections (Overview, Traffic, Leads, AI & bots, Security,
+Site) and Menu, but it was laid out for six items, so Menu wrapped onto a second row under
+Overview. It now makes one column per item. Who: everyone on a phone. To do: nothing. Checked in
+the browser at 390 px, light and dark: seven items on one row.
 
 ## Older versions
 
+- 2.39.0 to 2.41.0 (26 October 2026): [docs/CHANGELOG-2.39-2.41.md](docs/CHANGELOG-2.39-2.41.md).
 - 2.36.0 to 2.38.0 (25 and 26 October 2026): [docs/CHANGELOG-2.36-2.38.md](docs/CHANGELOG-2.36-2.38.md).
 - 2.35.0 and 2.35.1 (25 October 2026): [docs/CHANGELOG-2.35.md](docs/CHANGELOG-2.35.md).
 - 2.32.0 to 2.34.1 (24 and 25 October 2026): [docs/CHANGELOG-2.32-2.34.md](docs/CHANGELOG-2.32-2.34.md).

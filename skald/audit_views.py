@@ -1,7 +1,7 @@
 """The audit's road for page groups (views): a stored view day recounted
 from the raw log and compared with history.
 
-A view (Settings > Site details > Views, `dashboard.views`) is the site's counting
+A view (Settings > Site > Views, `dashboard.views`) is the site's counting
 rules over the lines whose path it takes. audit.py recounts the whole site
 only; this module recounts each view the same independent way: the audit's
 own line reader, its own same-click rule, its own group order (audit.Judge,

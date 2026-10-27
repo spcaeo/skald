@@ -6,6 +6,7 @@
   color-scheme: light;
   --page: #edf0f3; --surface: #fbfcfd; --sunk: #e4e9ee; --ink: #17212b; --ink-2: #4f5d6b; --ink-3: #5a6672;
   --rule: #d8dfe6; --focus: #17212b; --good: #1b7f52; --warn: #9a6400; --bad: #c0352f;
+  --g-people: #2a78d6; --g-answer: #eb6834; --g-search: #1baf7a; --g-bots: #eda100; --g-ours: #e87ba4;
   --shadow: 0 1px 0 rgba(23, 33, 43, .04), 0 8px 24px -12px rgba(23, 33, 43, .18);
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -15,6 +16,7 @@
     color-scheme: dark;
     --page: #0d1319; --surface: #141c24; --sunk: #1b252f; --ink: #e4eaf0; --ink-2: #a9b5c1; --ink-3: #8593a0;
     --rule: #26313c; --focus: #e4eaf0; --good: #48b883; --warn: #d9a440; --bad: #ef6b63;
+    --g-people: #3987e5; --g-answer: #d95926; --g-search: #199e70; --g-bots: #c98500; --g-ours: #d55181;
     --shadow: 0 1px 0 rgba(0, 0, 0, .3), 0 10px 30px -14px rgba(0, 0, 0, .7);
   }
 }
@@ -22,6 +24,7 @@
   color-scheme: dark;
   --page: #0d1319; --surface: #141c24; --sunk: #1b252f; --ink: #e4eaf0; --ink-2: #a9b5c1; --ink-3: #8593a0;
   --rule: #26313c; --focus: #e4eaf0; --good: #48b883; --warn: #d9a440; --bad: #ef6b63;
+  --g-people: #3987e5; --g-answer: #d95926; --g-search: #199e70; --g-bots: #c98500; --g-ours: #d55181;
   --shadow: 0 1px 0 rgba(0, 0, 0, .3), 0 10px 30px -14px rgba(0, 0, 0, .7);
 }
 
@@ -36,13 +39,22 @@ a { color: inherit; text-underline-offset: 2px; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
 
 .card {
+  position: relative; overflow: hidden;
   width: min(400px, 100%); background: var(--surface); border: 1px solid var(--rule); border-radius: 14px;
-  box-shadow: var(--shadow); padding: 26px 24px 22px;
+  box-shadow: var(--shadow); padding: 28px 24px 22px;
+}
+/* The dashboard's five traffic colours, as the drawers' edge: one thin line on top (2.42). */
+.card::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: linear-gradient(to right, var(--g-people) 0 34%, var(--g-answer) 34% 58%, var(--g-search) 58% 70%, var(--g-bots) 70% 92%, var(--g-ours) 92%);
 }
 .brand { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; font-weight: 680; font-size: 16px; letter-spacing: -.01em; }
 .brand svg { width: 30px; height: 30px; flex: none; }
 h1 { font-size: 20px; line-height: 1.25; letter-spacing: -.02em; margin: 0 0 4px; font-weight: 680; }
 .lede { color: var(--ink-2); margin: 0 0 16px; font-size: 13.5px; }
+.lede:empty { display: none; }
+h1 { margin-bottom: 16px; }
+h1:has(+ .lede:not(:empty)) { margin-bottom: 4px; }
 .lede b { color: var(--ink); }
 
 form { display: grid; gap: 12px; }
@@ -71,6 +83,13 @@ input.code { font-family: var(--mono); letter-spacing: .3em; font-size: 18px; }
 label.check { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 8px; row-gap: 2px; color: var(--ink); font-weight: 500; cursor: pointer; }
 label.check input { width: 18px; height: 18px; margin: 0; accent-color: var(--ink); }
 label.check .hint { grid-column: 2; }
+.check-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tip {
+  flex: none; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--rule); background: var(--surface);
+  color: var(--ink-2); font: inherit; font-size: 12.5px; font-weight: 650; cursor: pointer; padding: 0;
+}
+.tip:hover, .tip[aria-expanded="true"] { border-color: var(--ink-3); color: var(--ink); background: var(--sunk); }
+.tip-text { margin: -6px 0 0 26px; }
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; padding: 0 16px;

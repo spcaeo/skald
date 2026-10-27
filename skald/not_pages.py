@@ -16,7 +16,7 @@ landings, exits and journey steps leave it out, the way they leave out a
 stylesheet.
 
 Every site gets DEFAULT. A site can count any entry as pages again
-(site.not_pages_off, Settings > Collect data > What counts) and add its own
+(site.not_pages_off, Settings > Data > What counts) and add its own
 addresses (site.not_pages_extra). Things a person does open stay pages:
 search results, a cart, a sign-in page, an app's dashboard, a thank-you
 page. A site that wants one of them out adds it as its own address.
@@ -102,7 +102,7 @@ _KEY = re.compile(r"^[A-Za-z0-9_.\-\[\]]{1,60}$")
 
 
 def reason(name: str) -> str:
-    return RULES[name][0] if name in RULES else "This site's own entry (Settings > Collect data > What counts)."
+    return RULES[name][0] if name in RULES else "This site's own entry (Settings > Data > What counts)."
 
 
 def clean_off(value) -> list[str]:

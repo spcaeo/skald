@@ -109,7 +109,7 @@ const m = { today: "2026-10-22", anchor: "2026-10-21", firstDay: "2026-10-14", b
   const r = D.rangeOf(m, s), t = D.total(r.days), c = C.compareOf(m, s);
   assert.equal(c.ok, true);
   const [cap, tiles] = keyTiles(m, s, r, t, c);
-  assert.match(cap.textContent, /each with its change/);
+  assert.equal(cap, null, "with Compare on, each tile says its change: no caption (2.42)");
   const text = tiles.textContent;
   assert.match(text, /People\s*i?75▲ 150% · before: 30/);
   assert.match(text, /From search engines\s*i?5≈ about the same · before: 5/);

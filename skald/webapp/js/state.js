@@ -11,6 +11,7 @@ import { TABLE_KEY as GRID_KEY } from "./tablestate.js";
 import { OVERLAY, ALWAYS_MASKED, isPersonal } from "./routekeys.js";
 import { mask, unmask } from "./routemask.js";
 import { SETTINGS_PAGES, SETTINGS_GROUPS, SETTINGS_HOME } from "./settings-menu.js";
+export { SETTINGS_HOME };
 // Every key, its owner and what it means: js/routekeys.js (and docs/ROUTES.md).
 
 // A table's or a data grid's own keys in the hash (search, sort, column filters, hidden
@@ -23,10 +24,12 @@ export const TABS = [...SETTINGS_PAGES.map((p) => [p.route, p.name]), ["help", "
 // Sections this server does not offer: Team, Your account and the settings pages come with
 // accounts (access.mode: sessions), which replace Users; Billing also needs saas (docs/SAAS.md).
 // access.js changes the set once /me has answered (and hides what the reader's role may not open).
-// Every settings page but All settings, Help & docs, Internal traffic, the API and MCP pages
-// (they say how it works without accounts) and Users (the one shared login's own page).
-const WITHOUT_ACCOUNTS = new Set([SETTINGS_HOME, "settings/help", "settings/site/internal", "settings/ai/api", "settings/ai/mcp", "settings/org/users"]);
-export const ACCOUNT_TABS = SETTINGS_PAGES.map((p) => p.route).filter((k) => !WITHOUT_ACCOUNTS.has(k));
+// Every settings page but To do, Site (its Internal traffic tab), AI assistants (they say how it
+// works without accounts), Alerts (its switches say where they are set without accounts) and People (Users: the one shared login's own page). A tab that needs
+// accounts on a page that does not is hidden as <route>#<sub> (settings-menu.js tabKey).
+const WITHOUT_ACCOUNTS = new Set([SETTINGS_HOME, "settings/site/details", "settings/site/alerts", "settings/ai/assistants", "settings/org/people"]);
+const ACCOUNT_SUBS = ["settings/site/details#details", "settings/org/people#security"];
+export const ACCOUNT_TABS = [...SETTINGS_PAGES.map((p) => p.route).filter((k) => !WITHOUT_ACCOUNTS.has(k)), ...ACCOUNT_SUBS];
 export const HIDDEN = new Set(ACCOUNT_TABS);
 export const shown = (key) => !HIDDEN.has(key);
 
@@ -36,7 +39,7 @@ export const shown = (key) => !HIDDEN.has(key);
 export const SECTIONS = [];
 export const MENU = [];
 const FIRST = {};                                   // section key -> its first tab's route
-const KEEP = { help: ["part"], about: ["part", "note"], "settings/org/sites": ["test"] };   // route -> parameters it keeps in its address
+const KEEP = { help: ["part", "hs", "hq"], about: ["part", "note"], "settings/org/sites": ["test"] };   // route -> parameters it keeps in its address
 // A settings page with in-page tabs keeps the tab open (sub=, js/settings-menu.js).
 for (const p of SETTINGS_PAGES) if (p.tabs) KEEP[p.route] = ["sub"];
 export function addSections(list) {
@@ -56,8 +59,8 @@ export function addSections(list) {
 export const sectionOf = (key) => SECTIONS.find((x) => String(key).split("/")[0] === x.key) || null;
 
 // Settings has a menu of its own, which takes the sidebar's place while a settings page is open:
-// All settings, then the groups of js/settings-menu.js (This site, AI & API, Organisation, You,
-// Help & docs). (AI crawlers moved to AI & bots > Crawler rules in 2.7.0; its address redirects.)
+// To do, then the groups of js/settings-menu.js (This site, AI, Organisation, You). Help is in
+// the sidebar's foot. (AI crawlers moved to AI & bots > Crawler rules in 2.7.0; its address redirects.)
 export const SETTINGS_MENU = [["", [SETTINGS_HOME]], ...SETTINGS_GROUPS.map((g) => [g.name, g.pages.map((p) => p.route)])];
 export const inSettings = (key) => key.startsWith("settings/");
 // The group a page sits in: its section's name ("Traffic"), its settings group, or null.
@@ -67,7 +70,7 @@ export function groupOf(key) {
   for (const [name, keys] of SETTINGS_MENU) if (name && keys.includes(key)) return name;
   return null;
 }
-// Where #settings lands: All settings (every page, with what each is for), shown to everyone.
+// Where #settings lands: To do (what needs this reader now), shown to everyone.
 export const firstSetting = () => SETTINGS_MENU.flatMap(([, keys]) => keys).find(shown) || "about";
 
 // Where an asked-for route opens: #settings opens the first settings page this reader may see;
@@ -91,7 +94,7 @@ export const FILTERS = ["country", "path", "source", "device", "browser", "campa
 const GLOBAL = ["range", "view", "from", "to", "pathmode", "rules", "cmp", "dd", "tz", "inc"];
 // Kept while Compare is on (2.7.0): the custom B, "Per day", the old Compare page's chart keys.
 const CMP_KEYS = ["cb", "cnorm", "cgran", "cm"];
-const DEFAULT = { tab: "overview/summary", range: "today", view: "all", from: "", to: "", inc: "", pathmode: "contains", rules: "", page: "", since: "", cmp: "", ip: "", rq: "", dd: "", tz: "", part: "", note: "", fn: "", fsrc: "", fstep: "", fmode: "", strat: "", ca: "", cb: "", cnorm: "", cgran: "", cm: "", cdim: "", pubfrom: "", pubto: "", chgfrom: "", rg: "", rm: "", rs: "", rv: "", test: "", sub: "",
+const DEFAULT = { tab: "overview/summary", range: "today", view: "all", from: "", to: "", inc: "", pathmode: "contains", rules: "", page: "", since: "", cmp: "", ip: "", rq: "", dd: "", tz: "", part: "", hs: "", hq: "", note: "", fn: "", fsrc: "", fstep: "", fmode: "", strat: "", ca: "", cb: "", cnorm: "", cgran: "", cm: "", cdim: "", pubfrom: "", pubto: "", chgfrom: "", rg: "", rm: "", rs: "", rv: "", test: "", sub: "",
   ...Object.fromEntries(OVERLAY.map((k) => [k, ""])) };
 /* The period a section opens on when the address names none (2.23). Leads & sales opens on
    the last 7 days: a lead is rare, and Today so far was too often empty (the owner,
@@ -103,6 +106,14 @@ const DEFAULT = { tab: "overview/summary", range: "today", view: "all", from: ""
    tab's own default (Today on Overview, 7 days on Leads & sales) counts as the default. */
 export const SECTION_RANGE = { sales: "7d" };
 export const defaultRange = (tab) => SECTION_RANGE[String(tab || "").split("/")[0]] || DEFAULT.range;
+/* Compare is on by default (the UX audit's task 5, 2.42): a period of whole days (Yesterday,
+   7, 30 or 90 days, Custom) is set against the period before it unless the address says
+   otherwise. Today (live and partial), All time (nothing before it) and a period that
+   includes today are never compared, so they default to off. s.cmpAuto: no compare was
+   named, so it follows the period (a move to Today drops it, a move back brings it) and
+   hashFor leaves it out. Named (picked, or turned off: cmp=off), it is written while it
+   differs from the period's default. */
+export const defaultCmp = (s) => (!["today", "all"].includes(s.range) && s.inc !== "1" ? "prev" : "");
 // Every key read() knows, for the route keys' test (tests/js/routes.mjs).
 export const KNOWN = () => [...Object.keys(DEFAULT).filter((k) => k !== "tab"), ...FILTERS];
 
@@ -126,6 +137,7 @@ export function read() {
   Object.assign(s, r.patch);
   s.moved = (r.moved || personal) && s.tab === r.tab;
   if (p.get("cmp") === "1") s.moved = true;
+  const offed = s.cmp === "off";
   s.cmp = cmpOf(s.cmp);
   // Compare mode (js/mode-compare.js): a custom B needs its period, else the previous one.
   if (s.cmp === "custom" && !spanOf(s.cb)) s.cmp = "prev";
@@ -138,6 +150,9 @@ export function read() {
   if (s.pathmode !== "starts") s.pathmode = "contains";
   // Include today (period-dates.js): "1" or nothing; only Summary and Pages honour it.
   if (s.inc !== "1") s.inc = "";
+  // No compare named: the period's default (defaultCmp); s.cmpAuto says it follows the period.
+  s.cmpAuto = !offed && !s.cmp && !p.get("cmp");
+  if (s.cmpAuto) s.cmp = defaultCmp(s);
   // The time zone: the link's, else the one this browser chose last, else the reader's own.
   if (!["local", "site", "utc"].includes(s.tz)) {
     let kept = "";
@@ -160,7 +175,10 @@ export function hashFor(s) {
   if (s.path && s.pathmode === "starts") p.set("pathmode", "starts");
   // The advanced filters' rules beyond the single filters above (js/rules.js), on every tab.
   if (s.rules) p.set("rules", s.rules);
-  if (cmpOf(s.cmp)) p.set("cmp", cmpOf(s.cmp));
+  // Compare: written when it differs from the period's default (defaultCmp), "off" for none;
+  // a compare filled in as the default (s.cmpAuto) is never written.
+  const cmpNow = cmpOf(s.cmp);
+  if (!s.cmpAuto && cmpNow !== defaultCmp(s)) p.set("cmp", cmpNow || "off");
   // Compare mode's own keys, on every tab while it is on: the custom B, "Per day".
   if (cmpOf(s.cmp)) for (const k of CMP_KEYS) if (s[k] && (k !== "cb" || s.cmp === "custom")) p.set(k, s[k]);
   if (s.tz && s.tz !== "site") p.set("tz", s.tz);
@@ -204,6 +222,8 @@ export function set(patch, { replace = false, mark = null } = {}) {
   if (patch.tab) { const r = route(patch.tab); Object.assign(next, r.patch, { tab: r.tab }); }
   // A period picked is named (written, carried), unless it is this tab's own default.
   if ("range" in patch) next.auto = next.range === defaultRange(next.tab) ? next.range : "";
+  // A compare chosen (or turned off) is named from now on; one left alone follows the period.
+  if ("cmp" in patch) next.cmpAuto = false;
   // Going to another tab leaves a drill-down, a drawer and a dialog behind unless the move carries them.
   if (next.tab !== cur.tab) for (const k of ["dd", ...OVERLAY]) if (!(k in patch)) next[k] = "";
   const hash = hashFor(next);

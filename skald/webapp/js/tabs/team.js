@@ -1,14 +1,16 @@
-// Settings > Team (accounts, access.mode: sessions): who belongs to this
+// Settings > People > Team (accounts, access.mode: sessions): who belongs to this
 // organisation, with which role, and the invites still open. An admin changes
 // roles, removes members and sends, resends or cancels invites; a viewer sees
 // the same lists with every control disabled. The helper behind <page>/team
 // checks the session, the role and the CSRF value; every change is audited.
 
 import { h } from "../ui.js";
+import { primary } from "./set-ui.js";
 import { call } from "./ipmanager.js";
 import { ME, isViewer, lockForViewer, sessions, VIEWER } from "../access.js";
 import { head1, copyable, field, input, status, confirmIn, when, why, ROLE_NAME } from "./forms.js";
 import { copyIf } from "../urlactions.js";
+import { tip } from "./settings-frame.js";
 
 const NO_MAIL = "Mail is not set up; send this link yourself.";
 
@@ -38,7 +40,7 @@ export default function team() {
   const title = head1(ME.org ? `Team of ${ME.org}` : "Team", ME.org ? `Who may see ${ME.org}'s sites, and what they may change.` : "Who may see these sites, and what they may change.");
   if (!sessions()) {
     return [title, h("div", { class: "state" }, h("div", null, "Team comes with accounts. This server uses one shared login; users are listed under ",
-      h("a", { href: "#settings/org/users" }, "Settings › Users"), "."))];
+      h("a", { href: "#settings/org/people" }, "Settings › People"), "."))];
   }
   const box = h("div", { class: "acct" }, h("p", { class: "empty" }, "Loading the team..."));
   const msg = status();
@@ -50,7 +52,9 @@ export default function team() {
       box.replaceChildren(h("div", { class: "state" }, h("div", null, isViewer() ? `${VIEWER} The team list is for admins.` : why(r, "The team could not be loaded."))));
       return;
     }
-    box.replaceChildren(...[scope(r.sites || [], r.others || []), members(r.members || []), invites(r.invites || []), inviteForm()].filter(Boolean));
+    // v2: the members with their roles and one Invite row; invites waiting folded; what each
+    // role may do behind the "?" (the owner, 2026-10-26: less on each screen).
+    box.replaceChildren(...[members(r.members || []), inviteForm(), invites(r.invites || []), scope(r.sites || [], r.others || [])].flat().filter(Boolean));
     lockForViewer(box);
   }
 
@@ -60,13 +64,19 @@ export default function team() {
     const seen = sites.length === 1 ? ["These people see ", h("b", null, sites[0]), " only."]
       : sites.length ? [`These people see these ${sites.length} sites: `, sites.join(", "), "."] : [];
     const also = others.length ? h("p", { class: "sub" }, "You are also in ", others.flatMap((o, i) => [i ? ", " : "",
-      h("a", { href: `../${o.path}#settings/org/team` }, `${o.org} (${o.sites} site${o.sites === 1 ? "" : "s"})`)]),
+      h("a", { href: `../${o.path}#settings/org/people` }, `${o.org} (${o.sites} site${o.sites === 1 ? "" : "s"})`)]),
       ". Each organisation has its own team.") : null;
-    return h("section", { class: "s team-scope" }, seen.length ? h("p", null, ...seen) : null, also);
+    return h("section", { class: "s team-scope muted" }, seen.length ? h("p", null, ...seen) : null, also);
   }
 
   function members(list) {
-    if (!list.length) return h("section", { class: "s" }, h("h2", null, "Members"), h("p", { class: "empty" }, "No members yet."));
+    const roleTip = tip("each role", h("dl", { class: "u-roles" },
+      h("dt", null, "Viewer"), h("dd", null, "sees everything these pages show, changes nothing"),
+      h("dt", null, "Admin"), h("dd", null, "also changes settings, the team and tokens"),
+      h("dt", null, "Owner"), h("dd", null, "everything; an organisation always keeps at least one")),
+      h("p", null, "Removing a member ends their sessions at once. An invite link works for 7 days, once."));
+    const head = h("h2", { class: "has-tip" }, `Members (${list.length})`, roleTip.btn);
+    if (!list.length) return h("section", { class: "s" }, head, roleTip.box, h("p", { class: "empty" }, "No members yet."));
     const rows = list.map((m) => {
       const me = m.email === ME.user;
       const sel = roleSelect(m.role, `Role of ${m.email}`, async (s) => {
@@ -92,14 +102,15 @@ export default function team() {
         h("td", null, sel), h("td", { class: "muted n" }, when(m.last_seen ?? m.last_sign_in)),
         h("td", { class: "c" }, on == null ? h("span", { class: "muted" }, "not known") : h("span", { class: `tf ${on ? "on" : "off"}` }, on ? "On" : "Off")), cell);
     });
-    return h("section", { class: "s" }, h("h2", null, "Members"), h("p", { class: "sub" }, `${list.length} member${list.length === 1 ? "" : "s"}. Removing a member ends their sessions for this organisation at once.`),
+    return h("section", { class: "s" }, head, roleTip.box,
       h("div", { class: "scroll" }, h("table", { class: "rows-mid" }, h("caption", { class: "vh" }, "Members"),
         h("thead", null, h("tr", null, [["Email"], ["Name"], ["Role"], ["Last seen", "n"], ["Two-step sign-in", "c"]].map(([t, cls]) => h("th", { scope: "col", class: cls }, t)), h("th", { scope: "col", class: "n" }, h("span", { class: "vh" }, "Action")))),
         h("tbody", null, rows))));
   }
 
   function invites(list) {
-    const body = !list.length ? h("p", { class: "empty" }, "No invites waiting.") : h("div", { class: "scroll" }, h("table", { class: "rows-mid" }, h("caption", { class: "vh" }, "Pending invites"),
+    if (!list.length) return null;
+    const body = h("div", { class: "scroll" }, h("table", { class: "rows-mid" }, h("caption", { class: "vh" }, "Pending invites"),
       h("thead", null, h("tr", null, [["Email"], ["Role"], ["Invited by"], ["Expires", "n"]].map(([t, cls]) => h("th", { scope: "col", class: cls }, t)), h("th", { scope: "col", class: "n" }, h("span", { class: "vh" }, "Actions")))),
       h("tbody", null, list.map((v) => {
         const cell = h("td", { class: "n" });
@@ -124,13 +135,13 @@ export default function team() {
         return h("tr", null, h("td", { class: "path nm" }, copyIf("email", v.email || "", v.email, { label: "email", cls: "" })), h("td", null, ROLE_NAME[v.role] || v.role || ""),
           h("td", { class: "muted" }, copyIf("text", v.invited_by || "", null, { label: "invited by", cls: "" })), h("td", { class: "muted n" }, when(v.expires_at, "")), cell);
       }))));
-    return h("section", { class: "s" }, h("h2", null, "Pending invites"), h("p", { class: "sub" }, "An invite link works for 7 days, once."), body);
+    return h("details", { class: "fold team-invites" }, h("summary", null, `${list.length} invite${list.length === 1 ? "" : "s"} not accepted yet`), body);
   }
 
   function inviteForm() {
     const email = input({ type: "email", name: "email", autocomplete: "off", required: true, placeholder: "name@example.com", maxlength: "254" });
     const role = h("select", { name: "role" }, roles("viewer").map((r) => h("option", { value: r }, ROLE_NAME[r])));
-    const send = h("button", { type: "submit", class: "btn primary" }, "Send invite");
+    const send = h("button", { type: "submit", class: "btn" }, "Send the invite");
     const form = h("form", { class: "af-row", novalidate: true }, field("Email", email), field("Role", role), send);
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -146,13 +157,10 @@ export default function team() {
       msg.say(r.link ? `Invite made for ${addr}.` : `Invite sent to ${addr}.`, true);
       reload();
     });
-    return h("section", { class: "s" }, h("h2", null, "Invite someone"),
-      h("p", { class: "sub" }, "They get a mail with a link to pick a name and a password, or to join with the account they already have."),
-      h("div", { class: "sheet" }, form),
-      h("dl", { class: "u-roles" },
-        h("dt", null, "Viewer"), h("dd", null, "sees everything these pages show, changes nothing"),
-        h("dt", null, "Admin"), h("dd", null, "also changes settings, the team and tokens (saved funnels and internal addresses apply to every site: install admins only)"),
-        h("dt", null, "Owner"), h("dd", null, "everything; an organisation always keeps at least one")));
+    // v2: one primary, Invite someone, opens the form (Viewer chosen); the form waits for it.
+    const sec = h("section", { class: "s team-invite", "aria-label": "Invite someone", hidden: true }, form);
+    const open = primary("Invite someone", () => { sec.hidden = false; email.focus(); });
+    return [open, sec];
   }
 
   linkNote(linkSlot);

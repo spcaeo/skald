@@ -15,13 +15,14 @@
 <main class="card" id="main">
   <p class="brand"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15" fill="var(--ink)"/><path d="M20 14.5 27 11v41l-7 3.5z" fill="var(--surface)"/><g fill="var(--surface)" stroke="var(--ink)" stroke-width="3" stroke-linejoin="round" paint-order="stroke"><path d="M25 41C28 29 38 17 51 10c-2 9-6 16-11 21l-3.5-.5 1.5 3c-3 3.5-7 7-10.5 9.5z"/><path d="M24.6 39.2l3.6 3.2L11.5 56.5z"/></g><path d="M27.5 41.2 48.5 13.5" stroke="var(--ink)" stroke-width="1.6" stroke-linecap="round"/></svg><span>Skald</span></p>
   <h1>Sign in</h1>
-  <p class="lede" id="lede">To see your sites' traffic.</p>
+  <p class="lede" id="lede"></p>
   <form id="form" method="post" novalidate>
     <div class="step" id="step-password">
       <label>Email <input type="email" name="email" id="email" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="254" required></label>
       <label>Password <input type="password" name="password" id="password" autocomplete="current-password" maxlength="1024" required></label>
-      <label class="check"><input type="checkbox" name="remember" id="remember" checked aria-describedby="remember-hint"> Keep me signed in
-        <span class="hint" id="remember-hint">For 14 days on this device. Untick on a shared computer: you are signed out when the browser closes.</span></label>
+      <div class="check-row"><label class="check"><input type="checkbox" name="remember" id="remember" checked aria-describedby="remember-hint"> Keep me signed in</label>
+        <button type="button" class="tip" aria-expanded="false" aria-controls="remember-hint" aria-label="What Keep me signed in does">?</button></div>
+      <p class="hint tip-text" id="remember-hint" hidden>For 14 days on this device. Untick it on a shared computer: you are signed out when the browser closes.</p>
     </div>
     <div class="step" id="step-code" hidden>
       <label>Code <input class="code" type="text" name="code" id="code" inputmode="numeric" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" maxlength="32" aria-describedby="code-hint">

@@ -112,7 +112,13 @@ export function liveNote(m, s, r, today, total = null) {
       h("button", { type: "button", class: "linkish sa-today-go", onclick: () => S.set({ range: "today" }) }, "Show today (live)", h("span", { "aria-hidden": "true" }, " →")), " · ");
   } else if (today && today.ok) bits.push("Today so far: none yet · ");
   bits.push(`${spanWords(r.first, yday, m.today)} are whole days, verified; today is live and verified again once it is whole.`);
-  if (other.kind === "history" && !other.all) bits.push(` Summary and Sources count whole days: ${spanWords(other.first, other.last, m.today)}.`);
+  // Why Summary's Leads figure is another number (2.42, the UX audit): said here, in plain words.
+  if (other.kind === "history" && !other.all) {
+    const span = spanWords(other.first, other.last, m.today);
+    const db = !(m?.x?.leads && m.x.leads.available === false && /not set/.test(String(m.x.leads.error || "")));
+    bits.push(db ? ` Summary and Sources count other leads, so their figures differ: whole days only (${span}), from the lead database (sign-ups, contact forms and early access, no demos booked).`
+      : ` Summary and Sources count whole days only (${span}), so their figures differ by today's leads and the day before the period.`);
+  }
   return h("p", { class: "sa-today sa-live", role: "status",
     title: "Today's leads are the lead store's rows now, counted like every day and recounted on every redraw. Once today is whole, the morning run counts it again." },
   h("span", { class: "live-dot", "aria-hidden": "true" }), ...bits);

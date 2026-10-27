@@ -1,12 +1,12 @@
 // "Set up this site" > Script tag events: what the tag adds, the exact tag for
-// this site with Copy (GET integrations' script.tag, as Settings > Collect data > Script tag & goals
+// this site with Copy (GET integrations' script.tag, as Settings > Data > Script tag & goals
 // builds it: it loads from this Skald and posts its events here, so the site's
 // own server needs no change), "Advanced: serve it from your own domain" with
 // the nginx, Apache and Caddy lines and the first-party tag (conn-install.js),
 // where it goes (from docs/help/tracking-script.md, docs/HOSTING.md and
 // docs/VERCEL.md), a mail with the steps for the developer (the tag needs no
 // token, so the mail holds everything) or a private page for them ("Share with
-// your developer", conn-share.js), and the Test of Settings > Collect data > Send logs for
+// your developer", conn-share.js), and the Test of Settings > Data > Send logs for
 // method "script": GET sites/status?site= polled until the first event or page
 // opening (conn-send.js testPanel and verdict); while nothing has arrived, a
 // look at the site's home page that says what is wrong (conn-tagcheck.js).

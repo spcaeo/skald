@@ -25,8 +25,8 @@ The lead database road reads **SQLite only**: a Payload-style `submissions` tabl
 | A site that keeps leads in SQLite (Payload CMS) | The lead database | Every lead, its status (won, lost, spam) and its touches, with no code | Leads from other places | `leads.db` in the server's config |
 | No-code site (Webflow, Squarespace, Wix) | Script tag, plus Zapier or Make to the `json` hook | Form steps and clicks from the tag; the form's leads from Zapier or Make | Anything the builder will not let you add to the page head | The tag in the site's custom code; a Zap that posts to the `json` hook |
 | Calendly or Cal.com | The tool's hook, plus the embed through the script tag | Bookings, cancellations, reschedules and no-shows; opened and time chosen when embedded | Opened and time chosen when you only link to the booking page | See [Demo bookings](demo-bookings.md) |
-| Stripe | The `stripe` hook | Each paid checkout, and one paid later by a slow method | Refunds, subscriptions, customer details (never read) | The endpoint's signing secret (`whsec_...`), pasted in Settings > This site > Leads & integrations; the visitor ID as the session's `client_reference_id` |
-| HubSpot | The `hubspot` hook, or Zapier to the `json` hook | New contacts, booked meetings, deals won | Anything HubSpot does not send | The app's client secret, pasted in Settings > This site > Leads & integrations |
+| Stripe | The `stripe` hook | Each paid checkout, and one paid later by a slow method | Refunds, subscriptions, customer details (never read) | The endpoint's signing secret (`whsec_...`), pasted in Settings > This site > Leads & tools; the visitor ID as the session's `client_reference_id` |
+| HubSpot | The `hubspot` hook, or Zapier to the `json` hook | New contacts, booked meetings, deals won | Anything HubSpot does not send | The app's client secret, pasted in Settings > This site > Leads & tools |
 | Zapier, Make, n8n | The `json` hook | Any lead any tool knows about, up to 100 in one message | Nothing by itself: it sends what the Zap sends | **Make secret** for `json`, and the signing step in the Zap |
 
 Never sign a hook in the browser. The secret must stay on a server. A browser can only use the script tag.
@@ -34,7 +34,7 @@ Never sign a hook in the browser. The secret must stay on a server. A browser ca
 ## What each road costs in privacy
 
 - **Visitor IDs are off by default.** Then the script tag makes no ID, and a hook's visitor ID is dropped before anything is kept: the `vid`, and the ID in a tool's own field (Typeform, Cal.com, Calendly, Stripe, HubSpot) or in a landing address. Journeys, abandoned forms and assisted sources need the IDs on. Your privacy notice must say so.
-- **Names and emails are kept only when Leads' names and emails is full** (**Settings > This site > Privacy & retention > People**). That is the default for a new install; an install upgraded from before 2.4.0 keeps none until an admin turns it on. Then the name and the primary email only. Nothing else, ever: no phone, no address, no message.
+- **Names and emails are kept only when Leads' names and emails is full** (**Settings > This site > Privacy > People**). That is the default for a new install; an install upgraded from before 2.4.0 keeps none until an admin turns it on. Then the name and the primary email only. Nothing else, ever: no phone, no address, no message.
 - **Addresses and browsers.** A lead hook may send the visitor's address and browser once. Skald looks up the country and the device, then drops both.
 - **The log itself.** With **Keep visitors' IP addresses** on (also the default for a new install), each visit in the log is kept with its address, so admins can look a person up. See [Privacy](privacy.md).
 - **The lead database** is opened read-only. Only the columns Skald needs are read.
@@ -43,9 +43,9 @@ Never sign a hook in the browser. The secret must stay on a server. A browser ca
 
 Send each lead through one road only. Each tool keeps its own row, so the same lead sent through two (for example the lead hook and Zapier, or the lead hook and the lead database) counts twice.
 
-**Settings > This site > Leads & integrations > Incoming hooks > Status** flags it: "One lead, two tools", with the leads it saw. Turn one of the two roads off for those leads.
+**Settings > This site > Leads & tools > Incoming hooks > Status** flags it: "One lead, two tools", with the leads it saw. Turn one of the two roads off for those leads.
 
 ## Check it
 
 - On the server: `sudo skald doctor` (Docker: `docker exec skald skald doctor`). It lists every part with OK or NEEDS ATTENTION, and the fix.
-- In the dashboard: **Settings > This site > Leads & integrations > Incoming hooks > Status** shows the same lines for the roads in, and each hook says "ready", "never received" or "last received 2 h ago".
+- In the dashboard: **Settings > This site > Leads & tools > Incoming hooks > Status** shows the same lines for the roads in, and each hook says "ready", "never received" or "last received 2 h ago".

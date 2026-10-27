@@ -1,13 +1,16 @@
 // Traffic > Visitors (2.13, the owner's approved layout): what visits looked like.
+// 2.42 (the UX audit's task 8): the list first. A List / Flow switch sits above it, kept in
+// the address (vis_view=flow; the list when absent); the cards follow, and the lists and
+// tables after them are under one fold kept in the address (visx_view=open).
 //
-//   Visitor flow        where visits came from, their pages in order, where they left
-//                       (flowview.js, sankey.js); Pages 3 / 4 / 5
 //   Each visit          one row per visit, newest first (visitlist.js); a row opens the
 //                       visitor drawer (visitor.js)
+//   Visitor flow        where visits came from, their pages in order, where they left
+//                       (flowview.js, sankey.js); Pages 3 / 4 / 5
 //   New and returning   and How engaged visits were: two cards (vis-cards.js); with a
 //                       filter on, both count the filtered visits when that reconciles
-//   Where visits ended, Common next steps, and the engagement tables by source and
-//   device (visits.js)
+//   Open the details    Where visits ended, Common next steps, and the engagement tables by
+//                       source and device (visits.js)
 //
 // Landing pages live on Traffic > Pages (a line links there). Nothing is recounted
 // here: the figures are the days' own, checked in js/visitorfigs.js.
@@ -22,6 +25,19 @@ import { visitorFlow } from "./flowview.js";
 import { journeyFilter, engagementTables } from "./visits.js";
 import { newReturningCard, engagementCard, rangeDays, cardDays, filtersOn } from "./vis-cards.js";
 import { newReturning, narrowedLists, ARROW } from "../visitorfigs.js";
+import { subView } from "../tablestate.js";
+import { urlFold } from "../ui/fold.js";
+
+// List or Flow, in the address (vis_view): the list when absent.
+const VIEW = subView("vis");
+function listOrFlow(m, s, r) {
+  const holder = h("div", { class: "vs-which" });
+  const draw = (k) => holder.replaceChildren(k === "flow" ? visitorFlow(m, s, r) : eachVisit(m, s, r));
+  const btns = [["list", "List"], ["flow", "Flow"]].map(([k, words]) => h("button", { type: "button", "aria-pressed": String(VIEW.get("list") === k), "data-k": k,
+    onclick: () => { VIEW.set(k, "list"); for (const b of btns) b.setAttribute("aria-pressed", String(b.dataset.k === k)); draw(k); } }, words));
+  draw(VIEW.get("list"));
+  return [h("div", { class: "seg plain vs-switch", role: "group", "aria-label": "Show the visits as" }, btns), holder];
+}
 
 const LEDE = "Each visit here read at least one page: one browser, with no gap longer than 30 minutes. Arriving again from another outside source (an AI assistant, a search, another site, a campaign link) starts a new visit. Logs see what was loaded, not how long someone read, so a long read of one page shows as a short visit.";
 
@@ -77,15 +93,18 @@ export default function visitors(m, s) {
   out.push(h("div", { class: "vs-title" }, h("h2", null, "Visitors"), h("p", null, summary(m, r, t, src))));
   const v = t.visit;
   out.push(coverageNote(cov, r));
-  out.push(visitorFlow(m, s, r));
-  out.push(eachVisit(m, s, r));
+  out.push(...listOrFlow(m, s, r));
   const eng = engagementCard(m, s, r, src);
   out.push(h("div", { class: "vs-pair" }, newReturningCard(m, s, r, src), eng));
-  const L = endLists(m, s, r, v);
-  out.push(h("div", { class: "cols" },
-    panel("Where visits ended", "The last page a visitor was seen on", blist(L.exits, { drill: "path", color: "var(--views)", empty: L.narrow ? "No visit matches the filters." : v ? "No exit page recorded." : "Not recorded for this range." }), L.note()),
-    panel("Common next steps", "From one page to the next", blist(L.steps, { color: "var(--ink-3)", empty: L.narrow ? "No matching visit went past one page." : v ? "No visit went past one page." : "Not recorded for this range." }), L.note())));
+  // Drawn now (its visits.json also fills the engagement card's assistants), shown in the fold.
+  const tables = engagementTables(s, r, (e) => eng.withAssistants(e));
+  out.push(urlFold("visx", "Open the details: where visits ended, common next steps, and engagement by source and device", () => {
+    const L = endLists(m, s, r, v);
+    return [h("div", { class: "cols" },
+      panel("Where visits ended", "The last page a visitor was seen on", blist(L.exits, { drill: "path", color: "var(--views)", empty: L.narrow ? "No visit matches the filters." : v ? "No exit page recorded." : "Not recorded for this range." }), L.note()),
+      panel("Common next steps", "From one page to the next", blist(L.steps, { color: "var(--ink-3)", empty: L.narrow ? "No matching visit went past one page." : v ? "No visit went past one page." : "Not recorded for this range." }), L.note())),
+    ...tables];
+  }));
   out.push(goTo(S.hashFor({ ...s, tab: "traffic/pages", dd: "" }), "Where visits started: the landing pages, with their leads, are on", "Traffic › Pages"));
-  out.push(...engagementTables(s, r, (e) => eng.withAssistants(e)));
   return out.filter(Boolean);
 }

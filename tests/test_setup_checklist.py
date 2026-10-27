@@ -42,6 +42,9 @@ class Drawn(TenantServer):
         if not shutil.which("node"):
             self.skipTest("node not installed")
         cookie, csrf = self.session("owner@example.com")
+        # A mail server, so the mail dialog walks to its test mail (2.42: with none, it says so
+        # on every step instead: tests/js/mail-ready.mjs).
+        self.mail_on()
         given = {"site": A, "settings": self.get("settings", cookie),
                  "integ": self.get(f"integrations?site={A}", cookie),
                  "sites": self.get("sites", cookie),

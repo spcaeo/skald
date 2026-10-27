@@ -1,28 +1,37 @@
 // AI & bots > Assistants (2.7.0): the AI that works for a person waiting on an answer.
-// Which assistants fetched pages to answer a question, the visitors who followed an
-// AI citation, the visits likely sent by an AI answer (inferred, always apart), the
-// fetches followed by a visit, what the AI read before it sent a visitor (ai_read), the
-// pages assistants fetched, and AI reading changes.
-// Today (Live): every AI event so far, with its address (aifeed.js), on top.
+// Answer first (2.42, the UX audit's task 4): three figures with their change, which
+// assistants sent people and which read for someone (five each, "Show all"), and one card
+// for what to fix, "N pages AI can't read well", with the screen's one primary button (Let AI
+// read the site better: tabs/fixit.js, fixit=airead). Everything else (the day chart, the
+// tables by name, what AI read before it sent a visitor, the formats, the costs, the pages
+// fetched, AI reading changes and the full list of pages AI can't read well) is under one
+// fold, "Open the details", drawn when it opens.
+// Today (Live): every AI event so far, with its address (aifeed.js), under the answers.
 //
 // The owner's decision (2026-10-12): AI visits live only here; Traffic links here.
 // Figures are today's, from the same fields: app.json `tiers.asked`, `engines.asked`,
 // `cited`, `cited_by`, `ai_pages`; ai_activity.json (likely, feed); bots.json (Check);
 // robots.json (robots.txt); alerts.json (AI reading changes); `ai_formats` (What they fetch).
 
-import { h, share } from "../ui.js";
+import { h, n, share } from "../ui.js";
 import { color, figures, pathMatch, ranked } from "../data.js";
 import { table } from "../table.js";
-import { head, nothing, blist, panel, fileName, notBuiltNote } from "./common.js";
+import { head, nothing, blist, fileName, notBuiltNote } from "./common.js";
 import { verification, badge, badgeOf } from "./botverify.js";
 import { robotsOf, robotsBadge, robotsWords } from "./robots.js";
 import { followedSection, readSection, sourcesPanel } from "./likelyai.js";
 import { aiChanges } from "./alerts.js";
 import { aiFeed } from "./aifeed.js";
-import { kpi, tierChart, countGrid, tabLink, formatsSection } from "./ai-parts.js";
+import { tierChart, countGrid, tabLink, formatsSection } from "./ai-parts.js";
 import { costSection } from "./crawlercost.js";
 import { aiTrend } from "./ai-trend.js";
-import { notReadWell } from "./aiready.js";
+import { notReadWell, readCard } from "./aiready.js";
+import { compareOf } from "../mode-compare.js";
+import { changeLine } from "./ov-tiles.js";
+import { tiles } from "./tiles.js";
+import { urlFold } from "../ui/fold.js";
+import { help } from "../ui/help.js";
+import { showAll } from "../ui/showall.js";
 
 const LEDE = "AI assistants at work for someone waiting on an answer: the pages they fetched for a question, the visitors who then came from their answers, and changes in how they read the site. Fetched is not read. Crawlers with nobody waiting (training, search, bots) are on Crawlers.";
 
@@ -43,19 +52,49 @@ function byName(m, s, r, t) {
     table(cols, { caption: "AI assistants answering a question, by name", rows, file: fileName("ai-assistants", r), sortKey: "v", empty: "No assistant fetched a page to answer a question in this range." }));
 }
 
-export default function assistants(m, s, { first }) {
+/* The three figures, each with its change against the period before (Compare, on by default). */
+function aiTiles(m, s, r, t) {
+  const c = compareOf(m, s);
+  const b = c.ok ? c.bT : null;
+  const fmt = (x) => (x == null ? "-" : n(x));
+  const tile = (label, v, p, about) => ({ label, value: v, info: about, line: changeLine(c, v, p, fmt) });
+  return h("section", { class: "s" }, tiles([
+    tile("Visitors sent by AI", t.cited ?? null, b ? b.cited ?? null : null, "Visitors who followed a link in an AI assistant's answer, counted once per visitor. The true number is higher: many assistants hide the link they came from, and Google AI Overview clicks look like ordinary Google clicks."),
+    tile("Pages AI read for someone", t.tiers?.asked ?? null, b ? b.tiers?.asked ?? null : null, "Pages an assistant fetched because someone asked it a question just then. Fetched is not read."),
+    tile("AI collecting for training", t.tiers?.training ?? null, b ? b.tiers?.training ?? null : null, "Pages fetched to train a model or feed AI search; nobody is waiting on these. By name on Crawlers."),
+  ]));
+}
+
+/* A ranked list's first five, then "Show all (N)". */
+function shortList(title, about, rows, opts) {
+  return h("div", { class: "sheet" }, h("div", { class: "card-h start" }, h("h3", null, title), help(title, { text: about, guide: "ai-and-bots" })),
+    rows.length ? showAll((k) => blist(rows, { ...opts, limit: k }), rows.length, { label: title.toLowerCase() }) : h("p", { class: "empty" }, opts.empty));
+}
+
+export default function assistants(m, s) {
   const { r, t } = figures(m, s);
   const out = [...head("AI assistants", r, LEDE)];
   if (!t) return [...out, nothing(m, r)];
-  out.push(h("section", { class: "s" }, h("div", { class: "kpis" },
-    kpi(first, "AI answering a question now", t.tiers?.asked ?? 0, "pages fetched; someone is waiting on each", "people"),
-    kpi(first, "Visitors from AI", t.cited ?? null, "followed a link in an AI answer; counted once per visitor, so an undercount", "answer_engines", "visitors"))));
-  // Live: every AI event today so far, with its address, before the day's totals.
+  out.push(aiTiles(m, s, r, t));
+  out.push(h("div", { class: "cols" },
+    shortList("Which assistant sent people", "Visitors who followed a citation, by assistant. Counted once per visitor, so an undercount. Google AI Overview clicks look exactly like ordinary Google clicks and are counted as search.",
+      ranked(t.cited_by), { drill: "assistant", color: color("answer_engines"), empty: "Nobody arrived by following an AI citation in this period." }),
+    shortList("Which assistant read for someone", "Pages fetched for a person's question, by assistant. The server's address check and the robots.txt verdict for each are in the table under Open the details.",
+      ranked(t.engines?.asked), { drill: "bot", color: color("answer_engines"), empty: "No assistant fetched a page to answer a question in this period." })));
+  out.push(readCard(m, s, { onFix: () => import("./fixit.js").then((x) => x.openFixit("airead", m)) }));
+  // Live: every AI event today so far, with its address.
   if (r.kind === "today") {
     out.push(h("section", { class: "s ai-feed" }, h("h2", null, "All AI activity today"),
       h("p", { class: "sub" }, "Every assistant fetch and every visitor an assistant sent, newest first. Training crawls are listed too, marked as such."),
-      notBuiltNote(m, "ai_activity", "Today's AI activity"), aiFeed(m, { limit: 12 })));
+      notBuiltNote(m, "ai_activity", "Today's AI activity"), aiFeed(m, { limit: 6 })));
   }
+  // The fold's open state is in the address (ai_view=open); the list's filter (arw) opens it too.
+  out.push(urlFold("ai", "Open the details: each day, each assistant, what they read and fetched, what they cost, and AI reading changes", () => details(m, s, r, t), { open: !!s.arw, cls: "ai-details" }));
+  return out;
+}
+
+function details(m, s, r, t) {
+  const out = [];
   out.push(tierChart(m, s, r, { title: "Pages fetched to answer a question, per day", name: "Answering a question now", tier: "asked", group: "people", label: "AI fetches for a question per day" }));
   out.push(byName(m, s, r, t));
   // Release 2 (L1): AI reads by page, now against before, followed to visits and leads.
@@ -66,11 +105,7 @@ export default function assistants(m, s, { first }) {
   out.push(costSection(m, s, r, { id: "assistants", title: "What each assistant costs",
     sub: "Per assistant answering a question: requests, bytes the server sent, its time per request, failed requests, distinct paths and how often it fetched them again. Select a name for its detail.",
     keep: (g, name, e) => g === "answer_engines" && e.tier === "asked" }));
-  out.push(h("div", { class: "cols" },
-    panel("AI assistants that sent visitors", "Visitors who followed a citation, by assistant. Counted once per visitor; undercounts.",
-      blist(ranked(t.cited_by), { drill: "assistant", color: color("answer_engines"), empty: "Nobody arrived by following an AI citation in this range." }),
-      h("p", { class: "note" }, "Google AI Overview clicks look exactly like ordinary Google clicks and are counted as search.")),
-    h("div", null, notBuiltNote(m, "ai_activity", "Likely from AI assistants"), sourcesPanel(m, r))));
+  out.push(h("div", null, notBuiltNote(m, "ai_activity", "Likely from AI assistants"), sourcesPanel(m, r)));
   out.push(followedSection(m, r));
   out.push(readSection(m, r));
   out.push(h("section", { class: "s" }, h("h2", null, "Pages AI assistants fetched"),

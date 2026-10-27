@@ -1,8 +1,8 @@
-// The connection pages (2.40: Collect data's send card, AI & API's MCP, API and Tokens & links
-// pages; js/tabs/set-site.js, set-ai.js, connections.js and conn-*.js) and the "Add a
+// The connection pages (v2: Data › Send logs, AI assistants' MCP, API and Tokens & links
+// tabs; js/tabs/set-site.js, set-ai.js, connections.js and conn-*.js) and the "Add a
 // site" wizard (site-wizard.js, sitesadmin.js), drawn from real helper answers
 // (tests/test_connections_page.py writes GET sites, tokens and sites/status to
-// CONN_JSON): the send card, Your tokens with each token's purpose, the send
+// CONN_JSON): each tab's state and one button, Your tokens with each token's purpose, the send
 // dialog walked step by step to a Test that reads the real status, the API and
 // MCP tests, and the wizard from an address to its last step, then resumed.
 // The site check (sites/detect) answers as the helper answered for a new site
@@ -60,8 +60,9 @@ Object.assign(ME, { mode: "sessions", role: "owner", user: "owner@example.com" }
 const words = await import(new URL("tabs/conn-words.js", JS));
 const send = await import(new URL("tabs/conn-send.js", JS));
 const read = await import(new URL("tabs/conn-read.js", JS));
-const { collectLogs } = await import(new URL("tabs/set-site.js", JS));
-const { mcpPage, apiPage, tokensPage } = await import(new URL("tabs/set-ai.js", JS));
+const { dataLogs } = await import(new URL("tabs/set-site.js", JS));
+const { mcpTab, apiTab, tokensTab } = await import(new URL("tabs/set-ai.js", JS));
+const { connOpener } = await import(new URL("tabs/connections.js", JS));
 const { default: sitesadmin } = await import(new URL("tabs/sitesadmin.js", JS));
 const { siteFrom } = await import(new URL("tabs/site-wizard.js", JS));
 const detect = await import(new URL("tabs/conn-detect.js", JS));
@@ -79,37 +80,41 @@ assert.equal(words.purposeOf("mcp"), "AI assistant (MCP)");
 assert.equal(words.purposeOf(["read", "mcp"]), "Reading figures, AI assistant (MCP)");
 assert.equal(words.purposeOf(["mcp", "setup"]), "AI assistant (MCP), Making set-up lines for an AI agent");
 
-// The pages (2.40): Collect data's send card; Tokens & links with the real tokens and their
-// purposes; the MCP and API pages, each its steps first and then the one button.
+// The tabs (v2): Send logs, its state and one button (Who will do it?, setup-finish.js), the
+// rest under More options; Tokens & links with the real tokens and their purposes; MCP and
+// API, each one button, how it works behind the "?".
 const M = { site: SITE, x: { sites: { sites: [{ name: SITE }] } } };
 const root = document.createElement("div");
 document.body.append(root);
-root.append(...[collectLogs(M)].flat(9).filter(Boolean));
+root.append(...[dataLogs(M)].flat(9).filter(Boolean));
 const toks = document.createElement("div");
-toks.append(...tokensPage(M).flat(9).filter(Boolean));
+toks.append(...[tokensTab(M)].flat(9).filter(Boolean));
 const mcpRoot = document.createElement("div");
-mcpRoot.append(...mcpPage(M).flat(9).filter(Boolean));
+mcpRoot.append(...mcpTab(M).flat(9).filter(Boolean));
 const apiRoot = document.createElement("div");
-apiRoot.append(...apiPage(M).flat(9).filter(Boolean));
+apiRoot.append(...apiTab(M).flat(9).filter(Boolean));
 await tick();
-assert.ok(root.textContent.includes("Send this site's visits to Skald"));
-assert.ok(button(root, "Set up with your AI agent") && button(root, "Test a sample"), "the AI agent and the sample beside the send card");
-assert.equal(root.querySelectorAll(".cn-card").length, 1);
-for (const t of ["Tokens & links", "Your tokens", "What it is for", "Make a token by hand"]) assert.ok(toks.textContent.includes(t), t);
+assert.ok(root.textContent.includes("Your server's log"));
+assert.equal(root.querySelectorAll("button.set-go").length, 1, "one button");
+assert.ok(root.querySelector("details.set-more"), "the rest under More options");
+// v2: one row per token, with what it is for; New token is the tab's one primary (its form in a drawer, edit=token-new).
+for (const t of ["Your tokens", "New token"]) assert.ok(toks.textContent.includes(t), t);
+assert.equal(toks.querySelectorAll("button.set-primary").length, 1, "one primary: New token");
+assert.ok(toks.querySelectorAll(".tok-rows .set-row").length >= 2, "the tokens as rows");
 assert.ok(!toks.textContent.includes("cards above"), "no card above any more");
-const purposes = toks.querySelectorAll("td.cn-purpose").map((td) => td.textContent);
+const purposes = toks.querySelectorAll(".set-row .cn-purpose").map((td) => td.textContent);
 assert.ok(purposes.includes("Sending logs"), purposes.join("|"));
 assert.ok(purposes.includes("Reading figures"), purposes.join("|"));
-// The MCP page: How it works (numbered), then Connect an assistant, then the address; the
-// assistants' tokens only (none here), never above the steps.
+// The MCP tab: Connect an assistant (one button), the address, then the assistants' tokens
+// only (none here).
 const mtext = mcpRoot.textContent;
-assert.ok(mtext.indexOf("How it works") < mtext.indexOf("Connect an assistant"), "the steps come first");
-assert.ok(mtext.indexOf("Connect an assistant") < mtext.indexOf("Tokens for assistants"), "the tokens after the button");
-assert.equal(mcpRoot.querySelectorAll(".set-steps li").length, 4);
+assert.equal(mcpRoot.querySelectorAll("button.set-go").length, 1, "one button");
+assert.ok(mtext.indexOf("Connect an assistant") < mtext.indexOf("Assistants connected"), "the tokens after the button");
+assert.ok(!mtext.includes("How it works"), "how it works is behind the ?");
 assert.ok(mtext.includes("https://www.example.com/traffic-mcp"), "the MCP address");
 assert.ok(mtext.includes("No token for an assistant yet"), "only mcp tokens: none of the two here");
-assert.equal(mcpRoot.querySelectorAll("td.cn-purpose").length, 0);
-assert.ok(apiRoot.textContent.indexOf("How it works") < apiRoot.textContent.indexOf("Set up the API"));
+assert.equal(mcpRoot.querySelectorAll(".cn-purpose").length, 0);
+assert.ok(button(apiRoot, "Set up the API") && !apiRoot.textContent.includes("How it works"));
 assert.ok(apiRoot.textContent.includes(`https://www.example.com/traffic-api/v1/${SITE}/`));
 
 // The card's lines, from the helper's answer for a new site.
@@ -138,7 +143,7 @@ assert.deepEqual(send.stepsAfter({ method: "script" }).map((s) => s.name), ["Ins
 // The page's own address first, so the dialog's keys are written beside it (state.js hashFor).
 const { read: readState } = await import(new URL("state.js", JS));
 history.replaceState(null, "", `#${readState().tab}`);
-root.querySelectorAll(".cn-card button")[0].click();
+await connOpener("send", SITE)();
 await tick();
 let d = dialog();
 const bar = () => d.querySelectorAll(".cn-bar li").map((li) => li.querySelector(".cn-t").textContent);
@@ -288,12 +293,13 @@ assert.equal(rpc, 2);
 button(mcpRoot, "Connect an assistant").click();
 await tick();
 assert.ok(dialog().textContent.includes("Connect an AI assistant (MCP)"));
-// 2.39: the guide at the top, then Your AI agent or By hand. 2.40: by hand, one step that
-// holds the choice, the token and the command, in that order; then Test.
+// 2.39: the guide at the top, then Who will do it? (ui/who.js: Me or My AI agent). 2.40: Me,
+// one step that holds the choice, the token and the command, in that order; then Test.
 assert.equal(dialog().querySelector(".cn-guide a").textContent, "Read the MCP guide");
-assert.match(dialog().querySelector("h3.cn-h").textContent, /^Step 1 of 3: Your AI agent, or by hand\?/);
-dialog().querySelector("button.ag-hand").click();
-await tick();
+assert.match(dialog().querySelector("h3.cn-h").textContent, /^Step 1 of \d+: Who will do it\?/);
+dialog().querySelector('.ui-who-c[data-who="me"]').click();
+await tick(30);
+assert.equal(readState().by, "me", location.hash);
 assert.match(dialog().querySelector("h3.cn-h").textContent, /^Step 2 of 3: Connect your assistant/);
 {
   const t = dialog().textContent;
@@ -330,85 +336,111 @@ const { openSiteKey } = await import(new URL("tabs/sitesadmin.js", JS));
 await openSiteKey("new", 1);
 await tick();
 d = dialog();
-assert.ok(d.textContent.includes("Step 1 of 5: Your site"), d.textContent.slice(0, 200));
+// 2.42: two steps. Step 1: the address, what Skald found in one line, the time zone, who connects it.
+assert.ok(d.textContent.includes("Step 1 of 2: Your site"), d.textContent.slice(0, 200));
 const addr = d.querySelector('input[name="site-address"]');
 addr.value = "https://WWW.Example.org/x";
 addr.dispatchEvent(new Ev("input"));
-assert.ok(d.textContent.includes("The site will be www.example.org"));
+assert.ok(d.querySelector(".sw-found").textContent.includes("Looking at www.example.org..."));
 await tick(detect.DETECT_WAIT_MS + 100);             // the check waits for the typing to stop
+assert.match(d.querySelector(".sw-found").textContent, /^foundRuns on nginx.* · suggested: one command on the server$/);
+assert.match(d.querySelector(".sw-zone").textContent, /^Time zone: \S+ Change$/, "one line, Change to type another");
+d.querySelector("details.ui-fold").fill();          // What Skald found: the details behind the fold
 const card = d.querySelector(".cn-found").textContent;
 for (const t of ["What Skald found", "Server: nginx, on Ubuntu", "Built with: Next.js", "Host names: www.example.org and example.org", "Page assets: /_next/static/", "Use these", "Check again"]) assert.ok(card.includes(t), `${t} in ${card}`);
 assert.ok(card.includes("www.example.org runs on its own nginx server (Ubuntu), so one command on that server sends its log."), card);
 assert.equal(posted.filter(([p]) => p === "sites/detect").pop()[1].address, "www.example.org");
+assert.match(d.textContent, /Who will connect it\?/);
+assert.deepEqual(d.querySelectorAll(".ui-who-c").map((b) => b.dataset.who), ["me", "dev", "agent"]);
+d.querySelector('.ui-who-c[data-who="me"]').click();
+await tick();
+assert.equal(readState().by, "me", location.hash);
 await next();
 const added = posted.find(([p]) => p === "sites/add")[1];
 assert.equal(added.host, "www.example.org");
 assert.equal(added.token, false);
 assert.deepEqual(added.hosts, ["www.example.org", "example.org"]);
 assert.deepEqual(added.asset_prefixes, ["/_next/static/"]);
-const kept = posted.find(([p, b]) => p === "sites/setup" && b.step === 2)[1];
+const kept = posted.find(([p, b]) => p === "sites/setup" && b.step === 3)[1];
 assert.equal(kept.found.recommended_method, "docker");
 assert.equal(kept.found.use, true);
-assert.ok(d.textContent.includes("Step 2 of 5") && d.textContent.includes("No proof needed"));
+assert.equal(kept.method, "server", "the found way, saved with the progress");
 assert.equal(readState().setup, "www.example.org", "the site made: the address names it, so a reload finds it");
-await next();
-// Step 3 (2.31): which AI agent; No AI agent goes to today's steps 3 to 5, unchanged.
-assert.ok(d.textContent.includes("Step 3 of 5: Which AI agent are you using?"), d.querySelector("h3.cn-h").textContent);
-await next();
-assert.ok(d.textContent.includes("Choose your AI agent, or No AI agent to set it up by hand."), "Next needs a choice");
-button(d, "No AI agent: set it up by hand").click();
+assert.ok(!d.textContent.includes("No proof needed"), "no proof step when none is needed");
+// Step 2, Me: the way Skald found (docker is the server way), its one command, then the wait.
+assert.ok(d.textContent.includes("Step 2 of 2: Connect it"), d.querySelector("h3.cn-h").textContent);
+assert.equal(readState().step, "2");
 await tick();
-assert.equal(readState().agent, "hand", location.hash);
-assert.ok(d.textContent.includes("Step 3 of 5: How visits reach Skald"), d.querySelector("h3.cn-h").textContent);
-assert.ok(radio(d, "server").checked, "step 3 chooses the found way (docker, from the check, is the server way)");
-assert.ok(d.textContent.includes("Recommended for www.example.org"));
-assert.equal(d.querySelectorAll("em.cn-rec").length, 1);
-// Step 4, the server way: the one command for the new site; its token id kept with the progress.
-await next();
-await tick();
-assert.ok(d.textContent.includes("Step 4 of 5: Install"));
-assert.ok(posted.some(([p, b]) => p === "sites/setup" && b.method === "server" && b.step === 4));
+assert.match(d.querySelector(".sw-way").textContent, /^My own server \(nginx or Apache\) found Another way$/);
 assert.deepEqual(posted.filter(([p]) => p === "sites/link").pop()[1], { site: "www.example.org" });
 assert.ok(d.querySelector(".cn-run .cn-code").textContent.includes("| sudo bash"));
-assert.ok(posted.some(([p, b]) => p === "sites/setup" && b.token_id === "cd34ef56"), "the token's id, never the token");
+assert.ok(posted.some(([p, b]) => p === "sites/setup" && b.token_id === "cd34ef56" && b.step === 4), "the token's id, never the token");
 assert.ok(!posted.some(([p, b]) => p === "sites/setup" && JSON.stringify(b).includes("skald_")));
 assert.equal(d.querySelector('input[name="kit-token"]').checked, true, "the by-hand kit's box: ticked by default");
 assert.ok(d.querySelector(".cn-kit").textContent.includes(KIT_WORDS.on));
-button(d, "Back").click(); await tick();
+assert.ok(d.querySelector(".cn-test-out"), "Skald waits for the first lines on the same step");
+// Another way: the choices, the found one marked; the script tag for the new site.
+button(d, "Another way").click(); await tick();
+assert.ok(radio(d, "server").checked, "the found way chosen");
+assert.ok(d.textContent.includes("Recommended for www.example.org"));
+assert.equal(d.querySelectorAll("em.cn-rec").length, 1);
 const script = radio(d, "script");
 script.checked = true;
 script.dispatchEvent(new Ev("change"));
-await next();
-assert.ok(posted.some(([p, b]) => p === "sites/setup" && b.method === "script" && b.step === 4));
+await tick();
+assert.ok(posted.some(([p, b]) => p === "sites/setup" && b.method === "script" && b.step === 3));
 assert.ok(d.textContent.includes('data-site="www.example.org"'), "the tag for the new site");
-await next();
-assert.ok(d.textContent.includes("Step 5 of 5: Test and finish"));
 assert.ok(button(d, "Finish later"));
+// Back to step 1 and My developer: a private link with the steps, and the same wait.
+button(d, "Change").click(); await tick();
+assert.ok(d.textContent.includes("Step 1 of 2: Your site"));
+d.querySelector('.ui-who-c[data-who="dev"]').click();
+await tick();
+await next(); await tick(30);
+assert.equal(readState().by, "dev");
+assert.ok(button(d, "Share with your developer"), "the private link's button");
+assert.ok(d.querySelector(".cn-test-out"));
+dialog().querySelector(".dw-x").click();
+await tick(400);
+assert.equal(readState().by, "", "closing takes by away");
 
-// Resumed: a site at step 3 shows its badge, and the badge reopens the wizard there.
+// Resumed: a site at step 3 shows "Finish setting up", and the badge reopens the wizard.
 const halfFound = { site: "half.example.com", reachable: true, use: true, server: "unknown", platform: "vercel", platform_label: "Vercel", hosts: ["half.example.com"], recommended_method: "vercel", reason: "half.example.com runs on Vercel, so its log drain sends each request to Skald." };
 sites = { ...given.sites, sites: [...given.sites.sites, { name: "half.example.com", status: "active", source: "dashboard", setup: { step: 3, method: "", done: false, found: halfFound }, quiet: false }] };
 const again = document.createElement("div");
 again.append(...sitesadmin({ site: SITE }, {}));
 await tick();
-const badge = button(again, "Setup: step 3 of 5, continue");
+const badge = button(again, "Finish setting up");
 assert.ok(badge, "the badge");
 badge.click();
 await tick();
-assert.ok(dialog().textContent.includes("Step 3 of 5: Which AI agent are you using?"), "nothing chosen yet: the agent first");
-button(dialog(), "No AI agent: set it up by hand").click();
-await tick();
-assert.ok(dialog().textContent.includes("Step 3 of 5: How visits reach Skald"));
-assert.ok(!/\bnull\b|\bundefined\b/.test(dialog().textContent), "no stray null or undefined on step 3");
-assert.ok(radio(dialog(), "vercel").checked, "resumed: the kept facts choose the way");
+assert.ok(dialog().textContent.includes("Step 1 of 2: Your site"), "nothing chosen yet: who connects it first");
+assert.match(dialog().querySelector(".sw-found").textContent, /Vercel · suggested: a log drain from Vercel or Netlify/, "the kept facts, in one line");
+dialog().querySelector('.ui-who-c[data-who="me"]').click();
+await next();
+assert.ok(dialog().textContent.includes("Step 2 of 2: Connect it"));
+assert.ok(!/\bnull\b|\bundefined\b/.test(dialog().textContent), "no stray null or undefined");
+assert.match(dialog().querySelector(".sw-way").textContent, /^Vercel or Netlify found/, "resumed: the kept facts choose the way");
+button(dialog(), "Another way").click(); await tick();
+assert.ok(radio(dialog(), "vercel").checked);
 assert.ok(dialog().textContent.includes("Recommended for half.example.com"));
 assert.ok(dialog().textContent.includes("its log drain sends each request"));
-// The site picker's link names no step (#settings/sitesadmin?setup=<site>): the saved one, not step 1.
+// The site picker's link names no step (#settings/sitesadmin?setup=<site>): the saved way opens Connect it.
 dialog().querySelector(".dw-x").click();
 await tick(400);
+sites.sites.at(-1).setup.method = "vercel";
 await openSiteKey("half.example.com", 0);
 await tick();
-assert.ok(dialog().textContent.includes("Step 3 of 5"), dialog().querySelector("h3.cn-h")?.textContent);
+assert.ok(dialog().textContent.includes("Step 2 of 2: Connect it"), dialog().querySelector("h3.cn-h")?.textContent);
+assert.equal(readState().by, "me", "a saved way is Me");
+// An older link at step 5: Connect it.
+dialog().querySelector(".dw-x").click();
+await tick(400);
+await openSiteKey("half.example.com", 5);
+await tick();
+assert.ok(dialog().textContent.includes("Step 2 of 2: Connect it"));
+dialog().querySelector(".dw-x").click();
+await tick(400);
 // The shared link's page: the steps, the secret shown once, the Test.
 const { draw: drawShare } = await import(new URL("tabs/share-page.js", JS));
 const page = document.createElement("main");

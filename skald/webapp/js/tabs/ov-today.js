@@ -6,10 +6,12 @@
 //       minutes, minute by minute (Real time's answer, every 15 seconds, one
 //       Pause for the whole page); then Visitors, Pages read, Leads and
 //       Visitors from AI, each against yesterday at this hour (by-now.js)
-//   (b) where visitors are (Real time's map, cities pulsing) and the newest
-//       visits (each opens the visitor drawer)            ov-today-cards.js
-//   (c) where today's visitors came from, (d) how today's visits moved
-//   (e) what converted today, (f) AI & bots today          ov-today-more.js
+//   (c) where today's visitors came from, (e) what converted today (or, with
+//       no leads set up, (f) AI & bots today)              ov-today-more.js
+//
+// 2.41 (the UX audit's task 2): the figures first. The set-up checklist is one line
+// (ov-setup.js); the map, what visitors are doing now and how today's visits moved are on
+// Real time only (one line here links there); the footnote is behind the "?".
 //
 // Nothing here counts anything new except "vs yesterday at this hour", which
 // by_now.py and conversions_leads.by_now count and audit_by_now.py and
@@ -21,12 +23,11 @@ import { figures } from "../data.js";
 import { head, nothing } from "./common.js";
 import { leadsOn, convFile } from "./leadfigs.js";
 import { follow } from "./realtime.js";
-import { setupChecklist } from "./checklist.js";
+import { setupStrip } from "./ov-setup.js";
+import { help } from "../ui/help.js";
 import { comparisons, delta, running, arrived } from "../by-now.js";
 import { time as tzTime, label as tzLabel } from "../tz.js";
-import { placesCard } from "./ov-today-cards.js";
-import { doingCard } from "./ov-doing.js";
-import { sourcesCard, flowCard, convertedCard, aiCard } from "./ov-today-more.js";
+import { sourcesCard, convertedCard, aiCard } from "./ov-today-more.js";
 import { hrefTo } from "./ov-today-bits.js";
 
 const TILE = {
@@ -125,8 +126,14 @@ function nowPanel(m, rt) {
 // ------------------------------------------------------------- the page
 export default function today(m, s, o = {}) {
   const { r, t } = figures(m, s);
+  const until = m.live?.generated_at;
+  // The head's "?": what "today so far" covers and how often each part is counted.
+  const foot = [`Today so far, ${long(m.today)}, 00:00 to ${until ? tzTime(until, { label: false }) : "now"} ${tzLabel()}.`,
+    "Visitors now refresh every 15 seconds; the other figures with each live count, every 2 minutes. Yesterday at this hour is yesterday counted again from the log to the same time of day, by the same rules, and recounted by the audit."];
   const out = [...head("Overview", r, null)];
-  const setup = setupChecklist(m);
+  const h1 = out[0]?.querySelector?.("h1");
+  if (h1) out[0].insertBefore(help("Today so far", { text: foot, guide: "real-time" }), h1.nextSibling || null);
+  const setup = setupStrip(m);
   if (setup) out.push(setup);
   const first = !!o.first;
   // One follower of Real time's answer draws every live part of the page.
@@ -144,19 +151,12 @@ export default function today(m, s, o = {}) {
   strip.append(now.el, h("div", { class: "td-kpis", role: "list", "data-n": String(shownKeys.length) }, shownKeys.map((c) => tile(c, first))));
   out.push(strip);
   if (!t) return [...out, nothing(m, r)];
-  // The map full width, and under it what visitors are doing now; each points at the other.
-  let places = null, doing = null;
-  places = placesCard(m, rt, first, { onHover: (k) => doing?.mark(k) });
-  doing = doingCard(m, rt, first, { onHover: (k) => places?.hot(k) });
-  parts.push(places, doing);
-  out.push(h("div", { class: "td-row td-r1" }, places.el), h("div", { class: "td-row td-r1b" }, doing.el));
-  out.push(h("div", { class: "td-row td-r2" }, sourcesCard(m, t), flowCard(m, r)));
+  // Where they came from, beside what converted (or AI & bots, with no leads set up).
   const conv = convertedCard(m);
-  out.push(h("div", { class: `td-row td-r3${conv ? "" : " one"}` }, conv, aiCard(t)));
+  out.push(h("div", { class: "td-row td-r2" }, sourcesCard(m, t), conv || aiCard(t)));
+  out.push(h("p", { class: "ui-lede td-rt" }, "The map, what visitors are doing now and how today's visits moved are on Real time.", " ",
+    h("a", { href: hrefTo("overview/realtime") }, "Open Real time")));
   parts.forEach((p) => p.draw(rt.body()));
   parts.forEach((p) => p.paused?.(rt.isPaused()));
-  const until = m.live?.generated_at;
-  out.push(h("p", { class: "td-foot" }, `Today so far, ${long(m.today)}, 00:00 to ${until ? tzTime(until, { label: false }) : "now"} ${tzLabel()}. `,
-    "Visitors now refresh every 15 seconds; the other figures with each live count, every 2 minutes. Yesterday at this hour is yesterday counted again from the log to the same time of day, by the same rules, and recounted by the audit."));
   return out;
 }

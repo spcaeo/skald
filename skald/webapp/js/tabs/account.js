@@ -2,16 +2,22 @@
 // password, two-step sign-in and where you are signed in. Everyone has this
 // page, viewers too: it changes only your own account. Passwords go in a POST
 // body and nowhere else; the recovery codes are shown once and never kept here.
+//
+// v2: one card of rows (name, email, password, two-step sign-in, where you are signed in);
+// each row's form opens in a drawer, its part in the address (set-edit.js): edit=name,
+// edit=password, edit=totp, edit=sessions. One primary, only while two-step sign-in is off.
 
 import { h, toast } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { download } from "../table.js";
 import { ME, sessions, signOut } from "../access.js";
-import { head1, copyable, field, input, status, when, why, passwordProblem, POLICY } from "./forms.js";
+import { head1, copyable, field, input, status, when, why, passwordProblem, POLICY, showFirst } from "./forms.js";
 import { copyIf } from "../urlactions.js";
+import { primary, statusRow } from "./set-ui.js";
+import { editPart, editRow, openEdit } from "./set-edit.js";
 
 const pw = (auto) => input({ type: "password", autocomplete: auto, required: true, maxlength: "1024" });
-const card = (title, sub, ...body) => h("section", { class: "sheet acct-card" }, h("h2", null, title), sub ? h("p", { class: "sub" }, sub) : null, ...body);
+const BASIC = "Your account comes with accounts. This server uses one shared login, set on the server; see Settings › People.";
 
 // "Firefox on Mac" from a user agent; the raw string when nothing matches.
 function device(agent) {
@@ -21,7 +27,7 @@ function device(agent) {
   return b && os ? `${b} on ${os}` : b || os || agent;
 }
 
-function nameCard(acc) {
+function nameForm(acc) {
   const name = input({ name: "name", value: acc.name || "", autocomplete: "name", maxlength: "100" });
   const msg = status();
   const save = h("button", { type: "submit", class: "btn primary" }, "Save name");
@@ -32,12 +38,12 @@ function nameCard(acc) {
     save.disabled = true;
     const r = await call("account/name", { name: name.value.trim() });
     save.disabled = false;
-    if (r.ok) { ME.name = name.value.trim(); msg.say("Saved.", true); } else msg.say(why(r));
+    if (r.ok) { ME.name = name.value.trim(); msg.say("Saved.", true); load(); } else msg.say(why(r));
   });
-  return card("You", null, h("p", { class: "u-me" }, "Signed in as ", h("b", null, acc.email || ME.user || ""), ME.role ? ` (${ME.role})` : ""), form, msg);
+  return [h("p", { class: "u-me" }, "Signed in as ", h("b", null, acc.email || ME.user || ""), ME.role ? ` (${ME.role})` : ""), form, msg];
 }
 
-function passwordCard() {
+function passwordForm() {
   const cur = pw("current-password"), next = pw("new-password"), again = pw("new-password");
   const msg = status();
   const save = h("button", { type: "submit", class: "btn primary" }, "Change password");
@@ -53,18 +59,18 @@ function passwordCard() {
     cur.value = ""; next.value = ""; again.value = "";
     if (r.ok) msg.say("Password changed. Your other sessions may ask you to sign in again.", true); else msg.say(why(r));
   });
-  return card("Password", null, form, msg);
+  return [form, msg];
 }
 
-// What is on screen once (the new key, the recovery codes) survives a redraw of the tab,
+// What is on screen once (the new key, the recovery codes) survives a redraw of the drawer,
 // in this page's memory only, until it is confirmed or put away.
 let pending = null;
 
 // Two-step sign-in: off -> start (secret and otpauth address) -> confirm with a code -> recovery codes, once.
-function twoStepCard(acc) {
+function twoStep(acc) {
   const body = h("div");
   const msg = status();
-  const sec = card("Two-step sign-in", "A 6-digit code from an app on your phone (any authenticator app), asked after your password.", body, msg);
+  const sec = h("div", { class: "acct-2fa" }, h("p", { class: "note" }, "A 6-digit code from an app on your phone (any authenticator app), asked after your password."), body, msg);
 
   const drawOff = () => {
     const pass = pw("current-password");
@@ -96,7 +102,7 @@ function twoStepCard(acc) {
       ok.disabled = true;
       const res = await call("account/totp/confirm", { code: c });
       ok.disabled = false;
-      if (res.ok) { msg.say("Two-step sign-in is on.", true); ME.totp_on = true; drawCodes(Array.isArray(res.recovery_codes) ? res.recovery_codes : []); } else { msg.say(why(res)); code.select(); }
+      if (res.ok) { msg.say("Two-step sign-in is on.", true); ME.totp_on = true; drawCodes(Array.isArray(res.recovery_codes) ? res.recovery_codes : []); load(); } else { msg.say(why(res)); code.select(); }
     });
     const grouped = String(r.secret).replace(/\s+/g, "").replace(/(.{4})/g, "$1 ").trim();
     body.replaceChildren(
@@ -135,7 +141,7 @@ function twoStepCard(acc) {
       const r = await call("account/totp/off", { password: pass.value });
       off.disabled = false;
       pass.value = "";
-      if (r.ok) { ME.totp_on = false; msg.say("Two-step sign-in is off.", true); drawOff(); } else msg.say(why(r));
+      if (r.ok) { ME.totp_on = false; msg.say("Two-step sign-in is off.", true); drawOff(); load(); } else msg.say(why(r));
     });
     body.replaceChildren(h("p", null, "Two-step sign-in is ", h("b", null, "on"), ". Signing in asks for a code from your app, or a recovery code."), form);
   };
@@ -146,52 +152,90 @@ function twoStepCard(acc) {
   return sec;
 }
 
-function sessionsCard(acc) {
-  const list = acc.sessions || [];
+// Where you are signed in: one row per browser (the first five, then Show all), and the sign-outs.
+function sessionList(first) {
+  const wrap = h("div", { class: "acct-sessions" });
   const msg = status();
-  const others = list.filter((s) => !s.current).length;
-  const rows = list.map((s) => h("tr", null,
-    h("td", null, copyIf("ua", device(s.agent), s.agent || "", { label: "user agent", cls: "ua-after" }), s.current ? h("span", { class: "you" }, " (this browser)") : null),
-    h("td", { class: "muted n" }, when(s.created_at, "")), h("td", { class: "muted n" }, when(s.last_seen, ""))));
-  const all = h("button", { type: "button", class: "btn danger" }, "Sign out everywhere else");
-  const slot = h("div", { class: "acts" }, all);
-  const reset = () => slot.replaceChildren(all);
-  all.addEventListener("click", () => {
-    const yes = h("button", { type: "button", class: "btn danger" }, "Yes, sign them out");
-    const no = h("button", { type: "button", class: "btn" }, "Cancel");
-    no.addEventListener("click", reset);
-    yes.addEventListener("click", async () => {
-      yes.disabled = true;
-      const r = await call("account/signout-all", {});
-      if (r.ok) { toast("Every other session is signed out."); load(); } else { msg.say(why(r)); reset(); }
+  const draw = (acc) => {
+    const list = acc.sessions || [];
+    const others = list.filter((s) => !s.current).length;
+    const rows = list.map((s) => statusRow({ iconName: "server", title: copyIf("ua", device(s.agent), s.agent || "", { label: "user agent", cls: "ua-after" }),
+      line: `Signed in ${when(s.created_at, "")} · last seen ${when(s.last_seen, "")}`, kind: "good", word: s.current ? "This browser" : "" }));
+    const all = h("button", { type: "button", class: "btn danger" }, "Sign out everywhere else");
+    const slot = h("span", { class: "acct-all" }, all);
+    const reset = () => slot.replaceChildren(all);
+    all.addEventListener("click", () => {
+      const yes = h("button", { type: "button", class: "btn danger" }, "Yes, sign them out");
+      const no = h("button", { type: "button", class: "btn" }, "Cancel");
+      no.addEventListener("click", reset);
+      yes.addEventListener("click", async () => {
+        yes.disabled = true;
+        const r = await call("account/signout-all", {});
+        if (!r.ok) { msg.say(why(r)); reset(); return; }
+        toast("Every other session is signed out.");
+        const again = await call("account");
+        if (again.ok) draw(again);
+        load();
+      });
+      slot.replaceChildren(h("span", { class: "confirm" }, "Sign out every other browser and device?", yes, no));
+      no.focus();
     });
-    slot.replaceChildren(h("span", { class: "confirm" }, "Sign out every other browser and device?", yes, no));
-    no.focus();
-  });
-  const me = h("button", { type: "button", class: "btn" }, "Sign out of this browser");
-  me.addEventListener("click", signOut);
-  return card("Where you are signed in", "A session lasts 14 days from its last use.",
-    list.length ? h("div", { class: "scroll" }, h("table", null, h("caption", { class: "vh" }, "Your sessions"),
-      h("thead", null, h("tr", null, [["Browser"], ["Signed in", "n"], ["Last seen", "n"]].map(([t, cls]) => h("th", { scope: "col", class: cls }, t)))), h("tbody", null, rows)))
-      : h("p", { class: "empty" }, "No sessions listed."),
-    h("div", { class: "acts" }, others || !list.length ? slot : null, me), msg);
+    const me = h("button", { type: "button", class: "btn" }, "Sign out of this browser");
+    me.addEventListener("click", signOut);
+    wrap.replaceChildren(h("p", { class: "note" }, "A session lasts 14 days from its last use."),
+      list.length ? h("div", { class: "set-list" }, rows) : h("p", { class: "empty" }, "No sessions listed."), showFirst(rows, 5) || "",
+      h("div", { class: "acts" }, others || !list.length ? slot : null, me), msg);
+  };
+  draw(first);
+  return wrap;
 }
 
+// Each drawer loads the account itself, so a link (edit=<part>) opens it on its own.
+const part = (draw) => async () => {
+  if (!sessions()) return BASIC;
+  const r = await call("account");
+  return r.ok ? draw(r) : why(r, "Your account could not be loaded.");
+};
+editPart("name", { title: "Your name", body: part(nameForm) });
+editPart("password", { title: "Change your password", body: part(() => passwordForm()) });
+editPart("totp", { title: "Two-step sign-in", body: part(twoStep) });
+editPart("sessions", { title: "Where you are signed in", body: part(sessionList), size: "lg" });
+
 let box = null;
+let M = null;
+let lifted = null;   // the primary drawn last: the frame keeps it beside the title, so a redraw takes it away first
+function rows(acc) {
+  const on = !!acc.totp_on;
+  const n = (acc.sessions || []).length;
+  const email = acc.email || ME.user || "";
+  lifted?.remove();
+  lifted = on ? null : primary("Turn on two-step sign-in", () => openEdit("totp", M), { iconName: "key" });
+  return [h("section", { class: "ui-card set-rows acct-rows" }, h("div", { class: "ui-card-h" }, h("h2", null, "You")),
+    h("div", { class: "set-list" },
+      editRow({ id: "name", m: M, title: "Name", line: acc.name || "Not set yet", iconName: "person" }),
+      statusRow({ iconName: "mail", title: "Email", line: email ? copyIf("text", email, null, { label: "email", cls: "" }) : "Not recorded", kind: "info", word: ME.role || "" }),
+      editRow({ id: "password", m: M, title: "Password", line: "Change it here", iconName: "key" }),
+      editRow({ id: "totp", m: M, title: "Two-step sign-in", line: on ? "A code from your phone after your password" : "Your password alone signs you in", kind: on ? "good" : "warn", word: on ? "On" : "Off", iconName: "check" }),
+      editRow({ id: "sessions", m: M, title: "Where you are signed in", line: `${n} browser${n === 1 ? "" : "s"} and device${n === 1 ? "" : "s"}`, iconName: "server" }))),
+  lifted];
+}
+
 function load() {
   call("account").then((r) => {
     if (!box) return;
     if (!r.ok) { box.replaceChildren(h("div", { class: "state" }, h("div", null, why(r, "Your account could not be loaded.")))); return; }
-    box.replaceChildren(h("div", { class: "cols tops" }, nameCard(r), passwordCard()), h("div", { class: "cols tops" }, twoStepCard(r), sessionsCard(r)));
+    box.replaceChildren(...rows(r).filter(Boolean));
   });
 }
 
-export default function account() {
+export default function account(m) {
   const title = head1("Your account", "Your name, password, two-step sign-in and sessions.");
   if (!sessions()) {
     return [title, h("div", { class: "state" }, h("div", null, "Your account comes with accounts. This server uses one shared login, set on the server; see ",
-      h("a", { href: "#settings/org/users" }, "Settings › Users"), "."))];
+      h("a", { href: "#settings/org/people" }, "Settings › People"), "."))];
   }
+  M = m || M;
+  lifted = null;
   box = h("div", { class: "acct" }, h("p", { class: "empty" }, "Loading your account..."));
   load();
   return [title, box];

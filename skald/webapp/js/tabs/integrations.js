@@ -1,4 +1,4 @@
-// Settings > Integrations (accounts, access.mode: sessions): the script tag
+// Settings > Leads & tools (accounts, access.mode: sessions): the script tag
 // to copy, each tool's incoming hook (its address, its secret made or
 // rotated here and shown once, or, for a tool that makes its own signing
 // secret (Stripe, HubSpot), pasted here write-only; a signed test event;
@@ -15,22 +15,15 @@ import { call } from "./ipmanager.js";
 import { isViewer, sessions, VIEWER } from "../access.js";
 import { head1, copyable, field, input, status, confirmIn, when, why } from "./forms.js";
 import { howTo } from "./help.js";
-import { card } from "./prefs.js";
+import { partOf } from "./prefs.js";
+import { pill } from "./set-ui.js";
 
 // AI answers: each assistant's API key (settings_store ai_answers.<provider>_key, install
 // admins; write-only, kept in secrets.json, the environment wins). The questions of the
 // tracking profiles are sent to the providers whose key is set (Settings › AI answers).
-const AI_KEYS = ["ai_answers.openai_key", "ai_answers.perplexity_key", "ai_answers.gemini_key", "ai_answers.anthropic_key"];
 function aiKeys() {
   const box = h("div", { class: "set-cards" });
-  const draw = (r) => {
-    if (!r.ok) { box.replaceChildren(); return; }
-    const redraw = (settings) => draw({ ...r, settings });
-    box.replaceChildren(card("AI answers: assistants' API keys",
-      "Each key lets Skald ask that assistant the tracking profiles' questions (Settings › AI answers). The questions are sent to the provider; each answer costs a few cents on your provider account. Nothing is asked until a site admin makes a profile. Write-only: the page only says set or not.",
-      AI_KEYS, r.settings, r.site || "", redraw));
-  };
-  call("settings").then(draw);
+  call("settings").then((r) => box.replaceChildren(r.ok ? partOf("aikeys", r.settings, { site: r.site || "" }, r) || "" : ""));
   return box;
 }
 import { searchBox } from "./search-connect.js";
@@ -55,6 +48,10 @@ const OUTCOME = { recorded: "kept", duplicate: "already had it", ignored: "not a
 // A secret just made: kept in this page's memory only, until it is copied.
 let fresh = null;
 let chosen = "";
+/* The site the hooks are for (an install admin may pick another; set-leads.js). */
+export const integSite = () => chosen;
+export function setIntegSite(site) { if (site !== chosen) { chosen = site || ""; fresh = null; } }
+export const integPath = () => `integrations${chosen ? `?site=${encodeURIComponent(chosen)}` : ""}`;
 
 function deliveriesTable(rows, caption, cols) {
   if (!rows.length) return h("p", { class: "empty" }, "No deliveries yet.");
@@ -98,18 +95,40 @@ function scriptBox(r) {
     sc.share_subdomains ? h("p", { class: "note" }, "Sharing across subdomains is on for this site in Skald (Settings > Sites > Script tag): the tag above shares the ID without data-share-subdomains.") : null);
 }
 
+// Every check, with the server's own words (Leads & tools › Every check).
+function checksList(r) {
+  const list = r.status || [];
+  if (!list.length) return h("p", { class: "empty" }, "No checks for this site yet.");
+  return h("ul", { class: "doc-list" }, list.map((x) => {
+    const [kind, word] = { OK: ["good", "OK"], "NEEDS ATTENTION": ["bad", "Needs you"], OFF: ["off", "Off"] }[x.state] || ["off", x.state];
+    return h("li", null, pill(kind, word), h("p", null, h("strong", null, `${x.part}: `), x.says),
+      x.fix && x.state !== "OK" ? h("p", { class: "doc-fix" }, "Fix: ", ...codeSpans(x.fix)) : null);
+  }));
+}
+/* A tool's state as a pill (v2: Leads & tools' rows and its drawer). */
+export function toolKind(t) {
+  if (t.problem || ["missing", "exposed"].includes(t.state) || (t.attention && t.state === "received")) return ["bad", "Not working"];
+  if (t.state === "never") return ["warn", "Nothing yet"];
+  if (t.state === "received") return ["good", "Working"];
+  if (t.state === "ready") return ["good", "Ready"];
+  return ["off", "Not set up"];
+}
+const toolPill = (t) => pill(...toolKind(t));
+
 // The doctor's lines for this site's roads in: OK, needs attention (with the fix) or off.
 function statusBox(r) {
   const list = r.status || [];
   if (!list.length) return null;
-  const bad = list.filter((x) => x.state === "NEEDS ATTENTION").length;
+  // v2: only what needs fixing is on the page; every line, with the server's own words, folds.
+  const bad = list.filter((x) => x.state === "NEEDS ATTENTION");
+  const item = (x) => {
+    const [cls, word] = STATE[x.state] || ["off", x.state];
+    return h("li", null, h("span", { class: `tf ${cls}` }, word), h("p", null, h("strong", null, `${x.part}: `), x.says),
+      x.fix && x.state !== "OK" ? h("p", { class: "doc-fix" }, "Fix: ", ...codeSpans(x.fix)) : null);
+  };
   return h("section", { class: "s" }, h("h2", null, "Status"),
-    h("p", { class: "sub" }, bad ? `${bad} thing${bad === 1 ? "" : "s"} to fix. The server's doctor command lists the same, and more.` : "Every road that is set up is working. The server's doctor command checks the rest of the install."),
-    h("ul", { class: "doc-list" }, list.map((x) => {
-      const [cls, word] = STATE[x.state] || ["off", x.state];
-      return h("li", null, h("span", { class: `tf ${cls}` }, word), h("p", null, h("strong", null, `${x.part}: `), x.says),
-        x.fix && x.state !== "OK" ? h("p", { class: "doc-fix" }, "Fix: ", ...codeSpans(x.fix)) : null);
-    })));
+    bad.length ? h("ul", { class: "doc-list" }, bad.map(item)) : h("p", { class: "set-state" }, pill("good", "Working"), " Every road that is set up works."),
+    h("details", { class: "fold set-more" }, h("summary", null, `Every check (${list.length})`), h("ul", { class: "doc-list" }, list.map(item))));
 }
 
 /* The doctor writes a command between backticks: those parts as <code> (text nodes, never
@@ -129,8 +148,8 @@ function testWords(name, r) {
 }
 
 /* 2.40: Settings shows one part per place (settings-pages.js): "hooks" (Status and the incoming
-   hooks: Leads & integrations), "webhooks" (outgoing), "search" (Search Console and Bing),
-   "script" (the tag to copy: Collect data › Script tag & goals), "aikeys" (AI answers › API
+   hooks: Leads & tools), "webhooks" (outgoing), "search" (Search Console and Bing),
+   "script" (the tag to copy: Data › Script tag & goals), "aikeys" (AI answers › API
    keys), or "all" (every part, as the page was). */
 const LEDE = {
   all: "The script tag, incoming hooks, outgoing webhooks, and Search Console and Bing.",
@@ -141,14 +160,16 @@ const LEDE = {
   aikeys: "Each assistant's API key, so Skald can ask it the tracking profiles' questions.",
 };
 export function integrationsPart(part = "all") {
-  const title = head1(part === "all" ? "Integrations" : "", LEDE[part] || LEDE.all);
+  // v2: "tool:<id>" (one tool's details, Leads & tools' drawer), "checks" (every check): no lede.
+  const inDrawer = part.startsWith("tool:") || part === "checks";
+  const title = inDrawer ? null : head1(part === "all" ? "Integrations" : "", LEDE[part] || LEDE.all);
   if (part === "aikeys") return [title, aiKeys()];
   if (!sessions()) return [title, h("div", { class: "state" }, h("div", null, "Integrations are set up here with accounts. On this server, use skald hooks secret, skald doctor and docs/INTEGRATIONS.md."))];
   if (isViewer()) return [title, h("div", { class: "state" }, h("div", null, `${VIEWER} Integrations are for admins.`))];
   const body = h("div", null, h("p", { class: "empty" }, "Loading the integrations..."));
   const msg = status();
   const shown = h("div");
-  const reload = () => call(`integrations${chosen ? `?site=${encodeURIComponent(chosen)}` : ""}`).then(draw);
+  const reload = () => call(integPath()).then(draw);
 
   function showFresh() {
     if (!fresh) { shown.replaceChildren(); return; }
@@ -168,7 +189,7 @@ export function integrationsPart(part = "all") {
     return r;
   }
 
-  function toolRow(t) {
+  function toolRow(t, one = false) {
     const acts = h("div", { class: "acts" });
     const drawActs = () => {
       let make = null;
@@ -204,8 +225,12 @@ export function integrationsPart(part = "all") {
       deliveriesTable(t.deliveries, `Deliveries from ${t.name}`, [
         ["When", (d) => when(d.received_at, ""), "muted n"], ["Answer", (d) => String(d.http_status), "c"],
         ["Outcome", (d) => OUTCOME[d.outcome] || d.outcome], ["Detail", (d) => copyIf("text", d.error || "", null, { label: "detail", cls: "" }), "muted"]]));
-    return h("div", { class: "sheet integ" }, h("h3", null, t.name, " ", badge),
-      t.problem ? h("p", { class: "msg err" }, t.problem) : null, state, copyable(t.url, `the address for ${t.name}`),
+    // v2: one tool's details in Leads & tools' drawer (tool=<id>).
+    if (one) return h("div", { class: "integ integ-one" }, h("p", null, toolPill(t)), badge, t.problem ? h("p", { class: "msg err" }, t.problem) : null, state,
+      copyable(t.url, `the address for ${t.name}`), t.paste && t.rotatable ? pasteForm(t) : null, t.event_types ? typesForm(t) : null, acts, log);
+    return h("details", { class: "sheet integ integ-d", open: !!t.attention || !!t.problem || null },
+      h("summary", null, h("b", null, t.name), toolPill(t), h("span", { class: "grow" }), h("span", { class: "integ-go" }, t.set ? "Open" : "Set up")),
+      badge, t.problem ? h("p", { class: "msg err" }, t.problem) : null, state, copyable(t.url, `the address for ${t.name}`),
       t.paste && t.rotatable ? pasteForm(t) : null, t.event_types ? typesForm(t) : null, acts, log);
   }
 
@@ -294,12 +319,18 @@ export function integrationsPart(part = "all") {
       add.disabled = false;
       if (got.ok) url.value = "";
     });
-    return h("div", { class: "sheet" }, h("h3", null, "Add an outgoing webhook"), form);
+    return h("details", { class: "fold set-more", open: !(r.webhooks || []).length || null }, h("summary", null, "Add an outgoing webhook"), form);
   }
 
   function draw(r) {
     if (!r.ok) { body.replaceChildren(h("p", { class: "empty" }, why(r, "The integrations could not be loaded."))); return; }
     chosen = r.site;
+    if (part.startsWith("tool:")) {
+      const t = (r.tools || []).find((x) => x.tool === part.slice(5));
+      body.replaceChildren(t ? toolRow(t, true) : h("p", { class: "empty" }, "That tool is not one Skald knows."));
+      return;
+    }
+    if (part === "checks") { body.replaceChildren(checksList(r)); return; }
     const pick = (r.sites || []).length > 1 ? h("select", { "aria-label": "Site" }, r.sites.map((s) => h("option", { value: s, selected: s === r.site }, s))) : null;
     if (pick) pick.addEventListener("change", () => { chosen = pick.value; fresh = null; showFresh(); msg.say(""); reload(); });
     const want = (k) => part === "all" || part === k;
@@ -310,15 +341,14 @@ export function integrationsPart(part = "all") {
       want("script") ? scriptBox(r) : "",
       !want("hooks") ? "" : h("section", { class: "s" }, h("h2", null, "Incoming hooks"),
         h("p", { class: "sub" }, "Your site's server and the tools you use tell Skald what happened: a booking, a payment, a form. Give each tool its address and its secret; Stripe and HubSpot make their own secret, which you paste here. The Webhooks guide says where in each tool."),
-        howTo("webhooks", "How do I connect Calendly, Cal.com, HubSpot, Typeform, Stripe, Zapier or my own site?"),
         r.takes_hooks ? null : h("p", { class: "msg err" }, "This install does not report on this site yet, so its hooks are not answered."),
-        (r.tools || []).map(toolRow)),
+        h("div", { class: "integ-list" }, (r.tools || []).map(toolRow))),
       !want("webhooks") ? "" : h("section", { class: "s" }, h("h2", null, "Outgoing webhooks"),
         h("p", { class: "sub" }, "Skald posts a signed summary of each conversion to your CRM, Zapier or Slack: the action, its source, campaign, landing page, country, device, visits and time before converting, and the anonymous journey. Never a name or an email. A failed delivery is tried again for about 15 hours."),
         (r.webhooks || []).length ? r.webhooks.map(hookRow) : h("p", { class: "empty" }, "No outgoing webhooks yet."),
-        howTo("webhooks", "How do I send each conversion to my CRM, Zapier or Slack?"),
         addForm(r)),
-      want("search") ? agentSearch(r.site) : "",
+      // v2: the AI agent's way is Finish set-up's (Who will do it?, settings-pages.js).
+      part === "all" ? agentSearch(r.site) : "",
       want("search") ? searchBox(r.site) : "");
   }
 

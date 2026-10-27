@@ -72,7 +72,7 @@ class SetupPages(unittest.TestCase):
         got = self.page(SHOP)
         self.assertIn(f"{SHOP} is waiting for its first log lines", got)
         self.assertIn("step 3 of 5", got)
-        self.assertIn(f'href="../{MAIN}/#settings/sitesadmin?setup={SHOP}">Continue setup</a>',
+        self.assertIn(f'href="../{MAIN}/#settings/org/sites?setup={SHOP}">Continue setup</a>',
                       got)
         self.assertIn(f'href="../{MAIN}/#help?part=troubleshooting-connections"', got)
         self.assertIn('http-equiv="refresh"', got)
@@ -85,7 +85,7 @@ class SetupPages(unittest.TestCase):
         words, kind = connections_api.badges(self.config, self.box.root, self.box.config,
                                              [SHOP])[SHOP]
         self.assertEqual(kind, "setup")
-        self.assertIn(f"#settings/sitesadmin?{kind}={SHOP}", self.page(SHOP))
+        self.assertIn(f"#settings/org/sites?{kind}={SHOP}", self.page(SHOP))
 
     def test_a_finished_setup_offers_the_test(self):
         db = accounts.connect(self.accounts)
@@ -96,7 +96,7 @@ class SetupPages(unittest.TestCase):
         self.drawn(MAIN)
         self.write()
         got = self.page(SHOP)
-        self.assertIn(f"#settings/sitesadmin?test={SHOP}\">Test the connection</a>", got)
+        self.assertIn(f"#settings/org/sites?test={SHOP}\">Test the connection</a>", got)
         self.assertNotIn("Continue setup", got)
 
     def test_a_real_page_is_never_replaced(self):
@@ -137,7 +137,7 @@ class SetupPages(unittest.TestCase):
         self.assertIn(f"{GONE} was removed", got)
         self.assertIn("Its setup had reached step 3 of 5.", got)
         self.assertNotIn("waiting for its first log lines", got)
-        self.assertNotIn("sitesadmin", got)
+        self.assertNotIn("settings/org/sites", got)
         self.assertNotIn('http-equiv="refresh"', got)
 
     def test_the_picker_offers_no_continue_for_a_removed_site(self):
@@ -197,7 +197,7 @@ class InTheRuns(unittest.TestCase):
         self.assertEqual(code, 0, err)
         shop = (www / SHOP / "index.html").read_text()
         self.assertIn(f"{SHOP} is waiting for its first log lines", shop)
-        self.assertIn(f"../{MAIN}/#settings/sitesadmin?setup={SHOP}", shop)
+        self.assertIn(f"../{MAIN}/#settings/org/sites?setup={SHOP}", shop)
 
 
 if __name__ == "__main__":

@@ -96,7 +96,7 @@ const m = { x: {} };
 let line = null;
 const render = (s) => { line = C.crumbLine(m, s); document.body.replaceChildren(line); C.restore(); };
 S.on(render);
-const crumbs = () => line.querySelectorAll("li").map((li) => li.textContent.replace(/Copy.*$/, "").trim());
+const crumbs = () => C.trail().map((x, i, all) => C.crumbWords(all, i));
 const back = () => line.querySelector("a.cr-back");
 
 history.replaceState(null, "", "#overview/summary");
@@ -120,8 +120,9 @@ S.set({ vis: "2026-10-20.14" });
 await tick();
 assert.equal(C.trail().length, 5);
 assert.deepEqual(crumbs().slice(0, 4), ["Overview › Summary", "Traffic › Sources", "Source: Google", "Pages › /pricing/"]);
-assert.ok(line.querySelector(".cr-now").textContent.startsWith("A visit on 20 Oct"));
-assert.ok(line.querySelector("a.ua-open"), "this exact view: copy + open");
+assert.ok(crumbs()[4].startsWith("A visit on 20 Oct"));
+assert.equal(line.querySelectorAll("li").length, 0, "the line is the Back link alone (2.42), never the row of crumbs");
+assert.equal(line.children.length, 1);
 assert.equal(back().textContent, "← Back to /pricing/");
 assert.equal(line.querySelector("a.cr-back").getAttribute("href"), "#traffic/pages?page=%2Fpricing%2F");
 await scroll(80);
@@ -151,16 +152,15 @@ fire("scroll");
 await later();
 assert.equal(C.trail().at(-1).scroll, 150);
 
-// A crumb: its exact address, a new entry, the trail cut back, the scroll put back.
+// A link to a step on the trail: a new entry, the trail cut back.
 const before = at;
-const first = line.querySelectorAll("li a").find((a) => a.textContent === "Overview › Summary");
-first.dispatchEvent(Object.assign(new Event("click"), { button: 0 }));
+S.set({ tab: "overview/summary", dd: "" });
 await later();
 assert.equal(location.hash, "#overview/summary");
-assert.equal(at, before + 1, "a crumb pushes an entry");
+assert.equal(at, before + 1, "a link to a step on the trail pushes an entry");
 assert.equal(C.trail().length, 1);
 assert.ok(line.hidden);
-assert.equal(scrollY, 300, "the summary's scroll");
+// (The crumbs that put a step's scroll back are gone in 2.42: Back and Forward still do, above.)
 history.back();
 await later();
 assert.equal(location.hash, GOOGLE, "Back after a crumb: where the crumb was clicked");

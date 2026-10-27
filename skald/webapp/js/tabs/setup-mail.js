@@ -3,12 +3,17 @@
 // link in their confirm mail and send a test. The endpoints of Settings > Mail & reports
 // (prefs.js mail, settings_api.py): GET settings, POST settings/save
 // {mail.daily, mail.weekly, mail.to} (only what changed), POST settings/test-mail {to}.
+//
+// 2.42 (the UX audit): with no mail server the dialog says so on every step, with "Who will
+// set it up?" (mail-ready.js), and never waits for a confirm mail that cannot go; the
+// signed-in person's own address is not asked to confirm (the helper marks it).
 
 import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { ME } from "../access.js";
 import { input, field, why } from "./forms.js";
 import { wizard, answerBox } from "./conn-ui.js";
+import { mailReady, mailServerNote, waitingWords } from "../mail-ready.js";
 
 const listOf = (text) => String(text || "").split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
 
@@ -24,7 +29,7 @@ export async function mailDialog(site, { onClose = null, route = null, start = 0
   const s = r.ok ? r.settings || {} : {};
   const st = {
     daily: !!s["mail.daily"]?.value, weekly: !!s["mail.weekly"]?.value,
-    to: (s["mail.to"]?.value || []).join("\n") || ME.user || "", waiting: r.ok ? r.mail_waiting || [] : [], saved: false,
+    to: (s["mail.to"]?.value || []).join("\n") || ME.user || "", waiting: r.ok ? r.mail_waiting || [] : [], saved: false, answer: r,
   };
   const locked = (k) => (s[k] && !s[k].editable ? s[k].reason || "You cannot change this." : "");
 
@@ -33,15 +38,20 @@ export async function mailDialog(site, { onClose = null, route = null, start = 0
     const again = h("button", { type: "button", class: "btn" }, "Check again");
     const draw = () => {
       const n = listOf(st.to).length;
+      // No mail server: nothing to wait for; the card above says what to do.
+      if (mailReady(st.answer) === false) {
+        box.replaceChildren(h("p", { class: "note" }, st.waiting.length ? waitingWords(st.answer, st.waiting) : "Once the mail server is set, open this again to send a test mail."));
+        return;
+      }
       box.replaceChildren(st.waiting.length
-        ? answerBox("wait", `Waiting for ${st.waiting.join(", ")} to press the link in their confirm mail.`, h("p", null, "Reports go to an address only once it is confirmed. Ask them to look in their inbox (and spam)."), h("div", { class: "acts" }, again))
+        ? answerBox("wait", waitingWords(st.answer, st.waiting), h("p", null, "Ask them to look in their inbox (and spam)."), h("div", { class: "acts" }, again))
         : answerBox("ok", `Every recipient has confirmed. The ${st.daily ? "daily" : "weekly"} mail goes to ${n} address${n === 1 ? "" : "es"}.`));
     };
     again.addEventListener("click", async () => {
       again.disabled = true;
       const got = await call("settings");
       again.disabled = false;
-      if (got.ok) st.waiting = got.mail_waiting || [];
+      if (got.ok) { st.waiting = got.mail_waiting || []; st.answer = got; }
       draw();
     });
     draw();
@@ -64,7 +74,9 @@ export async function mailDialog(site, { onClose = null, route = null, start = 0
       h("p", { class: "note" }, "A test goes to your own address or to a recipient who has confirmed. At most 3 in 10 minutes."));
   }
 
-  return wizard({ route, start,
+  // No mail server: one card on every step, with who will set it up (kept in the address as by=).
+  const note = mailServerNote(r, { what: "the daily mail (and the link to confirm a new address)", site, route });
+  return wizard({ route, start, top: note,
     title: "Get the daily mail", subtitle: `For ${site}.`, key: "setup-mail", onClose, state: st,
     steps: [
       { name: "Which mail",
@@ -80,7 +92,7 @@ export async function mailDialog(site, { onClose = null, route = null, start = 0
           const area = h("textarea", { rows: "3", spellcheck: "false", autocomplete: "off", disabled: locked("mail.to") ? true : null });
           area.value = st.to;
           area.addEventListener("input", () => { st.to = area.value; });
-          return [field("Addresses, one per line", area, locked("mail.to") || "Each new address gets a mail with a link to confirm it. Reports go only to addresses that confirmed.")];
+          return [field("Addresses, one per line", area, locked("mail.to") || "Each new address gets a link to confirm it; yours does not need one.")];
         },
         check: () => (listOf(st.to).some((x) => x.includes("@")) ? "" : "Type at least one email address."),
         next: async (w) => {
@@ -94,11 +106,13 @@ export async function mailDialog(site, { onClose = null, route = null, start = 0
           if (!got.ok) { w.say(why(got, "It was not saved.")); return false; }
           Object.assign(s, got.settings || {});
           st.waiting = got.mail_waiting || [];
+          if (got.mail_server) st.answer = got;
           st.saved = true;
           return true;
         } },
       { name: "Confirm and test",
-        draw: () => [st.saved ? h("p", { class: "msg ok" }, "Saved.") : null, waitingBox(), testBox()] },
+        draw: () => [st.saved ? h("p", { class: "msg ok" }, mailReady(st.answer) === false ? "Saved. The mail starts once the mail server is set." : "Saved.") : null,
+          waitingBox(), mailReady(st.answer) === false ? null : testBox()] },
     ],
   });
 }

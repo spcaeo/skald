@@ -35,8 +35,8 @@ It shows no new figure: each cell is the site's own verified figure, the same it
 
 For every visit, Skald looks for the same visitor's first visit it knows of. It tries three links, in this order, and the first one that finds an earlier visit wins:
 
-1. **The visitor ID**, when the script tag has visitor IDs on (Settings › This site › Collect data › Script tag & goals). The visit is the ID's when the ID's page view of the landing page arrived within seconds of the visit, and no other ID did. Its first touch is the ID's earliest page view.
-2. **The address and browser**, when the site keeps addresses (Settings › This site › Privacy & retention › People). The earliest kept visit from the same address with the same browser and system, even earlier the same day.
+1. **The visitor ID**, when the script tag has visitor IDs on (Settings › This site › Data › Script tag & goals). The visit is the ID's when the ID's page view of the landing page arrived within seconds of the visit, and no other ID did. Its first touch is the ID's earliest page view.
+2. **The address and browser**, when the site keeps addresses (Settings › This site › Privacy › People). The earliest kept visit from the same address with the same browser and system, even earlier the same day.
 3. **The 30-day code**, when the visitor key is set. It gives the day and the source type of the first visit within 30 days, not the site that sent it.
 
 When none finds an earlier visit, the visit says **first visit we know of**. Skald never guesses. A site that keeps no addresses uses only the visitor ID and the 30-day code, and says which one linked each visit.
@@ -47,7 +47,7 @@ One address can be several people (an office), and one person on two devices is 
 
 - **Traffic › Visitors**, in **Each visit**: under a visit's source, a line such as "First came from google.com, 3 days ago". It shows only when the first visit came from somewhere else.
 - **Overview › Real time**, in **Newest visits**: the same line, and each visit opens the visitor drawer.
-- **Traffic › Sources**, in **Where returning visitors first came from**: for the period, how many Direct visits came before, by where they first came from and by the site that sent them; and every returning visit by where it first came from. Each day's figures are counted twice, by two separate roads; a day where the two disagree is withheld. A day counted before this existed is left out and said.
+- **Traffic › Sources**, under **Open the details**, in **Where returning visitors first came from**: for the period, how many Direct visits came before, by where they first came from and by the site that sent them; and every returning visit by where it first came from. Each day's figures are counted twice, by two separate roads; a day where the two disagree is withheld. A day counted before this existed is left out and said.
 
 ## Direct, likely: what a Direct visit probably was
 
@@ -61,7 +61,7 @@ Anything else stays plain Direct.
 
 Where you see it:
 
-- **Traffic › Sources**, in **Direct, likely (inferred)** under the sources grid: each reason, its visits, its share of Direct and what it showed (for example "Stripe 3" or "WhatsApp 2"), and how many stayed plain Direct. The Direct row above keeps every one of these visits: nothing is moved out of it. The (i) says how it is worked out. In Compare mode it is not shown.
+- **Traffic › Sources**, in **Direct, likely (inferred)**, under **Open the details** below the sources grid (`srcx_view=open`): each reason, its visits, its share of Direct and what it showed (for example "Stripe 3" or "WhatsApp 2"), and how many stayed plain Direct. The Direct row above keeps every one of these visits: nothing is moved out of it. The (i) says how it is worked out. In Compare mode it is not shown.
 - **The visitor drawer**, under **This visit**: a line such as "Direct, likely in-app browser (Instagram app)".
 
 Each day is counted twice, by two separate roads; a day where the two disagree is withheld, and a range that does not add up shows "Withheld". A day counted before this release says "Not recorded", never zero. Only the reason, the app or provider and counts are kept: never the codes in the address. An admin can turn it off, or change the 30-minute preview window, with `attribution.direct_likely` and `attribution.share_window_minutes` in the config file.
@@ -72,11 +72,11 @@ This is a different estimate from **Likely from AI assistants** (AI & bots › A
 
 Every visit and every visitor opens in the same drawer: a row of the visit list, a newest visit in Real time, a funnel's journey, a visit picked out of the visitor flow, a person found with **Find a person**, and a converted person or conversion under Leads & sales.
 
-- **The title** names the visitor by city ("Visitor from Toronto"), else by country, and the line under it says how many visits over how many days, and any booked demo or lead.
-- **At the top**: first seen, how many visits over how many days, where the visitor first came from (and how long ago; the link that tied the visits is on hover), the city (or the country) with its flag and three-letter code, the device with its browser and system, and the outcome: a booked demo, a lead, a form sent, or none linked.
-- **Journey, newest visit first**: each visit as a card, its steps down a line. Where it came from, each page in order with the time between pages on the line, and how it ended: left, sent a form, a lead, or a booked demo. Between visits it says how long after ("12 days later"). The steps appear one by one when the drawer opens; **Replay**, beside the close button, plays the visits again, oldest first, at their real pace (one second per minute, at most four seconds a visit). With reduced motion on, it stays still. Hover or focus a page for its time; click it to open the page.
-- **Every visit as a table**: open it for the same visits as rows, the first visit highlighted.
-- **Leads and conversions** linked to the visits. A lead is matched to a visit by the time a form was sent: likely, never certain.
-- **This visit**: the visit's own labels and campaign tags.
+- **The title** names the visitor by city ("Visitor from Toronto"), else by country.
+- **At the top, the state**: pills for where the visitor is (**Here now**, **Returning** or **First visit**) and how the visits ended (a booked demo, a lead, a form sent, or **No lead linked**). Under them one sentence: how many visits over how many days, and where the visitor first came from. Then one line: the city (or the country) with its flag, the device with its browser and system, and when it was first seen. Each value has a copy icon. The **?** says how the visits are linked (by address, visitor ID or the 30-day code) and what that link cannot tell.
+- **Visits, newest first**: the newest two visits as cards, their steps down a line. Where each came from, each page in order with the time between pages on the line, and how it ended: left, sent a form, a lead, or a booked demo. Between visits it says how long after ("12 days later"). **Show all (N)** draws every visit; the address keeps it (`vall=1`), so a copied link opens the same. The steps appear one by one when the drawer opens; **Replay**, beside the close button, plays the visits again, oldest first, at their real pace (one second per minute, at most four seconds a visit). With reduced motion on, it stays still. Hover or focus a page for its time; click it to open the page.
+- **Leads and conversions (N)**, open when there are any. A lead is matched to a visit by the time a form was sent: likely, never certain.
+- **This visit: every detail**, folded: the visit's own labels and campaign tags.
+- **Every visit as a table (N)**, folded: the same visits as rows, the first visit highlighted.
 
 A visit alone is anonymous. Every visit of the visitor shows only to admins and owners, and only where the site keeps addresses. Each time it is opened, the audit log records it (never the address). Pages seen only by the script tag, with no visit in the server log, are marked "seen by the script".

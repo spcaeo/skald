@@ -51,29 +51,22 @@ li.drow:hover, li.drow:focus-visible { background: color-mix(in srgb, var(--surf
 .ins-rest { display: grid; gap: 14px; }
 .ins-all { justify-self: start; }
 
-/* ---- the first-run checklist on Overview (tabs/checklist.js) */
+/* ---- the set-up checklist on Overview (tabs/checklist.js; v2: one Finish set-up button,
+   each open line one button as a whole, done lines folded; settings.css draws the rows) */
 .su { margin: 0 0 18px; }
-.su-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
+.su-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
 .su-head h2 { margin: 0; font-size: 16px; }
-.su-left { font-size: 12.5px; color: var(--ink-3); }
+.su-left { font-size: 12.5px; font-weight: 600; color: var(--warn); }
 .su-head .grow { flex: 1; }
-.su-hide-w { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-.su-where { font-size: 11.5px; color: var(--ink-3); }
-/* 2.39: "Set up everything left with your AI agent", above the lines */
-.su-agent { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 10px 0 0; }
-.su-agent[hidden] { display: none; }
-.su-agent-what { font-size: 12.5px; color: var(--ink-3); min-width: 0; }
-.su-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 2px 24px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
-.su-i { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; padding: 8px 0; border-top: 1px solid var(--rule); }
-.su-i p { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-2); }
-.su-opt { color: var(--ink-3); font-weight: 400; }
-.su-fix { display: inline-block; margin-top: 3px; font-size: 12.5px; font-weight: 600; color: var(--ink); text-underline-offset: 3px; }
-.su-mark { width: 18px; height: 18px; border-radius: 50%; margin-top: 1px; border: 1.6px solid var(--gap); box-sizing: border-box; position: relative; }
-.su-done .su-mark { background: var(--good); border-color: var(--good); }
-.su-done .su-mark::after { content: ""; position: absolute; left: 5px; top: 2px; width: 4px; height: 8px; border: solid var(--surface); border-width: 0 2px 2px 0; transform: rotate(45deg); }
-.su-todo .su-mark { border-color: var(--warn); }
-.su-wait .su-mark, .su-unknown .su-mark { border-style: dashed; }
-.su-done b { color: var(--ink-2); }
+.su-finish[hidden] { display: none; }
+.su-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.su-i { margin: 0; }
+.su-mark { width: 18px; height: 18px; border-radius: 50%; border: 1.6px solid var(--gap); box-sizing: border-box; position: relative; }
+.su-i.su-done .su-mark { background: var(--good); border-color: var(--good); }
+.su-i.su-done .su-mark::after { content: ""; position: absolute; left: 5px; top: 2px; width: 4px; height: 8px; border: solid var(--surface); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.su-i.su-todo .su-mark { border-color: var(--warn); }
+.su-i.su-wait .su-mark, .su-i.su-unknown .su-mark { border-style: dashed; }
+.su-i.su-done b { color: var(--ink-2); }
 
 /* ---- Settings > Mail: the mail as it would go (tabs/prefs.js mailPreview) */
 .mp-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }

@@ -1,4 +1,4 @@
-"""Settings > Billing & usage and Stripe's webhook, on the refresh helper
+"""Settings > Billing and Stripe's webhook, on the refresh helper
 (refresh_server.py). Only with saas.enabled (and access.mode: sessions);
 otherwise every route answers 404.
 
@@ -152,7 +152,7 @@ def _stripe(h, db, act, form, session, org, site, config, live_dir, allowed) -> 
     if base is None:
         return answer(h, 503, {"ok": False, "error": "The server has no base address "
                                                      "(access.base_url) for the way back."})
-    back = f"{base}/traffic/{site}/#settings/billing"
+    back = f"{base}/traffic/{site}/#settings/org/billing"
     state = plans.org_state(db, org["id"])
     try:
         if act == "billing/checkout":

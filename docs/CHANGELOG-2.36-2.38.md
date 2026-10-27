@@ -1,6 +1,6 @@
 # Changelog: 2.36.0 to 2.38.0
 
-The releases of 25 and 26 October 2026. Newer ones: [CHANGELOG.md](../CHANGELOG.md); older ones: [CHANGELOG-2.35.md](CHANGELOG-2.35.md).
+The releases of 25 and 26 October 2026. Newer ones: [CHANGELOG-2.39-2.41.md](CHANGELOG-2.39-2.41.md) and [CHANGELOG.md](../CHANGELOG.md); older ones: [CHANGELOG-2.35.md](CHANGELOG-2.35.md).
 
 ## 2.38.0 (2026-10-26)
 

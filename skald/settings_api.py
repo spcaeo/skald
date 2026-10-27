@@ -12,10 +12,16 @@ check:
                                        which of them the site has counted; and
                                        `notice`: wording for the site's privacy
                                        notice, made from what it keeps
-                                       (people/notice.py)
+                                       (people/notice.py); `mail_server`: {ready,
+                                       missing}, whether this install can send mail
+                                       (2.42), and `mail_waiting`: recipients who
+                                       have not confirmed (the signed-in person's
+                                       own address is never asked: it is marked
+                                       confirmed)
   POST settings/save                   {key: value, ...} (null clears a row); a value
                                        that removes stored data also needs
-                                       "confirm": "<site name>"
+                                       "confirm": "<site name>"; a confirm mail
+                                       goes only when mail_server.ready
   GET  settings/retention-preview?key=&value=
                                        how many stored days and rows a smaller
                                        window removes at the next run
@@ -26,7 +32,7 @@ check:
                                        SMTP settings; admins; 3 per 10 minutes;
                                        only to the caller or a confirmed recipient
                                        (mail_confirm.py)
-  GET  settings/views-fill             Settings > Site details > Views: the fill of past days
+  GET  settings/views-fill             Settings > Site > Views: the fill of past days
   POST settings/views-fill-start       for new groups (views_fill_api.py); a save of
                                        sites.views answers `views` (what changed)
   GET  settings/audit?action=&limit=&format=csv
@@ -228,7 +234,17 @@ def _goal_choices(c: Ctx) -> list[dict]:
 def settings(c: Ctx, form):
     return c.ok(site=c.site, org=c.org["name"], role=c.role, install_admin=c.install_admin,
                 settings=described(c), totp_on=_totp_on(c.db, c.uid),
-                mail_waiting=_waiting(c), notice=notice(c), keep_everything=kept(c))
+                mail_waiting=_waiting(c), mail_server=mail_server(c), notice=notice(c),
+                keep_everything=kept(c))
+
+
+def mail_server(c: Ctx) -> dict:
+    """{"ready", "missing"}: whether this install can send mail at all (a sender address and
+    an SMTP server), and the plain sentence of what is missing, so the page says it at once
+    instead of waiting for a confirm mail that cannot be sent (2.42, the UX audit)."""
+    merged = store.apply(c.config, c.site, c.live_dir)
+    missing = _not_set_up(merged.get("mail") or {}, c.install_admin)
+    return {"ready": missing is None, "missing": missing}
 
 
 def kept(c: Ctx) -> dict:
@@ -248,13 +264,23 @@ def notice(c: Ctx) -> dict:
 
 
 def _waiting(c: Ctx) -> list[str]:
-    """Recipients typed on the page that have not confirmed (mail_confirm.py)."""
-    from .mail_confirm import keep_confirmed
+    """Recipients typed on the page that have not confirmed (mail_confirm.py). The signed-in
+    person's own address is not asked again (2.42): it is the one they sign in with, proven
+    when their account was made, so it is marked confirmed here, once."""
+    from .mail_confirm import keep_confirmed, mark_confirmed
     got = store.explain(c.config, c.site, c.db)["mail.to"]
     if got["source"] not in ("site", "org"):
         return []
     own = store._from_config(c.config, store.SCHEMA["mail.to"]) or []
-    return keep_confirmed(c.db, c.org["id"], got["value"], own)[1]
+    waiting = keep_confirmed(c.db, c.org["id"], got["value"], own)[1]
+    me = str(c.session["email"] or "").strip().lower()
+    mine = [e for e in waiting if str(e).strip().lower() == me]
+    if mine:
+        from .accounts import db as base
+        with base.tx(c.db):
+            mark_confirmed(c.db, c.org["id"], me)
+        auditlog.record(c.db, c.org["id"], c.uid, "mail.confirm", c.site, "own address, signed in")
+    return [e for e in waiting if e not in mine]
 
 
 def _totp_on(db, uid) -> bool:
@@ -309,7 +335,9 @@ def save(c: Ctx, form):
             return c.no(400, str(why), key=name, saved=saved)
         saved.append(name)
     waiting = _waiting(c)
-    if "mail.to" in saved and waiting:
+    server = mail_server(c)
+    # No mail server: no confirm mail is tried (nor a day's link used up); the page says why.
+    if "mail.to" in saved and waiting and server["ready"]:
         from .mail_confirm import ask
         ask(c.db, c.config, getattr(c, "allowed", None), c.org, c.site, waiting)
     now = described(c)
@@ -318,7 +346,8 @@ def save(c: Ctx, form):
         from . import views_fill_api
         extra["views"] = views_fill_api.after_save(
             c, (current.get("sites.views") or {}).get("value"), now["sites.views"]["value"])
-    return c.ok(saved=saved, settings=now, mail_waiting=waiting, notice=notice(c), **extra)
+    return c.ok(saved=saved, settings=now, mail_waiting=waiting, mail_server=server, notice=notice(c),
+                **extra)
 
 
 def _fallback(c: Ctx, name: str, cap: int | None = None):

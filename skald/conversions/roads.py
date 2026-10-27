@@ -1,5 +1,5 @@
 """How each road into Skald is doing, in plain words: for `skald doctor`
-(doctor.py) and Settings > Leads & integrations (integrations_api.py), one reading.
+(doctor.py) and Settings > Leads & tools (integrations_api.py), one reading.
 
     hook_states(...)   each tool's incoming hook: needs a secret, never
                        received, ready (a test passed), or last received N ago;
@@ -56,7 +56,7 @@ def _fix_for(outcome: str, tool: str, site: str, cmd: str, detail: str | None) -
     name = TOOL_NAMES.get(tool, tool)
     if outcome == "bad_signature":
         return (f"The secret {name} signs with is not the one Skald has. Give {name} the "
-                f"secret again (Settings > Leads & integrations, or `{cmd} hooks secret {site} {tool}`)"
+                f"secret again (Settings > Leads & tools, or `{cmd} hooks secret {site} {tool}`)"
                 + (", or paste the signing secret it shows" if tool != "lead" else "") + ".")
     if outcome == "bad_body":
         return (f"Skald could not read what {name} sent" + (f": {detail}" if detail else "")
@@ -65,7 +65,7 @@ def _fix_for(outcome: str, tool: str, site: str, cmd: str, detail: str | None) -
         return "Skald could not write it (disk or database). Check the disk and the helper's log."
     if outcome == "rate_limited":
         return "More than hooks.per_minute arrived at once; raise it if this is normal traffic."
-    return "See the delivery log on Settings > Leads & integrations."
+    return "See the delivery log on Settings > Leads & tools."
 
 
 def hook_states(site_config: dict, folder, site: str, db, now: datetime | None = None,
@@ -111,7 +111,7 @@ def hook_states(site_config: dict, folder, site: str, db, now: datetime | None =
                 entry.update(state="never", attention=True,
                              words="secret set, but nothing has arrived, not even a test",
                              fix=f"Send a test (`{cmd} hooks test {site} {tool}`, or Send a "
-                                 f"test on Settings > Leads & integrations). Then check that {name} "
+                                 f"test on Settings > Leads & tools). Then check that {name} "
                                  f"posts to {url}.")
             out.append(entry)
             continue

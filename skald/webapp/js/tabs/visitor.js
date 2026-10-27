@@ -1,18 +1,18 @@
 // The visitor drawer (2.12.0): one drawer for a visitor or a visit, wherever it
 // appears - the visit grid, Real time's newest visits, Find a person, Leads &
 // sales' people and conversion rows, the funnel's journeys and a one-visit flow.
-// Same layout and details everywhere:
+// Same layout and details everywhere (2.42: state first, then a short timeline, the rest
+// behind folds):
 //
-//   summary   first and last seen, visits ("4 visits over 9 days"), where the
-//             visitor first came from (and by which link), country (flag, the
-//             three-letter code, the name on hover), city when recorded,
-//             device, browser and system
-//   journey   each visit as a path (journeymap.js), newest first, animated
-//   visits    the timeline: when, where from (with the first touch), landing,
-//             pages in order, time on site, country (and city), device; the first visit
-//             highlighted
-//   leads and conversions linked to the visits
-//   this visit (opened from a visit): its own labels and tags
+//   state     one card: where the visitor is (here now, returning, first visit) and how
+//             its visits ended, as pills; one sentence (visits, over how many days, where
+//             it first came from); one line of facts (place, device and browser, first
+//             seen), each value with its copy icon; how the visits are linked behind "?"
+//   journey   the newest SHORT visits as paths (journeymap.js), animated; "Show all (N)"
+//             draws every visit (vall=1 in the address, leaving with the drawer)
+//   folds     Leads and conversions (open when there are any), This visit, Every visit
+//             as a table (when, where from, landing, pages in order, time on site,
+//             country and city, device; the first visit highlighted)
 //
 // openVisitor(key) is the one way in. key is a journey (as app.json carries
 // it), {q} (an address, email, visitor ID or lead: the person search), or
@@ -37,6 +37,14 @@ import { countryWords, flagEl, city, cityPlace, cityName } from "./readers.js";
 import { mayFind, personParts } from "./person.js";
 import { folded, visitFacts, cityShort } from "./visitlist.js";
 import { refBlock, byRef, afterMark } from "./leadref.js";
+import { withCopy, copyIf } from "../urlactions.js";
+import { pill } from "../ui/pill.js";
+import { help } from "../ui/help.js";
+import { fold } from "../ui/fold.js";
+import * as S from "../state.js";
+
+export const SHORT = 2;       // visits drawn before "Show all (N)"
+export const ALL_KEY = "vall";
 
 const LINKS = ["vid", "address", "hash"];
 export const BY = {
@@ -47,7 +55,7 @@ export const BY = {
 const NAMELESS = new Set(["(none)", "(not kept)", "(this site)", ""]);
 const at = (ts) => (ts ? tzTime(ts, { date: true, label: false }) : "-");
 const dash = (v) => (v == null || v === "" ? "-" : String(v));
-const sec = (title, ...kids) => h("section", { class: "dw-sec" }, h("h3", null, title), ...kids);
+const secIn = (title, ...kids) => h("section", { class: "dw-sec" }, h("h3", null, title), ...kids);
 const today = () => when(Date.now())?.day || "";
 
 // ------------------------------------------------------------ first touch words
@@ -260,7 +268,8 @@ function timeline(model) {
 
 /* The leads and conversions linked: a conversion with a reference as its own part (its
    reference with a copy icon, every step, Mark as test: leadref.js, 2.25); one without, a line. */
-export function leadsAndConversions(model) {
+export function leadsAndConversions(model, { bare = false } = {}) {
+  const sec = bare ? (title, ...kids) => h("div", { class: "vz-lc" }, ...kids) : secIn;
   const refs = model.ref ? [model.ref] : byRef(model.conversions);
   const loose = model.ref ? [] : model.conversions.filter((c) => c.external_ref == null || c.external_ref === "");
   const items = [
@@ -273,7 +282,7 @@ export function leadsAndConversions(model) {
   return sec("Leads and conversions", items.length ? h("ul", { class: "conv-tl-visits" }, items) : null, ...blocks);
 }
 
-function howNote(model, extra) {
+function howWords(model, extra) {
   const bits = [];
   if (model.how === "address" && model.short) bits.push("Visits are linked by the same shortened address (its last part removed) with the same browser and system, inside the days the site keeps addresses. This is a weaker link: one shortened address can be several people on the same network, and one person on two devices is two visitors.");
   else if (model.how === "address") bits.push("Visits are linked by the same address with the same browser and system, inside the days the site keeps addresses. One address can be several people (an office), and one person on two devices is two visitors.");
@@ -281,30 +290,81 @@ function howNote(model, extra) {
   if (model.how === "vid" && !model.firstKnown) bits.push("Linked by the visitor ID the page script made: one browser, not a person.");
   if (model.how === "hash") bits.push("Linked by the 30-day code: an address and browser family, hashed with a secret; no address is kept.");
   if (extra) bits.push(extra);
-  return bits.length ? h("p", { class: "note" }, bits.join(" ")) : null;
+  return bits;
 }
+
+/* The state, in pills: where the visitor is now, and how its visits ended. */
+export function statePills(model) {
+  const nv = visitCount(model);
+  const newest = model.visits.find((v) => v.kind !== "touch");
+  const end = outcome(model);
+  const here = newest?.active ? ["good", "Here now"] : nv > 1 || model.visits.some((v) => v.kind === "touch") ? ["info", "Returning"]
+    : nv === 1 && (model.firstKnown || newest?.first) ? ["info", "First visit"] : null;
+  return [here, [end.lead ? "good" : "off", end.words, end.detail]].filter(Boolean);
+}
+
+/* The sentence under the pills: "4 visits over 13 days. First came from reddit.com, 13 days ago." */
+export function stateLine(model) {
+  const nv = visitCount(model), span = spanDays(model), ft = model.firstTouch;
+  const bits = [`${n(nv)} visit${nv === 1 ? "" : "s"}${model.visits.some((v) => v.kind === "touch") ? " shown" : ""}${span && span.days > 1 ? ` over ${n(span.days)} days` : span ? ", on one day" : ""}.`];
+  const oldest = model.visits[model.visits.length - 1];
+  if (ft && LINKS.includes(ft.by)) bits.push(`First came from ${touchName(ft)}, ${ago(ft.day)}.`);
+  else if (oldest && model.firstKnown && nv > 1) bits.push(`The oldest visit kept came from ${sourceWords(oldest)}.`);
+  else if (oldest && nv === 1) bits.push(`Came from ${sourceWords(oldest)}.`);
+  return bits.join(" ");
+}
+
+function stateCard(model, extra) {
+  const latest = latestOf(model);
+  const span = spanDays(model);
+  const place = latest.city ? withCopy(h("span", { class: "named", title: cityName(latest.city) }, flagEl(latest.country), h("span", { class: "nm" }, city(latest.city))), cityName(latest.city) || city(latest.city), { label: "Copy the city", cls: "ua-after" })
+    : latest.country && countryCell(latest.country) !== "Not recorded" ? copyIf("text", countryCell(latest.country), latest.country, { label: "country" }) : null;
+  const dev = latest.device ? copyIf("text", h("span", null, shown(latest.device), latest.browser ? `, ${latest.browser}${latest.os ? ` on ${latest.os}` : ""}` : ""),
+    `${shown(latest.device)}${latest.browser ? `, ${latest.browser}${latest.os ? ` on ${latest.os}` : ""}` : ""}`, { label: "device" }) : null;
+  const seen = span ? h("span", null, "First seen ", at(span.first.t)) : null;
+  const facts = [place, dev, seen].filter(Boolean);
+  const how = howWords(model, extra);
+  return h("section", { class: "ui-card vz-state" },
+    h("div", { class: "vz-pills" }, ...statePills(model).map(([k, w, title]) => pill(k, w, { title: title || null })),
+      how.length ? help("How these visits are linked", { text: how, guide: "where-visitors-come-from#the-visitor-drawer" }) : null),
+    h("p", { class: "vz-line" }, stateLine(model)),
+    facts.length ? h("p", { class: "vz-facts" }, ...facts) : null);
+}
+
+const allShown = () => S.read()[ALL_KEY] === "1";
 
 function draw(d, model, extra) {
   finish(model);
-  const vs = model.visits.map((v) => ({ ...v, touch: v.this ? touchLine({ ...v.raw, first_touch: v.first_touch }) : "" }));
+  const all = model.visits.map((v) => ({ ...v, touch: v.this ? touchLine({ ...v.raw, first_touch: v.first_touch }) : "" }));
+  const showAll = allShown() || all.length <= SHORT;
+  const vs = showAll ? all : all.slice(0, SHORT);
   const map = journeyMap(vs);
   const j = model.journey;
+  let more = null;
+  if (!showAll) {
+    more = h("button", { type: "button", class: "btn vz-all" }, `Show all (${n(all.length)})`);
+    more.addEventListener("click", () => { S.set({ [ALL_KEY]: "1" }, { replace: true }); draw(d, model, extra); });
+  }
+  const linked = model.leads.length + model.conversions.length + (model.ref ? 1 : 0);
+  const noVisits = !all.length && (model.person || model.conversion);
   d.body.replaceChildren(...[
-    summary(model),
-    // No visit to draw (a person search by email or lead): no empty journey or table.
-    vs.length ? h("section", { class: "dw-sec vz-journey" }, h("div", { class: "vz-jh" }, h("h3", null, "Journey, newest visit first"), h("small", null, "Time between pages on the line")), map.el) : null,
-    vs.length ? h("details", { class: "dw-sec vz-more" }, h("summary", null, "Every visit as a table"), timeline(model)) : null,
-    model.person ? null : leadsAndConversions(model),
-    j ? sec("This visit", visitFacts(j)) : null,
-    model.facts ? sec("This conversion", model.facts) : null,
+    // No visit to draw (a person search by email or lead): what it found, no empty journey or table.
+    noVisits ? summary(model) : stateCard(model, extra),
+    noVisits && howWords(model, extra).length ? h("p", { class: "note" }, howWords(model, extra).join(" ")) : null,
+    vs.length ? h("section", { class: "dw-sec vz-journey" }, h("div", { class: "vz-jh" }, h("h3", null, all.length > 1 ? "Visits, newest first" : "The visit"),
+      help("The journey", { text: "Each visit from where it came from to how it ended, its pages in order, with the time between pages on the line. Replay plays them again, oldest first.", guide: "where-visitors-come-from#the-visitor-drawer" })), map.el, more) : null,
+    model.person ? null : linked ? fold(`Leads and conversions (${n(linked)})`, () => leadsAndConversions(model, { bare: true }), { open: true, cls: "vz-more" }) : null,
+    j ? fold("This visit: every detail", () => visitFacts(j), { cls: "vz-more" }) : null,
+    model.facts ? fold("This conversion", () => model.facts, { open: true, cls: "vz-more" }) : null,
+    all.length > 1 ? fold(`Every visit as a table (${n(visitCount(model))})`, () => timeline(model), { cls: "vz-more" }) : null,
     ...(model.person ? personParts(model.person) : []),
-    howNote(model, extra),
   ].filter(Boolean));
   const title = titleOf(model);
   const t = d.el.querySelector(".dw-title");
   if (title && t) t.replaceChildren(...title);
   const sub = d.el.querySelector(".dw-sub");
-  if (sub) sub.textContent = subtitleOf(model);
+  // The state card says the visits and how they ended: the header keeps only the title.
+  if (sub) sub.textContent = noVisits ? subtitleOf(model) : "";
   // Replay sits in the header, beside the X.
   d.head.querySelector(".jm-replay")?.remove();
   const replay = vs.length ? replayButton(map) : null;   // nothing to play without a visit

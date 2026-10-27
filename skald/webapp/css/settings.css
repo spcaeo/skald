@@ -1,6 +1,19 @@
-/* Settings (2.40, js/tabs/settings-frame.js, set-*.js): the phone's page menu,
-   Help · Docs under each title, the in-page tabs, Next step, All settings' map, Help & docs,
-   the MCP and API pages' steps. Tokens from app.css; light and dark. */
+/* Settings (v2, js/tabs/settings-frame.js, set-*.js): the menu on the left, the page on the
+   right. The shared pieces (the accent, pills, the "?", folds, cards, Who will do it?) are
+   css/ui.css's (docs/UI-RULES.md); this file holds only what is Settings' own: the group
+   tints, rows, the red line's colour, the To do list and the set-up lines. */
+
+:root {
+  --tint-site: color-mix(in srgb, var(--g-people) 5%, var(--surface));
+  --tint-ai: color-mix(in srgb, var(--g-answer_engines) 5%, var(--surface));
+  --tint-org: color-mix(in srgb, var(--g-search_engines) 5%, var(--surface));
+  --tint-you: color-mix(in srgb, var(--leads) 4%, var(--surface));
+  --tint-todo: color-mix(in srgb, var(--g-people) 4%, var(--surface));
+  --edge-site: color-mix(in srgb, var(--g-people) 18%, var(--rule));
+  --edge-ai: color-mix(in srgb, var(--g-answer_engines) 18%, var(--rule));
+  --edge-org: color-mix(in srgb, var(--g-search_engines) 18%, var(--rule));
+  --edge-you: color-mix(in srgb, var(--leads) 16%, var(--rule));
+}
 
 /* The phone's menu: below 768px the sidebar is a drawer, so every page starts with this. */
 .set-jump { display: none; }
@@ -10,65 +23,156 @@
   .set-jump select { width: 100%; min-height: 40px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); color: var(--ink); font-size: 15px; padding: 6px 10px; }
 }
 
-/* Help · Docs, under the title */
-.set-links { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; margin: 0 0 14px; font-size: 13px; }
-.set-links a { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); text-decoration: none; min-height: 24px; }
-.set-links a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+/* The title and its "?" */
+.set-head { margin-bottom: 14px; }
+.set-head .ui-head { min-height: 40px; }
+.set-head .ui-title { margin: 0; }
+.set-act:empty { display: none; }
+h2.has-tip { display: flex; align-items: center; gap: 6px; }
+.ui-help-pop .u-roles { margin: 0 0 6px; }
+.ui-help-pop .set-links { margin-top: 8px; }
+.set-links { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; margin: 4px 0 0; font-size: 13px; }
+.set-links a { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-weight: 560; text-decoration: none; min-height: 24px; }
+.set-links a:hover { text-decoration: underline; text-underline-offset: 2px; }
 .set-links a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
-.set-links svg { width: 15px; height: 15px; flex: none; color: var(--g-people); }
-.set-help-t { color: var(--ink-3); }
-.set-head .lede { margin-bottom: 8px; }
-.page-head.set-head + .set-links { margin-top: -6px; }
-.set-tab-lede { margin-top: 0; }
+.set-links svg { width: 15px; height: 15px; flex: none; color: var(--ink-3); }
 
-/* In-page tabs: the section strip's look, a little room above the panel */
-.set-tabs { margin-top: 4px; }
-.set-tabs .stabs-panel { padding-top: 14px; }
+/* In-page tabs */
+.set-tabs { margin-top: 0; }
+.set-tabs .stabs-panel { padding-top: 16px; }
 
-/* Next step */
-.set-next { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 28px 0 8px; padding: 14px 16px;
-  border: 1px solid var(--rule); border-radius: var(--r); background: var(--surface); }
-.set-next-l { font-size: 12px; font-weight: 650; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
-.set-next a { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-weight: 600; text-decoration: none; min-width: 0; }
-.set-next a:hover span:first-child { text-decoration: underline; text-underline-offset: 2px; }
-.set-next-i svg { width: 16px; height: 16px; display: block; }
-
-/* How it works: numbered steps */
-.set-steps { list-style: none; counter-reset: st; margin: 0; padding: 0; display: grid; gap: 10px; max-width: 76ch; }
-.set-steps li { counter-increment: st; position: relative; padding-left: 36px; min-height: 24px; color: var(--ink-2); line-height: 1.5; }
-.set-steps li::before { content: counter(st); position: absolute; left: 0; top: 0; width: 24px; height: 24px; border-radius: 12px;
-  display: grid; place-items: center; background: var(--ink); color: var(--surface); font-size: 12px; font-weight: 650; }
-.set-steps b { color: var(--ink); }
-.set-start { margin: 4px 0 8px; }
-.set-asks { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--ink-2); }
-
-/* All settings */
-.set-tasks { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.set-task { display: inline-flex; align-items: center; min-height: 32px; padding: 4px 12px; border: 1px solid var(--rule); border-radius: 16px;
-  background: var(--surface); color: var(--ink); font-size: 13px; font-weight: 560; text-decoration: none; }
-.set-task:hover { border-color: var(--ink-3); background: var(--sunk); }
-.set-cards-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
-.set-card { display: flex; gap: 12px; align-items: flex-start; height: 100%; box-sizing: border-box; padding: 14px; border: 1px solid var(--rule);
-  border-radius: var(--r); background: var(--surface); color: var(--ink); text-decoration: none; }
-.set-card:hover { border-color: var(--ink-3); }
-.set-card:focus-visible, .set-task:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.set-card-i { flex: none; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; background: var(--sunk); }
-.set-card-i svg { width: 17px; height: 17px; }
-.set-card-t { display: grid; gap: 3px; min-width: 0; }
-.set-card-t span { color: var(--ink-2); font-size: 13px; line-height: 1.45; }
-
-/* Help & docs: the name, its line, and (guides) the public page, in columns */
-.set-docs, .set-guides { list-style: none; margin: 0; padding: 0; display: grid; }
-.set-doc, .set-guides li { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr) auto; align-items: baseline; gap: 4px 16px;
-  padding: 9px 0; border-bottom: 1px solid var(--rule); }
-.set-doc { grid-template-columns: minmax(0, 260px) minmax(0, 1fr); }
-.set-doc a, .set-guide { font-weight: 600; color: var(--ink); }
-.set-doc-l, .set-guide-s { color: var(--ink-2); font-size: 13px; min-width: 0; }
-.set-guide-o { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; }
+/* Cards: each top-level part of a page, tinted by its group (the frame sets data-g). */
+.set-body { --tint: var(--tint-site); --edge: var(--edge-site); }
+.set-body[data-g="ai"] { --tint: var(--tint-ai); --edge: var(--edge-ai); }
+.set-body[data-g="org"] { --tint: var(--tint-org); --edge: var(--edge-org); }
+.set-body[data-g="you"] { --tint: var(--tint-you); --edge: var(--edge-you); }
+.set-body section.s:not(.s .s):not(.sheet .s), .set-body section.sheet:not(.s .sheet):not(.sheet .sheet) {
+  background: var(--tint); border: 1px solid var(--edge); border-radius: 12px; padding: 16px 20px; margin: 0 0 14px; box-shadow: none; }
+.set-body section h2 { font-size: 15px; margin: 0 0 10px; }
+.set-body section.s .sheet { background: var(--surface); }
+.set-body .set-cards { display: grid; gap: 0; }
+/* One primary per page (audit rule 1, ui-primary beside the title): an older form's primary
+   inside a card reads as an ordinary button. */
+.set-body .btn.primary:not(.ui-primary) { background: var(--surface); border-color: var(--ink-3); color: var(--ink); }
+.ui-p-ic .ic, .set-fix .ic { width: 16px; height: 16px; }
+.set-more { margin: 4px 0 14px; }
+.set-more > summary { font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.set-more[open] > summary { margin-bottom: 12px; }
+.set-state { display: flex; align-items: baseline; gap: 10px; margin: 0 0 12px; color: var(--ink-2); font-size: 13.5px; }
+.set-card .acts { margin: 0; }
+.set-card > p { margin: 0 0 12px; color: var(--ink-2); font-size: 13.5px; }
+.set-asks { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 6px; color: var(--ink-2); }
 .acts a.btn { text-decoration: none; }
-@media (max-width: 767px) {
-  .set-doc, .set-guides li { grid-template-columns: minmax(0, 1fr); }
-}
+
+/* Line icons (set-ui.js): 16 px, stroke 1.5, the menu's set. */
+.ic { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; display: block; }
+.ic-w { display: inline-grid; place-items: center; }
+
+/* Rows of things set up: icon, name and one line, pill, and the details behind the row. */
+.set-rows .set-list { display: grid; }
+.set-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 4px; border: 0; border-top: 1px solid var(--rule);
+  background: transparent; color: var(--ink); font: inherit; text-align: left; }
+.set-list > .set-row:first-child { border-top: 0; }
+.set-row .grow { flex: 1; min-width: 0; }
+.sr-t b { display: block; font-size: 14px; }
+.sr-t small { display: block; color: var(--ink-3); font-size: 13px; overflow-wrap: anywhere; }
+button.set-row { cursor: pointer; border-radius: 8px; }
+button.set-row:hover { background: color-mix(in srgb, var(--surface) 60%, transparent); }
+button.set-row:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.sr-more { color: var(--ink-3); padding: 4px; border-radius: 6px; }
+button.set-row:hover .sr-more { color: var(--ink); background: var(--sunk); }
+
+/* The red line, only when something is broken; its Fix. */
+.set-strip { margin: 0 0 14px; }
+.set-strip.s-bad { border-color: color-mix(in srgb, var(--bad) 30%, var(--rule)); background: color-mix(in srgb, var(--bad) 7%, var(--surface)); }
+.set-strip.s-warn { border-color: color-mix(in srgb, var(--warn) 30%, var(--rule)); background: color-mix(in srgb, var(--warn) 7%, var(--surface)); }
+.set-fix { display: inline-flex; align-items: center; gap: 6px; }
+.set-fixtext { flex-basis: 100%; color: var(--ink-2); font-size: 13px; }
+
+/* What is not set up: one quiet line. */
+.set-quiet { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 14px; font-size: 14px; }
+.set-rows { margin: 0 0 14px; }
+.set-quiet .grow { flex: 1; min-width: 160px; }
+.set-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 0 0 14px; }
+.set-pair > .set-row { border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; background: color-mix(in srgb, var(--surface) 50%, var(--page)); }
+@media (max-width: 767px) { .set-pair { grid-template-columns: minmax(0, 1fr); } }
+.set-foot { margin: 4px 0 0; font-size: 13px; }
+.set-body .linkish, .fin .linkish { border: 0; background: none; padding: 2px 0; color: var(--ink-2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.set-body .linkish:hover, .fin .linkish:hover { color: var(--ink); }
+.integ-one > * { margin: 0 0 12px; }
+
+/* A part changed in its drawer (set-edit.js, edit=<id>): its one line, its sections, its form. */
+.set-edit-b > * { margin: 0 0 14px; }
+.set-edit-b > :last-child { margin-bottom: 0; }
+.set-edit-sub { margin: 0 0 14px; color: var(--ink-2); font-size: var(--t-s); line-height: 1.5; max-width: var(--read); }
+.set-sec { padding-top: 12px; border-top: 1px solid var(--rule); }
+.set-sec > h3 { margin: 0 0 10px; font-size: var(--t-m); }
+.set-form .af-col { display: grid; gap: 14px; }
+.set-form .af-col input:not([type="checkbox"]):not([type="radio"]):not([type="color"]), .set-form .af-col select, .set-form .af-col textarea { max-width: 100%; }
+.set-chg { display: inline-grid; place-items: center; min-width: 32px; padding: 4px 6px; }
+.set-chg .ic { width: 16px; height: 16px; }
+.set-row .sr-t small .copy-w, .set-row .sr-t b .copy-w { display: inline; }
+.set-figs { margin: 4px 0 14px; }
+.notice-card .ui-card-h { display: flex; align-items: center; gap: 8px; }
+.notice-card .ui-card-h h2 { margin: 0; }
+.notice-card details { margin-top: 10px; }
+
+
+/* To do */
+.todo-find { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 560px; min-height: 40px; margin: 0 0 16px; padding: 6px 12px;
+  border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); color: var(--ink-3); font: inherit; font-size: 14px; cursor: text; text-align: left; }
+.todo-find:hover { border-color: var(--gap); }
+.todo-find:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.todo-find-i svg { width: 16px; height: 16px; display: block; }
+.todo-find kbd { margin-left: auto; font: 11.5px var(--mono); padding: 1px 6px; border: 1px solid var(--rule); border-radius: 5px; color: var(--ink-3); }
+.todo { display: grid; gap: 14px; max-width: 880px; }
+.todo-card { background: var(--tint-site); border: 1px solid var(--edge-site); border-radius: 12px; padding: 14px 18px; margin: 0; }
+.todo-card.tc-org { background: var(--tint-org); border-color: var(--edge-org); }
+.todo-card.tc-you { background: var(--tint-you); border-color: var(--edge-you); }
+.todo-card > h2 { font-size: 15px; margin: 0 0 8px; }
+.todo-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 0 0 10px; }
+.todo-head .grow { flex: 1; }
+.todo-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.todo-row, .todo .su-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; box-sizing: border-box;
+  padding: 10px 12px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); color: var(--ink); text-decoration: none; font: inherit; text-align: left; }
+a.todo-row:hover, .todo button.su-row:hover, .su button.su-row:hover { border-color: var(--gap); }
+a.todo-row:focus-visible, button.su-row:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.todo-i svg { width: 18px; height: 18px; display: block; }
+.lv-bad .todo-i { color: var(--bad); }
+.lv-warn .todo-i { color: var(--warn); }
+.lv-info .todo-i { color: var(--g-people); }
+.todo-says { font-size: 13.5px; line-height: 1.45; }
+.todo-go, .su-go { font-size: 13px; font-weight: 650; color: var(--ink-2); white-space: nowrap; }
+.todo-clear { display: flex; gap: 14px; align-items: flex-start; padding: 18px 20px; border: 1px solid color-mix(in srgb, var(--good) 30%, var(--rule)); border-radius: 12px;
+  background: color-mix(in srgb, var(--good) 7%, var(--surface)); }
+.todo-clear-i { color: var(--good); }
+.todo-clear-i svg { width: 28px; height: 28px; display: block; }
+.todo-clear p { margin: 0 0 4px; }
+.todo-clear strong { font-size: 16px; }
+
+/* The set-up lines: each open line one button as a whole; done lines folded. */
+.su-list .su-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; box-sizing: border-box;
+  padding: 9px 12px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; text-align: left; }
+button.su-row { cursor: pointer; }
+.su-txt { display: grid; gap: 2px; min-width: 0; }
+.su-txt b { font-weight: 620; }
+.su-says { font-size: 12.5px; color: var(--ink-2); line-height: 1.45; }
+.su-opt { display: inline; margin-left: 6px; font-size: 11.5px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .03em; }
+.su-fold { margin-top: 8px; }
+.su-fold .su-row { border-color: transparent; background: transparent; padding: 5px 4px; }
+
+/* Finish set-up (ui/who.js inside): Me's lines, each opening its own steps; what the agent does. */
+.fin-lines { display: grid; gap: 8px; }
+.fin-line { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 10px 12px;
+  border: 1px solid var(--rule); border-radius: var(--r-m); background: var(--surface); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.fin-line:hover { border-color: var(--gap); }
+.fin-line:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.fin-n { width: 22px; height: 22px; border-radius: 11px; display: grid; place-items: center; font-size: var(--t-xs); font-weight: 650; background: var(--sunk); color: var(--ink-2); }
+.fin-t { display: grid; gap: 2px; min-width: 0; }
+.fin-t small { color: var(--ink-3); font-size: var(--t-s); }
+.fin-go { display: inline-flex; align-items: center; gap: 2px; font-size: var(--t-s); font-weight: 650; color: var(--ink-2); white-space: nowrap; }
+.fin-jobs { display: grid; gap: 6px; }
+.fin-pick { margin: 0; font-weight: 600; }
 
 /* The MCP dialog: choose your assistant; the steps with their parts under them */
 .cn-pick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -76,9 +180,60 @@
 .cn-flow > li > b { display: inline; }
 .cn-in { display: grid; gap: 8px; margin-top: 8px; }
 .cn-in > * { margin: 0; }
-.cn-cards.cn-one { grid-template-columns: minmax(0, 720px); }
 
 @media (max-width: 767px) {
-  .set-cards-grid { grid-template-columns: minmax(0, 1fr); }
-  .set-next { margin-top: 20px; }
+  .set-body section.s:not(.s .s):not(.sheet .s), .set-body section.sheet:not(.s .sheet):not(.sheet .sheet) { padding: 14px; }
+  .todo-row, .todo .su-row, .su-list .su-row { grid-template-columns: 18px minmax(0, 1fr); }
+  .todo-go, .su-go { grid-column: 2; }
 }
+.su-t { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 2px; }
+.todo-head h2 { margin: 0; font-size: 15px; }
+
+/* Leads & tools: one row per tool; its address, secret and log open under it */
+.integ-list { display: grid; gap: 8px; }
+.set-body .integ-d { padding: 10px 14px; margin: 0; }
+.integ-d > summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; min-height: 28px; }
+.integ-d > summary::-webkit-details-marker { display: none; }
+.integ-d > summary .grow { flex: 1; }
+.integ-go { font-size: 13px; font-weight: 650; color: var(--ink-2); }
+.integ-d[open] > summary { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--rule); }
+.integ-d[open] .integ-go { color: var(--ink-3); }
+
+/* A settings card's fields side by side where there is room; its Save on a row of its own. */
+.set-body .acct-card .af-col { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px 28px; align-items: start; }
+.set-body .acct-card .af-col > div:not([class]), .set-body .acct-card .af-col > .af-set { grid-column: 1 / -1; }
+.set-body .acct-card .af-col input:not([type="checkbox"]):not([type="radio"]), .set-body .acct-card .af-col select { max-width: 100%; }
+.set-more .acct-card, .set-more section.s { margin-top: 12px; }
+/* The row's verb and its chevron; the done fold's check (icons, not glyphs: audit rule 19). */
+.su-go, .todo-go { display: inline-flex; align-items: center; gap: 2px; }
+.su-chev .ic { width: 14px; height: 14px; }
+.site-more { display: inline-grid; place-items: center; min-width: 32px; }
+.site-more .ic { width: 16px; height: 16px; }
+
+/* Your account, Audit log, Billing, Tokens & links (v2) */
+.acct-rows, .aud-rows, .tok-rows, .bill-rows { max-width: 880px; }
+.tok-rows .set-row, .bill-rows .set-row, .acct-sessions .set-row { flex-wrap: wrap; }
+.tok-rows .sr-t, .bill-rows .sr-t { min-width: 220px; }
+.tok-act { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tok-act .confirm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; }
+.tok-rows .set-list > .empty, .aud-rows .set-list > .empty { margin: 6px 4px; }
+.aud-bar { margin: 0 0 12px; max-width: 360px; }
+.aud-bar select { min-width: 200px; }
+.aud-rows .ui-pill { font-family: var(--mono); font-weight: 560; }
+.aud-rows .show-all, .acct-sessions .show-all { display: block; margin: 8px 4px 0; }
+.bill-rows .usage-bar { margin-top: 12px; }
+.set-edit-b .acct-2fa > .note, .set-edit-b .acct-sessions > .note { margin: 0 0 12px; }
+.acct-sessions .acts { margin-top: 14px; }
+@media (max-width: 767px) {
+  .tok-act { flex-basis: 100%; padding-left: 40px; }
+}
+
+/* Settings › Alerts (v2): the state line, two switches, the rules in folds by area */
+.set-alerts { display: grid; gap: 12px; max-width: 880px; }
+.set-strip.s-good, .set-strip.s-off { border-color: var(--rule); background: var(--surface); }
+.set-alerts .set-strip { margin: 0; }
+.set-alerts .al-row { display: flex; align-items: center; gap: 12px; }
+.set-alerts .al-name { display: inline-flex; align-items: center; gap: 6px; }
+.set-alerts .al-sw { flex: none; width: 48px; }
+.set-alerts .al-area { display: inline-flex; align-items: center; gap: 10px; }
+.set-alerts .al-fold + .al-fold { border-top: 1px solid var(--rule); }

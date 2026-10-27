@@ -24,10 +24,18 @@ import { valueOf } from "./routemask.js";
 const open = new Map();        // family -> {value, close(), isOpen()}
 const pending = new Set();     // "family=value" being restored (answers on the way)
 // pcm (Mark a change): its day and kind (pcd, pck) leave with it, as a step does.
-// fix (Fix this, 2.41): who will do it (fixby) and the line watched (link) leave with it.
-const STEPPED = new Set(["setup", "conn", "pcm", "fix"]);
+// fix (Fix this, 2.41): who will do it (by, or the older fixby) and the line watched (link) leave with it.
+// alfix (Site › Alerts' Fix, 2.41): "Who will do it?" (by), the agent and its line leave with it.
+// fixit (a screen's Fix, 2.42): the same.
+const STEPPED = new Set(["setup", "conn", "pcm", "fix", "alfix", "fixit"]);
 // The keys inside a stepped dialog (its step, the share form, the kit's token choice) leave with it.
 const INSIDE_OFF = Object.fromEntries(INSIDE.map((k) => [k, ""]));
+// dlg=export (2.42): what you need (kind), its Change part (xch) and who sets up mail (by) leave
+// with it; the other app dialogs (dlg=keys, views...) clear nothing of a dialog under them.
+// The visitor drawer's Show all (vall) leaves with it, by visit, person or conversion.
+const OWN_INSIDE = { dlg: ["kind", "xch", "by"], vis: ["vall"], who: ["vall"], conv: ["vall"], lead: ["vall"] };
+const insideOff = (family) => (STEPPED.has(family) ? INSIDE_OFF
+  : Object.fromEntries((OWN_INSIDE[family] || []).map((k) => [k, ""])));
 const extra = {};              // restorers main.js adds (the report builder needs its loader)
 
 /* A drawer opened for a key: tracked, and its key written (a new entry, or a replace
@@ -55,7 +63,7 @@ export function closed(family, value) {
   // then, once this click is done, Back over the entry the opening made. A link in the
   // drawer that moved the page on (help, another tab) keeps its move.
   const pushed = history.state?.ov === family;
-  S.set({ [family]: "", ...(STEPPED.has(family) ? INSIDE_OFF : {}) }, { replace: true });
+  S.set({ [family]: "", ...insideOff(family) }, { replace: true });
   if (pushed) {
     const here = location.hash;
     setTimeout(() => { if (location.hash === here && history.state?.ov === family) history.back(); }, 0);
@@ -98,7 +106,7 @@ export function say(words) {
 export function missing(family, words) {
   open.delete(family);
   const s = S.read();
-  if (s[family]) S.set({ [family]: "", ...(STEPPED.has(family) ? INSIDE_OFF : {}) }, { replace: true });
+  if (s[family]) S.set({ [family]: "", ...insideOff(family) }, { replace: true });
   return say(words);
 }
 
@@ -123,16 +131,24 @@ const RESTORE = {
   tdsend: async (v, m) => (await import("./tabs/todo-send.js")).openSendKey(v, m),
   // 2.41: Fix this, one to-do (fix=1, with todo=<id>) or all of them (fix=all) (js/tabs/todo-fix.js).
   fix: async (v, m, s) => (v === "1" || v === "all" ? (await import("./tabs/todo-fix.js")).openFixKey(v, m, s) : "That dialog is not in this version of the page."),
+  // 2.41: Site › Alerts, Fix for one kind of alert (js/tabs/si-alerts.js).
+  alfix: async (v, m) => (/^[a-z_]{1,40}$/.test(v) ? (await import("./tabs/si-alerts.js")).openFixKey(v, m) : "That alert is not one Skald keeps."),
+  // 2.42: a screen's Fix: AI readiness, possible exposures, the block list (js/tabs/fixit.js).
+  fixit: async (v, m) => (await import("./tabs/fixit.js")).openFixitKey(v, m),
   // Traffic > Pages > a page: Mark a change (js/tabs/pagechange.js).
   pcm: async (v, m, s) => (await import("./tabs/pagechange.js")).openMarkKey(v, m, s),
   ans: async (v) => (/^[A-Za-z0-9_-]{1,40}$/.test(v) ? (await import("./tabs/ai-answers.js")).openAnswer(v) : "That answer is not one Skald keeps."),
   // A site's name (it has a dot; the set-up dialogs' names never do) is its Add a site wizard
-  // on any tab: "Set up with your AI agent" (Set-up checklist, Collect data) opens it there.
+  // on any tab: "Set up with your AI agent" (To do, Data) opens it there.
   setup: async (v, m, s) => (s.tab === "settings/org/sites" || v.includes(".") ? (await import("./tabs/sitesadmin.js")).openSiteKey(v, Number(s.step) || 0, s)
     : (await import("./tabs/setup-dialogs.js")).openSetupKey(v, m, Number(s.step) || 1, s.share === "1", s)),
   // A site's Pause, Remove, Clear data or Delete all data dialog (js/tabs/site-actions.js).
   sact: async (v) => (await import("./tabs/site-actions.js")).openSiteActKey(v),
   lines: async (v) => (await import("./tabs/agent-many.js")).openLinesKey(v),
+  // Settings › Leads & tools: one tool's details, or Send each lead out, Search Console, Every check.
+  tool: async (v, m) => (await import("./tabs/set-leads.js")).openToolKey(v, m),
+  // Settings v2: a part of a page changed in its drawer (js/tabs/set-edit.js).
+  edit: async (v, m, s) => (await import("./tabs/set-edit.js")).openEditKey(v, m, s),
   conn: async (v, m, s) => (await import("./tabs/connections.js")).openConnKey(v, m, Number(s.step) || 1, s.share === "1", s),
   dlg: async (v, m, s) => {
     if (extra[`dlg:${v}`]) return extra[`dlg:${v}`](m, s);

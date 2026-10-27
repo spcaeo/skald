@@ -19,7 +19,7 @@ Both ways show exactly the same files.
 
 ## Where to find it
 
-Open **Settings > AI & API > Read figures (API)**, or go straight to [Read figures (API)](#settings/ai/api). Settings opens from the gear at the foot of the sidebar. Old links to Connections or API & tokens still work: they open the page the setting is on now.
+Open **Settings > AI > AI assistants > API**, or go straight to [API](#settings/ai/assistants?sub=api). Settings opens from the gear at the foot of the sidebar. Old links to Connections or API & tokens still work: they open the page the setting is on now.
 
 The page has:
 
@@ -27,7 +27,7 @@ The page has:
 - **Set up the API**: a dialog in three steps, **How it works** (the base address, the files), **Token** (with the curl command right under it) and **Test** (admins only);
 - **Quick look while you are signed in**: the address of the overview file in this browser, and every file name you can put in place of `overview`.
 
-Your tokens are on their own page, **Settings > AI & API > Tokens & links** ([Tokens & links](#settings/ai/tokens)): every token of your organisation, **Make a token by hand**, and the shared links (admins only).
+Your tokens are on their own page, **Settings > AI > AI assistants > Tokens & links** ([Tokens & links](#settings/ai/assistants?sub=tokens)): every token of your organisation, **New token**, and the shared links (admins only).
 
 ## Tokens
 
@@ -45,20 +45,20 @@ Only an owner or an admin of the organisation can make, see or revoke tokens. A 
 
 ### Make a token
 
-1. Open [Read figures (API)](#settings/ai/api) and press **Set up the API**.
+1. Open [API](#settings/ai/assistants?sub=api) and press **Set up the API**.
 2. **How it works** shows the base address and the files. Press **Next**.
 3. **Token.** Keep the **Name** it suggests, or type one that says what it is for, for example "Weekly sheet". Leave **Can also read visitor addresses** off unless the script really needs them.
 4. Press **Make the token**.
 5. Copy the token from the green box. It is shown only this once. The curl command right under it has the token in it.
 6. Press **Next** to **Test** it. The test names the next step.
 
-The token made there reads the site you are on. For a token that reads several sites, or does several things, open **Make a token by hand** in [Tokens & links](#settings/ai/tokens): tick the **Sites** and what it may do, then press **Make token**.
+The token made there reads the site you are on. For a token that reads several sites, or does several things, press **New token** in [Tokens & links](#settings/ai/assistants?sub=tokens): tick the **Sites** and what it may do, then press **Make token**.
 
 > Skald keeps only a fingerprint of the token, never the token itself. If you lose it, nobody can show it to you again. Revoke it and make a new one.
 
 ### The token list
 
-**Your tokens**, in **Settings > AI & API > Tokens & links**, shows each token's **Name**, **What it is for** (in words, such as "Reading figures"), **Sites**, when it was **Made** and by whom, and when it was **Last used**. The token itself is never shown again.
+**Your tokens**, in **Settings > AI > AI assistants > Tokens & links**, shows each token's **Name**, **What it is for** (in words, such as "Reading figures"), **Sites**, when it was **Made** and by whom, and when it was **Last used**. The token itself is never shown again.
 
 ### How long a token lasts
 
@@ -71,7 +71,7 @@ The second rule means a token stops at once when its maker leaves the team. Make
 
 ### Revoke a token
 
-1. Open [Tokens & links](#settings/ai/tokens).
+1. Open [Tokens & links](#settings/ai/assistants?sub=tokens).
 2. Find the token under **Your tokens** and press **Revoke**.
 3. Press **Yes, revoke**.
 
@@ -88,9 +88,9 @@ A scope is what a token may do. A token can have more than one.
 | `mcp` | AI assistant (MCP) | Let an AI assistant ask about your traffic through the MCP server |
 | `ingest` | Sending logs | Send a site's log lines into Skald. It reads nothing |
 
-The box **Can also read visitor addresses** in the API dialog adds **Reading visitor addresses**. A sending token is made in **Send this site's visits to Skald**, in **Settings > This site > Collect data > Send logs** (see [Connections](connections.md)).
+The box **Can also read visitor addresses** in the API dialog adds **Reading visitor addresses**. A sending token is made in **Send this site's visits to Skald**, in **Settings > This site > Data > Send logs** (see [Connections](connections.md)).
 
-> A token with only **AI assistant (MCP)** cannot read the API, and a token with only **Reading figures** cannot be used by an AI assistant. Use **Make a token by hand** and tick both if one token must do both.
+> A token with only **AI assistant (MCP)** cannot read the API, and a token with only **Reading figures** cannot be used by an AI assistant. Press **New token** and tick both if one token must do both.
 
 ## The addresses to call
 

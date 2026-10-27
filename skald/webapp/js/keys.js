@@ -27,15 +27,21 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-26-2.41.0",
+  id: "2026-10-26-2.42.0",
   items: [
+    ["One button, one question", "every task with a doer asks first: who will do it? Me, My developer or My AI agent. Then it shows only that path.", "getting-started"],
+    ["Short screens", "each screen shows its figures and one action; notes and method sit behind a ?. Site › Alerts groups 14 cards into 3, each with Fix.", "getting-started"],
+    ["Settings by task", "a menu on the left, To do first, one row per setting; every Settings page fits one screen.", "settings-and-retention"],
+    ["Fewer steps", "Add a site in 2 steps; Export asks what you need; Compare with the period before is on from the start.", null],
+    ["Real time fixed", "On the site now no longer misses a visit that ended in the last seconds of the 30 minutes.", "real-time"],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.41.0
     ["Opens fast", "code and data are compressed, code is cached until the next release, and the big lists load only when you open their tab. A site switch takes well under a second.", null],
     ["Fix this, with your AI agent", "every Insights to-do has one Fix this button. Choose who: your AI agent gets the full list from Skald and reports back, or you get the exact server lines.", "what-to-fix"],
     ["One line per site", "Settings › Organisation › Sites › Set up many sites with your AI agent: a separate line for each site, so ten sessions can work at once.", "connections"],
     ["Search Console by your agent", "your AI agent can make the Google key and hand it to Skald; you add one user in Search Console.", "search"],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.40.0
     ["Settings, by what you came to do", "a menu in five groups (This site, AI & API, Organisation, You, Help & docs), a page per task, and Help and Docs under every title. Old links still work.", "settings-and-retention"],
     ["MCP and the API, easy to find", "Settings › AI & API: how it works first, then one button; the token is made inside the step that needs it.", "mcp"],

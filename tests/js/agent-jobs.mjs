@@ -1,14 +1,17 @@
-// Your AI agent, in every set-up job (2.39: js/tabs/agent-first.js, agent-recs.js, the
-// checklist's "Set up everything left with your AI agent"), against answers shaped as
+// Your AI agent, in every set-up job (2.39: js/tabs/agent-first.js, agent-recs.js; v2: the
+// checklist's one "Finish set-up (N left)" and its "Who will do it?"), against answers shaped as
 // docs/plans/2026-10-26-agent-everywhere.md says (a fake server: sites/agentlink with jobs,
 // sites/agentstatus with the report's jobs and tools):
 //  - each set-up dialog with an agent job (logs, script, lead, rsc, assets, privacy, and the
-//    MCP dialog) opens on "Your AI agent, or by hand?": the tiles without the chat-only one,
-//    and By hand; countries and mail stay by hand;
+//    MCP dialog) opens on the app's one "Who will do it?" (ui/who.js whoStep): Me, My
+//    developer (the set-up pack, for the lines a developer does), My AI agent, in that order;
+//    My AI agent shows the tiles without the chat-only one; by= in the address, an old
+//    agent=hand link opens Me; countries and mail stay by hand;
 //  - a tile makes the line with POST sites/agentlink {site, jobs: [<job>]} (mcp for the MCP
 //    dialog), the address holds agent and link, never the line;
-//  - the checklist's button shows with two or more agent jobs left and makes one line for all
-//    of them, in the contract's order (setup=all&jobs=...);
+//  - the checklist's one button (Finish set-up) asks who will do it; a tile there makes one
+//    line for every open agent job at once, in the contract's order (setup=all&jobs=...);
+//    "Choose what it does" unticks one;
 //  - the watch: no log lines for a line without logs, done on the report; the report's jobs
 //    and tools as a short list; page assets and privacy as recommendations whose Apply makes
 //    the by-hand dialogs' saves, and nothing saved without the press;
@@ -85,6 +88,11 @@ const { agentJobsLeft, AGENT_JOBS, setupItems } = await import(new URL("setup-it
 const W = await import(new URL("tabs/agent-words.js", JS));
 const R = await import(new URL("tabs/agent-recs.js", JS));
 const { read: readState } = await import(new URL("state.js", JS));
+const { codeOf } = await import(new URL("routekeys.js", JS));
+// No remembered answer (ui/who.js keeps the last one per person in this browser).
+const forget = () => localStorage.removeItem(`ti-who:${codeOf(ME.user || "anyone")}`);
+const who = (k) => dialog().querySelector(`.ui-who-c[data-who="${k}"]`);
+const DEV = ["logs", "script", "lead", "rsc", "assets"];
 Object.assign(WATCH, { every: 20, slowAfter: 60000, slow: 20, late: 20, lateFor: 120 });
 
 const button = (root, text) => root.querySelectorAll("button").find((b) => b.textContent.trim() === text);
@@ -121,17 +129,34 @@ assert.equal(R.privacySave({ keep_ips: false }, { ...SETTINGS, "privacy.keep_ips
 // ---- each dialog's first choice, and the line for its job
 for (const act of AGENT_JOBS) {
   const before = calls("sites/agentlink").length;
+  forget();
   await openSetup(act, SITE, {});
   await tick(30);
   const d = dialog();
-  assert.equal(heading(), "Step 1 of 3: Your AI agent, or by hand?", act);
+  assert.equal(heading(), "Step 1 of 3: Who will do it?", act);
   assert.equal(readState().setup, act);
-  const tiles = d.querySelectorAll("button.ag-tile").map((b) => b.getAttribute("data-agent"));
-  assert.deepEqual(tiles, ["claude-code", "codex", "cursor", "other"], `${act}: no chat-only tile`);
-  assert.ok(button(d, "By hand"), `${act}: By hand`);
+  assert.deepEqual(d.querySelectorAll(".ui-who-c").map((b) => b.getAttribute("data-who")), DEV.includes(act) ? ["me", "dev", "agent"] : ["me", "agent"], `${act}: the answers, in order`);
+  assert.ok(!d.querySelector(".ui-who-q"), "asked once: the step's heading");
+  assert.ok(!d.querySelector("button.ag-tile"), "the tiles wait for My AI agent");
   button(d, "Next").click();
   await tick();
-  assert.ok(d.textContent.includes("Choose your AI agent, or By hand."), "Next refused with nothing chosen");
+  assert.ok(d.textContent.includes("Choose who will do it."), "Next refused with nothing chosen");
+  who("agent").click();
+  await tick(30);
+  assert.equal(readState().by, "agent", act);
+  const tiles = d.querySelectorAll("button.ag-tile").map((b) => b.getAttribute("data-agent"));
+  assert.deepEqual(tiles, ["claude-code", "codex", "cursor", "other"], `${act}: no chat-only tile`);
+  button(d, "Next").click();
+  await tick();
+  assert.ok(d.textContent.includes("Choose your AI agent."), "Next refused with no agent");
+  if (DEV.includes(act)) {
+    who("dev").click();
+    await tick(30);
+    assert.ok(d.textContent.includes("Send them the set-up in one mail or one zip."), `${act}: My developer's words`);
+    assert.equal(heading(), "Step 1 of 1: Who will do it?", `${act}: the pack, nothing after`);
+    who("agent").click();
+    await tick(30);
+  }
   d.querySelector('button.ag-tile[data-agent="codex"]').click();
   await tick(30);
   assert.equal(heading(), "Step 2 of 3: Send this line", act);
@@ -161,19 +186,30 @@ assert.equal(guide.textContent, "Read the MCP guide");
 assert.ok(guide.getAttribute("href").endsWith("#help?part=mcp"), guide.getAttribute("href"));
 assert.equal(guide.getAttribute("target"), "_blank");
 assert.ok(d.querySelectorAll(".cn-guide, .cn-bar").map((x) => x.className)[0] === "cn-guide", "above the step bar");
-assert.equal(heading(), "Step 1 of 3: Your AI agent, or by hand?");
+assert.equal(heading(), "Step 1 of 3: Who will do it?");
 assert.equal(readState().conn, "mcp");
+assert.deepEqual(d.querySelectorAll(".ui-who-c").map((b) => b.getAttribute("data-who")), ["me", "agent"], "MCP: no developer");
+who("agent").click();
+await tick(30);
 d.querySelector('button.ag-tile[data-agent="claude-code"]').click();
 await tick(30);
 assert.deepEqual(calls("sites/agentlink").pop()[1], { site: SITE, jobs: ["mcp"] });
 assert.equal(readState().agent, "claude-code");
 assert.ok(d.querySelector(".cn-guide a.btn"), "the guide stays on every step");
 await close();
-// By hand (2.40): one step holds the choice, the token and the command; then Test.
-await openConnKey("mcp", m, 2, false, { agent: "hand" });
+// Me (2.40): one step holds the choice, the token and the command; then Test. by=me, and an
+// older agent=hand link, both open it.
+await openConnKey("mcp", m, 2, false, { by: "me" });
 await tick(30);
 assert.match(heading(), /^Step 2 of 3: Connect your assistant/);
 assert.ok(dialog().textContent.includes("claude mcp add --transport http skald"));
+assert.equal(readState().by, "me");
+await close();
+await openConnKey("mcp", m, 2, false, { agent: "hand" });
+await tick(30);
+assert.match(heading(), /^Step 2 of 3: Connect your assistant/);
+assert.equal(readState().by, "me", "agent=hand is read as by=me");
+assert.equal(readState().agent, "", "and agent=hand leaves the address");
 await close();
 
 // ---- the watch for one job: no log lines, done on the report, the jobs and tools, Apply
@@ -232,22 +268,26 @@ assert.equal(heading(), "Step 2 of 3: Send this line");
 assert.equal(calls("sites/agentlink").length, madeBefore, "an address never makes a line by itself");
 assert.ok(button(d, "Make the line"));
 button(d, "Back").click();
-await tick();
-assert.equal(heading(), "Step 1 of 3: Your AI agent, or by hand?");
-assert.equal(d.querySelector('button.ag-tile[data-agent="cursor"]').getAttribute("aria-pressed"), "true");
-// By hand, then Back: the address follows.
-button(d, "By hand").click();
 await tick(30);
-assert.equal(readState().agent, "hand");
+assert.equal(heading(), "Step 1 of 3: Who will do it?");
+assert.equal(who("agent").getAttribute("aria-checked"), "true", "My AI agent, from the agent in the address");
+assert.equal(d.querySelector('button.ag-tile[data-agent="cursor"]').getAttribute("aria-pressed"), "true");
+// Me: a press goes on to the dialog's own steps; the address follows.
+who("me").click();
+await tick(30);
+assert.equal(readState().by, "me");
+assert.equal(readState().agent, "", "Me: no agent in the address");
 assert.equal(readState().step, "2");
 assert.equal(heading(), "Step 2 of 4: IP addresses");
 await close();
 assert.equal(readState().setup, "", "closed");
-assert.equal(readState().agent, "", "closing takes the agent away");
-// A chat agent from an old address is not offered here: the choice again.
+assert.equal(readState().by, "", "closing takes the answer away");
+// A chat agent from an old address is not offered here: the question again, on the answer
+// remembered (Me, pressed above: the dialog's own steps follow it).
 await openSetupKey("script", m, 2, false, { agent: "chat" });
 await tick(30);
-assert.equal(heading(), "Step 1 of 3: Your AI agent, or by hand?");
+assert.match(heading(), /^Step 1 of \d+: Who will do it\?$/);
+assert.equal(who("me").getAttribute("aria-checked"), "true", "the last answer, remembered");
 await close();
 
 // ---- the checklist: one line for every open agent job, in the contract's order
@@ -256,19 +296,37 @@ assert.deepEqual(agentJobsLeft(setupItems(m, got)), ["logs", "script", "lead", "
 const box = setupChecklist(m, { where: "connections" });
 document.body.append(box);
 await tick(50);
-const go = button(box, "Set up everything left with your AI agent");
-assert.ok(go && !box.querySelector(".su-agent").hidden, "six left: the button");
-assert.ok(box.querySelector(".su-agent").textContent.includes("Logs arriving"));
+assert.equal(box.querySelectorAll("button.su-finish").length, 1, "one button");
+assert.ok(!box.querySelector(".su-agent") && !button(box, "Send set-up to someone"), "no second and third button");
+const go = box.querySelector("button.su-finish");
+assert.match(go.textContent, /^Finish set-up \(\d+ left\)$/);
 go.click();
 await tick(50);
 d = dialog();
-assert.equal(readState().setup, "all");
-assert.equal(readState().jobs, "logs.script.lead.rsc.assets.privacy", location.hash);
-assert.equal(heading(), "Step 1 of 3: Which AI agent are you using?");
-assert.ok(!button(d, "By hand"), "no By hand for everything at once");
-assert.ok(d.textContent.includes("the server's log, the script tag, your leads, pages opened inside the site, the page assets and the privacy choice"));
-d.querySelector('button.ag-tile[data-agent="claude-code"]').click();
-await tick(30);
+assert.equal(readState().setup, "finish");
+assert.ok(d.textContent.includes("Who will do it?"));
+// The app's one who-step (ui/who.js): My AI agent, then what it does (each ticked), then the tiles.
+who("agent").click();
+await tick(50);
+assert.equal(readState().by, "agent");
+assert.equal(readState().setup, "finish", "still the Finish dialog");
+assert.ok(d.textContent.includes("What it does (6)"));
+assert.equal(d.querySelectorAll(".fin-jobs input").length, 6);
+d.querySelector('.fin-jobs input[value="assets"]').checked = false;
+d.querySelector('.fin-jobs input[value="assets"]').dispatchEvent(new Event("change"));
+await tick(50);
+dialog().querySelector('button.ag-tile[data-agent="claude-code"]').click();
+await tick(80);
+assert.equal(readState().agent, "claude-code", location.hash);
+assert.deepEqual(calls("sites/agentlink").pop()[1], { site: SITE, jobs: ["logs", "script", "lead", "rsc", "privacy"] }, "the line made at once, for the jobs ticked");
+await close();
+assert.equal(readState().by, "", "closing takes the choice away");
+// Again: the choice remembered (My AI agent), every open agent job.
+go.click();
+await tick(80);
+assert.equal(who("agent").getAttribute("aria-checked"), "true", "the last choice, remembered");
+dialog().querySelector('button.ag-tile[data-agent="codex"]').click();
+await tick(80);
 assert.deepEqual(calls("sites/agentlink").pop()[1], { site: SITE, jobs: ["logs", "script", "lead", "rsc", "assets", "privacy"] });
 await close();
 // A reload at its watch: the jobs from the address; the log lines are on the list.
@@ -281,13 +339,17 @@ assert.equal(readState().jobs, "logs.script");
 assert.ok(d.querySelectorAll(".ag-watch li").some((li) => li.textContent.includes("Waiting for the first log lines")), "logs: the log lines");
 assert.ok(button(d, "Test connection"), "logs: the log test");
 await close();
-// One agent job left: no button. None: the link says so.
+// One agent job left: the button counts every open line; no "Choose what it does".
 doctor = [{ id: "logs", state: "OK", says: "readable" }, { id: "assets", state: "OK", says: "ok" }, { id: "script", state: "OK", says: "the last event came 2 minutes ago" }];
 settings = { ...SETTINGS, "privacy.keep_ips": { value: "full", source: "site", editable: true } };
 await box.refresh();
 await tick(30);
 assert.deepEqual(agentJobsLeft(setupItems(m, { settings, status: doctor, tools: INTEG().tools })), ["lead"]);
-assert.ok(box.querySelector(".su-agent").hidden, "one left: no button");
+box.querySelector("button.su-finish").click();
+await tick(50);
+await tick(50);
+assert.ok(dialog().querySelector("button.ag-tile") && !dialog().querySelector(".fin-jobs"), "one agent job: the tiles, nothing to untick");
+await close();
 const { refreshChecklists } = await import(new URL("tabs/checklist.js", JS));
 refreshChecklists();
 console.log("agent-jobs: all passed");

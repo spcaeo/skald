@@ -1,12 +1,12 @@
 // The top bar's two global modes (2.7.0), beside the period:
-//   * "Today · Live": one switch. On, the period is Today on every section (the
-//     period bar's own "Today" gave way to it), redrawn every 2 minutes, with a
-//     pulsing dot; off, the period goes back to the one before (mode-live.js).
+//   * "Today" (Live): the first choice of the period's group since 2.42 (liveSegment;
+//     it was its own "Today · Live" switch). Picked, the period is Today on every
+//     section, redrawn every 2 minutes, with a pulsing dot (mode-live.js).
 //   * "Compare with…": previous period, same period last year, or a custom B.
 //     On, every table and chart that registers compare support shows A · B · ±
 //     or B as a dashed line (mode-compare.js); a tab that does not says so in
 //     one quiet line. Live and Compare are never on together.
-// main.js puts barModes() in the bar's slot (.bar-modes), modeBanner() at the
+// main.js puts barModes() in the bar's slot (.bar-modes), liveSegment() in the period group, modeBanner() at the
 // top of a section's tab, and modeActions() in the command palette.
 // Section builders import mode-live.js and mode-compare.js, never this file.
 
@@ -23,25 +23,22 @@ import { incTab } from "./period-dates.js";
 const CMP = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12l3.5-4 3 2.5L14 4"/><path d="M2 13.5h12" stroke-dasharray="2 2"/></svg>';
 const SHORT = { prev: "previous period", year: "last year" };
 
+/* 2.42 (the UX audit's task 5): Today sits in the period's own group (main.js, liveSegment),
+   so the bar keeps only Compare here, and only on a tab that compares (a control that does
+   nothing on a tab is not shown). Compare is on by default (state.js defaultCmp). */
 export function barModes(m, s) {
-  return [liveSwitch(m, s), compareMenu(m, s)];
+  return opt(s.tab, "compare", s, false) && opt(s.tab, "ranged", s, true) ? [compareMenu(m, s)] : [];
 }
 
-// ------------------------------------------------------------------- Live
-function liveSwitch(m, s) {
+/* "Today" as the first choice of the period's group: the live dot (pulsing while the live
+   count is fresh), the words, and what picking it does: Today so far, redrawn every 2 minutes. */
+export function liveSegment(m, s) {
   const on = isLive(s);
   const st = liveState(m);
   const fresh = DEMO.on ? !!st.at : st.fresh;
-  const back = backRange();
-  const backWords = back.range === "custom" ? `${short(back.from)} to ${short(back.to)}` : (S.RANGES.find(([k]) => k === back.range) || [, "30 days"])[1];
-  const when = st.at ? `; counted ${tzTime(st.at)}` : "";
-  const title = on ? `Live: today so far, redrawn every 2 minutes${when}. Turn off to go back to ${backWords}.`
-    : "Today so far on every section, redrawn every 2 minutes as the live count runs";
-  return h("button", { type: "button", role: "switch", "aria-checked": String(on), class: `btn mode-live${on ? " on" : ""}`, title,
-    "aria-label": "Today · Live", onclick: () => setLive(!on, s) },
-  h("span", { class: on ? `pulse${fresh ? "" : " stale"}` : "m-dot", "aria-hidden": "true" }),
-  h("span", { "aria-hidden": "true" }, h("span", { class: "m-today" }, "Today · "), "Live"));
+  return [h("span", { class: on ? `pulse${fresh ? "" : " stale"}` : "m-dot", "aria-hidden": "true" }), "Today"];
 }
+export { setLive };
 
 // ---------------------------------------------------------------- Compare
 // The state Compare would use: Live's Today gives way to the period before it.
@@ -82,7 +79,7 @@ function compareMenu(m, s) {
 
   const pop = h("div", { class: "pop mode-pop", role: "dialog", "aria-label": "Compare with", hidden: true },
     h("p", { class: "mode-h" }, "Compare with…"),
-    isLive(s) ? h("p", { class: "note" }, "Today is never compared: choosing one turns Today · Live off.") : null,
+    isLive(s) ? h("p", { class: "note" }, "Today is never compared: choosing one moves the period to 7 days.") : null,
     h("div", { class: "mode-opts" },
       item("prev", KINDS[0][1], span(bOf("prev"))),
       item("year", KINDS[1][1], span(bOf("year"))),
@@ -120,7 +117,8 @@ function compareMenu(m, s) {
    or why they are not compared; on a tab that does not compare, one quiet line. */
 export function modeBanner(m, s) {
   if (!compareOn(s) || !S.sectionOf(s.tab) || opt(s.tab, "figures", s, true) === false) return null;
-  if (!opt(s.tab, "compare", s, false)) return h("p", { class: "cmp-none mode-banner" }, "No compare on this tab: its figures are not set against another period.");
+  // Compare on by default (state.js defaultCmp): a tab that does not compare says nothing then.
+  if (!opt(s.tab, "compare", s, false)) return s.cmpAuto ? null : h("p", { class: "cmp-none mode-banner" }, "No compare on this tab: its figures are not set against another period.");
   // Summary and Pages say A and B in their own period line (period-line.js).
   if (incTab(s)) return null;
   const c = compareOf(m, s);
@@ -139,7 +137,7 @@ export function modeBanner(m, s) {
 // The command palette's two lines (main.js actions).
 export function modeActions() {
   return [
-    { label: "Today · Live: on or off", hint: "", run: () => setLive(!isLive(S.read())) },
+    { label: "Today, live: on or off", hint: "", run: () => setLive(!isLive(S.read())) },
     { label: "Compare with the previous period: on or off", hint: "", run: () => {
       const s = S.read();
       S.set(compareOn(s) ? { cmp: "" } : { ...(isLive(s) ? backRange() : {}), cmp: "prev" });

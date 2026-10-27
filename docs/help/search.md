@@ -5,7 +5,7 @@ Your server log cannot see a search. It never knows what someone typed, how ofte
 ## Where to find it
 
 - [Traffic › Search](#traffic/search): the queries, pages, countries, devices and search appearance, a trend chart, and the cross-check with Skald's own visits.
-- **Settings › This site › Leads & integrations › Search Console & Bing**, or [Search Console & Bing](#settings/site/leads?sub=search): connect, test, sync now, and the sync's status.
+- **Settings › This site › Leads & tools › Search Console & Bing**, or [Search Console & Bing](#settings/site/leads?tool=search): connect, test, sync now, and the sync's status.
 
 Until a site is connected, the Search tab shows the steps to connect it.
 
@@ -19,7 +19,7 @@ Skald reads Search Console with a **service account**: a robot Google account th
 2. In APIs & Services › Library, find **Google Search Console API** and choose **Enable**.
 3. In IAM & Admin › Service accounts, choose **Create service account**. Give it a name, such as skald-search. It needs no role.
 4. Open it, then Keys › Add key › Create new key › **JSON**. A `.json` file downloads. Keep it safe: it is the robot's password.
-5. In Skald, **Settings › This site › Leads & integrations › Search Console & Bing › Upload service account key**, and pick the file. Skald checks it, keeps it on the server only, and from then on shows only the robot's email.
+5. In Skald, **Settings › This site › Leads & tools › Search Console & Bing › Upload service account key**, and pick the file. Skald checks it, keeps it on the server only, and from then on shows only the robot's email.
 
 **For each site, by a site admin:**
 
@@ -33,7 +33,7 @@ Skald reads Search Console with a **service account**: a robot Google account th
 ## Connect Bing
 
 1. In Bing Webmaster Tools, go to Settings › API access and make an **API key**.
-2. An install admin types it in **Settings › This site › Leads & integrations › Search Console & Bing › Bing API key**. Skald shows only its last 4 characters after that.
+2. An install admin types it in **Settings › This site › Leads & tools › Search Console & Bing › Bing API key**. Skald shows only its last 4 characters after that.
 3. For each site: **Find my sites**, pick the site, **Test connection**, **Connect**.
 
 ## What the tab shows
@@ -65,7 +65,7 @@ Pick **7 days**, **28 days**, **3 months** or **16 months**. Sort any table by a
 
 ## When something goes wrong
 
-If a sync fails, the Search tab and Settings › This site › Leads & integrations › Search Console & Bing say why, in plain words, and what to do. The most common cause: someone removed the robot from Search Console. Add it back (step 1 above); the next sync clears the error.
+If a sync fails, the Search tab and Settings › This site › Leads & tools › Search Console & Bing say why, in plain words, and what to do. The most common cause: someone removed the robot from Search Console. Add it back (step 1 above); the next sync clears the error.
 
 The first failure sends **one mail** to the site's mail recipients. No more mails come until it works again.
 

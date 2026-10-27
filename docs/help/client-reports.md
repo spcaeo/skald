@@ -6,10 +6,10 @@ Client reports come with accounts. Owners and admins of the site's organisation 
 
 ## Make a report
 
-1. Open **Settings > This site > Mail & reports**, tab **Client reports**, for the site and select **New report**.
+1. Open **Settings > This site > Mail & reports**, tab **Client reports**, for the site and select **New report**, the button beside the page title. The form opens in a panel. Each report you make is a row with its schedule, its next send and a status (**On schedule**, **No one confirmed yet**, **Last send failed** or **Paused**); select the row for **Preview**, **Download PDF**, **Send now**, **History**, **Edit** and **Delete**.
 2. Give it a **name**. The client sees it at the top of the mail and the PDF.
 3. Add the **recipients**, one address per line (20 at most).
-4. Choose **when it goes**: weekly on a weekday, monthly on a day of the month, or every few days from a start date, at a time of day. Times are in the site's time zone (Settings > This site > Site details).
+4. Choose **when it goes**: weekly on a weekday, monthly on a day of the month, or every few days from a start date, at a time of day. Times are in the site's time zone (Settings > This site > Site > Names & time).
 5. Choose the **period** it covers.
 6. Tick the **sections** to include, and write any **notes** and a **footer** line.
 7. Select **Preview** to see the mail, or **Download PDF** to see the attachment. Nothing is sent.
@@ -50,7 +50,7 @@ The list shows, for each report, when it goes next and which days that send will
 | Search Console | Google's clicks, impressions, CTR and average position for the period, with the top queries and pages, from the synced Search Console figures |
 | Notes | Your own words, as you typed them |
 
-**Search Console** needs the site connected first (Settings › This site › Leads & integrations › Search Console & Bing); until then the section says it is not connected. Only days Google calls final are counted. The newest days, which Google may still change, are listed as provisional and left out, and so are days not synced yet. Search Console's days run on Pacific Time, and a click is not a visit, so these figures are never added to Skald's own.
+**Search Console** needs the site connected first (Settings › This site › Leads & tools › Search Console & Bing); until then the section says it is not connected. Only days Google calls final are counted. The newest days, which Google may still change, are listed as provisional and left out, and so are days not synced yet. Search Console's days run on Pacific Time, and a click is not a visit, so these figures are never added to Skald's own.
 
 ## Figures you can stand behind
 
@@ -69,7 +69,7 @@ The **Agency branding** card on the same page is for every report of every site 
 - **Brand colour**: the band at the top of each report. Text on it is white or dark, whichever reads better.
 - **Agency logo**: a PNG or JPEG of at most 256 KB, shown on the right of the header. Untick **Show the agency logo** in a report to leave it out there.
 
-The site's own logo (Settings > This site > Site details > Logo) is shown on the left. An SVG logo cannot travel in a mail or a PDF, so the site's letter is shown instead.
+The site's own logo (Settings > This site > Site > Names & time > Logo) is shown on the left. An SVG logo cannot travel in a mail or a PDF, so the site's letter is shown instead.
 
 ## Send now, history and pausing
 

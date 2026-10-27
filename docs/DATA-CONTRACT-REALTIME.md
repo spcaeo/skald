@@ -25,7 +25,7 @@ The snapshot's `realtime` part (times in the site's zone):
 | `version`, `minutes`, `short` | int | 1; the window, 30; the short window, 5 |
 | `until` | ISO | the end of the window (the snapshot's own `until`, not included) |
 | `visits_today` | int | readers' visits today so far (= the journeys, = the readers) |
-| `active` | `{"5": n, "30": n}` | readers' visits with any request (assets included) in the last 5 / 30 minutes before `until` |
+| `active` | `{"5": n, "30": n}` | readers' visits with any request (assets included) in the last 5 / 30 minutes before `until`, to the second: `until` 12:00:40 counts a visit last seen at 11:30:40 or later, even though `per_minute` starts at 11:31. The same visits as `doing` (up to its 50) |
 | `per_minute[]` | `{"at", "under_way", "started", "requests": {group: n}}` | the last 30 clock minutes, oldest first, the last one running to `until`. `under_way`: visits whose first request was before the minute ended and whose last was in it or after; `started`: visits whose first request was in it; `requests`: every request of the site's hosts in it by group (another host's lines are not in it) |
 | `countries` | `{code: {"visits", "active"}}` | every country with a visit today (the visit's first page's country, `"Unknown"` for none), and of those the visits active in the last 30 minutes |
 | `cities` | `{"City, Region, CC": {"visits", "active", "lat", "lon"}}` | only with a city file (`logs.city_db`): every city with a visit today, every active one kept, then the most visits up to 60, the rest one `"(all others)"` row (no point); `lat`/`lon` the city's own point from the file (3 decimals), absent when the file has none. A visit whose city is not recorded is in no row |

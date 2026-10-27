@@ -2,7 +2,7 @@
 
 How to sign in, keep your account safe with two-step sign-in, and invite your team with the right role.
 
-These pages come with accounts. If your server uses one shared login instead, its users are listed under **Settings > Organisation > Users**, and the server admin manages them.
+These pages come with accounts. If your server uses one shared login instead, its users are listed under **Settings > Organisation > People** (tab **Users**), and the server admin manages them.
 
 ## Sign in
 
@@ -14,9 +14,9 @@ Every password field has a **Show** button at its right edge. Select it to see w
 
 ### Keep me signed in
 
-**Keep me signed in** is ticked by default. You then stay signed in for 14 days on that device, counted from your last use. Untick it on a shared computer: you are signed out when the browser closes.
+**Keep me signed in** is ticked by default. You then stay signed in for 14 days on that device, counted from your last use. Untick it on a shared computer: you are signed out when the browser closes. The **?** beside it says the same on the sign-in page.
 
-Your organisation can set a shorter session length, in **Settings > Organisation > Sign-in rules**. See [Settings and retention](settings-and-retention.md).
+Your organisation can set a shorter session length, in **Settings > Organisation > People > Sign-in rules**. See [Settings and retention](settings-and-retention.md).
 
 ### Too many tries
 
@@ -77,7 +77,7 @@ If your organisation requires two-step sign-in, the sign-in page asks you to set
 
 **Settings > You > Your account** changes only your own account. Everyone has this page, viewers too.
 
-- **You**: your name, and the address and role you are signed in with. Select **Save name** after a change.
+- **You**: your name, and the address and role you are signed in with. Select the **Name** row to change it: it opens in a panel with **Save name**.
 - **Password**: type your current password and the new one twice, then select **Change password**.
 - **Two-step sign-in**: turn it on or off.
 - **Where you are signed in**: each browser, when it signed in and when it was last seen.
@@ -105,7 +105,7 @@ People are given sites through organisations, never one site at a time. Everyone
 When you are in two or more:
 
 - The site switcher at the top of the sidebar lists your sites under each organisation's name, and so does **All sites**. With one organisation the list is plain, as before.
-- **Settings > Organisation > Team** shows the team of the organisation that owns the site you have open. Its title names the organisation ("Team of Kiwi"), with the sites it sees ("These people see kiwi.example only.") and links to your other organisations' teams. Inviting someone there adds them to that organisation only.
+- **Settings > Organisation > People > Team** shows the team of the organisation that owns the site you have open. Its title names the organisation ("Team of Kiwi"), with the sites it sees ("These people see kiwi.example only.") and links to your other organisations' teams. Inviting someone there adds them to that organisation only.
 
 ### Give someone one site only
 
@@ -113,7 +113,7 @@ To let a partner or a client see one site and nothing else, the server admin put
 
 1. On the server: `skald org create "Kiwi"`, then `skald site assign kiwi.example --org kiwi`. The site's data, settings and address stay as they were.
 2. Still on the server, make yourself a member of the new organisation too (`skald member invite you@example.com --role owner --org kiwi`, then follow the link and select **Join**), or you stop seeing the site.
-3. Open the site, go to [Team](#settings/org/team) and invite the person with the role they need.
+3. Open the site, go to [People](#settings/org/people) and invite the person with the role they need.
 
 The site's settings and its set-up progress move with it, and so do the tokens that read only that site, such as its log shipper's. A token for several sites, or for all of the old organisation's, stays where it was and no longer reads the moved site: make a new one in the new organisation if you need it.
 
@@ -121,7 +121,7 @@ The site's settings and its set-up progress move with it, and so do the tokens t
 
 You must be an admin or owner.
 
-1. Go to **Settings > Organisation > Team**, or open [Team](#settings/org/team).
+1. Go to **Settings > Organisation > People**, or open [People](#settings/org/people).
 2. Under **Invite someone**, type the person's **Email**.
 3. Pick a **Role**. Only an owner can invite another owner.
 4. Select **Send invite**.

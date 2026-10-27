@@ -33,7 +33,7 @@ export function workCard(m, s, r, t) {
   const pt = m.x.page_trends;
   if (pt?.whole_site_only) return (sec.append(h("p", { class: "note" }, "Counted for the whole site only: choose All pages to see it.")), sec);
   const sums = pageSums(pt, r);
-  if (!sums) return (sec.append(h("p", { class: "note" }, r.kind === "today" ? "Turn Today · Live off: this card adds up whole days." : "Not recorded yet: visits by landing page come with the next day collected.")), sec);
+  if (!sums) return (sec.append(h("p", { class: "note" }, r.kind === "today" ? "Pick 7 days or longer: this card adds up whole days." : "Not recorded yet: visits by landing page come with the next day collected.")), sec);
   if (!sums.days) {
     sec.append(h("p", { class: "note" }, `Not recorded for these days: visits by landing page are counted from ${pt.first_day || "the next day collected"} on, never shown as zero.`));
     return sec;

@@ -166,7 +166,7 @@ box = T.todoSection(fresh, S.read());
 assert.ok(text(box.querySelector(".td-new")).includes("1 new to-do your AI agent can fix."));
 box.querySelector(".td-new a.td-go").click();
 q = new URLSearchParams(location.hash.split("?")[1]);
-assert.deepEqual([q.get("todo"), q.get("fix"), q.get("fixby")], ["lost-pages", "1", "agent"]);
+assert.deepEqual([q.get("todo"), q.get("fix"), q.get("by"), q.get("fixby")], ["lost-pages", "1", "agent", null]);
 go("#overview/insights");
 
 // ---- Me's lines: the same rules as closest_page.rules
@@ -226,22 +226,23 @@ assert.ok(!box.querySelector("article.td-done"), "the helper's marks win: the do
   const realCreate = document.createElement;
   document.createElement = (t) => { const el = realCreate(t); if (t === "dialog") Object.assign(el, { open: false, showModal() { this.open = true; }, close() { this.open = false; } }); return el; };
   const qs = () => new URLSearchParams(location.hash.split("?")[1]);
-  const tile = (d, who) => d.el.querySelectorAll("button.fx-who").find((b) => b.dataset.who === who);
+  const tile = (d, who) => d.el.querySelectorAll("button.ui-who-c").find((b) => b.dataset.who === who);
 
   // A to-do the address names that is not on the list.
   go("#overview/insights?todo=sitemap&fix=1");
   assert.equal(await FX.openFixKey("1", m, S.read()), FX.GONE);
 
-  // Fix this: one question, three answers, nothing chosen yet.
+  // Fix this: the shared question (ui/who.js), three answers in the approved order, nothing chosen yet.
   go("#overview/insights?todo=lost-pages");
   let d = FX.fixDialog([lostTodo], "1");
   assert.equal(qs().get("fix"), "1");
   assert.ok(text(d.el).includes("Who will do it?"));
-  assert.deepEqual(d.el.querySelectorAll("button.fx-who").map((b) => b.querySelector("b").textContent), ["My AI agent", "Me", "Someone else"]);
+  assert.deepEqual(d.el.querySelectorAll("button.ui-who-c").map((b) => b.querySelector("b").textContent), ["Me", "My developer", "My AI agent"]);
+  assert.equal(d.el.querySelectorAll('.ui-who-c[aria-checked="true"]').length, 0);
 
   // Me: every row from Skald (not the browser's cut-down file), the server's lines, the CSV as a link.
   tile(d, "me").click();
-  assert.equal(qs().get("fixby"), "me");
+  assert.equal(qs().get("by"), "me");
   await tick();
   assert.ok(posted.some(([p]) => p === "settings/todo-rows?item=lost-pages"), "every row asked for");
   const pre = d.el.querySelector("pre.fx-lines");
@@ -254,9 +255,10 @@ assert.ok(!box.querySelector("article.td-done"), "the helper's marks win: the do
   assert.ok(text(d.el.querySelector("pre.fx-lines")).includes("Redirect 301 /older/ /new/"));
   assert.ok(text(d.el).includes(FX.UNDO_WORDS), "marking done changes no figure: said");
 
-  // Someone else: Send to team inside the same dialog.
-  tile(d, "someone").click();
-  assert.equal(qs().get("fixby"), "someone");
+  // My developer: Send to team inside the same dialog.
+  tile(d, "dev").click();
+  assert.equal(qs().get("by"), "dev");
+  await d.who.ready;
   d.el.querySelector("select.td-to").value = "2";
   d.el.querySelectorAll("button").find((b) => text(b) === "Send").click();
   await tick();
@@ -266,7 +268,7 @@ assert.ok(!box.querySelector("article.td-done"), "the helper's marks win: the do
   tile(d, "agent").click();
   await tick();
   assert.deepEqual(posted.filter(([p, b]) => p === "settings/todo-agent" && b.act === "make").at(-1)[1], { act: "make", items: ["lost-pages"] });
-  assert.equal(qs().get("fixby"), "agent");
+  assert.equal(qs().get("by"), "agent");
   assert.equal(qs().get("link"), LINK);
   assert.ok(!location.hash.includes(CODE), "the code is never in the address");
   assert.ok(!text(d.el.querySelector(".ag-line pre")).includes(CODE), "the code is hidden until Show code");
@@ -288,16 +290,16 @@ assert.ok(!box.querySelector("article.td-done"), "the helper's marks win: the do
   assert.equal(posted.filter(([p, b]) => p === "settings/todo-agent" && b.act === "status").length, polls, "every to-do reported: the watch stops");
   d.close({ instant: true });
   await tick();
-  assert.ok(!qs().get("fix") && !qs().get("fixby") && !qs().get("link"), "closed: the choice leaves the address");
+  assert.ok(!qs().get("fix") && !qs().get("by") && !qs().get("fixby") && !qs().get("link"), "closed: the choice leaves the address");
 
-  // A reload (or a copied link) with fixby=agent&link=…: no new line, the same line watched.
+  // A reload (or a link in a mail made before 2.41) with fixby=agent&link=…: no new line, the same line watched.
   FX.forgetLines();
   go(`#overview/insights?todo=lost-pages&fix=1&fixby=agent&link=${LINK}`);
   const makes = posted.filter(([p, b]) => p === "settings/todo-agent" && b.act === "make").length;
   d = await FX.openFixKey("1", m, S.read());
   await tick(20);
   assert.equal(posted.filter(([p, b]) => p === "settings/todo-agent" && b.act === "make").length, makes, "an address never makes a line");
-  assert.equal(tile(d, "agent").getAttribute("aria-pressed"), "true");
+  assert.equal(tile(d, "agent").getAttribute("aria-checked"), "true");
   assert.ok(text(d.el).includes("reported every to-do in this line") && text(d.el).includes("Send old pages somewhere useful: Done"), "all reported: said, no Make the line");
   assert.ok(!d.el.querySelectorAll("button").some((b) => text(b) === "Make the line"));
   // Cancel this line: it stops, and the link leaves the address.
@@ -305,6 +307,12 @@ assert.ok(!box.querySelector("article.td-done"), "the helper's marks win: the do
   await tick();
   assert.deepEqual(posted.at(-1), ["settings/todo-agent", { act: "cancel", link_id: LINK }]);
   assert.ok(!qs().get("link") && text(d.el).includes("Cancelled. This line no longer works."));
+  d.close({ instant: true });
+
+  // The older someone (links made before 2.41) opens My developer.
+  go("#overview/insights?todo=lost-pages&fix=1&fixby=someone");
+  d = await FX.openFixKey("1", m, S.read());
+  assert.equal(tile(d, "dev").getAttribute("aria-checked"), "true");
   d.close({ instant: true });
 
   // Fix all (N): one line for every open to-do an agent can fix.
@@ -323,6 +331,7 @@ assert.ok(!box.querySelector("article.td-done"), "the helper's marks win: the do
   await M.loadMarks(true);
   go("#overview/insights?todo=lost-pages");
   d = FX.fixDialog([lostTodo], "1", { ...S.read(), fixby: "agent" });
+  await d.who.ready;
   assert.ok(text(d.el).includes("Only an owner or an admin can make the line for an AI agent."));
   d.close({ instant: true });
   helper.can_mark = true;

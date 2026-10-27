@@ -5,7 +5,11 @@ letters, digits, spaces and . - '; the test mail goes only to the caller or a
 confirmed recipient."""
 from __future__ import annotations
 
+import json
+import os
 import re
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -132,6 +136,64 @@ class Page(Server):
         db = self.db()
         try:
             self.assertTrue(mail_confirm.is_confirmed(db, self.alpha["id"], "new@example.com"))
+        finally:
+            db.close()
+
+    def test_no_mail_server_is_said_at_once_and_no_link_is_used_up(self):
+        # 2.42 (the UX audit): with no mail server the dialog waited for good for a confirm
+        # mail that could not go. The answer says what is missing, and no day's link is used.
+        got = self.save({"mail.to": ["new@example.com"]})
+        self.assertEqual(got.status, 200, got.json)
+        self.assertFalse(got.json["mail_server"]["ready"])
+        self.assertIn("Set the sender address first", got.json["mail_server"]["missing"])
+        self.assertEqual(got.json["mail_waiting"], ["new@example.com"])
+        auth_api.drain()
+        self.assertEqual(self.sent, [])
+        db = self.db()
+        try:
+            self.assertIsNotNone(mail_confirm.request(db, self.alpha["id"], "new@example.com"),
+                                 "no link was made, so the first real one goes at once")
+        finally:
+            db.close()
+        self.mail_on()
+        cookie, csrf = self.session("owner@example.com")
+        again = self.call("GET", T + "settings", cookie=cookie)
+        self.assertTrue(again.json["mail_server"]["ready"])
+        self.assertIsNone(again.json["mail_server"]["missing"])
+
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_the_mail_page_says_no_mail_server_above_the_recipients(self):
+        # 2.42: Settings > Mail said "A confirm link was mailed to ..." with no mail server.
+        # The page, drawn in node from these real answers (tests/js/prefs-mail.mjs).
+        cookie, csrf = self.session("owner@example.com")
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            def keep(name, got):
+                self.assertEqual(got.status, 200, got.json)
+                (out / name).write_text(json.dumps(got.json))
+            keep("off-get.json", self.call("GET", T + "settings", cookie=cookie))
+            keep("off-save.json", self.post(T + "settings/save", {"mail.to": ["new@example.com"]}, cookie, csrf))
+            self.mail_on()
+            cookie, csrf = self.session("owner@example.com")      # the config is read at sign-in
+            keep("on-get.json", self.call("GET", T + "settings", cookie=cookie))
+            keep("on-save.json", self.post(T + "settings/save", {"mail.to": ["new@example.com", "other@example.com"]}, cookie, csrf))
+            js = Path(__file__).resolve().parent / "js" / "prefs-mail.mjs"
+            done = subprocess.run(["node", str(js)], capture_output=True, text=True, timeout=120,
+                                  env={**os.environ, "PREFS_MAIL_DIR": tmp})
+        self.assertEqual(done.returncode, 0, done.stderr[-4000:])
+        self.assertIn("prefs-mail: all passed", done.stdout)
+
+    def test_the_signed_in_persons_own_address_is_not_asked(self):
+        self.mail_on()
+        got = self.save({"mail.to": ["owner@example.com", "new@example.com"]})
+        self.assertEqual(got.status, 200, got.json)
+        self.assertEqual(got.json["mail_waiting"], ["new@example.com"], "only the other one waits")
+        auth_api.drain()
+        self.assertEqual([to for to, _ in self.sent], ["new@example.com"])
+        db = self.db()
+        try:
+            self.assertTrue(mail_confirm.is_confirmed(db, self.alpha["id"], "owner@example.com"),
+                            "so the daily mail reaches it")
         finally:
             db.close()
 

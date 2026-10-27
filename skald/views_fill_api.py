@@ -1,4 +1,4 @@
-"""Settings > Site details > Views: "Fill past days for the new groups" (sessions mode).
+"""Settings > Site > Views: "Fill past days for the new groups" (sessions mode).
 
 Served through settings_api.py (its sign-in, membership, same-origin and
 X-Skald-CSRF checks), for every site page:

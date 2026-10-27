@@ -14,6 +14,7 @@ import * as S from "../state.js";
 import { withUrl, withCopy } from "../urlactions.js";
 import { readiness, STATE_WORDS, needWords, needAction, needKeep, wholeSite, NEED_FILTERS } from "../ai-ready.js";
 
+export function loadReady(m, s) { return load(m, s); }
 function load(m, s) {
   if (Array.isArray(m.files) && !m.files.includes("ai_ready") && !m.files.includes("ai_ready.json")) return Promise.resolve(null);
   return getJSON(`${base(s.view)}ai_ready.json`).then((f) => (f && f.schema_version === 1 && f.state !== "error" ? f : f?.state === "error" ? { failed: f.error || "no reason given" } : null));
@@ -121,3 +122,30 @@ export function notReadWell(m, s) {
   }).catch((e) => sec.replaceChildren(h("h2", null, "Pages AI can't read well"), note(`The list could not be loaded: ${e.message || e}.`, true)));
   return sec;
 }
+
+/* AI & bots › Assistants, answer first (2.42): one card, "N pages AI can't read well", what
+   kinds, and the screen's one primary button, "Let AI read the site better" (tabs/fixit.js,
+   fixit=airead). Nothing to fix: one quiet line, and no button. The full list is under
+   "Open the details". */
+export function readCard(m, s, { onFix }) {
+  const sec = h("section", { class: "ui-card ar-card", "aria-label": "Pages AI can't read well" }, h("p", { class: "empty" }, "Checking what AI gets from your pages…"));
+  load(m, s).then(async (f) => {
+    if (!f || f.failed || f.whole_site_only) {
+      const why = !f ? "What AI gets from your pages is not written yet: it comes with the next redraw." : f.failed ? `ai_ready.json could not be built on the last redraw: ${f.failed}.` : "What AI gets from your pages is counted for the whole site only: choose All pages.";
+      return sec.replaceChildren(h("p", { class: "note" }, why));
+    }
+    const { causesOf } = await import("./fixit.js");
+    const causes = causesOf(f);
+    const total = f.attention?.total ?? (f.attention?.rows || []).length;
+    if (!total) {
+      sec.classList.add("quiet");
+      return sec.replaceChildren(h("p", { class: "ui-meta" }, `AI gets what it asks for on every page Skald checked in the last ${f.window?.days || 30} days.`));
+    }
+    const { primary } = await import("../ui/primary.js");
+    sec.replaceChildren(h("div", { class: "ui-card-h" }, h("h3", { class: "ui-grow" }, `${n(total)} page${total === 1 ? "" : "s"} AI can't read well`),
+      primary("Let AI read the site better", onFix)),
+    h("p", { class: "ui-meta" }, `Of these: ${causes.map(([, , , list, words]) => `${n(list.length)} ${words}`).join(" · ")}. A page can have more than one.`));
+  }).catch((e) => sec.replaceChildren(h("p", { class: "note" }, `What AI gets from your pages could not be loaded: ${e.message || e}.`)));
+  return sec;
+}
+

@@ -7,39 +7,31 @@
 //
 // The period buttons stay in the top bar (one picker for every tab); Today is its
 // "Today · Live" switch. Both switches are in the address, so Back and Forward work.
+//
+// 2.42 (the UX build's polish): the two switches moved to the top bar, so each has one
+// place: Compare is the bar's Compare menu, Include today is in the period's More menu
+// (main.js rangeMore). This line keeps the dates in words; what the period means and since
+// when the site is measured are behind its (i).
 
 import { h, short } from "./ui.js";
-import * as S from "./state.js";
+import { info } from "./tabs/tiles.js";
 import { rangeOf } from "./data.js";
-import { isLive, backRange } from "./mode-live.js";
-import { compareOn, compareOf } from "./mode-compare.js";
-import { incApplies, incOn, lineWords, notMeasuredWords, beforeState, firstWholeDay } from "./period-dates.js";
-
-function toggle(label, on, { disabled = false, title, onclick }) {
-  return h("button", { type: "button", role: "switch", class: `btn pl-sw${on ? " on" : ""}`, "aria-checked": String(on), disabled, title, onclick },
-    h("span", { class: "pl-knob", "aria-hidden": "true" }), label);
-}
+import { isLive } from "./mode-live.js";
+import { compareOf } from "./mode-compare.js";
+import { lineWords, notMeasuredWords, beforeState, firstWholeDay } from "./period-dates.js";
 
 /* The line for this state, or null on a tab without it. */
 export function periodLine(m, s) {
   const r = rangeOf(m, s);
   const c = compareOf(m, s);
   const live = isLive(s);
-  const inc = incOn(s);
   const words = lineWords(r, s, { b: c.ok || c.inc ? c.b : null, live: m.live, today: m.today });
-  const incWhy = live ? "Today · Live is already today so far" : incApplies(s) ? (inc ? "Counting today so far: 7, 30 and 90 days end today" : "Count today so far in the period")
-    : "Include today applies to 7, 30 and 90 days";
-  const sw = h("div", { class: "pl-sws", role: "group", "aria-label": "Period options" },
-    toggle("Include today", inc, { disabled: !incApplies(s), title: incWhy, onclick: () => S.set({ inc: inc ? "" : "1" }) }),
-    toggle("Compare with the period before", compareOn(s) || live, { disabled: live, title: live ? "Today · Live is always set against yesterday at the same hour" : null,
-      onclick: () => S.set(compareOn(s) ? { cmp: "" } : { ...(live ? backRange() : {}), cmp: "prev" }) }));
 
-  let line;
-  if (live) line = [h("b", null, words.now), h("span", { class: "pl-vs" }, " compared with "), h("b", null, words.prev)];
-  else if (!c.on) line = [h("b", null, words.now)];
-  else if (c.ok) line = [h("b", null, words.now), h("span", { class: "pl-vs" }, " compared with "), h("b", null, words.prev),
-    c.kind === "prev" ? null : h("span", { class: "pl-vs" }, c.kind === "year" ? " (the same days last year)" : " (the period you chose)")];
-  else line = [h("b", null, words.now)];
+  // The scope line above (tabs/common.js periodWords) already gives this period's dates, so this
+  // line only adds what it is compared with: one statement of the period per page.
+  let line = null;
+  if (live || (c.on && c.ok)) line = [h("span", { class: "pl-vs" }, "Compared with "), h("b", null, words.prev),
+    live || c.kind === "prev" ? null : h("span", { class: "pl-vs" }, c.kind === "year" ? " (the same days last year)" : " (the period you chose)")];
 
   let why = null;
   if (c.on && !c.ok && !live) {
@@ -48,9 +40,9 @@ export function periodLine(m, s) {
   }
   const first = m.firstDay ? m.byDay?.get(m.firstDay) : null;
   const since = m.firstDay ? `${m.site} is measured from ${short(m.firstDay)}${first && first.state !== "ok" ? " (part of that day)" : ""}` : null;
+  if (!line && !why) return null;
   return h("div", { class: "pl", role: "region", "aria-label": "Period" },
-    sw,
-    h("p", { class: "pl-now" }, line),
+    line ? h("p", { class: "pl-now" }, line, " ", info([words.how, since, "every day checked against the raw log"].filter(Boolean).join(" · "), "this period")) : null,
     why ? h("p", { class: "pl-why", role: "note" }, why) : null,
-    h("p", { class: "pl-how" }, [words.how, since, "every day checked against the raw log"].filter(Boolean).join(" · ")));
+  );
 }

@@ -170,7 +170,7 @@ SCHEMA: dict[str, Key] = {
     # P1-6: search figures (search/). The property and Bing site are per site
     # (checked against the site's hosts, search/props.py); the Bing key is the
     # install's. The Search Console key file is uploaded through
-    # Settings > Leads & integrations > Search Console & Bing (search/api.py), never through here.
+    # Settings > Leads & tools > Search Console & Bing (search/api.py), never through here.
     "search.google_property": Key("searchprop", "admin", ("site",),
                                   ("search_console", "property"), None,
                                   label="Search Console property"),
@@ -199,7 +199,7 @@ SCHEMA: dict[str, Key] = {
                             choices=LOGO_SOURCES, label="Logo"),
     "site.logo.color": Key("choice", "admin", ("site",), ("site", "logo_color"), None,
                            choices=LOGO_COLORS, label="Letter colour"),
-    # Settings > Leads & integrations: the booking tools' event types this site keeps
+    # Settings > Leads & tools: the booking tools' event types this site keeps
     # (conversions/event_types.py); [] keeps every event.
     "hooks.calendly.event_types": Key("eventtypes", "admin", ("site",),
                                       ("hooks", "calendly_event_types"), [],

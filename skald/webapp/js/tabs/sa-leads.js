@@ -323,7 +323,7 @@ export default function leadsTab(m, s) {
     const counted = keepRows(ans.rows, { ...s, lnow: "", lshow: "" }, r).length;
     if (got && counted !== got.leads) notes.push(`The list holds ${leadsWord(counted)} as known now; the figure above counts ${n(got.leads)} (the days checked at the last redraw).`);
     if (!names) notes.push(DEMO.on ? "In the demo, names and emails are hidden: on your own install, admins and owners see them here."
-      : ans.why || "Names and emails show to admins and owners, on a site that keeps them (Settings > Privacy & retention > People).");
+      : ans.why || "Names and emails show to admins and owners, on a site that keeps them (Settings > Privacy).");
     parts.push(...notes.map((t) => h("p", { class: "note" }, t)));
     return parts;
   }));

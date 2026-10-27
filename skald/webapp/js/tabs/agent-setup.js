@@ -142,7 +142,9 @@ export function lineBox(got) {
 
 /* Step 4, "Send this line" (or the one command, for a chat-only agent). onMade(r) when
    a new line or command is made: the wizard keeps its token_id and the address its link_id. */
-export function linePanel(st, w, { onMade = null } = {}) {
+export function linePanel(st, w, { onMade = null, below = false } = {}) {
+  // below (2.42, Add a site): the watch is drawn under the line, so nothing says "press Next".
+  const nextWords = below ? "Skald watches it below." : "Press Next to watch it connect.";
   const a = agentOf(st.agent) || agentOf("other");
   const site = st.site;
   if (!a.shell) {
@@ -158,7 +160,7 @@ export function linePanel(st, w, { onMade = null } = {}) {
     const r = await makeLine(site, jobs);
     again.disabled = false;
     if (!r.ok || !r.line) {
-      slot.replaceChildren(answerBox("bad", why(r, "The line was not made."), h("p", null, jobs ? "Press Try again, or go Back and choose By hand." : "Press Try again, or go Back and choose No AI agent to set it up by hand.")));
+      slot.replaceChildren(answerBox("bad", why(r, "The line was not made."), h("p", null, jobs ? "Press Try again, or go Back and choose Me." : "Press Try again, or go Back and choose Me.")));
       again.textContent = "Try again";
       again.hidden = false;
       return;
@@ -182,7 +184,7 @@ export function linePanel(st, w, { onMade = null } = {}) {
     if (st.link) {
       again.textContent = "Make a new line";
       return [intro, answerBox("warn", "This line was made before the page was reloaded, so it is not shown again.",
-        h("p", null, "Already sent it to your agent? Press Next to watch it connect. If not, make a new line, or cancel this one.")), slot,
+        h("p", null, `Already sent it to your agent? ${nextWords} If not, make a new line, or cancel this one.`)), slot,
         h("div", { class: "acts" }, again, cancelButton(site, st.link, slot, gone))];
     }
     // Opened from an address: never make a line by itself, it would end the one already sent.
@@ -210,6 +212,6 @@ export function linePanel(st, w, { onMade = null } = {}) {
     h("p", null, `It works once${got.expires_at ? `, until ${stamp(got.expires_at)}${left ? ` (${left})` : ""}` : ""}.`),
     got.cancelled ? h("p", { class: "note" }, OLD_CANCELLED) : null,
     safetyBox(),
-    h("p", { class: "note" }, "This page never sees the keys. Press Next: Skald ticks off each step as your agent does it."),
+    h("p", { class: "note" }, below ? "This page never sees the keys. Skald ticks off each step below as your agent does it." : "This page never sees the keys. Press Next: Skald ticks off each step as your agent does it."),
     llms];
 }

@@ -2,9 +2,19 @@
 
 See which AI assistants, search engines and bots fetch your site, how much work each one makes for your server, and what one of them did in detail. This guide covers the cost table, the detail view, and what each figure means.
 
+## What Assistants shows first
+
+Open **AI & bots**. **Assistants** opens on the answer:
+
+- Three figures, each with its change against the period before: **Visitors sent by AI**, **Pages AI read for someone** and **AI collecting for training**.
+- **Which assistant sent people** and **Which assistant read for someone**: the first five of each, then **Show all (N)**.
+- One card for what to fix: "7 pages AI can't read well", what kinds, and **Let AI read the site better**. It asks **Who will do it?**: **Me** (the pages by what to do), **My developer** (a message to send, with a link), or **My AI agent** when Insights has a to-do the agent can fix (Markdown copies, server errors, lost pages): it opens that to-do's **Fix this**. robots.txt and slow pages stay with you or your developer. In the address: `fixit=airead&by=me`. Nothing to fix: one quiet line, and no button.
+
+Everything else is under **Open the details** at the foot: each day's chart, the tables by name, what AI read before it sent a visitor, what they fetch, what each costs, the pages fetched, AI reading changes and the full list of pages AI can't read well. It stays open in the address (`ai_view=open`). **Crawlers** keeps its figures and lists on top; what they fetch, what each costs and the address check are under its own **Open the details** (`crawl_view=open`).
+
 ## Where to find it
 
-Open **AI & bots**. The table **What each crawler costs** is on two tabs:
+The table **What each crawler costs** is on two tabs, under **Open the details**:
 
 - **Crawlers**: AI collecting pages for training or AI search, search engines, and bots and scanners.
 - **Assistants**: AI assistants fetching a page because someone asked them a question. Here it is headed **What each assistant costs**.
@@ -81,7 +91,7 @@ Open a page's story (**Traffic › Pages**, then select a page). The block **AI 
 
 Each line is **Good**, **Needs attention** or **Not known**, with one line of evidence and what to do. "Not known" means Skald does not have what it needs (no copy of robots.txt yet, no sitemap, or the days before this release). It never guesses and never shows a 0 it did not count. Crawler names, status codes and robots.txt lines have a copy button.
 
-**Pages AI can't read well** is on **AI & bots › Assistants**: every page where AI got an error, a 404 or a slow answer, asked for a Markdown copy that does not answer, or that robots.txt shuts them out of, worst first. Filter it by kind with the chips above it. Select a row to open that page's AI readiness. A crawler that robots.txt keeps out of the whole site is said once, above the list.
+**Pages AI can't read well** is on **AI & bots › Assistants**, under **Open the details** (the card above it counts them): every page where AI got an error, a 404 or a slow answer, asked for a Markdown copy that does not answer, or that robots.txt shuts them out of, worst first. Filter it by kind with the chips above it. Select a row to open that page's AI readiness. A crawler that robots.txt keeps out of the whole site is said once, above the list.
 
 What AI got back is recorded from this release on. A page group (view) shows it for the whole site only. robots.txt says what a crawler may read; assistants that fetch for one user (ChatGPT-User, Perplexity-User) may not follow it.
 

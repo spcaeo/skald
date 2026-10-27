@@ -4,6 +4,10 @@
 //
 //   sxv   Show: "" both possible and can't tell, "possible", "nosize" (can't tell)
 //
+// 2.42 (the UX audit, answer first): the verdict, with the screen's one primary button when
+// there is a possible exposure (Fix, fixit=exposed: Me or My developer, tabs/fixit.js); the
+// figures and the list; each host's answers under a fold kept in the address (sxx_view=open).
+//
 // The log records a size, never the content: a size unlike the shell is a reason to look,
 // never proof of a leak, and a size like it is no proof of safety. The (i) says so.
 
@@ -15,6 +19,8 @@ import { optionsRow, choice, emptyState } from "./sa-options.js";
 import { verdictOf } from "../sec-data.js";
 import { copyIf } from "../urlactions.js";
 import { secTab, at, adviceOf, LOOKED, missingNote } from "./sec-common.js";
+import { primary } from "../ui/primary.js";
+import { urlFold } from "../ui/fold.js";
 
 export const HELP_TEXT = "Skald reads each probe's status and the size of the answer from the log. A single-page app or a default server page answers every path it does not have with the same page (its fallback page), so a 2xx with that size is harmless. A 2xx of another size may be a real file: check it. The log never shows the content, so this is a reason to look, not proof; and the size is the size sent after compression, so the same page can show as two sizes through two doors (the host name and the bare IP). Each host has its own.";
 
@@ -27,8 +33,9 @@ export function why(row) {
   return `${n(row.size)} bytes; this host's fallback page is ${n(row.shell_size)} bytes.`;
 }
 
-/* The verdict banner: the first thing the tab says. */
-export function banner(t) {
+/* The verdict banner: the first thing the tab says. fix: the screen's one primary button,
+   given only when there is something to fix (a possible exposure). */
+export function banner(t, fix = null) {
   const v = verdictOf(t);
   const e = t.exposure;
   const sub = {
@@ -40,8 +47,11 @@ export function banner(t) {
   }[v.tone];
   return h("div", { class: `sec-verdict ${v.tone}`, role: v.tone === "bad" ? "alert" : "status" },
     h("span", { class: "sec-v-mark", "aria-hidden": "true" }, v.tone === "ok" ? "✓" : v.tone === "none" ? "–" : "!"),
-    h("div", null, h("strong", null, v.words), h("p", null, sub)));
+    h("div", null, h("strong", null, v.words), h("p", null, sub)), fix ? h("span", { class: "sec-v-act" }, fix) : null);
 }
+
+// The Fix: "Who will do it?", then that person's steps (tabs/fixit.js).
+const fixButton = (m) => primary("Fix", () => import("./fixit.js").then((x) => x.openFixit("exposed", m)), { label: "Fix the possible exposures" });
 
 function rowsTable(t, s) {
   const rows = t.exposure.rows.filter((r) => !VERDICT[s.sxv] || r.verdict === VERDICT[s.sxv]);
@@ -97,7 +107,7 @@ export default function exposed(m, s) {
     help: HELP_TEXT,
     draw: ({ f, t, p }) => {
       const e = t.exposure;
-      const parts = [itemPart(f, s), banner(t)];
+      const parts = [itemPart(f, s), banner(t, t.days && e.possible ? fixButton(m) : null)];
       if (!t.days) return [...parts, missingNote(p, t)];
       parts.push(tiles([
         { label: "Scanner probes", value: t.probes, info: "Requests for paths no real site serves (.env, wp-login.php, phpinfo.php, ...) or with attack strings in the query, filed under bots. Each request stays in its group: Security is a view across them." },
@@ -111,7 +121,7 @@ export default function exposed(m, s) {
       if (e.possible || e.unknown) parts.push(rowsTable(t, s));
       else parts.push(emptyState(e.answered ? "Every probe answered with a page got the host's harmless page." : "No probe was answered with a page in this period."));
       if (e.folded) parts.push(h("p", { class: "note" }, `${n(e.folded)} more such answers are counted above but not listed (each day lists 200).`));
-      parts.push(h("h2", { class: "sec-h2" }, "Each host's answers"), hostsTable(t), missingNote(p, t));
+      parts.push(urlFold("sxx", "Open the details: each host's answers and its harmless page", () => hostsTable(t)), missingNote(p, t));
       return parts;
     },
   });

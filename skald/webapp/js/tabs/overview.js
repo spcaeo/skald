@@ -11,6 +11,7 @@
 //   6. collapsed: server load (requests) and each day's figures
 
 import { h, n, long } from "../ui.js";
+import { help } from "../ui/help.js";
 import { GROUPS, color, figures, chartDays, ranked } from "../data.js";
 import { lines, legend, bars } from "../charts.js";
 import { table } from "../table.js";
@@ -18,7 +19,7 @@ import { open as openDrill } from "../drill.js";
 import { head, nothing, fileName, compareFor } from "./common.js";
 import { others, top } from "./tiles.js";
 import { keyTiles } from "./ov-tiles.js";
-import { compareOf, spanWords } from "../mode-compare.js";
+import { compareOf } from "../mode-compare.js";
 import { serverLoad, LOAD_NAMES } from "./load.js";
 import { hourLabels, label as tzLabel } from "../tz.js";
 import { convFile, convDay, dayLeads } from "./leadfigs.js";
@@ -72,8 +73,7 @@ export default function overview(m, s) {
 
   out.push(...keyTiles(m, s, r, t, c));
   if (t.readers != null && t.views != null) {
-    out.push(h("p", { class: "relate" }, `${n(t.readers)} visitor${t.readers === 1 ? "" : "s"} read ${n(t.views)} page${t.views === 1 ? "" : "s"}, which took ${n(t.hits?.people ?? 0)} requests to the server (pages, images, scripts and styles).`,
-      c.ok ? h("span", { class: "muted" }, ` Changes are against ${spanWords(c.b)}.`) : null));
+    out.push(h("p", { class: "relate" }, `${n(t.readers)} visitor${t.readers === 1 ? "" : "s"} read ${n(t.views)} page${t.views === 1 ? "" : "s"}, which took ${n(t.hits?.people ?? 0)} requests to the server (pages, images, scripts and styles).`));
   }
 
   // The main chart: by hour for one day, by day for a longer period.
@@ -88,8 +88,9 @@ export default function overview(m, s) {
       { label: "Visitors by hour", unit: "visitors", every: 3, H: 180, onPick: (i) => openDrill("hour", HOURS[i]) }))));
   } else {
     const marks = leadMarks(m);
-    out.push(h("section", { class: "s" }, h("h2", null, marks ? "Visitors, pages read and leads, by day" : "Visitors and pages read, by day"),
-      h("p", { class: "sub" }, `A line breaks at a day that is not whole. Purple marks are releases and changes; select a day to narrow the period to it.${marks ? " Pink dots on the base line are the day's leads (forms sent and demos booked), on whole days with checked conversions only." : ""}`),
+    out.push(h("section", { class: "s" }, h("h2", null, marks ? "Visitors, pages read and leads, by day" : "Visitors and pages read, by day", " ",
+        help("About this chart", { text: `A line breaks at a day that is not whole. Purple marks are releases and changes; select a day to narrow the period to it.${marks ? " Pink dots on the base line are the day's leads (forms sent and demos booked), on whole days with checked conversions only." : ""}` })),
+      null,
       cmp.note,
       h("div", { class: "sheet" }, legend([["Visitors", color("people")], ["Pages read", "var(--views)"], ...(marks ? [["Leads", "var(--leads)"]] : []), ...cmp.legend], true),
         lines(chartDays(r), [

@@ -27,7 +27,7 @@ export const SECTIONS = [
     icon: I('<path d="M2 3h12l-4.5 5.5V13l-3-1.5v-3z"/>') },
   { key: "ai", name: "AI & bots", tabs: ai,
     icon: I('<rect x="3" y="5" width="10" height="8" rx="2"/><path d="M8 2.5V5M6 9h.01M10 9h.01M1.5 9v2M14.5 9v2"/>') },
-  // Security (2.21): route key "threats", as "#security" opens Settings > Sign-in rules. bar: false
+  // Security (2.21): route key "threats", as "#security" opens Settings > People > Sign-in rules. bar: false
   // keeps it off the phone's bottom bar (five sections and Menu fill it); the menu has it.
   { key: "threats", name: "Security", tabs: security, bar: false,
     icon: I('<path d="M8 1.8 13.2 4v4c0 3.2-2.2 5.4-5.2 6.4C5 13.4 2.8 11.2 2.8 8V4z"/><path d="M8 5.5v3M8 10.6h.01"/>') },

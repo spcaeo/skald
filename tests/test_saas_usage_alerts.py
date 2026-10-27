@@ -79,7 +79,7 @@ class Case(AccountsCase):
         h.close()
 
     def check(self, cfg=None, org=None, link="https://dash.example.com/traffic/a.example.com/"
-              "#settings/billing"):
+              "#settings/org/billing"):
         return usage_alerts.check(self.db, (org or self.org)["id"], cfg or self.cfg, self.hist,
                                   force=True, link=link, send=self.send)
 
@@ -291,7 +291,7 @@ class TheMail(Case):
     def test_what_it_says(self):
         msg = mails.usage_mail(self.cfg, "owner@example.com", "Alpha", "small", 850, 1000,
                                "2026-10", 80, "https://dash.example.com/traffic/"
-                               "a.example.com/#settings/billing")
+                               "a.example.com/#settings/org/billing")
         self.assertIn("Alpha has reached 80% of this month's requests", msg["Subject"])
         text = msg.get_body(("plain",)).get_content()
         self.assertIn("Alpha has used 850 of the 1,000 requests its small plan allows this month "
@@ -299,9 +299,9 @@ class TheMail(Case):
         self.assertIn("The count starts again on 1 November 2026.", text)
         self.assertIn("Skald's shipper keeps them and sends them again later", text)
         self.assertIn("Lines from a Cloudflare Worker are lost", text)
-        self.assertIn("https://dash.example.com/traffic/a.example.com/#settings/billing", text)
+        self.assertIn("https://dash.example.com/traffic/a.example.com/#settings/org/billing", text)
         html = msg.get_body(("html",)).get_content()
-        self.assertIn('href="https://dash.example.com/traffic/a.example.com/#settings/billing"',
+        self.assertIn('href="https://dash.example.com/traffic/a.example.com/#settings/org/billing"',
                       html)
         self.assertIn("Open Billing", html)
         full = mails.usage_mail(self.cfg, "owner@example.com", "Alpha", "small", 1000, 1000,
@@ -326,12 +326,12 @@ class TheMail(Case):
             text = msg.get_body(("plain",)).get_content()
             links[to] = [w for w in text.split() if w.startswith("https://")][0]
         self.assertEqual(links["owner@example.com"],
-                         "https://dash.example.com/traffic/a.example.com/#settings/billing")
+                         "https://dash.example.com/traffic/a.example.com/#settings/org/billing")
         self.assertEqual(links["beta-owner@example.com"],
-                         "https://dash.example.com/traffic/b.example.com/#settings/billing")
+                         "https://dash.example.com/traffic/b.example.com/#settings/org/billing")
         # No dashboard.url for the site: the install's base address and its own folder.
         self.assertEqual(usage_alerts.billing_link([OTHER], {}, self.cfg),
-                         "https://dash.example.com/traffic/b.example.com/#settings/billing")
+                         "https://dash.example.com/traffic/b.example.com/#settings/org/billing")
         self.assertIsNone(usage_alerts.billing_link([OTHER], {}, {}))
 
     def test_after_a_run(self):

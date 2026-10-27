@@ -34,7 +34,7 @@ const KINDS = [
 ];
 const DEVICES = { DESKTOP: "Desktop", MOBILE: "Phone", TABLET: "Tablet" };
 const TO2 = Object.fromEntries(Object.entries(ALPHA3).map(([two, three]) => [three, two]));
-const SETTINGS = "#settings/site/leads?sub=search";
+const SETTINGS = "#settings/site/leads?tool=search";
 
 // This tab's own choices, kept while the page is open.
 let engine = "";
@@ -92,7 +92,7 @@ function statusBlock(part, e) {
     sum.provisional ? info(`${toolOf(e)} may still change its newest days. Skald fetches them again on every sync until the engine says they are final.`, "Provisional days") : null));
   if (st.error) out.push(h("div", { class: "state warn", role: "alert", html: ICON.info }, h("div", null,
     h("strong", null, `The ${toolOf(e)} sync is failing${st.error_since ? ` since ${tzTime(st.error_since, { date: true })}` : ""}. `), st.error,
-    " The figures already synced stay here. ", h("a", { href: SETTINGS }, "Settings › Leads & integrations › Search Console & Bing"))));
+    " The figures already synced stay here. ", h("a", { href: SETTINGS }, "Settings › Leads & tools › Search Console & Bing"))));
   const b = st.backfill;
   if (b && (b.state === "running" || b.state === "queued")) out.push(h("div", { class: "state" }, h("div", null,
     h("strong", null, "Syncing the history. "), b.of ? `${n(b.done || 0)} of ${n(b.of)} weeks done.` : "Starting...", " Figures appear as each week arrives.")));
@@ -112,13 +112,13 @@ function setupBlock(file, e) {
   const google = e === "google";
   const keySet = file.keys?.[e];
   const steps = google ? [
-    keySet ? "The install's Google service-account key is in place." : "An install admin uploads a Google service-account key in Settings › Leads & integrations › Search Console & Bing. One key serves every site.",
+    keySet ? "The install's Google service-account key is in place." : "An install admin uploads a Google service-account key in Settings › Leads & tools › Search Console & Bing. One key serves every site.",
     "In Search Console › Settings › Users and permissions, add the service account's email with Restricted (read-only) access. Settings shows the email, and text to send a client whose site it is.",
-    "Back in Settings › Leads & integrations › Search Console & Bing: Find my properties, Test connection, then Connect. The history (3 or 16 months) syncs in the background; after that Skald syncs by itself every 6 hours.",
+    "Back in Settings › Leads & tools › Search Console & Bing: Find my properties, Test connection, then Connect. The history (3 or 16 months) syncs in the background; after that Skald syncs by itself every 6 hours.",
   ] : [
-    keySet ? "The install's Bing API key is in place." : "An install admin types a Bing Webmaster Tools API key in Settings › Leads & integrations › Search Console & Bing (Bing Webmaster Tools › Settings › API access).",
+    keySet ? "The install's Bing API key is in place." : "An install admin types a Bing Webmaster Tools API key in Settings › Leads & tools › Search Console & Bing (Bing Webmaster Tools › Settings › API access).",
     "The site must be added and verified in Bing Webmaster Tools under that key's account; for a client's site, the client adds that account as a user.",
-    "Back in Settings › Leads & integrations › Search Console & Bing: Find my sites, Test connection, then Connect. Skald syncs by itself every 6 hours.",
+    "Back in Settings › Leads & tools › Search Console & Bing: Find my sites, Test connection, then Connect. Skald syncs by itself every 6 hours.",
   ];
   return h("div", { class: "state se-setup", html: ICON.info }, h("div", null,
     h("strong", null, google ? "Connect Search Console" : "Connect Bing Webmaster Tools"),

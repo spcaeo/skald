@@ -89,6 +89,15 @@ export default function leads(m, s, { first }) {
   return out;
 }
 
+/* Leads & sales › Leads counts its 7, 30 or 90 days up to today, from every tool (demos booked
+   too); this count is whole days from the lead database. Said under the tiles so the two
+   figures are never read as one (2.42, the UX audit). */
+function otherFigure(s, r) {
+  if (!String(s.tab || "").startsWith("sales/") || !["7d", "30d", "90d"].includes(s.range) || r.kind !== "history") return null;
+  return h("p", { class: "note" }, "Leads › Leads shows another figure for the same choice: its days run up to today, so far, and it counts every tool, demos booked too. This one is whole days from the lead database. ",
+    h("a", { href: S.hashFor({ ...s, tab: "sales/leads", dd: "" }) }, "Open Leads ›"));
+}
+
 // A kind the lead store has never recorded is "Not set up", never 0 (notset.js neverRecorded).
 function notSent(k, s) {
   const demo = k === "demo_opened" || k === "demo_booked";
@@ -129,6 +138,7 @@ function counts(m, s, r, f, byDay, inRange, first, out) {
     ...types.map((k) => (never.has(k) ? notSent(k, s) : tile(name(k), sum[k] || 0, k === "demo_opened" ? "opened the booking page" : "", TONE[k], true, k))),
     readers != null ? h("div", { class: "kpi" }, h("div", { class: "k-l" }, "Leads per 100 visitors"), h("div", { class: "k-n" }, "visitors from the verified days of the same range"),
       h("div", { class: "k-v" }, per ? ((leadsN / readers) * 100).toFixed(1) : "-"), h("div", { class: "k-c" }, per ? `${n(leadsN)} from ${n(readers)} visitors` : `too few visitors to rate (under ${MIN_RATE})`)) : null)),
+    otherFigure(s, r),
     c.ok && !covered ? h("p", { class: "cmp-why" }, "Leads not compared: the lead store does not cover every day of A and of B.") : null,
     cmpB?.c.perDay ? h("p", { class: "note" }, "Per day: each figure against B is a typical day of its period.") : null,
     h("p", { class: "note" }, spam || dup ? `Left out: ${n(spam)} spam and ${n(dup)} duplicate${dup === 1 ? "" : "s"}. ` : "",

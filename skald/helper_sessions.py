@@ -125,7 +125,7 @@ def listing(h, out: Path | None, who: dict, config=None, live_dir=None,
                  for n in _order(out, mine)]
         sites = site_picker.enrich(sites, out, config, live_dir, config_path)
         admin = [n for n in _order(out, set(who.get("admin_sites") or []))]
-        wizard = f"{slug(admin[0])}/#settings/sitesadmin" if admin else None
+        wizard = f"{slug(admin[0])}/#settings/org/sites" if admin else None
         add = f"{wizard}?setup=new" if admin else None
         # A set-up left half way, or a site that heard nothing for a day: a link
         # that reopens the wizard (connections_api.badges; admins only), in a
@@ -142,7 +142,7 @@ def listing(h, out: Path | None, who: dict, config=None, live_dir=None,
             got = marks.get(s.get("name"))
             home = got and setup_page.app_for(s["name"], known, order, Path(out))
             if home:
-                s["badge"] = {"words": got[0], "href": f"{slug(home)}/#settings/sitesadmin"
+                s["badge"] = {"words": got[0], "href": f"{slug(home)}/#settings/org/sites"
                                                        f"?{got[1]}={quote(s['name'])}"}
         # Where visitors came from on each of the caller's sites (across_sites.py):
         # only the sites listed here, so another organisation's never shows.

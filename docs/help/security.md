@@ -32,6 +32,8 @@ At the top, one line says it:
 - **N possible exposures: check these now**: these probes got a page whose size is unlike the host's fallback page. Open each path yourself and see what it returns.
 - **Can't tell for N answers**: the log line has no size, so Skald cannot tell a page from a file. It never calls these safe. Add the body size (`$body_bytes_sent` in nginx) to your log format.
 
+When there is a possible exposure, the line has the screen's one main button, **Fix**. It asks **Who will do it?**: **Me** shows the paths by kind, each with what to do and the nginx line to copy; **My developer** gives a message to send, with the paths and a link back. Your AI agent has no job for this yet, so it is not offered. **Each host's answers** (each host's harmless page and how its answers were sorted) is under **Open the details**, kept open in the address (`sxx_view=open`). The address of the Fix is `fixit=exposed`.
+
 ### How to read "harmless" (the fallback page)
 
 Many sites answer every path they do not have with the same page:
@@ -109,7 +111,7 @@ Signs on a row:
 
 Select a row to see its detail: the paths it asked for, and **Open its requests**, which opens **Site › Requests** filtered to that address. The request list keeps only the last few hours of the raw log; older lines of that address have expired from it, and only the counts remain here.
 
-**Addresses.** Only owners and admins see them, and only on a site that keeps addresses (**Settings › This site › Privacy & retention**). A site that keeps them shortened shows networks (`/24` for IPv4, `/48` for IPv6), never one address. Anyone else sees each day's rows without their address. Scanners and addresses are counted per day: one that came back on three days counts three times.
+**Addresses.** Only owners and admins see them, and only on a site that keeps addresses (**Settings › This site › Privacy**). A site that keeps them shortened shows networks (`/24` for IPv4, `/48` for IPv6), never one address. Anyone else sees each day's rows without their address. Scanners and addresses are counted per day: one that came back on three days counts three times.
 
 ## Attack attempts
 
@@ -147,6 +149,8 @@ The worst addresses and networks of the period, ranked by probes, then attack at
 - **nginx deny lines**: paste into your `server { }` block, then run `nginx -t` and reload nginx.
 - **Cloudflare IP list (CSV)**: in the Cloudflare dashboard go to **Settings › Lists**, select **Create new list** with the IP content type (or **Edit** next to a list you have), then **Add items › Upload CSV**. Then use the list in a WAF rule. These are the steps in Cloudflare's own guide, [Create a list in the dashboard](https://developers.cloudflare.com/waf/tools/lists/create-dashboard/), as of 24 October 2026.
 - **Plain list**: one address or network per line, for fail2ban, ipset or a firewall.
+
+The screen's one main button, **Block them**, asks **Who will do it?**: **Me** gives the steps for nginx, Cloudflare and fail2ban; **My developer** gives a message to send, with a link back to the list. The address is `fixit=block`. One line above the list keeps the warning; the rest is behind the **?**.
 
 **Review before you block.** A shared address (an office, a mobile network, a VPN) or a CDN can carry real visitors too, and a scanner moves to a new address within days. Blocking stops requests; it does not fix a file that should not be served: fix that first.
 

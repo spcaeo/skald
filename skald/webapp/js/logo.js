@@ -18,7 +18,7 @@ export function letterOf(name) {
 }
 
 // The same colour for a name every time when the server sent none (the
-// server's choice wins: Settings > Site details > Logo).
+// server's choice wins: Settings > Site > Logo).
 function colorOf(name) {
   let n = 0;
   for (const ch of String(name)) n = (n * 31 + ch.codePointAt(0)) >>> 0;

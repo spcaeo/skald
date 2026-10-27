@@ -102,5 +102,5 @@ export const TWO_SAFE = [
   "Paste line 1 into a terminal in this site's own project folder: it puts the token in your assistant's own settings. Never paste the token into a chat message.",
   "The token reads this one site's figures and can make set-up lines for it, nothing else. It sees no visitor addresses.",
   "Then type line 2 into the assistant's chat. It looks at what is left, makes this site's one-time line, and follows it.",
-  "Remove the token any time in Settings › AI & API › Tokens & links. It also stops at once if its maker is no longer an owner or admin.",
+  "Remove the token any time in Settings › AI assistants › Tokens & links. It also stops at once if its maker is no longer an owner or admin.",
 ];

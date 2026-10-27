@@ -10,6 +10,12 @@ import { readFileSync } from "node:fs";
 import { install } from "./dom-lite.mjs";
 
 install();
+// v2: a card's form opens in a drawer (a dialog), its key in the address.
+Element.prototype.showModal = function showModal() { this.open = true; };
+Element.prototype.close = function close() { this.open = false; };
+globalThis.matchMedia = () => ({ matches: true, addEventListener() {}, addListener() {} });
+location.hash = "#settings/site/privacy";
+globalThis.history = { state: null, pushState(_, __, h) { location.hash = h; }, replaceState(_, __, h) { location.hash = h; }, back() {}, go() {} };
 const answer = JSON.parse(readFileSync(process.env.SETTINGS_JSON, "utf8"));
 const posted = [];
 globalThis.fetch = async (path, opts) => {
@@ -26,14 +32,25 @@ const JS = new URL("../../skald/webapp/js/", import.meta.url);
 const { ME } = await import(new URL("access.js", JS));
 Object.assign(ME, { mode: "sessions", role: "owner", user: "owner@example.com" });
 const { retention } = await import(new URL("tabs/prefs.js", JS));
+const { openEdit } = await import(new URL("tabs/set-edit.js", JS));
+const M = { site: "example.com" };
 
 const root = document.createElement("div");
-root.append(...retention({ site: "example.com" }));
+document.body.append(root);
+root.append(...retention(M));
 await new Promise((r) => setTimeout(r, 20));
-const text = root.textContent;
+// v2: the page is rows (the value, the pill); a row opens the card's form in its drawer.
+const rows = root.querySelector('[data-part="people"]');
+assert.ok(rows && rows.textContent.includes("Full address"), "the People card as rows, with the value in words");
+assert.equal(root.querySelector("form"), null, "no form on the page itself");
+const dialog = () => document.body.querySelectorAll("dialog").filter((d) => d.open).pop();
+rows.querySelector("button.set-row").click();
+await new Promise((r) => setTimeout(r, 20));
+assert.equal(new URLSearchParams(location.hash.split("?")[1]).get("edit"), "people", location.hash);
+const text = dialog().textContent;
 
 // The three choices, each with its line, and what switching does.
-const set = root.querySelectorAll("fieldset").find((f) => f.id === "set-privacy-keep_ips");
+const set = dialog().querySelectorAll("fieldset").find((f) => f.id === "set-privacy-keep_ips");
 assert.ok(set, "the IP choice is a fieldset");
 const radios = set.querySelectorAll("input");
 assert.deepEqual(radios.map((i) => i.getAttribute("value")), ["full", "short", "off"]);
@@ -63,8 +80,11 @@ assert.deepEqual(posted, [{ "privacy.keep_ips": "short" }]);
 assert.ok(root.querySelector("section.notice-card").textContent.includes("Changed wording."));
 
 // 2.29, the Leads card: "Kept for good" or N days, and the days before a sign-up.
-const leads = root.querySelectorAll("section").find((s) => s.querySelector("h2")?.textContent === "Leads");
-assert.ok(leads, "the Leads card is drawn");
+assert.ok(root.querySelector('[data-part="people"]').textContent.includes("Shortened (last part removed)"), "the page's row follows the save");
+await openEdit("leads", M);
+await new Promise((r) => setTimeout(r, 20));
+const leads = dialog();
+assert.ok(leads.textContent.includes("Leads"), "the Leads drawer is drawn");
 const lt = leads.textContent;
 for (const words of ["Leads and the pages they read", "Kept for good", "Skald never deletes them", "days (1 to 3650)",
   "Pages of visitors who have not signed up yet", "Once they sign up, their pages are kept with the lead", "1 to 400"]) assert.ok(lt.includes(words), words);

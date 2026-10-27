@@ -192,7 +192,7 @@ def check(site: str, origins: set[str], skald: str) -> dict:
         return _answer("problem", f"Your page is at {shown(here)}, which is not one of "
                        f"{site}'s host names, so Skald refuses its events (403).",
                        f"Add {urlsplit(here).hostname} to the site's host names in "
-                       "Settings > Site details.", **facts)
+                       "Settings > Site.", **facts)
     src_origin = origin_of(tag["src"])
     if skald and src_origin == skald:
         if urlsplit(tag["src"]).path != "/traffic-js/skald.js":

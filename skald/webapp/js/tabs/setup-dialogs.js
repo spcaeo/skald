@@ -1,16 +1,16 @@
 // The "Set up this site" checklist's Set up buttons (checklist.js): one short
-// guided dialog per open line, in the same wizard as Settings > Collect data > Send logs
+// guided dialog per open line, in the same wizard as Settings > Data > Send logs
 // (conn-ui.js). This file opens the right one, and holds the three small ones:
 //
-//   logs       Settings > Collect data > Send logs' "Send this site's visits" (conn-send.js),
+//   logs       Settings > Data > Send logs' "Send this site's visits" (conn-send.js),
 //              with GET sites' answer
 //   assets     where the pages load their own files: GET settings, then
 //              POST settings/save site.asset_prefixes (or site.require_rendering)
 //   countries  a country file on the server: what it adds, and a mail to the
 //              server admin (nothing to save here)
-//   pack       "Send set-up to someone" at the top of the checklist (2.30): the
-//              whole set-up in one zip, mailed or saved (setup-pack.js)
-//   search     (2.40) Google Search Console: Settings > Leads & integrations > Search Console & Bing's own
+//   pack       the whole set-up in one zip, mailed or saved (setup-pack.js); v2: Finish
+//              set-up's "Someone else" (setup-finish.js) shows the same box
+//   search     (2.40) Google Search Console: Settings > Leads & tools > Search Console & Bing's own
 //              wizard, in a dialog (setup-search.js)
 //
 // The others: setup-tag.js (the script tag), setup-hook.js (a lead hook),
@@ -19,7 +19,8 @@
 // Next.js site).
 //
 // 2.39: the dialogs with an agent job (logs, script, lead, rsc, assets, privacy; search, 2.40) open on
-// "Your AI agent, or by hand?" (agent-first.js); countries and mail stay by hand. all:
+// the app's "Who will do it?" (agent-first.js, ui/who.js; by= in the address); countries and
+// mail stay by hand. all:
 // "Set up everything left with your AI agent", one line for every open line an agent can do.
 
 import { h } from "../ui.js";
@@ -42,12 +43,12 @@ import { jobsFrom } from "./agent-words.js";
 import { AGENT_JOBS } from "../setup-items.js";
 
 // Each dialog is in the address as setup=<act>&step=<n> (js/overlays.js); start: a link's step, 0 first.
-// agent, link: the address's (agent-first.js); jobs: setup=all's.
+// agent, link, by: the address's (agent-first.js); jobs: setup=all's.
 export const ACTS = ["logs", "assets", "rsc", "countries", "script", "lead", "mail", "privacy", "search", "pack", "all"];
-export async function openSetup(act, site, { item = null, onClose = null, start = 0, agent = "", link = "", jobs = null } = {}) {
+export async function openSetup(act, site, { item = null, onClose = null, start = 0, agent = "", link = "", by = "", jobs = null, auto = false } = {}) {
   const route = { key: "setup", value: act };
-  if (act === "all") return allDialog(site, jobs || item?.jobs || [], { onClose, route, start, agent, link });
-  const wrap = AGENT_JOBS.includes(act) ? agentFirst([act], site, { agent, link }) : null;
+  if (act === "all") return allDialog(site, jobs || item?.jobs || [], { onClose, route, start, agent, link, auto });
+  const wrap = AGENT_JOBS.includes(act) ? agentFirst([act], site, { agent, link, by, auto }) : null;
   const opts = { item, onClose, route, start, wrap };
   if (act === "logs") {
     const r = await call("sites");
@@ -72,15 +73,21 @@ export function packDialog(site, { onClose = null, route = null, start = 0 } = {
     steps: [{ name: "Send or download", draw: () => [packBox(site)] }] });
 }
 
-/* setup=<act>&step=<n>(&agent=<id>&link=<id>&jobs=<ids>), from a link: the dialog at that
+/* setup=<act>&step=<n>(&by=<me|dev|agent>&agent=<id>&link=<id>&jobs=<ids>), from a link: the dialog at that
    step for an owner or an admin; the line, for anyone else. The checklists on the page ask
    again when it closes. s: the address's state. */
 export async function openSetupKey(act, m, step = 1, share = false, s = {}) {
-  if (!ACTS.includes(act)) return "That set-up step is not in this version of the page.";
+  const finish = act === "finish" || act.startsWith("finish-");
+  if (!ACTS.includes(act) && !(finish && (act === "finish" || ACTS.includes(act.slice(7))))) return "That set-up step is not in this version of the page.";
   if (DEMO.on) return "Setting up needs a running Skald: not available in the demo.";
   if (!sessions() || !(["owner", "admin"].includes(ME.role) || ME.install_admin)) return "Not available to your role.";
-  const { itemFor, refreshChecklists, agentJobsFor } = await import("./checklist.js");
-  const opts = { start: Math.max(0, step - 1), onClose: refreshChecklists, agent: s.agent || "", link: s.link || "" };
+  const { itemFor, refreshChecklists, agentJobsFor, checkItems } = await import("./checklist.js");
+  // v2: Finish set-up, Who will do it? (setup-finish.js), for every open line or one.
+  if (finish) {
+    const { finishDialog } = await import("./setup-finish.js");
+    return finishDialog(m.site, await checkItems(m), { only: act === "finish" ? "" : act.slice(7), onDone: refreshChecklists });
+  }
+  const opts = { start: Math.max(0, step - 1), onClose: refreshChecklists, agent: s.agent || "", link: s.link || "", by: s.by || "" };
   if (act === "all") {
     // The jobs the link names (the line being watched was made for them), else the lines left now.
     const jobs = jobsFrom(s.jobs).filter((j) => AGENT_JOBS.includes(j));
@@ -135,7 +142,7 @@ export function assetsDialog(site, { item = null, onClose = null, route = null, 
         } },
       { name: "Done",
         draw: () => [h("div", { class: "state ok", role: "status" }, h("div", null, h("p", null, h("strong", null, "Saved. "), "It applies from the next daily run, each morning. This line ticks itself once the server sees browsers load those files."))),
-          h("p", { class: "note" }, "You can change it later in Settings > Collect data > What counts."),
+          h("p", { class: "note" }, "You can change it later in Settings > Data > What counts."),
           adminFold([...(item?.tech ? [h("p", null, item.tech)] : []), h("p", null, "Days already stored are not counted again. To recount them, run backfill --force on the server.")])] },
     ],
   });

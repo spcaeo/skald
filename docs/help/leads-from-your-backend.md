@@ -4,7 +4,7 @@ Your site's server tells Skald each time a lead is made. The quick way: download
 
 ## The quick way: one file, one function
 
-1. In the dashboard, open **Settings > This site > Leads & integrations > Incoming hooks > Your site's server (lead)** and press **Make secret**. The secret is shown once.
+1. In the dashboard, open **Settings > This site > Leads & tools > Incoming hooks > Your site's server (lead)** and press **Make secret**. The secret is shown once.
 2. In the same box, download the file for your site's language. Downloaded right after you made the secret, the file holds it and works as it is. Downloaded later, it holds no secret: set the environment variable `SKALD_LEAD_SECRET` on your server (every file reads it first, so it is the better place anyway).
 3. Put the file next to your code and add one line where your form is saved:
 
@@ -39,7 +39,7 @@ On the server:
 sudo skald hooks secret example.com lead
 ```
 
-Or in the dashboard: **Settings > This site > Leads & integrations > Incoming hooks > Your site's server (lead) > Make secret**. Docker: `docker exec skald skald hooks secret example.com lead` (in Docker, run every `skald` command in this guide the same way, without `sudo`).
+Or in the dashboard: **Settings > This site > Leads & tools > Incoming hooks > Your site's server (lead) > Make secret**. Docker: `docker exec skald skald hooks secret example.com lead` (in Docker, run every `skald` command in this guide the same way, without `sudo`).
 
 It prints the secret once, and the address to post to. With `access.base_url` set, the address is the real one, such as `https://stats.example.com/traffic-hooks/example.com/lead`.
 
@@ -201,7 +201,7 @@ Do not retry a 400. The body is wrong: the answer says what, and so does the del
 
 ## 5. One tool per lead
 
-Send each lead through one road only. If the same lead also goes through Zapier (the `json` hook), or Skald also reads it from the lead database, it counts once per road. **Settings > This site > Leads & integrations > Incoming hooks > Status** flags such leads as "One lead, two tools".
+Send each lead through one road only. If the same lead also goes through Zapier (the `json` hook), or Skald also reads it from the lead database, it counts once per road. **Settings > This site > Leads & tools > Incoming hooks > Status** flags such leads as "One lead, two tools".
 
 ## 6. Backfill old leads
 

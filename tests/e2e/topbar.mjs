@@ -4,10 +4,10 @@
 //     period, page group, filters, buttons), and nothing sticks out of the window
 //   * the dark pill sits exactly on the chosen period, on load and after a
 //     click (once its slide has ended)
-//   * the two global modes (2.7.0, js/modes.js) are there on every page with
-//     figures: "Today · Live" (pressed at range=today, when no period is marked)
-//     and "Compare with…"; with Live on and with Compare on (its longer words)
-//     the bar still does not overlap
+//   * on every page with a period: "Today" is the period group's first choice (2.42;
+//     pressed at range=today, with the live dot), and "Compare with…" is there on a tab
+//     that compares (on by default) and absent on one that does not; with Live on and
+//     with Compare on (its longer words) the bar still does not overlap
 // Run once signed in as an admin and once as a viewer: their buttons differ.
 //
 //   PLAYWRIGHT=/path/to/node_modules/playwright/index.mjs \
@@ -69,10 +69,10 @@ for (const scheme of ["light", "dark"]) {
         const seg = row.querySelector(".bar-mid .seg");
         const ind = seg?.querySelector(".seg-ind"), on = seg?.querySelector('[aria-pressed="true"]');
         const pill = ind && on ? [r(ind).left - r(on).left, r(ind).width - r(on).width] : null;
-        const live = row.querySelector(".bar-modes .mode-live"), cmp = row.querySelector(".bar-modes .mode-cmp");
+        const todayBtn = seg && [...seg.querySelectorAll("button")].find((x) => x.textContent.trim() === "Today");
+        const cmp = row.querySelector(".bar-modes .mode-cmp");
         // A page without figures keeps at most its own period chip there (2.13), never the modes.
-        return { over, out, pill, figures: !!mid.querySelector(".bar-modes, .seg"), live: live && live.getAttribute("aria-checked"), cmp: cmp && cmp.getAttribute("aria-pressed"),
-          today: !!seg && [...seg.querySelectorAll("button")].some((x) => x.textContent === "Today"),
+        return { over, out, pill, figures: !!mid.querySelector(".seg"), live: todayBtn ? todayBtn.getAttribute("aria-pressed") : null, cmp: cmp && cmp.getAttribute("aria-pressed"),
           // Today is the default period (2.10.1): the address leaves range=today out.
           range: new URLSearchParams(location.hash.split("?")[1] || "").get("range") || "today" };
       });
@@ -82,10 +82,8 @@ for (const scheme of ["light", "dark"]) {
       if (got.out.length) fail(`${where}: outside the window: ${got.out.join(", ")}`);
       if (got.pill && (Math.abs(got.pill[0]) > 1 || Math.abs(got.pill[1]) > 1)) fail(`${where}: the pill is off its period by ${got.pill.map((x) => x.toFixed(1)).join(" px, ")} px`);
       if (!got.figures) continue;
-      if (!got.live || !got.cmp) fail(`${where}: the modes are missing (Today · Live ${got.live}, Compare with… ${got.cmp})`);
-      if (got.live && got.live !== String(got.range === "today")) fail(`${where}: Today · Live says ${got.live} at range "${got.range}"`);
-      if (got.today) fail(`${where}: the period bar still offers Today beside the Live switch`);
-      if (got.range === "today" && got.pill) fail(`${where}: Live is on and a period is still marked`);
+      if (!got.live) fail(`${where}: the period group has no Today`);
+      if (got.live && got.live !== String(got.range === "today")) fail(`${where}: Today says ${got.live} at range "${got.range}"`);
     }
     // A click moves the pill onto the new period (after its slide).
     where = `period click at ${w} ${scheme}`;

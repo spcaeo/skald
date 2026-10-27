@@ -189,7 +189,12 @@ async function draw(fn, role, extra = {}) {
   assert.match(shown, /no other probe path on example\.com got a page/);
   assert.match(shown, /location ~ \/\\\. \{ deny all; \}/, "one line of advice with the fix");
   assert.match(shown, /Not recorded: 18 Oct/, "a day without the figure is said, never 0");
-  assert.match(shown, /392 bytes/, "the host's shell");
+  assert.match(shown, /Open the details: each host's answers/, "each host's answers under a fold (2.42)");
+  const fold = document.body.querySelector("details");
+  fold.open = true; fold.setAttribute("open", ""); fold.dispatchEvent(new Event("toggle"));
+  for (let i = 0; i < 4; i++) await tick();
+  assert.match(text(document.body), /392 bytes/, "the host's shell, inside the fold");
+  assert.equal(document.body.querySelectorAll(".ui-primary").length, 1, "one primary: Fix");
   assert.ok(!asked.some((u) => /people\/security/.test(u)), "this tab never asks for addresses");
 }
 {

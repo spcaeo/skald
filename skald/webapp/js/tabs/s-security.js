@@ -5,7 +5,7 @@
 // A section of its own, not a tab of AI & bots: it is about the server and what was tried
 // against it, for every host the log names (the bare IP too), where AI & bots is about who
 // reads the site. Its route key is "threats" (#threats/exposed) because "#security" has long
-// opened Settings > Sign-in rules (routes.js). Its tabs read security.json (security_page.py),
+// opened Settings > People > Sign-in rules (routes.js). Its tabs read security.json (security_page.py),
 // loaded when a tab opens; the addresses come from the helper (owners and admins).
 
 import exposed from "./sec-exposed.js";

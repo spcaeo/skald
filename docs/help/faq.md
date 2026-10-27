@@ -40,7 +40,7 @@ On [AI & bots > Assistants](#ai/assistants), **What the AI read before it sent a
 
 ## What are the AI alerts?
 
-Three alerts watch how AI assistants treat your site. They show on [Site > Alerts](#site/alerts) (press **AI** to see only them) and in **AI reading changes** on [AI & bots > Assistants](#ai/assistants):
+Three alerts watch how AI assistants treat your site. They show on [Site > Alerts](#site/alerts) (grouped: "AI stopped reading 10 pages", with **See the 10 pages**) and in **AI reading changes** on [AI & bots > Assistants](#ai/assistants):
 
 - **AI started reading**: an assistant fetched a page yesterday that it had not fetched in the 28 days before.
 - **AI stopped reading**: an assistant that fetched a page in at least 3 of the 4 weeks before has not fetched it for 7 days.
@@ -77,7 +77,7 @@ A click on a link inside a Next.js site loads no new page from your server: the 
 
 ## Why is my own visit not counted?
 
-Your team's addresses are probably listed as internal. Visits from them go to the "Our own" group, kept apart from people, so your own testing does not inflate the figures. See [Internal traffic](internal-traffic.md) and [Internal traffic settings](#settings/site/internal).
+Your team's addresses are probably listed as internal. Visits from them go to the "Our own" group, kept apart from people, so your own testing does not inflate the figures. See [Internal traffic](internal-traffic.md) and [Internal traffic settings](#settings/site/details?sub=internal).
 
 ## Does Skald use cookies?
 
@@ -89,11 +89,11 @@ Yes. Skald counts from your web server's own access log, and the server writes a
 
 The optional script tag is the one part that follows the banner. It can wait for consent (`data-consent="required"`, then your banner calls `skald('consent', true)`), it does nothing when Do Not Track or Global Privacy Control is on, and it keeps no visitor ID unless you turn IDs on for the site.
 
-The log holds IP addresses, which are personal data in places like the EU. You choose whether Skald keeps them in full, shortened (the last part removed) or not at all, and for how long ([Privacy & retention](#settings/site/privacy)). The same page writes the wording for your privacy notice from those settings. See [Privacy](privacy.md).
+The log holds IP addresses, which are personal data in places like the EU. You choose whether Skald keeps them in full, shortened (the last part removed) or not at all, and for how long ([Privacy](#settings/site/privacy)). The same page writes the wording for your privacy notice from those settings. See [Privacy](privacy.md).
 
 ## How fresh is today?
 
-Today's figures are recounted about every two minutes. The foot of every page says when they were last updated and when the next update is due. If your server allows it, **Refresh** in the top bar recounts at once. Yesterday becomes a whole, checked day after the morning's run.
+Today's figures are recounted about every two minutes. The foot of every page says when they were last updated and when the next update is due. If your server allows it, **More** (the three dots at the top right) > **Recount today now** recounts at once. Yesterday becomes a whole, checked day after the morning's run.
 
 ## Why does a card say Loading?
 
@@ -110,8 +110,8 @@ On [Leads & sales > Leads](#sales/leads): every lead of the period, one row each
 ## How do I get data out?
 
 - **Export what you see** above any table: its matching rows, in their order, with the columns shown, as a CSV.
-- **Export** in the top bar: every table on the tab as CSV files in a ZIP, the tab as JSON, a printable report, or the report builder for several tabs at once.
-- **API**: every figure as JSON, for a script. Tokens are made in **Settings > AI & API > Read figures (API)**, or by hand in **Settings > AI & API > Tokens & links**. See [API](api.md) and [Connections](connections.md).
+- **More** (the three dots at the top right), then **Export**: it asks what you need: a PDF of this page, the tables as CSV, a report someone gets every month, or JSON for your own tools.
+- **API**: every figure as JSON, for a script. Tokens are made in **Settings > AI > AI assistants > API**, or by hand in **Settings > AI > AI assistants > Tokens & links**. See [API](api.md) and [Connections](connections.md).
 - **MCP**: let an AI assistant read your figures. See [MCP](mcp.md).
 
 ## Who can see visitor addresses?
@@ -132,7 +132,7 @@ Yes. Times show in the site's own zone unless you choose otherwise. Select the r
 
 ## How do I invite a colleague?
 
-Admins and owners go to **Settings > Organisation > Team** and use **Invite someone**. See [Sign-in and team](sign-in-and-team.md).
+Admins and owners go to **Settings > Organisation > People** and use **Invite someone**. See [Sign-in and team](sign-in-and-team.md).
 
 ## My site is behind Cloudflare: will cached pages be missed?
 

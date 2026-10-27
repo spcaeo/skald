@@ -22,7 +22,7 @@ first, following at most 3 redirects by hand, then a GET of the first
                  github_pages, or a hosted builder (shopify, wix,
                  squarespace, webflow), or None
   framework      nextjs, nuxt, wordpress, gatsby, astro, plain, or None
-  asset_prefixes what Settings > Collect data > What counts would take (checked by
+  asset_prefixes what Settings > Data > What counts would take (checked by
                  settings_store's own rule), or None
   recommended_method  one of the wizard's ways (accounts/site_setup.py
                  METHODS), or None, with `reason` in one plain line
@@ -245,7 +245,7 @@ def _valid_prefixes(items) -> list[str] | None:
 
 
 def assets_of(framework: str | None, page: _Page | None, hosts) -> tuple[list | None, str]:
-    """(asset_prefixes for Settings > Collect data > What counts, or None; and a
+    """(asset_prefixes for Settings > Data > What counts, or None; and a
     note). A framework's own folders first; else the folders this page
     loads its scripts and styles from, on its own names; else None."""
     if framework in ASSETS:

@@ -106,3 +106,16 @@ dialog.dw.vz-dw { --dw-w: min(660px, 100vw); }
 
 /* Traffic > Sources, first touch: the table under the returning visits' bars, with room above it. */
 .ft-h4 { margin: 18px 0 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+
+/* State first (2.42): one card with the pills, one sentence and one line of facts; the
+   journey's newest visits with Show all (N); the rest behind folds. */
+.vz-dw .dw-sub:empty { display: none; }
+.vz-state { display: grid; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); }
+.vz-pills { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.vz-pills .ui-help-w { margin-left: auto; }
+.vz-line { margin: 0; font-size: var(--t-m); font-weight: 600; color: var(--ink); }
+.vz-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--sp-4); margin: 0; font-size: var(--t-s); color: var(--ink-2); }
+.vz-facts .named { display: inline-flex; align-items: center; gap: 4px; }
+.vz-all { display: block; margin: var(--sp-3) auto 0; }
+.vz-dw .ui-fold.vz-more { margin-top: var(--sp-3); }
+.vz-lc > ul { margin-top: 0; }

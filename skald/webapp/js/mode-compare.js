@@ -101,7 +101,7 @@ export function compareOf(m, s) {
   if (!kind) return { on: false, ok: false };
   const a = rangeOf(m, s);
   const base = { on: true, ok: false, kind, name: NAME[kind], a };
-  if (a.kind === "today") return { ...base, why: "Today is live and partial, so it is never compared. Turn Today · Live off, or pick Yesterday or longer, to compare." };
+  if (a.kind === "today") return { ...base, why: "Today is live and partial, so it is never compared. Pick Yesterday or longer to compare." };
   // Include today (period-dates.js): today is not over, and no earlier day is kept cut at the
   // same hour, so a period that ends today is never set against whole days.
   if (a.inc) {

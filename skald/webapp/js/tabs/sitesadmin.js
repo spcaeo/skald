@@ -4,8 +4,8 @@
 // site step by step (site-wizard.js): its address, proof it is theirs, then one
 // line for an AI agent and a watch as it connects, or by hand how its visits reach
 // Skald, the install and a test; a set-up left half way shows
-// "Setup: step 3 of 5, continue", and one that heard nothing for a day "No
-// visits yet: test the connection". #settings/org/sites?setup=new|<site>&step=<n>&agent=<id>&link=<id>
+// "Finish setting up", and one that heard nothing for a day "No
+// visits yet: test the connection". #settings/org/sites?setup=new|<site>&step=<n>&by=me|dev|agent&agent=<id>&link=<id>
 // is the wizard open (2.21: kept while it is open, Back closes it; js/overlays.js), and ?test=<site>
 // opens a site's wizard at its Test (the site picker links there). Each site's ⋯ menu
 // (site-actions.js, ?sact=<act>.<site>) pauses or resumes it (owner or admin), and for
@@ -14,6 +14,7 @@
 // <page>/sites checks role and CSRF.
 
 import { h } from "../ui.js";
+import { primary, quietLine, quietButton } from "./set-ui.js";
 import { call } from "./ipmanager.js";
 import { ME, sessions } from "../access.js";
 import { head1, copyable, status, when, why } from "./forms.js";
@@ -56,22 +57,23 @@ let asked = "";
 let latest = null;
 
 /* setup=new|<site>&step=<n>&agent=<id>&link=<id>, from a link: the Add a site wizard, for an
-   owner or an admin (on Connections too: its "Set up with your AI agent" opens a site's at step 3).
+   owner or an admin (on Connections too: its "Set up with your AI agent" opens Connect it).
    The page's last answer, unless it does not have the site yet (one the wizard just made).
-   No step in the address (the site picker's "Setup: step 4 of 5, continue"): the saved one. */
+   No step in the address (the site picker's "Finish setting up"): the saved one.
+   2.42: two steps (site-wizard.js); by= is who connects it, and pick asks which AI agent. */
 export async function openSiteKey(value, step = 0, s = {}) {
   if (!sessions() || !admin()) return "Not available to your role.";
   const has = (d) => d?.sites && (value === "new" || d.sites.some((x) => x.name === value));
   const r = has(latest?.data) ? latest.data : await call("sites");
   if (!r.ok && !r.sites) return why(r, "The sites could not be loaded, so the wizard cannot open. Open this page again in a minute.");
   const reload = location.hash.includes("settings/org/sites") && latest?.reload || (() => {});
-  if (value === "new") return r.can_add ? siteWizard({ data: r, onChange: reload, agent: s.agent || "" }) : "Adding a site is not open to this organisation now.";
+  if (value === "new") return r.can_add ? siteWizard({ data: r, onChange: reload, agent: s.agent || "", by: s.by || "" }) : "Adding a site is not open to this organisation now.";
   const site = (r.sites || []).find((x) => x.name === value);
   if (!site) return "That site is not one of this organisation's sites.";
   // pick: Connections' "Set up with your AI agent" asks which agent, whatever way was saved.
   const at = step || (site.setup && !site.setup.done && site.setup.step) || 1;
   return siteWizard({ data: r, name: site.name, start: Math.max(0, Math.min(STEPS, at) - 1), method: s.pick ? "" : site.setup?.method || "", verify: site.verify,
-    found: site.setup?.found || null, onChange: reload, agent: s.agent || "", link: s.link || "" });
+    found: site.setup?.found || null, onChange: reload, agent: s.pick ? "" : s.agent || "", link: s.link || "", by: s.pick ? "agent" : s.by || "" });
 }
 
 export default function sitesadmin(m, s = {}) {
@@ -91,8 +93,8 @@ export default function sitesadmin(m, s = {}) {
     latest = { data: r, reload };
     setReload(reload);
     const all = r.sites || [];
-    box.replaceChildren(table(all.filter((x) => x.status !== "removed")), removedBox(all.filter((x) => x.status === "removed")),
-      pendingBox(all), addForm(r));
+    box.replaceChildren(...[table(all.filter((x) => x.status !== "removed")), removedBox(all.filter((x) => x.status === "removed")),
+      pendingBox(all), addForm(r)].flat().filter(Boolean));
     openAsked(r);
   }
 
@@ -126,7 +128,7 @@ export default function sitesadmin(m, s = {}) {
   function setupCell(site) {
     if (!admin() || site.status !== "active") return "";
     if (site.setup && !site.setup.done) {
-      const b = h("button", { type: "button", class: "btn cn-badge" }, `Setup: step ${site.setup.step} of ${STEPS}, continue`);
+      const b = h("button", { type: "button", class: "btn cn-badge" }, "Finish setting up");
       b.addEventListener("click", () => resume(site));
       return b;
     }
@@ -195,7 +197,7 @@ export default function sitesadmin(m, s = {}) {
   function table(list) {
     if (!list.length) return h("section", { class: "s" }, h("h2", null, "Sites"), h("p", { class: "empty" }, "No sites yet."));
     return h("section", { class: "s" }, h("h2", null, "Sites"),
-      h("p", { class: "sub" }, "A site from the server's config file is changed there. A site made here gets its log through the shipper. The ⋯ menu pauses a site (nothing is deleted), removes it, or deletes its data."),
+      h("p", { class: "sub" }, "A site from the server's config file is changed there. A site made here gets its log through the shipper. Each row's menu pauses a site (nothing is deleted), removes it, or deletes its data."),
       h("div", { class: "scroll" }, h("table", { class: "rows-mid" }, h("caption", { class: "vh" }, "Sites"),
         h("thead", null, h("tr", null, ["Site", "Defined in", "State", "Log format", "Log received"].map((t) => h("th", { scope: "col" }, t)), h("th", { scope: "col", class: "n" }, h("span", { class: "vh" }, "Actions")))),
         h("tbody", null, list.map((s) => {
@@ -210,14 +212,11 @@ export default function sitesadmin(m, s = {}) {
   function addForm(r) {
     if (!admin()) return h("section", { class: "s" }, h("h2", null, "Add a site"), h("p", { class: "note" }, "Only an admin can add a site."));
     if (!r.can_add) return h("section", { class: "s" }, h("h2", null, "Add a site"), h("p", { class: "note" }, r.add_refused || "Adding sites is not available here."));
-    const go = h("button", { type: "button", class: "btn primary" }, "Add a site, step by step");
-    go.addEventListener("click", () => siteWizard({ data: r, onChange: reload }));
+    // v2: the page's one primary (beside the title); several sites at once, one quiet line.
+    const go = primary("Add a site", () => siteWizard({ data: r, onChange: reload }));
     // 2.40: every site its own line for its AI agent, and several new sites at once (agent-many.js).
-    const lines = h("button", { type: "button", class: "btn" }, "Set up many sites with your AI agent");
-    lines.addEventListener("click", async () => (await import("./agent-many.js")).openLines());
-    return h("section", { class: "s" }, h("h2", null, "Add a site"),
-      h("p", { class: "sub" }, "Five short steps: the site's address, proof it is yours, then one line for your AI agent (or set it up by hand), and a check that its visits arrive. You can stop at any step and continue later."),
-      h("div", { class: "acts" }, go, lines));
+    const lines = quietButton("Set up many sites with your AI agent", async () => (await import("./agent-many.js")).openLines());
+    return [go, quietLine("Many sites at once", "One line for your AI agent sets up each of them.", lines)];
   }
 
   freshNote(slot);

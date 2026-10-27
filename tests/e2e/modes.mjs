@@ -1,10 +1,14 @@
 // The two global modes in the top bar (2.7.0, js/modes.js), in a real browser:
-//   * "Today · Live" turns the period to Today (range=today) and Compare off;
-//     off, it goes back to the period it was turned on from
+//   * "Today", the first choice of the period group (2.42; it was the "Today · Live"
+//     switch), turns the period to Today (range=today) and Compare off; another period
+//     brings Compare back on
+//   * Compare is on by default (2.42, state.js defaultCmp): a whole-days period is set
+//     against the period before with no cmp= in the address; turned off, cmp=off
 //   * "Compare with…" offers the previous period, the same period last year and
 //     a custom B; a choice made in Live mode leaves Live; "Turn compare off" ends it
 //   * a tab that registers compare shows what A and B are (or why not); one that
-//     does not says "No compare on this tab", quietly
+//     does not has no Compare button and says "No compare on this tab" only when
+//     compare was asked for in the address
 //   * mode-compare.js cmpTable: A · B · ± under grouped headers (sort marks ▲▼↕ aside), rows only one
 //     period has count 0 in the other, the CSV names each column, "Per day" divides
 //   * no console error
@@ -32,18 +36,18 @@ const params = () => p.evaluate(() => Object.fromEntries(new URLSearchParams(loc
 const go = async (hash) => { await p.goto(`${base}#${hash}`, { waitUntil: "networkidle" }); await p.waitForTimeout(350); };
 const click = async (sel) => { await p.locator(sel).first().click(); await p.waitForTimeout(350); };
 
-where = "Today · Live";
+where = "Today, in the period group";
+const today = '.bar .bar-range .seg button:has-text("Today")';
 await go("traffic/sources?range=7d&cmp=prev");
-await click(".bar .mode-live");
+await click(today);
 let q = await params();
 // Today is the default period (2.10.1): the address leaves range=today out.
 check((q.range === "today" || q.range === undefined) && !q.cmp, `on: range ${q.range}, cmp ${q.cmp}`);
-check(await p.locator('.bar .mode-live[aria-checked="true"] .pulse').count() === 1, "on: the switch is pressed, with its pulsing dot");
-check(await p.locator('.bar .seg [aria-pressed="true"]').count() === 0, "on: no period is marked");
-await click(".bar .mode-live");
+check(await p.locator(`${today}[aria-pressed="true"] .pulse`).count() === 1, "on: Today is pressed, with its pulsing dot");
+await click('.bar .bar-range .seg button:has-text("7 days")');
 q = await params();
-check(q.range === "7d", `off: back to 7 days, not ${q.range}`);
-check(await p.locator('.bar .mode-live[aria-checked="false"]').count() === 1, "off: the switch is not pressed");
+check(q.range === "7d" && !q.cmp, `7 days: range ${q.range}, compare by default (cmp ${q.cmp})`);
+check((await p.locator(".bar .mode-cmp").getAttribute("aria-pressed")) === "true", "7 days: Compare is on by default");
 
 where = "Compare with…";
 await go("overview/summary?range=today");
@@ -71,15 +75,18 @@ where = "the line at the top of a tab";
 await go("site/health?range=30d&cmp=prev");
 const line = await p.locator("#panel .mode-banner").first().textContent().catch(() => "");
 check(/^A .+ against B .+/.test(line.trim()) || /Not compared/.test(line), `a tab that compares names A and B or why not ("${line.trim().slice(0, 80)}")`);
-await go("traffic/time?cmp=prev");
-check(/No compare on this tab/.test(await p.locator("#panel .cmp-none").first().textContent().catch(() => "")), "a tab that does not compare says so");
+await go("traffic/time?range=7d&cmp=year");
+check(/No compare on this tab/.test(await p.locator("#panel .cmp-none").first().textContent().catch(() => "")), "a tab that does not compare says so when compare was asked for");
+check(await p.locator(".bar .mode-cmp").count() === 0, "a tab that does not compare has no Compare button");
+await go("traffic/time?range=7d");
+check(await p.locator("#panel .cmp-none").count() === 0, "compare on by default: a tab that does not compare says nothing");
 await go("overview/summary?range=today&cmp=prev");
 check(/never compared/.test(await p.locator("#panel .mode-banner").first().textContent().catch(() => "")), "Live and Compare together: today is never compared");
-await go("site/health?cmp=prev");
+await go("site/health?range=30d");
 await click(".bar .mode-cmp");
 await click(".mode-pop .mode-off");
 q = await params();
-check(!q.cmp, `Turn compare off: cmp ${q.cmp}`);
+check(q.cmp === "off", `Turn compare off on a compared period: cmp ${q.cmp}`);
 
 where = "cmpTable";
 const got = await p.evaluate(async () => {

@@ -94,6 +94,17 @@ export function resolve(asked, first = {}, params = null) {
   if (key === "compare" && params) return fromCompare(params);
   // The old Connections page (#settings/api): the page of the dialog it named (2.40).
   if (CONNECTIONS.has(key)) { const [tab, patch] = connectionsHome(params); return { tab, patch: { ...(patch || {}) }, moved: true }; }
+  // Leads & tools had tabs (sub=) until Settings v2: Search Console and the outgoing webhooks
+  // open in their drawer (tool=), the others are the page itself.
+  if (key === "settings/site/leads" && params?.get?.("sub")) {
+    const sub = params.get("sub");
+    return { tab: key, patch: { sub: "", ...(["search", "webhooks"].includes(sub) ? { tool: sub } : {}) }, moved: true };
+  }
+  // Settings v2: Site › Alerts' switches (alerts_view=switches) are a settings page now.
+  if (key === "site/alerts" && params?.get?.("alerts_view") === "switches") return { tab: "settings/site/alerts", patch: { alerts_view: "" }, moved: true };
+  // 2.41: Revenue's breakdown was by=, now rby= (by is "Who will do it?", ui/who.js): an old link keeps its breakdown.
+  const oldBy = key === "sales/revenue" ? params?.get?.("by") || "" : "";
+  if (oldBy && !["me", "dev", "agent"].includes(oldBy)) return { tab: key, patch: { by: "", rby: oldBy }, moved: true };
   const row = REDIRECTS[key];
   if (row) return { tab: row[0], patch: { ...(row[1] || {}) }, moved: true };
   if (first[key]) return { tab: first[key], patch: {}, moved: true };

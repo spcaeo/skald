@@ -349,20 +349,26 @@ class WebPages(unittest.TestCase):
     JS = Path(__file__).resolve().parent.parent / "skald" / "webapp" / "js"
 
     def test_registered_and_hidden_without_accounts(self):
-        # 2.40: the pages are in js/settings-menu.js; every one needs accounts but those
-        # state.js's WITHOUT_ACCOUNTS names.
+        # v2: the pages are in js/settings-menu.js; every one needs accounts but those
+        # state.js's WITHOUT_ACCOUNTS names; of those, the tabs ACCOUNT_SUBS names need them too.
         menu = (self.JS / "settings-menu.js").read_text()
         pages = (self.JS / "tabs" / "settings-pages.js").read_text()
         state = (self.JS / "state.js").read_text()
         access = (self.JS / "access.js").read_text()
         without = state.split("WITHOUT_ACCOUNTS = new Set(")[1].split(")")[0]
-        for route, name in (("settings/site/privacy", "Privacy & retention"), ("settings/site/mail", "Mail & reports"),
-                            ("settings/site/details", "Site details"), ("settings/org/security", "Sign-in rules"),
+        for route, name in (("settings/site/privacy", "Privacy"), ("settings/site/mail", "Mail & reports"),
                             ("settings/org/audit", "Audit log")):
             self.assertIn(f'route: "{route}", name: "{name}"', menu)
             self.assertIn(f'"{route}":', pages)
             self.assertNotIn(f'"{route}"', without)
-        self.assertIn("ACCOUNT_TABS = SETTINGS_PAGES.map((p) => p.route).filter((k) => !WITHOUT_ACCOUNTS.has(k))", state)
+        # Site and People open without accounts (Internal traffic; Users); their Names & time
+        # and Sign-in rules tabs need them.
+        self.assertIn('["details", "Names & time"', menu)
+        self.assertIn('["security", "Sign-in rules"', menu)
+        subs = state.split("ACCOUNT_SUBS = [")[1].split("]")[0]
+        self.assertIn('"settings/site/details#details"', subs)
+        self.assertIn('"settings/org/people#security"', subs)
+        self.assertIn("ACCOUNT_TABS = [...SETTINGS_PAGES.map((p) => p.route).filter((k) => !WITHOUT_ACCOUNTS.has(k)), ...ACCOUNT_SUBS]", state)
         self.assertIn("ACCOUNT_TABS.forEach((k) => HIDDEN.add(k))", access)
 
     def test_no_markup_from_the_server(self):

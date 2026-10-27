@@ -1,5 +1,5 @@
 """Outgoing webhooks: Skald tells the owner's CRM, Zapier or Slack what
-happened (Settings > Leads & integrations > Outgoing webhooks, docs/INTEGRATIONS.md).
+happened (Settings > Leads & tools > Outgoing webhooks, docs/INTEGRATIONS.md).
 
 Each site may have webhooks (table `webhooks`): a URL and the events it
 wants (EVENTS). The live and daily runs call `run(..., deliver=False)` per

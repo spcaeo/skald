@@ -76,7 +76,7 @@ function reportBox(report, site) {
 
 /* Step 5. onDone() once the first log lines arrived (a line without logs: once the report
    came). statusOf, tagOf and leadsOf are the calls, replaceable for the tests. */
-export function watchPanel(st, { onDone = null, statusOf = (site, link) => call("sites/agentstatus", { site, link_id: link }),
+export function watchPanel(st, { onDone = null, cancel = true, statusOf = (site, link) => call("sites/agentstatus", { site, link_id: link }),
   tagOf = (site) => call("sites/tagcheck", { site }), leadsOf = (site) => siteCall(site, `integrations?site=${encodeURIComponent(site)}`) } = {}) {
   const site = st.site;
   const done = h("div");
@@ -128,7 +128,8 @@ export function watchPanel(st, { onDone = null, statusOf = (site, link) => call(
   const drawKeys = (r) => {
     const [head, notMe] = keysWords(time(r.keys_at, { label: false }));
     const out = h("div");
-    const stop = r.state === "cancelled" ? null : cancelButton(site, link, out, () => {
+    // cancel false (2.42, Add a site): the line's own Cancel is on the same screen, above.
+    const stop = r.state === "cancelled" || !cancel ? null : cancelButton(site, link, out, () => {
       keysOut.replaceChildren(answerBox("ok", CANCELLED_WORDS, h("p", null, `Remove its key in ${TOKENS_AT}, then go Back to make a new line.`)));
     });
     keysOut.replaceChildren(answerBox("ok", head, h("p", null, notMe), stop ? h("div", { class: "acts" }, stop) : null, out));
@@ -136,7 +137,7 @@ export function watchPanel(st, { onDone = null, statusOf = (site, link) => call(
   // Before the keys are taken (waiting, opened): the line can still be cancelled from here.
   let cancelled = false;
   const drawWait = (r) => {
-    if (cancelled) return;
+    if (cancelled || !cancel) return;
     if (!["waiting", "opened"].includes(r.state)) { waitOut.replaceChildren(); return; }
     if (waitOut.firstChild) return;
     const out = h("div");

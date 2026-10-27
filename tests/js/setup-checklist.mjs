@@ -1,10 +1,12 @@
 // Overview's "Set up this site" (js/tabs/checklist.js, js/setup-items.js) and its
 // Set up dialogs (js/tabs/setup-*.js), drawn from real helper answers
-// (tests/test_setup_checklist.py writes them to SETUP_JSON): plain lines with no
-// server words outside "For your server admin", a Set up button on each open
-// line (none for a reader who may not manage), and each dialog - logs, script
-// tag, lead hook, mail, privacy, page assets, countries, Next.js pages - opened and walked;
-// the mails to the developer hold the snippet or the steps and never the secret.
+// (tests/test_setup_checklist.py writes them to SETUP_JSON): v2, one title, a correct
+// count ("N left, M optional"), one button (Finish set-up), each open line one button that
+// asks "Who will do it?" for that line (setup-finish.js), the done lines folded, no server
+// words in the list (they are in each dialog, folded for the server admin); a reader who
+// may not manage gets plain lines; and each dialog - logs, script tag, lead hook, mail,
+// privacy, page assets, countries, Next.js pages - opened and walked; the mails to the
+// developer hold the snippet or the steps and never the secret.
 //
 //   SETUP_JSON=answers.json node tests/js/setup-checklist.mjs
 import assert from "node:assert/strict";
@@ -80,15 +82,30 @@ const plain = (n) => (n instanceof Element && n.tagName === "DETAILS" && n.class
 const mailBody = (a) => decodeURIComponent(/[?&]body=([^&]*)/.exec(a.getAttribute("href"))?.[1] || "");
 const mailOf = (d) => d.querySelector("a.su-mail");
 async function closeDialog() { dialog().querySelector(".dw-x").click(); await tick(); }
-// 2.39: a dialog with an agent job opens on "Your AI agent, or by hand?" (agent-first.js).
+// v2: a line is one button: "Who will do it?" for that line (setup=finish-<act>, ui/who.js),
+// then Me shows the line and its button opens the line's own dialog past its own choice.
+async function setUp(id, root = box) {
+  const li = root.querySelectorAll("li.su-i").find((x) => x.getAttribute("data-item") === id);
+  li.querySelector("button.su-row").click();
+  await tick(30);
+  assert.equal(new URLSearchParams(location.hash.split("?")[1]).get("setup"), `finish-${id}`, location.hash);
+  assert.ok(dialog().textContent.includes("Who will do it?"), id);
+  dialog().querySelector('.ui-who-c[data-who="me"]').click();
+  await tick(40);
+  dialog().querySelector(`.fin-line[data-act="${dialog().querySelector(".fin-line").getAttribute("data-act")}"]`).click();
+  await tick(40);
+}
+// 2.39: a dialog with an agent job opens on "Who will do it?" (agent-first.js, ui/who.js
+// whoStep); a press on Me goes on to the dialog's own steps.
 async function byHand() {
-  assert.match(stepName(), /^Step 1 of \d+: Your AI agent, or by hand\?/);
-  dialog().querySelector("button.ag-hand").click();
+  assert.match(stepName(), /^Step 1 of \d+: Who will do it\?/);
+  dialog().querySelector('.ui-who-c[data-who="me"]').click();
   await tick(30);
 }
 
-// ---- the checklist: plain lines, a Set up button on each open line
+// ---- the checklist: plain lines, each open line a button, one Finish set-up
 const m = { site: SITE, today: new Date().toISOString().slice(0, 10), live: null, byDay: new Map() };
+history.replaceState(null, "", "#overview/summary");
 const box = setupChecklist(m);
 assert.ok(box, "an owner sees the checklist");
 document.body.append(box);
@@ -98,27 +115,34 @@ const items = box.querySelectorAll("li.su-i");
 assert.deepEqual(items.map((li) => li.getAttribute("data-item")), ["logs", "assets", "countries", "script", "lead", "mail", "privacy", "search"]);
 const said = plain(box);
 for (const word of ["--origin", "helper", "nginx", "beacon.origins", "logs.dir"]) assert.ok(!said.includes(word), `no "${word}" for the site owner: ${said}`);
-const folds = box.querySelectorAll("details.fold").map((d) => d.textContent).join(" ");
-assert.ok(folds.includes("For your server admin"));
-assert.ok(folds.includes("nginx"), "the doctor's words stay, folded, for the server admin");
+assert.ok(!said.includes("For your server admin"), "the server admin's words are in each dialog, not the list");
 const byId = (id) => items.find((li) => li.getAttribute("data-item") === id);
 for (const li of items) {
-  const open = li.classList.contains("su-todo");
-  assert.equal(Boolean(button(li, "Set up")), open && ["logs", "assets", "countries", "script", "lead", "mail", "privacy", "search"].includes(li.getAttribute("data-item")), li.textContent);
+  // An open line with something to do; a line that only waits (the first visitor) is plain.
+  const open = li.classList.contains("su-todo") && ["logs", "assets", "countries", "script", "lead", "mail", "privacy", "search"].includes(li.getAttribute("data-item"));
+  assert.equal(Boolean(li.querySelector("button.su-row")), open, `the whole line is the button: ${li.textContent}`);
+  assert.ok(!button(li, "Set up"), "no second button on a line");
 }
-for (const id of ["logs", "script", "lead", "mail", "privacy"]) assert.ok(button(byId(id), "Set up"), `${id} has Set up`);
+for (const id of ["logs", "script", "lead", "mail", "privacy"]) assert.ok(byId(id).querySelector("button.su-row"), `${id} opens`);
 assert.ok(byId("script").textContent.includes("optional") && byId("lead").textContent.includes("optional"));
 assert.ok(!byId("mail").textContent.includes("optional"));
+// One title, the count, one button.
+assert.equal(box.querySelectorAll("h2").length, 1, "one title");
+// "N left, M optional": N counts every line with something to do, M of them optional.
+const todo = items.filter((li) => li.querySelector("button.su-row"));
+const opt = todo.filter((li) => li.querySelector(".su-opt")).length;
+assert.equal(box.querySelector(".su-left").textContent, `${todo.length} left${opt ? `, ${opt} optional` : ""}`);
+assert.equal(box.querySelectorAll("button.btn").filter((b) => !b.classList.contains("su-hide")).length, 1, "one button: Finish set-up");
+assert.equal(box.querySelector("button.su-finish").textContent, `Finish set-up (${todo.length} left)`);
+assert.ok(!button(box, "Send set-up to someone") && !button(box, "Set up everything left with your AI agent"), "the old second and third buttons are gone");
 // A reader who may not manage gets the plain line and no button.
 const viewerRow = row({ id: "mail", title: "Mail recipient confirmed", state: "todo", says: "Nobody gets the daily mail yet.", tech: "x", act: "mail" });
-assert.ok(!button(viewerRow, "Set up") && !viewerRow.querySelector("details"));
+assert.ok(!viewerRow.querySelector("button") && !viewerRow.querySelector("details"));
 
 // ---- Logs arriving: Settings > Connections' send dialog
-button(byId("logs"), "Set up").click();
-await tick(30);
+await setUp("logs");
 let d = dialog();
 assert.ok(d.textContent.includes("Send this site's visits to Skald"));
-await byHand();
 assert.equal(d.querySelectorAll(".cn-bar li").length, 4, "by hand, the server way: where it runs, one command, test");
 pick(d, "server");
 await next();
@@ -134,10 +158,8 @@ await closeDialog();
 assert.ok(!dialog(), "closed");
 
 // ---- Script tag: what it adds, the tag, the mail, the Test
-button(box.querySelectorAll("li.su-i").find((li) => li.getAttribute("data-item") === "script"), "Set up").click();
-await tick(30);
+await setUp("script");
 d = dialog();
-await byHand();
 assert.match(stepName(), /Step 2 of 5: What it adds/);
 assert.ok(d.textContent.includes("what a server log cannot see"));
 for (const word of ["--origin", "helper", "nginx"]) assert.ok(!plain(d).includes(word), word);
@@ -170,10 +192,8 @@ assert.ok(!dialog());
 
 // ---- Lead hook: the tool, the secret, the steps, the mail without the secret, the test
 const secret = given.secret.secret;
-button(box.querySelectorAll("li.su-i").find((li) => li.getAttribute("data-item") === "lead"), "Set up").click();
-await tick(30);
+await setUp("lead");
 d = dialog();
-await byHand();
 for (const words of ["Your site's own form or backend", "WordPress forms", "Zapier, Make or n8n", "Calendly", "Cal.com", "Stripe", "HubSpot"]) assert.ok(d.textContent.includes(words), words);
 // What the script tag counts with no code, said before the choice.
 const { NO_CODE } = await import(new URL("tabs/setup-hook.js", JS));
@@ -287,8 +307,7 @@ assert.match(P.packTo(["not-an-address"]).error, /not an email address/);
 assert.equal(P.packName(SITE), `skald-setup-${SITE}.zip`);
 
 // ---- Mail: turn on, who gets it, confirm and test
-button(box.querySelectorAll("li.su-i").find((li) => li.getAttribute("data-item") === "mail"), "Set up").click();
-await tick(30);
+await setUp("mail");
 d = dialog();
 assert.ok(d.textContent.includes("Daily mail") && d.textContent.includes("Weekly mail"));
 await next();
@@ -305,10 +324,8 @@ assert.ok(d.textContent.includes("Sent to owner@example.com"));
 await closeDialog();
 
 // ---- Privacy: the three IP choices, names and emails, the notice with Copy
-button(box.querySelectorAll("li.su-i").find((li) => li.getAttribute("data-item") === "privacy"), "Set up").click();
-await tick(30);
+await setUp("privacy");
 d = dialog();
-await byHand();
 for (const words of ["Full address", "Shortened (last part removed)", "Don't keep", "203.0.113.57 is kept as 203.0.113.0"]) assert.ok(d.textContent.includes(words), words);
 pick(d, "short");
 await next();
@@ -355,12 +372,9 @@ await tick();
 const nrow = nbox.querySelectorAll("li.su-i").find((li) => li.getAttribute("data-item") === "rsc");
 assert.ok(nrow, "the Next.js line shows");
 assert.ok(nrow.textContent.includes("Pages opened inside the site are not counted yet"));
-for (const word of ["rsc_prefetch", "nginx", "_rsc"]) assert.ok(!plain(nrow).includes(word), word);
-assert.ok(nrow.querySelector("details.fold").textContent.includes("rsc_prefetch=$http_next_router_prefetch"));
-button(nrow, "Set up").click();
-await tick(30);
+for (const word of ["rsc_prefetch", "nginx", "_rsc"]) assert.ok(!nrow.textContent.includes(word), word);
+await setUp("rsc", nbox);
 d = dialog();
-await byHand();
 assert.match(stepName(), /Step 2 of 5: What is missing/);
 assert.ok(d.textContent.includes("prefetch") && d.textContent.includes("Nothing is guessed"));
 await next();
@@ -395,9 +409,19 @@ nbox.remove();
 rscState = "";
 await box.refresh();
 
-// ---- 2.39: Set up everything left with your AI agent, at the top (logs, assets, script, lead and privacy are open here)
-assert.ok(!box.querySelector(".su-agent").hidden, "two or more agent jobs left: the button shows");
-assert.ok(button(box, "Set up everything left with your AI agent"));
+// ---- v2: Finish set-up asks who will do it; My developer or host holds the set-up pack (by=dev)
+location.hash = "#overview/summary";
+box.querySelector("button.su-finish").click();
+await tick(30);
+assert.equal(new URLSearchParams(location.hash.split("?")[1]).get("setup"), "finish", location.hash);
+d = dialog();
+assert.ok(d.textContent.includes("Who will do it?"));
+assert.ok(["me", "dev", "agent"].every((k) => d.querySelector(`.ui-who-c[data-who="${k}"]`)), "three answers, the app's one who-step");
+d.querySelector('.ui-who-c[data-who="dev"]').click();
+await tick(30);
+assert.equal(new URLSearchParams(location.hash.split("?")[1]).get("by"), "dev", location.hash);
+assert.ok(d.textContent.includes(P.PACK_WORDS.keys), "the set-up pack");
+await closeDialog();
 
 // ---- 2.21: the list names its site
 assert.equal(box.querySelector(".su-head h2").textContent, `Set up ${SITE}`);
@@ -405,8 +429,7 @@ assert.equal(box.getAttribute("aria-label"), `Set up ${SITE}`);
 
 // ---- 2.21: each Set up dialog is in the address, setup=<item>&step=<n>; closing takes it away
 location.hash = "#overview/summary";
-button(box.querySelectorAll("li.su-i").find((li) => li.getAttribute("data-item") === "mail"), "Set up").click();
-await tick(30);
+await setUp("mail");
 let q = new URLSearchParams(location.hash.split("?")[1]);
 assert.equal(q.get("setup"), "mail", location.hash);
 assert.equal(q.get("step"), "1");
@@ -425,26 +448,34 @@ await tick(30);
 assert.match(stepName(), /Step 2 of 3: Who gets it/);
 await closeDialog();
 // A step that needs an earlier choice waits for it: assets at step 2 opens at step 1
-// (2.39: Your AI agent, or by hand?); by hand from the address, at the dialog's own first
+// (2.39; v2: Who will do it?); by hand from the address, at the dialog's own first
 // step that still waits for its choice.
 location.hash = "#overview/summary?setup=assets&step=2";
 await openSetupKey("assets", m, 2);
 await tick(30);
-assert.match(stepName(), /Step 1 of 3: Your AI agent, or by hand\?/, "the choice first");
+assert.match(stepName(), /Step 1 of 3: Who will do it\?/, "the choice first");
 await closeDialog();
+location.hash = "#overview/summary?setup=assets&step=3&by=me";
+await openSetupKey("assets", m, 3, false, { by: "me" });
+await tick(30);
+assert.match(stepName(), /Step 2 of 3: What the site is built with/, "Me: the built-with choice first");
+assert.equal(new URLSearchParams(location.hash.split("?")[1]).get("by"), "me", location.hash);
+button(dialog(), "Back").click();
+await tick(30);
+assert.match(stepName(), /Step 1 of 3: Who will do it\?/, "Back returns to the question");
+assert.equal(dialog().querySelector('.ui-who-c[data-who="me"]').getAttribute("aria-checked"), "true", "Me shows as chosen");
+await closeDialog();
+// An older link said agent=hand: the same, read as by=me.
 location.hash = "#overview/summary?setup=assets&step=3&agent=hand";
 await openSetupKey("assets", m, 3, false, { agent: "hand" });
 await tick(30);
-assert.match(stepName(), /Step 2 of 3: What the site is built with/, "by hand: the built-with choice first");
-assert.equal(new URLSearchParams(location.hash.split("?")[1]).get("agent"), "hand", location.hash);
-button(dialog(), "Back").click();
-await tick();
-assert.match(stepName(), /Step 1 of 3: Your AI agent, or by hand\?/, "Back returns to the choice");
-assert.equal(dialog().querySelector("button.ag-hand").getAttribute("aria-pressed"), "true", "By hand shows as chosen");
+assert.match(stepName(), /Step 2 of 3: What the site is built with/, "agent=hand: Me");
+assert.equal(new URLSearchParams(location.hash.split("?")[1]).get("by"), "me", location.hash);
+assert.equal(new URLSearchParams(location.hash.split("?")[1]).get("agent"), null, location.hash);
 await closeDialog();
-// "Send set-up to someone" at the top of the list: setup=pack, its own address; a link opens it.
+// The set-up pack on its own (setup=pack, an older link): its own address; a link opens it.
 location.hash = "#overview/summary";
-button(box.querySelector(".su-head"), "Send set-up to someone").click();
+await openSetupKey("pack", m, 1);
 await tick(30);
 q = new URLSearchParams(location.hash.split("?")[1]);
 assert.equal(q.get("setup"), "pack", location.hash);
@@ -481,21 +512,22 @@ assert.equal(await openSetupKey("mail", m, 1), "Not available to your role.");
 ME.role = "owner";
 assert.match(await openSetupKey("nope", m, 1), /not in this version/);
 
-// ---- 2.21: Settings › Connections shows the same list, always, all ticks and "All set" once done
+// ---- 2.21: the list drawn always (where: anything but overview), "All set" once done
 const doneAnswers = { status: [{ id: "logs", state: "OK", says: "readable" }, { id: "assets", state: "OK", says: "ok" }, { id: "script", state: "OK", says: "the last event came 2 minutes ago" }],
   tools: [], settings: { "mail.to": { value: ["owner@example.com"], source: "site" }, "mail.daily": { value: true, source: "site" }, "privacy.keep_ips": { value: "full", source: "site" } }, waiting: [] };
 const { setupItems: items2, setupDone: done2 } = await import(new URL("setup-items.js", JS));
 const live = { ...m, live: { state: "ok", day: m.today, figures: { requests: 9, readers: 3, hits: { people: 3 }, by: { country: { CA: 3 } } } } };
 assert.ok(done2(items2(live, doneAnswers)), "a finished site");
 const conn = setupChecklist(live, { where: "connections" });
-assert.ok(conn && !conn.hidden, "always drawn on Connections");
-assert.ok(!button(conn, "Hide on Overview"), "no Hide on Connections");
+assert.ok(conn && !conn.hidden, "always drawn");
+assert.ok(!button(conn, "Hide on Overview"), "no Hide there");
 assert.equal(conn.querySelector(".su-head h2").textContent, `Set up ${SITE}`);
+const { leftWords } = await import(new URL("settings-todo.js", JS));
+assert.equal(leftWords(items2(live, doneAnswers)), "All set, 2 optional", "only optional lines left");
 
-// ---- Hide on Overview: hidden on Overview only, with the note that it stays on Connections
-assert.ok(box.textContent.includes("Always in Settings › Set-up checklist"));
+// ---- Hide on Overview: hidden on Overview only; Settings › To do keeps every line
 button(box, "Hide on Overview").click();
 assert.ok(!box.parentNode, "hidden for this site");
 assert.equal(setupChecklist(m), null, "not on Overview");
-assert.ok(setupChecklist(m, { where: "connections" }), "still on Settings › Connections");
+assert.ok(setupChecklist(m, { where: "connections" }), "still drawn where it is always drawn");
 console.log("setup-checklist: all passed");

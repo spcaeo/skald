@@ -6,7 +6,7 @@
 
 Skald has no cookie. It knows a visitor again in one of two ways, and the page says which one your site uses, at the top of the tab:
 
-- **Kept visits**, when the site keeps IP addresses (Settings › This site › Privacy & retention › People). The same IP address with the same browser and system is the same visitor. Kept 395 days unless you changed it.
+- **Kept visits**, when the site keeps IP addresses (Settings › This site › Privacy › People). The same IP address with the same browser and system is the same visitor. Kept 395 days unless you changed it.
 - **The 30-day code**, when the site keeps no addresses but the visitor key is set. An address and browser family, hashed with a secret. It keeps a day and a source type only, so there is no split by country, device or landing page, and no "read 2 or more pages".
 
 With neither, the tab says so and counts nothing. The page script's visitor ID is not used here: it is kept 30 days and only for visits that ran the script, so it would make the same visitor count once or twice depending on the script.
@@ -20,6 +20,8 @@ A visitor is **new** in a week when its first visit there has no visit of the sa
 So each identity can follow a visitor so far after the first visit: **62 days** with kept visits (all 8 weeks), **14 days** with the 30-day code (the next week, not the one after). A later cell says **not recorded**, never 0.
 
 While your history is young, "new" means first seen since Skald started keeping visits; the tab gives that day.
+
+The top bar's period says **12 weeks of first visits** (or 30 days). The **New visitors** figure says how many of those weeks it counts, and why the others are out: "first seen in 8 of the 12 weeks: 4 before what is kept begins (Tue 25 Aug 2026)". A week still open, or held back, is "not counted yet".
 
 ## Reading the triangle
 

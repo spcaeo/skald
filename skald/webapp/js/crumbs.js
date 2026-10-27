@@ -20,17 +20,19 @@
 //               addresses' scrolls are kept too, so Forward to a step the trail had cut
 //               finds its place.
 //
+// 2.42 (the UX build's polish): the line shows only "← Back to <the step before>", and
+// nothing when there is no step before. The whole trail is still kept (Back, Forward and
+// scrolls use it); it is just not drawn as a row of crumbs on every screen.
+//
 // Pure parts (placeOf, note, fromUrl) take no DOM, so tests/js/crumbs.mjs runs them in node.
 
 import { h } from "./ui.js";
 import * as S from "./state.js";
 import { chainOf, said } from "./drill.js";
-import { withUrl } from "./urlactions.js";
 
 export const STORE = "ti-crumbs";
 export const MOST = 12;          // steps kept
 const SEEN = 40;                 // addresses whose scroll is kept, for Forward
-const SHOW = 5;                  // steps shown before the middle folds into "…"
 
 // A record open over the tab: [key, how it is said].
 const RECORDS = [
@@ -188,35 +190,21 @@ export function restore() {
 export function crumbLine(m, s) {
   const steps = visit(s, m);
   const box = h("nav", { class: "crumbs", "aria-label": "Breadcrumb", id: "crumbs" });
-  draw(box, steps, false);
-  return steps.length > 1 || steps[0]?.item ? box : h("nav", { class: "crumbs", id: "crumbs", hidden: true, "aria-label": "Breadcrumb" });
+  draw(box, steps);
+  return steps.length > 1 ? box : h("nav", { class: "crumbs", id: "crumbs", hidden: true, "aria-label": "Breadcrumb" });
 }
 /* A drawer opened or closed over the tab (no redraw): the trail and the line, in place. */
 export function crumbUpdate(m, s) {
   const steps = visit(s, m);
   const old = typeof document !== "undefined" ? document.getElementById("crumbs") : null;
   if (!old) return;
-  old.hidden = !(steps.length > 1 || steps[0]?.item);
-  draw(old, steps, false);
+  old.hidden = !(steps.length > 1);
+  draw(old, steps);
 }
 
-function draw(box, steps, open) {
+function draw(box, steps) {
   const back = steps.length > 1 ? steps[steps.length - 2] : null;
-  const link = (st, i) => {
-    const a = h("a", { href: st.hash, title: st.parts.join(" › ") }, crumbWords(steps, i));
-    a.addEventListener("click", (e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); go(st); });
-    return a;
-  };
-  const items = steps.map((st, i) => (i === steps.length - 1
-    ? h("li", null, withUrl(h("span", { class: "cr-now", "aria-current": "page" }, crumbWords(steps, i)), location.href, { label: "this exact view" }))
-    : h("li", null, link(st, i))));
-  let shown = items;
-  if (!open && items.length > SHOW) {
-    const more = h("button", { type: "button", class: "cr-more", "aria-label": `Show all ${items.length} steps` }, "…");
-    more.addEventListener("click", () => draw(box, steps, true));
-    shown = [items[0], h("li", null, more), ...items.slice(-(SHOW - 2))];
-  }
   const backBtn = back ? h("a", { class: "cr-back", href: back.hash, title: back.parts.join(" › ") }, `← Back to ${back.parts[back.parts.length - 1]}`) : null;
-  backBtn?.addEventListener("click", (e) => { e.preventDefault(); go(back); });
-  box.replaceChildren(...[backBtn, h("ol", null, shown)].filter(Boolean));
+  backBtn?.addEventListener("click", (e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); go(back); });
+  box.replaceChildren(...[backBtn].filter(Boolean));
 }

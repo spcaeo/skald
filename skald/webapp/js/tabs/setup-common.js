@@ -1,5 +1,5 @@
 // What the "Set up this site" dialogs share (setup-dialogs.js and setup-*.js):
-// a choice of ways drawn like Settings > Collect data > Send logs' (cn-ways), a mail to the
+// a choice of ways drawn like Settings > Data > Send logs' (cn-ways), a mail to the
 // developer or the server admin (a mailto: link: the reader's own mail program
 // sends it, Skald sends nothing), a Copy button for a block of words, and the
 // fold with the technical words for whoever runs the server.

@@ -35,7 +35,7 @@ const SPLITS = [["", "Everyone"], ["source", "First source type"], ["country", "
 const GRAINS = [["week", "Weeks"], ["day", "Days"]];
 const STEPS = 5;
 const ROAD = {
-  address: (i) => `the same IP address with the same browser and system, from the visits kept ${n(i.horizon)} days (Settings › Privacy & retention › People)`,
+  address: (i) => `the same IP address with the same browser and system, from the visits kept ${n(i.horizon)} days (Settings › Privacy)`,
   hash: (i) => `the 30-day visitor code (an address and browser family, hashed with a secret; no address kept), kept ${n(i.horizon)} days`,
 };
 const NOT = {
@@ -254,7 +254,7 @@ async function openCell(g, c, k, part, dim, value, metric, road) {
   const d = openDrawer({ title: what, subtitle: `First ${unit(g)} ${cohortName(g, c)}${seg}: ${n(figure)} visitor${figure === 1 ? "" : "s"}`, key: "cohort", scope: "page",
     body: h("p", { class: "empty" }, "Looking in the kept visits…"), route: { key: "cohort", value: `${c.start}.${k}` } });
   const url = askUrl(g, c, k, dim, value, metric);
-  if (road !== "address") { d.body.replaceChildren(h("p", { class: "note" }, "The 30-day code names nobody: only kept visits (Settings › Privacy & retention › People, keep IP addresses) can list the visitors behind a cell.")); return d; }
+  if (road !== "address") { d.body.replaceChildren(h("p", { class: "note" }, "The 30-day code names nobody: only kept visits (Settings › Privacy, keep IP addresses) can list the visitors behind a cell.")); return d; }
   if (!(mayFind() || (DEMO.on && demoFile(url)))) {
     d.body.replaceChildren(h("p", { class: "note" }, DEMO.on ? "In the demo, the visitors behind this cell need a running Skald." : "Admins and owners see the visitors behind a cell here, each opening in the visitor drawer."));
     return d;
@@ -279,6 +279,16 @@ async function openCell(g, c, k, part, dim, value, metric, road) {
 }
 
 /* What the tab shows for a state: the grain, the cohorts, the count and the split. */
+/* "first seen in 8 of the 12 weeks: 4 before what is kept begins (Tue 25 Aug)": the tile's
+   weeks against the period chip's 12 weeks (30 days), so the two never read as a mismatch. */
+export function seenIn(file, g, cohorts, counted) {
+  const all = (file.grains?.[g]?.cohorts || []).length;
+  const early = all - cohorts.length, open = cohorts.length - counted.length;
+  if (!early && !open) return `first seen in the ${n(all)} ${unit(g)}s`;
+  const why = [early ? `${n(early)} before what is kept begins (${long(file.begun)})` : "", open ? `${n(open)} not counted yet` : ""].filter(Boolean).join(", ");
+  return `first seen in ${n(counted.length)} of the ${n(all)} ${unit(g)}s: ${why}`;
+}
+
 function viewOf(file, s) {
   const g = s.rg === "day" ? "day" : "week";
   const cohorts = [...(file.grains?.[g]?.cohorts || [])].filter((c) => !file.begun || c.start >= file.begun).reverse();
@@ -348,7 +358,7 @@ export default function retention(m, s) {
 
   out.push(identityLine(file), controls,
     tiles([
-      { label: "New visitors", value: newTotal, line: `first seen in the ${n(counted.length)} ${unit(g)}s counted${dim ? `, ${valueName(dim, value)}` : ""}` },
+      { label: "New visitors", value: newTotal, line: `${seenIn(file, g, cohorts, counted)}${dim ? `, ${valueName(dim, value)}` : ""}` },
       { label: `Back the next ${unit(g)}`, value: p1?.share == null ? null : pct1(p1.back, p1.size), line: p1?.share == null ? "no whole period after a cohort yet" : `${n(p1.back)} of ${n(p1.size)} ${word}` },
       pLate ? { label: `Back ${step(g, pLate.k)}`, value: pLate.share == null ? null : pct1(pLate.back, pLate.size),
         line: pLate.share == null ? "not counted yet, or later than the identity can follow" : `${n(pLate.back)} of ${n(pLate.size)} ${word}` } : null]),

@@ -1,4 +1,4 @@
-// Settings > Site details > Views: "Fill past days for the new groups" (views_fill_api.py,
+// Settings > Site > Views: "Fill past days for the new groups" (views_fill_api.py,
 // docs/SETTINGS.md). A page group counts from the next run; its past days stay
 // empty until they are counted again from the raw log, which holds only the
 // last days the server keeps. A save that adds or changes a group answers which

@@ -188,7 +188,7 @@ def reports(c: Ctx, form):
 
 
 def _search_connected(c: Ctx) -> bool:
-    """Search Console connected for this site (Settings > Leads & integrations > Search Console & Bing)."""
+    """Search Console connected for this site (Settings > Leads & tools > Search Console & Bing)."""
     from .search.sync import google_property
     return bool(google_property(c.config))
 

@@ -2,23 +2,25 @@
 // phone's tab bar are nav.js's.
 //
 // The top bar, one slim row: the section and drill-down trail on the left;
-// the modes (modes.js: Today · Live, Compare with…), the period, page group
-// and filters in the middle; saved views,
-// refresh, export, alerts and the command palette on the right. What does
-// not fit a narrow screen moves into the "more" menu. Active filters make a
-// second row, only when there are some.
+// the period (Today, live; 7, 30, 90 days; More), Compare (modes.js, on by default, only
+// on a tab that compares) and Filters (the page group is inside) in the middle; the one
+// search (the command palette), the alerts and More (recount today, saved views, export,
+// the report builder, markers) on the right (2.41-2.42, the UX audit's tasks 2 and 5).
+// Active filters and the page group make a second row, only when there are some.
 
 import * as S from "./state.js";
+import { incTab, incApplies, incOn } from "./period-dates.js";
 import { h, ICON, reduced, toast, untip, short } from "./ui.js";
-import { load, refresh as postRefresh, viewList, rangeOf, markersByDay, has, need } from "./data.js";
+import { load, refresh as postRefresh, rangeOf, markersByDay, has, need } from "./data.js";
 import { TAB_RENDER } from "./tabs/index.js";
 import { framed } from "./tabs/settings-frame.js";
 import { TAB, opt, tabFiles } from "./sections.js";
 import { tabStrip } from "./tabstrip.js";
-import { barModes, modeBanner, modeActions } from "./modes.js";
+import { barModes, modeBanner, modeActions, liveSegment, setLive } from "./modes.js";
 import { country, countryName, withFlag, city, cityCode, cityName } from "./tabs/readers.js";
 import { setMarkers } from "./charts.js";
-import { saved, savedDialog, bell, marksOn, zonePicker, store } from "./extras.js";
+import { savedDialog, bell, marksOn, zonePicker, store } from "./extras.js";
+import { needsYou } from "./alert-groups.js";
 import { setZone, time as tzTime } from "./tz.js";
 import { keys, help, whatsNew, newUnseen, palette } from "./keys.js";
 import { drillView } from "./drillview.js";
@@ -28,10 +30,10 @@ import { setSiteBase } from "./urlactions.js";
 import { chainOf, DIMS, said, titled, close as closeDrill } from "./drill.js";
 import { setFavicons } from "./icons.js";
 import { REGISTRY, showAllRows } from "./table.js";
-import { exportMenu, builder, exportZip, exportJSON, printTab } from "./report.js";
+import { openExport } from "./export-dialog.js";
 import { setContext } from "./tabs/common.js";
 import { loadBuild, buildLine, toolName, newerBuild, releaseLine, BUILD, REPO } from "./build.js";
-import { searchBox, openSearch, openPerson, mayFind, SEARCH_HINT } from "./tabs/person.js";
+import { openSearch, openPerson, mayFind, SEARCH_HINT } from "./tabs/person.js";
 import { findIndex } from "./finder.js";
 import { showSetup } from "./tabs/checklist.js";
 import { shown } from "./labels.js";
@@ -65,7 +67,6 @@ function theme(next) {
   document.querySelectorAll(".theme-seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.t === t)));
   return t;
 }
-const HELP_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="6.2"/><path d="M6.3 6.2a1.8 1.8 0 1 1 2.5 1.7c-.5.2-.8.6-.8 1.1v.4"/><circle cx="8" cy="11.4" r=".5" fill="currentColor" stroke="none"/></svg>';
 const SUN = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"/></svg>';
 const MOON = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1z"/></svg>';
 const AUTO = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5.6"/><path d="M8 2.4v11.2A5.6 5.6 0 0 0 8 2.4z" fill="currentColor"/></svg>';
@@ -182,15 +183,18 @@ const actions = () => [
   { label: "Filters: rules over every dimension, saved views", hint: "", run: () => openFilters(model, S.read(), document.querySelector(".fp-btn")) },
   { label: "Colour theme: next", hint: "", run: cycleTheme },
   { label: "Sidebar: collapse or expand", hint: "[", run: () => document.getElementById("rail-toggle")?.click() },
-  { label: "Settings: every settings page", hint: "g ,", run: () => S.set({ tab: "settings" }) },
-  // 2.40: the settings people looked for and could not find, by the words they would type.
-  ...(S.shown("settings/ai/mcp") ? [{ label: "MCP: connect Claude, ChatGPT or another AI assistant", hint: "", group: "Settings, AI & API", run: () => S.set({ tab: "settings/ai/mcp" }) }] : []),
-  ...(S.shown("settings/ai/api") ? [{ label: "API: read your figures from a script", hint: "", group: "Settings, AI & API", run: () => S.set({ tab: "settings/ai/api" }) }] : []),
-  ...(S.shown("settings/ai/tokens") ? [{ label: "Tokens: see or revoke a token", hint: "", group: "Settings, AI & API", run: () => S.set({ tab: "settings/ai/tokens" }) }] : []),
+  { label: "Settings: what needs you (To do)", hint: "g ,", run: () => S.set({ tab: "settings" }) },
+  // 2.40: the settings people looked for and could not find, by the words they would type (v2 addresses).
+  ...(S.shown("settings/ai/assistants") ? [{ label: "MCP: connect Claude, ChatGPT or another AI assistant", hint: "", group: "Settings, AI", run: () => S.set({ tab: "settings/ai/assistants", sub: "" }) },
+    { label: "API: read your figures from a script", hint: "", group: "Settings, AI", run: () => S.set({ tab: "settings/ai/assistants", sub: "api" }) },
+    { label: "Tokens: see or revoke a token", hint: "", group: "Settings, AI", run: () => S.set({ tab: "settings/ai/assistants", sub: "tokens" }) }] : []),
+  ...(S.shown("settings/site/data") ? [{ label: "Script tag: copy it, goals", hint: "", group: "Settings, This site", run: () => S.set({ tab: "settings/site/data", sub: "script" }) },
+    { label: "Test a sample of a log", hint: "", group: "Settings, This site", run: () => S.set({ tab: "settings/site/data", sub: "sample" }) }] : []),
+  ...(S.shown("settings/site/details") ? [{ label: "Internal traffic: your own machines", hint: "", group: "Settings, This site", run: () => S.set({ tab: "settings/site/details", sub: "internal" }) }] : []),
   ...(S.shown("settings/org/sites") ? [{ label: "Sites: add, pause, remove or delete a site", hint: "", group: "Settings, Organisation", run: () => S.set({ tab: "settings/org/sites" }) }] : []),
-  { label: "Help & docs: guides, public docs, API and MCP pages", hint: "", group: "Help", run: () => S.set({ tab: "settings/help" }) },
-  ...(model?.canRefresh ? [{ label: "Refresh now: recount today", hint: "", run: () => document.querySelector(".bar .refresh")?.click() }] : []),
-  { label: "Report builder: print, PDF or download", hint: "", run: () => builder(model, S.read(), (next) => load(next, { previous: model })) },
+  ...(S.shown("settings/org/people") ? [{ label: "Invite someone to the team", hint: "", group: "Settings, Organisation", run: () => S.set({ tab: "settings/org/people", sub: "" }) }] : []),
+  ...(model?.canRefresh ? [{ label: "Refresh now: recount today", hint: "", run: () => refreshNow() }] : []),
+  { label: "Export: a PDF, the tables as CSV, a report by mail or JSON", hint: "", run: () => openExport(model, S.read(), (next) => load(next, { previous: model })) },
   ...(!DEMO.on && sessions() && (["owner", "admin"].includes(ME.role) || ME.install_admin) ? [{ label: "Setup checklist: show it again on Overview", hint: "", run: () => showSetup(model.site) }] : []),
   { label: "What's new", hint: "", run: () => whatsNew(document.querySelector(".new-dot")) },
   { label: "Keyboard shortcuts", hint: "?", run: help },
@@ -232,14 +236,22 @@ function drawBar(s) {
       h("li", null, chain.length ? h("button", { type: "button", class: "crumb", onclick: closeDrill }, name) : h("span", { class: "crumb now", "aria-current": "page" }, name)),
       last ? h("li", null, h("span", { class: "crumb now", "aria-current": "page", title: last[0] === "country" || last[0] === "city" ? titled(last[0], last[1]) : null }, `${DIMS[last[0]].name}: ${said(last[0], last[1])}`)) : null)));
 
-  // Middle: the modes (Today · Live, Compare with…: modes.js), the period, the page group, the filters.
-  // Today is the "Today · Live" switch (modes.js), so the period bar starts at Yesterday.
-  const range = segmented(S.RANGES.filter(([k]) => k !== "today"), s.range, (k) => {
+  // Middle: the period, Compare (modes.js, only on a tab that compares), the filters.
+  // 2.41-2.42 (the UX audit's tasks 2 and 5): one group, Today (live) · 7 · 30 · 90 days ·
+  // More (Yesterday, All time, Custom; the one picked shows in the group while it is the
+  // period). The page group is in the Filters panel, and shows as a chip while one is chosen.
+  const pickRange = (k) => {
+    if (k === "today") return setLive(true, s);
     if (k === "custom") { const r = rangeOf(model, s); S.set({ range: "custom", from: r.first, to: r.last }); } else S.set({ range: k });
-  }, "Date range");
+  };
+  const range = h("div", { class: "bar-range" },
+    segmented(S.RANGES.filter(([k]) => k === "today" || MAIN_RANGES.includes(k) || k === s.range).map(([k, nm]) => [k, k === "today" ? liveSegment(model, s) : nm]),
+      s.range, pickRange, "Date range"),
+    rangeMore(s, pickRange));
   // Compare has two periods of its own, and Live is always today so far: the period above does not apply there.
   const ranged = opt(s.tab, "ranged", s, true);
-  const mid = [h("div", { class: "bar-modes", id: "bar-modes" }, barModes(model, s)), ranged ? range : periodChip(s)].filter(Boolean);
+  const modes = barModes(model, s);
+  const mid = [ranged ? range : periodChip(s), modes.length ? h("div", { class: "bar-modes", id: "bar-modes" }, modes) : null].filter(Boolean);
   if (ranged && s.range === "custom") {
     const lo = model.firstDay || model.anchor, hi = model.anchor;
     const from = h("input", { type: "date", value: s.from, min: lo, max: hi, "aria-label": "From" });
@@ -249,29 +261,15 @@ function drawBar(s) {
     to.addEventListener("change", apply);
     mid.push(h("span", { class: "ctl dates" }, from, "to", to));
   }
-  const views = viewList(model);
-  if (views.length > 1) {
-    const sel = h("select", { "aria-label": "Page group", title: "Page group" }, views.map(([k, nm]) => h("option", { value: k, selected: k === s.view }, nm)));
-    sel.addEventListener("change", () => S.set({ view: sel.value }));
-    mid.push(h("label", { class: "ctl view-sel" }, h("span", { class: "vh" }, "Page group"), sel));
-  }
   mid.push(filtersButton(model, s));
 
-  // Right: saved views, refresh, export, alerts, the palette; and "more" for what a narrow screen hides.
-  // (The compare toggle became "Compare with…" in the modes' slot, 2.7.0.)
-  const right = [h("div", { class: "wide-only" }, saved())];
-  const live = model.live?.generated_at && model.live.day === model.today;
-  if (model.canRefresh) {
-    const btn = h("button", { type: "button", class: "btn refresh", html: ICON.refresh, title: "Recount today now" }, h("span", { class: "r-l" }, "Refresh"),
-      live ? h("span", { class: "r-ago" }, ago(model.live.generated_at)) : null);
-    btn.addEventListener("click", () => doRefresh(btn));
-    right.push(btn);
-  } else right.push(h("span", { class: "stamp" }, model.stamp));
-  right.push(h("div", { class: "wide-only" }, exportMenu(() => model, s, (next) => load(next, { previous: model }))));
-  const helpBtn = h("a", { class: "btn icon help-btn", href: "#help", html: HELP_ICON, "aria-label": "Help and guides", title: "Help and guides" });
-  // One magnifier: the palette searches the figures and, for an admin, a person (2.13); the
-  // wide screens keep the "Find a person" field, the narrow ones lose its second magnifier.
-  const always = [...searchBox().filter((el) => !el.classList.contains("pp-btn")), helpBtn, bell(model), h("button", { type: "button", class: "btn icon kbd-btn", html: CMDK, "aria-label": "Search and commands (Ctrl or Cmd + K)", title: "Search pages, sources, countries, or go anywhere (Ctrl K)", "aria-keyshortcuts": "Control+K Meta+K", onclick: () => palette(actions(), finds) })];
+  // Right (2.41, the UX audit's task 2): one search, the alerts, and More. Refresh, saved views
+  // and export are in More; Help is in the menu (one door each). The search is the palette: it
+  // finds pages, sources and countries, goes anywhere and, for an admin, finds a person (2.13).
+  const right = [];
+  if (!model.canRefresh) right.push(h("span", { class: "stamp" }, model.stamp));
+  const always = [h("button", { type: "button", class: "btn kbd-btn ui-search", "aria-label": "Search or jump to (Ctrl or Cmd + K)", title: "Search pages, sources, countries, a person, or go anywhere (Ctrl K)", "aria-keyshortcuts": "Control+K Meta+K", onclick: () => palette(actions(), finds) },
+    h("span", { class: "ui-search-ic", html: CMDK, "aria-hidden": "true" }), h("span", { class: "ui-search-l" }, "Search or jump to"), h("kbd", { class: "ui-search-k", "aria-hidden": "true" }, "Ctrl K")), bell(model)];
   right.push(...always);
   right.push(moreMenu(s));
 
@@ -283,8 +281,9 @@ function drawBar(s) {
   if (noData(s)) bar.replaceChildren(h("div", { class: "bar-row" }, title, h("div", { class: "bar-mid" }, periodChip(s)), h("div", { class: "bar-right" }, always.filter(Boolean))));
   else bar.replaceChildren(h("div", { class: "bar-row" }, title, h("div", { class: "bar-mid" }, mid), h("div", { class: "bar-right" }, right.filter(Boolean))), chips);
   fitBar();
-  const open = (model.x?.alerts?.open || []).length;
-  badge("site", open, `${open} open alert${open === 1 ? "" : "s"}`);
+  // The Site badge counts what needs you (alert-groups.js), as the bell and Site › Alerts do.
+  const open = (model.x?.alerts?.open || []).length, need = needsYou(model.x?.alerts);
+  badge("site", need, `${need} alert${need === 1 ? "" : "s"} need${need === 1 ? "s" : ""} you (${open} open)`);
 }
 
 /* The bar never overlaps itself. When the middle (period, page group, filters)
@@ -335,13 +334,13 @@ function moreMenu(s) {
   const item = (text, sub, fn, cls = "") => h("button", { type: "button", role: "menuitem", class: `menu-i ${cls}`, onclick: () => { pop.hidden = true; toggle.setAttribute("aria-expanded", "false"); fn(); } },
     h("b", null, text), sub ? h("small", null, sub) : null);
   const pop = h("div", { class: "pop menu", role: "menu", hidden: true, "aria-label": "More" });
-  pop.append(
+  const live = model.live?.generated_at && model.live.day === model.today;
+  pop.append(...[
+    model.canRefresh ? item("Recount today now", live ? `today's figures, counted ${ago(model.live.generated_at)}` : "today's figures, from the log", () => refreshNow()) : null,
+    item("Saved views", "keep this tab, period and filters under a name", savedDialog),
+    item("Export", "a PDF, the tables as CSV, a report by mail or JSON", () => openExport(model, s, (next) => load(next, { previous: model }))),
     item(`Markers on charts: ${marksOn() ? "on" : "off"}`, "releases and changes, as dashed lines", () => { store.set("ti-marks", !marksOn()); setMarkers(markersByDay(model), marksOn()); render(current, { keepScroll: true }); }),
-    item("Saved views", "keep this tab, period and filters under a name", savedDialog, "narrow-only"),
-    item("Tables on this tab (ZIP)", "every table, as CSV files", () => exportZip(model, s), "narrow-only"),
-    item("This tab as JSON", "the tables and the period's totals", () => exportJSON(model, s), "narrow-only"),
-    item("Print this tab", "choose Save as PDF to keep it", () => printTab(model, s), "narrow-only"),
-    item("Report builder", "sections, period, page group, filters", () => builder(model, s, (next) => load(next, { previous: model }))));
+  ].filter(Boolean));
   const wrap = popover(toggle, pop, () => [...pop.querySelectorAll(".menu-i")].find((x) => x.offsetParent !== null)?.focus());
   pop.addEventListener("keydown", (e) => {
     const items = [...pop.querySelectorAll(".menu-i")].filter((x) => x.offsetParent !== null), i = items.indexOf(document.activeElement);
@@ -349,6 +348,28 @@ function moreMenu(s) {
     if (e.key === "ArrowUp") { e.preventDefault(); items[(i - 1 + items.length) % items.length]?.focus(); }
   });
   return wrap;
+}
+
+const MAIN_RANGES = ["7d", "30d", "90d"];
+// The other periods, one press away (2.41): Yesterday, All time, Custom.
+// Include today (inc=1, Summary and Pages at 7, 30 or 90 days): a check item under them, its
+// one place since 2.42 (it was a switch on the page as well).
+function rangeMore(s, onPick) {
+  const toggle = h("button", { type: "button", class: "btn ui-more-range", "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": "More periods" }, "More");
+  const pop = h("div", { class: "pop menu", role: "menu", hidden: true, "aria-label": "More periods" },
+    S.RANGES.filter(([k]) => k !== "today" && !MAIN_RANGES.includes(k)).map(([k, name]) => h("button", { type: "button", role: "menuitemradio", class: "menu-i", "aria-checked": String(k === s.range),
+      onclick: () => { pop.hidden = true; toggle.setAttribute("aria-expanded", "false"); onPick(k); } }, h("b", null, name))),
+    incTab(s) ? [h("hr", { class: "menu-sep", "aria-hidden": "true" }), h("button", { type: "button", role: "menuitemcheckbox", class: "menu-i", "aria-checked": String(incOn(s)), disabled: incApplies(s) ? null : true,
+      onclick: () => { pop.hidden = true; toggle.setAttribute("aria-expanded", "false"); S.set({ inc: incOn(s) ? "" : "1" }); } },
+    h("b", null, `${incOn(s) ? "✓ " : ""}Include today`), h("small", null, incApplies(s) ? "7, 30 and 90 days end today, with today so far" : "for 7, 30 and 90 days"))] : null);
+  if (incOn(s)) toggle.append(h("span", { class: "ui-more-on" }, " · today"));
+  return popover(toggle, pop, () => pop.querySelector(".menu-i")?.focus());
+}
+// Recount today, from More or the palette: the same as the old Refresh button, with its words.
+function refreshNow() {
+  const btn = h("button", { type: "button", hidden: true });
+  toast("Recounting today's figures…");
+  return doRefresh(btn);
 }
 
 async function doRefresh(btn) {
@@ -456,6 +477,8 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
   setContext(model, s);
   setSiteBase(model.site);
   const name = S.nameOf(s.tab), sec = S.sectionOf(s.tab);
+  // The area's tint (css/ui.css): the section's key, settings, help or about.
+  app.dataset.area = sec ? sec.key : S.inSettings(s.tab) ? "settings" : String(s.tab || "").split("/")[0];
   document.title = `${model.site} · ${sec ? `${name} · ${sec.name}` : name} — ${toolName()}`;
   const file = opt(s.tab, "file", s, null), broken = file && model.failed?.[file];
   const body = broken ? notBuilt(name, file, broken)
@@ -473,7 +496,8 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
     const strip = tabStrip(tabs, s.tab, (k) => S.set({ tab: k }), { label: sec.name });
     strip.panel.append(...banners, ...content);
     panel.replaceChildren(printHead(s, `${sec.name}: ${name}`), crumbLine(model, s), strip.root);
-  } else panel.replaceChildren(printHead(s, name), crumbLine(model, s), ...banners, ...content);
+  // Settings (v2): no trail line; the menu on the left already says where the page is.
+  } else panel.replaceChildren(printHead(s, name), ...(S.inSettings(s.tab) ? [] : [crumbLine(model, s)]), ...banners, ...content);
   quietKpis(panel);
   const tabChanged = !prev || prev.tab !== s.tab;
   if (tabChanged && !reduced()) {
@@ -544,10 +568,9 @@ async function boot() {
     h("div", { class: "set-row" }, h("span", null, "Theme"), seg),
     h("div", { class: "set-row" }, h("span", null, "Time zone"), zonePicker(s)),
     sessions() ? h("a", { class: "menu-i set-i", href: "#settings/you/account" }, h("b", null, "Your account"), h("small", null, "name, password, two-step sign-in")) : null,
-    h("a", { class: "menu-i set-i", href: "#settings" }, h("b", null, "All settings"), h("small", null, "every settings page, with what each is for")),
+    h("a", { class: "menu-i set-i", href: "#settings" }, h("b", null, "Settings"), h("small", null, "what needs you, then every settings page")),
     h("hr", { class: "set-rule" }),
     h("a", { class: "menu-i set-i", href: "#help" }, h("b", null, "Help"), h("small", null, "guides: webhooks, API, MCP, leads and more")),
-    h("a", { class: "menu-i set-i", href: "#settings/help" }, h("b", null, "Help & docs"), h("small", null, "the public docs, API and MCP pages, What's new")),
     row("Keyboard shortcuts", help, h("kbd", null, "?")),
     row("What's new", () => whatsNew(dot), dot),
     h("a", { class: "menu-i set-i", href: "#about" }, h("b", null, "About Skald")),
@@ -564,7 +587,9 @@ async function boot() {
   app.dataset.state = "ready";
   // A drawer or a dialog opening or closing (its key only) is not a redraw: overlays.js opens or closes it.
   S.on((next) => { if (current && S.onlyOverlay(current, next)) { current = next; syncOverlays(model, next); crumbUpdate(model, next); } else render(next); });
-  addRestorer("dlg:report", () => builder(model, S.read(), (next) => load(next, { previous: model })));
+  // 2.42: Export asks what you need (export-dialog.js); the report builder's old links open its PDF path, Change open.
+  addRestorer("dlg:export", () => { const s = S.read(); return openExport(model, s, (next) => load(next, { previous: model }), { kind: s.kind, change: s.xch === "1" }); });
+  addRestorer("dlg:report", () => openExport(model, S.read(), (next) => load(next, { previous: model }), { kind: "pdf", change: true }));
   // A lead marked test (or not) from a drawer (2.25, leadref.js): the helper drew the files
   // again, so read them and redraw; the row moves to or from Show left out, the counts follow.
   afterMark(async () => {

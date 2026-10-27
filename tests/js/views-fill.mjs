@@ -9,6 +9,12 @@ import assert from "node:assert/strict";
 import { install } from "./dom-lite.mjs";
 
 install();
+// v2: a card's form opens in a drawer (a dialog), its key in the address.
+Element.prototype.showModal = function showModal() { this.open = true; };
+Element.prototype.close = function close() { this.open = false; };
+globalThis.matchMedia = () => ({ matches: true, addEventListener() {}, addListener() {} });
+location.hash = "#settings/site/details";
+globalThis.history = { state: null, pushState(_, __, h) { location.hash = h; }, replaceState(_, __, h) { location.hash = h; }, back() {}, go() {} };
 const REACH = { days: 9, first: "2026-10-13", last: "2026-10-21", kept_days: 10, oldest_line: "2026-10-13" };
 const VIEWS = [{ slug: "security-pages", name: "Security pages" }, { slug: "free-check", name: "Free check" }];
 const setting = (kind, value, label) => ({ value, kind, label, editable: true, source: "site", scope: "site", who: "admin" });
@@ -37,6 +43,7 @@ const { ME } = await import(new URL("access.js", JS));
 Object.assign(ME, { mode: "sessions", role: "owner", user: "owner@example.com" });
 const { sites } = await import(new URL("tabs/prefs.js", JS));
 const vf = await import(new URL("tabs/viewsfill.js", JS));
+const { openEdit } = await import(new URL("tabs/set-edit.js", JS));
 vf.timing.poll = 5;
 const tick = (ms = 30) => new Promise((r) => setTimeout(r, ms));
 
@@ -55,10 +62,13 @@ async function page() {
   document.body.append(root);
   root.append(...sites({ site: "example.com" }));
   await tick();
+  // v2: the Views box is in the Names & time drawer (edit=names); the fill's box stays on the page.
+  await openEdit("names", { site: "example.com" });
+  await tick();
   return root;
 }
 async function saveViews(root, text) {
-  const area = root.querySelectorAll("textarea").find((t) => t.id === "set-sites-views");
+  const area = document.body.querySelectorAll("textarea").find((t) => t.id === "set-sites-views");
   assert.ok(area, "the Views box");
   area.value = text;
   const form = area.closest("form");
@@ -72,7 +82,7 @@ const box = (root) => root.querySelector("section.vf");
 // 1. Ticked (the default): the save starts the fill, and the page follows it.
 {
   const root = await page();
-  const choice = root.querySelector("label.vf-choice");
+  const choice = document.body.querySelector("label.vf-choice");
   assert.ok(choice, "the tick box sits under Views");
   assert.ok(choice.textContent.includes("Fill past days for the new groups"));
   assert.ok(choice.querySelector("input").hasAttribute("checked"), "ticked by default");
@@ -105,7 +115,7 @@ const box = (root) => root.querySelector("section.vf");
   asked.length = 0;
   progress = [];
   const root = await page();
-  const tickBox = root.querySelector("label.vf-choice input");
+  const tickBox = document.body.querySelector("label.vf-choice input");
   tickBox.checked = false;
   tickBox.dispatchEvent(new Event("change"));
   await saveViews(root, "Security pages | /security/\nFree check | /check/");

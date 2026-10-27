@@ -29,12 +29,12 @@ from ..accounts import db as base
 
 READ_ONLY_PAST_DUE = ("The last payment failed more than {days} days ago, so this "
                       "organisation is read-only until it is paid. Nothing is deleted. "
-                      "The owner can fix it in Settings > Billing & usage.")
+                      "The owner can fix it in Settings > Billing.")
 READ_ONLY_TRIAL = ("The trial ended more than {days} days ago, so this organisation is "
                    "read-only until a plan is chosen. Nothing is deleted. The owner can "
-                   "choose one in Settings > Billing & usage.")
+                   "choose one in Settings > Billing.")
 READ_ONLY_CANCELED = ("The subscription was cancelled, so this organisation is read-only. "
-                      "Nothing is deleted. The owner can choose a plan in Settings > Billing & usage.")
+                      "Nothing is deleted. The owner can choose a plan in Settings > Billing.")
 
 
 def limits_for(db, org_id, config) -> dict | None:
@@ -93,7 +93,7 @@ def can_add_member(db, org_id, config, email: str | None = None) -> tuple[bool, 
         return True, ""
     return False, (f"The {got['plan']} plan allows {_plural(got['members'], 'member')}, "
                    "open invites included. Cancel an invite, remove a member, or choose a "
-                   "bigger plan in Settings > Billing & usage.")
+                   "bigger plan in Settings > Billing.")
 
 
 def can_add_site(db, org_id, config) -> tuple[bool, str]:
@@ -104,7 +104,7 @@ def can_add_site(db, org_id, config) -> tuple[bool, str]:
     if sites_used(db, org_id) < got["sites"]:
         return True, ""
     return False, (f"The {got['plan']} plan allows {_plural(got['sites'], 'site')}. Choose a "
-                   "bigger plan in Settings > Billing & usage to add another.")
+                   "bigger plan in Settings > Billing to add another.")
 
 
 def retention_cap(db, org_id, config) -> int | None:

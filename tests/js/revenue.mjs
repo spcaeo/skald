@@ -120,8 +120,8 @@ assert.deepEqual(R.ltvRows(f, "EUR"), []);
 // ---- the tab: registered with its keys
 const row = sales.find((x) => x[0] === "revenue");
 assert.ok(row, "Leads & sales has a Revenue tab");
-assert.deepEqual(row[3].keep, ["cur", "by", "tag"]);
-for (const k of ["cur", "by", "tag"]) assert.equal(K.KEYS.get(k)?.owner, "tabs/sa-revenue.js", `${k} is in the route registry`);
+assert.deepEqual(row[3].keep, ["cur", "rby", "tag"]);
+for (const k of ["cur", "rby", "tag"]) assert.equal(K.KEYS.get(k)?.owner, "tabs/sa-revenue.js", `${k} is in the route registry`);
 
 setSiteBase("example.com");
 const m = { today: "2026-10-21", anchor: "2026-10-20", firstDay: "2026-08-01", byDay, x: { conversions: f }, days: [] };
@@ -152,7 +152,7 @@ const draw = (patch = {}) => flat(revenue(m, { ...s0, ...patch }));
 }
 {
   // Landing pages: each path draws copy and open at its end (urlactions.js).
-  const out = draw({ by: "landing" });
+  const out = draw({ rby: "landing" });
   assert.match(text(out), /Revenue by landing page/);
   const opens = all(out, "a.ua-open").map((a) => a.getAttribute("href"));
   assert.ok(opens.includes("https://example.com/pricing/"), `a landing page opens on its site: ${opens}`);
@@ -200,16 +200,16 @@ assert.deepEqual(R.orphanRefunds({ ...f, refunds_without_sale: { state: "withhel
 // ---- every state in the address, on this tab only
 location.hash = "#sales/revenue?range=30d";
 S.set({ cur: "EUR" });
-S.set({ by: "campaign" });
+S.set({ rby: "campaign" });
 S.set({ tag: "plan:pro" });
 const q = new URLSearchParams(location.hash.split("?")[1]);
 assert.equal(q.get("cur"), "EUR");
-assert.equal(q.get("by"), "campaign");
+assert.equal(q.get("rby"), "campaign");
 assert.equal(q.get("tag"), "plan:pro");
 const back = S.read();
-assert.deepEqual([back.cur, back.by, back.tag], ["EUR", "campaign", "plan:pro"], "a link or a reload brings them back");
+assert.deepEqual([back.cur, back.rby, back.tag], ["EUR", "campaign", "plan:pro"], "a link or a reload brings them back");
 assert.ok(!S.hashFor({ ...back, tab: "sales/leads" }).includes("cur="), "another tab starts without them");
-for (const k of ["cur", "by", "tag"]) assert.ok(!K.isPersonal(q.get(k)), "no address or email in them");
+for (const k of ["cur", "rby", "tag"]) assert.ok(!K.isPersonal(q.get(k)), "no address or email in them");
 
 // ---- the lead drawer's sale facts
 {

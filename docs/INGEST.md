@@ -48,63 +48,62 @@ switches it on.
 
 ## Adding a site
 
-In the dashboard: **Settings > Add or remove sites > Add a site, step by step**
-(an owner or admin of the organisation; the site picker at `/traffic/` has
-"+ Add a site" too). Five steps (`webapp/js/tabs/site-wizard.js`, guide:
-docs/help/connections.md):
+In the dashboard: **Settings > Organisation > Sites > Add a site** (an owner
+or admin of the organisation; the site picker at `/traffic/` has "+ Add a
+site" too). Two steps since 2.42 (`webapp/js/tabs/site-wizard.js`, guide:
+docs/help/connections.md), with a proof step between them only when the
+install asks for one:
 
 1. **Your site**: an address such as `https://www.example.com/` becomes the
-   site name `www.example.com`, the way the server cleans it; the time zone.
-   `POST sites/add` with `token: false` makes the site (format `auto`), owned
-   by the organisation, with its log folder under the ingest root, and no
-   token yet.
-2. **Prove it's yours**: the DNS TXT record or meta tag, with "Check now"
-   (`sites/verify`; docs/SAAS.md). When the install asks no proof, the step
-   says so.
-3. **Your AI agent** ("Which AI agent are you using?", 2.31): Claude Code,
-   Codex, Cursor, Claude.ai or ChatGPT (chat only), Another agent, and a
-   quieter **No AI agent: set it up by hand**. An agent that can run shell
-   commands gets steps 4 and 5 below (method `agent`). A chat-only agent
-   cannot run commands on a server, so its step 4 is the server way's one
-   command (method `server`). By hand turns steps 3 to 5 into the ones that
-   follow ("Use an AI agent instead" turns them back).
-4. **Send this line**: the one line for the agent (`sites/agentlink`; "One
-   line for your AI agent", below), the code hidden until "Show code", with
-   Copy, "Make a new line", "Cancel this line" and "Is it safe to paste this
-   into a chat?".
-5. **Watch it connect**: a checklist that ticks itself (`sites/agentstatus`
-   every 5 s for 15 minutes, then every 30 s): the agent read the steps, took
-   the keys (with the time, and what to do if it was not your agent), sent its
-   report, the first log lines arrived (the Test below); the script tag and a
-   test lead too, when the report says the agent added them. Done is the
-   first log lines, as by hand.
+   site name `www.example.com`, the way the server cleans it. The site check
+   (`sites/detect`, below) runs while you type and says what it found in one
+   line; its card is folded under "What Skald found". The time zone is the
+   browser's (or the check's), with Change. Then "Who will connect it?"
+   (`js/ui/who.js`): Me, My developer or My AI agent (`by=me|dev|agent`).
+   Next calls `POST sites/add` with `token: false`: the site (format `auto`),
+   owned by the organisation, with its log folder under the ingest root, and
+   no token yet. The found way is saved as the method (step 3 on the
+   server's scale).
+2. **Prove it's yours** (only when `sites/add` answers a `verify`): the DNS
+   TXT record or meta tag, with "Check now" (`sites/verify`; docs/SAAS.md).
+3. **Connect it**: only the path chosen.
+   - Me: the found way (my own server, nginx or Apache, with or without
+     Docker: method `server`; the older `docker` and `systemd` ids map to it;
+     Cloudflare, the Skald Worker; Vercel or Netlify, log drain; or only the
+     script tag), "Another way" for the chooser. For a server, the one
+     command is made at once (`sites/link` makes its sending token; step 4
+     on the server's scale), with "Download as one file" and "Email it to
+     your server admin". For the other ways, a named sending token
+     (`tokens/create`, scope `ingest`, this site only, shown once) where the
+     way needs one. Choosing Cloudflare for a dashboard site that has
+     received nothing yet sets its format to `edge_json` (audit
+     `site.format`); any other choice sets `auto` on the same terms.
+   - My developer: "Share with your developer" (`sites/share`, below).
+   - My AI agent: Claude Code, Codex, Cursor, Claude.ai or ChatGPT (chat
+     only), and Another agent (who connects it is asked once, in
+     step 1; Change goes back there). An agent that can run shell commands gets its one line
+     (`sites/agentlink`; "One line for your AI agent", below; method `agent`)
+     with "Skald watches your agent" under it (`sites/agentstatus` every 5 s
+     for 15 minutes, then every 30 s): the agent read the steps, took the keys,
+     sent its report, the first log lines arrived; the script tag and a test
+     lead too, when the report says the agent added them. A chat-only agent
+     gets the server way's one command (method `server`).
+   Every path ends in the same wait: `sites/status`, polled every 5 s for up
+   to 2 minutes, says what arrived or why it was refused (below). Lines
+   arrived: "Done: <site> is receiving visits" (step 5, done).
 
-By hand, steps 3 to 5 are:
-
-3. **How visits reach Skald**: my own server (nginx or Apache, with or
-   without Docker: method `server`; the older `docker` and `systemd` ids, in
-   saved progress, old links or the site check, map to it), Cloudflare (the
-   Skald Worker), Vercel or Netlify (log drain), or only the script tag.
-   Choosing Cloudflare for a dashboard site that has received nothing yet
-   sets its format to `edge_json` (audit `site.format`); any other choice sets
-   `auto` on the same terms.
-4. **Install**: for a server, the one command (`sites/link` makes its
-   sending token; below), "Download as one file" and "Email it to your server
-   admin" (the set-up pack), with the by-hand ways folded under it. For the
-   other ways, a named sending token (`tokens/create`, scope `ingest`, this
-   site only, shown once) where the way needs one, and its steps with the send
-   address and token filled in.
-5. **Test and finish**: `sites/status`, polled every 5 s for up to 2 minutes,
-   says what arrived or why it was refused (below). Lines arrived: "Done:
-   <site> is receiving visits".
+The server keeps its five-step scale (`site_setup.STEPS`: 1 site, 2 proof, 3
+way chosen, 4 install made, 5 done), so older saved progress and links still
+open: `step=3`, `4` or `5` is Connect it, `agent=hand` is by=me and
+`agent=<id>` is by=agent.
 
 The progress is kept per site in `accounts.sqlite`, table `site_setup`
 (`accounts/site_setup.py`): the step reached, the method, whether the domain
 was verified at the last save (read from `site_verify`, never from the page),
 the sending token's **id** (never its value), and the start, update and done
 times. A change of step, method or done is one audit row (`site.setup`). A
-site not finished shows "Setup: step 3 of 5, continue" in Settings > Add or
-remove sites and on the site picker; a finished one that nothing reached for
+site not finished shows "Finish setting up" in Settings > Organisation >
+Sites and on the site picker; a finished one that nothing reached for
 24 hours (no batch, no beacon event) shows "No visits yet: test the
 connection", which opens step 5.
 

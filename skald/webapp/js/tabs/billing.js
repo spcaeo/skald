@@ -1,4 +1,4 @@
-// Settings > Billing & usage (saas, docs/SAAS.md): shown only when /me says the server sells
+// Settings > Billing (saas, docs/SAAS.md): shown only when /me says the server sells
 // plans, to the organisation's owners, and to its admins to read (the usage alerts mail
 // them and link here). GET <page>/billing gives the plan, its status, this month's usage
 // against the limits and the plans to choose from. "Choose" asks the helper for a Stripe
@@ -12,6 +12,7 @@ import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { ME } from "../access.js";
 import { head1, status, why } from "./forms.js";
+import { primary, statusRow } from "./set-ui.js";
 
 const STATUS = { trialing: "trial", active: "active", past_due: "payment overdue", canceled: "cancelled", none: "no plan chosen" };
 const LIMIT_NAME = { sites: "Sites", requests_month: "Requests this month", members: "Members", retention_days_max: "Detail kept (days)" };
@@ -65,6 +66,8 @@ export function usageBar(p) {
     h("p", { class: "note" }, "Owners and admins get one mail at 80%, 90% and 100% each month. Past 100%, new log lines are turned away: Skald's shipper keeps them and sends them again, a Cloudflare Worker's are lost."));
 }
 
+// v2: the plan's limits as rows, each with what is used now and a pill when it is over.
+const LIMIT_ICON = { sites: "server", requests_month: "out", members: "people", retention_days_max: "check" };
 function usageRows(plan) {
   const used = { sites: plan.used?.sites, members: plan.used?.members, requests_month: plan.usage?.requests, retention_days_max: null };
   return Object.keys(LIMIT_NAME).map((k) => {
@@ -72,10 +75,17 @@ function usageRows(plan) {
     if (k === "requests_month" && plan.usage?.withheld) now = "withheld";
     else if (k === "requests_month" && plan.usage?.requests == null) now = "no day recorded yet";
     const over = (plan.over || []).includes(k);
-    return h("tr", null, h("th", { scope: "row" }, LIMIT_NAME[k]), h("td", { class: "n" }, now), h("td", { class: "n" }, num(plan.limits?.[k])),
-      h("td", { class: "c" }, over ? h("span", { class: "tf off" }, "over") : ""));
+    const line = now ? `${now} now · the plan allows ${num(plan.limits?.[k])}` : `The plan allows ${num(plan.limits?.[k])}`;
+    return statusRow({ iconName: LIMIT_ICON[k], title: LIMIT_NAME[k], line, kind: "bad", word: over ? "Over" : "" });
   });
 }
+
+// A card of rows with its title; its explaining line (p.sub) goes behind a "?" in Settings.
+const rowsWith = (title, sub, rows, ...after) => h("section", { class: "ui-card set-rows bill-rows" },
+  h("div", { class: "ui-card-h" }, h("h2", null, title), sub ? h("p", { class: "sub" }, sub) : null), h("div", { class: "set-list" }, rows), ...after);
+
+// The plan's state as a pill: active good, a trial info, overdue bad, cancelled or none off.
+const STATUS_KIND = { trialing: "info", active: "good", past_due: "bad", canceled: "off", none: "off" };
 
 export default function billing() {
   const title = head1("Billing", ME.org ? `${ME.org}'s plan, usage and payment.` : "The plan, usage and payment.");
@@ -98,31 +108,26 @@ export default function billing() {
   function draw(r) {
     if (!r.ok) { box.replaceChildren(h("div", { class: "state" }, h("div", null, why(r, "The plan could not be loaded.")))); return; }
     const p = r.plan, owner = r.can_change !== false;
-    const now = h("section", { class: "s" }, h("h2", null, "Your plan"),
-      p ? [h("p", { class: "sub" }, h("b", null, p.name), ` (${STATUS[p.status] || p.status})`,
-        p.trial_days_left != null ? `: ${p.trial_days_left} day${p.trial_days_left === 1 ? "" : "s"} of the trial left` : "",
-        p.read_only ? `. ${p.read_only_why}` : "."),
-        usageBar(p),
-        h("div", { class: "scroll" }, h("table", null, h("caption", { class: "vh" }, "Usage against the plan's limits"),
-          h("thead", null, h("tr", null, [["", null], ["Now", "n"], ["Plan allows", "n"], ["", "c"]].map(([t, cls]) => h("th", { scope: "col", class: cls }, t)))),
-          h("tbody", null, usageRows(p)))),
-        h("p", { class: "note" }, `Requests are every request the server logged for your sites in ${p.usage?.month || "this month"}, people and machines alike. Over a limit, nothing is deleted.`)]
-        : h("p", { class: "sub" }, "This organisation has no plan, and no limits."));
-    const manage = h("button", { type: "button", class: "btn" }, "Manage billing");
-    manage.addEventListener("click", () => go("billing/portal", {}, manage));
-    const cards = (r.plans || []).map((pl) => {
-      const pick = h("button", { type: "button", class: "btn primary", disabled: !r.billing || !pl.can_buy || (pl.current && p?.status === "active") }, pl.current ? "Current plan" : `Choose ${pl.name}`);
-      pick.addEventListener("click", () => go("billing/checkout", { plan: pl.name }, pick));
-      return h("div", { class: "sheet" }, h("h3", null, pl.name), pl.label ? h("p", { class: "sub" }, pl.label) : null,
-        h("p", { class: "muted" }, `${num(pl.sites)} sites, ${num(pl.requests_month)} requests a month, ${num(pl.members)} members, detail kept ${num(pl.retention_days_max)} days`),
-        !pl.can_buy ? h("p", { class: "muted" }, "Not sold here.") : owner ? pick : pl.current ? h("p", { class: "muted" }, "Current plan") : null);
+    const trial = p?.trial_days_left != null ? `${p.trial_days_left} day${p.trial_days_left === 1 ? "" : "s"} of the trial left` : "";
+    const now = p ? rowsWith("Your plan", `Requests are every request the server logged for your sites in ${p.usage?.month || "this month"}, people and machines alike. Over a limit, nothing is deleted.`,
+      [statusRow({ iconName: "check", title: p.name, line: [trial, p.read_only ? `${trial ? ". " : ""}${p.read_only_why}` : ""].join("") || "This organisation's plan",
+        kind: STATUS_KIND[p.status] || "off", word: STATUS[p.status] || p.status }), ...usageRows(p)], usageBar(p))
+      : h("div", { class: "ui-card quiet set-quiet" }, h("b", null, "No plan"), h("span", { class: "grow muted" }, "This organisation has no plan, and no limits."));
+    const plans = (r.plans || []).map((pl) => {
+      let act = null;
+      if (owner && pl.can_buy) {
+        act = h("button", { type: "button", class: "btn", disabled: !r.billing || (pl.current && p?.status === "active") }, pl.current ? "Current plan" : `Choose ${pl.name}`);
+        act.addEventListener("click", () => go("billing/checkout", { plan: pl.name }, act));
+      }
+      return statusRow({ iconName: "plug", title: pl.name,
+        line: `${pl.label ? `${pl.label}. ` : ""}${num(pl.sites)} sites, ${num(pl.requests_month)} requests a month, ${num(pl.members)} members, detail kept ${num(pl.retention_days_max)} days`,
+        kind: pl.current ? "good" : "off", word: pl.current ? "Current" : pl.can_buy ? "" : "Not sold here", action: act });
     });
-    box.replaceChildren(now,
-      h("section", { class: "s" }, h("h2", null, "Plans"), r.billing ? null : h("p", { class: "note" }, "Payment is not switched on on this server."),
-        owner ? null : h("p", { class: "note" }, "Only an owner can choose a plan or change the payment."),
-        h("div", { class: "cols tops" }, cards)),
-      owner && r.billing && r.has_customer ? h("section", { class: "s" }, h("h2", null, "Payment"),
-        h("p", { class: "sub" }, "Card, invoices and cancelling: on Stripe's own page."), manage) :"");
+    const notes = [r.billing ? null : h("p", { class: "note" }, "Payment is not switched on on this server."),
+      owner ? null : h("p", { class: "note" }, "Only an owner can choose a plan or change the payment.")];
+    let manage = null;
+    if (owner && r.billing && r.has_customer) manage = primary("Manage billing", () => go("billing/portal", {}, manage), { iconName: "out" });
+    box.replaceChildren(now, rowsWith("Plans", manage ? "Card, invoices and cancelling: Manage billing opens Stripe's own page." : "", plans, ...notes), manage || "");
   }
 
   call("billing").then(draw);
