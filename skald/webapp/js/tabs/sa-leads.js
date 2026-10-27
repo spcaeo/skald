@@ -52,6 +52,7 @@ import { money } from "./revfigs.js";
 import { LEAD_DIMS, activeFilters, filteredBy, appliedWords, figureFile, listOnly, leadsWord, CLEAR_ALL } from "./sa-filters.js";
 import { refCell, afterMark } from "./leadref.js";
 import { leadsRange, headWords, sentenceWords, versusLive, liveNote, csvName } from "./sa-period.js";
+import { connectCard, partlyLine } from "../ui/connect.js";
 
 export const VIEWS = [["list", "List"], ["board", "Board: by stage now"], ["timeline", "Timeline: leads per day"], ["map", "Map: leads by country"]];
 // A lead's stage now, in words, and the group it joins on the board and in the Stage filter.
@@ -249,7 +250,8 @@ export function emptyLeads(m, s, r, fig, list) {
   }
   if (filtered) return h("div", { class: "sa-empty", role: "status" }, h("p", null, `No lead matches these filters, in any period the dashboard holds.`),
     h("button", { type: "button", class: "btn", onclick: () => S.set(CLEAR_ALL) }, "Clear all filters"));
-  return emptyState("No leads yet: nothing has reported a lead for this site.", ["Connect a source of leads", "#settings/site/leads"]);
+  // 2.43: nothing has ever reported a lead: what this page needs, and how to connect it.
+  return connectCard(m, "leads", { s });
 }
 
 function fill(body, make) {
@@ -266,12 +268,12 @@ export default function leadsTab(m, s) {
   const f = convFile(m);
   const view = viewOf(s.lview, VIEWS);
   const top = tabHead("Leads", "Who are my leads? One row per lead: who, what they did, and where they came from.", r,
-    { help: "Every lead of the period from every road: the lead database, the booking tools, the page's script tag and your site's server, each row saying which. The count is the Leads figure, the same as Overview's.", more: HELP,
+    { help: "Every lead of the period from every road: the lead database, the booking tools, the page's script tag and your site's server, each row saying which. The count is the Leads figure, the same as Overview's.", more: HELP, source: "leads",
       ...(r.live ? { period: [headWords(r, m), daysNote()].filter(Boolean).join(" · ") } : {}) });
   if (!f) {
     const raw = m.x.conversions;
-    return [...top, emptyState(raw?.state === "error" ? `The leads could not be built: ${raw.error || "no reason given"}.` : "No leads yet: nothing has reported a lead for this site.",
-      ["Connect a source of leads", "#settings/site/leads"], { bad: raw?.state === "error" })];
+    if (raw?.state === "error") return [...top, emptyState(`The leads could not be built: ${raw.error || "no reason given"}.`, null, { bad: true })];
+    return [...top, connectCard(m, "leads", { s })];
   }
   const acts = (f.lead_actions || []).map((a) => [a, actionName(a)]);
   const labels = convLabels(f, s.lact);
@@ -293,7 +295,8 @@ export default function leadsTab(m, s) {
   const body = h("div", { class: "sa-view" });
   // 2.27: under the count, today's part of the period and what is verified ("Today so far" was above).
   const live = r.live ? liveNote(m, s, r, today || (rowsOnly ? null : leadsOn(m, [m.today])), today && got ? got.leads : null) : null;
-  const out = [...top, ...row, filteredBy(list), line, live, body].filter(Boolean);
+  // 2.43: a site partly connected says what is still missing (an admin's, js/ui/connect.js).
+  const out = [...top, partlyLine(m, "leads"), ...row, filteredBy(list), line, live, body].filter(Boolean);
   // The period has no lead (the figure says 0 on checked days): where the leads are instead.
   if (got && got.ok && !got.leads) { body.append(emptyLeads(m, s, r, fig, list)); return out; }
   const m2 = fig.f ? withFile(m, "conversions", fig.f) : m;

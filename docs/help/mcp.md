@@ -172,7 +172,7 @@ Say to your assistant, in the site's project folder or on its server: "Fix my Sk
 1. asks which to-dos it can fix (`fix_todo` without an id): old pages to redirect, server errors, Markdown copies AI asks for, the sitemap address, pages people leave;
 2. reads one with every row and its steps (`fix_todo` with the id). Rows are page paths and counts, never a visitor's address or email;
 3. checks first where your site keeps its redirects or rules (nginx, Apache, Next.js, `vercel.json`, Netlify, WordPress, Cloudflare), changes only what is missing, touches nothing the to-do does not list, asks you before any change on a server, and tests it (`nginx -t`) before a reload;
-4. reports it (`mark_todo_done`): the exact change shows beside the to-do on [Overview > Insights](#overview/insights), and **done** marks it done, so Skald checks it on the days after. That changes no figure; **Undo** there is one click.
+4. reports it (`mark_todo_done`): the exact change shows beside the to-do on [Overview > Insights](#overview/insights), and **done** marks it done, so Skald checks it on the days after. Skald also asks the to-do's addresses at once (**Check again**) and shows the answer beside the report. That changes no figure; **Undo** there is one click.
 
 Reading needs any token for the site. Marking done needs the same token as making a set-up line (above: **AI assistant (MCP)** and **Set-up lines (AI agent)**, one site, made by an owner or admin). Without it, the assistant tells you what it did, and you press **Mark done** yourself. No MCP? Press **Fix this > My AI agent** on the to-do instead: the same work, from one line. See [What to fix](what-to-fix.md).
 

@@ -128,7 +128,10 @@ AI_LIKELY_MANY = "(more than one)"
 # Skald's own fetchers: always our own traffic, never a bot in the counts,
 # whatever the `ours` lists say. robots.py fetches the site's robots.txt
 # hourly as "site-version-check/1"; it used to land in bots on every site.
-OWN_AGENTS = (("site-version-check/", "Skald (robots.txt check)"),)
+# Insights' "Check again" (todo_check.py, 2.44) asks a to-do's addresses as
+# "site-todo-check/1": its 404s must never become lost pages of their own.
+OWN_AGENTS = (("site-version-check/", "Skald (robots.txt check)"),
+              ("site-todo-check/", "Skald (to-do check)"))
 
 # A person who followed a citation. Identified by where they came FROM, since
 # their user agent is an ordinary browser's.

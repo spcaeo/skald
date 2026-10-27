@@ -226,7 +226,7 @@ def forget(ctx, ip: str, dry_run: bool = False) -> dict:
             report["hashes"] = forget_hashes(db, key, ip, dry_run) if has else 0
         finally:
             db.close()
-    report["visits"] = _forget_visits(ctx, ip, dry_run)
+    report["visits"], report["recorded"] = _forget_visits(ctx, ip, dry_run)
     if not dry_run:
         remember(ctx.live_dir, ip)
         line = (f"{datetime.now(timezone.utc).isoformat(timespec='seconds')} forget "
@@ -240,15 +240,17 @@ def forget(ctx, ip: str, dry_run: bool = False) -> dict:
     return report
 
 
-def _forget_visits(ctx, ip: str, dry_run: bool) -> int:
-    """The visits kept with `ip` (people/visits.py): deleted, or counted."""
+def _forget_visits(ctx, ip: str, dry_run: bool) -> tuple[int, int]:
+    """The visits kept with `ip` (people/visits.py), and the recorded journeys' events sent
+    with it (recorded/store.py, 2.43): deleted, or counted."""
     from .conversions import store
     from .people import policy
     from .people.visits import forget_ip
+    from .recorded.store import forget as forget_recorded
     folder = Path(ctx.db_path).parent
     path = store.path_for(ctx.config, folder)
     if path is None or not Path(path).is_file():
-        return 0
+        return 0, 0
     # A site that keeps addresses shortened: its rows of the shortened form
     # go too (they cannot be told apart from the person's).
     short = (ctx.site,) if policy.ip_mode(ctx.config, folder) == policy.SHORT else ()
@@ -256,7 +258,9 @@ def _forget_visits(ctx, ip: str, dry_run: bool) -> int:
     try:
         from .security_kept import forget_ip as forget_scanner   # Security's rows (2.21)
         forget_scanner(db, ip, dry_run, short)
-        return forget_ip(db, ip, dry_run, short)
+        recorded = forget_recorded(db, None, ip=(ip, policy.shorten(ip)) if short else (ip,),
+                                   dry_run=dry_run)
+        return forget_ip(db, ip, dry_run, short), recorded
     finally:
         db.close()
 
@@ -298,6 +302,9 @@ def _forget_ip(ctx) -> int:
                 f"{'found' if dry else 'deleted'} from the 30-day table")
     ctx.out(f"  visits kept with the address: {got['visits']} kept visit(s) "
             f"{'found' if dry else 'deleted'}")
+    if got.get("recorded"):
+        ctx.out(f"  recorded journeys sent with the address: {got['recorded']} event(s) "
+                f"{'found' if dry else 'deleted'}, with their whole sessions")
     if not dry:
         ctx.out(f"  the address is on the forgotten list for {KEEP_DAYS} days: live runs "
                 "show it as (removed), and visits are kept without it")

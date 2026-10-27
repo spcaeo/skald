@@ -24,8 +24,8 @@ an internal or enterprise site (`retention.keep_everything: true`, Docker
 `privacy.keep_days`, turning `keep_ips` off or short, the People days that clear names and
 emails, `conversions.retention_days` and `journeys.vid_days` all leave `visits`,
 `visit_days`, `security_rows`, `security_days`, `conversions`, `removed`, `journeys`,
-`identities`, `deliveries`, `hook_replays`, `pay_links`, `outbox` and the hook spool as they
-are. Only `skald forget` / `skald conversions forget`, run by hand, delete a person.
+`identities`, `deliveries`, `hook_replays`, `pay_links`, `outbox`, the hook spool and the
+recorded journeys' `recorded_events` as they are. Only `skald forget` / `skald conversions forget`, run by hand, delete a person.
 
 "Upgraded" is read from the history file: history schema 13 adds no table,
 but an upgrade from 12 or older writes the meta row `privacy_legacy`; a file
@@ -126,6 +126,23 @@ Written by the daily run (whole days, `cli.collect_day`) and every live run
 address of a site that turned it to `short` is shortened. `skald forget --ip`
 deletes an address's rows; on a site that shortens, also the rows of its
 shortened form, which may hold other people's visits too.
+
+## Recorded journeys (2.43)
+
+What a site sends Skald itself about its consenting visitors, kept apart from the log and never
+counted with it. Code `skald/recorded/`, second count `skald/audit_journeys.py`;
+the contract, the routes and the rules are in [JOURNEYS.md](JOURNEYS.md). Three tables, made on
+the first event:
+
+| table | holds |
+|---|---|
+| `recorded_events` | one row per kept event, unique by `site` and `event_id`: `raw` (the event as kept, JSON with sorted keys, after the site's `keep_ips` and `identity`) and its projection `event_name`, `occurred_at`, `visitor_id`, `session_id`, `path`, `skald_vid`, `ip`, `email` (NULL: not sent or not kept), `received_at`, and `ref` (`s` and 12 hex of SHA-256 of the site and the session ID: the session's opaque id in the address and the API) |
+| `recorded_tombstones` | `site`, `digest` (HMAC-SHA256 of the site and a withdrawn visitor ID, keyed with the meta row `recorded_hash_key`; never the ID), `expires_at` (90 days on) |
+| `recorded_log` | `site`, `day`, `what` (`withdrawn`, `refused_consent`, `ignored_withdrawn`), `n`: counts only |
+
+Pruned at each daily run (`recorded/store.prune`): events past the site's `journeys.vid_days`,
+and their `ip` and `email` (column and raw JSON) past `privacy.keep_days` when that is shorter;
+nothing on a keep-everything site. A withdrawal deletes the visitor's events on any site.
 
 ## Helper answers (behind sign-in)
 

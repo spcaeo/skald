@@ -71,7 +71,8 @@ class TestDaily(MailCase):
         self.assertRegex(flat, r"Leads — —")
         self.assertIn("Open the dashboard", html)
         self.assertIn("Skald v1.0.0 · release 70 · Every visit, truly told.", flat)
-        self.assertIn("You get this because owner@example.com, second@example.com", flat)
+        self.assertIn("You get this because owner@example.com, second@example.com are on the "
+                      "report list", flat)
         # Email-safe: nothing fetched, no pure white, colour scheme declared.
         self.assertEqual(re.findall(r'src="([^"]*)"', html), ["cid:skald-mark"])
         self.assertNotIn("#ffffff", html.lower())
@@ -79,6 +80,20 @@ class TestDaily(MailCase):
         self.assertIn("max-width:640px", html)
         logo = [p for p in msg.walk() if p.get_content_type() == "image/png"]
         self.assertEqual(logo[0]["Content-ID"], "<skald-mark>")
+
+    def test_one_recipient_is_on_the_list_several_are(self):
+        self.fill(14)
+        for kind in ("daily", "weekly"):
+            config = load_config(self.box.config)
+            config["mail"]["to"] = ["owner@example.com"]
+            with mock.patch.dict(os.environ, SECRETS):
+                msg = mailer.build(kind, config, self.history, UTC, NOW)
+            flat = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", msg.get_body(("html",)).get_content()))
+            self.assertIn("because owner@example.com is on the report list", flat)
+            _, html = self.build(kind)
+            flat = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html))
+            self.assertIn("owner@example.com, second@example.com are on the report list", flat)
+            self.assertNotIn("second@example.com is on", flat)
 
     def test_every_attribute_parses(self):
         """A double quote inside a style ended the attribute early: fonts and

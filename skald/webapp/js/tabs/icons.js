@@ -21,6 +21,7 @@ export const TAB_ICONS = {
   "settings/org/people": I('<circle cx="5.5" cy="5.5" r="2"/><circle cx="11" cy="6" r="1.7"/><path d="M1.8 13c.5-2.2 1.9-3.4 3.7-3.4s3.2 1.2 3.7 3.4M9.6 9.8c1.9-.4 3.6.6 4.4 3.2"/>'),
   "settings/org/audit": I('<path d="M4 1.8h5.5L13 5.3v8.9H4z"/><path d="M6.5 8h4M6.5 10.5h4M6.5 5.5h1.5"/>'),
   "settings/org/billing": I('<rect x="1.8" y="3.5" width="12.4" height="9" rx="1.5"/><path d="M1.8 6.5h12.4M4 10h3"/>'),
+  "settings/org/orgs": I('<rect x="2" y="5" width="5" height="9" rx="1"/><rect x="9" y="2" width="5" height="12" rx="1"/><path d="M4 7.5h1M4 10h1M11 4.5h1M11 7h1M11 9.5h1"/>'),
   "settings/you/account": I('<circle cx="8" cy="5.5" r="2.5"/><path d="M3 13.5c.7-2.6 2.6-4 5-4s4.3 1.4 5 4"/>'),
   help: HELP,
   about: I('<path d="M3 13.5l4.5-4.5M7.5 9C9 5 11 3 13.5 2.5c-.3 3-2.3 5.6-6 6.5z"/><path d="M5 3v9"/>'),

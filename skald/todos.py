@@ -346,12 +346,18 @@ def build(p) -> dict:
     for t in made:
         t["window"] = {"first": found.first, "last": found.last, "days": len(found.days)}
     made += _leaving(p, found, marks, _cols)
+    # 2.44: "fixed" is a check's mark (todo_check.py); one the second count does not bear
+    # out (audit_todo_checks.py) is shown as done, with why.
+    from . import audit_todo_checks
+    unproven = audit_todo_checks.read(p.config, site, p.live_dir) if marks else {}
     todos, full = [], {}
     for t in made:
         mark = (marks or {}).get(t["id"])
-        t["state"] = mark["state"] if mark and mark["state"] in ("done", "notnow") else "open"
+        t["state"] = mark["state"] if mark and mark["state"] in ("done", "notnow", "fixed") else "open"
+        if t["state"] == "fixed" and t["id"] in unproven:
+            t["state"], t["fixed_withheld"] = "done", unproven[t["id"]]
         t["marked"] = mark if t["state"] != "open" else None
-        t["recheck"] = recheck(p, found, t, mark, span) if t["state"] == "done" else None
+        t["recheck"] = recheck(p, found, t, mark, span) if t["state"] in ("done", "fixed") else None
         if t["state"] == "open" and not t["qualifies"]:
             continue                     # under its threshold and not marked: not a to-do
         t["rows_total"] = len(t["rows"])

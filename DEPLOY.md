@@ -519,6 +519,9 @@ limit_req_zone $binary_remote_addr zone=skald_beacon:1m rate=60r/m;
 log_format skald_beacon '$time_iso8601 $status $upstream_http_x_skald_site';
 # Signed hooks from the site and its tools (docs/INTEGRATIONS.md).
 limit_req_zone $binary_remote_addr zone=skald_hooks:1m rate=60r/m;
+# Recorded journeys (docs/JOURNEYS.md): one site's own server relays its pages'
+# events, so one address sends many. The helper also limits per site and visitor.
+limit_req_zone $binary_remote_addr zone=skald_journeys:1m rate=20r/s;
 # How long a browser may keep a /traffic/ file. The app's code, asked for with
 # its version in the address (?v=, a hash of the code), for a year: a new
 # release is a new address. The data files only after asking again each time
@@ -653,6 +656,14 @@ location ^~ /traffic/ {
         gzip off;
         include snippets/skald-helper.conf;
     }
+    # Settings > Organisations (orgs_api.py): orgs, orgs/<act> (show, auditlog, prefs...) and orgs/member|invite/<act>.
+    # Before the next block, which would read orgs/audit as a view and a route.
+    location ~ ^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?orgs(?:/[a-z-]+(?:/[a-z]+)?)?$ {
+        limit_except GET POST { deny all; }
+        set $skald_path $uri;
+        gzip off;
+        include snippets/skald-helper.conf;
+    }
     # Every per-site route the helper answers, /traffic/<site>/[<view>/]<route>:
     # refresh; me; ours (internal addresses); funnels; bot-policy (crawler
     # settings); api/v1, api/compare, api/page, api/realtime; team, account, tokens, audit
@@ -660,8 +671,9 @@ location ^~ /traffic/ {
     # sites/* (sites_api.py); billing and billing/* (saas, 404 while off);
     # integrations and integrations/* (integrations_api.py; integrations/search
     # and integrations/search/* are search/api.py); people and people/*
-    # (people/api.py); logo and logo/* (the site's logo, logo_api.py).
-    location ~ ^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?(?:refresh|me|ours(?:/(?:add|remove|add-mine|pause|resume|edit))?|funnels(?:/(?:save|delete))?|bot-policy|api/(?:v1/(?:[a-z_]+)?|compare|page|realtime)|team(?:/[a-z-]+)?|account(?:/[a-z-]+(?:/[a-z]+)?)?|tokens(?:/[a-z]+)?|audit|settings(?:/[a-z-]+)?|sites(?:/[a-z]+)?|billing(?:/[a-z]+)?|integrations(?:/[a-z]+(?:/[a-z]+)?)?|ai-answers(?:/[a-z]+(?:/[a-z]+)?)?|people(?:/[a-z-]+)?|logo(?:/[a-z]+)?)$ {
+    # (people/api.py); logo and logo/* (the site's logo, logo_api.py); recorded
+    # and recorded/* (recorded journeys, journeys_api.py).
+    location ~ ^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?(?:refresh|me|ours(?:/(?:add|remove|add-mine|pause|resume|edit))?|funnels(?:/(?:save|delete))?|bot-policy|api/(?:v1/(?:[a-z_]+)?|compare|page|realtime)|team(?:/[a-z-]+)?|account(?:/[a-z-]+(?:/[a-z]+)?)?|tokens(?:/[a-z]+)?|audit|settings(?:/[a-z-]+)?|sites(?:/[a-z]+)?|billing(?:/[a-z]+)?|integrations(?:/[a-z]+(?:/[a-z]+)?)?|ai-answers(?:/[a-z]+(?:/[a-z]+)?)?|people(?:/[a-z-]+)?|logo(?:/[a-z]+)?|recorded(?:/[a-z]+)?)$ {
         limit_except GET POST { deny all; }
         set $skald_path $uri;
         gzip off;
@@ -719,6 +731,17 @@ location = /traffic-hooks/_billing/stripe {
 # answers 405 to a GET of any other hook).
 # X-Forwarded-Proto: some tools sign the public address.
 location ^~ /traffic-hooks/ {
+    # Recorded journeys, POST .../journey and .../journey/withdraw (docs/JOURNEYS.md).
+    location ~ "^/traffic-hooks/[A-Za-z0-9][A-Za-z0-9._-]*/journey(/withdraw)?/?$" {
+        limit_except POST { deny all; }
+        client_max_body_size 16k;
+        limit_req zone=skald_journeys burst=100 nodelay;
+        limit_req_status 429;
+        access_log off;
+        proxy_read_timeout 10s;
+        include snippets/skald-beacon.conf;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
     limit_except GET POST { deny all; }
     client_max_body_size 64k;
     limit_req zone=skald_hooks burst=30 nodelay;
@@ -742,8 +765,9 @@ location = /traffic-beacon {
     include snippets/skald-beacon.conf;
 }
 
-# The skald.js tag (docs/INTEGRATIONS.md): to the beacon helper, which serves
-# /traffic-js/skald.js only (404 for anything else).
+# The skald.js tag (docs/INTEGRATIONS.md) and the recorded-journeys helper
+# (docs/JOURNEYS.md): to the beacon helper, which serves /traffic-js/skald.js
+# and /traffic-js/journeys.js only (404 for anything else).
 location ^~ /traffic-js/ {
     limit_except GET { deny all; }
     access_log off;
@@ -755,12 +779,14 @@ location ^~ /traffic-js/ {
 # docs/INGEST.md): to the beacon helper. The code is a secret: never logged,
 # in the access log or the error log (whose lines hold the request line; the
 # nested location inherits it). The helper sends no-store and noindex itself.
-# GET only, but an agent's report, hook secret and Search Console key: POST, at most 16 KiB;
-# and a to-do's fix (the exact change it made, as text): POST, at most 256 KiB.
+# GET only, but an agent's report, hook secret, Search Console key and a tool's key
+# (toolkey, Unreleased: a front nginx made before must widen its list to take it):
+# POST, at most 16 KiB; and a to-do's fix (the exact change it made, as text): POST,
+# at most 256 KiB.
 location ^~ /traffic-kit/ {
     error_log stderr crit;
     access_log off;
-    location ~ "^/traffic-kit/[A-Za-z0-9_-]{43}/(report|hooksecret|searchkey)$" {
+    location ~ "^/traffic-kit/[A-Za-z0-9_-]{43}/(report|hooksecret|searchkey|toolkey)$" {
         limit_except POST { deny all; }
         client_max_body_size 16k;
         include snippets/skald-beacon.conf;

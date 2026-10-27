@@ -27,6 +27,16 @@
 .td-verdict { font-size: 11.5px; font-weight: 640; border-radius: 999px; padding: 1px 8px; white-space: nowrap; background: var(--sunk); color: var(--ink-2); }
 .td-verdict.v-fixed { color: var(--good); }
 .td-verdict.v-not_yet { color: var(--bad); }
+/* 2.44: Check again (js/tabs/todo-check.js) */
+.td-chk-box { border-top: 1px dashed var(--rule); padding-top: 8px; display: grid; gap: 4px; min-width: 0; }
+.td-chk-box p { margin: 0; }
+.td-chk-says { line-height: 1.5; overflow-wrap: anywhere; }
+.td-chk-says .ui-pill, .td-chk-said .ui-pill { margin-right: 4px; }
+.td-chk-meta { font-size: 12.5px; }
+.td-chk-rows { overflow-x: auto; max-height: 320px; }
+.td-chk-tbl code { font-family: var(--mono); font-size: 12.5px; overflow-wrap: anywhere; }
+.td-top .td-chkall { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.td-chkall-said { font-size: 13px; color: var(--ink-2); }
 .td-fold { margin-top: var(--sp-4); }
 .td-laters { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 10px; }
 .td-later { line-height: 1.5; }

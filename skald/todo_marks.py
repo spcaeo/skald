@@ -4,7 +4,8 @@ Traffic > Pages (2.35).
 A to-do (todos.py) can be marked "done" (Skald re-checks it on the next whole
 days) or "not now" (left out of the list until someone puts it back); an old
 address on Not found's lost pages can be marked "fixed" (its After the fix tab
-then shows what came for it after that day). Kept per site in accounts.sqlite,
+then shows what came for it after that day). A to-do is marked "fixed" only by
+"Check again" (2.44: kind "checked", mark_checked()), never by hand. Kept per site in accounts.sqlite,
 beside the settings people change (settings_store.py), in a table made here on
 first use:
 
@@ -293,9 +294,64 @@ def fixes(db, site: str) -> dict[str, dict]:
 
 
 def agent_done(db, site: str, item: str, day: str, by_who: str) -> bool:
-    """Mark a to-do done for an agent's "done" report, unless it is done already
-    (the re-check keeps counting from the first day). True when a row was written."""
-    if (current(db, site).get(item) or {}).get("state") == "done":
+    """Mark a to-do done for an agent's "done" report, unless it is done already, or
+    fixed by a check (the re-check keeps counting from the first day). True when a row
+    was written."""
+    if (current(db, site).get(item) or {}).get("state") in ("done", "fixed"):
         return False
     mark(db, site, item, "done", day, None)
     return True
+
+
+# ------------------------------------------------------------------ "Check again" (2.44)
+#
+# A to-do whose check (todo_check.py, kept in todo_checks.py) found every row fixed is
+# marked "fixed" with kind "checked": the person never marks a to-do fixed by hand (mark()
+# refuses it), only a check does. A later check that finds it broken again writes the
+# state it had before the fixed run (done, not now, or open), kind "checked" too.
+
+CHECKED = "checked"
+
+
+def _before_fixed(db, site: str, item: str) -> str:
+    """The state before the newest run of "fixed" rows ("open" when there was none)."""
+    states = [r[0] for r in db.execute("SELECT state FROM todo_marks WHERE site = ? AND item = ? "
+                                       "ORDER BY at, rowid", (site, item)).fetchall()]
+    while states and states[-1] == "fixed":
+        states.pop()
+    return states[-1] if states else "open"
+
+
+def mark_checked(db, site: str, item: str, fixed: bool, day: str, user_id=None,
+                 now: datetime | None = None) -> dict | None:
+    """After a check: "fixed" when it found every row fixed (unless the to-do is fixed
+    already); when it did not and the to-do stands fixed, the state it had before. The
+    row written, or None when nothing changed."""
+    if not TODO_ID.match(item or ""):
+        raise ValueError("not a to-do's id")
+    _ready(db)
+    state = (current(db, site).get(item) or {}).get("state")
+    if (fixed and state == "fixed") or (not fixed and state != "fixed"):
+        return None
+    new = "fixed" if fixed else _before_fixed(db, site, item)
+    at = _stamp(now)
+    db.execute("INSERT INTO todo_marks (site, item, state, day, at, by_user, kind) "
+               "VALUES (?, ?, ?, ?, ?, ?, ?)",
+               (site, item, new, day, at, int(user_id) if user_id is not None else None, CHECKED))
+    _commit(db)
+    return {"item": item, "state": new, "day": day, "at": at, "kind": CHECKED}
+
+
+def fixed_marks(db, site: str) -> dict[str, dict]:
+    """{item: {"at", "day", "by_user"}} of the to-dos whose newest mark is "fixed" by a check."""
+    try:
+        rows = db.execute("SELECT item, state, day, at, by_user, kind FROM todo_marks WHERE site = ? "
+                          "AND item NOT LIKE 'page:%' AND item NOT LIKE 'path:%' ORDER BY at, rowid",
+                          (site,)).fetchall()
+    except Exception:                    # noqa: BLE001 - no table yet
+        return {}
+    last: dict[str, tuple] = {}
+    for item, state, day, at, by_user, kind in rows:
+        last[item] = (state, day, at, by_user, kind)
+    return {i: {"at": v[2], "day": v[1], "by_user": v[3]} for i, v in last.items()
+            if v[0] == "fixed" and v[4] == CHECKED}

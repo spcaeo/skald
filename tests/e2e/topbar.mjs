@@ -8,6 +8,10 @@
 //     pressed at range=today, with the live dot), and "Compare with…" is there on a tab
 //     that compares (on by default) and absent on one that does not; with Live on and
 //     with Compare on (its longer words) the bar still does not overlap
+//   * the approved mockup's seven (2.43): the title and six controls. The period is one group
+//     (Today, 7, 30, 90 days, More: one tab stop, the arrows move inside it), then Compare;
+//     the filter icon, the search, the alerts and More on the right. No more than six tab
+//     stops in the bar, the phone's site button aside.
 // Run once signed in as an admin and once as a viewer: their buttons differ.
 //
 //   PLAYWRIGHT=/path/to/node_modules/playwright/index.mjs \
@@ -51,7 +55,7 @@ for (const scheme of ["light", "dark"]) {
       where = `${tab} at ${w} ${scheme}`;
       await p.goto(`${base}#${tab}`, { waitUntil: "networkidle" });
       await p.waitForTimeout(450);
-      const got = await p.evaluate(() => {
+      const got = await p.evaluate(async () => {
         const r = (e) => e.getBoundingClientRect();
         const seen = (e) => e.offsetParent !== null && r(e).width > 0 && getComputedStyle(e).visibility !== "hidden";
         const row = document.querySelector(".bar .bar-row");
@@ -71,17 +75,24 @@ for (const scheme of ["light", "dark"]) {
         const pill = ind && on ? [r(ind).left - r(on).left, r(ind).width - r(on).width] : null;
         const todayBtn = seg && [...seg.querySelectorAll("button")].find((x) => x.textContent.trim() === "Today");
         const cmp = row.querySelector(".bar-modes .mode-cmp");
+        // Custom's two dates show only while Custom is the period: they are the period's, not a control of their own.
+        const stops = [...row.querySelectorAll("button, a, input, select")].filter((e) => seen(e) && e.tabIndex >= 0 && !e.closest(".site-wrap, .trail, .dates") && !e.matches(".menu-btn, .site-chip"));
+        const moreIn = !!seg?.querySelector(".ui-more-range");
+        const filterRight = !!row.querySelector(".bar-right .fp-btn");
         // A page without figures keeps at most its own period chip there (2.13), never the modes.
-        return { over, out, pill, figures: !!mid.querySelector(".seg"), live: todayBtn ? todayBtn.getAttribute("aria-pressed") : null, cmp: cmp && cmp.getAttribute("aria-pressed"),
-          // Today is the default period (2.10.1): the address leaves range=today out.
-          range: new URLSearchParams(location.hash.split("?")[1] || "").get("range") || "today" };
+        return { over, out, pill, stops: stops.length, moreIn, filterRight, figures: !!mid.querySelector(".seg"), live: todayBtn ? todayBtn.getAttribute("aria-pressed") : null, cmp: cmp && cmp.getAttribute("aria-pressed"),
+          // The period in force: the address leaves a section's own default out (Today; 7 days on Leads & sales).
+          range: (await import(new URL("../_app/js/state.js", location.href).href)).read().range };
       });
       checked++;
       if (got.none) continue;
       for (const o of got.over) fail(`${where}: ${o} overlap in the top bar`);
       if (got.out.length) fail(`${where}: outside the window: ${got.out.join(", ")}`);
       if (got.pill && (Math.abs(got.pill[0]) > 1 || Math.abs(got.pill[1]) > 1)) fail(`${where}: the pill is off its period by ${got.pill.map((x) => x.toFixed(1)).join(" px, ")} px`);
+      if (got.stops > 6) fail(`${where}: ${got.stops} tab stops in the top bar, the mockup has six controls`);
       if (!got.figures) continue;
+      if (!got.moreIn) fail(`${where}: the period's More is not inside the period group`);
+      if (!got.filterRight) fail(`${where}: the filter is not on the right with the search`);
       if (!got.live) fail(`${where}: the period group has no Today`);
       if (got.live && got.live !== String(got.range === "today")) fail(`${where}: Today says ${got.live} at range "${got.range}"`);
     }

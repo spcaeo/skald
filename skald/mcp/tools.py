@@ -472,3 +472,5 @@ from . import tools_pages  # noqa: E402,F401 - page_changes, ai_readiness, chang
 from . import tools_setup  # noqa: E402,F401 - setup_left, setup_line (2.39.0)
 
 from . import tools_todos  # noqa: E402,F401 - fix_todo, mark_todo_done (2.41)
+
+from . import tools_yourtools  # noqa: E402,F401 - your_tools: figures from your own tools

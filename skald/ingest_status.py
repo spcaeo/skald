@@ -7,7 +7,10 @@ One small JSON file per site in the live folder (the history's folder):
     {"last_batch":   {"at", "lines", "rejected", "shipper"},
      "last_contact": "<when any batch was answered 200>",
      "today":        {"day": "YYYY-MM-DD" (UTC), "lines": N},
-     "last_refusal": {"at", "code", "reason", "words"}}
+     "last_refusal": {"at", "code", "reason", "words"},
+     "first_lines":  "<when lines were first kept>" (2.43; absent before),
+     "minutes":      {"YYYY-MM-DDTHH:MM": lines}, the last RECENT_MINUTES only
+                     (2.43: the set-up's live "N in the last 15 min", setup_live.py)}
 
 `note` is called by ingest._answer after every answer to /traffic-ingest/
 (the shipper's batches and the platforms' drains). It keeps no address, no
@@ -39,6 +42,7 @@ from .files import slug
 
 FOLDER = "ingest-status"
 REFUSAL_GAP = 1.0              # seconds between two refusals written for one site
+RECENT_MINUTES = 15            # the per-minute counts kept (setup_live.py)
 _LOCKS: dict[str, threading.Lock] = {}
 _GUARD = threading.Lock()
 _LAST_REFUSAL: dict[str, float] = {}
@@ -144,7 +148,33 @@ def accepted(base, site: str, lines: int, rejected: int, shipper: str,
             today = {"day": day, "lines": 0}
         today["lines"] = int(today.get("lines") or 0) + int(lines)
         got["today"] = today
+        if lines:
+            got.setdefault("first_lines", stamp)
+            got["minutes"] = _minutes(got.get("minutes"), now, int(lines))
     _write(base, site, change)
+
+
+def _minutes(old, now: float, lines: int = 0) -> dict:
+    """The per-minute counts of the last RECENT_MINUTES, with `lines` added now."""
+    cut = _stamp(now - RECENT_MINUTES * 60)[:16]
+    out = {k: v for k, v in (old.items() if isinstance(old, dict) else ())
+           if isinstance(k, str) and k > cut and isinstance(v, int)}
+    key = _stamp(now)[:16]
+    out[key] = out.get(key, 0) + lines
+    return out
+
+
+def recent(base, site: str, now: float | None = None) -> dict:
+    """{"lines": kept in the last RECENT_MINUTES, "newest_at", "first_at",
+    "shipper"}: the set-up's live line (setup_live.py). Read only."""
+    now = time.time() if now is None else now
+    got = read(base, site)
+    cut = _stamp(now - RECENT_MINUTES * 60)[:16]
+    mins = got.get("minutes") if isinstance(got.get("minutes"), dict) else {}
+    lines = sum(v for k, v in mins.items() if isinstance(v, int) and k > cut)
+    batch = got.get("last_batch") if isinstance(got.get("last_batch"), dict) else {}
+    return {"lines": lines, "newest_at": batch.get("at"), "first_at": got.get("first_lines"),
+            "shipper": batch.get("shipper")}
 
 
 def refused(base, site: str, code: int, error: str, now: float | None = None) -> None:

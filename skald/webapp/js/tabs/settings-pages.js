@@ -20,6 +20,7 @@ import { leadsPage } from "./set-leads.js";
 import { mcpTab, apiTab, tokensTab } from "./set-ai.js";
 import { todoPage } from "./set-todo.js";
 import { alertsSettings } from "./set-alerts.js";
+import orgs from "./orgs.js";
 
 export const SETTINGS_RENDER = {
   "settings/todo": todoPage,
@@ -36,5 +37,6 @@ export const SETTINGS_RENDER = {
   "settings/org/people": { team: (m, s, o) => (sessions() ? team(m, s, o) : users(m, s, o)), security },
   "settings/org/audit": auditlog,
   "settings/org/billing": billing,
+  "settings/org/orgs": orgs,
   "settings/you/account": account,
 };

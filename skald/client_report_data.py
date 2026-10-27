@@ -12,6 +12,9 @@ The rules every Skald report keeps:
     by another road); otherwise the report is refused, not sent smaller
   * a breakdown (sources, countries, cities) is shown only when every summed
     day recorded it; otherwise the section says so
+  * the AI line counts an assistant's page reads (day kind `ai_reads`), its
+    requests second; a summed day stored before reads were counted leaves
+    the reads not recorded, never 0
   * a change against the period before is given only when both are whole
   * Search Console (when the site is connected, search/sync.py): its own
     figures for the period's days, final days only; a provisional day and a
@@ -108,7 +111,31 @@ def _headline(totals, leads: dict | None) -> dict:
             "returning": _returning(totals)}
 
 
-def _ai(totals) -> dict:
+def _reads(history, site: str, days) -> tuple[int | None, int]:
+    """(reads, days with them): an assistant's reads for someone (day kind
+    `ai_reads`, ai_reads.py: a page asked for again within seconds, or a file
+    the page loaded, is no read) over the summed days. None when a summed day
+    was stored before reads were counted: not recorded, never 0."""
+    if not days:
+        return None, 0
+    got = history.extras(site, min(days), max(days), ("ai_reads",))
+    blobs = [(got.get(d.isoformat()) or {}).get("ai_reads") for d in days]
+    known = [b for b in blobs if b is not None]
+    if len(known) != len(blobs):
+        return None, len(known)
+    return sum(int(b.get("reads") or 0) for b in known), len(known)
+
+
+def asked_words(ai: dict) -> str:
+    """The AI line's first words: reads first, their requests second."""
+    reqs = f"{ai['asked']:,} request{'' if ai['asked'] == 1 else 's'}"
+    if ai.get("reads") is None:
+        return f"{reqs} because someone asked an AI (reads not recorded on every day)"
+    return f"{ai['reads']:,} page read{'' if ai['reads'] == 1 else 's'} because someone " \
+           f"asked an AI ({reqs})"
+
+
+def _ai(totals, reads: tuple[int | None, int] = (None, 0)) -> dict:
     engines = totals.groups.get(Group.ANSWER_ENGINE)
     search = totals.groups.get(Group.SEARCH_ENGINE)
     bots = totals.groups.get(Group.BOTS)
@@ -124,6 +151,7 @@ def _ai(totals) -> dict:
     words = {"asked": "fetched because someone asked it", "training": "to train or index",
              "search": "search engine crawler"}
     return {"asked": int(engines.tiers.get("asked", 0)) if engines else 0,
+            "reads": reads[0], "reads_days": reads[1],
             "training": int(engines.tiers.get("training", 0)) if engines else 0,
             "search": search.hits if search else 0,
             "bots": bots.hits if bots else 0,
@@ -252,7 +280,7 @@ def build(config: dict, history, site: str, spec: dict, first: date, last: date,
         "pages": _ranked(people.pages if people else {}, people.views if people else 0, n=10),
         "countries": _ranked(by.get("country"), readers, _country, more=_country_more) if by else None,
         "cities": _ranked(by.get("city"), readers, _city, more=_city_more) if by.get("city") else None,
-        "ai": _ai(totals), "leads": leads, "notes": spec.get("notes") or "",
+        "ai": _ai(totals, _reads(history, site, period.recorded)), "leads": leads, "notes": spec.get("notes") or "",
         "footer": spec.get("footer") or "",
         "search_console": search_console(config, history, site, first, last)
         if "search_console" in sections else None,

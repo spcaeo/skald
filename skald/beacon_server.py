@@ -60,6 +60,11 @@ POST .../hooksecret, POST .../searchkey) are answered there too. Limited per add
 (KIT_PER_MINUTE per address, code and route, agent.ROUTES, and
 KIT_ANY_PER_MINUTE per address; llms.txt is not); the code is never logged.
 
+POST /traffic-hooks/<site>/journey and .../journey/withdraw are recorded journeys
+(recorded/receive.py: signed by the site's own server, consent required), and
+GET /traffic-js/journeys.js serves their page helper (webapp/snippet/journeys.js) to
+every site, with or without an origin.
+
 GET /traffic-js/skald.js serves the snippet (webapp/snippet/skald.js) with
 an ETag and a day's cache; with visitor IDs off it is served with IDS=0, so
 browsers make no ID at all.
@@ -94,6 +99,9 @@ PATH = "/traffic-beacon"
 SNIPPET_PATH = "/traffic-js/skald.js"
 SNIPPET_FILE = Path(__file__).resolve().parent / "webapp" / "snippet" / "skald.js"
 SNIPPET_CACHE = "public, max-age=86400, stale-while-revalidate=604800"
+# Recorded journeys (2.43, recorded/): the page's helper; it posts to the site's own relay.
+JOURNEYS_PATH = "/traffic-js/journeys.js"
+JOURNEYS_FILE = Path(__file__).resolve().parent / "webapp" / "snippet" / "journeys.js"
 KIT_PREFIX = "/traffic-kit/"     # one-time install links and agent codes (kit/link.py, agent.py)
 KIT_PER_MINUTE = 10              # tries per address, code and route a minute, a burst of 5
 KIT_ANY_PER_MINUTE = 120         # tries per address across every code: ten sessions at once
@@ -455,6 +463,9 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
                 return stack_public_api.handle(self, public)     # the public stack check
             if self.path.startswith(KIT_PREFIX):          # an AI agent's report (kit/agent.py)
                 return self._kit()
+            from .recorded import receive as recorded
+            if recorded.is_route(self.path):              # recorded journeys (2.43)
+                return recorded.handle(self, main.config, getattr(main, "config_path", None))
             if self.path.startswith("/traffic-hooks/"):    # signed tool hooks
                 from .conversions.hooks import handle
                 return handle(self, main.config, None, getattr(main, "config_path", None))
@@ -516,6 +527,8 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
                 return self._snippet(self.command == "GET")
             if self.path.startswith(KIT_PREFIX):
                 return self._kit()
+            if self.path.split("?", 1)[0] == JOURNEYS_PATH:   # the recorded-journeys helper
+                return self._static(JOURNEYS_FILE, self.command == "GET")
             if self.path.startswith("/traffic-js/"):
                 return self._send(404)
             if self.command == "GET" and self.path.startswith("/traffic-hooks/"):
@@ -543,6 +556,26 @@ def make_handler(sink, limiter: Limiter, allowed: set[str] | None = None):
             self.send_header("ETag", tag)
             self.send_header("Vary", "Referer")       # visitor IDs on or off, per site
             self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Content-Length", "0" if fresh else str(len(raw)))
+            self.end_headers()
+            if with_body and not fresh:
+                self.wfile.write(raw)
+
+        def _static(self, path: Path, with_body: bool) -> None:
+            """A file served as it is, with an ETag and a day's cache."""
+            import hashlib
+            try:
+                raw = path.read_bytes()
+            except OSError:
+                return self._send(404)
+            tag = '"' + hashlib.sha256(raw).hexdigest()[:20] + '"'
+            fresh = tag in [t.strip() for t in (self.headers.get("If-None-Match") or "").split(",")]
+            self.send_response(304 if fresh else 200)
+            self.send_header("Content-Type", "application/javascript; charset=utf-8")
+            self.send_header("Cache-Control", SNIPPET_CACHE)
+            self.send_header("ETag", tag)
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Content-Length", "0" if fresh else str(len(raw)))
             self.end_headers()
             if with_body and not fresh:

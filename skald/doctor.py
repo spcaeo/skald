@@ -557,17 +557,25 @@ def disk(folder) -> dict:
 
 
 def keep_everything(config: dict, site: str, live_dir) -> dict | None:
-    """One line when the site keeps everything (keep_everything.py); none when not."""
+    """One line when the site keeps everything (keep_everything.py), or when its
+    organisation is a client that follows its own retention; none otherwise.
+    The line says which organisation rule applies (accounts/orgs.py privacy_class)."""
     from .keep_everything import Keeper
-    why = Keeper(config, live_dir).why(site)
+    keeper = Keeper(config, live_dir)
+    why = keeper.why(site)
+    rule = keeper.rule(site)
     if why is None:
-        return None
+        if rule["class"] != "client":
+            return None
+        return item("keep", "Keep everything", OK,
+                    f"off: {rule['words']} Automatic deletion follows those settings")
     said = {"install": "the install says so (retention.keep_everything)",
             "no plan": "the site's organisation has no plan: the install's own"}.get(why) \
         or f"its plan, {why[5:]}, says so"
     return item("keep", "Keep everything", OK,
                 f"on: nothing on this site is deleted or cleared by itself ({said}); "
-                f"a person's own deletion request, run by hand, still works")
+                f"a person's own deletion request, run by hand, still works. "
+                f"Rule: {rule['words']}")
 
 
 # ------------------------------------------------------------ all of them
@@ -630,6 +638,8 @@ def integration_checks(site_config: dict, folder, site: str, live_dir=None,
                  live_dir if live_dir is not None else folder, now, config_path)
     out += _safe("hooks", "Hooks", hook_items, site_config, folder, site, now, cmd)
     out += _safe("leads", "Lead database", lead_database, site_config)
+    from .recorded.status import doctor_line      # recorded journeys (2.43), when connected
+    out += _safe("journeys", "Recorded journeys", doctor_line, site_config, folder, site, now)
     return out
 
 

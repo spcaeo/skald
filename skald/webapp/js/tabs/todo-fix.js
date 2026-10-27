@@ -33,7 +33,9 @@ import { withCopy, copyText, TIMING } from "../urlactions.js";
 import { answerBox } from "./conn-ui.js";
 import { lineBox } from "./agent-setup.js";
 import { expired, timeLeft, CANCELLED_WORDS, SAFE_TITLE } from "./agent-words.js";
-import { MARKS, loadMarks, markItem, makeTodoLine, lineStatus, cancelTodoLine, todoRows, sendable, sendTodo } from "./todo-marks.js";
+import { MARKS, loadMarks, markItem, makeTodoLine, lineStatus, cancelTodoLine, todoRows, sendable, sendTodo, checkOf } from "./todo-marks.js";
+// 2.44: Check again, in the drawer too (js/tabs/todo-check.js).
+import { checkButton, checkLine, checkNote, LIVE } from "./todo-check.js";
 
 export const AGENT_KINDS = ["lost", "errors", "markdown", "sitemap", "leave"];
 export const isAgentTodo = (t) => (t.agent ?? AGENT_KINDS.includes(t.kind));
@@ -104,7 +106,7 @@ export function linesFor(t, rows, server) {
 /* ---- opening ---------------------------------------------------------------------------- */
 
 const todosOf = (m) => (m?.x?.todos?.todos || []).filter((t) => t && t.id);
-const openOnes = (m) => todosOf(m).filter((t) => isAgentTodo(t) && !["done", "notnow"].includes((MARKS.ok ? MARKS.marks[t.id]?.state : t.state) || ""));
+const openOnes = (m) => todosOf(m).filter((t) => isAgentTodo(t) && !["done", "notnow", "fixed"].includes((MARKS.ok ? MARKS.marks[t.id]?.state : t.state) || ""));
 
 /* The address named the dialog: fix=1 (with todo=<id>) or fix=all. */
 export async function openFixKey(v, m, s) {
@@ -211,8 +213,10 @@ function watchLine(list, st, out, finished = () => {}) {
       steps.replaceChildren(
         h("li", { class: r.opened_at ? "ok" : "wait" }, h("span", { class: "cn-tick", "aria-hidden": "true" }, r.opened_at ? "✓" : "…"), r.opened_at ? "It read Skald's steps" : "Waiting for your agent to read the steps"),
         h("li", { class: r.keys_at ? "ok" : "wait" }, h("span", { class: "cn-tick", "aria-hidden": "true" }, r.keys_at ? "✓" : "…"), r.keys_at ? "It took its key, to fetch the rows" : "Waiting for it to fetch the rows"),
-        ...list.map((t) => reportBox(t, fixes[t.id])));
-      if (Object.keys(fixes).length && Object.keys(fixes).length !== Object.keys(st.seen || {}).length) {
+        ...list.map((t) => reportBox(t, fixes[t.id], checkNote(t, fixes[t.id]))));
+      // A new report, or one whose check (run by Skald after a "done") has not come back yet.
+      const unchecked = list.some((t) => LIVE.includes(t.kind) && fixes[t.id] && fixes[t.id].state !== "left" && !checkNote(t, fixes[t.id]));
+      if ((Object.keys(fixes).length && Object.keys(fixes).length !== Object.keys(st.seen || {}).length) || unchecked) {
         st.seen = fixes;
         loadMarks(true);
       }
@@ -260,7 +264,7 @@ function meOne(t) {
     }
     parts.push(h("p", { class: "note" }, `${n(full.rows_total ?? rows.length)} row${(full.rows_total ?? rows.length) === 1 ? "" : "s"}. `,
       h("a", { href: "#", class: "fx-csv", onclick: (e) => { e.preventDefault(); download(t.file || `${t.id}.csv`, csv(columnsOf(t), rows)); } }, `Download CSV`)),
-      doneButton(t));
+      doneButton(t), checkPart(t));
     box.replaceChildren(...parts);
   })();
   return box;
@@ -275,6 +279,16 @@ function copyLines(text) {
     setTimeout(() => { b.textContent = "Copy the lines"; b.classList.remove("ok"); }, ok ? TIMING.tick : TIMING.failed);
   });
   return b;
+}
+
+/* Check again in the drawer: the answer drawn in place, open (no address key: the drawer has its own). */
+function checkPart(t) {
+  const slot = h("div", { class: "fx-chk" });
+  const draw = () => slot.replaceChildren(...[checkLine(t, S.read(), draw, { inline: true })].filter(Boolean));
+  const b = checkButton(t, draw);
+  draw();
+  if (!b) return checkOf(t.id) ? slot : null;
+  return h("div", null, h("p", { class: "fx-mark" }, "Fixed it? ", b, " ", h("small", { class: "muted" }, "Skald asks each address now and says what it answers.")), slot);
 }
 
 function doneButton(t) {

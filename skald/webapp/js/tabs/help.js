@@ -20,11 +20,11 @@ let lastSec = "";           // ... or at the section in the address (hs)
 
 // The index's groups, in order; a guide not named here goes under "More".
 export const GROUPS = [
-  ["Start here", "start", ["getting-started", "docker-first-install", "pick-your-road", "sign-in-and-team", "faq"]],
+  ["Start here", "start", ["getting-started", "docker-first-install", "pick-your-road", "sign-in-and-team", "organisations", "faq"]],
   ["Your visitors", "people", ["real-time", "where-visitors-come-from", "retention", "search", "funnels-and-goals", "internal-traffic"]],
-  ["Leads and sales", "leads", ["leads-and-conversions", "revenue", "demo-bookings", "webhooks", "leads-from-your-backend", "tracking-script"]],
+  ["Leads and sales", "leads", ["leads-and-conversions", "revenue", "demo-bookings", "webhooks", "leads-from-your-backend", "recorded-journeys", "tracking-script"]],
   ["AI and bots", "ai", ["ai-and-bots", "crawl-health", "ai-answers", "what-to-fix"]],
-  ["Connect and set up", "plug", ["connections", "troubleshooting-connections", "api", "mcp", "settings-and-retention", "client-reports"]],
+  ["Connect and set up", "plug", ["connections", "your-tools", "troubleshooting-connections", "api", "mcp", "settings-and-retention", "client-reports"]],
   ["Security and privacy", "lock", ["security", "privacy"]],
 ];
 const GICON = {

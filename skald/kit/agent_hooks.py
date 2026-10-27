@@ -22,6 +22,10 @@ X-Skald-Report-Key (SKALD_REPORT_KEY from the keys file; missing or wrong:
                               replaced (409 without it), so a second run never
                               breaks a hook that works
 
+  {"tool": "journey", "make": true}   recorded journeys (2.43), a connect-journeys line
+                              only: Skald makes the site's journey secret and answers
+                              SKALD_JOURNEY_SECRET and SKALD_JOURNEY_URL env lines once
+
 Refused: no lead job on the line (403), a tool not in TOOLS (400), "lead"
 (its secret is SKALD_LEAD_SECRET in the keys file: 400), a secret kept in the
 server's environment (409), `make` for Stripe or HubSpot (409), a `secret` for
@@ -44,6 +48,7 @@ from . import agent, agent_jobs, link
 
 MOST = 2048
 ACTOR = "ai-agent"
+JOURNEY = "journey"     # recorded journeys' secret (recorded.TOOL): a connect-journeys line
 ASK = 'Send one JSON object: {"tool": "<tool>", "make": true} or {"tool": "<tool>", "secret": "..."}.'
 
 
@@ -86,7 +91,12 @@ def answer(h, folder, code: str, config: dict | None, config_path=None,
                            "the keys file.")
     if agent.ended(entry, now):
         return _no(h, 410, "This code has expired or was cancelled.")
-    if "lead" not in agent_jobs.of(entry):
+    jobs = agent_jobs.of(entry)
+    if form.get("tool") == JOURNEY:
+        if "connect-journeys" not in jobs:
+            return _no(h, 403, "This line has no connect-journeys job, so it cannot make the "
+                               "journey secret. Ask the user for a line with that job.")
+    elif "lead" not in jobs:
         return _no(h, 403, "This line has no lead job, so it cannot set a hook's secret. Ask "
                            "the user to set it in Skald (Settings > Leads & integrations), or for a line "
                            "with the lead job.")
@@ -102,6 +112,8 @@ def _keep(h, folder, code: str, entry: dict, form: dict, config: dict, config_pa
     from ..conversions.roads import TOOL_NAMES
     from ..integrations_api import EITHER, OWN_SECRET, PASTED
     tool = form.get("tool")
+    if tool == JOURNEY:
+        return _journey(h, code, entry, form, config, folder, config_path)
     if not isinstance(tool, str) or tool not in TOOLS:
         return _no(h, 400, f"Name one of the tools: {', '.join(t for t in TOOLS if t != 'lead')}.")
     if tool == "lead":
@@ -146,6 +158,43 @@ def _keep(h, folder, code: str, entry: dict, form: dict, config: dict, config_pa
     if make:
         return agent._send(h, 200, f"SKALD_HOOK_SECRET_{tool.upper()}={shlex.quote(value)}\n")
     return agent._json(h, 200, {"ok": True, "tool": tool, "replaced": had})
+
+
+def _journey(h, code: str, entry: dict, form: dict, config: dict, folder, config_path) -> None:
+    """Recorded journeys' secret (2.43), for a connect-journeys line: Skald makes it, once,
+    answered as SKALD_JOURNEY_SECRET and SKALD_JOURNEY_URL env lines. An existing one is
+    kept unless "replace" (the site's relay then stops working until it has the new one)."""
+    from ..conversions import secrets_store
+    from ..conversions.hooks import site_configs
+    if form.get("make") is not True or "secret" in form:
+        return _no(h, 400, 'Skald makes the journey secret: send {"tool": "journey", '
+                           '"make": true}.')
+    site = entry["site"]
+    conf = site_configs(config, config_path).get(site) or config
+    env = secrets_store.env_name(conf, site, JOURNEY)
+    if env:
+        return _no(h, 409, f"The journey secret is kept in the Skald server's environment "
+                           f"({env}), so it cannot be made here. Ask whoever runs the user's "
+                           "Skald.")
+    path = secrets_store.path_for(config, folder)
+    try:
+        had = bool(secrets_store.load(path).get(secrets_store.key(site, JOURNEY)))
+    except secrets_store.Exposed:
+        return _no(h, 500, "Skald's secrets file is not private on its server, so nothing was "
+                           "kept. Ask whoever runs the user's Skald to fix it.")
+    if had and form.get("replace") is not True:
+        return _no(h, 409, "This site has a journey secret in Skald already. If the site's relay "
+                           "has it (SKALD_JOURNEY_SECRET), leave it. To replace it, ask the user "
+                           "first (the old secret stops working at once), then send "
+                           "\"replace\": true.")
+    value = secrets_store.make()
+    secrets_store.put(path, secrets_store.key(site, JOURNEY), value)
+    _audit(config, folder, site, JOURNEY, ("made, replaced" if had else "made") +
+           f" (AI agent set-up, link {agent.link_id(code)})")
+    hooks = (entry.get("fields") or {}).get("hooks_url") or ""
+    url = f"{hooks.rstrip('/')}/journey" if hooks else ""
+    return agent._send(h, 200, f"SKALD_JOURNEY_SECRET={shlex.quote(value)}\n"
+                               f"SKALD_JOURNEY_URL={shlex.quote(url)}\n")
 
 
 def _audit(config: dict, folder, site: str, tool: str, detail: str) -> None:

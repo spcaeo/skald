@@ -310,6 +310,44 @@ class Detecting(unittest.TestCase):
                 d.clean_address(bad)
 
 
+class Tools(unittest.TestCase):
+    """2.43: the tools and forms on the home page, from the same GET (Leads & tools' Next step
+    and the "not connected yet" card say what was found)."""
+    PAGE = ('<form action="/contact"></form><FORM id="x"></FORM>'
+            '<a href="https://calendly.com/example/demo">Book</a>'
+            '<a href="https://cal.com/example/intro">Cal</a>'
+            '<script src="https://app.cal.com/embed/embed.js"></script>'
+            '<script src="https://js.stripe.com/v3/"></script>'
+            '<script src="//js.hs-scripts.com/123456.js"></script>')
+
+    def test_the_tools_named_on_the_page(self):
+        got = d.tags_of(self.PAGE)
+        self.assertEqual(got["calendly"], ["calendly.com/example/demo"])
+        self.assertEqual(got["calcom"], ["cal.com/example/intro"], "the embed script is not a link")
+        self.assertEqual(got["stripe"], ["js.stripe.com"])
+        self.assertEqual(got["hubspot"], ["js.hs-scripts.com"])
+        self.assertNotIn("ga4", got)
+        self.assertEqual(d.tags_of(""), {})
+
+    def test_forms_counted_and_capped(self):
+        self.assertEqual(d.forms_of(self.PAGE), 2)
+        self.assertEqual(d.forms_of("<formula>"), 0, "a word that starts like form is not one")
+        self.assertEqual(d.forms_of("<form>" * 99), d.FORMS_MOST)
+        self.assertEqual(d.forms_of(None), 0)
+
+    def test_only_checked_shapes_are_kept(self):
+        got = d.clean_found({"reachable": True, "forms": 3, "tags": {
+            "calendly": ["calendly.com/example/demo", "<script>"], "stripe": ["js.stripe.com", "evil.example"],
+            "hubspot": ["js.hs-scripts.com"], "calcom": ["cal.com/example/intro"]}})
+        self.assertEqual(got["forms"], 3)
+        self.assertEqual(got["tags"]["calendly"], ["calendly.com/example/demo"])
+        self.assertEqual(got["tags"]["stripe"], ["js.stripe.com"])
+        self.assertEqual(got["tags"]["hubspot"], ["js.hs-scripts.com"])
+        self.assertEqual(got["tags"]["calcom"], ["cal.com/example/intro"])
+        for bad in (True, -1, 99, "3", None):
+            self.assertIsNone(d.clean_found({"forms": bad})["forms"], bad)
+
+
 class Kept(unittest.TestCase):
     def test_only_known_keys_and_checked_values_are_kept(self):
         got = d.clean_found({"reachable": True, "server": "nginx", "platform": "evil",

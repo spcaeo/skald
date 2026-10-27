@@ -18,8 +18,9 @@ import { codeBlock, steps, helpLink } from "./conn-ui.js";
 import { read } from "../state.js";
 import { stepped } from "../overlays.js";
 
-// The send dialog tests on its next step; Add a site (2.42, st.testBelow) on the same one.
-export const thenTest = (st) => (st && st.testBelow ? "check it with Test connection below." : "press Next and Test connection here.");
+// The send dialog tests on its next step; Add a site (2.42, st.testBelow) shows its live progress
+// on the same one (2.43: no Test connection there, the progress ticks by itself; Check now asks).
+export const thenTest = (st) => (st && st.testBelow ? "watch Live progress below: it ticks when the first lines arrive." : "press Next and Test connection here.");
 
 const TOKEN = "<token>";
 const tok = (st) => st.token || TOKEN;
@@ -233,7 +234,7 @@ function server(st) {
     steps(
       ["Copy the file to the server:", codeBlock(`scp ${file} <server>:~/`, "the copy command")],
       ["Run it there:", codeBlock(`sudo bash ${file}`, "the install command")],
-      ["Open https://" + st.site + "/ once in a browser, then press Test connection."],
+      ["Open https://" + st.site + "/ once in a browser, then " + (st.testBelow ? "watch Live progress below." : "press Test connection.")],
     ),
     byHandFold(st),
   ];

@@ -16,7 +16,10 @@ The line has one of three shapes:
 - finish setting up Skald for <site> (<jobs, comma separated>) — read this file and use code
   <code> (only the jobs named, for a site already in Skald: for example "add the script tag",
   "send leads and tool webhooks", "add the Next.js log field", "find the page assets", "check
-  the privacy settings", "connect Google Search Console", "connect the AI assistant (MCP)")
+  the privacy settings", "connect Google Search Console", "connect your own tools", "connect
+  the AI assistant (MCP)", "connect recorded journeys": the page helper and a signed relay in
+  the site's own code, so the site sends the sessions its visitors agreed to; you ask the user
+  before each change)
 - fix the Skald to-do "<title>" for <site> — read this file and use code <code> (one of the
   to-dos on Skald's Overview > Insights; "fix the Skald to-dos for <site> (<n>: "<title>",
   ...)" for several). The steps fetch every row of each to-do from Skald with curl (old
@@ -75,6 +78,14 @@ folder:
 Line 2 is "Set up Skald for this site". The token goes only into the assistant's settings,
 never into a chat message; the user removes it in Settings > AI & API > Tokens & links.
 
+## The people who will use the dashboard
+
+The user chose them in Skald when they added the site (its organisation, and who will use
+it). Skald invites them by itself as soon as the first data arrives, and mails the user that
+the site is live. Never invite anyone yourself and never make an account. When the steps'
+report step names them, end with the words it gives ("Done. <email> will get an invite as
+soon as the first data arrives.").
+
 ## Rules
 
 1. Never print, echo, log or commit a secret (a token, the lead secret, a tool's secret), and
@@ -94,5 +105,10 @@ never into a chat message; the user removes it in Settings > AI & API > Tokens &
    describe.
 7. If an answer says "Too many tries", wait a minute and try again.
 8. Some things only a person can do, such as giving Skald's robot address access in Google
-   Search Console, or copying a Bing API key from Bing's own page. Give the user the exact
-   clicks and put them in the report as left for them.
+   Search Console or Google Analytics, or copying a Bing API key from Bing's own page. Give
+   the user the exact clicks and put them in the report as left for them.
+9. "Connect your own tools" (Google Analytics and the other tools the steps name): find what
+   the site's project has by its names only (`.env` variable names, key file names), list it
+   for the user, and ask before you send each key. Prefer a read-only key, and say what
+   permission each key needs. A key goes to Skald only from stdin, as the steps show; never
+   print it, and never send one the user did not agree to.

@@ -19,9 +19,10 @@ import { isViewer, VIEWER } from "../access.js";
 // Saved funnels are shared by every site of the install: with accounts only an install admin saves them.
 const lockWhy = () => (isViewer() ? VIEWER : INSTALL_ONLY);
 import { eventLabel, everSent, howToSend } from "./events.js";
-import { neverRecorded } from "../notset.js";
+import { neverRecorded, neverSentAny } from "../notset.js";
 import { history } from "./funnelhistory.js";
 import { howTo } from "./help.js";
+import { connectCard } from "../ui/connect.js";
 import { funnelFlowOf, check } from "../flow.js";
 import { sankey } from "../sankey.js";
 import { shown } from "../labels.js";
@@ -348,6 +349,14 @@ export default function funnels(m, s) {
       : `${span}, the days journeys are kept`;
   const out = [...head("Funnels", r, `How many visits went through these pages in order, and where the rest left. The page that met one step may also meet the next, so Any page then /pricing/ counts a visit that landed on pricing. Built from each visit's pages in order, kept ${m.journey_days || 7} days. A saved funnel may end with steps from the lead store, counted by the lead's first-touch source and never joined to a visit.`, { period: covers, banner: false }), todayNote(m, s, r)].filter(Boolean);
   out.push(savedRow(m, s, fn), builder(m, s, steps));
+  // 2.43: a goal step whose source is not connected (the script tag never sent it, the lead
+  // store never recorded it): one line, with how to connect it (js/ui/connect.js).
+  const off = steps.filter((x) => unsentStep(m, x));
+  if (off.some((x) => x.kind === "event") && neverSentAny(m.x.events)) {
+    out.push(connectCard(m, "script", { s, mode: "line", title: "Event steps need the script tag", line: "It sends clicks, form steps and bookings from your pages." }));
+  } else if (off.some((x) => x.kind === "lead")) {
+    out.push(connectCard(m, "leads", { s, mode: "line", title: "Lead steps need a lead source", line: "Your forms or your server tell Skald about each lead." }));
+  }
   const match = saved.find((x) => x.fn === fn && (x.fsrc || "") === (s.fsrc || "") && x.result);
   // A saved funnel's daily history covers any range; an unsaved one has none yet.
   const past = match?.history ? history(m, r, match)

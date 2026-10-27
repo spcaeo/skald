@@ -12,7 +12,9 @@ class OrgTest(AccountsCase):
     def test_create_and_list(self) -> None:
         a = orgs.create_org(self.db, "Acme Demo", actor="cli")
         b = orgs.create_org(self.db, "Acme Demo", actor="cli")
-        self.assertEqual(set(a), {"id", "name", "slug", "created_at"})
+        self.assertEqual(set(a), {"id", "name", "slug", "created_at", "privacy_class",
+                                  "archived_at"})
+        self.assertEqual((a["privacy_class"], a["archived_at"]), ("internal", None))
         self.assertEqual(a["slug"], "acme-demo")
         self.assertNotEqual(a["slug"], b["slug"])
         self.assertEqual([o["id"] for o in orgs.list_orgs(self.db)], [a["id"], b["id"]])

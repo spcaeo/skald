@@ -27,16 +27,25 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-26-2.42.0",
+  id: "2026-10-27-2.43.0",
   items: [
+    ["From your tools", "Google Analytics 4, Vercel Web Analytics, Calendly and Resend, read with your own key and shown apart, labelled with the tool's name; never added to Skald's counts.", "your-tools"],
+    ["Organisations", "Settings › Organisation › Organisations: every organisation, its sites and members; limit a person to some sites; archive deletes nothing.", "organisations"],
+    ["Add a site, live", "choose the organisation and the people first; live progress and Check now show it working; invites go out when the first data arrives.", "connections"],
+    ["Every empty page says how to connect it", "what it needs, what Skald found on your site, and one Connect button. Leads & tools starts with your next step.", "connections"],
+    ["Check again", "after a fix, re-run an Insights to-do's own check at once; a fixed one is marked Fixed.", "what-to-fix"],
+    ["AI reads, not requests", "an assistant reading a page counts once, its CSS and scripts fold under the page; NotebookLM is named as reading for someone.", "ai-and-bots"],
+    ["Search opportunities", "Traffic › Search: queries shown a lot but rarely clicked, new and lost queries, positions over time.", "search"],
+    ["Recorded journeys", "your site can send the sessions its visitors agreed to, shown beside the log's own visits.", "recorded-journeys"],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.42.0
     ["One button, one question", "every task with a doer asks first: who will do it? Me, My developer or My AI agent. Then it shows only that path.", "getting-started"],
     ["Short screens", "each screen shows its figures and one action; notes and method sit behind a ?. Site › Alerts groups 14 cards into 3, each with Fix.", "getting-started"],
     ["Settings by task", "a menu on the left, To do first, one row per setting; every Settings page fits one screen.", "settings-and-retention"],
     ["Fewer steps", "Add a site in 2 steps; Export asks what you need; Compare with the period before is on from the start.", null],
     ["Real time fixed", "On the site now no longer misses a visit that ended in the last seconds of the 30 minutes.", "real-time"],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.41.0
     ["Opens fast", "code and data are compressed, code is cached until the next release, and the big lists load only when you open their tab. A site switch takes well under a second.", null],
     ["Fix this, with your AI agent", "every Insights to-do has one Fix this button. Choose who: your AI agent gets the full list from Skald and reports back, or you get the exact server lines.", "what-to-fix"],

@@ -120,5 +120,32 @@ class CostWords(unittest.TestCase):
                          "A run stays under the $5.00 daily cap.")
 
 
+@unittest.skipUnless(shutil.which("node"), "node is not installed")
+class ReadRoad(unittest.TestCase):
+    """The chain's Read step: reads, then their requests; an old day leaves reads unknown."""
+
+    def road(self, x, c):
+        src = (JS / "tabs" / "ai-answers-parts.js").read_text(encoding="utf-8")
+        fn = re.search(r"export function readRoad\(x, c\) \{.*?\n\}\n", src, re.S).group(0)
+        stubs = "const n = (v) => String(v);\nconst short = (d) => `day ${d}`;\n"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "t.mjs"
+            path.write_text(stubs + fn.replace("export ", "") +
+                            f"console.log(JSON.stringify(readRoad({json.dumps(x)}, {json.dumps(c)})));\n")
+            out = subprocess.run(["node", str(path)], capture_output=True, text=True, timeout=30)
+        self.assertEqual(out.returncode, 0, out.stderr)
+        return json.loads(out.stdout)
+
+    def test_requests_come_second(self):
+        base = "server log, the assistant's user fetcher"
+        self.assertEqual(self.road({}, {"read": 2, "requests": 3}), f"{base}, 3 requests")
+        self.assertEqual(self.road({}, {"read": 1, "requests": 1}), f"{base}, 1 request")
+        self.assertEqual(self.road({"reads_from": "2026-10-12"}, {"read": None, "requests": 7}),
+                         f"{base}, 7 requests; reads counted from day 2026-10-12")
+        self.assertEqual(self.road({}, {"read": None, "requests": 7}),
+                         f"{base}, 7 requests; reads not counted on these days")
+        self.assertEqual(self.road({}, {"read": None, "requests": None}), base)
+
+
 if __name__ == "__main__":
     unittest.main()

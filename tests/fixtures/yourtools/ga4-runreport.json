@@ -1,0 +1,66 @@
+{
+  "_about": "Recorded-shape answers of the Google Analytics Data API v1beta runReport, one per report Skald asks for (yourtools/tool_ga4.py). Made up for tests: sample figures, sample pages and sources, no real property.",
+  "totals": {
+    "dimensionHeaders": [],
+    "metricHeaders": [
+      {"name": "sessions", "type": "TYPE_INTEGER"},
+      {"name": "totalUsers", "type": "TYPE_INTEGER"},
+      {"name": "engagedSessions", "type": "TYPE_INTEGER"},
+      {"name": "keyEvents", "type": "TYPE_FLOAT"}
+    ],
+    "rows": [
+      {"metricValues": [{"value": "1234"}, {"value": "980"}, {"value": "701"}, {"value": "37"}]}
+    ],
+    "rowCount": 1,
+    "metadata": {"currencyCode": "USD", "timeZone": "America/New_York", "subjectToThresholding": true},
+    "kind": "analyticsData#runReport"
+  },
+  "landing": {
+    "dimensionHeaders": [{"name": "landingPage"}],
+    "metricHeaders": [
+      {"name": "sessions", "type": "TYPE_INTEGER"},
+      {"name": "keyEvents", "type": "TYPE_FLOAT"}
+    ],
+    "rows": [
+      {"dimensionValues": [{"value": "/"}], "metricValues": [{"value": "512"}, {"value": "9"}]},
+      {"dimensionValues": [{"value": "/pricing/"}], "metricValues": [{"value": "201"}, {"value": "14"}]},
+      {"dimensionValues": [{"value": "/blog/server-logs/"}], "metricValues": [{"value": "120"}, {"value": "0"}]},
+      {"dimensionValues": [{"value": "(not set)"}], "metricValues": [{"value": "33"}, {"value": "1.5"}]}
+    ],
+    "totals": [
+      {"dimensionValues": [{"value": "RESERVED_TOTAL"}], "metricValues": [{"value": "1234"}, {"value": "37"}]}
+    ],
+    "rowCount": 57,
+    "metadata": {"currencyCode": "USD", "timeZone": "America/New_York", "subjectToThresholding": true},
+    "kind": "analyticsData#runReport"
+  },
+  "sources": {
+    "dimensionHeaders": [{"name": "sessionSourceMedium"}],
+    "metricHeaders": [
+      {"name": "sessions", "type": "TYPE_INTEGER"},
+      {"name": "keyEvents", "type": "TYPE_FLOAT"}
+    ],
+    "rows": [
+      {"dimensionValues": [{"value": "google / organic"}], "metricValues": [{"value": "610"}, {"value": "21"}]},
+      {"dimensionValues": [{"value": "(direct) / (none)"}], "metricValues": [{"value": "402"}, {"value": "11"}]},
+      {"dimensionValues": [{"value": "chatgpt.com / referral"}], "metricValues": [{"value": "88"}, {"value": "5"}]}
+    ],
+    "totals": [
+      {"dimensionValues": [{"value": "RESERVED_TOTAL"}], "metricValues": [{"value": "1234"}, {"value": "37"}]}
+    ],
+    "rowCount": 14,
+    "metadata": {"currencyCode": "USD", "timeZone": "America/New_York", "samplingMetadatas": [{"samplesReadCount": "500000", "samplingSpaceSize": "1200000"}]},
+    "kind": "analyticsData#runReport"
+  },
+  "empty": {
+    "dimensionHeaders": [],
+    "metricHeaders": [
+      {"name": "sessions", "type": "TYPE_INTEGER"},
+      {"name": "totalUsers", "type": "TYPE_INTEGER"},
+      {"name": "engagedSessions", "type": "TYPE_INTEGER"},
+      {"name": "keyEvents", "type": "TYPE_FLOAT"}
+    ],
+    "metadata": {"currencyCode": "USD", "timeZone": "Europe/Berlin"},
+    "kind": "analyticsData#runReport"
+  }
+}

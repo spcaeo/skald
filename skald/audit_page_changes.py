@@ -193,7 +193,10 @@ def check_one(c: dict, st: dict, kept: dict, conv: tuple, anchor: date, mark) ->
             if bool(not mine and int(got["landings"].get("folded") or 0)) != bool(r.get("at_least")):
                 problems.append(f"{c['path']} {d}: the floor mark does not match the stored landings")
         if state == "ok" and got.get("ai_fetches") is not None:
-            want["reads"] = sum(int(x[3]) for x in got["ai_fetches"].get("rows") or [] if _page(x[2]) == me)
+            stored = got["ai_fetches"].get("rows") or []
+            # The fifth column (reads); rows of four were stored before reads were counted.
+            want["reads"] = (sum(int(x[4]) for x in stored if _page(x[2]) == me)
+                             if all(len(x) >= 5 for x in stored) else None)
         for f, v in want.items():
             if r.get(f) != v:
                 problems.append(f"{c['path']} {d}: {f} shown {r.get(f)!r}, history gives {v!r}")

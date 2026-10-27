@@ -4,7 +4,7 @@ Your server log cannot see a search. It never knows what someone typed, how ofte
 
 ## Where to find it
 
-- [Traffic › Search](#traffic/search): the queries, pages, countries, devices and search appearance, a trend chart, and the cross-check with Skald's own visits.
+- [Traffic › Search](#traffic/search): the figures first, then one section at a time: the trend and the tables (queries, pages, countries, devices and search appearance), **Opportunities**, **New and lost** queries, **Positions** over time, and the **Cross-check** with Skald's own visits.
 - **Settings › This site › Leads & tools › Search Console & Bing**, or [Search Console & Bing](#settings/site/leads?tool=search): connect, test, sync now, and the sync's status.
 
 Until a site is connected, the Search tab shows the steps to connect it.
@@ -54,7 +54,41 @@ Pick **7 days**, **28 days**, **3 months** or **16 months**. Sort any table by a
 
 **AI Overviews and AI Mode:** Google's API does not give them apart yet. If Google adds them, they appear under **Search appearance** with Google's own name. Skald never guesses them.
 
-**Bing** gives fewer figures: clicks and impressions per day, and its top queries and pages, updated weekly. Bing gives no total beside its top tables, so a Bing table is only what Bing returned.
+**Bing** gives fewer figures: clicks and impressions per day, and its top queries and pages, updated weekly. Bing gives no total beside its top tables, so a Bing table is only what Bing returned. Opportunities, new and lost queries and positions over time are Search Console's only.
+
+**Missing or partial days.** When the history does not cover the whole period, a line above the figures says so: how many of the days are there, the day the history starts, any day with no figures, and which newest days are still provisional. If Search Console is connected but has no figures yet, the tab says that too, and why (a new property, a history still syncing, a failing sync).
+
+Every choice on the tab is in the page's address: the engine, the period, the section, each list's filter and "Show all". Copy the address to share exactly what you see.
+
+## Opportunities
+
+Queries where a page could win more clicks. Two simple rules, over the period you picked:
+
+| Rule | A query is listed when | What usually helps |
+|---|---|---|
+| **Rarely clicked** | It was shown at least 100 times, or 5 times a day if that is more; under 1% of the people who saw it clicked; and its average position is better than 8. | It already ranks high. A clearer title and description for the page. |
+| **Positions 8-20** | Its average position is from 8 to 20, and it was shown at least 30 times, or once a day if that is more. | It is at the foot of page one or the top of page two. More on the page about that query. |
+
+Each query is linked to the **page** it showed most, by impressions. Skald keeps each query's page from this release on; for days synced before it, the page says **Not known** until the history is fetched again (Settings › This site › Leads & tools › Search Console & Bing, with 3 or 16 months). Choose **Rarely clicked** or **Positions 8-20** to see one rule; click a query for its detail.
+
+The exact numbers are behind the **?** next to the heading.
+
+## New and lost queries
+
+**New**: a query in Search Console's query table in the period and on no day of the same number of days before it. **Lost**: the other way round. Pick **New** or **Lost**.
+
+- **Whole days only.** Both stretches end at the newest **final** day, so the provisional days are left out, and every day of both must be in the history. When they are not, the section says which day it needs and where the history starts.
+- **16 months** has no "before": Search Console keeps 16 months, so there is nothing to compare it with.
+- Google gives each day's top queries (Skald keeps 500 a day) and leaves rare and personal queries out. A query just below that line can look new or lost when it only moved across it.
+
+## Position tracking
+
+The average position of each query and page over the period: one point a day for 7 and 28 days, a week for 3 months, 30 days for 16 months. Pick **Queries** or **Pages**; **Move** compares the first point with the latest (up is better). Click a row for its chart.
+
+- **Google's position is an average.** It is the site's best place in each result shown, added up and divided by the times it was shown (weighted by impressions). It is not a rank you can check by searching: it differs by place, device and person.
+- **Gaps.** A point where the query or page had no row that day is empty, never 0.
+- **The newest points are provisional.** Google may still change them. In the chart they are hollow and dashed.
+- The 100 queries and the 100 pages shown most in the period are tracked.
 
 ## How fresh it is
 
@@ -82,4 +116,4 @@ What matters is the ratio over time. When it moves sharply, the panel says so: t
 
 ## How Skald checks these figures
 
-These figures are Google's and Bing's, not Skald's count, so Skald cannot recount them from the log. Instead, every day it adds up every stored table again by a separate road, checks the tables against the day's total, and asks Google again for one day's total. If they disagree, the tab says so. Skald's own side of the cross-check (visits from search) is counted twice, like every Skald figure.
+These figures are Google's and Bing's, not Skald's count, so Skald cannot recount them from the log. Instead, every day it adds up every stored table again by a separate road, checks the tables against the day's total, and asks Google again for one day's total. It also works the opportunities, the new and lost queries and the positions out again by that separate road, and compares them with what the tab shows. If they disagree, the tab says so. Skald's own side of the cross-check (visits from search) is counted twice, like every Skald figure.

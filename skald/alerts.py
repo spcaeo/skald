@@ -41,6 +41,10 @@ laid over the config by `apply`; a name in `settings.locked` stays the config's)
                     took money back from one: events, not conditions, one
                     alert each ever, opened and closed at once, off by
                     default (alerts_sales.py)
+  tool_stopped, leads_drop, bookings_drop, ga4_log_gap
+                    a tool (From your tools) stopped answering; leads or Calendly
+                    bookings fell week on week; Google Analytics far from the
+                    log, off by default (alerts_marketing.py)
 
 Fatigue rules: an alert is mailed once, when it opens. While it stays open,
 and if it reopens within `cooldown_hours` (6) of its last mail, nothing more
@@ -67,7 +71,7 @@ import statistics
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from . import alerts_ai, alerts_history, alerts_sales, alerts_security
+from . import alerts_ai, alerts_history, alerts_marketing, alerts_sales, alerts_security
 from .files import write_atomic
 
 STATE = "alerts-state.json"
@@ -89,14 +93,16 @@ CAUSES = ("site_down", "logging_stopped", "server_errors", "not_found_surge", "c
 SEVERITY = {"site_down": "high", "logging_stopped": "high", "server_errors": "high",
             "not_found_surge": "medium", "crawler_burst": "medium", "new_crawler": "low",
             "traffic_drop": "medium", **alerts_ai.SEVERITY, **alerts_history.SEVERITY,
-            **alerts_security.SEVERITY, **alerts_sales.SEVERITY}
+            **alerts_security.SEVERITY, **alerts_sales.SEVERITY,
+            **alerts_marketing.SEVERITY}
 RESOLVED = ("site_down", "logging_stopped")
 # Each rule's switch on Site > Alerts: its settings_store key (the config name in `alerts`).
 SETTING = {**{c: f"alerts.{c}" for c in CAUSES},
            **{c: f"alerts.ai_{r}" for c, r in alerts_ai.RULE.items()},
            **{c: f"alerts.{r}" for c, r in alerts_history.RULE.items()},
            **{c: f"alerts.{r}" for c, r in alerts_security.RULE.items()},
-           **{c: f"alerts.{r}" for c, r in alerts_sales.RULE.items()}}
+           **{c: f"alerts.{r}" for c, r in alerts_sales.RULE.items()},
+           **{c: f"alerts.{r}" for c, r in alerts_marketing.RULE.items()}}
 AI_LOOKING = re.compile(r"\bai\b|ai[-_ ]?bot|gpt|llm|agent|assistant|-user\b|fetcher|claude"
                         r"|perplexity|gemini|mistral|cohere|anthropic|openai", re.I)
 
@@ -456,6 +462,7 @@ def run(ctx, snap: dict | None, signals: dict, send=_send) -> int:
         found = check(cfg, signals, snap, history, ctx.site, ctx.tz, now, known, heartbeat_on)
         found += _ai(ctx, state, history, now)
         found += _security(ctx, state, snap, history)
+        found += alerts_marketing.run(ctx, state, history, now)
     from .keep_everything import of
     to_mail, resolved = apply(state, found, now, cfg, keep=of(ctx)(ctx.site))
     if not replay:                      # sales: kept as done before anything is sent
@@ -602,7 +609,8 @@ def build(p) -> dict:
     every = (rules(cfg) + alerts_ai.rules(alerts_ai.settings(p.config))
              + alerts_history.rules(alerts_history.settings(p.config))
              + alerts_security.rules(alerts_security.settings(p.config))
-             + alerts_sales.rules(alerts_sales.settings(p.config)))
+             + alerts_sales.rules(alerts_sales.settings(p.config))
+             + alerts_marketing.rules(alerts_marketing.settings(p.config)))
     return {"enabled": cfg["enabled"], "mail": bool(state.get("mail", False)),
             "mail_on": cfg["mail"],
             "checked_at": state.get("checked_at"),

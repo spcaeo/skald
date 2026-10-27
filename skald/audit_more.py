@@ -57,13 +57,14 @@ RECOUNTS = {"funnels": "audit_funnels", "engagement": "audit_engagement",
             "first_touch": "audit_firsttouch", "search_landing": "audit_search_landing",
             "crawl_health": "audit_crawl_health", "security": "audit_security",
             "direct_likely": "audit_direct_likely", "social_networks": "audit_social",
-            "landings": "audit_landings", "ai_status": "audit_ai_status"}
+            "landings": "audit_landings", "ai_status": "audit_ai_status",
+            "ai_reads": "audit_ai_reads"}
 DAILY: dict[str, str] = {"conversions": "audit_conversions", "alerts": "audit_alerts",
                          "search": "audit_search", "retention": "audit_retention",
                          "ai_answers": "audit_ai_answers",
                          "security_alerts": "audit_security", "stack": "audit_stack",
                          "sitemap_lastmod": "audit_lastmod", "page_trends": "audit_page_trends",
-                         "ai_ready": "audit_ai_ready"}
+                         "ai_ready": "audit_ai_ready", "recorded_journeys": "audit_journeys"}
 
 
 def _modules(registry: dict) -> dict:

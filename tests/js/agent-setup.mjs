@@ -27,6 +27,7 @@ let copied = null;
 Object.defineProperty(globalThis.navigator, "clipboard", { configurable: true, value: { writeText: async (t) => { copied = t; } } });
 
 const CODE = "Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4zAb7dEf0hIj3";
+let liveDone = false;       // sites/setup saved done (2.43: the live progress then reads done)
 let made = 0;
 const lineAnswer = () => {
   made += 1;
@@ -62,7 +63,14 @@ globalThis.fetch = async (path, opts = {}) => {
   if (path === "sites/agentlink") return answer(lineAnswer());
   if (path === "sites/agentstatus") return answer(statusCode === 200 ? statuses[Math.min(asked++, statuses.length - 1)] : { ok: false, error: "Sign in first." }, statusCode);
   if (path === "sites/link") return answer({ ok: true, command: "curl -fsSL https://www.example.com/traffic-kit/" + "k".repeat(43) + " | sudo bash", url: "x", expires_at: "2099-01-02T12:00:00Z", token: "skald_cd34ef56_" + "u".repeat(43), token_id: "cd34ef56" });
-  if (path === "sites/setup") return answer({ ok: true });
+  if (path === "sites/setup") { if (body?.done) liveDone = true; return answer({ ok: true }); }
+  // 2.43: the step's live progress, its one check (setup-live.js).
+  if (path === "sites/live" || path === "sites/check") {
+    const live = { state: liveDone ? "done" : lines ? "receiving" : "waiting", recent: lines ? 12 : 0, newest_at: lines ? "2099-01-01T12:06:00Z" : null,
+      steps: [{ id: "data", words: "First data received", done: !!lines, at: lines ? "2099-01-01T12:05:00Z" : null, recent: lines ? 12 : 0, newest_at: lines ? "2099-01-01T12:06:00Z" : null },
+        { id: "done", words: "Set-up done", done: liveDone }] };
+    return answer(path === "sites/live" ? { ok: true, live } : { ok: true, live, check: lines ? { verdict: "ok", head: "Receiving data." } : { verdict: "wait", head: "No data yet." } });
+  }
   if (path === "sites/agentcancel") return answer({ ok: true, state: "cancelled" });
   if (path === "sites/tagcheck") return answer({ ok: true, check: { state: "ok", words: "The tag is on the home page." } });
   if (path.startsWith("sites/status")) return answer(lines ? { ok: true, today: { lines: 12 }, last_batch: { at: "2099-01-01T12:06:00Z", lines: 12 } } : { ok: true, last_batch: null, today: null });
@@ -252,17 +260,23 @@ assert.equal(calls(`/traffic/${SITE}/settings/save`).length, 0, "nothing applied
 d.querySelector('.ag-rec[data-rec="assets"] .acts button').click();
 await tick();
 assert.deepEqual(calls(`/traffic/${SITE}/settings/save`).pop()[1], { "site.asset_prefixes": ["/_next/static/"] });
-// The first log lines: done, saved; then the watch stops by itself.
+// 2.43: one check, Check now (live progress); no Test connection of its own, no old waiting block.
+assert.ok(!button(d, "Test connection"), "no second test button");
+assert.ok(button(d, "Check now"));
+assert.ok(!d.textContent.includes("Skald waits for the first visits"));
+// The first log lines: the live progress says so, the set-up is saved done, the step shows the done state.
 lines = true;
-button(d, "Test connection").click();
-await tick(60);
-assert.ok(d.textContent.includes(`Done: ${SITE} is receiving visits.`));
+button(d, "Check now").click();
+await tick(80);
+d = dialog();
 assert.ok(calls("sites/setup").some(([, b]) => b.done === true && b.step === 5));
-assert.ok(items().every(([c]) => c === "ok"), JSON.stringify(items()));
+assert.match(d.querySelector(".sl-done").textContent, /Receiving data/);
+assert.ok(!d.textContent.includes("Nothing has reached Skald yet"), "never the old waiting words once data shows");
+assert.ok(button(d, "Close") && !button(d, "Finish later"));
 await tick(60);
 const stopped = calls("sites/agentstatus").length;
 await tick(100);
-assert.equal(calls("sites/agentstatus").length, stopped, "all ticked: no more asking");
+assert.equal(calls("sites/agentstatus").length, stopped, "done: the watch left the page and stopped asking");
 d.querySelector(".dw-x").click();
 await tick();
 assert.equal(readState().setup, "", "closed");
@@ -273,7 +287,7 @@ assert.equal(readState().link, "", "and the link id");
 forgetLine(SITE);
 asked = 0;
 statuses = [STATUSES[0]];
-lines = false;
+lines = false; liveDone = false;
 await openSiteKey(SITE, 5, { agent: "codex", link: "0f3a9c2e7b1d4a58" });   // one this page never cancelled
 await tick(80);
 d = dialog();
@@ -358,7 +372,7 @@ const MANY = Array.from({ length: 12 }, (_, i) => `/a${i}/`);
 statuses = [STATUSES[3], { ...STATUSES[3], reported_at: "2099-01-01T12:09:00Z",
   report: { ...REPORT, asset_paths: MANY, left_for_user: ["Read https://www.example.org/help/setup, then restart."], notes: "Second try." } }];
 asked = 0;
-lines = false;
+lines = false; liveDone = false;
 await openSiteKey(SITE, 5, { agent: "codex", link: "0f3a9c2e7b1d4a57" });
 await tick(150);
 d = dialog();
@@ -390,7 +404,7 @@ await tick(400);
 // ---- past the expiry with the keys taken: slower, then Check again; with the log lines in, it stops
 statuses = [{ ...STATUSES[2], expires_at: "2020-01-01T00:00:00Z" }];
 asked = 0;
-lines = false;
+lines = false; liveDone = false;
 await openSiteKey(SITE, 5, { agent: "codex", link: "0f3a9c2e7b1d4a57" });
 await tick(250);
 d = dialog();
@@ -401,14 +415,14 @@ assert.equal(calls("sites/agentstatus").length, late, "it waits for Check again"
 lines = true;
 button(d, "Check again").click();
 await tick(150);
-assert.ok(d.textContent.includes(`Done: ${SITE} is receiving visits.`));
+assert.match(dialog().querySelector(".sl-done").textContent, /Receiving data/, "Check again asks the live progress too");
 const linesIn = calls("sites/agentstatus").length;
 assert.ok(linesIn > late, "Check again asked");
 await tick(100);
 assert.equal(calls("sites/agentstatus").length, linesIn, "past the expiry with the log lines in: stopped");
 d.querySelector(".dw-x").click();
 await tick(400);
-lines = false;
+lines = false; liveDone = false;
 
 // ---- from an address with no link: no line by itself, "Make the line" on request
 forgetLine(SITE);
@@ -438,7 +452,11 @@ assert.ok(d.querySelector(".cn-run .cn-code").textContent.includes("| sudo bash"
 assert.ok(calls("sites/setup").some(([, b]) => b.step === 4 && b.method === "server"));
 assert.equal(readState().agent, "chat");
 assert.ok(!d.querySelector(".ag-watch"), "no agent checklist for a chat");
-assert.ok(d.textContent.includes("sudo skald-ship-check"), "the server way's test words");
+// 2.43: the shipper's own check is in Check now's answer while nothing has arrived.
+assert.ok(!button(d, "Test connection"), "one check: Check now");
+button(d, "Check now").click();
+await tick(40);
+assert.ok(d.querySelector(".sl-check").textContent.includes("sudo skald-ship-check"), "the server way's test words");
 d.querySelector(".dw-x").click();
 await tick();
 

@@ -47,7 +47,9 @@ HEADINGS = {"logs": "Connect the logs", "script": "Add the script tag",
             "rsc": "Add the Next.js log field", "assets": "Find where the pages load their own",
             "privacy": "Check the privacy settings",
             "search": "Connect Google Search Console",
-            "mcp": "Connect the user's AI assistant to Skald (MCP)"}
+            "connect-tools": "Connect the user's own tools",
+            "mcp": "Connect the user's AI assistant to Skald (MCP)",
+            "connect-journeys": "Connect recorded journeys"}
 NAMES = {"logs": ["SKALD_SITE", "SKALD_INGEST_URL", "SKALD_INGEST_TOKEN", "SKALD_LEAD_URL",
                   "SKALD_REPORT_KEY"],
          "script": ["SKALD_SITE", "SKALD_REPORT_KEY"],
@@ -55,7 +57,9 @@ NAMES = {"logs": ["SKALD_SITE", "SKALD_INGEST_URL", "SKALD_INGEST_TOKEN", "SKALD
          "rsc": ["SKALD_SITE", "SKALD_REPORT_KEY"], "assets": ["SKALD_SITE", "SKALD_REPORT_KEY"],
          "privacy": ["SKALD_SITE", "SKALD_REPORT_KEY"],
          "search": ["SKALD_SITE", "SKALD_REPORT_KEY"],
-         "mcp": ["SKALD_SITE", "SKALD_MCP_URL", "SKALD_MCP_TOKEN", "SKALD_REPORT_KEY"]}
+         "connect-tools": ["SKALD_SITE", "SKALD_REPORT_KEY"],
+         "mcp": ["SKALD_SITE", "SKALD_MCP_URL", "SKALD_MCP_TOKEN", "SKALD_REPORT_KEY"],
+         "connect-journeys": ["SKALD_SITE", "SKALD_REPORT_KEY"]}
 MCP = "skald_ee11ff22_" + "Mq4Wn7Xs2Ty5Vc8Bd1Fg3Hj6Kk9Lm0Np2Qr5St8Uv1Wx"
 STRIPE = "whsec_" + "Tq2Wm5Xr8Tz1Vb4Nc7Pd0Hf3Jg6Kk9Ms2"
 
@@ -151,7 +155,7 @@ class Jobs(unittest.TestCase):
                           mcp_token=MCP, mcp_token_id="ee11ff22")[0]
         text = agent.steps(agent.find(self.folder, code), code, "")
         heads = [h for _, h in re.findall(r"^## Step (\d+)\. (.*)$", text, re.M)]
-        self.assertEqual(len(heads), 10)
+        self.assertEqual(len(heads), len(agent_jobs.JOBS) + 2)
         for n, job in enumerate(agent_jobs.JOBS, 1):
             self.assertTrue(heads[n].startswith(HEADINGS[job]), (n, heads[n]))
         self.assertIn("the log field Next.js needs is step\n   5", text,
@@ -473,6 +477,40 @@ class Endpoints(TenantServer):
         self.assertEqual(got.status, 200)
         self.assertNotEqual(self.secrets()[secrets_store.key(A, "calendly")], made)
         self.assertIn("made, replaced", self.audit("hook.secret")[0]["detail"])
+
+    def test_hooksecret_makes_the_journey_secret_for_a_connect_journeys_line(self):
+        """Recorded journeys (2.43): a connect-journeys line gets the journey secret and its
+        address once, as env lines; a line without the job, or a pasted secret, is refused."""
+        port = self.beacon()
+        _, plain = self.line(["script"])
+        got, data = self.hook(port, plain, {"tool": "journey", "make": True},
+                              report_key(self.live, plain))
+        self.assertEqual(got.status, 403, data)
+        self.assertNotIn(secrets_store.key(A, "journey"), self.secrets())
+        body, code = self.line(["connect-journeys"])
+        key = report_key(self.live, code)
+        got, data = self.hook(port, code, {"tool": "journey", "secret": "x" * 20}, key)
+        self.assertEqual(got.status, 400, data)
+        got, data = self.hook(port, code, {"tool": "calendly", "make": True}, key)
+        self.assertEqual(got.status, 403, "no lead job: no tool secret")
+        got, data = self.hook(port, code, {"tool": "journey", "make": True}, key)
+        self.assertEqual(got.status, 200, data)
+        made = self.secrets()[secrets_store.key(A, "journey")]
+        lines = data.splitlines()
+        self.assertEqual(lines[0], f"SKALD_JOURNEY_SECRET={made}")
+        self.assertTrue(lines[1].startswith("SKALD_JOURNEY_URL=") and
+                        lines[1].endswith(f"/traffic-hooks/{A}/journey"), lines[1])
+        row = self.audit("hook.secret")[0]
+        self.assertEqual((row["actor"], row["target"]), ("ai-agent", f"{A}/journey"))
+        self.assertNotIn(made, json.dumps(self.audit("hook.secret")))
+        got, data = self.hook(port, code, {"tool": "journey", "make": True}, key)
+        self.assertEqual(got.status, 409, "a second run never breaks a working relay")
+        self.assertEqual(self.secrets()[secrets_store.key(A, "journey")], made)
+        steps = agent.steps(agent.find(self.live, code), code, "")
+        self.assertIn(f"/traffic-hooks/{A}/journey", steps)
+        self.assertIn("/traffic-js/journeys.js", steps)
+        self.assertIn("SKALD_JOURNEY_SECRET", steps)
+        self.assertNotIn(made, steps)
 
     def test_hooksecret_keeps_a_tools_own_secret(self):
         port = self.beacon()

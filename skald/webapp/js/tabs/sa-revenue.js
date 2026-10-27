@@ -28,6 +28,7 @@ import { fixed } from "./common.js";
 import { tiles } from "./tiles.js";
 import { convFile, toolName, minRate } from "./leadfigs.js";
 import { tabHead, optionsRow, choice, select, emptyState } from "./sa-options.js";
+import { connectCard } from "../ui/connect.js";
 import { BY, byName, money, decimal, hasRevenue, firstDay, sinceHeld, revenueDays, sumRevenue, currencies, pickCurrency, tagOf, tagChoices, orphanRefunds, rowsOf, visitorsOn, perVisitor, ltvOf, ltvHeld, ltvRows } from "./revfigs.js";
 
 export const HELP = "#help?part=revenue";
@@ -136,16 +137,18 @@ function lifetime(f, cur) {
 
 export default function revenue(m, s) {
   const r = rangeOf(m, s);
-  const top = tabHead("Revenue", QUESTION, r, { help: HEAD_HELP, more: HELP });
+  const top = tabHead("Revenue", QUESTION, r, { help: HEAD_HELP, more: HELP, source: "payments" });
   const f = convFile(m);
   const howTo = ["How to send value and currency", HELP];
+  // 2.43: no payment source: what this page needs and how to connect it (js/ui/connect.js).
+  const none = () => connectCard(m, "payments", { s, title: "No revenue yet",
+    line: "Send value and currency with each sale (for example value 49.00, currency USD) through the lead hook, Zapier, Make, n8n or a lead file, or connect Stripe: each sale then shows here, by source, page and campaign." });
   if (!f) {
     const raw = m.x.conversions;
-    return [...top, emptyState(raw?.state === "error" ? `The revenue could not be built: ${raw.error || "no reason given"}.` : "No revenue yet: nothing has reported a sale for this site.", howTo, { bad: raw?.state === "error" })];
+    if (raw?.state === "error") return [...top, emptyState(`The revenue could not be built: ${raw.error || "no reason given"}.`, howTo, { bad: true })];
+    return [...top, none()];
   }
-  if (!hasRevenue(f)) {
-    return [...top, emptyState("No revenue yet. Send value and currency with each sale (for example value 49.00, currency USD) through the lead hook, the json hook, Zapier, Make, n8n or a lead file, or connect Stripe: each sale then shows here, by source, page and campaign.", howTo)];
-  }
+  if (!hasRevenue(f)) return [...top, none()];
   const wanted = r.kind === "today" ? [m.today] : r.days.map((d) => d.day);
   const got = revenueDays(f, wanted);
   const out = [...top];

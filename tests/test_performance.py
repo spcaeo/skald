@@ -317,7 +317,7 @@ class Upgrades(unittest.TestCase):
         db.close()
         db = base.connect(path)
         try:
-            self.assertEqual(base.schema_version(db), 5)
+            self.assertEqual(base.schema_version(db), base.SCHEMA_VERSION)    # 5, then 6
             names = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type = 'index'")}
             self.assertLessEqual({"sites_org", "settings_key", "tokens_org", "invites_org"}, names)
             plan = " ".join(r[3] for r in db.execute(

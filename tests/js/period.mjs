@@ -166,4 +166,31 @@ const st = (o) => ({ tab: "overview/summary", range: "7d", inc: "", cmp: "", ...
   assert.equal(S.read().inc, "");                                     // only "1" counts
 }
 
+// ---- Include today, one press (2.43): the switch on Summary's and Pages' period line ---------
+{
+  const L = await import(new URL("period-line.js", JS));
+  location.hash = "#overview/summary?range=7d&cmp=off";
+  const sw = () => L.periodLine(m, S.read())?.querySelector('button[role="switch"]');
+  const off = sw();
+  assert.ok(off, "Summary at 7 days has the switch");
+  assert.equal(off.textContent, "Include today");
+  assert.equal(off.getAttribute("aria-checked"), "false");
+  off.click();                                                          // one press
+  assert.match(location.hash, /[?&]inc=1/);
+  assert.equal(S.read().inc, "1");
+  assert.equal(sw().getAttribute("aria-checked"), "true");
+  sw().click();                                                         // and one press back
+  assert.doesNotMatch(location.hash, /inc=/);
+  for (const hash of ["#traffic/pages?range=30d", "#overview/summary?range=90d&inc=1"]) {
+    location.hash = hash;
+    assert.ok(sw(), `${hash} has the switch`);
+  }
+  // Only where it changes the figures: not on another tab, period or Today (live).
+  for (const hash of ["#traffic/sources?range=7d", "#overview/summary?range=yesterday", "#overview/summary?range=all",
+    "#overview/summary", "#traffic/pages?range=7d&page=%2Fa%2F"]) {
+    location.hash = hash;
+    assert.equal(sw() ?? null, null, `${hash} has no switch`);
+  }
+}
+
 console.log("period: all passed");

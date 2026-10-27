@@ -26,6 +26,9 @@ This page holds no secret. Its links work until __EXPIRES__ (UTC); the keys can 
 <!-- if mcp -->
 - Skald's MCP address: __MCP_URL__
 <!-- end -->
+<!-- if connect-journeys -->
+- Recorded journeys address: __JOURNEY_URL__
+<!-- end -->
 
 What Skald's site check found:
 

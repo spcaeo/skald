@@ -1,0 +1,36 @@
+{
+  "_about": "Recorded-shape answers of Vercel's Web Analytics API (visits/count, visits/aggregate), as its documentation gives them (https://vercel.com/docs/analytics/web-analytics-api). Made-up figures for a made-up project.",
+  "count": {
+    "version": 1,
+    "query": {"since": "2026-09-29", "until": "2026-10-26", "filter": "environment eq 'production'"},
+    "data": {"pageviews": 5230, "visitors": 1870}
+  },
+  "requestPath": {
+    "version": 1,
+    "query": {"since": "2026-09-29", "until": "2026-10-26", "groupBy": ["requestPath"], "limit": 10, "filter": "environment eq 'production'"},
+    "data": [
+      {"requestPath": "/", "pageviews": 2100, "visitors": 900},
+      {"requestPath": "/pricing", "pageviews": 640, "visitors": 410},
+      {"requestPath": "/blog/server-logs", "pageviews": 380, "visitors": 300},
+      {"requestPath": "Others", "pageviews": 2110, "visitors": 760}
+    ]
+  },
+  "referrerHostname": {
+    "version": 1,
+    "query": {"since": "2026-09-29", "until": "2026-10-26", "groupBy": ["referrerHostname"], "limit": 10, "filter": "environment eq 'production'"},
+    "data": [
+      {"referrerHostname": "", "pageviews": 2900, "visitors": 1010},
+      {"referrerHostname": "google.com", "pageviews": 1500, "visitors": 600},
+      {"referrerHostname": "news.example.org", "pageviews": 830, "visitors": 260}
+    ]
+  },
+  "country": {
+    "version": 1,
+    "query": {"since": "2026-09-29", "until": "2026-10-26", "groupBy": ["country"], "limit": 10, "filter": "environment eq 'production'"},
+    "data": [
+      {"country": "US", "pageviews": 3000, "visitors": 1100},
+      {"country": "DE", "pageviews": 1200, "visitors": 420},
+      {"country": "IN", "pageviews": 1030, "visitors": 350}
+    ]
+  }
+}

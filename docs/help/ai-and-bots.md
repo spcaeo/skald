@@ -12,6 +12,28 @@ Open **AI & bots**. **Assistants** opens on the answer:
 
 Everything else is under **Open the details** at the foot: each day's chart, the tables by name, what AI read before it sent a visitor, what they fetch, what each costs, the pages fetched, AI reading changes and the full list of pages AI can't read well. It stays open in the address (`ai_view=open`). **Crawlers** keeps its figures and lists on top; what they fetch, what each costs and the address check are under its own **Open the details** (`crawl_view=open`).
 
+## Reads, not requests
+
+When an assistant fetches a page for someone, it may ask for the page twice in a few seconds, and some then load the page's own style sheets and scripts, as a browser does. That is one **read**, even if the log has four requests. Skald counts:
+
+- **A read**: one assistant, one page. Asking for the same page again within 30 seconds is the same read.
+- **A file the page loaded**: a style sheet, script, image or font, or anything that names the page it just read as its referrer. It is never "AI asked". In the requests list it is folded under its page's row: "asked 2 times, with 2 files its page loaded".
+
+**Pages AI read for someone**, **Which assistant read for someone**, **AI reads** by page and the daily mail count reads, and show the requests as the second, smaller number. Request figures (status, bytes, cost) still count every request. Days collected before reads were counted say **Reads counted from** and the first day that has them; they never show 0.
+
+What a read means for each assistant (also behind **?** in its detail):
+
+| Fetcher | It fetches a page when |
+|---|---|
+| ChatGPT-User | someone asks ChatGPT a question the page answers, or pastes the page's link |
+| Claude-User | someone asks Claude about the page, or it looks something up to answer |
+| Perplexity-User | someone asks Perplexity a question, or opens one of its sources |
+| Gemini-User | someone asks Gemini about the page |
+| Google-NotebookLM | someone adds the page as a source to a notebook, or refreshes one |
+| MistralAI-User | someone asks Le Chat a question |
+| Meta-ExternalFetcher | someone shares the page's link with Meta AI, or asks about it |
+| Amzn-User | Alexa answers someone's question |
+
 ## Where to find it
 
 The table **What each crawler costs** is on two tabs, under **Open the details**:
@@ -68,7 +90,8 @@ Select a name in the table, or any crawler name elsewhere on AI & bots. The deta
 - **Requests, bytes sent, mean server time and errors** for the period.
 - **From an address checked as theirs**: the share of its requests from an address that really belongs to its owner. Requests that use a crawler's name from an address that is not theirs are counted apart, as "claims to be ...". The check needs the owners' published address lists, which the daily run fetches. A Docker install does this by default from this release on; before, no Docker install checked, so earlier days show every request as not checked, and a fake crawler counted as the crawler it named. `doctor` says "crawler checks off" when they are off.
 - **Requests per day**, as a chart.
-- **Pages it fetched**: the pages it asked for most.
+- **What it read** (an assistant's user fetcher only): its reads, requests and the files its pages loaded, and the pages it read, each "with N files". **?** says what the assistant is and what a read means.
+- **Paths it requested**: the addresses it asked for most, by request, its pages' files included.
 - **Status mix**: how the server answered.
 - **Countries of its requests**: from the log's country field or the GeoIP file.
 - **User agents it sent**: the exact strings, the five most used each day. These are the crawler's own, never a person's. For scanner probes and the rest of a scanner's requests, link previews and browser-like bots the strings are not kept, because they may be a real person's browser.

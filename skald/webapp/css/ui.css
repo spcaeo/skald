@@ -142,10 +142,14 @@
 @media (max-width: 767px) { .ui-who-c { padding: var(--sp-3); } }
 
 /* ---------------------------------------------------------------- the top bar (2.41)
-   The period: 7, 30, 90 days and More beside them; one search that says what it does. */
-.bar-range { display: inline-flex; align-items: center; gap: 4px; }
-.bar-range .more .pop { min-width: 11rem; }
-.btn.ui-more-range { padding: 4px 10px; font-size: var(--t-s); }
+   The mockup's seven: the title; the period, one group (Today, 7, 30, 90 days, More), its
+   menu hung on the group; Compare; then the filter icon, one search that says what it does,
+   the alerts and More, on the right. */
+.bar-range { display: inline-flex; align-items: center; gap: 4px; position: relative; }
+.bar-range > .pop { min-width: 11rem; }
+@media (min-width: 768px) { .bar-mid { justify-content: flex-start; padding-left: var(--sp-3); } }
+.bar .fp-btn { padding: 5px 7px; gap: 4px; }
+.bar .fp-btn .f-l { display: none; }
 .btn.ui-search { display: inline-flex; align-items: center; gap: var(--sp-2); padding: 4px 10px; color: var(--ink-3); min-width: 15rem; justify-content: flex-start; }
 .btn.ui-search .ui-search-ic { display: inline-flex; }
 .btn.ui-search .ui-search-ic svg { width: 16px; height: 16px; }
@@ -181,7 +185,4 @@
 /* The page group, in the Filters panel since 2.42 (filterpanel.js). */
 .fp-group { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
 .fp-group > span { font-weight: 600; }
-/* The period's More menu (2.42): Include today under the other periods, and its mark on the button. */
-.menu-sep { border: 0; border-top: 1px solid var(--rule); margin: 4px 2px; }
-.menu-i[disabled] { cursor: default; opacity: 0.55; }
-.ui-more-on { color: var(--accent); font-weight: 600; }
+/* 2.43: Include today left the period's More menu for Summary's and Pages' period line (period-line.js). */

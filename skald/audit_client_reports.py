@@ -9,6 +9,9 @@ It then checks the report against them:
 
   * which days were whole and verified, withheld, partial, not recorded
   * visitors, pages read and visitors from AI, summed over the whole days
+  * the AI line's page reads (`day_extras` kind `ai_reads`, by json_extract):
+    summed over the whole days, null when one of them has none (stored
+    before reads were counted), and never above the requests
   * each bar of the chart is its day's stored visitors, and a gap is a day
     not in the sum
   * a breakdown never adds up to more than the visitors it breaks down
@@ -161,8 +164,22 @@ def recount(path, site: str, first: date, last: date, data: dict) -> list[str]:
             f"AND day IN ({marks})", (site, *whole))}
         cited = conn.execute(f"SELECT COALESCE(SUM(cited_visits), 0) FROM days WHERE site = ? "
                              f"AND day IN ({marks})", (site, *whole)).fetchone()[0]
+        try:
+            read_rows = conn.execute(
+                f"SELECT COUNT(*), COALESCE(SUM(json_extract(data, '$.reads')), 0) FROM "
+                f"day_extras WHERE site = ? AND kind = 'ai_reads' AND day IN ({marks})",
+                (site, *whole)).fetchone()
+        except sqlite3.OperationalError:
+            read_rows = (0, 0)          # an older history: no day_extras
     finally:
         conn.close()
+    ai = data.get("ai") or {}
+    want = (int(read_rows[1]) if read_rows[0] == len(whole) else None, int(read_rows[0]))
+    if (ai.get("reads"), ai.get("reads_days")) != want:
+        found.append(f"AI reads {ai.get('reads')} over {ai.get('reads_days')} days against "
+                     f"{want[0]} over {want[1]}")
+    if ai.get("reads") is not None and ai["reads"] > ai.get("asked", 0):
+        found.append(f"AI reads {ai['reads']} above their {ai.get('asked')} requests")
     readers = [per.get(d, (0, 0))[0] for d in whole]
     visitors = None if any(r is None for r in readers) else sum(readers)
     pages = sum(per.get(d, (0, 0))[1] or 0 for d in whole)

@@ -104,7 +104,7 @@ export function botDetail(m, s, r, name) {
       kpis, chart,
       check ? h("p", { class: "sub" }, "Address check: ", badge(check), ` ${n(check.verified)} verified, ${n(check.unverified)} not verifiable${check.spoofed ? `, and ${n(check.spoofed)} more used its name from an address that is not theirs (counted as "claims to be ${name}")` : ""}.`) : null,
       h("div", { class: "cols three", style: { marginTop: "12px" } },
-        panel("Pages it fetched", null, blist(ranked(d.lists.pages), { drill: "path", from: "drill", limit: 10, color: "var(--views)", empty: "Not recorded for these days." })),
+        panel("Paths it requested", null, blist(ranked(d.lists.pages), { drill: "path", from: "drill", limit: 10, color: "var(--views)", empty: "Not recorded for these days." })),
         panel("Status mix", null, blist(ranked(d.status), { limit: 6, color: "var(--g-bots)" })),
         panel("Countries of its requests", "From the log's country field or the GeoIP file.", blist(ranked(d.lists.countries), { drill: "country", from: "drill", limit: 8, color: "var(--g-bots)", empty: "Not recorded for these days." }))),
       panel("User agents it sent", "The crawler's own strings, the 5 most used each day.", blist(ranked(d.lists.agents), { limit: 5, color: "var(--g-bots)", copy: "ua",

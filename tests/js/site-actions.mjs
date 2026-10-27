@@ -29,6 +29,8 @@ const posted = [];
 let answer = {};
 globalThis.fetch = async (path, opts) => {
   const body = opts?.method === "POST" ? JSON.parse(opts.body) : null;
+  // 2.43: the page's live state (sites/live, setup-live.js) is only read, not an action.
+  if (path === "sites/live") return { ok: true, status: 200, json: async () => ({ ok: true, sites: {} }) };
   if (body) posted.push([path, body]);
   const ok = (x) => ({ ok: true, status: 200, json: async () => ({ ok: true, ...x }) });
   if (path === "sites") return ok({ org: "Org", role: "owner", sites: [MAIN, SHOP, OLD], can_add: false, add_refused: "No." });
@@ -144,3 +146,5 @@ assert.match(await openSiteActKey("delete.shop.example.com"), /Not available to 
 assert.match(await openSiteActKey("nothing"), /not one this page offers/);
 
 console.log("site-actions: all passed");
+// The Sites page asks for its live state while it is open (2.43): end here.
+process.exit(0);

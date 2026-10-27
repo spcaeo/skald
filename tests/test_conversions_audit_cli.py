@@ -145,6 +145,21 @@ class Commands(unittest.TestCase):
         self.assertEqual(self.box.run("hooks", "secret", "nowhere.example.com", "lead")[0], 2)
         self.assertEqual(self.box.run("hooks", "test", "example.com", "stripe", "--url", url)[0], 2)
 
+    def test_secret_for_recorded_journeys(self):
+        """2.43: `hooks secret <site> journey` makes recorded journeys' secret like a tool's,
+        names the relay's two settings, and journey is no tool for `hooks test`."""
+        code, out, err = self.box.run("hooks", "secret", "example.com", "journey")
+        self.assertEqual(code, 0, err)
+        secret = out.splitlines()[1].strip()
+        path = self.box.root / "secrets.json"
+        self.assertEqual(json.loads(path.read_text()), {"hooks/example.com/journey": secret})
+        self.assertIn("/traffic-hooks/example.com/journey", out)
+        self.assertIn("SKALD_JOURNEY_SECRET", out)
+        self.assertNotIn("journey", self.box.run("hooks", "list")[1].replace("example.com", ""),
+                         "not listed as a conversion tool")
+        from skald.conversions import TOOLS
+        self.assertNotIn("journey", TOOLS, "no conversion tool: hooks test and list refuse it")
+
     def test_forget_and_prune(self):
         # Visitor IDs on, or the hook keeps no vid to forget (2.2.3).
         # Anonymous: with names and emails kept (2.4.0's default) both leads share

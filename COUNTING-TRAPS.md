@@ -649,6 +649,39 @@ main road that lists redirects or probes disagrees with it. **The test.**
 `tests/test_ai_ready.py` writes an image resizer, a `/.env` probe, `/sitemap_index.xml/` and a
 redirect-only page and checks that none is listed.
 
+## 21. An assistant's render fetches, counted as things "AI asked" (2026-10-27)
+
+**What happened.** On a live site's AI & bots › Assistants, the Google-NotebookLM drawer
+listed "304 GET /css/global-custom.css · AI asked: Google-NotebookLM". On 27 Oct the site's
+log had 24 requests from it: 14 page requests, 7 style sheets and 3 scripts. Every figure
+that counted the `asked` tier, "Pages AI read for someone", "AI reads" by page, the daily
+mail's "fetches because someone asked an AI", counted all 24.
+
+**What was true.** NotebookLM fetched each page twice within about 3 seconds, rendered it,
+and loaded the page's CSS and `/_next/static/...js` with the page as referrer: 7 reads, not
+24. Nobody asked an AI for a style sheet, and a page asked for twice in 3 seconds was read
+once.
+
+**How this package prevents it.** Each user fetch gets one role in time order (day kind
+`ai_reads`, `ai_reads.py`): a file the page loaded (a same-site referrer naming a page the
+fetcher just read, a file extension, a framework folder or the site's asset prefixes), a
+repeat (the same page by the same fetcher within 30 seconds), or a read. The window is
+`ai_read_names.WINDOW_SECONDS`: the owner's sample spans 5 seconds from first request to
+last file, and 30 seconds is the window a browser's own assets are judged in
+(`rendering.RENDER_SECONDS`), wide enough for a slow render and much shorter than a person
+asking again. "AI reads" figures count reads and show requests as the second, smaller
+number; a file is listed as "AI page file", folded under its page's row ("with 2 files"),
+never as "AI asked". Days stored before have no reads: the dashboard says "Reads counted
+from <day>", never a guess and never 0. Request figures (status, bytes, cost) still count
+every request, and say "requests".
+
+**The check that catches it.** `audit_ai_reads.py` gives every user fetch its role again
+from the raw lines, with its own path and referrer reading, sharing only the lists and the
+window in `ai_read_names.py`; it compares every field and the `reads` column of
+`ai_fetches`. **The test.** `tests/test_ai_reads.py`: 2 page requests, a CSS and a JS are 1
+read, 4 requests, 2 files; two reads 2 minutes apart are 2; another page inside the window
+is a read of its own; a tampered blob or reads column fails the audit.
+
 ## The pattern in the first five
 
 Every one of these was a number that answered a slightly different question

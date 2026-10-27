@@ -2,6 +2,8 @@
 // assistant sent, newest first, with the address it came from (the owner's
 // decision: this private page only, read from today's raw log, never kept in
 // history), whether that visitor has been seen before, and how often.
+// An assistant's repeat requests for a page and the files the page loaded (styles,
+// scripts: `role` from ai_reads.py) fold under the read's own row, "with 2 files".
 
 import { time as tzTime, label as tzLabel } from "../tz.js";
 import { h, n, clock, short, ICON } from "../ui.js";
@@ -11,6 +13,7 @@ import { link } from "../drill.js";
 import { assistantName } from "../labels.js";
 import { mark } from "../icons.js";
 import { withUrl, copyIf } from "../urlactions.js";
+import { foldReads, foldWords } from "./ai-reads.js";
 
 const KIND = { asked: "asked", training: "training", referred: "referred visitor" };
 const KIND_LONG = { asked: "Fetched to answer a question someone just asked", training: "Fetched to train or index", referred: "A visitor who came from this assistant" };
@@ -21,13 +24,15 @@ function chip(name) {
   return el;
 }
 
-function row(e) {
+function row(it) {
+  const e = it.row;
+  const fileRow = e.role === "file";
   return h("li", null,
     h("span", { class: "f-t" }, tzTime(e.at, { seconds: true, label: false })),
     chip(e.name || "?"),
     h("div", { class: "f-w" },
-      h("b", null, e.name ? (e.kind === "referred" ? link("referrer", e.name, { bare: true, text: assistantName(e.name) }) : link("bot", e.name, { bare: true })) : "not recorded"), " ", h("span", { class: "kind", title: KIND_LONG[e.kind] || "" }, KIND[e.kind] || e.kind),
-      h("span", { class: "f-p" }, withUrl(h("span", null, e.path), e.path, { cls: "ua-after" })),
+      h("b", null, e.name ? (e.kind === "referred" ? link("referrer", e.name, { bare: true, text: assistantName(e.name) }) : link("bot", e.name, { bare: true })) : "not recorded"), " ", h("span", { class: "kind", title: fileRow ? "A file a page loaded (a style, script or image), not something the AI asked for" : KIND_LONG[e.kind] || "" }, fileRow ? "page file" : KIND[e.kind] || e.kind),
+      h("span", { class: "f-p" }, withUrl(h("span", null, e.path), e.path, { cls: "ua-after" }), foldWords(it) ? h("small", { class: "f-fold", title: it.files.map((f) => f.path).join("\n") || null }, foldWords(it)) : null),
       h("div", { class: "f-m" },
         e.country ? link("country", e.country) : h("span", null, "country not recorded"),
         e.status ? h("span", { class: e.status >= 400 ? "status-bad" : null }, `status ${e.status}`) : null,
@@ -64,11 +69,12 @@ export function aiFeed(m, { limit = 12, globalCountry = "" } = {}) {
   let rows = events;
   const draw = () => {
     rows = events.filter((e) => (!st.name || e.name === st.name) && (!st.kind || e.kind === st.kind) && (!st.country || e.country === st.country));
-    list.replaceChildren(...rows.slice(0, st.shown).map(row));
+    const folded = foldReads(rows);
+    list.replaceChildren(...folded.slice(0, st.shown).map(row));
     if (!rows.length) list.append(h("li", { class: "empty" }, events.length ? "Nothing matches these filters." : "No assistant activity yet today."));
     count.textContent = `${n(rows.length)} of ${n(events.length)} latest${file.today.total > events.length ? ` (${n(file.today.total)} today in all)` : ""}`;
-    more.hidden = rows.length <= st.shown;
-    more.textContent = `Show ${n(Math.min(20, rows.length - st.shown))} more`;
+    more.hidden = folded.length <= st.shown;
+    more.textContent = `Show ${n(Math.min(20, folded.length - st.shown))} more`;
   };
   more.addEventListener("click", () => { st.shown += 20; draw(); });
   const cols = [{ key: "at", label: "at" }, { key: "time", label: `time (${tzLabel()})`, csv: (e) => tzTime(e.at, { seconds: true, date: true, label: false }) }, ...["name", "kind", "path", "status", "country", "ip", "repeat", "times_seen_30d", "first_seen"].map((k) => ({ key: k, label: k, ...(k === "country" ? { country: (e) => e.country } : {}) }))];

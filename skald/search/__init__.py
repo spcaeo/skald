@@ -13,9 +13,12 @@ log's own figures, and puts them side by side without ever mixing them:
   state.py     each site's sync state file and its lock
   sync.py      the sync: newest day, the last days again, backfill; the CLI
   data.py      search.json for the Search tab, with the cross-check
+  reports.py   the tab's opportunities, new and lost queries, positions over
+               time and each period's coverage, from the stored days
   api.py       Settings > Leads & tools > Search: the connect wizard's routes
 
 Second roads: audit_search.py (stored figures re-added by SQL, one day's
-totals fetched again) and audit_search_landing.py (Skald's own side of the
+totals fetched again; the reports worked out again by SQL in
+audit_search_reports.py) and audit_search_landing.py (Skald's own side of the
 cross-check, recounted from the raw log). docs/INTEGRATIONS.md has the setup.
 """

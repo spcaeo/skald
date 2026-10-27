@@ -64,6 +64,9 @@ export const SETTINGS_GROUPS = [
     { route: "settings/org/audit", name: "Audit log", help: "settings-and-retention",
       line: "Who changed what, and when.",
       about: "Every change to settings, sites, tokens and members. Download it as CSV." },
+    { route: "settings/org/orgs", name: "Organisations", help: "organisations",
+      line: "Every organisation you are in: its sites, members and rules.",
+      about: "Each organisation's sites, members, invites, keys and audit log, its privacy class and its sign-in rule. Archive pauses its sites and deletes nothing; Restore starts them again." },
   ] },
   { key: "you", name: "You", pages: [
     { route: "settings/you/account", name: "Your account", help: "sign-in-and-team",

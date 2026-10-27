@@ -136,6 +136,8 @@ def requests_now(config: dict, now: datetime, minutes: int = MINUTES) -> dict:
     # Each file's size now: read that far, and recorded, so the audit counts
     # the same bytes and not the lines written since (parse.sizes).
     from .parse import sizes
+    from .log_moved import ids
+    seen = ids(paths)          # which file each was: the audit skips a rotated one
     upto = sizes(paths)
     wanted = {str(h).lower() for h in (setting(config, "site", "hosts") or [])}
     per_minute: Counter = Counter()
@@ -166,7 +168,7 @@ def requests_now(config: dict, now: datetime, minutes: int = MINUTES) -> dict:
             "per_minute": {str(m): int(per_minute.get(m, 0)) for m in range(first, first + minutes)},
             "total": sum(per_minute.values()),
             "newest": newest.isoformat(timespec="seconds") if newest else None,
-            "partial": partial, "read_upto": upto}
+            "partial": partial, "read_upto": upto, "read_ids": seen}
 
 
 # ------------------------------------------------------------- the helper's cache

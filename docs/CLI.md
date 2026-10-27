@@ -19,7 +19,7 @@ They go before the command: `skald --config /etc/skald/config.yml --site example
 
 ## Commands
 
-`check` · `collect` · `backfill` · `dashboard` · `mail` · `export` · `audit` · `live` · `run-daily` · `compare` · `page` · `version` · `user` · `token` · `report` · `verify-bots` · `backup` · `forget` · `mark-deploy` · `markers` · `leads` · `alerts` · `favicons` · `pagespeed` · `events` · `notify-failure` · `accounts` · `org` · `member` · `account` · `site` · `mcp` · `hooks` · `conversions` · `plan` · `usage` · `billing` · `llms-txt` · `updates` · `migrate` · `upgrade` · `doctor` · `logo` · `settings` · `ours` · `search-console` · `bing` · `search` · `reports` · `ai-answers` · `stack` · `views` · `try-log` · `summary-mail`
+`check` · `collect` · `backfill` · `dashboard` · `mail` · `export` · `audit` · `live` · `run-daily` · `compare` · `page` · `version` · `user` · `token` · `report` · `verify-bots` · `backup` · `forget` · `mark-deploy` · `markers` · `leads` · `alerts` · `favicons` · `pagespeed` · `events` · `notify-failure` · `accounts` · `org` · `member` · `account` · `site` · `mcp` · `hooks` · `conversions` · `plan` · `usage` · `billing` · `llms-txt` · `updates` · `migrate` · `upgrade` · `doctor` · `logo` · `settings` · `ours` · `search-console` · `bing` · `search` · `tools` · `reports` · `ai-answers` · `stack` · `views` · `try-log` · `summary-mail`
 
 ### skald check
 
@@ -320,6 +320,19 @@ Organisations (accounts mode).
 | `org rename` | | Rename an organisation. |
 | | `slug` | the organisation's slug (`skald org list`) |
 | | `name` | its new name |
+| `org show` | | Sites, members, plan, privacy class and state. |
+| | `slug` | the organisation (its slug or name: `skald org list`) |
+| `org archive` | | Pause every site of it; nothing is deleted. |
+| | `slug` | the organisation (its slug or name: `skald org list`) |
+| `org restore` | | The sites the archive paused collect again. |
+| | `slug` | the organisation (its slug or name: `skald org list`) |
+| `org privacy` | | Internal (the install's keep-everything rule) or client (its sites follow their own retention). |
+| | `slug` | the organisation (its slug or name: `skald org list`) |
+| | `privacy_class` | internal or client (one of `internal`, `client`) |
+| `org transfer` | | Hand the ownership on: EMAIL becomes an owner, the former owner an admin. |
+| | `slug` | the organisation (its slug or name: `skald org list`) |
+| | `email` | the member who becomes an owner |
+| | `--from` EMAIL | the owner who hands it on (needed when there are several) |
 
 ### skald member
 
@@ -340,6 +353,11 @@ Members and invites of an organisation (accounts mode).
 | | `--org` SLUG | needed when there are several |
 | `member remove` | | Take someone out of the organisation. |
 | | `email` | the member's email |
+| | `--org` SLUG | needed when there are several |
+| `member sites` | | Which sites a member sees: name them, --all, or none to show. |
+| | `email` | the member |
+| | `sites` | the sites they may see (none: show what they see now) |
+| | `--all` | every site of the organisation |
 | | `--org` SLUG | needed when there are several |
 
 ### skald account
@@ -415,7 +433,7 @@ Incoming hooks from the site and its tools (Calendly, Stripe, ...): secrets, lis
 | --- | --- | --- |
 | `hooks secret` | | Make a hook's secret (printed once, kept 0600). |
 | | `site` | the site's name |
-| | `tool` | the hook (one of `lead`, `json`, `calendly`, `calcom`, `stripe`, `typeform`, `hubspot`) |
+| | `tool` | the hook (one of `lead`, `json`, `calendly`, `calcom`, `stripe`, `typeform`, `hubspot`, `journey`) |
 | | `--value` | keep this secret (one the tool made, such as Stripe's whsec_...) instead of a new one; '-' reads it from standard input |
 | `hooks list` | | The hooks set up, where their secrets live, their last deliveries. |
 | `hooks test` | | Post a signed sample to the local receiver (marked as a test: read, never kept). |
@@ -606,6 +624,18 @@ Sync Search Console and Bing figures into history (the scheduler runs `search sy
 | `action` | sync (import is the same): fetch the newest days and the last days again; status: what is connected and how the last sync went (one of `sync`, `import`, `status`) |
 | `--days` | fetch this many recent days again (default 4; Bing: keep only the last N days it returns) |
 | `--backfill-months` | fetch this much history first (Search Console keeps 16 months) (one of `3`, `16`) |
+
+### skald tools
+
+Figures from your own tools (Google Analytics...): the scheduler runs `tools sync` every 6 hours.
+
+| Argument | What it does |
+| --- | --- |
+| `action` | status; sync: ask the tools now; audit: recheck every stored figure; connect TOOL: switch it on; pause TOOL: switch it off (one of `status`, `sync`, `audit`, `connect`, `pause`) |
+| `tool` | the tool's id (ga4) |
+| `--option` NAME=VALUE | a connection's option, e.g. property=123456789 |
+| `--key-stdin` | read the key from stdin (never pass a key as an argument) |
+| `--replace` | replace a key Skald has already |
 
 ### skald reports
 

@@ -140,6 +140,14 @@ characters (`secrets.token_urlsafe(32)`). It is not a key. It lets the agent tak
 **once**, with curl, straight into a 0600 file. The keys never pass through the chat or the
 dashboard page.
 
+**The people (2.43).** When Add a site named people to invite, the steps' facts carry their
+addresses (`kit_api._invites`) and the report step ends with the words the agent says to the
+user: "Done. <email> will get an invite as soon as the first data arrives." `llms.txt` has a
+section, "The people who will use the dashboard": Skald invites them itself, the agent never
+does. No new kit route: the page follows the set-up through `sites/live` and `sites/check`
+(owner or admin, `skald/setup_live.py`), which read the line, the set-up row,
+`ingest_status.recent` (lines in the last 15 minutes, the newest time) and the verify state.
+
 **Jobs (2.39).** Since 2.39 a line carries one or more set-up jobs (`kit/agent_jobs.py`), so
 every set-up dialog can offer the same line ([the plan](plans/2026-10-26-agent-everywhere.md)):
 
@@ -152,6 +160,7 @@ every set-up dialog can offer the same line ([the plan](plans/2026-10-26-agent-e
 | `assets` | finds where the pages load their own files, and reports them | none |
 | `privacy` | reads the privacy notice and recommends what Skald keeps | none |
 | `search` | Google Search Console (Unreleased): finds the property; with the user's yes and when Skald has no key and the line's maker is an install admin, makes a service account with gcloud and sends its key file through `POST <code>/searchkey`; the one click (add the robot address as a Restricted user) and Bing's key stay the user's | none |
+| `connect-tools` | the user's own tools (Unreleased; docs/TOOLS.md): Google Analytics and the others Skald reads with the user's own keys. Finds candidates by their names only (`.env` variable names, key file names; never a value), lists them, asks the user before sending each key, and says which permission each key needs (read-only first). Sends each key through `POST <code>/toolkey` from stdin; Google Analytics may reuse Skald's Search Console key (`key=search`), then only the user's one click (Viewer on the property) is left | none |
 | `mcp` | connects the user's AI assistant to Skald's MCP server (`claude mcp add ...`) | `SKALD_MCP_URL`, `SKALD_MCP_TOKEN` |
 
 Every keys file also has `SKALD_SITE` and `SKALD_REPORT_KEY`. Without `jobs` (Add a site, and
@@ -202,17 +211,18 @@ the `logs` job is asked.
 | `POST /traffic-kit/<code>/report` | the agent that took the keys | The agent's report: one JSON object, at most 16 KiB, with a Content-Length (411 without, 413 over, 400 not an object), and the header `X-Skald-Report-Key: <SKALD_REPORT_KEY>`. The steps pipe that header into `curl -H @-` (grep the keys file, sed it into a header), so the key is never on a command line or in a file; an agent run from an allow list may not redirect into a file, so the steps write none. No key, or a wrong one: 403, nothing kept. `{"ok": true}`. It can be sent again until the expiry or a cancel. The latest replaces the earlier one |
 | `POST /traffic-kit/<code>/hooksecret` | the agent that took the keys, curl or Wget only, a line with the `lead` job (`kit/agent_hooks.py`) | A booking, form or payment tool's hook secret. JSON, at most 2 KiB, with the `X-Skald-Report-Key` header. `{"tool": "calendly", "make": true}` (a tool whose secret Skald makes: `json`, `calendly`, `calcom`, `typeform`): Skald makes the secret, keeps it 0600 in the secrets file Settings > Integrations uses, and answers it this once as one env line, `SKALD_HOOK_SECRET_CALENDLY=...` (text/plain), which the steps' curl writes with `-o` into its own 0600 file. `{"tool": "stripe", "secret": "whsec_..."}` (a tool that makes its own: `stripe`, `hubspot`; `calendly`, `calcom` and `typeform` may give theirs): kept as a pasted one, `{"ok": true, "tool", "replaced"}`; the steps pipe the tool's answer straight into it (`sed` builds the JSON from stdin, `curl --data-binary @-`, the report key through `-H @<(...)`), so it is never shown. A secret the site has already: 409 unless `"replace": true`. Refused: another user agent (403, nothing made), no or a wrong key (403), no `lead` job (403), an unknown tool or `lead` (400: its secret is in the keys file), `make` for Stripe or HubSpot (409), a secret kept in the server's environment (409). Each kept secret writes one audit row, `hook.secret`, actor `ai-agent`, "made (AI agent set-up, link <id>)" or "pasted ..."; never the secret |
 | `POST /traffic-kit/<code>/searchkey` | the agent that took the keys, curl or Wget only, a line with the `search` job made by an install admin (`kit/agent_search.py`, Unreleased) | A Google Search Console service-account key file, the raw JSON as Google gives it, at most 8 KiB, with the `X-Skald-Report-Key` header. The steps send it from the file on stdin (`curl --data-binary @- ... < <key file>`, the report key through `-H @<(...)`), then delete the file, so it is never on a command line, in the chat or in a log. Checked as Settings > Integrations > Search's upload checks it (`search/google.check_key`: a service account, Google's token address, a private key) and kept the same way, 0600 in the secrets file. `{"ok": true, "client_email"}`: the robot address the user adds in Search Console. Refused: another user agent, no or a wrong key (403), no `search` job (403), a line whose maker is not an install admin now (403: one key serves every site), a wrong shape (400), a key Skald has already (409, with its `client_email`: never replaced). One audit row, `search.key`, actor `ai-agent`, the robot address and the line's id; never the key |
+| `POST /traffic-kit/<code>/toolkey?tool=<id>[&<option>=<value>][&replace=1][&key=search]` | the agent that took the keys, curl or Wget only, a line with the `connect-tools` job made by an install admin (`kit/agent_tools.py`, Unreleased) | One of the user's own tools' keys (`yourtools/`: `ga4`, ...), the raw text as the tool gives it, at most 8 KiB, with the `X-Skald-Report-Key` header; the tool's options (Google Analytics: `property`) in the query. The steps pipe it from the project's `.env` or a key file on stdin (`--data-binary @-`), never on a command line, in the chat or in a log. Checked by the tool's own `check_key` and kept 0600 in the secrets file as `tools/<site>/<tool>`; the tool is switched on for the line's site. `key=search` with an empty body: use Skald's Search Console key (Google Analytics only). `{"ok": true, "tool", "who", "replaced"}`. Refused: another user agent, no or a wrong key (403), no `connect-tools` job (403), a line whose maker is not an install admin now (403), an unknown tool, a wrong option or shape (400), a key Skald has already (409, with `who`; replaced only with `replace=1`), a key kept in the server's environment (409). One audit row, `tools.key`, actor `ai-agent`, the tool and the line's id; never the key |
 | `GET /traffic-kit/<code>/todo/<id>` | the agent that took the keys, curl or Wget only, a to-do line (`kit/agent_todos.py`, 2.41) | One to-do the line carries, with EVERY row, as JSON: `{ok, site, id, kind, subject, title, proof, todo, check, window, columns, rows, rows_total, scrubbed, holds}`, from `todo_rows.py`'s 0600 file beside the history (never the browser's files, which may be cut short), with the `X-Skald-Report-Key` header piped into `curl -H @-`; the steps write it with `-o` into a 0600 file. Paths and counts only: an email or IPv4 address inside a value is `[removed]`. Refused: another user agent (403), no or a wrong key (403), a to-do the line does not carry or no longer on the list (404), an ended line (410) |
 | `POST /traffic-kit/<code>/fix` | the agent that took the keys, curl or Wget only, a to-do line (2.41) | One to-do's report, JSON, at most 256 KiB (its own nginx location: the redirect list can be long), with a Content-Length and the `X-Skald-Report-Key` header: `{id, state: "done"/"partly"/"left", change, files, left: [{row, why}], notes}`. Kept in `todo_fixes` (accounts.sqlite); `done` also marks the to-do done (the re-check runs on the days after; it changes no figure, and is undone with one click). `{ok, id, state, marked_done, says}`. Refused: as `/todo/<id>`, plus a to-do the line does not carry or an unknown state (400), over the size (413). One audit row `todo.fixed`, actor `ai-agent`, never the change |
 
 **After the keys are taken,** only `/keys` stops (410). `/steps`, `/install.sh`, `/leads/<file>`,
-`POST /report`, `POST /hooksecret`, `POST /searchkey`, `GET /todo/<id>` and `POST /fix` keep answering until the expiry or a cancel, so the agent can finish and
+`POST /report`, `POST /hooksecret`, `POST /searchkey`, `POST /toolkey`, `GET /todo/<id>` and `POST /fix` keep answering until the expiry or a cancel, so the agent can finish and
 report. None of them holds a secret. The bare code keeps answering its words too.
 
 Every answer has `Cache-Control: no-store` and `X-Robots-Tag: noindex, nofollow`. Every route
 but `llms.txt` has its own limit per address and code (10 a minute, a burst of 5; then 429 "Too
 many tries"): the bare code, `steps`, `keys`, `install.sh`, `leads/`, `report`, `hooksecret`,
-`searchkey` and any other sub-path each count apart (`agent.ROUTES`), so an agent that reads the
+`searchkey`, `toolkey` and any other sub-path each count apart (`agent.ROUTES`), so an agent that reads the
 steps many times still has its tries for the keys. Each code also counts apart (Unreleased), so ten
 sessions on one machine (one address) setting up ten sites never take each other's tries; one
 address across all codes may make at most 120 a minute (a burst of 60), so trying codes stays
@@ -357,7 +367,7 @@ through for the report and the hook secret alone, with `client_max_body_size 16k
 location ^~ /traffic-kit/ {
     error_log stderr crit;
     access_log off;
-    location ~ "^/traffic-kit/[A-Za-z0-9_-]{43}/(report|hooksecret|searchkey)$" {
+    location ~ "^/traffic-kit/[A-Za-z0-9_-]{43}/(report|hooksecret|searchkey|toolkey)$" {
         limit_except POST { deny all; }
         client_max_body_size 16k;
         include snippets/skald-beacon.conf;
@@ -373,7 +383,8 @@ without `error_log stderr crit;` nginx's error log can hold the code. One made b
 needs the nested location's `report` widened to `(report|hooksecret)`, else nginx refuses an
 agent's hook secret (403) and the agent leaves the tool to the user; with the `search` job (Unreleased),
 `(report|hooksecret|searchkey)`, else a Search Console key is refused (403) and left to the
-user. The helper sends
+user; with the `connect-tools` job (Unreleased), `(report|hooksecret|searchkey|toolkey)`, else
+a tool's key is refused (403) and left to the user to paste. The helper sends
 `no-store` and `noindex` itself.
 
 ## One command: the one-file installer and the install link

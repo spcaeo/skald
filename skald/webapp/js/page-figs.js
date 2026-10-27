@@ -41,14 +41,17 @@ function trendDays(pt, r) {
     : by.get(d.day) ? { ...by.get(d.day), state: d.state } : { day: d.day, state: d.state }));
 }
 
-/* {rows: {path: {visits, one_page, views, search, ai, fetches: {assistant: n}, reads}},
-   of: whole days, days: of them with landings, fetchDays: with fetches, folded, fetchFolded}.
+/* {rows: {path: {visits, one_page, views, search, ai, fetches: {assistant: requests}, requests,
+   reads, readBy: {assistant: reads}}}, of: whole days, days: of them with landings, fetchDays:
+   with fetches, readDays: with reads (ai_reads.py; a day stored before has requests only),
+   readFrom: the first of them, folded, fetchFolded}. Reads, not requests: one assistant asking
+   for a page again within 30 seconds, or for the page's files, is one read.
    null without the file (or on a page group, whose file says whole_site_only). */
 export function pageSums(pt, r) {
   if (!pt || pt.whole_site_only || !Array.isArray(pt.days) || r?.kind !== "history") return null;
   const rows = {};
-  const row = (p) => rows[p] || (rows[p] = { visits: 0, one_page: 0, views: 0, search: 0, ai: 0, fetches: {}, reads: 0 });
-  const out = { rows, of: 0, days: 0, fetchDays: 0, folded: false, fetchFolded: false, missing: [], fetchMissing: [] };
+  const row = (p) => rows[p] || (rows[p] = { visits: 0, one_page: 0, views: 0, search: 0, ai: 0, fetches: {}, requests: 0, reads: 0, readBy: {} });
+  const out = { rows, of: 0, days: 0, fetchDays: 0, readDays: 0, readFrom: null, folded: false, fetchFolded: false, missing: [], fetchMissing: [] };
   for (const d of trendDays(pt, r)) {
     if (d.state !== "ok") continue;
     out.of += 1;
@@ -65,7 +68,15 @@ export function pageSums(pt, r) {
       if (d.fetches.folded) out.fetchFolded = true;
       for (const [p, per] of Object.entries(d.fetches.paths || {})) {
         const x = row(p);
-        for (const [who, k] of Object.entries(per)) { x.fetches[who] = (x.fetches[who] || 0) + k; x.reads += k; }
+        for (const [who, k] of Object.entries(per)) { x.fetches[who] = (x.fetches[who] || 0) + k; x.requests += k; }
+      }
+      if (d.fetches.reads) {
+        out.readDays += 1;
+        if (!out.readFrom || d.day < out.readFrom) out.readFrom = d.day;
+        for (const [p, per] of Object.entries(d.fetches.reads)) {
+          const x = row(p);
+          for (const [who, k] of Object.entries(per)) { x.readBy[who] = (x.readBy[who] || 0) + k; x.reads += k; }
+        }
       }
     } else out.fetchMissing.push(d.day);
   }
@@ -112,14 +123,15 @@ export function sortOf(psort, compared) {
 }
 
 /* AI reads by page, now against before (AI & bots › Assistants): rows {path, now, before,
-   who: {assistant: n}, ai} where `ai` is the proven AI visits that started there now. before
-   null: B's days are not all recorded. */
+   who: {assistant: reads}, requests, ai} where `ai` is the proven AI visits that started there
+   now. before null: B's days do not all have reads recorded. A page's own files have no reads,
+   so they are not listed. */
 export function readsTrend(a, b) {
   if (!a) return [];
-  const bOk = b && b.of > 0 && b.fetchDays === b.of;
+  const bOk = b && b.of > 0 && b.readDays === b.of;
   const paths = new Set([...Object.keys(a.rows).filter((p) => a.rows[p].reads || a.rows[p].ai), ...(bOk ? Object.keys(b.rows).filter((p) => b.rows[p].reads) : [])]);
   paths.delete(OTHER);
   return [...paths].map((path) => ({ path, now: a.rows[path]?.reads || 0, before: bOk ? b.rows[path]?.reads || 0 : null,
-    who: a.rows[path]?.fetches || {}, ai: a.rows[path]?.ai || 0 }))
+    who: a.rows[path]?.readBy || {}, requests: a.rows[path]?.requests || 0, ai: a.rows[path]?.ai || 0 }))
     .sort((x, y) => y.now - x.now || (y.before ?? 0) - (x.before ?? 0) || x.path.localeCompare(y.path));
 }

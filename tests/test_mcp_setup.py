@@ -87,7 +87,8 @@ class SetupTools(TenantServer):
         integ = self.call("GET", f"/traffic/{A}/integrations?site={A}", cookie=cookie).json
         self.assertTrue(page["ok"] and integ["ok"], (page, integ))
         lines = setup_items.items(None, status=integ["status"], tools=integ["tools"],
-                                  settings=page["settings"], waiting=page["mail_waiting"])
+                                  settings=page["settings"], waiting=page["mail_waiting"],
+                                  yourtools=integ.get("yourtools"))
         token = self.make(("mcp",))
         got = self.result(token, "setup_left", {"site": A})
         self.assertFalse(got["isError"], got)

@@ -223,15 +223,27 @@ Owners and admins add a site in two short steps. Open **Settings > Organisation 
    - **My developer**: Skald makes a private link with the steps, to send them.
    - **My AI agent**: one line for Claude Code, Codex or Cursor. You watch it work.
 
-   Skald remembers your answer for the next site. Press **Next**: the site is added.
+   Before **Who will connect it?**, two questions:
+   - **Organisation.** **This organisation** (the default), **Another of mine** (a list of the organisations where you are an owner or admin), or **A new one**: type its name and choose **Their data**: **Internal, keep everything** (the default) or **A client: their own privacy settings apply**. A new organisation is made with the site, and you are its owner.
+   - **Who will use it.** Tick the members who should see it (when the site stays in this organisation they see it already), or type an email and choose **viewer** or **admin** (**owner** too, for a new organisation), then **Add**. Or tick **No one else**. Then **Sees**: **this site only** (the default) or **every site** of the organisation; in a new organisation the default is every site, and an owner always sees every site. Nobody is invited yet: each person gets an invite as soon as the first data arrives. Members here who see only some sites are marked **some sites only**: they do not see the new site until you give it to them in Settings › Organisations.
+
+   Skald remembers your answer for the next site. Press **Next**: the site is added, in the organisation you chose.
 2. **Connect it.** Only the path you chose, with **Who connects it: Me. Change** at the top.
-   - **Me**: the way Skald found is chosen (**Another way** shows the others, the found one marked **Recommended for** your site). For your own server the one command is made at once, with its token. Under it, Skald waits for the first visits by itself.
-   - **My developer**: **Share with your developer** (see [Share with your developer](connections.md#share-with-your-developer)), and the same wait.
+   - **Me**: the way Skald found is chosen (**Another way** shows the others, the found one marked **Recommended for** your site). For your own server the one command is made at once, with its token. Under it, **Live progress** waits for the first visits by itself.
+   - **My developer**: **Share with your developer** (see [Share with your developer](connections.md#share-with-your-developer)), and the same **Live progress**.
    - **My AI agent**: pick **Claude Code**, **Codex**, **Cursor**, **Claude.ai or ChatGPT** (chat only) or **Another agent**. Skald writes one line for your agent, and **Skald watches your agent** under it (below). To set it up yourself instead, press **Change** and choose **Me**.
 
 When your server asks for proof that the domain is yours, a **Prove it's yours** step comes between the two: add the DNS TXT record or the meta tag it shows, then press **Check now**. You can go on without waiting. When no proof is needed, there is no such step.
 
-When the first log lines arrive it says "Done: example.com is receiving visits", with **Open its dashboard**. **Finish later** closes the dialog; nothing is lost.
+In **Connect it**, **Live progress** ticks itself while the dialog is open, each line with its time: your agent opened the line, the keys were made and taken, the data road was set up (for example **Vercel log drain**), the first data was received (how many lines in the last 15 minutes, and the newest time), the domain was verified, and the set-up is done. It asks every 5 seconds, every 30 seconds after 2 minutes, and not while the tab is hidden. **Check now** asks at once and says in plain words what is missing, for example **No data yet. Usually it starts within 2 minutes after the drain is saved.** The technical details are behind a fold. When Skald refused what was sent, it says why in plain words, without a press. **Live progress** is the step's one check: Add a site has no **Test connection** of its own.
+
+When it is done, it says **Receiving data** in green, with **Open the dashboard**, **Invite the people who will use it**, and who gets an invite. The dialog's last button says **Close**, never **Finish later**. A link to a done set-up opens on this done state. Before that, **Finish later** closes the dialog; nothing is lost. Settings › Sites and Overview's **Set up example.com** show the same state as a label: **Waiting for data** or **Receiving data**.
+
+### The invites, once the first data arrives
+
+The people you chose in step 1 are invited by Skald itself, once the set-up is done and the first data has arrived. Their mail says, for example, "fieldcamp.example.com is live, 1,283 requests so far. Open your dashboard." You get one mail too: "fieldcamp.example.com is live. Invites sent to 1 person." Your AI agent ends its work with "Done. ana@example.com will get an invite as soon as the first data arrives." and sends no invite itself.
+
+If the set-up has not finished within 24 hours, you get one mail that says what is missing. **Send the invites now**, under the live progress, sends them anyway. Without a mail server nobody gets a mail: the invites wait in **Settings › Organisation › People** (the organisation the site went to), where an admin sends each link again or passes it on by hand.
 
 ### The line for your AI agent
 
@@ -296,7 +308,7 @@ Nothing is applied until you press Apply. The report also lists each job (done, 
 
 ### Set it up by hand
 
-Choose **Me** in step 1 (or press **Change** in step 2 and choose it). The ways are the same as in Send logs: my own server (with or without Docker), Cloudflare, Vercel or Netlify, or only the script tag. **Download as one file** and **Email it to your server admin** are there too. If nothing arrives, the step shows the fix and the common problems (fold **Not connected yet?**).
+Choose **Me** in step 1 (or press **Change** in step 2 and choose it). The ways are the same as in Send logs: my own server (with or without Docker), Cloudflare, Vercel or Netlify, or only the script tag. **Download as one file** and **Email it to your server admin** are there too. If nothing arrives, press **Check now** in **Live progress**: it says what is missing (for your own server it adds the `sudo skald-ship-check` command; for the script tag it looks at your home page). The common problems are under the fold **Not connected yet?**.
 
 A site you added already can use its AI agent too: in **Settings > This site > Data > Send logs**, or on **Settings > To do** with **Finish set-up**, the dialog asks **Who will do it?**: pick **My AI agent**.
 
@@ -358,6 +370,9 @@ When you type the address in step 1, Skald looks at the site from outside, the w
 | Platform | Cloudflare (when its proxy is on), Vercel, Netlify, CloudFront, Fastly, GitHub Pages, or a hosted builder: Shopify, Wix, Squarespace, Webflow | Headers such as `cf-ray`, `x-vercel-id`, `x-nf-request-id`, `x-amz-cf-id` |
 | Built with | Next.js, Nuxt, WordPress, Gatsby, Astro, or plain HTML | `X-Powered-By`, and the page's own folders like `/_next/static/` or `/wp-content/` |
 | Host names | Both `example.com` and `www.example.com` when they are the same site, and which one sends visitors to the other | Both addresses are asked |
+| Tools and forms | The Google Analytics tag, a Calendly or Cal.com link, Stripe, HubSpot, and how many forms the home page has | The home page Skald already read for the lines above |
+
+Skald keeps what it found with the site. Later, a page whose source is not connected, and **Settings > This site > Leads & tools**, use it to recommend the way that fits the site (see [When a page says "not connected yet"](leads-and-conversions.md#when-a-page-says-not-connected-yet)). It is never fetched again for that.
 
 Each line has a tick, or says **could not tell**. Under them: the page assets it suggests for **Settings > This site > Data > What counts**, and the way it suggests, with one plain reason. For example: "example.com runs on its own nginx server (Ubuntu), so one command on that server sends its log."
 

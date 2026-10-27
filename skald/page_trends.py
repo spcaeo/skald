@@ -13,9 +13,13 @@ by side, per page.
                           `ai_fetches`, only the user fetchers: ChatGPT-User,
                           Perplexity-User, Claude-User, ...) by path and
                           assistant: {"paths": {path: {assistant: n}},
-                          "folded": n}; the FETCH_TOP paths with most fetches
-                          (ties by path), the rest summed into "(all others)"
-                          per assistant; null when not recorded that day
+                          "folded": n, "reads": {path: {assistant: n}}}:
+                          requests in "paths", reads (ai_reads.py) in
+                          "reads", each keeping the FETCH_TOP paths with
+                          most (ties by path) and summing the rest into
+                          "(all others)" per assistant; "reads" null on a
+                          day stored before reads were counted; the whole
+                          null when not recorded that day
   today       the live snapshot's same two figures (state, from, until), or null
   changed     the pages whose change date (the website's own, else the
               sitemap's lastmod: lifecycle.py's `updated`) falls in the last
@@ -56,11 +60,7 @@ def key(path: str) -> str:
     return path if path.endswith("/") else path + "/"
 
 
-def fold_fetches(rows) -> dict:
-    """ai_fetches rows [[minute, assistant, path, n]] -> {"paths", "folded"}."""
-    per: dict[str, Counter] = {}
-    for _minute, who, path, n in rows or []:
-        per.setdefault(str(path), Counter())[str(who)] += int(n)
+def _fold(per: dict) -> tuple[dict, int]:
     ordered = sorted(per.items(), key=lambda kv: (-sum(kv[1].values()), kv[0]))
     out = {path: dict(sorted(c.items())) for path, c in ordered[:FETCH_TOP]}
     rest = Counter()
@@ -68,7 +68,27 @@ def fold_fetches(rows) -> dict:
         rest.update(c)
     if rest:
         out[OTHER] = dict(sorted(rest.items()))
-    return {"paths": out, "folded": max(0, len(ordered) - FETCH_TOP)}
+    return out, max(0, len(ordered) - FETCH_TOP)
+
+
+def fold_fetches(rows) -> dict:
+    """ai_fetches rows [[minute, assistant, path, n, reads]] -> {"paths",
+    "folded", "reads"}: requests by path and assistant, and reads the same
+    way (ai_reads.py: a page asked for again in its window, or a file the
+    page loaded, is no read), each folded on its own. "reads" is None on a
+    day stored before reads were counted (rows of four columns)."""
+    per: dict[str, Counter] = {}
+    reads: dict[str, Counter] | None = {}
+    for row in rows or []:
+        who, path, n = row[1], row[2], row[3]
+        per.setdefault(str(path), Counter())[str(who)] += int(n)
+        if len(row) < 5:
+            reads = None
+        elif reads is not None and int(row[4]):
+            reads.setdefault(str(path), Counter())[str(who)] += int(row[4])
+    paths, folded = _fold(per)
+    return {"paths": paths, "folded": folded,
+            "reads": None if reads is None else _fold(reads)[0]}
 
 
 def same_day(dates: dict) -> dict | None:

@@ -16,7 +16,8 @@ The data: a small fictional SaaS on example.com (tools/demo_traffic.py), with
 RFC 5737 addresses and made-up names. It goes in through the same roads a real
 install uses: an nginx access log, the beacon spool (and what the beacon helper
 records for journeys and conversions), signed Calendly, Stripe and lead webhooks through
-the hook receiver, and the site's lead store. Then `backfill` day by day, the
+the hook receiver, the site's lead store, and a few consented sessions signed and posted to
+the journey receiver (demo_recorded.py). Then `backfill` day by day, the
 in-page events, and `live`, in a temporary install that is removed afterwards
 (--keep DIR keeps it in DIR).
 
@@ -565,6 +566,10 @@ def install(root: Path, traffic: dt.Traffic, say=print) -> Path:
     # the live run's page_changes.json.
     import demo_changes
     demo_changes.seed(root, load_config(cfgp), dt.SITE, traffic.today, say)
+    # Traffic > Visitors > Recorded by your site: a few consented sessions, signed and posted
+    # to the journey receiver (demo_recorded.py).
+    import demo_recorded
+    demo_recorded.seed(root, cfgp, load_config(cfgp), traffic.now, say)
     # The live run at the demo's own clock, not at --today's noon: today so far ends
     # where the traffic does, and Real time's last 30 minutes are the traffic's.
     from unittest import mock
@@ -838,6 +843,13 @@ def static(out: Path, www: Path, root: Path, now: datetime, repo_url: str) -> No
     site_dir = www / dt.SITE
     answers = helper_answers(root, site_dir)
     answers["setup"] = setup_answers(root, site_dir, now)
+    from demo_orgs import orgs_answers          # Settings > Organisations: three sample organisations
+    answers["orgs"] = orgs_answers(root, site_dir, now, dt.SITE)
+    from demo_recorded import answers as recorded_answers     # Recorded by your site, per period
+    from skald.config import load_config
+    answers["recorded"] = recorded_answers(root, site_dir, load_config(root / "config.yml"))
+    from demo_todocheck import answers as todocheck_answers   # Insights' Check again: a sample answer a to-do
+    answers["todocheck"] = todocheck_answers(site_dir, now, dt.SITE)
     mark_demo(www, answers, repo_url)
     (www / "build.json").write_text(json.dumps(build_file(now)) + "\n")
     # Without the gzip copies (<file>.gz, for nginx's gzip_static): a static host sends the

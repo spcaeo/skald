@@ -19,13 +19,13 @@ export function kpi(first, label, v, note, group, unit = "pages fetched") {
 }
 
 /* AI pages fetched per day for one tier (days `tiers`), with the compare ghost. */
-export function tierChart(m, s, r, { title, name, tier, group, label }) {
+export function tierChart(m, s, r, { title, name, tier, group, label, get, unit = "fetches" }) {
   if (r.kind !== "history" || r.length < 2) return null;
-  const series = [{ name, color: color(group), get: (d) => d.tiers?.[tier] || 0 }];
+  const series = [{ name, color: color(group), get: get || ((d) => d.tiers?.[tier] || 0) }];
   const cmp = compareFor(m, s);
   return h("section", { class: "s" }, h("h2", null, title), cmp.note,
     h("div", { class: "sheet" }, legend([...series.map((x) => [x.name, x.color]), ["Not shown", "", "hatch"], ...cmp.legend]),
-      columns(chartDays(r), series, { label, unit: "fetches", H: 220, prev: cmp.prev })));
+      columns(chartDays(r), series, { label, unit, H: 220, prev: cmp.prev })));
 }
 
 // A list longer than this is a Data Grid; a shorter one stays a plain table (no search or pages to page).

@@ -20,7 +20,16 @@
   GET  settings/todo-rows   ?item=<id>: one to-do with every row (todo_rows.py), for Fix this
                             > Me (the lines to paste, the CSV); anyone who may read the site
 
-GET settings/todos also answers `fixes` (the AI agent's newest report per to-do: what it
+  POST settings/todo-check  {item, start}: "Check again" (2.44, todo_check.py): re-run the
+                            to-do's own check now (start 0, or the next page of a check:
+                            the `next` it answered), keep it (todo_checks.py), mark the
+                            to-do fixed when every row is; owners and admins, CSRF, at
+                            most todo_checks.LIMIT_HOUR checks an hour a site and one
+                            start a minute a to-do; audit row "todo.checked"
+
+GET settings/todos also answers `checks` (each to-do's newest check: verdict, words,
+counts, the rows still failing; for everyone who may read the site), `checks_withheld`
+(a fixed mark the second count, audit_todo_checks.py, does not bear out), `fixes` (the AI agent's newest report per to-do: what it
 changed, the rows it left and why), `server` (what the site check found about the web
 server, for Me's lines) and, for owners and admins, `line` (the site's newest to-do line,
 never its code).
@@ -42,12 +51,12 @@ import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import auth_api, todo_agent, todo_marks, todo_rows
+from . import audit_todo_checks, auth_api, todo_agent, todo_check, todo_checks, todo_marks, todo_rows
 from .accounts import sessions, users
 from .auth_api import answer, csrf_ok
 
 PATH = re.compile(r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
-                  r"(?P<act>settings/(?:todos|todo-send|todo-agent|todo-rows))$")
+                  r"(?P<act>settings/(?:todos|todo-send|todo-agent|todo-rows|todo-check))$")
 SEND_LIMIT, SEND_MINUTES = 10, 60
 MARKERS = ("owner", "admin")
 
@@ -85,11 +94,13 @@ def team(db, site: str) -> list[dict]:
     org = org_of_site(db, site)
     if org is None:
         return []
+    from .accounts.users import sees
     out = []
-    for uid, email, role, confirmed, disabled in db.execute(
-            "SELECT u.id, u.email, m.role, u.pw_hash IS NOT NULL, u.disabled_at FROM members m "
-            "JOIN users u ON u.id = m.user_id WHERE m.org_id = ? ORDER BY u.email", (org["id"],)):
-        if confirmed and not disabled:
+    for uid, email, role, confirmed, disabled, limit in db.execute(
+            "SELECT u.id, u.email, m.role, u.pw_hash IS NOT NULL, u.disabled_at, m.sites "
+            "FROM members m JOIN users u ON u.id = m.user_id WHERE m.org_id = ? "
+            "ORDER BY u.email", (org["id"],)):
+        if confirmed and not disabled and sees(limit, site):
             out.append({"id": uid, "email": email, "role": role})
     return out
 
@@ -105,7 +116,7 @@ def handle(h, write: bool, config, live_dir, allowed, same_origin, config_path=N
         return answer(h, 404, {"ok": False, "error": "not found"})
     m = match(h.path)
     act = m.group("act")
-    if act in ("settings/todo-send", "settings/todo-agent") and not write:
+    if act in ("settings/todo-send", "settings/todo-agent", "settings/todo-check") and not write:
         return answer(h, 405, {"ok": False, "error": "wrong method"})
     if act == "settings/todo-rows" and write:
         return answer(h, 405, {"ok": False, "error": "wrong method"})
@@ -131,7 +142,8 @@ def handle(h, write: bool, config, live_dir, allowed, same_origin, config_path=N
         if not write:
             body = {"ok": True, "marks": todo_marks.current(db, site), "changes": todo_marks.changes(db, site),
                     "role": role, "can_mark": role in MARKERS, "mail": mail_state(cfg),
-                    "fixes": todo_marks.fixes(db, site), "server": todo_agent.server_of(db, site)}
+                    "fixes": todo_marks.fixes(db, site), "server": todo_agent.server_of(db, site),
+                    "checks": checks_of(db, site), "checks_withheld": audit_todo_checks.verify(db, site)}
             if role in MARKERS:
                 body["team"] = team(db, site)
                 body["line"] = todo_agent.latest(db, folder, site)
@@ -143,6 +155,8 @@ def handle(h, write: bool, config, live_dir, allowed, same_origin, config_path=N
             return None
         if act == "settings/todo-agent":
             return _agent(h, db, config, config_path, live_dir, allowed, folder, site, org, session, form)
+        if act == "settings/todo-check":
+            return _check(h, db, cfg, site, m.group("view"), org, session, folder, out, form)
         item = form.get("item")
         if not todo_marks.valid_item(item):
             return answer(h, 400, {"ok": False, "error": "Not a to-do or a site path."})
@@ -160,6 +174,63 @@ def handle(h, write: bool, config, live_dir, allowed, same_origin, config_path=N
         return _send(h, db, cfg, site, m.group("view"), org, session, item, form.get("to"), out, send)
     finally:
         db.close()
+
+
+def checks_of(db, site: str) -> dict:
+    """Each to-do's newest check, as the page shows it, with who asked (an email, or the agent)."""
+    got = todo_checks.newest(db, site)
+    who = todo_checks.names(db, [c["by_user"] for c in got.values()])
+    for c in got.values():
+        uid = c.pop("by_user")
+        agent = "your AI agent" if c["by_who"] == "ai-agent" else \
+            "your AI assistant (MCP)" if str(c["by_who"]).startswith("mcp:") else None
+        c["by"] = who.get(uid) if uid is not None else agent
+    return got
+
+
+def _check(h, db, cfg, site, view, org, session, folder, out, form) -> None:
+    """POST settings/todo-check {item, start}: "Check again" (todo_check.py)."""
+    from .accounts import auditlog
+    item = form.get("item")
+    start = form.get("start") or 0
+    if not isinstance(item, str) or not todo_marks.TODO_ID.match(item) or not isinstance(start, int) \
+            or isinstance(start, bool) or start < 0:
+        return answer(h, 400, {"ok": False, "error": "Name a to-do: {item: <id>, start: 0}."})
+    todo = todo_for(folder, out, site, view, item)
+    if todo is None:
+        return answer(h, 404, {"ok": False, "error": "That to-do is not on the list now."})
+    try:
+        got = todo_check.check(db, cfg, site, todo, start, session["user_id"], "person",
+                               today=_today(cfg))
+    except todo_check.Refused as why:
+        return answer(h, why.status, {"ok": False, "error": str(why)})
+    auditlog.record(db, org["id"], session["email"], "todo.checked", item[:120],
+                    f"{site} {got['verdict']} {got['ok']}/{got['checked']} of {got['total']}"
+                    f"{'; marked ' + got['marked']['state'] if got.get('marked') else ''}")
+    _commit(db)
+    return answer(h, 200, {"ok": True, "check": checks_of(db, site).get(item),
+                           "marked": got.get("marked"), "page": got.get("page"),
+                           "marks": todo_marks.current(db, site),
+                           "checks_withheld": audit_todo_checks.verify(db, site)})
+
+
+def _commit(db) -> None:
+    try:
+        db.commit()
+    except Exception:                    # noqa: BLE001 - an autocommit connection
+        pass
+
+
+def todo_for(folder, out, site: str, view, item: str) -> dict | None:
+    """The to-do to check: every row from the rows file (todo_rows.py), with what the
+    dashboard's file adds (its re-check, its window); either alone will do."""
+    full = todo_rows.one(folder, site, item) if folder is not None else None
+    shown = _todo(out, site, view, item)
+    if full is None and shown is None:
+        return None
+    got = dict(shown or {})
+    got.update({k: v for k, v in (full or {}).items() if v is not None})
+    return got if got.get("kind") else None
 
 
 def _rows(h, folder, site: str) -> None:

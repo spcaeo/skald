@@ -33,14 +33,15 @@ Object.defineProperty(globalThis.navigator, "clipboard", { configurable: true, v
 let made = 0;
 const lineAnswer = (body) => {
   made += 1;
-  const code = `Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4zAb7dEf0hIj${made}`;
+  const n = made % 10;                       // one digit: the code and the link id keep their length
+  const code = `Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4zAb7dEf0hIj${n}`;
   return { ok: true, line: `finish setting up Skald for ${SITE} (${body.jobs.join(", ")}) — read https://www.example.com/traffic-kit/llms.txt and use code ${code} (works once, 24 hours)`,
     llms_url: "https://www.example.com/traffic-kit/llms.txt", steps_url: `https://www.example.com/traffic-kit/${code}/steps`,
-    expires_at: "2099-01-02T12:00:00Z", token_id: body.jobs.includes("logs") ? `ab12cd3${made}` : null,
-    ...(body.jobs.includes("mcp") ? { mcp_token_id: `cd34ef5${made}` } : {}), link_id: `1f3a9c2e7b1d4a5${made}`, cancelled: 0, jobs: body.jobs };
+    expires_at: "2099-01-02T12:00:00Z", token_id: body.jobs.includes("logs") ? `ab12cd3${n}` : null,
+    ...(body.jobs.includes("mcp") ? { mcp_token_id: `cd34ef5${n}` } : {}), link_id: `1f3a9c2e7b1d4a5${n}`, cancelled: 0, jobs: body.jobs };
 };
 // As the server builds it: bad ids, an empty list or not a list are a 400.
-const JOB_IDS = ["logs", "script", "lead", "rsc", "assets", "privacy", "search", "mcp"];
+const JOB_IDS = ["logs", "script", "lead", "rsc", "assets", "privacy", "search", "connect-tools", "mcp", "connect-journeys"];
 const badJobs = (jobs) => jobs !== undefined && (!Array.isArray(jobs) || !jobs.length || jobs.some((j) => !JOB_IDS.includes(j)));
 const REPORT = { framework: "Next.js", asset_paths: ["/_next/static/"], privacy: { keep_ips: false },
   jobs: { script: "already", lead: "done", assets: "done", privacy: "left" }, tools: [{ tool: "calendly", hook: "set" }, { tool: "stripe", hook: "left" }] };
@@ -104,11 +105,11 @@ const m = { site: SITE, today: new Date().toISOString().slice(0, 10), live: null
 history.replaceState(null, "", "#overview/summary");
 
 // ---- the words: jobs in the contract's order, from the address, in a list
-assert.deepEqual(W.JOBS.map((j) => j.id), ["logs", "script", "lead", "rsc", "assets", "privacy", "search", "mcp"]);
+assert.deepEqual(W.JOBS.map((j) => j.id), ["logs", "script", "lead", "rsc", "assets", "privacy", "search", "connect-tools", "mcp", "connect-journeys"]);
 assert.deepEqual(W.jobsInOrder(["privacy", "logs", "nope", "logs", "lead"]), ["logs", "lead", "privacy"]);
 assert.deepEqual(W.jobsFrom("assets.logs.<script>"), ["logs", "assets"], "only known ids from the address");
 assert.equal(W.jobsWords(["logs", "script", "lead"]), "the server's log, the script tag and your leads");
-assert.deepEqual(AGENT_JOBS, ["logs", "script", "lead", "rsc", "assets", "privacy", "search"]);
+assert.deepEqual(AGENT_JOBS, ["logs", "script", "lead", "rsc", "assets", "privacy", "search", "connect-tools"]);
 const rep = W.reportLines(REPORT);
 assert.deepEqual(rep.find((x) => x.name === "Each job").value,
   ["Add the script tag: already there", "Connect your leads: done", "Find the page assets: done", "Read the privacy notice: left for you"]);

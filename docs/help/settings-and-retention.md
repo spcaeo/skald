@@ -188,6 +188,7 @@ The **Mail** tab has these cards.
 
 - **Daily mail**: sent after each morning's run.
 - **Weekly mail**: sent on Mondays.
+- **Monday marketing mail** (off until you turn it on): last week's visitors, pages read, leads and where visitors came from, then each of your connected tools' own figures, each under its tool's name and never added to Skald's. See [Your own tools](your-tools.md#alerts-and-the-monday-mail).
 - **Recipients**: up to 20 email addresses.
 - **From name**: the name the mail comes from.
 
@@ -233,8 +234,9 @@ Admins and owners switch alerts on or off for this site on **Settings › This s
 - **Turn alerts on**, beside the title, only while alerts are off and you may switch them. There is no other button on the page.
 - **All alerts**: the switch for every rule. While it is off, nothing is checked.
 - **Mail alerts**: off, alerts are only shown on Site › Alerts, never mailed.
-- **The rules**, in folds by area: **Site health** (site down, logging stopped, server errors, broken links), **Traffic** (traffic drop, visits from AI answers, first citations), **Crawlers & AI** (crawl bursts, new or silent crawlers, AI reading pages), **Security** (exposures, scan waves, advisories) and **Sales**. Each fold says how many of its rules are on ("3 of 4 on"; while alerts are off, "3 of 4 will run"). A rule is one line: its name, a **?** with what makes it alert, and its switch.
+- **The rules**, in folds by area: **Site health** (site down, logging stopped, server errors, broken links), **Traffic** (traffic drop, visits from AI answers, first citations), **Crawlers & AI** (crawl bursts, new or silent crawlers, AI reading pages), **Security** (exposures, scan waves, advisories), **Sales** and **Marketing**. Each fold says how many of its rules are on ("3 of 4 on"; while alerts are off, "3 of 4 will run"). A rule is one line: its name, a **?** with what makes it alert, and its switch.
 - **Sale** and **Refund on a sale** (off until you turn them on): one alert for each sale or refund the Revenue tab counts, with an optional **Sale alert minimum** per currency (its row opens a panel). See [Revenue](revenue.md#sale-alerts).
+- **Marketing**: **A tool stopped answering** (one of your own tools gave no good answer for 26 hours), **Leads dropped** (the last 7 whole days' leads under half of the 7 days before, when those were 5 or more), **Bookings dropped** (the same rule on Calendly's own bookings, when Calendly is connected) and **Google Analytics and the log far apart** (off until you turn it on: Google Analytics' sessions and the log's visits over the same 28 days are 2 to 1 or more apart). The last one never says either count is wrong: they count in different ways, and a large gap usually means a missing tag, a consent banner or a host the log does not see. See [Your own tools](your-tools.md#alerts-and-the-monday-mail).
 
 A change applies from the next live run, within 2 minutes. How much makes an alert (the thresholds) is set in the server's config. A switch the server's config locks says "Locked in the server's config file" and cannot be changed here. Viewers see the switches but cannot change them.
 

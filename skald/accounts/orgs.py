@@ -2,6 +2,17 @@
 
 An install holds organisations; each site belongs to exactly one. Every
 request for a site is allowed only for members of its organisation.
+
+Each organisation has (schema 6):
+
+  privacy_class   "internal" (the default): its sites follow the install's
+                  keep-everything rule (keep_everything.py), as before.
+                  "client": its sites follow their own retention settings,
+                  even on an install that keeps everything. Set by an install
+                  admin only (set_privacy_class).
+  archived_at     "Remove" an organisation archives it: every site of it is
+                  paused (stops collecting), nothing is deleted, restore_org
+                  undoes it. Deleting data stays a site's own "Delete all data".
 """
 from __future__ import annotations
 
@@ -38,8 +49,15 @@ def create_org(db, name, actor) -> dict:
         return get_org(db, cur.lastrowid)
 
 
+COLS = "id, name, slug, created_at, privacy_class, archived_at"
+PRIVACY_CLASSES = ("internal", "client")
+# The marker archive_org writes as the pause's author, so restore_org resumes the
+# sites the archive paused and leaves a site paused before it as it was.
+ARCHIVE_PAUSE = "org-archive"
+
+
 def get_org(db, org_id) -> dict | None:
-    return base.one(db, "SELECT id, name, slug, created_at FROM orgs WHERE id = ?", (org_id,))
+    return base.one(db, f"SELECT {COLS} FROM orgs WHERE id = ?", (org_id,))
 
 
 def rename_org(db, org_id, name, actor) -> None:
@@ -55,8 +73,9 @@ def rename_org(db, org_id, name, actor) -> None:
 def list_orgs(db, user_id=None) -> list[dict]:
     """Every organisation, or those `user_id` is a member of (with "role")."""
     if user_id is None:
-        return base.rows(db, "SELECT id, name, slug, created_at FROM orgs ORDER BY id")
-    return base.rows(db, "SELECT o.id, o.name, o.slug, o.created_at, m.role FROM orgs o "
+        return base.rows(db, f"SELECT {COLS} FROM orgs ORDER BY id")
+    cols = ", ".join(f"o.{c.strip()}" for c in COLS.split(","))
+    return base.rows(db, f"SELECT {cols}, m.role FROM orgs o "
                          "JOIN members m ON m.org_id = o.id WHERE m.user_id = ? ORDER BY o.id",
                      (user_id,))
 
@@ -100,10 +119,88 @@ def assign_site(db, site, org_id, actor) -> None:
 
 
 def org_of_site(db, site) -> dict | None:
-    return base.one(db, "SELECT o.id, o.name, o.slug, o.created_at FROM sites s "
+    cols = ", ".join(f"o.{c.strip()}" for c in COLS.split(","))
+    return base.one(db, f"SELECT {cols} FROM sites s "
                         "JOIN orgs o ON o.id = s.org_id WHERE s.name = ?", (site,))
 
 
 def sites_of_org(db, org_id) -> list[str]:
     return [r[0] for r in db.execute("SELECT name FROM sites WHERE org_id = ? ORDER BY name",
                                      (org_id,))]
+
+
+# ------------------------------------------------------------ privacy class
+
+def privacy_class(db, org_id) -> str:
+    """"internal" or "client"; "internal" for an organisation not found, so a
+    doubt always keeps everything."""
+    row = db.execute("SELECT privacy_class FROM orgs WHERE id = ?", (org_id,)).fetchone()
+    return row[0] if row is not None and row[0] in PRIVACY_CLASSES else "internal"
+
+
+def set_privacy_class(db, org_id, cls, actor) -> str:
+    """Set the organisation's privacy class (install admins only: the caller
+    checks). "internal" follows the install's keep-everything rule; "client"
+    makes its sites follow their own retention settings. Audited."""
+    cls = str(cls or "").strip().lower()
+    if cls not in PRIVACY_CLASSES:
+        raise ValueError(f"A privacy class is one of: {', '.join(PRIVACY_CLASSES)}.")
+    with base.tx(db):
+        old = get_org(db, org_id)
+        if old is None:
+            raise ValueError("There is no such organisation.")
+        if old["privacy_class"] != cls:
+            db.execute("UPDATE orgs SET privacy_class = ? WHERE id = ?", (cls, org_id))
+            auditlog.record(db, org_id, actor, "org.privacy", old["name"],
+                            f"{old['privacy_class']} -> {cls}")
+    return cls
+
+
+# ---------------------------------------------------------- archive, restore
+
+def archive_org(db, org_id, actor) -> list[str]:
+    """Archive the organisation: every active site of it is paused (ingest
+    answers 503, the runs skip it), nothing is deleted. The sites paused now."""
+    from . import site_state
+    with base.tx(db):
+        org = get_org(db, org_id)
+        if org is None:
+            raise ValueError("There is no such organisation.")
+        if org["archived_at"]:
+            raise ValueError(f"{org['name']} is already archived.")
+        paused = []
+        for site in sites_of_org(db, org_id):
+            if site_state.get(db, site)["paused_at"]:
+                continue
+            site_state.pause(db, org_id, site, actor)
+            db.execute("UPDATE site_state SET paused_by = ? WHERE name = ?",
+                       (f"{ARCHIVE_PAUSE}:{actor}", site))
+            paused.append(site)
+        db.execute("UPDATE orgs SET archived_at = ?, archived_by = ? WHERE id = ?",
+                   (base.now(), str(actor), org_id))
+        auditlog.record(db, org_id, actor, "org.archive", org["name"],
+                        f"sites paused: {', '.join(paused) or 'none'}; nothing deleted")
+    return paused
+
+
+def restore_org(db, org_id, actor) -> list[str]:
+    """Undo archive_org: the sites the archive paused collect again (a site
+    paused before it stays paused). The sites resumed."""
+    from . import site_state
+    with base.tx(db):
+        org = get_org(db, org_id)
+        if org is None:
+            raise ValueError("There is no such organisation.")
+        if not org["archived_at"]:
+            raise ValueError(f"{org['name']} is not archived.")
+        resumed = []
+        for site in sites_of_org(db, org_id):
+            row = site_state.get(db, site)
+            if row["paused_at"] and str(row["paused_by"] or "").startswith(ARCHIVE_PAUSE + ":"):
+                site_state.resume(db, org_id, site, actor)
+                resumed.append(site)
+        db.execute("UPDATE orgs SET archived_at = NULL, archived_by = NULL WHERE id = ?",
+                   (org_id,))
+        auditlog.record(db, org_id, actor, "org.restore", org["name"],
+                        f"sites resumed: {', '.join(resumed) or 'none'}")
+    return resumed

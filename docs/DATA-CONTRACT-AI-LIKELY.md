@@ -49,10 +49,14 @@ snapshot. `null` when off or when the visits were not counted.
 | `pages` | `{landing page: likely visits}`: the 20 largest and `"(all others)"`, adds up to `likely` |
 | `fetches` | `{assistant: user-fetch requests that day}`, adds up to the answer-engine group's `asked` requests |
 | `followed` | `{assistant: fetches followed, within the window, by a direct untagged visit landing on the same page}`. A fetch-side figure: a visit two assistants fetched for follows a fetch of each. Never above `fetches` |
+| `reads` | `{assistant: reads}` (day kind `ai_reads` below): the fetches that began a read. Same keys as `fetches`, never above them; adds up to `ai_reads.reads`. Absent on days counted before reads were |
+| `reads_followed` | `{assistant: reads followed}`, as `followed` but counting a read once. Never above `reads`. Absent with `reads` |
 
 The share of direct visits it explains is `likely / direct` (no rate over
 fewer than 10). Answers turned into clicks, per assistant, is `followed /
-fetches`.
+fetches`, or `reads_followed / reads` where the day has them (AI & bots ›
+Assistants uses reads once every day of the range has them, and says
+"requests" otherwise).
 
 Verify withholds the day when `by_assistant` or `pages` do not add up to
 `likely`, `likely` is above `direct` or `direct` above `visits`, `visits`
@@ -63,12 +67,61 @@ are not `likely`.
 ## Day kind `ai_fetches`
 
 `ai_fetches.py`. The day's user fetches, so leads and conversions can look
-back from a touch: `{"rows": [[minute, assistant, path, n]]}`, `minute` UTC
+back from a touch: `{"rows": [[minute, assistant, path, n, reads]]}`, `minute` UTC
 `"YYYY-MM-DDTHH:MM"`, `path` without the query (70 characters), `n` the
-fetches that minute. Only user fetchers (`AI_ASKED`): no training crawler,
-no person, no address, no user agent. The rows add up to the day's `asked`
-requests. Kept **180 days** (`ai_likely.FETCH_DAYS`, the leads' window),
+fetches that minute, `reads` how many of them began a read (`ai_reads`
+below: 0 for a repeat or a file the page loaded). A row with four items was
+stored before reads were counted: its reads are unknown, never 0. Only user
+fetchers (`AI_ASKED`): no training crawler, no person, no address, no user
+agent. The rows add up to the day's `asked` requests; each row's `reads` is
+at most its `n`, and they add up to `ai_reads.reads`. Kept **180 days** (`ai_likely.FETCH_DAYS`, the leads' window),
 then deleted (`cli.prune_kept`). Not in any data file.
+
+## Day kind `ai_reads`: an assistant's reads, not its requests
+
+`ai_reads.py`, in the tally pass, for a collected day and today's live
+snapshot (`extras.ai_reads`). A user fetcher may ask for one page twice in a
+few seconds and then for the page's own style sheet and scripts, with the
+page as referrer (Google NotebookLM does: 1 read, 4 requests). Each user
+fetch (`AI_ASKED`) gets one role, in time order, per fetcher name:
+
+- **file**: a file the page loaded. Its referrer is on the same site and
+  names another page this fetcher read within the window; or its path ends
+  in a file extension (`ai_read_names.FILE_EXTENSIONS`), sits under
+  `/_next/` or `/_nuxt/`, under the site's `asset_prefixes`
+  (`rendering.asset_prefixes`, default `/_next/static/`), or carries a
+  Next.js data query (`_rsc`, `__flight__`, `_data`);
+- **repeat**: the same page (no query, no trailing `/`) by the same fetcher
+  within `window_seconds` of the read that opened it;
+- **read**: anything else; it opens a window for its page.
+
+| field | type |
+|---|---|
+| `window_seconds` | int: 30 (`ai_read_names.WINDOW_SECONDS`) |
+| `requests`, `reads`, `repeats`, `files` | int: `reads + repeats + files = requests` = the `asked` requests |
+| `files_with_page` | int: the files whose page is known (by referrer); never above `files` |
+| `by_name` | `{fetcher name: {requests, reads, repeats, files, files_with_page}}`: the 20 with most requests and `"(all others)"`; each field adds up to its total |
+| `pages` | `{fetcher name: {path: {reads, files}}}`: per kept name, the 10 pages with most reads and `"(all others)"`; reads add up to the name's reads, files to its `files_with_page` |
+
+In app.json as `days[].ai_reads` and `live.figures.ai_reads`; `unmeasured.ai_reads`
+counts the whole days of a range stored before it, and the dashboard then says
+"Reads counted from <day>", never 0. requests.json rows of a user fetch carry
+`ai_role` (`read`, `repeat`, `file`) and `ai_of` (the read's path, `""` for a file
+whose page is not known); their rule says "AI page file: <fetcher>, loaded by
+<path>" for a file, never "AI asked". ai_activity.json's asked events carry `role`
+and `of` the same way, and `by_name` of a user fetcher its `reads`.
+
+Second count: `audit_ai_reads.py` (registered in `audit_more.RECOUNTS`) gives
+every user fetch its role again from the raw lines with its own path and
+referrer reading, sharing only `ai_read_names.py`'s lists and window and
+`classify.py`'s fetcher owners, and compares every field above and the
+`reads` column of `ai_fetches`. Any difference withholds the day.
+
+```json
+{"window_seconds":30,"requests":4,"reads":1,"repeats":1,"files":2,"files_with_page":2,
+ "by_name":{"Google-NotebookLM":{"requests":4,"reads":1,"repeats":1,"files":2,"files_with_page":2}},
+ "pages":{"Google-NotebookLM":{"/blog/best-online-quiz-makers":{"reads":1,"files":2}}}}
+```
 
 ## Day kind `ai_read`: what the AI read before it sent the visitor
 

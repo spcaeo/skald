@@ -47,7 +47,7 @@ from .files import slug, write_atomic
 
 PER_SITE = ("live", "run-daily", "dashboard", "check", "collect", "backfill", "audit",
             "verify-bots", "pagespeed", "doctor", "search-console", "bing", "search", "reports",
-            "ai-answers", "views")
+            "ai-answers", "views", "tools")
 
 
 def merged(base: dict, over: dict) -> dict:
@@ -249,7 +249,8 @@ def write_sites(out: Path, sites: list[dict], live_names: set[str]) -> list[Path
 # site_lifecycle.py) is left out of them; `dashboard`, `doctor` and `audit` still
 # see a paused site, and a removed one is left out of everything unless --site names it.
 COLLECTING = ("live", "run-daily", "check", "collect", "backfill", "verify-bots", "pagespeed",
-              "search-console", "bing", "search", "reports", "ai-answers", "views")
+              "search-console", "bing", "search", "reports", "ai-answers", "views",
+              "tools")
 
 
 def contexts(ctx, args, make) -> tuple[int | None, list, bool]:

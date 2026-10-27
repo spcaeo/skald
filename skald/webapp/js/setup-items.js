@@ -14,6 +14,10 @@
 //   says   one plain line for the site's owner: no config keys, no server words
 //   tech   the doctor's own line and fix, for the server admin (shown folded), or null
 //   act    the Set up dialog that fixes it (js/tabs/setup-dialogs.js), or null
+//
+// Your own tools: GET integrations' `yourtools` gives one optional line per tool Skald
+// knows (Google Analytics...), id "tool-<id>", act "connect-tools" (the AI agent's job of
+// that name, or the paste drawer); none when that answer is missing.
 
 const DOC = (status, id) => (status || []).find((x) => x.id === id) || null;
 const latest = (m) => {
@@ -37,7 +41,22 @@ function scriptWords(d) {
   return "The tag is not sending yet. Put it on your pages, then test it.";
 }
 
-export function setupItems(m, { status = null, tools = null, settings = null, waiting = [] } = {}) {
+/* One of your tools: done while it answers. setup_items.tool_line in Python. */
+export const TOOL_ACT = "connect-tools";
+export function toolLine(t) {
+  const name = String(t.name || t.tool);
+  const id = `tool-${t.tool}`;
+  const title = `${name} connected`;
+  const words = { answering: `${name} answers: its figures are in From your tools.`, failing: `${name}: the last try failed. Its figures stay, with their age.`,
+    stopped: `${name} stopped answering. Check its key.`, withheld: `${name}'s figures are withheld: Skald's recheck did not match.`,
+    no_key: `${name} needs its key.`, waiting: `Waits for ${name}'s first answer.` };
+  if (t.state === "answering") return { id, title, optional: true, state: "done", says: words.answering, tech: null, act: null };
+  if (t.state === "waiting") return { id, title, optional: true, state: "wait", says: words.waiting, tech: null, act: null };
+  const says = words[t.state] || (t.words === "Paused" ? "Paused. Switch it on again to see its figures." : `Optional. Show your ${name} figures beside Skald's own, in their own area.`);
+  return { id, title, optional: true, state: "todo", says, tech: null, act: TOOL_ACT };
+}
+
+export function setupItems(m, { status = null, tools = null, settings = null, waiting = [], yourtools = null } = {}) {
   const f = latest(m);
   const out = [];
 
@@ -119,6 +138,18 @@ export function setupItems(m, { status = null, tools = null, settings = null, wa
     if (prop) out.push({ id: "search", title: "Search Console connected", optional: true, state: "done", says: `Google search figures come in from ${prop}.`, tech: null, act: null });
     else out.push({ id: "search", title: "Search Console connected", optional: true, state: "todo", says: "Optional. Connect Google Search Console to see the searches that bring people here.", tech: null, act: "search" });
   }
+
+  // 9. Your own tools (optional): one line each, from GET integrations' yourtools.
+  for (const t of yourtools || []) if (t && t.tool) out.push(toolLine(t));
+  // 10. Recorded journeys (optional, 2.43): only once the site has a journey secret (the doctor's
+  // line is there), like the Next.js line. Its act opens the Connect dialog (tabs/recorded.js);
+  // not a job of "Set up everything left": it changes the website's own code.
+  const rec = DOC(status, "journeys");
+  const RJ = "Recorded journeys";
+  if (!rec) { /* not connected: no line */ }
+  else if (rec.state === "OK") out.push({ id: "journeys", title: RJ, optional: true, state: "done", says: `Your site sends the sessions people agreed to: the last came ${/the last event came (.+)$/.exec(String(rec.says || ""))?.[1] || "lately"}.`, tech: null, act: null });
+  else if (rec.state === "OFF") out.push({ id: "journeys", title: RJ, optional: true, state: "wait", says: "Connected. Waits for the first session your site sends.", tech: techOf(rec), act: "journeys" });
+  else out.push({ id: "journeys", title: RJ, optional: true, state: "todo", says: "Your site stopped sending its sessions.", tech: techOf(rec), act: "journeys" });
   return out;
 }
 
@@ -128,6 +159,6 @@ export const setupDone = (items) => items.every((i) => i.optional || i.state ===
 // 2.39: the lines an AI agent can do (their act is the job's id), in the contract's order
 // (docs/plans/2026-10-26-agent-everywhere.md). countries and mail stay by hand. The server's
 // setup_left mirrors this.
-export const AGENT_JOBS = ["logs", "script", "lead", "rsc", "assets", "privacy", "search"];
+export const AGENT_JOBS = ["logs", "script", "lead", "rsc", "assets", "privacy", "search", "connect-tools"];
 /* The open lines an agent can do, as job ids in that order: their Set up is offered. */
 export const agentJobsLeft = (items) => AGENT_JOBS.filter((id) => (items || []).some((i) => i.act === id && i.state !== "done"));

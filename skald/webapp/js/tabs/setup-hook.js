@@ -258,13 +258,14 @@ function setUpPanel(st, w) {
     ...sendOn, helpLink("webhooks", `${t.name}, step by step`)];
 }
 
-export async function hookDialog(site, { onClose = null, route = null, start = 0, wrap = null } = {}) {
+export async function hookDialog(site, { onClose = null, route = null, start = 0, wrap = null, way = "" } = {}) {
   const r = await call(`integrations?site=${encodeURIComponent(site)}`);
   const tools = r.ok ? (r.tools || []).filter((t) => WAYS[t.tool]) : [];
   // A lead secret made earlier in this page is still known (setup-pack.js keeps it).
   const kept = keptKey("lead", site);
   const st = { site, tool: null, lang: "php", fresh: kept ? { tool: "lead", secret: kept, url: tools.find((t) => t.tool === "lead")?.url || "" } : null,
-    pick: (tools.find((t) => t.set) || tools[0])?.tool || "" };
+    // A page's Connect names the way (way=, js/ui/connect.js); else the tool set up, else the first.
+    pick: (WAYS[way] && tools.some((t) => t.tool === toolOf(way)) ? way : "") || (tools.find((t) => t.set) || tools[0])?.tool || "" };
   st.tool = () => tools.find((t) => t.tool === toolOf(st.pick)) || tools[0];
   // The ways offered: each tool the server takes, and WordPress when it takes "lead".
   const ways = ORDER.filter((id) => tools.some((t) => t.tool === toolOf(id)));

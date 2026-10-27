@@ -45,7 +45,7 @@ The list shows, for each report, when it goes next and which days that send will
 | Where visitors came from | Each source's visitors and share |
 | Top pages | The 10 most-read pages |
 | Countries and cities | The top countries and cities by visitors |
-| AI and bots | Fetches because someone asked an AI, training crawlers, search engines; the busiest crawlers; the AI assistants that sent visitors |
+| AI and bots | Pages AI read because someone asked it, with the requests second (a page asked for again within seconds, or its files, is not a new read; a day before reads were counted leaves them not recorded), training crawlers, search engines; the busiest crawlers; the AI assistants that sent visitors |
 | Leads | Leads in the period by kind: the dashboard's Leads tile (forms sent and demos booked, completed; test rows left out), counted a second time. A period that starts before leads were recorded gets no sum, and says so |
 | Search Console | Google's clicks, impressions, CTR and average position for the period, with the top queries and pages, from the synced Search Console figures |
 | Notes | Your own words, as you typed them |

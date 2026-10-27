@@ -17,6 +17,14 @@ export function everSent(f, e) {
   return (f.rows || []).some((x) => x[1] === e && x[5] > 0) || !!f.today?.events?.[e];
 }
 
+/* The script tag has never sent any event for this site, not even a page view (2.43: the page
+   shows how to connect it, js/ui/connect.js). No events file at all counts as never. */
+export function neverSentAny(f) {
+  if (!f) return true;
+  if (f.sent && typeof f.sent === "object") return !Object.keys(f.sent).length;
+  return !(f.rows || []).some((x) => x[5] > 0) && !Object.keys(f.today?.events || {}).length;
+}
+
 const HOW = {
   cta_click: "Add data-skald-cta=\"name\" to a button or link.",
   book_demo_open: "Your site's own code sends it: one line, in Help › The tracking script.",

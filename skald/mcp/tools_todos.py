@@ -183,6 +183,10 @@ def mark_todo_done(ctx, args):
                         f"{'; marked done' if marked else ''}; {len(got['left'])} row(s) left")
     finally:
         db.close()
+    if got["state"] in ("done", "partly"):
+        # 2.44: the same "Check again" the page has, in the background (todo_check.py).
+        from .. import todo_check
+        todo_check.after_report(ctx.config, ctx.config_path, _folder(ctx), site, got["id"], who)
     if got["state"] == "done":
         text = (f"Kept. [{got['id']}] is marked done{' from ' + day if marked else ' (it was already)'}"
                 ": Skald checks it with the same measure on every whole day after. The user can "

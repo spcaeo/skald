@@ -64,7 +64,8 @@ from .files import slug
 
 PURGE, CLEAR = "purge", "clear"
 KEEP_DAYS = 30
-ARCHIVE = re.compile(r"^site-[a-z0-9.-]+-(?:purge|clear)-(?P<at>\d{8}T\d{6}Z)\.tar\.gz$")
+ARCHIVE = re.compile(r"^site-(?P<site>[a-z0-9.-]+)-(?:purge|clear)-"
+                     r"(?P<at>\d{8}T\d{6}Z)\.tar\.gz$")
 KEEP_ON_CLEAR = ("funnels.json", "ours.json", "markers.log", "bot-policy.json",
                  "bot-policy-applied.json")
 ANSWERS_DATA = ("runs", "answers", "figures")
@@ -312,15 +313,15 @@ def _add_text(tar, arcname: str, text: str) -> None:
 def prune(folder, keep_days: int = KEEP_DAYS, now: float | None = None,
           config: dict | None = None) -> list[Path]:
     """Delete site archives older than `keep_days` (by the stamp in the name);
-    none on an install that keeps everything."""
-    from .keep_everything import install_on
-    if install_on(config or {}):
-        return []
+    none of a site that keeps everything (keep_everything.Keeper: the install's
+    rule, unless the site's organisation is a client)."""
+    from .keep_everything import Keeper
+    keeper = Keeper(config or {})
     now = time.time() if now is None else now
     gone = []
     for path in Path(folder).glob("site-*.tar.gz"):
         m = ARCHIVE.match(path.name)
-        if not m:
+        if not m or keeper(m.group("site")):
             continue
         made = datetime.strptime(m.group("at"), "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
         if now - made.timestamp() > keep_days * 86400:

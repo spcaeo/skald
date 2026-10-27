@@ -60,7 +60,11 @@ export const JOBS = [
   { id: "assets", act: "assets", title: "Find the page assets", short: "the page assets" },
   { id: "privacy", act: "privacy", title: "Read the privacy notice", short: "the privacy choice" },
   { id: "search", act: "search", title: "Connect Google Search Console", short: "Google Search Console" },
+  { id: "connect-tools", act: "connect-tools", title: "Connect your own tools", short: "your own tools (Google Analytics...)" },
   { id: "mcp", act: null, title: "Connect your assistant to Skald (MCP)", short: "your assistant (MCP)" },
+  // 2.43: Settings › Leads & tools › Recorded journeys (tabs/recorded.js); not in "Set up
+  // everything left": it changes the website's own code.
+  { id: "connect-journeys", act: "journeys", title: "Connect recorded journeys", short: "recorded journeys" },
 ];
 /* "the server's log, the script tag and your leads" */
 export function jobsWords(ids) {

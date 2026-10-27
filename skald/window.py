@@ -277,6 +277,7 @@ def options(config: dict, day: date | None = None) -> dict:
     from .sitemap import for_day
     from .visitors import load_key
     from .security_names import settings as security_settings
+    from .rendering import asset_prefixes
     return {"visitor_key": load_key(config), "attribution": attribution(config),
             # attribution.direct_likely / share_window_minutes (direct_likely.py)
             "direct_likely": direct_likely(config),
@@ -287,7 +288,9 @@ def options(config: dict, day: date | None = None) -> dict:
             # logs.city_db: one fill (one lookup per address) for every tally.
             "cities": cities(config),
             # Security's thresholds (security_names.py)
-            "security": security_settings(config)}
+            "security": security_settings(config),
+            # site.asset_prefixes: an assistant's request for one is a file (ai_reads.py)
+            "asset_prefixes": asset_prefixes(config)}
 
 
 def ordered_classifier(config: dict, lines, start: datetime | None = None,

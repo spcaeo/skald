@@ -397,6 +397,16 @@ def live_tail(config: dict, live_dir, site: str, paths=None, end: datetime | Non
     if why:
         say(why)
         return [], 0
+    # The log rotated or shrank since the helper read it: its bytes are gone.
+    from pathlib import Path
+    from .log_moved import moved, plain_files
+    files = [Path(p) for p in paths] if paths else plain_files(config)
+    gone = moved(answer.get("read_upto"), answer.get("read_ids"), files,
+                 whole_set=not paths, appeared=False)
+    if gone:
+        say(f"real time requests (15-second count): skipped (the log rotated since the "
+            f"helper read it: {gone})")
+        return [], 0
     problems: list[str] = []
     compared = 0
 

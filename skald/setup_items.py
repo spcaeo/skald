@@ -1,6 +1,6 @@
 """The "Set up <site>" checklist's lines, worked out on the server (2.39.0).
 
-`items(app, status, tools, settings, waiting)` is js/setup-items.js's
+`items(app, status, tools, settings, waiting, yourtools)` is js/setup-items.js's
 `setupItems` in Python: the same inputs (app.json; GET integrations' doctor
 lines `status` and hook states `tools`; GET settings' `settings` and
 `mail_waiting`), the same ids, states, titles, plain lines and Set up
@@ -13,6 +13,10 @@ settings_store.explain, mail_confirm.keep_confirmed). A part that cannot be
 worked out is None, as a failed answer is in the page: its lines say
 "unknown", never done.
 
+`yourtools` (GET integrations' `yourtools`, yourtools/api.states): one optional
+line per tool Skald knows (Google Analytics...), "tool-<id>", whose Set up is
+the connect-tools job; none when that answer is missing.
+
 `JOBS`: the lines an AI agent can do (the set-up line's job ids). countries (a
 file on Skald's own server) and mail (a person confirms their own address)
 have none. Nothing here counts a figure: it reads what the dashboard reads.
@@ -23,7 +27,8 @@ import re
 import sys
 from pathlib import Path
 
-JOBS = ("logs", "script", "lead", "rsc", "assets", "privacy", "search")
+JOBS = ("logs", "script", "lead", "rsc", "assets", "privacy", "search", "connect-tools")
+TOOL_ACT = "connect-tools"
 UNKNOWN = "Could not be checked just now. Open this page again in a minute."
 _WHEN = re.compile(r"the last event came ([^\n\r  ]+)\Z")   # JS: /(.+)$/
 
@@ -83,7 +88,29 @@ def _line(id_, title, state, says, tech=None, act=None, optional=False) -> dict:
     return out
 
 
-def items(app=None, status=None, tools=None, settings=None, waiting=()) -> list[dict]:
+def tool_line(t: dict) -> dict:
+    """One of your tools: done while it answers (js toolLine)."""
+    name, state = str(t.get("name") or t.get("tool")), t.get("state")
+    title = f"{name} connected"
+    words = {"answering": f"{name} answers: its figures are in From your tools.",
+             "failing": f"{name}: the last try failed. Its figures stay, with their age.",
+             "stopped": f"{name} stopped answering. Check its key.",
+             "withheld": f"{name}'s figures are withheld: Skald's recheck did not match.",
+             "no_key": f"{name} needs its key.",
+             "waiting": f"Waits for {name}'s first answer."}
+    if state == "answering":
+        return _line(f"tool-{t.get('tool')}", title, "done", words[state], optional=True)
+    if state == "waiting":
+        return _line(f"tool-{t.get('tool')}", title, "wait", words[state], optional=True)
+    says = words.get(state) or (f"Paused. Switch it on again to see its figures."
+                                if t.get("words") == "Paused" else
+                                f"Optional. Show your {name} figures beside Skald's own, in "
+                                "their own area.")
+    return _line(f"tool-{t.get('tool')}", title, "todo", says, None, TOOL_ACT, optional=True)
+
+
+def items(app=None, status=None, tools=None, settings=None, waiting=(),
+          yourtools=None) -> list[dict]:
     """The checklist's lines: {id, title, optional?, state, says, tech, act}."""
     f = _latest(app)
     out = []
@@ -233,6 +260,29 @@ def items(app=None, status=None, tools=None, settings=None, waiting=()) -> list[
             out.append(_line("search", title, "todo",
                              "Optional. Connect Google Search Console to see the searches that "
                              "bring people here.", None, "search", optional=True))
+
+    # 9. Your own tools (optional): one line each, from GET integrations' yourtools.
+    for t in yourtools or ():
+        if isinstance(t, dict) and t.get("tool"):
+            out.append(tool_line(t))
+    # 10. Recorded journeys (optional, 2.43): only once the site has a journey secret (the
+    # doctor's line is there), like the Next.js line. Its act opens the Connect dialog
+    # (js/tabs/recorded.js); not a job of "Set up everything left": it changes the
+    # website's own code.
+    rec = _doc(status, "journeys")
+    title = "Recorded journeys"
+    if not rec:
+        pass
+    elif rec.get("state") == "OK":
+        got = _WHEN.search(str(rec.get("says") or ""))
+        out.append(_line("journeys", title, "done", "Your site sends the sessions people agreed "
+                         f"to: the last came {got.group(1) if got else 'lately'}.", optional=True))
+    elif rec.get("state") == "OFF":
+        out.append(_line("journeys", title, "wait", "Connected. Waits for the first session your "
+                         "site sends.", _tech(rec), "journeys", optional=True))
+    else:
+        out.append(_line("journeys", title, "todo", "Your site stopped sending its sessions.",
+                         _tech(rec), "journeys", optional=True))
     return out
 
 
@@ -264,7 +314,7 @@ def answers(config: dict, site: str, live_dir=None, config_path=None, base: str 
     from .files import slug
     config = config or {}
     folder = Path(live_dir) if live_dir is not None else hooks.history_folder(config, config_path)
-    got = {"status": None, "tools": None, "settings": None, "waiting": []}
+    got = {"status": None, "tools": None, "settings": None, "waiting": [], "yourtools": None}
     try:
         conf = hooks.site_configs(config, config_path).get(site) or config
     except Exception as why:                       # noqa: BLE001 - the parts say unknown
@@ -280,6 +330,11 @@ def answers(config: dict, site: str, live_dir=None, config_path=None, base: str 
         got["tools"] = _hooks(config, conf, folder, site, config_path, base)
     except Exception as why:                       # noqa: BLE001
         _warn("the hooks", why)
+    try:
+        from .yourtools.api import states
+        got["yourtools"] = states(conf, folder, site)
+    except Exception as why:                       # noqa: BLE001
+        _warn("your tools", why)
     db = accounts_db
     try:
         if db is None:

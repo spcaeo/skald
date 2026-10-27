@@ -30,6 +30,8 @@ import { help } from "../ui/help.js";
 import { fold } from "../ui/fold.js";
 import { primary, screenHead } from "../ui/primary.js";
 import { whoDialog, mePath, devPath, agentPath } from "../ui/who.js";
+import { sourceLink } from "../ui/connect.js";
+import { groupOf, groupById, fedFromData } from "../connect-plan.js";
 
 export const KEY = "alfix";
 const SEV = { high: ["bad", "Urgent"], medium: ["warn", "Worth a look"], low: ["info", "For information"] };
@@ -163,6 +165,21 @@ const METHOD = [
   "An alert opens when its rule is met and closes on its own when the problem is gone. AI alerts use whole days only, from figures already checked twice. Sale and refund alerts, when on, open and close at once.",
 ];
 
+/* 2.43: an alert switched on whose source is not connected can never open (no sale alert
+   without a payment source): one quiet line naming them, and, for an admin, the way to the
+   source's group in Settings › Leads & tools. Known from the page's own files only. */
+export function needsSource(m, rules) {
+  const by = new Map();
+  for (const r of rules || []) {
+    const g = r.on ? groupOf(r.cause) : "";
+    if (g && fedFromData(g, m) === false) by.set(g, [...(by.get(g) || []), CAUSE[r.cause] || r.cause]);
+  }
+  if (!by.size) return null;
+  return h("div", { class: "ui-strip ui-conn-part al-need", role: "note" }, pill("off", "Needs a source"),
+    h("span", null, [...by].map(([g, names]) => `${names.join(", ")}: ${groupById(g).title.toLowerCase()} not connected`).join(". "), ". "),
+    ...[...by.keys()].map((g) => sourceLink(g, `Connect ${groupById(g).title.toLowerCase()}`)).filter(Boolean));
+}
+
 export default function alertsPage(m, s) {
   const f = m.x.alerts;
   const groups = groupsOf(f?.open);
@@ -193,6 +210,8 @@ export default function alertsPage(m, s) {
   const on = rules.filter((r) => r.on).length;
   out.push(h("p", { class: "note al-on" }, `Which alerts are on: ${n(on)} of ${n(rules.length)}${f.enabled === false ? " (all off)" : ""}. `,
     h("a", { href: S.hashFor({ ...s, tab: "settings/site/alerts" }) }, "Change them in Settings › Alerts")));
+  const starved = needsSource(m, rules);
+  if (starved) out.push(starved);
   return out;
 }
 

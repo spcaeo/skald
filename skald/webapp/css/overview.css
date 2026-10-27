@@ -48,6 +48,7 @@
 .pl-sw.on .pl-knob::after { transform: translateX(10px); }
 .pl-sw[disabled] { opacity: .55; cursor: not-allowed; }
 .pl-now { margin: 0; font-size: 14px; color: var(--ink); }
+.pl-now > .pl-sw { margin-right: 10px; height: 28px; vertical-align: middle; }
 .pl-vs { color: var(--ink-2); }
 .pl-how { margin: 0; font-size: 12.5px; color: var(--ink-3); }
 .pl-why { margin: 2px 0; padding: 9px 12px; font-size: 13px; line-height: 1.45; color: var(--ink-2); background: var(--sunk); border-radius: 8px; max-width: 110ch; }
@@ -122,3 +123,23 @@
 .pg-need { flex-basis: 100%; margin: 0; }
 .pg-chg { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 13px; }
 .fp-presets { margin: 6px 0 0; font-size: 13px; }
+
+/* Overview's "From your tools" (ov-tools.js): one line per tool, its own figures, labelled */
+.yt-lines { list-style: none; margin: 0; padding: 0; }
+.yt-line { display: grid; grid-template-columns: minmax(140px, 1fr) 2fr; gap: 4px 16px; padding: 10px 0; border-top: 1px solid var(--rule); }
+.yt-line:first-child { border-top: 0; }
+.yt-name { display: flex; flex-direction: column; gap: 2px; }
+.yt-from { color: var(--ink-2); font-size: 12px; }
+.yt-figs { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+.yt-fig { display: flex; flex-direction: column; }
+.yt-fig small { color: var(--ink-2); font-size: 12px; }
+.yt-fig b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.yt-meta { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; color: var(--ink-2); font-size: 12px; }
+@media (max-width: 600px) { .yt-line { grid-template-columns: 1fr; } }
+
+/* A tool's drawer (yourtools.js toolDrawer): one primary; Pause and Remove the key quieter */
+.yt-dw .yt-main { margin-top: 12px; }
+.yt-dw .yt-quiet { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--rule); }
+.yt-dw .btn.yt-quiet-btn { background: none; border-color: transparent; color: var(--ink-2); font-size: 13px; padding: 4px 8px; }
+.yt-dw .btn.yt-quiet-btn:hover { color: var(--ink); border-color: var(--rule); }
+.yt-dw .yt-quiet small { flex-basis: 100%; }

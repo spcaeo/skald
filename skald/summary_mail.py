@@ -111,7 +111,7 @@ def todo_part(db, site: str, config: dict, out) -> list[dict]:
     for t in body.get("todos") or []:
         if not isinstance(t, dict) or not t.get("id") or t.get("state", "open") != "open":
             continue
-        if (marks.get(t["id"]) or {}).get("state") in ("done", "notnow"):
+        if (marks.get(t["id"]) or {}).get("state") in ("done", "notnow", "fixed"):
             continue
         what = f"{t.get('title') or t['id']}. {t.get('proof') or ''}".strip()
         link = todo_api.link(config, t["id"])

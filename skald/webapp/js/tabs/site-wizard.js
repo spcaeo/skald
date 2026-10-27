@@ -23,12 +23,18 @@
 // 5 done; with the way ("agent" on the AI agent's way; a chat-only agent runs the server way's
 // command, so "server") and the sending token's id (never the token). Closing loses nothing:
 // the site's row offers "Finish setting up".
+//
+// 2.43: step 1 first asks which organisation and who will use it (site-wizard-org.js; org= and
+// ppl= in the address); sites/add makes a new organisation with the site and keeps the people in
+// its set-up row, invited once the first data arrives. Connect it (My AI agent, My developer)
+// (every path) shows the live progress with Check now (setup-live.js); a set-up that is done, also opened from
+// an old link, shows the done state and Close, never "Finish later".
 
 import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { input, field, why } from "./forms.js";
 import { wizard, codeBlock, answerBox, helpLink } from "./conn-ui.js";
-import { sendState, methodChooser, tokenPanel, runPanel, testPanel, troubleTable, preselect } from "./conn-send.js";
+import { sendState, methodChooser, tokenPanel, runPanel, troubleTable, preselect, shipperHelp } from "./conn-send.js";
 import { detectCard, recommendFor, suggestionsFor, DETECT_WAIT_MS } from "./conn-detect.js";
 import { installFor } from "./conn-install.js";
 import { methodOf, wayId } from "./conn-words.js";
@@ -40,6 +46,9 @@ import { whoStep, WHO } from "../ui/who.js";
 import { pill } from "../ui/pill.js";
 import { fold } from "../ui/fold.js";
 import { siteZone } from "../tz.js";
+import { whoState, whoPart, whoBody, whoCheck } from "./site-wizard-org.js";
+import { livePanel } from "./setup-live.js";
+import { tagCheckBox } from "./conn-tagcheck.js";
 
 export const STEPS = 5;           // the server's scale (accounts/site_setup.py STEPS)
 const NAME = /^(?=.{3,100}$)[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)+$/;
@@ -147,12 +156,18 @@ function stepSite(w, data) {
   change.addEventListener("click", () => { zoneBox.hidden = false; change.hidden = true; zone.focus?.(); });
   const zoneLine = h("p", { class: "sw-zone" }, h("span", null, "Time zone: "), h("b", null, zone.value), " ", change);
   say();
-  return [field("Site address", addr), line, zoneLine, zoneBox, fold("What Skald found", [card]), who.el];
+  return [field("Site address", addr), line, zoneLine, zoneBox, fold("What Skald found", [card]),
+    whoPart(st.who, (p) => w.keep(p)), who.el];
 }
 
 function siteCheck(w) {
   const st = w.state;
-  if (!st.site) { const got = siteFrom(st.typed); if (got.error) return got.error; }
+  if (!st.site) {
+    const got = siteFrom(st.typed);
+    if (got.error) return got.error;
+    const org = whoCheck(st.who);
+    if (org) return org;
+  }
   return st.by ? "" : "Choose who will connect it.";
 }
 
@@ -161,11 +176,12 @@ async function makeSite(w) {
   if (!st.site) {
     const got = siteFrom(st.typed);
     if (got.error) { w.say(got.error); return false; }
-    const r = await call("sites/add", { host: got.name, timezone: String(st.zone || "").trim(), format: "auto", token: false, ...suggestionsFor(st, got.name) });
+    const r = await call("sites/add", { host: got.name, timezone: String(st.zone || "").trim(), format: "auto", token: false, ...suggestionsFor(st, got.name), ...whoBody(st.who) });
     if (!r.ok) { w.say(why(r, "The site was not added.")); return false; }
     st.site = r.site;
     w.rename(r.site);         // setup=new becomes setup=<site>: a reload finds the site
     st.verify = r.verify || null;
+    st.org = r.org || null;           // 2.43: where it went (a new organisation, or another of yours)
     Object.assign(st.send, sendState(r.site, st.data));
     if (st.found && st.found.site !== r.site) st.found = null;     // a check of another address
     if (st.onChange) st.onChange();
@@ -212,27 +228,55 @@ function connect(w) {
   const back = h("button", { type: "button", class: "btn link" }, "Change");
   back.addEventListener("click", () => w.go(0));
   const who = h("p", { class: "sw-who" }, h("span", null, "Who connects it: "), h("b", null, WHO_TITLE[st.by] || "Me"), " ", back);
+  if (st.done) { w.setDone("Close"); return [live(w)]; }
   const part = st.by === "agent" ? agentPart(w) : st.by === "dev" ? devPart(w) : mePart(w);
-  return [who, ...part];
+  // Every path ends with the live progress, once (waitPart places it; the agent's watch does not).
+  // Me too: the 24-hour mail's link lands here, and its "Send the invites now" is in the panel.
+  const out = [who, ...part];
+  return out.includes(st.livePanel?.el) ? out : [...out, live(w)];
 }
 
-// The wait for the first lines, and done (Me, My developer and a chat-only agent's command).
-function waitPart(w, words = "Skald waits for the first visits") {
+// 2.43: the live checklist (setup-live.js), kept across redraws of the step; done says Close.
+function live(w) {
   const st = w.state;
-  const done = h("div");
-  return [h("h4", null, words), testPanel(st.send, { auto: true, plain: true, onResult: async (v) => {
-    if (v.kind !== "ok") return;
-    await save(w, { step: STEPS, done: true });
-    done.replaceChildren(answerBox("ok", `Done: ${st.site} is receiving visits.`,
-      h("div", { class: "acts" }, h("a", { class: "btn primary", href: `/traffic/${st.site}/` }, "Open its dashboard"))));
-  } }), done,
-  fold("Not connected yet?", () => [troubleTable(), h("p", { class: "note" }, "Or finish later: the site's row says how far it got, and ", helpLink("troubleshooting-connections", "the troubleshooting guide"), " has the common fixes.")])];
+  if (!st.livePanel || st.livePanel.site !== st.site || st.livePanel.link !== st.link) {
+    // Done: the step shows only the done state (one "Open the dashboard"), and the button says Close.
+    // The first data in: the set-up is saved done, as the old Test connection did (2.42), so the
+    // view turns done at once (older set-ups too, which the server's own tick leaves alone).
+    const onState = (r) => {
+      if (st.liveHelp) st.liveHelp.hidden = r.state !== "waiting";
+      if (r.state !== "receiving" || st.marking) return;
+      st.marking = true;
+      save(w, { step: STEPS, done: true }).then(() => st.livePanel?.el.refresh());
+    };
+    // Check now, nothing yet: the way's own help (the shipper's check, or the home page's tag).
+    const more = () => {
+      const way = wayId(st.send?.method);
+      return way === "server" ? shipperHelp() : way === "script" ? tagCheckBox(st.site) : null;
+    };
+    const el = livePanel(st.site, { link: st.link, onState, more, onDone: () => { st.done = true; w.setDone("Close"); w.redraw(); } });
+    st.livePanel = { site: st.site, link: st.link, el };
+  }
+  return st.livePanel.el;
+}
+
+// The wait for the first lines (Me, My developer and a chat-only agent's command): the live
+// progress alone (2.43), the one source of truth with the one check, Check now. The old "Skald
+// waits for the first visits" block and its Test connection are gone from Add a site.
+function waitPart(w) {
+  const st = w.state;
+  // The common problems only while nothing has arrived (the live progress hides them after).
+  const help = fold("Not connected yet?", () => [troubleTable(), h("p", { class: "note" }, "Or finish later: the site's row says how far it got, and ", helpLink("troubleshooting-connections", "the troubleshooting guide"), " has the common fixes.")]);
+  const state = st.livePanel?.el.state()?.state;
+  help.hidden = !!state && state !== "waiting";
+  st.liveHelp = help;
+  return [live(w), help];
 }
 
 function mePart(w) {
   const st = w.state;
   const send = st.send;
-  send.testBelow = true;           // the install's words: the Test is below, on this step
+  send.testBelow = true;           // the install's words: the live progress is below, on this step
   const rec = recommendFor(st);
   preselect(send, rec);
   const way = wayId(send.method);
@@ -257,7 +301,7 @@ function devPart(w) {
   preselect(st.send, rec);
   const way = wayId(st.send.method) || "server";
   return [h("p", null, `Skald makes a private page with the steps for ${st.site}, filled in, with a Test button. Send its link to whoever runs the site's server or host.`),
-    shareLink(st.site, way), ...waitPart(w, "Skald waits for the first visits they send")];
+    shareLink(st.site, way), ...waitPart(w)];
 }
 
 // conn-share.js's box, loaded when drawn (it reads the address for share=1).
@@ -294,7 +338,9 @@ function agentPart(w) {
   const made = lineFor(st.site, st.jobs || null);
   if (made?.link_id && !st.cancelled && st.link !== made.link_id) { st.link = made.link_id; w.keep({ link: st.link }); }
   const watching = st.link && !st.cancelled && !wasCancelled(st.link);
-  const watch = (cancel) => watchPanel(st, { cancel, onDone: () => save(w, { step: STEPS, done: true }) });
+  // heard: the live progress is the one check; the watch ticks its log line from it.
+  const heard = () => ["receiving", "done"].includes(st.livePanel?.el.state()?.state);
+  const watch = (cancel) => watchPanel(st, { cancel, heard, again: () => st.livePanel?.el.refresh(), onDone: () => save(w, { step: STEPS, done: true }).then(() => st.livePanel?.el.refresh()) });
   if (!watching) return [head, ...line()];
   // A line from before a reload is not shown again: the watch (with its Cancel), and a new line on request.
   if (!made) {
@@ -311,13 +357,13 @@ function agentPart(w) {
    openSiteKey reopens it from a link). start: on the server's scale, from 0 (0 the site, 1 the
    proof, 2 to 4 connecting). by: the address's (or worked out by byFrom); agent: an agent's id or
    hand; link: the line the watch follows. */
-export function siteWizard({ data = {}, name = null, start = 0, method = "", verify = null, found = null, onChange = null, agent = "", link = "", by = "" } = {}) {
+export function siteWizard({ data = {}, name = null, start = 0, method = "", verify = null, found = null, onChange = null, agent = "", link = "", by = "", org = "", ppl = "", sees = "", done = false } = {}) {
   const send = sendState(name || "", data);
   const a = agentKey(agent);
   const who = byFrom({ by, agent, method });
   send.method = who === "agent" ? (agentOf(a)?.shell === false ? "server" : "") : wayId(method === "agent" ? "" : method);
   const state = { site: name, verify, data, send, onChange, typed: "", zone: "", found: found || null, useFound: found ? found.use !== false : true,
-    by: who, agent: a && a !== HAND ? a : "", link: isLinkId(link) ? link : "" };
+    by: who, agent: a && a !== HAND ? a : "", link: isLinkId(link) ? link : "", who: whoState({ org, ppl, sees }), done: !!done };
   const site = { name: "Your site", draw: (wz) => stepSite(wz, data), check: siteCheck, next: makeSite };
   const prove = { name: "Prove it's yours", draw: stepProve, next: async (wz) => { await save(wz, { step: 3, method: methodNow(wz.state) }); return true; } };
   const conn = { name: "Connect it", draw: connect };
@@ -326,11 +372,11 @@ export function siteWizard({ data = {}, name = null, start = 0, method = "", ver
   state.fit = () => { steps.splice(0, steps.length, site, ...(state.site && needsProof(state) ? [prove] : []), conn); if (w) w.drawBar(); };
   state.fit();
   // The server's scale to a place in the bar: the proof only when it is a step; 2 to 4 are Connect it.
-  const at = start <= 0 ? 0 : start === 1 && steps.includes(prove) ? 1 : steps.length - 1;
+  const at = done ? steps.length - 1 : start <= 0 ? 0 : start === 1 && steps.includes(prove) ? 1 : steps.length - 1;
   const route = { key: "setup", value: name || "new" };
   w = wizard({
     title: name ? `Set up ${name}` : "Add a site", subtitle: "Two short steps. You can close this and continue later: nothing is lost.",
-    key: "site-wizard", state, start: at, done: "Finish later", route,
+    key: "site-wizard", state, start: at, done: done ? "Close" : "Finish later", route,
     onClose: () => { if (onChange) onChange(); },
     steps,
   });

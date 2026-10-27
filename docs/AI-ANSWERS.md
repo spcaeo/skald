@@ -110,7 +110,8 @@ is **withheld**: the page lists it, with no figures.
 The page's chain (**cited → read → sent → converted**) puts four counts side
 by side for one assistant and own page over the last 30 days: answers that
 cited the page (the sample), that assistant's user-fetcher reads of it
-(`ai_fetches`), visits it sent landing on it (the cube), and leads whose first
+(`ai_fetches`' reads column, the requests shown second; unknown when a day
+in the window was stored before reads were counted), visits it sent landing on it (the cube), and leads whose first
 visit came from an AI answer landing on it (`conversions.sqlite`, any
 assistant). Likely-AI visits (`ai_likely`, inferred) are said apart. They are
 different counts from different roads, joined by page and days, never added

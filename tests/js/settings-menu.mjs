@@ -37,10 +37,10 @@ assert.deepEqual(M.SETTINGS_GROUPS.map((g) => g.name), ["This site", "AI", "Orga
 const names = (k) => M.SETTINGS_GROUPS.find((g) => g.key === k).pages.map((p) => p.name);
 assert.deepEqual(names("site"), ["Data", "Leads & tools", "Site", "Privacy", "Mail & reports", "Alerts"]);
 assert.deepEqual(names("ai"), ["AI assistants", "AI answers"]);
-assert.deepEqual(names("org"), ["Sites", "People", "Billing", "Audit log"]);
+assert.deepEqual(names("org"), ["Sites", "People", "Billing", "Audit log", "Organisations"]);
 assert.deepEqual(names("you"), ["Your account"]);
 assert.equal(M.SETTINGS_PAGES[0].route, "settings/todo", "To do first");
-assert.equal(M.SETTINGS_PAGES.length, 14, "about ten pages, not twenty");
+assert.equal(M.SETTINGS_PAGES.length, 15, "about ten pages, not twenty");
 assert.deepEqual(S.SETTINGS_MENU.map(([g]) => g), ["", "This site", "AI", "Organisation", "You"]);
 assert.ok(!M.SETTINGS_PAGES.some((p) => /home|help/.test(p.route)), "no card page, no Help & docs page");
 assert.deepEqual(M.pageOf("settings/ai/assistants").tabs.map(([k]) => k), ["mcp", "api", "tokens"], "MCP, API and tokens on one page");

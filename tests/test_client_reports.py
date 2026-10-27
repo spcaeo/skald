@@ -297,6 +297,47 @@ class Figures(unittest.TestCase):
             with self.assertRaises(data_mod.Refused):
                 self.build()
 
+    def test_the_ai_line_counts_reads_then_requests_and_an_old_day_is_unknown(self):
+        from support import ASKED, line
+        first, last = date(2026, 9, 1), date(2026, 9, 3)
+        with History(self.box.db) as history:
+            for d in (first, date(2026, 9, 2), last):
+                lines = day_lines(d, 3)
+                if d == first:          # the same page asked for again 5 seconds later: a repeat
+                    at = datetime(d.year, d.month, d.day, 13, 1, 5, tzinfo=UTC)
+                    lines.append(line(at, "198.51.100.41", "/guides/beta", ASKED))
+                history.record("example.com", d, totals_for(lines), "UTC", [])
+        got = self.build(first=first, last=last)
+        self.assertEqual((got["ai"]["reads"], got["ai"]["asked"], got["ai"]["reads_days"]), (3, 4, 3))
+        self.assertEqual(audit_client_reports.recount(self.box.db, "example.com", first, last, got), [])
+        self.assertEqual(data_mod.asked_words(got["ai"]),
+                         "3 page reads because someone asked an AI (4 requests)")
+        from skald.client_report_html import as_text, render
+        brand = {"agency_name": "Example Agency", "color": "#0f766e", "letter": "E"}
+        self.assertIn("3 page reads because someone asked an AI (4 requests)",
+                      render(got, brand, ["client@example.com"]))
+        self.assertIn("3 page reads", as_text(got, brand))
+        self.assertIn("3 page reads", text_of(parse_pdf(self, client_report_pdf.render(got, brand))))
+        # A wrong sum, or reads above the requests, is caught by the second count.
+        wrong = json.loads(json.dumps(got))
+        wrong["ai"]["reads"] = 5
+        found = audit_client_reports.recount(self.box.db, "example.com", first, last, wrong)
+        self.assertEqual(len(found), 2, found)
+        # A day stored before reads were counted: the reads are not recorded, never 0.
+        import sqlite3
+        db = sqlite3.connect(self.box.db)
+        db.execute("DELETE FROM day_extras WHERE kind = 'ai_reads' AND day = '2026-09-02'")
+        db.commit()
+        db.close()
+        got = self.build(first=first, last=last)
+        self.assertEqual((got["ai"]["reads"], got["ai"]["asked"], got["ai"]["reads_days"]), (None, 4, 2))
+        self.assertEqual(data_mod.asked_words(got["ai"]),
+                         "4 requests because someone asked an AI (reads not recorded on every day)")
+        self.assertEqual(audit_client_reports.recount(self.box.db, "example.com", first, last, got), [])
+        wrong = json.loads(json.dumps(got))
+        wrong["ai"]["reads"] = 0
+        self.assertTrue(audit_client_reports.recount(self.box.db, "example.com", first, last, wrong))
+
     def test_only_the_reports_own_site_is_read(self):
         fill(self.box.db, "example.com", date(2026, 9, 1), date(2026, 9, 30), people=3)
         alone = self.build()["headline"]

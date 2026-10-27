@@ -33,7 +33,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from .. import store_extras as sx
-from . import days as sd, state
+from . import days as sd, reports, state
 from .props import path_of
 from .sync import ENGINE_NAMES, connected
 
@@ -140,6 +140,8 @@ def engine_part(p, site: str, engine: str, source: str | None, folder) -> dict:
                                  "position": t["position"], "final": bool(finals.get(d))})
     for n in PERIODS:
         part["periods"][str(n)] = period(stored, finals, summary["last"], n)
+    for n, got in reports.periods(stored, finals, summary, full=engine == "google").items():
+        part["periods"][n].update(got)
     return part
 
 

@@ -17,6 +17,17 @@ The step and method come from the page; `verified` is read from
 site_verify.py, never taken from the page. A change of step, method or
 done is one audit row ("site.setup"). `found` was added later: `ensure`
 adds the column to an older table.
+
+2.43 (the wizard's "Who will use it?", setup_people.py) adds, the same way:
+
+    people        JSON [{"user": id, "role"} | {"email", "role"}]: who gets an
+                  invite once the set-up is done and data arrived; never in an
+                  address (the page's URL holds user ids only)
+    privacy_class "internal" or "client", as chosen for a new organisation
+    made_by       who added the site (a user id): the done and late mails
+    invites_at    when the invites went (or were sent by hand)
+    invites_words what went, in one line ("Invites sent to 1 person.")
+    late_at       when the "not finished after 24 hours" mail went
 """
 from __future__ import annotations
 
@@ -37,21 +48,40 @@ METHODS = ("server", "docker", "systemd", "cloudflare", "vercel", "netlify", "sc
 FORMAT_FOR = {"cloudflare": "edge_json"}
 
 
+LATER = ("found", "people", "privacy_class", "made_by", "invites_at", "invites_words", "late_at")
+
+
 def ensure(db) -> None:
     db.execute(TABLE)
-    if "found" not in {r[1] for r in db.execute("PRAGMA table_info(site_setup)")}:
-        db.execute("ALTER TABLE site_setup ADD COLUMN found TEXT")
+    have = {r[1] for r in db.execute("PRAGMA table_info(site_setup)")}
+    for col in LATER:
+        if col not in have:
+            db.execute(f"ALTER TABLE site_setup ADD COLUMN {col} TEXT")
 
 
 def _entry(row) -> dict:
     d = dict(row)
     d["verified"] = bool(d.get("verified"))
     d["done"] = bool(d.get("done_at"))
-    try:
-        d["found"] = json.loads(d["found"]) if d.get("found") else None
-    except ValueError:
-        d["found"] = None
+    for key in ("found", "people"):
+        try:
+            d[key] = json.loads(d[key]) if d.get(key) else None
+        except ValueError:
+            d[key] = None
     return d
+
+
+def note(db, name, **cols) -> None:
+    """Write 2.43's columns (LATER, never `found`) of an existing row; people as JSON."""
+    ensure(db)
+    bad = set(cols) - set(LATER[1:])
+    if bad:
+        raise ValueError(f"not a set-up column: {sorted(bad)[0]}")
+    if "people" in cols and cols["people"] is not None:
+        cols["people"] = json.dumps(cols["people"], sort_keys=True)
+    if cols:
+        db.execute(f"UPDATE site_setup SET {', '.join(f'{k} = ?' for k in cols)} WHERE name = ?",
+                   (*cols.values(), str(name)))
 
 
 def get(db, name) -> dict | None:

@@ -18,7 +18,8 @@ from . import (apitokens, auditlog, counts, db, invites, limits, orgs, passwords
                sessions, totp, users)
 from .db import SCHEMA_VERSION, connect, keyed_hash, now, path_for, tx
 from .invites import INVITE_DAYS, accept, cancel, invite, invite_info, pending
-from .orgs import assign_site, create_org, get_org, list_orgs, org_of_site, rename_org, sites_of_org
+from .orgs import (archive_org, assign_site, create_org, get_org, list_orgs, org_of_site,
+                   rename_org, restore_org, set_privacy_class, sites_of_org)
 from .passwords import MIN_LENGTH, hash_password, password_problem, verify_password
 from .resets import RESET_MINUTES, issue_for, request_reset, use_reset
 from .sessions import TTL_DAYS
@@ -32,7 +33,7 @@ __all__ = [
     "SCHEMA_VERSION", "connect", "keyed_hash", "now", "path_for", "tx",
     "INVITE_DAYS", "accept", "cancel", "invite", "invite_info", "pending",
     "assign_site", "create_org", "get_org", "list_orgs", "org_of_site", "rename_org",
-    "sites_of_org",
+    "sites_of_org", "archive_org", "restore_org", "set_privacy_class",
     "MIN_LENGTH", "hash_password", "password_problem", "verify_password",
     "RESET_MINUTES", "issue_for", "request_reset", "use_reset", "TTL_DAYS",
     "ROLES", "add_member", "authenticate", "clean_email", "create_user", "disable_user",

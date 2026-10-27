@@ -12,7 +12,7 @@
 //
 //   node tests/js/agent-many.mjs
 import assert from "node:assert/strict";
-import { install } from "./dom-lite.mjs";
+import { install, Ev } from "./dom-lite.mjs";
 
 install();
 const PAGE = "a.example.com";
@@ -48,8 +48,9 @@ globalThis.fetch = async (path, opts = {}) => {
   if (path === "sites/add") {
     if (body.host === "full.example.com") return answer({ ok: false, error: "Your plan does not allow another site." }, 403);
     sites = [...sites, row(body.host, ["logs", "script"])];
-    return answer({ ok: true, site: body.host, token: null, verify: null });
+    return answer({ ok: true, site: body.host, token: null, verify: null, org: body.org === "new" ? { id: 31, name: body.org_name, new: true } : { id: Number(body.org) || 1 } });
   }
+  if (path === "sites/whoopts") return answer({ ok: true, org: { id: 1, name: "Example" }, may_make: true, orgs: [{ id: 7, name: "Northwind", sites: 1 }], members: [] });
   if (path.startsWith("sites/status")) return answer({ ok: true, last_batch: null, today: null });
   return answer({ ok: false, error: "not found" }, 404);
 };
@@ -144,6 +145,27 @@ assert.ok(dialog().textContent.includes("Not site names, left out: nope."));
 assert.ok(card("new1.example.com") && card("new2.example.com"), "each new site with its own line to make");
 await close();
 assert.equal(readState().lines, "", "closing takes the key away");
+
+// 2.43: the same two answers for all: a new organisation made with the first site, the others join it.
+await openLinesKey("add");
+await tick(40);
+const newOrg = dialog().querySelectorAll('.am-add input[name="sw-org"]').find((x) => x.getAttribute("value") === "new");
+newOrg.checked = true; newOrg.dispatchEvent(new Ev("change"));
+const orgName = dialog().querySelector('.am-add input[name="org-name"]');
+orgName.value = "Northwind Two"; orgName.dispatchEvent(new Ev("input"));
+const em = dialog().querySelector('.am-add input[name="invite-email"]');
+em.value = "ana@example.com";
+button(dialog(), "Add").click();
+const before = calls("sites/add").length;
+dialog().querySelector(".am-add textarea").value = "n1.example.com\nn2.example.com";
+button(dialog(), "Add these sites").click();
+await tick(120);
+const twoAdds = calls("sites/add").slice(before).map(([, b]) => b);
+assert.deepEqual(twoAdds, [
+  { host: "n1.example.com", token: false, org: "new", org_name: "Northwind Two", privacy_class: "internal", people: [{ email: "ana@example.com", role: "viewer", sees: "all" }] },
+  { host: "n2.example.com", token: false, org: "31" }], "same for all: made once, the rest join it; the people once");
+assert.ok(!location.hash.includes("@"), "never an email in the address");
+await close();
 
 // ---- a link opens the same view
 const r = await openLinesKey("site.b.example.org");

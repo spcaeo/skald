@@ -18,8 +18,10 @@ import { DEMO } from "../demo.js";
 // 2.41: `fixes` the AI agent's newest report per to-do ({state, change, files, left, notes, at}),
 // `server` what the site check found about the web server (Fix this > Me's lines), `line`
 // the site's newest to-do line (never its code: owners and admins only).
+// 2.44: `checks` each to-do's newest "Check again" (js/tabs/todo-check.js), `withheld` the
+// fixed marks the second count does not bear out ({id: why}): shown as done, with why.
 export const MARKS = { loaded: false, ok: false, marks: {}, changes: [], can_mark: false, mail: null, team: [], why: "",
-  fixes: {}, server: {}, line: null };
+  fixes: {}, server: {}, line: null, checks: {}, withheld: {} };
 let pending = null;
 
 // Why nothing can be marked here, in plain words.
@@ -39,7 +41,7 @@ export function loadMarks(force = false) {
     if (!r.ok) return Object.assign(MARKS, { loaded: true, ok: false, why: r.error || "The marks could not be read." });
     return Object.assign(MARKS, { loaded: true, ok: true, marks: r.marks || {}, changes: r.changes || [], can_mark: !!r.can_mark,
       mail: r.mail || null, team: r.team || [], why: r.can_mark ? "" : WHY.viewer,
-      fixes: r.fixes || {}, server: r.server || {}, line: r.line || null });
+      fixes: r.fixes || {}, server: r.server || {}, line: r.line || null, checks: r.checks || {}, withheld: r.checks_withheld || {} });
   })();
   pending = asked;
   asked.finally(() => { if (pending === asked) pending = null; });
@@ -50,6 +52,7 @@ export function loadMarks(force = false) {
 export function markOf(item, fileMark = null) {
   if (MARKS.ok) {
     const m = MARKS.marks[item];
+    if (m?.state === "fixed" && MARKS.withheld[item]) return { ...m, state: "done", withheld: MARKS.withheld[item] };
     return m && m.state !== "open" ? m : null;
   }
   return fileMark && fileMark.state !== "open" ? fileMark : null;
@@ -84,3 +87,19 @@ export const todoRows = (id) => call(`settings/todo-rows?item=${encodeURICompone
 
 /* The AI agent's newest report on a to-do, or null. */
 export const fixOf = (id) => (MARKS.ok ? MARKS.fixes[id] || null : null);
+
+// ---- 2.44: Check again (js/tabs/todo-check.js) ------------------------------------------
+//   checkTodo(id, start)  POST settings/todo-check {item, start}: the to-do's own check, now;
+//                         its answer's check, marks and withheld replace ours
+export async function checkTodo(item, start = 0) {
+  const r = await call("settings/todo-check", { item, start });
+  if (r.ok) {
+    if (r.check) MARKS.checks = { ...MARKS.checks, [item]: r.check };
+    if (r.marks) MARKS.marks = r.marks;
+    if (r.checks_withheld) MARKS.withheld = r.checks_withheld;
+  }
+  return r;
+}
+
+/* The newest check of a to-do, or null. */
+export const checkOf = (id) => MARKS.checks[id] || null;

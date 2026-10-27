@@ -246,6 +246,9 @@ class Tally:
         self.extras.funnels = options.get("funnels")
         # attribution.ai_likely / ai_window_minutes (ai_likely.settings).
         self.extras.attribution = options.get("attribution")
+        # site.asset_prefixes: a user fetch of one is a file, not a read (ai_reads.py).
+        if options.get("asset_prefixes") is not None:
+            self.extras.ai_reads.set_prefixes(options["asset_prefixes"])
         # attribution.direct_likely / share_window_minutes (direct_likely.settings).
         self.extras.direct_likely = options.get("direct_likely")
         # The sitemap list the day is judged by (sitemap.for_day), or None.

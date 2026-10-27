@@ -33,6 +33,8 @@ KINDS = {"funnels": "funnel_days", "engagement": "engagement",
          # the Social media visits by network: X, LinkedIn, ... (social_networks.py)
          "social_networks": "social_networks",
          "ai_formats": "ai_formats",
+         # an assistant's reads, repeats and the files its pages loaded (ai_reads.py)
+         "ai_reads": "ai_reads",
          "crawler_cost": "crawler_cost",
          # people from search engines by engine and landing page: Skald's side
          # of the Search tab's cross-check with Search Console (search/)

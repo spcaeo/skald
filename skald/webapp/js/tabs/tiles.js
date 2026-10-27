@@ -38,8 +38,12 @@ export function tiles(items) {
 
 // Who else came: the machines, each in the unit it is counted in.
 export function others(t, { probes = false } = {}) {
+  // Reads, not requests (ai-reads.js), once every day of the range has them.
+  const reads = t.ai_reads && !t.unmeasured?.ai_reads ? t.ai_reads.reads ?? 0 : null;
   const items = [
-    ["answer_engines", "AI answering a question now", t.tiers?.asked ?? 0, "pages fetched", "An assistant fetched the page because someone asked it a question just then."],
+    reads != null
+      ? ["answer_engines", "AI answering a question now", reads, `page reads (${n(t.tiers?.asked ?? 0)} requests)`, "An assistant read the page because someone asked it a question just then. Its repeat requests for the page and the page's own files are counted once, as one read."]
+      : ["answer_engines", "AI answering a question now", t.tiers?.asked ?? 0, "requests", "An assistant fetched the page because someone asked it a question just then. Requests, the page's own files included."],
     ["answer_engines", "AI collecting for training", t.tiers?.training ?? 0, "pages fetched", "Crawls that feed an assistant's training or index; nobody is waiting."],
     ["search_engines", "Search engines", t.search ?? 0, "pages fetched", "Indexing by Google, Bing and others; ads quality checks not included."],
     ["bots", "Bots and scanners", t.hits?.bots ?? 0, probes && t.probes ? `requests, ${n(t.probes)} of them probes` : "requests", "Monitors, SEO tools, link previews and scanners probing for weak spots."],

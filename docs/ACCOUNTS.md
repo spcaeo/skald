@@ -31,6 +31,61 @@ keeps one.
 Membership is read on every request: removing a member, or disabling a
 person, ends their access at once.
 
+## Managing organisations (schema 6, Unreleased)
+
+Settings › Organisation › Organisations (`#settings/org/orgs`, `skald/orgs_api.py`)
+lists them as cards: an install admin sees every one, anyone else their own. One card opens a
+drawer (`org=<id>`, its tab `otab=`): Overview, Sites, Members, Pending invites, Settings, Keys,
+Audit. The address names an organisation and a member by id only, never a name or an email.
+
+| Route (`/traffic/<site>/orgs...`) | Body | Who |
+| --- | --- | --- |
+| `GET orgs` | | a member (an install admin: every organisation) |
+| `GET orgs/show?org=ID` | | a member of it, or an install admin |
+| `GET orgs/auditlog?org=ID&limit=` | | admin |
+| `POST orgs/create` | `name, privacy_class, owner ("me" or an email), sites` | install admin |
+| `POST orgs/rename` | `org, name` | admin |
+| `POST orgs/privacy` | `org, privacy_class` | install admin |
+| `POST orgs/archive`, `orgs/restore` | `org` | owner |
+| `POST orgs/move-site` | `org, site` | admin of both |
+| `POST orgs/transfer` | `org, user` | owner |
+| `POST orgs/leave` | `org` | a member (never the last owner) |
+| `POST orgs/prefs` | `org, require_totp` (owner), `mail_daily` (admin) | admin |
+| `POST orgs/member/invite`, `role`, `remove`, `sites` | `org, email` or `user`, `role`, `sites` | admin |
+| `POST orgs/invite/resend`, `cancel` | `org, email` | admin |
+| `POST orgs/token-revoke` | `org, id` | admin |
+
+Every POST needs the same-origin check and the `X-Skald-CSRF` header; every change is one
+audit row (`org.privacy`, `org.archive`, `org.restore`, `org.transfer`, `member.sites`,
+`token.recredit`...). An install admin acts on any organisation as its owner would. In basic
+mode every route answers 404.
+
+**Schema 6** (`accounts/db.py`, added in place by the next start): `orgs.privacy_class`
+(`internal` by default), `orgs.archived_at`, `orgs.archived_by`; `members.sites` and
+`invites.sites` (JSON lists; NULL: every site).
+
+**Site access per member.** An admin or a viewer sees every site of the organisation (the
+default) or only the sites listed in `members.sites`. An owner always sees every site (a limit
+is refused, and made an owner, theirs goes). `users.site_role` applies it, so it holds
+everywhere a site's role is read: nginx's `/traffic-auth/check`, `/me` and every helper route,
+the switcher's `sites.json`, the security and to-do mails (`security_notify.recipients`,
+`todo_api.team`), and API and MCP tokens: a limited person's new token can name only their
+sites ("all sites" becomes theirs), and `apitokens.check` refuses a token on a site its maker no
+longer sees. An invite can carry the limit; it applies when the invite is taken.
+`tests/test_site_access.py` checks each, and that the address cannot dodge it.
+
+**Archive and restore.** Archive pauses each active site of the organisation
+(`site_state.pause`, marked `org-archive:<actor>`) and sets `archived_at`; nothing is
+deleted. Restore resumes only the sites it paused. **Move a site here** keeps its tokens
+working: a moved token whose maker is not an owner or admin of the new organisation is made
+the mover's (or the first owner's), audited `token.recredit`.
+
+**Privacy class.** `internal` or `client`; see [SETTINGS.md](SETTINGS.md), "Keep everything".
+
+**Figures.** The drawer's "Requests, last 7 days" and "Last data" (`org_figures.py`) come from
+the history's daily totals and are shown only when the second count from each day's groups
+(`audit_orgs.py`) agrees; else they are withheld, and Not recorded when nothing was kept.
+
 ## Private data: looking a person up (2.4.0)
 
 The person search (`GET <page>/people?q=`, the box in the top bar, Ctrl K)
@@ -88,6 +143,39 @@ same address replaces the older one ("resend"); an admin can cancel it.
 - **The address already has an account:** joining only adds the
   membership. The link never signs anyone in; they sign in with their own
   password.
+
+### Organisation and people chosen in Add a site (2.43)
+
+Add a site's first step asks which organisation the site goes to and who
+will use it (`setup_people.py`, `sites_api.py` `sites/add`):
+
+- `org`: absent or `same` (this organisation), an organisation's id (one
+  where the maker is an owner or admin; plan and read-only checked there), or
+  `new` with `org_name` and `privacy_class` (`internal`, the default, or
+  `client`). A new organisation is made with the site, its maker added as
+  its owner (so `apitokens.creator_ok` holds for the site's keys), and the
+  choice kept with `orgs.set_privacy_class` (audit `org.privacy`). On a
+  hosted install only an install admin may make one. Nothing is half made: a
+  refusal makes neither the organisation nor the site.
+- `people`: at most 20, each `{user: <member id>, role}` or `{email, role}`,
+  role `viewer` or `admin` (`owner` only for a new organisation). They are
+  kept in the site's set-up row (`site_setup.people`), never in the address
+  (the page keeps `org=`, `ppl=<user ids>` and `sees=` only). Each person carries
+  `sees`: `site` gives them this site only (the members' site access above:
+  `invites.invite(..., sites=[site])`, or `add_member(..., sites=[site])` for a
+  member of another organisation), `all` every site. The default is `site` in an
+  existing organisation and `all` in a new one; an owner always sees every site.
+  A row saved before `sees` existed invites to every site, as it did.
+- **Sent once the data arrives.** The live run and the page's `sites/live`
+  call `setup_people.tick`: when the set-up is done and the first lines
+  arrived, members are added and new addresses invited (the usual invite
+  link, in a mail that says the site is live and how many requests so far),
+  the maker gets one mail ("<site> is live. Invites sent to N people."), and
+  `invites_at` is set so it never runs twice. Audit `setup.invites`.
+- **Late.** After 24 hours without data, one mail to the maker says what is
+  missing (audit `setup.late`); `sites/sendinvites` (owner or admin) sends
+  the invites anyway.
+- Set-up rows from before 2.43 have no maker, so an upgrade sends no mail.
 
 ## Forgotten passwords
 
@@ -164,7 +252,10 @@ with the actor `cli`.
 | `accounts init --org NAME --owner-email EMAIL [--owner-name NAME] [--map NAME=EMAIL] [--base-url URL] [--force]` | First set-up, from basic mode (DEPLOY.md). |
 | `accounts status` | Mode, schema, people, install admins, sessions, each organisation's members, invites, tokens and sites. |
 | `org list` / `org create NAME` / `org rename SLUG NAME` | Organisations. |
+| `org show SLUG` / `org archive SLUG` / `org restore SLUG` | One organisation's sites, members (with the sites each sees) and rules; pause its sites (nothing deleted) and start them again. |
+| `org privacy SLUG internal\|client` / `org transfer SLUG EMAIL [--from EMAIL]` | Its privacy class (docs/SETTINGS.md, "Keep everything"); make a member an owner, the old owner an admin. |
 | `member list` / `member invite EMAIL --role R` / `member role EMAIL R` / `member remove EMAIL` | Members of one organisation (`--org SLUG` when there are several). |
+| `member sites EMAIL [SITE ...] [--all]` | The sites an admin or a viewer sees: none named prints them; `--all` is every site. |
 | `account reset-link EMAIL` | A set-your-password link, valid 60 minutes. |
 | `account disable EMAIL` / `account enable EMAIL` | Stop or allow a person's sign-in (their sessions end). The last owner of an organisation cannot be disabled. |
 | `account totp-off EMAIL` | Turn off two-step sign-in. |

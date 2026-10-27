@@ -13,8 +13,8 @@ from __future__ import annotations
 from datetime import date
 
 from . import pdf_writer as pw
-from .client_report_data import (LEAD_RULE, SC_NOTE, coverage_lines, leads_missing, num, pct,
-                                 period_words, search_console_lines)
+from .client_report_data import (LEAD_RULE, SC_NOTE, asked_words, coverage_lines, leads_missing,
+                                 num, pct, period_words, search_console_lines)
 from .client_report_html import BREAKDOWN_WHY, GAP, on
 from .mail_html import INK, INK2, INK3, PEOPLE, RULE
 
@@ -210,13 +210,15 @@ def _sections(lay: Layout) -> None:
     if "ai" in chosen:
         ai = data["ai"]
         lay.heading("AI and bots")
-        lay.para(f"{ai['asked']:,} fetches because someone asked an AI · {ai['training']:,} "
+        lay.para(f"{asked_words(ai)} · {ai['training']:,} requests "
                  f"to train or index · {ai['search']:,} by search engines · {ai['bots']:,} by "
                  f"other bots.", 9, INK2)
         lay.y += 4
         _table(lay, ("Who", "Requests"), [{"name": f"{c['name']} ({c['kind']})", "n": c["n"]}
                                           for c in ai["crawlers"]], share=False,
-               note="Requests, not people: one question can fetch several pages.")
+               note="Requests, not people. A page read is one page an AI fetched for someone's "
+                    "question; asking for it again within seconds, or for its files, is no new "
+                    "read.")
         if ai["cited_by"]:
             lay.need(40)
             lay.y += 8

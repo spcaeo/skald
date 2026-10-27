@@ -27,6 +27,7 @@ import { newReturningCard, engagementCard, rangeDays, cardDays, filtersOn } from
 import { newReturning, narrowedLists, ARROW } from "../visitorfigs.js";
 import { subView } from "../tablestate.js";
 import { urlFold } from "../ui/fold.js";
+import { recordedCard } from "./recorded.js";
 
 // List or Flow, in the address (vis_view): the list when absent.
 const VIEW = subView("vis");
@@ -94,6 +95,7 @@ export default function visitors(m, s) {
   const v = t.visit;
   out.push(coverageNote(cov, r));
   out.push(...listOrFlow(m, s, r));
+  out.push(recordedCard(m, s, r));     // 2.43: what the site sent itself, labelled, never added to the visits
   const eng = engagementCard(m, s, r, src);
   out.push(h("div", { class: "vs-pair" }, newReturningCard(m, s, r, src), eng));
   // Drawn now (its visits.json also fills the engagement card's assistants), shown in the fold.

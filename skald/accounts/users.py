@@ -4,9 +4,17 @@ A user is one email address. Roles are per organisation: owner, admin,
 viewer. An organisation always keeps at least one owner who is not
 disabled; removing, demoting or disabling the last one is refused in plain
 words. The install keeps at least one install admin the same way.
+
+Site access (schema 6): an admin or a viewer may be limited to some of the
+organisation's sites (`members.sites`, a JSON list; NULL: every site, the
+default). `site_role` answers None for a site outside the list, so every place
+that decides a member's sites (nginx's session check, /me, the switcher, the
+helper's routes, tokens they make, the mails) refuses it alike. An owner always
+sees every site: making someone an owner clears their list.
 """
 from __future__ import annotations
 
+import json
 import re
 
 from . import auditlog, passwords
@@ -155,16 +163,102 @@ def role_in(db, user_id, org_id) -> str | None:
 
 
 def site_role(db, user_id, site) -> tuple[str | None, dict | None]:
-    """(role, org) for `user_id` on `site`: (None, org) when not a member,
-    (None, None) when the site belongs to no organisation."""
+    """(role, org) for `user_id` on `site`: (None, org) when not a member, or a
+    member limited to other sites of it; (None, None) when the site belongs to
+    no organisation."""
     from .orgs import org_of_site
     org = org_of_site(db, site)
     if org is None:
         return None, None
-    return role_in(db, user_id, org["id"]), org
+    row = db.execute("SELECT role, sites FROM members WHERE org_id = ? AND user_id = ?",
+                     (org["id"], user_id)).fetchone()
+    if row is None or not sees(row[1], site):
+        return None, org
+    return row[0], org
 
 
-def add_member(db, org_id, user_id, role, actor) -> None:
+# ------------------------------------------------------------ site access
+
+def _limit(raw) -> list[str] | None:
+    """A stored `members.sites` / `invites.sites` value as a list, or None (every site)."""
+    if raw in (None, ""):
+        return None
+    try:
+        got = json.loads(raw)
+    except (TypeError, ValueError):
+        return []                       # unreadable: no site (never more than was given)
+    return [str(s) for s in got] if isinstance(got, list) else []
+
+
+site_limit = _limit
+
+
+def sees(raw, site) -> bool:
+    """Whether a member whose stored limit is `raw` may see `site`."""
+    limit = _limit(raw)
+    return limit is None or str(site) in limit
+
+
+def site_access(db, org_id, user_id) -> list[str] | None:
+    """The sites a member is limited to (only those still in the organisation),
+    or None for every site."""
+    row = db.execute("SELECT sites FROM members WHERE org_id = ? AND user_id = ?",
+                     (org_id, user_id)).fetchone()
+    limit = _limit(row[0]) if row is not None else None
+    if limit is None:
+        return None
+    own = {r[0] for r in db.execute("SELECT name FROM sites WHERE org_id = ?", (org_id,))}
+    return sorted(s for s in limit if s in own)
+
+
+def visible_sites(db, org_id, user_id) -> list[str]:
+    """The organisation's sites this member may see, by name."""
+    names = [r[0] for r in db.execute("SELECT name FROM sites WHERE org_id = ? ORDER BY name",
+                                      (org_id,))]
+    limit = site_access(db, org_id, user_id)
+    return names if limit is None else [n for n in names if n in limit]
+
+
+def clean_sites(db, org_id, sites) -> list[str] | None:
+    """A limit given by a person (a list of site names, or None for every site),
+    checked against the organisation's sites. ValueError in plain words."""
+    if sites is None:
+        return None
+    if not isinstance(sites, (list, tuple)) or not all(isinstance(s, str) for s in sites):
+        raise ValueError("Sites is a list of site names, or none for every site.")
+    got = sorted({s.strip().lower() for s in sites if s.strip()})
+    if not got:
+        raise ValueError("Choose at least one site, or every site.")
+    own = {r[0] for r in db.execute("SELECT name FROM sites WHERE org_id = ?", (org_id,))}
+    foreign = [s for s in got if s not in own]
+    if foreign:
+        raise ValueError(f"Not a site of this organisation: {', '.join(foreign)}.")
+    return got
+
+
+def set_site_access(db, org_id, user_id, sites, actor) -> list[str] | None:
+    """Limit a member to `sites` (None: every site). An owner always sees every
+    site. Their sessions on a site taken away end at its next request."""
+    user = _need(db, user_id)
+    with base.tx(db):
+        role = role_in(db, user_id, org_id)
+        if role is None:
+            raise ValueError(f"{user['email']} is not a member.")
+        got = clean_sites(db, org_id, sites)
+        if got is not None and role == "owner":
+            raise ValueError("An owner sees every site. Make them an admin or a viewer first.")
+        old = site_access(db, org_id, user_id)
+        db.execute("UPDATE members SET sites = ? WHERE org_id = ? AND user_id = ?",
+                   (json.dumps(got) if got is not None else None, org_id, user_id))
+        if old != got:
+            auditlog.record(db, org_id, actor, "member.sites", user["email"],
+                            f"{', '.join(old) if old is not None else 'every site'} -> "
+                            f"{', '.join(got) if got is not None else 'every site'}")
+    return got
+
+
+def add_member(db, org_id, user_id, role, actor, sites=None) -> None:
+    """`sites`: limit the new member to these sites of the organisation (not an owner)."""
     role = _role(role)
     user = _need(db, user_id)
     with base.tx(db):
@@ -172,9 +266,12 @@ def add_member(db, org_id, user_id, role, actor) -> None:
             raise ValueError("There is no such organisation.")
         if role_in(db, user_id, org_id):
             raise ValueError(f"{user['email']} is already a member.")
-        db.execute("INSERT INTO members (org_id, user_id, role, added_by, added_at) "
-                   "VALUES (?, ?, ?, ?, ?)", (org_id, user_id, role, str(actor), base.now()))
-        auditlog.record(db, org_id, actor, "member.add", user["email"], role)
+        limit = clean_sites(db, org_id, sites) if role != "owner" else None
+        db.execute("INSERT INTO members (org_id, user_id, role, added_by, added_at, sites) "
+                   "VALUES (?, ?, ?, ?, ?, ?)", (org_id, user_id, role, str(actor), base.now(),
+                                                 json.dumps(limit) if limit else None))
+        auditlog.record(db, org_id, actor, "member.add", user["email"],
+                        role + (f"; only {', '.join(limit)}" if limit else ""))
 
 
 def _keep_an_owner(db, org_id, user_id) -> None:
@@ -199,6 +296,11 @@ def set_role(db, org_id, user_id, role, actor) -> None:
         db.execute("UPDATE members SET role = ? WHERE org_id = ? AND user_id = ?",
                    (role, org_id, user_id))
         auditlog.record(db, org_id, actor, "member.role", user["email"], f"{old} -> {role}")
+        if role == "owner" and site_access(db, org_id, user_id) is not None:
+            db.execute("UPDATE members SET sites = NULL WHERE org_id = ? AND user_id = ?",
+                       (org_id, user_id))
+            auditlog.record(db, org_id, actor, "member.sites", user["email"],
+                            "every site: an owner sees every site")
 
 
 def remove_member(db, org_id, user_id, actor) -> None:
@@ -214,11 +316,20 @@ def remove_member(db, org_id, user_id, actor) -> None:
 
 
 def members(db, org_id) -> list[dict]:
+    """Each member, with "sites": the sites they are limited to, or None (every site)."""
     got = base.rows(db, "SELECT u.id, u.email, u.name, m.role, m.added_at, u.last_seen, "
                         "u.totp_secret IS NOT NULL AS totp_on, u.disabled_at, "
-                        "u.pw_hash IS NOT NULL AS has_password FROM members m "
+                        "u.pw_hash IS NOT NULL AS has_password, m.sites FROM members m "
                         "JOIN users u ON u.id = m.user_id WHERE m.org_id = ? "
                         "ORDER BY u.email", (org_id,))
+    own = {r[0] for r in db.execute("SELECT name FROM sites WHERE org_id = ?", (org_id,))}
     for m in got:
         m["totp_on"], m["has_password"] = bool(m["totp_on"]), bool(m["has_password"])
+        limit = _limit(m["sites"])
+        m["sites"] = None if limit is None else sorted(s for s in limit if s in own)
     return got
+
+
+def owners(db, org_id) -> list[dict]:
+    """The organisation's enabled owners, by email."""
+    return [m for m in members(db, org_id) if m["role"] == "owner" and not m["disabled_at"]]

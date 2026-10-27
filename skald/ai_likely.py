@@ -67,6 +67,11 @@ the visits were not counted - "not recorded", never 0):
                   a direct untagged visit landing on the same page} - a
                   fetch-side figure: a visit two assistants fetched for
                   follows a fetch of each
+  reads           {assistant: its reads that day} (ai_reads.py: a page asked
+                  for again within the read's window, or a file the page
+                  loaded, is no read); adds up to the day's ai_reads reads.
+                  Absent on a day counted before reads were
+  reads_followed  {assistant: those reads followed the same way}
 
 Each likely visit's journey carries `likely_ai`: {"name", "names",
 "minutes"} (the assistant or "(more than one)", every assistant in the
@@ -157,10 +162,17 @@ class Fetches:
 
     def __init__(self) -> None:
         self.rows: list[tuple[int, str, str]] = []      # (minute, assistant, path)
+        # (minute, assistant, path) -> the reads that began there (ai_reads.py)
+        self.started: Counter = Counter()
+        self.reads: list[tuple[int, str, str]] = []     # the rows that began a read
 
-    def add(self, hit, verdict) -> None:
+    def add(self, hit, verdict, role: str | None = None) -> None:
         if verdict.group is Group.ANSWER_ENGINE and verdict.tier is Tier.ASKED:
-            self.rows.append((minute(hit.when), owner(verdict.engine), hit.path[:70]))
+            row = (minute(hit.when), owner(verdict.engine), hit.path[:70])
+            self.rows.append(row)
+            if role == "read":
+                self.started[row] += 1
+                self.reads.append(row)
 
 
 def direct_untagged(j: dict) -> bool:
@@ -236,6 +248,15 @@ def finish(extras, totals, journeys, page_visits, readers_by_hour) -> dict | Non
         seen = landed.get(page_key(path), [])
         if bisect_right(seen, m + window) > bisect_left(seen, m):
             followed[who] += 1
+    # The same for reads (ai_reads.py): a page asked for again in its read's
+    # window, or a file it loaded, is no second chance to be followed.
+    reads: Counter = Counter()
+    reads_followed: Counter = Counter()
+    for m, who, path in getattr(fetched, "reads", ()):
+        reads[who] += 1
+        seen = landed.get(page_key(path), [])
+        if bisect_right(seen, m + window) > bisect_left(seen, m):
+            reads_followed[who] += 1
     ruled: dict[str, list] = {}
     for who, key in sorted(chance):
         ruled.setdefault(who, []).append(key)
@@ -244,7 +265,9 @@ def finish(extras, totals, journeys, page_visits, readers_by_hour) -> dict | Non
             "likely": int(sum(by_assistant.values())),
             "by_assistant": dict(sorted(by_assistant.items())), "pages": _fold(pages),
             "fetches": dict(sorted(fetches.items())),
-            "followed": {k: int(followed.get(k, 0)) for k in sorted(fetches)}}
+            "followed": {k: int(followed.get(k, 0)) for k in sorted(fetches)},
+            "reads": {k: int(reads.get(k, 0)) for k in sorted(fetches)},
+            "reads_followed": {k: int(reads_followed.get(k, 0)) for k in sorted(fetches)}}
 
 
 def check(totals, blob, differs, problems) -> None:
@@ -267,6 +290,15 @@ def check(totals, blob, differs, problems) -> None:
     for who, n in (blob.get("followed") or {}).items():
         if int(n) > int((blob.get("fetches") or {}).get(who, 0)):
             problems.append(Problem(f"ai_likely: {who}", "more fetches followed than fetches"))
+    for who, n in (blob.get("reads") or {}).items():
+        if not int((blob.get("reads_followed") or {}).get(who, 0)) <= int(n) \
+                <= int((blob.get("fetches") or {}).get(who, 0)):
+            problems.append(Problem(f"ai_likely: {who}", "reads followed, reads and fetches "
+                                                         "do not nest"))
+    reads = ((getattr(totals, "extras", None) or {}).get("ai_reads") or {}).get("reads")
+    if blob.get("reads") is not None and reads is not None:
+        differs("ai_likely: reads by assistant", sum(int(v) for v in blob["reads"].values()),
+                int(reads), "reads (ai_reads)")
     journeys = getattr(totals, "journeys", None)
     if journeys is not None:
         differs("ai_likely: journeys marked likely",
@@ -292,7 +324,7 @@ def fetch_index(history, site: str, first: date, last: date) -> dict:
         kept.add(day)
         ruled = {(who, key) for who, keys in
                  ((blobs.get("ai_likely") or {}).get("by_chance") or {}).items() for key in keys}
-        for at, who, path, _n in rows:
+        for at, who, path, *_n in rows:
             if (who, page_key(path)) not in ruled:
                 pages.setdefault(page_key(path), []).append((_stored_minute(at), who))
     for got in pages.values():

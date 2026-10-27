@@ -122,13 +122,16 @@ class Security(unittest.TestCase):
 
 
 class Polish(unittest.TestCase):
-    def test_period_options_have_one_place_the_top_bar(self):
+    def test_period_options_have_one_place_each(self):
+        # 2.43: Include today is one press, a switch on Summary's and Pages' period line; the
+        # More menu no longer has it. Compare stays the top bar's menu only.
         line = code(JS / "period-line.js")
-        self.assertNotIn('role: "switch"', line)
-        self.assertNotIn("S.set(", line)
+        self.assertEqual(line.count('role: "switch"'), 1)
+        self.assertIn('S.set({ inc: on ? "" : "1" })', line)
+        self.assertNotIn("cmp:", line, "Compare is not switched here")
         more = code(JS / "main.js").split("function rangeMore", 1)[1].split("\n}\n", 1)[0]
-        self.assertIn("Include today", more)
-        self.assertIn('role: "menuitemcheckbox"', more)
+        self.assertNotIn("Include today", more)
+        self.assertNotIn("inc:", more)
 
     def test_the_trail_line_is_the_back_link_alone(self):
         draw = code(JS / "crumbs.js").split("function draw(", 1)[1].split("\n}\n", 1)[0]

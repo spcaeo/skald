@@ -239,6 +239,7 @@ export function total(days) {
     health: ok.filter((d) => !d.statuses).length,
     returning: ok.filter((d) => !d.returning).length,
     ai_formats: ok.filter((d) => !d.ai_formats).length,
+    ai_reads: ok.filter((d) => !d.ai_reads).length,
     first_touch: ok.filter((d) => !d.first_touch).length,
   };
   return out;

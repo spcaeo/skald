@@ -38,7 +38,7 @@ export default [
   // Real time (js/tabs/realtime.js): always now, whatever the period; it asks for
   // fresh figures every 15 seconds itself, so the 2-minute redraw leaves it alone.
   ["realtime", "Real time", realtime, { live: true, polls: true, ranged: false, period: "Now" }],
-  ["insights", "Insights", insights, { file: "insights", filters: ["path", "country", "source", "campaign", "referrer"], keep: ["since", "todo", "pchg"], ranged: false, period: "Each insight's own two periods" }],
+  ["insights", "Insights", insights, { file: "insights", filters: ["path", "country", "source", "campaign", "referrer"], keep: ["since", "todo", "pchg", "tdchk"], ranged: false, period: "Each insight's own two periods" }],
   // #live and #compare are the global modes now (js/modes.js, routes.js): Summary with
   // range=today, or any tab with cmp set. No Live or Compare tab of their own.
 ];

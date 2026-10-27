@@ -22,6 +22,9 @@ import { stamp } from "../tz.js";
 import { profileEditor, estimate, costWords, usd, FREQ } from "./ai-answers-edit.js";
 import { chainCard, sovChart, matrix, questionsTable, competitorsTable, profileLabel, profileText } from "./ai-answers-parts.js";
 import { withUrl } from "../urlactions.js";
+import { connectCard, mayConnect } from "../ui/connect.js";
+import { fold } from "../ui/fold.js";
+import { pill } from "../ui/pill.js";
 
 const LEDE = "What ChatGPT, Perplexity, Gemini and Claude say when asked the questions your buyers ask. Skald asks each one through its API on a schedule, as if from the place and language of a profile, and reads every answer.";
 const SAMPLE = [h("b", null, "A sample of API answers, not what every user sees. "),
@@ -57,11 +60,14 @@ export async function openAnswer(id, provName = (x) => x) {
     h("div", { class: "acts" }, close));
 }
 
-function setupCard(x) {
-  return h("section", { class: "s aa-card" }, h("h2", null, "Set up AI answers"),
-    h("p", { class: "sub" }, "Four steps. Nothing is asked, and nothing costs, until a key and a profile exist. The questions are sent to the providers you choose."),
-    h("ol", { class: "aa-steps" }, x.setup.steps.map((st) => h("li", { class: st.done ? "done" : null },
-      h("span", { class: "tick", "aria-hidden": "true" }, st.done ? "✓" : ""), h("span", null, st.words, st.done ? h("span", { class: "vh" }, " Done.") : null)))));
+/* 2.43: not set up. AI answers stay off without keys (the owner's rule), so this is their plain
+   state (js/ui/connect.js, mode plain): no Connect, the four steps folded, each with its pill,
+   and where an admin sets them up. */
+function setupCard(m, x) {
+  const steps = fold(`The four steps (${(x.setup?.steps || []).filter((st) => st.done).length} of ${(x.setup?.steps || []).length} done)`,
+    () => h("ol", { class: "aa-steps" }, (x.setup?.steps || []).map((st) => h("li", { class: st.done ? "done" : null }, pill(st.done ? "good" : "off", st.done ? "Done" : "To do"), " ", h("span", null, st.words)))));
+  const where = mayConnect() ? h("p", { class: "note" }, "Keys and profiles are in ", h("a", { href: "#settings/ai/answers?sub=keys" }, "Settings › AI answers"), ".") : null;
+  return connectCard(m, "ai", { mode: "plain", plainExtra: [steps, where] });
 }
 
 // The aside: the profile's settings (sessions mode), else what the file says.
@@ -114,7 +120,7 @@ export default function aiAnswers(m, s) {
   if (profs.length || sessions()) out.push(chips);
 
   const left = h("div", { class: "aa-main" });
-  if (x.state !== "ok") left.append(setupCard(x));
+  if (x.state !== "ok") left.append(setupCard(m, x));
   if (x.chain.length) chainAt = Math.min(chainAt, x.chain.length - 1);
   left.append(chainCard(x, [...x.chain.slice(chainAt), ...x.chain.slice(0, chainAt)], provName, (i) => { chainAt = (chainAt + i) % x.chain.length; redraw(); }));
   if (prof) {

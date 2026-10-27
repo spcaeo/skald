@@ -42,6 +42,34 @@ Each to-do has one main button, **Fix this**. It asks one question, **Who will d
 - **See it in** goes to the tab that shows it.
 - **Mark done** moves it to **Done, and did it work?**. From the next data update, Skald re-checks it on every whole day after the day you marked it, with the same measure: "Fixed: 0 not-found answers since 25 Oct", or "Not yet: 5 not-found answers since 25 Oct". **Undo** puts it back.
 - **Not now** folds it away under **Not now**. **Put back** brings it back.
+- **Check again** asks now whether it is fixed. See below.
+
+## Check again: is it fixed now?
+
+Made a fix and want to know at once? Press **Check again** on the to-do (it is in **Fix this** too, under **Me**). Skald runs that to-do's own check now and shows the answer in place:
+
+- **Fixed:** "Fixed: all 12 addresses now answer 301 to a live page". The to-do moves to **Done, and did it work?** as **Fixed**. Skald made that mark, not you, so there is no Undo: a later check that finds an address broken again puts the to-do back the way it was.
+- **Partly fixed:** "3 of 12 addresses still answer 404". **Show the 3 not fixed** lists them, each with what it answers now. The address keeps that list open (`tdchk=lost-pages`), so a link opens it.
+- **Not fixed** or **Could not check** (your site did not answer): nothing changes.
+- **Can't check yet:** the to-do comes from visits, not from an address Skald can ask. It is judged on whole days of visits after you mark it done.
+
+How each kind is checked:
+
+| To-do | Check again | Fixed when |
+| --- | --- | --- |
+| Send old pages somewhere useful | Skald asks each old address | it answers 410, it redirects to a page that answers, or the page is live again. A redirect to another site counts; Skald never follows it there |
+| Give AI the Markdown copies | Skald asks each `.md` address | it answers with the copy, or redirects to the page |
+| Fix the sitemap address | Skald asks each sitemap address | it answers, or redirects to a sitemap that does |
+| Fix the server errors | Skald asks each address once | it answers without a server error. The daily re-check keeps counting the log, since an error can come and go |
+| Make a page lead somewhere | not asked | judged on the whole days of visits after you mark it done |
+
+Each check also reads your newest log lines since you marked the to-do done (at most a day back): "In the log since 14:10: none of these addresses answered 404". A fix made after the mark leaves older failures in the log, so the live answer decides.
+
+Skald asks politely: at most 50 addresses a check (**Check the next 50** goes on), one at a time, with a short wait between them and a time limit; with its own user agent (`site-todo-check`), which Skald counts as its own, never as a visitor or a bot; HEAD requests, no cookies, and it reads no page. **Check all again**, above the list, checks every to-do Skald can ask, one after the other, and shows how far it is. A site can have 30 checks an hour, and each to-do one a minute.
+
+When your AI agent reports a to-do done, Skald runs the same check straight away and shows its answer beside the agent's report.
+
+Only owners and admins press **Check again**; a viewer sees the answers. Each check is a row in the audit log ("todo.checked"), without the addresses. A **Fixed** mark is counted twice too: a separate count reads the answers Skald kept and must find every address fixed, or the to-do shows as done, not fixed, with why.
 
 **New to-dos.** A to-do that came onto the list in the last 7 days is new. The page says "N new to-dos your AI agent can fix" above the list, with one button that opens **Fix this > My AI agent**. The summary mail says the same and links to that dialog (never with a code: you make the line when you press). A webhook can say it too: tick `todo.new` under **Outgoing webhooks** in [Leads & integrations](#settings/site/leads). It sends the to-do's title, proof, figures and link, never a code or a row.
 

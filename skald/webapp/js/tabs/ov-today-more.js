@@ -150,13 +150,15 @@ export function convertedCard(m) {
 const top3 = (obj) => Object.entries(obj || {}).filter(([k, v]) => v > 0 && k !== "(all others)").sort((a, b) => b[1] - a[1]);
 
 export function aiCard(t) {
-  const asked = t.tiers?.asked ?? 0, sent = t.cited ?? 0;
+  // Reads, not requests (ai-reads.js): one assistant, one page, once in 30 seconds.
+  const known = !!t.ai_reads;
+  const asked = known ? t.ai_reads.reads ?? 0 : t.tiers?.asked ?? 0, sent = t.cited ?? 0;
   const training = t.tiers?.training ?? 0, search = t.hits?.search_engines ?? 0;
   const crawl = training + search;
   const stat = (colour, label, sub, v, unit) => h("div", { class: "td-ai" },
     h("span", null, h("span", { class: "td-ail" }, h("i", { class: "td-sw sq", style: { background: colour } }), label), h("small", null, sub)),
     h("span", { class: "td-aiv" }, n(v), h("small", null, unit)));
-  const readers = top3(t.engines?.asked).slice(0, 3);
+  const readers = top3(known ? Object.fromEntries(Object.entries(t.ai_reads.by_name || {}).map(([k, v]) => [k, v.reads || 0])) : t.engines?.asked).slice(0, 3);
   const most = Math.max(1, ...readers.map(([, v]) => v));
   const names = top3({ ...(t.engines?.training || {}), ...(t.search_engines || {}) }).slice(0, 3);
   const others = Math.max(0, crawl - names.reduce((a, [, v]) => a + v, 0));
@@ -164,7 +166,7 @@ export function aiCard(t) {
   return h("section", { class: "td-card td-aibox", "aria-labelledby": "td-ai-h" },
     cardHead("td-ai-h", "AI & bots today", "Read from the server log. Requests are not people.", goLink("ai/assistants", "AI & bots")),
     h("div", { class: "td-ais" },
-      stat("var(--g-answer_engines)", "AI read pages for people", "An assistant fetched a page while answering someone", asked, "fetches"),
+      stat("var(--g-answer_engines)", "AI read pages for people", known ? `An assistant read a page while answering someone (${n(t.tiers?.asked ?? 0)} requests)` : "An assistant fetched a page while answering someone", asked, known ? "reads" : "requests"),
       stat("var(--g-people)", "AI sent visitors", "People who clicked through from an answer", sent, "visitors"),
       stat("var(--g-bots)", "Crawler requests", "Search indexing and AI training crawlers, not people", crawl, "requests")),
     readers.length ? h("div", { class: "td-aib" }, h("b", null, "Who read the most pages for people"),

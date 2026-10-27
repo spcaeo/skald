@@ -6,7 +6,10 @@ One row per site, engine, day and kind, holding one JSON blob:
   day      the engine's own day: Search Console's days are Pacific Time
            (America/Los_Angeles), as Google gives them; Bing's are the dates
            Bing gives. Never re-cut into the site's time zone.
-  kind     total, query, page, country, device, appearance
+  kind     total, query, page, country, device, appearance, and (Search
+           Console only) query_page: each query with the page it
+           showed, keyed "<query>\t<page>" (QP_SEP), counted by page as Google
+           does when the page is a dimension
   final    1 when the engine says the day will not change (Search Console:
            before the answer's first_incomplete_date; Bing: older than
            BING_FINAL_DAYS); 0: provisional, fetched again by the next sync
@@ -45,8 +48,10 @@ import json
 from datetime import date, datetime, timezone
 
 ENGINES = ("google", "bing")
-KINDS = ("total", "query", "page", "country", "device", "appearance")
-TOP = {"query": 500, "page": 300, "country": 250, "device": 10, "appearance": 100}
+KINDS = ("total", "query", "page", "country", "device", "appearance", "query_page")
+TOP = {"query": 500, "page": 300, "country": 250, "device": 10, "appearance": 100,
+       "query_page": 500}
+QP_SEP = "\t"                          # query_page's key: query, a tab, the page address
 OTHER = "(all others)"
 BING_FINAL_DAYS = 10
 
@@ -55,7 +60,8 @@ CREATE TABLE IF NOT EXISTS search_days (
     site       TEXT NOT NULL,
     engine     TEXT NOT NULL,           -- google / bing
     day        TEXT NOT NULL,           -- the engine's own day, YYYY-MM-DD
-    kind       TEXT NOT NULL,           -- total, query, page, country, device, appearance
+    kind       TEXT NOT NULL,           -- total, query, page, country, device, appearance,
+                                        -- query_page
     data       TEXT NOT NULL,           -- JSON (search/days.py)
     final      INTEGER NOT NULL,        -- 1: the engine says it will not change
     source     TEXT NOT NULL,           -- the property / site address

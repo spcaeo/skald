@@ -358,6 +358,7 @@ function draw(d, model, extra) {
     model.facts ? fold("This conversion", () => model.facts, { open: true, cls: "vz-more" }) : null,
     all.length > 1 ? fold(`Every visit as a table (${n(visitCount(model))})`, () => timeline(model), { cls: "vz-more" }) : null,
     ...(model.person ? personParts(model.person) : []),
+    d.recorded || null,                  // 2.43: Recorded by your site (tabs/recorded.js visitRecorded)
   ].filter(Boolean));
   const title = titleOf(model);
   const t = d.el.querySelector(".dw-title");
@@ -401,6 +402,7 @@ export async function openVisitor(key) {
   const vis = visitKey(j);
   const d = openDrawer({ title: "Visitor", subtitle: " ", key: "visitor", scope: "page", className: "vz-dw", route: vis ? { key: "vis", value: vis } : null });
   draw(d, fromJourney(j), "Anonymous: no address, no browser string, no identifier on this page.");
+  if (mayFind()) import("./recorded.js").then((x) => x.visitRecorded(d, j, null)).catch(() => {});
   const url = j.day && j.seq != null ? `people/visitor?day=${encodeURIComponent(j.day)}&seq=${encodeURIComponent(j.seq)}` : "";
   const ask = url && (mayFind() || (DEMO.on && demoFile(url)));
   if (!ask) {
