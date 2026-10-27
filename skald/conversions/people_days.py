@@ -314,7 +314,7 @@ def run(ctx, today: date | None = None) -> dict:
     "backups"}} for the sites with anything cleared. Marks the sweep done."""
     from ..keep_everything import of
     spare = of(ctx)
-    if spare.all:                     # the install keeps everything: nothing is opened
+    if spare.all:                     # every site keeps everything: nothing is opened
         return {}
     folder = Path(ctx.db_path).parent
     path = store.path_for(ctx.config, folder)

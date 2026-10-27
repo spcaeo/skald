@@ -16,6 +16,12 @@
                 the daily run. Each connected site in turn, under its own lock
                 (search/sync.py); a site with nothing connected is skipped at
                 once. Its failures mail once by themselves, so no failure mail here.
+    tools       `tools sync` every SKALD_TOOLS_HOURS hours (6; 0 turns it off) from
+                SKALD_TOOLS_AT (02:10): the figures from each site's own tools (Google
+                Analytics...; yourtools/sync.py), at an even lower priority than the
+                other jobs (SKALD_JOB_NICE + TOOLS_NICE, at most 19): they are never
+                urgent. A site with no tool on is skipped at once; its failures mail
+                once by themselves.
     ai-answers  `ai-answers --due` every SKALD_AI_ANSWERS_MINUTES minutes (15; 0 turns
                 it off): the AI answers tracking profiles whose time has come, or
                 that an admin asked to run now (answers/run.py). Nothing is asked
@@ -56,6 +62,7 @@ NGINX_PID = Path("/tmp/skald-nginx/nginx.pid")
 BEACON_LOG = Path("/var/log/nginx/skald-beacon.log")
 LOG_CAP = 5 * 1024 * 1024
 UTC = timezone.utc
+TOOLS_NICE = 5                  # the tools' sync: below every other job
 
 
 # ------------------------------------------------------------ the timing
@@ -160,8 +167,10 @@ def lower_priority(n: int):
 
 
 class Job:
-    def __init__(self, name: str, args: list[str] | None, due, notify: bool = False, fn=None):
+    def __init__(self, name: str, args: list[str] | None, due, notify: bool = False, fn=None,
+                 nicer: int = 0):
         self.name, self.args, self.due_after, self.notify, self.fn = name, args, due, notify, fn
+        self.nicer = nicer                  # added to SKALD_JOB_NICE for this job (at most 19)
         self.proc: subprocess.Popen | None = None
         self.out = None
         self.started = 0.0
@@ -171,7 +180,8 @@ class Job:
 class Scheduler:
     def __init__(self, config: str, tz: str, live_minutes: int, daily_at: str, backup_at: str,
                  report_minutes: int = 15, search_hours: int = 0, search_at: str = "01:40",
-                 answers_minutes: int = 0, summary_at: str | None = None):
+                 answers_minutes: int = 0, summary_at: str | None = None,
+                 tools_hours: int = 0, tools_at: str = "02:10"):
         self.config = config
         ti = [sys.executable, str(APP / "bin/skald"), "--config", config]
         self.ti = ti
@@ -189,6 +199,10 @@ class Scheduler:
         if search_hours > 0:
             self.jobs.append(Job("search", ti + ["search", "sync"],
                                  lambda t: next_hours(t, search_at, search_hours, tz)))
+        if tools_hours > 0:
+            self.jobs.append(Job("tools", ti + ["tools", "sync"],
+                                 lambda t: next_hours(t, tools_at, tools_hours, tz),
+                                 nicer=TOOLS_NICE))
         if answers_minutes > 0:
             self.jobs.append(Job("ai-answers", ti + ["ai-answers", "--due"],
                                  lambda t: next_every(t, answers_minutes)))
@@ -218,7 +232,7 @@ class Scheduler:
             job.out = subprocess.DEVNULL
         job.proc = subprocess.Popen(job.args, cwd=str(APP), stdout=job.out,
                                     stderr=subprocess.STDOUT,
-                                    preexec_fn=lower_priority(job_nice()))
+                                    preexec_fn=lower_priority(min(19, job_nice() + job.nicer)))
         job.started = time.monotonic()
 
     def finish(self, job: Job, code: int) -> None:
@@ -317,14 +331,19 @@ def main(argv: list[str] | None = None) -> int:
     search_hours = int(os.environ.get("SKALD_SEARCH_HOURS") or 6)
     search_at = os.environ.get("SKALD_SEARCH_AT") or "01:40"
     parse_hhmm(search_at)
+    tools_hours = int(os.environ.get("SKALD_TOOLS_HOURS") or 6)
+    tools_at = os.environ.get("SKALD_TOOLS_AT") or "02:10"
+    parse_hhmm(tools_at)
     answers = int(os.environ.get("SKALD_AI_ANSWERS_MINUTES") or 15)
     summary = summary_time(os.environ.get("SKALD_SUMMARY_AT"))
     say(f"times in {tz}: run-daily {daily}, backup {backup}, live every {minutes} min, "
         f"client reports every {reports} min, search sync every {search_hours} h from {search_at}, "
+        f"tools sync every {tools_hours} h from {tools_at}, "
         f"AI answers every {answers} min, summary mail {summary or 'off'}")
     return Scheduler(a.config, tz, minutes, daily, backup, report_minutes=reports,
                      search_hours=search_hours, search_at=search_at,
-                     answers_minutes=answers, summary_at=summary).run()
+                     answers_minutes=answers, summary_at=summary, tools_hours=tools_hours,
+                     tools_at=tools_at).run()
 
 
 if __name__ == "__main__":

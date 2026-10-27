@@ -109,12 +109,15 @@ def recipients(db, site: str) -> list[dict]:
     if org is None:
         return []
     out = []
-    for r in db.execute("SELECT u.id, u.email, m.role, u.pw_hash IS NOT NULL, u.disabled_at "
-                        "FROM members m JOIN users u ON u.id = m.user_id WHERE m.org_id = ? "
-                        "ORDER BY u.email", (org["id"],)).fetchall():
-        uid, email, role, confirmed, disabled = r
+    from .accounts.users import sees
+    for r in db.execute("SELECT u.id, u.email, m.role, u.pw_hash IS NOT NULL, u.disabled_at, "
+                        "m.sites FROM members m JOIN users u ON u.id = m.user_id "
+                        "WHERE m.org_id = ? ORDER BY u.email", (org["id"],)).fetchall():
+        uid, email, role, confirmed, disabled, limit = r
         if not confirmed or disabled:
             continue                    # an unconfirmed or disabled account never gets one
+        if not sees(limit, site):
+            continue                    # limited to other sites of the organisation
         pref = prefs_of(db, uid, role, site)
         if pref["alerts"]:
             out.append({"user_id": uid, "email": email, "role": role, "mode": pref["mode"],

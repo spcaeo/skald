@@ -264,7 +264,21 @@ def _countries(people, credit=None) -> str:
     return _card("Countries", _table(rows, ("Country", "Visitors", "")), note)
 
 
-def _crawlers(totals) -> str:
+def _reads(history, site: str, first: date, last: date) -> int | None:
+    """The period's AI reads (day kind ai_reads: an assistant asking for a page
+    again within its window, or for the page's files, is one read), or None
+    when a day of it was counted before reads were (never a guess)."""
+    blobs = history.extras(site, first, last, ("ai_reads",))
+    total = 0
+    for i in range((last - first).days + 1):
+        got = (blobs.get((first + timedelta(days=i)).isoformat()) or {}).get("ai_reads")
+        if got is None:
+            return None
+        total += int(got.get("reads", 0))
+    return total
+
+
+def _crawlers(totals, reads: int | None = None) -> str:
     engines = totals.groups.get(Group.ANSWER_ENGINE)
     search = totals.groups.get(Group.SEARCH_ENGINE)
     asked = int(engines.tiers.get("asked", 0)) if engines else 0
@@ -283,8 +297,11 @@ def _crawlers(totals) -> str:
     rows = [(f'{esc(n)}<div class="s-ink3" style="font:400 12px/1.4 {FONT};color:{INK3}">'
              f'{words[kinds[n]]}</div>', f"{c:,}", "")
             for n, c in names.most_common(ROWS)]
+    # Reads first, requests second (ai_reads.py); before reads were counted, requests only.
+    said = (f"{reads:,} page reads because someone asked an AI ({asked:,} requests)"
+            if reads is not None else f"{asked:,} requests because someone asked an AI")
     summary = (f'<div class="s-ink2" style="font:400 13px/1.5 {FONT};color:{INK2};'
-               f'padding:0 0 8px">{asked:,} fetches because someone asked an AI · '
+               f'padding:0 0 8px">{said} · '
                f'{training:,} to train or index · {indexing:,} by search engines</div>')
     return _card("AI and crawlers", summary + _table(rows, ("Who", "Requests", "")),
                  "Requests, not people: one question can fetch several pages.")
@@ -417,14 +434,15 @@ def render(kind: str, config: dict, history, tz, site: str, first: date, last: d
         _sources(people) if totals.breakdowns else _unmeasured("Where visitors came from"),
         _pages(people),
         _countries(people, credit) if totals.breakdowns else _unmeasured("Countries"),
-        _crawlers(totals), _health(history, site, tz, first, last, totals, config)]
+        _crawlers(totals, _reads(history, site, first, last)), _health(history, site, tz, first, last, totals, config)]
     who = ", ".join(recipients)
+    verb = "are" if len(recipients) > 1 else "is"
     footer = (
         _button(url)
         + f'<div class="s-ink3" style="font:500 12px/1.6 {FONT};color:{INK3};text-align:center">'
         f'{esc(brand.line(b))}</div>'
         f'<div class="s-ink3" style="font:400 12px/1.6 {FONT};color:{INK3};text-align:center;'
-        f'padding:6px 12px 0">You get this because {esc(who)} is on the report list for '
+        f'padding:6px 12px 0">You get this because {esc(who)} {verb} on the report list for '
         f'{esc(site)} (mail.to in the server\'s Skald settings): a daily report each morning '
         f'and a weekly one on Mondays. Read from the web server\'s own logs; nothing in this '
         f'mail tracks you.</div>')

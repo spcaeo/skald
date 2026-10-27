@@ -103,6 +103,16 @@ CASES = [
     {"settings": settings(search="https://example.com/")},             # 2.40: Search Console
     {"settings": {k: v for k, v in settings().items() if k != "search.google_property"}},
     FINISHED,
+    # Your own tools: one optional line each, every state.
+    {"yourtools": [{"tool": "ga4", "name": "Google Analytics", "state": s, "words": w}
+                   for s, w in (("off", "Not connected"),)]},
+    {"yourtools": [{"tool": "ga4", "name": "Google Analytics", "state": s, "words": w}
+                   for s, w in (("answering", "Answering"),)], **FINISHED},
+    {"yourtools": [{"tool": t, "name": t.upper(), "state": s, "words": w} for t, s, w in (
+        ("a", "off", "Paused"), ("b", "no_key", "Needs its key"),
+        ("c", "waiting", "Waiting for its first answer"), ("d", "failing", "Last try failed"),
+        ("e", "stopped", "Stopped answering"), ("f", "withheld", "Withheld"))]},
+    {"yourtools": []},
 ]
 
 
@@ -120,7 +130,8 @@ class SameLinesAsThePage(unittest.TestCase):
         for n, (case, page) in enumerate(zip(CASES, pages)):
             got = setup_items.items(case.get("app"), status=case.get("status"),
                                     tools=case.get("tools"), settings=case.get("settings"),
-                                    waiting=case.get("waiting", []))
+                                    waiting=case.get("waiting", []),
+                                    yourtools=case.get("yourtools"))
             with self.subTest(case=n):
                 self.assertEqual([i["id"] for i in got], [i["id"] for i in page["items"]])
                 self.assertEqual([i["state"] for i in got], [i["state"] for i in page["items"]])
@@ -152,7 +163,9 @@ class Lines(unittest.TestCase):
 
     def test_jobs_are_the_agent_jobs_and_never_countries_or_mail(self):
         self.assertEqual(setup_items.JOBS, ("logs", "script", "lead", "rsc", "assets", "privacy",
-                                            "search"))
+                                            "search", "connect-tools"))
+        self.assertEqual(setup_items.job_of({"state": "todo", "act": "connect-tools"}),
+                         "connect-tools", "a tool's line is the connect-tools job")
         for act in ("countries", "mail"):
             self.assertIsNone(setup_items.job_of({"state": "todo", "act": act}))
 

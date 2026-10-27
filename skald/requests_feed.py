@@ -175,7 +175,9 @@ def _agent(hit, verdict) -> str:
     return _short_agent(agent)
 
 
-def rule_of(hit, verdict, kind: str) -> str:
+def rule_of(hit, verdict, kind: str, role: tuple | None = None) -> str:
+    """The rule in words. `role`: an assistant's user fetch's (role, page)
+    from ai_reads.Roles - a file its page loaded is never "AI asked"."""
     if verdict is None:
         return "excluded: other host"
     group = verdict.group
@@ -183,6 +185,11 @@ def rule_of(hit, verdict, kind: str) -> str:
         return f"ours: {verdict.engine or 'listed'}"
     if group is Group.ANSWER_ENGINE:
         tier = verdict.tier.value if verdict.tier else "fetch"
+        if role and role[0] == "file":
+            return (f"AI page file: {verdict.engine}, loaded by {role[1]}" if role[1]
+                    else f"AI page file: {verdict.engine}")
+        if role and role[0] == "repeat":
+            return f"AI {tier}: {verdict.engine}, the same read again"
         return f"AI {tier}: {verdict.engine}"
     if group is Group.SEARCH_ENGINE:
         return f"search: {verdict.engine}"
@@ -201,7 +208,8 @@ def rule_of(hit, verdict, kind: str) -> str:
     return f"people: {words}"
 
 
-def row(hit, verdict, tz, hidden, duplicate: bool, source: str = "") -> dict:
+def row(hit, verdict, tz, hidden, duplicate: bool, source: str = "",
+        role: tuple | None = None) -> dict:
     when = hit.when if hit.when.tzinfo else hit.when.replace(tzinfo=timezone.utc)
     kind = kind_of(hit)
     ref_host, ref_path = _referrer(hit.referrer)
@@ -235,7 +243,7 @@ def row(hit, verdict, tz, hidden, duplicate: bool, source: str = "") -> dict:
         "ms": int(round(hit.request_time * 1000)) if hit.request_time is not None else None,
         "ref_host": ref_host, "ref_path": ref_path,
         "agent": _agent(hit, verdict), "os": system, "device": device,
-        "group": group, "rule": rule_of(hit, verdict, kind), "kind": kind,
+        "group": group, "rule": rule_of(hit, verdict, kind, role), "kind": kind,
         "page_view": bool(verdict is not None and hit.is_page),
         "assistant": assistant, "source": source, "utm": utm,
         "verified": verdict.verified if verdict is not None else None,
@@ -243,6 +251,10 @@ def row(hit, verdict, tz, hidden, duplicate: bool, source: str = "") -> dict:
     }
     if kind == "not_page":
         out["not_page"] = hit.not_page_rule         # the entry (not_pages.py)
+    if role:
+        # An assistant's user fetch: "read", "repeat" (the same read asked
+        # again) or "file" (a file its page loaded), and the read's page.
+        out["ai_role"], out["ai_of"] = role[0], role[1]
     return out
 
 
@@ -253,8 +265,12 @@ class Feed:
     tally's observer (hit, verdict); `excluded(hit)` for another host."""
 
     def __init__(self, cutoff: datetime, cap: int, views=(), heartbeat: str = "heartbeat",
-                 own_hosts=(), gap_minutes: int = 30) -> None:
+                 own_hosts=(), gap_minutes: int = 30, prefixes=None) -> None:
         self.cutoff = cutoff
+        # Each user fetch's role (ai_reads.py): seen from before the cutoff
+        # too, so a read that began just before it is still one read.
+        from .ai_reads import Roles
+        self.roles = Roles(prefixes) if prefixes is not None else Roles()
         # People's visits as the feed sees them, for each row's `source`:
         # the source of the visit's first page view (as journeys label it),
         # or of its first request until a page is read. A page from a new
@@ -281,6 +297,11 @@ class Feed:
         when = hit.when if hit.when.tzinfo else hit.when.replace(tzinfo=timezone.utc)
         duplicate = self.dups.seen(hit)
         visit = self._visit(hit, verdict, when)
+        role = None
+        if verdict is not None and verdict.group is Group.ANSWER_ENGINE \
+                and verdict.tier is Tier.ASKED:
+            role = self.roles(verdict.engine or "", hit.path, hit.url, hit.referrer,
+                              hit.host, hit.when)
         if self.newest is None or when > self.newest:
             self.newest = when
         if when < self.cutoff:
@@ -292,7 +313,7 @@ class Feed:
         for v in self.views:
             if v.matches(hit.path):
                 self.by_view[v.slug][group] += 1
-        self.rows.append((hit, verdict, duplicate, visit))
+        self.rows.append((hit, verdict, duplicate, visit, role))
 
     def _visit(self, hit, verdict, when: datetime) -> dict | None:
         if verdict is None or verdict.group is not Group.PEOPLE:
@@ -353,8 +374,8 @@ class Feed:
                 "by_group": dict(self.by_group),
                 "by_view": {slug: {"total": sum(c.values()), "by_group": dict(c)}
                             for slug, c in self.by_view.items()},
-                "rows": [row(h, v, tz, hidden, d, visit["source"] if visit else "")
-                         for h, v, d, visit in ordered]}
+                "rows": [row(h, v, tz, hidden, d, visit["source"] if visit else "", role)
+                         for h, v, d, visit, role in ordered]}
 
 
 def before_midnight(config: dict, feed: Feed, midnight: datetime, now: datetime,

@@ -593,6 +593,25 @@ llms.txt. In this order:
 | Other file | an asset, feed, document, archive or media file (the extensions of "What decides a page view"), a framework folder (`/_next/`, `/static/`, ...), an `/api` or beacon path, or a framework payload (`?_rsc=`) |
 | Page | everything else |
 
+## Reads, not requests: an assistant's user fetches
+
+An `asked` request is one request, not one page someone asked about. A user fetcher may ask
+for a page twice within seconds and then for the page's own files: Google NotebookLM renders
+the page it adds to a notebook, so one read is four requests (page, page, CSS, JS). Each user
+fetch therefore gets one role, in time order, per fetcher name (day kind `ai_reads`,
+`ai_reads.py`; the audit's own copy is `audit_ai_reads.py`):
+
+| role | when |
+| --- | --- |
+| file | the referrer is on the same site and names another page this fetcher read within 30 seconds; or the path ends in a file extension (`.css`, `.js`, images, fonts, media, `.map`, `.wasm`, `.webmanifest`), sits under `/_next/` or `/_nuxt/` or the site's `asset_prefixes`, or carries a Next.js data query (`_rsc`, `__flight__`, `_data`) |
+| repeat | the same page (no query, no trailing `/`) by the same fetcher within 30 seconds of the read that opened it |
+| read | anything else; it opens the page's 30-second window |
+
+The tier does not change: every one of them is still an `asked` request, and request figures
+(status, bytes, cost, the tier totals) count them all. Figures about what AI read, "Pages AI
+read for someone", "AI reads" by page, the followed share, the daily mail, count reads. The
+window is `ai_read_names.WINDOW_SECONDS` (30): see `COUNTING-TRAPS.md` trap 21.
+
 ## The source type of a visit
 
 `dimensions.source_type` (and, on the audit's own road,

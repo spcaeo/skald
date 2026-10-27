@@ -229,6 +229,15 @@ own server needs no lead hook: Skald reads the leads from that database (next
 section), which it already reads for Leads & sales > Summary and Sources (Count from:
 Lead database).
 
+## Recorded journeys (2.43)
+
+A site's own pages can also send Skald each consenting visitor's session: pages read, calls to
+action, forms sent, signups and bookings. A page helper (`/traffic-js/journeys.js`) posts each
+event to a relay on the site's own server, which signs it with the site's journey secret and
+forwards it to `POST /traffic-hooks/<site>/journey`. The sessions show as **Recorded by your
+site**, with their own figures, never added to the log's. Everything else, the contract, the
+answers, consent, privacy and retention, is in [JOURNEYS.md](JOURNEYS.md).
+
 ## Leads from the lead database
 
 When `leads.db` names the website's lead database (the default road of Leads & sales > Summary), every
@@ -678,6 +687,15 @@ the install. Code: `skald/integrations_api.py`, page
   file, never the secret.
 - **Outgoing webhooks** (below): add, test, rotate the secret, remove, and
   each one's last 50 deliveries.
+- **What the site check found** (2.43): the GET answer carries `found`, the
+  set-up's own check of the site (`accounts/site_setup` `found`, cleaned by
+  `site_detect.clean_found`; `integrations_api.FOUND_KEYS`: server, platform,
+  framework and their labels, `hosted_builder`, `tags` (ga4, calendly, calcom,
+  stripe, hubspot) and `forms`, the home page's form count), or null when the
+  site was never reached; and each tool's `last_at` and `test_at`. Settings >
+  This site > Leads & tools (its Next step and groups) and the "not connected
+  yet" card on each data page (`webapp/js/connect-plan.js`, `js/ui/connect.js`)
+  read them to recommend one way. Nothing is fetched from the site for it.
 
 Every change is in the audit log (Settings > Audit log), never a secret.
 With saas on, an organisation whose plan is locked (payment overdue) can read
@@ -825,6 +843,7 @@ blocks. Run `nginx -t` before every reload.
 | delivery log: time, outcome, HTTP status, error, external ref; never a body | same file, `deliveries` | 90 days |
 | hashes of Cal.com and Typeform bodies (replays) | same file, `hook_replays` | 30 days |
 | the verified bodies (and, on a `lead` or `json` line with a time without an offset, the zone it was read in) | `hooks/<day>.jsonl` beside the history (`hooks.spool`), 0640 | `conversions.retention_days` (400; 0: for good), each site's lines by its own |
+| recorded journeys (2.43): each consented event raw, with its address and email by the site's settings | same file, `recorded_events` (docs/JOURNEYS.md) | `journeys.vid_days` (30); address and email `privacy.keep_days` when shorter |
 | hook secrets | `secrets.json` beside the history (`hooks.secrets`), 0600, or env variables | until replaced |
 
 - **Only what counts.** Before a body is spooled, Skald keeps only the

@@ -10,6 +10,11 @@ address is never written to history, an email or a CSV export.
 Whether the visitor was seen before comes from the 30 days of keyed hashes
 (visitors.py): repeat, times_seen_30d (distinct days, today included) and
 first_seen. Without the visitor key those are None.
+
+An assistant's user fetch (kind "asked") also carries its role (ai_reads.py):
+"read", "repeat" (the same read asked again) or "file" (a file its page
+loaded, never something the AI asked), and `of`, the read's page; the page
+folds a read's repeats and files under it. by_name counts `reads` too.
 """
 from __future__ import annotations
 
@@ -37,10 +42,16 @@ class AIEvents:
         self.kind_of: dict[str, str] = {}
         self.visitors: dict[str, set] = {}
         self.total = 0
+        from .ai_reads import Roles
+        self.roles = Roles()
 
     def __call__(self, hit, verdict) -> None:
+        role = of = ""
         if verdict.group is Group.ANSWER_ENGINE and verdict.tier:
             kind, name, family = verdict.tier.value, verdict.engine, verdict.engine
+            if verdict.tier is Tier.ASKED:
+                role, of = self.roles(name or "", hit.path, hit.url, hit.referrer, hit.host,
+                                      hit.when)
         elif verdict.group is Group.PEOPLE and verdict.tier is Tier.CITED and hit.is_page:
             from .visitors import reader_family
             kind, name, family = "referred", verdict.engine, reader_family(hit.user_agent)
@@ -53,11 +64,13 @@ class AIEvents:
             self.visitors.setdefault(name, set()).add(visitor)
         self.total += 1
         self.by_name.setdefault(name, Counter())["events"] += 1
+        if role == "read":
+            self.by_name[name]["reads"] += 1
         self.kind_of[name] = kind
         when = hit.when if hit.when.tzinfo else hit.when.replace(tzinfo=timezone.utc)
         self.seq += 1
         item = (when, self.seq, kind, name, hit.path[:100], hit.status,
-                (hit.country or "").upper(), hit.address, visitor)
+                (hit.country or "").upper(), hit.address, visitor, role, of)
         if len(self.latest) < LIMIT:
             heapq.heappush(self.latest, item)
         elif item > self.latest[0]:
@@ -75,7 +88,7 @@ class AIEvents:
                 wanted |= got
             known = history_of(db, site, day, wanted)
         out = []
-        for when, _, kind, name, path, status, cc, address, visitor in events:
+        for when, _, kind, name, path, status, cc, address, visitor, role, of in events:
             past = known.get(visitor) if visitor else None
             have = self.key is not None and db is not None
             out.append({
@@ -87,6 +100,7 @@ class AIEvents:
                 "times_seen_30d": ((1 + len(past["days"]) if past else 1) if have else None),
                 "first_seen": ((past["first"] if past else day.isoformat()) if have and day
                                else None),
+                **({"role": role, "of": of} if role else {}),
             })
         by_name = {}
         for name, c in self.by_name.items():
@@ -94,6 +108,8 @@ class AIEvents:
             repeat = (sum(1 for v in seen if v in known) if seen is not None and db is not None
                       else None)
             by_name[name] = {"kind": self.kind_of[name], "events": int(c["events"]),
+                             **({"reads": int(c["reads"])} if self.kind_of[name] == "asked"
+                                else {}),
                              "visitors": len(seen) if seen is not None else None,
                              "repeat": repeat}
         return {"events": out, "total": self.total, "by_name": by_name}

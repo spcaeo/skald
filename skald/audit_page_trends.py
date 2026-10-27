@@ -16,7 +16,9 @@ page_trends.figures only for the figures the file shows, to compare them.
                 audit_landings.py, against the raw lines)
   fetches       the stored ai_fetches rows summed by path and assistant; the
                 200 paths with most fetches kept (ties by path), every other
-                path summed per assistant into "(all others)"
+                path summed per assistant into "(all others)"; the rows'
+                fifth column (reads) the same way, on its own, or null when
+                a row has none (stored before reads were counted)
   a page        its path cut at "?" and "#", a "/" added unless it ends with one
   changed       a page whose change date is within the last 30 days to the
                 file's last day; from that date on, over the whole days only:
@@ -86,10 +88,7 @@ def blobs(db, site: str, first: date, last: date) -> dict:
     return out
 
 
-def fetches(rows) -> dict:
-    per: dict = {}
-    for row in rows or []:
-        per.setdefault(str(row[2]), Counter())[str(row[1])] += int(row[3])
+def _kept(per: dict) -> tuple[dict, int]:
     ranked = sorted(per, key=lambda p: (-sum(per[p].values()), p))
     paths = {p: dict(per[p]) for p in ranked[:KEEP]}
     tail = Counter()
@@ -97,7 +96,21 @@ def fetches(rows) -> dict:
         tail += per[p]
     if tail:
         paths[REST] = dict(tail)
-    return {"paths": paths, "folded": len(ranked[KEEP:])}
+    return paths, len(ranked[KEEP:])
+
+
+def fetches(rows) -> dict:
+    per: dict = {}
+    reads: dict = {}
+    whole = True                      # every row has its fifth column, the reads
+    for row in rows or []:
+        per.setdefault(str(row[2]), Counter())[str(row[1])] += int(row[3])
+        if len(row) < 5:
+            whole = False
+        elif int(row[4]) > 0:
+            reads.setdefault(str(row[2]), Counter())[str(row[1])] += int(row[4])
+    paths, folded = _kept(per)
+    return {"paths": paths, "folded": folded, "reads": _kept(reads)[0] if whole else None}
 
 
 def recent(dates: dict, st: dict, kept: dict, last: date) -> dict:

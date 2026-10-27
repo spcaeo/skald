@@ -1,0 +1,63 @@
+/* Connect the dots (2.43, js/ui/connect.js, js/tabs/set-leads.js): the "not connected yet" card
+   on every page whose source is missing, its quiet line, the partly-connected strip, the way back
+   to Leads & tools, and Leads & tools' groups and Next step. Tokens only (app.css, ui.css). */
+
+/* ---- the card */
+.ui-conn { margin: var(--sp-3) 0; max-width: 760px; }
+.ui-conn .ui-card-h > h2 { flex: 1 1 16ch; }
+.ui-conn-need { font-size: var(--t-m); color: var(--ink-2); }
+.ui-conn-k { display: block; font-size: var(--t-xs); font-weight: 650; letter-spacing: .02em; color: var(--ink-3); margin: 0 0 4px; }
+.ui-conn-found { margin: var(--sp-3) 0 0; }
+.ui-conn-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ui-chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--rule); border-radius: var(--r-pill);
+  padding: 1px 10px; font-size: var(--t-s); line-height: 22px; background: var(--sunk); color: var(--ink-2); max-width: 100%; }
+.ui-chip code { font-size: var(--t-xs); overflow-wrap: anywhere; }
+.ui-conn-rec { margin: var(--sp-3) 0 0; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-s);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface)); border-left: 3px solid var(--accent); max-width: var(--read); }
+.ui-conn-acts { margin: var(--sp-3) 0 0; display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.ui-conn-o { margin: var(--sp-2) 0 0; }
+.ui-conn-ways { margin: var(--sp-2) 0 0; padding-left: 18px; display: grid; gap: 4px; }
+.ui-conn-ask { margin: var(--sp-3) 0 0; }
+.ui-conn-ask p { margin: 0 0 var(--sp-1); }
+.ui-conn-link { font-size: var(--t-xs); overflow-wrap: anywhere; }
+.ui-conn-plain .aa-steps { margin: var(--sp-2) 0 0; padding-left: 18px; display: grid; gap: 6px; }
+
+/* ---- one quiet line (a part of a page) */
+.ui-conn-line { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; padding: var(--sp-2) var(--sp-4); margin: var(--sp-3) 0; }
+.ui-conn-line .ui-ic { width: 26px; height: 26px; }
+.ui-conn-line > .ui-grow { flex: 1 1 24ch; }
+
+/* ---- partly connected, and an alert that needs a source */
+.ui-conn-part { margin: var(--sp-2) 0; }
+.ui-conn-part[hidden] { display: none; }
+
+/* ---- the way back to Leads & tools, in a page's head */
+.ui-conn-src { font-size: var(--t-s); color: var(--ink-3); white-space: nowrap; }
+.ui-conn-src:hover { color: var(--ink); }
+
+/* ---- Settings › This site › Leads & tools */
+.lt-next { border-left: 4px solid var(--accent); margin-bottom: var(--sp-3); }
+.lt-next.good { border-left-color: var(--good); }
+.lt-next-w { margin: var(--sp-2) 0 0; max-width: var(--read); }
+.lt-next .ui-conn-found { margin-top: var(--sp-2); }
+.lt-next-acts { margin: var(--sp-3) 0 0; display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.lt-group .ui-meta { margin-bottom: var(--sp-2); }
+.lt-row { display: flex; align-items: center; gap: var(--sp-2); }
+.lt-row.lt-on { border-top: 1px solid var(--rule); }
+.lt-row.lt-on > .set-row { flex: 1 1 auto; border-top: 0; }
+.set-list > .lt-row:first-child { border-top: 0; }
+.lt-row .lt-go { flex: none; }
+.lt-see { flex: none; font-size: var(--t-s); white-space: nowrap; padding: 0 4px; }
+.lt-hl { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 2px; }
+.lt-more { margin: var(--sp-3) 0 0; }
+
+@media (max-width: 600px) {
+  .ui-conn, .ui-conn-line { padding: var(--sp-3); }
+  .ui-conn-acts .btn { width: 100%; justify-content: center; }
+  .lt-row { flex-wrap: wrap; }
+  .lt-row.lt-on > .set-row { flex-basis: 100%; }
+  .lt-see { padding: 0 0 var(--sp-2) 48px; }
+  .lt-row:not(.lt-on) .grow { flex-basis: calc(100% - 48px); }
+  .lt-row:not(.lt-on) .ui-pill { margin-left: 44px; }
+  .lt-row .lt-go { margin-left: auto; }
+}

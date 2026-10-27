@@ -95,9 +95,11 @@ VENDORS = {
     "duckduckgo": (("duckduckgo",), ()),
     "meta": (("meta",), ()),
 }
+# Google-NotebookLM is one of Google's user-triggered fetchers: its addresses
+# are in the user-triggered-fetchers lists above, which Google publishes.
 CLAIMS = (
     (re.compile(r"^(?:googlebot|google-inspectiontool|googleother|apis-google"
-                r"|adsbot-google|google-adwords-instant)$"), "google"),
+                r"|adsbot-google|google-adwords-instant|google-notebooklm)$"), "google"),
     (re.compile(r"^(?:bingbot|bingpreview)$"), "bing"),
     (re.compile(r"^applebot(?:-extended)?$"), "apple"),
     (re.compile(r"^yandexbot$"), "yandex"),

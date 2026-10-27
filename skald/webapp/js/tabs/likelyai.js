@@ -39,10 +39,13 @@ export function likelyDays(m, r) {
 
 const addTo = (into, obj) => { for (const [k, v] of Object.entries(obj || {})) into[k] = (into[k] || 0) + v; };
 export function sumLikely(blobs) {
-  const t = { likely: 0, direct: 0, visits: 0, by: {}, pages: {}, fetches: {}, followed: {}, windows: new Set() };
+  // reads, readsFollowed: only when every day kept them (ai_reads.py), else null.
+  const t = { likely: 0, direct: 0, visits: 0, by: {}, pages: {}, fetches: {}, followed: {}, windows: new Set(),
+    reads: blobs.length && blobs.every((b) => b.reads) ? {} : null, readsFollowed: {} };
   for (const b of blobs) {
     t.likely += b.likely || 0; t.direct += b.direct || 0; t.visits += b.visits || 0;
     addTo(t.by, b.by_assistant); addTo(t.pages, b.pages); addTo(t.fetches, b.fetches); addTo(t.followed, b.followed);
+    if (t.reads) { addTo(t.reads, b.reads); addTo(t.readsFollowed, b.reads_followed); }
     if (b.window_minutes != null) t.windows.add(b.window_minutes);
   }
   return t;
@@ -71,11 +74,15 @@ export function followedSection(m, r) {
   const { f, blobs } = likelyDays(m, r);
   if (!blobs.length || off(f)) return null;
   const t = sumLikely(blobs);
-  const rows = Object.keys(t.fetches).map((k) => ({ k, fetches: t.fetches[k] || 0, followed: t.followed[k] || 0 }));
-  const text = `${method(f, t.windows)} A fetch counts as followed when a direct, untagged visit landed on the same page within the window after it; a visit two assistants fetched for follows a fetch of each.`;
-  return h("section", { class: "s" }, h("h2", null, "Fetches followed by a visit (likely) ", info(text, "Fetches followed by a visit")),
-    h("p", { class: "sub" }, "Of each assistant's fetches for someone's question, how many were likely followed by that person's click. Inferred, never certain."),
-    table([{ key: "k", label: "Assistant", fmt: aiLabel, csv: (x) => aiLabel(x.k) }, { key: "fetches", label: "Fetches for a question", num: true },
+  // Reads, not requests, once every day of the range kept them: a page asked for again in a
+  // few seconds, or its CSS and JS, is no second chance to be followed (ai_reads.py).
+  const byReads = !!t.reads;
+  const rows = Object.keys(t.fetches).map((k) => ({ k, fetches: (byReads ? t.reads[k] : t.fetches[k]) || 0, followed: (byReads ? t.readsFollowed[k] : t.followed[k]) || 0 }));
+  const unit = byReads ? "read" : "request";
+  const text = `${method(f, t.windows)} A ${unit} counts as followed when a direct, untagged visit landed on the same page within the window after it; a visit two assistants fetched for follows one of each.${byReads ? " A read is one assistant reading one page: its repeat requests within 30 seconds and the page's own files are not counted again." : " Requests, not reads: these days were counted before reads were."}`;
+  return h("section", { class: "s" }, h("h2", null, `${byReads ? "Reads" : "Requests"} followed by a visit (likely) `, info(text, "Followed by a visit")),
+    h("p", { class: "sub" }, `Of each assistant's ${unit}s for someone's question, how many were likely followed by that person's click. Inferred, never certain.`),
+    table([{ key: "k", label: "Assistant", fmt: aiLabel, csv: (x) => aiLabel(x.k) }, { key: "fetches", label: byReads ? "Reads for a question" : "Requests for a question", num: true },
       { key: "followed", label: "Likely followed by a visit", num: true },
       { key: "share", label: "Share (likely)", num: true, sort: (x) => (x.fetches >= MIN_SHARE ? x.followed / x.fetches : null), fmt: (_, x) => (x.fetches >= MIN_SHARE ? pct1(x.followed, x.fetches) : h("span", { class: "few" }, `too few (${n(x.fetches)})`)), csv: (x) => (x.fetches >= MIN_SHARE ? (x.followed / x.fetches).toFixed(4) : "") }],
     { caption: "AI fetches likely followed by a visit", rows, file: `ai-fetches-followed-${r.first}-to-${r.last}.csv`, search: false, sortKey: "fetches", empty: "No assistant fetched a page for a question in this range." }));

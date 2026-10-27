@@ -4,7 +4,10 @@
                         [--map NAME=EMAIL ...] [--base-url URL] [--force]
     skald accounts status
     skald org list | create NAME | rename SLUG NAME
+    skald org show | archive | restore SLUG; org privacy SLUG internal|client;
+         org transfer SLUG EMAIL [--from EMAIL]                  (cli_orgs.py)
     skald member list | invite EMAIL --role R | role EMAIL R | remove EMAIL   [--org SLUG]
+    skald member sites EMAIL [SITE ...] [--all] [--org SLUG]     (cli_orgs.py)
     skald account reset-link | disable | enable | totp-off EMAIL
     skald account install-admin EMAIL on|off
     skald site assign SITE --org SLUG
@@ -613,6 +616,8 @@ def add_command(sub) -> None:
     q.add_argument("slug")
     q.add_argument("name")
     q.set_defaults(run=cmd_org)
+    from .cli_orgs import add_member_actions, add_org_actions   # show, archive, ... (cli_orgs.py)
+    add_org_actions(acts)
 
     p = sub.add_parser("member", help="members and invites of an organisation (accounts mode)")
     acts = p.add_subparsers(dest="action", required=True)
@@ -626,6 +631,7 @@ def add_command(sub) -> None:
             q.add_argument("--base-url", help="https://host of the dashboard, for the link")
         q.add_argument("--org", metavar="SLUG", help="needed when there are several")
         q.set_defaults(run=cmd_member)
+    add_member_actions(acts)
 
     p = sub.add_parser("account", help="one person's sign-in (accounts mode); "
                        "`skald user` is the basic-mode password file")

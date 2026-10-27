@@ -139,6 +139,31 @@ tile a second line; `from` is the answer to start on (an older key, such as `fix
 is called with `{ pressed }`: true when the person pressed a tile, false when it was drawn from
 the address or the remembered answer, so a path can start work only on a press.
 
+### `connect.js`: "not connected yet" (2.43)
+
+A page that is empty because its source is not connected never shows an empty table: it shows
+this card. What each need is, what fits the site and the way recommended live in
+`js/connect-plan.js` (no DOM; `tests/js/connect.mjs`); the card in `js/ui/connect.js`, its
+styles in `css/connect.css`.
+
+```js
+import { connectCard, partlyLine, sourceLink } from "../ui/connect.js";
+connectCard(m, "leads", { s });                    // page: need, found, Recommended, one primary Connect, Other ways
+connectCard(m, "journeys", { s, mode: "line" });   // a part of a page: one quiet line, a plain Connect
+connectCard(m, "ai", { mode: "plain" });           // the state only, no push (AI answers)
+partlyLine(m, "leads");                            // "Leads arrive from Calendly; your forms are not connected."
+sourceLink("bookings");                            // the head's way back: #settings/site/leads?lt=bookings
+```
+
+- needs: leads, bookings, payments, search, tools, journeys, script, ai.
+- Connect only writes the existing dialog's own address key (`setup=lead&way=<tool>`,
+  `setup=search`, `setup=script`, `setup=tool-<id>`, `setup=finish-tools`, `rjc=connect`), so
+  every dialog keeps its own "Who will do it?" and its link.
+- A viewer (or anyone who may not connect) reads "Ask an admin to connect it" with the
+  dialog's link and its copy and open icons; never GET integrations (it answers 403).
+- What Skald found comes from GET integrations' `found` (the set-up's site check). Never fetch
+  the site for it.
+
 ### `css/ui.css`: the visual system
 
 | Class | What it is |

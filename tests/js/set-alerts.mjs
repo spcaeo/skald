@@ -58,6 +58,7 @@ assert.equal(A.areaOf("ai_started_reading"), "Crawlers & AI");
 assert.equal(A.areaOf("ai_something_new"), "Crawlers & AI", "an AI rule not named yet");
 assert.equal(A.areaOf("stack_advisory"), "Security");
 assert.equal(A.areaOf("sale_refunded"), "Sales");
+for (const c of ["tool_stopped", "leads_drop", "bookings_drop", "ga4_log_gap"]) assert.equal(A.areaOf(c), "Marketing");
 assert.equal(A.areaOf("odd_one"), "Other");
 
 // ---- off: nothing is checked, and no "on" count that is not true

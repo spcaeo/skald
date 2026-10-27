@@ -17,7 +17,8 @@ export const CAUSE = { site_down: "Site down", logging_stopped: "Logging stopped
   ai_started_reading: "AI started reading", ai_stopped_reading: "AI stopped reading", ai_sending_people: "AI sending people",
   ai_first_citation: "First AI citation", ai_first_cited_page: "Page's first AI citation", ai_cited_visits: "Visits from AI answers", crawler_silent: "Crawler gone silent",
   security_exposure: "Possible exposure", scan_wave: "New scan wave", stack_advisory: "Advisory matches your stack",
-  sale: "Sale", sale_refunded: "Refund on a sale" };
+  sale: "Sale", sale_refunded: "Refund on a sale", tool_stopped: "A tool stopped answering", leads_drop: "Leads dropped",
+  bookings_drop: "Bookings dropped", ga4_log_gap: "Google Analytics and the log far apart" };
 // The AI alerts (alerts_ai.py, alerts_history.py): the "AI" filter here, and the panel on AI & crawlers.
 const isAI = (a) => String(a.cause || "").startsWith("ai_");
 // All or only AI, kept in the address (alerts_view=ai: tablestate.js subView).

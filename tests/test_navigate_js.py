@@ -139,6 +139,13 @@ class Node(unittest.TestCase):
         lines, and the copy icons on every path, line and word value."""
         self.assertIn("todos: all passed", self.run_js("todos.mjs"))
 
+    def test_insights_check_again(self):
+        """2.44 (js/tabs/todo-check.js): Check again on each to-do for owners and admins, the
+        answer in place, the addresses still failing behind tdchk=<id>, Check the next 50, a
+        fixed to-do in Done with no Undo, Check all again's progress, a viewer's answer
+        without the button, the check beside an agent's report, the demo's sample."""
+        self.assertIn("todo-check: all passed", self.run_js("todo-check.mjs"))
+
     def test_page_change_tracker(self):
         """T8 (js/tabs/pagechange.js): Did my change work? on a page's view: the figures'
         words, too early with the verdict's day, unequal coverage and leads not recorded said,
@@ -160,10 +167,24 @@ class Node(unittest.TestCase):
 
 
     def test_settings_leads_and_tools_page(self):
-        """Settings v2 (js/tabs/set-leads.js): one primary beside the title, connected tools as
-        rows with a status pill, a red line with Fix for what is broken, the rest one quiet line,
-        and a row's details in a drawer whose tool id is in the address."""
+        """Leads & tools (2.43, js/tabs/set-leads.js): Next step for the site with what Skald
+        found and one primary, the rows grouped by goal with their pills and See links, the rows
+        that do not fit folded under More, lt=<group> marked, and the tool=<id> drawers."""
         self.assertIn("set-leads: all passed", self.run_js("set-leads.mjs"))
+
+    def test_connect_the_dots(self):
+        """Not connected yet (2.43, js/connect-plan.js, js/ui/connect.js): each page whose
+        source is missing says what it needs, what Skald found and the way to connect it;
+        Connect writes the dialog's own key; a viewer reads Ask an admin with the link; AI
+        answers stay a plain state; partly connected and alerts that need a source say so."""
+        self.assertIn("connect: all passed", self.run_js("connect.mjs"))
+
+    def test_from_your_tools(self):
+        """From your tools (js/tabs/ov-tools.js, yourtools.js): Overview's card labels every
+        figure with its tool and says Not given, never 0; Connect a tool asks who will do it,
+        Me pastes the key (setup=tool-<id> in the address); the developer's message never
+        holds a key."""
+        self.assertIn("your-tools: all passed", self.run_js("your-tools.mjs"))
 
     def test_settings_account_audit_and_tokens_rows(self):
         """Settings v2 (js/tabs/account.js, auditlog.js, tokens.js, conn-share.js): rows with

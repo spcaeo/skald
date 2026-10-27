@@ -13,7 +13,9 @@ Search Console (per site property, `search_console.property`):
      provisional - to the newest day; replacing what was stored;
   3. per CHUNK_DAYS days: the day totals (by property and by page), then
      query, page, country, device and search appearance, each grouped by date
-     (search appearance alone per day if Google refuses it with the date);
+     (search appearance alone per day if Google refuses it with the date),
+     and each query with its page (query_page: which page a query
+     showed, for Traffic > Search's opportunities; counted by page);
   4. folds each day and kind (days.fold: top rows, "(all others)" and what
      Google does not attribute) and writes it, read back and checked.
   A day after the newest Google has is never stored; a day inside the range
@@ -53,7 +55,8 @@ CHUNK_DAYS = 7
 KEEP_DAYS = 486                         # Search Console keeps 16 months
 EVERY_HOURS = 6
 DIMENSIONS = {"query": "query", "page": "page", "country": "country", "device": "device",
-              "appearance": "searchAppearance"}
+              "appearance": "searchAppearance", "query_page": ("query", "page")}
+BY_PAGE = ("page", "query_page")        # Google counts these by page: the by-page total
 ENGINE_NAMES = {"google": "Search Console", "bing": "Bing Webmaster Tools"}
 
 
@@ -178,8 +181,9 @@ def fetch_google(client, prop: str, first: date, last: date,
     zero = {"clicks": 0, "impressions": 0, "position": None}
     grouped: dict[str, dict[str, list]] = {}
     for kind, dimension in DIMENSIONS.items():
+        dims = list(dimension) if isinstance(dimension, tuple) else [dimension]
         try:
-            rows, _ = client.query(prop, {**base, "dimensions": ["date", dimension]})
+            rows, _ = client.query(prop, {**base, "dimensions": ["date", *dims]})
         except http.Failed as why:
             if kind != "appearance" or why.code != 400:
                 raise
@@ -191,8 +195,13 @@ def fetch_google(client, prop: str, first: date, last: date,
                 rows += [{**r, "keys": [d.isoformat(), *(r.get("keys") or [])]} for r in got]
         read += len(rows)
         for r in rows:
-            if r.get("keys"):
-                grouped.setdefault(kind, {}).setdefault(r["keys"][0], []).append(_row(r))
+            if not r.get("keys"):
+                continue
+            row = _row(r)
+            if kind == "query_page":
+                keys = r["keys"]
+                row[0] = days.QP_SEP.join(str(k) for k in keys[1:3]) if len(keys) > 2 else ""
+            grouped.setdefault(kind, {}).setdefault(r["keys"][0], []).append(row)
     out, finals = {}, {}
     if floor is None:
         floor = min((date.fromisoformat(k) for k in total), default=last + timedelta(days=1))
@@ -203,7 +212,7 @@ def fetch_google(client, prop: str, first: date, last: date,
                                     t, 1)}
         for kind in DIMENSIONS:
             blobs[kind] = days.fold((grouped.get(kind) or {}).get(k, []),
-                                    page_total.get(k, zero) if kind == "page" else t,
+                                    page_total.get(k, zero) if kind in BY_PAGE else t,
                                     days.TOP[kind])
         out[d] = blobs
         finals[d] = incomplete is None or k < incomplete

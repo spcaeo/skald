@@ -118,12 +118,13 @@ the container has them (`history.db: /var/lib/skald/history.sqlite`,
 | `SKALD_LIVE_MINUTES` | `2` | the live snapshot's interval |
 | `SKALD_JOB_NICE` | `10` | how much lower the scheduled jobs (live, daily, backup...) run than nginx and the helper, 0 to 19; `0` turns it off |
 | `SKALD_SEARCH_HOURS`, `SKALD_SEARCH_AT` | `6`, `01:40` | the Search Console and Bing sync: every N hours from that time (0 turns it off; [INTEGRATIONS-SEARCH.md](INTEGRATIONS-SEARCH.md#search-console-and-bing)) |
+| `SKALD_TOOLS_HOURS`, `SKALD_TOOLS_AT` | `6`, `02:10` | the sync of the figures from each site's own tools (Google Analytics...): every N hours from that time, at a lower priority than the other jobs (0 turns it off; [TOOLS.md](TOOLS.md)) |
 | `SKALD_GSC_KEY_JSON`, `SKALD_GSC_KEY_FILE` | | the Google service-account key for the Search Console sync: the key file's text, or a path to it inside the container (make it 0600). Not needed when the key is uploaded in Settings > Integrations > Search, which keeps it in `secrets.json` beside the history. Environment only, never in a file you commit |
 | `SKALD_REPORTS_MINUTES` | `15` | how often the client reports that are due are sent (Settings > Reports); `0` stops them |
 | `SKALD_AI_ANSWERS_MINUTES` | `15` | how often the AI answers profiles that are due (or asked to run now) are asked (`ai-answers --due`); `0` stops them |
 | `SKALD_SUMMARY_AT` | `01:00` | the daily summary mail (`summary-mail`): one mail per person with what to look at on every site they get security alerts for (security items, to-dos, set-up problems), in the schedule's time zone; `off` stops it |
 | `SKALD_SCHEDULER` | `on` | `off` stops the container's own schedule (every job below) |
-| `SKALD_SCHEDULE_TZ` | the site's `report.timezone` | the zone the daily times above are in (`SKALD_DAILY_AT`, `SKALD_BACKUP_AT`, `SKALD_SEARCH_AT`, `SKALD_SUMMARY_AT`); an unknown zone stops the scheduler at start |
+| `SKALD_SCHEDULE_TZ` | the site's `report.timezone` | the zone the daily times above are in (`SKALD_DAILY_AT`, `SKALD_BACKUP_AT`, `SKALD_SEARCH_AT`, `SKALD_TOOLS_AT`, `SKALD_SUMMARY_AT`); an unknown zone stops the scheduler at start |
 | `SKALD_MAIL_FROM` | the first `SKALD_EMAIL` | the sender of every mail |
 | `SKALD_CONFIG` | | a config file inside the container to use as it is, instead of a mounted `/etc/skald/config.yml` or the one generated from these variables |
 | `SKALD_ORIGIN` | from `SKALD_BASE_URL` | the browser origin(s) the dashboard's buttons are accepted from |
@@ -141,7 +142,8 @@ per run in `docker logs skald`, each job's output in `/var/log/skald/<job>.log`)
 every `SKALD_LIVE_MINUTES` and once at start; `run-daily` at `SKALD_DAILY_AT` (one
 `notify-failure` mail when it fails, at most one per 12 hours); `backup` at `SKALD_BACKUP_AT`;
 `reports --due` every `SKALD_REPORTS_MINUTES`; the beacon log's rotation at 00:05; `search sync`
-every `SKALD_SEARCH_HOURS` from `SKALD_SEARCH_AT`; `ai-answers --due` every
+every `SKALD_SEARCH_HOURS` from `SKALD_SEARCH_AT`; `tools sync` every `SKALD_TOOLS_HOURS` from
+`SKALD_TOOLS_AT`, at a lower priority still; `ai-answers --due` every
 `SKALD_AI_ANSWERS_MINUTES`; and `summary-mail` at `SKALD_SUMMARY_AT`. A job still running when
 it is next due is not started twice; a time missed while the container was down is not caught up.
 

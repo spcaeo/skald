@@ -39,7 +39,7 @@ export const shown = (key) => !HIDDEN.has(key);
 export const SECTIONS = [];
 export const MENU = [];
 const FIRST = {};                                   // section key -> its first tab's route
-const KEEP = { help: ["part", "hs", "hq"], about: ["part", "note"], "settings/org/sites": ["test"] };   // route -> parameters it keeps in its address
+const KEEP = { help: ["part", "hs", "hq"], about: ["part", "note"], "settings/org/sites": ["test"], "settings/site/leads": ["lt"] };   // route -> parameters it keeps in its address
 // A settings page with in-page tabs keeps the tab open (sub=, js/settings-menu.js).
 for (const p of SETTINGS_PAGES) if (p.tabs) KEEP[p.route] = ["sub"];
 export function addSections(list) {
@@ -94,7 +94,7 @@ export const FILTERS = ["country", "path", "source", "device", "browser", "campa
 const GLOBAL = ["range", "view", "from", "to", "pathmode", "rules", "cmp", "dd", "tz", "inc"];
 // Kept while Compare is on (2.7.0): the custom B, "Per day", the old Compare page's chart keys.
 const CMP_KEYS = ["cb", "cnorm", "cgran", "cm"];
-const DEFAULT = { tab: "overview/summary", range: "today", view: "all", from: "", to: "", inc: "", pathmode: "contains", rules: "", page: "", since: "", cmp: "", ip: "", rq: "", dd: "", tz: "", part: "", hs: "", hq: "", note: "", fn: "", fsrc: "", fstep: "", fmode: "", strat: "", ca: "", cb: "", cnorm: "", cgran: "", cm: "", cdim: "", pubfrom: "", pubto: "", chgfrom: "", rg: "", rm: "", rs: "", rv: "", test: "", sub: "",
+const DEFAULT = { tab: "overview/summary", range: "today", view: "all", from: "", to: "", inc: "", pathmode: "contains", rules: "", page: "", since: "", cmp: "", ip: "", rq: "", dd: "", tz: "", part: "", hs: "", hq: "", note: "", fn: "", fsrc: "", fstep: "", fmode: "", strat: "", ca: "", cb: "", cnorm: "", cgran: "", cm: "", cdim: "", pubfrom: "", pubto: "", chgfrom: "", rg: "", rm: "", rs: "", rv: "", test: "", sub: "", lt: "",
   ...Object.fromEntries(OVERLAY.map((k) => [k, ""])) };
 /* The period a section opens on when the address names none (2.23). Leads & sales opens on
    the last 7 days: a lead is rare, and Today so far was too often empty (the owner,

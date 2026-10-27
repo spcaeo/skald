@@ -1,15 +1,15 @@
 // Boot, the top bar and the tab router. The sidebar, its drawer and the
 // phone's tab bar are nav.js's.
 //
-// The top bar, one slim row: the section and drill-down trail on the left;
-// the period (Today, live; 7, 30, 90 days; More), Compare (modes.js, on by default, only
-// on a tab that compares) and Filters (the page group is inside) in the middle; the one
-// search (the command palette), the alerts and More (recount today, saved views, export,
-// the report builder, markers) on the right (2.41-2.42, the UX audit's tasks 2 and 5).
-// Active filters and the page group make a second row, only when there are some.
+// The top bar, one slim row, the approved mockup's seven (the UX audit's tasks 2 and 5):
+// the section's title; the period, one group (Today, live; 7, 30, 90 days; More, with
+// Yesterday, All time and Custom inside it); Compare (modes.js, on by default, only on a
+// tab that compares); then on the right the filter (an icon; the page group is inside),
+// the one search (the command palette), the alerts and More (recount today, saved views,
+// export, markers). Active filters and the page group make a second row, only when there
+// are some.
 
 import * as S from "./state.js";
-import { incTab, incApplies, incOn } from "./period-dates.js";
 import { h, ICON, reduced, toast, untip, short } from "./ui.js";
 import { load, refresh as postRefresh, rangeOf, markersByDay, has, need } from "./data.js";
 import { TAB_RENDER } from "./tabs/index.js";
@@ -88,10 +88,25 @@ addEventListener("resize", () => {
    it is placed again whenever a button's size changes (the bar settling,
    a narrower screen, a font), never left where an early measure put it. */
 let pillAt = null;
-function segmented(options, value, onPick, label) {
+/* `tail`: a last button in the group that is not a period (the period's More). The group is
+   one stop for the keyboard: Tab reaches the chosen period, the arrows, Home and End move
+   along the group, Enter or Space picks. */
+function segmented(options, value, onPick, label, tail = null) {
   const ind = h("span", { class: "seg-ind", "aria-hidden": "true" });
   const btns = options.map(([k, name]) => h("button", { type: "button", "aria-pressed": String(k === value), onclick: () => onPick(k) }, name));
-  const seg = h("div", { class: "seg", role: "group", "aria-label": label }, ind, btns);
+  const all = tail ? [...btns, tail] : btns;
+  const seg = h("div", { class: "seg", role: "group", "aria-label": label }, ind, all);
+  const stop = btns.find((b) => b.getAttribute("aria-pressed") === "true") || all[0];
+  all.forEach((b) => { b.tabIndex = b === stop ? 0 : -1; });
+  seg.addEventListener("keydown", (e) => {
+    const i = all.indexOf(document.activeElement);
+    const to = { ArrowRight: i + 1, ArrowDown: i + 1, ArrowLeft: i - 1, ArrowUp: i - 1, Home: 0, End: all.length - 1 }[e.key];
+    if (i < 0 || to === undefined) return;
+    e.preventDefault();
+    const next = all[(to + all.length) % all.length];
+    all.forEach((b) => { b.tabIndex = b === next ? 0 : -1; });
+    next.focus();
+  });
   let now = null;
   const put = (x, w) => { now = { x, w }; ind.style.width = `${w}px`; ind.style.transform = `translateX(${x}px)`; };
   const place = (slide) => {
@@ -126,8 +141,10 @@ const MENU = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="cu
 const CMDK = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.3"/><path d="M10.2 10.2l3.6 3.6"/></svg>';
 
 // A button and its popover: open, close on Escape or a press outside, focus back on close.
-function popover(toggle, pop, onOpen) {
-  const wrap = h("div", { class: "more" }, toggle, pop);
+// `host`: an element that already holds the button (the period group); the popover goes in it.
+function popover(toggle, pop, onOpen, host = null) {
+  const wrap = host || h("div", { class: "more" }, toggle, pop);
+  if (host) host.append(pop);
   const close = (focusBack) => { pop.hidden = true; toggle.setAttribute("aria-expanded", "false"); if (closePop === outside) closePop = null; if (focusBack) toggle.focus(); };
   const outside = (e) => { if (!pop.hidden && !wrap.contains(e.target)) close(false); };
   toggle.addEventListener("click", () => {
@@ -236,18 +253,19 @@ function drawBar(s) {
       h("li", null, chain.length ? h("button", { type: "button", class: "crumb", onclick: closeDrill }, name) : h("span", { class: "crumb now", "aria-current": "page" }, name)),
       last ? h("li", null, h("span", { class: "crumb now", "aria-current": "page", title: last[0] === "country" || last[0] === "city" ? titled(last[0], last[1]) : null }, `${DIMS[last[0]].name}: ${said(last[0], last[1])}`)) : null)));
 
-  // Middle: the period, Compare (modes.js, only on a tab that compares), the filters.
-  // 2.41-2.42 (the UX audit's tasks 2 and 5): one group, Today (live) · 7 · 30 · 90 days ·
-  // More (Yesterday, All time, Custom; the one picked shows in the group while it is the
-  // period). The page group is in the Filters panel, and shows as a chip while one is chosen.
+  // Middle: the period and Compare (modes.js, only on a tab that compares).
+  // One group, Today (live) · 7 · 30 · 90 days · More (Yesterday, All time, Custom; the one
+  // picked shows in the group while it is the period). The page group is in the Filters
+  // panel, and shows as a chip while one is chosen.
   const pickRange = (k) => {
     if (k === "today") return setLive(true, s);
     if (k === "custom") { const r = rangeOf(model, s); S.set({ range: "custom", from: r.first, to: r.last }); } else S.set({ range: k });
   };
+  const more = rangeMore(s, pickRange);
   const range = h("div", { class: "bar-range" },
     segmented(S.RANGES.filter(([k]) => k === "today" || MAIN_RANGES.includes(k) || k === s.range).map(([k, nm]) => [k, k === "today" ? liveSegment(model, s) : nm]),
-      s.range, pickRange, "Date range"),
-    rangeMore(s, pickRange));
+      s.range, pickRange, "Date range", more.toggle));
+  popover(more.toggle, more.pop, () => more.pop.querySelector(".menu-i")?.focus(), range);
   // Compare has two periods of its own, and Live is always today so far: the period above does not apply there.
   const ranged = opt(s.tab, "ranged", s, true);
   const modes = barModes(model, s);
@@ -261,13 +279,15 @@ function drawBar(s) {
     to.addEventListener("change", apply);
     mid.push(h("span", { class: "ctl dates" }, from, "to", to));
   }
-  mid.push(filtersButton(model, s));
 
-  // Right (2.41, the UX audit's task 2): one search, the alerts, and More. Refresh, saved views
-  // and export are in More; Help is in the menu (one door each). The search is the palette: it
-  // finds pages, sources and countries, goes anywhere and, for an admin, finds a person (2.13).
+  // Right (the UX audit's task 2): the filter, one search, the alerts, and More. Refresh, saved
+  // views and export are in More; Help is in the menu (one door each). The search is the palette:
+  // it finds pages, sources and countries, goes anywhere and, for an admin, finds a person (2.13).
   const right = [];
   if (!model.canRefresh) right.push(h("span", { class: "stamp" }, model.stamp));
+  const filters = filtersButton(model, s);
+  filters.title = "Filters: rules over every dimension, the page group, saved views";
+  right.push(filters);
   const always = [h("button", { type: "button", class: "btn kbd-btn ui-search", "aria-label": "Search or jump to (Ctrl or Cmd + K)", title: "Search pages, sources, countries, a person, or go anywhere (Ctrl K)", "aria-keyshortcuts": "Control+K Meta+K", onclick: () => palette(actions(), finds) },
     h("span", { class: "ui-search-ic", html: CMDK, "aria-hidden": "true" }), h("span", { class: "ui-search-l" }, "Search or jump to"), h("kbd", { class: "ui-search-k", "aria-hidden": "true" }, "Ctrl K")), bell(model)];
   right.push(...always);
@@ -351,19 +371,16 @@ function moreMenu(s) {
 }
 
 const MAIN_RANGES = ["7d", "30d", "90d"];
-// The other periods, one press away (2.41): Yesterday, All time, Custom.
-// Include today (inc=1, Summary and Pages at 7, 30 or 90 days): a check item under them, its
-// one place since 2.42 (it was a switch on the page as well).
+// The other periods, one press away (2.41): Yesterday, All time, Custom. Their button is the
+// period group's last (the mockup's "More"); main.js drawBar hangs the menu on the group.
+// Include today (inc=1) is not here since 2.43: it is one press on Summary's and Pages' period
+// line (period-line.js incSwitch), the two tabs it changes.
 function rangeMore(s, onPick) {
-  const toggle = h("button", { type: "button", class: "btn ui-more-range", "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": "More periods" }, "More");
+  const toggle = h("button", { type: "button", class: "ui-more-range", "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": "More periods", title: "Yesterday, All time, or your own dates" }, "More");
   const pop = h("div", { class: "pop menu", role: "menu", hidden: true, "aria-label": "More periods" },
     S.RANGES.filter(([k]) => k !== "today" && !MAIN_RANGES.includes(k)).map(([k, name]) => h("button", { type: "button", role: "menuitemradio", class: "menu-i", "aria-checked": String(k === s.range),
-      onclick: () => { pop.hidden = true; toggle.setAttribute("aria-expanded", "false"); onPick(k); } }, h("b", null, name))),
-    incTab(s) ? [h("hr", { class: "menu-sep", "aria-hidden": "true" }), h("button", { type: "button", role: "menuitemcheckbox", class: "menu-i", "aria-checked": String(incOn(s)), disabled: incApplies(s) ? null : true,
-      onclick: () => { pop.hidden = true; toggle.setAttribute("aria-expanded", "false"); S.set({ inc: incOn(s) ? "" : "1" }); } },
-    h("b", null, `${incOn(s) ? "✓ " : ""}Include today`), h("small", null, incApplies(s) ? "7, 30 and 90 days end today, with today so far" : "for 7, 30 and 90 days"))] : null);
-  if (incOn(s)) toggle.append(h("span", { class: "ui-more-on" }, " · today"));
-  return popover(toggle, pop, () => pop.querySelector(".menu-i")?.focus());
+      onclick: () => { pop.hidden = true; toggle.setAttribute("aria-expanded", "false"); onPick(k); } }, h("b", null, name))));
+  return { toggle, pop };
 }
 // Recount today, from More or the palette: the same as the old Refresh button, with its words.
 function refreshNow() {

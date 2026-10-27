@@ -114,6 +114,10 @@ class Extras:
         # visits' first times are set by aggregate.Tally.
         from .ai_likely import Fetches
         self.ai_fetches = Fetches()
+        # The same user fetches as reads, repeats and files (ai_reads.py); the
+        # site's asset prefixes are set by aggregate.Tally.
+        from .ai_reads import Reads
+        self.ai_reads = Reads()
         # Every AI fetch by what it asked for (ai_formats.py).
         from .ai_formats import Formats
         self.ai_formats = Formats()
@@ -161,7 +165,7 @@ class Extras:
 
     def add(self, hit, verdict) -> None:
         self.bots.add(hit, verdict)
-        self.ai_fetches.add(hit, verdict)
+        self.ai_fetches.add(hit, verdict, self.ai_reads.add(hit, verdict))
         self.link_previews.add(hit, verdict)
         self.ai_formats.add(hit, verdict)
         self.firsts_of(hit, verdict)

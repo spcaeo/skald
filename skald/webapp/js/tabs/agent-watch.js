@@ -76,7 +76,7 @@ function reportBox(report, site) {
 
 /* Step 5. onDone() once the first log lines arrived (a line without logs: once the report
    came). statusOf, tagOf and leadsOf are the calls, replaceable for the tests. */
-export function watchPanel(st, { onDone = null, cancel = true, statusOf = (site, link) => call("sites/agentstatus", { site, link_id: link }),
+export function watchPanel(st, { onDone = null, cancel = true, heard = null, again: askAgain = null, statusOf = (site, link) => call("sites/agentstatus", { site, link_id: link }),
   tagOf = (site) => call("sites/tagcheck", { site }), leadsOf = (site) => siteCall(site, `integrations?site=${encodeURIComponent(site)}`) } = {}) {
   const site = st.site;
   const done = h("div");
@@ -92,7 +92,9 @@ export function watchPanel(st, { onDone = null, cancel = true, statusOf = (site,
   const jobs = st.jobs || null;
   const logs = hasLogs(jobs);
   const draw = () => list.replaceChildren(...watchItems(status, seen, jobs).map(itemEl));
-  const test = !logs ? null : testPanel(st.send, { auto: true, onResult: (v) => {
+  // heard (2.43, Add a site): the step's live progress says when the lines arrived, and is its one
+  // check; this watch then has no Test connection of its own and only ticks its line from it.
+  const test = !logs || heard ? null : testPanel(st.send, { auto: true, onResult: (v) => {
     if (v.kind !== "ok" || seen.lines) return;
     seen.lines = true;
     draw();
@@ -169,6 +171,7 @@ export function watchPanel(st, { onDone = null, cancel = true, statusOf = (site,
     } else {
       said.textContent = "";
       status = r;
+      if (heard && logs && !seen.lines && heard()) seen.lines = true;
       // The agent moved on: the 2-minute log test looks again from now.
       if (test && ((r.keys_at && !before?.keys_at) || (r.reported_at && r.reported_at !== before?.reported_at))) test.start();
       if (r.keys_at && !before?.keys_at) drawKeys(r);
@@ -202,11 +205,11 @@ export function watchPanel(st, { onDone = null, cancel = true, statusOf = (site,
   // After 30 minutes past the expiry: asked again only on request.
   function stillWaiting() {
     const again = h("button", { type: "button", class: "btn" }, "Check again");
-    again.addEventListener("click", () => { lateSince = Date.now(); lateOut.replaceChildren(); if (test) test.start(); once(); });
+    again.addEventListener("click", () => { lateSince = Date.now(); lateOut.replaceChildren(); if (test) test.start(); if (askAgain) askAgain(); once(); });
     return h("p", { class: "note" }, "Still waiting? Press Check again. ", again);
   }
   draw();
   setTimeout(once, 0);       // once the step is on the page
   return [h("p", null, "Skald ticks each step as your agent does it. This page checks every few seconds while it is open."),
-    list, said, lateOut, waitOut, keysOut, logs ? null : done, report, tagOut, test, logs ? done : null, logs ? troubleTable() : null];
+    list, said, lateOut, waitOut, keysOut, logs ? null : done, report, tagOut, test, logs && !heard ? done : null, logs && !heard ? troubleTable() : null];
 }

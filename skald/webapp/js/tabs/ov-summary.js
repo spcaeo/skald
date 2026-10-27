@@ -18,6 +18,10 @@
 // open; everything after them (countries, top pages and sources, AI assistants, who else
 // came, the two release-2 cards, server requests, each day) is one fold, "More for this
 // period", kept in the address (ovx_view=open). Each part has its own tab as well.
+//
+// From your tools (ov-tools.js): after "What changed", outside the fold, one small card with
+// the figures of the person's own tools (Google Analytics...), each labelled with its tool;
+// one folded line when none is connected.
 
 import { h } from "../ui.js";
 import { later } from "../lazy.js";
@@ -32,6 +36,7 @@ import { whatChanged } from "./ov-changed.js";
 import { workCard } from "./ov-work.js";
 import { freshCard } from "./ov-fresh.js";
 import { urlFold } from "../ui/fold.js";
+import { toolsCard } from "./ov-tools.js";
 
 /* Everything after the chart and What changed, in one fold kept in the address. */
 function foldTheRest(out) {
@@ -39,6 +44,7 @@ function foldTheRest(out) {
   if (chart < 0) return out;
   let cut = chart + 1;
   if (out[cut] instanceof Element && out[cut].matches("section.wc")) cut += 1;
+  if (out[cut] instanceof Element && out[cut].matches("section.yt-card")) cut += 1;
   const rest = out.slice(cut).filter(Boolean);
   if (!rest.length) return out;
   return [...out.slice(0, cut), urlFold("ovx", "More for this period: countries, top pages and sources, AI assistants, who else came, pages to work on, new pages, server requests and each day", rest)];
@@ -91,7 +97,7 @@ function release2(m, s, out) {
   const { r, t } = figures(m, s);
   if (!t) return out;
   const chart = at((el) => el.matches("section.s") && !!el.querySelector(":scope > .sheet"));
-  if (chart >= 0) out.splice(chart + 1, 0, whatChanged(m, s, r, t, compareOf(m, s)));
+  if (chart >= 0) out.splice(chart + 1, 0, ...[whatChanged(m, s, r, t, compareOf(m, s)), toolsCard(m)].filter(Boolean));
   const server = at((el) => is(el, "ov-line"));
   // Each card waits for its page files on its own (lazy.js): the figures above do not wait.
   out.splice(server >= 0 ? server : out.length, 0, h("div", { class: "cols wf" },

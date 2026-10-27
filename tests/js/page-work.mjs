@@ -29,7 +29,8 @@ const D = await import(new URL("data.js", JS));
 
 // [visits, one_page, views, search, ai]
 const L = (pages, folded = 0) => ({ fields: ["visits", "one_page", "views", "search", "ai"], top: 200, folded, pages });
-const Fx = (paths, folded = 0) => ({ paths, folded });
+// Reads (ai_reads.py) default to one per request here; a day stored before reads has none.
+const Fx = (paths, folded = 0, reads = paths) => ({ paths, folded, reads });
 const pt = {
   first_day: "2026-10-20",
   days: [
@@ -94,6 +95,16 @@ const range = (days) => ({ kind: "history", first: days[0].day, last: days[days.
   const none = F.readsTrend(a, F.pageSums(pt, range([{ day: "2026-10-18", state: "ok" }])));
   assert.ok(none.every((x) => x.before === null));
   assert.equal(F.pageKey("/b?x=1"), "/b/");
+  // Reads, not requests (ai_reads.py): the NotebookLM pattern, 2 page GETs + CSS + JS, is one
+  // read of /n/ and four requests; the CSS has requests and no read, so it is not in the list.
+  // A day stored before reads were counted has no reads: readDays leaves it out.
+  const nb = { days: [
+    { day: "2026-10-22", state: "ok", landings: L({}), fetches: Fx({ "/n/": { "gemini.google.com": 2 }, "/app.css": { "gemini.google.com": 1 }, "/_next/static/a.js": { "gemini.google.com": 1 } }, 0, { "/n/": { "gemini.google.com": 1 } }) },
+    { day: "2026-10-23", state: "ok", landings: L({}), fetches: { paths: { "/n/": { "gemini.google.com": 2 } }, folded: 0, reads: null } },
+  ] };
+  const sn = F.pageSums(nb, range([{ day: "2026-10-22", state: "ok" }, { day: "2026-10-23", state: "ok" }]));
+  assert.deepEqual([sn.rows["/n/"].reads, sn.rows["/n/"].requests, sn.readDays, sn.fetchDays, sn.readFrom], [1, 4, 1, 2, "2026-10-22"]);
+  assert.deepEqual(F.readsTrend(sn, null).map((x) => [x.path, x.now, x.requests]), [["/n/", 1, 4]]);
 }
 
 // ---- the cards, drawn ------------------------------------------------------------------
@@ -160,7 +171,7 @@ const m = { today: "2026-10-22", anchor: "2026-10-21", firstDay: "2026-10-14", b
   assert.match(same, /Dates look like build times: 9 of the 12 dated pages/);
   const ai = aiTrend(m, s7, r7, D.total(r7.days)).textContent;
   assert.match(ai, /AI reads by page/);
-  assert.match(ai, /\/c\/4not measured-chatgpt.com 3 · claude.ai 11/);   // fetches 4, before not measured, 1 AI visit
+  assert.match(ai, /\/c\/4not measured-chatgpt.com 3 · claude.ai 141/);   // reads 4, before not measured, 4 requests, 1 AI visit
   assert.match(ai, /Before: not measured/);
   assert.doesNotMatch(ai.split("Leads↕")[1], /▲|▼/);                    // the rows (the header's ▼ is the sort)
   // Yesterday against the day before: both recorded, so a change.

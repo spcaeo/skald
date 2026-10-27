@@ -274,9 +274,14 @@ function page(title, lede, build) {
   return [head1(title, lede), box];
 }
 
-// keep_everything.py: an internal or enterprise site deletes nothing by itself.
+// keep_everything.py: an internal or enterprise site deletes nothing by itself. Which
+// organisation rule decides it (its rule) is said too: when it keeps everything, and when a
+// client organisation's site follows its own windows on an install that keeps everything.
 function keptAll(r) {
-  return r && r.keep_everything && r.keep_everything.on ? r.keep_everything.words : "";
+  const k = r && r.keep_everything;
+  if (!k) return "";
+  const rule = k.rule && k.rule.words && (k.on || k.rule.class === "client") ? k.rule.words : "";
+  return k.on ? [k.words, rule].filter(Boolean).join(" ") : rule;
 }
 
 // The AI assistants' API keys (Settings › AI answers › API keys, integrations.js).
@@ -301,7 +306,7 @@ export const PARTS = {
   script: { title: "Script tag", names: ["beacon.visitor_ids", "beacon.share_subdomains"],
     sub: "Visitor IDs: the tag keeps an anonymous random ID per browser, for journeys, abandoned forms and lead matching; your privacy notice must say so. Off, the tag still sends events but keeps no ID. Share the ID across subdomains: www. and app. see the same ID (a first-party cookie), as data-share-subdomains=\"true\" on the tag does, with the tag unchanged; browsers learn it within a day." },
   goals: { title: "Goals", names: ["beacon.goals"], sub: "The in-page events that count as this site's goals. Events shows each one per 100 visits by source, on checked days. At most 10." },
-  mail: { title: "The daily and weekly mail", names: ["mail.daily", "mail.weekly", "mail.to", "mail.from_name"], sub: "The daily mail goes after each morning's run; the weekly one on Mondays." },
+  mail: { title: "The daily and weekly mail", names: ["mail.daily", "mail.weekly", "mail.marketing", "mail.to", "mail.from_name"], sub: "The daily mail goes after each morning's run; the weekly one on Mondays. The Monday marketing mail (off until you turn it on): last week's visitors, leads and sources, then each of your tools' own figures, apart." },
   smtp: { title: "Mail server (SMTP)", names: ["mail.from", "mail.smtp.host", "mail.smtp.port", "mail.smtp.security", "mail.smtp.user", "mail.smtp.password"],
     sub: "For every site of the install. The sender address is the From of every mail. The password is write-only: this page only says whether it is set." },
   pagespeed: { title: "Google PageSpeed", names: ["pagespeed.api_key"], sub: "A free API key raises Google's daily limit for the page speed tests." },

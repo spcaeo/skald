@@ -23,6 +23,11 @@ organisation (and, if it names sites, only those). Scopes:
 works only while that person is enabled and still an owner or admin of the
 token's organisation: checked at every use (`creator_ok`), so removing or
 demoting an admin stops the tokens they made at once, without revoking them.
+
+Site access (schema 6): a member limited to some sites (accounts/users.py)
+makes tokens for those sites only (a token for "all sites" is made for their
+sites), and a token reads a site only while its maker may still see it
+(`creator_sees`, at every use), so a limit set later binds older tokens too.
 """
 from __future__ import annotations
 
@@ -73,6 +78,36 @@ def creator_ok(db, org_id, created_by) -> bool:
     return row is not None and not row[0] and row[1] in ("owner", "admin")
 
 
+def creator_sees(db, org_id, created_by, site) -> bool:
+    """False when a person made the token and is limited to other sites of
+    `org_id` than `site` (site access). Server-made tokens are always fine."""
+    who = str(created_by or "")
+    if not who.isdigit():
+        return True
+    row = db.execute("SELECT sites FROM members WHERE org_id = ? AND user_id = ?",
+                     (org_id, int(who))).fetchone()
+    from .users import sees
+    return row is not None and sees(row[0], site)
+
+
+def _within_access(db, org_id, sites, actor):
+    """The sites a token made by `actor` may name: theirs when they are
+    limited (all of theirs for "all sites"); ValueError for one outside."""
+    who = str(actor or "")
+    if not who.isdigit():
+        return sites
+    from .users import site_access
+    limit = site_access(db, org_id, int(who))
+    if limit is None:
+        return sites
+    if not limit:
+        raise ValueError("You have no site in this organisation to make a token for.")
+    outside = [s for s in sites or () if s not in limit]
+    if outside:
+        raise ValueError(f"You may not see {', '.join(outside)}: choose one of your sites.")
+    return sites or sorted(limit)
+
+
 def _setup_ok(db, org_id, sites, scopes, actor) -> None:
     """The setup scope's rules (2.39.0), or ValueError in plain words."""
     if "setup" not in scopes:
@@ -96,6 +131,7 @@ def create(db, org_id, name, sites=None, private=False, scopes=("read",), actor=
     with base.tx(db):
         if not db.execute("SELECT 1 FROM orgs WHERE id = ?", (org_id,)).fetchone():
             raise ValueError("There is no such organisation.")
+        sites = _within_access(db, org_id, sites, actor)
         _setup_ok(db, org_id, sites, scopes, actor)
         own = {r[0] for r in db.execute("SELECT name FROM sites WHERE org_id = ?", (org_id,))}
         foreign = [s for s in sites or () if s not in own]
@@ -133,6 +169,8 @@ def check(db, header: str | None, site: str, scope="read",
     if owner is None or owner[0] != entry["org_id"]:
         return False, "this token is not for that site", None
     if entry["sites"] and site not in entry["sites"]:
+        return False, "this token is not for that site", None
+    if not creator_sees(db, entry["org_id"], row["created_by"], site):
         return False, "this token is not for that site", None
     if scope not in entry["scopes"]:
         return False, f"this token has no {scope} scope", None

@@ -24,8 +24,10 @@ Each to-do: `id` (`lost-pages`, `server-errors`, `ai-markdown`, `sitemap`, or
 `check`, `figures` (the numbers in the proof), `qualifies`, `columns`
 (`[{"key","label","path"?: true,"num"?: true}]`), `rows` (at most 1,000),
 `rows_total`, `file` (the CSV's name), `open` (`{"tab", ...the filter, "name"}`),
-`window`, `state` (`open`, `done`, `notnow`), `marked` (the mark, or null) and
-`recheck` (for `done`: `{"marked_day","days","first","last","figures","verdict":
+`window`, `state` (`open`, `done`, `notnow`, and 2.44's `fixed`: a "Check again" found every
+address fixed), `marked` (the mark, or null), `fixed_withheld` (2.44: why a `fixed` mark the
+second count does not bear out is shown as `done`) and
+`recheck` (for `done` and `fixed`: `{"marked_day","days","first","last","figures","verdict":
 "waiting"/"fixed"/"not_yet","words"}`, the same measure over the whole days after
 the day it was marked). 2.41 adds `agent` (bool: an AI agent can fix this kind, `todos.AGENT_KINDS`:
 all five) and `first_seen` (the first day this to-do was on the list, open; null for one
@@ -89,7 +91,21 @@ append-only, `(site, item, state, day, at, by_user, kind, note)`; `item` is a to
 row is the mark (for a page change: the newest per page and day). Page changes:
 [DATA-CONTRACT-PAGE-CHANGES.md](DATA-CONTRACT-PAGE-CHANGES.md). Read and written by the helper's `settings/todos`
 (`todo_api.py`); every change and every mail sent is an audit-log row
-(`todo.marked`, `todo.sent`).
+(`todo.marked`, `todo.sent`). A to-do's `fixed` (kind `checked`) is written only by a check
+(below), never by a person; a later check that fails writes back the state before it.
+
+"Check again" (2.44, `todo_check.py`, `todo_checks.py`): table `todo_checks` in accounts.sqlite,
+append-only, `(site, item, at, sweep, start, total, checked, ok, mode, verdict, words, rows, log,
+by_user, by_who)`. One row per check; a to-do with more than 50 addresses is checked in pages of
+one sweep (`sweep`: the first page's `at`; `start`: the page's first row). `mode` `live` (Skald
+asked the addresses) or `log` (a visits to-do: not asked). `verdict` `fixed`, `partly`,
+`not_fixed`, `more` (rows left to ask), `waiting` or `error` (the site did not answer: nothing
+changed). `rows` JSON, one per address asked: `{"path","status","end","location","other_host",
+"ok","why"}` (`end`: what the last same-host redirect answered; never a body). `log` JSON: the
+newest log lines since the fix (`{"since","read","lines","failed","newest","partial"}`) or null.
+`by_who` `person`, `ai-agent` or `mcp:<token id>`. Audit row `todo.checked` (the to-do, the
+verdict and counts, never an address). Second count: `audit_todo_checks.py` re-derives each
+`fixed` mark from the kept rows by its own reading of each answer.
 
 The AI agents' reports (2.41): table `todo_fixes` in accounts.sqlite, append-only,
 `(site, item, at, state, change, files, left_rows, notes, link_id, by_who)`; `state`
@@ -107,8 +123,9 @@ passes:
 
 | Method, path | Body -> answer |
 | --- | --- |
-| GET `settings/todos` | -> `{ok, marks: {item: {state, day, at, first_day}}, changes, role, can_mark, mail: {ready, why}, team: [{id, email, role}], fixes: {item: the newest report}, server: {server, platform, framework}, line}`; `team` (who a to-do can be sent to) and `line` (the site's newest to-do line's status, never its code) only for owners and admins |
+| GET `settings/todos` | -> `{ok, marks: {item: {state, day, at, first_day}}, changes, role, can_mark, mail: {ready, why}, team: [{id, email, role}], fixes: {item: the newest report}, server: {server, platform, framework}, line, checks: {item: the newest check, as POST settings/todo-check's check}, checks_withheld: {item: why}}`; `team` (who a to-do can be sent to) and `line` (the site's newest to-do line's status, never its code) only for owners and admins |
 | POST `settings/todos` | `{item, state}`: `done`, `notnow` or `open` for a to-do; `fixed` or `open` for `path:/old/`; `{item: "page:/x/", state: "changed", day, kind, note}` marks a page change, `{item, state: "open", day}` stops tracking it -> `{ok, ...the mark, marks}` (a page change: `changes` instead). Owners and admins; the CSRF value |
 | POST `settings/todo-agent` | `{act: "make", items: [id, ...] or "all"}` -> `{ok, line, llms_url, steps_url, expires_at, link_id, cancelled, todos}`: one to-do line (kit/agent_todos.py), works once, 24 hours, ends the site's older to-do lines whose keys were not taken (never a set-up line); `"all"`: every open to-do an agent can fix. `{act: "status", link_id}` -> the line's state, `opened_at`, `keys_at`, `todos`, `fixes` and `reports` (its to-dos' kept reports). `{act: "cancel", link_id}` -> `{ok, state: "cancelled"}`. Owners and admins; read-only plans cannot make one (402) |
+| POST `settings/todo-check` | `{item, start}` (`start` 0, or the `next` the last answer gave) -> `{ok, check, marked, page, marks, checks_withheld}`: the to-do's own check now (2.44). `check`: `{item, at, sweep, mode, verdict, words, log, checked, ok, total, next, bad: [the rows still failing, at most 200], bad_total, by, by_who}`. Owners and admins; the CSRF value; 30 checks an hour a site and one start a minute a to-do (429); a stale `start` 409 |
 | GET `settings/todo-rows?item=<id>` | -> `{ok, todo}`: the to-do with every row from the rows file (Fix this > Me's lines and CSV). Anyone who may read the site |
 | POST `settings/todo-send` | `{item, to}` (`to`: a confirmed member's account id) -> `{ok, sent_to, file}`: mails one to-do with its rows as a CSV file and the link to it, through the install's mail server; owners and admins; 10 an hour (429). Without a mail server the answer says why |

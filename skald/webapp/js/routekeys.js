@@ -87,6 +87,7 @@ export const ROUTE_KEYS = [
   { key: "hq", kind: "tab", owner: "tabs/help.js", means: "Help: the search words (2.42)" },
   { key: "note", kind: "tab", owner: "tabs/about.js", means: "About: the note open" },
   { key: "test", kind: "tab", owner: "tabs/sitesadmin.js", means: "Settings › Sites: open a site's wizard at its Test (the site's name)" },
+  { key: "lt", kind: "tab", owner: "tabs/set-leads.js", means: "Settings › Leads & tools: the group a data page's Sources link opened, shown first and marked (leads, bookings, payments, search, tools, journeys, out)" },
   { key: "aact", kind: "tab", owner: "tabs/auditlog.js", means: "Settings › Audit log: the one kind of change shown (an action name, e.g. settings.save); every action when absent" },
   { key: "sub", kind: "tab", owner: "tabs/settings-frame.js", means: "a settings page's in-page tab (v2): Data logs, script, counting, sample; Leads & tools hooks, webhooks, search; Site details, internal; Mail & reports mail, reports; AI assistants mcp, api, tokens; AI answers profiles, keys; People team, security (the first when absent)" },
   { key: "sxv", kind: "tab", owner: "tabs/sec-exposed.js", means: "Security > Is anything exposed?: possible, nosize (can't tell) or both" },
@@ -96,6 +97,7 @@ export const ROUTE_KEYS = [
   { key: "sxa", kind: "tab", owner: "tabs/sec-attacks.js", means: "Security > Attack attempts: injection, login or burst" },
   // ---- 2.35: Insights' to-dos and Not found's lost pages (tabs/todos.js, tabs/nf-lost.js)
   { key: "todo", kind: "tab", owner: "tabs/todos.js", means: "Insights: the to-do whose list is open, by its id (lost-pages, server-errors, ai-markdown, sitemap, or leave- and 8 hex for a page)" },
+  { key: "tdchk", kind: "tab", owner: "tabs/todo-check.js", means: "Insights: the to-do whose Check again answer is open with the addresses still failing, by its id (2.44)" },
   { key: "nfk", kind: "tab", owner: "tabs/nf-lost.js", means: "Not found: the lost pages' tab: md (AI asks for Markdown) or fixed (After the fix); Lost pages when absent" },
   { key: "nfsrv", kind: "tab", owner: "tabs/nf-lost.js", means: "Not found: the server lines for apache (nginx when absent)" },
   { key: "pchg", kind: "tab", owner: "tabs/pagechange.js", means: "Traffic > Pages (a page) and Insights: the tracked page change open, by its id (c and 8 hex, a hash of the site, the page and the day)" },
@@ -116,8 +118,11 @@ export const ROUTE_KEYS = [
   { key: "list", kind: "overlay", owner: "tabs/person.js", means: "a list drawer: leftout, or conv-cancelled, conv-removed, conv-test", example: "leftout" },
   { key: "scan", kind: "overlay", owner: "tabs/sec-scanners.js", means: "Security > Who is scanning us?: one scanner's detail, by its first row: <day>.<seq> (never its address)", example: "2026-10-20.3" },
   { key: "ans", kind: "overlay", owner: "tabs/ai-answers.js", means: "AI answers: one stored answer in full, by its id", example: "412" },
-  { key: "setup", kind: "overlay", owner: "tabs/setup-dialogs.js, tabs/sitesadmin.js", means: "a Set up dialog (finish: Finish set-up, Who will do it?, for every open line; finish-<act>: for one line; logs, assets, rsc, countries, script, lead, mail, privacy, search; pack: the set-up in one zip; all: one line for your AI agent for every open line); on Settings › Sites, the Add a site wizard (new, or a site's name); a site's name on any tab is its wizard too (Set up with your AI agent)", example: "rsc" },
-  { key: "tool", kind: "overlay", owner: "tabs/set-leads.js", means: "Settings › Leads & tools: one tool's details (its id: site, calendly, stripe...), or webhooks (Send each lead out), search (Search Console and Bing), checks (every check)", example: "calendly" },
+  { key: "setup", kind: "overlay", owner: "tabs/setup-dialogs.js, tabs/sitesadmin.js", means: "a Set up dialog (finish: Finish set-up, Who will do it?, for every open line; finish-<act>: for one line; finish-tools: Leads & tools' Connect a tool, the lead hook and your own tools; logs, assets, rsc, countries, script, lead, mail, privacy, search, journeys; tool-<id>: connect one of your own tools (tool-ga4); pack: the set-up in one zip; all: one line for your AI agent for every open line); on Settings › Sites, the Add a site wizard (new, or a site's name); a site's name on any tab is its wizard too (Set up with your AI agent)", example: "rsc" },
+  { key: "tool", kind: "overlay", owner: "tabs/set-leads.js", means: "Settings › Leads & tools: one tool's details (its id: site, calendly, stripe...; your-<id>: one of your own tools, your-ga4), or webhooks (Send each lead out), search (Search Console and Bing), checks (every check)", example: "calendly" },
+  // 2.43: recorded journeys (tabs/recorded.js); never an address, an email or an ID the site made.
+  { key: "rj", kind: "overlay", owner: "tabs/recorded.js", means: "a session the site sent (Recorded by your site), by its opaque ref: s and 12 hex, a hash of the site and the session", example: "s3f9a0c2e7b1d" },
+  { key: "rjc", kind: "overlay", owner: "tabs/recorded.js", means: "Settings › Leads & tools: Recorded journeys' Connect dialog (Who will do it?, by= inside it)", example: "connect" },
   { key: "edit", kind: "overlay", owner: "tabs/set-edit.js", means: "Settings (v2): the part of a page being changed, in its drawer (people, leads, names, mail, smtp, password, totp...: the page's own ids, never a value)", example: "people" },
   { key: "lines", kind: "overlay", owner: "tabs/agent-many.js", means: "Settings › Sites › Set up many sites with your AI agent: all (every site, its own line each), site.<site> (that site's line and its watch open), mcp.<site> (its two lines: MCP, then \"Set up Skald for this site\") or add (the box that adds several sites). Never a line, a code or a token", example: "site.shop.example.com" },
   { key: "sact", kind: "overlay", owner: "tabs/site-actions.js", means: "Settings › Sites: a site's action dialog, <act>.<site> (act: pause, resume, remove, restore, clear or delete)", example: "pause.shop.example.com" },
@@ -127,7 +132,11 @@ export const ROUTE_KEYS = [
   { key: "step", kind: "overlay", owner: "tabs/conn-ui.js", means: "the step of the dialog open (1 is the first)", example: "2" },
   { key: "agent", kind: "overlay", owner: "tabs/site-wizard.js, tabs/agent-first.js", means: "Add a site, a Set up dialog or the MCP dialog: the AI agent chosen (claude-code, codex, cursor, chat, other), or hand (set it up by hand)", example: "claude-code" },
   { key: "link", kind: "overlay", owner: "tabs/agent-setup.js, tabs/todo-fix.js", means: "Add a site, a Set up dialog, the MCP dialog or Fix this (My AI agent): the agent line being watched, by its link id (16 hex, a hash of the code; the line and its code never go in the address)", example: "0f3a9c2e7b1d4a58" },
-  { key: "jobs", kind: "overlay", owner: "tabs/agent-first.js", means: "Set up everything left with your AI agent (setup=all): the jobs its line carries, joined by dots (logs, script, lead, rsc, assets, privacy)", example: "logs.script.lead" },
+  // 2.43: Add a site's people (tabs/site-wizard-org.js); its organisation is `org` (below). A typed email never.
+  { key: "ppl", kind: "overlay", owner: "tabs/site-wizard-org.js", means: "Add a site: the members of this organisation ticked to use a site going to another organisation, by user id, joined by dots (an email never)", example: "12.15" },
+  { key: "sees", kind: "overlay", owner: "tabs/site-wizard-org.js", means: "Add a site: what the people invited see, site (this site only) or all (every site of the organisation); absent, this site only, or every site in a new organisation", example: "all" },
+  { key: "jobs", kind: "overlay", owner: "tabs/agent-first.js", means: "Set up everything left with your AI agent (setup=all): the jobs its line carries, joined by dots (logs, script, lead, rsc, assets, privacy, search, connect-tools)", example: "logs.script.lead" },
+  { key: "way", kind: "overlay", owner: "tabs/setup-hook.js", means: "Connect your leads (setup=lead): the way chosen first (lead, wordpress, json, calendly, calcom, typeform, stripe, hubspot), from a page's Connect; it leaves with the dialog", example: "calendly" },
   { key: "share", kind: "overlay", owner: "tabs/conn-share.js", means: "Share with your developer: the form is open in the dialog (the link itself never goes in the address)", example: "1" },
   { key: "token", kind: "overlay", owner: "tabs/conn-install.js", means: "the token choice of a by-hand kit (the zips under Other ways): 0 is the zip without the token; absent, the token goes in the zip (the token itself never goes in the address)", example: "0" },
   { key: "pack", kind: "overlay", owner: "tabs/setup-pack.js", means: "Send set-up to someone: the box is open in the dialog (the addresses typed and the keys never go in the address)", example: "1" },
@@ -149,6 +158,9 @@ export const ROUTE_KEYS = [
   // 2.42: Export (export-dialog.js): what you need, and its Change part open.
   { key: "kind", kind: "overlay", owner: "export-dialog.js", means: "Export (dlg=export): what you need: pdf (a PDF of this page), csv (the tables, as CSV), monthly (a report someone gets by mail; client is read as monthly) or tools (JSON, the API and MCP)", example: "pdf" },
   { key: "xch", kind: "overlay", owner: "export-dialog.js", means: "Export: the Change part is open (what the PDF or the monthly report holds)", example: "1" },
+  // Settings › Organisation › Organisations (tabs/orgs.js, org-drawer.js).
+  { key: "org", kind: "overlay", owner: "tabs/orgs.js, tabs/org-drawer.js", means: "Settings › Organisations: one organisation's drawer, by its id (never its name), or new (New organisation). On Settings › Sites with setup=new, Add a site's organisation (tabs/site-wizard-org.js, 2.43): same (this one), an organisation's id (another of yours, chosen) or new (its name never in the address); it leaves with Add a site", example: "3" },
+  { key: "otab", kind: "overlay", owner: "tabs/org-drawer.js", means: "the organisation drawer's tab: sites, members, invites, settings, keys or audit (Overview when absent); it leaves with the drawer", example: "members" },
 ];
 
 // A table's or a grid's keys: <ns>_<suffix> (tablestate.js TABLE_KEY).
@@ -160,7 +172,8 @@ export const OVERLAY = ROUTE_KEYS.filter((k) => k.kind === "overlay").map((k) =>
 // The keys inside the dialog open (its step, the share form, the kit's token choice, the
 // set-up pack's box, Add a site's agent and the line it watches, Test a sample's reader); the other overlay keys
 // name the drawer or dialog itself.
-export const INSIDE = ["step", "share", "token", "pack", "agent", "link", "jobs", "lfmt", "pcd", "pck", "asst", "by", "fixby", "kind", "xch", "vall"];
+export const INSIDE = ["step", "share", "token", "pack", "agent", "link", "jobs", "ppl", "sees", "lfmt", "pcd", "pck", "asst", "by", "fixby", "kind", "xch", "vall",
+  "otab", "way"];
 export const OPENERS = OVERLAY.filter((k) => !INSIDE.includes(k));
 // Always a token, whatever the value looks like: a search for a person, an address filter.
 export const ALWAYS_MASKED = new Set(["who", "ip"]);

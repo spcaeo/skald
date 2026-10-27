@@ -67,8 +67,9 @@ class Fixture:
             self.db.execute("INSERT OR REPLACE INTO day_extras (site, day, kind, data) VALUES (?, ?, 'landings', ?)",
                             (SITE, iso, json.dumps(landings(rows, folded))))
         if fetch:
-            rows = [[f"{iso}T10:00", "chatgpt.com", "/pricing", reads]] if reads else []
-            rows.append([f"{iso}T11:00", "claude.ai", "/other/", 2])
+            # [minute, assistant, path, requests, reads]: two requests per read
+            rows = [[f"{iso}T10:00", "chatgpt.com", "/pricing", reads * 2, reads]] if reads else []
+            rows.append([f"{iso}T11:00", "claude.ai", "/other/", 2, 1])
             self.db.execute("INSERT OR REPLACE INTO day_extras (site, day, kind, data) VALUES (?, ?, 'ai_fetches', ?)",
                             (SITE, iso, json.dumps({"rows": rows})))
         self.db.commit()

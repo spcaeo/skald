@@ -14,7 +14,7 @@ export function leaderboard(m, s, r) {
   if (r?.kind === "today" || !(f.pages || []).length) {
     const rows = (f.today?.pages || []).filter((p) => keep(p.path)).map((p) => ({ ...p, __k: p.path }));
     const cols = [{ key: "path", label: "Page", path: true }, { key: "views", label: "Views", num: true }, { key: "readers", label: "Visitors", num: true },
-      { key: "entries", label: "Entries", num: true }, { key: "ai_asked", label: "AI asked", num: true }, { key: "ai_training", label: "AI training", num: true }, { key: "search", label: "Search", num: true }];
+      { key: "entries", label: "Entries", num: true }, { key: "ai_asked", label: "AI asked", num: true, title: "Requests for the page by assistants answering someone, repeats included; reads are on AI & bots › Assistants" }, { key: "ai_training", label: "AI training", num: true }, { key: "search", label: "Search", num: true }];
     return h("div", null, table(cols, { caption: "Page leaderboard, today so far", rows, file: `pages-today-${m.today}.csv`, sortKey: "views", limit: 15,
       rowClass: () => "go", onRow: (row) => S.set({ page: row.path }), empty: "No page read yet today." }),
     h("p", { class: "note" }, (f.pages || []).length ? "Today so far; it is still being counted. Pick 30 days for the 30-day leaderboard." : "Today so far. The 30-day leaderboard, with change against the 30 days before, appears once 30 whole days are recorded."));
@@ -29,7 +29,7 @@ export function leaderboard(m, s, r) {
     // Exit rate: the share of the page's visits that ended on it (pages.json, null under 10 visits).
     { key: "exit_rate", label: "Exit rate", num: true, sort: (row) => row.exit_rate ?? -1, fmt: (v) => (v == null ? "too few" : `${Math.round(v * 100)}%`), csv: (row) => row.exit_rate ?? "" },
     { key: "change_pct", label: "Change", num: true, fmt: (v, row) => { const [a, w] = change(row.views, row.prev?.views ?? null); return v == null ? "not comparable" : `${a}${a ? " " : ""}${w}`; }, csv: (row) => row.change_pct ?? "" },
-    { key: "ai_asked", label: "AI asked", num: true },
+    { key: "ai_asked", label: "AI asked", num: true, title: "Requests for the page by assistants answering someone, repeats included; reads are on AI & bots › Assistants" },
   ];
   const el = table(cols, { caption: "Page leaderboard", rows, file: `pages-${f.period?.first}-to-${f.period?.last}.csv`, sortKey: "views", limit: 15,
     rowClass: () => "go", onRow: (row) => S.set({ page: row.path }), empty: "No page matches." });

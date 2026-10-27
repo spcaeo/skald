@@ -12,7 +12,7 @@ const cases = JSON.parse(readFileSync(process.argv[2], "utf8"));
 const out = cases.map((c) => {
   const app = c.app || {};
   const m = { ...app, byDay: new Map((app.days || []).map((d) => [d.day, d])) };
-  const items = setupItems(m, { status: c.status ?? null, tools: c.tools ?? null, settings: c.settings ?? null, waiting: c.waiting || [] });
+  const items = setupItems(m, { status: c.status ?? null, tools: c.tools ?? null, settings: c.settings ?? null, waiting: c.waiting || [], yourtools: c.yourtools ?? null });
   return { done: setupDone(items), items };
 });
 process.stdout.write(JSON.stringify(out));

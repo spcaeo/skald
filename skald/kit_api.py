@@ -449,13 +449,36 @@ def _facts(c, site: str, jobs) -> dict:
         out["mcp_on"] = mcp_on(c.config)
     if "search" in jobs:
         out.update(_search_facts(c, conf, site))
+    if "connect-tools" in jobs:
+        from .kit import agent_tools
+        from .kit.agent_search import install_admin
+        out.update(agent_tools.facts(conf, _folder(c), site,
+                                     install_admin(c.config, _folder(c), c.uid)))
     if "privacy" in jobs or "assets" in jobs:
         got = settings_store.explain(conf, site, c.db)
         ips, days = got.get("privacy.keep_ips") or {}, got.get("privacy.keep_days") or {}
         out.update(keep_ips=ips.get("value"), keep_days=days.get("value"),
                    keep_source=ips.get("source"),
                    asset_prefixes=list((got.get("site.asset_prefixes") or {}).get("value") or []))
+    out.update(_invites(c, site))
     return out
+
+
+def _invites(c, site: str) -> dict:
+    """2.43: who gets an invite once data arrives (Add a site's "Who will use it?"),
+    as addresses, for the steps' last words to the user. {} when nobody waits."""
+    from .accounts import site_setup, users
+    row = site_setup.get(c.db, site) or {}
+    if row.get("invites_at") or not row.get("people"):
+        return {}
+    got = []
+    for one in row["people"]:
+        if one.get("user") is not None:
+            user = users.find_user(c.db, user_id=int(one["user"]))
+            one = {"email": user["email"]} if user else {}
+        if one.get("email"):
+            got.append(one["email"])
+    return {"invites": got} if got else {}
 
 
 def _search_facts(c, conf: dict, site: str) -> dict:

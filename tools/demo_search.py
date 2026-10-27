@@ -12,6 +12,10 @@ search appearance); a query of None is anonymised (in every total, in no query
 row), as Google does. The newest day is two days ago and still provisional.
 Bing's figures are a small share of Google's, as on most sites.
 
+For Traffic > Search's reports, a few positions drift day by day (DRIFT), one
+query starts in the last weeks (COMING) and one stops (GOING): the new and lost
+queries, the position tracking and the opportunities then have something to show.
+
 Drawn from a generator of its own: nothing else in the demo changes with it.
 """
 from __future__ import annotations
@@ -38,6 +42,11 @@ QUERIES = {
 SHOWN_ONLY = [("/blog/robots-txt-for-ai", "robots.txt for ai crawlers", 14.5),
               ("/guides/log-formats", "nginx combined log format", 18.2),
               ("/about/", "example company", 4.4)]
+# Positions that move a little each day (per day; negative: climbing).
+DRIFT = {"ai crawler analytics": -0.06, "nginx log format": 0.04, "what is gptbot": -0.03}
+# A query found only in the last N days, and one found only before the last N days.
+COMING = {"/blog/ai-crawlers-explained": ("gptbot user agent", 7.4, 20)}
+GOING = {"/": ("example beta", 2.6, 30)}
 COUNTRIES = [("usa", 46), ("gbr", 12), ("can", 10), ("deu", 7), ("ind", 7), ("aus", 5),
              ("fra", 4), ("nld", 4), ("swe", 3), ("bra", 2)]
 DEVICES = [("DESKTOP", 58), ("MOBILE", 38), ("TABLET", 4)]
@@ -63,13 +72,18 @@ def records(history_db, site: str, first: date, last: date, seed: int) -> dict[s
     d = first
     while d <= last:
         k = d.isoformat()
+        age, left = (d - first).days, (last - d).days
         blob = (ours.get(k) or {}).get("search_landing") or {}
         pages = dict(((blob.get("pages") or {}).get("Google") or {}))
         rows: list[dict] = []
         for path, n in sorted(pages.items()):
             path = path.split("?", 1)[0]
             name = path.strip("/").split("/")[-1].replace("-", " ")
-            found = QUERIES.get(path) or [(f"example {name}".strip(), 3.5)]
+            found = list(QUERIES.get(path) or [(f"example {name}".strip(), 3.5)])
+            if path in COMING and left < COMING[path][2]:
+                found.append(COMING[path][:2])
+            if path in GOING and left >= GOING[path][2]:
+                found.append(GOING[path][:2])
             clicks = max(0, int(n) + x.choice([-1, 0, 0, 0, 0, 1]))
             shown = clicks * x.randint(14, 38) + x.randint(6, 70)
             for i in range(x.randint(2, 4)):
@@ -80,7 +94,8 @@ def records(history_db, site: str, first: date, last: date, seed: int) -> dict[s
                 rows.append({"query": q, "page": SITE_URL + path, "country": _pick(x, COUNTRIES),
                              "device": _pick(x, DEVICES),
                              "appearance": "FAQ_RICH_RESULT" if path.startswith("/guides/") and x.random() < 0.3 else None,
-                             "clicks": c, "impressions": s, "position": round(pos + x.uniform(-0.6, 0.9), 1)})
+                             "clicks": c, "impressions": s,
+                             "position": max(1.0, round(pos + DRIFT.get(q, 0) * age + x.uniform(-0.6, 0.9), 1))})
             if clicks or shown:
                 rows.append({"query": None, "page": SITE_URL + path, "country": "usa", "device": "DESKTOP",
                              "appearance": None, "clicks": clicks, "impressions": shown, "position": 9.0})

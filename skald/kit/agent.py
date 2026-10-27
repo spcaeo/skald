@@ -72,6 +72,9 @@ On the beacon helper (beacon_server.py), `serve` answers:
   POST /traffic-kit/<code>/searchkey  a Search Console service-account key file, read
                                       from stdin, for a line with the search job
                                       (agent_search.py)
+  POST /traffic-kit/<code>/toolkey    a key to one of the user's own tools (?tool=ga4...),
+                                      read from stdin, for a line with the connect-tools
+                                      job made by an install admin (agent_tools.py)
   GET  /traffic-kit/<code>/todo/<id>  a to-do line's to-do with every row, as JSON, with
                                       the report key header (agent_todos.py, 2.41)
   POST /traffic-kit/<code>/fix        a to-do line's report for one to-do, at most 256 KiB
@@ -117,7 +120,7 @@ NOTES_MOST = 1000
 STATES = ("waiting", "opened", "keys_taken", "expired", "cancelled", "unknown")
 # The routes, each with its own limit (beacon_server.py); "code" is the bare code.
 ROUTES = ("code", "steps", "keys", "install.sh", "leads", "report", "hooksecret", "searchkey",
-          "todo", "fix", "other")
+          "toolkey", "todo", "fix", "other")
 WEB_READER = ("Fetch this with curl in a shell into a file; never with a web reader, which "
               "would put the keys in a chat. Nothing was used up: the keys are still there.\n")
 # A value an agent might paste by mistake: a sending token or a lead secret.
@@ -549,6 +552,24 @@ def _tools(value) -> list[dict] | None:
     return out
 
 
+def _your_tools(value) -> list[dict] | None:
+    """[{tool, key: sent | already | left | skipped}]: the user's own tools
+    (yourtools/), each once, known ids only."""
+    from ..yourtools import adapters
+    if not isinstance(value, list):
+        return None
+    known, out = adapters(), []
+    for one in value[:20]:
+        if not isinstance(one, dict):
+            continue
+        tool, key = one.get("tool"), one.get("key")
+        if isinstance(tool, str) and tool in known and key in ("sent", "already", "left",
+                                                                 "skipped") \
+                and tool not in [got["tool"] for got in out]:
+            out.append({"tool": tool, "key": key})
+    return out
+
+
 def _for_line(report: dict, jobs: list[str]) -> dict:
     """Only the line's own jobs in `jobs`, and `tools` only with the lead job."""
     out = dict(report)
@@ -560,6 +581,8 @@ def _for_line(report: dict, jobs: list[str]) -> dict:
         out.pop("tools", None)
     if "search" not in jobs:
         out.pop("search", None)
+    if "connect-tools" not in jobs:
+        out.pop("your_tools", None)
     return out
 
 
@@ -570,7 +593,7 @@ REPORT = {
     "asset_paths": lambda v: _texts(v, 10, 200,
                                     lambda p: p.startswith("/") and " " not in p),
     "script_tag": lambda v: _text(v, 300),
-    "leads": _leads, "privacy": _privacy, "search": _search,
+    "leads": _leads, "privacy": _privacy, "search": _search, "your_tools": _your_tools,
     "nextjs_log_field": lambda v: v if isinstance(v, bool) else None,
     "changed_files": lambda v: _texts(v, 50, 300),
     "left_for_user": lambda v: _texts(v, 20, 300),
@@ -697,11 +720,14 @@ def serve(h, folder, base: str, limits, address: str, config: dict | None = None
         if sub == "searchkey":
             from . import agent_search
             return agent_search.answer(h, folder, code, config)
+        if sub == "toolkey":
+            from . import agent_tools
+            return agent_tools.answer(h, folder, code, config, config_path)
         if sub == "fix":
             from . import agent_todos
             return agent_todos.fix(h, folder, code, config, config_path)
-        return _send(h, 405, "Only the report, a hook secret, a search key and a to-do's fix "
-                             "are sent with POST.\n")
+        return _send(h, 405, "Only the report, a hook secret, a search key, a tool's key and "
+                             "a to-do's fix are sent with POST.\n")
     entry = find(folder, code)
     if not sub:
         if entry is None:                          # an install link, or unknown: as before

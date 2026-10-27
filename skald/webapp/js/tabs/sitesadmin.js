@@ -23,6 +23,7 @@ import { siteWizard, STEPS } from "./site-wizard.js";
 import { withCopy, withUrl } from "../urlactions.js";
 import { setReload, siteMenu } from "./site-actions.js";
 import { stateWords } from "./site-act-words.js";
+import { livePill, watchSites } from "./setup-live.js";
 
 const FORMAT_NAME = {
   auto: "Detect it", nginx_combined: "nginx (combined)", nginx_extended: "nginx (Skald's extended format)", apache_combined: "Apache (combined)",
@@ -64,16 +65,22 @@ let latest = null;
 export async function openSiteKey(value, step = 0, s = {}) {
   if (!sessions() || !admin()) return "Not available to your role.";
   const has = (d) => d?.sites && (value === "new" || d.sites.some((x) => x.name === value));
-  const r = has(latest?.data) ? latest.data : await call("sites");
+  let r = has(latest?.data) ? latest.data : await call("sites");
   if (!r.ok && !r.sites) return why(r, "The sites could not be loaded, so the wizard cannot open. Open this page again in a minute.");
+  // 2.43: a site the wizard put in another of your organisations is answered for that one.
+  if (value !== "new" && !has(r)) {
+    const there = await call(`sites?site=${encodeURIComponent(value)}`);
+    if (there.ok && has(there)) r = there;
+  }
   const reload = location.hash.includes("settings/org/sites") && latest?.reload || (() => {});
-  if (value === "new") return r.can_add ? siteWizard({ data: r, onChange: reload, agent: s.agent || "", by: s.by || "" }) : "Adding a site is not open to this organisation now.";
+  if (value === "new") return r.can_add ? siteWizard({ data: r, onChange: reload, agent: s.agent || "", by: s.by || "", org: s.org || "", ppl: s.ppl || "", sees: s.sees || "" }) : "Adding a site is not open to this organisation now.";
   const site = (r.sites || []).find((x) => x.name === value);
   if (!site) return "That site is not one of this organisation's sites.";
   // pick: Connections' "Set up with your AI agent" asks which agent, whatever way was saved.
   const at = step || (site.setup && !site.setup.done && site.setup.step) || 1;
   return siteWizard({ data: r, name: site.name, start: Math.max(0, Math.min(STEPS, at) - 1), method: s.pick ? "" : site.setup?.method || "", verify: site.verify,
-    found: site.setup?.found || null, onChange: reload, agent: s.pick ? "" : s.agent || "", link: s.link || "", by: s.pick ? "agent" : s.by || "" });
+    found: site.setup?.found || null, onChange: reload, agent: s.pick ? "" : s.agent || "", link: s.link || "", by: s.pick ? "agent" : s.by || "",
+    done: !!site.setup?.done && !s.pick });      // 2.43: a set-up that is done opens on its done state
 }
 
 export default function sitesadmin(m, s = {}) {
@@ -87,6 +94,16 @@ export default function sitesadmin(m, s = {}) {
   const reload = () => call("sites").then(draw);
 
   let data = {};
+  // 2.43: each site's live state (setup-live.js), asked every 5 s then 30 s while the page is open.
+  const live = {};
+  let watching = null;
+  const onLive = (rows) => {
+    Object.assign(live, rows);
+    for (const el of box.querySelectorAll(".sl-row-pill")) {
+      const row = live[el.getAttribute("data-site")];
+      el.replaceChildren((row && livePill(row)) || "");
+    }
+  };
   function draw(r) {
     if (!r.ok) { box.replaceChildren(h("div", { class: "state" }, h("div", null, why(r, "The sites could not be loaded.")))); return; }
     data = r;
@@ -96,6 +113,7 @@ export default function sitesadmin(m, s = {}) {
     box.replaceChildren(...[table(all.filter((x) => x.status !== "removed")), removedBox(all.filter((x) => x.status === "removed")),
       pendingBox(all), addForm(r)].flat().filter(Boolean));
     openAsked(r);
+    if (!watching && admin()) watching = watchSites(box, onLive);
   }
 
   // Removed sites: their data is kept; an owner restores one (or deletes its data) from its menu.
@@ -127,17 +145,19 @@ export default function sitesadmin(m, s = {}) {
   }
   function setupCell(site) {
     if (!admin() || site.status !== "active") return "";
+    const mark = h("span", { class: "sl-row-pill", "data-site": site.name });
+    if (live[site.name]) mark.replaceChildren(livePill(live[site.name]) || "");
     if (site.setup && !site.setup.done) {
       const b = h("button", { type: "button", class: "btn cn-badge" }, "Finish setting up");
       b.addEventListener("click", () => resume(site));
-      return b;
+      return h("span", { class: "sl-row" }, mark, b);
     }
     if (site.quiet) {
       const b = h("button", { type: "button", class: "btn cn-badge warn" }, "No visits yet: test the connection");
       b.addEventListener("click", () => resume(site, true));
-      return b;
+      return h("span", { class: "sl-row" }, mark, b);
     }
-    return "";
+    return mark;
   }
 
   // A site waiting for its domain to be verified collects nothing (site_verify.py).

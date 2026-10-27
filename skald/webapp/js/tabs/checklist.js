@@ -27,6 +27,7 @@ import { store } from "../extras.js";
 import { setupItems, setupDone, agentJobsLeft } from "../setup-items.js";
 import { openLines, leftWords, finishWords, verbOf } from "../settings-todo.js";
 import { ic, doneFold as uiDoneFold } from "./set-ui.js";
+import { liveBadge } from "./setup-live.js";
 
 const KEY = (site) => `ti-setup-hidden:${site}`;
 const MARK = { done: "Done", todo: "To do", wait: "Waiting", unknown: "Not checked" };
@@ -46,6 +47,7 @@ async function ask(site, fresh = false) {
   const got = {
     settings: set.ok ? set.settings : null, waiting: set.ok ? set.mail_waiting || [] : [],
     status: integ.ok ? integ.status || [] : null, tools: integ.ok ? integ.tools || [] : null,
+    yourtools: integ.ok ? integ.yourtools || null : null,
   };
   answers.set(site, { at: Date.now(), got });
   return got;
@@ -124,7 +126,9 @@ export function setupChecklist(m, { where = "overview" } = {}) {
   const slot = h("div", { class: "su-body" });
   let items = [];
   const finish = h("span");
-  const head = h("div", { class: "su-head" }, h("h2", null, `Set up ${m.site}`), left, h("span", { class: "grow" }), finish, hide);
+  // 2.43: the site's live state beside the title (setup-live.js), the same as Settings › Sites.
+  const head = h("div", { class: "su-head" }, h("h2", null, `Set up ${m.site}`), left, DEMO.on ? null : liveBadge(m.site),
+    h("span", { class: "grow" }), finish, hide);
   const box = h("section", { class: `sheet su${always ? " su-always" : ""}`, "aria-label": `Set up ${m.site}` }, head, slot);
   if (hide) hide.addEventListener("click", () => { store.set(KEY(m.site), true); box.remove(); });
 

@@ -11,7 +11,10 @@
 //   and the second line, "Set up Skald for this site";
 //   "Add several sites": names typed at once, each added with POST sites/add (the same
 //   checks, plan limits and "verify your domain first" as Add a site), then each one's own
-//   line.
+//   line. 2.43: the box asks Add a site's two first questions once, "same for all" (site-wizard-
+//   org.js): the organisation (a new one is made with the first site, the others join it) and
+//   who will use it (carried by the first site only: an organisation's members see every one of
+//   its sites). Untick "Same for all" to choose this organisation or another of yours per site.
 //
 // The lines and the token are kept in this page's memory only (agent-setup.js LINES, and
 // TOKENS below), never in the address: lines=<value> names the view only. One button opens
@@ -33,6 +36,7 @@ import { makeLine, lineFor, forgetLine, cancelButton, lineBox, safetyBox } from 
 import { watchPanel } from "./agent-watch.js";
 import { jobsWords, timeLeft, expired } from "./agent-words.js";
 import * as W from "./agent-many-words.js";
+import { whoState, whoPart, whoBody, whoCheck } from "./site-wizard-org.js";
 
 const TOKENS = new Map();          // site -> the MCP + set-up token made in this page (shown once)
 const POLL_MS = 10000;
@@ -183,14 +187,40 @@ export function openLines(want = { view: "all", site: "" }) {
     const area = h("textarea", { rows: "4", spellcheck: "false", "aria-label": "New sites, one per line", placeholder: "shop.example.com\nblog.example.org" });
     const go1 = h("button", { type: "button", class: "btn primary" }, "Add these sites");
     const out = h("div", { role: "status", "aria-live": "polite" });
+    // 2.43: the organisation and who will use it, the same for all (the default) or per site.
+    const who = whoState();
+    const each = new Map();             // site -> "same" or an organisation's id, when not the same for all
+    const all = h("input", { type: "checkbox", checked: true });
+    let same = true;                    // "Same for all", ticked at first
+    const perSite = h("div", { class: "am-per" });
+    const drawPer = () => {
+      if (same) { perSite.replaceChildren(); return; }
+      const { names } = W.siteNames(area.value);
+      const others = who.opts?.orgs || [];
+      perSite.replaceChildren(...names.map((n) => {
+        const sel = h("select", { "aria-label": `The organisation for ${n}` }, h("option", { value: "same" }, "This organisation"),
+          others.map((o) => h("option", { value: String(o.id), selected: each.get(n) === String(o.id) || null }, o.name)));
+        sel.addEventListener("change", () => each.set(n, sel.value));
+        return h("label", { class: "am-per-row" }, h("span", null, n), sel);
+      }));
+    };
+    all.addEventListener("change", () => { same = all.checked; drawPer(); });
+    area.addEventListener("input", () => { if (!same) drawPer(); });
     go1.addEventListener("click", async () => {
       const { names, bad, more } = W.siteNames(area.value);
       if (!names.length) { out.replaceChildren(answerBox("bad", "Type at least one site name, like shop.example.com.")); return; }
+      const refused = same ? whoCheck(who) : "";
+      if (refused) { out.replaceChildren(answerBox("bad", refused)); return; }
       go1.disabled = true;
       const done = [];
+      let shared = same ? whoBody(who) : null;
       for (const name of names) {
         out.replaceChildren(h("p", { class: "empty" }, `Adding ${name}...`));
-        const r = await call("sites/add", { host: name, token: false });
+        const choice = shared || (each.get(name) && each.get(name) !== "same" ? { org: each.get(name) } : {});
+        const r = await call("sites/add", { host: name, token: false, ...choice });
+        // The first site made the organisation and carries the people; the rest join it.
+        if (r.ok && shared?.org) shared = { org: String(r.org?.id || shared.org) };
+        else if (r.ok && shared) shared = {};
         done.push({ name, ok: r.ok, words: r.ok ? (r.verify?.state === "pending" ? "added; verify its domain first (Settings › Sites)" : "added") : why(r, "not added") });
         if (!r.ok && r.status === 403) break;       // the plan's limit or the role: the rest would be refused too
       }
@@ -203,7 +233,8 @@ export function openLines(want = { view: "all", site: "" }) {
     });
     return h("section", { class: "am-add" }, h("h3", null, "Add several sites"),
       h("p", { class: "sub" }, `One per line, at most ${W.MOST_NEW}. Each is added as Add a site adds it: the same checks and plan limits, and a domain to verify first where your Skald asks for it.`),
-      area, h("div", { class: "acts" }, go1), out);
+      area, whoPart(who, () => drawPer()), h("label", { class: "am-all" }, all, " Same for all"), perSite,
+      h("div", { class: "acts" }, go1), out);
   }
 
   async function makeOne(row) {

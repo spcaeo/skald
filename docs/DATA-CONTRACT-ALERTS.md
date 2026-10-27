@@ -24,7 +24,8 @@ An alert: `id` (string), `cause` (`site_down`, `logging_stopped`,
 `server_errors`, `not_found_surge`, `crawler_burst`, `new_crawler`,
 `traffic_drop`, `ai_started_reading`, `ai_stopped_reading`, `ai_sending_people`,
 `ai_first_citation`, `ai_first_cited_page`, `ai_cited_visits`, `crawler_silent`,
-`security_exposure`, `scan_wave`, `stack_advisory`, `sale`, `sale_refunded`), `subject` (what it is about: a crawler name, a path, or
+`security_exposure`, `scan_wave`, `stack_advisory`, `sale`, `sale_refunded`,
+`tool_stopped`, `leads_drop`, `bookings_drop`, `ga4_log_gap`), `subject` (what it is about: a crawler name, a path, a tool's id, or
 `""`), `severity` (`high`, `medium`, `low`), `title` (one plain line),
 `detail` (a few lines: the figure, the threshold, what to look at), `figure`
 (number or null), `threshold` (number or null), `opened_at`, `last_seen_at`,
@@ -91,6 +92,35 @@ too. `severity` `low`; `figure`, `threshold` and `unit` null. `data`:
   sale's refunded total after it), "sale_minor", "currency", "amount", "stage": "refunded",
   "at" (the part's UTC time), ...the same attribution}`. The key: site, `refund`, tool,
   external ref, the refunded total after the part.
+
+The marketing alerts (alerts_marketing.py, 2.43) are conditions like the first rules:
+open while they hold, mailed once, closed when they clear. `rules[]` rows carry
+`"group": "marketing"`. None counts anything new: each reads a figure already counted twice.
+
+- `tool_stopped` (medium, on): a connected tool (yourtools/, "From your tools") in the state
+  "stopped" (no good answer for 26 hours, or never). `subject` the tool's id, `figure` the
+  hours since its last good answer (null: never), `threshold` 26, `unit` `hours`. Read on
+  every live run.
+- `leads_drop` (medium, on): the dashboard's leads (mail_html._leads: period_leads,
+  recounted by audit_client_reports.check_leads) over the last 7 whole days (the site's time
+  zone) under `alerts.leads_drop_percent` (50) % of the 7 before, when those were at least
+  `alerts.leads_drop_minimum` (5). `subject` `leads`, `figure` the last 7 days' leads,
+  `threshold` the line it fell under, `unit` `leads`. No leads recorded, or the two counts
+  differ: silent.
+- `bookings_drop` (medium, on): Calendly's own `booked_7d` under `alerts.bookings_drop_percent`
+  (50) % of its `booked_prev_7d`, when that was at least `alerts.bookings_drop_minimum` (5),
+  read through yourtools/api.py only while the tool answers and its recheck matches.
+  `subject` `calendly`, `unit` `bookings`; the detail starts "Counted from: Calendly."
+- `ga4_log_gap` (low, off): Google Analytics' `sessions` over its own last 28 days against
+  the log's people visits over the same dates, only when every day is whole and verified;
+  alerts when the ratio is `alerts.ga4_gap_factor` (2, at least 2) to 1 or more either way.
+  `subject` `ga4`, `figure` the ratio (GA4 / log, 2 places), `threshold` words. The detail
+  says the two count in different ways, never that either is wrong.
+
+`leads_drop`, `bookings_drop` and `ga4_log_gap` are worked out once per last whole day and
+when the settings change; the state keeps them under `marketing`: `{"day", "sign" (the
+settings), "found" (the findings), "at"}`. A failure is one stderr line and keeps the last
+findings, so nothing closes and opens again.
 
 What counts is the Revenue tab's rule (conversions_revenue.Book): a sale or a counted refund
 part, never a test row, nothing before `revenue_since`. Nothing new is counted, so there is

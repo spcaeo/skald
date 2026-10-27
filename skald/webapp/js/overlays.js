@@ -27,14 +27,18 @@ const pending = new Set();     // "family=value" being restored (answers on the 
 // fix (Fix this, 2.41): who will do it (by, or the older fixby) and the line watched (link) leave with it.
 // alfix (Site › Alerts' Fix, 2.41): "Who will do it?" (by), the agent and its line leave with it.
 // fixit (a screen's Fix, 2.42): the same.
-const STEPPED = new Set(["setup", "conn", "pcm", "fix", "alfix", "fixit"]);
+// rjc (Recorded journeys' Connect, 2.43): the same.
+const STEPPED = new Set(["setup", "conn", "pcm", "fix", "alfix", "fixit", "rjc"]);
 // The keys inside a stepped dialog (its step, the share form, the kit's token choice) leave with it.
 const INSIDE_OFF = Object.fromEntries(INSIDE.map((k) => [k, ""]));
 // dlg=export (2.42): what you need (kind), its Change part (xch) and who sets up mail (by) leave
 // with it; the other app dialogs (dlg=keys, views...) clear nothing of a dialog under them.
 // The visitor drawer's Show all (vall) leaves with it, by visit, person or conversion.
-const OWN_INSIDE = { dlg: ["kind", "xch", "by"], vis: ["vall"], who: ["vall"], conv: ["vall"], lead: ["vall"] };
-const insideOff = (family) => (STEPPED.has(family) ? INSIDE_OFF
+const OWN_INSIDE = { dlg: ["kind", "xch", "by"], vis: ["vall"], who: ["vall"], conv: ["vall"], lead: ["vall"],
+  org: ["otab"] };
+// Add a site (setup=, 2.43) names its organisation with org= (an opener of its own on Settings ›
+// Organisations): it leaves with Add a site too.
+const insideOff = (family) => (family === "setup" ? { ...INSIDE_OFF, org: "" } : STEPPED.has(family) ? INSIDE_OFF
   : Object.fromEntries((OWN_INSIDE[family] || []).map((k) => [k, ""])));
 const extra = {};              // restorers main.js adds (the report builder needs its loader)
 
@@ -147,9 +151,15 @@ const RESTORE = {
   lines: async (v) => (await import("./tabs/agent-many.js")).openLinesKey(v),
   // Settings › Leads & tools: one tool's details, or Send each lead out, Search Console, Every check.
   tool: async (v, m) => (await import("./tabs/set-leads.js")).openToolKey(v, m),
+  // 2.43: recorded journeys, a session the site sent (rj) and Connect (rjc) (js/tabs/recorded.js).
+  rj: async (v, m) => (await import("./tabs/recorded.js")).openSessionKey(v, m),
+  rjc: async (v, m) => (await import("./tabs/recorded.js")).openConnectKey(v, m),
   // Settings v2: a part of a page changed in its drawer (js/tabs/set-edit.js).
   edit: async (v, m, s) => (await import("./tabs/set-edit.js")).openEditKey(v, m, s),
   conn: async (v, m, s) => (await import("./tabs/connections.js")).openConnKey(v, m, Number(s.step) || 1, s.share === "1", s),
+  // Settings › Organisations: one organisation's drawer (otab=, its tab) or New organisation.
+  // Elsewhere (Add a site's setup=new&org=) it only names the organisation chosen: left alone.
+  org: async (v, m, s) => (s.tab === "settings/org/orgs" ? (await import("./tabs/orgs.js")).openOrgKey(v, m, s) : null),
   dlg: async (v, m, s) => {
     if (extra[`dlg:${v}`]) return extra[`dlg:${v}`](m, s);
     if (v === "keys") return (await import("./keys.js")).help();

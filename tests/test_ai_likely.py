@@ -76,7 +76,9 @@ WANT = {"window_minutes": 15, "chance_limit": 0.25, "by_chance": {},
         "by_assistant": {"(more than one)": 1, "chatgpt.com": 1},
         "pages": {"/docs": 1, "/pricing/": 1},
         "fetches": {"chatgpt.com": 1, "claude.ai": 1, "perplexity.ai": 1},
-        "followed": {"chatgpt.com": 1, "claude.ai": 1, "perplexity.ai": 1}}
+        "followed": {"chatgpt.com": 1, "claude.ai": 1, "perplexity.ai": 1},
+        "reads": {"chatgpt.com": 1, "claude.ai": 1, "perplexity.ai": 1},
+        "reads_followed": {"chatgpt.com": 1, "claude.ai": 1, "perplexity.ai": 1}}
 
 
 def tally(lines, attribution=None):
@@ -107,9 +109,9 @@ class TestTheDay(unittest.TestCase):
         self.assertEqual(marked["11:14"]["name"], classify.AI_LIKELY_MANY)
         self.assertEqual(marked["11:14"]["names"], ["claude.ai", "perplexity.ai"])
         self.assertEqual(totals.extras["ai_fetches"], {"rows": [
-            ["2026-10-05T10:00", "chatgpt.com", "/pricing/", 1],
-            ["2026-10-05T11:10", "perplexity.ai", "/docs", 1],
-            ["2026-10-05T11:12", "claude.ai", "/docs/", 1]]})
+            ["2026-10-05T10:00", "chatgpt.com", "/pricing/", 1, 1],
+            ["2026-10-05T11:10", "perplexity.ai", "/docs", 1, 1],
+            ["2026-10-05T11:12", "claude.ai", "/docs/", 1, 1]]})
 
     def test_only_the_three_lines_of_the_brief(self):
         lines = [line(at(10, 0), "198.51.100.40", "/pricing/", ASKED),
@@ -387,9 +389,11 @@ class TestTheApp(unittest.TestCase):
 class TestIndependence(unittest.TestCase):
 
     def test_the_recount_shares_only_classify_lists(self):
+        # The name lists (classify, ai_read_names) and the audit's own reading
+        # of reads (audit_ai_reads, on the audit's road): nothing of the main road.
         tree = ast.parse(Path(audit_ai_likely.__file__).read_text())
         got = {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.level}
-        self.assertEqual(got, {"classify"})
+        self.assertEqual(got, {"classify", "ai_read_names", "audit_ai_reads"})
 
 
 if __name__ == "__main__":

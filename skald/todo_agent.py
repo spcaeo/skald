@@ -47,7 +47,7 @@ def pick(folder, db, site: str, items) -> list[dict]:
     known = {t["id"]: t for t in got.get("todos") or [] if t.get("kind") in agent_todos.KINDS}
     if items == "all":
         marks = todo_marks.current(db, site)
-        ids = [i for i in known if (marks.get(i) or {}).get("state") not in ("done", "notnow")]
+        ids = [i for i in known if (marks.get(i) or {}).get("state") not in ("done", "notnow", "fixed")]
         if not ids:
             raise Refused(409, "There is no open to-do for an AI agent now.")
     elif isinstance(items, list) and items and all(isinstance(i, str) for i in items):

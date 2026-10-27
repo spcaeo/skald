@@ -72,6 +72,12 @@ class Layout(unittest.TestCase):
         for gone in ("Tables on this tab (ZIP)", "Print this tab", "Report builder"):
             self.assertNotIn(gone, more)
         self.assertNotIn("narrow-only", more, "in More at every width")
+        # The approved mockup's seven (2.43): title, period, Compare, filter, search, alerts, More.
+        # The period's More is the group's last button; the filter is on the right, an icon.
+        self.assertIn('"Date range", more.toggle)', bar)
+        self.assertNotIn("mid.push(filtersButton", bar)
+        self.assertLess(bar.index("filtersButton(model, s)"), bar.index("ui-search"), "the filter comes before the search")
+        self.assertIn(".bar .fp-btn .f-l { display: none; }", (JS.parent / "css" / "ui.css").read_text())
 
     def test_one_who_question(self):
         for f in sorted(JS.rglob("*.js")):

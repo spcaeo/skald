@@ -43,7 +43,7 @@ export const pageCols = (sums) => (sums ? [
     fmt: (v) => (v == null ? few("Not recorded for these days") : v.toFixed(1)), csv: (x) => (x.ppv == null ? "" : x.ppv.toFixed(2)) },
   { key: "left", label: "Left after one page", num: true, title: LEFT_WORDS, sort: (x) => x.left,
     fmt: (_, x) => (x.left == null ? few("Not recorded for these days") : `${pct1(x.one, x.visits)}${x.atLeast ? "+" : ""}`), csv: (x) => (x.left == null ? "" : x.left.toFixed(4)) },
-  { key: "reads", label: "AI reads", num: true, title: "Live fetches by AI assistants answering a user (ChatGPT-User, Perplexity-User, Claude-User and others), as AI & bots › Assistants counts them", sort: (x) => x.reads,
+  { key: "reads", label: "AI reads", num: true, title: "Pages read by AI assistants answering a user (ChatGPT-User, Perplexity-User, Claude-User and others): one assistant, one page, once in 30 seconds, as AI & bots › Assistants counts them", sort: (x) => x.reads,
     fmt: (v) => (v == null ? few("Not recorded for these days") : n(v)) },
   { key: "chg", label: "Changed", type: "date", title: "The page's change date: the website's own, else your sitemap's “last changed”", sort: (x) => x.chg,
     fmt: (v) => (v ? short(v) : few("No change date")) },
@@ -76,7 +76,7 @@ export function addPageFigures(rows, sums, dates, lb) {
     x.ppv = f ? perVisit(f) : null;
     x.left = f ? leftShare(f) : null;
     x.atLeast = sums.folded && !f;
-    x.reads = sums.fetchDays ? f?.reads || 0 : null;
+    x.reads = sums.readDays ? f?.reads || 0 : null;
     x.work = workScore({ visits: x.visits, left: x.left });
     x.workWhy = improve.has(k) ? "Improve the page" : both.has(k) ? "Both" : "";
   }

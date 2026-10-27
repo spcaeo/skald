@@ -72,6 +72,7 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | `rg`, `rm`, `rs`, `rv` | tabs/tr-retention.js | Retention: grain, measure, split, value |
 | `since` | tabs/insights.js | Insights: the window |
 | `todo` | tabs/todos.js | Insights: the to-do whose list is open, by its id (`lost-pages`, `server-errors`, `ai-markdown`, `sitemap`, or `leave-` and 8 hex, a hash of the page): `#overview/insights?todo=lost-pages` (2.35). A to-do not on the list now opens the page with one plain line |
+| `tdchk` | tabs/todo-check.js | Insights: the to-do whose Check again answer is open, with the addresses still failing and what each answers now, by its id: `#overview/insights?tdchk=lost-pages` (2.44). Without a check kept, nothing opens |
 | `pchg` | tabs/pagechange.js | Traffic > Pages (with `page`) and Insights: one tracked change open, by its id (`c` and 8 hex, a hash of the site, the page and the day): `#traffic/pages?page=%2Fpricing%2F&pchg=c22e50cf9` (2.35). A change no longer tracked opens the page with one plain line |
 | `nfk`, `nfsrv` | tabs/nf-lost.js | Not found's lost pages: the tab (`md` AI asks for Markdown, `fixed` After the fix; Lost pages when absent) and the server lines (`apache`; nginx when absent) (2.35) |
 | `fn`, `fsrc`, `fstep`, `fmode` | tabs/funnels.js | Funnels: steps, starting source, step open, reached or left |
@@ -91,6 +92,7 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | `hq` | tabs/help.js | Help: the search words; a value that looks like an address or an email is masked like any other (2.42) |
 | `note` | tabs/about.js | About: the note |
 | `test` | tabs/sitesadmin.js | Add or remove sites: a site's wizard at its Test (read once, then `setup`) |
+| `lt` | tabs/set-leads.js | Settings › Leads & tools: the group a data page's "Sources: Leads & tools" link opened (`leads`, `bookings`, `payments`, `search`, `tools`, `journeys`, `out`), scrolled to and marked; a group folded under More you can connect opens: `#settings/site/leads?lt=bookings` (Unreleased) |
 | `ca`, `cdim` | routes.js | the old Compare page's period A and table: read once and rewritten into the period and `cmp` (`cb` for a custom B) |
 
 ## Drawers and dialogs (overlay keys)
@@ -100,6 +102,7 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | `vis` | tabs/visitor.js | the visitor drawer, by its visit: day and number that day | `vis=2026-10-20.14` |
 | `who` | tabs/visitor.js | Find a person's answer: the search as a token | `who=~k2f9a0x7qm` |
 | `vall` | tabs/visitor.js | The visitor drawer (by `vis`, `who`, `lead` or `conv`): every visit drawn, after **Show all (N)**; without it the newest two. It leaves with the drawer (2.42) | `vis=2026-10-20.14&vall=1` |
+| `rj` | tabs/recorded.js | Traffic > Visitors, Recorded by your site: one recorded session's drawer, by its opaque ref (`s` and 12 hex, a hash of the site and the session ID; never the visitor's or the session's own ID). A session no longer kept opens the page with one plain line (2.43) | `#traffic/visitors?rj=s3f9a0c2e7b1d` |
 | `lead` | tabs/sa-leads.js | a lead's drawer, by its row id | `lead=1287` |
 | `conv` | tabs/sa-lists.js | a cancelled, removed or test conversion: its list and a code | `conv=test.r1x2y3z` |
 | `req` | tabs/si-requests.js | one request's detail, by a code of its log line | `req=r8k2m1x` |
@@ -110,6 +113,7 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | `ans` | tabs/ai-answers.js | AI answers: one stored answer in full | `ans=412` |
 | `setup` | tabs/setup-dialogs.js | a Set up dialog: `logs`, `assets`, `rsc`, `countries`, `script`, `lead`, `mail`, `privacy`, `pack` (send set-up to someone, 2.30); `finish` (Finish set-up: Who will do it? for every open line) or `finish-<act>` (for one line, from its row) (Unreleased, Settings v2) | `setup=rsc&step=2`, `setup=finish&by=agent` |
 | `tool` | tabs/set-leads.js | Settings › Leads & tools: one tool's details in a drawer, by its id (`site`, `calendly`, `stripe`...), or `webhooks` (Send each lead out), `search` (Search Console & Bing), `checks` (every check). An id Skald does not know opens the page with one plain line (Unreleased, Settings v2) | `#settings/site/leads?tool=calendly` |
+| `rjc` | tabs/recorded.js | Settings › Leads & tools: the Recorded journeys dialog, `connect`. "Who will do it?" is `by` (`me`, `dev`, `agent`) and leaves with it. The secret, the message and the agent's line never go in the address; a role that cannot connect opens the page with one plain line (2.43) | `#settings/site/leads?rjc=connect&by=agent` |
 | `edit` | tabs/set-edit.js | Settings: the part of a page being changed, in its drawer: a card of settings (`people`, `leads`, `detail`, `backups`, `names`, `logfile`, `assets`, `notpages`, `script`, `goals`, `mail`, `smtp`, `pagespeed`, `signin`, `aikeys`), `logo`, `testmail`, `preview`, `ip-add` and `ip-<code>` (an internal address, by a code, never the address), `report-new`, `report-<id>`, `reportedit-<id>`, `branding`, `ailists`, `profile-new`, `profile-<id>`, Your account's `name`, `password`, `totp`, `sessions`, `token-new`, and Alerts' `alertmin` (the sale alert minimum). A part this page does not have opens it with one plain line (Unreleased, Settings v2) | `#settings/site/privacy?edit=people` |
 | `aact` | tabs/auditlog.js | Settings › Audit log: the one kind of change shown (absent: every action) (Unreleased, Settings v2) | `#settings/org/audit?aact=settings.save` |
 | `pack` | tabs/setup-pack.js | `1` while the set-up pack box is open inside the logs or leads dialog (2.30); the addresses and keys never go in the address | `pack=1` |
@@ -118,11 +122,15 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | `link` | tabs/agent-setup.js | Add a site, steps 4 and 5: the agent's line being watched, by its link id (the first 16 hex of the code's SHA-256). The line and its code never go in the address (2.31) | `link=0f3a9c2e7b1d4a58` |
 | `lines` (on `#settings/org/sites`) | tabs/agent-many.js | Set up many sites with your AI agent: `all` (every site, each with its own line), `site.<site>` (that site's line and its watch open), `mcp.<site>` (its two lines: MCP, then "Set up Skald for this site") or `add` (the box that adds several sites at once) (Unreleased). The lines, their codes, the MCP token and the names typed never go in the address | `#settings/org/sites?lines=site.shop.example.com` |
 | `sact` (on `#settings/org/sites`) | tabs/site-actions.js | a site's action dialog from its ⋯ menu: `<act>.<site>`, act one of `pause`, `resume`, `remove`, `restore`, `clear`, `delete` (Unreleased). The typed name and the tick never go in the address; a role or a site state that does not offer the action opens the page with one plain line | `sact=pause.shop.example.com` |
+| `org` (on `#settings/org/orgs`) | tabs/orgs.js, tabs/org-drawer.js | one organisation's drawer, by its id (never its name), or `new` (New organisation, an install admin's). A link to an organisation not yours opens the page with "That organisation is not available to you." Elsewhere it is left alone: with `setup=new` on `#settings/org/sites` it is Add a site's organisation (the `org`, `ppl`, `sees` row below) | `#settings/org/orgs?org=3` |
+| `otab` | tabs/org-drawer.js | the organisation drawer's tab: `sites`, `members`, `invites`, `settings`, `keys` or `audit` (absent: Overview); a tab the reader may not open shows Overview. It leaves with the drawer (Unreleased). The page's search and order are `orgs_q` and `orgs_sort` | `#settings/org/orgs?org=3&otab=members` |
 | `conn` | tabs/connections.js | a connection dialog: `send` and `sample` (Test a sample of a log, 2.35) on Collect data, `api` on Read figures (API), `mcp` on AI assistant (MCP) | `conn=api&step=2` |
 | `asst` | tabs/conn-read.js | the MCP dialog by hand: the assistant chosen, `claude-desktop`, `chatgpt` or `other` (absent: Claude Code). The token never goes in the address (Unreleased) | `conn=mcp&step=2&agent=hand&asst=claude-desktop` |
 | `sub` | tabs/settings-frame.js | a settings page's in-page tab (absent: the first): Data `logs`, `script`, `counting`, `sample`; Site `details`, `internal`; Mail & reports `mail`, `reports`; AI assistants `mcp`, `api`, `tokens`; AI answers `profiles`, `keys`; People `team`, `security` (Unreleased). Leads & tools has no tabs: an older `sub=search` or `sub=webhooks` opens that drawer (`tool=`) | `#settings/site/data?sub=script` |
 | `lfmt` | tabs/conn-sample.js | Test a sample: the reader chosen (a format name; absent: Detect it). The pasted lines never go in the address, so a link or a reload opens step 1 to paste again | `conn=sample&step=1&lfmt=caddy_json` |
 | `step` | tabs/conn-ui.js | the step of the dialog open, 1 first | `step=2` |
+| `org`, `ppl`, `sees` | tabs/site-wizard-org.js | Add a site, step 1 (2.43): the organisation the site goes to, `same`, an organisation's id (another of yours) or `new`; the members of this organisation ticked to use it there, by user id joined by dots; and what the people invited see, `site` (this site only) or `all` (every site of the organisation), written once chosen (absent: this site only, or every site in a new organisation). Settings › Organisations' **Add a site** opens `setup=new&org=<id>`: one of your other organisations opens on **Another of mine**, chosen; this one (or one not yours) on **This organisation**. A typed email and a new organisation's name never go in the address: they stay in the page, then in the site's set-up row. All three leave with the dialog, `org` too (js/overlays.js) | `setup=new&org=new&by=agent` |
+| `way` | tabs/setup-hook.js | Connect your leads (`setup=lead`): the way chosen first (`lead`, `wordpress`, `json`, `calendly`, `calcom`, `typeform`, `stripe`, `hubspot`), written by a page's Connect (js/ui/connect.js); it leaves with the dialog (Unreleased) | `#sales/bookings?setup=lead&way=calendly` |
 | `share` | tabs/conn-share.js | the Share with your developer form is open (the link it makes never is in the address) | `share=1` |
 | `token` | tabs/conn-install.js | a by-hand zip kit's "Include the access token in the zip" unticked, under "Other ways" in the send dialog or Add a site (absent: ticked, the default); never the token itself | `token=0` |
 | `tdsend` | tabs/todo-send.js | Insights: Send to team, for a to-do, by its id (2.35). Who it goes to never goes in the address; without a mail server or a team the page says why instead | `tdsend=lost-pages` |
@@ -158,6 +166,7 @@ it shows in a drawer: a tool (`tool=`), or the form that changes a part (`edit=`
 | Organisation | People (Team, Sign-in rules) | `#settings/org/people` |
 | Organisation | Billing | `#settings/org/billing` |
 | Organisation | Audit log | `#settings/org/audit` |
+| Organisation | Organisations (cards; each one's drawer `org=<id>`, its tab `otab=`) | `#settings/org/orgs` |
 | You | Your account | `#settings/you/account` |
 
 Every older address opens its new home with every parameter it carried
@@ -232,7 +241,10 @@ Each table and grid keeps its own state under its namespace, `<ns>_<suffix>`
 
 The sub-tabs kept this way: `alerts_view` (Site > Alerts: an older `switches` link opens `#settings/site/alerts`; `ai` from older links is ignored), `utm_view`
 (Sources: the UTM tag), `seeng_view`, `seper_view`, `semet_view` (Traffic > Search: the
-engine, the period, the measure), `flow_view` (the visitor flow: start and pages),
+engine, the period, the measure), `sesec_view` (its section: `opps`, `changes`, `positions`,
+`cross`; the trend and tables when absent), `seopr_view` (Opportunities' rule: `low_ctr`,
+`near`), `senl_view` (`lost`), `sepk_view` (Positions: `page`), `seall_view` (the list shown
+in full by Show all), `flow_view` (the visitor flow: start and pages),
 `tsrc_view` (Overview in Live mode: the sources' order).
 
 ## Copy and open on every URL

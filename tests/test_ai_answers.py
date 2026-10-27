@@ -369,8 +369,8 @@ class DataFile(Runs):
         self.assertEqual(got["state"], "not set up")
         self.go(datetime(2026, 10, 12, 12, tzinfo=UTC))
         extras = {"2026-10-12": {
-            "ai_fetches": {"rows": [["2026-10-12T10:00", "chatgpt.com", "/pricing", 3],
-                                   ["2026-10-12T10:01", "claude.ai", "/pricing/", 9]]},
+            "ai_fetches": {"rows": [["2026-10-12T10:00", "chatgpt.com", "/pricing", 3, 2],
+                                   ["2026-10-12T10:01", "claude.ai", "/pricing/", 9, 1]]},
             "cube": {"rows": [["CA", "/pricing/", "AI assistant", "chatgpt.com", "desktop", 2],
                               ["CA", "/pricing/", "Search engine", "", "desktop", 7]]},
             "ai_likely": {"pages": {"/pricing/": 1}}}}
@@ -381,7 +381,16 @@ class DataFile(Runs):
         self.assertEqual(got["state"], "ok")
         chain = next(c for c in got["chain"] if c["provider"] == "openai")
         self.assertEqual((chain["page"], chain["cited"], chain["of"]), ("/pricing/", 4, 4))
-        self.assertEqual((chain["read"], chain["sent"], chain["likely"], chain["leads"]), (3, 2, 1, 1))
+        self.assertEqual((chain["read"], chain["requests"], chain["sent"], chain["likely"], chain["leads"]),
+                         (2, 3, 2, 1, 1))
+        self.assertIsNone(got["reads_from"])
+        # A day stored before reads were counted (rows of four): reads unknown, never 0.
+        older = {**extras, "2026-10-11": {"ai_fetches": {"rows": [
+            ["2026-10-11T09:00", "chatgpt.com", "/pricing/", 4]]}}}
+        old = data.build(self.page(older))
+        chain = next(c for c in old["chain"] if c["provider"] == "openai")
+        self.assertEqual((chain["read"], chain["requests"]), (None, 7))
+        self.assertEqual(old["reads_from"], "2026-10-12")
         prof = got["profiles"][0]
         self.assertEqual(prof["estimate"]["answers"], 16)
         last = got["last"][str(self.pid)]
@@ -400,6 +409,64 @@ class DataFile(Runs):
         self.assertEqual(got["trend"][0]["providers"], {})
         self.assertEqual(got["last"], {})
         self.assertEqual(got["chain"], [])
+
+
+class ChainRecount(unittest.TestCase):
+    """The chain's reads and requests summed again from the history file."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.path = Path(tmp.name) / "history.sqlite"
+        db = sqlite3.connect(self.path)
+        db.execute("CREATE TABLE day_extras (site TEXT, day TEXT, kind TEXT, data TEXT, "
+                   "PRIMARY KEY (site, day, kind))")
+        for day, rows in (("2026-10-12", [["2026-10-12T10:00", "chatgpt.com", "/pricing?x=1", 3, 2],
+                                          ["2026-10-12T10:05", "chatgpt.com", "/pricing/", 1, 1],
+                                          ["2026-10-12T10:01", "claude.ai", "/pricing/", 9, 1]]),
+                          ("2026-10-11", [["2026-10-11T09:00", "chatgpt.com", "/pricing", 4]])):
+            db.execute("INSERT INTO day_extras VALUES (?, ?, 'ai_fetches', ?)",
+                       ("example.com", day, json.dumps({"rows": rows})))
+        db.execute("INSERT INTO day_extras VALUES ('other.example.com', '2026-10-12', 'ai_fetches', ?)",
+                   (json.dumps({"rows": [["2026-10-12T10:00", "chatgpt.com", "/pricing", 50, 50]]}),))
+        db.commit()
+        db.close()
+
+    def chain(self, read, requests, page="/pricing/"):
+        return [{"provider": "openai", "page": page, "read": read, "requests": requests}]
+
+    def test_reads_and_requests_agree_on_the_new_days(self):
+        days = ["2026-10-12"]
+        self.assertEqual(audit_ai_answers.recount_chain(self.path, "example.com", days,
+                                                        self.chain(3, 4)), [])
+        found = audit_ai_answers.recount_chain(self.path, "example.com", days, self.chain(4, 4))
+        self.assertEqual(found, ["chain openai /pricing/: read 4 against 3"])
+        # A page no assistant fetched: 0 of each; a page not known: none.
+        self.assertEqual(audit_ai_answers.recount_chain(self.path, "example.com", days,
+                                                        self.chain(0, 0, "/about/")), [])
+        self.assertEqual(audit_ai_answers.recount_chain(self.path, "example.com", days,
+                                                        self.chain(None, None, "(page not known)")), [])
+
+    def test_an_old_day_makes_the_reads_unknown_never_zero(self):
+        days = ["2026-10-11", "2026-10-12"]
+        self.assertEqual(audit_ai_answers.recount_chain(self.path, "example.com", days,
+                                                        self.chain(None, 8)), [])
+        self.assertTrue(audit_ai_answers.recount_chain(self.path, "example.com", days,
+                                                       self.chain(3, 8)))
+
+    def test_a_disagreeing_chain_is_withheld_on_the_page(self):
+        extras = {"2026-10-12": {"ai_fetches": {"rows": [
+            ["2026-10-12T10:00", "chatgpt.com", "/pricing", 9, 9]]}}}
+        p = SimpleNamespace(history=SimpleNamespace(path=self.path, extras=lambda *a: extras),
+                            counted_days=lambda: list(extras), config={})
+        db = sqlite3.connect(":memory:")
+        db.executescript("CREATE TABLE answers (provider, own_pages, run_id, site, ok, day);"
+                         "CREATE TABLE figures (run_id, provider, verified);"
+                         "INSERT INTO answers VALUES ('openai', '[\"/pricing/\"]', 1, 'example.com', 1, '2026-10-12');"
+                         "INSERT INTO figures VALUES (1, 'openai', 1);")
+        with mock.patch.object(data, "_leads", lambda *a: None):
+            out, reads_from = data._chain(p, db, "example.com", date(2026, 10, 1), date(2026, 10, 12))
+        self.assertEqual((out[0]["read"], out[0]["requests"], reads_from), (None, None, None))
 
 
 if __name__ == "__main__":

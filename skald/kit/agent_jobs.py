@@ -16,8 +16,15 @@ steps.
                                                            (agent_search.py), only when
                                                            Skald has none and an install
                                                            admin made the line
+  connect-tools  the user's own tools (Google Analytics...;  none; each key the user agrees
+           yourtools/): finds names in the project, lists  to through POST <code>/toolkey
+           them, asks before each key                      (agent_tools.py), only when an
+                                                           install admin made the line
   mcp      connects the user's assistant to Skald's MCP   SKALD_MCP_TOKEN (mcp scope,
                                                           this site, no addresses)
+  connect-journeys  adds the page helper and the signed   none; the journey secret through
+           relay (recorded journeys, 2.43) to the site's  POST <code>/hooksecret
+           code, asking before each change                {"tool": "journey", "make": true}
 
 2.41: a to-do line (Overview > Insights' Fix this, kit/agent_todos.py) carries TODO_JOBS
 instead: todo-lost, todo-errors, todo-markdown, todo-sitemap, todo-leave, one per kind of
@@ -44,14 +51,17 @@ from pathlib import Path
 from . import link
 
 HERE = Path(__file__).resolve().parent / "agent"
-JOBS = ("logs", "script", "lead", "rsc", "assets", "privacy", "search", "mcp")
+JOBS = ("logs", "script", "lead", "rsc", "assets", "privacy", "search", "connect-tools", "mcp",
+        "connect-journeys")
 DEFAULT = ("logs", "script", "lead")
 STATES = ("done", "already", "skipped", "left")     # the report's `jobs` values
 # The line's words (after "finish setting up Skald for <site>").
 TITLES = {"logs": "connect the logs", "script": "add the script tag",
           "lead": "send leads and tool webhooks", "rsc": "add the Next.js log field",
           "assets": "find the page assets", "privacy": "check the privacy settings",
-          "search": "connect Google Search Console", "mcp": "connect the AI assistant (MCP)"}
+          "search": "connect Google Search Console", "connect-tools": "connect your own tools",
+          "mcp": "connect the AI assistant (MCP)",
+          "connect-journeys": "connect recorded journeys"}
 MOST = 20                                            # ids looked at in one request
 FOUND_MOST = 120                      # a site check value's length in the steps
 COND = re.compile(r"<!-- if (not )?([a-z|-]+) -->\n(.*?)(?:<!-- else -->\n(.*?))?<!-- end -->\n",
@@ -275,11 +285,17 @@ def _example(jobs: list[str], site: str) -> str:
         out["nextjs_log_field"] = True
     if "search" in jobs:
         out["search"] = {"google_property": f"sc-domain:{site}", "robot_added": True}
-    out["changed_files"] = ["app/layout.tsx"] if "script" in jobs else []
+    if "connect-tools" in jobs:
+        out["your_tools"] = [{"tool": "ga4", "key": "sent"}]
+    out["changed_files"] = (["app/layout.tsx"] if "script" in jobs else []) + \
+        (["app/api/skald-journey/route.ts", "app/api/skald-journey/withdraw/route.ts"]
+         if "connect-journeys" in jobs else [])
     out["left_for_user"] = (["Set Settings > Privacy & retention > People to 30 days"]
                             if "logs" in jobs or "privacy" in jobs else []) + \
         (["Search Console: add the robot address as a Restricted user"]
-         if "search" in jobs else [])
+         if "search" in jobs else []) + \
+        (["Google Analytics: add the robot address as a Viewer of the property"]
+         if "connect-tools" in jobs else [])
     out["notes"] = "Anything else, in one or two plain sentences."
     return json.dumps({k: v for k, v in out.items() if v != []})
 
@@ -346,6 +362,31 @@ If Google refuses to make a key (an organisation policy such as
 `iam.disableServiceAccountKeyCreation`), tell the user and put the upload in `left_for_user`."""
 
 
+def _invites_done(facts: dict) -> str:
+    """2.43: the last thing the agent tells the user, when Add a site named people
+    to invite (kit_api._invites): they get it once the first data arrives."""
+    got = [_plain(x) for x in facts.get("invites") or [] if isinstance(x, str)][:20]
+    if not got:
+        return ""
+    who = got[0] if len(got) == 1 else ", ".join(got[:-1]) + " and " + got[-1]
+    return (f"4. End with these words to the user: \"Done. {who} will get an invite as soon "
+            "as the first data arrives.\" Skald sends it by itself: send nothing else for it.\n")
+
+
+RELAY = {"JOURNEY_SIGN": "sign.ts", "JOURNEY_ROUTE": "route.ts",
+         "JOURNEY_WITHDRAW": "withdraw/route.ts"}
+
+
+def _relay(jobs) -> dict:
+    """connect-journeys' Next.js relay (kit/journeys/), each file as an indented block."""
+    if "connect-journeys" not in jobs:
+        return dict.fromkeys(RELAY, "")
+    here = HERE.parent / "journeys"
+    return {k: "\n".join(f"    {line}".rstrip() for line in
+                         (here / name).read_text(encoding="utf-8").rstrip("\n").split("\n"))
+            for k, name in RELAY.items()}
+
+
 def _read(name: str) -> str:
     return (HERE / name).read_text(encoding="utf-8")
 
@@ -372,7 +413,14 @@ def steps(entry: dict, code: str, base: str) -> str:
     dashboard = fields.get("dashboard") or ""
     hooks = fields.get("hooks_url") or (fields.get("lead_url") or "").rpartition("/")[0] + "/"
     env_dir, env_file = "$HOME/.config/skald", f"$HOME/.config/skald/{site}.env"
+    tools = "connect-tools" in jobs
+    if tools:
+        from . import agent_tools
     values = {
+        "TOOLS_NOW": agent_tools.now_lines(facts) if tools else "",
+        "TOOLS_FIND": agent_tools.find_lines() if tools else "",
+        "TOOLS_SEND": agent_tools.send_lines(facts, site, env_dir, env_file, f"{here}/toolkey")
+        if tools else "",
         "SEARCH_NOW": _search_now(facts) if "search" in jobs else "",
         "SEARCH_ROBOT": _search_robot(facts, site, env_dir, env_file, f"{here}/searchkey")
         if "search" in jobs else "",
@@ -389,9 +437,11 @@ def steps(entry: dict, code: str, base: str) -> str:
         "KEYS_URL": f"{here}/keys", "INSTALL_URL": f"{here}/install.sh",
         "LEADS_URL": f"{here}/leads/", "REPORT_URL": f"{here}/report",
         "HOOKSECRET_URL": f"{here}/hooksecret", "HOOKS": hooks, "LEADS": note,
+        "JOURNEY_URL": f"{hooks.rstrip('/')}/journey", "JOURNEY_JS": f"{root}/traffic-js/journeys.js",
+        **_relay(jobs),
         "KEY_NAMES": _key_names(entry, jobs), "HOOK_STATES": _hook_states(facts),
         "PRIVACY_NOW": _privacy_now(facts), "ASSETS_NOW": _assets_now(facts),
         "MCP_STATE": _mcp_state(facts), "REPORT_EXAMPLE": _example(jobs, site),
-        "STEP_FINISH": str(len(jobs) + 2),
-        **{f"STEP_{job.upper()}": numbers.get(job, "") for job in JOBS}}
+        "STEP_FINISH": str(len(jobs) + 2), "INVITES_DONE": _invites_done(facts),
+        **{f"STEP_{job.upper().replace('-', '_')}": numbers.get(job, "") for job in JOBS}}
     return fill(text, values)

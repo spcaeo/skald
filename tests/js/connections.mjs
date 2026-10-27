@@ -378,7 +378,9 @@ assert.ok(posted.some(([p, b]) => p === "sites/setup" && b.token_id === "cd34ef5
 assert.ok(!posted.some(([p, b]) => p === "sites/setup" && JSON.stringify(b).includes("skald_")));
 assert.equal(d.querySelector('input[name="kit-token"]').checked, true, "the by-hand kit's box: ticked by default");
 assert.ok(d.querySelector(".cn-kit").textContent.includes(KIT_WORDS.on));
-assert.ok(d.querySelector(".cn-test-out"), "Skald waits for the first lines on the same step");
+// 2.43: the live progress waits for the first lines on the same step, the one check (Check now).
+assert.ok(d.querySelector(".sl"), "the live progress on the same step");
+assert.ok(!d.querySelector(".cn-test-out") && !button(d, "Test connection"), "no old waiting block, no second test");
 // Another way: the choices, the found one marked; the script tag for the new site.
 button(d, "Another way").click(); await tick();
 assert.ok(radio(d, "server").checked, "the found way chosen");
@@ -399,7 +401,7 @@ await tick();
 await next(); await tick(30);
 assert.equal(readState().by, "dev");
 assert.ok(button(d, "Share with your developer"), "the private link's button");
-assert.ok(d.querySelector(".cn-test-out"));
+assert.ok(d.querySelector(".sl") && !d.querySelector(".cn-test-out"), "the same live progress");
 dialog().querySelector(".dw-x").click();
 await tick(400);
 assert.equal(readState().by, "", "closing takes by away");

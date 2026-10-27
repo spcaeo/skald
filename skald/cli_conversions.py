@@ -45,22 +45,27 @@ def _sites(ctx) -> dict[str, dict]:
     return found
 
 
-def _check(ctx, site: str, tool: str) -> dict | None:
+def _check(ctx, site: str, tool: str, tools=TOOLS) -> dict | None:
     sites = _sites(ctx)
     if site not in sites:
         ctx.err(f"hooks: no site named {site!r}; sites: {', '.join(sorted(sites))}")
         return None
-    if tool not in TOOLS:
-        ctx.err(f"hooks: no tool {tool!r}; tools: {', '.join(TOOLS)}")
+    if tool not in tools:
+        ctx.err(f"hooks: no tool {tool!r}; tools: {', '.join(tools)}")
         return None
     return sites[site]
+
+
+# `hooks secret` only: recorded journeys' secret (recorded/, 2.43) is made and kept like a
+# tool's, but it is not a conversion tool (no list, no test, no leads).
+SECRET_TOOLS = (*TOOLS, "journey")
 
 
 # ------------------------------------------------------------------- hooks
 
 def cmd_secret(ctx) -> int:
     site, tool = ctx.args.site, ctx.args.tool
-    config = _check(ctx, site, tool)
+    config = _check(ctx, site, tool, SECRET_TOOLS)
     if config is None:
         return 2
     env = secrets_store.env_name(config, site, tool)
@@ -91,6 +96,10 @@ def cmd_secret(ctx) -> int:
     ctx.out(f"  address: {base or 'https://<your site>'}/traffic-hooks/{site}/{tool}")
     if not base:
         ctx.out("  (set access.base_url, or hooks.public_url, and this prints the real address)")
+    if tool == "journey":
+        ctx.out("  put both in the site's relay settings as SKALD_JOURNEY_SECRET and "
+                "SKALD_JOURNEY_URL (docs/JOURNEYS.md); a new secret replaces the old one at once")
+        return 0
     ctx.out("  give both to the tool (docs/INTEGRATIONS.md says where); a new secret "
             "replaces the old one at once")
     return 0
@@ -212,8 +221,14 @@ def forget_person(ctx, email: str | None = None, vid: str | None = None,
         try:
             counts = store.forget(db, site, email=a.email, vid=a.vid, external_ref=a.lead,
                                   dry_run=a.dry_run)
+            # Recorded journeys (2.43): the events sent with that email or visitor ID.
+            from .recorded.store import forget as forget_recorded
+            recorded = forget_recorded(db, site, email=a.email, vids=[a.vid, *counts["vids"]],
+                                       dry_run=a.dry_run)
         finally:
             db.close()
+    else:
+        recorded = 0
     values = {v.strip().lower() for v in ([a.email, a.vid, a.lead] + counts["vids"]
                                           + counts["refs"]) if v}
 
@@ -236,6 +251,9 @@ def forget_person(ctx, email: str | None = None, vid: str | None = None,
             f"{len(counts['vids'])} visitor ID(s), {counts['identities']} identit"
             f"{'y' if counts['identities'] == 1 else 'ies'}, {counts['deliveries']} delivery "
             f"row(s), {counts['removed']} removed row(s), {lines} spool line(s)")
+    if recorded:
+        ctx.out(f"  recorded journeys: {verb} {recorded} event(s) sent by the site, with "
+                "their whole sessions")
     if not a.dry_run:
         from .audit_conversions import forget_cache
         forget_cache(folder)            # the beacon spool changed: count it again
@@ -414,6 +432,17 @@ def cmd_prune(ctx, quiet: bool = False) -> int:
     # (conversions/people_days.py). It says its own counts, per site.
     from .conversions import people_days
     people_days.run(ctx, today)
+    # The same promise for the names and emails in your tools' stored answers
+    # (Calendly, Resend), even a tool that stopped answering (yourtools/people_days.py).
+    from .yourtools import people_days as tools_people_days
+    tools_people_days.run(ctx, today)
+    # Recorded journeys (2.43): the visitor-page days, their addresses and emails the
+    # People days; a keep-everything site loses nothing (recorded/store.py).
+    from .recorded.store import run_prune as recorded_prune
+    rec = recorded_prune(ctx, folder, today)
+    if rec["events"] or rec["cleared"]:
+        ctx.out(f"recorded journeys prune: {rec['events']} event(s) removed, "
+                f"{rec['cleared']} address(es) or email(s) cleared")
     if quiet and not (files or any(got.values())):
         return 0                      # the daily run says nothing when nothing went
     ctx.out(f"conversions prune: {got['conversions']} conversion(s), {got['journeys']} page "
@@ -428,7 +457,7 @@ def add_command(sub) -> None:
     hs = p.add_subparsers(dest="hooks_command", required=True)
     s = hs.add_parser("secret", help="make a hook's secret (printed once, kept 0600)")
     s.add_argument("site")
-    s.add_argument("tool", choices=TOOLS)
+    s.add_argument("tool", choices=SECRET_TOOLS)
     s.add_argument("--value", help="keep this secret (one the tool made, such as Stripe's "
                    "whsec_...) instead of a new one; '-' reads it from standard input")
     s.set_defaults(run=cmd_secret)

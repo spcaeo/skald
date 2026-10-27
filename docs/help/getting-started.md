@@ -181,7 +181,7 @@ A city is counted for visitors only, never for bots, at the first page of the vi
 
 ## Choosing a period
 
-The date range sits in the top bar: **Today** (live), **7 days**, **30 days** and **90 days**, and under **More** beside them **Yesterday**, **All time** and **Custom** (the one you pick shows in the bar while it is the period). Every figure on the page follows the period. Each section opens on its own default when the link names no period: **Leads & sales** on the last 7 days (a lead is rarer than a visit, so today is often empty), every other section on Today. A period you pick is kept in the address and stays as you move between tabs and sections; the default of one section is never carried into another, so moving from Overview's Today to Leads & sales opens on 7 days.
+The date range sits in the top bar, beside the page's name, as one group: **Today** (live), **7 days**, **30 days**, **90 days** and **More**, which holds **Yesterday**, **All time** and **Custom** (the one you pick shows in the group while it is the period). With the keyboard the group is one stop: Tab reaches the chosen period, the arrow keys move along it, Enter picks. Every figure on the page follows the period. Each section opens on its own default when the link names no period: **Leads & sales** on the last 7 days (a lead is rarer than a visit, so today is often empty), every other section on Today. A period you pick is kept in the address and stays as you move between tabs and sections; the default of one section is never carried into another, so moving from Overview's Today to Leads & sales opens on 7 days.
 
 **All time** runs from the first day this site has data (its first recorded day, or its first lead when that is earlier) to the last whole day, and the period line says the day it starts: "All time: since Fri 21 Aug 2026, 62 days". The dashboard holds the last 180 days; when your site's data begins before that, the line says so ("All time held here: the last 180 days ... this site's data begins ..."), and no total counts days it does not have.
 
@@ -189,7 +189,7 @@ A few tabs keep a period of their own, so the date range is not shown there. A f
 
 To choose your own dates:
 
-1. Select **More** beside the periods in the top bar, then **Custom**.
+1. Select **More**, the last choice of the period in the top bar, then **Custom**.
 2. Pick the first day in **From** and the last day in **To**.
 
 Days are counted midnight to midnight in the site's own time zone, whatever time zone you choose for display. The site's zone is set in **Settings > This site > Site > Names & time**.
@@ -217,7 +217,7 @@ Today's live figures can be withheld too, if they do not add up. They come back 
 
 ## Filters
 
-Select **Filters** in the top bar (or search for `filters`). The panel builds rules:
+Select the filter icon (**Filters**) at the right of the top bar, beside the search (or search for `filters`). A small number on it says how many filters are on. The panel builds rules:
 
 1. Pick what to filter by: country, city, source type, referring site, campaign or UTM tag, AI assistant, where the visitor first came from, landing page, a page read, pages read, time on site, sent a form (lead), device, browser, operating system, new or returning, or crawler.
 2. Pick how: **is**, **is not**, **contains**, **starts with**, **at least** or **at most**. A rule can hold several values: "Country is USA, CAN" keeps either.
@@ -342,9 +342,9 @@ Overview > Summary and Traffic > Pages answer one question: did what you changed
 
 ### The period line
 
-Under the title of [Overview > Summary](#overview/summary) and [Traffic > Pages](#traffic/pages) one line gives the exact dates; its **(i)** says what the period means and since when the site is measured. The two options for the period live in the top bar, in one place each:
+Under the title of [Overview > Summary](#overview/summary) and [Traffic > Pages](#traffic/pages) one line gives the exact dates; its **(i)** says what the period means and since when the site is measured. The two options for the period have one place each:
 
-- **Include today**: in the period's **More** menu. With 7, 30 or 90 days, the period ends today and counts today so far; the **More** button then reads **More · today**. Off, it ends yesterday and counts whole days only. Other periods ignore it. It is kept in the address (`inc=1`) and stays on as you move between Summary and Pages.
+- **Include today**: the switch at the start of the line under the title, one press. With 7, 30 or 90 days, the period ends today and counts today so far, and the title's line says so ("Last 7 days including today ..."). Off, it ends yesterday and counts whole days only. It shows only where it changes the figures: Summary and Pages at 7, 30 or 90 days. It is kept in the address (`inc=1`) and stays on as you move between Summary and Pages.
 - **Compare**: the top bar's Compare menu (**vs previous period** when on). It puts the same number of days just before beside the period.
 
 The line says the dates in words. On 15 Jan:

@@ -75,6 +75,11 @@ PERPLEXITY_USER = ("Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatibl
 CLAUDE_USER = ("Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Claude-User/1.0; "
                "+Claude-User@anthropic.com)")
 FETCHERS = [(CHATGPT_USER, "198.51.100.3", 3), (PERPLEXITY_USER, "198.51.100.35", 1)]
+# Google NotebookLM reading a page someone added as a source: the page twice within a few
+# seconds, then the page's own style sheet and script with the page as referrer (ai_reads.py:
+# one read, four requests, two files). From Google's user-fetcher range (demo.py's ranges).
+NOTEBOOKLM = "Mozilla/5.0 (compatible; Google-NotebookLM)"
+NOTEBOOKLM_IP = "198.51.100.53"
 # The user fetcher of each assistant a cited visit can come from (its referrer host).
 FETCHER_OF = {"chatgpt.com": (CHATGPT_USER, "198.51.100.3"), "perplexity.ai": (PERPLEXITY_USER, "198.51.100.35"),
               "claude.ai": (CLAUDE_USER, "198.51.100.19")}
@@ -597,6 +602,32 @@ class _Maker:
                 T.lines.append(self.line(tv - timedelta(seconds=ago), ip, path, agent))
 
 
+def _notebook(self) -> None:
+    """Over the last 10 days, today included, one or two pages a day added to a notebook (NOTEBOOKLM). Its own
+    draws (self.xr), after every day is made: the days before stay as they were."""
+    x, T = self.xr, self.t
+    times = []
+    for back in range(9, -1, -1):
+        day = T.today - timedelta(days=back)
+        start = datetime(day.year, day.month, day.day, tzinfo=self.tz)
+        times += [(start + timedelta(seconds=x.randrange(3600, 80000))).astimezone(UTC).replace(microsecond=0)
+                  for _ in range(x.choice([1, 1, 2]))]
+    # And one in the last hour, so the requests behind it (the last 6 hours) show the fold.
+    times.append((self.now - timedelta(minutes=25)).replace(microsecond=0))
+    for t in times:
+        if t > self.now - timedelta(minutes=2):
+            continue
+        page = x.choices([p for p, _ in FETCHED], [w for _, w in FETCHED])[0]
+        ref = "https://example.com" + page
+        T.lines.append(self.line(t, NOTEBOOKLM_IP, page, NOTEBOOKLM))
+        T.lines.append(self.line(t + timedelta(seconds=2), NOTEBOOKLM_IP, page, NOTEBOOKLM))
+        T.lines.append(self.line(t + timedelta(seconds=4), NOTEBOOKLM_IP, "/assets/site.css", NOTEBOOKLM, ref, status=304))
+        T.lines.append(self.line(t + timedelta(seconds=5), NOTEBOOKLM_IP, "/assets/site.js", NOTEBOOKLM, ref))
+
+
+_Maker.notebook = _notebook
+
+
 def generate(now: datetime, days: int = 62, seed: int = SEED) -> Traffic:
     """`days` whole days of traffic before `now`'s day, and that day up to `now`."""
     if days < 2:
@@ -609,6 +640,7 @@ def generate(now: datetime, days: int = 62, seed: int = SEED) -> Traffic:
     m.today_leads()
     m.right_now()
     m.prefetch()
+    m.notebook()
     # Security's scanners and attack attempts, from a generator of their own (demo_security.py).
     import demo_security
     demo_security.add(m.t.lines, m.t.first, m.t.today, m.tz, m.now, seed)

@@ -1,0 +1,45 @@
+{
+  "_about": "Recorded-shape answers of Resend's API (contacts, segments, emails), as its documentation gives them; made-up contacts at example.com.",
+  "contacts_page1": {
+    "object": "list", "has_more": true,
+    "data": [
+      {"id": "c3", "email": "cy@example.com", "first_name": "Cy", "last_name": "Example", "created_at": "2026-10-25 09:00:00.000+00", "unsubscribed": false},
+      {"id": "c2", "email": "bo@example.com", "first_name": "Bo", "last_name": "Example", "created_at": "2026-10-20 09:00:00.000+00", "unsubscribed": true}
+    ]
+  },
+  "contacts_page2": {
+    "object": "list", "has_more": false,
+    "data": [
+      {"id": "c1", "email": "al@example.com", "first_name": "Al", "last_name": "Example", "created_at": "2025-01-05 09:00:00.000+00", "unsubscribed": false}
+    ]
+  },
+  "segments": {
+    "object": "list", "has_more": false,
+    "data": [
+      {"id": "seg-a", "name": "Newsletter", "created_at": "2026-01-06 22:59:55.977+00"},
+      {"id": "seg-b", "name": "Customers", "created_at": "2026-02-06 22:59:55.977+00"}
+    ]
+  },
+  "segment_seg-a": {
+    "object": "list", "has_more": false,
+    "data": [
+      {"id": "c3", "email": "cy@example.com", "first_name": "Cy", "last_name": "Example", "created_at": "2026-10-25 09:00:00.000+00", "unsubscribed": false},
+      {"id": "c1", "email": "al@example.com", "first_name": "Al", "last_name": "Example", "created_at": "2025-01-05 09:00:00.000+00", "unsubscribed": false}
+    ]
+  },
+  "segment_seg-b": {
+    "object": "list", "has_more": false,
+    "data": [
+      {"id": "c2", "email": "bo@example.com", "first_name": "Bo", "last_name": "Example", "created_at": "2026-10-20 09:00:00.000+00", "unsubscribed": true}
+    ]
+  },
+  "emails": {
+    "object": "list", "has_more": true,
+    "data": [
+      {"id": "e4", "message_id": "<e4@mail.example.com>", "to": ["cy@example.com"], "from": "Site <hello@example.com>", "created_at": "2026-10-26 22:13:42.674981+00", "subject": "Welcome, Cy", "bcc": null, "cc": null, "reply_to": null, "last_event": "delivered", "scheduled_at": null},
+      {"id": "e3", "message_id": "<e3@mail.example.com>", "to": ["bo@example.com"], "from": "Site <hello@example.com>", "created_at": "2026-10-24 10:00:00.000000+00", "subject": "Your guide", "bcc": null, "cc": null, "reply_to": null, "last_event": "bounced", "scheduled_at": null},
+      {"id": "e2", "message_id": "<e2@mail.example.com>", "to": ["al@example.com"], "from": "Site <hello@example.com>", "created_at": "2026-10-20 10:00:00.000000+00", "subject": "Hello", "bcc": null, "cc": null, "reply_to": null, "last_event": "opened", "scheduled_at": null},
+      {"id": "e1", "message_id": "<e1@mail.example.com>", "to": ["al@example.com"], "from": "Site <hello@example.com>", "created_at": "2026-10-02 10:00:00.000000+00", "subject": "Hello again", "bcc": null, "cc": null, "reply_to": null, "last_event": "delivered", "scheduled_at": null}
+    ]
+  }
+}

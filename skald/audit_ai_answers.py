@@ -28,6 +28,11 @@ every figure must match, and a done run must hold every planned try. In
 audit_more.DAILY: run-daily's recounts step rechecks the done runs of the
 last RECHECK_DAYS days; answers/run.py calls `recheck_run` as each run
 finishes and withholds its figures when it disagrees.
+
+The chain's log figures (answers/data.py, "From an answer to a lead"): an
+assistant's reads and requests of a cited page are summed again by
+`recount_chain` from the history file's `ai_fetches` rows; any difference
+withholds both.
 """
 from __future__ import annotations
 
@@ -205,3 +210,63 @@ def daily(ctx, day) -> list[str] | None:
         return problems
     finally:
         db.close()
+
+
+def _page(path) -> str:
+    """A fetched path as the chain joins it: up to "?" or "#", no trailing "/"."""
+    got = str(path or "")
+    for mark in ("?", "#"):
+        got = got.partition(mark)[0]
+    while got.endswith("/"):
+        got = got[:-1]
+    return got or "/"
+
+
+def recount_chain(history_path, site: str, days, chain) -> list[str]:
+    """The chain's reads and requests (answers/data.py) summed again from the
+    history file, opened read-only, its `ai_fetches` rows taken apart by
+    SQLite's own JSON functions (none of store.py): requests are the fourth
+    item, reads the fifth; a day with a row of four items has no reads, so
+    any such day makes every read null. Problems in words; [] when there is
+    no history file to reopen (tests that pass blobs in)."""
+    from .answers import ASSISTANT
+    if history_path is None or str(history_path) == ":memory:" \
+            or not Path(history_path).is_file() or not days:
+        return []
+    conn = sqlite3.connect(f"file:{Path(history_path).resolve()}?mode=ro", uri=True)
+    marks = ",".join("?" * len(days))
+    try:
+        rows = conn.execute(
+            "SELECT json_extract(r.value, '$[1]'), json_extract(r.value, '$[2]'), "
+            "json_extract(r.value, '$[3]'), json_extract(r.value, '$[4]'), "
+            "json_array_length(r.value) FROM day_extras x, json_each(x.data, '$.rows') r "
+            f"WHERE x.site = ? AND x.kind = 'ai_fetches' AND x.day IN ({marks})",
+            (site, *days)).fetchall()
+        stored = conn.execute(f"SELECT COUNT(*) FROM day_extras WHERE site = ? AND "
+                              f"kind = 'ai_fetches' AND day IN ({marks})",
+                              (site, *days)).fetchone()[0]
+    except sqlite3.OperationalError:
+        return []                       # an older history: no day_extras
+    finally:
+        conn.close()
+    requests, reads = {}, {}
+    no_reads = False
+    for who, path, n, r, width in rows:
+        key = (who, _page(path))
+        requests[key] = requests.get(key, 0) + int(n or 0)
+        if width < 5:
+            no_reads = True
+        else:
+            reads[key] = reads.get(key, 0) + int(r or 0)
+    problems = []
+    for c in chain:
+        page = str(c.get("page") or "")
+        key = (ASSISTANT.get(c.get("provider")), _page(page))
+        on = bool(stored) and page.startswith("/")
+        want = {"requests": requests.get(key, 0) if on else None,
+                "read": reads.get(key, 0) if on and not no_reads else None}
+        for name, theirs in want.items():
+            if c.get(name) != theirs:
+                problems.append(f"chain {c.get('provider')} {page}: {name} {c.get(name)} "
+                                f"against {theirs}")
+    return problems

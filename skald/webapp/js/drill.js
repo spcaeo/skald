@@ -6,7 +6,7 @@
 //   #audience?range=30d&dd=country:CA|path:/pricing/
 
 import { h } from "./ui.js";
-import { shown, assistantName } from "./labels.js";
+import { shown, assistantName, fetcherOf } from "./labels.js";
 import * as S from "./state.js";
 import { mark } from "./icons.js";
 import { country, countryName, countryWords, flagEl, withFlag, city, cityCode, cityName } from "./tabs/readers.js";
@@ -35,9 +35,10 @@ export const DIMS = {
 export const said = (dim, v) => (dim === "country" ? withFlag(v, country(v)) : dim === "city" ? withFlag(cityCode(v), city(v)) : DIMS[dim].say(v));
 export const titled = (dim, v) => (dim === "country" ? countryName(v) : dim === "city" ? cityName(v) : dim === "bot" && fetcherOf(v) ? `${v}, the fetcher ${fetcherOf(v)} sends when a user asks it about a page` : DIMS[dim].say(v));
 
-// A user fetcher (ChatGPT-User, Claude-User, Perplexity-User...) keeps its bot name and says
+// A user fetcher (ChatGPT-User, Claude-User, Google-NotebookLM...) keeps its bot name and says
 // what it is: it is not the assistant itself, only what reads a page for one user's question.
-export const fetcherOf = (v) => (/^[A-Za-z]+-User$/.test(v || "") ? v.slice(0, -5) : null);
+// Which names are fetchers is labels.js FETCHERS, the server's list, not a "-User" ending.
+export { fetcherOf };
 
 export function chainOf(s) {
   if (!s.dd) return [];

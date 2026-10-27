@@ -16,6 +16,7 @@ the install trusts the admin who passes the link on (docs/ACCOUNTS.md).
 """
 from __future__ import annotations
 
+import json
 import secrets
 
 from . import auditlog, passwords
@@ -26,8 +27,10 @@ INVITE_DAYS = 7
 NOT_VALID = "This invite link is not valid."
 
 
-def invite(db, org_id, email, role, actor) -> str:
-    """The raw token, for the link. Raises ValueError in plain words."""
+def invite(db, org_id, email, role, actor, sites=None) -> str:
+    """The raw token, for the link. Raises ValueError in plain words. `sites`
+    limits the person, once they join, to these sites of the organisation
+    (None: every site; never for an owner)."""
     email = users.clean_email(email)
     if role not in users.ROLES:
         raise ValueError(f"A role is one of: {', '.join(users.ROLES)}.")
@@ -38,13 +41,15 @@ def invite(db, org_id, email, role, actor) -> str:
         existing = users.find_user(db, email=email)
         if existing and users.role_in(db, existing["id"], org_id):
             raise ValueError(f"{email} is already a member.")
+        limit = users.clean_sites(db, org_id, sites) if role != "owner" else None
         db.execute("DELETE FROM invites WHERE org_id = ? AND email = ? AND used_at IS NULL",
                    (org_id, email))
         db.execute("INSERT INTO invites (token_hash, org_id, email, role, invited_by, "
-                   "created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                   "created_at, expires_at, sites) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                    (base.sha256(token), org_id, email, role, str(actor), base.now(),
-                    base.shift(INVITE_DAYS * 86400)))
-        auditlog.record(db, org_id, actor, "invite.send", email, role)
+                    base.shift(INVITE_DAYS * 86400), json.dumps(limit) if limit else None))
+        auditlog.record(db, org_id, actor, "invite.send", email,
+                        role + (f"; only {', '.join(limit)}" if limit else ""))
     return token
 
 
@@ -107,8 +112,18 @@ def accept(db, token, name, password) -> dict:
             db.execute("UPDATE users SET pw_hash = ?, must_reset = ? WHERE id = ?",
                        (pw_hash, int(bool(found["handed"])), user["id"]))
         if users.role_in(db, user["id"], found["org_id"]) is None:
+            # The limit as the invite gave it, less any site moved away since (none
+            # left: the person joins with no site rather than with every one).
+            limit = users.site_limit(found.get("sites"))
+            if limit is not None:
+                own = {r[0] for r in db.execute("SELECT name FROM sites WHERE org_id = ?",
+                                                (found["org_id"],))}
+                limit = [s for s in limit if s in own]
             users.add_member(db, found["org_id"], user["id"], found["role"],
                              actor=found["invited_by"])
+            if limit is not None:
+                db.execute("UPDATE members SET sites = ? WHERE org_id = ? AND user_id = ?",
+                           (json.dumps(limit), found["org_id"], user["id"]))
         auditlog.record(db, found["org_id"], user["id"], "invite.accept", found["email"],
                         found["role"] + ("; link was handed by an admin, new password "
                                          "asked at first sign-in" if new and found["handed"]
@@ -121,12 +136,13 @@ def accept(db, token, name, password) -> dict:
 
 def pending(db, org_id) -> list[dict]:
     """Unused invites of the organisation, with "expired" for the old ones."""
-    got = base.rows(db, "SELECT email, role, invited_by, created_at, expires_at FROM invites "
-                        "WHERE org_id = ? AND used_at IS NULL ORDER BY created_at, email",
-                    (org_id,))
+    got = base.rows(db, "SELECT email, role, invited_by, created_at, expires_at, sites "
+                        "FROM invites WHERE org_id = ? AND used_at IS NULL "
+                        "ORDER BY created_at, email", (org_id,))
     stamp = base.now()
     for row in got:
         row["expired"] = row["expires_at"] <= stamp
+        row["sites"] = users.site_limit(row["sites"])
     return got
 
 

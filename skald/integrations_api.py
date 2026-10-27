@@ -40,7 +40,11 @@ The GET also carries `status`: the doctor's lines for the integrations
 (doctor.integration_checks: the receiver, the script tag, each hook, one
 lead from two tools, the lead database), each tool's state in words
 (roads.hook_states: needs a secret, never received, ready, last received N
-ago) and `duplicates`, the external refs that arrived from two tools.
+ago; 2.43: last_at and test_at, when the last real and test delivery came) and
+`duplicates`, the external refs that arrived from two tools. 2.43: `found`, what the
+site check saw (FOUND_KEYS: the server, platform, framework, the tools named on the home
+page and its forms), or null when the site was never checked: Leads & tools and the "not
+connected yet" card say the recommended way from it (js/connect-plan.js).
   POST integrations/webhooks/add      {site, url, events}: an outgoing webhook; its
                                       secret is shown once
   POST integrations/webhooks/remove   {site, id}
@@ -170,10 +174,10 @@ def managed(c: Ctx) -> list[str]:
     if c.install_admin:
         names |= set(install_sites(c))
         names |= {r[0] for r in c.db.execute("SELECT name FROM sites")}
+    from .accounts.users import visible_sites
     for org in users_orgs(c):
         if org.get("role") in ADMIN:
-            names |= {r[0] for r in c.db.execute("SELECT name FROM sites WHERE org_id = ?",
-                                                 (org["id"],))}
+            names |= set(visible_sites(c.db, org["id"], c.uid))
     return sorted(names)
 
 
@@ -279,6 +283,7 @@ def tools(c: Ctx, site: str, db) -> list[dict]:
                     "secret_from": TOOL_NAMES.get(tool, tool),
                     "state": states[tool]["state"], "words": states[tool]["words"],
                     "attention": states[tool]["attention"], "fix": states[tool]["fix"],
+                    "last_at": states[tool].get("last_at"), "test_at": states[tool].get("test_at"),
                     "event_types": _types(c, conf, site, tool),
                     "deliveries": store.deliveries(db, site, tool, LOG_ROWS) if db else []})
     return out
@@ -325,10 +330,43 @@ def overview(c: Ctx, form):
                     status=integration_checks(conf, c.folder, site, _live_dir(c, site),
                                               config_path=c.config_path),
                     duplicates=duplicates(db, site),
+                    yourtools=_yourtools(conf, c.folder, site),
+                    found=found_of(c.db, site),
                     locked=_locked(c, site))
     finally:
         if db is not None:
             db.close()
+
+
+# What the site check found that Leads & tools and the "not connected yet" card use
+# (js/connect-plan.js): never the addresses, redirects or errors of the check.
+FOUND_KEYS = ("server", "server_label", "platform", "platform_label", "framework",
+              "framework_label", "hosted_builder", "tags", "forms", "checked_at")
+
+
+def found_of(db, site: str) -> dict | None:
+    """The site check's facts kept with the site's set-up (accounts/site_setup.py, cleaned
+    by site_detect.clean_found when kept), or None when the site was never checked."""
+    from .accounts import site_setup
+    try:
+        found = (site_setup.get(db, site) or {}).get("found")
+    except Exception:                              # noqa: BLE001 - no set-up table: nothing found
+        return None
+    if not isinstance(found, dict) or not found.get("reachable"):
+        return None
+    return {k: found.get(k) for k in FOUND_KEYS}
+
+
+def _yourtools(conf: dict, folder, site: str) -> list[dict] | None:
+    """Each of your tools' state, for the set-up lines (yourtools/api.states)."""
+    from .yourtools.api import states
+    try:
+        return states(conf, folder, site)
+    except Exception as why:                       # noqa: BLE001 - its lines say nothing
+        import sys
+        sys.stderr.write(f"integrations: your tools could not be read: "
+                         f"{type(why).__name__}\n")
+        return None
 
 
 # --------------------------------------------------------------- changes

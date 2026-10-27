@@ -100,11 +100,12 @@ Some settings apply to every site on the server, not only yours: the AI crawler 
 
 ## Several organisations
 
-People are given sites through organisations, never one site at a time. Everyone in an organisation sees all of its sites, with the role they have there. One person can be in several organisations, with a different role in each. An install admin sees only the organisations they are a member of.
+People are given sites through organisations. By default everyone in an organisation sees all of its sites, with the role they have there; an owner or admin can let an admin or a viewer see only some of them (see [Organisations](organisations.md)). One person can be in several organisations, with a different role in each. On **Settings > Organisation > Organisations** an install admin sees and manages every organisation of the server.
 
 When you are in two or more:
 
 - The site switcher at the top of the sidebar lists your sites under each organisation's name, and so does **All sites**. With one organisation the list is plain, as before.
+- Every **Settings > Organisation** page says at its top which organisation it is ("Organisation: Kiwi"), with **Switch** to open the same page for another one.
 - **Settings > Organisation > People > Team** shows the team of the organisation that owns the site you have open. Its title names the organisation ("Team of Kiwi"), with the sites it sees ("These people see kiwi.example only.") and links to your other organisations' teams. Inviting someone there adds them to that organisation only.
 
 ### Give someone one site only
@@ -154,5 +155,6 @@ You cannot change your own role or remove yourself. Viewers see the team list wi
 ## Related guides
 
 - [Getting started](getting-started.md)
+- [Organisations](organisations.md): sites, members, privacy class, archive and restore.
 - [Settings and retention](settings-and-retention.md)
 - [API](api.md): tokens for scripts.

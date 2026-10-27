@@ -30,6 +30,17 @@ export function profileLabel(p) {
 }
 export const profileText = (p) => `${p.city || p.name}${p.country ? `, ${country(p.country)}` : ""} · ${p.language || "en"}`;
 
+/* Where the Read step's figure comes from, with its requests second: a page asked for again
+   within seconds, or a file the page loaded, is one read. Days stored before reads were
+   counted leave the reads not recorded, never 0. */
+export function readRoad(x, c) {
+  const road = "server log, the assistant's user fetcher";
+  if (c.requests == null) return road;
+  const reqs = `${n(c.requests)} request${c.requests === 1 ? "" : "s"}`;
+  if (c.read != null) return `${road}, ${reqs}`;
+  return `${road}, ${reqs}; reads ${x.reads_from ? `counted from ${short(x.reads_from)}` : "not counted on these days"}`;
+}
+
 /* The chain: the first assistant and page with a citation, or the one picked. */
 export function chainCard(x, ch, provName, onPick) {
   if (!ch.length) {
@@ -40,7 +51,7 @@ export function chainCard(x, ch, provName, onPick) {
   const nr = (v) => (v == null ? "not recorded" : n(v));
   const steps = [
     ["Cited", nr(c.cited), "answers", `${provName(c.provider)} cited ${c.page}`, `AI answers sample, ${n(c.cited)} of ${n(c.of)} answers`, "cited"],
-    ["Read", nr(c.read), "fetches", `Its fetcher read ${c.page} for people asking`, "server log, the assistant's user fetcher", "read"],
+    ["Read", nr(c.read), c.read === 1 ? "read" : "reads", `Its fetcher read ${c.page} for people asking`, readRoad(x, c), "read"],
     ["Sent", nr(c.sent), "visitors", `Clicked through to ${c.page}`, `server log, from ${x.providers.find((p) => p.id === c.provider)?.assistant || ""}`, "sent"],
     ["Converted", nr(c.leads), "leads", "First visit from an AI answer, landing on this page (any assistant)", "your forms and booking tool", "leads"],
   ];
@@ -54,7 +65,7 @@ export function chainCard(x, ch, provName, onPick) {
       h("span", { class: "dot", "aria-hidden": "true" }), h("span", { class: "st" }, step),
       h("span", { class: "nv" }, h("b", null, v), h("small", null, unit)), h("span", { class: "wh" }, what), h("small", { class: "rd" }, road)))),
     c.likely != null ? h("p", { class: "note" }, `Also ${n(c.likely)} visit${c.likely === 1 ? "" : "s"} to ${c.page} likely sent by an AI answer with no referrer (inferred, any assistant, never added to the visitors above).`) : null,
-    h("p", { class: "note" }, "Each step is counted on its own: answers from the sample, fetches and visits from the log, leads from your forms and booking tool. They are joined by page and day, not by person, so the steps show a path, not one buyer."));
+    h("p", { class: "note" }, "Each step is counted on its own: answers from the sample, reads and visits from the log, leads from your forms and booking tool. They are joined by page and day, not by person, so the steps show a path, not one buyer."));
 }
 
 /* Share of answers naming the site, per run of one profile. */

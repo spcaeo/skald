@@ -112,14 +112,14 @@ document.body.append(box);
 await tick();
 assert.ok(!box.hidden, "something is left, so the list shows");
 const items = box.querySelectorAll("li.su-i");
-assert.deepEqual(items.map((li) => li.getAttribute("data-item")), ["logs", "assets", "countries", "script", "lead", "mail", "privacy", "search"]);
+assert.deepEqual(items.map((li) => li.getAttribute("data-item")), ["logs", "assets", "countries", "script", "lead", "mail", "privacy", "search", "tool-calendly", "tool-ga4", "tool-resend", "tool-vercel"]);
 const said = plain(box);
 for (const word of ["--origin", "helper", "nginx", "beacon.origins", "logs.dir"]) assert.ok(!said.includes(word), `no "${word}" for the site owner: ${said}`);
 assert.ok(!said.includes("For your server admin"), "the server admin's words are in each dialog, not the list");
 const byId = (id) => items.find((li) => li.getAttribute("data-item") === id);
 for (const li of items) {
   // An open line with something to do; a line that only waits (the first visitor) is plain.
-  const open = li.classList.contains("su-todo") && ["logs", "assets", "countries", "script", "lead", "mail", "privacy", "search"].includes(li.getAttribute("data-item"));
+  const open = li.classList.contains("su-todo") && ["logs", "assets", "countries", "script", "lead", "mail", "privacy", "search", "tool-calendly", "tool-ga4", "tool-resend", "tool-vercel"].includes(li.getAttribute("data-item"));
   assert.equal(Boolean(li.querySelector("button.su-row")), open, `the whole line is the button: ${li.textContent}`);
   assert.ok(!button(li, "Set up"), "no second button on a line");
 }

@@ -174,7 +174,7 @@ def team(c: Ctx, form):
     from .files import slug
     others = []
     for o in accounts.list_orgs(c.db, c.uid):
-        names = accounts.sites_of_org(c.db, o["id"])
+        names = users.visible_sites(c.db, o["id"], c.uid)
         if o["id"] != c.org["id"] and names:
             others.append({"org": o["name"], "sites": len(names),
                            "path": f"{slug(names[0])}/"})
@@ -182,10 +182,10 @@ def team(c: Ctx, form):
                 sites=accounts.sites_of_org(c.db, c.org["id"]), others=others)
 
 
-def _send_invite(c: Ctx, email: str, role: str, kind: str):
+def _send_invite(c: Ctx, email: str, role: str, kind: str, sites=None):
     from .accounts import mails
     try:
-        token = invites.invite(c.db, c.org["id"], email, role, c.uid)
+        token = invites.invite(c.db, c.org["id"], email, role, c.uid, sites=sites)
     except ValueError as why:
         return c.no(400, str(why))
     url = auth_api.link(c.config, c.allowed, "invite", token)
@@ -230,7 +230,7 @@ def team_resend(c: Ctx, form):
         return c.no(404, "There is no open invite for that address.")
     if found[0]["role"] == "owner" and c.role != "owner":
         return c.no(403, "Only an owner can invite an owner.")
-    return _send_invite(c, email, found[0]["role"], "invite resend")
+    return _send_invite(c, email, found[0]["role"], "invite resend", found[0].get("sites"))
 
 
 def team_cancel(c: Ctx, form):

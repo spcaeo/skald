@@ -12,6 +12,8 @@
 //              set-up's "Someone else" (setup-finish.js) shows the same box
 //   search     (2.40) Google Search Console: Settings > Leads & tools > Search Console & Bing's own
 //              wizard, in a dialog (setup-search.js)
+//   connect-tools  one of your own tools (Google Analytics...): setup=tool-<id> names it
+//              (yourtools.js toolsDialog); the agent's job connect-tools
 //
 // The others: setup-tag.js (the script tag), setup-hook.js (a lead hook),
 // setup-mail.js (the daily and weekly mail), setup-privacy.js (what is kept),
@@ -38,14 +40,16 @@ import { privacyDialog } from "./setup-privacy.js";
 import { nextDialog } from "./setup-nextjs.js";
 import { packBox } from "./setup-pack.js";
 import { searchDialog } from "./setup-search.js";
+import { toolsDialog, SETUP as TOOL } from "./yourtools.js";
 import { agentFirst, allDialog } from "./agent-first.js";
 import { jobsFrom } from "./agent-words.js";
 import { AGENT_JOBS } from "../setup-items.js";
 
 // Each dialog is in the address as setup=<act>&step=<n> (js/overlays.js); start: a link's step, 0 first.
 // agent, link, by: the address's (agent-first.js); jobs: setup=all's.
-export const ACTS = ["logs", "assets", "rsc", "countries", "script", "lead", "mail", "privacy", "search", "pack", "all"];
-export async function openSetup(act, site, { item = null, onClose = null, start = 0, agent = "", link = "", by = "", jobs = null, auto = false } = {}) {
+export const ACTS = ["logs", "assets", "rsc", "countries", "script", "lead", "mail", "privacy", "search", "connect-tools", "pack", "all", "journeys"];
+const TOOL_ACT = /^tool-[a-z0-9]{1,20}$/;          // setup=tool-<id>: Connect that tool
+export async function openSetup(act, site, { item = null, onClose = null, start = 0, agent = "", link = "", by = "", jobs = null, auto = false, way = "" } = {}) {
   const route = { key: "setup", value: act };
   if (act === "all") return allDialog(site, jobs || item?.jobs || [], { onClose, route, start, agent, link, auto });
   const wrap = AGENT_JOBS.includes(act) ? agentFirst([act], site, { agent, link, by, auto }) : null;
@@ -58,11 +62,18 @@ export async function openSetup(act, site, { item = null, onClose = null, start 
   if (act === "rsc") return nextDialog(site, opts);
   if (act === "countries") return countriesDialog(site, opts);
   if (act === "script") return tagDialog(site, opts);
-  if (act === "lead") return hookDialog(site, opts);
+  // way: the hook a page's Connect chose (way=, js/ui/connect.js), picked first.
+  if (act === "lead") return hookDialog(site, { ...opts, way });
   if (act === "mail") return mailDialog(site, opts);
   if (act === "privacy") return privacyDialog(site, opts);
   if (act === "search") return searchDialog(site, opts);
+  if (act === "connect-tools") {
+    const tool = String(item?.id || "").startsWith(TOOL) ? item.id.slice(TOOL.length) : "";
+    return toolsDialog(site, { ...opts, tool, route: tool ? { key: "setup", value: `${TOOL}${tool}` } : route });
+  }
   if (act === "pack") return packDialog(site, opts);
+  // 2.43: the checklist's Recorded journeys line opens its own Connect (tabs/recorded.js).
+  if (act === "journeys") return (await import("./recorded.js")).openConnect(site, { onClose });
   return null;
 }
 
@@ -78,7 +89,8 @@ export function packDialog(site, { onClose = null, route = null, start = 0 } = {
    again when it closes. s: the address's state. */
 export async function openSetupKey(act, m, step = 1, share = false, s = {}) {
   const finish = act === "finish" || act.startsWith("finish-");
-  if (!ACTS.includes(act) && !(finish && (act === "finish" || ACTS.includes(act.slice(7))))) return "That set-up step is not in this version of the page.";
+  const tool = TOOL_ACT.test(act);
+  if (!ACTS.includes(act) && !tool && !(finish && (act === "finish" || act === "finish-tools" || ACTS.includes(act.slice(7))))) return "That set-up step is not in this version of the page.";
   if (DEMO.on) return "Setting up needs a running Skald: not available in the demo.";
   if (!sessions() || !(["owner", "admin"].includes(ME.role) || ME.install_admin)) return "Not available to your role.";
   const { itemFor, refreshChecklists, agentJobsFor, checkItems } = await import("./checklist.js");
@@ -87,7 +99,7 @@ export async function openSetupKey(act, m, step = 1, share = false, s = {}) {
     const { finishDialog } = await import("./setup-finish.js");
     return finishDialog(m.site, await checkItems(m), { only: act === "finish" ? "" : act.slice(7), onDone: refreshChecklists });
   }
-  const opts = { start: Math.max(0, step - 1), onClose: refreshChecklists, agent: s.agent || "", link: s.link || "", by: s.by || "" };
+  const opts = { start: Math.max(0, step - 1), onClose: refreshChecklists, agent: s.agent || "", link: s.link || "", by: s.by || "", way: s.way || "" };
   if (act === "all") {
     // The jobs the link names (the line being watched was made for them), else the lines left now.
     const jobs = jobsFrom(s.jobs).filter((j) => AGENT_JOBS.includes(j));
@@ -95,6 +107,7 @@ export async function openSetupKey(act, m, step = 1, share = false, s = {}) {
     if (!left.length) return "Nothing is left on this site for an AI agent to set up.";
     return openSetup("all", m.site, { ...opts, jobs: left });
   }
+  if (tool) return openSetup("connect-tools", m.site, { ...opts, item: { id: act, act: "connect-tools" } });
   const item = await itemFor(m, act);
   return openSetup(act, m.site, { ...opts, item });
 }

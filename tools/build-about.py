@@ -32,8 +32,8 @@ HELP_OUT = ROOT / "skald" / "webapp" / "js" / "help-data.js"
 HELP_INDEX = ROOT / "skald" / "webapp" / "js" / "help-index.js"
 # The guides in the order the Help page lists them; a new guide not named here comes last.
 HELP_ORDER = ("getting-started", "docker-first-install", "pick-your-road", "sign-in-and-team", "real-time", "where-visitors-come-from", "retention", "internal-traffic",
-              "leads-and-conversions", "revenue", "tracking-script", "webhooks", "leads-from-your-backend", "demo-bookings",
-              "funnels-and-goals", "ai-and-bots", "crawl-health", "what-to-fix", "ai-answers", "connections", "api", "mcp", "troubleshooting-connections", "settings-and-retention", "client-reports", "privacy", "faq")
+              "leads-and-conversions", "revenue", "tracking-script", "webhooks", "leads-from-your-backend", "recorded-journeys", "demo-bookings",
+              "funnels-and-goals", "ai-and-bots", "crawl-health", "what-to-fix", "ai-answers", "connections", "your-tools", "api", "mcp", "troubleshooting-connections", "settings-and-retention", "client-reports", "privacy", "faq")
 GUIDES = sorted((p.stem for p in HELP.glob("*.md") if p.stem.lower() != "readme"),
                 key=lambda k: (HELP_ORDER.index(k) if k in HELP_ORDER else len(HELP_ORDER), k)) if HELP.is_dir() else []
 

@@ -17,8 +17,10 @@ trailing slash or a query, page_trends.key):
            "one_page" over "visits"); a lower figure is better
   search   of the visits, from a search engine (`landings`, "search")
   ai       of the visits, from an AI assistant, a proven citation (`landings`, "ai")
-  reads    AI reads: live fetches by assistants answering a user (day kind
-           `ai_fetches`, every row of the page)
+  reads    AI reads: assistants answering a user reading the page (day kind
+           `ai_fetches`, the reads column of every row of the page; a page
+           asked for again within ai_read_names.WINDOW_SECONDS is one read,
+           ai_reads.py). A day stored before reads were counted: not recorded
   leads    finished leads and conversions whose landing page is the page
            (conversions.json's audited days, `by.landing`, every action)
 
@@ -117,7 +119,11 @@ def day_row(k: str, d: str, state: str, landings, fetches, conv_day, conv_off: b
         row.update(visits=got[0], one_page=got[1], search=got[3], ai=got[4])
         row["at_least"] = bool(not mine and int(landings.get("folded") or 0))
     if ok and fetches is not None:
-        row["reads"] = sum(int(r[3]) for r in fetches.get("rows") or [] if key(r[2]) == k)
+        rows = fetches.get("rows") or []
+        mine = [r for r in rows if key(r[2]) == k]
+        # Reads (ai_reads.py), not requests; a day stored before they were
+        # counted has rows of four columns: not recorded, never 0.
+        row["reads"] = sum(int(r[4]) for r in mine) if all(len(r) > 4 for r in rows) else None
     if conv_off:
         row["leads_state"] = "off"
     elif conv_day is None:

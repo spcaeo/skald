@@ -119,7 +119,7 @@ class TestTheRule(unittest.TestCase):
         classifier = Classifier([])
         for hit in hits:
             feed(hit, classifier(hit))
-        sources = [visit["source"] for _, _, _, visit in feed.rows]
+        sources = [visit["source"] for _, _, _, visit, *_ in feed.rows]
         self.assertEqual(sources, ["Direct or unknown"] * 2 + ["AI assistant"] * 2)
 
 

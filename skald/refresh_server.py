@@ -56,11 +56,14 @@ nothing): /traffic-auth/* signs people in (auth_api.py, with nginx's
 auth_request check), <page>/team, account, tokens and audit are the
 Settings routes (team_api.py), <page>/settings and settings/* the
 settings pages (settings_api.py; Settings > Mail & reports, client_reports_api.py), <page>/integrations and integrations/*
-Settings > Leads & tools (integrations_api.py; integrations/search and
-integrations/search/* its Search part, search/api.py), <page>/people and people/* the person
+Settings > Leads & tools (integrations_api.py; integrations/yourtools and /*
+the figures from your tools, yourtools/api.py; integrations/search and
+integrations/search/* its Search part, search/api.py), <page>/recorded and recorded/*
+recorded journeys (journeys_api.py, 2.43), <page>/people and people/* the person
 lookup and the left-out lists (people/api.py), POST <page>/people/mark-test a drawer's
 Mark as test (people/marktest.py), <page>/settings/todos and settings/todo-send
-Insights' to-dos and Not found's fixes (todo_api.py), <page>/logo and logo/* the site's logo
+Insights' to-dos and Not found's fixes (todo_api.py), <page>/orgs and orgs/* Settings >
+Organisations (orgs_api.py), <page>/logo and logo/* the site's logo
 (logo_api.py; the image itself in basic mode too), /me adds name, org, csrf, mode, install_admin
 and totp_on, every POST but refresh also needs X-Skald-CSRF, an owner counts
 as an admin, and /traffic-api/ checks tokens in accounts.sqlite. Every other
@@ -98,14 +101,17 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from . import access, auth_api, bot_policy_api, helper_sessions, settings_api, team_api
-from . import ingest, integrations_api, logo_api, realtime_api, share_api, sites_api, updates
+from . import (ingest, integrations_api, journeys_api, logo_api, realtime_api, share_api,
+               sites_api, updates)
 from .search import api as search_api
+from .yourtools import api as yourtools_api
 from . import client_reports_api
 from .saas import billing_api, signup_api
 from .mcp import http as mcp_http
 from .people import api as people_api
 from .people import marktest as people_marks
 from . import security_api, todo_api
+from . import orgs_api
 from .answers import api as answers_api
 
 MIN_GAP = 15          # seconds between two runs
@@ -461,9 +467,15 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
             if search_api.is_search(self.path):   # Settings > Leads & tools > Search
                 return search_api.handle(self, True, config, live_dir, allowed, same_origin,
                                          config_path)
+            if yourtools_api.is_yourtools(self.path):   # Leads & tools > From your tools
+                return yourtools_api.handle(self, True, config, live_dir, allowed,
+                                            same_origin, config_path)
             if integrations_api.is_integrations(self.path):   # Settings > Leads & tools
                 return integrations_api.handle(self, True, config, live_dir, allowed,
                                                same_origin, config_path)
+            if journeys_api.is_recorded(self.path):     # recorded journeys (2.43)
+                return journeys_api.handle(self, True, config, live_dir, allowed, same_origin,
+                                           config_path)
             if client_reports_api.is_reports(self.path):  # Settings > Mail & reports
                 return client_reports_api.handle(self, True, config, live_dir, allowed,
                                                  same_origin, history_path, config_path)
@@ -481,6 +493,9 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
                                            history_path, config_path)
             if team_api.is_team(self.path):
                 return team_api.handle(self, True, config, live_dir, allowed, same_origin)
+            if orgs_api.is_orgs(self.path):             # Settings > Organisations
+                return orgs_api.handle(self, True, config, live_dir, allowed, same_origin,
+                                       history_path)
             if not self._gated():
                 return None
             if logo_api.is_logo(self.path):             # the site's logo (2.6.0)
@@ -535,9 +550,15 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
             if search_api.is_search(self.path):
                 return search_api.handle(self, False, config, live_dir, allowed, same_origin,
                                          config_path)
+            if yourtools_api.is_yourtools(self.path):
+                return yourtools_api.handle(self, False, config, live_dir, allowed,
+                                            same_origin, config_path)
             if integrations_api.is_integrations(self.path):
                 return integrations_api.handle(self, False, config, live_dir, allowed,
                                                same_origin, config_path)
+            if journeys_api.is_recorded(self.path):
+                return journeys_api.handle(self, False, config, live_dir, allowed, same_origin,
+                                           config_path)
             if client_reports_api.is_reports(self.path):
                 return client_reports_api.handle(self, False, config, live_dir, allowed,
                                                  same_origin, history_path, config_path)
@@ -555,6 +576,9 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
                                            history_path, config_path)
             if team_api.is_team(self.path):
                 return team_api.handle(self, False, config, live_dir, allowed, same_origin)
+            if orgs_api.is_orgs(self.path):
+                return orgs_api.handle(self, False, config, live_dir, allowed, same_origin,
+                                       history_path)
             m = route(TOKEN_PATH, self.path)
             if m is not None:
                 return self._token_get(m)

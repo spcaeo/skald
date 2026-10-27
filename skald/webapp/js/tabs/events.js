@@ -18,7 +18,8 @@ import { head } from "./common.js";
 import { todayNote } from "./sa-options.js";
 import { info } from "./tiles.js";
 import { sessions, isViewer } from "../access.js";
-import { everSent, howToSend } from "../notset.js";
+import { everSent, howToSend, neverSentAny } from "../notset.js";
+import { connectCard, sourceLink } from "../ui/connect.js";
 
 const COLS = ["cta_click", "book_demo_open", "demo_booked", "signup_start", "signup_submit", "contact_submit", "waitlist_submit", "outbound_click", "scroll_75", "copy_text", "404_view"];
 const SHORT = { cta_click: "Clicks", book_demo_open: "Demo opened", demo_booked: "Demo booked", signup_start: "Sign-up started", signup_submit: "Sign-up sent", contact_submit: "Contact sent",
@@ -123,7 +124,10 @@ export default function events(m, s) {
   const f = m.x.events;
   const r = rangeOf(m, s);
   const out = [...head("Events", r, "What visitors did inside the pages, counted by the site's own beacon on its own server: buttons, forms, demo bookings, links out, reading three quarters of a page, copying text. People only, as totals: no event is tied to a visit or a person.", { banner: false }), todayNote(m, s, r)].filter(Boolean);
-  if (!f) return [...out, h("div", { class: "state" }, h("div", null, "In-page events are not counted on this server yet. They come from the website's own beacon once it is installed (docs/BEACON.md)."))];
+  // 2.43: the script tag is the source here; its row in Leads & tools, and its card when never sent.
+  const back = sourceLink("leads");
+  if (back) out[0].insertBefore(back, out[0].querySelector(".period"));
+  if (!f || neverSentAny(f)) return [...out, connectCard(m, "script", { s })];
   const keep = pathMatch(s);
   const got = eventRows(f, r, m.today);
   const rows = got.rows.filter((x) => keep(x[3]) && (!s.source || x[4] === s.source));

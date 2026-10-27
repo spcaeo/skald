@@ -29,6 +29,7 @@ export const AREAS = [
   ["Crawlers & AI", ["crawler_burst", "new_crawler", "crawler_silent", "ai_started_reading", "ai_stopped_reading"]],
   ["Security", ["security_exposure", "scan_wave", "stack_advisory"]],
   ["Sales", ["sale", "sale_refunded"]],
+  ["Marketing", ["tool_stopped", "leads_drop", "bookings_drop", "ga4_log_gap"]],
 ];
 export function areaOf(cause) {
   const hit = AREAS.find(([, causes]) => causes.includes(cause));

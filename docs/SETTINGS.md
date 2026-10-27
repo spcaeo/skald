@@ -57,6 +57,7 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `backup.weekly` | Data retention | 0-52 (8) | install admin | install | `backup.weekly` |
 | `mail.daily` | Mail | on / off (on) | admin | site | `mail.daily` |
 | `mail.weekly` | Mail | on / off (on) | admin | site | `mail.weekly` |
+| `mail.marketing` | Mail | on / off (off): the Monday marketing mail (mail_marketing.py): last week's visitors, pages read, leads and sources from the log, then each connected tool's headline figures under "Counted from: <tool>", never added to Skald's; refused, like the weekly mail, when the week is not whole | admin | site | `mail.marketing` |
 | `mail.to` | Mail | 1-20 addresses, each confirmed (below) | admin | site | `mail.to` |
 | `mail.from_name` | Mail | letters, digits, spaces and . - ', 40 at most | admin | site | `mail.from_name` |
 | `mail.from` | Mail | one email address: the sender of every mail | install admin | install | `mail.from` |
@@ -90,7 +91,7 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `hooks.calcom.event_types` | Integrations (Cal.com) | up to 50 event-type ids or slugs; `[]` keeps every event ([]) | admin | site | `hooks.calcom_event_types` (or nested `hooks.calcom.event_types`) |
 | `alerts.enabled` | Site > Alerts | on / off (off) | admin | site | `alerts.enabled` |
 | `alerts.mail` | Site > Alerts | on / off (on) | admin | site | `alerts.mail` |
-| `alerts.<rule>` | Site > Alerts | on / off (on), one per rule: `site_down`, `logging_stopped`, `server_errors`, `not_found_surge`, `crawler_burst`, `new_crawler`, `traffic_drop`, `ai_started_reading`, `ai_stopped_reading`, `ai_sending_people`, `first_citation`, `first_cited_page`, `cited_visits`, `crawler_silent`, `security_exposure`, `stack_advisory`; off by default: `scan_wave`, `sale`, `sale_refund` | admin | site | `alerts.<rule>` (the AI three also nested `alerts.ai.<rule without ai_>`) |
+| `alerts.<rule>` | Site > Alerts | on / off (on), one per rule: `site_down`, `logging_stopped`, `server_errors`, `not_found_surge`, `crawler_burst`, `new_crawler`, `traffic_drop`, `ai_started_reading`, `ai_stopped_reading`, `ai_sending_people`, `first_citation`, `first_cited_page`, `cited_visits`, `crawler_silent`, `security_exposure`, `stack_advisory`, `tool_stopped`, `leads_drop`, `bookings_drop`; off by default: `scan_wave`, `sale`, `sale_refund`, `ga4_log_gap`. Thresholds in config.yml only: `alerts.leads_drop_percent` (50), `alerts.leads_drop_minimum` (5), `alerts.bookings_drop_percent` (50), `alerts.bookings_drop_minimum` (5), `alerts.ga4_gap_factor` (2) | admin | site | `alerts.<rule>` (the AI three also nested `alerts.ai.<rule without ai_>`) |
 | `alerts.sale_minimum` | Site > Alerts (under Sale) | the least amount per currency that makes a sale alert, as text: `USD 100, EUR 90.50` (stored by currency, each with its decimals: `EUR 90.50, USD 100.00`); at most 10 currencies; a currency not listed alerts at any amount; empty: any amount (none) | admin | site | `alerts.sale_minimum` (the same text, or a map `{USD: 100}`) |
 | `security.require_totp` | Security | on / off (off) | owner | organisation | none |
 | `security.session_days` | Security | 1-90 (14) | owner | organisation | none |
@@ -183,6 +184,24 @@ keeps everything (`skald/keep_everything.py`) when
   A site no organisation holds is the install's own. A customer plan's sites are pruned as
   before.
 
+**The organisation rule** (accounts schema 6, Unreleased): each organisation has a privacy class,
+`internal` (the default) or `client`, set by an install admin (Settings › Organisation ›
+Organisations › Settings, `skald org privacy SLUG internal|client`, or
+`accounts.orgs.set_privacy_class(db, org_id, cls, actor)`; audited `org.privacy`).
+
+- `internal`: the rules above, unchanged. Every organisation starts here, so nothing changes on
+  an install until someone makes one a client.
+- `client`: the organisation's sites follow their own retention settings even when the install
+  keeps everything. Only a hosted plan with `keep_everything: true` still keeps them.
+
+Every decision goes through the one keeper (`Keeper(config, live_dir)` or `of(ctx)`), which asks
+the rule first; `Keeper.install` is the install's switch, and `Keeper.all` ("every site keeps
+everything", the shortcut some paths take to open nothing) is true only when no organisation is a
+client. Any doubt (no accounts file, one that cannot be read) counts as internal: everything is
+kept. `tests/test_privacy_class.py` runs every path of the table below against a client's site
+and checks it clears what an install without the rule clears, and that no module decides from
+`install_on` alone.
+
 On such a site no automatic deletion or clearing of any kind runs, whatever a retention window,
 the People days or a plan's cap says. Each path below asks the keeper first:
 
@@ -194,8 +213,10 @@ the People days or a plan's cap says. Each path below asks the keeper first:
 | Visits with addresses past `privacy.keep_days`; every visit when `keep_ips` turns off; the shortening when it turns `short` | `people/visits.prune` | kept, unchanged |
 | Security's scanner rows (the same three) | `security_kept.prune` | kept, unchanged |
 | Leads, removed rows and lead journeys past `conversions.retention_days`; journeys of an ID with no lead past `journeys.vid_days`; identities nothing points to; deliveries (90 days), replay hashes and payment links | `conversions/store.prune` | kept |
+| Recorded journeys (2.43) past `journeys.vid_days`; their addresses and emails past the People days | `recorded/store.prune` | kept, unchanged (docs/JOURNEYS.md) |
 | The hook spool's lines | `conversions/spool.prune` | kept (with every site kept, no file is opened) |
 | Names and emails past the People days, in leads, removed rows, the spool and the upgrade copies | `conversions/people_days.run` | kept |
+| Names and emails past the People days in your tools' stored answers (Calendly invitees, Resend contacts and recipients), even a tool that stopped answering; the figures stay | `yourtools/people_days.run` (from the daily prune) | kept |
 | The outgoing webhooks' outbox past 30 days | `conversions/outgoing.prune` | kept |
 | In-page event counts past `beacon.keep_days` | `events.collect` | kept |
 | The beacon spool files | `beacon.prune` (from `events.daily`) | kept while any site of the install keeps everything (the spool holds every site's lines) |
@@ -210,15 +231,19 @@ run (the Requests list's 6 hours, today's AI activity), caches, signed-in sessio
 attempts, invites and sign-ups, and the temporary files of an upgrade.
 
 A person's own deletion request still works: `skald forget` and `skald conversions forget`,
-run by an admin by hand, delete what is kept about that person. Removing a site with `sites
-remove` is also by hand.
+run by an admin by hand, delete what is kept about that person. So does a visitor's withdrawal
+of consent sent by the site for recorded journeys (`POST .../journey/withdraw`): it deletes that
+visitor's recorded events. Removing a site with `sites remove` is also by hand.
 
 What a site owner sees: Settings > Data retention says "Kept: nothing is deleted (internal or
 enterprise)." above the cards and on the People card, and a shorter window's preview says it
 removes nothing; the privacy notice wording says each thing is kept "until you ask us to delete
-it"; `skald doctor` shows one line, "Keep everything: on". `GET settings` returns
-`keep_everything: {on, why, words}` (`why`: `install`, `no plan` or `plan <name>`), and the
-retention preview answers `kept: true, shrinks: false` with the words.
+it"; `skald doctor` shows one line, "Keep everything: on", with the rule that decides it
+("Rule: Kiwi is an internal organisation..."), or "off: Kiwi is a client organisation..." for a
+client's site on an install that keeps everything. `GET settings` returns
+`keep_everything: {on, why, words, rule}` (`why`: `install`, `no plan` or `plan <name>`; `rule`:
+`{class, org, words}`), the Privacy page says the rule's words, and the retention preview answers
+`kept: true, shrinks: false` with the words.
 
 ## A plan's usage alerts (config only)
 

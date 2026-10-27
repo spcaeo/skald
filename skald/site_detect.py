@@ -32,6 +32,13 @@ first, following at most 3 redirects by hand, then a GET of the first
                  (parse.Hit.soft_navigation); "" otherwise. Caddy logs the
                  request headers already; a drain or a Worker carries none.
   checked        per name: reachable, status, final_url, error (words)
+  tags           what the page already fetched names of the site's own tools
+                 (From your tools, docs/TOOLS.md): {"ga4": ["G-..."], "calendly":
+                 ["calendly.com/<name>/<event>"]}, at most 3 each; {} when no page
+                 was read. Read from the same GET, never a fetch of its own.
+                 2.43: also "calcom" (cal.com/<name>), "stripe" (its script or a buy
+                 link's host) and "hubspot" (its tracking or forms script)
+  forms          how many <form> tags that page has (at most FORMS_MOST), or None
 
 The recommendation table is `recommend`. Nothing here names a site.
 """
@@ -67,6 +74,24 @@ LOG_NOTE = ("Next.js: add rsc_prefetch=$http_next_router_prefetch at the end of 
             "nginx log_format (Apache: rsc_prefetch=%{Next-Router-Prefetch}i), then reload "
             "nginx, so pages opened by a click inside the site count.")
 PRINTABLE = re.compile(r"[^\x20-\x7e]")
+# The site's own tools named in its page (docs/TOOLS.md): suggestions, nothing more.
+TAGS = {"ga4": re.compile(r"(?:googletagmanager\.com/gtag/js\?id=|gtag\(\s*['\"]config['\"]\s*,"
+                          r"\s*['\"])(G-[A-Z0-9]{4,15})\b"),
+        "calendly": re.compile(r"\b(calendly\.com/[A-Za-z0-9_-]{1,60}(?:/[A-Za-z0-9_-]{1,60})?)"),
+        # 2.43: Cal.com links, Stripe's and HubSpot's scripts, so Leads & tools and the "not
+        # connected yet" card can say what the site already uses (js/connect-plan.js).
+        "calcom": re.compile(r"(?<![\w.-])((?:app\.)?cal\.com/(?!embed\b)[A-Za-z0-9_-]{1,60}"
+                             r"(?:/[A-Za-z0-9_-]{1,60})?)"),
+        "stripe": re.compile(r"\b((?:js|buy|checkout)\.stripe\.com)\b"),
+        "hubspot": re.compile(r"\b(js\.(?:hs-scripts\.com|hsforms\.net|hs-analytics\.net)"
+                              r"|[a-z0-9-]{1,30}\.hsforms\.com)\b")}
+TAG_SHAPES = {"ga4": re.compile(r"G-[A-Z0-9]{4,15}"),
+              "calendly": re.compile(r"calendly\.com/[A-Za-z0-9_-]{1,60}(?:/[A-Za-z0-9_-]{1,60})?"),
+              "calcom": re.compile(r"(?:app\.)?cal\.com/[A-Za-z0-9_-]{1,60}(?:/[A-Za-z0-9_-]{1,60})?"),
+              "stripe": re.compile(r"(?:js|buy|checkout)\.stripe\.com"),
+              "hubspot": re.compile(r"js\.(?:hs-scripts\.com|hsforms\.net|hs-analytics\.net)"
+                                    r"|[a-z0-9-]{1,30}\.hsforms\.com")}
+FORMS_MOST = 20                    # <form> tags counted on the home page, at most
 
 
 def _short(value, most: int) -> str:
@@ -132,6 +157,25 @@ class _Page(HTMLParser):
     def handle_data(self, data):
         if self._in_title and len(self.title) < 200:
             self.title += data
+
+
+def forms_of(html: str) -> int:
+    """How many <form> tags the page has, at most FORMS_MOST (Leads & tools says so)."""
+    return min(FORMS_MOST, len(re.findall(r"<form\b", html or "", re.I)))
+
+
+def tags_of(html: str) -> dict:
+    """{"ga4": [...], "calendly": [...], "calcom", "stripe", "hubspot"} named in the page's
+    text, each at most 3."""
+    out = {}
+    for kind, rx in TAGS.items():
+        seen = []
+        for got in rx.findall(html or ""):
+            if got not in seen:
+                seen.append(got)
+        if seen:
+            out[kind] = seen[:3]
+    return out
 
 
 def read_page(body: bytes) -> tuple[str, _Page]:
@@ -437,6 +481,8 @@ def detect(address: str) -> dict:
             and facts["platform"] not in BUILDERS:
         facts["asset_prefixes"], facts["assets_note"] = assets_of(
             facts["framework"], main["page"], set(hosts))
+    facts["tags"] = tags_of(main["html"]) if main["reachable"] else {}
+    facts["forms"] = forms_of(main["html"]) if main["reachable"] else None
     facts["checked"] = [{"host": x["host"], "reachable": x["reachable"], "status": x["status"],
                          "final_url": x["final_url"], "error": x["error"]}
                         for x in (first, other)]
@@ -497,6 +543,11 @@ def clean_found(raw) -> dict | None:
            if raw.get("recommended_method") in METHODS else None,
            "reason": _short(raw.get("reason"), 300), "error": _short(raw.get("error"), 200),
            "log_note": LOG_NOTE if raw.get("log_note") == LOG_NOTE else "",
+           "tags": {k: [str(v) for v in raw["tags"][k] if TAG_SHAPES[k].fullmatch(str(v))][:3]
+                    for k in TAG_SHAPES if isinstance(raw.get("tags"), dict)
+                    and isinstance(raw["tags"].get(k), list)},
+           "forms": raw["forms"] if isinstance(raw.get("forms"), int) and not isinstance(
+               raw.get("forms"), bool) and 0 <= raw["forms"] <= FORMS_MOST else None,
            "checked_at": _short(raw.get("checked_at"), 25)}
     for r in (raw.get("redirects") or [])[:4] if isinstance(raw.get("redirects"), list) else []:
         if isinstance(r, dict):

@@ -45,6 +45,9 @@ export function wizard({ title, subtitle = "", steps, start = 0, onStep = null, 
   w.rename = (value) => { if (!route || route.value === String(value)) return; renamed(route.key, route.value, value); route.value = String(value); };
   w.close = () => d.close();
   w.say = (text, ok = false) => msg.say(text, ok);
+  // 2.43: a set-up that is done says Close, never "Finish later", and gives the accent to the
+  // step's own "Open the dashboard" (one primary per screen).
+  w.setDone = (label) => { done = label; next.classList.remove("primary"); w.drawBar(); };
 
   // The step bar alone, and the heading's "of N": a dialog whose later steps follow a
   // choice (conn-send.js: the server way has no token step) changes `steps` in place.

@@ -177,10 +177,13 @@ const draw = (patch = {}) => flat(revenue(m, { ...s0, ...patch }));
 {
   // A site that never sent a value: the how-to, linking the help part.
   const out = flat(revenue({ ...m, x: { conversions: { available: true, days: [{ day: "2026-10-15", state: "ok", stages: {} }] } } }, s0));
-  assert.match(text(out), /No revenue yet\. Send value and currency with each sale/);
-  assert.ok(all(out, 'a[href="#help?part=revenue"]').length, "the empty state links the help part");
-  // No conversions file at all: the same plain words.
-  assert.match(text(flat(revenue({ ...m, x: {} }, s0))), /No revenue yet/);
+  // 2.43: the shared "not connected yet" card (js/ui/connect.js), need payments.
+  assert.match(text(out), /No revenue yet/);
+  assert.match(text(out), /Send value and currency with each sale/);
+  assert.equal(all(out, '.ui-conn[data-need="payments"]').length, 1, "the payments card");
+  assert.ok(all(out, ".ui-conn .ui-help").length, "its ? opens the revenue guide");
+  // No conversions file at all: the same card.
+  assert.equal(all(flat(revenue({ ...m, x: {} }, s0)), '.ui-conn[data-need="payments"]').length, 1);
 }
 {
   // A period of only not-recorded days.

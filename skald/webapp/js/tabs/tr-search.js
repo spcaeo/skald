@@ -8,6 +8,10 @@
 // may still change is "provisional" and drawn dashed. The engine and the period
 // (7 days, 28 days, 3 months, 16 months, up to the newest day the engine has) are
 // this tab's own; the page's period bar does not apply.
+//
+// Search Console's figures come first (the tiles), then one section at a time
+// (sesec_view): the trend and tables, Opportunities, New and lost, Positions
+// (tabs/tr-search-reports.js, from search/reports.py) and the Cross-check.
 
 import { h, n, esc, long, short, addDays, tip, untip, ICON } from "../ui.js";
 import * as S from "../state.js";
@@ -23,6 +27,8 @@ import { head, notBuiltNote } from "./common.js";
 import { figures } from "../data.js";
 import { subView } from "../tablestate.js";
 import { withUrl, copyIf } from "../urlactions.js";
+import * as R from "./tr-search-reports.js";
+import { connectCard, sourceLink } from "../ui/connect.js";
 
 const PERIODS = [["7", "7 days"], ["28", "28 days"], ["90", "3 months"], ["480", "16 months"]];
 const ENGINES = [["google", "Google"], ["bing", "Bing"]];
@@ -42,7 +48,8 @@ let per = "28";
 let metric = "clicks";
 // The engine, the period and the measure stay in the address (seeng_view, seper_view,
 // semet_view: tablestate.js subView), so a link brings the same view back.
-const KEPT = { engine: subView("seeng"), per: subView("seper"), metric: subView("semet") };
+const KEPT = { engine: subView("seeng"), per: subView("seper"), metric: subView("semet"), sec: subView("sesec") };
+const SECTIONS = ["figures", "opps", "changes", "positions", "cross"];
 
 const pct = (v) => (v == null ? "-" : `${(v * 100).toFixed(v < 0.1 ? 1 : 0)}%`);
 const pos = (v) => (v == null ? "-" : v.toFixed(1));
@@ -106,26 +113,28 @@ function statusBlock(part, e) {
   return out;
 }
 
+/* Connected, but no day stored: why, in plain words. */
+export function noFigures(part, e) {
+  const st = part.status || {};
+  const tool = toolOf(e);
+  const b = st.backfill;
+  if (b && (b.state === "queued" || b.state === "running")) return "Connected. The history is syncing now: the figures appear as each week arrives.";
+  if (st.note) return `Connected. ${st.note} ${e === "google" ? "Google starts a new property's figures a few days after it is verified." : ""}`.trim();
+  if (!st.last_sync) return "Connected. The first figures appear after the first sync, within 6 hours.";
+  if (st.ok === false) return "Connected, but the sync is failing (above): nothing is stored yet.";
+  return `Connected and synced, but ${tool} has no figures for this site yet.`;
+}
+
 // ------------------------------------------------------------------ setup
 
-function setupBlock(file, e) {
+/* 2.43: the engine is not connected: the shared card (js/ui/connect.js), whose Connect opens
+   Search Console's set-up (setup=search: Who will do it?). Bing's own keys stay in Leads &
+   tools › Search Console & Bing (its Other ways). */
+function setupBlock(m, s, e) {
   const google = e === "google";
-  const keySet = file.keys?.[e];
-  const steps = google ? [
-    keySet ? "The install's Google service-account key is in place." : "An install admin uploads a Google service-account key in Settings › Leads & tools › Search Console & Bing. One key serves every site.",
-    "In Search Console › Settings › Users and permissions, add the service account's email with Restricted (read-only) access. Settings shows the email, and text to send a client whose site it is.",
-    "Back in Settings › Leads & tools › Search Console & Bing: Find my properties, Test connection, then Connect. The history (3 or 16 months) syncs in the background; after that Skald syncs by itself every 6 hours.",
-  ] : [
-    keySet ? "The install's Bing API key is in place." : "An install admin types a Bing Webmaster Tools API key in Settings › Leads & tools › Search Console & Bing (Bing Webmaster Tools › Settings › API access).",
-    "The site must be added and verified in Bing Webmaster Tools under that key's account; for a client's site, the client adds that account as a user.",
-    "Back in Settings › Leads & tools › Search Console & Bing: Find my sites, Test connection, then Connect. Skald syncs by itself every 6 hours.",
-  ];
-  return h("div", { class: "state se-setup", html: ICON.info }, h("div", null,
-    h("strong", null, google ? "Connect Search Console" : "Connect Bing Webmaster Tools"),
-    h("p", null, google ? "The log cannot see a search: no query, no impression, no position. Only Google holds them. Connect Search Console and Skald keeps a copy here, beside its own figures, never mixed with them."
-      : "Bing's queries, pages, clicks and impressions, from Bing Webmaster Tools."),
-    h("ol", null, steps.map((x) => h("li", null, x))),
-    h("p", null, h("a", { class: "btn", href: SETTINGS }, google ? "Connect Search Console" : "Connect Bing"))));
+  return connectCard(m, "search", { s, title: google ? "Search Console is not connected yet" : "Bing Webmaster Tools is not connected yet",
+    line: google ? "The log cannot see a search: no query, no impression, no position. Only Google holds them. Connected, Skald keeps a copy here, beside its own figures, never mixed with them."
+      : "Bing's queries, pages, clicks and impressions, from Bing Webmaster Tools, beside Skald's own figures." });
 }
 
 // ------------------------------------------------------------------ chart
@@ -213,7 +222,18 @@ function rowDrawer(kind, row, part, period, s, file) {
     if (ours && e === "google") body.push(h("p", null, `Skald's people from Google search on this page, over the cross-check's days: ${n(ours.skald_visits)} (Search Console: ${n(ours.search_console_clicks)} clicks).`));
     body.push(h("p", null, h("a", { href: S.hashFor({ ...s, tab: "traffic/pages", page: path, dd: "" }) }, `Open ${path}: its story since it was published`)));
   }
-  if (kind === "query") body.push(h("p", { class: "note" }, "The engine does not give, in this table, which page each query led to."));
+  if (kind === "query") {
+    const opp = (period.opportunities?.rows || []).find((o) => String(o.query) === String(row.key));
+    if (opp?.page) body.push(h("p", null, "Shown most on ", withUrl(R.pathOf(opp.page), opp.page, { cls: "ua-after" }),
+      opp.pages > 1 && opp.page_share != null ? ` (${Math.round(opp.page_share * 100)}% of its impressions, of ${n(opp.pages)} pages)` : "",
+      `. ${R.RULE_WORDS[opp.rule]}: an opportunity.`));
+    else body.push(h("p", { class: "note" }, "The engine does not give, in this table, which page each query led to."));
+  }
+  // Its average position over time, when it is among the tracked (search/reports.py).
+  const tracked = (period.positions?.[kind]?.rows || []).find((r) => String(r.key) === String(row.key));
+  const chart = tracked && R.positionChart(period.positions, tracked);
+  if (chart) body.push(h("h3", null, "Average position over time"), chart,
+    h("p", { class: "note" }, `Google's position is an average, weighted by impressions; 1 is the top. ${R.moveWords(tracked.change) === "-" ? "" : `Move: ${R.moveWords(tracked.change)}.`} A gap: no row that ${period.positions.size === 1 ? "day" : "stretch"}. Hollow: provisional.`));
   // In the address as sq=<kind>.<engine>:<key> (js/overlays.js): a link reopens it.
   const title = kind === "query" ? copyIf("text", textOf(kind, row.key), String(row.key), { label: "query" }) : kind === "page" ? withUrl(textOf(kind, row.key), String(row.key), { cls: "ua-after" }) : textOf(kind, row.key);
   return openDrawer({ title, subtitle: `${nameOf(e)} search, ${KINDS.find((x) => x[0] === kind)[2].toLowerCase()}`, body: h("div", null, body), size: "md", key: "search-row",
@@ -228,10 +248,20 @@ export function openSearchKey(m, s, value) {
   if (!kind || !part?.connected) return "That search row is not in the figures on this page: the engine is not connected here.";
   engine = e;
   const period = part.periods?.[per];
-  const row = (period?.[kind]?.rows || []).find((x) => String(x[0]) === key);
-  if (!row) return `That search row is not in the ${PERIODS.find(([k]) => k === per)?.[1] || "period"} on screen. Choose a longer period, or it is no longer among the engine's rows.`;
-  const [k2, clicks, impressions, ctr, position] = row;
-  return rowDrawer(kind, { key: k2, label: textOf(kind, k2), clicks, impressions, ctr, position }, part, period, s, file);
+  const found = rowOf(period, kind, key);
+  if (!found) return `That search row is not in the ${PERIODS.find(([k]) => k === per)?.[1] || "period"} on screen. Choose a longer period, or it is no longer among the engine's rows.`;
+  return rowDrawer(kind, found, part, period, s, file);
+}
+
+/* A row of the period's own table, else one the reports hold (tr-search-reports.js). */
+function rowOf(period, kind, key) {
+  const row = (period?.[kind]?.rows || []).find((x) => String(x[0]) === String(key));
+  if (row) {
+    const [k2, clicks, impressions, ctr, position] = row;
+    return { key: k2, label: textOf(kind, k2), clicks, impressions, ctr, position };
+  }
+  const got = R.findRow(period, kind, key);
+  return got ? { ...got, label: textOf(kind, got.key) } : null;
 }
 
 function kindTable(kind, title, colName, blob, part, period, s, file) {
@@ -308,6 +338,9 @@ export default function search(m, s) {
   const { r } = figures(m, s);
   const top = head("Search", r, "What people searched for, how often the site showed and was clicked, and where it ranked: Google Search Console's and Bing Webmaster Tools' own figures, synced here every 6 hours. Never Skald's own count, and never added to one.",
     { banner: false, period: "The engines' own days, up to the newest they have" });
+  // 2.43: the way back to Search Console & Bing in Settings › Leads & tools.
+  const back = sourceLink("search");
+  if (back && top[0]) top[0].insertBefore(back, top[0].querySelector(".period"));
   if (!file) {
     return [...top, notBuiltNote(m, "search", "Search") || h("div", { class: "state" }, h("div", null, "The search figures appear after the next redraw."))];
   }
@@ -325,7 +358,7 @@ export default function search(m, s) {
       part.connected ? h("span", { class: "se-src" }, `${toolOf(engine)}: ${part.connected}`) : null));
     if (file.view_note) out.push(h("p", { class: "note" }, file.view_note));
     if (!part.connected) {
-      out.push(setupBlock(file, engine));
+      out.push(setupBlock(m, s, engine));
       if (part.summary?.days) out.push(h("p", { class: "note" }, `Not connected now. ${n(part.summary.days)} days synced before stay in history.`));
       root.replaceChildren(...out);
       return;
@@ -333,20 +366,41 @@ export default function search(m, s) {
     out.push(...statusBlock(part, engine));
     const period = part.periods?.[per];
     if (!period || !part.summary?.days) {
-      out.push(h("p", { class: "empty" }, "Connected. The first figures appear after the first sync."));
+      out.push(h("p", { class: "empty" }, noFigures(part, engine)));
       root.replaceChildren(...out);
       return;
     }
     const t = period.totals || {};
     const google = engine === "google";
+    // How much of the period the history holds, plainly: days before it, gaps, provisional.
+    const cov = R.coverageLines(period.coverage, toolOf(engine));
+    if (cov.length) out.push(h("div", { class: "se-cov" }, cov.map((line) => h("p", null, line))));
     const tile = (label, value, line, about) => h("div", { class: "kpi" }, h("div", { class: "k-l" }, label, info(about, label)), h("div", { class: "k-n" }, line), h("div", { class: "k-v" }, value), h("div", { class: "k-c" }));
     const when = `${short(period.first)} to ${short(period.last)}${google ? ", Pacific Time days" : ""}`;
     out.push(h("section", { class: "s" }, h("div", { class: "kpis" },
-      tile("Clicks", n(t.clicks), when, `Clicks on the site in ${nameOf(engine)}'s results. A click is not a visit: see the cross-check below.`),
+      tile("Clicks", n(t.clicks), when, `Clicks on the site in ${nameOf(engine)}'s results. A click is not a visit${google ? ": see Cross-check" : ""}.`),
       tile("Impressions", n(t.impressions), period.provisional_days?.length ? `${period.provisional_days.length} provisional day${period.provisional_days.length === 1 ? "" : "s"}` : "every day final",
         `How often a result of the site was shown in ${nameOf(engine)}'s results.`),
       tile("CTR", pct(t.ctr), "clicks per impression", "Clicks divided by impressions over these days."),
       tile("Average position", pos(t.position), "1 is the top result", "The average of the site's best position in each result shown, weighted by impressions. Lower is better."))));
+    // Search Console: one section at a time, in the address (sesec_view); Bing has only the figures.
+    const sec = google && SECTIONS.includes(KEPT.sec.get()) ? KEPT.sec.get() : "figures";
+    if (google) {
+      const ch = period.changes;
+      const open = (kind, key) => { const r = rowOf(period, kind, key); if (r) rowDrawer(kind, r, part, period, s, file); };
+      const label = PERIODS.find(([k]) => k === per)?.[1] || "these days";
+      out.push(h("div", { class: "se-tabs" }, seg("Show", [["figures", "Trend and tables"],
+        ["opps", `Opportunities (${n(period.opportunities?.count || 0)})`],
+        ["changes", ch?.state === "ok" ? `New and lost (${n(ch.new.count + ch.lost.count)})` : "New and lost"],
+        ["positions", "Positions"], ["cross", "Cross-check"]], sec,
+      (k) => { KEPT.sec.set(k, "figures"); R.KEPT.all.set(""); paint(); })));
+      const ctx = { open, label };
+      if (sec === "opps") out.push(R.opportunities(period, ctx));
+      if (sec === "changes") out.push(R.changes(period, ctx));
+      if (sec === "positions") out.push(R.positions(period, ctx));
+      if (sec === "cross") out.push(crossBlock(file.crosscheck, s));
+      if (sec !== "figures") { root.replaceChildren(...out.filter(Boolean)); return; }
+    }
     const inRange = (part.days || []).filter((d) => d.day >= period.first && d.day <= period.last);
     if (inRange.length) {
       const byDay = new Map(inRange.map((d) => [d.day, d]));
@@ -360,8 +414,7 @@ export default function search(m, s) {
       const blob = period[kind];
       if (blob) out.push(kindTable(kind, title, col, blob, part, period, s, file));
     }
-    if (!google) out.push(h("p", { class: "note" }, "Bing gives its top queries and pages only, updated weekly, each under the date Bing gives; their sum is not the site's whole Bing traffic. Bing's Copilot citations have no API yet, so they are not here."));
-    if (google) out.push(crossBlock(file.crosscheck, s));
+    if (!google) out.push(h("p", { class: "note" }, "Bing gives its top queries and pages only, updated weekly, each under the date Bing gives; their sum is not the site's whole Bing traffic. Bing's Copilot citations have no API yet, so they are not here. Opportunities, new and lost queries and position tracking are Search Console's."));
     root.replaceChildren(...out);
   };
   paint();

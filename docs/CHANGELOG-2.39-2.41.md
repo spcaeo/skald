@@ -1,6 +1,6 @@
 # Changelog: 2.39.0 to 2.41.0
 
-The releases of 26 October 2026. Newer ones: [CHANGELOG.md](../CHANGELOG.md); older ones: [CHANGELOG-2.36-2.38.md](CHANGELOG-2.36-2.38.md).
+The releases of 26 October 2026. Newer ones: [CHANGELOG-2.42.md](CHANGELOG-2.42.md); older ones: [CHANGELOG-2.36-2.38.md](CHANGELOG-2.36-2.38.md).
 
 ## 2.41.0 (2026-10-26)
 

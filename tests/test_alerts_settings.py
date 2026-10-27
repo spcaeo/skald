@@ -26,7 +26,8 @@ class Resolution(unittest.TestCase):
             self.assertEqual(key.config, ("alerts", name.split(".", 1)[1]))
         self.assertEqual(set(alerts.SETTING), set(alerts.CAUSES) | set(alerts_ai.CAUSES)
                          | set(alerts_history.CAUSES) | set(alerts.alerts_security.CAUSES)
-                         | set(alerts.alerts_sales.CAUSES))
+                         | set(alerts.alerts_sales.CAUSES)
+                         | set(alerts.alerts_marketing.CAUSES))
 
     def test_config_words_and_defaults(self):
         got = store.explain({"alerts": {"enabled": "yes", "server_errors": "off",

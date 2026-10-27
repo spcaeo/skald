@@ -20,10 +20,12 @@ import { time as tzTime } from "../tz.js";
 import conversions from "./conversions.js";
 import { actionName, toolName, STAGE } from "./leadfigs.js";
 import { grid } from "../grid.js";
-import { tabHead, optionsRow, select, toggles, listOf, emptyState, foldNotes } from "./sa-options.js";
+import { tabHead, optionsRow, select, toggles, listOf, foldNotes } from "./sa-options.js";
 import { convList, CONV_SHOW } from "./sa-lists.js";
 import { openVisitor } from "./visitor.js";
 import { refCell } from "./leadref.js";
+import { connectCard } from "../ui/connect.js";
+import { fedFromData } from "../connect-plan.js";
 
 // Tools that book or take payment: an action any of them reported is a booking action.
 const BOOKING_TOOLS = new Set(["calendly", "calcom", "stripe"]);
@@ -97,9 +99,11 @@ export default function bookings(m, s, o) {
   let body = [conversions(m2, s, o)].flat(Infinity).filter(Boolean).filter((el) => !el.classList?.contains("head"));
   const r = rangeOf(m, s);
   const top = tabHead("Calendar bookings", "Who booked a call? Bookings made through Calendly and Cal.com, step by step, and payments Stripe reports where your site sends them.", r,
-    { help: "Counted from the booking and payment tools (Calendly, Cal.com, Stripe) with the page's script tag and the lead database. The lead database's own demos booked are on Summary (Count from: Lead database), never added to these.", more: "#help?part=demo-bookings" });
-  if (!ready) return [...top, emptyState("No calendar bookings yet: connect Calendly or Cal.com and each booking shows here, step by step.", ["Connect a booking tool", "#help?part=demo-bookings"])];
-  if (!acts.length) return [...top, emptyState("No booking tool has reported anything yet: connect Calendly or Cal.com and each booking shows here.", ["Connect a booking tool", "#help?part=demo-bookings"])];
+    { help: "Counted from the booking and payment tools (Calendly, Cal.com, Stripe) with the page's script tag and the lead database. The lead database's own demos booked are on Summary (Count from: Lead database), never added to these.", more: "#help?part=demo-bookings", source: "bookings" });
+  // 2.43: no booking tool: what this page needs and how to connect it (js/ui/connect.js).
+  if (!ready || !acts.length) return [...top, connectCard(m, "bookings", { s })];
+  // Bookings only from the lead database or the script tag: one line, Calendly or Cal.com not connected.
+  const noTool = fedFromData("bookings", m) ? null : connectCard(m, "bookings", { s, mode: "line", title: "No booking tool connected", line: "Calendly or Cal.com would add each booking's every step." });
   body = body.filter((el) => {
     const t = titleOf(el);
     if (!t) return !el.matches?.("section, details");
@@ -115,6 +119,6 @@ export default function bookings(m, s, o) {
   const live = r.kind === "today" && a ? today(f, a) : null;
   foldNotes(body);
   if (live) foldNotes([live]);
-  return [...top, ...row, live, ...body, ...lists,
+  return [...top, noTool, ...row, live, ...body, ...lists,
     h("p", { class: "note" }, "Time to convert, the touches and the pages seen before are on ", h("a", { href: S.hashFor({ ...s, tab: "sales/sources", lsrc: "all", lact: a || "" }) }, "Sources, counted from the tools"), ".")].filter(Boolean);
 }

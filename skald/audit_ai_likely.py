@@ -47,6 +47,10 @@ rebuilt here too:
                     assistants' user fetches made in the visit's first minute
                     or up to the window before it; at most 10 listed
   same page         the landing page (the rule above) is one of those paths
+
+Reads (`reads`, `reads_followed`): each user fetch's role comes from the
+audit's own reading of reads (audit_ai_reads.roles, with the stored day's
+ai_reads window); a read is followed as a fetch is, above.
 """
 from __future__ import annotations
 
@@ -54,6 +58,8 @@ import re
 from collections import Counter
 from urllib.parse import parse_qsl, urlsplit
 
+from .ai_read_names import WINDOW_SECONDS
+from .audit_ai_reads import prefixes_of, roles
 from .classify import (AI_FETCHER_OWNERS, AI_LIKELY_MANY, AI_REFERRER_HOSTS,
                        AI_REFERRER_PATHS, AI_UTM, ASSISTANT_ALIASES, CLICK_ID_PARAMS)
 
@@ -114,6 +120,8 @@ class Recount:
         self.visits = 0
         self.direct: list[tuple[int, str, str]] = []       # (minute, page, landing)
         self.cited: list[tuple[int, str, str]] = []        # (minute, assistant, page)
+        self.asked: list = []                               # (line, name), for the reads
+        self.prefixes = prefixes_of(config)
 
     def hit(self, line, group, tier, name) -> None:
         if group != "answer_engines" or tier != "asked":
@@ -122,6 +130,7 @@ class Recount:
         stamp = int(line.when.timestamp()) // 60
         self.fetches.append((stamp, who, _page(line.path)))
         self.raw[(stamp, who, line.path[:70])] += 1
+        self.asked.append((line, name))
 
     def visit(self, lines, is_page, labels) -> None:
         if labels is None:
@@ -215,7 +224,7 @@ class Recount:
         rows = stored.get("ai_fetches")
         if rows is not None:
             kept = Counter()
-            for at, who, path, n in rows.get("rows") or []:
+            for at, who, path, n, *_reads in rows.get("rows") or []:
                 kept[(at, who, path)] += int(n)
             from datetime import datetime, timezone
             counted = Counter()
@@ -255,3 +264,19 @@ class Recount:
             for who in sorted(set(mine) | set(got[key])):
                 if mine.get(who, 0) or got[key][who]:
                     same(f"ai_likely: {name} by {who}", mine.get(who, 0), got[key][who])
+        if blob.get("reads") is not None:
+            seconds = int((stored.get("ai_reads") or {}).get("window_seconds", WINDOW_SECONDS))
+            read, followed = Counter(), Counter()
+            for line, name, role, _ in roles(self.asked, seconds, self.prefixes):
+                if role != "read":
+                    continue
+                who = AI_FETCHER_OWNERS.get(name.lower(), name.lower())
+                m, page = int(line.when.timestamp()) // 60, _page(line.path)
+                read[who] += 1
+                if any(p == page and m <= stamp <= m + window for stamp, p, _ in self.direct):
+                    followed[who] += 1
+            for name, counted in (("reads", read), ("reads_followed", followed)):
+                mine = {k: int(v) for k, v in (blob.get(name) or {}).items()}
+                for who in sorted(set(mine) | set(counted)):
+                    if mine.get(who, 0) or counted[who]:
+                        same(f"ai_likely: {name} by {who}", mine.get(who, 0), counted[who])

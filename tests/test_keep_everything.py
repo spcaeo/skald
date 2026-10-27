@@ -301,6 +301,23 @@ class Pieces(Install):
         after = tables(self.dir / "conversions.sqlite")["identities"]
         self.assertEqual(before == after, self.keep)
 
+    def test_tools_people_days_sweep(self):
+        from skald.yourtools import people_days as tools_days
+        from skald.yourtools import store as tools_store
+        from skald.yourtools.base import Answer
+        body = {"invitees": [{"uri": "https://api.calendly.com/x/IN1", "created_at": OLD_AT,
+                              "name": "Old Example", "email": "old@example.com"}]}
+        db = tools_store.connect(self.dir)
+        with db:
+            tools_store.keep(db, SITE, "calendly", Answer("totals", "p", None, None, {}, body),
+                             [], OLD_AT)
+        db.close()
+        tools_days.run(self.ctx(), TODAY)
+        db = tools_store.reader(self.dir)
+        kept = db.execute("SELECT body FROM answers").fetchone()[0]
+        db.close()
+        self.assertEqual("old@example.com" in kept, self.keep)
+
 
 class PiecesRuleOff(Pieces):
     keep = False
@@ -422,8 +439,12 @@ class InThePage(Server):
     def test_kept(self):
         self.config["retention"] = {"keep_everything": True}
         page, shorter = self.ask()
+        rule = page["keep_everything"].pop("rule")
         self.assertEqual(page["keep_everything"],
                          {"on": True, "why": "install", "words": keep_everything.WORDS})
+        # 2.43: the page also says which organisation rule decides it (internal here).
+        self.assertEqual(rule["class"], "internal")
+        self.assertIn("keeps everything", rule["words"])
         self.assertIn("until you ask us to delete it", page["notice"]["text"])
         self.assertEqual((shorter["kept"], shorter["shrinks"]), (True, False))
         self.assertEqual(shorter["words"], keep_everything.WORDS)

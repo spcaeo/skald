@@ -1,0 +1,86 @@
+{
+  "_about": "Recorded-shape answers of the Calendly API v2 (users/me, scheduled_events, invitees), made-up bookings of made-up people (example.com addresses).",
+  "me": {
+    "resource": {
+      "uri": "https://api.calendly.com/users/USER1",
+      "name": "Owner Example",
+      "slug": "owner-example",
+      "email": "owner@example.com",
+      "scheduling_url": "https://calendly.com/owner-example",
+      "timezone": "America/New_York",
+      "avatar_url": null,
+      "created_at": "2024-01-02T10:00:00.000000Z",
+      "updated_at": "2026-09-01T10:00:00.000000Z",
+      "current_organization": "https://api.calendly.com/organizations/ORG1"
+    }
+  },
+  "events_page1": {
+    "collection": [
+      {"uri": "https://api.calendly.com/scheduled_events/EV4", "name": "Intro call", "status": "active",
+       "start_time": "2026-10-10T14:00:00.000000Z", "end_time": "2026-10-10T14:30:00.000000Z",
+       "event_type": "https://api.calendly.com/event_types/TYPE1", "location": {"type": "zoom"},
+       "invitees_counter": {"total": 1, "active": 1, "limit": 1},
+       "created_at": "2026-10-01T09:00:00.000000Z", "updated_at": "2026-10-10T15:00:00.000000Z",
+       "event_memberships": [{"user": "https://api.calendly.com/users/USER1", "user_email": "owner@example.com", "user_name": "Owner Example"}],
+       "event_guests": []},
+      {"uri": "https://api.calendly.com/scheduled_events/EV1", "name": "Intro call", "status": "active",
+       "start_time": "2026-10-20T15:00:00.000000Z", "end_time": "2026-10-20T15:30:00.000000Z",
+       "event_type": "https://api.calendly.com/event_types/TYPE1", "location": {"type": "zoom"},
+       "invitees_counter": {"total": 1, "active": 1, "limit": 1},
+       "created_at": "2026-10-18T10:00:00.000000Z", "updated_at": "2026-10-18T10:00:00.000000Z",
+       "event_memberships": [], "event_guests": []},
+      {"uri": "https://api.calendly.com/scheduled_events/EV2", "name": "Intro call", "status": "canceled",
+       "start_time": "2026-10-29T15:00:00.000000Z", "end_time": "2026-10-29T15:30:00.000000Z",
+       "event_type": "https://api.calendly.com/event_types/TYPE1", "location": {"type": "zoom"},
+       "invitees_counter": {"total": 1, "active": 0, "limit": 1},
+       "created_at": "2026-10-22T09:00:00.000000Z", "updated_at": "2026-10-23T08:00:00.000000Z",
+       "cancellation": {"canceled_by": "Ann Example", "reason": "A clash, sorry", "canceler_type": "invitee", "created_at": "2026-10-23T08:00:00.000000Z"},
+       "event_memberships": [], "event_guests": []},
+      {"uri": "https://api.calendly.com/scheduled_events/EV3", "name": "Demo", "status": "active",
+       "start_time": "2026-11-03T16:00:00.000000Z", "end_time": "2026-11-03T16:45:00.000000Z",
+       "event_type": "https://api.calendly.com/event_types/TYPE2", "location": {"type": "google_conference"},
+       "invitees_counter": {"total": 1, "active": 1, "limit": 1},
+       "created_at": "2026-10-25T12:00:00.000000Z", "updated_at": "2026-10-25T12:00:00.000000Z",
+       "event_memberships": [], "event_guests": []}
+    ],
+    "pagination": {"count": 4, "next_page": "https://api.calendly.com/scheduled_events?page_token=TOK2", "previous_page": null,
+                   "next_page_token": "TOK2", "previous_page_token": null}
+  },
+  "events_page2": {
+    "collection": [
+      {"uri": "https://api.calendly.com/scheduled_events/EV5", "name": "Demo", "status": "active",
+       "start_time": "2026-11-10T16:00:00.000000Z", "end_time": "2026-11-10T16:45:00.000000Z",
+       "event_type": "https://api.calendly.com/event_types/TYPE2", "location": {"type": "google_conference"},
+       "invitees_counter": {"total": 1, "active": 1, "limit": 1},
+       "created_at": "2026-10-26T20:00:00.000000Z", "updated_at": "2026-10-26T20:00:00.000000Z",
+       "event_memberships": [], "event_guests": []}
+    ],
+    "pagination": {"count": 1, "next_page": null, "previous_page": null, "next_page_token": null, "previous_page_token": "TOK1"}
+  },
+  "invitees": {
+    "EV1": {"uri": "https://api.calendly.com/scheduled_events/EV1/invitees/IN1", "email": "bea@example.com", "name": "Bea Example",
+            "first_name": null, "last_name": null, "status": "active", "timezone": "Europe/Berlin", "event": "https://api.calendly.com/scheduled_events/EV1",
+            "created_at": "2026-10-18T10:00:00.000000Z", "updated_at": "2026-10-18T10:00:00.000000Z", "rescheduled": false,
+            "questions_and_answers": [{"question": "What do you need?", "answer": "Help with logs", "position": 0}],
+            "text_reminder_number": "+1 555 0100", "tracking": {"utm_source": "newsletter", "utm_medium": "email"},
+            "no_show": null, "cancellation": null},
+    "EV2": {"uri": "https://api.calendly.com/scheduled_events/EV2/invitees/IN2", "email": "ann@example.com", "name": "Ann Example",
+            "status": "canceled", "event": "https://api.calendly.com/scheduled_events/EV2",
+            "created_at": "2026-10-22T09:00:00.000000Z", "updated_at": "2026-10-23T08:00:00.000000Z", "rescheduled": false,
+            "questions_and_answers": [], "no_show": null,
+            "cancellation": {"canceled_by": "Ann Example", "reason": "A clash, sorry", "canceler_type": "invitee", "created_at": "2026-10-23T08:00:00.000000Z"}},
+    "EV3": {"uri": "https://api.calendly.com/scheduled_events/EV3/invitees/IN3", "email": "cal@example.com", "name": "Cal Example",
+            "status": "active", "event": "https://api.calendly.com/scheduled_events/EV3",
+            "created_at": "2026-10-25T12:00:00.000000Z", "updated_at": "2026-10-25T12:00:00.000000Z", "rescheduled": false,
+            "questions_and_answers": [], "no_show": null, "cancellation": null},
+    "EV4": {"uri": "https://api.calendly.com/scheduled_events/EV4/invitees/IN4", "email": "dan@example.com", "name": "Dan Example",
+            "status": "active", "event": "https://api.calendly.com/scheduled_events/EV4",
+            "created_at": "2026-10-01T09:00:00.000000Z", "updated_at": "2026-10-10T15:00:00.000000Z", "rescheduled": false,
+            "questions_and_answers": [], "cancellation": null,
+            "no_show": {"uri": "https://api.calendly.com/invitee_no_shows/NS1", "created_at": "2026-10-10T15:00:00.000000Z"}},
+    "EV5": {"uri": "https://api.calendly.com/scheduled_events/EV5/invitees/IN5", "email": "eve@example.com", "name": "Eve Example",
+            "status": "active", "event": "https://api.calendly.com/scheduled_events/EV5",
+            "created_at": "2026-10-26T20:00:00.000000Z", "updated_at": "2026-10-26T20:00:00.000000Z", "rescheduled": false,
+            "questions_and_answers": [], "no_show": null, "cancellation": null}
+  }
+}

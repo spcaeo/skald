@@ -69,6 +69,14 @@ with 402 and the reason. Every
 POST needs the same-origin check and the session's X-Skald-CSRF value.
 Sites from config files are listed; their config is changed only on the
 server, but they can be paused, removed, cleared and deleted here.
+
+2.43 (setup_live.py, setup_people.py): POST sites/live, sites/check,
+sites/sendinvites, sites/whofor and GET sites/whoopts; sites/add takes the
+wizard's first two answers, {org: "same" | <id> | "new", org_name,
+privacy_class, people}. A request that names a site of another of the
+caller's organisations (`site` or `name` in the body; `?site=` on a GET) is
+answered for that site's organisation, with the caller's role there, so the
+wizard goes on for a site it just put in another organisation.
 """
 from __future__ import annotations
 
@@ -84,8 +92,9 @@ PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
 PATH = re.compile(PAGE + r"(?P<act>sites(?:/(?:add|token|remove|verify|status|kit|setup|detect|tagcheck|trylog"
                          r"|pause|resume|restore|clear|purge"
                          r"|share|shares|unshare|link|pack|packmail"
-                         r"|agentlink|agentstatus|agentcancel|agentleft))?)$")
-GETS = ("sites", "sites/status", "sites/shares", "sites/agentleft")
+                         r"|agentlink|agentstatus|agentcancel|agentleft"
+                         r"|live|check|sendinvites|whoopts|whofor))?)$")
+GETS = ("sites", "sites/status", "sites/shares", "sites/agentleft", "sites/whoopts")
 ADMIN = ("owner", "admin")
 SHIP_TOKEN_FILE = "/etc/skald-ship/token"
 VERIFY_PER_HOUR = 10       # checks a site may ask for (each a DNS query and a fetch)
@@ -226,6 +235,14 @@ def handle(h, write: bool, config, live_dir, allowed: set[str], same_origin,
         role, org = users.site_role(db, session["user_id"], m.group("site"))
         if role is None:
             return answer(h, 403, {"ok": False, "error": "You are not a member here."})
+        form = {}
+        if write:
+            from .try_log import WEB_BYTES
+            form = read_json(h, WEB_BYTES + auth_api.MAX_BODY if act == "sites/trylog"
+                             else auth_api.MAX_BODY)
+            if form is None:
+                return None
+        role, org = _named(db, session["user_id"], h.path, form, m.group("site"), role, org)
         c = Ctx(h, db, session, m.group("site"), role, org, config or {}, live_dir, allowed,
                 config_path, out)
         from .site_actions_api import OWNER_ONLY
@@ -237,16 +254,22 @@ def handle(h, write: bool, config, live_dir, allowed: set[str], same_origin,
             frozen = read_only(db, c.config, org["id"])
             if frozen:
                 return c.no(402, frozen)
-        form = {}
-        if write:
-            from .try_log import WEB_BYTES
-            form = read_json(h, WEB_BYTES + auth_api.MAX_BODY if act == "sites/trylog"
-                             else auth_api.MAX_BODY)
-            if form is None:
-                return None
         return ROUTES[act](c, form)
     finally:
         db.close()
+
+
+def _named(db, uid, path: str, form: dict, page: str, role, org):
+    """(role, org) for the site the request names when it is one of another
+    organisation the caller is a member of (2.43); else the page site's."""
+    from .auth_api import query
+    named = form.get("site") or form.get("name") if form else query(path).get("site")
+    if not isinstance(named, str) or not named or named == page:
+        return role, org
+    there, other = users.site_role(db, uid, named)
+    if there is None or other is None or other["id"] == org["id"]:
+        return role, org
+    return there, other
 
 
 def _refusal(c: Ctx) -> str | None:
@@ -295,8 +318,8 @@ def listing(c: Ctx, form):
                 ingest_url=f"{_base(c.config, c.allowed)}{ingest.PREFIX}", **more)
 
 
-def _new_token(c: Ctx, name: str) -> str:
-    return apitokens.create(c.db, c.org["id"], f"Log shipper for {name}"[:60], sites=[name],
+def _new_token(c: Ctx, name: str, org_id=None) -> str:
+    return apitokens.create(c.db, org_id or c.org["id"], f"Log shipper for {name}"[:60], sites=[name],
                             scopes=("ingest",), actor=c.uid)
 
 
@@ -304,8 +327,9 @@ def add(c: Ctx, form):
     refusal = _refusal(c)
     if refusal:
         return c.no(403, refusal)
-    from . import settings_store
+    from . import settings_store, setup_people
     from .accounts import db as base
+    from .accounts import site_setup
     try:
         name = site_configs.clean_name(text(form, "host", 200))
         folder = ingest_log.site_folder(c.ingest_root(), name)
@@ -315,17 +339,37 @@ def add(c: Ctx, form):
                 assets = settings_store.validate("site.asset_prefixes", assets)
             except settings_store.Invalid as why:
                 raise ValueError(str(why)) from None
+        choice = form.get("org")
+        choice = str(choice) if isinstance(choice, (str, int)) and not isinstance(choice, bool) \
+            else "same"
+        privacy = text(form, "privacy_class", 20) or "internal"
         with base.tx(c.db):
+            # 2.43: the wizard's organisation (a new one is made here, its maker its owner).
+            got, made = setup_people.target_org(
+                c.db, c.uid, choice, text(form, "org_name", 100), privacy,
+                install_admin=bool((c.session or {}).get("install_admin")),
+                hosted=saas_on(c.config))
+            org = got or c.org
+            if got is not None and not made:
+                refusal = read_only(c.db, c.config, org["id"]) or plan_allows(c.db, c.config,
+                                                                             org["id"])
+                if refusal:
+                    raise ValueError(refusal)
+            people = setup_people.clean(c.db, form.get("people"), c.org["id"], new_org=made)
             site_configs.create(
-                c.db, c.org["id"], name, c.uid, hosts=form.get("hosts") or None,
+                c.db, org["id"], name, c.uid, hosts=form.get("hosts") or None,
                 timezone=text(form, "timezone", 64) or None,
                 fmt=text(form, "format", 40) or "auto", log_dir=str(folder),
                 taken=config_sites(c.config, c.config_path))
-            token = _new_token(c, name) if form.get("token") is not False else None
+            token = _new_token(c, name, org["id"]) if form.get("token") is not False else None
             if assets:
                 settings_store.put(c.db, f"site:{name}", "site.asset_prefixes", assets, c.uid)
             if saas_on(c.config):
                 site_verify.start(c.db, name)
+            # Its set-up row from the start: who added it, who will use it, the data rule.
+            site_setup.save(c.db, org["id"], name, c.uid, step=1)
+            site_setup.note(c.db, name, made_by=str(c.uid), people=people,
+                            privacy_class=privacy if made else None)
     except ValueError as why:
         return c.no(400, str(why))
     folder.mkdir(parents=True, exist_ok=True)
@@ -335,7 +379,9 @@ def add(c: Ctx, form):
     return c.ok(site=name, token=token, log_dir=str(folder),
                 ingest_url=f"{_base(c.config, c.allowed)}{ingest.PREFIX}{name}",
                 ship_command=ship_command(c.config, c.allowed, name), tag=tag(name, _tag_base(c)),
-                token_file=SHIP_TOKEN_FILE, verify=site_verify.shown(c.db, name))
+                token_file=SHIP_TOKEN_FILE, verify=site_verify.shown(c.db, name),
+                org={"id": org["id"], "name": org["name"], "new": made},
+                people=len(people))
 
 
 def new_token(c: Ctx, form):
@@ -415,3 +461,11 @@ ROUTES = {"sites": listing, "sites/add": add, "sites/token": new_token, **_lifec
           "sites/agentcancel": _kit("agent_cancel"), "sites/agentleft": _left,
           "sites/share": _share("share"),
           "sites/shares": _share("shares"), "sites/unshare": _share("unshare")}
+
+
+def _live():
+    from .setup_live import ROUTES as live
+    return live
+
+
+ROUTES.update(_live())          # 2.43: sites/live, check, sendinvites, whoopts, whofor

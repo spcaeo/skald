@@ -331,6 +331,11 @@ def fix(h, folder, code: str, config: dict | None, config_path=None,
         return _no(h, 503, "Skald keeps no accounts here, so a report cannot be kept. Tell the "
                            "user what you did.")
     _note(folder, code, got, now)
+    if got["state"] in ("done", "partly"):
+        # 2.44: Skald asks the to-do's addresses now (Check again), in the background; its
+        # answer shows beside this report on Overview > Insights.
+        from .. import todo_check
+        todo_check.after_report(config, config_path, folder, entry["site"], got["id"], ACTOR)
     words = {"done": f"Kept. The to-do is marked done{' from ' + day if marked else ' (it was already)'}"
                      ": Skald checks it with the same measure on every whole day after. The user "
                      "can undo the mark with one click.",

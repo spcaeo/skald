@@ -14,12 +14,17 @@ sync's code (search/days.py, search/sync.py):
   2. Search Console's query, country, device and search-appearance blobs
      carry the same day total as the day's `total` row (all four are counted
      by property); the page blob carries Google's by-page total, which may be
-     larger and is never compared with it.
+     larger and is never compared with it; the query_page blob (each query
+     with its page, counted by page) carries the page blob's total.
   3. One figure is fetched again from the engine: the newest final day's
      clicks and impressions (Search Console: dataState "final", by property;
      Bing: GetRankAndTrafficStats), by its own request, and compared with
      what is stored. An engine that cannot be reached is said in the log and
      is not a mismatch; a figure that differs is.
+
+  4. The Search tab's reports (search/reports.py: new and lost queries,
+     position tracking, opportunities) are worked out again by SQL from the
+     stored rows (audit_search_reports.py) and compared with what the tab shows.
 
 A mismatch ends run-daily as "withheld" (audit_more): the search tables say
 the day is in question rather than draw it. The cross-check against Skald's
@@ -52,6 +57,9 @@ def daily(ctx, day) -> list[str] | None:
             found = sums(db, ctx.site, engine)
             if engine == "google":
                 found += same_totals(db, ctx.site)
+                found += same_page_totals(db, ctx.site)
+                from . import audit_search_reports
+                found += audit_search_reports.check(db, ctx.site)
             found += refetch(ctx, db, engine)
             # The Search tab says what the second road found, in plain words.
             state.update(Path(ctx.db_path).parent, ctx.site, engine, audit={
@@ -108,6 +116,27 @@ def same_totals(db, site: str) -> list[str]:
         if (clicks, shown) != (day_clicks, day_shown):
             out.append(f"google {d} {kind}: total {clicks}/{shown} is not the day's "
                        f"{day_clicks}/{day_shown}")
+    return out
+
+
+def same_page_totals(db, site: str) -> list[str]:
+    """query_page is counted by page, as the page blob is: the same day total."""
+    since = _recent(db, site, "google") or "0000-00-00"
+    out = []
+    for d, clicks, shown, page_clicks, page_shown in db.execute(
+            """
+            SELECT k.day, json_extract(k.data, '$.total.clicks'),
+                   json_extract(k.data, '$.total.impressions'),
+                   json_extract(p.data, '$.total.clicks'),
+                   json_extract(p.data, '$.total.impressions')
+              FROM search_days AS k JOIN search_days AS p
+                ON p.site = k.site AND p.engine = k.engine AND p.day = k.day
+               AND p.kind = 'page'
+             WHERE k.site = ? AND k.engine = 'google' AND k.day >= ? AND k.kind = 'query_page'
+            """, (site, since)):
+        if (clicks, shown) != (page_clicks, page_shown):
+            out.append(f"google {d} query_page: total {clicks}/{shown} is not the page "
+                       f"table's {page_clicks}/{page_shown}")
     return out
 
 

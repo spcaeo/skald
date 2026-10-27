@@ -26,6 +26,7 @@ import * as S from "../state.js";
 import { head, context } from "./common.js";
 import { info } from "./tiles.js";
 import { leadsOn } from "./leadfigs.js";
+import { sourceLink } from "../ui/connect.js";
 
 /* Today so far, beside a period that ends before today (2.23). Leads & sales opens on whole
    days (7 days, All time), so a lead that came in today is not in its figures: this one line
@@ -46,11 +47,14 @@ let seq = 0;
 const uid = (p) => `${p}-${++seq}`;
 
 /* The tab's head: its title, the question it answers, an (i) with the longer words and a
-   Learn more link into the guide, and the period line (common.js head). */
-export function tabHead(title, question, r, { help = "", more = "", period } = {}) {
+   Learn more link into the guide, and the period line (common.js head). source: the group in
+   Settings › Leads & tools that feeds this tab (2.43): its "Sources" link, for an admin. */
+export function tabHead(title, question, r, { help = "", more = "", period, source = "" } = {}) {
   const top = head(title, r, null, { banner: false, period });
   const bar = top[0];
   if (help) bar.insertBefore(info(help, title, more), bar.querySelector(".period"));
+  const back = source ? sourceLink(source) : null;
+  if (back) bar.insertBefore(back, bar.querySelector(".period"));
   // Leads & sales only (Security draws its heads here too); a tab with a period of its own
   // (Find a person) has no "Today so far" line.
   const { m, s } = context();

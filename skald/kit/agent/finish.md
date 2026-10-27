@@ -23,5 +23,5 @@
 3. When everything works, ask the user whether to delete `__ENV_FILE__` (and any copy on a
    server) and the other files in `~/.config/skald/` you made for __SITE__: the keys are now
    kept where they are used.
-
+__INVITES_DONE__
 Help: __HELP__

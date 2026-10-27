@@ -52,9 +52,15 @@ class Units(unittest.TestCase):
     def test_fetches_fold_by_path_and_assistant(self):
         rows = [["2026-10-05T10:00", "chatgpt.com", "/a", 2], ["2026-10-05T10:01", "claude.ai", "/a", 1],
                 ["2026-10-05T10:02", "chatgpt.com", "/b", 1]]
+        # Rows stored before reads were counted (four columns): reads not recorded.
         self.assertEqual(page_trends.fold_fetches(rows),
                          {"paths": {"/a": {"chatgpt.com": 2, "claude.ai": 1}, "/b": {"chatgpt.com": 1}},
-                          "folded": 0})
+                          "folded": 0, "reads": None})
+        # With the reads column: requests and reads apart; a file (no read) is in requests only.
+        rows = [r + [1] for r in rows] + [["2026-10-05T10:02", "chatgpt.com", "/app.css", 1, 0]]
+        got = page_trends.fold_fetches(rows)
+        self.assertEqual(got["reads"], {"/a": {"chatgpt.com": 1, "claude.ai": 1}, "/b": {"chatgpt.com": 1}})
+        self.assertEqual(got["paths"]["/app.css"], {"chatgpt.com": 1})
         many = [["m", "chatgpt.com", f"/p{i:03d}", 1] for i in range(page_trends.FETCH_TOP + 3)]
         got = page_trends.fold_fetches(many)
         self.assertEqual(got["folded"], 3)

@@ -44,6 +44,8 @@ KINDS = ("hourly", "ours", "not_found", "pages", "campaigns", "returning",
          # every AI fetch by what it asked for: page, llms.txt, Markdown, ...
          # (ai_formats.py)
          "ai_formats",
+         # an assistant's reads, repeats and files (ai_reads.py)
+         "ai_reads",
          # what each crawler, assistant and bot cost the server (crawler_cost.py)
          "crawler_cost",
          # each crawler beside the site's sitemap; problems crawlers hit

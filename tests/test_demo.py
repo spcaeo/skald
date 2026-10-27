@@ -12,6 +12,7 @@ import json
 import os
 import re
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -271,6 +272,49 @@ class Build(unittest.TestCase):
         self.assertNotIn(str(self.keep), text)
         self.assertNotIn(self.tmp, text)
         self.assertTrue(all("token" not in t or not t["token"] for t in got["tokens"]["tokens"]))
+
+    def test_recorded_journeys_come_from_the_real_store_as_files(self):
+        """Traffic > Visitors > Recorded by your site in the demo: the sessions were signed and
+        posted to the journey receiver and kept by the real store; each period preset's answer
+        is the helper's own (its figures recounted, state ok), as a viewer sees it."""
+        rec = json.loads((self.site / "data" / "app.json").read_text())["demo"]["api"]["recorded"]
+        lists = {k: json.loads((self.site / v).read_text()) for k, v in rec.items() if k.startswith("recorded?")}
+        one = {k: json.loads((self.site / v).read_text()) for k, v in rec.items() if k.startswith("recorded/session?")}
+        self.assertGreaterEqual(len(lists), 5, lists.keys())        # today, yesterday, 7, 30, 90 days (and all time)
+        app = json.loads((self.site / "data" / "app.json").read_text())
+        anchor = date.fromisoformat(app["anchor"])
+        week = lists[f"recorded?first={anchor - timedelta(days=6)}&last={anchor}"]
+        self.assertEqual(week["state"], "ok")
+        self.assertTrue(week["connected"] and not week["private"])
+        self.assertEqual(week["figures"]["sessions"], len(week["sessions"]))
+        self.assertGreaterEqual(len(week["sessions"]), 3)
+        self.assertTrue(all(g["ok"] and g["state"] == "ok" for g in lists.values()))
+        refs = {s["ref"] for g in lists.values() for s in g["sessions"]}
+        self.assertEqual({k.split("=", 1)[1] for k in one}, refs)
+        self.assertTrue(all(re.fullmatch(r"s[0-9a-f]{12}", r) for r in refs))
+        text = json.dumps([lists, one])
+        self.assertNotIn("@", text)                                  # no email
+        self.assertNotIn('"ip"', text)                               # no address, as a viewer sees it
+        db = sqlite3.connect(self.keep / "conversions.sqlite")
+        try:
+            raws = [json.loads(r[0]) for r in db.execute("SELECT raw FROM recorded_events")]
+        finally:
+            db.close()
+        self.assertTrue(raws and all(r["consent"]["analytics"] == "granted" for r in raws))
+        self.assertEqual(len({r["session_id"] for r in raws}), len(refs))
+        # The page reads them from those files (demo.js demoFile), and nothing else.
+        if not shutil.which("node"):
+            return
+        url = (APP_JS / "demo.js").as_uri()
+        out = DemoMode.node(self, f"""
+const d = await import({json.dumps(url)});
+d.setDemo({{api: {{recorded: {json.dumps(rec)}}}}});
+const k = Object.keys(d.DEMO.api.recorded).find((x) => x.startsWith("recorded?"));
+const [a, b] = [/first=([^&]+)/.exec(k)[1], /last=([^&]+)/.exec(k)[1]];
+console.log(JSON.stringify([d.demoFile(`recorded?first=${{encodeURIComponent(a)}}&last=${{encodeURIComponent(b)}}`) === d.DEMO.api.recorded[k],
+  d.demoFile("recorded?first=1999-01-01&last=1999-01-02"), d.demoFile("recorded/session?ref=s000000000000"), d.demoFile("recorded/visit?day=x&seq=1")]));
+""")
+        self.assertEqual(json.loads(out), [True, None, None, None])
 
     def test_search_console_and_bing_are_synced_by_the_real_sync(self):
         """Traffic > Search in the demo: both engines connected, days stored by the sync

@@ -89,6 +89,45 @@ class Reading(Base):
         self.assertEqual(self.call("GET", T + "integrations/secret", cookie=cookie).status, 405)
 
 
+class Found(Base):
+    """2.43: GET integrations carries what the site check found (Leads & tools' Next step and
+    the "not connected yet" card), only from a reachable check and only the keys it needs; each
+    tool says when it last received something (last_at)."""
+
+    def test_no_check_no_found(self):
+        j = self.get().json
+        self.assertIsNone(j["found"])
+        lead = next(t for t in j["tools"] if t["tool"] == "lead")
+        self.assertIn("last_at", lead)
+        self.assertIsNone(lead["last_at"])
+
+    def test_a_reachable_check_is_given_back(self):
+        from skald.accounts import site_setup
+        from skald.integrations_api import FOUND_KEYS
+        db = self.db()
+        try:
+            site_setup.save(db, self.alpha["id"], A, "cli", step=3, found={
+                "reachable": True, "server": "nginx", "framework": "nextjs", "forms": 2,
+                "tags": {"calendly": ["calendly.com/example/demo"]}, "hosts": [A],
+                "reason": "made up"})
+        finally:
+            db.close()
+        got = self.get().json["found"]
+        self.assertEqual(sorted(got), sorted(FOUND_KEYS), "only the keys the page needs")
+        self.assertEqual((got["framework"], got["framework_label"], got["forms"]), ("nextjs", "Next.js", 2))
+        self.assertEqual(got["tags"]["calendly"], ["calendly.com/example/demo"])
+        self.assertEqual(self.get("viewer@example.com").status, 403, "never for a viewer")
+
+    def test_an_unreachable_check_is_not(self):
+        from skald.accounts import site_setup
+        db = self.db()
+        try:
+            site_setup.save(db, self.alpha["id"], A, "cli", step=3, found={"reachable": False})
+        finally:
+            db.close()
+        self.assertIsNone(self.get().json["found"])
+
+
 class Hooks(Base):
     def test_secret_once_then_a_signed_test(self):
         self.assertEqual(self.do("test", {"tool": "lead"}).status, 409, "no secret yet")

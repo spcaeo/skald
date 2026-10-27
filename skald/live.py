@@ -198,7 +198,8 @@ class _Observers:
 
 
 def build(config: dict, site: str, tz: ZoneInfo, now: datetime,
-          views=(), db_path=None, feed=None, upto: dict | None = None) -> dict:
+          views=(), db_path=None, feed=None, upto: dict | None = None,
+          ids: dict | None = None) -> dict:
     """Today from local midnight, verified, as a JSON-ready dict.
 
     With `views` (config.View), each view's figures today are under
@@ -208,10 +209,12 @@ def build(config: dict, site: str, tz: ZoneInfo, now: datetime,
     `upto` is each plain log file's size at the start of the run
     (window.plain_sizes; taken here when not given): every file is read only
     that far, and the snapshot records it as `read_upto`, so `audit --live`
-    recounts the very same bytes, not the lines appended since."""
+    recounts the very same bytes, not the lines appended since. `ids`: each
+    file's inode at that moment (log_moved.plain_state), recorded as
+    `read_ids` so the audit can tell a rotated log from a miscount."""
     if upto is None:
-        from .window import plain_sizes
-        upto = plain_sizes(config)
+        from .log_moved import plain_state
+        upto, ids = plain_state(config)
     now = now.astimezone(tz)
     day = today(tz, now)
     start, end = day_window(day, tz)
@@ -248,6 +251,8 @@ def build(config: dict, site: str, tz: ZoneInfo, now: datetime,
         "until": end.isoformat(),
         # How far each plain log file was read, in bytes: the audit reads as far.
         "read_upto": dict(upto),
+        # Which file each was (its inode): a rotation since is not a mismatch.
+        **({"read_ids": dict(ids)} if ids is not None else {}),
         "state": state,
         "problems": [str(p) for p in problems] if state == "withheld" else [],
         "parsed": totals.parsed,

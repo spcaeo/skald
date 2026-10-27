@@ -12,13 +12,30 @@
 // place: Compare is the bar's Compare menu, Include today is in the period's More menu
 // (main.js rangeMore). This line keeps the dates in words; what the period means and since
 // when the site is measured are behind its (i).
+//
+// 2.43: Include today is one press again, as a switch at the start of this line (it took two:
+// More, then the item). Its one place is here, on the two tabs it changes; the More menu no
+// longer has it. The period itself is still said once, in the title's line above; the switch
+// changes those words ("Last 7 days including today ...") and says no dates of its own.
 
 import { h, short } from "./ui.js";
+import * as S from "./state.js";
 import { info } from "./tabs/tiles.js";
 import { rangeOf } from "./data.js";
 import { isLive } from "./mode-live.js";
 import { compareOf } from "./mode-compare.js";
-import { lineWords, notMeasuredWords, beforeState, firstWholeDay } from "./period-dates.js";
+import { incApplies, incOn, lineWords, notMeasuredWords, beforeState, firstWholeDay } from "./period-dates.js";
+
+/* Include today, one press: shown only where it changes the figures (Summary and Pages, at 7,
+   30 or 90 days, not Today live). The address key is inc=1 (kept as it was). */
+export function incSwitch(s) {
+  if (!incApplies(s) || isLive(s)) return null;
+  const on = incOn(s);
+  return h("button", { type: "button", role: "switch", class: `btn pl-sw${on ? " on" : ""}`, "aria-checked": String(on),
+    title: on ? "Counting today so far: the period ends today. Press to count whole days only." : "Count today so far: the period ends today instead of yesterday.",
+    onclick: () => S.set({ inc: on ? "" : "1" }) },
+  h("span", { class: "pl-knob", "aria-hidden": "true" }), "Include today");
+}
 
 /* The line for this state, or null on a tab without it. */
 export function periodLine(m, s) {
@@ -40,9 +57,10 @@ export function periodLine(m, s) {
   }
   const first = m.firstDay ? m.byDay?.get(m.firstDay) : null;
   const since = m.firstDay ? `${m.site} is measured from ${short(m.firstDay)}${first && first.state !== "ok" ? " (part of that day)" : ""}` : null;
-  if (!line && !why) return null;
+  const sw = incSwitch(s);
+  if (!line && !why && !sw) return null;
   return h("div", { class: "pl", role: "region", "aria-label": "Period" },
-    line ? h("p", { class: "pl-now" }, line, " ", info([words.how, since, "every day checked against the raw log"].filter(Boolean).join(" · "), "this period")) : null,
+    line || sw ? h("p", { class: "pl-now" }, sw, line, line ? " " : null, line ? info([words.how, since, "every day checked against the raw log"].filter(Boolean).join(" · "), "this period") : null) : null,
     why ? h("p", { class: "pl-why", role: "note" }, why) : null,
   );
 }

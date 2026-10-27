@@ -150,6 +150,8 @@ SCHEMA: dict[str, Key] = {
                          shrink=True, label="Weekly backup copies"),
     "mail.daily": Key("bool", "admin", SITE_UP, ("mail", "daily"), True, label="Daily mail"),
     "mail.weekly": Key("bool", "admin", SITE_UP, ("mail", "weekly"), True, label="Weekly mail"),
+    "mail.marketing": Key("bool", "admin", SITE_UP, ("mail", "marketing"), False,
+                          label="Monday marketing mail"),          # mail_marketing.py
     "mail.to": Key("emails", "admin", ("site", "org"), ("mail", "to"), [], label="Recipients"),
     "mail.from_name": Key("text", "admin", SITE_UP, ("mail", "from_name"), None, limit=40,
                           label="From name"),
@@ -232,8 +234,10 @@ ALERT_RULES = {"site_down": "Site down", "logging_stopped": "Logging stopped",
                "cited_visits": "Visits from AI answers", "crawler_silent": "Crawler gone silent",
                "security_exposure": "Possible exposure", "scan_wave": "New scan wave",
                "stack_advisory": "Advisory matches your stack",
-               "sale": "Sale", "sale_refund": "Refund on a sale"}
-ALERTS_OFF = ("scan_wave", "sale", "sale_refund")          # off until switched on
+               "sale": "Sale", "sale_refund": "Refund on a sale",       # alerts_marketing.py:
+               "tool_stopped": "A tool stopped answering", "leads_drop": "Leads dropped",
+               "bookings_drop": "Bookings dropped", "ga4_log_gap": "Google Analytics and the log far apart"}
+ALERTS_OFF = ("scan_wave", "sale", "sale_refund", "ga4_log_gap")   # off until switched on
 SCHEMA["alerts.enabled"] = Key("bool", "admin", ("site",), ("alerts", "enabled"), False,
                                label="Alerts")
 SCHEMA["alerts.mail"] = Key("bool", "admin", ("site",), ("alerts", "mail"), True,

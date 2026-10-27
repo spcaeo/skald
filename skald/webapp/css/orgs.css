@@ -1,0 +1,59 @@
+/* Settings › Organisation › Organisations (js/tabs/orgs.js, org-drawer.js, org-members.js,
+   org-line.js): the search and order, the cards, the drawer's tiles and forms, and the
+   "Organisation: <name> · Switch" line on every Organisation page. Tokens only (ui.css). */
+
+.org-line-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; font-size: var(--t-s); color: var(--ink-2); }
+.org-line-top select { font: inherit; padding: 2px 6px; }
+
+.org-tools { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: center; margin: 0 0 14px; }
+.org-search { position: relative; flex: 1 1 18rem; max-width: 28rem; display: flex; }
+.org-search input { width: 100%; padding-left: 30px; }
+.org-search-ic { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--ink-3); display: inline-flex; pointer-events: none; }
+.org-search-ic svg { width: 16px; height: 16px; }
+
+.org-list { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); }
+.org-card { display: grid; gap: 6px; text-align: left; font: inherit; color: inherit; cursor: pointer; width: 100%;
+  border: 1px solid var(--rule); border-left: 4px solid var(--edge, var(--rule)); background: var(--tint, var(--surface)); }
+.org-card:hover { border-color: var(--ink-3); }
+.org-card:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.org-card.is-archived { opacity: .78; border-left-color: var(--rule); }
+.org-card-h { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.org-card-h .ui-ic svg { width: 18px; height: 18px; }
+.org-name { font-size: var(--t-l); overflow-wrap: anywhere; }
+.org-here { margin-left: auto; font-size: var(--t-xs); color: var(--ink-3); border: 1px solid var(--rule); border-radius: 999px; padding: 0 8px; white-space: nowrap; }
+.org-pills { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.org-role { font-size: var(--t-s); }
+.org-line { font-size: var(--t-s); }
+.org-sites { font-size: var(--t-s); overflow-wrap: anywhere; }
+
+/* The drawer */
+.org-tabs { margin-top: 2px; }
+.org-archived { margin: 0 0 12px; }
+.org-tiles { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); margin: 4px 0 16px; }
+.org-tile { display: grid; gap: 2px; align-content: start; }
+.org-tile b { font-size: 22px; font-variant-numeric: tabular-nums; }
+.org-facts { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0; }
+.org-facts dt { color: var(--ink-3); }
+.org-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.org-site-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.org-site-list li { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.org-form { display: grid; gap: 10px; max-width: 40rem; }
+.org-row { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); }
+.org-set { border: 1px solid var(--rule); border-radius: var(--r-m); padding: 8px 12px 10px; margin: 0; display: grid; gap: 6px; min-width: 0; }
+.org-set legend { padding: 0 4px; font-weight: 600; }
+.org-choice, .org-check { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+.org-choice input, .org-check input { margin-top: 3px; }
+.org-choice span, .org-check span { display: grid; gap: 1px; }
+.org-site-pick { display: flex; align-items: center; gap: 4px; overflow-wrap: anywhere; }
+.org-access .org-set { margin: 4px 0; }
+.org-own > div { display: grid; gap: 4px; margin: 0 0 12px; }
+.org-own p { margin: 0; }
+.org-foot { display: flex; justify-content: flex-end; width: 100%; }
+.org-ask { display: grid; gap: 6px; max-width: 42rem; margin-left: auto; }
+.org-ask p { margin: 0; }
+.org-ask .acts { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+@media (max-width: 767px) {
+  .org-facts { grid-template-columns: 1fr; gap: 2px; }
+  .org-facts dd { margin-bottom: 8px; }
+  .org-foot, .org-ask .acts { justify-content: stretch; }
+}

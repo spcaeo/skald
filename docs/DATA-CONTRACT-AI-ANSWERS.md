@@ -24,6 +24,7 @@ count of answers the providers' APIs gave to Skald's questions.
 | `last` | `{profile id: its last done and verified run}`, below |
 | `competitors` | `{profile id: [{name, answers, by: {provider: n}, of: {provider: answers}}]}`, last `competitor_days` (90) days, verified runs only |
 | `chain`, `chain_first`, `chain_last` | below; the last `chain_days` (30) days ending yesterday |
+| `reads_from` | the first day of the window with reads counted, when an earlier day in it was stored before them (its `read` is then null); else null |
 
 ## profiles[]
 
@@ -69,10 +70,16 @@ the site); `failed`: up to 3 reasons of failed tries.
 
 Per assistant and own page cited in the window, most cited first: `provider`,
 `page`, `cited` (answers that cited it), `of` (that assistant's answered tries
-in the window), `read` (that assistant's user-fetcher requests for the page:
-`ai_fetches`), `sent` (visits from that assistant landing on the page: the
+in the window), `read` (that assistant's user-fetcher reads of the page: the
+fifth item of the `ai_fetches` rows, a page asked for again within the window
+or a file the page loaded is no read; null when a day in the window has rows of
+four items, stored before reads were counted, never 0), `requests` (its
+user-fetcher requests for the page: the fourth item), `sent` (visits from that assistant landing on the page: the
 cube, source "AI assistant"), `likely` (visits likely sent by any AI answer
 landing on it: `ai_likely`, inferred), `leads` (completed conversions, tests
 left out, whose first touch was an AI answer and landed on it: any
 assistant). Pages are compared without query, fragment or trailing "/". A
 part not recorded in the window is null, never 0. Five counts, never added.
+`read` and `requests` are summed again from the history file by
+`audit_ai_answers.recount_chain` (SQLite's JSON functions, none of store.py);
+any difference makes both null.

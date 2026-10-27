@@ -12,7 +12,7 @@
 import { time as tzTime, label as tzLabel } from "./tz.js";
 import { h, n, short, duration, clock, reduced } from "./ui.js";
 import { pagesWords } from "./visitpages.js";
-import { rangeOf, chartDays, ranked, base, getJSON, color, GROUPS } from "./data.js";
+import { rangeOf, chartDays, ranked, base, getJSON, color, GROUPS, total } from "./data.js";
 import { lines, band } from "./charts.js";
 import * as S from "./state.js";
 import { DIMS, chainOf, encode, label, link, said, titled, drillRow, close as closeDrill } from "./drill.js";
@@ -23,6 +23,7 @@ import { withUrl, copyIf } from "./urlactions.js";
 import { encode as encodeRules } from "./rules.js";
 import { botDetail } from "./tabs/crawlercost.js";
 import { drillFlow } from "./tabs/flowview.js";
+import { readsSection, foldReads, foldWords } from "./tabs/ai-reads.js";
 
 const STATUS_CLASS = (code) => (code >= 500 ? "5xx" : code === 404 ? "404" : code >= 400 ? "4xx" : code >= 300 ? "3xx" : "2xx");
 const landing = (j) => j.landing || j.trail?.[0]?.path || j.trail?.[0]?.[0] || "";
@@ -85,7 +86,9 @@ function series(dim, v) {
     { name: "Fetches", color: color("answer_engines"), get: (d) => (d.engines ? sum(d.engines.training?.[v], d.engines.asked?.[v]) || 0 : null) },
   ];
   if (dim === "bot") return [{ name: "Requests", color: color("bots"), get: (d) => (d.bot_agents || d.search_engines || d.engines
-    ? sum(d.bot_agents?.[v], d.search_engines?.[v], d.engines?.training?.[v], d.engines?.asked?.[v]) || 0 : null), area: true }];
+    ? sum(d.bot_agents?.[v], d.search_engines?.[v], d.engines?.training?.[v], d.engines?.asked?.[v]) || 0 : null), area: true },
+    // An assistant's reads (ai_reads.py): only for a user fetcher, and only on days that kept them.
+    { name: "Reads", color: color("answer_engines"), optional: true, get: (d) => (d.ai_reads ? d.ai_reads.by_name?.[v]?.reads ?? 0 : null) }];
   if (dim === "status") return [{ name: "Responses", color: "var(--warn)", get: (d) => (d.statuses ? Object.values(d.statuses).reduce((a, g) => a + (g[/x|^404$/.test(v) ? v : STATUS_CLASS(Number(v))] || 0), 0) : null), area: true }];
   return null;
 }
@@ -160,10 +163,12 @@ function requestPart(m, s, chain, holder) {
       band(parts, rows.length, false),
       h("ul", { class: "legend", style: { marginTop: "8px" } }, parts.map((x) => h("li", null, h("span", { class: "sw", style: { background: x.color } }), `${x.name} ${n(x.value)}`))),
       h("div", { class: "cols three", style: { marginTop: "14px" } }, lists.map(([d, title, get]) => { const r = count(get); return r.length ? panel(title, null, blist(r, { drill: d, from: "drill", limit: 6, color: "var(--g-bots)" })) : null; })),
-      h("ul", { class: "stream" }, rows.slice(0, 12).map((r) => h("li", null, h("span", { class: "s-t" }, tzTime(r.at, { seconds: true, label: false })),
+      // An assistant's repeat requests and the files its page loaded fold under the read (ai-reads.js).
+      h("ul", { class: "stream" }, foldReads(rows.map((x) => ({ ...x, role: x.ai_role, of: x.ai_of })), (x) => x.agent).slice(0, 12).map((it) => { const r = it.row; return h("li", null, h("span", { class: "s-t" }, tzTime(r.at, { seconds: true, label: false })),
         h("span", { class: "s-d", style: { background: color(r.group) }, "aria-hidden": "true" }),
-        h("span", { class: "s-w" }, `${r.status} ${r.method || ""} `, link("path", r.path, { from: "drill" }), ` ${r.rule}`,
-          h("small", null, r.ip && r.ip !== "(removed)" ? copyIf("ip", link("ip", r.ip, { from: "drill" }), r.ip, { label: "address" }) : "", r.country ? [" ", label("country", r.country)] : ""))))),
+        h("span", { class: "s-w" }, `${r.status} ${r.method || ""} `, link("path", r.path, { from: "drill" }), ` ${r.rule}${foldWords(it)}`,
+          it.files.length ? h("small", { class: "dd-files" }, it.files.map((f, i) => [i ? ", " : "", `${f.status} ${f.path}`])) : null,
+          h("small", null, r.ip && r.ip !== "(removed)" ? copyIf("ip", link("ip", r.ip, { from: "drill" }), r.ip, { label: "address" }) : "", r.country ? [" ", label("country", r.country)] : ""))); })),
       h("button", { type: "button", class: "btn", onclick: () => S.set(patch) }, "Open these in the Requests tab"));
   }).catch((e) => holder.replaceChildren(h("p", { class: "empty" }, `The recent requests could not be loaded: ${e.message || e}.`)));
 }
@@ -271,6 +276,10 @@ export function drillView(m, s) {
   const ser = chain.length === 1 ? series(dim, value) : null;
   if (ser && r.kind === "history") {
     const days = chartDays(r);
+    // An optional series no day of the range has (a crawler's reads) is left out.
+    for (let i = ser.length - 1; i >= 0; i -= 1) {
+      if (ser[i].optional && !days.some((d) => d.state === "ok" && d.ai_reads?.by_name?.[value])) ser.splice(i, 1);
+    }
     const totals = ser.map((x) => days.reduce((a, d) => a + (d.state === "ok" ? x.get(d) || 0 : 0), 0));
     body.append(h("section", { class: "s" }, h("h3", null, `Per day, ${short(r.first)} to ${short(r.last)}`),
       h("div", { class: "dd-kpis" }, ser.map((x, i) => h("div", null, h("b", null, n(totals[i])), h("span", null, x.name)))),
@@ -279,11 +288,18 @@ export function drillView(m, s) {
     if (own) body.prepend(ownWindow(m, r, ser, totals));
   } else if (ser && r.kind === "today" && m.live?.state === "ok") {
     const t = m.live.figures;
+    for (let i = ser.length - 1; i >= 0; i -= 1) if (ser[i].optional && !t.ai_reads?.by_name?.[value]) ser.splice(i, 1);
     body.append(h("div", { class: "dd-kpis" }, ser.map((x) => h("div", null, h("b", null, n(x.get(t))), h("span", null, `${x.name}, today so far`)))));
   }
 
   // ---- a crawler's cost and what it fetched (crawler_cost.json)
-  if (dim === "bot" && chain.length === 1) body.append(botDetail(m, s, r, value));
+  if (dim === "bot" && chain.length === 1) {
+    // An assistant's user fetcher: what it read, each page with the files it loaded (ai-reads.js).
+    const rt = r.kind === "today" ? (m.live?.state === "ok" ? m.live.figures : null) : total(r.days);
+    const reads = readsSection(m, rt, r, value);
+    if (reads) body.append(reads);
+    body.append(botDetail(m, s, r, value));
+  }
 
   // ---- the whole period, crossed, from the daily cube
   const cube = h("div");

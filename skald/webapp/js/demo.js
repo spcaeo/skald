@@ -9,14 +9,18 @@
 //   * the lists of what the figures leave out read theirs too (api.people:
 //     {"people/left-out": file, "people/conversions?kind=..": file}), and the Leads
 //     list its one answer ("people/leads", every period's rows, as a viewer sees them)
+//   * Settings › Organisations shows two sample organisations (api.orgs: tools/demo_orgs.py)
+//   * Traffic › Visitors shows a few recorded sessions (api.recorded: tools/demo_recorded.py),
+//     one answer per period preset and one per session
 //   * Settings › To do shows the set-up list from the demo's own
 //     answers (api.setup: {settings, integrations, tokens}); its buttons only say why
 //     they do nothing here
+//   * Insights' Check again reads a sample answer per to-do (api.todocheck: tools/demo_todocheck.py)
 //   * a banner says it is sample data, with links to install it
 
 import { h, ICON } from "./ui.js";
 
-export const DEMO = { on: false, text: "", install: "", links: [], api: { compare: {}, page: {}, people: {}, setup: {} } };
+export const DEMO = { on: false, text: "", install: "", links: [], api: { compare: {}, page: {}, people: {}, setup: {}, orgs: {}, recorded: {}, todocheck: {} } };
 export const DEMO_SAYS = "In the demo, this needs a running Skald.";
 
 export function setDemo(d) {
@@ -25,7 +29,8 @@ export function setDemo(d) {
   DEMO.text = String(d.text || "Demo with sample data");
   DEMO.install = String(d.install || "");
   DEMO.links = (Array.isArray(d.links) ? d.links : []).filter((l) => l && /^https:\/\//.test(String(l.url || "")));
-  DEMO.api = { compare: d.api?.compare || {}, page: d.api?.page || {}, people: d.api?.people || {}, setup: d.api?.setup || {} };
+  DEMO.api = { compare: d.api?.compare || {}, page: d.api?.page || {}, people: d.api?.people || {}, setup: d.api?.setup || {},
+    orgs: d.api?.orgs || {}, recorded: d.api?.recorded || {}, todocheck: d.api?.todocheck || {} };
 }
 
 // A helper address the page would ask ("api/compare?a=..&b=..", "api/page?path=..")
@@ -45,12 +50,17 @@ export function demoFile(url) {
   if (path.startsWith("people/")) return DEMO.api.people[String(url)] || null;
   // Settings > Connections: the set-up list's two answers and the tokens, one each for the site.
   if (path === "settings" || path === "integrations" || path === "tokens") return DEMO.api.setup[path] || null;
+  // Settings › Organisations: the list, each organisation's drawer and its audit rows (tools/demo_orgs.py).
+  if (path === "orgs" || path === "orgs/show" || path === "orgs/auditlog") return DEMO.api.orgs[`${path}${p.get("org") ? `?org=${p.get("org")}` : ""}`] || null;
+  // Recorded journeys: a period preset's list, and each session (tools/demo_recorded.py).
+  if (path === "recorded") return DEMO.api.recorded[`recorded?first=${p.get("first")}&last=${p.get("last")}`] || null;
+  if (path === "recorded/session") return DEMO.api.recorded[`recorded/session?ref=${p.get("ref")}`] || null;
   return null;
 }
 
 // A settings page the demo can draw (v2): AI assistants (how it works), and To do from the
 // demo's own answers.
-const DEMO_PAGES = new Set(["settings/ai/assistants"]);
+const DEMO_PAGES = new Set(["settings/ai/assistants", "settings/org/orgs"]);
 export const demoTab = (tab) => DEMO_PAGES.has(tab) || tab === "settings/todo";
 
 // What the helper would answer for `path`, from the demo's own file; else the polite refusal.

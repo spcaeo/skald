@@ -237,3 +237,16 @@ button.su-row { cursor: pointer; }
 .set-alerts .al-sw { flex: none; width: 48px; }
 .set-alerts .al-area { display: inline-flex; align-items: center; gap: 10px; }
 .set-alerts .al-fold + .al-fold { border-top: 1px solid var(--rule); }
+
+/* Leads & tools: one of your own tools' drawer (yourtools.js) */
+.yt-dw h3 { margin: 18px 0 6px; font-size: 14px; }
+.yt-state { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.yt-dw .acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 6px; }
+.yt-dw > .btn { margin: 4px 0 14px; }
+.yt-dw textarea { width: 100%; font-family: ui-monospace, monospace; font-size: 12px; }
+.yt-note { margin: 6px 0; }
+.yt-people { list-style: none; margin: 0; padding: 0; }
+.yt-person { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding: 6px 0; border-top: 1px solid var(--rule); font-size: 13px; }
+.yt-person:first-child { border-top: 0; }
+.yt-person small { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.yt-person code { font-size: 12px; overflow-wrap: anywhere; }

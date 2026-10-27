@@ -26,7 +26,7 @@ from pathlib import Path
 
 from ..files import own_like_folder
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 STAMP = "%Y-%m-%dT%H:%M:%SZ"
 
 # 5: lookups made on every signed-in request (docs/PERFORMANCE.md): an
@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS orgs (
   id INTEGER PRIMARY KEY, name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE,
   created_at TEXT NOT NULL, plan TEXT, plan_status TEXT NOT NULL DEFAULT 'none',
   trial_ends_at TEXT, stripe_customer TEXT, stripe_subscription TEXT,
-  created_via TEXT NOT NULL DEFAULT 'cli', past_due_since TEXT);
+  created_via TEXT NOT NULL DEFAULT 'cli', past_due_since TEXT,
+  privacy_class TEXT NOT NULL DEFAULT 'internal', archived_at TEXT, archived_by TEXT);
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY, email TEXT NOT NULL UNIQUE, name TEXT NOT NULL DEFAULT '',
   pw_hash TEXT, install_admin INTEGER NOT NULL DEFAULT 0,
@@ -55,7 +56,7 @@ CREATE TABLE IF NOT EXISTS members (
   org_id INTEGER NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'viewer')),
-  added_by TEXT, added_at TEXT NOT NULL, PRIMARY KEY (org_id, user_id));
+  added_by TEXT, added_at TEXT NOT NULL, sites TEXT, PRIMARY KEY (org_id, user_id));
 CREATE INDEX IF NOT EXISTS members_user ON members (user_id);
 CREATE TABLE IF NOT EXISTS sites (
   name TEXT PRIMARY KEY, org_id INTEGER NOT NULL REFERENCES orgs(id));
@@ -70,7 +71,7 @@ CREATE TABLE IF NOT EXISTS invites (
   token_hash TEXT PRIMARY KEY,
   org_id INTEGER NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
   email TEXT NOT NULL, role TEXT NOT NULL, invited_by TEXT, created_at TEXT NOT NULL,
-  expires_at TEXT NOT NULL, used_at TEXT, handed INTEGER NOT NULL DEFAULT 0);
+  expires_at TEXT NOT NULL, used_at TEXT, handed INTEGER NOT NULL DEFAULT 0, sites TEXT);
 CREATE TABLE IF NOT EXISTS resets (
   token_hash TEXT PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -125,6 +126,16 @@ UPGRADES: dict[int, list[str]] = {
     # 4: each session keeps its own length ("Keep me signed in": 14 days, else 12 hours).
     4: ["ALTER TABLE sessions ADD COLUMN ttl_seconds INTEGER NOT NULL DEFAULT 1209600"],
     5: list(INDEXES_V5),
+    # 6: organisation management (docs/ACCOUNTS.md, "Organisations"): the privacy class
+    #    (internal: the install's keep-everything rule; client: the sites follow their own
+    #    retention), archived_at/by (an archived organisation's sites are paused, nothing is
+    #    deleted), and the sites a member (or an invite) is limited to: a JSON list, NULL
+    #    for every site of the organisation.
+    6: ["ALTER TABLE orgs ADD COLUMN privacy_class TEXT NOT NULL DEFAULT 'internal'",
+        "ALTER TABLE orgs ADD COLUMN archived_at TEXT",
+        "ALTER TABLE orgs ADD COLUMN archived_by TEXT",
+        "ALTER TABLE members ADD COLUMN sites TEXT",
+        "ALTER TABLE invites ADD COLUMN sites TEXT"],
 }
 
 # The SCHEMA this code set a file up with. A file stamped with it and with

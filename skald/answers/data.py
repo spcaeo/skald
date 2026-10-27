@@ -17,14 +17,21 @@
               answers naming it, by assistant
   chain       last CHAIN_DAYS days ending yesterday, per assistant and own page
               cited: answers that cited it (of that assistant's answers);
-              that assistant's user-fetcher reads of the page (ai_fetches);
+              that assistant's user-fetcher reads of the page (ai_fetches'
+              fifth column, ai_reads.py: a repeat inside the window or a file
+              the page loaded is no read), and its requests second; reads are
+              null when a day in the range was stored before they were
+              counted (four-column rows), never 0, and `reads_from` names the
+              first day that has them;
               visits it sent landing on the page (the cube: source "AI
               assistant", that assistant); visits likely sent by any AI answer
               landing on it (ai_likely, inferred); leads whose first visit came
               from an AI answer and landed on it (conversions.sqlite, any
               assistant, tests left out). Five different counts, never added
               together: answers are a sample; the rest are the log's and the
-              lead tools' own figures, each already checked twice.
+              lead tools' own figures, each already checked twice. The reads
+              and requests are summed again from the history file by
+              audit_ai_answers.recount_chain; any difference withholds them.
 """
 from __future__ import annotations
 
@@ -160,18 +167,27 @@ def _chain(p, db, site, first, last) -> list[dict]:
         for page in set(store.loads(pages, [])):
             cited[(provider, page)] += 1
     if not cited:
-        return []
+        return [], None
     blobs = p.history.extras(site, first, last, ("ai_fetches", "cube", "ai_likely"))
     counted = set(p.counted_days())
-    reads, sent, likely = Counter(), Counter(), Counter()
+    reads, requests, sent, likely = Counter(), Counter(), Counter(), Counter()
     seen = {"ai_fetches": 0, "cube": 0, "ai_likely": 0}
+    unread, read_days = [], []      # days stored before reads were counted; days with them
     for day, kinds in blobs.items():
         if day not in counted:
             continue
         for kind in seen:
             seen[kind] += 1 if kinds.get(kind) is not None else 0
-        for _, who, path, n in (kinds.get("ai_fetches") or {}).get("rows") or []:
-            reads[(who, norm(path))] += int(n)
+        rows = (kinds.get("ai_fetches") or {}).get("rows") or []
+        if any(len(row) < 5 for row in rows):
+            unread.append(day)
+        elif kinds.get("ai_fetches") is not None:
+            read_days.append(day)
+        for row in rows:
+            key = (row[1], norm(row[2]))
+            requests[key] += int(row[3])
+            if len(row) > 4:
+                reads[key] += int(row[4])
         for row in (kinds.get("cube") or {}).get("rows") or []:
             if row[2] == SOURCE:            # the cube names an assistant as people know it
                 sent[(BY_LABEL.get(row[3], row[3]), norm(row[1]))] += int(row[-1])
@@ -183,11 +199,17 @@ def _chain(p, db, site, first, last) -> list[dict]:
         who, key = ASSISTANT[provider], norm(page)
         known = page.startswith("/")
         out.append({"provider": provider, "page": page, "cited": n, "of": answered[provider],
-                    "read": reads[(who, key)] if known and seen["ai_fetches"] else None,
+                    "read": reads[(who, key)] if known and seen["ai_fetches"] and not unread
+                    else None,
+                    "requests": requests[(who, key)] if known and seen["ai_fetches"] else None,
                     "sent": sent[(who, key)] if known and seen["cube"] else None,
                     "likely": likely[key] if known and seen["ai_likely"] else None,
                     "leads": leads.get(key, 0) if known and leads is not None else None})
-    return out
+    from ..audit_ai_answers import recount_chain
+    if recount_chain(p.history.path, site, sorted(set(blobs) & counted), out):
+        for row in out:                 # the second count disagrees: withheld, not shown
+            row["read"] = row["requests"] = None
+    return out, (min(read_days) if unread and read_days else None)
 
 
 def _leads(p, site, first, last) -> dict | None:
@@ -263,7 +285,8 @@ def build(p) -> dict:
                                       "questions": _last(db, run, run["plan"]["brands"])}
         comp_first = (p.today - timedelta(days=COMPETITOR_DAYS)).isoformat()
         competitors = {str(x["id"]): _competitors(db, site, x["id"], comp_first) for x in listed}
-        chain = _chain(p, db, site, p.anchor - timedelta(days=CHAIN_DAYS - 1), p.anchor)
+        chain, reads_from = _chain(p, db, site, p.anchor - timedelta(days=CHAIN_DAYS - 1),
+                                   p.anchor)
         done_runs = db.execute("SELECT COUNT(*) FROM runs WHERE site = ? AND state = 'done'",
                                (site,)).fetchone()[0]
     finally:
@@ -273,5 +296,6 @@ def build(p) -> dict:
     return {**base, "state": "ok" if ready else "not set up",
             "setup": {"keys": keyed, "steps": steps}, "lists": lists, "profiles": profs,
             "trend": trend, "last": last, "competitors": competitors, "chain": chain,
+            "reads_from": reads_from,
             "chain_first": (p.anchor - timedelta(days=CHAIN_DAYS - 1)).isoformat(),
             "chain_last": p.anchor.isoformat()}

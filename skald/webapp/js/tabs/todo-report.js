@@ -20,14 +20,14 @@ export function reportParts(fix) {
       h("ul", { class: "fx-left" }, fix.left.slice(0, 200).map((x) => h("li", null, withCopy(h("code", null, x.row), x.row), x.why ? ` ${x.why}` : "")))) : null];
 }
 
-/* One line of the watch: waiting, or the report. */
-export function reportBox(t, fix) {
+/* One line of the watch: waiting, or the report; `checked` (2.44): Skald's own check after it. */
+export function reportBox(t, fix, checked = null) {
   if (!fix) return h("li", { class: "wait" }, h("span", { class: "cn-tick", "aria-hidden": "true" }, "…"), `${t.title}: waiting for the agent's report`);
   return h("li", { class: fix.state === "done" ? "ok" : "warn" },
     h("span", { class: "cn-tick", "aria-hidden": "true" }, fix.state === "done" ? "✓" : "!"),
     h("div", { class: "fx-rep" },
       h("p", null, h("b", null, `${t.title}: ${STATE_WORDS[fix.state] || fix.state}`), fix.at ? h("small", null, ` at ${time(fix.at, { label: false })}`) : null),
-      ...reportParts(fix)));
+      ...reportParts(fix), checked));
 }
 
 /* On a to-do's card: "Your AI agent: Done at 10:42", and the same parts. */

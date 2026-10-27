@@ -123,6 +123,9 @@ def from_snapshot(snap: dict) -> dict:
     formats = (snap.get("extras") or {}).get("ai_formats")
     if formats is not None:
         out["ai_formats"] = formats
+    reads = (snap.get("extras") or {}).get("ai_reads")
+    if reads is not None:
+        out["ai_reads"] = reads
     touch = for_app((snap.get("extras") or {}).get("first_touch"))
     if touch is not None:
         out["first_touch"] = touch
@@ -186,7 +189,8 @@ def build(history: History, key: str, site: str, tz, now: datetime, snap: dict |
     periods = history.periods(key, first, anchor, include_partial=True) if start else {}
     # AI fetches by what they asked for (ai_formats.py): absent on a day
     # collected before it was counted, never 0.
-    formats = history.extras(key, first, anchor, ("ai_formats", "first_touch")) if start else {}
+    formats = (history.extras(key, first, anchor, ("ai_formats", "first_touch", "ai_reads"))
+               if start else {})
     for entry in history.daily(key, first, anchor) if start else []:
         d: date = entry["day"]
         item = {"day": d.isoformat(), "state": entry["state"]}
@@ -196,6 +200,11 @@ def build(history: History, key: str, site: str, tz, now: datetime, snap: dict |
             blob = (formats.get(d.isoformat()) or {}).get("ai_formats")
             if blob is not None:
                 item["ai_formats"] = blob
+            # An assistant's reads, not its requests (ai_reads.py): absent on a
+            # day counted before reads were, never 0.
+            reads = (formats.get(d.isoformat()) or {}).get("ai_reads")
+            if reads is not None:
+                item["ai_reads"] = reads
             touch = for_app((formats.get(d.isoformat()) or {}).get("first_touch"))
             if touch is not None:
                 item["first_touch"] = touch

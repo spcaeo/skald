@@ -92,6 +92,47 @@ The honesty rules are the same as everywhere:
 
 > A lead reported by two roads (for example the script tag and the lead database, for the same form) counts on each, as on Summary with Count from: Tools. A lead that arrived from two tools with the same reference (for example the lead hook and Zapier, or a hook and the lead database) is flagged as "One lead, two tools" under **Settings > This site > Leads & tools > Incoming hooks > Status** and by the server's doctor command. The script tag's own rows are not part of that check.
 
+## When a page says "not connected yet"
+
+A page that is empty because its source is not connected says so, and shows how to connect it, instead of an empty table. This is the same card on every page: Leads, Calendar bookings, Revenue, Events, Funnels (a step that needs the script tag or a lead source), Traffic > Search, Overview's **From your tools** and Traffic > Visitors' **Recorded by your site**.
+
+The card says:
+
+- **What the page needs**, in one line. For example: "Leads need a source: your forms, your booking tool or your site's server telling Skald about each one."
+- **Skald found on example.com**: what Skald saw when the site was added (the site check in [Add a site, step by step](connections.md#skald-checks-your-site)): how the site is built and where it runs, how many forms the home page has, and the tools it names, such as a Calendly link, the Google Analytics tag, Stripe or HubSpot. Nothing new is fetched from your site for this.
+- **Recommended**: the one way that fits your site. A Next.js site on Vercel reads "Your site is Next.js on Vercel: send leads from your form's server action with the signed lead hook." A WordPress site gets the plugin; a site on Wix, Squarespace, Webflow or Shopify gets Zapier or Make, no code.
+- **Connect**: opens that set-up dialog, which asks **Who will do it?** (Me, My developer, My AI agent) first. **Other ways** lists the rest, and **Every source** opens Settings > This site > Leads & tools.
+
+A page that gets some of its data but not all says what is still missing, for example "Leads arrive from Calendly; your forms are not connected.", with its own **Connect**.
+
+Only owners and admins can connect a source. Anyone else reads **Ask an admin to connect it**, with the link to the set-up dialog and its copy and open icons: send it to an admin, and it opens the same dialog for them.
+
+AI answers are different: they stay off until someone adds a provider key, because each question costs money. Their page shows that they are off and the four steps, not a Connect button.
+
+Each Leads & sales tab, Search and Overview's **From your tools** also has a small **Sources: Leads & tools** link in its head (owners and admins). It opens Leads & tools at the group that feeds the page. Site > Alerts says when an alert that is switched on can never open because its source is not connected (a sale alert with no payment source, for example).
+
+## Leads & tools: what to connect next
+
+[Settings > This site > Leads & tools](#settings/site/leads) (owners and admins) starts with **Next step for example.com**: what Skald found on the site, and the single most useful thing to connect, with one **Connect** button. A source that stopped working comes first ("Stripe is not working ... Fix it"). Then the Leads source, a booking tool when your site links one, Stripe when your site uses it, Search Console, Google Analytics when its tag is on your site, and the script tag. **Connect everything left with your AI agent** gives your agent one line for every tool left. When everything that fits your site is connected, the card says **All connected**.
+
+Below it, every source is in a group by what it is for, each with one line on why:
+
+| Group | Sources |
+| --- | --- |
+| Leads from your forms | your site's server (the lead hook), Zapier, Make or n8n, Typeform, HubSpot, the script tag |
+| Bookings | Calendly, Cal.com |
+| Payments | Stripe |
+| Search | Search Console & Bing |
+| Your own tools | Google Analytics and the others |
+| Recorded journeys | your site's own sessions, after consent |
+| Send each lead out | webhooks to your CRM, Zapier or Slack |
+
+Each row has a pill: **Connected**, **Waiting** (set up, nothing arrived yet), **Failing** or **Not connected**, when it last sent something, and one button: a connected row opens its details, one not connected has **Connect**. A connected row also links to the page with its data: **See leads**, **See bookings**, **See revenue**, **See searches**, **See on Overview**, **See journeys**.
+
+Sources that do not fit your site (Stripe when the site check saw no Stripe, Cal.com when it saw a Calendly link) fold under **More you can connect**. They still work the same when you need them.
+
+The address keeps where you are: `#settings/site/leads?lt=bookings` opens the page at Bookings, `tool=calendly` opens Calendly's details, and Connect adds the dialog's own key, such as `setup=lead&way=calendly` (the lead hook's dialog with Calendly picked).
+
 ## Where leads and conversions come from
 
 There are four sources. You can use one or all of them.

@@ -173,7 +173,7 @@ export default function live(m, s) {
     top("Top pages today", "pages read", "pages", ranked(t.pages), { drill: "path", empty: "No page read yet today." }),
     top("Top sources today", "visitors, by where they came from", "sources", ranked(t.by?.source), { drill: "source", total: t.readers, empty: "No visitor yet today." }),
     top("Countries today", "visitors", "locations", ranked(t.by?.country), { drill: "country", total: t.readers, empty: "No visitor yet today." }),
-    top("AI assistants today", "pages fetched, answering a question or collecting for training", "bots", ranked(ai), { drill: "bot", color: color("answer_engines"), empty: "No AI assistant yet today." })));
+    top("AI assistants today", "requests, answering a question or collecting for training", "bots", ranked(ai), { drill: "bot", color: color("answer_engines"), empty: "No AI assistant yet today." })));
   if (m.x.ai_activity?.today) out.push(h("details", { class: "fold" }, h("summary", null, "All AI activity today, with addresses", h("span", null, `${n(m.x.ai_activity.today.total ?? events.length)} today`)),
     aiFeed(m, { limit: 20, globalCountry: s.country })));
   return out;

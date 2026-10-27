@@ -124,7 +124,8 @@ def session_caller(config: dict | None, live_dir, headers, site: str | None = No
         role, org = (accounts.site_role(db, who["user_id"], site) if site else (None, None))
         member, admin, orgs = [], [], []
         for o in accounts.list_orgs(db, who["user_id"]):
-            names = accounts.sites_of_org(db, o["id"])
+            # Only the sites this member may see (site access, accounts/users.py).
+            names = accounts.users.visible_sites(db, o["id"], who["user_id"])
             member += names
             orgs.append({"name": o["name"], "sites": names})
             if o["role"] in ("owner", "admin"):

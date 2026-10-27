@@ -19,11 +19,12 @@ from __future__ import annotations
 from .data import SITE, Refused
 from .tools import SITE_ARG, schema, tool
 
-JOBS_ARG = {"type": "array", "minItems": 1, "maxItems": 7,
+JOBS_ARG = {"type": "array", "minItems": 1, "maxItems": 8,
             "items": {"type": "string", "enum": ["logs", "script", "lead", "rsc", "assets",
-                                                 "privacy", "search"]},
+                                                 "privacy", "search", "connect-tools"]},
             "description": "The jobs the line carries, as setup_left names them: logs, script, "
-                           "lead, rsc, assets, privacy, search. At least one."}
+                           "lead, rsc, assets, privacy, search, connect-tools (the user's own "
+                           "tools, such as Google Analytics). At least one."}
 STATE_WORDS = {"todo": "to do", "wait": "waiting", "unknown": "not checked"}
 
 
@@ -72,10 +73,10 @@ def dialog(base: str, site: str, act: str) -> str:
       "The site's set-up lines that are not done (the same lines as Settings › "
       "To do): logs arriving, visits counted as people, Next.js "
       "pages, countries, the script tag, a lead hook, a mail recipient, the privacy choice, "
-      "Search Console. "
+      "Search Console, and each of the user's own tools (Google Analytics...). "
       "Each open line has its state, one plain sentence, the address of its Set up dialog, "
       "and `job` when an AI agent can do it (logs, script, lead, rsc, assets, privacy, "
-      "search; countries and mail are done by a person). Pass the jobs to setup_line to get "
+      "search, connect-tools; countries and mail are done by a person). Pass the jobs to setup_line to get "
       "one line an AI agent follows. When the user says \"Set up Skald for this site\", "
       "start here.",
       schema({"site": SITE_ARG}))

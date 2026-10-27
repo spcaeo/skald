@@ -189,7 +189,7 @@ export function runPanel(st, w, { onMade = null } = {}) {
   stillGood(got).then((ok) => { if (!ok && linkFor(st.site) === got) { LINKS.delete(st.site); if (slot.isConnected !== false) w.redraw(); } });
   slot.replaceChildren(codeBlock(got.command, "the install command"),
     h("p", null, `Paste it on the web server of ${st.site}. It works once, for 24 hours.`),
-    h("p", { class: "note" }, `It holds this site's sending token, so send it only to the site's admin. ${st.testBelow ? "Skald tests it below by itself." : "Then press Next: the Test starts by itself."}`));
+    h("p", { class: "note" }, `It holds this site's sending token, so send it only to the site's admin. ${st.testBelow ? "Live progress below shows when its lines arrive." : "Then press Next: the Test starts by itself."}`));
   const file = kitOn(st, "server") ? h("button", { type: "button", class: "btn" }, "Download as one file") : null;
   if (file) {
     file.addEventListener("click", async () => {
@@ -252,6 +252,11 @@ export function troubleTable() {
 /* The Test button and its answer. Polls every POLL_MS for POLL_FOR_MS after the
    first press, until connected; stops when the dialog is gone. auto: starts when
    drawn, with no press (the dialogs; the shared link's page waits for the press). */
+// The shipper's own check, for a server way that sends nothing (also Add a site's Check now, 2.43).
+export function shipperHelp() {
+  return h("p", null, "On the web server, run ", h("code", null, "sudo skald-ship-check"), ": it checks each part and says what to fix (an older zip kit has ", h("code", null, "sudo bash check.sh"), " in its folder). What the shipper says: ", h("code", null, "sudo docker logs --tail 20 skald-ship"), " with Docker, or ", h("code", null, "journalctl -u skald-ship -n 20"), " without.");
+}
+
 export function testPanel(st, { onResult = null, statusOf = (site) => call(`sites/status?site=${encodeURIComponent(site)}`), pageCheck = tagCheckBox, auto = false, plain = false } = {}) {
   const out = h("div", { class: "cn-test-out" });
   const page = h("div", { class: "cn-test-page" });
@@ -266,7 +271,7 @@ export function testPanel(st, { onResult = null, statusOf = (site) => call(`site
     const more = [];
     if (v.fix) more.push(h("p", null, v.kind === "ok" ? v.fix : ["What to do: ", v.fix]));
     // Every server way, a wizard saved before 2.30 ("docker", "systemd") too: the one command left skald-ship-check.
-    if (v.kind !== "ok" && shipper) more.push(h("p", null, "On the web server, run ", h("code", null, "sudo skald-ship-check"), ": it checks each part and says what to fix (an older zip kit has ", h("code", null, "sudo bash check.sh"), " in its folder). What the shipper says: ", h("code", null, "sudo docker logs --tail 20 skald-ship"), " with Docker, or ", h("code", null, "journalctl -u skald-ship -n 20"), " without."));
+    if (v.kind !== "ok" && shipper) more.push(shipperHelp());
     if (polling) more.push(h("p", { class: "note" }, "Checking again every 5 seconds, for up to 2 minutes."));
     if (v.kind === "wait" && !polling && until) more.push(h("p", null, "Nothing arrived in 2 minutes. Look at Common problems below, then press Test connection again."));
     out.replaceChildren(answerBox(v.kind, v.head, ...more));

@@ -17,8 +17,8 @@ from __future__ import annotations
 from datetime import date
 from html import escape as esc
 
-from .client_report_data import (LEAD_RULE, SC_NOTE, coverage_lines, leads_missing, num, pct,
-                                 period_words, search_console_lines)
+from .client_report_data import (LEAD_RULE, SC_NOTE, asked_words, coverage_lines, leads_missing,
+                                 num, pct, period_words, search_console_lines)
 from .mail_html import (CARD, DARK, FONT, INK, INK2, INK3, MONO, PAGE, PEOPLE, RULE, _card,
                         _table)
 
@@ -144,7 +144,7 @@ def sections(data: dict) -> list[str]:
                                                        "read on all of them)."))
     if "ai" in chosen:
         ai = data["ai"]
-        lead = (f"{ai['asked']:,} fetches because someone asked an AI · {ai['training']:,} to "
+        lead = (f"{asked_words(ai)} · {ai['training']:,} requests to "
                 f"train or index · {ai['search']:,} by search engines · {ai['bots']:,} by "
                 f"other bots.")
         rows = [(f'{esc(c["name"])}<div class="s-ink3" style="font:400 12px/1.4 {FONT};'
@@ -154,8 +154,10 @@ def sections(data: dict) -> list[str]:
         if ai["cited_by"]:
             body += _p("AI assistants that sent visitors:", INK, 13) + \
                 _table(_rows(ai["cited_by"]), ("Assistant", "Visitors", ""))
-        out.append(_card("AI and bots", body, "Requests, not people: one question can fetch "
-                                              "several pages."))
+        out.append(_card("AI and bots", body, "Requests, not people. A page read is one page an "
+                                              "AI fetched for someone's question; asking for it "
+                                              "again within seconds, or for its files, is no "
+                                              "new read."))
     if "leads" in chosen:
         leads = data["leads"]
         why = leads_missing(leads)
@@ -272,8 +274,9 @@ def as_text(data: dict, brand: dict) -> str:
             lines.append("")
     if "ai" in data["sections"]:
         ai = data["ai"]
-        lines += ["AI AND BOTS", f"  {ai['asked']:,} asked · {ai['training']:,} training · "
-                  f"{ai['search']:,} search · {ai['bots']:,} other bots"]
+        lines += ["AI AND BOTS", f"  {asked_words(ai)}",
+                  f"  {ai['training']:,} training · {ai['search']:,} search · "
+                  f"{ai['bots']:,} other bots"]
         lines += [f"  {c['name']:<30} {c['n']:>9,}" for c in ai["crawlers"]] + [""]
     if "leads" in data["sections"] and data["leads"] and not leads_missing(data["leads"]):
         lines += ["LEADS"] + [f"  {r['name']:<30} {r['n']:>9,}" for r in data["leads"]["rows"]]

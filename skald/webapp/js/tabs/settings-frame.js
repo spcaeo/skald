@@ -24,6 +24,7 @@ import { home } from "../build.js";
 import INDEX from "../help-index.js";
 import { help } from "../ui/help.js";
 import { screenHead } from "../ui/primary.js";
+import { orgLine } from "./org-line.js";
 
 export const Q = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2"/><path d="M6.3 6.2a1.8 1.8 0 1 1 2.4 1.7c-.5.2-.7.6-.7 1.1v.4M8 11.3h.01"/></svg>';
 const BOOK = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.5h4a1.5 1.5 0 0 1 1.5 1.5v8.5a1.5 1.5 0 0 0-1.5-1.5h-4zM13.5 3.5h-4A1.5 1.5 0 0 0 8 5v8.5a1.5 1.5 0 0 1 1.5-1.5h4z"/></svg>';
@@ -153,7 +154,9 @@ export function framed(route, render) {
     }
     const slot = h("span", { class: "set-act" });
     watch(body, slot);
-    return [jumpMenu(route), titleRow(route, page.name, sub, lede, slot), body];
+    // Settings › Organisation: which organisation these pages are, and Switch (org-line.js).
+    const line = g === "org" ? orgLine(route) : null;
+    return [jumpMenu(route), line, titleRow(route, page.name, sub, lede, slot), body].filter(Boolean);
   };
 }
 

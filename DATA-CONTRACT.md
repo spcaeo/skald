@@ -94,6 +94,8 @@ a version change; a field is never renamed or removed without one.
   data files: [docs/DATA-CONTRACT-PEOPLE.md](docs/DATA-CONTRACT-PEOPLE.md).
   An address removed with `skald forget --ip` is shown as `"(removed)"` from
   then on. Journeys are anonymous and kept `journey_days` days; their `first_touch` and `seq` (2.12.0) are in DATA-CONTRACT-PEOPLE.md.
+  Recorded journeys (2.43), what a site sends Skald itself, are tables in the same file, never
+  counted with the log: [docs/JOURNEYS.md](docs/JOURNEYS.md).
 - **Release 3 files** (2026-10-08): `robots.json`, `speed.json`,
   `funnels.json`, `sites.json`, `page_index.json` - and the API, users and
   roles, compare and page lifecycle below.
@@ -195,6 +197,12 @@ each plain (uncompressed) log file's size when the live run began. The run
 reads each file only that far (a line cut at the limit is not read), and
 `audit --live` reads only as far, so lines appended meanwhile change neither
 side. A file without `read_upto` (an older one) is recounted whole.
+The snapshot (and the helper's tail file) also carry `read_ids`: `{file name:
+inode}`, which file each name was. If a log was rotated or cut back between the
+live run and `audit --live`, or while the audit reads (a name now holds another
+file, is smaller than was read, is gone, or a new one appeared), the audit says
+`audit skipped: ... the log rotated during the check (...); run it again` and
+exits 0 instead of reporting a mismatch neither count made (`log_moved.py`).
 
 ```json
 {"schema_version":1,"generated_at":"...","site":"example.com","view":null,"timezone":"America/New_York",

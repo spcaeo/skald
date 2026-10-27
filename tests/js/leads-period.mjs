@@ -189,13 +189,14 @@ const figure = (first, last, keep = () => true) => cdays.filter((d) => d.day >= 
   assert.deepEqual(el.querySelector(".sa-wider").querySelectorAll("button").map(text), ["All time"]);
 }
 {
-  // None at all: "No leads yet" and the hint, as before.
+  // None at all: the shared "not connected yet" card (2.43, js/ui/connect.js), need leads.
   const none = { ...m, x: { conversions: { ...f, days: cdays.map((d) => cday(d.day)) } } };
   location.hash = "#sales/leads";
   const out = flat(L.default(none, S.read()));
   const t = out.map(text).join(" ");
-  assert.match(t, /No leads yet: nothing has reported a lead for this site\./);
-  assert.match(t, /Connect a source of leads/);
+  assert.match(t, /No lead source connected yet/);
+  assert.match(t, /Leads need a source/);
+  assert.ok(out.some((el) => el.matches?.('.ui-conn[data-need="leads"]') || el.querySelector?.('.ui-conn[data-need="leads"]')), "the leads card");
   // With a filter on and nothing anywhere: say so, and offer to clear.
   location.hash = "#sales/leads?lby=Email";
   const t2 = flat(L.default(m, S.read())).map(text).join(" ");

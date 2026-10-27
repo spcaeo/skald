@@ -107,7 +107,7 @@ export default function overview(m, s) {
     top("Top pages", "pages read", "pages", ranked(t.pages), { drill: "path", empty: "No page read in this period." }),
     top("Top sources", "visitors, by where they came from", "sources", ranked(t.by?.source), { drill: "source", total: t.readers, empty: "Not recorded for this period." }),
     top("Countries", "visitors", "locations", ranked(t.by?.country), { drill: "country", total: t.readers, empty: "Not recorded for this period." }),
-    top("AI assistants", "pages fetched, answering a question or collecting for training", "bots", ranked(ai), { drill: "bot", color: color("answer_engines"), empty: "No AI assistant came in this period." })));
+    top("AI assistants", "requests, answering a question or collecting for training", "bots", ranked(ai), { drill: "bot", color: color("answer_engines"), empty: "No AI assistant came in this period." })));
 
   out.push(h("details", { class: "fold" }, h("summary", null, "Server requests (every file: pages, images, scripts)", h("span", null, n(t.requests ?? Object.values(t.hits || {}).reduce((a, b) => a + b, 0)))),
     serverLoad(t, r, cov)));

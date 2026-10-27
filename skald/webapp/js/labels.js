@@ -35,6 +35,26 @@ export const ASSISTANTS = {
 };
 export const assistantName = (v) => (typeof v === "string" && Object.hasOwn(ASSISTANTS, v) ? ASSISTANTS[v] : shown(v));
 
+// The user fetchers (ChatGPT-User, Google-NotebookLM, Amzn-User...): a bot name, lower case, to
+// the assistant it fetches for. The same table is classify.AI_FETCHER_OWNERS in Python, which
+// files a fetch under its assistant; tests/test_fetcher_names.py holds the two to each other.
+export const FETCHERS = {
+  "chatgpt-user": "chatgpt.com", "claude-user": "claude.ai",
+  "perplexity-user": "perplexity.ai", "gemini-user": "gemini.google.com",
+  "bingpreview": "copilot.microsoft.com", "mistralai-user": "mistral.ai",
+  "meta-externalfetcher": "meta.ai",
+  "claude-web": "claude.ai", "google-agent": "gemini.google.com",
+  "googleagent-mariner": "gemini.google.com",
+  "google-gemininotebook": "gemini.google.com",
+  "google-notebooklm": "gemini.google.com", "amzn-user": "alexa.amazon.com",
+};
+// The assistant a user fetcher reads for, by the name a person knows it by, or null for any
+// other bot: "ChatGPT-User" -> "ChatGPT", "Google-NotebookLM" -> "Gemini".
+export const fetcherOf = (v) => {
+  const low = typeof v === "string" ? v.toLowerCase() : "";
+  return Object.hasOwn(FETCHERS, low) ? assistantName(FETCHERS[low]) : null;
+};
+
 // An object's keys (and its nested objects' keys) as shown: for JSON a person reads.
 export function shownKeys(o) {
   if (Array.isArray(o)) return o.map(shownKeys);

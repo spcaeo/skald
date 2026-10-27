@@ -421,6 +421,7 @@ def cmd_live(ctx: Context) -> int:
     """
     from . import requests_feed
     from .privacy import forgotten
+    from .rendering import asset_prefixes
     from .window import day_window
     hours, cap = requests_feed.settings(ctx.config)
     utc_now = ctx.now.astimezone(timezone.utc)
@@ -431,15 +432,16 @@ def cmd_live(ctx: Context) -> int:
     feed = requests_feed.Feed(cutoff, cap, ctx.views,
                               str(setting(ctx.config, "report", "heartbeat_label", "heartbeat")),
                               setting(ctx.config, "site", "hosts") or (),
-                              int(setting(ctx.config, "report", "session_gap_minutes", 30)))
+                              int(setting(ctx.config, "report", "session_gap_minutes", 30)),
+                              asset_prefixes(ctx.config))
     midnight = day_window(ctx.now.date(), ctx.tz)[0]
     # Each plain log's size now: every reader of this run, and the audit
     # after it, reads that far and no further (lines keep arriving).
-    from .window import plain_sizes
-    upto = plain_sizes(ctx.config)
+    from .log_moved import plain_state
+    upto, ids = plain_state(ctx.config)
     requests_feed.before_midnight(ctx.config, feed, midnight, utc_now, upto)
     snap = live.build(ctx.config, ctx.site, ctx.tz, ctx.now, ctx.views, ctx.db_path, feed,
-                      upto)
+                      upto, ids)
     path = live.path_for(ctx.live_dir, ctx.site)
     live.save(path, snap)
     requests_feed.save(requests_feed.path_for(ctx.live_dir, ctx.site), feed.result(
@@ -492,6 +494,8 @@ def _after_live(ctx: Context, snap: dict, feed) -> None:
     _favicons(ctx, snap, limit=10)
     from .conversions import jobs       # leads into conversions, outgoing webhooks
     jobs.live(ctx)
+    from . import setup_live            # 2.43: a set-up's invites once data came; never fails
+    setup_live.run(ctx)
     if ctx.waiting:                     # no line yet: nothing to alert on
         return
     try:
@@ -632,6 +636,11 @@ def audit_live(ctx: Context) -> int:
     until = datetime.fromisoformat(snap["until"])
     # The bytes the snapshot read (an older one recorded none: whole files).
     upto = snap.get("read_upto")
+    from .log_moved import Still
+    stable = Still(ctx.config, snap, ctx.args.log)    # a rotation since: not a mismatch
+    if stable.why:
+        ctx.out(f"audit skipped: live {day}: {stable.words()}")
+        return 0
     try:
         figures = audit.recount(ctx.config, day, ctx.tz,
                                 [Path(p) for p in ctx.args.log] if ctx.args.log else None,
@@ -695,6 +704,9 @@ def audit_live(ctx: Context) -> int:
         if kept.get("newest_line") != counted["newest_line"]:
             problems.append(f"alert check, newest line: {kept.get('newest_line')} against "
                             f"{counted['newest_line']}")
+    if stable.check():                                # rotated while recounting
+        ctx.out(f"audit skipped: live {day}: {stable.words()}")
+        return 0
     if problems:
         ctx.err(f"audit live {day} to {snap.get('generated_at')}: THE RECOUNT DOES NOT "
                 f"MATCH THE SNAPSHOT ({len(problems)} of {compared} figures)")
@@ -789,6 +801,9 @@ def daily_steps(ctx: Context) -> list[tuple[str, Callable[[], int]]]:
         steps.append(("daily mail", lambda: mail(ctx, "daily", ctx.args.dry_run)))
     if ctx.now.date().weekday() == 0 and _mail_on(ctx.config, "weekly"):
         steps.append(("weekly mail", lambda: mail(ctx, "weekly", ctx.args.dry_run)))
+    from . import mail_marketing        # mail.marketing, off by default (2.43)
+    if mail_marketing.due(ctx):
+        steps.append(("marketing mail", lambda: mail_marketing.run(ctx, ctx.args.dry_run)))
     if setting(ctx.config, "pagespeed", "enabled", None) in (True, "true") or (
             setting(ctx.config, "pagespeed", "enabled", None) is None and not ctx.args.dry_run
             and setting(ctx.config, "pagespeed", "base_url")):

@@ -147,14 +147,14 @@ class Client:
     `token_url` and `api` too (a fake server on 127.0.0.1)."""
 
     def __init__(self, key_text: str, opener=None, sleep=time.sleep, clock=time.time,
-                 token_url: str = TOKEN_URL, api: str = API) -> None:
+                 token_url: str = TOKEN_URL, api: str = API, scope: str = SCOPE) -> None:
         check_key(key_text)
         got = json.loads(key_text)
         self.email = got["client_email"]
         self._key = rsa.load_pem(got["private_key"])
         self._key_id = str(got.get("private_key_id") or "")
         self.opener, self.sleep, self.clock = opener, sleep, clock
-        self.token_url, self.api = token_url, api.rstrip("/")
+        self.token_url, self.api, self.scope = token_url, api.rstrip("/"), scope
         self._token: str | None = None
         self._until = 0.0
         self.calls = 0
@@ -167,7 +167,7 @@ class Client:
         header = {"alg": "RS256", "typ": "JWT"}
         if self._key_id:
             header["kid"] = self._key_id
-        claims = {"iss": self.email, "scope": SCOPE, "aud": TOKEN_URL, "iat": now,
+        claims = {"iss": self.email, "scope": self.scope, "aud": TOKEN_URL, "iat": now,
                   "exp": now + 3600}
         signing = (rsa.b64url(json.dumps(header, separators=(",", ":")).encode()) + "." +
                    rsa.b64url(json.dumps(claims, separators=(",", ":")).encode()))
