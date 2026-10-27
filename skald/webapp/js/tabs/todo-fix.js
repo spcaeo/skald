@@ -10,16 +10,20 @@
 //   Me            the exact lines to paste for the site's web server (nginx or Apache, the site
 //                 check's when known), every row (settings/todo-rows, never the browser's cut-down
 //                 files), and the CSV as a small link; then Mark done
-//   Someone else  Send to team (todo_api.py's mail with the CSV), or the link to copy
+//   My developer  Send to team (todo_api.py's mail with the CSV), or the link to copy
 //
-// The address: fix=1 with todo=<id> (one to-do), or fix=all; fixby=agent|me|someone (the
-// answer); link=<16 hex> (the line being watched: never the line or its code, which live in
+// The question is the shared one (ui/who.js, 2.41): Me, My developer, My AI agent, in that
+// order, the last answer remembered per person.
+//
+// The address: fix=1 with todo=<id> (one to-do), or fix=all; by=me|dev|agent (the answer;
+// links made before said fixby=agent|me|someone, read the same, someone as dev); link=<16 hex> (the line being watched: never the line or its code, which live in
 // this page's memory only, like every agent line). A line is made only on a press, never by
 // opening an address: a new line ends the older one an agent may be working from.
 
 import { h, n } from "../ui.js";
 import * as S from "../state.js";
 import { openDrawer } from "../drawer.js";
+import { whoStep } from "../ui/who.js";
 import { stepped } from "../overlays.js";
 import { stamp } from "../tz.js";
 import { reportBox } from "./todo-report.js";
@@ -33,11 +37,12 @@ import { MARKS, loadMarks, markItem, makeTodoLine, lineStatus, cancelTodoLine, t
 
 export const AGENT_KINDS = ["lost", "errors", "markdown", "sitemap", "leave"];
 export const isAgentTodo = (t) => (t.agent ?? AGENT_KINDS.includes(t.kind));
-export const WHO = [
-  { id: "agent", title: "My AI agent", sub: "Claude Code, Codex, Cursor or another that runs commands. One line to paste; it fixes it and reports back here." },
-  { id: "me", title: "Me", sub: "The exact lines to paste for your web server, with every row." },
-  { id: "someone", title: "Someone else", sub: "Send it to a teammate, with its list." },
-];
+// The answers' second lines here (ui/who.js keeps the titles: Me, My developer, My AI agent).
+export const SUBS = {
+  me: "The exact lines to paste for your web server, with every row.",
+  dev: "Send it to your developer or a teammate, with its list.",
+  agent: "Claude Code, Codex, Cursor or another that runs commands. One line to paste; it fixes it and reports back here.",
+};
 export const GONE = "That to-do is not on the list now, or it is not available to you.";
 export const UNDO_WORDS = "Marking it done changes no figure: Skald only starts checking it, with the same measure, on every whole day after. Undo is one click.";
 // "Is it safe to paste this into a chat?" for a to-do line (checked against kit/agent_todos.py).
@@ -111,27 +116,17 @@ export async function openFixKey(v, m, s) {
 
 export function fixDialog(list, value, s = S.read()) {
   const all = value === "all";
-  const st = { who: ["agent", "me", "someone"].includes(s.fixby) ? s.fixby : "", link: /^[0-9a-f]{16}$/.test(s.link || "") ? s.link : "", made: false };
-  const part = h("div", { class: "fx-part" });
-  const tiles = WHO.map((w) => {
-    const b = h("button", { type: "button", class: "ag-tile fx-who", "aria-pressed": String(st.who === w.id), "data-who": w.id, "aria-label": `${w.title}: ${w.sub}` },
-      h("b", null, w.title), h("small", null, w.sub));
-    b.addEventListener("click", () => pick(w.id, true));
-    return b;
-  });
-  const body = h("div", { class: "fx" },
-    h("h3", { class: "fx-q", id: "fx-q" }, "Who will do it?"),
-    h("div", { class: "ag-tiles fx-tiles", role: "group", "aria-labelledby": "fx-q" }, tiles), part);
+  const st = { link: /^[0-9a-f]{16}$/.test(s.link || "") ? s.link : "", made: false };
+  const route = { key: "fix", value };
+  const step = whoStep({ route, from: s.by || s.fixby || "", subs: SUBS,
+    paths: { me: () => mePart(list), dev: () => somePart(list), agent: ({ pressed }) => agentPart(list, st, value, pressed) },
+    // A line is watched only on My AI agent: the other answers take it out of the address.
+    onPick: (k) => { if (k !== "agent") stepped("fix", value, { link: "" }); } });
+  const body = h("div", { class: "fx" }, step.el);
   const d = openDrawer({ title: all ? `Fix all (${list.length})` : "Fix this", subtitle: all ? list.map((t) => t.title).join(" · ") : list[0].title,
-    size: "md", key: "todo-fix", scope: "page", body, route: { key: "fix", value } });
-  function pick(who, pressed) {
-    st.who = who;
-    for (const b of tiles) b.setAttribute("aria-pressed", String(b.dataset.who === who));
-    stepped("fix", value, { fixby: who, link: who === "agent" ? st.link : "" });
-    part.replaceChildren(...(who === "agent" ? agentPart(list, st, value, pressed) : who === "me" ? mePart(list) : somePart(list)));
-  }
-  if (st.who) pick(st.who, false);
+    size: "md", key: "todo-fix", scope: "page", body, route });
   d.st = st;
+  d.who = step;
   return d;
 }
 
@@ -299,7 +294,7 @@ function doneButton(t) {
 
 function somePart(list) {
   const can = sendable();
-  const linkOf = (t) => `${location.href.split("#")[0]}${S.hashFor({ ...S.read(), tab: "overview/insights", todo: t.id, fix: "", fixby: "", link: "", tdsend: "" })}`;
+  const linkOf = (t) => `${location.href.split("#")[0]}${S.hashFor({ ...S.read(), tab: "overview/insights", todo: t.id, fix: "", by: "", fixby: "", link: "", tdsend: "" })}`;
   const links = h("ul", { class: "fx-links" }, list.map((t) => h("li", null, `${t.title}: `, withCopy(h("span", { class: "muted" }, "copy its link"), linkOf(t), { label: `the link to "${t.title}"` }))));
   if (!can.ok) return [h("p", null, "Send them the link: it opens the to-do with its list once they sign in."), links, h("p", { class: "note" }, `Mail is not offered here: ${can.why}`)];
   const pick = h("select", { class: "td-to", "aria-label": "Send to" }, h("option", { value: "" }, "Pick a team member"),

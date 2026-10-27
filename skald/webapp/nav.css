@@ -20,9 +20,11 @@ a.tab, a.foot-btn { text-decoration: none; box-sizing: border-box; }
 .nav-back { color: var(--ink-3); height: 32px; font-size: 13px; }
 .nav-back svg { width: 14px; height: 14px; }
 .nav-title { margin: 6px 10px 2px; font-size: 18px; font-weight: 720; letter-spacing: -.015em; color: var(--ink); }
-/* a longer list than the dashboard's, so slightly shorter rows: it fits a 800px-tall window */
-.nav.in-settings .tab:not(.nav-back) { height: 32px; font-size: 13.5px; }
-.nav.in-settings .nav-h { margin-top: 8px; }
+/* a longer list than the dashboard's (fifteen pages with Billing), so shorter rows: every row
+   fits an 830px-tall window, and no group shows its heading with its rows cut off below */
+.nav.in-settings .tab:not(.nav-back) { height: 28px; font-size: 13.5px; }
+.nav.in-settings .nav-back { height: 28px; }
+.nav.in-settings .nav-h { margin-top: 6px; }
 
 /* the foot: Settings, the reader's own button, the fold button - one row */
 .rail-foot { gap: 2px; }

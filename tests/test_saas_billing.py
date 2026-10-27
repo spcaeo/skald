@@ -1,7 +1,7 @@
 """Phase 5a billing and limits over real HTTP (saas/billing_api.py,
 stripe_client.py, stripe_events.py; the small checks in team_api.py and
 settings_api.py): the Stripe requests built right (a fake opener, never the
-network), Settings > Billing & usage for owners, the signed webhook with its state
+network), Settings > Billing for owners, the signed webhook with its state
 changes and idempotency, the grace period's read-only state, the member and
 retention limits, /me's plan block, and saas off -> 404 and no limit.
 
@@ -179,7 +179,7 @@ class Page(Case):
         self.assertEqual(got.json["url"], "https://checkout.stripe.com/c/pay/cs_1")
         form = self.opener.form()
         self.assertEqual(form["success_url"],
-                         f"{ORIGIN}/traffic/{A}/#settings/billing?checkout=done")
+                         f"{ORIGIN}/traffic/{A}/#settings/org/billing?checkout=done")
         self.assertEqual(form["client_reference_id"], str(self.org))
         self.assertEqual(form["customer_email"], "owner@example.com")
         self.assertEqual(self.post(T + "billing/checkout", {"plan": "free"}, cookie,

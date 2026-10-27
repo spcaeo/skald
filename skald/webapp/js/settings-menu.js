@@ -1,137 +1,141 @@
-// Settings' menu (2.40, docs/plans/2026-10-26-settings-redesign.md): every settings page,
-// grouped by what a person comes to do, with one line each, its Help guide (docs/help/<id>.md,
-// in the app as #help?part=<id>), its public docs page (<home>/docs/<id>/) and the page that
-// comes next. A page with in-page tabs lists them (the address's sub=<key>; the first when
-// absent), each with its own guide. No DOM and no imports, so node and state.js read it.
+// Settings' menu (v2, docs/plans/2026-10-26-settings-redesign.md): the menu on the left, the
+// page on the right. To do first (what needs you now), then four short groups. Each page shows
+// its state and its action; what it is for sits behind the "?" by its title (`about`, with its
+// Help guide in the app, #help?part=<help>, and the public page, <home>/docs/<help>/). No DOM
+// and no imports, so node and state.js read it.
 //
-//   route   the page's address, settings/<group>/<page>
-//   name    its name in the menu, the palette and the title bar
-//   line    what it is for, one plain line (All settings, the phone's select)
+//   route   settings/<group>/<page>
+//   name    its name in the menu, the title and the phone's select
+//   line    one short sentence under the title
+//   about   the "?" note: what it is for, in a sentence or two
 //   help    the in-app guide's id; docs: the public page's path when not /docs/<help>/
-//   tabs    [[sub, name, help?]]: in-page tabs
-//   next    [route, words]: the Next step card at the page's foot
+//   tabs    [[sub, name, help?, about?]]: in-page tabs, the address's sub= (the first when absent)
 
-export const SETTINGS_HOME = "settings/home";
+export const SETTINGS_HOME = "settings/todo";
 
 export const SETTINGS_GROUPS = [
   { key: "site", name: "This site", pages: [
-    { route: "settings/site/setup", name: "Set-up checklist", help: "getting-started",
-      line: "What works and what is left for this site, each with a Set up button. Or hand it all to your AI agent.",
-      next: ["settings/site/collect", "Collect data: send the site's logs, or add the script tag"] },
-    { route: "settings/site/collect", name: "Collect data", help: "connections",
-      line: "How visits reach Skald: the server's logs, the script tag, and what counts as a person or a page.",
-      tabs: [["logs", "Send logs", "connections"], ["script", "Script tag & goals", "tracking-script"], ["counting", "What counts", "settings-and-retention"]],
-      next: ["settings/site/leads", "Leads & integrations: connect your forms, bookings and payments"] },
-    { route: "settings/site/details", name: "Site details", help: "settings-and-retention",
-      line: "The site's host names, page groups, time zone and logo.",
-      next: ["settings/site/collect", "Collect data: how visits reach Skald"] },
-    { route: "settings/site/leads", name: "Leads & integrations", help: "webhooks",
-      line: "Leads from Calendly, Cal.com, HubSpot, Typeform, Stripe or your own server; webhooks out; Search Console and Bing.",
-      tabs: [["hooks", "Incoming hooks", "webhooks"], ["webhooks", "Outgoing webhooks", "webhooks"], ["search", "Search Console & Bing", "search"]],
-      next: ["settings/site/privacy", "Privacy & retention: choose what is kept about people"] },
-    { route: "settings/site/internal", name: "Internal traffic", help: "internal-traffic",
-      line: "Your office, home and test machines, so your own visits are not counted as people.",
-      next: ["settings/site/setup", "Back to the set-up checklist"] },
-    { route: "settings/site/privacy", name: "Privacy & retention", help: "privacy",
-      line: "What is kept about people and leads, for how long, and wording for your privacy notice.",
-      next: ["settings/site/mail", "Mail & reports: choose who gets the daily mail"] },
+    { route: "settings/site/data", name: "Data", help: "connections",
+      line: "How visits reach Skald.",
+      about: "Skald counts visits from your server's log. Send the log here, add the script tag for clicks and forms, and choose what counts as a visit.",
+      tabs: [["logs", "Send logs", "connections"], ["script", "Script tag & goals", "tracking-script", "The tag adds form steps, clicks and bookings. Goals are the events that count as a win."],
+        ["counting", "What counts", "settings-and-retention", "Which visits count as people, and which addresses are pages."],
+        ["sample", "Test a sample", "troubleshooting-connections", "Paste a few lines of a log: Skald says what it would count, and keeps nothing."]] },
+    { route: "settings/site/leads", name: "Leads & tools", help: "webhooks",
+      line: "Your forms, bookings and payments, and where leads go.",
+      about: "Calendly, Cal.com, HubSpot, Typeform, Stripe or your own server tell Skald about each lead. Each row opens its address, secret, test event and deliveries. Send each lead out posts it to your CRM, Zapier or Slack; Search Console and Bing add the searches that bring people." },
+    { route: "settings/site/details", name: "Site", help: "settings-and-retention",
+      line: "Its names, page groups, time zone and logo.",
+      about: "The host names Skald counts as this site, page groups (Views), the time zone of its days, its logo, and the machines that are yours.",
+      tabs: [["details", "Names & time", "settings-and-retention"], ["internal", "Internal traffic", "internal-traffic", "Your office, home and test machines, so your own visits are not counted as people."]] },
+    { route: "settings/site/privacy", name: "Privacy", help: "privacy",
+      line: "What is kept about visitors and leads.",
+      about: "Choose what Skald keeps about people (IP addresses, names, emails) and for how long, and copy the wording for your privacy notice." },
     { route: "settings/site/mail", name: "Mail & reports", help: "settings-and-retention",
-      line: "The daily and weekly mail, the mail server, and reports for your clients.",
-      tabs: [["mail", "Mail", "settings-and-retention"], ["reports", "Client reports", "client-reports"]],
-      next: ["settings/ai/mcp", "AI assistant (MCP): ask about this site in plain words"] },
-    { route: "settings/site/aianswers", name: "AI answers", help: "ai-answers",
-      line: "What AI assistants say about this site: your questions, brand terms, competitors and tracking profiles.",
-      tabs: [["profiles", "Questions & profiles", "ai-answers"], ["keys", "API keys", "ai-answers"]],
-      next: ["settings/site/setup", "Back to the set-up checklist"] },
+      line: "Who gets the daily mail and client reports.",
+      about: "The daily and weekly mail, who gets it, the mail server, and branded reports for your clients.",
+      tabs: [["mail", "Mail", "settings-and-retention"], ["reports", "Client reports", "client-reports", "A branded mail with a PDF, on your schedule, from verified days only."]] },
+    { route: "settings/site/alerts", name: "Alerts", help: "settings-and-retention",
+      line: "Which alerts are on, and whether they are mailed.",
+      about: "Switch each alert on or off for this site, and whether alerts are mailed. The alerts themselves are on Site › Alerts." },
   ] },
-  { key: "ai", name: "AI & API", pages: [
-    { route: "settings/ai/mcp", name: "AI assistant (MCP)", help: "mcp", docs: "integrations/mcp/",
-      line: "Ask Claude, ChatGPT or another assistant about your traffic in plain words.",
-      next: ["settings/ai/tokens", "Tokens & links: see or revoke what each assistant uses"] },
-    { route: "settings/ai/api", name: "Read figures (API)", help: "api", docs: "integrations/api/",
-      line: "Every figure as JSON, for a script or a spreadsheet, with a read-only token.",
-      next: ["settings/ai/tokens", "Tokens & links: see or revoke your tokens"] },
-    { route: "settings/ai/tokens", name: "Tokens & links", help: "api",
-      line: "Every token of the organisation and the private links shared with a developer. Revoke here.",
-      next: ["settings/ai/mcp", "AI assistant (MCP): connect an assistant"] },
+  { key: "ai", name: "AI", pages: [
+    { route: "settings/ai/assistants", name: "AI assistants", help: "mcp", docs: "integrations/mcp/",
+      line: "Ask Claude, ChatGPT and others about your traffic.",
+      about: "Connect an AI assistant over MCP, or read every figure as JSON with the API. Each uses a read-only token; revoke one under Tokens & links.",
+      tabs: [["mcp", "MCP", "mcp"], ["api", "API", "api", "Every figure as JSON, for a script or a spreadsheet, with a read-only token."],
+        ["tokens", "Tokens & links", "api", "Every token of the organisation and every private link shared with a developer. Revoke one and whatever uses it stops at once."]] },
+    { route: "settings/ai/answers", name: "AI answers", help: "ai-answers",
+      line: "What AI assistants say about this site.",
+      about: "Your questions, brand terms and competitors, the tracking profiles, and the assistants' API keys.",
+      tabs: [["profiles", "Questions & profiles", "ai-answers"], ["keys", "API keys", "ai-answers", "The keys Skald uses to ask each assistant. An install admin adds them."]] },
   ] },
   { key: "org", name: "Organisation", pages: [
     { route: "settings/org/sites", name: "Sites", help: "connections",
-      line: "Add a site, prove it is yours, continue a set-up, or stop a site.",
-      next: ["settings/site/setup", "Set up this site: the checklist"] },
-    { route: "settings/org/team", name: "Team", help: "sign-in-and-team",
-      line: "Who may see the organisation's sites, and what each may change. Invite someone.",
-      next: ["settings/org/security", "Sign-in rules: ask everyone for two-step sign-in"] },
-    { route: "settings/org/users", name: "Users", help: "sign-in-and-team",
-      line: "Who may look and who may change things, on a server with one shared login.",
-      next: ["settings/org/team", "Team"] },
-    { route: "settings/org/security", name: "Sign-in rules", help: "sign-in-and-team",
-      line: "Two-step sign-in for everyone, and how long a sign-in lasts.",
-      next: ["settings/org/audit", "Audit log: who changed what"] },
+      line: "Every site, its state, and its menu.",
+      about: "Add a site, prove it is yours, continue a set-up, or pause, remove or delete a site from its row's menu." },
+    { route: "settings/org/people", name: "People", help: "sign-in-and-team",
+      line: "Who may see and change things.",
+      about: "Members and their roles. Owners manage everything, admins change settings, viewers only look.",
+      tabs: [["team", "Team", "sign-in-and-team"], ["security", "Sign-in rules", "sign-in-and-team", "Two-step sign-in for everyone, and how long a sign-in lasts."]] },
+    { route: "settings/org/billing", name: "Billing", help: "settings-and-retention",
+      line: "Your plan and how much of it is used.",
+      about: "Admins can read it; only owners choose a plan or change the payment." },
     { route: "settings/org/audit", name: "Audit log", help: "settings-and-retention",
-      line: "Who changed what, and when. Download it as CSV.",
-      next: ["settings/org/team", "Team: who may change things"] },
-    { route: "settings/org/billing", name: "Billing & usage", help: "settings-and-retention",
-      line: "The plan, how much of it is used, and payment.",
-      next: ["settings/org/sites", "Sites"] },
+      line: "Who changed what, and when.",
+      about: "Every change to settings, sites, tokens and members. Download it as CSV." },
   ] },
   { key: "you", name: "You", pages: [
     { route: "settings/you/account", name: "Your account", help: "sign-in-and-team",
-      line: "Your name, password, two-step sign-in and where you are signed in.",
-      next: ["settings/home", "All settings"] },
-  ] },
-  { key: "help", name: "Help & docs", pages: [
-    { route: "settings/help", name: "Help & docs", help: "getting-started", docs: "docs/",
-      line: "Every guide in the app, the public docs, the API and MCP pages, What's new, and how to reach us." },
+      line: "Your name, password and two-step sign-in.",
+      about: "Your name, password, two-step sign-in, and the browsers where you are signed in." },
   ] },
 ];
 
-// The pages in the menu's order (All settings first), and by route.
-export const SETTINGS_PAGES = [
-  { route: SETTINGS_HOME, name: "All settings", help: "settings-and-retention", group: null,
-    line: "Every settings page, with what each is for." },
-  ...SETTINGS_GROUPS.flatMap((g) => g.pages.map((p) => ({ ...p, group: g.name }))),
-];
+const TODO = { route: "settings/todo", name: "To do", help: "getting-started", group: null,
+  line: "What needs you now.",
+  about: "Everything that needs you, for this site and the organisation, most important first. A line goes away once Skald sees it working." };
+
+// The pages in the menu's order (To do first), and by route.
+export const SETTINGS_PAGES = [TODO, ...SETTINGS_GROUPS.flatMap((g) => g.pages.map((p) => ({ ...p, group: g.name })))];
 export const pageOf = (route) => SETTINGS_PAGES.find((p) => p.route === route) || null;
 
-// The in-page tab open: the address's sub=, when the page has it, else its first tab.
-export function subOf(route, sub) {
-  const tabs = pageOf(route)?.tabs || [];
+// The in-page tab open: the address's sub=, when the page has it and `ok` lets it, else the
+// first that `ok` lets (ok: the reader may open that tab; tabKey(route, sub) in HIDDEN).
+export const tabKey = (route, sub) => `${route}#${sub}`;
+export function subOf(route, sub, ok = () => true) {
+  const tabs = (pageOf(route)?.tabs || []).filter(([k]) => ok(tabKey(route, k)));
   return tabs.some(([k]) => k === sub) ? sub : (tabs[0]?.[0] || "");
 }
+const tabOf = (route, sub) => (pageOf(route)?.tabs || []).find(([k]) => k === subOf(route, sub)) || null;
 // The Help guide for a page (and its tab).
 export function helpOf(route, sub = "") {
   const p = pageOf(route);
-  if (!p) return "";
-  const t = (p.tabs || []).find(([k]) => k === subOf(route, sub));
-  return (t && t[2]) || p.help || "";
+  return p ? (tabOf(route, sub)?.[2] || p.help || "") : "";
+}
+// What the "?" says for a page (and its tab).
+export function aboutOf(route, sub = "") {
+  const p = pageOf(route);
+  return p ? (tabOf(route, sub)?.[3] || p.about || p.line || "") : "";
 }
 // The public page's path under the home address: "docs/mcp/", "integrations/mcp/".
 export function docsPath(route, sub = "") {
   const p = pageOf(route);
   if (!p) return "";
-  const t = (p.tabs || []).find(([k]) => k === subOf(route, sub));
+  const t = tabOf(route, sub);
   if (t && t[2] && t[2] !== p.help) return `docs/${t[2]}/`;
   return p.docs || (p.help ? `docs/${p.help}/` : "docs/");
 }
 
-/* Old Settings addresses (before 2.40) -> [new route, parameters it sets]. #settings/api (the
-   old Connections page) is decided by what it opened: connectionsHome(). */
+/* Older Settings addresses (before v2, and 2.40's) -> [new route, parameters it sets]. The old
+   Connections page (#settings/api) is decided by what it opened: connectionsHome(). */
 export const OLD_SETTINGS = {
+  // 2.40's pages
+  "settings/home": ["settings/todo"], "settings/site/setup": ["settings/todo"],
+  "settings/site/collect": ["settings/site/data"],
+  "settings/site/internal": ["settings/site/details", { sub: "internal" }],
+  "settings/site/aianswers": ["settings/ai/answers"],
+  "settings/ai/mcp": ["settings/ai/assistants"], "settings/ai/api": ["settings/ai/assistants", { sub: "api" }],
+  "settings/ai/tokens": ["settings/ai/assistants", { sub: "tokens" }],
+  "settings/org/team": ["settings/org/people"], "settings/org/users": ["settings/org/people"],
+  "settings/org/security": ["settings/org/people", { sub: "security" }],
+  "settings/help": ["help"],
+  // before 2.40, and the short names
   "settings/account": ["settings/you/account"], account: ["settings/you/account"],
-  "settings/team": ["settings/org/team"], team: ["settings/org/team"],
-  "settings/users": ["settings/org/users"], users: ["settings/org/users"],
-  "settings/tokens": ["settings/ai/tokens"], tokens: ["settings/ai/tokens"],
-  "settings/mcp": ["settings/ai/mcp"], mcp: ["settings/ai/mcp"],
+  "settings/team": ["settings/org/people"], team: ["settings/org/people"],
+  "settings/users": ["settings/org/people"], users: ["settings/org/people"],
+  "settings/tokens": ["settings/ai/assistants", { sub: "tokens" }], tokens: ["settings/ai/assistants", { sub: "tokens" }],
+  "settings/mcp": ["settings/ai/assistants"], mcp: ["settings/ai/assistants"],
   "settings/sites": ["settings/site/details"], sites: ["settings/site/details"],
-  "settings/internal": ["settings/site/internal"], internal: ["settings/site/internal"], ours: ["settings/site/internal"],
+  "settings/internal": ["settings/site/details", { sub: "internal" }], internal: ["settings/site/details", { sub: "internal" }],
+  ours: ["settings/site/details", { sub: "internal" }],
   "settings/retention": ["settings/site/privacy"], retention: ["settings/site/privacy"], "settings/privacy": ["settings/site/privacy"],
   "settings/mail": ["settings/site/mail"], mail: ["settings/site/mail"],
   "settings/reports": ["settings/site/mail", { sub: "reports" }], reports: ["settings/site/mail", { sub: "reports" }],
   "settings/integrations": ["settings/site/leads"], integrations: ["settings/site/leads"],
-  "settings/aianswers": ["settings/site/aianswers"],
+  "settings/aianswers": ["settings/ai/answers"],
   "settings/sitesadmin": ["settings/org/sites"],
-  "settings/security": ["settings/org/security"], security: ["settings/org/security"],
+  "settings/security": ["settings/org/people", { sub: "security" }], security: ["settings/org/people", { sub: "security" }],
   "settings/audit": ["settings/org/audit"], audit: ["settings/org/audit"],
   "settings/billing": ["settings/org/billing"], billing: ["settings/org/billing"],
 };
@@ -140,8 +144,8 @@ export const CONNECTIONS = new Set(["settings/api", "settings/connections", "con
 /* Where an old Connections address opens: by the dialog it named. params: URLSearchParams or null. */
 export function connectionsHome(params) {
   const conn = params?.get?.("conn") || "";
-  if (conn === "mcp") return ["settings/ai/mcp"];
-  if (conn === "api") return ["settings/ai/api"];
-  if (conn === "send" || conn === "sample") return ["settings/site/collect"];
-  return ["settings/site/setup"];
+  if (conn === "mcp") return ["settings/ai/assistants"];
+  if (conn === "api") return ["settings/ai/assistants", { sub: "api" }];
+  if (conn === "send" || conn === "sample") return ["settings/site/data"];
+  return ["settings/todo"];
 }

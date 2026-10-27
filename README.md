@@ -130,9 +130,9 @@ person everywhere.
 
 ### Live, not 48 hours late
 **Real time** shows who is on the site now, on a world map, with the pages being read and the AI
-and crawlers fetching right now. **Today · Live**, in the top bar of every tab, shows today so far,
-redrawn every 2 minutes, with what the newest visitors are doing now: their pages in order and the
-page they are on. The last 6 hours can be read request by request, each with the rule that put it
+and crawlers fetching right now, and what the newest visitors are doing: their pages in order and
+the page they are on. **Today**, the first period in the top bar of every tab, shows today so far,
+redrawn every 2 minutes. The last 6 hours can be read request by request, each with the rule that put it
 in its group, in words. Alerts show on the dashboard, by email, or in Slack.
 
 </td>
@@ -164,7 +164,7 @@ counts, and counted twice.
 Your own server's log, or the host's: **Vercel and Netlify log drains**, a **Cloudflare Worker**
 that reports pages served from cache on any plan, CloudFront and Fastly logs, or a small shipper
 from any server: **one command** (`curl … | sudo bash`, with or without Docker; it finds the log
-by itself). Settings › This site › Collect data walks you through each one, with a **Test** that starts by itself; step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md). A Next.js
+by itself). Settings › This site › Data walks you through each one, with a **Test** that starts by itself; step by step for Vercel: [docs/VERCEL.md](docs/VERCEL.md). A Next.js
 site adds one line to its log format so clicks inside the site count as pages.
 
 </td>
@@ -185,7 +185,7 @@ certain. For admins and owners; every search is in the audit log.
 Spam, duplicate and test leads, and cancelled, removed and test conversions, are listed in full,
 never just dropped. Add a site looks at the site first and suggests the way in; each connection ends
 with a **Test**. `skald doctor` checks every part of the install, one line each, with the exact
-fix; Settings › This site › Leads & integrations shows the same for each hook and the script tag.
+fix; Settings › This site › Leads & tools shows the same for each hook and the script tag.
 
 </td>
 </tr>
@@ -230,7 +230,7 @@ your firewall, not instead of it.
   an email (they become a code only your browser reads back).
 - **Copy on every value, open on every URL:** point at a page or URL and two icons copy it or open
   it in a new tab; an address, user agent, email, name or server line gets the copy icon alone.
-- **Is it working?** (Overview › Summary): the period's exact dates, **Include today**, five key
+- **Is it working?** (Overview › Summary): the period's exact dates (Include today under More), five key
   figures with their change, the sources and landing pages that rose and fell, pages to work on
   (most visits leave at once, no form), and new and updated pages with whether search found them.
 - **Insights as a to-do list:** each item with its proof and the full list behind it (old pages
@@ -239,15 +239,16 @@ your firewall, not instead of it.
 - **Did my change work?** Mark the day you changed a page (content, title, a redirect): Skald sets
   the same whole days before and after side by side (visits, leads, search, AI, left at once), with
   Up, Down, No clear change or Too early to tell. A sitemap date offers to track it for you.
-- **A trail with Back** over every tab: the steps you took (Summary, a source, a page), each a link
-  to that exact view; browser Back and Forward walk the same steps.
-- **Today · Live**, **All time** and **Compare with…** in the top bar, on every tab. Leads & sales
-  opens on the last 7 days, the other sections on today.
+- **Back** (2.42): one **← Back to …** link names the view you came from and returns to it;
+  browser Back and Forward walk the same steps.
+- **Today** (live), **7**, **30** and **90 days**, **More** (Yesterday, All time, Custom) and **Compare**
+  in the top bar, on every tab; Compare is on by default (2.42). Leads & sales opens on the last
+  7 days, the other sections on today.
 - **Real time** (Overview › Real time): visitors active now and in the last 30 minutes, visitors
   minute by minute, requests per minute every 15 seconds (labelled requests, never people), pages
   being read, sources, devices, AI assistants and crawlers now, and the newest visits; both
   recounted by the audit.
-- **What visitors are doing now** (Overview, today): the newest visitors with their city, source
+- **What visitors are doing now** (Overview › Real time): the newest visitors with their city, source
   and pages in order, `/ → /pricing → /book-a-demo`, the page they are on now marked, following
   the live answer every 15 seconds; point at a row and its city pulses on the map.
 - A **world map** of where visitors are: countries shaded by visits today, a bubble or a city dot
@@ -257,7 +258,8 @@ your firewall, not instead of it.
   log did not have is **Not recorded**. Under Direct, its **likely** cause (payment return,
   in-app browser, shared link), an estimate with its own second count.
 - **Overview, today, live:** visitors now and the four tiles against **yesterday at this hour** (a
-  figure with its own second count), the map, sources, what converted and AI & bots.
+  figure with its own second count), where today's visitors came from and what converted; the map
+  is on Real time.
 - **Every table works the same way:** sort any column, filter columns, choose columns, and export
   just the rows and columns you see; all of it in the address. Every row opens its detail.
 - **Advanced filters:** rules on any field a visit carries (country, city, source, campaign, AI
@@ -302,7 +304,7 @@ your firewall, not instead of it.
   is a setting: on for a new install, off on an install upgraded from before 2.4.0.
 - Engagement by source and device, returning visitors by source, exit rate per page, and campaign
   tag problems flagged (no medium, an unknown medium, an ad click with no tags, internal tags).
-- **Compare with…** the previous period, the same period last year, or any range up to 12 months,
+- **Compare**, on by default (2.42): the previous period, the same period last year, or any range up to 12 months,
   leads included. Insights (working, dropped, new, gone), and a page's story: its first Googlebot,
   first AI crawler, first person and first lead.
 
@@ -359,9 +361,9 @@ your firewall, not instead of it.
   where the leads are, and "Today so far" names today's.
 - Summary and Sources count from your lead database or from your tools, never both in one figure.
 - Leads and demos booked on the Overview (two tiles, and each day's leads as dots on the main
-  chart), and today's as they arrive with Today · Live.
+  chart), and today's as they arrive with Today.
 - A Leads column and a lead rate (leads per visitor, from 10 visitors up) on Sources, Pages and
-  Places & devices; lead findings in Insights; leads against another period (Compare with…).
+  Places & devices; lead findings in Insights; leads against another period (Compare).
 - Leads by first and last source, crossed with the status your team set, and time from first
   visit to lead. Saved funnels counted every day by source and device.
 - Conversions from signed webhooks; forms and bookings started but not finished. One Calendly or
@@ -390,19 +392,22 @@ your firewall, not instead of it.
 - Addresses for owners and admins only, where the site keeps them. Skald blocks nothing itself.
 
 **Connecting a site**
-- **Settings, by what you came to do** (2.40): five groups (This site, AI & API, Organisation,
-  You, Help & docs), a page per task, Help and Docs under every title, and every old link still
-  working. Send a site's visits (This site › Collect data), read your figures (AI & API › Read
-  figures) or connect an AI assistant (AI & API › AI assistant), each a short dialog with your address and token filled in and a **Test** at
+- **Settings, by what you came to do** (2.40, simpler in 2.42): **To do** first (what is left for
+  the site, the organisation and you), then This site (**Data**, **Leads & tools**, **Site**,
+  **Privacy**, **Mail & reports**, **Alerts**), **AI** (AI assistants, AI answers), **Organisation**
+  (Sites, People, Audit log) and You; each page fits one screen, and every old link still works.
+  Send a site's visits (This site › Data), read your figures or connect an AI assistant
+  (AI › AI assistants), each a short dialog with your address and token filled in and a **Test** at
   the end ("Connected: 1,240 lines received, the last at 10:42", or what is wrong and the fix).
 - **Skald checks your site** from outside: the web server, any platform in front, the framework,
   the host names and page assets, and suggests the way in. You confirm or change it.
-- **Add a site** in five steps you can leave and resume. Pick your AI agent (Claude Code, Codex,
+- **Add a site** in two steps you can leave and resume (2.42; five before): **Your site**, then
+  **Connect it**, by you, your developer or your AI agent. Pick your agent (Claude Code, Codex,
   Cursor or another) and paste one line: it holds a one-time code that gives the keys once, for
   this site only, then stops; the agent connects the logs, the script tag and the lead file, and
   Skald ticks each step as it happens. Every other set-up job works the same way (2.39): each
-  Set up dialog asks **Your AI agent, or by hand?**, and **Set up everything left** makes one line
-  for every open job. The agent checks first and changes only what is missing; what it finds for
+  Set up dialog asks one question, **Who will do it? Me, My developer or My AI agent** (2.42), and
+  **Finish set-up** makes one line for every open job. The agent checks first and changes only what is missing; what it finds for
   Skald's own settings waits for your **Apply**. Or set it up by hand: one command on the server (or one
   file), with `skald-ship-check` to say what is wrong in plain words; a private link to share the
   steps with your developer.
@@ -410,7 +415,7 @@ your firewall, not instead of it.
   client gives the folder to Claude Code and says "Set up Skald from CLAUDE.md".
 - **Leads in one file:** PHP, Node or Python, one function to call; a WordPress plugin with no
   code; or a plain key for Zapier and form tools.
-- **Set up this site** on Overview, and always in Settings › This site › Set-up checklist: each open line one plain
+- **Set up this site** on Overview, and always in Settings › To do: each open line one plain
   sentence and a Set up button.
 - **Pause, remove or delete a site** (2.40): each site's ⋯ menu in Settings › Organisation ›
   Sites. Pause deletes nothing; Clear data and Delete all data need the site's name typed and
@@ -428,6 +433,10 @@ your firewall, not instead of it.
   is missing, asks before any server change and reports back; Skald then checks it worked.
 - **One line per site** (2.41): set up ten sites at once, each with its own line, or connect each
   site's Claude Code or Codex session with two lines through MCP. Search Console is an agent job.
+- **A simpler dashboard** (2.42): each screen leads with its answer and keeps the rest one click
+  away. AI & bots › Assistants went from 5,969 px to 830 px tall, Site › Alerts from 14 cards to
+  3, grouped, with a Fix button; every Settings page fits one screen, and Add a site went from 5
+  steps to 2.
 - **Test a sample** (or `skald try-log <file>` on the server): paste a few lines of a new log and
   see which reader fits, what it could not read and why, and the five groups adding up. Nothing kept.
 - **Next.js:** one field in the site's log format and every click inside the site counts as a
@@ -442,6 +451,7 @@ your firewall, not instead of it.
 - Alerts: site down, logging stopped, 5xx burst, 404 surge, crawler burst, new crawler, traffic
   drop, each switched on or off per site, and a **sale** (or refund) once leads carry money. A failed
   morning run sends one short mail. Any alert can go to **Slack** or any tool, as `alert.opened`.
+  Site › Alerts groups what needs you, worst first, with a **Fix** button where one applies (2.42).
 - A data-quality panel: unreadable lines, gaps, duplicates, log age, and requests not counted as pages.
 - Deploy and change markers on every chart.
 
@@ -458,8 +468,9 @@ your firewall, not instead of it.
   itself, an upload, or a letter on a colour; never an outside icon service). After sign-in, a card
   per site with a Live dot and today's visitors, leads and demos booked ("-" when not known yet,
   never 0). Settings and sites can be changed from the shell too (`skald settings`, `skald site`).
-- Export any table as CSV or JSON, print to PDF, a report builder, and daily and weekly email
-  reports (refused if the figures do not add up).
+- One **Export** that asks **What do you need?**: a PDF of the page, its tables as CSV, a report someone
+  gets every month, or JSON; and daily and weekly email reports (refused if the figures do not
+  add up).
 - **Client reports:** branded reports for an agency's clients, a mail with a PDF attached, weekly,
   monthly or every few days, with your name, colour and logo; verified days only, the sums counted
   twice before a report goes.
@@ -490,28 +501,28 @@ your firewall, not instead of it.
 The whole dashboard with 60 days of sample data for a made-up site: today's Overview live, the
 Summary and Insights to-dos, Real time on a world map, the visitor drawer, Search Console and Bing
 figures and AI answers (both made up), AI & bots, every Security tab, every lead in one list, and
-Settings › This site › Set-up checklist. Nothing to install; saving, the person search and the other Settings pages
+Settings › To do. Nothing to install; saving, the person search and the other Settings pages
 need your own Skald. Every image below is from the demo's sample data.
 
 ### Is it working, and what to fix next (2.35)
 
 <p align="center">
-  <img src="docs/screenshots/summary-what-changed.png" alt="Overview, Summary, What changed: is it working? for 22 Sep to 21 Oct against 23 Aug to 21 Sep: more people than the period before, 2,409 against 2,012, the biggest rise and drop; Sources and Landing pages each with Now, Before and Change, such as Search engine 885 against 761, up 16%, and /blog/ai-crawlers-explained about the same" width="900"><br>
+  <img src="docs/screenshots/summary-what-changed.png" alt="Overview, Summary, What changed: is it working? for 22 Sep to 21 Oct against 23 Aug to 21 Sep: more people than the period before, 2,409 against 2,012, the biggest rise (/, 683 to 868) and drop (Other website, 183 to 179); Sources and Landing pages each with Now, Before and Change, such as Search engine 885 against 761, up 16%; the rest of the period under More for this period" width="900"><br>
   <strong>What changed: is it working?</strong> Sources and landing pages, now against before.
 </p>
 
 | | |
 | :---: | :---: |
 | <img src="docs/screenshots/summary-work-pages.png" alt="Overview, Summary: Work on the page, or on traffic? with its two lists and what left at once means, beside New and updated pages: are they getting found?, the pages changed since 22 Sep with their sitemap date, visits, search visits, first search visit and when Google fetched them" width="440"><br>**Work on the page, or on traffic?** And are new pages found? | <img src="docs/screenshots/pages-sorts.png" alt="Traffic, Pages, Landing pages and their leads sorted by Rising with Compare on: each page's visitors now and before, the change, leads, pages per visit, left after one page, AI reads and the date it last changed" width="440"><br>**Pages: Rising, Falling, Recently changed.** And each page's change date. |
-| <img src="docs/screenshots/insights-todos.png" alt="Overview, Insights, To do now: Send old pages somewhere useful, Fix the server errors and Give AI the Markdown copies it asks for, each with its proof, what to do and what Skald will re-check, and the buttons Show the list, Download CSV, Copy link, Open, Mark done and Not now; then Done, and did it work? and Pages you changed: did it work?, with each tracked change and its verdict" width="440"><br>**Insights as a to-do list.** Mark it done; Skald checks it worked. | <img src="docs/screenshots/not-found-lost.png" alt="Site, Not found, Old addresses still asked for: 2 old addresses, asked by people 40 times, search engines 15 and AI 13; each with the closest live page, how close, and the nginx line to redirect it or answer 410 gone" width="440"><br>**Lost pages.** The closest live page and the server line to copy. |
+| <img src="docs/screenshots/insights-todos.png" alt="Overview, Insights, To do now with Fix all (3): Send old pages somewhere useful, Fix the server errors and Give AI the Markdown copies it asks for, each with its proof, what to do and what Skald will re-check, and the buttons Fix this, Show the list, Mark done and Not now; then Done, and did it work? and Pages you changed: did it work?, with each tracked change and its verdict" width="440"><br>**Insights as a to-do list.** Mark it done; Skald checks it worked. | <img src="docs/screenshots/not-found-lost.png" alt="Site, Not found, Old addresses still asked for: 2 old addresses, asked by people 40 times, search engines 15 and AI 13; each with the closest live page, how close, and the nginx line to redirect it or answer 410 gone" width="440"><br>**Lost pages.** The closest live page and the server line to copy. |
 | <img src="docs/screenshots/ai-readiness.png" alt="A page's story, AI readiness for /guides/webhooks/: 3 of 6 need attention; robots.txt keeps Google-Extended out, with the line to allow it; one server error to a crawler; in the sitemap; the Markdown copy answered 404 nine times; no 404 for the page; last AI read on 21 Oct" width="440"><br>**AI readiness per page.** Six checks, each with its evidence and fix. | <img src="docs/screenshots/ai-cant-read.png" alt="AI and bots, Assistants, Pages AI can't read well: filters for Markdown copy, 404, errors, robots.txt and slow; each page, worst first, with what AI got, which crawlers, whether it is in the sitemap and what to do" width="440"><br>**Pages AI can't read well.** Worst first. |
-| <img src="docs/screenshots/change-tracker.png" alt="A page's story for /pricing/, Did my change work?: Changed 22 Sep, New title, compared: the 28 whole days after against the 28 before, a chart with the change marked, and per measure the daily figure before and after, the change and what it says, such as visits that started here 12 a day before, 15 after, up 20%, Up" width="440"><br>**Did my change work?** Before and after, with a verdict. | <img src="docs/screenshots/trail-back.png" alt="The trail over Traffic, Pages: Back to Pages, then Overview › Summary, Source: Search engine, Traffic › Pages and /pricing/, each a link to that view" width="440"><br>**The trail and Back.** Every step, one click back. |
-| <img src="docs/screenshots/ai-reads-trend.png" alt="AI and bots, Assistants, AI reads by page: now against before: each page's live fetches by assistants now and in the period before, the change, the fetches by assistant, and the AI visits and leads that started there" width="440"><br>**AI reads per page.** Now against before, to visits and leads. | <img src="docs/screenshots/test-sample.png" alt="Settings, Connections, Test a sample of a log, step 2: Skald can read this log, with the warnings below; nginx_combined, sure; 200 lines, 199 read and line 121 not, with why; the times and zone; no host field; the five groups, 160 + 19 + 11 + 9 + 0 = 199, adds up" width="440"><br>**Test a sample.** Can Skald read a new log? Before the next run. |
+| <img src="docs/screenshots/change-tracker.png" alt="A page's story for /pricing/, Did my change work?: Changed 22 Sep, New title, compared: the 28 whole days after against the 28 before, a chart with the change marked, and per measure the daily figure before and after, the change and what it says, such as visits that started here 12 a day before, 15 after, up 20%, Up" width="440"><br>**Did my change work?** Before and after, with a verdict. | <img src="docs/screenshots/trail-back.png" alt="A page's story for /pricing/, opened from Traffic › Pages: one ← Back to Pages link above the tabs returns to where you came from" width="440"><br>**Back** (2.42). One link back to where you came from. |
+| <img src="docs/screenshots/ai-reads-trend.png" alt="AI and bots, Assistants, AI reads by page: now against before: each page's live fetches by assistants now and in the period before, the change, the fetches by assistant, and the AI visits and leads that started there" width="440"><br>**AI reads per page.** Now against before, to visits and leads. | <img src="docs/screenshots/test-sample.png" alt="Settings, Data, Test a sample of a log, step 2 of 2: Skald can read part of this log; nginx_combined, sure; 41 lines, 40 read and line 22 not, with why; the times and zone; no host field; the five groups, 21 + 0 + 11 + 8 + 0 = 40, adds up" width="440"><br>**Test a sample.** Can Skald read a new log? Before the next run. |
 
 ### Security, from the same log (2.21)
 
 <p align="center">
-  <img src="docs/screenshots/security-exposed.png" alt="Security, Is anything exposed? for the last 7 days: a red verdict '1 possible exposure: check it now'; 608 scanner probes, 270 answered with a page, 269 the host's harmless page, 1 possible exposure; the row for /.env.production on example.com answered 200 with 1,873 bytes and what to do; each host's fallback page, the bare IP 192.0.2.10 included" width="900"><br>
+  <img src="docs/screenshots/security-exposed.png" alt="Security, Is anything exposed? for the last 7 days: a red verdict '1 possible exposure: check it now' with a Fix button; 610 scanner probes, 270 answered with a page, 269 the host's harmless page, 1 possible exposure; the row for /.env.production on example.com answered 200 with 1,873 bytes and what to do; each host's harmless page under Open the details" width="900"><br>
   <strong>Is anything exposed?</strong> Every probe that got a page, set against the host's own harmless page.
 </p>
 
@@ -519,7 +530,7 @@ need your own Skald. Every image below is from the demo's sample data.
 | :---: | :---: |
 | <img src="docs/screenshots/security-stack.png" alt="Security, Your stack: an 'Update needed' card for PHP's remote code execution flaw naming PHP 8.3.10 on media.example.com and PHP 8.1.2 on example.com, a 'Check your version' card for the Node.js October 2026 releases, and what serves each host, with an open WordPress login page" width="440"><br>**Your stack.** What serves each host, and which advisories apply. | <img src="docs/screenshots/security-scanners.png" alt="Security, Who is scanning us?: probes per day, what scanners looked for, and one row per scanner with requests, probes, what the server answered and signs such as a forged referrer or the bare IP" width="440"><br>**Who is scanning us?** Each scanner, what it looked for, what it got. |
 | <img src="docs/screenshots/security-attacks.png" alt="Security, Attack attempts over 30 days: injection attempts, login and form posts and burst requests; log signs worth a look (PHP requests and gateway errors above their usual, one POST of 2.6 MB); path traversal, Log4Shell and SQL injection by kind with each address" width="440"><br>**Attack attempts.** Injection, login hammering, bursts and log signs. | <img src="docs/screenshots/security-fake.png" alt="Security, Fake browsers and scrapers: requests from clients that claim to be a browser or a known crawler, what gave them away, the pages they took, and each address with its network" width="440"><br>**Fake browsers.** What gave them away, and what they took. |
-| <img src="docs/screenshots/security-block-list.png" alt="Security, Block list: a note to review before blocking, exports as nginx deny lines, a Cloudflare IP list or a plain list, the networks with two or more scanners, and each address with its probes and attack attempts" width="440"><br>**Block list.** nginx, Cloudflare or a plain list, to review first. | <img src="docs/screenshots/security-alerts.png" alt="Security, Alerts: the rules (possible exposure, new scan wave, advisory matches your stack); Your security alerts for owner@example.com, On, When: In the daily summary (01:00) or Right away, with Send a test security alert and Open now: 4 items; then the security alerts of the last 30 days, a possible exposure of /.env.production and three advisories" width="440"><br>**Security alerts** (2.36). In one daily summary, or right away. |
+| <img src="docs/screenshots/security-block-list.png" alt="Security, Block list: a note to review before blocking, exports as nginx deny lines, a Cloudflare IP list or a plain list, the networks with two or more scanners, and each address with its probes and attack attempts" width="440"><br>**Block list.** nginx, Cloudflare or a plain list, to review first. | <img src="docs/screenshots/security-alerts.png" alt="Security, Alerts: the rules (possible exposure, new scan wave, advisory matches your stack) and whether each is on; Your security alerts for owner@example.com, On, When: In the daily summary (01:00) or Right away, with Send a test security alert; then the security alerts of the last 30 days, a possible exposure of /.env.production and three advisories" width="440"><br>**Security alerts** (2.36). In one daily summary, or right away. |
 | <img src="docs/screenshots/security-scanner-detail.png" alt="One scanner's detail: its address, user agent, country, hosting network, days seen, requests and probes, what the server answered, what it looked for, its signs (a forged referrer, the bare IP) and the paths it asked for" width="440"><br>**One scanner.** Its paths, its answers, its signs. | <img src="docs/screenshots/public-check.png" alt="The public check at skaldanalytics.com/check/ for www.example.com: 'Your site runs WordPress 7.1.3 on PHP (version hidden), behind Cloudflare. 1 thing to do now, 1 to check, 3 tips', a Download PDF report button, and the first card, Login page open to the internet, with what was seen and where it was read from" width="440"><br>**The public check (2.22, optional).** Any site, read from outside, with the proof. |
 
 ### Leads & sales (2.20)
@@ -529,7 +540,7 @@ need your own Skald. Every image below is from the demo's sample data.
   <strong>Leads.</strong> Who they are, what they did and where they came from, in one list.
 </p>
 
-<p align="center"><img src="docs/screenshots/revenue.png" alt="Leads and sales, Revenue, on the demo's sample data for the last 90 days: a Currency switch with USD chosen and EUR beside it, Breakdown and Tag options; net revenue $16,798.40 ($16,818.00 sold, $19.60 refunded), 33 sales, 1 refund, 29 new customers, 4 renewals and $3.78 revenue per visitor over 4,440 visitors of the 58 days with values; the line Also in this period, never added: €488.40 net from 8 sales; and the start of Revenue by source (last touch)" width="900"><br><strong>Revenue (2.32).</strong> Which sources made money, per currency, never converted; refunds, renewals and lifetime value.</p>
+<p align="center"><img src="docs/screenshots/revenue.png" alt="Leads and sales, Revenue, on the demo's sample data for the last 90 days: a Currency switch with USD chosen and EUR beside it, Breakdown and Tag options; net revenue $15,070.00 ($15,168.00 sold, $98.00 refunded), 42 sales, 2 refunds, 36 new customers, 6 renewals and $3.56 revenue per visitor over 4,230 visitors of the 57 days with values; the line Also in this period, never added: €78.00 net from 2 sales; and Revenue by source (last touch)" width="900"><br><strong>Revenue (2.32).</strong> Which sources made money, per currency, never converted; refunds, renewals and lifetime value.</p>
 
 | | |
 | :---: | :---: |
@@ -537,50 +548,50 @@ need your own Skald. Every image below is from the demo's sample data.
 | <img src="docs/screenshots/sales-bookings.png" alt="Leads and sales, Calendar bookings: every stage of the demos booked through Calendly, the demo funnel from opened to booked, cancelled, rescheduled and no-show, and where the booked ones came from" width="440"><br>**Calendar bookings.** Every stage, cancelled and no-show too. | <img src="docs/screenshots/funnels.png" alt="Funnels: a saved funnel from landing to lead, its steps, how many visits went through each and the drop between steps" width="440"><br>**Funnels.** Saved once, counted every day. |
 | <img src="docs/screenshots/leads-left-out.png" alt="Leads, Stage now: Left out: 10 spam, duplicate and test leads of the last 30 days, each marked in red, listed beside the counted leads, never counted" width="440"><br>**Left out, still listed.** Spam, duplicates and test, never just dropped. | <img src="docs/screenshots/conversions-removed.png" alt="Conversions removed by a lead-database sync, each with when, why (marked duplicate or spam in the lead database) and what it was, and the journeys before them" width="440"><br>**Removed, with when and why.** |
 | <img src="docs/screenshots/person-search.png" alt="Person search for the IP address 203.0.113.109: seven visits over 33 days, where it first came from (ChatGPT), its city and device, and every visit as a line of pages, newest first" width="440"><br>**Person search** (your own Skald). Every visit kept, across days. | <img src="docs/screenshots/person-lead.png" alt="Person search for lead14@example.com: the lead, the linked IP address, visitor ID and lead row, the visit that sent its form, its conversions and the pages its visitor ID saw" width="440"><br>**One lead, linked.** Its email, address, visitor ID and form visit. |
-| <img src="docs/screenshots/leads-reference.png" alt="Leads with the Reference column switched on: each lead shows the sending app's own ID (made-up u-1048576) with a copy button" width="440"><br>**The lead's own reference** (2.25). The sender's ID, searchable, with a copy button. | <img src="docs/screenshots/lead-drawer-reference.png" alt="A lead's drawer: Reference u-1048576 from the site's server, both of its steps (completed, then paid), and the Mark as test button" width="440"><br>**Every step, and Mark as test** (2.25). One click moves a test lead out of every count. |
-| <img src="docs/screenshots/person-by-reference.png" alt="Find a person: searching u-1048576 finds Lead: u-1048576 with its visits" width="440"><br>**Find a lead by its reference** (2.26). The ID from your own app finds the person. | <img src="docs/screenshots/views-fill.png" alt="Settings, Sites, Views: a new page group saved, and Filling 10 days, 4 of 10, from the raw log" width="440"><br>**Page groups fill their past** (2.26). Save a group; past days are counted from the raw log, audited. |
+| <img src="docs/screenshots/leads-reference.png" alt="Leads with the Reference column switched on: each lead shows the sending app's own ID (a lead number such as 136, or a Calendly invitee) with a copy button" width="440"><br>**The lead's own reference** (2.25). The sender's ID, searchable, with a copy button. | <img src="docs/screenshots/lead-drawer-reference.png" alt="A lead's drawer: Reference u-1048576 from the site's server, both of its steps (completed, then paid), and the Mark as test button" width="440"><br>**Every step, and Mark as test** (2.25). One click moves a test lead out of every count. |
+| <img src="docs/screenshots/person-by-reference.png" alt="Find a person: searching u-1048576 finds Lead: u-1048576 with its visits" width="440"><br>**Find a lead by its reference** (2.26). The ID from your own app finds the person. | <img src="docs/screenshots/views-fill.png" alt="Settings, Site, Names & time: host names, the Views box with a page group Blog | /blog/, Fill past days for the new groups ticked, and the time zone" width="440"><br>**Page groups fill their past** (2.26). Save a group; past days are counted from the raw log, audited. |
 
 ### Live (2.11, 2.13, 2.20)
 
 <p align="center">
-  <img src="docs/screenshots/overview-live.png" alt="Overview, today: the live world map with a pulsing dot on each city with someone on the site, and under it What visitors are doing now: five visitors with their city, device, source and pages in order, such as /guides/webhooks → /pricing/ → /customers/ → /pricing/, 'now on /pricing/ · 51 s ago', beside Pages read in the last 30 minutes" width="900"><br>
-  <strong>What visitors are doing now.</strong> The newest visitors and the pages they read, live.
+  <img src="docs/screenshots/overview-live.png" alt="Overview, Real time: Where visitors are, a world map shaded by visits today with a pulsing dot on each city with visitors active in the last 30 minutes, beside By country: USA 36 visits today and 3 active, Canada 14 and 5, Britain 8 and 1, and the rest" width="900"><br>
+  <strong>Where visitors are, now</strong> (Real time). A dot on each city with someone on the site.
 </p>
 
 | | |
 | :---: | :---: |
-| <img src="docs/screenshots/overview-today.png" alt="Overview, today in Live mode: visitors on the site now with visitors a minute, then Visitors, Pages read, Leads and Visitors from AI, each against yesterday at this hour with both days' running lines, and the map of today's visits" width="440"><br>**Overview, today.** Every figure against yesterday at this hour. | <img src="docs/screenshots/realtime.png" alt="Overview, Real time: visitors active now and in the last 30 minutes, visitors minute by minute, requests per minute labelled as requests, a world map with each active city, and tables by country and by city" width="440"><br>**Real time.** Visitors and requests apart, both counted twice. |
-| <img src="docs/screenshots/live-mode.png" alt="Today · Live switched on: visitors on the site now, and today's visitors, pages read, leads and visitors from AI, each against yesterday at this hour" width="440"><br>**Today · Live.** One switch, on every section. | <img src="docs/screenshots/live-leads.png" alt="What converted today: today's demos booked, sign-up and contact form, each with its time, page, country and where it came from" width="440"><br>**Live leads.** Each lead and booking as it lands. |
+| <img src="docs/screenshots/overview-today.png" alt="Overview, today, live: 5 visitors on the site now with visitors a minute, then Visitors 78, Pages read 165, Leads 6 and Visitors from AI 7, each against yesterday at this hour with both days' running lines; where today's visitors came from and what converted today, and a link to Real time for the map" width="440"><br>**Overview, today.** Every figure against yesterday at this hour. | <img src="docs/screenshots/realtime.png" alt="Overview, Real time: visitors active now and in the last 30 minutes, visitors minute by minute, requests per minute labelled as requests, a world map with each active city, and tables by country and by city" width="440"><br>**Real time.** Visitors and requests apart, both counted twice. |
+| <img src="docs/screenshots/live-mode.png" alt="Today chosen in the top bar: live as of 15:07, 5 visitors on the site now, and today's visitors, pages read, leads and visitors from AI, each against yesterday at this hour" width="440"><br>**Today, live.** The first period in the top bar, on every section. | <img src="docs/screenshots/live-leads.png" alt="What converted today: today's demos booked, sign-up and contact form, each with its time, page, country and where it came from" width="440"><br>**Live leads.** Each lead and booking as it lands. |
 
 ### Connecting a site (2.16, 2.17, 2.31)
 
 <p align="center">
-  <img src="docs/screenshots/todo-fix-agent.png" alt="Fix this, for the to-do Send old pages somewhere useful: Who will do it? My AI agent, Me or Someone else; the agent's report says it added 2 redirects, nginx -t passed and nginx was reloaded after the person's yes, with the two redirect lines it added" width="900"><br>
-  <strong>Fix this</strong> (2.41). The agent's report, with the exact change it made.
+  <img src="docs/screenshots/todo-fix-agent.png" alt="Fix this, for the to-do Send old pages somewhere useful: Who will do it? Me, My developer or My AI agent; My AI agent chosen, with what the agent does, its one-time line to copy (the code hidden), Show code, Make a new line and Cancel this line, and What your agent has done, waiting for its report" width="900"><br>
+  <strong>Fix this</strong> (2.41, 2.42). Who will do it? Me, My developer or My AI agent.
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/agent-lines-per-site.png" alt="Lines for your sites: blog.example.org, docs.example.net, example.com and shop.example.com, each with what is left, what an agent can do, and its own Make its line and Two lines (MCP) buttons" width="900"><br>
+  <img src="docs/screenshots/agent-lines-per-site.png" alt="Lines for your sites: blog.example.com, example.com and shop.example.com, each with what is left, what an agent can do, and its own Make its line and Two lines (MCP) buttons" width="900"><br>
   <strong>One line per site</strong> (2.41). Each site's own line, so many sessions can work at once.
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/settings.png" alt="All settings: What do you want to do? with one-click tasks (Set up this site, Connect an AI assistant (MCP), Send a site's logs, Get the script tag, Connect a form or booking tool, Add, pause or delete a site, Invite someone, Choose what is kept about people, Revoke a token, Change your password), then the pages of This site and AI and API, with the Settings menu on the left" width="900"><br>
-  <strong>Settings</strong> (2.40). Grouped by what you came to do, with the tasks one click away.
+  <img src="docs/screenshots/settings.png" alt="Settings, To do: Find a setting; example.com All set, 1 optional (Script tag events, with Set up) and 7 done; Organisation: 1 invite not accepted yet; You: two-step sign-in is off; the Settings menu on the left: To do, This site (Data, Leads & tools, Site, Privacy, Mail & reports, Alerts), AI (AI assistants, AI answers), Organisation (Sites, People, Audit log) and You" width="900"><br>
+  <strong>Settings</strong> (2.42). To do first, then This site, AI, Organisation and You; each page one screen.
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/connections.png" alt="Settings, Connections: Set up example.com, 1 of 5 left (logs arriving, visits count as people, countries shown, the script tag, the lead hook and privacy ticked; the mail recipient with a Set up button), then three tasks: send this site's visits to Skald, read your figures (API) and connect an AI assistant (MCP), and the organisation's tokens with what each is for" width="900"><br>
-  <strong>Connections.</strong> The set-up list, three guided tasks with a Test at the end, and your tokens.
+  <img src="docs/screenshots/connections.png" alt="Settings, This site, Data: the tabs Send logs, Script tag & goals, What counts and Test a sample; Your server's log, Working: visits are arriving, with Change how visits arrive; Connect the log at the top right" width="900"><br>
+  <strong>Data.</strong> How visits reach Skald, the script tag, what counts, and a test.
 </p>
 
 | | |
 | :---: | :---: |
-| <img src="docs/screenshots/site-check.png" alt="Add a site, step 1: example.com typed in, and What Skald found: server nginx on Ubuntu, no platform in front, built with Next.js, host names example.com and www.example.com, page assets /_next/static/, and the suggestion: a Linux server with Docker" width="440"><br>**Skald checks your site** (your own Skald). And suggests the way in. | <img src="docs/screenshots/add-site-wizard.png" alt="Add a site, step 3 of 5, Which AI agent are you using: Claude Code, Codex, Cursor, Claude.ai or ChatGPT, Another agent, and No AI agent: set it up by hand" width="440"><br>**Add a site in five steps** (2.31). Pick your AI agent, or set it up by hand. |
-| <img src="docs/screenshots/add-site-agent-line.png" alt="Add a site, step 4 of 5, Send this line: set up Skald for example.org, read https://stats.example.com/traffic-kit/llms.txt and use code (hidden), works once, 24 hours; Copy, Show code, Make a new line, Cancel this line, and Is it safe to paste this into a chat?" width="440"><br>**One line for your AI agent** (2.31). A one-time code, never a key. | <img src="docs/screenshots/add-site-agent-watch.png" alt="Add a site, step 5 of 5, Watch it connect: the agent read the steps, took the keys once, sent its report, the first log lines arrived; then what the agent did: hosting, web server, access log, framework" width="440"><br>**Watch it connect** (2.31). Each step ticks; the agent's report in plain words. |
-| <img src="docs/screenshots/setup-agent-or-hand.png" alt="Connect your leads, step 1 of 3, Your AI agent, or by hand: Claude Code, Codex, Cursor or Another agent, and By hand, Skald walks you through it step by step" width="440"><br>**Your AI agent, in every set-up job** (2.39). Each Set up dialog asks: your agent, or by hand? | <img src="docs/screenshots/setup-everything-line.png" alt="Set up everything left with your AI agent, step 2 of 3, Send this line: finish setting up Skald for example.com (connect the logs, add the script tag, send leads and tool webhooks, check the privacy settings), read https://stats.example.com/traffic-kit/llms.txt and use code (hidden), works once, 24 hours" width="440"><br>**Set up everything left** (2.39). One line for every open job; the agent checks first. |
-| <img src="docs/screenshots/connections-install.png" alt="Send this site's visits to Skald, step 2 of 3, Run one command: curl -fsSL https://stats.example.com/traffic-kit/ and a one-time code, piped to sudo bash, with Copy, Download as one file, Email it to your server admin and Make a new command" width="440"><br>**One command** (2.30). With or without Docker; the token is made for you. | <img src="docs/screenshots/setup-checklist.png" alt="Set up example.com: six lines ticked and one open, Mail recipient confirmed: 'Nobody gets the daily mail yet', with a Set up button" width="440"><br>**Set up this site.** Each open line has a Set up button. |
-| <img src="docs/screenshots/lead-setup-file.png" alt="Connect your leads, step 3 of 4: choose PHP, Node or Python, Download skald-lead.php, then require it and call skald_lead with the lead's ID, the action and the email; the secret goes in SKALD_LEAD_SECRET" width="440"><br>**Leads in one file** (2.30). One function to call; WordPress needs no code. | <img src="docs/screenshots/setup-pack.png" alt="Send set-up to someone: up to three email addresses, a note, Include the keys ticked, Send by email and Download (.zip), and the line: give the folder to Claude Code and say Set up Skald from CLAUDE.md" width="440"><br>**Send set-up to someone** (2.30). One zip a person or Claude Code can follow. |
+| <img src="docs/screenshots/site-check.png" alt="Set up blog.example.com, step 1 of 2, Your site: found, runs on nginx; What Skald found: server nginx on Ubuntu, no platform in front, host name blog.example.com, and the suggestion My own server (nginx or Apache); then Who will connect it? Me" width="440"><br>**Skald checks your site** (your own Skald). And suggests the way in. | <img src="docs/screenshots/add-site-wizard.png" alt="Set up blog.example.com, step 2 of 2, Connect it: Who connects it: Me; My own server (nginx or Apache), found; one command, curl -fsSL https://stats.example.com/traffic-kit/ and a one-time code, piped to sudo bash, with Copy, Download as one file, Email it to your server admin and Make a new command; other ways, Share with your developer" width="440"><br>**Add a site in two steps** (2.42). Your site, then Connect it: you, your developer or your AI agent. |
+| <img src="docs/screenshots/add-site-agent-line.png" alt="Set up blog.example.com, step 2 of 2, Connect it: Who connects it: My AI agent, Claude Code; the line set up Skald for blog.example.com, read https://stats.example.com/traffic-kit/llms.txt and use code (hidden), works once, 24 hours; Copy, Show code, Make a new line, Cancel this line, and Is it safe to paste this into a chat?" width="440"><br>**One line for your AI agent** (2.31). A one-time code, never a key. | <img src="docs/screenshots/add-site-agent-watch.png" alt="Set up blog.example.com, step 2 of 2, Skald watches your agent: waiting for it to read the steps, take the keys, send its report and the first log lines, with Test connection: nothing has reached Skald yet, checked every few seconds" width="440"><br>**Watch it connect** (2.31). Each step ticks; the agent's report in plain words. |
+| <img src="docs/screenshots/setup-agent-or-hand.png" alt="Connect your leads, step 1 of 3, Who will do it?: Me (Skald shows the steps), My developer (send them the set-up in one mail or zip) or My AI agent (one line for Claude Code, Codex or Cursor, and you watch it work)" width="440"><br>**Who will do it?** (2.42). Every set-up job asks: Me, My developer or My AI agent. | <img src="docs/screenshots/setup-everything-line.png" alt="Finish setting up example.com: Who will do it? My AI agent; the line finish setting up Skald for example.com (add the script tag), read https://stats.example.com/traffic-kit/llms.txt and use code (hidden), works once, 24 hours; Copy, Show code, Make a new line, Cancel this line" width="440"><br>**Finish set-up** (2.39). One line for every open job; the agent checks first. |
+| <img src="docs/screenshots/connections-install.png" alt="Send this site's visits to Skald, step 3 of 4, Run one command: curl -fsSL https://stats.example.com/traffic-kit/ and a one-time code, piped to sudo bash, with Copy, Download as one file, Email it to your server admin and Make a new command" width="440"><br>**One command** (2.30). With or without Docker; the token is made for you. | <img src="docs/screenshots/setup-checklist.png" alt="Settings, To do, example.com: All set, 1 optional; Script tag events, optional, with a Set up button; 7 done" width="440"><br>**To do** (2.42). Each open line has a Set up button. |
+| <img src="docs/screenshots/lead-setup-file.png" alt="Connect your leads, step 4 of 5, Set it up: choose PHP, Node or Python, Download skald-lead.php, then require it and call skald_lead with the lead's ID, the action and the email; the secret goes in SKALD_LEAD_SECRET" width="440"><br>**Leads in one file** (2.30). One function to call; WordPress needs no code. | <img src="docs/screenshots/setup-pack.png" alt="Send set-up to someone: up to three email addresses, a note, Include the keys ticked, Send by email and Download (.zip), and the line: give the folder to Claude Code and say Set up Skald from CLAUDE.md" width="440"><br>**Send set-up to someone** (2.30). One zip a person or Claude Code can follow. |
 | <img src="docs/screenshots/links-copy-open.png" alt="Traffic, Pages: pointing at /pricing/ shows a copy button and an open-in-a-new-tab button at the end of the path" width="440"><br>**Copy and open on every URL** (2.21). Every view has its own link. | <img src="docs/screenshots/copy-values.png" alt="A scanner's detail: pointing at its user agent, Go-http-client/1.1, shows the copy button beside it" width="440"><br>**Copy any value** (2.35). Addresses, user agents, emails, names. |
 
 ### AI & bots
@@ -592,7 +603,7 @@ need your own Skald. Every image below is from the demo's sample data.
 
 | | |
 | :---: | :---: |
-| <img src="docs/screenshots/ai-assistants.png" alt="AI and bots, Assistants: pages fetched to answer a question per day, assistants by name with their address check and robots.txt rule, and what they fetch" width="440"><br>**Assistants.** Who read your pages to answer someone. | <img src="docs/screenshots/ai-answers-profiles.png" alt="Settings, AI answers, tracking profiles: New York, London and Montréal, each with how often, tries, questions, the daily cap and the estimated cost a month" width="440"><br>**Tracking profiles** (your own Skald). A place and a language each. |
+| <img src="docs/screenshots/ai-assistants.png" alt="AI and bots, Assistants, 30 days against the 30 before: Visitors sent by AI 174, Pages AI read for someone 767, AI collecting for training 949; which assistant sent people (ChatGPT 91, Perplexity 36, Claude 26, Gemini 15, Copilot 6) and which read for someone (ChatGPT-User 415, Perplexity-User 204, Claude-User 148); 9 pages AI can't read well with Let AI read the site better; the rest under Open the details" width="440"><br>**Assistants.** Who read your pages to answer someone. | <img src="docs/screenshots/ai-answers-profiles.png" alt="Settings, AI answers, tracking profiles: New York, London and Montréal, each with how often, tries, questions, the daily cap and the estimated cost a month" width="440"><br>**Tracking profiles** (your own Skald). A place and a language each. |
 | <img src="docs/screenshots/ai-read.png" alt="What the AI read before it sent a visitor: per assistant (ChatGPT, Perplexity, Claude, Gemini, Copilot), visits from its answers, how many it fetched pages for first, how many landed on a page it fetched, and likely visits kept apart" width="440"><br>**What the AI read before it sent a visitor.** | <img src="docs/screenshots/ai-fetch-formats.png" alt="What they fetch: every AI crawler fetch by what its address names (pages, Markdown, llms.txt, sitemaps, robots.txt), in total and per crawler" width="440"><br>**What AI fetches ask for.** Pages, `llms.txt`, Markdown, sitemaps. |
 | <img src="docs/screenshots/crawler-cost.png" alt="What each crawler costs: scanner probes, Googlebot, Scrapy, GPTBot, ClaudeBot, bingbot and others with requests, bytes sent, mean time, errors, distinct paths, re-crawl and last seen" width="440"><br>**What each crawler costs.** Requests, bytes, time, errors, re-crawls. | <img src="docs/screenshots/crawler-detail.png" alt="GPTBot's detail: requests per day, what it costs, the share from its own checked addresses, the pages it fetched, its status mix and countries" width="440"><br>**One crawler in detail.** Impostors filed apart. |
 | <img src="docs/screenshots/crawl-health.png" alt="AI and bots, Crawl health: the share of the sitemap each crawler fetched, then each crawler with its pages never fetched, pages not in the sitemap and errors" width="440"><br>**Crawl health.** Which sitemap pages each crawler reaches. | <img src="docs/screenshots/ai-assistant-cost.png" alt="What each assistant costs: requests, bytes sent, mean time, errors, distinct paths, re-crawl and last seen for ChatGPT-User, Perplexity-User and Claude-User" width="440"><br>**What each assistant costs.** Fetching live for a user. |
@@ -601,20 +612,20 @@ need your own Skald. Every image below is from the demo's sample data.
 
 | | |
 | :---: | :---: |
-| <img src="docs/screenshots/overview.png" alt="Overview, Summary for 90 days with the note that 62 of them are whole and verified: the period's dates, Include today and Compare switches, five key figures, a chart with each day's leads, and the countries and top pages" width="440"><br>**Overview.** The period at a glance, with its exact dates. | <img src="docs/screenshots/compare-mode.png" alt="Compare with the previous period switched on: Traffic, Sources with A, B and the change beside every source" width="440"><br>**Compare with…** Previous period, last year or any period. |
-| <img src="docs/screenshots/traffic-sources-grid.png" alt="Traffic, Sources, 30 days: one grid with segments for source type, social network, referring site and campaign, with visitors, the change, a trend, leads and lead rate, then Direct, likely (inferred): of 754 Direct visits, 54 likely a shared link, 20 a checkout return and 7 an in-app browser" width="440"><br>**Sources.** One grid; search, filters and sort in the address. | <img src="docs/screenshots/visitors.png" alt="Traffic, Visitors for 7 days: the visitor flow from source through four pages, and each visit with its time, country, city, device, source, new or returning, pages and time on site" width="440"><br>**Visitors.** The flow, then each visit page by page. |
-| <img src="docs/screenshots/direct-likely.png" alt="Traffic, Sources, Direct, likely (inferred), 90 days: of 1,452 Direct visits, 82 likely a shared link (Instagram 43, WhatsApp 39), 37 likely a checkout return (Stripe), 26 likely an in-app browser (Instagram app), the rest with no likely cause" width="440"><br>**Direct, likely.** What Direct probably was, as an estimate. | <img src="docs/screenshots/alerts-sale.png" alt="Site, Alerts: the Sale and Refund on a sale switches, off by default, under the other alert rules" width="440"><br>**Sale alerts.** One alert per sale, by mail or Slack. |
+| <img src="docs/screenshots/overview.png" alt="Overview, Summary for 90 days, 62 of them whole and verified: the period's dates, the note that the days before were not measured so nothing is compared, five key figures, a chart with each day's leads, What changed: is it working?, and More for this period for countries, top pages and the rest" width="440"><br>**Overview.** The period at a glance, with its exact dates. | <img src="docs/screenshots/compare-mode.png" alt="Traffic, Sources with Compare on by default (vs previous period): the Compare with menu open, with Previous period, Same period last year, a custom period and Turn compare off; the table shows B and the change beside every source" width="440"><br>**Compare, on by default** (2.42). Previous period, last year, any period, or off. |
+| <img src="docs/screenshots/traffic-sources-grid.png" alt="Traffic, Sources, 30 days against the 30 before: one grid with segments for source type, social network, referring site and campaign, with visitors, share, B, the change, a trend per day, leads and lead rate; Direct, likely, and the rest under Open the details" width="440"><br>**Sources.** One grid; search, filters and sort in the address. | <img src="docs/screenshots/visitors.png" alt="Traffic, Visitors for 7 days, as a List (Flow one click away): 578 visits, 437 by new visitors and 141 by returning ones; quick filters by source, device, country and new or returning, and each visit with its time, country, city, device, source, new or returning, pages, time on site and pages in order" width="440"><br>**Visitors.** Each visit page by page; the flow one click away. |
+| <img src="docs/screenshots/direct-likely.png" alt="Traffic, Sources, Direct, likely (inferred), 90 days: of 1,452 Direct visits, 82 likely a shared link (Instagram 43, WhatsApp 39), 37 likely a checkout return (Stripe), 26 likely an in-app browser (Instagram app), the rest with no likely cause" width="440"><br>**Direct, likely.** What Direct probably was, as an estimate. | <img src="docs/screenshots/alerts-sale.png" alt="Settings, Alerts, The rules in groups (Site health, Traffic, Crawlers & AI, Security, Sales), each with how many are on; Sales open: Sale, Sale alert minimum and Refund on a sale, off by default" width="440"><br>**Sale alerts.** Alerts in groups; one alert per sale, by mail or Slack. |
 | <img src="docs/screenshots/social-networks.png" alt="Traffic, Sources, Social network, 90 days: LinkedIn 360, X 71, Reddit 61, Hacker News 45, Facebook 18 and Instagram 10 visitors; X open: t.co, twitter.com, the X Android app and x.com, and the pages its visitors landed on" width="440"><br>**Social networks.** One row per network, every address added up. | <img src="docs/screenshots/across-sites.png" alt="All sites, Where visitors came from, 30 days: for each site, visitors from Search, Social, X, LinkedIn, Facebook, Instagram, Reddit, YouTube, AI and Direct" width="440"><br>**All your sites.** Each source side by side. |
-| <img src="docs/screenshots/visitors-drawer.png" alt="The visitor drawer: a visitor from Austin with 5 visits over 11 days, where they first came from (google.com, search engine), and each visit as a line of pages with the time between them, newest first, with Replay" width="440"><br>**One visitor, every visit.** Where they first came from, replayable. | <img src="docs/screenshots/filters.png" alt="The filter builder over Traffic, Visitors: country is USA or GBR, pages read at least 2 and source type is not direct, joined by All rules, 136 of 578 visits match, each rule's own count, and a name to save it as a view" width="440"><br>**Advanced filters.** AND, OR and groups; saved as views. |
-| <img src="docs/screenshots/places-cities.png" alt="Places and devices, Cities: visitors by city, each with its country's flag and three-letter code (New York, USA; San Francisco, USA; London, England, GBR), searchable and exported as shown" width="440"><br>**Cities.** Each visit's city, from a free city file. | <img src="docs/screenshots/search.png" alt="Traffic, Search with made-up Search Console figures: clicks, impressions, CTR and average position for 28 days, clicks per day with the provisional day dashed, top queries, pages, countries and devices, and Search Console clicks beside Skald's people from Google" width="440"><br>**Search.** Google's and Bing's figures beside Skald's own. |
-| <img src="docs/screenshots/retention.png" alt="Traffic, Retention: weekly cohorts of new visitors, the share of each who came back in each week after, and a retention curve" width="440"><br>**Retention.** Who came back, week by week. | <img src="docs/screenshots/reports-preview.png" alt="Settings, Reports: a monthly report for a client of example.com with its schedule, period, sections and recipients, and the preview of its mail" width="440"><br>**Client reports** (your own Skald). Branded, with a PDF. |
-| <img src="docs/screenshots/privacy-ip-choice.png" alt="Settings, Data retention, People: keep visitors' IP addresses as Full address, Shortened (203.0.113.57 kept as 203.0.113.0) or Don't keep" width="440"><br>**Shortened addresses.** Full, shortened or none. | <img src="docs/screenshots/privacy-notice.png" alt="Settings, Data retention: the wording for your privacy notice, made from this site's settings, with a Copy button" width="440"><br>**Privacy-notice wording.** Made from what the site keeps. |
-| <img src="docs/screenshots/integrations-status.png" alt="Settings, Integrations: a status line for the hook receiver, the script tag, each hook and the lead database, all OK" width="440"><br>**Integrations status.** Each road: working, or what to fix. | <img src="docs/screenshots/integrations.png" alt="Settings: signed Calendly and Stripe hooks with their deliveries, Calendly kept to one event type, and an outgoing webhook to a CRM" width="440"><br>**Integrations.** Signed webhooks from the tools you use. |
+| <img src="docs/screenshots/visitors-drawer.png" alt="The visitor drawer: a visitor from Austin with 5 visits over 11 days, where they first came from (google.com, search engine), and each visit as a line of pages with the time between them, newest first, with Replay" width="440"><br>**One visitor, every visit.** Where they first came from, replayable. | <img src="docs/screenshots/filters.png" alt="The filter builder over Traffic, Visitors: country is USA or GBR, pages read at least 2 and source type is not Direct, joined by All rules, 136 of 578 visits match, each rule's own count (329, 344 and 401 alone), and a name to save it as a view" width="440"><br>**Advanced filters.** AND, OR and groups; saved as views. |
+| <img src="docs/screenshots/places-cities.png" alt="Places and devices, Cities, with Compare on: visitors by city, each with its country's flag and three-letter code (New York, USA; San Francisco, USA; London, England, GBR), the period before (B) and the change, searchable and exported as shown" width="440"><br>**Cities.** Each visit's city, from a free city file. | <img src="docs/screenshots/search.png" alt="Traffic, Search with made-up Search Console figures: clicks, impressions, CTR and average position for 28 days, clicks per day with the provisional day dashed, top queries, pages, countries and devices, and Search Console clicks beside Skald's people from Google" width="440"><br>**Search.** Google's and Bing's figures beside Skald's own. |
+| <img src="docs/screenshots/retention.png" alt="Traffic, Retention: weekly cohorts of new visitors, the share of each who came back in each week after, and a retention curve" width="440"><br>**Retention.** Who came back, week by week. | <img src="docs/screenshots/reports-preview.png" alt="Settings, Mail & reports, New report: a monthly report for a client of example.com with Create the report, Preview and Download PDF, and the preview of its mail: the agency logo, Summary (2,102 visitors, 4,342 pages read, 144 from AI, 93 leads, 462 returning), visitors per day and where visitors came from" width="440"><br>**Client reports** (your own Skald). Branded, with a PDF. |
+| <img src="docs/screenshots/privacy-ip-choice.png" alt="Settings, Privacy, People: keep visitors' IP addresses as Full address, Shortened (203.0.113.57 kept as 203.0.113.0) or Don't keep, how many days visits keep their addresses, and leads' names and emails" width="440"><br>**Shortened addresses.** Full, shortened or none. | <img src="docs/screenshots/privacy-notice.png" alt="Settings, Privacy: the wording for your privacy notice, made from this site's settings, with a Copy button" width="440"><br>**Privacy-notice wording.** Made from what the site keeps. |
+| <img src="docs/screenshots/integrations-status.png" alt="Settings, Leads & tools, Connected (3): your site's server (lead), Calendly and Stripe, each Working with when it last sent something" width="440"><br>**Leads & tools status.** Each road: working, or what to fix. | <img src="docs/screenshots/integrations.png" alt="Settings, Leads & tools: the site picker, a broken script tag with a Fix button, Connected (3): your site's server, Calendly and Stripe, each Working; the tools not connected yet; Send each lead out to a CRM, Zapier or Slack, and Search Console & Bing" width="440"><br>**Leads & tools.** Signed webhooks from the tools you use, and what to fix. |
 | <img src="docs/screenshots/data-quality.png" alt="Site, Data quality for 15 to 21 Oct: each day's grade, lines, unreadable lines, duplicates, browser-like requests moved to bots, and Not counted as pages, such as 11 requests (1 by a person) on 20 Oct: Markdown copies, the HTML sitemap page and WordPress machine files, kept in the requests but out of the page views" width="440"><br>**Data quality** (2.36). What was not counted as a page, each day. | <img src="docs/screenshots/summary-mail.png" alt="The daily summary mail to owner@example.com, 7 things to look at on 1 site: for example.com, Security (4, 4 new: three stack advisories and a possible exposure of /.env.production) and To-dos to fix (3: send old pages somewhere useful, fix the server errors, give AI the Markdown copies it asks for), each with what to do and a link straight to it" width="440"><br>**One summary mail a day** (2.36). Security, to-dos and set-up, every site. |
-| <img src="docs/screenshots/site-picker.png" alt="Choose a site, after sign-in: a card for each site with its logo, a green Live dot and today's visitors, leads and demos booked, and an Add a site card" width="440"><br>**Choose a site.** Each site's logo and today so far. | <img src="docs/screenshots/site-switcher.png" alt="The site switcher open from the menu's site button: each site with its logo and today's visitors, then All sites" width="440"><br>**Site switcher.** Every site, one click away. |
-| <img src="docs/screenshots/settings-team.png" alt="Settings, Team of Example: these people see example.com only, a link to the other organisation the reader is in, then members, roles and invites" width="440"><br>**Team & access.** Roles, invites, two-step sign-in; each team says which sites it sees. | <img src="docs/screenshots/logo-settings.png" alt="Settings, Sites, Logo: the logo at three sizes, found on the site, and the choices: from the site, upload my own, or a letter on a colour" width="440"><br>**Site logo.** From the site, an upload, or a letter. |
+| <img src="docs/screenshots/site-picker.png" alt="Choose a site, after sign-in: a card for each site with its logo, a green Live dot and today's visitors, leads and demos booked, and an Add a site card" width="440"><br>**Choose a site.** Each site's logo and today so far. | <img src="docs/screenshots/site-switcher.png" alt="The site switcher open from the menu's site button: example.com with copy and open buttons, blog.example.com and shop.example.com, each with its logo, then All sites" width="440"><br>**Site switcher.** Every site, one click away. |
+| <img src="docs/screenshots/settings-team.png" alt="Settings, People: Team and Sign-in rules; the members with email, name, role, last seen and two-step sign-in; 1 invite not accepted yet; and the sites these people see" width="440"><br>**People.** Roles, invites, two-step sign-in; each team says which sites it sees. | <img src="docs/screenshots/logo-settings.png" alt="Settings, Site, Logo: the logo at three sizes, and where it comes from: from the site, upload my own, or a letter on a colour, with Save and Check the site again now" width="440"><br>**Site logo.** From the site, an upload, or a letter. |
 | <img src="docs/screenshots/mcp-claude.png" alt="Example: adding Skald's MCP server with one command, and the answer of its ai_activity tool" width="440"><br>**MCP in Claude.** Ask about your traffic in plain words. | <img src="docs/screenshots/skald-doctor.png" alt="Terminal output of skald doctor: one line per part of the install, OK or OFF, with its fix" width="440"><br>**`skald doctor`.** Every part checked. |
-| <img src="docs/screenshots/help.png" alt="In-app help: a guide for each topic in plain words, with where to click and what Skald keeps" width="440"><br>**Help.** Every page explained, in plain words. | <img src="docs/screenshots/mobile.png" alt="Skald on a phone: Overview today, live, with the visitors on the site now and today's figures" width="220"><br>**On a phone.** The same figures, a drawer menu and a bottom bar. |
+| <img src="docs/screenshots/help.png" alt="In-app help: a search box and six groups of guides (Start here, Your visitors, Leads and sales, AI and bots, Connect and set up, Security and privacy), in plain words" width="440"><br>**Help.** Six groups of guides, in plain words. | <img src="docs/screenshots/mobile.png" alt="Skald on a phone: Overview today, live, with 5 visitors on the site now and today's figures, the top bar with Today, 7, 30 and 90 days, More, Compare and Filters, and a bottom bar of Overview, Traffic, Leads, AI & bots, Security, Site and Menu on one row" width="220"><br>**On a phone.** The same figures, and every section on one bottom bar. |
 
 ## Quick start in 60 seconds
 
@@ -741,7 +752,7 @@ shared across subdomains ([docs/INTEGRATIONS.md](docs/INTEGRATIONS.md#the-script
 **Incoming webhooks**, each checked against its tool's own signature on the raw body (a repeat
 changes nothing): Calendly and Cal.com bookings, HubSpot meetings, contacts and deals, Stripe
 payments, Typeform, the signed `json` hook for Zapier, Make, n8n or any script, and the signed
-`lead` hook from your own server. Settings › This site › Leads & integrations shows each road's state and flags a lead
+`lead` hook from your own server. Settings › This site › Leads & tools shows each road's state and flags a lead
 that arrived by two roads. The Help guides "Pick your road" and "Send leads from your backend in 5
 minutes" cover each kind of site; everything an app needs to send, check and read back its leads is
 on one page: [docs/LEADS-REFERENCE.md](docs/LEADS-REFERENCE.md).
@@ -898,12 +909,12 @@ flowchart LR
   (`privacy.keep_ips`, 395 days by default) and leads' names and emails (`conversions.identity:
   full`), apart from history and behind sign-in, so admins can follow a person across days. An
   install upgraded from before 2.4.0 keeps neither until you turn them on (Settings › This site ›
-  Privacy & retention > People, or `SKALD_KEEP_IPS=1` / `SKALD_IDENTITY=full`). Your privacy notice must say
+  Privacy > People, or `SKALD_KEEP_IPS=1` / `SKALD_IDENTITY=full`). Your privacy notice must say
   so first.
 - **Shortened addresses** (2.15). Keep each visit's IP with its last part removed (203.0.113.57 is
   kept as 203.0.113.0; IPv6 keeps its first 48 bits): country, city and counts still work, and no
   exact address is kept (`privacy.keep_ips: short`, `SKALD_KEEP_IPS=short`). Counted twice too.
-- **Wording for your privacy notice** (2.15). Settings › This site › Privacy & retention writes a short text for your
+- **Wording for your privacy notice** (2.15). Settings › This site › Privacy writes a short text for your
   privacy page from what the site really keeps, ready to copy. A starting point, not legal advice. Off, raw addresses stay only in your own log (14 days), the 6-hour request log (Site > Requests) and
   today's AI activity.
 - **One true delete.** `skald forget` removes a person's address, visits, conversions, name and
@@ -959,7 +970,7 @@ visitor's device to count them. The optional script tag is the one part that fol
 can wait for consent (`data-consent="required"`), does nothing when Do Not Track or Global Privacy
 Control is on, and keeps no visitor ID unless you turn IDs on. The log holds IP addresses, which are
 personal data in places like the EU: you choose whether Skald keeps them in full, shortened (the last
-part removed) or not at all, and for how long, and Settings › This site › Privacy & retention writes the wording for
+part removed) or not at all, and for how long, and Settings › This site › Privacy writes the wording for
 your privacy notice.
 
 **What if my site is on Vercel, Netlify or a static host?**

@@ -1,6 +1,6 @@
 """Wording for a site's privacy notice, made from what the site's settings keep.
 
-Settings > Privacy & retention shows it ("Wording for your privacy notice") with a
+Settings > Privacy shows it ("Wording for your privacy notice") with a
 Copy button. It is built from the same functions that decide what is kept,
 so it can never say something the settings do not do:
 

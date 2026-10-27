@@ -30,7 +30,7 @@ Worker's are lost. These mails warn its owners and admins before that happens.
   switch     `saas.usage_alerts: false` stops the mails and the dashboard's banner; on by
              default when saas is on. A self-hosted install (saas off) sees no change
 
-The mail (saas/mails.usage_mail) has one button to Settings > Billing & usage on the
+The mail (saas/mails.usage_mail) has one button to Settings > Billing on the
 organisation's own dashboard: its first site's `dashboard.url` (multisite.own_url, the
 2.36.1 rule), else access.base_url + /traffic/<site>/.
 """
@@ -198,16 +198,16 @@ def _send(db, org_id, config, plan, month, limit, used, top, link, send) -> dict
 # ------------------------------------------------------------------- the runs
 
 def billing_link(org_sites: list[str], urls: dict, config) -> str | None:
-    """Settings > Billing & usage on the organisation's own dashboard: its first site (by name)
+    """Settings > Billing on the organisation's own dashboard: its first site (by name)
     with a dashboard.url, else the install's base address + /traffic/<site>/."""
     from ..accounts import links
     for site in sorted(org_sites):
         url = str(urls.get(site) or "").split("#", 1)[0]
         if url:
-            return url + ("" if url.endswith("/") else "/") + "#settings/billing"
+            return url + ("" if url.endswith("/") else "/") + "#settings/org/billing"
     root = links.base_url(config)
     if root and org_sites:
-        return f"{root}/traffic/{sorted(org_sites)[0]}/#settings/billing"
+        return f"{root}/traffic/{sorted(org_sites)[0]}/#settings/org/billing"
     return None
 
 

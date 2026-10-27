@@ -6,7 +6,7 @@ the rows a sync removed, the pages of an ID that converted, the identities they
 point to and the hook spool's lines are never deleted by the nightly prune;
 the delivery log keeps its own 90 days. `journeys.vid_days` (1 to 400) still
 takes the pages of an ID with no conversion. Both are settings per site
-(Settings > Data retention > Leads, `skald settings set`), each site pruned
+(Settings > Privacy > Leads, `skald settings set`), each site pruned
 by its own. The privacy-notice wording says "until you ask us to delete them",
 and the second count still agrees over days older than any window.
 

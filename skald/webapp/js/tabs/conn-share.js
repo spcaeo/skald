@@ -11,6 +11,8 @@ import { why, when, confirmIn } from "./forms.js";
 import { codeBlock } from "./conn-ui.js";
 import { stepped } from "../overlays.js";
 import { read } from "../state.js";
+import { copyIf } from "../urlactions.js";
+import { statusRow } from "./set-ui.js";
 
 const TASK_WORDS = { send: "sending this site's visits", script: "the script tag", hook: "the lead hook", nextjs: "counting pages opened inside the site" };
 
@@ -64,32 +66,34 @@ export function shareBox(site, task, method = "") {
   return box;
 }
 
-// Settings > Tokens & links: the links made, and Revoke.
+// Settings > AI assistants > Tokens & links: the links made, one row each (what it is for, its
+// site, when it ends, whether it was opened and its secret shown), with Revoke on the row.
 export function sharesSection() {
-  const list = h("div", null, h("p", { class: "empty" }, "Loading the links..."));
+  const list = h("div", { class: "set-list" }, h("p", { class: "empty" }, "Loading the links..."));
+  const row = (s, reload) => {
+    const cell = h("span", { class: "tok-act" });
+    const drawCell = () => {
+      const rv = h("button", { type: "button", class: "btn danger", "aria-label": `Revoke the link ${s.ref}` }, "Revoke");
+      rv.addEventListener("click", () => confirmIn(cell, "Revoke this link? Its page stops working at once.", "Yes, revoke", async () => {
+        const res = await call("sites/unshare", { ref: s.ref });
+        if (res.ok) reload(); else drawCell();
+      }, drawCell));
+      cell.replaceChildren(rv);
+    };
+    drawCell();
+    const what = TASK_WORDS[s.task] || s.task || "a set-up";
+    const secret = s.task === "script" ? "" : s.revealed_at ? " · secret shown" : " · secret not shown";
+    return statusRow({ iconName: "out", title: `${what[0].toUpperCase()}${what.slice(1)}${s.method ? ` (${s.method})` : ""}`,
+      line: [copyIf("text", s.site || "", null, { label: "site", cls: "" }), " · ends ", when(s.expires_at), " · ", s.views ? `opened ${s.views} times, first ${when(s.viewed_at)}` : "not opened yet", secret],
+      kind: s.views ? "info" : "off", word: s.views ? "Opened" : "Not opened", action: cell });
+  };
   const reload = () => call("sites/shares").then((r) => {
     if (!r.ok) { list.replaceChildren(h("p", { class: "empty" }, why(r, "The links could not be loaded."))); return; }
     const live = (r.shares || []).filter((s) => s.state === "open" || s.state === "shown");
     if (!live.length) { list.replaceChildren(h("p", { class: "empty" }, "No links shared now.")); return; }
-    list.replaceChildren(h("div", { class: "scroll" }, h("table", { class: "rows-mid" }, h("caption", { class: "vh" }, "Shared links"),
-      h("thead", null, h("tr", null, ["For", "Site", "Ends", "Opened", "Secret"].map((t) => h("th", { scope: "col" }, t)), h("th", { scope: "col", class: "n" }, h("span", { class: "vh" }, "Action")))),
-      h("tbody", null, live.map((s) => {
-        const cell = h("td", { class: "n" });
-        const drawCell = () => {
-          const rv = h("button", { type: "button", class: "btn danger", "aria-label": `Revoke the link ${s.ref}` }, "Revoke");
-          rv.addEventListener("click", () => confirmIn(cell, "Revoke this link? Its page stops working at once.", "Yes, revoke", async () => {
-            const res = await call("sites/unshare", { ref: s.ref });
-            if (res.ok) reload(); else drawCell();
-          }, drawCell));
-          cell.replaceChildren(rv);
-        };
-        drawCell();
-        return h("tr", null, h("td", null, TASK_WORDS[s.task] || s.task, s.method ? ` (${s.method})` : ""), h("td", { class: "path nm" }, s.site),
-          h("td", { class: "muted" }, when(s.expires_at)), h("td", { class: "muted" }, s.views ? `${s.views} times, first ${when(s.viewed_at)}` : "not yet"),
-          h("td", { class: "muted" }, s.task === "script" ? "none" : s.revealed_at ? "shown" : "not shown"), cell);
-      })))));
+    list.replaceChildren(...live.map((s) => row(s, reload)));
   });
   reload();
-  return h("section", { class: "s" }, h("h2", null, "Shared links"),
-    h("p", { class: "sub" }, "Pages made with Share with your developer. Each shows one task's steps for one site, with no sign-in, until it ends or you revoke it."), list);
+  return h("section", { class: "ui-card set-rows tok-rows" }, h("div", { class: "ui-card-h" }, h("h2", null, "Shared links"),
+    h("p", { class: "sub" }, "Pages made with Share with your developer. Each shows one task's steps for one site, with no sign-in, until it ends or you revoke it.")), list);
 }

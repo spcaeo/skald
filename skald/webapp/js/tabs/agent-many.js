@@ -174,8 +174,8 @@ export function openLines(want = { view: "all", site: "" }) {
     return h("div", { class: "am-more" },
       st.data?.mcp?.on === false ? answerBox("warn", "MCP is switched off on this Skald server.", h("p", null, "Whoever runs your Skald turns it on (mcp.enabled; Docker: SKALD_MCP=true). Until then, use the site's line above.")) : null,
       box, h("ul", { class: "am-safe" }, W.TWO_SAFE.map((x) => h("li", null, x))),
-      h("p", { class: "note" }, "See or revoke it in ", h("a", { href: "#settings/ai/tokens" }, "Tokens & links"), ". More on assistants: ",
-        h("a", { href: "#settings/ai/mcp" }, "AI assistant (MCP)"), ". No MCP? The site's own line (Make its line) does the same in one paste."));
+      h("p", { class: "note" }, "See or revoke it in ", h("a", { href: "#settings/ai/assistants?sub=tokens" }, "Tokens & links"), ". More on assistants: ",
+        h("a", { href: "#settings/ai/assistants" }, "AI assistants"), ". No MCP? The site's own line (Make its line) does the same in one paste."));
   }
 
   // Several new sites at once: each added as Add a site adds it, then each one's own line.

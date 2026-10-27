@@ -11,7 +11,7 @@ name the event types that are its own:
     hooks.calcom.event_types     event-type ids (1234) or slugs ("30min", or
                                  the page's address https://cal.com/acme/30min)
 
-Set in Settings > Leads & integrations (a settings row for the site, settings_store
+Set in Settings > Leads & tools (a settings row for the site, settings_store
 "hooks.calendly.event_types"), or in config.yml: nested
 `hooks: {calendly: {event_types: [...]}}` (PyYAML), or flat
 `hooks: {calendly_event_types: [...]}` (the small parser). Empty or unset:

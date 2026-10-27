@@ -1,4 +1,4 @@
-// Collect data > Send logs, MCP and API: the words the pages and their dialogs share. What a
+// Data > Send logs, MCP and API: the words the pages and their dialogs share. What a
 // token is for, said from its scopes; the ways a site's visits can reach
 // Skald; and the common problems, each with its likely cause and the fix.
 // No DOM here, so tests/js/connections.mjs checks it directly.
@@ -43,8 +43,8 @@ export const REASON_FIX = {
   not_here: "This Skald does not process the site. Check the site name in the send address.",
   rate_limited: "Nothing to do: the shipper waits and sends the lines a little later.",
   day_full: "Nothing to do: the lines are sent after midnight UTC. Ask for a bigger daily limit if this happens every day.",
-  plan_limit: "Choose a bigger plan in Settings > Billing & usage. Nothing is lost.",
-  read_only: "Settle the bill in Settings > Billing & usage. Nothing is lost.",
+  plan_limit: "Choose a bigger plan in Settings > Billing. Nothing is lost.",
+  read_only: "Settle the bill in Settings > Billing. Nothing is lost.",
   disk: "Ask whoever runs Skald's server to free disk space. Nothing is lost.",
   bad_format: "Set the site's log format to Detect it (auto) in Settings > Sites.",
   bad_batch: "Update the shipper: make a new command and run it again on the server.",

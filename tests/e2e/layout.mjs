@@ -40,7 +40,10 @@ if (p.url().includes("/traffic-auth/login") && auth) {
   await p.waitForURL((u) => !u.pathname.startsWith("/traffic-auth/"));
   await p.goto(`${base}#overview/summary`, { waitUntil: "networkidle" });
 }
-const views = await p.evaluate(() => [...document.querySelectorAll(".view-sel option")].map((o) => o.value));
+// The page groups: in the Filters panel since 2.42 (it was a list in the top bar).
+await p.click(".bar .fp-btn");
+const views = await p.evaluate(() => [...document.querySelectorAll(".fp-group option")].map((o) => o.value));
+await p.keyboard.press("Escape");
 const groups = views.length ? views : ["all"];
 let pages = 0;
 for (const view of groups) {

@@ -146,7 +146,7 @@ def site_configs(config: dict, config_path=None) -> dict[str, dict]:
         for got in others(config, Path(config_path)):
             if got.get("_dashboard_site") and moved:
                 # A dashboard site inherits no `hooks:`, but its secret is
-                # kept in the install's secrets file (Settings > Leads & integrations).
+                # kept in the install's secrets file (Settings > Leads & tools).
                 got = {**got, "hooks": {"secrets": moved}}
             out[site_name(got)] = got
     except SystemExit:
@@ -241,7 +241,7 @@ class Receiver:
         """A signature that did not match. A test Skald's own tools signed and sent
         (X-Skald-Test: 1: Send a test, `hooks test`, the shared page's Test) is a
         failed test, never a refusal of the tool's own deliveries: Settings and the
-        set-up checklist read "bad_signature" as real leads refused (roads.py)."""
+        set-up lines read "bad_signature" as real leads refused (roads.py)."""
         if headers.get("x-skald-test") == "1":
             self._refused(site, tool, "test_failed", 401, "the signature did not match")
         else:

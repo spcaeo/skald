@@ -7,7 +7,7 @@
 // press: a leaked code must never change what Skald keeps. The settings are the report's
 // site's own (GET <that site's page>/settings), so a new site's are not the page's.
 // 2.40: a Search Console property is "Connect it" (POST integrations/search/connect, as
-// Settings > Leads & integrations > Search Console & Bing does, with all 16 months of history).
+// Settings > Leads & tools > Search Console & Bing does, with all 16 months of history).
 
 import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
@@ -109,7 +109,7 @@ export function recsBox(report, site) {
     if (search) {
       recs.push(rec(site, { kind: "search", head: `Connect Google Search Console: ${search.source}`, body: { site, ...search }, path: "integrations/search/connect",
         says: [h("p", null, "Your agent found the site's Search Console property."),
-          h("p", { class: "note" }, r.search.robot_added === true ? "It says Skald's robot address was added as a user there." : "Add Skald's robot address as a Restricted user there first (Settings > Leads & integrations > Search Console & Bing shows it), or the connect is refused.")],
+          h("p", { class: "note" }, r.search.robot_added === true ? "It says Skald's robot address was added as a user there." : "Add Skald's robot address as a Restricted user there first (Settings > Leads & tools > Search Console & Bing shows it), or the connect is refused.")],
         done: "Connected. Skald syncs its figures in the background: the last 16 months first." }));
     }
     if (!recs.length) return;

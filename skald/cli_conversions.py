@@ -391,7 +391,7 @@ def cmd_conversions_list(ctx) -> int:
 def cmd_prune(ctx, quiet: bool = False) -> int:
     folder = _folder(ctx)
     db_path = store.path_for(ctx.config, folder)
-    # Each site by its own days when Settings > Privacy & retention set them
+    # Each site by its own days when Settings > Privacy set them
     # (settings_store.prune_plan); conversions.retention_days 0 keeps leads,
     # their pages and the spool for good.
     from .settings_store import prune_plan

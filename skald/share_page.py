@@ -87,7 +87,7 @@ def _hook_secret(c: Ctx):
     tool = e["method"]
     if tool in OWN_SECRET:
         return c.no(409, "This tool signs with a secret it makes itself; paste it in Settings > "
-                         "Leads & integrations instead.")
+                         "Leads & tools instead.")
     conf = hooks_mod.site_configs(c.config, c.config_path).get(c.site) or c.config
     if secrets_store.env_name(conf, c.site, tool):
         return c.no(409, "This hook's secret is set on the server; ask its admin.")

@@ -1,6 +1,6 @@
 """Filling past days for page groups (views), from the raw log.
 
-A view saved in Settings > Site details > Views is counted from the next run on. Its
+A view saved in Settings > Site > Views is counted from the next run on. Its
 past days stay empty ("not recorded for this group") until they are counted
 again from the raw log, which holds only the last days the server keeps
 (logrotate's 14 on a Debian or Ubuntu default). This module does that:

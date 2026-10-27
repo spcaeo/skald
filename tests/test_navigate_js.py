@@ -159,5 +159,38 @@ class Node(unittest.TestCase):
         self.assertIn("settings-menu: all passed", self.run_js("settings-menu.mjs"))
 
 
+    def test_settings_leads_and_tools_page(self):
+        """Settings v2 (js/tabs/set-leads.js): one primary beside the title, connected tools as
+        rows with a status pill, a red line with Fix for what is broken, the rest one quiet line,
+        and a row's details in a drawer whose tool id is in the address."""
+        self.assertIn("set-leads: all passed", self.run_js("set-leads.mjs"))
+
+    def test_settings_account_audit_and_tokens_rows(self):
+        """Settings v2 (js/tabs/account.js, auditlog.js, tokens.js, conn-share.js): rows with
+        pills and one primary; each row's form in a drawer whose part is in the address
+        (edit=<id>, js/tabs/set-edit.js), a link opening it on its own."""
+        self.assertIn("set-account: all passed", self.run_js("set-account.mjs"))
+
+    def test_settings_alerts_page(self):
+        """Settings › This site › Alerts (js/tabs/set-alerts.js): the state line never counts
+        rules as on while alerts are off; Turn alerts on is the one primary only while off; the
+        rules in folds by area with "N of M on"; a rule is one line, its threshold behind "?";
+        the sale minimum in a drawer (edit=alertmin)."""
+        self.assertIn("set-alerts: all passed", self.run_js("set-alerts.mjs"))
+
+    def test_settings_forms_become_rows(self):
+        """Settings v2 (js/tabs/set-parts.js, prefs.js, set-internal.js, reports.js,
+        ai-answers-settings.js): Mail, Privacy, Site, Internal traffic, Client reports and AI
+        answers as rows with pills and one primary; each form in a drawer (edit=<id>), an
+        internal address keyed by a code, never the address."""
+        self.assertIn("set-parts: all passed", self.run_js("set-parts.mjs"))
+
+
+    def test_settings_todo_sources_order_and_words(self):
+        """Settings v2 To do (js/settings-todo.js): each source a row, most important first,
+        the count's words and the one button's words."""
+        self.assertIn("settings-todo: all passed", self.run_js("settings-todo.mjs"))
+
+
 if __name__ == "__main__":
     unittest.main()

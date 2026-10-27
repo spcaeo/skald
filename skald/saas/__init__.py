@@ -8,7 +8,7 @@ nothing in the accounts file changes: a self-hosted install is as before.
       enabled: true
       signup: true                 # /traffic-auth/signup
       allowed_domains: [example.com]
-      billing: stripe              # Settings > Billing & usage and the Stripe webhook
+      billing: stripe              # Settings > Billing and the Stripe webhook
       grace_days: 7
       usage_alerts: true           # 80/90/100 % mails and banner (the default)
       default_plan: pro

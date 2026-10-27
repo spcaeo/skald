@@ -14,7 +14,7 @@
 import * as S from "./state.js";
 import { opened as routeOpened, closed as routeClosed } from "./overlays.js";
 import { h, n, toast, reduced, ICON } from "./ui.js";
-import { rangeOf, need } from "./data.js";
+import { rangeOf, need, viewList } from "./data.js";
 import { opt } from "./sections.js";
 import { shown } from "./labels.js";
 import { short } from "./ui.js";
@@ -275,6 +275,7 @@ export function openFilters(m, s, from) {
             onclick: async () => { close(false); await need(m, ["page_trends"]).catch(() => null); S.set({ tab: "traffic/pages", chgfrom: changedSince(m), psort: "changed", page: "" }); } }, "Changed in the last 30 days →"))),
         status),
       h("div", { class: "fp-box" },
+        groupPick(m, s, () => close(false)),
         h("div", { class: "fp-mode" }, h("span", null, "Show visits that match"),
           segmented([["all", "All rules", "AND"], ["any", "Any rule", "OR"]], draft.mode, (k) => { draft.mode = k; focusKey = `m-${k}`; draw(); }, "Match all rules or any", "m")),
         h("ol", { class: "fp-rules" }, rows),
@@ -346,11 +347,23 @@ function segmented(options, value, onPick, label, key) {
     h("button", { type: "button", "aria-pressed": String(k === value), "data-k": `${key}-${k}`, onclick: () => { if (k !== value) onPick(k); } }, words, hint ? h("small", null, hint) : null)));
 }
 
+/* The page group (Settings › Views), here since 2.42: it was a list of its own in the top bar.
+   It narrows every tab at once, so it applies on the spot, not with the rules below. */
+const groupName = (m, s) => (s.view && s.view !== "all" ? (viewList(m).find(([k]) => k === s.view) || [, s.view])[1] : "");
+function groupPick(m, s, close) {
+  const views = viewList(m);
+  if (views.length < 2) return null;
+  const sel = h("select", { "data-k": "group", "aria-label": "Page group" }, views.map(([k, nm]) => h("option", { value: k, selected: k === (s.view || "all") }, nm)));
+  sel.addEventListener("change", () => { close(); S.set({ view: sel.value }); });
+  return h("label", { class: "fp-group" }, h("span", null, "Page group"), sel);
+}
+
 // ---- in the top bar ------------------------------------------------------------------------
 export function filtersButton(m, s) {
-  const k = fromState(s).items.length;
+  const group = groupName(m, s);
+  const k = fromState(s).items.length + (group ? 1 : 0);
   const b = h("button", { type: "button", class: "btn fp-btn", "aria-haspopup": "dialog", "aria-expanded": "false", html: ICON.filter,
-    "aria-label": k ? `Filters, ${k} active` : "Filters" }, h("span", { class: "f-l" }, "Filters"), k ? h("span", { class: "count", "aria-hidden": "true" }, String(k)) : null);
+    "aria-label": k ? `Filters, ${k} active${group ? `, page group ${group}` : ""}` : "Filters" }, h("span", { class: "f-l" }, "Filters"), k ? h("span", { class: "count", "aria-hidden": "true" }, String(k)) : null);
   b.addEventListener("click", () => (open ? open.close(true) : openFilters(m, S.read(), b)));
   return b;
 }
@@ -358,7 +371,10 @@ export function filtersButton(m, s) {
 /* The chips: each top rule or group, removable; greyed where this tab cannot apply it. */
 export function filterChips(m, s, { noData = false } = {}) {
   const tree = fromState(s);
-  if (!tree.items.length || noData) return h("div", { class: "chips", "aria-label": "Active filters" });
+  const group = groupName(m, s);
+  if ((!tree.items.length && !group) || noData) return h("div", { class: "chips", "aria-label": "Active filters" });
+  const groupChip = group ? h("span", { class: "chip" }, "Page group ", h("b", null, group),
+    h("button", { type: "button", "aria-label": `Show all pages, not only the page group ${group}`, onclick: () => S.set({ view: "all" }) }, "×")) : null;
   const drop = (item) => S.set(toState({ mode: tree.mode, items: tree.items.filter((x) => x !== item) }));
   const chips = tree.items.map((x) => {
     const on = applies(s, x, tree);
@@ -373,7 +389,7 @@ export function filterChips(m, s, { noData = false } = {}) {
   });
   const join = tree.items.length > 1 ? h("span", { class: "chips-join" }, tree.mode === "any" ? "Any of" : "All of") : null;
   const edit = h("button", { type: "button", class: "chip-edit", onclick: (e) => openFilters(m, S.read(), document.querySelector(".fp-btn") || e.currentTarget) }, "Edit filters");
-  return h("div", { class: "chips", "aria-label": "Active filters" }, join, chips, edit);
+  return h("div", { class: "chips", "aria-label": "Active filters" }, groupChip, join, chips, edit);
 }
 
 /* What this tab cannot apply, said once at the top, with where it does apply: a single

@@ -15,7 +15,7 @@ Your server log already counts visits and pages. It cannot see what happens *ins
 
 You need to be an admin of the site.
 
-1. Open **Settings > This site > Collect data > Script tag & goals**, or go to [Script tag & goals](#settings/site/collect?sub=script).
+1. Open **Settings > This site > Data > Script tag & goals**, or go to [Script tag & goals](#settings/site/data?sub=script).
 2. If you manage more than one site, choose the site at the top.
 3. Under **The script tag**, tick the options you need (see "Options" below). The tag updates as you tick.
 4. Copy the tag.
@@ -32,14 +32,14 @@ The tag looks like this. Always copy yours from the page, because the address an
 
 If Collect data is not in your Settings menu, your server does not use accounts, or you are not an admin. Ask the person who runs your Skald server for the tag.
 
-Or let your AI agent add it: on the site's **Set up** list, press **Set up** on **Script tag events**, then pick your agent. It gets one line, checks whether the tag is already in your shared `<head>`, adds it only if it is missing, and reports back. See [Your AI agent, in every set-up dialog](connections.md#your-ai-agent-in-every-set-up-dialog).
+Or let your AI agent add it: on **Settings > To do** (or the site's **Set up** list on Overview), press the **Script tag events** line, then pick **My AI agent**. It gets one line, checks whether the tag is already in your shared `<head>`, adds it only if it is missing, and reports back. See [Your AI agent, in every set-up dialog](connections.md#your-ai-agent-in-every-set-up-dialog).
 
 ## More than one site
 
 Since Skald 2.9.0, every site on your Skald can use the tag, not only the first one.
 
 - Each site's events go to that site. Skald knows the site by the address the page is on.
-- A site added from the dashboard takes events from its own **Host names** ([Site details](#settings/site/details), under **Settings > This site > Site details**). Nothing else to set. This works once the person who runs your Skald server has turned the tag on for the first site.
+- A site added from the dashboard takes events from its own **Host names** ([Site](#settings/site/details), under **Settings > This site > Site > Names & time**). Nothing else to set. This works once the person who runs your Skald server has turned the tag on for the first site.
 - A host name you add there works within a minute.
 - Anonymous visitor IDs (below) are set per site. One site can have them on and another off.
 
@@ -59,7 +59,7 @@ Some ad blockers stop scripts that load from another address. To keep the tag on
 
 The person who runs your Skald server must also tell it to trust your site's server for the visitor's address. Without that, every visitor looks like one address, and the limit on events per visitor applies to all of them together. Skald uses the address only in memory and never keeps it.
 
-The set-up dialog **Add the script tag**, step 2, has these lines for nginx, Apache and Caddy under **Advanced: serve it from your own domain**. [Send logs](#settings/site/collect) > **Send this site's visits to Skald** > **Only the script tag** shows them too, and tests the tag. See [Connections](connections.md).
+The set-up dialog **Add the script tag**, step 2, has these lines for nginx, Apache and Caddy under **Advanced: serve it from your own domain**. [Send logs](#settings/site/data) > **Send this site's visits to Skald** > **Only the script tag** shows them too, and tests the tag. See [Connections](connections.md).
 
 ## Options
 
@@ -148,7 +148,7 @@ Visitor IDs let Skald follow one browser's anonymous journey up to a conversion.
 
 ### Share across subdomains without changing the tag
 
-If your web developer cannot add `data-share-subdomains="true"` to the tag, an admin can switch sharing on in Skald instead of the tag: **Settings > This site > Collect data > Script tag & goals > Share the ID across subdomains**. The tag stays exactly as it is.
+If your web developer cannot add `data-share-subdomains="true"` to the tag, an admin can switch sharing on in Skald instead of the tag: **Settings > This site > Data > Script tag & goals > Share the ID across subdomains**. The tag stays exactly as it is.
 
 - The tag learns it from Skald's answer to its first page view, and remembers the answer for a day in the browser's local storage (`skald.sh`). So a visitor's browser starts sharing on its next visit, and at the latest a day after you switch it on.
 - Switching it off works the same way: within a day, each browser stops sharing and deletes the shared cookie.
@@ -214,7 +214,7 @@ With visitor IDs on, the tag adds the visitor ID to every Calendly embed and Cal
 
 > Your own office is likely marked as internal traffic. Its events are kept apart as "ours" and not shown with people's. Test from a phone on mobile data, or see [Internal traffic](internal-traffic.md).
 
-An admin can also press **Test connection** in [Send logs](#settings/site/collect) > **Send this site's visits to Skald**, with **Only the script tag** chosen. It says whether a page opened with the tag and how many events were counted.
+An admin can also press **Test connection** in [Send logs](#settings/site/data) > **Send this site's visits to Skald**, with **Only the script tag** chosen. It says whether a page opened with the tag and how many events were counted.
 
 If you know your browser's developer tools, open the Network panel. Each event is a request to `traffic-beacon`, on your Skald server (or on your own site, if you serve the tag from there). An answer of 204 means it was counted. An answer of 202 means it was taken and nothing was kept, which is normal for page views when visitor IDs are off.
 
@@ -224,6 +224,6 @@ If you know your browser's developer tools, open the Network panel. Each event i
 - `skald.js` does not load: copy the tag again. If you serve it from your own domain, your web server does not pass `/traffic-js/` on to Skald yet.
 - Requests go to your own site's `/traffic-beacon` and are answered 308, 404 or 405: an older tag or script. Copy the tag again, or pass `/traffic-beacon` on to Skald.
 - Your page's Content-Security-Policy leaves your Skald server out of `connect-src`: the browser blocks every event. Add it.
-- Requests to `/traffic-beacon` are refused (403): the page's address is not on the server's list of allowed origins. For a site added from the dashboard, check that the page's exact host name (with or without `www.`) is in its **Host names** under **Settings > This site > Site details**.
+- Requests to `/traffic-beacon` are refused (403): the page's address is not on the server's list of allowed origins. For a site added from the dashboard, check that the page's exact host name (with or without `www.`) is in its **Host names** under **Settings > This site > Site > Names & time**.
 - Your browser sends Do Not Track or Global Privacy Control.
 - The tag waits for consent and your banner never calls `skald('consent', true)`.

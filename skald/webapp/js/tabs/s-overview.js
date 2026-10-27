@@ -28,8 +28,9 @@ import realtime from "./realtime.js";
 
 // Summary in Live mode (range=today) is the approved Live layout (2.13,
 // js/tabs/ov-today.js): the live strip (visitors now, minute by minute, one Pause;
-// the four tiles against yesterday at this hour), the map and the newest visits,
-// sources and the flow, what converted and AI & bots, each linking to its full tab.
+// the four tiles against yesterday at this hour), sources and what converted, each
+// linking to its full tab. Since 2.41 the map, the newest visits and the flow are on
+// Real time only (the UX audit's task 2).
 
 export default [
   // Its work and new-pages cards wait for page_trends and page_index (2.41): the key figures do not.

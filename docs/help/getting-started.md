@@ -19,23 +19,35 @@ For owners and admins, a new site's Overview > Summary starts with a **Set up** 
 
 | Line | Done when | What Set up does |
 | --- | --- | --- |
-| Logs arriving | The server's access log is read | Opens **Send this site's visits to Skald**, as in Settings > This site > Collect data > Send logs: choose how, a sending token, install, test |
+| Logs arriving | The server's access log is read | Opens **Send this site's visits to Skald**, as in Settings > This site > Data > Send logs: choose how, a sending token, install, test |
 | Visits count as people | Browsers load the pages' own scripts and styles | Asks what the site is built with (Next.js, WordPress, something else, or files from a CDN) and saves it |
 | Countries shown | Visits carry a country | Says what a country file adds, and writes the mail for whoever runs your Skald server |
 | Script tag events (optional) | The script tag's events arrive | What the tag adds; the exact tag for this site with Copy, and where it goes (site builder or plain HTML, WordPress, Next.js); **Send these steps to your developer** or **Share with your developer**; a Test that waits for the first event |
 | Lead hook tested (optional) | A hook passed a test or received a lead, and no hook's last real lead was refused | Where your leads come from (your own form or backend, Zapier or Make, Calendly, Cal.com, Typeform, Stripe, HubSpot); makes the secret; the steps with the address and secret filled in; **Send a test lead**, then waits for a real one |
-| Mail recipient confirmed | The daily or weekly mail is on, with a recipient who opened the confirm link | Turns the mail on, takes the addresses, shows who still has to confirm, and sends a test mail |
+| Mail recipient confirmed | The daily or weekly mail is on, with a recipient who opened the confirm link | Turns the mail on, takes the addresses, shows who still has to confirm, and sends a test mail. With no mail server, every step says so and asks who will set it up (you, as an install admin, or your developer) |
 | Privacy settings chosen | Someone chose whether IP addresses are kept | The three IP choices (full, shortened, none), leads' names and emails, then the wording for your privacy notice with Copy |
 
-The dialogs for logs, page assets, Next.js pages, the script tag, the lead hook and privacy start with **Your AI agent, or by hand?**: your AI agent gets one line and does the job, or you follow the steps yourself. With two or more of those lines left, **Set up everything left with your AI agent** at the top makes one line for all of them. See [Your AI agent, in every set-up dialog](connections.md#your-ai-agent-in-every-set-up-dialog).
+The dialogs for logs, page assets, Next.js pages, the script tag, the lead hook and privacy start with **Who will do it?**: your AI agent gets one line and does the job, your developer gets the set-up in one mail or zip, or you follow the steps yourself. See [Your AI agent, in every set-up dialog](connections.md#your-ai-agent-in-every-set-up-dialog).
 
-The server's own technical words (config keys, commands) are not on the line. Where there are some, they are folded under **For your server admin**.
+The server's own technical words (config keys, commands) are not on the line. When a line needs them, choose **My developer** in **Who will do it?** (below) and send it to your server admin.
 
 The mail to your developer opens in your own mail program. For the script tag it holds the whole tag: the tag needs no secret. For a lead hook it holds the address and the steps but never the secret: give the secret separately, never by mail or chat.
 
-A hook whose last real lead was refused (for example, its signature did not match) is never ticked: the line says leads are not arriving, and the fix is under **For your server admin**. A test that Skald itself sends (Send a test, or `skald hooks test`) and that fails is a failed test, never a refused lead.
+A hook whose last real lead was refused (for example, its signature did not match) is never ticked: the line says leads are not arriving, and its dialog says the cause and the fix. A test that Skald itself sends (Send a test, or `skald hooks test`) and that fails is a failed test, never a refused lead.
 
-On Overview the list goes away once every line that is not optional is done. **Hide on Overview** hides it there, for this site, in this browser. The same list is always in **Settings > This site > Set-up checklist** ([Set-up checklist](#settings/site/setup)), even when every line is done (then it shows every tick and **All set**). To show it on Overview again, search for `setup` and choose **Setup checklist**.
+On Overview the list is folded under one line, for example **Set-up: 2 left · Send your logs**, with **Finish set-up** and **Show the list**, so the figures come first. It goes away once every line that is not optional is done. **Hide on Overview** hides it there, for this site, in this browser. The same lines are always on **Settings > To do** ([To do](#settings/todo)), with the done ones folded. To show it on Overview again, search for `setup` and choose **Setup checklist**.
+
+### To do: what needs you now
+
+**Settings > To do** ([To do](#settings/todo)) is where Settings opens. It lists what needs you now, one sentence and one button per row: the site's open set-up lines, a site waiting for proof or paused, a plan over 80% used, an invite not accepted, a mail recipient who has not confirmed, two-step sign-in off, a token unused for 90 days, and Search Console not connected. Done lines fold into **N done**. When nothing is left it says "Nothing needs you. Everything is set up for example.com." At the top, **Find a setting** finds any setting by its name (as **Ctrl K** does).
+
+**Finish set-up (N left)** opens one dialog that asks **Who will do it?**:
+
+- **Me**: the open lines, numbered. Press one to open its own dialog.
+- **My developer**: send it to a teammate or your server admin, as a mail or the set-up pack. See [Send set-up to someone](connections.md#send-set-up-to-someone-the-set-up-pack).
+- **My AI agent**: what it does (every job it can do, ticked), then pick your agent: one line for it, made in the same dialog. See [Your AI agent, in every set-up dialog](connections.md#your-ai-agent-in-every-set-up-dialog).
+
+The answers are always in this order, and Skald opens on the one you chose last. A choice shows only when it fits: **My AI agent** when a line is a job your agent can do, **My developer** when a line needs work on a server or on the site. Each open line is a button as a whole: it opens the same dialog for that line only. The dialog is in the address (`setup=finish`, or `setup=finish-script` for one line), and so is the choice: `by=me`, `by=dev` or `by=agent`.
 
 Each Set up dialog has its own link, with its step: for example `#overview/summary?setup=rsc&step=2`. Send it to a colleague who is an owner or admin, and it opens the same dialog at that step (or at the first step that still needs a choice).
 
@@ -107,8 +119,8 @@ The address names the section and the tab, for example `#traffic/sources`. Older
 Everything you open is in the address, so you can copy it from the address bar and send it, bookmark it, or reload the page and come back to the same place:
 
 - the section and tab, the period, page group, filters and drill-down
-- each table's sort, column filters, columns, search and page, and a tab's own switches (for example All or AI on Site > Alerts, or the engine and period on Traffic > Search)
-- the drawer or dialog that is open, with what it shows: a visitor, a lead, a request, a cohort, a search row, a Set up dialog or a settings dialog (send logs, API, MCP) and its step, a settings page's tab, the saved views, the report builder, the shortcuts
+- each table's sort, column filters, columns, search and page, and a tab's own switches (for example the open switches on Site > Alerts, or the engine and period on Traffic > Search)
+- the drawer or dialog that is open, with what it shows: a visitor, a lead, a request, a cohort, a search row, a Set up dialog or a settings dialog (send logs, API, MCP) and its step, a settings page's tab, the saved views, Export and what you chose in it, the shortcuts
 
 Opening a drawer or a dialog adds one step to the browser's history, so **Back** closes it before it leaves the page. Closing it takes it out of the address.
 
@@ -118,10 +130,10 @@ No address ever holds a visitor's IP address, an email or a person search. Where
 
 ### The trail and Back
 
-When you go deeper (Summary, then a source, then a page, then a visitor), a line over the tab shows the path you took: **← Back to** the step before, then each step. Each step is a link to that exact view, with its period, filters, sort and what was open. The last one is where you are; its copy and open icons copy or open this exact view.
+When you go deeper (Summary, then a source, then a page, then a visitor), one link over the tab takes you back: **← Back to** the step before, to that exact view, with its period, filters, sort and what was open. When you did not come from anywhere, there is no line at all. Skald still remembers every step you took in this tab.
 
 - The browser's **Back** and **Forward** go through the same steps, and put the page back where you had scrolled it.
-- Going back to a step on the trail (with Back, a step or a link) cuts the trail back to it. Moving along a section's tabs does not add steps.
+- Going back to a step on the trail (with Back or a link) cuts the trail back to it. Moving along a section's tabs does not add steps.
 - The trail belongs to this browser tab. A reload keeps it; closing the tab forgets it. Nothing is sent anywhere.
 - A link someone sent you starts its own short trail from the link: the section and tab, then what it opens (for example **Traffic › Pages**, then **/pricing/**).
 - On a phone the line shows **← Back to** and where you are.
@@ -137,20 +149,20 @@ Any other value you may want to paste somewhere else shows the **Copy** icon alo
 
 On a phone or a tablet the icons are always shown. They never open the row's own detail: the row still does that when you select it elsewhere.
 
-Two switches sit in the top bar on every page:
+Two choices sit in the top bar on every page with figures:
 
-- **Today · Live** sets every tab to today so far, redrawn every 2 minutes. On Overview > Summary it shows today live: visitors on the site now, today's figures against yesterday at the same time of day, the map and what visitors are doing now (the newest visitors and their pages), sources and the flow, what converted and AI & bots, each linking to its full tab ([Today, live](real-time.md#today-live)). Turn it off to go back to the period you had.
-- **Compare with…** puts another period beside this one. See Compare, below.
+- **Today**, the first choice of the period, sets every tab to today so far, redrawn every 2 minutes, with a live dot. On Overview > Summary it shows today live: visitors on the site now, today's figures against yesterday at the same time of day, where visitors came from and what converted, each linking to its full tab; the map, the visitors now and the flow are on Real time ([Today, live](real-time.md#today-live)). Turn it off to go back to the period you had.
+- **Compare with…** puts another period beside this one. It is on by default: a period of whole days is set against the one before it. See Compare, below. It shows only on a tab that compares.
 
 When your site reports leads (a form, a booking), they show beside the visitors on Overview > Summary, Traffic > Sources, Traffic > Pages, Traffic > Places & devices and Overview > Insights, not only under Leads & sales. See [Leads on every page](leads-and-conversions.md#leads-on-every-page).
 
-**Settings**, **Help** and **About** sit at the foot of the sidebar; on a phone, they are in **Menu**. Settings (the gear) opens on **All settings**: every settings page, with one line on what it is for. Its own menu groups the pages by what you came to do: **This site**, **AI & API**, **Organisation**, **You** and **Help & docs**. Every settings page has **Help** and **Docs** links under its title. See [Settings and retention](settings-and-retention.md).
+**Settings**, **Help** and **About** sit at the foot of the sidebar; on a phone, they are in **Menu**. **Help** lists the guides in six groups (Start here, Your visitors, Leads and sales, AI and bots, Connect and set up, Security and privacy), one line each; hover a guide for what it covers. Type in its search box and it lists the guides that hold every word, each with the sections they are in: a section's name opens the guide there. The search and the section are in the address (`#help?hq=calendly`, `#help?part=webhooks&hs=calendly`), so a copied link opens the same. A **?** beside a figure or a heading explains it in a few words; its **Read the guide** opens the guide at the part that covers it. Settings (the gear) opens on **To do**: what needs you now. Its own menu groups the pages: **This site**, **AI**, **Organisation** and **You**. Each page shows its state and its action; the **?** beside its title says what it is for, with links to its guide here and on the public site. See [Settings and retention](settings-and-retention.md).
 
 The round **You** button beside the gear holds your own choices:
 
 - **Theme**: System, Light or Dark.
 - **Time zone**: show times in the site's zone (the default), your own zone, or UTC. A time reads the same way everywhere: how long ago, then the moment, such as "3 h ago (18 Oct 13:43 EDT)".
-- **Your account**, **All settings**, **Help**, **Keyboard shortcuts**, **What's new**, **About Skald** and **Plain page** (every figure, without scripts).
+- **Your account**, **Settings**, **Help**, **Keyboard shortcuts**, **What's new**, **About Skald** and **Plain page** (every figure, without scripts).
 - **Sign out**.
 
 On a phone, five sections sit in the bottom bar, and a section's tabs scroll sideways. **Menu** in the bottom bar opens Security, Settings, Help, About and your own choices.
@@ -169,7 +181,7 @@ A city is counted for visitors only, never for bots, at the first page of the vi
 
 ## Choosing a period
 
-The date range sits in the top bar: **Today · Live**, **Yesterday**, **7 days**, **30 days**, **90 days**, **All time** or **Custom**. Every figure on the page follows the period. Each section opens on its own default when the link names no period: **Leads & sales** on the last 7 days (a lead is rarer than a visit, so today is often empty), every other section on Today. A period you pick is kept in the address and stays as you move between tabs and sections; the default of one section is never carried into another, so moving from Overview's Today to Leads & sales opens on 7 days.
+The date range sits in the top bar: **Today** (live), **7 days**, **30 days** and **90 days**, and under **More** beside them **Yesterday**, **All time** and **Custom** (the one you pick shows in the bar while it is the period). Every figure on the page follows the period. Each section opens on its own default when the link names no period: **Leads & sales** on the last 7 days (a lead is rarer than a visit, so today is often empty), every other section on Today. A period you pick is kept in the address and stays as you move between tabs and sections; the default of one section is never carried into another, so moving from Overview's Today to Leads & sales opens on 7 days.
 
 **All time** runs from the first day this site has data (its first recorded day, or its first lead when that is earlier) to the last whole day, and the period line says the day it starts: "All time: since Fri 21 Aug 2026, 62 days". The dashboard holds the last 180 days; when your site's data begins before that, the line says so ("All time held here: the last 180 days ... this site's data begins ..."), and no total counts days it does not have.
 
@@ -177,10 +189,10 @@ A few tabs keep a period of their own, so the date range is not shown there. A f
 
 To choose your own dates:
 
-1. Select **Custom** in the top bar.
+1. Select **More** beside the periods in the top bar, then **Custom**.
 2. Pick the first day in **From** and the last day in **To**.
 
-Days are counted midnight to midnight in the site's own time zone, whatever time zone you choose for display. The site's zone is set in **Settings > This site > Site details**.
+Days are counted midnight to midnight in the site's own time zone, whatever time zone you choose for display. The site's zone is set in **Settings > This site > Site > Names & time**.
 
 > A brand-new site has no whole day yet, so it opens on Today.
 
@@ -220,11 +232,11 @@ Active filters show as chips under the top bar. Select the cross on a chip to re
 
 A country is shown as its flag and three-letter code, such as 🇺🇸 USA or 🇨🇦 CAN. Point at it to see the full name. A table's search finds a country by its code or its full name, and a CSV file has both: the full name and a **Code** column. A country the log did not record says "Not recorded".
 
-If your site has several page groups (for example, the blog apart from the product pages), a **Page group** list sits beside the period.
+If your site has several page groups (for example, the blog apart from the product pages), pick one under **Filters** in the top bar: **Page group** is at the top of the panel. While one is chosen, a **Page group** chip shows under the bar; its × goes back to all pages.
 
 ### Saved views
 
-Save the tab, period, page group, rules and each table's sort, filters and columns under a name, and come back to them later. In the Filters panel, type a name under **Save as a view** and select **Save view**; the saved views are listed beside the rules, each with **Copy link**, **Rename** and **Delete**. They are also behind the bookmark button in the top bar, and in the **More** menu on a narrow screen. Saved views are kept in this browser.
+Save the tab, period, page group, rules and each table's sort, filters and columns under a name, and come back to them later. In the Filters panel, type a name under **Save as a view** and select **Save view**; the saved views are listed beside the rules, each with **Copy link**, **Rename** and **Delete**. They are also in the **More** menu (the three dots at the top right). Saved views are kept in this browser.
 
 **Copy link** copies an address that holds everything the view shows. Whoever opens it signs in first and sees it only if their account may open this site: there is no public share link. The address bar keeps every choice too, so any page can be shared the same way.
 
@@ -242,17 +254,17 @@ The sort, column filters, columns and search stay in the address, so a reload, a
 
 ## Search
 
-The magnifier in the top bar (or **Ctrl K**, **Cmd K** on a Mac) searches the figures and the dashboard at once. Type a few letters:
+**Search or jump to** in the top bar (or **Ctrl K**, **Cmd K** on a Mac; a magnifier on a narrow screen) searches the figures and the dashboard at once. Type a few letters:
 
 - **Pages, countries, sources, referring sites, campaigns, AI assistants and crawlers** seen in the period on screen. Type `pricing` to find /pricing/, `canada` or `CA` for Canada, `claude` for ClaudeBot and claude.ai. Each result says what it is and the period it was seen in. Choose one to open the tab that lists it with its detail panel open.
-- **Tabs, Settings pages, Help guides, periods, saved views and actions**, such as `mail` for Settings > This site > Mail & reports. Every settings page is there by its name, such as **AI assistant (MCP)**, and so is every guide.
+- **Tabs, Settings pages, Help guides, periods, saved views and actions**, such as `mail` for Settings > This site > Mail & reports. Every settings page is there by its name, such as **AI assistants**, and so is every guide.
 - When nothing in the period matches, the days kept before it are searched, and the result says so.
 
 Use the arrow keys and Enter, or click. The search only lists names; the figures are on the tab it opens.
 
 ### Find a person
 
-Owners and admins can also find one person. Type an IP address, an email or a lead number in the search: **Find a person** is the first result. On a wide screen there is also a **Find a person** box in the top bar. You see that person's visits, leads and conversions. Each search is written to the audit log. See [Privacy](privacy.md).
+Owners and admins can also find one person. Type an IP address, an email or a lead number in the search: **Find a person** is the first result. You see that person's visits, leads and conversions. Each search is written to the audit log. See [Privacy](privacy.md).
 
 ## Drill-down
 
@@ -267,23 +279,23 @@ Select any country, city, page, source, AI assistant, campaign, referring site, 
 
 When the panel has visits behind it, **How these visitors moved** draws them as a flow map. See [Visitor flow](getting-started.md#visitor-flow).
 
-On [Traffic > Pages](#traffic/pages), select a page to see its story: when it was published, its first crawl, its first AI fetch, its first person and its first lead, and each time it changed according to your sitemap. **Pages by publish date** has a **Changed** column and a **Changed since** filter from the same dates. See [Change dates from your sitemap](crawl-health.md#change-dates-from-your-sitemap).
+[Traffic > Pages](#traffic/pages) opens on **Landing pages and their leads**: search it for a page, sort it with the chips (Most visits, Rising, Falling, Recently changed, Needs work), and select a page to see its story: when it was published, its first crawl, its first AI fetch, its first person and its first lead, and each time it changed according to your sitemap (`page=` in the address). The story's one main button is **Mark a change**. What the columns count is behind the "?" beside the title. **Pages by publish date**, the **Page leaderboard** and **Pages read by people** are under **Open the details** (`pgx_view=open`). **Pages by publish date** has a **Changed** column and a **Changed since** filter from the same dates. See [Change dates from your sitemap](crawl-health.md#change-dates-from-your-sitemap).
 
 ## Traffic > Visitors
 
-[Traffic > Visitors](#traffic/visitors) shows what visits looked like, top to bottom:
+[Traffic > Visitors](#traffic/visitors) opens on the visits themselves. A **List / Flow** switch sits above them; the choice is kept in the address (`vis_view=flow`; the list when it is absent).
 
-- **Visitor flow**: where visits came from, the pages they read in order, and when they left. See [Visitor flow](getting-started.md#visitor-flow) below.
-- **Each visit**: one row per visit, newest first. When, the country (flag and three-letter code, the name on hover), the city when your server has a city file, the device with its browser and system, the source (with "First came from …" when the visitor first came from somewhere else), **New** or **Returning**, the pages ("3 (2 in the browser)": steps seen only in the browser are said), the time on site and the pages in order. Select a row to open the visitor drawer. See [The visitor drawer](where-visitors-come-from.md#the-visitor-drawer).
+- **Each visit** (List): one row per visit, newest first, the first 12, then **Show all**. When, the country (flag and three-letter code, the name on hover), the city when your server has a city file, the device with its browser and system, the source (with "First came from …" when the visitor first came from somewhere else), **New** or **Returning**, the pages ("3 (2 in the browser)": steps seen only in the browser are said), the time on site and the pages in order. Select a row to open the visitor drawer. See [The visitor drawer](where-visitors-come-from.md#the-visitor-drawer).
+- **Visitor flow** (Flow): where visits came from, the pages they read in order, and when they left. See [Visitor flow](getting-started.md#visitor-flow) below.
 - **New and returning visitors**: the visits by new and by returning visitors, their shares, and each day as a column. Returning means the same visitor was seen on an earlier day in the 30 before (a keyed hash of the address and browser, kept 30 days). It is counted per visit, so two visits on a visitor's first day are both new. Each day's new and returning visits must add up to that day's visits, or the card is withheld. A day counted before returning visitors were is left out and named, never shown as zero. On Today it counts today so far.
 - **How engaged visits were**: visits by pages per visit and by time on site, each adding up to the visits, with the typical (median) visit and the share that read one page and left. A log sees what was loaded, not how long someone read, so a long read of one page shows as a short visit.
-- **Where visits ended**, **Common next steps**, and the engagement tables by source and device. A rate over fewer than 10 visits is left blank, and a note under the table says how many rows that is.
+- Under **Open the details** (kept open in the address, `visx_view=open`): **Where visits ended**, **Common next steps**, and the engagement tables by source and device. A rate over fewer than 10 visits is left blank, and a note under the table says how many rows that is.
 
 With a filter on, the two cards (and the line under the tab's title) count only the visits the filters keep, when that can be done honestly: they are rebuilt from the kept visits, and only when each day's kept visits are exactly that day's own figures (its visits, returning visits, pages per visit and time on site). The card then says **Filtered: N of M visits**, counted from each visit kept and checked against the days' own figures. When the period reaches past the kept visits (they are kept 7 days) or a day's kept visits do not match its figures, the cards show every visit and say **For all visits: the filters above do not narrow this card**, with why. **Where visits ended** and **Common next steps** follow the filters the same way, when each day's kept visits give back that day's own lists. The engagement tables by source and device, and New and returning by source, are always for all visits, and say so. The flow and the visit list follow every filter.
 
 ## Visitor flow
 
-[Traffic > Visitors](#traffic/visitors) has a **Visitor flow** map. It shows how visits moved: where they came from, the pages they read in order, and when they left.
+[Traffic > Visitors](#traffic/visitors) has a **Visitor flow** map: pick **Flow** above the visit list. It shows how visits moved: where they came from, the pages they read in order, and when they left.
 
 - Each column is one step: the source, then page 1, page 2 and so on. A bar's height is its visits. A band's width is the visits that moved from one bar to the next.
 - A visit that ends flows to **Left after 1 page**, **Left after 2 pages** and so on. A visit with more pages than the map shows flows to **Went on to more pages**.
@@ -312,17 +324,17 @@ Insights compare whole, checked days only, so the period in the top bar does not
 
 ## Compare
 
-Select **Compare with…** in the top bar and choose what to put beside the period:
+Compare is on by default: with 7, 30 or 90 days, Yesterday or a custom period, every tab that compares sets the period against the same number of days just before it, and the top bar says **vs previous period**. The address does not say it (`cmp=` is written only for another choice, or `cmp=off`). Select **Compare with…** in the top bar to choose what to put beside the period:
 
 - **Previous period**: the same number of days just before.
 - **Same period last year**: 52 weeks earlier, so the weekdays match.
 - **Custom period**: any whole days you pick, up to 12 months.
 
-Tables then show A (the period in the top bar), B (the one you chose) and the change. Charts show B as a dashed line. A tab that does not compare says so in one line. Previous period and last year compare only when both periods are whole and checked; a custom period counts whole days and names any it left out. **Turn compare off** in the same menu.
+Tables then show A (the period in the top bar), B (the one you chose) and the change. Charts show B as a dashed line. A tab that does not compare has no **Compare with…** button, and says so in one line only when a link asked for a compare. Previous period and last year compare only when both periods are whole and checked; a custom period counts whole days and names any it left out. **Turn compare off** in the same menu; it stays off as you move between tabs and periods (`cmp=off`).
 
 These tabs compare: Overview > Summary, Traffic > Sources, Pages and Places & devices, Leads & sales > Summary, AI & bots > Assistants and Crawlers, and Site > Health. Leads, demos booked and every completed action are compared too, when every day of both periods has checked conversions.
 
-Today is never compared: turning on **Today · Live** turns Compare off.
+Today, All time and a period that includes today are never compared: picking **Today** turns Compare off, and picking 7 days again brings it back.
 
 ## Summary and Pages: is it working?
 
@@ -330,10 +342,10 @@ Overview > Summary and Traffic > Pages answer one question: did what you changed
 
 ### The period line
 
-Under the title of [Overview > Summary](#overview/summary) and [Traffic > Pages](#traffic/pages) there are two switches and one line with the exact dates.
+Under the title of [Overview > Summary](#overview/summary) and [Traffic > Pages](#traffic/pages) one line gives the exact dates; its **(i)** says what the period means and since when the site is measured. The two options for the period live in the top bar, in one place each:
 
-- **Include today**: with 7, 30 or 90 days, the period ends today and counts today so far. Off, it ends yesterday and counts whole days only. Other periods ignore it. It is kept in the address (`inc=1`) and stays on as you move between Summary and Pages.
-- **Compare with the period before**: puts the same number of days just before beside the period. It is the same as **Compare with… > Previous period** in the top bar.
+- **Include today**: in the period's **More** menu. With 7, 30 or 90 days, the period ends today and counts today so far; the **More** button then reads **More · today**. Off, it ends yesterday and counts whole days only. Other periods ignore it. It is kept in the address (`inc=1`) and stays on as you move between Summary and Pages.
+- **Compare**: the top bar's Compare menu (**vs previous period** when on). It puts the same number of days just before beside the period.
 
 The line says the dates in words. On 15 Jan:
 
@@ -341,9 +353,9 @@ The line says the dates in words. On 15 Jan:
 |---|---|---|
 | 7 days, including today | 9–15 Jan | 2–8 Jan |
 | 7 days, whole days | 8–14 Jan | 1–7 Jan |
-| Today · Live | today until now | yesterday until the same time |
+| Today (live) | today until now | yesterday until the same time |
 
-A period that includes today is **never compared**. Today is not over, so its figures would always look lower than a whole day's, and Skald keeps no earlier day cut at the same hour (only yesterday, for Today · Live). Turn **Include today** off to compare whole days.
+A period that includes today is **never compared**. Today is not over, so its figures would always look lower than a whole day's, and Skald keeps no earlier day cut at the same hour (only yesterday, for Today, live). Turn **Include today** off to compare whole days.
 
 When the period before was not measured (it is before Skald started on your site), the line says **before: not measured** and the first day a full comparison comes, for example "The first full 7 days against the 7 before is on 5 Nov (29 Oct–4 Nov against 22–28 Oct)". Until then, use Yesterday or Today. It never shows 0 for the earlier period and never a rise against nothing.
 
@@ -357,7 +369,9 @@ Summary shows five figures: **People**, **From search engines**, **Returning peo
 
 ### What changed: is it working?
 
-With Compare on and both periods whole and checked, this card lists **Sources** and **Landing pages**, each with **Now**, **Before** and **Change**, and one sentence on the biggest rise and drop. Select a row for its detail.
+With Compare on and both periods whole and checked, this card lists **Sources** and **Landing pages**, each with **Now**, **Before** and **Change**, and one sentence on the biggest rise and drop. Each list shows its first 5 rows, then **Show all**. Select a row for its detail.
+
+Below this card, the rest of Summary is one fold, **More for this period**: countries, top pages and sources, AI assistants, who else came, the two cards below, server requests and each day's figures. It stays open while the address holds `ovx_view=open`. Each part also has its own tab.
 
 ### Work on the page, or on traffic?
 
@@ -407,14 +421,14 @@ These figures come from one day figure, **visits by landing page**, kept from th
 
 ## Export
 
-Select **Export** in the top bar:
+Select **More** (the three dots at the top right), then **Export**. It asks **What do you need?** and shows only that path, with one main button:
 
-- **Tables on this tab (ZIP)**: every table, with the current filters, as CSV files.
-- **This tab as JSON**: the tables and the period's totals.
-- **Print this tab**: a clean report. Choose Save as PDF in the print dialog to keep a PDF.
-- **Report builder**: choose several tabs, the period, page group and filters, then print or download them together.
+- **A PDF of this page**: this page as on screen, with every table row. **Print or save as PDF** opens the print dialog: choose Save as PDF there. **Change** adds other sections, or picks another period, page group or the filters. **Preview** shows the report first.
+- **The tables, as CSV**: each table on the page with its own download icon, or **Download all (ZIP)**. They follow the period and filters on screen.
+- **A report someone gets every month**: who gets it (your last report's address is filled in), how often (every month on the 1st, or every Monday) and what is in it (this page's part; **Change** adds others). **Start sending** saves it as a client report: see [Client reports](client-reports.md). Owners and admins, with accounts. With no mail server yet, it says so and offers **Download the PDF now**.
+- **Everything, for my own tools**: this page as JSON (the tables and the period's totals), and the way to the [API](api.md) and [MCP](mcp.md).
 
-To read figures from a script or an AI tool, see [API](api.md) and [MCP](mcp.md).
+Export opens on your last choice. A link keeps the choice: `dlg=export&kind=csv`. Links to the old Report builder open the PDF with its sections open.
 
 ## Keyboard shortcuts
 
@@ -434,14 +448,14 @@ Letters to use after `g`:
 | Letter | Tab |
 | --- | --- |
 | o, i | Overview > Summary, Insights |
-| l | Overview > Summary with Today · Live on |
+| l | Overview > Summary on Today (live) |
 | c | Overview > Summary compared with the previous period |
 | v, s, p, d, t | Traffic > Visitors, Sources, Pages, Places & devices, Time |
 | e, x, f, n | Leads & sales > Leads, Calendar bookings, Funnels, Events |
 | b | AI & bots > Assistants |
 | h, a, r, k, w, q | Site > Health, Alerts, Requests, Not found, Speed, Data quality |
-| u | Settings > This site > Internal traffic |
-| , (comma) | Settings: All settings |
+| u | Settings > This site > Site > Internal traffic |
+| , (comma) | Settings: To do |
 
 ## Your site on Vercel, Netlify or behind Cloudflare
 
@@ -457,7 +471,7 @@ The full list of hosts, with what each one lets Skald see: [Hosting](https://git
 
 The foot of every page says when the data was last updated, and when the next update is due. Today's figures are recounted about every two minutes. Yesterday becomes a whole day after the morning's daily run.
 
-If your server allows it, **Refresh** in the top bar recounts today at once.
+If your server allows it, **More** > **Recount today now** recounts today at once.
 
 ## Next steps
 

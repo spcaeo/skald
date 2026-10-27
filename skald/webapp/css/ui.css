@@ -1,0 +1,187 @@
+/* The visual system (2.41, docs/UI-RULES.md): one card, one pill, one accent, one "?",
+   one fold, the "Who will do it?" choice and the tint of each area. Built only from the
+   tokens in app.css; nothing here sets a new colour of its own. Every class starts with
+   "ui-", so it never changes a page that does not ask for it.
+
+   The area tint: main.js sets data-area on #app (overview, traffic, sales, ai, threats,
+   site, settings, help); --area is that area's hue, used only for the top bar's band, the
+   tab underline, the menu's mark and icon tiles. Data colours stay data colours. */
+
+:root {
+  /* One accent: only the one primary button of a screen and the chosen answer in a dialog.
+     The surface white on it is 5.9:1 in light; in dark the accent is the lighter blue and its text the
+     page's ink (5.4:1). tests/test_ui_system.py measures both. */
+  --accent: color-mix(in srgb, var(--g-people) 82%, black);
+  --accent-ink: var(--surface);
+  --area: var(--ink-3);
+  /* Radii and type: four radii, six sizes (the audit counted 15 radii and ~30 sizes). */
+  --r-s: 6px; --r-m: var(--r); --r-l: 14px; --r-pill: 999px;
+  --t-xs: 12px; --t-s: 13px; --t-m: 14px; --t-l: 15px; --t-xl: 17px; --t-fig: 32px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --accent: var(--g-people); --accent-ink: var(--page); }
+}
+:root[data-theme="dark"] { --accent: var(--g-people); --accent-ink: var(--page); }
+
+#app[data-area="overview"] { --area: var(--ink-2); }
+#app[data-area="traffic"] { --area: var(--g-people); }
+#app[data-area="sales"] { --area: var(--leads); }
+#app[data-area="ai"] { --area: var(--g-answer_engines); }
+#app[data-area="threats"] { --area: var(--warn); }
+#app[data-area="site"] { --area: var(--g-search_engines); }
+#app[data-area="settings"], #app[data-area="help"], #app[data-area="about"] { --area: var(--ink-3); }
+
+/* The tint: a faint band of the area's hue behind the top bar, and its mark on the menu. */
+#app[data-area] .bar { background: color-mix(in srgb, var(--area) 6%, var(--page)); }
+#app[data-area] .nav a[aria-current="page"] { box-shadow: inset 3px 0 0 var(--area); }
+
+/* ---------------------------------------------------------------- the one primary button */
+.btn.ui-primary, .ui-primary {
+  background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 650;
+}
+.btn.ui-primary:hover { background: color-mix(in srgb, var(--accent) 88%, black); }
+.ui-head { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.ui-head > .ui-grow { flex: 1 1 auto; }
+/* primary.js: the screen's one action, at the top right of its head. */
+.ui-act { margin-left: auto; display: inline-flex; gap: var(--sp-2); }
+
+/* ---------------------------------------------------------------- cards */
+.ui-card {
+  background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r-m);
+  box-shadow: var(--shadow); padding: var(--sp-4) var(--sp-5);
+}
+.ui-card.quiet { box-shadow: none; background: color-mix(in srgb, var(--surface) 55%, var(--page)); }
+.ui-card.good { border-left: 4px solid var(--good); }
+.ui-card.warn { border-left: 4px solid var(--warn); }
+.ui-card.bad { border-left: 4px solid var(--bad); }
+.ui-card-h { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.ui-card-h > h2, .ui-card-h > h3 { margin: 0; font-size: var(--t-l); line-height: 1.35; }
+.ui-card-h > .ui-grow { flex: 1 1 12ch; }
+.ui-card .ui-meta { margin: var(--sp-1) 0 0; color: var(--ink-3); font-size: var(--t-s); max-width: var(--read); }
+.ui-stack { display: grid; gap: var(--sp-3); }
+.ui-lede { margin: 0; color: var(--ink-2); display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+
+/* An icon in a soft tile of the area's hue (the menu's 16px line icons). */
+.ui-ic { width: 32px; height: 32px; border-radius: 8px; display: inline-grid; place-items: center; flex: none;
+  background: color-mix(in srgb, var(--area) 14%, var(--surface)); color: var(--area); }
+.ui-ic svg { width: 16px; height: 16px; }
+
+/* ---------------------------------------------------------------- status pills
+   The words are the hue mixed toward the ink (darker in light, lighter in dark), so each
+   pill reads at 4.5:1 or more on its own tint in both themes (tests/test_ui_system.py). */
+.ui-pill {
+  display: inline-flex; align-items: center; gap: 5px; border-radius: var(--r-pill); padding: 1px 9px;
+  font-size: var(--t-xs); font-weight: 650; line-height: 18px; white-space: nowrap;
+  color: var(--ink-2); background: var(--sunk);
+}
+.ui-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.ui-pill.good { color: color-mix(in srgb, var(--good) 78%, var(--ink)); background: color-mix(in srgb, var(--good) 12%, var(--surface)); }
+.ui-pill.warn { color: color-mix(in srgb, var(--warn) 78%, var(--ink)); background: color-mix(in srgb, var(--warn) 12%, var(--surface)); }
+.ui-pill.bad { color: color-mix(in srgb, var(--bad) 78%, var(--ink)); background: color-mix(in srgb, var(--bad) 11%, var(--surface)); }
+.ui-pill.off { color: var(--ink-2); background: var(--sunk); }
+.ui-pill.info { color: color-mix(in srgb, var(--g-people) 78%, var(--ink)); background: color-mix(in srgb, var(--g-people) 11%, var(--surface)); }
+
+/* ---------------------------------------------------------------- the "?" */
+.ui-help-w { position: relative; display: inline-flex; vertical-align: middle; }
+.ui-help {
+  width: 20px; height: 20px; padding: 0; border-radius: 50%; border: 1px solid var(--gap); background: var(--surface);
+  color: var(--ink-3); font-size: var(--t-xs); font-weight: 700; line-height: 1; cursor: pointer;
+  display: inline-grid; place-items: center; flex: none;
+}
+.ui-help:hover, .ui-help[aria-expanded="true"] { color: var(--ink); border-color: var(--ink-3); }
+/* A finger needs more than 20px: the press area grows, the circle does not. */
+@media (pointer: coarse) { .ui-help { position: relative; } .ui-help::after { content: ""; position: absolute; inset: -12px; } }
+.ui-help-pop {
+  position: absolute; z-index: 40; top: calc(100% + 6px); left: -8px; width: min(340px, calc(100vw - 32px));
+  background: var(--surface); color: var(--ink); border: 1px solid var(--rule); border-radius: var(--r-m);
+  box-shadow: var(--shadow); padding: var(--sp-3) var(--sp-4); font-size: var(--t-s); font-weight: 400; text-align: left;
+}
+.ui-help-pop.left { left: auto; right: -8px; }
+.ui-help-pop h4 { margin: 0 0 var(--sp-1); font-size: var(--t-s); }
+.ui-help-pop p { margin: 0 0 var(--sp-2); max-width: none; }
+.ui-help-pop .ui-help-more { font-weight: 600; }
+.ui-help-pop .ui-help-x { position: absolute; top: 6px; right: 6px; border: 0; background: none; color: var(--ink-3); cursor: pointer; font-size: 16px; line-height: 1; padding: 4px; }
+
+/* ---------------------------------------------------------------- folds */
+.ui-fold { border-radius: var(--r-m); }
+.ui-fold > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3); border-radius: var(--r-m); color: var(--ink-2); font-weight: 600;
+}
+.ui-fold > summary::-webkit-details-marker { display: none; }
+.ui-fold > summary::after { content: ""; width: 7px; height: 7px; margin-left: 2px; border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform .15s var(--ease); }
+.ui-fold[open] > summary::after { transform: rotate(45deg); }
+.ui-fold > summary:hover { background: color-mix(in srgb, var(--surface) 70%, var(--page)); }
+.ui-fold > .ui-fold-b { padding: var(--sp-2) 0 0; }
+
+/* A one-line strip: what is left, and its one button (Overview's set-up line). */
+.ui-strip {
+  display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-m); border: 1px solid color-mix(in srgb, var(--warn) 30%, var(--rule));
+  background: color-mix(in srgb, var(--warn) 8%, var(--surface));
+}
+.ui-strip > b { white-space: nowrap; }
+.ui-strip > .ui-grow { flex: 1 1 16ch; color: var(--ink-2); }
+.ui-strip-body { margin-top: var(--sp-2); }
+
+/* ---------------------------------------------------------------- "Who will do it?" */
+.ui-who { display: grid; gap: var(--sp-3); }
+.ui-who-q { margin: 0; font-size: var(--t-l); font-weight: 650; }
+.ui-who-list { display: grid; gap: var(--sp-2); }
+.ui-who-c {
+  display: flex; align-items: center; gap: var(--sp-3); width: 100%; text-align: left; cursor: pointer;
+  padding: var(--sp-3) var(--sp-4); border: 1px solid var(--rule); border-radius: var(--r-m); background: var(--surface);
+}
+.ui-who-c b { display: block; } .ui-who-c small { display: block; color: var(--ink-3); }
+.ui-who-c:hover { border-color: var(--gap); }
+.ui-who-c[aria-checked="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.ui-who-path { display: grid; gap: var(--sp-3); }
+.ui-who-path:empty { display: none; }
+@media (max-width: 767px) { .ui-who-c { padding: var(--sp-3); } }
+
+/* ---------------------------------------------------------------- the top bar (2.41)
+   The period: 7, 30, 90 days and More beside them; one search that says what it does. */
+.bar-range { display: inline-flex; align-items: center; gap: 4px; }
+.bar-range .more .pop { min-width: 11rem; }
+.btn.ui-more-range { padding: 4px 10px; font-size: var(--t-s); }
+.btn.ui-search { display: inline-flex; align-items: center; gap: var(--sp-2); padding: 4px 10px; color: var(--ink-3); min-width: 15rem; justify-content: flex-start; }
+.btn.ui-search .ui-search-ic { display: inline-flex; }
+.btn.ui-search .ui-search-ic svg { width: 16px; height: 16px; }
+.btn.ui-search .ui-search-k { margin-left: auto; font: inherit; font-size: var(--t-xs); border: 1px solid var(--rule); border-radius: var(--r-s); padding: 0 5px; color: var(--ink-3); }
+@media (max-width: 1279px) { .btn.ui-search { min-width: 0; } .btn.ui-search .ui-search-l, .btn.ui-search .ui-search-k { display: none; } }
+/* One search on a phone too (features.css hid the palette's button there). */
+@media (max-width: 767px) { .bar .kbd-btn.ui-search { display: inline-flex; } }
+
+/* ---------------------------------------------------------------- pieces the screens use */
+.ui-code { margin: 0; padding: var(--sp-2) var(--sp-3); background: var(--sunk); border-radius: var(--r-s); font-size: var(--t-s); overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ui-list { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; }
+.ui-list small { color: var(--ink-3); }
+.ui-msg { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ui-who-dw .ui-lede { margin-bottom: var(--sp-2); }
+
+/* Overview: the set-up line and its folded list; the line to Real time. */
+.ov-setup { display: grid; gap: var(--sp-1); margin: 0 0 var(--sp-4); }
+.ov-setup .ov-setup-list > summary { font-weight: 500; font-size: var(--t-s); padding: 2px var(--sp-3); }
+.ov-setup .ov-setup-list .su { margin: var(--sp-2) 0 0; }
+.td-rt { margin: var(--sp-4) 0 0; font-size: var(--t-m); }
+
+/* Site › Alerts: one card per kind. */
+.si-al { margin: var(--sp-3) 0; }
+.si-al .ui-card-h > h3 { font-weight: 650; }
+.si-al .ui-fold { margin-top: var(--sp-2); }
+.ui-stack > * { margin: 0; }
+.ui-who-path h4 { margin: 0; }
+
+/* 2.42: Today (live) as the first choice of the period group (main.js, modes.js liveSegment). */
+.bar-range .seg button { display: inline-flex; align-items: center; gap: 6px; }
+.bar-range .seg .m-dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor; opacity: .55; flex: none; }
+.bar-range .seg .pulse::after { inset: -3px; }
+/* The page group, in the Filters panel since 2.42 (filterpanel.js). */
+.fp-group { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+.fp-group > span { font-weight: 600; }
+/* The period's More menu (2.42): Include today under the other periods, and its mark on the button. */
+.menu-sep { border: 0; border-top: 1px solid var(--rule); margin: 4px 2px; }
+.menu-i[disabled] { cursor: default; opacity: 0.55; }
+.ui-more-on { color: var(--accent); font-weight: 600; }

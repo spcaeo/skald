@@ -1,6 +1,6 @@
 """Phase 5a pages: signup.html and signup-finish.html follow the sign-in
 pages' rules (no inline script or handler, nothing from elsewhere, a POST
-form, auth.js and auth.css only), and Settings > Billing & usage is a tab that is
+form, auth.js and auth.css only), and Settings > Billing is a tab that is
 hidden unless /me says the server sells plans to this owner.
 """
 from __future__ import annotations
@@ -45,9 +45,9 @@ class SignUpPages(unittest.TestCase):
 
 class BillingTab(unittest.TestCase):
     def test_registered_and_hidden_unless_saas(self):
-        # 2.40: Settings › Organisation › Billing & usage (js/settings-menu.js).
+        # v2: Settings › Organisation › Billing (js/settings-menu.js).
         menu = (APP / "js" / "settings-menu.js").read_text(encoding="utf-8")
-        self.assertIn('route: "settings/org/billing", name: "Billing & usage"', menu)
+        self.assertIn('route: "settings/org/billing", name: "Billing"', menu)
         pages = (APP / "js" / "tabs" / "settings-pages.js").read_text(encoding="utf-8")
         self.assertIn('"settings/org/billing": billing', pages)
         icons = (APP / "js" / "tabs" / "icons.js").read_text(encoding="utf-8")

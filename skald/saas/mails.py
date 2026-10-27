@@ -3,7 +3,7 @@
 account, "You already have an account" with the sign-in and forgot-password
 pages. Either way the page said the same words; only the mailbox learns
 which. A link is never logged. The usage alert (usage_alerts.py) says how
-much of the month's requests is used and links to Settings > Billing & usage.
+much of the month's requests is used and links to Settings > Billing.
 """
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ def exists_mail(config, to: str, login: str, forgot: str) -> EmailMessage:
 def usage_mail(config, to: str, org: str, plan: str, used: int, limit: int, month: str,
                mark: int, link: str | None) -> EmailMessage:
     """A usage alert (usage_alerts.py): `mark` (80, 90 or 100) % of this month's requests
-    used. `link` opens Settings > Billing & usage on the organisation's own dashboard."""
+    used. `link` opens Settings > Billing on the organisation's own dashboard."""
     from .usage_alerts import percent, resets_on
     org = mailers.display_name(org, "Your organisation")
     plan = mailers.display_name(plan, "your")
@@ -57,7 +57,7 @@ def usage_mail(config, to: str, org: str, plan: str, used: int, limit: int, mont
              "Once the limit is passed, Skald turns new log lines away until the month turns "
              "or the plan is bigger. Skald's shipper keeps them and sends them again later. Lines from a "
              "Cloudflare Worker are lost.",
-             "To keep every line, choose a bigger plan in Settings > Billing & usage."]
+             "To keep every line, choose a bigger plan in Settings > Billing."]
     foot = (f"You get this as an owner or admin of {org}: one mail at 80%, 90% and 100% "
             "each month. The count is the days stored so far; today is added after it ends.")
     where = f"Open Billing:\n{link}\n\n" if link else ""

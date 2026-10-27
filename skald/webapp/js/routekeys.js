@@ -70,7 +70,7 @@ export const ROUTE_KEYS = [
   { key: "lview", kind: "tab", owner: "tabs/sa-leads.js", means: "Leads: list, board, timeline or map" },
   { key: "lsplit", kind: "tab", owner: "tabs/sa-leads.js", means: "Leads: the split" },
   { key: "cur", kind: "tab", owner: "tabs/sa-revenue.js", means: "Revenue: the currency shown (three letters, e.g. USD); figures are never converted" },
-  { key: "by", kind: "tab", owner: "tabs/sa-revenue.js", means: "Revenue: the breakdown (first_source, campaign, landing, country, device, tool, label, tag; source when absent)" },
+  { key: "rby", kind: "tab", owner: "tabs/sa-revenue.js", means: "Revenue: the breakdown (by= before 2.41, rewritten: routes.js) (first_source, campaign, landing, country, device, tool, label, tag; source when absent)" },
   { key: "tag", kind: "tab", owner: "tabs/sa-revenue.js", means: "Revenue: one tag, key:value (e.g. plan:pro)" },
   { key: "bact", kind: "tab", owner: "tabs/sa-bookings.js", means: "Bookings: the action" },
   { key: "bshow", kind: "tab", owner: "tabs/sa-bookings.js", means: "Bookings: what to show" },
@@ -83,9 +83,12 @@ export const ROUTE_KEYS = [
   { key: "rq", kind: "tab", owner: "tabs/si-requests.js", means: "Requests: the quick filters (mine, nobots, people, errors, ai)" },
   { key: "strat", kind: "tab", owner: "tabs/speed.js", means: "Speed: desktop (phone when absent)" },
   { key: "part", kind: "tab", owner: "tabs/help.js", means: "Help: the guide or its part open" },
+  { key: "hs", kind: "tab", owner: "tabs/help.js", means: "Help: the section of the guide open, by its heading's slug (2.42: Read the guide, a search's Found in, the contents line)" },
+  { key: "hq", kind: "tab", owner: "tabs/help.js", means: "Help: the search words (2.42)" },
   { key: "note", kind: "tab", owner: "tabs/about.js", means: "About: the note open" },
   { key: "test", kind: "tab", owner: "tabs/sitesadmin.js", means: "Settings › Sites: open a site's wizard at its Test (the site's name)" },
-  { key: "sub", kind: "tab", owner: "tabs/settings-frame.js", means: "a settings page's in-page tab (2.40): Collect data logs, script, counting; Leads & integrations hooks, webhooks, search; Mail & reports mail, reports; AI answers profiles, keys (the first when absent)" },
+  { key: "aact", kind: "tab", owner: "tabs/auditlog.js", means: "Settings › Audit log: the one kind of change shown (an action name, e.g. settings.save); every action when absent" },
+  { key: "sub", kind: "tab", owner: "tabs/settings-frame.js", means: "a settings page's in-page tab (v2): Data logs, script, counting, sample; Leads & tools hooks, webhooks, search; Site details, internal; Mail & reports mail, reports; AI assistants mcp, api, tokens; AI answers profiles, keys; People team, security (the first when absent)" },
   { key: "sxv", kind: "tab", owner: "tabs/sec-exposed.js", means: "Security > Is anything exposed?: possible, nosize (can't tell) or both" },
   { key: "item", kind: "tab", owner: "tabs/sec-exposed.js", means: "Security: the item an alert names, opened first (an opaque id: x or a and 12 hex)" },
   { key: "sxc", kind: "tab", owner: "tabs/sec-scanners.js", means: "Security > Who is scanning us?: what they looked for" },
@@ -103,6 +106,8 @@ export const ROUTE_KEYS = [
   // ---- overlay: a drawer or a dialog over the tab
   { key: "vis", kind: "overlay", owner: "tabs/visitor.js", means: "the visitor drawer, by its visit: <day>.<seq>", example: "2026-10-20.14" },
   { key: "who", kind: "overlay", owner: "tabs/visitor.js", means: "Find a person: the search, always as a token (this browser only)", example: "~k2f9a0x7qm" },
+  // 2.42: the visitor drawer draws the newest visits; Show all (N) draws every one.
+  { key: "vall", kind: "overlay", owner: "tabs/visitor.js", means: "the visitor drawer: every visit drawn (Show all), not only the newest two; it leaves with the drawer", example: "1" },
   { key: "lead", kind: "overlay", owner: "tabs/sa-leads.js", means: "a lead's drawer, by its row id", example: "1287" },
   { key: "conv", kind: "overlay", owner: "tabs/sa-lists.js", means: "a cancelled, removed or test conversion's drawer: <list>.<n>", example: "test.3" },
   { key: "req", kind: "overlay", owner: "tabs/si-requests.js", means: "one request's detail, by an opaque code of the log line", example: "r8k2m1x" },
@@ -111,7 +116,9 @@ export const ROUTE_KEYS = [
   { key: "list", kind: "overlay", owner: "tabs/person.js", means: "a list drawer: leftout, or conv-cancelled, conv-removed, conv-test", example: "leftout" },
   { key: "scan", kind: "overlay", owner: "tabs/sec-scanners.js", means: "Security > Who is scanning us?: one scanner's detail, by its first row: <day>.<seq> (never its address)", example: "2026-10-20.3" },
   { key: "ans", kind: "overlay", owner: "tabs/ai-answers.js", means: "AI answers: one stored answer in full, by its id", example: "412" },
-  { key: "setup", kind: "overlay", owner: "tabs/setup-dialogs.js, tabs/sitesadmin.js", means: "a Set up dialog (logs, assets, rsc, countries, script, lead, mail, privacy, pack: send set-up to someone, all: everything left with your AI agent); on Settings › Sites, the Add a site wizard (new, or a site's name); a site's name on any tab is its wizard too (Set up with your AI agent)", example: "rsc" },
+  { key: "setup", kind: "overlay", owner: "tabs/setup-dialogs.js, tabs/sitesadmin.js", means: "a Set up dialog (finish: Finish set-up, Who will do it?, for every open line; finish-<act>: for one line; logs, assets, rsc, countries, script, lead, mail, privacy, search; pack: the set-up in one zip; all: one line for your AI agent for every open line); on Settings › Sites, the Add a site wizard (new, or a site's name); a site's name on any tab is its wizard too (Set up with your AI agent)", example: "rsc" },
+  { key: "tool", kind: "overlay", owner: "tabs/set-leads.js", means: "Settings › Leads & tools: one tool's details (its id: site, calendly, stripe...), or webhooks (Send each lead out), search (Search Console and Bing), checks (every check)", example: "calendly" },
+  { key: "edit", kind: "overlay", owner: "tabs/set-edit.js", means: "Settings (v2): the part of a page being changed, in its drawer (people, leads, names, mail, smtp, password, totp...: the page's own ids, never a value)", example: "people" },
   { key: "lines", kind: "overlay", owner: "tabs/agent-many.js", means: "Settings › Sites › Set up many sites with your AI agent: all (every site, its own line each), site.<site> (that site's line and its watch open), mcp.<site> (its two lines: MCP, then \"Set up Skald for this site\") or add (the box that adds several sites). Never a line, a code or a token", example: "site.shop.example.com" },
   { key: "sact", kind: "overlay", owner: "tabs/site-actions.js", means: "Settings › Sites: a site's action dialog, <act>.<site> (act: pause, resume, remove, restore, clear or delete)", example: "pause.shop.example.com" },
   { key: "conn", kind: "overlay", owner: "tabs/connections.js", means: "a connection dialog: send or sample (Test a sample of a log) on Collect data, api on Read figures (API), mcp on AI assistant (MCP)", example: "api" },
@@ -128,12 +135,20 @@ export const ROUTE_KEYS = [
   { key: "tdsend", kind: "overlay", owner: "tabs/todo-send.js", means: "Insights: the Send to team dialog for a to-do, by its id", example: "lost-pages" },
   // 2.41: Fix this (tabs/todo-fix.js): "Who will do it?"; the line and its code never go in the address.
   { key: "fix", kind: "overlay", owner: "tabs/todo-fix.js", means: "Insights: the Fix this dialog: 1 for the to-do named by todo=<id>, or all (Fix all: every open to-do an AI agent can fix)", example: "1" },
-  { key: "fixby", kind: "overlay", owner: "tabs/todo-fix.js", means: "Fix this: who will do it: agent (My AI agent: the line, then its watch), me (the lines to paste and the CSV) or someone (send it to a teammate)", example: "agent" },
+  { key: "fixby", kind: "overlay", owner: "tabs/todo-fix.js", means: "Fix this, before by= (2.41): agent, me or someone; read as by= (someone is dev). Links in mails made before still open the same answer", example: "agent" },
   // Traffic > Pages > a page: Mark a change (tabs/pagechange.js); the note typed never goes in the address.
   { key: "pcm", kind: "overlay", owner: "tabs/pagechange.js", means: "Traffic > Pages > a page: the Mark a change dialog (new)", example: "new" },
   { key: "pcd", kind: "overlay", owner: "tabs/pagechange.js", means: "Mark a change: the day it changed (YYYY-MM-DD; today when absent)", example: "2026-10-21" },
   { key: "pck", kind: "overlay", owner: "tabs/pagechange.js", means: "Mark a change: what changed (content, title, backlink, redirect, other; content when absent)", example: "title" },
-  { key: "dlg", kind: "overlay", owner: "main.js, keys.js, extras.js, report.js, filterpanel.js, tabs/person.js", means: "an app dialog: keys (shortcuts), new (What's new), views (saved views), report (report builder), filters (the Filters panel), find (Find a person, empty)", example: "views" },
+  // 2.41: "Who will do it?" inside any dialog that asks it (ui/who.js).
+  { key: "alfix", kind: "overlay", owner: "tabs/si-alerts.js", means: "Site › Alerts: the Fix dialog for one kind of alert, by its kind (security_exposure, stack_advisory, logging_stopped...): a fixed word, never an id", example: "security_exposure" },
+  // 2.42: one Fix per screen outside Site › Alerts (tabs/fixit.js).
+  { key: "fixit", kind: "overlay", owner: "tabs/fixit.js", means: "the Fix dialog of a screen, by a fixed word: airead (AI & bots › Assistants: Let AI read the site better), exposed (Security › Is anything exposed?), block (Security › Block list)", example: "airead" },
+  { key: "by", kind: "overlay", owner: "ui/who.js", means: "Who will do it, inside the dialog open (Finish set-up, setup=finish, and every Settings flow): me, dev (my developer) or agent (my AI agent). Insights' fixby=someone links are read as by=dev. Not who: that is Find a person's", example: "me" },
+  { key: "dlg", kind: "overlay", owner: "main.js, keys.js, extras.js, export-dialog.js, filterpanel.js, tabs/person.js", means: "an app dialog: keys (shortcuts), new (What's new), views (saved views), export (Export: What do you need?), filters (the Filters panel), find (Find a person, empty). report (the report builder before 2.42) opens Export on A PDF of this page, its sections open", example: "views" },
+  // 2.42: Export (export-dialog.js): what you need, and its Change part open.
+  { key: "kind", kind: "overlay", owner: "export-dialog.js", means: "Export (dlg=export): what you need: pdf (a PDF of this page), csv (the tables, as CSV), monthly (a report someone gets by mail; client is read as monthly) or tools (JSON, the API and MCP)", example: "pdf" },
+  { key: "xch", kind: "overlay", owner: "export-dialog.js", means: "Export: the Change part is open (what the PDF or the monthly report holds)", example: "1" },
 ];
 
 // A table's or a grid's keys: <ns>_<suffix> (tablestate.js TABLE_KEY).
@@ -145,7 +160,7 @@ export const OVERLAY = ROUTE_KEYS.filter((k) => k.kind === "overlay").map((k) =>
 // The keys inside the dialog open (its step, the share form, the kit's token choice, the
 // set-up pack's box, Add a site's agent and the line it watches, Test a sample's reader); the other overlay keys
 // name the drawer or dialog itself.
-export const INSIDE = ["step", "share", "token", "pack", "agent", "link", "jobs", "lfmt", "pcd", "pck", "asst", "fixby"];
+export const INSIDE = ["step", "share", "token", "pack", "agent", "link", "jobs", "lfmt", "pcd", "pck", "asst", "by", "fixby", "kind", "xch", "vall"];
 export const OPENERS = OVERLAY.filter((k) => !INSIDE.includes(k));
 // Always a token, whatever the value looks like: a search for a person, an address filter.
 export const ALWAYS_MASKED = new Set(["who", "ip"]);

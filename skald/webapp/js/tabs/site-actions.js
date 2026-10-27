@@ -13,6 +13,7 @@ import { ME, sessions } from "../access.js";
 import { input, why } from "./forms.js";
 import { withCopy } from "../urlactions.js";
 import * as W from "./site-act-words.js";
+import { icon } from "./set-ui.js";
 
 // The page's reload, set by sitesadmin.js, so a dialog a link opened redraws the list too.
 let reloadPage = () => {};
@@ -29,7 +30,7 @@ export function siteMenu(site, { onDone = reloadPage } = {}) {
       return b;
     }),
     site.main ? h("p", { class: "note" }, W.MAIN_NOTE) : null);
-  const more = h("button", { type: "button", class: "btn", "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": `Actions for ${site.name}`, title: "Pause, remove or delete" }, "⋯");
+  const more = h("button", { type: "button", class: "btn site-more", "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": `Actions for ${site.name}`, title: "Pause, remove or delete", html: icon("more") });
   function toggle(on) {
     list.hidden = !on;
     more.setAttribute("aria-expanded", on ? "true" : "false");

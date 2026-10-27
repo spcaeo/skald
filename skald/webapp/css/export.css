@@ -1,0 +1,45 @@
+/* Export (2.42, js/export-dialog.js) and the "no mail server" card (js/mail-ready.js).
+   The choices are ui.css's "Who will do it?" tiles; only the parts under them are here.
+   Tokens from app.css and ui.css only: no colour of its own. */
+
+.ex-dw .ui-who > .ui-card-h { gap: var(--sp-2); }
+.ex-dw .ui-who-c .ui-ic svg, .ex-link .ui-ic svg, .ex-t .ui-ic svg, .mr-note .ui-ic svg { width: 18px; height: 18px; }
+.ex-path { margin-top: var(--sp-4); }
+.ex-path > p { margin: 0; }
+
+/* "What is in it: this page (Overview › Summary). Change" and what Change opens. */
+.ex-what { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-size: var(--t-m); }
+.ex-what > span { color: var(--ink-3); }
+.ex-what .btn.link { padding: 0 2px; border: 0; background: none; color: var(--link, var(--accent)); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; font: inherit; }
+.ex-change { display: grid; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--rule); border-radius: var(--r-m); background: var(--sunk); }
+.ex-change[hidden] { display: none; }
+.ex-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: var(--sp-3); }
+.ex-g { margin: 0; padding: 0; border: 0; display: grid; gap: 4px; }
+.ex-g > legend { padding: 0; margin-bottom: 4px; font-size: var(--t-xs); font-weight: 650; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+.ex-g .chk, .ex-change > .chk { display: flex; align-items: center; gap: 8px; font-size: var(--t-s); }
+.ex-two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+.ex-path .fld { display: grid; gap: 4px; font-size: var(--t-s); color: var(--ink-2); }
+.ex-path .fld input, .ex-path .fld select { width: 100%; }
+
+/* The tables, one line each, with its download icon. */
+.ex-tables { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ex-t { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-3); border: 1px solid var(--rule); border-radius: var(--r-m); background: var(--surface); }
+.ex-tn { flex: 1 1 auto; min-width: 0; }
+.ex-tn b { display: block; overflow-wrap: anywhere; font-weight: 550; }
+.ex-tn small { color: var(--ink-3); font-size: var(--t-xs); }
+
+/* For my own tools: two quiet link cards. */
+.ex-link { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); color: inherit; text-decoration: none; }
+.ex-link:hover { border-color: var(--gap); }
+.ex-link b, .ex-link small { display: block; }
+.ex-link small { color: var(--ink-3); }
+
+/* No mail server: one card, its question under it. */
+.mr-note { display: grid; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.mr-note > .ui-card-h .ui-ic { color: var(--bad); }
+.mr-note .ui-who-q { font-size: var(--t-m); }
+
+@media (max-width: 767px) {
+  .ex-two { grid-template-columns: 1fr; }
+  .ex-groups { grid-template-columns: 1fr 1fr; }
+}

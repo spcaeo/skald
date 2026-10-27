@@ -10,18 +10,18 @@ Skald keeps these visits apart. They are not deleted. They go into their own gro
 
 ## Where to find it
 
-Open **Settings > This site > Internal traffic**, or go straight to [Internal traffic](#settings/site/internal). Settings opens from the gear at the foot of the sidebar.
+Open **Settings > This site > Site > Internal traffic**, or go straight to [Internal traffic](#settings/site/details?sub=internal). Settings opens from the gear at the foot of the sidebar.
 
-The page is headed **Our own traffic**. The list of addresses is in the section **Internal addresses**.
+The page lists your **Internal addresses**, one row each: the label, the address (with a copy icon), when it was added, and a status: **Active**, **Paused**, or **Always on** for a line from the config file. The figures for your own traffic are under **Our own traffic, in figures**, below the list.
 
 ## Add your own address
 
 This is the quickest way. Do it once from each place you work: the office, home, a laptop on another network.
 
-1. Open **Settings > This site > Internal traffic**.
-2. Under **Internal addresses**, type a label in the box beside **Add my current address**, for example "Office Mac" or "Home".
-3. Press **Add my current address**.
-4. Check that the new line shows in the list.
+1. Open **Settings > This site > Site > Internal traffic**.
+2. Press **Add an address**, the button beside the page title.
+3. Under **This computer**, type a label, for example "Office Mac" or "Home".
+4. Press **Add my current address**. The panel closes and the new row shows in the list.
 
 Skald adds the internet address your browser is using right now. You do not need to know it or type it.
 
@@ -33,8 +33,8 @@ Skald adds the internet address your browser is using right now. You do not need
 
 Use this for a teammate who is not on your network, a test machine, or a whole office range.
 
-1. Open **Settings > This site > Internal traffic**.
-2. In **Address or range**, type one address, such as `192.0.2.10`, or a range, such as `198.51.100.0/24`.
+1. Open **Settings > This site > Site > Internal traffic** and press **Add an address**.
+2. Under **Another address or range**, in **Address or range**, type one address, such as `192.0.2.10`, or a range, such as `198.51.100.0/24`.
 3. In **Label**, type whose it is, for example "Berlin office".
 4. Press **Add address**.
 
@@ -54,10 +54,10 @@ A range may be at most `/16` wide for IPv4 and `/32` for IPv6. Wider ranges are 
 
 Sometimes you want your own visits to count, for example to test a form or a campaign link the way a visitor would. Pause the address instead of deleting it.
 
-1. Open **Settings > This site > Internal traffic**.
-2. Find the line in the list. Its **Status** says **Active**.
-3. Press the switch. It turns to **Paused**, with the time it was paused.
-4. When you are done testing, press the switch again. It turns back to **Active**.
+1. Open **Settings > This site > Site > Internal traffic**.
+2. Find the row. Its status says **Active**. Press the three-dot button at its end.
+3. Press **Pause it**. The row now says **Paused**, with the time it was paused.
+4. When you are done testing, open the row again and press **Count it again**. It turns back to **Active**.
 
 While an address is paused, its visits count as visitors. You do not need to type the address again to turn it back on. The pauses are kept with the address, so a day counted again later gives the same figures.
 
@@ -65,17 +65,17 @@ While an address is paused, its visits count as visitors. You do not need to typ
 
 ## Edit an address
 
-1. Open **Settings > This site > Internal traffic**.
-2. Find the line and press **Edit**.
-3. Change the address, the label, or both.
-4. Press **Save**, or **Cancel** to keep it as it was.
+1. Open **Settings > This site > Site > Internal traffic**.
+2. Find the row and press the three-dot button at its end.
+3. Under **Change it**, change the address, the label, or both.
+4. Press **Save**, or close the panel to keep it as it was.
 
 The change applies from now on. Days before keep the old label and address. A paused address stays paused after an edit.
 
 ## Delete an address
 
-1. Open **Settings > This site > Internal traffic**.
-2. Find the line in the list and press **Delete**.
+1. Open **Settings > This site > Site > Internal traffic**.
+2. Find the row, press the three-dot button at its end, then **Delete**.
 3. Read the note and press **Yes, delete**, or **Keep it** to change your mind.
 
 From then on, visits from that address count as an ordinary visitor's again. Days already stored keep their figures. If you only want your visits to count for a while, pause the address instead.

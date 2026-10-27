@@ -88,3 +88,18 @@ export function passwordProblem(pw, again) {
 }
 
 export const ROLE_NAME = { owner: "Owner", admin: "Admin", viewer: "Viewer" };
+
+/* Settings v2: "More options", what most people never need, folded (null when empty). */
+export function moreOptions(...kids) {
+  const k = kids.flat(Infinity).filter((x) => x !== null && x !== undefined && x !== false && x !== "");
+  return k.length ? h("details", { class: "fold set-more" }, h("summary", null, "More options"), ...k) : null;
+}
+
+/* Settings v2: a long list shows its first rows and "Show all (N)" (rows: elements). */
+export function showFirst(rows, n = 5) {
+  if (rows.length <= n) return null;
+  rows.slice(n).forEach((r) => { r.hidden = true; });
+  const b = h("button", { type: "button", class: "linkish show-all" }, `Show all (${rows.length})`);
+  b.addEventListener("click", () => { rows.forEach((r) => { r.hidden = false; }); b.remove(); });
+  return b;
+}

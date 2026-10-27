@@ -248,8 +248,8 @@ def pull_command(config: dict, path: Path) -> str:
 def kept(config: dict, keep: int | None = None,
          weekly_keep: int | None = None) -> tuple[int, int]:
     """(daily, weekly) copies to keep: --keep / --weekly-keep when given,
-    else backup.daily / backup.weekly (config.yml, or Settings > Privacy &
-    retention), else 14 and 8."""
+    else backup.daily / backup.weekly (config.yml, or Settings > Privacy),
+    else 14 and 8."""
     from .config import setting
 
     def number(name: str, default: int) -> int:

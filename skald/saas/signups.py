@@ -131,7 +131,7 @@ def clean_host(raw) -> str:
 def finish(db, token, name, password, org_name, host, config, taken=(), log_root=None) -> dict:
     """{"user", "org", "site"}; ValueError in plain words (the link stays
     usable when the form was wrong). The site is a dashboard site, like one
-    added in Settings > Add or remove sites, so the runs process it and its
+    added in Settings > Sites, so the runs process it and its
     shipped log lands in <log_root>/<site> (ingest_log.root)."""
     from .. import ingest_log, settings_store, site_verify
     from ..accounts import site_configs

@@ -169,7 +169,7 @@ class Summary(Base):
         self.summarise()
         text = self.mail_to("owner@example.com")[0][2]
         self.assertEqual(text.count("Open it: https://stats.example.com/traffic/b.example.com/#overview/insights?todo="), 10)
-        self.assertEqual(text.count("&fix=1&fixby=agent"), 10, "each with its Fix this link, never a code")
+        self.assertEqual(text.count("&fix=1&by=agent"), 10, "each with its Fix this link, never a code")
         self.assertIn("- and 3 more: https://stats.example.com/traffic/b.example.com/#overview/insights", text)
         self.assertIn("13 things", self.mail_to("owner@example.com")[0][1])
 

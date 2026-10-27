@@ -1,4 +1,4 @@
-// Settings > Collect data > Send logs, "Send this site's visits to Skald", step Install:
+// Settings > Data > Send logs, "Send this site's visits to Skald", step Install:
 // the exact steps for each way, with the send address filled in, and the
 // fresh sending token when there is one (else a clear <token>). Every command
 // has a Copy button. For the shippers, the install kit built by the helper
@@ -17,6 +17,9 @@ import { DEMO } from "../demo.js";
 import { codeBlock, steps, helpLink } from "./conn-ui.js";
 import { read } from "../state.js";
 import { stepped } from "../overlays.js";
+
+// The send dialog tests on its next step; Add a site (2.42, st.testBelow) on the same one.
+export const thenTest = (st) => (st && st.testBelow ? "check it with Test connection below." : "press Next and Test connection here.");
 
 const TOKEN = "<token>";
 const tok = (st) => st.token || TOKEN;
@@ -158,7 +161,7 @@ function docker(st) {
     steps(
       ["Copy the zip to the server and unpack it:", codeBlock(`scp skald-ship-${st.site}.zip <server>:~/\nssh <server>\nunzip skald-ship-${st.site}.zip && cd skald-ship-${st.site}`, "the copy commands")],
       ["Run the installer. It shows nginx's log files; give the access log of " + st.site + " (or www." + st.site + "). Then paste the token when it asks (unless it is in the zip):", codeBlock("sudo bash install.sh", "the install command")],
-      ["Open https://" + st.site + "/ once in a browser, then press Next and Test connection here."],
+      ["Open https://" + st.site + "/ once in a browser, then " + thenTest(st)],
     ),
     h("details", { class: "fold" }, h("summary", null, "Without the kit (the same, by hand)"),
       h("p", null, "The token, then the container. Paste the token after the third line, press Enter, then Ctrl-D."), tokenNote(st),
@@ -189,7 +192,7 @@ function systemd(st) {
     steps(
       ["Copy the zip to the server and unpack it:", codeBlock(`scp skald-ship-${st.site}.zip <server>:~/\nssh <server>\nunzip skald-ship-${st.site}.zip && cd skald-ship-${st.site}`, "the copy commands")],
       ["Run the installer. It asks for the access log of " + st.site + " (or www." + st.site + ") and the token (unless it is in the zip):", codeBlock("sudo bash install.sh", "the install command")],
-      ["Open https://" + st.site + "/ once in a browser, then press Next and Test connection here."],
+      ["Open https://" + st.site + "/ once in a browser, then " + thenTest(st)],
     ),
     h("details", { class: "fold" }, h("summary", null, "Without the kit (the same, by hand)"),
       h("p", null, "Install the shipper (tools/skald-ship.py in Skald's code), its user and the token. Paste the token after the fourth line, press Enter, then Ctrl-D."), tokenNote(st),
@@ -244,7 +247,7 @@ function cloudflare(st) {
       ["Set its two values. The address:", codeBlock(st.url, "the send address (SKALD_INGEST_URL)"), "and the token, as a secret named SKALD_TOKEN:", tokenNote(st)],
       ["By hand with Wrangler, the token is set with this command (it asks for the value), then deploy:", codeBlock("npx wrangler secret put SKALD_TOKEN\nnpx wrangler deploy", "the Wrangler commands")],
       ["Add the site's route: in Cloudflare, open the Worker, then Settings > Domains & Routes > Add > Route, with " + st.site + "/* (and www." + st.site + "/*)."],
-      ["Open a page of the site, then press Next and Test connection here."],
+      ["Open a page of the site, then " + thenTest(st)],
     ),
     h("p", { class: "note" }, "Skald reads this site's records as edge records (log format edge_json) when nothing else has arrived for it yet. If you also send the server's log, keep the format Detect it: then only Cloudflare's cache hits are counted from the Worker."),
   ];
@@ -268,7 +271,7 @@ function drains(st) {
       ["Authorization header:", codeBlock(`Bearer ${tok(st)}`, "the Netlify header")],
       "Format JSON or NDJSON. Leave \"Exclude personally identifiable information\" off.",
     ),
-    h("p", null, "Then press Next and Test connection here."),
+    h("p", null, `Then ${thenTest(st)}`),
   ];
 }
 
@@ -310,9 +313,9 @@ function script(st) {
     h("p", null, "The tag counts what a log cannot see: clicks, form steps, scroll and booking embeds. It never sees AI crawlers or bots, so a server log is still the best source."),
     steps(
       ["Put the tag in the <head> of every page:", codeBlock(plainTag(st.base, st.site), "the script tag")],
-      ["Open a page of the site in a normal browser window (Do Not Track off), then press Next and Test connection here."],
+      ["Open a page of the site in a normal browser window (Do Not Track off), then " + thenTest(st)],
     ),
-    h("p", { class: "note" }, `Nothing changes on your web server: the page loads the script from ${host(st.base)} and sends its events there. The page's host name must be one of the site's host names (Settings > Site details).`),
+    h("p", { class: "note" }, `Nothing changes on your web server: the page loads the script from ${host(st.base)} and sends its events there. The page's host name must be one of the site's host names (Settings > Site).`),
     proxyFold(st.base, st.site),
   ];
 }

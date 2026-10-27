@@ -122,7 +122,7 @@ class RowsFile(unittest.TestCase):
             self.assertTrue(ref.startswith(body["todo"]["id"] + ":"))
             self.assertNotIn("rows", body)
             self.assertNotIn("rows", body["todo"])
-            self.assertIn("&fix=1&fixby=agent", body["link"])
+            self.assertIn("&fix=1&by=agent", body["link"])
             self.assertNotRegex(json.dumps(body), r"[A-Za-z0-9_-]{43}", "never a code")
 
     def test_scrub(self):
@@ -416,10 +416,10 @@ class NoCodeInMail(unittest.TestCase):
     def test_the_mail_links_to_fix_this_never_a_code(self):
         it = {"item": "lost-pages", "title": "Send old pages somewhere useful.", "todo": "Redirect each.",
               "link": "https://stats.example.com/traffic/example.com/#overview/insights?todo=lost-pages",
-              "fix": "https://stats.example.com/traffic/example.com/#overview/insights?todo=lost-pages&fix=1&fixby=agent"}
+              "fix": "https://stats.example.com/traffic/example.com/#overview/insights?todo=lost-pages&fix=1&by=agent"}
         line = summary_mail._line(it, "New: ")
         self.assertIn("Fix it with your AI agent: https://stats.example.com/traffic/example.com/"
-                      "#overview/insights?todo=lost-pages&fix=1&fixby=agent", line)
+                      "#overview/insights?todo=lost-pages&fix=1&by=agent", line)
         self.assertNotIn("use code", line)
         self.assertNotIn("/traffic-kit/", line)
         import inspect

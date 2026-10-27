@@ -155,7 +155,7 @@ function draw(settings) {
   }
   const back = h("a", { href: "#overview", class: "tab nav-back", id: "nav-back", html: BACK, onclick: (e) => go(e, lastApp) }, h("span", { class: "tab-name" }, "Back to the dashboard"));
   tooltip(back, "Back to the dashboard");
-  // 2.40: All settings first (no heading), then This site, AI & API, Organisation, You, Help & docs.
+  // v2: To do first (no heading), then This site, AI, Organisation, You. Help is in the foot.
   list.replaceChildren(ind, back, h("p", { class: "nav-title" }, "Settings"), ...S.SETTINGS_MENU.map((g, i) => group(g, i, !!g[0])).filter(Boolean));
 }
 
@@ -235,7 +235,7 @@ export function trailOf(key) {
   const sec = S.sectionOf(key);
   if (sec) return [[sec.name]];
   const group = S.groupOf(key);
-  if (key === "settings/home") return [["Settings", "settings"]];
+  if (key === S.SETTINGS_HOME) return [["Settings", "settings"], [nameOf(key)]];
   if (S.inSettings(key)) return [["Settings", "settings"], group && group !== nameOf(key) ? [group, null, "crumb-g"] : null, [nameOf(key)]].filter(Boolean);
   return [[nameOf(key)]];
 }

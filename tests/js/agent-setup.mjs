@@ -1,5 +1,6 @@
-// "Set up with your AI agent" (2.31): the Add a site wizard's steps 3 to 5 on the agent's
-// way (js/tabs/agent-setup.js, agent-watch.js, agent-words.js, site-wizard.js), against
+// "Set up with your AI agent" (2.31): the Add a site wizard's Connect it on the agent's
+// way (2.42: one step, the line and the watch under it; js/tabs/agent-setup.js, agent-watch.js,
+// agent-words.js, site-wizard.js), against
 // answers shaped as the contract says (sites/agentlink, sites/agentstatus):
 //  - the words: the code found and hidden, the time left, the report in plain words, the
 //    checklist, the asset paths offered only when they differ;
@@ -107,7 +108,7 @@ assert.equal(W.agentKey("<script>"), "", "only known ids from the address");
 assert.ok(W.isLinkId("0f3a9c2e7b1d4a58") && !W.isLinkId(CODE));
 const rep = W.reportLines(REPORT);
 assert.deepEqual(rep.map((x) => x.name), ["Hosting", "Web server", "Access log", "Built with", "Page assets", "Script tag", "Leads", "Privacy", "Privacy notice", "Next.js", "Files changed", "Left for you", "Notes"]);
-assert.deepEqual(rep.find((x) => x.name === "Privacy").value, ["Keep no IP addresses", "Apply it below, or set it in Settings > Privacy & retention > People."]);
+assert.deepEqual(rep.find((x) => x.name === "Privacy").value, ["Keep no IP addresses", "Apply it below, or set it in Settings > Privacy."]);
 assert.equal(rep.find((x) => x.name === "Privacy").kind, "noted");
 assert.equal(W.reportLines({ privacy: { keep_ips: true, days: 30 } })[0].value[0], "Keep IP addresses for 30 days");
 assert.equal(W.reportLines({ privacy: { keep_ips: true } })[0].value[0], "Keep IP addresses with no end date");
@@ -127,26 +128,31 @@ assert.equal(W.stopWords({ state: "expired", keys_at: "x", reported_at: "y" }), 
 assert.ok(W.stopWords({ state: "unknown" }));
 assert.ok(W.stopWords({ state: "cancelled", keys_at: "x" }).startsWith("This line was ended"));
 
-// ---- step 3: the tiles. Resumed at step 3 with nothing chosen: the agent first.
+// ---- resumed at step 3 with nothing chosen: who connects it, first (2.42)
 history.replaceState(null, "", "#settings/sitesadmin");
 await openSiteKey(SITE, 3);
 await tick();
 let d = dialog();
-assert.equal(heading(), "Step 3 of 5: Which AI agent are you using?");
-assert.equal(d.querySelectorAll("li").find((li) => li.getAttribute("aria-current") === "step").querySelector(".cn-t").textContent, "Your AI agent", "the short name in the step bar");
+assert.equal(heading(), "Step 1 of 2: Your site");
+d.querySelector(".dw-x").click();
+await tick(400);
+// ---- the tiles: Connections' "Set up with your AI agent" (pick) opens Connect it on My AI agent
+await openSiteKey(SITE, 3, { pick: true });
+await tick();
+d = dialog();
+assert.equal(heading(), "Step 2 of 2: Connect it");
+assert.equal(readState().by, "agent");
+assert.equal(d.querySelectorAll("li").find((li) => li.getAttribute("aria-current") === "step").querySelector(".cn-t").textContent, "Connect it", "the short name in the step bar");
 const tiles = d.querySelectorAll("button.ag-tile");
 assert.deepEqual(tiles.map((b) => b.querySelector("b").textContent), ["Claude Code", "Codex", "Cursor", "Claude.ai or ChatGPT", "Another agent"]);
 assert.ok(tiles.every((b) => b.getAttribute("aria-pressed") === "false" && b.getAttribute("aria-label")), "keyboard buttons with names");
-assert.ok(button(d, "No AI agent: set it up by hand"), "the quieter way out");
-await next();
-assert.ok(d.textContent.includes("Choose your AI agent, or No AI agent to set it up by hand."));
-assert.equal(heading(), "Step 3 of 5: Which AI agent are you using?", "Next refused");
+assert.ok(!d.querySelector("button.ag-hand"), "who connects it is asked once, in step 1: no Me among the agents");
 
 // ---- step 4: the line
 tiles[0].click();
 await tick();
 assert.equal(readState().agent, "claude-code", location.hash);
-assert.equal(heading(), "Step 4 of 5: Send this line");
+assert.equal(heading(), "Step 2 of 2: Connect it", "the line on the same step");
 assert.ok(calls("sites/setup").some(([, b]) => b.step === 4 && b.method === "agent"), JSON.stringify(calls("sites/setup")));
 assert.deepEqual(calls("sites/agentlink").map(([, b]) => b), [{ site: SITE, leads: true }]);
 await tick();
@@ -162,11 +168,11 @@ assert.equal(safe.querySelector("summary").textContent, "Is it safe to paste thi
 assert.ok(safe.hasAttribute("open"), "open on a wide screen");
 assert.equal(safe.querySelectorAll("li").length, 7);
 assert.ok(safe.textContent.includes("Yes. The line holds a one-time code, not a password or a key."));
-assert.ok(safe.textContent.includes("Settings > Tokens & links"), "where the tokens really are");
+assert.ok(safe.textContent.includes("Settings > AI assistants > Tokens & links"), "where the tokens really are");
 const { SAFE } = await import(new URL("tabs/agent-words.js", JS));
 assert.deepEqual(safe.querySelectorAll("li").map((li) => li.textContent), SAFE, "the seven lines, in order");
 assert.equal(SAFE[2], "Your agent is told to save the keys straight into a locked file and never show them in the chat. Skald gives them only to a command-line download such as curl, and turns away web readers and fetch tools, which could pass them into a chat.");
-assert.equal(SAFE[6], "If your site already has a lead secret, the agent gets that same one (unless your Skald keeps it in the server's settings; then the keys hold none). After the set-up you can remove the agent's sending key (\"AI agent set-up\") in Settings > Tokens & links, and make a new lead secret in Settings > Leads & integrations.");
+assert.equal(SAFE[6], "If your site already has a lead secret, the agent gets that same one (unless your Skald keeps it in the server's settings; then the keys hold none). After the set-up you can remove the agent's sending key (\"AI agent set-up\") in Settings > AI assistants > Tokens & links, and make a new lead secret in Settings > Leads & tools.");
 {
   const was = globalThis.matchMedia;
   globalThis.matchMedia = (q) => ({ matches: q.includes("max-width"), addEventListener() {} });
@@ -195,12 +201,14 @@ assert.ok(shown().includes(CODE));
 assert.equal(button(d, "Hide code").getAttribute("aria-pressed"), "true");
 button(d, "Hide code").click();
 assert.ok(!shown().includes(CODE));
-// Back and Next: the same line, asked once.
-button(d, "Back").click(); await tick();
-assert.equal(tiles.length, 5);
-assert.equal(d.querySelector('button.ag-tile[data-agent="claude-code"]').getAttribute("aria-pressed"), "true", "the choice shows when back");
-await next(); await tick();
+assert.ok(d.querySelector(".ag-watch"), "the watch under the line, from the start");
+assert.equal(d.querySelectorAll("button").filter((b) => b.textContent === "Cancel this line").length, 1, "one Cancel: the line's");
+// Another agent, then the same one again: the same line, asked once.
+button(d, "Another agent").click(); await tick();
+assert.equal(d.querySelectorAll("button.ag-tile").length, 5);
+d.querySelector('button.ag-tile[data-agent="claude-code"]').click(); await tick(); await tick();
 assert.equal(calls("sites/agentlink").length, 1, "drawn again: no second line");
+assert.equal(readState().link, "0f3a9c2e7b1d4a51", "the line made here is the one watched");
 // Make a new line: a new code, a new link id in the address.
 button(d, "Make a new line").click();
 await tick(); await tick();
@@ -222,18 +230,17 @@ await tick(); await tick();
 assert.equal(readState().link, "0f3a9c2e7b1d4a53", "a new line after the cancel");
 assert.ok(d.querySelector(".ag-line"));
 
-// ---- step 5: watch it connect
-await next();
-assert.equal(heading(), "Step 5 of 5: Watch it connect");
+// ---- the watch, under the line: Skald ticks each step by itself
+asked = 0;
 await tick(150);
-const asks = calls("sites/agentstatus");
+const asks = calls("sites/agentstatus").filter(([, b]) => b.link_id === "0f3a9c2e7b1d4a53");
 assert.ok(asks.length >= 4, `polled ${asks.length} times`);
 assert.deepEqual(asks[0][1], { site: SITE, link_id: "0f3a9c2e7b1d4a53" });
 const items = () => d.querySelectorAll(".ag-watch li").map((li) => [li.className, li.textContent]);
 assert.ok(items().slice(0, 3).every(([c]) => c === "ok"), JSON.stringify(items()));
 // The keys taken: when, used up, and what to do if it was not your agent.
 assert.match(d.textContent, /Your agent took the keys at \d\d:\d\d\. The code is used up: it cannot give the keys again\./);
-assert.ok(d.textContent.includes("Didn't your agent do this? Cancel the line, remove the key in Settings > Tokens & links, and make a new line."));
+assert.ok(d.textContent.includes("Didn't your agent do this? Cancel the line, remove the key in Settings > AI assistants > Tokens & links, and make a new line."));
 assert.ok(d.textContent.includes("What your agent did") && d.textContent.includes("/var/log/nginx/access.log") && d.textContent.includes("Restart the site's app"));
 assert.ok(d.querySelector(".ag-report .ua-host")?.textContent.includes("https://www.example.org/privacy"), "the privacy notice with its icons");
 assert.ok(items().some(([c, t]) => c === "ok" && t.includes("The script tag is on the home page")), "the tag seen");
@@ -267,24 +274,25 @@ forgetLine(SITE);
 asked = 0;
 statuses = [STATUSES[0]];
 lines = false;
-await openSiteKey(SITE, 5, { agent: "codex", link: "0f3a9c2e7b1d4a52" });
+await openSiteKey(SITE, 5, { agent: "codex", link: "0f3a9c2e7b1d4a58" });   // one this page never cancelled
 await tick(80);
 d = dialog();
-assert.equal(heading(), "Step 5 of 5: Watch it connect", "back at the step from the address");
-assert.equal(calls("sites/agentstatus").pop()[1].link_id, "0f3a9c2e7b1d4a52");
+assert.equal(heading(), "Step 2 of 2: Connect it", "back at the step from the address");
+assert.ok(d.textContent.includes("The line was made before this page was reloaded, so it is not shown again."));
+assert.equal(calls("sites/agentstatus").pop()[1].link_id, "0f3a9c2e7b1d4a58");
 d.querySelector(".dw-x").click();
 await tick(400);      // the drawer slides out (320 ms), then leaves the page
 const closedAt = calls("sites/agentstatus").length;
 await tick(120);
 assert.equal(calls("sites/agentstatus").length, closedAt, "the dialog closed: polling stopped");
-// ... and at step 4: the line is not shown again, Next still watches it.
+// ... and at an older step 4: the line is not shown again, the watch goes on.
 await openSiteKey(SITE, 4, { agent: "codex", link: "0f3a9c2e7b1d4a55" });   // one this page never cancelled
-await tick();
+await tick(40);
 d = dialog();
-assert.equal(heading(), "Step 4 of 5: Send this line");
-assert.ok(d.textContent.includes("This line was made before the page was reloaded, so it is not shown again."));
+assert.equal(heading(), "Step 2 of 2: Connect it");
+assert.ok(d.textContent.includes("The line was made before this page was reloaded, so it is not shown again."));
 assert.equal(calls("sites/agentlink").length, 3, "no new line made by itself (two made, one after the cancel)");
-assert.ok(d.textContent.includes("Paste it into Codex"));
+assert.equal(d.querySelector(".sw-way b").textContent, "Codex");
 button(d, "Cancel this line").click();
 await tick();
 assert.deepEqual(calls("sites/agentcancel").pop()[1], { site: SITE, link_id: "0f3a9c2e7b1d4a55" }, "a line from before the reload can be cancelled");
@@ -293,7 +301,7 @@ assert.ok(button(d, "Make a new line"));
 d.querySelector(".dw-x").click();
 await tick();
 
-// ---- step 5 after the keys: Cancel this line there; the cancelled state stops the polling
+// ---- after the keys: Cancel this line there; the cancelled state stops the polling
 statuses = [STATUSES[2], { ...STATUSES[2], state: "cancelled", cancelled_at: "2099-01-01T12:03:00Z" }];
 asked = 0;
 await openSiteKey(SITE, 5, { agent: "codex", link: "0f3a9c2e7b1d4a54" });
@@ -311,7 +319,7 @@ assert.equal(d.querySelectorAll("button").filter((b) => b.textContent === "Cance
 d.querySelector(".dw-x").click();
 await tick();
 
-// ---- step 5 before the keys (waiting, opened): Cancel this line is there too
+// ---- before the keys (waiting, opened): Cancel this line is there too
 statuses = [STATUSES[1]];
 asked = 0;
 await openSiteKey(SITE, 5, { agent: "codex", link: "0f3a9c2e7b1d4a56" });
@@ -335,7 +343,7 @@ await tick();
 // ---- the line runs out: the watch says so and stops
 statuses = [{ ok: true, state: "expired", opened_at: null, keys_at: null, reported_at: null, report: null }];
 asked = 0;
-await openSiteKey(SITE, 5, { agent: "cursor", link: "0f3a9c2e7b1d4a52" });
+await openSiteKey(SITE, 5, { agent: "cursor", link: "0f3a9c2e7b1d4a59" });
 await tick(80);
 d = dialog();
 assert.ok(d.textContent.includes("The line ran out before your agent took the keys."));
@@ -402,13 +410,13 @@ d.querySelector(".dw-x").click();
 await tick(400);
 lines = false;
 
-// ---- step 4 from an address with no link: no line by itself, "Make the line" on request
+// ---- from an address with no link: no line by itself, "Make the line" on request
 forgetLine(SITE);
 const madeBefore = calls("sites/agentlink").length;
 await openSiteKey(SITE, 4, { agent: "codex" });
 await tick();
 d = dialog();
-assert.equal(heading(), "Step 4 of 5: Send this line");
+assert.equal(heading(), "Step 2 of 2: Connect it");
 assert.equal(calls("sites/agentlink").length, madeBefore, "no sites/agentlink from an address");
 assert.ok(!d.querySelector(".ag-line"));
 button(d, "Make the line").click();
@@ -424,44 +432,56 @@ await tick();
 d = dialog();
 d.querySelector('button.ag-tile[data-agent="chat"]').click();
 await tick(); await tick();
-assert.equal(heading(), "Step 4 of 5: Run one command");
+assert.equal(heading(), "Step 2 of 2: Connect it");
 assert.ok(d.textContent.includes("A chat in the browser cannot run commands on your server."));
 assert.ok(d.querySelector(".cn-run .cn-code").textContent.includes("| sudo bash"));
 assert.ok(calls("sites/setup").some(([, b]) => b.step === 4 && b.method === "server"));
 assert.equal(readState().agent, "chat");
-await next();
-assert.equal(heading(), "Step 5 of 5: Watch it connect");
 assert.ok(!d.querySelector(".ag-watch"), "no agent checklist for a chat");
 assert.ok(d.textContent.includes("sudo skald-ship-check"), "the server way's test words");
 d.querySelector(".dw-x").click();
 await tick();
 
-// ---- by hand from the address (agent=hand), and back to the agents
+// ---- by hand from an older address (agent=hand is Me), and back to the agents
 await openSiteKey(SITE, 4, { agent: "hand" });
 await tick();
 d = dialog();
-assert.equal(heading(), "Step 3 of 5: How visits reach Skald", "nothing chosen by hand yet: the ways first");
-button(d, "Use an AI agent instead").click();
+assert.equal(heading(), "Step 2 of 2: Connect it");
+assert.equal(readState().by, "me", "agent=hand is read as by=me");
+assert.ok(d.textContent.includes("Where does the site run?"), "nothing chosen by hand yet: the ways first");
+button(d, "Change").click();
 await tick();
-assert.equal(heading(), "Step 3 of 5: Which AI agent are you using?");
-assert.equal(readState().agent, "");
+assert.equal(heading(), "Step 1 of 2: Your site");
+d.querySelector('.ui-who-c[data-who="agent"]').click();
+await next(); await tick();
+assert.equal(heading(), "Step 2 of 2: Connect it");
+assert.equal(readState().by, "agent");
+assert.equal(d.querySelectorAll("button.ag-tile").length, 5, "the agents");
 d.querySelector(".dw-x").click();
 await tick();
-// A site saved by hand reopens by hand; Collect data's button asks which agent anyway.
+// A site saved by hand reopens by hand. v2: Data › Send logs has one button, and it asks who will do it.
 await openSiteKey("old.example.org", 4);
 await tick();
-assert.equal(heading(), "Step 4 of 5: Install");
+assert.equal(heading(), "Step 2 of 2: Connect it");
+assert.match(dialog().querySelector(".sw-way").textContent, /^My own server/, "its saved way");
 dialog().querySelector(".dw-x").click();
 await tick();
-const { collectLogs } = await import(new URL("tabs/set-site.js", JS));
+const { dataLogs } = await import(new URL("tabs/set-site.js", JS));
 const root = document.createElement("div");
 document.body.append(root);
-root.append(...[collectLogs({ site: "old.example.org", x: { sites: { sites: [{ name: "old.example.org" }] } } })].flat(9).filter(Boolean));
-await tick();
-button(root, "Set up with your AI agent").click();
+root.append(...[dataLogs({ site: "old.example.org", x: { sites: { sites: [{ name: "old.example.org" }] } } })].flat(9).filter(Boolean));
 await tick(30);
-assert.equal(heading(), "Step 3 of 5: Which AI agent are you using?");
-assert.equal(readState().setup, "old.example.org");
-assert.equal(readState().step, "3");
+assert.equal(root.querySelectorAll("button.set-go").length, 1, "one button");
+root.querySelector("button.set-go").click();
+await tick(30);
+assert.equal(readState().setup, "finish-logs", "Who will do it? for this line");
+assert.ok(dialog().textContent.includes("Who will do it?"));
+dialog().querySelector('.ui-who-c[data-who="agent"]').click();
+await tick(50);
+dialog().querySelector('button.ag-tile[data-agent="codex"]').click();
+await tick(50);
+assert.equal(readState().setup, "finish-logs", "the agent's line is made in this dialog");
+assert.equal(readState().by, "agent");
+assert.equal(readState().agent, "codex");
 console.log("agent-setup: all passed");
 process.exit(0);

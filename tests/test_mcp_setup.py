@@ -98,9 +98,9 @@ class SetupTools(TenantServer):
         by = {i["id"]: i for i in left}
         self.assertEqual(by["logs"]["state"], "todo")
         self.assertEqual(by["logs"]["job"], "logs")
-        self.assertEqual(by["logs"]["dialog"], f"{ORIGIN}/traffic/{A}/#settings/api?setup=logs")
+        self.assertEqual(by["logs"]["dialog"], f"{ORIGIN}/traffic/{A}/#settings/todo?setup=logs")
         self.assertEqual(by["mail"]["job"], None)
-        self.assertEqual(by["mail"]["dialog"], f"{ORIGIN}/traffic/{A}/#settings/api?setup=mail")
+        self.assertEqual(by["mail"]["dialog"], f"{ORIGIN}/traffic/{A}/#settings/todo?setup=mail")
         self.assertEqual(by["privacy"]["job"], "privacy")
         self.assertFalse(got["structuredContent"]["done"])
         self.assertEqual(got["structuredContent"]["jobs"][0], "logs")

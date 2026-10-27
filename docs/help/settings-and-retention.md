@@ -4,35 +4,41 @@ What each settings page does, who may change it, and how long Skald keeps each k
 
 ## Opening Settings
 
-Select the gear at the foot of the sidebar, or press `g` then `,` (comma). On a phone, open **Menu** first: the gear is at its foot. Settings opens on **All settings** ([All settings](#settings/home)): every settings page, with one line on what it is for. It is the place to start when you do not know where something is.
+Select the gear at the foot of the sidebar, or press `g` then `,` (comma). On a phone, open **Menu** first: the gear is at its foot. Settings opens on **To do** ([To do](#settings/todo)): what needs you now, most important first. At its top, **Find a setting** finds any setting by its name (the same finder as **Ctrl K**).
 
 Settings pages come with accounts. On a server with one shared login, most of these values are set in the server's config file by whoever runs it, and the pages say so.
 
 A page you may not change is shown read-only, with the reason beside each field. Pages your role cannot use are left out of the menu.
 
+### Rows, and the panel that changes them
+
+Each page shows what is set, not a form. A card lists its settings as rows: the name, the value in words, and where it comes from (this site, the organisation, the whole install, the config file or the default). Something that is on or off, or set or not, has a coloured label: **On**, **Off**, **Set**, **Not set**. A card where nothing is yours to change is one line, **Read-only**, with the reason.
+
+To change a setting, select its row. The card's settings open in a panel on the right, with one **Save** at its foot. **Save** wakes up once you change something. After a save the panel says so, and the rows behind it show the new values. The panel's address names the card (`edit=people`, for example), so a link or a reload opens it again, and **Back** closes it.
+
+The same goes for lists: an internal address, a client report, an AI answers profile and a token each have a row with a status label, and their actions (pause, edit, send, delete) are in the row's panel. The page's one main button sits beside its title: **Add an address**, **New report**, **New profile**, **New token**, **Send a test mail**, **Download CSV**.
+
 ### How the pages are laid out
 
 - **The menu.** On a computer, the settings menu takes the sidebar's place while a settings page is open. On a phone, the menu sits at the top of every settings page as a select, **Settings page**, grouped the same way, so you never need the drawer.
-- **Tabs inside a page.** Some pages have tabs: **Collect data**, **Leads & integrations**, **Mail & reports** and **AI answers**. Each tab has its own address, so a link opens that tab.
-- **Help and Docs.** Under every page's title, **Help** opens this page's guide inside Skald. **Docs** opens the same guide on the public site, skaldanalytics.com/docs/<guide>/, in a new tab. The Docs address has the copy and open icons beside it.
-- **Next step.** At the foot of each page, a **Next step** card names where to go next.
+- **Tabs inside a page.** Some pages have tabs, such as **Data**, **Leads & tools** and **Mail & reports**. Each tab has its own address (`sub=`), so a link opens that tab.
+- **What it is for.** Each page shows its state and its action only. The **?** beside the title says what the page is for in a sentence or two, with a link to its guide inside Skald and to the same guide on the public site, skaldanalytics.com/docs/<guide>/.
 - **Old addresses.** A link to an old settings page still works. It opens the page the setting is on now.
 
-The palette (**Ctrl K**, **Cmd K** on a Mac) finds every settings page by its name, such as "AI assistant (MCP)".
+The palette (**Ctrl K**, **Cmd K** on a Mac) finds every settings page by its name, such as "AI assistants".
 
 ## The settings menu
 
-**All settings** is at the top, above the groups.
+**To do** is at the top, above the groups.
 
 | Group | Pages |
 | --- | --- |
-| This site | Set-up checklist, Collect data, Site details, Leads & integrations, Internal traffic, Privacy & retention, Mail & reports, AI answers |
-| AI & API | AI assistant (MCP), Read figures (API), Tokens & links |
-| Organisation | Sites, Team, Users (only on a server with one shared login), Sign-in rules, Audit log, Billing & usage |
+| This site | Data, Leads & tools, Site, Privacy, Mail & reports |
+| AI | AI assistants, AI answers |
+| Organisation | Sites, People, Billing (hosted plans only), Audit log |
 | You | Your account |
-| Help & docs | Help & docs: the guides, the public docs, the API and MCP pages, What's new and how to reach us |
 
-**This site** is about the site you have open; its name is beside the group. **Organisation** is about every site and person of your organisation.
+**This site** is about the site you have open; its name is beside the group. **Organisation** is about every site and person of your organisation. **Help**, at the foot of the sidebar, opens every guide.
 
 **Back to the dashboard**, at the top of the settings menu, returns to the page you came from.
 
@@ -40,23 +46,26 @@ The tabs inside a page:
 
 | Page | Tabs |
 | --- | --- |
-| Collect data | Send logs, Script tag & goals, What counts |
-| Leads & integrations | Incoming hooks, Outgoing webhooks, Search Console & Bing |
+| Data | Send logs, Script tag & goals, What counts, Test a sample |
+| Leads & tools | Incoming hooks, Outgoing webhooks, Search Console & Bing |
+| Site | Names & time, Internal traffic |
 | Mail & reports | Mail, Client reports |
+| AI assistants | MCP, API, Tokens & links |
 | AI answers | Questions & profiles, API keys |
+| People | Team (Users, on a server with one shared login), Sign-in rules |
 
 These pages have guides of their own:
 
-- Set-up checklist: [Getting started](getting-started.md), "Set up your site".
-- Collect data › Send logs, and Organisation › Sites: [Connections](connections.md).
-- Collect data › Script tag & goals: [Tracking script](tracking-script.md) and [Funnels and goals](funnels-and-goals.md).
-- Leads & integrations: [Webhooks](webhooks.md) and [Search](search.md).
-- Internal traffic: [Internal traffic](internal-traffic.md).
-- Privacy & retention: [Privacy](privacy.md), and this guide below.
+- To do: [Getting started](getting-started.md), "Set up your site".
+- Data › Send logs and Test a sample, and Organisation › Sites: [Connections](connections.md).
+- Data › Script tag & goals: [Tracking script](tracking-script.md) and [Funnels and goals](funnels-and-goals.md).
+- Leads & tools: [Webhooks](webhooks.md) and [Search](search.md).
+- Site › Internal traffic: [Internal traffic](internal-traffic.md).
+- Privacy: [Privacy](privacy.md), and this guide below.
 - Mail & reports › Client reports: [Client reports](client-reports.md).
 - AI answers, and its API keys: [AI answers](ai-answers.md).
-- AI assistant (MCP): [MCP](mcp.md). Read figures (API) and Tokens & links: [API](api.md).
-- Team, Users, Sign-in rules and Your account: [Sign-in and team](sign-in-and-team.md).
+- AI assistants › MCP: [MCP](mcp.md). API and Tokens & links: [API](api.md).
+- People and Your account: [Sign-in and team](sign-in-and-team.md).
 
 ## Who may change what
 
@@ -64,34 +73,35 @@ These pages have guides of their own:
 
 | Page | Part | Who may change it |
 | --- | --- | --- |
-| Privacy & retention | Detail kept for this site | Admin |
-| Privacy & retention | People (IP addresses, names and emails) | Admin |
-| Privacy & retention | Leads (how long leads and their pages are kept) | Admin |
-| Privacy & retention | Backups | Install admin |
+| Privacy | Detail kept for this site | Admin |
+| Privacy | People (IP addresses, names and emails) | Admin |
+| Privacy | Leads (how long leads and their pages are kept) | Admin |
+| Privacy | Backups | Install admin |
 | Mail & reports › Mail | Reports (the daily and weekly mail) | Admin |
 | Mail & reports › Mail | Mail server (SMTP), Google PageSpeed | Install admin |
 | Mail & reports › Client reports | Client reports, agency branding | Admin |
-| Site details | Host names, Views, Time zone, Logo | Admin |
-| Collect data › Send logs | Log file | Install admin |
-| Collect data › Script tag & goals | Visitor IDs, Goals | Admin |
-| Collect data › What counts | Page assets, Not pages | Admin |
-| Leads & integrations | Hooks, event types, outgoing webhooks | Admin |
+| Site › Names & time | Host names, Views, Time zone, Logo | Admin |
+| Site › Internal traffic | Your own addresses | Admin |
+| Data › Send logs | Log file | Install admin |
+| Data › Script tag & goals | Visitor IDs, Goals | Admin |
+| Data › What counts | Page assets, Not pages | Admin |
+| Leads & tools | Hooks, event types, outgoing webhooks | Admin |
 | AI answers › Questions & profiles | The site's lists, tracking profiles | Admin |
 | AI answers › API keys | The assistants' API keys | Install admin |
-| AI & API | Tokens, MCP and API set-up, shared links | Admin |
-| Sign-in rules | Require two-step sign-in, session length | Owner |
+| AI assistants | Tokens, MCP and API set-up, shared links | Admin |
+| People › Sign-in rules | Require two-step sign-in, session length | Owner |
 | Audit log | (read only) | Admins may read it |
 | AI & bots › Crawler rules | Every crawler | Install admin |
 | Organisation › Sites | Add a site | Admin |
 | Organisation › Sites | Pause or resume a site | Admin |
 | Organisation › Sites | Remove, restore, clear data, delete all data | Owner |
-| Billing & usage | Plan and payment | Owner (admins can read it) |
+| Billing | Plan and payment | Owner (admins can read it) |
 
 Viewers see the pages read-only.
 
-## Privacy & retention
+## Privacy
 
-[Privacy & retention](#settings/site/privacy) (**Settings › This site › Privacy & retention**) sets how long the detail is kept. Totals, page milestones and every stored day's figures are kept forever. They are not a setting.
+[Privacy](#settings/site/privacy) (**Settings › This site › Privacy**) sets how long the detail is kept. Totals, page milestones and every stored day's figures are kept forever. They are not a setting.
 
 | Setting | What it keeps | Range | Default |
 | --- | --- | --- | --- |
@@ -181,7 +191,7 @@ The **Mail** tab has these cards.
 - **Recipients**: up to 20 email addresses.
 - **From name**: the name the mail comes from.
 
-Each new recipient first gets one mail with a confirm link. They get nothing else until they open the link and select the button on that page. The link works once, for 7 days. Until at least one address is confirmed, the reports are held back, not failed.
+Each new recipient first gets one mail with a confirm link. They get nothing else until they open the link and select the button on that page. The link works once, for 7 days. Until at least one address is confirmed, the reports are held back, not failed. Your own address (the one you sign in with) needs no link. With no mail server set (below), no confirm mail is tried: the Mail page shows **Skald cannot send mail yet** above the recipients, says what is missing and asks **Who will set it up?**, and a saved address is told it gets its link once the mail server is set.
 
 The mails carry figures only, never an address and never a journey. A mail that would include a withheld or partial day is held back.
 
@@ -210,23 +220,32 @@ At most 3 test mails in 10 minutes.
 
 Alerts always show on [Site › Alerts](#site/alerts) and on the bell in the top bar. They go to confirmed recipients only.
 
-Admins and owners switch alerts on or off for this site under **Which alerts are on** on [Site › Alerts](#site/alerts):
+Site › Alerts shows one card per kind of alert, the most urgent first, each with a pill (**Urgent**, **Worth a look**, **For information**). The page, the Site tab's badge and the bell all count the same thing: the kinds that need you (urgent or worth a look), not the number of rows. Fourteen open alerts of three kinds show as **3**.
 
-- **All alerts**: the switch for every rule. While it is off, nothing is checked, and the page offers **Turn alerts on**.
-- **Mail alerts**: off, alerts are only shown here, never mailed.
-- **Each rule** (site down, server errors, a crawl burst, AI started reading, and the rest): on or off by itself.
-- **Sale** and **Refund on a sale** (off until you turn them on): one alert for each sale or refund the Revenue tab counts, with an optional **Sale alert minimum** per currency. See [Revenue](revenue.md#sale-alerts).
+- **Fix** opens one question, **Who will do it? Me / My developer / My AI agent**. **Me** shows the steps (for a possible exposure, the line for your web server, with a copy icon; for an advisory, the item on Security › Your stack; for a path, its recent requests). **My developer** gives a message to send and a link to this alert. **My AI agent** shows only where the agent kit has the job (logging stopped). Your answer is kept in the address (`alfix=<kind>&by=me`) and remembered for the next time.
+- **I have done it** closes the dialog. Skald checks again with every live run, and the alert closes by itself once the problem is gone.
+- A kind with nothing to fix (an AI assistant stopped reading pages) has **See the N pages** instead.
+- The **?** beside the title says what is watched and how. Alerts closed in the last 30 days are one line that opens to their table.
 
-A change applies from the next live run, within 2 minutes. How much makes an alert (the thresholds) is set in the server's config. A switch the server's config locks shows its reason and cannot be changed here. Viewers see the switches but cannot change them.
+Admins and owners switch alerts on or off for this site on **Settings › This site › Alerts** ([Alerts](#settings/site/alerts)). The last line on [Site › Alerts](#site/alerts), **Which alerts are on: N of M**, links there, and an older link with `alerts_view=switches` opens it too:
+
+- **The line at the top** says where things stand. On: "16 of 17 rules are checked with every live run, and mailed to the site's confirmed recipients" (or "shown on Site › Alerts, not mailed"). Off: "Alerts are off, so nothing is checked. 16 rules will run when you turn them on."
+- **Turn alerts on**, beside the title, only while alerts are off and you may switch them. There is no other button on the page.
+- **All alerts**: the switch for every rule. While it is off, nothing is checked.
+- **Mail alerts**: off, alerts are only shown on Site › Alerts, never mailed.
+- **The rules**, in folds by area: **Site health** (site down, logging stopped, server errors, broken links), **Traffic** (traffic drop, visits from AI answers, first citations), **Crawlers & AI** (crawl bursts, new or silent crawlers, AI reading pages), **Security** (exposures, scan waves, advisories) and **Sales**. Each fold says how many of its rules are on ("3 of 4 on"; while alerts are off, "3 of 4 will run"). A rule is one line: its name, a **?** with what makes it alert, and its switch.
+- **Sale** and **Refund on a sale** (off until you turn them on): one alert for each sale or refund the Revenue tab counts, with an optional **Sale alert minimum** per currency (its row opens a panel). See [Revenue](revenue.md#sale-alerts).
+
+A change applies from the next live run, within 2 minutes. How much makes an alert (the thresholds) is set in the server's config. A switch the server's config locks says "Locked in the server's config file" and cannot be changed here. Viewers see the switches but cannot change them.
 
 If the morning run fails, the server can send one short failure mail. It goes to the same people as the daily mail: the confirmed recipients on this page, or the server's own list when none is set here or none has confirmed yet. It uses the mail server set on this page or on the server. A day held back because it did not add up is not a failure, so it sends no failure mail.
 
-## Site details
+## Site: names and time
 
-[Site details](#settings/site/details) (**Settings › This site › Site details**) says what counts as this site.
+[Site](#settings/site/details) (**Settings › This site › Site**, tab **Names & time**) says what counts as this site. Its other tab, **Internal traffic**, is in [Internal traffic](internal-traffic.md).
 
 - **Host names**: the names this site answers to, such as `www.example.com` and `example.com`. 1 to 50.
-- **Views**: page groups, one per line: a name, the path it starts with, and any paths to leave out. Up to 20. They show in the **Page group** list in the top bar, which reads **All pages** until you pick one. See "Views (page groups)" below.
+- **Views**: page groups, one per line: a name, the path it starts with, and any paths to leave out. Up to 20. They show in the **Page group** list at the top of the **Filters** panel, which reads **All pages** until you pick one. See "Views (page groups)" below.
 - **Time zone**: the site's own zone. Days are counted midnight to midnight in it.
 - **Logo**: see "Logo" below.
 
@@ -265,13 +284,14 @@ Choose where it comes from:
 
 Press **Save**. Owners and admins can change the logo; everyone else sees it.
 
-## Collect data
+## Data
 
-[Collect data](#settings/site/collect) (**Settings › This site › Collect data**) is how this site's visits reach Skald, and what counts. It has three tabs:
+[Data](#settings/site/data) (**Settings › This site › Data**) is how this site's visits reach Skald, and what counts. It has four tabs:
 
-- **Send logs**: sending this site's visits to Skald from another server or platform, with your AI agent or by hand, and **Test a sample** of a log. See [Connections](connections.md). It also has the **Log file**: the log folder and file name, for install admins.
-- **Script tag & goals** ([Script tag & goals](#settings/site/collect?sub=script)): the tag to copy into every page, its visitor IDs (and sharing them across subdomains), and the **Goals**: the page events that count as this site's goals, such as Sign-up sent or Demo booked. Tick up to 10. The events your site has already counted are listed first; the others are under **Not counted yet**. See [Tracking script](tracking-script.md) and [Funnels and goals](funnels-and-goals.md).
-- **What counts** ([What counts](#settings/site/collect?sub=counting)): the **Page assets**, the folders your pages load their own files from (without them nobody counts as a person), and the **Not pages**: machine addresses that are never a person reading a page, such as feeds and WordPress's API. See "Not pages" below.
+- **Send logs**: sending this site's visits to Skald from another server or platform, with your AI agent or by hand. See [Connections](connections.md). It also has the **Log file**: the log folder and file name, for install admins.
+- **Script tag & goals** ([Script tag & goals](#settings/site/data?sub=script)): the tag to copy into every page, its visitor IDs (and sharing them across subdomains), and the **Goals**: the page events that count as this site's goals, such as Sign-up sent or Demo booked. Tick up to 10. The events your site has already counted are listed first; the others are under **Not counted yet**. See [Tracking script](tracking-script.md) and [Funnels and goals](funnels-and-goals.md).
+- **What counts** ([What counts](#settings/site/data?sub=counting)): the **Page assets**, the folders your pages load their own files from (without them nobody counts as a person), and the **Not pages**: machine addresses that are never a person reading a page, such as feeds and WordPress's API. See "Not pages" below.
+- **Test a sample** ([Test a sample](#settings/site/data?sub=sample)): paste a few lines of a log and Skald says what it would count. See [Connections](connections.md#test-a-sample-of-a-log).
 
 Changes apply from the next run. Days already stored are not counted again.
 
@@ -309,7 +329,7 @@ A change counts from the next run. Days already stored keep their figures until 
 
 ## Sites
 
-[Sites](#settings/org/sites) (**Settings › Organisation › Sites**) lists your organisation's sites. If your server offers it, an admin adds a site here with **Add a site, step by step**: the site's address, proof it is yours, how its visits reach Skald, the install, and a test. You can stop at any step and continue later. A site not finished shows **Setup: step 3 of 5, continue**; a finished one that has received nothing for a day shows **No visits yet: test the connection**. See [Connections](connections.md), "Add a site, step by step".
+[Sites](#settings/org/sites) (**Settings › Organisation › Sites**) lists your organisation's sites. If your server offers it, an admin adds a site here with **Add a site**, in two steps: the site's address and who will connect it (me, my developer or my AI agent), then connecting it. Skald finds the rest, and asks for proof that the domain is yours only when the server needs it. You can stop at any step and continue later. A site not finished shows **Finish setting up**; a finished one that has received nothing for a day shows **No visits yet: test the connection**. See [Connections](connections.md), "Add a site, step by step".
 
 A new site gets a page at once, with a short "Getting ready" note until its first figures arrive.
 
@@ -370,7 +390,7 @@ Write the summary line yourself and check the links. Then select **Copy** or **D
 
 ## Sign-in rules
 
-[Sign-in rules](#settings/org/security) (**Settings › Organisation › Sign-in rules**) sets the sign-in rules for everyone in the organisation. Only an owner may change them.
+[Sign-in rules](#settings/org/people?sub=security) (**Settings › Organisation › People › Sign-in rules**) sets the sign-in rules for everyone in the organisation. Only an owner may change them.
 
 - **Require two-step sign-in**: members without it set it up the next time they sign in. Turn it on for your own account first.
 - **Session length**: how long a sign-in lasts at most, 1 to 90 days. The default is 14.
@@ -384,9 +404,9 @@ Write the summary line yourself and check the links. Then select **Copy** or **D
 
 No password, token, link or address is ever written to the log. Each person search is written too (`people.search`): what kind of value was searched and a one-way code of it, never the value. So is each conversion marked test or not (`conversions.test`, `conversions.untest`). Install admins see every organisation's rows.
 
-## Billing & usage
+## Billing
 
-[Billing & usage](#settings/org/billing) (**Settings › Organisation › Billing & usage**) shows only on servers that sell plans, to owners and admins. Admins can read it; only owners can choose a plan or change the payment. Other servers say "This server does not sell plans."
+[Billing](#settings/org/billing) (**Settings › Organisation › Billing**) shows only on servers that sell plans, to owners and admins. Admins can read it; only owners can choose a plan or change the payment. Other servers say "This server does not sell plans."
 
 - **Your plan**: its name, status and trial days left.
 - **Requests this month** as a bar, with marks at 80%, 90% and 100% of what the plan allows, and the day the count starts again.

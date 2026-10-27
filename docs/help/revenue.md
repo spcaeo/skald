@@ -11,9 +11,9 @@ Open [Leads & sales > Revenue](#sales/revenue). The period is the one in the top
 - **Currency.** With sales in more than one currency, a **Currency** switch picks which one the numbers show. The others are listed under the numbers, never added. Skald never converts one currency into another: an exchange rate is not something it can check.
 - **Breakdown.** The table shows net revenue and sales by **Source (last touch)**, **First touch**, **Campaign**, **Landing page**, **Country**, **Device**, **Reported by** (the tool), **Label** or **Tag**. A landing page has copy and open icons at its end, as every page does.
 - **Tag.** Choose one tag (for example `plan = pro`) and the numbers become that tag's own net revenue and sales, and the table lists every value of that tag. Refunds, customers, renewals and the other breakdowns are not split by tag, so they show with **Every tag**.
-- **Lifetime value, by first source** (folded at the bottom). Every customer, by the first source of their first paid sale: how many customers, what they paid in all (refunds taken off), the average per customer, their renewals and the share who paid again (given over at least 10 customers). It counts every sale Skald keeps, not the period in the top bar; **Settings > This site > Privacy & retention** applies.
+- **Lifetime value, by first source** (folded at the bottom). Every customer, by the first source of their first paid sale: how many customers, what they paid in all (refunds taken off), the average per customer, their renewals and the share who paid again (given over at least 10 customers). It counts every sale Skald keeps, not the period in the top bar; **Settings > This site > Privacy** applies.
 
-The currency, the breakdown and the tag are in the page's address (`#sales/revenue?cur=EUR&by=campaign&tag=plan:pro`), so a link or a reload opens the same view.
+The currency, the breakdown and the tag are in the page's address (`#sales/revenue?cur=EUR&rby=campaign&tag=plan:pro`), so a link or a reload opens the same view.
 
 A lead's drawer on [Leads](#sales/leads) shows the sale's own **Value**, what was **Refunded** on it, the **Customer** reference your tool sent (with a copy icon) and its **Tags**.
 
@@ -80,11 +80,11 @@ For every tool, send `action` and `stage` as `paid`, and a refund as `stage` `re
 
 ## Sale alerts
 
-Skald can tell you when a sale comes in. It is off until an admin turns it on, per site, on [Site > Alerts](#site/alerts) under **Which alerts are on**:
+Skald can tell you when a sale comes in. It is off until an admin turns it on, per site, on [Settings > This site > Alerts](#settings/site/alerts) (the switches; Site > Alerts links there):
 
 - **Sale**: one alert when a lead gains a sale value that this tab counts (a paid row with a value, or a completed one). Test leads never alert.
 - **Refund on a sale**: one alert when a refund that this tab counts takes money back from a sale. Off by default too.
-- **Sale alert minimum**: type the least amount per currency, for example `USD 100, EUR 90.50`, and press **Save minimum**. A sale under it does not alert, nor does a refund on it. A currency you do not list alerts at any amount. Leave it empty for every sale.
+- **Sale alert minimum**: open its row under **Sales**, type the least amount per currency, for example `USD 100, EUR 90.50`, and press **Save**. A sale under it does not alert, nor does a refund on it. A currency you do not list alerts at any amount. Leave it empty for every sale.
 
 The alert goes the same way as the site's other alerts: it shows on Site > Alerts (under **Closed recently**, since a sale is a one-off notice), it is mailed to the site's confirmed alert recipients when **Mail alerts** is on, and it goes to your webhooks with the event `alert.opened`, Slack included ([Webhooks](webhooks.md)). **All alerts** must be on.
 
@@ -94,7 +94,7 @@ Each sale alerts once, ever: not again after a restart, a recount or a delivery 
 
 ## Troubleshooting
 
-- **"No revenue yet"**: no sale has arrived with a value and a currency. Look at **Settings > This site > Leads & integrations > Incoming hooks > Status**: a delivery whose value was dropped says why.
+- **"No revenue yet"**: no sale has arrived with a value and a currency. Look at **Settings > This site > Leads & tools > Incoming hooks > Status**: a delivery whose value was dropped says why.
 - **The numbers look 100 times too big**: the tool sent cents and they were posted as `value`. Divide by 100 in the mapping.
 - **A renewal shows as a new customer**: the renewal was sent without the same `customer_ref` as the first sale.
 - **Two currencies, one total**: there is none, on purpose. Pick each currency with the **Currency** switch.

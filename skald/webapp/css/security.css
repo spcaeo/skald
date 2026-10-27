@@ -30,6 +30,11 @@
   background: color-mix(in srgb, var(--warn) 7%, var(--surface)); font-size: 13.5px; color: var(--ink-2); max-width: 110ch; }
 .sec-review strong { color: var(--ink); }
 .sec-exports { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+/* The screen's one action (2.42): Fix in the verdict, Block them beside the review line. */
+.sec-verdict > div { flex: 1 1 auto; min-width: 0; }
+.sec-v-act { flex: none; align-self: center; }
+.sec-review { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); justify-content: space-between; }
+@media (max-width: 600px) { .sec-verdict { flex-wrap: wrap; } .sec-v-act { width: 100%; } .sec-v-act .btn { width: 100%; justify-content: center; } }
 .sec-missing { color: var(--ink-3); }
 
 /* The scanner detail (drawer) */

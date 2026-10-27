@@ -90,13 +90,16 @@ function strip(days) {
   return el;
 }
 
-function todayCard(t, tz) {
+// 2.41: the verdict is today's log lines'; a scheduled job that is late, failed or never ran is
+// named beside it, so "Good" never sits above red jobs with no word (the UX audit's count rule).
+function todayCard(t, tz, jobsOff = 0) {
   if (!t) return h("p", { class: "empty" }, "Today has not been checked yet: the live run writes it every two minutes.");
   const [g, why] = grade(t);
   const cell = (label, v, note) => h("div", { class: "kpi" }, h("div", { class: "k-l" }, label), h("div", { class: "k-n" }, note || ""), h("div", { class: "k-v" }, v), h("div", { class: "k-c" }));
   return h("div", null,
     h("div", { class: `q-now q-${g}` }, h("span", { class: "q-dot", "aria-hidden": "true" }),
-      h("div", null, h("b", null, `Today so far: ${GRADE[g]}`), h("small", null, why.length ? why.join("; ") : "No problem found in today's lines."))),
+      h("div", null, h("b", null, `Today's log lines so far: ${GRADE[g]}`), h("small", null, why.length ? why.join("; ") : "No problem found in today's lines.",
+        jobsOff ? ` ${jobsOff} scheduled job${jobsOff === 1 ? " is" : "s are"} late, failed or never ran: see Scheduled jobs, below.` : ""))),
     h("div", { class: "kpis" },
       cell("Lines read", n(t.lines), t.first_line ? `from ${t.first_line} to ${t.last_line}${files(t.files)}` : ""),
       cell("Unreadable lines", n(t.unparsed), fmtPct(share(t))),
@@ -128,7 +131,8 @@ export default function quality(m, s) {
   if (!f) return [...out, h("div", { class: "state", html: ICON.info }, h("div", null, "No quality file beside this page yet. It comes with the next data update. Meanwhile each tab's footnote says how many days were verified, and which were withheld."))];
   AUDITS = !!f.runs?.["run-daily"]?.last_ok;
   // Today's card belongs to Today; a range shows its days.
-  if (r.kind === "today") out.push(h("section", { class: "s" }, todayCard(f.today, m.tz)));
+  const jobsOff = Object.values(f.runs || {}).filter((j) => jobState(j, Date.now()) !== "ok").length;
+  if (r.kind === "today") out.push(h("section", { class: "s" }, todayCard(f.today, m.tz, jobsOff)));
   const byDay = new Map((f.days || []).map((d) => [d.day, d]));
   const days = r.kind === "today" ? [] : r.days.filter((d) => d.state !== "before").map((d) => byDay.get(d.day) || { day: d.day, state: "missing" });
   if (days.length) {
@@ -155,7 +159,7 @@ export default function quality(m, s) {
         { key: "not_rendered", label: "Browser-like requests moved to bots", num: true, sort: (x) => x.not_rendered?.requests ?? null,
           fmt: (v) => (v == null ? h("span", { class: "muted", title: "Not recorded on this day" }, "not recorded") : h("span", { title: movedNote(v) }, `${n(v.requests)} (${n(v.readers)} visits)`)),
           csv: (x) => x.not_rendered?.requests ?? "" },
-        // 2.35: requests shaped like pages that the site's not-a-page list kept out of the page views (Settings > Collect data > What counts), by entry.
+        // 2.35: requests shaped like pages that the site's not-a-page list kept out of the page views (Settings > Data > What counts), by entry.
         { key: "not_pages", label: "Not counted as pages", num: true, sort: (x) => (x.not_pages ? notPages(x.not_pages)[0] : null),
           fmt: (v) => (v == null ? h("span", { class: "muted", title: "Not recorded on this day" }, "not recorded") : h("span", { title: notPages(v)[2] || "None" }, `${n(notPages(v)[0])} (${n(notPages(v)[1])} people)`)),
           csv: (x) => (x.not_pages ? notPages(x.not_pages)[0] : "") },

@@ -49,7 +49,7 @@ export function leadSource(s, tools) {
     `${tools ? "From the tools" : "From the lead database"} · Summary ›`);
 }
 
-function changeLine(c, v, p, fmt, { held = false } = {}) {
+export function changeLine(c, v, p, fmt, { held = false } = {}) {
   if (!c.on) return null;
   let w;
   if (!c.ok) w = c.inc ? { text: "not compared: today is included", dir: "none" } : changeWords(v, null, { state: beforeState(c.b) });
@@ -90,6 +90,7 @@ export function keyTiles(m, s, r, t, c) {
       h("span", { class: "t-n" }, note),
       key === "leads" && v != null ? leadSource(s, !!lf) : null);
   });
-  const words = c.on ? "Key figures, each with its change against the period before" : "Key figures. Switch on Compare with the period before to see each one's change";
-  return [h("p", { class: "ov-cap" }, words), h("div", { class: "tiles ov-five", role: "list", "aria-label": "Key figures" }, cards)];
+  // With Compare on, each tile says its change itself: no caption (2.42). Off, one line says where it is.
+  const words = c.on ? null : "Key figures. Turn on Compare in the top bar to see each one's change";
+  return [words ? h("p", { class: "ov-cap" }, words) : null, h("div", { class: "tiles ov-five", role: "list", "aria-label": "Key figures" }, cards)];
 }

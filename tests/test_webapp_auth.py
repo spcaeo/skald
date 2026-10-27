@@ -76,10 +76,12 @@ class SignInPages(unittest.TestCase):
 class SettingsPages(unittest.TestCase):
     def test_team_and_account_are_settings_tabs_with_a_render(self):
         menu = (APP / "js" / "settings-menu.js").read_text(encoding="utf-8")
-        self.assertIn('route: "settings/org/team", name: "Team"', menu)
+        # v2: Team is the first tab of Organisation › People.
+        self.assertIn('route: "settings/org/people", name: "People"', menu)
+        self.assertIn('tabs: [["team", "Team"', menu)
         self.assertIn('route: "settings/you/account", name: "Your account"', menu)
         pages = (APP / "js" / "tabs" / "settings-pages.js").read_text(encoding="utf-8")
-        self.assertIn('"settings/org/team": team', pages)
+        self.assertIn('"settings/org/people": { team: (m, s, o) => (sessions() ? team(m, s, o) : users(m, s, o)), security }', pages)
         self.assertIn('"settings/you/account": account', pages)
 
     def test_every_post_can_carry_the_csrf_value(self):

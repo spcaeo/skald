@@ -15,8 +15,10 @@ import { goTo } from "./ov-live.js";
 import { shownText } from "../labels.js";
 import { changeWords, beforeState, notMeasuredWords, firstWholeDay, SAME } from "../period-dates.js";
 import { spanWords } from "../mode-compare.js";
+import { info } from "./tiles.js";
 
 const LIMIT = 8;
+const SHOWN = 5;     // rows shown before "Show all" (2.42: Summary's first screen stays short)
 
 /* {label: n} of A and B -> rows {k, now, before}, the biggest of either first. */
 export function changeRows(a, b, { limit = LIMIT, skip = () => false } = {}) {
@@ -50,12 +52,13 @@ function list(title, dim, rows, r, c) {
       fmt: (_, x) => { const w = changeWords(x.now, x.before); return h("span", { class: `wc-c ${w.dir}` }, w.text); } },
   ];
   return table(cols, { caption: `What changed: ${title.toLowerCase()}`, rows, file: fileName(`what-changed-${dim}`, r).replace(/\.csv$/, `-vs-${c.b.first}.csv`),
-    limit: LIMIT, search: false, tools: false, sortKey: "now", empty: "None in either period." });
+    limit: SHOWN, search: false, tools: false, sortKey: "now", empty: "None in either period." });
 }
 
 export function whatChanged(m, s, r, t, c) {
   const sub = !c.on ? "Switch on Compare to see what rose and fell." : c.ok ? `${spanWords(r)} against ${spanWords(c.b)}.` : "Not compared.";
-  const headRow = h("div", { class: "card-h wc-h" }, h("div", null, h("h2", null, "What changed: is it working?"), h("p", { class: "sub" }, sub)),
+  const same = `"About the same" means the gap is ${SAME} visits or fewer: normal day-to-day swing at these numbers. Each row opens its detail.`;
+  const headRow = h("div", { class: "card-h wc-h" }, h("div", null, h("h2", null, "What changed: is it working? ", c.ok ? info(same, "What changed") : null), h("p", { class: "sub" }, sub)),
     h("span", { class: "grow" }), goTo("overview/insights", "What to do about it: Insights"));
   const out = h("section", { class: "s wc", "aria-label": "What changed" }, headRow);
   if (!c.on) {
@@ -77,7 +80,6 @@ export function whatChanged(m, s, r, t, c) {
   const src = changeRows(t.by.source, b.by.source);
   const land = changeRows(t.by.landing, b.by.landing, { skip: (k) => k === "(all others)" });
   out.append(h("p", { class: "wc-say" }, sayWhat(t.readers, b.readers, [...src, ...land])),
-    h("div", { class: "wc-cols" }, list("Sources", "source", src, r, c), list("Landing pages", "landing", land, r, c)),
-    h("p", { class: "sub" }, `"About the same" means the gap is ${SAME} visits or fewer: normal day-to-day swing at these numbers. Each row opens its detail.`));
+    h("div", { class: "wc-cols" }, list("Sources", "source", src, r, c), list("Landing pages", "landing", land, r, c)));
   return out;
 }

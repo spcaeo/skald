@@ -1,62 +1,84 @@
-// Settings › This site (2.40): the pages a site's set-up runs through, in the order a person
-// does it. The parts come from the pages they lived on before (connections.js, prefs.js,
-// integrations.js, checklist.js); this file only lays them out.
+// Settings › This site (v2): Data and Site. Each tab shows the state and one action; what it is
+// for is behind the "?" (settings-frame.js), the rest folds under "More options".
 //
-//   Set-up checklist   what works and what is left (checklist.js), each Set up a dialog; the
-//                      AI agent for all of it; Send set-up to someone
-//   Collect data       Send logs: the send card, the AI agent, Test a sample, the log file
-//                      Script tag & goals: the tag to copy, visitor IDs, the goals
-//                      What counts: page assets, Next.js pages opened inside the site, not pages
+//   Data › Send logs        whether visits arrive, and "Connect the log" (Who will do it?,
+//                           setup-finish.js, for the logs line); the log file under More options
+//   Data › Script tag       the tag, visitor IDs and the goals (integrations.js, prefs.js)
+//   Data › What counts      page assets, not pages; Next.js pages opened inside the site
+//   Data › Test a sample    paste a few lines of a log (conn=sample, conn-sample.js)
+//   Site › Names & time     host names, page groups, time zone, logo (prefs.js)
+//   Site › Internal traffic ours.js
 
 import { h } from "../ui.js";
 import { sessions, isViewer, VIEWER } from "../access.js";
 import { DEMO } from "../demo.js";
-import { head1, status } from "./forms.js";
-import { setupChecklist, mayManage } from "./checklist.js";
-import { sendCard, agentButton } from "./connections.js";
+import { checkItems, keptItems, mayManage, openFinish } from "./checklist.js";
+import { connOpener } from "./connections.js";
 import { sites as siteCards } from "./prefs.js";
+import { moreOptions } from "./forms.js";
 import { integrationsPart } from "./integrations.js";
-import { taskCard } from "./conn-ui.js";
+import { primary, statusRow, quietButton, quietLine } from "./set-ui.js";
 
-const NEXT_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4z"/><path d="M8 9l3 3-3 3M13 15h3"/></svg>';
-const BOT = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="11" rx="2.5"/><path d="M12 4v4M9 13h.01M15 13h.01M9.5 16.5h5"/></svg>';
+const more = moreOptions;
+const KIND = { done: ["good", "Working"], todo: ["warn", "To do"], wait: ["warn", "Waiting"], unknown: ["off", "Not checked"] };
 
-/* Set-up checklist: the list, always shown here (ticks and all), and the AI agent. */
-export function setupPage(m) {
-  const title = head1("Set-up checklist", `What works and what is left for ${m.site}. Each line ticks itself once Skald sees it working; Set up walks you through it.`);
-  if (!DEMO.on && !sessions()) return [title, h("div", { class: "state" }, h("div", null, "The set-up checklist comes with team accounts. On this server, the site is set up in the config file; the doctor command says what works."))];
-  if (!DEMO.on && !mayManage()) return [title, h("div", { class: "state" }, h("div", null, `${isViewer() ? `${VIEWER} ` : ""}An owner or an admin sets this site up here.`))];
-  const msg = status();
-  const agent = DEMO.on ? null : h("section", { class: "s cn-cards cn-one", "aria-label": "Set up with your AI agent" },
-    taskCard({ icon: BOT, title: "Or let your AI agent do it", button: "Choose your agent",
-      line: "Claude Code, Codex, Cursor or another agent that runs commands: Skald writes one line for it. The agent checks what is done, changes only what is missing, and reports back here while you watch.",
-      onOpen: () => agentButton(m.site, msg).click() }));
-  return [title, setupChecklist(m, { where: "connections" }), agent, msg];
+/* Why this reader sees no button, or null when they may act. */
+function cannot(basic = "On this server, the site's log is read where the config file says.") {
+  if (DEMO.on) return h("p", { class: "note" }, "In the demo, setting up needs a running Skald.");
+  if (!sessions()) return h("div", { class: "state" }, h("div", null, basic));
+  if (isViewer()) return h("p", { class: "note" }, `${VIEWER} An admin sets this up.`);
+  return null;
 }
 
-/* Collect data › Send logs. */
-export function collectLogs(m) {
-  return [head1("", "The server's access log is where Skald counts visits. On this Skald's own server it is read as it is; from another server or a platform, it is sent here."),
-    sendCard(m), siteCards(m, "logs", { bare: true })];
+/* A set-up line as a row with its pill; while it is open, the page's one primary (Who will do
+   it? for that line); once done, a quiet Change on the row. */
+export function lineCard(m, act, { title, button, again, iconName = "server", basic = undefined }) {
+  const slot = h("div", { class: "set-line" });
+  const draw = (items) => {
+    const i = items.find((x) => x.id === act) || { state: "unknown", says: "" };
+    const [kind, word] = KIND[i.state] || KIND.unknown;
+    const no = cannot(basic);
+    const run = () => openFinish(m, items, { only: act, onDone: () => checkItems(m, true).then(draw) });
+    const done = i.state === "done";
+    const change = no || !done ? null : quietButton(again, run);
+    if (change) change.classList.add("set-go");
+    const go = no || done ? null : primary(button, run, { iconName: "next" });
+    if (go) go.classList.add("set-go");
+    slot.replaceChildren(...[h("section", { class: "s set-rows" }, h("div", { class: "set-list" },
+      statusRow({ iconName, title, line: i.says, kind, word, action: change }))), go, no].filter(Boolean));
+  };
+  const kept = keptItems(m);
+  draw(kept || []);
+  if (mayManage() || DEMO.on) checkItems(m).then(draw);
+  return slot;
 }
 
-/* Collect data › Script tag & goals. */
-export function collectScript(m) {
-  return [...integrationsPart("script"), siteCards(m, "script", { bare: true })];
+/* Data › Send logs. */
+export function dataLogs(m) {
+  return [lineCard(m, "logs", { title: "Your server's log", button: "Connect the log", again: "Change how visits arrive" }),
+    more(siteCards(m, "logs", { bare: true }))];
 }
 
-/* Next.js pages opened inside the site: the set-up dialog (setup=rsc, setup-dialogs.js). */
-function nextjsCard(m) {
-  if (DEMO.on || !mayManage()) return null;
-  return h("section", { class: "s cn-cards cn-one", "aria-label": "Next.js pages opened inside the site" },
-    taskCard({ icon: NEXT_ICON, title: "Next.js: count pages opened inside the site", line: "A Next.js site opens most pages without a full page load, so the log sees only a data request. One field in the log, or the script tag, counts them as pages.",
-      onOpen: async () => { const { openSetup } = await import("./setup-dialogs.js"); openSetup("rsc", m.site, {}); } }));
+/* Data › Script tag & goals. */
+export function dataScript(m) {
+  return [lineCard(m, "script", { title: "The script tag", button: "Add the script tag", again: "Change", iconName: "code" }),
+    siteCards(m, "script", { bare: true }), more(...integrationsPart("script").slice(1))];
 }
 
-/* Collect data › What counts. */
-export function collectCounting(m) {
-  return [head1("", "Which visits count as people, and which addresses count as pages."), siteCards(m, "counting", { bare: true }), nextjsCard(m)];
+/* Data › What counts. */
+export function dataCounting(m) {
+  const rsc = mayManage() && !DEMO.on ? h("section", { class: "s set-card" }, h("h2", null, "Next.js pages opened inside the site"),
+    h("div", { class: "acts" }, h("button", { type: "button", class: "btn", onclick: async () => { const { openSetup } = await import("./setup-dialogs.js"); openSetup("rsc", m.site, {}); } }, "Set it up"))) : null;
+  return [siteCards(m, "counting", { bare: true }), more(rsc)];
 }
 
-/* Site details. */
+/* Data › Test a sample. */
+export function dataSample(m) {
+  const no = cannot();
+  const go = no ? null : primary("Paste a sample", connOpener("sample", m.site), { iconName: "terminal" });
+  if (go) go.classList.add("set-go");
+  return [go, quietLine("Will Skald read your log?", "Paste a few lines of it: Skald says what it would count, and keeps nothing."), no];
+}
+
+/* Site › Names & time. */
 export const siteDetails = (m) => siteCards(m, "details");

@@ -110,7 +110,8 @@ export function pageStory(m, s) {
     const start = st.published || st.first_seen;
     const since = start ? dayDiff(start, m.anchor) + 1 : null;
     // Compare this page: A its last 7 whole days, B its first 7 after publishing (Compare mode on Pages).
-    const cmp = h("button", { type: "button", class: "btn primary", onclick: () => S.set({ tab: "traffic/pages", path, pathmode: "contains", page: "",
+    // A plain button: the story's one primary is Mark a change (pagechange.js, 2.42).
+    const cmp = h("button", { type: "button", class: "btn", onclick: () => S.set({ tab: "traffic/pages", path, pathmode: "contains", page: "",
       range: "custom", from: addDays(m.anchor, -6), to: m.anchor, cmp: "custom", cb: `${start}..${addDays(start, 6)}` }) }, "Compare this page");
     const days = (st.days || []).map((d) => ({ ...d, ai: d.ai ?? ((d.ai_asked ?? 0) + (d.ai_training ?? 0)) }));
     const ok = days.filter((d) => d.state === "ok");

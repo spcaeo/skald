@@ -1,4 +1,4 @@
-// "Send this site's visits to Skald": the dialog in Settings > Collect data > Send logs,
+// "Send this site's visits to Skald": the dialog in Settings > Data > Send logs,
 // and the steps the "Add a site" wizard shares with it (site-wizard.js):
 // where it runs, then for a server one command and the test (2.30); for
 // Cloudflare and Vercel a sending token, install, test; for the tag install, test.
@@ -123,7 +123,7 @@ export function tokenPanel(st, { onMade = null } = {}) {
   another.addEventListener("click", make);
   if (freshFor(st.site)) show(); else make();
   return [
-    h("p", null, "A sending token lets the platform add log lines to this one site, and nothing else. It cannot read anything. It is in Settings > Tokens & links, named for this site and today."),
+    h("p", null, "A sending token lets the platform add log lines to this one site, and nothing else. It cannot read anything. It is in Settings > AI assistants > Tokens & links, named for this site and today."),
     said, slot, h("div", { class: "acts" }, another),
     h("p", { class: "note" }, "Already have one? Press Next: the steps show <token> where it goes."),
   ];
@@ -189,7 +189,7 @@ export function runPanel(st, w, { onMade = null } = {}) {
   stillGood(got).then((ok) => { if (!ok && linkFor(st.site) === got) { LINKS.delete(st.site); if (slot.isConnected !== false) w.redraw(); } });
   slot.replaceChildren(codeBlock(got.command, "the install command"),
     h("p", null, `Paste it on the web server of ${st.site}. It works once, for 24 hours.`),
-    h("p", { class: "note" }, "It holds this site's sending token, so send it only to the site's admin. Then press Next: the Test starts by itself."));
+    h("p", { class: "note" }, `It holds this site's sending token, so send it only to the site's admin. ${st.testBelow ? "Skald tests it below by itself." : "Then press Next: the Test starts by itself."}`));
   const file = kitOn(st, "server") ? h("button", { type: "button", class: "btn" }, "Download as one file") : null;
   if (file) {
     file.addEventListener("click", async () => {
@@ -252,10 +252,11 @@ export function troubleTable() {
 /* The Test button and its answer. Polls every POLL_MS for POLL_FOR_MS after the
    first press, until connected; stops when the dialog is gone. auto: starts when
    drawn, with no press (the dialogs; the shared link's page waits for the press). */
-export function testPanel(st, { onResult = null, statusOf = (site) => call(`sites/status?site=${encodeURIComponent(site)}`), pageCheck = tagCheckBox, auto = false } = {}) {
+export function testPanel(st, { onResult = null, statusOf = (site) => call(`sites/status?site=${encodeURIComponent(site)}`), pageCheck = tagCheckBox, auto = false, plain = false } = {}) {
   const out = h("div", { class: "cn-test-out" });
   const page = h("div", { class: "cn-test-page" });
-  const btn = h("button", { type: "button", class: "btn primary" }, "Test connection");
+  // plain (2.42, Add a site): the step's one main button is elsewhere; this one tests again.
+  const btn = h("button", { type: "button", class: plain ? "btn" : "btn primary" }, "Test connection");
   let timer = null, until = 0, looked = false;
   const shipper = wayId(st.method) === "server";
   async function once() {

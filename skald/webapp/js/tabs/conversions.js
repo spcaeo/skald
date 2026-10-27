@@ -34,9 +34,9 @@ function setup(f) {
   const item = (ok, title, how) => h("li", null, h("strong", null, `${ok ? "On" : "Off"}: ${title}. `), ok ? "" : how);
   return h("div", { class: "sheet" }, h("h3", null, "Where conversions come from"),
     h("ul", { class: "conv-setup" },
-      item(on.beacon, "the script tag", "Add the one-line script tag to every page (Settings > Collect data > Script tag & goals has it to copy). It sees forms started and sent, phone and email clicks, and booking widgets opened and booked."),
+      item(on.beacon, "the script tag", "Add the one-line script tag to every page (Settings > Data > Script tag & goals has it to copy). It sees forms started and sent, phone and email clicks, and booking widgets opened and booked."),
       item(on.visitor_ids, "visitor IDs", "Turn on beacon.visitor_ids so each browser gets a random ID: then abandoned forms and bookings, journeys, assisted sources and the pages seen before converting can be counted. The privacy notice must say so."),
-      item((on.hooks || []).length, `webhooks${(on.hooks || []).length ? ` (${on.hooks.map(toolName).join(", ")})` : ""}`, "Give Calendly, Cal.com, Stripe, HubSpot, Typeform or Zapier the hook address and secret from Settings > Leads & integrations, so bookings, payments and cancellations made off the site come back."),
+      item((on.hooks || []).length, `webhooks${(on.hooks || []).length ? ` (${on.hooks.map(toolName).join(", ")})` : ""}`, "Give Calendly, Cal.com, Stripe, HubSpot, Typeform or Zapier the hook address and secret from Settings > Leads & tools, so bookings, payments and cancellations made off the site come back."),
       item(on.leads_db, "the lead database", "Set leads.db to the website's lead database: every lead becomes a conversion, with its status (won, lost) and its first and last touch, with no change to the website.")));
 }
 

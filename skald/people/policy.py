@@ -15,7 +15,7 @@ its site's privacy notice may still promise otherwise:
     conversions.identity  full / anonymous. Unset: full on a new install,
                           anonymous on one upgraded to 2.4.0
 
-Each is a setting (Settings > Privacy & retention, settings_store.SCHEMA)
+Each is a setting (Settings > Privacy, settings_store.SCHEMA)
 that config.yml or a settings row may set per site, per organisation or for
 the install; the Docker image takes SKALD_KEEP_IPS (1, 0 or short) and
 SKALD_IDENTITY.

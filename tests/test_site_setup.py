@@ -1,6 +1,6 @@
 """The "Add a site" wizard's progress (accounts/site_setup.py, POST
 <page>/sites/setup, connections_api.py): kept per site on the server, the
-step to resume at, the badge in Settings > Add or remove sites and on the
+step to resume at, the badge in Settings > Organisation > Sites and on the
 site picker, never a token's value, every change in the audit log.
 """
 from __future__ import annotations
@@ -104,15 +104,15 @@ class Progress(TenantServer):
         listed = [{"name": s, "slug": s, "path": f"{s}/", "views": []} for s in (A, NEW)]
         (self.out / "sites.json").write_text(json.dumps({"schema_version": 1, "sites": listed}))
         page = self.call("GET", "/traffic/", cookie=cookie).raw.decode()
-        self.assertNotIn("Setup: step", page)       # no dashboard of its organisation drawn yet
+        self.assertNotIn("Finish setting up", page)       # no dashboard of its organisation drawn yet
         self.draw(A)
         page = self.call("GET", "/traffic/", cookie=cookie).raw.decode()
-        self.assertIn("Setup: step 3 of 5, continue", page)
-        self.assertIn(f'href="{A}/#settings/sitesadmin?setup={NEW}"', page)
+        self.assertIn("Finish setting up", page)          # 2.42: two steps, no "step 3 of 5"
+        self.assertIn(f'href="{A}/#settings/org/sites?setup={NEW}"', page)
         self.draw(NEW)                              # drawn: the site's own dashboard
         page = self.call("GET", "/traffic/", cookie=cookie).raw.decode()
-        self.assertIn(f'href="{NEW}/#settings/sitesadmin?setup={NEW}"', page)
-        self.assertIn("#settings/sitesadmin?setup=new", page)   # + Add a site opens the wizard
+        self.assertIn(f'href="{NEW}/#settings/org/sites?setup={NEW}"', page)
+        self.assertIn("#settings/org/sites?setup=new", page)   # + Add a site opens the wizard
         self.post(f"/traffic/{A}/sites/setup", {"name": NEW, "step": 5, "done": True}, cookie, csrf)
         page = self.call("GET", "/traffic/", cookie=cookie).raw.decode()
         self.assertIn("No visits yet: test the connection", page)
@@ -141,11 +141,11 @@ class Progress(TenantServer):
         self.draw(A)
         cookie, csrf = self.session("owner@example.com")
         page = self.call("GET", "/traffic/", cookie=cookie).raw.decode()
-        self.assertNotIn(f"{A}/#settings/sitesadmin?setup={B}", page)   # never another org's page
+        self.assertNotIn(f"{A}/#settings/org/sites?setup={B}", page)   # never another org's page
         self.draw(B)
         page = self.call("GET", "/traffic/", cookie=cookie).raw.decode()
-        self.assertIn("Setup: step 4 of 5, continue", page)
-        self.assertIn(f'href="{B}/#settings/sitesadmin?setup={B}"', page)
+        self.assertIn("Finish setting up", page)
+        self.assertIn(f'href="{B}/#settings/org/sites?setup={B}"', page)
         # And there the wizard can save: the site is that organisation's.
         got = self.post(f"/traffic/{B}/sites/setup", {"name": B, "step": 5}, cookie, csrf)
         self.assertEqual(got.status, 200, got.json)

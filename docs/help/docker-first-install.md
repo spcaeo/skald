@@ -24,7 +24,7 @@ docker run -d --name skald --restart unless-stopped \
 - Not a Next.js site? Add `-e SKALD_ASSET_PREFIXES="/wp-content/ /wp-includes/"` (WordPress), or the folder your pages load their scripts and styles from. A visit counts as people only when its browser fetched one.
 - The last line is for nginx on the same machine. It lets Skald see each visitor's address, not nginx's.
 - Countries: nginx's stock log has no country. To get one, give Skald a GeoIP country file. DB-IP's free country file works. Keep it on the host, for example in `/usr/share/GeoIP`, and add `-v /usr/share/GeoIP:/geoip:ro -e SKALD_COUNTRY_DB=/geoip/dbip-country-lite.mmdb`. Each visit then gets its address's country, and so does a lead your backend sends with an address. Refresh the file on the host once a month (your updater or a cron job that downloads DB-IP's new file). Skald reads the new file by itself, no restart. DB-IP's credit is shown under the countries. Without a file, countries say Not recorded. A country your log already carries (Cloudflare's, or nginx's own `cc=`) always wins.
-- A new install keeps each visit with its IP address, and each lead's name and email, so admins can look a person up. To keep neither, add `-e SKALD_KEEP_IPS=0 -e SKALD_IDENTITY=anonymous`. To keep each address shortened, with its last part removed (203.0.113.57 is kept as 203.0.113.0), add `-e SKALD_KEEP_IPS=short` instead. Admins can change both later in **Settings > This site > Privacy & retention > People**. See [Privacy](privacy.md).
+- A new install keeps each visit with its IP address, and each lead's name and email, so admins can look a person up. To keep neither, add `-e SKALD_KEEP_IPS=0 -e SKALD_IDENTITY=anonymous`. To keep each address shortened, with its last part removed (203.0.113.57 is kept as 203.0.113.0), add `-e SKALD_KEEP_IPS=short` instead. Admins can change both later in **Settings > This site > Privacy > People**. See [Privacy](privacy.md).
 
 ## 2. Put it on the web (2 minutes)
 
@@ -101,13 +101,13 @@ docker rm -f skald
 docker run ... -e SKALD_BEACON_ORIGINS=https://www.example.com ...    # the same command, plus this line
 ```
 
-Then copy the tag from **Settings > This site > Collect data > Script tag & goals** into every page's head. See [Tracking script](tracking-script.md).
+Then copy the tag from **Settings > This site > Data > Script tag & goals** into every page's head. See [Tracking script](tracking-script.md).
 
-Only the first site needs `SKALD_BEACON_ORIGINS`. A site you add later from the dashboard takes events from its own **Host names** (**Settings > This site > Site details**). Its page assets are its own too: a site that is not Next.js sets them in **Settings > This site > Collect data > What counts** (`SKALD_ASSET_PREFIXES` is for the first site only). See [Tracking script](tracking-script.md), "More than one site".
+Only the first site needs `SKALD_BEACON_ORIGINS`. A site you add later from the dashboard takes events from its own **Host names** (**Settings > This site > Site > Names & time**). Its page assets are its own too: a site that is not Next.js sets them in **Settings > This site > Data > What counts** (`SKALD_ASSET_PREFIXES` is for the first site only). See [Tracking script](tracking-script.md), "More than one site".
 
 ## 7. Add hooks
 
-**Settings > This site > Leads & integrations > Incoming hooks > Make secret** for each tool, or on the server:
+**Settings > This site > Leads & tools > Incoming hooks > Make secret** for each tool, or on the server:
 
 ```
 docker exec skald skald hooks secret example.com lead
@@ -131,7 +131,7 @@ The volume keeps all data. Not during the daily run.
 | --- | --- | --- |
 | A plain page with no menu | An old image | Pull the new image; the doctor's **Web app** line says so |
 | "nothing parsed" | The log is not mounted, or not readable | `docker exec skald ls -l /logs`; the container's user is in group `adm` (gid 4), which reads `/var/log/nginx` on Ubuntu and Debian |
-| No person counted | No page asset seen | Set `SKALD_ASSET_PREFIXES` (the first site) or **Settings > This site > Collect data > What counts** (a site added later); the doctor's **Page assets** line says which |
+| No person counted | No page asset seen | Set `SKALD_ASSET_PREFIXES` (the first site) or **Settings > This site > Data > What counts** (a site added later); the doctor's **Page assets** line says which |
 | A hook answers 404 | The hook has no secret | Make its secret |
 | A hook answers 502 | An image older than 2.2.2 | Pull the new image |
 | "Too many tries" on sign-in for everyone | The proxy in front is not trusted | Set `SKALD_TRUSTED_PROXIES` and `SKALD_REAL_IP_HEADER` |

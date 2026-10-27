@@ -1,6 +1,6 @@
 // Exports and reports. "Export" in the top bar: every table on this tab as
 // one ZIP of CSV files, the same as JSON, a printable report of this tab,
-// and the report builder - pick tabs, period, page group and filters, then
+// and a report of several tabs (2.42: the Export dialog, export-dialog.js), then
 // preview, print (or save as PDF from the print dialog) or download.
 //
 // A report is the tabs themselves, drawn once more into #report with every
@@ -17,7 +17,6 @@ import { rangeWords, setContext } from "./tabs/common.js";
 import { withFlag } from "./tabs/readers.js";
 import { decode, treeWords } from "./rules.js";
 import { BUILD, buildLine, toolName, toolTagline } from "./build.js";
-import { openDrawer } from "./drawer.js";
 
 const FILTER_WORDS = { country: "Country", path: "Page path", source: "Source", device: "Device", browser: "Browser", campaign: "Campaign", referrer: "Referring site", rules: "Rules" };
 const slug = (x) => String(x).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "table";
@@ -148,97 +147,28 @@ export function printTab(m, s) {
   requestAnimationFrame(() => setTimeout(() => print(), 60));
 }
 
-// ------------------------------------------------------- report builder
-export function builder(m, s, loadView) {
-  let d = null;
-  const chosen = new Set([s.tab]);
-  // The dashboard's tabs, by section (settings pages have no figures to report).
-  const boxes = [];
-  const groups = S.MENU.map(([group, keys]) => {
-    const on = keys.filter(S.shown);
-    return on.length ? h("div", { class: "rb-g", role: "group", "aria-label": group }, h("p", { class: "rb-gh" }, group), on.map((k) => {
-      const cb = h("input", { type: "checkbox", value: k, checked: chosen.has(k) });
-      cb.addEventListener("change", () => { cb.checked ? chosen.add(k) : chosen.delete(k); count(); });
-      const box = h("label", { class: "rb-tab" }, cb, tabName(k));
-      boxes.push(box);
-      return box;
-    })) : null;
-  });
-  if (S.inSettings(s.tab)) chosen.delete(s.tab);
-  const note = h("p", { class: "note", "aria-live": "polite" });
-  const count = () => { note.textContent = chosen.size ? `${chosen.size} section${chosen.size === 1 ? "" : "s"} chosen.` : "Choose at least one section."; };
-  const all = (on) => { boxes.forEach((l) => { const cb = l.querySelector("input"); cb.checked = on; on ? chosen.add(cb.value) : chosen.delete(cb.value); }); count(); };
-  const range = h("select", { "aria-label": "Period" }, S.RANGES.filter(([k]) => k !== "custom").map(([k, name]) => h("option", { value: k, selected: k === s.range }, name)),
-    s.range === "custom" ? h("option", { value: "custom", selected: true }, `${s.from} to ${s.to}`) : null);
-  const view = h("select", { "aria-label": "Page group" }, viewList(m).map(([k, name]) => h("option", { value: k, selected: k === (s.view || "all") }, name)));
-  const f = filtersOf(s);
-  const keep = h("input", { type: "checkbox", checked: true });
-  const cmp = h("input", { type: "checkbox", checked: !!s.cmp });
-  const settings = async () => {
-    const next = { ...s, range: range.value, view: view.value, cmp: cmp.checked ? "prev" : "" };
-    if (!keep.checked) { for (const k of S.FILTERS) next[k] = ""; next.rules = ""; }
-    const model = view.value === (s.view || "all") ? m : await loadView(next);
-    return [model, next, S.TABS.map(([k]) => k).filter((k) => chosen.has(k))];
-  };
-  const act = (fn) => async () => {
-    if (!chosen.size) { count(); return; }
-    const [model, next, tabs] = await settings();
-    // A report is drawn once: every big file its sections and their panels stand on, first (data.js LAZY).
-    const { tabFiles } = await import("./sections.js");
-    await need(model, tabs.flatMap((t) => tabFiles(t, next, { panels: true }))).catch(() => null);
-    // At once: the preview takes the focus, and a closing drawer would still hold the page inert.
-    d.close({ instant: true, focusBack: false });
-    fn(model, next, tabs);
-  };
-  const body = [
-    h("fieldset", { class: "dw-sec" }, h("legend", null, "Sections"), h("div", { class: "rb-tabs" }, groups),
-      h("div", { class: "dw-actions" }, h("button", { type: "button", class: "btn", onclick: () => all(true) }, "Choose all"), h("button", { type: "button", class: "btn", onclick: () => all(false) }, "Clear"), note)),
-    h("section", { class: "dw-sec" }, h("h3", null, "Period and filters"),
-      h("div", { class: "rb-grid" }, h("label", { class: "fld" }, "Period", range), h("label", { class: "fld" }, "Page group", view)),
-      h("div", { class: "rb-checks" },
-        h("label", { class: "rb-check" }, keep, f.length ? `Apply the current filters: ${f.map(([k, v]) => `${FILTER_WORDS[k]} ${k === "country" ? withFlag(v) : v}`).join(", ")}` : "Apply the current filters (none set)"),
-        h("label", { class: "rb-check" }, cmp, "Compare to the previous period, where both are whole"))),
-    h("p", { class: "note" }, "To make a PDF, choose \"Save as PDF\" as the printer in the print dialog. Each section starts on a new page; every table row is printed."),
-  ];
-  const footer = [
-    h("button", { type: "button", class: "btn", html: ICON.download, onclick: act((mm, ss, tabs) => { const { files, el } = build(mm, ss, tabs); el.replaceChildren(); download(`${slug(mm.site)}-report-${stamp()}.zip`, zip(files)); }) }, "Tables (ZIP)"),
-    h("button", { type: "button", class: "btn", onclick: act((mm, ss, tabs) => { preview(mm, ss, tabs); requestAnimationFrame(() => setTimeout(() => print(), 60)); }) }, "Print or save as PDF"),
-    h("button", { type: "button", class: "btn primary", onclick: act((mm, ss, tabs) => preview(mm, ss, tabs)) }, "Preview"),
-  ];
-  d = openDrawer({ title: "Report builder", subtitle: "Choose the sections, the period and the filters; then preview, print or download the tables.", size: "md", className: "dw-rb", key: "report", body, footer,
-    route: { key: "dlg", value: "report" } });
-  count();
-  return d;
+// ------------------------------------------------------------ several tabs
+// 2.42: the report builder became the Export dialog's "A PDF of this page" (export-dialog.js):
+// this page by default, more sections behind "Change". makeReport is what its buttons do.
+
+/* The sections chosen, as a report: then "print" (the print dialog, Save as PDF), "preview"
+   (the report on screen, with Print and Tables (ZIP)) or "zip" (the tables only).
+   keepFilters false: the report without the current filters. */
+export async function makeReport(m, s, tabs, loadView, { then = "print", keepFilters = true, close = null } = {}) {
+  const next = { ...s };
+  if (!keepFilters) { for (const k of S.FILTERS) next[k] = ""; next.rules = ""; }
+  const model = (next.view || "all") === (s.view || "all") ? m : await loadView(next);
+  const want = S.TABS.map(([k]) => k).filter((k) => tabs.includes(k));
+  if (!want.length) return false;
+  // A report is drawn once: every big file its sections and their panels stand on, first (data.js LAZY).
+  const { tabFiles } = await import("./sections.js");
+  await need(model, want.flatMap((t) => tabFiles(t, next, { panels: true }))).catch(() => null);
+  // At once: the preview takes the focus, and a closing drawer would still hold the page inert.
+  if (close) close();
+  if (then === "zip") { const { files, el } = build(model, next, want); el.replaceChildren(); download(`${slug(model.site)}-report-${stamp()}.zip`, zip(files)); return true; }
+  preview(model, next, want);
+  if (then === "print") requestAnimationFrame(() => setTimeout(() => print(), 60));
+  return true;
 }
 
-// --------------------------------------------------------- the menu
-let openMenu = null;
-document.addEventListener("pointerdown", (e) => { if (openMenu && !openMenu.wrap.contains(e.target)) openMenu.close(); });
-
-export function exportMenu(getModel, s, loadView) {
-  const toggle = h("button", { type: "button", class: "btn x-btn", "aria-expanded": "false", "aria-haspopup": "menu", "aria-label": "Export", title: "Export", html: ICON.download }, h("span", { class: "x-l" }, "Export"));
-  const item = (text, sub, fn) => h("button", { type: "button", role: "menuitem", class: "menu-i", onclick: () => { close(); fn(); } }, h("b", null, text), h("small", null, sub));
-  const menu = h("div", { class: "pop menu", role: "menu", hidden: true, "aria-label": "Export" },
-    item("Tables on this tab (ZIP)", "every table, with the current filters, as CSV files", () => exportZip(getModel(), s)),
-    item("This tab as JSON", "the same tables and the range's totals", () => exportJSON(getModel(), s)),
-    item("Print this tab", "a clean report; choose Save as PDF to keep it", () => printTab(getModel(), s)),
-    item("Report builder", "choose sections, period, page group and filters", () => builder(getModel(), s, loadView)));
-  const wrap = h("div", { class: "more" }, toggle, menu);
-  const close = () => { menu.hidden = true; toggle.setAttribute("aria-expanded", "false"); openMenu = null; };
-  toggle.addEventListener("click", () => {
-    if (!menu.hidden) return close();
-    menu.hidden = false;
-    menu.classList.remove("from-left");
-    if (menu.getBoundingClientRect().left < 8) menu.classList.add("from-left");
-    toggle.setAttribute("aria-expanded", "true");
-    openMenu = { wrap, close };
-    menu.querySelector("button")?.focus();
-  });
-  menu.addEventListener("keydown", (e) => {
-    const items = [...menu.querySelectorAll(".menu-i")], i = items.indexOf(document.activeElement);
-    if (e.key === "Escape") { close(); toggle.focus(); }
-    else if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
-  });
-  return wrap;
-}
+export { filtersOf, FILTER_WORDS, slug, stamp };

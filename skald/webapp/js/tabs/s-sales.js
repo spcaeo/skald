@@ -35,7 +35,7 @@ export default [
   ["leads", "Leads", leadsTab, { file: "conversions", filters: ["country", "source", "device", "campaign"], chips: "tab", keep: ["lact", "llabel", "lnow", "lby", "lshow", "lview", "lsplit"] }],
   ["summary", "Summary", summary, { file, filters, keep: ["lsrc", "lact", "llabel", "lstage"], compare: true }],
   ["sources", "Sources", sources, { file, filters, keep: ["lsrc", "lact", "llabel", "lstage"] }],
-  ["revenue", "Revenue", revenue, { file: "conversions", filters: [], keep: ["cur", "by", "tag"] }],
+  ["revenue", "Revenue", revenue, { file: "conversions", filters: [], keep: ["cur", "rby", "tag"] }],
   ["bookings", "Calendar bookings", bookings, { file: "conversions", filters: [], keep: ["bact", "bshow"] }],
   ["funnels", "Funnels", funnels, { file: "funnels", needs: ["pages"], filters: ALL, rules: "visit", keep: ["fn", "fsrc", "fstep", "fmode"] }],
   ["events", "Events", events, { file: "events", filters: ["path", "source"] }],

@@ -178,7 +178,7 @@ def unpack(raw: bytes, encoding: str) -> bytes:
 
 QUOTA_WORDS = ("This month's requests are over the plan's limit. Nothing is lost: the "
                "shipper keeps the lines and tries again. Choose a bigger plan in "
-               "Settings > Billing & usage.")
+               "Settings > Billing.")
 
 
 def quota(db, config, site: str, org_id, lines: int, nbytes: int,
@@ -211,7 +211,7 @@ def quota(db, config, site: str, org_id, lines: int, nbytes: int,
             return QUOTA_WORDS
         return (f"Over the plan's limit ({', '.join(sorted(got))}). Nothing is lost: the "
                 "shipper keeps the lines and tries again. Change the plan in "
-                "Settings > Billing & usage.")
+                "Settings > Billing.")
     if isinstance(got, dict):
         return (got.get("reason") or "over the plan's limit") if got.get("over") else None
     if isinstance(got, (tuple, list)) and got:

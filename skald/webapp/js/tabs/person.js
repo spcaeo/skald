@@ -83,7 +83,7 @@ export function personParts(got) {
   const cand = got.candidates || [];
   const noVisits = !got.visits.length ? empty(got.query.kind !== "ip"
     ? "No visit is shown: the search was not for an IP address. Open an address under Linked (or under the visits that sent a form at a lead's time) to see its visits."
-    : got.kept?.keep_ips ? "No visit kept for this address." : "This site keeps no IP addresses with its visits (Settings > Privacy & retention > People): only the last 6 hours of requests below show them.") : null;
+    : got.kept?.keep_ips ? "No visit kept for this address." : "This site keeps no IP addresses with its visits (Settings > Privacy): only the last 6 hours of requests below show them.") : null;
   const short = got.query.short ? h("p", { class: "note" }, `This site keeps addresses shortened, with the last part removed: ${got.query.value} is kept as ${got.query.short}. A shortened address can be several people, so the visits below may not all be one person's.`) : null;
   const mode = got.kept?.ip_mode || (got.kept?.keep_ips ? "full" : "off");
   const addresses = mode === "off" ? "not kept" : `${mode === "short" ? "shortened, " : ""}for ${got.kept.keep_days} days`;

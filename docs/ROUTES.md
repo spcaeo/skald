@@ -77,7 +77,7 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | `fn`, `fsrc`, `fstep`, `fmode` | tabs/funnels.js | Funnels: steps, starting source, step open, reached or left |
 | `lsrc`, `lact`, `llabel`, `lstage` | tabs/s-sales.js, sa-options.js | Leads & sales: count from, kind, label, stage |
 | `lnow`, `lby`, `lshow`, `lview`, `lsplit` | tabs/sa-leads.js | Leads: stage now, source, show left out, the view, the split |
-| `cur`, `by`, `tag` | tabs/sa-revenue.js | Revenue: the currency (never converted), the breakdown, one tag `key:value` |
+| `cur`, `rby`, `tag` | tabs/sa-revenue.js | Revenue: the currency (never converted), the breakdown (`by=` before 2.41; an old link is rewritten), one tag `key:value` |
 | `bact`, `bshow` | tabs/sa-bookings.js | Calendar bookings: action, what to show |
 | `psec` | tabs/pagestory.js, aiready.js | Traffic > Pages: the part of a page's story to open at; `ai` scrolls to its AI readiness (a row of "Pages AI can't read well" writes it): `#traffic/pages?page=/guides/webhooks/&psec=ai`. Back from the story clears it |
 | `arw` | tabs/aiready.js | AI & bots > Assistants: the filter of "Pages AI can't read well", `copy` (a Markdown copy that does not answer), `404`, `errors` (5xx and other 4xx), `robots` (robots.txt shuts a crawler out), `slow`; all when absent: `#ai/assistants?arw=copy` |
@@ -87,6 +87,8 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | `rq` | tabs/si-requests.js | Requests: the quick filters |
 | `strat` | tabs/speed.js | Speed: desktop |
 | `part` | tabs/help.js | Help: the guide or its part |
+| `hs` | tabs/help.js | Help: the section of the guide open, by its heading's slug: a **?** popover's Read the guide (`guide: "<id>#<section>"` in ui/help.js), a search's Found in, the contents line (2.42) |
+| `hq` | tabs/help.js | Help: the search words; a value that looks like an address or an email is masked like any other (2.42) |
 | `note` | tabs/about.js | About: the note |
 | `test` | tabs/sitesadmin.js | Add or remove sites: a site's wizard at its Test (read once, then `setup`) |
 | `ca`, `cdim` | routes.js | the old Compare page's period A and table: read once and rewritten into the period and `cmp` (`cb` for a custom B) |
@@ -97,6 +99,7 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | --- | --- | --- | --- |
 | `vis` | tabs/visitor.js | the visitor drawer, by its visit: day and number that day | `vis=2026-10-20.14` |
 | `who` | tabs/visitor.js | Find a person's answer: the search as a token | `who=~k2f9a0x7qm` |
+| `vall` | tabs/visitor.js | The visitor drawer (by `vis`, `who`, `lead` or `conv`): every visit drawn, after **Show all (N)**; without it the newest two. It leaves with the drawer (2.42) | `vis=2026-10-20.14&vall=1` |
 | `lead` | tabs/sa-leads.js | a lead's drawer, by its row id | `lead=1287` |
 | `conv` | tabs/sa-lists.js | a cancelled, removed or test conversion: its list and a code | `conv=test.r1x2y3z` |
 | `req` | tabs/si-requests.js | one request's detail, by a code of its log line | `req=r8k2m1x` |
@@ -105,64 +108,83 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | `list` | tabs/person.js | a list drawer: `leftout`, `conv-cancelled`, `conv-removed`, `conv-test` | `list=leftout` |
 | `scan` | tabs/sec-scanners.js | Security, Who is scanning us?: one scanner's detail, by its first row (never its address) | `scan=2026-10-20.3` |
 | `ans` | tabs/ai-answers.js | AI answers: one stored answer in full | `ans=412` |
-| `setup` | tabs/setup-dialogs.js | a Set up dialog: `logs`, `assets`, `rsc`, `countries`, `script`, `lead`, `mail`, `privacy`, `pack` (send set-up to someone, 2.30) | `setup=rsc&step=2` |
+| `setup` | tabs/setup-dialogs.js | a Set up dialog: `logs`, `assets`, `rsc`, `countries`, `script`, `lead`, `mail`, `privacy`, `pack` (send set-up to someone, 2.30); `finish` (Finish set-up: Who will do it? for every open line) or `finish-<act>` (for one line, from its row) (Unreleased, Settings v2) | `setup=rsc&step=2`, `setup=finish&by=agent` |
+| `tool` | tabs/set-leads.js | Settings › Leads & tools: one tool's details in a drawer, by its id (`site`, `calendly`, `stripe`...), or `webhooks` (Send each lead out), `search` (Search Console & Bing), `checks` (every check). An id Skald does not know opens the page with one plain line (Unreleased, Settings v2) | `#settings/site/leads?tool=calendly` |
+| `edit` | tabs/set-edit.js | Settings: the part of a page being changed, in its drawer: a card of settings (`people`, `leads`, `detail`, `backups`, `names`, `logfile`, `assets`, `notpages`, `script`, `goals`, `mail`, `smtp`, `pagespeed`, `signin`, `aikeys`), `logo`, `testmail`, `preview`, `ip-add` and `ip-<code>` (an internal address, by a code, never the address), `report-new`, `report-<id>`, `reportedit-<id>`, `branding`, `ailists`, `profile-new`, `profile-<id>`, Your account's `name`, `password`, `totp`, `sessions`, `token-new`, and Alerts' `alertmin` (the sale alert minimum). A part this page does not have opens it with one plain line (Unreleased, Settings v2) | `#settings/site/privacy?edit=people` |
+| `aact` | tabs/auditlog.js | Settings › Audit log: the one kind of change shown (absent: every action) (Unreleased, Settings v2) | `#settings/org/audit?aact=settings.save` |
 | `pack` | tabs/setup-pack.js | `1` while the set-up pack box is open inside the logs or leads dialog (2.30); the addresses and keys never go in the address | `pack=1` |
-| `setup` (on `#settings/org/sites`) | tabs/sitesadmin.js | the Add a site wizard: `new`, then the site's name once step 1 made it (replaced in place, so a reload finds the site); a site's name (it has a dot) opens its wizard on any tab, as Set up with your AI agent does on the Set-up checklist and Collect data (2.31) | `setup=new&step=1`, `setup=example.com&step=3` |
-| `agent` | tabs/site-wizard.js | Add a site, step 3: the AI agent chosen (`claude-code`, `codex`, `cursor`, `chat`, `other`), or `hand` for set it up by hand (2.31) | `agent=claude-code` |
+| `setup` (on `#settings/org/sites`) | tabs/sitesadmin.js | the Add a site wizard: `new`, then the site's name once step 1 made it (replaced in place, so a reload finds the site); a site's name (it has a dot) opens its wizard on any tab, as Set up with your AI agent does on the Set-up checklist (2.31). Two steps since 2.42 (`step=1` Your site, `step=2` Connect it, or 3 when the proof step shows), with `by=` for who connects it; an older `step=3`, `4` or `5` opens Connect it, and `agent=hand` is `by=me` | `setup=new&step=1`, `setup=example.com&step=2&by=agent&agent=codex` |
+| `agent` | tabs/site-wizard.js | Add a site, Connect it on My AI agent (2.42; step 3 before): the AI agent chosen (`claude-code`, `codex`, `cursor`, `chat`, `other`) (2.31); an older `hand` is read as `by=me`. In the set-up and MCP dialogs (agent-first.js) the agent chosen under **My AI agent**; there Me is `by=me`, and an older `agent=hand` link is read as `by=me` (Settings v2) | `agent=claude-code` |
 | `link` | tabs/agent-setup.js | Add a site, steps 4 and 5: the agent's line being watched, by its link id (the first 16 hex of the code's SHA-256). The line and its code never go in the address (2.31) | `link=0f3a9c2e7b1d4a58` |
 | `lines` (on `#settings/org/sites`) | tabs/agent-many.js | Set up many sites with your AI agent: `all` (every site, each with its own line), `site.<site>` (that site's line and its watch open), `mcp.<site>` (its two lines: MCP, then "Set up Skald for this site") or `add` (the box that adds several sites at once) (Unreleased). The lines, their codes, the MCP token and the names typed never go in the address | `#settings/org/sites?lines=site.shop.example.com` |
 | `sact` (on `#settings/org/sites`) | tabs/site-actions.js | a site's action dialog from its ⋯ menu: `<act>.<site>`, act one of `pause`, `resume`, `remove`, `restore`, `clear`, `delete` (Unreleased). The typed name and the tick never go in the address; a role or a site state that does not offer the action opens the page with one plain line | `sact=pause.shop.example.com` |
 | `conn` | tabs/connections.js | a connection dialog: `send` and `sample` (Test a sample of a log, 2.35) on Collect data, `api` on Read figures (API), `mcp` on AI assistant (MCP) | `conn=api&step=2` |
 | `asst` | tabs/conn-read.js | the MCP dialog by hand: the assistant chosen, `claude-desktop`, `chatgpt` or `other` (absent: Claude Code). The token never goes in the address (Unreleased) | `conn=mcp&step=2&agent=hand&asst=claude-desktop` |
-| `sub` | tabs/settings-frame.js | a settings page's in-page tab (absent: the first): Collect data `logs`, `script`, `counting`; Leads & integrations `hooks`, `webhooks`, `search`; Mail & reports `mail`, `reports`; AI answers `profiles`, `keys` (Unreleased) | `#settings/site/collect?sub=script` |
+| `sub` | tabs/settings-frame.js | a settings page's in-page tab (absent: the first): Data `logs`, `script`, `counting`, `sample`; Site `details`, `internal`; Mail & reports `mail`, `reports`; AI assistants `mcp`, `api`, `tokens`; AI answers `profiles`, `keys`; People `team`, `security` (Unreleased). Leads & tools has no tabs: an older `sub=search` or `sub=webhooks` opens that drawer (`tool=`) | `#settings/site/data?sub=script` |
 | `lfmt` | tabs/conn-sample.js | Test a sample: the reader chosen (a format name; absent: Detect it). The pasted lines never go in the address, so a link or a reload opens step 1 to paste again | `conn=sample&step=1&lfmt=caddy_json` |
 | `step` | tabs/conn-ui.js | the step of the dialog open, 1 first | `step=2` |
 | `share` | tabs/conn-share.js | the Share with your developer form is open (the link it makes never is in the address) | `share=1` |
 | `token` | tabs/conn-install.js | a by-hand zip kit's "Include the access token in the zip" unticked, under "Other ways" in the send dialog or Add a site (absent: ticked, the default); never the token itself | `token=0` |
 | `tdsend` | tabs/todo-send.js | Insights: Send to team, for a to-do, by its id (2.35). Who it goes to never goes in the address; without a mail server or a team the page says why instead | `tdsend=lost-pages` |
 | `pcm`, `pcd`, `pck` | tabs/pagechange.js | Traffic > Pages > a page: the Mark a change dialog (`new`), its day (`YYYY-MM-DD`, today or before) and what changed (`content`, `title`, `backlink`, `redirect`, `other`); a pick replaces the entry. The note never goes in the address. Owners and admins only; elsewhere the page says why (2.35) | `pcm=new&pcd=2026-10-21&pck=title` |
-| `dlg` | main.js, keys.js, extras.js, report.js, filterpanel.js, tabs/person.js | an app dialog: `keys`, `new`, `views`, `report`, `filters`, `find` | `dlg=views` |
+| `fix` | tabs/todo-fix.js | Insights: the Fix this dialog, `1` for the to-do named by `todo=<id>`, or `all`. Its answer is `by` (below); links made before 2.41 said `fixby=agent\|me\|someone`, read as `by` (`someone` is `dev`) (2.41) | `#overview/insights?todo=lost-pages&fix=1&by=agent` |
+| `alfix` | tabs/si-alerts.js | Site › Alerts: the Fix dialog for one kind of alert, by its kind (`security_exposure`, `stack_advisory`, `logging_stopped`…): a fixed word, never an id. `by`, `agent` and `link` leave with it. A kind that is not open says so in one line (2.41) | `#site/alerts?alfix=security_exposure&by=me` |
+| `fixit` | tabs/fixit.js | A screen's one Fix (2.42), by a fixed word: `airead` (AI & bots › Assistants, Let AI read the site better), `exposed` (Security › Is anything exposed?), `block` (Security › Block list). "Who will do it?" (`by`) leaves with it. Nothing to fix says so in one line | `#ai/assistants?fixit=airead&by=me` |
+| `by` | ui/who.js | Who will do it, inside a dialog that asks it: `me`, `dev` (my developer) or `agent` (my AI agent). It leaves with the dialog, and the last choice is remembered per person in this browser. Insights' older `fixby=someone` is read as `by=dev`. Not `who`: that is Find a person's (2.41) | `setup=logs&by=me` |
+| `dlg` | main.js, keys.js, extras.js, export-dialog.js, filterpanel.js, tabs/person.js | an app dialog: `keys`, `new`, `views`, `export`, `filters`, `find`. `report` (the report builder before 2.42) opens Export on A PDF of this page with Change open, and the address becomes `dlg=export&kind=pdf&xch=1` | `dlg=views` |
+| `kind` | export-dialog.js | Export (`dlg=export`): what you need: `pdf` (a PDF of this page), `csv` (the tables, as CSV), `monthly` (a report someone gets by mail; `client` is read as `monthly`) or `tools` (JSON, the API and MCP). It leaves with the dialog; without it, Export opens on the last choice made in this browser (2.42) | `dlg=export&kind=csv` |
+| `xch` | export-dialog.js | Export: `1` while Change is open (the sections of the PDF, or the parts of the monthly report). It leaves with the dialog (2.42) | `dlg=export&kind=pdf&xch=1` |
 
-## Settings' pages (Unreleased)
+## Settings' pages (Unreleased, Settings v2)
 
-Settings' menu is grouped by what a person comes to do (`js/settings-menu.js`); each page
-has its own route, `#settings/<group>/<page>`, and `#settings` opens All settings.
+Settings is a menu on the left and the page on the right (`js/settings-menu.js`,
+`tabs/settings-frame.js`). Each page has its own route, `#settings/<group>/<page>`;
+`#settings` opens To do. Each page: one title with a "?" (what it is for, its guide and docs),
+one primary button beside the title (or none), then rows with a status pill. A row opens what
+it shows in a drawer: a tool (`tool=`), or the form that changes a part (`edit=`).
 
-| Group | Page | Route |
+| Group | Page (tabs) | Route |
 | --- | --- | --- |
-| | All settings | `#settings/home` |
-| This site | Set-up checklist | `#settings/site/setup` |
-| This site | Collect data (Send logs, Script tag & goals, What counts) | `#settings/site/collect` |
-| This site | Site details | `#settings/site/details` |
-| This site | Leads & integrations (Incoming hooks, Outgoing webhooks, Search Console & Bing) | `#settings/site/leads` |
-| This site | Internal traffic | `#settings/site/internal` |
-| This site | Privacy & retention | `#settings/site/privacy` |
+| | To do | `#settings/todo` |
+| This site | Data (Send logs, Script tag & goals, What counts, Test a sample) | `#settings/site/data` |
+| This site | Leads & tools (no tabs: rows, each tool's drawer `tool=<id>`) | `#settings/site/leads` |
+| This site | Site (Names & time, Internal traffic) | `#settings/site/details` |
+| This site | Privacy | `#settings/site/privacy` |
 | This site | Mail & reports (Mail, Client reports) | `#settings/site/mail` |
-| This site | AI answers (Questions & profiles, API keys) | `#settings/site/aianswers` |
-| AI & API | AI assistant (MCP) | `#settings/ai/mcp` |
-| AI & API | Read figures (API) | `#settings/ai/api` |
-| AI & API | Tokens & links | `#settings/ai/tokens` |
+| This site | Alerts (which alerts are on, and whether they are mailed) | `#settings/site/alerts` |
+| AI | AI assistants (MCP, API, Tokens & links) | `#settings/ai/assistants` |
+| AI | AI answers (Questions & profiles, API keys) | `#settings/ai/answers` |
 | Organisation | Sites | `#settings/org/sites` |
-| Organisation | Team | `#settings/org/team` |
-| Organisation | Users (one shared login) | `#settings/org/users` |
-| Organisation | Sign-in rules | `#settings/org/security` |
+| Organisation | People (Team, Sign-in rules) | `#settings/org/people` |
+| Organisation | Billing | `#settings/org/billing` |
 | Organisation | Audit log | `#settings/org/audit` |
-| Organisation | Billing & usage | `#settings/org/billing` |
 | You | Your account | `#settings/you/account` |
-| Help & docs | Help & docs | `#settings/help` |
 
-The older addresses open their new home with every parameter they carried
-(`js/settings-menu.js` `OLD_SETTINGS`): `#settings/account` and `#account` open Your account,
-`#settings/team` Team, `#settings/users` Users, `#settings/tokens` Tokens & links,
-`#settings/sites` Site details, `#settings/internal` and `#ours` Internal traffic,
-`#settings/retention` Privacy & retention, `#settings/mail` Mail & reports,
-`#settings/reports` Mail & reports with `sub=reports`, `#settings/integrations` Leads &
-integrations, `#settings/aianswers` AI answers, `#settings/sitesadmin` Sites,
-`#settings/security` Sign-in rules, `#settings/audit` Audit log, `#settings/billing` Billing &
-usage. The old Connections page (`#settings/api`, `#settings/connections`, `#connections`,
-`#api`) opens where the dialog it named lives: `conn=mcp` on AI assistant (MCP), `conn=api` on
-Read figures (API), `conn=send` or `conn=sample` on Collect data, anything else on the Set-up
-checklist. `#settings/api?setup=example.com&step=3&agent=codex` still opens that site's wizard.
+Every older address opens its new home with every parameter it carried
+(`js/settings-menu.js` `OLD_SETTINGS`, `js/routes.js`; tested in `tests/test_routes.py`):
+
+| Old address | Opens |
+| --- | --- |
+| `#settings/home` (All settings), `#settings/site/setup` (Set-up checklist) | `#settings/todo` |
+| `#settings/site/collect` | `#settings/site/data` (its `sub=` kept) |
+| `#settings/site/internal`, `#settings/internal`, `#internal`, `#ours` | `#settings/site/details?sub=internal` |
+| `#settings/site/aianswers`, `#settings/aianswers` | `#settings/ai/answers` |
+| `#settings/ai/mcp`, `#settings/mcp`, `#mcp` | `#settings/ai/assistants` |
+| `#settings/ai/api` | `#settings/ai/assistants?sub=api` |
+| `#settings/ai/tokens`, `#settings/tokens`, `#tokens` | `#settings/ai/assistants?sub=tokens` |
+| `#settings/org/team`, `#settings/org/users`, `#settings/team`, `#team`, `#settings/users`, `#users` | `#settings/org/people` |
+| `#settings/org/security`, `#settings/security`, `#security` | `#settings/org/people?sub=security` |
+| `#settings/site/leads?sub=search` / `?sub=webhooks` | `#settings/site/leads?tool=search` / `?tool=webhooks` |
+| `#settings/site/leads?sub=hooks`, `#settings/integrations`, `#integrations` | `#settings/site/leads` |
+| `#settings/account`, `#account` | `#settings/you/account` |
+| `#settings/sites`, `#sites` | `#settings/site/details` |
+| `#settings/retention`, `#retention`, `#settings/privacy` | `#settings/site/privacy` |
+| `#settings/mail`, `#mail`; `#settings/reports`, `#reports` | `#settings/site/mail`; with `sub=reports` |
+| `#site/alerts?alerts_view=switches` | `#settings/site/alerts` |
+| `#settings/sitesadmin` | `#settings/org/sites` |
+| `#settings/audit`, `#audit`; `#settings/billing`, `#billing` | `#settings/org/audit`; `#settings/org/billing` |
+| `#settings/help` | `#help` |
+| `#settings/api`, `#settings/connections`, `#connections`, `#api` | by the dialog it named: `conn=mcp` AI assistants, `conn=api` AI assistants' API tab, `conn=send` or `conn=sample` Data, anything else To do (`setup=example.com&step=3&agent=codex` still opens that site's wizard) |
 
 A dialog opened from a link at a later step starts at the first step whose choice is
 still missing (`wizard()` runs each earlier step's `check`). Who may open each: the Set
@@ -208,7 +230,7 @@ Each table and grid keeps its own state under its namespace, `<ns>_<suffix>`
 | `_hide` | the columns taken away |
 | `_view` | a sub-tab or a switch inside a tab (`subView(ns)`) |
 
-The sub-tabs kept this way: `alerts_view` (Site > Alerts: all or AI), `utm_view`
+The sub-tabs kept this way: `alerts_view` (Site > Alerts: an older `switches` link opens `#settings/site/alerts`; `ai` from older links is ignored), `utm_view`
 (Sources: the UTM tag), `seeng_view`, `seper_view`, `semet_view` (Traffic > Search: the
 engine, the period, the measure), `flow_view` (the visitor flow: start and pages),
 `tsrc_view` (Overview in Live mode: the sources' order).

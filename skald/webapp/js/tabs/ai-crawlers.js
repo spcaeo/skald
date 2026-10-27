@@ -14,6 +14,7 @@ import { verification, verifySection, badge, badgeOf } from "./botverify.js";
 import { robotsOf, robotsBadge, robotsWords } from "./robots.js";
 import { kpi, tierChart, countGrid, tabLink, formatsSection } from "./ai-parts.js";
 import { costSection } from "./crawlercost.js";
+import { urlFold } from "../ui/fold.js";
 
 const ADS = /ads quality|AdsBot/i;
 const LEDE = "Crawlers with nobody waiting: AI collecting pages for training or AI search, search engines indexing the site, and bots and scanners. A crawler's name is what it calls itself; the server checks the address of the well-known ones. Assistants answering someone's question are on Assistants.";
@@ -39,7 +40,6 @@ export default function crawlersTab(m, s, { first }) {
   out.push(h("section", { class: "s" }, h("h2", null, "AI collecting for training, by name"),
     h("p", { class: "sub" }, "Pages fetched to train a model or feed AI search. To let one in or keep it out, see ", tabLink(s, "rules", "Crawler rules"), "."),
     countGrid("aicrawl", t.engines?.training, { caption: "AI crawlers collecting for training", file: fileName("ai-training-crawlers", r), key: "Crawler", value: "Fetches", drill: "bot", extra, empty: "No training crawls in this range." })));
-  out.push(formatsSection(t, r, "training", { who: "AI crawlers", file: "ai-training-fetch" }));
 
   const searchRows = ranked(t.search_engines);
   out.push(h("section", { class: "s" }, h("h2", null, "Search engines"),
@@ -47,10 +47,13 @@ export default function crawlersTab(m, s, { first }) {
     searchRows.some(([name]) => ADS.test(name)) ? h("p", { class: "note" }, "Ads quality checks are Google's ad systems checking ad landing pages. They are in the search group but not in the indexing figure.") : null));
   out.push(h("section", { class: "s" }, h("h2", null, "Bots and scanners by name"),
     countGrid("aibots", t.bot_agents, { caption: "Bots and scanners", file: fileName("bots", r), key: "What", value: "Requests", drill: "bot", empty: "No bots in this range." })));
-  // What each one costs (crawler_cost.json): training AI, search engines, bots.
-  out.push(costSection(m, s, r, { id: "crawlers", groupCol: true,
-    sub: "Per crawler: requests, bytes the server sent, its time per request, failed requests, distinct paths and how often it fetched them again. Select a name for its detail.",
-    keep: (g, name, e) => g !== "answer_engines" || e.tier !== "asked" }));
-  out.push(verifySection(m, r));
+  // 2.42 (answer first): what they fetch, what each one costs (crawler_cost.json) and the
+  // address check, under one fold kept in the address (crawl_view=open).
+  out.push(urlFold("crawl", "Open the details: what they fetch, what each one costs, and the address check", () => [
+    formatsSection(t, r, "training", { who: "AI crawlers", file: "ai-training-fetch" }),
+    costSection(m, s, r, { id: "crawlers", groupCol: true,
+      sub: "Per crawler: requests, bytes the server sent, its time per request, failed requests, distinct paths and how often it fetched them again. Select a name for its detail.",
+      keep: (g, name, e) => g !== "answer_engines" || e.tier !== "asked" }),
+    verifySection(m, r)], { cls: "ai-details" }));
   return out;
 }

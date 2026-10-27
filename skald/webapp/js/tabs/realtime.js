@@ -29,6 +29,7 @@ import { mark } from "../icons.js";
 import { withUrl } from "../urlactions.js";
 import { time as tzTime, label as tzLabel } from "../tz.js";
 import { worldMap } from "./rt-map.js";
+import { flowCard } from "./ov-today-more.js";
 import { DEMO } from "../demo.js";
 import { openVisitor, touchLine } from "./visitor.js";
 
@@ -261,7 +262,9 @@ export default function realtimeTab(m, s) {
   return [h("div", { class: "head" }, h("h1", null, "Real time"),
     info("Who is on the site now: visitors (counted every 2 minutes, the same rules as every figure) and requests (read every 15 seconds). It does not follow the period: it is always now.", "Real time"),
     h("span", { class: "period" }, h("span", { class: "pulse", "aria-hidden": "true" }), "Now")),
-  realtimeBlock(m, s, { tab: true })];
+  realtimeBlock(m, s, { tab: true }),
+  // 2.41: how today's visits moved is here only (Summary links here), under the map.
+  m.live ? flowCard(m) : null].filter(Boolean);
 }
 
 /* Another view of the same answer: Overview > Summary in Live mode (ov-today.js)

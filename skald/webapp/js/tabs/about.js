@@ -67,7 +67,7 @@ const FEATURES = [
     ["requests", "The last six hours, request by request, each with the rule that put it in its group."],
   ]],
   // 2.40: every settings page, from the menu (js/settings-menu.js), with its own line.
-  ["Settings", SETTINGS_PAGES.filter((p) => p.route !== "settings/home" && p.route !== "settings/help").map((p) => [p.route, p.line])],
+  ["Settings", SETTINGS_PAGES.filter((p) => p.route !== "settings/todo").map((p) => [p.route, p.line])],
   ["Help", [
     ["help", "Guides in plain words: getting started, sign-in and team, internal traffic, leads and conversions, the tracking script, webhooks, funnels, the API, MCP, settings, privacy and questions."],
   ]],

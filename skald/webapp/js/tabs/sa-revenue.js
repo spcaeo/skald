@@ -131,7 +131,7 @@ function lifetime(f, cur) {
   return fixed("Lifetime value, by first source", period,
     h("p", { class: "sub" }, `Every ${cur} customer, by the first source of their first paid sale: how many, what they paid in all (refunds taken off), the average per customer, their renewals and the share who paid again.`),
     h("div", { class: "sheet" }, table(cols, { caption: `Lifetime value by first source, ${cur}`, ns: "revl", rows, file: `revenue-lifetime-${cur.toLowerCase()}.csv`, search: false, limit: 12, sortKey: "net_minor" })),
-    h("p", { class: "note" }, `A customer is one customer reference your tool sends (a Stripe customer, your app's account ID); a sale without one is its own customer. Counted over every sale Skald keeps (Settings > Privacy & retention applies), not the date range above. The average and the repeat rate are worked out here from two counted figures; the repeat rate is given over at least ${n(min)} customers.`));
+    h("p", { class: "note" }, `A customer is one customer reference your tool sends (a Stripe customer, your app's account ID); a sale without one is its own customer. Counted over every sale Skald keeps (Settings > Privacy applies), not the date range above. The average and the repeat rate are worked out here from two counted figures; the repeat rate is given over at least ${n(min)} customers.`));
 }
 
 export default function revenue(m, s) {
@@ -172,13 +172,13 @@ export default function revenue(m, s) {
   const pick = x ? [asked[0], asked[1], x] : null;
   // tag=plan, no value: every value of the tag plan, as the table (the numbers stay whole).
   const tagKey = pick ? pick[0] : asked && !asked[1] && t.by?.tag?.[asked[0]] ? asked[0] : "";
-  const dim = pick || tagKey ? "tag" : BY.some(([k]) => k === s.by) ? s.by : "source";
+  const dim = pick || tagKey ? "tag" : BY.some(([k]) => k === s.rby) ? s.rby : "source";
   const notes = [SUM_WORDS,
     pick ? `Tag ${pick[0]} = ${pick[1]}: the numbers are that tag's own; refunds, customers, renewals and the other breakdowns are not split by tag, so they show with Every tag.` : tagKey ? `Tag ${tagKey}, every value: the table lists each value of it; the numbers are every sale's.` : "",
     got.missing.length ? `${plural(got.missing.length, "day")} of the period not recorded (before values were stored, or not checked yet), never zero.` : ""];
   out.push(...optionsRow("Revenue options", [
     list.length > 1 ? choice("Currency", cur, list.map((c) => [c, c, `Figures in ${c}, never converted`]), (k) => S.set({ cur: k })) : null,
-    select("Breakdown", dim, BY, (v) => S.set({ by: v === "source" ? "" : v }), { all: null, off: pick || tagKey ? "With a tag chosen, the table lists the values of its key." : "" }),
+    select("Breakdown", dim, BY, (v) => S.set({ rby: v === "source" ? "" : v }), { all: null, off: pick || tagKey ? "With a tag chosen, the table lists the values of its key." : "" }),
     select("Tag", pick ? `${pick[0]}:${pick[1]}` : tagKey, tags, (v) => S.set({ tag: v }), { all: "Every tag", off: tags.length || s.tag ? "" : "No sale in this period carried a tag." }),
   ], { notes, help: HELP }));
   if (s.tag && !pick && !tagKey) out.push(h("p", { class: "note" }, `No ${cur} sale in this period carries the tag ${asked ? (asked[1] ? `${asked[0]} = ${asked[1]}` : asked[0]) : String(s.tag)}. `,

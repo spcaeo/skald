@@ -212,7 +212,7 @@ export function visitMatrix(all, list, r, keptDays) {
       visitor: visitor(j), pages: visitPages(j).all ?? j.pages, seconds: j.seconds, path: trailWords(j.trail) };
   });
   const tbl = table(columns(list.some((j) => j.city)), {
-    caption: "Each visit", rows, file: fileName("visits", r), limit: 25, sortKey: "start", dir: -1,
+    caption: "Each visit", rows, file: fileName("visits", r), limit: 12, sortKey: "start", dir: -1,
     placeholder: "Search pages, cities, sources", rowClass: () => "v-row", onRow: (x) => openVisit(x.j),
     empty: all.length ? "No visit matches these filters." : "No visit journeys are kept for this range.",
   });

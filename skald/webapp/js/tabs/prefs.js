@@ -15,15 +15,24 @@
 // (2.29): conversions.retention_days is "kept for good" (0) or N days, a
 // choice of two (`forever` in the answer); journeys.vid_days is the days an
 // ID's pages are kept before it signs up.
+//
+// v2 (Settings v2): a page shows each card as rows (set-parts.js: the value in words and a
+// pill); the card's form opens in its drawer, edit=<id> in the address (set-edit.js). The
+// cards are PARTS below, by id. One Save per form, active once something changed.
 
 import { h, toast } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { ME, sessions } from "../access.js";
-import { head1, field, input, status, why } from "./forms.js";
+import { head1, field, input, status, why, moreOptions } from "./forms.js";
 import logoCard from "./sitelogo.js";
 import { mailPreview } from "./mailpreview.js";
 import { fillChoice, fillNote, remember, viewsFill } from "./viewsfill.js";
 import { withCopy, withUrl } from "../urlactions.js";
+import { mailServerNote, waitingWords } from "../mail-ready.js";
+import { isViewer } from "../access.js";
+import { editPart, openEdit } from "./set-edit.js";
+import { partCard } from "./set-parts.js";
+import { help, primary, rowsCard, statusRow } from "./set-ui.js";
 
 const SOURCE = { site: "set for this site", org: "set for the organisation", install: "set for the whole install", config: "from config.yml", default: "the default",
   upgrade: "kept off by the upgrade to 2.4.0; turn it on once your privacy notice says so" };
@@ -183,10 +192,10 @@ let saved = null;
 let waiting = "";   // recipients that still have to confirm (mail_confirm.py)
 
 // A card of settings with one Save button; a smaller window asks for the site's name first.
-export function card(title, sub, names, all, site, onSaved) {
+export function card(title, sub, names, all, site, onSaved, { bare = false } = {}) {
   const rows = names.filter((k) => all[k]).map((k) => [k, control(k, all[k])]);
   const msg = status();
-  if (saved === title) { msg.say(((title === site && fillNote()) || "Saved. It applies from the next run.") + waiting, true); saved = null; }
+  if (saved === title) { msg.say(((names.includes("sites.views") && fillNote()) || "Saved. It applies from the next run.") + waiting, true); saved = null; }
   const ask = h("div");
   const save = h("button", { type: "submit", class: "btn primary" }, "Save");
   const editable = rows.some(([k]) => all[k].editable && !all[k].hidden);
@@ -206,6 +215,11 @@ export function card(title, sub, names, all, site, onSaved) {
     c.input.addEventListener("change", look);
   }
   const form = h("form", { class: "af-col", novalidate: true }, rows.map(([, c]) => c.el), editable ? h("div", null, save) : null, ask);
+  // One Save, at the foot, active once something changed (UI rule 12).
+  save.disabled = true;
+  const changed = () => { save.disabled = false; };
+  form.addEventListener("input", changed);
+  form.addEventListener("change", changed);
   async function send(confirm) {
     const body = {};
     for (const [k, c] of rows) { const v = c.get(); if (v !== undefined) body[k] = v; }
@@ -218,7 +232,8 @@ export function card(title, sub, names, all, site, onSaved) {
     if (!r.ok) { msg.say(why(r)); return; }
     ask.replaceChildren();
     saved = title;
-    waiting = r.mail_waiting?.length ? ` A confirm link was mailed to ${r.mail_waiting.join(", ")}; they get no reports until they confirm.` : "";
+    // Never "mailed" when no mail server is set (mail-ready.js): then it says the link waits for one.
+    waiting = r.mail_waiting?.length ? ` ${waitingWords(r, r.mail_waiting)}` : "";
     onSaved(r.settings, r);
   }
   async function askName(keys, body) {
@@ -235,20 +250,88 @@ export function card(title, sub, names, all, site, onSaved) {
     typed.focus();
   }
   form.addEventListener("submit", (e) => { e.preventDefault(); send(); });
+  if (bare) return h("div", { class: "acct-card set-form" }, form, msg);
   return h("section", { class: "sheet acct-card" }, h("h2", null, title), sub ? h("p", { class: "sub" }, sub) : null, form, msg);
 }
 
-// The page frame: loads GET settings, draws `build(settings, redraw)`.
+// The page drawn last: a drawer that saved draws it again, so its rows say the new values.
+let repaint = () => {};
+
+// The page frame: loads GET settings, draws `build(settings, redraw, answer)`.
 function page(title, lede, build) {
   if (!sessions()) return [head1(title, lede), h("div", { class: "state" }, h("div", null, BASIC))];
   const box = h("div", { class: "set-cards" }, h("p", { class: "empty" }, "Loading the settings..."));
+  let last = null;
   const draw = (r) => {
     if (!r.ok) { box.replaceChildren(h("div", { class: "state" }, h("div", null, why(r, "The settings could not be loaded.")))); return; }
-    const redraw = (settings, got) => draw({ ...r, settings, notice: got?.notice || r.notice });
+    last = r;
+    const redraw = (settings, got) => draw({ ...r, settings, notice: got?.notice || r.notice, mail_server: got?.mail_server || r.mail_server });
     box.replaceChildren(...[build(r.settings, redraw, r)].flat(Infinity).filter(Boolean));
   };
+  // From a drawer's save: the answer it got (the settings, a new notice), else asked again.
+  repaint = (settings, got) => (settings && last ? draw({ ...last, settings, notice: got?.notice || last.notice, mail_server: got?.mail_server || last.mail_server }) : call("settings").then(draw));
   call("settings").then(draw);
   return [head1(title, lede), box];
+}
+
+// keep_everything.py: an internal or enterprise site deletes nothing by itself.
+function keptAll(r) {
+  return r && r.keep_everything && r.keep_everything.on ? r.keep_everything.words : "";
+}
+
+// The AI assistants' API keys (Settings › AI answers › API keys, integrations.js).
+export const AI_KEYS = ["ai_answers.openai_key", "ai_answers.perplexity_key", "ai_answers.gemini_key", "ai_answers.anthropic_key"];
+
+/* Each card: its title, its settings, the line behind its "?", and what a save also does. */
+export const PARTS = {
+  people: { title: "People", names: ["privacy.keep_ips", "privacy.keep_days", "conversions.identity"],
+    sub: (r) => (keptAll(r) ? `${keptAll(r)} ` : "") + "Each visit's IP address and browser, with its pages and times, and the names and emails of leads, so a person can be looked up and followed (the search at the top). Visits with addresses, when you set it shorter than the leads, is also the most a lead's name and email are kept: after it the lead stays, counted, without them. Not keeping IP addresses deletes the visits kept with them at the next nightly run; keeping them shortened shortens them then. Your privacy notice must say what you keep." },
+  leads: { title: "Leads", names: ["conversions.retention_days", "journeys.vid_days"],
+    sub: "A lead is a form sent or a call booked: its name and email (when kept), where it came from, and the pages its visitor ID read. Kept for good means Skald never deletes them; a person's own request to be deleted still removes everything about them. The pages of a visitor who has not signed up yet are kept for the days below; once they sign up, their pages are kept with the lead." },
+  detail: { title: "Detail kept for this site", names: ["report.retention_days", "report.journey_days", "visitors.repeat_days", "beacon.keep_days"],
+    sub: "Days of each kind of detail. Totals, page milestones and every day's figures are kept forever and are not a setting." },
+  backups: { title: "Backups", names: ["backup.daily", "backup.weekly"], sub: "Copies of the history kept on the server, for every site of the install." },
+  names: { title: "Names & time", names: ["sites.hosts", "sites.views", "sites.timezone"], saved: (got) => remember(got?.views),
+    sub: "Changes apply from the next run. Days already stored are not counted again, except a new page group's: tick the box under Views to fill its past days from the raw log. Views (page groups): one per line, as name | path prefix | prefixes to leave out (separated by spaces). For example: Blog | /blog/ or Canada | /ca/ | /ca/fr/" },
+  logfile: { title: "Log file", names: ["sites.log_dir", "sites.log_base"], sub: "Where the server's access log for this site is. For install admins." },
+  assets: { title: "Page assets", names: ["site.asset_prefixes", "site.require_rendering"],
+    sub: "A visit counts as people only when its browser also fetched one of the page's own scripts or styles. Next.js: /_next/static/ (the default). WordPress: /wp-content/ and /wp-includes/. Many other sites: /assets/ or /static/. One path per line, at most 10. Turn the rule off only when the assets come from a CDN host this log never sees. Changes apply from the next run; stored days are recounted with backfill --force on the server." },
+  notpages: { title: "Not pages", names: ["site.not_pages_off", "site.not_pages_extra"],
+    sub: "Machine addresses that are never a person reading a page: feeds, WordPress's API, Markdown copies for AI agents. Ticked, a request for one is not a page view; it still counts as a request, in its group. Untick one this site serves as a real page. Also not pages: your own, one per line, as /path, /prefix* or ?key, at most 20. Changes apply from the next run; stored days are recounted with backfill --force on the server." },
+  script: { title: "Script tag", names: ["beacon.visitor_ids", "beacon.share_subdomains"],
+    sub: "Visitor IDs: the tag keeps an anonymous random ID per browser, for journeys, abandoned forms and lead matching; your privacy notice must say so. Off, the tag still sends events but keeps no ID. Share the ID across subdomains: www. and app. see the same ID (a first-party cookie), as data-share-subdomains=\"true\" on the tag does, with the tag unchanged; browsers learn it within a day." },
+  goals: { title: "Goals", names: ["beacon.goals"], sub: "The in-page events that count as this site's goals. Events shows each one per 100 visits by source, on checked days. At most 10." },
+  mail: { title: "The daily and weekly mail", names: ["mail.daily", "mail.weekly", "mail.to", "mail.from_name"], sub: "The daily mail goes after each morning's run; the weekly one on Mondays." },
+  smtp: { title: "Mail server (SMTP)", names: ["mail.from", "mail.smtp.host", "mail.smtp.port", "mail.smtp.security", "mail.smtp.user", "mail.smtp.password"],
+    sub: "For every site of the install. The sender address is the From of every mail. The password is write-only: this page only says whether it is set." },
+  pagespeed: { title: "Google PageSpeed", names: ["pagespeed.api_key"], sub: "A free API key raises Google's daily limit for the page speed tests." },
+  signin: { title: "Sign-in", names: ["security.require_totp", "security.session_days"],
+    sub: "Two-step sign-in: members without it set it up the next time they sign in. Session length: how long a sign-in lasts at most." },
+  aikeys: { title: "Assistants' API keys", names: AI_KEYS,
+    sub: "Each key lets Skald ask that assistant the tracking profiles' questions (Settings › AI answers). The questions are sent to the provider; each answer costs a few cents on your provider account. Nothing is asked until a site admin makes a profile. Write-only: the page only says set or not." },
+};
+const subOf = (p, r) => (typeof p.sub === "function" ? p.sub(r) : p.sub);
+
+/* A card's form in its drawer (edit=<id>): saved, it says so there and the page's rows follow. */
+async function editBody(id, m) {
+  if (!sessions()) return BASIC;
+  const p = PARTS[id];
+  const r = await call("settings");
+  if (!r.ok) return why(r, "The settings could not be loaded.");
+  const slot = h("div", { class: "set-form-w" });
+  const draw = (all) => slot.replaceChildren(card(p.title, null, p.names, all, m?.site || r.site || "", (settings, got) => { p.saved?.(got); draw(settings); repaint(settings, got); }, { bare: true }));
+  draw(r.settings);
+  const sub = subOf(p, r);
+  return [sub ? h("p", { class: "set-edit-sub" }, sub) : null, slot];
+}
+for (const id of Object.keys(PARTS)) editPart(id, { title: PARTS[id].title, body: (m) => editBody(id, m) });
+
+/* A card as rows, its line behind the "?" by its title. */
+export function partOf(id, all, m, r = null, title = "", extra = []) {
+  const p = PARTS[id];
+  const t = title || p.title;
+  const sub = subOf(p, r);
+  return partCard(id, t, p.names, all, m, { help: sub ? help(t, { text: sub }) : null, extra });
 }
 
 // "Wording for your privacy notice": the text the server made from this site's
@@ -259,35 +342,26 @@ function noticeCard(nt) {
   copy.addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(nt.text); toast("Copied the wording"); } catch { toast("Copy is not allowed here; select the text instead"); }
   });
-  return h("section", { class: "sheet acct-card notice-card" }, h("h2", null, "Wording for your privacy notice"),
-    h("p", { class: "sub" }, "Made from this site's settings on this page, so it says what is kept. Save a change and it is made again. Fill in or delete the parts in [square brackets] before you use it."),
-    h("p", { class: "note" }, nt.note || "A starting point, not legal advice. Your notice must match your own situation."),
-    h("div", { class: "notice-text" }, h("p", null, nt.intro), h("ul", null, nt.items.map((line) => h("li", null, line)))),
-    h("div", { class: "acts" }, copy));
-}
-
-// keep_everything.py: an internal or enterprise site deletes nothing by itself.
-function keptAll(r) {
-  return r && r.keep_everything && r.keep_everything.on ? r.keep_everything.words : "";
+  const t = "Wording for your privacy notice";
+  return h("section", { class: "ui-card set-rows notice-card" },
+    h("div", { class: "ui-card-h" }, h("h2", null, t), help(t, { text: "Made from this site's settings on this page, so it says what is kept. Save a change and it is made again. Fill in or delete the parts in [square brackets] before you use it." }), h("span", { class: "ui-grow" }), copy),
+    h("details", { class: "fold" }, h("summary", null, "Show the wording"),
+      h("p", { class: "note" }, nt.note || "A starting point, not legal advice. Your notice must match your own situation."),
+      h("div", { class: "notice-text" }, h("p", null, nt.intro), h("ul", null, nt.items.map((line) => h("li", null, line))))));
 }
 
 export function retention(m) {
   return page("Data retention", "How long the detail is kept. Totals are kept for good.", (all, redraw, r) => [
     keptAll(r) ? h("div", { class: "state ok", role: "status" }, h("div", null, h("p", null, h("strong", null, keptAll(r)), " The windows below are not applied on this site: Skald deletes and clears nothing by itself. A person's own request to be deleted, run by an admin, still removes what is kept about them."))) : null,
-    card("Detail kept for this site", "Days of each kind of detail. Totals, page milestones and every day's figures are kept forever and are not a setting.",
-      ["report.retention_days", "report.journey_days", "visitors.repeat_days", "beacon.keep_days"], all, m.site, redraw),
-    card("People", (keptAll(r) ? `${keptAll(r)} ` : "") + "Each visit's IP address and browser, with its pages and times, and the names and emails of leads, so a person can be looked up and followed (the search at the top). Visits with addresses, when you set it shorter than the leads, is also the most a lead's name and email are kept: after it the lead stays, counted, without them. Not keeping IP addresses deletes the visits kept with them at the next nightly run; keeping them shortened shortens them then. Your privacy notice must say what you keep.",
-      ["privacy.keep_ips", "privacy.keep_days", "conversions.identity"], all, m.site, redraw),
-    card("Leads", "A lead is a form sent or a call booked: its name and email (when kept), where it came from, and the pages its visitor ID read. Kept for good means Skald never deletes them; a person's own request to be deleted still removes everything about them. The pages of a visitor who has not signed up yet are kept for the days below; once they sign up, their pages are kept with the lead.",
-      ["conversions.retention_days", "journeys.vid_days"], all, m.site, redraw),
-    noticeCard(r.notice),
-    card("Backups", "Copies of the history kept on the server, for every site of the install.", ["backup.daily", "backup.weekly"], all, m.site, redraw),
+    partOf("people", all, m, r), partOf("leads", all, m, r), noticeCard(r.notice),
+    moreOptions(partOf("detail", all, m, r), partOf("backups", all, m, r)),
   ]);
 }
 
+/* Send a test mail (edit=testmail): through the settings of the Mail page. */
 function testMail() {
   const to = input({ type: "email", value: ME.user || "", autocomplete: "email", maxlength: "254" });
-  const send = h("button", { type: "submit", class: "btn" }, "Send test mail");
+  const send = h("button", { type: "submit", class: "btn primary" }, "Send test mail");
   const msg = status();
   const form = h("form", { class: "af-row", novalidate: true }, field("Send to", to), send);
   form.addEventListener("submit", async (e) => {
@@ -297,18 +371,39 @@ function testMail() {
     send.disabled = false;
     msg.say(r.ok ? `Sent to ${r.to}. Check that inbox.` : why(r), r.ok);
   });
-  return h("section", { class: "sheet acct-card" }, h("h2", null, "Send a test mail"), h("p", { class: "sub" }, "A short mail through the settings above. At most 3 in 10 minutes."), form, msg);
+  return [h("p", { class: "set-edit-sub" }, "A short mail through the mail server's settings. At most 3 in 10 minutes."), form, msg];
 }
+const mayMail = () => sessions() && !isViewer();
+editPart("testmail", { title: "Send a test mail", body: () => (mayMail() ? testMail() : "Not available to your role.") });
+editPart("preview", { title: "Preview the mail", size: "lg", body: () => {
+  if (!mayMail()) return "Not available to your role.";
+  const box = mailPreview();
+  box.querySelector("h2")?.remove();
+  return [box];
+} });
 
 export function mail(m) {
-  return page("Mail", "The daily and weekly mail, and how it is sent.", (all, redraw, r) => [
-    card("Reports", "The daily mail goes after each morning's run; the weekly one on Mondays.", ["mail.daily", "mail.weekly", "mail.to", "mail.from_name"], all, m.site, redraw),
-    card("Mail server (SMTP)", "For every site of the install. The sender address is the From of every mail. The password is write-only: this page only says whether it is set.",
-      ["mail.from", "mail.smtp.host", "mail.smtp.port", "mail.smtp.security", "mail.smtp.user", "mail.smtp.password"], all, m.site, redraw),
-    card("Google PageSpeed", "A free API key raises Google's daily limit for the page speed tests.", ["pagespeed.api_key"], all, m.site, redraw),
-    ["owner", "admin"].includes(r.role) || r.install_admin ? testMail() : null,
-    ["owner", "admin"].includes(r.role) || r.install_admin ? mailPreview() : null,
-  ]);
+  const go = mayMail() ? primary("Send a test mail", () => openEdit("testmail", m), { iconName: "mail" }) : null;
+  return [go, ...page("Mail", "The daily and weekly mail, and how it is sent.", (all, redraw, r) => [
+    // No mail server: one card says so above the recipients, with who will set it up.
+    mailServerNote(r, { what: "the daily and weekly mail", site: m?.site || r.site || "", route: null }),
+    partOf("mail", all, m, r, "", ["owner", "admin"].includes(r.role) || r.install_admin ? [statusRow({ iconName: "", title: "Preview the mail",
+      line: "The daily or the weekly mail as it would go now. Nothing is sent.", label: "Preview the mail", onOpen: () => openEdit("preview", m) })] : []),
+    // The mail server is the whole install's, set once: under More options, as before.
+    moreOptions(partOf("smtp", all, m, r), partOf("pagespeed", all, m, r)),
+  ])];
+}
+
+/* The logo (edit=logo, sitelogo.js's card in the drawer): where it comes from, on the page. */
+const LOGO_FROM = { auto: "From the site (automatic)", upload: "Uploaded", letter: "A letter on a colour" };
+editPart("logo", { title: "Logo", size: "lg", body: (m) => [logoCard(m)] });
+function logoRow(m) {
+  const row = statusRow({ iconName: "", title: "Where the logo comes from", line: "Shown on the site picker, in the menu and on the browser tab", label: "Change the logo", onOpen: () => openEdit("logo", m) });
+  call("logo/state").then((r) => {
+    const small = row.querySelector("small");
+    if (r.ok && small && LOGO_FROM[r.source]) small.textContent = `${LOGO_FROM[r.source]}${r.editable ? "" : " · read-only"}`;
+  });
+  return rowsCard("Logo", [row]);
 }
 
 /* 2.40: Settings shows the site's cards in three places (settings-pages.js): "details" (host
@@ -318,26 +413,21 @@ export function mail(m) {
 export function sites(m, part = "all", { bare = false } = {}) {
   const want = (k) => part === "all" || part === k;
   const framed = (title, lede, build) => (bare ? page(title, lede, build).slice(1) : page(title, lede, build));
-  return framed("Sites", "What counts as this site, and where its log is.", (all, redraw) => [
-    !want("details") ? null : card(m.site, "Changes apply from the next run. Days already stored are not counted again, except a new page group's: tick the box under Views to fill its past days from the raw log.",
-      ["sites.hosts", "sites.views", "sites.timezone"], all, m.site, (settings, got) => { remember(got?.views); redraw(settings, got); }),
-    want("details") ? h("p", { class: "note" }, "Views (page groups): one per line, as name | path prefix | prefixes to leave out (separated by spaces). For example: Blog | /blog/ or Canada | /ca/ | /ca/fr/") : null,
-    want("details") ? viewsFill(m) : null,
-    want("details") ? logoCard(m) : null,
-    !want("logs") ? null : card("Log file", "Where the server's access log for this site is. For install admins.", ["sites.log_dir", "sites.log_base"], all, m.site, redraw),
-    !want("counting") ? null : card("Page assets", "A visit counts as people only when its browser also fetched one of the page's own scripts or styles. Next.js: /_next/static/ (the default). WordPress: /wp-content/ and /wp-includes/. Many other sites: /assets/ or /static/. One path per line, at most 10. Turn the rule off only when the assets come from a CDN host this log never sees. Changes apply from the next run; stored days are recounted with backfill --force on the server.",
-      ["site.asset_prefixes", "site.require_rendering"], all, m.site, redraw),
-    !want("counting") ? null : card("Not pages", "Machine addresses that are never a person reading a page: feeds, WordPress's API, Markdown copies for AI agents. Ticked, a request for one is not a page view; it still counts as a request, in its group. Untick one this site serves as a real page. Also not pages: your own, one per line, as /path, /prefix* or ?key, at most 20. Changes apply from the next run; stored days are recounted with backfill --force on the server.",
-      ["site.not_pages_off", "site.not_pages_extra"], all, m.site, redraw),
-    !want("script") ? null : card("Script tag", "Visitor IDs: the tag keeps an anonymous random ID per browser, for journeys, abandoned forms and lead matching; your privacy notice must say so. Off, the tag still sends events but keeps no ID. Share the ID across subdomains: www. and app. see the same ID (a first-party cookie), as data-share-subdomains=\"true\" on the tag does, with the tag unchanged; browsers learn it within a day.", ["beacon.visitor_ids", "beacon.share_subdomains"], all, m.site, redraw),
-    !want("script") ? null : card("Goals", "The in-page events that count as this site's goals. Events shows each one per 100 visits by source, on checked days. At most 10.", ["beacon.goals"], all, m.site, redraw),
+  return framed("Sites", "What counts as this site, and where its log is.", (all, redraw, r) => [
+    want("details") ? partOf("names", all, m, r, m.site) : null,
+    want("details") ? logoRow(m) : null,
+    want("details") ? moreOptions(viewsFill(m)) : null,
+    want("logs") ? partOf("logfile", all, m, r) : null,
+    want("counting") ? partOf("assets", all, m, r) : null,
+    want("counting") ? moreOptions(partOf("notpages", all, m, r)) : null,
+    want("script") ? partOf("script", all, m, r) : null,
+    want("script") ? partOf("goals", all, m, r) : null,
   ]);
 }
 
 export function security(m) {
   return page("Security", "Sign-in rules for everyone in the organisation.", (all, redraw, r) => [
-    card("Sign-in", "Two-step sign-in: members without it set it up the next time they sign in. Session length: how long a sign-in lasts at most.",
-      ["security.require_totp", "security.session_days"], all, m.site, redraw),
+    partOf("signin", all, m, r),
     r.totp_on ? null : h("p", { class: "note" }, "Turn on two-step sign-in for your own account first (Settings › Your account) before you require it."),
   ]);
 }

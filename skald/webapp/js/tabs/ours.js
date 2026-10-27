@@ -1,13 +1,14 @@
 // Our own traffic: the office, our crawler, our tests and the heartbeat, by
 // label. Not traffic - it is shown so the five groups add up. The heartbeat
 // doubles as an uptime check; its uptime and gaps are on Site > Health.
+// v2: Settings › Site › Internal traffic draws this behind a fold; the address list is
+// set-internal.js's rows.
 
 import { h, n, long, counter } from "../ui.js";
 import * as S from "../state.js";
 import { figures, color, chartDays } from "../data.js";
 import { columns, legend, bars } from "../charts.js";
 import { head, nothing, coverageNote, blist, panel, countTable, fileName, compareFor } from "./common.js";
-import { ipManager } from "./ipmanager.js";
 
 const TONES = ["var(--g-ours)", "var(--g-people)", "var(--views)", "var(--g-bots)", "var(--ink-3)"];
 const HEARTBEAT = /heartbeat/i;
@@ -15,11 +16,7 @@ const HEARTBEAT = /heartbeat/i;
 export default function ours(m, s, { first }) {
   const { r, t, cov } = figures(m, s);
   const out = [...head("Our own traffic", r, "Requests from our own machines and tools: the office, our crawler, browser tests and the heartbeat. They are not visitors; they are counted here so that the five groups add up to the log.", { shown: true })];
-  const manager = h("section", { class: "s" }, h("h2", null, "Internal addresses"),
-    h("p", { class: "sub" }, "Requests from these addresses count as our own traffic, not as visitors. Add the office, home connections and test machines."),
-    h("div", { class: "sheet" }, m.x.ours?.api ? ipManager(m.x.ours.api)
-      : h("p", { class: "empty" }, "Managing internal addresses here is coming with the next data update. Until then they are set in the config file.")));
-  if (!t) return [...out, nothing(m, r), manager];
+  if (!t) return [...out, nothing(m, r)];
   const labels = Object.keys(t.ours_by || {}).sort((a, b) => (t.ours_by[b] || 0) - (t.ours_by[a] || 0));
   out.push(h("section", { class: "s" }, h("div", { class: "kpis" },
     h("div", { class: "kpi" }, h("div", { class: "k-l" }, "Our own requests"), h("div", { class: "k-n" }, "every machine and tool together"),
@@ -45,7 +42,6 @@ export default function ours(m, s, { first }) {
   out.push(h("div", { class: "cols" },
     panel("By machine or tool", "Labels come from the config: addresses and user agents we know are ours", blist(labels.map((k) => [k, t.ours_by[k]]), { color: color("ours"), empty: "None of our own traffic in this range." })),
     t.ours_speed ? panel("How fast the heartbeat was answered", "Server time, by bucket", blist(Object.entries(t.ours_speed), { color: "var(--good)" })) : null));
-  out.push(manager);
   out.push(h("section", { class: "s" }, h("h2", null, "All our own traffic"),
     countTable(t.ours_by, { caption: "Our own traffic by label", file: fileName("ours", r), key: "Machine or tool", value: "Requests" })));
   out.push(coverageNote(cov, r));

@@ -4,12 +4,15 @@
 // 2.7.0: Health (si-health.js) also holds the heartbeat's outages; Requests and Not
 // found (si-requests.js, si-notfound.js) are Data Grids; Speed and Alerts are today's
 // pages with a link to where a shared figure lives (si-wrap.js); Data quality is as
-// it was. The request log is listed here only (Live shows visits, not log lines).
+// it was. 2.41: Alerts is in groups, one Fix each (si-alerts.js); its badge counts what
+// needs you (alert-groups.js), the same count as the bell and the page. The request log is listed here only (Live shows visits, not log lines).
 
 import health from "./si-health.js";
 import requests from "./si-requests.js";
 import notFound from "./si-notfound.js";
-import { speed, alerts } from "./si-wrap.js";
+import { speed } from "./si-wrap.js";
+import alerts from "./si-alerts.js";
+import { needsYou } from "../alert-groups.js";
 import quality from "./quality.js";
 import { logPeriod } from "./si-requests.js";
 
@@ -17,7 +20,10 @@ const ALL = ["country", "path", "source", "device", "browser", "campaign", "refe
 
 export default [
   ["health", "Health", health, { filters: ["path"], compare: true }],
-  ["alerts", "Alerts", alerts, { file: "alerts", ranged: false, period: "Now and the last 30 days", badge: (m) => { const n = (m.x?.alerts?.open || []).length; return n ? [n, `${n} open`] : null; } }],
+  ["alerts", "Alerts", alerts, { file: "alerts", ranged: false, period: "Now and the last 30 days", badge: (m) => {
+    const n = needsYou(m.x?.alerts), all = (m.x?.alerts?.open || []).length;
+    return n ? [n, `${n} need${n === 1 ? "s" : ""} you (${all} open alert${all === 1 ? "" : "s"})`] : null;
+  } }],
   // The request log polls every 30 seconds on its own; a redraw would close its detail panel.
   ["requests", "Requests", requests, { file: "requests", filters: ALL, rules: "request", keep: ["ip", "rq"], polls: true, ranged: false, period: logPeriod }],
   ["notfound", "Not found", notFound, { file: "not_found", filters: ["path", "source"], keep: ["nfk", "nfsrv"] }],

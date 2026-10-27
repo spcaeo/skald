@@ -158,13 +158,16 @@ def visit_figures(visits, until: datetime, minutes: int = MINUTES) -> dict:
         if city:
             place = cities.setdefault(city, {"visits": 0, "active": 0})
             place["visits"] += 1
-        if last < edges[0][0]:
-            continue
-        for i, (start, end) in enumerate(edges):
-            if first < end and last >= start:
-                under[i] += 1
-            if start <= first < end:
-                started[i] += 1
+        # The minutes shown start at the next whole minute after `since` (when
+        # `until` is not on one), so a visit can be active - its last request in
+        # the 30 minutes before `until` - and still end before the first minute
+        # shown. Skipping it here once dropped it from `active` too.
+        if last >= edges[0][0]:
+            for i, (start, end) in enumerate(edges):
+                if first < end and last >= start:
+                    under[i] += 1
+                if start <= first < end:
+                    started[i] += 1
         if last >= since:
             active[str(minutes)] += 1
             row["active"] += 1

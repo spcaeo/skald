@@ -53,7 +53,7 @@ export function periodWords(r, cov) {
   return bits.join(" · ");
 }
 
-// On a page group (view): its days begin where they were counted (Settings > Site details > Views).
+// On a page group (view): its days begin where they were counted (Settings > Site > Views).
 function onGroup() {
   try { return (S.read().view || "all") !== "all"; } catch { return false; }
 }

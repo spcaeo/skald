@@ -1,6 +1,6 @@
 """A lead's name and email kept no longer than the site's People days (after 2.38.0).
 
-A site promises in Settings > Data retention > People how long it keeps what
+A site promises in Settings > Privacy > People how long it keeps what
 names a person: `privacy.keep_days` ("Visits with addresses", 395 by
 default). Before this, a lead's name and email lived as long as the lead
 (`conversions.retention_days`, 400, or for good), so a site that promised 180
@@ -405,7 +405,7 @@ def note(ctx, out: dict) -> None:
 
 
 def _audit(ctx, out: dict) -> None:
-    """One audit row per site, in its organisation's log (Settings > Audit)."""
+    """One audit row per site, in its organisation's log (Settings > Audit log)."""
     try:
         from ..accounts import auditlog, connect
         from ..settings_store import _org_of, accounts_file

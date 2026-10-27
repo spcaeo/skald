@@ -11,7 +11,7 @@ verify`: the sites of an accounts install.
                                             purged in the last 30 days needs
                                             --allow-reuse
     skald site hosts NAME HOST [HOST ...]   replace a dashboard site's host names
-                                            (checked like Settings > Site details > Host
+                                            (checked like Settings > Site > Host
                                             names; an audit row). A Host names row
                                             saved in Settings is set to the same list
     skald site pause NAME                   stop collecting and counting (any site):

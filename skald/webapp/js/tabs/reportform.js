@@ -84,7 +84,7 @@ export function reportForm(r, report, done) {
   const boxes = r.sections.map((k) => {
     const off = k === "search_console" && !r.search_console;
     const el = h("input", { type: "checkbox", value: k, checked: !off && s.sections.includes(k), disabled: off });
-    return h("label", { class: "chk" }, el, h("span", null, h("b", null, r.section_words[k]), off ? h("small", null, "Not connected for this site: Settings > Leads & integrations > Search Console & Bing") : null));
+    return h("label", { class: "chk" }, el, h("span", null, h("b", null, r.section_words[k]), off ? h("small", null, "Not connected for this site: Settings > Leads & tools > Search Console & Bing") : null));
   });
   const notes = h("textarea", { rows: "4", maxlength: "2000", placeholder: "What we did this month, and what comes next." }, s.notes || "");
   const footer = input({ value: s.footer || "", maxlength: "160", placeholder: "Example Agency · hello@example.com" });

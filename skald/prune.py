@@ -1,7 +1,7 @@
 """The daily prune (run at the start of each day's collect, cli.collect_day).
 
-Deletes what is kept only for a while: the windows in Settings > Data
-retention, else config.yml; totals are kept for good. A site that keeps
+Deletes what is kept only for a while: the windows in Settings > Privacy,
+else config.yml; totals are kept for good. A site that keeps
 everything (keep_everything.py: the install says so, or hosted, an
 organisation with no plan or an Enterprise plan) keeps every row: each step
 below spares it.

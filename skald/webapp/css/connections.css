@@ -2,14 +2,6 @@
    conn-*.js, site-wizard.js): the three task cards, the step bar, the ways to
    choose from, the command blocks and the set-up badges. Tokens from app.css. */
 
-.cn-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-@media (max-width: 900px) { .cn-cards { grid-template-columns: minmax(0, 1fr); } }
-.cn-card { display: flex; flex-direction: column; gap: 6px; padding: 16px; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); }
-.cn-card h3 { margin: 4px 0 0; font-size: 15px; }
-.cn-card p { margin: 0; color: var(--ink-2); font-size: 13px; }
-.cn-card .acts { margin-top: auto; padding-top: 10px; }
-.cn-ic { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; background: var(--sunk); color: var(--ink); }
-.cn-ic svg { width: 20px; height: 20px; }
 
 /* the step bar: 1 · 2 · 3 · 4 · 5 */
 .cn-bar { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; counter-reset: none; }
@@ -21,16 +13,16 @@
 .cn-bar li.on .cn-n { background: var(--ink); color: var(--surface); border-color: var(--ink); }
 @media (max-width: 600px) { .cn-bar .cn-t { display: none; } .cn-bar li.on .cn-t { display: inline; } }
 
-.cn-step { display: grid; gap: 12px; align-content: start; }
+.cn-step { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-content: start; }   /* minmax: a long command scrolls in its box, never widens the step */
 .cn-step > * { margin: 0; }
 .cn-h { margin: 0; font-size: 16px; }
 .cn-step h4 { margin: 8px 0 0; font-size: 13.5px; }
-.cn-list { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
+.cn-list { margin: 0; padding-left: 20px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .cn-list > li { padding-left: 2px; }
 .cn-list .cn-code { margin-top: 6px; }
 
 /* a command block with its Copy button */
-.cn-code { position: relative; display: flex; align-items: flex-start; gap: 8px; background: var(--sunk); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 8px 8px 12px; }
+.cn-code { position: relative; min-width: 0; display: flex; align-items: flex-start; gap: 8px; background: var(--sunk); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 8px 8px 12px; }
 .cn-code pre { flex: 1; min-width: 0; margin: 0; overflow-x: auto; font: 12.5px/1.5 var(--mono); white-space: pre; }
 .cn-code .btn { flex: none; }
 
@@ -80,7 +72,7 @@
 
 /* 2.30: the server way's one command (conn-send.js), the older ways folded, and the
    set-up pack (setup-pack.js): up to 3 addresses, a note, the keys choice */
-.cn-run { display: grid; gap: 8px; }
+.cn-run { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .cn-run p { margin: 0; }
 .cn-byhand h4 { margin: 12px 0 6px; font-size: 13.5px; }
 .su-pack { display: grid; gap: 10px; padding: 12px 14px; border: 1px dashed var(--gap); border-radius: var(--r); }
@@ -171,3 +163,15 @@
 .am-added { margin: 0; padding-left: 18px; }
 .am-added .bad { color: var(--bad, #b42318); }
 .am-safe { margin: 0; padding-left: 18px; font-size: 13px; }
+
+/* Add a site in two steps (2.42, tabs/site-wizard.js): what Skald found in one line, the time
+   zone in one line, who connects it, and on Connect it the way or the agent with Change. */
+.cn-dw .btn.link { padding: 0 2px; border: 0; background: none; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; font: inherit; min-height: 0; }
+.sw-found { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin: 6px 0 0; font-size: var(--t-s); color: var(--ink-2); }
+.sw-found[hidden] { display: none; }
+.sw-zone, .sw-who, .sw-way, .sw-sent { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin: var(--sp-2) 0; font-size: var(--t-m); }
+.sw-zone > span, .sw-who > span { color: var(--ink-3); }
+.sw-way { align-items: center; }
+.sw-zone-in[hidden] { display: none; }
+.cn-dw .ui-who { margin-top: var(--sp-4); }
+.cn-dw .ui-fold { margin: var(--sp-2) 0; }

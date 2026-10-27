@@ -1,4 +1,4 @@
-"""Settings > Set-up checklist, Collect data > Send logs and the "Add a site" wizard: the parts the helper
+"""Settings > To do, Data > Send logs and the "Add a site" wizard: the parts the helper
 answers beside Settings > Sites (sites_api.py routes them, with its session,
 role and CSRF checks; every route here is for an owner or admin):
 
@@ -379,7 +379,8 @@ def badges(config, live_dir, config_path, names) -> dict:
         if name in removed:
             continue
         if not row["done_at"]:
-            out[name] = (f"Setup: step {row['step']} of {site_setup.STEPS}, continue", "setup")
+            # 2.42: Add a site is two steps (site-wizard.js); the server keeps its scale of five.
+            out[name] = ("Finish setting up", "setup")
             continue
         last = last_heard(config, live_dir, config_path, name)
         if last is None or time.time() - last > QUIET_HOURS * 3600:

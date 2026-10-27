@@ -105,6 +105,7 @@ Recount a stored day from the raw log by a separate road and compare with histor
 | `--log` | read this file, repeatable |
 | `--withhold` | mark the day withheld if anything does not match |
 | `--live` | recount today so far and compare with the live snapshot |
+| `--show-active` | with --live: list both roads' active visits (labels and times, no address), to read a real-time mismatch |
 
 ### skald live
 

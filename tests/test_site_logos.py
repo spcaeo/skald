@@ -355,7 +355,7 @@ class Picker(Server):
                             "timezone": "America/New_York"}},
                  {"name": B, "path": f"{B}/", "logo": {"url": None, "letter": "B",
                                                        "color": "#9a6400"}, "today": {}}]
-        page = site_picker.render(sites, self.NOW, "owner@example.com", f"{A}/#settings/sitesadmin")
+        page = site_picker.render(sites, self.NOW, "owner@example.com", f"{A}/#settings/org/sites")
         self.assertIn(f'src="{A}/logo?v=abc"', page)
         self.assertIn("New York time", page)
         self.assertIn(">12</dd>", page)

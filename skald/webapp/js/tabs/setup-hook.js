@@ -1,5 +1,5 @@
 // "Set up this site" > Lead hook tested: where the leads come from (each tool
-// Settings > Leads & integrations takes: integrations_api.py TOOLS), the secret (POST
+// Settings > Leads & tools takes: integrations_api.py TOOLS), the secret (POST
 // integrations/secret, shown once and kept in this dialog only; or the tool's
 // own, POST integrations/hooks/paste), the steps for that tool with the address
 // and the secret filled in (from docs/help/webhooks.md), a mail for the

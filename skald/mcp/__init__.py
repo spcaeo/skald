@@ -9,7 +9,7 @@ tool: setup_line makes a set-up line, with a token's setup scope.
   tools_people.py   find_person (read_private only)
   tools_insights.py what_changed, todos, lost_pages (2.35)
   tools_pages.py    page_changes, ai_readiness, changed_pages (2.35)
-  tools_setup.py    setup_left, setup_line (2.39.0: the set-up checklist's open
+  tools_setup.py    setup_left, setup_line (2.39.0: the set-up lines' open
                     lines; a set-up line for an AI agent, with the setup scope)
   resources.py   skald://docs/api, skald://docs/counting, skald://sites/<site>/overview,
                  and the weekly_report prompt

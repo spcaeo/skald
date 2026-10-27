@@ -16,7 +16,7 @@ one mail per item and per site. This is the one mail that replaces them:
                               marked done or "not now" since it was written (todo_marks.py);
                               "New" for one this person was never mailed, first, with "N new
                               to-dos your AI agent can fix" and each one's link that opens
-                              Fix this > My AI agent (fix=1&fixby=agent, 2.41). Never a line or
+                              Fix this > My AI agent (fix=1&by=agent, 2.41; the page still reads the older fixby=). Never a line or
                               a code: a code in a mail would be a key in an inbox
                Set-up         doctor's NEEDS ATTENTION lines that read local files only
                               (SETUP): the daily run, days stored, the access log, page
@@ -118,7 +118,7 @@ def todo_part(db, site: str, config: dict, out) -> list[dict]:
         got.append({"item": t["id"], "title": what, "todo": t.get("todo") or "", "link": link,
                     # 2.41: the dialog that makes the line, on the person's press: a code in
                     # a mail would be a key in an inbox, so the mail never holds one.
-                    "fix": f"{link}&fix=1&fixby=agent" if t.get("agent", t.get("kind") in AGENT_KINDS) and link.split("#")[0]
+                    "fix": f"{link}&fix=1&by=agent" if t.get("agent", t.get("kind") in AGENT_KINDS) and link.split("#")[0]
                     else None})
     return got
 
@@ -163,7 +163,7 @@ def setup_part(s: dict, now: datetime) -> list[dict]:
 def more_link(config: dict, part: str) -> str:
     base = _base(config)
     return base + {"security": "#threats/exposed", "todos": "#overview/insights",
-                   "setup": "#settings/site/leads"}[part]
+                   "setup": "#settings/todo"}[part]
 
 
 # ------------------------------------------------------------------ the mail

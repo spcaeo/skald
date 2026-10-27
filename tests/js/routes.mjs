@@ -195,7 +195,7 @@ answers.set("tokens", { ok: true, tokens: [] });
 await load("#settings/api?conn=api&step=1");
 assert.ok(top()?.textContent.includes("Read your figures (API)"), "the API dialog opens from the link");
 assert.equal(qOf().get("step"), "1");
-assert.ok(location.hash.startsWith("#settings/ai/api?"), `2.40: the old Connections link opens on Read figures (API): ${location.hash}`);
+assert.ok(location.hash.startsWith("#settings/ai/assistants?") && qOf().get("sub") === "api", `v2: the old Connections link opens on AI assistants › API: ${location.hash}`);
 top().querySelector(".dw-x").click();
 await tick();
 assert.ok(!qOf().get("conn") && !qOf().get("step"), `closing takes both keys away: ${location.hash}`);
@@ -210,8 +210,39 @@ assert.ok(!qOf().get("asst") && !qOf().get("conn"), `closing takes the keys away
 ME.role = "viewer";
 await load("#settings/api?conn=send");
 assert.match(panel.textContent, /Not available to your role\./);
-assert.ok(location.hash.startsWith("#settings/site/collect"), location.hash);
+assert.ok(location.hash.startsWith("#settings/site/data"), location.hash);
 ME.role = "owner";
+
+// ---- v2: Finish set-up, Who will do it? (setup=finish | finish-<act>, by=me|dev|agent)
+answers.set("settings", { ok: true, settings: {}, mail_waiting: [] });
+answers.set("integrations", { ok: true, status: [], tools: [] });
+await load("#settings/todo?setup=finish&by=agent");
+await tick(30);
+// The app's one who-step (ui/who.js): the three answers, the link's chosen, its path drawn.
+const who = (k) => top().querySelector(`.ui-who-c[data-who="${k}"]`);
+assert.ok(who("me") && who("dev") && who("agent"), `three answers: ${top()?.textContent.slice(0, 200)}`);
+assert.equal(who("agent").getAttribute("aria-checked"), "true", "the agent's choice from the link");
+assert.ok(top().textContent.includes("What it does"), "what the agent does, to untick");
+assert.ok(top().querySelectorAll(".fin-jobs input").length >= 2 && top().querySelector("button.ag-tile"), "the jobs to untick, then the tiles");
+assert.equal(qOf().get("by"), "agent");
+who("dev").click();
+await tick(30);
+assert.equal(qOf().get("by"), "dev", "the choice in the address");
+assert.equal(qOf().get("setup"), "finish");
+assert.ok(top().querySelector(".ui-who-path").textContent.length > 0, "the developer's path: the set-up pack");
+who("me").click();
+await tick(30);
+assert.equal(qOf().get("by"), "me");
+assert.ok(top().querySelectorAll(".fin-lines .fin-line").length >= 2, "Me: the open lines, each its own steps");
+top().querySelector(".dw-x").click();
+await tick();
+assert.ok(!qOf().get("setup") && !qOf().get("by"), `closing takes the keys away: ${location.hash}`);
+// One line, from its row: setup=finish-<act>.
+await load("#settings/todo?setup=finish-countries");
+assert.ok(top()?.textContent.includes("Who will do it?"), top()?.textContent.slice(0, 200));
+assert.equal(top().querySelector('.ui-who-c[data-who="agent"]'), null, "no AI agent for a country file");
+top().querySelector(".dw-x").click();
+await tick();
 
 // ---- the app's dialogs: dlg=keys | new | views | find
 await load("#overview/summary?dlg=keys");
@@ -248,12 +279,16 @@ assert.ok(!qOf().get("sact"), `closing takes the key away: ${location.hash}`);
 // 2.31: a site's wizard on Connections too (Set up with your AI agent), its agent in the address.
 answers.set("sites", { ok: true, can_add: true, sites: [{ name: "example.com", status: "active", setup: { step: 3 } }], tokens: [] });
 await load("#settings/api?setup=example.com&step=3&agent=codex");
-assert.ok(top()?.textContent.includes("Step 3 of 5: Which AI agent are you using?"), top()?.textContent.slice(0, 200));
-assert.equal(top().querySelector('button.ag-tile[data-agent="codex"]').getAttribute("aria-pressed"), "true", "the agent from the address");
+// 2.42: two steps; an older step=3 is Connect it, and agent=codex is My AI agent (by=agent).
+assert.ok(top()?.textContent.includes("Step 2 of 2: Connect it"), top()?.textContent.slice(0, 200));
+assert.equal(top().querySelector(".sw-way b").textContent, "Codex", "the agent from the address");
+assert.ok(top().textContent.includes("Make the line"), "from an address: no line by itself");
 assert.equal(qOf().get("agent"), "codex");
+assert.equal(qOf().get("by"), "agent");
+assert.equal(qOf().get("step"), "2");
 top().querySelector(".dw-x").click();
 await tick();
-assert.ok(!qOf().get("setup") && !qOf().get("agent") && !qOf().get("step"), `closing takes the keys away: ${location.hash}`);
+assert.ok(!qOf().get("setup") && !qOf().get("agent") && !qOf().get("step") && !qOf().get("by"), `closing takes the keys away: ${location.hash}`);
 
 // ---- a sub-tab's choice stays in the address: <ns>_view
 const { subView } = await import(new URL("tablestate.js", JS));

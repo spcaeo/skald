@@ -259,7 +259,7 @@ def card(site: dict) -> str:
 
 
 def badge(site: dict) -> str:
-    """The wizard's link under a card: "Setup: step 3 of 5, continue", or
+    """The wizard's link under a card: "Finish setting up", or
     "No visits yet: test the connection" (helper_sessions.py fills it)."""
     got = site.get("badge") or {}
     if not got.get("href") or not got.get("words"):

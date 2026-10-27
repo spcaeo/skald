@@ -18,14 +18,14 @@ You need three things:
 
 ## Where to find it
 
-Open **Settings > AI & API > AI assistant (MCP)**, or go straight to [AI assistant (MCP)](#settings/ai/mcp). Settings opens from the gear at the foot of the sidebar. The palette finds it too: type `mcp`.
+Open **Settings > AI > AI assistants** (tab **MCP**), or go straight to [AI assistants](#settings/ai/assistants). Settings opens from the gear at the foot of the sidebar. The palette finds it too: type `mcp`.
 
 The page first shows how it works, in four steps: choose the assistant, make a token, paste the command, test. Then come the **Connect an assistant** button, a few questions you can ask, the MCP address, and **Tokens for assistants**: the tokens already made for assistants.
 
-**Connect an assistant** opens a dialog with **Read the MCP guide** (this guide) at the top, then one choice:
+**Connect an assistant** opens a dialog with **Read the MCP guide** (this guide) at the top, then one question, **Who will do it?**:
 
-- **Your AI agent.** Pick Claude Code, Codex, Cursor or another agent that runs commands. Skald writes one line for it. Paste the line into the agent: it takes a read-only token for this site, connects itself to Skald (for Claude Code, `claude mcp add ...`), checks it works, and reports back. The token never shows in the chat. See [Your AI agent, in every set-up dialog](connections.md#your-ai-agent-in-every-set-up-dialog).
-- **By hand.** One step, **Connect your assistant**, then **Test**. This guide has each part in full.
+- **My AI agent.** Pick Claude Code, Codex, Cursor or another agent that runs commands. Skald writes one line for it. Paste the line into the agent: it takes a read-only token for this site, connects itself to Skald (for Claude Code, `claude mcp add ...`), checks it works, and reports back. The token never shows in the chat. See [Your AI agent, in every set-up dialog](connections.md#your-ai-agent-in-every-set-up-dialog).
+- **Me.** One step, **Connect your assistant**, then **Test**. This guide has each part in full.
 
 ## The address to use
 
@@ -35,19 +35,19 @@ The MCP address is your dashboard's address, followed by `/traffic-mcp`:
 https://analytics.example.com/traffic-mcp
 ```
 
-Copy yours from **Settings > AI & API > AI assistant (MCP)**: the address is on the page, under **Connect an assistant**. The dialog's **Connect your assistant** step has the Claude Code command and the Claude Desktop config too, with your token filled in.
+Copy yours from **Settings > AI > AI assistants > MCP**: the address is on the page, under **Connect an assistant**. The dialog's **Connect your assistant** step has the Claude Code command and the Claude Desktop config too, with your token filled in.
 
 > The address is the same for every site on your server. The token decides which sites the assistant may read.
 
 ## Make a token for the assistant
 
-1. Open [AI assistant (MCP)](#settings/ai/mcp) and press **Connect an assistant**, then **By hand**. The dialog has one step, **Connect your assistant**, in three parts.
+1. Open [AI assistants](#settings/ai/assistants) and press **Connect an assistant**, then **Me**. The dialog has one step, **Connect your assistant**, in three parts.
 2. **Choose your assistant**: Claude Code, Claude Desktop, ChatGPT (API) or Other.
 3. **Make the token.** Keep the **Name** it suggests, or type one, for example "Claude". Press **Make the token** and copy the token. It is shown only once, right there.
 4. **The command or config** for the assistant you chose follows, with the token already in it. Paste it where it says.
 5. Press **Next** to **Test** it. The test ends with the next step: what to ask your assistant first.
 
-That token reads the site you are on, and sees no visitor addresses. For an assistant that reads several sites, open **Make a token by hand** in **Settings > AI & API > Tokens & links** ([Tokens & links](#settings/ai/tokens)): tick the **Sites**, and **AI assistant (MCP)** under **What it may do**.
+That token reads the site you are on, and sees no visitor addresses. For an assistant that reads several sites, press **New token** in **Settings > AI > AI assistants > Tokens & links** ([Tokens & links](#settings/ai/assistants?sub=tokens)): tick the **Sites**, and **AI assistant (MCP)** under **What it may do**.
 
 Tick **Reading visitor addresses** there only if you truly need it. With it, the assistant can see visitor addresses in today's AI activity and look a person up (`find_person`: their visits, emails and names).
 
@@ -134,7 +134,7 @@ The assistant chooses these tools itself. Dates are in your site's own time zone
 | `ai_readiness` | **Pages AI can't read well**, worst first; or one page's **AI readiness**: robots.txt for each main AI crawler, errors, the Markdown copy, the sitemap and the last AI read |
 | `changed_pages` | Summary's **New and updated pages**: pages changed in the last 30 days, their visits and search visits since, and whether Google fetched them |
 | `find_person` | One person by IP address, email, visitor ID or lead: their visits, leads and conversions. Only with **Reading visitor addresses**; each search goes to the audit log |
-| `setup_left` | What is left to set up for a site: the open lines of **Set up <site>** in [Set-up checklist](#settings/site/setup), each with its Set up dialog's address, and the job an AI agent can do for it |
+| `setup_left` | What is left to set up for a site: the site's open set-up lines on [To do](#settings/todo), each with its dialog's address, and the job an AI agent can do for it |
 | `setup_line` | Makes the one set-up line for an AI agent, for the jobs you name. Only with **Set-up lines (AI agent)**; see below |
 | `fix_todo` | One of **Overview > Insights**' to-dos with every row behind it (not only the 1,000 the page shows) and the steps to fix it in your site's own code or server. Without an id: the to-dos it can fix. See below |
 | `mark_todo_done` | After a fix: keeps what the assistant changed (the exact change, the files, the rows left and why) beside the to-do, and with **done** marks it done. Only with **Set-up lines (AI agent)** for that one site |
@@ -149,7 +149,7 @@ The jobs an AI agent can do: connect the server's log (**logs**), put the script
 
 **The token.** Making a line needs one more permission. Only an owner or admin can give it:
 
-1. Open [Tokens & links](#settings/ai/tokens) (**Settings > AI & API > Tokens & links**), then **Make a token by hand**.
+1. Open [Tokens & links](#settings/ai/assistants?sub=tokens) (**Settings > AI > AI assistants > Tokens & links**), then **New token**.
 2. Tick **one** site only.
 3. Under **What it may do**, tick **AI assistant (MCP)** and **Set-up lines (AI agent)**. That one "can make set-up lines for an AI agent". It reads nothing by itself.
 4. Press **Make token**, and connect your assistant with it as above.
@@ -180,7 +180,7 @@ Reading needs any token for the site. Marking done needs the same token as makin
 
 If you work on each site in its own folder, with its own Claude Code or Codex, connect each one once. Then one sentence sets the site up.
 
-1. Open [Settings › Sites](#settings/org/sites) and press **Set up many sites with your AI agent**.
+1. Open [Settings › Organisation › Sites](#settings/org/sites) and press **Set up many sites with your AI agent**.
 2. On the site's card, press **Two lines (MCP)**, then **Make the token for <site>**. The token is for that one site only: it reads that site and makes set-up lines for it. It is shown once.
 3. **Line 1.** Copy it into a terminal in that site's own folder.
    - Claude Code: `claude mcp add --transport http skald <your Skald>/traffic-mcp --header "Authorization: Bearer <token>"`. Claude Code keeps it to that folder, so each site's folder has its own token.
@@ -189,7 +189,7 @@ If you work on each site in its own folder, with its own Claude Code or Codex, c
 
 Do the same for each site. Ten sites can be set up at the same time: each site has its own token and its own line, and one site's line never ends another's.
 
-Never paste the token into a chat message. See or remove it in [Tokens & links](#settings/ai/tokens).
+Never paste the token into a chat message. See or remove it in [Tokens & links](#settings/ai/assistants?sub=tokens).
 
 No MCP? Each site's card also has **Make its line**: one plain line to paste into that site's session. See [Set up many sites](connections.md#set-up-many-sites-with-your-ai-agent).
 
@@ -228,7 +228,7 @@ Skald gives the assistant the same rules the dashboard follows:
 - **Read-only.** Every tool only reads, except `setup_line`, which makes a set-up line, and `mark_todo_done`, which keeps a to-do's report and marks it done; both only with a token that has **Set-up lines (AI agent)** for that one site. The assistant cannot change settings or delete data. Each line made and each to-do marked goes to the audit log.
 - **Only your sites.** The token reads only your organisation's sites, and only the ones you ticked. Every tool checks this again on each call.
 - **No addresses by default.** Without **Reading visitor addresses**, no answer carries a visitor's address, and the assistant cannot look a person up.
-- **Turn it off at once.** To cut off an assistant, revoke its token: open **Settings > AI & API > Tokens & links**, find it under **Your tokens**, press **Revoke**, then **Yes, revoke**. It stops working immediately. The **AI assistant (MCP)** page lists the assistants' tokens too.
+- **Turn it off at once.** To cut off an assistant, revoke its token: open **Settings > AI > AI assistants > Tokens & links**, find it under **Your tokens**, press **Revoke**, then **Yes, revoke**. It stops working immediately. The **MCP** tab lists the assistants' tokens too.
 - **Tied to the maker.** If the person who made the token leaves the team or stops being an admin, the token stops too.
 - **Keep the token secret.** It sits in your assistant's settings. Do not paste it into a chat or a shared file.
 
@@ -240,7 +240,7 @@ First press **Test** in the dialog's last step. It says in words what is wrong. 
 | --- | --- |
 | "MCP is not switched on here" | Ask whoever runs your server to switch MCP on |
 | 401, "Unauthorized" | The token is wrong, revoked, or has no MCP scope. Make a new one with **Connect an assistant** |
-| "this token is not for that site" | Make the token from that site's page, or tick that site in **Make a token by hand** |
+| "this token is not for that site" | Make the token from that site's page, or tick that site under **New token** |
 | 403, "this Origin may not call the MCP server" | You are calling from a web page. Use an assistant app or command line instead |
 | 405 | The client tried to open an event stream. Pick the HTTP (Streamable HTTP) transport |
 

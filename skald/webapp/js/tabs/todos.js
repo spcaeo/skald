@@ -4,7 +4,7 @@
 // Skald will know it worked, and the list behind it.
 //
 //   Fix this        2.41, the one main button: "Who will do it?" (js/tabs/todo-fix.js,
-//                   todo=<id>&fix=1&fixby=agent|me|someone): My AI agent (one line; the
+//                   todo=<id>&fix=1&by=agent|me|dev; older links said fixby=): My AI agent (one line; the
 //                   agent fetches every row and reports back), Me (the lines to paste and
 //                   the CSV), Someone else (Send to team, the link). "Fix all (N)" above
 //                   the list asks the same for every open to-do (fix=all)
@@ -92,7 +92,7 @@ function markButton(words, item, state, redraw) {
 function acts(t, s, redraw, { done = false } = {}) {
   const shown = s.todo === t.id;
   return h("div", { class: "td-acts" },
-    done ? null : h("button", { type: "button", class: "btn primary td-fix", onclick: () => S.set({ todo: t.id, fix: "1", fixby: "", link: "" }) }, "Fix this"),
+    done ? null : h("button", { type: "button", class: "btn primary td-fix", onclick: () => S.set({ todo: t.id, fix: "1", by: "", fixby: "", link: "" }) }, "Fix this"),
     h("button", { type: "button", class: "btn", "aria-expanded": String(shown), onclick: () => S.set({ todo: shown ? "" : t.id }) },
       shown ? "Hide the list" : `Show the list (${n(t.rows_total ?? t.rows.length)})`),
     done ? markButton("Undo", t.id, "open", redraw) : [markButton("Mark done", t.id, "done", redraw), markButton("Not now", t.id, "notnow", redraw)]);
@@ -174,12 +174,12 @@ function body(m, s, redraw) {
   const open = all.filter((t) => !state(t));
   // 2.41: one "Fix all (N)" for every open to-do an AI agent can fix, and the new ones said.
   const doable = open.filter((t) => t.agent ?? AGENT_KINDS.includes(t.kind));
-  if (doable.length > 1) head.append(h("button", { type: "button", class: "btn primary td-fixall", onclick: () => S.set({ fix: "all", todo: "", fixby: "", link: "" }) }, `Fix all (${doable.length})`));
+  if (doable.length > 1) head.append(h("button", { type: "button", class: "btn primary td-fixall", onclick: () => S.set({ fix: "all", todo: "", by: "", fixby: "", link: "" }) }, `Fix all (${doable.length})`));
   const out = [head, h("p", { class: "sub" }, `Each one shows its proof and the full list behind it. Press Fix this: your AI agent, you, or a teammate. Built from ${w.first ? `${short(w.first)} to ${short(w.last)}` : "no whole day yet"}${w.days ? ` (${w.days} whole day${w.days === 1 ? "" : "s"})` : ""}.`)];
   const fresh = newOnes(doable, w);
   if (fresh.length) {
     // One quiet link, not another button (the owner: one main button a to-do).
-    const go = fresh.length === 1 ? { todo: fresh[0].id, fix: "1", fixby: "agent", link: "" } : { fix: "all", todo: "", fixby: "agent", link: "" };
+    const go = fresh.length === 1 ? { todo: fresh[0].id, fix: "1", by: "agent", fixby: "", link: "" } : { fix: "all", todo: "", by: "agent", fixby: "", link: "" };
     const words = fresh.length === 1 ? "Fix it with my AI agent" : fresh.length === doable.length ? "Fix them with my AI agent" : `Fix all ${doable.length} with my AI agent`;
     out.push(h("p", { class: "note td-new", role: "status" },
       h("strong", null, `${fresh.length} new to-do${fresh.length === 1 ? "" : "s"} your AI agent can fix. `),

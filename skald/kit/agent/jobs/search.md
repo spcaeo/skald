@@ -39,7 +39,7 @@ clicks, with the robot address filled in, and put them in the report's `left_for
 Bing gives an API key only on its own page; there is no API that makes one. If the user wants
 Bing too, put these clicks in `left_for_user`: Bing Webmaster Tools
 (https://www.bing.com/webmasters), Settings > API access > API Key, copy it, and paste it in
-Skald (__DASHBOARD__#settings/site/leads?sub=search: Settings > Leads & integrations > Search
+Skald (__DASHBOARD__#settings/site/leads?tool=search: Settings > Leads & tools > Search
 Console & Bing, Bing). Only whoever runs their Skald can paste it there. Bing can also import the sites from Search Console (Add a site > Import).
 
 Change nothing in Skald. Put the property in the report as `search` (`google_property`,

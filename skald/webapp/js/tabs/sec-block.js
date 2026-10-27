@@ -3,11 +3,15 @@
 // plain list (fail2ban, ipset). Owners and admins only, and only what the site keeps
 // (privacy.keep_ips): full addresses and their networks; with "short", networks only; with
 // "off", nothing. Review before blocking: a shared address or a CDN can carry real visitors.
+// 2.42 (the UX audit): one primary button, Block them (fixit=block: Me or My developer, with
+// the steps for nginx, Cloudflare and fail2ban; tabs/fixit.js); the three downloads are plain.
+// The full warning is behind the "?"; one line of it stays above the list.
 
 import { h, n } from "../ui.js";
 import { table, download } from "../table.js";
 import { emptyState } from "./sa-options.js";
 import { merge, blockList, nginx, cloudflare, plain } from "../sec-data.js";
+import { primary } from "../ui/primary.js";
 import { secTab, mayAddresses, loadAddresses, spanOf, flagOf, addressWords, missingNote } from "./sec-common.js";
 
 const REVIEW = "Review before you block. A shared address (an office, a mobile network, a VPN) or a CDN can carry real visitors too, and a scanner moves on to a new address within days. Blocking at the web server or at Cloudflare stops the requests; it does not fix a file that answered when it should not (Is anything exposed?).";
@@ -24,7 +28,7 @@ export default function block(m, s) {
       const [first, last] = spanOf(m, r);
       loadAddresses(first, last).then((ans) => {
         if (!ans?.ok) return holder.replaceChildren(emptyState(ans?.error || "The addresses could not be loaded.", null, { bad: true }));
-        if (ans.mode === "off") return holder.replaceChildren(emptyState("This site does not keep addresses, so there is nothing to block by address. Settings > Privacy & retention.", ["Open Privacy & retention", "#settings/site/privacy"]));
+        if (ans.mode === "off") return holder.replaceChildren(emptyState("This site does not keep addresses, so there is nothing to block by address. Settings > Privacy.", ["Open Privacy", "#settings/site/privacy"]));
         const list = blockList(merge(t.who, ans), ans.mode);
         const site = m.site || "";
         const meta = { site, first, last };
@@ -33,7 +37,9 @@ export default function block(m, s) {
           h("button", { type: "button", class: "btn", onclick: () => download(`${stem}.nginx.conf`, nginx(list, meta), "text/plain;charset=utf-8") }, "nginx deny lines"),
           h("button", { type: "button", class: "btn", onclick: () => download(`${stem}.cloudflare.csv`, cloudflare(list)) }, "Cloudflare IP list (CSV)"),
           h("button", { type: "button", class: "btn", onclick: () => download(`${stem}.txt`, plain(list), "text/plain;charset=utf-8") }, "Plain list"));
-        const out = [h("div", { class: "sec-review", role: "note" }, h("strong", null, "Review before blocking. "), REVIEW.replace(/^Review before you block\. /, "")), buttons];
+        const any = list.networks.length || list.addresses.length;
+        const act = any ? primary("Block them", () => import("./fixit.js").then((x) => x.openFixit("block", m)), { label: "Block the scanners: who will do it?" }) : null;
+        const out = [h("div", { class: "sec-review", role: "note" }, h("span", null, h("strong", null, "Review before blocking: "), "a shared address or a CDN can carry real visitors too. The ? says more."), act), any ? buttons : null];
         if (list.networks.length) out.push(h("h2", { class: "sec-h2" }, ans.mode === "short" ? "Networks (this site keeps addresses shortened)" : "Networks with two or more of them"),
           table([
             { key: "cidr", label: "Network" },

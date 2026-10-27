@@ -13,19 +13,36 @@
 //   (top sources) beside the AI assistants, then who else came (machines, with
 //   a link to AI & bots > Crawlers), then Server requests as one line with its
 //   total and a link to Site > Health, then each day's figures.
+//
+// 2.42 (the UX build's polish): the key figures, the main chart and "What changed" stay
+// open; everything after them (countries, top pages and sources, AI assistants, who else
+// came, the two release-2 cards, server requests, each day) is one fold, "More for this
+// period", kept in the address (ovx_view=open). Each part has its own tab as well.
 
 import { h } from "../ui.js";
 import { later } from "../lazy.js";
 import overview from "./overview.js";
 import today from "./ov-today.js";
 import { goTo } from "./ov-live.js";
-import { setupChecklist } from "./checklist.js";
+import { setupStrip } from "./ov-setup.js";
 import { figures } from "../data.js";
 import { compareOf } from "../mode-compare.js";
 import { periodLine } from "../period-line.js";
 import { whatChanged } from "./ov-changed.js";
 import { workCard } from "./ov-work.js";
 import { freshCard } from "./ov-fresh.js";
+import { urlFold } from "../ui/fold.js";
+
+/* Everything after the chart and What changed, in one fold kept in the address. */
+function foldTheRest(out) {
+  const chart = out.findIndex((el) => el instanceof Element && el.matches("section.s") && !!el.querySelector(":scope > .sheet"));
+  if (chart < 0) return out;
+  let cut = chart + 1;
+  if (out[cut] instanceof Element && out[cut].matches("section.wc")) cut += 1;
+  const rest = out.slice(cut).filter(Boolean);
+  if (!rest.length) return out;
+  return [...out.slice(0, cut), urlFold("ovx", "More for this period: countries, top pages and sources, AI assistants, who else came, pages to work on, new pages, server requests and each day", rest)];
+}
 
 /* Live mode is the period Today (the map, section 3): the address keeps
    range=today, so every today-path in data.js stays as it is. */
@@ -94,8 +111,10 @@ export default function summary(m, s, o) {
   if (i >= 0) out[i] = serverLine(out[i]);
   out = inOrder(out);
   out = release2(m, s, out);
-  // A new site's first-run checklist (owners and admins, until done or hidden): first under the title.
-  const setup = setupChecklist(m);
+  out = foldTheRest(out);
+  // A new site's first-run checklist (owners and admins, until done or hidden): one line under
+  // the title, the list folded (2.41, ov-setup.js), so the figures come first.
+  const setup = setupStrip(m);
   if (setup) out.splice(out.findIndex((el) => is(el, "head")) + 1, 0, setup);
   return out.filter(Boolean);
 }

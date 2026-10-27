@@ -1,12 +1,10 @@
 // The connection dialogs and the parts of the old Settings > Connections page (2.40: the page
 // is gone; its parts live where a person looks for them, docs/plans/2026-10-26-settings-redesign.md):
 //
-//   sendCard(m)     This site › Collect data › Send logs: send a site's visits to Skald
-//                   (conn-send.js), Set up with your AI agent (the site's wizard at step 3,
-//                   "Which AI agent are you using?", site-wizard.js), Test a sample (conn-sample.js)
-//   agentButton()   the same AI agent button, for the Set-up checklist page
+//   connOpener()    a button's opener for a dialog: send, sample, api, mcp (v2: Data and
+//                   AI assistants each have one button; Send logs goes through Finish set-up)
 //   basic()         a server with one shared login: the API with the dashboard login, and the
-//                   token commands (AI & API › Read figures)
+//                   token commands (AI assistants › API)
 //   quickLook()     the figures as JSON while signed in, and the files this page serves
 //   openConnKey()   conn=send|api|mcp|sample&step=<n>(&agent=<id>&link=<id>), from a link
 //                   (js/overlays.js): the dialog at that step for an admin; the line otherwise.
@@ -16,7 +14,6 @@ import { h } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { ME, isViewer, VIEWER, sessions } from "../access.js";
 import { copyable, status } from "./forms.js";
-import { taskCard, ICONS } from "./conn-ui.js";
 import { sendDialog } from "./conn-send.js";
 import { apiDialog, mcpDialog } from "./conn-read.js";
 import { sampleDialog } from "./conn-sample.js";
@@ -65,21 +62,21 @@ export function quickLook({ open = false } = {}) {
 }
 
 const DIALOGS = { send: sendDialog, api: apiDialog, mcp: mcpDialog, sample: sampleDialog };
-// 2.39: the MCP dialog opens on "Your AI agent, or by hand?" (agent-first.js, job mcp);
-// agent and link: the address's.
-export function openConn(name, site, data, { onClose = null, start = 0, agent = "", link = "" } = {}) {
-  const wrap = name === "mcp" ? agentFirst(["mcp"], site, { agent, link }) : null;
+// 2.39: the MCP dialog opens on "Who will do it?" (agent-first.js, job mcp: Me or My AI agent);
+// agent, link and by: the address's.
+export function openConn(name, site, data, { onClose = null, start = 0, agent = "", link = "", by = "" } = {}) {
+  const wrap = name === "mcp" ? agentFirst(["mcp"], site, { agent, link, by }) : null;
   return DIALOGS[name](site, data, { onClose, route: { key: "conn", value: name }, start, wrap });
 }
 
-/* conn=send|api|mcp&step=<n>(&agent=<id>&link=<id>), from a link: the dialog at that step for
+/* conn=send|api|mcp&step=<n>(&by=me|agent&agent=<id>&link=<id>), from a link: the dialog at that step for
    an admin; the line otherwise. s: the address's state. */
 export async function openConnKey(name, m, step = 1, share = false, s = {}) {
   if (!DIALOGS[name]) return "That connection dialog is not in this version of the page.";
   if (DEMO.on) return "Setting up a connection needs a running Skald: not available in the demo.";
   if (!sessions() || isViewer()) return "Not available to your role.";
   const r = await call("sites");
-  return openConn(name, m.site, r.ok ? r : {}, { start: Math.max(0, step - 1), agent: s.agent || "", link: s.link || "" });
+  return openConn(name, m.site, r.ok ? r : {}, { start: Math.max(0, step - 1), agent: s.agent || "", link: s.link || "", by: s.by || "" });
 }
 
 /* A button that opens a connection dialog: the sites answer asked once, when first pressed.
@@ -92,27 +89,3 @@ export function connOpener(name, site, { onClose = null } = {}) {
   };
 }
 
-/* The AI agent's way: the site's wizard at "Which AI agent are you using?", whatever was saved. */
-export function agentButton(site, msg, { primary = false } = {}) {
-  const agent = h("button", { type: "button", class: primary ? "btn primary" : "btn", "aria-label": `Set up ${site} with your AI agent` }, "Set up with your AI agent");
-  agent.addEventListener("click", async () => {
-    const got = await (await import("./sitesadmin.js")).openSiteKey(site, 3, { pick: true });
-    if (typeof got === "string") msg.say(got);
-  });
-  return agent;
-}
-
-const SEND_LINE = (site) => `For ${site} when its web server is not this Skald's server: a shipper, Cloudflare, Vercel or Netlify, or only the script tag. Or one line for your AI agent. Not sure Skald can read a log? Test a sample first.`;
-
-/* Collect data › Send logs: the send card, with the AI agent and Test a sample beside it. */
-export function sendCard(m) {
-  const site = m.site;
-  if (DEMO.on) return taskCard({ icon: ICONS.send, title: "Send this site's visits to Skald", line: SEND_LINE(site), note: "In the demo, setting up needs a running Skald.", disabled: true, onOpen: () => {} });
-  if (!sessions()) return h("div", { class: "state" }, h("div", null, "Sending a site's log from another server comes with team accounts. On this server, the site's log is read where the config file says."));
-  if (isViewer()) return h("div", { class: "state" }, h("div", null, `${VIEWER} An admin sets up how this site's visits reach Skald.`));
-  const msg = status();
-  const sample = h("button", { type: "button", class: "btn", "aria-label": `Test a sample of a log for ${site}` }, "Test a sample");
-  sample.addEventListener("click", connOpener("sample", site));
-  return [h("section", { class: "s cn-cards cn-one", "aria-label": "Send this site's visits" },
-    taskCard({ icon: ICONS.send, title: "Send this site's visits to Skald", line: SEND_LINE(site), onOpen: connOpener("send", site), more: [agentButton(site, msg), sample] })), msg];
-}

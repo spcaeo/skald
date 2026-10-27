@@ -5,7 +5,7 @@ Caddy's JSON, a CDN or host export: Cloudflare, CloudFront, Fastly, Akamai,
 Vercel, Netlify), used to learn only after the next daily run whether Skald
 could read it. This reads a sample and says so at once. Nothing is stored:
 no history, no state, no spool. `skald try-log` (try_log_cli.py) and
-Settings > Collect data > Send logs' "Test a sample" (connections_api.try_sample) both
+Settings > Data > Send logs' "Test a sample" (connections_api.try_sample) both
 call dry_run() on the sample's lines.
 
 It reads with the real readers (parse.PARSERS, in parse.AUTO_ORDER) and
@@ -423,7 +423,7 @@ def _warn(report: dict, hits, unread, config: dict, configured: str, layouts: di
     for h in report["hosts"]:
         if h["site"] is False and any(h["host"] in (f"www.{w}", w.removeprefix("www.")) for w in wanted):
             warn(f"{h['lines']} lines are for {h['host']}, which is not one of the site's host "
-                 "names: add it to the site's hosts (Settings > Site details), or they are counted apart.")
+                 "names: add it to the site's hosts (Settings > Site), or they are counted apart.")
     times = report.get("times") or {}
     if times.get("future"):
         warn("Some times are in the future: the server's clock or the time zone in the log is wrong.")
@@ -458,7 +458,7 @@ def _warn(report: dict, hits, unread, config: dict, configured: str, layouts: di
         hint = f" (here most are under {folders.most_common(1)[0][0]})" if folders else ""
         warn(f"No asset request is under the site's page assets ({', '.join(prefixes)}){hint}. "
              "Skald counts a person only when the browser fetched one of them: set the site's "
-             "page assets (Settings > Collect data > What counts), or people will show as bots.")
+             "page assets (Settings > Data > What counts), or people will show as bots.")
     if lines < 50:
         note(f"Only {lines} lines: a bigger sample gives a surer answer.")
     counted = report.get("counted") or {}

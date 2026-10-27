@@ -1,4 +1,4 @@
-// "Read your figures (API)" and "Connect an AI assistant (MCP)" (Settings › AI & API). Each
+// "Read your figures (API)" and "Connect an AI assistant (MCP)" (Settings › AI assistants). Each
 // dialog makes its token (tokens/create, team_api.py; shown once, kept in this page's memory
 // only), shows what to paste where, and tests it from this browser: the API's overview file,
 // or MCP's initialize and tools/list (skald/mcp/http.py: one JSON answer per POST,

@@ -36,7 +36,7 @@ with `access.mode: sessions` (404 otherwise), the way team_api.py is:
   POST sites/verify    {name}: look for the site's verification token (DNS
                        TXT or the home page's meta tag, site_verify.py)  admin
   GET  sites/status, POST sites/kit, POST sites/setup, POST sites/detect,
-  POST sites/tagcheck, POST sites/trylog: Settings > Connections and the
+  POST sites/tagcheck, POST sites/trylog: Settings > Data and the
                        "Add a site" wizard (connections_api.py; detect: the
                        site check; tagcheck: the script tag's page check;
                        trylog: Test a sample, the dry run of a pasted log

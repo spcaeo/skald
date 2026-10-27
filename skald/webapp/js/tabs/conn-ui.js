@@ -16,7 +16,7 @@
 // names, e.g. setup=new to setup=<site> once Add a site made it, so a reload finds it.
 //
 // 2.39: wrap({steps, start}) -> {steps, start, attach(w), sync()}: a dialog's steps behind a
-// first step of its own (agent-first.js: Your AI agent, or By hand); sync() runs before each
+// first step of its own (agent-first.js: Who will do it?, ui/who.js whoStep); sync() runs before each
 // bar is drawn, so steps a by-hand dialog changes in place follow. top: nodes above the step
 // bar on every step (the MCP dialog's "Read the MCP guide").
 
@@ -94,15 +94,6 @@ export function wizard({ title, subtitle = "", steps, start = 0, onStep = null, 
   return w;
 }
 
-// A task card at the top of Connections: an icon, a title, one line, a Set up button
-// (and `more`, a second button beside it).
-export function taskCard({ icon, title, line, button = "Set up", onOpen, note = null, disabled = false, more = null }) {
-  const btn = h("button", { type: "button", class: "btn primary", disabled, "aria-label": `${button}: ${title}` }, button);
-  btn.addEventListener("click", onOpen);
-  return h("div", { class: "cn-card" }, h("span", { class: "cn-ic", html: icon }), h("h3", null, title), h("p", null, line),
-    note ? h("p", { class: "note" }, note) : null, h("div", { class: "acts" }, btn, more));
-}
-
 // A command or snippet, kept as typed (several lines), with a Copy button.
 export function codeBlock(text, label) {
   const btn = h("button", { type: "button", class: "btn cp", "aria-label": `Copy ${label}` }, "Copy");
@@ -128,9 +119,3 @@ export function answerBox(kind, head, ...more) {
 
 // A sentence and a "?" link to a help guide part.
 export const helpLink = (part, words) => h("a", { class: "cn-help", href: `#help?part=${part}` }, words);
-
-export const ICONS = {
-  send: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h12M12 6l6 6-6 6"/><path d="M20 4v16"/></svg>',
-  read: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7 3 12l5 5M16 7l5 5-5 5"/></svg>',
-  mcp: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v10h-9l-5 4v-4H4z"/><path d="M9 10h.01M12 10h.01M15 10h.01"/></svg>',
-};

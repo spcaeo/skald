@@ -75,7 +75,9 @@ export default function insights(m, s) {
   out.push(todoSection(m, s), h("h2", { class: "ins-h2" }, "What changed"));
   if (!file) return [...out, stateNote("Insights are coming: the data layer has not written insights.json yet. They appear here on the first run that writes it.")];
   const all = [...(file.insights || []).map((i) => ({ ...i, win: length(i) })), ...(file.today || []).map((i) => ({ ...i, win: "today" }))];
-  const counts = Object.fromEntries(WINDOWS.map(([k]) => [k, all.filter((i) => i.win === k).length]));
+  // 2.41: each window counts what it shows, a card per subject (fold), as "Show all N" does;
+  // the findings behind them are said once, under the cards (the audit: 31 beside 29 cards).
+  const counts = Object.fromEntries(WINDOWS.map(([k]) => [k, fold(all.filter((i) => i.win === k)).length]));
   const since = WINDOWS.some(([k]) => k === s.since) ? s.since : ["7", "1", "30", "today"].find((k) => counts[k]) || "7";
   const keep = pathMatch(s);
   const filtered = all.filter((i) => i.win === since && (!s.path || keep(i.filter?.path ?? i.subject?.name ?? "")) &&
@@ -111,6 +113,6 @@ export default function insights(m, s) {
     out.push(h("section", { class: "s ins-rest" }, rest, btn));
   }
   const folded = filtered.length - cards.length;
-  if (folded) out.push(h("p", { class: "note" }, `${filtered.length} findings, ${cards.length} subjects: a subject found more than once (a site that is both a referring site and an AI assistant, a source's visitors and its leads) has one card; the others are under "more about this".`));
+  if (folded) out.push(h("p", { class: "note" }, `${cards.length} cards from ${filtered.length} findings: a subject found more than once (a site that is both a referring site and an AI assistant, a source's visitors and its leads) has one card; the others are under "more about this".`));
   return out;
 }

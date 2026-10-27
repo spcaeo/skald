@@ -23,7 +23,7 @@ has no page, saying why there is no dashboard:
             site's wizard would collect nothing.
 
 The wizard and the guide open inside the web app, as the site picker's badge
-does (helper_sessions.listing): `<site>/#settings/sitesadmin?setup=<name>`
+does (helper_sessions.listing): `<site>/#settings/org/sites?setup=<name>`
 (or `?test=<name>`) and `#help?part=troubleshooting-connections`, on a site
 of the same organisation that has a drawn dashboard. With none, the page
 links back to all sites only.
@@ -163,13 +163,13 @@ def render(name: str, state: dict, host: str | None) -> str:
             lines = [f"Its setup reached step {int(step)} of {STEPS}. Until log lines from "
                      "it arrive there is no dashboard to show, and no figure."]
             if app:
-                links.append(f'<a class="sp-go" href="{esc(app)}#settings/sitesadmin?setup='
+                links.append(f'<a class="sp-go" href="{esc(app)}#settings/org/sites?setup='
                              f'{quote(name)}">Continue setup</a>')
         elif step:
             lines = ["Its setup is finished, but nothing from it has reached Skald yet. "
                      "Until log lines arrive there is no dashboard to show, and no figure."]
             if app:
-                links.append(f'<a class="sp-go" href="{esc(app)}#settings/sitesadmin?test='
+                links.append(f'<a class="sp-go" href="{esc(app)}#settings/org/sites?test='
                              f'{quote(name)}">Test the connection</a>')
         else:
             lines = ["Nothing from it has reached Skald yet. Until log lines arrive there "

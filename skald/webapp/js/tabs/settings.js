@@ -1,7 +1,7 @@
 // Settings > Users. Users are made on the server with the tool, by an admin,
 // so this page shows who is signed in and the exact commands; nothing secret
 // is shown. With accounts (access.mode: sessions) Users points to Team.
-// (2.40: the API, MCP and tokens are Settings › AI & API, set-ai.js.)
+// (2.40: the API, MCP and tokens are Settings › AI assistants, set-ai.js.)
 
 import { h } from "../ui.js";
 import { ME, isViewer, VIEWER, sessions } from "../access.js";
@@ -10,7 +10,7 @@ import { head1, copyable } from "./forms.js";
 export function users() {
   // With accounts, people are managed under Team; this page only points there.
   if (sessions()) return [head1("Users", "Who may look, and who may change things."), h("div", { class: "state" }, h("div", null, "People now sign in with their own accounts. See ",
-    h("a", { href: "#settings/org/team" }, "Settings › Team"), " for members and invites, and ", h("a", { href: "#settings/you/account" }, "Your account"), " for your password."))];
+    h("a", { href: "#settings/org/people" }, "Settings › People"), " for members and invites, and ", h("a", { href: "#settings/you/account" }, "Your account"), " for your password."))];
   if (isViewer()) return [head1("Users", "Who may look, and who may change things."), h("div", { class: "state" }, h("div", null, `${VIEWER} The list of users is for admins.`))];
   return [
     head1("Users", "Who may look, and who may change things."),

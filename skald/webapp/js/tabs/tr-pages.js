@@ -13,6 +13,11 @@
 //   Links                     pages AI assistants fetched (AI & bots), pages not found (Site)
 //
 // One page chosen (?page=): its story since it was published, unchanged.
+//
+// 2.42 (the UX audit's task 7, answer first): the landing pages grid comes first (its search
+// box finds a page; a row opens its story, page=); the grid's method notes are behind its
+// "?"; Pages by publish date, the leaderboard and Pages read by people are under one fold
+// kept in the address (pgx_view=open).
 
 import { h, n, short, pct1 } from "../ui.js";
 import { figures, pathMatch } from "../data.js";
@@ -24,6 +29,8 @@ import { pageStory, published } from "./pagestory.js";
 import { leadsBy, leadNote, viewNote } from "./leadfigs.js";
 import { leadRows, countRows, labelCol, countCols, leadCols, goTo, compareOf, compareRows, compareCols, compareNote } from "./tr-grid.js";
 import { periodLine } from "../period-line.js";
+import { urlFold } from "../ui/fold.js";
+import { help } from "../ui/help.js";
 import { pageSums, perVisit, leftShare, workScore, workLists, SORTS, sortOf, changedSince, pageKey, OTHER, WORK, LEFT_WORDS } from "../page-figs.js";
 
 const TOUCH = "landing page: the page recorded with the lead (its first visit's, when known)";
@@ -108,16 +115,16 @@ export default function pages(m, s) {
   const { r, t } = figures(m, s);
   const out = [...head("Pages", r, "What people read and where they started. Select a page for its story since it was published."), periodLine(m, s), changedChip(m, s)];
   const c = compareOf(m, s);
-  out.push(published(m, s));
-  if (!t) return [...out, nothing(m, r, "pages")];
+  if (!t) return [...out, published(m, s), nothing(m, r, "pages")];
   // Changed since (chgfrom): the page index's change dates narrow both grids too.
   const dates = new Map((m.x.page_index?.pages || []).filter((p) => p.updated).map((p) => [pageKey(p.path), p.updated]));
   const path = pathMatch(s);
   const keep = s.chgfrom ? (k) => path(k) && (dates.get(pageKey(k)) || "") >= s.chgfrom : path;
+  const details = [published(m, s)];
   if (m.x.pages) {
     // The leaderboard keeps its own last 30 whole days (with change against the 30 before); today's follows the range.
-    if (r.kind === "today") out.push(h("section", { class: "s" }, h("h2", null, "Page leaderboard"), leaderboard(m, s, r)));
-    else out.push(fixed("Page leaderboard, with change and each page's detail", ownPeriod(m.x.pages.period, r), leaderboard(m, s, r)));
+    if (r.kind === "today") details.push(h("section", { class: "s" }, h("h2", null, "Page leaderboard"), leaderboard(m, s, r)));
+    else details.push(fixed("Page leaderboard, with change and each page's detail", ownPeriod(m.x.pages.period, r), leaderboard(m, s, r)));
   }
   const sub = `${s.path ? ` whose path ${s.pathmode === "starts" ? "starts with" : "contains"} ${s.path}` : ""}${s.chgfrom ? `, changed since ${short(s.chgfrom)}` : ""}`;
 
@@ -131,17 +138,20 @@ export default function pages(m, s) {
       rows, sortKey: order.key, dir: order.dir,
       placeholder: "Search landing pages", empty: s.path || s.chgfrom ? "No landing page matches." : "No landing page recorded." });
     g.classList.add("tr-grid", "tr-paths", "lead-tbl");
-    out.push(h("section", { class: "s" }, h("h2", null, "Landing pages and their leads"),
-      h("p", { class: "sub" }, `The first page each visitor read${sub}, and the leads that started there. Sources and landing pages are stored apart, so this is every visitor's landing page, whatever the source filter.`),
-      sortChips(s, c, sums), g, compareNote(c), sums ? pageNote(sums, m) : null, lb ? leadNote(lb, TOUCH) : null, viewNote(m, s)));
+    const about = [`The first page each visitor read${sub}, and the leads that started there. Sources and landing pages are stored apart, so this is every visitor's landing page, whatever the source filter. Search for a page; select it for its story since it was published.`,
+      compareNote(c), sums ? pageNote(sums, m) : null, lb ? leadNote(lb, TOUCH) : null].map((x) => (x && typeof x !== "string" ? x.textContent : x)).filter(Boolean);
+    out.push(h("section", { class: "s" }, h("div", { class: "card-h start" }, h("h2", null, "Landing pages and their leads"), help("Landing pages and their leads", { text: about, guide: "getting-started" })),
+      sortChips(s, c, sums), g, viewNote(m, s)));
   } else out.push(h("section", { class: "s" }, h("h2", null, "Landing pages and their leads"), h("p", { class: "empty" }, "Not recorded for this range.")));
 
   const g = grid({ ns: "pr", caption: "Pages read by people", file: fileName("pages", r), columns: readColumns(c),
     rows: compareRows(c, countRows(t.pages, { dim: "path", keep }), c.bT?.pages, { dim: "path", keep }), sortKey: "v", placeholder: "Search pages", empty: s.path || s.chgfrom ? "No page matches." : "No page read." });
   g.classList.add("tr-grid", "tr-paths", "lead-tbl");
-  out.push(h("section", { class: "s" }, h("h2", null, "Pages read by people"),
+  details.push(h("section", { class: "s" }, h("h2", null, "Pages read by people"),
     h("p", { class: "sub" }, `Page views by people${sub}. Share is of the pages listed.`), g, compareNote(c),
     r.kind === "history" && r.length > 1 ? h("p", { class: "note" }, "Each day keeps its top 50 pages, so over several days the long tail is undercounted.") : null));
+  // Drawn now (the publish list and the leaderboard load their own files), shown when the fold opens.
+  out.push(urlFold("pgx", "Open the details: pages by publish date, the page leaderboard, and pages read by people", details, { open: !!(s.pubfrom || s.pubto) }));
 
   out.push(h("section", { class: "s tr-links" },
     goTo(S.hashFor({ ...s, tab: "ai/assistants", dd: "" }), "Pages AI assistants fetched are under", "AI & bots › Assistants"),

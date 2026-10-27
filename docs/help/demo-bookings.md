@@ -22,7 +22,7 @@ The best of both: embed the booking on your page, and turn on the webhook. Then 
 
 ## Set up the Calendly webhook
 
-1. In Skald: **Settings > This site > Leads & integrations > Incoming hooks > Calendly > Make secret**. Copy the secret and the address.
+1. In Skald: **Settings > This site > Leads & tools > Incoming hooks > Calendly > Make secret**. Copy the secret and the address.
 2. In Calendly: make a personal access token (on Calendly's integrations page, under API and webhooks).
 3. Find your organisation's URI:
 
@@ -49,7 +49,7 @@ A booking counts as a demo completed; a cancellation as cancelled (or reschedule
 
 One Calendly account often books for several businesses. A Calendly webhook cannot be limited to some event types: it sends every booking of the account. So Skald filters them.
 
-In **Settings > This site > Leads & integrations > Incoming hooks > Calendly**, fill **Only these Calendly event types**, one per line. Any of these works:
+In **Settings > This site > Leads & tools > Incoming hooks > Calendly**, fill **Only these Calendly event types**, one per line. Any of these works:
 
 - The event type's URI: `https://api.calendly.com/event_types/AAAA1111`. This always matches.
 - Its id alone: `AAAA1111`.

@@ -16,6 +16,16 @@ try {
   if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
 } catch { /* storage blocked: the system's theme */ }
 
+// A "?" beside a choice (2.42): its words show on a press, not all the time.
+for (const b of document.querySelectorAll("button.tip")) {
+  b.addEventListener("click", () => {
+    const words = $(b.getAttribute("aria-controls"));
+    if (!words) return;
+    words.hidden = !words.hidden;
+    b.setAttribute("aria-expanded", String(!words.hidden));
+  });
+}
+
 // Where to go after signing in: a path on this server under /traffic/, else `fallback`.
 export function safeNext(raw, fallback = "/traffic/") {
   if (typeof raw !== "string" || !raw.startsWith("/") || raw.startsWith("//") || /[\\\u0000-\u001f\u007f]/.test(raw)) return fallback;
@@ -156,7 +166,7 @@ function login() {
     $("new-again").value = "";
     $("step-code").hidden = true;
     $("back").hidden = true;
-    $("lede").textContent = "To see your sites' traffic.";
+    $("lede").textContent = "";
     $("submit").textContent = "Sign in";
     password.value = "";
     code.value = "";
@@ -274,7 +284,8 @@ async function invite() {
   const role = { owner: "an owner", admin: "an admin", viewer: "a viewer" }[data.role] || data.role || "a member";
   $("title").textContent = `Join ${data.org}`;
   const lede = $("lede");
-  lede.replaceChildren(`You are invited to ${data.org}'s traffic pages as ${role}`, data.email ? ", with the address " : ".");
+  // One short line (2.42): the role, and the address the account is for.
+  lede.replaceChildren(`As ${role}`, data.email ? ", for " : ".");
   if (data.email) { const b = document.createElement("b"); b.textContent = data.email; lede.append(b, "."); }
   form.hidden = false;
   const fresh = !data.has_account;
