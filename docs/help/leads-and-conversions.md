@@ -127,11 +127,11 @@ Below it, every source is in a group by what it is for, each with one line on wh
 | Recorded journeys | your site's own sessions, after consent |
 | Send each lead out | webhooks to your CRM, Zapier or Slack |
 
-Each row has a pill: **Connected**, **Waiting** (set up, nothing arrived yet), **Failing** or **Not connected**, when it last sent something, and one button: a connected row opens its details, one not connected has **Connect**. A connected row also links to the page with its data: **See leads**, **See bookings**, **See revenue**, **See searches**, **See on Overview**, **See journeys**.
+Each row has a pill: **Connected**, **Waiting** (set up, nothing real arrived yet), **Failing** or **Not connected**, when it last sent something, and one button: a connected row opens its details, one not connected has **Connect**. A connected row also links to the page with its data: **See leads**, **See bookings**, **See revenue**, **See searches**, **See on Overview**, **See journeys**.
 
 Sources that do not fit your site (Stripe when the site check saw no Stripe, Cal.com when it saw a Calendly link) fold under **More you can connect**. They still work the same when you need them.
 
-The address keeps where you are: `#settings/site/leads?lt=bookings` opens the page at Bookings, `tool=calendly` opens Calendly's details, and Connect adds the dialog's own key, such as `setup=lead&way=calendly` (the lead hook's dialog with Calendly picked).
+The address keeps where you are: `#settings/site/leads?lt=bookings` opens the page at Bookings, `tool=calendly` opens Calendly's details (`&how=paste` with its question answered), and Connect adds the dialog's own key, such as `setup=lead&way=calendly` (the lead hook's dialog with Calendly picked).
 
 ## Where leads and conversions come from
 
@@ -159,6 +159,8 @@ Your site's own server can tell Skald "a lead was made" with a signed message. S
 ### Webhooks from your tools
 
 Calendly, Cal.com, HubSpot, Typeform, Stripe, Zapier and Make can send Skald a signed message for each booking, form or payment. This is how Skald learns about cancellations, no-shows and payments, which the page itself never sees. See [Webhooks](webhooks.md).
+
+A tool's row says **Connected** only once a real delivery from it was taken in since its key was saved. A passed **Test Skald's address** is not enough: Skald signs that sample with the key it holds, so it proves only Skald's address. While every real delivery since the key was saved was refused (its signature did not match, or it had none), the row says **Failing**, and the tool's details say why in plain words, with the fix. Each tool's key has the tool's own name (Calendly's **signing key**, Stripe's **signing secret**, HubSpot's **client secret**), and the details say when it was saved and by whom. See [Webhooks, The key](webhooks.md#the-key).
 
 ### The script tag
 

@@ -135,14 +135,17 @@ export const arrivedOf = (site, what, press = false) => call("sites/arrived", { 
    what: connect_check.KINDS (logs, agent:<link id>, tag, hook:<tool>, search, tool:<id>,
    share:<id>, journeys, token:<id>, ...). onDone(test) once it says it worked (the page may
    read its files again). onAnswer(test): every answer (the agent's watch keeps its top line in
-   step). ask: {live, press} replace the calls (the tests). */
-export function arrivedBox(site, what, { label = "Test", onDone = null, onAnswer = null, ask = {}, watch = true, intro = "" } = {}) {
+   step). ask: {live, press} replace the calls (the tests). next: the answer's next action (its
+   fix) on its own line under it (2.45: a hook drawer's live line on top). */
+export function arrivedBox(site, what, { label = "Test", onDone = null, onAnswer = null, ask = {}, watch = true, intro = "", next = false } = {}) {
   const live = ask.live || (() => arrivedOf(site, what));
   const press = ask.press || (() => arrivedOf(site, what, true));
   const mark = h("span", { class: "lv-pill" });
   const words = h("span", { class: "lv-words" }, intro || "Checking whether it has arrived...");
   const at = h("small", { class: "lv-when" });
   const line = h("p", { class: "lv-line", role: "status", "aria-live": "polite" }, mark, " ", words, " ", at);
+  const then = next ? h("p", { class: "lv-next" }) : null;
+  if (then) then.hidden = true;
   let doneSeen = false;
   const show = (t) => {
     if (!t) return;
@@ -150,12 +153,17 @@ export function arrivedBox(site, what, { label = "Test", onDone = null, onAnswer
     mark.replaceChildren(pill(p[0], p[1]));
     words.textContent = [t.head, t.says].filter(Boolean).join(" ");
     at.textContent = t.at ? `Last checked ${time(t.at, { label: false })}.` : "";
+    if (then) {
+      const fix = t.fix && t.verdict !== "ok" ? t.fix : "";
+      then.replaceChildren(...(fix ? [h("b", null, "Next: "), fix] : []));
+      then.hidden = !fix;
+    }
     root.dataset.verdict = t.verdict || "";
     if (onAnswer) onAnswer(t);
     if (t.verdict === "ok" && !doneSeen) { doneSeen = true; if (onDone) onDone(t); }
   };
   const test = testButton({ ask: press, label, onAnswer: (r) => { if (r?.ok) show(r.test); } });
-  const root = h("div", { class: "lv", "data-what": what }, line, test);
+  const root = h("div", { class: "lv", "data-what": what }, line, then, test);
   if (watch) {
     poll(root, live, {
       onAnswer: (r) => {

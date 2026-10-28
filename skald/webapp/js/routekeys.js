@@ -137,6 +137,8 @@ export const ROUTE_KEYS = [
   { key: "sees", kind: "overlay", owner: "tabs/site-wizard-org.js", means: "Add a site: what the people invited see, site (this site only) or all (every site of the organisation); absent, this site only, or every site in a new organisation", example: "all" },
   { key: "jobs", kind: "overlay", owner: "tabs/agent-first.js", means: "Set up everything left with your AI agent (setup=all): the jobs its line carries, joined by dots (logs, script, lead, rsc, assets, privacy, search, connect-tools)", example: "logs.script.lead" },
   { key: "way", kind: "overlay", owner: "tabs/setup-hook.js", means: "Connect your leads (setup=lead): the way chosen first (lead, wordpress, json, calendly, calcom, typeform, stripe, hubspot), from a page's Connect; it leaves with the dialog", example: "calendly" },
+  // 2.45: a hook's one question first (js/hook-key.js howQuestion), for Calendly, Cal.com and Typeform.
+  { key: "how", kind: "overlay", owner: "tabs/hook-key-ui.js", means: "A tool's drawer (tool=calendly) or Connect your leads (setup=lead): how the tool's webhook and key were made: make (not made yet: Skald makes the key), paste (the tool's own key, pasted) or remake (Calendly, made without a signing key: make it again). Never the key", example: "paste" },
   { key: "share", kind: "overlay", owner: "tabs/conn-share.js", means: "Share with your developer: the form is open in the dialog (the link itself never goes in the address)", example: "1" },
   { key: "token", kind: "overlay", owner: "tabs/conn-install.js", means: "the token choice of a by-hand kit (the zips under Other ways): 0 is the zip without the token; absent, the token goes in the zip (the token itself never goes in the address)", example: "0" },
   { key: "pack", kind: "overlay", owner: "tabs/setup-pack.js", means: "Send set-up to someone: the box is open in the dialog (the addresses typed and the keys never go in the address)", example: "1" },
@@ -173,7 +175,7 @@ export const OVERLAY = ROUTE_KEYS.filter((k) => k.kind === "overlay").map((k) =>
 // set-up pack's box, Add a site's agent and the line it watches, Test a sample's reader); the other overlay keys
 // name the drawer or dialog itself.
 export const INSIDE = ["step", "share", "token", "pack", "agent", "link", "jobs", "ppl", "sees", "lfmt", "pcd", "pck", "asst", "by", "fixby", "kind", "xch", "vall",
-  "otab", "way"];
+  "otab", "way", "how"];
 export const OPENERS = OVERLAY.filter((k) => !INSIDE.includes(k));
 // Always a token, whatever the value looks like: a search for a person, an address filter.
 export const ALWAYS_MASKED = new Set(["who", "ip"]);

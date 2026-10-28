@@ -172,6 +172,16 @@ class Node(unittest.TestCase):
         that do not fit folded under More, lt=<group> marked, and the tool=<id> drawers."""
         self.assertIn("set-leads: all passed", self.run_js("set-leads.mjs"))
 
+    def test_a_hooks_key_in_the_tools_own_word(self):
+        """A hook's key (2.45, js/hook-key.js, js/tabs/hook-key-ui.js; a site's Calendly): the
+        tool's own word, never "secret key"; Calendly, Cal.com and Typeform ask one question first
+        (how=); after Make or Save the drawer stays open on what is saved, when and by whom; the
+        paste's answer (matches, no_match, unsigned, none_held) in plain words; Make it again for
+        a Calendly webhook with no signing key; Test Skald's address says it proves the address
+        only, beside the last real delivery; never green while only refused ones came; an older
+        server's answer guesses nothing; the set-up dialog's step is named by the key's word."""
+        self.assertIn("hook-key: all passed", self.run_js("hook-key.mjs"))
+
     def test_connect_the_dots(self):
         """Not connected yet (2.43, js/connect-plan.js, js/ui/connect.js): each page whose
         source is missing says what it needs, what Skald found and the way to connect it;

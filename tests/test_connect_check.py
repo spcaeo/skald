@@ -86,7 +86,7 @@ class Arrived(TenantServer):
     def test_a_webhook_waits_for_its_first_real_delivery(self):
         t = self.answer("hook:calendly")
         self.assertEqual(t["verdict"], "wait")
-        self.assertIn("signing secret is not saved", t["head"])
+        self.assertIn("signing key is not saved", t["head"])
         got = self.post(T + "integrations/secret", {"site": A, "tool": "calendly"}, self.cookie, self.csrf)
         self.assertEqual(got.status, 200, got.json)
         t = self.answer("hook:calendly")
@@ -96,7 +96,9 @@ class Arrived(TenantServer):
         self.assertEqual(got.status, 200, got.json)
         t = self.answer("hook:calendly")
         self.assertEqual(t["verdict"], "wait", "a test of Skald's own is not a real delivery")
-        self.assertEqual(t["says"], "Skald's own test worked, so the address is ready.")
+        # 2.45: the Test is signed with the key Skald has: it proves the address only.
+        self.assertEqual(t["says"], "Skald's address works. Only a real Calendly event proves "
+                                    "the signing key: make a test booking.")
         steps = {s["id"]: s["done"] for s in t["steps"]}
         self.assertEqual(steps, {"secret": True, "test": True, "real": False})
         self.assertEqual(self.ask("hook:nosuch").status, 400)

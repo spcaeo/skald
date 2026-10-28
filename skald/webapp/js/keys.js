@@ -27,17 +27,21 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-28-2.44.0",
+  id: "2026-10-28-2.44.1",
   items: [
+    ["A webhook key that does not match loses nothing", "refused deliveries are held, and saving the right key takes them in with their own times.", "webhooks"],
+    ["Each tool's own word, and the saved state stays", "Calendly's \"signing key\"; one question on how its webhook was made; \"Signing key saved … by …\" with Replace.", "webhooks"],
+    ["An honest Test", "Test Skald's address checks Skald's side only; the last real delivery shows beside it, and Connected waits for a real one.", "troubleshooting-connections"],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.44.0
     ["Set-up shows when it worked", "every connect step checks by itself, with a Test button beside it; a failure says in plain words what went wrong.", "connections"],
     ["Search Console connects by itself", "once Google shows Skald's robot, on the property it can see; Traffic › Search fills in as the history arrives.", "search"],
     ["Shorter set-up steps", "one status line and the next thing to do; the details and the safety list are folded.", "connections"],
     ["Lead countries", "the lead files send the visitor's address, so each lead gets its country; Skald warns when leads come without one.", "leads-from-your-backend"],
     ["Add sites with your AI agent", "a token for adding sites over MCP, within your plan's site and member limits.", "mcp"],
     ["A short welcome", "a new person's first sign-in says whose sites they see and where to start.", "getting-started"],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.43.0
     ["From your tools", "Google Analytics 4, Vercel Web Analytics, Calendly and Resend, read with your own key and shown apart, labelled with the tool's name; never added to Skald's counts.", "your-tools"],
     ["Organisations", "Settings › Organisation › Organisations: every organisation, its sites and members; limit a person to some sites; archive deletes nothing.", "organisations"],

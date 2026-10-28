@@ -80,3 +80,15 @@
 .ag-steps, .ag-details { margin: var(--sp-2) 0; }
 .lv-search .ui-card-h { display: flex; align-items: center; gap: 8px; }
 .lv-search .ui-card-h h2 { margin: 0; }
+.lv-next { margin: 0; overflow-wrap: anywhere; }
+/* 2.45: a hook's key (js/tabs/hook-key-ui.js): which way it goes, what is saved and by whom,
+   the one question first, the paste's answer, and the last real delivery. */
+.hk-way { margin: 0; color: var(--ink-2); }
+.hk-status { display: grid; gap: var(--sp-2); min-width: 0; }
+.hk-saved { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin: 0; overflow-wrap: anywhere; }
+.hk-replace { border: 0; background: none; padding: 0 2px; font: inherit; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; min-height: 0; }
+.hk-how legend { margin-bottom: var(--sp-2); }
+.hk-lbl { margin: 0 0 4px; font-size: var(--t-s); font-weight: 600; }
+.hk-last { margin: 6px 0 0; }
+.hk-remake .cn-list > li { display: grid; gap: 6px; min-width: 0; }
+.hk-remake .cn-list > li > .acts { margin: 0; }

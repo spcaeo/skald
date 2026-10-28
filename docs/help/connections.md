@@ -30,7 +30,7 @@ For owners and admins, **Settings > To do** (also what Settings opens) lists wha
 
 The answers are always in this order: Me, My developer, My AI agent. Skald remembers your last answer in this browser and opens on it next time. A choice shows only when it fits: **My AI agent** when a line is a job your agent can do, **My developer** when a line needs work on a server or on the site. Each open line is a button as a whole: it opens the same dialog for that line only.
 
-The **Lead hook tested** line is ticked only while no hook's last real lead was refused. When one was (say its signature did not match, because the tool signs with an old secret), the line says leads are not arriving, and opens the lead hook's dialog. The cause and fix are in it.
+The **Lead hook tested** line is ticked only while no hook's last real lead was refused. When one was (say its signature did not match, because the tool signs with another key), the line says leads are not arriving, and opens the lead hook's dialog. The cause and fix are in it. A passed **Test Skald's address** does not tick it on its own while real leads are refused: the test signs Skald's own sample, so it proves only Skald's address (see [If a connection does not work](troubleshooting-connections.md#a-tools-webhook-the-key-the-test-and-the-real-deliveries)).
 
 ### Links to a dialog
 

@@ -6,7 +6,8 @@ before anything else is done with it. One file per local day:
      "tool": "calendly", "body": {...}}
 
 plus "zone": "<site's time zone>" on a `lead` or `json` line whose body has a
-time without an offset (read in that zone, since 2.4.0).
+time without an offset (read in that zone, since 2.4.0), and "held": true on
+a refused delivery taken in after a key was saved (2.45, held.py).
 
 The body is the tool's JSON with only the keys its adapter and the audit
 read (conversions.SPOOL_KEYS, an allow-list per tool), plus the name and the
@@ -39,14 +40,19 @@ def day_file(spool: Path, day: date) -> Path:
 
 
 def line_for(received_at: str, site: str, tool: str, body, identity_full: bool,
-             zone: str | None = None) -> str:
+             zone: str | None = None, held: bool = False) -> str:
     """One line. `zone`: the time zone the receiver read the body's times
     without an offset in (the site's; 2.4.0). A line without it read them as
-    UTC, so the second count reads each line the way it was kept."""
+    UTC, so the second count reads each line the way it was kept. `held`
+    (2.45): a refused delivery taken in later, once a saved key matched it
+    (held.py, key_check.py); its received_at is when it first came, and the
+    line sits in the file of the day it was taken in."""
     line = {"received_at": received_at, "site": site, "tool": tool,
             "body": strip(body, identity_full, tool)}
     if zone:
         line["zone"] = zone
+    if held:
+        line["held"] = True
     return json.dumps(line, separators=(",", ":"), sort_keys=True)
 
 

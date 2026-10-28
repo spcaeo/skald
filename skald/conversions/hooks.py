@@ -11,7 +11,12 @@ Each request, in this order, before anything is kept:
      also take the plain key, `Authorization: Bearer <secret>`, when no
      X-Skald-Signature is sent (2.30, accepted()). A failure spends
      the sender's small pre-auth bucket (`hooks.preauth_per_minute`, burst
-     `hooks.preauth_burst`): 429 once it is empty
+     `hooks.preauth_burst`): 429 once it is empty. 2.45: a failure is logged
+     `unsigned` when none of the tool's signature headers came (adapters
+     SIGNED: the tool was set up without a key) and `bad_signature` when one
+     came and did not match (refusal()); either is held 24 hours (held.py,
+     never a test of Skald's own), so a key saved later takes it in
+     (key_check.py, process(held_at=...): logged `accepted_held`)
   4. at most `hooks.per_minute` verified deliveries a minute per site and
      tool (burst `hooks.burst`): 429. An unsigned flood cannot spend it.
   5. the body must be JSON: 400
@@ -65,9 +70,9 @@ from pathlib import Path
 
 from ..beacon import visitor_ids
 from ..config import setting, site_name
-from . import (LEAD_SHAPED, MAX_BODY, SKALD_VID, TOOLS, event_types, geo, marks, reconcile,
-               spool, store)
-from .adapters import Invalid, adapter
+from . import (LEAD_SHAPED, MAX_BODY, SKALD_VID, TOOLS, event_types, geo, held, marks,
+               reconcile, spool, store)
+from .adapters import Invalid, adapter, signed
 from .adapters.lead import LABEL_NOTE, TEST_NOTE, keyed, verify_get, verify_key
 from .money import (CUSTOMER_NOTE, REFUND_CURRENCY_NOTE, REFUND_OVER_NOTE, TAGS_NOTE,
                     VALUE_NOTE)
@@ -79,6 +84,8 @@ _PATH = re.compile(r"^/traffic-hooks/([A-Za-z0-9][A-Za-z0-9._-]{0,99})/([a-z]{2,
 REFUSED_EVERY = 60
 SITES_EVERY = 30          # seconds: a hook for an unknown site re-reads the sites
 REPLAY_TOOLS = ("calcom", "typeform")     # no signed timestamp: refused by hash
+HELD = "accepted_held"    # a held delivery taken in once a saved key matched it (2.45)
+HELD_NOTE = held.NOTE
 PROXIES = ("127.0.0.1", "::1")
 
 
@@ -124,6 +131,12 @@ def accepted(tool: str, headers: dict, body: bytes, secret: str, now: float) -> 
     if tool in LEAD_SHAPED and keyed(headers):
         return verify_key(headers, secret)
     return adapter(tool).verify(headers, body, secret, now)
+
+
+def refusal(tool: str, headers: dict) -> str:
+    """Why a delivery that failed accepted() failed: "unsigned" when none of
+    the tool's signature headers came with a value, else "bad_signature"."""
+    return "bad_signature" if signed(tool, headers) else "unsigned"
 
 
 def history_folder(config: dict, config_path=None) -> Path:
@@ -235,17 +248,34 @@ class Receiver:
             if now - entry[1] < REFUSED_EVERY:
                 return
             count, entry[0], entry[1] = entry[0], 0, now
-        self._log(site, tool, outcome, status, f"{count} refused" + (f": {why}" if why else ""))
+        # The receiver's own clock (2.45), as the hold uses: one time for both.
+        self._log(site, tool, outcome, status, f"{count} refused" + (f": {why}" if why else ""),
+                  at=store.stamp(datetime.fromtimestamp(now, tz=timezone.utc)))
 
-    def _bad_signature(self, site: str, tool: str, headers: dict) -> None:
-        """A signature that did not match. A test Skald's own tools signed and sent
-        (X-Skald-Test: 1: Send a test, `hooks test`, the shared page's Test) is a
-        failed test, never a refusal of the tool's own deliveries: Settings and the
-        set-up lines read "bad_signature" as real leads refused (roads.py)."""
+    def _bad_signature(self, site: str, tool: str, headers: dict) -> str:
+        """A signature that did not match, or none at all (refusal(): which).
+        A test Skald's own tools signed and sent (X-Skald-Test: 1: Send a test,
+        `hooks test`, the shared page's Test) is a failed test, never a refusal of
+        the tool's own deliveries: Settings and the set-up lines read
+        "bad_signature" and "unsigned" as real leads refused (roads.py)."""
+        why = refusal(tool, headers)
         if headers.get("x-skald-test") == "1":
-            self._refused(site, tool, "test_failed", 401, "the signature did not match")
+            self._refused(site, tool, "test_failed", 401, "no signature was sent"
+                          if why == "unsigned" else "the signature did not match")
         else:
-            self._refused(site, tool, "bad_signature", 401)
+            self._refused(site, tool, why, 401)
+        return why
+
+    def _hold(self, site: str, tool: str, headers: dict, body: bytes, why: str) -> None:
+        """Keep a refused delivery 24 hours, or until taken in on a site that keeps
+        everything (held.py). A failure is one line on
+        the helper's log, with the hook and the error's type only."""
+        try:
+            held.keep(self.folder, site, tool, headers, body, self.clock(), why,
+                      keeps=held.keeps(self.config, self.folder, site))
+        except (OSError, ValueError) as err:
+            sys.stderr.write(f"hooks: {site}/{tool}: a refused delivery could not be held "
+                             f"({type(err).__name__})\n")
 
     def _limited(self, site: str, tool: str) -> None:
         self._refused(site, tool, "rate_limited", 429)
@@ -307,10 +337,11 @@ class Receiver:
         # The signature first (cheap): only a verified delivery spends the
         # hook's bucket, so an unsigned flood cannot starve the real tool.
         if not accepted(tool, headers, body, secret, self.clock()):
-            self._bad_signature(site, tool, headers)
+            why = self._bad_signature(site, tool, headers)
             if not self.preauth.allow(self.client(handler)):
                 return 429, {"error": "too many"}
-            return 401, {"error": "bad signature"}
+            self._hold(site, tool, headers, body, why)
+            return 401, {"error": "no signature" if why == "unsigned" else "bad signature"}
         if not self.limiter.allow(f"{site}/{tool}"):
             self._limited(site, tool)
             return 429, {"error": "too many"}
@@ -354,7 +385,7 @@ class Receiver:
             return body
         headers = {k.lower(): v for k, v in handler.headers.items()}
         if not adapter(tool).verify(headers, body, secret, self.clock()):
-            self._refused(site, tool, "bad_signature", 401)
+            self._refused(site, tool, refusal(tool, headers), 401)
             if not self.preauth.allow(self.client(handler)):
                 return 429, {"error": "too many"}
             return 401, {"error": "bad signature"}
@@ -430,19 +461,23 @@ class Receiver:
                          + (f" params={','.join(params)}" if params else "") + "\n")
 
     def process(self, site: str, tool: str, headers: dict, body: bytes,
-                secret: str, verified: bool = False) -> tuple[int, dict]:
+                secret: str, verified: bool = False,
+                held_at: str | None = None) -> tuple[int, dict]:
         """Verify (unless `http` just did), spool, map and keep one
-        delivery. (status, answer)."""
+        delivery. (status, answer). `held_at`: a held delivery taken in
+        (key_check.py, verified by it), kept with the time it first came; its
+        spool line says "held" and its delivery row is `accepted_held`."""
         mod = adapter(tool)
         now = self.clock()
-        received = store.stamp(datetime.fromtimestamp(now, tz=timezone.utc))
+        received = held_at or store.stamp(datetime.fromtimestamp(now, tz=timezone.utc))
         if not verified and not accepted(tool, headers, body, secret, now):
             self._bad_signature(site, tool, headers)
             return 401, {"error": "bad signature"}
         try:
             payload = json.loads(body.decode("utf-8"), parse_int=_whole)
         except (UnicodeDecodeError, ValueError):
-            self._log(site, tool, "bad_body", 400, "not JSON", at=received)
+            self._log(site, tool, "bad_body", 400, "; ".join(
+                ([HELD_NOTE] if held_at else []) + ["not JSON"]), at=received)
             return 400, {"error": "not JSON"}
         full = identity_full(self.sites[site], self.folder)
         # Calendly or Cal.com with the site's event types named: another type is
@@ -456,14 +491,16 @@ class Receiver:
         tz = self.site_zone(site) if tool in LEAD_SHAPED else None
         if headers.get("x-skald-test") == "1":
             return self._test(site, tool, mod, payload, received, full, keep_vid, skipped, tz)
+        heldnote = [HELD_NOTE] if held_at else []
         if not keep:
-            self._log(site, tool, "ignored", 200, skipped, at=received)
+            self._log(site, tool, "ignored", 200,
+                      "; ".join(heldnote + ([skipped] if skipped else [])) or None, at=received)
             return 200, {"ok": True, "recorded": 0, "duplicates": 0,
                          "outcome": event_types.IGNORED}
         digest = replay_digest(tool, payload, body)
         if digest and self._replayed(site, digest, now):
-            self._log(site, tool, "replay", 200, "the same body was taken before",
-                      at=received)
+            self._log(site, tool, "replay", 200, "; ".join(
+                heldnote + ["the same body was taken before"]), at=received)
             return 200, {"ok": True, "recorded": 0, "duplicates": 1}
         if not keep_vid:
             payload = without_vid(payload)
@@ -476,9 +513,11 @@ class Receiver:
         try:
             day = datetime.fromtimestamp(now, tz=timezone.utc).astimezone(self.tz).date()
             spool.append(self.spool, day, spool.line_for(
-                received, site, tool, payload, full, str(tz) if naive else None))
+                received, site, tool, payload, full, str(tz) if naive else None,
+                held=bool(held_at)))
         except OSError as why:
-            self._log(site, tool, "error", 500, f"spool: {type(why).__name__}", at=received)
+            self._log(site, tool, "error", 500, "; ".join(
+                heldnote + [f"spool: {type(why).__name__}"]), at=received)
             return 500, {"error": "not kept, send again"}
         try:
             if bad is not None:
@@ -489,12 +528,12 @@ class Receiver:
                 for r in rows:
                     r["vid"] = None
         except Invalid as why:
-            self._log(site, tool, "bad_body", 400, str(why), at=received)
+            self._log(site, tool, "bad_body", 400, "; ".join(heldnote + [str(why)]), at=received)
             return 400, {"error": str(why)}
         # Stripe's invoice_payment.paid: no conversion, a payment's link to its invoice.
         links = mod.links(payload) if bad is None and hasattr(mod, "links") else []
         if not rows and not links:
-            self._log(site, tool, "ignored", 200, at=received)
+            self._log(site, tool, "ignored", 200, "; ".join(heldnote) or None, at=received)
             return 200, {"ok": True, "recorded": 0, "duplicates": 0}
         said: list = []
         try:
@@ -506,17 +545,21 @@ class Receiver:
                 new = sum(kept)
                 if digest:
                     store.keep_replay(db, site, digest, received)
-                notes = (soft_notes(records, tz) + ip_notes(records, rows, self.country_db)
+                notes = (heldnote + soft_notes(records, tz)
+                         + ip_notes(records, rows, self.country_db)
                          + [n for n in dict.fromkeys(said)])
-                store.log_delivery(db, site, tool, "recorded" if new or links else "duplicate",
-                                   200, "; ".join(notes) or None,
+                outcome = HELD if held_at else "recorded" if new or links else "duplicate"
+                store.log_delivery(db, site, tool, outcome, 200, "; ".join(notes) or None,
                                    rows[0]["external_ref"] if rows else links[0][0], received)
             finally:
                 db.close()
         except Exception as why:            # noqa: BLE001 - the tool will send again
-            self._log(site, tool, "error", 500, f"store: {type(why).__name__}", at=received)
+            self._log(site, tool, "error", 500, "; ".join(
+                heldnote + [f"store: {type(why).__name__}"]), at=received)
             return 500, {"error": "not kept, send again"}
         out = {"ok": True, "recorded": new, "duplicates": len(kept) - new}
+        if held_at:
+            out["outcome"] = HELD
         notes = [n for n in soft_notes(records, tz) + ip_notes(records, rows, self.country_db)
                  + list(dict.fromkeys(said)) if n in SENDER_NOTES]
         if notes:

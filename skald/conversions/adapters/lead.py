@@ -75,6 +75,7 @@ from . import Invalid, naive, sign_timed, text, touch, verify_timed, when
 
 HEADER = "x-skald-signature"
 KEY_HEADER = "authorization"
+SIGNED = (HEADER, KEY_HEADER)   # neither sent: "unsigned" (hooks.refusal)
 LABEL_NOTE = ("the label was not a short lowercase token (letters, digits, - or _, at most "
               "40): kept without a label")
 TEST_NOTE = "test was not true or false: ignored, kept as a real lead"

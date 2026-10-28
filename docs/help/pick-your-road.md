@@ -27,7 +27,7 @@ The lead database road reads **SQLite only**: a Payload-style `submissions` tabl
 | Calendly or Cal.com | The tool's hook, plus the embed through the script tag | Bookings, cancellations, reschedules and no-shows; opened and time chosen when embedded | Opened and time chosen when you only link to the booking page | See [Demo bookings](demo-bookings.md) |
 | Stripe | The `stripe` hook | Each paid checkout, and one paid later by a slow method | Refunds, subscriptions, customer details (never read) | The endpoint's signing secret (`whsec_...`), pasted in Settings > This site > Leads & tools; the visitor ID as the session's `client_reference_id` |
 | HubSpot | The `hubspot` hook, or Zapier to the `json` hook | New contacts, booked meetings, deals won | Anything HubSpot does not send | The app's client secret, pasted in Settings > This site > Leads & tools |
-| Zapier, Make, n8n | The `json` hook | Any lead any tool knows about, up to 100 in one message | Nothing by itself: it sends what the Zap sends | **Make secret** for `json`, and the signing step in the Zap |
+| Zapier, Make, n8n | The `json` hook | Any lead any tool knows about, up to 100 in one message | Nothing by itself: it sends what the Zap sends | **Make the secret** for `json`, and the signing step in the Zap |
 
 Never sign a hook in the browser. The secret must stay on a server. A browser can only use the script tag.
 

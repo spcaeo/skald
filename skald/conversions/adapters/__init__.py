@@ -14,6 +14,11 @@
         the headers the tool would send: for tests and `skald hooks test`.
     sample(site, now) -> dict
         a body like the tool's, for `skald hooks test`.
+    HEADER, SIGNED
+        the signature's header, and every header that carries a signature
+        (lead and json: also Authorization). A delivery with none of SIGNED
+        is "unsigned" (2.45, signed()): the tool was set up without a key,
+        so no key pasted into Skald can ever match it.
 """
 from __future__ import annotations
 
@@ -151,6 +156,15 @@ def utm_touch(source: dict | None) -> dict | None:
     if not isinstance(source, dict):
         return None
     return touch({k: source.get(k) for k in TOUCH_KEYS})
+
+
+def signed(tool: str, headers: dict) -> bool:
+    """Did the delivery carry any of the tool's signature headers (SIGNED),
+    with a value? False: "unsigned", told apart from a signature that did
+    not match ("bad_signature")."""
+    mod = adapter(tool)
+    names = getattr(mod, "SIGNED", None) or (getattr(mod, "HEADER", ""),)
+    return any(str(headers.get(name) or "").strip() for name in names if name)
 
 
 def _load():

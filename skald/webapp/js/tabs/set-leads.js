@@ -79,14 +79,16 @@ export async function openTool(id, m) {
   if (id.startsWith(DRAWER)) return openYours(id.slice(DRAWER.length), m);
   let title = TITLES[id] || id;
   let body;
-  if (id === "search") body = [(await import("./search-connect.js")).searchBox(m.site)];
-  else body = integrationsPart(fixed ? id : `tool:${id}`).filter(Boolean);
+  // The tool's name first, then its part: the part draws once its answer comes, so by then the
+  // drawer is on the page and its live line (ui/live.js) starts asking (2.45).
   if (!fixed) {
     const r = await call(integPath());
     const t = r.ok && (r.tools || []).find((x) => x.tool === id);
     if (!t) return "That tool is not one Skald knows.";
     title = t.name;
   }
+  if (id === "search") body = [(await import("./search-connect.js")).searchBox(m.site)];
+  else body = integrationsPart(fixed ? id : `tool:${id}`).filter(Boolean);
   return openDrawer({ title, size: "md", key: "tool", className: "set-dw", body: h("div", null, body), route: { key: "tool", value: id } });
 }
 export const openToolKey = (v, m) => openTool(v, m);

@@ -25,6 +25,7 @@ from .. import ACTION, EVENTS, HUBSPOT_MEETING, TOLERANCE, action_name
 from . import Invalid, hmac_b64, skald_vid, text, utm_touch, when
 
 HEADER = "x-hubspot-signature-v3"
+SIGNED = (HEADER,)          # no signature header at all: "unsigned"
 STAMP_HEADER = "x-hubspot-request-timestamp"
 MAX_EVENTS = 100
 # HubSpot decodes these in the URI before it signs (its v3 documentation).

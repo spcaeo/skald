@@ -9,6 +9,8 @@ from . import Invalid, lead
 
 MAX_RECORDS = 100
 
+HEADER = lead.HEADER
+SIGNED = lead.SIGNED
 verify = lead.verify
 sign = lead.sign
 

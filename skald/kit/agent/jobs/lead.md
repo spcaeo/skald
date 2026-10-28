@@ -105,8 +105,15 @@ Address: `__HOOKS__calendly`. Events: `invitee.created`, `invitee.canceled`,
 
       ( set -a; . __ENV_DIR__/__SITE__.calendly.env; set +a; curl -sS -o /dev/null -w 'HTTP %{http_code}\n' -X POST https://api.calendly.com/webhook_subscriptions -H "Authorization: Bearer $CALENDLY_TOKEN" -H 'Content-Type: application/json' --data "{\"url\": \"__HOOKS__calendly\", \"events\": [\"invitee.created\", \"invitee.canceled\", \"invitee_no_show.created\"], \"organization\": \"<the organisation URI>\", \"scope\": \"organization\", \"signing_key\": \"$SKALD_HOOK_SECRET_CALENDLY\"}" )
 
-- By hand: Calendly has no screen for webhooks. Ask the user (or their developer) to make the
-  subscription as the help page says: __HELP_HOOKS__
+- A webhook for this address already there (list them with `curl -sS
+  "https://api.calendly.com/webhook_subscriptions?organization=<the organisation URI>&scope=organization"
+  -H "Authorization: Bearer $CALENDLY_TOKEN"`: its `callback_url` is `__HOOKS__calendly`):
+  Calendly never shows a webhook's signing key again, and one made without a signing key sends
+  no signature, so pasting cannot fix it. If its bookings are refused, ask the user first, then
+  delete it (`curl -sS -X DELETE "<its uri>" -H "Authorization: Bearer $CALENDLY_TOKEN"`), make
+  the secret again with `"replace": true`, and make the webhook again as above.
+- By hand: Calendly webhooks are made with Calendly's API, usually by a developer. Ask the user
+  (or their developer) to make the subscription as the help page says: __HELP_HOOKS__
 
 #### Cal.com (`calcom`)
 

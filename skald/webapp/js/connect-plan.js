@@ -73,6 +73,15 @@ export const NEEDS = {
 export function hookState(t) {
   if (!t) return "off";
   if (t.problem || ["missing", "exposed"].includes(t.state) || (t.attention && t.state === "received")) return "failing";
+  // 2.45 (js/hook-key.js realState, connect_check agrees): the real deliveries since the key was
+  // saved decide: connected only after one was accepted; failing while only refused or unsigned
+  // ones came. An older server sends no since_saved: the state as before.
+  const s = t.set && t.since_saved && typeof t.since_saved === "object" ? t.since_saved : null;
+  if (s) {
+    if (Number(s.accepted || 0) > 0) return "connected";
+    if (Number(s.refused || 0) > 0 || Number(s.unsigned || 0) > 0) return "failing";
+    return "waiting";
+  }
   if (t.state === "received") return "connected";
   if (t.state === "never" || t.state === "ready") return "waiting";
   return "off";
@@ -105,7 +114,7 @@ export function rowsOf({ integ = null, yours = null, searchOn = false, searchSay
   for (const t of integ?.tools || []) {
     const st = hookState(t);
     out.push({ id: t.tool, group: HOOK_GROUP[t.tool] || "leads", name: t.name || t.tool, from: HOOK_FROM[t.tool] || t.name, state: st, last: st === "connected" ? t.last_at || "" : "",
-      line: st === "off" ? HOOK_WHY[t.tool] || "" : st === "connected" ? "" : t.words || "",
+      line: st === "off" ? HOOK_WHY[t.tool] || "" : st === "connected" ? "" : (st === "failing" && t.last_real?.words) || t.words || "",
       open: { tool: t.tool }, act: { setup: "lead", way: t.tool } });
   }
   const script = lineOf(status, "script", "Script tag");

@@ -44,6 +44,7 @@ from .. import EVENTS, money
 from . import Invalid, dig, sign_timed, skald_vid, text, utm_touch, verify_timed, when
 
 HEADER = "stripe-signature"
+SIGNED = (HEADER,)          # no signature header at all: "unsigned"
 
 
 def verify(headers: dict, body: bytes, secret: str, now: float) -> bool:

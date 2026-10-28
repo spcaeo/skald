@@ -353,7 +353,7 @@ bot rules. The how-to: docs/help/leads-from-your-backend.md.
 | --- | --- |
 | 200 | taken: `{"ok":true,"recorded":1,"duplicates":0}`; a repeat of the same event is a duplicate and changes nothing; an event Skald does not count is taken and ignored |
 | 400 | the body is not JSON, or not the tool's event (`lead`: a missing `external_ref` or `action`, an unknown `stage`, a time that is not a time, an event more than a day ahead) |
-| 401 | the signature (or, `lead` and `json`, the plain key) does not match, or its time is more than 5 minutes off. Failed attempts are written once a minute per hook, as a count |
+| 401 | the signature (or, `lead` and `json`, the plain key) does not match, or its time is more than 5 minutes off (`{"error":"bad signature"}`, logged `bad_signature`); or none of the tool's signature headers came at all (`{"error":"no signature"}`, logged `unsigned`, 2.45). Failed attempts are written once a minute per hook, as a count. Either refusal is held 24 hours ("Refused deliveries are held", below) |
 | 404 | unknown site or tool, no secret set, or (saas) a site still waiting for its domain to be verified |
 | 405 | not a POST; the one GET taken is `/traffic-hooks/<site>/leads` (2.18, INTEGRATIONS-LEADS.md) |
 | 411 / 413 | no length / a body over 64 KiB |
@@ -369,6 +369,28 @@ address instead (X-Real-IP on the proxy's connection: loopback or
 `hooks.trusted_proxies`; else the connection's address; kept in memory
 only). Tools retry on anything but 2xx; a retry is harmless, because a
 conversion is kept once per (site, tool, external ref, stage).
+
+### Refused deliveries are held (2.45)
+
+A delivery refused for its key, `unsigned` or `bad_signature`, is held for 24
+hours (`conversions/held.py`), never one of Skald's own tests (`X-Skald-Test: 1`)
+and never a `lead` or `json` sent with the plain key (holding it would mean keeping
+the key it sent). When someone then saves the hook's key in Settings > Leads & tools
+(**Paste**, **Make** or **Rotate**), Skald verifies every held delivery with it, with
+the tool's own check (a signed time must be within 5 minutes of when the delivery
+came, and it must have come in the last 24 hours), and takes in the ones that match
+through the usual road, with the time each first came: the spool, the event-type
+filter, the de-duplication, the store. Each is logged `accepted_held` (counted like
+any accepted delivery). The answer says what happened (`check`, below, "The
+Integrations page"). What is kept and for how long:
+[DATA-CONTRACT-CONVERSIONS.md](DATA-CONTRACT-CONVERSIONS.md), "Refused deliveries held".
+
+Why: a site's Calendly sent eight real bookings that Skald refused while every
+**Send a test** passed. A test is signed with the key Skald has and posted to
+itself, so it proves only the address; Calendly does not send a refused booking
+again, so those leads were lost. `unsigned` says the tool's webhook was made
+without a key: no key pasted into Skald can ever match it, and the fix is to make
+the webhook again with the key Skald gives.
 
 Cal.com and Typeform sign no timestamp, so a captured body could be sent
 again later. Skald keeps a SHA-256 of each accepted body and its event id
@@ -533,7 +555,13 @@ curl -sS -X POST https://api.calendly.com/webhook_subscriptions \
 ```
 
 A signing key Calendly made for an existing subscription can be pasted on
-the Integrations page instead.
+the Integrations page instead. With a personal access token the signing key
+is optional and chosen by you (`signing_key` above): Calendly never returns or
+shows it later, and a subscription made without one sends no signature at all.
+Skald logs those deliveries `unsigned` ("Calendly sent no signature"); nothing
+pasted can fix them: make the subscription again with Skald's key (and delete the
+old one). With an OAuth app Calendly makes one signing key per app, shown in its
+developer portal: paste that one.
 Events: `invitee.created` -> completed, `invitee.canceled` -> cancelled
 (rescheduled when Calendly says so), `invitee_no_show.created` -> no_show.
 
@@ -674,6 +702,24 @@ the drawer's.
   spaces, 12-500 characters (Stripe's must start `whsec_`), kept 0600 in
   `secrets.json`, never in an answer or the audit log (`hook.secret`,
   "pasted").
+- **The key, checked when it is saved** (2.45): the paste and the make/rotate
+  answers carry `check` (`conversions/key_check.py`): `{held, matched, taken,
+  recorded, refused_last_at, unsigned, verdict}`, the hook's refused deliveries
+  of the last 24 hours verified with the new key, and the ones it matched taken
+  in (`verdict`: `matches`, `no_match`, `unsigned` when every one held came
+  without a signature, `none_held`); null when the check itself failed (the key
+  is saved either way). Each tool in the GET also carries `key_word` (the
+  tool's own word: Calendly "signing key", Stripe "signing secret", HubSpot
+  "client secret", the others "secret"), `saved_at`, `saved_by` (a display
+  name, never an email) and `saved_how` ("made by Skald" or "pasted") from the
+  newest `hook.secret` audit row that saved a key (null when none says, for
+  example a key set with `skald hooks secret` or an environment variable),
+  `last_real` (the newest delivery that was not a test: `{at, outcome, words}`),
+  `since_saved` (`{accepted, refused, unsigned}` since the key was saved; null
+  when `saved_at` is) and `held` (refused deliveries waiting). **Send a test**
+  answers `proves: "address"` and `last_real`: only a real event from the tool
+  proves its key, and the set-up check (`POST <page>/sites/arrived`, `hook:<tool>`)
+  is good only after one was accepted since the key was saved.
 - **Remove** (`POST integrations/hooks/remove` `{site, tool}`, admin, with a
   confirm): deletes the hook's secret, so the receiver answers 404 to further
   deliveries, as for a hook never set up. The `deliveries` rows, the spool
@@ -849,6 +895,7 @@ blocks. Run `nginx -t` before every reload.
 | the verified bodies (and, on a `lead` or `json` line with a time without an offset, the zone it was read in) | `hooks/<day>.jsonl` beside the history (`hooks.spool`), 0640 | `conversions.retention_days` (400; 0: for good), each site's lines by its own |
 | recorded journeys (2.43): each consented event raw, with its address and email by the site's settings | same file, `recorded_events` (docs/JOURNEYS.md) | `journeys.vid_days` (30); address and email `privacy.keep_days` when shorter |
 | hook secrets | `secrets.json` beside the history (`hooks.secrets`), 0600, or env variables | until replaced |
+| refused deliveries (2.45): the raw body, the signature headers, when it came | `hooks-held/<site>/<tool>/` beside the history, one 0600 file each, at most 200 a hook | 24 hours (purged on each write, each key save, and by run-daily); never in a backup |
 
 - **Only what counts.** Before a body is spooled, Skald keeps only the
   keys that tool's adapter and the second count read (an allow-list per tool,
@@ -879,8 +926,9 @@ blocks. Run `nginx -t` before every reload.
 - **Delete on request:** `./bin/skald conversions forget --email ADDRESS`,
   `--vid skv_...` or `--lead REF` (or `./bin/skald forget` with the same flags;
   try `--dry-run` first) deletes the conversions, the removed rows, the
-  journeys of every visitor ID involved, the identity, the delivery rows and
-  the hook spool lines, and takes the visitor ID out of the beacon spool's
+  journeys of every visitor ID involved, the identity, the delivery rows,
+  the hook spool lines and the held deliveries holding the email, visitor ID
+  or reference (2.45), and takes the visitor ID out of the beacon spool's
   lines. `./bin/skald forget --ip` deletes the visits kept with an address.
   `privacy.log` gets a line with a hash prefix, never the value.
 - **Pruning:** `skald conversions prune` applies the "kept" column
@@ -911,6 +959,12 @@ days are kept in the audit's own file (`conversions-audit.json` beside the
 history) so each redraw reads only the newest spool files; `conversions
 forget` deletes it. Every figure of `conversions.json` is counted a second
 time by SQL (`audit_conversions_figures.py`); see DATA-CONTRACT.md.
+
+The hold (2.45) has its own second count, `audit_hooks_held.py` (run-daily,
+`audit_more.DAILY` "hooks_held"): the delivery log's `accepted_held` rows per tool
+against the spool's lines marked `"held": true` that its own reading keeps; a held
+file older than 24 hours (the purge failed); a held body with no refusal row for its
+hook within two minutes of when it came.
 
 ## Search Console, Bing and AI answers
 

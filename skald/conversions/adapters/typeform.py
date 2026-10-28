@@ -18,6 +18,7 @@ from .. import EVENTS
 from . import Invalid, hmac_b64, skald_vid, text, utm_touch, when
 
 HEADER = "typeform-signature"
+SIGNED = (HEADER,)          # no signature header at all: "unsigned"
 
 
 def verify(headers: dict, body: bytes, secret: str, now: float) -> bool:

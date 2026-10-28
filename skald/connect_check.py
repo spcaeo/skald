@@ -17,7 +17,9 @@ This module answers both.
   agent:<link id>   an agent line: opened, keys taken, reported (kit/agent.py), and the
                     first data when its jobs include the logs
   hook:<tool>       a tool's webhook (lead, json, calendly, calcom, stripe, typeform,
-                    hubspot): conversions/roads.hook_states
+                    hubspot): conversions/roads.hook_states. 2.45: good only after a
+                    real delivery accepted since the key was saved; a passing Test
+                    proves only the address (hook_keys.py)
   tag               the script tag: its events (connections_api.beacon_status)
   search            Search Console and Bing: the saved property and the sync's state
   tool:<id>         one of your own tools (yourtools: ga4, vercel, calendly, resend)
@@ -186,9 +188,26 @@ def _no_data(c, site: str) -> str:
 
 # ------------------------------------------------------------------ a webhook
 
+# What proves a tool's key: a real event of its own (Skald's Test proves only the address).
+HOOK_PROVE = {
+    "lead": "send your site's form once",
+    "json": "run your Zap, scenario or workflow once",
+    "calendly": "make a test booking",
+    "calcom": "make a test booking",
+    "stripe": "make a test payment (test mode is fine)",
+    "typeform": "send one answer to your form",
+    "hubspot": "make a test contact",
+}
+
+
 def hook(c, site: str, tool: str, press: bool = False) -> dict | None:
+    """A tool's webhook. 2.45: good only once a real delivery (never a test of
+    Skald's own, which is signed with the key Skald has and proves only the
+    address) was accepted since the key was saved (hook_keys.facts); refusals
+    since then say why, with the fix (roads.refused_words, hook_states' fix)."""
     from .conversions import TOOLS, store
-    from .conversions.roads import hook_states
+    from .conversions.roads import ACCEPTED, KEY_REFUSALS, hook_states, key_word, last_test
+    from .hook_keys import facts
     if tool not in TOOLS:
         return None
     folder = _folder(c)
@@ -196,34 +215,59 @@ def hook(c, site: str, tool: str, press: bool = False) -> dict | None:
     db = store.connect(path) if path is not None and Path(path).exists() else None
     try:
         states = {s["tool"]: s for s in hook_states(_site_config(c, site), folder, site, db)}
+        f = facts(c.db, db, folder, site, tool)
+        tested = last_test(db, site, tool)
     finally:
         if db is not None:
             db.close()
     t = states.get(tool) or {}
     name = t.get("name") or tool
     st = t.get("state")
-    steps = [{"id": "secret", "words": "The signing secret is saved in Skald",
-              "done": bool(t.get("set"))},
-             {"id": "test", "words": "Skald's own test worked", "done": bool(t.get("test_at")),
-              "at": t.get("test_at")},
-             {"id": "real", "words": f"A real delivery from {name} arrived",
-              "done": st == "received", "at": t.get("last_at")}]
+    kw = key_word(tool)
+    since, last = f["since_saved"], f["last_real"]
+    # The saved time unknown (a key set on the server): the newest real delivery says.
+    proven = since["accepted"] > 0 if since is not None else \
+        bool(last and last["outcome"] in ACCEPTED)
+    refused = (since["refused"] + since["unsigned"]) > 0 if since is not None else \
+        bool(last and last["outcome"] in KEY_REFUSALS)
+    test_ok = bool(tested and tested["outcome"] == "test" and
+                   (not f["saved_at"] or tested["received_at"] >= f["saved_at"]))
+    steps = [{"id": "secret", "words": f"The {kw} is saved in Skald",
+              "done": bool(t.get("set")), "at": f["saved_at"]},
+             {"id": "test", "words": "Skald's own test reached the address", "done": test_ok,
+              "at": tested["received_at"] if test_ok else None},
+             {"id": "real", "words": f"A real delivery from {name} was accepted with the {kw}",
+              "done": proven, "at": last["at"] if proven and last else None}]
     tech = f"{name}: {t.get('words')}" if t.get("words") else None
-    if st == "received":
-        attention = t.get("attention")
-        return _out("wait" if attention else "ok",
-                    f"Connected. The last delivery from {name} came at {_hm(t.get('last_at'))} "
-                    f"on {str(t.get('last_at'))[:10]}." if t.get("last_at") else
-                    f"Connected: deliveries from {name} arrive.",
-                    t.get("fix") if attention else None, None, steps, tech)
     if st in ("missing", "exposed"):
         return _out("bad", f"{name} cannot be read yet.", t.get("words"), t.get("fix"), steps, tech)
     if st == "needs_secret":
-        return _out("wait", f"Not set up yet: {name}'s signing secret is not saved here.", None,
-                    f"Make or paste the secret, then add the address in {name}.", steps, tech)
-    return _out("wait", f"Waiting for {name}: nothing real has arrived yet.",
-                "Skald's own test worked, so the address is ready." if t.get("test_at") else
-                f"Check that the address is saved in {name}.",
+        return _out("wait", f"Not set up yet: {name}'s {kw} is not saved here.", None,
+                    f"Make or paste the {kw}, then add the address in {name}.", steps, tech)
+    if last and last["outcome"] in KEY_REFUSALS and refused:
+        held = f.get("held") or 0
+        says = last["words"][:1].upper() + last["words"][1:] + "."
+        if held:
+            says += (f" {held} refused deliver{'y is' if held == 1 else 'ies are'} held for "
+                     f"24 hours: once the right {kw} is saved, Skald takes "
+                     f"{'it' if held == 1 else 'them'} in.")
+        return _out("bad", f"{name} is sending, but Skald refuses it.", says, t.get("fix"),
+                    steps, tech)
+    if proven:
+        attention = t.get("attention")
+        return _out("wait" if attention else "ok",
+                    f"Connected. The last delivery from {name} came at {_hm(last['at'])} "
+                    f"on {str(last['at'])[:10]}." if last and last.get("at") else
+                    f"Connected: deliveries from {name} arrive.",
+                    t.get("fix") if attention else None, None, steps, tech)
+    prove = HOOK_PROVE.get(tool, "send one real event")
+    if test_ok:
+        says = f"Skald's address works. Only a real {name} event proves the {kw}: {prove}."
+    elif f["saved_at"] and last:
+        says = f"Nothing real has arrived since the {kw} was saved."
+    else:
+        says = f"Check that the address is saved in {name}."
+    return _out("wait", f"Waiting for {name}: nothing real has arrived yet.", says,
                 HOOK_NEXT.get(tool), steps, tech)
 
 
