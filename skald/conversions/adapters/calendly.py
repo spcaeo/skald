@@ -16,6 +16,7 @@ from .. import EVENTS
 from . import Invalid, sign_timed, skald_vid, text, utm_touch, verify_timed, when
 
 HEADER = "calendly-webhook-signature"
+SIGNED = (HEADER,)          # no signature header at all: "unsigned"
 
 
 def verify(headers: dict, body: bytes, secret: str, now: float) -> bool:

@@ -205,8 +205,8 @@ def cmd_forget(ctx) -> int:
 def forget_person(ctx, email: str | None = None, vid: str | None = None,
                   lead: str | None = None, dry_run: bool = False) -> int:
     """Everything for one email, visitor ID or lead: conversions, removed
-    rows, identity, journeys, deliveries, spool lines (`conversions forget`
-    and `forget --email/--vid/--lead`)."""
+    rows, identity, journeys, deliveries, spool lines, held deliveries
+    (`conversions forget` and `forget --email/--vid/--lead`)."""
     from types import SimpleNamespace
     from .privacy import LOG, digest
     a = SimpleNamespace(email=email, vid=vid, lead=lead, dry_run=dry_run)
@@ -238,6 +238,9 @@ def forget_person(ctx, email: str | None = None, vid: str | None = None,
         return bool(values & texts)
 
     lines = spool.scrub(spool.spool_dir(ctx.config, folder), match, a.dry_run)
+    # 2.45: refused deliveries held for a key to be saved (conversions/held.py).
+    from .conversions import held
+    held_n = held.forget(folder, values, site, a.dry_run)
     # The beacon spool keeps its lines (the event audit counts them); only
     # the visitor ID comes out of them.
     from .beacon import spool_dir as beacon_spool
@@ -254,6 +257,9 @@ def forget_person(ctx, email: str | None = None, vid: str | None = None,
     if recorded:
         ctx.out(f"  recorded journeys: {verb} {recorded} event(s) sent by the site, with "
                 "their whole sessions")
+    if held_n:
+        ctx.out(f"  held deliveries: {verb} {held_n} refused deliver"
+                f"{'y' if held_n == 1 else 'ies'} waiting for a key")
     if not a.dry_run:
         from .audit_conversions import forget_cache
         forget_cache(folder)            # the beacon spool changed: count it again

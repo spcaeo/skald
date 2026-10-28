@@ -834,6 +834,11 @@ the lead findings the second count (`audit_conversions_leads.py`) disagreed
 with, left out. Rules and second count:
 [docs/DATA-CONTRACT-CONVERSIONS.md](docs/DATA-CONTRACT-CONVERSIONS.md).
 
+Refused hook deliveries (2.45) are held 24 hours, raw, 0600, so a key saved later
+takes them in (`accepted_held`): what, why and how long in
+[docs/DATA-CONTRACT-CONVERSIONS.md](docs/DATA-CONTRACT-CONVERSIONS.md), "Refused
+deliveries held".
+
 ## todos.json and lost_pages.json (2.35)
 
 Overview > Insights' to-do list and Site > Not found's lost pages, their second count

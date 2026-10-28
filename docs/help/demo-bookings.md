@@ -22,7 +22,7 @@ The best of both: embed the booking on your page, and turn on the webhook. Then 
 
 ## Set up the Calendly webhook
 
-1. In Skald: **Settings > This site > Leads & tools > Calendly** (in **Bookings**) **> Make secret**. Copy the secret and the address.
+1. In Skald: **Settings > This site > Leads & tools > Calendly** (in **Bookings**). To **How was your Calendly webhook made?** answer **Not made yet**: Skald makes the signing key and shows it once. Copy it and the address.
 2. In Calendly: make a personal access token (on Calendly's integrations page, under API and webhooks).
 3. Find your organisation's URI:
 
@@ -30,7 +30,7 @@ The best of both: embed the booking on your page, and turn on the webhook. Then 
 curl -s https://api.calendly.com/users/me -H "Authorization: Bearer $CALENDLY_TOKEN"
 ```
 
-4. Make the subscription. The `signing_key` is Skald's secret:
+4. Make the subscription. The `signing_key` is Skald's signing key (Calendly signs each booking with it and never shows it again):
 
 ```
 curl -sS -X POST https://api.calendly.com/webhook_subscriptions \
@@ -38,10 +38,10 @@ curl -sS -X POST https://api.calendly.com/webhook_subscriptions \
   -d '{"url": "https://stats.example.com/traffic-hooks/example.com/calendly",
        "events": ["invitee.created", "invitee.canceled", "invitee_no_show.created"],
        "organization": "https://api.calendly.com/organizations/<ORG>",
-       "scope": "organization", "signing_key": "<the hook secret>"}'
+       "scope": "organization", "signing_key": "<the signing key>"}'
 ```
 
-5. Press **Send a test event** in Calendly's details on Leads & tools. Then book a test call.
+5. Book a test call. Calendly's details on Leads & tools say **Working** once it is taken in. (**Test Skald's address** there checks Skald's side only.)
 
 A booking counts as a demo completed; a cancellation as cancelled (or rescheduled, when Calendly says so); a no-show as no-show.
 

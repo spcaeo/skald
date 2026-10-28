@@ -17,6 +17,11 @@ site's organisation and to install admins:
                                       tool made (Stripe, HubSpot; Calendly, Cal.com
                                       and Typeform may give their own too), kept
                                       0600 and never sent back
+       2.45: both answers carry `check` (conversions/key_check.py): the hook's
+       deliveries refused in the last 24 h and held, verified with the key just
+       saved; the ones it matches are taken in (accepted_held) with their time.
+       {held, matched, taken, recorded, refused_last_at, unsigned, verdict:
+       matches | no_match | unsigned | none_held}; null if the check failed
   POST integrations/hooks/remove      {site, tool}: delete the hook's secret, so its
                                       address answers 404 again; its deliveries
                                       stay in the log
@@ -27,7 +32,11 @@ site's organisation and to install admins:
   POST integrations/test              {site, tool}: a signed sample posted to the
                                       receiver in this process, marked as a test
                                       (read, logged as "test", never kept); the
-                                      answer says what a real one would keep
+                                      answer says what a real one would keep.
+                                      2.45: `proves: "address"` (it is signed with
+                                      the key Skald has, so it cannot prove the
+                                      tool's key) and `last_real`, the newest real
+                                      delivery {at, outcome, words} or null
   POST integrations/leadfile          {site, lang: php|node|python|wordpress, secret?}:
                                       the one-file lead helper (kit/leadfiles.py) as a
                                       download; wordpress is the plugin's zip. The
@@ -40,7 +49,12 @@ The GET also carries `status`: the doctor's lines for the integrations
 (doctor.integration_checks: the receiver, the script tag, each hook, one
 lead from two tools, the lead database), each tool's state in words
 (roads.hook_states: needs a secret, never received, ready, last received N
-ago; 2.43: last_at and test_at, when the last real and test delivery came) and
+ago; 2.43: last_at and test_at, when the last real and test delivery came; 2.45,
+hook_keys.facts: key_word, the tool's word for its key; saved_at, saved_by (a
+display name, never an email) and saved_how ("made by Skald" | "pasted"), from
+the audit log, null when unknown; last_real {at, outcome, words}; since_saved
+{accepted, refused, unsigned}, null when saved_at is; held, refused deliveries
+waiting in the hold) and
 `duplicates`, the external refs that arrived from two tools. 2.43: `found`, what the
 site check saw (FOUND_KEYS: the server, platform, framework, the tools named on the home
 page and its forms), or null when the site was never checked: Leads & tools and the "not
@@ -267,6 +281,8 @@ def tools(c: Ctx, site: str, db) -> list[dict]:
     from .doctor import command
     states = {s["tool"]: s for s in hook_states(conf, c.folder, site, db, cmd=command(
         c.config_path), base=base)}
+    from .hook_keys import facts
+    from .conversions.held import keeps as held_keeps
     out = []
     for tool in TOOLS:
         try:
@@ -286,8 +302,23 @@ def tools(c: Ctx, site: str, db) -> list[dict]:
                     "unplaced": states[tool].get("unplaced"),
                     "last_at": states[tool].get("last_at"), "test_at": states[tool].get("test_at"),
                     "event_types": _types(c, conf, site, tool),
-                    "deliveries": store.deliveries(db, site, tool, LOG_ROWS) if db else []})
+                    "deliveries": store.deliveries(db, site, tool, LOG_ROWS) if db else [],
+                    **facts(c.db, db, c.folder, site, tool, keeps=held_keeps(c.config, c.folder, site))})
     return out
+
+
+def _check(c: Ctx, site: str, tool: str, value: str) -> dict | None:
+    """The key just saved against the hook's held deliveries (key_check.py);
+    None, with one line on stderr, when the check itself failed: the key is
+    saved either way."""
+    from .conversions import key_check
+    try:
+        return key_check.check(c.config, c.folder, c.config_path, site, tool, value)
+    except Exception as why:                       # noqa: BLE001 - the save stands
+        import sys
+        sys.stderr.write(f"integrations: {site}/{tool}: the key check failed "
+                         f"({type(why).__name__})\n")
+        return None
 
 
 def _types(c: Ctx, conf: dict, site: str, tool: str) -> dict | None:
@@ -415,7 +446,8 @@ def secret(c: Ctx, form):
     secrets_store.put(path, secrets_store.key(site, tool), value)
     c.log("hook.secret", f"{site}/{tool}", "rotated" if had else "made")
     return c.ok(site=site, tool=tool, secret=value, rotated=had,
-                url=f"{_origin(c)}/traffic-hooks/{site}/{tool}")
+                url=f"{_origin(c)}/traffic-hooks/{site}/{tool}",
+                check=_check(c, site, tool, value))
 
 
 def _hook_change(c: Ctx, form):
@@ -460,7 +492,8 @@ def paste(c: Ctx, form):
     secrets_store.put(path, secrets_store.key(site, tool), value)
     c.log("hook.secret", f"{site}/{tool}", "pasted, replaced" if had else "pasted")
     return c.ok(site=site, tool=tool, replaced=had,
-                url=f"{_origin(c)}/traffic-hooks/{site}/{tool}")
+                url=f"{_origin(c)}/traffic-hooks/{site}/{tool}",
+                check=_check(c, site, tool, value))
 
 
 def remove(c: Ctx, form):
@@ -525,7 +558,17 @@ def test(c: Ctx, form):
     receiver = hooks_mod.receiver(c.config, c.folder, c.config_path)
     status, got = receiver.process(site, tool, headers, body, value)
     c.log("hook.test", f"{site}/{tool}", f"{status}")
-    return c.ok(site=site, tool=tool, status=status, answer=got)
+    from .conversions.roads import last_real
+    path = store.path_for(c.config, c.folder)
+    db = store.connect(path) if path is not None and Path(path).exists() else None
+    try:
+        last = last_real(db, site, tool)
+    finally:
+        if db is not None:
+            db.close()
+    # Signed with the key Skald has, sent to itself: it proves the address, never the key.
+    return c.ok(site=site, tool=tool, status=status, answer=got, proves="address",
+                last_real=last)
 
 
 def leadfile(c: Ctx, form):

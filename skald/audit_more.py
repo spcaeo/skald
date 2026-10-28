@@ -64,7 +64,8 @@ DAILY: dict[str, str] = {"conversions": "audit_conversions", "alerts": "audit_al
                          "ai_answers": "audit_ai_answers",
                          "security_alerts": "audit_security", "stack": "audit_stack",
                          "sitemap_lastmod": "audit_lastmod", "page_trends": "audit_page_trends",
-                         "ai_ready": "audit_ai_ready", "recorded_journeys": "audit_journeys"}
+                         "ai_ready": "audit_ai_ready", "recorded_journeys": "audit_journeys",
+                         "hooks_held": "audit_hooks_held"}
 
 
 def _modules(registry: dict) -> dict:

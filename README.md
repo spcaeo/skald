@@ -51,12 +51,15 @@
 
 ## What's new
 
+- **2.44.1: a webhook key that does not match loses nothing** ([changelog](CHANGELOG.md#2441-2026-10-28)).
+  Refused deliveries are held and taken in once the right key is saved; each tool says its key
+  in its own word, keeps the saved state on screen, and the Test says it checks Skald's side only.
 - **2.44: set-ups that say whether they worked, AI agents that add sites** ([changelog](CHANGELOG.md#2440-2026-10-28)).
   Every line, command and key you hand on shows its live status, with a Test; Search Console
   connects by itself and Traffic › Search shows its history arriving; an Add sites token lets an
   AI agent add sites over MCP, within the plan; leads from your own server get their country,
   with a warning when they stop; a short welcome line on a new person's first load.
-- **2.43: your own tools beside the log, organisations you manage** ([changelog](CHANGELOG.md#2430-2026-10-27)).
+- **2.43: your own tools beside the log, organisations you manage** ([changelog](docs/CHANGELOG-2.43.md#2430-2026-10-27)).
   Google Analytics 4, Vercel Web Analytics, Calendly and Resend, read with your own key, shown
   apart and labelled, never added to the log's counts; Settings › Organisations with site access
   per person; Add a site with live progress and invites when the data arrives; every empty page

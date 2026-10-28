@@ -228,6 +228,36 @@ without `zone` was kept as UTC, and is read so). An event a Calendly or
 Cal.com event-type filter leaves out is never spooled or stored, so neither
 road counts it.
 
+**Refused deliveries held (2.45).** What: a hook delivery refused for its key,
+`unsigned` (none of the tool's signature headers came) or `bad_signature` (one came
+and did not match), is kept as it came: the raw body, only the headers that verify
+it (the tool's signature headers, HubSpot's timestamp, the content type, the method
+and the public address the tool called; never `Authorization`), when it came and
+why it was refused. One file each, `hooks-held/<site>/<tool>/<ms>-<random>.json`
+beside the history, 0600 in 0700 folders (`conversions/held.py`). Never a test of
+Skald's own (`X-Skald-Test: 1`), never a `lead` or `json` sent with the plain key.
+Why: so a key saved later still takes in the real events the tool sent meanwhile; the
+tools do not send a refused event again (a site's Calendly lost eight bookings this
+way while Skald's own Test passed). How long: 24 hours from when it came, at most 200
+a hook (the oldest go first), each at most the receiver's 64 KiB; purged on every
+write, on every key save and by run-daily (`conversions/jobs.py`). A site that keeps everything (internal and enterprise sites: `keep_everything.py`) has none purged by age or count: they wait until a saved key takes them in or a person's deletion request removes them; past 2,000 a hook no more are held, and no old one is deleted to make room (`held.keeps`, `KEEP_ALL_CAP`). It is held, not
+counted: nothing here is a figure until a key verifies it. Never logged, never in
+`skald backup` (which copies the databases only) or a site's archive, never shown:
+pages say only how many wait. `skald forget --email/--vid/--lead` deletes the held
+bodies holding that value; clearing or deleting a site's data deletes its folder.
+
+When a key is saved (Settings > Leads & tools: paste, make, rotate),
+`conversions/key_check.py` verifies each held delivery with it by the tool's own
+adapter, its time window moved from "now" to when the delivery came (a signed time
+within 5 minutes of it; the delivery within the last 24 hours). One that matches is
+taken in by the receiver's normal road (spool, event-type filter, de-duplication by
+external ref and stage, a lead's own `test`, the store) with that time as its
+`received_at`; its spool line carries `"held": true`, its delivery row outcome
+`accepted_held` (counted like `recorded` and `duplicate` wherever accepted deliveries
+are), and it leaves the hold. Delivery outcomes 2.45 adds: `unsigned`, `accepted_held`;
+older `bad_signature` rows read as before. Second count: `audit_hooks_held.py`
+(INTEGRATIONS.md, "The second count").
+
 **Shares at low volume.** The web app shows a share (`time_to_convert`,
 `visits_before`, and every other share of a small base) only over at least
 `min_rate` (10); below it, the counts alone.

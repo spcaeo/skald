@@ -4,7 +4,7 @@ Your site's server tells Skald each time a lead is made. The quick way: download
 
 ## The quick way: one file, one function
 
-1. In the dashboard, open **Settings > This site > Leads & tools > Incoming hooks > Your site's server (lead)** and press **Make secret**. The secret is shown once.
+1. In the dashboard, open **Settings > This site > Leads & tools > Incoming hooks > Your site's server (lead)** and press **Make the secret**. The secret is shown once.
 2. In the same box, download the file for your site's language. Downloaded right after you made the secret, the file holds it and works as it is. Downloaded later, it holds no secret: set the environment variable `SKALD_LEAD_SECRET` on your server (every file reads it first, so it is the better place anyway).
 3. Put the file next to your code and add one line where your form is saved:
 
@@ -53,7 +53,7 @@ On the server:
 sudo skald hooks secret example.com lead
 ```
 
-Or in the dashboard: **Settings > This site > Leads & tools > Incoming hooks > Your site's server (lead) > Make secret**. Docker: `docker exec skald skald hooks secret example.com lead` (in Docker, run every `skald` command in this guide the same way, without `sudo`).
+Or in the dashboard: **Settings > This site > Leads & tools > Incoming hooks > Your site's server (lead) > Make the secret**. Docker: `docker exec skald skald hooks secret example.com lead` (in Docker, run every `skald` command in this guide the same way, without `sudo`).
 
 It prints the secret once, and the address to post to. With `access.base_url` set, the address is the real one, such as `https://stats.example.com/traffic-hooks/example.com/lead`.
 
@@ -243,7 +243,7 @@ Or allow the path `/traffic-hooks/` in Cloudflare's security rules for your serv
 sudo skald hooks test example.com lead
 ```
 
-It posts a signed sample, marked as a test: read, never kept. It says what a real one would keep: the action, the stage, the source, and whether the visitor ID is kept. **Send a test event** on the Incoming hooks tab does the same.
+It posts a signed sample, marked as a test: read, never kept. It says what a real one would keep: the action, the stage, the source, and whether the visitor ID is kept. **Test Skald's address** in the hook's details on Leads & tools does the same.
 
 Then send a real lead. The Incoming hooks tab shows "last received 2 min ago (kept)", and `sudo skald doctor` shows the hook as OK.
 

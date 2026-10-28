@@ -6,7 +6,7 @@ How to connect Calendly, Cal.com, HubSpot, Typeform, Stripe, Zapier, Make and yo
 
 Each tool gets its own address in Skald and its own secret. When something happens (a booking, a payment, a form), the tool sends a signed message to that address. Skald checks the signature, records the conversion once, and lists it on [Leads & sales > Leads](#sales/leads), counts it on [Summary](#sales/summary) (with **Count from: Tools**) and, for a booking or a payment, on [Calendar bookings](#sales/bookings).
 
-All of this is set up on one page: **Settings > This site > Leads & tools**, or [Leads & tools](#settings/site/leads). It starts with **Next step for example.com**: what Skald found on your site and the single most useful thing to connect, with one **Connect** (see [Leads & tools: what to connect next](leads-and-conversions.md#leads-tools-what-to-connect-next)). Then every source is in a group by what it is for (Leads from your forms, Bookings, Payments, Search, Your own tools, Recorded journeys, Send each lead out). Each row has its state (**Connected**, **Waiting**, **Failing**, **Not connected**), when it last sent, and one action: **Connect**, or its details. Press a row for its details: its address, its secret, a test event, the last deliveries, and Remove. A connected row also links to its data (**See leads**, **See bookings**). A red line with **Fix** shows only when something is broken. Sources that do not fit your site are folded under **More you can connect**. **Every check**, at the foot, lists each road into Skald with the server's own words. Each tool's details have their own link: `#settings/site/leads?tool=calendly`.
+All of this is set up on one page: **Settings > This site > Leads & tools**, or [Leads & tools](#settings/site/leads). It starts with **Next step for example.com**: what Skald found on your site and the single most useful thing to connect, with one **Connect** (see [Leads & tools: what to connect next](leads-and-conversions.md#leads-tools-what-to-connect-next)). Then every source is in a group by what it is for (Leads from your forms, Bookings, Payments, Search, Your own tools, Recorded journeys, Send each lead out). Each row has its state (**Connected**, **Waiting**, **Failing**, **Not connected**), when it last sent, and one action: **Connect**, or its details. Press a row for its details: whether it works now, its key in the tool's own word (when it was saved and by whom), its address, Test Skald's address, the last deliveries, and Remove. A connected row also links to its data (**See leads**, **See bookings**). A red line with **Fix** shows only when something is broken. Sources that do not fit your site are folded under **More you can connect**. **Every check**, at the foot, lists each road into Skald with the server's own words. Each tool's details have their own link: `#settings/site/leads?tool=calendly`.
 
 - You need to be an admin or owner of the site's organisation. Viewers do not see this page.
 - The page needs a server with accounts. Without it, the page says so, and the person who runs your Skald server sets up hooks on the server instead.
@@ -18,67 +18,65 @@ Or let your AI agent do it: on **Settings > To do** (or the site's **Set up** li
 
 **Every check** (`tool=checks`) lists each road into Skald for this site, with **OK**, **Needs attention** (and what to do) or **Off**: the hook receiver, the script tag, each hook that is set up, one lead sent by two tools, and the lead database. The server's doctor command (`skald doctor`; Docker: `docker exec skald skald doctor`) shows the same lines, and checks the rest of the install too.
 
-Each tool's details (its row on Leads & tools) have:
+Each tool's details (its row on Leads & tools), top to bottom:
 
-- Its **address**, with a copy button. It looks like `https://analytics.example.com/traffic-hooks/example.com/calendly`. Always copy yours from the page.
-- A badge: **no secret**, **secret set**, or **set (environment ...)** when the secret is kept on the server.
-- Its state in words: **needs a secret**, **never received** (set up, but nothing has come, not even a test), **ready** (a test passed, nothing real yet), or **last received 2 h ago**. When the last message was refused, it says why and what to do.
-- **Make secret** (or **Rotate secret** once there is one), for the tools that take a secret Skald makes.
-- **Paste the signing secret from ...**, for the tools that make their own secret (Stripe, HubSpot). Calendly, Cal.com and Typeform have both: use either one.
-- **Send a test event**.
-- **Remove**, once the hook has a secret.
-- **Last deliveries**: the last 50 messages, with when, the answer, the outcome and any detail.
+- **The live line**: a pill (**Working**, **Waiting**, **Needs a fix**) and one sentence that update by themselves, with the next thing to do under it and **Check for a real one**. It says **Working** only once a real delivery was taken in since the key was saved.
+- **Which way the key goes**, in one line, in the tool's own word. For example: "Skald gives Calendly a signing key; Calendly signs each booking with it."
+- **What is saved**: "Signing key saved 28 Oct 10:16 by Ann (pasted)" or "(made by Skald)", with **Replace**. It stays after you save or make one, and after you close and open the details again.
+- **One question first**, for the tools that take either key (Calendly, Cal.com, Typeform): see [The key](webhooks.md#the-key) below. Your answer is in the page's link (`&how=`), so a link opens on it.
+- **The address**, with copy and open buttons. It looks like `https://analytics.example.com/traffic-hooks/example.com/calendly`. Always copy yours from the page.
+- **Test Skald's address**, and the last real delivery beside it.
+- **Details**, folded: the state in words, the last 50 deliveries (when, the answer, the outcome and any detail) and **Remove**.
 
-A hook does nothing until it has a secret. Without one, its address answers "not found".
+A hook does nothing until it has a key. Without one, its address answers "not found".
 
-### The secret
+### The key
 
-Who makes the secret depends on the tool:
+Each tool calls its key by its own name, and Skald uses the same word:
 
-| Tool | The secret |
-| --- | --- |
-| Your site's server (lead), Zapier, Make, n8n (json) | Skald makes it: **Make secret** |
-| Calendly, Cal.com, Typeform | Either one: **Make secret** and give it to the tool, or paste the tool's own |
-| Stripe, HubSpot | The tool makes it: **Paste the signing secret from ...** |
+| Tool | Its word | Who makes it |
+| --- | --- | --- |
+| Your site's server (lead), Zapier, Make, n8n (json) | secret | Skald: **Make the secret** |
+| Calendly | signing key | Skald, or you chose one in the request that made the webhook |
+| Cal.com, Typeform | secret | Skald, or the one the webhook already has |
+| Stripe | signing secret | Stripe: paste it |
+| HubSpot | client secret | your HubSpot app: paste it |
 
-To make a secret in Skald:
+For Calendly, Cal.com and Typeform the details ask one question first, and show only that way:
 
-1. Press **Make secret**.
-2. The secret is shown once, with the address. Copy both.
-3. Paste the secret into the other tool (each section below says where).
-4. Press **I have copied it**. The secret is not shown again.
+- Calendly: **How was your Calendly webhook made?** **Not made yet** (Skald makes the signing key; the steps and the one API request have it filled in), **Made with an API request that had a signing_key** (paste that value), or **Made without a signing key, or not sure** (make the webhook again; see [Calendly](webhooks.md#calendly)).
+- Cal.com and Typeform: **Has Cal.com given you a secret?** **No** (Skald makes it) or **Yes** (paste it).
 
-To paste a tool's own secret:
+A key Skald makes is shown once, with a copy button: "Shown once: copy it now". Give it to the tool (each section below says where), then press **I have copied it**. What is saved stays on the page; the key itself is never shown again. A pasted key is never shown either, not even to you.
 
-1. Copy the signing secret in the other tool (each section below says where).
-2. In that tool's box in Skald, paste it into **Paste the signing secret from ...**.
-3. Press **Save secret**. The box says **secret set**. Skald never shows the secret again, not even to you.
+After you save or make a key, Skald checks it against the tool's last refused deliveries and says what it found:
 
-To replace a pasted secret, paste the new one and save again.
+| The page says | What it means | What to do |
+| --- | --- | --- |
+| It matches Calendly's booking from 10:13. 8 bookings taken in. | The key is right. The bookings refused before are counted now. | Nothing. |
+| This is not the key Calendly signs with: Calendly's delivery at 11:37 still does not match. | The value you pasted is not the one the tool signs with. | Copy the right one (the line says where), not your token or the webhook address, and paste again. |
+| Calendly sends no signature: the webhook was made without a signing key. | The tool's deliveries carry no signature at all, so no key can match. | Make the webhook again with Skald's key (the page shows how). |
+| Saved. Skald checks it against Calendly's next booking. | No refused delivery to check it against yet. | Book a test call, or wait for the next real one. |
 
-> Treat a secret like a password. Never put it in an email, a chat, a ticket or a shared document. Anyone with it can send fake conversions. If one leaks, press **Rotate secret** (or make a new secret in the tool and paste it): the old one stops working at once, and you give the new one to the tool.
+> Treat a key like a password. Never put it in an email, a chat, a ticket or a shared document. Anyone with it can send fake conversions. If one leaks, make a new one (or a new one in the tool, and paste it): the old one stops working at once, and you give the new one to the tool.
 
-If the box says **set (environment ...)**, the secret is kept on the server. It cannot be made, pasted or removed on this page: ask the person who runs your Skald server.
+If the details say the key is kept in the server's environment, it cannot be made, pasted or removed on this page: ask the person who runs your Skald server.
 
-### The test button
+### Test Skald's address
 
-**Send a test event** sends a signed sample to Skald's own receiver for that tool. It checks the signature and reads the sample, then keeps nothing and counts nothing. The page says "the test was signed, received and read", and what a real message would keep: the action, its stage, the source, country and device, and whether the visitor ID is kept. With visitor IDs off for the site, the visitor ID is dropped, as it is for a real message. The test shows as "test, read and not kept" in Last deliveries.
+**Test Skald's address** sends a signed sample to Skald's own receiver for that tool, signed with the key Skald holds. It checks the signature and reads the sample, then keeps nothing and counts nothing. So it proves that Skald's address answers, and nothing about the other tool: the page says "Skald's address answers. This does not check Calendly's signing key: only a real booking does." Beside it is the last real delivery: "Last real booking: refused at 11:37, the signing key does not match", "accepted at 10:13" or "none yet". The test shows as "test, read and not kept" in the deliveries.
 
 The server has the same test: `skald hooks test example.com lead`.
 
-The test checks Skald's side only. To check the other tool, use its own "send test" button, if it has one, and look at Last deliveries.
+Only a real delivery from the tool shows that the tool and Skald share the same key: book a test call, send a test form or payment, or use the tool's own "send test" button, then look at the live line.
 
 ## Calendly
 
-Calendly sends webhooks on its paid plans (Standard or higher). It has no screen for them: they are made through Calendly's API, usually by a developer.
+Calendly sends webhooks on its paid plans (Standard or higher). Calendly webhooks are made with Calendly's API, usually by a developer, with a personal access token. The request that makes the webhook can carry a `signing_key`: a value you choose. Calendly signs each booking with it and never shows it again. A webhook made without one sends no signature, and no key can be added to it later. (A Calendly OAuth app has one signing key per app, in Calendly's developer portal.)
 
-1. In Skald, open the **Calendly** box, press **Make secret**, and copy the address and the secret.
-2. Make a webhook subscription in Calendly with that address. Use the secret as the subscription's **signing key**.
-3. Choose these events: `invitee.created`, `invitee.canceled`, `invitee_no_show.created`.
+In Skald, open the **Calendly** details and answer **How was your Calendly webhook made?**
 
-If your subscription already has a signing key from Calendly, paste that key into **Paste the signing secret from Calendly** instead of making one.
-
-A developer can make the subscription with one request:
+**Not made yet.** Skald makes the signing key and shows it once. The details then show the one request, with the address and the key filled in:
 
 ```
 curl -X POST https://api.calendly.com/webhook_subscriptions \
@@ -86,9 +84,15 @@ curl -X POST https://api.calendly.com/webhook_subscriptions \
   -H "Content-Type: application/json" \
   -d '{"url": "https://analytics.example.com/traffic-hooks/example.com/calendly",
        "events": ["invitee.created", "invitee.canceled", "invitee_no_show.created"],
-       "organization": "https://api.calendly.com/organizations/<your-organization-id>",
-       "scope": "organization", "signing_key": "<your-secret>"}'
+       "organization": "<your-organization-uri>",
+       "scope": "organization", "signing_key": "<the signing key>"}'
 ```
+
+Your organisation's URI is `current_organization` in the answer to `curl -sS https://api.calendly.com/users/me -H "Authorization: Bearer <your-calendly-token>"`.
+
+**Made with an API request that had a signing_key.** Paste that value (the `signing_key` of the request, not your Calendly token and not the webhook address) and press **Save signing key**. Skald says at once whether it matches the bookings Calendly sent.
+
+**Made without a signing key, or not sure.** Make the webhook again: Skald makes a new signing key, then the details give two requests, each with a copy button. The first lists your webhooks (the old one has `"callback_url"` set to Skald's address) and deletes it by its `uri`. The second makes it again with Skald's key. **Let your AI agent do it** gives the same job to your AI agent, which runs both with your Calendly token and never shows the key.
 
 What Skald records: a booking (Demos, completed), a cancellation (cancelled, or rescheduled when Calendly says so) and a no-show. To join a booking to the visitor's journey, the tracking script adds the visitor ID to Calendly links as `utm_content`. See [The tracking script](tracking-script.md).
 
@@ -104,13 +108,13 @@ Any other event type is answered "OK" and left out: nothing is kept, and Last de
 
 ## Cal.com
 
-1. In Skald, open the **Cal.com** box, press **Make secret**, and copy the address and the secret.
+1. In Skald, open the **Cal.com** details. To **Has Cal.com given you a secret?** answer **No**: Skald makes it. Copy the address and the secret.
 2. In Cal.com, go to **Settings > Developer > Webhooks > New**.
 3. **Subscriber URL**: paste the address.
 4. **Event triggers**: Booking Created, Booking Cancelled, Booking Rescheduled.
 5. **Secret**: paste the secret. Save.
 
-If the Cal.com webhook already has a secret of its own, paste it into **Paste the signing secret from Cal.com** in Skald instead.
+If the Cal.com webhook already has a secret of its own, answer **Yes** and paste it into **Paste the secret from Cal.com** instead.
 
 To join a booking to the journey, pass the visitor ID in the embed as `metadata[skv]`, or add a hidden booking question named `skv`.
 
@@ -121,7 +125,7 @@ To keep only some event types, enter their ids (`1234`) or names (`30min`) in **
 HubSpot signs its messages with your HubSpot app's **client secret**. Skald cannot make one for it.
 
 1. In your HubSpot app, open **Auth** and copy the **Client secret**.
-2. In Skald's **HubSpot** box, paste it into **Paste the signing secret from HubSpot** and press **Save secret**.
+2. In Skald's **HubSpot** details, paste it into **Paste the client secret from HubSpot** and press **Save client secret**.
 3. In your HubSpot app, open **Webhooks** and set the **Target URL** to the address from the **HubSpot** box.
 4. Subscribe to `contact.creation` (counted as a Contact form), to `object.creation` for meetings (counted as a Demo), and to `deal.propertyChange` for `dealstage` (a deal moved to closed won counts as a won Deal).
 
@@ -131,11 +135,11 @@ You can also use a HubSpot workflow's **Send a webhook** action, signed by the s
 
 ## Typeform
 
-1. In Skald, open the **Typeform** box, press **Make secret**, and copy the address and the secret.
+1. In Skald, open the **Typeform** details. To **Has Typeform given you a secret?** answer **No**: Skald makes it. Copy the address and the secret.
 2. In Typeform, open your form, then **Connect > Webhooks > Add a webhook**. Paste the address.
 3. Open the webhook's settings (**Edit**) and paste the secret into **Secret**. Save, and turn the webhook on.
 
-If the Typeform webhook already has a secret of its own, paste it into **Paste the signing secret from Typeform** in Skald instead.
+If the Typeform webhook already has a secret of its own, answer **Yes** and paste it into **Paste the secret from Typeform** instead.
 
 Typeform sends every response. Skald counts each as a Contact form, completed. To join it to the journey, add a hidden field `skv` to the form and fill it in the embed. Hidden `utm_*` fields give the last touch. Skald never reads the answers.
 
@@ -147,7 +151,7 @@ Stripe makes its own signing secret, which starts with `whsec_`.
 2. **Endpoint URL**: paste the address from the **Stripe** box.
 3. Events: `checkout.session.completed` and `checkout.session.async_payment_succeeded`; for revenue (2.32.0) also `invoice.paid` (a subscription's renewals), `invoice_payment.paid` (ties a renewal's payment to its invoice on Stripe's API 2025-03-31 and later, so its refund is found) and `charge.refunded` (refunds).
 4. Save, then reveal the endpoint's **Signing secret**.
-5. In Skald's **Stripe** box, paste it into **Paste the signing secret from Stripe** and press **Save secret**. Skald cannot make a secret for Stripe.
+5. In Skald's **Stripe** details, paste it into **Paste the signing secret from Stripe** and press **Save signing secret**. Skald cannot make one for Stripe.
 
 Skald counts a paid Checkout as a Payment. A Checkout paid by a delayed method counts as started first, then paid. To join it to the journey, set the visitor ID as the Checkout Session's `client_reference_id`, or as `metadata.skv`. Skald keeps each payment's amount and currency, and the Stripe customer ID (`cus_...`) so a renewal joins its first sale; a refund takes its amount off on the day it arrives, and a later, larger total takes the difference off on its own day. All of it shows on [Leads & sales > Revenue](#sales/revenue) ([Revenue](revenue.md)). Skald never reads the customer's name, email or address.
 
@@ -155,7 +159,7 @@ Skald counts a paid Checkout as a Payment. A Checkout paid by a delayed method c
 
 Use the **Zapier, Make, n8n (json)** box. This hook takes the same fields as your own site's lead push (next section).
 
-1. Press **Make secret** in that box, and copy the address and the secret.
+1. Press **Make the secret** in its details, and copy the address and the secret.
 2. Keep the secret in the tool's own secure storage, not in a plain text step.
 3. Send the secret as a plain key, with no code: a POST to the address with these headers and a JSON body.
 
@@ -183,7 +187,7 @@ If your website's database is not read by Skald directly, your site's server can
 
 The quickest way: download the one file for your site's language from that box (PHP, Node, Python, or a WordPress plugin that needs no code) and call one function when a form is saved. See [Send leads from your backend](leads-from-your-backend.md). To write it yourself:
 
-1. Press **Make secret**, and copy the address and the secret.
+1. Press **Make the secret**, and copy the address and the secret.
 2. Give both to your developer. They keep the secret in the server's settings, never in the code.
 3. Your server sends a `POST` with a JSON body and this header:
 

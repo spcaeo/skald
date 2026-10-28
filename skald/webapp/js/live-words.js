@@ -99,6 +99,12 @@ export const checkedAt = (iso, clock = hm) => (iso ? `Last checked ${clock(iso)}
    for a page that shows a webhook address. */
 export function hookWords(t, name) {
   if (!t) return { verdict: null, words: "" };
+  // 2.45: real deliveries refused since the key was saved, and none accepted: never "Connected".
+  const s = t.set !== false && t.since_saved && typeof t.since_saved === "object" ? t.since_saved : null;
+  if (s && !Number(s.accepted || 0) && (Number(s.refused || 0) > 0 || Number(s.unsigned || 0) > 0)) {
+    return { verdict: "bad", words: `${name}'s deliveries are refused: ${Number(s.unsigned || 0) && !Number(s.refused || 0) ? "they carry no signature" : "the key they are signed with does not match the one saved here"}.` };
+  }
+  if (s && !Number(s.accepted || 0)) return { verdict: "wait", words: `Waiting for ${name}: no real delivery since the key was saved.` };
   if (t.state === "received") return { verdict: "ok", words: `Connected. The last delivery from ${name} came ${t.last_at ? `at ${hm(t.last_at)} UTC on ${String(t.last_at).slice(0, 10)}` : "recently"}.` };
   if (t.state === "missing" || t.state === "exposed") return { verdict: "bad", words: `${name} cannot be read yet: its signing secret is not saved here.` };
   if (t.state === "never" || t.state === "ready") return { verdict: "wait", words: `Waiting for ${name}: nothing has arrived yet.${t.test_at ? " Skald's own test worked." : ""}` };

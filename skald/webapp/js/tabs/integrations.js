@@ -9,14 +9,21 @@
 // to fix; each hook's state in words; the Calendly and Cal.com event types to
 // keep. Search Console and Bing (search-connect.js): the keys and each site's
 // connect wizard. For admins; install admins may pick any site of the install. GET/POST <page>/integrations (integrations_api.py).
+//
+// 2.45: one tool's drawer (tool=<id>) is hook-key-ui.js hookDrawer: the live line on top, the
+// tool's own word for its key, the one question first (how=), what is saved and by whom, the
+// paste's answer, and Test Skald's address, which says it proves the address only.
 
 import { h } from "../ui.js";
+import * as S from "../state.js";
 import { call } from "./ipmanager.js";
 import { isViewer, sessions, VIEWER } from "../access.js";
 import { head1, copyable, field, input, status, confirmIn, when, why } from "./forms.js";
 import { howTo } from "./help.js";
 import { partOf } from "./prefs.js";
 import { pill } from "./set-ui.js";
+import { keyWord, realState, testWords as honestTest, checkWords } from "../hook-key.js";
+import { hookDrawer } from "./hook-key-ui.js";
 
 // AI answers: each assistant's API key (settings_store ai_answers.<provider>_key, install
 // admins; write-only, kept in secrets.json, the environment wins). The questions of the
@@ -43,14 +50,18 @@ const EVENT_WORDS = {
   "todo.new": "a new to-do on Overview > Insights: its title, proof and figures, and the link that opens Fix this (never a code, never its rows)",
 };
 const STATE = { OK: ["on", "OK"], "NEEDS ATTENTION": ["warn", "Needs attention"], OFF: ["off", "Off"] };
-const OUTCOME = { recorded: "kept", duplicate: "already had it", ignored: "not a conversion", test: "test, read and not kept", test_failed: "test refused", bad_signature: "bad signature", bad_body: "not readable", too_large: "too large", no_length: "no length", rate_limited: "too many", error: "error", marked_test: "leads marked test by the site", unmarked_test: "test mark taken off by the site" };
+const OUTCOME = { recorded: "kept", duplicate: "already had it", ignored: "not a conversion", test: "test, read and not kept", test_failed: "test refused", bad_signature: "bad signature", unsigned: "refused: no signature", accepted: "kept", accepted_held: "taken in after the key was saved", bad_body: "not readable", too_large: "too large", no_length: "no length", rate_limited: "too many", error: "error", marked_test: "leads marked test by the site", unmarked_test: "test mark taken off by the site" };
 
 // A secret just made: kept in this page's memory only, until it is copied.
 let fresh = null;
 let chosen = "";
+// 2.45: the last paste's or make's answer (check) by tool, and the tool whose Replace is open,
+// so a redraw after Save keeps saying what happened.
+let checks = {};
+let asking = "";
 /* The site the hooks are for (an install admin may pick another; set-leads.js). */
 export const integSite = () => chosen;
-export function setIntegSite(site) { if (site !== chosen) { chosen = site || ""; fresh = null; } }
+export function setIntegSite(site) { if (site !== chosen) { chosen = site || ""; fresh = null; checks = {}; asking = ""; } }
 export const integPath = () => `integrations${chosen ? `?site=${encodeURIComponent(chosen)}` : ""}`;
 
 function deliveriesTable(rows, caption, cols) {
@@ -108,9 +119,15 @@ function checksList(r) {
 /* A tool's state as a pill (v2: Leads & tools' rows and its drawer). */
 export function toolKind(t) {
   if (t.problem || ["missing", "exposed"].includes(t.state) || (t.attention && t.state === "received")) return ["bad", "Not working"];
+  // 2.45: what the real deliveries since the key was saved say wins (connect_check agrees):
+  // never Working while only refused or unsigned ones came, and never green on a test alone.
+  const real = t.set ? realState(t) : null;
+  if (real === "bad") return ["bad", "Not working"];
+  if (real === "good") return ["good", "Working"];
+  if (real === "wait") return ["warn", "Waiting"];
   if (t.state === "never") return ["warn", "Nothing yet"];
   if (t.state === "received") return ["good", "Working"];
-  if (t.state === "ready") return ["good", "Ready"];
+  if (t.state === "ready") return ["warn", "Waiting"];
   return ["off", "Not set up"];
 }
 const toolPill = (t) => pill(...toolKind(t));
@@ -137,14 +154,10 @@ export function codeSpans(text) {
   return String(text).split("`").map((part, i) => (i % 2 ? h("code", null, part) : part)).filter((x) => x !== "");
 }
 
-// What a test said a real delivery would keep, in words.
-function testWords(name, r) {
-  const a = r.answer || {};
-  if (r.status !== 200) return `${name}: the receiver answered ${r.status}: ${a.error || "refused"}.`;
-  const kept = a.would_keep ?? a.records ?? 0;
-  const one = (a.read || [])[0];
-  const facts = one ? ` (${[one.action, one.stage, one.source_type, one.country, one.device].filter(Boolean).join(", ")}; visitor ID ${one.vid ? "kept" : "none"})` : "";
-  return `${name}: the test was signed, received and read. A real one would keep ${kept} of ${a.records ?? 0}${facts}. Nothing was kept.${(a.notes || []).length ? ` Note: ${a.notes.join("; ")}.` : ""}`;
+// Test Skald's address, in words (2.45: it proves the address, never the tool's key).
+function testWords(t, r) {
+  const [, head, more] = honestTest(r, t);
+  return `${t.name}: ${head}${more ? ` ${more}` : ""}`;
 }
 
 /* 2.40: Settings shows one part per place (settings-pages.js): "hooks" (Status and the incoming
@@ -169,10 +182,11 @@ export function integrationsPart(part = "all") {
   const body = h("div", null, h("p", { class: "empty" }, "Loading the integrations..."));
   const msg = status();
   const shown = h("div");
+  let last = null;               // the last answer drawn (a choice redraws it, with no call)
   const reload = () => call(integPath()).then(draw);
 
   function showFresh() {
-    if (!fresh) { shown.replaceChildren(); return; }
+    if (!fresh || inDrawer) { shown.replaceChildren(); return; }   // a drawer shows it in its key's block
     const done = h("button", { type: "button", class: "btn" }, "I have copied it");
     done.addEventListener("click", () => { fresh = null; shown.replaceChildren(); });
     shown.replaceChildren(h("div", { class: "state ok acct-link", role: "status" }, h("div", null,
@@ -184,21 +198,36 @@ export function integrationsPart(part = "all") {
   async function act(path, payload, done) {
     const r = await call(`integrations/${path}`, { site: chosen, ...payload });
     if (!r.ok) { msg.say(why(r)); return r; }
-    if (r.secret) { fresh = { secret: r.secret, url: r.url, what: done }; showFresh(); msg.say(""); } else msg.say(done, true);
+    // 2.45: the paste's or the make's answer stays with its tool, and the drawer stays open on it.
+    // A key that still does not match keeps its question open; a webhook that sends no signature
+    // goes to the way that makes it again (Calendly) or to Skald's own key (Cal.com, Typeform).
+    const verdict = r.check?.verdict || "";
+    if (payload.tool) {
+      checks[payload.tool] = r.check || null;
+      if (r.check || r.secret) asking = verdict === "no_match" || verdict === "unsigned" ? payload.tool : "";
+      if (inDrawer && verdict === "unsigned") S.set({ how: payload.tool === "calendly" ? "remake" : "make" }, { replace: true });
+      // A pasted key that matches: done, so the question folds away (Replace opens it again).
+      if (inDrawer && verdict === "matches") S.set({ how: "" }, { replace: true });
+    }
+    if (r.secret) {
+      fresh = { secret: r.secret, url: r.url, what: done, tool: payload.tool || "" };
+      if (inDrawer) msg.say(""); else { showFresh(); msg.say(""); }
+    } else msg.say(inDrawer && r.check ? "" : done, true);
     reload();
     return r;
   }
 
   function toolRow(t, one = false) {
     const acts = h("div", { class: "acts" });
+    const k = keyWord(t);
     const drawActs = () => {
       let make = null;
       if (t.make !== false) {
-        make = h("button", { type: "button", class: "btn", disabled: !t.rotatable }, t.set ? "Rotate secret" : "Make secret");
-        if (!t.rotatable) make.title = "This secret is set in the server's environment.";
+        make = h("button", { type: "button", class: "btn", disabled: !t.rotatable }, t.set ? `Rotate ${k}` : `Make ${k}`);
+        if (!t.rotatable) make.title = `This ${k} is set in the server's environment.`;
         make.addEventListener("click", () => {
-          if (!t.set) { act("secret", { tool: t.tool }, `The secret for ${t.name}`); return; }
-          confirmIn(acts, `Rotate the secret for ${t.name}? The tool must be given the new one.`, "Yes, rotate", () => act("secret", { tool: t.tool }, `The new secret for ${t.name}`), drawActs);
+          if (!t.set) { act("secret", { tool: t.tool }, `The ${k} for ${t.name}`); return; }
+          confirmIn(acts, `Rotate the ${k} for ${t.name}? ${t.name} must be given the new one.`, "Yes, rotate", () => act("secret", { tool: t.tool }, `The new ${k} for ${t.name}`), drawActs);
         });
       }
       // Remove: the secret goes, so the address refuses further deliveries; the log stays.
@@ -207,27 +236,41 @@ export function integrationsPart(part = "all") {
         rm = h("button", { type: "button", class: "btn danger" }, "Remove");
         rm.addEventListener("click", () => confirmIn(acts, `Remove the ${t.name} hook? Its secret is deleted and further deliveries are refused. Past deliveries and conversions stay.`, "Yes, remove", () => act("hooks/remove", { tool: t.tool }, `${t.name}: removed. Its address now refuses deliveries.`), drawActs));
       }
-      const test = h("button", { type: "button", class: "btn", disabled: !t.set }, "Send a test event");
+      const test = h("button", { type: "button", class: "btn", disabled: !t.set }, "Test Skald's address");
       test.addEventListener("click", async () => {
         test.disabled = true;
         const r = await call("integrations/test", { site: chosen, tool: t.tool });
         test.disabled = false;
         if (!r.ok) { msg.say(why(r)); return; }
-        msg.say(testWords(t.name, r), r.status === 200);
+        msg.say(testWords(t, r), r.status === 200);
         reload();
       });
-      acts.replaceChildren(...[make, test, rm].filter(Boolean));
+      acts.replaceChildren(...[one ? null : make, one ? null : test, rm].filter(Boolean));
     };
     drawActs();
-    const badge = h("span", { class: `tf ${t.attention ? "warn" : t.set ? "on" : "off"}` }, t.set ? (t.where === "env" ? `set (environment ${t.env})` : "secret set") : "no secret");
+    const badge = h("span", { class: `tf ${t.attention ? "warn" : t.set ? "on" : "off"}` }, t.set ? (t.where === "env" ? `set (environment ${t.env})` : `${k} saved`) : `no ${k}`);
     const state = t.words ? h("p", { class: t.attention ? "msg err" : "muted" }, `${t.words.replace(/^./, (c) => c.toUpperCase())}.${t.attention && t.fix ? ` ${t.fix}` : ""}`) : null;
     const log = h("details", null, h("summary", null, `Last deliveries (${t.deliveries.length})`),
       deliveriesTable(t.deliveries, `Deliveries from ${t.name}`, [
         ["When", (d) => when(d.received_at, ""), "muted n"], ["Answer", (d) => String(d.http_status), "c"],
         ["Outcome", (d) => OUTCOME[d.outcome] || d.outcome], ["Detail", (d) => copyIf("text", d.error || "", null, { label: "detail", cls: "" }), "muted"]]));
-    // v2: one tool's details in Leads & tools' drawer (tool=<id>).
-    if (one) return h("div", { class: "integ integ-one" }, h("p", null, toolPill(t)), badge, t.problem ? h("p", { class: "msg err" }, t.problem) : null, state,
-      copyable(t.url, `the address for ${t.name}`), t.paste && t.rotatable ? pasteForm(t) : null, t.event_types ? typesForm(t) : null, acts, log);
+    // v2: one tool's details in Leads & tools' drawer (tool=<id>); 2.45: hook-key-ui.js.
+    if (one) {
+      const again = () => (last ? draw(last) : reload());
+      return hookDrawer(t, {
+        site: chosen, fresh: fresh?.tool === t.tool ? fresh : null, check: checks[t.tool] || null,
+        how: S.read().how || "", asking: asking === t.tool,
+        onHow: (id) => { asking = t.tool; S.set({ how: id }, { replace: true }); again(); },
+        onAsk: () => { asking = t.tool; again(); },
+        onCopied: () => { fresh = null; again(); },
+        make: () => act("secret", { tool: t.tool }, `The ${k} for ${t.name}`),
+        paste: (value) => act("hooks/paste", { tool: t.tool, secret: value }, `${t.name}: the ${k} is saved. It is not shown again.`),
+        // The agent kit's lead job knows each tool (kit/agent/jobs/lead.md): Who will do it?, My AI agent.
+        agent: () => S.set({ tool: "", how: "", setup: "lead", way: t.tool, by: "agent" }, { mark: { ov: "setup" } }),
+        types: t.event_types ? typesForm(t) : null,
+        more: [toolPill(t), " ", badge, state, acts, log],
+      });
+    }
     return h("details", { class: "sheet integ integ-d", open: !!t.attention || !!t.problem || null },
       h("summary", null, h("b", null, t.name), toolPill(t), h("span", { class: "grow" }), h("span", { class: "integ-go" }, t.set ? "Open" : "Set up")),
       badge, t.problem ? h("p", { class: "msg err" }, t.problem) : null, state, copyable(t.url, `the address for ${t.name}`),
@@ -259,17 +302,22 @@ export function integrationsPart(part = "all") {
   // A signing secret the tool made (Stripe, HubSpot; Calendly, Cal.com and Typeform
   // may give their own): typed in once, sent to the server, never shown again.
   function pasteForm(t) {
-    const box = input({ type: "password", autocomplete: "off", maxlength: "500", placeholder: t.set ? "set: paste to replace" : "not set" });
-    const save = h("button", { type: "submit", class: "btn" }, "Save secret");
-    const hint = t.make === false ? `${t.name} makes its own signing secret; Skald cannot make one for it. Write-only: it is never shown again.` : `Or use Make secret and give that to ${t.name}. Write-only: it is never shown again.`;
-    const form = h("form", { class: "af-row", novalidate: true }, field(`Paste the signing secret from ${t.secret_from || t.name}`, box, hint), save);
+    const k = keyWord(t);
+    const box = input({ type: "password", autocomplete: "off", maxlength: "500", placeholder: t.set ? "saved: paste to replace" : "not saved yet" });
+    const save = h("button", { type: "submit", class: "btn" }, `Save ${k}`);
+    const hint = t.make === false ? `${t.name} makes its own ${k}; Skald cannot make one for it. Write-only: it is never shown again.` : `Or use Make ${k} and give that to ${t.name}. Write-only: it is never shown again.`;
+    const form = h("form", { class: "af-row", novalidate: true }, field(`Paste the ${k} from ${t.secret_from || t.name}`, box, hint), save);
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      if (!box.value.trim()) { msg.say(`Paste the signing secret from ${t.secret_from || t.name} first.`); box.focus(); return; }
+      if (!box.value.trim()) { msg.say(`Paste the ${k} from ${t.secret_from || t.name} first.`); box.focus(); return; }
       save.disabled = true;
-      const r = await act("hooks/paste", { tool: t.tool, secret: box.value }, `${t.name}: the signing secret is saved. It is not shown again.`);
+      const r = await act("hooks/paste", { tool: t.tool, secret: box.value }, `${t.name}: the ${k} is saved. It is not shown again.`);
       save.disabled = false;
-      if (r.ok) box.value = "";
+      if (r.ok) {
+        box.value = "";
+        const said = checkWords(r.check, t);
+        if (said) msg.say(`${t.name}: ${said.words}`, said.kind !== "bad");
+      }
     });
     return form;
   }
@@ -325,6 +373,7 @@ export function integrationsPart(part = "all") {
   function draw(r) {
     if (!r.ok) { body.replaceChildren(h("p", { class: "empty" }, why(r, "The integrations could not be loaded."))); return; }
     chosen = r.site;
+    last = r;
     if (part.startsWith("tool:")) {
       const t = (r.tools || []).find((x) => x.tool === part.slice(5));
       body.replaceChildren(t ? toolRow(t, true) : h("p", { class: "empty" }, "That tool is not one Skald knows."));

@@ -10,6 +10,9 @@ minutes) and `skald run-daily`:
     site's step (cli.main), at most outgoing.RUN_BUDGET seconds in all and
     outgoing.DEADLINE seconds a delivery; what is left waits for the next run
 
+  * hooks held (run-daily, 2.45): refused deliveries held past 24 hours are
+    deleted (held.purge)
+
 Neither ever stops a run: a failure is one line on stderr. run-daily runs
 them first, before the second counts, so the audit sees the store up to date.
 """
@@ -91,11 +94,28 @@ def live(ctx) -> None:
         ctx.err(f"conversions people days: {type(why).__name__}: {why}")
 
 
+def _held(ctx) -> None:
+    """2.45: the refused deliveries held past 24 hours go (held.py; also on
+    every write and every key save); never on a site that keeps everything."""
+    import time
+    from . import held
+    folder = _folder(ctx)
+    gone = held.purge(folder, time.time(), ctx.site,
+                      keeps=lambda site: held.keeps(ctx.config, folder, site))
+    if gone:
+        ctx.out(f"hooks held: {gone} refused deliver{'y' if gone == 1 else 'ies'} past 24 hours "
+                "deleted")
+
+
 def daily_steps(ctx) -> list:
     """run-daily's step, before the second counts; none when the install has
-    neither a lead DB to read nor a conversions file."""
-    from . import from_leads, store
+    neither a lead DB to read nor a conversions file. The hold's purge (2.45)
+    runs whenever the site has held deliveries."""
+    from . import from_leads, held, store
+    steps = []
+    if (held.root(_folder(ctx)) / ctx.site).is_dir():
+        steps.append(("hooks held", lambda: _held(ctx)))
     if not from_leads.enabled(ctx.config) and \
             not store.path_for(ctx.config, _folder(ctx)).exists():
-        return []
-    return [("conversions", lambda: _each(ctx, full=True))]
+        return steps
+    return steps + [("conversions", lambda: _each(ctx, full=True))]

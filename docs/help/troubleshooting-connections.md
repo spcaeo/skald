@@ -167,6 +167,42 @@ In **Connect an AI assistant (MCP)**, step **Test**:
 
 More: [Ask an AI assistant about your traffic](mcp.md), "If it does not connect".
 
+## A tool's webhook: the key, the test and the real deliveries
+
+In **Settings > This site > Leads & tools**, a tool's details (Calendly, Cal.com, Typeform, Stripe, HubSpot, your site's server, Zapier, Make or n8n). Each tool's key has the tool's own name: Calendly's **signing key**, Stripe's **signing secret**, HubSpot's **client secret**, and **secret** for the others.
+
+**Test Skald's address** passing does not mean the tool is connected. Skald signs its own sample with the key it holds, so the test proves only that Skald's address answers. Only a real delivery from the tool proves the tool signs with the same key. The live line on top says **Working** only once a real one was taken in since the key was saved, and the row on Leads & tools agrees.
+
+What the details say after you save or make a key:
+
+| The page says | What it means | What to do |
+| --- | --- | --- |
+| It matches Calendly's booking from 10:13. 8 bookings taken in. | The key is right. The bookings refused before are counted now. | Nothing |
+| This is not the key Calendly signs with: Calendly's delivery at 11:37 still does not match. | The value pasted is not the one the tool signs with | Copy the right value (below) and paste it again |
+| Calendly sends no signature: the webhook was made without a signing key. | The tool's deliveries carry no signature, so no key can match | Make the webhook again with Skald's key |
+| Saved. Skald checks it against Calendly's next booking. | Nothing refused yet to check it against | Book a test call, or wait for the next real one |
+
+### Calendly: the three cases
+
+Calendly webhooks are made with Calendly's API, usually by a developer. The details ask **How was your Calendly webhook made?**:
+
+| Your answer | What happened | What to do |
+| --- | --- | --- |
+| Not made yet | No webhook yet | Skald makes the signing key. Run the one request the details show, with the address and the key filled in and your Calendly token in place of `<your-calendly-token>` |
+| Made with an API request that had a signing_key | The request chose its own signing key, and Calendly never shows it again | Paste the value of `signing_key` from that request. Not your Calendly token, and not the webhook's address. "Not the key Calendly signs with" means another value was pasted |
+| Made without a signing key, or not sure | Calendly sends no signature, or the key is lost | Make the webhook again: delete the old one and make it with Skald's key. The details give both requests, or **Let your AI agent do it** |
+
+A webhook made through a Calendly OAuth app signs with that app's own signing key, from Calendly's developer portal: paste it with the second answer.
+
+### Other tools
+
+- **Cal.com**: the secret is on the webhook in Cal.com (**Settings > Developer > Webhooks**). Paste that one, or make one in Skald and put it there.
+- **Typeform**: the secret is in the webhook's settings (**Connect > Webhooks > Edit**).
+- **Stripe**: the endpoint's **Signing secret** (it starts with `whsec_`), not an API key. Each endpoint has its own.
+- **HubSpot**: your app's **Client secret** (**Auth**), not the app ID or an access token.
+
+More: [Webhooks](webhooks.md), "The key".
+
 ## Still stuck?
 
 - Run `sudo skald-ship-check` again (an older zip kit: `sudo bash check.sh` in its folder) and send its last block.
