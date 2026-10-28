@@ -4,6 +4,8 @@ Manage every organisation in one place: its sites, members, invites, keys and au
 
 This page comes with accounts. Open it at **Settings > Organisation > Organisations**, or [here](#settings/org/orgs).
 
+If you belong to two or more organisations, every **Settings > Organisation** page says at the top which one it shows ("Organisation: Example Co"), with **Switch** to change it.
+
 ## What you see
 
 Each organisation is a card. The card shows:
@@ -23,7 +25,7 @@ Type in the search box to find an organisation by its name or by one of its site
 Select a card. Its details open in a drawer, with tabs:
 
 - **Overview**: its sites and members, the requests of the last 7 days and the last day with data. A figure Skald did not record says **Not recorded**, never 0. The requests are shown only when two separate counts agree.
-- **Sites**: each site, with a link to its dashboard. **Move a site here** brings a site from another organisation you manage. **Add a site** opens Add a site with this organisation chosen.
+- **Sites**: each site, with a link to its dashboard. **Move a site here** brings a site from another organisation you manage. **Add a site** opens Add a site with this organisation already chosen as its **Organisation**.
 - **Members**: each member's role and the sites they see. Invite someone, change a role, remove someone, transfer ownership, or leave.
 - **Pending invites**: resend or cancel an invite.
 - **Settings**: the name, the privacy class, whether two-step sign-in is required, and whether the daily mail is on by default.
@@ -70,7 +72,7 @@ Each organisation is **Internal** or **Client**. An install admin sets it.
 - **Internal**: when the server keeps everything (internal and enterprise installs), nothing on these sites is deleted by itself. This is the default, so nothing changes for an organisation until someone changes it.
 - **Client**: these sites follow their own **Privacy** settings, even when the server keeps everything. Old detail is removed at the end of each window, as the settings say.
 
-The site's **Settings > Privacy** page and the server's `skald doctor` both say which rule applies to the site. See [Settings and retention](settings-and-retention.md).
+The site's **Settings > This site > Privacy** page and the server's `skald doctor` both say which rule applies to the site. See [Settings and retention](settings-and-retention.md).
 
 ## Archive and restore
 

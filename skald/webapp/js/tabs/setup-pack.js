@@ -20,6 +20,7 @@ import { input, field, why } from "./forms.js";
 import { postFile } from "./conn-install.js";
 import { stepped } from "../overlays.js";
 import { read } from "../state.js";
+import { arrivedBox } from "../ui/live.js";
 
 export const MAX_TO = 3;
 export const PACK_WORDS = {
@@ -81,7 +82,14 @@ export function packBox(site, { token = () => keptKey("token", site), secret = (
   const mail = h("button", { type: "button", class: "btn primary" }, "Send by email");
   const zip = h("button", { type: "button", class: "btn" }, "Download (.zip)");
   const said = h("p", { class: "msg", role: "status", "aria-live": "polite" });
-  const say = (text, ok) => { said.textContent = text; said.className = `msg ${ok ? "ok" : "err"}`; };
+  // 2.44: once sent or saved, whether the person who sets it up got the data flowing yet, by
+  // itself, with Test (sites/arrived logs).
+  const after = h("div", { class: "su-pack-live" });
+  const say = (text, ok) => {
+    said.textContent = text;
+    said.className = `msg ${ok ? "ok" : "err"}`;
+    if (ok && !after.firstChild) after.append(arrivedBox(site, "logs", { intro: "Waiting for the person who sets it up: nothing has arrived yet." }));
+  };
   mail.addEventListener("click", async () => {
     const got = packTo(tos.map((x) => x.value));
     if (got.error) { say(got.error, false); return; }
@@ -103,7 +111,7 @@ export function packBox(site, { token = () => keptKey("token", site), secret = (
     h("fieldset", { class: "su-pack-to" }, h("legend", null, "Send it to (up to 3)"), ...tos),
     field("A note for them (optional)", note, "Put in the mail above the steps."),
     h("label", { class: "chk" }, keys, h("span", null, h("b", null, PACK_WORDS.keys), held)),
-    h("div", { class: "acts" }, mail, zip), said,
+    h("div", { class: "acts" }, mail, zip), said, after,
     h("p", { class: "note" }, PACK_WORDS.agent));
 }
 

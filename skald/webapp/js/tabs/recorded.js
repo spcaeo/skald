@@ -28,6 +28,7 @@ import { ME, sessions } from "../access.js";
 import { call } from "./ipmanager.js";
 import { statusRow, quietButton } from "./set-ui.js";
 import { connectCard, mayConnect, sourceLink } from "../ui/connect.js";
+import { arrivedBox } from "../ui/live.js";
 
 export const LABEL = "Recorded by your site";
 const GUIDE = "recorded-journeys";
@@ -253,9 +254,11 @@ export async function openConnect(site, { onClose = null } = {}) {
   const route = { key: "rjc", value: "connect" };
   const st = await call("recorded/status");
   const ready = st.ok ? st : { connected: false, helper: "", url: "" };
-  const top = h("div", null, statusTop(st));
+  // 2.44: connected and waiting for the first session: said by itself, with Test (sites/arrived journeys).
+  const live = () => arrivedBox(site, "journeys", { intro: "Waiting: no recorded session has arrived yet." });
+  const top = h("div", null, statusTop(st), ...(st.ok && st.connected && !st.last_received ? [live()] : []));
   // A secret just made: the site is connected and waits for its first event.
-  const made = () => { ready.connected = true; ready.where = "file"; top.replaceChildren(statusTop(ready)); };
+  const made = () => { ready.connected = true; ready.where = "file"; top.replaceChildren(statusTop(ready), live()); };
   const paths = st.ok ? {
     me: mePath(() => meSteps(site, ready, made)),
     dev: async () => devPath({ site, message: devMessage(site, ready) })(),

@@ -174,7 +174,7 @@ API tokens: read the data, the MCP endpoint, or ship a site's log (docs/API.md, 
 | `--site` | only this site (repeatable) |
 | `--private` | may also read requests.json and ai_activity.json (addresses) |
 | `--org` SLUG | sessions mode: the organisation (needed when there are several) |
-| `--scope` SCOPE | read (default), read_private (addresses too), mcp (the MCP endpoint), ingest (post log lines for the --site it names: skald-ship, log drains) or setup (the MCP tool setup_line: set-up lines for an AI agent; one --site, with mcp); repeatable. mcp, ingest and setup need sessions mode |
+| `--scope` SCOPE | read (default), read_private (addresses too), mcp (the MCP endpoint), ingest (post log lines for the --site it names: skald-ship, log drains), setup (the MCP tool setup_line: set-up lines for an AI agent; one --site, with mcp) or add_sites (the MCP tool add_site: add sites to the organisation within its plan; no --site, with mcp); repeatable. mcp, ingest, setup and add_sites need sessions mode |
 
 ### skald report
 

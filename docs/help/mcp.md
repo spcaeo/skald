@@ -138,6 +138,10 @@ The assistant chooses these tools itself. Dates are in your site's own time zone
 | `setup_line` | Makes the one set-up line for an AI agent, for the jobs you name. Only with **Set-up lines (AI agent)**; see below |
 | `fix_todo` | One of **Overview > Insights**' to-dos with every row behind it (not only the 1,000 the page shows) and the steps to fix it in your site's own code or server. Without an id: the to-dos it can fix. See below |
 | `mark_todo_done` | After a fix: keeps what the assistant changed (the exact change, the files, the rows left and why) beside the to-do, and with **done** marks it done. Only with **Set-up lines (AI agent)** for that one site |
+| `add_site` | Adds a site to your organisation, as **Add a site** does, within what your plan allows, with the people who will use it. Answers its page, and the set-up line for an AI agent. Only with **Add sites (AI agent)**; see below |
+| `site_progress` | A site's set-up, step by step, as the live set-up shows it: the agent opened its line, took its keys, the data road, the first data, the domain, done, the invites |
+| `check_site` | **Check now**: what is missing, in plain words, and what to fix |
+| `send_invites` | Sends the invites now, before the first data. It mails the people named when the site was added |
 
 It also offers a ready prompt, **weekly_report**, which asks the assistant for a short weekly report.
 
@@ -164,6 +168,24 @@ Skald refuses this token for more than one site, without **AI assistant (MCP)**,
 4. asks again what is left. Each line ticks itself once Skald sees it working.
 
 What it recommends for your privacy settings waits for you: press **Apply** in the dialog. The mail line stays yours: its dialog's address is in the answer.
+
+## Add a site with your AI assistant
+
+Your AI assistant can add a site for you too, within what your plan allows. Say: "add shop.example.com to Skald, invite ana@example.com and ben@example.com as viewers, and tell me when data arrives". It then:
+
+1. adds the site (`add_site`), in the organisation the token belongs to, with the two people. They get their invite mail once the first data arrives;
+2. gets the set-up line for an AI agent, and follows it itself in the site's folder or on its server, or gives it to the agent that works there;
+3. watches the set-up (`site_progress`) until the first data arrives, and says what is missing (`check_site`) when nothing comes.
+
+**The token.** Only an owner or admin who sees every site can make it:
+
+1. Open [Tokens & links](#settings/ai/assistants?sub=tokens), then **New token**.
+2. Under **What it may do**, tick **Add sites (AI agent)**. **AI assistant (MCP)** is ticked with it, and the site list goes: the token is for the whole organisation.
+3. Press **Make token**, and connect your assistant with it as above.
+
+**Your plan's limits hold, as in the dashboard.** If your plan allows 5 sites and you have 5, the assistant is told so in one sentence, with what to do (choose a bigger plan in **Settings > Billing**, or remove a site). New people count against your plan's members, open invites included. An organisation that is read-only (a cancelled or long unpaid plan) adds nothing. On a hosted Skald, the new site waits until its domain is verified: the answer gives the DNS record and the meta tag.
+
+The assistant cannot make a new organisation (do that in the dashboard), see a sending token, or remove a site. Each site added and each invite sent goes to the audit log.
 
 ## Fix your to-dos with your assistant
 
@@ -225,7 +247,7 @@ Skald gives the assistant the same rules the dashboard follows:
 
 ## Safety
 
-- **Read-only.** Every tool only reads, except `setup_line`, which makes a set-up line, and `mark_todo_done`, which keeps a to-do's report and marks it done; both only with a token that has **Set-up lines (AI agent)** for that one site. The assistant cannot change settings or delete data. Each line made and each to-do marked goes to the audit log.
+- **Read-only.** Every tool only reads, except `setup_line`, which makes a set-up line, and `mark_todo_done`, which keeps a to-do's report and marks it done (both only with a token that has **Set-up lines (AI agent)** for that one site), and `add_site` and `send_invites`, which add a site within your plan and mail its people (only with **Add sites (AI agent)**). The assistant cannot change settings or delete data. Each line made, each to-do marked, each site added and each invite sent goes to the audit log.
 - **Only your sites.** The token reads only your organisation's sites, and only the ones you ticked. Every tool checks this again on each call.
 - **No addresses by default.** Without **Reading visitor addresses**, no answer carries a visitor's address, and the assistant cannot look a person up.
 - **Turn it off at once.** To cut off an assistant, revoke its token: open **Settings > AI > AI assistants > Tokens & links**, find it under **Your tokens**, press **Revoke**, then **Yes, revoke**. It stops working immediately. The **MCP** tab lists the assistants' tokens too.

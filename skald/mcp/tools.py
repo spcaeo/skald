@@ -11,7 +11,9 @@ leads. The rest: funnel, compare, page_story, live_today, data_quality,
 site_health and conversions in tools_more.py; find_person in tools_people.py;
 what_changed, todos and lost_pages in tools_insights.py; page_changes,
 ai_readiness and changed_pages in tools_pages.py; setup_left and setup_line
-(2.39.0, the one tool that makes something) in tools_setup.py.
+(2.39.0, a tool that makes something) in tools_setup.py; add_site,
+site_progress, check_site and send_invites (2.44, the add_sites scope: add a
+site within the plan and watch its set-up) in tools_addsite.py.
 """
 from __future__ import annotations
 
@@ -52,7 +54,8 @@ def schema(props: dict, required=()) -> dict:
 def tool(name: str, title: str, description: str, input_schema: dict,
          read_only: bool = True):
     """Register a tool: `fn(ctx, args) -> (text, structured)`. Every tool
-    reads, except setup_line (2.39.0: `read_only=False`), which makes a line."""
+    reads, except the few that make something (`read_only=False`): setup_line,
+    mark_todo_done, add_site, send_invites."""
     def add(fn):
         TOOLS[name] = {"name": name, "title": title, "description": description,
                        "inputSchema": input_schema,
@@ -474,3 +477,5 @@ from . import tools_setup  # noqa: E402,F401 - setup_left, setup_line (2.39.0)
 from . import tools_todos  # noqa: E402,F401 - fix_todo, mark_todo_done (2.41)
 
 from . import tools_yourtools  # noqa: E402,F401 - your_tools: figures from your own tools
+
+from . import tools_addsite  # noqa: E402,F401 - add_site, site_progress, check_site, send_invites (2.44)

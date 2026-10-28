@@ -216,7 +216,7 @@ assert.equal(keyOf("way"), "calendly");
 
 // ---- everything that fits connected: "All connected", Connect a tool by the title
 integ = { ...INTEG, found: { ...FOUND, tags: {} }, tools: INTEG.tools.filter((t) => t.tool !== "stripe"),
-  status: [...INTEG.status] };
+  status: INTEG.status.filter((c) => c.state !== "NEEDS ATTENTION") };   // nothing to fix
 const allOn = { ...integ };
 // Search Console connected (the page's own search.json)
 const m2 = { ...m, x: { ...m.x, search: { engines: { google: { connected: true } } } } };
@@ -232,6 +232,19 @@ assert.equal(r2.querySelector(".lt-next .ui-pill").textContent, "All connected")
 assert.equal(r2.querySelector(".lt-next-go"), null);
 assert.equal(r2.querySelectorAll(".set-primary").length, 1, "Connect a tool, the one primary, by the title");
 assert.equal(r2.querySelector(".set-primary").textContent, "Connect a tool");
+
+// ---- all connected, but a check needs a fix: never "All connected" over a red line (2.44)
+integ = { ...allOn, status: [...allOn.status, { id: "place:lead", part: "Lead countries: Your site's server", state: "NEEDS ATTENTION", says: "Your last 3 leads came without the visitor's address", fix: "" }] };
+forgetSources();
+const r3 = document.createElement("div");
+document.body.replaceChildren(r3);
+r3.append(...TAB_RENDER["settings/site/leads"](m2, { ...S.read(), tab: "settings/site/leads" }, {}).flat(9).filter(Boolean));
+await tick(80);
+assert.equal(r3.querySelector(".lt-next.good"), null, "not green while something needs a fix");
+assert.equal(r3.querySelector(".lt-next .ui-pill").textContent, "1 to fix");
+assert.ok(r3.querySelector(".lt-next-w").textContent.includes("one thing needs a fix"));
+assert.ok(r3.textContent.includes("Needs a fix"), "the red line's word");
+integ = allOn;
 
 // ---- a viewer sees why, not the tools
 Object.assign(ME, { role: "viewer" });

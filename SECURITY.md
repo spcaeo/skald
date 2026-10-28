@@ -92,7 +92,7 @@ shows how.
   can require it for the organisation.
 - **Membership is checked on every request.** Removing a member or disabling a person ends access
   at once. A token made in the page stops when its maker is disabled or demoted.
-- **Scoped tokens** (`read`, `read_private`, `mcp`, `ingest`), shown once, stored as hashes. Without
+- **Scoped tokens** (`read`, `read_private`, `mcp`, `ingest`, `setup`, `add_sites`), shown once, stored as hashes. Without
   `read_private`, no API or MCP answer carries an address.
 - **Strict path checks.** The helper sees the raw address and nginx's normalised path; a path that
   tries to step into another organisation's site is refused.

@@ -113,7 +113,7 @@ Each Leads & sales tab, Search and Overview's **From your tools** also has a sma
 
 ## Leads & tools: what to connect next
 
-[Settings > This site > Leads & tools](#settings/site/leads) (owners and admins) starts with **Next step for example.com**: what Skald found on the site, and the single most useful thing to connect, with one **Connect** button. A source that stopped working comes first ("Stripe is not working ... Fix it"). Then the Leads source, a booking tool when your site links one, Stripe when your site uses it, Search Console, Google Analytics when its tag is on your site, and the script tag. **Connect everything left with your AI agent** gives your agent one line for every tool left. When everything that fits your site is connected, the card says **All connected**.
+[Settings > This site > Leads & tools](#settings/site/leads) (owners and admins) starts with **Next step for example.com**: what Skald found on the site, and the single most useful thing to connect, with one **Connect** button. A source that stopped working comes first ("Stripe is not working ... Fix it"). Then the Leads source, a booking tool when your site links one, Stripe when your site uses it, Search Console, Google Analytics when its tag is on your site, and the script tag. **Connect everything left with your AI agent** gives your agent one line for every tool left. When everything that fits your site is connected, the card says **All connected**, unless a check below needs a fix (say, leads that came without the visitor's address): then it says **1 to fix** and the red **Needs a fix** line under it says what and has **Fix**.
 
 Below it, every source is in a group by what it is for, each with one line on why:
 

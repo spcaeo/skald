@@ -91,7 +91,7 @@ A person has one role in each organisation.
 | Role | May |
 | --- | --- |
 | Viewer | See every page of the organisation's sites and the team list. Change their own name, password and two-step sign-in. Changes nothing else. Cannot look a person up, and sees the left-out lists without names, emails or visitor IDs |
-| Admin | All of that, plus: invite, remove and change members (not owners), make API tokens, read the audit log and Billing, change the site's settings, and look a person up (the search at the top: visits with their IP address, emails, names) |
+| Admin | All of that, plus: invite, remove and change members (not owners), choose which sites an admin or viewer sees, make API tokens, read the audit log and Billing, change the site's settings, and look a person up (the search at the top: visits with their IP address, emails, names) |
 | Owner | All of that, plus: make, change or remove owners, set the security rules, remove a site, and handle billing |
 
 An organisation always keeps at least one owner.
@@ -100,7 +100,7 @@ Some settings apply to every site on the server, not only yours: the AI crawler 
 
 ## Several organisations
 
-People are given sites through organisations. By default everyone in an organisation sees all of its sites, with the role they have there; an owner or admin can let an admin or a viewer see only some of them (see [Organisations](organisations.md)). One person can be in several organisations, with a different role in each. On **Settings > Organisation > Organisations** an install admin sees and manages every organisation of the server.
+People are given sites through organisations. By default everyone in an organisation sees all of its sites, with the role they have there; an owner or admin can let an admin or a viewer see only some of them (see [Organisations](organisations.md)). One person can be in several organisations, with a different role in each. On **Settings > Organisation > Organisations** each person sees their own organisations, and an install admin sees and manages every organisation of the server: its sites, members, privacy class, and archive or restore. When you add a site, **Add a site** asks first which organisation it goes in and who will use it (see [Add a site, step by step](connections.md#add-a-site-step-by-step)).
 
 When you are in two or more:
 
@@ -110,13 +110,15 @@ When you are in two or more:
 
 ### Give someone one site only
 
-To let a partner or a client see one site and nothing else, the server admin puts that site in its own organisation, then you invite them there:
+To let a partner or a client see one site and nothing else, give them site access in the dashboard (accounts only):
 
-1. On the server: `skald org create "Kiwi"`, then `skald site assign kiwi.example --org kiwi`. The site's data, settings and address stay as they were.
-2. Still on the server, make yourself a member of the new organisation too (`skald member invite you@example.com --role owner --org kiwi`, then follow the link and select **Join**), or you stop seeing the site.
-3. Open the site, go to [People](#settings/org/people) and invite the person with the role they need.
+1. Open [Settings > Organisation > Organisations](#settings/org/orgs) and select the organisation, then **Members**.
+2. Invite them there with their role, untick **Every site** and tick the site they may see. For someone who is a member already, select **Change** next to them instead.
+3. Select **Save**.
 
-The site's settings and its set-up progress move with it, and so do the tokens that read only that site, such as its log shipper's. A token for several sites, or for all of the old organisation's, stays where it was and no longer reads the moved site: make a new one in the new organisation if you need it.
+They then see only that site: in the dashboard and its site switcher, in a link typed by hand, in the API and MCP tokens they make, and in the mails. An owner always sees every site. See [Organisations](organisations.md#which-sites-each-person-sees).
+
+A site can also move to an organisation of its own, when a client should have their own team, settings and privacy class. On the server: `skald org create "Kiwi"`, then `skald site assign kiwi.example --org kiwi`. The site's data, settings and address stay as they were. Make yourself a member of the new organisation too (`skald member invite you@example.com --role owner --org kiwi`, then follow the link and select **Join**), or you stop seeing the site. The site's settings and its set-up progress move with it, and so do the tokens that read only that site, such as its log shipper's. A token for several sites, or for all of the old organisation's, stays where it was and no longer reads the moved site: make a new one in the new organisation if you need it.
 
 ## Invite people
 
@@ -125,7 +127,7 @@ You must be an admin or owner.
 1. Go to **Settings > Organisation > People**, or open [People](#settings/org/people).
 2. Under **Invite someone**, type the person's **Email**.
 3. Pick a **Role**. Only an owner can invite another owner.
-4. Select **Send invite**.
+4. Select **Send the invite**.
 
 The person gets a mail with a link. It works once, for 7 days. On the invite page they pick a name and a password and select **Create account and join**. If they already have an account with that address, the button reads **Join** and the organisation's name. They keep their own password and sign in with it.
 

@@ -20,6 +20,16 @@
  * action  a short lowercase word: "contact", "demo", "signup", "trial"
  * fields  { email, name } and any other field, such as { label: "sales",
  *         stage: "won", vid: req.cookies.skald_vid, test: true }. See README.md.
+ *         ip: the visitor's address, so Skald records the lead's country
+ *         (looked up, then dropped at once). Read it in the request that made
+ *         the lead, from the header your host sets (README.md, "The visitor's
+ *         address"):
+ *           Vercel, Next.js:  request.headers.get("x-forwarded-for")
+ *                             a server action: (await headers()).get("x-forwarded-for")
+ *           Express:          req.ip (behind a proxy: app.set("trust proxy", true))
+ *           Cloudflare:       request.headers.get("cf-connecting-ip")
+ *         A list ("a, b") is read as its first address; anything that is not
+ *         an IPv4 or IPv6 address is not sent.
  *         Money (Skald 2.32): { value: 49.99, currency: "USD",
  *         customer_ref: "your-customer-id", tags: { plan: "pro" } } (the
  *         amount in the currency's units; never an email as customer_ref).
@@ -31,6 +41,15 @@ const crypto = require("node:crypto");
 const SKALD_URL = "__URL__";
 const EMBEDDED_SECRET = "__SECRET__";
 const VID = /^skv_[A-Za-z0-9_-]{22}$/;
+const net = require("node:net");
+
+// The visitor's address from what was passed: the first of a list, without a port; else null.
+function visitorIp(value) {
+  let got = String(value ?? "").split(",")[0].trim();
+  const m = /^(\d{1,3}(?:\.\d{1,3}){3}):\d{1,5}$/.exec(got) || /^\[([0-9A-Fa-f:.]+)\](?::\d{1,5})?$/.exec(got);
+  if (m) got = m[1];
+  return net.isIP(got) ? got : null;
+}
 
 async function skaldLead(ref, action, fields = {}) {
   try {
@@ -41,6 +60,10 @@ async function skaldLead(ref, action, fields = {}) {
     if (email) lead.email = String(email);
     if (name) lead.name = String(name);
     if (lead.vid !== undefined && !VID.test(String(lead.vid))) delete lead.vid;
+    if (lead.ip !== undefined) {
+      const ip = visitorIp(lead.ip);
+      if (ip) lead.ip = ip; else delete lead.ip;
+    }
     const body = JSON.stringify(lead);
     const t = Math.floor(Date.now() / 1000);
     const sig = crypto.createHmac("sha256", secret).update(`${t}.${body}`).digest("hex");
@@ -57,4 +80,4 @@ async function skaldLead(ref, action, fields = {}) {
   }
 }
 
-module.exports = { skaldLead };
+module.exports = { skaldLead, visitorIp };

@@ -94,8 +94,8 @@ Each sale alerts once, ever: not again after a restart, a recount or a delivery 
 
 ## Troubleshooting
 
-- **"No revenue yet"**: no sale has arrived with a value and a currency. Look at **Settings > This site > Leads & tools > Incoming hooks > Status**: a delivery whose value was dropped says why.
+- **"No revenue yet"**: no sale has arrived with a value and a currency. When no payment source is connected, the card says what it needs, what Skald found on your site (Stripe, for example) and offers **Connect** (owners and admins). When one is connected, look at **Settings > This site > Leads & tools > Every check**: a delivery whose value was dropped says why.
 - **The numbers look 100 times too big**: the tool sent cents and they were posted as `value`. Divide by 100 in the mapping.
 - **A renewal shows as a new customer**: the renewal was sent without the same `customer_ref` as the first sale.
 - **Two currencies, one total**: there is none, on purpose. Pick each currency with the **Currency** switch.
-- **No sale alert came**: check that **All alerts** and **Sale** are on at Site > Alerts, that the sale is over its currency's minimum, and that it is not a test lead. A sale made more than 72 hours before Skald got it never alerts.
+- **No sale alert came**: check that **All alerts** and **Sale** are on at Settings > This site > Alerts, that the sale is over its currency's minimum, and that it is not a test lead. A sale made more than 72 hours before Skald got it never alerts.

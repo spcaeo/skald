@@ -43,9 +43,9 @@ Never sign a hook in the browser. The secret must stay on a server. A browser ca
 
 Send each lead through one road only. Each tool keeps its own row, so the same lead sent through two (for example the lead hook and Zapier, or the lead hook and the lead database) counts twice.
 
-**Settings > This site > Leads & tools > Incoming hooks > Status** flags it: "One lead, two tools", with the leads it saw. Turn one of the two roads off for those leads.
+**Settings > This site > Leads & tools > Every check** flags it: "One lead, two tools", with the leads it saw. Turn one of the two roads off for those leads.
 
 ## Check it
 
 - On the server: `sudo skald doctor` (Docker: `docker exec skald skald doctor`). It lists every part with OK or NEEDS ATTENTION, and the fix.
-- In the dashboard: **Settings > This site > Leads & tools > Incoming hooks > Status** shows the same lines for the roads in, and each hook says "ready", "never received" or "last received 2 h ago".
+- In the dashboard: **Settings > This site > Leads & tools > Every check** shows the same lines for the roads in, and each hook says "ready", "never received" or "last received 2 h ago".

@@ -304,3 +304,22 @@ export function fedFromData(group, m) {
   if (group === "search") return !!(m?.x?.search?.engines?.google?.connected || m?.x?.search?.engines?.bing?.connected);
   return null;                                   // not known from the files
 }
+
+// 2.44: a page whose source got connected while it was open (the owner, 27 Oct: Search
+// Console connected, the page still said "not connected yet"). An admin's card asks the helper
+// (js/ui/connect.js watch); these are the data files each need stands on, read again once its
+// source is on (js/ui/live.js redraw).
+export const NEED_FILES = { leads: ["conversions", "leads"], bookings: ["conversions"], payments: ["conversions"], search: ["search"],
+  tools: ["overview"], journeys: [], script: ["events"] };
+/* The source of `need` that is on now, in plain words: {state, pill, words, row}, or null while
+   nothing is. Connected: its data appears by itself; waiting: set up, nothing arrived yet. */
+export function liveOf(need, rows) {
+  const group = need === "script" ? null : NEEDS[need]?.group;
+  const mine = (rows || []).filter((r) => (need === "script" ? r.id === "script" : r.group === group) && isOn(r));
+  if (!mine.length) return null;
+  const row = mine.find((r) => r.state === "connected") || mine.find((r) => r.state === "waiting") || mine[0];
+  const words = row.state === "connected" ? `${row.name} is connected. Its data appears on this page by itself; there is no need to reload.`
+    : row.state === "waiting" ? `${row.name} is set up. Waiting for its first data: nothing has arrived yet.`
+      : `${row.name} is connected but not working${row.line ? `: ${row.line}` : ""}.`;
+  return { state: row.state, pill: stateWords(row.state), words, row };
+}

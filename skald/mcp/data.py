@@ -13,6 +13,8 @@ read a site at all and whether it may read the two files that hold
 addresses (`requests`, `ai_activity`). `setup(site) -> (allowed, why,
 token entry)` says whether the caller's token has the setup scope for the
 site (2.39.0, the setup_line tool); None (stdio, tests): it has not.
+`adder() -> (allowed, why, token entry)` says whether it has the add_sites
+scope, for its whole organisation (2.44, mcp/tools_addsite.py); None: it has not.
 """
 from __future__ import annotations
 
@@ -57,7 +59,8 @@ class Context:
     def __init__(self, out_dir, *, config: dict | None = None, live_dir=None,
                  history_path=None, checker=None, only_sites=None,
                  configs: dict | None = None, default_site: str | None = None,
-                 config_path=None, setup=None, allowed=(), origin: str | None = None):
+                 config_path=None, setup=None, allowed=(), origin: str | None = None,
+                 adder=None):
         self.out = Path(out_dir) if out_dir else None
         self.config = config or {}
         self.live_dir = Path(live_dir) if live_dir else None
@@ -65,6 +68,7 @@ class Context:
         self.checker = checker
         self.config_path = Path(config_path) if config_path else None
         self.setup = setup                    # (2.39.0) site -> (ok, why, token entry)
+        self.adder = adder                    # (2.44) () -> (ok, why, token entry)
         self.allowed = set(allowed or ())     # the helper's --origin list
         self.origin = origin                  # this install's address, as the request saw it
         self.only_sites = set(only_sites) if only_sites else None

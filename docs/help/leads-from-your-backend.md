@@ -25,6 +25,20 @@ Your site's server tells Skald each time a lead is made. The quick way: download
 
 **WordPress.** The plugin works with Contact Form 7, WPForms, Gravity Forms, Elementor Pro forms and Ninja Forms. Each form sent becomes a lead with the action `contact`, the email and name fields it finds, and an id like `wpforms-123`. It sends in the background, so a form is never slower. To keep the secret out of the plugin file, add `define('SKALD_LEAD_SECRET', 'your-secret');` to `wp-config.php`, and download the plugin without the secret.
 
+**Send the visitor's address, so the lead has a country.** Skald gives a lead its country from the visitor's address (`ip`): it looks the country up and drops the address at once, never keeping it. Without it, the lead shows "Country not recorded", even with a visitor ID. PHP and the WordPress plugin read the address by themselves. In Node and Python, pass it from the request that made the lead, from the header your host sets:
+
+| Your backend | The field |
+| --- | --- |
+| Next.js on Vercel | a route handler: `ip: request.headers.get("x-forwarded-for")`; a server action: `ip: (await headers()).get("x-forwarded-for")` |
+| Express | `ip: req.ip` (behind a proxy or a host, first `app.set("trust proxy", true)`) |
+| Behind Cloudflare | the `CF-Connecting-IP` header |
+| Flask | `ip=request.remote_addr` (behind a proxy, werkzeug's `ProxyFix`) |
+| Django | `ip=request.META.get("HTTP_X_FORWARDED_FOR") or request.META.get("REMOTE_ADDR")` |
+
+The files send it only when it is an IPv4 or IPv6 address; a list such as `"192.0.2.10, 198.51.100.1"` is read as its first address. Use the header your host sets itself: Vercel sets `x-forwarded-for` to the visitor's address and drops what the browser sent. A plain `X-Forwarded-For` behind your own proxy can be written by the visitor, which can only give their own lead a wrong country. Behind a CDN, PHP and WordPress take the header's name in `SKALD_LEAD_IP_HEADER` (such as `CF-Connecting-IP`). The README beside the files has every host. Send `vid` too when you have it: `vid` joins the lead to the pages read, `ip` gives its country, and one never replaces the other.
+
+When a site's last leads come with no country, Skald says so: **Settings > Leads & tools > Status** ("Lead countries") and the set-up checklist, whose Set up gives the job to your AI agent. Leads already kept stay as they are: Skald never guesses a country afterwards.
+
 **Join the lead to the visit.** With Skald's script tag on your pages and visitor IDs on, the page knows the visitor's ID as `skald('id')`. Bring it to your server in a hidden form field named `skald_vid`, or read the `skald_vid` cookie (it exists when "Share across subdomains" is on). The PHP file and the WordPress plugin read both by themselves (the plugin also fills the hidden field for you). In Node and Python, pass it as `vid`. See [The tracking script](tracking-script.md).
 
 **No code at all.** Zapier's **Webhooks by Zapier** and form plugins that can add a header send the secret as a plain key instead of signing: `Authorization: Bearer <your secret>`. See [Webhooks](webhooks.md#zapier-and-make).
@@ -69,7 +83,8 @@ One JSON object per lead:
 | `at` | default: when it arrived | When it happened. A full ISO time with its offset: `2026-09-25T14:30:00-04:00` or `2026-09-25T18:30:00Z` |
 | `vid` | | The visitor ID the page had. Kept only when the site has visitor IDs on |
 | `first_touch`, `last_touch` | | Where the visitor came from: `referrer`, `landing`, `utm_source`, `utm_medium`, `utm_campaign`, `at` |
-| `ip`, `user_agent` | | Skald looks up the country and the device, then drops both |
+| `ip` | send it | The visitor's address, read in the request that made the lead: Skald looks up the country, then drops it. Without it (or `country`, two letters) the lead has no country. A list such as an `X-Forwarded-For` header is read as its first address. An address that gives no country (a private one, such as your proxy's) is kept without one, and the answer and the delivery log say so |
+| `user_agent` | | Skald works out the device, then drops it |
 | `name`, `email` | | Kept only when the site's **Leads' names and emails** is **full**; otherwise dropped |
 | `label` | optional | A short word that sorts leads of one action, such as a contact form's topic: `sales`, `support`, `partnership`. Lowercase letters, digits, `-` and `_`, at most 40, starting with a letter or digit (`Sales` is read as `sales`). Anything else is dropped: the lead is still kept, without a label, and the answer and the delivery log say so |
 | `value`, `currency` | optional | 2.32.0: a sale's amount in the currency's normal units (`49.00`, not cents) and its three-letter code (`USD`). Shown on Leads & sales > Revenue, summed per currency, never converted. See [Revenue](revenue.md) |
@@ -264,13 +279,15 @@ The answer:
   "limit": 500,
   "rows": [
     {"external_ref": "L-1001", "action": "contact", "stage": "completed", "at": "2026-10-19T14:30:00Z",
-     "label": "sales", "test": false, "received_at": "2026-10-19T14:30:02Z"}
+     "label": "sales", "test": false, "received_at": "2026-10-19T14:30:02Z",
+     "country_recorded": true}
   ],
   "next_cursor": null
 }
 ```
 
-- Only the leads that came through this site's `lead` hook. Never a name, an email, an address, a browser, a visitor ID or a source.
+- Only the leads that came through this site's `lead` hook. Never a name, an email, an address, a country, a browser, a visitor ID or a source.
+- `country_recorded` says whether Skald kept a country for the lead: `false` means your call did not pass the visitor's address (`ip`), or passed a proxy's. A quick check after you add `ip`.
 - Rows are in the order Skald received them. While `next_cursor` is not `null`, ask again with `cursor=<next_cursor>` (and the same other parameters) for the next page. New leads arriving meanwhile come after it: no page skips or repeats one.
 - Leads marked test are in it, with `"test": true`: you can see that your tests landed. (A delivery sent with `X-Skald-Test: 1` is never kept, so it is not in it.)
 - A lead older than the site's keeping time is not in it: Skald deletes conversions whose `at` is more than 400 days old (`conversions.retention_days`). Nor is a lead deleted on request (`skald conversions forget`).

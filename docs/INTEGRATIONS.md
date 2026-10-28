@@ -630,11 +630,15 @@ above. Make: the HTTP module, with the header value
 
 ## The Integrations page
 
-With accounts (`access.mode: sessions`), **Settings > Integrations** does
-in the browser what `skald hooks` does on the server. It is for admins and
-owners of the site's organisation; an install admin may pick any site of
-the install. Code: `skald/integrations_api.py`, page
-`webapp/js/tabs/integrations.js`.
+With accounts (`access.mode: sessions`), **Settings › This site › Leads & tools**
+(`#settings/site/leads`; Settings > Integrations before 2.42.0) does in the
+browser what `skald hooks` does on the server. It is for admins and owners of
+the site's organisation; an install admin may pick any site of the install.
+Code: `skald/integrations_api.py`, page `webapp/js/tabs/set-leads.js`
+(2.43.0: **Next step for <site>** on top, then one group per goal with a row
+per source and its pill), each tool's drawer (`tool=<id>`) and **Every check**
+(`tool=checks`) drawn by `webapp/js/tabs/integrations.js`. The parts below are
+the drawer's.
 
 - **The script tag** to copy, with its options as tick boxes (wait for
   consent, share across subdomains, other domains you own, accept the ID

@@ -21,7 +21,7 @@ The same goes for lists: an internal address, a client report, an AI answers pro
 ### How the pages are laid out
 
 - **The menu.** On a computer, the settings menu takes the sidebar's place while a settings page is open. On a phone, the menu sits at the top of every settings page as a select, **Settings page**, grouped the same way, so you never need the drawer.
-- **Tabs inside a page.** Some pages have tabs, such as **Data**, **Leads & tools** and **Mail & reports**. Each tab has its own address (`sub=`), so a link opens that tab.
+- **Tabs inside a page.** Some pages have tabs, such as **Data**, **Site** and **Mail & reports**. Each tab has its own address (`sub=`), so a link opens that tab.
 - **What it is for.** Each page shows its state and its action only. The **?** beside the title says what the page is for in a sentence or two, with a link to its guide inside Skald and to the same guide on the public site, skaldanalytics.com/docs/<guide>/.
 - **Old addresses.** A link to an old settings page still works. It opens the page the setting is on now.
 
@@ -33,9 +33,9 @@ The palette (**Ctrl K**, **Cmd K** on a Mac) finds every settings page by its na
 
 | Group | Pages |
 | --- | --- |
-| This site | Data, Leads & tools, Site, Privacy, Mail & reports |
+| This site | Data, Leads & tools, Site, Privacy, Mail & reports, Alerts |
 | AI | AI assistants, AI answers |
-| Organisation | Sites, People, Billing (hosted plans only), Audit log |
+| Organisation | Sites, People, Billing (hosted plans only), Audit log, Organisations (accounts only) |
 | You | Your account |
 
 **This site** is about the site you have open; its name is beside the group. **Organisation** is about every site and person of your organisation. **Help**, at the foot of the sidebar, opens every guide.
@@ -47,7 +47,6 @@ The tabs inside a page:
 | Page | Tabs |
 | --- | --- |
 | Data | Send logs, Script tag & goals, What counts, Test a sample |
-| Leads & tools | Incoming hooks, Outgoing webhooks, Search Console & Bing |
 | Site | Names & time, Internal traffic |
 | Mail & reports | Mail, Client reports |
 | AI assistants | MCP, API, Tokens & links |
@@ -59,13 +58,15 @@ These pages have guides of their own:
 - To do: [Getting started](getting-started.md), "Set up your site".
 - Data › Send logs and Test a sample, and Organisation › Sites: [Connections](connections.md).
 - Data › Script tag & goals: [Tracking script](tracking-script.md) and [Funnels and goals](funnels-and-goals.md).
-- Leads & tools: [Webhooks](webhooks.md) and [Search](search.md).
+- Leads & tools: [Leads and conversions](leads-and-conversions.md), [Webhooks](webhooks.md), [Search](search.md), [Your own tools](your-tools.md) and [Recorded journeys](recorded-journeys.md).
+- Alerts: which alerts are on and whether they are mailed; the alerts themselves are on Site › Alerts ([Security](security.md) for the security ones, [Your own tools](your-tools.md#alerts-and-the-monday-mail) for the marketing ones).
 - Site › Internal traffic: [Internal traffic](internal-traffic.md).
 - Privacy: [Privacy](privacy.md), and this guide below.
 - Mail & reports › Client reports: [Client reports](client-reports.md).
 - AI answers, and its API keys: [AI answers](ai-answers.md).
 - AI assistants › MCP: [MCP](mcp.md). API and Tokens & links: [API](api.md).
 - People and Your account: [Sign-in and team](sign-in-and-team.md).
+- Organisations: [Organisations](organisations.md).
 
 ## Who may change what
 
@@ -85,7 +86,8 @@ These pages have guides of their own:
 | Data › Send logs | Log file | Install admin |
 | Data › Script tag & goals | Visitor IDs, Goals | Admin |
 | Data › What counts | Page assets, Not pages | Admin |
-| Leads & tools | Hooks, event types, outgoing webhooks | Admin |
+| Leads & tools | Hooks, event types, outgoing webhooks, your own tools, recorded journeys | Admin |
+| Alerts | Which alerts are on, and the mail | Admin |
 | AI answers › Questions & profiles | The site's lists, tracking profiles | Admin |
 | AI answers › API keys | The assistants' API keys | Install admin |
 | AI assistants | Tokens, MCP and API set-up, shared links | Admin |
@@ -96,6 +98,9 @@ These pages have guides of their own:
 | Organisation › Sites | Pause or resume a site | Admin |
 | Organisation › Sites | Remove, restore, clear data, delete all data | Owner |
 | Billing | Plan and payment | Owner (admins can read it) |
+| Organisations | Members, site access, invites, keys, settings | Owner or admin of that organisation |
+| Organisations | Archive or restore; the sign-in rule | Owner |
+| Organisations | Make an organisation; its privacy class | Install admin |
 
 Viewers see the pages read-only.
 
@@ -118,6 +123,8 @@ Viewers see the pages read-only.
 Each field says where its value comes from: this site, the organisation, the whole server, the config file, or the default.
 
 On an internal or enterprise site the page says **Kept: nothing is deleted (internal or enterprise).** at the top and on the **People** card. The windows are then not applied: Skald deletes and clears nothing by itself on that site, and a shorter window removes nothing. A person's own request to be deleted, run by an admin, still removes what is kept about them. See [Privacy](privacy.md#sites-that-keep-everything).
+
+Which rule decides is the organisation's **privacy class** ([Organisations](organisations.md#privacy-class)). **Internal** (the default) keeps everything on a server that keeps everything. **Client** makes the site follow the windows above even then. The page says which one applies, for example "Example Co is a client organisation: this site follows its own retention settings, even though the install keeps everything." Only an install admin changes the class.
 
 ### People
 
@@ -331,7 +338,7 @@ A change counts from the next run. Days already stored keep their figures until 
 
 ## Sites
 
-[Sites](#settings/org/sites) (**Settings › Organisation › Sites**) lists your organisation's sites. If your server offers it, an admin adds a site here with **Add a site**, in two steps: the site's address and who will connect it (me, my developer or my AI agent), then connecting it. Skald finds the rest, and asks for proof that the domain is yours only when the server needs it. You can stop at any step and continue later. A site not finished shows **Finish setting up**; a finished one that has received nothing for a day shows **No visits yet: test the connection**. See [Connections](connections.md), "Add a site, step by step".
+[Sites](#settings/org/sites) (**Settings › Organisation › Sites**) lists your organisation's sites. If your server offers it, an admin adds a site here with **Add a site**, in two steps. **Your site**: the address, which organisation it goes in, who will use it (they are invited once the first data arrives) and who will connect it (me, my developer or my AI agent). **Connect it**: that path only, with **Live progress**, which ticks itself as each part works, and **Check now**. Skald finds the rest, and asks for proof that the domain is yours only when the server needs it. You can stop at any step and continue later. Each site's row says **Waiting for data** or **Receiving data**. A site not finished shows **Finish setting up**; a finished one that has received nothing for a day shows **No visits yet: test the connection**. See [Connections](connections.md), "Add a site, step by step".
 
 A new site gets a page at once, with a short "Getting ready" note until its first figures arrive.
 

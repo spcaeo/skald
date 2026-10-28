@@ -164,7 +164,7 @@ Three site alerts, sent the same way as the site's other alerts (the dashboard, 
 - **Advisory matches your stack**: after the daily check, one alert per advisory, host and product that needs something done.
 - **New scan wave**: the last whole day's probes are at least three times the usual day (the median of the 14 days before, at least 7 of them counted) and at least 200. Off until you switch it on.
 
-The first two are on whenever the site's alerts are on. Switch each on or off on **Site › Alerts**.
+The first two are on whenever the site's alerts are on. Switch each on or off on **Settings › This site › Alerts** (Site › Alerts links there).
 
 ### Your own security alerts
 

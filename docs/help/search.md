@@ -7,7 +7,7 @@ Your server log cannot see a search. It never knows what someone typed, how ofte
 - [Traffic › Search](#traffic/search): the figures first, then one section at a time: the trend and the tables (queries, pages, countries, devices and search appearance), **Opportunities**, **New and lost** queries, **Positions** over time, and the **Cross-check** with Skald's own visits.
 - **Settings › This site › Leads & tools › Search Console & Bing**, or [Search Console & Bing](#settings/site/leads?tool=search): connect, test, sync now, and the sync's status.
 
-Until a site is connected, the Search tab shows the steps to connect it.
+Until a site is connected, the Search tab says what it needs and offers one **Connect**, which asks **Who will do it?** (Me, My developer or My AI agent). A viewer reads "Ask an admin to connect it" with a link to copy. Once it is connected, owners and admins see **Sources: Leads & tools** on the tab, which opens the group that feeds it.
 
 ## Connect Search Console
 

@@ -92,6 +92,16 @@ CASES = [
     {"tools": [hook("lead", "ready", words="ready: a test passed 1 hour ago"),
                hook("calendly", "received", words="last received 1 hour ago (kept)")]},
     {"tools": [hook("lead", "needs_secret", words="needs a secret")]},
+    # Leads arrive, but the last ones came without a country (roads.unplaced).
+    {"tools": [hook("calendly", "received", words="last received 1 hour ago (kept)"),
+               {**hook("lead", "received", words="last received 2 hours ago (kept)"),
+                "unplaced": {"leads": 3, "no_vid": True,
+                             "says": "Your last 3 leads came without a visitor ID or the "
+                                     "visitor's address, so their country and the pages they "
+                                     "read are not recorded",
+                             "fix": "Pass the visitor's address as `ip` in the lead call."}}]},
+    {"tools": [{**hook("lead", "received", words="last received 2 hours ago (kept)"),
+                "unplaced": None}]},
     {"settings": settings(["a@example.com", "b@example.com"], daily=True), "waiting":
         ["b@example.com"]},
     {"settings": settings(["a@example.com"], daily=False, weekly=False)},

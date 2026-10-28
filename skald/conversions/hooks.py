@@ -506,7 +506,8 @@ class Receiver:
                 new = sum(kept)
                 if digest:
                     store.keep_replay(db, site, digest, received)
-                notes = soft_notes(records, tz) + [n for n in dict.fromkeys(said)]
+                notes = (soft_notes(records, tz) + ip_notes(records, rows, self.country_db)
+                         + [n for n in dict.fromkeys(said)])
                 store.log_delivery(db, site, tool, "recorded" if new or links else "duplicate",
                                    200, "; ".join(notes) or None,
                                    rows[0]["external_ref"] if rows else links[0][0], received)
@@ -516,8 +517,8 @@ class Receiver:
             self._log(site, tool, "error", 500, f"store: {type(why).__name__}", at=received)
             return 500, {"error": "not kept, send again"}
         out = {"ok": True, "recorded": new, "duplicates": len(kept) - new}
-        notes = [n for n in soft_notes(records, tz) + list(dict.fromkeys(said))
-                 if n in SENDER_NOTES]
+        notes = [n for n in soft_notes(records, tz) + ip_notes(records, rows, self.country_db)
+                 + list(dict.fromkeys(said)) if n in SENDER_NOTES]
         if notes:
             out["notes"] = notes
         return 200, out
@@ -540,7 +541,7 @@ class Receiver:
             notes.append("visitor IDs are off for this site: the visitor ID is dropped")
             for r in rows:
                 r["vid"] = None
-        notes += soft_notes(records, tz)
+        notes += soft_notes(records, tz) + ip_notes(records, rows, self.country_db)
         if skipped:
             notes.append(f"{skipped}: a real one would be answered 200 and not kept")
         self._log(site, tool, "test", 200, f"{len(rows)} record(s) read, none kept"
@@ -626,9 +627,24 @@ def soft_notes(records: list[dict], tz) -> list[str]:
     return out
 
 
+# Short: the delivery log keeps 200 characters of a delivery's notes.
+IP_NOTE = ("the visitor's address (ip) gave no country (a private one, such as a proxy's? "
+           "send the one your host's header gives): kept without a country")
+NO_FILE_NOTE = ("ip was sent, but Skald's server has no country file (logs.country_db): kept "
+                "without a country")
+
+
+def ip_notes(records: list[dict], rows: list[dict], country_db) -> list[str]:
+    """A lead that sent `ip` and was kept without a country says why (the
+    address itself is never kept nor written in the note)."""
+    if not any(r.get("ip") and not row.get("country") for r, row in zip(records, rows)):
+        return []
+    return [IP_NOTE if country_db else NO_FILE_NOTE]
+
+
 # The notes a lead's sender gets back in the answer (what was kept, but not as sent).
 SENDER_NOTES = (LABEL_NOTE, TEST_NOTE, VALUE_NOTE, CUSTOMER_NOTE, TAGS_NOTE, REFUND_OVER_NOTE,
-                REFUND_CURRENCY_NOTE)
+                REFUND_CURRENCY_NOTE, IP_NOTE, NO_FILE_NOTE)
 
 
 _RECEIVERS: dict = {}

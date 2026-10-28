@@ -4,7 +4,8 @@
 // own, POST integrations/hooks/paste), the steps for that tool with the address
 // and the secret filled in (from docs/help/webhooks.md), a mail for the
 // developer WITHOUT the secret, and the test (POST integrations/test) plus a
-// live check that polls GET integrations until a real one arrives. For the
+// live check (2.44: ui/live.js arrivedBox, POST sites/arrived hook:<tool>) that says by
+// itself, beside the address and on the Test step, whether a real one arrived. For the
 // site's own backend, the guide's body and signed examples (help-data.js,
 // "Send leads from your backend") with this site's address; "Share with your
 // developer" (conn-share.js) makes a private page with the same steps.
@@ -25,6 +26,7 @@ import { shareBox } from "./conn-share.js";
 import { packToggle, keepKey, keptKey } from "./setup-pack.js";
 import { leadFilePanel, wordpressPanel, bearerSteps } from "./setup-leadfile.js";
 import { blockList } from "../mdview.js";
+import { arrivedBox } from "../ui/live.js";
 
 export const POLL_MS = 5000;
 export const POLL_FOR_MS = 120000;
@@ -200,34 +202,17 @@ function testPanel(st) {
   const t = st.tool();
   const out = h("div", { class: "cn-test-out" });
   const test = h("button", { type: "button", class: "btn primary" }, "Send a test lead");
-  const live = h("button", { type: "button", class: "btn" }, "Wait for a real one");
+  // 2.44: whether a real one arrived, said by itself (every 5 s, then 30 s) with its Test.
+  const real = arrivedBox(st.site, `hook:${t.tool}`, { label: "Check for a real one", intro: "Waiting for the first real one." });
   test.addEventListener("click", async () => {
     test.disabled = true;
     const r = await call("integrations/test", { site: st.site, tool: t.tool });
     test.disabled = false;
     const [kind, head] = testWords(r);
-    out.replaceChildren(answerBox(kind, head, kind === "ok" ? h("p", null, "Skald's side works. Now send a real lead from your form or tool, and press Wait for a real one.") : null));
+    out.replaceChildren(answerBox(kind, head, kind === "ok" ? h("p", null, "Skald's side works. Now send a real lead from your form or tool: it shows below as soon as it arrives.") : null));
   });
-  let timer = null, until = 0;
-  async function once() {
-    const r = await call(`integrations?site=${encodeURIComponent(st.site)}`);
-    const now = r.ok ? (r.tools || []).find((x) => x.tool === t.tool) : null;
-    const polling = Date.now() < until;
-    if (now?.state === "received" && !now.attention) {
-      out.replaceChildren(answerBox("ok", `Connected: ${now.name}, ${now.words}.`));
-    } else if (now?.attention) {
-      out.replaceChildren(answerBox("bad", `${now.name}: ${now.words}.`, adminFold(now.fix || null)));
-    } else {
-      out.replaceChildren(answerBox("wait", "Waiting for the first real one. Nothing real has arrived yet.",
-        polling ? h("p", { class: "note" }, "Checking again every 5 seconds, for up to 2 minutes.") : h("p", null, "Nothing arrived in 2 minutes. Check the address and the secret in the tool, then try again.")));
-      if (polling && out.isConnected !== false) { timer = setTimeout(once, POLL_MS); return; }
-    }
-    clearTimeout(timer);
-    live.disabled = false;
-  }
-  live.addEventListener("click", () => { clearTimeout(timer); until = Date.now() + POLL_FOR_MS; live.disabled = true; once(); });
-  return h("div", { class: "cn-test" }, h("p", null, "Send a test lead first: Skald signs a sample, reads it and keeps nothing (it is marked as a test). Then send a real lead and wait for it here."),
-    h("div", { class: "acts" }, t.set ? test : null, live), out);
+  return h("div", { class: "cn-test" }, h("p", null, "Send a test lead first: Skald signs a sample, reads it and keeps nothing (it is marked as a test). Then send a real lead: this page shows it as soon as it arrives."),
+    h("div", { class: "acts" }, t.set ? test : null), out, real);
 }
 
 /* Step 3, Set it up: the way's own steps with the address and the secret filled in, the
@@ -245,17 +230,19 @@ function setUpPanel(st, w) {
     shareBox(site, "hook", t.tool),
     h("p", { class: "note" }, ownSecret(t) ? "The mail holds the address and the steps." : "The mail holds the address and the steps, not the secret: give the secret separately, never by mail or chat.")];
   const filled = h("p", null, secret ? "The address and the secret are filled in." : `The address is filled in. Put the secret where you see ${SECRET}.`);
+  // 2.44: beside the address, whether anything has arrived at it yet, by itself, with Test.
+  const live = arrivedBox(site, `hook:${t.tool}`, { intro: `Waiting for ${t.name}: nothing has arrived yet.` });
   if (st.pick === "wordpress") {
-    return [...wordpressPanel(site, { secret }), h("div", { class: "acts" }, pack), packBody, helpLink("webhooks", "WordPress forms, step by step")];
+    return [...wordpressPanel(site, { secret }), live, h("div", { class: "acts" }, pack), packBody, helpLink("webhooks", "WordPress forms, step by step")];
   }
   if (st.pick === "lead") {
     return [...leadFilePanel(st, { secret, onLang: () => w.redraw() }),
       h("details", { class: "fold" }, h("summary", null, "By hand: the signed request"), filled, steps(...shown.lines), shown.code ? codeBlock(shown.code, "the example") : null),
-      examples(addr), ...sendOn, helpLink("leads-from-your-backend", "Examples in Node, Python and PHP")];
+      examples(addr), live, ...sendOn, helpLink("leads-from-your-backend", "Examples in Node, Python and PHP")];
   }
   return [filled, steps(...shown.lines), shown.code ? codeBlock(shown.code, "the example") : null,
     t.tool === "json" ? h("details", { class: "fold" }, h("summary", null, "Signed instead (optional)"), steps(...signedJson(addr))) : null,
-    ...sendOn, helpLink("webhooks", `${t.name}, step by step`)];
+    live, ...sendOn, helpLink("webhooks", `${t.name}, step by step`)];
 }
 
 export async function hookDialog(site, { onClose = null, route = null, start = 0, wrap = null, way = "" } = {}) {

@@ -133,6 +133,20 @@ await tick(60);
 assert.equal(q().get("edit"), "token-new", location.hash);
 assert.equal(dialog().querySelector(".dw-title").textContent, "New token");
 assert.ok(dialog().querySelectorAll("input").some((i) => i.getAttribute("name") === "token-name") && dialog().textContent.includes("What it may do"));
+// 2.44: Add sites (AI agent) is for the whole organisation: the site list goes, mcp is ticked with it.
+const box = (v) => dialog().querySelectorAll('input[type="checkbox"]').find((i) => i.getAttribute("value") === v);
+assert.ok(dialog().textContent.includes("Add sites (AI agent)"));
+box("add_sites").checked = true;
+box("add_sites").dispatchEvent(new Event("change"));
+assert.ok(box("mcp").checked, "mcp comes with it");
+const siteSet = dialog().querySelectorAll("fieldset").find((f) => f.textContent.startsWith("Sites"));
+assert.ok(siteSet.hidden, "no site list");
+assert.ok(dialog().textContent.includes("Every site of this organisation, and the ones it adds."));
+dialog().querySelectorAll("input").find((i) => i.getAttribute("name") === "token-name").value = "Claude adds sites";
+dialog().querySelector("form").dispatchEvent(new Event("submit"));
+await tick(30);
+const made = posted.filter(([p]) => /tokens\/create$/.test(p)).pop();
+assert.deepEqual(made[1], { name: "Claude adds sites", sites: [], scopes: ["read", "mcp", "add_sites"] });
 dialog().querySelector(".dw-x").click();
 await tick(30);
 

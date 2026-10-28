@@ -200,6 +200,26 @@ export function watchItems(status, seen = {}, jobs = null) {
   return items;
 }
 
+/* 2.44, the watch's one line on top (the owner, 27 Oct: "so long, so much info, the
+   button Apply is so below"): [pill kind, pill words, one sentence]. hhmm(iso): the clock. */
+export function headWords(status, seen = {}, jobs = null, hhmm = (x) => String(x || "").slice(11, 16)) {
+  const s = status || {};
+  if (!status) return ["info", "Checking", "Checking what your agent has done..."];
+  const stop = stopWords(s);
+  if (stop) return ["bad", "Stopped", stop];
+  if (!s.opened_at) return ["warn", "Waiting", "Waiting for your agent to open the line."];
+  if (!s.keys_at) return ["warn", "Working", "Your agent is reading the steps. It may be waiting for your answer in its chat."];
+  if (!s.reported_at) return ["info", "Working", `Your agent is working: it took its keys at ${hhmm(s.keys_at)}. It reports here when it is done.`];
+  const left = list((s.report || {}).left_for_user);
+  // Search Console (agent-recs.js searchBox): the agent is done, Skald still connects it.
+  const sc = seen.search;
+  if (sc && sc.verdict === "bad") return ["bad", "Needs a fix", `Your agent finished, but Search Console is not connected: ${sc.head}`];
+  if (sc && sc.verdict !== "ok") return ["warn", "Waiting for Google", "Your agent finished. Skald connects Search Console by itself as soon as Google shows its robot: nothing to press."];
+  if (hasLogs(jobs) && seen.lines !== true) return ["warn", "Waiting for visits", "Your agent finished. Waiting for the first visits to arrive."];
+  if (left.length) return ["warn", "Left for you", `Your agent finished. Left for you: ${left[0]}${left.length > 1 ? ` (and ${left.length - 1} more, in Details)` : ""}`];
+  return ["good", "Done", sc ? "Done: your agent finished, and Search Console is connected." : "Done: your agent finished its work."];
+}
+
 /* What agentstatus's state means when it stops the watch: words, or "" to go on. */
 export function stopWords(status) {
   const s = status || {};

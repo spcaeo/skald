@@ -8,6 +8,10 @@
                        keeps its own row, so the same lead counts twice
     helper(...)        is the beacon helper (the hook receiver, and the
                        script tag's server) answering on its port?
+    unplaced(...)      the `lead` and `json` hooks' last PLACE_LOOK real
+                       leads, when every one was kept without a country
+                       (hook_states' "unplaced"; the doctor and the set-up
+                       checklist say it, with the fix)
 
 Reads only. No figure here is a count shown as a result: the states are
 facts about the delivery log, the secrets and the helper.
@@ -18,7 +22,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
-from . import TOOLS, secrets_store, store
+from . import TOOLS, geo, secrets_store, store
 
 TOOL_NAMES = {"lead": "Your site's server (lead)", "json": "Zapier, Make, n8n (json)",
               "calendly": "Calendly", "calcom": "Cal.com", "stripe": "Stripe",
@@ -68,10 +72,46 @@ def _fix_for(outcome: str, tool: str, site: str, cmd: str, detail: str | None) -
     return "See the delivery log on Settings > Leads & tools."
 
 
+PLACE_LOOK = 3                   # the last leads read for "unplaced"
+PLACE_TOOLS = ("lead", "json")   # the hooks that can send the visitor's address (ip)
+
+
+def unplaced(db, site: str, tool: str, site_config: dict | None = None) -> dict | None:
+    """{"leads", "no_vid", "says", "fix"} when each of the tool's last
+    PLACE_LOOK real leads (by when Skald got them; test rows apart) was kept
+    without a country, else None. A state read from at most PLACE_LOOK
+    stored rows, not a figure: "leads" is how many were read. Leads already
+    kept stay as they are: no country is guessed after the fact."""
+    if db is None or tool not in PLACE_TOOLS:
+        return None
+    got = db.execute("SELECT external_ref, MAX(received_at) AS got, MAX(country IS NOT NULL), "
+                     "MAX(vid IS NOT NULL) FROM conversions WHERE site = ? AND tool = ? AND "
+                     "test = 0 GROUP BY external_ref ORDER BY got DESC, external_ref LIMIT ?",
+                     (site, tool, PLACE_LOOK)).fetchall()
+    if not got or any(r[2] for r in got):
+        return None
+    n, no_vid = len(got), all(not r[3] for r in got)
+    last = "Your last lead" if n == 1 else f"Your last {n} leads"
+    if not geo.database(site_config or {}):
+        return {"leads": n, "no_vid": no_vid,
+                "says": f"{last} came without a country: Skald's server has no country file to "
+                        "look the visitor's address up in",
+                "fix": "Set the country file on Skald's server (logs.country_db, or "
+                       "SKALD_COUNTRY_DB in Docker), then have the lead call pass the "
+                       "visitor's address as `ip`. Leads already kept stay without a country."}
+    what = "a visitor ID or the visitor's address" if no_vid else "the visitor's address"
+    lost = "their country and the pages they read are" if no_vid else "their country is"
+    return {"leads": n, "no_vid": no_vid,
+            "says": f"{last} came without {what}, so {lost} not recorded",
+            "fix": "Pass the visitor's address as `ip` in the lead call, from the header your "
+                   "host sets (the lead files' README, \"The visitor's address\"), or run the "
+                   "AI agent's lead job again. Leads already kept stay without a country."}
+
+
 def hook_states(site_config: dict, folder, site: str, db, now: datetime | None = None,
                 cmd: str = "skald", base: str = "") -> list[dict]:
     """One entry per tool: {tool, name, url, set, where, state, words,
-    attention, fix, last_at, test_at}. state: needs_secret, missing (an
+    attention, fix, last_at, test_at, unplaced}. state: needs_secret, missing (an
     environment variable named but empty), never, ready (only tests so far),
     received. `db` is conversions.sqlite opened, or None when there is none."""
     out = []
@@ -84,11 +124,11 @@ def hook_states(site_config: dict, folder, site: str, db, now: datetime | None =
             out.append({"tool": tool, "name": name, "url": url, "set": False, "where": "file",
                         "state": "exposed", "words": f"cannot be used: {why}",
                         "attention": True, "fix": "chmod 600 the secrets file on the server.",
-                        "last_at": None, "test_at": None})
+                        "last_at": None, "test_at": None, "unplaced": None})
             continue
         entry = {"tool": tool, "name": name, "url": url, "set": bool(value),
                  "where": where, "last_at": None, "test_at": None, "fix": None,
-                 "attention": False}
+                 "attention": False, "unplaced": None}
         if not value:
             if where.startswith("env "):
                 entry.update(state="missing", attention=True,
@@ -129,7 +169,8 @@ def hook_states(site_config: dict, folder, site: str, db, now: datetime | None =
                     "unmarked_test": "test marks taken off"}.get(last["outcome"],
                                                                   last["outcome"])
             detail = f", {last['error']}" if last.get("error") else ""
-            entry.update(state="received", words=f"last received {when} ({what}{detail})")
+            entry.update(state="received", words=f"last received {when} ({what}{detail})",
+                         unplaced=unplaced(db, site, tool, site_config))
         out.append(entry)
     return out
 

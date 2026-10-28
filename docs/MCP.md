@@ -5,10 +5,12 @@ Claude Desktop, ChatGPT, or any MCP client - can ask about your traffic in
 plain words. "How did last week compare with the week before?" "Which pages
 did ChatGPT fetch?" "Was any day withheld?"
 
-It is **read-only**, with two exceptions: `setup_line` (2.39.0) makes a set-up
+It has 29 tools. It is **read-only**, with four exceptions: `setup_line` (2.39.0) makes a set-up
 line for an AI agent, and `mark_todo_done` (Unreleased) keeps an agent's report on a
 to-do and marks it done; both only with a token that has the `setup` scope for that one
-site (below, "Setting a site up" and "Fixing the to-dos"). It reads the same data files the dashboard reads
+site (below, "Setting a site up" and "Fixing the to-dos"). `add_site` and `send_invites`
+(Unreleased) add a site within the plan and mail its people, only with a token that has
+the `add_sites` scope (below, "Adding a site"). It reads the same data files the dashboard reads
 (DATA-CONTRACT.md). It never counts anything again and never invents a
 figure. An agent cannot get a figure the dashboard would not show.
 What it can and cannot do with leads (no tool writes one):
@@ -63,6 +65,10 @@ be left out when the token reads only one site. `view` is a part of a site
 | `fix_todo` | site, id?, offset, limit | (Unreleased) one of Overview › Insights' to-dos with EVERY row (`todo_rows.py`'s file beside the history, the same rows the kit's `GET /traffic-kit/<code>/todo/<id>` hands an agent; never the browser's `todos.json`, which carries at most 1,000), paged by `offset` and `limit` (at most 5,000), plus `steps`: the job text (`kit/agent_todos.guide`: check first, change only what is missing, never touch what the to-do does not list, ask before a server change, `nginx -t` before a reload, then `mark_todo_done`). Rows are paths and counts; an email or IPv4 address inside a value is `[removed]` (`scrubbed` says how many). Without `id`: the to-dos an agent can fix (`lost`, `errors`, `markdown`, `sitemap`, `leave`) with `rows_total` and `first_seen`. Any token that may read the site |
 | `your_tools` | site | (Unreleased) the figures from the site's own tools, connected with the user's own keys (Google Analytics...: docs/TOOLS.md): each tool's state, last answer, the tool's own period, what it said about its answer (sampled, thresholded) and its figures, each labelled "Counted from: <tool>". The tool's counts, never Skald's: never added to them. A figure the tool did not give is null; a tool whose recheck failed shows none. Any token that may read the site; never a key |
 | `mark_todo_done` | site?, id, state, change, files, left, notes | (Unreleased) **setup scope only, one site.** Keeps the report (`todo_marks.keep_fix`: state `done`/`partly`/`left`, the exact change as text at most 200,000 characters, files, rows left with why, notes; anything shaped like a token removed) and, for `done`, marks the to-do done (`todo_marks.agent_done`: once; the re-check then runs on every whole day after). For `done` and `partly`, Skald then runs the to-do's own Check again in the background (2.44, `todo_check.after_report`) and the dashboard shows its answer beside the report. Refused for a to-do not in the rows file, another organisation's site, a read-only plan. One audit row `mcp.todo_done` (token id, to-do, state, rows left), never the change |
+| `add_site` | host, timezone?, people?, jobs? | (Unreleased) **add_sites scope only; writes.** Adds the site to the token's own organisation through the very code POST `sites/add` runs (`site_add.add`), so it is refused by exactly what refuses the dashboard: a read-only organisation, the log endpoint off, the plan's sites (`can_add_site`), a bad or taken host, more than 20 people, a person who is not a viewer or admin, and the plan's members for the new people it names (`can_add_people`, open invites included). An organisation with no plan has no limit. With saas on the site starts pending (verify the domain). `people`: `[{email or user, role viewer\|admin, sees site\|all}]`, invited once the first data arrives. Then makes the set-up line as `setup_line` does (`jobs`, default logs, script, lead). Answers `site`, `org`, `dashboard`, `state` (`pending` or `waiting`), `verify`, `people`, `jobs`, `line`, `llms_url`, `steps_url`, `expires_at`, `link_id`. No ingest token is made or shown (the line's keys are fetched into a file). Never a new organisation: that stays in the dashboard. One audit row `mcp.add_site` (the token's id, the site, the number of people, the jobs, the line's id), never a code, token or address |
+| `site_progress` | site, link_id? | (Unreleased) the answer of POST `sites/live` (`setup_live.live_now`): `state` (waiting, receiving, done) and `steps` (opened, keys, road, data with `lines`, `recent` and `newest_at`, verified, done, invites), `refused`, the counts. Its tick marks a set-up done and sends its invites once data arrived, as the live run does. add_sites token for any site of its organisation, or a setup token for its one site; refused for a read-only plan |
+| `check_site` | site, link_id? | (Unreleased) POST `sites/check`'s Check now (`setup_live.check_now`): `check` {`verdict` ok, wait or bad, `head`, `says`, `fix`, `tech`} and `live`. `CHECK_PER_HOUR` (60) counted per token. The same tokens as `site_progress` |
+| `send_invites` | site | (Unreleased) **writes: mails people.** POST `sites/sendinvites` (`setup_live.send_now`): sends the set-up's invites now, before the data, once; then answers that they went already. The same tokens as `site_progress`. One audit row `mcp.send_invites` (the token's id, counts), never an address |
 | `find_person` | site, q | **read_private only.** One IP address, email, visitor ID or lead id: every visit kept with the address, the last 6 hours of requests, the leads (spam, duplicates and test too), every conversion (test, cancelled and removed too), linked. The same lookup as the page's search (`people/lookup.py`); each call is written to the audit log by its kind and a hash, never the value. A listing, not a figure |
 
 A site you may not read, a bad date or a missing file comes back as a tool
@@ -114,6 +120,37 @@ the endpoint, and read the site for `setup_left`) and `setup` (to make a line).
    recommendation waits for the owner's Apply.
 4. `setup_left` again: the lines Skald sees working have ticked themselves.
    The mail line stays for the owner (the dialog's address is in the answer).
+
+## Adding a site (Unreleased)
+
+The owner (2026-10-27): an AI agent may "Add a site", within what the plan allows. "Add
+shop.example.com to Skald, invite these two people as viewers, and tell me when data arrives"
+works with one token:
+
+- **The `add_sites` scope** (accounts/apitokens.py, `check_org`): for the whole
+  organisation, never a site list; only together with `mcp`; made only by an owner or an
+  admin who sees every site (or the server, `skald token create NAME --scope mcp --scope
+  add_sites`). Checked at every use: a revoked token, or a maker who is disabled, removed,
+  no longer an owner or admin, or limited to some sites since, stops it at once. In the
+  page: Settings › AI & API, **New token**, tick **Add sites (AI agent)** (the site list
+  goes, AI assistant (MCP) is ticked with it).
+- **What the plan allows, over MCP.** The same as the dashboard, by the same code
+  (`site_add.py`): the plan's sites ("The tiny plan allows 1 site. Choose a bigger plan in
+  Settings > Billing to add another."); the plan's members, for the people the site names
+  who are not members or invited yet ("The team plan allows 4 members, open invites
+  included; this organisation has 3 and the site names 2 new. Name fewer people, or choose
+  a bigger plan in Settings > Billing."); a read-only organisation (cancelled, long unpaid)
+  refuses every tool here with the billing words; an organisation with no plan (the family
+  projects) has no limit; saas's pending verification (the answer gives the DNS TXT record
+  and the meta tag). The dashboard's sites/add and sites/whofor check the members now too.
+- **Not over MCP:** a new organisation (made in the dashboard or by signing up), an ingest
+  token shown in a chat, removing or pausing a site.
+
+**Example.** The agent calls `add_site {"host": "shop.example.com", "people":
+[{"email": "ana@example.com"}, {"email": "ben@example.com"}]}`, follows the line it answers
+(or hands it to the agent in the site's own folder), then calls `site_progress` every 30
+seconds or so until `state` is `done`, and `check_site` when nothing comes. The invites go
+by themselves once the first data arrives (`send_invites` sends them sooner).
 
 ## Fixing the to-dos (Unreleased)
 
@@ -217,8 +254,9 @@ Make a token with the `mcp` scope in Settings > Connections (called API & tokens
 the card "Connect an AI assistant (MCP)" makes one for the current site, shows the Claude Code
 and Claude Desktop set-up, and tests it with `initialize` and `tools/list`; "Make a token by
 hand" takes several sites (or on the server: `skald token create NAME --scope mcp`). Add `read_private` only
-if the agent must see addresses, and `setup` only for an agent that should make set-up lines
-(one site, above). The token is shown once; keep it where you
+if the agent must see addresses, `setup` only for an agent that should make set-up lines
+(one site, above), and `add_sites` only for an agent that should add sites (the whole
+organisation, above). The token is shown once; keep it where you
 keep other secrets, never in a repository.
 
 The endpoint is `POST https://<your host>/traffic-mcp` on the refresh helper,
@@ -294,4 +332,10 @@ and who may make a `setup` token), and `tests/test_agent_many.py` (Unreleased: t
 used at once from one address, the two lines' token making its site's line without naming
 it, and two sites' tokens never ending each other's lines), and `tests/test_todo_agent.py`
 (Unreleased: `fix_todo` hands every row and the steps, refuses another site; `mark_todo_done`'s
-scope refusals, its mark and its audit row without the change).
+scope refusals, its mark and its audit row without the change), and
+`tests/test_mcp_add_site.py` (Unreleased: the `add_sites` scope's rules; `add_site` into the
+token's own organisation through `site_add.add`, the plan's sites and members refusing with
+the dashboard's words, a read-only organisation, no limit without a plan; wrong scope,
+revoked, demoted and limited makers; another organisation's site refused;
+`site_progress` and `check_site` equal to sites/live and sites/check; Check now's limit per
+token; the audit rows without a code, token or address).

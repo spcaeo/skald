@@ -28,6 +28,7 @@ import { tagCheckBox } from "./conn-tagcheck.js";
 import { detectCard, recommendFor, suggestionsFor, saveFound } from "./conn-detect.js";
 import { packToggle, keepKey } from "./setup-pack.js";
 import { withUrl } from "../urlactions.js";
+import { arrivedBox } from "../ui/live.js";
 
 export const POLL_MS = 5000;
 export const POLL_FOR_MS = 120000;
@@ -189,7 +190,9 @@ export function runPanel(st, w, { onMade = null } = {}) {
   stillGood(got).then((ok) => { if (!ok && linkFor(st.site) === got) { LINKS.delete(st.site); if (slot.isConnected !== false) w.redraw(); } });
   slot.replaceChildren(codeBlock(got.command, "the install command"),
     h("p", null, `Paste it on the web server of ${st.site}. It works once, for 24 hours.`),
-    h("p", { class: "note" }, `It holds this site's sending token, so send it only to the site's admin. ${st.testBelow ? "Live progress below shows when its lines arrive." : "Then press Next: the Test starts by itself."}`));
+    h("p", { class: "note" }, `It holds this site's sending token, so send it only to the site's admin. ${st.testBelow ? "Live progress below shows when its lines arrive." : "Skald watches for its first lines here, by itself."}`),
+    // 2.44: beside the command, whether its lines arrived yet, by itself, with Test.
+    st.testBelow ? "" : arrivedBox(st.site, "logs", { intro: "Waiting: no data has arrived yet." }));
   const file = kitOn(st, "server") ? h("button", { type: "button", class: "btn" }, "Download as one file") : null;
   if (file) {
     file.addEventListener("click", async () => {

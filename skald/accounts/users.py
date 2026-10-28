@@ -77,9 +77,21 @@ def create_user(db, email, name, password=None, install_admin=False, actor="cli"
                          "VALUES (?, ?, ?, ?, ?)",
                          (email, " ".join(str(name or "").split())[:100], pw_hash,
                           int(bool(install_admin)), base.now()))
+        # The welcome line (2.44.0): one row made with the account, taken by its first /me.
+        db.execute("INSERT INTO settings (scope, key, value, updated_by, updated_at) "
+                   "VALUES (?, 'welcome', 'true', ?, ?)", (f"user:{cur.lastrowid}", actor, base.now()))
         auditlog.record(db, None, actor, "user.create", email,
                         "install admin" if install_admin else "")
         return find_user(db, user_id=cur.lastrowid)
+
+
+def take_welcome(db, user_id) -> bool:
+    """True once: on a new person's first dashboard load. Accounts made before
+    2.44.0 have no row, so nobody already signed in sees it."""
+    with base.tx(db):
+        cur = db.execute("DELETE FROM settings WHERE scope = ? AND key = 'welcome'",
+                         (f"user:{int(user_id)}",))
+    return cur.rowcount == 1
 
 
 def authenticate(db, email, password) -> dict | None:

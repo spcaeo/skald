@@ -103,7 +103,11 @@ export function setupItems(m, { status = null, tools = null, settings = null, wa
   else if (hurt) out.push({ id: "lead", title: "Lead hook tested", optional: true, state: "todo",
     says: hurt.state === "received" ? `${hurt.name}: leads are not arriving. The last one it sent was refused.` : `${hurt.name}: not working yet.`,
     tech: [`${hurt.name}: ${hurt.words}.`, hurt.fix ? `Fix: ${hurt.fix}` : ""].filter(Boolean).join("\n"), act: "lead" });
-  else if (ok.length) out.push({ id: "lead", title: "Lead hook tested", optional: true, state: "done", says: `${lead.name}: ${lead.words}.`, tech: null, act: null });
+  // Leads arrive, but the last ones came with no country (roads.unplaced): the lead job fixes it.
+  else if (ok.some((t) => t.unplaced)) {
+    const u = ok.find((t) => t.unplaced);
+    out.push({ id: "lead", title: "Lead hook tested", optional: true, state: "todo", says: `${u.name}: ${u.unplaced.says}.`, tech: `Fix: ${u.unplaced.fix}`, act: "lead" });
+  } else if (ok.length) out.push({ id: "lead", title: "Lead hook tested", optional: true, state: "done", says: `${lead.name}: ${lead.words}.`, tech: null, act: null });
   else out.push({ id: "lead", title: "Lead hook tested", optional: true, state: "todo", says: "Optional. Your forms or booking tool tell Skald about each lead.", tech: null, act: "lead" });
 
   // 6. Mail: a report on, and a recipient who confirmed.

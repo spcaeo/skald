@@ -13,7 +13,7 @@
 // but the line itself is not shown again after a reload. "Cancel this line" ends it at
 // once (POST <page>/sites/agentcancel {site, link_id} -> {ok, state: "cancelled"}), also
 // a line from before a reload, and from step 5 once its keys were taken. Under the line,
-// "Is it safe to paste this into a chat?" says what the code is (open, folded on a phone).
+// "Is it safe to paste this into a chat?" says what the code is (folded, its title in view).
 //
 // Chat-only agents (Claude.ai, ChatGPT) cannot run commands on a server: their
 // step 4 is the server way's one command (conn-send.js runPanel), with one line why.
@@ -25,6 +25,7 @@ import { stamp } from "../tz.js";
 import { answerBox } from "./conn-ui.js";
 import { runPanel } from "./conn-send.js";
 import { withUrl, copyText, TIMING } from "../urlactions.js";
+import { arrivedBox } from "../ui/live.js";
 import { AGENTS, HAND, HAND_WORDS, SAFE, SAFE_TITLE, CANCELLED_WORDS, OLD_CANCELLED, agentOf, codeOf, masked, timeLeft, expired } from "./agent-words.js";
 
 // The lines made in this page, by site and jobs: sites/agentlink's answer. Never stored
@@ -80,12 +81,10 @@ export function cancelButton(site, link, out, done) {
   return b;
 }
 
-/* "Is it safe to paste this into a chat?": open on a wide screen, folded on a phone (the
-   title stays in view). */
+/* "Is it safe to paste this into a chat?": folded, its title in view (2.44: the owner, 27 Oct,
+   "so long, so much info"; help only on demand, docs/UI-RULES.md). */
 export function safetyBox() {
-  let phone = false;
-  try { phone = typeof matchMedia === "function" && matchMedia("(max-width: 600px)").matches; } catch { /* no media queries: open */ }
-  return h("details", { class: "fold ag-safe", open: !phone }, h("summary", null, SAFE_TITLE),
+  return h("details", { class: "fold ag-safe" }, h("summary", null, SAFE_TITLE),
     h("ul", null, SAFE.map((x) => h("li", null, x))));
 }
 
@@ -208,7 +207,11 @@ export function linePanel(st, w, { onMade = null, below = false } = {}) {
   const [box, show] = lineBox(got);
   const left = timeLeft(got.expires_at);
   const llms = got.llms_url ? h("p", { class: "note" }, "What your agent reads first, the same for every site: ", withUrl(h("code", null, got.llms_url), got.llms_url, { cls: "ua-after", label: "Skald's guide for AI agents" })) : null;
-  return [intro, box, h("div", { class: "acts" }, show, again, cancelButton(site, got.link_id, slot, gone)), slot,
+  // 2.44: beside the line, whether the agent has opened it, taken its keys and reported, by
+  // itself, with Test (the owner: "copy this and give it to Claude Code ... there should be a
+  // test button"). The full checklist stays in the watch.
+  const test = got.link_id ? arrivedBox(site, `agent:${got.link_id}`, { intro: "Waiting for your agent to open the line." }) : null;
+  return [intro, box, h("div", { class: "acts" }, show, again, cancelButton(site, got.link_id, slot, gone)), test, slot,
     h("p", null, `It works once${got.expires_at ? `, until ${stamp(got.expires_at)}${left ? ` (${left})` : ""}` : ""}.`),
     got.cancelled ? h("p", { class: "note" }, OLD_CANCELLED) : null,
     safetyBox(),

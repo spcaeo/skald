@@ -397,6 +397,9 @@ def hook_items(site_config: dict, folder, site: str, now: datetime, cmd: str) ->
             words += f"; keeps {len(listed)} event type{'s' if len(listed) != 1 else ''} only"
         out.append(item(f"hook:{s['tool']}", f"Hook {s['name']}",
                         ATTENTION if s["attention"] else OK, words, s["fix"]))
+        if s.get("unplaced"):           # its leads come with no country (roads.unplaced)
+            out.append(item(f"place:{s['tool']}", f"Lead countries: {s['name'].removesuffix(' (lead)')}", ATTENTION,
+                            s["unplaced"]["says"], s["unplaced"]["fix"]))
     if not out:
         out.append(item("hooks", "Hooks", OFF, "no hook set up",
                         f"To add one: `{cmd} hooks secret {site} <tool>` (or Settings > "

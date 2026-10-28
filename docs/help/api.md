@@ -87,6 +87,8 @@ A scope is what a token may do. A token can have more than one.
 | `read_private` | Reading visitor addresses | Also read the two files that hold visitor addresses, `requests` and `ai_activity`, and look a person up |
 | `mcp` | AI assistant (MCP) | Let an AI assistant ask about your traffic through the MCP server |
 | `ingest` | Sending logs | Send a site's log lines into Skald. It reads nothing |
+| `setup` | Set-up lines (AI agent) | Let an AI assistant make the one-time set-up line for one site, through MCP. Owners and admins only, one site, with **AI assistant (MCP)** |
+| `add_sites` | Add sites (AI agent) | Let an AI assistant add sites to your organisation and watch their set-up, through MCP, within your plan. Owners and admins who see every site only; for the whole organisation, with **AI assistant (MCP)** |
 
 The box **Can also read visitor addresses** in the API dialog adds **Reading visitor addresses**. A sending token is made in **Send this site's visits to Skald**, in **Settings > This site > Data > Send logs** (see [Connections](connections.md)).
 

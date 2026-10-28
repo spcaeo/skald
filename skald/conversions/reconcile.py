@@ -26,13 +26,16 @@ Parameters (each at most once; any other name is refused):
 
 Answer: {"ok", "site", "since", "at_since", "at_until", "limit", "rows",
 "next_cursor"}, rows {external_ref, action, stage, at, label, test,
-received_at, value, value_minor, currency, customer_ref, tags} ordered by
-received_at, then the row's id. Since 2.32: `value` is the amount kept in the
-currency's major units as exact text ("49.99"), `value_minor` the same in
-whole minor units, `tags` an object; each null when none was kept (a
-`refunded` row's value is the total refunded so far). Rows marked test are
-in it (test: true). Never an email, a name, an address, a user agent, a
-visitor ID or a source. The cursor is the last row's (received_at, id),
+received_at, value, value_minor, currency, customer_ref, tags,
+country_recorded} ordered by received_at, then the row's id. Since 2.32:
+`value` is the amount kept in the currency's major units as exact text
+("49.99"), `value_minor` the same in whole minor units, `tags` an object;
+each null when none was kept (a `refunded` row's value is the total refunded
+so far). After 2.43.0: `country_recorded`, true when Skald kept a country for
+the row (the lead's `country`, or one looked up from its `ip`), so a site
+can check that its lead call passes the visitor's address; never the country
+itself. Rows marked test are in it (test: true). Never an email, a name, an
+address, a country, a user agent, a visitor ID or a source. The cursor is the last row's (received_at, id),
 opaque: a new lead arrives after it, so paging never skips or repeats one.
 """
 from __future__ import annotations
@@ -51,7 +54,8 @@ LIMIT, MAX_LIMIT = 200, 500
 PARAMS = ("since", "at_since", "at_until", "cursor", "limit")
 STORED_KEYS = ("external_ref", "action", "stage", "at", "label", "test", "received_at")
 # 2.32: the money kept (`value` is value_minor as exact major-unit text).
-ROW_KEYS = STORED_KEYS + ("value", "value_minor", "currency", "customer_ref", "tags")
+ROW_KEYS = STORED_KEYS + ("value", "value_minor", "currency", "customer_ref", "tags",
+                          "country_recorded")
 _STAMP = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
 
 
@@ -134,4 +138,5 @@ def _row(r: dict) -> dict:
     return {**{k: r[k] for k in STORED_KEYS}, "test": bool(r["test"]),
             "value": money.shown(r["value_minor"], r["currency"]),
             "value_minor": r["value_minor"], "currency": r["currency"],
-            "customer_ref": r["customer_ref"], "tags": json.loads(r["tags"]) if r["tags"] else None}
+            "customer_ref": r["customer_ref"], "tags": json.loads(r["tags"]) if r["tags"] else None,
+            "country_recorded": r["country"] is not None}

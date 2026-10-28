@@ -3,7 +3,7 @@ one JSON answer per POST, no event stream, no session id).
 
     handle_http(handler, config, live_dir, out_dir, token_checker=None,
                 history_path=None, allowed_origins=(), config_path=None,
-                setup_checker=None)
+                setup_checker=None, add_checker=None)
 
 `handler` is the helper's BaseHTTPRequestHandler. The rules, in order:
 
@@ -29,6 +29,10 @@ default checker reads the organisation tokens in accounts.sqlite
 the same token with the setup scope for that site, for the setup_line tool.
 The default reads accounts.sqlite too; with a `token_checker` given and no
 `setup_checker`, no call may make a set-up line.
+
+`add_checker(authorization) -> (allowed, why, token entry)` (2.44): the same
+token with the add_sites scope, for its whole organisation (apitokens.check_org),
+for add_site, site_progress, check_site and send_invites. The same default rule.
 """
 from __future__ import annotations
 
@@ -92,6 +96,25 @@ def accounts_setup(config: dict | None, live_dir):
     return check
 
 
+def accounts_adder(config: dict | None, live_dir):
+    """The add_sites scope's check (2.44): organisation tokens in accounts.sqlite."""
+    from ..accounts import apitokens
+    from ..accounts import db as base
+    path = base.path_for(config or {}, live_dir)
+    mode = ((config or {}).get("access") or {}).get("mode")
+
+    def check(header):
+        if mode != "sessions" or path is None or not Path(path).is_file():
+            return False, NO_ACCOUNTS, None
+        db = base.connect(path)
+        try:
+            ok, why, entry = apitokens.check_org(db, header, scope="add_sites")
+            return ok, why, entry if ok else None
+        finally:
+            db.close()
+    return check
+
+
 def origin_of(handler, config: dict | None) -> str:
     """This install's address as integrations_api._origin says it:
     hooks.public_url, access.base_url, else the request's own host."""
@@ -144,7 +167,8 @@ def _refuse(handler, code: int, why: str, headers: dict | None = None) -> None:
 
 
 def handle_http(handler, config, live_dir, out_dir, token_checker=None, history_path=None,
-                allowed_origins=(), config_path=None, setup_checker=None) -> None:
+                allowed_origins=(), config_path=None, setup_checker=None,
+                add_checker=None) -> None:
     """Answer one request to /traffic-mcp, whatever its method."""
     if not enabled(config):
         return _send(handler, 404, {"ok": False, "error": "MCP is not switched on here"})
@@ -184,10 +208,13 @@ def handle_http(handler, config, live_dir, out_dir, token_checker=None, history_
         return _send(handler, 400, protocol.error(None, protocol.PARSE_ERROR, "Parse error"))
     if setup_checker is None and token_checker is None:
         setup_checker = accounts_setup(config, live_dir)
+    if add_checker is None and token_checker is None:
+        add_checker = accounts_adder(config, live_dir)
     ctx = Context(out_dir, config=config, live_dir=live_dir, history_path=history_path,
                   checker=lambda site: checker(auth, site), config_path=config_path,
                   setup=(lambda site: setup_checker(auth, site)) if setup_checker else None,
-                  allowed=allowed_origins, origin=origin_of(handler, config))
+                  allowed=allowed_origins, origin=origin_of(handler, config),
+                  adder=(lambda: add_checker(auth)) if add_checker else None)
     answer = protocol.handle(message, ctx)
     if answer is None:
         return _send(handler, 202)

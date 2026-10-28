@@ -1,6 +1,7 @@
 """Skald's MCP server: agents (Claude, ChatGPT, any MCP client) read the
-same data files the dashboard reads (docs/MCP.md). Read-only, except one
-tool: setup_line makes a set-up line, with a token's setup scope.
+same data files the dashboard reads (docs/MCP.md). Read-only, except a few
+tools: setup_line makes a set-up line, with a token's setup scope; add_site
+adds a site within the plan, with the add_sites scope (2.44).
 
   protocol.py    JSON-RPC 2.0 and the MCP lifecycle, no transport
   tools.py       list_sites, overview, breakdown, top_pages, ai_activity, leads
@@ -11,6 +12,8 @@ tool: setup_line makes a set-up line, with a token's setup scope.
   tools_pages.py    page_changes, ai_readiness, changed_pages (2.35)
   tools_setup.py    setup_left, setup_line (2.39.0: the set-up lines' open
                     lines; a set-up line for an AI agent, with the setup scope)
+  tools_addsite.py  add_site, site_progress, check_site, send_invites (2.44: add a
+                    site and watch its set-up, with the add_sites scope)
   resources.py   skald://docs/api, skald://docs/counting, skald://sites/<site>/overview,
                  and the weekly_report prompt
   data.py        reading the data files: sites, ranges, day states

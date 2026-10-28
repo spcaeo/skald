@@ -27,8 +27,18 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-27-2.43.0",
+  id: "2026-10-28-2.44.0",
   items: [
+    ["Set-up shows when it worked", "every connect step checks by itself, with a Test button beside it; a failure says in plain words what went wrong.", "connections"],
+    ["Search Console connects by itself", "once Google shows Skald's robot, on the property it can see; Traffic › Search fills in as the history arrives.", "search"],
+    ["Shorter set-up steps", "one status line and the next thing to do; the details and the safety list are folded.", "connections"],
+    ["Lead countries", "the lead files send the visitor's address, so each lead gets its country; Skald warns when leads come without one.", "leads-from-your-backend"],
+    ["Add sites with your AI agent", "a token for adding sites over MCP, within your plan's site and member limits.", "mcp"],
+    ["A short welcome", "a new person's first sign-in says whose sites they see and where to start.", "getting-started"],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.43.0
     ["From your tools", "Google Analytics 4, Vercel Web Analytics, Calendly and Resend, read with your own key and shown apart, labelled with the tool's name; never added to Skald's counts.", "your-tools"],
     ["Organisations", "Settings › Organisation › Organisations: every organisation, its sites and members; limit a person to some sites; archive deletes nothing.", "organisations"],
     ["Add a site, live", "choose the organisation and the people first; live progress and Check now show it working; invites go out when the first data arrives.", "connections"],
@@ -37,9 +47,6 @@ const NEW = {
     ["AI reads, not requests", "an assistant reading a page counts once, its CSS and scripts fold under the page; NotebookLM is named as reading for someone.", "ai-and-bots"],
     ["Search opportunities", "Traffic › Search: queries shown a lot but rarely clicked, new and lost queries, positions over time.", "search"],
     ["Recorded journeys", "your site can send the sessions its visitors agreed to, shown beside the log's own visits.", "recorded-journeys"],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.42.0
     ["One button, one question", "every task with a doer asks first: who will do it? Me, My developer or My AI agent. Then it shows only that path.", "getting-started"],
     ["Short screens", "each screen shows its figures and one action; notes and method sit behind a ?. Site › Alerts groups 14 cards into 3, each with Fix.", "getting-started"],

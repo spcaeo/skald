@@ -2,14 +2,20 @@
 /**
  * Plugin Name: Skald Leads
  * Description: Tells Skald about each form sent on __SITE__ (Contact Form 7, WPForms, Gravity Forms, Elementor Pro forms, Ninja Forms). No code: activate it.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Requires at least: 5.0
  * Requires PHP: 7.0
  *
  * Each form sent becomes a lead in Skald, action "contact", with the email and
  * name fields it finds and the visitor's ID (the skald_vid cookie, or a hidden
  * field this plugin adds to your forms when the Skald script tag is on the page),
- * so Skald joins the lead to the visit. It posts to
+ * so Skald joins the lead to the visit, and the visitor's address, so Skald
+ * records the lead's country (it looks the country up and drops the address at
+ * once). The address is REMOTE_ADDR; when that is a private or local address (a
+ * proxy on your own server), the X-Real-IP header, else the first
+ * X-Forwarded-For entry. Behind a host or CDN with its own header, add to
+ * wp-config.php: define('SKALD_LEAD_IP_HEADER', 'CF-Connecting-IP'); (Cloudflare)
+ * or 'X-Forwarded-For' (a load balancer). It posts to
  * __URL__
  * in the background (never slows or breaks a form), signed with the secret.
  *
@@ -50,6 +56,46 @@ function skald_leads_vid()
         }
     }
     return null;
+}
+
+/** An IPv4 or IPv6 address from a value: the first of a list, without a port; else null. */
+function skald_leads_ip_of($value)
+{
+    if (!is_scalar($value)) {
+        return null;
+    }
+    $parts = explode(',', (string) $value);
+    $got = trim($parts[0]);
+    if (preg_match('/^(\d{1,3}(?:\.\d{1,3}){3}):\d{1,5}$/', $got, $m)
+        || preg_match('/^\[([0-9A-Fa-f:.]+)\](?::\d{1,5})?$/', $got, $m)) {
+        $got = $m[1];
+    }
+    return filter_var($got, FILTER_VALIDATE_IP) !== false ? $got : null;
+}
+
+/** The visitor's address in this request (see the top of this file), or null. */
+function skald_leads_ip()
+{
+    $name = defined('SKALD_LEAD_IP_HEADER') ? (string) constant('SKALD_LEAD_IP_HEADER') : '';
+    if ($name === '') {
+        $name = (string) getenv('SKALD_LEAD_IP_HEADER');
+    }
+    if ($name !== '' && strtoupper($name) !== 'REMOTE_ADDR') {
+        $key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+        return isset($_SERVER[$key]) ? skald_leads_ip_of(wp_unslash($_SERVER[$key])) : null;
+    }
+    $remote = isset($_SERVER['REMOTE_ADDR']) ? skald_leads_ip_of(wp_unslash($_SERVER['REMOTE_ADDR'])) : null;
+    if ($name !== '' || $remote === null
+        || filter_var($remote, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false) {
+        return $remote;
+    }
+    foreach (array('HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR') as $key) {
+        $got = isset($_SERVER[$key]) ? skald_leads_ip_of(wp_unslash($_SERVER[$key])) : null;
+        if ($got !== null) {
+            return $got;
+        }
+    }
+    return $remote;
 }
 
 /** One text value: arrays (a checkbox, a name in parts) joined by spaces. */
@@ -124,9 +170,21 @@ function skald_leads_send($plugin, $entry_id, $fields)
         if ($vid) {
             $lead['vid'] = $vid;
         }
+        $ip = skald_leads_ip();
+        if ($ip !== null) {
+            $lead['ip'] = $ip;
+        }
         $lead = apply_filters('skald_leads_lead', $lead, $plugin, $fields);
         if (!is_array($lead)) {
             return;
+        }
+        if (isset($lead['ip'])) {          // a filter may change it: still an address, or none
+            $ip = skald_leads_ip_of($lead['ip']);
+            if ($ip === null) {
+                unset($lead['ip']);
+            } else {
+                $lead['ip'] = $ip;
+            }
         }
         $body = wp_json_encode($lead);
         $t = time();

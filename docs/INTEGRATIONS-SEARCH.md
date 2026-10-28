@@ -55,6 +55,16 @@ A site admin does this for each site, in **Settings › Integrations › Search*
 
 **Disconnect** stops the syncs. What was synced stays in history.
 
+**Skald connects by itself (Unreleased).** On Connect, on Check now, and when an AI agent's
+report names a property, Skald asks Google which properties its robot sees and connects the
+one that covers the site (a domain property first). If the robot is on another property than
+the one named (a URL-prefix `https://example.com/` instead of `sc-domain:example.com`), Skald
+uses that one and says so in one line. If Google shows none yet, the page says "Waiting for
+Google: Skald's robot address is not on a example.com property yet." and Skald keeps asking,
+at most once a minute, for 7 days; once it appears, Skald connects and starts the 16-month
+history with nobody pressing anything. Traffic › Search follows this by itself, without a
+reload. Contract: [DATA-CONTRACT-CONNECT.md](DATA-CONTRACT-CONNECT.md).
+
 ### Connect Bing Webmaster Tools
 
 1. In Bing Webmaster Tools, Settings › API access › **API key**, make a key.

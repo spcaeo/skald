@@ -43,11 +43,13 @@ import { buildNav, mark, badge, brand, siteChip, railFoot, openDrawer, trailOf }
 import { ME, loadMe, sessions, signOut } from "./access.js";
 import { planBanner } from "./tabs/billing.js";
 import { updateBanner } from "./updates.js";
+import { welcomeBanner } from "./welcome.js";
 import { DEMO, demoBanner, demoState, demoTab } from "./demo.js";
 import { startEdges } from "./edges.js";
 import { filtersButton, filterChips, rulesBanner, openFilters } from "./filterpanel.js";
 import { fromState, treeWords } from "./rules.js";
 import { afterMark } from "./tabs/leadref.js";
+import { setRedraw } from "./ui/live.js";
 import { crumbLine, crumbUpdate, restore as restoreScroll, start as startCrumbs } from "./crumbs.js";
 
 const app = document.getElementById("app");
@@ -502,7 +504,7 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
     : DEMO.on && demoTab(s.tab) ? TAB_RENDER[s.tab](model, s, { first: firstPaint, changed })
     : DEMO.on && S.inSettings(s.tab) ? framed(s.tab, () => demoState(name))(model, s) : DEMO.on && opt(s.tab, "helper", s, false) ? demoState(name) : TAB_RENDER[s.tab](model, s, { first: firstPaint, changed });
   // modeBanner: while Compare is on, what A and B are, or why not (modes.js).
-  const banners = [demoBanner(), updateBanner(), planBanner(), modeBanner(model, s), filterBanner(s)].filter(Boolean);
+  const banners = [demoBanner(), welcomeBanner(), updateBanner(), planBanner(), modeBanner(model, s), filterBanner(s)].filter(Boolean);
   const content = [body].flat(Infinity).filter(Boolean);
   if (sec) {
     // A section: its tabs right under the bar's title, the notices and the chosen tab's page in the strip's panel.
@@ -614,6 +616,15 @@ async function boot() {
       model = await load(S.read(), { fresh: true, previous: model });
       render(S.read(), { keepScroll: true, changed: true });
     } catch { /* the next two-minute tick reads them */ }
+  });
+  // 2.44: a live state moved past the page's files (ui/live.js redraw: Search connected while
+  // its file still said not): read them again, and draw the tab again only when one changed.
+  setRedraw(async (names) => {
+    const next = await load(S.read(), { fresh: true, previous: model });
+    const same = names.every((n) => JSON.stringify(next.x?.[n] ?? null) === JSON.stringify(model.x?.[n] ?? null));
+    model = next;
+    if (!same && current) render(S.read(), { keepScroll: true, changed: true });
+    return !same;
   });
   addRestorer("dlg:filters", () => openFilters(model, S.read(), document.querySelector(".fp-btn")));
   S.emit(true);

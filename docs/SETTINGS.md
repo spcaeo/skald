@@ -184,7 +184,7 @@ keeps everything (`skald/keep_everything.py`) when
   A site no organisation holds is the install's own. A customer plan's sites are pruned as
   before.
 
-**The organisation rule** (accounts schema 6, Unreleased): each organisation has a privacy class,
+**The organisation rule** (accounts schema 6, 2.43.0): each organisation has a privacy class,
 `internal` (the default) or `client`, set by an install admin (Settings › Organisation ›
 Organisations › Settings, `skald org privacy SLUG internal|client`, or
 `accounts.orgs.set_privacy_class(db, org_id, cls, actor)`; audited `org.privacy`).

@@ -25,6 +25,7 @@ import { help } from "../ui/help.js";
 import { statusRow } from "./set-ui.js";
 import { withCopy } from "../urlactions.js";
 import { loading, copyButton, numbered } from "./setup-common.js";
+import { arrivedBox } from "../ui/live.js";
 
 export const TOOLS_PATH = "integrations/yourtools";
 export const DRAWER = "your-";                   // tool=your-<id>: one of your tools' drawer
@@ -196,8 +197,10 @@ export function toolsDialog(site, { tool = "", onClose = null, route = null, sta
         return true;
       } },
     { name: "Done",
-      draw: (w) => [h("div", { class: "state ok", role: "status" }, h("div", null, h("p", null, h("strong", null, "Connected. "),
+      // 2.44: "Connected" only once the tool answered: the live state and its Test (sites/arrived tool:<id>).
+      draw: (w) => [h("div", { class: "state ok", role: "status" }, h("div", null, h("p", null, h("strong", null, "Key saved. "),
         `Skald asks ${w.state.tool?.name || "the tool"} within the next minutes, then every few hours. Its figures show on Overview, under "From your tools".`))),
+      w.state.tool ? arrivedBox(site, `tool:${w.state.tool.id}`, { intro: `Waiting for ${w.state.tool.name}'s first answer.` }) : null,
       st.done?.who ? h("p", { class: "note" }, "The key Skald keeps: ", withCopy(h("code", null, st.done.who), st.done.who, { label: "whose key it is" })) : null,
       h("p", { class: "note" }, "Change or pause it in Settings › Leads & tools.")] },
   ];

@@ -170,10 +170,10 @@ assert.ok(!shown().includes(CODE) && shown().includes(W.HIDDEN), "the code hidde
 assert.ok(!d.textContent.includes(CODE), "nowhere on the page");
 assert.ok(d.textContent.includes("Paste it into Claude Code, in a terminal in the site's project folder"));
 assert.ok(d.textContent.includes("It works once, until"));
-// Is it safe to paste this into a chat? The owner's words, open on a wide screen; folded on a phone.
+// Is it safe to paste this into a chat? The owner's words, folded with its title in view (2.44).
 const safe = d.querySelector("details.ag-safe");
 assert.equal(safe.querySelector("summary").textContent, "Is it safe to paste this into a chat?");
-assert.ok(safe.hasAttribute("open"), "open on a wide screen");
+assert.ok(!safe.hasAttribute("open"), "folded: help on demand");
 assert.equal(safe.querySelectorAll("li").length, 7);
 assert.ok(safe.textContent.includes("Yes. The line holds a one-time code, not a password or a key."));
 assert.ok(safe.textContent.includes("Settings > AI assistants > Tokens & links"), "where the tokens really are");

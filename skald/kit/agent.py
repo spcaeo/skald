@@ -99,6 +99,7 @@ import hmac
 import json
 import re
 import secrets
+import sys
 import time
 from pathlib import Path
 
@@ -498,8 +499,8 @@ PROPERTY = re.compile(r"^(?:sc-domain:[a-z0-9.-]{1,253}|https?://[^\s]{1,250}/)$
 def _search(value) -> dict | None:
     """{google_property, robot_added, bing_site}: a Search Console property
     (sc-domain:<host> or an address ending in /), whether the user said they
-    added Skald's robot, the site's address in Bing. A recommendation only:
-    the user connects it in Skald."""
+    added Skald's robot, the site's address in Bing. 2.44: Skald connects the
+    property its robot sees by itself (_search_now, search/auto.py)."""
     if not isinstance(value, dict):
         return None
     out = {}
@@ -713,7 +714,7 @@ def serve(h, folder, base: str, limits, address: str, config: dict | None = None
         return _send(h, 429, "Too many tries. Wait a minute and try again.\n")
     if h.command == "POST":
         if sub == "report":
-            return _report(h, folder, code)
+            return _report(h, folder, code, config, config_path)
         if sub == "hooksecret":
             from . import agent_hooks
             return agent_hooks.answer(h, folder, code, config, config_path)
@@ -803,7 +804,7 @@ def _json(h, code: int, body: dict) -> None:
     link._answer(h, code, json.dumps(body) + "\n", "application/json; charset=utf-8")
 
 
-def _report(h, folder, code: str) -> None:
+def _report(h, folder, code: str, config: dict | None = None, config_path=None) -> None:
     try:
         length = int(h.headers.get("Content-Length") or -1)
     except ValueError:
@@ -824,4 +825,33 @@ def _report(h, folder, code: str) -> None:
         return _json(h, 404, {"ok": False, "error": UNKNOWN.strip()})
     if got == "expired":
         return _json(h, 410, {"ok": False, "error": "This code has expired or was cancelled."})
-    return _json(h, 200, {"ok": True})
+    return _json(h, 200, {"ok": True, **_search_now(folder, code, report, config, config_path)})
+
+
+def _search_now(folder, code: str, report: dict, config, config_path) -> dict:
+    """2.44: a report naming a Search Console property: Skald asks Google at once which
+    properties its robot sees, connects the one that covers the site (search/auto.py), and
+    answers {search: {state, words, note}}, so the agent tells the person what Skald sees.
+    Nothing when the line has no search job; never fails the report."""
+    prop = (report.get("search") or {}).get("google_property")
+    entry = find(folder, code)
+    if not prop or entry is None or "search" not in agent_jobs.of(entry) or config is None:
+        return {}
+    try:
+        from ..search import auto
+        from .agent_search import _accounts
+        db = _accounts(config, folder)
+        if db is None:
+            return {}
+        try:
+            site = entry["site"]
+            if auto.connected(config, config_path, db, site) == prop:
+                return {"search": {"state": "connected", "words": "Already connected."}}
+            auto.want(folder, site, prop, "ai-agent")
+            got = auto.run(config, config_path, folder, db, site, force=True) or {}
+        finally:
+            db.close()
+    except Exception as why:              # noqa: BLE001 - the report is kept either way
+        sys.stderr.write(f"agent report search: {type(why).__name__}: {why}\n")
+        return {}
+    return {"search": {k: got.get(k) for k in ("state", "words", "note", "source")}}

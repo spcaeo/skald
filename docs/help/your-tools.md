@@ -4,20 +4,20 @@ Skald counts from your server's log. Your other tools count in their own way: Go
 
 ## Where to find it
 
-- **Overview**, under **What changed**: the card **From your tools**, one line per tool you connected, with its key figures, the tool's own period and when it last answered. With no tool connected it is one folded line.
-- **Settings › This site › Leads & tools**: each tool you connected is a row with its state and its last answer. Open the row for its details: where its key is kept, its settings, **Sync now**, **Pause** and **Remove the key**. In the address: `tool=your-<tool>`, such as `tool=your-ga4`.
+- **Overview**, under **What changed**: the card **From your tools**, one line per tool you connected, with its key figures, the tool's own period and when it last answered. Owners and admins also see **Sources: Leads & tools**, which opens the group that feeds it. With no tool connected it is one quiet line, **From your tools: none connected**, with **Connect** (or, for a viewer, "Ask an admin to connect it").
+- **Settings › This site › Leads & tools**, in the group **Your own tools**: each tool is a row with its state (Connected, Waiting, Failing, Not connected), when it last answered and one action. Open the row for its details: where its key is kept, its settings and one main button (**Sync now**, or **Save** once you change a setting). **Pause** and **Remove the key** sit in a quieter row under it. In the address: `tool=your-<tool>`, such as `tool=your-ga4`.
 
 Only owners and admins of the site connect or change a tool. Anyone on the site sees the figures on Overview.
 
 ## Connect a tool
 
-On **Settings › This site › Leads & tools**, choose **Connect a tool**. It asks **Who will do it?**
+On **Settings › This site › Leads & tools**, choose **Connect** beside the tool in **Your own tools** (or **Connect a tool** by the page's title, when nothing else is the next step). It asks **Who will do it?**
 
 - **Me**: choose the tool, read what key it needs and which permission, paste the key, and choose **Next**. Skald checks the key's shape, keeps it on its server and never shows it again.
 - **My developer**: a message to send them, with which key to make, the permission it needs, and where to paste it in Skald. It never asks for a key by mail.
 - **My AI agent**: Skald writes one line for your agent (Claude Code, Codex, Cursor...). The agent looks in your site's project for the names of keys it may already have (a `.env` file's names, never their values), lists what it found, and **asks you before it sends each key**. It sends a key to Skald from a file or the environment, never typed into the chat, and never prints it. Only a line made by the person who runs your Skald server (an install admin) may hand Skald a key.
 
-The same lines are in **Settings › To do** (one optional line per tool) and in **Finish set-up** and **Set up everything left**.
+The same lines are in **Settings › To do** (one optional line per tool) and in **Finish set-up**. When Leads & tools' **Next step** offers **Connect everything left with your AI agent**, its line includes your tools too.
 
 Skald asks the tool within a few minutes, then every 6 hours, at a lower priority than its own work.
 
@@ -77,7 +77,7 @@ On **Settings › This site › Alerts**, the fold **Marketing** has four alerts
 - **Bookings dropped**: the same on Calendly's own bookings, when Calendly is connected.
 - **Google Analytics and the log far apart** (off until you turn it on): Google Analytics' sessions and the log's visits over the same 28 days are 2 to 1 or more apart. They count in different ways, so neither is wrong; a gap that large usually means a missing tag on some pages, a consent banner, or a host the log does not see.
 
-On **Settings › This site › Mail & reports**, **Monday marketing mail** (off until you turn it on) sends last week's visits, leads and top sources from the log, then each connected tool's own figures, each under its tool's name, to the site's mail recipients every Monday.
+On **Settings › This site › Mail & reports**, **Monday marketing mail** (off until you turn it on) sends, every Monday, last week's visitors, pages read and leads from the log, each against the week before, and where visitors came from. Then one card per connected tool with its headline figures under "Counted from: <tool>", its own period and how fresh it is. It goes to the same recipients as the weekly mail, and is not sent when the week is not whole.
 
 ## What each state means
 
