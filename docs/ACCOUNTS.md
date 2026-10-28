@@ -31,7 +31,7 @@ keeps one.
 Membership is read on every request: removing a member, or disabling a
 person, ends their access at once.
 
-## Managing organisations (schema 6, Unreleased)
+## Managing organisations (schema 6, 2.43.0)
 
 Settings › Organisation › Organisations (`#settings/org/orgs`, `skald/orgs_api.py`)
 lists them as cards: an install admin sees every one, anyone else their own. One card opens a
@@ -267,7 +267,7 @@ with the actor `cli`.
 | `site remove NAME --yes` / `site restore NAME` | Stop processing a site and hide it (its data stays), and undo it. A config-file site too; never the install's main site. |
 | `site clear NAME --yes` / `site purge NAME --yes` | Archive (backups folder, kept 30 days), then delete the site's collected data, keeping its settings and tokens (`clear`); or every store of the site, its tokens revoked (`purge`, "Delete all data": a dashboard site is gone, a config-file site becomes removed with no data). Both work on an active site; never on the main site. Settings > Add or remove sites does the same from each site's ⋯ menu (docs/SETTINGS.md). |
 | `settings list-keys` / `settings get SITE [KEY]` / `settings set SITE KEY VALUE [--yes]` | The dashboard's settings from the shell: each value and where it comes from; save one (JSON), checked and audited like the page ([SETTINGS.md](SETTINGS.md), "From the shell"). |
-| `token create NAME [--scope read\|read_private\|mcp\|ingest\|setup ...] [--site S ...] [--org SLUG]` / `token list` / `token revoke ID` | API tokens (`--scope` is repeatable; default `read`). |
+| `token create NAME [--scope read\|read_private\|mcp\|ingest\|setup\|add_sites ...] [--site S ...] [--org SLUG]` / `token list` / `token revoke ID` | API tokens (`--scope` is repeatable; default `read`). |
 
 `skald user` is still the basic-mode password-file command.
 

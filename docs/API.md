@@ -119,6 +119,8 @@ skald token revoke ab12cd34
 | `read_private` | also read `requests` and `ai_activity`, the files with addresses, and look a person up (`people?q=`, MCP `find_person`) |
 | `mcp` | use the MCP endpoint `/traffic-mcp` (MCP.md) |
 | `ingest` | add log lines to one site at `/traffic-ingest/<site>` (INGEST.md); it reads nothing |
+| `setup` | (2.39.0) MCP `setup_line` and `mark_todo_done` for one site; only with `mcp`, made by an owner or admin (MCP.md) |
+| `add_sites` | (Unreleased) MCP `add_site`, `site_progress`, `check_site` and `send_invites`: add a site to the organisation within its plan and watch its set-up; for the whole organisation (no site list), only with `mcp`, made by an owner or admin who sees every site (MCP.md) |
 
 Only a SHA-256 is kept, in `accounts.sqlite`. A token made in the page stops
 when the person who made it is disabled, demoted or removed. When the switch

@@ -28,9 +28,10 @@ import { answerBox } from "./conn-ui.js";
 import { testPanel, troubleTable, POLL_MS } from "./conn-send.js";
 import { tagVerdict } from "./conn-tagcheck.js";
 import { withUrl } from "../urlactions.js";
-import { agentOf, watchItems, stopWords, reportLines, keysWords, expired, hasLogs, REPORT_NOTE, CANCELLED_WORDS, TOKENS_AT } from "./agent-words.js";
+import { agentOf, watchItems, stopWords, headWords, reportLines, keysWords, expired, hasLogs, REPORT_NOTE, CANCELLED_WORDS, TOKENS_AT } from "./agent-words.js";
 import { lineFor, cancelButton } from "./agent-setup.js";
-import { recsBox, siteCall } from "./agent-recs.js";
+import { recsBox, searchBox, siteCall } from "./agent-recs.js";
+import { pill } from "../ui/pill.js";
 
 export { siteCall };
 
@@ -62,8 +63,9 @@ function itemEl(x) {
     h("span", { class: "vh" }, x.done ? " (done)" : x.bad ? " (needs a fix)" : " (waiting)"));
 }
 
-/* The agent's report in plain words, a line that the agent wrote it, and under it what it
-   recommends for Skald's own settings, each with Apply (agent-recs.js). */
+/* The agent's report in plain words and a line that the agent wrote it (behind Details, 2.44);
+   what it recommends, each with Apply, and Search Console's live state are the next action,
+   on top (agent-recs.js). */
 function reportBox(report, site) {
   const rows = reportLines(report).map((x) => h("div", { class: `ag-rep-row${x.kind === "warn" ? " warn" : ""}` }, h("dt", null, x.name),
     h("dd", null, x.kind === "url" ? withUrl(h("span", null, x.value), x.value, { cls: "ua-after" })
@@ -71,7 +73,7 @@ function reportBox(report, site) {
       : Array.isArray(x.value) ? h("ul", null, x.value.map((v) => h("li", null, linked(v)))) : linked(x.value))));
   return [h("section", { class: "ag-report", "aria-label": "What your agent reported" }, h("h4", null, "What your agent did"),
     rows.length ? h("dl", null, rows) : h("p", { class: "note" }, "The report was empty.")),
-    h("p", { class: "note ag-rep-who" }, REPORT_NOTE), recsBox(report, site)];
+    h("p", { class: "note ag-rep-who" }, REPORT_NOTE)];
 }
 
 /* Step 5. onDone() once the first log lines arrived (a line without logs: once the report
@@ -91,7 +93,26 @@ export function watchPanel(st, { onDone = null, cancel = true, heard = null, aga
   const said = h("p", { class: "msg", role: "status", "aria-live": "polite" });
   const jobs = st.jobs || null;
   const logs = hasLogs(jobs);
-  const draw = () => list.replaceChildren(...watchItems(status, seen, jobs).map(itemEl));
+  // 2.44, one screen (the owner, 27 Oct): one plain line on top, the next action right
+  // under it, the ticks folded once done, and the keys, Cancel and the full report in Details.
+  const headPill = h("span", { class: "ag-head-pill" });
+  const headText = h("span", { class: "ag-head-w" });
+  const headEl = h("p", { class: "ag-head", role: "status", "aria-live": "polite" }, headPill, " ", headText);
+  const recs = h("div", { class: "ag-next" });
+  const stepsSum = h("summary", null, "What has happened so far");
+  const stepsFold = h("details", { class: "ui-fold ag-steps", open: true }, stepsSum, list);
+  let folded = false;
+  const draw = () => {
+    const items = watchItems(status, seen, jobs);
+    list.replaceChildren(...items.map(itemEl));
+    const n = items.filter((x) => x.done).length;
+    stepsSum.textContent = n === items.length ? `${n} of ${n} steps done` : `What has happened so far: ${n} of ${items.length} done`;
+    // Folded once, when the last step is done; opened again by hand, it stays open.
+    if (n === items.length && !folded) { folded = true; stepsFold.open = false; }
+    const [k, w, words] = headWords(status, seen, jobs, (x) => time(x, { label: false }));
+    headPill.replaceChildren(pill(k, w));
+    headText.textContent = words;
+  };
   // heard (2.43, Add a site): the step's live progress says when the lines arrived, and is its one
   // check; this watch then has no Test connection of its own and only ticks its line from it.
   const test = !logs || heard ? null : testPanel(st.send, { auto: true, onResult: (v) => {
@@ -178,11 +199,15 @@ export function watchPanel(st, { onDone = null, cancel = true, heard = null, aga
       drawWait(r);
       if (r.reported_at && r.reported_at !== before?.reported_at) {        // the first report, or a newer one
         // agentstatus answers the report's jobs and tools at its top level too (2.39).
-        report.replaceChildren(...reportBox({ ...(r.report || {}), ...(r.jobs ? { jobs: r.jobs } : {}), ...(r.tools ? { tools: r.tools } : {}) }, site));
+        const rep = { ...(r.report || {}), ...(r.jobs ? { jobs: r.jobs } : {}), ...(r.tools ? { tools: r.tools } : {}) };
+        report.replaceChildren(...reportBox(rep, site));
+        recs.replaceChildren(...[searchBox(rep, site, (t) => { seen.search = t; draw(); }), recsBox(rep, site)].filter(Boolean));
         if (r.report?.script_tag) lookTag();
         // A line without logs: the report is the end of it.
         if (!logs && !before?.reported_at) {
-          done.replaceChildren(answerBox("ok", "Done: your agent sent its report.", h("p", null, "Read it below. Skald changes none of its own settings by itself: press Apply on what you want.")));
+          const apply = rep.asset_paths?.length || typeof rep.privacy?.keep_ips === "boolean";
+          done.replaceChildren(answerBox("ok", "Done: your agent sent its report.", h("p", null, apply
+            ? "Skald changes none of its own settings by itself: press Apply on what you want, just below." : "Its full report is under Details.")));
           if (onDone) onDone();
         }
       }
@@ -210,6 +235,8 @@ export function watchPanel(st, { onDone = null, cancel = true, heard = null, aga
   }
   draw();
   setTimeout(once, 0);       // once the step is on the page
-  return [h("p", null, "Skald ticks each step as your agent does it. This page checks every few seconds while it is open."),
-    list, said, lateOut, waitOut, keysOut, logs ? null : done, report, tagOut, test, logs && !heard ? done : null, logs && !heard ? troubleTable() : null];
+  const details = h("details", { class: "ui-fold ag-details" }, h("summary", null, "Details: the line, its keys and your agent's full report"),
+    waitOut, keysOut, report);
+  return [headEl, said, lateOut, logs ? null : done, recs, tagOut, test, logs && !heard ? done : null, stepsFold, details,
+    logs && !heard ? troubleTable() : null];
 }

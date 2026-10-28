@@ -23,8 +23,10 @@ In the examples, `stats.example.com` is the Skald install's host, `example.com` 
    `POST https://stats.example.com/traffic-hooks/example.com/lead` with
    `X-Skald-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256(secret, "<t>.<raw body>")>`.
 3. **Body:** `{"external_ref": "u-1001", "action": "signup", "at": "2026-10-22T14:30:00Z"}`.
-   Add `"stage"` (default `completed`), `"vid"` (the page's visitor ID), `"last_touch"` and
-   `"first_touch"` (UTMs, referrer, landing), `"label"`, and `"test": true` for test accounts.
+   Add `"ip"` (the visitor's address, read in the request that made the lead: it gives the
+   lead its country, and is dropped at once), `"stage"` (default `completed`), `"vid"` (the
+   page's visitor ID), `"last_touch"` and `"first_touch"` (UTMs, referrer, landing),
+   `"label"`, and `"test": true` for test accounts.
 4. **Read the answer.** `200 {"ok":true,"recorded":1,"duplicates":0}` is kept;
    `"duplicates":1` means Skald had it already (safe). Retry on 429 and 5xx, never on 400/401.
 5. **Check daily** with the signed `GET /traffic-hooks/example.com/leads?since=<last check>`
@@ -64,7 +66,7 @@ Then `/mcp` in Claude Code shows `skald` connected. The JSON form, for a project
   "headers": {"Authorization": "Bearer ${SKALD_MCP_TOKEN}"}}}}
 ```
 
-The 22 tools (all **READ** but `setup_line`). Dates are `YYYY-MM-DD` in the site's zone; no dates means the last
+The 29 tools (all **READ** but `setup_line`, `mark_todo_done`, `add_site` and `send_invites`). Dates are `YYYY-MM-DD` in the site's zone; no dates means the last
 7 whole days.
 
 | Tool | | What it answers |
@@ -90,6 +92,13 @@ The 22 tools (all **READ** but `setup_line`). Dates are `YYYY-MM-DD` in the site
 | `changed_pages` | READ | pages changed in the last 30 days and whether they get found |
 | `setup_left` | READ | (2.39.0) the site's open set-up lines, each with the job an AI agent can do and its dialog's address |
 | `setup_line` | MAKES A LINE | (2.39.0) **`setup` scope only.** The one-time line for an AI agent for the jobs given, as the dashboard's **Your AI agent** makes it |
+| `fix_todo` | READ | (2.41) one to-do with every row behind it and the steps to fix it |
+| `mark_todo_done` | MARKS DONE | (2.41) **`setup` scope only.** Keeps the agent's report on a to-do and marks it done |
+| `your_tools` | READ | the figures from the site's own tools (Google Analytics...), labelled with the tool, never added to Skald's |
+| `add_site` | ADDS A SITE | (Unreleased) **`add_sites` scope only.** Adds a site to the token's organisation within the plan, as **Add a site** does, and makes its set-up line. No lead is written |
+| `site_progress` | READ | (Unreleased) a set-up's live steps, as Add a site's live progress shows them |
+| `check_site` | READ | (Unreleased) Check now: what is missing, in plain words |
+| `send_invites` | MAILS | (Unreleased) sends a new site's invites now |
 | `find_person` | READ | **`read_private` only.** One IP, email, visitor ID or lead ref: visits, leads, every conversion (test, cancelled, removed too). Each call is audit-logged. Any ref is found by its `external_ref` since 2.26.0 (section 7) |
 
 Also two resources (`skald://docs/api`, `skald://docs/counting`), two per site
@@ -156,11 +165,15 @@ curl -sS "https://stats.example.com$TARGET" -H "X-Skald-Signature: t=$T,v1=$SIG"
  "rows": [{"external_ref": "u-1001", "action": "signup", "stage": "completed",
            "at": "2026-10-19T14:30:00Z", "label": null, "test": false,
            "received_at": "2026-10-19T14:30:02Z", "value": "49.99", "value_minor": 4999,
-           "currency": "USD", "customer_ref": "cust_1001", "tags": {"plan": "pro"}}],
+           "currency": "USD", "customer_ref": "cust_1001", "tags": {"plan": "pro"},
+           "country_recorded": true}],
  "next_cursor": null}
 ```
 
-Rows never carry an email, name, address, user agent, visitor ID or source. Test rows are in
+Rows never carry an email, name, address, country, user agent, visitor ID or source. Since the
+release after 2.43.0 each row says `country_recorded` (true or false): whether Skald kept a
+country for it, so your server can check that its lead call passes the visitor's address
+(`ip`), never the country itself. Test rows are in
 it with `"test": true`. Since 2.32 each row carries the money kept: `value` (exact text in the
 currency's units), `value_minor` (whole minor units), `currency`, `customer_ref`, `tags`; each
 `null` when none was kept. A `refunded` row's value is the total refunded so far, never more than
@@ -259,7 +272,7 @@ email, address) are never read.
 | `vid` | | the visitor ID the page had (`skald('id')` in the browser gives the `skv_...` one), or the site's own ID: `^[A-Za-z0-9_.:-]{8,80}$`, else dropped. Dropped too when the site has visitor IDs off (`beacon.visitor_ids`) |
 | `first_touch`, `last_touch` | | objects with `referrer`, `landing`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`, `gclid`, `gbraid`, `wbraid`, `msclkid`, `fbclid`, `li_fat_id`, `at`. The source comes from `last_touch` (else `first_touch`) |
 | `landing`, `campaign`, `source` | | when the app worked them out (`source` only if it is one of Skald's source types) |
-| `country` or `ip` | | two letters, or the visitor's address: Skald looks up the country and drops the address |
+| `country` or `ip` | | two letters, or the visitor's address: Skald looks up the country (in `logs.country_db`) and drops the address; it is never kept, spooled or logged. **Send `ip` on every lead from your server**: without it (or `country`) the lead has no country ("Country not recorded"), whether or not it has a `vid`. `ip` is an IPv4 or IPv6 address, or an `X-Forwarded-For` list whose first entry is read (`"192.0.2.10, 198.51.100.1"`), a port after it taken off. An address that gives no country (a private one such as a proxy's, or not an address) is kept without one, with a note. `country` wins over `ip`. A visitor ID never gives a lead its country: `vid` joins the pages read, `ip` gives the country; send both. Which header holds the address on which host: the lead files' README ("The visitor's address") |
 | `device` or `user_agent` | | `Desktop`, `Mobile` or `Tablet`, or the agent: Skald works out the device and drops the agent |
 | `visits_before` | | a whole number 0 to 100000 |
 | `first_touch_at` | | a time, as `at` |
@@ -277,7 +290,7 @@ Any other key is dropped before the body is spooled.
 
 | Status | Body | When |
 | --- | --- | --- |
-| 200 | `{"ok":true,"recorded":1,"duplicates":0}` | kept (or a `refunded` row's total raised). `"notes":[...]` is added when a `label`, `test`, `value`/`currency`, `customer_ref` or tag was ignored, or a refund was cut to its sale's value or kept without a value (another currency than the sale's) |
+| 200 | `{"ok":true,"recorded":1,"duplicates":0}` | kept (or a `refunded` row's total raised). `"notes":[...]` is added when a `label`, `test`, `value`/`currency`, `customer_ref` or tag was ignored, a refund was cut to its sale's value or kept without a value (another currency than the sale's), or an `ip` gave no country (a private address, or no country file on Skald's server) |
 | 200 | `{"ok":true,"recorded":0,"duplicates":1}` | Skald has that ref and stage already (or a Cal.com/Typeform replay); nothing changed |
 | 200 | `{"ok":true,"recorded":0,"duplicates":0,"outcome":"ignored: other event type"}` | Calendly/Cal.com with the site's event types named, another type |
 | 200 | `{"ok":true,"test":true,"records":1,"would_keep":1,"notes":[...],"read":[{action, stage, at, vid, source_type, campaign, country, device, label, test, value_minor, currency, customer_ref, tags}]}` | the request had `X-Skald-Test: 1` (still signed): checked and read, never kept or counted |
@@ -346,10 +359,16 @@ without leaving a row.
   from before 2.4.0). Phones, other emails, addresses and user agents are never kept.
 - **Visitor ID linking.** A `vid` ties the lead to the browser's journey (pages before, first
   and assisted touch, abandoned). Only when the site has `beacon.visitor_ids` on; with it off,
-  no visitor ID is kept from any road. Matching is never by IP address. For `www.` and `app.`
+  no visitor ID is kept from any road. Matching is never by IP address, and a lead's country
+  never comes from its visitor ID's visits: only from `country` or `ip`. For `www.` and `app.`
   to share one ID, the tag takes `data-share-subdomains="true"`, or an admin can switch sharing
   on in Skald instead of the tag (`beacon.share_subdomains`, Settings > Sites > Script tag;
   docs/BEACON.md).
+- **Leads without a country.** When each of the `lead` (or `json`) hook's last 3 real leads was
+  kept without a country, Skald says so, with the fix: Settings › Leads & tools › Status
+  ("Lead countries", the doctor's `place:<tool>` line, also in `skald doctor`) and the set-up
+  checklist's lead line, whose Set up is the AI agent's `lead` job. Leads kept already stay as
+  they are: Skald never guesses a country afterwards (never by matching times to the log).
 - **One road per lead.** Each tool keeps its own row, so the same ref through `lead` and
   `json` (or a hook and the lead database) counts once per tool. Settings › Integrations ›
   Status flags it as "One lead, two tools".

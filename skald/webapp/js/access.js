@@ -11,7 +11,7 @@ import { call, setCsrf, csrfHeaders } from "./tabs/ipmanager.js";
 import { HIDDEN, ACCOUNT_TABS } from "./state.js";
 import { DEMO } from "./demo.js";
 
-export const ME = { user: null, role: null, name: null, org: null, mode: "basic", install_admin: false, totp_on: false, saas: false, plan: null, update: null };
+export const ME = { user: null, role: null, name: null, org: null, mode: "basic", install_admin: false, totp_on: false, saas: false, plan: null, update: null, welcome: false };
 export const VIEWER = "Only an admin can change this. You are signed in as a viewer.";
 export const isViewer = () => ME.role === "viewer";
 export const sessions = () => ME.mode === "sessions";
@@ -32,6 +32,7 @@ export async function loadMe(model) {
     ME.install_admin = !!r.install_admin; ME.totp_on = !!r.totp_on;
     ME.saas = !!r.saas; ME.plan = r.plan || null;          // saas: the plan and its banner
     ME.update = r.update || null;                          // a newer release (owners, admins)
+    ME.welcome = !!r.welcome;                              // a new person's first load (welcome.js)
     setCsrf(r.csrf);
   }
   HIDDEN.clear();

@@ -3,6 +3,8 @@
     limits_for(db, org_id, config)          the plan's limits and state, or None
     can_add_member(db, org_id, config)      (ok, why): team_api's invite
     can_add_site(db, org_id, config)        (ok, why): for whoever adds a site
+    can_add_people(db, org_id, config, people)  (ok, why): the people a new
+                                            site's set-up names (2.44)
     retention_cap(db, org_id, config)       the most days a retention setting may hold
     usage(history_path, sites, month)       the month's requests, from the history
     over_limit(db, org_id, config, ...)     which limits are passed (for ingest)
@@ -94,6 +96,40 @@ def can_add_member(db, org_id, config, email: str | None = None) -> tuple[bool, 
     return False, (f"The {got['plan']} plan allows {_plural(got['members'], 'member')}, "
                    "open invites included. Cancel an invite, remove a member, or choose a "
                    "bigger plan in Settings > Billing.")
+
+
+def new_seats(db, org_id, people) -> int:
+    """How many of a set-up's people ({"user": id} or {"email"}, setup_people.clean)
+    are not a member of `org_id` yet and have no open invite to it."""
+    from ..accounts import users
+    n = 0
+    for one in people or ():
+        if one.get("user") is not None:
+            n += users.role_in(db, int(one["user"]), org_id) is None
+            continue
+        email = str(one.get("email") or "").strip().lower()
+        found = users.find_user(db, email=email)
+        if found and users.role_in(db, found["id"], org_id):
+            continue
+        n += not db.execute("SELECT 1 FROM invites WHERE org_id = ? AND email = ? AND used_at "
+                            "IS NULL AND expires_at > ?", (org_id, email, base.now())).fetchone()
+    return n
+
+
+def can_add_people(db, org_id, config, people) -> tuple[bool, str]:
+    """(True, "") or (False, why): the people a new site's set-up names, each a
+    member once invited, against the plan's members (open invites included)."""
+    got = limits_for(db, org_id, config)
+    if got is None or got["members"] is None:
+        return True, ""
+    new = new_seats(db, org_id, people)
+    used = members_used(db, org_id)
+    if not new or used + new <= got["members"]:
+        return True, ""
+    return False, (f"The {got['plan']} plan allows {_plural(got['members'], 'member')}, open "
+                   f"invites included; this organisation has {used} and the site names "
+                   f"{new} new. Name fewer people, or choose a bigger plan in Settings > "
+                   "Billing.")
 
 
 def can_add_site(db, org_id, config) -> tuple[bool, str]:

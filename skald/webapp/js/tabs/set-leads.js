@@ -125,18 +125,21 @@ function groupCard(g, rows, opts) {
 }
 
 /* The top: Next step for <site>. next: connect-plan.js nextStep, or null (nothing left). */
-export function nextCard(site, next, found, { onNext, onAgent, agent = true } = {}) {
+export function nextCard(site, next, found, { onNext, onAgent, agent = true, fixes = 0 } = {}) {
   const chips = foundChips(found, site);
   const done = !next;
+  // 2.44: never "All connected" over a red line (the owner: a page must not contradict itself).
+  const words = fixes ? `Everything that fits ${site} is connected, but ${fixes === 1 ? "one thing needs" : `${fixes} things need`} a fix: see below.`
+    : `Everything that fits ${site} is connected. More you can connect is below.`;
   const btn = done ? null : uiPrimary(next.button, () => onNext(next), { icon: icon(next.button === "Fix it" ? "fix" : "plug") });
   if (btn) btn.classList.add("lt-next-go");
   const ag = !done && agent ? h("button", { type: "button", class: "btn lt-agent" }, h("span", { html: icon("bot") }), "Connect everything left with your AI agent") : null;
   if (ag) ag.addEventListener("click", onAgent);
-  return h("section", { class: `ui-card lt-next${done ? " good" : ""}`, "aria-label": `Next step for ${site}` },
-    h("div", { class: "ui-card-h" }, h("h2", null, `Next step for ${site}`), done ? pill("good", "All connected") : null,
+  return h("section", { class: `ui-card lt-next${done && !fixes ? " good" : ""}`, "aria-label": `Next step for ${site}` },
+    h("div", { class: "ui-card-h" }, h("h2", null, `Next step for ${site}`), done ? (fixes ? pill("warn", fixes === 1 ? "1 to fix" : `${fixes} to fix`) : pill("good", "All connected")) : null,
       help("Next step", { text: "Skald picks the one source that helps most on this site, from what it found when the site was added and what is still missing. Connect asks who will do it: you, your developer or your AI agent.", guide: "leads-and-conversions" })),
     chips,
-    h("p", { class: "lt-next-w" }, done ? `Everything that fits ${site} is connected. More you can connect is below.` : next.words),
+    h("p", { class: "lt-next-w" }, done ? words : next.words),
     btn || ag ? h("div", { class: "acts lt-next-acts" }, btn, ag) : null);
 }
 
@@ -167,7 +170,7 @@ export function leadsPage(m, s = S.read()) {
     const own = new Set((r.tools || []).map((t) => `Hook ${t.name}`));
     const broken = (r.status || []).filter((c) => c.state === "NEEDS ATTENTION" && !own.has(c.part) && !["script", "journeys"].includes(c.id)).map((x) => {
       const fix = x.fix ? (btn) => { btn.parentNode.insertBefore(h("span", { class: "set-fixtext" }, ...codeSpans(x.fix)), btn); btn.remove(); } : null;
-      return strip("Broken", h("span", null, h("b", null, x.part), ` · ${x.says}`), fix);
+      return strip("Needs a fix", h("span", null, h("b", null, x.part), ` · ${x.says}`), fix);
     });
     const shown = rows.filter((row) => fits(row, found));
     const more = rows.filter((row) => !fits(row, found));
@@ -187,7 +190,7 @@ export function leadsPage(m, s = S.read()) {
       r.locked ? h("p", { class: "msg err" }, r.locked) : null,
       r.takes_hooks === false ? strip("Off", "This install does not report on this site yet, so its hooks are not answered.", null, { kind: "warn" }) : null,
       titled && !titled.isConnected ? titled : null,
-      DEMO.on ? null : nextCard(site, next, found, { onNext: (x) => (x.row ? opts.onOpen(x.row) : go(x.act)), onAgent: () => go({ setup: "finish-tools", by: "agent" }) }),
+      DEMO.on ? null : nextCard(site, next, found, { onNext: (x) => (x.row ? opts.onOpen(x.row) : go(x.act)), onAgent: () => go({ setup: "finish-tools", by: "agent" }), fixes: broken.length }),
       ...broken, ...groups, moreBox,
       checks ? h("p", { class: "set-foot" }, quietButton(`Every check (${checks})`, open("checks"))) : null].filter(Boolean));
     // lt=<group>: scrolled to and marked (a data page's Sources link).

@@ -72,7 +72,7 @@ From then on, a page opened inside the site counts as a page view, and a prefetc
 
 ## What the Test of a log says
 
-In **Send this site's visits to Skald**, step **Test**, and in **Connect it** of **Add a site**, **Test connection** gives one of these answers.
+In **Send this site's visits to Skald**, step **Test**, **Test connection** gives one of these answers. In **Connect it** of **Add a site**, **Live progress** shows the same answers by itself (a refusal without a press), and **Check now** asks again.
 
 | Answer | What it means |
 | --- | --- |

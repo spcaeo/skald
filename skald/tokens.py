@@ -99,7 +99,7 @@ def cmd_token(ctx) -> int:
     if a.action == "create":
         scopes = set(getattr(a, "scope", None) or ())
         if scopes - {"read", "read_private"}:
-            ctx.err("--scope mcp, ingest and setup need accounts (access.mode: sessions); "
+            ctx.err("--scope mcp, ingest, setup and add_sites need accounts (access.mode: sessions); "
                     "in basic mode a token reads, and --private (or --scope read_private) "
                     "adds addresses")
             return 2
@@ -143,7 +143,9 @@ def add_command(sub) -> None:
     p.add_argument("--scope", action="append", metavar="SCOPE",
                    help="read (default), read_private (addresses too), mcp (the MCP "
                         "endpoint), ingest (post log lines for the --site it names: "
-                        "skald-ship, log drains) or setup (the MCP tool setup_line: "
-                        "set-up lines for an AI agent; one --site, with mcp); repeatable. "
-                        "mcp, ingest and setup need sessions mode")
+                        "skald-ship, log drains), setup (the MCP tool setup_line: "
+                        "set-up lines for an AI agent; one --site, with mcp) or add_sites "
+                        "(the MCP tool add_site: add sites to the organisation within its "
+                        "plan; no --site, with mcp); repeatable. mcp, ingest, setup and "
+                        "add_sites need sessions mode")
     p.set_defaults(run=cmd_token)

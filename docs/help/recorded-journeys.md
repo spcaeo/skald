@@ -20,9 +20,9 @@ Recorded journeys fill that gap. Your site's own server sends Skald one small ev
 | The sessions and their figures | [Traffic > Visitors](#traffic/visitors), the card **Recorded by your site** under the visit list |
 | One session, every step | Press a session's row: its drawer opens |
 | The sessions linked to a log visit | A visitor's drawer on [Traffic > Visitors](#traffic/visitors) (owners and admins) |
-| Connect your site, its status, the last event received | [Leads & tools](#settings/site/leads), the row **Recorded journeys** |
+| Connect your site, its status, the last event received | [Leads & tools](#settings/site/leads), the group **Recorded journeys** (`lt=journeys` in the address) |
 
-The card shows once your site is connected or has sent something. The period is the one in the top bar. An open session is in the page's address (`rj=` and a code), so a link or a reload opens the same session.
+The card shows once your site is connected or has sent something. Before that, owners and admins see one quiet line in its place, **Recorded journeys: not connected**, with **Connect**; other members see nothing. When the card shows, owners and admins also see **Sources: Leads & tools** beside its title. The period is the one in the top bar. An open session is in the page's address (`rj=` and a code), so a link or a reload opens the same session.
 
 ## What the card shows
 
@@ -50,7 +50,7 @@ When neither holds, the session stands alone. That is not an error.
 
 You need to be an owner or admin of the site.
 
-1. Open [Leads & tools](#settings/site/leads) and press **Connect** on the **Recorded journeys** row.
+1. Open [Leads & tools](#settings/site/leads) and press **Connect** on the **Recorded journeys** row (or on the quiet line on Traffic > Visitors).
 2. Skald asks **Who will do it?**
    - **Me**: Skald makes the site's secret and shows it once. Copy it straight into your website server's settings. Then follow the steps on the screen.
    - **My developer**: Skald writes a message with the steps to send to your developer.

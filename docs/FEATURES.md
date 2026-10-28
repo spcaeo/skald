@@ -11,6 +11,8 @@ the [changelog](../CHANGELOG.md) says when each one came.
   an email (they become a code only your browser reads back).
 - **Copy on every value, open on every URL:** point at a page or URL and two icons copy it or open
   it in a new tab; an address, user agent, email, name or server line gets the copy icon alone.
+- **A welcome line** (2.44) on a new person's first load: whose sites they see, where to start and
+  where the help is; one press of × and it is gone.
 - **Is it working?** (Overview › Summary): the period's exact dates (Include today: one switch), five key
   figures with their change, the sources and landing pages that rose and fell, pages to work on
   (most visits leave at once, no form), and new and updated pages with whether search found them.
@@ -211,10 +213,20 @@ the [changelog](../CHANGELOG.md) says when each one came.
   Skald's own settings waits for your **Apply**. Or set it up by hand: one command on the server (or one
   file), with `skald-ship-check` to say what is wrong in plain words; a private link to share the
   steps with your developer.
+- **Every set-up says whether it worked** (2.44): beside each line for an AI agent, install
+  command, set-up pack, script tag, webhook address, tool key and new token, a pill and one
+  sentence update by themselves ("Waiting for your agent: it has not opened the line yet."), with
+  a **Test** that checks at once and says the next step. Step 3, Watch it work, shows one status
+  line and the next action; the rest is behind Details.
+- **Search Console connects by itself** (2.44): Skald connects the property its robot can see,
+  says when it is another than the one named, or waits for Google and connects on its own.
+  Traffic › Search shows the history arriving ("Getting Google's history: 36 of 70 weeks") with no
+  reload.
 - **Send set-up to someone:** one zip by mail with every way in, the keys, and a `CLAUDE.md`, so a
   client gives the folder to Claude Code and says "Set up Skald from CLAUDE.md".
 - **Leads in one file:** PHP, Node or Python, one function to call; a WordPress plugin with no
-  code; or a plain key for Zapier and form tools.
+  code; or a plain key for Zapier and form tools. The files send the visitor's address, so each
+  lead gets its country; Leads & tools warns when the last leads came without one (2.44).
 - **Set up this site** on Overview, and always in Settings › To do: each open line one plain
   sentence and a Set up button.
 - **Pause, remove or delete a site** (2.40): each site's ⋯ menu in Settings › Organisation ›
@@ -277,9 +289,10 @@ the [changelog](../CHANGELOG.md) says when each one came.
 - **Client reports:** branded reports for an agency's clients, a mail with a PDF attached, weekly,
   monthly or every few days, with your name, colour and logo; verified days only, the sums counted
   twice before a report goes.
-- A read-only JSON API and an **MCP server with 22 tools** for Claude, ChatGPT and other AI agents:
-  21 read-only, and `setup_line`, which makes a set-up line only with a `setup` token (the person
-  search only with a token that may read private data).
+- A read-only JSON API and an **MCP server with 29 tools** for Claude, ChatGPT and other AI agents:
+  25 read-only; `setup_line` and `mark_todo_done` only with a `setup` token; `add_site` (2.44: add a site
+  within the plan) and `send_invites` only with an `add_sites` token (the person search only with
+  a token that may read private data).
 - In-app Help in plain words with how-to guides, keyboard shortcuts, a command palette, light and
   dark themes, and a phone layout.
 - A notice when a new release is out, and one-command upgrades with a backup and a rollback.

@@ -79,6 +79,7 @@ assert.equal(words.purposeOf(["read", "read_private"]), "Reading figures and add
 assert.equal(words.purposeOf("mcp"), "AI assistant (MCP)");
 assert.equal(words.purposeOf(["read", "mcp"]), "Reading figures, AI assistant (MCP)");
 assert.equal(words.purposeOf(["mcp", "setup"]), "AI assistant (MCP), Making set-up lines for an AI agent");
+assert.equal(words.purposeOf(["mcp", "add_sites"]), "AI assistant (MCP), Adding sites (AI agent)");
 
 // The tabs (v2): Send logs, its state and one button (Who will do it?, setup-finish.js), the
 // rest under More options; Tokens & links with the real tokens and their purposes; MCP and

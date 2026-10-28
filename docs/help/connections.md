@@ -218,16 +218,18 @@ The set-up dialogs are simpler for one task.
 
 Owners and admins add a site in two short steps. Open **Settings > Organisation > Sites** ([Sites](#settings/org/sites)) and press **Add a site**. The site picker at `/traffic/` has **+ Add a site** too.
 
-1. **Your site.** Type the site's address, as people type it. A whole link works too: `https://www.example.com/pricing` becomes the site `www.example.com`. While you type, Skald looks at the site and says what it found in one line, for example **Runs on nginx · suggested: one command on the server**. The details are behind **What Skald found**. The time zone is your browser's (or the one Skald found); press **Change** to type another. Then answer **Who will connect it?**:
+1. **Your site.** Type the site's address, as people type it. A whole link works too: `https://www.example.com/pricing` becomes the site `www.example.com`. While you type, Skald looks at the site and says what it found in one line, for example **Runs on nginx · suggested: one command on the server**. The details are behind **What Skald found**. The time zone is your browser's (or the one Skald found); press **Change** to type another.
+
+   Then two questions about people:
+   - **Organisation.** **This organisation** (the default), **Another of mine** (a list of the organisations where you are an owner or admin), or **A new one**: type its name and choose **Their data**: **Internal, keep everything** (the default) or **A client: their own privacy settings apply**. A new organisation is made with the site, and you are its owner.
+   - **Who will use it.** Tick the members who should see it (when the site stays in this organisation they see it already), or type an email and choose **viewer** or **admin** (**owner** too, for a new organisation), then **Add**. Or tick **No one else**. Then **Sees**: **this site only** (the default) or **every site** of the organisation; in a new organisation the default is every site, and an owner always sees every site. Nobody is invited yet: each person gets an invite as soon as the first data arrives. Members here who see only some sites are marked **some sites only**: they do not see the new site until you give it to them in Settings › Organisations.
+
+   Last, **Who will connect it?**:
    - **Me**: Skald gives the steps and waits for the first visits.
    - **My developer**: Skald makes a private link with the steps, to send them.
    - **My AI agent**: one line for Claude Code, Codex or Cursor. You watch it work.
 
-   Before **Who will connect it?**, two questions:
-   - **Organisation.** **This organisation** (the default), **Another of mine** (a list of the organisations where you are an owner or admin), or **A new one**: type its name and choose **Their data**: **Internal, keep everything** (the default) or **A client: their own privacy settings apply**. A new organisation is made with the site, and you are its owner.
-   - **Who will use it.** Tick the members who should see it (when the site stays in this organisation they see it already), or type an email and choose **viewer** or **admin** (**owner** too, for a new organisation), then **Add**. Or tick **No one else**. Then **Sees**: **this site only** (the default) or **every site** of the organisation; in a new organisation the default is every site, and an owner always sees every site. Nobody is invited yet: each person gets an invite as soon as the first data arrives. Members here who see only some sites are marked **some sites only**: they do not see the new site until you give it to them in Settings › Organisations.
-
-   Skald remembers your answer for the next site. Press **Next**: the site is added, in the organisation you chose.
+   An organisation's own **Add a site** (on its page in Settings › Organisation › Organisations) opens with that organisation already chosen. Skald remembers your answer for the next site. Press **Next**: the site is added, in the organisation you chose.
 2. **Connect it.** Only the path you chose, with **Who connects it: Me. Change** at the top.
    - **Me**: the way Skald found is chosen (**Another way** shows the others, the found one marked **Recommended for** your site). For your own server the one command is made at once, with its token. Under it, **Live progress** waits for the first visits by itself.
    - **My developer**: **Share with your developer** (see [Share with your developer](connections.md#share-with-your-developer)), and the same **Live progress**.
@@ -264,7 +266,7 @@ The code is hidden until you press **Show code**. Press **Copy** (it turns into 
 
 **Make a new line** gives a new code. **Cancel this line** stops it at once. The step says until when the line works. Opened from a link, it asks you to press **Make the line** first, so an old link never ends a line your agent is already using.
 
-**Skald watches your agent** ticks itself while the dialog is open: your agent read the steps, it took the keys (with the time), it sent its report, and the first log lines arrived. When the agent says it added the script tag or a lead form, Skald also looks for the tag on your home page and waits for a test lead.
+**Watch it work** keeps itself up to date while the dialog is open: one line on top says in plain words where things stand (for example **Waiting for your agent: it has not opened the line yet. Last checked 10:42.**), and the one thing to do next sits right under it. The steps your agent finished (it read the steps, took the keys, sent its report, the first log lines arrived) fold into one line once done. When the agent says it added the script tag or a lead form, Skald also looks for the tag on your home page and waits for a test lead. **Test** beside the line asks Skald at once whether anything has arrived. The keys, **Cancel this line** and your agent's full report are under **Details**.
 
 Your agent asks you what it cannot find out alone: how the site is hosted, if the code does not say, and whether to keep visitors' IP addresses, for how many days, and the link to your privacy notice. It asks before it changes a server or your web server's settings.
 
@@ -284,11 +286,11 @@ Your agent reads Skald's steps with `curl` too, so the code does not pass throug
 
 ### Your agent took the keys
 
-The watch says **Your agent took the keys at 10:42. The code is used up: it cannot give the keys again.** If it was not your agent, press **Cancel this line**, remove the key in **Settings > AI > AI assistants > Tokens & links**, under **Your tokens**, and make a new line.
+Under **Details**, the watch says **Your agent took the keys at 10:42. The code is used up: it cannot give the keys again.** If it was not your agent, press **Cancel this line**, remove the key in **Settings > AI > AI assistants > Tokens & links**, under **Your tokens**, and make a new line.
 
 ### What your agent reported
 
-When the agent is done, it sends Skald a short report, and the watch shows it in plain words. Only the agent that took the keys can send it. If it sends a newer one (say after a fix), the watch shows that one: how the site is hosted, the web server, the access log, what the site is built with, its page assets, where the script tag went, its lead forms, the privacy answers, the files it changed, and anything **Left for you**.
+When the agent is done, it sends Skald a short report, and the watch shows it in plain words under **Details**. Only the agent that took the keys can send it. If it sends a newer one (say after a fix), the watch shows that one: how the site is hosted, the web server, the access log, what the site is built with, its page assets, where the script tag went, its lead forms, the privacy answers, the files it changed, and anything **Left for you**.
 
 The report is a suggestion. Skald changes no setting by itself. Under it, **What your agent recommends** shows what the report suggests for Skald's own settings, each with **Apply**:
 
@@ -338,7 +340,7 @@ The jobs, and what your agent gets for each:
 | Add the Next.js log field | Adds one field to nginx's or Apache's log line, so pages opened inside a Next.js site count | Nothing |
 | Find the page assets | Finds where your pages load their own files | Nothing |
 | Check the privacy settings | Reads your privacy notice and suggests what Skald keeps | Nothing |
-| Connect Google Search Console | Finds your Search Console property, makes Skald a robot account with gcloud if you agree and Skald has none, and tells you the one click left | Nothing; the robot's key goes from a file straight to Skald |
+| Connect Google Search Console | Finds your Search Console property, makes Skald a robot account with gcloud if you agree and Skald has none, and tells you the one click left; Skald then connects by itself | Nothing; the robot's key goes from a file straight to Skald |
 | Connect the AI assistant (MCP) | Connects your assistant to Skald, so you can ask about your traffic | A read-only key for this site's figures |
 
 Your agent first checks whether each job is done already, and changes only what is missing. It asks you before it changes a server, your web server or your site. It never changes a setting in Skald: the page assets and the privacy answers it finds are shown to you, and **Apply** saves them.
@@ -347,7 +349,7 @@ For a booking, form or payment tool, your agent connects the tool itself only wh
 
 When a line stops before its keys are taken, every key it made is removed again.
 
-**Google Search Console.** One Search Console key serves every site in this Skald, so only whoever runs Skald (an install admin) may set it. If that is you and Skald has no key yet, your agent can make a robot account in your Google Cloud project with `gcloud`, if you agree, and send its key file straight to Skald from the file, never through the chat. If Skald has a key already, it is kept. One click is always yours: in Search Console, **Settings > Users and permissions > Add user**, the robot's address, **Restricted**. Then **Apply** in the report connects the property. Bing has no way to make a key from a command: copy the API key from Bing Webmaster Tools (**Settings > API access**) into [Leads & tools › Search Console & Bing](#settings/site/leads?sub=search) yourself. That tab also has **Let your AI agent do it**.
+**Google Search Console.** One Search Console key serves every site in this Skald, so only whoever runs Skald (an install admin) may set it. If that is you and Skald has no key yet, your agent can make a robot account in your Google Cloud project with `gcloud`, if you agree, and send its key file straight to Skald from the file, never through the chat. If Skald has a key already, it is kept. One click is always yours: in Search Console, **Settings > Users and permissions > Add user**, the robot's address, **Restricted**. Then Skald connects by itself: it asks Google which properties its robot can see and uses the one that covers your site, even if you added the robot to the other one (a Domain property or a URL-prefix one). Until Google shows the robot, which can take a few minutes, the watch says **Waiting for Google** and checks again every minute, with **Check now**. Nothing to press. Bing has no way to make a key from a command: copy the API key from Bing Webmaster Tools (**Settings > API access**) into [Leads & tools › Search Console & Bing](#settings/site/leads?sub=search) yourself. That tab also has **Let your AI agent do it**.
 
 ### Set up many sites with your AI agent
 
@@ -419,7 +421,7 @@ A site with an unfinished set-up shows a button in **Settings > Organisation > S
 | Button | What it means |
 | --- | --- |
 | Finish setting up | The set-up was not finished. Press it to carry on where it stopped, in the site's own organisation |
-| No visits yet: test the connection | Set-up was finished, but nothing has reached Skald in 24 hours. Press it to open the Test step |
+| No visits yet: test the connection | Set-up was finished, but nothing has reached Skald in 24 hours. Press it to open **Connect it**, with its **Live progress** and **Check now** |
 
 The wizard is in the address while it is open: `#settings/org/sites?setup=new&step=1` for a new site, `setup=example.com&step=2` for one already started. A link with no `step` opens the step the set-up reached. Who connects it is there too (`by=me`, `by=dev` or `by=agent`), the agent you chose (`agent=claude-code`), and the line being watched (`link=` and 16 letters and digits, a scrambled copy of the code). The line and its code are never in the address. Older links still open: `step=3`, `4` or `5` is **Connect it**, and `agent=hand` is **Me**. Closing the dialog takes these keys away.
 

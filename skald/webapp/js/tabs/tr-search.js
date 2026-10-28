@@ -28,7 +28,11 @@ import { figures } from "../data.js";
 import { subView } from "../tablestate.js";
 import { withUrl, copyIf } from "../urlactions.js";
 import * as R from "./tr-search-reports.js";
-import { connectCard, sourceLink } from "../ui/connect.js";
+import { connectCard, sourceLink, mayConnect } from "../ui/connect.js";
+import { poll, redraw, watchBuilt, arrivedBox } from "../ui/live.js";
+import { pill } from "../ui/pill.js";
+import { call } from "./ipmanager.js";
+import { searchState, searchAhead, searchBusy } from "../live-words.js";
 
 const PERIODS = [["7", "7 days"], ["28", "28 days"], ["90", "3 months"], ["480", "16 months"]];
 const ENGINES = [["google", "Google"], ["bing", "Bing"]];
@@ -135,6 +139,27 @@ function setupBlock(m, s, e) {
   return connectCard(m, "search", { s, title: google ? "Search Console is not connected yet" : "Bing Webmaster Tools is not connected yet",
     line: google ? "The log cannot see a search: no query, no impression, no position. Only Google holds them. Connected, Skald keeps a copy here, beside its own figures, never mixed with them."
       : "Bing's queries, pages, clicks and impressions, from Bing Webmaster Tools, beside Skald's own figures." });
+}
+
+/* 2.44: the live answer says connected while the page's file does not yet (the owner,
+   27 Oct: "Search Console is not connected yet" while its history synced); or Skald was
+   asked to connect and waits for Google to show its robot on a property (search/auto.py, the
+   owner's case, 27 Oct): it says so, with Check now, and connects by itself. */
+const AUTO_WAIT = new Set(["waiting", "failed", "no_key"]);
+export const autoWaits = (auto) => !!auto && AUTO_WAIT.has(auto.state);
+function liveBlock(lv, e, auto, site) {
+  if (!lv?.connected && autoWaits(auto)) {
+    return h("section", { class: "ui-card lv-search", role: "status", "data-state": "asked" },
+      h("div", { class: "ui-card-h" }, h("h2", null, toolOf(e))),
+      arrivedBox(site, "search", { label: "Check now", intro: auto.words || "Waiting for Google." }),
+      h("p", { class: "note" }, "Nothing to press: Skald connects by itself and starts the history."));
+  }
+  const st = searchState(lv, e);
+  return h("section", { class: "ui-card lv-search", role: "status", "aria-live": "polite", "data-state": st.state },
+    h("div", { class: "ui-card-h" }, h("h2", null, toolOf(e)), pill(st.pill[0], st.pill[1])),
+    h("p", null, st.words),
+    auto?.note ? h("p", null, auto.note) : null,
+    h("p", { class: "note" }, `${lv.connected}. The figures appear on this page by themselves; there is no need to reload.`));
 }
 
 // ------------------------------------------------------------------ chart
@@ -350,6 +375,11 @@ export default function search(m, s) {
   if (METRICS[KEPT.metric.get()]) metric = KEPT.metric.get();
   if (!engine) engine = parts.google?.connected || !parts.bing?.connected ? "google" : "bing";
 
+  // 2.44: the live state. An admin asks GET integrations/search (every 5 s, then 30 s) and the
+  // page reads search.json again once the live state is ahead of it; a viewer reads the file
+  // again once a minute while it says the history is syncing.
+  let live = null;
+  let auto = null;
   const paint = () => {
     const part = parts[engine] || {};
     const out = [];
@@ -357,16 +387,24 @@ export default function search(m, s) {
       part.connected && part.summary?.days ? seg("Period", PERIODS, per, (k) => { per = k; KEPT.per.set(k, "28"); paint(); }) : null,
       part.connected ? h("span", { class: "se-src" }, `${toolOf(engine)}: ${part.connected}`) : null));
     if (file.view_note) out.push(h("p", { class: "note" }, file.view_note));
+    const lv = live?.[engine];
+    if (!part.connected && (lv?.connected || (engine === "google" && autoWaits(auto)))) {
+      out.push(liveBlock(lv, engine, auto, m.site));
+      root.replaceChildren(...out);
+      return;
+    }
     if (!part.connected) {
       out.push(setupBlock(m, s, engine));
       if (part.summary?.days) out.push(h("p", { class: "note" }, `Not connected now. ${n(part.summary.days)} days synced before stay in history.`));
       root.replaceChildren(...out);
       return;
     }
-    out.push(...statusBlock(part, engine));
+    // The live sync state (backfill, last sync, error) is newer than the file's.
+    const now = lv?.connected ? { ...part, status: lv.status || part.status } : part;
+    out.push(...statusBlock(now, engine));
     const period = part.periods?.[per];
     if (!period || !part.summary?.days) {
-      out.push(h("p", { class: "empty" }, noFigures(part, engine)));
+      out.push(h("p", { class: "empty" }, noFigures(now, engine)));
       root.replaceChildren(...out);
       return;
     }
@@ -418,5 +456,19 @@ export default function search(m, s) {
     root.replaceChildren(...out);
   };
   paint();
+  if (mayConnect()) {
+    poll(root, () => call(`integrations/search?site=${encodeURIComponent(m.site)}`), {
+      onAnswer: (r) => {
+        if (!r?.ok || !r.engines) return;
+        const before = JSON.stringify([live, auto?.state]);
+        live = r.engines;
+        auto = r.auto || null;
+        if (JSON.stringify([live, auto?.state]) !== before) paint();
+        if (ENGINES.some(([e]) => searchAhead(parts[e], live[e]))) redraw(["search"]);
+      },
+      // Done once every connected engine is synced, not busy, and the file has caught up.
+      until: (r) => !autoWaits(r.auto) && ENGINES.every(([e]) => !searchAhead(parts[e], r.engines?.[e]) && !searchState(r.engines?.[e], e).busy),
+    });
+  } else watchBuilt(root, () => searchBusy(file), ["search"]);
   return [...top, root];
 }

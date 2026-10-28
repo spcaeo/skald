@@ -13,6 +13,7 @@ import { stepped } from "../overlays.js";
 import { read } from "../state.js";
 import { copyIf } from "../urlactions.js";
 import { statusRow } from "./set-ui.js";
+import { arrivedBox } from "../ui/live.js";
 
 const TASK_WORDS = { send: "sending this site's visits", script: "the script tag", hook: "the lead hook", nextjs: "counting pages opened inside the site" };
 
@@ -54,7 +55,9 @@ export function shareBox(site, task, method = "") {
         h("p", null, h("strong", null, "The link. "), "Copy it now: it is shown only here. It opens these steps for ", h("b", null, site), " with no sign-in, until ", when(r.expires_at, r.expires_at), "."),
         codeBlock(r.link, "the link for your developer"),
         h("p", { class: "note" }, task === "script" ? "The tag needs no secret." : task === "nextjs" ? "These steps need no secret." : "The page can show the secret once: it is made when your developer presses Show the secret. Send the link privately."),
-        h("div", { class: "acts" }, h("a", { class: "btn", href: mail }, "Send it by mail"), cell))));
+        h("div", { class: "acts" }, h("a", { class: "btn", href: mail }, "Send it by mail"), cell))),
+        // 2.44: whether your developer opened it, took the secret, and whether it works yet.
+        arrivedBox(site, `share:${r.ref}`, { intro: "Waiting for your developer to open the page." }));
     });
     box.replaceChildren(h("div", { class: "cn-share-new" },
       h("p", null, `A private page with only these steps for ${site}, for someone without a sign-in. It works for:`),

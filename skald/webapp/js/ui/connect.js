@@ -12,7 +12,14 @@
 //   partlyLine(m, page)             a page fed by some of its sources: what is still missing
 //   sourceLink(group)               the page's way back to its source's group in Leads & tools
 //                                   (#settings/site/leads?lt=<group>), for whoever may connect
-//   sourcesFor(site)                GET integrations and your tools, asked once a minute
+//   sourcesFor(site)                GET integrations, your tools and integrations/search, asked
+//                                   once a minute ({fresh: true}: now)
+//
+// 2.44: an admin's card keeps asking while it is on the page (every 5 s, then 30 s: ui/live.js
+// poll). Once its source is on, the card says so in plain words ("Search Console & Bing is
+// connected. Its data appears on this page by itself") and the page reads its files again
+// (NEED_FILES, ui/live.js redraw), so it never keeps saying "not connected yet" after the
+// connect dialog closed. A viewer's page reads the files again on the two-minute refresh.
 //
 // Connect opens the existing dialog through the address (setup=lead&way=<tool>, setup=search,
 // setup=script, setup=tool-<id>, setup=finish-tools, rjc=connect): each asks "Who will do it?"
@@ -31,7 +38,8 @@ import { help } from "./help.js";
 import { fold } from "./fold.js";
 import { pill } from "./pill.js";
 import { withUrl, withCopy } from "../urlactions.js";
-import { NEEDS, groupById, rowsOf, recommend, otherWays, factsOf, partly, PARTLY } from "../connect-plan.js";
+import { NEEDS, groupById, rowsOf, recommend, otherWays, factsOf, partly, PARTLY, liveOf, NEED_FILES } from "../connect-plan.js";
+import { poll, redraw } from "./live.js";
 
 const GUIDE = { leads: "leads-and-conversions", bookings: "demo-bookings", payments: "revenue", search: "search", tools: "your-tools",
   journeys: "recorded-journeys", script: "tracking-script" };
@@ -58,19 +66,46 @@ export function go(patch) {
 
 // ---- what the server knows: GET integrations (with `found`) and your own tools ------------
 const asked = new Map();      // site -> {at, p}
-export function sourcesFor(site) {
+export function sourcesFor(site, { fresh = false } = {}) {
   if (!mayConnect()) return Promise.resolve(null);
   const kept = asked.get(site);
-  if (kept && Date.now() - kept.at < 60000) return kept.p;
-  const p = Promise.all([call(`integrations?site=${encodeURIComponent(site)}`), call("integrations/yourtools")])
-    .then(([integ, yours]) => (integ && integ.ok ? { integ, yours: yours && yours.ok ? yours : null, found: integ.found || null } : null))
+  if (!fresh && kept && Date.now() - kept.at < 60000) return kept.p;
+  const q = encodeURIComponent(site);
+  const p = Promise.all([call(`integrations?site=${q}`), call("integrations/yourtools"), call(`integrations/search?site=${q}`)])
+    .then(([integ, yours, search]) => (integ && integ.ok ? { integ, yours: yours && yours.ok ? yours : null, found: integ.found || null,
+      search: search && search.ok ? search.engines || null : null } : null))
     .catch(() => null);
   asked.set(site, { at: Date.now(), p });
   return p;
 }
 export const forgetSources = () => asked.clear();
-const searchOf = (m) => !!(m?.x?.search?.engines?.google?.connected || m?.x?.search?.engines?.bing?.connected);
-export const rowsFrom = (got, m) => rowsOf({ integ: got?.integ, yours: got?.yours, searchOn: searchOf(m) });
+// Search Console: the live answer (integrations/search) when there is one, else the page's file.
+const searchOf = (m, live = null) => (live ? !!(live.google?.connected || live.bing?.connected)
+  : !!(m?.x?.search?.engines?.google?.connected || m?.x?.search?.engines?.bing?.connected));
+export const rowsFrom = (got, m) => rowsOf({ integ: got?.integ, yours: got?.yours, searchOn: searchOf(m, got?.search) });
+
+/* Keep asking while the card is on the page; once its source is on, say so plainly in place of
+   the push to connect, and read the page's files again. */
+function watch(box, m, need, mode) {
+  let said = false;
+  poll(box, () => sourcesFor(m.site, { fresh: true }).then((got) => (got ? { ok: true, got } : { ok: false, status: 403 })), {
+    timing: { every: 5000, slowAfter: 180000, slow: 30000 }, first: 5000,
+    onAnswer: (r) => {
+      if (!r?.ok) return;
+      const on = liveOf(need, rowsFrom(r.got, m));
+      if (!on) return;
+      const line = h("p", { class: "ui-conn-live", role: "status", "aria-live": "polite" }, pill(on.pill[0], on.pill[1]), " ", on.words);
+      if (!said) {
+        said = true;
+        box.classList.add("quiet");
+        if (mode === "line") box.replaceChildren(h("span", { class: "ui-grow" }, line));
+        else box.replaceChildren(box.firstChild, line);
+      } else box.querySelector(".ui-conn-live")?.replaceWith(line);
+      if (on.state === "connected" && (NEED_FILES[need] || []).length) redraw(NEED_FILES[need]);
+    },
+    until: (r) => liveOf(need, rowsFrom(r.got, m))?.state === "connected",
+  });
+}
 
 // ---- the pieces --------------------------------------------------------------------------
 /* What Skald found on the site: chips, a copy icon on each value (a tag's ID, a booking link). */
@@ -122,7 +157,7 @@ export function connectCard(m, need, { mode = "page", s = null, title = null, li
     if (tail?.tagName === "BUTTON") tail.addEventListener("click", () => go(act));
     const box = h("div", { class: "ui-card quiet ui-conn-line", role: "status", "data-need": need },
       h("span", { class: "ui-ic", html: PLUG }), h("span", { class: "ui-grow" }, h("b", null, head), " ", h("span", { class: "muted" }, words)), q, tail);
-    if (mayConnect()) sourcesFor(m.site).then((got) => { if (got) act = recommend(need, got.found).act; });
+    if (mayConnect()) { sourcesFor(m.site).then((got) => { if (got) act = recommend(need, got.found).act; }); watch(box, m, need, "line"); }
     return box;
   }
   // page
@@ -145,6 +180,7 @@ export function connectCard(m, need, { mode = "page", s = null, title = null, li
     found.replaceChildren(...[foundChips(got.found, m.site)].filter(Boolean));
     other.replaceChildren(others(need, got.found, st));
   });
+  watch(box, m, need, "page");
   return box;
 }
 

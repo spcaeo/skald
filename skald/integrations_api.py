@@ -283,6 +283,7 @@ def tools(c: Ctx, site: str, db) -> list[dict]:
                     "secret_from": TOOL_NAMES.get(tool, tool),
                     "state": states[tool]["state"], "words": states[tool]["words"],
                     "attention": states[tool]["attention"], "fix": states[tool]["fix"],
+                    "unplaced": states[tool].get("unplaced"),
                     "last_at": states[tool].get("last_at"), "test_at": states[tool].get("test_at"),
                     "event_types": _types(c, conf, site, tool),
                     "deliveries": store.deliveries(db, site, tool, LOG_ROWS) if db else []})

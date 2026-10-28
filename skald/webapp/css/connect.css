@@ -61,3 +61,22 @@
   .lt-row:not(.lt-on) .ui-pill { margin-left: 44px; }
   .lt-row .lt-go { margin-left: auto; }
 }
+
+/* 2.44: live status and the Test button (js/ui/live.js): a pill and one sentence that update by
+   themselves, beside every line, command, snippet, share page and webhook address. */
+.lv { display: grid; gap: var(--sp-2); margin: var(--sp-2) 0; min-width: 0; }
+.lv-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin: 0; overflow-wrap: anywhere; }
+.lv-line .lv-when, .lv-at { color: var(--ink-3); font-size: var(--t-xs); font-variant-numeric: tabular-nums; }
+.lv-test { display: grid; gap: var(--sp-2); justify-items: start; min-width: 0; }
+.lv-out { width: 100%; }
+.lv-out:empty { display: none; }
+.lv-steps { margin: 6px 0; }
+/* The agent watch (2.44, agent-watch.js): one line on top, the next action under it. */
+.ag-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin: 0 0 var(--sp-3); font-size: var(--t-m); }
+.ag-next { display: grid; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+.ag-next:empty { display: none; }
+.ag-search { padding: 12px 14px; border: 1px solid var(--rule); border-radius: var(--r); background: var(--surface); }
+.ag-search > p { margin: 0; }
+.ag-steps, .ag-details { margin: var(--sp-2) 0; }
+.lv-search .ui-card-h { display: flex; align-items: center; gap: 8px; }
+.lv-search .ui-card-h h2 { margin: 0; }

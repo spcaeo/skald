@@ -18,7 +18,8 @@
    `tools` lists each booking, form or payment tool the site uses: `set` when its webhook
    now reaches Skald, `left` when the user still has to make it.
 <!-- end -->
-   Skald answers `{"ok": true}`. It keeps only these fields (`notes` at most 1000
+   Skald answers `{"ok": true}` (with `search`, when the report names a Search Console
+   property: what Skald sees, as the search step says). It keeps only these fields (`notes` at most 1000
    characters, `asset_paths` at most 10), and you can send it again until the code expires.
 3. When everything works, ask the user whether to delete `__ENV_FILE__` (and any copy on a
    server) and the other files in `~/.config/skald/` you made for __SITE__: the keys are now

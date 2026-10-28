@@ -20,6 +20,7 @@ import { copyIf } from "../urlactions.js";
 import { DEMO } from "../demo.js";
 import { primary, statusRow } from "./set-ui.js";
 import { editPart, openEdit } from "./set-edit.js";
+import { arrivedBox } from "../ui/live.js";
 
 const SCOPES = [
   ["read", "Reading figures", "every figure these pages show, as JSON"],
@@ -28,6 +29,8 @@ const SCOPES = [
   ["ingest", "Sending logs", "a shipper or a platform adds log lines to the site; reads nothing"],
   // 2.39.0: the MCP tool setup_line. The server refuses it unless an owner or admin makes it, for one site, with mcp.
   ["setup", "Set-up lines (AI agent)", "can make set-up lines for an AI agent; reads nothing by itself. One site only, with AI assistant (MCP); owners and admins only"],
+  // 2.44: the MCP tools add_site, site_progress, check_site, send_invites. The whole organisation, with mcp; owners and admins who see every site.
+  ["add_sites", "Add sites (AI agent)", "can add sites to this organisation and watch their set-up, within the plan. Every site, with AI assistant (MCP); owners and admins only"],
 ];
 
 // The token just made by hand: kept in this page's memory only, so a redraw does not lose it before it is copied.
@@ -52,7 +55,10 @@ function newToken(m) {
     done.addEventListener("click", () => { fresh = null; shown.replaceChildren(); });
     shown.replaceChildren(h("div", { class: "state ok acct-link", role: "status" }, h("div", null,
       h("p", null, h("strong", null, `The token "${fresh.name}". `), "Copy it now: it is shown only this once. Put it in the Authorization header as Bearer <token>."),
-      copyable(fresh.token, "the new token"), h("div", { class: "acts" }, done))));
+      copyable(fresh.token, "the new token"),
+      // 2.44: whether the assistant or tool used it yet, by itself, with Test (sites/arrived token:<id>).
+      fresh.id && m.site ? arrivedBox(m.site, `token:${fresh.id}`, { intro: "Waiting: nothing has used this token yet." }) : "",
+      h("div", { class: "acts" }, done))));
   }
   const name = input({ name: "token-name", autocomplete: "off", maxlength: "60", placeholder: "e.g. Weekly sheet", required: true });
   const siteBoxes = sitesOf(m).map((s) => {
@@ -66,9 +72,19 @@ function newToken(m) {
     return h("label", { class: "chk" }, box, h("span", null, h("b", null, label), h("small", null, sub)));
   });
   const make = h("button", { type: "submit", class: "btn primary" }, "Make token");
+  // Add sites is for the whole organisation: no site list, and it works through MCP.
+  const scopeBox = (k) => scopeBoxes.map((l) => l.querySelector("input")).find((b) => b.getAttribute("value") === k);
+  const adds = () => scopeBox("add_sites").checked;
+  const siteSet = h("fieldset", { class: "af-set" }, h("legend", null, "Sites"), siteBoxes);
+  const wholeOrg = h("p", { class: "note", hidden: true }, "Every site of this organisation, and the ones it adds.");
+  scopeBox("add_sites").addEventListener("change", () => {
+    if (adds()) scopeBox("mcp").checked = true;
+    siteSet.hidden = adds();
+    wholeOrg.hidden = !adds();
+  });
   const form = h("form", { class: "af-col", novalidate: true },
     field("Name", name, "What the token is for, so the list says whose it is."),
-    h("fieldset", { class: "af-set" }, h("legend", null, "Sites"), siteBoxes),
+    siteSet, wholeOrg,
     h("fieldset", { class: "af-set" }, h("legend", null, "What it may do"), scopeBoxes),
     h("div", null, make));
   form.addEventListener("submit", async (e) => {
@@ -76,13 +92,13 @@ function newToken(m) {
     const sites = siteBoxes.map((l) => l.querySelector("input")).filter((c) => c.checked).map((c) => c.getAttribute("value"));
     const scopes = scopeBoxes.map((l) => l.querySelector("input")).filter((c) => c.checked).map((c) => c.getAttribute("value"));
     if (!name.value.trim()) { msg.say("Give the token a name first."); name.focus(); return; }
-    if (!sites.length) { msg.say("Choose at least one site."); return; }
+    if (!sites.length && !adds()) { msg.say("Choose at least one site."); return; }
     if (!scopes.length) { msg.say("Choose at least one thing it may do."); return; }
     make.disabled = true;
-    const r = await call("tokens/create", { name: name.value.trim(), sites, scopes });
+    const r = await call("tokens/create", { name: name.value.trim(), sites: adds() ? [] : sites, scopes });
     make.disabled = false;
     if (!r.ok || !r.token) { msg.say(why(r, "The token was not made.")); return; }
-    fresh = { name: name.value.trim(), token: r.token };
+    fresh = { name: name.value.trim(), token: r.token, id: r.id };
     name.value = "";
     msg.say("");
     showFresh();

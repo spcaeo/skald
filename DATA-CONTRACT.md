@@ -558,6 +558,9 @@ site. Not a data file and not a figure: counts of lines received, never visits.
   sending token's id, never the token.
 - 403 for a viewer, 404 for a site of another organisation.
 
+Has it arrived yet? (`POST <page>/sites/arrived`, Unreleased) and Search Console's own connect
+(the search state's `auto` part): [docs/DATA-CONTRACT-CONNECT.md](docs/DATA-CONTRACT-CONNECT.md).
+
 ## Page lifecycle
 
 What happened to a page since it was published.

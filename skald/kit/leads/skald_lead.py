@@ -15,6 +15,16 @@ ref     your own id for the lead (the same lead always sends the same id)
 action  a short lowercase word: "contact", "demo", "signup", "trial"
 extra   any other field, such as label="sales", stage="won", test=True,
         vid=request.cookies.get("skald_vid"). See README.md.
+        ip: the visitor's address, so Skald records the lead's country (looked
+        up, then dropped at once). Read it in the request that made the lead,
+        from the header your host sets (README.md, "The visitor's address"):
+          Flask:   ip=request.remote_addr (behind a proxy: werkzeug's ProxyFix,
+                   or ip=request.headers.get("X-Forwarded-For"))
+          Django:  ip=request.META.get("HTTP_X_FORWARDED_FOR")
+                      or request.META.get("REMOTE_ADDR")
+          FastAPI: ip=request.headers.get("x-forwarded-for") or request.client.host
+        A list ("a, b") is read as its first address; anything that is not an
+        IPv4 or IPv6 address is not sent.
         Money (Skald 2.32): value=49.99, currency="USD" (the amount in the
         currency's units), customer_ref="your-customer-id" (never an email),
         tags={"plan": "pro"}. A renewal: stage="paid" with the invoice's own
@@ -23,6 +33,7 @@ extra   any other field, such as label="sales", stage="won", test=True,
 """
 import hashlib
 import hmac
+import ipaddress
 import json
 import os
 import re
@@ -32,6 +43,20 @@ import urllib.request
 SKALD_URL = "__URL__"
 EMBEDDED_SECRET = "__SECRET__"
 VID = re.compile(r"^skv_[A-Za-z0-9_-]{22}$")
+_PORT = re.compile(r"^(\d{1,3}(?:\.\d{1,3}){3}):\d{1,5}$|^\[([0-9A-Fa-f:.]+)\](?::\d{1,5})?$")
+
+
+def visitor_ip(value):
+    """The visitor's address from what was passed: the first of a list
+    ("a, b"), without a port; None for anything that is not an address."""
+    got = str(value or "").split(",", 1)[0].strip()
+    m = _PORT.match(got)
+    if m:
+        got = m.group(1) or m.group(2)
+    try:
+        return str(ipaddress.ip_address(got))
+    except ValueError:
+        return None
 
 
 def skald_lead(ref, action, email=None, name=None, **extra):
@@ -47,6 +72,12 @@ def skald_lead(ref, action, email=None, name=None, **extra):
             lead["name"] = str(name)
         if "vid" in lead and not VID.match(str(lead["vid"] or "")):
             del lead["vid"]
+        if "ip" in lead:
+            ip = visitor_ip(lead["ip"])
+            if ip:
+                lead["ip"] = ip
+            else:
+                del lead["ip"]
         body = json.dumps(lead, default=str).encode("utf-8")   # a Decimal value as its text
         t = str(int(time.time()))
         sig = hmac.new(secret.encode("utf-8"), t.encode() + b"." + body,

@@ -79,11 +79,13 @@ A person's own request to be deleted still works: an admin removes them by hand 
 
 Your server's admin turns this on for the whole server (`SKALD_KEEP_EVERYTHING=1`), or it comes with an Enterprise plan.
 
+**A client's sites follow their own settings.** Each organisation has a privacy class, set by an install admin on [Settings › Organisation › Organisations](#settings/org/orgs): **Internal** (the default) or **Client**. On a server that keeps everything, the sites of an internal organisation keep everything, as above. The sites of a client organisation follow their own **Privacy** settings even then: old detail goes at the end of each window. (On a hosted Skald, a plan that keeps everything still keeps a client's sites.) The Privacy page says which rule decides, for example "Example Co is a client organisation: this site follows its own retention settings, even though the install keeps everything." `skald doctor` says the same. See [Organisations](organisations.md#privacy-class).
+
 Skald reads your website's lead database without changing it. Leads marked spam or duplicate there, and leads marked test, are left out of every figure. They are listed in full: on [Leads & sales > Leads](#sales/leads), open **More** and turn on **Show left out**.
 
 ## Looking a person up
 
-Owners and admins see a **Find a person** box at the top of every page; on a narrower screen it is a search icon. The same search is on [Leads & sales > Find a person](#sales/people), and **Ctrl K** (or **Cmd K**) also offers **Find a person**. Type one of these:
+Owners and admins find a person from **Search or jump to** at the top of every page (or **Ctrl K**, **Cmd K** on a Mac; a magnifier on a narrow screen): **Find a person** is the first result. The same search is on [Leads & sales > Find a person](#sales/people). Type one of these:
 
 - an IP address
 - an email

@@ -25,7 +25,63 @@
  *
  * The visitor ID (to join the lead to the visit) is read by itself from the
  * skald_vid cookie or a form field named skald_vid, when your page has one.
+ *
+ * The visitor's address (so Skald records the lead's country; it looks the
+ * country up and drops the address at once) is read by itself too, from the
+ * request that made the lead: REMOTE_ADDR. When that is a private or local
+ * address (a proxy on your own server), the X-Real-IP header, else the first
+ * X-Forwarded-For entry. Behind a host or CDN that sets its own header, name
+ * it in the environment variable SKALD_LEAD_IP_HEADER (or define() it):
+ * Cloudflare 'CF-Connecting-IP', Vercel 'X-Forwarded-For', a load balancer
+ * 'X-Forwarded-For'. See README.md, "The visitor's address". Pass
+ * 'ip' => $address in $extra to choose it yourself ('ip' => null sends none):
+ * a lead sent later from a queue or a cron job has no request, so keep the
+ * address with the job and pass it.
  */
+
+if (!function_exists('skald_lead_ip_of')) {
+    /** An IPv4 or IPv6 address from a value: the first of a list, without a port; else null. */
+    function skald_lead_ip_of($value)
+    {
+        if (!is_scalar($value)) {
+            return null;
+        }
+        $parts = explode(',', (string) $value);
+        $got = trim($parts[0]);
+        if (preg_match('/^(\d{1,3}(?:\.\d{1,3}){3}):\d{1,5}$/', $got, $m)
+            || preg_match('/^\[([0-9A-Fa-f:.]+)\](?::\d{1,5})?$/', $got, $m)) {
+            $got = $m[1];
+        }
+        return filter_var($got, FILTER_VALIDATE_IP) !== false ? $got : null;
+    }
+}
+
+if (!function_exists('skald_lead_visitor_ip')) {
+    /** The visitor's address in this request (see the top of this file), or null. */
+    function skald_lead_visitor_ip()
+    {
+        $name = getenv('SKALD_LEAD_IP_HEADER');
+        if (!$name && defined('SKALD_LEAD_IP_HEADER')) {
+            $name = (string) constant('SKALD_LEAD_IP_HEADER');
+        }
+        if ($name && strtoupper($name) !== 'REMOTE_ADDR') {
+            $key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+            return isset($_SERVER[$key]) ? skald_lead_ip_of($_SERVER[$key]) : null;
+        }
+        $remote = isset($_SERVER['REMOTE_ADDR']) ? skald_lead_ip_of($_SERVER['REMOTE_ADDR']) : null;
+        if ($name || $remote === null
+            || filter_var($remote, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false) {
+            return $remote;
+        }
+        foreach (array('HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR') as $key) {
+            $got = isset($_SERVER[$key]) ? skald_lead_ip_of($_SERVER[$key]) : null;
+            if ($got !== null) {
+                return $got;
+            }
+        }
+        return $remote;
+    }
+}
 
 if (!function_exists('skald_lead')) {
     function skald_lead($ref, $action, $email = null, $name = null, $extra = array())
@@ -58,6 +114,12 @@ if (!function_exists('skald_lead')) {
                         break;
                     }
                 }
+            }
+            $ip = array_key_exists('ip', $lead) ? skald_lead_ip_of($lead['ip']) : skald_lead_visitor_ip();
+            if ($ip !== null) {
+                $lead['ip'] = $ip;
+            } else {
+                unset($lead['ip']);
             }
             $body = json_encode($lead);
             if ($body === false) {

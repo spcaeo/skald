@@ -213,26 +213,27 @@ def log_part(cfg, kind: str, paths: set[str], since: datetime | None, now: datet
     return {"since": since.strftime("%Y-%m-%dT%H:%M:%SZ"), **got}
 
 
-def _clock(iso: str | None, cfg) -> str:
+def _clock(iso: str | None, cfg, now: datetime | None = None) -> str:
     if not iso:
         return ""
     from .window import zone
     when = datetime.strptime(iso, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).astimezone(zone(cfg))
-    return when.strftime("%H:%M") if (datetime.now(zone(cfg)).date() == when.date()) else when.strftime("%-d %b %H:%M")
+    today = (now or datetime.now(timezone.utc)).astimezone(zone(cfg)).date()   # the check's own now
+    return when.strftime("%H:%M") if today == when.date() else when.strftime("%-d %b %H:%M")
 
 
-def log_words(log: dict | None, kind: str, cfg) -> str:
+def log_words(log: dict | None, kind: str, cfg, now: datetime | None = None) -> str:
     if not log:
         return ""
     if not log.get("read"):
         return "The log could not be read here, so only the live answer counts."
-    since = _clock(log["since"], cfg)
+    since = _clock(log["since"], cfg, now)
     fail = "a server error" if kind == "errors" else "404"
     if not log["failed"]:
         return f"In the log since {since}: none of these addresses answered {fail}" + \
                (f" ({log['lines']:,} asks)." if log["lines"] else " (nobody asked for them yet).")
     return (f"In the log since {since}: {log['failed']:,} answer{'s' if log['failed'] != 1 else ''} of "
-            f"{fail} to these addresses, the newest at {_clock(log['newest'], cfg)}. A fix made after "
+            f"{fail} to these addresses, the newest at {_clock(log['newest'], cfg, now)}. A fix made after "
             "that time is judged by the live answer above.")
 
 
@@ -421,7 +422,7 @@ def check(db, cfg: dict, site: str, todo: dict, start: int = 0, by_user=None, by
     log = None
     if verdict != "error":
         log = log_part(cfg, kind, {r["path"] for r in rows_of(todo)}, since_of(db, site, item), now, reader)
-        more = log_words(log, kind, cfg)
+        more = log_words(log, kind, cfg, now)
         words = f"{words} {more}".strip()
     page.update(verdict=verdict, words=words, log=log)
     todo_checks.keep(db, site, item, page, sweep["sweep"] if start else None, by_user, by_who, now)

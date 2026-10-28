@@ -19,7 +19,7 @@ When an assistant fetches a page for someone, it may ask for the page twice in a
 - **A read**: one assistant, one page. Asking for the same page again within 30 seconds is the same read.
 - **A file the page loaded**: a style sheet, script, image or font, or anything that names the page it just read as its referrer. It is never "AI asked". In the requests list it is folded under its page's row: "asked 2 times, with 2 files its page loaded".
 
-**Pages AI read for someone**, **Which assistant read for someone**, **AI reads** by page and the daily mail count reads, and show the requests as the second, smaller number. Request figures (status, bytes, cost) still count every request. Days collected before reads were counted say **Reads counted from** and the first day that has them; they never show 0.
+**Pages AI read for someone**, **Which assistant read for someone**, the assistants table (its **Reads** column; the column once called Fetches is now **Requests**), the chart per day, Overview's AI card, **AI reads** on Traffic › Pages, **Reads followed by a visit**, AI answers' "From an answer to a lead", the client reports and the daily mail count reads, and show the requests as the second, smaller number. Request figures (status, bytes, cost) still count every request. Days collected before reads were counted say **Reads counted from** and the first day that has them; they never show 0.
 
 What a read means for each assistant (also behind **?** in its detail):
 
@@ -48,6 +48,7 @@ Pick the period at the top as on any other page: today, yesterday, a number of d
 | Column | What it is |
 |---|---|
 | Name | The name the crawler gives itself. Bots without a known name go by the name in their user agent. Scanner probes are one row, **(scanner probes)**; everything else a scanner asked for that day (its home page, say, between two probes) is another, **scanner (asked for secret or config files)**. A visitor that asked for 5 or more scanner paths your site does not have is **scanner (asked for many missing probe paths)**, and a browser that checked pages with `HEAD` requests is **browser-like link checker (HEAD requests)**. |
+| Reads | Assistants only: the pages it read for someone (see Reads, not requests, above). |
 | Requests | Every request it made in the period. |
 | Bytes sent | How much your server sent it, from the size field of each log line. |
 | Mean time | How long your server took per request, on average. |
@@ -59,7 +60,7 @@ Pick the period at the top as on any other page: today, yesterday, a number of d
 
 Select a name to open its detail.
 
-An assistant is called by the name people know it by: **ChatGPT**, not `chatgpt.com`. A bot keeps its own name, because it is one fetcher, not the assistant. A bot that reads a page only when one user asks the assistant about it (`ChatGPT-User`, `Claude-User`, `Perplexity-User`) is marked **user fetcher**.
+An assistant is called by the name people know it by: **ChatGPT**, not `chatgpt.com`. A bot keeps its own name, because it is one fetcher, not the assistant. A bot that reads a page only when one user asks the assistant about it (`ChatGPT-User`, `Claude-User`, `Perplexity-User`, and fetchers whose names do not end in -User, such as `Google-NotebookLM` and `BingPreview`) is marked **user fetcher**. The tag comes from the server's own list of user fetchers, the one that files a fetch under its assistant.
 
 A person who clicks a link in an AI answer is counted as a person, with the assistant as the source. Skald knows these assistants by the address they send people from (or the tag they put on the link): **ChatGPT**, **Perplexity**, **Claude**, **Gemini**, **Copilot** (copilot.microsoft.com, copilot.com and Bing's chat), **Meta AI**, **DeepSeek** (chat.deepseek.com), **Grok** (grok.com, and Grok inside X at x.com/i/grok; the rest of x.com is X), **Mistral**, **You.com**, **Phind** and **Poe**, and the Android apps of ChatGPT, Perplexity, Claude, Gemini, Copilot, Meta AI, DeepSeek and Grok. An iPhone app sends no address of its own: its visits count only when the link carries the assistant's tag (ChatGPT adds `utm_source=chatgpt.com`); otherwise they are Direct.
 

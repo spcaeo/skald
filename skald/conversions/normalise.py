@@ -3,7 +3,10 @@
 Source, campaign and landing come from the touches by the same rules as a
 reader's visit in the log (dimensions.py). Country: the two letters the
 sender gave, else looked up from the visitor's address when the sender
-passed one (geo.py); the address is then dropped. Device: the sender's
+passed one (`ip`: an address, or an X-Forwarded-For list whose first entry
+is taken, geo.address); the address is then dropped. A visitor ID never
+gives a lead its country: `vid` joins the lead to the pages read, `ip` (or
+`country`) gives the country, and a lead may send both. Device: the sender's
 Desktop/Mobile/Tablet, else worked out from the user agent, which is then
 dropped. A figure the sender did not give stays NULL: never "Direct", never
 "Desktop" by default.
@@ -67,7 +70,8 @@ def row(rec: dict, site: str, tool: str, received_at: str, own_hosts: set[str],
     src = given if given in SOURCE_TYPES else touch_source(last or first, own_hosts)
     country = str(rec.get("country") or "").strip().upper()
     if not (len(country) == 2 and country.isalpha()) or country in ("XX", "ZZ"):
-        country = geo.country(country_db, rec.get("ip")) if rec.get("ip") else None
+        ip = geo.address(rec.get("ip"))
+        country = geo.country(country_db, ip) if ip else None
     said = str(rec.get("device") or "").strip().capitalize()
     dev = said if said in DEVICES else (device(rec["user_agent"])
                                         if rec.get("user_agent") else None)

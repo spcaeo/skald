@@ -21,7 +21,7 @@ A to-do shows only when its figure passes a threshold over the last whole days (
 
 ## Fix this: who will do it?
 
-Each to-do has one main button, **Fix this**. It asks one question, **Who will do it?**, and shows only what your answer needs. Above the list, **Fix all (N)** asks the same for every open to-do an AI agent can fix. The address keeps your choice (`fix=1&fixby=agent`, `me` or `someone`), so a link or a reload opens the same dialog.
+Each to-do has one main button, **Fix this**. It asks one question, **Who will do it?**, and shows only what your answer needs. The answers come in this order: **Me**, **My developer**, **My AI agent**, and Skald remembers your last one in this browser. Above the list, **Fix all (N)** asks the same for every open to-do an AI agent can fix. The address keeps your choice (`fix=1&by=me`, `dev` or `agent`), so a link or a reload opens the same dialog. Links made before 2.42 said `fixby=`; they still open the same answer.
 
 - **My AI agent** (Claude Code, Codex, Cursor, or another agent that runs commands). Skald makes one line, for example `fix the Skald to-do "Send old pages somewhere useful" for example.com — read <address>/traffic-kit/llms.txt and use code <code> (works once, 24 hours)`. Press **Copy** and paste it into your agent, in the site's project folder or on its server. Your agent then:
   1. fetches every row of the to-do from Skald itself, with curl, into a locked file. Nothing to download, nothing to copy. It gets page paths and counts only, never a visitor's address or email;
@@ -31,7 +31,7 @@ Each to-do has one main button, **Fix this**. It asks one question, **Who will d
 
   A **Done** report marks the to-do done, so Skald starts checking it on the days after. That changes no figure, and **Undo** is one click. The report also shows on the to-do itself.
 - **Me.** The exact lines to paste for your web server, from every row (not only the 1,000 the page shows): the redirect lines for old pages, one rule for the Markdown copies, the sitemap line. Skald picks nginx or Apache from what its site check found; switch it if that is wrong. **Copy the lines** or **Download the lines**, and the CSV is a small link under them. When you are done, press **Mark done**.
-- **Someone else.** Send it to a member of the site's team: the mail has the to-do, its rows as a CSV and the link that opens it. It needs a mail server (Settings > This site > Mail & reports) and a confirmed teammate; otherwise the dialog says why and gives you the link to copy. Someone who opens the link without rights to the site sees "not available to you".
+- **My developer.** Send it to a member of the site's team: the mail has the to-do, its rows as a CSV and the link that opens it. It needs a mail server (Settings > This site > Mail & reports) and a confirmed teammate; otherwise the dialog says why and gives you the link to copy. Someone who opens the link without rights to the site sees "not available to you".
 
 **Is the line safe to paste into a chat?** Yes. It holds a one-time code, not a password. The code gives your agent a key that can only read the paths and counts of the to-dos in that line, for that one site, and send back what it changed. Everything stops after 24 hours, or at once with **Cancel this line**. The worst a leaked line can do is mark one of those to-dos done, which changes no figure and is undone with one click. Skald never puts a code in a mail.
 
@@ -71,7 +71,7 @@ When your AI agent reports a to-do done, Skald runs the same check straight away
 
 Only owners and admins press **Check again**; a viewer sees the answers. Each check is a row in the audit log ("todo.checked"), without the addresses. A **Fixed** mark is counted twice too: a separate count reads the answers Skald kept and must find every address fixed, or the to-do shows as done, not fixed, with why.
 
-**New to-dos.** A to-do that came onto the list in the last 7 days is new. The page says "N new to-dos your AI agent can fix" above the list, with one button that opens **Fix this > My AI agent**. The summary mail says the same and links to that dialog (never with a code: you make the line when you press). A webhook can say it too: tick `todo.new` under **Outgoing webhooks** in [Leads & integrations](#settings/site/leads). It sends the to-do's title, proof, figures and link, never a code or a row.
+**New to-dos.** A to-do that came onto the list in the last 7 days is new. The page says "N new to-dos your AI agent can fix" above the list, with one button that opens **Fix this > My AI agent**. The summary mail says the same and links to that dialog (never with a code: you make the line when you press). A webhook can say it too: tick `todo.new` under **Send each lead out** in [Leads & tools](#settings/site/leads). It sends the to-do's title, proof, figures and link, never a code or a row.
 
 Under the done to-dos, **Pages you changed: did it work?** lists every page change marked on [Traffic > Pages](#traffic/pages), with its visits a day before and after and what Skald says. Select one to open the page with that change. See [Did my change work?](getting-started.md#did-my-change-work).
 

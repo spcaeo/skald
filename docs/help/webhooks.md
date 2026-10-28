@@ -6,7 +6,7 @@ How to connect Calendly, Cal.com, HubSpot, Typeform, Stripe, Zapier, Make and yo
 
 Each tool gets its own address in Skald and its own secret. When something happens (a booking, a payment, a form), the tool sends a signed message to that address. Skald checks the signature, records the conversion once, and lists it on [Leads & sales > Leads](#sales/leads), counts it on [Summary](#sales/summary) (with **Count from: Tools**) and, for a booking or a payment, on [Calendar bookings](#sales/bookings).
 
-All of this is set up on one page: **Settings > This site > Leads & tools**, or [Leads & tools](#settings/site/leads). It shows each tool you connected as a row with its state (**Working**, **Nothing yet**, **Not working**); press a row for its details: its address, its secret, a test event, the last deliveries, and Remove. A red line with **Fix** shows only when something is broken. **Connect a tool** (at the top) asks who will do it, then which tool. Below the rows: the tools not connected yet, **Send each lead out** (outgoing webhooks) and **Search Console and Bing** (see [Search](search.md)). Each tool's details have their own link: `#settings/site/leads?tool=calendly`.
+All of this is set up on one page: **Settings > This site > Leads & tools**, or [Leads & tools](#settings/site/leads). It starts with **Next step for example.com**: what Skald found on your site and the single most useful thing to connect, with one **Connect** (see [Leads & tools: what to connect next](leads-and-conversions.md#leads-tools-what-to-connect-next)). Then every source is in a group by what it is for (Leads from your forms, Bookings, Payments, Search, Your own tools, Recorded journeys, Send each lead out). Each row has its state (**Connected**, **Waiting**, **Failing**, **Not connected**), when it last sent, and one action: **Connect**, or its details. Press a row for its details: its address, its secret, a test event, the last deliveries, and Remove. A connected row also links to its data (**See leads**, **See bookings**). A red line with **Fix** shows only when something is broken. Sources that do not fit your site are folded under **More you can connect**. **Every check**, at the foot, lists each road into Skald with the server's own words. Each tool's details have their own link: `#settings/site/leads?tool=calendly`.
 
 - You need to be an admin or owner of the site's organisation. Viewers do not see this page.
 - The page needs a server with accounts. Without it, the page says so, and the person who runs your Skald server sets up hooks on the server instead.
@@ -14,11 +14,11 @@ All of this is set up on one page: **Settings > This site > Leads & tools**, or 
 
 Or let your AI agent do it: on **Settings > To do** (or the site's **Set up** list on Overview), press the **Lead hook tested** line, then pick **My AI agent**. It gets one line, looks for your form handler and the booking, form or payment tools in the code, adds what is missing, and reports which hooks it set and which it left for you. Secrets go straight from Skald into the tool or your server's settings, never into the chat. See [Your AI agent, in every set-up dialog](connections.md#your-ai-agent-in-every-set-up-dialog).
 
-## The Incoming hooks tab
+## A tool's details, and every check
 
-At the top, **Status** lists each road into Skald for this site, with **OK**, **Needs attention** (and what to do) or **Off**: the hook receiver, the script tag, each hook that is set up, one lead sent by two tools, and the lead database. The server's doctor command (`skald doctor`; Docker: `docker exec skald skald doctor`) shows the same lines, and checks the rest of the install too.
+**Every check** (`tool=checks`) lists each road into Skald for this site, with **OK**, **Needs attention** (and what to do) or **Off**: the hook receiver, the script tag, each hook that is set up, one lead sent by two tools, and the lead database. The server's doctor command (`skald doctor`; Docker: `docker exec skald skald doctor`) shows the same lines, and checks the rest of the install too.
 
-Below it, each tool has a box with:
+Each tool's details (its row on Leads & tools) have:
 
 - Its **address**, with a copy button. It looks like `https://analytics.example.com/traffic-hooks/example.com/calendly`. Always copy yours from the page.
 - A badge: **no secret**, **secret set**, or **set (environment ...)** when the secret is kept on the server.

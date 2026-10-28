@@ -49,6 +49,10 @@ globalThis.fetch = async (path, opts = {}) => {
   if (path.startsWith("sites/status")) return answer(given.status_after);
   if (path === "integrations/secret") return answer(given.secret);
   if (path === "integrations/test") { hooked = true; return answer(given.hooktest); }
+  // 2.44: the live check beside the address and on the Test step (ui/live.js arrivedBox).
+  if (path === "sites/arrived") return answer({ ok: true, what: body.what, test: hooked
+    ? { verdict: "ok", head: "Connected. The last delivery from Your site's server came at 10:44 UTC on 2026-10-27.", at: "2026-10-27T10:44:00Z" }
+    : { verdict: "wait", head: "Waiting for Your site's server: nothing real has arrived yet.", at: "2026-10-27T10:42:00Z" } });
   if (path === "settings/save") {
     if ("privacy.keep_ips" in body) return answer(given.saved_privacy);
     if (Object.keys(body).some((k) => k.startsWith("mail."))) return answer(given.saved_mail);
@@ -257,9 +261,9 @@ await next();
 button(d, "Send a test lead").click();
 await tick();
 assert.ok(d.querySelector(".cn-answer").textContent.includes("The test was signed, received and read"));
-button(d, "Wait for a real one").click();
+button(d, "Check for a real one").click();
 await tick();
-assert.ok(d.querySelector(".cn-answer").textContent.includes("Connected: Your site's server (lead), last received just now"));
+assert.ok(d.querySelector(".lv-line").textContent.includes("Connected. The last delivery from Your site's server came at 10:44 UTC"), "a real one, said plainly");
 assert.deepEqual(posted.filter(([p]) => p.startsWith("integrations/") && p !== "integrations/leadfile").map(([p, b]) => [p, b.tool]), [["integrations/secret", "lead"], ["integrations/test", "lead"]]);
 assert.ok(!posted.some(([p, b]) => p === "sites/share" && JSON.stringify(b).includes(secret)), "the share asks for no secret");
 await closeDialog();

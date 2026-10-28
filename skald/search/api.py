@@ -23,7 +23,13 @@ in the audit log, never a secret in an answer):
   POST integrations/search/connect       {site, engine, source, backfill_months}:
                                          save the property (settings, the site's
                                          row), then sync in the background: the
-                                         backfill (0, 3 or 16 months) or one sync
+                                         backfill (0, 3 or 16 months) or one sync.
+                                         2.44, Google: Skald first asks which
+                                         properties its robot sees (search/auto.py):
+                                         another that covers the site is used and
+                                         said (`note`); none yet answers ok with
+                                         `waiting` and its words, and Skald keeps
+                                         looking and connects by itself
   POST integrations/search/disconnect    {site, engine}: stop syncing; what was
                                          synced stays in history
   POST integrations/search/sync          {site}: "Sync now", in the background; at
@@ -205,7 +211,8 @@ def overview(c, form):
                 keys={"google": {k: gkey.get(k) for k in ("set", "where", "client_email",
                                                           "problem")},
                       "bing": {k: bkey.get(k) for k in ("set", "where", "hint", "problem")}},
-                engines=engines, google_steps=instructions(gkey.get("client_email"), site),
+                engines=engines, auto=saved.get("auto"),
+                google_steps=instructions(gkey.get("client_email"), site),
                 bing_link=BING_USERS_PAGE, sync_every_hours=sync.EVERY_HOURS,
                 sync_minutes=SYNC_MINUTES)
 
@@ -326,6 +333,19 @@ def connect(c, form):
     months = form.get("backfill_months") or 0
     if months not in (0, 3, 16) or engine == "bing" and months:
         return c.no(400, "backfill_months is 0, 3 or 16 (Search Console only).")
+    note = None
+    if engine == "google":
+        # 2.44: the property the robot can see (27 Oct: the agent reported the domain
+        # property, the robot was on the address one, and Google refused the connect).
+        from . import auto
+        seen = auto.look(_job(c, site), _hosts(c, site), source)
+        if seen["state"] == "waiting":
+            auto.want(c.folder, site, source, c.uid)
+            return c.ok(engine=engine, source=source, started=False, waiting=True,
+                        words=seen["words"] + " Skald keeps checking and connects by itself.",
+                        backfill_months=months)
+        if seen["state"] == "found":
+            source, note = seen["source"], seen.get("note")
     settings_store.put(c.db, f"site:{site}", SETTING[engine], source, c.uid)
     state.update(c.folder, site, engine, source=source, error=None, error_since=None,
                  error_mailed=None, connected_at=state.now_text(),
@@ -338,7 +358,7 @@ def connect(c, form):
         started = True
     except OSError:
         started = False
-    return c.ok(engine=engine, source=source, started=started, backfill_months=months)
+    return c.ok(engine=engine, source=source, started=started, backfill_months=months, note=note)
 
 
 def disconnect(c, form):

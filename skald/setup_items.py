@@ -195,6 +195,11 @@ def items(app=None, status=None, tools=None, settings=None, waiting=(),
                          f"{name}: leads are not arriving. The last one it sent was refused."
                          if hurt.get("state") == "received" else f"{name}: not working yet.",
                          "\n".join(t for t in tech if t), "lead", optional=True))
+    elif any(t.get("unplaced") for t in ok):
+        # Leads arrive, but the last ones came with no country (roads.unplaced).
+        u = next(t for t in ok if t.get("unplaced"))
+        out.append(_line("lead", title, "todo", f"{u.get('name')}: {u['unplaced']['says']}.",
+                         f"Fix: {u['unplaced']['fix']}", "lead", optional=True))
     elif ok:
         out.append(_line("lead", title, "done", f"{lead.get('name')}: {lead.get('words')}.",
                          optional=True))

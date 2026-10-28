@@ -15,7 +15,7 @@ Four short guides take you from nothing to a working install:
 
 ### Set up your site
 
-For owners and admins, a new site's Overview > Summary starts with a **Set up** list named for the site, for example **Set up example.com**. Each line says in one plain sentence what works or what is left. A line that is left has a **Set up** button: it opens a short dialog that walks you through the fix, step by step. Each line ticks itself once the server's own checks see it working.
+For owners and admins, a new site has a **Set up** list named for the site, for example **Set up example.com**: on **Settings > To do**, and folded into one line at the top of Overview > Summary (below). Each line says in one plain sentence what works or what is left. A line that is left is a button as a whole: it opens a short dialog that walks you through the fix, step by step. Each line ticks itself once the server's own checks see it working.
 
 | Line | Done when | What Set up does |
 | --- | --- | --- |
@@ -98,7 +98,7 @@ The sidebar has six sections. Each section has tabs along its top.
 | --- | --- |
 | Overview | Summary, Real time, Insights |
 | Traffic | Visitors, Sources, Pages, Places & devices, Search, Retention, Time |
-| Leads & sales | Leads, Summary, Sources, Calendar bookings, Funnels, Events, Find a person |
+| Leads & sales | Leads, Summary, Sources, Revenue, Calendar bookings, Funnels, Events, Find a person |
 | AI & bots | Assistants, Crawlers, Crawl health, AI answers, Crawler rules, llms.txt |
 | Security | Is anything exposed?, Your stack, Who is scanning us?, Attack attempts, Fake browsers, Block list, Alerts |
 | Site | Health, Alerts, Requests, Not found, Speed, Data quality |
@@ -107,7 +107,7 @@ The sidebar has six sections. Each section has tabs along its top.
 - **Overview > Real time** is who is on the site now, on a live world map. See [Real time](real-time.md).
 - **Overview > Insights** lists what is working, what dropped, and what is new or gone, leads too. See [Insights](getting-started.md#insights).
 - **Traffic** is who came, from where, to which pages, on what, and when; **Search** adds Google's and Bing's own queries ([Search](search.md)) and **Retention** how many came back ([Retention](retention.md)). A source of **Direct** means no referrer and no campaign tag. A country, device or touch the log did not carry says **Not recorded**.
-- **Leads & sales** is what the visits brought: leads by stage, demo bookings, funnels, events, and one person's story.
+- **Leads & sales** is what the visits brought: leads by stage, revenue, demo bookings, funnels, events, and one person's story. A tab that is empty because its source is not connected (leads, bookings, revenue, events) says what it needs, what Skald found on your site, and offers one **Connect** (owners and admins; others read "Ask an admin to connect it").
 - **AI & bots** is AI assistants (the pages they fetch to answer a question, and the visitors they send), crawlers, how crawlers find your pages ([Crawl health](crawl-health.md)), what the assistants answer about you ([AI answers](ai-answers.md)), which crawlers may come in, and your llms.txt.
 - **Security** is who probes your server and what they tried, from the same log: whether any probe got a real file, scanners, attack attempts, fake browsers, a block list to review, your site's stack against known advisories, and security alerts. See [Security](security.md).
 - **Site** is the server: what it answered, open alerts, the request log line by line, pages not found, page speed and the data's own checks.
@@ -119,7 +119,7 @@ The address names the section and the tab, for example `#traffic/sources`. Older
 Everything you open is in the address, so you can copy it from the address bar and send it, bookmark it, or reload the page and come back to the same place:
 
 - the section and tab, the period, page group, filters and drill-down
-- each table's sort, column filters, columns, search and page, and a tab's own switches (for example the open switches on Site > Alerts, or the engine and period on Traffic > Search)
+- each table's sort, column filters, columns, search and page, and a tab's own switches (for example the open fold on Site > Alerts, or the engine and period on Traffic > Search)
 - the drawer or dialog that is open, with what it shows: a visitor, a lead, a request, a cohort, a search row, a Set up dialog or a settings dialog (send logs, API, MCP) and its step, a settings page's tab, the saved views, Export and what you chose in it, the shortcuts
 
 Opening a drawer or a dialog adds one step to the browser's history, so **Back** closes it before it leaves the page. Closing it takes it out of the address.
@@ -149,7 +149,7 @@ Any other value you may want to paste somewhere else shows the **Copy** icon alo
 
 On a phone or a tablet the icons are always shown. They never open the row's own detail: the row still does that when you select it elsewhere.
 
-Two choices sit in the top bar on every page with figures:
+The top bar has seven controls: the page's name, the period, **Compare**, then on the right **Filters** (with a count of the filters on), **Search or jump to**, the alerts bell and **More** (the three dots: **Recount today now**, **Saved views** and **Export**). Two of them change what every figure covers:
 
 - **Today**, the first choice of the period, sets every tab to today so far, redrawn every 2 minutes, with a live dot. On Overview > Summary it shows today live: visitors on the site now, today's figures against yesterday at the same time of day, where visitors came from and what converted, each linking to its full tab; the map, the visitors now and the flow are on Real time ([Today, live](real-time.md#today-live)). Turn it off to go back to the period you had.
 - **Compare with…** puts another period beside this one. It is on by default: a period of whole days is set against the one before it. See Compare, below. It shows only on a tab that compares.
@@ -390,7 +390,7 @@ When more than half of the sitemap's dates fall on one day, the card says **Date
 
 ### Traffic > Pages: sort and filter
 
-The landing pages grid adds **Pages per visit**, **Left after one page**, **AI reads** (live fetches by ChatGPT-User, Perplexity-User, Claude-User and other assistants answering someone) and **Changed**. The sort chips: **Most visits** (the default), **Rising** and **Falling** (the biggest gain or drop against the period before; they need Compare, and without it the grid stays on Most visits and says so), **Recently changed**, and **Needs work** (pages with 10 visits or more, the most left at once first). The chip is kept in the address (`psort`); a column header click sorts by that column instead.
+The landing pages grid adds **Pages per visit**, **Left after one page**, **AI reads** (pages read by ChatGPT-User, Perplexity-User, Claude-User and other assistants answering someone; a repeat within 30 seconds and the files the page loaded are not reads, see [Reads, not requests](ai-and-bots.md#reads-not-requests)) and **Changed**. The sort chips: **Most visits** (the default), **Rising** and **Falling** (the biggest gain or drop against the period before; they need Compare, and without it the grid stays on Most visits and says so), **Recently changed**, and **Needs work** (pages with 10 visits or more, the most left at once first). The chip is kept in the address (`psort`); a column header click sorts by that column instead.
 
 **Changed in the last 30 days** (above the grids, and in **Filters** as a preset) keeps only the pages changed since then. It is the **Changed since** date in the address (`chgfrom`).
 
@@ -415,7 +415,7 @@ Only owners and admins can mark a change, and only with accounts (signing in). A
 
 ### AI reads by page
 
-On [AI & bots > Assistants](#ai/assistants), **AI reads by page** lists each page's live fetches by assistants answering someone, now and in the period before (Compare's B when Compare is on), by assistant, then the visits that followed an AI answer's link to the page and the leads that began there. A fetch is not a reader. No AI model is asked anything.
+On [AI & bots > Assistants](#ai/assistants), **AI reads by page** lists each page's reads by assistants answering someone, then its requests as the second, smaller number, now and in the period before (Compare's B when Compare is on), by assistant, then the visits that followed an AI answer's link to the page and the leads that began there. A read is not a reader. No AI model is asked anything.
 
 These figures come from one day figure, **visits by landing page**, kept from the first day collected after the upgrade. Older days say **not recorded**, never zero. Each has a second count from the raw log. A page group shows these cards for the whole site only.
 

@@ -13,6 +13,7 @@ recorded (NULL), never guessed. A small reader of the MaxMind DB format
 from __future__ import annotations
 
 import ipaddress
+import re
 import struct
 import threading
 from pathlib import Path
@@ -199,6 +200,26 @@ def credit(path, *more) -> tuple[str, str] | None:
         if found is not None and found.kind.upper().startswith("DBIP"):
             return DBIP_CREDIT
     return None
+
+
+_V4_PORT = re.compile(r"^(\d{1,3}(?:\.\d{1,3}){3}):\d{1,5}$")
+_V6_BRACKETS = re.compile(r"^\[([0-9A-Fa-f:.]+)\](?::\d{1,5})?$")
+
+
+def address(value) -> str | None:
+    """The visitor's address from what a lead sent as `ip`: an IPv4 or IPv6
+    address, or the first entry of a list as an X-Forwarded-For header holds
+    it ("192.0.2.10, 198.51.100.1"), a port after it taken off ("192.0.2.10:443",
+    "[2001:db8::1]:443"). None for anything else. The lead files read the
+    address the same way (kit/leads/)."""
+    got = str(value or "").split(",", 1)[0].strip()
+    m = _V4_PORT.match(got) or _V6_BRACKETS.match(got)
+    if m:
+        got = m.group(1)
+    try:
+        return str(ipaddress.ip_address(got))
+    except ValueError:
+        return None
 
 
 def country(path, ip: str) -> str | None:

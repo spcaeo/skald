@@ -132,7 +132,7 @@ def me(h, config, live_dir, site: str, user: str, role: str) -> dict:
     a header; the CSRF value, name and flags come from the cookie too."""
     body = {"ok": True, "user": user or None, "name": None, "role": role,
             "org": None, "csrf": None, "mode": "sessions", "install_admin": False,
-            "totp_on": False}
+            "totp_on": False, "welcome": False}
     db = auth_api.open_db(config, live_dir)
     if db is None:
         return body
@@ -148,7 +148,8 @@ def me(h, config, live_dir, site: str, user: str, role: str) -> dict:
             user = users.find_user(db, user_id=who["user_id"])
             body.update(user=who["email"], name=who["name"] or None, csrf=who["csrf"],
                         install_admin=who["install_admin"],
-                        totp_on=bool(user and user["totp_on"]))
+                        totp_on=bool(user and user["totp_on"]),
+                        welcome=users.take_welcome(db, who["user_id"]))
     finally:
         db.close()
     return body

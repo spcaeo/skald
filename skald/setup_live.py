@@ -35,8 +35,13 @@ CSRF checks; all for an owner or admin):
   POST sites/whofor {site, people}  change who will use it, before the invites
        went -> {setup}
 
+2.44: live_now, check_now and send_now are the routes' cores, shared with the
+MCP tools site_progress, check_site and send_invites (mcp/tools_addsite.py);
+Check now's limit is counted per admin here and per token there.
+
 `run(ctx)` is the live run's step (cli._after_live): the same tick for the
-run's site, so the invites go out with no page open. Nothing here counts a
+run's site, so the invites go out with no page open; 2.44, and one look at Google for a
+Search Console property someone asked for (search/auto.py tick), connected once it shows. Nothing here counts a
 figure: it reads what the endpoint and the set-up already keep.
 """
 from __future__ import annotations
@@ -311,37 +316,55 @@ def live_route(c, form):
     site = _site(c, text(form, "site", 200))
     if site is None:
         return c.no(404, "There is no such site in this organisation.")
+    return c.ok(live=live_now(c, site, text(form, "link_id", 40).strip().lower()))
+
+
+def check_now(c, site: str, key: str, lid: str = "") -> dict | None:
+    """Check now for one site (sites/check and the MCP's check_site): {check,
+    live}, or None past CHECK_PER_HOUR for `key` (an admin, or a token)."""
+    from .accounts import limits
+    if limits.too_many(c.db, key, limit=CHECK_PER_HOUR, minutes=60):
+        return None
+    limits.note_failure(c.db, key)
     _tick(c, site)
-    return c.ok(live=view(c, site, text(form, "link_id", 40).strip().lower()))
+    return {"check": run_check(c.config, c.live_dir, c.config_path, c.db, site, lid),
+            "live": view(c, site, lid)}
+
+
+def live_now(c, site: str, lid: str = "") -> dict:
+    """One site's live view after its tick (sites/live and the MCP's site_progress)."""
+    _tick(c, site)
+    return view(c, site, lid)
+
+
+def send_now(c, site: str) -> dict:
+    """Send the set-up's invites now (sites/sendinvites and the MCP's send_invites):
+    setup_people.send's answer; ValueError in plain words."""
+    from . import setup_people
+    from .auth_api import base_url
+    f = facts(c.config, c.live_dir, c.config_path, site)
+    return setup_people.send(c.db, c.config, site, base_url(c.config, c.allowed), c.uid,
+                             requests=f["lines"] or None, by_hand=not f["arrived"])
 
 
 def check_route(c, form):
-    from .accounts import limits
     from .connections_api import _site
     site = _site(c, text(form, "site", 200))
     if site is None:
         return c.no(404, "There is no such site in this organisation.")
-    key = f"setup-check:{c.uid}"
-    if limits.too_many(c.db, key, limit=CHECK_PER_HOUR, minutes=60):
+    got = check_now(c, site, f"setup-check:{c.uid}", text(form, "link_id", 40).strip().lower())
+    if got is None:
         return c.no(429, "Too many checks. Try again in a few minutes.")
-    limits.note_failure(c.db, key)
-    lid = text(form, "link_id", 40).strip().lower()
-    _tick(c, site)
-    return c.ok(check=run_check(c.config, c.live_dir, c.config_path, c.db, site, lid),
-                live=view(c, site, lid))
+    return c.ok(**got)
 
 
 def send_route(c, form):
-    from . import setup_people
-    from .auth_api import base_url
     from .connections_api import _site
     site = _site(c, text(form, "site", 200))
     if site is None:
         return c.no(404, "There is no such site in this organisation.")
-    f = facts(c.config, c.live_dir, c.config_path, site)
     try:
-        got = setup_people.send(c.db, c.config, site, base_url(c.config, c.allowed), c.uid,
-                                requests=f["lines"] or None, by_hand=not f["arrived"])
+        got = send_now(c, site)
     except ValueError as why:
         return c.no(400, str(why))
     return c.ok(invites=got)
@@ -370,6 +393,10 @@ def people_route(c, form):
     try:
         people = setup_people.clean(c.db, form.get("people"), c.org["id"],
                                     new_org=row.get("privacy_class") is not None)
+        from .site_add import people_allowed
+        seats = people_allowed(c.db, c.config, row["org_id"], people)
+        if seats:
+            raise ValueError(seats)
     except ValueError as why:
         return c.no(400, str(why))
     site_setup.note(c.db, site, people=people)
@@ -404,6 +431,9 @@ def run(ctx) -> None:
                 db, ctx.config, ctx.site, base_url(ctx.config),
                 lambda: _heard(ctx.config, folder, ctx.config_path, ctx.site),
                 lambda: check_words(ctx.config, folder, ctx.config_path, db, ctx.site))
+            # 2.44: a Search Console property someone asked for: look once, connect once seen.
+            from .search import auto
+            did = auto.tick(ctx.config, ctx.config_path, folder, db, ctx.site) or did
         finally:
             db.close()
         if did:

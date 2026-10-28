@@ -70,8 +70,12 @@ POST needs the same-origin check and the session's X-Skald-CSRF value.
 Sites from config files are listed; their config is changed only on the
 server, but they can be paused, removed, cleared and deleted here.
 
+2.44: the adding itself is site_add.py, shared with the MCP's add_site; it
+also checks the plan's members for the people a new site names.
+
 2.43 (setup_live.py, setup_people.py): POST sites/live, sites/check,
-sites/sendinvites, sites/whofor and GET sites/whoopts; sites/add takes the
+sites/sendinvites, sites/whofor and GET sites/whoopts (2.44: POST sites/arrived,
+connect_check.py, the Test beside every line, command and address Skald gives); sites/add takes the
 wizard's first two answers, {org: "same" | <id> | "new", org_name,
 privacy_class, people}. A request that names a site of another of the
 caller's organisations (`site` or `name` in the body; `?site=` on a GET) is
@@ -83,7 +87,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from . import auth_api, first_page, ingest, ingest_log, site_verify
+from . import auth_api, ingest, ingest_log, site_verify
 from .accounts import apitokens, sessions, site_configs, users
 from .auth_api import answer, csrf_ok, read_json, text
 from .config import site_name
@@ -93,7 +97,7 @@ PATH = re.compile(PAGE + r"(?P<act>sites(?:/(?:add|token|remove|verify|status|ki
                          r"|pause|resume|restore|clear|purge"
                          r"|share|shares|unshare|link|pack|packmail"
                          r"|agentlink|agentstatus|agentcancel|agentleft"
-                         r"|live|check|sendinvites|whoopts|whofor))?)$")
+                         r"|live|check|sendinvites|whoopts|whofor|arrived))?)$")
 GETS = ("sites", "sites/status", "sites/shares", "sites/agentleft", "sites/whoopts")
 ADMIN = ("owner", "admin")
 SHIP_TOKEN_FILE = "/etc/skald-ship/token"
@@ -273,12 +277,8 @@ def _named(db, uid, path: str, form: dict, page: str, role, org):
 
 
 def _refusal(c: Ctx) -> str | None:
-    if c.role not in ADMIN:
-        return "Only an admin can add a site."
-    if not ingest.enabled(c.config):
-        return ("Adding sites here needs the log endpoint switched on "
-                "(ingest.enabled in the server's config).")
-    return plan_allows(c.db, c.config, c.org["id"])
+    from .site_add import refusal
+    return refusal(c.db, c.config, c.org["id"], c.role)
 
 
 def listing(c: Ctx, form):
@@ -324,64 +324,16 @@ def _new_token(c: Ctx, name: str, org_id=None) -> str:
 
 
 def add(c: Ctx, form):
-    refusal = _refusal(c)
-    if refusal:
-        return c.no(403, refusal)
-    from . import settings_store, setup_people
-    from .accounts import db as base
-    from .accounts import site_setup
+    """POST sites/add: site_add.add, the one code path (the MCP's add_site too)."""
+    from . import site_add
     try:
-        name = site_configs.clean_name(text(form, "host", 200))
-        folder = ingest_log.site_folder(c.ingest_root(), name)
-        assets = form.get("asset_prefixes") or None
-        if assets is not None:
-            try:
-                assets = settings_store.validate("site.asset_prefixes", assets)
-            except settings_store.Invalid as why:
-                raise ValueError(str(why)) from None
-        choice = form.get("org")
-        choice = str(choice) if isinstance(choice, (str, int)) and not isinstance(choice, bool) \
-            else "same"
-        privacy = text(form, "privacy_class", 20) or "internal"
-        with base.tx(c.db):
-            # 2.43: the wizard's organisation (a new one is made here, its maker its owner).
-            got, made = setup_people.target_org(
-                c.db, c.uid, choice, text(form, "org_name", 100), privacy,
-                install_admin=bool((c.session or {}).get("install_admin")),
-                hosted=saas_on(c.config))
-            org = got or c.org
-            if got is not None and not made:
-                refusal = read_only(c.db, c.config, org["id"]) or plan_allows(c.db, c.config,
-                                                                             org["id"])
-                if refusal:
-                    raise ValueError(refusal)
-            people = setup_people.clean(c.db, form.get("people"), c.org["id"], new_org=made)
-            site_configs.create(
-                c.db, org["id"], name, c.uid, hosts=form.get("hosts") or None,
-                timezone=text(form, "timezone", 64) or None,
-                fmt=text(form, "format", 40) or "auto", log_dir=str(folder),
-                taken=config_sites(c.config, c.config_path))
-            token = _new_token(c, name, org["id"]) if form.get("token") is not False else None
-            if assets:
-                settings_store.put(c.db, f"site:{name}", "site.asset_prefixes", assets, c.uid)
-            if saas_on(c.config):
-                site_verify.start(c.db, name)
-            # Its set-up row from the start: who added it, who will use it, the data rule.
-            site_setup.save(c.db, org["id"], name, c.uid, step=1)
-            site_setup.note(c.db, name, made_by=str(c.uid), people=people,
-                            privacy_class=privacy if made else None)
-    except ValueError as why:
-        return c.no(400, str(why))
-    folder.mkdir(parents=True, exist_ok=True)
-    # Its page is there at once, not a 404; its logo is asked for first (2.25).
-    first_page.start(c.out, name, c.config_path,
-                     before=first_page.logo_fetch(c.config, c.config_path, name, c.live_dir, c.out))
-    return c.ok(site=name, token=token, log_dir=str(folder),
-                ingest_url=f"{_base(c.config, c.allowed)}{ingest.PREFIX}{name}",
-                ship_command=ship_command(c.config, c.allowed, name), tag=tag(name, _tag_base(c)),
-                token_file=SHIP_TOKEN_FILE, verify=site_verify.shown(c.db, name),
-                org={"id": org["id"], "name": org["name"], "new": made},
-                people=len(people))
+        got = site_add.add(c.db, c.config, c.org, c.uid, form, live_dir=c.live_dir,
+                           config_path=c.config_path, allowed=c.allowed, out=c.out,
+                           origin=_tag_base(c), role=c.role,
+                           install_admin=bool((c.session or {}).get("install_admin")))
+    except site_add.Refused as why:
+        return c.no(why.status, str(why))
+    return c.ok(**got)
 
 
 def new_token(c: Ctx, form):
@@ -469,3 +421,11 @@ def _live():
 
 
 ROUTES.update(_live())          # 2.43: sites/live, check, sendinvites, whoopts, whofor
+
+
+def _arrived():
+    from .connect_check import ROUTES as arrived
+    return arrived
+
+
+ROUTES.update(_arrived())       # 2.44: sites/arrived, every connect journey's Test

@@ -25,14 +25,18 @@ them those clicks and report this job as `left`.
 
 __SEARCH_ROBOT__
 
-### 3. The one click left for the user
+### 3. The one thing the user does
 
 Skald cannot do this one: only an owner of the property can give access. Give the user these
-clicks, with the robot address filled in, and put them in the report's `left_for_user`:
+clicks, with the robot address filled in, and wait for them to say it is done:
 
 1. Open https://search.google.com/search-console/users and pick the property of __SITE__.
 2. Settings > Users and permissions > Add user.
 3. Paste the robot address. Permission: **Restricted** (it can only read figures). Add.
+
+Skald connects by itself once Google shows the robot on a __SITE__ property: the user never
+presses Connect in Skald. If the robot is on another property of the site than the one you
+found (the address one instead of the domain one), Skald uses the one Google shows.
 
 ### 4. Bing (by hand)
 
@@ -42,7 +46,18 @@ Bing too, put these clicks in `left_for_user`: Bing Webmaster Tools
 Skald (__DASHBOARD__#settings/site/leads?tool=search: Settings > Leads & tools > Search
 Console & Bing, Bing). Only whoever runs their Skald can paste it there. Bing can also import the sites from Search Console (Add a site > Import).
 
-Change nothing in Skald. Put the property in the report as `search` (`google_property`,
-`robot_added`: true once the user says they added it, and `bing_site` when you know the
-site's address in Bing): the user connects it in Skald with one click, and the set-up list
-ticks once Search Console answers.
+Put the property in the report as `search` (`google_property`, `robot_added`: true once the
+user says they added it, and `bing_site` when you know the site's address in Bing), and send
+the report as soon as you know the property: Skald asks Google at once. Its answer carries
+`search` with `state` and `words`:
+
+- `connected`: tell the user "Skald is connected to Search Console and is getting Google's
+  history." (and Skald's `note`, when there is one). This job is `done`.
+- `waiting`: the robot is not on a __SITE__ property yet (Google can take a few minutes).
+  Tell the user Skald's `words`, and that Skald keeps checking by itself and connects as soon
+  as it appears: nothing to press. After they say they added it, send the report again: the
+  answer says what Skald sees now. If it still says `waiting`, the job is `left` (say which
+  property and which robot address in `left_for_user`).
+- `no_key`: tell the user whoever runs Skald uploads the robot's key first.
+
+Never send the user to Skald's settings to connect it.

@@ -17,6 +17,7 @@ import { h, n } from "../ui.js";
 import { call } from "./ipmanager.js";
 import { time as tzTime } from "../tz.js";
 import { copyable, field, input, status, confirmIn, why } from "./forms.js";
+import { arrivedBox } from "../ui/live.js";
 
 const BACKFILL = [[0, "No history: from today on"], [3, "The last 3 months"], [16, "All 16 months Search Console keeps"]];
 const NAMES = { google: "Google Search Console", bing: "Bing Webmaster Tools" };
@@ -239,7 +240,9 @@ export function searchBox(site) {
       connectBtn.disabled = true;
       const m = google ? Number(months.querySelector("input:checked")?.value || 0) : 0;
       const x = await post("connect", { engine: e, source: picked[e], backfill_months: m },
-        (y) => `Connected. ${y.started ? (m ? `Syncing ${m} months of history in the background.` : "The first sync runs in the background.") : "The first sync runs with the next scheduled one."} Then every 6 hours by itself.`);
+        // 2.44: Skald connects the property its robot sees (y.note when it is another), or
+        // waits for Google to show it and connects by itself (y.waiting, its words).
+        (y) => (y.waiting ? y.words : `Connected${y.note ? `: ${y.note}` : "."} ${y.started ? (m ? `Syncing ${m} months of history in the background.` : "The first sync runs in the background.") : "The first sync runs with the next scheduled one."} Then every 6 hours by itself.`));
       if (x.ok) reload(); else connectBtn.disabled = false;
     });
     out.push(h("div", { class: "se-step" }, h("h4", null, "3. Test and connect"),
@@ -250,7 +253,11 @@ export function searchBox(site) {
   function engineCard(e, r) {
     const part = r.engines?.[e] || {};
     const badge = h("span", { class: `tf ${part.status?.error ? "warn" : part.connected ? "on" : "off"}` }, part.connected ? (part.status?.error ? "failing" : "connected") : "not connected");
-    return h("div", { class: "sheet integ" }, h("h3", null, NAMES[e], " ", badge), ...(part.connected ? connected(e, part, r) : wizard(e, r)));
+    // 2.44: asked to connect, waiting for Google to show the robot (search/auto.py): said, with
+    // Check now, above the wizard; Skald connects by itself.
+    const asked = e === "google" && !part.connected && ["waiting", "failed", "no_key"].includes(r.auto?.state)
+      ? arrivedBox(r.site || site, "search", { label: "Check now", intro: r.auto.words || "Waiting for Google.", onDone: () => reload() }) : null;
+    return h("div", { class: "sheet integ" }, h("h3", null, NAMES[e], " ", badge), asked, ...(part.connected ? connected(e, part, r) : wizard(e, r)));
   }
 
   function draw(r) {

@@ -18,6 +18,7 @@ import { sendState, testPanel } from "./conn-send.js";
 import { proxyFold } from "./conn-install.js";
 import { adminFold, mailButton, copyButton } from "./setup-common.js";
 import { shareBox } from "./conn-share.js";
+import { arrivedBox } from "../ui/live.js";
 
 // Where the line goes, by how the site is made. Only what the guides say.
 export const WHERE = [
@@ -63,6 +64,8 @@ export async function tagDialog(site, { item = null, onClose = null, route = nul
         draw: () => [h("p", null, `Copy this line. It is made for ${site}.`),
           codeBlock(tag, "the script tag"),
           steps("Paste it into the <head> of every page.", "Publish the site."),
+          // 2.44: beside the tag, whether a page with it reached Skald yet, by itself, with Test.
+          arrivedBox(site, "tag", { intro: "Waiting: no page with the tag has reached Skald yet." }),
           h("p", { class: "note" }, "Nothing changes on your web server: the page loads the script from Skald and sends its events there."),
           h("h4", null, "Where it goes"),
           h("ul", { class: "cn-list" }, WHERE.map(([a, b]) => h("li", null, h("b", null, `${a}: `), b))),

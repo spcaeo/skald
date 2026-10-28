@@ -126,8 +126,10 @@ prop.value = "123456789";
 prop.dispatchEvent(new Event("input"));
 button(dialog(), "Next").click();
 await tick(60);
-assert.deepEqual(posted.at(-1), ["integrations/yourtools/key", { site: SITE, tool: "ga4", key: '{"type": "service_account"}', options: { property: "123456789" } }]);
-assert.ok(dialog().textContent.includes("Connected."));
+assert.deepEqual(posted.find(([p]) => p === "integrations/yourtools/key"), ["integrations/yourtools/key", { site: SITE, tool: "ga4", key: '{"type": "service_account"}', options: { property: "123456789" } }]);
+// 2.44: "Key saved.", and whether the tool answered yet follows by itself (sites/arrived tool:ga4).
+assert.ok(dialog().textContent.includes("Key saved."));
+assert.ok(posted.some(([p, b]) => p === "sites/arrived" && b.what === "tool:ga4"));
 assert.ok(dialog().textContent.includes("robot@project.example.com"));
 d?.close?.({ instant: true, silent: true });
 

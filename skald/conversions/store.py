@@ -573,9 +573,10 @@ def hook_rows(db, site: str, tool: str, since: str | None = None, after=None,
     test rows too: received at or after `since`, after `after` (the
     (received_at, id) of a page's last row), with `at` in [at_since,
     at_until). Only what a sender may see again: never a visitor ID, a
-    source, an identity. At most `limit`."""
+    source, an identity; the country only to say whether one was kept
+    (reconcile.py). At most `limit`."""
     sql = ("SELECT id, external_ref, action, stage, at, label, test, received_at, value_minor, "
-           "currency, customer_ref, tags FROM conversions WHERE site = ? AND tool = ?")
+           "currency, customer_ref, tags, country FROM conversions WHERE site = ? AND tool = ?")
     args: list = [site, tool]
     if since:
         sql += " AND received_at >= ?"

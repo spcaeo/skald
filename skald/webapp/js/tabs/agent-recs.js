@@ -15,6 +15,17 @@ import { why } from "./forms.js";
 import { withCopy } from "../urlactions.js";
 import { noticeBox } from "./setup-privacy.js";
 import { newAssets, ASSETS_MAX } from "./agent-words.js";
+import { arrivedBox } from "../ui/live.js";
+
+/* 2.44: Search Console from a report: no Apply. The report itself asked Skald to connect
+   (search/auto.py): this says, by itself, what Google shows ("Waiting for Google: Skald's robot
+   address is not on a example.com property yet." / "Connected. Getting the history: 3 of 70
+   weeks."), with Check now. null when the report names no property. */
+export function searchBox(report, site, onAnswer = null) {
+  if (!report?.search?.google_property) return null;
+  return h("div", { class: "ag-rec ag-search", "data-rec": "search" }, h("p", null, h("b", null, "Google Search Console")),
+    arrivedBox(site, "search", { label: "Check now", onAnswer, intro: "Skald is asking Google which property its robot can see..." }));
+}
 
 // The page's own site (/traffic/<site>/...): a call for another site goes to that site's page.
 const pageSite = () => { try { return decodeURIComponent((location.pathname.match(/^\/traffic\/([^/]+)\//) || [])[1] || ""); } catch { return ""; } };
@@ -79,7 +90,7 @@ function rec(site, { kind, head, says, body, done, after = null, path = "setting
 export function recsBox(report, site) {
   const box = h("div", { class: "ag-recs-w" });
   const r = report || {};
-  if (!r.asset_paths?.length && typeof r.privacy?.keep_ips !== "boolean" && !r.search?.google_property) return box;
+  if (!r.asset_paths?.length && typeof r.privacy?.keep_ips !== "boolean") return box;
   siteCall(site, "settings").then((now) => {
     if (!now.ok || !now.settings) return;
     const s = now.settings;
@@ -105,13 +116,7 @@ export function recsBox(report, site) {
           h("p", { class: "note" }, `Now: ${MODE_WORDS[modeOf(ips.value)]}${!ips.source || ips.source === "default" ? " (not chosen yet)" : ""}.`)],
         done: "Saved. Copy this wording into your privacy notice.", after: (got) => (got.notice ? [noticeBox(got.notice)] : []) }));
     }
-    const search = searchSave(r, s);
-    if (search) {
-      recs.push(rec(site, { kind: "search", head: `Connect Google Search Console: ${search.source}`, body: { site, ...search }, path: "integrations/search/connect",
-        says: [h("p", null, "Your agent found the site's Search Console property."),
-          h("p", { class: "note" }, r.search.robot_added === true ? "It says Skald's robot address was added as a user there." : "Add Skald's robot address as a Restricted user there first (Settings > Leads & tools > Search Console & Bing shows it), or the connect is refused.")],
-        done: "Connected. Skald syncs its figures in the background: the last 16 months first." }));
-    }
+    // Search Console connects by itself (searchBox above), never through an Apply here.
     if (!recs.length) return;
     box.replaceChildren(h("section", { class: "ag-recs", "aria-label": "What your agent recommends" }, h("h4", null, "What your agent recommends"),
       h("p", { class: "note" }, "Skald changes nothing until you press Apply."), ...recs));

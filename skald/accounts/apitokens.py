@@ -14,6 +14,12 @@ organisation (and, if it names sites, only those). Scopes:
                  endpoint needs mcp too). Only an owner or admin of the
                  organisation (or the server: "cli") may make it, only for exactly
                  one site, and only together with mcp.
+  add_sites      (2.44) the MCP tools add_site, site_progress, check_site and
+                 send_invites: add a site to the token's own organisation and
+                 watch its set-up, within the plan. For the whole organisation
+                 (no site list), only together with mcp, made only by an owner
+                 or admin who sees every site (or the server), and checked like
+                 setup at every use (`check_org`).
 
 `private=True` is the old flag and means `read_private`. `check` writes
 `last_used` at most once a minute per token.
@@ -40,7 +46,7 @@ from .. import tokens as old_tokens
 from . import auditlog
 from . import db as base
 
-SCOPES = ("read", "read_private", "mcp", "ingest", "setup")
+SCOPES = ("read", "read_private", "mcp", "ingest", "setup", "add_sites")
 PRIVATE = old_tokens.PRIVATE
 DENIED = "unrecognised or revoked token"
 
@@ -121,6 +127,32 @@ def _setup_ok(db, org_id, sites, scopes, actor) -> None:
                          "give it the mcp scope too.")
 
 
+def _add_sites_ok(db, org_id, sites, scopes, actor) -> None:
+    """The add_sites scope's rules (2.44), or ValueError in plain words."""
+    if "add_sites" not in scopes:
+        return
+    if not creator_ok(db, org_id, actor):
+        raise ValueError("Only an owner or admin may make a token that adds sites.")
+    if not _sees_all(db, org_id, actor):
+        raise ValueError("A token that adds sites is for the whole organisation: only an "
+                         "owner or admin who sees every site may make one.")
+    if sites:
+        raise ValueError("A token that adds sites is for the whole organisation: leave the "
+                         "sites out.")
+    if "mcp" not in scopes:
+        raise ValueError("A token that adds sites works through the MCP server: give it the "
+                         "mcp scope too.")
+
+
+def _sees_all(db, org_id, created_by) -> bool:
+    """True when the maker is not limited to some sites (or the server made it)."""
+    who = str(created_by or "")
+    if not who.isdigit():
+        return True
+    from .users import site_access
+    return site_access(db, org_id, int(who)) is None
+
+
 def create(db, org_id, name, sites=None, private=False, scopes=("read",), actor="cli") -> str:
     """The token, to show once; only its hash is kept."""
     name = " ".join(str(name or "").split())[:60]
@@ -131,8 +163,10 @@ def create(db, org_id, name, sites=None, private=False, scopes=("read",), actor=
     with base.tx(db):
         if not db.execute("SELECT 1 FROM orgs WHERE id = ?", (org_id,)).fetchone():
             raise ValueError("There is no such organisation.")
-        sites = _within_access(db, org_id, sites, actor)
+        if "add_sites" not in scopes:
+            sites = _within_access(db, org_id, sites, actor)
         _setup_ok(db, org_id, sites, scopes, actor)
+        _add_sites_ok(db, org_id, sites, scopes, actor)
         own = {r[0] for r in db.execute("SELECT name FROM sites WHERE org_id = ?", (org_id,))}
         foreign = [s for s in sites or () if s not in own]
         if foreign:
@@ -176,6 +210,34 @@ def check(db, header: str | None, site: str, scope="read",
         return False, f"this token has no {scope} scope", None
     if name in PRIVATE and "read_private" not in entry["scopes"]:
         return False, f"{name} holds addresses; this token may not read it", None
+    stamp = base.now()
+    if not row["last_used"] or row["last_used"] <= base.shift(-60):
+        db.execute("UPDATE tokens SET last_used = ? WHERE id = ?", (stamp, row["id"]))
+        entry["last_used"] = stamp
+    return True, "", entry
+
+
+def check_org(db, header: str | None, scope="add_sites") -> tuple[bool, str, dict | None]:
+    """(allowed, why not, the token's entry) for a scope that is for the whole
+    organisation, not one site (2.44: add_sites). The same token checks as
+    `check`: real, not revoked, its maker still an owner or admin; and still
+    for every site (no site list, its maker not limited to some sites)."""
+    if not header or not header.startswith("Bearer "):
+        return False, "a bearer token is needed", None
+    token = header[7:].strip()
+    parts = token.split("_", 2)
+    if len(parts) != 3 or parts[0] != "skald" or len(token) > 200:
+        return False, "not a token", None
+    row = base.one(db, "SELECT * FROM tokens WHERE id = ?", (parts[1],))
+    if row is None or not hmac.compare_digest(row["sha256"], base.sha256(token)):
+        return False, DENIED, None
+    if row["revoked_at"] or not creator_ok(db, row["org_id"], row["created_by"]):
+        return False, DENIED, None
+    entry = _entry(row)
+    if scope not in entry["scopes"]:
+        return False, f"this token has no {scope} scope", None
+    if entry["sites"] or not _sees_all(db, entry["org_id"], row["created_by"]):
+        return False, f"a token with the {scope} scope is for the whole organisation", None
     stamp = base.now()
     if not row["last_used"] or row["last_used"] <= base.shift(-60):
         db.execute("UPDATE tokens SET last_used = ? WHERE id = ?", (stamp, row["id"]))

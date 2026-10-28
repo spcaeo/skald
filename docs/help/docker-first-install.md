@@ -107,7 +107,7 @@ Only the first site needs `SKALD_BEACON_ORIGINS`. A site you add later from the 
 
 ## 7. Add hooks
 
-**Settings > This site > Leads & tools > Incoming hooks > Make secret** for each tool, or on the server:
+**Settings > This site > Leads & tools**, each tool's row, **Make secret**, or on the server:
 
 ```
 docker exec skald skald hooks secret example.com lead

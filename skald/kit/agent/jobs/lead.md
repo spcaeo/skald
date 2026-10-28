@@ -7,6 +7,10 @@
 
       grep -rIl --exclude-dir=node_modules --exclude-dir=.git -e 'skald-lead' -e 'skald_lead' -e 'traffic-hooks/' .
 
+  A lead call that is there but passes no visitor's address (`ip`) is a part still missing:
+  its leads reach Skald without a country. PHP and the WordPress plugin read it by
+  themselves once the file is today's (download it again: the old files did not).
+
 - Which booking, form or payment tools does the site use? Search the code for
   `calendly.com`, `cal.com`, `stripe` (Checkout, Payment Links), `typeform.com`, HubSpot
   (`hsforms`, `hs-scripts`, `meetings.hubspot.com`), and form posts to Zapier, Make or n8n.
@@ -30,13 +34,29 @@ __LEADS__
    `skald_lead.py`, `skald-leads.zip` (the WordPress plugin, no code). For example:
    `curl -fsSL -o skald-lead.php '__LEADS_URL__skald-lead.php'`. They hold no secret: they
    read `SKALD_LEAD_SECRET` from the environment (WordPress: `wp-config.php`).
-3. Call it once, after the lead is saved, as the README says.
+3. Call it once, after the lead is saved, as the README says. Pass the visitor's address as
+   `ip`, read in that same request from the header the host sets (README, "The visitor's
+   address"): on Vercel `x-forwarded-for` (a Next.js route handler:
+   `request.headers.get("x-forwarded-for")`; a server action:
+   `(await headers()).get("x-forwarded-for")`), behind Cloudflare `CF-Connecting-IP`, Express
+   `req.ip` with `trust proxy` on behind a host. Without it the lead has no country in Skald.
+   PHP and the WordPress plugin read it by themselves; behind a CDN, set
+   `SKALD_LEAD_IP_HEADER` as the README says. When the site has Skald's script tag, pass the
+   visitor ID too (`vid`, README, "Join the lead to the visit"): it joins the lead to the pages
+   read. Send both; one never replaces the other. A lead sent later from a queue or a cron
+   job: keep the address with the job when the form is posted, and pass it.
 4. Put `SKALD_LEAD_SECRET` in the backend's environment (the host's secret settings), from the
    keys file, never in code and never shown. WordPress keeps it in `wp-config.php`: first check
    that git does not track that file (`git ls-files --error-unmatch wp-config.php` must say
    it does not match). If git tracks it, ask the user where the secret should go instead.
-5. Send one test lead with `test: true` (the README says how). Skald lists it under Left out
-   and does not count it.
+5. Send one test lead with `test: true` (the README says how) through the deployed form
+   handler, so it runs in a real request. Skald lists it under Left out and does not count it.
+6. Check that it has a country: read it back with the README's "Check it" lines (the leads
+   Skald holds, signed with the secret), run inside `( set -a; . __ENV_FILE__; set +a; ... )`
+   so the secret comes from the keys file and is never shown. The test lead must say
+   `"country_recorded": true`. `false`: the address did not reach Skald, or it was a proxy's
+   private address (the delivery's detail in Skald then says "the visitor's address (ip) gave
+   no country"): fix the header and send again. Say what you saw in the report's `notes`.
 
 ### Booking, form and payment tools (webhooks)
 
