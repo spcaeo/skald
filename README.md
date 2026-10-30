@@ -51,6 +51,9 @@
 
 ## What's new
 
+- **2.45: "sent a form" means a form; leads fill in from their visits** ([changelog](CHANGELOG.md#2450-2026-10-30)).
+  A POST a page's own script sends by itself is no longer a form (Settings › Data › Not forms);
+  a lead with a visitor ID gets its touches from that browser's page views; ad click IDs, opt-in.
 - **2.44.1: a webhook key that does not match loses nothing** ([changelog](CHANGELOG.md#2441-2026-10-28)).
   Refused deliveries are held and taken in once the right key is saved; each tool says its key
   in its own word, keeps the saved state on screen, and the Test says it checks Skald's side only.
@@ -267,6 +270,11 @@ Summary and Insights to-dos, Real time on a world map, the visitor drawer, Searc
 figures and AI answers (both made up), AI & bots, every Security tab, every lead in one list, and
 Settings › To do. Nothing to install; saving, the person search and the other Settings pages
 need your own Skald. Every image below is from the demo's sample data.
+
+### Not forms, and touches filled by Skald (2.45)
+
+| <img src="docs/screenshots/not-forms.png" alt="Settings, Data, What counts, Not forms: a POST the page's own script sends by itself is not a form. Suggested from your log: /api/pageview, sent by 61 of the 66 visits that sent a POST, of 83 visits, on 2026-10-21, like that on 9 days, with Add; Saved: /api/client-errors, with Remove; a box to type a path, Never forms on any site (11), and Save" width="440"><br>**Not forms.** A path the page's own script sends is not "sent a form"; Skald suggests, you Add. | <img src="docs/screenshots/lead-filled.png" alt="A lead's drawer: Nia Reyes, nia.reyes@example.org, a sign-up from the lead database on 22 Oct 09:08, her visit from an AI assistant to /blog/ai-crawlers-explained and /signup/, and under This conversion the source (last touch) AI assistant, first touch AI assistant and campaign, each marked filled by Skald, with landing page /blog/ai-crawlers-explained" width="440"><br>**Filled by Skald.** A lead sent with no touch gets its first and last touch from its visitor ID's own visits, and says so. |
+|---|---|
 
 ### Set-ups that test themselves, agents that add sites (2.44)
 

@@ -9,21 +9,27 @@ gives a lead its country: `vid` joins the lead to the pages read, `ip` (or
 `country`) gives the country, and a lead may send both. Device: the sender's
 Desktop/Mobile/Tablet, else worked out from the user agent, which is then
 dropped. A figure the sender did not give stays NULL: never "Direct", never
-"Desktop" by default.
+"Desktop" by default; a lead with a visitor ID and no touches has them
+filled from that browser's page views afterwards (fill.py, 2.45).
+
+The ad click (2.45): with `click_ids` (the site's `conversions.click_ids`),
+the click ID the last touch carried (else the first touch's), as a key of the touch
+or in its landing address's query (`click_of`), is kept as click_kind and
+click_id. Without it, neither is in the row.
 """
 from __future__ import annotations
 
 from datetime import timedelta
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, urlencode
 
 from ..classify import AI_UTM, cited_by
 from ..dimensions import DEVICES, SOURCE_TYPES, campaign, device, source_type
-from . import FUTURE_SLACK, geo
+from . import CLICK_ID, CLICK_KINDS, FUTURE_SLACK, geo
 from .adapters import Invalid
 from .store import parse
 
 TAGS = ("utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "gclid",
-        "gbraid", "wbraid", "msclkid", "fbclid", "li_fat_id")
+        "gbraid", "wbraid", "msclkid", "fbclid", "li_fat_id", "ttclid", "twclid")
 
 
 def _url(touch: dict) -> str:
@@ -58,8 +64,24 @@ def touch_campaign(touch: dict | None) -> str | None:
     return campaign(_url(touch)) if touch else None
 
 
+def click_of(touch: dict | None) -> tuple[str, str] | None:
+    """(kind, id) of the first ad click ID (CLICK_KINDS' order) a touch
+    carries, as its own key or in its landing address's query; None for none
+    or a value that is not an ID's shape."""
+    if not touch:
+        return None
+    landing = str(touch.get("landing") or "")
+    query = dict(parse_qsl(landing.split("?", 1)[1].split("#", 1)[0])) if "?" in landing \
+        else {}
+    for kind in CLICK_KINDS:
+        value = str(touch.get(kind) or query.get(kind) or "").strip()
+        if value:
+            return (kind, value) if CLICK_ID.match(value) else None
+    return None
+
+
 def row(rec: dict, site: str, tool: str, received_at: str, own_hosts: set[str],
-        identity_full: bool, country_db=None) -> dict:
+        identity_full: bool, country_db=None, click_ids: bool = False) -> dict:
     """The store's row for one record. Invalid when `at` is more than a day
     after the record arrived."""
     at = rec.get("at") or received_at
@@ -91,6 +113,9 @@ def row(rec: dict, site: str, tool: str, received_at: str, own_hosts: set[str],
            "pay_ref": rec.get("pay_ref"), "value_sent": rec.get("value_sent", True)}
     if rec.get("refund_of"):
         out["refund_of"] = list(rec["refund_of"])
+    click = (click_of(last) or click_of(first)) if click_ids else None
+    if click:
+        out["click_kind"], out["click_id"] = click
     if identity_full and rec.get("email"):
         out["identity"] = {"email": rec["email"], "name": rec.get("name")}
     return out

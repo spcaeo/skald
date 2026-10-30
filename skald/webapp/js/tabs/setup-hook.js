@@ -18,7 +18,7 @@
 // set-up pack (setup-pack.js) sends all of it to someone in one zip.
 
 //
-// 2.45 (a site's Calendly: every real booking refused while Skald's own test passed): the key
+// 2.44.1 (a site's Calendly: every real booking refused while Skald's own test passed): the key
 // step says the tool's own word (signing key, client secret...) and which way it goes; Calendly,
 // Cal.com and Typeform ask one question first (how=: made yet? with a key of its own?); what is
 // saved stays on the step (when, by whom, pasted or made) with the paste's answer; Calendly
@@ -287,7 +287,7 @@ export async function hookDialog(site, { onClose = null, route = null, start = 0
   const st = { site, tool: null, lang: "php", fresh: kept ? { tool: "lead", secret: kept, url: tools.find((t) => t.tool === "lead")?.url || "" } : null,
     // A page's Connect names the way (way=, js/ui/connect.js); else the tool set up, else the first.
     pick: (WAYS[way] && tools.some((t) => t.tool === toolOf(way)) ? way : "") || (tools.find((t) => t.set) || tools[0])?.tool || "",
-    // 2.45: how the tool's webhook was made (how=, the key step's question), from a link.
+    // 2.44.1: how the tool's webhook was made (how=, the key step's question), from a link.
     how: String(S.read().how || ""), asking: "", check: null };
   st.tool = () => tools.find((t) => t.tool === toolOf(st.pick)) || tools[0];
   // The ways offered: each tool the server takes, and WordPress when it takes "lead".

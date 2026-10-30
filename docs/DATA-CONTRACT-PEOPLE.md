@@ -16,6 +16,7 @@ beside the history) and helper answers behind sign-in.
 | `privacy.keep_ips` | `full` on a new install; `off` on one upgraded from before 2.4.0 | keep each visit with its address and user agent: `full`, `short` (the address shortened, below) or `off`. `true` reads as `full` and `false` as `off` (configs, settings rows and answers from before 2.15.0) |
 | `privacy.keep_days` | 395 | how long a kept visit stays (1 to 3650) |
 | `conversions.identity` | `full` on a new install; `anonymous` on one upgraded from before 2.4.0 | keep a lead's name and email with its conversions |
+| `conversions.click_ids` | off | (2.45) keep a lead's ad click ID (`gclid`, `gbraid`, `wbraid`, `msclkid`, `fbclid`, `li_fat_id`, `ttclid`, `twclid`) with it: `conversions.click_kind` and `click_id`, and on the script tag's page views it is filled from (`journeys.click_kind`, `click_id`). Turned off, every one the site kept is deleted at the next run |
 
 **Keep everything** (`keep_everything.py`, [SETTINGS.md](SETTINGS.md#keep-everything)): on
 an internal or enterprise site (`retention.keep_everything: true`, Docker
@@ -97,6 +98,7 @@ its `at`, a spool line by its day:
 | `removed.row` | `email` and `name` null; `identity_id` follows its rows |
 | hook spool lines | `name`, `email`, `firstname`, `lastname` dropped from `body` at any depth (what an anonymous site writes) |
 | `conversions.sqlite.v<N>.bak` | the same, in each copy a schema upgrade left |
+| `conversions`, `journeys`, `removed.row` | (2.45) `click_kind` and `click_id` NULL, and `click` out of the row's `filled`: an ad click ID can tie a lead to one person's click at the ad network, so it goes as an email does. Counted as `clicks` |
 
 No row is deleted and no row changes its day, stage, visitor ID or identity match, so
 every figure and both counting roads read the same. It runs in the daily prune and once
@@ -112,6 +114,18 @@ marks every row of the same tool and reference, and a later delivery of it;
 it as `test <> 0`. A test row is never counted: not in `conversions.json`
 (stages, breakdowns, abandoned, pages before, timeline), not by
 `store.day_counts`.
+
+`conversions.click_kind`, `conversions.click_id` (schema 10, 2.45): the ad click
+of a lead, kept only while the site has `conversions.click_ids` on (above). Shown
+where names and emails are shown, and nowhere else: the lead list's drawer for owners
+and admins (`people/leads?names=1`, audit-logged), the person lookup and its
+`read_private` API, and `people/conversions?kind=` for a caller who may see private data;
+never in a data file, an MCP figure or an outgoing webhook. `skald forget
+--email/--vid/--lead` deletes the row with them (and the page views with theirs); a
+conversion keeps no address, so `forget --ip` finds none. `conversions.filled` (schema
+10) names the columns Skald filled from the visitor ID's page views
+([DATA-CONTRACT-CONVERSIONS.md](DATA-CONTRACT-CONVERSIONS.md), "Touches filled"); not
+personal, in every member's lists.
 
 `conversions.label` (schema 7, 2.18): the lead hook's optional token
 (`^[a-z0-9][a-z0-9_-]{0,39}$`), NULL when none was sent or it was not one.

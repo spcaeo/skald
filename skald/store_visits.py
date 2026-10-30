@@ -18,6 +18,7 @@ from collections import Counter
 from datetime import date
 
 from .config import setting
+from .form_names import FORMS_RULE, RULE_KIND, RULE_NAME
 from .visits import VisitStats
 
 JOURNEY_DAYS = 7
@@ -32,6 +33,7 @@ VISIT_KINDS = {
     "exits": "visit_exit",
     "steps": "visit_step",
     "flags": "visit_flag",
+    "post_paths": "visit_post",
 }
 OURS_KIND = "ours_label"
 
@@ -50,7 +52,21 @@ def count_rows(totals) -> list[tuple[str, str, int]]:
             rows += [(kind, str(k), int(n)) for k, n in getattr(stats, name).items() if n]
     if totals.ours_labels:
         rows += [(OURS_KIND, str(k), int(n)) for k, n in totals.ours_labels.items() if n]
+    # The form rule the day was counted with (form_names.py): a day stored
+    # before it has no such row, and forms_old_days names it.
+    rows.append((RULE_KIND, RULE_NAME, FORMS_RULE))
     return rows
+
+
+def forms_old_days(db, site: str, first: date, last: date) -> list[str]:
+    """The stored days in [first, last] counted before the form rule
+    (form_names.FORMS_RULE): a page script's POST made a visit "sent a form"
+    on them. Only their raw log can recount them (backfill --force)."""
+    return [d for (d,) in db.execute(
+        "SELECT d.day FROM days d WHERE d.site = ? AND d.day BETWEEN ? AND ? "
+        "AND NOT EXISTS (SELECT 1 FROM counts c WHERE c.site = d.site AND c.day = d.day "
+        "AND c.kind = ? AND c.name = ? AND c.n >= ?) ORDER BY d.day",
+        (site, first.isoformat(), last.isoformat(), RULE_KIND, RULE_NAME, FORMS_RULE))]
 
 
 def write_journeys(db, key: tuple[str, str], totals) -> None:

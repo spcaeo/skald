@@ -4,13 +4,17 @@ minutes) and `skald run-daily`:
   * leads: the site's lead DB into conversions.sqlite (from_leads.py);
     live reads only what changed, run-daily reads every lead (and drops the
     rows of leads deleted from the CMS)
+  * touches (2.45): the leads with a visitor ID and no touches filled again
+    from the page views kept now (fill.refresh): live the last two days'
+    rows, run-daily every row; with `conversions.click_ids` off, every click
+    ID the site kept is cleared first
   * outgoing: new conversions and abandoned starts into the outbox
     (outgoing.py). Nothing is sent here: a slow receiver of one site must
     not hold up the next. `deliver` sends what is due ONCE, after every
     site's step (cli.main), at most outgoing.RUN_BUDGET seconds in all and
     outgoing.DEADLINE seconds a delivery; what is left waits for the next run
 
-  * hooks held (run-daily, 2.45): refused deliveries held past 24 hours are
+  * hooks held (run-daily, 2.44.1): refused deliveries held past 24 hours are
     deleted (held.purge)
 
 Neither ever stops a run: a failure is one line on stderr. run-daily runs
@@ -33,6 +37,21 @@ def _leads(ctx, full: bool) -> None:
     elif got and (full or got["added"] or got["removed"]):
         ctx.out(f"conversions from leads: {got['read']} read, {got['added']} added, "
                 f"{got['removed']} removed")
+
+
+def _touches(ctx, full: bool) -> None:
+    from . import fill, store
+    path = store.path_for(ctx.config, _folder(ctx))
+    if path is None or not Path(path).exists():
+        return
+    db = store.connect(path)
+    try:
+        got = fill.refresh(db, ctx.site, fill.keep_clicks(ctx.config),
+                           None if full else fill.live_since(ctx.now))
+    finally:
+        db.close()
+    if got and full:
+        ctx.out(f"conversions touches: {got} row(s) filled again from their page views")
 
 
 def _outgoing(ctx) -> None:
@@ -74,7 +93,9 @@ def deliver(contexts) -> None:
 
 
 def _each(ctx, full: bool) -> int:
-    for name, step in (("leads", lambda: _leads(ctx, full)), ("outgoing", lambda: _outgoing(ctx))):
+    for name, step in (("leads", lambda: _leads(ctx, full)),
+                       ("touches", lambda: _touches(ctx, full)),
+                       ("outgoing", lambda: _outgoing(ctx))):
         try:
             step()
         except Exception as why:            # noqa: BLE001 - never stops a run
@@ -95,7 +116,7 @@ def live(ctx) -> None:
 
 
 def _held(ctx) -> None:
-    """2.45: the refused deliveries held past 24 hours go (held.py; also on
+    """2.44.1: the refused deliveries held past 24 hours go (held.py; also on
     every write and every key save); never on a site that keeps everything."""
     import time
     from . import held
@@ -109,7 +130,7 @@ def _held(ctx) -> None:
 
 def daily_steps(ctx) -> list:
     """run-daily's step, before the second counts; none when the install has
-    neither a lead DB to read nor a conversions file. The hold's purge (2.45)
+    neither a lead DB to read nor a conversions file. The hold's purge (2.44.1)
     runs whenever the site has held deliveries."""
     from . import from_leads, held, store
     steps = []

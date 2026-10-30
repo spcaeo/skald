@@ -96,7 +96,7 @@ class Arrived(TenantServer):
         self.assertEqual(got.status, 200, got.json)
         t = self.answer("hook:calendly")
         self.assertEqual(t["verdict"], "wait", "a test of Skald's own is not a real delivery")
-        # 2.45: the Test is signed with the key Skald has: it proves the address only.
+        # 2.44.1: the Test is signed with the key Skald has: it proves the address only.
         self.assertEqual(t["says"], "Skald's address works. Only a real Calendly event proves "
                                     "the signing key: make a test booking.")
         steps = {s["id"]: s["done"] for s in t["steps"]}

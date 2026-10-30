@@ -27,6 +27,7 @@ export const FLAG_WORDS = {
 const KIND_WORDS = { page: "a page", rsc: "Next.js page data (_rsc)", asset: "a file (script, style, image)", beacon: "a beacon", crawler_file: "robots.txt, a sitemap or similar",
   redirect: "a redirect", not_modified: "not modified (cached)", not_found: "not found", client_error: "a client error", server_error: "a server error", post: "a form post",
   script_event: "a script tag event (sent to Skald, not a form)", skald_endpoint: "a call to a Skald endpoint (hooks or shipped logs, not a form)", other: "other",
+  page_script: "sent by the page's own script (not a form)",
   not_page: "a machine address, not a page (feed, API, Markdown copy...)" };
 
 // One row as the screens read it; the file's own fields stay as they are.

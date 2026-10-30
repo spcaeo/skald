@@ -220,10 +220,14 @@ class TestOwnEndpointsInTheFeed(unittest.TestCase):
                  ("/traffic-js/e", "script_event", "people: script tag event"),
                  ("/traffic-hooks/example.com/cal", "skald_endpoint", "people: Skald endpoint"),
                  ("/traffic-ingest/example.com", "skald_endpoint", "people: Skald endpoint"),
-                 ("/contact", "post", "people: form post")]
+                 ("/contact", "post", "people: form post"),
+                 # A page's own script (form_names.py): on the list, or a 204 with no body.
+                 ("/api/events", "page_script", "people: page's own script (not a form)"),
+                 ("/contact?204", "page_script", "people: page's own script (not a form)")]
         for path, kind, rule in cases:
             with self.subTest(path=path):
-                hit = Hit(at(10), "203.0.113.5", "example.com", "POST", path, "204",
+                status = "204" if path.endswith("?204") else "200"
+                hit = Hit(at(10), "203.0.113.5", "example.com", "POST", path, status,
                           "https://example.com/", CHROME)
                 got = requests_feed.row(hit, c(hit), UTC, lambda ip: False, False)
                 self.assertEqual((got["kind"], got["rule"], got["page_view"]), (kind, rule, False))

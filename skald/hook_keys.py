@@ -1,4 +1,4 @@
-"""What Settings > Leads & tools says about each hook's key (2.45): when it was
+"""What Settings > Leads & tools says about each hook's key (2.44.1): when it was
 saved, by whom and how, and what has arrived since, so the screen can tell
 "the address works" (a test of Skald's own) from "the key works" (a real
 delivery the saved key verified).

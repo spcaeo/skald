@@ -128,6 +128,7 @@ function control(name, s) {
     };
     return { el: h("div", { class: "af" }, el, note), get };
   }
+  if (s.kind === "postpaths") return postPaths(s, id, ro, note);
   if (s.kind === "choice") {
     el = h("select", { id, disabled: ro }, h("option", { value: "" }, name === "mail.smtp.security" ? "from the port" : "the default"), (s.choices || []).map((c) => h("option", { value: c, selected: c === s.value }, c)));
     get = () => ((el.value || null) === (s.value || null) ? undefined : el.value || null);
@@ -174,6 +175,42 @@ function control(name, s) {
   const hint = (HINTS[name] || "") + (s.lo != null ? `${s.lo} to ${s.hi}. ` : "") + capped;
   const src = SOURCE[s.source] || "";
   return { el: field(s.label, el, ro ? s.reason : hint && src ? `${hint}${src[0].toUpperCase()}${src.slice(1)}.` : `${hint}${src}`), get, input: el };
+}
+
+/* site.script_posts (form_names.py): POST paths the site's own pages send by themselves,
+   not forms. The ones Skald suggests from the stored days, each with Add; the saved ones, each
+   with Remove; one typed by hand. Nothing is applied until Save. */
+function postPaths(s, id, ro, note) {
+  const was = s.value || [];
+  let now = [...was];
+  const box = h("fieldset", { class: "af-set", id });
+  const typed = input({ type: "text", placeholder: "/api/track or /ingest/*", maxlength: "100", spellcheck: "false", disabled: ro, "aria-label": "A path to add" });
+  const changed = () => box.dispatchEvent(new Event("change", { bubbles: true }));
+  const shown = (p) => (/^\/[^*]*$/.test(p) ? withUrl(h("span", { class: "mono" }, p), p) : withCopy(h("span", { class: "mono" }, p), p, { label: `path ${p}` }));
+  const btn = (words, act) => (ro ? null : h("button", { type: "button", class: "btn", onclick: () => { act(); draw(); changed(); } }, words));
+  const draw = () => {
+    const sug = (s.suggested || []).filter((x) => !now.includes(x.path));
+    box.replaceChildren(...[h("legend", null, s.label),
+      sug.length ? h("p", null, h("b", null, "Suggested from your log")) : null,
+      sug.length ? h("ul", { class: "plain" }, sug.map((x) => h("li", null, shown(x.path),
+        h("small", null, ` sent by ${x.visits} of the ${x.of_posting} visits that sent a POST, of ${x.of_all} visits, on ${x.day}; like that on ${x.days} days. If it is a real form, leave it.`),
+        " ", btn("Add", () => { now = [...now, x.path]; })))) : null,
+      h("p", null, h("b", null, "Saved")),
+      now.length ? h("ul", { class: "plain" }, now.map((p) => h("li", null, shown(p), " ", btn("Remove", () => { now = now.filter((x) => x !== p); }))))
+        : h("p", { class: "muted" }, "None of your own."),
+      ro ? null : h("div", { class: "af-row" }, typed, btn("Add", () => { const v = (typed.value || "").trim(); if (v && !now.includes(v)) now = [...now, v]; typed.value = ""; })),
+      (s.defaults || []).length ? h("details", null, h("summary", null, `Never forms on any site (${s.defaults.length})`),
+        h("p", { class: "note" }, s.defaults.map((p, i) => [i ? ", " : "", withCopy(h("span", { class: "mono" }, p), p, { label: `path ${p}` })]),
+          ". A POST answered 204 with no body is never a form either.")) : null].filter(Boolean));
+  };
+  draw();
+  const get = () => {
+    const v = (typed.value || "").trim();
+    const all = v && !now.includes(v) ? [...now, v] : now;
+    if (all.join(" ") === was.join(" ")) return undefined;
+    return all.length ? all : null;
+  };
+  return { el: h("div", { class: "af" }, box, note), get };
 }
 
 // "At the next run this removes ..." for a smaller retention window.
@@ -291,8 +328,8 @@ export const AI_KEYS = ["ai_answers.openai_key", "ai_answers.perplexity_key", "a
 export const PARTS = {
   people: { title: "People", names: ["privacy.keep_ips", "privacy.keep_days", "conversions.identity"],
     sub: (r) => (keptAll(r) ? `${keptAll(r)} ` : "") + "Each visit's IP address and browser, with its pages and times, and the names and emails of leads, so a person can be looked up and followed (the search at the top). Visits with addresses, when you set it shorter than the leads, is also the most a lead's name and email are kept: after it the lead stays, counted, without them. Not keeping IP addresses deletes the visits kept with them at the next nightly run; keeping them shortened shortens them then. Your privacy notice must say what you keep." },
-  leads: { title: "Leads", names: ["conversions.retention_days", "journeys.vid_days"],
-    sub: "A lead is a form sent or a call booked: its name and email (when kept), where it came from, and the pages its visitor ID read. Kept for good means Skald never deletes them; a person's own request to be deleted still removes everything about them. The pages of a visitor who has not signed up yet are kept for the days below; once they sign up, their pages are kept with the lead." },
+  leads: { title: "Leads", names: ["conversions.retention_days", "journeys.vid_days", "conversions.click_ids"],
+    sub: "A lead is a form sent or a call booked: its name and email (when kept), where it came from, and the pages its visitor ID read. Kept for good means Skald never deletes them; a person's own request to be deleted still removes everything about them. The pages of a visitor who has not signed up yet are kept for the days below; once they sign up, their pages are kept with the lead. Ad click IDs (off unless you turn them on): the ID Google, Microsoft, Meta, LinkedIn, TikTok or X adds to an ad's link (gclid, msclkid, fbclid...), kept with the lead so it can be tied to the exact ad click. Only owners and admins see them; they go with the lead, with a deletion request, after the People days when those are shorter, and all at once when you turn this off. Your privacy notice must say so." },
   detail: { title: "Detail kept for this site", names: ["report.retention_days", "report.journey_days", "visitors.repeat_days", "beacon.keep_days"],
     sub: "Days of each kind of detail. Totals, page milestones and every day's figures are kept forever and are not a setting." },
   backups: { title: "Backups", names: ["backup.daily", "backup.weekly"], sub: "Copies of the history kept on the server, for every site of the install." },
@@ -303,6 +340,8 @@ export const PARTS = {
     sub: "A visit counts as people only when its browser also fetched one of the page's own scripts or styles. Next.js: /_next/static/ (the default). WordPress: /wp-content/ and /wp-includes/. Many other sites: /assets/ or /static/. One path per line, at most 10. Turn the rule off only when the assets come from a CDN host this log never sees. Changes apply from the next run; stored days are recounted with backfill --force on the server." },
   notpages: { title: "Not pages", names: ["site.not_pages_off", "site.not_pages_extra"],
     sub: "Machine addresses that are never a person reading a page: feeds, WordPress's API, Markdown copies for AI agents. Ticked, a request for one is not a page view; it still counts as a request, in its group. Untick one this site serves as a real page. Also not pages: your own, one per line, as /path, /prefix* or ?key, at most 20. Changes apply from the next run; stored days are recounted with backfill --force on the server." },
+  notforms: { title: "Not forms", names: ["site.script_posts"],
+    sub: "A visit \"sent a form\" when it made a POST. Many pages also post by themselves, with nobody doing anything: an analytics or event beacon, an error report. Those are not forms: Skald's own endpoints, a POST answered 204 with no body, the well-known beacons listed below, and the paths you add here. Skald suggests a path when most page views send it (at least half of the visits that sent a POST, and a fifth of all visits, on 3 of the last 14 days); it never adds one by itself. A real contact or sign-up form stays a form. Changes apply from the next run; stored days are recounted with backfill --force on the server." },
   script: { title: "Script tag", names: ["beacon.visitor_ids", "beacon.share_subdomains"],
     sub: "Visitor IDs: the tag keeps an anonymous random ID per browser, for journeys, abandoned forms and lead matching; your privacy notice must say so. Off, the tag still sends events but keeps no ID. Share the ID across subdomains: www. and app. see the same ID (a first-party cookie), as data-share-subdomains=\"true\" on the tag does, with the tag unchanged; browsers learn it within a day." },
   goals: { title: "Goals", names: ["beacon.goals"], sub: "The in-page events that count as this site's goals. Events shows each one per 100 visits by source, on checked days. At most 10." },
@@ -424,6 +463,7 @@ export function sites(m, part = "all", { bare = false } = {}) {
     want("details") ? moreOptions(viewsFill(m)) : null,
     want("logs") ? partOf("logfile", all, m, r) : null,
     want("counting") ? partOf("assets", all, m, r) : null,
+    want("counting") ? partOf("notforms", all, m, r) : null,
     want("counting") ? moreOptions(partOf("notpages", all, m, r)) : null,
     want("script") ? partOf("script", all, m, r) : null,
     want("script") ? partOf("goals", all, m, r) : null,

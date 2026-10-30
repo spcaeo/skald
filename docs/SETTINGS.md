@@ -53,6 +53,7 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `conversions.identity` | Data retention > People | full / anonymous (full) | admin | site | `conversions.identity` |
 | `conversions.retention_days` | Data retention > Leads | 1-3650, or 0 / `forever`: kept for good (400) | admin | site | `conversions.retention_days` |
 | `journeys.vid_days` | Data retention > Leads | 1-400 (30) | admin | site | `journeys.vid_days` |
+| `conversions.click_ids` | Data retention > Leads | on / off (off): keep a lead's ad click ID (gclid, gbraid, wbraid, msclkid, fbclid, li_fat_id, ttclid, twclid) with it (2.45, `conversions/fill.py`); off deletes the ones kept at the next run | admin | site | `conversions.click_ids` |
 | `backup.daily` | Data retention | 1-60 (14) | install admin | install | `backup.daily` |
 | `backup.weekly` | Data retention | 0-52 (8) | install admin | install | `backup.weekly` |
 | `mail.daily` | Mail | on / off (on) | admin | site | `mail.daily` |
@@ -82,6 +83,7 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `site.require_rendering` | Sites (Page assets) | true / false (true) | admin | site | `site.require_rendering` |
 | `site.not_pages_off` | Sites (Not pages) | entries of the not-a-page list counted as pages again: `markdown`, `wp_rest`, `wp_files`, `feeds`, `oembed`, `trackback`, `author_number`, `reply_to_comment`, `sitemap_page` (none) | admin | site | `site.not_pages_off` |
 | `site.not_pages_extra` | Sites (Not pages) | up to 20 of the site's own: `/path`, `/prefix*` or `?key`, not `/` alone (none) | admin | site | `site.not_pages_extra` |
+| `site.script_posts` | What counts (Not forms) | up to 20 POST paths the site's own pages send by themselves, not forms: `/path` or `/prefix*`, not `/` alone (none) | admin | site | `site.script_posts` |
 | `site.logo.source` | Sites (Logo) | auto, upload, letter (auto) | admin | site | `site.logo_source` |
 | `site.logo.color` | Sites (Logo) | `#1d4ed8`, `#0f766e`, `#9a6400`, `#17212b` (one picked from the name) | admin | site | `site.logo_color` |
 | `beacon.visitor_ids` | Sites (Script tag) | true / false (false) | admin | site | `beacon.visitor_ids` |
@@ -148,6 +150,17 @@ site's own addresses (`/status`, `/preview/*`, `?preview`), compared in any case
 `not_pages.from_config`) and the audit (`audit_not_pages.Marker`) read them. A value that does
 not check out counts as unset on both roads. From the next run; `backfill --days N --force`
 recounts stored days.
+
+`site.script_posts` (Settings > Data > What counts > Not forms): POST paths that are no form
+(`form_names.py`). A visit "sent a form" for any POST except Skald's own endpoints, a POST
+answered 204 with no body, a path on `form_names.SCRIPT_POSTS` (page-script beacons such as
+`/api/events`) and the paths here. `settings_store.apply` writes it into `config["site"]`,
+where `parse.read` (through `not_pages.from_config`, `Rules.posts`) and the audit
+(`audit_visits.NotForm`) read it; a value that does not check out counts as unset on both roads.
+The answer of `GET settings` carries `defaults` (the shared list) and `suggested`
+(`form_names.suggest`: a path sent, answered 2xx, by half the visits that sent a POST and a
+fifth of all visits, on 3 of the last 14 stored days); nothing is added without a person's
+save. From the next run; `backfill --days N --force` recounts stored days.
 
 A test mail with no sender address, or no SMTP server, is refused with a plain sentence
 ("Set the sender address first ..."), not with config key names.

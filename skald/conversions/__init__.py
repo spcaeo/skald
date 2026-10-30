@@ -120,6 +120,22 @@ BEACON_ACTIONS = {
 # seconds of the last one kept: a second form focus or a reload is not a
 # second start.
 BEACON_REPEAT_SECONDS = 30 * 60
+# Page views of one visitor ID no more than this many seconds apart are one
+# visit (a script-tag conversion's landing; a filled lead's last touch, 2.45).
+VISIT_GAP = 30 * 60
+
+# A lead's touches filled from its visitor ID's page views (2.45, fill.py):
+# the columns Skald may fill, as conversions.filled names them (comma-joined,
+# in this order; "click" is click_kind and click_id together). A lead whose
+# sender gave no touches may have any of them filled; a script-tag conversion
+# (its source is its own event's) only FILLED_BEACON.
+FILLABLE = ("source_type", "first_source", "campaign", "landing", "first_touch_at", "click")
+FILLED_BEACON = ("first_source", "campaign", "first_touch_at", "click")
+# The ad click IDs a touch's landing address may carry, kept on a conversion
+# (click_kind, click_id) only while the site has `conversions.click_ids` on.
+CLICK_KINDS = ("gclid", "gbraid", "wbraid", "msclkid", "fbclid", "li_fat_id", "ttclid",
+               "twclid")
+CLICK_ID = re.compile(r"^[A-Za-z0-9._~+/=-]{1,250}$")
 
 # A lead's action: a short lowercase token ("demo", "trial", "contact").
 ACTION = re.compile(r"^[a-z0-9][a-z0-9_.:-]{0,39}$")
@@ -195,7 +211,7 @@ SITE_VID = re.compile(r"^[A-Za-z0-9_.:-]{8,80}$")
 # second one). PERSONAL_* always go, whatever a list says.
 _TOUCH = frozenset({"referrer", "landing", "utm_source", "utm_medium", "utm_campaign",
                     "utm_content", "utm_term", "gclid", "gbraid", "wbraid", "msclkid",
-                    "fbclid", "li_fat_id", "at", "skv"})
+                    "fbclid", "li_fat_id", "ttclid", "twclid", "at", "skv"})
 _LEAD = frozenset({"external_ref", "action", "stage", "at", "vid", "first_touch",
                    "last_touch", "landing", "campaign", "source", "country", "device",
                    "visits_before", "first_touch_at", "label", "test", "value", "currency",

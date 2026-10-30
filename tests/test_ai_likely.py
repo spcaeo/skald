@@ -40,7 +40,7 @@ from test_leads import SCHEMA, touch  # noqa: E402
 
 from skald import (ai_likely, audit_ai_likely, audit_leads, classify,  # noqa: E402
                           conversions_data, extras, leads)
-from skald.conversions import from_leads, store  # noqa: E402
+from skald.conversions import fill, from_leads, store  # noqa: E402
 from skald.conversions.normalise import row as make_row  # noqa: E402
 from skald.store import History  # noqa: E402
 
@@ -348,7 +348,7 @@ class TestLeadsAndConversions(unittest.TestCase):
                             "vid": vid, "external_ref": "b1", "source_type": "Direct or unknown",
                             "landing": "/docs"}, "example.com", "beacon",
                            "2026-10-05T11:30:00Z", set(), False)
-            store.record_conversion(db, row)
+            store.record_conversion(db, fill.apply(db, row, False))
         finally:
             db.close()
         now = datetime(2026, 10, 6, 12, tzinfo=UTC)

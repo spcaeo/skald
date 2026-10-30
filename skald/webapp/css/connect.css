@@ -81,7 +81,7 @@
 .lv-search .ui-card-h { display: flex; align-items: center; gap: 8px; }
 .lv-search .ui-card-h h2 { margin: 0; }
 .lv-next { margin: 0; overflow-wrap: anywhere; }
-/* 2.45: a hook's key (js/tabs/hook-key-ui.js): which way it goes, what is saved and by whom,
+/* 2.44.1: a hook's key (js/tabs/hook-key-ui.js): which way it goes, what is saved and by whom,
    the one question first, the paste's answer, and the last real delivery. */
 .hk-way { margin: 0; color: var(--ink-2); }
 .hk-status { display: grid; gap: var(--sp-2); min-width: 0; }

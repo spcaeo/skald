@@ -13,6 +13,12 @@ Only these fields, nothing else:
       "demo_header"); for outbound_click the host the link goes to
   r   the referring host of the visit ("google.com"), "" when none
   u   the visit's utm_source, a short lowercase token
+  m   the visit's utm_medium, c its utm_campaign (2.45): lowercase text of at
+      most 60 characters, no control character; page views only
+  k   the visit's ad click (2.45): its kind (one of conversions.CLICK_KINDS,
+      "gclid"), and ":" and its ID only while the site keeps click IDs
+      (`conversions.click_ids`; skald.js is served with CK=1 then). Never
+      written to the spool: the helper takes it out first (beacon_server.py)
   vw  the viewport width bucket, one of VIEWPORTS
   t   seconds between opening the page and the event (an offset, never a
       clock time)
@@ -39,6 +45,7 @@ from pathlib import Path
 
 from .classify import AI_UTM, assistant_name, cited_by
 from .config import setting
+from .conversions import CLICK_ID, CLICK_KINDS
 from .dimensions import source_type
 
 # The events a page may send, in the order reports list them. skald.js sends
@@ -72,7 +79,7 @@ LABELS = {"cta_click": "Button clicks", "book_demo_open": "Demo booking opened",
           "tel_click": "Phone link clicks", "mailto_click": "Email link clicks"}
 
 VIEWPORTS = ("xs", "sm", "md", "lg", "xl")
-FIELDS = {"e", "p", "id", "r", "u", "vw", "t", "v"}
+FIELDS = {"e", "p", "id", "r", "u", "vw", "t", "v", "m", "c", "k"}
 MAX_BODY = 1024
 KEEP_DAYS = 400
 
@@ -82,6 +89,9 @@ _HOST = re.compile(r"^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
                    r"(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$")
 _UTM = re.compile(r"^[a-z0-9][a-z0-9_.+-]{0,59}$")
 _VID = re.compile(r"^skv_[A-Za-z0-9_-]{22}$")
+_TAG = re.compile(r"^[^\x00-\x1f\x7f]{1,60}$")            # m, c (2.45)
+_CLICK = re.compile(r"^(?:" + "|".join(CLICK_KINDS) + r")(?::" + CLICK_ID.pattern[1:-1]
+                    + r")?$")
 
 
 class Refused(ValueError):
@@ -143,6 +153,12 @@ def validate(raw: bytes, events: tuple[str, ...] = EVENTS) -> dict:
         value = got.get(key)
         value = value.strip().lower() if isinstance(value, str) else ""
         out[key] = value if value and shape.match(value) else ""
+    for key, shape in (("m", _TAG), ("c", _TAG), ("k", _CLICK)):
+        value = got.get(key)
+        value = value.strip() if isinstance(value, str) else ""
+        value = value if key == "k" else value.lower()
+        if value and shape.match(value):
+            out[key] = value
     if out["r"].startswith("www."):
         out["r"] = out["r"][4:]
     vid = got.get("v")

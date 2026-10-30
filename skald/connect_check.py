@@ -17,7 +17,7 @@ This module answers both.
   agent:<link id>   an agent line: opened, keys taken, reported (kit/agent.py), and the
                     first data when its jobs include the logs
   hook:<tool>       a tool's webhook (lead, json, calendly, calcom, stripe, typeform,
-                    hubspot): conversions/roads.hook_states. 2.45: good only after a
+                    hubspot): conversions/roads.hook_states. 2.44.1: good only after a
                     real delivery accepted since the key was saved; a passing Test
                     proves only the address (hook_keys.py)
   tag               the script tag: its events (connections_api.beacon_status)
@@ -201,7 +201,7 @@ HOOK_PROVE = {
 
 
 def hook(c, site: str, tool: str, press: bool = False) -> dict | None:
-    """A tool's webhook. 2.45: good only once a real delivery (never a test of
+    """A tool's webhook. 2.44.1: good only once a real delivery (never a test of
     Skald's own, which is signed with the key Skald has and proves only the
     address) was accepted since the key was saved (hook_keys.facts); refusals
     since then say why, with the fix (roads.refused_words, hook_states' fix)."""

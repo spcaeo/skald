@@ -1,5 +1,5 @@
 """Refused hook deliveries, told apart, held 24 hours and taken in by a key saved
-later (2.45: conversions/held.py, key_check.py, hook_keys.py, audit_hooks_held.py).
+later (2.44.1: conversions/held.py, key_check.py, hook_keys.py, audit_hooks_held.py).
 
 A site's Calendly sent real bookings that Skald refused while every Test of
 Skald's own passed: the Test is signed with the key Skald has, so it proves only

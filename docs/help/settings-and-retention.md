@@ -85,7 +85,7 @@ These pages have guides of their own:
 | Site › Internal traffic | Your own addresses | Admin |
 | Data › Send logs | Log file | Install admin |
 | Data › Script tag & goals | Visitor IDs, Goals | Admin |
-| Data › What counts | Page assets, Not pages | Admin |
+| Data › What counts | Page assets, Not forms, Not pages | Admin |
 | Leads & tools | Hooks, event types, outgoing webhooks, your own tools, recorded journeys | Admin |
 | Alerts | Which alerts are on, and the mail | Admin |
 | AI answers › Questions & profiles | The site's lists, tracking profiles | Admin |
@@ -117,6 +117,7 @@ Viewers see the pages read-only.
 | Visits with addresses | Each visit with its IP address and browser (card **People**). When you set it shorter than the leads, also the most a lead's name and email are kept | 1 to 3650 days | 395 |
 | Leads and the pages they read | Each lead, its name and email, and the pages its visitor ID read (card **Leads**) | Kept for good, or 1 to 3650 days | 400 days |
 | Pages of visitors who have not signed up yet | The pages read with a visitor ID that has no lead yet (card **Leads**) | 1 to 400 days | 30 |
+| Keep ad click IDs on leads | The ad click ID (gclid, msclkid, fbclid...) kept with each lead, for owners and admins only (card **Leads**). Turned off, the ones kept are deleted at the next run. See [Ad click IDs](leads-and-conversions.md#ad-click-ids-off-unless-you-turn-them-on) | On or off | Off |
 | Daily backup copies | Copies of the history on the server, for every site | 1 to 60 | 14 |
 | Weekly backup copies | Weekly copies of the history | 0 to 52 | 8 |
 
@@ -299,7 +300,7 @@ Press **Save**. Owners and admins can change the logo; everyone else sees it.
 
 - **Send logs**: sending this site's visits to Skald from another server or platform, with your AI agent or by hand. See [Connections](connections.md). It also has the **Log file**: the log folder and file name, for install admins.
 - **Script tag & goals** ([Script tag & goals](#settings/site/data?sub=script)): the tag to copy into every page, its visitor IDs (and sharing them across subdomains), and the **Goals**: the page events that count as this site's goals, such as Sign-up sent or Demo booked. Tick up to 10. The events your site has already counted are listed first; the others are under **Not counted yet**. See [Tracking script](tracking-script.md) and [Funnels and goals](funnels-and-goals.md).
-- **What counts** ([What counts](#settings/site/data?sub=counting)): the **Page assets**, the folders your pages load their own files from (without them nobody counts as a person), and the **Not pages**: machine addresses that are never a person reading a page, such as feeds and WordPress's API. See "Not pages" below.
+- **What counts** ([What counts](#settings/site/data?sub=counting)): the **Page assets**, the folders your pages load their own files from (without them nobody counts as a person); **Not forms**, the addresses your pages post to by themselves, which are not a form someone sent (see "Not forms" below); and the **Not pages**: machine addresses that are never a person reading a page, such as feeds and WordPress's API. See "Not pages" below.
 - **Test a sample** ([Test a sample](#settings/site/data?sub=sample)): paste a few lines of a log and Skald says what it would count. See [Connections](connections.md#test-a-sample-of-a-log).
 
 Changes apply from the next run. Days already stored are not counted again.
@@ -335,6 +336,25 @@ Capital letters do not matter. `/` alone is refused: it would take every page ou
 **Where you see it.** [Site health › Data quality](#site/quality) shows each day's **Not counted as pages**: the requests, how many were people's, and which entry (hover the number). In [Requests](#site/requests) such a request says "a machine address, not a page" and names the entry.
 
 A change counts from the next run. Days already stored keep their figures until the server recounts them (`backfill --days N --force`).
+
+### Not forms
+
+A visit **sent a form** when it sent something to your server (a POST): a contact form, a sign-up, a search box that posts. But many pages also post by themselves, a few seconds after they open, with nobody doing anything: an analytics or event script, an error report. Counted as forms, nearly every visit "sent a form". On one site, each page sent `POST /api/events` four seconds after it opened, and 29 of 34 visits on one day read "sent a form".
+
+So these are **not** forms, on every site:
+
+- **Skald's own endpoints**: the script tag's events (`/traffic-beacon`), hooks and log upload.
+- **A POST answered 204 with no body.** A real form gets a page or a redirect back; an empty 204 is a beacon.
+- **Well-known beacons**: `/api/events`, `/api/event`, `/api/analytics`, `/api/collect`, `/api/track`, `/api/sentry…`, `/monitoring`, `/_vercel/insights/…`, `/_vercel/speed-insights/…`, `/cdn-cgi/rum` and `/ingest/…`. The card lists them under **Never forms on any site**.
+- **Your own list**, under **Sent by the site's own pages, not forms**.
+
+Everything else stays a form, for example `/contact` or `/api/contact`. WordPress's `admin-ajax.php` stays a form too, unless it was answered 204: its heartbeat cannot be told from a real form in the log.
+
+**Suggested from your log.** Skald suggests a path when most page views send it: on 3 of the last 14 days, at least half of the visits that sent a POST sent it, and so did at least a fifth of all visits, and it was answered without an error. Each suggestion says its figures. Press **Add** next to it, then **Save**. Skald never adds one by itself: if a suggested path is a real form (a site whose only POST is its contact form, say), leave it. The doctor names a suggested path once too. To add one by hand, type `/path` (that path, with or without a slash at the end) or `/prefix*` (every path that starts with it) and press **Add**. **Remove** takes one off. Capital letters do not matter. Up to 20.
+
+**Where you see it.** In a visit, **sent a form** now means a real form. In [Requests](#site/requests) a skipped POST says "sent by the page's own script (not a form)". The request still counts as a request, in its group, and in Site health's server requests; only **Form posts** and **sent a form** leave it out.
+
+**Days stored before.** A day counted before this rule may still count a page script's POST as a form. The server recounts each day its raw log still holds (`backfill --days N --force`). A day older than the log keeps its old count, and the page says so: **Form posts** says how many days of the range were counted before, and such a visit says it "sent a POST, counted before the page's own script was told from a form".
 
 ## Sites
 

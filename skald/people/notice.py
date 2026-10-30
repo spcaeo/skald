@@ -29,6 +29,8 @@ so it can never say something the settings do not do:
                     the shared cookie: a plain line when the site shares
                     the ID in Skald (beacon.share_subdomains), else a marked
                     line for the tag's data-share-subdomains="true"
+    click IDs       conversions.click_ids (2.45): the ad click ID kept with a
+                    lead, for as long as its name and email would be (CLICKS)
     deletion        how to ask, with the site's own contact as a marked
                     placeholder: Skald does not know it
     keep everything a site that keeps everything (keep_everything.py:
@@ -51,11 +53,16 @@ SHARED_MARK = "[Keep this line only if your script tag has data-share-subdomains
 SHARED_LINE = ("It is also kept in a first-party cookie called skald_vid, for up to 400 days, "
                "so our subdomains see the same ID.")
 SHARED = f"{SHARED_MARK} {SHARED_LINE}"
-# skald.js's src(): the referring site and utm_source, in sessionStorage, IDs on or off.
-SOURCE = ("When you arrive from another site or a campaign link, the script keeps that site's "
-          "name and the link's campaign source in your browser's session storage, so the "
-          "visit's later pages carry the same source. Your browser deletes it when you close "
-          "the tab.")
+# skald.js's src(): the referring site, the utm_ tags and the ad click's kind (its ID too
+# while the site keeps click IDs, 2.45), in sessionStorage, IDs on or off.
+SOURCE = ("When you arrive from another site, a campaign link or an ad, the script keeps that "
+          "site's name, the link's campaign tags and which ad network's click it was in your "
+          "browser's session storage, so the visit's later pages carry the same source. Your "
+          "browser deletes it when you close the tab.")
+# conversions.click_ids (2.45, conversions/fill.py): the click ID kept with a lead.
+CLICKS = ("When you arrive from an ad, the ad network adds a click ID to the link (for "
+          "example gclid). When you send us a form or book a call, we keep that click ID with "
+          "it, so we can see which ad it came from. We keep it {days}.")
 INTRO = "How we measure visits to this site:"
 
 
@@ -143,6 +150,10 @@ def wording(config: dict, folder=None) -> dict:
         ("When you send us a form or book a call, our analytics keep no name or email "
          "with it."),
     ]
+    from ..conversions.fill import keep_clicks
+    clicks = keep_clicks(config)
+    if clicks:
+        items.append(CLICKS.format(days=_kept(name_days, "it")))
     if tag:
         items += _beacon(config, lead_days, page_days)
     ask = "your IP address" + (" or the email you used" if full else "")
@@ -157,5 +168,5 @@ def wording(config: dict, folder=None) -> dict:
                      "identity": "full" if full else "anonymous", "script_tag": tag,
                      "visitor_ids": ids, "share_subdomains": shared,
                      "lead_days": lead_days, "name_days": name_days,
-                     "keep_everything": keep,
+                     "keep_everything": keep, "click_ids": clicks,
                      "vid_days": page_days}}

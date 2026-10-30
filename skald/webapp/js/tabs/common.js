@@ -102,6 +102,13 @@ export function notBuiltNote(m, file, what) {
 // The footnote under a tab's figures: the period line and the banner say it all now, so nothing is repeated here.
 export function coverageNote() { return null; }
 
+// Form posts on days counted before the form rule (t.forms_old: how many days of the range), when a POST
+// the page's own script sends was a form: said, never summed in silently (form_names.py).
+export function formsOldNote(t) {
+  const k = t?.forms_old || 0;
+  return k ? h("p", { class: "note" }, `${k} day${k === 1 ? " in this range was" : "s in this range were"} counted before Skald told a page's own script from a form: their posts may include it. A recount from the raw log fixes a day while the log still holds it; older days keep that count.`) : null;
+}
+
 /* A part kept for a fixed period of its own (the last 30 days, the visits'
    last days) that the date range cannot change: folded at the bottom, its
    period in its title, so no card above carries a date of its own. */

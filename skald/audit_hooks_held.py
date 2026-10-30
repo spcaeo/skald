@@ -1,4 +1,4 @@
-"""The second count of the hold (2.45): refused hook deliveries kept 24 hours
+"""The second count of the hold (2.44.1): refused hook deliveries kept 24 hours
 for a key to be saved (conversions/held.py), and the ones taken in later
 (conversions/key_check.py, delivery outcome `accepted_held`).
 

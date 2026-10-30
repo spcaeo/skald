@@ -1,4 +1,4 @@
-"""Check a key when it is saved, and take in the deliveries it opens (2.45).
+"""Check a key when it is saved, and take in the deliveries it opens (2.44.1).
 
 After Settings > Leads & tools saves a hook's key (integrations/hooks/paste,
 integrations/secret: make or rotate), check() reads every delivery of that

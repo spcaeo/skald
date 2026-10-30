@@ -3,7 +3,10 @@
 The access log sees every request, and nothing a reader does once the page
 has loaded. A click on "Book a demo", a form started and not sent, a reader
 who reached the bottom: none of them is a request. The beacon counts them,
-on your own Skald server, without cookies and without any third-party code.
+on your own Skald server, without any third-party code, and without cookies
+unless the site shares the visitor ID across subdomains: then the ID is also
+kept in a first-party cookie, `skald_vid`, on the site's own domain
+(["Sharing the ID across subdomains"](#sharing-the-id-across-subdomains-switched-on-in-skald-227)).
 
 It is optional. A site that does not send beacons loses nothing; the log's
 figures never depend on it.
@@ -186,6 +189,8 @@ One JSON object, at most 1 KB, with only these fields:
 | `id` | which button or form: `signup_hero`, `demo_header`; the destination host for `outbound_click` | lowercase token, 60 characters; anything else dropped |
 | `r` | the visit's referring host | a host name; anything else dropped |
 | `u` | the visit's `utm_source` | lowercase token; anything else dropped |
+| `m`, `c` | (2.45) the visit's `utm_medium` and `utm_campaign`, on a `page_view` | lowercase text, 60 characters, no control character; anything else dropped. With `u`, they make the page view's campaign (`journeys.campaign`) |
+| `k` | (2.45) the visit's ad click, on a `page_view`: its kind (`gclid`, `gbraid`, `wbraid`, `msclkid`, `fbclid`, `li_fat_id`, `ttclid`, `twclid`), and `:` and the ID only while the site keeps click IDs (`conversions.click_ids`: the helper serves skald.js with `CK=1`) | anything else dropped. Never written to the spool: the kind names the campaign when no `utm_` tag does, the ID goes only to the page view's row in `journeys` (docs/DATA-CONTRACT-PEOPLE.md) |
 | `vw` | viewport width bucket | `xs` <480, `sm` <768, `md` <1024, `lg` <1440, `xl` |
 | `t` | seconds from opening the page to the event | 0 to 86400; an offset, never a clock time |
 | `v` | the anonymous visitor ID (below) | `skv_` and 22 base64url characters; anything else dropped. Kept only with `beacon.visitor_ids: true` |

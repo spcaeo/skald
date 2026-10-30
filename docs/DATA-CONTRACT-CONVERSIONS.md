@@ -158,9 +158,48 @@ unmarked row (`audit_conversions_figures.once`). A row soft-removed
 its lines received before it went are skipped (`audit_conversions.removed_keys`).
 A lead's label (2.18) is recounted there by its own GROUP BY over the column
 (`labels` by day, action, label and stage; `labels_abandoned` by the same
-NOT EXISTS as `abandoned`, grouped by label too).
+NOT EXISTS as `abandoned`, grouped by label too). The touches Skald filled
+(2.45) are checked against the journeys by `audit_filled.py` (below).
 A day either road disagrees on is withheld, and
 so is `pages_before`; a recount that cannot run withholds them all.
+
+**Touches filled from the visitor ID (2.45).** What: a lead sent with a
+visitor ID (`vid`) and no touches (no `first_touch`, no `last_touch`, no
+`source`) used to read "Unknown" for its source, first source and campaign,
+though Skald keeps that browser's page views (`journeys`). Now Skald fills
+them from those page views (`conversions/fill.py`), by the visitor ID only,
+never by an address, a hash or a time match, and only from page views at or
+before the lead's `at`:
+
+- **first touch**: the ID's earliest page view: `first_source` (its source
+  type), `first_touch_at` (its time), `landing` (its page);
+- **last touch**: the latest visit up to the lead (page views no more than
+  30 minutes apart are one visit), by its first page view: `source_type` and
+  `campaign` (the script tag's `utm_source`/`utm_medium`/`utm_campaign`, or
+  its ad click's kind, as the log names a campaign; a page view from a tag
+  older than 2.45 has none: NULL, "Unknown").
+
+A value the sender gave is never changed: a lead with any touch or a source
+is not filled at all, and a `landing`, `campaign` or `first_touch_at` sent on
+its own stays. A script-tag conversion (tool `beacon`) keeps its own event's
+source and landing; its `first_source`, `campaign` and `first_touch_at` are
+filled the same way (before 2.45 they were NULL). The row's `filled` column
+names what Skald filled (comma-joined), so the lists say "filled by Skald"
+(`today.rows[].filled`, the lead list's `filled`: a list of column names).
+When: at intake (hooks, the lead database's sync, the script tag), and again
+on every run before the second count (`fill.refresh` in conversions/jobs.py:
+`skald live` the last two days' rows, run-daily every row, and after the
+prune takes page views away): a page view that arrived after its lead fills
+it, one taken away unfills it. A day whose figures were built before 2.45
+changes when it is next built (conversions.json is rebuilt from the store on
+every run; the first run-daily after the upgrade fills the older rows); the
+daily history's stored figures and reports already sent do not. Second
+count: `audit_filled.py` (from `check_file`) works every filled column out
+again from the journeys, read whole in time order, the visits split going
+forward with its own time parser (fill.py walks back), and compares the
+values and the `filled` mark; a day with a row it disagrees with is
+withheld. `likely_ai` reads a filled first touch from the journeys, as it
+did before (both roads).
 
 **Leads everywhere (2.5.0).** Overview (the Leads and Demos booked tiles, a
 day's leads as marks on the main chart; since 2.7.0 Overview > Summary,
@@ -228,7 +267,7 @@ without `zone` was kept as UTC, and is read so). An event a Calendly or
 Cal.com event-type filter leaves out is never spooled or stored, so neither
 road counts it.
 
-**Refused deliveries held (2.45).** What: a hook delivery refused for its key,
+**Refused deliveries held (2.44.1).** What: a hook delivery refused for its key,
 `unsigned` (none of the tool's signature headers came) or `bad_signature` (one came
 and did not match), is kept as it came: the raw body, only the headers that verify
 it (the tool's signature headers, HubSpot's timestamp, the content type, the method
@@ -254,7 +293,7 @@ taken in by the receiver's normal road (spool, event-type filter, de-duplication
 external ref and stage, a lead's own `test`, the store) with that time as its
 `received_at`; its spool line carries `"held": true`, its delivery row outcome
 `accepted_held` (counted like `recorded` and `duplicate` wherever accepted deliveries
-are), and it leaves the hold. Delivery outcomes 2.45 adds: `unsigned`, `accepted_held`;
+are), and it leaves the hold. Delivery outcomes 2.44.1 adds: `unsigned`, `accepted_held`;
 older `bad_signature` rows read as before. Second count: `audit_hooks_held.py`
 (INTEGRATIONS.md, "The second count").
 

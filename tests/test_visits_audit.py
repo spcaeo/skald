@@ -87,10 +87,12 @@ class AuditVisits(unittest.TestCase):
 class TestIndependence(unittest.TestCase):
 
     def test_the_visits_recount_imports_nothing_from_the_package(self):
+        """Only the name lists of what is no form (form_names.py) are shared."""
         source = Path(audit_visits.__file__).read_text() + Path(audit_extras.__file__).read_text()
-        relative = [node for node in ast.walk(ast.parse(source))
-                    if isinstance(node, ast.ImportFrom) and node.level]
-        self.assertEqual(relative, [])
+        relative = {(node.module, a.name) for node in ast.walk(ast.parse(source))
+                    if isinstance(node, ast.ImportFrom) and node.level for a in node.names}
+        self.assertEqual(relative, {("form_names", n) for n in
+                                    ("BEACON_STATUS", "ENTRY_LIMIT", "MAX_OWN", "SCRIPT_POSTS")})
 
 
 if __name__ == "__main__":

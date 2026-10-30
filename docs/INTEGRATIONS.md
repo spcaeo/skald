@@ -169,9 +169,12 @@ To call it before the file has loaded, put this before the tag:
   it is sent. Turn them on for a site only when its privacy notice says so,
   and let its consent banner gate the tag (`data-consent="required"`).
 - With IDs on or off, the visit's source (the referring host without
-  `www.`, a space, and the `utm_source` value) is kept in `sessionStorage`
-  (`skald.src`): written when a page has another site's referrer or a
-  `utm_source`, read by the visit's later pages. It ends with the tab.
+  `www.`, the `utm_source`, `utm_medium` and `utm_campaign` values and the
+  ad click's kind, as a JSON list since 2.45; before, the host, a space and
+  the `utm_source`) is kept in `sessionStorage` (`skald.src`): written when
+  a page has another site's referrer, a `utm_` tag or an ad click ID, read by
+  the visit's later pages. It ends with the tab. The ad click ID itself is
+  in it only while the site keeps click IDs (`conversions.click_ids`).
 - With IDs on, the ID (`skv_` + 16 random bytes) is kept in `localStorage`
   (`skald.vid`), and with `data-share-subdomains="true"` in a cookie
   `skald_vid` (400 days, `SameSite=Lax; Secure`).
@@ -353,7 +356,7 @@ bot rules. The how-to: docs/help/leads-from-your-backend.md.
 | --- | --- |
 | 200 | taken: `{"ok":true,"recorded":1,"duplicates":0}`; a repeat of the same event is a duplicate and changes nothing; an event Skald does not count is taken and ignored |
 | 400 | the body is not JSON, or not the tool's event (`lead`: a missing `external_ref` or `action`, an unknown `stage`, a time that is not a time, an event more than a day ahead) |
-| 401 | the signature (or, `lead` and `json`, the plain key) does not match, or its time is more than 5 minutes off (`{"error":"bad signature"}`, logged `bad_signature`); or none of the tool's signature headers came at all (`{"error":"no signature"}`, logged `unsigned`, 2.45). Failed attempts are written once a minute per hook, as a count. Either refusal is held 24 hours ("Refused deliveries are held", below) |
+| 401 | the signature (or, `lead` and `json`, the plain key) does not match, or its time is more than 5 minutes off (`{"error":"bad signature"}`, logged `bad_signature`); or none of the tool's signature headers came at all (`{"error":"no signature"}`, logged `unsigned`, 2.44.1). Failed attempts are written once a minute per hook, as a count. Either refusal is held 24 hours ("Refused deliveries are held", below) |
 | 404 | unknown site or tool, no secret set, or (saas) a site still waiting for its domain to be verified |
 | 405 | not a POST; the one GET taken is `/traffic-hooks/<site>/leads` (2.18, INTEGRATIONS-LEADS.md) |
 | 411 / 413 | no length / a body over 64 KiB |
@@ -370,7 +373,7 @@ address instead (X-Real-IP on the proxy's connection: loopback or
 only). Tools retry on anything but 2xx; a retry is harmless, because a
 conversion is kept once per (site, tool, external ref, stage).
 
-### Refused deliveries are held (2.45)
+### Refused deliveries are held (2.44.1)
 
 A delivery refused for its key, `unsigned` or `bad_signature`, is held for 24
 hours (`conversions/held.py`), never one of Skald's own tests (`X-Skald-Test: 1`)
@@ -493,7 +496,7 @@ The dashboard serves them at `POST <page>/integrations/leadfile` (below).
 | `stage` | default `completed` | `started`, `completed`, `cancelled`, `rescheduled`, `no_show`, `paid`, `won`, `lost` (a `won` or `lost` row stands on its own and counts on its own `at`), `refunded` (2.32.0: a refund on the sale's `external_ref`, never a lead or a finish) |
 | `at` | default: when it arrived | ISO time with its offset (`2026-09-25T14:30:00-04:00`, `...Z`) or Unix seconds. A time without an offset (`2026-09-25`, `2026-09-25T08:00:00`) is read in the site's time zone (2.4.0; before, as UTC, which put a bare date on the day before for a site west of UTC); the delivery log says so, and so does the hook test. The same for `first_touch_at` and a touch's `at` |
 | `vid` | | the visitor ID the page had (`skv_...`, or the site's own ID). Kept only when the site has visitor IDs on (`beacon.visitor_ids`); off, it is dropped from the spool and the store (2.2.3), and so is a Skald ID in any other field: a tool's own (Typeform `hidden.skv`, Cal.com `metadata`, Calendly `tracking.utm_content`, Stripe `client_reference_id`, HubSpot's `skv`) or inside a text such as a landing address's `?skv=` (2.38.0; before, those were kept in the spool for its 400 days) |
-| `first_touch`, `last_touch` | | `{referrer, landing, utm_source, utm_medium, utm_campaign, utm_content, utm_term, gclid, gbraid, wbraid, msclkid, fbclid, li_fat_id, at}`, each optional. `gbraid` and `wbraid` are Google Ads clicks from iOS: like `gclid`, they make the touch a paid Search engine visit |
+| `first_touch`, `last_touch` | | `{referrer, landing, utm_source, utm_medium, utm_campaign, utm_content, utm_term, gclid, gbraid, wbraid, msclkid, fbclid, li_fat_id, ttclid, twclid, at}`, each optional (none, with a `vid`: Skald fills them from the browser's page views, 2.45). `gbraid` and `wbraid` are Google Ads clicks from iOS: like `gclid`, they make the touch a paid Search engine visit |
 | `landing`, `campaign`, `source` | | when the site worked them out itself (`source` one of Skald's source types) |
 | `country` or `ip` | | two letters, or the visitor's address: Skald looks up the country (`conversions.country_db`, the DB-IP `.mmdb` file the web server uses) and drops the address |
 | `device` or `user_agent` | | `Desktop`/`Mobile`/`Tablet`, or the agent: Skald works out the device and drops the agent |
@@ -702,7 +705,7 @@ the drawer's.
   spaces, 12-500 characters (Stripe's must start `whsec_`), kept 0600 in
   `secrets.json`, never in an answer or the audit log (`hook.secret`,
   "pasted").
-- **The key, checked when it is saved** (2.45): the paste and the make/rotate
+- **The key, checked when it is saved** (2.44.1): the paste and the make/rotate
   answers carry `check` (`conversions/key_check.py`): `{held, matched, taken,
   recorded, refused_last_at, unsigned, verdict}`, the hook's refused deliveries
   of the last 24 hours verified with the new key, and the ones it matched taken
@@ -895,7 +898,7 @@ blocks. Run `nginx -t` before every reload.
 | the verified bodies (and, on a `lead` or `json` line with a time without an offset, the zone it was read in) | `hooks/<day>.jsonl` beside the history (`hooks.spool`), 0640 | `conversions.retention_days` (400; 0: for good), each site's lines by its own |
 | recorded journeys (2.43): each consented event raw, with its address and email by the site's settings | same file, `recorded_events` (docs/JOURNEYS.md) | `journeys.vid_days` (30); address and email `privacy.keep_days` when shorter |
 | hook secrets | `secrets.json` beside the history (`hooks.secrets`), 0600, or env variables | until replaced |
-| refused deliveries (2.45): the raw body, the signature headers, when it came | `hooks-held/<site>/<tool>/` beside the history, one 0600 file each, at most 200 a hook | 24 hours (purged on each write, each key save, and by run-daily); never in a backup |
+| refused deliveries (2.44.1): the raw body, the signature headers, when it came | `hooks-held/<site>/<tool>/` beside the history, one 0600 file each, at most 200 a hook | 24 hours (purged on each write, each key save, and by run-daily); never in a backup |
 
 - **Only what counts.** Before a body is spooled, Skald keeps only the
   keys that tool's adapter and the second count read (an allow-list per tool,
@@ -928,7 +931,7 @@ blocks. Run `nginx -t` before every reload.
   try `--dry-run` first) deletes the conversions, the removed rows, the
   journeys of every visitor ID involved, the identity, the delivery rows,
   the hook spool lines and the held deliveries holding the email, visitor ID
-  or reference (2.45), and takes the visitor ID out of the beacon spool's
+  or reference (2.44.1), and takes the visitor ID out of the beacon spool's
   lines. `./bin/skald forget --ip` deletes the visits kept with an address.
   `privacy.log` gets a line with a hash prefix, never the value.
 - **Pruning:** `skald conversions prune` applies the "kept" column
@@ -960,7 +963,7 @@ history) so each redraw reads only the newest spool files; `conversions
 forget` deletes it. Every figure of `conversions.json` is counted a second
 time by SQL (`audit_conversions_figures.py`); see DATA-CONTRACT.md.
 
-The hold (2.45) has its own second count, `audit_hooks_held.py` (run-daily,
+The hold (2.44.1) has its own second count, `audit_hooks_held.py` (run-daily,
 `audit_more.DAILY` "hooks_held"): the delivery log's `accepted_held` rows per tool
 against the spool's lines marked `"held": true` that its own reading keeps; a held
 file older than 24 hours (the purge failed); a held body with no refusal row for its

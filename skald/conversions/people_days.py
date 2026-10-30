@@ -28,6 +28,10 @@ Where a name or an email is kept, and what goes (per site, a row by its
                  at any depth): the line an anonymous site would have written
     backups      the same in each conversions.sqlite.v<N>.bak a schema
                  upgrade left beside the file
+    clicks       a lead's ad click ID (2.45, `conversions.click_ids`): on its
+                 rows, the page views and the removed rows, kind and ID
+                 together (fill.clear_clicks); a click ID can tie a lead to
+                 one person's click at the ad network, so it goes like an email
 
 Nothing else changes. No row is deleted and no row changes its day, stage,
 visitor ID or the identity it is matched by (only which blank id it is), so
@@ -53,7 +57,7 @@ from . import spool as spool_mod
 
 MARK = "people_days_swept"          # meta row: the sweep after the upgrade ran
 CLEARED = "cleared:"                # email_hash of an identity whose email went
-KEYS = ("people", "rows", "removed", "spool", "backups")
+KEYS = ("people", "rows", "removed", "spool", "backups", "clicks")
 
 
 def identity_days(people_days: int, lead_days: int) -> int | None:
@@ -127,11 +131,19 @@ def clear(db, today: date, days_of, gap: float = store.ABANDON_HOURS) -> dict:
     if not {"identities", "conversions"} <= tables:
         return {}
     has_removed = "removed" in tables
+    # 2.45: an older copy (an upgrade's .bak) has no click columns.
+    clicks = "click_id" in {r[1] for r in db.execute("PRAGMA table_info(conversions)")} and \
+        "click_id" in {r[1] for r in db.execute("PRAGMA table_info(journeys)")}
     out: dict = {}
     with store.tx(db):
         sites = {r[0] for r in db.execute("SELECT DISTINCT site FROM identities")}
         if has_removed:
             sites |= {r[0] for r in db.execute("SELECT DISTINCT site FROM removed")}
+        if clicks:
+            sites |= {r[0] for r in db.execute("SELECT DISTINCT site FROM conversions WHERE "
+                                               "click_id IS NOT NULL")}
+            sites |= {r[0] for r in db.execute("SELECT DISTINCT site FROM journeys WHERE "
+                                               "click_id IS NOT NULL")}
         for site in sorted(sites):
             days = days_of(site)
             if days is None:
@@ -141,6 +153,9 @@ def clear(db, today: date, days_of, gap: float = store.ABANDON_HOURS) -> dict:
             moved = _identities(db, site, cut, gap, has_removed, got)
             if has_removed:
                 _removed(db, site, cut, moved, got)
+            if clicks:
+                from .fill import clear_clicks
+                got["clicks"] = clear_clicks(db, site, cut)
             if any(got.values()):
                 out[site] = got
     return out
@@ -377,7 +392,8 @@ def words(site: str, got: dict) -> str:
     """One line of counts: never a value."""
     return (f"{site}: names and emails older than {got['days']} days cleared: "
             f"{got['people']} people, {got['rows']} lead row(s), {got['removed']} removed "
-            f"row(s), {got['spool']} hook line(s), {got['backups']} in upgrade copies")
+            f"row(s), {got['spool']} hook line(s), {got['backups']} in upgrade copies, "
+            f"{got['clicks']} ad click ID(s)")
 
 
 def note(ctx, out: dict) -> None:

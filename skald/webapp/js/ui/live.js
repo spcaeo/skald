@@ -136,7 +136,7 @@ export const arrivedOf = (site, what, press = false) => call("sites/arrived", { 
    share:<id>, journeys, token:<id>, ...). onDone(test) once it says it worked (the page may
    read its files again). onAnswer(test): every answer (the agent's watch keeps its top line in
    step). ask: {live, press} replace the calls (the tests). next: the answer's next action (its
-   fix) on its own line under it (2.45: a hook drawer's live line on top). */
+   fix) on its own line under it (2.44.1: a hook drawer's live line on top). */
 export function arrivedBox(site, what, { label = "Test", onDone = null, onAnswer = null, ask = {}, watch = true, intro = "", next = false } = {}) {
   const live = ask.live || (() => arrivedOf(site, what));
   const press = ask.press || (() => arrivedOf(site, what, true));

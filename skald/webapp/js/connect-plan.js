@@ -73,7 +73,7 @@ export const NEEDS = {
 export function hookState(t) {
   if (!t) return "off";
   if (t.problem || ["missing", "exposed"].includes(t.state) || (t.attention && t.state === "received")) return "failing";
-  // 2.45 (js/hook-key.js realState, connect_check agrees): the real deliveries since the key was
+  // 2.44.1 (js/hook-key.js realState, connect_check agrees): the real deliveries since the key was
   // saved decide: connected only after one was accepted; failing while only refused or unsigned
   // ones came. An older server sends no since_saved: the state as before.
   const s = t.set && t.since_saved && typeof t.since_saved === "object" ? t.since_saved : null;

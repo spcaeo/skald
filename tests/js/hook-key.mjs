@@ -1,4 +1,4 @@
-// A hook's key (2.45, js/hook-key.js, js/tabs/hook-key-ui.js): found on a site's Calendly, where
+// A hook's key (2.44.1, js/hook-key.js, js/tabs/hook-key-ui.js): found on a site's Calendly, where
 // the page said "secret" for Calendly's "signing key", forgot the key once saved, and passed its
 // own test while every real booking was refused. Here, with stubbed helper answers:
 //

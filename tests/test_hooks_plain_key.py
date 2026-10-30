@@ -73,7 +73,7 @@ class PlainKey(Base):
             with self.subTest(tool=tool):
                 self.assertEqual(self.keyed(tool, {"event": "x"}, SECRET)[0], 401)
         outcomes = self.rows("SELECT DISTINCT outcome FROM deliveries")
-        # 2.45: the plain key is no signature of theirs, so each is "unsigned".
+        # 2.44.1: the plain key is no signature of theirs, so each is "unsigned".
         self.assertEqual(outcomes, [("unsigned",)])
 
     def test_the_leads_test_mark_stays_signed_only(self):

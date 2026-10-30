@@ -13,7 +13,7 @@ import { GROUPS, color, figures, pathMatch, ranked, chartDays } from "../data.js
 import { bars, columns, legend } from "../charts.js";
 import { table } from "../table.js";
 import * as S from "../state.js";
-import { head, nothing, panel, countTable, fileName, compareFor } from "./common.js";
+import { head, nothing, panel, countTable, fileName, compareFor, formsOldNote } from "./common.js";
 import { bucketAt } from "./health.js";
 import { uptime, heartbeatOn } from "./uptime.js";
 import { serverLoad } from "./load.js";
@@ -113,7 +113,7 @@ export default function health(m, s) {
   const posts = Object.entries(t.posts || {}).flatMap(([g, p]) => ranked(p.pages, keep).map(([page, v]) => ({ group: GROUPS.find(([k]) => k === g)?.[1] || g, page, v })));
   out.push(h("div", { class: "cols" },
     h("section", { class: "s" }, h("h2", null, "Server errors by page"), countTable(t.server_errors, { caption: "5xx by page", file: fileName("server-errors", r), key: "Page", value: "5xx", keep, path: true, drill: "path", empty: "No server errors. Good." })),
-    h("section", { class: "s" }, h("h2", null, "Form posts"), h("p", { class: "sub" }, "Counted, never read: what was sent is not in the log."),
-      table([{ key: "group", label: "From" }, { key: "page", label: "Page", path: true, drill: "path" }, { key: "v", label: "Posts", num: true }], { caption: "POST requests", rows: posts, file: fileName("posts", r), empty: "No form posts in this range." }))));
+    h("section", { class: "s" }, h("h2", null, "Form posts"), h("p", { class: "sub" }, "Counted, never read: what was sent is not in the log. A POST the page's own script sends is not a form (Settings › Data › What counts › Not forms)."),
+      formsOldNote(t), table([{ key: "group", label: "From" }, { key: "page", label: "Page", path: true, drill: "path" }, { key: "v", label: "Posts", num: true }], { caption: "POST requests", rows: posts, file: fileName("posts", r), empty: "No form posts in this range." }))));
   return out;
 }

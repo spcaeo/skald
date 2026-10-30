@@ -149,6 +149,10 @@ the [changelog](../CHANGELOG.md) says when each one came.
   from, the source, first touch, landing page and country; as a list, a board, a timeline or a
   map. One filter row; the count above it is the Leads figure itself. A period with no lead says
   where the leads are, and "Today so far" names today's.
+- **Touches filled by Skald** (2.45): a lead sent with a visitor ID and no touch gets its first and
+  last touch, landing page and campaign from that browser's own page views, never by address or
+  time; the list and the lead's drawer mark each one "filled by Skald", and a value the sender gave
+  is never changed.
 - Summary and Sources count from your lead database or from your tools, never both in one figure.
 - Leads and demos booked on the Overview (two tiles, and each day's leads as dots on the main
   chart), and today's as they arrive with Today.
@@ -265,6 +269,9 @@ the [changelog](../CHANGELOG.md) says when each one came.
   morning run sends one short mail. Any alert can go to **Slack** or any tool, as `alert.opened`.
   Site › Alerts groups what needs you, worst first, with a **Fix** button where one applies (2.42).
 - A data-quality panel: unreadable lines, gaps, duplicates, log age, and requests not counted as pages.
+- **Not forms** (2.45, Settings › Data › What counts): a POST the page's own script sends by itself
+  (an event beacon, an error report, a POST answered 204 with no body) no longer marks a visit
+  "sent a form"; Skald suggests a path most page views send, with **Add**, and never adds one itself.
 - Deploy and change markers on every chart.
 
 **Team, data and agents**

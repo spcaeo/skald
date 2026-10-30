@@ -172,7 +172,7 @@ def _leads(h, q: dict, cfg, folder, site: str, private: bool, config, live_dir, 
     except ValueError as why:
         return h._json(400, {"ok": False, "error": str(why)})
     got = rows(cfg, folder, site, first, last, names, private=private)
-    if got.get("ok") and got.get("names"):
+    if got.get("ok") and (got.get("names") or got.get("clicks")):
         _audit(config, live_dir, site, who, user, "people.leads",
                f"lead list viewed {first.isoformat()}..{last.isoformat()} "
                f"rows={len(got['rows'])}")

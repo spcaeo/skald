@@ -63,7 +63,10 @@ def today_block(db, site: str, tz, today: date, held: set) -> dict:
              "at": _local(r["at"], tz), "action": r["action"], "stage": r["stage"],
              "tool": r["tool"], "source": r["source_type"], "first_source": r["first_source"],
              "campaign": r["campaign"], "landing": r["landing"], "country": r["country"],
-             "device": r["device"], "test": bool(r["test"])} for r in found[:TODAY_ROWS]]
+             "device": r["device"], "test": bool(r["test"]),
+             # 2.45: the touches Skald filled from the visitor ID's page views (fill.py).
+             "filled": [c for c in str((r["filled"] if "filled" in r.keys() else None) or "")
+                        .split(",") if c]} for r in found[:TODAY_ROWS]]
     return {"day": day, "state": "ok", "total": len(found),
             "tests": sum(1 for r in found if r["test"]), "rows": rows}
 

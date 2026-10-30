@@ -80,7 +80,7 @@ export async function openTool(id, m) {
   let title = TITLES[id] || id;
   let body;
   // The tool's name first, then its part: the part draws once its answer comes, so by then the
-  // drawer is on the page and its live line (ui/live.js) starts asking (2.45).
+  // drawer is on the page and its live line (ui/live.js) starts asking (2.44.1).
   if (!fixed) {
     const r = await call(integPath());
     const t = r.ok && (r.tools || []).find((x) => x.tool === id);

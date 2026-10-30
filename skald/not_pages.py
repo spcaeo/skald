@@ -51,6 +51,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from . import form_names
+
 # name -> (reason, shapes). The order is the order a match is reported in.
 RULES: dict[str, tuple[str, dict]] = {
     "markdown": (
@@ -160,13 +162,18 @@ def _alt(words) -> str:
 @dataclass(frozen=True)
 class Rules:
     """One site's list, compiled: match(path, url) is the name of the first
-    entry that matches, or "". Shared by every hit read for the site."""
+    entry that matches, or "". Shared by every hit read for the site. It
+    carries the site's POST paths that are no form too (`posts`, its
+    site.script_posts; form_names.py), so every road that reads a site's
+    not-a-page list reads that one with it."""
 
     names: tuple[str, ...]
     extra: tuple[str, ...]
+    script_posts: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         flags = re.I | re.A
+        object.__setattr__(self, "posts", form_names.paths(self.script_posts))
         each, paths, queries = [], [], []
         for name in self.names:
             shapes = RULES[name][1]
@@ -221,10 +228,10 @@ class Rules:
 _MADE: dict[tuple, Rules] = {}
 
 
-def rules(off=(), extra=()) -> Rules:
+def rules(off=(), extra=(), posts=()) -> Rules:
     """The compiled list for these settings, made once per distinct value."""
     names = tuple(n for n in DEFAULT if n not in set(off or ()))
-    key = (names, tuple(extra or ()))
+    key = (names, tuple(extra or ()), tuple(posts or ()))
     got = _MADE.get(key)
     if got is None:
         got = _MADE[key] = Rules(*key)
@@ -235,9 +242,10 @@ STANDARD = rules()
 
 
 def from_config(config: dict | None) -> Rules:
-    """The site's list from config["site"] (not_pages_off, not_pages_extra;
-    settings_store.apply writes the Settings rows there). An unreadable
-    value counts as unset: the default applies, never a guess."""
+    """The site's list from config["site"] (not_pages_off, not_pages_extra,
+    and script_posts, form_names.py; settings_store.apply writes the
+    Settings rows there). An unreadable value counts as unset: the default
+    applies, never a guess."""
     site = (config or {}).get("site") or {}
     try:
         off = clean_off(site.get("not_pages_off") or [])
@@ -247,4 +255,4 @@ def from_config(config: dict | None) -> Rules:
         extra = clean_extra(site.get("not_pages_extra") or [])
     except ValueError:
         extra = []
-    return rules(off, extra)
+    return rules(off, extra, form_names.from_config(config))
