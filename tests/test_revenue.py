@@ -133,8 +133,9 @@ class Migration(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "conversions.sqlite"
             old = sqlite3.connect(path)
+            # Schema 10 (2.45) adds columns by ALTER on top: the file goes to the latest.
             old.executescript(store.SCHEMA.replace(
-                store.CONVERSIONS_V9.format(name="conversions"),
+                store.CONVERSIONS.format(name="conversions"),
                 store.CONVERSIONS_V8.format(name="conversions")))
             old.execute("INSERT INTO meta VALUES ('schema_version', '8')")
             old.execute("INSERT INTO identities (id, site, email_hash, email, name, created_at) "
@@ -156,7 +157,7 @@ class Migration(unittest.TestCase):
             old.close()
             db = store.connect(path)
             try:
-                self.assertEqual(store.schema_version(db), 9)
+                self.assertEqual(store.schema_version(db), store.SCHEMA_VERSION)
                 self.assertEqual(
                     [tuple(r) for r in db.execute(
                         "SELECT id, stage, test, label, identity_id, value_minor, currency, "

@@ -11,7 +11,7 @@ Each request, in this order, before anything is kept:
      also take the plain key, `Authorization: Bearer <secret>`, when no
      X-Skald-Signature is sent (2.30, accepted()). A failure spends
      the sender's small pre-auth bucket (`hooks.preauth_per_minute`, burst
-     `hooks.preauth_burst`): 429 once it is empty. 2.45: a failure is logged
+     `hooks.preauth_burst`): 429 once it is empty. 2.44.1: a failure is logged
      `unsigned` when none of the tool's signature headers came (adapters
      SIGNED: the tool was set up without a key) and `bad_signature` when one
      came and did not match (refusal()); either is held 24 hours (held.py,
@@ -70,12 +70,13 @@ from pathlib import Path
 
 from ..beacon import visitor_ids
 from ..config import setting, site_name
-from . import (LEAD_SHAPED, MAX_BODY, SKALD_VID, TOOLS, event_types, geo, held, marks,
+from . import (LEAD_SHAPED, MAX_BODY, SKALD_VID, TOOLS, event_types, fill, geo, held, marks,
                reconcile, spool, store)
 from .adapters import Invalid, adapter, signed
 from .adapters.lead import LABEL_NOTE, TEST_NOTE, keyed, verify_get, verify_key
 from .money import (CUSTOMER_NOTE, REFUND_CURRENCY_NOTE, REFUND_OVER_NOTE, TAGS_NOTE,
                     VALUE_NOTE)
+from .fill import keep_clicks
 from .normalise import row as make_row
 from .secrets_store import Exposed, find
 
@@ -84,7 +85,7 @@ _PATH = re.compile(r"^/traffic-hooks/([A-Za-z0-9][A-Za-z0-9._-]{0,99})/([a-z]{2,
 REFUSED_EVERY = 60
 SITES_EVERY = 30          # seconds: a hook for an unknown site re-reads the sites
 REPLAY_TOOLS = ("calcom", "typeform")     # no signed timestamp: refused by hash
-HELD = "accepted_held"    # a held delivery taken in once a saved key matched it (2.45)
+HELD = "accepted_held"    # a held delivery taken in once a saved key matched it (2.44.1)
 HELD_NOTE = held.NOTE
 PROXIES = ("127.0.0.1", "::1")
 
@@ -248,7 +249,7 @@ class Receiver:
             if now - entry[1] < REFUSED_EVERY:
                 return
             count, entry[0], entry[1] = entry[0], 0, now
-        # The receiver's own clock (2.45), as the hold uses: one time for both.
+        # The receiver's own clock (2.44.1), as the hold uses: one time for both.
         self._log(site, tool, outcome, status, f"{count} refused" + (f": {why}" if why else ""),
                   at=store.stamp(datetime.fromtimestamp(now, tz=timezone.utc)))
 
@@ -488,9 +489,11 @@ class Receiver:
         # Visitor IDs off for the site (beacon.visitor_ids): a hook's `vid` is not
         # kept either, in the spool or the store, whatever the sender put in it.
         keep_vid = visitor_ids(self.settled(site))
+        clicks = keep_clicks(self.settled(site))            # 2.45: the ad click ID
         tz = self.site_zone(site) if tool in LEAD_SHAPED else None
         if headers.get("x-skald-test") == "1":
-            return self._test(site, tool, mod, payload, received, full, keep_vid, skipped, tz)
+            return self._test(site, tool, mod, payload, received, full, keep_vid, skipped, tz,
+                              clicks)
         heldnote = [HELD_NOTE] if held_at else []
         if not keep:
             self._log(site, tool, "ignored", 200,
@@ -522,8 +525,8 @@ class Receiver:
         try:
             if bad is not None:
                 raise bad
-            rows = [make_row(r, site, tool, received, self.hosts[site], full, self.country_db)
-                    for r in records]
+            rows = [make_row(r, site, tool, received, self.hosts[site], full, self.country_db,
+                             clicks) for r in records]
             if not keep_vid:
                 for r in rows:
                     r["vid"] = None
@@ -541,7 +544,9 @@ class Receiver:
             try:
                 if links:
                     store.link_payments(db, site, tool, links, received)
-                kept = [store.record_conversion(db, r, said) for r in rows]
+                # 2.45: a lead with a visitor ID and no touches, filled from its page views.
+                kept = [store.record_conversion(db, fill.apply(db, r, clicks), said)
+                        for r in rows]
                 new = sum(kept)
                 if digest:
                     store.keep_replay(db, site, digest, received)
@@ -567,15 +572,15 @@ class Receiver:
         return 200, out
 
     def _test(self, site, tool, mod, payload, received, full, keep_vid=True,
-              skipped=None, tz=None) -> tuple[int, dict]:
+              skipped=None, tz=None, clicks=False) -> tuple[int, dict]:
         """Read a test as the real path would, and say what it would keep:
         no visitor ID when the site's are off, nothing for another event type."""
         if not keep_vid:
             payload = without_vid(payload)
         try:
             records = mod.to_records(payload, self.sites[site], **({"tz": tz} if tz else {}))
-            rows = [make_row(r, site, tool, received, self.hosts[site], full, self.country_db)
-                    for r in records]
+            rows = [make_row(r, site, tool, received, self.hosts[site], full, self.country_db,
+                             clicks) for r in records]
         except Invalid as why:
             self._log(site, tool, "test_failed", 400, str(why), at=received)
             return 400, {"error": str(why), "test": True}

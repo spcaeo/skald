@@ -30,7 +30,9 @@ duplicates and test leads (the lead database's status, or a flag saying
 test), and conversions marked test. `conversions_listing(kind)` lists the
 cancelled (cancelled, no-show), removed and test conversions with their row
 and journey. Names and emails only for a caller who may see private data
-and only when the site keeps them.
+and only when the site keeps them; a conversion's ad click (click_kind,
+click_id, 2.45) only for such a caller too. `person` is for those callers
+only (admins and owners, a read_private token), so it carries both.
 
 Everything is read read-only: a lookup never creates or changes a file.
 """
@@ -419,6 +421,9 @@ def conversions_listing(config: dict, folder, site: str, kind: str, private: boo
                 target.pop("name", None)
             if not private:
                 target.pop("vid", None)
+                # 2.45: an ad click ID is shown where names and emails are (conversions/fill.py).
+                target.pop("click_id", None)
+                target.pop("click_kind", None)
                 # The page script's reference is made from the visitor ID (2.25).
                 if "external_ref" in target:
                     target["external_ref"] = policy.shown_ref(target.get("tool"),

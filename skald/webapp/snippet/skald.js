@@ -1,7 +1,7 @@
 /* Skald: docs/INTEGRATIONS.md "The script tag". First-party ID; never reads a field's value. */
 ((w,d,n)=>{
 if((w.skald||0).on)return;// loaded twice
-var IDS=1,S=d.currentScript,L=location,H=history,Q=(w.skald&&w.skald.q)||[],LS,SS,T;
+var IDS=1,CK=0,S=d.currentScript,L=location,H=history,Q=(w.skald&&w.skald.q)||[],LS,SS,T;
 try{LS=w.localStorage;SS=w.sessionStorage}catch{}
 if(n.doNotTrack=="1"||w.doNotTrack=="1"||n.globalPrivacyControl){w.skald=()=>null;return}
 var lc=s=>String(s||"").toLowerCase(),ga=(el,k)=>el.getAttribute(k),A=k=>S&&ga(S,"data-"+k),
@@ -32,15 +32,17 @@ try{l=LS.getItem(K)}catch{}
 try{vid=IN||c||(OK.test(l)?l:make());LS.setItem(K,vid)}catch{}
 if(vid&&SH)ck(vid,34560000);return vid||null}
 function drop(){vid=from=last=IN=null;try{LS.removeItem(K);SS.removeItem("skald.src")}catch{}if(SH)ck("",0)}
+// the visit's source: referring site, utm_ tags, the ad click's kind (its ID with CK=1)
 function src(){if(from)return from;
-var r="",u=lc(new URLSearchParams(L.search).get("utm_source")),o;
-r=bare(RH);if(r==bare(L.hostname))r="";
-try{if(r||u)SS.setItem("skald.src",r+" "+u);else{o=(SS.getItem("skald.src")||" ").split(" ");r=o[0];u=o[1]}}catch{}
-return from=[r,u]}
+var Y=new URLSearchParams(L.search),g=k=>lc(Y.get("utm_"+k)).slice(0,60),o=[bare(RH),g("source"),g("medium"),g("campaign"),
+"gclid gbraid wbraid msclkid fbclid li_fat_id ttclid twclid".split(" ").find(k=>Y.get(k))||""];
+if(o[0]==bare(L.hostname))o[0]="";if(o[4]&&CK)o[4]+=":"+Y.get(o[4]).slice(0,250);
+try{if(o.join(""))SS.setItem("skald.src",JSON.stringify(o));else{var x=SS.getItem("skald.src")||" ";o=x[0]=="["?JSON.parse(x):x.split(" ")}}catch{}
+return from=o}
 function go(e,i){if(!ok||!e)return;
 var x=w.innerWidth,v=id(),o=src(),j,b={e:e,p:L.pathname.slice(0,300),
 vw:x<480?"xs":x<768?"sm":x<1024?"md":x<1440?"lg":"xl",t:Math.min(86400,Math.max(0,Math.round((Date.now()-t0)/1e3)))};
-if(i=tok(i))b.id=i;if(o[0])b.r=o[0];if(o[1])b.u=o[1];if(v)b.v=v;j=JSON.stringify(b);
+if(i=tok(i))b.id=i;["r","u","m","c","k"].forEach((f,n)=>o[n]&&(n<2||e=="page_view")&&(b[f]=o[n]));if(v)b.v=v;j=JSON.stringify(b);
 if(AK&&e=="page_view")try{fetch(END,{method:"POST",body:j,keepalive:!0,credentials:"omit"}).then(r=>{if(r.ok){var s=r.headers.get("x-skald-sh")=="1";
 try{LS.setItem("skald.sh",+s+"|"+Date.now())}catch{}if(s){SH=1;vid&&ck(vid,34560000)}else if(F[0]=="1")ck("",0)}}).catch(()=>0);AK=0;return}catch{}
 try{if(n.sendBeacon(END,new Blob([j],{type:"text/plain"})))return}catch{}

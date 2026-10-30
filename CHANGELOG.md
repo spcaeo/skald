@@ -6,6 +6,99 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 Nothing yet.
 
+## 2.45.0 (2026-10-30)
+
+"Sent a form" means a form again, and a lead's visits fill in from its visitor ID. **Not
+forms:** a POST a page's own script sends by itself (an event beacon such as `/api/events`, or
+any POST answered 204 with nothing in it) no longer marks a visit "sent a form"; a site's own
+list of such paths is in Settings › Data › What counts › Not forms, with suggestions from the
+log; past days are recounted from the raw logs where they are kept. **Leads:** a lead sent with
+a visitor ID and no touches gets its first and last touch from that browser's page views, marked
+"filled by Skald", with a second count of its own; **ad click IDs** can be kept on leads (off by
+default). **Compare:** Skald next to Hyros on the website and in the comparison.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`, and a copy of `conversions.sqlite`): the
+  leads file moves to schema 10 on the first start (columns added, no row changed). 2.44.1
+  refuses a schema-10 file, so going back means restoring that copy.
+- **Recount the past days** so "sent a form" follows the new rule: `docker exec skald skald
+  backfill --days 14 --force` (more days where the raw log is kept longer), then the audits
+  (`docs/plans/not-forms-recount.md`). A day whose raw log is gone keeps its old count and says so.
+- Nothing else: no new nginx line. Click IDs stay off until turned on.
+
+### A lead's first and last visit filled from its visitor ID; ad click IDs kept when you turn them on
+
+- **What:** a lead sent with a visitor ID but no touches read "Unknown" everywhere, though Skald
+  keeps that browser's page views. Now its first touch (the earliest page view at or before the
+  lead: source, landing page, time) and last touch (the last visit's first page view: source,
+  campaign) are filled from those page views, by visitor ID only (never an address), never from a
+  page view after the lead, and never over a value the sender gave. Filled values say "filled by
+  Skald" in the lead list and drawer. Script-tag leads get their landing visit's source, campaign
+  and first touch time (the tag now sends `utm_medium` and `utm_campaign` with page views).
+  **Ad click IDs**, a new setting, off by default (Settings › Data retention › Leads): with it on, a
+  lead keeps its ad click ID (gclid, gbraid, wbraid, msclkid, fbclid, li_fat_id, ttclid, twclid),
+  shown only to people allowed to see names, never in data files, MCP figures or webhooks; deleted
+  with the lead, cleared with names and emails, and cleared at the next run when turned off.
+- **Why:** buyers comparing Skald with ad attribution tools (Hyros) ask for touches on every lead
+  and for click IDs; the gap report is `docs/marketing/GAP-HYROS-2026-10-30.md`.
+- **Who:** every site that sends leads with a visitor ID. **What to do:** nothing; the first daily
+  run fills older leads and recounts past days. Turn on click IDs only if you need them.
+- **Checked:** `tests/test_conversions_fill.py` (43 tests: the fill rules, a second count in
+  `audit_filled.py` that works the touches out on its own and withholds a day it disagrees with,
+  the click ID setting), `tests/js/skald-snippet.mjs`, both full suites.
+
+### Skald compared with Hyros
+
+- **What:** a new website page, /compare/hyros/ (twelve questions side by side, each Hyros answer
+  linked to its own page, read 30 Oct 2026; where each is the better choice; using both), the
+  compare hub now lists 15 tools, and `docs/COMPARISON.md` has Hyros under "Also checked" with four
+  attribution rows. Doc fixes found on the way (BEACON.md's one cookie, prices public since 26 Oct).
+- **Why:** buyers weighing lead attribution ask about Hyros. **Who:** website readers.
+  **What to do:** nothing. **Checked:** the site build ("problems: none"), all 13 Hyros links answer.
+
+### README: the 2.45 gallery, Not forms and "filled by Skald"
+
+- **What:** two new README images, `not-forms.png` (Settings › Data › What counts › Not forms,
+  one suggested path with Add and one saved path with Remove) and `lead-filled.png` (a lead's
+  drawer whose first and last touch say "filled by Skald"), in a 2.45 gallery block; one line
+  each in docs/FEATURES.md.
+- **Why:** the GitHub page shows every new feature before the version is tagged.
+- **Who:** readers of the public README. **What to do:** nothing.
+- **Checked:** taken from the current build's demo (`tools/demo.py --now 2026-10-22T19:07:00Z`),
+  light, 1440 wide at scale 2, cropped to the drawer; the helper's answers stubbed with sample
+  data only (example.com, made-up people at example.org); the README tests and the public
+  export check pass.
+
+### A page's own script is no longer "sent a form"
+
+- **What:** a POST no longer marks a visit "sent a form" when the page's own script sent it by
+  itself: a POST answered 204 with no body (a beacon by definition: a real form gets a page or
+  a redirect back), a path on a shared list of well-known beacons (`/api/events`, `/api/event`,
+  `/api/analytics`, `/api/collect`, `/api/track`, `/api/sentry*`, `/monitoring`,
+  `/_vercel/insights/*`, `/_vercel/speed-insights/*`, `/cdn-cgi/rum`, `/ingest/*`), or a path
+  on the site's own new list, **Settings › Data › What counts › Not forms**. That card suggests
+  a path when most page views send it (half the visits that sent a POST and a fifth of all
+  visits, on 3 of the last 14 days, answered without an error), each with **Add**; it never
+  adds one by itself. The doctor names a suggested path once. Site › Requests names a skipped
+  one "sent by the page's own script (not a form)". The same rule applies to Site health's
+  Form posts, the pages' posts, the POST times kept with a visit (lead matching by time), the
+  visit list's "form sent" badge and filter, and Insights. `/contact`, `/api/contact` and
+  WordPress's `admin-ajax.php` (unless answered 204) stay forms.
+- **Why:** on docomatic.ai most visits read "sent a form" (29 of 34 on 24 Oct, 18 of 28 on
+  27 Oct). Each page view sends `POST /api/events` to the site's own server four seconds
+  after it opens, answered 204 with no body; the visitor did nothing.
+- **Who:** every site; docomatic.ai most. Real form posts are counted as before.
+- **What to do:** nothing. Past days are recounted from the raw log (`backfill --days 14
+  --force`, docs/plans/not-forms-recount.md). A day older than the log (14 days) keeps its old
+  count and says so: Site health › Form posts says how many days of the range were counted
+  before, an older visit that posted says "counted before the page's own script was told from
+  a form", and the doctor names the stored days still counted the old way.
+- **Checked:** tests for `/api/events` 204 after a page (not a form), a real form POST (200
+  and 303) still a form, the list, the 204 rule, the site's own list, the suggestion rule,
+  the independent audit agreeing (it matches the lists by its own code), and the recount
+  rebuilding the stored figures; the full suite, also without PyYAML.
+
 ## 2.44.1 (2026-10-28)
 
 A webhook whose key does not match no longer loses its events, and the key's screen says the

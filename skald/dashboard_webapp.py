@@ -147,6 +147,10 @@ def journey(j: dict, day: str | None = None) -> dict:
         for step, sec in zip(trail, at):
             step["at"] = sec
     flags = [f for f in ("not_found", "posted", "in_app") if j.get(f)]
+    if j.get("posted") and not j.get("forms"):
+        # Counted before the form rule (form_names.py): its POST may be the
+        # page's own script, so it is not said to have sent a form.
+        flags[flags.index("posted")] = "posted_old"
     # Fields added later (schema 9: utm, paid, referring page, returning; likely_ai, inferred,
     # ai_likely.py; ai_read, the pages its assistant fetched before, ai_read.py) pass through.
     # city: only when a city file named one (logs.city_db), "Toronto, Ontario, CA".
@@ -191,13 +195,19 @@ def build(history: History, key: str, site: str, tz, now: datetime, snap: dict |
     # collected before it was counted, never 0.
     formats = (history.extras(key, first, anchor, ("ai_formats", "first_touch", "ai_reads"))
                if start else {})
+    # Days counted before the form rule (form_names.py): forms_old 1, summed
+    # by the app into how many days of a range may count a script's POST.
+    from .store_visits import forms_old_days
+    old = set(forms_old_days(history.db, key, first, anchor)) if start else set()
     for entry in history.daily(key, first, anchor) if start else []:
         d: date = entry["day"]
         item = {"day": d.isoformat(), "state": entry["state"]}
         if entry["state"] in ("ok", "partial"):
             period = periods[d]
             item.update(figures(period.totals))
-            blob = (formats.get(d.isoformat()) or {}).get("ai_formats")
+            if d.isoformat() in old:
+                item["forms_old"] = 1
+            blob =(formats.get(d.isoformat()) or {}).get("ai_formats")
             if blob is not None:
                 item["ai_formats"] = blob
             # An assistant's reads, not its requests (ai_reads.py): absent on a

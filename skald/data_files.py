@@ -315,10 +315,15 @@ def health(p: Page) -> dict:
     measured = p.history.breakdown_days(p.key, p.first, p.anchor)
     per = _history_breakdowns(p.history, p.key, [d for d in p.counted_days() if d in measured])
     fields = ("statuses", "not_found", "server_errors", "speeds", "slow_pages", "posts")
+    # A day counted before the form rule (form_names.py): its posts may hold a
+    # page script's POSTs, and only its raw log can recount it.
+    from .store_visits import forms_old_days
+    old = set(forms_old_days(p.history.db, p.key, p.first, p.anchor))
 
     def figures(d, e):
         got = per.get(d) if d in measured else None
-        return {f: (got or {}).get(f, {}) if got is not None else None for f in fields}
+        out = {f: (got or {}).get(f, {}) if got is not None else None for f in fields}
+        return {**out, "forms_old": True} if d in old else out
 
     today = p.today_block()
     if today is not None and p.live_ok:

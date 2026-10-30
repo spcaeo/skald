@@ -12,7 +12,7 @@ import hashlib
 
 from . import ALIASES
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 CONVERSIONS_V2 = """CREATE TABLE IF NOT EXISTS {name} (
   id INTEGER PRIMARY KEY, site TEXT NOT NULL, action TEXT NOT NULL,
@@ -43,7 +43,15 @@ CONVERSIONS_V9 = CONVERSIONS_V8.replace(
     "label TEXT,\n",
     "label TEXT,\n  value_minor INTEGER, currency TEXT, customer_ref TEXT, tags TEXT, "
     "pay_ref TEXT,\n")
-CONVERSIONS = CONVERSIONS_V9
+# Schema 10 (2.45): `filled`, the columns Skald filled from the visitor ID's
+# page views (conversions.FILLABLE, comma-joined; NULL: none, every value is
+# the sender's), and the ad click the touch's landing address carried
+# (`click_kind`, one of conversions.CLICK_KINDS, and `click_id`), kept only
+# while the site has `conversions.click_ids` on. Added by ALTER to an older
+# file; NULL on every older row.
+CONVERSIONS_V10 = CONVERSIONS_V9.replace(
+    "pay_ref TEXT,\n", "pay_ref TEXT,\n  filled TEXT, click_kind TEXT, click_id TEXT,\n")
+CONVERSIONS = CONVERSIONS_V10
 INDEXES = """
 CREATE INDEX IF NOT EXISTS conversions_at ON conversions (site, at);
 CREATE INDEX IF NOT EXISTS conversions_vid ON conversions (site, vid);
@@ -120,7 +128,7 @@ CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 """ + CONVERSIONS.format(name="conversions") + INDEXES + RECEIVED_INDEX + """;
 CREATE TABLE IF NOT EXISTS journeys (
   vid TEXT NOT NULL, site TEXT NOT NULL, at TEXT NOT NULL, path TEXT NOT NULL,
-  source_type TEXT, via TEXT);
+  source_type TEXT, via TEXT, campaign TEXT, click_kind TEXT, click_id TEXT);
 CREATE INDEX IF NOT EXISTS journeys_vid ON journeys (site, vid, at);
 CREATE INDEX IF NOT EXISTS journeys_at ON journeys (at);
 CREATE INDEX IF NOT EXISTS journeys_site_at ON journeys (site, at);
@@ -192,7 +200,16 @@ UPGRADES: dict[int, list[str]] = {2: [
         f"INSERT INTO conversions_v9 ({_V8_COLUMNS}) SELECT {_V8_COLUMNS} FROM conversions",
         "DROP TABLE conversions",
         "ALTER TABLE conversions_v9 RENAME TO conversions",
-        *INDEXES.strip().splitlines(), RECEIVED_INDEX]}
+        *INDEXES.strip().splitlines(), RECEIVED_INDEX],
+    # 10 (2.45): what Skald filled of a lead's touches, and the ad click on a
+    # conversion and on a page view (its campaign too: the script tag's
+    # utm_ tags; NULL on a page view from before).
+    10: ["ALTER TABLE conversions ADD COLUMN filled TEXT",
+         "ALTER TABLE conversions ADD COLUMN click_kind TEXT",
+         "ALTER TABLE conversions ADD COLUMN click_id TEXT",
+         "ALTER TABLE journeys ADD COLUMN campaign TEXT",
+         "ALTER TABLE journeys ADD COLUMN click_kind TEXT",
+         "ALTER TABLE journeys ADD COLUMN click_id TEXT"]}
 
 # The SCHEMA this code set a file up with (see accounts/db.py): a file
 # stamped with it at SCHEMA_VERSION skips the script on connect.
@@ -201,4 +218,4 @@ SCHEMA_STAMP = hashlib.sha256(SCHEMA.encode()).hexdigest()[:16]
 COLUMNS = ("action", "stage", "at", "vid", "external_ref", "tool", "source_type",
            "first_source", "campaign", "landing", "country", "device", "first_touch_at",
            "visits_before", "label", "value_minor", "currency", "customer_ref", "tags",
-           "pay_ref")
+           "pay_ref", "filled", "click_kind", "click_id")

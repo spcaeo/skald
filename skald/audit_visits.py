@@ -5,15 +5,23 @@ purpose: the visits audit.recount already splits for the readers are
 walked again here, in time order, to rebuild every stored visit figure -
 pages loaded per visit, pages seen (in-app moves included), duration,
 exit page, each step from page to page, the visits that met a 404,
-sent a POST or moved in-app, and per page the visits seen on it and the
-visits that ended on it (pages.json's exit rate is the one over the other). Nothing from visits.py, parse.py or
+sent a form or moved in-app, the paths each visit sent a form to, and per
+page the visits seen on it and the visits that ended on it (pages.json's
+exit rate is the one over the other). Nothing from visits.py, parse.py or
 dimensions.py is called. The rules are the ones documented in visits.py
 and SOP.md, read from the text and written again.
+
+A POST that is no form (NotForm) shares only form_names.py's name lists and
+limits, and reads the site's own list (config["site"]["script_posts"]) by
+its own code.
 """
 from __future__ import annotations
 
+import string
 from collections import Counter
 from urllib.parse import urlsplit
+
+from .form_names import BEACON_STATUS, ENTRY_LIMIT, MAX_OWN, SCRIPT_POSTS
 
 OTHER = "(all others)"
 _SKIP_EXT = (".css", ".js", ".mjs", ".map", ".png", ".jpg", ".jpeg", ".gif", ".svg",
@@ -38,6 +46,61 @@ def _own_endpoint(path: str) -> bool:
     return (low == "/traffic-beacon" or low.startswith(("/traffic-beacon/", "/traffic-beacon?",
                                                         "/traffic-js/", "/traffic-hooks/",
                                                         "/traffic-ingest/")))
+
+
+_LOWER = str.maketrans(string.ascii_uppercase, string.ascii_lowercase)
+
+
+def _own_posts(raw) -> list[str]:
+    """The site's own POST paths that are no form, each once; an unreadable
+    value (one bad entry, or more than MAX_OWN) is none."""
+    if raw is None or raw == "" or raw == []:
+        return []
+    items = raw.replace(",", " ").split() if isinstance(raw, str) else raw
+    if not isinstance(items, (list, tuple)):
+        return []
+    out = []
+    for item in items:
+        entry = item.strip() if isinstance(item, str) else ""
+        body = entry[:-1] if entry.endswith("*") else entry
+        if (not entry or len(entry) > ENTRY_LIMIT or entry[0] != "/" or "*" in body
+                or any(c in entry for c in "?#") or ".." in entry
+                or any(not (33 <= ord(c) <= 126) for c in entry) or not body.replace("/", "")):
+            return []
+        if entry not in out:
+            out.append(entry)
+    return out if len(out) <= MAX_OWN else []
+
+
+class NotForm:
+    """line -> True for a POST that is no form: Skald's own endpoint, a 204
+    with no body, or a path on the shared list or the site's own (an exact
+    /path, trailing slashes ignored, or a /prefix*; ASCII case ignored)."""
+
+    def __init__(self, config: dict | None = None) -> None:
+        site = (config or {}).get("site") or {}
+        self.entries = [e.translate(_LOWER) for e in
+                        list(SCRIPT_POSTS) + _own_posts(site.get("script_posts"))]
+
+    def listed(self, path: str) -> bool:
+        low = path.translate(_LOWER)
+        for entry in self.entries:
+            if entry.endswith("*"):
+                if low.startswith(entry[:-1]):
+                    return True
+            elif low.rstrip("/") == entry.rstrip("/"):
+                return True
+        return False
+
+    def __call__(self, line) -> bool:
+        if line.method != "POST":
+            return False
+        return (_own_endpoint(line.path) or (line.status == BEACON_STATUS and not line.size)
+                or self.listed(line.path))
+
+    def form(self, line) -> bool:
+        """A POST that counts as a form."""
+        return line.method == "POST" and not self(line)
 
 
 def _is_beacon_path(path: str) -> bool:
@@ -156,8 +219,9 @@ def page_added(config: dict) -> list[tuple]:
 class VisitRecount:
     """Every stored visit figure, from visits handed over one at a time."""
 
-    def __init__(self, own: set[str]) -> None:
+    def __init__(self, own: set[str], not_form: NotForm | None = None) -> None:
         self.own = own
+        self.not_form = not_form or NotForm()
         self.visits = 0
         self.pages: Counter = Counter()
         self.trail: Counter = Counter()
@@ -165,6 +229,7 @@ class VisitRecount:
         self.exits: Counter = Counter()
         self.steps: Counter = Counter()
         self.flags: Counter = Counter()
+        self.post_paths: Counter = Counter()      # visits by path they sent a form to (2xx)
         self.page_visits: Counter = Counter()      # per page: visits seen on it
         self.journeys_pages = 0
 
@@ -212,8 +277,10 @@ class VisitRecount:
             self.steps[f"{seen[i - 1]} → {seen[i]}"] += 1
         if any(l.status == "404" and not _is_asset_path(l.path) for l in lines):
             self.flags["not_found"] += 1
-        if any(l.method == "POST" and not _own_endpoint(l.path) for l in lines):
+        forms = [l for l in lines if self.not_form.form(l)]
+        if forms:
             self.flags["posted"] += 1
+        self.post_paths.update({l.path[:70] for l in forms if l.status.startswith("2")})
         if moved:
             self.flags["in_app"] += 1
         self.journeys_pages += len(loaded)
@@ -221,7 +288,8 @@ class VisitRecount:
     def figures(self) -> dict:
         return {"visits": self.visits, "pages": self.pages, "trail": self.trail,
                 "seconds": self.seconds, "exits": self.exits, "steps": self.steps,
-                "flags": self.flags, "page_visits": self.page_visits}
+                "flags": self.flags, "post_paths": self.post_paths,
+                "page_visits": self.page_visits}
 
 
 def _folded(name: str, stored: Counter, counted: Counter, same) -> None:
@@ -243,7 +311,7 @@ def compare(stored: dict, ours: Counter | None, figures: dict, same) -> None:
         want = Counter(stored.get(name) or {})
         for k in sorted(set(want) | set(got[name])):
             same(f"visits by {name}: {k}", want.get(k, 0), got[name].get(k, 0))
-    for name in ("exits", "steps"):
+    for name in ("exits", "steps", "post_paths"):
         _folded(name, Counter(stored.get(name) or {}), got[name], same)
     if ours is not None:
         for k in sorted(set(ours) | set(figures["ours"])):
@@ -263,7 +331,8 @@ def compare_pages(pages: dict | None, got: dict, same) -> None:
 def from_counts(counts: dict[str, Counter]) -> dict:
     """History's visit figures for one day, from its counts rows."""
     kinds = {"pages": "visit_pages", "trail": "visit_trail", "seconds": "visit_seconds",
-             "exits": "visit_exit", "steps": "visit_step", "flags": "visit_flag"}
+             "exits": "visit_exit", "steps": "visit_step", "flags": "visit_flag",
+             "post_paths": "visit_post"}
     out = {name: counts.get(kind, Counter()) for name, kind in kinds.items()}
     out["visits"] = sum(out["pages"].values())
     return out

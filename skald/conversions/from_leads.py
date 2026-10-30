@@ -45,7 +45,7 @@ from pathlib import Path
 
 from ..config import setting
 from . import (ACTION, LEAD_EXCLUDED, LEAD_OUTCOMES, LEAD_TYPES, LEADS_TOOL, SITE_VID,
-               action_name, store)
+               action_name, fill, store)
 from .adapters import when
 
 COLUMNS = ("id", "created_at", "updated_at", "type", "status", "first_touch", "last_touch",
@@ -125,7 +125,7 @@ def _pairs(lead: dict) -> list[tuple[str, str]]:
 
 
 def rows_for(lead: dict, site: str, identity_full: bool = False,
-             keep_vid: bool = False) -> list[dict]:
+             keep_vid: bool = False, clicks: bool = False) -> list[dict]:
     """The store's rows for one lead (normalise.row's shape)."""
     from ..leads import NONE, touch_source
     from .normalise import row as make_row
@@ -148,7 +148,7 @@ def rows_for(lead: dict, site: str, identity_full: bool = False,
                "first_touch_at": (first or {}).get("at")}
         if identity_full and lead.get("email"):
             rec.update(email=str(lead["email"])[:320], name=lead.get("name"))
-        row = make_row(rec, site, LEADS_TOOL, at, set(), identity_full)
+        row = make_row(rec, site, LEADS_TOOL, at, set(), identity_full, None, clicks)
         row["first_source"] = None if first_source in (None, NONE) else first_source
         out.append(row)
     return out
@@ -185,7 +185,7 @@ def _read(path: Path, since: str | None, identity_full: bool,
 
 
 def sync(db: sqlite3.Connection, path: Path, site: str, identity_full: bool = False,
-         full: bool = False, keep_vid: bool = False) -> dict:
+         full: bool = False, keep_vid: bool = False, clicks: bool = False) -> dict:
     """Make the store's tool-"site" rows match the lead DB. Counts:
     {"read", "added", "removed", "kept"}. Raises OSError / sqlite3.Error /
     ValueError when the lead DB cannot be read."""
@@ -201,7 +201,8 @@ def sync(db: sqlite3.Connection, path: Path, site: str, identity_full: bool = Fa
         for lead in leads:
             ref = str(lead["id"])
             seen.add(ref)
-            want = {r["stage"]: r for r in rows_for(lead, site, identity_full, keep_vid)}
+            want = {r["stage"]: r for r in rows_for(lead, site, identity_full, keep_vid,
+                                                    clicks)}
             have = {r["stage"]: dict(r) for r in db.execute(
                 "SELECT id, stage, action, at, vid FROM conversions WHERE site = ? AND "
                 "tool = ? AND external_ref = ?", (site, LEADS_TOOL, ref))}
@@ -215,7 +216,8 @@ def sync(db: sqlite3.Connection, path: Path, site: str, identity_full: bool = Fa
                        else _gone_why(lead))
                 got["removed"] += store.remove(db, old["id"], why)
             for new in want.values():
-                got["added"] += int(store.record_conversion(db, new))
+                # 2.45: no touches in the lead DB, a visitor ID: filled from its page views.
+                got["added"] += int(store.record_conversion(db, fill.apply(db, new, clicks)))
         if full:
             for cid, ref in db.execute("SELECT id, external_ref FROM conversions WHERE "
                                        "site = ? AND tool = ?", (site, LEADS_TOOL)).fetchall():
@@ -253,7 +255,7 @@ def run(config: dict, folder: Path, site: str, full: bool = False) -> dict | Non
     try:
         from ..beacon import visitor_ids
         return sync(db, path, site, identity_full(config, folder), full,
-                    visitor_ids(config))
+                    visitor_ids(config), fill.keep_clicks(config))
     except (OSError, sqlite3.Error, ValueError) as why:
         return {"error": f"{type(why).__name__}: {why}"}
     finally:

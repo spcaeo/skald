@@ -68,7 +68,7 @@ class Invalid(ValueError):
 class Key:
     kind: str                       # int bool email emails text choice host hosts views zone
     #                                 path filename secret events prefixes searchprop bingsite
-    #                                 ipmode minimums notpages pagepatterns
+    #                                 ipmode minimums notpages pagepatterns postpaths
     who: str                        # admin, install or owner
     scopes: tuple                   # where it may be saved; the first is where the page saves
     config: tuple | None            # (section, key) in config.yml
@@ -106,6 +106,9 @@ SCHEMA: dict[str, Key] = {
     "conversions.identity": Key("choice", "admin", SITE_UP, ("conversions", "identity"), "full",
                                 choices=("full", "anonymous"),
                                 label="Leads' names and emails"),
+    # 2.45: keep the ad click ID (gclid, msclkid, fbclid...) on a lead (conversions/fill.py).
+    "conversions.click_ids": Key("bool", "admin", SITE_UP, ("conversions", "click_ids"), False,
+                                 label="Keep ad click IDs on leads"),
     # 2.29: how long leads are kept (conversions/store.py prune): each lead, its
     # removed rows, the pages its visitor ID read, its identity and the hook
     # spool. 0 (or "forever") keeps them for good: Skald never deletes them;
@@ -144,6 +147,9 @@ SCHEMA: dict[str, Key] = {
                               label="Not pages"),
     "site.not_pages_extra": Key("pagepatterns", "admin", ("site",),
                                 ("site", "not_pages_extra"), [], label="Also not pages"),
+    # Per site: POST paths a page's own script sends, not forms (form_names.py).
+    "site.script_posts": Key("postpaths", "admin", ("site",), ("site", "script_posts"), [],
+                             label="Sent by the site's own pages, not forms"),
     "backup.daily": Key("int", "install", ("install",), ("backup", "daily"), 14, 1, 60,
                         shrink=True, label="Daily backup copies"),
     "backup.weekly": Key("int", "install", ("install",), ("backup", "weekly"), 8, 0, 52,
@@ -497,10 +503,11 @@ def validate(name: str, value, cap: int | None = None):
         return _goals(value)
     if kind == "prefixes":
         return _prefixes(value, key)
-    if kind in ("notpages", "pagepatterns"):
-        from . import not_pages
+    if kind in ("notpages", "pagepatterns", "postpaths"):
+        from . import form_names, not_pages
         try:
-            return (not_pages.clean_off if kind == "notpages" else not_pages.clean_extra)(value)
+            return {"notpages": not_pages.clean_off, "pagepatterns": not_pages.clean_extra,
+                    "postpaths": form_names.clean}[kind](value)
         except ValueError as why:
             raise Invalid(str(why)) from None
     if kind == "minimums":
@@ -726,7 +733,8 @@ def _from_config(config, key: Key):
         return raw is True or str(raw).lower() == "true"
     if key.kind in ("emails", "hosts") and isinstance(raw, str):
         return [raw]
-    if key.kind in ("events", "prefixes", "notpages", "pagepatterns") and isinstance(raw, str):
+    if key.kind in ("events", "prefixes", "notpages", "pagepatterns", "postpaths") and \
+            isinstance(raw, str):
         return raw.replace(",", " ").split()
     return raw
 

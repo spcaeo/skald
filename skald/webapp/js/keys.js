@@ -27,14 +27,18 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-28-2.44.1",
+  id: "2026-10-30-2.45.0",
   items: [
-    ["A webhook key that does not match loses nothing", "refused deliveries are held, and saving the right key takes them in with their own times.", "webhooks"],
-    ["Each tool's own word, and the saved state stays", "Calendly's \"signing key\"; one question on how its webhook was made; \"Signing key saved … by …\" with Replace.", "webhooks"],
-    ["An honest Test", "Test Skald's address checks Skald's side only; the last real delivery shows beside it, and Connected waits for a real one.", "troubleshooting-connections"],
+    ["\"Sent a form\" means a form", "a POST your page's own script sends by itself (an event beacon) is no longer counted as a form; Settings › Data › What counts › Not forms lists them.", "settings-and-retention"],
+    ["Leads filled from their visits", "a lead with a visitor ID gets its first and last touch from that browser's page views, marked filled by Skald.", "leads-and-conversions"],
+    ["Ad click IDs, if you want them", "keep a lead's gclid, fbclid and others; off by default, shown only to people who may see names.", "settings-and-retention"],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.44.1
+    ["A webhook key that does not match loses nothing", "refused deliveries are held, and saving the right key takes them in with their own times.", "webhooks"],
+    ["Each tool's own word, and the saved state stays", "Calendly's \"signing key\"; one question on how its webhook was made; \"Signing key saved … by …\" with Replace.", "webhooks"],
+    ["An honest Test", "Test Skald's address checks Skald's side only; the last real delivery shows beside it, and Connected waits for a real one.", "troubleshooting-connections"],
     // 2.44.0
     ["Set-up shows when it worked", "every connect step checks by itself, with a Test button beside it; a failure says in plain words what went wrong.", "connections"],
     ["Search Console connects by itself", "once Google shows Skald's robot, on the property it can see; Traffic › Search fills in as the history arrives.", "search"],

@@ -363,7 +363,7 @@ def delete(inst: Install, accounts, name: str, kind: str) -> dict:
     folder = spool.spool_dir(inst.config, inst.folder)
     if folder.is_dir():
         counts["spool"] = spool.scrub(folder, lambda row, texts: row.get("site") == name)
-    from .conversions import held                    # refused deliveries held (2.45)
+    from .conversions import held                    # refused deliveries held (2.44.1)
     counts["held"] = held.drop_site(inst.folder, name)
     if kind == PURGE:
         from .conversions import secrets_store

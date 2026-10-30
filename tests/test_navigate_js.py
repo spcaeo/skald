@@ -173,7 +173,7 @@ class Node(unittest.TestCase):
         self.assertIn("set-leads: all passed", self.run_js("set-leads.mjs"))
 
     def test_a_hooks_key_in_the_tools_own_word(self):
-        """A hook's key (2.45, js/hook-key.js, js/tabs/hook-key-ui.js; a site's Calendly): the
+        """A hook's key (2.44.1, js/hook-key.js, js/tabs/hook-key-ui.js; a site's Calendly): the
         tool's own word, never "secret key"; Calendly, Cal.com and Typeform ask one question first
         (how=); after Make or Save the drawer stays open on what is saved, when and by whom; the
         paste's answer (matches, no_match, unsigned, none_held) in plain words; Make it again for

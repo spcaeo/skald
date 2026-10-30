@@ -10,7 +10,7 @@
 // keep. Search Console and Bing (search-connect.js): the keys and each site's
 // connect wizard. For admins; install admins may pick any site of the install. GET/POST <page>/integrations (integrations_api.py).
 //
-// 2.45: one tool's drawer (tool=<id>) is hook-key-ui.js hookDrawer: the live line on top, the
+// 2.44.1: one tool's drawer (tool=<id>) is hook-key-ui.js hookDrawer: the live line on top, the
 // tool's own word for its key, the one question first (how=), what is saved and by whom, the
 // paste's answer, and Test Skald's address, which says it proves the address only.
 
@@ -55,7 +55,7 @@ const OUTCOME = { recorded: "kept", duplicate: "already had it", ignored: "not a
 // A secret just made: kept in this page's memory only, until it is copied.
 let fresh = null;
 let chosen = "";
-// 2.45: the last paste's or make's answer (check) by tool, and the tool whose Replace is open,
+// 2.44.1: the last paste's or make's answer (check) by tool, and the tool whose Replace is open,
 // so a redraw after Save keeps saying what happened.
 let checks = {};
 let asking = "";
@@ -119,7 +119,7 @@ function checksList(r) {
 /* A tool's state as a pill (v2: Leads & tools' rows and its drawer). */
 export function toolKind(t) {
   if (t.problem || ["missing", "exposed"].includes(t.state) || (t.attention && t.state === "received")) return ["bad", "Not working"];
-  // 2.45: what the real deliveries since the key was saved say wins (connect_check agrees):
+  // 2.44.1: what the real deliveries since the key was saved say wins (connect_check agrees):
   // never Working while only refused or unsigned ones came, and never green on a test alone.
   const real = t.set ? realState(t) : null;
   if (real === "bad") return ["bad", "Not working"];
@@ -154,7 +154,7 @@ export function codeSpans(text) {
   return String(text).split("`").map((part, i) => (i % 2 ? h("code", null, part) : part)).filter((x) => x !== "");
 }
 
-// Test Skald's address, in words (2.45: it proves the address, never the tool's key).
+// Test Skald's address, in words (2.44.1: it proves the address, never the tool's key).
 function testWords(t, r) {
   const [, head, more] = honestTest(r, t);
   return `${t.name}: ${head}${more ? ` ${more}` : ""}`;
@@ -198,7 +198,7 @@ export function integrationsPart(part = "all") {
   async function act(path, payload, done) {
     const r = await call(`integrations/${path}`, { site: chosen, ...payload });
     if (!r.ok) { msg.say(why(r)); return r; }
-    // 2.45: the paste's or the make's answer stays with its tool, and the drawer stays open on it.
+    // 2.44.1: the paste's or the make's answer stays with its tool, and the drawer stays open on it.
     // A key that still does not match keeps its question open; a webhook that sends no signature
     // goes to the way that makes it again (Calendly) or to Skald's own key (Cal.com, Typeform).
     const verdict = r.check?.verdict || "";
@@ -254,7 +254,7 @@ export function integrationsPart(part = "all") {
       deliveriesTable(t.deliveries, `Deliveries from ${t.name}`, [
         ["When", (d) => when(d.received_at, ""), "muted n"], ["Answer", (d) => String(d.http_status), "c"],
         ["Outcome", (d) => OUTCOME[d.outcome] || d.outcome], ["Detail", (d) => copyIf("text", d.error || "", null, { label: "detail", cls: "" }), "muted"]]));
-    // v2: one tool's details in Leads & tools' drawer (tool=<id>); 2.45: hook-key-ui.js.
+    // v2: one tool's details in Leads & tools' drawer (tool=<id>); 2.44.1: hook-key-ui.js.
     if (one) {
       const again = () => (last ? draw(last) : reload());
       return hookDrawer(t, {

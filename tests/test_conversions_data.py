@@ -81,10 +81,12 @@ class Data(Server):
         self.assertEqual(d["by"]["tool"], {"demo": {"beacon": 1, "site": 1}})
         self.assertEqual(d["by"]["country"]["demo"], {"CA": 2})
         self.assertEqual(d["by"]["device"]["demo"], {"Desktop": 1, "Unknown": 1})
-        self.assertEqual(d["by"]["campaign"]["demo"], {"Unknown": 1, "(no campaign tag)": 1})
-        self.assertEqual(d["by"]["first_source"]["demo"], {"Unknown": 1, "Search engine": 1})
+        # 2.45: the booking's campaign, first source and first touch from its journeys
+        # (conversions/fill.py): Google two days before, its visit without a campaign tag.
+        self.assertEqual(d["by"]["campaign"]["demo"], {"(no campaign tag)": 2})
+        self.assertEqual(d["by"]["first_source"]["demo"], {"Search engine": 2})
         self.assertEqual(d["visits_before"]["demo"], {"unknown": 1, "2": 1})
-        self.assertEqual(d["time_to_convert"]["demo"], {"unknown": 1, "1-7d": 1})
+        self.assertEqual(d["time_to_convert"]["demo"], {"1-7d": 2})
         # The booking's own source is the visit's; Google came before it.
         self.assertEqual(d["assisted"], {"demo": {"Search engine": 1}})
         empty = self.day(got, TODAY)

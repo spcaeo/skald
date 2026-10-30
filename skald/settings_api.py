@@ -197,6 +197,10 @@ def described(c: Ctx) -> dict:
         if key.kind == "notpages":          # the built-in not-a-page list (not_pages.py)
             from .not_pages import RULES
             item["entries"] = [{"name": n, "reason": r} for n, (r, _) in RULES.items()]
+        if key.kind == "postpaths":         # POSTs that are no form (form_names.py)
+            from .form_names import SCRIPT_POSTS
+            item["defaults"] = list(SCRIPT_POSTS)
+            item["suggested"] = _post_suggestions(c, entry.get("value") or [])
         if name in INSTALL_ONLY and not c.install_admin:
             item.update(value=None, hidden=True)
         out[name] = item
@@ -208,6 +212,24 @@ def described(c: Ctx) -> dict:
                      store.locked(c.config), "editable": may, "reason": why,
                      "label": key.label, "kind": "secret", "scope": "install", "who": key.who}
     return out
+
+
+def _post_suggestions(c: Ctx, own) -> list[dict]:
+    """The POST paths the stored days say a page's own script sends
+    (form_names.suggest), read-only; none without a history."""
+    from .form_names import suggest
+    path = c.history_path
+    if path is None or not Path(path).is_file():
+        return []
+    import sqlite3
+    try:
+        conn = sqlite3.connect(f"file:{Path(path).resolve()}?mode=ro", uri=True)
+        try:
+            return suggest(conn, c.site, datetime.now(timezone.utc).date(), own)
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        return []
 
 
 def _goal_choices(c: Ctx) -> list[dict]:

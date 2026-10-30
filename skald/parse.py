@@ -31,6 +31,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterator
 
+from .form_names import why_not_a_form
 from .not_pages import STANDARD
 
 
@@ -78,7 +79,8 @@ class Hit:
     # works it out again.
     page_shape: bool | None = field(default=None, init=False, repr=False, compare=False)
     # The site's not-a-page list (not_pages.Rules), set by read(page_rules=...);
-    # None: the built-in one (not_pages.STANDARD).
+    # None: the built-in one (not_pages.STANDARD). It carries the site's list
+    # of POST paths that are no form too (Rules.posts, form_names.py).
     page_rules: object = field(default=None, repr=False, compare=False)
     # The entry of that list that kept this request out of the page views,
     # or "" (worked out with page_shape; not_page_rule).
@@ -96,10 +98,22 @@ class Hit:
 
     @property
     def is_form_post(self) -> bool:
-        """A POST the site's own pages sent (a form, an API call), not one to
-        Skald's own endpoints: the script tag posts its events to
-        /traffic-beacon from every page, which made every visit "form sent"."""
-        return self.method == "POST" and not OWN_ENDPOINT.match(self.path)
+        """A POST a person sent (a form, an API call), not one a page's own
+        script sends by itself (script_post): Skald's endpoints, a 204 with
+        no body, a path on form_names.SCRIPT_POSTS or on the site's own list.
+        The script tag's events to /traffic-beacon, and one live site's
+        /api/events, made nearly every visit "form sent"."""
+        return self.method == "POST" and not self.script_post
+
+    @property
+    def script_post(self) -> str:
+        """Why this POST is no form (form_names.why_not_a_form): "skald",
+        "204", "list: <entry>" or "site: <entry>"; "" for a form or a request
+        that is no POST. The site's list comes with page_rules."""
+        if self.method != "POST":
+            return ""
+        return why_not_a_form(self.method, self.path, self.status, self.size,
+                              (self.page_rules or STANDARD).posts, OWN_ENDPOINT.match)
 
     @property
     def soft_navigation(self) -> bool:
@@ -621,7 +635,8 @@ def read(paths: list[str] | list[Path], fmt: str = "auto",
     only up to that many bytes (lines_of): the live run's same bytes.
 
     `page_rules` (not_pages.from_config(config)) is the site's not-a-page
-    list, given to every hit; without it the built-in list applies.
+    list, and its POST paths that are no form, given to every hit; without
+    it the built-in lists apply.
     """
     paths = [Path(p) for p in paths]
     fill = _country_filler(geo)

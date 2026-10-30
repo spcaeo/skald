@@ -44,13 +44,14 @@ from urllib.parse import urlsplit
 from . import dimensions as dim
 from .classify import Group, Tier
 from .countries import UNKNOWN, label as country_label
+from .form_names import FORMS_RULE
 from .parse import ASSET, BEACON
 
 ARROW = " → "
 TRAIL_KEEP = 50          # trail entries kept per journey; counts are of all
 FLAGS = ("not_found", "posted", "in_app")
 FLAG_WORDS = {"not_found": "met a page not found (404)",
-              "posted": "sent a form or other POST",
+              "posted": "sent a form (a POST no page script sends by itself)",
               "in_app": "moved inside the site without loading a page"}
 
 # An assistant by the name a reader knows it by.
@@ -125,7 +126,7 @@ def _via(hit, source: str, cited: bool, engine: str) -> str:
 
 class _Visit:
     __slots__ = ("first", "last", "prev", "trail", "times", "pages", "labels",
-                 "not_found", "posted", "visitor", "origin", "who", "entry")
+                 "not_found", "posted", "post_paths", "visitor", "origin", "who", "entry")
 
     def __init__(self, when) -> None:
         self.first = self.last = self.prev = when
@@ -136,6 +137,7 @@ class _Visit:
         self.labels: dict = {}
         self.not_found = 0
         self.posted = 0
+        self.post_paths: set[str] = set()           # its form POSTs answered 2xx
         self.origin = None                          # its first page's (dimensions.page_origin)
         # Its address, user agent, first page's referrer and the times of its
         # POSTs: memory only, handed to people/visits.py (Journeys.people),
@@ -156,7 +158,10 @@ class VisitStats:
     exits    visits by the last page they were seen on
     steps    each move from one page to the next ("/a → /b"); they add up
              to the pages seen minus the visits
-    flags    visits that met a 404, sent a POST, or moved in-app (FLAGS)
+    flags    visits that met a 404, sent a form, or moved in-app (FLAGS)
+    post_paths  visits by each path they sent a form to, answered 2xx (a
+             visit once per path): what form_names.suggest reads to find a
+             page script's POST. Not a histogram: a visit may be in several
 
     entries, source, country and device are the same visits by their first
     page; they equal the readers breakdowns, so history does not store
@@ -170,12 +175,13 @@ class VisitStats:
     exits: Counter = field(default_factory=Counter)
     steps: Counter = field(default_factory=Counter)
     flags: Counter = field(default_factory=Counter)
+    post_paths: Counter = field(default_factory=Counter)
     entries: Counter = field(default_factory=Counter)
     source: Counter = field(default_factory=Counter)
     country: Counter = field(default_factory=Counter)
     device: Counter = field(default_factory=Counter)
 
-    STORED = ("pages", "trail", "seconds", "exits", "steps", "flags")
+    STORED = ("pages", "trail", "seconds", "exits", "steps", "flags", "post_paths")
     DERIVED = ("entries", "source", "country", "device")
 
     def views(self) -> int:
@@ -276,6 +282,8 @@ class Journeys:
                          "posts": []}
         if hit.is_form_post:
             visit.posted += 1
+            if hit.status[:1] == "2":
+                visit.post_paths.add(hit.path[:70])
             if len(visit.who["posts"]) < 20:
                 visit.who["posts"].append(hit.when)
         path = hit.path[:70]
@@ -357,6 +365,7 @@ class Journeys:
                             ("in_app", in_app)):
                 if n:
                     stats.flags[flag] += 1
+            stats.post_paths.update(v.post_paths)
             landing = next(p for p, loaded in v.trail if loaded)
             stats.entries[landing] += 1
             for name in ("source", "country", "device"):
@@ -376,9 +385,13 @@ class Journeys:
                 "at": [seconds_bucket(int((t - v.first).total_seconds()))
                        for t in v.times[:TRAIL_KEEP]],
                 "seconds": seconds,"not_found": v.not_found, "posted": v.posted,
+                # The form rule it was counted with (form_names.FORMS_RULE):
+                # a journey without it counted a page script's POST as a form.
+                "forms": FORMS_RULE,
             })
         stats.exits = dim.fold(stats.exits, top)
         stats.steps = dim.fold(stats.steps, top)
+        stats.post_paths = dim.fold(stats.post_paths, top)
         wide = max(top, 25)          # as the readers breakdowns are folded
         stats.entries = dim.fold(stats.entries, wide)
         stats.country = dim.fold(stats.country, wide)

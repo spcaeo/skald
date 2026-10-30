@@ -35,7 +35,7 @@ const INSIDE_OFF = Object.fromEntries(INSIDE.map((k) => [k, ""]));
 // with it; the other app dialogs (dlg=keys, views...) clear nothing of a dialog under them.
 // The visitor drawer's Show all (vall) leaves with it, by visit, person or conversion.
 const OWN_INSIDE = { dlg: ["kind", "xch", "by"], vis: ["vall"], who: ["vall"], conv: ["vall"], lead: ["vall"],
-  org: ["otab"], tool: ["how"] };   // tool (2.45): a hook drawer's question (how) leaves with it
+  org: ["otab"], tool: ["how"] };   // tool (2.44.1): a hook drawer's question (how) leaves with it
 // Add a site (setup=, 2.43) names its organisation with org= (an opener of its own on Settings ›
 // Organisations): it leaves with Add a site too.
 const insideOff = (family) => (family === "setup" ? { ...INSIDE_OFF, org: "" } : STEPPED.has(family) ? INSIDE_OFF

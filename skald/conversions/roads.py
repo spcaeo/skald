@@ -12,12 +12,12 @@
                        leads, when every one was kept without a country
                        (hook_states' "unplaced"; the doctor and the set-up
                        checklist say it, with the fix)
-    last_real(...)     2.45: a hook's newest real (not test) delivery, in words
-    since_saved(...)   2.45: its real deliveries since its key was saved:
+    last_real(...)     2.44.1: a hook's newest real (not test) delivery, in words
+    since_saved(...)   2.44.1: its real deliveries since its key was saved:
                        accepted, refused (a signature that did not match),
                        unsigned (no signature at all)
 
-2.45: a refusal says which: `unsigned` (the tool sent no signature: its
+2.44.1: a refusal says which: `unsigned` (the tool sent no signature: its
 webhook was made without a key, so no key pasted into Skald can match it;
 the fix is to make the webhook again with Skald's) or `bad_signature` (it
 signed with another key), each in the tool's own word for its key (KEY_WORD).

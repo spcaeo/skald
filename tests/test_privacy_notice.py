@@ -46,7 +46,7 @@ class Wording(unittest.TestCase):
                                                "share_subdomains": False,
                                                "lead_days": 400, "name_days": 30,
                                                "keep_everything": False,
-                                               "vid_days": 14})
+                                               "click_ids": False, "vid_days": 14})
                 # Always: the log, no cookie from it, how to ask for deletion.
                 self.assertIn("sets no cookie and stores nothing on your device", text)
                 self.assertIn(notice.CONTACT, text)

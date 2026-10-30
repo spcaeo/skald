@@ -238,7 +238,7 @@ def forget_person(ctx, email: str | None = None, vid: str | None = None,
         return bool(values & texts)
 
     lines = spool.scrub(spool.spool_dir(ctx.config, folder), match, a.dry_run)
-    # 2.45: refused deliveries held for a key to be saved (conversions/held.py).
+    # 2.44.1: refused deliveries held for a key to be saved (conversions/held.py).
     from .conversions import held
     held_n = held.forget(folder, values, site, a.dry_run)
     # The beacon spool keeps its lines (the event audit counts them); only
@@ -430,6 +430,13 @@ def cmd_prune(ctx, quiet: bool = False) -> int:
         db = store.connect(db_path)
         try:
             got = store.prune(db, today, vid_days, keep, own_vid, own_keep, spare)
+            if got["journeys"]:
+                # 2.45: a lead's filled touches follow the page views left (fill.py),
+                # every site of the file, its click IDs as they are.
+                from .conversions import fill
+                for (name,) in db.execute("SELECT DISTINCT site FROM conversions WHERE "
+                                          "filled IS NOT NULL").fetchall():
+                    fill.refresh(db, name, None)
         finally:
             db.close()
     files = spool.prune(spool.spool_dir(ctx.config, folder), today, keep, own_keep, spare)

@@ -42,7 +42,8 @@ Recounted by audit_revenue.py; a day it disagrees with is withheld, `ltv` and
 assistant likely behind their first touch - {action: {label: n}}. The
 first touch is the row's own (first_source, first_touch_at, landing) when
 it has one, else, for a row with a visitor ID, the browser's earliest
-journeys row (source_type, at, path). A first touch from "Direct or
+journeys row (source_type, at, path), as for a row whose first touch Skald
+filled from them (2.45). A first touch from "Direct or
 unknown" is looked up in the stored AI user fetches (the assistant, or
 "(more than one)", or "(none)"); any other source is "(none)"; a first
 touch not known, or fetches not kept for its window, is "Unknown".
@@ -139,7 +140,9 @@ def likely_label(db, row, likely: tuple | None, tz) -> str:
     """The likely assistant behind a finished row's first touch (see above)."""
     from .ai_likely import DIRECT, NOT_RECORDED, likely_for
     from .conversions import store
-    if row["first_source"] is not None:
+    # A first touch Skald filled (2.45, conversions/fill.py) is the journeys' own: read there.
+    if row["first_source"] is not None and "first_source" not in str(
+            (row["filled"] if "filled" in row.keys() else None) or "").split(","):
         source, at, path = row["first_source"], row["first_touch_at"], row["landing"]
     elif row["vid"]:
         got = db.execute("SELECT source_type, at, path FROM journeys WHERE site = ? AND vid = ? "

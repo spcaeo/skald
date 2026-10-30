@@ -20,7 +20,9 @@ import { openVisitor, touchLine, touchName, ago } from "./visitor.js";
 import { pagesWords, visitPages } from "../visitpages.js";
 import { withUrl, copyIf } from "../urlactions.js";
 
-export const NOTE = { not_found: "met a page not found (404)", posted: "sent a form", in_app: "moved inside the site without loading a page" };
+export const NOTE = { not_found: "met a page not found (404)", posted: "sent a form", in_app: "moved inside the site without loading a page",
+  // A visit kept from before the form rule (form_names.py), when a POST the page's own script sends counted as a form.
+  posted_old: "sent a POST, counted before the page's own script was told from a form: it may not be a form" };
 const BADGE = { posted: "form sent", not_found: "404" };
 let whenKept = 7;   // journey_days, set by visitMatrix
 

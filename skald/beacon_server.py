@@ -177,6 +177,8 @@ class Sink:
         self.tz = zone(config)
         self.events = beacon.allowed_events(config)
         self.visitor_ids = beacon.visitor_ids(config)
+        from .conversions.fill import keep_clicks
+        self.clicks = bool(self.visitor_ids and keep_clicks(config))     # 2.45
         self.share = beacon.share_subdomains(config)
         self.hosts = beacon.own_hosts(config)
         self._snippet = None
@@ -217,6 +219,9 @@ class Sink:
         when = self.now()
         if not self.visitor_ids:
             event.pop("v", None)
+        # 2.45: the ad click (`k`) is never spooled: only the page view's row
+        # in the journeys keeps it, and its ID only while the site keeps them.
+        click = event.pop("k", "")
         source, ai = beacon.source_of(event["r"], event["u"], self.hosts)
         line = beacon.line_for(event, when, group, source, ai)
         with self.lock:
@@ -227,7 +232,7 @@ class Sink:
             key = "accepted_ours" if group == "ours" else "accepted"
             self.stats[key] = self.stats.get(key, 0) + 1
             if event.get("v") and group == "people":
-                self._conversion(event, when, source, address, agent)
+                self._conversion(event, when, source, address, agent, click)
             self._flush(False)
 
     def opened(self, event: dict, group: str) -> None:
@@ -245,7 +250,7 @@ class Sink:
             self._flush(False)
 
     def _conversion(self, event: dict, when: datetime, source: str, address: str,
-                    agent: str) -> None:
+                    agent: str, click: str = "") -> None:
         """Journeys and conversions for an event with a visitor ID. Inside
         the lock: the store sees events in the spool's order. A failure is
         counted, never raised: the spool line stands, and the second count
@@ -259,7 +264,7 @@ class Sink:
             try:
                 from_beacon.record(db, site_name(self.config), event, when, source, self.hosts,
                                    geo.database(self.config),
-                                   address, agent)
+                                   address, agent, click, self.clicks)
             finally:
                 db.close()
         except Exception as why:          # noqa: BLE001 - a beacon never fails on this
@@ -275,12 +280,16 @@ class Sink:
                        site_name(self.config))
 
     def snippet(self) -> tuple[bytes, str]:
-        """(skald.js as served, its ETag). IDS=0 when visitor IDs are off."""
+        """(skald.js as served, its ETag). IDS=0 when visitor IDs are off;
+        CK=1 when the site keeps ad click IDs (2.45: the tag then sends the
+        ID with its kind, else the kind alone)."""
         if self._snippet is None:
             import hashlib
             raw = SNIPPET_FILE.read_bytes()
             if not self.visitor_ids:
                 raw = raw.replace(b"IDS=1", b"IDS=0")
+            if self.clicks:
+                raw = raw.replace(b"CK=0", b"CK=1")
             self._snippet = (raw, '"' + hashlib.sha256(raw).hexdigest()[:20] + '"')
         return self._snippet
 

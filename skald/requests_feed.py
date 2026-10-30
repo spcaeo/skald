@@ -53,6 +53,7 @@ KIND_WORDS = {"page": "page view", "rsc": "Next.js payload (_rsc)", "asset": "as
               "client_error": "client error", "server_error": "server error",
               "post": "form post", "script_event": "script tag event",
               "skald_endpoint": "Skald endpoint", "other": "other",
+              "page_script": "page's own script (not a form)",
               "not_page": "not a page (a machine address)"}
 
 
@@ -84,7 +85,9 @@ def kind_of(hit) -> str:
         return ("script_event" if hit.path.startswith(("/traffic-beacon", "/traffic-js/"))
                 else "skald_endpoint")
     if hit.method == "POST":
-        return "post"
+        # A POST a page's own script sends by itself (form_names.py: a 204
+        # with no body, a beacon on the list, the site's own list) is no form.
+        return "page_script" if hit.script_post else "post"
     if status[:1] == "5":
         return "server_error"
     if status in ("404", "410"):

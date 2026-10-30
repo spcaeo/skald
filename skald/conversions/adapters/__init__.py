@@ -17,7 +17,7 @@
     HEADER, SIGNED
         the signature's header, and every header that carries a signature
         (lead and json: also Authorization). A delivery with none of SIGNED
-        is "unsigned" (2.45, signed()): the tool was set up without a key,
+        is "unsigned" (2.44.1, signed()): the tool was set up without a key,
         so no key pasted into Skald can ever match it.
 """
 from __future__ import annotations
@@ -37,7 +37,7 @@ class Invalid(ValueError):
 STAMP = "%Y-%m-%dT%H:%M:%SZ"
 TOUCH_KEYS = ("referrer", "landing", "utm_source", "utm_medium", "utm_campaign",
               "utm_content", "utm_term", "gclid", "gbraid", "wbraid", "msclkid", "fbclid",
-              "li_fat_id")
+              "li_fat_id", "ttclid", "twclid")
 
 
 def hmac_hex(secret: str, message: bytes) -> str:

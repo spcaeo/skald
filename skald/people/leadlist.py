@@ -25,6 +25,11 @@ all. A visitor ID is never in a row: the journey (page views, labels only) is.
 Since 2.32 each row carries its money: value_minor and currency (its paid
 step's, else its own), refunded_minor (the total refunded so far), customer_ref and
 tags; the steps carry their value. None where none was kept, never 0.
+Since 2.45 each row says which of its touches Skald filled from its visitor
+ID's page views (`filled`: column names, [] for none; conversions/fill.py),
+and, only with `names` (the same gate as names and emails), its ad click
+(`click_kind`, `click_id`; None when none was kept): `clicks` in the answer
+says a row holds one (the view is then written to the privacy log).
 Read-only, like everything in people/.
 """
 from __future__ import annotations
@@ -66,7 +71,8 @@ def rows(config: dict, folder, site: str, first: date, last: date, names: bool,
     from ..window import zone
     tz = zone(config)
     full = names and policy.identity_full(config, folder)
-    out = {"ok": True, "names": full, "first": first.isoformat(), "last": last.isoformat(),
+    out = {"ok": True, "names": full, "clicks": False,
+           "first": first.isoformat(), "last": last.isoformat(),
            "rows": [], "truncated": False,
            "why": None if full else ("This site keeps no names or emails (conversions.identity: "
                                      "anonymous)." if names else None)}
@@ -76,18 +82,20 @@ def rows(config: dict, folder, site: str, first: date, last: date, names: bool,
         db = sqlite3.connect(f"file:{path.resolve()}?mode=ro", uri=True)
         db.row_factory = sqlite3.Row
         try:
-            out["rows"], out["truncated"] = _conversions(db, site, lo, hi, tz, full, private)
+            out["rows"], out["truncated"] = _conversions(db, site, lo, hi, tz, full, private,
+                                                         names)
         except sqlite3.Error as why:
             return {"ok": False, "error": f"the conversions store could not be read: {why}"}
         finally:
             db.close()
     out["rows"] += _left_out_leads(config, folder, first, last, tz, full)
     out["rows"].sort(key=lambda r: r.get("at") or "", reverse=True)
+    out["clicks"] = any(r.get("click_id") for r in out["rows"])
     return out
 
 
 def _conversions(db, site: str, lo: str, hi: str, tz, full: bool,
-                 private: bool = False) -> tuple[list, bool]:
+                 private: bool = False, clicks: bool = False) -> tuple[list, bool]:
     cols = {r[1] for r in db.execute("PRAGMA table_info(conversions)")}
     if not cols:
         return [], False
@@ -96,6 +104,11 @@ def _conversions(db, site: str, lo: str, hi: str, tz, full: bool,
     # 2.32: the money a lead carries (an older, not yet upgraded file has none).
     cash = ", ".join(f"c.{k} AS {k}" if k in cols else f"NULL AS {k}" for k in MONEY)
     who = ", i.email AS email, i.name AS name" if full else ""
+    # 2.45: what Skald filled, and the ad click (only behind the names' gate).
+    who += ", c.filled AS filled" if "filled" in cols else ", NULL AS filled"
+    if clicks:
+        who += (", c.click_kind AS click_kind, c.click_id AS click_id" if "click_id" in cols
+                else ", NULL AS click_kind, NULL AS click_id")
     join = " LEFT JOIN identities i ON i.id = c.identity_id" if full else ""
     marks, acts = ",".join("?" * len(FINISHED)), ",".join("?" * len(LEAD_ACTIONS))
     found = db.execute(
@@ -145,6 +158,9 @@ def _conversions(db, site: str, lo: str, hi: str, tz, full: bool,
                **_money(r, mine)}
         if full:
             row["email"], row["name"] = r["email"], r["name"]
+        row["filled"] = [c for c in str(r["filled"] or "").split(",") if c]
+        if clicks:
+            row["click_kind"], row["click_id"] = r["click_kind"], r["click_id"]
         if r["vid"] and journeys:
             row["journey"] = [{"at": _local(j[0], tz), "path": j[1], "source_type": j[2]}
                               for j in db.execute("SELECT at, path, source_type FROM journeys "
@@ -197,7 +213,7 @@ def _left_out_leads(config: dict, folder, first: date, last: date, tz, full: boo
                "campaign": None, "landing": lead.get("landing"), "country": lead.get("ip_country"),
                "device": None, "left_out": "test" if lead.get("test") else lead.get("status"), "browser": False, "steps": [],
                "value_minor": None, "currency": None, "refunded_minor": None,
-               "refunded_currency": None, "customer_ref": None, "tags": None}
+               "refunded_currency": None, "customer_ref": None, "tags": None, "filled": []}
         if full:
             row["email"], row["name"] = lead.get("email"), lead.get("name")
         out.append(row)

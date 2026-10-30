@@ -203,7 +203,7 @@ rows stay and are listed, never counted. One delivery row and one audit-log entr
 | --- | --- | --- |
 | `conversions` | `read` | conversions.json: per local day, every action by stage, abandoned, labels, breakdowns. The Leads figure is the finished rows of lead actions (section 3.4) |
 | `leads` | `read` | leads.json: the website's lead database only |
-| `people?q=<value>` | `read_private` | one IP, email, visitor ID or lead ref: every conversion of it (each stage, test, cancelled, removed), the leads, visits and journeys, linked. Audit-logged. The "steps" of one lead. A visitor ID is only the `skv_` + 22 characters shape; any other ref (`u-1234567`, `u-1001`) is looked up as the lead's `external_ref` on that site (and as a site's own visitor ID) |
+| `people?q=<value>` | `read_private` | one IP, email, visitor ID or lead ref: every conversion of it (each stage, test, cancelled, removed, with its `filled` mark and, since 2.45, its ad click `click_kind` and `click_id` when the site keeps them), the leads, visits and journeys, linked. Audit-logged. The "steps" of one lead. A visitor ID is only the `skv_` + 22 characters shape; any other ref (`u-1234567`, `u-1001`) is looked up as the lead's `external_ref` on that site (and as a site's own visitor ID) |
 
 ```sh
 curl -sS -H "Authorization: Bearer $SKALD_API_TOKEN" \
@@ -270,7 +270,7 @@ email, address) are never read.
 | `stage` | default `completed` | one of `started`, `completed`, `cancelled`, `rescheduled`, `no_show`, `paid`, `won`, `lost`, `refunded` (2.32: money given back on the sale with the same `external_ref`; it counts only once that sale is kept, in the sale's currency) |
 | `at` | default: when it arrived | ISO 8601 with an offset (`...Z`, `...-04:00`) or Unix seconds (milliseconds accepted). Without an offset it is read in the site's time zone, and the delivery log says so. More than a day in the future: 400 |
 | `vid` | | the visitor ID the page had (`skald('id')` in the browser gives the `skv_...` one), or the site's own ID: `^[A-Za-z0-9_.:-]{8,80}$`, else dropped. Dropped too when the site has visitor IDs off (`beacon.visitor_ids`) |
-| `first_touch`, `last_touch` | | objects with `referrer`, `landing`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`, `gclid`, `gbraid`, `wbraid`, `msclkid`, `fbclid`, `li_fat_id`, `at`. The source comes from `last_touch` (else `first_touch`) |
+| `first_touch`, `last_touch` | | objects with `referrer`, `landing`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`, `gclid`, `gbraid`, `wbraid`, `msclkid`, `fbclid`, `li_fat_id`, `ttclid`, `twclid` (the last two since 2.45), `at`. The source comes from `last_touch` (else `first_touch`). Send neither and a `vid`: Skald fills both from that browser's page views (2.45, "Touches filled" in 3.4) |
 | `landing`, `campaign`, `source` | | when the app worked them out (`source` only if it is one of Skald's source types) |
 | `country` or `ip` | | two letters, or the visitor's address: Skald looks up the country (in `logs.country_db`) and drops the address; it is never kept, spooled or logged. **Send `ip` on every lead from your server**: without it (or `country`) the lead has no country ("Country not recorded"), whether or not it has a `vid`. `ip` is an IPv4 or IPv6 address, or an `X-Forwarded-For` list whose first entry is read (`"192.0.2.10, 198.51.100.1"`), a port after it taken off. An address that gives no country (a private one such as a proxy's, or not an address) is kept without one, with a note. `country` wins over `ip`. A visitor ID never gives a lead its country: `vid` joins the pages read, `ip` gives the country; send both. Which header holds the address on which host: the lead files' README ("The visitor's address") |
 | `device` or `user_agent` | | `Desktop`, `Mobile` or `Tablet`, or the agent: Skald works out the device and drops the agent |
@@ -364,6 +364,33 @@ without leaving a row.
   to share one ID, the tag takes `data-share-subdomains="true"`, or an admin can switch sharing
   on in Skald instead of the tag (`beacon.share_subdomains`, Settings > Sites > Script tag;
   docs/BEACON.md).
+- **Touches filled from the visitor ID (2.45).** A lead with a `vid` and no `first_touch`, no
+  `last_touch` and no `source` gets them from that browser's page views (the script tag's,
+  `journeys`): the first touch is its earliest page view (first source, first touch time,
+  landing page), the last touch the latest visit up to the lead's `at` (its source and
+  campaign). Only by the visitor ID, never by IP address; only page views at or before `at`.
+  What the sender gave always wins: a lead with any touch or `source` is not filled, and a
+  `landing`, `campaign` or `first_touch_at` sent alone stays. The lists, the drawer and the
+  person lookup say "filled by Skald" (`filled`: the columns). It is done when the lead
+  arrives and again on each run, so page views that arrive after the lead still fill it.
+  Script-tag conversions get their first source, campaign and first touch time the same way.
+  The second count (`audit_filled.py`) checks every filled value against the page views; a
+  day it disagrees with is withheld (`docs/DATA-CONTRACT-CONVERSIONS.md`).
+- **Ad click IDs (2.45, opt-in).** With `conversions.click_ids` on (Settings › Data retention
+  › Leads, "Keep ad click IDs on leads"; off by default) a lead keeps the ad click ID its
+  touch carried: the last touch's (else the first's) `gclid`, `gbraid`, `wbraid`, `msclkid`,
+  `fbclid`, `li_fat_id`, `ttclid` or `twclid`, as a key of the touch or in its `landing`
+  address's query, as `click_kind` and `click_id` (an ID of 1 to 250 characters of
+  `A-Z a-z 0-9 . _ ~ + / = -`, else none). A filled lead takes its page views' click (the
+  script tag sends it only while this is on); a script-tag conversion too. Shown only to
+  owners and admins (the lead drawer, with the names' gate) and to a `read_private` token
+  (`people?q=`); never in conversions.json, the MCP figures or outgoing webhooks. Deleted
+  with the lead (`forget --email/--vid/--lead`; a conversion keeps no IP address, so
+  `forget --ip` finds none), after the People days when those are shorter than the lead's
+  (as a name and an email are, `conversions/people_days.py`), and all of the site's at the
+  next run when the setting is turned off. Before 2.45 click IDs were read only to name the
+  source and campaign, never kept on a conversion. The hook spool keeps the body's touches
+  as sent, click IDs included, as it did before.
 - **Leads without a country.** When each of the `lead` (or `json`) hook's last 3 real leads was
   kept without a country, Skald says so, with the fix: Settings › Leads & tools › Status
   ("Lead countries", the doctor's `place:<tool>` line, also in `skald doctor`) and the set-up

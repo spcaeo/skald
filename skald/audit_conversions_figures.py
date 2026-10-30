@@ -84,7 +84,9 @@ CONVERT = (f"CASE WHEN c.first_touch_at IS NULL OR strftime('%s', c.first_touch_
            f"ELSE '>90d' END")
 
 
-FIRST = ("CASE WHEN c.first_source IS NOT NULL THEN {own} WHEN c.vid IS NOT NULL THEN "
+# The row's own first touch, unless Skald filled it from the journeys (2.45): then theirs.
+FIRST = ("CASE WHEN c.first_source IS NOT NULL AND instr(',' || COALESCE(c.filled, '') || ',', "
+         "',first_source,') = 0 THEN {own} WHEN c.vid IS NOT NULL THEN "
          "(SELECT j.{col} FROM journeys j WHERE j.site = c.site AND j.vid = c.vid AND "
          "j.at <= c.at ORDER BY j.at, j.rowid LIMIT 1) END")
 WELL_FORMED = "'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'"

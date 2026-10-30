@@ -523,9 +523,15 @@ def _identity(db, site: str, identity: dict | None) -> int | None:
 
 
 def record_page_view(db, site: str, vid: str, at: str, path: str,
-                     source_type: str | None, via: str | None = None) -> None:
-    db.execute("INSERT INTO journeys (vid, site, at, path, source_type, via) "
-               "VALUES (?, ?, ?, ?, ?, ?)", (vid, site, at, path, source_type, via))
+                     source_type: str | None, via: str | None = None,
+                     campaign: str | None = None, click: tuple | None = None) -> None:
+    """One page view of a visitor ID. `campaign` (2.45): the visit's campaign
+    label (dimensions.campaign of the tag's utm_ tags; NULL from an older tag);
+    `click`: (kind, id) of its ad click, given only while the site keeps them."""
+    kind, value = click or (None, None)
+    db.execute("INSERT INTO journeys (vid, site, at, path, source_type, via, campaign, "
+               "click_kind, click_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+               (vid, site, at, path, source_type, via, campaign, kind, value))
 
 
 def log_delivery(db, site: str, tool: str, outcome: str, http_status: int,

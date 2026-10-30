@@ -283,6 +283,8 @@ Completed conversions by Source (last touch), First touch, Campaign, Landing pag
 
 Assisted needs anonymous visitor IDs (below).
 
+**Filled by Skald.** When a lead arrives with a visitor ID but without its touches (your server or tool did not say where the visitor came from), Skald fills them from that browser's own page views: the first touch is its first visit, the last touch the visit it converted in, with that visit's campaign. Script-tag conversions get their first touch and campaign the same way. Only by the visitor ID, never by IP address, and only from pages read before the lead. Anything the sender gave always wins. The lead's row and drawer mark these values **filled by Skald**. Page views that reach Skald after the lead still fill it at the next run, and the second count checks every filled value against the page views: a day where they disagree is withheld.
+
 ### Likely from an AI assistant (conversions)
 
 The section **Likely from AI assistants (inferred)**: completed conversions whose first touch was direct, by the assistant that likely sent them, the same guess as with the lead database. The first touch is the lead's or the tool's first touch; for the script tag, the browser's first visit. "Not recorded", under the table, means the first touch, or the fetches around it, were not kept. Likely, never certain, and not part of the sources above.
@@ -368,6 +370,12 @@ Skald's goals are not set on Leads & sales' figures. A goal is a page event, suc
 
 Owners and admins can type an IP address, an email, a lead's number or a visitor ID in [Leads & sales > Find a person](#sales/people), or in the search box at the top (or **Ctrl K**). It shows that person's visits, leads and conversions, spam, test, cancelled and removed ones too, linked together. Each search is written to the audit log. See [Privacy](privacy.md).
 
+## Ad click IDs (off unless you turn them on)
+
+An ad's link carries a click ID that the ad network adds: `gclid` (Google Ads), `msclkid` (Microsoft Ads), `fbclid` (Meta), `li_fat_id` (LinkedIn), `ttclid` (TikTok), `twclid` (X), and `gbraid` or `wbraid` (Google on iPhones). Skald always reads it to name the source and the campaign. With **Keep ad click IDs on leads** on ([Settings > This site > Privacy](#settings/site/privacy), card **Leads**; owners and admins), Skald also keeps the ID itself with the lead, so a lead can be tied to the exact ad click. It comes from the touch your server or tool sent, or, for a lead filled by Skald and for the script tag's own conversions, from the page view the visit started on.
+
+Only owners and admins see it, in the lead's drawer (**Ad click**, with a copy button) and in Find a person; it is never in the figures, the data files or the webhooks Skald sends. It is deleted with the lead, with a person's deletion request, after the People days when you set those shorter than the leads, and all of this site's click IDs at the next run when you turn the setting off. Your privacy notice must say you keep them: the wording Settings offers adds the line when the setting is on.
+
 ## Removing a person's data
 
-To delete one person's data (for a privacy request), ask the person who runs your Skald server. They run `skald forget` with the email, IP address, visitor ID or lead reference. It deletes their conversions, the removed rows, their name and email, and the visits kept with their address.
+To delete one person's data (for a privacy request), ask the person who runs your Skald server. They run `skald forget` with the email, IP address, visitor ID or lead reference. It deletes their conversions (with any ad click ID kept on them), the removed rows, their name and email, and the visits kept with their address.

@@ -27,6 +27,11 @@ export function valueOf(name, s) {
     }
     case "views": return { text: list((v || []).map((x) => x.name), "No page group") };
     case "emails": case "hosts": case "prefixes": case "pagepatterns": return { text: list(v, "None") };
+    case "postpaths": {
+      // site.script_posts (form_names.py): the site's own list; a suggestion waiting is said on the row.
+      const k = (s.suggested || []).length;
+      return { text: [list(v, "None of your own"), k ? `${k} suggested` : ""].filter(Boolean).join(" · "), kind: k ? "warn" : undefined, word: k ? "Suggested" : undefined };
+    }
     case "choice": return { text: v || (name === "mail.smtp.security" ? "From the port" : "The default") };
     case "int":
       if (s.forever && v === 0) return { text: "Kept for good" };

@@ -17,7 +17,7 @@ site's organisation and to install admins:
                                       tool made (Stripe, HubSpot; Calendly, Cal.com
                                       and Typeform may give their own too), kept
                                       0600 and never sent back
-       2.45: both answers carry `check` (conversions/key_check.py): the hook's
+       2.44.1: both answers carry `check` (conversions/key_check.py): the hook's
        deliveries refused in the last 24 h and held, verified with the key just
        saved; the ones it matches are taken in (accepted_held) with their time.
        {held, matched, taken, recorded, refused_last_at, unsigned, verdict:
@@ -33,7 +33,7 @@ site's organisation and to install admins:
                                       receiver in this process, marked as a test
                                       (read, logged as "test", never kept); the
                                       answer says what a real one would keep.
-                                      2.45: `proves: "address"` (it is signed with
+                                      2.44.1: `proves: "address"` (it is signed with
                                       the key Skald has, so it cannot prove the
                                       tool's key) and `last_real`, the newest real
                                       delivery {at, outcome, words} or null
@@ -49,7 +49,7 @@ The GET also carries `status`: the doctor's lines for the integrations
 (doctor.integration_checks: the receiver, the script tag, each hook, one
 lead from two tools, the lead database), each tool's state in words
 (roads.hook_states: needs a secret, never received, ready, last received N
-ago; 2.43: last_at and test_at, when the last real and test delivery came; 2.45,
+ago; 2.43: last_at and test_at, when the last real and test delivery came; 2.44.1,
 hook_keys.facts: key_word, the tool's word for its key; saved_at, saved_by (a
 display name, never an email) and saved_how ("made by Skald" | "pasted"), from
 the audit log, null when unknown; last_real {at, outcome, words}; since_saved

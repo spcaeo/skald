@@ -124,6 +124,29 @@ const tests = {
     assert.equal(p.cookieWrites.length, 0);
     assert.equal(p.ctx.skald("id"), b.v);
   },
+  "a page view carries the visit's campaign tags and ad click kind; events do not (2.45)"() {
+    const p = page({ url: "https://www.example.com/?utm_source=News&utm_medium=CPC&utm_campaign=Spring%20Sale&gclid=Cj0-abc_1",
+      referrer: "https://www.google.com/" });
+    const b = p.last();
+    assert.equal(b.u, "news");
+    assert.equal(b.m, "cpc");
+    assert.equal(b.c, "spring sale");
+    assert.equal(b.k, "gclid");                      // the kind only: CK=0, the site keeps no IDs
+    p.doc("click", Object.assign(el("a", { "data-skald-cta": "hero" }), { href: "" }));
+    const cta = p.last();
+    assert.equal(cta.e, "cta_click");
+    assert.ok(!("m" in cta) && !("c" in cta) && !("k" in cta));
+    assert.equal(cta.u, "news");
+    p.ctx.history.pushState({}, "", "/pricing/");
+    assert.equal(p.last().c, "spring sale");         // the visit's tags, from the session
+    assert.equal(p.last().k, "gclid");
+  },
+  "with CK=1 the page view carries the click ID itself (2.45)"() {
+    const p = page({ url: "https://www.example.com/?msclkid=4f2a9c", source: SOURCE.replace("CK=0", "CK=1") });
+    assert.equal(p.last().k, "msclkid:4f2a9c");
+    p.ctx.history.pushState({}, "", "/next/");
+    assert.equal(p.last().k, "msclkid:4f2a9c");
+  },
   "an existing ID is kept"() {
     const old = "skv_" + "Z".repeat(22);
     const p = page({ storage: { "skald.vid": old } });

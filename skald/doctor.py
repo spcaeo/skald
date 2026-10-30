@@ -15,6 +15,9 @@ The parts, in order:
     Next.js pages  only when the log's last lines hold Next.js payloads (?_rsc=):
                    whether they record the prefetch header (rsc_prefetch=), without
                    which a page opened inside the site is not counted
+    form posts     a POST path most page views send (form_names.suggest: the site's
+                   own script, not a form), named once; stored days counted before
+                   that rule, with the recount
     web app        dashboard.app on
     hook receiver  the beacon helper answers on its port (127.0.0.1:8766)
     hook <tool>    each hook set up: its secret, its last delivery (roads.py)
@@ -344,6 +347,45 @@ def page_assets(config: dict) -> dict:
                 "(site.require_rendering false) when they come from a CDN this log never sees.")
 
 
+def form_posts(config: dict, history_path, site: str, tz, now: datetime, cmd: str) -> dict:
+    """"Sent a form" (form_names.py): a POST path the stored days say a page's
+    own script sends, named once each; and stored days counted before the rule."""
+    import sqlite3
+    from .form_names import from_config, suggest
+    from .store_visits import forms_old_days
+    part = "Form posts"
+    path = Path(history_path)
+    if not path.is_file():
+        return item("forms", part, OFF, "no day stored yet")
+    last = now.astimezone(tz).date() - timedelta(days=1)
+    conn = sqlite3.connect(f"file:{path.resolve()}?mode=ro", uri=True)
+    try:
+        found = suggest(conn, site, last, from_config(config), DAYS)
+        old = [date.fromisoformat(d) for d in
+               forms_old_days(conn, site, last - timedelta(days=DAYS - 1), last)]
+    finally:
+        conn.close()
+    says, fixes = [], []
+    for s in found:
+        says.append(f"POST {s['path']} is sent by most page views ({s['visits']} of the "
+                    f"{s['of_posting']} visits that sent a POST, of {s['of_all']} visits, on "
+                    f"{s['day']}; like that on {s['days']} of the last {DAYS} days): it looks "
+                    "like the site's own script")
+    if found:
+        fixes.append("Add it under Settings > Data > What counts > Not forms so it is not "
+                     f"counted as a form, then `{cmd} backfill --days {DAYS} --force` recounts "
+                     "the days the logs still hold. If it is a real form, leave it.")
+    if old:
+        says.append(f"{len(old)} stored day{'s were' if len(old) != 1 else ' was'} "
+                    f"({_dates(old)}) counted when a page script's POST was a form")
+        fixes.append(f"`{cmd} backfill --days {(last - old[0]).days + 1} "
+                     "--force` recounts them while the logs still hold them; a day the log "
+                     "no longer holds keeps its old count, marked as such.")
+    if not says:
+        return item("forms", part, OK, "no POST path looks like a page's own script")
+    return item("forms", part, ATTENTION, "; ".join(says), " ".join(fixes))
+
+
 # ------------------------------------------------------------- the parts
 
 def web_app(config: dict) -> dict:
@@ -608,6 +650,8 @@ def checks(ctx, send_test: bool = False, helper_state: dict | None = None) -> li
     out += _safe("logs", "Access log", access_log, config, now, cmd)
     out += _safe("assets", "Page assets", page_assets, config)
     out += _safe("rsc", "Next.js pages", next_pages, config)
+    out += _safe("forms", "Form posts", form_posts, config, ctx.db_path, ctx.site, ctx.tz,
+                 now, cmd)
     out += _safe("app", "Web app", web_app, config)
     out += _safe("receiver", "Hook receiver", receiver, config, state)
     out += _safe("hooks", "Hooks", hook_items, config, folder, ctx.site, now, cmd)

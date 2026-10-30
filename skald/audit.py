@@ -454,6 +454,7 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
     firsts = audit_release2.FirstsRecount(wanted, source_of, _bare)
     more = audit_more.start(config, day, tz, wanted)    # phase 4 recounts
     more.set_window(start, end)
+    not_form = audit_visits.NotForm(config)      # a page script's POST is no form
     for line in lines:
         if wanted and line.host and line.host.lower() not in wanted:
             excluded += 1
@@ -463,7 +464,7 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
         bots.hit(line, group, judge.info)
         more.judged(line, group, judge.info)
         requests[group] += 1
-        if line.method == "POST" and not _OWN.match(line.path):
+        if not_form.form(line):
             posts[group] += 1
         statuses[group][status_of(line.status)] += 1
         entry = not_page_entry(line)
@@ -492,7 +493,7 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
     cities = audit_cities.fill(config)
     if cities is not None:
         by["city"] = Counter()
-    journeys = audit_visits.VisitRecount(wanted)
+    journeys = audit_visits.VisitRecount(wanted, not_form)
 
     def close(visit: list) -> None:
         nonlocal visits, readers

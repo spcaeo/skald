@@ -1,4 +1,4 @@
-"""Refused hook deliveries, held for 24 hours (2.45), so a key saved late
+"""Refused hook deliveries, held for 24 hours (2.44.1), so a key saved late
 still takes them in.
 
 Why: a site's Calendly sent eight real bookings that Skald refused (the key

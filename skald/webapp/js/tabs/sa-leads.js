@@ -118,11 +118,18 @@ export function columnsFor(names, today = "") {
     // A booking tool's reference is a long address: its end shown, the whole on hover, in the copy and the CSV.
     { key: "ref", label: "Reference", hide: true, csvAlways: true,
       fmt: (v) => refCell(v, v && String(v).length > 28 ? `…${String(v).slice(-26)}` : v), csv: (x) => x.ref || "", sortable: false },
-    { key: "source", label: "Source", fmt: dash },
-    { key: "first_source", label: "First touch", fmt: dash },
+    { key: "source", label: "Source", fmt: (v, x) => filledCell(v, x, "source_type"), csv: (x) => x.source || "" },
+    { key: "first_source", label: "First touch", fmt: (v, x) => filledCell(v, x, "first_source"), csv: (x) => x.first_source || "" },
     { key: "landing", label: "Landing page", fmt: dash, path: true },
     { key: "country", label: "Country", fmt: (v) => (v ? countryWords(v) : "-"), country: (x) => x.country || "" },
   ];
+}
+
+/* 2.45: a touch Skald filled from the browser's own page views, because the sender gave none
+   (conversions/fill.py: `filled` names the columns), says so beside its value. */
+const FILLED = "Filled by Skald from this browser's own page views (its visitor ID): the lead came with no touch.";
+export function filledCell(v, x, col) {
+  return v && (x.filled || []).includes(col) ? h("span", null, dash(v), " ", h("span", { class: "lbl-tag", title: FILLED }, "filled by Skald")) : dash(v);
 }
 
 /* A sale's own facts (2.32.0), only those it carries: its value and currency, what was refunded
@@ -142,13 +149,15 @@ export function saleFacts(x) {
    reported), its pages up to the moment (the page script's, by its visitor ID), its facts. */
 export function openLead(x) {
   const facts = [["When", at(x.at)], ...(x.name || x.email ? [["Name", dash(x.name)], ["Email", dash(x.email)]] : []), ["What", h("span", null, oneAction(x.action || ""), labelTag(x.label))],
-    ...saleFacts(x), ["Stage now", stageWords(x)], ["From", toolName(x.tool || "")], ["Source (last touch)", dash(x.source)], ["First touch", dash(x.first_source)],
-    ["Campaign", dash(x.campaign)], ["Landing page", x.landing ? withUrl(h("span", { class: "mono" }, x.landing), x.landing, { cls: "ua-after" }) : "-"], ["Country", x.country ? countryWords(x.country) : "-"], ["Device", dash(x.device)]];
+    ...saleFacts(x), ["Stage now", stageWords(x)], ["From", toolName(x.tool || "")], ["Source (last touch)", filledCell(x.source, x, "source_type"), x.source], ["First touch", filledCell(x.first_source, x, "first_source"), x.first_source],
+    ["Campaign", filledCell(x.campaign, x, "campaign"), x.campaign], ["Landing page", x.landing ? withUrl(h("span", { class: "mono" }, x.landing), x.landing, { cls: "ua-after" }) : "-"], ["Country", x.country ? countryWords(x.country) : "-"], ["Device", dash(x.device)],
+    // 2.45: the ad click ID (conversions.click_ids), only in an owner's or an admin's answer.
+    ...(x.click_id ? [["Ad click", withCopy(h("span", { class: "mono lr-id" }, `${x.click_kind}: ${x.click_id}`), x.click_id, { label: `${x.click_kind} click ID`, cls: "ua-after" })]] : [])];
   // In the address by its row id (lead=1287: js/overlays.js), never a name or an email.
   // id, ref and test (2.25): its reference, every step of it and Mark as test (leadref.js).
   return openVisitor({ conversion: { action: x.action, at: x.at, tool: x.tool, browser: x.browser, journey: x.journey || [], steps: x.steps || [],
     id: x.id, ref: x.ref || null, test: x.left_out === "test" },
-    facts: [h("dl", { class: "dw-dl" }, facts.flatMap(([t, v]) => [h("dt", null, t), h("dd", null, copyFact(t, v))]))],
+    facts: [h("dl", { class: "dw-dl" }, facts.flatMap(([t, v, raw]) => [h("dt", null, t), h("dd", null, copyFact(t, v, raw || null))]))],
     route: x.id != null ? { key: "lead", value: String(x.id) } : null });
 }
 

@@ -5,7 +5,7 @@ import { h, n, share } from "../ui.js";
 import { GROUPS, color, figures, pathMatch, ranked, chartDays } from "../data.js";
 import { bars, columns, legend } from "../charts.js";
 import { table } from "../table.js";
-import { head, nothing, coverageNote, panel, countTable, fileName, compareFor, healthTabs } from "./common.js";
+import { head, nothing, coverageNote, panel, countTable, fileName, compareFor, healthTabs, formsOldNote } from "./common.js";
 import { uptime } from "./uptime.js";
 import { serverLoad } from "./load.js";
 
@@ -79,8 +79,8 @@ export default function health(m, s) {
     h("section", { class: "s" }, h("h2", null, "Server errors by page"), countTable(t.server_errors, { caption: "5xx by page", file: fileName("server-errors", r), key: "Page", value: "5xx", keep, path: true, drill: "path", empty: "No server errors. Good." })),
     h("section", { class: "s" }, h("h2", null, "Page not found, seen by people"), countTable(t.not_found, { caption: "404s seen by people", file: fileName("not-found", r), key: "Page", value: "404s", keep, path: true, drill: "path", empty: "No person met a missing page." }))));
   const posts = Object.entries(t.posts || {}).flatMap(([g, p]) => ranked(p.pages, keep).map(([page, v]) => ({ group: GROUPS.find(([k]) => k === g)?.[1] || g, page, v })));
-  out.push(h("section", { class: "s" }, h("h2", null, "Form posts"), h("p", { class: "sub" }, "Counted, never read: what was sent is not in the log."),
-    table([{ key: "group", label: "From" }, { key: "page", label: "Page", path: true, drill: "path" }, { key: "v", label: "Posts", num: true }], { caption: "POST requests", rows: posts, file: fileName("posts", r), empty: "No form posts in this range." })));
+  out.push(h("section", { class: "s" }, h("h2", null, "Form posts"), h("p", { class: "sub" }, "Counted, never read: what was sent is not in the log. A POST the page's own script sends is not a form (Settings › Data › What counts › Not forms)."),
+    formsOldNote(t), table([{ key: "group", label: "From" }, { key: "page", label: "Page", path: true, drill: "path" }, { key: "v", label: "Posts", num: true }], { caption: "POST requests", rows: posts, file: fileName("posts", r), empty: "No form posts in this range." })));
   out.push(coverageNote(cov, r));
   return out;
 }

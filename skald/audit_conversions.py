@@ -662,7 +662,8 @@ def check_file(config: dict, folder: Path, site: str, tz, first: date, last: dat
     """Every figure conversions.json shows, against the second counts:
     the stages against the spools and the lead DB (findings), and every
     day's figures and the pages block against audit_conversions_figures'
-    SQL, and the revenue and ltv against audit_revenue.py. {"days/<day>",
+    SQL, the touches Skald filled against audit_filled.py's own reading of the
+    page views, and the revenue and ltv against audit_revenue.py. {"days/<day>",
     "pages_before" or "ltv": problems}."""
     from . import audit_conversions_figures as figures
     from .conversions import store
@@ -676,6 +677,10 @@ def check_file(config: dict, folder: Path, site: str, tz, first: date, last: dat
         return {"*": problems}
     for day, problems in figures.check_days(path, site, tz, first, last, now, hours,
                                             blob["days"], history, config).items():
+        out.setdefault(f"days/{day}", []).extend(problems)
+    # 2.45: the touches Skald filled from a visitor ID's page views (audit_filled.py).
+    from . import audit_filled
+    for day, problems in audit_filled.check(path, site, tz, first, last).items():
         out.setdefault(f"days/{day}", []).extend(problems)
     # 2.32: revenue and lifetime value, by SQL and from the spool (audit_revenue.py).
     from . import audit_revenue
