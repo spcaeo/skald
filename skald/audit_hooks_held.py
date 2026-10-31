@@ -15,7 +15,12 @@ main code:
     a payment to its invoice, which the main road keeps (accepted_held too).
     Per tool, over the last AUDIT_DAYS days by when each first came.
   * a held file (or a claim left behind) that came more than HOLD_HOURS ago:
-    the purge failed (run-daily purges before this runs).
+    the purge failed (run-daily purges before this runs). Not on a site that
+    keeps everything (keep_everything.py, the owner's rule for internal and
+    enterprise sites): nothing there is deleted by age, so a hook holding more
+    than KEEP_ALL_CAP is the finding instead. The rule is read the way every
+    prune reads it, an unreadable rule keeps (2.45.2: on 31 Oct one site's
+    22 held Calendly deliveries, kept as the rule says, failed run-daily).
   * a held body whose hook has no refusal row (unsigned or bad_signature)
     within REFUSAL_SLACK seconds before or after it came: a body kept that
     was never refused. The receiver writes at most one refusal row a minute
@@ -35,6 +40,7 @@ from pathlib import Path
 
 AUDIT_DAYS = 30
 HOLD_HOURS = 24                 # the rule held.py keeps to (DATA-CONTRACT.md)
+KEEP_ALL_CAP = 2000             # a keep-everything hook holds no more (held.py)
 REFUSAL_SLACK = 120             # seconds
 FOLDER = "hooks-held"
 OUTCOME = "accepted_held"
@@ -135,17 +141,36 @@ def spooled(spool: Path, site: str, since: datetime) -> dict[str, int]:
     return out
 
 
+def keeps_everything(config: dict, folder, site: str) -> bool:
+    """The retention rule, as every prune reads it; unreadable keeps."""
+    try:
+        from .keep_everything import Keeper
+        return Keeper(config, folder).why(site) is not None
+    except Exception:                    # noqa: BLE001 - unreadable rule: keep
+        return True
+
+
 def findings(config: dict, folder: Path, site: str, now: float | None = None) -> list[str]:
     """The problems found for one site (empty: the hold matches)."""
     from .conversions import spool as spool_mod
     from .conversions import store
     stamp = datetime.fromtimestamp(time.time() if now is None else now, tz=timezone.utc)
     problems = []
+    kept_all = keeps_everything(config, folder, site)
     db = _db(store.path_for(config, Path(folder)))
     try:
         refused = _refusals(db, site)
-        for entry in _held(folder, site):
-            if entry["at"] < stamp - timedelta(hours=HOLD_HOURS):
+        entries = _held(folder, site)
+        if kept_all:
+            per_tool: dict[str, int] = {}
+            for entry in entries:
+                per_tool[entry["tool"]] = per_tool.get(entry["tool"], 0) + 1
+            for tool, n in sorted(per_tool.items()):
+                if n > KEEP_ALL_CAP:
+                    problems.append(f"hooks held: {site}/{tool}: {n} held deliveries, "
+                                    f"more than {KEEP_ALL_CAP}")
+        for entry in entries:
+            if not kept_all and entry["at"] < stamp - timedelta(hours=HOLD_HOURS):
                 problems.append(f"hooks held: {site}/{entry['tool']}: a held delivery from "
                                 f"{entry['at']:%Y-%m-%d %H:%M} UTC is past {HOLD_HOURS} hours")
             slack = timedelta(seconds=REFUSAL_SLACK)

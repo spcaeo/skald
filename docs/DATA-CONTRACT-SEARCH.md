@@ -26,7 +26,7 @@ adds the table (DEPLOY.md section 7).
 | `day` | the engine's own day, `YYYY-MM-DD`. Search Console's days are Pacific Time (America/Los_Angeles), as Google gives them; Bing's are the dates Bing gives. Never re-cut into the site's time zone. |
 | `kind` | `total`, `query`, `page`, `country`, `device`, `appearance`, `query_page` (Bing: `total`, `query`, `page`) |
 | `data` | the blob below, JSON |
-| `final` | 1 when the engine says the day will not change (Search Console: before the answer's `first_incomplete_date`; Bing: 10 days old or more); 0 provisional, fetched again by the next sync |
+| `final` | 1 when the engine says the day will not change (Search Console: before the answer's `first_incomplete_date` and 3 days old or more, 2.45.2; Bing: 10 days old or more); 0 provisional, fetched again by the next sync |
 | `source` | the property or site address it was read from |
 | `fetched_at` | UTC, ISO 8601 |
 

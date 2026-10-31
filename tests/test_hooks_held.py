@@ -276,6 +276,23 @@ class Audit(HeldBase):
         self.assertTrue(any("no refusal in the delivery log" in p for p in
                             audit_hooks_held.findings(self.config, self.folder, SITE, now=T + 5000)))
 
+    def test_a_keep_everything_site_keeps_them_and_the_audit_agrees(self):
+        # 2.45.2: on 31 Oct one site's held deliveries, kept as the rule says,
+        # made run-daily fail as "past 24 hours".
+        self.refuse_three()
+        self.config.setdefault("retention", {})["keep_everything"] = True
+        later = T + 2 * 86400
+        self.assertEqual(held.purge(self.folder, later, keeps=lambda site: True), 0)
+        self.assertEqual(len(self.files("calendly")), 3)
+        self.assertEqual(audit_hooks_held.findings(self.config, self.folder, SITE, now=later), [])
+        with mock.patch.object(audit_hooks_held, "KEEP_ALL_CAP", 1):
+            self.assertEqual(audit_hooks_held.findings(self.config, self.folder, SITE, now=later),
+                             ["hooks held: example.com/calendly: 3 held deliveries, more than 1"])
+        # The rule off again: the age is the finding, as before.
+        self.config["retention"]["keep_everything"] = False
+        self.assertTrue(any("past 24 hours" in p for p in audit_hooks_held.findings(
+            self.config, self.folder, SITE, now=later)))
+
     def test_accepted_held_recounted_from_the_spool(self):
         self.refuse_three()
         self.save(CALENDLY_KEY)
