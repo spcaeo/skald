@@ -116,7 +116,9 @@ the last N days Bing returns.
   day after the newest stored day, the 4 days before the newest day, and any
   stored day still provisional. Those days are replaced.
 - **Final or provisional.** Google says where its data stops being final
-  (`first_incomplete_date`). Days after it are stored as **provisional** and
+  (`first_incomplete_date`). Days after it, and any day less than 3 days old
+  (`days.GOOGLE_FINAL_DAYS`, since 2.45.2: Google can leave the date out when
+  yesterday is complete but not yet final), are stored as **provisional** and
   shown so; the next sync fetches them again. Bing's days are final after 10
   days.
 - **Pacific days.** Search Console's days are Pacific Time, as Google gives

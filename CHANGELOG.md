@@ -6,6 +6,42 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 Nothing yet.
 
+## 2.45.2 (2026-10-31)
+
+The morning run no longer reports "failed" for two checks that were wrong, not the figures.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- Nothing else: no schema change, no nginx line. The next Search Console sync marks the last
+  days provisional again by itself.
+
+### Held webhook deliveries on a keep-everything site no longer fail the morning run
+
+- **What:** the second count of held webhook deliveries (`audit_hooks_held.py`) now follows the
+  keep-everything rule, as the hold itself does: on such a site nothing is deleted by age, so a
+  held delivery older than 24 hours is no finding; more than 2,000 held for one hook is.
+- **Why:** on 31 Oct the morning run failed and mailed "Daily run failed": one site's 22
+  held Calendly deliveries (28 to 29 Oct, signed with an old key) were kept, as the rule says,
+  and the check expected them gone after 24 hours.
+- **Who:** sites that keep everything and have held deliveries.
+- **What to do:** nothing.
+- **Checked:** a test holds deliveries on a keep-everything site two days, finds them kept and
+  the check quiet, the 2,000 cap reported, and the 24-hour finding back with the rule off.
+
+### A Search Console day is final only once it is 3 days old
+
+- **What:** a day counts as final (Google will not change it) only before Google's first
+  incomplete date and at least 3 days old. Younger days are provisional and fetched again.
+- **Why:** on 31 Oct Google named no incomplete date, so 30 Oct was stored as final; the
+  morning check asked Google for 30 Oct's final figures, got 0 / 0, and failed the run
+  (docomatic.ai 1 click, 48 impressions; another site 97 clicks). Google's final figures come 2
+  to 3 days after a day ends. The stored figures were Google's own; only the label was early.
+- **Who:** every site with Search Console.
+- **What to do:** nothing; the next sync relabels the last days.
+- **Checked:** sync tests, among them the 31 Oct case (no incomplete date: yesterday and the
+  day before stay provisional).
+
 ## 2.45.1 (2026-10-31)
 
 A POST your site refused no longer counts as "sent a form", and an audit of a day whose log is

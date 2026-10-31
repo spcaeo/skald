@@ -107,6 +107,15 @@ class Google(Base):
         self.assertEqual(self.engines.claims[0]["scope"], google.SCOPE)
         self.assertEqual(len(self.engines.claims), 1, "one token for the whole sync")
 
+    def test_a_complete_day_is_final_only_when_three_days_old(self):
+        # 31 Oct: Google named no incomplete day, 30 Oct was stored final, and asking for
+        # its final figures got 0 / 0 (run-daily's search recount failed).
+        self.engines.incomplete = None
+        self.assertEqual(sync.run(self.job(), "google"), 0, self.said)
+        got, finals = self.stored()
+        self.assertEqual([d for d, f in finals.items() if not f], ["2026-10-16"])
+        self.assertTrue(finals["2026-10-15"], "3 days before the 18th, complete: final")
+
     def test_next_sync_refetches_last_days_and_provisional(self):
         sync.run(self.job(), "google")
         first = len(self.engines.calls)
@@ -120,7 +129,8 @@ class Google(Base):
                          ("2026-10-13", "2026-10-17"))
         got, finals = self.stored()
         self.assertEqual(len(got), 29)
-        self.assertEqual([d for d, f in finals.items() if not f], ["2026-10-17"])
+        # 10-16 is complete but 2 days old on the 18th (days.GOOGLE_FINAL_DAYS).
+        self.assertEqual([d for d, f in finals.items() if not f], ["2026-10-16", "2026-10-17"])
         new = ss.records(date(2026, 8, 1), date(2026, 10, 17), scale=2)
         for d in ("2026-10-13", "2026-10-15", "2026-10-16"):
             self.assertEqual(got[d]["total"]["total"]["clicks"], sum(r["clicks"] for r in new[d]))

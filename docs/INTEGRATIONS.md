@@ -966,7 +966,8 @@ time by SQL (`audit_conversions_figures.py`); see DATA-CONTRACT.md.
 The hold (2.44.1) has its own second count, `audit_hooks_held.py` (run-daily,
 `audit_more.DAILY` "hooks_held"): the delivery log's `accepted_held` rows per tool
 against the spool's lines marked `"held": true` that its own reading keeps; a held
-file older than 24 hours (the purge failed); a held body with no refusal row for its
+file older than 24 hours (the purge failed), or, on a site that keeps everything
+(nothing purged by age, 2.45.2), more than 2,000 held for one hook; a held body with no refusal row for its
 hook within two minutes of when it came.
 
 ## Search Console, Bing and AI answers

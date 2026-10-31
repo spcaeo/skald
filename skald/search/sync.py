@@ -160,10 +160,14 @@ def earliest(client, prop: str, first: date, last: date) -> date | None:
 
 
 def fetch_google(client, prop: str, first: date, last: date,
-                 floor: date | None = None) -> tuple[dict, dict, int]:
+                 floor: date | None = None,
+                 today: date | None = None) -> tuple[dict, dict, int]:
     """({day: {kind: blob}}, {day: final}, rows read) for [first, last].
     A day with no row is stored as 0 only from `floor` (the property's first
-    day with data) on; before it, Google has nothing, which is not a zero."""
+    day with data) on; before it, Google has nothing, which is not a zero.
+    A day is final before the answer's first incomplete date and at least
+    days.GOOGLE_FINAL_DAYS before `today` (Pacific; the day after `last`
+    when not given)."""
     base = {"startDate": first.isoformat(), "endDate": last.isoformat(), "type": "web",
             "dataState": "all"}
     totals, meta = client.query(prop, {**base, "dimensions": ["date"],
@@ -203,6 +207,7 @@ def fetch_google(client, prop: str, first: date, last: date,
                 row[0] = days.QP_SEP.join(str(k) for k in keys[1:3]) if len(keys) > 2 else ""
             grouped.setdefault(kind, {}).setdefault(r["keys"][0], []).append(row)
     out, finals = {}, {}
+    settled = (today or last + timedelta(days=1)) - timedelta(days=days.GOOGLE_FINAL_DAYS)
     if floor is None:
         floor = min((date.fromisoformat(k) for k in total), default=last + timedelta(days=1))
     for d in _days(max(first, floor), last):
@@ -215,7 +220,7 @@ def fetch_google(client, prop: str, first: date, last: date,
                                     page_total.get(k, zero) if kind in BY_PAGE else t,
                                     days.TOP[kind])
         out[d] = blobs
-        finals[d] = incomplete is None or k < incomplete
+        finals[d] = (incomplete is None or k < incomplete) and d <= settled
     return out, finals, read
 
 
@@ -266,7 +271,7 @@ def sync_google(job: Job, refetch: int = REFETCH_DAYS, backfill_months: int | No
             "started_at": began, "finished_at": None, "error": None})
     stored = rows = 0
     for n, (a, b) in enumerate(reversed(chunks), 1):    # newest first: useful soonest
-        got, finals, read = fetch_google(client, prop, a, b, floor)
+        got, finals, read = fetch_google(client, prop, a, b, floor, today)
         with job.history() as history:
             stored += days.write(history.db, job.site, "google", got, finals, prop, job.now)
         rows += read

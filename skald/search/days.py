@@ -11,8 +11,9 @@ One row per site, engine, day and kind, holding one JSON blob:
            showed, keyed "<query>\t<page>" (QP_SEP), counted by page as Google
            does when the page is a dimension
   final    1 when the engine says the day will not change (Search Console:
-           before the answer's first_incomplete_date; Bing: older than
-           BING_FINAL_DAYS); 0: provisional, fetched again by the next sync
+           before the answer's first_incomplete_date and at least
+           GOOGLE_FINAL_DAYS old; Bing: older than BING_FINAL_DAYS);
+           0: provisional, fetched again by the next sync
   source   the property or site address it was read from
 
 A blob (`fold`):
@@ -54,6 +55,10 @@ TOP = {"query": 500, "page": 300, "country": 250, "device": 10, "appearance": 10
 QP_SEP = "\t"                          # query_page's key: query, a tab, the page address
 OTHER = "(all others)"
 BING_FINAL_DAYS = 10
+# Google's final figures come 2 to 3 days after a day ends; its answer names no
+# incomplete date when the newest day is complete but not yet final. On 31 Oct
+# 2.45.1 stored 30 Oct as final so, and asking for its final figures got 0 / 0.
+GOOGLE_FINAL_DAYS = 3
 
 TABLE = """
 CREATE TABLE IF NOT EXISTS search_days (
