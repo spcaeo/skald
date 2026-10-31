@@ -21,7 +21,7 @@ import string
 from collections import Counter
 from urllib.parse import urlsplit
 
-from .form_names import BEACON_STATUS, ENTRY_LIMIT, MAX_OWN, SCRIPT_POSTS
+from .form_names import BEACON_STATUS, ENTRY_LIMIT, MAX_OWN, REFUSED, SCRIPT_POSTS
 
 OTHER = "(all others)"
 _SKIP_EXT = (".css", ".js", ".mjs", ".map", ".png", ".jpg", ".jpeg", ".gif", ".svg",
@@ -99,8 +99,9 @@ class NotForm:
                 or self.listed(line.path))
 
     def form(self, line) -> bool:
-        """A POST that counts as a form."""
-        return line.method == "POST" and not self(line)
+        """A POST that counts as a form: not one of the above, and not one
+        the site refused (REFUSED: 301, 404, 405, 444...)."""
+        return line.method == "POST" and line.status not in REFUSED and not self(line)
 
 
 def _is_beacon_path(path: str) -> bool:

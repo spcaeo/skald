@@ -31,7 +31,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterator
 
-from .form_names import why_not_a_form
+from .form_names import REFUSED, why_not_a_form
 from .not_pages import STANDARD
 
 
@@ -102,8 +102,11 @@ class Hit:
         script sends by itself (script_post): Skald's endpoints, a 204 with
         no body, a path on form_names.SCRIPT_POSTS or on the site's own list.
         The script tag's events to /traffic-beacon, and one live site's
-        /api/events, made nearly every visit "form sent"."""
-        return self.method == "POST" and not self.script_post
+        /api/events, made nearly every visit "form sent". Nor one the site
+        refused (form_names.REFUSED: 301, 404, 405, 444...): scanners'
+        posts to /graphql or /xmlrpc.php kept the flag on after that."""
+        return (self.method == "POST" and self.status not in REFUSED
+                and not self.script_post)
 
     @property
     def script_post(self) -> str:

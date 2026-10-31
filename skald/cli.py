@@ -582,6 +582,12 @@ def audit_day(ctx: Context, day: date, logs: list[str] | None = None,
     except ValueError as why:
         ctx.err(f"audit {day}: {why}")
         return 2
+    if not figures.get("requests") and not figures.get("excluded"):
+        # The day's log lines are gone (rotated away): 0 against history is
+        # no finding. On 2026-10-30 `audit --withhold` withheld six good days so.
+        ctx.err(f"audit {day}: no log lines in this day's window; nothing to compare, "
+                f"the day is left as it is")
+        return 2
     from .settings_store import prune_plan
     window = int(setting(ctx.config, "visitors", "repeat_days", 30))
     keep, own = prune_plan(ctx.config, "visitors.repeat_days", window)   # as prune_kept keeps hashes

@@ -127,6 +127,52 @@ class TestTheList(unittest.TestCase):
         self.assertEqual(hit(line(NOON, "203.0.113.33", "/api/events")).script_post, "")
 
 
+class TestARefusedPost(unittest.TestCase):
+    """Rule 3: a POST the site refused is no form (the owner's 24 Oct: every
+    visit still "sent a form" was a scanner's POST answered 301, 404, 405, 444)."""
+
+    def test_refused_answers_are_no_form_on_both_roads(self):
+        for status in (301, 307, 308, 404, 405, 410, 444, 501):
+            for path in ("/graphql", "/xmlrpc.php", "/", "/contact"):
+                with self.subTest(status=status, path=path):
+                    self.assertEqual(both(post(NOON, "203.0.113.34", path, status, "162")),
+                                     (False, False))
+
+    def test_a_form_taken_failed_or_answered_with_a_reason_still_counts(self):
+        for status in (200, 201, 302, 303, 400, 403, 422, 429, 500, 502, 503):
+            with self.subTest(status=status):
+                self.assertEqual(both(post(NOON, "203.0.113.34", "/contact", status, "162")),
+                                 (True, True))
+
+    def test_the_scanner_s_visit_is_not_marked(self):
+        lines = [line(NOON, "203.0.113.35", PAGE),
+                 post(NOON + timedelta(seconds=9), "203.0.113.35", "/graphql", 404, "162"),
+                 post(NOON + timedelta(seconds=10), "203.0.113.35", "/api/graphql", 405, "162"),
+                 post(NOON + timedelta(seconds=11), "203.0.113.35", "/v1/graphql", 301, "162")]
+        journeys = Journeys(own_hosts={"example.com"})
+        c = Classifier()
+        for raw in lines:
+            h = PARSERS["nginx_extended"](raw)
+            journeys.add(h, c(h))
+        got, stats = journeys.finish(50)
+        self.assertEqual(got[0]["posted"], 0)
+        self.assertEqual(stats.flags.get("posted", 0), 0)
+        self.assertEqual(journeys.people[0]["posts"], [])
+
+    def test_recent_requests_say_refused(self):
+        from skald import requests_feed
+        from skald.parse import Hit
+        h = Hit(NOON, "203.0.113.36", "example.com", "POST", "/graphql", "405",
+                f"https://example.com{PAGE}", CHROME)
+        got = requests_feed.row(h, Classifier()(h), UTC, lambda ip: False, False)
+        self.assertEqual(got["kind"], "refused_post")
+        self.assertIn("not a form", got["rule"])
+        h = Hit(NOON, "203.0.113.36", "example.com", "POST", "/contact", "303",
+                f"https://example.com{PAGE}", CHROME)
+        self.assertEqual(requests_feed.row(h, Classifier()(h), UTC, lambda ip: False,
+                                           False)["kind"], "post")
+
+
 class TestThe204Rule(unittest.TestCase):
 
     def test_any_path_answered_204_with_no_body(self):
@@ -250,7 +296,8 @@ class TestTheAuditSharesOnlyTheLists(unittest.TestCase):
         got = {(n.module, a.name) for n in ast.walk(tree)
                if isinstance(n, ast.ImportFrom) and n.level for a in n.names}
         self.assertEqual(got, {("form_names", "BEACON_STATUS"), ("form_names", "ENTRY_LIMIT"),
-                               ("form_names", "MAX_OWN"), ("form_names", "SCRIPT_POSTS")})
+                               ("form_names", "MAX_OWN"), ("form_names", "REFUSED"),
+                               ("form_names", "SCRIPT_POSTS")})
 
 
 def site_day(sandbox_lines_at=NOON) -> list[str]:
@@ -266,6 +313,9 @@ def site_day(sandbox_lines_at=NOON) -> list[str]:
     at = sandbox_lines_at + timedelta(minutes=30)
     out += [line(at, "203.0.113.43", "/pricing"),
             post(at + timedelta(seconds=2), "203.0.113.43", "/landing/ping", 200, "2",
+                 "https://example.com/pricing"),
+            # Refused (rule 3): a POST to an address that takes none.
+            post(at + timedelta(seconds=9), "203.0.113.43", "/graphql", 405, "162",
                  "https://example.com/pricing")]
     return sorted(out)
 
@@ -312,6 +362,22 @@ class TestCollectAuditAndRecount(unittest.TestCase):
         code, out, err = self.box.run("--today", TODAY, "audit")
         self.assertEqual(code, 0, err + out)
         self.assertIn("all match", out)
+
+    def test_an_audit_of_a_day_whose_log_is_gone_leaves_it_alone(self):
+        self.assertEqual(self.box.run("--today", TODAY, "collect")[0], 0)
+        empty = self.box.root / "gone.log"
+        empty.write_text("")
+        code, out, err = self.box.run("--today", TODAY, "audit", "--day", DAY.isoformat(),
+                                      "--log", str(empty), "--withhold")
+        self.assertEqual(code, 2, err + out)
+        self.assertIn("no log lines", err)
+        self.assertNotIn("withheld", err + out)
+        db = sqlite3.connect(str(self.box.db))
+        try:
+            self.assertEqual(db.execute("SELECT verified, coalesce(problems, '') FROM days "
+                                        "WHERE day = ?", (DAY.isoformat(),)).fetchone(), (1, ""))
+        finally:
+            db.close()
 
     def test_the_audit_sees_a_wrong_posted_figure(self):
         self.assertEqual(self.box.run("--today", TODAY, "collect")[0], 0)

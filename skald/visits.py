@@ -51,7 +51,8 @@ ARROW = " → "
 TRAIL_KEEP = 50          # trail entries kept per journey; counts are of all
 FLAGS = ("not_found", "posted", "in_app")
 FLAG_WORDS = {"not_found": "met a page not found (404)",
-              "posted": "sent a form (a POST no page script sends by itself)",
+              "posted": "sent a form (a POST no page script sends by itself, "
+                        "that the site did not refuse)",
               "in_app": "moved inside the site without loading a page"}
 
 # An assistant by the name a reader knows it by.

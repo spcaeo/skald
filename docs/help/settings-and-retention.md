@@ -347,12 +347,13 @@ So these are **not** forms, on every site:
 - **A POST answered 204 with no body.** A real form gets a page or a redirect back; an empty 204 is a beacon.
 - **Well-known beacons**: `/api/events`, `/api/event`, `/api/analytics`, `/api/collect`, `/api/track`, `/api/sentry…`, `/monitoring`, `/_vercel/insights/…`, `/_vercel/speed-insights/…`, `/cdn-cgi/rum` and `/ingest/…`. The card lists them under **Never forms on any site**.
 - **Your own list**, under **Sent by the site's own pages, not forms**.
+- **A POST your site refused** (since 2.45.1): answered 301, 307, 308, 404, 405, 410, 444 or 501, so nothing at that address took it. Scanners post to `/`, `/api`, `/graphql` or `/xmlrpc.php` all day; on one site, every visit still marked "sent a form" after the rules above was one of them. A form that was taken (2xx, 302, 303), failed on your server (5xx) or was turned back with a reason (400, 403, 422, 429) still counts: a person sent it.
 
 Everything else stays a form, for example `/contact` or `/api/contact`. WordPress's `admin-ajax.php` stays a form too, unless it was answered 204: its heartbeat cannot be told from a real form in the log.
 
 **Suggested from your log.** Skald suggests a path when most page views send it: on 3 of the last 14 days, at least half of the visits that sent a POST sent it, and so did at least a fifth of all visits, and it was answered without an error. Each suggestion says its figures. Press **Add** next to it, then **Save**. Skald never adds one by itself: if a suggested path is a real form (a site whose only POST is its contact form, say), leave it. The doctor names a suggested path once too. To add one by hand, type `/path` (that path, with or without a slash at the end) or `/prefix*` (every path that starts with it) and press **Add**. **Remove** takes one off. Capital letters do not matter. Up to 20.
 
-**Where you see it.** In a visit, **sent a form** now means a real form. In [Requests](#site/requests) a skipped POST says "sent by the page's own script (not a form)". The request still counts as a request, in its group, and in Site health's server requests; only **Form posts** and **sent a form** leave it out.
+**Where you see it.** In a visit, **sent a form** now means a real form. In [Requests](#site/requests) a skipped POST says "sent by the page's own script (not a form)", and a refused one "a POST the site refused (not a form)". The request still counts as a request, in its group, and in Site health's server requests; only **Form posts** and **sent a form** leave it out.
 
 **Days stored before.** A day counted before this rule may still count a page script's POST as a form. The server recounts each day its raw log still holds (`backfill --days N --force`). A day older than the log keeps its old count, and the page says so: **Form posts** says how many days of the range were counted before, and such a visit says it "sent a POST, counted before the page's own script was told from a form".
 

@@ -28,6 +28,7 @@ const KIND_WORDS = { page: "a page", rsc: "Next.js page data (_rsc)", asset: "a 
   redirect: "a redirect", not_modified: "not modified (cached)", not_found: "not found", client_error: "a client error", server_error: "a server error", post: "a form post",
   script_event: "a script tag event (sent to Skald, not a form)", skald_endpoint: "a call to a Skald endpoint (hooks or shipped logs, not a form)", other: "other",
   page_script: "sent by the page's own script (not a form)",
+  refused_post: "a POST the site refused: 301, 404, 405... (not a form)",
   not_page: "a machine address, not a page (feed, API, Markdown copy...)" };
 
 // One row as the screens read it; the file's own fields stay as they are.

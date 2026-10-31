@@ -27,14 +27,16 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-30-2.45.0",
+  id: "2026-10-31-2.45.1",
   items: [
+    ["A refused POST is not a form", "a POST your site turned away (301, 404, 405...), as scanners send all day, no longer marks a visit \"sent a form\".", "settings-and-retention"],
     ["\"Sent a form\" means a form", "a POST your page's own script sends by itself (an event beacon) is no longer counted as a form; Settings › Data › What counts › Not forms lists them.", "settings-and-retention"],
     ["Leads filled from their visits", "a lead with a visitor ID gets its first and last touch from that browser's page views, marked filled by Skald.", "leads-and-conversions"],
-    ["Ad click IDs, if you want them", "keep a lead's gclid, fbclid and others; off by default, shown only to people who may see names.", "settings-and-retention"],
   ],
   // The earlier releases' notes, folded under the new ones.
   earlier: [
+    // 2.45.0
+    ["Ad click IDs, if you want them", "keep a lead's gclid, fbclid and others; off by default, shown only to people who may see names.", "settings-and-retention"],
     // 2.44.1
     ["A webhook key that does not match loses nothing", "refused deliveries are held, and saving the right key takes them in with their own times.", "webhooks"],
     ["Each tool's own word, and the saved state stays", "Calendly's \"signing key\"; one question on how its webhook was made; \"Signing key saved … by …\" with Replace.", "webhooks"],
