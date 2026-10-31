@@ -92,7 +92,8 @@ class TestIndependence(unittest.TestCase):
         relative = {(node.module, a.name) for node in ast.walk(ast.parse(source))
                     if isinstance(node, ast.ImportFrom) and node.level for a in node.names}
         self.assertEqual(relative, {("form_names", n) for n in
-                                    ("BEACON_STATUS", "ENTRY_LIMIT", "MAX_OWN", "SCRIPT_POSTS")})
+                                    ("BEACON_STATUS", "ENTRY_LIMIT", "MAX_OWN", "REFUSED",
+                                     "SCRIPT_POSTS")})
 
 
 if __name__ == "__main__":

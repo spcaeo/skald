@@ -54,6 +54,7 @@ KIND_WORDS = {"page": "page view", "rsc": "Next.js payload (_rsc)", "asset": "as
               "post": "form post", "script_event": "script tag event",
               "skald_endpoint": "Skald endpoint", "other": "other",
               "page_script": "page's own script (not a form)",
+              "refused_post": "POST the site refused (not a form)",
               "not_page": "not a page (a machine address)"}
 
 
@@ -87,7 +88,10 @@ def kind_of(hit) -> str:
     if hit.method == "POST":
         # A POST a page's own script sends by itself (form_names.py: a 204
         # with no body, a beacon on the list, the site's own list) is no form.
-        return "page_script" if hit.script_post else "post"
+        if hit.script_post:
+            return "page_script"
+        # Refused (form_names.REFUSED): nothing at that address took it.
+        return "post" if hit.is_form_post else "refused_post"
     if status[:1] == "5":
         return "server_error"
     if status in ("404", "410"):

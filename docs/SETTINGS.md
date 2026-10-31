@@ -154,7 +154,8 @@ recounts stored days.
 `site.script_posts` (Settings > Data > What counts > Not forms): POST paths that are no form
 (`form_names.py`). A visit "sent a form" for any POST except Skald's own endpoints, a POST
 answered 204 with no body, a path on `form_names.SCRIPT_POSTS` (page-script beacons such as
-`/api/events`) and the paths here. `settings_store.apply` writes it into `config["site"]`,
+`/api/events`), a POST the site refused (`form_names.REFUSED`: 301, 307, 308, 404, 405, 410,
+444, 501; since 2.45.1) and the paths here. `settings_store.apply` writes it into `config["site"]`,
 where `parse.read` (through `not_pages.from_config`, `Rules.posts`) and the audit
 (`audit_visits.NotForm`) read it; a value that does not check out counts as unset on both roads.
 The answer of `GET settings` carries `defaults` (the shared list) and `suggested`

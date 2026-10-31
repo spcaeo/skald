@@ -17,6 +17,14 @@ both roads (the audit, audit_visits.NotForm, matches them by its own code):
             Data › What counts › Not forms). Only a person adds one; Skald
             suggests (suggest() below), it never adds one by itself
 
+A POST the site refused is no form either (rule 3, 2026-10-30): answered
+REFUSED below, nothing at that address took it. On the same live site, after
+rule 2, 18 of 34 visits on 24 Oct still read "sent a form": every one was a
+scanner posting to /, /api, /app, /graphql or /xmlrpc.php and getting 301,
+404, 405 or 444 back. A form that was taken answers 2xx or sends the browser
+on (302, 303); one that failed on the server (5xx) or said what was wrong
+(400, 403, 422, 429) still counts, as a person sent it.
+
 WordPress's admin-ajax.php stays a form: its heartbeat cannot be told from a
 real form's call in the log, unless it was answered 204 (rule 2).
 
@@ -55,15 +63,22 @@ SCRIPT_POSTS: tuple[str, ...] = (
 BEACON_STATUS = "204"
 SKALD, NO_BODY, LISTED, OWN = "skald", "204", "list", "site"
 
+# Answers that say nothing at that address takes a POST: moved (301: the
+# browser sends a GET after it, what was typed is lost; 307 and 308 send the
+# POST again, and that request is the one counted), not found or gone (404,
+# 410), no POSTs there (405, 501), the connection closed (nginx's 444).
+REFUSED: frozenset[str] = frozenset({"301", "307", "308", "404", "405", "410", "444", "501"})
+
 # The site's own list (site.script_posts).
 MAX_OWN = 20
 ENTRY_LIMIT = 100
 
 # The counting rule a day was stored with: a `counts` row (RULE_KIND,
 # RULE_NAME, FORMS_RULE) beside each day stored with this rule. A day without it
-# was counted when every POST but Skald's own was a form; its raw log is all
-# that can recount it (backfill --force), and it says so where it is shown.
-FORMS_RULE = 2
+# was counted when every POST but Skald's own was a form, a day with rule 2
+# when a refused POST was one; its raw log is all that can recount it
+# (backfill --force), and it says so where it is shown.
+FORMS_RULE = 3
 RULE_KIND = "visit_rule"
 RULE_NAME = "forms"
 

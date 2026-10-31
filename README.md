@@ -51,6 +51,7 @@
 
 ## What's new
 
+- **2.45.1: a POST your site refused (scanners' 404s and 405s) is not a form** ([changelog](CHANGELOG.md#2451-2026-10-31)).
 - **2.45: "sent a form" means a form; leads fill in from their visits** ([changelog](CHANGELOG.md#2450-2026-10-30)).
   A POST a page's own script sends by itself is no longer a form (Settings › Data › Not forms);
   a lead with a visitor ID gets its touches from that browser's page views; ad click IDs, opt-in.

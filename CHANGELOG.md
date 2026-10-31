@@ -6,6 +6,52 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 Nothing yet.
 
+## 2.45.1 (2026-10-31)
+
+A POST your site refused no longer counts as "sent a form", and an audit of a day whose log is
+gone no longer hides that day.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- **Recount the past days** again, as for 2.45.0: `docker exec skald skald backfill --days 14
+  --force` (more where the raw log is kept longer). A day not recounted says it was counted the
+  old way, as before.
+- Nothing else: no new nginx line, no schema change.
+
+### "Sent a form" leaves out POSTs the site refused
+
+- **What:** a POST answered 301, 307, 308, 404, 405, 410, 444 or 501 (nothing at that address
+  took it) no longer marks a visit "sent a form", and is left out of Form posts and a page's
+  "posts from". A form that was taken (2xx, 302, 303), failed on the server (5xx) or was turned
+  back with a reason (400, 403, 422, 429) still counts. Site › Requests names such a request
+  "a POST the site refused (not a form)" (new kind `refused_post`). Days counted with the 2.45.0
+  rule say they were counted the old way until recounted.
+- **Why:** after 2.45.0's recount, docomatic.ai's 24 Oct still had 18 of 34 visits "sent a
+  form". Read from the raw log, every one was a scanner posting to `/`, `/api`, `/app`,
+  `/graphql`, `/v1/graphql` or `/xmlrpc.php` and getting 301, 404, 405 or 444 back. Not one of
+  that day's browser POSTs was answered 2xx.
+- **Who:** every site; most of all sites that scanners probe.
+- **What to do:** the recount above.
+- **Checked:** tests on both roads (each refused answer, each answer that still counts, a
+  scanner's visit, the Requests kind; collect and audit agree on a day with a refused POST);
+  the 24 Oct raw log grouped per visitor by path and answer, by Skald's own parser.
+
+### An audit of a day with no log lines leaves the day alone
+
+- **What:** `audit --day D` on a day whose raw log lines are gone (rotated away) now says "no
+  log lines in this day's window; nothing to compare" and exits 2. Before, it compared history
+  with a recount of nothing, reported a mismatch and, with `--withhold`, withheld the day.
+- **Why:** 2.45.0's recount audited 13 and 14 Oct with `--withhold` on three sites whose raw
+  lines for those days had rotated away, so six good days were withheld. They were put
+  back the same hour from the backup taken before the upgrade (state and audit note as they
+  were), written in the deploy history.
+- **Who:** anyone running day audits over old days. The daily run audits yesterday, whose log is
+  there, and was never affected.
+- **What to do:** nothing.
+- **Checked:** a test collects a day, audits it against an empty log with `--withhold`, and
+  finds the day still verified with no problems.
+
 ## 2.45.0 (2026-10-30)
 
 "Sent a form" means a form again, and a lead's visits fill in from its visitor ID. **Not
