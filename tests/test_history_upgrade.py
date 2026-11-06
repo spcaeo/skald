@@ -156,7 +156,7 @@ class TestSchemaUpgrade(unittest.TestCase):
 
 
 class TestSchemaUpgradeFromV2(unittest.TestCase):
-    """Version 2 (90cb011 to 22deffa): unfiltered, no scope. Every row in it
+    """Version 2 (e89eb5c to 6470696): unfiltered, no scope. Every row in it
     is a whole-site row, and must still be one after the upgrade."""
 
     def setUp(self):

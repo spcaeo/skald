@@ -139,7 +139,12 @@ class Mapping(unittest.TestCase):
         made = mod.to_records({**base, "event": "invitee.created"})[0]
         self.assertEqual((made["stage"], made["external_ref"], made["vid"], made["at"]),
                          ("completed", uri, VID, "2026-10-10T10:00:00Z"))
-        self.assertEqual(made["last_touch"], {"utm_source": "x", "utm_content": VID})
+        self.assertEqual(made["last_touch"], {"utm_source": "x"},
+                         "the visitor ID in utm_content is no campaign tag")
+        only_id = mod.to_records({**base, "event": "invitee.created", "payload": {
+            "uri": uri, "tracking": {"utm_source": None, "utm_content": VID}}})[0]
+        self.assertEqual((only_id["vid"], only_id["last_touch"]), (VID, None),
+                         "only the visitor ID: no touch, so Skald fills it from the pages")
         gone = mod.to_records({**base, "event": "invitee.canceled"})[0]
         self.assertEqual(gone["stage"], "cancelled")
         moved = mod.to_records({**base, "event": "invitee.canceled",
@@ -153,6 +158,8 @@ class Mapping(unittest.TestCase):
         other = mod.to_records({**base, "event": "invitee.created", "payload": {
             "uri": uri, "tracking": {"utm_content": "spring-sale"}}})[0]
         self.assertIsNone(other["vid"], "not a Skald id")
+        self.assertEqual(other["last_touch"], {"utm_content": "spring-sale"},
+                         "a real utm_content stays")
 
     def test_calcom(self):
         mod = adapter("calcom")
@@ -162,6 +169,9 @@ class Mapping(unittest.TestCase):
         self.assertEqual((r["action"], r["stage"], r["external_ref"], r["vid"]),
                          ("demo", "rescheduled", "B1", VID))
         self.assertEqual(mod.to_records({**body, "triggerEvent": "MEETING_ENDED"}), [])
+        meta = mod.to_records({**body, "payload": {"uid": "B2", "metadata": {
+            "utm_content": VID, "utm_medium": "email"}}})[0]
+        self.assertEqual((meta["vid"], meta["last_touch"]), (VID, {"utm_medium": "email"}))
 
     def test_stripe(self):
         mod = adapter("stripe")

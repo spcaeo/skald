@@ -152,10 +152,14 @@ def touch(raw, tz=None) -> dict | None:
 
 
 def utm_touch(source: dict | None) -> dict | None:
-    """A touch from a tool's own UTM fields (Calendly's `tracking`, metadata)."""
+    """A touch from a tool's own UTM fields (Calendly's `tracking`, metadata).
+    A Skald visitor ID in utm_content (the tag puts it there for Calendly) is
+    no campaign tag: left out, so a booking with only the ID has no touch and
+    is filled from its visitor ID's page views (fill.py)."""
     if not isinstance(source, dict):
         return None
-    return touch({k: source.get(k) for k in TOUCH_KEYS})
+    return touch({k: source.get(k) for k in TOUCH_KEYS
+                  if not (k == "utm_content" and skald_vid(source.get(k)))})
 
 
 def signed(tool: str, headers: dict) -> bool:
