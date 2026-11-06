@@ -47,7 +47,7 @@ function deployed(ts) {
   return w ? `${w.date} ${w.day.slice(0, 4)} ${w.hour}:${w.minute} ${w.label}` : "";
 }
 
-// "Skald v1.0.0 · release 58 · 888ea90 · deployed 7 Oct 2026 16:07 EDT"
+// "Skald v1.0.0 · release 58 · 1e3466d · deployed 7 Oct 2026 16:07 EDT"
 export function buildLine() {
   if (!BUILD) return "";
   return [`${BUILD.name} v${BUILD.version}`, `release ${BUILD.release}`, BUILD.commit,

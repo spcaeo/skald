@@ -6,6 +6,40 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 Nothing yet.
 
+## 2.45.3 (2026-11-06)
+
+A booking from Calendly or Cal.com that carries only the visitor ID now shows the pages its
+visitor read before booking.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- Nothing else: no schema change, no nginx line, no setting.
+
+### A visitor ID in `utm_content` is no campaign tag
+
+- **What:** a Calendly or Cal.com booking that carries only the visitor ID now gets its source,
+  first source and landing page from that visitor's pages (marked filled by Skald), and its lead
+  drawer shows each page in order, ending in "Booked a demo". A real `utm_content` (a campaign's
+  own) is kept as before.
+- **Why:** the script tag puts the visitor ID in `utm_content` of Calendly embeds and links, and
+  Skald read it as the booking's own campaign tag. The booking was stored as "Direct or unknown"
+  and never filled from its journey. Found while building the booking journey for fieldcamp.ai.
+- **Who:** sites with visitor IDs on and a Calendly or Cal.com webhook. No site has visitor IDs
+  on yet, so no stored booking is affected.
+- **What to do:** nothing. To see a booking's pages, turn on visitor IDs (Settings › This site ›
+  Data › Script tag & goals; the privacy notice must say so). Bookings made before that have no
+  journey.
+- **Checked:** new adapter and fill tests (the second count agrees), the full test suite, and a
+  local run with signed Calendly bookings: with only the ID, the drawer shows each page then
+  "Booked a demo"; without an ID, "None linked"; with the booking's own UTM tags, those are kept.
+
+### Housekeeping
+
+- A few code comments that name old commits were updated after the project's private history
+  was rewritten (new commit IDs). No change in behaviour; nothing to do. Checked: the full test
+  suite.
+
 ## 2.45.2 (2026-10-31)
 
 The morning run no longer reports "failed" for two checks that were wrong, not the figures.
