@@ -43,7 +43,7 @@ from .classify import AI_ASKED, Group, assistant_name
 from .search.days import TABLE as SEARCH_DAYS
 from .verify import Problem
 
-# 1: the first release (01af148).
+# 1: the first release (3436ae4).
 # 2: days.unfiltered - lines counted with no host to apply site.hosts to.
 # 3: days.scope - NULL for the whole site; for a path view (config.View),
 #    the rule it was computed with. A view's rows are filed under the key

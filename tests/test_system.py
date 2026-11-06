@@ -296,7 +296,7 @@ class TestHistory(unittest.TestCase):
         self.assertEqual(period.totals.hits, 0)
 
 
-# The schema exactly as 01af148 created it - version 1, before
+# The schema exactly as 3436ae4 created it - version 1, before
 # days.unfiltered. A history file on a server was written by this.
 # ---------------------------------------------------------------- dashboard
 

@@ -82,6 +82,20 @@ class Touches(Base):
         self.assertEqual(self.audit(), {}, "the second road agrees")
         self.assertEqual(self.refresh(), 0, "a refresh finds nothing to change")
 
+    def test_a_calendly_booking_with_only_the_visitor_id_is_filled(self):
+        # The tag puts the visitor ID in Calendly's utm_content; that alone is
+        # no touch, so the booking gets its source and landing from the pages.
+        self.two_visits()
+        uri = "https://api.calendly.com/scheduled_events/E/invitees/I"
+        self.assertEqual(self.post("calendly", {
+            "event": "invitee.created", "created_at": "2026-10-11T11:59:00Z",
+            "payload": {"uri": uri, "tracking": {"utm_source": None, "utm_content": VID}}})[0], 200)
+        got = self.row(uri)
+        self.assertEqual((got["vid"], got["source_type"], got["first_source"], got["landing"]),
+                         (VID, "Social media", "Search engine", "/blog/first/"))
+        self.assertEqual(got["filled"], EVERY)
+        self.assertEqual(self.audit(), {}, "the second road agrees")
+
     def test_the_senders_touches_win(self):
         self.two_visits()
         self.post("lead", lead())          # its last touch: Google

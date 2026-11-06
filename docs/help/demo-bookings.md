@@ -20,6 +20,12 @@ How booked calls from Calendly and Cal.com reach Skald, what each way can see, a
 
 The best of both: embed the booking on your page, and turn on the webhook. Then you see opened, time chosen, booked, and what happened after.
 
+## See the pages before each booking
+
+With visitor IDs on ([Settings > This site > Data > Script tag & goals](#settings/site/data?sub=script)), open a booking on **Leads & sales > Leads**. Its drawer shows the visitor's journey, as on Traffic > Visitors: where they came from, each page in the order they saw it, and the page they booked from, ending in **Booked a demo**. The booking's source and landing page come from the same pages, unless the booking link carried its own `utm_` tags.
+
+Bookings made before visitor IDs were on have no journey: Skald never links a booking to a visit by address or by time.
+
 ## Set up the Calendly webhook
 
 1. In Skald: **Settings > This site > Leads & tools > Calendly** (in **Bookings**). To **How was your Calendly webhook made?** answer **Not made yet**: Skald makes the signing key and shows it once. Copy it and the address.

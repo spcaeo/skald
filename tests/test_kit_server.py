@@ -199,7 +199,8 @@ class DryRun(unittest.TestCase):
         sealed.mkdir()
         for folder in ("/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"):
             for tool in (Path(folder).iterdir() if os.path.isdir(folder) else ()):
-                if tool.name not in without and not (sealed / tool.name).exists():
+                # lexists: a broken link (GitHub's /bin/grub-ntldr-img) is still there
+                if tool.name not in without and not os.path.lexists(sealed / tool.name):
                     (sealed / tool.name).symlink_to(tool)
         for tool in self.bin.iterdir():
             if tool.name not in without:

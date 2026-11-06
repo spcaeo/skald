@@ -27,8 +27,9 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-10-31-2.45.2",
+  id: "2026-11-06-2.45.3",
   items: [
+    ["Booking journeys", "a Calendly or Cal.com booking that carries only the visitor ID gets its source and landing page from that visitor's pages, and its drawer shows each page before it booked.", "demo-bookings"],
     ["Quieter morning checks", "held webhook deliveries on a keep-everything site, and Search Console's last 3 days, no longer make the morning run report \"failed\".", "connections"],
     ["A refused POST is not a form", "a POST your site turned away (301, 404, 405...), as scanners send all day, no longer marks a visit \"sent a form\".", "settings-and-retention"],
     ["\"Sent a form\" means a form", "a POST your page's own script sends by itself (an event beacon) is no longer counted as a form; Settings › Data › What counts › Not forms lists them.", "settings-and-retention"],
