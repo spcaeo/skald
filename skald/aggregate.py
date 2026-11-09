@@ -123,8 +123,11 @@ class Totals:
     # be compared or mailed as one.
     partial_from: object = None
     partial_until: object = None
-    # Server errors (5xx) for every group, by path.
+    # Server errors (5xx) by path, every group but ours (since 2.45.4).
     server_errors: Counter = field(default_factory=Counter)
+    # Ours' 5xx left out of server_errors. Days stored before 2.45.4 left out
+    # none, so a period mixing them still adds up: by path = every 5xx - this.
+    ours_errors_left_out: int = 0
     # The breakdowns above (statuses, readers by country and the rest) were
     # counted: true for figures built from a log. False for a Totals put
     # together by hand, and for a period that includes days collected before
@@ -311,8 +314,10 @@ class Tally:
         if hit.is_form_post:
             stats.posts += 1
             stats.post_pages[hit.path[:70]] += 1
-        if status == "5xx" and verdict.group is not Group.OURS:
+        if status == "5xx" and verdict.group is Group.OURS:
             # 2.45.4: our own requests (ours) are never traffic, so not a site error either
+            totals.ours_errors_left_out += 1
+        elif status == "5xx":
             totals.server_errors[hit.path[:70]] += 1
         if verdict.group is Group.PEOPLE:
             if status == "404":

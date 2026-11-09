@@ -164,7 +164,7 @@ def _breakdowns(totals: Totals) -> list[Problem]:
                 f"{what} does not sum",
                 f"{got:,} against {want:,} {of} - off by {got - want:+,}"))
 
-    errors = 0
+    errors = -totals.ours_errors_left_out    # 2.45.5: ours is no site error (2.45.4)
     for which, stats in totals.groups.items():
         differs(f"{which.value}: requests by status", sum(stats.statuses.values()),
                 stats.hits, "requests")
@@ -172,7 +172,7 @@ def _breakdowns(totals: Totals) -> list[Problem]:
                 stats.posts, "posts")
         errors += stats.statuses.get("5xx", 0)
     differs("server errors by path", sum(totals.server_errors.values()), errors,
-            "5xx responses")
+            "5xx responses, but ours'")
 
     people = totals.groups.get(Group.PEOPLE)
     if people:

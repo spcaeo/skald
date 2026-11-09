@@ -4,6 +4,32 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.45.5 (2026-11-09)
+
+A fix for 2.45.4: a day where your own server got a server error adds up again.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- Nothing else: no schema change, no nginx line, no setting. A day withheld on 2.45.4 for this
+  reason can be recounted while its log is kept (`skald backfill`).
+
+### Fix
+
+- **Fix: 2.45.4 could withhold a day when your own server got a server error.** 2.45.4 left
+  your own requests out of the server errors by address, but the check that every figure adds
+  up still compared that list with the 5xx of every group, ours included. A day where your own
+  server or monitor got a 5xx no longer added up and was withheld (not shown, not mailed). It
+  showed on the public demo's build right after 2.45.4. Now each day stored also keeps how many
+  of your own 5xx were left out (counts kind `server_error_ours`), and the check is: by address
+  = every 5xx minus those. Days stored before 2.45.4 kept yours in the list and left none out,
+  so they, and any span that mixes old and new days (a month's mail, an export, a client
+  report), still add up. The second count (`audit.py`) checks the new number against its own
+  recount. Who it affects: installs on 2.45.4 whose own requests got a 5xx. What to do: nothing;
+  a day withheld for this on 2.45.4 can be recounted while its log is kept (`skald backfill`).
+  Checked: new tests (a day with your own 502 passes the check; a span of an old-style day and a
+  new day adds up), the full test suite, the demo build.
+
 ## 2.45.4 (2026-11-09)
 
 Server errors your own server makes no longer count against your site, and the to-dos people

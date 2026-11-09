@@ -317,7 +317,7 @@ counted in. For readers by hour in another zone use `hours_utc` -
 ## health.json
 
 `days[]` and `today`: `statuses` `{group: {"2xx","3xx","404","4xx","5xx","other"}}`,
-`not_found` `{path: 404s to people}`, `server_errors` `{path: n}` (every group but `ours` since 2.45.4; the day's `server_errors` total above still counts 5xx to anyone), `speeds`
+`not_found` `{path: 404s to people}`, `server_errors` `{path: n}` (every group but `ours` since 2.45.4; the day's `server_errors` total above still counts 5xx to anyone; since 2.45.5 history keeps how many of ours' 5xx were left out, counts kind `server_error_ours` name `left_out`, so a period's list adds up to every 5xx minus that number, over days stored before 2.45.4 too), `speeds`
 `{bucket: page views}`, `slow_pages` `{path: n}`, `posts` `{group: {"total": n,
 "pages": {path: n}}}`. Speed buckets: `under 0.2 s`, `0.2 to 0.5 s`,
 `0.5 to 1 s`, `1 to 3 s`, `3 s or more`, `not logged`.

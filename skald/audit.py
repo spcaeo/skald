@@ -753,6 +753,9 @@ def compare(figures: dict, history: History, site: str, day: date,
     same("server errors (5xx) by path, summed",
          sum(counts.get("server_error_page", Counter()).values()),
          figures["server_errors"])
+    same("our own 5xx left out of the server errors",            # 2.45.5
+         counts.get("server_error_ours", Counter()).get("left_out", 0),
+         figures["statuses"].get("ours", Counter()).get("5xx", 0))
 
     stored_readers = p[2] or 0
     for name in DIMS:
