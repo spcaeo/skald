@@ -169,6 +169,7 @@ Nothing to edit by hand for these; upgrading is enough.
 | From | To | What changes on its own |
 | --- | --- | --- |
 | 2.2.0 (Docker) | 2.2.1 | The dashboard opens as the web app (menu, tabs, drawers), not the plain page. |
+| 2.45.5 or older (Docker) | 2.45.6 | The dashboard's pages move onto the data volume (`/var/lib/skald/www`, linked from `/var/www/skald`), so later upgrades keep serving each site's dashboard until the first live run rewrites it. This first start still writes them anew: a site not yet written shows "This dashboard is being prepared" (HTTP 503, reloads by itself) for a few minutes, never a 404. Since then a new site shows the same page until its first run. |
 | any before 2.2.2 | 2.2.2 | A `config.yml` without `dashboard.app` gets the web app (set `app: false` to keep the plain page). The webhook receiver runs even with the script tag off: Docker always starts it, `skald upgrade` switches on an installed but stopped `skald-beacon`. Webhooks (Calendly, Stripe, the `lead` hook) that answered 502 now reach Skald once their secret is set. |
 
 **One thing an upgrade does not turn on: keeping IPs and emails (2.4.0).** A new install keeps

@@ -372,6 +372,16 @@ def drop_privileges(fix_data: bool) -> None:
     os.environ["HOME"] = str(DATA)
 
 
+def dashboard_folder() -> None:
+    """The dashboard's pages on the volume (the image links /var/www/skald to it),
+    so they outlive the container: an upgrade keeps serving them until the first live
+    run rewrites them (#12). A volume it cannot write is only logged."""
+    try:
+        (DATA / "www").mkdir(mode=0o755, exist_ok=True)
+    except OSError as why:
+        log(f"dashboard folder {DATA / 'www'}: {why}; the dashboard waits for it")
+
+
 # ---------------------------------------------------------------- the serve
 
 def runtime_nginx_files(env: dict) -> None:
@@ -571,6 +581,7 @@ def main(argv: list[str]) -> int:
         return show_peers(dict(os.environ))
     if DATA.is_dir() and os.access(DATA, os.W_OK):
         ensure_visitor_key()
+        dashboard_folder()
     load_environment()
     kit_defaults()
     env = dict(os.environ)

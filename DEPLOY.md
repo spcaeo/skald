@@ -619,6 +619,7 @@ location ^~ /traffic/ {
     set $skald_path $uri;              # repeat in every nested location: `set` is not inherited
     auth_request /traffic-auth/check;
     error_page 401 = @skald_login;     # no session: to the sign-in page; 403: not a member
+    error_page 404 = @skald_not_written;   # a site's page not written yet: wait, never a bare 404 (#12)
     alias /var/www/skald/;
     index index.html;
     autoindex off;
@@ -681,6 +682,17 @@ location ^~ /traffic/ {
     }
 }
 location @skald_login { return 302 /traffic-auth/login?next=$request_uri; }
+# A site's own page that is not written yet (a new site, a fresh install, the first start
+# on a volume from before 2.45.6): its live run writes it within minutes, so say so and
+# retry, with a 503 that monitors read as "back soon". Any other missing file stays a 404.
+location @skald_not_written {
+    if ($uri !~ "^/traffic/[a-z0-9.-]+/(?:index\.html)?$") { return 404; }
+    default_type text/html;
+    add_header Retry-After 60 always;
+    add_header Cache-Control "no-store" always;
+    add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+    return 503 '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="refresh" content="20"><title>Being prepared</title></head><body style="font: 16px/1.5 system-ui, sans-serif; max-width: 34em; margin: 4em auto; padding: 0 1em; color: #222"><h1 style="font-size: 1.4em">This dashboard is being prepared</h1><p>Its figures are being counted for the first time since the last start. This page reloads by itself and opens the dashboard as soon as it is ready, usually within a few minutes.</p><p style="color: #666">If it is still here after 15 minutes, check that the site&#39;s name in the address is right.</p></body></html>';
+}
 
 # The read-only API with a bearer token instead of a session (tokens in accounts.sqlite).
 location ^~ /traffic-api/ {

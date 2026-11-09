@@ -70,6 +70,30 @@ class ComposeAndInstall(unittest.TestCase):
         self.assertIn('SKALD_REAL_IP_HEADER: "${SKALD_REAL_IP_HEADER:-X-Real-IP}"', text)
 
 
+class DashboardOnTheVolume(unittest.TestCase):
+    # #12: the dashboard's pages live on the data volume, so an upgrade (docker rm, run)
+    # keeps serving them until the first live run rewrites them, never a 404.
+    def test_the_image_links_the_dashboard_folder_into_the_volume(self):
+        text = (ROOT / "docker" / "Dockerfile").read_text()
+        self.assertIn("ln -s /var/lib/skald/www /var/www/skald", text)
+        self.assertNotRegex(text, r"install -d[^\n]*/var/www/skald")
+        self.assertEqual(entrypoint.DASHBOARD, Path("/var/www/skald"))
+
+    def test_the_start_makes_the_folder_on_the_volume(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(entrypoint, "DATA", Path(tmp)):
+            entrypoint.dashboard_folder()
+            entrypoint.dashboard_folder()          # twice: nothing changes
+            self.assertTrue((Path(tmp) / "www").is_dir())
+
+    def test_a_read_only_volume_is_only_logged(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(entrypoint, "DATA", Path(tmp) / "missing" / "deeper"), \
+             mock.patch.object(entrypoint, "log") as log:
+            entrypoint.dashboard_folder()
+        self.assertTrue(log.called)
+
+
 class TrustedProxies(unittest.TestCase):
     conf = staticmethod(entrypoint.trusted_conf)
 
