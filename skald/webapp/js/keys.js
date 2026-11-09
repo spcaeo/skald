@@ -27,8 +27,9 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-09-2.45.6",
+  id: "2026-11-09-2.45.7",
   items: [
+    ["Events kept on a held-back day", "scrolls, form starts and clicks are stored even on a day whose log figures are held back, and an older day's events can be checked.", "tracking-script"],
     ["No 404 after an upgrade", "a dashboard keeps its pages through an upgrade; a site not ready yet says it is being prepared and opens by itself.", "docker-first-install"],
     ["Your own errors, fixed", "a day where your own server or monitor got a server error adds up again (2.45.4 could hold it back).", "what-to-fix"],
     ["To-dos people met first", "Insights lists what people met (pages they asked for, server errors they got, a page they leave) before what only bots met; a server-errors to-do no person met says Bots only.", "what-to-fix"],

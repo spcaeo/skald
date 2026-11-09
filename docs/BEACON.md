@@ -451,7 +451,8 @@ The location's own `access_log` keeps the beacon posts out of the main
 access log, so they are never counted as requests or as a visit's form
 posts. Its third field, `$upstream_http_x_skald_site`, is the site the helper
 named (`-` when it named none); the audit counts each site's 204s by it. The beacon log rotates with the other nginx logs; the audit reads
-the current file and the two before it.
+every rotation there is (since 2.45.7, #3; before, only the current file and the two before it, so a
+day collected or recounted later found none of its lines and was withheld), counting only the day's window.
 
 ### The website
 
