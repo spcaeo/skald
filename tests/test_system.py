@@ -625,6 +625,25 @@ class TestRunDaily(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertEqual(ran, ["a", "b"])
 
+    def test_steps_of_their_own_still_run_after_a_stop(self):
+        # #3: a withheld log day stopped the run before "events", so one site's 4 Nov
+        # events were never stored. Steps that do not rest on the day's log figures
+        # (events, the dashboard...) run anyway; the mails do not; the code stays the stop's.
+        ran = []
+
+        def step(name, code):
+            return name, lambda: ran.append(name) or code
+
+        result = cli.run_steps([step("check", 0), step("audit", 1), step("events", 0),
+                                step("daily mail", 0), step("logo", 0)],
+                               err=lambda *a: None)
+        self.assertEqual(result, 1)
+        self.assertEqual(ran, ["check", "audit", "events", "logo"])
+        for name in ("events", "logo", "updates", "stack", "kit tokens"):
+            self.assertIn(name, cli.AFTER_A_STOP)
+        for name in ("collect", "audit", "dashboard", "daily mail", "weekly mail", "marketing mail"):
+            self.assertNotIn(name, cli.AFTER_A_STOP)
+
     def test_run_daily_notes_the_step_and_why_it_stopped(self):
         from unittest import mock
         from skald import runs

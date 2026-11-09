@@ -246,7 +246,12 @@ def beacon_log_files(config: dict) -> list[Path]:
         return []
     from .parse import log_files
     path = Path(str(raw))
-    return log_files(path.parent, path.name, 3)
+    # Every rotation there is (#3): a day collected late, or recounted, has its lines in
+    # an older .N.gz; only the day's window is counted, and the files are small.
+    return log_files(path.parent, path.name, BEACON_ROTATIONS)
+
+
+BEACON_ROTATIONS = 30       # more than logrotate keeps (14 in the image, DEPLOY.md)
 
 
 def count_answered(files: list[Path], start: datetime, end: datetime,

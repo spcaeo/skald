@@ -249,6 +249,23 @@ class Collect(unittest.TestCase):
         state = self.history.db.execute("SELECT state FROM event_days").fetchone()[0]
         self.assertEqual(state, "withheld")
 
+    def test_an_older_day_is_audited_from_its_rotated_log(self):
+        # #3: a day collected late (one site's 4 Nov, five days on) has its nginx lines in
+        # skald-beacon.log.5.gz; the audit read only the newest three files, found none and
+        # withheld the day. It reads every rotation there is.
+        import gzip
+        self.write([spool_line(), spool_line()])
+        (self.dir / "skald-beacon.log").write_text("2026-10-12T16:00:00+00:00 204\n")
+        (self.dir / "skald-beacon.log.1").write_text("2026-10-11T16:00:00+00:00 204\n")
+        for n in range(2, 7):
+            day = f"2026-10-{12 - n:02d}"
+            lines = "2026-10-07T16:00:00+00:00 204\n" * 2 if n == 5 else f"{day}T16:00:00+00:00 204\n"
+            with gzip.open(self.dir / f"skald-beacon.log.{n}.gz", "wt") as out:
+                out.write(lines)
+        events.collect(self.history, self.config, "example.com", self.spool, DAY)
+        got = events.audit(self.history, self.config, "example.com", self.spool, DAY, NY)
+        self.assertEqual((got["state"], got["nginx"], got["spool"]), ("ok", 2, 2))
+
     def test_midnight_edge_is_allowed(self):
         self.write([spool_line(at="2026-10-07T23:59:59-04:00")])
         self.nginx(0)                              # nginx filed it on the next day

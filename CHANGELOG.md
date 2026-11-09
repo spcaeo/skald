@@ -4,6 +4,36 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.45.7 (2026-11-09)
+
+In-page events are kept even on a day whose log figures are held back, and an older day's events
+can be checked.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- Nothing else: no schema change, no setting. A day's events withheld because the audit found no
+  beacons in nginx's log can be collected again while that log is kept:
+  `skald events --day <day> --collect`.
+
+### Fixes
+
+- **Fix: in-page events are stored even on a day whose log figures are held back.** When a
+  day's log figures did not reconcile (so the day was withheld), the morning run stopped there
+  and skipped every later step, the in-page events (scrolls, form starts, clicks from the
+  script tag) among them. One site's events for a whole day were never stored. The steps that
+  do not rest on the day's log figures (events, favicons, logo, updates, stack, kit tokens,
+  page speed) now still run after a stop; the mails and the dashboard still wait, as before.
+  Who it affects: sites with the script tag on. What to do: nothing. Checked: new test (a stop
+  at the audit still runs events, not the mails), the full test suite.
+- **Fix: the events audit can check an older day.** It read only the newest three files of
+  nginx's beacon log, so a day collected or recounted later (here five days on) found none of
+  its beacons and was withheld. It now reads every rotation there is, counting only the day's
+  window. Who it affects: anyone recounting events for an older day. What to do: nothing; a day
+  withheld for this can be collected again (`skald events --day <day> --collect`) while its
+  beacon log is kept. Checked: new test (a day whose lines are in `skald-beacon.log.5.gz`
+  audits ok), the full test suite, and the live recount of the day that showed it.
+
 ## 2.45.6 (2026-11-09)
 
 An upgrade no longer leaves a dashboard on "404 Not Found" for minutes (Docker).

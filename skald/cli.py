@@ -40,6 +40,7 @@ from .config import country_credit, load_config, setting, site_name, views
 from .store import History, view_key
 from .store_visits import journey_days
 from .verify import check
+from .run_steps import AFTER_A_STOP, run_steps  # noqa: F401 - cli.run_steps, cli.AFTER_A_STOP
 from .window import analyse_window_views, day_window, parse_day, yesterday, zone
 
 
@@ -553,20 +554,6 @@ def mail(ctx: Context, kind: str, dry_run: bool, save_html: str | None = None) -
 def cmd_mail(ctx: Context) -> int:
     kind = "weekly" if ctx.args.weekly else "daily"
     return mail(ctx, kind, ctx.args.dry_run, ctx.args.save_html)
-
-
-def run_steps(steps: list[tuple[str, Callable[[], int]]], err=print,
-              stopped: list | None = None) -> int:
-    """Run each step while the previous one returned 0. The first failure
-    stops; its name goes into `stopped` when one is given."""
-    for name, step in steps:
-        code = step()
-        if code:
-            err(f"run-daily stopped at '{name}' (exit {code}); later steps skipped")
-            if stopped is not None:
-                stopped.append(name)
-            return code
-    return 0
 
 
 def audit_day(ctx: Context, day: date, logs: list[str] | None = None,
