@@ -201,6 +201,9 @@ class TestTallies(unittest.TestCase):
         totals = totals_for(lines)
         self.assertEqual(totals.groups[Group.OURS].statuses["5xx"], 1)
         self.assertEqual(dict(totals.server_errors), {"/pricing/": 1})
+        # and the day still reconciles: the 5xx-by-path check leaves ours out too
+        # (2.45.4's first build withheld such a day: "1 against 2 5xx responses").
+        self.assertEqual([p.what for p in check(totals)], [])
 
     def test_hours_are_in_the_report_zone(self):
         from skald import Classifier, read, summarise
@@ -242,6 +245,33 @@ class TestHistory(unittest.TestCase):
         self.assertEqual(people.readers, 13)
         self.assertEqual(sum(people.by["country"].values()), 13)
         self.assertEqual(people.posts, 1)
+
+    def test_ours_errors_left_out_still_add_up_over_old_and_new_days(self):
+        # 2.45.5: a day stored by 2.45.4 or later leaves ours' 5xx out of the
+        # by-path list and keeps how many; a day stored before kept them in the
+        # list. Each alone, and both summed, must still reconcile.
+        def errors_on(d):
+            d = datetime(d.year, d.month, d.day, tzinfo=UTC)
+            return [line(d.replace(hour=11, minute=40), "198.51.100.70", "/", "MyCompanyCrawler/1.0", status=502),
+                    line(d.replace(hour=11, minute=41), "198.51.100.71", "/pricing/", GPTBOT, status=502)]
+        new, old = DAY + timedelta(days=2), DAY + timedelta(days=3)
+        for d in (new, old):
+            self.history.record("example.com", d, totals_for(errors_on(d)), "UTC", [])
+        stored = dict(((k, n) for k, n in self.history.db.execute(
+            "SELECT name, n FROM counts WHERE day = ? AND kind = 'server_error_ours'", (new.isoformat(),))))
+        self.assertEqual(stored, {"left_out": 1})
+        # `old` as the code before 2.45.4 stored it: ours' 502 in the list, no left_out row
+        with self.history.db:
+            self.history.db.execute("DELETE FROM counts WHERE day = ? AND kind = 'server_error_ours'",
+                                    (old.isoformat(),))
+            self.history.db.execute("INSERT INTO counts (site, day, kind, name, n) VALUES "
+                                    "('example.com', ?, 'server_error_page', '/', 1)", (old.isoformat(),))
+        for first, last, left_out, listed in ((new, new, 1, 1), (old, old, 0, 2), (new, old, 1, 3)):
+            period = self.history.period("example.com", first, last)
+            self.assertEqual(period.withheld, [])
+            self.assertEqual(period.totals.ours_errors_left_out, left_out)
+            self.assertEqual(sum(period.totals.server_errors.values()), listed)
+            self.assertEqual(check(period.totals), [])
 
     def test_a_day_from_before_the_breakdowns_turns_them_off_for_the_period(self):
         self.history.db.execute("UPDATE days SET breakdowns = NULL WHERE day = ?",

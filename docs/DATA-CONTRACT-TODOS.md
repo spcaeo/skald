@@ -48,7 +48,7 @@ it out. A to-do new to `seen` queues the outgoing webhook `todo.new` (no code, n
 Where each comes from: `lost` and `markdown` and `sitemap` from the day kind
 `not_found` (as lost_pages.json below); `errors` from the counts
 `server_error_page` (path, with its `(all others)` fold; since 2.45.4 every group but
-`ours`, which is never traffic) and `status_<group>` `5xx`. With `people` 0 the to-do
+`ours`, which is never traffic; days stored before 2.45.4 still hold ours' 5xx in the list) and `status_<group>` `5xx`. With `people` 0 the to-do
 is tagged `Bots only` with tone `warn`, not `Broken`; `leave` from the stored journeys (landing, pages, posted), over the
 days of the window they are kept for.
 

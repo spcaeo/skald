@@ -259,6 +259,7 @@ BREAKDOWN_KINDS = (
     "people_speed",      # people's page views by response-time bucket
     "people_slow_page",  # pages behind the slow (1 s or more) page views
     "server_error_page", # 5xx responses by path, every group but ours (ours until 2.45.4)
+    "server_error_ours", # name "left_out": ours' 5xx not in server_error_page (2.45.5)
     "post_total",        # POST requests per group (name = group)
     *(f"status_{g.value}" for g in Group),
     *(f"post_page_{g.value}" for g in Group),
@@ -506,6 +507,8 @@ class History:
                         # the day still counts as a day with cities.
                         rows.append((CITY_KIND, "Unknown", 0))
             add("server_error_page", totals.server_errors)
+            if totals.ours_errors_left_out:
+                rows.append(("server_error_ours", "left_out", totals.ours_errors_left_out))
             for g, stats in totals.groups.items():
                 add(f"status_{g.value}", stats.statuses)
                 add(f"post_page_{g.value}", stats.post_pages)
@@ -818,6 +821,7 @@ class History:
             if city_days == len(days) and summed.get(CITY_KIND):
                 people.by["city"] = ranked(summed[CITY_KIND])
             totals.server_errors = ranked(summed.get("server_error_page", Counter()))
+            totals.ours_errors_left_out = summed.get("server_error_ours", Counter())["left_out"]
             posts = summed.get("post_total", Counter())
             for g, stats in totals.groups.items():
                 stats.statuses = ranked(summed.get(f"status_{g.value}", Counter()))
