@@ -4,6 +4,35 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.45.6 (2026-11-09)
+
+An upgrade no longer leaves a dashboard on "404 Not Found" for minutes (Docker).
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- Nothing else: no schema change, no setting. This first start writes the dashboards anew on
+  the volume, so a site not yet written says "This dashboard is being prepared" for a few
+  minutes; from the next upgrade on the pages stay. If you run nginx yourself, take the new
+  `@skald_not_written` lines from DEPLOY.md.
+
+### Fix
+
+- **Fix: no more 404 on a dashboard right after an upgrade (Docker).** Each site's dashboard
+  pages were kept inside the container, not on the data volume, so every upgrade (`docker rm`,
+  `docker run`) dropped them, and each site answered nginx's "404 Not Found" until the first
+  live run wrote its pages again, one site after another (about ten minutes for thirteen
+  sites). Seen on the live install after 2.45.5. Now the image links `/var/www/skald` to
+  `/var/lib/skald/www` on the volume, so an upgrade keeps serving the last pages until they
+  are rewritten. And a site's page that is not written yet (a new site, a fresh install, the
+  first start after this upgrade) says "This dashboard is being prepared" (HTTP 503 with
+  `Retry-After`, reloads by itself) instead of a 404; any other missing file is still a 404.
+  Who it affects: Docker installs (an install without Docker kept its pages on disk already;
+  it gets the "being prepared" page for a new site). What to do: nothing. The first start on
+  this version still writes the pages anew; from the next upgrade on they stay. Checked: new
+  tests (the image's link and the folder made at start; a real nginx answers 503 for a site
+  not written yet and 404 for a missing data file), the full test suite, and on the live install.
+
 ## 2.45.5 (2026-11-09)
 
 A fix for 2.45.4: a day where your own server got a server error adds up again.

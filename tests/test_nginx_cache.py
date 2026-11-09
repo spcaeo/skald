@@ -252,6 +252,21 @@ class RealNginx(unittest.TestCase):
         _, plain, _ = self.get("/traffic/_app/js/main.js")
         self.assertEqual(plain["Cache-Control"], REVALIDATE)
 
+    def test_a_site_not_written_yet_waits_and_never_says_404(self):
+        # #12: a site's pages not written yet (a new site, a fresh install, a volume from
+        # before 2.45.6): its page says it is being prepared (503, Retry-After), never nginx's 404.
+        code, head, body = self.get("/traffic/new.example.com/")
+        self.assertEqual(code, 503)
+        self.assertEqual(head["Retry-After"], "60")
+        self.assertEqual(head["Cache-Control"], "no-store")
+        self.assertIn(b"being prepared", body)
+        self.assertNotIn(b"nginx", body)
+        self.assertEqual(self.get("/traffic/new.example.com/index.html")[0], 503)
+        # a file that is not there is still a plain 404
+        self.assertEqual(self.get("/traffic/new.example.com/data/pages.json")[0], 404)
+        self.assertEqual(self.get("/traffic/shop.example.com/data/missing.json")[0], 404)
+        self.assertEqual(self.get("/traffic/shop.example.com/")[0], 200)
+
     def test_the_shell_is_never_kept(self):
         code, head, _ = self.get("/traffic/shop.example.com/", {"Accept-Encoding": "gzip"})
         self.assertEqual(code, 200)

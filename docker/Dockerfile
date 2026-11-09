@@ -34,8 +34,13 @@ RUN apt-get update \
  && install -d -o root -g root -m 0755 /opt/skald \
  && install -d -o root -g skald -m 0750 /etc/skald \
  && install -d -o skald -g skald -m 0750 /var/lib/skald /var/log/skald \
- && install -d -o skald -g skald -m 0755 /var/www/skald /logs \
- && ln -s /var/lib/skald/nginx /var/log/nginx
+ && install -d -o skald -g skald -m 0755 /logs \
+ && ln -s /var/lib/skald/nginx /var/log/nginx \
+ && install -d -o root -g root -m 0755 /var/www \
+ && ln -s /var/lib/skald/www /var/www/skald
+# The dashboard's pages (/var/www/skald) live on the volume, like nginx's log: an
+# upgrade (docker rm, docker run) serves the last pages until the first live run rewrites
+# them, never a 404 (#12). The entrypoint makes the folder (dashboard_folder).
 
 COPY --chown=root:root . /opt/skald
 
