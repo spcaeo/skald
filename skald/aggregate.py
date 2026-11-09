@@ -311,7 +311,8 @@ class Tally:
         if hit.is_form_post:
             stats.posts += 1
             stats.post_pages[hit.path[:70]] += 1
-        if status == "5xx":
+        if status == "5xx" and verdict.group is not Group.OURS:
+            # 2.45.4: our own requests (ours) are never traffic, so not a site error either
             totals.server_errors[hit.path[:70]] += 1
         if verdict.group is Group.PEOPLE:
             if status == "404":

@@ -237,7 +237,9 @@ class Todos(unittest.TestCase):
         body = self.build()
         self.assertEqual(body["withheld"], [])
         got = {t["id"]: t for t in body["todos"]}
-        self.assertEqual(list(got)[:4], ["lost-pages", "server-errors", "ai-markdown", "sitemap"])
+        # 2.45.4 (#7): what people met first (lost pages, errors, a leaving page), then machines only
+        self.assertEqual([t["kind"] for t in body["todos"]], ["lost", "errors", "leave", "markdown", "sitemap"])
+        self.assertEqual((got["server-errors"]["tag"], got["server-errors"]["tone"]), ("Broken", "bad"))
         self.assertEqual(got["lost-pages"]["figures"], {"paths": 2, "people": 9, "search": 6, "ai": 0})
         self.assertIn("2 old page addresses answered 'not found' from 22 Oct to 24 Oct", got["lost-pages"]["proof"])
         self.assertEqual(got["server-errors"]["figures"], {"errors": 6, "paths": 1, "people": 3})
@@ -249,6 +251,23 @@ class Todos(unittest.TestCase):
         self.assertEqual(leave[0]["open"], {"tab": "traffic/pages", "page": "/landing/", "name": "Traffic > Pages"})
         self.assertNotIn("/landing/", leave[0]["id"])     # an opaque id, never the page
         self.assertEqual(got["lost-pages"]["rows"][0]["path"], "/old-pricing/")
+
+    def test_errors_only_bots_met_rank_below_a_page_people_leave(self):
+        # 2.45.4 (#7): 0 people met the errors: "Bots only", warn, after the leaving page.
+        f = Fixture()
+        try:
+            for i in range(3):
+                f.day(ANCHOR - timedelta(days=2 - i), [], {"/": served(views=10)},
+                      counts=[("server_error_page", "/", 4), ("status_bots", "5xx", 4)],
+                      journeys=[visit("/landing/") for _ in range(9)])
+            body = todos.build(f.page(NOW))
+            self.assertEqual(body["withheld"], [])
+            self.assertEqual([t["kind"] for t in body["todos"]], ["leave", "errors"])
+            err = body["todos"][1]
+            self.assertEqual(err["figures"], {"errors": 12, "paths": 1, "people": 0})
+            self.assertEqual((err["tag"], err["tone"]), ("Bots only", "warn"))
+        finally:
+            f.close()
 
     def test_under_the_threshold_there_is_no_todo(self):
         old = dict(todos.LIMITS)

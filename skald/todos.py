@@ -190,7 +190,9 @@ def _errors(p, found, cols) -> dict | None:
     named = [k for k in by_path if k != OTHER]
     fig = {"errors": total, "paths": len(named), "people": by_group["people"]}
     top = ", ".join(k for k, _ in by_path.most_common(3) if k != OTHER)
-    return {"id": "server-errors", "kind": "errors", "subject": None, "tag": "Broken", "tone": "bad",
+    bots_only = not fig["people"]
+    return {"id": "server-errors", "kind": "errors", "subject": None,
+            "tag": "Bots only" if bots_only else "Broken", "tone": "warn" if bots_only else "bad",
             "title": "Fix the server errors",
             "proof": f"{_n(total)} server error{'s' if total != 1 else ''} (5xx) from {_span(found.first, found.last)}"
                      f"{', on ' + top if top else ''}. People got {_n(fig['people'])} of them.",
@@ -334,6 +336,20 @@ def _cols(*spec) -> list[dict]:
     return out
 
 
+def people_met(t: dict) -> int:
+    """How many times people met the problem: lost pages and server errors count
+    people's requests, a leaving page its visits; markdown and sitemap are asked by
+    machines only (0)."""
+    fig = t["figures"]
+    return int(fig.get("people", fig.get("visits", 0)) or 0) if t["kind"] in ("lost", "errors", "leave") else 0
+
+
+def rank(t: dict) -> tuple:
+    """2.45.4: worst leak first means what people met first; then the kind's order,
+    the most visits, the id (stable)."""
+    return (0 if people_met(t) else 1, ORDER.index(t["kind"]), -t["figures"].get("visits", 0), t["id"])
+
+
 def build(p) -> dict:
     """todos.json's body (DATA-CONTRACT.md)."""
     from . import audit_todos, todo_marks, todo_rows
@@ -366,7 +382,7 @@ def build(p) -> dict:
         t["agent"] = t["kind"] in AGENT_KINDS
         t["open"]["name"] = TAB_NAMES.get(t["open"]["tab"], t["open"]["tab"])
         todos.append(t)
-    todos.sort(key=lambda t: (ORDER.index(t["kind"]), -t["figures"].get("visits", 0), t["id"]))
+    todos.sort(key=rank)
     # The second count: a to-do it does not find the same is left out, and named.
     held = audit_todos.check_todos(p.history.db, p.key, todos, p.live_dir, p.anchor.isoformat())
     withheld = [{"id": t["id"], "title": t["title"], "why": held[t["id"]]} for t in todos if t["id"] in held]

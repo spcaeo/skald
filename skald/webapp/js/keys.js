@@ -27,8 +27,10 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-06-2.45.3",
+  id: "2026-11-09-2.45.4",
   items: [
+    ["To-dos people met first", "Insights lists what people met (pages they asked for, server errors they got, a page they leave) before what only bots met; a server-errors to-do no person met says Bots only.", "what-to-fix"],
+    ["Your own errors are not the site's", "server errors your own server or monitor causes (a deploy check, say) no longer count in the Fix the server errors to-do.", "what-to-fix"],
     ["Booking journeys", "a Calendly or Cal.com booking that carries only the visitor ID gets its source and landing page from that visitor's pages, and its drawer shows each page before it booked.", "demo-bookings"],
     ["Quieter morning checks", "held webhook deliveries on a keep-everything site, and Search Console's last 3 days, no longer make the morning run report \"failed\".", "connections"],
     ["A refused POST is not a form", "a POST your site turned away (301, 404, 405...), as scanners send all day, no longer marks a visit \"sent a form\".", "settings-and-retention"],

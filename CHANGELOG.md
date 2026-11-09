@@ -4,7 +4,37 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
-Nothing yet.
+## 2.45.4 (2026-11-09)
+
+Server errors your own server makes no longer count against your site, and the to-dos people
+met come first on Insights.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- Nothing else: no schema change, no nginx line, no setting. Add your own server's address or
+  your monitor's user agent to your own list (Settings › Data › What counts › Ours) so its
+  requests are known as yours.
+
+### Changes
+
+- **Your own traffic is no longer counted as a site's server errors.** A site's deploy smoke
+  test, sent from its own server, made 137 of one site's 168 server errors (5xx) in ten days,
+  and the "Fix the server errors" to-do counted them. Requests Skald classifies as yours (the
+  addresses and user agents on your own list) are now left out of the server errors by
+  address (`server_error_page`), so out of the to-do, its re-check and Site > Health's list,
+  the same way they are never counted as traffic. The day's total "5xx to anyone" is
+  unchanged. The second count (`audit.py`) follows the same rule. Stored days are not
+  rewritten: on the live install only two older days had any (1 and 7), and their raw logs
+  have rotated away. Who it affects: everyone whose own tools hit their site. What to do: add
+  your server's address or your monitor's user agent to your own list. Checked: new tests
+  (an own 502 is counted under ours, not by address), the full test suite.
+- **To-dos people met come first.** Insights' "To do now" was ordered by the kind of
+  problem, so server errors that only bots met were placed above a page where 95% of visits
+  left. Now what people met (lost pages people asked for, server errors people got, a page
+  people leave) comes first, then what only machines met. A server-errors to-do no person met
+  says **Bots only** (amber), not **Broken** (red). What to do: nothing. Checked: new tests
+  of the order and the label.
 
 ## 2.45.3 (2026-11-06)
 

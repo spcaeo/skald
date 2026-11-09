@@ -9,6 +9,7 @@ __pycache__/
 .pytest_cache/
 # Local-only secrets
 secrets.local.md
+!.github/ISSUE_TEMPLATE/config.yml
 *.sqlite-wal
 *.sqlite-shm
 *.db
@@ -21,5 +22,8 @@ build.json
 .claude/
 .playwright-mcp/
 
+
+# Archives never belong in git (a HANDOVER.zip with secrets.local.md sat untracked here, 2026-11-09)
+*.zip
 # The export tool's marker
 .skald-export

@@ -258,7 +258,7 @@ BREAKDOWN_KINDS = (
     "people_404_page",   # paths people asked for and got a 404
     "people_speed",      # people's page views by response-time bucket
     "people_slow_page",  # pages behind the slow (1 s or more) page views
-    "server_error_page", # 5xx responses, every group, by path
+    "server_error_page", # 5xx responses by path, every group but ours (ours until 2.45.4)
     "post_total",        # POST requests per group (name = group)
     *(f"status_{g.value}" for g in Group),
     *(f"post_page_{g.value}" for g in Group),
