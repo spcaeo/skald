@@ -1,6 +1,6 @@
 # What to fix: to-dos and lost pages
 
-Skald lists what to fix on your site this week, worst leak first, each with its proof and the full list behind it. It also finds the old addresses people, search engines and AI still ask for, suggests the closest live page for each, and gives you the server line to copy. Everything comes from your server log; Skald never changes your web server.
+Skald lists what to fix on your site this week, worst leak first (what people met before what only bots met), each with its proof and the full list behind it. It also finds the old addresses people, search engines and AI still ask for, suggests the closest live page for each, and gives you the server line to copy. Everything comes from your server log; Skald never changes your web server.
 
 ## To do now
 
@@ -14,7 +14,7 @@ Open [Overview > Insights](#overview/insights). The to-do list sits above the ca
 A to-do shows only when its figure passes a threshold over the last whole days (up to 30, not today). The kinds:
 
 - **Send old pages somewhere useful:** old page addresses that answered "not found" to people, search engines or AI.
-- **Fix the server errors:** 5xx answers, by address.
+- **Fix the server errors:** 5xx answers, by address. Your own traffic (the addresses and tools you marked as yours, like a deploy's test script) is never counted. When no person met an error, it says **Bots only** and comes after what people met.
 - **Give AI the Markdown copies it asks for:** AI fetchers asked for the `.md` copy of pages you have.
 - **Fix the sitemap address crawlers ask for:** a sitemap file search engines or AI crawlers asked for that is not there.
 - **Make a page lead somewhere:** a page many visits started on, where nearly every one left after that page and no form was sent (from the stored visits).

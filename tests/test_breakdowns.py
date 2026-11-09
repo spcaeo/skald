@@ -193,6 +193,15 @@ class TestTallies(unittest.TestCase):
         for g, stats in self.totals.groups.items():
             self.assertEqual(sum(stats.statuses.values()), stats.hits, g)
 
+    def test_our_own_server_errors_are_no_site_error(self):
+        # 2.45.4 (#7): a deploy's smoke test from our own side that gets a 502 is
+        # counted under ours, never in the 5xx-by-path list a to-do is built from.
+        lines = [line(at(11, 40), "198.51.100.70", "/", "MyCompanyCrawler/1.0", status=502),
+                 line(at(11, 41), "198.51.100.71", "/pricing/", GPTBOT, status=502)]
+        totals = totals_for(lines)
+        self.assertEqual(totals.groups[Group.OURS].statuses["5xx"], 1)
+        self.assertEqual(dict(totals.server_errors), {"/pricing/": 1})
+
     def test_hours_are_in_the_report_zone(self):
         from skald import Classifier, read, summarise
         with tempfile.TemporaryDirectory() as tmp:

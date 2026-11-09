@@ -526,7 +526,7 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
         "groups": requests,
         "posts": posts,
         "statuses": statuses,
-        "server_errors": sum(c["5xx"] for c in statuses.values()),
+        "server_errors": sum(c["5xx"] for g, c in statuses.items() if g != "ours"),   # 2.45.4: ours left out
         "visits": visits,
         "readers": readers,
         "by": by,
