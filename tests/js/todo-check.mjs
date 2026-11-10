@@ -106,10 +106,16 @@ assert.equal(q().get("tdchk"), null);
 box = T.todoSection(m, S.read());
 c = card(box, "lost-pages");
 assert.ok(!c.querySelector(".td-chk-tbl") && text(c.querySelector("a.td-chk-open")) === "Show the 3 not fixed");
-// A link with tdchk opens it straight away.
+// A link with tdchk opens it straight away, card and all (#21).
 go("#overview/insights?tdchk=lost-pages");
 box = T.todoSection(m, S.read());
 assert.ok(card(box, "lost-pages").querySelector(".td-chk-tbl"));
+// Closed, the card shows no check answer: it sits behind Open (#21).
+go("#overview/insights");
+box = T.todoSection(m, S.read());
+assert.ok(!card(box, "lost-pages").querySelector(".td-chk-box"), "no answer on the card's face");
+go("#overview/insights?tdchk=lost-pages");
+box = T.todoSection(m, S.read());
 
 // ---- more than 50: Check the next ...
 const page2 = { ...partly, verdict: "more", words: "50 of 120 addresses checked: 48 fixed, 2 not yet. Check the next 50 to finish.", total: 120, checked: 50, next: 50 };

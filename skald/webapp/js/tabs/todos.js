@@ -124,7 +124,9 @@ const titleOf = (id, words) => withCopy(h("h3", null, words), linkTo(id), { labe
 
 /* A card: one to-do, or every open leaving page (item.list). */
 function shownFor(item, s) {
-  return Boolean(s.todo) && (s.todo === item.id || item.list.some((t) => t.id === s.todo));
+  // A link to a check's answer (tdchk) opens its card too: the answer sits behind Open (#21).
+  const on = (key) => Boolean(key) && (key === item.id || item.list.some((t) => t.id === key));
+  return on(s.todo) || on(s.tdchk);
 }
 
 function card(item, s, redraw) {
@@ -139,11 +141,9 @@ function card(item, s, redraw) {
     h("p", { class: "td-why" }, w.why),
     h("p", null, h("b", null, "Do: "), w.act),
     ts.length === 1 && markOf(t.id, t.marked)?.withheld ? h("p", { class: "note", role: "note" }, `Shown as done, not fixed: the second count disagreed (${markOf(t.id, t.marked).withheld}).`) : null,
-    ts.length === 1 ? agentNote(fixOf(t.id)) : null,
-    ts.length === 1 ? checkLine(t, s, redraw) : null,
     h("div", { class: "td-acts" },
       fix ? h("button", { type: "button", class: "btn primary td-fix", onclick: () => S.set({ todo: id, fix: "1", by: "", fixby: "", link: "" }) }, "Fix this") : null,
-      h("button", { type: "button", class: "btn", "aria-expanded": String(shown), onclick: () => S.set({ todo: shown ? "" : id }) }, shown ? "Close" : "Open")),
+      h("button", { type: "button", class: "btn", "aria-expanded": String(shown), onclick: () => S.set({ todo: shown ? "" : id, tdchk: "" }) }, shown ? "Close" : "Open")),
     shown ? openView(item, s, redraw) : null);
 }
 
@@ -159,7 +159,9 @@ function openView(item, s, redraw) {
     status === "open" ? [markButton("Mark done", t.id, "done", redraw), markButton("Not now", t.id, "notnow", redraw)]
       : fixedByCheck ? null : markButton("Undo", t.id, "open", redraw),
     openLink(t));
-  return h("div", { class: "td-view" }, more, status === "failed" && t.recheck?.still ? stillList(t) : list(t));
+  // The details stay behind Open (#21): the AI assistant's note and the last check's result.
+  return h("div", { class: "td-view" }, agentNote(fixOf(t.id)), checkLine(t, s, redraw), more,
+    status === "failed" && t.recheck?.still ? stillList(t) : list(t));
 }
 
 /* Every open leaving page together: each page, its visits and how many left at once. */

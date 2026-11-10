@@ -27,8 +27,9 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-10-2.46.0",
+  id: "2026-11-10-2.46.1",
   items: [
+    ["Cards stay short", "an Insights card shows only what is wrong, why and what to do; the AI assistant's note and a check's answer sit behind Open.", "what-to-fix"],
     ["Insights: only what needs fixing", "one short card per problem: what is wrong, why it matters and what to do, with Fix this and Open; fixes still being checked sit behind one small link.", "what-to-fix"],
     ["A failed fix says Failed", "a fix that passed Check again but still fails in the log (visitors still get \"not found\") shows Failed, with the addresses still failing.", "what-to-fix"],
     ["Skald's own addresses are not lost pages", "the beacon and page script addresses no longer show up as old pages people asked for.", "what-to-fix"],
