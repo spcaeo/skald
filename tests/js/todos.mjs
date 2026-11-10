@@ -393,10 +393,14 @@ assert.equal(text(cardOf("server-errors").querySelector(".td-tag")), "Needs fixi
   d.close({ instant: true });
   helper.can_mark = true;
 
-  // The agent's report on the card, beside its marks (settings/todos' fixes).
+  // The agent's report sits behind Open, never on the card's face (#21).
   helper.fixes = { "lost-pages": reports["lost-pages"] };
   await M.loadMarks(true);
   go("#overview/insights");
+  box = T.todoSection(m, S.read());
+  const face = box.querySelectorAll("article.td").find((a) => a.id === "td-lost-pages");
+  assert.ok(face && !face.querySelector(".fx-card"), "the card's face: three lines and its buttons only");
+  go("#overview/insights?todo=lost-pages");
   box = T.todoSection(m, S.read());
   const note = box.querySelectorAll("article.td").find((a) => a.id === "td-lost-pages").querySelector(".fx-card");
   assert.ok(note && text(note).includes("Your AI agent: Done") && text(note).includes("Tested with nginx -t"));

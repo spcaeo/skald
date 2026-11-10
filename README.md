@@ -51,6 +51,7 @@
 
 ## What's new
 
+- **2.46.1: a fix for 2.46.0, each Insights card shows only its three lines until opened** ([changelog](CHANGELOG.md#2461-2026-11-10)).
 - **2.46.0: Insights shows only what needs fixing; crawlers in a real browser are counted as crawlers** ([changelog](CHANGELOG.md#2460-2026-11-10)).
 - **2.45.7: in-page events are kept even on a day whose log figures are held back** ([changelog](CHANGELOG.md#2457-2026-11-09)).
 - **2.45.6: an upgrade no longer shows "404 Not Found" on a dashboard (Docker)** ([changelog](CHANGELOG.md#2456-2026-11-09)).

@@ -4,6 +4,27 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.46.1 (2026-11-10)
+
+A fix for 2.46.0: each Insights card shows only its three lines until it is opened.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- Nothing else: no schema change, no setting.
+
+### Fixes
+
+- **Fix: an Insights card shows only its three lines until it is opened (#21).** On the live
+  2.46.0, a "Fixes that failed" card showed the AI assistant's done note (a paragraph and its
+  files) and the last Check again result ("Checking 50 of 386 addresses ...") under its three
+  lines, before Fix this and Open. The approved design keeps every card to what is wrong, why
+  and what to do; the sample data the design was checked on had no such note, so it did not
+  show there. Now the note and the check's answer sit behind Open, and a link to a check's
+  answer opens its card. Who it affects: anyone whose to-dos were fixed by an AI assistant or
+  checked again. What to do: nothing. Checked: the Insights JS tests (the card's face has no
+  note or answer; Open and a check link show them), the full test suite, the page in a browser.
+
 ## 2.46.0 (2026-11-10)
 
 Insights shows only what needs fixing, in plain words, and a fix the log still finds failing
