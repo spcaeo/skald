@@ -80,7 +80,9 @@ Two kinds of tool also send a browser's name, and both are bots:
 - **A scanner trying many paths.** A visitor that asks for 5 or more different scanner paths your site does not have (`/info.php`, `/wp-login.php`, `/admin/` and the like, each answered "not found") is a scanner for that whole day, with every page it read between them. One or two missing paths are not enough: a person can mistype.
 - **A link checker.** A browser opens a page with an ordinary request. A visit that asks for two or more pages with `HEAD` (a request for the headers only) is a tool checking links, and every request of that visit is a bot.
 
-What Skald does not do: call a visit a bot because it was short. Real people open one page and leave. A visit from a hosting or cloud network is flagged, not moved, because people on a VPN come from there too.
+What Skald does not do: call a visit a bot because it was short. Real people open one page and leave. A visit from a hosting or cloud network is flagged, not moved, because people on a VPN come from there too, unless it reads like a machine: 20 pages or more at 10 seconds a page or faster is counted under bots as "too fast to be a person" (`site.cloud_fast_pages`, `site.cloud_fast_seconds`; 0 pages turns it off).
+
+A browser on a crawler's own addresses is that crawler. Google, Bing, Apple, OpenAI, Perplexity and DuckDuckGo publish the addresses their crawlers use. When a normal browser name comes from one of those addresses, it is the crawler drawing the page in a real browser, and Skald counts it as that crawler (for example OAI-SearchBot), not as a person. Addresses a person can be behind, such as ChatGPT fetching a page you asked about, are left out.
 
 **A visit's pages.** A visit shows the pages it loaded from your server and the steps seen in the browser, both: "3 pages (2 seen in the browser)". A step seen in the browser is a page shown from the browser's cache, or a click your site handled without loading a page. Skald sees it from the next request's referrer. It is drawn dashed in the journey, and it is never counted as a page view.
 
@@ -311,16 +313,9 @@ The drill-down panel draws the same map for its visits (**How these visitors mov
 
 ## Insights
 
-[Overview > Insights](#overview/insights) says what changed, in plain words: what is working, what dropped, what is new or gone, what looks unusual and what is worth fixing.
+[Overview > Insights](#overview/insights) shows only what needs fixing on your site now, and nothing else: **To do this week** (the open problems, worst leak first) and **Fixes that failed** (marked fixed, but your log still shows the problem). Each card says in three plain lines what is wrong, why it matters and what to do, with **Fix this** and **Open** (the list behind it). One small link lists the fixes being checked. With nothing open, it says **Nothing to fix right now.** See [What to fix](what-to-fix.md).
 
-Above the cards, **To do now** lists what to fix this week, worst leak first, each with its proof, its list, a CSV and a link; mark one done and Skald re-checks it. See [What to fix](what-to-fix.md).
-
-- **The five biggest come first.** Size is how much moved and what it is worth: a lead counts more than a visit, an AI fetch or a crawl less, and a finding on small numbers less. **Show all** lists the rest.
-- **One card per subject.** A site that is both a referring site and an AI assistant, or a source's visitors and its leads, is one card; the other findings about it are under **more about this**.
-- **One sentence, one number, one link** on each card. The link opens the tab that shows it, filtered to it.
-- **Pick what to compare:** **Yesterday** (against the 14 days before), **7 days** or **30 days** (against the same number of days before). **Today so far** lists only what is seen for the first time today, such as a new page or country; rises and drops need whole days, so they are under the others. A window with nothing in it says so.
-
-Insights compare whole, checked days only, so the period in the top bar does not apply here.
+The figures behind each card are on its list and on the tab it links to. What rose or fell is on [Overview > Summary](#overview/summary), under **What changed: is it working?**
 
 ## Compare
 
@@ -409,7 +404,7 @@ Skald then compares the same number of whole days before and after that day, up 
 
 Until 14 whole days have passed it says **Too early to tell**, how many days it has and the day the verdict comes. After that each figure says **Up**, **Down** or **No clear change** (the difference is within the normal day-to-day swing). **Too few to tell** means fewer than 10 on both sides together. A day that is not whole or not recorded is in neither side; when the two sides then have different numbers of days, they are compared per day and the page says so. A figure not recorded says **not recorded**, never 0.
 
-The change shows as a marker on every day chart. **Copy link** copies the address of this change; **Stop tracking** removes it from the list (the mark stays in the history). Every change marked on the site is listed on [Overview > Insights](#overview/insights), under **Done, and did it work?**. Every figure is counted twice, the second time straight from the stored days; a change the two counts disagree on is left out and named.
+The change shows as a marker on every day chart. **Copy link** copies the address of this change; **Stop tracking** removes it from the list (the mark stays in the history). Every change marked on the site is listed on [Overview > Insights](#overview/insights), behind the link to the fixes being checked. Every figure is counted twice, the second time straight from the stored days; a change the two counts disagree on is left out and named.
 
 Only owners and admins can mark a change, and only with accounts (signing in). A change marked today shows its figures from the next data update.
 

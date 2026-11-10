@@ -4,6 +4,118 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.46.0 (2026-11-10)
+
+Insights shows only what needs fixing, in plain words, and a fix the log still finds failing
+says Failed. Crawlers that read pages in a real browser are counted as crawlers, not people.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- No schema change. Two new settings, both on by default: `site.cloud_fast_pages` (20) and
+  `site.cloud_fast_seconds` (10); `cloud_fast_pages: 0` turns rule 9c off.
+- People figures can drop a little where crawlers read the site in a real browser. Days
+  already stored keep their figures unless recounted (`skald backfill --days 14 --force`).
+
+### Changes
+
+- **Overview > Insights shows only what needs fixing (#5, #6).** Insights was hard to read:
+  long cards with proof sentences, five buttons each, a "Done, and did it work?" list, and the "What changed" cards below, with figures that did not match each other
+  (59 visits on one card, 62 on another, for the same page). Now the tab shows only open
+  problems: **To do this week** and **Fixes that failed**, one card each, in three plain lines
+  (what is wrong, why it matters, Do: what to do) with no counts, percentages or dates, a pill
+  (Needs fixing, Failed), **Fix this** and **Open**. Every open leaving page shares one card
+  ("3 pages lose their readers", `todo=leave`). One small link, "N fixes being checked"
+  (`show=checking`), lists the fixes still being checked, the ones that worked and the page
+  changes marked on Traffic > Pages; with nothing open the page says "Nothing to fix right
+  now." Open shows the list behind a card (a failed fix: the addresses still failing since the
+  mark), its tab, and the smaller actions (Check again, Mark done, Not now, Undo). The cards'
+  words are written in one place (`js/tabs/todo-words.js`), from each to-do's own fields; no
+  site is typed in. What rose or fell stays on Overview > Summary. Who it affects: everyone
+  who opens Insights. What to do: nothing. Checked: the JS tests of the cards, Open, the
+  marks, Check again and Fix this (todos.mjs, todo-check.mjs), the full test suite, and the
+  page in a browser against the approved mock-up (light and 390 px).
+- **Fix: a fix that the log still shows failing says Failed (#5).** When Check again found
+  every address fixed, the to-do showed "Fixed", even when visitors and crawlers kept getting
+  "not found" on the days after (on one site, Check again passed on 2 Nov, then
+  `/news_sitemap.xml` answered 404 twice a day). Now the daily re-check of the log decides:
+  todos.json gives each to-do a `status` (open, checking, failed, passed, notnow) and, on a
+  re-check, `still` (the addresses still failing, most first) and `still_total`; the card says
+  "1 of 3 sitemaps is still missing". The second count (audit_todos.py) recounts the
+  addresses and the status by its own road and withholds a to-do it disagrees with. Who it
+  affects: any site with a to-do marked fixed by Check again. What to do: nothing. Checked: new
+  tests (a passing live check with a failing log shows failed; waiting is checking; the audit
+  agrees, and catches a nudged status, address figure or count), the to-do tests, the full
+  test suite.
+- **Fix: Skald's own addresses are no longer "lost pages" (#16).** Skald's beacon
+  (`/traffic-beacon/`) answers 404 to anything but its own posts, so crawlers that found it in
+  a page were counted as asking for an old page: on one site, lost pages said 409 addresses and
+  592 asks, 152 of them the beacon's, and the lost-pages re-check counted 82 "not found"
+  answers since the fix, 74 of them the beacon's. Now `/traffic-beacon`, `/traffic-js/`,
+  `/traffic-hooks/` and `/traffic-ingest/` (any case, with or without a trailing slash) are
+  never a lost page, a Markdown or sitemap ask, or an address a re-check counts, on both roads
+  (lost_pages.py and its second count). Look-alikes such as `/traffic-beaconx/` stay pages.
+  Who it affects: every site with the beacon or the page script on. What to do: nothing; the
+  next data update counts without them. Checked: new tests (both roads leave them out and
+  keep the look-alikes, the audit agrees and names a beacon row slipped back in, the re-check
+  never counts them), the to-do tests, the full test suite.
+
+- **Counting change: crawlers in a real browser are no longer counted as people.** One site's
+  31 Oct showed about 400 scroll events in two hours, counted as people's. OpenAI's crawler
+  rendered pages in a real Mac Chrome: its page loads named the crawler and were counted right,
+  but its page script's events did not, so they counted as people's. Checking a week of every
+  site's logs also found headless browsers on Amazon and Google Cloud reading exactly 20 pages
+  in a minute or two, counted as people on most sites. Two new rules, both
+  counted on both roads: (1) a normal browser name from an address on a crawler's own published
+  list (Google's common crawlers, Bing, Apple, OpenAI's GPTBot, OAI-SearchBot and OAI-AdsBot,
+  PerplexityBot, DuckDuckBot) is that crawler, verified, not a person; lists a person can be
+  behind (ChatGPT-User, Perplexity-User, Google's user fetchers) are left out (CLASSIFICATION.md
+  rule 5b). (2) A browser from a hosting or cloud network that reads 20 pages or more at 10
+  seconds a page or faster in one visit is "too fast to be a person" (rule 9c; settings
+  `site.cloud_fast_pages`, `site.cloud_fast_seconds`, 0 pages turns it off). Before, a cloud
+  address was only a flag, because people on a VPN come from there too; a VPN reader that fast
+  is now counted as a bot, the price of the rule. Who it affects: sites with the crawler lists
+  on (`bots.ranges_dir`, on by default in Docker); people figures can drop a little where such
+  crawlers read the site. What to do: nothing; days already stored keep their figures unless
+  recounted (`skald backfill --days 14 --force`). In-page events arriving one at a time follow
+  rule 1, not rule 2 (it needs the whole visit), and 31 Oct's events stay as they are, with this
+  note. Checked: new tests (both rules, the edges that stay people, the audit agreeing and
+  catching a nudged figure), the full test suite, and a dry count of a week of every site's live
+  logs, old rules against new, read only.
+- **Fix: a weekly mail that cannot go out no longer stops the Monday run.** On Mondays the
+  weekly mail is refused when its week is not complete (a site that started mid-week, or a day
+  in it held back). That refusal stopped the whole morning run, skipped everything after it,
+  and sent "[Skald] Daily run failed" (seen on two Mondays for one site). Now it skips that
+  one mail with a line in the run log ("weekly mail skipped: ...; the run goes on"); the run
+  goes on and ends ok. A mail that fails to send (the mail server) still fails the run as
+  before. Who it affects: every install with the weekly mail on. What to do: nothing; the
+  weekly mail comes back by itself on the first Monday after a whole week. Checked: the tests
+  of a part week (the run ends ok, no failure mail), the full test suite.
+- **Fix: two equal rows in the security list no longer hold back a day.** Security's "possible
+  exposure" rows were ordered by time (to the second), host and path. When two addresses asked
+  for the same path in the same second, the main count and its second count (the audit) could
+  list them in opposite orders; the audit compares the list row by row, found two rows that
+  differ and withheld the whole day (one site's 4 Nov: "history has 110, the recount finds 63"
+  and the other way round). Both now settle a tie the same way: the answer, its size, the
+  category, then the address number. Who it affects: any site, on a day two such rows tie. What
+  to do: nothing; a day withheld for this can be counted again while its log is kept (`skald
+  backfill`). Days already stored are not re-judged. Checked: new test (two tied rows, seen in
+  either order, come out in one order on both roads), the security tests, the full test suite,
+  and the live recount of the day that showed it.
+- **Fix (website tests): the /check/ agency-mode browser test no longer fails one run in two.**
+  The test clicked "Download one PDF" and then waited a fixed 3 seconds before looking for the
+  "done" message. It runs in headless Chrome with virtual time (a test clock that only stops
+  while a network request is open). The PDF step reads the logo with a FileReader, which does
+  not stop that clock, so virtual time jumped ahead while the read finished. The done message
+  came anywhere from a quarter of a second to more than 10 seconds of virtual time after the
+  click, so the fixed wait often ended too early (`out["done"]` false, empty error). The
+  test now waits for the real result: it asks the test server for a short answer again and
+  again (each request holds the clock) until the done message or an error shows, for up to
+  about 15 seconds. The page itself was right and is unchanged; the checks are unchanged. Who
+  it affects: developers running the site tests. What to do: nothing. Checked: the failure
+  reproduced 4 times in 8 runs and was traced to the FileReader; after the fix the test passed
+  20 runs in a row, and all 51 site tests and the main suite passed.
+
 ## 2.45.7 (2026-11-09)
 
 In-page events are kept even on a day whose log figures are held back, and an older day's events

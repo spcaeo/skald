@@ -9,7 +9,10 @@ The rule it recounts (CLASSIFICATION.md, rule 9b): a browser-like visit -
 address and agent, no gap longer than the session gap, on the site's hosts -
 with at least site.too_fast_pages page views (6; 0 turns it off), all of
 them within site.too_fast_seconds (2) of its first, is a bot: every line of
-it, from its first line to its last.
+it, from its first line to its last. Rule 9c: so is one from a hosting
+network (the audit's own reading of the hosting list, passed in) with at
+least site.cloud_fast_pages page views (20; 0 turns it off) whose first and
+last are no more than site.cloud_fast_seconds (10) apart per later page.
 """
 from __future__ import annotations
 
@@ -32,10 +35,23 @@ def settings(config: dict) -> tuple[int, int]:
     return max(pages, 0), max(seconds, 0)
 
 
-def too_fast(config: dict, lines: list, gap: timedelta, hosts: set, is_page) -> dict:
+def cloud_settings(config: dict) -> tuple[int, int]:
+    """(pages, seconds a page) for rule 9c, 20 and 10 when unset."""
+    site = (config or {}).get("site") or {}
+    try:
+        pages = 20 if site.get("cloud_fast_pages") is None else int(site["cloud_fast_pages"])
+        pace = 10 if site.get("cloud_fast_seconds") is None else int(site["cloud_fast_seconds"])
+    except (TypeError, ValueError):
+        return 20, 10
+    return max(pages, 0), max(pace, 0)
+
+
+def too_fast(config: dict, lines: list, gap: timedelta, hosts: set, is_page,
+             from_hosting=None) -> dict:
     """{(address, agent): [(first, last)]} of the visits that read too fast."""
     least, seconds = settings(config)
-    if least <= 0:
+    cloud, pace = cloud_settings(config) if from_hosting is not None else (0, 0)
+    if least <= 0 and cloud <= 0:
         return {}
     limit = timedelta(seconds=seconds)
     pairs: dict[tuple, list] = {}
@@ -53,6 +69,9 @@ def too_fast(config: dict, lines: list, gap: timedelta, hosts: set, is_page) -> 
         for a, b in zip(cut, cut[1:] + [len(seen)]):
             visit = seen[a:b]
             read = [l.when for l in visit if is_page(l)]
-            if len(read) >= least and max(read) - min(read) <= limit:
+            took = (max(read) - min(read)).total_seconds() if read else 0
+            if (least > 0 and len(read) >= least and took <= limit.total_seconds()) or (
+                    cloud > 0 and len(read) >= cloud and took <= pace * (len(read) - 1)
+                    and from_hosting(pair[0])):
                 found.setdefault(pair, []).append((visit[0].when, visit[-1].when))
     return found

@@ -1,10 +1,13 @@
-// Insights' to-dos and Not found's lost pages (2.35, js/tabs/todos.js, todo-marks.js,
-// todo-send.js, nf-lost.js): the to-dos drawn from todos.json, "Show the list" kept in
-// the address (todo=<id>), Copy link with its green tick, the CSV's words, the marks
-// from the helper (none without accounts, said why), Send to team only with a mail
-// server and a team, a to-do the address names that is not on the list; the lost
-// pages' three tabs (nfk) and the server switch (nfsrv); and the owner's copy rule:
-// every path gets copy + open, every line to paste and every word value the copy icon.
+// Insights' cards and Not found's lost pages (2.35; #5, #6: only open problems; js/tabs/todos.js,
+// todo-words.js, todo-marks.js, todo-send.js, nf-lost.js): the cards drawn from todos.json, three
+// plain lines each with no counts, its pill, Fix this and Open; every open leaving page in one card
+// (todo=leave); a failed fix (the log's re-check, not the live check) under "Fixes that failed";
+// one link to the fixes being checked (show=checking); "Nothing to fix right now."; Open kept in
+// the address (todo=<id>) with the list and the marks (none without accounts, said why); Copy
+// link with its green tick, the CSV's words, Send to team only with a mail server and a team, a
+// to-do the address names that is not on the list; the lost pages' three tabs (nfk) and the
+// server switch (nfsrv); and the owner's copy rule: every path gets copy + open, every line to
+// paste and every word value the copy icon.
 //
 //   node tests/js/todos.mjs
 import assert from "node:assert/strict";
@@ -85,42 +88,107 @@ assert.equal(S.hashFor({ ...S.read(), tab: "overview/insights", todo: "lost-page
 assert.equal(S.hashFor({ ...S.read(), tab: "site/notfound", nfk: "md", nfsrv: "apache" }), "#site/notfound?nfk=md&nfsrv=apache");
 assert.equal(S.hashFor({ ...S.read(), tab: "traffic/pages", todo: "lost-pages", nfk: "md" }), "#traffic/pages", "another tab starts without them");
 
-// ---- without accounts: the list, nothing to mark, no Send to team, and why
+// ---- #5, #6: only open problems. Without accounts: the cards, three plain lines each,
+// its pill, Fix this and Open; a withheld to-do named; the done one (passed) behind one link
+const W = await import(new URL("tabs/todo-words.js", JS));
 ME.mode = "basic";
 go("#overview/insights");
 let box = T.todoSection(m, S.read());
 await tick();
-assert.equal(box.querySelectorAll("article.td").length, 3, "two open, one done");
-assert.ok(text(box).includes("To do now") && text(box).includes("Send old pages somewhere useful"));
-assert.ok(text(box).includes(M.WHY.basic), "says why nothing can be marked");
-const markBtn = box.querySelectorAll("button").find((b) => text(b) === "Mark done");
-assert.ok(markBtn.hasAttribute("disabled") && markBtn.title === M.WHY.basic);
-assert.ok(!box.querySelectorAll("button").some((b) => text(b) === "Send to team"), "no mail, no team: not offered");
+const cards = () => box.querySelectorAll("article.td");
+const cardOf = (id) => cards().find((a) => a.id === `td-${id}`);
+assert.deepEqual(cards().map((a) => a.id), ["td-lost-pages", "td-leave"], "two open problems; the passed fix is not a card");
+assert.ok(text(box).includes("To do this week") && !text(box).includes("Fixes that failed"));
+const lostCard = cardOf("lost-pages");
+assert.equal(text(lostCard.querySelector("h3")), "Old pages answer \"Page not found\"");
+assert.ok(text(lostCard).includes("Do: Redirect each to the closest live page, or answer 410 gone."));
+assert.equal(text(lostCard.querySelector(".td-tag")), "Needs fixing");
+assert.ok(!/\d/.test(text(lostCard).replace("410", "")), "no counts, percentages or dates on the card");
+assert.equal(text(cardOf("leave").querySelector("h3")), "1 page loses its readers");
+const btnWords = (el) => el.querySelectorAll(".td-acts")[0].querySelectorAll("button").map(text);
+assert.deepEqual(btnWords(lostCard), ["Fix this", "Open"], "one main button and Open, nothing else");
+for (const gone of ["Download CSV", "Copy link", "Send to team", "Fix all", "Mark done", "Show the list", "Proof"]) assert.ok(!text(box).includes(gone), `${gone}: not on the overview`);
 assert.ok(text(box).includes("left out: the second count disagreed"), "a withheld to-do is named");
 assert.ok(box.querySelector(".note .ua-host button.ua-copy"), "its reason has the copy icon");
-// A page to-do: its page with copy and open.
-const sub = box.querySelector("p.td-sub");
-assert.ok(sub.querySelector("button.ua-copy") && sub.querySelector("a.ua-open").getAttribute("href") === "https://example.com/our-focus/");
-// Done, and did it work? with the re-check's own words.
-const done = box.querySelector("article.td-done");
-assert.ok(text(done).includes("Fixed: 0 server errors since 20 Oct.") && done.querySelector(".v-fixed"));
+const link = box.querySelector(".td-checking a");
+assert.equal(text(link), "1 fix passed");
+link.click();
+assert.equal(new URLSearchParams(location.hash.split("?")[1]).get("show"), "checking");
+assert.equal(S.hashFor({ ...S.read(), tab: "overview/insights" }), "#overview/insights?show=checking", "kept in the address");
+box = T.todoSection(m, S.read());
+const passed = cardOf("server-errors");
+assert.ok(passed && text(passed.querySelector(".td-verdict.v-fixed")) === "Passed" && text(passed).includes("Server errors: your fix worked"));
+assert.deepEqual(btnWords(passed), ["Open"], "nothing to fix: no Fix this");
+assert.ok(text(box).includes("Back to the open problems"));
+go("#overview/insights");
 
-// ---- Show the list: the address keeps it; the rows' paths get copy + open, words copy alone
-const show = box.querySelectorAll("button").find((b) => text(b).startsWith("Show the list (2)"));
-show.click();
+// ---- Open: the address keeps it; the to-do's own table, its smaller actions and its tab;
+// the rows' paths get copy + open, words copy alone
+box = T.todoSection(m, S.read());
+cardOf("lost-pages").querySelectorAll("button").find((b) => text(b) === "Open").click();
 assert.equal(new URLSearchParams(location.hash.split("?")[1]).get("todo"), "lost-pages");
 box = T.todoSection(m, S.read());
 await tick();
 const card = box.querySelector("article.td-on");
-assert.ok(card && text(card).includes("Hide the list"));
+assert.ok(card && btnWords(card).includes("Close"));
+assert.deepEqual(card.querySelectorAll(".td-more button").map(text), ["Mark done", "Not now"], "no accounts: no Check again (todo-check.mjs has it)");
+const markBtn = card.querySelectorAll("button").find((b) => text(b) === "Mark done");
+assert.ok(markBtn.hasAttribute("disabled") && markBtn.title === M.WHY.basic, "without accounts: says why on the button");
+assert.ok(card.querySelector("a.td-open") && text(card.querySelector("a.td-open")).startsWith("See it in "), "where it shows: a quiet link");
 const listed = card.querySelector(".td-list");
 assert.ok(listed.querySelectorAll("a.ua-open").some((a) => a.getAttribute("href") === "https://example.com/old-pricing/"), "old address: open");
 assert.ok(listed.querySelectorAll("a.ua-open").some((a) => a.getAttribute("href") === "https://example.com/pricing/"), "closest page: open");
 assert.ok(text(listed).includes("Same topic") && text(listed).includes("none close"));
-go("#overview/insights?todo=leave-0a1b2c3d");
-box = T.todoSection(m, S.read());
-const words = box.querySelector("article.td-on .td-list");
-assert.ok(words.querySelector(".ua-host button.ua-copy") && !words.querySelector("a.ua-open"), "a source: copy only");
+// Every open leaving page in one card: todo=leave, or a page's own id from a mail's link.
+for (const id of ["leave", "leave-0a1b2c3d"]) {
+  go(`#overview/insights?todo=${id}`);
+  box = T.todoSection(m, S.read());
+  const on = box.querySelector("article.td-on");
+  assert.equal(on && on.id, "td-leave", id);
+  assert.ok(on.querySelector(".td-list a.ua-open").getAttribute("href") === "https://example.com/our-focus/", "the page: copy and open");
+  assert.ok(on.querySelector(".td-list a.td-open"), "each page's figures: its tab");
+}
+
+// ---- the words: one map, from the to-do's own fields; a number only where it is the message
+{
+  const failedSitemap = { id: "sitemap", kind: "sitemap", figures: { paths: 3 }, rows: [], recheck: { verdict: "not_yet", still: [["/news_sitemap.xml", 8]], still_total: 1 } };
+  assert.deepEqual(W.cardWords([failedSitemap], "failed"), { title: "1 of 3 sitemaps is still missing",
+    why: "Crawlers keep asking for /news_sitemap.xml and find nothing.", act: "Publish it, or redirect it to your sitemap." });
+  const failedLost = { ...lostTodo, recheck: { verdict: "not_yet", still: [["/old-pricing/", 6], ["/gone/", 1]], still_total: 2 } };
+  assert.equal(W.cardWords([failedLost], "failed").act, "Redirect /old-pricing/ to /pricing/ first: it is asked for most since your fix.");
+  assert.equal(W.cardWords([{ ...failedLost, recheck: { still: [["/gone/", 1]], still_total: 1 } }], "failed").title, "An old page still answers \"Page not found\"");
+  const leaves = [1, 2, 3].map((i) => ({ ...leaveTodo, id: `leave-${i}`, rows: [{ source: "Search engine", visits: 9 }, { source: "Direct or unknown", visits: 3 }] }));
+  assert.deepEqual(W.cardWords(leaves, "open"), { title: "3 pages lose their readers", why: "People land here from search and leave without a next step.", act: "Add a clear next step on each page." });
+  assert.equal(W.cardWords([leaveTodo], "open").why, "People land here and leave without a next step.", "not from search: not said");
+  assert.equal(W.cardWords([doneTodo], "checking").title, "Server errors: checking your fix");
+  for (const st of ["open", "failed", "checking", "passed"]) {
+    for (const t of [lostTodo, doneTodo, failedSitemap, { ...lostTodo, kind: "markdown" }]) {
+      const w = W.cardWords([t], st);
+      assert.ok(w.title && w.why && w.act, `${t.kind} ${st}: three lines`);
+    }
+  }
+  // The status: the log's re-check decides, even after a passing live check (state fixed).
+  const fixedMark = { state: "fixed", day: "2026-11-02" };
+  const sm = { ...failedSitemap, state: "fixed", marked: fixedMark, status: "failed" };
+  assert.equal(T.statusOf(sm, fixedMark), "failed");
+  assert.equal(T.statusOf({ ...sm, status: undefined }, fixedMark), "failed", "from the verdict when the file has no status");
+  assert.equal(T.statusOf(sm, { state: "done", day: "2026-11-09" }), "checking", "a mark made since the update: checking");
+  assert.equal(T.statusOf(lostTodo, null), "open");
+  assert.equal(T.statusOf(lostTodo, { state: "notnow", day: "2026-11-09" }), "notnow");
+  // A failed fix is a card under "Fixes that failed" with its still-failing list.
+  const fm = { x: { todos: { ...todos, withheld: [], todos: [sm] } } };
+  go("#overview/insights");
+  box = T.todoSection(fm, S.read());
+  assert.ok(text(box).includes("Fixes that failed") && text(cardOf("sitemap").querySelector(".td-verdict")) === "Failed");
+  assert.equal(text(cardOf("sitemap").querySelector("h3")), "1 of 3 sitemaps is still missing");
+  go("#overview/insights?todo=sitemap");
+  box = T.todoSection({ x: { todos: { ...todos, withheld: [], todos: [{ ...sm, columns: [], file: "sitemap-asks.csv", open: { tab: "site/notfound", name: "Site > Not found" } }] } } }, S.read());
+  assert.ok(text(box.querySelector("article.td-on .td-list")).includes("/news_sitemap.xml"), "Open: the addresses still failing");
+  // Nothing open: one line.
+  go("#overview/insights");
+  box = T.todoSection({ x: { todos: { ...todos, withheld: [], todos: [doneTodo] } } }, S.read());
+  assert.ok(text(box).includes("Nothing to fix right now.") && !box.querySelector("article.td"));
+}
 
 // ---- the CSV says the words, not the codes
 const { csv } = await import(new URL("table.js", JS));
@@ -128,45 +196,28 @@ const written = csv(T.columnsOf(lostTodo), lostTodo.rows);
 assert.ok(written.startsWith("Old address,People,Closest live page,How close"));
 assert.ok(written.includes("/old-pricing/,7,/pricing/,Same topic") && written.includes("/gone/,2,,No good match"));
 
-// ---- 2.41, one button: "Fix this" replaces Download CSV, Copy link and Send to team;
-// the link is the copy icon beside the title (green tick for 1.5 s)
+// ---- 2.41, one button: Fix this; the link is the copy icon beside the title (green tick for 1.5 s)
 go("#overview/insights");
 box = T.todoSection(m, S.read());
-const lostCard = box.querySelectorAll("article.td").find((a) => a.id === "td-lost-pages");
-const btnWords = (el) => el.querySelectorAll(".td-acts button").map(text);
-assert.deepEqual(btnWords(lostCard), ["Fix this", "Show the list (2)", "Mark done", "Not now"], "one main button, no row of choices");
-for (const gone of ["Download CSV", "Copy link", "Send to team"]) assert.ok(!text(box).includes(gone), `${gone}: inside Fix this now`);
-assert.ok(lostCard.querySelector("a.td-open") && text(lostCard.querySelector("a.td-open")).startsWith("See it in "), "where it shows: a quiet link");
 mock.timers.enable({ apis: ["setTimeout"] });
-const copyLink = lostCard.querySelector(".td-title button.ua-copy");
-assert.equal(copyLink.getAttribute("aria-label"), 'Copy the link to "Send old pages somewhere useful"');
+const copyLink = cardOf("lost-pages").querySelector(".td-title button.ua-copy");
+assert.equal(copyLink.getAttribute("aria-label"), 'Copy the link to "Old pages answer "Page not found""');
 copyLink.click();
 await Promise.resolve(); await Promise.resolve();
 assert.ok(copied.at(-1).endsWith("#overview/insights?todo=lost-pages") && copied.at(-1).startsWith("https://app.example.com/traffic/example.com/"), copied.at(-1));
-assert.ok(lostCard.querySelector(".td-title .ua").classList.contains("ua-ok"), "the green tick");
+assert.ok(cardOf("lost-pages").querySelector(".td-title .ua").classList.contains("ua-ok"), "the green tick");
 mock.timers.tick(U.TIMING.tick);
-assert.ok(!lostCard.querySelector(".td-title .ua").classList.contains("ua-ok"));
+assert.ok(!cardOf("lost-pages").querySelector(".td-title .ua").classList.contains("ua-ok"));
 mock.timers.reset();
-// Fix all (N): every open to-do an agent can fix (lost and leave here; the done one is not).
-const fixAll = box.querySelector(".td-top button.td-fixall");
-assert.equal(text(fixAll), "Fix all (2)");
-fixAll.click();
+cardOf("lost-pages").querySelectorAll("button").find((b) => text(b) === "Fix this").click();
 let q = new URLSearchParams(location.hash.split("?")[1]);
-assert.equal(q.get("fix"), "all");
+assert.deepEqual([q.get("todo"), q.get("fix")], ["lost-pages", "1"]);
 go("#overview/insights");
-lostCard.querySelectorAll("button").find((b) => text(b) === "Fix this").click();
+cardOf("leave").querySelectorAll("button").find((b) => text(b) === "Fix this").click();
 q = new URLSearchParams(location.hash.split("?")[1]);
-assert.equal(q.get("todo"), "lost-pages");
-assert.equal(q.get("fix"), "1");
-// New to-dos (first_seen in the window's last 7 days): one line on top.
+assert.deepEqual([q.get("todo"), q.get("fix")], ["leave", "1"], "the leaving pages' card: all of them");
+// New to-dos (first_seen in the window's last 7 days): still worked out for the mail and the agent.
 assert.deepEqual(T.newOnes([{ id: "a", first_seen: "2026-10-24" }, { id: "b", first_seen: "2026-10-23" }, { id: "c" }], { last: "2026-10-30" }).map((t) => t.id), ["a"]);
-const fresh = { x: { todos: { ...todos, todos: [{ ...lostTodo, first_seen: "2026-10-29" }, leaveTodo] } } };
-go("#overview/insights");
-box = T.todoSection(fresh, S.read());
-assert.ok(text(box.querySelector(".td-new")).includes("1 new to-do your AI agent can fix."));
-box.querySelector(".td-new a.td-go").click();
-q = new URLSearchParams(location.hash.split("?")[1]);
-assert.deepEqual([q.get("todo"), q.get("fix"), q.get("by"), q.get("fixby")], ["lost-pages", "1", "agent", null]);
 go("#overview/insights");
 
 // ---- Me's lines: the same rules as closest_page.rules
@@ -197,7 +248,7 @@ await M.loadMarks(true);
 go("#overview/insights");
 box = T.todoSection(m, S.read());
 assert.ok(!box.querySelectorAll("button").some((b) => text(b) === "Send to team"), "inside Fix this, not on the card");
-assert.ok(!box.querySelector("article.td-done"), "the helper's marks win: the done to-do is open again");
+assert.equal(text(cardOf("server-errors").querySelector(".td-tag")), "Needs fixing", "the helper's marks win: the done to-do is open again");
 
 // ---- 2.41: Fix this, "Who will do it?" (js/tabs/todo-fix.js): every choice in the address,
 // the line and its code never; a reload watches the same line; closing takes it all away.
@@ -315,6 +366,12 @@ assert.ok(!box.querySelector("article.td-done"), "the helper's marks win: the do
   assert.equal(tile(d, "dev").getAttribute("aria-checked"), "true");
   d.close({ instant: true });
 
+  // The leaving pages' card: Fix this for all of them (todo=leave).
+  go("#overview/insights?todo=leave&fix=1");
+  d = await FX.openFixKey("1", m, S.read());
+  assert.ok(text(d.el).includes("Make /our-focus/ lead somewhere"), "the leaving pages, named");
+  d.close({ instant: true });
+
   // Fix all (N): one line for every open to-do an agent can fix.
   go("#overview/insights");
   d = await FX.openFixKey("all", m, { ...S.read(), fixby: "agent" });
@@ -348,12 +405,20 @@ assert.ok(!box.querySelector("article.td-done"), "the helper's marks win: the do
   globalThis.fetch = base;
 }
 
-const doIt = box.querySelectorAll("button").find((b) => text(b) === "Mark done" && !b.hasAttribute("disabled"));
+// Open's smaller actions: Mark done moves the card to the fixes being checked; Not now folds it.
+go("#overview/insights?todo=lost-pages");
+box = T.todoSection(m, S.read());
+const doIt = box.querySelectorAll(".td-more button").find((b) => text(b) === "Mark done" && !b.hasAttribute("disabled"));
 doIt.click();
 await tick();
 assert.deepEqual(posted.at(-1), ["settings/todos", { item: "lost-pages", state: "done" }]);
-assert.ok(text(box.querySelector("article.td-done")).includes("re-checks it on the next data update"), "moved to done, waiting for the re-check");
-const notNow = box.querySelectorAll("button").find((b) => text(b) === "Not now" && !b.hasAttribute("disabled"));
+assert.ok(!cardOf("lost-pages") && text(box.querySelector(".td-checking a")) === "1 fix being checked", "marked: out of the problems, being checked");
+go("#overview/insights?show=checking");
+box = T.todoSection(m, S.read());
+assert.ok(text(cardOf("lost-pages")).includes("Old pages: checking your fix") && text(cardOf("lost-pages").querySelector(".td-verdict")) === "Checking");
+go("#overview/insights?todo=server-errors");
+box = T.todoSection(m, S.read());
+const notNow = box.querySelectorAll(".td-more button").find((b) => text(b) === "Not now" && !b.hasAttribute("disabled"));
 notNow.click();
 await tick();
 assert.ok(text(box).includes("Not now (1)"));

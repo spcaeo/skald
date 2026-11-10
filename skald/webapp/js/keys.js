@@ -27,8 +27,18 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-09-2.45.7",
+  id: "2026-11-10-2.46.0",
   items: [
+    ["Insights: only what needs fixing", "one short card per problem: what is wrong, why it matters and what to do, with Fix this and Open; fixes still being checked sit behind one small link.", "what-to-fix"],
+    ["A failed fix says Failed", "a fix that passed Check again but still fails in the log (visitors still get \"not found\") shows Failed, with the addresses still failing.", "what-to-fix"],
+    ["Skald's own addresses are not lost pages", "the beacon and page script addresses no longer show up as old pages people asked for.", "what-to-fix"],
+    ["Crawlers in a real browser", "a browser from a crawler's own published addresses counts as that crawler, and a cloud browser reading 20 pages at 10 s a page or faster counts as a bot.", "ai-and-bots"],
+    ["Quieter Mondays", "a weekly mail that cannot go out (a week not complete) skips itself; the morning run goes on.", "client-reports"],
+    ["Security days add up", "two equal rows in the security list no longer hold back a day.", "security"],
+  ],
+  // The earlier releases' notes, folded under the new ones.
+  earlier: [
+    // 2.45.1 to 2.45.7
     ["Events kept on a held-back day", "scrolls, form starts and clicks are stored even on a day whose log figures are held back, and an older day's events can be checked.", "tracking-script"],
     ["No 404 after an upgrade", "a dashboard keeps its pages through an upgrade; a site not ready yet says it is being prepared and opens by itself.", "docker-first-install"],
     ["Your own errors, fixed", "a day where your own server or monitor got a server error adds up again (2.45.4 could hold it back).", "what-to-fix"],
@@ -38,9 +48,6 @@ const NEW = {
     ["Quieter morning checks", "held webhook deliveries on a keep-everything site, and Search Console's last 3 days, no longer make the morning run report \"failed\".", "connections"],
     ["A refused POST is not a form", "a POST your site turned away (301, 404, 405...), as scanners send all day, no longer marks a visit \"sent a form\".", "settings-and-retention"],
     ["\"Sent a form\" means a form", "a POST your page's own script sends by itself (an event beacon) is no longer counted as a form; Settings › Data › What counts › Not forms lists them.", "settings-and-retention"],
-  ],
-  // The earlier releases' notes, folded under the new ones.
-  earlier: [
     // 2.45.0
     ["Leads filled from their visits", "a lead with a visitor ID gets its first and last touch from that browser's page views, marked filled by Skald.", "leads-and-conversions"],
     ["Ad click IDs, if you want them", "keep a lead's gclid, fbclid and others; off by default, shown only to people who may see names.", "settings-and-retention"],

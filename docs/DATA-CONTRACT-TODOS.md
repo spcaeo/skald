@@ -30,8 +30,14 @@ Each to-do: `id` (`lost-pages`, `server-errors`, `ai-markdown`, `sitemap`, or
 address fixed), `marked` (the mark, or null), `fixed_withheld` (2.43.0: why a `fixed` mark the
 second count does not bear out is shown as `done`) and
 `recheck` (for `done` and `fixed`: `{"marked_day","days","first","last","figures","verdict":
-"waiting"/"fixed"/"not_yet","words"}`, the same measure over the whole days after
-the day it was marked). 2.41 adds `agent` (bool: an AI agent can fix this kind, `todos.AGENT_KINDS`:
+"waiting"/"fixed"/"not_yet","words","still","still_total"}`, the same measure over the whole
+days after the day it was marked; `still` (#5, #6; not for `leave`): `[[path, asks or errors],
+...]`, the addresses still failing on those days, most first, at most 100 (`todos.STILL_MOST`),
+and `still_total` how many there are). `status` (#5, #6) is what the Insights card says:
+`open`, `notnow`, `checking` (marked, no whole day after yet), `failed` (the re-check still
+finds the problem: `not_yet`, even when a live check made the state `fixed`) or `passed`
+(`todos.status_of`). The second count recounts `still`, `still_total` and the status from its
+own figures (`audit_todos.still_of`, `own_status`); a to-do it disagrees with is withheld. 2.41 adds `agent` (bool: an AI agent can fix this kind, `todos.AGENT_KINDS`:
 all five) and `first_seen` (the first day this to-do was on the list, open; null for one
 withheld or not open; a to-do that left the list and came back is new again).
 
@@ -58,7 +64,10 @@ Site > Not found's lost pages (`lost_pages.py`), over the same 30-day window.
 From the day kind `not_found` (404 and 410 by path, status, who asked, probe)
 and the day kind `pages` (pages served). Who asked: `people`, `search`
 (search engines), `ai` (`ai_asked` and `ai_training`); bots, probes and our own
-traffic are left out. Live pages: the sitemap's paths for the last whole day,
+traffic are left out, and so are Skald's own addresses on the site (#16, `lost_pages.OURS`:
+`/traffic-beacon`, `/traffic-js`, `/traffic-hooks`, `/traffic-ingest`, as a whole first
+segment, any case, with or without a trailing slash): never a lost page, a Markdown or sitemap
+ask, or an address a re-check counts, on both roads. Live pages: the sitemap's paths for the last whole day,
 and every path served as a page in the window (an address served on or after
 the last day it failed counts as live). Since 2.38.0 only a 404 is an ask: a
 410 is the site's own answer, so it is counted in `statuses` only, and an

@@ -454,7 +454,11 @@ class Recount:
                              "size": None if size is None else int(size), "verdict": v,
                              "category": what, "shell_size": sh[0] if sh else None,
                              "who": seq.get(key)})
-        rows.sort(key=lambda r: (r["verdict"] != "possible", r["at"], r["host"], r["path"]))
+        # Ties on time, host and path (two addresses, one path, one second) settle on the
+        # answer, its size, the category and the address number (2.45.8, #1).
+        rows.sort(key=lambda r: (r["verdict"] != "possible", r["at"], r["host"], r["path"],
+                                 str(r["status"]), -1 if r["size"] is None else r["size"],
+                                 r["category"] or "", -1 if r["who"] is None else r["who"]))
         return {"answered": len(answered), "query_only": query_only,
                 "shell": tally["shell"], "empty": tally["empty"],
                 "possible": tally["possible"], "unknown": tally["unknown"],

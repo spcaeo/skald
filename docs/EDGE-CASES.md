@@ -144,7 +144,7 @@ never up.
 - **Detect:** the address's network (ASN) is a hosting provider (Hetzner, OVH, DigitalOcean, AWS, GCP, Azure, Linode, Contabo, Hostinger...). DB-IP Lite has a free ASN database next to the country one.
 - **Count:** bots, unless the visit renders (loads assets per page) - VPN users exit from data centres too. Show "data-centre browser" as its own line.
 - **Test:** hosting-network visit with no assets -> bots; hosting-network visit that renders -> people, flagged.
-- **Status:** partly Handled: a people request from a hosting network is flagged `hosting_network`; one that never renders is already bots. The "data-centre browser" line: Gap, ROADMAP P1-7.
+- **Status:** partly Handled: a people request from a hosting network is flagged `hosting_network`; one that never renders is already bots; since 2.45.8 one that reads 20 pages or more at 10 seconds a page or faster is bots too (CLASSIFICATION.md rule 9c, #4). A slower data-centre browser: Gap, ROADMAP P1-7.
 
 ### A16. Distributed crawlers
 - **Seen:** the same Chrome identity from 49 addresses within 10 seconds (also 46, 43, 42 for other identities).

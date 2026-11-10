@@ -344,7 +344,10 @@ def _classifier(config: dict, first_pass, start: datetime | None = None,
                                     rendering.render_seconds(config), opens, returning)
 
     pages, seconds = too_fast.limits(config)
-    fast = too_fast.TooFast(hosts, gap, pages, seconds) if pages else None
+    cloud, pace = too_fast.cloud_limits(config)
+    hosting = classifier.verifier.hosting if classifier.verifier is not None else None
+    fast = too_fast.TooFast(hosts, gap, pages, seconds, cloud, pace, hosting) \
+        if pages or (cloud and hosting) else None
 
     # Rule 6b: one probe marks its address and agent for the whole window.
     scan = Scanners(classifier.legacy)

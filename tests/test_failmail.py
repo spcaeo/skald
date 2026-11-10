@@ -98,12 +98,15 @@ class TestByDesignSendsNothing(FailCase):
         self.assertEqual(self.outcome(), "withheld")
         self.assertEqual(self.notify()[2], [])
 
-    def test_a_weekly_mail_held_back_for_an_incomplete_week_is_by_design(self):
+    def test_a_weekly_mail_held_back_for_an_incomplete_week_skips_only_that_mail(self):
+        # 2.45.8 (#2): the run goes on and ends ok; no failure mail.
         self.box.log(day_lines(date(2026, 10, 4), 3))
-        self.assertEqual(self.run_daily(MONDAY), 1)
-        self.assertIn("stopped at 'weekly mail'", self.logfile.read_text())
-        self.assertEqual(self.outcome(), "withheld")
-        self.assertEqual(self.notify()[2], [])
+        self.assertEqual(self.run_daily(MONDAY), 0)
+        log = self.logfile.read_text()
+        self.assertIn("weekly mail skipped", log)
+        self.assertNotIn("stopped at", log)
+        self.assertEqual(self.outcome(), "ok")
+        self.assertEqual(self.notify(code=0)[2], [])
 
 
 class TestFailuresAreMailedOnce(FailCase):

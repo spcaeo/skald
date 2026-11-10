@@ -54,6 +54,10 @@ MACHINE = ("/api/", "/graphql", "/wp-json", "/wp-admin", "/wp-content/", "/wp-in
            "/xmlrpc", "/feed", "/rss", "/atom", "/comments/feed", "/.well-known/", "/_next/",
            "/_nuxt/", "/static/", "/assets/", "/cdn-cgi/", "/v1/", "/v2/", "/node_modules/",
            "/trackback", "/embed", "/oembed", "/amp/")
+# Skald's own addresses on the site (#16): the beacon, the page script, the signed hooks and the
+# log ingest. Never one of the site's pages, whatever they answer. Matched as a whole first
+# segment, any case, with or without a trailing slash.
+OURS = ("/traffic-beacon", "/traffic-js", "/traffic-hooks", "/traffic-ingest")
 # A page's last segment: no file ending, or one of these.
 PAGE_ENDINGS = ("", ".html", ".htm")
 MARKDOWN_ENDINGS = (".md", ".mdx")
@@ -69,6 +73,8 @@ def kind_of(path: str) -> str | None:
     if not isinstance(path, str) or not path.startswith("/") or path.startswith("//"):
         return None
     low = path.split("?", 1)[0].lower()
+    if any(low == o or low.startswith(o + "/") for o in OURS):
+        return None
     name = low.rstrip("/").rsplit("/", 1)[-1]
     if "sitemap" in name and (name.endswith(".xml") or name.endswith(".xml.gz")):
         return "sitemap"

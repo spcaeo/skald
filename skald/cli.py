@@ -531,12 +531,18 @@ def _favicons(ctx: Context, snap: dict | None, limit: int, days: int = 0) -> Non
         ctx.err(f"favicons: {type(why).__name__}: {why}")
 
 
-def mail(ctx: Context, kind: str, dry_run: bool, save_html: str | None = None) -> int:
+def mail(ctx: Context, kind: str, dry_run: bool, save_html: str | None = None,
+         refused_goes_on: bool = False) -> int:
     try:
         cfg = mailer.settings(ctx.config)
         with ctx.history() as history:
             msg = mailer.build(kind, ctx.config, history, ctx.tz, ctx.now)
     except mailer.Refused as why:
+        if refused_goes_on:
+            # run-daily's weekly mail (#2, 2.45.8): a week it cannot send (a part week, a
+            # withheld day in it) skips that mail only; the run goes on and is not "failed".
+            ctx.err(f"{kind} mail skipped: {why}; the run goes on")
+            return 0
         ctx.err(f"{kind} mail REFUSED: {why}")
         if isinstance(why, mailer.Withheld):        # the data, not the setup
             ctx.by_design = str(why)
@@ -793,7 +799,8 @@ def daily_steps(ctx: Context) -> list[tuple[str, Callable[[], int]]]:
     if _mail_on(ctx.config, "daily"):
         steps.append(("daily mail", lambda: mail(ctx, "daily", ctx.args.dry_run)))
     if ctx.now.date().weekday() == 0 and _mail_on(ctx.config, "weekly"):
-        steps.append(("weekly mail", lambda: mail(ctx, "weekly", ctx.args.dry_run)))
+        steps.append(("weekly mail", lambda: mail(ctx, "weekly", ctx.args.dry_run,
+                                                  refused_goes_on=True)))
     from . import mail_marketing        # mail.marketing, off by default (2.43)
     if mail_marketing.due(ctx):
         steps.append(("marketing mail", lambda: mail_marketing.run(ctx, ctx.args.dry_run)))

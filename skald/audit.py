@@ -218,7 +218,9 @@ class Judge:
             lambda agent: f"{browser_of(agent)}/{system_of(agent)}",
             audit_extras.keyed, audit_extras.secret(config), navigation) if lines else {}
         # Browser-like visits that read pages too fast for a person (audit_too_fast).
-        self.too_fast = audit_too_fast.too_fast(config, lines, gap, self.hosts, is_page)
+        self.too_fast = audit_too_fast.too_fast(
+            config, lines, gap, self.hosts, is_page,
+            self.checks.from_hosting if self.checks.on else None)
         # What the last call found beyond the group (audit_release2.BotsRecount).
         self.info: dict = {}
 
@@ -330,6 +332,17 @@ class Judge:
         named = SEARCH_ENGINE.search(agent)
         if named:
             return self._claim(named.group(0), line, "search_engines"), False
+        # Rule 5b: a browser agent from a crawler-only list's addresses.
+        lowered = agent.lower()
+        if (self.checks.on and re.search(r"Mozilla/|Opera/|Safari/|Chrome/|Firefox/", agent, re.I)
+                and not OTHER_BOT.search(agent) and not ("(compatible;" in lowered and not re.search(
+                    r"AppleWebKit|Gecko|Trident|Presto|Chrome/|Safari/|Firefox/", agent, re.I))):
+            crawler = self.checks.crawler_list(line.address)
+            if crawler:
+                asked = AI_ASKED.search(crawler) or AI_TRAINING.search(crawler)
+                self.info = {"name": (asked or SEARCH_ENGINE.search(crawler)).group(0),
+                             "checked": "verified"}
+                return ("answer_engines" if asked else "search_engines"), False
         probe = bool(PROBE.search(line.path) or PROBE_QUERY.search(line.url))
         if probe and any(line.path.startswith(p) for p in self.legacy):
             probe = False
@@ -479,9 +492,10 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
             label = judge.ours_label(line)
             ours_labels[label] += 1
         elif group == "answer_engines":
-            found = AI_ASKED.search(line.agent)
-            tier = "asked" if found else "training"
-            name = (found or AI_TRAINING.search(line.agent)).group(0)
+            # The judge's name: the agent's own, or rule 5b's crawler list's.
+            name = judge.info.get("name") or (
+                AI_ASKED.search(line.agent) or AI_TRAINING.search(line.agent)).group(0)
+            tier = "asked" if AI_ASKED.search(name) else "training"
         firsts.hit(line, group, judge.info, tier, name, cited, is_page(line))
         more.hit(line, group, tier, name)
         extras.hit(line, group, tier, name, label, is_page(line),

@@ -1,32 +1,28 @@
-// Overview > Insights' to-do list (2.35), above the "what changed" cards: what to do
-// this week, worst leak first. Each to-do is a problem the site has now (todos.json,
-// skald/todos.py), with its proof (a figure and its window), what to do, how
-// Skald will know it worked, and the list behind it.
+// Overview > Insights (2.35; since #5, #6 the whole tab): only the open problems, worst
+// leak first (todos.json, skald/todos.py). Nothing else: no figures on the cards.
 //
-//   Fix this        2.41, the one main button: "Who will do it?" (js/tabs/todo-fix.js,
-//                   todo=<id>&fix=1&by=agent|me|dev; older links said fixby=): My AI agent (one line; the
-//                   agent fetches every row and reports back), Me (the lines to paste and
-//                   the CSV), Someone else (Send to team, the link). "Fix all (N)" above
-//                   the list asks the same for every open to-do (fix=all)
-//   Show the list   the rows, as a table; the address keeps it open (todo=<id>), so
-//                   the link and the mail's link open the same to-do with its list
-//   the title       its copy icon copies the address of this to-do (green tick)
-//   See it in <tab> a quiet link to the tab that shows it, with its filter
-//   Mark done       moves it to "Done, and did it work?", re-checked on every whole day
-//                   after the mark with the measure that raised it; "Not now" folds it away
-//   the agent's     what the person's AI agent reported (todo-report.js): its change,
-//   report          the rows it left and why; on a done to-do, beside "Working" / "Not yet"
-//   Check again     2.44 (js/tabs/todo-check.js): that to-do's own check, now; the answer in
-//                   place (tdchk=<id> opens the addresses still failing). Every address fixed:
-//                   the to-do is Fixed (Skald's mark). "Check all again" above the list
+//   To do this week     the open to-dos; every open leaving page in one card (todo=leave)
+//   Fixes that failed   marked done or fixed, and the daily re-check of the log still finds
+//                       the problem (todos.json status "failed", even after a live check passed)
+//   N fixes being       one small link (show=checking): the fixes still being checked, the ones
+//   checked             that worked, and the page changes marked on Traffic › Pages
+//   Nothing to fix      one line when nothing is open
+//   right now.
 //
-// New to-dos (first_seen in the window's last 7 days) that an agent can fix get one line
-// at the top with "Fix them with my AI agent" (2.41).
+// Each card: three plain lines (what is wrong, why it matters, Do: what to do; all written in
+// js/tabs/todo-words.js), its pill (Needs fixing, Failed, Checking, Passed) and two buttons:
+//   Fix this    the one main button: "Who will do it?" (js/tabs/todo-fix.js, todo=<id>&fix=1&
+//               by=agent|me|dev): My AI agent, Me (the lines to paste, Mark done), My developer
+//   Open        the list behind it, in the address (todo=<id>): the to-do's own table (a failed
+//               fix: the addresses still failing), "See it in <tab>", and the smaller actions:
+//               Check again (2.44, js/tabs/todo-check.js), Mark done, Not now, Undo
+//   the title   its copy icon copies the address of this card (green tick)
+// "Not now" folds a to-do away at the bottom until someone puts it back.
 //
 // The marks are Skald's (js/tabs/todo-marks.js), never this browser's. The figures are
 // the data layer's, checked by a second count; one it disagreed with is left out and named.
 
-import { h, n, short, stateNote } from "../ui.js";
+import { h, n, stateNote } from "../ui.js";
 import { table } from "../table.js";
 import * as S from "../state.js";
 import { copyText, TIMING, withCopy, withUrl } from "../urlactions.js";
@@ -34,7 +30,8 @@ import { MARKS, loadMarks, markItem, markOf, fixOf } from "./todo-marks.js";
 import { agentNote } from "./todo-report.js";
 import { checkButton, checkLine, checkAllBar, openAfter } from "./todo-check.js";
 import { info } from "./tiles.js";
-import { trackedList } from "./pagechange.js";
+import { trackedList, merged as trackedChanges } from "./pagechange.js";
+import { cardWords } from "./todo-words.js";
 
 export const MATCH_WORDS = { exact: "Same page", likely: "Same topic", guess: "Loose", none: "No good match" };
 const TONES = { bad: "var(--bad)", warn: "var(--warn)", info: "var(--g-search_engines)" };
@@ -73,7 +70,7 @@ function rowsNote(t) {
   return total > (t.rows || []).length ? `The list and the CSV have the first ${n(t.rows.length)} of ${n(total)} rows.` : null;
 }
 
-function list(t) {
+export function list(t) {
   return h("div", { class: "td-list" },
     table(columnsOf(t), { caption: t.title, rows: t.rows || [], file: t.file, ns: `td${t.kind}`, limit: 25, sortKey: null, empty: "No rows." }),
     rowsNote(t) ? h("p", { class: "note" }, rowsNote(t)) : null);
@@ -91,59 +88,97 @@ function markButton(words, item, state, redraw) {
   return b;
 }
 
-/* 2.41, the owner's one-button rule: "Fix this" asks who will do it (js/tabs/todo-fix.js);
-   Download CSV and Send to team moved into it, Copy link is the icon beside the title. */
-function acts(t, s, redraw, { done = false, fixed = false } = {}) {
-  const shown = s.todo === t.id;
-  return h("div", { class: "td-acts" },
-    done ? null : h("button", { type: "button", class: "btn primary td-fix", onclick: () => S.set({ todo: t.id, fix: "1", by: "", fixby: "", link: "" }) }, "Fix this"),
-    checkButton(t, openAfter(t, redraw)),
-    h("button", { type: "button", class: "btn", "aria-expanded": String(shown), onclick: () => S.set({ todo: shown ? "" : t.id }) },
-      shown ? "Hide the list" : `Show the list (${n(t.rows_total ?? t.rows.length)})`),
-    fixed ? null : done ? markButton("Undo", t.id, "open", redraw) : [markButton("Mark done", t.id, "done", redraw), markButton("Not now", t.id, "notnow", redraw)]);
-}
-
 /* Where the to-do shows in its own tab: a quiet link, not a button. */
 function openLink(t) {
   const go = { tab: t.open.tab, ...Object.fromEntries(Object.entries(t.open).filter(([k]) => !["tab", "name"].includes(k))) };
   return h("a", { class: "td-open", href: S.hashFor({ ...S.read(), ...go, todo: "", dd: "" }), onclick: (e) => { e.preventDefault(); S.set(go); } }, `See it in ${S.nameOf(t.open.tab)}`);
 }
 
-/* The title, with the copy icon for the link to this to-do. */
-const titleOf = (t) => withCopy(h("h3", null, t.title), linkTo(t.id), { label: `the link to "${t.title}"`, cls: "td-title" });
-
-function card(t, i, s, redraw) {
-  const shown = s.todo === t.id;
-  return h("article", { class: `td${shown ? " td-on" : ""}`, id: `td-${t.id}`, style: { "--tone": TONES[t.tone] || "var(--ink-3)" } },
-    h("header", { class: "td-head" }, h("span", { class: "td-n" }, String(i + 1)), titleOf(t), h("span", { class: "td-tag" }, t.tag)),
-    t.subject ? h("p", { class: "td-sub" }, "Page: ", withUrl(h("code", null, t.subject), t.subject)) : null,
-    h("p", null, h("b", null, "Proof: "), t.proof, " ", openLink(t)),
-    h("p", null, h("b", null, "Do: "), t.todo),
-    h("p", { class: "td-check" }, `Skald will check: ${t.check}.`),
-    agentNote(fixOf(t.id)),
-    checkLine(t, s, redraw),
-    acts(t, s, redraw),
-    shown ? list(t) : null);
+/* ---- #5, #6: what the card says ------------------------------------------------------------
+   open      to do (not marked)
+   failed    marked done or fixed, and the daily re-check of the log still finds the problem,
+             even when the one live check passed (todos.py status_of)
+   checking  marked, the re-check has no whole day yet (or a mark made since the data update)
+   passed    the re-check finds nothing
+   notnow    put off: folded at the bottom */
+export function statusOf(t, mark) {
+  if (!mark) return "open";
+  if (mark.state === "notnow") return "notnow";
+  const rc = t.recheck && t.marked?.day === mark.day ? t.recheck : null;
+  if (!rc) return "checking";
+  if (["failed", "passed", "checking"].includes(t.status)) return t.status;
+  return { not_yet: "failed", fixed: "passed" }[rc.verdict] || "checking";
 }
 
-function doneItem(t, s, mark, redraw) {
-  const shown = s.todo === t.id;
-  const fixed = mark.state === "fixed";
-  // The re-check is the last data update's; a mark made since waits for the next one.
-  const rc = t.recheck && t.marked?.day === mark.day ? t.recheck : null;
-  const verdict = fixed ? "fixed" : rc ? rc.verdict : "waiting";
-  const words = fixed ? `Fixed: Skald's check found every address fixed${mark.at ? ` (${short(mark.day)})` : ""}. ${rc ? `The log since: ${rc.words}` : "The daily re-check keeps counting the log on the whole days after."}`
-    : rc ? rc.words : `Marked done ${short(mark.day)}. Skald re-checks it on the next data update, then on every whole day after.`;
-  return h("article", { class: `td td-done${shown ? " td-on" : ""}`, id: `td-${t.id}` },
-    h("header", { class: "td-head" }, titleOf(t), h("span", { class: `td-verdict v-${verdict}` }, { fixed: "Fixed", not_yet: "Not yet", waiting: "Waiting" }[verdict] || "Waiting")),
-    h("p", null, words),
-    mark.withheld ? h("p", { class: "note", role: "note" }, `Shown as done, not fixed: the second count disagreed (${mark.withheld}).`) : null,
-    h("p", { class: "td-check" }, fixed ? `Measured as: ${t.check}. A new check that finds an address broken again puts it back.`
-      : `Measured as: ${t.check}. Marking it done changed no figure; Undo puts it back on the list.`),
-    agentNote(fixOf(t.id)),
-    checkLine(t, s, redraw),
-    acts(t, s, redraw, { done: true, fixed }),
-    shown ? list(t) : null);
+const PILL = {
+  open: () => h("span", { class: "td-tag" }, "Needs fixing"),
+  failed: () => h("span", { class: "td-verdict v-not_yet" }, "Failed"),
+  checking: () => h("span", { class: "td-verdict v-waiting" }, "Checking"),
+  passed: () => h("span", { class: "td-verdict v-fixed" }, "Passed"),
+};
+const TONE = { failed: "var(--bad)", checking: "var(--ink-3)", passed: "var(--good)" };
+export const LEAVE = "leave";            // the card of every open leaving page together (todo=leave)
+
+/* The title, with the copy icon for the link to this card. */
+const titleOf = (id, words) => withCopy(h("h3", null, words), linkTo(id), { label: `the link to "${words}"`, cls: "td-title" });
+
+/* A card: one to-do, or every open leaving page (item.list). */
+function shownFor(item, s) {
+  return Boolean(s.todo) && (s.todo === item.id || item.list.some((t) => t.id === s.todo));
+}
+
+function card(item, s, redraw) {
+  const { id, list: ts, status } = item;
+  const t = ts[0];
+  const w = cardWords(ts, status);
+  const shown = shownFor(item, s);
+  const fix = status === "open" || status === "failed";
+  return h("article", { class: `td${shown ? " td-on" : ""}${status === "open" ? "" : ` td-${status}`}`, id: `td-${id}`,
+    style: { "--tone": status === "open" ? TONES[t.tone] || "var(--ink-3)" : TONE[status] } },
+    h("header", { class: "td-head" }, titleOf(id, w.title), PILL[status]()),
+    h("p", { class: "td-why" }, w.why),
+    h("p", null, h("b", null, "Do: "), w.act),
+    ts.length === 1 && markOf(t.id, t.marked)?.withheld ? h("p", { class: "note", role: "note" }, `Shown as done, not fixed: the second count disagreed (${markOf(t.id, t.marked).withheld}).`) : null,
+    ts.length === 1 ? agentNote(fixOf(t.id)) : null,
+    ts.length === 1 ? checkLine(t, s, redraw) : null,
+    h("div", { class: "td-acts" },
+      fix ? h("button", { type: "button", class: "btn primary td-fix", onclick: () => S.set({ todo: id, fix: "1", by: "", fixby: "", link: "" }) }, "Fix this") : null,
+      h("button", { type: "button", class: "btn", "aria-expanded": String(shown), onclick: () => S.set({ todo: shown ? "" : id }) }, shown ? "Close" : "Open")),
+    shown ? openView(item, s, redraw) : null);
+}
+
+/* Open: the list behind the card (the to-do's own table), its quiet link to the tab that
+   shows it, and the smaller actions: Check again, Mark done, Not now, Undo. */
+function openView(item, s, redraw) {
+  const { list: ts, status } = item;
+  if (ts.length > 1 || (ts[0].kind === "leave" && status === "open")) return pagesList(ts);
+  const t = ts[0];
+  // A check made the "fixed" mark: no Undo, a new check undoes it (2.44).
+  const fixedByCheck = markOf(t.id, t.marked)?.state === "fixed";
+  const more = h("div", { class: "td-acts td-more" }, checkButton(t, openAfter(t, redraw)),
+    status === "open" ? [markButton("Mark done", t.id, "done", redraw), markButton("Not now", t.id, "notnow", redraw)]
+      : fixedByCheck ? null : markButton("Undo", t.id, "open", redraw),
+    openLink(t));
+  return h("div", { class: "td-view" }, more, status === "failed" && t.recheck?.still ? stillList(t) : list(t));
+}
+
+/* Every open leaving page together: each page, its visits and how many left at once. */
+function pagesList(ts) {
+  const rows = ts.map((t) => ({ path: t.subject, visits: t.figures?.visits, one_page: t.figures?.one_page, __k: t.id }));
+  const cols = [{ key: "path", label: "Page", path: true, fmt: (v) => withUrl(h("code", null, v), v) },
+    { key: "visits", label: "Visits started here", num: true }, { key: "one_page", label: "Left after that page", num: true }];
+  return h("div", { class: "td-list" }, table(cols, { caption: "Pages visitors leave", rows, file: "leaving-pages.csv", ns: "tdleave", limit: 25, sortKey: null, empty: "No rows." }),
+    h("p", { class: "note" }, "Fix this: who will do it, with every page's list. Each page's figures: ", ...ts.map((t, i) => [i ? ", " : "", openLink(t)])));
+}
+
+/* A failed fix: the addresses its re-check still finds, most first (todos.json recheck.still). */
+function stillList(t) {
+  const r = t.recheck;
+  const unit = t.kind === "errors" ? "Server errors since your fix" : "Asked for since your fix";
+  const cols = [{ key: "path", label: "Still failing", path: true, fmt: (v) => withUrl(h("code", null, v), v) }, { key: "n", label: unit, num: true }];
+  const rows = (r.still || []).map(([path, n]) => ({ path, n }));
+  return h("div", { class: "td-list" }, table(cols, { caption: `${t.title}: still failing`, rows, file: `${t.file.replace(/\.csv$/, "")}-still.csv`, ns: `tds${t.kind}`, limit: 25, sortKey: null, empty: "No rows." }),
+    (r.still_total ?? 0) > rows.length ? h("p", { class: "note" }, `The ${n(rows.length)} most asked of ${n(r.still_total)}.`) : null);
 }
 
 function notNowItem(t, s, redraw) {
@@ -152,7 +187,6 @@ function notNowItem(t, s, redraw) {
     s.todo === t.id ? list(t) : null);
 }
 
-const AGENT_KINDS = ["lost", "errors", "markdown", "sitemap", "leave"];
 const NEW_DAYS = 7;
 
 /* The open to-dos that first qualified in the last NEW_DAYS days of the window (first_seen). */
@@ -164,56 +198,73 @@ export function newOnes(todos, w) {
   return todos.filter((t) => t.first_seen && t.first_seen >= from);
 }
 
+/* The cards, in the file's order (worst leak first): every open leaving page in one card,
+   where the first of them ranks. */
+export function cardsOf(all, statusOfT) {
+  const out = [];
+  let group = null;
+  for (const t of all) {
+    const status = statusOfT(t);
+    if (t.kind === "leave" && status === "open") {
+      if (!group) { group = { id: LEAVE, list: [], status }; out.push(group); }
+      group.list.push(t);
+    } else out.push({ id: t.id, list: [t], status });
+  }
+  return out;
+}
+
 /* The to-do section: drawn now from what is known, again once the marks have answered. */
 export function todoSection(m, s) {
-  const box = h("section", { class: "s td-box", "aria-label": "To do now" });
+  const box = h("section", { class: "s td-box", "aria-label": "Insights" });
   const draw = () => box.replaceChildren(...body(m, S.read(), draw));
   box.replaceChildren(...body(m, s, draw));
   if (!MARKS.loaded) loadMarks().then(draw);
-  if (s.todo) setTimeout(() => document.getElementById(`td-${s.todo}`)?.scrollIntoView?.({ block: "nearest" }), 0);
+  if (s.todo) setTimeout(() => (document.getElementById(`td-${s.todo}`) || box.querySelector("article.td-on"))?.scrollIntoView?.({ block: "nearest" }), 0);
   return box;
 }
 
+const ABOUT = "Only what needs fixing on your site now, worst for people first, built only from your server log. "
+  + "To do: problems over their threshold in the last whole days. Fixes that failed: you marked them fixed, and the log "
+  + "still finds the problem on the whole days since. Open shows the list behind each one; Fix this asks who will do it.";
+
 function body(m, s, redraw) {
+  const about = () => info(ABOUT, "Insights");
+  const top = (words) => h("div", { class: "td-top" }, h("h2", null, words), about());
   const file = m.x.todos;
-  const head = h("div", { class: "td-top" }, h("h2", null, "To do now"),
-    info("Problems the site has now, worst leak first, each with its proof and the full list behind it. Built only from what Skald counts, over the last whole days; a to-do shows once its figure passes a threshold. Mark one done and Skald re-checks it, with the same measure, on every whole day after.", "To do now"));
-  if (!file) return [head, stateNote("The to-do list comes with the next data update: the data layer has not written todos.json yet.")];
-  const w = file.window || {};
+  if (!file) return [top("To do this week"), stateNote("The to-do list comes with the next data update: the data layer has not written todos.json yet.")];
   const all = file.todos || [];
-  const state = (t) => markOf(t.id, t.marked);
-  const open = all.filter((t) => !state(t));
-  // 2.41: one "Fix all (N)" for every open to-do an AI agent can fix, and the new ones said.
-  const doable = open.filter((t) => t.agent ?? AGENT_KINDS.includes(t.kind));
-  if (doable.length > 1) head.append(h("button", { type: "button", class: "btn primary td-fixall", onclick: () => S.set({ fix: "all", todo: "", by: "", fixby: "", link: "" }) }, `Fix all (${doable.length})`));
-  // 2.44: every to-do Skald can ask, open, done or fixed, checked again in turn (todo-check.js).
-  const again = checkAllBar(all.filter((t) => state(t)?.state !== "notnow"), redraw);
-  if (again) head.append(again);
-  const out = [head, h("p", { class: "sub" }, `Each one shows its proof and the full list behind it. Press Fix this: your AI agent, you, or a teammate. Built from ${w.first ? `${short(w.first)} to ${short(w.last)}` : "no whole day yet"}${w.days ? ` (${w.days} whole day${w.days === 1 ? "" : "s"})` : ""}.`)];
-  const fresh = newOnes(doable, w);
-  if (fresh.length) {
-    // One quiet link, not another button (the owner: one main button a to-do).
-    const go = fresh.length === 1 ? { todo: fresh[0].id, fix: "1", by: "agent", fixby: "", link: "" } : { fix: "all", todo: "", by: "agent", fixby: "", link: "" };
-    const words = fresh.length === 1 ? "Fix it with my AI agent" : fresh.length === doable.length ? "Fix them with my AI agent" : `Fix all ${doable.length} with my AI agent`;
-    out.push(h("p", { class: "note td-new", role: "status" },
-      h("strong", null, `${fresh.length} new to-do${fresh.length === 1 ? "" : "s"} your AI agent can fix. `),
-      "One line for your agent: it fetches every row from Skald, fixes what is missing, and reports back here. ",
-      h("a", { class: "td-go", href: S.hashFor({ ...S.read(), ...go }), onclick: (e) => { e.preventDefault(); S.set(go); } }, `${words} →`)));
+  const mark = (t) => markOf(t.id, t.marked);
+  const cards = cardsOf(all.filter((t) => mark(t)?.state !== "notnow"), (t) => statusOf(t, mark(t)));
+  const pick = (st) => cards.filter((c) => c.status === st);
+  const grid = (list) => h("div", { class: "td-grid" }, list.map((c) => card(c, s, redraw)));
+  const tracked = trackedChanges(m).length;
+  const checking = pick("checking"), passed = pick("passed");
+  const out = [];
+  if (s.show === "checking") {
+    out.push(top("Fixes being checked"));
+    const again = checkAllBar(all.filter((t) => mark(t)?.state !== "notnow"), redraw);
+    if (again) out.push(again);
+    out.push(checking.length ? grid(checking) : tracked ? null : h("p", { class: "empty" }, "No fix is being checked now."));
+    if (passed.length) out.push(h("h3", { class: "td-h3" }, "Fixes that worked"), grid(passed));
+    out.push(...trackedList(m, s));          // the page changes marked on Traffic › Pages (pagechange.js)
+    out.push(h("p", { class: "sub td-back" }, h("a", { class: "td-open", href: S.hashFor({ ...S.read(), show: "", todo: "" }), onclick: (e) => { e.preventDefault(); S.set({ show: "", todo: "" }); } }, "Back to the open problems")));
+    return out;
   }
-  if (S.activeFilters(s).length) out.push(h("p", { class: "note" }, "The to-dos cover the whole site: the filters above apply to the cards below, not to these."));
-  const done = all.filter((t) => ["done", "fixed"].includes(state(t)?.state));
-  const later = all.filter((t) => state(t)?.state === "notnow");
-  if (s.todo && !all.some((t) => t.id === s.todo)) out.push(stateNote("That to-do is not on the list now: it was fixed, it fell under its threshold, or it is not available to you."));
-  out.push(open.length ? h("div", { class: "td-grid" }, open.map((t, i) => card(t, i, s, redraw)))
-    : h("p", { class: "empty" }, all.length ? "Nothing left to do now." : "Nothing to do now: no problem passes its threshold in these days."));
+  const open = pick("open"), failed = pick("failed");
+  if (open.length) out.push(top("To do this week"), grid(open));
+  if (failed.length) out.push(...(open.length ? [h("h3", { class: "td-h3" }, "Fixes that failed")] : [top("Fixes that failed")]), grid(failed));
+  if (!open.length && !failed.length) out.push(top("Insights"), h("p", { class: "empty td-none" }, "Nothing to fix right now."));
+  if (s.todo && !cards.some((c) => shownFor(c, s)) && !all.some((t) => t.id === s.todo && mark(t)?.state === "notnow")) {
+    out.push(stateNote("That to-do is not on the list now: it was fixed, it fell under its threshold, or it is not available to you."));
+  }
   for (const x of file.withheld || []) out.push(h("p", { class: "note", role: "note" }, `"${x.title}" is left out: the second count disagreed. `, withCopy(x.why, x.why)));
-  if (MARKS.loaded && MARKS.why) out.push(h("p", { class: "note" }, MARKS.why));
-  if (done.length || open.length) {
-    out.push(h("h3", { class: "td-h3" }, "Done, and did it work?"),
-      h("p", { class: "sub" }, "Each item marked done is re-checked on every whole day after the mark, with the same measure that raised it. Check again asks now."),
-      done.length ? h("div", { class: "td-grid" }, done.map((t) => doneItem(t, s, state(t), redraw))) : h("p", { class: "empty" }, "Nothing marked done yet."));
+  const c = checking.length + tracked;
+  if (c || passed.length) {
+    const words = c ? `${c} ${c === 1 ? "fix" : "fixes"} being checked` : `${passed.length} ${passed.length === 1 ? "fix" : "fixes"} passed`;
+    out.push(h("p", { class: "sub td-checking" }, h("a", { class: "td-open", href: S.hashFor({ ...S.read(), show: "checking", todo: "" }),
+      onclick: (e) => { e.preventDefault(); S.set({ show: "checking", todo: "" }); } }, words)));
   }
-  out.push(...trackedList(m, s));          // the page changes marked on Traffic › Pages (pagechange.js)
+  const later = all.filter((t) => mark(t)?.state === "notnow");
   if (later.length) {
     const fold = h("details", { class: "fold td-fold" }, h("summary", null, `Not now (${later.length})`), h("ul", { class: "td-laters" }, later.map((t) => notNowItem(t, s, redraw))));
     if (later.some((t) => t.id === s.todo)) fold.open = true;

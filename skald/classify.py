@@ -623,7 +623,7 @@ class Classifier:
 
       1. ours      - never traffic, and would otherwise look like a bot
       2. engines   - named agents, the most specific signal there is
-      3. search    - also named, and wanted
+      3. search    - also named, and wanted (or a browser from its own addresses)
       4. probe     - a scanner, whatever it claims to be
       4b. scanner  - every other request of an address and agent that asked
                      for a secret or config file that day (Scanners), or for
@@ -858,6 +858,19 @@ class Classifier:
                                verified=checked, claim=search, legacy=legacy)
             return Verdict(Group.SEARCH_ENGINE, engine=search, probe=probing,
                            verified=checked, legacy=legacy)
+
+        crawler = self.verifier.crawler_at(hit.address) \
+            if browser and not other_bot and self.verifier is not None else ""
+        if crawler:
+            # Rule 5b (#4): a browser agent from a crawler's own published
+            # addresses is that crawler (bot_verify.CRAWLER_ADDRESSES).
+            named = AI_ASKED.search(crawler) or AI_TRAINING.search(crawler)
+            if named:
+                tier = Tier.ASKED if AI_ASKED.search(crawler) else Tier.TRAINING
+                return Verdict(Group.ANSWER_ENGINE, tier, named.group(0), probing, "verified",
+                               legacy=legacy)
+            return Verdict(Group.SEARCH_ENGINE, engine=SEARCH_ENGINE.search(crawler).group(0),
+                           probe=probing, verified="verified", legacy=legacy)
 
         if probing:
             return Verdict(Group.BOTS, probe=True)

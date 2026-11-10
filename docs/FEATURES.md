@@ -16,11 +16,13 @@ the [changelog](../CHANGELOG.md) says when each one came.
 - **Is it working?** (Overview › Summary): the period's exact dates (Include today: one switch), five key
   figures with their change, the sources and landing pages that rose and fell, pages to work on
   (most visits leave at once, no form), and new and updated pages with whether search found them.
-- **Insights as a to-do list:** each item with its proof and the full list behind it (old pages
-  still asked for, server errors, Markdown copies AI asks for); mark it done, download it, send it
-  to the team, and Skald re-checks it with the same measure: did it work? **Check again** (2.43)
-  re-runs a to-do's own check at once after a fix (old pages, Markdown copies, the sitemap, server
-  errors asked live, politely and capped) and marks it Fixed only when the check bears it out.
+- **Insights: only what needs fixing** (2.46): To do this week and Fixes that failed, one short
+  card per problem (what is wrong, why it matters, what to do) with Fix this and Open; the list
+  behind it (old pages still asked for, server errors, Markdown copies AI asks for, missing
+  sitemaps, pages people leave), Mark done, download it, send it to the team. **Check again**
+  (2.43) re-runs a to-do's own check at once after a fix; the daily re-check of the log has the
+  last word, so a fix that passed but still fails in the log says Failed, with the addresses
+  still failing. Fixes being checked sit behind one small link.
 - **Did my change work?** Mark the day you changed a page (content, title, a redirect): Skald sets
   the same whole days before and after side by side (visits, leads, search, AI, left at once), with
   Up, Down, No clear change or Too early to tell. A sitemap date offers to track it for you.
