@@ -1,6 +1,6 @@
 # Data contract: tracked page changes, "Did my change work?" (2.35)
 
-Traffic > Pages > a page, and Overview > Insights' list under "Done, and did it work?".
+Traffic > Pages > a page, and Overview > Insights' list behind "N fixes being checked" (show=checking; until #6 under "Done, and did it work?").
 The rest of the data files: [DATA-CONTRACT.md](../DATA-CONTRACT.md).
 
 ## The marks

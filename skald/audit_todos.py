@@ -5,13 +5,14 @@ from the Page's loaded days. This module counts the same figures again by its ow
 road: its own SQL over history.sqlite (the `days`, `day_extras`, `counts` and
 `journeys` tables), its own reading of each blob, its own path rules written again
 from DATA-CONTRACT.md, and its own reading of the sitemap files beside the history.
-It shares only the name lists in lost_pages.py (MACHINE, PAGE_ENDINGS,
+It shares only the name lists in lost_pages.py (MACHINE, OURS, PAGE_ENDINGS,
 MARKDOWN_ENDINGS, WHO) and the thresholds in todos.py (LIMITS).
 
   check_lost    lost_pages.json: every lost address and its people, search and AI
                 asks; the Markdown asks split by whether the page is live; the totals
   check_todos   todos.json: each to-do's figures, and each re-check's figures after
-                the day it was marked done
+                the day it was marked done, the addresses it names as still failing,
+                and the status the Insights card shows (open, checking, failed, passed)
 
 A figure the recount does not find the same is withheld, never shown: the list is
 replaced by the reasons (lost_pages.json `withheld`), a to-do is left out and named
@@ -24,7 +25,8 @@ from collections import Counter
 from datetime import date, timedelta
 from pathlib import Path
 
-from .lost_pages import MACHINE, MARKDOWN_ENDINGS, PAGE_ENDINGS, WHO
+from .todos import LIMITS, STILL_MOST
+from .lost_pages import MACHINE, MARKDOWN_ENDINGS, OURS, PAGE_ENDINGS, WHO
 
 ERRORS_KIND = "server_error_page"     # history's counts: 5xx by path (DATA-CONTRACT.md)
 OTHER = "(all others)"                # a folded tail: real requests, no one address
@@ -60,6 +62,9 @@ def _sort(path: str) -> str | None:
     if not path or path[0] != "/" or path[:2] == "//":
         return None
     bare = path.partition("?")[0].lower()
+    first = "/" + bare[1:].split("/")[0]
+    if first in OURS:                  # Skald's own addresses (#16), with or without a slash
+        return None
     last = [s for s in bare.split("/") if s]
     name = last[-1] if last else ""
     if name.find("sitemap") >= 0 and (name[-4:] == ".xml" or name[-7:] == ".xml.gz"):
@@ -265,6 +270,41 @@ def figures_of(db, key: str, todo: dict, days: list[str], live_dir=None, anchor=
     return {}
 
 
+def still_of(db, key: str, todo: dict, after: list[str], before: list[str], live_dir=None, anchor=None) -> dict:
+    """{address: asks or errors on the days after the mark}, this module's way: the addresses
+    a failed fix's card names (#5, #6)."""
+    kind = todo["kind"]
+    if kind == "lost":
+        old = {p for p, f in asks(db, key, before).items()
+               if _sort(p) == "page" and f["people"] + f["search"] + f["ai"]}
+        got = {p: f["people"] + f["search"] + f["ai"] for p, f in asks(db, key, after).items() if p in old}
+    elif kind == "markdown":
+        both = recount_lost(db, key, after[0] if after else None, after[-1] if after else None, live_dir, anchor)
+        got = {**both["md_live"], **both["md_other"]}
+    elif kind == "sitemap":
+        got = {p: f["search"] + f["ai"] for p, f in asks(db, key, after).items() if _sort(p) == "sitemap"}
+    elif kind == "errors":
+        got = dict(errors(db, key, after)[1])
+    else:
+        return {}
+    return {p: n for p, n in got.items() if n}
+
+
+def own_status(todo: dict, again: dict | None) -> str:
+    """The card's status from this module's recount: never from the list's own verdict."""
+    state = todo.get("state")
+    if state in ("open", "notnow"):
+        return state
+    if not again:
+        return "checking"
+    if todo["kind"] == "leave":
+        if again["visits"] < LIMITS["leave_min_visits"]:
+            return "checking"
+        held = again["one_page"] / again["visits"] >= LIMITS["leave_share"] and not again["posted"]
+        return "failed" if held else "passed"
+    return "failed" if sum(again.values()) else "passed"
+
+
 def check_todos(db, key: str, todos: list[dict], live_dir=None, anchor: str | None = None) -> dict[str, str]:
     """{to-do id: why} for each to-do whose figures, or whose re-check's, the second
     count does not find the same."""
@@ -277,6 +317,7 @@ def check_todos(db, key: str, todos: list[dict], live_dir=None, anchor: str | No
             out[t["id"]] = f"the second count finds {mine}, the list says {t.get('figures')}"
             continue
         r = t.get("recheck")
+        again = None
         if r and r.get("days"):
             after = verified_days(db, key, r["first"], r["last"])
             before = verified_days(db, key, w.get("first"), r["marked_day"])
@@ -286,4 +327,15 @@ def check_todos(db, key: str, todos: list[dict], live_dir=None, anchor: str | No
                 again = figures_of(db, key, t, after, live_dir, anchor, before=before)
             if again != r.get("figures"):
                 out[t["id"]] = f"the re-check: the second count finds {again}, the list says {r.get('figures')}"
+                continue
+            if t["kind"] != "leave":
+                got = still_of(db, key, t, after, before, live_dir, anchor)
+                mine = sorted(got.items(), key=lambda kv: (-kv[1], kv[0]))[:STILL_MOST]
+                theirs = [tuple(x) for x in r.get("still") or []]
+                if len(got) != r.get("still_total") or mine != theirs:
+                    out[t["id"]] = (f"the re-check's addresses: the second count finds {len(got)} still failing "
+                                    f"{mine[:3]}, the list says {r.get('still_total')} {theirs[:3]}")
+                    continue
+        if "status" in t and own_status(t, again) != t["status"]:
+            out[t["id"]] = f"the status: the second count finds {own_status(t, again)}, the list says {t['status']}"
     return out

@@ -55,6 +55,7 @@ LIMITS = {
     "leave_pages": 3,           # at most this many such pages, the most visited first
 }
 ROWS_MOST = 1000                # rows a to-do carries for its list and CSV
+STILL_MOST = 100                # addresses a re-check names as still failing (#5, #6)
 OTHER = "(all others)"
 GROUPS = ("people", "answer_engines", "search_engines", "bots", "ours")
 ORDER = ("lost", "errors", "markdown", "sitemap", "leave")
@@ -298,23 +299,36 @@ def recheck(p, found, todo: dict, mark: dict, span: Days) -> dict:
         old = {path for path, g in lost_pages.tally([(d, found_blob(p, d)) for d in span.upto(since)]).items()
                if lost_pages.kind_of(path) == "page" and g["people"] + g["search"] + g["ai"]}
         now = lost_pages.tally([(d, found_blob(p, d)) for d in after])
-        n = sum(g["people"] + g["search"] + g["ai"] for path, g in now.items() if path in old)
-        out["figures"] = {"asked": n}
+        by = {path: g["people"] + g["search"] + g["ai"] for path, g in now.items() if path in old}
     elif kind in ("markdown", "sitemap"):
         now = lost_pages.tally([(d, found_blob(p, d)) for d in after])
         if kind == "markdown":
-            n = sum(g["ai"] for path, g in now.items() if lost_pages.kind_of(path) == "markdown")
+            by = {path: g["ai"] for path, g in now.items() if lost_pages.kind_of(path) == "markdown"}
         else:
-            n = sum(g["search"] + g["ai"] for path, g in now.items() if lost_pages.kind_of(path) == "sitemap")
-        out["figures"] = {"asked": n}
+            by = {path: g["search"] + g["ai"] for path, g in now.items() if lost_pages.kind_of(path) == "sitemap"}
     else:
-        n = errors_of(p, after)[0]
-        out["figures"] = {"errors": n}
+        by = dict(errors_of(p, after)[1])
+    n = sum(by.values())
+    out["figures"] = {"errors": n} if kind == "errors" else {"asked": n}
+    # The addresses still failing since the mark, most first: what a failed fix's card and
+    # list name (#5, #6). The second count recounts them (audit_todos.still_of).
+    still = sorted(((k, v) for k, v in by.items() if v), key=lambda kv: (-kv[1], kv[0]))
+    out["still"], out["still_total"] = [[k, v] for k, v in still[:STILL_MOST]], len(still)
     out["verdict"] = "not_yet" if n else "fixed"
     unit = words[kind]
     out["words"] = (f"Fixed: 0 {unit}s since {_short(since)}." if not n else
                     f"Not yet: {_n(n)} {unit}{'s' if n != 1 else ''} since {_short(since)}.")
     return out
+
+
+def status_of(t: dict) -> str:
+    """What the Insights card says (#5, #6): open (to do), notnow, checking, failed or passed.
+    A marked to-do is judged by its daily re-check of the log only: a live check that found
+    every address fixed (state "fixed") still shows failed while the log finds the problem."""
+    if t["state"] in ("open", "notnow"):
+        return t["state"]
+    verdict = (t.get("recheck") or {}).get("verdict")
+    return {"not_yet": "failed", "fixed": "passed"}.get(verdict, "checking")
 
 
 def found_blob(p, d: str):
@@ -374,6 +388,7 @@ def build(p) -> dict:
             t["state"], t["fixed_withheld"] = "done", unproven[t["id"]]
         t["marked"] = mark if t["state"] != "open" else None
         t["recheck"] = recheck(p, found, t, mark, span) if t["state"] in ("done", "fixed") else None
+        t["status"] = status_of(t)
         if t["state"] == "open" and not t["qualifies"]:
             continue                     # under its threshold and not marked: not a to-do
         t["rows_total"] = len(t["rows"])

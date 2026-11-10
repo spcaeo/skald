@@ -69,6 +69,20 @@ LISTS = {
     "meta": RIPE.format(asn=32934),
 }
 
+# Lists whose every address is that one crawler, never a fetch a person
+# asked for: a browser user agent from one of them is that crawler in a
+# browser's clothes, counted as it (#4, 2026-11-09; CLASSIFICATION.md rule
+# 5b). The value is the name the crawler's own agent carries. Left out on
+# purpose, because a person can be behind them: the user-triggered lists
+# (google-user*, openai-chatgpt-user, perplexity-user), Google's special
+# crawlers, Anthropic's one list for every agent, and Meta's whole network.
+CRAWLER_ADDRESSES = {
+    "google-common": "Googlebot", "bing": "bingbot", "apple": "Applebot",
+    "openai-gptbot": "GPTBot", "openai-searchbot": "OAI-SearchBot",
+    "openai-adsbot": "OAI-AdsBot", "perplexity-bot": "PerplexityBot",
+    "duckduckgo": "DuckDuckBot",
+}
+
 # Hosting and cloud networks, by AS number: a browser agent from one of these
 # is flagged, never moved.
 HOSTING_ASNS = {
@@ -255,6 +269,17 @@ class Verifier:
             result = "spoofed"
         self._memo[key] = result
         return result
+
+    def crawler_at(self, address: str) -> str:
+        """The crawler whose published list holds this address
+        (CRAWLER_ADDRESSES, first in that order), or ""."""
+        key = ("crawler", address)
+        got = self._memo.get(key)
+        if got is None:
+            got = self._memo[key] = next(
+                (name for listed, name in CRAWLER_ADDRESSES.items()
+                 if listed in self.sets and address in self.sets[listed]), "")
+        return got
 
     def hosting(self, address: str) -> bool:
         if self.hosting_set is None:

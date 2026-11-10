@@ -67,6 +67,12 @@ crawler name not proven its owner's does not keep a probe out of bots).
 5.  LINK_PREVIEWS     matches the agent      -> BOTS, "link preview: <app>"
     SEARCH_ENGINE     matches the agent      -> SEARCH_ENGINE
       (proven fake                           -> BOTS, "claims to be <name>")
+5b. BROWSER matches (no OTHER_BOT, no bare "(compatible; ...)"), and the
+      address is on a crawler-only published list (bot_verify.
+      CRAWLER_ADDRESSES: Google's common crawlers, Bing, Apple, OpenAI's
+      GPTBot, OAI-SearchBot and OAI-AdsBot, PerplexityBot, DuckDuckBot)
+                                             -> that crawler, verified
+                                                (ANSWER_ENGINE or SEARCH_ENGINE)
 6.  probing                                  -> BOTS, probe=True
 6b. this address and agent asked the site's hosts for a secret or config
       file (SECRET_PROBE) or sent an attack in a URL (PROBE_QUERY) in the
@@ -94,6 +100,12 @@ crawler name not proven its owner's does not keep a probe out of bots).
                                                    rendered the page")
 9b. BROWSER matches, and this visit read site.too_fast_pages (6) page
       views or more, all within site.too_fast_seconds (2) of its first
+                                               -> BOTS ("too fast to be a
+                                                   person")
+9c. BROWSER matches, the address is on a hosting or cloud network, and
+      this visit read site.cloud_fast_pages (20) page views or more at
+      site.cloud_fast_seconds (10) a page or faster on average (its pages
+      span at most 10 s per page after the first)
                                                -> BOTS ("too fast to be a
                                                    person")
 10. BROWSER           matches the agent      -> PEOPLE
@@ -263,6 +275,39 @@ fetch whole pages a person never opens) would look the same; they send
 `Sec-Purpose: prefetch`, which the log format does not carry yet
 (docs/EDGE-CASES.md B2), so a site that prerenders many pages at once should
 raise `site.too_fast_pages`.
+
+Rules 5b and 9c (#4, 2026-11-09, the owner's choice) came from one site's
+31 Oct: about 400 scroll events in two hours, counted as people. Two
+browsers did it. One was OpenAI's crawler rendering pages in a real Mac
+Chrome from 8 addresses on its published OAI-SearchBot list. Its page loads
+carried the crawler's name and were counted as OAI-SearchBot all along, but
+the events its page script sent did not, and the beacon (which judges one
+event at a time, by address and agent) counted them as people's. A browser
+agent from a list that holds only a crawler is that crawler now (rule 5b),
+checked and verified, wherever the agent leaves the name out, so it counts
+in that crawler's figures, never as a person. The user-triggered lists (Google's
+user fetchers, ChatGPT-User, Perplexity-User), Google's special crawlers,
+Anthropic's single list for every agent and Meta's whole network are left
+out, because a person can be behind them; a non-browser agent from a
+crawler's addresses stays a bot (rule 7), as before. The other was a Linux
+Chrome on one cloud address (DigitalOcean) whose page loads were already
+bots, but whose events reached the beacon as a plain browser. Looking for
+more like it, the week's logs of every site held cloud browsers counted as
+people that no person drives: the same headless Chrome version from Amazon
+and Google Cloud addresses reading exactly 20 pages within a minute or
+two, most days, on most sites. Rule 9b did not catch them (not 6 pages in
+2 seconds), and a cloud address alone is only a flag (`hosting_network`),
+because people on a VPN exit from the same networks. Rule 9c takes both together:
+from a hosting network, 20 pages or more at 10 seconds a page or faster on
+average is no person. A VPN reader who opens 20 pages that fast in one
+visit is counted as a bot too; that is the price, and
+`site.cloud_fast_pages: 0` turns the rule off. Both rules need the stored
+lists (`bots.ranges_dir`); without them nothing moves. In-page events are
+grouped when they arrive (beacon_server), one at a time: rule 5b applies to
+them, rule 9c cannot (it needs the whole visit), so a fast cloud reader's
+events still count as people's. Days stored before 2.45.8 are not
+re-judged unless recounted (`backfill --force`). The audit recounts both on
+its own road (`audit_release2.Checks.crawler_list`, `audit_too_fast.py`).
 
 **Not done: a burst rule.** The same day had one page load spread over 51
 addresses in 6 seconds - a distributed crawler with one user agent. A rule

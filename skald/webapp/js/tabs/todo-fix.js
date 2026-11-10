@@ -111,7 +111,9 @@ const openOnes = (m) => todosOf(m).filter((t) => isAgentTodo(t) && !["done", "no
 /* The address named the dialog: fix=1 (with todo=<id>) or fix=all. */
 export async function openFixKey(v, m, s) {
   await loadMarks();
-  const list = v === "all" ? openOnes(m) : todosOf(m).filter((t) => t.id === s.todo);
+  // todo=leave (#5, #6): the card of every open leaving page together.
+  const list = v === "all" ? openOnes(m) : s.todo === "leave" ? openOnes(m).filter((t) => t.kind === "leave")
+    : todosOf(m).filter((t) => t.id === s.todo);
   if (!list.length) return v === "all" ? "Nothing is left to fix now." : GONE;
   return fixDialog(list, v === "all" ? "all" : "1", s);
 }
@@ -125,7 +127,7 @@ export function fixDialog(list, value, s = S.read()) {
     // A line is watched only on My AI agent: the other answers take it out of the address.
     onPick: (k) => { if (k !== "agent") stepped("fix", value, { link: "" }); } });
   const body = h("div", { class: "fx" }, step.el);
-  const d = openDrawer({ title: all ? `Fix all (${list.length})` : "Fix this", subtitle: all ? list.map((t) => t.title).join(" · ") : list[0].title,
+  const d = openDrawer({ title: all ? `Fix all (${list.length})` : "Fix this", subtitle: all || list.length > 1 ? list.map((t) => t.title).join(" · ") : list[0].title,
     size: "md", key: "todo-fix", scope: "page", body, route });
   d.st = st;
   d.who = step;
@@ -168,7 +170,7 @@ function agentPart(list, st, value, pressed) {
   const ask = async () => {
     make.disabled = again.disabled = true;
     said.textContent = "Making the line…";
-    const r = await makeTodoLine(value === "all" ? list.map((t) => t.id) : [list[0].id]);
+    const r = await makeTodoLine(list.map((t) => t.id));
     make.disabled = again.disabled = false;
     said.textContent = "";
     if (!r.ok || !r.line) { slot.replaceChildren(answerBox("bad", r.error || "The line was not made."), h("div", { class: "acts" }, make)); return; }

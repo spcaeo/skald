@@ -705,14 +705,19 @@ class TestRunDaily(unittest.TestCase):
 
     def test_on_monday_the_weekly_mail_is_gated_on_a_complete_week(self):
         """Daily goes out; the weekly is refused because only one day of
-        the week is in history, and the run exits non-zero to say so."""
+        the week is in history. Since 2.45.8 (#2) that skips the weekly mail
+        with a note and the run goes on: no "Daily run failed" for a part week."""
+        from skald import runs
         self.box.log(day_lines(date(2026, 10, 4), 3))
         with mock.patch.dict(os.environ, SECRETS), \
                 mock.patch.object(mailer.smtplib, "SMTP") as smtp:
             code, out, err = self.box.run("--today", "2026-10-05", "run-daily")
-        self.assertEqual(code, 1)
-        self.assertIn("stopped at 'weekly mail'", err)
+        self.assertEqual(code, 0, err)
+        self.assertIn("weekly mail skipped", err)
+        self.assertNotIn("stopped at", err)
         self.assertEqual(smtp.return_value.send_message.call_count, 1)
+        ctx = cli.Context(cli.parser().parse_args(["--config", str(self.box.config), "run-daily"]))
+        self.assertEqual(runs.load(ctx.live_dir)["run-daily"]["last_outcome"], "ok")
 
     def test_dry_run_runs_every_step_but_sends_nothing(self):
         self.box.log(day_lines(date(2026, 10, 5), 3))

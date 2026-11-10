@@ -136,7 +136,7 @@ At the top of Attack attempts, things in the log that stand out from the site's 
 Requests that said they were a browser but were not a person, which Skald already counts under bots, never as visitors:
 
 - **Never rendered the page**: took pages and never loaded their scripts and styles.
-- **Too fast for a person**: six pages or more within two seconds.
+- **Too fast for a person**: six pages or more within two seconds, or, from a hosting or cloud network, 20 pages or more at 10 seconds a page or faster.
 - **Browser-like crawler**: fetched robots.txt or a sitemap, as only crawlers do.
 - **Claims to be Googlebot** (or GPTBot, Bingbot...): from an address that crawler does not use.
 

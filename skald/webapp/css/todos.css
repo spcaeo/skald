@@ -38,6 +38,10 @@
 .td-top .td-chkall { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .td-chkall-said { font-size: 13px; color: var(--ink-2); }
 .td-fold { margin-top: var(--sp-4); }
+/* #5, #6: only open problems; Open's view under the buttons, the small link to the fixes being checked */
+.td-view { display: grid; gap: 6px; }
+.td-more { margin-top: 2px; align-items: center; }
+.td-checking, .td-back { margin-top: var(--sp-4); }
 .td-laters { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 10px; }
 .td-later { line-height: 1.5; }
 .ins-h2 { margin-top: var(--sp-5); }

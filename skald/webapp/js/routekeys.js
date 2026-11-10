@@ -55,7 +55,8 @@ export const ROUTE_KEYS = [
   { key: "rm", kind: "tab", owner: "tabs/tr-retention.js", means: "Retention: the measure" },
   { key: "rs", kind: "tab", owner: "tabs/tr-retention.js", means: "Retention: the segment" },
   { key: "rv", kind: "tab", owner: "tabs/tr-retention.js", means: "Retention: the view" },
-  { key: "since", kind: "tab", owner: "tabs/insights.js", means: "Insights: the window" },
+  { key: "since", kind: "tab", owner: "tabs/insights.js", means: "Insights: the window of What changed (no longer shown since #6: older links open the tab)" },
+  { key: "show", kind: "tab", owner: "tabs/todos.js", means: "Insights: checking lists the fixes being checked, the ones that worked and the page changes; absent: the open problems" },
   { key: "fn", kind: "tab", owner: "tabs/funnels.js", means: "Funnels: the steps" },
   { key: "fsrc", kind: "tab", owner: "tabs/funnels.js", means: "Funnels: the starting source" },
   { key: "fstep", kind: "tab", owner: "tabs/funnels.js", means: "Funnels: the step open" },
@@ -96,7 +97,7 @@ export const ROUTE_KEYS = [
   { key: "sxk", kind: "tab", owner: "tabs/sec-scanners.js", means: "Security > Who is scanning us?: all: every suspect, not only scanners" },
   { key: "sxa", kind: "tab", owner: "tabs/sec-attacks.js", means: "Security > Attack attempts: injection, login or burst" },
   // ---- 2.35: Insights' to-dos and Not found's lost pages (tabs/todos.js, tabs/nf-lost.js)
-  { key: "todo", kind: "tab", owner: "tabs/todos.js", means: "Insights: the to-do whose list is open, by its id (lost-pages, server-errors, ai-markdown, sitemap, or leave- and 8 hex for a page)" },
+  { key: "todo", kind: "tab", owner: "tabs/todos.js", means: "Insights: the card whose list is open, by its id (lost-pages, server-errors, ai-markdown, sitemap, leave: every open leaving page, or leave- and 8 hex for a page)" },
   { key: "tdchk", kind: "tab", owner: "tabs/todo-check.js", means: "Insights: the to-do whose Check again answer is open with the addresses still failing, by its id (2.44)" },
   { key: "nfk", kind: "tab", owner: "tabs/nf-lost.js", means: "Not found: the lost pages' tab: md (AI asks for Markdown) or fixed (After the fix); Lost pages when absent" },
   { key: "nfsrv", kind: "tab", owner: "tabs/nf-lost.js", means: "Not found: the server lines for apache (nginx when absent)" },

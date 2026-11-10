@@ -1,27 +1,29 @@
 # What to fix: to-dos and lost pages
 
-Skald lists what to fix on your site this week, worst leak first (what people met before what only bots met), each with its proof and the full list behind it. It also finds the old addresses people, search engines and AI still ask for, suggests the closest live page for each, and gives you the server line to copy. Everything comes from your server log; Skald never changes your web server.
+Skald lists what to fix on your site this week, worst leak first (what people met before what only bots met), each in three plain lines with the full list behind it. It also finds the old addresses people, search engines and AI still ask for, suggests the closest live page for each, and gives you the server line to copy. Everything comes from your server log; Skald never changes your web server.
 
-## To do now
+## Insights: only what needs fixing
 
-Open [Overview > Insights](#overview/insights). The to-do list sits above the cards that say what changed. Each to-do has:
+Open [Overview > Insights](#overview/insights). It shows only the problems your site has now, and nothing else:
 
-- **A title** that says what to do, and a tag (Lost traffic, Broken, AI, Search, Leaving).
-- **Proof:** the figure and the days it covers, for example "288 old page addresses answered 'not found' from 21 Oct to 24 Oct".
-- **Do:** what fixes it.
-- **Skald will check:** the measure Skald re-checks once you mark it done.
+- **To do this week:** the problems over their threshold, not yet fixed. Pill: **Needs fixing**.
+- **Fixes that failed:** problems you marked fixed where your log still shows the problem on the whole days since. Pill: **Failed**. This holds even when Skald's live check passed on the day you fixed it: what visitors and crawlers still meet afterwards decides.
+- **N fixes being checked:** one small link (`show=checking`). It lists the fixes Skald is still checking (pill **Checking**), the ones that worked (**Passed**) and the page changes you marked on Traffic > Pages.
+- With nothing open, the page says **Nothing to fix right now.**
 
-A to-do shows only when its figure passes a threshold over the last whole days (up to 30, not today). The kinds:
+Each card has three plain lines: what is wrong, why it matters, and **Do:** what fixes it. There are no counts, percentages or dates on the card; a number shows only where it is the message, as in "1 of 3 sitemaps is still missing" or "3 pages lose their readers". The figures are one click away: **Open** shows the list behind the card, and each card's list links to the tab with its figures. Every open leaving page shares one card.
 
-- **Send old pages somewhere useful:** old page addresses that answered "not found" to people, search engines or AI.
-- **Fix the server errors:** 5xx answers, by address. Your own traffic (the addresses and tools you marked as yours, like a deploy's test script) is never counted. When no person met an error, it says **Bots only** and comes after what people met.
-- **Give AI the Markdown copies it asks for:** AI fetchers asked for the `.md` copy of pages you have.
-- **Fix the sitemap address crawlers ask for:** a sitemap file search engines or AI crawlers asked for that is not there.
-- **Make a page lead somewhere:** a page many visits started on, where nearly every one left after that page and no form was sent (from the stored visits).
+A problem shows only when its figure passes a threshold over the last whole days (up to 30, not today). The kinds:
+
+- **Old pages answer "Page not found":** old page addresses that answered "not found" to people, search engines or AI. Skald's own addresses on your site (`/traffic-beacon`, `/traffic-js/`, `/traffic-hooks/`, `/traffic-ingest/`) are never counted as your pages.
+- **Your server fails to answer some pages:** 5xx answers, by address. Your own traffic (the addresses and tools you marked as yours, like a deploy's test script) is never counted. When no person met an error, the card says only bots met them, and it comes after what people met.
+- **AI tools can't get the Markdown copies of your pages:** AI fetchers asked for the `.md` copy of pages you have.
+- **A sitemap crawlers ask for is missing:** a sitemap file search engines or AI crawlers asked for that is not there.
+- **Pages lose their readers:** pages many visits started on, where nearly every one left after that page and no form was sent (from the stored visits).
 
 ## Fix this: who will do it?
 
-Each to-do has one main button, **Fix this**. It asks one question, **Who will do it?**, and shows only what your answer needs. The answers come in this order: **Me**, **My developer**, **My AI agent**, and Skald remembers your last one in this browser. Above the list, **Fix all (N)** asks the same for every open to-do an AI agent can fix. The address keeps your choice (`fix=1&by=me`, `dev` or `agent`), so a link or a reload opens the same dialog. Links made before 2.42 said `fixby=`; they still open the same answer.
+Each card has one main button, **Fix this**. It asks one question, **Who will do it?**, and shows only what your answer needs. The answers come in this order: **Me**, **My developer**, **My AI agent**, and Skald remembers your last one in this browser. On the leaving pages' card it covers every page on it (`todo=leave`). The address `fix=all` still asks the same for every open to-do an AI agent can fix. The address keeps your choice (`fix=1&by=me`, `dev` or `agent`), so a link or a reload opens the same dialog. Links made before 2.42 said `fixby=`; they still open the same answer.
 
 - **My AI agent** (Claude Code, Codex, Cursor, or another agent that runs commands). Skald makes one line, for example `fix the Skald to-do "Send old pages somewhere useful" for example.com — read <address>/traffic-kit/llms.txt and use code <code> (works once, 24 hours)`. Press **Copy** and paste it into your agent, in the site's project folder or on its server. Your agent then:
   1. fetches every row of the to-do from Skald itself, with curl, into a locked file. Nothing to download, nothing to copy. It gets page paths and counts only, never a visitor's address or email;
@@ -35,20 +37,20 @@ Each to-do has one main button, **Fix this**. It asks one question, **Who will d
 
 **Is the line safe to paste into a chat?** Yes. It holds a one-time code, not a password. The code gives your agent a key that can only read the paths and counts of the to-dos in that line, for that one site, and send back what it changed. Everything stops after 24 hours, or at once with **Cancel this line**. The worst a leaked line can do is mark one of those to-dos done, which changes no figure and is undone with one click. Skald never puts a code in a mail.
 
-## What else you can do with a to-do
+## Open: the list behind a card
 
-- **The copy icon by the title** copies the address of this to-do, with its list open. It turns into a green tick.
-- **Show the list** opens its rows under it. The address keeps it open, so a link brings the same list back.
-- **See it in** goes to the tab that shows it.
-- **Mark done** moves it to **Done, and did it work?**. From the next data update, Skald re-checks it on every whole day after the day you marked it, with the same measure: "Fixed: 0 not-found answers since 25 Oct", or "Not yet: 5 not-found answers since 25 Oct". **Undo** puts it back.
-- **Not now** folds it away under **Not now**. **Put back** brings it back.
+- **Open** shows the card's list under it: the to-do's rows, or for a failed fix the addresses still failing since you marked it, most asked first. The address keeps it open (`todo=lost-pages`), so a link brings the same list back. **Close** folds it.
+- **The copy icon by the title** copies the address of this card, with its list open. It turns into a green tick.
+- **See it in** goes to the tab that shows it, with its figures.
+- **Mark done** (also in **Fix this > Me**) moves it to the fixes being checked. From the next data update, Skald re-checks it on every whole day after the day you marked it, with the same measure. While the log still finds the problem, it is back on the page under **Fixes that failed**; when the log finds none, it **Passed**. **Undo** puts it back.
+- **Not now** folds it away under **Not now** at the bottom. **Put back** brings it back.
 - **Check again** asks now whether it is fixed. See below.
 
 ## Check again: is it fixed now?
 
-Made a fix and want to know at once? Press **Check again** on the to-do (it is in **Fix this** too, under **Me**). Skald runs that to-do's own check now and shows the answer in place:
+Made a fix and want to know at once? Press **Check again** under **Open** (it is in **Fix this** too, under **Me**). Skald runs that to-do's own check now and shows the answer in place:
 
-- **Fixed:** "Fixed: all 12 addresses now answer 301 to a live page". The to-do moves to **Done, and did it work?** as **Fixed**. Skald made that mark, not you, so there is no Undo: a later check that finds an address broken again puts the to-do back the way it was.
+- **Fixed:** "Fixed: all 12 addresses now answer 301 to a live page". The to-do moves to the fixes being checked. Skald made that mark, not you, so there is no Undo: a later check that finds an address broken again puts the to-do back the way it was. The daily re-check of your log still decides: if visitors or crawlers keep getting "not found" on the whole days after, the card shows **Failed**.
 - **Partly fixed:** "3 of 12 addresses still answer 404". **Show the 3 not fixed** lists them, each with what it answers now. The address keeps that list open (`tdchk=lost-pages`), so a link opens it.
 - **Not fixed** or **Could not check** (your site did not answer): nothing changes.
 - **Can't check yet:** the to-do comes from visits, not from an address Skald can ask. It is judged on whole days of visits after you mark it done.
@@ -65,17 +67,17 @@ How each kind is checked:
 
 Each check also reads your newest log lines since you marked the to-do done (at most a day back): "In the log since 14:10: none of these addresses answered 404". A fix made after the mark leaves older failures in the log, so the live answer decides.
 
-Skald asks politely: at most 50 addresses a check (**Check the next 50** goes on), one at a time, with a short wait between them and a time limit; with its own user agent (`site-todo-check`), which Skald counts as its own, never as a visitor or a bot; HEAD requests, no cookies, and it reads no page. **Check all again**, above the list, checks every to-do Skald can ask, one after the other, and shows how far it is. A site can have 30 checks an hour, and each to-do one a minute.
+Skald asks politely: at most 50 addresses a check (**Check the next 50** goes on), one at a time, with a short wait between them and a time limit; with its own user agent (`site-todo-check`), which Skald counts as its own, never as a visitor or a bot; HEAD requests, no cookies, and it reads no page. **Check all again**, above the fixes being checked, checks every to-do Skald can ask, one after the other, and shows how far it is. A site can have 30 checks an hour, and each to-do one a minute.
 
 When your AI agent reports a to-do done, Skald runs the same check straight away and shows its answer beside the agent's report.
 
 Only owners and admins press **Check again**; a viewer sees the answers. Each check is a row in the audit log ("todo.checked"), without the addresses. A **Fixed** mark is counted twice too: a separate count reads the answers Skald kept and must find every address fixed, or the to-do shows as done, not fixed, with why.
 
-**New to-dos.** A to-do that came onto the list in the last 7 days is new. The page says "N new to-dos your AI agent can fix" above the list, with one button that opens **Fix this > My AI agent**. The summary mail says the same and links to that dialog (never with a code: you make the line when you press). A webhook can say it too: tick `todo.new` under **Send each lead out** in [Leads & tools](#settings/site/leads). It sends the to-do's title, proof, figures and link, never a code or a row.
+**New to-dos.** A to-do that came onto the list in the last 7 days is new. The summary mail says so and links to that dialog (never with a code: you make the line when you press). A webhook can say it too: tick `todo.new` under **Send each lead out** in [Leads & tools](#settings/site/leads). It sends the to-do's title, proof, figures and link, never a code or a row.
 
-Under the done to-dos, **Pages you changed: did it work?** lists every page change marked on [Traffic > Pages](#traffic/pages), with its visits a day before and after and what Skald says. Select one to open the page with that change. See [Did my change work?](getting-started.md#did-my-change-work).
+With the fixes being checked, **Pages you changed: did it work?** lists every page change marked on [Traffic > Pages](#traffic/pages), with its visits a day before and after and what Skald says. Select one to open the page with that change. See [Did my change work?](getting-started.md#did-my-change-work).
 
-Marks are kept by Skald, so the whole team sees the same list. Only owners and admins can mark, send, or make a line for an AI agent. Without accounts (signing in), the list shows but nothing can be marked or sent; **Fix this > Me** still gives the lines to paste.
+Marks are kept by Skald, so the whole team sees the same list. Only owners and admins can mark, send, or make a line for an AI agent. Without accounts (signing in), the cards show but nothing can be marked or sent; **Fix this > Me** still gives the lines to paste.
 
 ## Lost pages
 

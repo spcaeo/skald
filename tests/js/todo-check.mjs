@@ -1,8 +1,9 @@
 // Insights' "Check again" (2.44, js/tabs/todo-check.js, todos.js, todo-marks.js, todo-fix.js):
-// the button on each to-do (owners and admins; a viewer sees the answer, not the button),
+// the button in each card's Open view (#5, #6; owners and admins; a viewer sees the answer, not the button),
 // the answer in place with its pill and words, the addresses still failing behind
-// tdchk=<id> (in the address, Back closes it), "Check the next 50", a fixed to-do moved to
-// Done as Fixed with no Undo, a refusal said in place, "Check all again" with its progress,
+// tdchk=<id> (in the address, Back closes it), "Check the next 50", a to-do a check found fixed
+// moved to the fixes being checked (the log still decides) with no Undo, a refusal said in
+// place, "Check all again" with its progress (show=checking),
 // the check after an AI agent's report beside the report, and the demo's sample answer.
 //
 //   node tests/js/todo-check.mjs
@@ -62,20 +63,27 @@ assert.ok(K.KEYS.has("tdchk") && K.KEYS.get("tdchk").kind === "tab");
 assert.equal(S.hashFor({ ...S.read(), tab: "overview/insights", tdchk: "lost-pages" }), "#overview/insights?tdchk=lost-pages");
 assert.equal(S.hashFor({ ...S.read(), tab: "traffic/pages", tdchk: "lost-pages" }), "#traffic/pages", "another tab starts without it");
 
-// ---- an admin: the button on every to-do, beside Fix this
+// ---- an admin: the button in Open, beside the marks; Fix this stays the one main button
 ME.mode = "sessions";
 helper = { marks: {}, role: "admin", can_mark: true, mail: { ready: false, why: "x" }, team: [], checks: {}, checks_withheld: {} };
 await M.loadMarks(true);
 go("#overview/insights");
 let box = T.todoSection(m, S.read());
 const card = (b, id) => b.querySelectorAll("article.td").find((a) => a.id === `td-${id}`);
-const words = (el) => el.querySelectorAll(".td-acts button").map(text);
-assert.deepEqual(words(card(box, "lost-pages")), ["Fix this", "Check again", "Show the list (12)", "Mark done", "Not now"]);
-assert.ok(words(card(box, "leave-0a1b2c3d")).includes("Check again"), "every to-do has it, a visits one too");
+const words = (el) => el.querySelectorAll(".td-acts")[0].querySelectorAll("button").map(text);
+const more = (el) => el.querySelectorAll(".td-more button").map(text);
+assert.deepEqual(words(card(box, "lost-pages")), ["Fix this", "Open"], "closed: Fix this and Open only");
+go("#overview/insights?todo=lost-pages");
+box = T.todoSection(m, S.read());
+assert.deepEqual(more(card(box, "lost-pages")), ["Check again", "Mark done", "Not now"]);
 assert.equal(box.querySelectorAll(".ui-primary, .btn.primary").filter((b) => text(b) === "Check again").length, 0, "never the main button");
-// Check all again: the kinds Skald can ask, never a visits to-do.
+// Check all again: with the fixes being checked; the kinds Skald can ask, never a visits to-do.
+go("#overview/insights?show=checking");
+box = T.todoSection(m, S.read());
 const all = box.querySelector(".td-chkall button");
 assert.equal(text(all), "Check all again (2)");
+go("#overview/insights?todo=lost-pages");
+box = T.todoSection(m, S.read());
 
 // ---- pressed: POST, the answer in place, opened in the address
 answers = [{ status: 200, body: { ok: true, check: partly, marks: {}, checks_withheld: {} } }];
@@ -104,40 +112,47 @@ box = T.todoSection(m, S.read());
 assert.ok(card(box, "lost-pages").querySelector(".td-chk-tbl"));
 
 // ---- more than 50: Check the next ...
-const more = { ...partly, verdict: "more", words: "50 of 120 addresses checked: 48 fixed, 2 not yet. Check the next 50 to finish.", total: 120, checked: 50, next: 50 };
-M.MARKS.checks = { "lost-pages": more };
+const page2 = { ...partly, verdict: "more", words: "50 of 120 addresses checked: 48 fixed, 2 not yet. Check the next 50 to finish.", total: 120, checked: 50, next: 50 };
+M.MARKS.checks = { "lost-pages": page2 };
 box = T.todoSection(m, S.read());
 const nxt = card(box, "lost-pages").querySelectorAll("button").find((b) => text(b) === "Check the next 50");
 assert.ok(nxt, "the next page");
 assert.ok(card(box, "lost-pages").querySelector(".ui-pill.info"));
-answers = [{ status: 200, body: { ok: true, check: { ...more, checked: 100, next: 100 }, marks: {}, checks_withheld: {} } }];
+answers = [{ status: 200, body: { ok: true, check: { ...page2, checked: 100, next: 100 }, marks: {}, checks_withheld: {} } }];
 nxt.click();
 await tick();
 assert.deepEqual(posted.at(-1)[1], { item: "lost-pages", start: 50 });
 
-// ---- fixed: Skald's mark; the to-do moves to Done as Fixed, with no Undo
+// ---- fixed: Skald's mark; the to-do leaves the problems for the fixes being checked (the
+// daily re-check of the log decides Passed or Failed, #5, #6), with no Undo
 const fixed = { ...partly, verdict: "fixed", words: "Fixed: all 12 addresses now answer 301 to a live page.", ok: 12, bad: [], bad_total: 0 };
 answers = [{ status: 200, body: { ok: true, check: fixed, checks_withheld: {},
   marks: { "lost-pages": { state: "fixed", day: "2026-10-27", at: "2026-10-27T14:40:00Z", first_day: "2026-10-27" } } } }];
+go("#overview/insights?todo=lost-pages");
 box = T.todoSection(m, S.read());
 card(box, "lost-pages").querySelectorAll("button").find((b) => text(b) === "Check again").click();
 await tick();
+go("#overview/insights");
 box = T.todoSection(m, S.read());
-c = box.querySelectorAll("article.td-done").find((a) => a.id === "td-lost-pages");
-assert.ok(c, "in Done, and did it work?");
-assert.equal(text(c.querySelector(".td-verdict")), "Fixed");
+assert.ok(!card(box, "lost-pages") && text(box.querySelector(".td-checking a")) === "1 fix being checked", "out of the problems");
+go("#overview/insights?show=checking&todo=lost-pages");
+box = T.todoSection(m, S.read());
+c = card(box, "lost-pages");
+assert.ok(c, "with the fixes being checked");
+assert.equal(text(c.querySelector(".td-verdict")), "Checking", "the live check passed; the log has not had a whole day yet");
 assert.ok(text(c).includes("Fixed: all 12 addresses now answer 301 to a live page.") && c.querySelector(".ui-pill.good"));
-assert.deepEqual(words(c), ["Check again", "Show the list (12)"], "no Undo: a check made the mark, a new check undoes it");
+assert.deepEqual(more(c), ["Check again"], "no Undo: a check made the mark, a new check undoes it");
 assert.ok(!c.querySelector("a.td-chk-open"), "nothing failing: nothing to open");
 // The second count disagreed: shown as done, with why.
 M.MARKS.withheld = { "lost-pages": "the second count finds 11 of 12 addresses fixed" };
 box = T.todoSection(m, S.read());
-c = box.querySelectorAll("article.td-done").find((a) => a.id === "td-lost-pages");
+c = card(box, "lost-pages");
 assert.ok(text(c).includes("Shown as done, not fixed: the second count disagreed") && text(c.querySelector(".td-verdict")) !== "Fixed");
 M.MARKS.withheld = {};
 
 // ---- a refusal is said in place, with its copy icon
 answers = [{ status: 429, body: { ok: false, error: "This to-do was checked 20 s ago. Check it again in 41 s." } }];
+go("#overview/insights?todo=server-errors");
 box = T.todoSection(m, S.read());
 card(box, "server-errors").querySelectorAll("button").find((b) => text(b) === "Check again").click();
 await tick();
@@ -150,6 +165,7 @@ assert.ok(c.querySelector(".td-chk-said button.ua-copy"));
 posted.length = 0;
 answers = [{ status: 200, body: { ok: true, check: fixed, marks: {}, checks_withheld: {} } },
   { status: 200, body: { ok: true, check: { ...partly, item: "server-errors" }, marks: {}, checks_withheld: {} } }];
+go("#overview/insights?show=checking");
 box = T.todoSection(m, S.read());
 const bar = box.querySelector(".td-chkall");
 bar.querySelector("button").click();
@@ -162,6 +178,7 @@ assert.ok(text(box.querySelector(".td-chkall")).includes("Checked again: 1 fixed
 // ---- a viewer: the answer, never the button
 helper = { ...helper, role: "viewer", can_mark: false, checks: { "lost-pages": partly } };
 await M.loadMarks(true);
+go("#overview/insights?todo=lost-pages");
 box = T.todoSection(m, S.read());
 assert.ok(!box.querySelectorAll("button").some((b) => /Check (again|all again|the next)/.test(text(b))), "no button");
 assert.ok(text(card(box, "lost-pages")).includes("3 of 12 addresses still answer 404."), "the answer is shown");
@@ -179,7 +196,7 @@ DEMO.on = true;
 C.forgetChecks();
 DEMO.api.todocheck = { "lost-pages": "data/demo/todo-check-lost-pages.json" };
 await M.loadMarks(true);
-go("#overview/insights");
+go("#overview/insights?todo=lost-pages");
 box = T.todoSection(m, S.read());
 card(box, "lost-pages").querySelectorAll("button").find((b) => text(b) === "Check again").click();
 await tick();

@@ -531,7 +531,12 @@ class Collector:
                              "size": None if size is None else int(size), "verdict": verdict,
                              "category": cat, "shell_size": shell[0] if shell else None,
                              "who": seq.get(key)})
-        rows.sort(key=lambda r: (r["verdict"] != "possible", r["at"], r["host"], r["path"]))
+        # Two addresses asking for the same path in the same second tie on the first four:
+        # status, size, category and the address number settle it, the same on both roads
+        # (2.45.8, #1: a day was withheld for two rows in swapped order).
+        rows.sort(key=lambda r: (r["verdict"] != "possible", r["at"], r["host"], r["path"],
+                                 str(r["status"]), -1 if r["size"] is None else r["size"],
+                                 r["category"] or "", -1 if r["who"] is None else r["who"]))
         return {"answered": len(self.answered), "query_only": self.query_only,
                 **{v: int(counts.get(v, 0)) for v in ("shell", "empty", "possible", "unknown")},
                 "hosts": dict(sorted(hosts.items())), "rows": rows[:N.EXPOSURE_ROWS],

@@ -22,7 +22,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .bot_policy import match as policy_match
-from .bot_verify import CLAIMS, LOCAL_TOOL, MAX_LIST_AGE, VENDORS
+from .bot_verify import CLAIMS, CRAWLER_ADDRESSES, LOCAL_TOOL, MAX_LIST_AGE, VENDORS
 from .classify import LINK_PREVIEWS, OTHER_BOT
 
 FLAGS = ("hosting_network", "fan_out", "bare_mozilla")
@@ -112,6 +112,18 @@ class Checks:
             out = "unverified"
         self.memo[(vendor, address)] = out
         return out
+
+    def crawler_list(self, address: str) -> str:
+        """Rule 5b: the crawler name of the first crawler-only list (the
+        shared CRAWLER_ADDRESSES table) whose networks hold the address."""
+        key = ("crawler", address)
+        if key not in self.memo:
+            self.memo[key] = ""
+            for listed, name in CRAWLER_ADDRESSES.items():
+                if listed in self.nets and self._inside(address, self.nets[listed]):
+                    self.memo[key] = name
+                    break
+        return self.memo[key]
 
     def from_hosting(self, address: str) -> bool:
         key = ("hosting", address)
