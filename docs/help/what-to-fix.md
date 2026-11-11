@@ -31,7 +31,7 @@ Each card has one main button, **Fix this**. It asks one question, **Who will do
   3. changes only what is missing, touches nothing the to-do does not list, asks you before any change on a server, and tests it (`nginx -t`) before a reload;
   4. reports back. The dialog shows each step as it happens, and the agent's report: **Done**, **Partly done** or **Left for you**, the exact change it made (with a copy icon), the files, and the rows it left for you and why.
 
-  A **Done** report marks the to-do done, so Skald starts checking it on the days after. That changes no figure, and **Undo** is one click. The report also shows on the to-do itself, under **Open**.
+  A **Done** report marks the to-do done, so Skald starts checking it on the days after. That changes no figure, and **Undo** is one click. The report also shows on the to-do itself, under **Open** › **History**.
 - **Me.** The exact lines to paste for your web server, from every row (not only the 1,000 the page shows): the redirect lines for old pages, one rule for the Markdown copies, the sitemap line. Skald picks nginx or Apache from what its site check found; switch it if that is wrong. **Copy the lines** or **Download the lines**, and the CSV is a small link under them. When you are done, press **Mark done**.
 - **My developer.** Send it to a member of the site's team: the mail has the to-do, its rows as a CSV and the link that opens it. It needs a mail server (Settings > This site > Mail & reports) and a confirmed teammate; otherwise the dialog says why and gives you the link to copy. Someone who opens the link without rights to the site sees "not available to you".
 
@@ -40,6 +40,8 @@ Each card has one main button, **Fix this**. It asks one question, **Who will do
 ## Open: the list behind a card
 
 - **Open** shows the card's list under it: the to-do's rows, or for a failed fix the addresses still failing since you marked it, most asked first. The address keeps it open (`todo=lost-pages`), so a link brings the same list back. **Close** folds it.
+- **A failed fix, opened**, says **Still not found since your fix on** its day, and for old pages lists each address with **Send it to**: the closest live page to redirect it to. Addresses only bots ask for (no person since your fix, and no page like them, such as `/wp-/` or `/_astro/`) are folded into one line: they stay "not found", which is right for them, and they never make a fix fail. **Show** lists them. Its actions are **Check again**, **Undo** and **History**.
+- **History** shows what happened before: your AI assistant's report and earlier checks. A check you just made shows its answer straight away, above the list.
 - **The copy icon by the title** copies the address of this card, with its list open. It turns into a green tick.
 - **See it in** goes to the tab that shows it, with its figures.
 - **Mark done** (also in **Fix this > Me**) moves it to the fixes being checked. From the next data update, Skald re-checks it on every whole day after the day you marked it, with the same measure. While the log still finds the problem, it is back on the page under **Fixes that failed**; when the log finds none, it **Passed**. **Undo** puts it back.
@@ -69,7 +71,7 @@ Each check also reads your newest log lines since you marked the to-do done (at 
 
 Skald asks politely: at most 50 addresses a check (**Check the next 50** goes on), one at a time, with a short wait between them and a time limit; with its own user agent (`site-todo-check`), which Skald counts as its own, never as a visitor or a bot; HEAD requests, no cookies, and it reads no page. **Check all again**, above the fixes being checked, checks every to-do Skald can ask, one after the other, and shows how far it is. A site can have 30 checks an hour, and each to-do one a minute.
 
-When your AI agent reports a to-do done, Skald runs the same check straight away and shows its answer beside the agent's report, under **Open**. A card's face never shows them: only its three lines.
+When your AI agent reports a to-do done, Skald runs the same check straight away and shows its answer beside the agent's report, under **Open** › **History**. A card's face never shows them: only its three lines.
 
 Only owners and admins press **Check again**; a viewer sees the answers. Each check is a row in the audit log ("todo.checked"), without the addresses. A **Fixed** mark is counted twice too: a separate count reads the answers Skald kept and must find every address fixed, or the to-do shows as done, not fixed, with why.
 

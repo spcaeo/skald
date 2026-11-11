@@ -99,6 +99,8 @@ export const ROUTE_KEYS = [
   // ---- 2.35: Insights' to-dos and Not found's lost pages (tabs/todos.js, tabs/nf-lost.js)
   { key: "todo", kind: "tab", owner: "tabs/todos.js", means: "Insights: the card whose list is open, by its id (lost-pages, server-errors, ai-markdown, sitemap, leave: every open leaving page, or leave- and 8 hex for a page)" },
   { key: "tdchk", kind: "tab", owner: "tabs/todo-check.js", means: "Insights: the to-do whose Check again answer is open with the addresses still failing, by its id (2.44)" },
+  { key: "tdhist", kind: "tab", owner: "tabs/todos.js", means: "Insights: the to-do whose History is open (the AI assistant's note and older checks), by its id (#23)" },
+  { key: "tdbots", kind: "tab", owner: "tabs/todos.js", means: "Insights: the failed fix whose addresses only bots ask for are shown, by its id (#23)" },
   { key: "nfk", kind: "tab", owner: "tabs/nf-lost.js", means: "Not found: the lost pages' tab: md (AI asks for Markdown) or fixed (After the fix); Lost pages when absent" },
   { key: "nfsrv", kind: "tab", owner: "tabs/nf-lost.js", means: "Not found: the server lines for apache (nginx when absent)" },
   { key: "pchg", kind: "tab", owner: "tabs/pagechange.js", means: "Traffic > Pages (a page) and Insights: the tracked page change open, by its id (c and 8 hex, a hash of the site, the page and the day)" },

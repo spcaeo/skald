@@ -46,6 +46,11 @@ const vf = await import(new URL("tabs/viewsfill.js", JS));
 const { openEdit } = await import(new URL("tabs/set-edit.js", JS));
 vf.timing.poll = 5;
 const tick = (ms = 30) => new Promise((r) => setTimeout(r, ms));
+// Wait until the page shows what a step expects, not a fixed time: on a busy machine the
+// first progress read can land after a 30 ms tick (a flaky "starting" here, 2026-11-11).
+async function until(ok, ms = 2000) {
+  for (const end = Date.now() + ms; !ok() && Date.now() < end;) await tick(5);
+}
 
 // The words, alone.
 assert.equal(vf.reachWords(REACH), `Days before 13 Oct can't be filled: the raw log is kept 10 days. They show as "not recorded for this group", never as 0.`);
@@ -93,6 +98,7 @@ const box = (root) => root.querySelector("section.vf");
   assert.deepEqual(posted.at(-1), { "sites.views": [{ name: "Security pages", path_prefix: "/security/", exclude_prefix: "" }, { name: "Free check", path_prefix: "/check/", exclude_prefix: "" }] });
   const started = asked.filter(([p]) => p === "settings/views-fill-start");
   assert.deepEqual(started.map(([, b]) => b), [{ views: ["security-pages", "free-check"] }], "started at once, for the new groups");
+  await until(() => box(root)?.textContent.includes("4 of 9"));
   const b = box(root);
   assert.ok(!b.hidden);
   assert.ok(b.textContent.includes("New groups: Security pages, Free check."), b.textContent);

@@ -4,6 +4,46 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.46.2 (2026-11-11)
+
+A fix for 2.46.0: an opened failed fix says plainly what is still wrong, and addresses only bots ask for no longer fail a lost-pages fix.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- Nothing else: no schema change, no setting.
+
+### Fixes
+
+- **Insights: an opened failed fix says plainly what is still wrong (#23).** On one site, an
+  opened failed "Old pages still answer Page not found" card was confusing: the AI assistant's "Done" note and a week-old check ("4 fixed, 46 not yet ... none answered
+  404") read as good news above a Failed card, there were six actions, and the list mixed 2
+  real pages with 4 addresses only bots probe (`/wp-/`, `/_astro/`, `/*/`,
+  `apple-app-site-association`), which the assistant had left as not found on purpose. Now an
+  opened failed fix shows "Still not found since your fix on <day>", each real address with
+  **Send it to** (its closest live page), the bot-only addresses folded into one line ("stay
+  not found; that is right for them", Show lists them, `tdbots=`), and three actions: Check
+  again, Undo and History. The assistant's note and older checks sit behind **History**
+  (`tdhist=`); a check just made shows its answer at once. Who it affects: anyone opening a
+  failed fix. What to do: nothing. Checked: the Insights JS tests, the full test suite, the
+  page in a browser (desktop and phone) with one site's real to-do list.
+- **Counting change: addresses only bots ask for never fail a lost-pages fix (#23, owner's
+  choice).** A still-failing old address that no person asked for since the fix, and that has
+  no live page like it (`closest_page`), is named in the re-check's new `bots_only` list and no
+  longer keeps the fix Failed; one with a live page to send it to, or that a person asked for,
+  still does. The second count (`audit_todos.bots_only_of`) recounts the list by its own SQL and
+  its own reading of the live pages, sharing only the closest-page rule, and withholds a to-do it
+  disagrees with. Who it affects: sites with a lost-pages fix marked done. What to do: nothing.
+  Checked: new tests (bots only passes; a page to send it to, or a person, keeps it failing; a
+  nudged list or status is caught), and a read-only dry run on the live server: every site's
+  to-do list built with the new code, nothing withheld (one site's fix still Failed with 4 bot
+  addresses set apart, another's with 1).
+- **Test fix: the "fill past days" page test waited a fixed 30 ms (2026-11-11).** On a busy
+  machine the first progress read landed later, so the test sometimes saw "starting" instead of
+  "4 of 9" and failed the full run (seen once in the 2.46.2 release run; 2 of 5 reruns). It now
+  waits until the progress shows, up to 2 s. Who it affects: developers only. What to do:
+  nothing. Checked: 30 runs in a row, 10 of them with the machine under load.
+
 ## 2.46.1 (2026-11-10)
 
 A fix for 2.46.0: each Insights card shows only its three lines until it is opened.

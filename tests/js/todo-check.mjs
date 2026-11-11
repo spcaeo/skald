@@ -100,12 +100,18 @@ assert.equal(rows.length, 3, "the addresses still failing");
 assert.ok(rows[0].querySelector("a.ua-open").getAttribute("href") === "https://example.com/old-9/", "copy and open on each address");
 assert.ok(rows[1].querySelectorAll("a.ua-open").some((a) => a.getAttribute("href") === "https://example.com/nowhere/"), "where it redirects: open too");
 assert.ok(rows[0].querySelector("button.ua-copy"), "what it answers: copy");
-// Hide: out of the address; the answer's one line stays.
+// Hide: out of the address; the answer moves behind History (#23), one line with its link.
 c.querySelector("a.td-chk-open").click();
 assert.equal(q().get("tdchk"), null);
 box = T.todoSection(m, S.read());
 c = card(box, "lost-pages");
-assert.ok(!c.querySelector(".td-chk-tbl") && text(c.querySelector("a.td-chk-open")) === "Show the 3 not fixed");
+assert.ok(!c.querySelector(".td-chk-box"), "an older answer is not in the way");
+c.querySelector("a.td-hist").click();
+assert.equal(q().get("tdhist"), "lost-pages", "History is in the address");
+box = T.todoSection(m, S.read());
+c = card(box, "lost-pages");
+assert.ok(!c.querySelector(".td-chk-tbl") && text(c.querySelector(".td-history a.td-chk-open")) === "Show the 3 not fixed");
+go("#overview/insights?todo=lost-pages");
 // A link with tdchk opens it straight away, card and all (#21).
 go("#overview/insights?tdchk=lost-pages");
 box = T.todoSection(m, S.read());
@@ -141,7 +147,7 @@ await tick();
 go("#overview/insights");
 box = T.todoSection(m, S.read());
 assert.ok(!card(box, "lost-pages") && text(box.querySelector(".td-checking a")) === "1 fix being checked", "out of the problems");
-go("#overview/insights?show=checking&todo=lost-pages");
+go("#overview/insights?show=checking&todo=lost-pages&tdchk=lost-pages");   // the answer just made (#23)
 box = T.todoSection(m, S.read());
 c = card(box, "lost-pages");
 assert.ok(c, "with the fixes being checked");
@@ -187,7 +193,11 @@ await M.loadMarks(true);
 go("#overview/insights?todo=lost-pages");
 box = T.todoSection(m, S.read());
 assert.ok(!box.querySelectorAll("button").some((b) => /Check (again|all again|the next)/.test(text(b))), "no button");
-assert.ok(text(card(box, "lost-pages")).includes("3 of 12 addresses still answer 404."), "the answer is shown");
+assert.ok(!text(card(box, "lost-pages")).includes("3 of 12 addresses still answer 404.") && card(box, "lost-pages").querySelector("a.td-hist"),
+  "an earlier answer sits behind History (#23)");
+go("#overview/insights?todo=lost-pages&tdhist=lost-pages");
+box = T.todoSection(m, S.read());
+assert.ok(text(card(box, "lost-pages").querySelector(".td-history")).includes("3 of 12 addresses still answer 404."), "the answer is shown");
 
 // ---- next to an AI agent's report: Skald's own check, when it ran after the report
 const fix = { state: "done", at: "2026-10-27T14:30:00Z", change: "", files: [], left: [], notes: "" };

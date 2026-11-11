@@ -6,7 +6,8 @@ road: its own SQL over history.sqlite (the `days`, `day_extras`, `counts` and
 `journeys` tables), its own reading of each blob, its own path rules written again
 from DATA-CONTRACT.md, and its own reading of the sitemap files beside the history.
 It shares only the name lists in lost_pages.py (MACHINE, OURS, PAGE_ENDINGS,
-MARKDOWN_ENDINGS, WHO) and the thresholds in todos.py (LIMITS).
+MARKDOWN_ENDINGS, WHO), the thresholds in todos.py (LIMITS), and one rule,
+closest_page.closest (does an old address have a live page like it? #23).
 
   check_lost    lost_pages.json: every lost address and its people, search and AI
                 asks; the Markdown asks split by whether the page is live; the totals
@@ -26,6 +27,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from .todos import LIMITS, STILL_MOST
+from .closest_page import Live, closest
 from .lost_pages import MACHINE, MARKDOWN_ENDINGS, OURS, PAGE_ENDINGS, WHO
 
 ERRORS_KIND = "server_error_page"     # history's counts: 5xx by path (DATA-CONTRACT.md)
@@ -290,6 +292,18 @@ def still_of(db, key: str, todo: dict, after: list[str], before: list[str], live
     return {p: n for p, n in got.items() if n}
 
 
+def bots_only_of(db, key: str, still: dict, after: list[str], days: list[str], live_dir=None,
+                 anchor=None) -> list[str]:
+    """The still-failing old addresses only bots ask for (#23), this module's way: no person
+    asked on the days after the mark (its own SQL), and no live page like them, the live
+    pages read by its own road (the pages blobs over the to-do's days and the kept sitemap).
+    It shares one rule with the main count: closest_page.closest, which says whether an old
+    address has a live page like it, as it shares LIMITS and the name lists."""
+    people = {p: f["people"] for p, f in asks(db, key, after).items()}
+    live = Live(set(served(db, key, days)) | set(sitemap(live_dir, anchor) or ()))
+    return sorted(p for p in still if not people.get(p) and closest(p, live)[0] is None)
+
+
 def own_status(todo: dict, again: dict | None) -> str:
     """The card's status from this module's recount: never from the list's own verdict."""
     state = todo.get("state")
@@ -302,6 +316,8 @@ def own_status(todo: dict, again: dict | None) -> str:
             return "checking"
         held = again["one_page"] / again["visits"] >= LIMITS["leave_share"] and not again["posted"]
         return "failed" if held else "passed"
+    if todo["kind"] == "lost":
+        return "failed" if again.get("left", sum(again.values())) else "passed"
     return "failed" if sum(again.values()) else "passed"
 
 
@@ -336,6 +352,13 @@ def check_todos(db, key: str, todos: list[dict], live_dir=None, anchor: str | No
                     out[t["id"]] = (f"the re-check's addresses: the second count finds {len(got)} still failing "
                                     f"{mine[:3]}, the list says {r.get('still_total')} {theirs[:3]}")
                     continue
+                if t["kind"] == "lost":
+                    bots = bots_only_of(db, key, got, after, days, live_dir, anchor)
+                    if bots != (r.get("bots_only") or []):
+                        out[t["id"]] = (f"the re-check's addresses only bots ask for: the second count finds "
+                                        f"{bots[:3]} ({len(bots)}), the list says {(r.get('bots_only') or [])[:3]}")
+                        continue
+                    again = {**again, "left": sum(v for p, v in got.items() if p not in set(bots))}
         if "status" in t and own_status(t, again) != t["status"]:
             out[t["id"]] = f"the status: the second count finds {own_status(t, again)}, the list says {t['status']}"
     return out
