@@ -29,7 +29,8 @@ import { h, n, change } from "../ui.js";
 import { rangeOf, previousOf } from "../data.js";
 import * as S from "../state.js";
 import leads from "./leads.js";
-import conversions from "./conversions.js";
+import conversions, { everSent } from "./conversions.js";
+import { money } from "./revfigs.js";
 import { actionName, convFile, leadsOn } from "./leadfigs.js";
 import { tiles } from "./tiles.js";
 import { blist } from "./common.js";
@@ -75,6 +76,14 @@ export function narrowConv(f, s) {
   return s.llabel ? byLabel(g, s.llabel) : g;
 }
 
+// A day's revenue narrowed to one action's own sales (`by.action`, 2.46.3); none when unsplit.
+function revenueOf(r, a) {
+  if (!r || typeof r !== "object" || Array.isArray(r) || r.state) return r;
+  const out = {};
+  for (const [cur, x] of Object.entries(r)) { const c = x?.by?.action?.[a]; if (c) out[cur] = { sales: c.sales, net_minor: c.net_minor, by: { action: { [a]: c } } }; }
+  return out;
+}
+
 function byAction(f, a) {
   const pick = (o) => (o && a in o ? { [a]: o[a] } : {});
   return { ...f, days: (f.days || []).map((d) => (d.state !== "ok" ? d : { ...d, stages: pick(d.stages), abandoned: pick(d.abandoned),
@@ -82,7 +91,8 @@ function byAction(f, a) {
     visits_before: pick(d.visits_before), time_to_convert: pick(d.time_to_convert),
     labels: pick(d.labels), labels_abandoned: pick(d.labels_abandoned),
     // A day that records assisted sources keeps saying so, with this action's alone.
-    assisted: d.assisted ? pick(d.assisted) : d.assisted, likely_ai: d.likely_ai ? pick(d.likely_ai) : d.likely_ai })) };
+    assisted: d.assisted ? pick(d.assisted) : d.assisted, likely_ai: d.likely_ai ? pick(d.likely_ai) : d.likely_ai,
+    revenue: revenueOf(d.revenue, a) })) };
 }
 
 /* One lead label: each day's stages and abandoned starts become that label's own (the
@@ -93,7 +103,7 @@ function byLabel(f, label) {
   const only = (per) => Object.fromEntries(Object.entries(per || {}).filter(([, x]) => x && label in x).map(([a, x]) => [a, x[label]]));
   return { ...f, days: (f.days || []).map((d) => (d.state !== "ok" ? d : { ...d, stages: only(d.labels), abandoned: only(d.labels_abandoned),
     by: Object.fromEntries(Object.keys(d.by || {}).map((dim) => [dim, {}])), visits_before: {}, time_to_convert: {},
-    assisted: d.assisted ? {} : d.assisted, likely_ai: d.likely_ai ? {} : d.likely_ai })) };
+    assisted: d.assisted ? {} : d.assisted, likely_ai: d.likely_ai ? {} : d.likely_ai, revenue: undefined })) };
 }
 
 // The model the renderer reads: the same, with one file narrowed.
@@ -136,7 +146,7 @@ function leadSources(m, f) {
 }
 
 // What the chosen options narrow, and what they cannot.
-export const LABEL_WORDS = "Where the completed ones came from, the touches, the time to convert and the pages seen before are not split by label: they show with Every label.";
+export const LABEL_WORDS = "Where the completed ones came from, the touches, the time to convert, the pages seen before and the sales are not split by label: they show with Every label.";
 function narrowWords(s, all) {
   if (all) {
     const bits = [];
@@ -179,7 +189,8 @@ function optionsFor(m, s, f, all, part) {
   const from = all
     ? "Counted from the tools: the page's script tag, Calendly, Cal.com, Stripe and the other webhooks, your site's server and the lead database's rows. Never added to the lead database's own counts."
     : `Counted from the lead database: forms sent on the site, as your team marks them. Never added to the tools' counts.${convFile(m) ? " Overview's Leads and Demos booked count from the tools: choose Tools for the same figures." : ""}`;
-  return optionsRow(part === "sources" ? "Sources options" : "Summary options", controls, { end: countFrom(m, all), notes: [from, narrowWords(s, all)], help: HELP });
+  // "Count from" only where there is a choice: a site with no lead database counts from its tools.
+  return optionsRow(part === "sources" ? "Sources options" : "Summary options", controls, { end: all && noLeadDb(m) ? null : countFrom(m, all), notes: [from, narrowWords(s, all)], help: HELP });
 }
 
 // ---------------------------------------------------------------- the parts
@@ -199,7 +210,7 @@ const PARTS = {
     db: ["Where they came from", "Lead quality by source", "Time to convert", "Funnel, by source"] },
 };
 // Plain one-line headings for the parts (the question each answers).
-const RENAME = { "Every action": "Every action, side by side", "Where the completed ones came from": "Where the completed ones came from",
+const RENAME = { "Every action": "What people did", "Where the completed ones came from": "Where the completed ones came from",
   "First, last and assisted touch": "First, last and assisted touch", "Per day, by kind": "Leads per day, by kind" };
 
 /* Summary, from the tools: the period's leads against the period before (the same sum as
@@ -224,16 +235,30 @@ function numbers(m, s, r) {
     if (e?.state !== "ok") continue;
     for (const [a, per] of Object.entries(e.stages || {})) if (leadsSet.has(a)) { won += per.won || 0; lost += per.lost || 0; }
   }
+  // Sales (2.46.3): the period's sales and their value, per currency (the Revenue tab's figures).
+  let sold = 0, held_ = 0;
+  const value = {};
+  for (const day of days) {
+    const e = (f.days || []).find((d) => d.day === day);
+    const rv = e?.state === "ok" ? e.revenue : null;
+    if (!rv || typeof rv !== "object" || Array.isArray(rv)) continue;
+    if (rv.state === "withheld") { held_ += 1; continue; }
+    for (const [cur, x] of Object.entries(rv)) if (/^[A-Z]{3}$/.test(cur) && x) { sold += x.sales || 0; value[cur] = (value[cur] || 0) + (x.net_minor || 0); }
+  }
+  const ever = everSent(f);
   const cover = got.whole ? "every day of the period" : `${n(got.ok)} of its ${n(got.of)} days recorded`;
   // Narrowed to one kind or label, it is that kind's or label's count, not Overview's figure.
   const same = s.lact || s.llabel ? `Narrowed to ${[s.lact ? actionName(s.lact).toLowerCase() : "", s.llabel ? `the label “${s.llabel}”` : ""].filter(Boolean).join(" and ")}: not Overview's figure, which counts every kind.`
     : "The same figure as Overview's Leads tile.";
+  const worth = Object.keys(value).sort().map((c) => money(value[c], c, f)).join(" · ");
+  const demosSeen = (f.days || []).some((d) => d.state === "ok" && d.stages?.demo) || (f.set_up?.hooks || []).some((k) => ["calendly", "calcom"].includes(k));
   return tiles([
     { label: "Leads", value: got.leads, info: `Forms sent and demos booked, completed; test rows never counted. Counted from the tools on ${cover}. ${same}`, more: HELP, line: vs(got.leads, before?.leads) },
-    { label: "Demos booked", value: got.demos, info: `Demos booked, completed, on ${cover}. Calendar bookings shows each step.`, more: "#help?part=demo-bookings", line: vs(got.demos, before?.demos) },
-    { label: "Won", value: won, info: "Leads your team or your CRM marked won, on the day the lead came in.", more: HELP, line: h("span", { class: "t-c" }, "as known now") },
-    { label: "Lost", value: lost, info: "Leads your team or your CRM marked lost, on the day the lead came in.", more: HELP, line: h("span", { class: "t-c" }, "as known now") },
-  ]);
+    ever.has("money") && !s.llabel ? { label: "Sales", value: held_ ? null : sold, info: `Sales with a value in the period, counted on the day they were paid, less refunds, per currency: the Revenue tab's figures.${held_ ? " Withheld: the second count disagreed on a day of the period." : ""}`, more: "#help?part=revenue", line: h("span", { class: "t-c" }, held_ ? "withheld" : worth || "none") } : null,
+    demosSeen ? { label: "Demos booked", value: got.demos, info: `Demos booked, completed, on ${cover}. Calendar bookings shows each step.`, more: "#help?part=demo-bookings", line: vs(got.demos, before?.demos) } : null,
+    ever.has("won") ? { label: "Won", value: won, info: "Leads your team or your CRM marked won, on the day the lead came in.", more: HELP, line: h("span", { class: "t-c" }, "as known now") } : null,
+    ever.has("lost") ? { label: "Lost", value: lost, info: "Leads your team or your CRM marked lost, on the day the lead came in.", more: HELP, line: h("span", { class: "t-c" }, "as known now") } : null,
+  ].filter(Boolean));
 }
 
 /* The best sources: the completed leads of the period by their last-touch source, top

@@ -90,8 +90,8 @@ function walk(el, pred) {
   assert.match(said, /Label “sales”: Every action counts only the leads/);
   assert.match(said, /not split by label/);
   const h2 = (t) => find(out, (el) => (el.tagName || "").toLowerCase() === "h2" && text(el).startsWith(t));
-  assert.ok(h2("Every action"), "Every action is shown");
-  const every = text(h2("Every action").parentNode);
+  assert.ok(h2("What people did"), "the actions table (Every action) is shown, under its plain heading");
+  const every = text(h2("What people did").parentNode);
   assert.match(every, /Contact forms/);
   assert.doesNotMatch(every, /Demos/, "demo has no row labelled sales");
   assert.equal(h2("Where the completed ones came from"), null, "a part not split by label is left off");

@@ -59,7 +59,9 @@ class Server(unittest.TestCase):
     MODE = "sessions"
 
     def setUp(self):
-        self._tmp = tempfile.TemporaryDirectory()
+        # The handler threads are daemon threads server_close does not wait for;
+        # one can still be writing a page here at clean-up (#29).
+        self._tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         self.addCleanup(self._tmp.cleanup)
         root = Path(self._tmp.name)
         self.live = root / "lib"

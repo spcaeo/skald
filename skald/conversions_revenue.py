@@ -28,7 +28,8 @@ first counted row with a value. A day before it is not recorded (no
 2.32 did not sell nothing).
 
 Attribution (source, first source, campaign, landing, country, device,
-label) is the (tool, ref)'s first finished row, by `at`, then the stage's
+label, and action: 2.46.3, the lead's own action, so a sign-up that paid is a
+sign-up's sale) is the (tool, ref)'s first finished row, by `at`, then the stage's
 name, then id - where the visitor came from, the lead; else the row itself.
 Tags are the sale row's (a refund: its sale's, else its own). The tool is the
 row's.
@@ -55,7 +56,7 @@ from .conversions import FINISHED, NO_LABEL, REFUNDED, UNKNOWN
 # conversions.json's `revenue.by` names -> the conversions column.
 DIMS = (("source", "source_type"), ("first_source", "first_source"),
         ("campaign", "campaign"), ("landing", "landing"), ("country", "country"),
-        ("device", "device"), ("tool", "tool"), ("label", "label"))
+        ("device", "device"), ("tool", "tool"), ("label", "label"), ("action", "action"))
 _COLS = ("id, tool, external_ref, action, stage, at, source_type, first_source, campaign, "
          "landing, country, device, label, value_minor, currency, customer_ref, tags")
 

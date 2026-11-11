@@ -4,6 +4,24 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.46.3 (2026-11-11)
+
+Leads & sales › Summary shows a payment: a Sales figure and each action's sales and value, and no completion rate clamped to 100%.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- Nothing else: no schema change, no setting. conversions.json's `revenue.by` gains `action` on the first build.
+
+### Fixes
+
+- **Leads & sales › Summary shows a payment (#26).** On freshlycited.com today a sign-up paid $25.00, yet Summary showed only "Leads 1" and "Won 0": no sale anywhere. Summary now has a **Sales** figure (sales and their value per currency, the Revenue tab's figures) and the table, renamed **What people did**, has **Sales** and **Value** per action; a sale belongs to the lead it was paid for (revenue's new `by.action`, the lead's own action, counted again by `audit_revenue`). Columns and tiles of stages a site has never sent in the file's days (Started, Abandoned, rate, Cancelled or no-show, Won, Lost, Demos booked) are left off (freshlycited.com keeps Won, Lost and Started: it sent them in October; it loses Cancelled and Demos booked), and **Count from** is gone on a site with no lead database. Who: every site with sales; nothing to do. The completion rate is no longer clamped to 100%: an action whose completions came partly from your server or a tool (no start to match them) says "not comparable"; freshlycited's 30-day sign-ups read 100% from 25 starts and 84 completions. Checked: a column-by-column check of every Leads & sales tab on freshlycited.com against the live store (the rest is #27), `tests/js/summary-sales.mjs` (freshlycited's day), revenue tests with a second count, the full suite.
+- **Two tests no longer fail on a busy machine (#29).** Publishing 2.46.3 failed twice while the
+  Mac ran other projects: the live speed check timed itself by the wall clock (15.6 s against
+  15 s; about 3.4 s when quiet), and a test server's temp folder was removed while a handler
+  thread still wrote into it. The speed check now counts CPU time; the folder clean-up ignores a
+  late write. Affects nobody using Skald; nothing to do. Checked: both files' tests pass.
+
 ## 2.46.2 (2026-11-11)
 
 A fix for 2.46.0: an opened failed fix says plainly what is still wrong, and addresses only bots ask for no longer fail a lost-pages fix.
