@@ -22,7 +22,7 @@
 // The marks are Skald's (js/tabs/todo-marks.js), never this browser's. The figures are
 // the data layer's, checked by a second count; one it disagreed with is left out and named.
 
-import { h, n, stateNote } from "../ui.js";
+import { h, n, short, stateNote } from "../ui.js";
 import { table } from "../table.js";
 import * as S from "../state.js";
 import { copyText, TIMING, withCopy, withUrl } from "../urlactions.js";
@@ -143,7 +143,7 @@ function card(item, s, redraw) {
     ts.length === 1 && markOf(t.id, t.marked)?.withheld ? h("p", { class: "note", role: "note" }, `Shown as done, not fixed: the second count disagreed (${markOf(t.id, t.marked).withheld}).`) : null,
     h("div", { class: "td-acts" },
       fix ? h("button", { type: "button", class: "btn primary td-fix", onclick: () => S.set({ todo: id, fix: "1", by: "", fixby: "", link: "" }) }, "Fix this") : null,
-      h("button", { type: "button", class: "btn", "aria-expanded": String(shown), onclick: () => S.set({ todo: shown ? "" : id, tdchk: "" }) }, shown ? "Close" : "Open")),
+      h("button", { type: "button", class: "btn", "aria-expanded": String(shown), onclick: () => S.set({ todo: shown ? "" : id, tdchk: "", tdhist: "", tdbots: "" }) }, shown ? "Close" : "Open")),
     shown ? openView(item, s, redraw) : null);
 }
 
@@ -155,13 +155,61 @@ function openView(item, s, redraw) {
   const t = ts[0];
   // A check made the "fixed" mark: no Undo, a new check undoes it (2.44).
   const fixedByCheck = markOf(t.id, t.marked)?.state === "fixed";
+  const undo = fixedByCheck ? null : markButton("Undo", t.id, "open", redraw);
+  if (status === "failed" && t.recheck?.still) return failedView(t, s, redraw, undo);
   const more = h("div", { class: "td-acts td-more" }, checkButton(t, openAfter(t, redraw)),
-    status === "open" ? [markButton("Mark done", t.id, "done", redraw), markButton("Not now", t.id, "notnow", redraw)]
-      : fixedByCheck ? null : markButton("Undo", t.id, "open", redraw),
-    openLink(t));
-  // The details stay behind Open (#21): the AI assistant's note and the last check's result.
-  return h("div", { class: "td-view" }, agentNote(fixOf(t.id)), checkLine(t, s, redraw), more,
-    status === "failed" && t.recheck?.still ? stillList(t) : list(t));
+    status === "open" ? [markButton("Mark done", t.id, "done", redraw), markButton("Not now", t.id, "notnow", redraw)] : undo,
+    openLink(t), historyLink(t, s));
+  return h("div", { class: "td-view" }, fresh(t, s, redraw), more, history(t, s, redraw), list(t));
+}
+
+/* #23: a check just made (tdchk=<id>) shows its answer at once; the AI assistant's note and
+   older checks sit behind History (tdhist=<id>), never in the way. */
+const fresh = (t, s, redraw) => (s.tdchk === t.id ? checkLine(t, s, redraw) : null);
+const hasHistory = (t) => Boolean(fixOf(t.id) || MARKS.checks?.[t.id]);
+
+function historyLink(t, s) {
+  if (!hasHistory(t)) return null;
+  const on = s.tdhist === t.id;
+  return h("a", { class: "td-open td-hist", href: S.hashFor({ ...S.read(), tdhist: on ? "" : t.id }), "aria-expanded": String(on),
+    onclick: (e) => { e.preventDefault(); S.set({ tdhist: on ? "" : t.id }); } }, on ? "Hide history" : "History");
+}
+
+function history(t, s, redraw) {
+  if (s.tdhist !== t.id || !hasHistory(t)) return null;
+  return h("div", { class: "td-history" }, agentNote(fixOf(t.id)), s.tdchk === t.id ? null : checkLine(t, { ...s, tdchk: "" }, redraw));
+}
+
+/* A failed fix, opened (#23): the addresses still failing since the fix and, for old pages,
+   where to send each; the ones only bots ask for folded into one quiet line (tdbots=<id>);
+   Check again, Undo and History. */
+function failedView(t, s, redraw, undo) {
+  const r = t.recheck;
+  const bots = new Set(r.bots_only || []);
+  const to = new Map((t.rows || []).map((x) => [x.path, x.target]));
+  const lost = t.kind === "lost";
+  const rows = (r.still || []).filter(([path]) => !bots.has(path)).map(([path]) => ({ path, target: to.get(path) || "" }));
+  const shown = (v) => (v ? withUrl(h("code", null, v), v) : h("span", { class: "muted" }, "no page like it"));
+  const cols = [{ key: "path", label: lost ? "Old address" : "Address", path: true, fmt: shown }];
+  if (lost) cols.push({ key: "target", label: "Send it to", path: true, fmt: shown, csv: (x) => x.target });
+  const since = r.marked_day ? short(r.marked_day) : "";
+  const head = t.kind === "errors" ? `Still failing since your fix${since ? ` on ${since}` : ""}`
+    : `Still not found since your fix${since ? ` on ${since}` : ""}`;
+  const more = (r.still_total ?? 0) - bots.size - rows.length;
+  const open = s.tdbots === t.id;
+  const quiet = bots.size ? h("p", { class: "note td-bots" },
+    `${n(bots.size)} ${bots.size === 1 ? "address only bots ask for stays" : "addresses only bots ask for stay"} "not found". That is right for them. `,
+    h("a", { href: S.hashFor({ ...S.read(), tdbots: open ? "" : t.id }), "aria-expanded": String(open),
+      onclick: (e) => { e.preventDefault(); S.set({ tdbots: open ? "" : t.id }); } }, open ? "Hide" : "Show"),
+    open ? h("span", { class: "td-bots-list" }, " ", ...[...bots].map((p, i) => [i ? ", " : "", withCopy(h("code", null, p), p)])) : null) : null;
+  return h("div", { class: "td-view" }, fresh(t, s, redraw),
+    h("h3", { class: "td-sub" }, head),
+    rows.length ? h("div", { class: "td-list" }, table(cols, { caption: head, rows, ns: `tds${t.kind}`, limit: 25,
+      sortKey: null, search: false, tools: false, count: false, empty: "No rows." })) : null,
+    more > 0 ? h("p", { class: "note" }, `And ${n(more)} more, asked for less.`) : null,
+    quiet,
+    h("div", { class: "td-acts td-more" }, checkButton(t, openAfter(t, redraw)), undo, historyLink(t, s)),
+    history(t, s, redraw));
 }
 
 /* Every open leaving page together: each page, its visits and how many left at once. */
@@ -171,16 +219,6 @@ function pagesList(ts) {
     { key: "visits", label: "Visits started here", num: true }, { key: "one_page", label: "Left after that page", num: true }];
   return h("div", { class: "td-list" }, table(cols, { caption: "Pages visitors leave", rows, file: "leaving-pages.csv", ns: "tdleave", limit: 25, sortKey: null, empty: "No rows." }),
     h("p", { class: "note" }, "Fix this: who will do it, with every page's list. Each page's figures: ", ...ts.map((t, i) => [i ? ", " : "", openLink(t)])));
-}
-
-/* A failed fix: the addresses its re-check still finds, most first (todos.json recheck.still). */
-function stillList(t) {
-  const r = t.recheck;
-  const unit = t.kind === "errors" ? "Server errors since your fix" : "Asked for since your fix";
-  const cols = [{ key: "path", label: "Still failing", path: true, fmt: (v) => withUrl(h("code", null, v), v) }, { key: "n", label: unit, num: true }];
-  const rows = (r.still || []).map(([path, n]) => ({ path, n }));
-  return h("div", { class: "td-list" }, table(cols, { caption: `${t.title}: still failing`, rows, file: `${t.file.replace(/\.csv$/, "")}-still.csv`, ns: `tds${t.kind}`, limit: 25, sortKey: null, empty: "No rows." }),
-    (r.still_total ?? 0) > rows.length ? h("p", { class: "note" }, `The ${n(rows.length)} most asked of ${n(r.still_total)}.`) : null);
 }
 
 function notNowItem(t, s, redraw) {

@@ -47,8 +47,10 @@ function lost(t, status) {
       act: "Redirect each to the closest live page, or answer 410 gone." };
   }
   if (status !== "failed") return null;
-  const still = t.recheck?.still || [];
-  const k = t.recheck?.still_total ?? still.length;
+  // The addresses only bots ask for are named apart and never the message (#23).
+  const bots = new Set(t.recheck?.bots_only || []);
+  const still = (t.recheck?.still || []).filter(([path]) => !bots.has(path));
+  const k = (t.recheck?.still_total ?? still.length) - bots.size;
   const top = still[0]?.[0];
   const target = top ? (t.rows || []).find((r) => r.path === top)?.target : null;
   const most = k > 1 ? " first: it is asked for most since your fix" : "";

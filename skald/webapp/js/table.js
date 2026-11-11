@@ -257,6 +257,8 @@ export function table(columns, opts) {
     more.textContent = showAll ? "Show fewer" : `Show all ${n(all.length)}`;
     // A table of one row says nothing under it; otherwise the count, and Show all when there is more.
     if (rows.length < 2 && all.length === rows.length) count.textContent = "";
+    // A short list that says its own size elsewhere (count: false, #23): no count under it.
+    if (opts.count === false && all.length === rows.length) count.textContent = "";
     foot.hidden = !count.textContent && more.hidden;
     // Every row on screen: the header stays in view while the box scrolls.
     wrap.classList.toggle("tall", showAll && all.length > 25);

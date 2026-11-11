@@ -33,10 +33,10 @@ second count does not bear out is shown as `done`) and
 "waiting"/"fixed"/"not_yet","words","still","still_total"}`, the same measure over the whole
 days after the day it was marked; `still` (#5, #6; not for `leave`): `[[path, asks or errors],
 ...]`, the addresses still failing on those days, most first, at most 100 (`todos.STILL_MOST`),
-and `still_total` how many there are). `status` (#5, #6) is what the Insights card says:
+and `still_total` how many there are; for `lost`, `bots_only` (#23): the still-failing addresses only bots ask for, no person on those days and no live page like them (`closest_page.closest`), sorted; they never fail the fix: `verdict` is `not_yet` only while another still-failing address is asked for). `status` (#5, #6) is what the Insights card says:
 `open`, `notnow`, `checking` (marked, no whole day after yet), `failed` (the re-check still
 finds the problem: `not_yet`, even when a live check made the state `fixed`) or `passed`
-(`todos.status_of`). The second count recounts `still`, `still_total` and the status from its
+(`todos.status_of`). The second count recounts `still`, `still_total`, `bots_only` (`audit_todos.bots_only_of`, its own SQL and live pages; it shares the `closest_page.closest` rule) and the status from its
 own figures (`audit_todos.still_of`, `own_status`); a to-do it disagrees with is withheld. 2.41 adds `agent` (bool: an AI agent can fix this kind, `todos.AGENT_KINDS`:
 all five) and `first_seen` (the first day this to-do was on the list, open; null for one
 withheld or not open; a to-do that left the list and came back is new again).

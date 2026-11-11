@@ -184,6 +184,35 @@ for (const id of ["leave", "leave-0a1b2c3d"]) {
   go("#overview/insights?todo=sitemap");
   box = T.todoSection({ x: { todos: { ...todos, withheld: [], todos: [{ ...sm, columns: [], file: "sitemap-asks.csv", open: { tab: "site/notfound", name: "Site > Not found" } }] } } }, S.read());
   assert.ok(text(box.querySelector("article.td-on .td-list")).includes("/news_sitemap.xml"), "Open: the addresses still failing");
+  // #23: a failed lost-pages fix, opened: where to send each page still failing; the
+  // addresses only bots ask for in one quiet line; Check again, Undo and History only.
+  const lostMark = { state: "done", day: "2026-11-02", first_day: "2026-11-02" };
+  const botsLost = { ...lostTodo, state: "done", marked: lostMark, status: "failed",
+    rows: [...lostTodo.rows, { path: "/wp-/", people: 0, target: null, match: null }],
+    recheck: { marked_day: "2026-11-02", days: 7, verdict: "not_yet", figures: { asked: 9 },
+      still: [["/old-pricing/", 6], ["/wp-/", 2], ["/_astro/", 1]], still_total: 3, bots_only: ["/_astro/", "/wp-/"] } };
+  const lm = { x: { todos: { ...todos, withheld: [], todos: [botsLost] } } };
+  go("#overview/insights");
+  box = T.todoSection(lm, S.read());
+  const face = cardOf("lost-pages");
+  assert.ok(text(face).includes("Redirect /old-pricing/ to /pricing/") && !text(face).includes("/wp-/"), "the message names a real page");
+  go("#overview/insights?todo=lost-pages");
+  box = T.todoSection(lm, S.read());
+  const op = cardOf("lost-pages");
+  assert.equal(text(op.querySelector(".td-sub")), "Still not found since your fix on 2 Nov");
+  const trs = op.querySelectorAll(".td-list tbody tr");
+  assert.equal(trs.length, 1, "only the real page");
+  assert.ok(text(trs[0]).includes("/old-pricing/") && text(trs[0]).includes("/pricing/"), "and where to send it");
+  assert.ok(!op.querySelector(".td-list input[type=search]"), "no search box on a short list");
+  assert.ok(text(op.querySelector(".td-bots")).startsWith('2 addresses only bots ask for stay "not found". That is right for them.'));
+  assert.ok(!text(op.querySelector(".td-bots")).includes("/wp-/"), "folded");
+  const acts = op.querySelectorAll(".td-more button").map(text);
+  assert.ok(acts.includes("Undo") && acts.every((w) => ["Check again", "Undo"].includes(w)), `only Check again and Undo: ${acts}`);
+  assert.ok(!op.querySelector("a.td-open:not(.td-hist)"), "no See it in: the list is here");
+  op.querySelector(".td-bots a").click();
+  assert.equal(new URLSearchParams(location.hash.split("?")[1] || "").get("tdbots"), "lost-pages", "shown in the address");
+  box = T.todoSection(lm, S.read());
+  assert.ok(text(cardOf("lost-pages").querySelector(".td-bots")).includes("/wp-/"), "the bot-only addresses, shown");
   // Nothing open: one line.
   go("#overview/insights");
   box = T.todoSection({ x: { todos: { ...todos, withheld: [], todos: [doneTodo] } } }, S.read());
@@ -402,7 +431,11 @@ assert.equal(text(cardOf("server-errors").querySelector(".td-tag")), "Needs fixi
   assert.ok(face && !face.querySelector(".fx-card"), "the card's face: three lines and its buttons only");
   go("#overview/insights?todo=lost-pages");
   box = T.todoSection(m, S.read());
-  const note = box.querySelectorAll("article.td").find((a) => a.id === "td-lost-pages").querySelector(".fx-card");
+  const opened = box.querySelectorAll("article.td").find((a) => a.id === "td-lost-pages");
+  assert.ok(!opened.querySelector(".fx-card") && opened.querySelector("a.td-hist"), "opened: behind History (#23)");
+  go("#overview/insights?todo=lost-pages&tdhist=lost-pages");
+  box = T.todoSection(m, S.read());
+  const note = box.querySelectorAll("article.td").find((a) => a.id === "td-lost-pages").querySelector(".td-history .fx-card");
   assert.ok(note && text(note).includes("Your AI agent: Done") && text(note).includes("Tested with nginx -t"));
   delete helper.fixes;
   document.createElement = realCreate;

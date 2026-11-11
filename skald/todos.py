@@ -43,6 +43,7 @@ from collections import Counter
 from datetime import date
 
 from . import lost_pages
+from .closest_page import closest
 
 # ---- every threshold, in one place (audit_todos.py reads the same) -------------------
 LIMITS = {
@@ -300,6 +301,10 @@ def recheck(p, found, todo: dict, mark: dict, span: Days) -> dict:
                if lost_pages.kind_of(path) == "page" and g["people"] + g["search"] + g["ai"]}
         now = lost_pages.tally([(d, found_blob(p, d)) for d in after])
         by = {path: g["people"] + g["search"] + g["ai"] for path, g in now.items() if path in old}
+        # Only bots ask for these (#23): no person since the mark, and no live page like them
+        # to send them to (closest_page). They stay not found on purpose and never fail a fix.
+        out["bots_only"] = sorted(path for path, v in by.items()
+                                  if v and not now[path]["people"] and closest(path, found.live)[0] is None)
     elif kind in ("markdown", "sitemap"):
         now = lost_pages.tally([(d, found_blob(p, d)) for d in after])
         if kind == "markdown":
@@ -314,9 +319,12 @@ def recheck(p, found, todo: dict, mark: dict, span: Days) -> dict:
     # list name (#5, #6). The second count recounts them (audit_todos.still_of).
     still = sorted(((k, v) for k, v in by.items() if v), key=lambda kv: (-kv[1], kv[0]))
     out["still"], out["still_total"] = [[k, v] for k, v in still[:STILL_MOST]], len(still)
-    out["verdict"] = "not_yet" if n else "fixed"
+    skip = set(out.get("bots_only") or ())
+    left = sum(v for k, v in by.items() if k not in skip)
+    out["verdict"] = "not_yet" if left else "fixed"
     unit = words[kind]
     out["words"] = (f"Fixed: 0 {unit}s since {_short(since)}." if not n else
+                    f"Fixed: only addresses bots ask for still answer not found since {_short(since)}." if not left else
                     f"Not yet: {_n(n)} {unit}{'s' if n != 1 else ''} since {_short(since)}.")
     return out
 
