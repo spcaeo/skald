@@ -27,8 +27,9 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-11-2.46.2",
+  id: "2026-11-11-2.46.3",
   items: [
+    ["Sales on Summary", "Leads & sales › Summary shows the period’s sales and each action’s sales and value; columns a site never fills are left off, and a rate that mixes server and page counts says not comparable.", "leads-and-conversions"],
     ["A failed fix, plainly", "an opened failed fix lists only the real pages still not found, each with the page to send it to; addresses only bots ask for sit in one line and no longer fail it.", "what-to-fix"],
     ["Cards stay short", "an Insights card shows only what is wrong, why and what to do; the AI assistant's note and a check's answer sit behind Open.", "what-to-fix"],
     ["Insights: only what needs fixing", "one short card per problem: what is wrong, why it matters and what to do, with Fix this and Open; fixes still being checked sit behind one small link.", "what-to-fix"],

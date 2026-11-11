@@ -64,7 +64,13 @@ site that sent sales without amounts before then did not sell nothing.
                         "by": {"source": {name: {"net_minor", "sales"}}, "first_source": {...},
                                "campaign": {...}, "landing": {...}, "country": {...},
                                "device": {...}, "tool": {...}, "label": {...},
+                               "action": {...},
                                "tag": {key: {value: {"net_minor", "sales"}}}}}}
+
+- `by.action` (2.46.3): the lead's own action (its first finished row's, like
+  the source), so a sign-up that later paid on the same reference is a
+  sign-up's sale. Leads & sales › Summary reads it for each action's sales
+  and value. Every build counts every day again, so every day has it.
 
 - Amounts are whole minor units of the currency (`currencies` gives the
   decimals). A value is what the sender gave (`value`, `currency` on the

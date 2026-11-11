@@ -48,12 +48,16 @@ Summary and Sources have one row of options above their figures. At its right en
 
 The two are never added together, and never share a table. A booking that reaches Skald from Calendly, or a form from Typeform, shows only with **Tools**. The row's **i** says which road the figures come from.
 
-A site with no lead database opens with **Tools**. If you choose **Lead database** there, the tab says so in one line ("This site has no lead database connected. Its leads come from its tools") with a button, **Show leads from the tools**. To connect one, see [The lead database](leads-and-conversions.md#the-lead-database) below.
+A site with no lead database counts from its tools and shows no **Count from** at all (2.46.3). If a link asks for the lead database there, the tab says so in one line ("This site has no lead database connected. Its leads come from its tools") with a button, **Show leads from the tools**. To connect one, see [The lead database](leads-and-conversions.md#the-lead-database) below.
+
+**What Summary shows (2.46.3).** The figures above the table are **Leads** and, once the site has sent a sale with a value, **Sales**: how many sales in the period and their value, per currency, less refunds (the same figures as [Revenue](revenue.md)). **Demos booked** shows only on a site with a booking tool or a demo booking; **Won** and **Lost** only on a site whose team or CRM has ever marked a lead won or lost.
+
+The table, **What people did**, has a row per action: **Completed** (each lead once: a sign-up that later paid is one completed sign-up), and, once the site has a sale, **Sales** and **Value** (the sales of that action in the period and their value less refunds; a sale belongs to the lead it was paid for, so a sign-up that paid shows its sale on the Sign-ups row). **Started**, **Abandoned** and **Completion rate** show only on a site whose page script records starts; **Cancelled or no-show**, **Won** and **Lost** only on a site that has sent them.
 
 The other options narrow what you see:
 
 - **What**: one kind of lead or action, for example Demo booking or Sign-up.
-- **Label**: one label your site's server sent with its leads, for example a contact form's topic: sales, support or partnership (tools only; see [Send leads from your backend](leads-from-your-backend.md)). **Every action** then counts only the leads with that label. Where they came from, the touches and the time to convert are not split by label, so they are left out while a label is chosen. The lists of conversions show each lead's label as a small tag.
+- **Label**: one label your site's server sent with its leads, for example a contact form's topic: sales, support or partnership (tools only; see [Send leads from your backend](leads-from-your-backend.md)). **What people did** then counts only the leads with that label. Where they came from, the touches, the time to convert and the sales are not split by label, so they are left out while a label is chosen. The lists of conversions show each lead's label as a small tag.
 - **Status**: one status: New, Contacted, Qualified, Won or Lost (lead database only).
 - **Source**: one source, on Sources (lead database only; the tools do not split their stages by source).
 

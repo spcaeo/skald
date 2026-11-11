@@ -21,6 +21,7 @@ import { withFlag } from "./readers.js";
 import { label as valueLabel } from "../drill.js";
 import { openConversionList } from "./person.js";
 import { STAGE, actionName, toolName } from "./leadfigs.js";
+import { money, decimal } from "./revfigs.js";
 
 const DIM = { source_type: "Source (last touch)", first_source: "First touch", campaign: "Campaign", landing: "Landing page", country: "Country", device: "Device", tool: "Reported by" };
 const WAIT = { "<1h": "Under an hour", "<1d": "1 to 24 hours", "1-7d": "1 to 7 days", "8-30d": "8 to 30 days", "31-90d": "31 to 90 days", ">90d": "Over 90 days" };
@@ -75,31 +76,87 @@ function sum(days, f) {
       for (const per of Object.values(d[name] || {})) for (const [k, v] of Object.entries(per)) add(into, k, v);
     }
     if (d.assisted) { t.hasAssisted = true; for (const per of Object.values(d.assisted)) for (const [k, v] of Object.entries(per)) add(t.assisted, k, v); }
+    sales(t, d);
   }
   return t;
 }
 
+/* Each action's sales and their net value, per currency (2.46.3): the day's `revenue.by.action`,
+   the same figures the Revenue tab sums and the second count checks. A day whose revenue is
+   withheld, or counted before 2.46.3 (no `by.action`), is said, never guessed. */
+function sales(t, d) {
+  t.money = t.money || {};
+  const r = d.revenue;
+  if (!r || typeof r !== "object" || Array.isArray(r)) return;
+  if (r.state === "withheld") { t.moneyHeld = (t.moneyHeld || 0) + 1; return; }
+  for (const [cur, x] of Object.entries(r)) {
+    if (!/^[A-Z]{3}$/.test(cur) || !x || typeof x !== "object") continue;
+    const per = x.by?.action;
+    if (!per) { if (x.sales || x.refunds) t.moneyOld = (t.moneyOld || 0) + 1; continue; }
+    for (const [a, c] of Object.entries(per)) {
+      const box = ((t.money[a] = t.money[a] || {})[cur] = t.money[a][cur] || { net: 0, sales: 0 });
+      box.net += c.net_minor || 0;
+      box.sales += c.sales || 0;
+    }
+  }
+}
+
+/* What this site has ever sent, over every day of the file: a column of a stage it never
+   sends (starts, cancellations, won, lost) or of money it never had is left off the table. */
+export function everSent(f) {
+  const seen = new Set();
+  for (const d of f.days || []) {
+    if (d.state !== "ok") continue;
+    for (const per of Object.values(d.stages || {})) for (const [st, v] of Object.entries(per || {})) if (v) seen.add(st);
+    if (d.revenue && typeof d.revenue === "object" && !Array.isArray(d.revenue)) seen.add("money");
+  }
+  return seen;
+}
+
 const rateOf = (a, b, min) => (b >= min ? pct1(a, b) : null);
 
-// Every action side by side.
+// Every action side by side ("What people did"): only the columns this site can fill.
 function actions(t, f, min) {
-  const names = Object.keys(t.stages).sort((a, b) => (t.done[b] || 0) - (t.done[a] || 0) || a.localeCompare(b));
+  const ever = everSent(f);
+  const money_ = t.money || {};
+  const names = [...new Set([...Object.keys(t.stages), ...Object.keys(money_)])].sort((a, b) => (t.done[b] || 0) - (t.done[a] || 0) || a.localeCompare(b));
   if (!names.length) return h("p", { class: "empty" }, "No conversion in this range.");
+  const curs = [...new Set(Object.values(money_).flatMap((x) => Object.keys(x)))].sort();
   const rows = names.map((a) => {
-    const st = t.stages[a];
+    const st = t.stages[a] || {};
     const started = st.started || 0, done = t.done[a] || 0;
-    return { k: a, started, done, abandoned: t.abandoned[a] || 0, cancelled: (st.cancelled || 0) + (st.no_show || 0), won: st.won || 0, lost: st.lost || 0 };
+    const m = money_[a] || {};
+    return { k: a, started, done, abandoned: t.abandoned[a] || 0, cancelled: (st.cancelled || 0) + (st.no_show || 0), won: st.won || 0, lost: st.lost || 0,
+      sales: curs.reduce((x, c) => x + (m[c]?.sales || 0), 0), value: m,
+      // Starts come only from the page's script; a completion your server or a tool reported
+      // has no start to match it (#26: freshlycited's 84 sign-ups against 25 starts read 100%).
+      mixed: Object.keys(t.by.tool?.[a] || {}).some((k) => k !== "beacon") };
   });
+  const starts = ever.has("started");
+  const valueOf = (e) => curs.filter((c) => e.value[c]).map((c) => money(e.value[c].net, c, f)).join(" · ");
   const cols = [{ key: "k", label: "Action", fmt: actionName },
-    { key: "started", label: "Started", num: true, fmt: (v) => (v ? n(v) : h("span", { class: "few" }, "not seen")) },
+    starts ? { key: "started", label: "Started", num: true, fmt: (v) => (v ? n(v) : h("span", { class: "few" }, "not seen")) } : null,
     { key: "done", label: "Completed", num: true },
-    { key: "abandoned", label: "Abandoned", num: true },
-    { key: "rate", label: "Completion rate", num: true, sort: (e) => (e.started >= min ? e.done / e.started : null),
-      fmt: (_, e) => (!e.started ? h("span", { class: "few" }, "no starts seen") : rateOf(Math.min(e.done, e.started), e.started, min) ?? h("span", { class: "few" }, `too few to say (${n(e.started)})`)),
-      csv: (e) => (e.started >= min ? (Math.min(e.done, e.started) / e.started).toFixed(4) : "") },
-    { key: "cancelled", label: "Cancelled or no-show", num: true }, { key: "won", label: "Won", num: true }, { key: "lost", label: "Lost", num: true }];
-  return [h("div", { class: "sheet" }, table(cols, { caption: "Every action side by side", rows, file: "conversions-by-action.csv", search: false, limit: 12, sortKey: "done" })),
-    h("p", { class: "note" }, `Completed counts completed and paid. Abandoned: started with a visitor ID and not completed by the same browser within ${f.abandon_hours || 24} hours (a start still inside that window is not counted yet; a start without a visitor ID cannot be judged). A rate is given over at least ${min} starts. Starts are seen only by the script tag; an action only a tool reports has none. A browser's repeat of the same start within ${f.repeat_minutes || 30} minutes is kept once, so Started can be lower than Events' count of the same event, which counts every one.`)];
+    starts ? { key: "abandoned", label: "Abandoned", num: true } : null,
+    starts ? { key: "rate", label: "Completion rate", num: true, sort: (e) => (e.started >= min && !e.mixed ? e.done / e.started : null),
+      fmt: (_, e) => (!e.started ? h("span", { class: "few" }, "no starts seen")
+        : e.mixed ? h("span", { class: "few", title: "Starts are seen by the page's script; some completions came from your site's server or a tool, with no start to match. A rate would mix the two." }, "not comparable")
+          : rateOf(Math.min(e.done, e.started), e.started, min) ?? h("span", { class: "few" }, `too few to say (${n(e.started)})`)),
+      csv: (e) => (e.started >= min && !e.mixed ? (Math.min(e.done, e.started) / e.started).toFixed(4) : "") } : null,
+    ever.has("cancelled") || ever.has("no_show") ? { key: "cancelled", label: "Cancelled or no-show", num: true } : null,
+    ever.has("won") ? { key: "won", label: "Won", num: true } : null,
+    ever.has("lost") ? { key: "lost", label: "Lost", num: true } : null,
+    ever.has("money") ? { key: "sales", label: "Sales", num: true } : null,
+    ever.has("money") ? { key: "value", label: "Value", num: true, sort: (e) => (curs[0] && e.value[curs[0]] ? e.value[curs[0]].net : 0),
+      fmt: (_, e) => valueOf(e) || "", csv: (e) => curs.filter((c) => e.value[c]).map((c) => `${decimal(e.value[c].net, c, f)} ${c}`).join("; ") } : null,
+  ].filter(Boolean);
+  const notes = ["Completed counts each lead once: a sign-up that later paid is one completed sign-up."];
+  if (ever.has("money")) notes.push("Sales and Value are the sales of each action in the period (a sale counts on the day it was paid), less refunds, per currency: the Revenue tab's figures.");
+  if (t.moneyHeld) notes.push(`The sales of ${n(t.moneyHeld)} day${t.moneyHeld === 1 ? "" : "s"} are withheld: the second count disagreed.`);
+  if (t.moneyOld) notes.push("Days counted before 2.46.3 do not split their sales by action: their sales are on the Revenue tab only.");
+  if (starts) notes.push(`Abandoned: started with a visitor ID and not completed by the same browser within ${f.abandon_hours || 24} hours (a start still inside that window is not counted yet; a start without a visitor ID cannot be judged). A rate is given over at least ${min} starts, and only for an action whose completions all came from the page's script: starts are seen only by the script tag, so a completion your server or a tool reported has no start to match (“not comparable”); an action only a tool reports has none. A browser's repeat of the same start within ${f.repeat_minutes || 30} minutes is kept once, so Started can be lower than Events' count of the same event, which counts every one.`);
+  return [h("div", { class: "sheet" }, table(cols, { caption: "What people did", rows, file: "conversions-by-action.csv", search: false, limit: 12, sortKey: "done" })),
+    h("p", { class: "note" }, notes.join(" "))];
 }
 
 // The demo funnel: opened, time chosen (the page's own event, from events.json), booked, then what happened to the booking.

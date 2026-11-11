@@ -39,7 +39,7 @@ MONEY = "value_minor IS NOT NULL AND currency IS NOT NULL"
 # conversions.json's `revenue.by` names -> the column (its own list).
 COLS = (("source", "source_type"), ("first_source", "first_source"), ("campaign", "campaign"),
         ("landing", "landing"), ("country", "country"), ("device", "device"),
-        ("tool", "tool"), ("label", "label"))
+        ("tool", "tool"), ("label", "label"), ("action", "action"))
 TOTALS = ("gross_minor", "refunded_minor", "net_minor", "sales", "refunds", "new_customers",
           "renewals")
 

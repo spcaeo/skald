@@ -280,9 +280,11 @@ class TestLiveCost(LiveCase):
         for name, when in stamps.items():
             os.utime(logs / name, (when.timestamp(), when.timestamp()))
 
-        started = time.perf_counter()
+        # CPU time, not the wall clock: on a busy machine waiting for the CPU is
+        # not work, and the wall clock read 15-18 s under load (#29).
+        started = time.process_time()
         code, out, err = self.box.run("--today", TODAY.isoformat(), "live")
-        took = time.perf_counter() - started
+        took = time.process_time() - started
         self.assertEqual(code, 0, err)
         snap = self.snap()
         self.assertEqual(snap["requests"], 3_050)

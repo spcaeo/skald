@@ -312,9 +312,24 @@ class Counting(Money):
         self.assertEqual(usd["by"]["source"]["Search engine"]["net_minor"], -999)
         # The paid row is the sale, its attribution the lead's first finish (the newsletter).
         self.assertEqual(usd["by"]["source"]["Email"], {"net_minor": 2000, "sales": 1})
+        # By action (2.46.3): the lead's own action; P-1 paid on its sign-up's ref.
+        self.assertEqual(usd["by"]["action"], {"signup": {"net_minor": 4999 + 2000 - 999,
+                                                          "sales": 2}})
+        self.assertEqual(d1["EUR"]["by"]["action"], {"signup": {"net_minor": 1050, "sales": 1}})
         self.assertEqual(self.day(got, "2026-10-12")["stages"]["signup"],
                          {"paid": 1, "completed": 1, "refunded": 1},
                          "a paid after its completed is one lead: the paid row is not a lead")
+
+    def test_by_action_follows_the_lead(self):
+        """A sale on its own reference keeps its own action; a paid after a
+        completed of another action on the same reference takes the lead's."""
+        self.send({"external_ref": "T-1", "action": "trial", "stage": "completed"}, T + 2 * DAY)
+        self.send(sale("T-1", action="paid", value="12"), T + 2 * DAY + 60)
+        self.send(sale("cs_9", action="paid", value="3"), T + 2 * DAY + 120)
+        usd = self.day(self.blob(), "2026-10-13")["revenue"]["USD"]
+        self.assertEqual(usd["by"]["action"], {"trial": {"net_minor": 1200, "sales": 1},
+                                               "paid": {"net_minor": 300, "sales": 1}})
+        self.assertEqual(self.blob()["withheld"], {}, "the second count agrees")
 
     def test_ltv(self):
         got = self.blob()["ltv"]["currencies"]
@@ -418,3 +433,17 @@ class Counting(Money):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SummaryPage(unittest.TestCase):
+    """Leads & sales › Summary shows a payment (#26), run in node (tests/js/summary-sales.mjs)."""
+
+    def test_summary_sales(self):
+        import shutil
+        import subprocess
+        if not shutil.which("node"):
+            self.skipTest("node is not installed")
+        js = Path(__file__).resolve().parent / "js" / "summary-sales.mjs"
+        done = subprocess.run(["node", str(js)], capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("summary-sales: all passed", done.stdout)
