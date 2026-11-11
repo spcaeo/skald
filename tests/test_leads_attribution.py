@@ -437,5 +437,16 @@ class TestIndependence(unittest.TestCase):
             self.assertIs(getattr(leads, name), getattr(classify, name))
 
 
+    def test_a_sign_up_page_with_a_hyphen_is_a_form_page(self):
+        # #27: freshlycited.com's form is /sign-up; only "signup" was known.
+        from skald import funnels
+        test = leads.path_test(leads.FORM_PAGES)
+        for path in ("/sign-up", "/sign-up/", "/en/sign-up?plan=pro", "/register", "/signup"):
+            self.assertTrue(test(path), path)
+        for path in ("/sign-up-guide/intro", "/pricing", "/signupx"):
+            self.assertFalse(test(path), path)
+        step = next(s for s in funnels.defaults()[0]["steps"] if s["label"].startswith("Sign-up"))
+        self.assertTrue(funnels.matches(step, "/sign-up"))
+
 if __name__ == "__main__":
     unittest.main()

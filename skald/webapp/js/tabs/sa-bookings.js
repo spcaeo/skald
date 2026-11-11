@@ -51,12 +51,17 @@ function bookingActions(f) {
   return [...tools.entries()].map(([a, t]) => [a, `${actionName(a)}${t.size ? ` (${[...t].map(toolName).sort().join(", ")})` : ""}`]);
 }
 
-function narrow(f, a) {
+const money = (rev, pick) => (rev && typeof rev === "object" && !Array.isArray(rev)
+  ? Object.fromEntries(Object.entries(rev).map(([cur, v]) => [cur, { ...v, by: { ...(v?.by || {}), action: pick(v?.by?.action) } }])) : rev);
+
+export function narrow(f, a) {
   const pick = (o) => (o && a in o ? { [a]: o[a] } : {});
   return { ...f, days: (f.days || []).map((d) => (d.state !== "ok" ? d : { ...d, stages: pick(d.stages), abandoned: pick(d.abandoned),
     by: Object.fromEntries(Object.entries(d.by || {}).map(([dim, per]) => [dim, pick(per)])),
     visits_before: pick(d.visits_before), time_to_convert: pick(d.time_to_convert),
-    assisted: d.assisted ? pick(d.assisted) : d.assisted, likely_ai: d.likely_ai ? pick(d.likely_ai) : d.likely_ai })) };
+    assisted: d.assisted ? pick(d.assisted) : d.assisted, likely_ai: d.likely_ai ? pick(d.likely_ai) : d.likely_ai,
+    // Sales follow the booking too (2.46.4): Summary's table reads revenue by action (2.46.3).
+    revenue: money(d.revenue, pick) })) };
 }
 
 const titleOf = (el) => (el?.matches?.("section") ? el.querySelector(":scope > h2")?.firstChild : el?.matches?.("details") ? el.querySelector(":scope > summary")?.firstChild : null);
@@ -117,6 +122,13 @@ export default function bookings(m, s, o) {
   ], { more: [toggles("Show left out", show, CONV_SHOW, (list) => S.set({ bshow: list.join(",") }))] });
   const lists = show.length && a ? [convList(show, { ns: "bk", only: (x) => x === a, title: `Cancelled, removed and test: ${actionName(a).toLowerCase()}` })] : [];
   const live = r.kind === "today" && a ? today(f, a) : null;
+  // Summary's table says "No conversion" when empty; here it means no booking (#27: it showed
+  // on a day with five other conversions).
+  for (const el of body) {
+    for (const p of [el, ...(el.querySelectorAll?.("p.empty") || [])]) {
+      if (p.matches?.("p.empty") && p.textContent === "No conversion in this range.") p.textContent = "No booking in this range.";
+    }
+  }
   foldNotes(body);
   if (live) foldNotes([live]);
   return [...top, noTool, ...row, live, ...body, ...lists,

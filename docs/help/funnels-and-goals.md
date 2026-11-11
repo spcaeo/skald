@@ -43,13 +43,16 @@ A step can also be an event from the [tracking script](tracking-script.md), such
 
 ### Lead steps
 
-A funnel can also end with steps from your website's lead database: Opened Book a demo, Sign-up, Contact form, Early access, Demo booked. They are counted by the lead's first-touch source, beside the visits, never joined to them. They are counted once the funnel is saved.
+A funnel can also end with lead steps: Opened Book a demo, Sign-up, Contact form, Early access, Demo booked. They are counted beside the visits, never joined to them.
+
+- **With a lead database** (the setting `leads.db`), they are counted from it, by the lead's first-touch source, once the funnel is saved.
+- **Without one** (your site's server or a tool sends each lead), they count the leads your site sent on the funnel's visit days, each lead once: a sign-up that then paid is one lead. Only days whose figures passed their second count are added up. With a starting source chosen, a lead step shows "-": a lead keeps its own first touch, which is not the visit's source. Since 2.46.4.
 
 The chart keeps each kind of step on its own scale, under its own heading. Page steps are visits, each bar a share of the visits at step 1. Lead steps (and beacon event steps) are drawn apart, against the longest bar of their own group, and the heading says how many that is: they are never a share of the visits.
 
-A lead step the lead database has never recorded, or an event step your site has never sent, shows **Not set up** with one line on what is missing, never 0. Demo bookings often come from the booking tool rather than the lead database: they are on [Leads & sales > Calendar bookings](#sales/bookings).
+A lead step your site has never recorded or sent, or an event step it has never sent, shows **Not set up** with one line on what is missing, never 0. Demo bookings often come from the booking tool rather than the lead database: they are on [Leads & sales > Calendar bookings](#sales/bookings).
 
-Lead steps cannot be added from the step list. The built-in funnel **Landing to lead** has them: landed, pricing, a sign-up or contact page, then demo opened, lead and demo booked.
+On a site without a lead database, **Add a step** lists every action your site has sent under "A lead, sent by your site" (a sign-up, a contact, or your own, such as a free trial). The built-in funnel **Landing to lead** has lead steps too: landed, a sign-up or contact page, then demo opened, lead and demo booked. It has no pricing step since 2.46.4: on a site without a pricing page every later step read 0. Add one to a saved funnel when your site has one.
 
 ### Read the result
 

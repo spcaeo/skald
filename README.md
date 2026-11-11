@@ -51,6 +51,7 @@
 
 ## What's new
 
+- **2.46.4: Funnels count the leads your site sends; default funnel without a pricing step; Calendar bookings shows only its own sales** ([changelog](CHANGELOG.md#2464-2026-11-11)).
 - **2.46.3: Leads & sales › Summary shows sales and each action's value; no clamped 100% rate** ([changelog](CHANGELOG.md#2463-2026-11-11)).
 - **2.46.2: an opened failed fix says plainly what is still wrong; addresses only bots ask for no longer fail it** ([changelog](CHANGELOG.md#2462-2026-11-11)).
 - **2.46.1: a fix for 2.46.0, each Insights card shows only its three lines until opened** ([changelog](CHANGELOG.md#2461-2026-11-10)).

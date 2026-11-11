@@ -180,6 +180,22 @@ class TestApi(Box):
         self.assertEqual(self.request("GET", url + "overview", auth)[0], 401)
 
 
+
+class FunnelLeadsPage(unittest.TestCase):
+    """A funnel's lead steps from the leads the site sent (#25), run in node
+    (tests/js/funnel-leads.mjs)."""
+
+    def test_funnel_leads(self):
+        import shutil
+        import subprocess
+        from pathlib import Path
+        if not shutil.which("node"):
+            self.skipTest("node is not installed")
+        js = Path(__file__).resolve().parent / "js" / "funnel-leads.mjs"
+        done = subprocess.run(["node", str(js)], capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("funnel-leads: page passed", done.stdout)
+
 class TestFunnels(Box):
     J = [  # three visits
         {"source": "AI assistant", "via": "ChatGPT", "landing": "/",
@@ -194,13 +210,36 @@ class TestFunnels(Box):
         f = funnels.defaults()[0]
         result, _ = funnels.compute(f, self.J, date(2026, 10, 1), date(2026, 10, 8), None, None)
         n = [s["n"] for s in result["steps"]]
-        self.assertEqual(n[:3], [3, 3, 1])     # the third visit saw sign-up before pricing
-        self.assertEqual(result["steps"][2]["drop"], 2)
-        self.assertEqual(result["steps"][2]["of_first_pct"], 33.3)
-        self.assertIsNone(result["steps"][3]["n"])      # no CMS here: "not recorded"
+        # 2.46.4 (#25, #27): no Pricing step. The second visit never opened a form page;
+        # the third landed on one, which meets both steps.
+        self.assertEqual(n[:2], [3, 2])
+        self.assertEqual(result["steps"][1]["drop"], 1)
+        self.assertEqual(result["steps"][1]["of_first_pct"], 66.7)
+        self.assertIsNone(result["steps"][2]["n"])      # no lead database here: "not recorded"
         mine = {**f, "source": "ChatGPT"}
         result, _ = funnels.compute(mine, self.J, date(2026, 10, 1), date(2026, 10, 8), None, None)
-        self.assertEqual([s["n"] for s in result["steps"][:3]], [1, 1, 1])
+        self.assertEqual([s["n"] for s in result["steps"][:2]], [1, 1])
+
+    def test_the_default_funnel_fits_a_site_without_a_pricing_page(self):
+        # #27: freshlycited.com has no pricing page; a Pricing step made every later step 0.
+        f = funnels.defaults()[0]
+        self.assertEqual([s["kind"] for s in f["steps"]], ["path", "path", "lead", "lead", "lead"])
+        self.assertNotIn("Pricing", [s["label"] for s in f["steps"]])
+        self.assertFalse([s["label"] for s in f["steps"] if "lead database" in s["label"]])
+        self.assertTrue(funnels.matches(f["steps"][1], "/sign-up/"))
+
+    def test_a_lead_step_may_name_an_action_the_site_sends(self):
+        # #25: a lead step names a lead kind or any action the site's server sends.
+        f = funnels.clean({"name": "Run to sign-up", "steps": [
+            {"label": "Landed", "kind": "path", "match": "starts_with", "paths": ["/"]},
+            {"label": "X-ray", "kind": "lead", "types": ["xray", "<bad>"]},
+            {"label": "Sign-up", "kind": "lead", "types": ["signup"]}]})
+        self.assertEqual(f["steps"][1]["types"], ["xray"])
+        with self.assertRaises(funnels.Invalid):
+            funnels.clean({"name": "z", "steps": [f["steps"][0], {"kind": "lead", "types": ["Bad Name"]}]})
+        # The lead database counts only its own kinds: an action is not its to count.
+        rows = [{"type": "signup", "created_at": "2026-10-07 10:00:00", "status": "new"}]
+        self.assertIsNone(funnels._leads(rows, None, date(2026, 10, 1), date(2026, 10, 8), ["xray"], None))
 
     def test_contains_and_the_visit_start(self):
         f = {"name": "x", "source": None, "steps": [

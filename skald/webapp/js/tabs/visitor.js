@@ -266,6 +266,15 @@ function timeline(model) {
     h("tbody", null, rows)));
 }
 
+/* How many leads and conversions the part below lists: a lead from the lead database, a
+   conversion without a reference, and each reference once with all its steps (#27: one
+   lead with a sign-up and a payment read "(3)"). */
+export function linkedCount(model) {
+  if (model.ref) return model.leads.length + 1;
+  const loose = model.conversions.filter((c) => c.external_ref == null || c.external_ref === "").length;
+  return model.leads.length + byRef(model.conversions).length + loose;
+}
+
 /* The leads and conversions linked: a conversion with a reference as its own part (its
    reference with a copy icon, every step, Mark as test: leadref.js, 2.25); one without, a line. */
 export function leadsAndConversions(model, { bare = false } = {}) {
@@ -345,7 +354,8 @@ function draw(d, model, extra) {
     more = h("button", { type: "button", class: "btn vz-all" }, `Show all (${n(all.length)})`);
     more.addEventListener("click", () => { S.set({ [ALL_KEY]: "1" }, { replace: true }); draw(d, model, extra); });
   }
-  const linked = model.leads.length + model.conversions.length + (model.ref ? 1 : 0);
+  // Each lead once (#27): a reference and its steps are one, as the part below shows them.
+  const linked = linkedCount(model);
   const noVisits = !all.length && (model.person || model.conversion);
   d.body.replaceChildren(...[
     // No visit to draw (a person search by email or lead): what it found, no empty journey or table.
