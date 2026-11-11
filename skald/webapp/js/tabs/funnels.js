@@ -26,19 +26,19 @@ import { connectCard } from "../ui/connect.js";
 import { funnelFlowOf, check } from "../flow.js";
 import { sankey } from "../sankey.js";
 import { shown } from "../labels.js";
+import { LEAD, ACTION, leadName, sentActions, toolLeads, neverSent } from "./funnel-leads.js";
 
 const MATCH = [["any", "Any page"], ["equals", "Page is"], ["starts_with", "Starts with"], ["segment", "Page named"]];
-const LEAD = { signup: "Sign-up", contact: "Contact form", waitlist: "Early access", demo_opened: "Opened Book a demo", demo_booked: "Demo booked" };
 const MAX_STEPS = 8;
 const KEY = "ti-funnels";
 let ADDING = false, REFOCUS = null, NOTE = "";
 
 // ---------------------------------------------------------------- the link
 // "*" any page; "/a/" the page; "/a/*" starts with; "~a" a page named a;
-// "a|b" either; "lead:signup,contact" a step from the lead store; "event:cta_click" one from the beacon.
+// "a|b" either; "lead:signup,contact" a lead step (a lead kind or any action the site sent, #25); "event:cta_click" one from the beacon.
 export function parse(fn) {
   return String(fn || "").split(">").map((x) => x.trim()).filter(Boolean).slice(0, MAX_STEPS).map((g) => {
-    if (g.startsWith("lead:")) return { kind: "lead", types: g.slice(5).split(",").filter((t) => LEAD[t]) };
+    if (g.startsWith("lead:")) return { kind: "lead", types: g.slice(5).split(",").filter((t) => LEAD[t] || ACTION.test(t)) };
     if (g.startsWith("event:")) return { kind: "event", events: g.slice(6).split(",").filter(Boolean) };
     if (g === "*") return { kind: "path", match: "starts_with", paths: ["/"] };
     const parts = g.split("|").map((x) => x.trim()).filter(Boolean);
@@ -58,6 +58,8 @@ export function glob(steps) {
   }).join(" > ");
 }
 const isAny = (x) => x.kind === "path" && x.match === "starts_with" && x.paths.length === 1 && x.paths[0] === "/";
+// The site has a lead database (leads.db): lead steps are counted from it by the server.
+const leadStore = (m) => !!(m.x.leads && m.x.leads.available !== false);
 const kindOf = (x) => (isAny(x) ? "any" : x.match);
 
 // ------------------------------------------------------- the server's rules
@@ -88,7 +90,7 @@ const fromSource = (fsrc) => {
   return want ? (j) => [j.source, j.via, j.ref_host].some((x) => (x || "").toLowerCase() === want) : () => true;
 };
 let EVNAMES = null;   // events.json, for event steps' names
-const stepName = (x) => (x.kind === "event" ? x.events.map((e) => eventLabel(EVNAMES, e)).join(" or ") : x.kind === "lead" ? x.types.map((t) => LEAD[t]).join(" or ") : isAny(x) ? "Any page" : x.paths.map((p) => (x.match === "segment" ? `named ${p}` : x.match === "starts_with" ? `${p}…` : p)).join(" or "));
+const stepName = (x) => (x.kind === "event" ? x.events.map((e) => eventLabel(EVNAMES, e)).join(" or ") : x.kind === "lead" ? x.types.map(leadName).join(" or ") : isAny(x) ? "Any page" : x.paths.map((p) => (x.match === "segment" ? `named ${p}` : x.match === "starts_with" ? `${p}…` : p)).join(" or "));
 
 // --------------------------------------------------------------- saved ones
 const server = (m) => (m.x.funnels && Array.isArray(m.x.funnels.funnels) ? m.x.funnels : null);
@@ -154,7 +156,7 @@ function builder(m, s, steps) {
     }
     if (x.kind === "lead") {
       return h("li", { class: "fn-step lead" }, h("span", { class: "fn-n", "aria-hidden": "true" }, String(i + 1)),
-        h("span", { class: "fn-lead" }, "Lead store"), h("span", { class: "fn-lead-t" }, stepName(x)), del);
+        h("span", { class: "fn-lead" }, leadStore(m) ? "Lead store" : "Your site"), h("span", { class: "fn-lead-t" }, stepName(x)), del);
     }
     const kind = h("select", { "aria-label": `Step ${i + 1}: which pages`, onchange: (e) => {
       const k = e.target.value;
@@ -168,9 +170,15 @@ function builder(m, s, steps) {
   if (ADDING && steps.length < MAX_STEPS) {
     const i = steps.length;
     const evs = (m.x.events?.events || []).filter((e) => e.name !== "page_view");
-    const kind = h("select", { "aria-label": `Step ${i + 1}: which pages`, onchange: (e) => { if (e.target.value.startsWith("event:")) commit([...steps, { kind: "event", events: [e.target.value.slice(6)] }]); } },
+    const acts = leadStore(m) ? [] : sentActions(m.x.conversions);
+    const kind = h("select", { "aria-label": `Step ${i + 1}: which pages`, onchange: (e) => {
+      const v = e.target.value;
+      if (v.startsWith("event:")) commit([...steps, { kind: "event", events: [v.slice(6)] }]);
+      else if (v.startsWith("lead:")) commit([...steps, { kind: "lead", types: [v.slice(5)] }]);
+    } },
       MATCH.filter(([k]) => k !== "any").map(([k, w]) => h("option", { value: k }, w)),
-      evs.length ? h("optgroup", { label: "An event, from the beacon" }, evs.map((e) => h("option", { value: `event:${e.name}` }, e.label))) : null);
+      evs.length ? h("optgroup", { label: "An event, from the beacon" }, evs.map((e) => h("option", { value: `event:${e.name}` }, e.label))) : null,
+      acts.length ? h("optgroup", { label: "A lead, sent by your site" }, acts.map(([a, w]) => h("option", { value: `lead:${a}` }, w))) : null);
     const path = h("input", { type: "text", list: "fn-pages", placeholder: "Type a page, e.g. /pricing/", "aria-label": `Step ${i + 1}: page`, spellcheck: "false",
       onchange: (e) => { const p = read(e.target.value); if (p.length) commit([...steps, { kind: "path", match: kind.value, paths: p }]); } });
     const del = h("button", { type: "button", class: "btn icon fn-x", "aria-label": "Cancel the new step", title: "Cancel", onclick: () => { ADDING = false; S.emit(true); } }, "×");
@@ -210,7 +218,8 @@ export function unsentStep(m, x) {
   }
   if (x.kind === "lead") {
     const f = m.x.leads;
-    if (!f || f.available === false) return null;
+    // No lead database: the step counts what the site's server sent (#25).
+    if (!leadStore(m)) return neverSent(m.x.conversions, x.types) ? `Not set up: your site has never sent ${x.types.map((t) => leadName(t).toLowerCase()).join(" or ")}.` : null;
     const never = neverRecorded(f);
     if (!x.types.every((t) => never.has(t))) return null;
     const demo = x.types.some((t) => t.startsWith("demo_"));
@@ -223,15 +232,16 @@ export function unsentStep(m, x) {
    event steps are other systems with other units: each group is drawn apart, under
    its own heading, on its own scale (the longest bar of the group), never as a
    share of visits. */
-function chart(m, steps, counts, s, lead, labels, evCounts) {
+function chart(m, steps, counts, s, lead, labels, evCounts, tools = []) {
   const start = counts[0] || 0;
   const name = (x, i) => labels?.[i] || stepName(x);
-  const leadTop = Math.max(0, ...steps.map((x, i) => (x.kind === "lead" ? lead?.[i]?.n || 0 : 0)));
+  const leadOf = (i) => lead?.[i]?.n ?? tools[i]?.n ?? null;
+  const leadTop = Math.max(0, ...steps.map((x, i) => (x.kind === "lead" ? leadOf(i) || 0 : 0)));
   const evTop = Math.max(0, ...steps.map((x, i) => (x.kind === "event" ? evCounts[i] || 0 : 0)));
   const open = Number(s.fstep) || 0;
   let prevPath = null;
   const scaleNote = (kind) => (kind === "lead"
-    ? h("p", { class: "fn-scale" }, h("b", null, "Lead store steps, on their own scale"), ` (the longest bar is ${n(leadTop)} lead${leadTop === 1 ? "" : "s"}). Leads by first-touch source: not a share of the visits above, never joined to them.`)
+    ? h("p", { class: "fn-scale" }, h("b", null, "Lead steps, on their own scale"), ` (the longest bar is ${n(leadTop)} lead${leadTop === 1 ? "" : "s"}). Leads by first-touch source: not a share of the visits above, never joined to them.`)
     : h("p", { class: "fn-scale" }, h("b", null, "Beacon steps, on their own scale"), ` (the longest bar is ${n(evTop)} event${evTop === 1 ? "" : "s"}). Events on the same days: not a share of the visits above, never joined to them.`));
   return h("ol", { class: "fn-chart", "aria-label": "Visits at each step" },
     steps.some((x) => x.kind === "path") ? h("li", { class: "fn-scale-li" }, h("p", { class: "fn-scale first" }, h("b", null, "Page steps: visits"), `, each bar a share of the ${n(start)} visit${start === 1 ? "" : "s"} at step 1.`)) : null,
@@ -247,12 +257,14 @@ function chart(m, steps, counts, s, lead, labels, evCounts) {
         unsent ? h("p", { class: "fn-unsent" }, unsent) : null);
     }
     if (x.kind === "lead") {
-      const v = unsent ? null : lead?.[i]?.n;
+      const v = unsent ? null : leadOf(i);
+      const fromSite = lead?.[i]?.n == null && tools[i]?.n != null;
+      const words = unsent ? "never recorded" : v == null ? (s.fsrc && !leadStore(m) ? "not split by this source" : "counted once saved") : fromSite ? "leads your site sent" : "leads, lead store";
       const first = !steps.slice(0, i).some((y) => y.kind === "lead");
       return h("li", null, first ? scaleNote("lead") : null, h("div", { class: "fn-bar static" },
         h("span", { class: "fn-l" }, h("b", null, `${i + 1}`), h("span", { class: "any" }, name(x, i))),
         h("span", { class: "fn-track lead" }, h("i", { style: { width: v && leadTop ? `${Math.max(1.5, (v / leadTop) * 100)}%` : "0%" } })),
-        h("span", { class: "fn-v" }, h("b", null, unsent ? "Not set up" : v == null ? "-" : n(v)), h("small", null, unsent ? "never recorded" : v == null ? "counted once saved" : "leads, lead store"))),
+        h("span", { class: "fn-v" }, h("b", null, unsent ? "Not set up" : v == null ? "-" : n(v)), h("small", null, words))),
         unsent ? h("p", { class: "fn-unsent" }, unsent) : null);
     }
     const v = counts[i], prev = prevPath;
@@ -371,12 +383,16 @@ export default function funnels(m, s) {
   let k = 0;
   const counts = steps.map((x) => (x.kind === "path" ? (k++, list.filter((e) => e.r >= k).length) : null));
   const lead = match ? match.result.steps : null;
+  // #25: a lead step the lead database cannot count, from the leads the site's server sent.
+  const tools = steps.map((x, i) => (x.kind === "lead" && lead?.[i]?.n == null && !leadStore(m) ? toolLeads(m.x.conversions, x.types, days, s.fsrc) : null));
+  const bySite = tools.some(Boolean);
   const lastPath = counts.filter((c) => c != null).pop() ?? 0, start = counts[0] ?? 0;
   out.push(h("section", { class: "s" }, h("div", { class: "card-h start" }, h("h2", null, `${n(lastPath)} of ${n(start)} visits went through every page step`),
     h("span", { class: "tbl-count" }, start ? `${((lastPath / start) * 100).toFixed(start >= 100 ? 1 : 0)}%` : "")),
-    h("div", { class: "sheet" }, chart(m, steps, counts, s, lead, match?.labels, eventCounts(m, steps, days, s.fsrc))),
+    h("div", { class: "sheet" }, chart(m, steps, counts, s, lead, match?.labels, eventCounts(m, steps, days, s.fsrc), tools)),
     h("p", { class: "note" }, `Click a page step for its visits. Out of ${n(list.length)} visit${list.length === 1 ? "" : "s"} from ${s.fsrc || "any source"}${S.activeFilters(s).length || s.rules ? " that match the filters" : ""}.`,
-      steps.some((x) => x.kind === "lead") ? ` The lead steps cover ${match ? `${short(match.result.first)} to ${short(match.result.last)}` : "the days of the last save"}, by first-touch source${match && (match.result.first !== days[0] || match.result.last !== days[days.length - 1]) ? `: their own period (the last save's), not the visits' ${span}` : ""}.` : "",
+      bySite ? ` The lead steps count the leads your site sent on the same days, each lead once${tools.some((t) => t && t.days < t.of) ? " (a day not yet checked is left out)" : ""}.`
+        : steps.some((x) => x.kind === "lead") ? ` The lead steps cover ${match ? `${short(match.result.first)} to ${short(match.result.last)}` : "the days of the last save"}, by first-touch source${match && (match.result.first !== days[0] || match.result.last !== days[days.length - 1]) ? `: their own period (the last save's), not the visits' ${span}` : ""}.` : "",
       match?.long?.first_step != null ? ` Over ${match.long.days} days, ${n(match.long.first_step)} visits met the first step.` : "")));
   if (pathSteps.length >= 2) out.push(flowBetween(list, steps, s, match?.labels));
   const opened = Number(s.fstep);

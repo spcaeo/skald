@@ -255,6 +255,8 @@ Statuses by first-touch source: New, Contacted, Qualified, Won, Lost, Spam, Dupl
 
 From visitors to demos booked, per source: **Visitors**, **Saw pricing**, **Opened a form**, **Opened the demo**, **Became a lead**, **Booked a demo**. Each step is shown as a share of that source's visitors, over at least 10 visitors.
 
+**Opened a form** is a page whose last part is `signup`, `sign-up`, `register`, `contact` or `join`, or the same in French, German or Spanish (`sign-up` and `register` since 2.46.4). The setting `leads.form_paths` replaces the list; `leads.pricing_paths` does the same for **Saw pricing**.
+
 > The first three steps are visits from your server log. The last three come from the lead database, by the lead's first-touch source. Skald puts them side by side for the same days. It never joins one lead to one visit.
 
 ## Summary and Sources, counting from the tools

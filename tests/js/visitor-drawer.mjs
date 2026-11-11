@@ -8,7 +8,7 @@ import { install } from "./dom-lite.mjs";
 
 install();
 const JS = new URL("../../skald/webapp/js/", import.meta.url);
-const { outcome } = await import(new URL("tabs/visitor.js", JS));
+const { outcome, linkedCount } = await import(new URL("tabs/visitor.js", JS));
 
 const person = (leads, conversions = []) => ({ visits: [], conversions, person: { leads }, firstKnown: true });
 assert.equal(outcome(person([{ id: 14, status: "won" }])).words, "Lead #14");
@@ -23,3 +23,10 @@ console.log("visitor-drawer: all passed");
 
 // 2.26: a conversion opened on its own, with no visit, says the stage it reached, never "no lead".
 assert.equal(outcome({ visits: [], conversion: { id: 1 }, conversions: [{ stage: "completed", at: "2026-10-21T10:12:00Z" }, { stage: "paid", at: "2026-10-21T10:31:00Z" }], firstKnown: true }).words, "Paid");
+
+// #27: one lead with a sign-up and a payment on its reference is one, not three.
+const steps = [{ tool: "lead", external_ref: "u_1", action: "signup", stage: "completed" }, { tool: "lead", external_ref: "u_1", action: "signup", stage: "paid" }];
+assert.equal(linkedCount({ leads: [], conversions: steps }), 1);
+assert.equal(linkedCount({ leads: [], conversions: steps, ref: { ref: "u_1", tool: "lead", steps } }), 1);
+assert.equal(linkedCount({ leads: [{ lead: 4 }], conversions: [...steps, { tool: "beacon", action: "contact", stage: "completed" }] }), 3);
+console.log("visitor-drawer: linked count passed");

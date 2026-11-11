@@ -85,4 +85,15 @@ const s = { tab: "sales/summary", lsrc: "", lact: "", llabel: "", range: "custom
   assert.doesNotMatch(signup, /100/, "never the clamped 100%");
   assert.match(contact, /75(\.0)?%/, `script-only: its rate (${contact})`);
 }
+{
+  // Calendar bookings on a day with five other conversions and no booking (#27): it says
+  // "No booking", never "No conversion".
+  const B = await import(new URL("tabs/sa-bookings.js", JS));
+  const words = flat(B.default(m, { ...s, tab: "sales/bookings" }, {})).map(text).join(" ");
+  assert.match(words, /No booking in this range\./, "no booking said plainly");
+  assert.doesNotMatch(words, /No conversion in this range/);
+  // The sign-up's sale is not a booking's: never shown on Calendar bookings.
+  assert.doesNotMatch(words, /\$25|Sign-ups/, "another action's sale is not a booking's");
+  assert.match(words, /Every stage/, "the stage table keeps its section");
+}
 console.log("summary-sales: all passed");

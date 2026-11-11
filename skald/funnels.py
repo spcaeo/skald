@@ -60,22 +60,24 @@ class Invalid(ValueError):
 
 
 def defaults(config: dict | None = None) -> list[dict]:
-    from .classify import FORM_PAGES, PRICING_PAGES
+    """The default funnel. Since 2.46.4 (#25, #27) it has no Pricing step: a site
+    without a pricing page (freshlycited.com) read 0 for every step after the first.
+    A saved funnel can still add one. Its lead steps are counted from the lead
+    database, or on a site without one from the leads its server sent (the page,
+    funnel-leads.js)."""
+    from .classify import FORM_PAGES
     from .leads import _paths
-    pricing = _paths(config or {}, "pricing_paths", PRICING_PAGES)
     forms = _paths(config or {}, "form_paths", FORM_PAGES)
     return [{
         "name": "Landing to lead", "saved_by": "default", "saved_at": None, "source": None,
         "steps": [
             {"label": "Landed", "kind": "path", "match": "starts_with", "paths": ["/"]},
-            {"label": "Pricing", "kind": "path", "match": "segment",
-             "paths": [p.strip("/") for p in pricing]},
             {"label": "Sign-up, contact or early-access page", "kind": "path",
              "match": "segment", "paths": [p.strip("/") for p in forms]},
-            {"label": "Opened Book a demo (lead database)", "kind": "lead", "types": ["demo_opened"]},
-            {"label": "Lead: sign-up, contact, early access (lead database)", "kind": "lead",
+            {"label": "Opened Book a demo", "kind": "lead", "types": ["demo_opened"]},
+            {"label": "Lead: sign-up, contact or early access", "kind": "lead",
              "types": ["signup", "contact", "waitlist"]},
-            {"label": "Demo booked (lead database)", "kind": "lead", "types": ["demo_booked"]},
+            {"label": "Demo booked", "kind": "lead", "types": ["demo_booked"]},
         ]}]
 
 
@@ -207,7 +209,9 @@ def event_rows(history, site: str, config: dict, live_dir, first: date, anchor: 
 
 
 def _leads(rows, tz, first: date, last: date, types: list[str], source) -> int | None:
-    if rows is None:
+    # The lead database knows only its own kinds: a step naming a site's action (#25) is
+    # not its to count ("not recorded" here; the page counts it from conversions.json).
+    if rows is None or any(t not in LEAD_TYPES for t in types):
         return None
     from .leads import _touch, counted, local_day, touch_labels, touch_source
     n = 0
@@ -268,9 +272,10 @@ def clean(raw: dict) -> dict:
             out.append({"label": label, "kind": "event", "events": names})
             continue
         if s.get("kind", "path") == "lead":
-            types = [t for t in s.get("types") or [] if t in LEAD_TYPES]
+            # A lead kind of the lead database, or any action the site's server sends (#25).
+            types = [str(t) for t in s.get("types") or [] if t in LEAD_TYPES or EVENT.match(str(t))][:10]
             if not types:
-                raise Invalid(f"a lead step needs types from {', '.join(LEAD_TYPES)}")
+                raise Invalid(f"a lead step needs lead kinds ({', '.join(LEAD_TYPES)}) or actions your site sends")
             out.append({"label": label, "kind": "lead", "types": types})
             continue
         match = s.get("match") or "equals"

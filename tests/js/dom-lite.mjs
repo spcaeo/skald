@@ -110,7 +110,7 @@ class Element extends Node {
   click() { this.dispatchEvent(new Ev("click")); }
   matches(sel) { return matches(this, sel); }
   closest(sel) { for (let n = this; n instanceof Element; n = n.parentNode) if (matches(n, sel)) return n; return null; }
-  querySelectorAll(sel) { const out = []; const walk = (n) => { for (const c of n.children) { if (matches(c, sel)) out.push(c); walk(c); } }; walk(this); return out; }
+  querySelectorAll(sel) { const kid = /^:scope\s*>\s*(.+)$/.exec(sel); if (kid) return this.children.filter((c) => matches(c, kid[1])); const out = []; const walk = (n) => { for (const c of n.children) { if (matches(c, sel)) out.push(c); walk(c); } }; walk(this); return out; }
   querySelector(sel) { return this.querySelectorAll(sel)[0] || null; }
   getBoundingClientRect() { return { top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 }; }
   animate() { return { cancel() {} }; }

@@ -240,7 +240,8 @@ PAID_MEDIUMS = ("cpc", "ppc", "paid", "paidsearch", "paid_search", "paid-search"
 # The funnel's pages by their last path segment, in English, French, German and
 # Spanish (config leads.pricing_paths / form_paths override them).
 PRICING_PAGES = ("pricing", "tarifs", "preise", "precios")
-FORM_PAGES = ("signup", "inscription", "registrieren", "registro",
+# "sign-up" and "register" since 2.46.4 (#27: freshlycited.com's form is /sign-up).
+FORM_PAGES = ("signup", "sign-up", "register", "inscription", "registrieren", "registro",
               "contact", "kontakt", "contacto",
               "join", "adhesion", "beitreten", "alta")
 

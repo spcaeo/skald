@@ -4,6 +4,47 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.46.4 (2026-11-11)
+
+Funnels count the leads your site sends, the default funnel fits a site without a pricing page, and three small Leads & sales fixes.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- Nothing else: no schema change, no setting.
+
+### Fixes
+
+- **Funnels count the leads your site sends (#25).** On a site without a lead database (its leads
+  come from its own server or a tool, through the hooks), every lead step of a funnel read
+  "not recorded": freshlycited.com's default funnel never showed its sign-ups. A lead step now adds
+  up the leads the site sent on the funnel's visit days, from the day counts Leads & sales already
+  shows (each checked by its second count; a day that failed is left out), each lead once. With a
+  starting source it shows "-" (a lead's first touch is not the visit's source). A lead step may
+  also name any action the site has sent (Add a step › "A lead, sent by your site"). Sites with
+  a lead database are unchanged. Who: every site on the hooks; nothing to do. Checked:
+  tests/js/funnel-leads.mjs (counts, a withheld day, the page), funnel tests.
+- **The default funnel has no Pricing step (#25, #27).** "Landing to lead" required a pricing page
+  in order, so on a site without one (freshlycited.com) every step after the first read 0. It is now
+  landed, a sign-up or contact page, then the lead steps; its lead steps no longer say
+  "(lead database)". A saved funnel can still have a pricing step. The default keeps no daily
+  history, so none is lost. Nothing to do. Checked: funnel tests.
+- **Calendar bookings no longer shows another action's sale (#27).** Since 2.46.3, freshlycited.com's
+  Calendar bookings › Every stage showed a "Sign-ups" row with its $25.00 sale while "Demos" was
+  chosen: the page narrowed every figure to the booking except the new sales by action. It now
+  narrows those too, and on a range with no booking it says "No booking in this range" (it said
+  "No conversion", on a day with five other conversions). Affects every site with sales; nothing to
+  do. Checked: tests/js/summary-sales.mjs, and on the live page before the fix.
+- **A form page called /sign-up or /register counts (#27).** Funnels' "Sign-up, contact or
+  early-access page" step and Leads › Funnel's "Opened a form" matched `signup` but not `sign-up`:
+  freshlycited.com's form page (16 visits on 4–11 Nov) was never counted. The list gains
+  `sign-up` and `register`; the second count (audit_leads) takes the same list, so both move
+  together. Counting change: sites with such pages show more "Opened a form" visits from the next
+  build (every build recounts every day); nothing to do. Checked: a new leads test.
+- **A visitor's "Leads and conversions (n)" counts each lead once (#27).** One lead with a sign-up
+  and a payment on its reference read "(3)": the heading added the steps and the reference. It now
+  counts what the part lists. Checked: tests/js/visitor-drawer.mjs.
+
 ## 2.46.3 (2026-11-11)
 
 Leads & sales › Summary shows a payment: a Sales figure and each action's sales and value, and no completion rate clamped to 100%.

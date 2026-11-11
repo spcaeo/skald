@@ -464,7 +464,7 @@ on is withheld. To backfill old leads, post them with their real `at` (section 6
 | **Leads & sales › Leads** | one row per lead (the first finished row of each ref and lead action, section 3.4): when, name and email (owners and admins, identity `full` only), action, label, stage now (the latest won, lost, cancelled, no-show or rescheduled of the same lead), where it came from, source, landing, country. A row opens its steps and pages. List, Board, Timeline, Map. Names viewed are audit-logged |
 | **Leads & sales › Summary** | Count from **Tools** (the hooks) or **Lead database**, never added: Leads, Demos booked, Won, Lost against the period before; Every action (started, completed, abandoned, rate over 10 starts, cancelled, won, lost) |
 | **Leads & sales › Sources** | where finished leads came from: last, first and assisted touch, time to convert |
-| **Leads & sales › Funnels** | pages and events over visits (the script tag), not the hook |
+| **Leads & sales › Funnels** | pages and events over visits (the script tag); on a site without a lead database, a lead step adds up the leads the hook sent on the funnel's visit days (conversions.json's checked day counts, each lead once; 2.46.4), never split by a starting source |
 | **Leads › More › Show left out** | test, spam and duplicate leads, marked, never counted |
 | **Calendar bookings › More › Show left out** | Cancelled or no-show, **Removed** (rows a lead-database sync or `conversions remove` took away, kept whole with when and why), Test |
 | **Find a person** | one IP, email, visitor ID or ref, linked (owners and admins) |
