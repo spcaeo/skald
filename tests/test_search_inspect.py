@@ -4,11 +4,15 @@ Against the fake Search Console in search_support (no test calls Google). Pinned
 Google's answer is kept as given (status read from its verdict and coverage
 words, nothing invented), one row per page and Pacific day; pages never asked
 come first, a page asked in the last 20 hours is not asked again; the daily
-budget holds; a refusal is kept in the state file and never fails the sync."""
+budget holds; a refusal is kept in the state file and never fails the sync;
+several pages are asked at once and the answers kept a batch at a time, so a job
+stopped part-way keeps what came in (2.48.1, #49)."""
 from __future__ import annotations
 
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -19,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import search_support as ss  # noqa: E402
 
 from skald.conversions import secrets_store  # noqa: E402
-from skald.search import bing, google, inspect, state, sync  # noqa: E402
+from skald.search import bing, google, http, inspect, state, sync  # noqa: E402
 from skald.store import History  # noqa: E402
 
 SITE = "alpha.example"
@@ -138,6 +142,63 @@ class AfterTheSync(Base):
         job.api = {k: v for k, v in job.api.items() if k != "google_inspect"}
         got = inspect.run(job, object(), "sc-domain:alpha.example")
         self.assertEqual(got, {"asked": 0, "kept": 0, "error": None})
+
+
+class FakeInspect:
+    """A URL Inspection client: counts the calls in flight; refuses the addresses in `refuse`."""
+    def __init__(self, refuse=()):
+        self.refuse, self.asked, self.lock = set(refuse), [], threading.Lock()
+        self.flying = self.most = 0
+
+    def token(self):
+        return "token"
+
+    def call_url(self, method, url, body):
+        with self.lock:
+            self.flying += 1
+            self.most = max(self.most, self.flying)
+            self.asked.append(body["inspectionUrl"])
+        try:
+            time.sleep(0.05)
+            if body["inspectionUrl"] in self.refuse:
+                raise http.Failed(429, "Quota exceeded for the day")
+            return {"inspectionResult": {"indexStatusResult": {
+                "verdict": "PASS", "coverageState": "Submitted and indexed"}}}
+        finally:
+            with self.lock:
+                self.flying -= 1
+
+
+class AtOnceAndInBatches(Base):
+    def setUp(self):
+        super().setUp()
+        self.config["search_console"]["inspect_per_day"] = 0
+        sync.run(self.job(), "google")                    # pages stored, none asked
+        self.config["search_console"]["inspect_per_day"] = 200
+        with History(self.db_path) as h:
+            self.todo = inspect.candidates(h.db, SITE, self.config, NOW)
+        self.assertGreaterEqual(len(self.todo), 3)
+
+    def test_several_pages_are_asked_at_once(self):
+        client = FakeInspect()
+        got = inspect.run(self.job(), client, f"sc-domain:{SITE}")
+        self.assertEqual((got["asked"], got["kept"], got["error"]),
+                         (len(self.todo), len(self.todo), None))
+        self.assertGreater(client.most, 1)
+        self.assertLessEqual(client.most, inspect.WORKERS)
+
+    def test_a_stop_part_way_keeps_the_batches_already_in(self):
+        old = inspect.BATCH
+        inspect.BATCH = 1
+        self.addCleanup(setattr, inspect, "BATCH", old)
+        client = FakeInspect(refuse={self.todo[1]})
+        got = inspect.run(self.job(), client, f"sc-domain:{SITE}")
+        self.assertIn("Quota", got["error"])
+        self.assertEqual((got["asked"], got["kept"]), (2, 1))   # the 2nd batch refused
+        self.assertEqual(len(self.rows()), 1)
+        self.assertNotIn(self.todo[2], client.asked)            # no page asked after the refusal
+        with History(self.db_path) as h:                        # the kept ones count today
+            self.assertEqual(inspect.asked_today(h.db, SITE, NOW), 1)
 
 
 class PageCountries(Base):

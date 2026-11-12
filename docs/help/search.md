@@ -98,7 +98,7 @@ After each good sync, Skald asks Search Console's **URL Inspection** about a few
 - **Last crawl**: Google's own time of its last visit.
 - **Google's canonical**: the address Google treats as the original, and whether it is the page's own.
 
-At most 200 pages a day are asked (Google allows 2,000 a day per property). An install admin can change that with `search_console.inspect_per_day` in the config; 0 turns it off. Each day's answer is kept for 16 months, so you can see when a page went in or out of the index. If Google refuses (the robot has no access, the day's quota is used up), the sync still works and the status says why.
+Restricted access in Search Console is enough for this. Google takes a few seconds per page, so Skald asks four at once and keeps the answers as they arrive: 200 pages take about 5 minutes. At most 200 pages a day are asked (Google allows 2,000 a day per property). An install admin can change that with `search_console.inspect_per_day` in the config; 0 turns it off. Each day's answer is kept for 16 months, so you can see when a page went in or out of the index. If Google refuses (the robot has no access, the day's quota is used up), the sync still works and the status says why.
 
 You read it through the AI agent connection (MCP): the `search_performance` tool, below.
 

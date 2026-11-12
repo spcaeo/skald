@@ -4,6 +4,33 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.48.1 (2026-11-12)
+
+Each page's index status comes in about four times faster, and a check stopped part-way keeps what came in.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- Nothing else: no schema change, no setting.
+
+### Fixes
+
+- **The index status check was slow and kept nothing until it ended (#49).** Seen on
+  a client's site right after 2.48.0 went live: the URL Inspection step after a Search
+  Console sync asked Google one page at a time (about 6.5 s each, 22 minutes for 200
+  pages) and kept every answer in memory until the end, so a job stopped part-way (an
+  upgrade, a restart) lost every answer while Google still counted them against the
+  day's quota. Now four pages are asked at once and the answers are kept 20 at a time:
+  200 pages take about 5 minutes, and a stop keeps what came in. A refusal still stops
+  further asking. Who it affects: every site with Search Console connected. What to do:
+  nothing. Checked: `tests/test_search_inspect.py` (several pages in flight at once; a
+  refusal part-way keeps the batch before it and the day's count), the whole suite.
+- **Docs: Restricted access is enough for index status.** Google answered a client site's
+  Restricted robot for all 200 pages on 12 Nov; the help and `INTEGRATIONS-SEARCH.md`
+  say so.
+- **No client named in a test note.** `tests/test_crawler_browsers.py` named a client's site in its
+  opening note; it now says "a client site". Nothing to do.
+
 ## 2.48.0 (2026-11-12)
 
 Search Console for AI agents: the MCP's new search_performance gives Google's own clicks, impressions, CTR and position per page and day, with the page's queries and countries and whether Google has it indexed. A page's story shows Googlebot's and Bingbot's latest fetch and its time on page, counted from the log.

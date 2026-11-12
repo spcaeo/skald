@@ -189,6 +189,14 @@ twice within 20 hours. At most `search_console.inspect_per_day` a Pacific day
 off). A refusal (no access, quota) is kept under `inspect` in the site's sync
 state and never fails the sync, in Google's own words (for example when
 the robot's permission on the property is not enough for URL Inspection).
+Restricted access is enough: on 12 Nov 2026 Google answered a Restricted
+robot for all 200 pages of a live site.
+
+Google takes about 6 seconds an answer, so four pages are asked at once
+(`inspect.WORKERS`; Google allows 600 a minute per property) and the answers
+are kept 20 at a time (`inspect.BATCH`): 200 pages take about 5 minutes, and a
+job stopped part-way keeps every batch already in, so the day's count of
+asked pages stays right (2.48.1, #49).
 
 The MCP's `search_performance` reads the stored days and these answers
 (docs/MCP.md); `audit_search_pages.py` recounts what it gives (below).
