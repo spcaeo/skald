@@ -19,6 +19,10 @@ from what is kept:
     candidates   for each lead: the visits that sent a form within two minutes
                  of it; for an address: the leads made just after one of its
                  visits sent a form - matched by time, never certain, said so
+    path         the conversions' own visits, oldest first: proven (the only
+                 visit that sent a form at a conversion's time) and likely (the
+                 same address and browser around them), with where the person
+                 first came from (people/lead_visits.py, 2.46.5)
 
 and links them: a conversion's visitor ID, email (identity) and reference
 lead to more conversions; a lead row's id, session (when it is a visitor ID)
@@ -182,7 +186,7 @@ def person(config: dict, folder, site: str, q: str, live_dir=None) -> dict:
     out = {"ok": True, "query": query,
            "kept": policy.describe(config, folder), "visits": [], "requests": [],
            "leads": [], "conversions": [], "removed": [], "journeys": [],
-           "candidates": [], "withheld": {}}
+           "candidates": [], "path": None, "withheld": {}}
     path = store.path_for(config, folder) if folder is not None else None
     leads: dict = {}
 
@@ -257,6 +261,9 @@ def person(config: dict, folder, site: str, q: str, live_dir=None) -> dict:
                     f"SELECT * FROM visits WHERE site = ? AND ip IN "
                     f"({','.join('?' * len(forms))}) ORDER BY start DESC LIMIT ?",
                     (site, *forms, LIMIT))]
+            # 2.46.5 (#30): the conversions' own visits, proven and likely.
+            from .lead_visits import path as lead_path
+            out["path"] = lead_path(db, site, out["conversions"])
             for lead in leads.values():
                 at = _stamp_of(lead.get("created_at"))
                 if at:
@@ -267,13 +274,14 @@ def person(config: dict, folder, site: str, q: str, live_dir=None) -> dict:
     out["leads"] = sorted(leads.values(), key=lambda r: str(r.get("created_at") or ""),
                           reverse=True)
     out["requests"] = _requests(live_dir, site, ips)
+    walked = (out["path"] or {}).get("visits") or []
     out["withheld"] = _withheld(config, folder, site,
-                                {v["day"] for v in out["visits"] + out["candidates"]})
+                                {v["day"] for v in out["visits"] + out["candidates"] + walked})
     if kind == "lead" and value in vids and not (
             any(r.get("vid") == value for r in out["conversions"] + out["journeys"])
             or any(r.get("vid") == value for r in leads.values())):
         vids.discard(value)             # tried as a site's own visitor ID: it is none
-    out["keys"] = {"ips":sorted(ips | {v["ip"] for v in out["visits"] + out["candidates"]}
+    out["keys"] = {"ips":sorted(ips | {v["ip"] for v in out["visits"] + out["candidates"] + walked}
                                  - {"(removed)"}),
                    "emails": sorted(emails), "vids": sorted(vids), "leads": sorted(refs)}
     if not full:

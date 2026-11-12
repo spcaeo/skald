@@ -119,3 +119,6 @@ dialog.dw.vz-dw { --dw-w: min(660px, 100vw); }
 .vz-all { display: block; margin: var(--sp-3) auto 0; }
 .vz-dw .ui-fold.vz-more { margin-top: var(--sp-3); }
 .vz-lc > ul { margin-top: 0; }
+/* 2.46.5 (#30): where a person first came from, above their visits. */
+.pp-first { margin: 4px 0 10px; color: var(--ink-2); }
+.pp-first b { color: var(--ink); font-weight: 600; }

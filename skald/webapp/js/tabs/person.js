@@ -71,6 +71,28 @@ function removedPart(rows) {
     at(r.removed_at), text(r.why), [`${dash(r.action)} ${STAGE[r.stage] || dash(r.stage)} at ${at(r.at)}`, labelTag(r.row?.label)], key(r.external_ref)]));
 }
 
+/* #30 (2.46.5): the person's own visits, oldest first (people/lead_visits.py): proven, the
+   only visit that sent a form at a lead's time; likely, the same address and browser around
+   it. Where they first came from, every visit's pages, and what each one sent. */
+const LINK = { proven: ["Proven", "good"], likely: ["Likely", ""] };
+const cameFrom = (v) => [v.source || "Unknown", v.via && v.via !== v.source ? v.via : null, v.campaign ? `campaign ${v.campaign}` : null].filter(Boolean).join(" · ");
+const stepWords = (s) => `${dash(s.action)} ${STAGE[s.stage] || dash(s.stage)}`;
+export function pathPart(p) {
+  if (!p || (!(p.visits || []).length && !(p.unmatched || []).length)) return null;
+  const f = p.first;
+  const head = f ? h("p", { class: "pp-first" }, h("b", null, "First came from "), cameFrom(f), `, ${at(f.start)}, landing on `,
+    withUrl(h("span", { class: "mono" }, dash(f.landing)), f.landing), f.link === "likely" ? " (likely)" : "", ".") : null;
+  const rows = (p.visits || []).map((v) => [at(v.start), cameFrom(v), withUrl(h("span", { class: "mono" }, dash(v.landing)), v.landing),
+    (v.trail || []).map((t) => (Array.isArray(t) ? t[0] : t?.path)).filter(Boolean).slice(0, 8).join(" › ") || "-",
+    v.steps?.length ? v.steps.map(stepWords).join(", ") : "-",
+    [h("span", { class: `pill ${LINK[v.link]?.[1] || ""}`.trim(), title: v.why }, LINK[v.link]?.[0] || dash(v.link))]]);
+  const miss = (p.unmatched || []).length ? h("p", { class: "note" }, "Not matched to a visit: ",
+    p.unmatched.map((s) => `${stepWords(s)} at ${at(s.at)} (${s.why})`).join("; "), ".") : null;
+  return sec("Their visits, in order", head,
+    rows.length ? grid("Their visits", ["Started", "Came from", "Landing", "Pages", "What they did", "Known"], rows) : empty("No visit is proven for these conversions."),
+    miss, h("p", { class: "note" }, "Proven: the only visit that sent a form at a lead's time. Likely: the same address and browser around it; an office or a phone network can share an address. Never counted in any figure."));
+}
+
 /* A person (people?q=) opens in the visitor drawer (visitor.js), the same
    layout as every visit; these are the parts only a search has: what it
    linked, the last 6 hours of requests, the lead database's rows, the visits
@@ -92,6 +114,7 @@ export function personParts(got) {
     noVisits,
     sec("Linked", linked, h("p", { class: "note" }, `Kept: addresses ${addresses}; names and emails ${got.kept?.identity === "full" ? "kept" : "not kept"}.`)),
     got.requests.length ? sec("Requests in the last 6 hours", grid("Requests", ["Time", "Request", "Status", "Group"], got.requests.map((r) => [at(r.at), withUrl(h("span", { class: "mono" }, `${r.method} ${r.path}`), r.path, { label: r.path }), String(r.status), dash(r.group)]))) : null,
+    pathPart(got.path),
     sec("Leads", leadsPart(got.leads)),
     cand.length ? sec("Leads and the visits that sent a form at their time", h("p", { class: "note" }, "Matched by time only: a form sent from 2 minutes before the lead to 30 seconds after. Likely the same person, never certain: the lead database keeps no address."),
       grid("Visits at a lead's time", ["Lead", "IP address", "Started", "Landing"], cand.map((c) => [key(c.lead, `#${c.lead}`), key(c.ip), at(c.start), withUrl(h("span", { class: "mono" }, dash(c.landing)), c.landing)]))) : null,

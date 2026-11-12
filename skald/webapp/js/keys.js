@@ -27,8 +27,9 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-11-2.46.4",
+  id: "2026-11-11-2.46.5",
   items: [
+    ["A lead’s own visits", "Find a person lists a lead’s visits in order: where they first came from, every page, what each visit sent, and whether it is proven or likely theirs (owners and admins).", "leads-and-conversions"],
     ["Funnels count your leads", "on a site whose leads come from its own server, a funnel’s lead steps count them (each lead once); the default funnel has no pricing step; /sign-up counts as a form page.", "funnels-and-goals"],
     ["Sales on Summary", "Leads & sales › Summary shows the period’s sales and each action’s sales and value; columns a site never fills are left off, and a rate that mixes server and page counts says not comparable.", "leads-and-conversions"],
     ["A failed fix, plainly", "an opened failed fix lists only the real pages still not found, each with the page to send it to; addresses only bots ask for sit in one line and no longer fail it.", "what-to-fix"],

@@ -4,6 +4,35 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.46.5 (2026-11-11)
+
+Find a person shows a lead's own visits, in order: where they first came from, every page, and whether each visit is proven or likely theirs.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- Nothing else: no schema change, no setting.
+
+### Changes
+
+- **A lead's own visits, in order (#30).** Find a person showed a server-sent lead's steps but
+  not how the person got there: on freshlycited.com, lead 1179's journey had to be rebuilt by hand
+  from the server log. Find a person now lists that person's visits, oldest first,
+  with where they first came from, every page and what each visit sent. A visit is "proven" when
+  it is the only one that sent a form within 10 seconds of the lead, "likely" when it has the same
+  address and browser within a day; a step no visit is proven for is listed as not matched. Owners
+  and admins only; never counted in a figure. Who: every site that keeps addresses with its visits;
+  nothing to do. Checked: lead-visit tests (proven, likely, another browser not linked, two
+  visits at one second prove nothing) and tests/js/person-path.mjs. Second count:
+  `audit_lead_visits.py`, run every day by run-daily, finds each conversion's proven visit again
+  by its own road and checks every likely visit against the rule; a mismatch ends the run with
+  exit 1 (no figure is withheld: these links are never counted).
+
+- **Website: the 2.46.4 "What's new" entry closed properly.** On skaldanalytics.com/whats-new/
+  the 2.46.4 entry was missing its closing tags, so the 2.46.3 entry sat inside it. A release
+  helper mistake, fixed the same evening. Who: website readers; nothing to do. Checked: every
+  list and box on the page opens and closes in order (an HTML tag check), site build problems none.
+
 ## 2.46.4 (2026-11-11)
 
 Funnels count the leads your site sends, the default funnel fits a site without a pricing page, and three small Leads & sales fixes.

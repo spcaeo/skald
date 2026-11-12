@@ -159,6 +159,121 @@ class Lookup(unittest.TestCase):
             self.config, self.box.root, SITE, "removed", True)["rows"], [])
 
 
+
+class LeadVisits(unittest.TestCase):
+    """#30 (2.46.5): a lead sent by the site's server, linked to its own visits.
+    Shaped on freshlycited.com lead 1179 (11 Nov): a form sent at the lead's
+    second (proven), a later visit from the same address and browser (likely),
+    one from another browser at the same address (not linked), and a payment
+    no visit sent (unmatched)."""
+
+    def setUp(self):
+        self.box = Sandbox(mail=False)
+        firefox = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0"
+        t = datetime(2026, 10, 6, 16, 24, tzinfo=UTC)
+        self.box.log(day_lines(date(2026, 10, 6), 3) + [
+            line(t, PERSON, "/bing-webmaster-tools/ai-performance-report", referrer="https://www.bing.com/"),
+            post(t + timedelta(seconds=82), PERSON, "/api/xray"),
+            line(t + timedelta(minutes=38), PERSON, "/app/"),
+            line(t + timedelta(minutes=46), PERSON, "/other/", agent=firefox),
+            line(t + timedelta(minutes=2), "192.0.2.99", "/")])
+        code, _, err = self.box.run("--today", "2026-10-07", "collect")
+        self.assertEqual(code, 0, err)
+        self.config = load_config(self.box.config)
+        self.config["_resolved"] = {"history_db": str(self.box.db)}
+        db = store.connect(store.path_for(self.config, self.box.root))
+        try:
+            for stage, action, when in (("completed", "xray", t + timedelta(seconds=82)),
+                                        ("paid", "signup", t + timedelta(minutes=26))):
+                store.record_conversion(db, {"site": SITE, "tool": "lead", "external_ref": "u_1",
+                                             "action": action, "stage": stage,
+                                             "at": store.stamp(when)})
+        finally:
+            db.close()
+
+    def tearDown(self):
+        self.box.close()
+
+    def test_a_server_lead_walks_back_to_its_visits(self):
+        got = lookup.person(self.config, self.box.root, SITE, "u_1", self.box.root)
+        walk = got["path"]
+        self.assertEqual([(v["landing"], v["link"]) for v in walk["visits"]],
+                         [("/bing-webmaster-tools/ai-performance-report", "proven"), ("/app/", "likely")])
+        self.assertEqual([s["action"] for s in walk["visits"][0]["steps"]], ["xray"])
+        self.assertEqual(walk["first"]["landing"], "/bing-webmaster-tools/ai-performance-report")
+        self.assertIn("bing", (walk["first"]["referrer"] or "") + (walk["first"]["via"] or "").lower())
+        self.assertEqual([(s["action"], s["stage"]) for s in walk["unmatched"]], [("signup", "paid")])
+        self.assertIn(PERSON, got["keys"]["ips"])
+        self.assertNotIn("/other/", [v["landing"] for v in walk["visits"]], "another browser is not linked")
+
+    def test_two_visits_sending_a_form_at_that_second_prove_nothing(self):
+        from skald.people import lead_visits
+        db = store.connect(store.path_for(self.config, self.box.root))
+        try:
+            visit = db.execute("SELECT * FROM visits WHERE landing = '/' AND ip = '192.0.2.99'").fetchone()
+            v = dict(visit)
+            db.execute("UPDATE visits SET posts = ?, start = ?, end = ? WHERE id = ?",
+                       (json.dumps(["2026-10-06T16:25:24Z"]), "2026-10-06T16:25:00Z",
+                        "2026-10-06T16:25:30Z", v["id"]))
+            got = lead_visits.path(db, SITE, [{"at": "2026-10-06T16:25:22Z", "action": "xray",
+                                               "stage": "completed", "tool": "lead"}])
+        finally:
+            db.close()
+        self.assertEqual(got["visits"], [])
+        self.assertEqual(got["unmatched"][0]["why"], "2 visits sent a form at its time")
+
+    def test_a_dropped_address_links_no_other_visit(self):
+        from skald.people import lead_visits
+        db = store.connect(store.path_for(self.config, self.box.root))
+        try:
+            db.execute("UPDATE visits SET ip = '(removed)'")
+            got = lead_visits.path(db, SITE, [{"at": "2026-10-06T16:25:22Z", "action": "xray",
+                                               "stage": "completed", "tool": "lead"}])
+        finally:
+            db.close()
+        self.assertEqual([v["link"] for v in got["visits"]], ["proven"], "no likely visit")
+
+
+    def test_the_audit_finds_the_same_links_by_its_own_road(self):
+        from types import SimpleNamespace
+        from skald import audit_lead_visits, audit_more
+        self.assertIn("lead_visits", audit_more.DAILY)
+        said = []
+        ctx = SimpleNamespace(config=self.config, db_path=self.box.db, site=SITE, out=said.append)
+        self.assertTrue(audit_lead_visits.set_up(ctx))
+        self.assertEqual(audit_lead_visits.daily(ctx, date(2026, 10, 6)), [])
+        self.assertIn("2 conversion(s)", said[0])
+
+    def test_the_audit_catches_a_wrong_proven_visit(self):
+        from unittest import mock
+        from skald import audit_lead_visits
+        from skald.people import lead_visits
+        real = lead_visits.posted_near
+        with mock.patch.object(lead_visits, "posted_near",
+                               lambda db, site, at, **kw: real(db, site, at, before=3600, after=3600)):
+            db = sqlite3.connect(store.path_for(self.config, self.box.root))
+            try:
+                n, problems = audit_lead_visits.check(db, SITE, "2026-10-06T00:00:00Z",
+                                                      "2026-10-07T00:00:00Z")
+            finally:
+                db.close()
+        self.assertEqual(n, 2)
+        self.assertTrue(any("proven visit(s) shown" in p for p in problems), problems)
+        self.assertFalse(any(PERSON in p for p in problems), "no address in a problem")
+
+class PersonPathPage(unittest.TestCase):
+    """The drawer part of #30, run in node (tests/js/person-path.mjs)."""
+
+    def test_person_path(self):
+        import shutil
+        import subprocess
+        if not shutil.which("node"):
+            self.skipTest("node is not installed")
+        js = Path(__file__).resolve().parent / "js" / "person-path.mjs"
+        done = subprocess.run(["node", str(js)], capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("person-path: all passed", done.stdout)
+
 class FakeHandler:
     def __init__(self, path, role):
         self.path, self.role, self.who, self.sent = path, role, None, None
