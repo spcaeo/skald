@@ -111,6 +111,12 @@ class Node(unittest.TestCase):
         read beside them; the drill-down narrowing the list, and its line when it cannot."""
         self.assertIn("live-doing: all passed", self.run_js("live-doing.mjs"))
 
+    def test_right_now_card(self):
+        """Overview (#43): Right now on top. The people on the site now, the page each is on,
+        New / Returning / Lead / Customer, time on the site, the count's age, the fold for the
+        rest, and Refresh now running the recount."""
+        self.assertIn("right-now: all passed", self.run_js("right-now.mjs"))
+
     def test_security_sums_verdict_addresses_block_list_and_tabs(self):
         """Security (2.21): the period's sums, the verdict, rows joined to addresses (an admin
         asks, a viewer never does), the block list and its three exports by privacy mode, and

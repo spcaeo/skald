@@ -4,6 +4,67 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.47.0 (2026-11-12)
+
+Overview is one page with Right now on top: who is on the site now, the page each person is on, New, Returning, Lead or Customer, and Refresh now that counts this site at once. A lead's drawer shows their profile, and a visit that sent a lead carries a Lead or Customer pill.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- Nothing else: no schema change, no setting. `#overview/realtime` links still work (they open Overview for today).
+
+### New
+
+- **Overview is one page, with Right now on top (#43).** The owner could not see who was on the
+  site at that moment: the visitor figures were 4 to 7 minutes old with no way to count again,
+  Summary and Real time showed the same thing twice, and "What converted today" and "Where
+  today's visitors came from" were confusing on the main page. Now:
+  - **Right now**, on top of Overview in every period: people on the site now, the last 30
+    minutes minute by minute, and the people here now, one row each: where they are and their
+    device, the page they are on now (copy and open), time on the site, pages, where they came
+    from, and a pill: **New** or **Returning** (with how many of the last 30 days and where they
+    first came from), **Lead** or **Customer** when the visit carries #31's proven mark. No pill
+    when Skald cannot tell (never shown as New). A row opens the visitor drawer; the first six
+    are listed, the rest in a fold kept in the address.
+  - **Updated 40 s ago** says how old the count is, and **Refresh now** counts this site at once:
+    `POST <page>/refresh` now runs `live` for that site only (`--site`), not every site (which
+    took about 4 minutes on an install with 14 sites, longer than the run's 90-second limit), answers JSON when
+    the page asks for it, keeps one run at a time and a 15-second gap per site; a site the
+    install does not have is refused and nothing runs. Saving internal addresses, funnels or a
+    test mark also recounts only that page's site now.
+  - Real time is no longer a tab: its requests chart, map, pages being read, newest visits,
+    sources, devices and machines now sit under today's tiles, then the flow. `#overview/realtime`
+    opens Overview for today. "What converted today" and "Where today's visitors came from" left
+    the page (they stay on Leads & sales and Traffic › Sources).
+  - The live run's `doing` rows carry `returning` and `days_seen` (visitors.py's labels, the
+    ones the visit list shows). No figure is counted anew: every number is Real time's, which
+    `audit --live` recounts.
+
+  Who: everyone who opens Overview. To do: nothing. Checked: tests (`tests/js/right-now.mjs`,
+  the refresh helper's per-site run and JSON answer, routes, the realtime `doing` labels), the
+  full suite, and the demo build in a browser (Today and 7 days, a row opening its journey,
+  `#overview/realtime` landing on Overview, Refresh now in the demo).
+
+- **A lead's profile in its drawer, and a Lead or Customer pill on visits (#31).** The owner
+  asked, about a new customer, to see "everything about him in his profile", and a pill on a
+  visitor who is a customer. Before, a lead's drawer on Leads & sales > Leads showed its steps
+  and facts but not the visits that sent it: you had to search its reference in Find a person.
+  Now owners and admins see **Their profile** in the lead's drawer: who (name and email, only
+  where the site keeps them), everything they did with its time and value, where they first came
+  from and every visit in order with its pages, each marked proven or likely. It is asked by the
+  lead's reference, like Find a person, and written to the audit log; the link keeps only the
+  lead's row number. On Traffic > Visitors and in the visitor drawer, a visit proven to have sent
+  a lead (the only visit that sent a form at the lead's time) shows a small **Lead** pill, or
+  **Customer** when that person has paid; a likely visit never gets one. The pill is a label,
+  never counted; the daily second count (audit_lead_visits) now finds every pill again by its
+  own road. Who: owners and admins for the profile; every member sees the pills. Nothing to do.
+  Checked: Python tests on a sandbox shaped on a real lead (proven, likely, two visits at one
+  second, a test row, a lead that has not paid, app.json carrying the pill on that visit only,
+  the audit catching a wrong pill), and tests/js/lead-profile.mjs (the profile for an owner,
+  none for a viewer, no reference or email in the link, the pills on the list and the drawer).
+  Speed: the pills cost the live run one read-only look at the conversions store per site (the
+  last days' finished conversions and the visits that sent a form around them).
+
 ## 2.46.6 (2026-11-12)
 
 Right after an upgrade every dashboard page shows the new version at once; and a small Find a person fix.

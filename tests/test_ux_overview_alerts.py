@@ -38,18 +38,26 @@ class Node(unittest.TestCase):
 
 
 class Layout(unittest.TestCase):
-    def test_live_summary_has_the_figures_and_links_to_real_time(self):
+    def test_overview_is_one_page_with_right_now_on_top(self):
+        """#43: Summary and Real time are one page. Right now on top (every period), today's
+        tiles, then the rest of Real time and the flow; the two confusing cards are gone."""
         today = code(TABS / "ov-today.js")
-        for gone in ("placesCard", "doingCard", "flowCard", "setupChecklist", "td-foot"):
+        for gone in ("placesCard", "doingCard", "setupChecklist", "td-foot", "convertedCard", "sourcesCard",
+                     'hrefTo("overview/realtime")', "nowPanel"):
             self.assertNotIn(gone, today)
         self.assertIn("setupStrip(m)", today)
-        self.assertIn('hrefTo("overview/realtime")', today)
         self.assertIn('help("Today so far"', today)
-        self.assertIn("setupStrip(m)", code(TABS / "ov-summary.js"))
-        self.assertNotIn("setupChecklist", code(TABS / "ov-summary.js"))
-        rt = code(TABS / "realtime.js")
-        self.assertIn("flowCard(m)", rt, "the flow is on Real time")
-        self.assertIn("worldMap(", rt, "and the map")
+        self.assertLess(today.index("rightNow(m, s, o)"), today.index("realtimeBlock(m, s, { merged: true })"))
+        self.assertIn("flowCard(m)", today, "how today's visits moved, under the map")
+        summary = code(TABS / "ov-summary.js")
+        self.assertIn("setupStrip(m)", summary)
+        self.assertNotIn("setupChecklist", summary)
+        self.assertIn("rightNow(m, s, o)", summary, "Right now on top in every period")
+        tabs = code(TABS / "s-overview.js")
+        self.assertNotIn('["realtime"', tabs, "no Real time tab of its own")
+        self.assertIn('"overview/realtime": ["overview/summary", { range: "today" }]', code(JS / "routes.js"),
+                      "its old address still opens it")
+        self.assertIn("worldMap(", code(TABS / "realtime.js"), "the map")
 
     def test_site_alerts_is_the_grouped_page(self):
         site = code(TABS / "s-site.js")

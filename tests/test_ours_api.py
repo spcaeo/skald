@@ -96,7 +96,7 @@ class FakeRunner:
     def __init__(self):
         self.calls = []
 
-    def refresh(self, force=False):
+    def refresh(self, force=False, site=None):
         self.calls.append(force)
         return "ran"
 

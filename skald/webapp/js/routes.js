@@ -15,6 +15,8 @@ export const REDIRECTS = {
   // Overview
   overview: ["overview/summary"], home: ["overview/summary"],
   insights: ["overview/insights"],
+  // #43: Real time is part of Overview (Right now on top); its old address opens it for today.
+  "overview/realtime": ["overview/summary", { range: "today" }], realtime: ["overview/summary", { range: "today" }],
   // Live and Compare are global modes (js/modes.js): Live is the period Today, on
   // Overview; the old Compare page opens the tab that holds its table (fromCompare).
   live: ["overview/summary", { range: "today", cmp: "" }],

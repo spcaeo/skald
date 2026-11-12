@@ -1,26 +1,41 @@
 # Real time: who is on your site now
 
-See how many people are on your site right now, where they are on a world map, what they are reading, and which AI assistants and crawlers are fetching pages at this moment. This guide covers where it is, what each figure means, and how fresh it is.
+See who is on your site right now: each person, the page they are on, whether they are new, returning, a lead or a customer, where they are on a world map, and which AI assistants and crawlers are fetching pages at this moment. This guide covers where it is, what each figure means, how fresh it is and how to count it again at once.
 
 ## Where to find it
 
-- **Overview › Real time**: its own tab. It always shows now, whatever period is picked at the top.
-- **Overview › Summary in Live mode**: pick **Today** in the top bar's period. The page opens on the short version: visitors on the site now, how many arrived in the last 5 minutes, the last 30 minutes minute by minute and today's four tiles, from the same figures as this tab and under one **Pause live** button. The map, what visitors are doing now and how today's visits moved are on this tab only (since 2.41). See **Today, live** below.
+Real time is part of **Overview** (since 2.47; it was a tab of its own before). The **Right now** card sits at the top of Overview whatever period is picked. With **Today** picked, the rest of Real time follows today's four tiles: requests per minute, the world map, pages being read, the newest visits, sources, devices and machines now, and how today's visits moved. An old link to Overview › Real time opens Overview for today.
+
+## Right now
+
+The card at the top of Overview answers "who is on my site now?".
+
+- **People on your site now**: visitors with a request in the last 5 minutes, and how many arrived in those 5 minutes. Press the number to open the list of everyone.
+- **Minute by minute**: the last 30 minutes as bars; the last one is the minute still running.
+- **In the last 30 minutes**: visitors with any request in the last 30 minutes.
+- **The people here now**: one row per visit, those active in the last 5 minutes first. Each row says where they are and their device, the page they are on now (**Now on /pricing/**, with copy and open icons; **Last on** when their last request was 5 to 30 minutes ago), how long they have been on the site, how many pages they read and where they came from. A pill says who they are:
+  - **New**: not seen on an earlier day in the last 30 days.
+  - **Returning**: seen on an earlier day, with how many of the last 30 days and where they first came from.
+  - **Lead** or **Customer**: this visit sent a lead, or sent a form for someone who has paid (proven matches only).
+  - No pill: Skald could not tell (no visitor key set). It is never shown as New.
+
+  Select a row to open the visitor drawer with their journey. The first six are listed; the rest are under **Everyone else in the last 30 minutes**.
 
 ## How fresh it is
 
-Real time has two clocks, and it shows both at the top:
+**Updated 40 s ago** beside **Right now** says how old the visitor count is. Skald counts every site in turn, so on a busy server the count can be a few minutes old. The page asks for the newest count every 15 seconds while it is open and visible.
 
-- **Visitors as of 14:02:10**: the people figures. Skald counts them every 2 minutes, with the same rules as every other figure on the dashboard, so a crawler pretending to be a browser, your own office and the heartbeat are never in them.
-- **Requests as of 14:03:45, read from the log every 15 s**: every request your server logged, read from the end of the log. These are not sorted into people and machines yet, so they are always called requests, never visitors.
+- **Refresh now** counts this site at once, instead of waiting for its turn, and draws the answer. It counts this one site only; one count runs at a time.
+- **Pause** holds everything still; **Resume** starts again.
+- If **Updated** turns orange, the count has not run for more than 10 minutes: check Site › Data quality.
 
-The page asks for fresh figures every 15 seconds while it is open and visible. **Pause** holds everything still; **Resume** starts again. If the visitor clock says **late**, the 2-minute count has not run for more than 10 minutes: check Site › Data quality.
+**Requests per minute**, under the tiles, has a clock of its own: every request your server logged, read from the end of the log every 15 seconds. These are not sorted into people and machines yet, so they are always called requests, never visitors.
 
 ## What the figures mean
 
 | Figure | What it is |
 |---|---|
-| Active now | Visitors with any request in the last 5 minutes. A visitor is a visit that read a page, the same count as **Visitors** everywhere else. |
+| People on your site now | Visitors with any request in the last 5 minutes. A visitor is a visit that read a page, the same count as **Visitors** everywhere else. |
 | Last 30 minutes | Visitors with any request in the last 30 minutes. |
 | Visitors today | Today so far, the same number as Overview's Visitors tile. |
 | Pages read, 30 min | Page views by visitors in the last 30 minutes. |
@@ -52,15 +67,15 @@ Select any page, source, device or crawler to open its detail.
 
 ## Today, live
 
-Overview › Summary with **Today** (live) picked opens on the figures, each with a link to the tab that lists it all:
+Overview with **Today** picked opens on what is current, then today's figures:
 
-1. **The live strip.** Visitors on the site now (a request in the last 5 minutes), how many arrived in the last 5 minutes, and the last 30 minutes as bars. Beside it, **Visitors**, **Pages read**, **Leads** and **Visitors from AI** for today so far.
-2. **Where today's visitors came from**, beside **What converted today** (forms sent and demos booked; with no leads set up, **AI & bots today** takes its place).
-3. One line to **Real time**, which has the map, the visitors and what they are reading now, and **How today's visits moved** (the flow, two pages deep).
+1. **Right now** (above): the people on the site now and the page each is on, with **Refresh now**.
+2. **Visitors**, **Pages read**, **Leads** and **Visitors from AI** for today so far, each against yesterday at this hour. Select a tile for its full tab.
+3. The rest of Real time: requests per minute, the map, pages being read, the newest visits, sources, devices and machines now, then **How today's visits moved** (the flow, two pages deep, with **Full flow** for Traffic › Visitors).
+
+Where today's visitors came from is on Traffic › Sources, and what converted on Leads & sales (they left this page in 2.47).
 
 The **?** beside the title says what "today so far" covers and how often each part is counted. While set-up is not finished, one line sits under the title, for example **Set-up: 2 left · Send your logs**, with **Finish set-up** (Settings › This site › Set-up checklist) and **Show the list**.
-
-On **Real time**, **Newest visits** lists the latest visitors beside the map: select one to open the visitor drawer with its journey. **How today's visits moved** is under them, with **Full flow** for Traffic › Visitors.
 
 ### Vs yesterday at this hour
 
@@ -84,4 +99,4 @@ Every Real time figure is counted a second time from the raw log lines by `skald
 
 ## In the demo
 
-The demo has no running Skald behind it, so its requests per minute come from the 2-minute count, and the page says so.
+The demo has no running Skald behind it, so its requests per minute come from the 2-minute count, and **Refresh now** says it needs a running Skald.

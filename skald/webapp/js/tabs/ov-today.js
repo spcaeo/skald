@@ -1,33 +1,33 @@
-// Overview > Summary in Live mode ("Today · Live", the period Today): the
-// owner's approved layout (2.13), one place per answer, each with a link to the
-// tab that lists it all:
+// Overview in Live mode ("Today · Live", the period Today). Since #43 one page (Summary and
+// Real time were two tabs showing the same thing):
 //
-//   (a) the live strip: visitors on the site now and arrivals in the last 5
-//       minutes, minute by minute (Real time's answer, every 15 seconds, one
-//       Pause for the whole page); then Visitors, Pages read, Leads and
-//       Visitors from AI, each against yesterday at this hour (by-now.js)
-//   (c) where today's visitors came from, (e) what converted today (or, with
-//       no leads set up, (f) AI & bots today)              ov-today-more.js
+//   (a) Right now (ov-rightnow.js): the people on the site now, the page each is on, minute
+//       bars, how old the count is and Refresh now (this site, at once)
+//   (b) Visitors, Pages read, Leads and Visitors from AI, each against yesterday at this hour
+//       (by-now.js); a tile opens its full tab
+//   (c) the rest of Real time (realtime.js, merged): requests, the map, pages being read, the
+//       newest visits, sources, devices and machines now; then how today's visits moved
 //
-// 2.41 (the UX audit's task 2): the figures first. The set-up checklist is one line
-// (ov-setup.js); the map, what visitors are doing now and how today's visits moved are on
-// Real time only (one line here links there); the footnote is behind the "?".
+// "What converted today" and "Where today's visitors came from" left the page in #43 (the
+// owner found them confusing there); both answers stay on Leads & sales and Traffic › Sources.
+// The set-up checklist is one line (ov-setup.js); the footnote is behind the "?".
 //
 // Nothing here counts anything new except "vs yesterday at this hour", which
 // by_now.py and conversions_leads.by_now count and audit_by_now.py and
 // audit_conversions_leads.py count again. Every other figure is one the page
 // already shows elsewhere, from the same field.
 
-import { h, n, long, counter, reduced, tip, untip } from "../ui.js";
+import { h, n, long, counter, tip, untip } from "../ui.js";
 import { figures } from "../data.js";
 import { head, nothing } from "./common.js";
 import { leadsOn, convFile } from "./leadfigs.js";
-import { follow } from "./realtime.js";
+import { realtimeBlock } from "./realtime.js";
+import { rightNow } from "./ov-rightnow.js";
 import { setupStrip } from "./ov-setup.js";
 import { help } from "../ui/help.js";
-import { comparisons, delta, running, arrived } from "../by-now.js";
+import { comparisons, delta, running } from "../by-now.js";
 import { time as tzTime, label as tzLabel } from "../tz.js";
-import { sourcesCard, convertedCard, aiCard } from "./ov-today-more.js";
+import { flowCard } from "./ov-today-more.js";
 import { hrefTo } from "./ov-today-bits.js";
 
 const TILE = {
@@ -82,81 +82,33 @@ function tile(c, first) {
       h("span", null, h("i", { class: "td-sw dash" }), "Yesterday")));
 }
 
-// ------------------------------------------------------------- now, minute by minute
-function nowPanel(m, rt) {
-  const el = h("div", { class: "td-now" });
-  const clock = h("span", { class: "td-clock" });
-  const pause = h("button", { type: "button", class: "td-pause" });
-  pause.addEventListener("click", () => rt.pause(!rt.isPaused()));
-  const big = h("div", { class: "td-big" });
-  const bars = h("div", { class: "td-bars", "aria-hidden": "true" });
-  let seen = false;
-  const P = (B) => (B && (B.people_state === "ok" || B.people_state === "stale") ? B.people : null);
-  function paused(on) {
-    el.classList.toggle("paused", on);
-    pause.replaceChildren(h("span", { class: `td-pi ${on ? "play" : "hold"}`, "aria-hidden": "true" }), on ? "Resume live" : "Pause live");
-    pause.setAttribute("aria-pressed", String(on));
-    tick(rt.body());
-  }
-  function tick(B) {
-    const p = P(B);
-    clock.replaceChildren(h("span", { class: "td-live", "aria-hidden": "true" }),
-      rt.isPaused() ? `Paused at ${p?.until ? tzTime(p.until, { label: false }) : "-"}` : p?.until ? `Live, as of ${tzTime(p.until, { seconds: true, label: false })}` : "Live: no count yet");
-  }
-  function draw(B) {
-    const p = P(B);
-    tick(B);
-    const now = p ? p.active?.[p.short ?? 5] ?? null : null;
-    const came = p ? arrived(p.per_minute, p.short ?? 5) : null;
-    big.replaceChildren(h("span", { class: "td-n" }, now == null ? "-" : !seen && !reduced() ? counter(now) : n(now)),
-      h("span", { class: "td-nw" }, h("span", { class: "td-nl" }, `visitor${now === 1 ? "" : "s"} on the site now`),
-        p ? h("span", { class: `td-chip ${came ? "up" : "same"}`, title: "Visits whose first request came in the last 5 clock minutes (Real time's minute by minute)." }, `+${n(came)} in the last ${p.short ?? 5} min`)
-          : h("span", { class: "td-sub" }, "The visitors now appear with the next live count (every 2 minutes).")));
-    const rows = p?.per_minute || [];
-    const top = Math.max(1, ...rows.map((r) => r.under_way || 0));
-    bars.replaceChildren(...rows.map((r, i) => h("span", { class: i === rows.length - 1 ? "td-bar last" : "td-bar", style: { height: `${Math.max(2, ((r.under_way || 0) / top) * 100)}%` },
-      title: `${tzTime(r.at, { label: false })}: ${n(r.under_way || 0)} on the site, ${n(r.started || 0)} arrived` })));
-    seen = true;
-  }
-  el.append(h("div", { class: "td-nowh" }, clock, pause), big, bars,
-    h("div", { class: "td-axis", "aria-hidden": "true" }, h("span", null, "30 min ago"), h("span", null, "Visitors a minute"), h("span", null, "now")));
-  return { el, draw, tick, paused };
-}
-
 // ------------------------------------------------------------- the page
 export default function today(m, s, o = {}) {
   const { r, t } = figures(m, s);
   const until = m.live?.generated_at;
   // The head's "?": what "today so far" covers and how often each part is counted.
   const foot = [`Today so far, ${long(m.today)}, 00:00 to ${until ? tzTime(until, { label: false }) : "now"} ${tzLabel()}.`,
-    "Visitors now refresh every 15 seconds; the other figures with each live count, every 2 minutes. Yesterday at this hour is yesterday counted again from the log to the same time of day, by the same rules, and recounted by the audit."];
+    "Right now is asked for every 15 seconds; Refresh now counts this site at once. The tiles come from each live count. Yesterday at this hour is yesterday counted again from the log to the same time of day, by the same rules, and recounted by the audit."];
   const out = [...head("Overview", r, null)];
   const h1 = out[0]?.querySelector?.("h1");
   if (h1) out[0].insertBefore(help("Today so far", { text: foot, guide: "real-time" }), h1.nextSibling || null);
   const setup = setupStrip(m);
   if (setup) out.push(setup);
+  // #43: one page. Right now on top (who is here, the page each is on, Refresh now), then
+  // today's four tiles, then the rest of Real time (requests, the map, pages being read,
+  // the newest visits, sources and devices now) and how today's visits moved.
+  out.push(rightNow(m, s, o));
   const first = !!o.first;
-  // One follower of Real time's answer draws every live part of the page.
-  const parts = [];
-  const strip = h("section", { class: "td-strip", "aria-label": "Right now and today" });
-  const rt = follow(m, { el: strip, draw: (B) => parts.forEach((p) => p.draw(B)), clock: (B) => parts.forEach((p) => p.tick?.(B)), paused: (on) => parts.forEach((p) => p.paused?.(on)) });
-  const now = nowPanel(m, rt);
-  parts.push(now);
   const lf = t ? leadsOn(m, [m.today]) : null;
   const cs = comparisons(m.live, convFile(m), {
     visitors: t && !t.unmeasured?.readers ? t.readers ?? null : null, pages: t?.views ?? null,
     leads: lf?.ok ? lf.leads : null, ai: t?.cited ?? null,
   });
   const shownKeys = convFile(m) ? cs : cs.filter((c) => c.key !== "leads");
-  strip.append(now.el, h("div", { class: "td-kpis", role: "list", "data-n": String(shownKeys.length) }, shownKeys.map((c) => tile(c, first))));
-  out.push(strip);
+  out.push(h("section", { class: "td-strip td-today", "aria-label": "Today so far" },
+    h("div", { class: "td-kpis", role: "list", "data-n": String(shownKeys.length) }, shownKeys.map((c) => tile(c, first)))));
   if (!t) return [...out, nothing(m, r)];
-  // Where they came from, beside what converted (or AI & bots, with no leads set up).
-  const conv = convertedCard(m);
-  out.push(h("div", { class: "td-row td-r2" }, sourcesCard(m, t), conv || aiCard(t)));
-  out.push(h("p", { class: "ui-lede td-rt" }, "The map, what visitors are doing now and how today's visits moved are on Real time.", " ",
-    h("a", { href: hrefTo("overview/realtime") }, "Open Real time")));
-  parts.forEach((p) => p.draw(rt.body()));
-  parts.forEach((p) => p.paused?.(rt.isPaused()));
+  out.push(realtimeBlock(m, s, { merged: true }));
+  if (m.live) out.push(flowCard(m));
   return out;
 }

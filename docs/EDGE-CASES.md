@@ -532,7 +532,7 @@ never up.
 - **Status:** ROADMAP P2-1.
 
 ### I6. Refresh now
-- **Count:** one run per 15 seconds, same origin (Handled).
+- **Count:** one run at a time, each site at most once per 15 seconds, same origin (Handled). On a multi-site install a press counts its own site only; an unknown site is refused and nothing runs.
 
 ### I7. Report mail delivery
 - **Wrong:** the mail goes from and to the same Gmail account; if it lands in spam or Gmail throttles, nobody knows the report failed.

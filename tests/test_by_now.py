@@ -195,10 +195,13 @@ class Page(unittest.TestCase):
         js = ROOT / "skald" / "webapp" / "js" / "tabs"
         summary = (js / "ov-summary.js").read_text()
         self.assertIn('if (isLive(s)) return today(m, s, o);', summary)
-        for gone in ("rightNow", "leadsToday", "realtimeBlock", "thisHour"):
+        for gone in ("leadsToday", "realtimeBlock", "thisHour"):
             self.assertNotIn(gone, summary)
         today = (js / "ov-today.js").read_text() + (js / "ov-today-cards.js").read_text() + (js / "ov-doing.js").read_text()
-        self.assertEqual(today.count('"Pause live"'), 1, "one Pause for the whole page")
+        # #43: the one Pause for the whole page is Right now's
+        now = (js / "ov-rightnow.js").read_text()
+        self.assertEqual(now.count('on ? "Resume" : "Pause"'), 1, "one Pause for the whole page")
+        self.assertNotIn('"Pause live"', today)
         # 2.20: the newest visits are "What visitors are doing now", under the map, once.
         self.assertEqual(today.count('cardHead("td-doing-h", "What visitors are doing now"'), 1)
         self.assertNotIn('"Newest visits"', today, "a visit is shown once")

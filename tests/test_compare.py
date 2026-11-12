@@ -246,7 +246,7 @@ class Lifecycle(unittest.TestCase):
         from skald.refresh_server import make_handler
 
         class Runner:
-            def refresh(self, force=False):
+            def refresh(self, force=False, site=None):
                 return "ran"
         handler = make_handler(Runner(), set(), load_config(self.box.config),
                                self.box.root / "www", self.box.root, self.box.db)

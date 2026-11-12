@@ -43,7 +43,7 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/hero-dark.png">
     <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/hero-light.png">
-    <img src="docs/screenshots/hero-light.png" alt="The Skald dashboard for example.com, Overview, Summary for the last 30 whole days, 22 Sep to 21 Oct, compared with 23 Aug to 21 Sep: five key figures with their change (people 2,409, up 20%; from search engines 885; returning people 617; leads 116; sent by AI assistants 174), the chart with the period before dashed and each day's leads as dots, and the start of What changed: is it working?" width="960">
+    <img src="docs/screenshots/hero-light.png" alt="The Skald dashboard for example.com, Overview for the last 30 whole days compared with the 30 before: on top, Right now: 3 people on the site now, the last 30 minutes as bars, and one row per person with the page they are on now, New or Lead, time on the site, pages and where they came from, with Refresh now; then five key figures with their change (people 2,409, up 20%; from search engines 885; returning people 617; leads 116; sent by AI assistants 174)" width="960">
   </picture>
 </p>
 
@@ -51,6 +51,7 @@
 
 ## What's new
 
+- **2.47.0: Overview is one page with Right now on top: who is here, the page each is on, and Refresh now; a lead's profile in its drawer** ([changelog](CHANGELOG.md#2470-2026-11-12)).
 - **2.46.6: right after an upgrade every dashboard page shows the new version at once** ([changelog](CHANGELOG.md#2466-2026-11-12)).
 - **2.46.5: Find a person shows a lead's own visits, in order, proven or likely** ([changelog](CHANGELOG.md#2465-2026-11-11)).
 - **2.46.4: Funnels count the leads your site sends; default funnel without a pricing step; Calendar bookings shows only its own sales** ([changelog](CHANGELOG.md#2464-2026-11-11)).
@@ -154,9 +155,10 @@ person everywhere.
 <td valign="top">
 
 ### Live, not 48 hours late
-**Real time** shows who is on the site now, on a world map, with the pages being read and the AI
-and crawlers fetching right now, and what the newest visitors are doing: their pages in order and
-the page they are on. **Today**, the first period in the top bar of every tab, shows today so far,
+**Right now**, on top of Overview, shows who is on the site at this moment: each person, the page
+they are on now, whether they are new, returning, a lead or a customer, and how long they have
+been there; **Refresh now** counts the site again at once. Under it, a world map, the pages being
+read and the AI and crawlers fetching right now. **Today**, the first period in the top bar of every tab, shows today so far,
 redrawn every 2 minutes. The last 6 hours can be read request by request, each with the rule that put it
 in its group, in words. Alerts show on the dashboard, by email, or in Slack.
 
@@ -251,7 +253,7 @@ The headlines, area by area. Every feature, in full: **[docs/FEATURES.md](docs/F
 
 - **The dashboard:** six sections (Overview, Traffic, Leads & sales, AI & bots, Security, Site);
   every view has its own link; copy and open icons on every value; Today (live), 7, 30 and 90 days
-  and Compare on every tab; Real time with a world map; one search for everything (Ctrl K).
+  and Compare on every tab; Right now on Overview (who is here, the page each is on, Refresh now) with a world map; one search for everything (Ctrl K).
 - **Traffic and audience:** five groups that add up to the log, every day; visits, pages, sources,
   campaigns, countries and cities; journeys, first touch, retention, Search Console and Bing.
 - **AI and machines:** AI assistants and crawlers by name, the pages they read and what they cost
@@ -280,7 +282,7 @@ The headlines, area by area. Every feature, in full: **[docs/FEATURES.md](docs/F
 </p>
 
 The whole dashboard with 60 days of sample data for a made-up site: today's Overview live, the
-Summary and Insights to-dos, Real time on a world map, the visitor drawer, Search Console and Bing
+Summary with Right now and Insights to-dos, the world map, the visitor drawer, Search Console and Bing
 figures and AI answers (both made up), AI & bots, every Security tab, every lead in one list, and
 Settings › To do. Nothing to install; saving, the person search and the other Settings pages
 need your own Skald. Every image below is from the demo's sample data.
@@ -351,17 +353,17 @@ need your own Skald. Every image below is from the demo's sample data.
 | <img src="docs/screenshots/leads-reference.png" alt="Leads with the Reference column switched on: each lead shows the sending app's own ID (a lead number such as 136, or a Calendly invitee) with a copy button" width="440"><br>**The lead's own reference** (2.25). The sender's ID, searchable, with a copy button. | <img src="docs/screenshots/lead-drawer-reference.png" alt="A lead's drawer: Reference u-1048576 from the site's server, both of its steps (completed, then paid), and the Mark as test button" width="440"><br>**Every step, and Mark as test** (2.25). One click moves a test lead out of every count. |
 | <img src="docs/screenshots/person-by-reference.png" alt="Find a person: searching trial-0101 finds Lead: trial-0101, Lead #142, with its linked address, email, visitor ID and references, its lead row and the visit that sent its form" width="440"><br>**Find a lead by its reference** (2.26). The ID from your own app finds the person. | <img src="docs/screenshots/views-fill.png" alt="Settings, Site, Names & time: host names, the Views box with a page group Blog | /blog/, Fill past days for the new groups ticked, and the time zone" width="440"><br>**Page groups fill their past** (2.26). Save a group; past days are counted from the raw log, audited. |
 
-### Live (2.11, 2.13, 2.20)
+### Live (2.11, 2.13, 2.20, 2.47)
 
 <p align="center">
-  <img src="docs/screenshots/overview-live.png" alt="Overview, Real time: Where visitors are, a world map shaded by visits today with a pulsing dot on each city with visitors active in the last 30 minutes, beside By country: USA 36 visits today and 3 active, Canada 14 and 5, Britain 8 and 1, and the rest" width="900"><br>
-  <strong>Where visitors are, now</strong> (Real time). A dot on each city with someone on the site.
+  <img src="docs/screenshots/overview-live.png" alt="Overview, under Right now: Where visitors are, a world map shaded by visits today with a pulsing dot on each city with visitors active in the last 30 minutes, beside By country: USA 36 visits today and 3 active, Canada 14 and 5, Britain 8 and 1, and the rest" width="900"><br>
+  <strong>Where visitors are, now</strong> (on Overview, under Right now). A dot on each city with someone on the site.
 </p>
 
 | | |
 | :---: | :---: |
-| <img src="docs/screenshots/overview-today.png" alt="Overview, today, live: 5 visitors on the site now with visitors a minute, then Visitors 78, Pages read 165, Leads 6 and Visitors from AI 7, each against yesterday at this hour with both days' running lines; where today's visitors came from and what converted today, and a link to Real time for the map" width="440"><br>**Overview, today.** Every figure against yesterday at this hour. | <img src="docs/screenshots/realtime.png" alt="Overview, Real time: visitors active now and in the last 30 minutes, visitors minute by minute, requests per minute labelled as requests, a world map with each active city, and tables by country and by city" width="440"><br>**Real time.** Visitors and requests apart, both counted twice. |
-| <img src="docs/screenshots/live-mode.png" alt="Today chosen in the top bar: live as of 15:07, 5 visitors on the site now, and today's visitors, pages read, leads and visitors from AI, each against yesterday at this hour" width="440"><br>**Today, live.** The first period in the top bar, on every section. | <img src="docs/screenshots/live-leads.png" alt="What converted today: today's demos booked, sign-up and contact form, each with its time, page, country and where it came from" width="440"><br>**Live leads.** Each lead and booking as it lands. |
+| <img src="docs/screenshots/overview-today.png" alt="Overview, today: Right now on top, 3 people on the site now with the minute bars and one row per person (the page they are on now, New or Lead, time on the site, pages, source) and Refresh now; then Visitors 66, Pages read 148, Leads 7 and Visitors from AI 5, each against yesterday at this hour" width="440"><br>**Overview, today (2.47).** Right now on top, then every figure against yesterday at this hour. | <img src="docs/screenshots/realtime.png" alt="Under the tiles on Overview: Where visitors are, a world map shaded by visits today with a pulsing dot on each city with visitors active in the last 30 minutes, By country, Pages being read and By city" width="440"><br>**Where visitors are, now.** The map and the lists, on Overview. |
+| <img src="docs/screenshots/live-mode.png" alt="Right now: Updated 6 min ago, Pause and Refresh now; 3 people on your site now, +1 in 5 min, the last 30 minutes as bars, 13 in the last 30 minutes; one row per person: Berlin, New, Lead, now on /features/, 3 min, 7 pages, Direct; San Francisco, New, now on /blog/fall-launch; and Everyone else in the last 30 minutes (7)" width="440"><br>**Right now (2.47).** Who is here, the page each is on, and Refresh now for this site. | <img src="docs/screenshots/live-leads.png" alt="What converted today: today's demos booked, sign-up and contact form, each with its time, page, country and where it came from" width="440"><br>**Live leads.** Each lead and booking as it lands (Leads & sales). |
 
 ### Connecting a site (2.16, 2.17, 2.31)
 

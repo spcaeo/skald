@@ -35,7 +35,7 @@ import { journeyMap, replayButton, sourceWords } from "../journeymap.js";
 import { call } from "./ipmanager.js";
 import { countryWords, flagEl, city, cityPlace, cityName } from "./readers.js";
 import { mayFind, personParts } from "./person.js";
-import { folded, visitFacts, cityShort } from "./visitlist.js";
+import { folded, visitFacts, cityShort, WON } from "./visitlist.js";
 import { refBlock, byRef, afterMark } from "./leadref.js";
 import { withCopy, copyIf } from "../urlactions.js";
 import { pill } from "../ui/pill.js";
@@ -309,7 +309,9 @@ export function statePills(model) {
   const end = outcome(model);
   const here = newest?.active ? ["good", "Here now"] : nv > 1 || model.visits.some((v) => v.kind === "touch") ? ["info", "Returning"]
     : nv === 1 && (model.firstKnown || newest?.first) ? ["info", "First visit"] : null;
-  return [here, [end.lead ? "good" : "off", end.words, end.detail]].filter(Boolean);
+  // #31: this visit is proven to have sent a lead (app.json `won`): Lead, or Customer once paid.
+  const won = WON[model.journey?.won];
+  return [here, [end.lead ? "good" : "off", end.words, end.detail], won ? [won[0], won[1], won[2]] : null].filter(Boolean);
 }
 
 /* The sentence under the pills: "4 visits over 13 days. First came from reddit.com, 13 days ago." */
@@ -368,6 +370,7 @@ function draw(d, model, extra) {
     model.facts ? fold("This conversion", () => model.facts, { open: true, cls: "vz-more" }) : null,
     all.length > 1 ? fold(`Every visit as a table (${n(visitCount(model))})`, () => timeline(model), { cls: "vz-more" }) : null,
     ...(model.person ? personParts(model.person) : []),
+    d.profile || null,                   // #31: a lead's profile (tabs/leadprofile.js)
     d.recorded || null,                  // 2.43: Recorded by your site (tabs/recorded.js visitRecorded)
   ].filter(Boolean));
   const title = titleOf(model);

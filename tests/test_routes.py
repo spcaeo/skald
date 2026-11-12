@@ -30,6 +30,9 @@ TABLE = [
     ("live", "overview/summary", {}),
     ("live?range=7d&cmp=prev", "overview/summary", {}),
     ("insights?since=2026-10-01", "overview/insights", {"since": "2026-10-01"}),
+    # #43: Real time is part of Overview; its old addresses open it for today.
+    ("overview/realtime", "overview/summary", {}),
+    ("realtime", "overview/summary", {}),
     ("compare?ca=2026-09-01..2026-09-30&cb=2026-08-01..2026-08-31&cnorm=1&cgran=week&cm=views&cdim=pages",
      "traffic/pages", {"range": "custom", "from": "2026-09-01", "to": "2026-09-30", "cmp": "custom", "cb": "2026-08-01..2026-08-31",
                        "cnorm": "1", "cgran": "week", "cm": "views"}),

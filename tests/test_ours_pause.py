@@ -205,7 +205,7 @@ class Store(Base):
 class Helper(Base):
 
     def request(self, path, body):
-        runner = type("R", (), {"calls": [], "refresh": lambda self, force=False: None})()
+        runner = type("R", (), {"calls": [], "refresh": lambda self, force=False, site=None: None})()
         handler = make_handler(runner, {"https://www.example.com"}, self.config)
         data = json.dumps(body).encode()
         raw = (f"POST {path} HTTP/1.1\r\nHost: x\r\nContent-Length: {len(data)}\r\n"

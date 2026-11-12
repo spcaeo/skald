@@ -12,6 +12,7 @@
 import * as S from "./state.js";
 import { h, ICON, reduced, toast, untip, short } from "./ui.js";
 import { load, refresh as postRefresh, rangeOf, markersByDay, has, need } from "./data.js";
+import { setRefresh } from "./refresh-hook.js";
 import { TAB_RENDER } from "./tabs/index.js";
 import { framed } from "./tabs/settings-frame.js";
 import { TAB, opt, tabFiles } from "./sections.js";
@@ -391,20 +392,21 @@ function refreshNow() {
   return doRefresh(btn);
 }
 
-async function doRefresh(btn) {
+async function doRefresh(btn, { quiet = false } = {}) {
   btn.disabled = true;
   btn.setAttribute("aria-busy", "true");
   const res = await postRefresh(model);
   try {
     if (res.ok) {
       model = await load(S.read(), { fresh: true, previous: model });
-      toast(res.recent ? "Updated a moment ago; showing the latest figures" : "Today's figures recounted");
+      if (!quiet) toast(res.recent ? "Updated a moment ago; showing the latest figures" : "Today's figures recounted");
       render(S.read(), { keepScroll: true, changed: true });
-    } else toast(res.message);
+    } else if (!quiet) toast(res.message);
   } finally {
     btn.disabled = false;
     btn.removeAttribute("aria-busy");
   }
+  return res;
 }
 
 // ------------------------------------------------------------- the footer
@@ -619,6 +621,8 @@ async function boot() {
   });
   // 2.44: a live state moved past the page's files (ui/live.js redraw: Search connected while
   // its file still said not): read them again, and draw the tab again only when one changed.
+  // #43: Right now's Refresh now (ov-rightnow.js) runs the same recount, for this site only.
+  setRefresh(() => doRefresh(h("button", { type: "button", hidden: true })));
   setRedraw(async (names) => {
     const next = await load(S.read(), { fresh: true, previous: model });
     const same = names.every((n) => JSON.stringify(next.x?.[n] ?? null) === JSON.stringify(model.x?.[n] ?? null));

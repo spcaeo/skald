@@ -23,7 +23,6 @@
 
 import summary from "./ov-summary.js";
 import insights from "./insights.js";
-import realtime from "./realtime.js";
 
 
 // Summary in Live mode (range=today) is the approved Live layout (2.13,
@@ -35,9 +34,8 @@ import realtime from "./realtime.js";
 export default [
   // Its work and new-pages cards wait for page_trends and page_index (2.41): the key figures do not.
   ["summary", "Summary", summary, { live: true, compare: true, later: ["page_trends", "page_index"] }],
-  // Real time (js/tabs/realtime.js): always now, whatever the period; it asks for
-  // fresh figures every 15 seconds itself, so the 2-minute redraw leaves it alone.
-  ["realtime", "Real time", realtime, { live: true, polls: true, ranged: false, period: "Now" }],
+  // Real time was its own tab until #43: it is part of Summary now (Right now on top, the map
+  // and the lists under today's tiles). #overview/realtime opens Summary for today (routes.js).
   ["insights", "Insights", insights, { file: "insights", filters: ["path", "country", "source", "campaign", "referrer"], keep: ["since", "todo", "pchg", "tdchk", "tdhist", "tdbots", "show"], ranged: false, period: "Each insight's own two periods" }],
   // #live and #compare are the global modes now (js/modes.js, routes.js): Summary with
   // range=today, or any tab with cmp set. No Live or Compare tab of their own.
