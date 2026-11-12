@@ -441,13 +441,21 @@ def cmd_live(ctx: Context) -> int:
     from .log_moved import plain_state
     upto, ids = plain_state(ctx.config)
     requests_feed.before_midnight(ctx.config, feed, midnight, utc_now, upto)
-    snap = live.build(ctx.config, ctx.site, ctx.tz, ctx.now, ctx.views, ctx.db_path, feed,
-                      upto, ids)
     path = live.path_for(ctx.live_dir, ctx.site)
-    live.save(path, snap)
-    requests_feed.save(requests_feed.path_for(ctx.live_dir, ctx.site), feed.result(
-        ctx.tz, forgotten(ctx.live_dir), cutoff,
-        utc_now, hours, cap, ctx.now.isoformat(timespec="seconds"), upto))
+    snap = live.build(ctx.config, ctx.site, ctx.tz, ctx.now, ctx.views, ctx.db_path, feed,
+                      upto, ids, snap_path=path)
+    with live.writing(path, snap) as newest:
+        if newest:
+            live.save(path, snap)
+            requests_feed.save(requests_feed.path_for(ctx.live_dir, ctx.site), feed.result(
+                ctx.tz, forgotten(ctx.live_dir), cutoff,
+                utc_now, hours, cap, ctx.now.isoformat(timespec="seconds"), upto))
+    if not newest:
+        # Another run (Refresh now, an overlapping round) already saved a later
+        # count: keep it, and leave its alerts and page as they are (#50).
+        ctx.out(f"live {snap['day']}: a newer count is already saved; kept it")
+        runs.record(ctx.live_dir, "live", 0)
+        return 0
     if snap["state"] == "ok":
         ctx.out(f"live {snap['day']} to {snap['generated_at']}: "
                 f"{snap['requests']:,} requests, every category reconciles")
@@ -501,7 +509,8 @@ def _after_live(ctx: Context, snap: dict, feed) -> None:
         return
     try:
         from . import alerts
-        code = alerts.run(ctx, snap, feed.signals())
+        with live.site_lock(ctx.live_dir, ctx.site, "alerts"):   # one check at a time (#50)
+            code = alerts.run(ctx, snap, feed.signals())
         runs.record(ctx.live_dir, "alerts", code)
     except ImportError:
         pass

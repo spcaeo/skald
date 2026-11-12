@@ -27,9 +27,11 @@ a busy day's log take about a second rather than several.
 from __future__ import annotations
 
 import heapq
+import fcntl
 import json
 import os
 from collections import Counter
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -199,7 +201,7 @@ class _Observers:
 
 def build(config: dict, site: str, tz: ZoneInfo, now: datetime,
           views=(), db_path=None, feed=None, upto: dict | None = None,
-          ids: dict | None = None) -> dict:
+          ids: dict | None = None, snap_path: Path | None = None) -> dict:
     """Today from local midnight, verified, as a JSON-ready dict.
 
     With `views` (config.View), each view's figures today are under
@@ -262,7 +264,12 @@ def build(config: dict, site: str, tz: ZoneInfo, now: datetime,
     if state != "ok":
         return snap
     from .people.visits import keep_live          # today's visits with addresses (2.4.0)
-    keep_live(config, db_path, site, day, totals)
+    if snap_path is None:
+        keep_live(config, db_path, site, day, totals)
+    else:                                         # never over a run that read further (#50)
+        with keeping(snap_path, day.isoformat(), end.isoformat()) as newest:
+            if newest:
+                keep_live(config, db_path, site, day, totals)
     db = _history(db_path)
     try:
         for t in [totals, *by_view.values()]:
@@ -335,6 +342,78 @@ def save(path: Path, snap: dict) -> None:
     elif ai_path(path).exists():
         ai_path(path).unlink()
     write_atomic(Path(path), json.dumps(snap, indent=1, sort_keys=True) + "\n")
+
+
+def newer_on_disk(have: dict | None, snap: dict) -> bool:
+    """True when the snapshot already saved counts further than `snap`: a
+    later day, or the same day read to a later `until`. Live runs overlap
+    (the scheduler's round of every site, Refresh now, a manual run); one that
+    started earlier must never write its older count over a newer one (#50)."""
+    if not have:
+        return False
+    a, b = str(have.get("day") or ""), str(snap.get("day") or "")
+    if a != b:
+        return a > b
+    try:
+        return datetime.fromisoformat(have["until"]) > datetime.fromisoformat(snap["until"])
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+@contextmanager
+def _locked(lock: Path):
+    """An exclusive lock on `lock`; a folder that cannot hold it (read-only) runs unlocked."""
+    try:
+        fd = open(lock, "a")
+    except OSError:
+        yield
+        return
+    with fd:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+
+
+@contextmanager
+def site_lock(directory, site: str, what: str):
+    """One `what` (draw, alerts) for a site at a time (#50). No directory: no lock."""
+    if directory is None:
+        yield
+        return
+    with _locked(Path(directory) / f"live-{slug(site)}.{what}.lock"):
+        yield
+
+
+def _keep_marker(path: Path) -> Path:
+    return Path(path).with_name(Path(path).stem + ".kept")
+
+
+@contextmanager
+def keeping(path: Path, day: str, until: str):
+    """Under the snapshot lock: yields False when today's visits were already
+    kept by a run that read further (an older run must not replace them, #50);
+    on True the caller keeps them and the marker moves to this run."""
+    mark = _keep_marker(path)
+    with _locked(Path(path).with_name(Path(path).stem + ".lock")):
+        try:
+            have = json.loads(mark.read_text())
+        except (OSError, ValueError):
+            have = None
+        newest = not newer_on_disk(have if isinstance(have, dict) else None,
+                                   {"day": day, "until": until})
+        yield newest
+        if newest:
+            write_atomic(mark, json.dumps({"day": day, "until": until}) + "\n")
+
+
+@contextmanager
+def writing(path: Path, snap: dict):
+    """Hold the site's snapshot lock while a run writes its snapshot and
+    request list; yields False when the one on disk is newer (write nothing)."""
+    with _locked(Path(path).with_name(Path(path).stem + ".lock")):
+        yield not newer_on_disk(load(path), snap)
 
 
 def load_ai(path: Path) -> dict | None:

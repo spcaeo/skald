@@ -51,6 +51,7 @@
 
 ## What's new
 
+- **2.48.2: Right now never steps back** ([changelog](CHANGELOG.md#2482-2026-11-12)).
 - **2.48.1: each page's index status comes in about four times faster** ([changelog](CHANGELOG.md#2481-2026-11-12)).
 - **2.48.0: Search Console for AI agents, with each page's index status; a page's latest crawl and time on page** ([changelog](CHANGELOG.md#2480-2026-11-12)).
 - **2.47.0: Overview is one page with Right now on top: who is here, the page each is on, and Refresh now; a lead's profile in its drawer** ([changelog](CHANGELOG.md#2470-2026-11-12)).
