@@ -20,6 +20,13 @@ browser may keep the code for a year (DEPLOY.md, Cache-Control) and a new
 release is a new address. A file whose bytes did not change is not written
 again (the live run installs the app every two minutes), and each has a gzip
 copy beside it for nginx (gzip_static).
+
+A new version rewrites every site's shell in the same step (#38, 2.46.6):
+the live run installs the app at each site's turn, and on 12 Nov a site's
+shell still named the old version 90 seconds after its code was replaced,
+so a browser opening it then ran its kept copy of the old code. `_app/VERSION`
+holds the version the shells name; when it differs, every `<site>/index.html`
+that is an app shell (it loads `../_app/`) is written again.
 """
 from __future__ import annotations
 
@@ -32,6 +39,7 @@ from ..files import GZ_MIN, packed, slug, write_atomic
 
 HERE = Path(__file__).resolve().parent
 SHARED = "_app"
+VERSION_FILE = "VERSION"           # in _app/: the version the shells name (#38)
 # vendor/: third-party code, copied as shipped (vendor/spcaeo-ui/VERSION.md says what and why).
 ASSETS = ("app.css", "features.css", "compare.css", "screens.css", "nav.css", "drawer.css", "css", "js", "vendor")
 CLASSIC = "classic.html"
@@ -139,6 +147,7 @@ def install(out: Path, sites: list[str]) -> list[Path]:
         _write(dest, versioned(text, v) if src.suffix == ".js" else text)
         keep.update((dest, packed(dest)))
         written.append(dest)
+    keep.add(shared / VERSION_FILE)
     if shared.is_dir():
         for old in shared.rglob("*"):
             # Another run may be writing beside us (the live run every 2 minutes, a
@@ -153,8 +162,31 @@ def install(out: Path, sites: list[str]) -> list[Path]:
     shell = (HERE / "index.html").read_text(encoding="utf-8")
     shell = re.sub(r'((?:href|src)="\.\./_app/[^"?]+\.(?:css|js))"', rf'\1?v={v}"', shell)
     shell = _preloads(shell, v)
-    for site in sites:
-        page = out / slug(site) / "index.html"
+    pages = {out / slug(site) / "index.html" for site in sites}
+    marker = shared / VERSION_FILE
+    try:
+        named = marker.read_text(encoding="utf-8").strip()
+    except OSError:
+        named = ""
+    if named != v:
+        # A new version: every site's shell names it now, not at its own turn (#38).
+        pages |= set(_shells(out))
+    for page in sorted(pages):
         _write(page, shell)
         written.append(page)
+    _write(marker, v + "\n")
     return written
+
+
+def _shells(out: Path) -> list[Path]:
+    """Every <site>/index.html under `out` that is an app shell (it loads ../_app/)."""
+    found = []
+    for page in Path(out).glob("*/index.html"):
+        if page.parent.name == SHARED:
+            continue
+        try:
+            if '"../_app/' in page.read_text(encoding="utf-8", errors="replace"):
+                found.append(page)
+        except OSError:
+            continue
+    return found

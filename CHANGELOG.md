@@ -4,6 +4,34 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.46.6 (2026-11-12)
+
+Right after an upgrade every dashboard page shows the new version at once; and a small Find a person fix.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- Nothing else: no schema change, no setting.
+
+### Fixes
+
+- **Fix: right after an upgrade, a dashboard could show the old screens (#38).** Checking 2.46.5
+  live on 12 Nov, Find a person did not show its new part though the server sent it. The live run
+  replaces the shared code first and rewrites each site's page only at that site's turn, so for up
+  to 2 minutes a page still named the old version and a browser ran its kept copy of the old code
+  until a reload. Now a new version rewrites every site's page in the same step (`_app/VERSION`
+  says which version the pages name). Who: anyone opening a dashboard just after an upgrade;
+  nothing to do. Checked: a test installs a new version for one site and finds another site's page
+  naming it (it failed before the fix), and a static page left as it was.
+
+- **Find a person: no stray full stop under "First came from" (#30).** On the live check the
+  full stop after the landing page's copy and open icons wrapped onto a line of its own. Removed.
+  Who: owners and admins; nothing to do. Checked: tests/js/person-path.mjs and on the live page.
+
+- Housekeeping: the 2.45.3 entry named the customer whose request led to the fix; it now says
+  "a customer". Client sites are not named in public text. Nothing to do. Checked: the full test
+  suite.
+
 ## 2.46.5 (2026-11-11)
 
 Find a person shows a lead's own visits, in order: where they first came from, every page, and whether each visit is proven or likely theirs.
@@ -400,7 +428,7 @@ visitor read before booking.
   own) is kept as before.
 - **Why:** the script tag puts the visitor ID in `utm_content` of Calendly embeds and links, and
   Skald read it as the booking's own campaign tag. The booking was stored as "Direct or unknown"
-  and never filled from its journey. Found while building the booking journey for fieldcamp.ai.
+  and never filled from its journey. Found while building the booking journey a customer asked for.
 - **Who:** sites with visitor IDs on and a Calendly or Cal.com webhook. No site has visitor IDs
   on yet, so no stored booking is affected.
 - **What to do:** nothing. To see a booking's pages, turn on visitor IDs (Settings › This site ›

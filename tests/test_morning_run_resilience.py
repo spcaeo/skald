@@ -59,5 +59,27 @@ class SharedAppFiles(unittest.TestCase):
             self.assertFalse(stray.exists(), "files the app no longer ships are removed")
 
 
+    def test_a_new_version_rewrites_every_sites_shell_at_once(self):
+        # #38: the live run installs the app at each site's turn; another site's
+        # shell must name the new version as soon as the code is replaced.
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            with mock.patch.object(webapp, "_version", return_value="aaaaaaaaaaaa"):
+                webapp.install(out, ["example.com"])
+                webapp.install(out, ["example.org"])
+            classic = out / "example.net" / "index.html"     # not an app shell
+            classic.parent.mkdir()
+            classic.write_text("<html>static page</html>")
+            with mock.patch.object(webapp, "_version", return_value="bbbbbbbbbbbb"):
+                webapp.install(out, ["example.com"])          # example.org's turn is later
+            other = (out / "example.org" / "index.html").read_text()
+            self.assertIn("?v=bbbbbbbbbbbb", other)
+            self.assertNotIn("?v=aaaaaaaaaaaa", other)
+            self.assertEqual(classic.read_text(), "<html>static page</html>")
+            self.assertEqual((out / webapp.SHARED / "VERSION").read_text().strip(), "bbbbbbbbbbbb")
+            js = out / webapp.SHARED / "js" / "main.js"
+            self.assertTrue(js.exists())
+
 if __name__ == "__main__":
     unittest.main()

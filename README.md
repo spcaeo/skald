@@ -51,6 +51,7 @@
 
 ## What's new
 
+- **2.46.6: right after an upgrade every dashboard page shows the new version at once** ([changelog](CHANGELOG.md#2466-2026-11-12)).
 - **2.46.5: Find a person shows a lead's own visits, in order, proven or likely** ([changelog](CHANGELOG.md#2465-2026-11-11)).
 - **2.46.4: Funnels count the leads your site sends; default funnel without a pricing step; Calendar bookings shows only its own sales** ([changelog](CHANGELOG.md#2464-2026-11-11)).
 - **2.46.3: Leads & sales › Summary shows sales and each action's value; no clamped 100% rate** ([changelog](CHANGELOG.md#2463-2026-11-11)).
