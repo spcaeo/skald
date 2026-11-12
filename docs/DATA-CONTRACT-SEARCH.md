@@ -7,7 +7,8 @@ opportunities, new and lost queries and positions),
 `skald/search_landing.py` (Skald's own side). Second roads:
 `skald/audit_search.py` (the synced figures, and through
 `skald/audit_search_reports.py` the reports) and
-`skald/audit_search_landing.py` (`search_landing`). Setup:
+`skald/audit_search_landing.py` (`search_landing`), and (2.48)
+`skald/audit_search_pages.py` (the MCP's `search_performance`). Setup:
 [INTEGRATIONS.md](INTEGRATIONS-SEARCH.md#search-console-and-bing).
 
 The engines' figures are theirs, never Skald's: nothing here is ever added
@@ -24,7 +25,7 @@ adds the table (DEPLOY.md section 7).
 | `site` | the site (never a view: search figures are for the whole site) |
 | `engine` | `google` (Search Console) or `bing` (Bing Webmaster Tools) |
 | `day` | the engine's own day, `YYYY-MM-DD`. Search Console's days are Pacific Time (America/Los_Angeles), as Google gives them; Bing's are the dates Bing gives. Never re-cut into the site's time zone. |
-| `kind` | `total`, `query`, `page`, `country`, `device`, `appearance`, `query_page` (Bing: `total`, `query`, `page`) |
+| `kind` | `total`, `query`, `page`, `country`, `device`, `appearance`, `query_page`, and from 2.48 `page_country` (each page with a country, keyed `<page>\t<country>`, counted by page; days fetched before have none) (Bing: `total`, `query`, `page`) |
 | `data` | the blob below, JSON |
 | `final` | 1 when the engine says the day will not change (Search Console: before the answer's `first_incomplete_date` and 3 days old or more, 2.45.2; Bing: 10 days old or more); 0 provisional, fetched again by the next sync |
 | `source` | the property or site address it was read from |
@@ -59,6 +60,29 @@ the page is not known for them.
 A day inside a Search Console range that Google leaves out had no
 impressions (Google omits empty days): it is stored with zeros. A day after
 the newest day Google has is never stored.
+
+## The history table `search_inspect` (history schema 15, 2.48)
+
+Search Console's URL Inspection answer per page, kept as Google gives it
+(`search/inspect.py`). One row per site, address and Google's quota day
+(Pacific); kept 486 days. The upgrade to 15 copies the file aside first.
+
+| column | meaning |
+|---|---|
+| `site`, `url`, `path` | the address asked about, and its path |
+| `day` | the Pacific day it was asked (Google's quota day) |
+| `inspected_at` | UTC, ISO 8601 |
+| `status` | `indexed`, `crawled_not_indexed`, `discovered_not_indexed`, `unknown_to_google`, `excluded`, `not_known`: read from `verdict` and `coverage` (`inspect.status_of`) |
+| `verdict`, `coverage` | Google's `verdict` (PASS, PARTIAL, FAIL, NEUTRAL) and `coverageState` words |
+| `indexing`, `robots`, `page_fetch` | Google's `indexingState`, `robotsTxtState`, `pageFetchState` |
+| `last_crawl`, `crawled_as` | Google's `lastCrawlTime` (NULL when not given) and MOBILE / DESKTOP |
+| `google_canonical`, `user_canonical` | the canonical Google chose and the page's own (NULL when not given) |
+| `source` | the property asked |
+
+These are Google's labels, never a Skald count. Read by the MCP's
+`search_performance` (docs/MCP.md); its status counts are recounted by
+`audit_search_pages.py`. The sync state file keeps the last run under
+`google.inspect`: `{asked, kept, error, at}`.
 
 ## The day kind `search_landing`
 

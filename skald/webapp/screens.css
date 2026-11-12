@@ -233,6 +233,8 @@ tr.vs-mover td { background: color-mix(in srgb, var(--va) 4%, transparent); }
 .ps-i.change .ps-dot { background: var(--ink-3); }
 .ps-i.not .ps-dot { background: var(--surface); box-shadow: 0 0 0 1.5px var(--gap); }
 .ps-i.not b { font-weight: 450; color: var(--ink-3); }
+/* the latest crawl under the firsts (#44) */
+.ps-latest { margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--rule); }
 .ps-pub .card-h { flex-wrap: wrap; gap: 8px 16px; align-items: center; }
 .ps-pub h2 { margin: 0; }
 .md-copies { margin: 10px 0 0; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); }

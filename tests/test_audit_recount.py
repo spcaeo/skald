@@ -272,6 +272,9 @@ class TestIndependence(AuditCase):
         # Its own city of a visit (logs.city_db), which shares only the
         # file's reader (test_city_lookup).
         allowed |= {(None, "audit_cities")}
+        # Its own time on page per page (#46), which shares only the threshold
+        # and calls the figure it checks (test_page_latest_time).
+        allowed |= {(None, "audit_page_time")}
         # Its own line reader, moved out whole (audit_lines.py, below).
         allowed |= {("audit_lines", n) for n in (
             "_COMBINED", "_EXTENDED", "_LAST_QUOTED", "_OWN", "_PREFETCH_KEY", "_REQUEST",

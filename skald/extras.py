@@ -108,7 +108,8 @@ class Extras:
         self.hours_utc: dict[str, Counter] = {}
         # Each page's first times today, by kind (lifecycle.py): Googlebot,
         # Bingbot, each AI crawler or assistant, the first person, the first
-        # from a search engine and from each AI assistant.
+        # from a search engine and from each AI assistant; and Googlebot's
+        # and Bingbot's latest, [time, status] ("googlebot_latest").
         self.firsts: dict[str, dict] = {}
         # AI user fetches by minute (ai_likely.py); its settings and the
         # visits' first times are set by aggregate.Tally.
@@ -143,6 +144,15 @@ class Extras:
         if old is None or iso < old[0]:
             got[key] = [iso, who]
 
+    def _latest(self, path: str, key: str, when, status: str) -> None:
+        """The newest page view of the day by a crawler, with its status; at
+        the same second the higher status wins (any line order agrees)."""
+        got = self.firsts.setdefault(path, {})
+        mine = [_utc_iso(when), status]
+        old = got.get(key)
+        if old is None or mine > old:
+            got[key] = mine
+
     def firsts_of(self, hit, verdict) -> None:
         """The page first-times this page view sets (lifecycle.py)."""
         if not hit.is_page:
@@ -152,6 +162,8 @@ class Extras:
             low = verdict.engine.lower()
             if low in ("googlebot", "bingbot"):
                 self._first(path, low, hit.when)
+                # Its latest fetch too, beside the first (#44): `<crawler>_latest`.
+                self._latest(path, low + "_latest", hit.when, hit.status)
         elif group is Group.ANSWER_ENGINE and verdict.tier and verdict.engine:
             self._first(path, f"ai_{verdict.tier.value}|{verdict.engine}", hit.when,
                         verdict.engine)

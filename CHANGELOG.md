@@ -4,6 +4,83 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.48.0 (2026-11-12)
+
+Search Console for AI agents: the MCP's new search_performance gives Google's own clicks, impressions, CTR and position per page and day, with the page's queries and countries and whether Google has it indexed. A page's story shows Googlebot's and Bingbot's latest fetch and its time on page, counted from the log.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- **History schema 15** (a new table, `search_inspect`): the first start copies the history file to `history.sqlite.schema-v14.bak`, then adds the table. Check there is room for one more copy.
+- New setting `search_console.inspect_per_day` (200; 0 turns URL Inspection off).
+- A page's latest crawl fills from the next collect on; `backfill --force` fills the stored days. Countries per page start with the next Search Console sync; a 16-month backfill fetches them for the past.
+
+### New
+
+- **Search Console for AI agents, and each page's index status (#41, #45).** A client's
+  page tracker reads Skald through the MCP and needed Search Console's figures per page to
+  see whether 45 rebuilt pages were found: none of the 29 tools gave clicks, impressions,
+  position or whether a page is indexed. Now:
+  - **`search_performance`**, a new read-only MCP tool (30 tools now): Search Console's (or
+    Bing's) own clicks, impressions, CTR and position per day, for the whole site or one
+    page (every address of the path added), with the page's top 10 queries and countries
+    (Skald now keeps each page with its country, `page_country`, counted by page and re-added
+    by the audit like every stored table; days fetched before are named, never 0); without a page,
+    the site's days, top pages, top queries and countries. A day not stored is named; a page
+    with no row is 0 only on a day whose page table is complete, else "not known" (null),
+    never 0. Labelled as the engine's own figures, never added to Skald's visits.
+  - **Index status per page.** After each good Search Console sync Skald asks Google's URL
+    Inspection about up to 200 pages a day (`search_console.inspect_per_day`, 0 turns it
+    off): the pages Google showed in the last 28 days, then pages people read that Googlebot
+    fetched, never-asked first. Google's answer is kept as given, one row per page and day
+    for 16 months (history schema 15, table `search_inspect`): indexed, crawled or
+    discovered but not indexed, not seen by Google yet, or excluded with Google's reason, its last
+    crawl, and the canonical Google chose against the page's own. A refusal (permission,
+    quota) is kept in the sync state and never fails the sync.
+  - **`your_tools`** also names Search Console's and Bing's state (answering, last try
+    failed, stopped answering) and when it last answered.
+
+  Who: anyone using the MCP with Search Console connected. To do: nothing; the upgrade to
+  schema 15 copies the history file aside once (DEPLOY.md). Checked: tests against the fake
+  Search Console (the answers kept as given, the daily budget, a refusal, never-asked
+  first, nothing asked twice in 20 hours), the tool's figures on a fixture (two addresses of
+  one path, a complete and an incomplete page table, a missing day), and the second count
+  `audit_search_pages.py`, run by the daily audit, which recounts the tool's per-page days
+  and the index counts by its own SQL and catches a wrong figure.
+
+- **A page's latest Googlebot and Bingbot fetch, beside the first (#44).** A client's page
+  tracker rebuilt more than 45 pages from 10 Nov and could not tell whether Google had fetched
+  the new versions: the page story (MCP `page_story` and Traffic > Pages > a page) gave only each
+  crawler's first fetch, weeks old. Now it also gives each one's latest fetch and the status it
+  got (`milestones.googlebot_latest` / `bingbot_latest`, `{"at", "status"}`; null when the
+  crawler never fetched the page since the logs began), and the page story shows it as
+  **Latest crawl** under the firsts. Same rule as the first fetch: verified Googlebot or Bingbot,
+  and a page view (200-299 or 304), never a redirect or an error. Kept for good in the page
+  milestones table (no schema change, no setting), so it survives log rotation; a day collected
+  again never moves it back. Pages gain it from the next collect on (a `backfill --force` fills
+  it for the stored days). Who: anyone reading a page's story; nothing to do. Checked: tests for
+  the first and latest, a 304, a 404 and a 301 left out, a re-collected earlier day, pruned
+  stored days, the command line and the MCP text; the audit recounts each day's latest fetch from
+  the raw log (`audit_release2.FirstsRecount`) and a changed status in history fails it.
+  A day kept before 2.48 has no latest fetch: the audit leaves it out for that day (not
+  recorded) rather than calling it a mismatch, found by auditing 11 Nov on a copy of the live
+  data before release.
+
+- **Time on page from Skald's own log, per page per day (#46).** A client's page tracker read
+  time on page only from Google Analytics, which stopped answering from 1 to 12 Nov. Skald
+  already kept, per page per day, the seconds from each view to the visit's next view; the page
+  story now shows it: `time_on_page` `{"median_s", "measured", "not_measured_last_page"}` per day
+  in `days[]`, and over the whole, checked days at the top (with `min_measured` and `days`). A
+  view that was the visit's last page has no next view, so it is not measured and is counted
+  apart; under 5 measured views the median is withheld (null), never 0. Shown in the MCP
+  `page_story` text and under the page story's daily chart. An estimate: the log sees when the
+  next page was asked for, not how long someone read. Who: anyone who wants time on page without
+  Google Analytics; nothing to do (the stored days already have it). Checked: tests for the
+  median, the minimum, the last page and the whole days; a new second count
+  (`audit_page_time.py`) recounts each day's seconds per page from the raw log and the shown
+  figure by its own median, and fails on a changed day; until now those stored seconds were not
+  recounted at all.
+
 ## 2.47.0 (2026-11-12)
 
 Overview is one page with Right now on top: who is on the site now, the page each person is on, New, Returning, Lead or Customer, and Refresh now that counts this site at once. A lead's drawer shows their profile, and a visit that sent a lead carries a Lead or Customer pill.

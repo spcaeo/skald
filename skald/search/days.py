@@ -9,7 +9,8 @@ One row per site, engine, day and kind, holding one JSON blob:
   kind     total, query, page, country, device, appearance, and (Search
            Console only) query_page: each query with the page it
            showed, keyed "<query>\t<page>" (QP_SEP), counted by page as Google
-           does when the page is a dimension
+           does when the page is a dimension; and (2.48) page_country: each
+           page with a country, keyed "<page>\t<country>", counted by page too
   final    1 when the engine says the day will not change (Search Console:
            before the answer's first_incomplete_date and at least
            GOOGLE_FINAL_DAYS old; Bing: older than BING_FINAL_DAYS);
@@ -49,9 +50,10 @@ import json
 from datetime import date, datetime, timezone
 
 ENGINES = ("google", "bing")
-KINDS = ("total", "query", "page", "country", "device", "appearance", "query_page")
+KINDS = ("total", "query", "page", "country", "device", "appearance", "query_page",
+         "page_country")
 TOP = {"query": 500, "page": 300, "country": 250, "device": 10, "appearance": 100,
-       "query_page": 500}
+       "query_page": 500, "page_country": 1000}
 QP_SEP = "\t"                          # query_page's key: query, a tab, the page address
 OTHER = "(all others)"
 BING_FINAL_DAYS = 10
@@ -66,7 +68,7 @@ CREATE TABLE IF NOT EXISTS search_days (
     engine     TEXT NOT NULL,           -- google / bing
     day        TEXT NOT NULL,           -- the engine's own day, YYYY-MM-DD
     kind       TEXT NOT NULL,           -- total, query, page, country, device, appearance,
-                                        -- query_page
+                                        -- query_page, page_country
     data       TEXT NOT NULL,           -- JSON (search/days.py)
     final      INTEGER NOT NULL,        -- 1: the engine says it will not change
     source     TEXT NOT NULL,           -- the property / site address

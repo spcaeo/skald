@@ -402,7 +402,9 @@ def assistant_of(line) -> str:
 
 
 class FirstsRecount:
-    """Each page's first times in the day, from the raw lines."""
+    """Each page's first times in the day, and Googlebot's and Bingbot's
+    latest page view with its status ("googlebot_latest": [time, status]),
+    from the raw lines."""
 
     def __init__(self, hosts: set, source_of, bare) -> None:
         self.hosts, self.source_of, self.bare = hosts, source_of, bare
@@ -422,6 +424,15 @@ class FirstsRecount:
         if group == "search_engines" and (info.get("name") or "").lower() in ("googlebot",
                                                                              "bingbot"):
             self._take(path, info["name"].lower(), line.when)
+            # The crawler's newest page view of the day and the status it got
+            # (#44): the greater (time, status) pair, so the order of the lines
+            # never matters.
+            key = info["name"].lower() + "_latest"
+            pair = [line.when.astimezone(timezone.utc).isoformat(timespec="seconds"),
+                    str(line.status)]
+            slot = self.got.setdefault(path, {})
+            if key not in slot or pair > slot[key]:
+                slot[key] = pair
         elif group == "answer_engines" and name:
             self._take(path, f"ai_{tier}|{name}", line.when, name)
         elif group == "people":
@@ -439,6 +450,15 @@ def compare_firsts(stored: dict, got: dict, same, problems) -> None:
     blob = stored.get("page_firsts")
     if blob is None:
         return
+    # A day kept before 2.48 has its crawlers' firsts but no latest fetch (#44): the
+    # latest was not recorded then (unknown, not a mismatch), so it is not compared.
+    # From 2.48 a day with a crawler's first always has that crawler's latest too.
+    before = any(k in (v or {}) and f"{k}_latest" not in (v or {})
+                 for v in blob.values() for k in ("googlebot", "bingbot"))
+    if before:
+        got = {path: {k: v for k, v in keys.items() if not k.endswith("_latest")}
+               for path, keys in got.items()}
+        got = {path: keys for path, keys in got.items() if keys}
     for path in sorted(set(blob) | set(got)):
         mine, kept = got.get(path) or {}, blob.get(path) or {}
         for key in sorted(set(mine) | set(kept)):
@@ -446,7 +466,8 @@ def compare_firsts(stored: dict, got: dict, same, problems) -> None:
             if a is not None:
                 a = list(a)
             if a != b:
-                problems.append(f"page {path} first {key}: history has {a}, the recount "
+                which = "latest fetch" if key.endswith("_latest") else "first"
+                problems.append(f"page {path} {which} {key}: history has {a}, the recount "
                                 f"finds {b}")
         same(f"page {path}: first times", len(kept), len(mine))
 

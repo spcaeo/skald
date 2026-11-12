@@ -563,54 +563,8 @@ Has it arrived yet? (`POST <page>/sites/arrived`, Unreleased) and Search Console
 
 ## Page lifecycle
 
-What happened to a page since it was published.
-
-`page_index.json` (the site's data folder): one row per page the website
-lists, its sitemap dates or the logs saw.
-
-| field | type |
-|---|---|
-| `meta` | `{"source": "website" or null, "generated": date or null, "lastmod": {"day","dated","missing","invalid","future"} or null}`: where publish dates come from (`/etc/skald/pages.json`, written from the website at deploy); `lastmod` the sitemap's change-date counts of the last day read (DATA-CONTRACT-CRAWL-HEALTH.md, "Change dates") |
-| `pages[]` | `{"path","title" or null,"locale" or null,"published" (date or null),"date_source" ("website" or "first seen": where `published` comes from),"updated" (date or null),"updated_source" ("website", "sitemap" or null),"lastmod" (date or null),"lastmod_seen" ([[date, day first seen]]),"first_seen" (date: the first day any request for it was logged),"days_since_publish" (int or null),"milestones": {"googlebot","bingbot","human","from_search","from_ai","lead"} (ISO or null),"views_7d","views_30d","readers_30d"}` |
-
-- `updated` is a **change date**: the website's own (`updated_source`
-  "website") when its page list gives one, else the latest `<lastmod>` the
-  sitemap gave (`"sitemap"`), else null. A lastmod is never a publish date:
-  without the website's list, `published` stays the first day seen.
-- `lastmod`: the latest change date the sitemap gave the page (shown even
-  when the website's own `updated` wins); `lastmod_seen`: each date, with the
-  first local day Skald read it, oldest first, at most 20. "Changed since day
-  X" is `lastmod >= X`. Both spellings of a path (with and without the
-  trailing slash) are one page. A page only the sitemap lists has a row with
-  `published` and `first_seen` null.
-
-`GET <page>/api/page?path=/x` (helper; also `skald page /x`):
-
-```json
-{"ok":true,"path":"/x/","title":"...","published":"2026-10-01","updated":"2026-10-06",
- "date_source":"website","updated_source":"website","lastmod":"2026-10-06",
- "lastmod_seen":[["2026-10-06","2026-10-07"]],"first_seen":"2026-10-06","days_since_publish":7,
- "milestones":{"googlebot":{"at":"2026-10-06T19:02:11-04:00"},"bingbot":null,
-   "ai_training":[{"who":"GPTBot","at":"..."}],"ai_asked":[{"who":"ChatGPT-User","at":"..."}],
-   "human":{"at":"..."},"from_search":{"at":"...","who":"google.com"},
-   "from_ai":[{"who":"chatgpt.com","at":"..."}],"lead_landed":{"at":"..."} ,"lead_sent":null},
- "days":[{"day":"2026-10-06","state":"partial","days_since_publish":5,"readers":3,"views":4,
-   "ai_asked":0,"ai_training":2,"search":1,"sources":{},"assistants":{},"countries":{}}]}
-```
-
-- Milestones are kept for good (history table `page_milestones`, schema 11)
-  and each is the earliest time seen: Googlebot and Bingbot fetching the page,
-  each AI crawler fetching it to train or index (`ai_training`), each
-  assistant fetching it for a live question (`ai_asked`), the first person
-  reading it, the first person arriving on it from a search engine
-  (`from_search`, with the search site) and from each AI assistant
-  (`from_ai`). Only verified crawlers count for Googlebot and Bingbot (a
-  "claims to be" never does). `lead_landed` / `lead_sent`: the first lead
-  whose first touch landed on the page, and the first sent from a form on it
-  (CMS). The audit recounts each day's first times from the raw log.
-- `days[]` run from the publish date (or first seen) to yesterday, at most
-  400, each with its state; a day with no figures (`missing`, `withheld`)
-  has them null, never 0. Today is not included.
+What happened to a page since it was published (`page_index.json`, `api/page`): moved to
+[docs/DATA-CONTRACT-PAGE-LIFECYCLE.md](docs/DATA-CONTRACT-PAGE-LIFECYCLE.md).
 
 ## The read-only API
 
@@ -802,7 +756,8 @@ request, so a visitor's last page has none: an estimate, labelled as such.
 `exit_rate` is the share of the page's visits (in-app pages included) that
 ended on it, from the period's summed `exits` and `visits`; `null` under 10
 visits (no rate over fewer than 10). The audit recounts each day's `visits` and
-`exits` of every page from the raw lines (`audit_visits.compare_pages`).
+`exits` of every page from the raw lines (`audit_visits.compare_pages`), and
+each day's seconds per page behind `time_on_page_s` (`audit_page_time.py`).
 
 ## insights.json
 

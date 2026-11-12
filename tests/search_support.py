@@ -105,6 +105,7 @@ class Engines(ThreadingHTTPServer):
         self.bing: dict = {"traffic": [], "query": [], "page": [],
                            "sites": ["https://www.alpha.example/"]}
         self.claims: list[dict] = []
+        self.inspect: dict = {}                  # URL Inspection: {url: indexStatusResult}
         threading.Thread(target=self.serve_forever, args=(0.02,), daemon=True).start()
 
     @property
@@ -113,7 +114,8 @@ class Engines(ThreadingHTTPServer):
 
     def api(self) -> dict:
         return {"google_api": self.base + "/webmasters/v3", "google_token_url": self.base + "/token",
-                "bing_api": self.base + "/bing"}
+                "bing_api": self.base + "/bing",
+                "google_inspect": self.base + "/v1/urlInspection/index:inspect"}
 
     def stop(self):
         self.shutdown()
@@ -217,6 +219,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(403, {"error": {"code": 403, "message": "User does not have "
                                                   "sufficient permission for site."}})
             return self._send(*s.query(prop, body))
+        if self.path == "/v1/urlInspection/index:inspect":
+            if body.get("siteUrl") not in s.props:
+                return self._send(403, {"error": {"code": 403, "message": "User does not have "
+                                                  "sufficient permission for site."}})
+            got = s.inspect.get(body.get("inspectionUrl"))
+            if got is None:
+                got = {"verdict": "NEUTRAL", "coverageState": "URL is unknown to Google"}
+            return self._send(200, {"inspectionResult": {"indexStatusResult": got}})
         return self._send(404, {"error": {"code": 404, "message": "not found"}})
 
     def do_GET(self):

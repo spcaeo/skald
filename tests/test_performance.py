@@ -31,7 +31,7 @@ sys.path.insert(0, str(HERE.parent / "tools"))
 import bench_data  # noqa: E402
 from support import Sandbox  # noqa: E402
 from skald import (ai_likely, compare, data_files, data_reports,  # noqa: E402
-                          lifecycle, store)
+                          lifecycle, page_time, store)
 from skald.config import load_config  # noqa: E402
 from skald.store import History  # noqa: E402
 
@@ -141,7 +141,8 @@ def old_story(history, site, path, config, tz, today):
                                       "the logs"}
     published, updated, source = L._published(path, meta, seen)
     marks = (L.milestones(history, site, None, tz).get(path)
-             or {k: None for k in L.SINGLE} | {k: [] for k in L.MULTI})
+             or {k: None for k in L.SINGLE + L.LATEST} | {k: [] for k in L.MULTI})
+    whole_rows, whole_days = [], 0          # time on page (added later, #46)
     landed, sent = L._leads(config, tz)
     start = date.fromisoformat(published or seen.get(path) or today.isoformat())
     last = today - timedelta(days=1)
@@ -165,13 +166,20 @@ def old_story(history, site, path, config, tz, today):
                         got[k] += int(v.get(k, 0))
                     for k in parts:
                         parts[k].update({a: int(b) for a, b in (v.get(k) or {}).items()})
+                mine = [v for p, v in pages.items() if L._norm(p) == path]
                 row.update({k: got[k] for k in ("readers", "views", "ai_asked", "ai_training",
                                                  "search")},
-                           **{k: dict(c) for k, c in parts.items()})
+                           **{k: dict(c) for k, c in parts.items()},
+                           time_on_page=page_time.figure(mine))
+                if e["state"] == "ok":
+                    whole_rows += mine
+                    whole_days += 1
             else:
                 row.update({k: None for k in ("readers", "views", "ai_asked", "ai_training",
-                                              "search", "sources", "assistants", "countries")})
+                                              "search", "sources", "assistants", "countries",
+                                              "time_on_page")})
             days.append(row)
+    whole = page_time.figure(whole_rows) if whole_days else None
     entry = meta.get(path) or {}
     return {"ok": True, "path": path, "title": entry.get("title"), "locale": entry.get("locale"),
             # the sitemap's change dates (added later): none in this sandbox
@@ -184,6 +192,8 @@ def old_story(history, site, path, config, tz, today):
             "milestones": {**marks,
                            "lead_landed": {"at": landed[path]} if path in landed else None,
                            "lead_sent": {"at": sent[path]} if path in sent else None},
+            "time_on_page": ({**whole, "min_measured": page_time.MIN_MEASURED,
+                              "days": whole_days} if whole is not None else None),
             "days": days}
 
 

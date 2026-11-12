@@ -48,7 +48,8 @@ from .classify import (AI_ASKED, AI_REFERRER_HOSTS, AI_REFERRER_PATHS, AI_TRAINI
                        OWN_AGENTS, PROBE, PROBE_QUERY, SEARCH_ENGINE, SECRET_PROBE)
 from .store import History, READER_KINDS
 from . import (audit_cities, audit_drains, audit_extras, audit_more, audit_not_pages,
-               audit_release2, audit_rendered, audit_too_fast, audit_tools, audit_visits)
+               audit_page_time, audit_release2, audit_rendered, audit_too_fast, audit_tools,
+               audit_visits)
 # The audit's own labels (moved out whole; still audit.browser_of etc.).
 from .audit_labels import (_bare, _host_of, browser_of, campaign_of,  # noqa: F401
                            device_of, referrer_of, source_of, status_of, system_of)
@@ -823,6 +824,7 @@ def _compare_extras(db, key, day: date, figures: dict, same, problems: list,
                                                          same, problems)
     audit_extras.compare(stored, visitors, figures["extras"], same, problems)
     audit_visits.compare_pages(stored.get("pages"), figures["journeys"], same)
+    audit_page_time.compare(stored.get("pages"), figures["journeys"], same)
     if "bots" in stored or "quality" in stored:          # collected by release 2
         audit_release2.compare(stored, figures["bots"], figures["quality"], same, problems)
         audit_release2.compare_cube(stored, figures["by"], figures["readers"], same, problems)
@@ -898,6 +900,7 @@ def compare_live(figures: dict, snap: dict) -> tuple[list[str], int]:
     if snap.get("extras"):
         audit_extras.compare(snap["extras"], None, figures["extras"], same, problems)
         audit_visits.compare_pages(snap["extras"].get("pages"), figures["journeys"], same)
+        audit_page_time.compare(snap["extras"].get("pages"), figures["journeys"], same)
         if "bots" in snap["extras"]:
             audit_release2.compare(snap["extras"], figures["bots"], figures["quality"],
                                    same, problems)

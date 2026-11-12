@@ -41,6 +41,7 @@ from . import store_visits as sv
 from .aggregate import READER_DIMS, Totals
 from .classify import AI_ASKED, Group, assistant_name
 from .search.days import TABLE as SEARCH_DAYS
+from .search.inspect import TABLE as SEARCH_INSPECT
 from .verify import Problem
 
 # 1: the first release (3436ae4).
@@ -85,7 +86,10 @@ from .verify import Problem
 # 14: the `search_days` table - Search Console and Bing Webmaster Tools
 #    figures per day and kind, synced from their APIs (search/days.py). A
 #    table, not a column: older days simply have no rows.
-SCHEMA_VERSION = 14
+# 15: (2.48) the `search_inspect` table - Search Console's URL Inspection
+#    answer per page and day: index status, last crawl, canonicals
+#    (search/inspect.py). A table: a page never asked has no rows.
+SCHEMA_VERSION = 15
 
 # Meta rows an upgrade adds: (version, key, value). Written only when a file
 # older than `version` is upgraded, never on a new file.
@@ -124,6 +128,7 @@ CREATE TABLE IF NOT EXISTS page_milestones (
     PRIMARY KEY (site, path, kind, who)
 )"""),
     (14, "search_days", SEARCH_DAYS),
+    (15, "search_inspect", SEARCH_INSPECT),
 ]
 
 # Indexes added after version 1: (version, name, CREATE statement). Made by

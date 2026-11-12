@@ -298,7 +298,7 @@ the [changelog](../CHANGELOG.md) says when each one came.
 - **Client reports:** branded reports for an agency's clients, a mail with a PDF attached, weekly,
   monthly or every few days, with your name, colour and logo; verified days only, the sums counted
   twice before a report goes.
-- A read-only JSON API and an **MCP server with 29 tools** for Claude, ChatGPT and other AI agents:
+- A read-only JSON API and an **MCP server with 30 tools** for Claude, ChatGPT and other AI agents:
   25 read-only; `setup_line` and `mark_todo_done` only with a `setup` token; `add_site` (2.44: add a site
   within the plan) and `send_invites` only with an `add_sites` token (the person search only with
   a token that may read private data).

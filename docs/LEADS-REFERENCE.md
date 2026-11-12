@@ -66,7 +66,7 @@ Then `/mcp` in Claude Code shows `skald` connected. The JSON form, for a project
   "headers": {"Authorization": "Bearer ${SKALD_MCP_TOKEN}"}}}}
 ```
 
-The 29 tools (all **READ** but `setup_line`, `mark_todo_done`, `add_site` and `send_invites`). Dates are `YYYY-MM-DD` in the site's zone; no dates means the last
+The 30 tools (all **READ** but `setup_line`, `mark_todo_done`, `add_site` and `send_invites`). Dates are `YYYY-MM-DD` in the site's zone; no dates means the last
 7 whole days.
 
 | Tool | | What it answers |
@@ -95,6 +95,7 @@ The 29 tools (all **READ** but `setup_line`, `mark_todo_done`, `add_site` and `s
 | `fix_todo` | READ | (2.41) one to-do with every row behind it and the steps to fix it |
 | `mark_todo_done` | MARKS DONE | (2.41) **`setup` scope only.** Keeps the agent's report on a to-do and marks it done |
 | `your_tools` | READ | the figures from the site's own tools (Google Analytics...), labelled with the tool, never added to Skald's |
+| `search_performance` | READ | (2.48) Search Console's and Bing's own clicks, impressions, CTR and position per day, for the site or one page, the page's top queries and its index status |
 | `add_site` | ADDS A SITE | (Unreleased) **`add_sites` scope only.** Adds a site to the token's organisation within the plan, as **Add a site** does, and makes its set-up line. No lead is written |
 | `site_progress` | READ | (Unreleased) a set-up's live steps, as Add a site's live progress shows them |
 | `check_site` | READ | (Unreleased) Check now: what is missing, in plain words |

@@ -149,6 +149,8 @@ Search Console, web results (`type: web`), per day:
 | country | the top 250 countries (Google's alpha-3 codes) |
 | device | desktop, mobile, tablet |
 | search appearance | the top 100, under Google's own names |
+| query with its page | the top 500 query-page pairs (counted by page) |
+| page with its country | (2.48) the top 1,000 page-country pairs (counted by page), for the MCP's countries per page |
 
 Each table keeps "(all others)" for the rows past the top, and what Google
 counts but does not give by that dimension (Search Console leaves
@@ -166,6 +168,30 @@ position. Bing updates these weekly and gives only top rows with no total
 beside them, so a Bing table is what Bing returned, never the whole site.
 Bing's AI Performance report (Copilot citations) had no documented API
 method on 2026-10-18, so it is not synced.
+
+### Index status per page: URL Inspection (2.48)
+
+After each good Search Console sync (not a backfill), `search/inspect.py` asks
+the URL Inspection API (`POST https://searchconsole.googleapis.com/v1/urlInspection/index:inspect`,
+the same read-only scope and robot) about the next pages, and keeps each answer
+as Google gives it in history's `search_inspect` table (schema 15): verdict,
+coverage words, a status read from them (indexed, crawled_not_indexed,
+discovered_not_indexed, unknown_to_google, excluded, not_known), indexing,
+robots.txt and fetch states, Google's last crawl, the device it crawled as, and
+Google's and the page's own canonical. One row per address and Pacific day,
+kept 16 months.
+
+Which pages: the pages Search Console showed in the last 28 days (most
+impressions first), then the pages people read that Googlebot fetched
+(`page_milestones`); never asked first, then the longest ago; none asked
+twice within 20 hours. At most `search_console.inspect_per_day` a Pacific day
+(default 200, at most 2,000, Google's daily limit per property; 0 turns it
+off). A refusal (no access, quota) is kept under `inspect` in the site's sync
+state and never fails the sync, in Google's own words (for example when
+the robot's permission on the property is not enough for URL Inspection).
+
+The MCP's `search_performance` reads the stored days and these answers
+(docs/MCP.md); `audit_search_pages.py` recounts what it gives (below).
 
 ### How Skald signs in to Google
 
@@ -194,6 +220,11 @@ code (`audit_search.py`, in run-daily's recounts):
 3. One figure is asked of the engine again: the newest final day's clicks
    and impressions. An engine that cannot be reached is noted, not a
    mismatch; a figure that differs is.
+4. (2.48) The MCP's `search_performance` is recounted by SQL
+   (`audit_search_pages.py`): each day of the last 28 stored, the 25 most
+   shown pages per day (every address of a path added; 0 only on a day whose
+   page table is complete, else unknown), and the index status counts from
+   each address's newest answer.
 
 The sync itself reads back every day it writes: if what is stored is not
 what the engine gave, nothing is kept and the sync fails. A mismatch in the
