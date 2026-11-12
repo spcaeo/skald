@@ -81,7 +81,7 @@ export function pathPart(p) {
   if (!p || (!(p.visits || []).length && !(p.unmatched || []).length)) return null;
   const f = p.first;
   const head = f ? h("p", { class: "pp-first" }, h("b", null, "First came from "), cameFrom(f), `, ${at(f.start)}, landing on `,
-    withUrl(h("span", { class: "mono" }, dash(f.landing)), f.landing), f.link === "likely" ? " (likely)" : "", ".") : null;
+    withUrl(h("span", { class: "mono" }, dash(f.landing)), f.landing), f.link === "likely" ? " (likely)" : "") : null;
   const rows = (p.visits || []).map((v) => [at(v.start), cameFrom(v), withUrl(h("span", { class: "mono" }, dash(v.landing)), v.landing),
     (v.trail || []).map((t) => (Array.isArray(t) ? t[0] : t?.path)).filter(Boolean).slice(0, 8).join(" › ") || "-",
     v.steps?.length ? v.steps.map(stepWords).join(", ") : "-",
