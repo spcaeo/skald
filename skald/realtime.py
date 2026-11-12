@@ -46,7 +46,9 @@ What the live run adds to its snapshot, `realtime` (docs/DATA-CONTRACT-REALTIME.
                 request) and `trail`, its pages in order as the day's journeys
                 hold them (at most TRAIL: the first two and the newest). Overview's
                 "What visitors are doing now". The same privacy class as newest
-                and the journeys: labels and paths only.
+                and the journeys: labels and paths only. Since #43 also
+                `returning` and `days_seen` (visitors.py's labels, None when
+                not recorded) for Overview's "Right now" list.
 
 audit_realtime.py counts every one of these again from the raw lines
 (`skald audit --live`).
@@ -241,6 +243,9 @@ def part(totals, observer: Observer, tz, minutes: int = MINUTES) -> dict:
                       "landing": j.get("landing"), "pages": j.get("pages", 0),
                       "trail": path_of(j), "seq": j.get("seq"),
                       "first_touch": j.get("first_touch"),
+                      # visitors.py: seen on an earlier day (None: not recorded) and on how
+                      # many of the last 30 days, the labels the visit list shows (#43)
+                      "returning": j.get("returning"), "days_seen": j.get("days_seen_30d"),
                       "active": "5" if _aware(last) >= recent else "30"})
     points = getattr(totals, "city_points", None)
     more = {} if points is None else {"cities": city_rows(got["cities"], points)}

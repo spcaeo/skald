@@ -289,7 +289,14 @@ by hand now and then, keeping the newest few:
 
 `dashboard.refresh_button: true` in the config draws a **Refresh now** button on the live panel. It posts to
 `<page>/refresh`; nginx (same password) forwards that to `skald/refresh_server.py` on 127.0.0.1:8765,
-which runs `live` (about a second) and sends the browser back. Same-origin only, one run per 15 seconds.
+which runs `live` and sends the browser back. With several sites (`sites:` or Settings > Sites) it runs
+`live` for the page's own site only (`--site <name> live`, seconds; every site at once can take minutes,
+longer than the helper's 90-second limit); a site the install does not have is refused (404) and nothing runs.
+The web app presses it with `Accept: application/json` and gets
+`{"ok": true, "result": "ran" | "recent" | "busy" | "failed", "site": "<site>"}` instead of the redirect
+(`"ok": false` when the run failed). Same-origin only, one run at a time, each site at most once per 15 seconds.
+After a change to internal addresses, funnels or a Mark as test, the helper redraws that page's site at once;
+the other sites follow at the next 2-minute run.
 
 ```sh
 cp systemd/skald-refresh.service /etc/systemd/system/

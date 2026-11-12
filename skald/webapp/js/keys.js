@@ -27,8 +27,11 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-12-2.46.6",
+  id: "2026-11-12-2.47.0",
   items: [
+    ["Right now, on Overview", "who is on the site now, the page each person is on, New, Returning, Lead or Customer, and how long they have been here; Real time is now part of Overview.", "real-time"],
+    ["Refresh now", "counts this site at once (a few seconds), and Updated 40 s ago says how old the count is.", "real-time"],
+    ["A lead’s profile", "a lead’s drawer shows who they are, everything they did and every visit in order, proven or likely (owners and admins); a visit that sent a lead shows a Lead or Customer pill.", "leads-and-conversions"],
     ["New version at once", "right after an upgrade, every dashboard page shows the new version at once, instead of the old screens for up to 2 minutes.", "getting-started"],
     ["A lead’s own visits", "Find a person lists a lead’s visits in order: where they first came from, every page, what each visit sent, and whether it is proven or likely theirs (owners and admins).", "leads-and-conversions"],
     ["Funnels count your leads", "on a site whose leads come from its own server, a funnel’s lead steps count them (each lead once); the default funnel has no pricing step; /sign-up counts as a form page.", "funnels-and-goals"],

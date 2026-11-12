@@ -41,6 +41,7 @@ import { grid } from "../grid.js";
 import { call } from "./ipmanager.js";
 import { mayFind } from "./person.js";
 import { openVisitor } from "./visitor.js";
+import { leadProfile } from "./leadprofile.js";
 import { countryWords } from "./readers.js";
 import { actionName, oneAction, toolName, labelTag, leadsOn, convFile } from "./leadfigs.js";
 import { narrowConv, withFile, convLabels } from "./sa-pipeline.js";
@@ -146,7 +147,8 @@ export function saleFacts(x) {
 }
 
 /* A lead in the visitor drawer: its steps (every stage the tools and the lead database
-   reported), its pages up to the moment (the page script's, by its visitor ID), its facts. */
+   reported), its pages up to the moment (the page script's, by its visitor ID), its facts;
+   for owners and admins, its profile too (#31, leadprofile.js). */
 export function openLead(x) {
   const facts = [["When", at(x.at)], ...(x.name || x.email ? [["Name", dash(x.name)], ["Email", dash(x.email)]] : []), ["What", h("span", null, oneAction(x.action || ""), labelTag(x.label))],
     ...saleFacts(x), ["Stage now", stageWords(x)], ["From", toolName(x.tool || "")], ["Source (last touch)", filledCell(x.source, x, "source_type"), x.source], ["First touch", filledCell(x.first_source, x, "first_source"), x.first_source],
@@ -155,10 +157,13 @@ export function openLead(x) {
     ...(x.click_id ? [["Ad click", withCopy(h("span", { class: "mono lr-id" }, `${x.click_kind}: ${x.click_id}`), x.click_id, { label: `${x.click_kind} click ID`, cls: "ua-after" })]] : [])];
   // In the address by its row id (lead=1287: js/overlays.js), never a name or an email.
   // id, ref and test (2.25): its reference, every step of it and Mark as test (leadref.js).
-  return openVisitor({ conversion: { action: x.action, at: x.at, tool: x.tool, browser: x.browser, journey: x.journey || [], steps: x.steps || [],
+  const opened = openVisitor({ conversion: { action: x.action, at: x.at, tool: x.tool, browser: x.browser, journey: x.journey || [], steps: x.steps || [],
     id: x.id, ref: x.ref || null, test: x.left_out === "test" },
     facts: [h("dl", { class: "dw-dl" }, facts.flatMap(([t, v, raw]) => [h("dt", null, t), h("dd", null, copyFact(t, v, raw || null))]))],
     route: x.id != null ? { key: "lead", value: String(x.id) } : null });
+  // #31: owners and admins also get the lead's profile (who, every step, their visits in order).
+  if (x.ref && mayFind()) opened.then((d) => leadProfile(d, x)).catch(() => {});
+  return opened;
 }
 
 /* lead=<id>, from a link: the row in the period on screen (the same answer the list asked

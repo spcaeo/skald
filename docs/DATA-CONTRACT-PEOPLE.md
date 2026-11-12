@@ -269,6 +269,12 @@ visits are cut by path, so the site's kept visits would read as earlier visits o
 `seq`: the visit's place in the day (the site's own journeys only) - the kept visit's `seq`,
 which the visitor timeline asks by. Labels only: no address, no visitor ID, no hash.
 Real time's `newest` rows carry both.
+`won` (#31, app.json only, the site's own journeys): `"lead"` or `"customer"` on a visit
+proven to have sent a finished conversion (people/lead_visits.visit_marks: the only kept visit
+that sent a form within 10 seconds of it, not test): `"customer"` when its tool and reference
+have a paid row, else `"lead"` for a lead action; absent otherwise (a likely link is never
+marked). Written each run from conversions.sqlite, read-only; absent when the site keeps no
+visits or the store cannot be read. A label, never counted; audit_lead_visits checks it daily.
 
 ### Day kind `first_touch` (day_extras; app.json `days[].first_touch`, `live.figures.first_touch`)
 

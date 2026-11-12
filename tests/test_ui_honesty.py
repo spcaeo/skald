@@ -23,7 +23,8 @@ def tab_line(section: str, key: str) -> str:
 
 class OwnPeriod(unittest.TestCase):
     # Tabs whose figures keep a period of their own: no picker, a chip with the period.
-    OWN = [("overview", "realtime"), ("overview", "insights"), ("site", "alerts"), ("site", "requests"), ("ai", "rules")]
+    # Real time stopped being a tab in #43 (it is part of Overview, Right now on top).
+    OWN = [("overview", "insights"), ("site", "alerts"), ("site", "requests"), ("ai", "rules")]
 
     def test_own_period_tabs_hide_the_picker_and_say_their_period(self):
         for section, key in self.OWN:

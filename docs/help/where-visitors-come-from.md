@@ -45,8 +45,8 @@ One address can be several people (an office), and one person on two devices is 
 
 ## Where you see it
 
-- **Traffic › Visitors**, in **Each visit**: under a visit's source, a line such as "First came from google.com, 3 days ago". It shows only when the first visit came from somewhere else.
-- **Overview › Real time**, in **Newest visits**: the same line, and each visit opens the visitor drawer.
+- **Traffic › Visitors**, in **Each visit**: under a visit's source, a line such as "First came from google.com, 3 days ago". It shows only when the first visit came from somewhere else. In the **Visitor** column, a visit proven to have sent a lead has a small **Lead** pill, or **Customer** when that person has paid (see [Finding one person](leads-and-conversions.md#finding-one-person)).
+- **Overview**, in **Right now** and **Newest visits**: the same line, and each visit opens the visitor drawer.
 - **Traffic › Sources**, under **Open the details**, in **Where returning visitors first came from**: for the period, how many Direct visits came before, by where they first came from and by the site that sent them; and every returning visit by where it first came from. Each day's figures are counted twice, by two separate roads; a day where the two disagree is withheld. A day counted before this existed is left out and said.
 
 ## Direct, likely: what a Direct visit probably was
@@ -70,10 +70,10 @@ This is a different estimate from **Likely from AI assistants** (AI & bots › A
 
 ## The visitor drawer
 
-Every visit and every visitor opens in the same drawer: a row of the visit list, a newest visit in Real time, a funnel's journey, a visit picked out of the visitor flow, a person found with **Find a person**, and a converted person or conversion under Leads & sales.
+Every visit and every visitor opens in the same drawer: a row of the visit list, a person in Right now or a newest visit on Overview, a funnel's journey, a visit picked out of the visitor flow, a person found with **Find a person**, and a converted person or conversion under Leads & sales.
 
 - **The title** names the visitor by city ("Visitor from Toronto"), else by country.
-- **At the top, the state**: pills for where the visitor is (**Here now**, **Returning** or **First visit**) and how the visits ended (a booked demo, a lead, a form sent, or **No lead linked**). Under them one sentence: how many visits over how many days, and where the visitor first came from. Then one line: the city (or the country) with its flag, the device with its browser and system, and when it was first seen. Each value has a copy icon. The **?** says how the visits are linked (by address, visitor ID or the 30-day code) and what that link cannot tell.
+- **At the top, the state**: pills for where the visitor is (**Here now**, **Returning** or **First visit**) and how the visits ended (a booked demo, a lead, a form sent, or **No lead linked**), and **Lead** or **Customer** when this visit is proven to have sent a lead (the only visit that sent a form at the lead's time; **Customer** once that person has paid). Under them one sentence: how many visits over how many days, and where the visitor first came from. Then one line: the city (or the country) with its flag, the device with its browser and system, and when it was first seen. Each value has a copy icon. The **?** says how the visits are linked (by address, visitor ID or the 30-day code) and what that link cannot tell.
 - **Visits, newest first**: the newest two visits as cards, their steps down a line. Where each came from, each page in order with the time between pages on the line, and how it ended: left, sent a form, a lead, or a booked demo. Between visits it says how long after ("12 days later"). **Show all (N)** draws every visit; the address keeps it (`vall=1`), so a copied link opens the same. The steps appear one by one when the drawer opens; **Replay**, beside the close button, plays the visits again, oldest first, at their real pace (one second per minute, at most four seconds a visit). With reduced motion on, it stays still. Hover or focus a page for its time; click it to open the page.
 - **Leads and conversions (N)**, open when there are any. A lead is matched to a visit by the time a form was sent: likely, never certain.
 - **This visit: every detail**, folded: the visit's own labels and campaign tags.

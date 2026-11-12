@@ -18,6 +18,12 @@ and sets that against lead_visits.path(...) for the same conversion:
     "(removed)", and starts from AROUND_HOURS before a proven visit to
     AROUND_HOURS after its end (or the conversion, when later).
 
+And the pills on Traffic > Visitors (#31, lead_visits.visit_marks): for the
+same conversions, the visits this road proves, each "customer" when its own
+SQL finds a paid row of the same tool and reference, else "lead" for a lead
+action (conversions.LEAD_ACTIONS), must be exactly the visits marked, with
+the same word (marks_by_own_road).
+
 The visits table itself is recounted from the raw log by audit_people.py.
 Nothing here is a figure, so a finding withholds no figure; it ends
 run-daily with exit 1 (audit_more.DAILY) so the links are looked at. No
@@ -101,7 +107,39 @@ def check(db, site: str, a: str, b: str) -> tuple[int, list[str]]:
                 problems.append(f"lead visits: {site}: conversion {c['id']}: a likely visit "
                                 f"({v['day']} #{v['seq']}) is not the same address and "
                                 "browser near a proven one")
+    problems += check_marks(db, site, a, b, rows)
     return len(rows), problems
+
+
+def marks_by_own_road(db, site: str, rows: list[dict]) -> dict[str, str]:
+    """{"day.seq": "lead" | "customer"} for the finished conversions `rows`:
+    the visit this road proves for each, "customer" when a paid row of its
+    tool and reference is kept (this road's SQL), else "lead" for a lead
+    action, else none."""
+    from .conversions import LEAD_ACTIONS
+    out: dict[str, str] = {}
+    for c in rows:
+        own = proven_by_own_road(db, site, c["at"])
+        if len(own) != 1:
+            continue
+        key = f"{own[0][0]}.{own[0][1]}"
+        paid = db.execute("SELECT 1 FROM conversions WHERE site = ? AND tool = ? AND "
+                          "external_ref = ? AND stage = 'paid' AND test = 0 LIMIT 1",
+                          (site, c["tool"], c["external_ref"])).fetchone()
+        mark = "customer" if paid else "lead" if c["action"] in LEAD_ACTIONS else None
+        if mark and out.get(key) != "customer":
+            out[key] = mark
+    return out
+
+
+def check_marks(db, site: str, a: str, b: str, rows: list[dict]) -> list[str]:
+    """The pills of the conversions at in [a, b): marked = found by this road."""
+    from .people.lead_visits import visit_marks
+    want = marks_by_own_road(db, site, rows)
+    got = visit_marks(db, site, a, b)
+    return [f"lead visits: {site}: visit {key.replace('.', ' #')}: marked "
+            f"{got.get(key) or 'nothing'}, this road finds {want.get(key) or 'nothing'}"
+            for key in sorted(set(want) | set(got)) if want.get(key) != got.get(key)]
 
 
 def _path(ctx) -> Path | None:
@@ -140,5 +178,6 @@ def daily(ctx, day) -> list[str] | None:
         n, problems = check(db, ctx.site, start.strftime(FMT), end.strftime(FMT))
     finally:
         db.close()
-    ctx.out(f"lead visits: {n} conversion(s), each proven visit found again by its own road")
+    ctx.out(f"lead visits: {n} conversion(s), each proven visit and each Lead or Customer "
+            "pill found again by its own road")
     return problems

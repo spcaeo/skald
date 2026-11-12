@@ -254,6 +254,17 @@ def release_zones(config: dict | None, tz) -> list[str]:
     return zones or [str(tz)]
 
 
+def won_marks(history: History, site: str, config: dict | None, journeys: list) -> list:
+    """#31: `won` ("lead" or "customer") on the site's visits proven to have sent a lead
+    (people/lead_visits.mark_journeys; a label, never a figure). A view's visits have no
+    `seq`, so none; a history in memory has no conversions beside it."""
+    from .people.lead_visits import mark_journeys
+    path = str(getattr(history, "path", "") or "")
+    if not path or path == ":memory:":
+        return journeys
+    return mark_journeys(config or {}, Path(path).parent, site, journeys)
+
+
 def write(out: Path, history: History, site: str, tz, now: datetime, snap: dict | None,
           views=(), refresh: bool = False, credit=None, config: dict | None = None) -> list[Path]:
     """The app for one site: its data beside the site page and each view's,
@@ -265,6 +276,8 @@ def write(out: Path, history: History, site: str, tz, now: datetime, snap: dict 
         part = live.view_snapshot(snap, view.slug) if view else snap
         data = build(history, key, site, tz, now, part, views, refresh, credit)
         data["releaseZones"] = release_zones(config, tz)
+        if view is None:
+            data["journeys"] = won_marks(history, site, config, data["journeys"])
         # A city file is set (logs.city_db): the app says "not recorded"
         # for a visit without a city, and how to set one when it is not.
         from .conversions.geo import city_database

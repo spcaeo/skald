@@ -261,6 +261,101 @@ class LeadVisits(unittest.TestCase):
         self.assertTrue(any("proven visit(s) shown" in p for p in problems), problems)
         self.assertFalse(any(PERSON in p for p in problems), "no address in a problem")
 
+    # #31: the Lead / Customer pill on Traffic > Visitors.
+    WEEK = ("2026-10-05T00:00:00Z", "2026-10-08T00:00:00Z")
+
+    def seq_of(self, db, landing):
+        return db.execute("SELECT day || '.' || seq FROM visits WHERE landing = ?",
+                          (landing,)).fetchone()[0]
+
+    def test_the_proven_visit_of_someone_who_paid_is_a_customer(self):
+        from skald.people import lead_visits
+        db = store.connect(store.path_for(self.config, self.box.root))
+        try:
+            got = lead_visits.visit_marks(db, SITE, *self.WEEK)
+            key = self.seq_of(db, "/bing-webmaster-tools/ai-performance-report")
+        finally:
+            db.close()
+        # The xray step was sent by that visit; u_1 paid later (from no visit): a customer.
+        # The likely visit (/app/) and the other browser are never marked.
+        self.assertEqual(got, {key: "customer"})
+
+    def test_a_lead_that_has_not_paid_is_a_lead_and_a_step_alone_is_nothing(self):
+        from skald.people import lead_visits
+        db = store.connect(store.path_for(self.config, self.box.root))
+        try:
+            db.execute("DELETE FROM conversions WHERE stage = 'paid'")
+            self.assertEqual(lead_visits.visit_marks(db, SITE, *self.WEEK), {},
+                             "xray is no lead action: no pill without a payment")
+            db.execute("UPDATE conversions SET action = 'contact'")
+            got = lead_visits.visit_marks(db, SITE, *self.WEEK)
+            key = self.seq_of(db, "/bing-webmaster-tools/ai-performance-report")
+            db.execute("UPDATE conversions SET test = 1")
+            test = lead_visits.visit_marks(db, SITE, *self.WEEK)
+        finally:
+            db.close()
+        self.assertEqual(got, {key: "lead"})
+        self.assertEqual(test, {}, "a test row marks nothing")
+
+    def test_two_visits_sending_a_form_at_that_second_mark_neither(self):
+        from skald.people import lead_visits
+        db = store.connect(store.path_for(self.config, self.box.root))
+        try:
+            v = dict(db.execute("SELECT * FROM visits WHERE ip = '192.0.2.99'").fetchone())
+            db.execute("UPDATE visits SET posts = ?, start = ?, end = ? WHERE id = ?",
+                       (json.dumps(["2026-10-06T16:25:24Z"]), "2026-10-06T16:25:00Z",
+                        "2026-10-06T16:25:30Z", v["id"]))
+            self.assertEqual(lead_visits.visit_marks(db, SITE, *self.WEEK), {})
+        finally:
+            db.close()
+
+    def test_app_json_carries_the_mark_on_that_visit_only(self):
+        from skald import dashboard_webapp
+        from skald.store import History
+        h = History(self.box.db)
+        try:
+            out = self.box.root / "out"
+            dashboard_webapp.write(out, h, SITE, UTC, datetime(2026, 10, 7, 12, tzinfo=UTC),
+                                   None, config=self.config)
+        finally:
+            h.close()
+        app = json.loads(next(out.rglob("app.json")).read_text())
+        won = [(j["trail"][0]["path"], j["won"]) for j in app["journeys"] if "won" in j]
+        self.assertEqual(won, [("/bing-webmaster-tools/ai-performance-report", "customer")])
+        for j in app["journeys"]:
+            self.assertFalse({"ip", "user_agent", "external_ref", "ref"} & set(j), "labels only")
+
+    def test_no_store_or_a_broken_one_leaves_the_visits_as_they_are(self):
+        from skald.people import lead_visits
+        js = [{"day": "2026-10-06", "seq": 0, "start": "x"}]
+        self.assertIs(lead_visits.mark_journeys({}, self.box.root / "none", SITE, js), js)
+        broken = self.box.root / "broken"
+        broken.mkdir()
+        (broken / store.FILE).write_text("not a database")
+        self.assertIs(lead_visits.mark_journeys({}, broken, SITE, js), js)
+        self.assertEqual(lead_visits.mark_journeys(self.config, self.box.root, SITE, []), [])
+
+    def test_the_audit_checks_every_pill_by_its_own_road(self):
+        from unittest import mock
+        from skald import audit_lead_visits
+        from skald.people import lead_visits
+        db = sqlite3.connect(store.path_for(self.config, self.box.root))
+        db.row_factory = sqlite3.Row
+        try:
+            rows = [dict(r) for r in db.execute("SELECT * FROM conversions")]
+            key = self.seq_of(db, "/bing-webmaster-tools/ai-performance-report")
+            self.assertEqual(audit_lead_visits.marks_by_own_road(db, SITE, rows), {key: "customer"})
+            self.assertEqual(audit_lead_visits.check_marks(db, SITE, *self.WEEK, rows), [])
+            other = self.seq_of(db, "/app/")
+            with mock.patch.object(lead_visits, "visit_marks", lambda *a: {key: "lead", other: "lead"}):
+                problems = audit_lead_visits.check_marks(db, SITE, *self.WEEK, rows)
+        finally:
+            db.close()
+        self.assertEqual(len(problems), 2, problems)
+        self.assertTrue(any("marked lead, this road finds customer" in p for p in problems), problems)
+        self.assertTrue(any("marked lead, this road finds nothing" in p for p in problems), problems)
+        self.assertFalse(any(PERSON in p for p in problems), "no address in a problem")
+
 class PersonPathPage(unittest.TestCase):
     """The drawer part of #30, run in node (tests/js/person-path.mjs)."""
 
@@ -273,6 +368,17 @@ class PersonPathPage(unittest.TestCase):
         done = subprocess.run(["node", str(js)], capture_output=True, text=True, timeout=60)
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertIn("person-path: all passed", done.stdout)
+
+    def test_lead_profile_and_pill(self):
+        """#31: the lead drawer's profile and the Lead / Customer pill (tests/js/lead-profile.mjs)."""
+        import shutil
+        import subprocess
+        if not shutil.which("node"):
+            self.skipTest("node is not installed")
+        js = Path(__file__).resolve().parent / "js" / "lead-profile.mjs"
+        done = subprocess.run(["node", str(js)], capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("lead-profile: all passed", done.stdout)
 
 class FakeHandler:
     def __init__(self, path, role):

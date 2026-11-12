@@ -23,6 +23,7 @@ import { openVisitor } from "./visitor.js";
 import { labelTag } from "./leadfigs.js";
 import { withUrl, copyIf } from "../urlactions.js";
 import { refBlock, refCell, byRef, markButton, mayMark } from "./leadref.js";
+import { money } from "./revfigs.js";
 
 export const SEARCH_HINT = "IP address, email, lead or visitor ID";
 export const mayFind = () => ["owner", "admin"].includes(ME.role);
@@ -91,6 +92,29 @@ export function pathPart(p) {
   return sec("Their visits, in order", head,
     rows.length ? grid("Their visits", ["Started", "Came from", "Landing", "Pages", "What they did", "Known"], rows) : empty("No visit is proven for these conversions."),
     miss, h("p", { class: "note" }, "Proven: the only visit that sent a form at a lead's time. Likely: the same address and browser around it; an office or a phone network can share an address. Never counted in any figure."));
+}
+
+/* #31: a lead's profile, in its drawer (Leads & sales > Leads; tabs/leadprofile.js asks
+   people?q=<its reference>): who (names and emails, only in an answer that holds them: an
+   owner's or an admin's, on a site that keeps them), every step of everything linked to
+   them oldest first with its time and value, and their visits in order (pathPart: where
+   they first came from, each visit's pages, proven or likely). A listing, never a figure. */
+export function profileParts(got) {
+  const rows = [...(got.conversions || [])].sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")) || (a.id || 0) - (b.id || 0));
+  const uniq = (list) => [...new Set(list.filter(Boolean).map(String))];
+  const names = uniq([...rows.map((r) => r.name), ...(got.leads || []).map((l) => l.name)]);
+  const emails = uniq([...rows.map((r) => r.email), ...(got.leads || []).map((l) => l.email)].map((e) => e && String(e).toLowerCase()));
+  const kept = got.kept?.identity === "full";
+  const who = names.length || emails.length
+    ? h("dl", { class: "dw-dl" }, [["Name", names.map((v) => h("span", { class: "pp-key" }, text(v)))], ["Email", emails.map((v) => h("span", { class: "pp-key" }, key(v)))]]
+      .filter(([, v]) => v.length).flatMap(([t, v]) => [h("dt", null, t), h("dd", null, v)]))
+    : empty(kept ? "No name or email came with their leads." : "This site keeps no names or emails (Settings > Privacy).");
+  const value = (r) => (r.value_minor != null && r.currency ? copyIf("text", `${money(r.value_minor, r.currency)} ${r.currency}`) : "-");
+  const did = rows.length ? grid("Everything they did", ["When", "What", "Value", "Reported by", "Reference"], rows.map((r) => [
+    at(r.at), [stepWords(r), labelTag(r.label), r.test ? h("b", { class: "pp-bad" }, " test (not counted)") : null], value(r), dash(r.tool),
+    refCell(r.external_ref, key(r.external_ref, r.external_ref, false))])) : empty("No step is kept for them.");
+  return [sec("Who", who), sec("Everything they did", did),
+    pathPart(got.path) || sec("Their visits, in order", empty("This site keeps no visits with their address (Settings > Privacy), so the visits that sent these steps cannot be shown."))];
 }
 
 /* A person (people?q=) opens in the visitor drawer (visitor.js), the same

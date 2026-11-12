@@ -19,6 +19,7 @@ import { visitDirect } from "./likelydirect.js";
 import { openVisitor, touchLine, touchName, ago } from "./visitor.js";
 import { pagesWords, visitPages } from "../visitpages.js";
 import { withUrl, copyIf } from "../urlactions.js";
+import { pill } from "../ui/pill.js";
 
 export const NOTE = { not_found: "met a page not found (404)", posted: "sent a form", in_app: "moved inside the site without loading a page",
   // A visit kept from before the form rule (form_names.py), when a POST the page's own script sends counted as a form.
@@ -52,6 +53,16 @@ function sourceOf(j) {
   return { name: via || shown(j.source) || "Not recorded", type: via ? j.source : "", icon, campaign: campaign && campaign !== "-" ? campaign : "" };
 }
 const visitor = (j) => (j.returning === true ? "Returning" : j.returning === false ? "New" : "");
+
+/* #31: a visit proven to have sent a lead (app.json `won`, people/lead_visits.py): "Lead", or
+   "Customer" when that person has paid. Proven only (the only visit that sent a form at the
+   lead's time); a likely link is never marked. A label, never counted. */
+export const WON = {
+  lead: ["info", "Lead", "This visit sent a lead: the only visit that sent a form at the lead's time (proven)."],
+  customer: ["good", "Customer", "This visit sent a form for someone who has paid: the only visit that sent a form at that time (proven)."],
+};
+export const wonWord = (j) => WON[j?.won]?.[1] || "";
+export const wonPill = (j) => (WON[j?.won] ? pill(WON[j.won][0], WON[j.won][1], { title: WON[j.won][2] }) : null);
 const zoned = (j) => when(j.start);
 const whenWords = (w) => (w ? `${weekday(w.day)} ${w.date}, ${w.hour}:${w.minute}` : "");
 
@@ -184,7 +195,10 @@ function columns(hasCity) {
         ft ? h("small", { class: "v-ft", title: "The first visit we know of for this visitor (visitor ID, kept address or 30-day code)" },
           "First came from ", h("b", null, touchName(x.j.first_touch)), `, ${ago(x.j.first_touch.day)}`) : null);
     }, csv: (x) => { const s = sourceOf(x.j); return [s.type ? `${s.type}: ${s.name}` : s.name, s.campaign ? `campaign ${s.campaign}` : "", touchLine(x.j)].filter(Boolean).join("; "); } },
-    { key: "visitor", label: "Visitor", type: "badge", cls: "c-vis", fmt: (v) => (v ? h("span", { class: `v-vis ${v === "New" ? "new" : "ret"}` }, v) : "") },
+    // #31: and a Lead or Customer pill on a visit proven to have sent one.
+    { key: "visitor", label: "Visitor", type: "badge", cls: "c-vis", fmt: (v, x) => (v || x.won ? h("span", { class: "v-stack" },
+      v ? h("span", { class: `v-vis ${v === "New" ? "new" : "ret"}` }, v) : null, wonPill(x.j)) : ""),
+    csv: (x) => [x.visitor, x.won].filter(Boolean).join(", ") },
     // Pages: loaded from the server plus steps seen in the browser, the browser ones said (visitpages.js).
     { key: "pages", label: "Pages", type: "num", num: true, cls: "c-pages", fmt: (v, x) => {
       const b = visitPages(x.j).browser;
@@ -211,7 +225,7 @@ export function visitMatrix(all, list, r, keptDays) {
   const rows = list.map((j, i) => {
     const src = sourceOf(j);
     return { j, __k: i, start: j.start, country: j.country || "", city: j.city ? cityShort(j.city) : "", device: j.device || "", src: src.name, ft: touchLine(j),
-      visitor: visitor(j), pages: visitPages(j).all ?? j.pages, seconds: j.seconds, path: trailWords(j.trail) };
+      visitor: visitor(j), won: wonWord(j), pages: visitPages(j).all ?? j.pages, seconds: j.seconds, path: trailWords(j.trail) };
   });
   const tbl = table(columns(list.some((j) => j.city)), {
     caption: "Each visit", rows, file: fileName("visits", r), limit: 12, sortKey: "start", dir: -1,

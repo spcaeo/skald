@@ -45,6 +45,13 @@ const st = { body: null, at: 0, timer: 0, busy: false, paused: false, helper: tr
 // realtime.json (written with each redraw) as an answer without the 15-second road.
 const fromFile = (f) => (f ? { ok: true, file: true, people_state: f.state, people: f.realtime || null, requests: null } : null);
 
+/* Ask now, whatever the clock says (Right now's Refresh now, #43): the helper is tried again. */
+export async function pollNow() {
+  st.helper = true;
+  if (st.busy) await new Promise((ok) => setTimeout(ok, 300));
+  await poll();
+}
+
 async function poll() {
   if (st.busy) return;
   st.busy = true;
@@ -196,7 +203,9 @@ function stateWords(state) {
 }
 
 // ------------------------------------------------------------------ block
-export function realtimeBlock(m, s, { tab = false } = {}) {
+// merged (#43): under Overview's Right now card, which already shows the visitors now, the
+// minute bars and the clock: the block starts at the requests chart and the map.
+export function realtimeBlock(m, s, { tab = false, merged = false } = {}) {
   if (!st.body && m.x?.realtime) st.body = fromFile(m.x.realtime);
   const el = h("section", { class: `s rt${tab ? " rt-tab" : ""}`, "aria-label": "Real time" });
   const map = worldMap({ onPick: (cc) => openDrill("country", cc), onCity: (k) => openDrill("city", k), label: "World map: visits today by country, and the countries and cities with visitors active in the last 30 minutes" });
@@ -232,14 +241,14 @@ export function realtimeBlock(m, s, { tab = false } = {}) {
     clock();
     const view = s.view && s.view !== "all" ? h("p", { class: "note" }, "Real time covers the whole site, not only this page group.") : null;
     const words = P ? "" : stateWords(B.people_state);
-    el.replaceChildren(...[top, view,
+    el.replaceChildren(...[merged ? null : top, view,
       words ? h("div", { class: `state${B.people_state === "withheld" ? " bad" : ""}`, role: B.people_state === "withheld" ? "alert" : "status" }, h("div", null, words)) : null,
-      P ? people(P, s) : null,
+      P && !merged ? people(P, s) : null,
       h("div", { class: "cols rt-charts" },
-        P ? h("div", { class: "sheet" }, h("h3", null, "Visitors on the site, minute by minute"),
+        P && !merged ? h("div", { class: "sheet" }, h("h3", null, "Visitors on the site, minute by minute"),
           h("p", { class: "card-m" }, "a visitor is on the site from their first request to their last; the last minute is still running"), perMinute(P)) : null,
         reqRows.length ? h("div", { class: "sheet" }, h("h3", null, "Requests per minute"),
-          h("p", { class: "card-m" }, "every request the server logged: pages, files, bots and people alike. Not visitors."), requestsChart(reqRows, !B.requests)) : null),
+          h("p", { class: "card-m" }, "every request the server logged: pages, files, bots and people alike. Not visitors."), requestsChart(reqRows, !B.requests), merged ? h("p", { class: "note" }, clockR) : null) : null),
       P ? h("div", { class: "rt-geo" },
         h("div", { class: "sheet rt-mapcard" }, h("h3", null, "Where visitors are"),
           h("p", { class: "card-m" }, P.cities ? "shaded by visits today; a pulsing dot on each city with visitors active in the last 30 minutes (a country's bubble: active visitors whose city is not recorded). Select a country or a city for its detail."

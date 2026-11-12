@@ -280,12 +280,19 @@ function options(m) {
 }
 
 // ---------------------------------------------------------------- refresh
-// POST <page>/refresh: the helper runs `live` and answers 303 back to the page.
+// POST <page>/refresh: the helper runs `live` for this site only (#43) and answers JSON
+// {ok, result: ran|recent|busy|failed} when asked for it; an older helper answers 303 back
+// to the page, which is a plain ok.
 export async function refresh(m) {
   if (DEMO.on) return { ok: false, message: `${DEMO_SAYS} The figures here are a fixed sample.` };
   try {
-    const res = await fetch(m.refreshUrl || "refresh", { method: "POST", credentials: "same-origin", redirect: "follow", cache: "no-store", headers: csrfHeaders() });
-    if (res.ok) return { ok: true };
+    const res = await fetch(m.refreshUrl || "refresh", { method: "POST", credentials: "same-origin", redirect: "follow", cache: "no-store", headers: { ...csrfHeaders(), Accept: "application/json" } });
+    if (res.ok && /json/.test(res.headers.get("Content-Type") || "")) {
+      const body = await res.json().catch(() => null);
+      if (body?.result === "failed" || body?.ok === false) return { ok: false, result: "failed", message: "The count did not finish; figures update by themselves anyway." };
+      return { ok: true, result: body?.result || "ran", recent: body?.result === "recent" };
+    }
+    if (res.ok) return { ok: true, result: "ran" };
     if (res.status === 403) return { ok: false, message: "Refresh refused: it only works from this page." };
     if (res.status === 502 || res.status === 504) return { ok: false, message: "The refresh helper is not running; figures update every 2 minutes anyway." };
     return { ok: false, message: `Refresh failed (${res.status}); figures update every 2 minutes anyway.` };

@@ -3,14 +3,18 @@
 nginx keeps the password check and forwards only POST <page>/refresh here
 (127.0.0.1 only). The helper runs `skald live` - the same command the 2-minute
 cron runs, which redraws the dashboard and never touches history or mail -
-then sends the browser back to the page it came from.
+for the page's own site only on a multi-site install (`--site <name> live`),
+then sends the browser back to the page it came from, or, when the request
+accepts application/json (the web app's fetch), answers
+{"ok", "result": "ran"|"recent"|"busy"|"failed", "site"}; a site the install
+does not have is 404 and nothing runs.
 
 Guards:
   * only POST, only paths shaped like /traffic/<site>/[<view>/]refresh
   * same-origin only (Sec-Fetch-Site / Origin), so another site cannot make a
     logged-in browser press the button
-  * one run at a time, and at most one run per MIN_GAP seconds; a press inside
-    the gap just goes back to the page
+  * one run at a time, and at most one run per site per MIN_GAP seconds; a
+    press inside the gap just goes back to the page
   * stdlib only, no request body is read
 
 It also serves the internal-addresses list (ours_store.py) for the page:
@@ -201,29 +205,76 @@ def same_origin(headers, allowed: set[str]) -> bool:
     return origin is not None and origin in allowed
 
 
+def install_sites(config: dict | None, config_path: Path | None) -> dict[str, str]:
+    """{dashboard folder: site name} for every site of a multi-site install
+    (multisite.py: the config's `sites:` files and the dashboard's sites), or
+    {} for a one-site install, or when the list cannot be read (the run is
+    then the whole-install one, as it always was). Read on every press: a
+    site added in Settings > Sites counts at once."""
+    from .config import site_name
+    from .files import slug
+    from .multisite import site_configs
+    if not config or config_path is None:
+        return {}
+    try:
+        others = site_configs(config, Path(config_path))
+    except (SystemExit, Exception):      # noqa: BLE001 - a broken list: the old run
+        return {}
+    if not others:
+        return {}
+    names = [site_name(config)] + [site_name(c) for c in others]
+    return {slug(n): n for n in names}
+
+
 class Runner:
-    """Runs the live command at most once per MIN_GAP seconds, one at a time."""
+    """Runs the live command, one run at a time, and for each site at most
+    once per MIN_GAP seconds.
+
+    `command` is the whole-install command (it ends with the `live`
+    subcommand). `sites`, when given, returns install_sites(): with more than
+    one site a press runs `--site <name> live` for its own page's site only
+    (about 4 minutes for every site on a busy install, longer than
+    RUN_TIMEOUT; one site takes seconds)."""
 
     def __init__(self, command: list[str], cwd: Path, gap: float = MIN_GAP,
-                 clock=time.monotonic, run=subprocess.run):
+                 clock=time.monotonic, run=subprocess.run, sites=None):
         self.command, self.cwd, self.gap = command, cwd, gap
-        self.clock, self._run = clock, run
+        self.clock, self._run, self.sites = clock, run, sites
         self.lock = threading.Lock()
-        self.last = None
+        self.last: dict[str | None, float] = {}      # site name (None: all) -> last run
 
-    def refresh(self, force: bool = False) -> str:
-        """'ran', 'failed', 'recent' (inside the gap) or 'busy'. `force` runs
-        even inside the gap (after a change to the address list), waiting
-        for a run in progress."""
+    def plan(self, site: str | None) -> tuple[str | None, list[str]] | None:
+        """(the gap's key, the command) for a page of `site` (its dashboard
+        folder), or None for a site a multi-site install does not have: an
+        unknown name never reaches a command line. A one-site install, or no
+        site, gets the whole-install command."""
+        listed = self.sites() if self.sites else {}
+        if not listed or site is None:
+            return None, list(self.command)
+        name = listed.get(site)
+        if name is None:
+            return None
+        return name, self.command[:-1] + ["--site", name] + self.command[-1:]
+
+    def refresh(self, force: bool = False, site: str | None = None) -> str:
+        """'ran', 'failed', 'recent' (this site ran inside the gap), 'busy'
+        (another run is going) or 'unknown' (no such site; nothing ran).
+        `force` runs even inside the gap (after a change to the address
+        list), waiting for a run in progress."""
+        planned = self.plan(site)
+        if planned is None:
+            return "unknown"
+        key, command = planned
         if not self.lock.acquire(blocking=force, timeout=RUN_TIMEOUT if force else -1):
             return "busy"
         try:
             now = self.clock()
-            if not force and self.last is not None and now - self.last < self.gap:
+            last = self.last.get(key)
+            if not force and last is not None and now - last < self.gap:
                 return "recent"
-            self.last = now
+            self.last[key] = now
             try:
-                done = self._run(self.command, cwd=self.cwd, timeout=RUN_TIMEOUT,
+                done = self._run(command, cwd=self.cwd, timeout=RUN_TIMEOUT,
                                  stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
             except subprocess.TimeoutExpired:
                 return "failed"
@@ -377,7 +428,7 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
                     funnels.delete(live_dir, str(form.get("name") or ""), who)
             except (funnels.Invalid, OSError) as why:
                 return self._json(400, {"ok": False, "error": str(why)})
-            runner.refresh(force=True)
+            runner.refresh(force=True, site=site)    # this page's site; the others at the next run
             path = data_file(out, site, view, "funnels")
             body = json.loads(path.read_text()) if path else {}
             return self._json(200, {"ok": True, **body})
@@ -429,7 +480,7 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
                 return self._json(409, {"ok": False, "error": str(why), "entries": listed()})
             except (ours_store.Invalid, OSError) as why:
                 return self._json(400, {"ok": False, "error": str(why), "entries": listed()})
-            runner.refresh(force=True)
+            runner.refresh(force=True, site=site or None)   # this page's site only
             return self._json(200, {"ok": True, "entries": listed()})
 
         def _send(self, code: int, location: str | None = None) -> None:
@@ -506,7 +557,8 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
             if people_marks.is_mark(self.path):         # a drawer's Mark as test (2.25)
                 return people_marks.handle(self, config, live_dir, history_path, config_path,
                                            sessions_mode, allowed, same_origin,
-                                           refresh=lambda: runner.refresh(force=True))
+                                           refresh=lambda: runner.refresh(
+                                               force=True, site=helper_sessions.site_of(self.path)))
             m = route(FUNNELS_PATH, self.path)
             if m is not None and m.group("act"):
                 return self._funnels(m)
@@ -518,12 +570,28 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
             page = back_to(self.path)
             if page is None:
                 return self._send(404)
+            return self._refresh(page)
+
+        def _refresh(self, page: str) -> None:
+            """Refresh now: count this page's site. A caller that accepts JSON
+            (the web app's fetch) gets {"ok", "result", "site"}; a plain form
+            post goes back to the page (303), as before."""
+            wants_json = "application/json" in (self.headers.get("Accept") or "")
             if not same_origin(self.headers, allowed):
-                return self._send(403)
-            result = runner.refresh()
+                return (self._json(403, {"ok": False, "error": "same-origin requests only"})
+                        if wants_json else self._send(403))
+            site = helper_sessions.site_of(self.path)
+            result = runner.refresh(site=site)
+            if result == "unknown":
+                return (self._json(404, {"ok": False, "result": "unknown", "site": site,
+                                         "error": "no such site"})
+                        if wants_json else self._send(404))
             if result == "failed":
-                sys.stderr.write("refresh: live run failed\n")
-            self._send(303, page)
+                sys.stderr.write(f"refresh: live run failed for {site}\n")
+            if wants_json:
+                return self._json(200, {"ok": result != "failed", "result": result,
+                                        "site": site})
+            return self._send(303, page)
 
         def do_GET(self):
             self.who = None
@@ -667,7 +735,6 @@ def main(argv=None) -> int:
                         "Sec-Fetch-Site header; without it those are refused.")
     a = p.parse_args(argv)
     root = Path(__file__).resolve().parent.parent
-    runner = Runner([sys.executable, str(root / "bin/skald"), "--config", a.config, "live"], root)
     # No default: with no --origin, only browsers that say Sec-Fetch-Site:
     # same-origin get in. We never trust a domain nobody named.
     allowed = allowed_origins(a.origin)
@@ -679,6 +746,9 @@ def main(argv=None) -> int:
     # The history file, so the install's mail settings and secrets.json are
     # found beside it (settings_store.py) for the account and test mails.
     config.setdefault("_resolved", {"history_db": str(db), "live_dir": str(db.parent)})
+    # One site per press on a multi-site install (install_sites, Runner.plan).
+    runner = Runner([sys.executable, str(root / "bin/skald"), "--config", a.config, "live"], root,
+                    sites=lambda: install_sites(config, Path(a.config)))
     server = make_server(config, make_handler(runner, allowed, config, out, db.parent, db,
                                               Path(a.config)), a.port)
     import signal                         # systemd's stop: close (and remove the socket)

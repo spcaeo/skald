@@ -1,4 +1,5 @@
-// Overview > Summary (2.7.0; one order for every period, 2.13).
+// Overview > Summary (2.7.0; one order for every period, 2.13). Since #43 the Right now card
+// (ov-rightnow.js) is on top in every period: Real time is part of this page.
 //
 // Live mode (the period Today, "Today · Live") is its own page, the owner's
 // approved layout: the live strip with "vs yesterday at this hour", where
@@ -37,6 +38,7 @@ import { workCard } from "./ov-work.js";
 import { freshCard } from "./ov-fresh.js";
 import { urlFold } from "../ui/fold.js";
 import { toolsCard } from "./ov-tools.js";
+import { rightNow } from "./ov-rightnow.js";
 
 /* Everything after the chart and What changed, in one fold kept in the address. */
 function foldTheRest(out) {
@@ -122,5 +124,11 @@ export default function summary(m, s, o) {
   // the title, the list folded (2.41, ov-setup.js), so the figures come first.
   const setup = setupStrip(m);
   if (setup) out.splice(out.findIndex((el) => is(el, "head")) + 1, 0, setup);
+  // #43: Right now on top whatever the period (who is on the site, Refresh now), after the
+  // title, its period line and the set-up line.
+  const at = out.findIndex((el) => is(el, "head"));
+  let after = at + 1;
+  while (out[after] instanceof Element && out[after].matches(".pl, .ov-setup")) after += 1;
+  out.splice(at >= 0 ? after : 0, 0, rightNow(m, s, o));
   return out.filter(Boolean);
 }

@@ -184,7 +184,7 @@ class Apply(unittest.TestCase):
 
 
 class FakeRunner:
-    def refresh(self, force=False):
+    def refresh(self, force=False, site=None):
         return "ran"
 
 

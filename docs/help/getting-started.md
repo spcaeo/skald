@@ -98,7 +98,7 @@ The sidebar has six sections. Each section has tabs along its top.
 
 | Section | Tabs |
 | --- | --- |
-| Overview | Summary, Real time, Insights |
+| Overview | Summary (with Right now on top), Insights |
 | Traffic | Visitors, Sources, Pages, Places & devices, Search, Retention, Time |
 | Leads & sales | Leads, Summary, Sources, Revenue, Calendar bookings, Funnels, Events, Find a person |
 | AI & bots | Assistants, Crawlers, Crawl health, AI answers, Crawler rules, llms.txt |
@@ -106,7 +106,7 @@ The sidebar has six sections. Each section has tabs along its top.
 | Site | Health, Alerts, Requests, Not found, Speed, Data quality |
 
 - **Overview > Summary** is where every visit starts: the period's five key figures (leads among them) with their change, what changed, and whether to work on a page or on its traffic. See [Summary and Pages: is it working?](getting-started.md#summary-and-pages-is-it-working).
-- **Overview > Real time** is who is on the site now, on a live world map. See [Real time](real-time.md).
+- **Right now**, on top of Overview, is who is on the site now: each person, the page they are on, New, Returning, Lead or Customer, and **Refresh now**. See [Real time](real-time.md).
 - **Overview > Insights** lists what is working, what dropped, and what is new or gone, leads too. See [Insights](getting-started.md#insights).
 - **Traffic** is who came, from where, to which pages, on what, and when; **Search** adds Google's and Bing's own queries ([Search](search.md)) and **Retention** how many came back ([Retention](retention.md)). A source of **Direct** means no referrer and no campaign tag. A country, device or touch the log did not carry says **Not recorded**.
 - **Leads & sales** is what the visits brought: leads by stage, revenue, demo bookings, funnels, events, and one person's story. A tab that is empty because its source is not connected (leads, bookings, revenue, events) says what it needs, what Skald found on your site, and offers one **Connect** (owners and admins; others read "Ask an admin to connect it").
@@ -153,7 +153,7 @@ On a phone or a tablet the icons are always shown. They never open the row's own
 
 The top bar has seven controls: the page's name, the period, **Compare**, then on the right **Filters** (with a count of the filters on), **Search or jump to**, the alerts bell and **More** (the three dots: **Recount today now**, **Saved views** and **Export**). Two of them change what every figure covers:
 
-- **Today**, the first choice of the period, sets every tab to today so far, redrawn every 2 minutes, with a live dot. On Overview > Summary it shows today live: visitors on the site now, today's figures against yesterday at the same time of day, where visitors came from and what converted, each linking to its full tab; the map, the visitors now and the flow are on Real time ([Today, live](real-time.md#today-live)). Turn it off to go back to the period you had.
+- **Today**, the first choice of the period, sets every tab to today so far, redrawn every 2 minutes, with a live dot. On Overview it shows today live: Right now (the people on the site now), today's figures against yesterday at the same time of day, then the map, the newest visits and the flow ([Today, live](real-time.md#today-live)). Turn it off to go back to the period you had.
 - **Compare with…** puts another period beside this one. It is on by default: a period of whole days is set against the one before it. See Compare, below. It shows only on a tab that compares.
 
 When your site reports leads (a form, a booking), they show beside the visitors on Overview > Summary, Traffic > Sources, Traffic > Pages, Traffic > Places & devices and Overview > Insights, not only under Leads & sales. See [Leads on every page](leads-and-conversions.md#leads-on-every-page).
@@ -177,7 +177,7 @@ With the file set:
 
 - **Traffic > Places & devices** has a **Cities** table under the countries: visitors by city, each with its country's flag. Search it, sort it, download it, or select a city for its detail (its trend and the visits behind it). Choosing a country in Filters keeps only that country's cities.
 - **Each visit** (the visit list, a visit's panel, a person's visits and Real time's newest visits) says where it came from: "Toronto, Ontario, Canada".
-- **Real time**'s map puts a dot on each city with visitors now. See [Real time](real-time.md#cities-on-the-map).
+- Overview's map (Real time) puts a dot on each city with visitors now. See [Real time](real-time.md#cities-on-the-map).
 
 A city is counted for visitors only, never for bots, at the first page of the visit. It is the city's own point, not the visitor's street, and it is a lookup, not a guess: when the file has no city for an address, or names a city in another country than the visit's, the city says **Not recorded**. Cities start on the day the file is set; a period that reaches back before it says how many of its days have them. "IP Geolocation by DB-IP" is shown under the countries and cities, as DB-IP's licence asks.
 
@@ -187,7 +187,7 @@ The date range sits in the top bar, beside the page's name, as one group: **Toda
 
 **All time** runs from the first day this site has data (its first recorded day, or its first lead when that is earlier) to the last whole day, and the period line says the day it starts: "All time: since Fri 21 Aug 2026, 62 days". The dashboard holds the last 180 days; when your site's data begins before that, the line says so ("All time held here: the last 180 days ... this site's data begins ..."), and no total counts days it does not have.
 
-A few tabs keep a period of their own, so the date range is not shown there. A fixed **Period** chip takes its place and says the tab's own period: **Now** on Real time, each insight's own two periods on Insights, now and the last 30 days on Alerts, the last few hours on Requests, the rules as they are now on Crawler rules. Settings pages have no period at all. A part of a tab with a shorter period of its own says so beside its heading, for example **Each visit** on Traffic > Visitors (visits are kept 7 days).
+A few tabs keep a period of their own, so the date range is not shown there. A fixed **Period** chip takes its place and says the tab's own period: each insight's own two periods on Insights, now and the last 30 days on Alerts, the last few hours on Requests, the rules as they are now on Crawler rules. Settings pages have no period at all. A part of a tab with a shorter period of its own says so beside its heading, for example **Each visit** on Traffic > Visitors (visits are kept 7 days).
 
 To choose your own dates:
 
