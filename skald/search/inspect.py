@@ -24,6 +24,11 @@ impressions first) and the pages people read that Googlebot fetched
 the last FRESH_HOURS is not asked again. At most `search_console.inspect_per_day`
 (PER_DAY) a Pacific day, under Google's 2,000 a day per property; 0 turns it off.
 
+Google takes about 6 s an answer, so WORKERS pages are asked at once (Google
+allows 600 a minute per property) and the answers are kept BATCH at a time: a
+job stopped part-way loses at most one batch, and asked_today counts what was
+kept (2.48.1, #49).
+
 A failure (Google's quota, no permission) is kept in the sync state under
 "inspect" and never fails the sync or changes a figure. These are Google's
 labels, never counts of Skald's: audit_search_pages.py recounts the per-status
@@ -32,6 +37,7 @@ counts the MCP shows from the rows by its own road.
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
@@ -40,6 +46,8 @@ from . import http
 
 API = "https://searchconsole.googleapis.com/v1/urlInspection/index:inspect"
 PER_DAY = 200
+WORKERS = 4         # pages asked at once
+BATCH = 20          # answers kept together; a stopped job loses at most one batch
 PAGE_DAYS = 28
 FRESH_HOURS = 20
 KEEP_DAYS = 486
@@ -189,29 +197,49 @@ def inspect_one(client, prop: str, url: str, api: str = API) -> dict:
                                          "languageCode": "en-US"})
 
 
+def _ask(client, prop: str, url: str, api: str):
+    """(answer, None), or (None, why) when Google refused."""
+    try:
+        return inspect_one(client, prop, url, api), None
+    except http.Failed as why:
+        return None, str(why)
+
+
 def run(job, client, prop: str, limit: int | None = None) -> dict:
-    """Ask about the next pages within today's budget; keep every answer.
-    Returns {"asked", "kept", "error"}; never raises for Google's refusals."""
+    """Ask about the next pages within today's budget, WORKERS at once; keep the
+    answers BATCH at a time. Returns {"asked", "kept", "error"}; never raises for
+    Google's refusals. A refusal stops further asking; the answers in are kept."""
     now = job.now
     with job.history() as h:
         budget = per_day(job.config) - asked_today(h.db, job.site, now)
         todo = candidates(h.db, job.site, job.config, now) if budget > 0 else []
     todo = todo[:max(0, min(budget, limit if limit is not None else budget))]
-    rows, error = [], None
     given = getattr(job, "api", None) or {}
     # A job pointed at another Search Console (a test's fake server) never asks Google's.
     api = given.get("google_inspect") or (None if given.get("google_api") else API)
-    if api is None:
+    if api is None or not todo:
         return {"asked": 0, "kept": 0, "error": None}
-    for url in todo:
-        try:
-            rows.append(row_of(job.site, url, prop, inspect_one(client, prop, url, api), now))
-        except http.Failed as why:
-            error = str(why)
-            break
-    with job.history() as h:
-        kept = write(h.db, rows, now)
-    return {"asked": len(todo), "kept": kept, "error": error}
+    try:
+        client.token()                              # one token for every worker
+    except http.Failed as why:
+        return {"asked": 0, "kept": 0, "error": str(why)}
+    asked = kept = 0
+    error = None
+    with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+        for at in range(0, len(todo), BATCH):
+            part = todo[at:at + BATCH]
+            rows = []
+            for url, (answer, why) in zip(part, pool.map(lambda u: _ask(client, prop, u, api), part)):
+                if why is not None:
+                    error = error or why
+                else:
+                    rows.append(row_of(job.site, url, prop, answer, now))
+            asked += len(part)
+            with job.history() as h:
+                kept += write(h.db, rows, now)
+            if error:
+                break
+    return {"asked": asked, "kept": kept, "error": error}
 
 
 # ------------------------------------------------------------------ reading

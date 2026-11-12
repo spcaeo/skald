@@ -1,6 +1,6 @@
 """Crawlers in a browser's clothes (#4, CLASSIFICATION.md rules 5b and 9c).
 
-Found on taskrhino's 31 Oct: 99 pages read by a Mac Chrome from addresses on
+Found on a client site's 31 Oct: 99 pages read by a Mac Chrome from addresses on
 OpenAI's published OAI-SearchBot list, and 170 pages read 2 to 7 seconds
 apart by a Linux Chrome from a cloud network. Both were counted as people,
 and their page scripts sent about 400 scroll events.

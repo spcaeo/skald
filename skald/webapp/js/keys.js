@@ -27,8 +27,9 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-12-2.48.0",
+  id: "2026-11-12-2.48.1",
   items: [
+    ["Index status, faster", "Skald asks Google about four pages at once and keeps each answer as it arrives: 200 pages take about 5 minutes instead of 20.", "search"],
     ["Latest crawl", "a page’s story shows when Googlebot and Bingbot last fetched it, and the status they got: has Google seen the page since it changed?", "getting-started"],
     ["Time on page", "a page’s story gives its time on page per day, counted from your log (the median, and how many views it was measured on).", "getting-started"],
     ["Search Console for AI agents", "an agent connected over MCP gets Search Console’s clicks, impressions and position per page and day, the page’s queries and countries, and whether Google has it indexed.", "search"],
