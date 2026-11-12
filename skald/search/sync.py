@@ -15,7 +15,8 @@ Search Console (per site property, `search_console.property`):
      query, page, country, device and search appearance, each grouped by date
      (search appearance alone per day if Google refuses it with the date),
      and each query with its page (query_page: which page a query
-     showed, for Traffic > Search's opportunities; counted by page);
+     showed, for Traffic > Search's opportunities; counted by page), and (2.48)
+     each page with a country (page_country, for the MCP's per-page countries);
   4. folds each day and kind (days.fold: top rows, "(all others)" and what
      Google does not attribute) and writes it, read back and checked.
   A day after the newest Google has is never stored; a day inside the range
@@ -55,8 +56,9 @@ CHUNK_DAYS = 7
 KEEP_DAYS = 486                         # Search Console keeps 16 months
 EVERY_HOURS = 6
 DIMENSIONS = {"query": "query", "page": "page", "country": "country", "device": "device",
-              "appearance": "searchAppearance", "query_page": ("query", "page")}
-BY_PAGE = ("page", "query_page")        # Google counts these by page: the by-page total
+              "appearance": "searchAppearance", "query_page": ("query", "page"),
+              "page_country": ("page", "country")}
+BY_PAGE = ("page", "query_page", "page_country")   # counted by page: the by-page total
 ENGINE_NAMES = {"google": "Search Console", "bing": "Bing Webmaster Tools"}
 
 
@@ -202,7 +204,7 @@ def fetch_google(client, prop: str, first: date, last: date,
             if not r.get("keys"):
                 continue
             row = _row(r)
-            if kind == "query_page":
+            if kind in ("query_page", "page_country"):
                 keys = r["keys"]
                 row[0] = days.QP_SEP.join(str(k) for k in keys[1:3]) if len(keys) > 2 else ""
             grouped.setdefault(kind, {}).setdefault(r["keys"][0], []).append(row)
@@ -360,9 +362,11 @@ def run(job: Job, engine: str, **options) -> int:
                 return _failed(job, engine, source, f"{source} does not cover this site's host "
                                f"names ({', '.join(map(str, hosts))}); connect a property "
                                "of this site in Settings > Leads & tools > Search Console & Bing.", started)
+            client = None
             try:
                 if engine == "google":
-                    got = sync_google(job, **options)
+                    client = options.pop("client", None) or google_client(job)
+                    got = sync_google(job, client=client, **options)
                 else:
                     got = sync_bing(job, **options)
             except (http.Failed, ValueError, OSError) as why:
@@ -370,10 +374,26 @@ def run(job: Job, engine: str, **options) -> int:
                                backfill="backfill_months" in options
                                and options["backfill_months"])
             _ok(job, engine, source, got, started)
+            if engine == "google" and not options.get("backfill_months"):
+                _inspect(job, client, source)
             return 0
     except state.Busy as why:
         job.err(f"{engine} {job.site}: {why}")
         return 3
+
+
+def _inspect(job: Job, client, prop: str) -> None:
+    """URL Inspection after a good sync (search/inspect.py): its outcome is kept
+    under "inspect" in the state file; it never fails the sync."""
+    from . import inspect
+    try:
+        got = inspect.run(job, client, prop)
+    except Exception as why:            # noqa: BLE001 - index status is a label, never a stop
+        got = {"asked": 0, "kept": 0, "error": f"URL Inspection stopped: {why}"}
+    state.update(job.folder, job.site, "google", inspect={**got, "at": state.now_text()})
+    if got.get("asked") or got.get("error"):
+        job.out(f"url-inspection {job.site}: {got['kept']} of {got['asked']} pages"
+                + (f"; {got['error']}" if got.get("error") else ""))
 
 
 def _summary(job: Job, engine: str) -> dict:

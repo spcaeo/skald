@@ -122,7 +122,7 @@ The assistant chooses these tools itself. Dates are in your site's own time zone
 | `leads` | Leads from the website's forms, by type and by first source (totals only) |
 | `funnel` | A saved funnel, or steps you name, over the last 7 days and today |
 | `compare` | Two date ranges side by side, up to 400 days |
-| `page_story` | One page since it was published: first Googlebot, first AI crawler, first person, first lead |
+| `page_story` | One page since it was published: first Googlebot, first AI crawler, first person, first lead; Googlebot's and Bingbot's latest fetch with the status it got; time on page from the log (median seconds to the next page view), per day and over the whole days |
 | `live_today` | Today so far, from the 2-minute snapshot (partial, never compared) |
 | `data_quality` | Per day: whether the log was read whole and passed its checks |
 | `site_health` | Open alerts, heartbeat uptime, errors today, late runs, page speed |

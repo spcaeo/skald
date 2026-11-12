@@ -22,9 +22,15 @@ Milestones - Googlebot's and Bingbot's first fetch, each AI crawler's and
 assistant's, the first person, the first from a search engine and from each
 assistant - are each page's earliest times, kept for good in history
 (`page_milestones`, filled at every collect from the day's `page_firsts`,
-which the audit recounts from the raw log). The first leads come from the
-CMS: the first whose first touch landed on the page, and the first sent
-from a form on it.
+which the audit recounts from the raw log). Beside them, Googlebot's and
+Bingbot's latest fetch and the status it got (`googlebot_latest`,
+`bingbot_latest`: the same table, the newest kept; null when never fetched).
+The first leads come from the CMS: the first whose first touch landed on
+the page, and the first sent from a form on it.
+
+Time on page from the log (page_time.py): per day, and over the whole
+days, the median seconds from a view to the visit's next view, the views
+measured, and the views that were the visit's last page (not measured).
 
 The daily series is the per-page blob (`day_extras` "pages", all pages,
 kept `report.retention_days`), from the publish date - or the first day
@@ -38,9 +44,13 @@ from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+from . import page_time
+
 MAX_DAYS = 400
 SINGLE = ("googlebot", "bingbot", "human", "from_search")
 MULTI = ("ai_training", "ai_asked", "from_ai")
+# Each crawler's newest fetch of the page, {"at", "status"} (#44).
+LATEST = ("googlebot_latest", "bingbot_latest")
 
 
 def _norm(path: str) -> str:
@@ -74,13 +84,26 @@ def _local(iso: str | None, tz) -> str | None:
         return iso
 
 
+def _empty() -> dict:
+    return {k: None for k in SINGLE + LATEST} | {k: [] for k in MULTI}
+
+
+def _status(via: str) -> int | None:
+    return int(via) if str(via).isdigit() else None
+
+
 def milestones(history, site: str, path: str | None, tz) -> dict[str, dict]:
-    """{path: {"googlebot": {"at"}, ..., "ai_training": [{"who","at"}], ...}},
-    both spellings of a path merged (the earliest wins)."""
+    """{path: {"googlebot": {"at"}, ..., "ai_training": [{"who","at"}], ...,
+    "googlebot_latest": {"at", "status"}}}, both spellings of a path merged
+    (the earliest wins; for a LATEST kind the newest)."""
     out: dict[str, dict] = {}
     for p, kind, who, at, via in history.milestones(site, path):
-        got = out.setdefault(_norm(p), {k: None for k in SINGLE} | {k: [] for k in MULTI})
-        if kind in SINGLE:
+        got = out.setdefault(_norm(p), _empty())
+        if kind in LATEST:
+            if got[kind] is None or (at, via) > (got[kind]["_at"], got[kind]["_via"]):
+                got[kind] = {"at": _local(at, tz), "status": _status(via), "_at": at,
+                             "_via": via}
+        elif kind in SINGLE:
             if got[kind] is None or at < got[kind]["_at"]:
                 got[kind] = {"at": _local(at, tz), "_at": at,
                              **({"who": via} if kind == "from_search" else {})}
@@ -91,9 +114,10 @@ def milestones(history, site: str, path: str | None, tz) -> dict[str, dict]:
             elif at < same["_at"]:
                 same.update(at=_local(at, tz), _at=at)
     for got in out.values():
-        for kind in SINGLE:
+        for kind in SINGLE + LATEST:
             if got[kind]:
                 got[kind].pop("_at", None)
+                got[kind].pop("_via", None)
         for kind in MULTI:
             got[kind].sort(key=lambda m: m["_at"])
             for m in got[kind]:
@@ -313,13 +337,14 @@ def story(history, site: str, path: str, config: dict, tz, today: date) -> dict:
         return {"ok": False, "error": "no such page in the website's list, its sitemap or "
                                       "the logs"}
     published, _, source = _published(path, meta, seen)
-    marks = (milestones(history, site, None, tz).get(path)
-             or {k: None for k in SINGLE} | {k: [] for k in MULTI})
+    marks = milestones(history, site, None, tz).get(path) or _empty()
     landed, sent = _leads(config, tz)
     start = date.fromisoformat(published or seen.get(path) or today.isoformat())
     last = today - timedelta(days=1)
     start = max(start, last - timedelta(days=MAX_DAYS - 1))
     days = []
+    timed: list[dict] = []          # the page's blob rows of the whole days (time on page)
+    timed_days = 0
     if start <= last:
         for e in history.daily(site, start, last):
             d = e["day"].isoformat()
@@ -337,11 +362,17 @@ def story(history, site: str, path: str, config: dict, tz, today: date) -> dict:
                         parts[k].update({a: int(b) for a, b in (v.get(k) or {}).items()})
                 row.update({k: got[k] for k in ("readers", "views", "ai_asked", "ai_training",
                                                  "search")},
-                           **{k: dict(c) for k, c in parts.items()})
+                           **{k: dict(c) for k, c in parts.items()},
+                           time_on_page=page_time.figure([v for _, v in pages]))
+                if e["state"] == "ok":
+                    timed.extend(v for _, v in pages)
+                    timed_days += 1
             else:
                 row.update({k: None for k in ("readers", "views", "ai_asked", "ai_training",
-                                              "search", "sources", "assistants", "countries")})
+                                              "search", "sources", "assistants", "countries",
+                                              "time_on_page")})
             days.append(row)
+    whole = page_time.figure(timed) if timed_days else None
     entry = meta.get(path) or {}
     return {"ok": True, "path": path, "title": entry.get("title"), "locale": entry.get("locale"),
             "published": published, "date_source": source, **_dated(path, meta, changes),
@@ -351,6 +382,9 @@ def story(history, site: str, path: str, config: dict, tz, today: date) -> dict:
             "milestones": {**marks,
                            "lead_landed": {"at": landed[path]} if path in landed else None,
                            "lead_sent": {"at": sent[path]} if path in sent else None},
+            # Over the whole, verified days (page_time.py); None: not recorded.
+            "time_on_page": ({**whole, "min_measured": page_time.MIN_MEASURED,
+                              "days": timed_days} if whole is not None else None),
             "days": days}
 
 
@@ -373,7 +407,13 @@ def cmd_page(ctx) -> int:
             for m in value:
                 ctx.out(f"  {kind:<12} {m['who']:<24} {m['at']}")
         elif value:
-            ctx.out(f"  {kind:<12} {value.get('who', ''):<24} {value['at']}")
+            ctx.out(f"  {kind:<12} {value.get('who', ''):<24} {value['at']}"
+                    + (f"  status {value['status']}" if value.get("status") else ""))
+    t = got.get("time_on_page")
+    if t:
+        ctx.out(f"  time on page (whole days): median {t['median_s']} s over {t['measured']} "
+                f"views measured; {t['not_measured_last_page']} not measured (last page of "
+                f"the visit); no median under {t['min_measured']}")
     for d in got["days"]:
         ctx.out(f"  {d['day']} {d['state']:<8} readers {d['readers']}  views {d['views']}  "
                 f"AI {d['ai_asked']}/{d['ai_training']}  search {d['search']}")

@@ -47,8 +47,8 @@ none):
 
 Two more answers come from the history, with the dashboard login only (no
 token): `GET <page>/api/compare?a=FROM..TO&b=FROM..TO` (any two date ranges)
-and `GET <page>/api/page?path=/x` (one page's story). DATA-CONTRACT.md,
-"Compare" and "Page lifecycle", has their fields. A third, `GET <page>/api/realtime`, is
+and `GET <page>/api/page?path=/x` (one page's story). [DATA-CONTRACT-COMPARE.md](DATA-CONTRACT-COMPARE.md) and
+[DATA-CONTRACT-PAGE-LIFECYCLE.md](DATA-CONTRACT-PAGE-LIFECYCLE.md) have their fields. A third, `GET <page>/api/realtime`, is
 what Overview > Real time polls every 15 seconds (the live snapshot's visits and the newest
 log lines' requests per minute, no address and no user agent;
 [DATA-CONTRACT-REALTIME.md](DATA-CONTRACT-REALTIME.md)), also with the dashboard login only.

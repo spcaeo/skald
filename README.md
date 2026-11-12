@@ -51,6 +51,7 @@
 
 ## What's new
 
+- **2.48.0: Search Console for AI agents, with each page's index status; a page's latest crawl and time on page** ([changelog](CHANGELOG.md#2480-2026-11-12)).
 - **2.47.0: Overview is one page with Right now on top: who is here, the page each is on, and Refresh now; a lead's profile in its drawer** ([changelog](CHANGELOG.md#2470-2026-11-12)).
 - **2.46.6: right after an upgrade every dashboard page shows the new version at once** ([changelog](CHANGELOG.md#2466-2026-11-12)).
 - **2.46.5: Find a person shows a lead's own visits, in order, proven or likely** ([changelog](CHANGELOG.md#2465-2026-11-11)).
@@ -320,6 +321,7 @@ need your own Skald. Every image below is from the demo's sample data.
 | <img src="docs/screenshots/ai-readiness.png" alt="A page's story, AI readiness for /guides/webhooks/: 3 of 6 need attention; robots.txt keeps Google-Extended out, with the line to allow it; one server error to a crawler; in the sitemap; the Markdown copy answered 404 nine times; no 404 for the page; last AI read on 21 Oct" width="440"><br>**AI readiness per page.** Six checks, each with its evidence and fix. | <img src="docs/screenshots/ai-cant-read.png" alt="AI and bots, Assistants, Pages AI can't read well: filters for Markdown copy, 404, errors, robots.txt and slow; each page, worst first, with what AI got, which crawlers, whether it is in the sitemap and what to do" width="440"><br>**Pages AI can't read well.** Worst first. |
 | <img src="docs/screenshots/change-tracker.png" alt="A page's story for /pricing/, Did my change work?: Changed 22 Sep, New title, compared: the 28 whole days after against the 28 before, a chart with the change marked, and per measure the daily figure before and after, the change and what it says, such as visits that started here 12 a day before, 15 after, up 20%, Up" width="440"><br>**Did my change work?** Before and after, with a verdict. | <img src="docs/screenshots/trail-back.png" alt="A page's story for /pricing/, opened from Traffic › Pages: one ← Back to Pages link above the tabs returns to where you came from" width="440"><br>**Back** (2.42). One link back to where you came from. |
 | <img src="docs/screenshots/ai-reads-trend.png" alt="AI and bots, Assistants, AI reads by page: now against before: each page's live fetches by assistants now and in the period before, the change, the fetches by assistant, and the AI visits and leads that started there" width="440"><br>**AI reads per page.** Now against before, to visits and leads. | <img src="docs/screenshots/test-sample.png" alt="Settings, Data, Test a sample of a log, step 2 of 2: Skald can read part of this log; nginx_combined, sure; 41 lines, 40 read and line 22 not, with why; the times and zone; no host field; the five groups, 21 + 0 + 11 + 8 + 0 = 40, adds up" width="440"><br>**Test a sample.** Can Skald read a new log? Before the next run. |
+| <img src="docs/screenshots/page-latest-crawl.png" alt="A page's story, the end of its Firsts and the new Latest crawl: Googlebot last fetched it 11 Nov 16:16 EST, status 200; Bingbot last fetched it 7 Nov 13:00 EST, status 200" width="300"><br>**Latest crawl (2.48).** Has Google seen the page since it changed? Each crawler's newest fetch and its status. | **For AI agents (2.48).** The MCP's `search_performance` gives Search Console's clicks, impressions, CTR and position per page and day, the page's top queries and countries, and whether Google has the page indexed (URL Inspection: indexed or why not, last crawl, Google's canonical). A page's story also gives its time on page from the log. |
 
 ### Security, from the same log (2.21)
 
@@ -568,7 +570,7 @@ on one page: [docs/LEADS-REFERENCE.md](docs/LEADS-REFERENCE.md).
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/spcaeo/skald/tree/main/deploy/cloudflare-worker)
 
 **API and MCP.** A read-only JSON API over every dashboard figure, with revocable, scoped tokens
-([docs/API.md](docs/API.md)), and an MCP server with 29 tools for Claude, ChatGPT and any
+([docs/API.md](docs/API.md)), and an MCP server with 30 tools for Claude, ChatGPT and any
 MCP client that can send a header: `overview`, `breakdown`, `top_pages`, `ai_activity`, `leads`,
 `funnel`, `compare`, `page_story`, `live_today`, `data_quality`, `site_health`, `conversions`,
 `list_sites`, what to fix and whether it worked (`what_changed`, `todos`, `lost_pages`,

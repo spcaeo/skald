@@ -193,11 +193,18 @@ class Client:
         self._until = self.clock() + float(got.get("expires_in") or 3600)
         return self._token
 
+    def call_url(self, method: str, url: str, body: dict | None = None) -> dict:
+        """One call to another of Google's read-only Search Console addresses
+        (URL Inspection, search/inspect.py), with the same token."""
+        if not url.startswith(("https://searchconsole.googleapis.com/", "http://127.0.0.1:")):
+            raise ValueError("not a Search Console address")
+        return self._call(method, url, body)
+
     def _call(self, method: str, path: str, body: dict | None = None) -> dict:
         for again in (False, True):
             token = self.token()
             request = urllib.request.Request(
-                f"{self.api}/{path}", method=method,
+                path if "://" in path else f"{self.api}/{path}", method=method,
                 data=json.dumps(body).encode() if body is not None else None,
                 headers={"Authorization": f"Bearer {token}",
                          "Content-Type": "application/json"})

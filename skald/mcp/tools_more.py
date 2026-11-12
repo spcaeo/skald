@@ -215,11 +215,16 @@ def _excluded(rows: list[dict]) -> str:
 
 # ---------------------------------------------------------------- page_story
 
+def _seconds(value, least: int) -> str:
+    return f"{value} s" if value is not None else f"withheld (fewer than {least} measured)"
+
+
 @tool("page_story", "One page's story since it was published",
       "What happened to one page since it was published: when Googlebot, Bingbot and each "
-      "AI crawler first fetched it, the first person to read it, the first from search and "
-      "from an assistant, the first lead, and its days since, with visits (an upper bound "
-      "on people) per whole, verified day.",
+      "AI crawler first fetched it, Googlebot's and Bingbot's latest fetch and the status it "
+      "got, the first person to read it, the first from search and from an assistant, the "
+      "first lead, and its days since, with visits (an upper bound on people) and time on "
+      "page from the log (median seconds to the visit's next view) per whole, verified day.",
       schema({"site": SITE_ARG,
               "path": {"type": "string", "maxLength": 300,
                        "description": "The page's path, e.g. /pricing/."}},
@@ -259,6 +264,11 @@ def page_story(ctx, args):
         m = marks.get(key)
         lines.append(f"- {label}: " + (f"{m.get('at')}" + (f" ({m['who']})" if m.get("who")
                                                           else "") if m else "not yet"))
+        if key in ("googlebot", "bingbot"):
+            last = marks.get(f"{key}_latest")
+            lines.append(f"- {key.capitalize()} last fetched it: "
+                         + (f"{last.get('at')} (status {last.get('status')})" if last
+                            else "never, since the logs began"))
     for key, label in (("ai_training", "AI crawlers (train or index)"),
                        ("ai_asked", "assistants fetching for a question"),
                        ("from_ai", "first visits from an assistant")):
@@ -272,6 +282,13 @@ def page_story(ctx, args):
         lines.append("Since then, over the whole, verified days: visits (an upper bound on "
                      f"people) that read it: {num(readers)}; page views: {num(views)}.")
         lines.append(coverage_text(cov))
+    t = got.get("time_on_page")
+    if t:
+        lines.append(
+            "Time on page, from the log (seconds from a view to the visit's next view), over "
+            f"the whole days: median {_seconds(t['median_s'], t['min_measured'])} over "
+            f"{num(t['measured'])} views measured; {num(t['not_measured_last_page'])} views "
+            "were the visit's last page, so not measured. Per day in days[].time_on_page.")
     return "\n".join(lines), {k: v for k, v in got.items() if k != "ok"} | {
         "site": site, "visits_total": readers, "page_views_total": views}
 

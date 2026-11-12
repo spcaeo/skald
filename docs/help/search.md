@@ -90,6 +90,22 @@ The average position of each query and page over the period: one point a day for
 - **The newest points are provisional.** Google may still change them. In the chart they are hollow and dashed.
 - The 100 queries and the 100 pages shown most in the period are tracked.
 
+## Is each page in Google? (index status)
+
+After each good sync, Skald asks Search Console's **URL Inspection** about a few of your pages: the pages Google showed in the last 28 days, then the pages people read that Googlebot fetched. Pages never asked come first, then the ones asked longest ago; a page is asked at most once in 20 hours. Skald keeps Google's answer as Google gives it:
+
+- **Indexed**, **crawled but not indexed**, **discovered but not indexed**, **not seen by Google yet**, or **excluded**, with Google's own words for the reason (for example "Excluded by 'noindex' tag").
+- **Last crawl**: Google's own time of its last visit.
+- **Google's canonical**: the address Google treats as the original, and whether it is the page's own.
+
+At most 200 pages a day are asked (Google allows 2,000 a day per property). An install admin can change that with `search_console.inspect_per_day` in the config; 0 turns it off. Each day's answer is kept for 16 months, so you can see when a page went in or out of the index. If Google refuses (the robot has no access, the day's quota is used up), the sync still works and the status says why.
+
+You read it through the AI agent connection (MCP): the `search_performance` tool, below.
+
+## For AI agents: search_performance
+
+An AI agent connected to Skald (Settings › API & MCP) can ask the **search_performance** tool for Search Console's figures: clicks, impressions, CTR and position for each day, for the whole site or one page, with that page's top 10 queries, its top 10 countries and its index status. Without a page it gives the site's days, top pages, top queries and countries, and how many inspected pages are indexed. The figures are Google's own, labelled so, never added to Skald's visits. A day Skald has not stored is named. A page with no row on a day is 0 only when that day's page table is complete; otherwise it is "not known". `your_tools` also names Search Console's state: answering, last try failed or stopped answering.
+
 ## How fresh it is
 
 - Skald syncs **every 6 hours** by itself. **Sync now** asks for a sync at once (admins, at most once in 10 minutes).
@@ -116,4 +132,4 @@ What matters is the ratio over time. When it moves sharply, the panel says so: t
 
 ## How Skald checks these figures
 
-These figures are Google's and Bing's, not Skald's count, so Skald cannot recount them from the log. Instead, every day it adds up every stored table again by a separate road, checks the tables against the day's total, and asks Google again for one day's total. It also works the opportunities, the new and lost queries and the positions out again by that separate road, and compares them with what the tab shows. If they disagree, the tab says so. Skald's own side of the cross-check (visits from search) is counted twice, like every Skald figure.
+These figures are Google's and Bing's, not Skald's count, so Skald cannot recount them from the log. Instead, every day it adds up every stored table again by a separate road, checks the tables against the day's total, and asks Google again for one day's total. It also works the opportunities, the new and lost queries and the positions out again by that separate road, and compares them with what the tab shows, and does the same for each page's figures and the index status counts that search_performance gives. If they disagree, the tab says so. Skald's own side of the cross-check (visits from search) is counted twice, like every Skald figure.

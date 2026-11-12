@@ -232,6 +232,7 @@ class VisitRecount:
         self.flags: Counter = Counter()
         self.post_paths: Counter = Counter()      # visits by path they sent a form to (2xx)
         self.page_visits: Counter = Counter()      # per page: visits seen on it
+        self.page_seconds: dict[str, list[int]] = {}   # per page: seconds to the next entry
         self.journeys_pages = 0
 
     def _where(self, line) -> str:
@@ -257,6 +258,7 @@ class VisitRecount:
         if not loaded:
             return
         seen: list[str] = []
+        when: list = []                 # the line each entry of `seen` was seen on
         moved = 0
         for l in lines:
             here = is_page(l)
@@ -264,9 +266,15 @@ class VisitRecount:
                 where = self._where(l)
                 if where and where != seen[-1] and not (here and where == l.path[:70]):
                     seen.append(where)
+                    when.append(l.when)
                     moved += 1
             if here:
                 seen.append(l.path[:70])
+                when.append(l.when)
+        # Time on page (#46): from each entry to the next one, in whole seconds.
+        for i in range(len(seen) - 1):
+            gap = int((when[i + 1] - when[i]).total_seconds())
+            self.page_seconds.setdefault(seen[i], []).append(max(0, gap))
         self.visits += 1
         self.pages[str(len(loaded))] += 1
         self.trail[str(len(seen))] += 1
@@ -290,7 +298,7 @@ class VisitRecount:
         return {"visits": self.visits, "pages": self.pages, "trail": self.trail,
                 "seconds": self.seconds, "exits": self.exits, "steps": self.steps,
                 "flags": self.flags, "post_paths": self.post_paths,
-                "page_visits": self.page_visits}
+                "page_visits": self.page_visits, "page_seconds": self.page_seconds}
 
 
 def _folded(name: str, stored: Counter, counted: Counter, same) -> None:
@@ -321,7 +329,9 @@ def compare(stored: dict, ours: Counter | None, figures: dict, same) -> None:
 
 def compare_pages(pages: dict | None, got: dict, same) -> None:
     """The pages blob's per-page visits (in-app pages included) and exits,
-    every page, against the recount's: the two halves of the exit rate."""
+    every page, against the recount's: the two halves of the exit rate. Each
+    page's seconds to the next entry (`page_seconds`, time on page) are
+    compared by audit_page_time.py."""
     pages = pages or {}
     for path in sorted(set(pages) | set(got["page_visits"]) | set(got["exits"])):
         row = pages.get(path) or {}

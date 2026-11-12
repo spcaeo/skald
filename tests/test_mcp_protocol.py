@@ -17,7 +17,8 @@ NAMES = {"list_sites", "overview", "breakdown", "top_pages", "ai_activity", "lea
          "compare", "page_story", "live_today", "data_quality", "site_health", "conversions",
          "find_person", "what_changed", "todos", "lost_pages", "page_changes", "ai_readiness",
          "changed_pages", "setup_left", "setup_line", "fix_todo", "mark_todo_done",
-         "your_tools", "add_site", "site_progress", "check_site", "send_invites"}
+         "your_tools", "add_site", "site_progress", "check_site", "send_invites",
+         "search_performance"}
 # 2.39.0: setup_line makes a set-up line; 2.41: mark_todo_done marks a to-do done;
 # 2.44: add_site adds a site, send_invites mails the people.
 WRITES = {"setup_line", "mark_todo_done", "add_site", "send_invites"}

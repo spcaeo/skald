@@ -23,7 +23,8 @@ def _number(v) -> str:
       "user's own keys (Google Analytics 4: sessions, users, engaged sessions, key events, "
       "top landing pages and sources, over the tool's own last 28 days; Vercel Web Analytics: "
       "visitors, page views, top pages, referrers, countries; Calendly: bookings, upcoming, "
-      "canceled, no-shows; Resend: contacts, segments, email delivery states). Each tool with its "
+      "canceled, no-shows; Resend: contacts, segments, email delivery states), and Search "
+      "Console's and Bing's sync state (their figures: search_performance). Each tool with its "
       "state (answering, last try failed, stopped answering), when it last answered, and what "
       "the tool said about its own answer (sampled, thresholded). These are the tool's counts, "
       "never Skald's: never add them to Skald's figures or present them as Skald's.",
@@ -33,6 +34,13 @@ def your_tools(ctx, args):
     site = ctx.site(args.get("site"))
     folder = ctx.history_path.parent if ctx.history_path is not None else ctx.live_dir
     got = view(ctx.config_for(site), folder, site, admin=False)
+    got["search"] = _search(ctx, site)
+    search = [f"- {e['name']}: {e['state']}"
+              + (f", last answer {e['last_answer']}" if e.get("last_answer") else "")
+              + f". Its figures: search_performance{'' if e['engine'] == 'google' else ' (engine bing)'}."
+              for e in got["search"] if e["state"] != "not connected"]
+    if not got["tools"] and search:
+        return "\n".join([f"{site}: search engines' own figures (not Skald's):", *search]), got
     if not got["tools"]:
         return (f"{site}: no tool of the user's own is connected (Settings > Leads & tools > "
                 "Connect a tool)."), got
@@ -63,4 +71,18 @@ def your_tools(ctx, args):
                 out.append(f"    {dim}: {', '.join(vals)}")
             if rep.get("flags"):
                 out.append(f"  {name}, as the tool said: {'; '.join(rep['flags'])}.")
-    return "\n".join(out), got
+    return "\n".join(out + search), got
+
+
+def _search(ctx, site: str) -> list[dict]:
+    """Search Console's and Bing's sync state (2.48), as search_performance gives it."""
+    from .tools_search import ENGINES, engine_state
+    path = ctx.history_path
+    if path is None or not path.exists():
+        return []
+    from ..store import History
+    try:
+        with History.reader(path) as h:
+            return [engine_state(ctx, site, e, h.db) for e in ENGINES]
+    except Exception:                       # noqa: BLE001 - a label, never a stop
+        return []

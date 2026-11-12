@@ -942,6 +942,13 @@ dashboard compressed and lets the browser keep what it may:
   `/etc/cron.d/skald` (section 5), clear of the daily run:
   `40 5,11,17,23 * * * skald . /etc/skald/env && cd /opt/skald && ./bin/skald --config /etc/skald/config.yml search sync >>/var/log/skald/search.log 2>&1`.
   Its failures mail once by themselves (no `notify-failure`).
+- Schema 15 (2.48) adds the `search_inspect` table: Search Console's URL
+  Inspection answer per page and day (index status, last crawl, canonicals;
+  docs/DATA-CONTRACT-SEARCH.md). The first open copies the file to
+  `history.sqlite.schema-v14.bak` (check the disk has room for one more copy
+  of the history), then adds the table; no row changes. It fills after the
+  next good Search Console sync, at most `search_console.inspect_per_day`
+  (200) pages a day; 0 turns it off.
 - `ours.file` must be writable by the skald user (the refresh helper
   writes it); `ours.change_log` too.
 - Settings > Sites > Views, "Fill past days for the new groups": the refresh

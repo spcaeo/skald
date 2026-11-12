@@ -244,6 +244,21 @@ class Tools(unittest.TestCase):
         self.assertEqual(s["path"], "/")
         self.assertTrue(s["milestones"]["googlebot"]["at"].startswith("2026-10-01"))
         self.assertIn("Googlebot first fetched it: 2026-10-01", text(r))
+        # The latest fetch (#44): day_lines has Googlebot on / at 13:02 each day.
+        self.assertEqual(s["milestones"]["googlebot_latest"],
+                         {"at": "2026-10-08T13:02:00+00:00", "status": 200})
+        self.assertIsNone(s["milestones"]["bingbot_latest"])
+        self.assertIn("Googlebot last fetched it: 2026-10-08T13:02:00+00:00 (status 200)",
+                      text(r))
+        self.assertIn("Bingbot last fetched it: never", text(r))
+        # Time on page (#46): every visit reads one page, so none is measured;
+        # the visits on / of the whole days (not Oct 4) were each the last page.
+        whole = [day(n) for n in range(1, 9) if day(n) != day(4)]
+        last = sum((readers_on(d) + 1) // 2 for d in whole)
+        self.assertEqual(s["time_on_page"]["measured"], 0)
+        self.assertIsNone(s["time_on_page"]["median_s"])
+        self.assertEqual(s["time_on_page"]["not_measured_last_page"], last)
+        self.assertIn("withheld (fewer than 5 measured)", text(r))
         self.assertIn("2026-10-04", text(r))
         self.assertIn("upper bound on people", text(r))
         self.assertIn("no page", self.refused("page_story", path="/nowhere/"))

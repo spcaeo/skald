@@ -13,7 +13,8 @@ what_changed, todos and lost_pages in tools_insights.py; page_changes,
 ai_readiness and changed_pages in tools_pages.py; setup_left and setup_line
 (2.39.0, a tool that makes something) in tools_setup.py; add_site,
 site_progress, check_site and send_invites (2.44, the add_sites scope: add a
-site within the plan and watch its set-up) in tools_addsite.py.
+site within the plan and watch its set-up) in tools_addsite.py; search_performance
+(2.48, Search Console and Bing figures and index status) in tools_search.py.
 """
 from __future__ import annotations
 
@@ -479,3 +480,5 @@ from . import tools_todos  # noqa: E402,F401 - fix_todo, mark_todo_done (2.41)
 from . import tools_yourtools  # noqa: E402,F401 - your_tools: figures from your own tools
 
 from . import tools_addsite  # noqa: E402,F401 - add_site, site_progress, check_site, send_invites (2.44)
+
+from . import tools_search  # noqa: E402,F401 - search_performance (2.48)

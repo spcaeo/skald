@@ -94,12 +94,21 @@ def write(db, site: str, day: date, totals) -> int | None:
     return 1
 
 
+LATEST = ("googlebot_latest", "bingbot_latest")
+
+
 def record_milestones(db, site: str, firsts: dict) -> None:
     """Keep each page's earliest time per kind (and crawler or assistant):
-    a later day never moves one, an earlier one (a backfill) does."""
-    rows = []
+    a later day never moves one, an earlier one (a backfill) does. The
+    LATEST kinds the other way: each page's newest Googlebot and Bingbot
+    fetch, its status in `via`; an earlier day never moves one back (at the
+    same second the higher status stays, as extras.Extras._latest keeps)."""
+    rows, latest = [], []
     for path, keys in firsts.items():
         for key, (at, who) in keys.items():
+            if key in LATEST:
+                latest.append((site, path, key, "", at, str(who)))
+                continue
             kind = key.split("|", 1)[0]
             name = key.split("|", 1)[1] if "|" in key else ""
             rows.append((site, path, kind, name, at, who if kind == "from_search" else ""))
@@ -107,6 +116,11 @@ def record_milestones(db, site: str, firsts: dict) -> None:
         "INSERT INTO page_milestones (site, path, kind, who, at, via) VALUES (?, ?, ?, ?, ?, ?) "
         "ON CONFLICT(site, path, kind, who) DO UPDATE SET at = excluded.at, via = excluded.via "
         "WHERE excluded.at < page_milestones.at", rows)
+    db.executemany(
+        "INSERT INTO page_milestones (site, path, kind, who, at, via) VALUES (?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(site, path, kind, who) DO UPDATE SET at = excluded.at, via = excluded.via "
+        "WHERE excluded.at > page_milestones.at OR (excluded.at = page_milestones.at "
+        "AND excluded.via > page_milestones.via)", latest)
 
 
 def rebuild_milestones(db, site: str, tz) -> int:

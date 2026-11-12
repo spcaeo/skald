@@ -7,6 +7,8 @@
 // Change dates: `updated` is the website's own date, else the latest <lastmod> of the
 // sitemap (`updated_source` "sitemap"), said as "changed (from your sitemap)": a change
 // date, never a publish date. `lastmod_seen` lists each date with the day Skald first saw it.
+// Beside the firsts: Googlebot's and Bingbot's latest fetch with its status (latestCrawls), and
+// under the chart the time on page from the log over the whole days (timeOnPageWords).
 
 import { h, n, short, long, addDays, dayDiff } from "../ui.js";
 import { getJSON, ranked } from "../data.js";
@@ -83,6 +85,27 @@ function timeline(st) {
     missing.map(([yet, kind]) => h("li", { class: `ps-i ${kind} not` }, h("span", { class: "ps-dot" }), h("div", null, h("b", null, yet)))));
 }
 
+// Googlebot's and Bingbot's latest fetch and the status it got (#44): has the crawler seen the page since it changed?
+// Undefined (an older server): nothing shown; null: never fetched since the logs began.
+export function latestCrawls(st) {
+  const rows = [["googlebot_latest", "Googlebot"], ["bingbot_latest", "Bingbot"]].filter(([k]) => st.milestones?.[k] !== undefined);
+  if (!rows.length) return null;
+  return h("div", { class: "ps-latest" }, h("h3", null, "Latest crawl"),
+    h("ul", { class: "ps-line" }, rows.map(([k, name]) => {
+      const v = st.milestones[k];
+      return h("li", { class: `ps-i search${v ? "" : " not"}` }, h("span", { class: "ps-dot" }), h("div", null,
+        h("b", null, v ? `${name} last fetched it` : `${name} has not fetched it since the logs began`),
+        v ? h("span", { class: "ps-when" }, `${tzTime(v.at, { date: true })}${v.status ? `, status ${v.status}` : ""}`) : null));
+    })));
+}
+// Time on page from the log (#46): the median seconds from a view to the visit's next view, over the whole days.
+export function timeOnPageWords(t) {
+  if (!t) return "";
+  const last = `${n(t.not_measured_last_page)} ${t.not_measured_last_page === 1 ? "view was" : "views were"} the visit's last page, so not measured`;
+  if (t.median_s == null) return `Time on page: not shown, ${n(t.measured)} ${t.measured === 1 ? "view" : "views"} measured (fewer than ${t.min_measured}); ${last}.`;
+  return `Time on page: ${t.median_s} s typical (median) over ${n(t.measured)} views measured, from your server log; ${last}.`;
+}
+
 // What readers did inside the page since it was published (events.json): by kind and by which button or form.
 function inside(m, path, since) {
   const f = m.x.events;
@@ -134,10 +157,11 @@ export function pageStory(m, s) {
       st.local ? h("p", { class: "note" }, "This server does not keep page histories yet, so the story below is what the stored days show: the first day the page was read and fetched, its page views and the visitors who started on it.") : null,
       changeTracker(m, s),        // Did my change work? (pagechange.js)
       h("div", { class: "ps-grid" },
-        h("section", { class: "s ps-tl" }, h("h3", null, "Firsts"), timeline(st)),
+        h("section", { class: "s ps-tl" }, h("h3", null, "Firsts"), timeline(st), latestCrawls(st)),
         h("section", { class: "s" }, h("h3", null, "Every day since"), series.length && ok.length > 1 ? h("div", { class: "sheet" }, legend(series.map((x) => [x.name, x.color]), true),
           lines(days, series, { label: `${path}, every day since ${st.published ? "publishing" : "first seen"}`, H: 220, width })) : h("p", { class: "empty" }, "Fewer than two whole days so far."),
-          gaps.length ? h("p", { class: "note" }, `Not drawn: ${gaps.join(", ")} (not whole, verified days).`) : null)),
+          gaps.length ? h("p", { class: "note" }, `Not drawn: ${gaps.join(", ")} (not whole, verified days).`) : null,
+          st.time_on_page ? h("p", { class: "note ps-time" }, timeOnPageWords(st.time_on_page)) : null)),
       // AI readiness (2.35): can AI read it well? psec=ai opens the story here.
       readyBlock(m, s, path),
       h("div", { class: "cols three" },
