@@ -376,6 +376,13 @@ Skald's goals are not set on Leads & sales' figures. A goal is a page event, suc
 
 Owners and admins can type an IP address, an email, a lead's number or a visitor ID in [Leads & sales > Find a person](#sales/people), or in the search box at the top (or **Ctrl K**). It shows that person's visits, leads and conversions, spam, test, cancelled and removed ones too, linked together. Each search is written to the audit log. See [Privacy](privacy.md).
 
+**Their visits, in order** (2.46.5). For a lead your site's server sent, Find a person walks back to the visits in your server log that are that person's, oldest first: where they first came from (a search engine, an AI assistant, a referring site, a campaign, or no source it can name), the page they landed on, every page they read, and what each visit sent. Each visit is marked:
+
+- **Proven**: the only visit that sent a form within 10 seconds of the lead. Your server reports a lead the moment its form is sent, so that visit is the lead's.
+- **Likely**: another visit from the same address and the same browser, from a day before the first proven visit to a day after the lead. Likely the same person, never certain: an office or a phone network can share an address.
+
+A step no visit is proven for (a payment page, a tool's own webhook, a form sent from another network) is listed as not matched. None of this is counted in any figure. To see it for a lead on the Leads tab, search its reference or email in Find a person.
+
 ## Ad click IDs (off unless you turn them on)
 
 An ad's link carries a click ID that the ad network adds: `gclid` (Google Ads), `msclkid` (Microsoft Ads), `fbclid` (Meta), `li_fat_id` (LinkedIn), `ttclid` (TikTok), `twclid` (X), and `gbraid` or `wbraid` (Google on iPhones). Skald always reads it to name the source and the campaign. With **Keep ad click IDs on leads** on ([Settings > This site > Privacy](#settings/site/privacy), card **Leads**; owners and admins), Skald also keeps the ID itself with the lead, so a lead can be tied to the exact ad click. It comes from the touch your server or tool sent, or, for a lead filled by Skald and for the script tag's own conversions, from the page view the visit started on.
