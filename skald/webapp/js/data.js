@@ -337,3 +337,11 @@ export function markersByDay(m) {
   }
   return out;
 }
+
+/* Only a later count replaces the one on screen (#50): a file drawn from an older
+   count (an overlapping run) never takes the page back in time. */
+export function newerStamp(next, have) {
+  if (!next || next === have) return false;
+  const a = Date.parse(next), b = Date.parse(have);
+  return Number.isNaN(a) || Number.isNaN(b) ? true : a > b;
+}

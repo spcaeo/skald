@@ -533,6 +533,7 @@ never up.
 
 ### I6. Refresh now
 - **Count:** one run at a time, each site at most once per 15 seconds, same origin (Handled). On a multi-site install a press counts its own site only; an unknown site is refused and nothing runs.
+- **Overlap (#50):** a press runs beside the server's own round of every site, which takes minutes. The round started earlier and could finish later, saving its older count over the press's newer one (the visitor vanished again). Handled (2.48.2): a count is saved under the site's snapshot lock only when it reaches further than the saved one (`live.newer_on_disk`); an older one is dropped, with its alerts and redraw. Test: `tests/test_live_newest.py`.
 
 ### I7. Report mail delivery
 - **Wrong:** the mail goes from and to the same Gmail account; if it lands in spam or Gmail throttles, nobody knows the report failed.

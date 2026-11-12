@@ -955,33 +955,36 @@ def write(out: Path, history: History, tz: ZoneInfo,
     if only is not None:
         sites = [only]
     for site in sites:
-        page = Path(out) / slug(site) / ("classic.html" if app else "index.html")
-        snap = live.load(live.path_for(live_dir, site)) if live_dir is not None else None
-        anchor = now.date() - timedelta(days=1)
-        write_atomic(page, render(history, site, tz, now, credit, snap,
-                                  all_views=views, refresh=refresh))
-        written.append(page)
-        written += write_exports(page.parent, history, site, anchor, credit, snap)
-        # The data files (DATA-CONTRACT.md) beside the page: data_files.py.
-        ai = live.load_ai(live.path_for(live_dir, site)) if live_dir is not None else None
-        written += data_files.write(page.parent, data_files.Page(
-            history, site, site, None, tz, now, snap, config or {}, views, ai, refresh, credit,
-            live_dir))
-        for view in views:
-            page = Path(out) / slug(site) / view.slug / "index.html"
-            part = live.view_snapshot(snap, view.slug)
-            write_atomic(page, render(history, site, tz, now, credit, part,
-                                      view=view, all_views=views, refresh=refresh))
+        # One draw of a site at a time, each reading the newest saved count once it
+        # holds the lock: a draw that started on an older count never ends last (#50).
+        with live.site_lock(live_dir, site, "draw"):
+            page = Path(out) / slug(site) / ("classic.html" if app else "index.html")
+            snap = live.load(live.path_for(live_dir, site)) if live_dir is not None else None
+            anchor = now.date() - timedelta(days=1)
+            write_atomic(page, render(history, site, tz, now, credit, snap,
+                                      all_views=views, refresh=refresh))
             written.append(page)
-            written += write_exports(page.parent, history,
-                                     view_key(site, view.slug), anchor, credit, part)
+            written += write_exports(page.parent, history, site, anchor, credit, snap)
+            # The data files (DATA-CONTRACT.md) beside the page: data_files.py.
+            ai = live.load_ai(live.path_for(live_dir, site)) if live_dir is not None else None
             written += data_files.write(page.parent, data_files.Page(
-                history, view_key(site, view.slug), site, view, tz, now, part, config or {},
-                views, ai, refresh, credit, live_dir))
-        if app:
-            from . import dashboard_webapp
-            written += dashboard_webapp.write(out, history, site, tz, now, snap,
-                                              views, refresh, credit, config)
+                history, site, site, None, tz, now, snap, config or {}, views, ai, refresh, credit,
+                live_dir))
+            for view in views:
+                page = Path(out) / slug(site) / view.slug / "index.html"
+                part = live.view_snapshot(snap, view.slug)
+                write_atomic(page, render(history, site, tz, now, credit, part,
+                                          view=view, all_views=views, refresh=refresh))
+                written.append(page)
+                written += write_exports(page.parent, history,
+                                         view_key(site, view.slug), anchor, credit, part)
+                written += data_files.write(page.parent, data_files.Page(
+                    history, view_key(site, view.slug), site, view, tz, now, part, config or {},
+                    views, ai, refresh, credit, live_dir))
+            if app:
+                from . import dashboard_webapp
+                written += dashboard_webapp.write(out, history, site, tz, now, snap,
+                                                  views, refresh, credit, config)
     root = Path(out) / "index.html"
     write_atomic(root, render_index(listed, now, out))
     written.append(root)

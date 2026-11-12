@@ -11,7 +11,7 @@
 
 import * as S from "./state.js";
 import { h, ICON, reduced, toast, untip, short } from "./ui.js";
-import { load, refresh as postRefresh, rangeOf, markersByDay, has, need } from "./data.js";
+import { load, refresh as postRefresh, rangeOf, markersByDay, has, need, newerStamp } from "./data.js";
 import { setRefresh } from "./refresh-hook.js";
 import { TAB_RENDER } from "./tabs/index.js";
 import { framed } from "./tabs/settings-frame.js";
@@ -643,7 +643,7 @@ async function boot() {
     }
     try {
       const next = await load(S.read(), { fresh: true, previous: model });
-      if (next.liveStamp !== model.liveStamp) {
+      if (newerStamp(next.liveStamp, model.liveStamp)) {
         model = next;
         // A tab that polls on its own (the request log, every 30 seconds) is left alone: a redraw would close its detail panel.
         if (!opt(current.tab, "polls", current, false) && (opt(current.tab, "live", current, false) || current.range === "today")) render(S.read(), { keepScroll: true, changed: true });

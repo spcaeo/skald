@@ -4,6 +4,39 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.48.2 (2026-11-12)
+
+Right now never steps back: an older count no longer replaces a newer one, so a visitor you just saw does not vanish again.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- Nothing else: no schema change, no setting.
+
+### Fixes
+
+- **Right now: an older count no longer replaces a newer one (#50).** Seen on a client's
+  site on 12 Nov: the owner opened a page, pressed Refresh now and saw their visit; two
+  minutes later it was gone again. Live counts overlap (the server's round of every site
+  takes minutes, Refresh now counts one site at once), and a round that had started
+  earlier finished later and saved its older count over the newer one. The same could
+  happen in four more places, found by a review of the whole app. Now:
+  - a count is saved under a lock, and only when it reaches further than the one already
+    saved; an older one is dropped with "a newer count is already saved; kept it";
+  - today's kept visits (the person search) are replaced only by a run that read further
+    (a "kept up to" marker beside the count);
+  - one page redraw per site at a time, each drawing the newest saved count, so a redraw
+    that started on an older count never finishes last;
+  - one alerts check per site at a time, so two overlapping counts cannot mail one alert
+    twice;
+  - an open dashboard takes a refreshed count only when it is later than the one shown.
+
+  Who it affects: every site, mostly busy servers with many sites. What to do: nothing.
+  Checked: `tests/test_live_newest.py` and `tests/js/live-newer.mjs` (an earlier count
+  finishing later leaves the saved count, request list and kept visits untouched; a
+  later count and a new day still write; draws wait their turn; the first test fails on
+  the old code), the whole suite.
+
 ## 2.48.1 (2026-11-12)
 
 Each page's index status comes in about four times faster, and a check stopped part-way keeps what came in.
