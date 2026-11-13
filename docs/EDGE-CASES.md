@@ -374,6 +374,10 @@ never up.
 - **Wrong:** `gclid`, `fbclid` are long, unique per click, and with a timestamp can be tied back to an ad account; a query can carry an email.
 - **Count:** store "has gclid" (Google Ads) and the campaign tags, never the id value (This release: confirm the ids are labels, not values).
 
+### E10. A referrer no URL parser can read
+- **Wrong:** a scanner's referrer `{[RootURL]}/admin/more.html` (13 Nov 2026): the `[` and `]` look like an IPv6 address to Python's `urlsplit`, which raises. Uncaught, one line stopped a site's whole live count on every round (#61).
+- **Count:** a referrer that cannot be split has no host and no path: no source from it, no citation, no own-site asset. The main code reads hosts through `urlhost.py`; the audits through their own `audit_labels`, by the same rule. A test fails if any referrer is split outside a `try` that catches the error.
+
 ---
 
 ## F. Volume anomalies

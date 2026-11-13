@@ -38,7 +38,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from .audit_labels import _bare, _host_of, _tags
+from .audit_labels import _bare, _host_of, _path_of, _tags
 from .audit_visits import _bucket, _is_asset_path, _is_beacon_path
 from .classify import AI_REFERRER_HOSTS, AI_REFERRER_PATHS, AI_UTM, ASSISTANT_ALIASES
 
@@ -123,7 +123,7 @@ def _assistant(line) -> str:
         else:
             for domain, prefix in AI_REFERRER_PATHS.items():
                 if (host == domain or host.endswith("." + domain)) and \
-                        urlsplit(line.referrer).path.startswith(prefix):
+                        _path_of(line.referrer).startswith(prefix):
                     name = ASSISTANT_ALIASES.get(domain + prefix, domain + prefix)
     if not name:
         tagged = _TAGGED.search(line.url)

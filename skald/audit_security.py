@@ -201,7 +201,11 @@ class Recount:
                     r["bare"] += 1
                 if line.referrer:
                     mine = self.own or ({line.host.lower()} if line.host else set())
-                    if _theirs((urlsplit(line.referrer).hostname or "").lower(), mine):
+                    try:        # cannot be split: no host (#61)
+                        theirs = (urlsplit(line.referrer).hostname or "").lower()
+                    except ValueError:
+                        theirs = ""
+                    if _theirs(theirs, mine):
                         r["own_ref"] += 1
                         if self._asset(line):
                             r["rendered"] += 1

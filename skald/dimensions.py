@@ -25,9 +25,10 @@ from __future__ import annotations
 import re
 from collections import Counter
 from datetime import tzinfo
-from urllib.parse import parse_qsl, urlsplit
+from urllib.parse import parse_qsl
 
 from .payment_names import CHECKOUT_KEY, PAYMENT_HOSTS, PAYMENT_REFERRER, RETURNED
+from .urlhost import host_of
 
 # ------------------------------------------------------------ user agents
 
@@ -219,8 +220,7 @@ def referrer_host(referrer: str) -> str:
     (android-app://com.linkedin.android/) gives the app's id."""
     if not referrer:
         return ""
-    parts = urlsplit(referrer if "//" in referrer else "//" + referrer)
-    host = (parts.hostname or "").lower().rstrip(".")
+    host = host_of(referrer if "//" in referrer else "//" + referrer).rstrip(".")   # #61
     return host[4:] if host.startswith("www.") else host
 
 

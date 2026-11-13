@@ -27,8 +27,9 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-13-2.49.0",
+  id: "2026-11-13-2.49.1",
   items: [
+    ["A strange referrer can't stop a count", "a scanner's referrer like {[RootURL]}/admin no longer crashes the live count or the daily run; it counts as no source.", "where-visitors-come-from"],
     ["Leads & sales in four tabs", "Leads, Summary (with where they came from), Revenue and Funnels; Calendar bookings is Leads › What: Demos, Find a person the search box. Old links still work.", "leads-and-conversions"],
     ["One period on every Leads & sales tab", "7, 30 and 90 days include today so far on every tab, and Leads counts only leads, so the same click shows the same count.", "leads-and-conversions"],
     ["Ask your AI how people reach a page", "the MCP's page_journeys: how visits arrived, where they went next and who they were, for the pages you name.", "mcp"],

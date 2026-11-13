@@ -36,12 +36,12 @@ from __future__ import annotations
 import ipaddress
 import re
 from datetime import timedelta
-from urllib.parse import urlsplit
 from enum import Enum
 
 from .config import ours_entries
 from .ours_store import paused_at, pauses, since, until
 from .parse import ASSET, RSC_PAYLOAD, Hit
+from .urlhost import host_of, split
 
 
 class Group(str, Enum):
@@ -195,7 +195,7 @@ def cited_by(referrer: str) -> str:
     """The assistant whose citation this referrer is, or "" if none."""
     if not referrer:
         return ""
-    parts = urlsplit(referrer if "//" in referrer else "//" + referrer)
+    parts = split(referrer if "//" in referrer else "//" + referrer)      # never raises (#61)
     host = (parts.hostname or "").lower().rstrip(".")
     if not host:
         return ""
@@ -431,7 +431,7 @@ def crawler_visits(hits, gap_minutes: int = 30,
             marked.add(key)
         own_asset = False
         if ASSET.search(hit.path) or RSC_PAYLOAD.search(hit.url):
-            ref = (urlsplit(hit.referrer).hostname or "").lower() if hit.referrer else ""
+            ref = host_of(hit.referrer)
             own_asset = bool(ref) and (ref in wanted if wanted else ref == host or not host)
         events.setdefault(key, []).append((hit.when, crawler_file, own_asset, hit.is_page))
 
