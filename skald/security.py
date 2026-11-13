@@ -61,11 +61,11 @@ from __future__ import annotations
 import bisect
 from collections import Counter
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urlsplit
 
 from .classify import CRAWLER_SESSION, NOT_RENDERED, PROBE, PROBE_QUERY, TOO_FAST, Group
 from .parse import ASSET, RSC_PAYLOAD
 from . import security_names as N
+from .urlhost import host_of
 
 STATUS = ("2xx", "3xx", "4xx", "5xx")
 WATCHED = (Group.PEOPLE, Group.BOTS)          # login hammering and bursts
@@ -269,7 +269,7 @@ class Collector:
         own = self.own or ({hit.host.lower()} if hit.host else set())
         ref = self._refs.get(hit.referrer)
         if ref is None:
-            ref = (urlsplit(hit.referrer).hostname or "").lower()
+            ref = host_of(hit.referrer)       # never raises (#61)
             if len(self._refs) < 50_000:
                 self._refs[hit.referrer] = ref
         if not N.own_like(ref, own):

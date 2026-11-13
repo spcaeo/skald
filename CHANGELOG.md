@@ -4,6 +4,31 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.49.1 (2026-11-13)
+
+One odd referrer from a scanner can no longer stop a site's count.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- Nothing else: no schema change, no setting. A site whose live count or daily run stopped on
+  such a line counts again at the next round; nothing was lost, the log still holds every line.
+
+### Fixes
+
+- **A referrer no URL parser can read no longer stops a count (#61).** Seen on Skald's own
+  site at 00:20 UTC on 13 Nov: a router-attack scanner sent 5 requests with the referrer
+  `{[RootURL]}/admin/more.html`. Python's `urlsplit` takes the `[` and `]` for a broken IPv6
+  address and raises an error; four places that read referrers did not catch it, so the
+  site's live count crashed on every round (Right now stood still at 00:20 for that site
+  while the others went on), and the next daily run would have stopped on the same line.
+  Now such a referrer has no host and no path: no source, no citation, no own-site file.
+  The second counts read it the same way on their own road (one audit place caught it
+  too). Affects any site whose log holds such a line; nothing to do. Checked: a new test
+  runs the real line and three more like it through the day's count, its audit, the live
+  count and the live audit; a guard fails if any referrer is split without catching the
+  error; full suite OK; the live count of that site checked after the upgrade.
+
 ## 2.49.0 (2026-11-13)
 
 Leads & sales in four simple tabs with one period rule; your AI assistant can ask how people reach your pages and on which page they booked; newest first everywhere; and a warning when Search Console stops syncing.

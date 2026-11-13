@@ -40,7 +40,6 @@ import re
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import urlsplit
 
 # The name lists - the only thing shared with the package.
 from .classify import (AI_ASKED, AI_REFERRER_HOSTS, AI_REFERRER_PATHS, AI_TRAINING, AI_UTM,
@@ -52,7 +51,7 @@ from . import (audit_cities, audit_drains, audit_extras, audit_more, audit_not_p
                audit_page_time, audit_release2, audit_rendered, audit_too_fast, audit_tools,
                audit_visits)
 # The audit's own labels (moved out whole; still audit.browser_of etc.).
-from .audit_labels import (_bare, _host_of, browser_of, campaign_of,  # noqa: F401
+from .audit_labels import (_bare, _host_of, _path_of, browser_of, campaign_of,  # noqa: F401
                            device_of, pay_hosts, referrer_of, source_of, status_of,
                            system_of)
 
@@ -404,7 +403,7 @@ def _cited(line: Line) -> bool:
         # An assistant that shares its host (bing.com/chat, x.com/i/grok).
         for domain, prefix in AI_REFERRER_PATHS.items():
             if (host == domain or host.endswith("." + domain)) and \
-                    urlsplit(line.referrer).path.startswith(prefix):
+                    _path_of(line.referrer).startswith(prefix):
                 return True
     return bool(AI_UTM.search(line.url))
 

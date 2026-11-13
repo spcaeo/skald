@@ -258,7 +258,7 @@ class TestIndependence(AuditCase):
         # Its own labels, moved out whole (below), and the phase 4 recounts'
         # registry (audit_more.py), whose modules follow the same rule.
         allowed |= {("audit_labels", n) for n in (
-            "_bare", "_host_of", "browser_of", "campaign_of", "device_of", "pay_hosts",
+            "_bare", "_host_of", "_path_of", "browser_of", "campaign_of", "device_of", "pay_hosts",
             "referrer_of", "source_of", "status_of", "system_of")}
         # The "Returned from payment" name (#34): a name list, payment_names.py.
         allowed |= {("payment_names", "RETURNED")}

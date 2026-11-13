@@ -25,6 +25,14 @@ def _host_of(url: str) -> str:
         return ""
 
 
+def _path_of(url: str) -> str:
+    """The path urlsplit reads; "" when it cannot split the URL (#61)."""
+    try:
+        return urlsplit(url).path
+    except ValueError:
+        return ""
+
+
 def browser_of(agent: str) -> str:
     a = agent
     apps = (("FBAN/", "Facebook app"), ("FBAV/", "Facebook app"),
