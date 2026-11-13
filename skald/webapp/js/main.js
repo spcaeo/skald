@@ -11,7 +11,7 @@
 
 import * as S from "./state.js";
 import { h, ICON, reduced, toast, untip, short } from "./ui.js";
-import { load, refresh as postRefresh, rangeOf, markersByDay, has, need, newerStamp } from "./data.js";
+import { load, refresh as postRefresh, rangeOf, markersByDay, has, need, newerStamp, nextWords } from "./data.js";
 import { setRefresh } from "./refresh-hook.js";
 import { TAB_RENDER } from "./tabs/index.js";
 import { framed } from "./tabs/settings-frame.js";
@@ -419,8 +419,7 @@ function footer() {
     const L = model.live;
     if (!L?.generated_at || L.day !== model.today) { fresh.textContent = `data recorded to ${model.anchor}`; return; }
     if (DEMO.on) { fresh.textContent = `sample data, updated ${tzTime(L.generated_at, { label: false })}`; return; }
-    const next = Date.parse(L.generated_at) + 120000 - Date.now();
-    fresh.textContent = `data updated ${tzTime(L.generated_at, { label: false })} · next ${next > 0 ? `in ${Math.max(1, Math.round(next / 60000))} min` : "any moment"}`;
+    fresh.textContent = `data updated ${tzTime(L.generated_at, { label: false })} · ${nextWords(L)}`;
   };
   tick();
   setInterval(tick, 15000);
@@ -606,8 +605,27 @@ async function boot() {
     S.set({ range: "today" }, { replace: true });
   }
   app.dataset.state = "ready";
+  // Read the newest files and redraw when the count is later (#50: never an older one).
+  let freshAt = 0;
+  const freshen = async () => {
+    if (Date.now() - freshAt < 15000) return;     // a burst of opens reads once
+    freshAt = Date.now();
+    try {
+      const next = await load(S.read(), { fresh: true, previous: model });
+      if (newerStamp(next.liveStamp, model.liveStamp)) {
+        model = next;
+        // A tab that polls on its own (the request log, every 30 seconds) is left alone: a redraw would close its detail panel.
+        if (!opt(current.tab, "polls", current, false) && (opt(current.tab, "live", current, false) || current.range === "today")) render(S.read(), { keepScroll: true, changed: true });
+        else { drawBar(current); footTick(); }
+      }
+    } catch { /* keep the frame; the next tick tries again */ }
+  };
   // A drawer or a dialog opening or closing (its key only) is not a redraw: overlays.js opens or closes it.
-  S.on((next) => { if (current && S.onlyOverlay(current, next)) { current = next; syncOverlays(model, next); crumbUpdate(model, next); } else render(next); });
+  S.on((next) => {
+    // A drill-down opened on today reads the newest count at once, not at the next tick (#53).
+    if (next.dd && next.dd !== current?.dd && next.range === "today") freshen();
+    if (current && S.onlyOverlay(current, next)) { current = next; syncOverlays(model, next); crumbUpdate(model, next); } else render(next);
+  });
   // 2.42: Export asks what you need (export-dialog.js); the report builder's old links open its PDF path, Change open.
   addRestorer("dlg:export", () => { const s = S.read(); return openExport(model, s, (next) => load(next, { previous: model }), { kind: s.kind, change: s.xch === "1" }); });
   addRestorer("dlg:report", () => openExport(model, S.read(), (next) => load(next, { previous: model }), { kind: "pdf", change: true }));
@@ -632,7 +650,8 @@ async function boot() {
   });
   addRestorer("dlg:filters", () => openFilters(model, S.read(), document.querySelector(".fp-btn")));
   S.emit(true);
-  // Keep "today" current while the page is open: the live snapshot is rewritten every two minutes.
+  // Keep "today" current while the page is open: it looks every two minutes for a newer live
+  // count (written every few minutes: a round of all sites takes longer than two, #54).
   setInterval(async () => {
     if (document.hidden) return;
     // A page left open across a release keeps its old screens: offer the new one.
@@ -641,15 +660,7 @@ async function boot() {
       document.body.append(h("div", { class: "update", role: "status" }, `${toolName()} was updated to release ${newer.release}.`,
         h("button", { type: "button", class: "btn", onclick: () => location.reload() }, "Reload")));
     }
-    try {
-      const next = await load(S.read(), { fresh: true, previous: model });
-      if (newerStamp(next.liveStamp, model.liveStamp)) {
-        model = next;
-        // A tab that polls on its own (the request log, every 30 seconds) is left alone: a redraw would close its detail panel.
-        if (!opt(current.tab, "polls", current, false) && (opt(current.tab, "live", current, false) || current.range === "today")) render(S.read(), { keepScroll: true, changed: true });
-        else { drawBar(current); footTick(); }
-      }
-    } catch { /* keep the frame; the next tick tries again */ }
+    await freshen();
   }, 120000);
 }
 

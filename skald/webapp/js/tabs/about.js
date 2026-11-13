@@ -38,7 +38,7 @@ function prose(blocks, first = "") {
 const FEATURES = [
   ["Home", [
     ["overview", "Visitors, pages read, visitors from AI, leads and returning visitors for any period, with the machines in their own units."],
-    ["live", "Today so far, every two minutes: who is reading now and which assistants are fetching."],
+    ["live", "Today so far, counted every few minutes: who is reading now and which assistants are fetching."],
     ["insights", "What changed, in plain words: working, dropped, new, gone, unusual."],
     ["compare", "Any two periods side by side, A against B: the figures, both on one chart, and what is new or gone."],
   ]],

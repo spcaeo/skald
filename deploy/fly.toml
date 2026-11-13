@@ -34,7 +34,7 @@ primary_region = "fra"
 [http_service]
   internal_port = 8080
   force_https = true
-  # Skald runs its own schedule (live every 2 minutes, the daily run, the
+  # Skald runs its own schedule (live every few minutes, the daily run, the
   # backup): a stopped Machine misses it. Keep it running.
   auto_stop_machines = "off"
   auto_start_machines = true

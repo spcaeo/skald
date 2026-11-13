@@ -45,7 +45,8 @@ from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
 from .audit_extras import keyed, secret
-from .audit_labels import _GOOGLE_SEARCH, _MAIL_HOSTS, _bare, _tags
+from .audit_labels import _GOOGLE_SEARCH, _MAIL_HOSTS, _bare, _paid_from, _tags, pay_hosts
+from .payment_names import PAYMENT_REFERRER
 from .audit_people import _site, _store, short_address
 
 BEFORE, AFTER = 2, 30
@@ -75,13 +76,16 @@ def _open(path) -> sqlite3.Connection | None:
     return sqlite3.connect(f"file:{Path(path).resolve()}?mode=ro", uri=True)
 
 
-def ref_label(referrer, own: set) -> str:
-    """The audit's referrer label of a first page (the referrer only)."""
+def ref_label(referrer, own: set, pay=()) -> str:
+    """The audit's referrer label of a first page (the referrer only); `pay`
+    the site's own checkout hosts (site.checkout_hosts)."""
     host = _bare(referrer) if referrer else ""
     if not host:
         return "(none)"
     if host in own or "www." + host in own:
         return "(this site)"
+    if _paid_from(host, pay):
+        return PAYMENT_REFERRER
     if _GOOGLE_SEARCH.search(host) and host not in _MAIL_HOSTS and \
             _tags(str(referrer).split("#", 1)[0]).get("udm", "").strip() == "50":
         return host[:60] + " (AI Mode)"
@@ -111,6 +115,7 @@ def _day_span(day: date, tz) -> tuple[datetime, datetime]:
 class Recount:
     def __init__(self, config: dict, day, tz, own: set) -> None:
         self.config, self.day, self.tz, self.own = config, day, tz, set(own or ())
+        self.pay = pay_hosts(config)
         self.key = secret(config)
         self.end: datetime | None = None
         self.visits: list[dict] = []
@@ -174,7 +179,7 @@ class Recount:
                                else v["address"], v["browser"] or None, v["os"] or None,
                                _utc(v["first"]), since)).fetchone()
             if row is not None:
-                return "address", row[0] or DIRECT, ref_label(row[1], self.own)
+                return "address", row[0] or DIRECT, ref_label(row[1], self.own, self.pay)
         if roads.get("hash") and v["hash"]:
             tried = True
             if v["hash"] in hdb_days:
@@ -182,7 +187,7 @@ class Recount:
             same = [w for w in self.visits if w["hash"] == v["hash"] and w["first"] < v["first"]]
             if same:
                 w = min(same, key=lambda x: x["first"])
-                return "hash", w["source"], ref_label(w["referrer"], self.own)
+                return "hash", w["source"], ref_label(w["referrer"], self.own, self.pay)
         return ("none" if tried else "off"), None, None
 
     def _hashes(self, window: int, site: str) -> dict[str, str]:

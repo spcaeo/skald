@@ -22,6 +22,12 @@ site:
   hosts:
     - example.com
     - www.example.com
+  # A checkout of your own on a host that is not one of `hosts` (Stripe
+  # Checkout and PayPal are known already, skald/payment_names.py). A
+  # page view whose referrer is one is "Returned from payment": it continues
+  # the open visit, is never a referral, and a lead after it keeps the source
+  # of the visit before it (CLASSIFICATION.md, "The source type of a visit").
+  # checkout_hosts: [pay.example.com]
   # Path prefixes of the site's previous version (an old WordPress site's
   # /wp-content/uploads/). A request under one is never a scanner probe: a
   # person following an old image link is whoever they are, not a scanner.

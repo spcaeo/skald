@@ -213,7 +213,7 @@ def _leads(rows, tz, first: date, last: date, types: list[str], source) -> int |
     # not its to count ("not recorded" here; the page counts it from conversions.json).
     if rows is None or any(t not in LEAD_TYPES for t in types):
         return None
-    from .leads import _touch, counted, local_day, touch_labels, touch_source
+    from .leads import counted, local_day, row_touches, touch_labels, touch_source
     n = 0
     for row in rows:
         d = local_day(row, tz)
@@ -222,7 +222,7 @@ def _leads(rows, tz, first: date, last: date, types: list[str], source) -> int |
         if (row.get("type") or "") not in types:
             continue
         if source:
-            touch = _touch(row.get("first_touch"))
+            touch = row_touches(row)["first_touch"]     # never a payment page's
             names = {touch_source(touch).lower(),
                      *(v.lower() for v in touch_labels(touch).values() if v)}
             if source.strip().lower() not in names:

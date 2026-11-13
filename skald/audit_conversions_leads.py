@@ -16,7 +16,9 @@ counts them apart). It shares only the name lists in conversions/__init__.py
                      the same time of day and both days by hour, one SQL
                      COUNT per local hour; and its `same_time`
                      (check_same_time, 2.27): the day before each of
-                     Leads' periods (7, 30, 90 days), to the same hour
+                     Leads' periods (7, 30, 90 days), to the same hour;
+                     and its `periods` (check_periods, #32): each period
+                     that ends today, in one SQL COUNT over its own bounds
     check_insights   {index: problems} for the lead findings whose numbers
                      the SQL does not give: `after` and `before` over their
                      periods, by the subject's column; for a "most leads"
@@ -152,6 +154,41 @@ def check_today(path: Path, site: str, tz, today: date, block: dict | None) -> l
         out += check_by_now(path, site, tz, today, block["by_now"])
     if block.get("same_time") is not None:
         out += check_same_time(path, site, tz, today, block["same_time"])
+    if block.get("periods") is not None:
+        out += check_periods(path, site, tz, today, block["periods"])
+    return out
+
+
+def check_periods(path: Path, site: str, tz, today: date, part: list) -> list[str]:
+    """Problems with `today.periods` (#32): each whole period (state "ok") recounted as
+    one window, from its first day's local midnight to tomorrow's, by one SQL GROUP BY
+    action: never day by day, so a day's sum the main road got wrong shows here."""
+    out = []
+    db = _open(path)
+    try:
+        for e in part or []:
+            try:
+                first, last = date.fromisoformat(e["first"]), date.fromisoformat(e["last"])
+            except (KeyError, TypeError, ValueError):
+                out.append(f"period {e.get('back')!r}: no first and last day")
+                continue
+            if last != today or (last - first).days + 1 != e.get("back"):
+                out.append(f"period {e.get('back')}: {e['first']} to {e['last']} is not "
+                           f"{e.get('back')} days ending today")
+                continue
+            if e.get("state") != "ok":
+                continue
+            got = dict(db.execute(f"SELECT c.action, COUNT(*) {LEADS} GROUP BY 1",
+                                  (site, _utc(first, tz),
+                                   _utc(today + timedelta(days=1), tz))).fetchall())
+            if e.get("leads") != sum(got.values()):
+                out.append(f"period {e['back']} days to today: file {e.get('leads')} leads, "
+                           f"SQL recount {sum(got.values())}")
+            if {k: v for k, v in (e.get("actions") or {}).items() if v} != got:
+                out.append(f"period {e['back']} days by action: file {e.get('actions')}, "
+                           f"SQL recount {got}")
+    finally:
+        db.close()
     return out
 
 

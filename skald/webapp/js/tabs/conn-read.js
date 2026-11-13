@@ -98,7 +98,7 @@ export function apiDialog(site, data = {}, { onClose = null, route = null, start
       { name: "How it works", draw: () => { loadFiles(); return [
         steps("A script asks for one file of figures at a time, at the base address below plus the file's name.",
           "It sends a token in the Authorization header. You make the token in the next step; it can read, never change.",
-          "The answer is JSON, rewritten every 2 minutes. Test checks it from this browser."),
+          "The answer is JSON, rewritten with each live count, every few minutes. Test checks it from this browser."),
         h("p", null, "The base address:"), codeBlock(base, "the base address"),
         h("h4", null, "Files this site serves"), h("p", { class: "sub" }, "Each is described in the data contract."), files,
         h("p", { class: "note" }, "Answers: 200 with the file; 401 for a missing, wrong or revoked token, or one for another site; 404 for a file this site does not have. ", helpLink("api", "The API guide"), " has more examples.")]; } },

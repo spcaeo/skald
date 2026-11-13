@@ -13,8 +13,8 @@ install();
 const JS = new URL("../../skald/webapp/js/", import.meta.url);
 const S = await import(new URL("state.js", JS));
 S.addSections([{ key: "sales", name: "Leads & sales", tabs: [
-  { route: "sales/leads", name: "Leads", keep: ["lact", "llabel", "lnow", "lby", "lshow", "lview", "lsplit"] },
-  { route: "sales/summary", name: "Summary", keep: ["lsrc", "lact", "llabel", "lstage"] }] }]);
+  { route: "sales/leads", name: "Leads", keep: ["lact", "llabel", "lnow", "lby", "lshow", "lview", "lsplit", "lfind"] },
+  { route: "sales/summary", name: "Summary", keep: ["lact", "llabel", "lpart"] }] }]);
 const { ME } = await import(new URL("access.js", JS));
 const L = await import(new URL("tabs/sa-leads.js", JS));
 const { viewSwitch } = await import(new URL("viewswitch.js", JS));
@@ -24,8 +24,8 @@ const flat = (out) => [out].flat(Infinity).filter(Boolean);
 const tick = () => new Promise((r) => setTimeout(r, 5));
 
 // ---- the tab's name and the section's order
-assert.deepEqual(sales.map((t) => t[1]), ["Leads", "Summary", "Sources", "Revenue", "Calendar bookings", "Funnels", "Events", "Find a person"]);
-assert.equal(sales.find((t) => t[0] === "bookings")[1], "Calendar bookings", "the route stays sales/bookings");
+// #33: eight tabs became four (the old ones redirect: tests/js/sales-routes.mjs).
+assert.deepEqual(sales.map((t) => t[1]), ["Leads", "Summary", "Revenue", "Funnels"]);
 
 // ---- the rows the options keep
 const R = { kind: "history", first: "2026-10-19", last: "2026-10-20", length: 2, days: [] };

@@ -9,6 +9,9 @@
 // "1 of 3 sitemaps is still missing"). Every word here comes from the to-do's own fields
 // (todos.json: kind, figures, rows, recheck.still), never typed in for one site.
 //
+// search (#40) is the one kind not from the log: a stopped Search Console or Bing sync, with
+// the day it stopped and the engine's own reason.
+//
 // status: open (to do), failed (marked fixed, the daily re-check still finds it), checking,
 // passed. A leaving-pages card stands for every open leaving page together (group).
 
@@ -99,7 +102,20 @@ function errors(t, status) {
   return null;
 }
 
-const BY_KIND = { lost, markdown, sitemap, errors };
+/* #40: a search sync that worked, then failed for a day. Not from the log: the day it
+   stopped and the engine's own reason ARE the message. It goes by itself after a good sync. */
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const dayOf = (ts) => { const m = /^(\d{4})-(\d\d)-(\d\d)/.exec(ts || ""); return m ? `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]}` : ""; };
+
+function search(t, status) {
+  if (status !== "open") return null;
+  const f = t.figures || {};
+  const since = dayOf(f.since);
+  return { title: `${f.engine === "bing" ? "Bing Webmaster Tools" : "Search Console"} stopped syncing${since ? ` on ${since}` : ""}`,
+    why: `${f.reason || "The engine gave no reason"}. Your search figures stop there.`, act: t.todo || "Open the settings and reconnect." };
+}
+
+const BY_KIND = { lost, markdown, sitemap, errors, search };
 
 /* The three lines of a card: list is the card's to-dos (one, or every open leaving page). */
 export function cardWords(list, status) {

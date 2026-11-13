@@ -6,7 +6,7 @@ Every figure Skald shows is also a JSON file that a script, a spreadsheet or ano
 
 The API gives you the same data files the dashboard itself reads. Nothing is counted again, and nothing can be changed through it. It is read-only.
 
-The files are rewritten every 2 minutes. Each file says when it was written, in its `generated_at` field.
+The files are rewritten with each live count, every few minutes. Each file says when it was written, in its `generated_at` field.
 
 There are two ways in:
 
@@ -123,7 +123,7 @@ The signed-in address also lists the files a page has: end it at `api/v1/`. The 
 | File | What it holds |
 | --- | --- |
 | `overview` | Headline figures per day: visits, pages read, AI and search fetches, 404s, errors |
-| `live` | Today so far, from the 2-minute snapshot |
+| `live` | Today so far, from the live snapshot (every few minutes) |
 | `visits` | Visits per day, and today's anonymous journeys |
 | `hourly` | Figures per hour |
 | `breakdowns` | Countries, sources, devices, browsers and more |
@@ -214,11 +214,11 @@ Each day has a `state`. Check it before you use any figure.
 
 The `error` text says which problem it was, for example "unrecognised or revoked token" or "this token is not for that site". The **Test** step of the API dialog says each answer in words; see [If a connection does not work](troubleshooting-connections.md).
 
-Answers are never cached. Ask again for fresh figures; they change every 2 minutes.
+Answers are never cached. Ask again for fresh figures; they change every few minutes.
 
 ## Rate limits
 
-Skald sets no request limit of its own on the API today, so you will not see a 429 answer from Skald. Whoever runs your server may add one. The files only change every 2 minutes, so asking more often than that gains nothing. Once every few minutes is plenty for a live screen; once a day is enough for a report.
+Skald sets no request limit of its own on the API today, so you will not see a 429 answer from Skald. Whoever runs your server may add one. The files only change every few minutes, so asking more often than that gains nothing. Once every few minutes is plenty for a live screen; once a day is enough for a report.
 
 ## Servers that use one shared login
 

@@ -18,7 +18,7 @@ Every address of the code carries the app's version, a hash of its files
 (`?v=<hash>`): the shell's links and every import inside the modules, so a
 browser may keep the code for a year (DEPLOY.md, Cache-Control) and a new
 release is a new address. A file whose bytes did not change is not written
-again (the live run installs the app every two minutes), and each has a gzip
+again (the live run installs the app every few minutes), and each has a gzip
 copy beside it for nginx (gzip_static).
 
 A new version rewrites every site's shell in the same step (#38, 2.46.6):
@@ -150,7 +150,7 @@ def install(out: Path, sites: list[str]) -> list[Path]:
     keep.add(shared / VERSION_FILE)
     if shared.is_dir():
         for old in shared.rglob("*"):
-            # Another run may be writing beside us (the live run every 2 minutes, a
+            # Another run may be writing beside us (the live run every few minutes, a
             # site's daily run): its temp file is not ours to delete until it is
             # stale (2026-10-22: a deleted temp file failed one site's morning run).
             if not old.is_file() or old in keep or (_in_flight(old) and not _stale(old)):

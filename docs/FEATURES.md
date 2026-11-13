@@ -141,8 +141,16 @@ the [changelog](../CHANGELOG.md) says when each one came.
   disagrees withheld. A sample of API answers, labelled so, not what every user sees.
 
 **Results**
-- One section, **Leads & sales**, one question per tab: Leads, Summary, Sources, Revenue,
-  Calendar bookings, Funnels, Events and Find a person.
+- One section, **Leads & sales**, four tabs, one question each: Leads, Summary, Revenue and
+  Funnels. One period on every tab: 7, 30 and 90 days include today so far, each checked by a
+  second count. Every Leads figure counts leads only (forms sent and demos booked), so Leads and
+  Summary show the same number. Old links (Sources, Calendar bookings, Events, Find a person)
+  open the same view in its new place.
+- **What: Demos** on Leads: each step of the calls booked (opened, chose a time, booked,
+  cancelled, rescheduled, no-show, won, lost), with a completion rate only where the page's
+  script saw both the starts and the bookings; otherwise "not comparable", with why.
+- **Find a person** on Leads (owners and admins): an IP address, an email, a lead or a visitor
+  ID opens everything kept about that person.
 - **Revenue (2.32):** which sources (AI assistants among them), pages and campaigns made money: net revenue, sales, refunds,
   new customers, renewals and revenue per visitor, per currency, never converted; by source, campaign, page, country or your own
   tags; lifetime value by first source. Stripe's amounts are read; Polar, Dodo, Paddle, Lemon Squeezy, Gumroad or your own server send `value` and `currency` through the lead hook, Zapier, Make or n8n. Counted twice; a day that disagrees is withheld.
@@ -155,13 +163,13 @@ the [changelog](../CHANGELOG.md) says when each one came.
   last touch, landing page and campaign from that browser's own page views, never by address or
   time; the list and the lead's drawer mark each one "filled by Skald", and a value the sender gave
   is never changed.
-- Summary and Sources count from your lead database or from your tools, never both in one figure.
+- Summary counts the same leads as the Leads tab, from every road at once, and where they came from.
 - Leads and demos booked on the Overview (two tiles, and each day's leads as dots on the main
   chart), and today's as they arrive with Today.
 - A Leads column and a lead rate (leads per visitor, from 10 visitors up) on Sources, Pages and
   Places & devices; lead findings in Insights; leads against another period (Compare).
-- Leads by first and last source, crossed with the status your team set, and time from first
-  visit to lead. Saved funnels counted every day by source and device.
+- Leads by first and last source, assisted touch, and time from first visit to lead. Saved
+  funnels counted every day by source and device.
 - Conversions from signed webhooks; forms and bookings started but not finished. One Calendly or
   Cal.com account that books for several businesses: keep only your own event types.
 - **Leads you can check:** a label on each lead (sales, support); the site's own server marks its
@@ -298,7 +306,7 @@ the [changelog](../CHANGELOG.md) says when each one came.
 - **Client reports:** branded reports for an agency's clients, a mail with a PDF attached, weekly,
   monthly or every few days, with your name, colour and logo; verified days only, the sums counted
   twice before a report goes.
-- A read-only JSON API and an **MCP server with 30 tools** for Claude, ChatGPT and other AI agents:
+- A read-only JSON API and an **MCP server with 31 tools** for Claude, ChatGPT and other AI agents:
   25 read-only; `setup_line` and `mark_todo_done` only with a `setup` token; `add_site` (2.44: add a site
   within the plan) and `send_invites` only with an `add_sites` token (the person search only with
   a token that may read private data).

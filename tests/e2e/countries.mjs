@@ -22,7 +22,7 @@ for (const cc of ["CA", "US"]) {
     `traffic/visitors?range=7d&country=${cc}`, `traffic/sources?range=30d&country=${cc}`, `overview/summary?range=30d&country=${cc}`,
     `overview/insights?country=${cc}`, `traffic/places?range=30d&dd=city:${cc === "CA" ? "Toronto%2C%20Ontario%2C%20CA" : "New%20York%2C%20New%20York%2C%20US"}`);
 }
-PAGES.push("overview/summary?dd=country%3ACA", "overview/realtime", "traffic/places?range=30d", "traffic/visitors?range=7d", "overview/insights", "sales/pipeline?range=30d&lsrc=db");
+PAGES.push("overview/summary?dd=country%3ACA", "overview/realtime", "traffic/places?range=30d", "traffic/visitors?range=7d", "overview/insights", "sales/summary?range=30d");
 
 const fails = [];
 const fail = (what) => { fails.push(what); console.log(`FAIL ${what}`); };

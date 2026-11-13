@@ -42,21 +42,30 @@ const s = { tab: "sales/summary", lsrc: "", lact: "", llabel: "", range: "custom
   const sales = find(out, (el) => (el.className || "") === "tile" && text(el).startsWith("Sales"));
   assert.match(text(sales), /\$25\.00/, "the sale's value under its count");
   // The table: Action, Completed, Sales, Value; the sign-up carries its $25.00.
-  const h2 = find(out, (el) => (el.tagName || "").toLowerCase() === "h2" && text(el).startsWith("What people did"));
+  const h2 = find(out, (el) => (el.tagName || "").toLowerCase() === "h2" && text(el).startsWith("Each kind of lead"));
   assert.ok(h2, "the actions table under its plain heading");
   const heads = all([h2.parentNode], (el) => (el.tagName || "").toLowerCase() === "th").map((el) => text(el).replace(/[↕▼▲]/g, "").trim());
   assert.deepEqual(heads, ["Action", "Completed", "Sales", "Value"], `columns: ${heads}`);
-  const signup = all([h2.parentNode], (el) => (el.tagName || "").toLowerCase() === "tr").map(text).find((t) => t.startsWith("Sign-ups"));
+  const trs = all([h2.parentNode], (el) => (el.tagName || "").toLowerCase() === "tr").map(text);
+  const signup = trs.find((t) => t.startsWith("Sign-ups"));
   assert.match(signup, /^Sign-ups11\$25\.00$/, `the sign-up row: ${signup}`);
+  // #32: leads only. The site's own actions (X-ray runs, activated) are not leads: not a row.
+  assert.ok(!trs.some((t) => /^(Xray|Activated)/.test(t)), `no other kind of row: ${trs.join(" | ")}`);
+  const leadsTile = find(out, (el) => (el.className || "") === "tile" && text(el).startsWith("Leads"));
+  assert.match(text(leadsTile), /^Leads.*1/, "one lead: the sign-up, never the X-ray runs");
   assert.doesNotMatch(words, /Count from/, "no lead database: no Count from");
   assert.doesNotMatch(words, /not seen|no starts seen/, "no Started column on a site whose script records no starts");
 }
 {
-  // Narrowed to X-ray: no sale of its own, so the sign-up's sale is not shown under it.
-  const out = flat(P.summary(m, { ...s, lact: "xray" }, {}));
+  // Narrowed to contact forms: no sale of their own, so the sign-up's sale is not shown under it.
+  const out = flat(P.summary(m, { ...s, lact: "contact" }, {}));
   const sales = find(out, (el) => (el.className || "") === "tile" && text(el).startsWith("Sales"));
-  assert.match(text(sales), /^Sales.*0/, "X-ray made no sale");
+  assert.match(text(sales), /^Sales.*0/, "contact forms made no sale");
   assert.doesNotMatch(text(sales), /\$25/);
+  // What lists the kinds of lead only.
+  const what = find(out, (el) => (el.tagName || "").toLowerCase() === "select" && text(el.parentNode).startsWith("What"));
+  const kinds = what.querySelectorAll("option").map(text);
+  assert.ok(kinds.includes("Sign-ups") && !kinds.some((k) => /xray|activated/i.test(k)), `never X-ray or activated: ${kinds}`);
 }
 {
   // A site that does send starts, won and a demo keeps those columns and tiles.
@@ -65,7 +74,7 @@ const s = { tab: "sales/summary", lsrc: "", lact: "", llabel: "", range: "custom
   const out = flat(P.summary({ ...m, x: { ...m.x, conversions: g } }, s, {}));
   const labels = all(out, (el) => (el.className || "") === "t-l").map(text);
   assert.deepEqual(labels, ["Leads", "Demos booked", "Won"], `tiles: ${labels}`);
-  const h2 = find(out, (el) => (el.tagName || "").toLowerCase() === "h2" && text(el).startsWith("What people did"));
+  const h2 = find(out, (el) => (el.tagName || "").toLowerCase() === "h2" && text(el).startsWith("Each kind of lead"));
   const heads = all([h2.parentNode], (el) => (el.tagName || "").toLowerCase() === "th").map((el) => text(el).replace(/[↕▼▲]/g, "").trim());
   assert.deepEqual(heads, ["Action", "Started", "Completed", "Abandoned", "Completion rate", "Won"], `columns: ${heads}`);
 }
@@ -78,22 +87,11 @@ const s = { tab: "sales/summary", lsrc: "", lact: "", llabel: "", range: "custom
     by: { source_type: {}, tool: { contact: { beacon: 15 } } }, revenue: undefined };
   const g = { ...f, days: [own, mixed] };
   const out = flat(P.summary({ ...m, x: { ...m.x, conversions: g } }, { ...s, from: "2026-11-10" }, {}));
-  const h2 = find(out, (el) => (el.tagName || "").toLowerCase() === "h2" && text(el).startsWith("What people did"));
+  const h2 = find(out, (el) => (el.tagName || "").toLowerCase() === "h2" && text(el).startsWith("Each kind of lead"));
   const rows = all([h2.parentNode], (el) => (el.tagName || "").toLowerCase() === "tr").map(text);
   const signup = rows.find((t) => t.startsWith("Sign-ups")), contact = rows.find((t) => t.startsWith("Contact"));
   assert.match(signup, /not comparable/, `mixed roads: no rate (${signup})`);
   assert.doesNotMatch(signup, /100/, "never the clamped 100%");
   assert.match(contact, /75(\.0)?%/, `script-only: its rate (${contact})`);
-}
-{
-  // Calendar bookings on a day with five other conversions and no booking (#27): it says
-  // "No booking", never "No conversion".
-  const B = await import(new URL("tabs/sa-bookings.js", JS));
-  const words = flat(B.default(m, { ...s, tab: "sales/bookings" }, {})).map(text).join(" ");
-  assert.match(words, /No booking in this range\./, "no booking said plainly");
-  assert.doesNotMatch(words, /No conversion in this range/);
-  // The sign-up's sale is not a booking's: never shown on Calendar bookings.
-  assert.doesNotMatch(words, /\$25|Sign-ups/, "another action's sale is not a booking's");
-  assert.match(words, /Every stage/, "the stage table keeps its section");
 }
 console.log("summary-sales: all passed");

@@ -128,7 +128,7 @@ export async function openFix(m, cause) {
     paths.agent = agentPath({ site, jobs: AGENT_JOBS[cause], route });
     paths.dev = devPath({ site, task: "send" });
   }
-  const said = "Skald checks again with every live run, within 2 minutes. The alert closes by itself once the problem is gone.";
+  const said = "Skald checks again with every live run, every few minutes. The alert closes by itself once the problem is gone.";
   let d = null;
   const done = primary("I have done it", () => { d?.close(); say(said); });
   d = await whoDialog({ title: `Fix: ${titleOf(g)}`, subtitle: CAUSE[cause] || cause, route, paths, fallback: "me", footer: [done],
@@ -199,11 +199,12 @@ export default function alertsPage(m, s) {
   // Closed recently: one quiet line that opens to the table.
   const closed = (f.closed || []).map((a) => ({ ...a, __k: a.id, type_name: CAUSE[a.cause] || a.cause, lasted_s: a.closed_at && !once(a) ? (Date.parse(a.closed_at) - Date.parse(a.opened_at)) / 1000 : null }));
   out.push(closed.length ? fold(`${n(closed.length)} closed in the last 30 days`, () => table([
+    { key: "closed_at", label: "Closed", type: "date", fmt: (v) => when(v), csv: (r) => r.closed_at },
     { key: "opened_at", label: "Opened", type: "date", fmt: (v) => when(v), csv: (r) => r.opened_at },
     { key: "lasted_s", label: "Lasted", num: true, fmt: (v) => (v == null ? "-" : `${n(Math.round(v / 60))} min`) },
     { key: "type_name", label: "Kind" },
     { key: "title", label: "What happened" },
-  ], { caption: "Closed alerts", rows: closed, file: `alerts-closed-${m.today}.csv`, sortKey: "opened_at", dir: -1, limit: 10 }))
+  ], { caption: "Closed alerts", rows: closed, file: `alerts-closed-${m.today}.csv`, sortKey: "closed_at", dir: -1, limit: 10 }))
     : h("p", { class: "note" }, "Nothing closed in the last 30 days."));
   // Which alerts are on: one line, to its settings page (Settings › This site › Alerts).
   const rules = f.rules || [];

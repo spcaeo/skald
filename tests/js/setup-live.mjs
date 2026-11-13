@@ -91,7 +91,7 @@ assert.equal(L.checkKind("wait"), "warn");
 // ---- the live panel: asks while shown; not while hidden; not once it left the page
 let asks = 0;
 let answer = { ok: true, live: WAITING };
-const check = { ok: true, check: { verdict: "wait", head: "No data yet.", says: "Skald has had no lines for shop.example.org.", fix: "Usually it starts within 2 minutes after the drain is saved.", tech: "last_batch: none" }, live: WAITING };
+const check = { ok: true, check: { verdict: "wait", head: "No data yet.", says: "Skald has had no lines for shop.example.org.", fix: "Usually it starts within a few minutes after the drain is saved.", tech: "last_batch: none" }, live: WAITING };
 let done = 0;
 const panel = livePanel("shop.example.org", { link: "0f3a9c2e7b1d4a58", onDone: () => done++,
   ask: { live: async () => { asks++; return answer; }, check: async () => check, send: async () => ({ ok: true, invites: { words: "Invites sent to 1 person." } }) } });
@@ -117,7 +117,7 @@ panel.querySelectorAll("button").find((b) => b.textContent === "Check now").clic
 await tick(10);
 const out = panel.querySelector(".sl-check");
 assert.match(out.textContent, /No data yet\./);
-assert.match(out.textContent, /within 2 minutes after the drain is saved/);
+assert.match(out.textContent, /within a few minutes after the drain is saved/);
 assert.ok(out.querySelector("details"), "the technical part behind a fold");
 // Done: the green answer, one primary, the people.
 answer = { ok: true, live: DONE };

@@ -12,7 +12,7 @@ import hashlib
 
 from . import ALIASES
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 CONVERSIONS_V2 = """CREATE TABLE IF NOT EXISTS {name} (
   id INTEGER PRIMARY KEY, site TEXT NOT NULL, action TEXT NOT NULL,
@@ -89,12 +89,16 @@ CREATE INDEX IF NOT EXISTS pay_links_payment ON pay_links (site, tool, payment);
 # Schema 4 (2.4.0): each reader's visit with its address and user agent
 # (people/visits.py; written only while the site keeps them), the days
 # written, and the rows a sync removed, kept whole.
+# Schema 11 (#57): `visits.posts_from`, the page each form was sent from (its
+# referrer's path on the site, "" not known), a JSON list aligned with
+# `posts`. Added by ALTER to an older file; NULL on every older row.
 PEOPLE_TABLES = """CREATE TABLE IF NOT EXISTS visits (
   id INTEGER PRIMARY KEY, site TEXT NOT NULL, day TEXT NOT NULL, seq INTEGER NOT NULL,
   ip TEXT NOT NULL, user_agent TEXT, start TEXT NOT NULL, end TEXT NOT NULL,
   source TEXT, via TEXT, referrer TEXT, campaign TEXT, landing TEXT, exit TEXT,
   country TEXT, device TEXT, browser TEXT, os TEXT, pages INTEGER NOT NULL,
-  seconds INTEGER, trail TEXT NOT NULL, posts TEXT, city TEXT, UNIQUE (site, day, seq));
+  seconds INTEGER, trail TEXT NOT NULL, posts TEXT, city TEXT, posts_from TEXT,
+  UNIQUE (site, day, seq));
 CREATE INDEX IF NOT EXISTS visits_ip ON visits (site, ip, start);
 CREATE INDEX IF NOT EXISTS visits_day ON visits (day);
 CREATE TABLE IF NOT EXISTS visit_days (
@@ -209,7 +213,10 @@ UPGRADES: dict[int, list[str]] = {2: [
          "ALTER TABLE conversions ADD COLUMN click_id TEXT",
          "ALTER TABLE journeys ADD COLUMN campaign TEXT",
          "ALTER TABLE journeys ADD COLUMN click_kind TEXT",
-         "ALTER TABLE journeys ADD COLUMN click_id TEXT"]}
+         "ALTER TABLE journeys ADD COLUMN click_id TEXT"],
+    # 11 (#57): the page each form was sent from, beside its time (NULL on
+    # every older row: the day was counted without it).
+    11: ["ALTER TABLE visits ADD COLUMN posts_from TEXT"]}
 
 # The SCHEMA this code set a file up with (see accounts/db.py): a file
 # stamped with it at SCHEMA_VERSION skips the script on connect.

@@ -16,6 +16,10 @@
 .se-facts dt { color: var(--ink-2); }
 .se-facts dd { margin: 0; font-variant-numeric: tabular-nums; }
 .se-connect .se-h { margin: 18px 0 8px; font-size: 14px; }
+/* #40: a failing or stopped sync on Settings (search-connect.js syncState). */
+.se-health { display: grid; gap: 4px; padding: 10px 12px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--warn) 55%, var(--rule)); }
+.se-health.bad { border-color: color-mix(in srgb, var(--bad) 50%, var(--rule)); }
+.se-health p { margin: 0; overflow-wrap: anywhere; }
 .se-step { border-top: 1px solid var(--rule); padding: 10px 0 4px; display: grid; gap: 8px; }
 .se-step h4 { margin: 0; font-size: 13.5px; }
 .se-step ol { margin: 0; padding-left: 20px; display: grid; gap: 3px; font-size: 13px; }

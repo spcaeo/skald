@@ -223,13 +223,17 @@ def build(p) -> dict:
         last = ((((p.snap.get("extras") or {}).get("ours") or {}).get("heartbeat")) or {}
                 ).get("last_ok_at")
         beat = last
-    every = {"live": 2, "run-daily": 1440, "verify-bots": 1440, "alerts": 2,
-             "backup": 1440, "pagespeed": 1440, "heartbeat": 5}
     out_runs = {}
-    for name, minutes in every.items():
+    for name, minutes in runs.EXPECTED.items():
         got = state.get(name) or {}
+        # Late is judged against how often the job really runs (#54): a live
+        # round of many sites takes longer than its planned two minutes.
+        seen = runs.measured_s(got)
+        every = runs.every_s(state, name, minutes) / 60
         out_runs[name] = {"last_ok": got.get("last_ok"), "last_fail": got.get("last_fail"),
-                          "last_exit": got.get("last_exit"), "expected_every_min": minutes}
+                          "last_exit": got.get("last_exit"),
+                          "expected_every_min": minutes if every == minutes else round(every, 1),
+                          "measured_every_min": round(seen / 60, 1) if seen else None}
     out_runs["heartbeat"]["last_ok"] = beat
     failures = getattr(p, "failures", None)
     return {"days": days, "today": today, "runs": out_runs,

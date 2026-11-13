@@ -93,7 +93,7 @@ function strip(days) {
 // 2.41: the verdict is today's log lines'; a scheduled job that is late, failed or never ran is
 // named beside it, so "Good" never sits above red jobs with no word (the UX audit's count rule).
 function todayCard(t, tz, jobsOff = 0) {
-  if (!t) return h("p", { class: "empty" }, "Today has not been checked yet: the live run writes it every two minutes.");
+  if (!t) return h("p", { class: "empty" }, "Today has not been checked yet: the live count writes it every few minutes.");
   const [g, why] = grade(t);
   const cell = (label, v, note) => h("div", { class: "kpi" }, h("div", { class: "k-l" }, label), h("div", { class: "k-n" }, note || ""), h("div", { class: "k-v" }, v), h("div", { class: "k-c" }));
   return h("div", null,
@@ -109,7 +109,7 @@ function todayCard(t, tz, jobsOff = 0) {
       cell("Browser-like requests moved to bots", n(t.not_rendered?.requests ?? null), movedNote(t.not_rendered))));
 }
 
-// A job is late when it has not succeeded for twice its interval; failed when its last run failed.
+// A job is late when it has not succeeded for twice its interval (the measured one when known, #54); failed when its last run failed.
 function jobState(j, now) {
   const ok = j.last_ok ? Date.parse(j.last_ok) : 0, bad = j.last_fail ? Date.parse(j.last_fail) : 0;
   if (bad > ok) return "failed";
@@ -121,7 +121,15 @@ const JOB_WORDS = { live: "Live count (today so far)", "run-daily": "Daily run: 
   alerts: "Alert check", backup: "History backup", pagespeed: "Page speed (Google PageSpeed Insights)", heartbeat: "Heartbeat (our own, every 5 minutes)" };
 // Requests sent with a browser's name whose visit never loaded the page's scripts and styles (rendering.py).
 const movedNote = (x) => (x ? `${n(x.readers)} visits that would have counted as visitors; their pages never rendered` : "not recorded");
-const every = (min) => (!min ? "-" : min < 60 ? `every ${min} min` : min === 1440 ? "daily" : `every ${Math.round(min / 60)} h`);
+const every = (min) => (!min ? "-" : min < 60 ? `every ${Math.max(1, Math.round(min))} min` : min === 1440 ? "daily" : `every ${Math.round(min / 60)} h`);
+// How often a job runs, in plain words: the measured gap between its successes when known (#54).
+// A live round of many sites takes longer than planned, and late is judged against this.
+const runsWords = (j) => {
+  const m = j.measured_every_min;
+  if (!m || m >= 60) return every(j.expected_every_min);
+  const k = Math.max(1, Math.round(m));
+  return h("span", { title: "The gap between its last few runs. A job is late only after twice this." }, `every ${k} minute${k === 1 ? "" : "s"} (measured)`);
+};
 
 
 export default function quality(m, s) {
@@ -184,7 +192,7 @@ export default function quality(m, s) {
       { key: "state", label: "State", type: "badge", sort: (x) => ["failed", "never", "late", "ok"].indexOf(x.state),
         fmt: (v) => h("span", { class: `q-tag q-${v === "ok" ? "green" : v === "late" ? "amber" : "red"}` }, v === "ok" ? "on time" : v === "never" ? "never ran" : v) },
       { key: "job", label: "Job", fmt: (v) => JOB_WORDS[v] || v },
-      { key: "expected_every_min", label: "Runs", fmt: (v) => every(v) },
+      { key: "expected_every_min", label: "Runs", fmt: (_, x) => runsWords(x), csv: (x) => x.measured_every_min ?? x.expected_every_min ?? "" },
       { key: "last_ok", label: "Last succeeded", type: "date", fmt: stamp },
       { key: "last_fail", label: "Last failed", type: "date", fmt: (v, x) => (v ? `${stamp(v)}${x.last_exit ? ` (exit ${x.last_exit})` : ""}` : "-") },
     ], { caption: "Scheduled jobs", rows: jobs, file: `jobs-${m.today}.csv`, search: false, sortKey: "state", dir: 1, empty: "No job runs recorded yet." }),

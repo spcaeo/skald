@@ -5,13 +5,13 @@
 //   * people (visitors active in the last 5 and 30 minutes, visitors minute by
 //     minute, countries, pages, sources, devices, newest visits): the live run's
 //     `realtime` part (realtime.py), counted by the day's tally with the same
-//     people rule as every figure, every 2 minutes; "as of" its `until`
+//     people rule as every figure, every few minutes; "as of" its `until`
 //   * requests per minute: every request of the site's hosts, read from the end
 //     of the log by the helper every 15 seconds (realtime_tail.py), unsorted,
 //     so labelled requests, never people
 // The block asks the helper (api/realtime) every POLL seconds while it is on
 // screen and the page is visible. Without a helper (the demo, a static copy)
-// it reads data/realtime.json again instead, and its requests are the 2-minute
+// it reads data/realtime.json again instead, and its requests are the live
 // count's, said so. Pause holds everything still. The tab says polls: true, so
 // main.js's 2-minute redraw leaves it alone; on Summary the redraw makes a new
 // block, which starts from the last answer (no flash).
@@ -37,7 +37,7 @@ export const POLL = 15;            // seconds between two asks
 const TICK = 5;                    // seconds between two looks at the clock
 const TABLE = "Countries now: visits today and visitors active";
 const CTABLE = "Cities now: visits today and visitors active";
-const LATE = 10 * 60000;           // the people count is late after 10 minutes (it runs every 2)
+const LATE = 10 * 60000;           // the people count is late after 10 minutes (it runs every few)
 
 // One state for every block on screen: the last answer, the clock, Pause.
 const st = { body: null, at: 0, timer: 0, busy: false, paused: false, helper: true, blocks: new Set() };
@@ -113,7 +113,7 @@ function requestsChart(rows, fromCount) {
   return bars(rows.map((r, i) => ({ label: hhmm(r.at), value: r.requests || 0,
     title: `${hhmm(r.at)} ${tzLabel()}${i === last ? " (still running)" : ""}`,
     color: i === last ? "color-mix(in srgb, var(--ink-3) 50%, var(--surface))" : "var(--ink-3)" })),
-  { label: `Requests per minute${fromCount ? ", from the 2-minute count" : ""}`, unit: "requests (every kind, not people)", every: 5, H: 150, half: true });
+  { label: `Requests per minute${fromCount ? ", from the live count" : ""}`, unit: "requests (every kind, not people)", every: 5, H: 150, half: true });
 }
 
 // The countries table beside the map: the same figures, for a screen reader and a phone.
@@ -176,7 +176,9 @@ function machines(M = {}) {
 // A newest visit opens the visitor drawer: the day's journey when the page holds it, else the row itself.
 export function openNewest(m, v) {
   const day = String(v.start || "").slice(0, 10);
-  const j = (m.journeys || []).find((x) => x.seq === v.seq && x.day === day && v.seq != null);
+  // #56: the page's journeys and the live snapshot are two counts; a place (seq) only matches with the same start.
+  const minute = (s) => String(s || "").slice(0, 16);
+  const j = (m.journeys || []).find((x) => x.seq === v.seq && x.day === day && v.seq != null && (!x.start || !v.start || minute(x.start) === minute(v.start)));
   return openVisitor(j || { ...v, day, trail: v.landing ? [{ path: v.landing, page: true, at: 0 }] : [], seconds: null });
 }
 
@@ -199,7 +201,7 @@ function newest(P, m) {
 function stateWords(state) {
   if (state === "withheld") return "Today's figures are withheld: the second count disagrees with them, so no visitor figure is shown until it matches. The requests below are a plain count of log lines.";
   if (state === "site") return "";
-  return "No live count yet today: the visitor figures appear with the next live run (every 2 minutes).";
+  return "No live count yet today: the visitor figures appear with the next live count, every few minutes. Refresh now counts this site at once.";
 }
 
 // ------------------------------------------------------------------ block
@@ -227,7 +229,7 @@ export function realtimeBlock(m, s, { tab = false, merged = false } = {}) {
     clockP.classList.toggle("late", !!late);
     const R = B.requests;
     clockR.textContent = R?.until ? `Requests as of ${ago(R.until)}, read from the log every ${POLL} s${R.partial ? " (the log's end is too large to read whole: a floor)" : ""}`
-      : P?.until ? `Requests as of ${tzTime(P.until, { seconds: true, label: false })}, from the 2-minute count${DEMO.on ? " (the 15-second count needs a running Skald)" : ""}` : "";
+      : P?.until ? `Requests as of ${tzTime(P.until, { seconds: true, label: false })}, from the live count${DEMO.on ? " (the 15-second count needs a running Skald)" : ""}` : "";
   }
 
   function draw() {
@@ -236,7 +238,7 @@ export function realtimeBlock(m, s, { tab = false, merged = false } = {}) {
     const reqRows = B.requests?.per_minute || (P?.per_minute || []).map((r) => ({ at: r.at, requests: Object.values(r.requests || {}).reduce((a, b) => a + b, 0) }));
     const top = h("div", { class: "card-h start rt-top" },
       tab ? null : h("h2", null, "Real time"),
-      info(`Visitors are counted by the live run every 2 minutes, with the same rules as every figure here, and are shown "as of" that count. Requests per minute are every line the server wrote, read every ${POLL} seconds: pages, files, bots and people alike, so they are never called visitors. Both are recounted by the audit (skald audit --live).`, "Real time"),
+      info(`Visitors are counted by the live count every few minutes, with the same rules as every figure here, and are shown "as of" that count. Requests per minute are every line the server wrote, read every ${POLL} seconds: pages, files, bots and people alike, so they are never called visitors. Both are recounted by the audit (skald audit --live).`, "Real time"),
       h("span", { class: "rt-clocks" }, clockP, clockR), h("span", { class: "grow" }), pause);
     clock();
     const view = s.view && s.view !== "all" ? h("p", { class: "note" }, "Real time covers the whole site, not only this page group.") : null;
@@ -269,7 +271,7 @@ export function realtimeBlock(m, s, { tab = false, merged = false } = {}) {
 // Overview > Real time: the block under the page's own title.
 export default function realtimeTab(m, s) {
   return [h("div", { class: "head" }, h("h1", null, "Real time"),
-    info("Who is on the site now: visitors (counted every 2 minutes, the same rules as every figure) and requests (read every 15 seconds). It does not follow the period: it is always now.", "Real time"),
+    info("Who is on the site now: visitors (counted every few minutes, the same rules as every figure) and requests (read every 15 seconds). It does not follow the period: it is always now.", "Real time"),
     h("span", { class: "period" }, h("span", { class: "pulse", "aria-hidden": "true" }), "Now")),
   realtimeBlock(m, s, { tab: true }),
   // 2.41: how today's visits moved is here only (Summary links here), under the map.

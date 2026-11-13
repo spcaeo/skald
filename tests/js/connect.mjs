@@ -40,7 +40,6 @@ const P = await import(new URL("connect-plan.js", JS));
 const C = await import(new URL("ui/connect.js", JS));
 const K = await import(new URL("routekeys.js", JS));
 const leads = (await import(new URL("tabs/sa-leads.js", JS))).default;
-const bookings = (await import(new URL("tabs/sa-bookings.js", JS))).default;
 const revenue = (await import(new URL("tabs/sa-revenue.js", JS))).default;
 const search = (await import(new URL("tabs/tr-search.js", JS))).default;
 const events = (await import(new URL("tabs/events.js", JS))).default;
@@ -181,11 +180,11 @@ line.querySelector("button").click();
 await tick();
 assert.equal(keyOf("setup"), "lead");
 
-// ---- Bookings, Revenue, Search, Events: each its need
-location.hash = "#sales/bookings";
+// ---- Bookings (Leads › What: Demos since #33), Revenue, Search, Events: each its need
+location.hash = "#sales/leads?lact=demo";
 C.forgetSources();
 integ = { ...integ, found: { tags: { calendly: ["calendly.com/example/demo"] } } };
-out = flat(bookings(m, s(), {}));
+out = flat(leads(m, s()));
 card = find(out, '.ui-conn[data-need="bookings"]')[0];
 assert.ok(card, "the bookings card");
 await tick(60);
@@ -213,13 +212,14 @@ assert.equal(keyOf("setup"), "search");
 assert.equal(location.hash.split("?")[0], "#traffic/search");
 assert.equal(find(out, ".ui-conn-src")[0].getAttribute("href"), "#settings/site/leads?lt=search");
 
-location.hash = "#sales/events";
+location.hash = "#traffic/events?range=7d";
 out = flat(events(m, s()));
 card = find(out, '.ui-conn[data-need="script"]')[0];
 assert.ok(card, "the script tag card");
 card.querySelector(".ui-conn-go").click();
 await tick();
 assert.equal(keyOf("setup"), "script");
+location.hash = "#sales/leads";   // the period named for Events above is not carried on
 
 // ---- one quiet line (a part of a page): Connect, never the page's primary
 const ln = C.connectCard(m, "journeys", { mode: "line" });

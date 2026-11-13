@@ -132,8 +132,21 @@ the last N days Bing returns.
   permission is not retried.
 - **Errors in plain words.** A failure (say, the robot was removed in Search
   Console) shows on Settings › Integrations and on the Search tab, with what
-  to do. The first failure of a run of failures sends **one mail** to the
-  site's mail recipients. No more mails until it works again and then fails.
+  to do.
+- **A sync that stopped (#40, `search/health.py`).** Each try is kept in the
+  state file (`tries`, the newest 60, and `fails`, the failed tries in a row).
+  A connected sync that worked before is **stopped** when every try since its
+  last good sync failed, for 24 hours (`STOPPED_HOURS`) or 4 tries in a row
+  (`STOPPED_TRIES`, one day of the 6-hourly scheduler). Not connected is never
+  stopped; one that never worked is "never answered", a connection to fix.
+  Stopped shows as a to-do on Overview › Insights (`todos.json` kind `search`),
+  on Settings and on the Search tab, with the engine's own reason in one line
+  and what to do. **One mail** goes to the site's mail recipients when it
+  stops (`stopped_mailed`) and **one** when it works again (`back_mailed`),
+  never one per try. A sync that never worked mails once at its first
+  failure (`error_mailed`). The second count (`audit_search_sync.py`, run-daily)
+  works "stopped" out again from the kept tries alone and compares it with
+  Settings and the to-do; a to-do it does not bear out is withheld.
 - **Status.** "Last synced HH:MM · next ~HH:MM", days stored, the newest day,
   how many are provisional, and the backfill's progress.
 

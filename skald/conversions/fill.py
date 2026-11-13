@@ -15,13 +15,22 @@ browser's page views (`journeys`, from the script tag). Now they fill it:
                   first touch's: only while the site keeps click IDs
                   (`conversions.click_ids`)
 
+A page view back from a payment page (source "Returned from payment",
+payment_names.py; owner's decision 6) is never a lead's source: the first
+touch is the earliest page view that is not one, and a visit that starts
+with one gives way to the visit before it (the same ID's), whatever the gap.
+With no other page view, the touches are not filled.
+
 Only by the visitor ID: never by an address, a hash or a time match. Only
 page views at or before `at`: a later one never changes a lead. A value the
 sender gave is never changed: a lead whose sender gave a touch (or a source)
 is not filled at all, and a column the sender gave on its own (landing,
 campaign, first_touch_at, the click) stays. A script-tag conversion (tool
-"beacon") keeps its own event's source and landing: only FILLED_BEACON
-(first_source, campaign, first_touch_at, click) are filled.
+"beacon") keeps its own landing: FILLED_BEACON is filled. Its source
+(BEACON_SOURCE, owner's decision 7) is the source of the visit it was sent
+from, by the ID's page views, over the event's own; with no page view to
+prove that visit the event's own source stays (from_beacon.py never keeps a
+payment page's: it is then NULL, "Not recorded").
 
 `filled` names the columns Skald filled (FILLABLE's order, comma-joined), so
 the lists and the drawer say "filled by Skald"; NULL when none. A column is
@@ -48,7 +57,9 @@ import json
 from datetime import datetime, timedelta, timezone
 
 from ..config import setting
-from . import BEACON_TOOL, CLICK_ID, CLICK_KINDS, FILLABLE, FILLED_BEACON, VISIT_GAP, store
+from ..payment_names import RETURNED
+from . import (BEACON_SOURCE, BEACON_TOOL, CLICK_ID, CLICK_KINDS, FILLABLE, FILLED_BEACON,
+               VISIT_GAP, store)
 
 LIVE_DAYS = 2           # `skald live` refreshes the rows of the last two days
 
@@ -72,10 +83,12 @@ def _named(filled) -> set[str]:
 
 def touches(db, site: str, vid: str, at: str) -> dict | None:
     """Every FILLABLE column from the ID's page views at or before `at`
-    (None where they hold none); None when it has no page view."""
+    (None where they hold none); None when it has no page view other than
+    ones back from a payment page."""
     first = db.execute("SELECT at, path, source_type, click_kind, click_id FROM journeys "
-                       "WHERE site = ? AND vid = ? AND at <= ? ORDER BY at, rowid LIMIT 1",
-                       (site, vid, at)).fetchone()
+                       "WHERE site = ? AND vid = ? AND at <= ? AND (source_type IS NULL OR "
+                       "source_type != ?) ORDER BY at, rowid LIMIT 1",
+                       (site, vid, at, RETURNED)).fetchone()
     if first is None:
         return None
     last, before = None, None
@@ -83,9 +96,16 @@ def touches(db, site: str, vid: str, at: str) -> dict | None:
                           "journeys WHERE site = ? AND vid = ? AND at <= ? "
                           "ORDER BY at DESC, rowid DESC", (site, vid, at)):
         moment = store.parse(row[0])
-        if before is not None and (before - moment).total_seconds() > VISIT_GAP:
+        if before is not None and (before - moment).total_seconds() > VISIT_GAP \
+                and last[1] != RETURNED:
             break
+        # Past a gap only when the visit walked so far starts back from a
+        # payment page: the visit before it is the lead's.
         last, before = row, moment
+    if last is None or last[1] == RETURNED:
+        return {"source_type": None, "first_source": first[2], "campaign": None,
+                "landing": first[1], "first_touch_at": first[0],
+                "click": (first[3], first[4]) if first[3] and first[4] else None}
     click = next(((k, v) for k, v in ((last[3], last[4]), (first[3], first[4])) if k and v),
                  None)
     return {"source_type": last[1], "first_source": first[2], "campaign": last[2],
@@ -99,14 +119,15 @@ def fillable(row, clicks: bool | None) -> tuple[str, ...]:
     if not row["vid"]:
         return ()
     named = _named(row["filled"] if "filled" in row.keys() else None)
+    always = ()
     if row["tool"] == BEACON_TOOL:
-        base = FILLED_BEACON
+        base, always = FILLED_BEACON, (BEACON_SOURCE,)
     elif all(row[c] is None or c in named for c in ("source_type", "first_source")):
         base = FILLABLE
     else:
         return ()
     return tuple(c for c in base if (clicks or c != "click") and (
-        c in named or (row["click_id"] if c == "click" else row[c]) is None))
+        c in named or c in always or (row["click_id"] if c == "click" else row[c]) is None))
 
 
 def _values(db, row, clicks: bool | None) -> dict | None:
@@ -118,8 +139,11 @@ def _values(db, row, clicks: bool | None) -> dict | None:
     got = touches(db, row["site"], row["vid"], row["at"]) or {}
     out = {}
     done = ["click"] if clicks is None and "click" in _named(row["filled"]) else []
+    beacon_own = row["tool"] == BEACON_TOOL and BEACON_SOURCE not in _named(row["filled"])
     for col in cols:
         value = got.get(col)
+        if value is None and col == BEACON_SOURCE and beacon_own:
+            continue            # no visit proven: the event's own source stays
         if col == "click":
             out["click_kind"], out["click_id"] = value or (None, None)
         else:

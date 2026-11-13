@@ -107,7 +107,7 @@ A form records only its own `id` or `name`, such as `contact`. It never reads wh
 
 ### What it does not track by itself
 
-Two events on [Leads & sales > Events](#sales/events) come only from your site's own code: **Demo opened** (`book_demo_open`) and **Demo booked** (`demo_booked`). Until your site sends them, the Events tab shows them as **Not set up**, with the line to add. Any event your site has never sent shows the same way, never as 0 or "0% went on". Your developer sends them when your own booking step opens and succeeds:
+Two events on [Traffic > Events](#traffic/events) come only from your site's own code: **Demo opened** (`book_demo_open`) and **Demo booked** (`demo_booked`). Until your site sends them, the Events tab shows them as **Not set up**, with the line to add. Any event your site has never sent shows the same way, never as 0 or "0% went on". Your developer sends them when your own booking step opens and succeeds:
 
 ```
 skald('track', 'demo_booked', {id: 'header'})
@@ -208,7 +208,7 @@ With visitor IDs on, the tag adds the visitor ID to every Calendly embed and Cal
 
 1. Open your site in a normal browser window. Make sure Do Not Track and Global Privacy Control are off in that browser, or the tag sends nothing.
 2. Open a page, click a link and start a form.
-3. In Skald, open [Leads & sales > Events](#sales/events) and choose **Today**.
+3. In Skald, open [Traffic > Events](#traffic/events) and choose **Today**.
 4. You should see "Today so far, not yet checked" and your events. Today's events are checked after midnight.
 5. At the bottom of the Events tab, a line says what the beacon took in today: accepted, declined, from machines, from your own addresses, refused.
 

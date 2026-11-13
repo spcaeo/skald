@@ -57,7 +57,7 @@ export default function alerts(m, s) {
     title: "Security alerts",
     question: "What will Skald tell us about, and how?",
     period: "Rules now · alerts of the last 30 days",
-    help: "A possible exposure opens an alert at once, from the live count every 2 minutes and from the last whole day, one per host and path; an advisory that matches the site's stack after the daily check. Both go to the dashboard, the site's alert mail and its webhooks (Slack too). A new scan wave compares the last whole day's probes with the usual day. Each person on the team can also choose their own mail below.",
+    help: "A possible exposure opens an alert at once, from the live count (every few minutes) and from the last whole day, one per host and path; an advisory that matches the site's stack after the daily check. Both go to the dashboard, the site's alert mail and its webhooks (Slack too). A new scan wave compares the last whole day's probes with the usual day. Each person on the team can also choose their own mail below.",
     draw: ({ f }) => {
       const al = m.x?.alerts || null;
       const parts = [];

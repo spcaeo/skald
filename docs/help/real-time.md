@@ -81,7 +81,7 @@ The **?** beside the title says what "today so far" covers and how often each pa
 
 Each of the four tiles compares today so far with **yesterday up to the same time of day**: at 14:33 today, yesterday from midnight to 14:33. Never with all of yesterday, which would make every morning look like a fall. The small chart under each tile is the running total by hour: today as a line, yesterday dashed. Point at it for the totals at each hour.
 
-- Visitors, pages read and visitors from AI: Skald counts yesterday again from the log up to that time, every 2 minutes, with the same rules as today's figures.
+- Visitors, pages read and visitors from AI: Skald counts yesterday again from the log up to that time, with every live count (every few minutes), with the same rules as today's figures.
 - Leads: yesterday's completed forms and demo bookings up to that time, from the lead store. Test rows are never counted.
 - Under 10 yesterday, the change is a count (**+2**); from 10, a percent (**+18%**).
 - **Not recorded** means yesterday cannot be compared: it was withheld (its second count disagreed), is only partly in the log, or was not recorded. It never shows as a fall to zero.
@@ -99,4 +99,4 @@ Every Real time figure is counted a second time from the raw log lines by `skald
 
 ## In the demo
 
-The demo has no running Skald behind it, so its requests per minute come from the 2-minute count, and **Refresh now** says it needs a running Skald.
+The demo has no running Skald behind it, so its requests per minute come from the live count, and **Refresh now** says it needs a running Skald.

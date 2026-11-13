@@ -71,6 +71,7 @@ outside source), so a day's rows are its readers.
 | `seconds` | int or NULL | first to last request |
 | `trail` | JSON | `[[path, "page" or "app", seconds since start], ...]`, at most 50 |
 | `posts` | JSON | UTC times of the visit's POST requests (a form sent), at most 20 |
+| `posts_from` | JSON or NULL | schema 11 (#57): the page each of those POSTs was sent from, in the same order: the path of its referrer on the site's own hosts, `""` when it had none or another site's. NULL on a row kept before schema 11. Read by `conversions_pages.py` for the page a booking or form happened on |
 
 `visit_days`: `site`, `day`, `state` (`whole`: written by the daily run;
 `today`: written by the last live run, replaced each run), `visits`, `pages`,
@@ -312,7 +313,7 @@ codes are gone. Kept visits and codes count only when the day linked a visit by 
 
 ## The visitor timeline (2.12.0)
 
-`GET <page>/people/visitor?day=D&seq=S` (owners and admins; 403 otherwise; 400 for a bad day
+`GET <page>/people/visitor?day=D&seq=S[&at=YYYY-MM-DDTHH:MM]` (owners and admins; `at`, Unreleased #56: the visit's start in site time as the page shows it; a kept visit whose start differs is not answered: the one visit of that day starting then is, and with none or several the answer is `found: false` with a plain why, never another visit; 403 otherwise; 400 for a bad day
 or seq; each answer writes an audit row `people.visitor` with the visit's day and seq, never
 an address): `people/timeline.py`, from the kept visit `(site, D, S)`:
 

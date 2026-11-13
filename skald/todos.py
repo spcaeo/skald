@@ -18,6 +18,11 @@ threshold (LIMITS, below). Nothing is guessed:
                   left after that page and no form was sent (the stored journeys,
                   kept report.journey_days days; one to-do per page, at most
                   LIMITS["leave_pages"]; the id is an opaque hash of the page)
+  search-sync-<engine>
+                  (#40) the site's Search Console or Bing sync worked, then failed for a
+                  day or search/health.STOPPED_TRIES tries in a row (search/health.py);
+                  not from the log, never marked: it goes by itself after a good sync.
+                  Its second count is audit_search_sync.check, from the kept tries
 
 The window: lost_pages.WINDOW_DAYS days with figures ending yesterday (the
 journeys: the days of it they are kept for).
@@ -41,6 +46,7 @@ from __future__ import annotations
 import hashlib
 from collections import Counter
 from datetime import date
+from pathlib import Path
 
 from . import lost_pages
 from .closest_page import closest
@@ -59,11 +65,12 @@ ROWS_MOST = 1000                # rows a to-do carries for its list and CSV
 STILL_MOST = 100                # addresses a re-check names as still failing (#5, #6)
 OTHER = "(all others)"
 GROUPS = ("people", "answer_engines", "search_engines", "bots", "ours")
-ORDER = ("lost", "errors", "markdown", "sitemap", "leave")
+ORDER = ("search", "lost", "errors", "markdown", "sitemap", "leave")
 # The kinds the person's own AI agent can work on (kit/agent_todos.py: job todo-<kind>).
 AGENT_KINDS = ("lost", "errors", "markdown", "sitemap", "leave")
 TAB_NAMES = {"site/notfound": "Site > Not found", "site/health": "Site > Health",
-             "traffic/pages": "Traffic > Pages"}
+             "traffic/pages": "Traffic > Pages",
+             "settings/site/leads": "Settings > Leads & tools > Search Console & Bing"}
 
 
 def _short(iso: str | None) -> str:
@@ -372,6 +379,34 @@ def rank(t: dict) -> tuple:
     return (0 if people_met(t) else 1, ORDER.index(t["kind"]), -t["figures"].get("visits", 0), t["id"])
 
 
+def search_todos(p) -> tuple[list[dict], list[dict]]:
+    """(the to-dos of a stopped search sync, the ones the second count left out). The
+    whole site's: a view's page shows them too."""
+    from . import audit_search_sync, todo_rows
+    from .search import health
+    resolved = ((p.config or {}).get("_resolved") or {}).get("history_db")
+    folder = Path(resolved).parent if resolved else todo_rows.folder_of(p)
+    if folder is None:
+        return [], []
+    site = p.key.split("::", 1)[0]
+    try:
+        made = health.todos(p.config, folder, site)
+        problems = audit_search_sync.check_site(p.config, folder, site)
+    except Exception:                   # noqa: BLE001 - a to-do, never a stop
+        return [], []
+    out, gone = [], []
+    for t in made:
+        why = problems.get(t["subject"])
+        if why:
+            gone.append({"id": t["id"], "title": t["title"], "why": "; ".join(why)})
+            continue
+        t.update(state="open", marked=None, recheck=None, status="open", rows_total=0,
+                 agent=False, window=None, first_seen=None)
+        t["open"]["name"] = TAB_NAMES[t["open"]["tab"]]
+        out.append(t)
+    return out, gone
+
+
 def build(p) -> dict:
     """todos.json's body (DATA-CONTRACT.md)."""
     from . import audit_todos, todo_marks, todo_rows
@@ -410,6 +445,8 @@ def build(p) -> dict:
     held = audit_todos.check_todos(p.history.db, p.key, todos, p.live_dir, p.anchor.isoformat())
     withheld = [{"id": t["id"], "title": t["title"], "why": held[t["id"]]} for t in todos if t["id"] in held]
     todos = [t for t in todos if t["id"] not in held]
+    got, gone = search_todos(p)
+    todos, withheld = sorted(todos + got, key=rank), withheld + gone
     window = {"first": found.first, "last": found.last, "days": len(found.days),
               "of": lost_pages.WINDOW_DAYS}
     # Every row, beside the history, for the person's own AI agent (todo_rows.py).

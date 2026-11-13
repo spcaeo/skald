@@ -63,17 +63,17 @@ WAYS = {"vercel": "Vercel log drain", "netlify": "Netlify log drain",
         "script": "the script tag"}
 # What to look at when nothing came, by the way the data travels.
 NO_DATA = {
-    "vercel": ("Usually it starts within 2 minutes after the drain is saved. If not, open "
+    "vercel": ("Usually it starts within a few minutes after the drain is saved. If not, open "
                "Vercel, Settings, Log Drains: the drain's address ends in /traffic-ingest/{site}"
                "?format=vercel, its status is Active, and it sends the project's Static and "
                "Edge logs."),
-    "netlify": ("Usually it starts within 2 minutes after the drain is saved. If not, open "
+    "netlify": ("Usually it starts within a few minutes after the drain is saved. If not, open "
                 "Netlify, Logs & metrics, Log drains: the address ends in "
                 "/traffic-ingest/{site}?format=netlify."),
-    "cloudflare": ("Usually it starts within 2 minutes after the Worker is deployed. If not, "
+    "cloudflare": ("Usually it starts within a few minutes after the Worker is deployed. If not, "
                    "check the Worker's route covers {site}, and that its SKALD_TOKEN secret is "
                    "set."),
-    "server": ("Usually it starts within 2 minutes after the shipper starts. If not, run "
+    "server": ("Usually it starts within a few minutes after the shipper starts. If not, run "
                "skald-ship-check on the server, or look at journalctl -u skald-ship -n 50."),
     "script": ("Data starts with the first visit to a page that carries the tag. Open {site} in "
                "a browser, then press Check now again. If still nothing, view the page's source "
@@ -219,7 +219,7 @@ def verdict(setup: dict | None, verify: dict | None, line: dict | None, f: dict,
     for name in ("vercel", "netlify", "cloudflare"):
         if name in host:
             way = name
-    says = NO_DATA.get(way, "Usually it starts within 2 minutes after the data road is set up. "
+    says = NO_DATA.get(way, "Usually it starts within a few minutes after the data road is set up. "
                             "If not, open the troubleshooting guide.").format(site=site)
     return {**out, "verdict": "wait", "head": "No data yet.", "says": says}
 

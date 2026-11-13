@@ -66,7 +66,7 @@ Then `/mcp` in Claude Code shows `skald` connected. The JSON form, for a project
   "headers": {"Authorization": "Bearer ${SKALD_MCP_TOKEN}"}}}}
 ```
 
-The 30 tools (all **READ** but `setup_line`, `mark_todo_done`, `add_site` and `send_invites`). Dates are `YYYY-MM-DD` in the site's zone; no dates means the last
+The 31 tools (all **READ** but `setup_line`, `mark_todo_done`, `add_site` and `send_invites`). Dates are `YYYY-MM-DD` in the site's zone; no dates means the last
 7 whole days.
 
 | Tool | | What it answers |
@@ -100,6 +100,7 @@ The 30 tools (all **READ** but `setup_line`, `mark_todo_done`, `add_site` and `s
 | `site_progress` | READ | (Unreleased) a set-up's live steps, as Add a site's live progress shows them |
 | `check_site` | READ | (Unreleased) Check now: what is missing, in plain words |
 | `send_invites` | MAILS | (Unreleased) sends a new site's invites now |
+| `page_journeys` | READ | (Unreleased) for a set of pages: how people arrived (landed, by source, or the page before), where they went next, who they were, the newest visits |
 | `find_person` | READ | **`read_private` only.** One IP, email, visitor ID or lead ref: visits, leads, every conversion (test, cancelled, removed too). Each call is audit-logged. Any ref is found by its `external_ref` since 2.26.0 (section 7) |
 
 Also two resources (`skald://docs/api`, `skald://docs/counting`), two per site
@@ -463,12 +464,11 @@ on is withheld. To backfill old leads, post them with their real `at` (section 6
 | Where | What |
 | --- | --- |
 | **Leads & sales › Leads** | one row per lead (the first finished row of each ref and lead action, section 3.4): when, name and email (owners and admins, identity `full` only), action, label, stage now (the latest won, lost, cancelled, no-show or rescheduled of the same lead), where it came from, source, landing, country. A row opens its steps and pages. List, Board, Timeline, Map. Names viewed are audit-logged |
-| **Leads & sales › Summary** | Count from **Tools** (the hooks) or **Lead database**, never added: Leads, Demos booked, Won, Lost against the period before; Every action (started, completed, abandoned, rate over 10 starts, cancelled, won, lost) |
-| **Leads & sales › Sources** | where finished leads came from: last, first and assisted touch, time to convert |
+| **Leads & sales › Summary** | the lead actions only, from every road (#32; no Count from since then): Leads (the same figure as the Leads tab), Sales, Demos booked, Won, Lost against the period before; Each kind of lead (started, completed, abandoned, a rate only where the script saw both starts and completions, cancelled, won, lost); Where they came from (the old Sources tab, #33): last, first and assisted touch, time to convert |
 | **Leads & sales › Funnels** | pages and events over visits (the script tag); on a site without a lead database, a lead step adds up the leads the hook sent on the funnel's visit days (conversions.json's checked day counts, each lead once; 2.46.4), never split by a starting source |
-| **Leads › More › Show left out** | test, spam and duplicate leads, marked, never counted |
-| **Calendar bookings › More › Show left out** | Cancelled or no-show, **Removed** (rows a lead-database sync or `conversions remove` took away, kept whole with when and why), Test |
-| **Find a person** | one IP, email, visitor ID or ref, linked (owners and admins) |
+| **Leads › What: Demos** | the old Calendar bookings (#33): each step of the bookings (opened, chose a time, booked, cancelled, rescheduled, no-show, won, lost) above the list |
+| **Leads › More › Show left out** | test, spam and duplicate leads, marked, never counted; and under the list, the tools' Cancelled or no-show, **Removed** (rows a lead-database sync or `conversions remove` took away, kept whole with when and why) and Test conversions |
+| **Find a person** | the box at the top of Leads, or Search or jump to: one IP, email, visitor ID or ref, linked (owners and admins) |
 | **Overview › Summary** | the Leads and Demos booked tiles, today live |
 | **Settings › This site › Integrations** | each hook's state, Make/Rotate secret, Send a test event, the last 50 deliveries, Status |
 
@@ -523,7 +523,7 @@ existed is "not recorded", never zero.
   counted; reversible.
 - a wrong `at`, action, label, source or stage: **ask the Skald admin.** Since 2.26.0:
   `skald conversions remove <site> --ref <ref> [--stage S] --why "..." --dry-run`, then without
-  `--dry-run` (each row kept whole under Calendar bookings › More › Show left out › Removed,
+  `--dry-run` (each row kept whole under Leads › More › Show left out, as Removed,
   with when and why, out of every count), and then the app sends the lead again, correct: a
   resend after a remove is kept as a new row. Before it, or to erase a person on request:
   `skald --site <site> conversions forget --lead <ref> --dry-run`, then without `--dry-run` (a

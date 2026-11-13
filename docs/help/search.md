@@ -104,7 +104,7 @@ You read it through the AI agent connection (MCP): the `search_performance` tool
 
 ## For AI agents: search_performance
 
-An AI agent connected to Skald (Settings › API & MCP) can ask the **search_performance** tool for Search Console's figures: clicks, impressions, CTR and position for each day, for the whole site or one page, with that page's top 10 queries, its top 10 countries and its index status. Without a page it gives the site's days, top pages, top queries and countries, and how many inspected pages are indexed. The figures are Google's own, labelled so, never added to Skald's visits. A day Skald has not stored is named. A page with no row on a day is 0 only when that day's page table is complete; otherwise it is "not known". `your_tools` also names Search Console's state: answering, last try failed or stopped answering.
+An AI agent connected to Skald (Settings › API & MCP) can ask the **search_performance** tool for Search Console's figures: clicks, impressions, CTR and position for each day, for the whole site or one page, with that page's top 10 queries, its top 10 countries and its index status. Without a page it gives the site's days, top pages, top queries and countries, and how many inspected pages are indexed. The figures are Google's own, labelled so, never added to Skald's visits. A day Skald has not stored is named. A page with no row on a day is 0 only when that day's page table is complete; otherwise it is "not known". `your_tools` also names Search Console's state: answering, last try failed, stopped answering (with the reason and what to do) or never answered.
 
 ## How fresh it is
 
@@ -117,7 +117,28 @@ An AI agent connected to Skald (Settings › API & MCP) can ask the **search_per
 
 If a sync fails, the Search tab and Settings › This site › Leads & tools › Search Console & Bing say why, in plain words, and what to do. The most common cause: someone removed the robot from Search Console. Add it back (step 1 above); the next sync clears the error.
 
-The first failure sends **one mail** to the site's mail recipients. No more mails come until it works again.
+One failed try is often nothing: Google's quota, a slow answer. Skald tries again every 6 hours, and Settings shows **Last try failed**.
+
+### When a sync stops
+
+A sync that worked before counts as **stopped** when every try since its last good sync failed, for a whole day (24 hours) or 4 tries in a row (a day of the 6-hourly syncs). A site that is not connected is never "stopped"; one that never synced once is a connection to fix, not a stop. Then Skald says so in three places:
+
+- **Overview › Insights** gets a to-do: which engine stopped, since when, Google's or Bing's own reason in one line, and what to do. Its one button opens the settings. It goes away by itself after the next good sync.
+- **Settings › Leads & tools › Search Console & Bing** shows **Stopped**, since when, the reason and what to do. The **?** beside it has Google's or Bing's full answer and the rule.
+- **One mail** goes to the site's mail recipients when it stops, and **one** when it works again. Never one per try.
+
+What to do depends on the reason:
+
+| Google or Bing says | What to do |
+|---|---|
+| the project was deleted, or the Search Console API is turned off | Check the Google Cloud project behind Skald's robot key: restore it, and turn the Search Console API back on. Or upload a new key. |
+| the robot has no access to the property | In Search Console › Settings › Users and permissions, add the robot's email back with Restricted access. |
+| the key was refused | Upload a new service-account key (Google) or check the API key (Bing). |
+| anything else | Press **Sync now**; reconnect if it still fails. |
+
+The figures already synced stay on the Search tab. After the next good sync, Skald fetches the days it missed.
+
+A sync that never worked sends **one mail** at its first failure: the connection itself needs a look.
 
 ## Why Google's clicks and Skald's visits differ
 

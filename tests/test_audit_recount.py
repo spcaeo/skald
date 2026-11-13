@@ -258,8 +258,10 @@ class TestIndependence(AuditCase):
         # Its own labels, moved out whole (below), and the phase 4 recounts'
         # registry (audit_more.py), whose modules follow the same rule.
         allowed |= {("audit_labels", n) for n in (
-            "_bare", "_host_of", "browser_of", "campaign_of", "device_of", "referrer_of",
-            "source_of", "status_of", "system_of")}
+            "_bare", "_host_of", "browser_of", "campaign_of", "device_of", "pay_hosts",
+            "referrer_of", "source_of", "status_of", "system_of")}
+        # The "Returned from payment" name (#34): a name list, payment_names.py.
+        allowed |= {("payment_names", "RETURNED")}
         allowed |= {(None, "audit_more")}
         # Its own reader of Vercel and Netlify drain lines, which imports
         # nothing from the package (test_drains).
@@ -305,7 +307,10 @@ class TestIndependence(AuditCase):
         tree = ast.parse(Path(audit_labels.__file__).read_text())
         imported = {(n.module, a.name) for n in ast.walk(tree)
                     if isinstance(n, ast.ImportFrom) and n.level for a in n.names}
-        self.assertEqual(imported, {("audit", "Line")})        # a type, under TYPE_CHECKING
+        # a type, under TYPE_CHECKING; and the payment pages' name lists (#34)
+        self.assertEqual(imported, {("audit", "Line")} | {
+            ("payment_names", n) for n in ("CHECKOUT_KEY", "PAYMENT_HOSTS", "PAYMENT_REFERRER",
+                                           "RETURNED")})
 
     def test_its_labels_agree_with_the_package_on_known_agents(self):
         from skald import dimensions

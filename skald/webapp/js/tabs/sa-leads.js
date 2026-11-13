@@ -31,11 +31,17 @@
 //
 // 2.32.0: a sale's drawer shows its value and currency, what was refunded on it, its customer
 // reference (with a copy icon) and its tags (saleFacts); the sums are on Revenue (sa-revenue.js).
+//
+// #33: Calendar bookings is What: Demos here (its stage steps above the list, sa-steps.js), and
+// Find a person is the search box at the right of the head (sa-find.js); Calendar bookings'
+// Show left out (the tools' cancelled, removed and test conversions, sa-lists.js convList) is
+// listed under the leads with Show left out, of the kind chosen. #32: the period is the
+// section's one period (sa-period.js salesRange), checked against its second count
+// (periodCheck): a figure that does not reconcile is withheld.
 
 import { h, n, change, short, long } from "../ui.js";
 import * as S from "../state.js";
-import { rangeOf, previousOf } from "../data.js";
-import { time as tzTime, daysNote } from "../tz.js";
+import { time as tzTime } from "../tz.js";
 import { DEMO } from "../demo.js";
 import { grid } from "../grid.js";
 import { call } from "./ipmanager.js";
@@ -52,7 +58,10 @@ import { withUrl, withCopy, copyFact } from "../urlactions.js";
 import { money } from "./revfigs.js";
 import { LEAD_DIMS, activeFilters, filteredBy, appliedWords, figureFile, listOnly, leadsWord, CLEAR_ALL } from "./sa-filters.js";
 import { refCell, afterMark } from "./leadref.js";
-import { leadsRange, headWords, sentenceWords, versusLive, liveNote, csvName } from "./sa-period.js";
+import { salesRange, periodDays, periodBefore, sentenceWords, versusLive, periodCheck, liveNote, csvName } from "./sa-period.js";
+import { bookingSteps } from "./sa-steps.js";
+import { convList, CONV_SHOW } from "./sa-lists.js";
+import { findBox, findNote } from "./sa-find.js";
 import { connectCard, partlyLine } from "../ui/connect.js";
 
 export const VIEWS = [["list", "List"], ["board", "Board: by stage now"], ["timeline", "Timeline: leads per day"], ["map", "Map: leads by country"]];
@@ -169,7 +178,7 @@ export function openLead(x) {
 /* lead=<id>, from a link: the row in the period on screen (the same answer the list asked
    for), else the plain line. */
 export async function openLeadKey(m, s, value) {
-  const r = leadsRange(m, s);
+  const r = salesRange(m, s);
   const first = r.kind === "today" ? m.today : r.first, last = r.kind === "today" ? m.today : r.last;
   const ans = await fetchLeads(first, last, mayFind());
   if (!ans?.ok) return ans?.status === 403 ? "Not available to your role." : "The leads could not be loaded just now, so that lead cannot be shown. Open this page again in a minute.";
@@ -184,14 +193,8 @@ function sourceChoices(f, m, r) {
   return Object.keys(by).sort((a, b) => by[b] - by[a]).map((k) => [k, k === "Unknown" ? "Not recorded" : k]);
 }
 
-/* The period's days, as the figure counts them. All time starts at the leads' own first day
-   (conversions.json `since`) when the site's history began earlier: before it nothing could
-   be recorded, so those days are not "not recorded" here. */
-export function daysOf(m, r) {
-  if (r.kind === "today") return [m.today];
-  const since = r.all ? convFile(m)?.since : null;
-  return r.days.map((d) => d.day).filter((d) => !since || d >= since);
-}
+// The period's days, as the figure counts them (sa-period.js periodDays: one place).
+export const daysOf = periodDays;
 
 /* The period in words, inside a sentence: "today so far", "the last 7 days", "all time". */
 export function periodName(r, s, m = null) {
@@ -205,7 +208,7 @@ export function periodName(r, s, m = null) {
 
 // "12% more than the 7 days before (30)", when both periods are whole.
 function versus(fm, m, r, got) {
-  const p = previousOf(m, r);
+  const p = periodBefore(m, r);
   if (!p || r.all) return "";
   const was = leadsOn(fm, p.days.map((d) => d.day));
   // None in either: nothing to compare (the empty state below says where the leads are).
@@ -227,6 +230,9 @@ function countLine(m, s, r, fig, list, view) {
     const fm = withFile(m, "conversions", fig.f);
     const got = leadsOn(fm, daysOf(m, r));
     if (!got || !got.ok) return { node: null, got };
+    // #32: the period's figure against its second count; withheld when they differ.
+    const check = periodCheck(m, r, got, s, fig);
+    if (!check.ok) return { node: h("div", { class: "state bad", role: "alert" }, h("div", null, check.why)), got: null };
     const vs = r.live ? versusLive(fm, m, r, got, s, fig) : versus(fm, m, r, got);
     const node = h("p", { class: "sa-figure", title: TITLE },
       h("b", null, leadsWord(got.leads)), said, vs ? ` · ${vs}` : "", got.demos ? ` · ${n(got.demos)} demo${got.demos === 1 ? "" : "s"} booked` : "",
@@ -246,7 +252,7 @@ function countLine(m, s, r, fig, list, view) {
    days, then all time), with a button to each; none at all: "No leads yet" and the hint. */
 export function emptyLeads(m, s, r, fig, list) {
   const fm = withFile(m, "conversions", fig.f);
-  const count = (range) => { const w = leadsRange(m, { ...s, range }); return { w, got: leadsOn(fm, daysOf(m, w)) }; };
+  const count = (range) => { const w = salesRange(m, { ...s, range }); return { w, got: leadsOn(fm, daysOf(m, w)) }; };
   const btn = (words, range) => h("button", { type: "button", class: "btn", onclick: () => S.set({ range }) }, words);
   const filtered = list.some((x) => x.applied);
   const none = filtered ? "No new leads match these filters" : "No new leads";
@@ -278,16 +284,19 @@ function fill(body, make) {
 }
 
 export default function leadsTab(m, s) {
-  const r = leadsRange(m, s);
+  const r = salesRange(m, s);
   const f = convFile(m);
   const view = viewOf(s.lview, VIEWS);
   const top = tabHead("Leads", "Who are my leads? One row per lead: who, what they did, and where they came from.", r,
-    { help: "Every lead of the period from every road: the lead database, the booking tools, the page's script tag and your site's server, each row saying which. The count is the Leads figure, the same as Overview's.", more: HELP, source: "leads",
-      ...(r.live ? { period: [headWords(r, m), daysNote()].filter(Boolean).join(" · ") } : {}) });
+    { help: "Every lead of the period from every road: the lead database, the booking tools, the page's script tag and your site's server, each row saying which. The count is the Leads figure, the same as Summary's and Overview's.", more: HELP, source: s.lact === "demo" ? "bookings" : "leads",
+      action: findBox(s) });
+  const told = s.lfind && findNote() ? h("p", { class: "note" }, findNote()) : null;
+  if (told) top.push(told);
   if (!f) {
     const raw = m.x.conversions;
     if (raw?.state === "error") return [...top, emptyState(`The leads could not be built: ${raw.error || "no reason given"}.`, null, { bad: true })];
-    return [...top, connectCard(m, "leads", { s })];
+    // What: Demos (the old Calendar bookings, #33) with nothing connected: the bookings card.
+    return [...top, connectCard(m, s.lact === "demo" ? "bookings" : "leads", { s })];
   }
   const acts = (f.lead_actions || []).map((a) => [a, actionName(a)]);
   const labels = convLabels(f, s.lact);
@@ -298,7 +307,7 @@ export default function leadsTab(m, s) {
     select("Stage now", s.lnow, [...GROUPS, ["out", "Left out"]], (v) => S.set({ lnow: v, lshow: v === "out" ? "out" : s.lshow }), { all: "Every stage", off: notList }),
     select("Source", s.lby, sourceChoices(f, m, r), (v) => S.set({ lby: v }), { all: "Every source", off: view === "map" ? "Leads by country are not split by source." : "" }),
   ], {
-    more: [toggles("Show", listOf(s.lshow, ["out"]), [["out", "Left out: test, spam and duplicates"]], (list) => S.set({ lshow: list.join(",") }))],
+    more: [toggles("Show", listOf(s.lshow, ["out"]), [["out", "Left out: test, spam, duplicates, cancelled and removed"]], (list) => S.set({ lshow: list.join(",") }))],
     end: viewSwitch("Show leads as", view, VIEWS, (k) => S.set({ lview: k === "list" ? "" : k })),
   });
   // Every filter on, from the row and from the top bar's Filters, in one line (sa-filters.js).
@@ -310,7 +319,15 @@ export default function leadsTab(m, s) {
   // 2.27: under the count, today's part of the period and what is verified ("Today so far" was above).
   const live = r.live ? liveNote(m, s, r, today || (rowsOnly ? null : leadsOn(m, [m.today])), today && got ? got.leads : null) : null;
   // 2.43: a site partly connected says what is still missing (an admin's, js/ui/connect.js).
-  const out = [...top, partlyLine(m, "leads"), ...row, filteredBy(list), line, live, body].filter(Boolean);
+  // #33: a booking action (What: Demos) shows each step of it above the list (sa-steps.js).
+  const steps = s.lact && !s.llabel ? bookingSteps(fig.f ? withFile(m, "conversions", fig.f) : m, s, r, s.lact) : null;
+  // Show left out: the tools' cancelled, removed and test conversions too, listed under the
+  // leads (Calendar bookings' lists until #33), of the chosen kind of lead and label.
+  const keep = new Set(f.lead_actions || []);
+  const tools = listOf(s.lshow, ["out"]).length && (view === "list" || view === "board")
+    ? convList(CONV_SHOW.map(([k]) => k), { ns: "lo", only: (a) => (s.lact ? a === s.lact : keep.has(a)), label: s.llabel,
+      title: s.lact ? `Cancelled, removed and test: ${actionName(s.lact).toLowerCase()}` : "Cancelled, removed and test conversions" }) : null;
+  const out = [...top, partlyLine(m, "leads"), ...row, filteredBy(list), line, live, steps, body, tools].filter(Boolean);
   // The period has no lead (the figure says 0 on checked days): where the leads are instead.
   if (got && got.ok && !got.leads) { body.append(emptyLeads(m, s, r, fig, list)); return out; }
   const m2 = fig.f ? withFile(m, "conversions", fig.f) : m;

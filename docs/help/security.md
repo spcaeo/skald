@@ -160,7 +160,7 @@ With shortened addresses the list holds networks only; with addresses not kept t
 
 Three site alerts, sent the same way as the site's other alerts (the dashboard, the site's alert mail to its confirmed recipients, and your webhooks, Slack included):
 
-- **Possible exposure**: opens at once (the live count runs every two minutes) when a probe is answered with a page unlike the host's fallback page, one alert per host and path.
+- **Possible exposure**: opens at once (the live count runs every few minutes) when a probe is answered with a page unlike the host's fallback page, one alert per host and path.
 - **Advisory matches your stack**: after the daily check, one alert per advisory, host and product that needs something done.
 - **New scan wave**: the last whole day's probes are at least three times the usual day (the median of the 14 days before, at least 7 of them counted) and at least 200. Off until you switch it on.
 
@@ -172,8 +172,8 @@ On top of the site's alert mail, each person on the site's team chooses their ow
 
 - **On or off**, and **in the daily summary** or **right away**.
 - **The daily summary** (the default for owners and admins; viewers get none until they turn alerts on) is one mail a day at 01:00 in the server's schedule time zone, for every site you get security alerts for. It has a section per site, only for sites with something open: the security items (**New** for one you were never mailed, then the ones still open), the to-dos to fix from Overview › Insights (less the ones marked done or "not now"), and set-up problems the server's doctor finds. At most 10 lines per part and site, then a link to the rest. When nothing is open you get no mail, and never two in one day.
-- At 01:00 the to-dos come from the last daily run (07:15 the morning before); the security items are current, from the live runs every two minutes.
-- **Right away** sends one mail per run (every two minutes at most) with everything due on all the sites you chose it for, never one mail per item.
+- At 01:00 the to-dos come from the last daily run (07:15 the morning before); the security items are current, from the live runs every few minutes.
+- **Right away** sends one mail per live run at most with everything due on all the sites you chose it for, never one mail per item.
 - Each mail names the site, what was found, what to do in one line, and a link straight to it on the Security tab (for example `…#threats/exposed?item=x1a2b3c4d5e6`), which opens with that item first.
 - Right away, each item is mailed once; a reminder comes only while it stays open, every 3 days (`security.remind_days`). The summary lists every open item each day.
 - Only accounts that were confirmed (the invite link was used) and are not switched off get one. If you are also one of the site's alert mail recipients, an exposure is not mailed twice.

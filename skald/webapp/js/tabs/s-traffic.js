@@ -1,5 +1,6 @@
-// Traffic: Visitors · Sources · Pages · Places & devices · Search · Retention · Time. The Traffic builder
-// owns this file. Tab entries and their options: see s-overview.js.
+// Traffic: Visitors · Sources · Pages · Places & devices · Search · Retention · Time · Events. The
+// Traffic builder owns this file. Tab entries and their options: see s-overview.js. Events (what
+// visitors did inside the pages, from the script tag) moved here from Leads & sales in #33.
 //
 // One place per answer (2.7.0): source types, referring sites and campaigns are one
 // grid on Sources; landing pages are on Pages only; countries on Places & devices only;
@@ -13,6 +14,7 @@ import places from "./tr-places.js";
 import hours from "./hours.js";
 import search from "./tr-search.js";
 import retention from "./tr-retention.js";
+import events from "./events.js";
 
 const ALL = ["country", "path", "source", "device", "browser", "campaign", "referrer"];
 
@@ -35,4 +37,6 @@ export default [
   ["retention", "Retention", retention, { file: "retention", filters: [], ranged: false, keep: ["rg", "rm", "rs", "rv"],
     period: (s) => (s.rg === "day" ? "30 days of first visits" : "12 weeks of first visits") }],
   ["time", "Time", hours, { filters: [] }],
+  // #33: from Leads & sales (#sales/events opens it, routes.js). Its page and source filters apply.
+  ["events", "Events", events, { file: "events", filters: ["path", "source"] }],
 ];

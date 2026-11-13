@@ -1,7 +1,7 @@
 """Real time's fast road: the newest log lines, counted every 15 seconds.
 
 The people figures of Real time come from the live run (realtime.py, every
-2 minutes): only the whole day's tally can apply the people rule. What can
+few minutes): only the whole day's tally can apply the people rule. What can
 be fresher is the plain count of requests: this module reads the end of
 the access log - never the whole day - and counts every request of the
 site's hosts per clock minute over the last MINUTES minutes, up to the

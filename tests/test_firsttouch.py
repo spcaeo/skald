@@ -16,7 +16,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from skald import firsttouch  # noqa: E402
+from skald import firsttouch, window  # noqa: E402
 from skald.config import load_config  # noqa: E402
 from skald.conversions import store  # noqa: E402
 from skald.people import api, timeline  # noqa: E402
@@ -182,6 +182,62 @@ class AddressesOff(Base):
         got = timeline.visitor(cfg, self.box.root, "example.com", "2026-10-06", 0)
         self.assertFalse(got["found"])
         self.assertIn("keeps no IP addresses", got["why"])
+
+
+class OpenedByItsStart(Base):
+    """#56: the page names a visit by its place that day (seq) and its start (at).
+    A late log line can move the places; the start decides, and a visit whose
+    place moved is never shown as another visitor's."""
+
+    def setUp(self):
+        super().setUp()
+        self.box.log(lines())
+        self.collect(D1, D2)
+        self.cfg = load_config(self.box.config)
+        self.tz = window.zone(self.cfg)
+
+    def minute(self, d: date, hour: int) -> str:
+        return at(d, hour).astimezone(self.tz).strftime("%Y-%m-%dT%H:%M")
+
+    def test_the_start_agrees_and_the_visit_opens(self):
+        got = timeline.visitor(self.cfg, self.box.root, "example.com", "2026-10-06", 0,
+                               self.minute(D2, 14))
+        self.assertTrue(got["found"])
+        self.assertEqual(got["visits"][0]["linked"], "this")
+        self.assertEqual(got["visits"][0]["start"], "2026-10-06T14:00:00Z")
+
+    def test_a_moved_place_opens_the_visit_that_started_then(self):
+        # seq 0 is A's 14:00 visit; the page's at says 15:00 (B's): B's opens, not A's.
+        got = timeline.visitor(self.cfg, self.box.root, "example.com", "2026-10-06", 0,
+                               self.minute(D2, 15))
+        self.assertTrue(got["found"])
+        self.assertEqual([v["start"] for v in got["visits"]][0], "2026-10-06T15:00:00Z")
+        self.assertNotIn("2026-10-05T09:00:00Z", [v["start"] for v in got["visits"]])
+
+    def test_no_visit_started_then_shows_nothing(self):
+        got = timeline.visitor(self.cfg, self.box.root, "example.com", "2026-10-06", 0,
+                               self.minute(D2, 11))
+        self.assertFalse(got["found"])
+        self.assertIn("place in the day changed", got["why"])
+        self.assertEqual(got["visits"], [])
+
+    def test_the_api_checks_the_start(self):
+        sent = []
+
+        class H:
+            def _json(self, code, body):
+                sent.append((code, body))
+
+        for bad in ("14:00", "2026-10-06 14:00", "2026-10-06T14:00:00Z"):
+            api._visitor(H(), {"day": "2026-10-06", "seq": "0", "at": bad}, self.cfg,
+                         self.box.root, "example.com", True, self.cfg, self.box.root, None,
+                         "owner@example.com")
+            self.assertEqual(sent[-1][0], 400, bad)
+        api._visitor(H(), {"day": "2026-10-06", "seq": "0", "at": self.minute(D2, 14)}, self.cfg,
+                     self.box.root, "example.com", True, self.cfg, self.box.root, None,
+                     "owner@example.com")
+        self.assertEqual(sent[-1][0], 200)
+        self.assertTrue(sent[-1][1]["found"])
 
 
 def _rows(path: Path, table: str) -> int:

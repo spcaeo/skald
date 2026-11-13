@@ -49,6 +49,18 @@ One address can be several people (an office), and one person on two devices is 
 - **Overview**, in **Right now** and **Newest visits**: the same line, and each visit opens the visitor drawer.
 - **Traffic › Sources**, under **Open the details**, in **Where returning visitors first came from**: for the period, how many Direct visits came before, by where they first came from and by the site that sent them; and every returning visit by where it first came from. Each day's figures are counted twice, by two separate roads; a day where the two disagree is withheld. A day counted before this existed is left out and said.
 
+## Returned from payment
+
+A buyer who pays on Stripe Checkout or PayPal comes back to your site with the payment page as its referrer. That is not a new source, and Skald does not count it as one:
+
+- **Back within 30 minutes**, it is the same visit. The visit keeps the source it came with, for example the search that brought the buyer, and its pages after the payment stay in it.
+- **Back later than that**, it is a visit of its own, under the source type **Returned from payment**. It is never counted under **Other website**, and the payment page is never listed as a referring site: its referrer row is **(payment page)**.
+- **A lead or a sale** made after a payment page keeps the source of the visit before it, from the same browser. A lead never has **Returned from payment** as its source or first touch.
+
+The payment pages are `checkout.stripe.com` and PayPal (`paypal.com`, `www.paypal.com`, `checkout.paypal.com`). A site whose own checkout runs on a separate host (not one of the site's host names) can name it in the config file, `site.checkout_hosts: [pay.example.com]`. Each day is counted twice, by two separate roads; a day where they disagree is withheld. Days counted before this release keep their old figures until someone counts them again (`backfill --force`, above).
+
+This is different from **Direct, likely checkout or payment return** below: that one is a visit with no referrer at all, guessed from its address.
+
 ## Direct, likely: what a Direct visit probably was
 
 Some Direct visits say more in their own request, or in the log just before them. Skald shows those as **likely** a cause, never as fact. Each Direct visit gets one reason at most, checked in this order:
@@ -70,7 +82,7 @@ This is a different estimate from **Likely from AI assistants** (AI & bots › A
 
 ## The visitor drawer
 
-Every visit and every visitor opens in the same drawer: a row of the visit list, a person in Right now or a newest visit on Overview, a funnel's journey, a visit picked out of the visitor flow, a person found with **Find a person**, and a converted person or conversion under Leads & sales.
+Every visit and every visitor opens in the same drawer: a row of the visit list, a person in Right now or a newest visit on Overview, a funnel's journey, a visit picked out of the visitor flow, a person found with **Find a person** (the search at the top, or the box on Leads), and a converted person or conversion under Leads & sales.
 
 - **The title** names the visitor by city ("Visitor from Toronto"), else by country.
 - **At the top, the state**: pills for where the visitor is (**Here now**, **Returning** or **First visit**) and how the visits ended (a booked demo, a lead, a form sent, or **No lead linked**), and **Lead** or **Customer** when this visit is proven to have sent a lead (the only visit that sent a form at the lead's time; **Customer** once that person has paid). Under them one sentence: how many visits over how many days, and where the visitor first came from. Then one line: the city (or the country) with its flag, the device with its browser and system, and when it was first seen. Each value has a copy icon. The **?** says how the visits are linked (by address, visitor ID or the 30-day code) and what that link cannot tell.

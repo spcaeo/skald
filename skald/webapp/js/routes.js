@@ -27,13 +27,19 @@ export const REDIRECTS = {
   pages: ["traffic/pages"],
   locations: ["traffic/places"], audience: ["traffic/places"],
   time: ["traffic/time"], hours: ["traffic/time"],
-  // Leads & sales: each old page opens the figures it showed
-  leads: ["sales/summary", { lsrc: "db" }],
-  conversions: ["sales/summary", { lsrc: "all" }],
+  // Leads & sales: each old page opens the figures it showed. #32: Summary counts leads one
+  // way only (lsrc, "Count from", is gone), so #leads and #conversions both open it.
+  leads: ["sales/summary"],
+  conversions: ["sales/summary"],
   // 2.20: Pipeline became Summary (the figures) and Sources (where from); Leads lists them.
   "sales/pipeline": ["sales/summary"],
   funnels: ["sales/funnels"],
-  events: ["sales/events"],
+  // #33: eight tabs became four. Sources is Summary's "Where they came from" fold, open;
+  // Calendar bookings is Leads with What: Demos (bookings: sales/bookings' own keys, below);
+  // Events moved to Traffic; Find a person is the search box on Leads, focused.
+  "sales/sources": ["sales/summary", { lpart: "sources" }],
+  "sales/events": ["traffic/events"], events: ["traffic/events"],
+  "sales/people": ["sales/leads", { lfind: "1" }], people: ["sales/leads", { lfind: "1" }],
   // AI & bots
   bots: ["ai/assistants"], crawlers: ["ai/assistants"],
   "settings/crawlers": ["ai/rules"],
@@ -104,6 +110,15 @@ export function resolve(asked, first = {}, params = null) {
   }
   // Settings v2: Site › Alerts' switches (alerts_view=switches) are a settings page now.
   if (key === "site/alerts" && params?.get?.("alerts_view") === "switches") return { tab: "settings/site/alerts", patch: { alerts_view: "" }, moved: true };
+  // #33: Calendar bookings (sales/bookings?bact=&bshow=) is Leads with What: that booking
+  // (Demos when none was named), its left-out rows shown when any list was asked for.
+  if (key === "sales/bookings" || key === "bookings") {
+    const show = params?.get?.("bshow") ? { lshow: "out" } : {};
+    return { tab: "sales/leads", patch: { lact: params?.get?.("bact") || "demo", ...show }, moved: true };
+  }
+  // #32: Summary's "Count from" (lsrc) and Status (lstage, the lead database's) are gone: an old
+  // link opens Summary itself, and the address loses them.
+  if ((key === "sales/summary" || key === "sales/pipeline") && (params?.get?.("lsrc") || params?.get?.("lstage"))) return { tab: "sales/summary", patch: {}, moved: true };
   // 2.41: Revenue's breakdown was by=, now rby= (by is "Who will do it?", ui/who.js): an old link keeps its breakdown.
   const oldBy = key === "sales/revenue" ? params?.get?.("by") || "" : "";
   if (oldBy && !["me", "dev", "agent"].includes(oldBy)) return { tab: key, patch: { by: "", rby: oldBy }, moved: true };

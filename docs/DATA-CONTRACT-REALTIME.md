@@ -6,7 +6,7 @@ under 1000 lines); the rules there apply.
 ## realtime.json
 
 Overview › Real time (`realtime.py`): who is on the site now. Built by the live
-run (every 2 minutes) inside its own tally, so the people rule is the main road's
+run (every few minutes) inside its own tally, so the people rule is the main road's
 to the letter, and kept in the live snapshot as `realtime` (never in history,
 never mailed). Recounted from the raw lines by `skald audit --live`
 (`audit_realtime.py`, registered in `audit_more.RECOUNTS`). No address and no

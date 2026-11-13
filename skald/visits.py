@@ -280,13 +280,17 @@ class Journeys:
             visit.not_found += 1
         if visit.who is None:
             visit.who = {"ip": hit.address, "user_agent": hit.user_agent, "referrer": "",
-                         "posts": []}
+                         "posts": [], "posts_from": []}
         if hit.is_form_post:
             visit.posted += 1
             if hit.status[:1] == "2":
                 visit.post_paths.add(hit.path[:70])
             if len(visit.who["posts"]) < 20:
                 visit.who["posts"].append(hit.when)
+                # The page the form was sent from (#57): its referrer on this
+                # site, "" when none or another site. Beside its time, exact,
+                # where the trail's rounded offsets cannot tell.
+                visit.who["posts_from"].append(_same_site_path(hit.referrer, own))
         path = hit.path[:70]
         if visit.trail and hit.status[:1] in ("2", "3"):
             # Where the visitor was when this was asked for. A cancelled
@@ -454,6 +458,8 @@ def came_from(j: dict) -> str:
         words = f"from {via}" if via else "from another website"
     elif source == "This site":
         words = "from this site, after a pause"
+    elif source == dim.RETURNED:
+        words = f"back from a payment page ({via})" if via else "back from a payment page"
     elif source == "Tagged link":
         words = f"tagged link ({via})" if via else "tagged link"
     else:

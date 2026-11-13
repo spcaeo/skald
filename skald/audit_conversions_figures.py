@@ -29,6 +29,7 @@ from .audit_leads import _attribution, _bare, _fetches
 from .classify import AI_LIKELY_MANY
 from .config import site_name
 from .conversions import FINISHED, LEAD_ACTIONS, UNKNOWN
+from .payment_names import RETURNED
 
 COLUMNS = ("source_type", "first_source", "campaign", "landing", "country", "device", "tool")
 STAMP = "%Y-%m-%dT%H:%M:%SZ"
@@ -182,6 +183,7 @@ def recount(path: Path, site: str, tz, first: date, last: date, now: str,
             put(q(f"SELECT b.day, c.action, j.source_type, COUNT(DISTINCT c.id) {via}AND "
                   f"c.stage IN {_fin()} AND j.source_type IS NOT NULL AND j.source_type <> '' "
                   f"AND (c.source_type IS NULL OR j.source_type <> c.source_type) "
+                  f"AND j.source_type <> '{RETURNED}' "
                   f"GROUP BY 1, 2, 3"), "assisted")
     finally:
         db.close()

@@ -6,7 +6,7 @@ The answer has the two roads side by side, each with its own time:
 
   people     the live snapshot's `realtime` part (realtime.py): readers'
              visits, counted by the day's tally with the people rule, as of
-             its `until` (the live run, every 2 minutes); null when today's
+             its `until` (the live run, every few minutes); null when today's
              snapshot is missing, withheld or has no such part
   requests   every request of the site's hosts per minute, from the newest
              log lines, as of the second it was read (realtime_tail.py)

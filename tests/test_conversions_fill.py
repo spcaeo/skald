@@ -359,7 +359,8 @@ class Beacon(Server):
                           got["first_touch_at"], got["landing"]),
                          ("Social media", "linkedin / social / spring sale", "Email",
                           "2026-10-08T12:00:00Z", "/pricing/"))
-        self.assertEqual(got["filled"], "first_source,campaign,first_touch_at")
+        # #34: the source is the visit's (its first page view's), named as filled.
+        self.assertEqual(got["filled"], "source_type,first_source,campaign,first_touch_at")
         self.assertEqual(got["click_id"], None, "the site keeps no click IDs")
         self.assertNotIn('"k"', json.dumps(self.lines()), "the click never in the spool")
         self.assertEqual(audit_filled.check(self.db_path, "example.com", UTC, DAY, DAY), {})

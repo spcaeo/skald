@@ -30,7 +30,7 @@ No. AI crawlers and fetches are machines, and show under AI & bots ([Assistants]
 
 ## What does "likely from ChatGPT" mean?
 
-It is an estimate, not a count. A person who clicks a link in an AI answer often arrives with no referrer, so the visit shows as Direct. But when they asked, the assistant fetched your page from your server. When a direct visit with no campaign tag lands on a page an assistant fetched in the same minute or up to 15 minutes before, Skald says the visit was *likely* sent by that assistant. Not when chance explains it: if an assistant fetched a page so often that day that the page's ordinary direct visits would land after its fetches anyway, those fetches say nothing, and no visit to that page is credited to it that day. Your home page is the usual case: people type it in all day, and assistants fetch it over and over. It shows these on [AI & bots > Assistants](#ai/assistants), on [Leads & sales > Sources](#sales/sources) (with either Count from) and in a visitor's details, always marked "likely" with an (i) that says how. They are never added to the AI assistant source or to any other figure. See [Leads and conversions](leads-and-conversions.md).
+It is an estimate, not a count. A person who clicks a link in an AI answer often arrives with no referrer, so the visit shows as Direct. But when they asked, the assistant fetched your page from your server. When a direct visit with no campaign tag lands on a page an assistant fetched in the same minute or up to 15 minutes before, Skald says the visit was *likely* sent by that assistant. Not when chance explains it: if an assistant fetched a page so often that day that the page's ordinary direct visits would land after its fetches anyway, those fetches say nothing, and no visit to that page is credited to it that day. Your home page is the usual case: people type it in all day, and assistants fetch it over and over. It shows these on [AI & bots > Assistants](#ai/assistants), on [Leads & sales > Summary](#sales/summary) (under **Where they came from**) and in a visitor's details, always marked "likely" with an (i) that says how. They are never added to the AI assistant source or to any other figure. See [Leads and conversions](leads-and-conversions.md).
 
 ## What did the AI read before it sent this visitor?
 
@@ -93,7 +93,7 @@ The log holds IP addresses, which are personal data in places like the EU. You c
 
 ## How fresh is today?
 
-Today's figures are recounted about every two minutes. The foot of every page says when they were last updated and when the next update is due. If your server allows it, **More** (the three dots at the top right) > **Recount today now** recounts at once. Yesterday becomes a whole, checked day after the morning's run.
+Today's figures are recounted every few minutes: on a server with many sites, one round of them all takes a few minutes. The foot of every page says when they were last updated and about when the next update is due. If your server allows it, **More** (the three dots at the top right) > **Recount today now** recounts at once. Yesterday becomes a whole, checked day after the morning's run.
 
 ## Why does a card say Loading?
 
@@ -105,7 +105,7 @@ The daily run checks each finished day by both counts before it is stored. Until
 
 ## Where are my leads?
 
-On [Leads & sales > Leads](#sales/leads): every lead of the period, one row each, with its name and email for owners and admins (when your site keeps them), what they did, its stage now and where it came from. [Summary](#sales/summary) has how many against the period before, and [Sources](#sales/sources) where they came from; both count from your lead database by default; switch **Count from** to **Tools** for bookings, forms and payments from your tools. Leads and demos booked also show beside the visitors on Overview > Summary, Traffic > Sources, Pages and Places & devices, and Overview > Insights. Spam, duplicate and test leads are listed on Leads with **More > Show left out**. Owners and admins can find one lead, with its email and the visits around it, on [Leads & sales > Find a person](#sales/people) or with the search at the top, when your site keeps names and emails. See [Leads and conversions](leads-and-conversions.md).
+On [Leads & sales > Leads](#sales/leads): every lead of the period, one row each, with its name and email for owners and admins (when your site keeps them), what they did, its stage now and where it came from. [Summary](#sales/summary) has how many against the period before and where they came from, counting the same leads as Leads, from every road: your lead database, your tools, the script tag and your site's server. Leads and demos booked also show beside the visitors on Overview > Summary, Traffic > Sources, Pages and Places & devices, and Overview > Insights. Spam, duplicate and test leads are listed on Leads with **More > Show left out**. Owners and admins can find one lead, with its email and the visits around it, with the **Find a person** box at the top of Leads or with the search at the top, when your site keeps names and emails. See [Leads and conversions](leads-and-conversions.md).
 
 ## How do I get data out?
 

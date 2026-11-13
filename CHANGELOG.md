@@ -4,6 +4,229 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.49.0 (2026-11-13)
+
+Leads & sales in four simple tabs with one period rule; your AI assistant can ask how people reach your pages and on which page they booked; newest first everywhere; and a warning when Search Console stops syncing.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- `conversions.sqlite` moves to schema 11 on first open (a new `visits.posts_from` column, #57); a copy of the old file is kept beside it (`conversions.sqlite.v10.bak`). 2.48 and older refuse a schema 11 file, so roll back from the backup.
+- Past days stay as they were counted. Leads sent by the script tag and leads Skald fills from page views get their sources again at the next daily run (#34).
+- Leads & sales has four tabs; every old link still opens the same view (#33).
+
+### Added
+
+- **A Search Console or Bing sync that stopped now says so (#40).** Found on 12 Nov: one
+  site's Search Console sync had failed on every try for 12 days, because Google said the
+  Cloud project behind Skald's robot key had been deleted, and nobody knew. The only sign was
+  a small red line on Settings. Now a sync that worked before and then failed on every try
+  for a whole day (24 hours), or 4 tries in a row (one day of the 6-hourly syncs), counts as
+  stopped. Not connected is never stopped. Then: a to-do on Overview › Insights (which
+  engine, since when, Google's or Bing's own reason in one line, what to do, and one button
+  to the settings), the same state on Settings › Leads & tools › Search Console & Bing and on
+  Traffic › Search, `your_tools` over MCP says "stopped answering" with the reason, and one
+  mail to the site's mail recipients when it stops and one when it works again, never one
+  per try. A single failed try no longer mails; a sync that never worked still mails once
+  at its first failure. A second count (`audit_search_sync.py`, in the daily audits) works
+  "stopped" out again from the kept tries and withholds a to-do it does not bear out. Who it
+  affects: every site with Search Console or Bing connected. What to do: nothing. Checked:
+  `tests/test_search_health.py` (never worked, under a day, a day, 4 tries, back again, one
+  mail each way, Bing the same, the audit agreeing and catching a planted change, old state
+  files) and `tests/js/todos.mjs`, with example data and fake engines only.
+
+- **MCP: `page_journeys`, how people reach a set of pages and where they go next (#51).**
+  Asked by a developer working with an AI assistant: "for a given set of URLs, user
+  profiles, journeys, how people come on that page". For 1 to 20 pages over whole days (at
+  most 93), the new read-only tool answers the visits that read each page; how they arrived
+  (landed on it, by source and referring site, or the page read just before); the page read
+  next, or left the site; who they were (new or returning, lead or customer when the visit is
+  proven to have sent a form, countries, devices); and the newest 20 visits, newest first,
+  each with its pages in order. From Skald's stored visits, which carry no address. Days
+  before the oldest kept visit are named in `not_kept`, never counted as 0. Who it affects:
+  anyone using Skald's MCP; 31 tools now. What to do: nothing. Checked:
+  `tests/test_mcp_journeys.py`, a second count by its own road
+  (`audit_page_journeys.py`, SQL over the stored trails, run in the daily audit), and a
+  read-only trial on three live sites' real visits: 75 figures each, 0 differences.
+
+- **MCP `conversions`: by the page it happened on, and the pages read before it (#52).**
+  Asked by a developer: "How did demos get booked from what page." The tool could group
+  completed actions by source, first touch, landing page, country, campaign, device or
+  tool, but not say on which page a demo was booked or a form sent, nor what the person
+  read first. Now `by: "page"` gives the page last seen at or before the action in its
+  visit, and `by: "path"` that visit's pages up to it (the 20 most common paths, each its
+  last 10 pages). A conversion is tied to its visit by a proven link only, never a likely
+  one: its visitor ID's page views, or the only server-log visit that sent a form within
+  10 seconds of it; the answer says how many came each way. One with no such link counts
+  as "page not known" ("page not known (visit not kept)" when that day's server-log
+  visits are not kept), never dropped. Counted each run into `conversions.json`
+  (`pages_at`, `paths_to`, `page_link`) and recounted by a new second count,
+  `audit_conversions_page.py`, by its own SQL; a day the two disagree on is withheld.
+  Affects anyone asking Skald through MCP; nothing to do. Checked by unit tests with
+  example data (both links, the form's own second, a page in the form's own step, two
+  visits sending a form at once, a day with no kept visits, a long path cut to 10) and a
+  planted wrong page that withholds its day.
+
+### Changed
+
+- **Leads & sales has four tabs, not eight: Leads, Summary, Revenue and Funnels (#33).** The
+  owner asked for it "simple and easy": eight tabs, three of them about the same leads, made
+  people hunt for a figure. Where each old tab went: **Sources** is Summary's "Where they came
+  from" (the five best sources, then one fold with every breakdown, the touches, likely from
+  AI and the time to convert); **Calendar bookings** is Leads with **What: Demos**, its steps
+  (opened, chose a time, booked, cancelled, rescheduled, no-show, won, lost) above the list,
+  and its cancelled, removed and test lists under Leads' **More > Show left out**; **Events**
+  moved to Traffic, since it counts what visitors did, not leads; **Find a person** is a
+  search box at the top of Leads, for owners and admins (still the first result of Search or
+  jump to). Summary no longer has "Count from" or Status, and no longer shows the lead
+  database's own view (Lead quality by source, Funnel by source, Per day by kind), the demo
+  funnel (now on Leads with What: Demos) or "Pages seen before converting", which counted
+  every kind of conversion, not only leads. Who it affects: everyone who opens Leads & sales.
+  What to do: nothing. Every old link opens the same view in its new place, and the new
+  address replaces the old one, so Back never loops: `#sales/sources` opens Summary with the
+  fold open, `#sales/bookings?bact=…` opens Leads with that kind, `#sales/events` and
+  `#events` open Traffic › Events, `#sales/people` opens Leads with the box focused, and
+  `#leads`, `#conversions` and links with `lsrc` or `lstage` open Summary. An old Sources
+  link shows "Where they came from" first, under the figures, so it is on screen without
+  scrolling. The keyboard
+  shortcuts and the set-up cards' links land there too. Checked:
+  `tests/js/sales-routes.mjs` (every old address, Back and Forward, the address keys),
+  `tests/test_routes.py`, the e2e route table, and a click-through of the demo in light and
+  dark, at desktop and phone width.
+
+### Fixed
+
+- **Opening a visitor could show another visit when the day's visit numbers moved (#56).**
+  Found 12 Nov while checking the drill-downs: the page opens a visitor by its place in the
+  day's list (day 2026-11-12, number 14). A late log line or a shipped batch can shift those
+  places between two counts, so the page and the server could mean different visits, and an
+  owner or admin could see another address's visits in the drawer. Now the page also sends
+  the visit's start (site time, to the minute): the server opens the visit only when it
+  started then, else the one visit of that day that did, and with none it says the place
+  changed and to reload, never another visit. The same check on a visit's recorded sessions
+  and on Right now's newest visits. Who it affects: owners and admins on sites that keep
+  addresses. What to do: nothing. Checked: `tests/test_firsttouch.py` (a moved place, a start
+  no visit has, a bad start refused), `tests/js/visitor-short.mjs` (the page sends it).
+- **A booking's page came out "page not known" when the visit's page times rounded
+  together (#57).** Seen in a read-only trial of the MCP `conversions` tool by page (#52)
+  on 12 Nov: on one site, 3 of 3 bookings tied to their visit through the server log came
+  out "page not known". A visit's page times are kept rounded (to 10 seconds after the
+  first minute, then to the minute), so a page in the form's own step could be before or
+  after the form, and Skald rightly refused to guess. Now each form a visit sends keeps the
+  page it was sent from (its referrer on the site) beside its time, in a new column
+  `visits.posts_from`; that page is the one the booking happened on, and the path runs to
+  it. A form with no referrer from the site keeps the old rule. The answer says how many
+  came this way (`page_form` in conversions.json, `page_from_form` in the tool). Who it
+  affects: sites that keep visits with addresses and get forms through the server log.
+  What to do: back up before the upgrade (`docker exec skald skald backup`);
+  `conversions.sqlite` moves to schema 11 on first open, a copy of the old file kept
+  beside it (`conversions.sqlite.v10.bak`). Days kept before stay as they were: their
+  forms have no recorded page, so they keep the old answer, never a guess. Checked: unit
+  tests with example data (a page in the form's own step, a page not in the trail, a page
+  read twice, an old row with no page, a list out of step with the forms, the upgrade from
+  schema 10 with its copy, an older Skald refusing schema 11), a second count by its own
+  SQL (`audit_conversions_page.py`, json_each over the forms and their pages) that agrees
+  and withholds a day with a planted wrong page, and the whole suite.
+
+- **Paid customers showed as coming from stripe.com, and script-tag leads as "Not
+  recorded" (#34).** Seen on the Leads & sales and Sources tabs: a buyer who paid on
+  Stripe Checkout or PayPal came back with the payment page as referrer, so the visit after
+  the payment was a new visit from "Other website: checkout.stripe.com", and the lead or sale
+  made in it took that as its source; and a lead sent by the page's script tag did not take
+  the source of the visit it was sent from (only the source its own event carried), so some
+  read Unknown (shown Not recorded) or Direct. The owner's decisions of 11 Nov: (6) a referrer that is a payment page
+  (`checkout.stripe.com`, `paypal.com`, `www.paypal.com`, `checkout.paypal.com`, one list in
+  `payment_names.py`, plus a site's own `site.checkout_hosts`) is the new source
+  type **Returned from payment**. Back within the 30-minute visit gap it continues the open
+  visit, which keeps its source (splitting it would add a reader who is not there and hand
+  the lead to the payment page); later it is a visit of its own under that label, never a
+  referral, with the referrer row `(payment page)`. A lead or sale after it keeps the source
+  of the visit before it (the same browser's page views, or the sender's first touch), and
+  it is never a lead's source, first touch or assisting source. (7) A script-tag lead's
+  source is now the source of the visit it was sent from, by its visitor ID's page views
+  (filled by Skald); only with no page view to prove a visit does its event's own source
+  stay, and a payment page's is then Not recorded. Who it affects: every site whose buyers
+  pay on Stripe Checkout or PayPal, and every site with the script tag's visitor IDs on. What
+  to do: nothing. Traffic days already stored keep their figures unless someone counts them
+  again (`backfill --force`, then `audit --day ... --withhold`); script-tag leads and leads
+  Skald filled from page views are filled again at the next daily run, so their sources on
+  past days change then; the lead database's figures are worked out afresh on every build.
+  Checked: `tests/test_payment_and_beacon_sources.py` (a Stripe return inside the gap keeps
+  the search source; after the gap it is Returned from payment and adds no referral; PayPal
+  the same; a script-tag lead takes its visit's source; one with no proven visit keeps its
+  own, and from a payment page stays Not recorded), both rules recounted by their own second
+  roads (`audit.py` with `audit_labels.py` for visits, `audit_filled.py` and
+  `audit_leads.py` for leads, `audit_conversions_figures.py` for assisted sources), which
+  agree and catch a planted change; the whole suite.
+- **The same click showed different counts on Leads & sales (#32).** The owner saw it: "the
+  same click showed different counts". Leads counted 7 days up to today from every tool,
+  while Summary and Sources counted 7 whole days up to yesterday, from the lead database by
+  default, and some tables counted button clicks or a site's own actions as if they were
+  leads. Now every tab reads one period, from one function: 7, 30 and 90 days, All time and
+  a custom period that ends today include today so far, marked live; Yesterday is that whole
+  day. Every Leads figure counts leads only: forms sent and demos booked, completed, never a
+  click, a payment or an app's own action. So Summary's Leads tile and the Leads tab show the
+  same number for the same period. A completion rate is shown only where the page's script
+  saw both the starts and the completions; anywhere else it says "not comparable", with one
+  line why, on Summary's table and on Leads' booking steps alike. Compare is off by default
+  on Leads & sales, because each period holds today so far. Revenue per visitor, for a period
+  that ends today, is taken over its whole days (today's visitors are not whole until the day
+  is), and says so, instead of going blank. Who it affects: everyone who reads
+  Leads & sales; a figure on Summary can move up (today's leads are now in it) or down (a
+  non-lead action is no longer in it). What to do: nothing. Checked: a second count for the
+  new figure, `conversions.json`'s `today.periods` (the 7, 30 and 90 days that end today),
+  recounted in one SQL window per period by `audit_conversions_leads.check_periods`, so a sum
+  that does not agree is withheld (`tests/test_leads_today_period.py`); the page compares its
+  own figure with that block and withholds it, with why, when they differ
+  (`tests/js/sales-period.mjs`); the rate rule in `tests/js/sales-rate.mjs`; the same count on
+  Leads, Summary and Revenue for 7 and 30 days; and a source check that no Leads & sales tab
+  builds a period of its own.
+
+- **A drill-down on today lagged Right now and did not say how old it was (#53).** Seen on
+  a client's site on 12 Nov: Right now showed the owner's visit from a city, and the city's
+  panel did not. The panel read the page's data file, which the page re-reads every two
+  minutes, and its request and period parts were kept from the first time the tab opened
+  them. Now a panel opened on Today reads the newest count at once, says "as of 17:24"
+  beside its visits, reads its request and period parts fresh every time, and lists the
+  latest visits newest first (visits that started in the same minute: the later one on
+  top). Who it affects: every site. What to do: nothing. Checked: `tests/js/live-newer.mjs`
+  (newest first with the tie-break; the as-of words only on Today), the whole suite.
+- **Newest first everywhere: lists that showed or kept the oldest rows (#55).** The owner's
+  rule (12 Nov): every list ordered by time shows the newest on top. Some did not, and a
+  few that were cut to a limit kept the oldest rows and dropped the newest. Now newest
+  first, and a cut list keeps the newest: a lead profile's "Everything they did" and its
+  visits; Find a person's pages seen by its visitor IDs (500), its conversions (500), its
+  visits (one list, not grouped by address) and the visits at a lead's time; the journeys
+  on the Conversions lists (the newest 200 pages kept, read in time order as a path); the page-script visits in the visitor drawer (500); a
+  lead's own visits (200); open security items on the page and in the summary and
+  right-away mails; a visit's recorded sessions and a session's log visits; pending
+  invites. Closed alerts are now listed by when they closed, with a Closed column, on
+  Site › Alerts and Health › Alerts. Left in time order on purpose, because each is a
+  path: the pages inside one visit, the steps of one lead or conversion, and a page
+  story's firsts. "First came from" still names the earliest visit. Who it affects: owners
+  and admins who look people up, everyone who reads alerts or security items. What to do:
+  nothing. Checked: `tests/test_newest_first.py` (newest on top, and with more rows than
+  the limit the newest kept; each fails on the old code), new tests in
+  `test_accounts_invites.py` and `test_recorded_journeys.py`, `tests/js/closed-alerts.mjs`,
+  `tests/js/lead-profile.mjs`, and the whole suite.
+- **"Next update" and "late" now follow how often the live count really runs (#54).** On a
+  server with many sites, one live round of them all takes 5-6 minutes, so the scheduler's
+  2-minute turns in between are skipped. The footer counted down two minutes and then said
+  "next any moment" for most of every round, and Data quality showed amber "late" badges on
+  the live count and the alert check for part of every round. Now each job keeps the gaps
+  between its last few successful runs (`runs.json` `gaps_s`; a gap over 6 hours, a stopped
+  server, is left out), and uses their median, never less than the plan. The footer says
+  "next in about N min" to that time, and "any moment" only once it has passed. Data
+  quality says how often a job really runs ("every 6 minutes (measured)",
+  `measured_every_min` in `quality.json`) and calls it late only after twice that; the MCP's
+  `site_health` uses the same figure. About 100 places that said the live count runs every
+  2 minutes (dashboard, help, docs, website) now say every few minutes, and that Refresh now
+  counts the site at once. Who it affects: every install; most visible with many sites. What
+  to do: nothing; a server measures its round after its first three live runs. Checked:
+  `tests/test_live_round.py` (gaps kept, median, a long gap left out, an old `runs.json`
+  loads, late after twice the measured gap, the MCP), `tests/js/live-round.mjs` (the
+  footer), the whole suite. Also: an upgrade by `upgrade.py` (servers set up with install.sh) waits up to 10 minutes for a running live round, not 2, and Site › Alerts says the check runs every few minutes.
+
 ## 2.48.2 (2026-11-12)
 
 Right now never steps back: an older count no longer replaces a newer one, so a visitor you just saw does not vanish again.

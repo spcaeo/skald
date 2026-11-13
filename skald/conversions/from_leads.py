@@ -127,15 +127,17 @@ def _pairs(lead: dict) -> list[tuple[str, str]]:
 def rows_for(lead: dict, site: str, identity_full: bool = False,
              keep_vid: bool = False, clicks: bool = False) -> list[dict]:
     """The store's rows for one lead (normalise.row's shape)."""
-    from ..leads import NONE, touch_source
+    from ..leads import NONE, kept_touches, touch_source
     from .normalise import row as make_row
     at = when(lead.get("created_at"))
     if at is None:
         return []
     first_raw, last_raw = _touch(lead.get("first_touch")), _touch(lead.get("last_touch"))
     first, last = _record_touch(first_raw), _record_touch(last_raw)
-    source = touch_source(last_raw or first_raw) if (last_raw or first_raw) else None
-    first_source = touch_source(first_raw) if first_raw else None
+    # A touch back from a payment page is no source (leads.kept_touches).
+    kept_first, kept_last = kept_touches(first_raw, last_raw)
+    source = touch_source(kept_last or kept_first) if (kept_last or kept_first) else None
+    first_source = touch_source(kept_first) if kept_first else None
     vid = str(lead.get("session_id") or "").strip()
     country = str(lead.get("ip_country") or "").strip()
     out = []

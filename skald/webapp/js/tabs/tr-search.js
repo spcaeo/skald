@@ -101,7 +101,11 @@ function statusBlock(part, e) {
   if (sum.provisional) bits.push(`${n(sum.provisional)} provisional`);
   if (bits.length) out.push(h("p", { class: "se-status" }, bits.join(" · "),
     sum.provisional ? info(`${toolOf(e)} may still change its newest days. Skald fetches them again on every sync until the engine says they are final.`, "Provisional days") : null));
-  if (st.error) out.push(h("div", { class: "state warn", role: "alert", html: ICON.info }, h("div", null,
+  const hl = part.health || {};
+  if (st.error && hl.stopped) out.push(h("div", { class: "state bad", role: "alert", html: ICON.info }, h("div", null,
+    h("strong", null, `The ${toolOf(e)} sync stopped${hl.since ? `: no good sync since ${tzTime(hl.since, { date: true })}` : ""}. `), hl.reason ? `${hl.reason}. ` : "",
+    hl.advice ? `${hl.advice} ` : "", "The figures already synced stay here.")));
+  else if (st.error) out.push(h("div", { class: "state warn", role: "alert", html: ICON.info }, h("div", null,
     h("strong", null, `The ${toolOf(e)} sync is failing${st.error_since ? ` since ${tzTime(st.error_since, { date: true })}` : ""}. `), st.error,
     " The figures already synced stay here. ", h("a", { href: SETTINGS }, "Settings › Leads & tools › Search Console & Bing"))));
   const b = st.backfill;

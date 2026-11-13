@@ -140,7 +140,7 @@ export function doingCard(m, rt, first, { onHover } = {}) {
     const gone = motion && before ? [...before.keys()].filter((k) => !prev.has(k) && old.has(k)).map((k) => { const li = old.get(k); li.classList.add("td-out"); return li; }) : [];
     if (gone.length) setTimeout(() => gone.forEach((li) => li.remove()), 450);
     list.replaceChildren(...(drawn.length || gone.length ? [...drawn, ...gone]
-      : [h("li", { class: "empty" }, !P ? "The visitors now appear with the next live count (every 2 minutes)."
+      : [h("li", { class: "empty" }, !P ? "The visitors now appear with the next live count, every few minutes. Refresh now counts this site at once."
         : got.can.length || pick ? "No visitor matching this is on the site now." : "Nobody has been on the site in the last 30 minutes.")]));
     drawPages(P, chain);
   }

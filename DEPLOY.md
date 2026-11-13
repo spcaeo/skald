@@ -143,7 +143,7 @@ panel then says withheld). A run takes about a second on a busy day, so two
 runs do not overlap; if the log ever grows enough that they might, wrap it
 in `flock -n /var/lib/skald/live.lock`. Both writers replace files
 atomically, so the daily run and a live run finishing together are safe.
-`live.log` grows by a line every two minutes: add it to logrotate with the
+`live.log` grows by a line on every live run: add it to logrotate with the
 other files in `/var/log/skald/`.
 
 Release 2 adds a nightly backup (any quiet hour; not 11:10-11:30 UTC):
@@ -296,7 +296,7 @@ The web app presses it with `Accept: application/json` and gets
 `{"ok": true, "result": "ran" | "recent" | "busy" | "failed", "site": "<site>"}` instead of the redirect
 (`"ok": false` when the run failed). Same-origin only, one run at a time, each site at most once per 15 seconds.
 After a change to internal addresses, funnels or a Mark as test, the helper redraws that page's site at once;
-the other sites follow at the next 2-minute run.
+the other sites follow at the next live round.
 
 ```sh
 cp systemd/skald-refresh.service /etc/systemd/system/

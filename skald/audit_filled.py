@@ -11,7 +11,15 @@ read whole in time order with its own time parser, the visits split going
 forward (a gap of more than VISIT_GAP starts a new one) where fill.py walks
 back, and compares them with what the row holds - the value and whether
 `filled` names it. It shares only the name lists in conversions/__init__.py
-(FILLABLE, FILLED_BEACON, BEACON_TOOL, VISIT_GAP) and the file's location.
+(FILLABLE, FILLED_BEACON, BEACON_SOURCE, BEACON_TOOL, VISIT_GAP), the
+"Returned from payment" name (payment_names.py) and the file's location.
+
+Owner's decisions 6 and 7 (11 Nov 2026), recounted here: a page view back
+from a payment page is never a lead's source (the first touch is the
+earliest other page view; a visit that starts with one gives way to the
+visit before it), and a script-tag conversion's source is its visit's (its
+page views', over the event's own) whenever they hold one. No conversion row
+may hold "Returned from payment" as its source or first touch at all.
 
 The click (click_kind, click_id) is not a figure and is not checked here.
 A day with a row it disagrees with is withheld (audit_conversions.check_file).
@@ -22,7 +30,8 @@ import sqlite3
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
-from .conversions import BEACON_TOOL, FILLABLE, FILLED_BEACON, VISIT_GAP
+from .conversions import BEACON_SOURCE, BEACON_TOOL, FILLABLE, FILLED_BEACON, VISIT_GAP
+from .payment_names import RETURNED
 
 FIGURES = tuple(c for c in FILLABLE if c != "click")
 
@@ -45,16 +54,21 @@ def expected(views: list, at: str) -> dict:
     (at, path, source_type, campaign, in time order, rowid breaking ties);
     every one None without a page view at or before `at`."""
     seen = [v for v in views if v[0] <= at]
-    if not seen:
+    firsts = [v for v in seen if v[2] != RETURNED]
+    if not firsts:
         return dict.fromkeys(FIGURES)
-    start, prev = seen[0], _when(seen[0][0])
+    # The visits, going forward; the lead's is the last that does not start
+    # back from a payment page.
+    starts, prev = [seen[0]], _when(seen[0][0])
     for view in seen[1:]:
         moment = _when(view[0])
         if prev is not None and moment is not None and (moment - prev).total_seconds() > VISIT_GAP:
-            start = view
+            starts.append(view)
         prev = moment
-    first = seen[0]
-    return {"source_type": start[2], "first_source": first[2], "campaign": start[3],
+    start = next((v for v in reversed(starts) if v[2] != RETURNED), None)
+    first = firsts[0]
+    return {"source_type": start[2] if start else None, "first_source": first[2],
+            "campaign": start[3] if start else None,
             "landing": first[1], "first_touch_at": first[0]}
 
 
@@ -63,11 +77,10 @@ def _skalds(row: dict) -> tuple[str, ...]:
     named = set((row["filled"] or "").split(",")) - {""}
     if row["tool"] == BEACON_TOOL:
         base = tuple(c for c in FILLED_BEACON if c in FIGURES)
-    elif all(row[c] is None or c in named for c in ("source_type", "first_source")):
-        base = FIGURES
-    else:
-        return ()
-    return tuple(c for c in base if c in named or row[c] is None)
+        return tuple(c for c in base if c in named or c == BEACON_SOURCE or row[c] is None)
+    if all(row[c] is None or c in named for c in ("source_type", "first_source")):
+        return tuple(c for c in FIGURES if c in named or row[c] is None)
+    return ()
 
 
 def check(path: Path, site: str, tz, first: date, last: date) -> dict[str, list[str]]:
@@ -88,6 +101,12 @@ def check(path: Path, site: str, tz, first: date, last: date) -> dict[str, list[
         out: dict[str, list[str]] = {}
         cache: dict = {}
         for row in rows:
+            moment = _when(row["at"])
+            day = moment.astimezone(tz).date().isoformat() if moment else "?"
+            for c in ("source_type", "first_source"):
+                if row[c] == RETURNED:
+                    out.setdefault(day, []).append(
+                        f"{day} lead row {row['id']} {c}: {RETURNED!r} is never a lead's source")
             cols = _skalds(row)
             if not cols:
                 continue
@@ -98,9 +117,10 @@ def check(path: Path, site: str, tz, first: date, last: date) -> dict[str, list[
             want = expected(cache[row["vid"]], row["at"])
             named = set((row["filled"] or "").split(",")) - {"", "click"}
             should = {c for c in cols if want[c] is not None}
-            moment = _when(row["at"])
-            day = moment.astimezone(tz).date().isoformat() if moment else "?"
             for c in cols:
+                if c == BEACON_SOURCE and row["tool"] == BEACON_TOOL and want[c] is None \
+                        and c not in named:
+                    continue          # no visit proven: the event's own source stays
                 if row[c] != want[c]:
                     out.setdefault(day, []).append(
                         f"{day} lead row {row['id']} {c}: stored {row[c]!r}, its page views "

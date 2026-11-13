@@ -128,7 +128,7 @@ def _email_ids(db, site: str, email: str) -> set[int]:
 def _lead_rows(config: dict, where: str = "", args=(), private: bool = False,
                full: bool = False) -> list[dict]:
     """Lead database rows (newest first), read-only; [] when not set up."""
-    from ..leads import db_path, touch_source, _touch
+    from ..leads import db_path, kept_touches, touch_source, _touch
     path = db_path(config or {})
     if path is None or not Path(path).is_file():
         return []
@@ -145,7 +145,8 @@ def _lead_rows(config: dict, where: str = "", args=(), private: bool = False,
     out = []
     for r in rows:
         row = {k: r[k] for k in wanted}
-        first, last = _touch(row.pop("first_touch")), _touch(row.pop("last_touch"))
+        # #34: a touch back from a payment page is no source (leads.kept_touches).
+        first, last = kept_touches(_touch(row.pop("first_touch")), _touch(row.pop("last_touch")))
         row["first_source"] = touch_source(first) if first else None
         row["last_source"] = touch_source(last or first) if (last or first) else None
         row["landing"] = (first or {}).get("landingPath") if isinstance(first, dict) else None
@@ -224,7 +225,8 @@ def person(config: dict, folder, site: str, q: str, live_dir=None) -> dict:
                         for r in db.execute(
                                 f"SELECT c.*, i.email AS email, i.name AS name FROM "
                                 f"conversions c LEFT JOIN identities i ON i.id = c.identity_id "
-                                f"WHERE c.site = ? AND c.{column} = ? LIMIT {LIMIT}",
+                                f"WHERE c.site = ? AND c.{column} = ? "
+                                f"ORDER BY c.at DESC, c.id DESC LIMIT {LIMIT}",
                                 (site, v)).fetchall():
                             conv[r["id"]] = dict(r)
                             if r["vid"]:
@@ -253,7 +255,9 @@ def person(config: dict, folder, site: str, q: str, live_dir=None) -> dict:
             for v in sorted(vids):
                 out["journeys"] += [dict(r, vid=v) for r in db.execute(
                     "SELECT at, path, source_type FROM journeys WHERE site = ? AND vid = ? "
-                    "ORDER BY at LIMIT ?", (site, v, LIMIT))]
+                    "ORDER BY at DESC, rowid DESC LIMIT ?", (site, v, LIMIT))]
+            # #55: each ID's newest LIMIT views, all of them newest first.
+            out["journeys"].sort(key=lambda r: str(r["at"]), reverse=True)
         if db is not None and "visits" in have:
             for ip in sorted(ips):
                 forms = sorted({ip, policy.shorten(ip)}) if short else [ip]
@@ -261,6 +265,8 @@ def person(config: dict, folder, site: str, q: str, live_dir=None) -> dict:
                     f"SELECT * FROM visits WHERE site = ? AND ip IN "
                     f"({','.join('?' * len(forms))}) ORDER BY start DESC LIMIT ?",
                     (site, *forms, LIMIT))]
+            # #55: every address's visits in one list, newest first (not grouped by address).
+            out["visits"].sort(key=lambda r: (str(r["start"]), r["day"], r["seq"]), reverse=True)
             # 2.46.5 (#30): the conversions' own visits, proven and likely.
             from .lead_visits import path as lead_path
             out["path"] = lead_path(db, site, out["conversions"])
@@ -271,6 +277,8 @@ def person(config: dict, folder, site: str, q: str, live_dir=None) -> dict:
                         out["candidates"].append({"lead": str(lead["id"]), **v})
     if kind == "ip":
         out["candidates"] += _leads_at_posts(config, out["visits"], full)
+    # #55: the visits at a lead's time, newest first.
+    out["candidates"].sort(key=lambda r: str(r.get("start") or ""), reverse=True)
     out["leads"] = sorted(leads.values(), key=lambda r: str(r.get("created_at") or ""),
                           reverse=True)
     out["requests"] = _requests(live_dir, site, ips)
@@ -411,9 +419,11 @@ def conversions_listing(config: dict, folder, site: str, kind: str, private: boo
         if db is not None and "journeys" in have:
             for row in rows:
                 vid = row.get("vid") or (row.get("row") or {}).get("vid")
+                # #55: the newest 200 page views are kept; a journey is a path, so it
+                # reads in time order (oldest of them first).
                 row["journey"] = [dict(r) for r in db.execute(
                     "SELECT at, path, source_type FROM journeys WHERE site = ? AND vid = ? "
-                    "ORDER BY at LIMIT 200", (site, vid))] if vid else []
+                    "ORDER BY at DESC, rowid DESC LIMIT 200", (site, vid))][::-1] if vid else []
     for row in rows:
         for target in (row, row.get("row") or {}):
             # 2.32: Stripe's payment reference is Skald's own join key, never shown;

@@ -61,7 +61,7 @@ It prints a "set your password" link, valid 60 minutes. Open it, set a password,
 docker exec skald skald backfill --days 14
 ```
 
-It stores each day the log's rotations still hold. Today fills by itself within two minutes.
+It stores each day the log's rotations still hold. Today fills by itself within a few minutes.
 
 ## 5. Ask the doctor (1 minute)
 

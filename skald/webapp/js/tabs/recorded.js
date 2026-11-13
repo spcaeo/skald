@@ -174,7 +174,8 @@ const LINKED = { visitor_id: "linked by the script tag's visitor ID", address: "
    so a redraw of the drawer keeps it. */
 export async function visitRecorded(d, j, m) {
   if (DEMO.on || !sessions() || !admin() || !j?.day || j.seq == null) return null;
-  const got = await call(`recorded/visit?day=${encodeURIComponent(j.day)}&seq=${encodeURIComponent(j.seq)}`);
+  const at = /^\d{4}-\d\d-\d\dT\d\d:\d\d/.exec(String(j.start || ""))?.[0];   // #56: the start checks the place
+  const got = await call(`recorded/visit?day=${encodeURIComponent(j.day)}&seq=${encodeURIComponent(j.seq)}${at ? `&at=${encodeURIComponent(at)}` : ""}`);
   if (!d.el.isConnected || !got.ok) return null;
   const list = got.sessions || [];
   if (!got.connected && !list.length) return null;

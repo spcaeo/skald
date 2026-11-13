@@ -70,6 +70,7 @@ from urllib.parse import urlencode
 from . import dimensions as dim
 from .classify import FORM_PAGES, PAID_CLICK_IDS, PAID_MEDIUMS, PRICING_PAGES
 from .config import setting
+from .payment_names import RETURNED
 
 TYPES = ["signup", "contact", "waitlist", "demo_opened", "demo_booked"]
 STATUSES = ["new", "contacted", "qualified", "won", "lost", "spam", "duplicate"]
@@ -175,6 +176,24 @@ def touch_source(touch: dict | None) -> str:
     return dim.source_type(f"https://{host}/" if host else "", url, False, set())
 
 
+def kept_touches(first: dict | None, last: dict | None) -> tuple[dict | None, dict | None]:
+    """(first, last) as a lead's source reads them (owner's decision 6,
+    payment_names.py): a touch back from a payment page is no source. A
+    first touch from one is none; a last touch from one gives way to the
+    first touch, so the lead keeps its earlier source."""
+    if first is not None and touch_source(first) == RETURNED:
+        first = None
+    if last is not None and touch_source(last) == RETURNED:
+        last = first
+    return first, last
+
+
+def row_touches(row: dict) -> dict[str, dict | None]:
+    """{"first_touch", "last_touch"} of a lead row, kept_touches applied."""
+    first, last = kept_touches(_touch(row.get("first_touch")), _touch(row.get("last_touch")))
+    return {"first_touch": first, "last_touch": last}
+
+
 def touch_labels(touch: dict | None) -> dict[str, str]:
     """{dimension: label} for one touch: source type, assistant, campaign,
     landing page. NONE for what it did not carry."""
@@ -246,8 +265,9 @@ def period(rows: list[dict], tz, first: date, last: date) -> dict:
             continue
         leads[row.get("type") or "unknown"] += 1
         kind = row.get("type") or "unknown"
+        kept = row_touches(row)
         for which, column in (("first_touch", "first_touch"), ("last_touch", "last_touch")):
-            labels = touch_labels(_touch(row.get(column)))
+            labels = touch_labels(kept[column])
             for dname, label in labels.items():
                 touches[which][dname][label] += 1
             by_type[which].setdefault(labels["source"], Counter())[kind] += 1
@@ -297,8 +317,9 @@ def attribution(rows: list[dict], tz, first: date, last: date,
         d = local_day(row, tz)
         if d is None or not first <= d <= last:
             continue
+        kept = row_touches(row)
         for which, column in TOUCHES:
-            t = _touch(row.get(column))
+            t = kept[column]
             lab = touch_labels(t)
             utm = [(_s(t, k).lower()[:60] if t else "") or NONE for k in ("utmSource", "utmMedium")]
             got[(d.isoformat(), row.get("type") or "unknown", row.get("status") or "new", which,
@@ -429,7 +450,7 @@ def funnel(journeys: list[dict], rows: list[dict], tz, first: date, last: date,
                 if kind == "demo_booked" else "leads" if kind in FORM_TYPES else None)
         if step is None:
             continue
-        per.setdefault(touch_source(_touch(row.get("first_touch"))), Counter())[step] += 1
+        per.setdefault(touch_source(row_touches(row)["first_touch"]), Counter())[step] += 1
     order = {name: i for i, name in enumerate(dim.SOURCE_TYPES + [NONE])}
     by_source = [{"source": s, **{k: int(c[k]) for k in STEPS}}
                  for s, c in sorted(per.items(), key=lambda kv: (order.get(kv[0], 99), kv[0]))]

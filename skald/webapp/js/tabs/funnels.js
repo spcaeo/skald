@@ -8,7 +8,7 @@
 // saved funnels are the server's when it has them, else this browser's.
 
 import { h, n, short } from "../ui.js";
-import { rangeOf } from "../data.js";
+import { salesRange } from "./sa-period.js";
 import * as S from "../state.js";
 import { store } from "../extras.js";
 import { head } from "./common.js";
@@ -346,7 +346,8 @@ function flowBetween(list, steps, s, labels) {
 
 export default function funnels(m, s) {
   EVNAMES = m.x.events;
-  const r = rangeOf(m, s);
+  // The section's one period (sa-period.js, #32): today included, as far as journeys are kept.
+  const r = salesRange(m, s);
   const saved = savedList(m);
   const fn = s.fn || saved[0]?.fn || starter(m);
   const steps = parse(fn);

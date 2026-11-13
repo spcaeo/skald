@@ -40,13 +40,12 @@ function leadsAB(m, r, c) {
   return { now, before: before?.whole ? before : null, held: before && !before.whole };
 }
 
-/* Which count the Leads tile is, and where the same figure is listed: Leads & sales >
-   Summary counts from the lead database unless told otherwise, so the link opens it on
-   the tools when the tile counts from them (the same days, the same figure). */
+/* Where the same figure is listed: Leads & sales › Summary counts leads one way only (#32,
+   the same as the Leads tab), so the link opens it. `tools`: the tile counts from the tools'
+   file (conversions.json), else the lead database's (leads.json, a site with no tools file). */
 export function leadSource(s, tools) {
-  const to = { tab: "sales/summary", lsrc: tools ? "all" : "" };
-  return h("a", { class: "t-src", href: S.hashFor({ ...s, ...to, dd: "" }), title: `The same count as Leads & sales › Summary, counted from ${tools ? "the tools" : "the lead database"}` },
-    `${tools ? "From the tools" : "From the lead database"} · Summary ›`);
+  return h("a", { class: "t-src", href: S.hashFor({ ...s, tab: "sales/summary", dd: "" }), title: `${tools ? "The same leads Leads & sales › Summary and Leads count; there 7, 30 and 90 days also hold today so far" : "Counted from the lead database"}` },
+    `${tools ? "Leads only" : "From the lead database"} · Summary ›`);
 }
 
 export function changeLine(c, v, p, fmt, { held = false } = {}) {

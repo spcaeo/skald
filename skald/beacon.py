@@ -180,10 +180,9 @@ def source_of(ref_host: str, utm_source: str, own_hosts: set[str]) -> tuple[str,
 
 
 def own_hosts(config: dict) -> set[str]:
-    hosts = setting(config, "site", "hosts") or []
-    if isinstance(hosts, str):
-        hosts = [hosts]
-    return {str(h).lower() for h in hosts}
+    """`site.hosts`, carrying `site.checkout_hosts` (dimensions.SiteHosts)."""
+    from .dimensions import hosts_of
+    return hosts_of(config)
 
 
 # ------------------------------------------------------------------ spool

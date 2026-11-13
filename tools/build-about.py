@@ -51,7 +51,7 @@ SHORT = {
     "JavaScript tag, or server logs through its importer": "JavaScript tag, or log import",
     "JavaScript beacon; AI Crawl Control at Cloudflare's edge": "JavaScript beacon; edge for crawlers",
     "Events sent from your server, CDN or WordPress": "Events from your server or CDN",
-    "Visitors now and today so far every 2 minutes; requests every 15 seconds": "Visitors 2 min, requests 15 s",
+    "Visitors now and today so far every few minutes; requests every 15 seconds": "Visitors minutes, requests 15 s",
     "Realtime covers the last 30 minutes; full processing 24-48 hours": "Last 30 minutes; full in 24-48h",
     "Current visitors (last 5 minutes); refreshes every 30 seconds": "Last 5 minutes, every 30 seconds",
     "Real-time visitor log; the importer can stream": "Real-time visitor log",

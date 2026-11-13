@@ -31,9 +31,12 @@ The first connection's history (3 or 16 months) is a backfill: the same
 fetch, chunk by chunk, with its progress in the state file
 (`--backfill-months`), started in the background by the connect wizard.
 
-A failure is kept in the state file in plain words; the first failure of a
-run of failures sends one mail to the site's mail recipients (never one per
-run); a good sync clears it. A sync never touches the log's figures.
+A failure is kept in the state file in plain words, with each try (`tries`) and the
+failed tries in a row (`fails`); a good sync clears it. Mail goes to the site's mail
+recipients, never once per try (#40, search/health.py): a sync that worked before
+mails once when it counts as stopped (a day of failures, or health.STOPPED_TRIES
+tries in a row) and once when it works again; one that never worked mails once
+at its first failure. A sync never touches the log's figures.
 """
 from __future__ import annotations
 
@@ -46,7 +49,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from ..config import setting
-from . import bing, days, google, http, props, state
+from . import bing, days, google, health, http, props, state
 
 PACIFIC = ZoneInfo("America/Los_Angeles")
 NEWEST_WINDOW = 10
@@ -412,10 +415,21 @@ def _next(now: datetime | None = None) -> str:
 
 def _ok(job: Job, engine: str, source: str, got: dict, started: str) -> None:
     ended = datetime.now(timezone.utc)
+    before = state.load(job.folder, job.site).get(engine) or {}
+    was = health.status({**before, "engine": engine}, source)
     state.update(job.folder, job.site, engine, ok=True, source=source, last_sync=state.now_text(ended),
                  last_ok=state.now_text(ended), started_at=started, error=None, error_since=None,
                  error_mailed=None, rows=got.get("rows"), note=got.get("note"),
-                 next_sync=_next(ended), **_summary(job, engine))
+                 next_sync=_next(ended), fails=0,
+                 tries=health.note_try(before.get("tries"), state.now_text(ended), True,
+                                       last_ok=before.get("last_ok")),
+                 **_summary(job, engine))
+    # #40: the one "back" mail, only when the "stopped" mail went.
+    if before.get("stopped_mailed"):
+        sent = _mail(job, engine, health.subject(engine, job.site, True),
+                     health.mail_text(engine, job.site, was, True, job.now))
+        state.update(job.folder, job.site, engine, stopped_mailed=None,
+                     back_mailed=state.now_text() if sent else None)
 
 
 def _failed(job: Job, engine: str, source: str, why: str, started: str, backfill=None) -> int:
@@ -424,45 +438,62 @@ def _failed(job: Job, engine: str, source: str, why: str, started: str, backfill
     ended = datetime.now(timezone.utc)
     fields = dict(ok=False, source=source, last_sync=state.now_text(ended), started_at=started,
                   error=why[:600], error_since=before.get("error_since") or state.now_text(ended),
-                  next_sync=_next(ended), **_summary(job, engine))
+                  next_sync=_next(ended), fails=int(before.get("fails") or 0) + 1,
+                  tries=health.note_try(before.get("tries"), state.now_text(ended), False, why,
+                                        before.get("last_ok")),
+                  **_summary(job, engine))
     if backfill:
         fields["backfill"] = {**(before.get("backfill") or {}), "state": "failed",
                               "error": why[:300], "finished_at": state.now_text()}
     part = state.update(job.folder, job.site, engine, **fields)
-    if not part.get("error_mailed"):
-        if _mail(job, engine, why):
+    st = health.status({**part, "engine": engine}, source)
+    if st["stopped"]:
+        # #40: worked before, failing for a day or STOPPED_TRIES tries: one mail, once.
+        if not part.get("stopped_mailed") and _mail(
+                job, engine, health.subject(engine, job.site, False),
+                health.mail_text(engine, job.site, st, False, job.now)):
+            state.update(job.folder, job.site, engine, stopped_mailed=state.now_text(),
+                         back_mailed=None)
+    elif st["state"] == "not_answering" and not part.get("error_mailed"):
+        # Never synced: the connection itself fails. One mail at the first failure.
+        if _mail(job, engine, f"{ENGINE_NAMES[engine]} sync failing for {job.site}",
+                 _failing_text(job, engine, why)):
             state.update(job.folder, job.site, engine, error_mailed=state.now_text())
     return 1
 
 
-def _mail(job: Job, engine: str, why: str) -> bool:
-    """One plain mail about a sync that started failing. True when sent."""
+def _failing_text(job: Job, engine: str, why: str) -> str:
+    name = ENGINE_NAMES[engine]
+    return "\n".join([
+        f"Skald could not sync {name} for {job.site} ({job.now:%Y-%m-%d %H:%M} UTC).",
+        "", f"Why: {why}", "",
+        "It has not synced once yet. Skald keeps trying every "
+        f"{EVERY_HOURS} hours; the first good sync clears this.",
+        "Status and the fix: Settings > Leads & tools > Search Console & Bing.", "",
+        "One mail per run of failures: no more mails until it works again.",
+    ]) + "\n"
+
+
+def _mail(job: Job, engine: str, subject: str, text: str) -> bool:
+    """One plain mail to the site's mail recipients. True when sent."""
     from .. import failmail
     try:
         cfg = failmail.mail_settings(job.config)
     except Exception as refused:        # noqa: BLE001 - no mail set up: the page shows it
-        job.err(f"{engine} {job.site}: no failure mail ({refused})")
+        job.err(f"{engine} {job.site}: no mail ({refused})")
         return False
-    name = ENGINE_NAMES[engine]
     msg = EmailMessage()
-    msg["Subject"] = f"{cfg['prefix']} {name} sync failing for {job.site}".strip()
+    msg["Subject"] = f"{cfg['prefix']} {subject}".strip()
     msg["From"] = cfg["from"]
     msg["To"] = ", ".join(cfg["to"])
     msg["Date"] = format_datetime(job.now)
     msg["Message-ID"] = make_msgid(domain=cfg["from"].rsplit("@", 1)[-1].strip("> ") or None)
     msg["Auto-Submitted"] = "auto-generated"
-    msg.set_content("\n".join([
-        f"Skald could not sync {name} for {job.site} ({job.now:%Y-%m-%d %H:%M} UTC).",
-        "", f"Why: {why}", "",
-        "Search figures already synced stay on the Search tab. Skald keeps trying every "
-        f"{EVERY_HOURS} hours; the first good sync clears this.",
-        "Status and the fix: Settings > Leads & tools > Search Console & Bing.", "",
-        "One mail per run of failures: no more mails until it works again and then fails.",
-    ]) + "\n")
+    msg.set_content(text)
     try:
         (job.send or failmail.send)(msg, cfg)
     except Exception as failed:         # noqa: BLE001
-        job.err(f"{engine} {job.site}: the failure mail could not be sent "
+        job.err(f"{engine} {job.site}: the mail could not be sent "
                 f"({type(failed).__name__})")
         return False
     return True

@@ -39,6 +39,7 @@ PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
 PATH = re.compile(PAGE + r"recorded(?:/(?P<act>session|visit|status|connect))?$")
 REF = re.compile(r"^s[0-9a-f]{12}$")
 DAY = re.compile(r"^\d{4}-\d\d-\d\d$")
+AT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$")
 ADMIN = ("owner", "admin")
 MOST_DAYS = 400
 
@@ -221,8 +222,15 @@ def visit(c: Ctx, form):
         have = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
         if "visits" not in have:
             return c.ok(label=LABEL, sessions=[], **_connected(c))
-        row = db.execute("SELECT start, end, ip, landing FROM visits WHERE site = ? AND day = ? "
-                         "AND seq = ?", (c.site, day, int(seq))).fetchone()
+        # #56: the page names the visit by its place and its start (at); a moved place
+        # is never answered with another visit's sessions.
+        at = form.get("at") or ""
+        if at and not AT.match(at):
+            return c.no(400, "at is the visit's start, YYYY-MM-DDTHH:MM.")
+        from .people.timeline import _the_visit
+        from .window import zone
+        full, _ = _the_visit(db, c.site, day, int(seq), at or None, zone(c.conf()))
+        row = (full["start"], full["end"], full["ip"], full["landing"]) if full is not None else None
         if row is None:
             return c.ok(label=LABEL, sessions=[], **_connected(c))
         vid = None

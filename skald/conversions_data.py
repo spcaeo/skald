@@ -10,9 +10,14 @@ window has closed); and, for finished rows (completed or paid), the
 breakdowns by source, first source, campaign, landing page, country,
 device and tool, the visits before, the time from the first touch, and the
 sources that assisted (seen earlier in the browser's journey, not the last
-touch; only with visitor IDs). Over the last 30 days: the pages seen
-before converting against browsers that did not convert (only with
-visitor IDs), and the latest conversions as anonymous timelines.
+touch; only with visitor IDs), and where it happened (#52,
+conversions_pages.py: `pages_at`, the page it was made on; `paths_to`, the
+visit's pages before it; `page_link`, how it was tied to its visit;
+`page_form`, how many of the server-log ones took the page the form was sent
+from, #57).
+Over the last 30 days: the pages seen before converting against browsers
+that did not convert (only with visitor IDs), and the latest conversions
+as anonymous timelines.
 
 Counted here in Python from plain SELECTs. audit_conversions.py counts the
 same figures again by its own SQL GROUP BY, and the stages from the hook
@@ -55,8 +60,9 @@ from collections import Counter
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
-from . import conversions_revenue
+from . import conversions_pages, conversions_revenue
 from .config import setting
+from .payment_names import RETURNED
 from .conversions import (BEACON_REPEAT_SECONDS, CONVERT_BUCKETS, DEMO_ACTIONS, FINISHED,
                           LEAD_ACTIONS, MIN_RATE, STAGES, TOOLS, UNKNOWN, VISIT_BUCKETS)
 
@@ -123,7 +129,8 @@ def set_up(config: dict, folder: Path, site: str) -> dict:
 def _empty(journeys: bool) -> dict:
     return {"stages": {}, "abandoned": {}, "by": {d: {} for d in DIMS}, "visits_before": {},
             "time_to_convert": {}, "assisted": {} if journeys else None, "likely_ai": {},
-            "labels": {}, "labels_abandoned": {}}
+            "labels": {}, "labels_abandoned": {}, "pages_at": {}, "paths_to": {},
+            "page_link": {}, "page_form": {}}
 
 
 def _add_label(f: dict, action: str, label: str, stage: str) -> None:
@@ -178,6 +185,7 @@ def figures(db, site: str, tz, first: date, last: date, now: str, hours: float,
                           (site,)).fetchone() is not None
     out: dict = {}
     again = store.repeat_finishes(db, site)     # one lead counts once (2.26)
+    where = conversions_pages.Finder(db, site, tz, first, last)     # #52
     for r in db.execute("SELECT * FROM conversions WHERE site = ? AND at >= ? AND at < ? "
                         "AND test = 0 ORDER BY at, id", (site, lo, hi)).fetchall():
         if r["id"] in again:
@@ -194,11 +202,18 @@ def figures(db, site: str, tz, first: date, last: date, now: str, hours: float,
         _add(f["time_to_convert"], r["action"],
              convert_bucket(_ms(r["at"], r["first_touch_at"])))
         _add(f["likely_ai"], r["action"], likely_label(db, r, likely, tz))
+        road, page, trail, exact = where.where(r)
+        if exact:
+            f["page_form"][r["action"]] = f["page_form"].get(r["action"], 0) + 1
+        _add(f["page_link"], r["action"], road)
+        _add(f["pages_at"], r["action"], page)
+        _add(f["paths_to"], r["action"], trail)
         if journeys and r["vid"]:
             seen = {s for (s,) in db.execute(
                 "SELECT DISTINCT source_type FROM journeys WHERE site = ? AND vid = ? AND "
                 "at < ?", (site, r["vid"], r["at"])) if s}
-            for src in seen - {r["source_type"]}:
+            # A payment page's return is no source, so it assists nothing (payment_names.py).
+            for src in seen - {r["source_type"], RETURNED}:
                 _add(f["assisted"], r["action"], src)
     for r in store.abandoned(db, site, lo, hi, hours, now):
         f = out.setdefault(_day(r["at"], tz), _empty(journeys))
@@ -420,24 +435,28 @@ def blob(config: dict, folder: Path, site: str, tz, today: date, now: datetime,
         days_held = {k.split("/", 1)[1] for k in out["withheld"] if k.startswith("days/")}
         out["timeline"] = timeline(db, site, tz, lo, hi, days_held)
         out["today"] = _today(db, path, site, tz, today, days_held, audited, out["withheld"],
-                              now, since)
+                              now, since, days=out["days"])
     finally:
         db.close()
     return out
 
 
 def _today(db, path, site: str, tz, today: date, held: set, audited: bool,
-           withheld: dict, now: datetime | None = None, since: str | None = None) -> dict:
+           withheld: dict, now: datetime | None = None, since: str | None = None,
+           days: list | None = None) -> dict:
     """conversions.json `today` (conversions_leads.today_block), checked by
     audit_conversions_leads.check_today when audited; withheld (and named
     in `withheld["today"]`) when the recount disagrees or cannot run."""
-    from .conversions_leads import by_now, same_time, today_block
+    from .conversions_leads import by_now, periods, same_time, today_block
     block = today_block(db, site, tz, today, held)
     if block["state"] == "ok" and now is not None:
         # Yesterday at this hour, and both days by hour (Overview in Live mode).
         block["by_now"] = by_now(db, site, tz, today, now, held, since)
         # 2.27: the last day of the 7, 30 and 90 days before, to this hour (Leads' comparison).
         block["same_time"] = same_time(db, site, tz, today, now, held, since)
+    if block["state"] == "ok" and days is not None:
+        # #32: the 7, 30 and 90 days that end today, as every Leads & sales tab counts them.
+        block["periods"] = periods(days, today)
     if not audited or block["state"] != "ok":
         return block
     from . import audit_conversions_leads

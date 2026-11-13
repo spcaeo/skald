@@ -124,13 +124,30 @@ BEACON_REPEAT_SECONDS = 30 * 60
 # visit (a script-tag conversion's landing; a filled lead's last touch, 2.45).
 VISIT_GAP = 30 * 60
 
+# Where a finished conversion happened (#52, conversions_pages.py): the labels
+# for a page not known (and for a day whose server-log visits are not kept),
+# the ways a conversion is tied to its visit (its visitor ID's page views; the
+# only kept visit that sent a form at its time; none), how a path of pages is
+# written, and how many of its last pages are kept (an older start is PATH_MORE).
+PAGE_UNKNOWN = "page not known"
+PAGE_NOT_KEPT = "page not known (visit not kept)"
+PAGE_ROADS = ("visitor_id", "server_log", "none")
+PATH_JOIN = " → "
+PATH_MORE = "…"
+PATH_PAGES = 10
+
 # A lead's touches filled from its visitor ID's page views (2.45, fill.py):
 # the columns Skald may fill, as conversions.filled names them (comma-joined,
 # in this order; "click" is click_kind and click_id together). A lead whose
 # sender gave no touches may have any of them filled; a script-tag conversion
-# (its source is its own event's) only FILLED_BEACON.
+# only FILLED_BEACON (its landing is its own visit's, from_beacon._landing).
+# BEACON_SOURCE (owner's decision 7, 11 Nov 2026): a script-tag conversion's
+# source is the source of the visit it was sent from, by the ID's page views,
+# whenever they hold one - over the event's own; without one the event's own
+# stays (never a payment page's, payment_names.py).
 FILLABLE = ("source_type", "first_source", "campaign", "landing", "first_touch_at", "click")
-FILLED_BEACON = ("first_source", "campaign", "first_touch_at", "click")
+FILLED_BEACON = ("source_type", "first_source", "campaign", "first_touch_at", "click")
+BEACON_SOURCE = "source_type"
 # The ad click IDs a touch's landing address may carry, kept on a conversion
 # (click_kind, click_id) only while the site has `conversions.click_ids` on.
 CLICK_KINDS = ("gclid", "gbraid", "wbraid", "msclkid", "fbclid", "li_fat_id", "ttclid",

@@ -3,7 +3,7 @@ site switcher reads: each site's logo and today so far (2.6.0).
 
 A card per site: its logo (site_logos.py; the first letter on the site's
 colour while there is none), its name, a line about it, "Live" while the
-two-minute count is current, and today's visitors, leads and demos booked.
+live count is current, and today's visitors, leads and demos booked.
 
 Today's figures are read, never counted here: visitors are live.json's
 `people.readers` (the Overview's Visitors tile for Today, checked by the live

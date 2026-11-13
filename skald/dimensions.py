@@ -27,6 +27,8 @@ from collections import Counter
 from datetime import tzinfo
 from urllib.parse import parse_qsl, urlsplit
 
+from .payment_names import CHECKOUT_KEY, PAYMENT_HOSTS, PAYMENT_REFERRER, RETURNED
+
 # ------------------------------------------------------------ user agents
 
 # In-app browsers first: they carry a full browser's agent plus a marker, and
@@ -123,7 +125,7 @@ def agent_labels(agent: str) -> tuple[str, str, str]:
 # --------------------------------------------------------------- sources
 
 SOURCE_TYPES = ["AI assistant", "Search engine", "Social media", "Email",
-                "Other website", "This site", "Tagged link", "Direct or unknown"]
+                "Other website", "This site", "Tagged link", RETURNED, "Direct or unknown"]
 
 # Google's web search by its real domains (google.com, google.de,
 # google.co.uk, google.com.au), never by the word: com.google.android.<app>
@@ -171,6 +173,47 @@ def _utm_kind(value: str) -> str:
     return ""
 
 
+class SiteHosts(set):
+    """The site's own hosts (a set, as everywhere), carrying the site's own
+    checkout hosts (`site.checkout_hosts`, payment_names.CHECKOUT_KEY) as
+    `checkout`. Membership is the site's hosts only: a checkout host is not
+    the site, it is a payment page."""
+
+    checkout: frozenset = frozenset()
+
+
+def site_hosts(hosts, checkout=()) -> SiteHosts:
+    """SiteHosts of `hosts` (lower case), with `checkout` (lower case,
+    without "www.")."""
+    out = SiteHosts(str(h).lower() for h in (hosts or ()))
+    out.checkout = frozenset(_bare(str(h)) for h in (checkout or ()) if str(h).strip())
+    return out
+
+
+def hosts_of(config: dict) -> SiteHosts:
+    """The site's hosts and its checkout hosts, from the config."""
+    from .config import setting
+    hosts = setting(config or {}, "site", "hosts") or []
+    checkout = setting(config or {}, *CHECKOUT_KEY) or []
+    return site_hosts([hosts] if isinstance(hosts, str) else hosts,
+                      [checkout] if isinstance(checkout, str) else checkout)
+
+
+def _bare(host: str) -> str:
+    host = host.strip().lower().rstrip(".")
+    return host[4:] if host.startswith("www.") else host
+
+
+_PAYMENT = frozenset(_bare(h) for h in PAYMENT_HOSTS)
+
+
+def payment_page(host: str, own_hosts=None) -> bool:
+    """A referrer host (as referrer_host gives it) that is a payment page:
+    payment_names.PAYMENT_HOSTS, or one of the site's own checkout hosts."""
+    return bool(host) and (host in _PAYMENT
+                           or host in getattr(own_hosts, "checkout", ()))
+
+
 def referrer_host(referrer: str) -> str:
     """The referrer's host, without "www.". An app referrer
     (android-app://com.linkedin.android/) gives the app's id."""
@@ -189,6 +232,10 @@ def source_type(referrer: str, url: str, cited: bool, own_hosts: set[str]) -> st
     if host:
         if host in own_hosts or "www." + host in own_hosts:
             return "This site"
+        # A buyer back from paying: not a referral, not a new source (owner,
+        # 11 Nov 2026; payment_names.py).
+        if payment_page(host, own_hosts):
+            return RETURNED
         # Webmail before search: mail.google.com is not a Google search.
         if _EMAIL.search(host):
             return "Email"
@@ -209,11 +256,12 @@ def source_type(referrer: str, url: str, cited: bool, own_hosts: set[str]) -> st
     return "Direct or unknown"
 
 
-# Sources that continue a visit: a page reached from the site itself, or with
-# no referrer and no tag (a reload, a typed address, an app). Any other
-# source - an assistant, a website, a search engine, social, email, a tagged
-# link - is an outside arrival.
-INSIDE_SOURCES = ("This site", "Direct or unknown")
+# Sources that continue a visit: a page reached from the site itself, with
+# no referrer and no tag (a reload, a typed address, an app), or back from a
+# payment page (the buyer paid and came back: the same visit, its source
+# kept). Any other source - an assistant, a website, a search engine,
+# social, email, a tagged link - is an outside arrival.
+INSIDE_SOURCES = ("This site", "Direct or unknown", RETURNED)
 
 
 def page_origin(referrer: str, url: str, cited: bool, own_hosts: set[str]) -> tuple | None:
@@ -244,6 +292,8 @@ def referrer_label(referrer: str, own_hosts: set[str], url: str = "") -> str:
         return "(none)"
     if host in own_hosts or "www." + host in own_hosts:
         return "(this site)"
+    if payment_page(host, own_hosts):
+        return PAYMENT_REFERRER
     return host[:60] + (AI_MODE if google_ai_mode(referrer, url) else "")
 
 

@@ -1,6 +1,6 @@
 """Alerts by email: something is wrong now, not tomorrow morning.
 
-Checked on every live run (every 2 minutes), from what that run already has
+Checked on every live run (every few minutes), from what that run already has
 in memory - the requests of the last hours by minute (requests_feed.Feed's
 signals), today's snapshot and history - so a check costs nothing worth
 measuring. Each rule can be switched off in the config's `alerts` section, or

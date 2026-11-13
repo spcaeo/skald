@@ -12,7 +12,7 @@
 import { time as tzTime, label as tzLabel } from "./tz.js";
 import { h, n, short, duration, clock, reduced } from "./ui.js";
 import { pagesWords } from "./visitpages.js";
-import { rangeOf, chartDays, ranked, base, getJSON, color, GROUPS, total } from "./data.js";
+import { rangeOf, chartDays, ranked, base, getJSON, color, GROUPS, total, latestFirst } from "./data.js";
 import { lines, band } from "./charts.js";
 import * as S from "./state.js";
 import { DIMS, chainOf, encode, label, link, said, titled, drillRow, close as closeDrill } from "./drill.js";
@@ -33,6 +33,11 @@ const campaignName = (j) => (j.campaign || "").split(" / ").pop() || j.utm?.camp
 // Does a visit match a step? undefined: visits do not carry this kind of value.
 /* The visits a drawer lists for period r: {has(journey), words}. Today: today's; a past
    period: its days, as far back as visits are kept (said when the period is longer). */
+/* Today's visits are as of the last count (#53): say when, as Right now does. */
+export function asOfWords(m, r) {
+  return r.kind === "today" && m.live?.generated_at ? `, as of ${tzTime(m.live.generated_at, { label: false })}` : "";
+}
+
 export function visitSpan(m, r) {
   if (r.kind === "today") return { has: (j) => j.day === m.today, words: "today so far" };
   const has = (j) => j.day >= r.first && j.day <= r.last;
@@ -146,7 +151,7 @@ function requestPart(m, s, chain, holder) {
   if (chain.some(([d]) => d === "city")) { holder.replaceChildren(h("p", { class: "empty" }, "The request log carries no city; the visits above do.")); return; }
   holder.replaceChildren(h("p", { class: "empty" }, "Loading the recent requests…"));
   if (Array.isArray(m.files) && !m.files.includes("requests")) { holder.replaceChildren(h("p", { class: "empty" }, "The recent request log is not written beside this page yet.")); return; }
-  getJSON(`${base(s.view)}requests.json`).then((f) => {
+  getJSON(`${base(s.view)}requests.json`, true).then((f) => {     // fresh: rewritten by every count (#53)
     const rows = (f?.rows || []).filter((r) => chain.every(([d, v]) => requestHas(r, d, v)));
     if (!rows.length) { holder.replaceChildren(h("p", { class: "empty" }, `No request in the last ${f?.window_hours || "few"} hours matches.`)); return; }
     const by = {};
@@ -182,7 +187,7 @@ function cubePart(m, s, chain, r, holder) {
   if (!chain.every(([d]) => CUBE.includes(d))) return false;
   if (Array.isArray(m.files) && !m.files.includes("cube")) return false;
   holder.replaceChildren(h("p", { class: "empty" }, "Loading the period's visits…"));
-  getJSON(`${base(s.view)}cube.json`).then((f) => {
+  getJSON(`${base(s.view)}cube.json`, true).then((f) => {         // fresh: today's part changes (#53)
     if (!f || !Array.isArray(f.dims)) { holder.replaceChildren(h("p", { class: "empty" }, "The period's crossed figures are not written beside this page yet.")); return; }
     const at = Object.fromEntries(f.dims.map((d, i) => [d, i]));
     const match = (row) => chain.every(([d, v]) => row[at[d]] === v);
@@ -317,11 +322,12 @@ export function drillView(m, s) {
     // The period's visits only (2.13): Today is today's; a longer period reaches back as far
     // as visits are kept, and says so when the period is longer than that.
     const span = visitSpan(m, r);
-    const js = (m.journeys || []).filter((j) => span.has(j) && chain.every(([d, v]) => visitHas(j, d, v))).sort((a, b) => String(b.start).localeCompare(String(a.start)));
-    if (!js.length) vs.append(h("p", { class: "empty" }, `No visit ${span.words} matches.`));
+    const js = (m.journeys || []).filter((j) => span.has(j) && chain.every(([d, v]) => visitHas(j, d, v))).sort(latestFirst);
+    const asOf = asOfWords(m, r);
+    if (!js.length) vs.append(h("p", { class: "empty" }, `No visit ${span.words}${asOf} matches.`));
     else {
       const secs = js.map((j) => j.seconds).filter((x) => x != null).sort((a, b) => a - b);
-      vs.append(h("p", { class: "sub" }, `${n(js.length)} visit${js.length === 1 ? "" : "s"} ${span.words} (anonymous; kept ${m.journey_days || 7} days, then deleted${span.longer ? ", so the period above reaches past them" : ""}).`),
+      vs.append(h("p", { class: "sub" }, `${n(js.length)} visit${js.length === 1 ? "" : "s"} ${span.words}${asOf} (anonymous; kept ${m.journey_days || 7} days, then deleted${span.longer ? ", so the period above reaches past them" : ""}).`),
         h("div", { class: "dd-kpis" },
           h("div", null, h("b", null, n(js.length)), h("span", null, "visits")),
           h("div", null, h("b", null, (js.reduce((a, j) => a + (j.pages || 0), 0) / js.length).toFixed(1)), h("span", null, "pages per visit")),

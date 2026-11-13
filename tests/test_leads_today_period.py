@@ -137,6 +137,59 @@ class TodayAndSixDays(Base):
         self.assertEqual(got["today"]["state"], "withheld")
         self.assertIn("same time 2026-10-15", got["withheld"]["today"])
 
+    def test_every_tab_period_ends_today_and_is_recounted_in_one_window(self):
+        """#32: every Leads & sales tab counts 7, 30 and 90 days as today so far and the whole
+        days before it. `today.periods` sums them from the file's days; the second count
+        recounts each period in one SQL window, never day by day."""
+        got = self.blob()
+        self.assertEqual(got["withheld"], {}, "every second count agrees")
+        part = got["today"]["periods"]
+        self.assertEqual([(e["back"], e["first"], e["last"]) for e in part],
+                         [(7, "2026-10-16", "2026-10-22"), (30, "2026-09-23", "2026-10-22"),
+                          (90, "2026-07-25", "2026-10-22")])
+        week = part[0]
+        self.assertEqual((week["leads"], week["actions"]), (4, {"contact": 1, "demo": 1, "signup": 2}))
+        self.assertEqual(week["leads"], self.leads(got, "2026-10-16", "2026-10-22"),
+                         "the page's own sum over the file's days")
+        self.assertEqual(week["leads"], self.sql("2026-10-16", "2026-10-22"))
+        self.assertEqual(audit_conversions_leads.check_periods(self.path, SITE, UTC, TODAY, part), [])
+
+    def test_a_wrong_period_sum_is_found_and_withheld(self):
+        part = self.blob()["today"]["periods"]
+        part[0]["leads"] = 5
+        part[0]["actions"] = {"contact": 1, "demo": 1, "signup": 3}
+        problems = audit_conversions_leads.check_periods(self.path, SITE, UTC, TODAY, part)
+        self.assertTrue(any("period 7 days to today: file 5 leads, SQL recount 4" in p for p in problems), problems)
+        self.assertTrue(any("period 7 days by action" in p for p in problems), problems)
+        moved = [dict(part[1], first="2026-09-24")]
+        self.assertTrue(any("is not 30 days ending today" in p for p in
+                            audit_conversions_leads.check_periods(self.path, SITE, UTC, TODAY, moved)))
+        real = conversions_leads.periods
+
+        def wrong(*a, **kw):
+            out = real(*a, **kw)
+            out[0]["leads"] += 1
+            return out
+        conversions_leads.periods = wrong
+        try:
+            got = self.blob()
+        finally:
+            conversions_leads.periods = real
+        self.assertEqual(got["today"]["state"], "withheld")
+        self.assertIn("period 7 days to today", got["withheld"]["today"])
+
+    def test_a_period_with_a_day_not_ok_is_partial_and_not_recounted(self):
+        days = [{"day": "2026-10-16", "state": "ok", "stages": {"signup": {"completed": 1}}},
+                {"day": "2026-10-17", "state": "withheld"},
+                {"day": "2026-10-22", "state": "ok", "stages": {"signup": {"completed": 2, "started": 4},
+                                                                "cta": {"completed": 9}}}]
+        week = conversions_leads.periods(days, TODAY, back=(7,))[0]
+        self.assertEqual((week["state"], week["leads"], week["days_ok"], week["actions"]),
+                         ("partial", 3, 2, {"signup": 3}), "leads only: starts and button clicks are not leads")
+        week["leads"] = 99
+        self.assertEqual(audit_conversions_leads.check_periods(self.path, SITE, UTC, TODAY, [week]), [],
+                         "a partial period is not a whole one: the page withholds it, the audit skips it")
+
     def test_withheld_or_not_recorded_days_carry_no_figure(self):
         db = store.connect(self.path)
         try:

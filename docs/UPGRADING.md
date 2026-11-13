@@ -205,7 +205,7 @@ helper at `/traffic/<site>/api/realtime`. In the location that sends the per-sit
 helper, change `api/(?:v1/(?:[a-z_]+)?|compare|page)` to
 `api/(?:v1/(?:[a-z_]+)?|compare|page|realtime)` (the whole line is in
 [DEPLOY.md](../DEPLOY.md)), then `nginx -t` and reload. Without it nothing breaks: Real time
-shows requests from the 2-minute count and says so.
+shows requests from the live count and says so.
 
 ## Docker
 

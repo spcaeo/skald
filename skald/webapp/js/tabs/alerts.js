@@ -71,14 +71,15 @@ export default function alerts(m, s) {
       : h("div", { class: `state${f.checked_at ? " ok" : ""}`, html: f.checked_at ? ICON.check : ICON.info }, h("div", null, f.checked_at
         ? `No ${ai ? "AI " : ""}alert is open. Every rule that is switched on was checked and none is met right now.` : "The alert check has not run yet, so no alert can be open.")))];
   const closed = closedAll.filter(keep).map((a) => ({ ...a, __k: a.id, type_name: CAUSE[a.cause] || a.cause, lasted_s: a.closed_at && !once(a) ? (Date.parse(a.closed_at) - Date.parse(a.opened_at)) / 1000 : null }));
-  shown.push(h("section", { class: "s" }, h("h2", null, "Closed recently"), h("p", { class: "sub" }, "The last 30 days, newest first."),
+  shown.push(h("section", { class: "s" }, h("h2", null, "Closed recently"), h("p", { class: "sub" }, "The last 30 days, the last closed first."),
     table([
+      { key: "closed_at", label: "Closed", type: "date", fmt: (v) => when(v, m.today), csv: (r) => r.closed_at },
       { key: "opened_at", label: "Opened", type: "date", fmt: (v) => when(v, m.today), csv: (r) => r.opened_at },
       { key: "lasted_s", label: "Lasted", num: true, fmt: (_, r) => lasted(r) || "-" },
       { key: "type_name", label: "Kind" },
       { key: "title", label: "What happened" },
       { key: "detail", label: "Detail" },
-    ], { caption: "Closed alerts", rows: closed, file: `alerts-closed-${m.today}.csv`, sortKey: "opened_at", dir: -1, limit: 10, empty: "No alert closed in the last 30 days." })));
+    ], { caption: "Closed alerts", rows: closed, file: `alerts-closed-${m.today}.csv`, sortKey: "closed_at", dir: -1, limit: 10, empty: "No alert closed in the last 30 days." })));
   return shown;
   };
   draw();

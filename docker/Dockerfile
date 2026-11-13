@@ -1,6 +1,6 @@
 # Skald in one container: nginx on port 8080 in front of the two
 # helpers (127.0.0.1:8765 refresh/sign-in/API, 127.0.0.1:8766 beacon) and a small
-# scheduler (live every 2 minutes, run-daily, backup). docker/entrypoint.py
+# scheduler (live every few minutes, run-daily, backup). docker/entrypoint.py
 # supervises the four; docs/INSTALL.md says how to run it.
 #
 #   docker build -f docker/Dockerfile -t ghcr.io/spcaeo/skald:latest .

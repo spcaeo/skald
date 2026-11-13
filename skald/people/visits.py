@@ -5,7 +5,8 @@ so a day's rows are its readers - with what the journey holds (start, end,
 source, via, referrer, campaign, landing, exit, country, device, browser,
 system, city when a city file named one (logs.city_db), pages in order with
 their seconds) and what it does not: the
-address, the user agent and the times of the visit's POSTs (a form sent).
+address, the user agent, the times of the visit's POSTs (a form sent) and
+the page each was sent from (`posts_from`, schema 11; NULL on older rows).
 In conversions.sqlite, tables `visits` and `visit_days` (store.PEOPLE_TABLES).
 
     written    the daily run, for each stored day (state "whole"), and every
@@ -78,12 +79,23 @@ def rows(site: str, day: str, journeys: list, people: list, hidden=None,
             int(j.get("pages") or 0), j.get("seconds"),
             json.dumps(trail, separators=(",", ":")),
             json.dumps([_stamp(t) for t in (who.get("posts") or [])][:20],
-                       separators=(",", ":"))))
+                       separators=(",", ":")),
+            _posts_from(who)))
     return out
 
 
+def _posts_from(who: dict) -> str | None:
+    """The page each POST was sent from (#57), aligned with `posts` ("" not
+    known); NULL when the visit was counted without it."""
+    got = who.get("posts_from")
+    if not isinstance(got, list):
+        return None
+    return json.dumps([str(p or "")[:70] for p in got][:20], separators=(",", ":"))
+
+
 COLUMNS = ("site, day, seq, ip, user_agent, start, end, source, via, referrer, campaign, "
-           "landing, exit, country, device, browser, os, city, pages, seconds, trail, posts")
+           "landing, exit, country, device, browser, os, city, pages, seconds, trail, posts, "
+           "posts_from")
 
 
 def write(db, site: str, day: str, journeys: list, people: list, state: str,
@@ -270,14 +282,14 @@ def of_ip(db, site: str, ip: str, limit: int = 2000, short: bool = False) -> lis
 
 def posted_near(db, site: str, at: str, before: int = 120, after: int = 30) -> list[dict]:
     """Visits that sent a POST from `before` seconds before `at` to `after`
-    after it: the visits that may have sent a lead's form. Matched by time,
-    never certain: the page says so."""
+    after it: the visits that may have sent a lead's form, newest first (#55).
+    Matched by time, never certain: the page says so."""
     when = store.parse(at)
     lo = store.stamp(when - timedelta(seconds=before))
     hi = store.stamp(when + timedelta(seconds=after))
     out = []
     for r in db.execute("SELECT * FROM visits WHERE site = ? AND start <= ? AND end >= ? AND "
-                        "posts IS NOT NULL AND posts <> '[]' ORDER BY start",
+                        "posts IS NOT NULL AND posts <> '[]' ORDER BY start DESC",
                         (site, hi, lo)):
         row = _row(r)
         if any(t and lo <= t <= hi for t in row["posts"]):
@@ -287,7 +299,7 @@ def posted_near(db, site: str, at: str, before: int = 120, after: int = 30) -> l
 
 def _row(r) -> dict:
     row = dict(r)
-    for key in ("trail", "posts"):
+    for key in ("trail", "posts", "posts_from"):   # posts_from: #57, NULL on older rows
         try:
             row[key] = json.loads(row.get(key) or "[]")
         except ValueError:

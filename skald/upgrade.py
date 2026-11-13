@@ -54,6 +54,7 @@ UNITS = ("skald-refresh.service", "skald-beacon.service")
 BEACON_UNIT = UNITS[1]
 LOG = "upgrades.log"
 LOCK = "live.lock"
+LOCK_WAIT_S = 600   # up to 10 minutes for a running live round (#54: one round can take 5-6)
 HELPER = "http://127.0.0.1:{port}/traffic-auth/login"
 HEALTH = (("live", ("live",)), ("check", ("check", "--day", "today")),
           ("audit", ("audit", "--live")))
@@ -260,13 +261,15 @@ class Upgrader:
             own_like_folder(self.folder / LOCK)
         except OSError:
             return
-        for _ in range(120):
+        # A live round of every site can take several minutes on a server with many
+        # sites (#54): wait up to LOCK_WAIT_S for it, then refuse.
+        for _ in range(LOCK_WAIT_S):
             try:
                 fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 return
             except OSError:
                 time.sleep(1)
-        raise Refused("the live run did not finish within 2 minutes")
+        raise Refused(f"the live run did not finish within {LOCK_WAIT_S // 60} minutes")
 
     def copy_build(self) -> None:
         out = ((self.ctx.config or {}).get("dashboard") or {}).get("out")

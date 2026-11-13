@@ -127,8 +127,8 @@ class Node(unittest.TestCase):
         """2.25 (js/tabs/leadref.js): the lead's own reference with its copy icon and its
         tool, every step, Mark as test / Not a test for owners and admins only (never a
         viewer or an editor), its confirm step, the POST and the toast; the same part in
-        Leads' drawer, the visitor drawer, Find a person, the Conversions lists and
-        Calendar bookings' rows."""
+        Leads' drawer, the visitor drawer (Leads' search box opens it) and the Conversions
+        lists (#33: Calendar bookings is Leads with What: Demos)."""
         self.assertIn("leadref: all passed", self.run_js("leadref.mjs"))
 
     def test_revenue_per_currency_withheld_days_address_and_drawer(self):

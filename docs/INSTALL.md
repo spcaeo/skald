@@ -35,7 +35,7 @@ sample data (`tools/demo.py` builds it).
 
 One container runs everything: nginx on port 8080 (the dashboard and every
 Skald route), the two helpers behind it, and a small scheduler (the live
-snapshot every 2 minutes, the daily run, the nightly backup). Mount the log
+snapshot every few minutes, the daily run, the nightly backup). Mount the log
 read-only at `/logs`; the data lives in a volume.
 
 ```sh
@@ -68,7 +68,7 @@ docker exec -it skald skald accounts init \
 ```
 
 Open `http://localhost:8080/` on the same machine, or the HTTPS address
-(see "Put it on the web" below). The dashboard fills within two minutes from
+(see "Put it on the web" below). The dashboard fills within a few minutes from
 today's log; `docker exec skald skald backfill --days 14` adds the
 days the log's rotations still hold.
 

@@ -260,7 +260,7 @@ function siteMenu() {
     // The site's own address: copy and open in a new tab at the row's end (urlactions.js).
     return withUrl(h("a", { class: "menu-i site-i", role: "menuitem", href: here ? "./" : `../${x.path}`, "aria-current": here ? "page" : null },
       tile(logoOf(x, x.name), 24, "si-logo"),
-      h("b", null, x.name, x.live ? h("span", { class: "live-dot", title: "Live: today is redrawn every 2 minutes" }, h("span", { class: "vh" }, ", live")) : null),
+      h("b", null, x.name, x.live ? h("span", { class: "live-dot", title: "Live: today is counted again every few minutes" }, h("span", { class: "vh" }, ", live")) : null),
       here ? h("span", { class: "si-end si-check", html: CHECK, "aria-label": "this site", role: "img" })
         : today(x) ? h("small", { class: "si-end" }, today(x)) : null), /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(x.name || "") ? `https://${x.name}` : "", { label: x.name, tag: "div", cls: "si-row" });
   };

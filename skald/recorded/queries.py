@@ -152,7 +152,7 @@ def session(db, site: str, ref: str, private: bool = False) -> dict | None:
 def for_visit(db, site: str, visit: dict, vid: str | None = None,
               private: bool = False) -> list[dict]:
     """The sessions linked to one kept log visit {start, end, ip}: by the visitor
-    ID matched to it (`vid`), and by the same address inside its time."""
+    ID matched to it (`vid`), and by the same address inside its time. Newest first."""
     if not present(db):
         return []
     lo = cstore.stamp(cstore.parse(visit["start"]) - SLACK)
@@ -173,12 +173,13 @@ def for_visit(db, site: str, visit: dict, vid: str | None = None,
         got = session(db, site, ref, private)
         if got:
             out.append({**got, "linked_by": by})
-    return sorted(out, key=lambda s: s["start"])
+    return sorted(out, key=lambda s: (s["start"], s["ref"]), reverse=True)     # newest first (#55)
 
 
 def log_visits(db, site: str, ref: str) -> list[dict]:
     """The kept log visits linked to the session by the same address inside their
-    time (a visit kept with its address: people/visits.py). Labels and times only."""
+    time (a visit kept with its address: people/visits.py), newest first. Labels and
+    times only."""
     if not present(db):
         return []
     have = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
@@ -191,7 +192,8 @@ def log_visits(db, site: str, ref: str) -> list[dict]:
     a, b = rows[0]["occurred_at"], rows[-1]["occurred_at"]
     out = []
     for r in db.execute("SELECT day, seq, start, end, source, landing, pages FROM visits "
-                        "WHERE site = ? AND ip = ? AND start <= ? AND end >= ? ORDER BY start",
+                        "WHERE site = ? AND ip = ? AND start <= ? AND end >= ? "
+                        "ORDER BY start DESC, day DESC, seq DESC",
                         (site, ip, cstore.stamp(cstore.parse(b) + SLACK),
                          cstore.stamp(cstore.parse(a) - SLACK))):
         out.append({"day": r[0], "seq": r[1], "start": r[2], "end": r[3], "source": r[4],
