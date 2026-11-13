@@ -37,6 +37,7 @@ def your_tools(ctx, args):
     got["search"] = _search(ctx, site)
     search = [f"- {e['name']}: {e['state']}"
               + (f", last answer {e['last_answer']}" if e.get("last_answer") else "")
+              + (f". Why: {e['reason']}. What to do: {e['what_to_do']}" if e.get("stopped") else "")
               + f". Its figures: search_performance{'' if e['engine'] == 'google' else ' (engine bing)'}."
               for e in got["search"] if e["state"] != "not connected"]
     if not got["tools"] and search:

@@ -12,6 +12,9 @@ lead: it is listed, marked, and never counted.
                    A listing; withheld with today's day
     same_time      `today.same_time` (2.27): the last day of the period
                    before Leads' 7, 30 and 90 days, to this time of day
+    periods        `today.periods` (#32): the leads of the 7, 30 and 90 days that end
+                   today, summed from the file's own days (every Leads & sales tab's
+                   period)
     insights       lead findings for insights.json, from conversions.json's
                    `ok` days only, by insights.py's rules (whole periods,
                    min_after, min_change, confidence)
@@ -154,6 +157,36 @@ def same_time(db, site: str, tz, today: date, now, held: set, since: str | None,
                     got[action] += 1
             e["leads"], e["actions"] = sum(got.values()), dict(sorted(got.items()))
         out["days"].append(e)
+    return out
+
+
+
+def periods(days: list[dict], today: date, back=SAME_TIME_BACK) -> list[dict]:
+    """conversions.json `today.periods` (#32): every Leads & sales tab counts 7, 30 and
+    90 days as today so far and the whole days before it. For each, the period's leads
+    summed from the file's own days (its `ok` days; the same sum the page makes):
+    {"back", "first", "last", "state", "leads", "actions", "days_ok"}. state "ok" when
+    every day of the period is `ok`, else "partial" (the sum covers `days_ok` days only).
+    A lead: a finished row of the lead actions, the days' own rule.
+    audit_conversions_leads.check_periods recounts each whole period in one SQL COUNT
+    over the period's own bounds, not day by day."""
+    at = {d.get("day"): d for d in days or []}
+    out = []
+    for k in back:
+        first = today - timedelta(days=k - 1)
+        got: Counter = Counter()
+        ok = 0
+        for i in range(k):
+            d = at.get((first + timedelta(days=i)).isoformat())
+            if not d or d.get("state") != "ok":
+                continue
+            ok += 1
+            for action, per in (d.get("stages") or {}).items():
+                if action in LEAD_ACTIONS:
+                    got[action] += sum(n for stage, n in per.items() if stage in FINISHED)
+        out.append({"back": k, "first": first.isoformat(), "last": today.isoformat(),
+                    "state": "ok" if ok == k else "partial", "leads": sum(got.values()),
+                    "actions": {a: n for a, n in sorted(got.items()) if n}, "days_ok": ok})
     return out
 
 

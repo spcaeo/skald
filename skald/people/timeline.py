@@ -63,8 +63,32 @@ def _visit(r) -> dict:
     return out
 
 
-def visitor(config: dict, folder, site: str, day: str, seq: int) -> dict:
-    """The visitor of the kept visit (site, day, seq): see the module."""
+def _local_minute(start: str, tz) -> str:
+    """A kept visit's start (UTC stamp) as the page writes it: site time, to the minute."""
+    try:
+        return store.parse(start).astimezone(tz).strftime("%Y-%m-%dT%H:%M")
+    except (TypeError, ValueError):
+        return ""
+
+
+def _the_visit(db, site: str, day: str, seq: int, at: str | None, tz):
+    """The kept visit the page means (#56). The page names it by (day, seq), its
+    place in that count's list; a late log line can move the places, so when the
+    page also gives its start (`at`, site time to the minute) the row must start
+    then. If (day, seq) starts at another minute, the one visit of that day
+    starting at `at` is taken; with none or several, None (never a guess)."""
+    row = db.execute("SELECT * FROM visits WHERE site = ? AND day = ? AND seq = ?",
+                     (site, day, int(seq))).fetchone()
+    if not at or (row is not None and _local_minute(row["start"], tz) == at):
+        return row, False
+    same = [r for r in db.execute("SELECT * FROM visits WHERE site = ? AND day = ?", (site, day))
+            if _local_minute(r["start"], tz) == at]
+    return (same[0], False) if len(same) == 1 else (None, bool(same) or row is not None)
+
+
+def visitor(config: dict, folder, site: str, day: str, seq: int, at: str | None = None) -> dict:
+    """The visitor of the kept visit (site, day, seq): see the module. `at`: the
+    visit's start as the page shows it (site time, YYYY-MM-DDTHH:MM), checked (#56)."""
     from ..firsttouch import match_vids
     kept = policy.describe(config, folder)
     out = {"ok": True, "found": False, "kept": kept, "visits": [], "leads": [],
@@ -83,8 +107,12 @@ def visitor(config: dict, folder, site: str, day: str, seq: int) -> dict:
         if "visits" not in have:
             out["why"] = "No visit is kept yet."
             return out
-        row = db.execute("SELECT * FROM visits WHERE site = ? AND day = ? AND seq = ?",
-                         (site, day, int(seq))).fetchone()
+        from ..window import zone
+        row, moved = _the_visit(db, site, day, seq, at, zone(config))
+        if row is None and moved:
+            out["why"] = ("This visit's place in the day changed in a newer count, so it is not "
+                          "shown (it could be another visitor's). Reload the page and open it again.")
+            return out
         if row is None:
             out["why"] = (f"This visit is not kept with its address (visits are kept "
                           f"{kept['keep_days']} days, and today's are written by each live run).")
@@ -136,7 +164,8 @@ def _script(db, site: str, vids: set, visits: list) -> list[dict]:
     for vid in sorted(vids):
         views += [dict(r) for r in db.execute(
             f"SELECT at, path, source_type, {via} FROM journeys WHERE site = ? AND vid = ? "
-            f"ORDER BY at LIMIT ?", (site, vid, LIMIT))]
+            f"ORDER BY at DESC, rowid DESC LIMIT ?", (site, vid, LIMIT))]
+    # #55: each ID's newest LIMIT views are kept; grouped into visits in time order.
     views.sort(key=lambda r: r["at"])
     groups: list[list] = []
     for r in views:

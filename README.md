@@ -51,6 +51,7 @@
 
 ## What's new
 
+- **2.49.0: Leads & sales in four tabs with one period rule; ask your AI how people reach a page and where they booked; newest first everywhere; a warning when Search Console stops** ([changelog](CHANGELOG.md#2490-2026-11-13)).
 - **2.48.2: Right now never steps back** ([changelog](CHANGELOG.md#2482-2026-11-12)).
 - **2.48.1: each page's index status comes in about four times faster** ([changelog](CHANGELOG.md#2481-2026-11-12)).
 - **2.48.0: Search Console for AI agents, with each page's index status; a page's latest crawl and time on page** ([changelog](CHANGELOG.md#2480-2026-11-12)).
@@ -162,7 +163,7 @@ person everywhere.
 they are on now, whether they are new, returning, a lead or a customer, and how long they have
 been there; **Refresh now** counts the site again at once. Under it, a world map, the pages being
 read and the AI and crawlers fetching right now. **Today**, the first period in the top bar of every tab, shows today so far,
-redrawn every 2 minutes. The last 6 hours can be read request by request, each with the rule that put it
+counted again every few minutes. The last 6 hours can be read request by request, each with the rule that put it
 in its group, in words. Alerts show on the dashboard, by email, or in Slack.
 
 </td>
@@ -261,8 +262,9 @@ The headlines, area by area. Every feature, in full: **[docs/FEATURES.md](docs/F
   campaigns, countries and cities; journeys, first touch, retention, Search Console and Bing.
 - **AI and machines:** AI assistants and crawlers by name, the pages they read and what they cost
   your server; AI readiness per page; AI clicks hiding in Direct; crawler rules; AI answers.
-- **Results:** Leads & sales, with leads, revenue, bookings, funnels and events by source; leads
-  you can check, and signed webhooks out to your CRM.
+- **Results:** Leads & sales in four tabs (Leads, Summary, Revenue, Funnels), one period on
+  each, today included: leads, revenue, bookings and funnels by source; events under Traffic;
+  leads you can check, and signed webhooks out to your CRM.
 - **From your tools** (2.43): Google Analytics 4, Vercel Web Analytics, Calendly and Resend, each
   read with your own key, labelled and kept apart from Skald's counts, rechecked against the
   tool's stored answer; alerts when a tool goes quiet, and a Monday mail.
@@ -339,10 +341,10 @@ need your own Skald. Every image below is from the demo's sample data.
 | <img src="docs/screenshots/security-block-list.png" alt="Security, Block list: a note to review before blocking, exports as nginx deny lines, a Cloudflare IP list or a plain list, the networks with two or more scanners, and each address with its probes and attack attempts" width="440"><br>**Block list.** nginx, Cloudflare or a plain list, to review first. | <img src="docs/screenshots/security-alerts.png" alt="Security, Alerts: the rules (possible exposure, new scan wave, advisory matches your stack) and whether each is on; Your security alerts for owner@example.com, On, When: In the daily summary (01:00) or Right away, with Send a test security alert; then the security alerts of the last 30 days, a possible exposure of /.env.production and three advisories" width="440"><br>**Security alerts** (2.36). In one daily summary, or right away. |
 | <img src="docs/screenshots/security-scanner-detail.png" alt="One scanner's detail: its address, user agent, country, hosting network, days seen, requests and probes, what the server answered, what it looked for, its signs (a forged referrer, the bare IP) and the paths it asked for" width="440"><br>**One scanner.** Its paths, its answers, its signs. | <img src="docs/screenshots/public-check.png" alt="The public check at skaldanalytics.com/check/ for www.example.com: 'Your site runs WordPress 7.1.3 on PHP (version hidden), behind Cloudflare. 1 thing to do now, 1 to check, 3 tips', a Download PDF report button, and the first card, Login page open to the internet, with what was seen and where it was read from" width="440"><br>**The public check (2.22, optional).** Any site, read from outside, with the proof. |
 
-### Leads & sales (2.20)
+### Leads & sales (2.49: four tabs)
 
 <p align="center">
-  <img src="docs/screenshots/leads-list.png" alt="Leads and sales, Leads, on its default of the last 7 days: the heading Last 7 days, Fri 16 Oct to Thu 22 Oct (today, so far), the count against the same days and hour of the week before, Today so far: 6 of these leads, Show today (live), and one row per lead with today's first, each marked live" width="900"><br>
+  <img src="docs/screenshots/leads-list.png" alt="Leads and sales, Leads tab, last 7 days: 39 leads, 50% more than the 7 days before, Today so far: 7 of these 39 leads (live), and one row per lead, newest first, with what they did, the stage now, where it came from, the source, first touch, landing page and country" width="900" width="900"><br>
   <strong>Leads.</strong> Who they are, what they did and where they came from, in one list.
 </p>
 
@@ -350,8 +352,8 @@ need your own Skald. Every image below is from the demo's sample data.
 
 | | |
 | :---: | :---: |
-| <img src="docs/screenshots/sales-summary.png" alt="Leads and sales, Summary for the last 7 days: leads, sign-ups and contact forms against the period before, demos booked not set up in the lead database, leads per 100 visitors, and leads per day by kind" width="440"><br>**Summary.** How many, and better than before? | <img src="docs/screenshots/conversions.png" alt="Leads and sales, Sources counted from the tools: where the completed ones came from by last touch, first touch, campaign and landing page, each split by action" width="440"><br>**Sources.** Where the leads came from, first and last touch. |
-| <img src="docs/screenshots/sales-bookings.png" alt="Leads and sales, Calendar bookings: every stage of the demos booked through Calendly, the demo funnel from opened to booked, cancelled, rescheduled and no-show, and where the booked ones came from" width="440"><br>**Calendar bookings.** Every stage, cancelled and no-show too. | <img src="docs/screenshots/funnels.png" alt="Funnels: a saved funnel from landing to lead, its steps, how many visits went through each and the drop between steps" width="440"><br>**Funnels.** Saved once, counted every day. |
+| <img src="docs/screenshots/sales-summary.png" alt="Leads and sales, Summary tab, last 7 days: 39 leads, 5 sales, 7 demos booked, won and lost as known now, each kind of lead with started, completed, abandoned and completion rate only where it can be compared, and where they came from" width="440" width="440"><br>**Summary.** How many, and better than before? | <img src="docs/screenshots/sales-sources.png" alt="Leads and sales, Summary tab in dark mode: where the leads came from (direct, search engine, other website, AI assistant, social media) and, opened below, every source, first touch, page, country and device" width="440"><br>**Where they came from.** On Summary, last and first touch. |
+| <img src="docs/screenshots/sales-bookings.png" alt="Leads and sales, Leads tab with What: Demos: 7 demo leads, each step of the bookings (opened, chose a time, booked, cancelled, rescheduled, no-show) and one row per booking with its source" width="440"><br>**Demos, each step.** Leads › What: Demos, no-shows too. | <img src="docs/screenshots/funnels.png" alt="Funnels: a saved funnel from landing to lead, its steps, how many visits went through each and the drop between steps" width="440"><br>**Funnels.** Saved once, counted every day. |
 | <img src="docs/screenshots/leads-left-out.png" alt="Leads, Stage now: Left out: 10 spam, duplicate and test leads of the last 30 days, each marked in red, listed beside the counted leads, never counted" width="440"><br>**Left out, still listed.** Spam, duplicates and test, never just dropped. | <img src="docs/screenshots/conversions-removed.png" alt="Conversions removed by a lead-database sync, each with when, why (marked duplicate or spam in the lead database) and what it was, and the journeys before them" width="440"><br>**Removed, with when and why.** |
 | <img src="docs/screenshots/person-search.png" alt="Person search for the IP address 203.0.113.109: Returning, No lead linked, nine visits over 35 days, the oldest kept from ChatGPT, New York, desktop Chrome on macOS, and every visit as a line of pages, newest first" width="440"><br>**Person search** (your own Skald). Every visit kept, across days. | <img src="docs/screenshots/person-lead.png" alt="Person search for lead14@example.com: Lead #14, the linked IP address, email, visitor ID and references, its lead row (a sign-up, won), the visit that sent its form at its time, and its conversions" width="440"><br>**One lead, linked.** Its email, address, visitor ID and form visit. |
 | <img src="docs/screenshots/leads-reference.png" alt="Leads with the Reference column switched on: each lead shows the sending app's own ID (a lead number such as 136, or a Calendly invitee) with a copy button" width="440"><br>**The lead's own reference** (2.25). The sender's ID, searchable, with a copy button. | <img src="docs/screenshots/lead-drawer-reference.png" alt="A lead's drawer: Reference u-1048576 from the site's server, both of its steps (completed, then paid), and the Mark as test button" width="440"><br>**Every step, and Mark as test** (2.25). One click moves a test lead out of every count. |
@@ -572,7 +574,7 @@ on one page: [docs/LEADS-REFERENCE.md](docs/LEADS-REFERENCE.md).
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/spcaeo/skald/tree/main/deploy/cloudflare-worker)
 
 **API and MCP.** A read-only JSON API over every dashboard figure, with revocable, scoped tokens
-([docs/API.md](docs/API.md)), and an MCP server with 30 tools for Claude, ChatGPT and any
+([docs/API.md](docs/API.md)), and an MCP server with 31 tools for Claude, ChatGPT and any
 MCP client that can send a header: `overview`, `breakdown`, `top_pages`, `ai_activity`, `leads`,
 `funnel`, `compare`, `page_story`, `live_today`, `data_quality`, `site_health`, `conversions`,
 `list_sites`, what to fix and whether it worked (`what_changed`, `todos`, `lost_pages`,

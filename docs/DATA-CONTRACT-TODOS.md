@@ -41,6 +41,17 @@ own figures (`audit_todos.still_of`, `own_status`); a to-do it disagrees with is
 all five) and `first_seen` (the first day this to-do was on the list, open; null for one
 withheld or not open; a to-do that left the list and came back is new again).
 
+**A stopped search sync (#40, `todos.search_todos`, `search/health.py`).** One to-do per
+engine whose sync stopped: `id` `search-sync-google` or `search-sync-bing`, `kind` `search`,
+`subject` the engine, `tone` `bad`, `figures` `{"engine", "since" (the last good sync),
+"fails", "hours", "reason" (the engine's own words in one line)}`, `todo` what to do (for a
+deleted or disabled Google Cloud project: restore it, or upload a new key), `open`
+`{"tab": "settings/site/leads", "tool": "search", "name"}`; no rows, no window, `agent`
+false, always `open` and never marked: it leaves the list after the next good sync. It is
+not from the log: whole site, on a view's page too. It ranks with the to-dos only machines
+met, first of them. Its second count is `audit_search_sync.check`, from the sync's kept
+tries; one it does not bear out is in `withheld`.
+
 **The agents' rows file (2.41, `todo_rows.py`).** `todos.json` holds at most 1,000 rows a
 to-do. The same build writes every row (at most 20,000) beside the history, never in the
 dashboard folder: `<history folder>/todo-rows/<site>.json`, mode 0600,

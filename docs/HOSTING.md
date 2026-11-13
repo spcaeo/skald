@@ -3,7 +3,7 @@
 Two questions, answered apart:
 
 - **A. Where Skald runs.** Skald is a long-running program with a disk. It keeps its history
-  in SQLite, runs its own schedule (the live panel every 2 minutes, the daily run, the backup)
+  in SQLite, runs its own schedule (the live panel every few minutes, the daily run, the backup)
   and serves the dashboard. It needs one machine or one container that stays up, and a
   persistent disk. **It cannot run on Vercel, Netlify or Cloudflare Workers functions**: they
   stop between requests and keep no disk.

@@ -198,8 +198,9 @@ class LeadVisits(unittest.TestCase):
         got = lookup.person(self.config, self.box.root, SITE, "u_1", self.box.root)
         walk = got["path"]
         self.assertEqual([(v["landing"], v["link"]) for v in walk["visits"]],
-                         [("/bing-webmaster-tools/ai-performance-report", "proven"), ("/app/", "likely")])
-        self.assertEqual([s["action"] for s in walk["visits"][0]["steps"]], ["xray"])
+                         [("/app/", "likely"), ("/bing-webmaster-tools/ai-performance-report", "proven")],
+                         "newest first (#55)")
+        self.assertEqual([s["action"] for s in walk["visits"][-1]["steps"]], ["xray"])
         self.assertEqual(walk["first"]["landing"], "/bing-webmaster-tools/ai-performance-report")
         self.assertIn("bing", (walk["first"]["referrer"] or "") + (walk["first"]["via"] or "").lower())
         self.assertEqual([(s["action"], s["stage"]) for s in walk["unmatched"]], [("signup", "paid")])

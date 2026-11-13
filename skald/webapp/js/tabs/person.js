@@ -72,7 +72,7 @@ function removedPart(rows) {
     at(r.removed_at), text(r.why), [`${dash(r.action)} ${STAGE[r.stage] || dash(r.stage)} at ${at(r.at)}`, labelTag(r.row?.label)], key(r.external_ref)]));
 }
 
-/* #30 (2.46.5): the person's own visits, oldest first (people/lead_visits.py): proven, the
+/* #30 (2.46.5): the person's own visits, newest first (#55; people/lead_visits.py): proven, the
    only visit that sent a form at a lead's time; likely, the same address and browser around
    it. Where they first came from, every visit's pages, and what each one sent. */
 const LINK = { proven: ["Proven", "good"], likely: ["Likely", ""] };
@@ -89,7 +89,7 @@ export function pathPart(p) {
     [h("span", { class: `pill ${LINK[v.link]?.[1] || ""}`.trim(), title: v.why }, LINK[v.link]?.[0] || dash(v.link))]]);
   const miss = (p.unmatched || []).length ? h("p", { class: "note" }, "Not matched to a visit: ",
     p.unmatched.map((s) => `${stepWords(s)} at ${at(s.at)} (${s.why})`).join("; "), ".") : null;
-  return sec("Their visits, in order", head,
+  return sec("Their visits, newest first", head,
     rows.length ? grid("Their visits", ["Started", "Came from", "Landing", "Pages", "What they did", "Known"], rows) : empty("No visit is proven for these conversions."),
     miss, h("p", { class: "note" }, "Proven: the only visit that sent a form at a lead's time. Likely: the same address and browser around it; an office or a phone network can share an address. Never counted in any figure."));
 }
@@ -97,10 +97,11 @@ export function pathPart(p) {
 /* #31: a lead's profile, in its drawer (Leads & sales > Leads; tabs/leadprofile.js asks
    people?q=<its reference>): who (names and emails, only in an answer that holds them: an
    owner's or an admin's, on a site that keeps them), every step of everything linked to
-   them oldest first with its time and value, and their visits in order (pathPart: where
-   they first came from, each visit's pages, proven or likely). A listing, never a figure. */
+   them newest first with its time and value, and their visits newest first (pathPart: where
+   they first came from, each visit's pages in order, proven or likely). A listing, never a figure. */
 export function profileParts(got) {
-  const rows = [...(got.conversions || [])].sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")) || (a.id || 0) - (b.id || 0));
+  // #55: newest first, as every time-ordered list.
+  const rows = [...(got.conversions || [])].sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")) || (b.id || 0) - (a.id || 0));
   const uniq = (list) => [...new Set(list.filter(Boolean).map(String))];
   const names = uniq([...rows.map((r) => r.name), ...(got.leads || []).map((l) => l.name)]);
   const emails = uniq([...rows.map((r) => r.email), ...(got.leads || []).map((l) => l.email)].map((e) => e && String(e).toLowerCase()));
@@ -114,7 +115,7 @@ export function profileParts(got) {
     at(r.at), [stepWords(r), labelTag(r.label), r.test ? h("b", { class: "pp-bad" }, " test (not counted)") : null], value(r), dash(r.tool),
     refCell(r.external_ref, key(r.external_ref, r.external_ref, false))])) : empty("No step is kept for them.");
   return [sec("Who", who), sec("Everything they did", did),
-    pathPart(got.path) || sec("Their visits, in order", empty("This site keeps no visits with their address (Settings > Privacy), so the visits that sent these steps cannot be shown."))];
+    pathPart(got.path) || sec("Their visits, newest first", empty("This site keeps no visits with their address (Settings > Privacy), so the visits that sent these steps cannot be shown."))];
 }
 
 /* A person (people?q=) opens in the visitor drawer (visitor.js), the same

@@ -1,8 +1,8 @@
 """The dashboard's "Refresh now" button: a tiny local helper.
 
 nginx keeps the password check and forwards only POST <page>/refresh here
-(127.0.0.1 only). The helper runs `skald live` - the same command the 2-minute
-cron runs, which redraws the dashboard and never touches history or mail -
+(127.0.0.1 only). The helper runs `skald live` - the same command the
+scheduler runs every few minutes, which redraws the dashboard and never touches history or mail -
 for the page's own site only on a multi-site install (`--site <name> live`),
 then sends the browser back to the page it came from, or, when the request
 accepts application/json (the web app's fetch), answers

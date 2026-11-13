@@ -2,7 +2,7 @@
 
 The static dashboard (`dashboard.py`, no script) and the web app
 (`skald/webapp/`) read the same figures. Every render (`skald
-dashboard`, `skald live` every 2 minutes, `run-daily`) writes them:
+dashboard`, `skald live` every few minutes, `run-daily`) writes them:
 
 ```
 <dashboard.out>/<site>/data/<name>.json            the whole site
@@ -180,7 +180,7 @@ Meta for the app, and one row of headline figures per day.
 
 ## live.json
 
-Today so far: the live snapshot (`live.py`) as written every 2 minutes,
+Today so far: the live snapshot (`live.py`) as written every few minutes,
 without the journeys (in `visits.json`) and without the AI events (in
 `ai_activity.json`). Fields: `state` (`ok` / `withheld` / `empty`), `day`,
 `from`, `until`, `generated_at` (of the snapshot), `problems`, `requests`,
@@ -188,7 +188,9 @@ without the journeys (in `visits.json`) and without the AI events (in
 `pages`, `countries`), `ai` (`training`/`asked` by name), `ai_tiers`,
 `ai_pages`, `search`, `bots` (`requests`, `probes`), `ours`, `ours_labels`,
 `other_hosts`, `unfiltered`, `breakdowns` (same shape as a breakdowns.json
-day), `visits` (same shape as a visits.json `stats`), `journeys_total`.
+day), `visits` (same shape as a visits.json `stats`), `journeys_total`,
+`every_s` (seconds between live counts, measured from the last few runs and
+never below the planned 2 minutes; absent from an older snapshot, read as 120).
 `live.stale` is true when the snapshot is not for today.
 
 The snapshot file itself (`live-<site>.json` beside history) and the requests
@@ -250,7 +252,7 @@ null), `likely_ai` (only on a visit likely sent by an AI assistant, an estimate)
 [docs/DATA-CONTRACT-TRACKING.md](docs/DATA-CONTRACT-TRACKING.md#day-kind-direct_likely-campaignsjson)),
 `ai_read` (only on an AI visit whose assistant fetched pages just before it, at most 10:
 [docs/DATA-CONTRACT-AI-LIKELY.md](docs/DATA-CONTRACT-AI-LIKELY.md)). Source types: `AI assistant`, `Search engine`, `Social media`,
-`Email`, `Other website`, `This site`, `Tagged link`, `Direct or unknown` (stored names; people read **Direct** and, for `Unknown`, **Not recorded**: `labels.py`).
+`Email`, `Other website`, `This site`, `Tagged link`, `Returned from payment`, `Direct or unknown` (stored names; people read **Direct** and, for `Unknown`, **Not recorded**: `labels.py`). `Returned from payment` (#34): the visit's first page came back from a payment page (`skald/payment_names.py`; its referrer label is `(payment page)`), after the visit gap; inside the gap such a page continues the open visit (CLASSIFICATION.md, "The source type of a visit").
 
 `pages` stays the page views (what both roads add up); `seen` = `pages` + `in_app`.
 Every view of a visit states both: "3 pages (2 seen in the browser)" is `seen` with
@@ -329,7 +331,7 @@ Moved to [docs/DATA-CONTRACT-BOTS.md](docs/DATA-CONTRACT-BOTS.md#botsjson).
 ## requests.json
 
 Every request of the last `window_hours` hours, newest first - Site >
-Requests. Written by every live run (2 minutes). **Private**: it holds
+Requests. Written by every live run (every few minutes). **Private**: it holds
 raw addresses; nothing of it is stored in history, and the file holds only
 its window.
 
@@ -368,7 +370,7 @@ A row:
 | `page_view` | bool | counted as a page view in its group |
 | `not_page` | string, only when `kind` is `not_page` | the entry of the not-a-page list that matched: `markdown`, `wp_rest`, `wp_files`, `feeds`, `oembed`, `trackback`, `author_number`, `reply_to_comment`, `sitemap_page` (2.36), or `"own: <entry>"` (the site's own, `site.not_pages_extra`) |
 | `assistant` | string | the AI assistant: the crawler's name, or the assistant a reader came from; `""` |
-| `source` | string | people rows: the source type of the visit the request belongs to (same words as journeys: `AI assistant`, `Search engine`, `Social media`, `Email`, `Other website`, `This site`, `Tagged link`, `Direct or unknown`) - the source of the visit's first page view, or of its first request until a page is read; a page from a new outside source starts a new visit (SOP.md, "What a visit is"), as in the journeys; `""` for every other group |
+| `source` | string | people rows: the source type of the visit the request belongs to (same words as journeys: `AI assistant`, `Search engine`, `Social media`, `Email`, `Other website`, `This site`, `Tagged link`, `Returned from payment`, `Direct or unknown`) - the source of the visit's first page view, or of its first request until a page is read; a page from a new outside source starts a new visit (SOP.md, "What a visit is"), as in the journeys; `""` for every other group |
 | `utm` | object | `{"source","medium","campaign","term","content"}`, only those present |
 | `verified` | string or null | `verified`, `unverified`, `spoofed` for a named assistant or search crawler; null for everyone else |
 | `flags` | `[string]` | any of `hosting_network`, `fan_out`, `bare_mozilla` (fake-browser signs), `probe`, `legacy_path` (an old-site URL kept out of the probes), `old_format` (a line in the old log format, no host or country), `duplicate` (byte-identical to an earlier line in the same second) |
@@ -861,6 +863,16 @@ timeline's rows and steps name it. `conversions.sqlite` is schema 7 (`conversion
 Since 2.27 `today.same_time` holds the last day of the period before Leads' 7, 30 and 90
 days, counted to the file's time of day, so Leads compares today so far and the whole days
 before it like for like; recounted by `audit_conversions_leads.check_same_time`.
+Since #52 a day carries, for finished rows, `pages_at` (the page it happened on), `paths_to`
+(the visit's pages up to it) and `page_link` (how it was tied to its visit: visitor ID, the
+server log's only visit that sent a form at its time, or none, "page not known"); recounted
+by `audit_conversions_page.py`. Since #57 a server-log visit keeps the page each form was sent
+from (`visits.posts_from`, `conversions.sqlite` schema 11; NULL on rows kept before): when kept,
+that is the page, exact, even when the visit's rounded page times cannot tell, and the day's
+`page_form` `{action: n}` counts those (a part of `page_link`'s `server_log`).
+Since #32 `today.periods` holds the leads of the 7, 30 and 90 days that end today, as
+every Leads & sales tab counts them; recounted in one SQL window per period by
+`audit_conversions_leads.check_periods`.
 
 Since 2.32 (revenue on leads) a day carries `revenue` per currency (gross, refunded and net
 minor units; sales, refunds, new customers, renewals; by source, first source, campaign, landing,

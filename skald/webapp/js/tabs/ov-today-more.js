@@ -116,7 +116,7 @@ export function convertedCard(m) {
   const b = f.today;
   const lf = leadsOn(m, [m.today]);
   if (!b || b.day !== m.today) {
-    el.append(cardHead("td-conv-h", "What converted today", "Today's list is written with the next update (every 2 minutes).", go));
+    el.append(cardHead("td-conv-h", "What converted today", "Today's list is written with the next live count, every few minutes.", go));
     return el;
   }
   if (b.state !== "ok" || !lf?.ok) {

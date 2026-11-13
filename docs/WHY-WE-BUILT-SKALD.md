@@ -30,7 +30,7 @@ Skald reads the one record that sees every visit: the web server's own access lo
 - **AI split by why it came:** to train, because someone just asked a question, or a person who clicked a citation.
 - **Crawlers checked, not trusted.** A crawler's name is compared with its owner's published addresses or DNS. A fake is filed as "claims to be GPTBot".
 - **Counted twice.** Every figure is recounted by a separate audit. A day that does not add up is withheld, never guessed.
-- **Live.** "Today so far" is redrawn every 2 minutes (Today, the first choice of the period in the top bar, on every tab), the last 6 hours can be read request by request, and alerts show on the dashboard (and by email, if you want them).
+- **Live.** "Today so far" is counted again every few minutes (Today, the first choice of the period in the top bar, on every tab), the last 6 hours can be read request by request, and alerts show on the dashboard (and by email, if you want them).
 - **Private and yours.** The log needs no script and no cookie in anyone's browser. It runs on your own server. The history keeps totals. Whether visits are also kept with their IP address, and for how long, is your setting (below). One command deletes an address or an email everywhere on request.
 
 ## What it does now

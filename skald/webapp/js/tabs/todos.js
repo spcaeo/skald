@@ -9,6 +9,9 @@
 //   Nothing to fix      one line when nothing is open
 //   right now.
 //
+// A stopped Search Console or Bing sync (#40, kind "search", search/health.py) is a card too,
+// with one button, "Open the settings", and no list or marks: a good sync takes it away.
+//
 // Each card: three plain lines (what is wrong, why it matters, Do: what to do; all written in
 // js/tabs/todo-words.js), its pill (Needs fixing, Failed, Checking, Passed) and two buttons:
 //   Fix this    the one main button: "Who will do it?" (js/tabs/todo-fix.js, todo=<id>&fix=1&
@@ -134,17 +137,24 @@ function card(item, s, redraw) {
   const t = ts[0];
   const w = cardWords(ts, status);
   const shown = shownFor(item, s);
-  const fix = status === "open" || status === "failed";
+  const fix = (status === "open" || status === "failed") && t.kind !== "search";
   return h("article", { class: `td${shown ? " td-on" : ""}${status === "open" ? "" : ` td-${status}`}`, id: `td-${id}`,
     style: { "--tone": status === "open" ? TONES[t.tone] || "var(--ink-3)" : TONE[status] } },
     h("header", { class: "td-head" }, titleOf(id, w.title), PILL[status]()),
     h("p", { class: "td-why" }, w.why),
     h("p", null, h("b", null, "Do: "), w.act),
     ts.length === 1 && markOf(t.id, t.marked)?.withheld ? h("p", { class: "note", role: "note" }, `Shown as done, not fixed: the second count disagreed (${markOf(t.id, t.marked).withheld}).`) : null,
-    h("div", { class: "td-acts" },
+    t.kind === "search" ? h("div", { class: "td-acts" }, settingsButton(t)) : h("div", { class: "td-acts" },
       fix ? h("button", { type: "button", class: "btn primary td-fix", onclick: () => S.set({ todo: id, fix: "1", by: "", fixby: "", link: "" }) }, "Fix this") : null,
       h("button", { type: "button", class: "btn", "aria-expanded": String(shown), onclick: () => S.set({ todo: shown ? "" : id, tdchk: "", tdhist: "", tdbots: "" }) }, shown ? "Close" : "Open")),
-    shown ? openView(item, s, redraw) : null);
+    shown && t.kind !== "search" ? openView(item, s, redraw) : null);
+}
+
+/* #40: a stopped search sync has one action, its settings (the connection, Sync now, the
+   reason in full); no list and no marks: it goes by itself after a good sync. */
+function settingsButton(t) {
+  const go = { tab: t.open.tab, ...Object.fromEntries(Object.entries(t.open).filter(([k]) => !["tab", "name"].includes(k))), todo: "" };
+  return h("button", { type: "button", class: "btn primary td-fix", onclick: () => S.set(go) }, "Open the settings");
 }
 
 /* Open: the list behind the card (the to-do's own table), its quiet link to the tab that
@@ -263,7 +273,8 @@ export function todoSection(m, s) {
   return box;
 }
 
-const ABOUT = "Only what needs fixing on your site now, worst for people first, built only from your server log. "
+const ABOUT = "Only what needs fixing on your site now, worst for people first, built from your server log, "
+  + "and a Search Console or Bing sync that stopped: it goes by itself after a good sync. "
   + "To do: problems over their threshold in the last whole days. Fixes that failed: you marked them fixed, and the log "
   + "still finds the problem on the whole days since. Open shows the list behind each one; Fix this asks who will do it.";
 

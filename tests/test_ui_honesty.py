@@ -64,7 +64,8 @@ class Filters(unittest.TestCase):
 
 class NotSetUp(unittest.TestCase):
     def test_pages_use_the_shared_rules(self):
-        uses = {"events.js": "everSent", "leads.js": "neverRecorded", "funnels.js": "neverRecorded",
+        # #33: leads.js (the lead database's view on Summary) is gone; Leads lists the leads.
+        uses = {"events.js": "everSent", "funnels.js": "neverRecorded",
                 "uptime.js": "heartbeatOn", "quality.js": "quietLimit"}
         for name, fn in uses.items():
             src = (JS / "tabs" / name).read_text()
@@ -86,13 +87,17 @@ class LeadSources(unittest.TestCase):
         # Summary's tiles moved to ov-tiles.js (release 2); the Leads tile still names its count.
         src = (JS / "tabs" / "ov-tiles.js").read_text()
         self.assertIn("function leadSource", src)
-        self.assertIn('lsrc: tools ? "all" : ""', src)
+        # #32: Summary counts leads one way only, so the link carries no "Count from" (lsrc).
+        self.assertIn('tab: "sales/summary", dd: ""', src)
+        self.assertNotIn("lsrc", src)
+        self.assertIn('"Leads only" : "From the lead database"', src)
 
     def test_pipeline_tools_says_overviews_figure_from_the_same_sum(self):
         src = (JS / "tabs" / "sa-pipeline.js").read_text()
         self.assertIn("const got = leadsOn(m,", src)
-        # 2.20: Summary's Leads number (Pipeline's line until 2.18) says it is Overview's figure.
-        self.assertIn("The same figure as Overview's Leads tile.", src)
+        # 2.20: Summary's Leads number (Pipeline's line until 2.18) says it is Overview's figure;
+        # #32: and the Leads tab's, which counts the same leads.
+        self.assertIn("The same figure as the Leads tab and Overview's Leads tile.", src)
         # 2.23: Leads counts the same sum over the file its filters narrow (sa-filters.js figureFile).
         self.assertIn("leadsOn(fm, daysOf(m, r))", (JS / "tabs" / "sa-leads.js").read_text())
         # Overview's tiles sum with the same function.

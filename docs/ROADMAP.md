@@ -16,7 +16,7 @@ P0, P1 and P2 sections further down are the plan as written then; the tables say
 | Five groups that add up to the log, or nothing is sent | Per-visit journeys (7 days) |
 | Readers headline; answer-engine tiers; citations per visit | Hourly charts, day x hour heatmap |
 | Daily history, dashboard, daily and weekly mail | Interactive filters (country, path, source, device, browser, view, UTM) |
-| Today so far (2 minutes), Refresh now | Multi-tab app with animations |
+| Today so far (every few minutes), Refresh now | Multi-tab app with animations |
 | Views by path (one per country or language) | Internal tab: office addresses by label, uptime from heartbeat, response times |
 | Breakdowns: country, browser, OS, device, source, referrer, campaign, landing page, hour | Editable internal list, "add my address" |
 | Site health: status per group, 404s, 5xx, speed, posts | Broken links report: fixed badges, probe grouping |

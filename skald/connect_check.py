@@ -182,7 +182,7 @@ def _recent(f: dict | None) -> str | None:
 def _no_data(c, site: str) -> str:
     from .accounts import site_setup
     method = (site_setup.get(c.db, site) or {}).get("method") or ""
-    return setup_live.NO_DATA.get(method, "Usually it starts within 2 minutes after the data "
+    return setup_live.NO_DATA.get(method, "Usually it starts within a few minutes after the data "
                                           "road is set up.").format(site=site)
 
 

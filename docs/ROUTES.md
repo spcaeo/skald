@@ -77,10 +77,12 @@ Kept while the tab is open (its `keep` list in `js/tabs/s-*.js`).
 | `pchg` | tabs/pagechange.js | Traffic > Pages (with `page`) and Insights: one tracked change open, by its id (`c` and 8 hex, a hash of the site, the page and the day): `#traffic/pages?page=%2Fpricing%2F&pchg=c22e50cf9` (2.35). A change no longer tracked opens the page with one plain line |
 | `nfk`, `nfsrv` | tabs/nf-lost.js | Not found's lost pages: the tab (`md` AI asks for Markdown, `fixed` After the fix; Lost pages when absent) and the server lines (`apache`; nginx when absent) (2.35) |
 | `fn`, `fsrc`, `fstep`, `fmode` | tabs/funnels.js | Funnels: steps, starting source, step open, reached or left |
-| `lsrc`, `lact`, `llabel`, `lstage` | tabs/s-sales.js, sa-options.js | Leads & sales: count from, kind, label, stage |
+| `lact`, `llabel` | tabs/s-sales.js, sa-options.js | Leads & sales: the kind of lead (`demo` is the old Calendar bookings, with its steps), the label. `lsrc` and `lstage` (Summary's Count from and Status) are gone since #32: an old link opens Summary without them |
+| `lpart` | tabs/sa-pipeline.js | Summary: `sources` opens the fold "Every source, touch and time to convert" (the old Sources tab, `#sales/sources`) (#33) |
+| `lfind` | tabs/sa-find.js | Leads: `1` puts the focus in the Find a person box (the old `#sales/people`) (#33) |
 | `lnow`, `lby`, `lshow`, `lview`, `lsplit` | tabs/sa-leads.js | Leads: stage now, source, show left out, the view, the split |
 | `cur`, `rby`, `tag` | tabs/sa-revenue.js | Revenue: the currency (never converted), the breakdown (`by=` before 2.41; an old link is rewritten), one tag `key:value` |
-| `bact`, `bshow` | tabs/sa-bookings.js | Calendar bookings: action, what to show |
+| `bact`, `bshow` | routes.js | Calendar bookings (gone since #33): read once, `#sales/bookings?bact=paid&bshow=test` opens `#sales/leads?lact=paid&lshow=out` |
 | `psec` | tabs/pagestory.js, aiready.js | Traffic > Pages: the part of a page's story to open at; `ai` scrolls to its AI readiness (a row of "Pages AI can't read well" writes it): `#traffic/pages?page=/guides/webhooks/&psec=ai`. Back from the story clears it |
 | `arw` | tabs/aiready.js | AI & bots > Assistants: the filter of "Pages AI can't read well", `copy` (a Markdown copy that does not answer), `404`, `errors` (5xx and other 4xx), `robots` (robots.txt shuts a crawler out), `slow`; all when absent: `#ai/assistants?arw=copy` |
 | `cw`, `chb`, `co` | tabs/crawlhealth.js | Crawl health: 7 or 30 days, crawler, only problems |

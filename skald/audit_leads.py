@@ -38,6 +38,7 @@ from .audit_labels import source_of
 from .classify import AI_LIKELY_MANY, FORM_PAGES, PAID_CLICK_IDS, PAID_MEDIUMS, PRICING_PAGES
 from .config import setting, site_name
 from .leads import NONE, _columns, connect
+from .payment_names import RETURNED
 
 FIELDS = ("aiSource", "referrerHost", "utmSource", "utmMedium", "utmCampaign", "landingPath",
           "gclid", "gbraid", "wbraid", "msclkid", "fbclid")
@@ -166,6 +167,12 @@ def _record(row: tuple) -> dict:
            "visits": visits, "ms": ms, "bucket": row[-2], "n": row[-1],
            "first": _labels(first[0], first[1:-1]), "last": _labels(last[0], last[1:-1])}
     out["first"]["minute"], out["last"]["minute"] = first[-1], last[-1]
+    # Owner's decision 6: a touch back from a payment page is no source. The
+    # first touch is then none; the last touch is the first (the earlier source).
+    if out["first"]["source"] == RETURNED:
+        out["first"] = {**_labels(False, ()), "minute": None}
+    if out["last"]["source"] == RETURNED:
+        out["last"] = dict(out["first"])
     return out
 
 

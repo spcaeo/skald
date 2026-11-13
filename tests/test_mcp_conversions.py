@@ -99,6 +99,49 @@ class Conversions(Base):
                                 **{"from": "2026-10-03", "to": "2026-10-03"})
         self.assertEqual(none["actions"], {})
 
+    def test_by_page_and_by_path(self):
+        """#52: where the demos were booked, from each day's own blocks; a
+        booking with no proven visit is "page not known", never dropped; a
+        path list is cut to the 20 most common; a day written before the
+        blocks is named, never counted as zero."""
+        d = day("2026-10-03", 3, 3, contact=1)
+        d["pages_at"] = {"demo": {"/pricing/": 2, "page not known": 1},
+                         "contact": {"page not known (visit not kept)": 1}}
+        d["paths_to"] = {"demo": {"/ → /pricing/": 2, "page not known": 1},
+                         "contact": {"page not known (visit not kept)": 1}}
+        d["page_link"] = {"demo": {"visitor_id": 1, "server_log": 1, "none": 1},
+                          "contact": {"none": 1}}
+        d["page_form"] = {"demo": 1}            # #57: the server-log one, its form's own page
+        many = day("2026-10-04", 0, 0)
+        many["stages"] = {"demo": {"completed": 25}}
+        many["pages_at"] = {"demo": {"/demo/": 25}}
+        many["paths_to"] = {"demo": {f"/p{i}/ → /demo/": 1 for i in range(25)}}
+        many["page_link"] = {"demo": {"visitor_id": 25}}
+        self.file(days=[day("2026-10-02", 0, 1), d, many], lead_actions=["contact", "demo"],
+                  demo_actions=["demo"])
+        span = {"from": "2026-10-02", "to": "2026-10-04"}
+        text, data = self.run_tool("conversions", by="page", action="demo", **span)
+        self.assertEqual(data["by_source"], {"/demo/": 25, "/pricing/": 2, "page not known": 1})
+        self.assertEqual(sum(data["by_source"].values()), data["actions"]["demo"]["completed"] - 1,
+                         "the day written before the blocks is the one not split")
+        self.assertEqual(data["not_split"], ["2026-10-02"])
+        self.assertEqual(data["page_links"], {"visitor_id": 26, "server_log": 1, "none": 1})
+        self.assertEqual(data["page_from_form"], 1)
+        self.assertIn("Of the server-log ones, 1 took the page the form was sent from", text)
+        self.assertIn("Completed, by the page it happened on: /demo/ 25, /pricing/ 2, "
+                      "page not known 1.", text)
+        self.assertIn("proven link only", text)
+        self.assertIn("Days not split by page", text)
+        _, both = self.run_tool("conversions", by="page", **span)
+        self.assertEqual(both["leads_by"]["page not known (visit not kept)"], 1)
+        text, data = self.run_tool("conversions", by="path", **span)
+        self.assertEqual(len(data["by_source"]), 20)
+        self.assertEqual(list(data["by_source"])[0], "/ → /pricing/")
+        self.assertEqual(data["by_source_more"], {"paths": 8, "completed": 8})
+        self.assertIn("And 8 other paths (8 completed)", text)
+        _, plain = self.run_tool("conversions", **span)
+        self.assertNotIn("page_links", plain, "only by page or path")
+
     def test_not_available(self):
         self.file(available=False, reason="no conversions yet")
         text, data = self.run_tool("conversions")

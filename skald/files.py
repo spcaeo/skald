@@ -1,7 +1,7 @@
 """Writing files other processes read while they are being written.
 
 The dashboard is served while cron rewrites it, and the live snapshot is
-rewritten every two minutes while the dashboard renderer reads it. Both are
+rewritten every few minutes while the dashboard renderer reads it. Both are
 written to a temporary file beside the target and renamed over it, so a
 reader sees the old file or the new one, never half of one.
 

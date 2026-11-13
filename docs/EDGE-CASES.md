@@ -528,7 +528,7 @@ never up.
 - **Status:** Handled, with an index and a site switcher in the app.
 
 ### I5. Dashboard data size
-- **Wrong:** at 10x traffic the live JSON with 1,000 journeys and 30 days of breakdowns grows to megabytes, refreshed every 2 minutes.
+- **Wrong:** at 10x traffic the live JSON with 1,000 journeys and 30 days of breakdowns grows to megabytes, refreshed on every live run.
 - **Status:** ROADMAP P2-1.
 
 ### I6. Refresh now

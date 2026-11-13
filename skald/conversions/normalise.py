@@ -1,7 +1,11 @@
 """A tool's record (adapters/) made into the row the store keeps.
 
 Source, campaign and landing come from the touches by the same rules as a
-reader's visit in the log (dimensions.py). Country: the two letters the
+reader's visit in the log (dimensions.py). A touch back from a payment page
+("Returned from payment", payment_names.py; owner's decision 6) is never a
+lead's source: a last touch from one gives way to the first touch (the
+lead keeps its earlier source), a first touch from one is no first touch,
+and a sender's own source_type of "Returned from payment" is not taken. Country: the two letters the
 sender gave, else looked up from the visitor's address when the sender
 passed one (`ip`: an address, or an X-Forwarded-For list whose first entry
 is taken, geo.address); the address is then dropped. A visitor ID never
@@ -24,6 +28,7 @@ from urllib.parse import parse_qsl, urlencode
 
 from ..classify import AI_UTM, cited_by
 from ..dimensions import DEVICES, SOURCE_TYPES, campaign, device, source_type
+from ..payment_names import RETURNED
 from . import CLICK_ID, CLICK_KINDS, FUTURE_SLACK, geo
 from .adapters import Invalid
 from .store import parse
@@ -60,6 +65,11 @@ def touch_source(touch: dict | None, own_hosts: set[str]) -> str | None:
     return source_type(referrer, url, cited, own_hosts)
 
 
+def kept_touch(touch: dict | None, own_hosts: set[str]) -> dict | None:
+    """The touch, or None when it came back from a payment page."""
+    return touch if touch and touch_source(touch, own_hosts) != RETURNED else None
+
+
 def touch_campaign(touch: dict | None) -> str | None:
     return campaign(_url(touch)) if touch else None
 
@@ -89,7 +99,11 @@ def row(rec: dict, site: str, tool: str, received_at: str, own_hosts: set[str],
         raise Invalid("at is more than a day after it arrived")
     first, last = rec.get("first_touch"), rec.get("last_touch")
     given = rec.get("source_type")
-    src = given if given in SOURCE_TYPES else touch_source(last or first, own_hosts)
+    # The touch a lead's source and campaign read: its last, unless that came
+    # back from a payment page; then its first, unless that did too.
+    kept_first = kept_touch(first, own_hosts)
+    touch = kept_touch(last, own_hosts) or kept_first
+    src = given if given in SOURCE_TYPES and given != RETURNED else touch_source(touch, own_hosts)
     country = str(rec.get("country") or "").strip().upper()
     if not (len(country) == 2 and country.isalpha()) or country in ("XX", "ZZ"):
         ip = geo.address(rec.get("ip"))
@@ -99,8 +113,8 @@ def row(rec: dict, site: str, tool: str, received_at: str, own_hosts: set[str],
                                         if rec.get("user_agent") else None)
     out = {"site": site, "tool": tool, "action": rec["action"], "stage": rec["stage"],
            "at": at, "vid": rec.get("vid"), "external_ref": rec["external_ref"],
-           "source_type": src, "first_source": touch_source(first, own_hosts),
-           "campaign": rec.get("campaign") or touch_campaign(last or first),
+           "source_type": src, "first_source": touch_source(kept_first, own_hosts),
+           "campaign": rec.get("campaign") or touch_campaign(touch),
            "landing": _path({"landing": rec.get("landing")}) or _path(first) or _path(last),
            "country": country or None, "device": dev,
            "first_touch_at": rec.get("first_touch_at") or (first or {}).get("at"),

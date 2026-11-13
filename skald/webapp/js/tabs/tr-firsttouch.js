@@ -14,7 +14,7 @@ import { shown } from "../labels.js";
 import { blist, countTable, fileName } from "./common.js";
 import { tiles } from "./tiles.js";
 
-const NAMES = { "(none)": "No referrer", "(not kept)": "Referrer not kept (linked by the 30-day code)", "(this site)": "This site" };
+const NAMES = { "(none)": "No referrer", "(not kept)": "Referrer not kept (linked by the 30-day code)", "(this site)": "This site", "(payment page)": "A payment page (returned from paying)" };
 const label = (k) => NAMES[k] || shown(k);
 const LINK = { vid: "the visitor ID", address: "the kept address and browser", hash: "the 30-day code" };
 

@@ -2,8 +2,8 @@
 // with its copy icon and the tool's name, every step, the button for owners and admins only
 // (never a viewer or an editor), its confirm step, the POST it sends, the toast, and the same
 // part in every drawer that shows a lead or a conversion: Leads' lead drawer, the visitor
-// drawer's "Leads and conversions", Find a person, the Conversions lists and Calendar
-// bookings' rows.
+// drawer's "Leads and conversions", Find a person and the Conversions lists (Calendar
+// bookings' rows went with its tab, #33).
 //
 //   node tests/js/leadref.mjs
 import assert from "node:assert/strict";
@@ -21,7 +21,6 @@ const R = await import(new URL("tabs/leadref.js", JS));
 const L = await import(new URL("tabs/sa-leads.js", JS));
 const V = await import(new URL("tabs/visitor.js", JS));
 const P = await import(new URL("tabs/person.js", JS));
-const B = await import(new URL("tabs/sa-bookings.js", JS));
 const LI = await import(new URL("tabs/sa-lists.js", JS));
 const text = (el) => (el == null ? "" : typeof el === "string" ? el : el.textContent);
 const tick = () => new Promise((r) => setTimeout(r, 5));
@@ -144,11 +143,6 @@ const drawers = {
   },
   async "the Conversions lists drawer"() { return P.openConversionList("test"); },
   async "a Conversions list's row"() { return LI.openConvKey(`test.${(await import(new URL("routekeys.js", JS))).codeOf(["test", LIST.rows[0].at, "signup", "completed", "lead", "u-555"].join("|"))}`); },
-  async "Calendar bookings' row"() {
-    const rows = [{ id: 31, ref: "inv-1", at: "2026-10-22T09:00:00-04:00", action: "demo", stage: "completed", tool: "calendly", test: false },
-      { id: 30, ref: "inv-1", at: "2026-10-22T08:00:00-04:00", action: "demo", stage: "started", tool: "calendly", test: false }];
-    return B.openStep(rows[0], rows);
-  },
 };
 const holder = (got) => {
   if (got?.parts) { const box = document.createElement("div"); box.append(...got.parts); return box; }

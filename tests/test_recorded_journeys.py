@@ -330,6 +330,27 @@ class QueriesAndAudit(Base):
         self.assertEqual([(v["day"], v["seq"]) for v in back], [("2026-10-11", 3)])
         self.assertEqual(nobody, [], "another address: never linked")
 
+    def test_linked_sessions_and_visits_newest_first(self):
+        """#55: a visit's recorded sessions, and a session's kept visits, newest on top
+        (no limit here: every linked one is listed)."""
+        later = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+        self.assertEqual(self.post(event("session_started", O + 60, session_id=later,
+                                         ip="203.0.113.9"))[0], 201)
+        db = cstore.connect(self.folder / "conversions.sqlite")
+        try:
+            for seq, start, end in ((3, O - 5, O + 100), (4, O + 50, O + 95)):
+                db.execute("INSERT INTO visits (site, day, seq, ip, start, end, source, landing, "
+                           "pages, trail) VALUES ('example.com', '2026-10-11', ?, '203.0.113.9', "
+                           "?, ?, 'Search', '/', 1, '[]')", (seq, at(start), at(end)))
+            found = queries.for_visit(db, "example.com", {"start": at(O - 5), "end": at(O + 100),
+                                                          "ip": "203.0.113.9"})
+            back = queries.log_visits(db, "example.com", found[-1]["ref"])
+        finally:
+            db.close()
+        self.assertEqual(len(found), 2)
+        self.assertGreater(found[0]["start"], found[1]["start"], "the later session on top")
+        self.assertEqual([v["seq"] for v in back], [4, 3], "the later visit on top")
+
 
 class Daily(Base):
     def test_daily_audit_matches(self):

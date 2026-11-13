@@ -482,3 +482,4 @@ from . import tools_yourtools  # noqa: E402,F401 - your_tools: figures from your
 from . import tools_addsite  # noqa: E402,F401 - add_site, site_progress, check_site, send_invites (2.44)
 
 from . import tools_search  # noqa: E402,F401 - search_performance (2.48)
+from . import tools_journeys  # noqa: E402,F401 - page_journeys (2.49, #51)

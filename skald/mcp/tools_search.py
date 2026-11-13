@@ -149,21 +149,21 @@ def _dates(args, newest: str | None) -> tuple[date, date]:
     return first, last
 
 
+WORDS = {"off": "not connected", "waiting": "connected, not synced yet",
+         "answering": "answering", "failing": "last try failed",
+         "not_answering": "never answered", "stopped": "stopped answering"}
+
+
 def state_words(status: dict, source) -> str:
-    """The sync's state in the words your_tools uses."""
-    if not source:
-        return "not connected"
-    if not status.get("last_sync"):
-        return "connected, not synced yet"
-    if status.get("ok"):
-        return "answering"
-    if status.get("last_ok"):
-        return "last try failed"
-    return "stopped answering"
+    """The sync's state in the words your_tools uses (search/health.py's rule: "stopped
+    answering" only after a day, or health.STOPPED_TRIES tries, of failures since it worked)."""
+    from ..search import health
+    return WORDS[health.status(status, source)["state"]]
 
 
 def engine_state(ctx, site: str, engine: str, db) -> dict:
-    """{"source", "state", "last_answer", "error", "stored"} for one engine."""
+    """{"source", "state", "last_answer", "error", "stopped", "reason", "what_to_do",
+    "stored"} for one engine."""
     from ..search import days as sd, state, sync
     folder = ctx.history_path.parent if ctx.history_path is not None else None
     status = (state.load(folder, site).get(engine) or {}) if folder else {}
@@ -171,9 +171,12 @@ def engine_state(ctx, site: str, engine: str, db) -> dict:
     stored = sd.summary(db, site, engine)
     if source is None and stored["days"]:
         source = "(stored earlier)"
+    from ..search import health
+    st = health.status({**status, "engine": engine}, source)
     return {"engine": engine, "name": sync.ENGINE_NAMES[engine], "source": source,
-            "state": state_words(status, source), "last_answer": status.get("last_ok"),
+            "state": WORDS[st["state"]], "last_answer": status.get("last_ok"),
             "last_try": status.get("last_sync"), "error": status.get("error"),
+            "stopped": st["stopped"], "reason": st["reason"], "what_to_do": st["advice"],
             "stored": stored}
 
 

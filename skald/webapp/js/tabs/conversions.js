@@ -11,7 +11,8 @@
 
 import { h, n, short, pct1, reduced, ICON } from "../ui.js";
 import { shown } from "../labels.js";
-import { rangeOf } from "../data.js";
+import { salesRange } from "./sa-period.js";
+import { rateOf, NOT_COMPARABLE } from "./sa-rate.js";
 import { stamp } from "../tz.js";
 import { head, rangeWords, fixed } from "./common.js";
 import { table } from "../table.js";
@@ -113,7 +114,6 @@ export function everSent(f) {
   return seen;
 }
 
-const rateOf = (a, b, min) => (b >= min ? pct1(a, b) : null);
 
 // Every action side by side ("What people did"): only the columns this site can fill.
 function actions(t, f, min) {
@@ -129,8 +129,8 @@ function actions(t, f, min) {
     return { k: a, started, done, abandoned: t.abandoned[a] || 0, cancelled: (st.cancelled || 0) + (st.no_show || 0), won: st.won || 0, lost: st.lost || 0,
       sales: curs.reduce((x, c) => x + (m[c]?.sales || 0), 0), value: m,
       // Starts come only from the page's script; a completion your server or a tool reported
-      // has no start to match it (#26: freshlycited's 84 sign-ups against 25 starts read 100%).
-      mixed: Object.keys(t.by.tool?.[a] || {}).some((k) => k !== "beacon") };
+      // has no start to match it (#26: 84 sign-ups against 25 starts read 100%): sa-rate.js.
+      rate: rateOf({ started, done, tools: t.by.tool?.[a] || {} }, min) };
   });
   const starts = ever.has("started");
   const valueOf = (e) => curs.filter((c) => e.value[c]).map((c) => money(e.value[c].net, c, f)).join(" · ");
@@ -138,11 +138,9 @@ function actions(t, f, min) {
     starts ? { key: "started", label: "Started", num: true, fmt: (v) => (v ? n(v) : h("span", { class: "few" }, "not seen")) } : null,
     { key: "done", label: "Completed", num: true },
     starts ? { key: "abandoned", label: "Abandoned", num: true } : null,
-    starts ? { key: "rate", label: "Completion rate", num: true, sort: (e) => (e.started >= min && !e.mixed ? e.done / e.started : null),
-      fmt: (_, e) => (!e.started ? h("span", { class: "few" }, "no starts seen")
-        : e.mixed ? h("span", { class: "few", title: "Starts are seen by the page's script; some completions came from your site's server or a tool, with no start to match. A rate would mix the two." }, "not comparable")
-          : rateOf(Math.min(e.done, e.started), e.started, min) ?? h("span", { class: "few" }, `too few to say (${n(e.started)})`)),
-      csv: (e) => (e.started >= min && !e.mixed ? (Math.min(e.done, e.started) / e.started).toFixed(4) : "") } : null,
+    starts ? { key: "rate", label: "Completion rate", num: true, sort: (e) => e.rate.rate,
+      fmt: (_, e) => (e.rate.rate != null ? e.rate.words : h("span", { class: "few", title: e.rate.why || null }, e.rate.words)),
+      csv: (e) => (e.rate.rate == null ? "" : e.rate.rate.toFixed(4)) } : null,
     ever.has("cancelled") || ever.has("no_show") ? { key: "cancelled", label: "Cancelled or no-show", num: true } : null,
     ever.has("won") ? { key: "won", label: "Won", num: true } : null,
     ever.has("lost") ? { key: "lost", label: "Lost", num: true } : null,
@@ -154,6 +152,7 @@ function actions(t, f, min) {
   if (ever.has("money")) notes.push("Sales and Value are the sales of each action in the period (a sale counts on the day it was paid), less refunds, per currency: the Revenue tab's figures.");
   if (t.moneyHeld) notes.push(`The sales of ${n(t.moneyHeld)} day${t.moneyHeld === 1 ? "" : "s"} are withheld: the second count disagreed.`);
   if (t.moneyOld) notes.push("Days counted before 2.46.3 do not split their sales by action: their sales are on the Revenue tab only.");
+  if (rows.some((e) => e.rate.words === NOT_COMPARABLE)) notes.push("Not comparable: starts are seen only by the page's script, and some completions came from your site's server, the lead database or a booking tool, with no start to match.");
   if (starts) notes.push(`Abandoned: started with a visitor ID and not completed by the same browser within ${f.abandon_hours || 24} hours (a start still inside that window is not counted yet; a start without a visitor ID cannot be judged). A rate is given over at least ${min} starts, and only for an action whose completions all came from the page's script: starts are seen only by the script tag, so a completion your server or a tool reported has no start to match (“not comparable”); an action only a tool reports has none. A browser's repeat of the same start within ${f.repeat_minutes || 30} minutes is kept once, so Started can be lower than Events' count of the same event, which counts every one.`);
   return [h("div", { class: "sheet" }, table(cols, { caption: "What people did", rows, file: "conversions-by-action.csv", search: false, limit: 12, sortKey: "done" })),
     h("p", { class: "note" }, notes.join(" "))];
@@ -285,7 +284,8 @@ function timeline(f) {
 }
 
 export default function conversions(m, s) {
-  const r = rangeOf(m, s);
+  // The section's one period (sa-period.js): today included.
+  const r = salesRange(m, s);
   const out = [...head("Conversions", r, "Every action that counts, from the page's script tag, the tools' webhooks and the lead database: started, completed, abandoned, and where the completed ones came from.", { banner: false })];
   const f = m.x.conversions;
   const guide = [howTo("webhooks", "How do I connect Calendly, Stripe, a form tool or my own site?"), howTo("leads-and-conversions", "What do started, completed and abandoned mean?")];

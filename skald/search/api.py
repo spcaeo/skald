@@ -50,7 +50,7 @@ from pathlib import Path
 from .. import auth_api, integrations_api as base, settings_store
 from ..auth_api import answer, csrf_ok, read_json, text
 from ..conversions import secrets_store
-from . import bing, days, google, http, props, state, sync
+from . import bing, days, google, health, http, props, state, sync
 
 PATH = re.compile(base.PAGE + r"(?P<act>integrations/search(?:/(?:googlekey|googleremove|"
                               r"bingkey|bingremove|properties|test|connect|disconnect|sync))?)$")
@@ -203,8 +203,9 @@ def overview(c, form):
                     summary = days.summary(history.db, site, engine)
             except Exception:           # noqa: BLE001 - an older or busy file
                 summary = {}
-        part = saved.get(engine) or {}
+        part = {k: v for k, v in (saved.get(engine) or {}).items() if k != "tries"}
         engines[engine] = {"connected": sources[engine], "status": part, "summary": summary,
+                           "health": health.of(saved, engine, sources[engine]),
                            "busy": state.is_busy(c.folder, site)}
     return c.ok(site=site, sites=base.managed(c), install_admin=c.install_admin,
                 hosts=_hosts(c, site), locked=base._locked(c, site),

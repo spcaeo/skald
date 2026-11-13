@@ -339,7 +339,7 @@ Served by the refresh helper with `access.mode: sessions` (404 otherwise), for e
 | --- | --- | --- |
 | `GET recorded?first=D&last=D` | every member who reads the site | the period's sessions (newest first, at most 500) and their figures, recounted; at most 400 days. Address and email for owners and admins only |
 | `GET recorded/session?ref=R` | every member | one session, every event (`R`: `s` and 12 hex); owners and admins also get the log visits linked by address, and the view is audited (`recorded.session`) |
-| `GET recorded/visit?day=D&seq=S` | owners and admins | the sessions linked to one kept log visit; audited (`recorded.visit`, a count, never a value) |
+| `GET recorded/visit?day=D&seq=S[&at=]` | owners and admins | the sessions linked to one kept log visit (`at`, #56: its start, checked as `people/visitor` does); audited (`recorded.visit`, a count, never a value) |
 | `GET recorded/status` | owners and admins | connected or not (and where the secret lives), the receiver's, the withdraw and the helper's addresses, the last event received, the last 30 days' counts |
 | `POST recorded/connect` | owners and admins, same origin, CSRF | make or rotate the secret, shown once; audited (`hook.secret`). 409 when the config reads it from the environment |
 

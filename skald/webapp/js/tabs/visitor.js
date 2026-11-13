@@ -416,7 +416,9 @@ export async function openVisitor(key) {
   const d = openDrawer({ title: "Visitor", subtitle: " ", key: "visitor", scope: "page", className: "vz-dw", route: vis ? { key: "vis", value: vis } : null });
   draw(d, fromJourney(j), "Anonymous: no address, no browser string, no identifier on this page.");
   if (mayFind()) import("./recorded.js").then((x) => x.visitRecorded(d, j, null)).catch(() => {});
-  const url = j.day && j.seq != null ? `people/visitor?day=${encodeURIComponent(j.day)}&seq=${encodeURIComponent(j.seq)}` : "";
+  // at: the visit's start as shown, so the server never opens another visit whose place moved (#56).
+  const at = /^\d{4}-\d\d-\d\dT\d\d:\d\d/.exec(String(j.start || ""))?.[0];
+  const url = j.day && j.seq != null ? `people/visitor?day=${encodeURIComponent(j.day)}&seq=${encodeURIComponent(j.seq)}${at ? `&at=${encodeURIComponent(at)}` : ""}` : "";
   const ask = url && (mayFind() || (DEMO.on && demoFile(url)));
   if (!ask) {
     if (url && !mayFind()) d.body.append(h("p", { class: "note" }, "Admins and owners see every visit of this visitor here, where the site keeps addresses."));

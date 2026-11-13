@@ -14,7 +14,7 @@ with the usual envelope, everything else is written as normal, and the
 failure is kept in `builder-errors.json` beside the history: which file,
 the message, since when. quality.json lists them (`builders_failing`) so the
 data-quality panel can show it. The traceback goes to the run's log once,
-when a file starts failing or its error changes - not every 2 minutes.
+when a file starts failing or its error changes - not on every live run.
 """
 from __future__ import annotations
 

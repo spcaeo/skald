@@ -1,5 +1,5 @@
 // #31: a lead's profile in its drawer (Leads & sales > Leads, owners and admins: who, every
-// step with its time and value, their visits in order, proven or likely), and the Lead /
+// step with its time and value, newest first, their visits newest first (#55), proven or likely), and the Lead /
 // Customer pill on Traffic > Visitors (the list and the visitor drawer; proven visits only).
 // Shaped on freshlycited.com lead 1179. Addresses RFC 5737, emails at example.com.
 //
@@ -65,7 +65,14 @@ assert.match(words, /Who/);
 assert.match(words, /Nate Example/);
 assert.match(words, /nate@example\.com/);
 assert.match(words, /Everything they did/);
-assert.ok(words.indexOf("xray completed") < words.indexOf("signup paid"), "every step, oldest first");
+assert.ok(words.indexOf("signup paid") < words.indexOf("xray completed"), "every step, newest first (#55)");
+// #55: whatever order the steps come in, the newest is on top (the same time: the higher id).
+const mixed = P.profileParts({ ...PERSON, conversions: [
+  { id: 1, tool: "lead", external_ref: "u_1", action: "contact", stage: "started", at: "2026-11-01T09:00:00Z" },
+  { id: 3, tool: "lead", external_ref: "u_1", action: "demo", stage: "completed", at: "2026-11-11T09:00:00Z" },
+  { id: 2, tool: "lead", external_ref: "u_1", action: "contact", stage: "completed", at: "2026-11-01T09:00:00Z" }] });
+const did = mixed[1].querySelectorAll("tbody tr").map((r) => r.textContent);
+assert.ok(did[0].includes("demo completed") && did[1].includes("contact completed") && did[2].includes("contact started"), `newest on top: ${did}`);
 assert.match(words, /\$49\.00 USD/, "a step's value");
 assert.match(words, /First came from Search engine · bing\.com/);
 assert.match(words, /Proven/);
@@ -90,7 +97,7 @@ let d = top();
 assert.ok(asked.includes("people?q=u_1"), `asked by the reference: ${asked}`);
 const prof = fold(d, "Their profile");
 assert.ok(prof && (prof.open || prof.hasAttribute("open")), "the profile, open");
-assert.match(prof.textContent, /Their visits, in order/);
+assert.match(prof.textContent, /Their visits, newest first/);
 assert.match(prof.textContent, /\/bing-webmaster-tools\/ai-performance-report › \/contact\//, "the pages in order");
 assert.match(prof.textContent, /audit log/);
 const hash = decodeURIComponent(location.hash);

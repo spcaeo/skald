@@ -92,13 +92,15 @@ class Traffic(unittest.TestCase):
 
 
 class SameWordsForTwoFigures(unittest.TestCase):
-    def test_leads_and_summary_say_why_they_differ(self):
+    def test_leads_and_summary_count_the_same_leads(self):
+        # #32: Leads and Summary used to show two numbers for "7 days" and a note said why
+        # ("so their figures differ"). Now both count the lead actions of one file over the
+        # one period (sa-period.js salesRange): the note is gone, and each says it is the other's.
         live = code(TABS / "sa-period.js").split("export function liveNote", 1)[1]
-        self.assertIn("so their figures differ", live)
-        self.assertIn("no demos booked", live)
-        leads = code(TABS / "leads.js")
-        self.assertIn("otherFigure(s, r)", leads)
-        self.assertIn('tab: "sales/leads"', leads.split("function otherFigure", 1)[1])
+        self.assertNotIn("so their figures differ", live)
+        self.assertFalse((TABS / "leads.js").exists(), "the lead database's second view is gone")
+        self.assertIn("The same figure as the Leads tab and Overview's Leads tile.", code(TABS / "sa-pipeline.js"))
+        self.assertIn("The count is the Leads figure, the same as Summary's", code(TABS / "sa-leads.js"))
 
     def test_retention_tile_names_the_weeks_of_the_chip(self):
         src = code(TABS / "tr-retention.js")

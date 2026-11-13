@@ -137,7 +137,7 @@ working.
 | 404 | `{"ok": false, "error": "no such file"}` | the page or file does not exist |
 
 Answers are `application/json`, never cached (`Cache-Control: no-store`).
-Files are rewritten every 2 minutes by the live run; `generated_at` in each
+Files are rewritten by the live run, every few minutes; `generated_at` in each
 says when. A field may be added without notice; one is never renamed or
 removed without a new `schema_version` (DATA-CONTRACT.md).
 

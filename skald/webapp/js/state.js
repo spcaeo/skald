@@ -113,7 +113,9 @@ export const defaultRange = (tab) => SECTION_RANGE[String(tab || "").split("/")[
    named, so it follows the period (a move to Today drops it, a move back brings it) and
    hashFor leaves it out. Named (picked, or turned off: cmp=off), it is written while it
    differs from the period's default. */
-export const defaultCmp = (s) => (!["today", "all"].includes(s.range) && s.inc !== "1" ? "prev" : "");
+// #32: Leads & sales counts every period up to today (tabs/sa-period.js), so its tabs are never
+// compared by default either: each compares like for like itself.
+export const defaultCmp = (s) => (!["today", "all"].includes(s.range) && s.inc !== "1" && String(s.tab || "").split("/")[0] !== "sales" ? "prev" : "");
 // Every key read() knows, for the route keys' test (tests/js/routes.mjs).
 export const KNOWN = () => [...Object.keys(DEFAULT).filter((k) => k !== "tab"), ...FILTERS];
 

@@ -250,7 +250,7 @@ class TestLiveStaysOutOfTheDailyRun(LiveCase):
 
 
 class TestLiveCost(LiveCase):
-    """Run every two minutes, it must stay cheap on a busy log: only the
+    """Run every few minutes, it must stay cheap on a busy log: only the
     files that can hold today are opened, and yesterday's lines are parsed
     but never classified."""
 

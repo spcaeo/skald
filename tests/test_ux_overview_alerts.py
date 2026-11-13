@@ -31,7 +31,7 @@ def code(path: Path) -> str:
 class Node(unittest.TestCase):
     @unittest.skipUnless(shutil.which("node"), "node is not installed")
     def test_alerts_and_setup_line_in_node(self):
-        for name in ("si-alerts", "ov-setup"):
+        for name in ("si-alerts", "ov-setup", "closed-alerts"):     # closed-alerts: #55
             done = subprocess.run(["node", str(ROOT / "tests" / "js" / f"{name}.mjs")], capture_output=True, text=True, timeout=60)
             self.assertEqual(done.returncode, 0, done.stderr)
             self.assertIn(f"{name}: all passed", done.stdout)

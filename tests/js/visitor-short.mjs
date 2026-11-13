@@ -20,9 +20,9 @@ const J = { day: day(20), seq: 14, start: T(20, "10:00"), end: T(20, "10:04"), s
   first_touch: { by: "address", day: day(8), source: "Social", via: "reddit.com", landing: "/blog/" } };
 const kept = (d, extra = {}) => ({ day: day(d), seq: d, start: T(d, "09:00"), end: T(d, "09:03"), source: "Direct", landing: "/", trail: [["/", "page", 0]], pages: 1, seconds: 20, country: "CA", device: "Mobile", browser: "Safari", os: "iOS", ...extra });
 const VISITS = { ok: true, found: true, visits: [{ ...J, first_touch: undefined }, kept(16), kept(12), kept(8, { source: "Social", via: "reddit.com", landing: "/blog/" })], leads: [], conversions: [] };
-let asks = 0;
+let asks = 0, asked = "";
 globalThis.fetch = async (path) => {
-  if (String(path).startsWith("people/visitor")) { asks++; return { ok: true, status: 200, json: async () => structuredClone(VISITS) }; }
+  if (String(path).startsWith("people/visitor")) { asks++; asked = String(path); return { ok: true, status: 200, json: async () => structuredClone(VISITS) }; }
   return { ok: false, status: 404, json: async () => ({ ok: false, error: "not found" }) };
 };
 const tick = (ms = 15) => new Promise((r) => setTimeout(r, ms));
@@ -58,6 +58,8 @@ assert.match(V.stateLine(booked), /^1 visit, on one day\./);
 // ---- open from a visit: state first, two visits, Show all (4)
 await load("#traffic/visitors?range=7d");
 await V.openVisitor(J);
+// #56: the visit is asked for by its place and its start, so a moved place never opens another visit.
+assert.equal(asked, "people/visitor?day=2026-10-20&seq=14&at=2026-10-20T10%3A00");
 await tick(40);
 let d = top();
 assert.equal(qOf().get("vis"), `${day(20)}.14`);

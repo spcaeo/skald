@@ -318,7 +318,7 @@ def view_snapshot(snap: dict | None, slug: str) -> dict | None:
         return None
     out = {k: snap[k] for k in ("version", "site", "timezone", "day", "from",
                                 "generated_at", "parsed", "lines_read", "unparsed",
-                                "ours_rules", "journey_days")
+                                "ours_rules", "journey_days", "every_s")
            if k in snap}
     out.update(entry)
     out.setdefault("events", [])

@@ -661,9 +661,36 @@ window is `ai_read_names.WINDOW_SECONDS` (30): see `COUNTING-TRAPS.md` trap 21.
 
 `dimensions.source_type` (and, on the audit's own road,
 `audit_labels.source_of`) gives each visit one of: AI assistant, Search
-engine, Social media, Email, Other website, This site, Tagged link, Direct
-or unknown (the stored name; shown to a person as Direct, see
-`skald/labels.py`). A referrer decides first. With none, the tags do:
+engine, Social media, Email, Other website, This site, Tagged link,
+Returned from payment, Direct or unknown (the stored name; shown to a person
+as Direct, see `skald/labels.py`). A referrer decides first. With
+none, the tags do:
+
+- **Returned from payment** (owner's decision 6, 11 Nov 2026; issue #34). A
+  referrer whose host is a payment page is a buyer coming back from paying,
+  not a new source. The hosts are one list, `skald/payment_names.py`
+  `PAYMENT_HOSTS`: `checkout.stripe.com`, `paypal.com` with `www.paypal.com`
+  and `checkout.paypal.com`, compared whole (`stripe.com` itself, its docs
+  or dashboard, stays Other website). A site whose checkout runs on a host of
+  its own that is not in `site.hosts` lists it in `site.checkout_hosts`
+  (it then needs `site.hosts` set). Such a page:
+  - never opens a new visit inside the visit gap: like a page from the site
+    itself, it continues the open visit, whose source stays the one it came
+    with (`dimensions.INSIDE_SOURCES`; on the audit's road `audit._elsewhere`).
+    Choice: a buyer who leaves for the payment page and comes back within 30
+    minutes made one visit; splitting it would add a reader that is not
+    there and hand the visit's later pages, and any lead in it, to the
+    payment page;
+  - after the gap it is a visit of its own, of source "Returned from
+    payment", never Other website: no referral is counted. Its referrer
+    label is `(payment page)`, one row, never the payment host (the visit's
+    `via` still names the host, so the visit says where it came back from);
+  - a lead or sale made after it keeps the source of the visit before it
+    (the same visitor ID's page views, or the touches the sender gave):
+    "Returned from payment" is never a lead's source or first touch
+    (`conversions/normalise.py`, `conversions/fill.py`, `leads.py`; second
+    counts `audit_filled.py`, `audit_leads.py`). It assists no lead either.
+  Not recounted for past days: a recount (`skald recount`) applies it.
 
 - **Search engines** are named by their real domains (`google.com`,
   `google.de`, `google.co.uk`, `google.com.au`, `bing.com`, ...), never by
@@ -820,7 +847,8 @@ a 30-minute gap; for people, a page view arriving from a new outside source (an
 assistant, another website, a search engine, social, email, a tagged link)
 that differs from the visit's first page's source, referrer and campaign starts
 a new visit (SOP.md, "What a visit is"). A same-site or no-referrer page never
-does. A household or an office behind one address is one visit; one
+does, nor does a page back from a payment page ("Returned from payment",
+above). A household or an office behind one address is one visit; one
 person moving from wifi to mobile data is two.
 
 **New engines appear constantly.** An assistant that launched last month is in

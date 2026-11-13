@@ -21,7 +21,7 @@
 
 import { h, n, short, pct1 } from "../ui.js";
 import * as S from "../state.js";
-import { rangeOf } from "../data.js";
+import { salesRange, periodDays } from "./sa-period.js";
 import { table } from "../table.js";
 import { label as valueLabel } from "../drill.js";
 import { fixed } from "./common.js";
@@ -55,8 +55,10 @@ function words(dim, k) {
 }
 
 /* The numbers. t: the currency's totals; v: visitors of the same days; pick: a tag's own
-   [key, value, {net_minor, sales}] when one is chosen. */
-function numbers(t, cur, f, v, okCount, pick) {
+   [key, value, {net_minor, sales}] when one is chosen. live: {net, v, count} over the period's
+   whole days when it ends today (#32): today's visitors are not whole until the day is, so
+   revenue per visitor is both figures over the whole days, and says so. */
+function numbers(t, cur, f, v, okCount, pick, live = null) {
   const min = minRate(f);
   if (pick) {
     const [k, val, x] = pick;
@@ -67,9 +69,10 @@ function numbers(t, cur, f, v, okCount, pick) {
       { label: "Refunds, customers, renewals", value: null, info: off, line: off },
     ]);
   }
-  const pv = perVisitor(t.net_minor, v, okCount, min);
-  const pvLine = pv != null ? `${money(t.net_minor, cur, f)} over ${plural(v.visitors, "visitor")}, the same ${plural(v.days, "day")}`
-    : v.days !== okCount ? "the visitors are not whole on every day of these figures" : `too few visitors to say (${n(v.visitors)}, under ${n(min)})`;
+  const [net, vv, count] = live ? [live.net, live.v, live.count] : [t.net_minor, v, okCount];
+  const pv = perVisitor(net, vv, count, min);
+  const pvLine = pv != null ? `${money(net, cur, f)} over ${plural(vv.visitors, "visitor")}, the same ${plural(vv.days, "day")}${live ? ", today left out until it is whole" : ""}`
+    : vv.days !== count ? "the visitors are not whole on every day of these figures" : `too few visitors to say (${n(vv.visitors)}, under ${n(min)})`;
   return tiles([
     { label: "Net revenue", value: money(t.net_minor, cur, f), info: `The value of the sales, less what was refunded in the period. ${SUM_WORDS}`, more: HELP,
       line: t.refunded_minor ? `${money(t.gross_minor, cur, f)} sold, ${money(t.refunded_minor, cur, f)} refunded` : `${money(t.gross_minor, cur, f)} sold, nothing refunded` },
@@ -136,7 +139,8 @@ function lifetime(f, cur) {
 }
 
 export default function revenue(m, s) {
-  const r = rangeOf(m, s);
+  // The section's one period (sa-period.js, #32): today included.
+  const r = salesRange(m, s);
   const top = tabHead("Revenue", QUESTION, r, { help: HEAD_HELP, more: HELP, source: "payments" });
   const f = convFile(m);
   const howTo = ["How to send value and currency", HELP];
@@ -149,7 +153,7 @@ export default function revenue(m, s) {
     return [...top, none()];
   }
   if (!hasRevenue(f)) return [...top, none()];
-  const wanted = r.kind === "today" ? [m.today] : r.days.map((d) => d.day);
+  const wanted = periodDays(m, r);
   const got = revenueDays(f, wanted);
   const out = [...top];
   if (got.held.length) out.push(bad(heldWords(got.held)));
@@ -186,7 +190,10 @@ export default function revenue(m, s) {
   ], { notes, help: HELP }));
   if (s.tag && !pick && !tagKey) out.push(h("p", { class: "note" }, `No ${cur} sale in this period carries the tag ${asked ? (asked[1] ? `${asked[0]} = ${asked[1]}` : asked[0]) : String(s.tag)}. `,
     h("button", { type: "button", class: "linkish", onclick: () => S.set({ tag: "" }) }, "Show every tag")));
-  out.push(h("section", { class: "s" }, numbers(t, cur, f, visitorsOn(m, got.ok), got.ok.length, pick)), others(list, cur, totals, f));
+  // A period that ends today: revenue per visitor over its whole days (today's visitors are not whole yet).
+  const whole = r.live ? got.ok.filter((d) => d.day !== m.today) : null;
+  const live = whole && whole.length && whole.length < got.ok.length ? { net: sumRevenue(whole)[cur]?.net_minor || 0, v: visitorsOn(m, whole), count: whole.length } : null;
+  out.push(h("section", { class: "s" }, numbers(t, cur, f, visitorsOn(m, got.ok), got.ok.length, pick, live)), others(list, cur, totals, f));
   out.push(breakdown(t, cur, f, dim, tagKey));
   out.push(orphans(f));
   out.push(lifetime(f, cur));

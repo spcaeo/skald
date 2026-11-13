@@ -237,7 +237,7 @@ Owners and admins add a site in two short steps. Open **Settings > Organisation 
 
 When your server asks for proof that the domain is yours, a **Prove it's yours** step comes between the two: add the DNS TXT record or the meta tag it shows, then press **Check now**. You can go on without waiting. When no proof is needed, there is no such step.
 
-In **Connect it**, **Live progress** ticks itself while the dialog is open, each line with its time: your agent opened the line, the keys were made and taken, the data road was set up (for example **Vercel log drain**), the first data was received (how many lines in the last 15 minutes, and the newest time), the domain was verified, and the set-up is done. It asks every 5 seconds, every 30 seconds after 2 minutes, and not while the tab is hidden. **Check now** asks at once and says in plain words what is missing, for example **No data yet. Usually it starts within 2 minutes after the drain is saved.** The technical details are behind a fold. When Skald refused what was sent, it says why in plain words, without a press. **Live progress** is the step's one check: Add a site has no **Test connection** of its own.
+In **Connect it**, **Live progress** ticks itself while the dialog is open, each line with its time: your agent opened the line, the keys were made and taken, the data road was set up (for example **Vercel log drain**), the first data was received (how many lines in the last 15 minutes, and the newest time), the domain was verified, and the set-up is done. It asks every 5 seconds, every 30 seconds after 2 minutes, and not while the tab is hidden. **Check now** asks at once and says in plain words what is missing, for example **No data yet. Usually it starts within a few minutes after the drain is saved.** The technical details are behind a fold. When Skald refused what was sent, it says why in plain words, without a press. **Live progress** is the step's one check: Add a site has no **Test connection** of its own.
 
 When it is done, it says **Receiving data** in green, with **Open the dashboard**, **Invite the people who will use it**, and who gets an invite. The dialog's last button says **Close**, never **Finish later**. A link to a done set-up opens on this done state. Before that, **Finish later** closes the dialog; nothing is lost. Settings › Sites and Overview's **Set up example.com** show the same state as a label: **Waiting for data** or **Receiving data**.
 
@@ -386,7 +386,7 @@ A Next.js site on its own nginx, Apache or LiteSpeed server also gets one more l
 
 A site is ready when a real visit shows up the way you expect:
 
-1. In a private window, open the site and click two links inside it. Within about 2 minutes, Overview shows the visit and Traffic › Visitors lists it with every page you clicked. On a Next.js site, if only the first page shows, the line above is missing.
+1. In a private window, open the site and click two links inside it. Within a few minutes, Overview shows the visit and Traffic › Visitors lists it with every page you clicked. On a Next.js site, if only the first page shows, the line above is missing.
 2. Do the same on a phone on mobile data, in a new private tab (a tab that is already open shows the page from memory and sends nothing).
 3. **Settings > To do** lists nothing left for the site (and Overview's **Set up** list is ticked), or only lines marked optional on purpose.
 4. If the site sends leads: a lead sent with `"test": true` is listed under Left out and not counted.

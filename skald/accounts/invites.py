@@ -135,10 +135,10 @@ def accept(db, token, name, password) -> dict:
 
 
 def pending(db, org_id) -> list[dict]:
-    """Unused invites of the organisation, with "expired" for the old ones."""
+    """Unused invites of the organisation, newest first, with "expired" for the old ones."""
     got = base.rows(db, "SELECT email, role, invited_by, created_at, expires_at, sites "
                         "FROM invites WHERE org_id = ? AND used_at IS NULL "
-                        "ORDER BY created_at, email", (org_id,))
+                        "ORDER BY created_at DESC, email", (org_id,))
     stamp = base.now()
     for row in got:
         row["expired"] = row["expires_at"] <= stamp

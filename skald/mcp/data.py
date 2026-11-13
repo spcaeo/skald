@@ -162,7 +162,7 @@ class Context:
             doc = json.loads(path.read_text())
         except (OSError, ValueError):
             raise Refused(f"{name}.json could not be read just now (it is rewritten every "
-                          "2 minutes); try again.")
+                          "few minutes); try again.")
         if isinstance(doc, dict) and doc.get("state") == "error":
             raise Refused(f"{name}.json could not be built on the last run "
                           f"({doc.get('error') or 'no reason given'}); its figures are not "

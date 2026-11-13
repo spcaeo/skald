@@ -68,6 +68,14 @@ class InviteTest(AccountsCase):
             invites.accept(self.db, token, "New", GOOD_PW)
         self.assertTrue(invites.pending(self.db, self.org["id"])[0]["expired"])
 
+    def test_pending_newest_first(self) -> None:
+        """#55: the pending invites, the newest on top (no limit here: every one is listed)."""
+        for email in ("a@example.com", "b@example.com", "c@example.com"):
+            invites.invite(self.db, self.org["id"], email, "viewer", actor="cli")
+            self.tick(seconds=60)
+        self.assertEqual([p["email"] for p in invites.pending(self.db, self.org["id"])],
+                         ["c@example.com", "b@example.com", "a@example.com"])
+
     def test_unknown(self) -> None:
         for token in ("", None, "nonsense"):
             with self.assertRaisesRegex(ValueError, "not valid"):

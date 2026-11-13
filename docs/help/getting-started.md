@@ -90,7 +90,7 @@ On **Site › Requests**, the script tag's own events to Skald (`/traffic-beacon
 
 ### The optional script tag
 
-If your site adds the `skald.js` script tag, Skald also counts what happens inside a page: button clicks, form steps, demo bookings, links out, and visitors who reach three quarters of a page. These show on [Leads & sales > Events](#sales/events). The log's figures never depend on the tag. See [Tracking script](tracking-script.md).
+If your site adds the `skald.js` script tag, Skald also counts what happens inside a page: button clicks, form steps, demo bookings, links out, and visitors who reach three quarters of a page. These show on [Traffic > Events](#traffic/events). The log's figures never depend on the tag. See [Tracking script](tracking-script.md).
 
 ## The menu
 
@@ -100,7 +100,7 @@ The sidebar has six sections. Each section has tabs along its top.
 | --- | --- |
 | Overview | Summary (with Right now on top), Insights |
 | Traffic | Visitors, Sources, Pages, Places & devices, Search, Retention, Time |
-| Leads & sales | Leads, Summary, Sources, Revenue, Calendar bookings, Funnels, Events, Find a person |
+| Leads & sales | Leads, Summary, Revenue, Funnels |
 | AI & bots | Assistants, Crawlers, Crawl health, AI answers, Crawler rules, llms.txt |
 | Security | Is anything exposed?, Your stack, Who is scanning us?, Attack attempts, Fake browsers, Block list, Alerts |
 | Site | Health, Alerts, Requests, Not found, Speed, Data quality |
@@ -153,7 +153,7 @@ On a phone or a tablet the icons are always shown. They never open the row's own
 
 The top bar has seven controls: the page's name, the period, **Compare**, then on the right **Filters** (with a count of the filters on), **Search or jump to**, the alerts bell and **More** (the three dots: **Recount today now**, **Saved views** and **Export**). Two of them change what every figure covers:
 
-- **Today**, the first choice of the period, sets every tab to today so far, redrawn every 2 minutes, with a live dot. On Overview it shows today live: Right now (the people on the site now), today's figures against yesterday at the same time of day, then the map, the newest visits and the flow ([Today, live](real-time.md#today-live)). Turn it off to go back to the period you had.
+- **Today**, the first choice of the period, sets every tab to today so far, counted again every few minutes, with a live dot. On Overview it shows today live: Right now (the people on the site now), today's figures against yesterday at the same time of day, then the map, the newest visits and the flow ([Today, live](real-time.md#today-live)). Turn it off to go back to the period you had.
 - **Compare with…** puts another period beside this one. It is on by default: a period of whole days is set against the one before it. See Compare, below. It shows only on a tab that compares.
 
 When your site reports leads (a form, a booking), they show beside the visitors on Overview > Summary, Traffic > Sources, Traffic > Pages, Traffic > Places & devices and Overview > Insights, not only under Leads & sales. See [Leads on every page](leads-and-conversions.md#leads-on-every-page).
@@ -211,7 +211,7 @@ Every figure is counted twice, by two separate roads. A day is shown only when b
 
 A withheld day is never shown as zero. A figure that was not recorded is left blank, not zero. It is never guessed. When a period holds such days, the page says how many and which.
 
-Something your site has never sent shows **Not set up**, with one line on how to set it up, never 0 or 0%: an event the tracking tag never sent (Leads & sales > Events), a kind of lead the lead store never recorded (Summary, Funnels), a heartbeat that never ran (Site > Health), or page speed never tested (Site > Speed).
+Something your site has never sent shows **Not set up**, with one line on how to set it up, never 0 or 0%: an event the tracking tag never sent (Traffic > Events), a kind of lead the lead store never recorded (Summary, Funnels), a heartbeat that never ran (Site > Health), or page speed never tested (Site > Speed).
 
 On [Site > Data quality](#site/quality), the reasons a day is **Worth a look** or **Not trusted** are listed above the days, each with how many days it covers. A stretch with no log line counts only when it is long for your site: an hour at least, and longer on a quiet site, where a night's lull is normal.
 
@@ -266,7 +266,7 @@ Use the arrow keys and Enter, or click. The search only lists names; the figures
 
 ### Find a person
 
-Owners and admins can also find one person. Type an IP address, an email or a lead number in the search: **Find a person** is the first result. You see that person's visits, leads and conversions. Each search is written to the audit log. See [Privacy](privacy.md).
+Owners and admins can also find one person. Type an IP address, an email or a lead number in the search: **Find a person** is the first result. The same box is at the top of Leads & sales > Leads. You see that person's visits, leads and conversions. Each search is written to the audit log. See [Privacy](privacy.md).
 
 ## Drill-down
 
@@ -277,6 +277,7 @@ Select any country, city, page, source, AI assistant, campaign, referring site, 
 - Keep selecting inside the panel to narrow further.
 - At the top of the panel, **Go to** links jump to its visits and how they moved, a page's sources and its story, the Visitors tab filtered to it, and the tab that lists it.
 - In the latest visits, each page of a visit opens that page's panel.
+- On **Today**, the panel reads the newest count as it opens and says how old it is (**5 visits today so far, as of 17:24**). Latest visits are newest first.
 - Step back with the panel's **Back** button, the trail at the top, or the browser's Back button. Closing the panel (Esc or the cross) leaves the tab as it was, so the browser's Back button then goes to the tab and filters you came from.
 
 When the panel has visits behind it, **How these visitors moved** draws them as a flow map. See [Visitor flow](getting-started.md#visitor-flow).
@@ -342,7 +343,7 @@ Overview > Summary and Traffic > Pages answer one question: did what you changed
 
 Under the title of [Overview > Summary](#overview/summary) and [Traffic > Pages](#traffic/pages) one line gives the exact dates; its **(i)** says what the period means and since when the site is measured. The two options for the period have one place each:
 
-- **Include today**: the switch at the start of the line under the title, one press. With 7, 30 or 90 days, the period ends today and counts today so far, and the title's line says so ("Last 7 days including today ..."). Off, it ends yesterday and counts whole days only. It shows only where it changes the figures: Summary and Pages at 7, 30 or 90 days. It is kept in the address (`inc=1`) and stays on as you move between Summary and Pages.
+- **Include today**: the switch at the start of the line under the title, one press. With 7, 30 or 90 days, the period ends today and counts today so far, and the title's line says so ("Last 7 days including today ..."). Off, it ends yesterday and counts whole days only. It shows only where it changes the figures: Summary and Pages at 7, 30 or 90 days. It is kept in the address (`inc=1`) and stays on as you move between Summary and Pages. Leads & sales has no switch: on all four of its tabs, 7, 30 and 90 days always include today so far (see [One period on every tab](leads-and-conversions.md#one-period-on-every-tab)).
 - **Compare**: the top bar's Compare menu (**vs previous period** when on). It puts the same number of days just before beside the period.
 
 The line says the dates in words. On 15 Jan:
@@ -449,7 +450,7 @@ Letters to use after `g`:
 | l | Overview > Summary on Today (live) |
 | c | Overview > Summary compared with the previous period |
 | v, s, p, d, t | Traffic > Visitors, Sources, Pages, Places & devices, Time |
-| e, x, f, n | Leads & sales > Leads, Calendar bookings, Funnels, Events |
+| e, x, f, n | Leads & sales > Leads, Leads with What: Demos, Funnels; Traffic > Events |
 | b | AI & bots > Assistants |
 | h, a, r, k, w, q | Site > Health, Alerts, Requests, Not found, Speed, Data quality |
 | u | Settings > This site > Site > Internal traffic |
@@ -467,7 +468,7 @@ The full list of hosts, with what each one lets Skald see: [Hosting](https://git
 
 ## How fresh the figures are
 
-The foot of every page says when the data was last updated, and when the next update is due. Today's figures are recounted about every two minutes. Yesterday becomes a whole day after the morning's daily run.
+The foot of every page says when the data was last updated, and when the next update is due. Today's figures are recounted every few minutes; **Refresh now** counts this site at once. Yesterday becomes a whole day after the morning's daily run.
 
 If your server allows it, **More** > **Recount today now** recounts today at once.
 

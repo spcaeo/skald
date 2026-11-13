@@ -47,6 +47,8 @@ export function demoFile(url) {
   if (path === "people/leads") return DEMO.api.people["people/leads"] || null;
   // Security's addresses: one answer for every period too (the tab keeps the rows of its days).
   if (path === "people/security") return DEMO.api.people["people/security"] || null;
+  // A visitor's timeline is keyed by its day and number; the start the page adds (at, #56) is the server's check.
+  if (path === "people/visitor") return DEMO.api.people[`people/visitor?day=${encodeURIComponent(p.get("day") || "")}&seq=${encodeURIComponent(p.get("seq") || "")}`] || null;
   if (path.startsWith("people/")) return DEMO.api.people[String(url)] || null;
   // Settings > Connections: the set-up list's two answers and the tokens, one each for the site.
   if (path === "settings" || path === "integrations" || path === "tokens") return DEMO.api.setup[path] || null;

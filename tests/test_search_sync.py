@@ -1,7 +1,7 @@
 """The search sync (search/sync.py, days.py, google.py, bing.py, state.py)
 against a fake Google and Bing on 127.0.0.1 (search_support.py): the token
 flow, paging, retries, the first sync and the next one re-fetching the last
-days and the provisional ones, sums that hold, one mail per run of failures,
+days and the provisional ones, sums that hold, one mail when a sync stops and one when it is back,
 the lock, the host check, Bing's tables, and the second road
 (audit_search.py) catching a planted error. No real API is ever called."""
 from __future__ import annotations
@@ -22,7 +22,7 @@ import search_support as ss  # noqa: E402
 
 from skald import audit_search  # noqa: E402
 from skald.conversions import secrets_store  # noqa: E402
-from skald.search import bing, days, google, http, state, sync  # noqa: E402
+from skald.search import bing, days, google, health, http, state, sync  # noqa: E402
 from skald.store import History  # noqa: E402
 
 SITE = "alpha.example"
@@ -173,17 +173,22 @@ class Google(Base):
         self.assertIn("has no access to this property", s["error"])
         self.assertIn(ss.EMAIL, s["error"])
         self.assertNotIn(ss.TOKEN, s["error"])
-        self.assertEqual(len(self.mails), 1)
-        self.assertIn("Search Console sync failing", self.mails[0]["Subject"])
+        self.assertEqual(self.mails, [], "#40: one failed try after a good sync mails nobody")
+        for _ in range(health.STOPPED_TRIES - 1):
+            self.assertEqual(sync.run(self.job(), "google"), 1)
+        self.assertEqual(len(self.mails), 1, "stopped: one mail")
+        self.assertIn("Search Console sync stopped", self.mails[0]["Subject"])
         self.assertEqual(sync.run(self.job(), "google"), 1)
-        self.assertEqual(len(self.mails), 1, "one mail per run of failures")
+        self.assertEqual(len(self.mails), 1, "one mail per stop, never one per try")
         self.assertEqual(s["days"], 28, "what was synced stays")
         self.engines.props[f"sc-domain:{SITE}"] = "siteRestrictedUser"
         self.assertEqual(sync.run(self.job(), "google"), 0)
-        self.assertIsNone(self.state()["error_mailed"])
+        self.assertEqual(len(self.mails), 2, "and one when it works again")
+        self.assertIn("Search Console sync back", self.mails[1]["Subject"])
+        self.assertIsNone(self.state()["stopped_mailed"])
         del self.engines.props[f"sc-domain:{SITE}"]
         sync.run(self.job(), "google")
-        self.assertEqual(len(self.mails), 2, "a new run of failures mails again")
+        self.assertEqual(len(self.mails), 2, "a new failure mails only once it counts as stopped")
 
     def test_lock(self):
         with state.lock(self.folder, SITE):

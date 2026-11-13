@@ -234,10 +234,11 @@ def track(db, site: str, found: list, now: datetime) -> None:
 
 
 def open_items(db, site: str) -> list[dict]:
-    """[{item, kind, title, todo, first_at}] open now on `site`, the oldest first."""
+    """[{item, kind, title, todo, first_at}] open now on `site`, the newest first (#55)."""
     _ready(db)
     rows = db.execute("SELECT item, kind, title, todo, first_at FROM security_items WHERE "
-                      "site = ? AND closed_at IS NULL ORDER BY first_at, item", (site,)).fetchall()
+                      "site = ? AND closed_at IS NULL ORDER BY first_at DESC, item",
+                      (site,)).fetchall()
     return [dict(zip(("item", "kind", "title", "todo", "first_at"), r)) for r in rows]
 
 
@@ -402,7 +403,7 @@ def public(db, site: str) -> dict:
     """For the page: the open items with their ids (for ?item=)."""
     _ready(db)
     rows = db.execute("SELECT item, kind, title, first_at FROM security_items WHERE site = ? AND "
-                      "closed_at IS NULL ORDER BY first_at", (site,)).fetchall()
+                      "closed_at IS NULL ORDER BY first_at DESC, item", (site,)).fetchall()
     return {"open": [dict(zip(("item", "kind", "title", "first_at"), r)) for r in rows]}
 
 

@@ -123,16 +123,17 @@ The assistant chooses these tools itself. Dates are in your site's own time zone
 | `funnel` | A saved funnel, or steps you name, over the last 7 days and today |
 | `compare` | Two date ranges side by side, up to 400 days |
 | `page_story` | One page since it was published: first Googlebot, first AI crawler, first person, first lead; Googlebot's and Bingbot's latest fetch with the status it got; time on page from the log (median seconds to the next page view), per day and over the whole days |
-| `live_today` | Today so far, from the 2-minute snapshot (partial, never compared) |
+| `live_today` | Today so far, from the live snapshot, written every few minutes (partial, never compared) |
 | `data_quality` | Per day: whether the log was read whole and passed its checks |
 | `site_health` | Open alerts, heartbeat uptime, errors today, late runs, page speed |
-| `conversions` | Demos, forms, sign-ups and payments by stage: started, completed, abandoned, won, lost. The completed ones and the leads, by source, first touch, landing page, country, campaign, device or tool |
+| `conversions` | Demos, forms, sign-ups and payments by stage: started, completed, abandoned, won, lost. The completed ones and the leads, by source, first touch, landing page, country, campaign, device or tool, or by the page it happened on (`by: page`) and the pages read before it in that visit (`by: path`, the 20 most common). Only a sure link to the visit is used; a booking without one shows as "page not known", never left out. A form sent from your site has its page kept beside it (since schema 11), so its page is known even when the visit's page times are rounded together; days kept before stay as they were |
 | `what_changed` | Summary's **What changed: is it working?**: visits by source and by landing page against the period before, with the biggest rise and drop. Only when both periods are whole |
 | `todos` | **Overview > Insights**' to-do list: what to fix, its proof, what to do, and whether each is to do, marked done (fixed or not yet) or not now. Give an id for the list behind one to-do |
 | `lost_pages` | **Site > Not found**: old addresses still asked for, the closest live page and the nginx or Apache line to copy; also the Markdown copies AI asked for, and the addresses marked fixed |
 | `page_changes` | The changes marked with **+ Mark a change** on a page, and for each the days before against the days after: up, down, no clear change or too early to tell |
 | `ai_readiness` | **Pages AI can't read well**, worst first; or one page's **AI readiness**: robots.txt for each main AI crawler, errors, the Markdown copy, the sitemap and the last AI read |
 | `changed_pages` | Summary's **New and updated pages**: pages changed in the last 30 days, their visits and search visits since, and whether Google fetched them |
+| `page_journeys` | For one or more pages: how people came to each (landed on it from search, AI, a link or directly, or the page they read just before), where they went next or whether they left, who they were (new or returning, lead or customer) and the newest visits, each with its pages in order. Visits carry no address. Days before the oldest kept visit are named, never counted as 0 |
 | `find_person` | One person by IP address, email, visitor ID or lead: their visits, leads and conversions. Only with **Reading visitor addresses**; each search goes to the audit log |
 | `setup_left` | What is left to set up for a site: the site's open set-up lines on [To do](#settings/todo), each with its dialog's address, and the job an AI agent can do for it |
 | `setup_line` | Makes the one set-up line for an AI agent, for the jobs you name. Only with **Set-up lines (AI agent)**; see below |

@@ -1,6 +1,6 @@
 """Recent requests: every request of the last few hours, one row each.
 
-The "Recent requests" tab. Each live run (every 2 minutes) keeps the
+The "Recent requests" tab. Each live run (every few minutes) keeps the
 requests of the last `requests.window_hours` hours (6), newest first, at most
 `requests.cap` rows (5,000): when, from where, what was asked and answered,
 the group it was counted in and - in words - the rule that put it there,
@@ -282,7 +282,8 @@ class Feed:
         # the source of the visit's first page view (as journeys label it),
         # or of its first request until a page is read. A page from a new
         # outside source starts a new visit, as in the journeys.
-        self.own = {h.lower() for h in own_hosts}
+        # A list from the config, or dimensions.SiteHosts (its checkout hosts kept).
+        self.own = dim.site_hosts(own_hosts, getattr(own_hosts, "checkout", ()))
         self.gap = timedelta(minutes=gap_minutes)
         self.visits: dict[tuple[str, str], dict] = {}
         # What the alert check reads (alerts.py): per minute, all requests,
@@ -390,7 +391,6 @@ def before_midnight(config: dict, feed: Feed, midnight: datetime, now: datetime,
     """Feed the part of the window before today's midnight, classified over
     yesterday's whole window (as collect will). `upto`: the live run's byte
     limits (parse.read)."""
-    from .config import setting
     from .parse import geo_database, one_click, read
     from .window import ordered_classifier, within, window_paths
     if feed.cutoff >= midnight:
@@ -409,7 +409,7 @@ def before_midnight(config: dict, feed: Feed, midnight: datetime, now: datetime,
         config, lambda: within(read(paths, fmt, upto=upto, page_rules=rules), tz_day_start,
                                midnight),
         tz_day_start, midnight)
-    wanted = {str(h).lower() for h in (setting(config, "site", "hosts") or [])}
+    wanted = dim.hosts_of(config)
     for hit in one_click(within(read(paths, fmt, geo=geo_database(config), upto=upto,
                                      page_rules=rules), feed.cutoff, midnight)):
         if wanted and hit.host and hit.host.lower() not in wanted:

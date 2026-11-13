@@ -454,7 +454,8 @@ def summarise_views(
     counted, the same way.
     """
     from .quality import Quality
-    wanted = {h.lower() for h in (hosts or [])}
+    # The site's hosts, carrying its own checkout hosts (payment_names.py).
+    wanted = dim.site_hosts(hosts, (options or {}).get("checkout_hosts"))
     whole = Tally(session_gap_minutes, tz, wanted, options)
     whole.quality = Quality(tz)
     tallies = {name: (test, Tally(session_gap_minutes, tz, wanted, options))

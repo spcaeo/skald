@@ -235,7 +235,9 @@ def build(history: History, key: str, site: str, tz, now: datetime, snap: dict |
     if snap:
         state = snap.get("state")
         out["live"] = {"state": state, "day": snap.get("day"), "generated_at": snap.get("generated_at"),
-                       "from": snap.get("from"), "problems": snap.get("problems", [])}
+                       "from": snap.get("from"), "problems": snap.get("problems", []),
+                       # Seconds between live counts, measured (runs.py, #54): the footer's "next".
+                       "every_s": snap.get("every_s")}
         if state == "ok":
             out["live"]["figures"] = from_snapshot(snap)
             out["live"]["events"] = snap.get("events") or []

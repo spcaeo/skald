@@ -166,7 +166,7 @@ Whoever runs the server can do the same from a shell. In Docker, put `docker exe
 | `skald ours edit "Office Mac" --label "Office" --address 192.0.2.20` | Change the label, the address, or both |
 | `skald ours delete "Office Mac" --yes` | Delete it |
 
-The commands never print an address: lines are shown by label. The page shows a change within two minutes.
+The commands never print an address: lines are shown by label. The page shows a change within a few minutes.
 
 ## Related guides
 

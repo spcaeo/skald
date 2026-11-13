@@ -20,7 +20,7 @@ import { call } from "./ipmanager.js";
 import { sessions } from "../access.js";
 import { DEMO } from "../demo.js";
 
-export const NEXT = "Saved. It applies from the next live run, within 2 minutes.";
+export const NEXT = "Saved. It applies from the next live count, within a few minutes.";
 // The settings keys (config.yml's alerts section), never shown as words.
 export const MASTER = `alerts.${"enabled"}`, MAIL = `alerts.${"mail"}`, LEAST = `alerts.${"sale_minimum"}`;
 export const BASIC = "Set in the server's config file (the alerts section). With accounts, an admin switches them here.";

@@ -12,6 +12,8 @@ import re
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qsl, urlsplit
 
+from .payment_names import CHECKOUT_KEY, PAYMENT_HOSTS, PAYMENT_REFERRER, RETURNED
+
 if TYPE_CHECKING:                       # the type only, never the code
     from .audit import Line
 
@@ -126,13 +128,34 @@ def _tags(url: str) -> dict:
         return {}
 
 
-def source_of(line: Line, cited: bool, own: set) -> str:
+# payment_names.PAYMENT_HOSTS as a referrer's host reads here (no "www.").
+_PAYMENT = {h[4:] if h.startswith("www.") else h for h in PAYMENT_HOSTS}
+
+
+def pay_hosts(config: dict) -> set:
+    """The site's own checkout hosts (payment_names.CHECKOUT_KEY), lower
+    case: one name or a list."""
+    raw = ((config or {}).get(CHECKOUT_KEY[0]) or {}).get(CHECKOUT_KEY[1]) or []
+    return {str(h).strip().lower() for h in ([raw] if isinstance(raw, str) else raw)
+            if str(h).strip()}
+
+
+def _paid_from(host: str, pay) -> bool:
+    """A payment page: the shared list, or the site's own `pay` hosts
+    (site.checkout_hosts, read by the caller)."""
+    return host in _PAYMENT or any(
+        host == (p[4:] if p.startswith("www.") else p) for p in (pay or ()))
+
+
+def source_of(line: Line, cited: bool, own: set, pay=()) -> str:
     if cited:
         return "AI assistant"
     host = _bare(line.referrer) if line.referrer else ""
     if host:
         if host in own or "www." + host in own:
             return "This site"
+        if _paid_from(host, pay):
+            return RETURNED
         if host in _MAIL_HOSTS:
             return "Email"
         if _GOOGLE_SEARCH.search(host) or re.search(
@@ -181,12 +204,14 @@ _CLICKS = (("gclid", "Search engine", "google / cpc / (gclid)"),
            ("twclid", "Social media", "x / (twclid) / -"))
 
 
-def referrer_of(line: Line, own: set) -> str:
+def referrer_of(line: Line, own: set, pay=()) -> str:
     host = _bare(line.referrer) if line.referrer else ""
     if not host:
         return "(none)"
     if host in own or "www." + host in own:
         return "(this site)"
+    if _paid_from(host, pay):
+        return PAYMENT_REFERRER
     # Google's AI Mode: a Google search referrer, and udm=50 in the
     # referrer's query or the landing URL's. Only when it is there.
     if _GOOGLE_SEARCH.search(host) and host not in _MAIL_HOSTS and any(

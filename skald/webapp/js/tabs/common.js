@@ -130,7 +130,7 @@ export function ownPeriod(p, r, fallback = "last 30 whole days") {
 export function nothing(m, r, what = "figures") {
   if (r.kind === "today") {
     const L = m.live;
-    if (!L || L.day !== m.today) return stateNote(`No live ${what} for today yet. The live count runs every two minutes; press Refresh now to run it at once.`);
+    if (!L || L.day !== m.today) return stateNote(`No live ${what} for today yet. The live count runs every few minutes; Refresh now counts this site at once.`);
     if (L.state === "withheld") return stateNote(`Withheld: today's ${what} so far do not add up, so none are shown. ${(L.problems || []).join(" ")}`, true);
     if (L.state === "empty") return stateNote("No requests logged yet today.");
   }

@@ -87,7 +87,7 @@ const OS = [
   [/windows/i, "windows", "#0078d4"], [/mac/i, "command", "#555555"], [/ios|ipad|iphone/i, "i", "#555555"], [/android/i, "An", "#3ddc84"],
   [/chrome ?os/i, "C", "#1a73e8"], [/linux|ubuntu/i, "L", "#333333"],
 ];
-const SOURCE = { "AI assistant": "sparkle", "Search engine": "search", "Social media": "people", Email: "mail", "Other website": "link", "This site": "home", "Tagged link": "tag", "Direct or unknown": "arrow" };
+const SOURCE = { "AI assistant": "sparkle", "Search engine": "search", "Social media": "people", Email: "mail", "Other website": "link", "This site": "home", "Tagged link": "tag", "Returned from payment": "money", "Direct or unknown": "arrow" };
 const DEVICE = { desktop: "desktop", mobile: "mobile", tablet: "tablet", bot: "bot" };
 const PAGE = [
   [/^\/?$|^\/ca\/?$|^\/ca\/fr\/?$/, "home"], [/pricing|credits|plans?\b/i, "money"], [/compare|alternative|-vs-|\/vs\//i, "scales"],

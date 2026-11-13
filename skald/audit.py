@@ -46,13 +46,15 @@ from urllib.parse import urlsplit
 from .classify import (AI_ASKED, AI_REFERRER_HOSTS, AI_REFERRER_PATHS, AI_TRAINING, AI_UTM,
                        OTHER_BOT,
                        OWN_AGENTS, PROBE, PROBE_QUERY, SEARCH_ENGINE, SECRET_PROBE)
+from .payment_names import RETURNED
 from .store import History, READER_KINDS
 from . import (audit_cities, audit_drains, audit_extras, audit_more, audit_not_pages,
                audit_page_time, audit_release2, audit_rendered, audit_too_fast, audit_tools,
                audit_visits)
 # The audit's own labels (moved out whole; still audit.browser_of etc.).
 from .audit_labels import (_bare, _host_of, browser_of, campaign_of,  # noqa: F401
-                           device_of, referrer_of, source_of, status_of, system_of)
+                           device_of, pay_hosts, referrer_of, source_of, status_of,
+                           system_of)
 
 GROUPS = ("people", "answer_engines", "search_engines", "bots", "ours")
 DIMS = ("country", "browser", "os", "device", "source", "referrer", "campaign",
@@ -446,6 +448,8 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
     files = [Path(p) for p in paths] if paths else log_files(config)
     site = config.get("site") or {}
     wanted = {str(h).lower() for h in (site.get("hosts") or [])}
+    # site.checkout_hosts (payment_names.CHECKOUT_KEY): the site's own payment pages
+    pay = pay_hosts(config)
     gap = timedelta(minutes=int((config.get("report") or {}).get(
         "session_gap_minutes") or 30))
 
@@ -513,7 +517,7 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
     def close(visit: list) -> None:
         nonlocal visits, readers
         visits += 1
-        labels = _reader(visit, by, wanted, tz, cities)
+        labels = _reader(visit, by, wanted, tz, cities, pay)
         readers += labels is not None
         journeys.visit([i[0] for i in visit], is_page)
         more.visit([i[0] for i in visit], is_page, labels)
@@ -524,7 +528,7 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
         visit: list = []
         came = None             # where the visit's first page came from
         for item in seen:
-            here = _came_from(item, wanted) if is_page(item[0]) else None
+            here = _came_from(item, wanted, pay) if is_page(item[0]) else None
             if visit and (item[0].when - visit[-1][0].when > gap
                           or _elsewhere(here, came)):
                 close(visit)
@@ -615,7 +619,7 @@ def recount_alert_figures(config: dict, tz, kept: dict, paths=None,
     return got
 
 
-def _came_from(item: tuple, wanted: set) -> tuple | None:
+def _came_from(item: tuple, wanted: set, pay=()) -> tuple | None:
     """A page view's source, referrer and campaign, by the audit's labels;
     None when the site's hosts are not known, so its own links cannot be
     told from outside ones."""
@@ -623,16 +627,18 @@ def _came_from(item: tuple, wanted: set) -> tuple | None:
     own = wanted or ({line.host.lower()} if line.host else set())
     if not own:
         return None
-    return source_of(line, cited, own), referrer_of(line, own), campaign_of(line.url)
+    return (source_of(line, cited, own, pay), referrer_of(line, own, pay),
+            campaign_of(line.url))
 
 
 def _elsewhere(here: tuple | None, came: tuple | None) -> bool:
     """SOP.md "What a visit is": inside the gap, a page from outside the
-    site (not from the site itself, not without referrer and tag) that came
-    from somewhere other than the visit's first page opens a new visit."""
+    site (not from the site itself, not without referrer and tag, not back
+    from a payment page) that came from somewhere other than the visit's
+    first page opens a new visit."""
     if here is None or came is None:
         return False
-    return here[0] not in ("This site", "Direct or unknown") and here != came
+    return here[0] not in ("This site", "Direct or unknown", RETURNED) and here != came
 
 
 def _landing(visit: list, extras) -> None:
@@ -641,7 +647,7 @@ def _landing(visit: list, extras) -> None:
         extras.visit(first, f"{browser_of(first.agent)}/{system_of(first.agent)}")
 
 
-def _reader(visit: list, by: dict, wanted: set, tz, cities=None) -> dict | None:
+def _reader(visit: list, by: dict, wanted: set, tz, cities=None, pay=()) -> dict | None:
     """Label the visit's first page view in every dimension: its labels,
     or None if it read no page. `cities`: the audit's own city fill
     (audit_cities.fill), when a city file is set."""
@@ -655,8 +661,8 @@ def _reader(visit: list, by: dict, wanted: set, tz, cities=None) -> dict | None:
         "browser": browser_of(line.agent),
         "os": system_of(line.agent),
         "device": device_of(line.agent),
-        "source": source_of(line, cited, own),
-        "referrer": referrer_of(line, own),
+        "source": source_of(line, cited, own, pay),
+        "referrer": referrer_of(line, own, pay),
         "campaign": campaign_of(line.url),
         "landing": line.path[:70],
         "hour": f"{line.when.astimezone(tz).hour:02d}",

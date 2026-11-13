@@ -50,7 +50,7 @@ A funnel can also end with lead steps: Opened Book a demo, Sign-up, Contact form
 
 The chart keeps each kind of step on its own scale, under its own heading. Page steps are visits, each bar a share of the visits at step 1. Lead steps (and beacon event steps) are drawn apart, against the longest bar of their own group, and the heading says how many that is: they are never a share of the visits.
 
-A lead step your site has never recorded or sent, or an event step it has never sent, shows **Not set up** with one line on what is missing, never 0. Demo bookings often come from the booking tool rather than the lead database: they are on [Leads & sales > Calendar bookings](#sales/bookings).
+A lead step your site has never recorded or sent, or an event step it has never sent, shows **Not set up** with one line on what is missing, never 0. Demo bookings often come from the booking tool rather than the lead database: they are on [Leads & sales > Leads](#sales/leads?lact=demo) with **What: Demos**.
 
 On a site without a lead database, **Add a step** lists every action your site has sent under "A lead, sent by your site" (a sign-up, a contact, or your own, such as a free trial). The built-in funnel **Landing to lead** has lead steps too: landed, a sign-up or contact page, then demo opened, lead and demo booked. It has no pricing step since 2.46.4: on a site without a pricing page every later step read 0. Add one to a saved funnel when your site has one.
 
@@ -110,7 +110,7 @@ A goal is an event from the tracking script that counts as success for you, such
 
 You need to be an admin of the site.
 
-1. Open [Leads & sales > Events](#sales/events) and select **Edit goals** beside the Goals heading. Or open **Settings > This site > Data > Script tag & goals** ([Script tag & goals](#settings/site/data?sub=script)).
+1. Open [Traffic > Events](#traffic/events) and select **Edit goals** beside the Goals heading. Or open **Settings > This site > Data > Script tag & goals** ([Script tag & goals](#settings/site/data?sub=script)).
 2. In the **Goals** box, tick the events that count as success, such as **Sign-up sent** or **Demo booked**. Up to 10.
 3. Select **Save**.
 
@@ -122,7 +122,7 @@ Goals show from the next run, for every day already counted. To have no goal, un
 
 ### Where goals show
 
-Open [Leads & sales > Events](#sales/events) and choose a date range. The **Goals** section has one table per goal:
+Open [Traffic > Events](#traffic/events) and choose a date range. The **Goals** section has one table per goal:
 
 - **Source**, **Visits** from that source, the goal's events, and **Per 100 visits**.
 - The heading gives the whole site's rate.
@@ -136,11 +136,11 @@ How to read it:
 
 If no goal is set, the section says so, with a link to set one.
 
-For conversions from all sources (bookings, payments, CRM deals), with completion rates and sources, use [Leads & sales > Summary](#sales/summary) and [Sources](#sales/sources) with **Count from: Tools**. See [Leads and conversions](leads-and-conversions.md).
+For conversions from all sources (bookings, payments, CRM deals), with completion rates and sources, use [Leads & sales > Summary](#sales/summary) and its **Where they came from**. See [Leads and conversions](leads-and-conversions.md).
 
 ## The Events tab
 
-[Leads & sales > Events](#sales/events) shows what people did inside your pages, as totals. Nothing here is tied to a visit or a person. Bots are left out.
+[Traffic > Events](#traffic/events) shows what people did inside your pages, as totals. Nothing here is tied to a visit or a person. Bots are left out.
 
 - **The figures at the top**: each kind of event, with its rate per 100 visitors.
 - **Through the forms**: Sign-up started to Sign-up sent, and Demo booking opened to Demo booked, with the share that went on (from five starts).

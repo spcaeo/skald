@@ -17,7 +17,7 @@ import { flagEl, country, countryName, cityCode } from "./readers.js";
 import { goLink, cardHead, hrefTo } from "./ov-today-bits.js";
 
 const people = (B) => (B && (B.people_state === "ok" || B.people_state === "stale") ? B.people : null);
-const NO_COUNT = "The visitors now appear with the next live count (every 2 minutes).";
+const NO_COUNT = "The visitors now appear with the next live count, every few minutes. Refresh now counts this site at once.";
 
 /* The map's countries and cities, narrowed to a drill-down's country or city (the others dimmed). */
 export function mapRows(P, chain) {

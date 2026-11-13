@@ -225,4 +225,17 @@ for (const k of ["cur", "rby", "tag"]) assert.ok(!K.isPersonal(q.get(k)), "no ad
   assert.deepEqual(saleFacts({ value_minor: null, currency: null, customer_ref: null, tags: null }), [], "a lead without a value: nothing added");
 }
 
+{
+  // #32: a period that ends today. Today's visitors are not whole until the day is, so revenue
+  // per visitor is both figures over the period's whole days (today left out of both), and says so.
+  const mt = { ...m, today: "2026-10-19", anchor: "2026-10-18" };
+  const words = text(flat(revenue(mt, { ...s0, from: "2026-10-14", to: "2026-10-19" })));
+  const okDays = R.revenueDays(f, ["2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17", "2026-10-18"]).ok;
+  const want = R.perVisitor(R.sumRevenue(okDays).USD.net_minor, R.visitorsOn(mt, okDays), okDays.length);
+  assert.ok(want != null, "the fixture gives a figure over the whole days");
+  assert.match(words, new RegExp(`\\$${(want / 100).toFixed(2).replace(".", "\\.")}`), "the figure over the whole days");
+  assert.match(words, /today left out until it is whole/);
+  assert.doesNotMatch(words, /the visitors are not whole on every day/);
+}
+
 console.log("revenue: all passed");

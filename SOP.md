@@ -397,7 +397,10 @@ a payload) whose source is outside the site - an AI assistant citation,
 another website, a search engine, social, email, a tagged link (utm or click
 id) - and whose source, referrer and campaign differ from the visit's first
 page's starts a new visit. A page from the site itself, or with no referrer
-and no tag, continues the visit; so does the same outside source again. This
+and no tag, continues the visit; so does the same outside source again, and
+so does a page back from a payment page (Stripe Checkout, PayPal, the site's
+own `site.checkout_hosts`: "Returned from payment", CLASSIFICATION.md; owner,
+11 Nov 2026), so a buyer who pays and comes back is one visit with its source. This
 is Google Analytics' session rule. Why: a reader who opened the site directly
 and came back from perplexity.ai two minutes later was one "Direct" visit, so
 the citation count said perplexity 1 while sources and visits said 0
@@ -472,7 +475,7 @@ rules keep it from contaminating anything:
 The panel lists the latest 20 assistant fetches and citation clicks: time,
 the assistant's name as matched (or the citing site), and the path. No
 address and no user agent is written for anyone. The web app fetches the
-snapshot again every two minutes; the plain page (`classic.html`) reloads
+snapshot again every two minutes (a new one comes every few); the plain page (`classic.html`) reloads
 itself with `<meta http-equiv="refresh">` and runs no script.
 
 Cost: only the files that can hold today are opened (by modification time),
@@ -519,7 +522,7 @@ as removed), old-format lines, gaps over 10 minutes, the audit's
 verdict; for today, how old the newest line is; and when each job last
 ran. Read it before trusting a strange day.
 
-**Alerts.** Checked every 2 minutes from figures the live run already has.
+**Alerts.** Checked on every live run (every few minutes) from figures it already has.
 Fatigue rules matter more than thresholds: one mail per alert, a daily
 digest for repeats, a resolved line for outages, a cooldown before the same
 cause mails again, and nothing from a replay, another host, or a snapshot

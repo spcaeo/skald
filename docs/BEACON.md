@@ -248,8 +248,12 @@ code can send any of them too.
 Each event is stored with the visit's source type, worked out on the server
 from `r` and `u` by the same rules as a reader's source in the log
 (`dimensions.source_type`): AI assistant, Search engine, Social media,
-Email, Other website, This site, Tagged link, Direct or unknown. Events from
-an AI citation also keep the assistant's name.
+Email, Other website, This site, Tagged link, Returned from payment (`r` is
+a payment page: Stripe Checkout, PayPal, the site's own `site.checkout_hosts`;
+CLASSIFICATION.md), Direct or unknown. Events from an AI citation also keep
+the assistant's name. A lead the tag sends takes the source of the visit it
+was sent from, by its visitor ID's page views (docs/DATA-CONTRACT-CONVERSIONS.md,
+"Touches filled from the visitor ID"); never "Returned from payment".
 
 ## Visitor IDs (off by default)
 

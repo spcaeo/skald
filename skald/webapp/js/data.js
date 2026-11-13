@@ -294,8 +294,8 @@ export async function refresh(m) {
     }
     if (res.ok) return { ok: true, result: "ran" };
     if (res.status === 403) return { ok: false, message: "Refresh refused: it only works from this page." };
-    if (res.status === 502 || res.status === 504) return { ok: false, message: "The refresh helper is not running; figures update every 2 minutes anyway." };
-    return { ok: false, message: `Refresh failed (${res.status}); figures update every 2 minutes anyway.` };
+    if (res.status === 502 || res.status === 504) return { ok: false, message: "The refresh helper is not running; figures still update every few minutes." };
+    return { ok: false, message: `Refresh failed (${res.status}); figures still update every few minutes.` };
   } catch {
     return { ok: false, message: "Refresh failed: the server could not be reached." };
   }
@@ -345,3 +345,16 @@ export function newerStamp(next, have) {
   const a = Date.parse(next), b = Date.parse(have);
   return Number.isNaN(a) || Number.isNaN(b) ? true : a > b;
 }
+
+/* The footer's "next": the live count comes every_s seconds after the last one (the measured
+   gap between rounds, runs.py; 120 s when unknown). A round of many sites takes minutes,
+   so "any moment" only once that time has passed (#54). */
+export function nextWords(L, now = Date.now()) {
+  const every = Number(L?.every_s) > 0 ? Number(L.every_s) : 120;
+  const left = Date.parse(L?.generated_at) + every * 1000 - now;
+  return left > 0 ? `next in about ${Math.max(1, Math.round(left / 60000))} min` : "next any moment";
+}
+
+/* Latest first: by start, and visits that started in the same minute by their order
+   in the count (seq), so the one that came last is on top (#53). */
+export const latestFirst = (a, b) => String(b.start).localeCompare(String(a.start)) || (Number(b.seq) || 0) - (Number(a.seq) || 0);

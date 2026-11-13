@@ -9,7 +9,7 @@
 
 import { h, n, duration } from "../ui.js";
 import { pagesWords } from "../visitpages.js";
-import { color, rangeOf, ranked } from "../data.js";
+import { color, rangeOf, ranked, latestFirst } from "../data.js";
 import { bars } from "../charts.js";
 import { head, nothing } from "./common.js";
 import { flag, flagEl, country } from "./readers.js";
@@ -25,7 +25,7 @@ import { withUrl } from "../urlactions.js";
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const KIND = { asked: "answering a question", training: "collecting for training", referred: "sent a visitor" };
 
-// Kept between the two-minute redraws: what was on screen, to mark what is new; and the pause.
+// Kept between the page's redraws: what was on screen, to mark what is new; and the pause.
 const st = { seen: null, paused: false, frozen: null };
 
 // "updated 32 s ago", kept current while the tab is on screen.
@@ -109,7 +109,7 @@ function leadsToday(m) {
   const fin = new Set(f.finished || ["completed", "paid"]);
   const head = h("div", { class: "card-h start" }, h("h2", null, "Leads and bookings today"),
     info(`Every form and booking reported today, newest first, from the script tag, the tools' webhooks and the lead database, as on the Conversions page. ${LEAD_WORDS} A started form or an opened booking is listed with its stage and is not a lead.`, "Leads and bookings today"));
-  if (!b || b.day !== m.today) return h("section", { class: "s" }, head, h("p", { class: "empty" }, "Today's list is written with the next update (every 2 minutes)."));
+  if (!b || b.day !== m.today) return h("section", { class: "s" }, head, h("p", { class: "empty" }, "Today's list is written with the next live count, every few minutes. Refresh now counts this site at once."));
   if (b.state !== "ok") return h("section", { class: "s" }, head, h("div", { class: "state bad", role: "alert" }, h("div", null, `Withheld: ${b.why || "the second count disagrees."} None of today's leads are shown or counted until it matches.`)));
   const row = (x) => {
     const done = fin.has(x.stage);
@@ -133,8 +133,8 @@ export default function live(m, s) {
   const r = rangeOf(m, { ...s, range: "today" });
   const L = m.live;
   const fresh = L && L.day === m.today && L.state === "ok";
-  const period = fresh ? h("span", null, "Today so far · updated ", ago(L.generated_at), " (every 2 min)") : "Today so far";
-  const out = [...head("Live", r, "Today since midnight, counted again every 2 minutes and whenever you press Refresh. A day still running is not checked against a whole day, compared or mailed. The date range does not apply here.", { period })];
+  const period = fresh ? h("span", null, "Today so far · updated ", ago(L.generated_at), " (every few min)") : "Today so far";
+  const out = [...head("Live", r, "Today since midnight, counted again every few minutes and whenever you press Refresh now. A day still running is not checked against a whole day, compared or mailed. The date range does not apply here.", { period })];
   if (!fresh) return [...out, nothing(m, r)];
   const t = L.figures;
   const nowHour = Number(String(L.generated_at || "").slice(11, 13));
@@ -155,7 +155,7 @@ export default function live(m, s) {
     { label: "Returning", value: null, info: "Counted once the day is whole: returning visitors appear on Overview from tomorrow." },
   ]));
   out.push(others(t, { probes: true }));
-  const js = (m.journeys || []).filter((j) => j.day === m.today).sort((a, b) => String(b.start).localeCompare(String(a.start)));
+  const js = (m.journeys || []).filter((j) => j.day === m.today).sort(latestFirst);
   const events = m.x.ai_activity?.today?.events || (L.events || []).map((e) => ({ at: e.at, name: e.who, kind: e.kind === "citation" ? "referred" : e.kind, path: e.path }));
   out.push(rightNow(m, js, events));
   out.push(leadsToday(m));

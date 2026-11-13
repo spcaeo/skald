@@ -19,7 +19,7 @@ or mailed. Exit status: 0 done, 1 refused (figures or mail), 2 misconfigured.
 It notes in runs.json whether a stop was by design (a withheld day) or a
 failure; cron then sends one failure mail for a failure only (failmail.py).
 
-live is the near-real-time entry, safe every two minutes: today so far, into
+live is the near-real-time entry, safe every few minutes: today so far, into
 a snapshot file beside the history and the dashboard's "Today so far" panel.
 It never writes the history and never mails (see live.py).
 
@@ -421,6 +421,7 @@ def cmd_live(ctx: Context) -> int:
     says withheld), 0 otherwise - including "nothing logged yet today".
     """
     from . import requests_feed
+    from .dimensions import hosts_of as dim_hosts_of
     from .privacy import forgotten
     from .rendering import asset_prefixes
     from .window import day_window
@@ -432,7 +433,7 @@ def cmd_live(ctx: Context) -> int:
     cutoff = (utc_now - timedelta(hours=hours)).replace(microsecond=0)
     feed = requests_feed.Feed(cutoff, cap, ctx.views,
                               str(setting(ctx.config, "report", "heartbeat_label", "heartbeat")),
-                              setting(ctx.config, "site", "hosts") or (),
+                              dim_hosts_of(ctx.config),
                               int(setting(ctx.config, "report", "session_gap_minutes", 30)),
                               asset_prefixes(ctx.config))
     midnight = day_window(ctx.now.date(), ctx.tz)[0]
@@ -444,6 +445,7 @@ def cmd_live(ctx: Context) -> int:
     path = live.path_for(ctx.live_dir, ctx.site)
     snap = live.build(ctx.config, ctx.site, ctx.tz, ctx.now, ctx.views, ctx.db_path, feed,
                       upto, ids, snap_path=path)
+    snap["every_s"] = round(runs.every_s(runs.load(ctx.live_dir), "live"))  # "next" (#54)
     with live.writing(path, snap) as newest:
         if newest:
             live.save(path, snap)

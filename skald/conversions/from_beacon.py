@@ -20,7 +20,12 @@ and device from its user agent, through normalise.row like a hook's
 record; both are then dropped, never stored. Landing is the first page of
 the visit as the journeys know it (page views no more than 30 minutes
 apart); without journeys it is NULL. Its first source, campaign, first
-touch time and ad click come from the same journeys (fill.py, 2.45).
+touch time and ad click come from the same journeys (fill.py, 2.45), and so
+does its source (owner's decision 7, 11 Nov 2026): the source of the visit
+it was sent from, its first page view's, not the event's own. With no page
+view to prove that visit the event's own source stays - unless it is a
+payment page's ("Returned from payment", decision 6), never a lead's
+source: then it is NULL ("Not recorded": no earlier visit proven).
 
 The second count (audit_conversions.recount_beacon) reads the spool by its
 own road and shares only conversions/__init__.py's name lists.
@@ -37,6 +42,7 @@ from urllib.parse import urlencode
 
 from ..config import setting
 from ..dimensions import campaign
+from ..payment_names import RETURNED
 from . import BEACON_ACTIONS, BEACON_REPEAT_SECONDS, BEACON_TOOL, VISIT_GAP, fill, store
 from .normalise import row as make_row
 
@@ -115,7 +121,8 @@ def record(db, site: str, event: dict, when: datetime, source: str | None,
                       (site, BEACON_TOOL, vid, action, stage, edge)).fetchone():
             return "repeat"
         rec = {"action": action, "stage": stage, "at": at, "vid": vid,
-               "external_ref": f"{vid}:{action}:{stage}:{at}", "source_type": source,
+               "external_ref": f"{vid}:{action}:{stage}:{at}",
+               "source_type": None if source == RETURNED else source,
                "landing": _landing(db, site, vid, at), "ip": address, "user_agent": agent}
         row = make_row(rec, site, BEACON_TOOL, at, own_hosts, False, country_db)
         store.record_conversion(db, fill.apply(db, row, clicks))

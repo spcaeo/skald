@@ -296,7 +296,7 @@ def page_story(ctx, args):
 # ---------------------------------------------------------------- live_today
 
 @tool("live_today", "Today so far",
-      "Today so far, from the live snapshot the server writes every 2 minutes: visits (an "
+      "Today so far, from the live snapshot the server writes every few minutes: visits (an "
       "upper bound on people), pages read, AI fetches and the latest AI events (no "
       "addresses). Today is partial and not yet audited: never compare it with whole days.",
       schema({"site": SITE_ARG, "view": VIEW_ARG}))
@@ -431,11 +431,14 @@ def site_health(ctx, args):
     now = _stamp(quality.get("generated_at"))
     for name, r in (quality.get("runs") or {}).items():
         last_ok = _stamp(r.get("last_ok"))
-        every = int(r.get("expected_every_min") or 0)
+        # The measured interval when known (#54): a live round of many sites
+        # takes longer than its planned two minutes.
+        every = float(r.get("expected_every_min") or 0)
         if last_ok is None:
             never.append(name)
         elif now and every and (now - last_ok).total_seconds() > every * 60 * 2 + 600:
-            late.append({"run": name, "last_ok": r.get("last_ok"), "every_min": every})
+            late.append({"run": name, "last_ok": r.get("last_ok"), "every_min": every,
+                         "measured_every_min": r.get("measured_every_min")})
     data = {"site": site, "alerts_enabled": alerts.get("enabled"), "open_alerts": open_,
             "today": {"state": today.get("state"), "server_errors": errors,
                       "not_found_people": not_found},
@@ -468,10 +471,19 @@ def site_health(ctx, args):
 
 # ---------------------------------------------------------------- conversions
 
-BY_DIMS = ("source_type", "first_source", "landing", "country", "campaign", "device", "tool")
+BY_DIMS = ("source_type", "first_source", "landing", "country", "campaign", "device", "tool",
+           "page", "path")
 BY_WORDS = {"source_type": "source (last touch)", "first_source": "first touch",
             "landing": "landing page", "country": "country", "campaign": "campaign",
-            "device": "device", "tool": "reported by"}
+            "device": "device", "tool": "reported by", "page": "the page it happened on",
+            "path": "the pages read before it in that visit"}
+# #52: by page and by path read each day's own block (conversions_pages.py), not `by`.
+WHERE_BLOCKS = {"page": "pages_at", "path": "paths_to"}
+PATHS_TOP = 20
+LINK_WORDS = {"visitor_id": "by the visitor ID's page views",
+              "server_log": "by the server log (the only visit that sent a form within 10 "
+                            "seconds of it)",
+              "none": "not tied to any visit (page not known)"}
 
 @tool("conversions", "Conversions: demos, forms, sign-ups, payments",
       "Every action that counts (a demo booked, a form sent, a sign-up, a payment), from "
@@ -480,7 +492,8 @@ BY_WORDS = {"source_type": "source (last touch)", "first_source": "first touch",
       "with a visitor ID and not finished in time), the completion rate (only over 10 or "
       "more starts), other stages (cancelled, no-show, won, lost), and completed ones by "
       "source (or by another breakdown: first touch, landing page, country, campaign, "
-      "device, tool), with the leads (forms sent and demos booked) and demos booked "
+      "device, tool, the page it happened on, the pages read before it), with the leads "
+      "(forms sent and demos booked) and demos booked "
       "among them. Withheld and not-recorded days are named and never counted as zero. "
       "Anonymous: no name, email or visitor ID.",
       schema({"site": SITE_ARG, "from": FROM_ARG, "to": TO_ARG,
@@ -496,7 +509,11 @@ BY_WORDS = {"source_type": "source (last touch)", "first_source": "first touch",
                      "description": "Break the completed ones (and the leads) down by: "
                                     "source_type (last touch, the default), first_source "
                                     "(first touch), landing, country, campaign, device, "
-                                    "tool."}}))
+                                    "tool, page (the page the action happened on: the last "
+                                    "page of its visit at or before it) or path (that "
+                                    "visit's pages up to it, the 20 most common). Proven "
+                                    "links to the visit only; one without is 'page not "
+                                    "known', never dropped."}}))
 def conversions(ctx, args):
     site = ctx.site(args.get("site"))
     doc = ctx.load(site, None, "conversions", required=False) or {}
@@ -523,6 +540,9 @@ def conversions(ctx, args):
     abandoned: dict = {}
     sources: dict = {}
     withheld, missing, counted = [], [], 0
+    links: dict = {}
+    formed = 0                  # #57: server-log ones that took the form's own page
+    unsplit: list = []          # counted days written before the page blocks (#52)
     day = first
     while day <= last:
         e = by.get(day.isoformat())
@@ -549,7 +569,20 @@ def conversions(ctx, args):
             for action, v in day_gone.items():
                 if v and (not only or action == only):
                     abandoned[action] = abandoned.get(action, 0) + int(v)
-            for action, per in ({} if label else dig(e, "by", dim) or {}).items():
+            if dim in WHERE_BLOCKS and not label:
+                table = e.get(WHERE_BLOCKS[dim])
+                if table is None:
+                    unsplit.append(day.isoformat())
+                for action, per in (e.get("page_link") or {}).items():
+                    if not only or action == only:
+                        for k, v in per.items():
+                            links[k] = links.get(k, 0) + int(v)
+                for action, v in (e.get("page_form") or {}).items():
+                    if not only or action == only:
+                        formed += int(v)
+            else:
+                table = {} if label else dig(e, "by", dim)
+            for action, per in (table or {}).items():
                 if not only or action == only:
                     for k, v in per.items():
                         sources[k] = sources.get(k, 0) + int(v)
@@ -579,6 +612,8 @@ def conversions(ctx, args):
             "lead_actions": sorted(lead_acts), "leads_by": None if label else ranked(leads_by),
             "withheld": withheld, "not_recorded": missing,
             "note": doc.get("as_known")}
+    where = _where_block(data, dim, links, unsplit, formed) if dim in WHERE_BLOCKS and not label else []
+    sep = "; " if dim == "path" else ", "
     lines = [f"{site}, {first} to {last}: conversions ({counted} day"
              f"{'s' if counted != 1 else ''} counted)."]
     if label:
@@ -600,11 +635,12 @@ def conversions(ctx, args):
             lines.append(f"Leads (forms sent and demos booked, completed): {leads:,}, of them "
                          f"{demos:,} demos booked.")
         if sources:
-            lines.append(f"Completed, by {BY_WORDS[dim]}: " + ", ".join(
+            lines.append(f"Completed, by {BY_WORDS[dim]}: " + sep.join(
                 f"{k} {v:,}" for k, v in data["by_source"].items()) + ".")
         if leads_by:
-            lines.append(f"Leads, by {BY_WORDS[dim]}: " + ", ".join(
+            lines.append(f"Leads, by {BY_WORDS[dim]}: " + sep.join(
                 f"{k} {v:,}" for k, v in data["leads_by"].items()) + ".")
+        lines += where
     else:
         lines.append("Conversions: not recorded (no day of this range holds checked "
                      "figures), never zero.")
@@ -618,6 +654,43 @@ def conversions(ctx, args):
     if doc.get("as_known"):
         lines.append(doc["as_known"])
     return "\n".join(lines), data
+
+
+def _where_block(data: dict, dim: str, links: dict, unsplit: list,
+                 formed: int = 0) -> list[str]:
+    """#52, by page or by path: how each completed one was tied to its visit
+    (proven links only), how many server-log ones took the page their form
+    was sent from (#57), the paths cut to the PATHS_TOP most common, and the
+    counted days written before these blocks (not split, never zero)."""
+    data["page_links"] = {k: links.get(k, 0) for k in LINK_WORDS} if links else None
+    data["page_from_form"] = formed if links else None
+    data["not_split"] = unsplit
+    lines = []
+    if dim == "path":
+        for key in ("by_source", "leads_by"):
+            got = data.get(key) or {}
+            rest = list(got.items())[PATHS_TOP:]
+            data[key] = dict(list(got.items())[:PATHS_TOP])
+            data[f"{key}_more"] = ({"paths": len(rest), "completed": sum(v for _, v in rest)}
+                                   if rest else None)
+        more = data.get("by_source_more")
+        if more:
+            lines.append(f"And {more['paths']:,} other paths ({more['completed']:,} completed); "
+                         f"only the {PATHS_TOP} most common are listed. A path is the visit's "
+                         "pages in order, its last 10 when longer.")
+    if links:
+        lines.append("Tied to their visit by a proven link only, never a likely one: " + ", ".join(
+            f"{links.get(k, 0):,} {words}" for k, words in LINK_WORDS.items()) + ". "
+            + (f"Of the server-log ones, {formed:,} took the page the form was sent from "
+               "(kept since schema 11); the others, the last page seen at or before it "
+               "when the page times tell. "
+               if formed else "") +
+            "'page not known (visit not kept)': that day's server-log visits are not kept.")
+    if unsplit:
+        lines.append(f"Days not split by {dim} (written before this breakdown): "
+                     + ", ".join(unsplit[:10])
+                     + (f" and {len(unsplit) - 10} more" if len(unsplit) > 10 else "") + ".")
+    return lines
 
 
 def _stamp(text):

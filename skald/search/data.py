@@ -33,7 +33,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from .. import store_extras as sx
-from . import days as sd, reports, state
+from . import days as sd, health, reports, state
 from .props import path_of
 from .sync import ENGINE_NAMES, connected
 
@@ -123,9 +123,11 @@ def period(stored: dict, finals: dict, last: str, n: int) -> dict:
 
 
 def engine_part(p, site: str, engine: str, source: str | None, folder) -> dict:
-    status = (state.load(folder, site).get(engine) or {}) if folder else {}
+    saved = state.load(folder, site) if folder else {}
+    status = {k: v for k, v in (saved.get(engine) or {}).items() if k != "tries"}
     summary = sd.summary(p.history.db, site, engine)
     part = {"name": ENGINE_NAMES[engine], "connected": source, "status": status,
+            "health": health.of(saved, engine, source),
             "summary": summary, "days": [], "periods": {}}
     if not summary["days"]:
         return part

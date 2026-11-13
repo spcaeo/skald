@@ -118,7 +118,7 @@ checked figures, conversions and accounts.
 - **Proves its numbers.** Groups add up to the log; a second count checks every figure; a day that
   fails is withheld.
 - **Unblockable and cookie-free.** Nothing runs in the visitor's browser to count a visit.
-- **Live.** Today so far every 2 minutes, requests every 15 seconds on Real time, what the newest
+- **Live.** Today so far every few minutes, requests every 15 seconds on Real time, what the newest
   visitors are doing now; each request of the last 6 hours, with its reason.
 - **Results.** Every lead in one list, funnels and conversions from the tools you already use;
   names and emails only where the site keeps them, and only for owners and admins.
@@ -164,7 +164,7 @@ checked figures, conversions and accounts.
   show theirs.
 - **Words to keep apart:** requests, people, machines. Never call requests or AI fetches "visitors".
 - **Words to avoid:** "100% accurate", "replaces Google Analytics", "open source" (say
-  "source-available"), "real-time" without saying how fresh (visitors every 2 minutes, requests
+  "source-available"), "real-time" without saying how fresh (visitors every few minutes, requests
   every 15 seconds), "blocks attacks" or "WAF" (Skald reports; it does not block).
 
 ## About the author

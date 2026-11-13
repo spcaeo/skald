@@ -1,7 +1,8 @@
 // The top bar's two global modes (2.7.0), beside the period:
 //   * "Today" (Live): the first choice of the period's group since 2.42 (liveSegment;
 //     it was its own "Today · Live" switch). Picked, the period is Today on every
-//     section, redrawn every 2 minutes, with a pulsing dot (mode-live.js).
+//     section, read again every 2 minutes (the live count itself comes every few), with a
+//     pulsing dot (mode-live.js).
 //   * "Compare with…": previous period, same period last year, or a custom B.
 //     On, every table and chart that registers compare support shows A · B · ±
 //     or B as a dashed line (mode-compare.js); a tab that does not says so in
@@ -31,7 +32,7 @@ export function barModes(m, s) {
 }
 
 /* "Today" as the first choice of the period's group: the live dot (pulsing while the live
-   count is fresh), the words, and what picking it does: Today so far, redrawn every 2 minutes. */
+   count is fresh), the words, and what picking it does: Today so far, counted again every few minutes. */
 export function liveSegment(m, s) {
   const on = isLive(s);
   const st = liveState(m);

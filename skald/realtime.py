@@ -1,4 +1,4 @@
-"""Real time: who is on the site now, as of the live run (every 2 minutes).
+"""Real time: who is on the site now, as of the live run (every few minutes).
 
 Overview > Real time and the top of Overview > Summary in Live mode. Two
 roads, never mixed on screen:

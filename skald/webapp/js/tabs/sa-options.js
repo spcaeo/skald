@@ -27,9 +27,12 @@ import { head, context } from "./common.js";
 import { info } from "./tiles.js";
 import { leadsOn } from "./leadfigs.js";
 import { sourceLink } from "../ui/connect.js";
+import { headWords } from "./sa-period.js";
+import { daysNote } from "../tz.js";
 
-/* Today so far, beside a period that ends before today (2.23). Leads & sales opens on whole
-   days (7 days, All time), so a lead that came in today is not in its figures: this one line
+/* Today so far, beside a period that ends before today (2.23; since #32 only Yesterday and a
+   custom period that ends before today: every other period holds today). A lead that came in
+   today is not in those figures: this one line
    says how many there are, with a button to Today (live). N is the live Leads figure, the same
    as Overview's Leads tile today (leadsOn over today: every lead, before this page's filters).
    It is never added to the period's own figure: verified days and today's live part do not mix.
@@ -49,16 +52,20 @@ const uid = (p) => `${p}-${++seq}`;
 /* The tab's head: its title, the question it answers, an (i) with the longer words and a
    Learn more link into the guide, and the period line (common.js head). source: the group in
    Settings › Leads & tools that feeds this tab (2.43): its "Sources" link, for an admin. */
-export function tabHead(title, question, r, { help = "", more = "", period, source = "" } = {}) {
-  const top = head(title, r, null, { banner: false, period });
+export function tabHead(title, question, r, { help = "", more = "", period, source = "", action = null } = {}) {
+  const { m, s } = context();
+  // #32: a period that ends today names its days, today marked "so far" (sa-period.js).
+  const own = period ?? (r?.live && m?.today ? [headWords(r, m), daysNote()].filter(Boolean).join(" · ") : undefined);
+  const top = head(title, r, null, { banner: false, period: own });
   const bar = top[0];
   if (help) bar.insertBefore(info(help, title, more), bar.querySelector(".period"));
   const back = source ? sourceLink(source) : null;
   if (back) bar.insertBefore(back, bar.querySelector(".period"));
+  // An action at the right end of the head (Leads' Find a person box): actions on the right.
+  if (action) bar.append(h("span", { class: "sa-head-act" }, action));
   // Leads & sales only (Security draws its heads here too); a tab with a period of its own
-  // (Find a person) has no "Today so far" line.
-  const { m, s } = context();
-  const today = !period && S.sectionOf(s?.tab)?.key === "sales" ? todayNote(m, s, r) : null;
+  // has no "Today so far" line, nor one whose period holds today already.
+  const today = !period && !r?.live && S.sectionOf(s?.tab)?.key === "sales" ? todayNote(m, s, r) : null;
   return [bar, question ? h("p", { class: "lede sa-q" }, question) : null, today].filter(Boolean);
 }
 

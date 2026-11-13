@@ -64,7 +64,7 @@ class Verdict(unittest.TestCase):
         got = setup_live.verdict({"method": "vercel"}, None, None, self.F, None, NEW)
         self.assertEqual(got["verdict"], "wait")
         self.assertEqual(got["head"], "No data yet.")
-        self.assertIn("Usually it starts within 2 minutes after the drain is saved", got["says"])
+        self.assertIn("Usually it starts within a few minutes after the drain is saved", got["says"])
         self.assertIn(f"/traffic-ingest/{NEW}?format=vercel", got["says"])
         line = {"state": "waiting"}
         self.assertIn("has not opened its line", setup_live.verdict(

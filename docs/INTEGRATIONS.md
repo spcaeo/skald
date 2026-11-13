@@ -229,8 +229,7 @@ website") does not need the snippet:
 example.com's website posts a signed `lead` hook for each lead and a signed
 `calendly` hook for each booking. A site whose lead database sits on Skald's
 own server needs no lead hook: Skald reads the leads from that database (next
-section), which it already reads for Leads & sales > Summary and Sources (Count from:
-Lead database).
+section), which it already reads for Leads & sales > Leads and Summary.
 
 ## Recorded journeys (2.43)
 
@@ -261,12 +260,12 @@ lead there also becomes a conversion, with no change to the website
 The file is opened read-only and only those columns are read; names and
 emails only when the site's `conversions.identity` is `full` (the default
 since 2.4.0, except on an install upgraded from before it: see Privacy,
-below). Every live run (2 minutes) reads the leads changed since the last
+below). Every live run (every few minutes) reads the leads changed since the last
 one (by `updated_at`); run-daily reads them all and removes the rows of
 leads deleted from the CMS. A row a sync takes away (the lead deleted,
 marked spam or duplicate, or changed) is first copied whole into the
-`removed` table, with when and why (`store.remove`): Leads & sales > Sources
-(Count from: Tools, "Cancelled, removed and test") lists it under "Removed". Nothing disappears unseen; only `forget` deletes.
+`removed` table, with when and why (`store.remove`): Leads & sales > Leads
+(More > Show left out, "Cancelled, removed and test") lists it under "Removed". Nothing disappears unseen; only `forget` deletes.
 A status the team changes later changes the lead's day ("as known").
 The second count reads the same database by its own SQL
 (`audit_conversions.recount_leads`). Device is never known here (NULL).
@@ -527,7 +526,7 @@ the lead database adds a `won` or `lost` row beside the completed one (at `creat
 - a lead later won, or later lost, is still one lead, on its completed day; the outcome
   neither adds a lead nor takes one away, and the day the outcome arrives counts none;
 - `won` and `lost` are outcomes, shown apart: as stages on Leads & sales > Leads (Stage now) and
-  Summary (Tools), Calendar bookings ("Won"), the outgoing `lead.won` / `lead.lost` events; never in a Leads figure;
+  Summary, Leads > What: Demos ("Won"), the outgoing `lead.won` / `lead.lost` events; never in a Leads figure;
 - a `won` or `lost` for a ref that never completed is an outcome with no lead: not counted;
 - a lead marked `spam` or `duplicate` in the lead database stops being a lead (its rows are
   taken away and kept in `removed`), and every past day changes with it.
@@ -818,7 +817,7 @@ than 5 minutes off. The body:
 - Never a name or an email, even with `identity: full`. `journey` is the
   visitor ID's page views up to the conversion (at most 50; empty without
   an ID). A figure not known is `null`.
-- Queued by the live run (every 2 minutes) and run-daily for each site,
+- Queued by the live run (every few minutes) and run-daily for each site,
   then sent in ONE pass after every site, so a slow receiver never holds up
   another site's run. Each delivery has 10 seconds of wall clock in all
   (name lookup, connect, TLS, send and answer; a receiver that trickles

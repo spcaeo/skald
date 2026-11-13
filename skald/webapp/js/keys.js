@@ -27,8 +27,15 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-12-2.48.2",
+  id: "2026-11-13-2.49.0",
   items: [
+    ["Leads & sales in four tabs", "Leads, Summary (with where they came from), Revenue and Funnels; Calendar bookings is Leads › What: Demos, Find a person the search box. Old links still work.", "leads-and-conversions"],
+    ["One period on every Leads & sales tab", "7, 30 and 90 days include today so far on every tab, and Leads counts only leads, so the same click shows the same count.", "leads-and-conversions"],
+    ["Ask your AI how people reach a page", "the MCP's page_journeys: how visits arrived, where they went next and who they were, for the pages you name.", "mcp"],
+    ["Which page a demo was booked on", "the MCP's conversions by page and by path, tied to the visit by proven links only.", "mcp"],
+    ["Newest first everywhere", "every list ordered by time shows the newest on top, and a list cut to a limit keeps the newest.", "getting-started"],
+    ["Search Console stopped? Skald says so", "a to-do, a status in Settings and one mail when a Google or Bing sync stops, and one when it is back.", "search"],
+    ["Returned from payment", "a visit back from Stripe Checkout or PayPal is never a new source; the lead keeps where it came from.", "where-visitors-come-from"],
     ["Right now never steps back", "a visitor you just saw no longer vanishes: a count that started earlier never replaces a newer one, on the page or on the server.", "getting-started"],
     ["Index status, faster", "Skald asks Google about four pages at once and keeps each answer as it arrives: 200 pages take about 5 minutes instead of 20.", "search"],
     ["Latest crawl", "a page’s story shows when Googlebot and Bingbot last fetched it, and the status they got: has Google seen the page since it changed?", "getting-started"],

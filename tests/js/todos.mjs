@@ -515,4 +515,22 @@ assert.ok(rowsOf(lp).some((r) => text(r).includes("/old-pricing/") && text(r).in
 const held = L.lostPages({ x: { lost_pages: { ...lost, totals: null, lost: null, markdown: null, withheld: ["lost: people 9 against 8"] } } }, S.read());
 assert.ok(text(held).includes("Withheld") && !held.querySelector(".tiles"));
 assert.equal(L.lostPages({ x: {} }, S.read()), null, "no file: nothing drawn here");
+
+// ---- #40: a stopped search sync is a card: the engine, the day, the engine's own reason,
+// what to do, and one button to its settings (no Fix this, no Open, no marks)
+const stoppedSync = { id: "search-sync-google", kind: "search", subject: "google", tag: "Search", tone: "bad",
+  title: "Search Console stopped syncing", proof: "No good Search Console sync since 1 Nov 2026 12:40 UTC.",
+  todo: "Check the Google Cloud project behind Skald's robot key: restore it if it was deleted.",
+  figures: { engine: "google", since: "2026-11-01T12:40:00+00:00", fails: 4, hours: 24, reason: "Google said: Project #0 has been deleted" },
+  columns: [], rows: [], file: null, state: "open", status: "open", marked: null, recheck: null, agent: false,
+  open: { tab: "settings/site/leads", tool: "search", name: "Settings > Leads & tools > Search Console & Bing" } };
+assert.deepEqual(W.cardWords([stoppedSync], "open"), { title: "Search Console stopped syncing on 1 Nov",
+  why: "Google said: Project #0 has been deleted. Your search figures stop there.", act: stoppedSync.todo });
+assert.equal(W.cardWords([{ ...stoppedSync, figures: { ...stoppedSync.figures, engine: "bing" } }], "open").title, "Bing Webmaster Tools stopped syncing on 1 Nov");
+go("#overview/insights");
+box = T.todoSection({ x: { todos: { ...todos, withheld: [], todos: [stoppedSync] } } }, S.read());
+const syncCard = cardOf("search-sync-google");
+assert.ok(syncCard && text(syncCard.querySelector(".td-tag")) === "Needs fixing");
+assert.deepEqual(btnWords(syncCard), ["Open the settings"], "one action: its settings");
+assert.ok(!syncCard.querySelector(".td-view") && !text(syncCard).includes("Mark done"), "no list, no marks");
 console.log("todos: all passed");

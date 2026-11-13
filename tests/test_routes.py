@@ -53,14 +53,21 @@ TABLE = [
     ("audience", "traffic/places", {}),
     ("time", "traffic/time", {}),
     ("hours", "traffic/time", {}),
-    ("leads", "sales/summary", {"lsrc": "db"}),
-    ("conversions", "sales/summary", {"lsrc": "all"}),
+    # #32: Summary counts leads one way only ("Count from", lsrc, is gone): both open it
+    ("leads", "sales/summary", {}),
+    ("conversions", "sales/summary", {}),
     # 2.20: Pipeline is Summary now (Leads lists the leads); its options ride along
     ("sales/pipeline", "sales/summary", {}),
-    ("sales/pipeline?lsrc=all&lact=demo&llabel=sales", "sales/summary", {"lsrc": "all", "lact": "demo", "llabel": "sales"}),
-    ("sales/bookings?bact=demo", "sales/bookings", {"bact": "demo"}),
+    ("sales/pipeline?lsrc=all&lact=demo&llabel=sales", "sales/summary", {"lact": "demo", "llabel": "sales"}),
+    # #33: eight tabs became four; every old tab opens the same view
+    ("sales/sources", "sales/summary", {"lpart": "sources"}),
+    ("sales/bookings?bact=demo", "sales/leads", {"lact": "demo"}),
+    ("sales/bookings", "sales/leads", {"lact": "demo"}),
+    ("sales/events?range=7d", "traffic/events", {"range": "7d"}),
+    ("sales/people", "sales/leads", {"lfind": "1"}),
+    ("people", "sales/leads", {"lfind": "1"}),
     ("funnels?fn=%2F%3E%2Fpricing%2F&fsrc=Email&fstep=1&fmode=list", "sales/funnels", {"fn": "/>/pricing/", "fsrc": "Email", "fstep": "1", "fmode": "list"}),
-    ("events", "sales/events", {}),
+    ("events", "traffic/events", {}),
     ("bots", "ai/assistants", {}),
     ("crawlers", "ai/assistants", {}),
     ("settings/crawlers", "ai/rules", {}),
@@ -199,10 +206,12 @@ class Redirects(unittest.TestCase):
         self.assertEqual([s["key"] for s in reg], ["overview", "traffic", "sales", "ai", "threats", "site"])
         routes = {t["route"] for s in reg for t in s["tabs"]}
         for r in ("overview/summary", "overview/insights", "traffic/visitors", "traffic/sources", "traffic/pages", "traffic/places", "traffic/time",
-                  "sales/leads", "sales/summary", "sales/sources", "sales/bookings", "sales/funnels", "sales/events", "sales/people",
+                  "sales/leads", "sales/summary", "sales/revenue", "sales/funnels", "traffic/events",
                   "ai/assistants", "ai/crawlers", "ai/rules", "ai/llms",
                   "site/health", "site/alerts", "site/requests", "site/notfound", "site/speed", "site/quality"):
             self.assertIn(r, routes)
+        for r in ("sales/sources", "sales/bookings", "sales/events", "sales/people"):
+            self.assertNotIn(r, routes, "#33: Leads & sales has four tabs")
 
     def test_every_old_address_opens_its_new_tab_with_its_parameters(self):
         got = node_routes([asked for asked, _, _ in TABLE])
@@ -214,7 +223,7 @@ class Redirects(unittest.TestCase):
                     self.assertRegex(got_params.pop("ip", ""), r"^~[a-z0-9]{10}$", "an address is a token")
                     params = {k: v for k, v in params.items() if k != "ip"}
                 self.assertEqual((got_route, got_params), (route, params))
-        self.assertEqual(split(got[-2][0]), ("sales/summary", {"range": "7d", "lsrc": "all"}))
+        self.assertEqual(split(got[-2][0]), ("sales/summary", {"range": "7d"}))
         self.assertEqual(split(got[-1][0]), ("ai/assistants", {"range": "7d"}))
 
     def test_compare_keys_ride_along_only_while_compare_is_on(self):

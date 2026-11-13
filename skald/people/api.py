@@ -127,6 +127,7 @@ def handle(h, config, live_dir, history_path=None, config_path=None, sessions_mo
 
 
 DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+AT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$")
 
 
 def _visitor(h, q: dict, cfg, folder, site: str, private: bool, config, live_dir, who,
@@ -139,7 +140,10 @@ def _visitor(h, q: dict, cfg, folder, site: str, private: bool, config, live_dir
     day, seq = str(q.get("day") or ""), str(q.get("seq") or "")
     if not DAY.match(day) or not seq.isdigit() or len(seq) > 7:
         return h._json(400, {"ok": False, "error": "day is YYYY-MM-DD and seq a number"})
-    got = visitor(cfg, folder, site, day, int(seq))
+    at = str(q.get("at") or "")
+    if at and not AT.match(at):
+        return h._json(400, {"ok": False, "error": "at is YYYY-MM-DDTHH:MM"})
+    got = visitor(cfg, folder, site, day, int(seq), at or None)
     detail = f"visit {day}#{seq} visits={len(got['visits'])} leads={len(got['leads'])}"
     _audit(config, live_dir, site, who, user, "people.visitor", detail)
     return h._json(200, got)

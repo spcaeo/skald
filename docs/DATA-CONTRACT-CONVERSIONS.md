@@ -38,7 +38,7 @@ not. Other actions (`paid`, `deal`...) count every row, as before.
 | `dims`, `visit_buckets`, `convert_buckets` | the breakdown names and bucket names below, in order |
 | `since` | the first local date conversions are recorded for, or null: the earliest of the first conversion kept, the first row taken away (`removed`), and, once the lead DB has been read into the store, the lead DB's first lead of any status (spam and duplicates make no row, yet their day was read: a day from `since` on with no lead counted is 0). audit_conversions_figures.check_since finds the same day by its own SQL; when it disagrees every day is withheld |
 | `likely_ai` | `{"on","window_minutes","method"}`, the note for the per-day `likely_ai` below ([DATA-CONTRACT-AI-LIKELY.md](DATA-CONTRACT-AI-LIKELY.md)); absent when `available` is false |
-| `days[]` | 180 entries ending today (local), oldest first: `{"day","state"}`; `state` is `ok`, `withheld` (+ `why`) or `before` (before `since`: not recorded, never zero). When `ok`: `stages` `{action: {stage: n}}` (every row); `abandoned` `{action: n}` (starts with a visitor ID, the window closed, not finished by the same browser and action); `by` `{dim: {action: {label: n}}}` for finished rows, dims `source_type` (last touch), `first_source`, `campaign`, `landing`, `country`, `device`, `tool`, `"Unknown"` for a value not recorded; `visits_before` and `time_to_convert` `{action: {bucket: n}}` for finished rows (`unknown`, and `clock_error` when the first touch is after the conversion); `assisted` `{action: {source: n}}` (each finished conversion with a visitor ID counted once per earlier journey source that is not its last touch) or null without journeys; `likely_ai` `{action: {label: n}}` for finished rows: the first touch likely sent by an AI assistant, an estimate ([DATA-CONTRACT-AI-LIKELY.md](DATA-CONTRACT-AI-LIKELY.md)); (2.18) `labels` `{action: {lead label: {stage: n}}}`, the rows that carry a lead's label (the lead hook's optional `label`, `conversions.label`), every stage, and `labels_abandoned` `{action: {lead label: n}}`, the abandoned starts among them. A row without a label is in neither, so a label's counts are a part of `stages` and `abandoned`, never the whole; `{}` when no row has one |
+| `days[]` | 180 entries ending today (local), oldest first: `{"day","state"}`; `state` is `ok`, `withheld` (+ `why`) or `before` (before `since`: not recorded, never zero). When `ok`: `stages` `{action: {stage: n}}` (every row); `abandoned` `{action: n}` (starts with a visitor ID, the window closed, not finished by the same browser and action); `by` `{dim: {action: {label: n}}}` for finished rows, dims `source_type` (last touch), `first_source`, `campaign`, `landing`, `country`, `device`, `tool`, `"Unknown"` for a value not recorded; `visits_before` and `time_to_convert` `{action: {bucket: n}}` for finished rows (`unknown`, and `clock_error` when the first touch is after the conversion); `assisted` `{action: {source: n}}` (each finished conversion with a visitor ID counted once per earlier journey source that is not its last touch) or null without journeys; `likely_ai` `{action: {label: n}}` for finished rows: the first touch likely sent by an AI assistant, an estimate ([DATA-CONTRACT-AI-LIKELY.md](DATA-CONTRACT-AI-LIKELY.md)); (2.18) `labels` `{action: {lead label: {stage: n}}}`, the rows that carry a lead's label (the lead hook's optional `label`, `conversions.label`), every stage, and `labels_abandoned` `{action: {lead label: n}}`, the abandoned starts among them. A row without a label is in neither, so a label's counts are a part of `stages` and `abandoned`, never the whole; `{}` when no row has one; (#52, `conversions_pages.py`) for finished rows, `pages_at` `{action: {page: n}}` (the page last seen at or before it in its visit), `paths_to` `{action: {path: n}}` (that visit's pages up to it, in order, a repeat in a row once, joined by ` → `, its last 10, an older start written `…`) and `page_link` `{action: {road: n}}`, how each was tied to its visit, by a proven link only: `visitor_id` (its visitor ID's page views, the last within 30 minutes of it), `server_log` (the only kept server-log visit that sent a form within 10 seconds of it; since #57 the page that form was sent from when the visit kept it (`visits.posts_from`, schema 11), its path the visit's pages up to that page's last place at or before the form's step, or the pages before that step and then it; else, as on rows kept before schema 11 or a form sent with no referrer from the site, the page last seen at or before the form, to the second, and a page in the form's own 10-second or longer step is not known) or `none`; `page_form` `{action: n}` (#57), how many of the `server_log` ones took the page their form was sent from. A row with no page is `"page not known"`, or `"page not known (visit not kept)"` when the day's server-log visits are not kept; never dropped, so each block adds up to the finished rows. Recounted by `audit_conversions_page.py` |
 | `period` | `{"first","last"}`: the last 30 days (today included) of the two blocks below |
 | `pages_before` | null without journeys (visitor IDs off), `{"state": "withheld","why"}`, or `{"converting","other","pages": [[path, converting, other]]}`: browsers with a finished conversion in the period and a journey up to it, and the browsers seen in the period that did not convert; per page, how many of each saw it (the converting ones before converting). Top 50 by converting, then other, then path; exact |
 | `timeline[]` | the latest 50 finished conversions of the period, one per browser (or per lead without one), newest first, withheld days left out: `{"at","action","stage","tool","source","first_source","campaign","landing","country","device","visits_before","first_touch","browser": bool,"visits": [{"day","source","paths": [up to 15]}] (last 10 days with page views up to the conversion; [] without a browser),"steps": [{"at","action","stage","tool","label"}] (up to 20),"label"}`; `label` (2.18) is the row's lead label or null. Times are local ISO. A listing, not a figure |
@@ -165,7 +165,12 @@ its lines received before it went are skipped (`audit_conversions.removed_keys`)
 A lead's label (2.18) is recounted there by its own GROUP BY over the column
 (`labels` by day, action, label and stage; `labels_abandoned` by the same
 NOT EXISTS as `abandoned`, grouped by label too). The touches Skald filled
-(2.45) are checked against the journeys by `audit_filled.py` (below).
+(2.45) are checked against the journeys by `audit_filled.py` (below). Where each
+finished one happened (#52: `pages_at`, `paths_to`, `page_link`; #57: `page_form`)
+is recounted by `audit_conversions_page.py`: a visitor ID's views cut into visits
+forward by SQL window functions, the visit that sent a form by a join with every
+form time (json_each), the page it was sent from read at the same place in
+`posts_from` (json_extract), its trail read by json_extract.
 A day either road disagrees on is withheld, and
 so is `pages_before`; a recount that cannot run withholds them all.
 
@@ -187,9 +192,28 @@ before the lead's `at`:
 
 A value the sender gave is never changed: a lead with any touch or a source
 is not filled at all, and a `landing`, `campaign` or `first_touch_at` sent on
-its own stays. A script-tag conversion (tool `beacon`) keeps its own event's
-source and landing; its `first_source`, `campaign` and `first_touch_at` are
-filled the same way (before 2.45 they were NULL). The row's `filled` column
+its own stays. A script-tag conversion (tool `beacon`) keeps its own
+landing; its `first_source`, `campaign` and `first_touch_at` are filled the
+same way (before 2.45 they were NULL), and since #34 (owner's decision 7) so
+is its `source_type`: the source of the visit it was sent from (the last
+visit up to it, by its first page view), over the event's own. Only when the
+ID has no page view up to it (no visit can be proven) does the event's own
+source stay, not named in `filled`; an event sent back from a payment page
+then has none (NULL, shown "Not recorded": no earlier visit proven).
+
+**Returned from payment is never a lead's source (#34, owner's decision 6).**
+A page view or touch whose referrer is a payment page
+(`skald/payment_names.py`: Stripe Checkout, PayPal, the site's own
+`site.checkout_hosts`) has the source "Returned from payment" in `journeys`,
+and no conversion row ever holds it as `source_type` or `first_source`. A
+sender's last touch from one gives way to its first touch; a first touch
+from one is no first touch; a sender's own `source_type` of "Returned from
+payment" is not taken. Filled from page views, the first touch is the
+earliest page view that is not one, and a visit that starts with one gives
+way to the visit before it (the same ID's), whatever the gap. A journeys
+source of "Returned from payment" is never an `assisted` source. Second
+count: `audit_filled.py` (the fill, and no row holding it at all) and
+`audit_conversions_figures.py` (`assisted`). The row's `filled` column
 names what Skald filled (comma-joined), so the lists say "filled by Skald"
 (`today.rows[].filled`, the lead list's `filled`: a list of column names).
 When: at intake (hooks, the lead database's sync, the script tag), and again
@@ -250,6 +274,17 @@ between its own UTC bounds (the day's local midnight, and that day at `time`), w
 finish left out by its own NOT EXISTS (`audit_conversions_figures.once`); a difference
 withholds the listing as above. The period's own days, today's included, are `days[]`,
 recounted by `audit_conversions.py` on every build like every day.
+
+`today.periods` (#32, `conversions_leads.periods`): since every Leads & sales tab counts 7,
+30 and 90 days as today so far and the whole days before it (Leads, Summary, Revenue and
+Funnels alike), the file states each period's leads as the page sums them from `days[]`:
+`[{"back": 7 | 30 | 90, "first": today minus back plus one, "last": today, "state": "ok" |
+"partial", "leads": n, "actions": {action: n}, "days_ok": n}]`. "partial": a day of the period
+is not `ok` (withheld, or before `since`), and the sum covers `days_ok` days only; the page
+then says how many days it covers. `check_periods` counts each whole period again in one SQL
+GROUP BY action over the period's own bounds (its first day's local midnight to tomorrow's),
+never day by day, with the repeat finish left out by `once`; a difference withholds the
+listing as above, and the page withholds a period figure that does not match it.
 
 **Lead findings in insights.json (2.5.0).** `conversions_leads.insights` adds
 findings with `metric` `"leads"`, by insights.py's rules (whole periods only,

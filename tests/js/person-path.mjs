@@ -1,5 +1,5 @@
 // A lead's own visits in the person drawer (#30, 2.46.5): where they first came from, each
-// visit in order with its pages, what it sent, and whether it is proven or likely; a step
+// visit, newest first (#55), with its pages in order, what it sent, and whether it is proven or likely; a step
 // no visit is proven for is said, never hidden. Shaped on freshlycited.com lead 1179.
 //
 //   node tests/js/person-path.mjs
@@ -20,7 +20,7 @@ const v2 = { start: "2026-11-11T17:02:00Z", source: "Direct or unknown", via: nu
 const sec = pathPart({ visits: [v1, v2], unmatched: [{ action: "signup", stage: "paid", at: "2026-11-11T16:50:14Z", why: "no visit sent a form at its time" }],
   first: { start: v1.start, source: v1.source, via: v1.via, landing: v1.landing, link: "proven" } });
 const words = text(sec);
-assert.match(words, /Their visits, in order/);
+assert.match(words, /Their visits, newest first/);     // #55
 assert.match(words, /First came from Search engine · bing\.com/);
 assert.match(words, /\/bing-webmaster-tools\/ai-performance-report › \/contact\//, "the pages in order");
 assert.match(words, /xray completed/);

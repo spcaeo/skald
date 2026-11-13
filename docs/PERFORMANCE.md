@@ -213,6 +213,6 @@ steps if a first load must be faster still.
   `insights.json` comes out the same on every run (`insights.py`).
 - `live` at 10x is still 6 s for two sites; most of it is now reading today's log
   (`window.analyse_window_views`) and the CSV exports (`dashboard.write_exports`, 30-day
-  tables recomputed every 2 minutes). Caching the CSVs between live runs is the next step.
+  tables recomputed on every live run). Caching the CSVs between live runs is the next step.
 - `backup` writes the weekly gzip at the default level; a lower level would be faster.
 - The 100x size was not run for this report.

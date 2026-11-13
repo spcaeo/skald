@@ -85,7 +85,7 @@ Skald reads your website's lead database without changing it. Leads marked spam 
 
 ## Looking a person up
 
-Owners and admins find a person from **Search or jump to** at the top of every page (or **Ctrl K**, **Cmd K** on a Mac; a magnifier on a narrow screen): **Find a person** is the first result. The same search is on [Leads & sales > Find a person](#sales/people). Type one of these:
+Owners and admins find a person from **Search or jump to** at the top of every page (or **Ctrl K**, **Cmd K** on a Mac; a magnifier on a narrow screen): **Find a person** is the first result. The same search is the box at the top of [Leads & sales > Leads](#sales/leads). Type one of these:
 
 - an IP address
 - an email

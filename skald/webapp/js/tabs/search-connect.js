@@ -18,6 +18,8 @@ import { call } from "./ipmanager.js";
 import { time as tzTime } from "../tz.js";
 import { copyable, field, input, status, confirmIn, why } from "./forms.js";
 import { arrivedBox } from "../ui/live.js";
+import { pill } from "../ui/pill.js";
+import { help } from "../ui/help.js";
 
 const BACKFILL = [[0, "No history: from today on"], [3, "The last 3 months"], [16, "All 16 months Search Console keeps"]];
 const NAMES = { google: "Google Search Console", bing: "Bing Webmaster Tools" };
@@ -30,6 +32,23 @@ async function copyText(btn, text) {
 
 function ext(href, words) {
   return h("a", { href, target: "_blank", rel: "noopener noreferrer" }, words);
+}
+
+/* #40: a failing sync, state first (search/health.py: stopped after a day, or its tries, of
+   failures since it worked): the pill, since when, the engine's reason in one line, what to
+   do. The full answer and the rule sit behind "?"; the one action is Sync now, below. */
+const HEALTH_WORDS = { stopped: "Stopped", failing: "Last try failed", not_answering: "Never synced" };
+
+export function syncState(st, hl) {
+  const since = hl.state === "stopped" && hl.since ? `No good sync since ${tzTime(hl.since, { date: true })}. `
+    : st.error_since ? `Failing since ${tzTime(st.error_since, { date: true })}. ` : "";
+  const mailed = st.stopped_mailed ? "One mail went when it stopped; one more goes when it works again."
+    : st.error_mailed ? "One mail was sent about it." : "";
+  const rule = hl.rule ? `Skald calls a sync stopped when it worked before and every try since failed, for ${hl.rule.hours} hours or ${hl.rule.tries} tries in a row.` : "";
+  return h("div", { class: `se-health ${hl.pill || "warn"}`, role: hl.stopped ? "alert" : null },
+    h("p", null, pill(hl.pill || "warn", HEALTH_WORDS[hl.state] || "Failing"), " ", since, hl.reason ? `${hl.reason}.` : st.error, " ",
+      help("Why the sync fails", { text: [`The full answer: ${st.error}`, rule, mailed].filter(Boolean), guide: "search" })),
+    hl.advice ? h("p", null, h("b", null, "Do: "), hl.advice) : null);
 }
 
 /* The Search Console & Bing tab of Settings > Leads & tools for one site. */
@@ -150,7 +169,7 @@ export function searchBox(site) {
     if (b && (b.state === "queued" || b.state === "running")) lines.push(h("p", { class: "msg ok" }, `Syncing the history (${b.months} months): ${b.of ? `${n(b.done || 0)} of ${n(b.of)} weeks` : "starting"}...`));
     if (b && b.state === "failed") lines.push(h("p", { class: "msg err" }, `The history sync stopped: ${b.error || "no reason given"}`));
     if (b && b.state === "done") lines.push(h("p", { class: "muted" }, `History synced (${b.months} months).`));
-    if (st.error) lines.push(h("p", { class: "msg err" }, `Failing${st.error_since ? ` since ${tzTime(st.error_since, { date: true })}` : ""}: ${st.error}${st.error_mailed ? " One mail was sent about it." : ""}`));
+    if (st.error) lines.push(syncState(st, part.health || {}));
     if (st.audit && st.audit.ok === false) lines.push(h("p", { class: "msg err" }, `The second check found a difference: ${(st.audit.problems || []).slice(0, 2).join("; ")}.`));
     if (part.busy) lines.push(h("p", { class: "muted" }, "A sync is running now."));
     const acts = h("div", { class: "acts" });
