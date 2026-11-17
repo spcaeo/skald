@@ -28,7 +28,8 @@ A visit with at least one such page carries `ai_read`:
    "more": how many more (path, assistant) pairs were left out}
 
 nearest first (then path, then assistant), each (path, assistant) once at its
-nearest fetch. Paths as the fetch records keep them (no query, 70 characters).
+nearest fetch. Paths as the fetch records keep them (no query, PATH_CHARS characters:
+path_names.py).
 
 The blob (kind `ai_read`; None when `attribution.ai_likely` is false or the
 visits were not counted - "not recorded", never 0):

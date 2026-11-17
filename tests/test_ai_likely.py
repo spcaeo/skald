@@ -393,7 +393,8 @@ class TestIndependence(unittest.TestCase):
         # of reads (audit_ai_reads, on the audit's road): nothing of the main road.
         tree = ast.parse(Path(audit_ai_likely.__file__).read_text())
         got = {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.level}
-        self.assertEqual(got, {"classify", "ai_read_names", "audit_ai_reads"})
+        # And the kept path length both roads share (path_names.py, #71): a number, never code.
+        self.assertEqual(got, {"classify", "ai_read_names", "audit_ai_reads", "path_names"})
 
 
 if __name__ == "__main__":

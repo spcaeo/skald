@@ -14,7 +14,7 @@ with its own code, written apart from ai_likely.py:
                     query string (urllib.parse.parse_qsl here) has no utm_
                     tag with something in it and no ad click id
                     (classify.CLICK_ID_PARAMS)
-  the same page     both paths cut at "?" or "#", to 70 characters, with
+  the same page     both paths cut at "?" or "#", to PATH_CHARS characters, with
                     any trailing "/" taken off ("/" stays "/")
   likely            a fetch of the visit's page whose minute is the visit's
                     first minute or up to the window before it; two or more
@@ -62,6 +62,7 @@ from .ai_read_names import WINDOW_SECONDS
 from .audit_ai_reads import prefixes_of, roles
 from .classify import (AI_FETCHER_OWNERS, AI_LIKELY_MANY, AI_REFERRER_HOSTS,
                        AI_REFERRER_PATHS, AI_UTM, ASSISTANT_ALIASES, CLICK_ID_PARAMS)
+from .path_names import PATH_CHARS
 
 UTM_KEYS = ("utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content")
 REST = "(all others)"
@@ -94,7 +95,7 @@ def _sent_by(line) -> str:
 
 
 def _page(path: str) -> str:
-    got = _CUT.split(path or "", 1)[0][:70]
+    got = _CUT.split(path or "", 1)[0][:PATH_CHARS]
     while got.endswith("/") and len(got) > 1:
         got = got[:-1]
     return got or "/"
@@ -129,7 +130,7 @@ class Recount:
         who = AI_FETCHER_OWNERS.get(name.lower(), name.lower())
         stamp = int(line.when.timestamp()) // 60
         self.fetches.append((stamp, who, _page(line.path)))
-        self.raw[(stamp, who, line.path[:70])] += 1
+        self.raw[(stamp, who, line.path[:PATH_CHARS])] += 1
         self.asked.append((line, name))
 
     def visit(self, lines, is_page, labels) -> None:

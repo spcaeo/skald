@@ -18,6 +18,8 @@ import os
 from collections import Counter
 from urllib.parse import parse_qsl
 
+from .path_names import PATH_CHARS
+
 OTHER = "(all others)"
 NONE = "(none)"
 NETWORKS = (("gclid", "Google Ads"), ("gbraid", "Google Ads"), ("wbraid", "Google Ads"),
@@ -97,7 +99,7 @@ class ExtrasRecount:
             key = {"people": "views", "search_engines": "search"}.get(group)
             key = ("ai_" + tier) if group == "answer_engines" else key
             if key:
-                self.pages.setdefault(line.path[:70], Counter())[key] += 1
+                self.pages.setdefault(line.path[:PATH_CHARS], Counter())[key] += 1
         if group == "ours" and ours_label == self.heartbeat:
             self.beats["ok" if line.status[:1] in ("2", "3") else "failed"] += 1
         if group == "answer_engines" and self.key is not None:
@@ -106,7 +108,7 @@ class ExtrasRecount:
     def visit(self, landing, family: str) -> None:
         """One reader's visit, by its first page line."""
         self.hours_utc.setdefault(_utc_key(landing.when), Counter())["readers"] += 1
-        self.pages.setdefault(landing.path[:70], Counter())["entries"] += 1
+        self.pages.setdefault(landing.path[:PATH_CHARS], Counter())["entries"] += 1
         tags = _tags(landing.url)
         names = {f"utm_{k}": (_norm(tags[f"utm_{k}"]) if tags.get(f"utm_{k}", "").strip()
                               else NONE) for k in UTM}

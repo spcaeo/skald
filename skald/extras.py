@@ -31,6 +31,7 @@ from datetime import timezone
 from . import dimensions as dim
 from .classify import AI_REFERRER_HOSTS, Group, assistant_name
 from .parse import ASSET
+from .path_names import PATH_CHARS
 
 GROUP_KEYS = [g.value for g in Group]
 HOUR_KEYS = GROUP_KEYS + ["readers", "ai_asked", "ai_training", "server_errors"]
@@ -157,7 +158,7 @@ class Extras:
         """The page first-times this page view sets (lifecycle.py)."""
         if not hit.is_page:
             return
-        path, group = hit.path[:70], verdict.group
+        path, group = hit.path[:PATH_CHARS], verdict.group
         if group is Group.SEARCH_ENGINE and verdict.engine:
             low = verdict.engine.lower()
             if low in ("googlebot", "bingbot"):
@@ -221,7 +222,7 @@ class Extras:
                 got[1] = min(got[1], hit.when)
                 got[2] = max(got[2], hit.when)
         if hit.is_page:
-            path = hit.path[:70]
+            path = hit.path[:PATH_CHARS]
             if verdict.group is Group.PEOPLE:
                 self._page(path)["views"] += 1
             elif verdict.group is Group.ANSWER_ENGINE and verdict.tier:

@@ -7,8 +7,8 @@ the name lists in direct_names.py:
 
   a preview     a line the audit's judge put in bots as a link preview
                 (its info names the app); its minute is the line's epoch
-                seconds // 60; its page is the path cut at "?" or "#", to 70
-                characters, a trailing "/" taken off ("/" stays "/")
+                seconds // 60; its page is the path cut at "?" or "#", to
+                PATH_CHARS characters, a trailing "/" taken off ("/" stays "/")
   a Direct      a visit that read a page whose source (the audit's own
   visit         label, audit_labels.source_of) is "Direct or unknown"
   its address   the first page line's URL, its query split here by hand on
@@ -34,6 +34,7 @@ from urllib.parse import unquote_plus
 from .direct_names import (CHECKOUT_DONE, CHECKOUT_PAGES, CHECKOUT_PARAMS, CHECKOUT_SECTIONS,
                            IN_APP_BROWSERS, MANY, PAGE_ENDINGS, REASONS, RETURN_PAGE,
                            SHARE_KEYS, SHARE_PARAMS, SHARE_TAG, SHARE_WORDS)
+from .path_names import PATH_CHARS
 
 NO_SOURCE = "Direct or unknown"
 
@@ -44,7 +45,7 @@ def _bare_page(path: str) -> str:
         at = (path or "").find(mark)
         if at != -1:
             cut = min(cut, at)
-    got = (path or "")[:cut][:70]
+    got = (path or "")[:cut][:PATH_CHARS]
     while len(got) > 1 and got.endswith("/"):
         got = got[:-1]
     return got or "/"

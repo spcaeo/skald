@@ -14,8 +14,8 @@ gets one role:
           framework folder or the site's asset prefixes, a framework payload,
           or a same-site referrer naming a page the same assistant read in
           the last WINDOW_SECONDS); never "AI asked"
-  read    an assistant's first request for a page (the page: no query, 70
-          characters, a trailing "/" ignored), or its first after
+  read    an assistant's first request for a page (the page: no query,
+          PATH_CHARS characters, a trailing "/" ignored), or its first after
           WINDOW_SECONDS since that read began
   repeat  the same assistant asking for the same page inside that window
 
@@ -54,6 +54,7 @@ from urllib.parse import parse_qsl, urlsplit
 from .ai_read_names import (DEFAULT_PREFIXES, FILE_EXTENSIONS, FILE_FOLDERS, FILE_QUERY,
                             WINDOW_SECONDS)
 from .classify import Group, Tier
+from .path_names import PATH_CHARS
 
 TOP = 20
 PAGES = 10
@@ -64,8 +65,8 @@ PRUNE_AT = 4096
 
 
 def bare(path: str) -> str:
-    """A path as it is shown: no query, no fragment, 70 characters."""
-    return str(path or "").split("?", 1)[0].split("#", 1)[0][:70]
+    """A path as it is shown: no query, no fragment, PATH_CHARS characters (#71)."""
+    return str(path or "").split("?", 1)[0].split("#", 1)[0][:PATH_CHARS]
 
 
 def page_of(path: str) -> str:

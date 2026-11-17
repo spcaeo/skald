@@ -88,14 +88,16 @@ class TestIndependence(unittest.TestCase):
 
     def test_the_visits_recount_imports_nothing_from_the_package(self):
         """Only the name lists of what is no form (form_names.py) and the two
-        numbers of trail rule 2 (trail_names.py, #62) are shared."""
+        numbers of trail rule 2 (trail_names.py, #62) and the kept path length
+        (path_names.py, #71) are shared."""
         source = Path(audit_visits.__file__).read_text() + Path(audit_extras.__file__).read_text()
         relative = {(node.module, a.name) for node in ast.walk(ast.parse(source))
                     if isinstance(node, ast.ImportFrom) and node.level for a in node.names}
         self.assertEqual(relative, {("form_names", n) for n in
                                     ("BEACON_STATUS", "ENTRY_LIMIT", "MAX_OWN", "REFUSED",
                                      "SCRIPT_POSTS")}
-                         | {("trail_names", n) for n in ("OWN_FILES_SECONDS", "TOGETHER_SECONDS")})
+                         | {("trail_names", n) for n in ("OWN_FILES_SECONDS", "TOGETHER_SECONDS")}
+                         | {("path_names", "PATH_CHARS")})
 
     def test_trail_names_holds_numbers_only(self):
         """trail_names.py shares numbers, never code: both roads apply rule 2 by their own."""

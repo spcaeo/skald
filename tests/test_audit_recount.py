@@ -282,6 +282,8 @@ class TestIndependence(AuditCase):
             "_COMBINED", "_EXTENDED", "_LAST_QUOTED", "_OWN", "_PREFETCH_KEY", "_REQUEST",
             "_RID", "Line", "_byte_count", "_line", "_named_host", "_prefetch", "_read",
             "_secs", "_tail_seconds", "line_hit", "log_files", "raw_lines")}
+        # The kept path length both roads share (path_names.py, #71): a number, never code.
+        allowed |= {("path_names", "PATH_CHARS")}
         self.assertLessEqual(imported, allowed)
 
     def test_its_line_reader_imports_only_its_drain_reader(self):

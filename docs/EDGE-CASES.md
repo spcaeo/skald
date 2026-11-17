@@ -257,8 +257,13 @@ never up.
 - **Test:** `/pricing?x=1` and `/pricing` are one page; `ref=producthunt` becomes a campaign label; `?email=a@b.c` is never stored.
 - **Status:** path-only Handled; `ref=` capture and `amp;` handling are This release (full UTM capture) - confirm `ref`.
 
-### C6. Very long or odd URLs
-- **Count:** cap stored paths (e.g. 200 characters); fold anything past the top list into "(all others)" (Handled).
+### C6. Very long or odd URLs (#71)
+- **Seen:** in a live visitor drawer, 16 Nov: an 82-character blog address drawn as its first 70 characters (`...-for-trash-va`), and **Open** went to a page not found. Every stored path was cut at 70: on one site 61 of 257 pages read in 30 days were, and on another 3 rows each added two different articles together (`...-companies` and `...-companies-2026`).
+- **Count:** both roads keep a path, without its query, to `path_names.PATH_CHARS` (512) characters: real pages whole, a longer one (a scanner's probe, mostly) cut at 512. Anything past the top list is folded into "(all others)" (Handled).
+- **Show:** days counted before #71 still hold paths cut at 70. A site path of exactly 70 characters gets "may be cut short" after it (its tooltip says why), and the copy icon only, never **Open** (`webapp/js/pathnames.js`, `urlactions.js`). A page whose address really is 70 characters long is marked too: the figures cannot tell the two apart. A range across the change can list a long page twice, cut (older days) and whole. `backfill --force` counts the days the raw log still holds again, with whole paths.
+- **Alerts:** the AI alerts take a long page and its old 70-character name as one page (`alerts_ai._known`), so it is not "started" or "stopped" only because of the change. llms.txt still leaves out a path of exactly 70 characters unless the page list names it.
+- **Test:** tests/test_path_chars.py (whole, two rows, cut at 512, a collected day recounts exactly, no `[:70]` left, the two numbers in Python and JS, the alerts); tests/js/urlactions.mjs (the "may be cut short" mark, no Open).
+- **Status:** Handled from #71. Older days keep their cut paths, marked.
 
 ### C7. Old WordPress URLs vs scanners
 - **Seen:** `/wp-content/uploads/2025/09/cropped-Welc...` and `/wp-content/uploads/2025/11/Banner-image...` (the old site's own images, still linked from somewhere) next to `/wp-admin/install.php?step=...` (30, a real probe).

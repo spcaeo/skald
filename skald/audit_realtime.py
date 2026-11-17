@@ -23,7 +23,7 @@ classify.py's name lists are shared, through the audit.
   sources, devices
                   the active visits by the labels of their first page
   pages           people's page lines in the last 30 minutes, by path (the
-                  first 70 characters, the query cut)
+                  first PATH_CHARS characters, the query cut)
   machines        lines in the last 30 minutes: AI assistants and search
                   crawlers by the judge's name, other bots as one count
   newest          the newest visits by their first line: start to the
@@ -58,6 +58,8 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime, timedelta, timezone
+
+from .path_names import PATH_CHARS
 
 OTHER = "(all others)"
 MINUTES = 30
@@ -99,7 +101,7 @@ class Recount:
     def visit(self, lines: list, is_page, labels: dict | None) -> None:
         if labels is None or not lines:
             return
-        pages = [(l.when, l.path[:70]) for l in lines if is_page(l)]
+        pages = [(l.when, l.path[:PATH_CHARS]) for l in lines if is_page(l)]
         self.visits.append((lines[0].when, lines[-1].when, labels, len(pages), pages))
 
     # ------------------------------------------------------------ the figures

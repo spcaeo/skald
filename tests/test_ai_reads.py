@@ -246,7 +246,8 @@ class TestIndependence(unittest.TestCase):
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.level:
                 names.add((node.module or "").split(".")[0])
-        self.assertEqual(names, {"ai_read_names", "classify"})
+        # And the kept path length both roads share (path_names.py, #71): a number, never code.
+        self.assertEqual(names, {"ai_read_names", "classify", "path_names"})
 
 
 if __name__ == "__main__":

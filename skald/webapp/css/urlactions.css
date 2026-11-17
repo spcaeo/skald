@@ -53,3 +53,5 @@ tbody tr:hover .ua, .vrow:hover .ua, li.drow:hover .ua { --ua-bg: color-mix(in s
 .route-miss { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 12px; }
 .route-miss > div { flex: 1; }
 .route-miss-x { flex: none; }
+/* #71: after a path that may be cut short (urlactions.js, pathnames.js); it has no Open. */
+.ua-cut { color: var(--ink-3); font-size: 11px; margin-left: 6px; white-space: nowrap; cursor: help; text-decoration: underline dotted; }

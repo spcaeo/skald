@@ -20,7 +20,9 @@ This builds one from the site's real pages:
             every crawler from ("User-agent: *"), pages the website's old-URL
             map redirects or calls gone (report.redirect_map), pages that
             answered 404 or 410 after they were last served, paths that may
-            have been cut short in history (MAX_PATH), and pages nobody read.
+            have been cut short in history (exactly path_names.OLD_PATH_CHARS
+            characters, as days counted before #71 kept them, or PATH_CHARS or
+            more), and pages nobody read.
             With the website's page list (report.pages_meta) only its pages
             are kept, under their titles; otherwise the path is the title.
   sections  by top-level section (/blog/... under "Blog"); pages with no
@@ -47,10 +49,11 @@ from pathlib import Path
 from urllib.parse import quote
 from urllib.robotparser import RobotFileParser
 
+from .path_names import OLD_PATH_CHARS, PATH_CHARS
+
 DAYS = 90
 LIMIT = 30
 OPTIONAL = 20
-MAX_PATH = 70           # extras.py keeps a path's first 70 characters
 MAIN = "Main pages"
 COPIES = "Markdown copies"
 COPY = re.compile(r"\.md/?$", re.I)
@@ -180,7 +183,7 @@ def suggest(p) -> dict:
         listed = meta.get(_norm(path))
         if private(path):
             why["private"] += 1
-        elif len(path) >= MAX_PATH and listed is None:
+        elif (len(path) == OLD_PATH_CHARS or len(path) >= PATH_CHARS) and listed is None:
             why["cut_short"] += 1
         elif rp is not None and not rp.can_fetch("*", path):
             why["robots_txt"] += 1

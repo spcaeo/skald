@@ -7,7 +7,7 @@ gives each one a role with its own code, written apart from ai_reads.py.
 It shares only the names and the window of ai_read_names.py and the owner
 list classify.AI_FETCHER_OWNERS:
 
-  the page      the line's path cut at "?" and "#", 70 characters; compared
+  the page      the line's path cut at "?" and "#", PATH_CHARS characters; compared
                 with every trailing "/" taken off ("/" stays "/")
   a file        the path's last segment ends in a FILE_EXTENSIONS name, the
                 path starts with a FILE_FOLDERS folder or one of the site's
@@ -36,6 +36,7 @@ from urllib.parse import parse_qsl, urlsplit
 from .ai_read_names import (DEFAULT_PREFIXES, FILE_EXTENSIONS, FILE_FOLDERS, FILE_QUERY,
                             WINDOW_SECONDS)
 from .classify import AI_FETCHER_OWNERS
+from .path_names import PATH_CHARS
 
 REST = "(all others)"
 NAMES = ("requests", "reads", "repeats", "files", "files_with_page")
@@ -46,7 +47,7 @@ def _cut(path: str) -> str:
 
 
 def _shown(path: str) -> str:
-    return _cut(path)[:70]
+    return _cut(path)[:PATH_CHARS]
 
 
 def _same(path: str) -> str:
@@ -162,7 +163,7 @@ class Recount:
                     continue
                 stamp = datetime.fromtimestamp(int(_seconds(line.when)) // 60 * 60, timezone.utc)
                 who = AI_FETCHER_OWNERS.get(name.lower(), name.lower())
-                counted[(stamp.strftime("%Y-%m-%dT%H:%M"), who, line.path[:70])] += 1
+                counted[(stamp.strftime("%Y-%m-%dT%H:%M"), who, line.path[:PATH_CHARS])] += 1
             for key in sorted(set(kept) | set(counted)):
                 if kept[key] or counted[key]:
                     same(f"ai_fetches: reads by {key[1]} of {key[2]} at {key[0]}",

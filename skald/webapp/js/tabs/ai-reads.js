@@ -12,6 +12,7 @@
 import { h, n, short } from "../ui.js";
 import { panel, blist } from "./common.js";
 import { help } from "../ui/help.js";
+import { PATH_CHARS } from "../pathnames.js";
 
 export const WINDOW = 30;
 const OTHER = "(all others)";
@@ -106,8 +107,8 @@ export function foldReads(rows, nameOf = (r) => r.name) {
       // The read it belongs to: same assistant, its page, the latest at or before this row.
       let hit = null;
       for (const [j, r] of reads) {
-        // `of` is the read's path cut at 70 characters (ai_reads.bare); a row's may be longer.
-        if (j === i || nameOf(r) !== nameOf(row) || String(r.path).slice(0, 70) !== row.of || String(r.at) > String(row.at)) continue;
+        // `of` is the read's path cut at PATH_CHARS (ai_reads.bare, #71); a row's may be longer.
+        if (j === i || nameOf(r) !== nameOf(row) || String(r.path).slice(0, PATH_CHARS) !== row.of || String(r.at) > String(row.at)) continue;
         if (!hit || String(r.at) > String(hit[1].at)) hit = [j, r];
       }
       if (hit && row.of) {

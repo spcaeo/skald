@@ -64,6 +64,7 @@ from datetime import datetime, timedelta, timezone
 
 from . import dimensions as dim
 from .classify import Group
+from .path_names import PATH_CHARS
 
 VERSION = 1
 MINUTES = 30             # the window: active "now", per-minute bars, lists
@@ -135,7 +136,7 @@ class Observer:
         elif group is Group.BOTS:
             self.bots += 1
         elif group is Group.PEOPLE and hit.is_page:
-            self.pages[hit.path[:70]] += 1
+            self.pages[hit.path[:PATH_CHARS]] += 1
 
 
 def visit_figures(visits, until: datetime, minutes: int = MINUTES) -> dict:

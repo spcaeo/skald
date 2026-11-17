@@ -24,6 +24,7 @@ from pathlib import Path
 from .bot_policy import match as policy_match
 from .bot_verify import CLAIMS, CRAWLER_ADDRESSES, LOCAL_TOOL, MAX_LIST_AGE, VENDORS
 from .classify import LINK_PREVIEWS, OTHER_BOT
+from .path_names import PATH_CHARS
 
 FLAGS = ("hosting_network", "fan_out", "bare_mozilla")
 _BROWSERISH = re.compile(r"Mozilla/|Opera/|Safari/|Chrome/|Firefox/", re.I)
@@ -420,7 +421,7 @@ class FirstsRecount:
             page: bool) -> None:
         if not page:
             return
-        path = line.path[:70]
+        path = line.path[:PATH_CHARS]
         if group == "search_engines" and (info.get("name") or "").lower() in ("googlebot",
                                                                              "bingbot"):
             self._take(path, info["name"].lower(), line.when)

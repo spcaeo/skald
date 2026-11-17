@@ -310,7 +310,8 @@ class TestIndependence(unittest.TestCase):
         tree = ast.parse(Path(audit_funnels.__file__).read_text())
         froms = {node.module for node in ast.walk(tree)
                  if isinstance(node, ast.ImportFrom) and node.level}
-        self.assertLessEqual(froms, {"classify", "audit_labels", "audit_visits"})
+        # path_names.py (#71): the kept path length both roads share, a number, never code.
+        self.assertLessEqual(froms, {"classify", "audit_labels", "audit_visits", "path_names"})
         names = {a.name for node in ast.walk(tree)
                  if isinstance(node, ast.ImportFrom) and node.module == "classify"
                  for a in node.names}

@@ -22,6 +22,7 @@ from collections import Counter
 from urllib.parse import urlsplit
 
 from .form_names import BEACON_STATUS, ENTRY_LIMIT, MAX_OWN, REFUSED, SCRIPT_POSTS
+from .path_names import PATH_CHARS
 from .trail_names import OWN_FILES_SECONDS, TOGETHER_SECONDS
 
 OTHER = "(all others)"
@@ -234,7 +235,7 @@ def trail_of(lines: list, is_page, where_of) -> tuple[list[str], list, int]:
         here = is_page(l)
         if seen and l.status[:1] in ("2", "3"):
             where = where_of(l)
-            if where and where != seen[-1] and not (here and where == l.path[:70]):
+            if where and where != seen[-1] and not (here and where == l.path[:PATH_CHARS]):
                 if here:
                     skip = (before is not None and before[0] == where
                             and abs((l.when - before[1]).total_seconds()) <= TOGETHER_SECONDS)
@@ -246,9 +247,9 @@ def trail_of(lines: list, is_page, where_of) -> tuple[list[str], list, int]:
                     when.append(l.when)
                     moved += 1
         if here:
-            seen.append(l.path[:70])
+            seen.append(l.path[:PATH_CHARS])
             when.append(l.when)
-            loaded_at[l.path[:70]] = l.when
+            loaded_at[l.path[:PATH_CHARS]] = l.when
             before = (where_of(l), l.when)
     return seen, when, moved
 
@@ -286,7 +287,7 @@ class VisitRecount:
         path = parts.path or "/"
         if _is_asset_path(path) or _is_beacon_path(path):
             return ""
-        return path[:70]
+        return path[:PATH_CHARS]
 
     def visit(self, lines: list, is_page) -> None:
         """One visit's lines, oldest first. Ignored unless it loaded a page."""
@@ -312,7 +313,7 @@ class VisitRecount:
         forms = [l for l in lines if self.not_form.form(l)]
         if forms:
             self.flags["posted"] += 1
-        self.post_paths.update({l.path[:70] for l in forms if l.status.startswith("2")})
+        self.post_paths.update({l.path[:PATH_CHARS] for l in forms if l.status.startswith("2")})
         if moved:
             self.flags["in_app"] += 1
         self.journeys_pages += len(loaded)
