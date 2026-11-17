@@ -45,6 +45,7 @@ from pathlib import Path
 from .classify import (AI_ASKED, AI_REFERRER_HOSTS, AI_REFERRER_PATHS, AI_TRAINING, AI_UTM,
                        OTHER_BOT,
                        OWN_AGENTS, PROBE, PROBE_QUERY, SEARCH_ENGINE, SECRET_PROBE)
+from .path_names import PATH_CHARS
 from .payment_names import RETURNED
 from .store import History, READER_KINDS
 from . import (audit_cities, audit_drains, audit_extras, audit_more, audit_not_pages,
@@ -663,7 +664,7 @@ def _reader(visit: list, by: dict, wanted: set, tz, cities=None, pay=()) -> dict
         "source": source_of(line, cited, own, pay),
         "referrer": referrer_of(line, own, pay),
         "campaign": campaign_of(line.url),
-        "landing": line.path[:70],
+        "landing": line.path[:PATH_CHARS],
         "hour": f"{line.when.astimezone(tz).hour:02d}",
     }
     if cities is not None:

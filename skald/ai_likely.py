@@ -92,6 +92,7 @@ from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 
 from .classify import AI_FETCHER_OWNERS, AI_LIKELY_MANY, Group, Tier
+from .path_names import PATH_CHARS
 
 WINDOW = 15
 CHANCE_LIMIT = 0.25          # visits chance alone may put in the windows
@@ -128,9 +129,9 @@ def owner(engine: str) -> str:
 
 
 def page_key(path: str) -> str:
-    """A page as the window compares it: no query, 70 characters (as
+    """A page as the window compares it: no query, PATH_CHARS characters (as
     journeys keep it), no trailing slash."""
-    bare = str(path or "").split("?", 1)[0].split("#", 1)[0][:70]
+    bare = str(path or "").split("?", 1)[0].split("#", 1)[0][:PATH_CHARS]
     return bare.rstrip("/") or "/"
 
 
@@ -168,7 +169,7 @@ class Fetches:
 
     def add(self, hit, verdict, role: str | None = None) -> None:
         if verdict.group is Group.ANSWER_ENGINE and verdict.tier is Tier.ASKED:
-            row = (minute(hit.when), owner(verdict.engine), hit.path[:70])
+            row = (minute(hit.when), owner(verdict.engine), hit.path[:PATH_CHARS])
             self.rows.append(row)
             if role == "read":
                 self.started[row] += 1

@@ -373,7 +373,8 @@ class TestIndependence(unittest.TestCase):
     def test_the_recount_shares_only_the_name_lists(self):
         tree = ast.parse(Path(audit_direct_likely.__file__).read_text())
         got = {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.level}
-        self.assertEqual(got, {"direct_names"})
+        # And the kept path length both roads share (path_names.py, #71): a number, never code.
+        self.assertEqual(got, {"direct_names", "path_names"})
 
     def test_the_name_lists_import_nothing(self):
         tree = ast.parse(Path(direct_names.__file__).read_text())

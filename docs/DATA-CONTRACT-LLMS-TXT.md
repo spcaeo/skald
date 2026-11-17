@@ -25,9 +25,9 @@ and private ones (sign-in, account, cart, checkout, search, admin, API and
 the like: `llms_txt.PRIVATE`, by first path segment); paths robots.txt
 disallows for `User-agent: *` (the copy `robots.py` fetched); pages the old-URL
 map (`report.redirect_map`) redirects or calls gone; pages that answered
-404 or 410 after they were last served; paths of 70 characters or more
-(history keeps 70, so they may be cut short) unless the page list names
-them; pages nobody read. With the website's page list (`report.pages_meta`)
+404 or 410 after they were last served; paths that may be cut short in
+history (exactly 70 characters, as days counted before #71 kept every path,
+or 512 or more, `path_names.PATH_CHARS`) unless the page list names them; pages nobody read. With the website's page list (`report.pages_meta`)
 only the pages it lists are kept.
 
 **Titles and summary.** A page's title and note are `title` and `description`

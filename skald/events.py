@@ -50,6 +50,7 @@ from pathlib import Path
 
 from . import beacon
 from .config import setting
+from .path_names import PATH_CHARS
 
 FACTOR, SLACK = 10, 20
 DAY_FACTOR, DAY_SLACK = 10, 50
@@ -132,7 +133,7 @@ def bounds(people: Counter, pages: dict | None, not_found: list | None,
         (nf_by_path if event == "404_view" else by_path)[path] += n
     if pages is not None:
         for path, n in sorted(by_path.items()):
-            page = pages.get(path[:70]) or {}
+            page = pages.get(path[:PATH_CHARS]) or {}
             base = max(int(page.get("views", 0)), int(page.get("visits", 0)))
             limit = FACTOR * base + SLACK
             if n > limit:

@@ -9,7 +9,8 @@ when its source is "Direct or unknown", its landing address has no utm_ tag
 and no ad click id, and that assistant's user fetcher fetched the page it
 landed on in the same minute as the visit's first request or up to the
 window before it (`attribution.ai_window_minutes`, default 15). Minutes in
-UTC; paths without the query, 70 characters, trailing `/` ignored. Two or
+UTC; paths without the query, 512 characters (`path_names.PATH_CHARS`; 70 on
+days counted before #71), trailing `/` ignored. Two or
 more assistants: once, under `"(more than one)"`. It is never added to the
 "AI assistant" source, to people or to any other figure. Every place that
 shows it says "likely" and gives the window.
@@ -41,7 +42,7 @@ snapshot. `null` when off or when the visits were not counted.
 |---|---|
 | `window_minutes` | int: the window this day was counted with |
 | `chance_limit` | float: the limit this day was counted with; absent on days counted before the rule (no limit) |
-| `by_chance` | `{assistant: [page, ...]}`: the pages (query cut, 70 characters, no trailing `/`) whose fetches by that assistant were no evidence that day |
+| `by_chance` | `{assistant: [page, ...]}`: the pages (query cut, 512 characters, no trailing `/`) whose fetches by that assistant were no evidence that day |
 | `visits` | int: the day's visits (journeys) |
 | `direct` | int: of which direct and untagged - what the estimate can explain |
 | `likely` | int: of which likely referred by an assistant |
@@ -68,7 +69,7 @@ are not `likely`.
 
 `ai_fetches.py`. The day's user fetches, so leads and conversions can look
 back from a touch: `{"rows": [[minute, assistant, path, n, reads]]}`, `minute` UTC
-`"YYYY-MM-DDTHH:MM"`, `path` without the query (70 characters), `n` the
+`"YYYY-MM-DDTHH:MM"`, `path` without the query (512 characters), `n` the
 fetches that minute, `reads` how many of them began a read (`ai_reads`
 below: 0 for a repeat or a file the page loaded). A row with four items was
 stored before reads were counted: its reads are unknown, never 0. Only user

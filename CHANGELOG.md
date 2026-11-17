@@ -4,6 +4,52 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.50.1 (2026-11-17)
+
+Page addresses longer than 70 characters are kept whole: right in every list, and **Open**
+goes to the real page.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- No schema change, no setting.
+- **Recount, then audit.** Days stored before the upgrade keep their cut paths. Recount the
+  days the raw log still holds whole (`backfill --days N --force`, away from the 07:15 daily
+  run), then audit them. Audit a day stored before the upgrade only after its recount: with a
+  path longer than 70 characters it does not match, and `--withhold` would hold it back.
+
+### Changes
+
+- **Page addresses are kept whole, not cut at 70 characters (#71).** Seen on 16 Nov 2026
+  in a visitor drawer: an 82-character blog address showed as its first 70 characters
+  (`...-for-trash-va`), and **Open** went to a page not found. Every figure keyed by a page
+  (pages read, landing pages, 404s, slow pages, journeys, the visitor drawer, Right now, live,
+  the pages an assistant fetched) kept only a path's first 70 characters. On one site 61 of
+  257 pages read in 30 days were cut, and two different articles that differ only after the
+  70th character were counted as one row. Now both counting roads keep a path, without its
+  query, to 512 characters (`path_names.py`). A longer path (a scanner's probe,
+  mostly) is still cut, at 512. Funnel steps take paths up to 512 characters too, and llms.txt
+  can list long pages.
+  - **Days already stored keep their cut paths.** A site path of exactly 70 characters now
+    shows "may be cut short" after it, with the copy icon only and no Open.
+    A page whose address really is 70 characters long is marked too. A period that spans the
+    upgrade can list a long page twice: cut (older days) and whole.
+  - **The AI alerts** take a long page and its old cut name as one page, so the change
+    starts or stops no alert by itself.
+  - **Who it affects:** every site with addresses longer than 70 characters.
+  - **What to do:** after the upgrade, recount the days the raw log still holds
+    (`backfill --days 14 --force`, away from the 07:15 daily run), then
+    `audit --day ... --withhold` for each of them. Older days stay cut, marked. **Recount
+    before you audit:** a day stored before the upgrade, audited by the new version, does
+    not match wherever it has a path longer than 70 characters (its history holds the cut
+    path, the recount finds the whole one), and `--withhold` would hold it back. The daily
+    run audits only the day it has just counted, so it is not affected.
+  - **Checked:** tests/test_path_chars.py (both roads keep a long page whole, two pages that
+    differ after character 70 stay two rows, a probe is cut at 512, a collected day
+    recounts "all match", no `[:70]` left, the numbers equal in Python and JS, the
+    alerts); tests/js/urlactions.mjs (the "may be cut short" mark, no Open); the full suite; and a before and
+    after on copies of a local install with a long-address visit.
+
 ## 2.50.0 (2026-11-17)
 
 A short daily summary mail; visit journeys no longer show pages the browser only loaded

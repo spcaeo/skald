@@ -34,6 +34,7 @@ from typing import Callable, Iterable
 
 from . import dimensions as dim
 from .extras import Extras
+from .path_names import PATH_CHARS
 from .visits import Journeys
 from .classify import Classifier, Group, Tier
 from .countries import UNKNOWN
@@ -292,7 +293,7 @@ class Tally:
             stats.probes += 1
         if hit.is_page:
             stats.views += 1
-            stats.pages[hit.path[:70]] += 1
+            stats.pages[hit.path[:PATH_CHARS]] += 1
         elif self.quality is not None and hit.not_page_rule:
             self.quality.not_page(hit.not_page_rule, verdict.group is Group.PEOPLE)
         sessions = self.sessions[verdict.group]
@@ -313,20 +314,20 @@ class Tally:
         stats.statuses[status] += 1
         if hit.is_form_post:
             stats.posts += 1
-            stats.post_pages[hit.path[:70]] += 1
+            stats.post_pages[hit.path[:PATH_CHARS]] += 1
         if status == "5xx" and verdict.group is Group.OURS:
             # 2.45.4: our own requests (ours) are never traffic, so not a site error either
             totals.ours_errors_left_out += 1
         elif status == "5xx":
-            totals.server_errors[hit.path[:70]] += 1
+            totals.server_errors[hit.path[:PATH_CHARS]] += 1
         if verdict.group is Group.PEOPLE:
             if status == "404":
-                stats.not_found[hit.path[:70]] += 1
+                stats.not_found[hit.path[:PATH_CHARS]] += 1
             if hit.is_page:
                 bucket = dim.speed(hit.request_time)
                 stats.speeds[bucket] += 1
                 if bucket in dim.SLOW:
-                    stats.slow_pages[hit.path[:70]] += 1
+                    stats.slow_pages[hit.path[:PATH_CHARS]] += 1
 
         self.extras.add(hit, verdict)
         if verdict.group is Group.PEOPLE:
@@ -358,7 +359,7 @@ class Tally:
                 stats.cited_visits += 1
                 stats.cited_by[verdict.engine] += 1
             if hit.is_page:
-                stats.cited_pages[hit.path[:70]] += 1
+                stats.cited_pages[hit.path[:PATH_CHARS]] += 1
         elif verdict.group is Group.BOTS and not verdict.probe:
             stats.agents[verdict.engine or _short_agent(hit.user_agent)] += 1
 
@@ -376,7 +377,7 @@ class Tally:
             "source": dim.source_type(hit.referrer, hit.url, cited, own),
             "referrer": dim.referrer_label(hit.referrer, own, hit.url),
             "campaign": dim.campaign(hit.url),
-            "landing": hit.path[:70],
+            "landing": hit.path[:PATH_CHARS],
             "hour": dim.hour(hit.when, self.tz),
         }
         if self.cities is not None:

@@ -49,6 +49,7 @@ from .classify import Group, Tier
 from .countries import UNKNOWN, label as country_label
 from .form_names import FORMS_RULE
 from .parse import ASSET, BEACON
+from .path_names import PATH_CHARS
 from .trail_names import OWN_FILES_SECONDS, TOGETHER_SECONDS
 
 ARROW = " → "
@@ -113,7 +114,7 @@ def _same_site_path(referrer: str, own: set[str]) -> str:
     path = parts.path or "/"
     if ASSET.search(path) or BEACON.search(path):
         return ""
-    return path[:70]
+    return path[:PATH_CHARS]
 
 
 def _not_a_move(visit, hit, moved: str) -> bool:
@@ -306,14 +307,14 @@ class Journeys:
         if hit.is_form_post:
             visit.posted += 1
             if hit.status[:1] == "2":
-                visit.post_paths.add(hit.path[:70])
+                visit.post_paths.add(hit.path[:PATH_CHARS])
             if len(visit.who["posts"]) < 20:
                 visit.who["posts"].append(hit.when)
                 # The page the form was sent from (#57): its referrer on this
                 # site, "" when none or another site. Beside its time, exact,
                 # where the trail's rounded offsets cannot tell.
                 visit.who["posts_from"].append(_same_site_path(hit.referrer, own))
-        path = hit.path[:70]
+        path = hit.path[:PATH_CHARS]
         if visit.trail and hit.status[:1] in ("2", "3"):
             # Where the visitor was when this was asked for. A cancelled
             # request (499) may be the page they just left, so it says nothing.

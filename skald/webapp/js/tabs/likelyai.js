@@ -13,6 +13,7 @@ import { table } from "../table.js";
 import { panel, blist } from "./common.js";
 import { info } from "./tiles.js";
 import { ASSISTANTS } from "../labels.js";
+import { PATH_CHARS } from "../pathnames.js";
 
 export const MANY = "(more than one)";
 const LABEL = { ...ASSISTANTS, [MANY]: "More than one",
@@ -119,7 +120,7 @@ export function conversionsLikely(days, acts, f) {
 }
 
 // ------------------------------------------- what the AI read before (ai_read.py)
-const bare = (p) => (String(p || "").split(/[?#]/)[0].slice(0, 70).replace(/\/+$/, "") || "/");
+const bare = (p) => (String(p || "").split(/[?#]/)[0].slice(0, PATH_CHARS).replace(/\/+$/, "") || "/");
 const READ_NOTE = "The pages the assistant's user fetcher (ChatGPT-User, Perplexity-User, Claude-User, ...) fetched in the window before this visit's first request: likely what it read to write the answer. Training crawlers are never listed. Context, not people: a fetch can be for someone else. At most 10 pages are kept a visit.";
 
 // The visit drawer: "Fetched by ChatGPT in the 15 minutes before", nearest first.

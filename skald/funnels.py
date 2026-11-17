@@ -46,6 +46,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from .files import write_atomic
+from .path_names import PATH_CHARS
 
 MATCHES = ("equals", "starts_with", "segment", "contains")
 MAX_STEPS = 8
@@ -281,7 +282,7 @@ def clean(raw: dict) -> dict:
         match = s.get("match") or "equals"
         if match not in MATCHES:
             raise Invalid(f"match is one of {', '.join(MATCHES)}")
-        paths = [str(p).strip()[:100] for p in (s.get("paths") or [])][:MAX_PATHS]
+        paths = [str(p).strip()[:PATH_CHARS] for p in (s.get("paths") or [])][:MAX_PATHS]
         if not paths or any(not p or (match in ("equals", "starts_with") and not p.startswith("/"))
                             or any(c in p for c in "<>\"' ") for p in paths):
             raise Invalid("each path step needs paths starting with /")

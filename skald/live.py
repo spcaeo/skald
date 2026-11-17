@@ -39,6 +39,7 @@ from zoneinfo import ZoneInfo
 from .aggregate import READER_DIMS
 from .classify import AI_ASKED, Group, Tier
 from .config import ours_rules
+from .path_names import PATH_CHARS
 from .store_visits import journey_days
 from .files import slug, write_atomic
 from .verify import check
@@ -82,7 +83,7 @@ class _Activity:
             return
         when = hit.when if hit.when.tzinfo else hit.when.replace(tzinfo=timezone.utc)
         self.seq += 1
-        item = (when, self.seq, kind, who, hit.path[:70])
+        item = (when, self.seq, kind, who, hit.path[:PATH_CHARS])
         if len(self.latest) < EVENTS:
             heapq.heappush(self.latest, item)
         elif item > self.latest[0]:

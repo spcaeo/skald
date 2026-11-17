@@ -300,7 +300,9 @@ class TestTheAuditSharesOnlyTheLists(unittest.TestCase):
                                ("form_names", "MAX_OWN"), ("form_names", "REFUSED"),
                                ("form_names", "SCRIPT_POSTS"),
                                ("trail_names", "OWN_FILES_SECONDS"),
-                               ("trail_names", "TOGETHER_SECONDS")})
+                               ("trail_names", "TOGETHER_SECONDS"),
+                               # And the kept path length (path_names.py, #71).
+                               ("path_names", "PATH_CHARS")})
 
 
 def site_day(sandbox_lines_at=NOON) -> list[str]:

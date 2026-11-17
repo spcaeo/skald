@@ -20,12 +20,17 @@
 // "Copy failed: select and copy" instead of the tick. Neither click reaches the row under
 // it, so a row that opens a drawer or a page's story keeps doing so.
 //
+// A path that may have been cut short (#71, pathnames.js: exactly 70 characters, as days
+// counted before Skald kept whole addresses stored them) gets "may be cut short" after it,
+// and the copy icon only: opening it would most likely land on a page not found.
+//
 // The owner's rule (2026-10-25): every URL or path gets copy and open; every text value
 // someone may paste elsewhere (an address, a user agent, an email, a name, a search term,
 // a crawler, a campaign, a reference, a reason) gets the copy icon alone, the same look.
 // Labels, headings, buttons, plain numbers and percentages get none; chart tooltips none.
 
 import { h } from "./ui.js";
+import { CUT_MARK, CUT_WORDS, mayBeCut } from "./pathnames.js";
 
 let BASE = "";
 export function setSiteBase(site) {
@@ -71,7 +76,8 @@ const stop = (e) => e.stopPropagation();
 export function urlActions(target, { label = null } = {}) {
   const url = fullUrl(target);
   if (!url) return null;
-  return icons(url, label || String(target).trim(), true);
+  // #71: a path that may be a longer address cut short is copied, never opened.
+  return icons(url, label || String(target).trim(), !mayBeCut(target));
 }
 
 /* The copy icon alone, for an ID (2.25: a lead's reference, an account ID): the same look
@@ -132,7 +138,10 @@ function icons(url, name, opens) {
 /* A cell's or a chip's content with the icons at its end; the content alone when the
    target has no full URL. tag: the wrapper's element (span by default). */
 export function withUrl(content, target, { label = null, tag = "span", cls = "" } = {}) {
-  return hosted(content, urlActions(target, { label }), tag, cls);
+  const ua = urlActions(target, { label });
+  // #71: "may be cut short" after a path that may be, always shown; its tooltip says why.
+  const cut = ua && mayBeCut(target) ? h("span", { class: "ua-cut", title: CUT_WORDS, "aria-label": CUT_WORDS }, CUT_MARK) : null;
+  return hosted(cut ? [content, cut] : content, ua, tag, cls);
 }
 
 /* An ID's content with the copy icon at its end; the content alone for a blank value. */

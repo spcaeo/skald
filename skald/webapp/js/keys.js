@@ -27,8 +27,9 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-17-2.50.0",
+  id: "2026-11-17-2.50.1",
   items: [
+    ["Long page addresses kept whole", "an address longer than 70 characters is no longer cut short: it is one row of its own and Open goes to the real page; older days say \"may be cut short\".", "where-visitors-come-from"],
     ["A short daily summary mail", "four counts, Act now one line each (New or Still open, one link) and an overview per site whose figures open their lists: no long lists, no raw addresses.", "security"],
     ["Pages loaded ahead are no moves back", "a page Chrome loads while the pointer rests on a link no longer shows as a visit going back and forth; the drawer says \"opened together\" instead of \"under 1 s\".", "getting-started"],
     ["One visit past midnight", "a visit still going at midnight shows as one visit in the visitor drawer, with its own source, tagged \"continued past midnight\".", "where-visitors-come-from"],

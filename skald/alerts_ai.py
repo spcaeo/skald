@@ -58,6 +58,7 @@ from html import escape as esc
 
 from .bot_verify import vendor_of
 from .parse import ASSET, BEACON
+from .path_names import OLD_PATH_CHARS, PATH_CHARS
 
 CAUSES = ("ai_started_reading", "ai_stopped_reading", "ai_sending_people")
 SEVERITY = {"ai_started_reading": "low", "ai_stopped_reading": "medium",
@@ -80,7 +81,6 @@ WEEKS = 4
 WAIT_RECHECK = timedelta(minutes=30)
 TOO_FEW = "too few to judge"
 LIST = 10                         # pages named in a grouped alert
-PAGE_KEY = 70                     # the `pages` figures keep paths to 70 characters
 FROM_PATHS = ("From figures already checked twice: each assistant's requests by page "
               "(crawler_paths), summed and recounted from the raw log by the audit. "
               "Whole days only.")
@@ -213,6 +213,18 @@ def _pages_words(pages: list[tuple]) -> str:
     return named + (f", and {len(pages) - LIST} more" if len(pages) > LIST else "")
 
 
+def _known(path: str, paths: set) -> bool:
+    """The path is among paths, or one of the two is the other as days counted
+    before #71 kept it: cut to OLD_PATH_CHARS. A long page is not "started" or
+    "stopped" only because older days stored its first characters."""
+    if path in paths:
+        return True
+    if len(path) > OLD_PATH_CHARS:
+        return path[:OLD_PATH_CHARS] in paths
+    return len(path) == OLD_PATH_CHARS and any(
+        len(q) > OLD_PATH_CHARS and q.startswith(path) for q in paths)
+
+
 def _finding(cause, subject, title, detail, figure, threshold, data) -> dict:
     return {"cause": cause, "subject": subject, "title": title, "detail": detail,
             "figure": figure, "threshold": threshold, "data": data}
@@ -239,7 +251,7 @@ def _started(cfg: dict, days: dict, day: date, pages: set | None) -> tuple[list,
     for who, got in sorted(_owners(days[day]["crawler_paths"]).items()):
         old = before.get(who) or {"paths": set(), "hidden": False}
         new = sorted(((p, n) for p, n in got["paths"].items()
-                      if n and is_page(p) and p[:PAGE_KEY] in pages and p not in old["paths"]),
+                      if n and is_page(p) and p[:PATH_CHARS] in pages and not _known(p, old["paths"])),
                      key=lambda pn: (-pn[1], pn[0]))
         if not new:
             continue
@@ -308,7 +320,7 @@ def _stopped(cfg: dict, days: dict, day: date) -> tuple[list, dict]:
     for who, paths in sorted(seen.items()):
         recent_got = now_paths.get(who) or {"paths": set(), "hidden": False}
         gone = sorted(((p, k, n) for p, (k, n) in paths.items()
-                       if k >= cfg["stopped_weeks"] and p not in recent_got["paths"]),
+                       if k >= cfg["stopped_weeks"] and not _known(p, recent_got["paths"])),
                       key=lambda x: (-x[1], -x[2], x[0]))
         if not gone:
             continue

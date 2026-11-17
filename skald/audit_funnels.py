@@ -41,6 +41,7 @@ from urllib.parse import urlsplit
 from .audit_labels import _bare, _host_of, _path_of, _tags
 from .audit_visits import _bucket, _is_asset_path, _is_beacon_path, trail_of
 from .classify import AI_REFERRER_HOSTS, AI_REFERRER_PATHS, AI_UTM, ASSISTANT_ALIASES
+from .path_names import PATH_CHARS
 
 KEEP = 50                      # trail entries a journey keeps (visits.TRAIL_KEEP)
 LEFT = "(left the site)"
@@ -204,7 +205,7 @@ class Recount:
         path = parts.path or "/"
         if _is_asset_path(path) or _is_beacon_path(path):
             return ""
-        return path[:70]
+        return path[:PATH_CHARS]
 
     def visit(self, lines: list, is_page, labels: dict | None) -> None:
         if labels is None:

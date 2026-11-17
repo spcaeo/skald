@@ -86,6 +86,6 @@ HOST_KEEP = 60
 # Each network's landing pages: the top LANDINGS_KEPT by visits (more visits
 # first, then the path in code-point order), the rest summed into ALL_OTHERS,
 # so the pages still add up to the network's visits. A path is the page as
-# the journeys keep it (at most 70 characters, no query).
+# the journeys keep it (at most path_names.PATH_CHARS characters, no query).
 LANDINGS_KEPT = 20
 ALL_OTHERS = "(all others)"

@@ -42,6 +42,28 @@ assert.equal(openA.getAttribute("rel"), "noopener noreferrer");
 assert.equal(copy.getAttribute("type"), "button", "a real button: Tab reaches it, Enter and Space press it");
 assert.equal(U.withUrl("x", "(none)"), "x", "no URL: the content alone");
 
+// ---- #71: a path of exactly 70 characters may be a longer address cut short by days counted
+// before Skald kept whole addresses: "may be cut short" after it, copy only, never opened.
+const P = await import(new URL("pathnames.js", JS));
+const cut70 = "/blog/five-features-every-route-planning-tool-needs-for-trash-valet-se";
+assert.equal(cut70.length, P.OLD_PATH_CHARS);
+assert.ok(P.mayBeCut(cut70));
+for (const whole of ["/pricing/", cut70 + "rvices", cut70.slice(0, -1), "https://example.com" + cut70.slice(19), "//" + "x".repeat(68), null]) {
+  assert.ok(!P.mayBeCut(whole), String(whole));
+}
+const cutCell = U.withUrl(document.createTextNode(cut70), cut70);
+assert.equal(cutCell.querySelector("a.ua-open"), null, "a path that may be cut short opens nothing");
+assert.ok(cutCell.querySelector("button.ua-copy"), "it can still be copied");
+const mark = cutCell.querySelector(".ua-cut");
+assert.equal(mark.textContent, "may be cut short");
+assert.equal(mark.textContent, P.CUT_MARK);
+assert.equal(mark.getAttribute("title"), P.CUT_WORDS);
+assert.match(P.CUT_WORDS, /cut short/);
+assert.equal(U.urlActions(cut70).querySelector("a.ua-open"), null);
+const wholeCell = U.withUrl(document.createTextNode(cut70 + "rvices"), cut70 + "rvices");
+assert.equal(wholeCell.querySelector(".ua-cut"), null, "a whole address: no mark");
+assert.equal(wholeCell.querySelector("a.ua-open").getAttribute("href"), `https://example.com${cut70}rvices`);
+
 // ---- copy: the full URL, a green tick for 1.5 s, then hidden; the row under it never hears the click
 const row = document.createElement("tr");
 let rowClicks = 0;

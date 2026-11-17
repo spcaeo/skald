@@ -37,6 +37,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from ..conversions import store
+from ..path_names import PATH_CHARS
 from . import policy
 
 REMOVED = "(removed)"
@@ -90,7 +91,7 @@ def _posts_from(who: dict) -> str | None:
     got = who.get("posts_from")
     if not isinstance(got, list):
         return None
-    return json.dumps([str(p or "")[:70] for p in got][:20], separators=(",", ":"))
+    return json.dumps([str(p or "")[:PATH_CHARS] for p in got][:20], separators=(",", ":"))
 
 
 COLUMNS = ("site, day, seq, ip, user_agent, start, end, source, via, referrer, campaign, "

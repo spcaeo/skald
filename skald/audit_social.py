@@ -20,8 +20,8 @@ social_networks.py. It shares only the name lists in social_names.py:
                   case); utm_source's words, then utm_medium's (runs of a-z
                   and 0-9, lower case), then the social click ids, as
                   social_names.py says
-  its landing     the audit's landing label (the first page's path, 70
-                  characters)
+  its landing     the audit's landing label (the first page's path,
+                  PATH_CHARS characters)
 
 Each network's pages are folded as the stored blob says (the top kept, more
 visits first, then the path; the rest summed as "(all others)") and

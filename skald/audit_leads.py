@@ -38,6 +38,7 @@ from .audit_labels import source_of
 from .classify import AI_LIKELY_MANY, FORM_PAGES, PAID_CLICK_IDS, PAID_MEDIUMS, PRICING_PAGES
 from .config import setting, site_name
 from .leads import NONE, _columns, connect
+from .path_names import PATH_CHARS
 from .payment_names import RETURNED
 
 FIELDS = ("aiSource", "referrerHost", "utmSource", "utmMedium", "utmCampaign", "landingPath",
@@ -182,7 +183,7 @@ _CUT = re.compile(r"[?#]")
 
 
 def _bare(path: str) -> str:
-    got = _CUT.split(path or "", 1)[0][:70]
+    got = _CUT.split(path or "", 1)[0][:PATH_CHARS]
     while len(got) > 1 and got.endswith("/"):
         got = got[:-1]
     return got or "/"
