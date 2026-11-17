@@ -185,7 +185,7 @@ and the latest stack check; one no longer found is closed. Since 2.36 the live r
 run-daily's `security mail` step only keep `security_items` up to date. The people who chose
 `daily` (the default) get the items in the daily summary (summary_mail.py, `skald summary-mail`,
 01:00 in the schedule's zone: one mail per person and day for all their sites, with the open
-to-dos and set-up problems; a `summary` row per item carried). The people who chose `now` get,
+to-dos and set-up problems; a `summary` row per item carried. Since #68 the mail is short: counts, Act now one line per item, and an overview row per site that counts the to-dos and the `check_version` notes and links to them; items of one site with one name fold into one line; every item is still carried, recorded and counted in `summary_sends.items`). The people who chose `now` get,
 after every site of a live run or run-daily, ONE mail with every item due on all the sites they
 chose it for (never one per item); each person gets each item once, then a reminder every
 `security.remind_days` (3) days while it is open (a summary that carried it counts). Recipients: members of the site's organisation with a password set (the

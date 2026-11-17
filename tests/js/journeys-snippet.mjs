@@ -36,8 +36,10 @@ function page(opts = {}) {
   const posts = [], timers = [], listeners = {};
   const attrs = { "data-relay": "/api/skald-journey", ...(opts.attrs || {}) };
   const ls = opts.ls || storage();
+  const docListeners = {};
   const ctx = {
-    document: { currentScript: { getAttribute: (k) => attrs[k] ?? null }, referrer: opts.referrer ?? "https://news.example.org/story/today?x=1" },
+    document: { currentScript: { getAttribute: (k) => attrs[k] ?? null }, referrer: opts.referrer ?? "https://news.example.org/story/today?x=1",
+      prerendering: !!opts.prerendering, addEventListener(type, fn) { (docListeners[type] ||= []).push(fn); } },
     navigator: { doNotTrack: opts.dnt ? "1" : undefined, globalPrivacyControl: !!opts.gpc },
     history: { state: null, pushState(_s, _t, u) { go(u); }, replaceState(_s, _t, u) { go(u); } },
     location: loc, URL, URLSearchParams, Uint8Array, Promise, JSON,
@@ -58,12 +60,22 @@ function page(opts = {}) {
   vm.createContext(ctx);
   vm.runInContext(SOURCE, ctx);
   const fire = (type, ev) => (listeners[type] || []).forEach((fn) => fn(ev));
-  return { ctx, api: ctx.skaldJourneys, posts, timers, ls, loc, fire, names: () => posts.map((p) => p.body.event_name) };
+  // A page loaded ahead (prerender) is shown: Chrome clears the flag, then fires the event.
+  const activate = () => { ctx.document.prerendering = false; (docListeners.prerenderingchange || []).forEach((fn) => fn({})); };
+  return { ctx, api: ctx.skaldJourneys, posts, timers, ls, loc, fire, activate, names: () => posts.map((p) => p.body.event_name) };
 }
 
 const tick = () => new Promise((r) => setImmediate(r));
 
 const tests = {
+  "a page loaded ahead (prerender) sends nothing until it is shown (#62)"() {
+    const p = page({ prerendering: true });
+    p.api.consent(true);
+    p.ctx.history.replaceState({}, "", "/pricing?hydrated=1");
+    assert.deepEqual(p.names(), [], "nothing sent while the page is only loaded ahead");
+    p.activate();
+    assert.deepEqual(p.names(), ["session_started", "page_view"]);
+  },
   "before consent: nothing stored, nothing sent"() {
     const p = page();
     p.ctx.history.pushState({}, "", "/features/");

@@ -28,6 +28,9 @@ What a journey can and cannot see:
     so a same-site referrer that is not the page last seen is recorded as
     an "in-app" page - shown in the journey, never counted as a page view.
     It is a floor: a visitor who moves and loads nothing new leaves no line.
+    Two referrers are not a move (trail rule 2, trail_names.py, #62): a
+    loaded page's own files, and a page opened together with the last one
+    from the same page (loaded ahead by the browser, or a new tab).
   * The duration is from the visit's first request to its last. A visitor
     who reads one page for ten minutes and loads nothing else has a visit
     of a few seconds. Logs cannot see time spent reading.
@@ -46,6 +49,7 @@ from .classify import Group, Tier
 from .countries import UNKNOWN, label as country_label
 from .form_names import FORMS_RULE
 from .parse import ASSET, BEACON
+from .trail_names import OWN_FILES_SECONDS, TOGETHER_SECONDS
 
 ARROW = " → "
 TRAIL_KEEP = 50          # trail entries kept per journey; counts are of all
@@ -112,6 +116,19 @@ def _same_site_path(referrer: str, own: set[str]) -> str:
     return path[:70]
 
 
+def _not_a_move(visit, hit, moved: str) -> bool:
+    """Trail rule 2 (trail_names.py): a referrer that names another page than
+    the trail's last, yet is no move - a loaded page's own files, or a page
+    opened together with the last one from the same page."""
+    if not hit.is_page:
+        at = visit.loaded.get(moved)
+        return at is not None and abs((hit.when - at).total_seconds()) <= OWN_FILES_SECONDS
+    if visit.last_page is None:
+        return False
+    ref, at = visit.last_page
+    return ref == moved and abs((hit.when - at).total_seconds()) <= TOGETHER_SECONDS
+
+
 def _via(hit, source: str, cited: bool, engine: str) -> str:
     """Who sent the visitor: the assistant, the referring site, or the
     campaign's source when a tagged link came without a referrer."""
@@ -127,12 +144,17 @@ def _via(hit, source: str, cited: bool, engine: str) -> str:
 
 class _Visit:
     __slots__ = ("first", "last", "prev", "trail", "times", "pages", "labels",
-                 "not_found", "posted", "post_paths", "visitor", "origin", "who", "entry")
+                 "not_found", "posted", "post_paths", "visitor", "origin", "who", "entry",
+                 "loaded", "last_page")
 
     def __init__(self, when) -> None:
         self.first = self.last = self.prev = when
         self.trail: list[tuple[str, bool]] = []     # (path, loaded as a page)
         self.times: list = []                       # when each trail entry was seen
+        # Trail rule 2 (trail_names.py): when each page was last loaded, and
+        # the last page loaded's same-site referrer and time.
+        self.loaded: dict = {}
+        self.last_page = None
         self.visitor = None                         # keyed hash (visitors.py), memory only
         self.pages = 0
         self.labels: dict = {}
@@ -296,10 +318,13 @@ class Journeys:
             # Where the visitor was when this was asked for. A cancelled
             # request (499) may be the page they just left, so it says nothing.
             moved = _same_site_path(hit.referrer, own)
-            if moved and moved != visit.trail[-1][0] and not (hit.is_page and moved == path):
+            if (moved and moved != visit.trail[-1][0] and not (hit.is_page and moved == path)
+                    and not _not_a_move(visit, hit, moved)):
                 visit.trail.append((moved, False))
                 visit.times.append(hit.when)
         if hit.is_page:
+            visit.loaded[path] = hit.when
+            visit.last_page = (_same_site_path(hit.referrer, own), hit.when)
             if not visit.pages:
                 visit.labels = self._labels(hit, verdict, own)
                 if self.key is not None:

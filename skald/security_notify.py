@@ -195,16 +195,25 @@ def due(db, site: str, user_id: int, item: str, now: datetime, every: int) -> st
 
 # -------------------------------------------------------------------- mail
 
-def _mail(config: dict, to: str, subject: str, text: str, now: datetime, send) -> str | None:
-    """One plain mail to one address; the error in words, or None."""
+def _mail(config: dict, to: str, subject: str, text: str, now: datetime, send,
+          html: str | None = None, logo: bytes | None = None) -> str | None:
+    """One mail to one address; the error in words, or None. `html`: a ready HTML part (the
+    daily summary's layout), else the text in a <pre>; `logo`: the Skald mark, sent inside
+    the mail when the HTML part shows it (cid:skald-mark)."""
     from html import escape
 
     from . import mailer
+    from .mail_html import LOGO_CID
     try:
         cfg = dict(mailer.settings({**config, "mail": {**((config or {}).get("mail") or {}),
                                                        "to": [to]}}), to=[to])
-        msg = mailer._message(cfg, subject, text, "<pre style=\"font:14px/1.5 sans-serif;"
-                              "white-space:pre-wrap\">" + escape(text) + "</pre>", now)
+        page = html if html is not None else ("<pre style=\"font:14px/1.5 sans-serif;"
+                                              "white-space:pre-wrap\">" + escape(text) + "</pre>")
+        msg = mailer._message(cfg, subject, text, page, now)
+        if logo is not None and f"cid:{LOGO_CID}" in page:
+            msg.get_body(("html",)).add_related(
+                logo, maintype="image", subtype="png", cid=f"<{LOGO_CID}>",
+                filename="skald.png", disposition="inline")
         (send or mailer.send)(msg, cfg)
     except Exception as why:            # noqa: BLE001 - never fails the run
         return f"{type(why).__name__}"

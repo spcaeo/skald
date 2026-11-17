@@ -86,6 +86,8 @@ A browser on a crawler's own addresses is that crawler. Google, Bing, Apple, Ope
 
 **A visit's pages.** A visit shows the pages it loaded from your server and the steps seen in the browser, both: "3 pages (2 seen in the browser)". A step seen in the browser is a page shown from the browser's cache, or a click your site handled without loading a page. Skald sees it from the next request's referrer. It is drawn dashed in the journey, and it is never counted as a page view.
 
+Some sites tell the browser to load a page ahead, while the pointer rests on its link (Chrome's speculation rules). Two pages loaded the same second from the same page show as "opened together". Neither one adds a step back. The server log can't tell a page loaded ahead and never shown from one the person opened, so both count as page views. The time between steps is as exact as Skald keeps it: to the second in a visit's first minute, then to 10 seconds, then to the minute. So "under 10 s" means the same 10-second step, and "time not known" means a step seen in the browser, whose own time the log doesn't have.
+
 On **Site › Requests**, the script tag's own events to Skald (`/traffic-beacon`) say **script tag event**, and calls to Skald's hooks or log upload say **Skald endpoint**. A POST a page's own script sends by itself (an analytics or event beacon such as `/api/events`, or any POST answered 204 with no body) says **sent by the page's own script (not a form)**. Only the other POSTs are a **form post**, and only they make a visit **sent a form**. See [Not forms](settings-and-retention.md#not-forms).
 
 ### The optional script tag

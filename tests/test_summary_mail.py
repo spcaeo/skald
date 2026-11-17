@@ -36,12 +36,13 @@ def exposure(site: str) -> dict:
 
 class Mailbox:
     def __init__(self, fail: bool = False):
-        self.sent, self.fail = [], fail
+        self.sent, self.msgs, self.fail = [], [], fail
 
     def __call__(self, msg, cfg):
         if self.fail:
             raise ConnectionRefusedError("test")
         self.sent.append((cfg["to"][0], msg["Subject"], msg.get_body(("plain",)).get_content()))
+        self.msgs.append(msg)
 
 
 class Base(unittest.TestCase):
@@ -117,18 +118,23 @@ class Summary(Base):
         mine = self.mail_to("owner@example.com")
         self.assertEqual(len(mine), 1, "one mail for all four sites")
         _, subject, text = mine[0]
-        self.assertEqual(subject, "[Skald] 7 things to look at on 4 sites")
+        self.assertEqual(subject, "[Skald] 6 to act on, 1 to-do on 4 sites")
+        overview = text[text.index("OVERVIEW"):]
         for site in SITES:
-            self.assertIn(f"== {site} ==", text)
-        self.assertIn("New: Possible exposure on a.example.com", text)
-        self.assertIn("#threats/exposed?item=x", text)
-        self.assertIn("#overview/insights?todo=lost-0", text)
-        self.assertNotIn("lost-1", text, "marked not now: left out")
-        self.assertLess(text.index("Security"), text.index("To-dos to fix") if "To-dos" in text else 10**9)
+            self.assertIn(site, overview, "a row per site in the overview")
+        self.assertIn("- [New] a.example.com · Possible exposure\n"
+                      "  https://stats.example.com/traffic/a.example.com/#threats/exposed?item=x", text)
+        self.assertNotIn(".env.production", text, "#68: a name and a link, never the address")
+        self.assertNotIn("Fix thing", text, "#68: to-dos are counted, never listed")
+        self.assertRegex(overview, r"(?m)^  b\.example\.com +- +1 +- +https://stats\.example\.com/"
+                         r"traffic/b\.example\.com/$", "lost-1 marked not now: one to-do left")
+        self.assertLess(text.index("ACT NOW"), text.index("OVERVIEW"))
+        self.assertNotIn("TO-DOS BY SITE", text)
         other = self.mail_to("other@example.com")
         self.assertEqual(len(other), 1)
         self.assertIn("1 site", other[0][1].replace("sites", "site"))
-        self.assertNotIn("== a.example.com ==", other[0][2], "only the sites of their organisation")
+        self.assertNotRegex(other[0][2], r"(?m)^  a\.example\.com |\] a\.example\.com ·",
+                            "only the sites of their organisation")
         audit = self.db.execute("SELECT org_id, target, detail FROM audit WHERE action = "
                                 "'summary.sent' ORDER BY id").fetchall()
         owner = [r for r in audit if r[1] == "owner@example.com"]
@@ -151,8 +157,8 @@ class Summary(Base):
         nxt = self.summarise(now=NOW + timedelta(days=1), day="2026-10-27")
         self.assertEqual(nxt["sent"], 2, "the next day: again, while it stays open")
         text = self.mail_to("owner@example.com")[-1][2]
-        self.assertIn("Still open: Possible exposure", text)
-        self.assertNotIn("New: ", text)
+        self.assertIn("[Still open] a.example.com · Possible exposure", text)
+        self.assertNotIn("[New]", text)
 
     def test_a_failed_send_is_retried(self):
         self.open_on("a.example.com")
@@ -162,16 +168,35 @@ class Summary(Base):
         self.assertEqual(self.db.execute("SELECT COUNT(*) FROM security_sends").fetchone()[0], 0,
                          "not recorded: still new next time")
         self.assertEqual(self.summarise(now=NOW + timedelta(hours=1))["sent"], 2, "the next run retries")
-        self.assertIn("New: ", self.mail_to("owner@example.com")[0][2])
+        self.assertIn("[New] ", self.mail_to("owner@example.com")[0][2])
 
-    def test_at_most_ten_lines_then_and_more(self):
+    def test_to_dos_are_counted_never_listed(self):
         self.todos("b.example.com", 13)
         self.summarise()
-        text = self.mail_to("owner@example.com")[0][2]
-        self.assertEqual(text.count("Open it: https://stats.example.com/traffic/b.example.com/#overview/insights?todo="), 10)
-        self.assertEqual(text.count("&fix=1&by=agent"), 10, "each with its Fix this link, never a code")
-        self.assertIn("- and 3 more: https://stats.example.com/traffic/b.example.com/#overview/insights", text)
-        self.assertIn("13 things", self.mail_to("owner@example.com")[0][1])
+        _, subject, text = self.mail_to("owner@example.com")[0]
+        self.assertEqual(subject, "[Skald] 13 to-dos on 1 site", "every to-do counted")
+        self.assertNotIn("Fix thing", text)
+        self.assertNotIn("&fix=1", text, "never a to-do's link, never a code")
+        self.assertRegex(text, r"(?m)^  b\.example\.com +- +13 +- ")
+        msg = self.box.msgs[[m[0] for m in self.box.sent].index("owner@example.com")]
+        html = msg.get_body(("html",)).get_content()
+        self.assertIn('href="https://stats.example.com/traffic/b.example.com/#overview/insights"',
+                      html, "the to-dos figure links to the list")
+
+    def test_at_most_ten_act_now_lines_a_site_then_and_more(self):
+        def setup(s, now):
+            if s["site"] != "a.example.com":
+                return []
+            return [{"item": f"setup:check{i}", "title": f"Check {i}: needs attention",
+                     "todo": "Fix it.", "where": None,
+                     "link": "https://stats.example.com/traffic/a.example.com/#settings/todo"}
+                    for i in range(13)]
+        self.summarise(setup=setup)
+        _, subject, text = self.mail_to("owner@example.com")[0]
+        self.assertEqual(subject, "[Skald] 13 to act on on 1 site")
+        self.assertEqual(text.count("- a.example.com · Set-up: Check "), 10)
+        self.assertIn("- and 3 more on a.example.com: "
+                      "https://stats.example.com/traffic/a.example.com/#threats/exposed", text)
 
     def test_set_up_lines_and_install_wide_once(self):
         def setup(s, now):
@@ -185,11 +210,11 @@ class Summary(Base):
             return got
         self.summarise(setup=setup)
         text = self.mail_to("owner@example.com")[0][2]
-        self.assertEqual(text.count("Disk: 0.5 GB free"), 1, "install-wide: once per mail")
-        self.assertIn("Set-up problems (2)", text)
-        self.assertNotIn("== b.example.com ==", text, "nothing else there: no section")
+        self.assertEqual(text.count("Set-up: Disk"), 1, "install-wide: once per mail")
+        self.assertIn("ACT NOW (2)", text)
+        self.assertNotIn("b.example.com", text, "nothing else there: no section")
         self.assertIn("#settings/site/leads", text)
-        self.assertIn("Where: on the server", text)
+        self.assertIn("(on the server: `./bin/skald doctor`)", text)
 
     def test_the_real_set_up_checks_never_use_the_network(self):
         s = self.sites[0]
@@ -208,7 +233,7 @@ class Summary(Base):
         got = self.summarise(dry=True)
         self.assertEqual(got["sent"], 0)
         self.assertEqual(self.box.sent, [])
-        self.assertTrue(any("Subject: [Skald] 2 things to look at on 1 site" in p for p in self.printed))
+        self.assertTrue(any("Subject: [Skald] 2 to act on on 1 site" in p for p in self.printed))
         self.assertEqual(self.db.execute("SELECT COUNT(*) FROM summary_sends").fetchone()[0], 0)
 
     def test_the_command_waits_for_after(self):
@@ -221,6 +246,140 @@ class Summary(Base):
         self.assertEqual(sm.cmd_summary_mail(ctx, send=self.box), 0)
         self.assertEqual(self.box.sent, [], "00:30: not yet")
         self.assertIn("not before 01:00", self.printed[-1])
+
+
+class Layout(Base):
+    """#68: act now first, an overview, look-alikes folded, version checks as notes, the last
+    day counted, and a branded HTML part made from the same digest as the text."""
+
+    def open_many(self, site: str, n: int, stack=None):
+        rows = [{"host": site, "path": f"/wp-json/wp/v2/pages/{1000 + i}", "status": "200",
+                 "size": 38000 + i, "verdict": "possible", "category": "cms"} for i in range(n)]
+        blob = {"rules": {"exposure_rule": 2}, "exposure": {"rows": rows}}
+        sn.track(self.db, site, sn.items({}, site, [blob], stack), NOW)
+
+    def test_look_alikes_fold_into_one_line_and_every_item_is_recorded(self):
+        self.open_many("a.example.com", 62)
+        self.summarise()
+        _, subject, text = self.mail_to("owner@example.com")[0]
+        self.assertEqual(subject, "[Skald] 1 to act on on 1 site", "one line to act on, not 62")
+        self.assertIn("- [New] a.example.com · Possible exposure (62)\n"
+                      "  https://stats.example.com/traffic/a.example.com/#threats/exposed\n", text,
+                      "one line, one link to the whole list")
+        self.assertNotIn("/wp-json/", text, "no addresses")
+        uid = self.ids["owner@example.com"]
+        rows = self.db.execute("SELECT COUNT(*) FROM summary_items WHERE user_id = ? AND "
+                               "part = 'security'", (uid,)).fetchone()[0]
+        self.assertEqual(rows, 62, "folded, but every item carried and recorded")
+        sent = self.db.execute("SELECT items FROM summary_sends WHERE user_id = ?", (uid,)).fetchone()[0]
+        self.assertEqual(sent, 62)
+        self.summarise(now=NOW + timedelta(days=1), day="2026-10-27")
+        self.assertIn("[Still open] a.example.com · Possible exposure (62)",
+                      self.mail_to("owner@example.com")[-1][2], "the next day: still open, folded")
+
+    def test_two_of_one_name_are_one_line_and_one_stays_plain(self):
+        self.open_many("a.example.com", 2)
+        self.open_many("c.example.com", 1)
+        self.summarise()
+        _, subject, text = self.mail_to("owner@example.com")[0]
+        self.assertEqual(subject, "[Skald] 2 to act on on 2 sites")
+        self.assertIn("a.example.com · Possible exposure (2)\n", text)
+        self.assertIn("c.example.com · Possible exposure\n", text)
+
+    def test_version_checks_are_notes_not_acts(self):
+        stack = {"matches": [{"advisory": f"node-{h}", "product": "nodejs", "host": h,
+                              "version": None, "state": "check_version"}
+                             for h in ("a.example.com", "cms.a.example.com")]}
+        sn.track(self.db, "a.example.com", sn.items({}, "a.example.com", [], stack), NOW)
+        self.todos("a.example.com", 1)
+        self.summarise()
+        _, subject, text = self.mail_to("owner@example.com")[0]
+        self.assertEqual(subject, "[Skald] 1 to-do on 1 site", "notes stay out of the subject")
+        self.assertNotIn("ACT NOW", text)
+        self.assertNotIn("NOTES", text, "#68: notes are counted, never listed")
+        self.assertRegex(text, r"(?m)^  a\.example\.com +- +1 +2 ")
+        self.assertIn("0 to act on now · 1 to-do · 2 notes · 1 site", text,
+                      "the notes count is the overview's column, not the sites with notes")
+
+    def test_only_notes_still_mails_and_says_so(self):
+        stack = {"matches": [{"advisory": "php-x", "product": "php", "host": "a.example.com",
+                              "version": None, "state": "check_version"}]}
+        sn.track(self.db, "a.example.com", sn.items({}, "a.example.com", [], stack), NOW)
+        self.summarise()
+        self.assertEqual(self.mail_to("owner@example.com")[0][1], "[Skald] 1 note on 1 site")
+
+    def test_the_last_day_counted_is_said(self):
+        self.todos("b.example.com", 1)
+        path = self.out / "b.example.com" / "data" / "todos.json"
+        body = json.loads(path.read_text())
+        body["window"] = {"first": "2026-09-25", "last": "2026-10-24", "days": 30, "of": 30}
+        path.write_text(json.dumps(body))
+        self.summarise()
+        text = self.mail_to("owner@example.com")[0][2]
+        self.assertTrue(text.startswith("Skald daily summary · Mon 26 Oct 2026\n"
+                                        "Figures up to Sat 24 Oct 2026, the last whole day counted."))
+
+    def test_the_html_part_is_the_short_layout_from_the_same_digest(self):
+        self.open_on("a.example.com")
+        self.todos("b.example.com", 2)
+        self.summarise()
+        msg = self.box.msgs[[m[0] for m in self.box.sent].index("owner@example.com")]
+        html = msg.get_body(("html",)).get_content()
+        self.assertNotIn("<pre", html, "no longer the text in a <pre>")
+        self.assertIn("Act now (2)", html)
+        self.assertIn("Overview", html)
+        for gone in ("to-dos (2)", "Fix with your AI agent", "Fix thing", ".env.production",
+                     "display:none"):
+            self.assertNotIn(gone, html, "#68: short, no descriptions, no hidden text")
+        self.assertIn('href="https://stats.example.com/traffic/a.example.com/"', html,
+                      "the site's name links to its dashboard")
+        self.assertIn('href="https://stats.example.com/traffic/a.example.com/#threats/exposed?item=x',
+                      html)
+        self.assertIn('name="color-scheme"', html)
+        text = msg.get_body(("plain",)).get_content()
+        self.assertIn("2 to act on now · 2 to-dos · 0 notes · 2 sites", text)
+        if "cid:skald-mark" in html:
+            parts = [p.get("Content-ID") for p in msg.walk()]
+            self.assertIn("<skald-mark>", parts, "the mark is sent inside the mail")
+
+    def test_every_count_is_counted_from_the_open_items(self):
+        """The counts, the subject and the overview change with the data: nothing is
+        written in by hand, and each count is the sum of its overview column."""
+        stack = {"matches": [{"advisory": f"node-{h}", "product": "nodejs", "host": h,
+                              "version": None, "state": "check_version"}
+                             for h in ("c.example.com", "cms.c.example.com", "x.c.example.com")]}
+        self.open_many("a.example.com", 5)
+        sn.track(self.db, "c.example.com", sn.items({}, "c.example.com", [], stack), NOW)
+        self.todos("b.example.com", 4)
+        self.todos("c.example.com", 7)
+        self.summarise()
+        _, subject, text = self.mail_to("owner@example.com")[0]
+        rows = text[text.index("OVERVIEW"):].splitlines()[2:]
+        rows = [r.split() for r in rows if r.startswith("  ") and "example.com" in r]
+        sums = [sum(int(r[k]) if r[k] != "-" else 0 for r in rows) for k in (1, 2, 3)]
+        self.assertEqual(sums, [1, 11, 3])
+        self.assertIn(f"{sums[0]} to act on now · {sums[1]} to-dos · {sums[2]} notes · "
+                      f"{len(rows)} sites", text)
+        self.assertEqual(subject, "[Skald] 1 to act on, 11 to-dos on 3 sites")
+
+    def test_the_mail_stays_small(self):
+        """Gmail clips a mail over about 102 KB; a busy install's mail stays far below."""
+        self.open_many("a.example.com", 62)
+        for site in SITES[1:3]:
+            self.open_on(site)
+            self.todos(site, 40)
+        self.summarise()
+        msg = self.box.msgs[[m[0] for m in self.box.sent].index("owner@example.com")]
+        self.assertLess(len(msg.as_bytes()), 30_000)
+
+    def test_dry_run_writes_the_html_part_when_asked(self):
+        self.open_on("a.example.com")
+        sm.run(self.db, self.sites, NOW, DAY, send=self.box, dry_run=True, out=self.printed.append,
+               setup=lambda s, now: [], html_dir=self.dir)
+        page = self.dir / f"summary-{self.ids['owner@example.com']}.html"
+        self.assertTrue(page.is_file())
+        self.assertIn("Act now (2)", page.read_text())
+        self.assertEqual(self.box.sent, [], "nothing sent")
 
 
 class RightAway(Base):

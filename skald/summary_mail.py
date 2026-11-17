@@ -8,25 +8,24 @@ one mail per item and per site. This is the one mail that replaces them:
              disabled members of the site's organisation with security alerts on (in the
              summary or right away). accounts.sqlite is one file for the install, so a
              person on several sites gets ONE mail covering all of them
-  what       a section per site, only the sites that have something, each part in order:
-               Security       the open items (security_items: possible exposures and stack
-                              advisories); "New" for one this person was never mailed (in a
-                              summary or right away), then the ones still open (a reminder)
-               To-dos to fix  the open Insights to-dos (todos.json, todos.py), less the ones
-                              marked done or "not now" since it was written (todo_marks.py);
-                              "New" for one this person was never mailed, first, with "N new
-                              to-dos your AI agent can fix" and each one's link that opens
-                              Fix this > My AI agent (fix=1&by=agent, 2.41; the page still reads the older fixby=). Never a line or
-                              a code: a code in a mail would be a key in an inbox
-               Set-up         doctor's NEEDS ATTENTION lines that read local files only
-                              (SETUP): the daily run, days stored, the access log, page
-                              assets, Next.js pages, the script tag, hooks, the lead database,
-                              crawler checks, the disk. The hook receiver's check asks the
-                              helper over HTTP and is left out; an install-wide line (the
-                              disk, crawler checks) is said once per mail
-             each line: what it is, what to do (one line), the link straight to it; at most
-             MOST per part and site, then "and N more: <link>". Plain text, with the same
-             HTML the security mail uses (security_notify._mail)
+  what       (#68, kept short: Gmail clips a long mail and filters take it for bulk mail)
+             four counts, then Act now and an overview, from one digest for both parts:
+               Act now        the open security items (security_items: possible exposures
+                              and stack advisories that need an update) and doctor's NEEDS
+                              ATTENTION lines that read local files only (SETUP: the daily
+                              run, days stored, the access log, page assets, Next.js pages,
+                              the script tag, hooks, the lead database, crawler checks, the
+                              disk; an install-wide one said once per mail). One line each:
+                              the site, a short name, "New" (never mailed to this person) or
+                              "Still open", one link. Items of one site with the same name
+                              are one line, "(N)". No descriptions and no addresses: the
+                              link opens them. At most MOST lines per site, then "N more"
+               Overview       one row per site: act now, the open Insights to-dos
+                              (todos.json, less the ones marked done or "not now" since:
+                              todo_marks.py) and notes (advisories that only ask to check a
+                              version nobody can see); every figure links to its list
+             every figure is counted from the open items; the counts are the sums of the
+             overview's columns. Plain text and HTML (summary_html.py)
   nothing    a person with nothing open gets no mail
   when       `skald summary-mail` sends it (`--dry-run` prints it; `--after HH:MM` does
              nothing before that time, for an hourly cron line). Docker's scheduler runs it
@@ -56,11 +55,9 @@ SENDS = ("CREATE TABLE IF NOT EXISTS summary_sends (user_id INTEGER NOT NULL, da
          "PRIMARY KEY (user_id, day))")
 ITEMS = ("CREATE TABLE IF NOT EXISTS summary_items (user_id INTEGER NOT NULL, day TEXT NOT NULL, "
          "site TEXT NOT NULL, part TEXT NOT NULL, item TEXT NOT NULL)")
-MOST = 10                               # lines per part and site, then "and N more"
-# The to-do kinds an AI agent can fix (todos.AGENT_KINDS; kept here so the mail does not load todos.py).
-AGENT_KINDS = ("lost", "errors", "markdown", "sitemap", "leave")
+MOST = 10                               # act-now lines per site, then "and N more"
+FOLD = 2                                # items of one site with one name: one line, "(N)"
 AT = "01:00"
-PARTS = (("security", "Security"), ("todos", "To-dos to fix"), ("setup", "Set-up problems"))
 # doctor's checks that read local files only, and the ones the Integrations page shows.
 SETUP = ("daily_run", "days", "logs", "assets", "rsc", "script", "hooks", "leads", "crawlers",
          "disk")
@@ -91,13 +88,14 @@ def _base(config: dict) -> str:
 
 def security_part(db, site: str, config: dict) -> list[dict]:
     from . import security_notify as sn
-    return [{"item": it["item"], "title": it["title"], "todo": it["todo"],
+    return [{"item": it["item"], "kind": it["kind"], "title": it["title"], "todo": it["todo"],
              "link": sn.link(config, it["kind"], it["item"])} for it in sn.open_items(db, site)]
 
 
 def todo_part(db, site: str, config: dict, out) -> list[dict]:
-    """The open to-dos of todos.json, less the ones marked since it was written."""
-    from . import todo_api, todo_marks
+    """The open to-dos of todos.json, less the ones marked since it was written. The mail
+    counts them (#68); the list itself is one press away, on the dashboard."""
+    from . import todo_marks
     from .refresh_server import data_file
     path = data_file(Path(out) if out else None, site, None, "todos")
     if path is None:
@@ -113,21 +111,8 @@ def todo_part(db, site: str, config: dict, out) -> list[dict]:
             continue
         if (marks.get(t["id"]) or {}).get("state") in ("done", "notnow", "fixed"):
             continue
-        what = f"{t.get('title') or t['id']}. {t.get('proof') or ''}".strip()
-        link = todo_api.link(config, t["id"])
-        got.append({"item": t["id"], "title": what, "todo": t.get("todo") or "", "link": link,
-                    # 2.41: the dialog that makes the line, on the person's press: a code in
-                    # a mail would be a key in an inbox, so the mail never holds one.
-                    "fix": f"{link}&fix=1&by=agent" if t.get("agent", t.get("kind") in AGENT_KINDS) and link.split("#")[0]
-                    else None})
+        got.append({"item": t["id"]})
     return got
-
-
-def _was_listed(db, user_id: int, site: str, part: str, item: str) -> bool:
-    """A summary mail carried this item to this person before (summary_items)."""
-    row = db.execute("SELECT 1 FROM summary_items WHERE user_id = ? AND site = ? AND part = ? "
-                     "AND item = ? LIMIT 1", (int(user_id), site, part, item)).fetchone()
-    return row is not None
 
 
 def setup_part(s: dict, now: datetime) -> list[dict]:
@@ -160,10 +145,27 @@ def setup_part(s: dict, now: datetime) -> list[dict]:
     return got
 
 
-def more_link(config: dict, part: str) -> str:
+def more_link(config: dict, part: str, kind: str | None = None) -> str:
     base = _base(config)
+    if part == "security" and kind == "advisory":
+        return base + "#threats/stack"
     return base + {"security": "#threats/exposed", "todos": "#overview/insights",
                    "setup": "#settings/todo"}[part]
+
+
+def upto(site: str, out) -> str | None:
+    """The last whole day the site's to-dos count (todos.json window.last), or None. The
+    mail goes out at 01:00, before that morning's run counts yesterday, so this is usually
+    two days before the mail's own day: the mail says so."""
+    from .refresh_server import data_file
+    path = data_file(Path(out) if out else None, site, None, "todos")
+    if path is None:
+        return None
+    try:
+        last = (json.loads(path.read_text()).get("window") or {}).get("last")
+    except (OSError, ValueError, AttributeError):
+        return None
+    return last if isinstance(last, str) and len(last) == 10 else None
 
 
 # ------------------------------------------------------------------ the mail
@@ -174,68 +176,185 @@ def _was_mailed(db, site: str, item: str, user_id: int) -> bool:
     return row is not None
 
 
-def _line(it: dict, mark: str = "") -> str:
-    where = f"Open it: {it['link']}" if it.get("link") else f"Where: {it.get('where')}"
-    fix = f"\n  Fix it with your AI agent: {it['fix']}" if it.get("fix") else ""
-    return f"- {mark}{it['title']}\n  What to do: {it['todo']}\n  {where}{fix}\n"
+def _plural(n: int, word: str, many: str | None = None) -> str:
+    return f"{n:,} {word if n == 1 else (many or word + 's')}"
 
 
-def compose(db, person: dict, sites: dict, day: str) -> dict | None:
-    """{subject, text, carried: [(site, part, item)], count, sites} or None (nothing open).
-    `sites`: {site: {"config", "security", "todos", "setup"}} for every site of the person."""
-    blocks, carried, count, said = [], [], 0, set()
+def _check_version(it: dict) -> bool:
+    """A stack advisory that only asks to check a version nobody can see (a note, not an act)."""
+    from .advisories import WORDS
+    return it.get("kind") == "advisory" and str(it.get("title", "")).endswith(
+        ": " + WORDS["check_version"])
+
+
+def _head(part: str, it: dict) -> str:
+    """The item's short name, the same for look-alikes: what the mail shows of it."""
+    title = str(it.get("title") or it.get("item") or "")
+    if part == "setup":
+        return f"Set-up: {title.partition(': ')[0]}"
+    if it.get("kind") == "exposure":
+        return "Possible exposure"
+    return f"Stack advisory: {title.rpartition(': ')[2]}"
+
+
+def fold(entries: list[dict]) -> list[dict]:
+    """FOLD or more entries of one site with the same name become one line, "(N)", with one
+    link to their list. Every item stays carried and recorded; the order is kept."""
+    groups: dict[tuple, list[dict]] = {}
+    for e in entries:
+        groups.setdefault((e["part"], e.get("kind"), e["head"]), []).append(e)
+    out = []
+    for same in groups.values():
+        e = same[0]
+        if len(same) < FOLD:
+            out += same
+            continue
+        marks = {x["mark"] for x in same}
+        out.append({**e, "items": [i for x in same for i in x["items"]],
+                    "mark": "New" if "New" in marks else e["mark"],
+                    "folded": len(same), "link": e["more"] or e["link"]})
+    return out
+
+
+def _entry(db, person: dict, site: str, part: str, it: dict, config: dict) -> dict:
+    if part == "security":
+        mark = "Still open" if _was_mailed(db, site, it["item"], person["user_id"]) else "New"
+    else:
+        mark = ""
+    base = _base(config)
+    return {"site": site, "part": part, "kind": it.get("kind"), "items": [it["item"]],
+            "head": _head(part, it), "mark": mark, "link": it.get("link"),
+            "where": it.get("where"), "more": more_link(config, part, it.get("kind"))
+            if base else None, "folded": 0}
+
+
+def digest(db, person: dict, sites: dict) -> dict | None:
+    """The mail's content, once, for both parts, or None (nothing open):
+    {sites: [{site, url, act, act_more, n_act, n_todos, n_notes, links, upto}],
+     act, todos, notes, items, carried, upto}. Every figure is counted here from the open
+    items, nothing is written in by hand: act = the act-now lines (possible exposures,
+    advisories that need an update, set-up problems; one name on one site is one line),
+    todos = the open to-dos, notes = advisories that only ask to check a version. The
+    totals are the sums of the overview's columns."""
+    said, rows, carried = set(), [], []
     for site in person["sites"]:
         got = sites.get(site)
         if not got:
             continue
-        parts = []
-        for part, name in PARTS:
-            found = list(got.get(part) or [])
-            if part == "setup":
-                found = [it for it in found if not (it["item"][6:] in ONCE and it["item"] in said)]
-                said |= {it["item"] for it in found if it["item"][6:] in ONCE}
-            if not found:
-                continue
-            marks = {}
-            if part == "security":
-                new = [it for it in found if not _was_mailed(db, site, it["item"], person["user_id"])]
-                old = [it for it in found if it not in new]
-                found = new + old
-                marks = {it["item"]: ("New: " if it in new else "Still open: ") for it in found}
-                head = f"{name} ({len(found)}, {len(new)} new)" if new else f"{name} ({len(found)})"
-            elif part == "todos":
-                # 2.41: the to-dos this person was never mailed first, said as work their AI
-                # agent can do; the line itself is made only when they press (never mailed).
-                new = [it for it in found if not _was_listed(db, person["user_id"], site, part, it["item"])]
-                found = new + [it for it in found if it not in new]
-                marks = {it["item"]: ("New: " if it in new else "") for it in found}
-                head = f"{name} ({len(found)})"
-                agent = [it for it in new if it.get("fix")]
-                if agent:
-                    head += (f"\n{len(agent)} new to-do{'s' if len(agent) != 1 else ''} your AI agent "
-                             "can fix: open one with the link below, choose My AI agent, and paste the "
-                             "line into your agent.")
-            else:
-                head = f"{name} ({len(found)})"
-            shown = found[:MOST]
-            lines = [_line(it, marks.get(it["item"], "")) for it in shown]
-            if len(found) > MOST:
-                lines.append(f"- and {len(found) - MOST} more: {more_link(got['config'], part)}\n")
-            parts.append(f"{head}\n" + "".join(lines))
-            carried += [(site, part, it["item"]) for it in found]
-            count += len(found)
-        if parts:
-            blocks.append(f"== {site} ==\n\n" + "\n".join(parts))
-    if not blocks:
+        cfg = got["config"]
+        setup = [it for it in got.get("setup") or []
+                 if not (it["item"][6:] in ONCE and it["item"] in said)]
+        said |= {it["item"] for it in setup if it["item"][6:] in ONCE}
+        security = list(got.get("security") or [])
+        todos = list(got.get("todos") or [])
+        notes = [it for it in security if _check_version(it)]
+        act = [_entry(db, person, site, "security", it, cfg) for it in security
+               if not _check_version(it)] + [_entry(db, person, site, "setup", it, cfg)
+                                             for it in setup]
+        act = fold([e for e in act if e["mark"] == "New"] + [e for e in act if e["mark"] != "New"])
+        if not (act or todos or notes):
+            continue
+        carried += [(site, "security", it["item"]) for it in security]
+        carried += [(site, "todos", it["item"]) for it in todos]
+        carried += [(site, "setup", it["item"]) for it in setup]
+        base = _base(cfg)
+        rows.append({"site": site, "url": base or None, "act": act[:MOST],
+                     "act_more": (len(act) - MOST, more_link(cfg, "security"))
+                     if len(act) > MOST and base else None,
+                     "n_act": len(act), "n_todos": len(todos), "n_notes": len(notes),
+                     "links": {"act": (act[0]["more"] if act else None),
+                               "todos": more_link(cfg, "todos") if base else None,
+                               "notes": more_link(cfg, "security", "advisory") if base else None},
+                     "upto": got.get("upto")})
+    if not rows:
         return None
-    n, k = count, len(blocks)
-    subject = f"{n} thing{'s' if n != 1 else ''} to look at on {k} site{'s' if k != 1 else ''}"
-    d = datetime.strptime(day, "%Y-%m-%d")
-    text = (f"Your Skald summary for {d.day} {d:%b %Y}: {subject}.\n\n" + "\n".join(blocks) +
-            f"\nYou get this once a day ({at()} in the schedule's time zone), only when something "
-            "is open, for every site you get security alerts for. Change it on Security > "
-            "Alerts, Your security alerts: off, or the security items right away.\n")
-    return {"subject": subject, "text": text, "carried": carried, "count": n, "sites": k}
+    ups = [r["upto"] for r in rows if r.get("upto")]
+    return {"sites": rows, "act": sum(r["n_act"] for r in rows),
+            "todos": sum(r["n_todos"] for r in rows),
+            "notes": sum(r["n_notes"] for r in rows), "items": len(carried),
+            "carried": carried, "upto": max(ups) if ups else None}
+
+
+def act_now(d: dict) -> list[dict]:
+    """Act now over every site: the new ones first (never mailed to this person), then the
+    set-up problems, then the ones still open; the sites' order inside each."""
+    rank = {"New": 0, "": 1}
+    return sorted((e for r in d["sites"] for e in r["act"]), key=lambda e: rank.get(e["mark"], 2))
+
+
+def subject_of(d: dict) -> str:
+    parts = []
+    if d["act"]:
+        parts.append(f"{d['act']:,} to act on")
+    if d["todos"]:
+        parts.append(_plural(d["todos"], "to-do"))
+    if not parts:
+        parts.append(_plural(d["notes"], "note"))
+    k = len(d["sites"])
+    return f"{', '.join(parts)} on {_plural(k, 'site')}"
+
+
+def _day(text: str | None, weekday: bool = True) -> str:
+    if not text:
+        return ""
+    d = datetime.strptime(text, "%Y-%m-%d")
+    return (f"{d:%a} " if weekday else "") + f"{d.day} {d:%b %Y}"
+
+
+def counts_line(d: dict) -> str:
+    bits = [f"{d['act']:,} to act on now", _plural(d["todos"], "to-do"),
+            _plural(d["notes"], "note"), _plural(len(d["sites"]), "site")]
+    return " · ".join(bits)
+
+
+def footer_words() -> str:
+    return (f"Sent each day at {at()} while something is open. "
+            "To stop it: Security > Alerts in Skald.")
+
+
+def _text_entry(e: dict) -> str:
+    mark = f"[{e['mark']}] " if e["mark"] else ""
+    many = f" ({e['folded']:,})" if e["folded"] else ""
+    end = e.get("link") or (f"({e['where']})" if e.get("where") else "")
+    return f"- {mark}{e['site']} · {e['head']}{many}" + (f"\n  {end}" if end else "")
+
+
+def as_text(d: dict, day: str) -> str:
+    """The plain-text part, from the same digest as the HTML part."""
+    out = [f"Skald daily summary · {_day(day)}"]
+    if d["upto"]:
+        out.append(f"Figures up to {_day(d['upto'])}, the last whole day counted.")
+    out += ["", counts_line(d), ""]
+    act = act_now(d)
+    if act:
+        out += [f"ACT NOW ({d['act']:,})"] + [_text_entry(e) for e in act]
+        out += [f"- and {r['act_more'][0]:,} more on {r['site']}: {r['act_more'][1]}"
+                for r in d["sites"] if r["act_more"]]
+        out.append("")
+    out.append("OVERVIEW")
+    width = max(len(r["site"]) for r in d["sites"])
+    out.append(f"  {'Site':<{width}}  Act now  To-dos  Notes")
+    for r in d["sites"]:
+        cells = [r["n_act"], r["n_todos"], r["n_notes"]]
+        out.append((f"  {r['site']:<{width}}  " + "  ".join(
+            f"{(f'{c:,}' if c else '-'):>{w}}" for c, w in zip(cells, (7, 6, 5)))
+            + (f"  {r['url']}" if r["url"] else "")).rstrip())
+    out += ["", footer_words()]
+    return "\n".join(out) + "\n"
+
+
+def compose(db, person: dict, sites: dict, day: str, logo: bool = False) -> dict | None:
+    """{subject, text, html, carried: [(site, part, item)], count, sites} or None (nothing
+    open). `sites`: {site: {"config", "security", "todos", "setup", "upto"}} for every site
+    of the person. The plain-text and HTML parts come from one digest, so they cannot
+    disagree; `count` is every item carried, folded or not."""
+    d = digest(db, person, sites)
+    if d is None:
+        return None
+    from . import summary_html
+    return {"subject": subject_of(d), "text": as_text(d, day),
+            "html": summary_html.render(d, day, logo=logo), "carried": d["carried"],
+            "count": d["items"], "sites": len(d["sites"])}
 
 
 def _mail_config(person: dict, sites: dict, fallback: dict) -> dict:
@@ -262,9 +381,10 @@ def people(db, names: list[str]) -> dict[int, dict]:
 
 
 def run(db, sites: list[dict], now: datetime, day: str, send=None, dry_run: bool = False,
-        out=print, setup=None) -> dict:
+        out=print, setup=None, html_dir=None) -> dict:
     """Build and send the day's summaries. `sites`: [{site, config, live_dir, history, out,
-    config_path}]; `setup` replaces setup_part (tests). {"sent", "failed", "nothing",
+    config_path}]; `setup` replaces setup_part (tests); `html_dir` (dry run only): each
+    mail's HTML part written there as summary-<user id>.html. {"sent", "failed", "nothing",
     "already", "items"}."""
     setup = setup or setup_part
     from . import brand
@@ -280,20 +400,26 @@ def run(db, sites: list[dict], now: datetime, day: str, send=None, dry_run: bool
         found[s["site"]] = {"config": s["config"],
                             "security": security_part(db, s["site"], s["config"]),
                             "todos": todo_part(db, s["site"], s["config"], s.get("out")),
-                            "setup": setup(s, now)}
+                            "setup": setup(s, now), "upto": upto(s["site"], s.get("out"))}
+    from .mailer import _logo
+    logo = _logo()
     tally = {"sent": 0, "failed": 0, "nothing": 0, "already": 0, "items": 0}
     for person in sorted(who.values(), key=lambda p: p["email"]):
         if db.execute("SELECT 1 FROM summary_sends WHERE user_id = ? AND day = ?",
                       (person["user_id"], day)).fetchone():
             tally["already"] += 1
             continue
-        mail = compose(db, person, found, day)
+        mail = compose(db, person, found, day, logo=logo is not None)
         if mail is None:
             tally["nothing"] += 1
             continue
         if dry_run:
             out(f"To: {person['email']}\nSubject: {brand.prefix()} {mail['subject']}\n\n"
                 f"{mail['text']}\n")
+            if html_dir:
+                page = Path(html_dir) / f"summary-{int(person['user_id'])}.html"
+                page.write_text(mail["html"])
+                out(f"HTML part: {page}")
             tally["items"] += mail["count"]
             continue
         try:                            # the claim: a second run the same day stops here
@@ -304,7 +430,8 @@ def run(db, sites: list[dict], now: datetime, day: str, send=None, dry_run: bool
             tally["already"] += 1
             continue
         cfg = _mail_config(person, found, sites[0]["config"])
-        error = sn._mail(cfg, person["email"], mail["subject"], mail["text"], now, send)
+        error = sn._mail(cfg, person["email"], mail["subject"], mail["text"], now, send,
+                         html=mail["html"], logo=logo)
         if error is not None:
             db.execute("DELETE FROM summary_sends WHERE user_id = ? AND day = ?",
                        (person["user_id"], day))
@@ -387,7 +514,8 @@ def cmd_summary_mail(ctx, send=None) -> int:
         return 0
     try:
         got = run(db, sites, ctx.now, local.date().isoformat(), send=send,
-                  dry_run=bool(getattr(ctx.args, "dry_run", False)), out=ctx.out)
+                  dry_run=bool(getattr(ctx.args, "dry_run", False)), out=ctx.out,
+                  html_dir=getattr(ctx.args, "html", None))
     finally:
         db.close()
     ctx.out(f"summary mail for {local.date().isoformat()}: {got['sent']} sent ({got['items']} "
@@ -408,6 +536,8 @@ def add_command(sub) -> None:
     p = sub.add_parser("summary-mail", help="the daily summary: one mail per person with what "
                        "to look at on every site (security, to-dos, set-up)")
     p.add_argument("--dry-run", action="store_true", help="print the mails instead of sending them")
+    p.add_argument("--html", metavar="DIR", help="with --dry-run: write each mail's HTML part "
+                   "into DIR (summary-<user id>.html), to look at it in a browser")
     p.add_argument("--after", type=_time, metavar="HH:MM",
                    help="do nothing before this time of day (the site's zone): for an hourly "
                         "cron line")

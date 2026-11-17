@@ -166,10 +166,17 @@ never up.
 ### B2. Prefetch and prerender
 - **Seen:** Chrome Privacy Preserving Prefetch Proxy asked for `/.well-known/traffic-advice` 3 times (404).
 - **Wrong:** Next.js `<Link>` prefetches pages in view (as `_rsc` payloads); Chrome speculation rules can prerender whole HTML pages the person never opens; the Chrome prefetch proxy fetches from Google's network. A prerendered HTML document is logged as a 200 GET for a page.
-- **Detect:** the `Sec-Purpose: prefetch` / `Purpose: prefetch` and `Next-Router-Prefetch` request headers. `Next-Router-Prefetch` is read when the line ends with ` rsc_prefetch=` (docs/INGEST.md); the others are not in the log format today (H12).
-- **Count:** not a page view; the visit only counts if a real navigation follows.
-- **Test:** a line with `purpose=prefetch` is not a page view; the prefetch proxy agent is a bot.
-- **Status:** Gap, ROADMAP P0-5 (log format) then a one-line rule. Also serve `/.well-known/traffic-advice` (or a 404 is fine; it just means no proxy prefetch).
+- **Detect:** the `Next-Router-Prefetch` header is read when the line ends with ` rsc_prefetch=` (docs/INGEST.md): a Next.js payload fetched ahead, never a page view. `Sec-Purpose: prefetch` (and `prefetch;prerender`) is **not** enough on its own. Checked in Chrome on 16 Nov 2026 (issue #62), with a copy of a live site's speculation rules (`prerender` and `prefetch`, `eagerness: moderate`):
+  - hovering a link for about 200 ms requests the page and its files with `Sec-Purpose`;
+  - a click after that makes **no request at all**, because the browser shows the page it already has;
+  - so the log lines of "hovered, never opened" and "hovered, then opened" are identical. A rule "`purpose=prefetch` is not a page view" would drop pages people really opened.
+- **Count (trail rule 2, #62):** a page loaded ahead stays a page view, as the log has it. Its effect on journeys is handled (skald/trail_names.py):
+  - a page from the same page as the page before it, within `TOGETHER_SECONDS` (2), is "opened together", not a move back;
+  - a request that is not a page, made from a page loaded within `OWN_FILES_SECONDS` (30), is that page's own file, not a move.
+  
+  The script tag (skald.js) and recorded journeys (journeys.js) wait for `prerenderingchange` before a page view, so a page loaded ahead and never shown sends nothing, and an opened one is timed from when it was shown.
+- **Test:** tests/test_trail_rule.py (the live visit's pattern, the Back button, both roads agree); tests/js/skald-snippet.mjs and journeys-snippet.mjs (nothing before the page is shown).
+- **Status:** Journeys and the tag handled (#62). Pages loaded ahead and never shown still count as page views in the log's figures: the log cannot tell them apart. Serve `/.well-known/traffic-advice` (or a 404 is fine; it just means no proxy prefetch).
 
 ### B3. Client-side navigation is invisible
 - **Wrong:** after the first page, moving inside a Next.js site may fetch nothing (cached payload). Page views undercount; journeys miss steps.
@@ -444,6 +451,14 @@ never up.
 ### G6. Late lines
 - **Wrong:** the daily run at 07:15 New York collects a day that ended at midnight; any request still running at midnight is logged after it. Negligible here.
 - **Status:** Handled (coverage rule).
+
+### G7. A visit that goes on past midnight (#66)
+- **Seen:** in a live visitor drawer, 16 Nov: "16 Nov, 00:00 · 1 page, 31 min 36 s · Direct" for a person still reading from the day before. Visitors in other time zones make it common: midnight in New York is morning in India.
+- **Wrong:** each day is counted on its own, midnight to midnight in `report.timezone`. A visit still open at midnight closes with its day, and the next day opens another visit starting at 00:00. That second part takes the source of its first page after midnight ("This site", or "Direct" when that request sent no referrer). Two visits, two sources, a cut duration.
+- **Count:** unchanged: each part stays a visit of its own day, on both counting roads. Carrying open visits across days would change visits, sources and durations, needs both roads and a recount, and is the owner's decision (option B in #66).
+- **Show:** the visitor drawer joins the two parts (people/timeline._past_midnight marks the second with `continues`). This is only when they would have been one visit inside one day: the next day, within `session_gap_minutes`, no new outside source. Drawn as one card tagged "continued past midnight", with "past midnight" on the line where the day changed.
+- **Test:** tests/test_midnight_visits.py (marked; a new source, a longer gap, a day skipped or the same day: not; the site's own gap; nothing written); tests/js/visitor-drawer.mjs (joined, offsets, both parts' leads, three days, drawn).
+- **Status:** Shown joined in the drawer. Day figures and visit lists count the two parts, as before.
 
 ---
 

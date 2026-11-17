@@ -20,6 +20,8 @@ finds, from what is kept:
     leads        the leads made from 30 seconds before to 2 minutes after a
                  form the visits sent (matched by time, never certain)
     conversions  the matched visitor IDs' conversions (test rows left out)
+    continues    on a kept visit that only midnight cut from the visit before
+                 (#66, _past_midnight): that visit's [day, seq]
 
 The oldest is the first touch. Admins and owners only (people/api.py), and
 each answer is written to the audit log: the kind, never the value. The
@@ -140,6 +142,8 @@ def visitor(config: dict, folder, site: str, day: str, seq: int, at: str | None 
     for i, v in enumerate(visits):
         v["linked"] = "this" if (v["day"], v["seq"]) == (day, int(seq)) else "address"
         v["vid_matched"] = i in vids
+    from ..config import setting
+    _past_midnight(visits, int(setting(config, "report", "session_gap_minutes", 30)))
     allv = sorted(visits + script, key=lambda v: v["start"], reverse=True)
     allv[-1]["first"] = True
     out.update(found=True, visits=allv, conversions=conv,
@@ -147,6 +151,32 @@ def visitor(config: dict, folder, site: str, day: str, seq: int, at: str | None 
                withheld=_withheld(config, folder, site, {v["day"] for v in visits}),
                vid_matched=bool(vids))
     return out
+
+
+def _past_midnight(visits: list[dict], gap_minutes: int) -> None:
+    """#66: mark a kept visit that only the end of the day cut from the one before.
+
+    Each day is counted on its own, midnight to midnight in the site's time zone,
+    so a visit still going at midnight is closed with its day and the next day's
+    count opens another. Inside one day they would be one visit: the next one
+    starts on the next day, within the session gap of the visit before's last
+    request, from no new outside source (dimensions.new_source: this site,
+    direct or unknown, back from a payment page). Such a visit gets
+    `continues: [day, seq]` of the visit before; the drawer draws the two as one
+    visit "continued past midnight". Nothing is counted again: each part stays
+    in its own day's figures."""
+    from datetime import date
+    from ..dimensions import INSIDE_SOURCES
+    kept = sorted((v for v in visits if v.get("kind") == "kept"), key=lambda v: v["start"])
+    for before, after in zip(kept, kept[1:]):
+        try:
+            next_day = (date.fromisoformat(after["day"]) - date.fromisoformat(before["day"])
+                        == timedelta(days=1))
+            gap = (store.parse(after["start"]) - store.parse(before["end"])).total_seconds()
+        except (TypeError, ValueError):
+            continue
+        if next_day and 0 <= gap <= gap_minutes * 60 and (after["source"] or "") in INSIDE_SOURCES:
+            after["continues"] = [before["day"], before["seq"]]
 
 
 def _cut(day: str, keep: int) -> str:

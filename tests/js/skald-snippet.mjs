@@ -43,6 +43,7 @@ function page(opts = {}) {
   script.src = new URL(script.attrs.src, url.href).href;
   const document = {
     currentScript: script, referrer: opts.referrer || "", readyState: "complete",
+    prerendering: !!opts.prerendering,
     documentElement: Object.assign(el("html"), { scrollHeight: opts.height || 4000 }),
     addEventListener: add("doc"),
     querySelectorAll: () => embeds,
@@ -104,10 +105,32 @@ function page(opts = {}) {
     copy: () => fire("doc", "copy", {}),
     popstate: () => fire("win", "popstate", {}),
     pageshow: (persisted) => fire("win", "pageshow", { persisted }),
+    // A page loaded ahead (prerender) is shown: Chrome clears the flag, then fires the event.
+    activate: () => { document.prerendering = false; fire("doc", "prerenderingchange", {}); },
   };
 }
 
 const tests = {
+  "a page loaded ahead (prerender) sends nothing until it is shown, then one page view (#62)"() {
+    const p = page({ prerendering: true, url: "https://www.example.com/implementation/",
+      referrer: "https://www.example.com/pricing/" });
+    // While Chrome prepares it: the framework's own replaceState, a scroll, a copy. Nothing goes.
+    p.ctx.history.replaceState({}, "", "/implementation/?hydrated=1");
+    p.scroll(5000);
+    p.copy();
+    assert.deepEqual(p.names(), [], "nothing sent while the page is only loaded ahead");
+    p.activate();
+    assert.deepEqual(p.names(), ["page_view"], "one page view once it is shown");
+    assert.equal(p.last().p, "/implementation/");
+    assert.equal(p.last().t, 0, "its clock starts when it is shown");
+    p.activate();
+    assert.deepEqual(p.names(), ["page_view"], "shown once, counted once");
+  },
+  "a page that is never shown sends nothing at all (#62)"() {
+    const p = page({ prerendering: true });
+    p.doc("submit", el("form", { id: "contact" }));
+    assert.deepEqual(p.names(), []);
+  },
   "page view on load, with the ID and the visit's source"() {
     const p = page({ url: "https://www.example.com/pricing/?utm_source=Newsletter&x=1",
       referrer: "https://www.google.com/search" });

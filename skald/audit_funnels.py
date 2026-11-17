@@ -39,7 +39,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .audit_labels import _bare, _host_of, _path_of, _tags
-from .audit_visits import _bucket, _is_asset_path, _is_beacon_path
+from .audit_visits import _bucket, _is_asset_path, _is_beacon_path, trail_of
 from .classify import AI_REFERRER_HOSTS, AI_REFERRER_PATHS, AI_UTM, ASSISTANT_ALIASES
 
 KEEP = 50                      # trail entries a journey keeps (visits.TRAIL_KEEP)
@@ -209,17 +209,7 @@ class Recount:
     def visit(self, lines: list, is_page, labels: dict | None) -> None:
         if labels is None:
             return
-        paths, times = [], []
-        for line in lines:
-            here = is_page(line)
-            if paths and line.status[:1] in ("2", "3"):
-                where = self._where(line)
-                if where and where != paths[-1] and not (here and where == line.path[:70]):
-                    paths.append(where)
-                    times.append(line.when)
-            if here:
-                paths.append(line.path[:70])
-                times.append(line.when)
+        paths, times, _ = trail_of(lines, is_page, self._where)
         start = lines[0].when
         at = [_bucket(max(0, int((t - start).total_seconds()))) for t in times[:KEEP]]
         first = next(line for line in lines if is_page(line))

@@ -4,6 +4,113 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.50.0 (2026-11-17)
+
+A short daily summary mail; visit journeys no longer show pages the browser only loaded
+ahead; a visit that went on past midnight is one visit in the visitor drawer.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- No schema change, no setting. The script tag (`skald.js`, `journeys.js`) is served new
+  with the upgrade: nothing to change on the sites.
+- Journeys of days already stored keep the old trail rule until recounted. To clean up recent
+  visitor drawers, recount the days whose raw log is still on the server
+  (`backfill --days N --force`), then audit them. Optional: no total changes.
+
+### Changes
+
+- **The daily summary mail is short and clear (#68).** Seen on 16 Nov 2026: one mail held
+  155 items on 14 sites as a single block of text. The HTML part was that text in a `<pre>`,
+  with long raw links and "What to do" about 100 times; a newly exposed `/.git` sat among
+  to-dos; 57 lines were one WordPress site's public `/wp-json/wp/v2/pages/<id>` and
+  `/hire/<id>` addresses, and 24 were "version not shown: Check your version". A first
+  redesign that still listed every to-do came to 141 KB: Gmail clipped it and filed it as
+  spam. Now the mail says the day and the last whole day counted ("Figures up to Sat 14
+  Nov", since the 01:00 mail goes before that morning's count); four counts; **Act now**
+  (possible exposures, advisories that need an update, set-up problems; new first), one line
+  each with New or Still open and one link, items of one site with one name as one line
+  ("Possible exposure (62)"); and an **Overview** row per site whose act-now, to-dos and
+  notes figures link to their lists. No descriptions, addresses or hidden text. Every figure
+  is counted from the open items, each count is the sum of its overview column (the notes
+  count used to be the number of sites with notes). The HTML part uses the daily and weekly
+  mails' branded layout (dark mode, the mark sent inside the mail). The subject says "11 to
+  act on, 53 to-dos on 14 sites" instead of "155 things to look at". Nothing changes in what
+  is found, who gets it, when, New / Still open, or what is recorded (every item is still
+  carried and recorded). `ti.py summary-mail --dry-run --html DIR` writes each mail's HTML
+  part to look at. Affects everyone who gets the summary; nothing to do. Checked: tests for
+  the folding, the counts as column sums, the size, the HTML part, the mark and the dry run;
+  full suite OK; a dry run on the live data (nothing sent or recorded), one sample sent to
+  the lead developer.
+
+### Fixes
+
+- **Pages the browser loads ahead no longer make false moves back in a visit's journey (#62).**
+  Seen on one site's visit (13 Nov), on a site whose pages carry Chrome's speculation rules
+  (`prerender` and `prefetch`, `eagerness: moderate`). The visit read "pricing, consulting,
+  implementation, pricing, consulting, implementation", with three steps seen in the browser
+  and "under 1 s" between them. Chrome loads a linked page and its files when the pointer
+  rests on the link, so two pages arrived the same second from pricing. Each one's files then
+  read as a move back.
+  - **Journeys (trail rule 2):** a page from the same page as the page before it, within
+    2 s, is opened together, not a move back. A request that is not a page, made from a page
+    loaded within 30 s, is that page's own file. The same visit now reads pricing,
+    consulting, implementation. The Back button, then a click elsewhere, is still a step
+    seen in the browser.
+  - **The script tag and recorded journeys** send nothing while a page is only loaded ahead.
+    They send one page view when it is shown, timed from then. Before, a page only hovered
+    sent a page view.
+  - **The visitor drawer** no longer writes "under 1 s" for a time it doesn't know. It shows
+    "opened together" for two pages in the same second, and "under 10 s" or "about …" past a
+    visit's first minute, where times are kept to 10 s. A step seen in the browser shows
+    "time not known".
+  - **Page views are unchanged.** The server log can't tell a page loaded ahead and never
+    shown from one the person opened: Chrome marks both `Sec-Purpose: prefetch`, and the
+    click makes no request. So the planned rule "`Sec-Purpose: prefetch` is not a page view"
+    is dropped (EDGE-CASES B2, ROADMAP P0-5).
+
+  Affects every site whose journeys hold such visits. Nothing to do for the count: new days
+  use the new rule. Days already stored keep their journeys until recounted. That includes
+  the visits a visitor's drawer shows, which are kept for up to 395 days. To clean up recent
+  drawers after the upgrade, recount the days whose raw log is still on the server
+  (`backfill --days N --force`).
+
+  Checked:
+  - the live visit's request pattern replayed: 3 pages, no browser step;
+  - real Chrome against a copy of the site's speculation rules, in five cases (hover only;
+    hover, then click; pass over one link and click another; a new tab; the Back button);
+  - new tests for the trail rule, with both counting roads agreeing and a collected day's
+    audit matching, plus tests for the tag and the drawer;
+  - the full suite;
+  - a before-and-after recount of 63 days of a local install's test log, with master and
+    with this change, on copies of the same data. Every stored figure was the same except one
+    visit's time on page, whose step seen in the browser takes the next page's time instead
+    of a file's. The audit matched on all 63 days on both.
+
+- **A visit that went on past midnight shows as one visit in the visitor drawer (#66).** Seen in
+  a live drawer on 16 Nov: "16 Nov, 00:00 · 1 page, 31 min 36 s · Direct", the rest of a visit
+  still going from the day before. Each day is counted on its own, midnight to midnight in the
+  site's time zone, so the visit was cut in two. The part after midnight took the source of its
+  first page then ("This site" or "Direct"), and both parts looked short.
+  - Now the visitor drawer draws the two as one visit, tagged "continued past midnight", with
+    "past midnight" on the line where the day changed. It keeps the visit's own source and
+    start, its pages in order, and a form or lead from either part.
+  - This only happens when the two would have been one visit inside a day: the next day,
+    within the session gap (30 minutes by default), and not from a new outside site.
+  - The day figures don't change. Each part stays a visit of its own day, on both counting
+    roads, so totals, audits and other lists are as before. Counting such a visit once is a
+    separate decision (#66, option B).
+
+  Affects visitor drawers of sites that keep addresses. Nothing to do.
+
+  Checked:
+  - new tests for the rule (marked, or not: a new source, a longer gap, a day skipped, the
+    same day; the site's own gap; nothing written) and for the drawer (joined, offsets, leads
+    from either part, a visit over three days, drawn);
+  - the full suite;
+  - side by side with master on copies of a local install, with a returning visitor whose visit
+    crosses midnight, checked in the browser.
+
 ## 2.49.1 (2026-11-13)
 
 One odd referrer from a scanner can no longer stop a site's count.

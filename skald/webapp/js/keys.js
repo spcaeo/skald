@@ -27,8 +27,11 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-13-2.49.1",
+  id: "2026-11-17-2.50.0",
   items: [
+    ["A short daily summary mail", "four counts, Act now one line each (New or Still open, one link) and an overview per site whose figures open their lists: no long lists, no raw addresses.", "security"],
+    ["Pages loaded ahead are no moves back", "a page Chrome loads while the pointer rests on a link no longer shows as a visit going back and forth; the drawer says \"opened together\" instead of \"under 1 s\".", "getting-started"],
+    ["One visit past midnight", "a visit still going at midnight shows as one visit in the visitor drawer, with its own source, tagged \"continued past midnight\".", "where-visitors-come-from"],
     ["A strange referrer can't stop a count", "a scanner's referrer like {[RootURL]}/admin no longer crashes the live count or the daily run; it counts as no source.", "where-visitors-come-from"],
     ["Leads & sales in four tabs", "Leads, Summary (with where they came from), Revenue and Funnels; Calendar bookings is Leads › What: Demos, Find a person the search box. Old links still work.", "leads-and-conversions"],
     ["One period on every Leads & sales tab", "7, 30 and 90 days include today so far on every tab, and Leads counts only leads, so the same click shows the same count.", "leads-and-conversions"],

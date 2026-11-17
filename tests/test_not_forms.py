@@ -295,9 +295,12 @@ class TestTheAuditSharesOnlyTheLists(unittest.TestCase):
         tree = ast.parse(Path(audit_visits.__file__).read_text())
         got = {(n.module, a.name) for n in ast.walk(tree)
                if isinstance(n, ast.ImportFrom) and n.level for a in n.names}
+        # And the two numbers of trail rule 2 (trail_names.py, #62): numbers, never code.
         self.assertEqual(got, {("form_names", "BEACON_STATUS"), ("form_names", "ENTRY_LIMIT"),
                                ("form_names", "MAX_OWN"), ("form_names", "REFUSED"),
-                               ("form_names", "SCRIPT_POSTS")})
+                               ("form_names", "SCRIPT_POSTS"),
+                               ("trail_names", "OWN_FILES_SECONDS"),
+                               ("trail_names", "TOGETHER_SECONDS")})
 
 
 def site_day(sandbox_lines_at=NOON) -> list[str]:

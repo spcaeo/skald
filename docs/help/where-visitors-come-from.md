@@ -91,4 +91,6 @@ Every visit and every visitor opens in the same drawer: a row of the visit list,
 - **This visit: every detail**, folded: the visit's own labels and campaign tags.
 - **Every visit as a table (N)**, folded: the same visits as rows, the first visit highlighted.
 
+**A visit that went on past midnight.** Skald counts each day on its own, midnight to midnight in your time zone. So a visit still going at midnight ends with its day, and the next day's count starts another. In the visitor drawer the two are drawn as one visit, tagged **continued past midnight**, and the line where the day changed says **past midnight**. It keeps the source the visit came from, not "This site" or "Direct". This only happens when they would have been one visit inside one day: the second part started within the session gap (30 minutes by default) and didn't come from a new site. The day figures still count it in both days, as two visits, so totals and other lists don't change.
+
 A visit alone is anonymous. Every visit of the visitor shows only to admins and owners, and only where the site keeps addresses. Each time it is opened, the audit log records it (never the address). Pages seen only by the script tag, with no visit in the server log, are marked "seen by the script".
