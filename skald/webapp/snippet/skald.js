@@ -39,7 +39,7 @@ var Y=new URLSearchParams(L.search),g=k=>lc(Y.get("utm_"+k)).slice(0,60),o=[bare
 if(o[0]==bare(L.hostname))o[0]="";if(o[4]&&CK)o[4]+=":"+Y.get(o[4]).slice(0,250);
 try{if(o.join(""))SS.setItem("skald.src",JSON.stringify(o));else{var x=SS.getItem("skald.src")||" ";o=x[0]=="["?JSON.parse(x):x.split(" ")}}catch{}
 return from=o}
-function go(e,i){if(!ok||!e)return;
+function go(e,i){if(!ok||!e||d.prerendering)return;
 var x=w.innerWidth,v=id(),o=src(),j,b={e:e,p:L.pathname.slice(0,300),
 vw:x<480?"xs":x<768?"sm":x<1024?"md":x<1440?"lg":"xl",t:Math.min(86400,Math.max(0,Math.round((Date.now()-t0)/1e3)))};
 if(i=tok(i))b.id=i;["r","u","m","c","k"].forEach((f,n)=>o[n]&&(n<2||e=="page_view")&&(b[f]=o[n]));if(v)b.v=v;j=JSON.stringify(b);
@@ -47,7 +47,8 @@ if(AK&&e=="page_view")try{fetch(END,{method:"POST",body:j,keepalive:!0,credentia
 try{LS.setItem("skald.sh",+s+"|"+Date.now())}catch{}if(s){SH=1;vid&&ck(vid,34560000)}else if(F[0]=="1")ck("",0)}}).catch(()=>0);AK=0;return}catch{}
 try{if(n.sendBeacon(END,new Blob([j],{type:"text/plain"})))return}catch{}
 try{fetch(END,{method:"POST",body:j,keepalive:!0}).catch(()=>0)}catch{}}
-function pv(){if(!ok||L.pathname==last)return;last=L.pathname;t0=Date.now();seen=[];go("page_view");clearTimeout(T);T=setTimeout(scan,50)}
+// a page the browser loads ahead (prerender) sends nothing until it is shown (#62)
+function pv(){if(d.prerendering)return on(d,"prerenderingchange",pv,{once:!0});if(!ok||L.pathname==last)return;last=L.pathname;t0=Date.now();seen=[];go("page_view");clearTimeout(T);T=setTimeout(scan,50)}
 var once=(k,e)=>{if(ok&&!seen.includes(k)){seen.push(k);go(e)}},nf=()=>d.querySelector('[data-skald="404"]')&&once(404,"404_view"),
 scan=()=>{em();nf()};
 function tag(u){var v=id(),h=lc(u.hostname),p=u.searchParams,ch=0;if(!v)return"";

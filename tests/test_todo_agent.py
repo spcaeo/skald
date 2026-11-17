@@ -106,7 +106,6 @@ class RowsFile(unittest.TestCase):
             self.assertEqual(kept[t["id"]]["rows_total"], len(t["rows"]))
         self.assertTrue(lost["agent"])
         self.assertEqual(set(todos.AGENT_KINDS), set(agent_todos.KINDS))
-        self.assertEqual(set(todos.AGENT_KINDS), set(summary_mail.AGENT_KINDS))
 
     def test_first_seen_holds_and_the_webhook_says_each_new_one_once(self):
         with mock.patch("skald.conversions.outgoing.notify", return_value=1) as hook:
@@ -413,19 +412,15 @@ class McpTools(TenantServer):
 # ------------------------------------------------------------------ the mail
 
 class NoCodeInMail(unittest.TestCase):
-    def test_the_mail_links_to_fix_this_never_a_code(self):
-        it = {"item": "lost-pages", "title": "Send old pages somewhere useful.", "todo": "Redirect each.",
-              "link": "https://stats.example.com/traffic/example.com/#overview/insights?todo=lost-pages",
-              "fix": "https://stats.example.com/traffic/example.com/#overview/insights?todo=lost-pages&fix=1&by=agent"}
-        line = summary_mail._line(it, "New: ")
-        self.assertIn("Fix it with your AI agent: https://stats.example.com/traffic/example.com/"
-                      "#overview/insights?todo=lost-pages&fix=1&by=agent", line)
-        self.assertNotIn("use code", line)
-        self.assertNotIn("/traffic-kit/", line)
+    def test_the_mail_never_holds_a_code(self):
+        """#68: the daily summary counts the to-dos and links to their list; it never lists
+        one, never links to its Fix this dialog and never makes a line."""
         import inspect
-        src = inspect.getsource(summary_mail)
+        from skald import summary_html
+        src = inspect.getsource(summary_mail) + inspect.getsource(summary_html)
         self.assertNotIn("make_todo_line", src, "the mail never makes a line")
         self.assertNotIn("agent.make", src)
+        self.assertNotIn("by=agent", src)
 
 
 if __name__ == "__main__":

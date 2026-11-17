@@ -325,7 +325,13 @@ weaker link, which the drawer says.
 system within `keep_days` (`kind` `kept`: the visit row's labels, `trail`, `posts`, `day`,
 `seq`; `linked` `this` or `address`), and, when a visitor ID matched one of them by the rule
 above, the ID's page views no kept visit covers, grouped 30 minutes apart (`kind` `script`,
-"seen by the script"). The oldest has `first: true`. `leads`: made from 30 seconds before to 2
+"seen by the script"). The oldest has `first: true`. A kept visit that only midnight cut from
+the visit before it (Unreleased, #66) has `continues: [day, seq]`, the visit before. The rule:
+it starts on the next day, within `report.session_gap_minutes` of that visit's last request,
+and its first page came from no new outside source (this site, direct or unknown, back from a
+payment page), so inside one day the two would have been one visit. The drawer draws the
+pair as one visit "continued past midnight". Both rows stay as counted, each in its own
+day's figures. `leads`: made from 30 seconds before to 2
 minutes after a form one of the visits sent (`lead`, `visit_start`, `created_at`, `type`,
 `status`, `left_out`; matched by time, never certain). `conversions`: the matched IDs'
 (test rows left out), each `{"id","action","stage","at","tool","external_ref","source_type",

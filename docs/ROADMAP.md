@@ -46,7 +46,7 @@ stored beyond what the item states; standard library on the server.
 | P0-2 Verified bots | Done (owner lists for Google, Bing, Apple, OpenAI, Perplexity, Anthropic, DuckDuckGo; Meta by network; DNS for Yandex and as fallback). Baidu not yet. |
 | P0-3 Alerts | Done from the live run (site down by heartbeat, logging stopped, 5xx, 404 surge, crawler burst, new crawler, traffic drop). Still open: an outside uptime check, "day withheld / report not sent" to a second address. |
 | P0-4 Backups | Nightly + weekly, restore-tested on each run. Off-server destination: owner's decision. |
-| P0-5 Data quality | Panel done (`quality.json`). `$request_id` in the log since 2026-10-08 (repeats dropped, `duplicates_removed`); prefetch headers not added. |
+| P0-5 Data quality | Panel done (`quality.json`). `$request_id` in the log since 2026-10-08 (repeats dropped, `duplicates_removed`); prefetch headers not added: `Sec-Purpose` alone cannot tell a page loaded ahead from one opened (EDGE-CASES B2, #62), so it is not planned as a page-view rule. |
 | P0-6 Goals from leads | Done as `leads.json` (CMS read-only, aggregates). |
 | P0-7 Privacy | Retention table and `skald forget`. Key rotation not done. |
 | P1-1 Funnel | Done inside `leads.json` (log steps beside CMS steps). |
@@ -124,7 +124,7 @@ trustworthy; the next five make them useful for growth. The state at 2.5.0 is in
 1. **P0-1 Clean the people number** - the site's own team and AI agents, plus a dozen one-line fixes found in a real log. (Partly; the open fixes are listed under Release 2.)
 2. **P0-2 Verified bots** - reverse DNS and published IP ranges, so "GPTBot" means GPTBot. (Done; Baidu not verified yet.)
 3. **P0-3 Alerts by email** - site down (checked from outside), errors, broken-link surge, logging stopped, crawl burst, new AI assistant. (Done, except the outside check.)
-4. **P0-5 Data-quality monitor and log format** - request id, prefetch and fetch headers; duplicates, gaps, skew. (Done; prefetch headers not added.)
+4. **P0-5 Data-quality monitor and log format** - request id, prefetch and fetch headers; duplicates, gaps, skew. (Done; prefetch headers not added, and `Sec-Purpose` is not a page-view rule: EDGE-CASES B2, #62.)
 5. **P0-4 Off-server backups and a tested restore.** (Restore-tested backups done, on the same server; off-server is the owner's decision.)
 6. **P0-6 Goals and conversions from leads** - leads by first-touch source and AI assistant beside readers by source. (Done.)
 7. **P0-7 Privacy rules for what this release stores** - key rotation, retention, deletion requests. (Done, except key rotation.)

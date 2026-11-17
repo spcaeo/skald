@@ -22,6 +22,7 @@ from collections import Counter
 from urllib.parse import urlsplit
 
 from .form_names import BEACON_STATUS, ENTRY_LIMIT, MAX_OWN, REFUSED, SCRIPT_POSTS
+from .trail_names import OWN_FILES_SECONDS, TOGETHER_SECONDS
 
 OTHER = "(all others)"
 _SKIP_EXT = (".css", ".js", ".mjs", ".map", ".png", ".jpg", ".jpeg", ".gif", ".svg",
@@ -217,6 +218,41 @@ def page_added(config: dict) -> list[tuple]:
     return out
 
 
+def trail_of(lines: list, is_page, where_of) -> tuple[list[str], list, int]:
+    """(pages seen in order, the time each was seen, moves seen in the browser):
+    a page loaded, or the page a later request's referrer names on this site
+    (`where_of`). Not a move (trail rule 2, trail_names.py): a request that is
+    no page made from a page loaded within OWN_FILES_SECONDS of it, and a
+    page from the same page as the page loaded just before it, within
+    TOGETHER_SECONDS. audit_funnels.Recount takes its trails from here too."""
+    seen: list[str] = []
+    when: list = []
+    moved = 0
+    loaded_at: dict = {}            # page -> when it was last loaded
+    before = None                   # (referrer page, when) of the page loaded last
+    for l in lines:
+        here = is_page(l)
+        if seen and l.status[:1] in ("2", "3"):
+            where = where_of(l)
+            if where and where != seen[-1] and not (here and where == l.path[:70]):
+                if here:
+                    skip = (before is not None and before[0] == where
+                            and abs((l.when - before[1]).total_seconds()) <= TOGETHER_SECONDS)
+                else:
+                    t = loaded_at.get(where)
+                    skip = t is not None and abs((l.when - t).total_seconds()) <= OWN_FILES_SECONDS
+                if not skip:
+                    seen.append(where)
+                    when.append(l.when)
+                    moved += 1
+        if here:
+            seen.append(l.path[:70])
+            when.append(l.when)
+            loaded_at[l.path[:70]] = l.when
+            before = (where_of(l), l.when)
+    return seen, when, moved
+
+
 class VisitRecount:
     """Every stored visit figure, from visits handed over one at a time."""
 
@@ -257,20 +293,7 @@ class VisitRecount:
         loaded = [l for l in lines if is_page(l)]
         if not loaded:
             return
-        seen: list[str] = []
-        when: list = []                 # the line each entry of `seen` was seen on
-        moved = 0
-        for l in lines:
-            here = is_page(l)
-            if seen and l.status[:1] in ("2", "3"):
-                where = self._where(l)
-                if where and where != seen[-1] and not (here and where == l.path[:70]):
-                    seen.append(where)
-                    when.append(l.when)
-                    moved += 1
-            if here:
-                seen.append(l.path[:70])
-                when.append(l.when)
+        seen, when, moved = trail_of(lines, is_page, self._where)
         # Time on page (#46): from each entry to the next one, in whole seconds.
         for i in range(len(seen) - 1):
             gap = int((when[i + 1] - when[i]).total_seconds())

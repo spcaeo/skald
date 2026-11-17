@@ -37,7 +37,7 @@ function emit(name,x){var e={schema_version:1,event_id:uid(),event_name:name,occ
 visitor_id:vid,session_id:sid,path:cur(),consent:{analytics:"granted"}},k=get("skald.vid");
 if(NOTE)e.consent.notice_version=NOTE;if(SV.test(k))e.skald_vid=k;for(k in x)e[k]=x[k];post(RELAY,JSON.stringify(e))}
 function go(name,x){if(!on)return;var t=T||{landing_path:cur()};T=0;if(ses())emit("session_started",{touch:t});emit(name,x||{})}
-function pv(){var p=cur();if(on&&p!=last){last=p;go("page_view")}}
+function pv(){if(d.prerendering)return d.addEventListener("prerenderingchange",pv,{once:!0});var p=cur();if(on&&p!=last){last=p;go("page_view")}}
 function drop(){on=0;vid=sid=at=last=null;[KV,KC,KS].forEach(k=>{try{LS.removeItem(k)}catch{}})}
 function grant(g){if(!g)return drop();if(on)return;on=1;put(KC,NOTE||"1");var v=get(KV);vid=UU.test(v)?v:vid||uid();put(KV,vid);pv()}
 function track(name,o){o=o||{};var x={},l=txt(o.label,80),m=typeof o.email=="string"?o.email.trim():"";

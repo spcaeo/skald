@@ -697,4 +697,5 @@ The daily summary: one mail per person with what to look at on every site (secur
 | Argument | What it does |
 | --- | --- |
 | `--dry-run` | print the mails instead of sending them |
+| `--html` DIR | with --dry-run: write each mail's HTML part into DIR (summary-<user id>.html), to look at it in a browser |
 | `--after` HH:MM | do nothing before this time of day (the site's zone): for an hourly cron line |

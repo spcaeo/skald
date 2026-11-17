@@ -51,6 +51,7 @@
 
 ## What's new
 
+- **2.50.0: a short daily summary mail; pages loaded ahead and visits past midnight read right in journeys** ([changelog](CHANGELOG.md#2500-2026-11-17)).
 - **2.49.1: one odd referrer from a scanner can no longer stop a site's count** ([changelog](CHANGELOG.md#2491-2026-11-13)).
 - **2.49.0: Leads & sales in four tabs with one period rule; ask your AI how people reach a page and where they booked; newest first everywhere; a warning when Search Console stops** ([changelog](CHANGELOG.md#2490-2026-11-13)).
 - **2.48.2: Right now never steps back** ([changelog](CHANGELOG.md#2482-2026-11-12)).

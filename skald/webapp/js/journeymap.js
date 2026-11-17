@@ -25,6 +25,8 @@ import { withUrl } from "./urlactions.js";
 const PER_MINUTE = 1000;      // replay: 1 s per minute of the real visit
 const CAP = 4000;             // ... at most 4 s for one visit
 const STEP = 70;              // the opening stagger between steps, ms
+// #66: a visit the end of the day cut in two, drawn as one (tabs/visitor.js joinMidnight).
+export const MIDNIGHT = "One visit that went on past midnight. Each day is counted on its own, so its figures are in both days: two visits there.";
 
 const daysWords = (a, b) => {
   const ms = b - a;
@@ -61,6 +63,23 @@ function gap(words) {
     h("span", { class: "jm-rail", "aria-hidden": "true" }, h("span", { class: "jm-ln" })), words ? h("small", { class: "jm-t" }, words) : null);
 }
 
+/* The time between two steps, as honestly as the log knows it (#62). `at` is kept to the
+   second under a minute, then to 10 s, to the minute, to 10 minutes (visits.seconds_bucket),
+   so a gap of 0 past the first minute is "under 10 s", never "under 1 s". A step seen in the
+   browser (dashed) is timed by the request that showed it, not by the move: leaving one,
+   the time is not known; reaching one, it happened within the gap. Two pages in the same
+   second were opened together (one loaded ahead by the browser, or a new tab). */
+const ROUND = [[60, 1, ""], [600, 10, "under 10 s"], [3600, 60, "under 1 min"], [Infinity, 600, "under 10 min"]];
+export function gapWords(prev, p) {
+  if (prev?.at == null || p?.at == null) return "";
+  if (prev.page === false) return "time not known";
+  const g = Math.max(0, p.at - prev.at);
+  if (p.page === false) return g ? `within ${duration(g)}` : "time not known";
+  const [, step, under] = ROUND.find(([upTo]) => prev.at < upTo);
+  if (!g) return step === 1 ? "opened together" : under;
+  return step === 1 && p.at < 60 ? duration(g) : `about ${duration(g)}`;
+}
+
 /* One visit's steps. v: {start, source, via, campaign, trail: [{path, page, at, times, nf}],
    seconds, stop, kind, first, active, endNode: {kind, words, detail}, touch (words or "")}. */
 function steps(v) {
@@ -73,7 +92,9 @@ function steps(v) {
   const out = [step("from", src)];
   trail.forEach((p, i) => {
     const prev = trail[i - 1];
-    out.push(gap(i && p.at != null && prev?.at != null ? duration(Math.max(0, p.at - prev.at)) : ""));
+    const between = i ? gapWords(prev, p) : "";
+    // #66: where the day changed inside a visit joined across midnight.
+    out.push(gap(p.midnight ? [between, "past midnight"].filter(Boolean).join(" · ") : between));
     const at = p.at != null ? `+${p.at < 1 ? "0 s" : duration(p.at)} from the first request` : "time in the visit not kept";
     const btn = withTip(h("button", { type: "button", class: `jm-n pg${p.page === false ? " jm-app" : ""}${p.nf ? " nf" : ""}`,
       "aria-label": `Page ${p.path}, ${at}. Opens its page detail.` }, mark("path", p.path), h("span", { class: "jm-w" }, p.path), p.times > 1 ? h("small", null, `×${p.times}`) : null),
@@ -97,6 +118,7 @@ function header(v) {
     h("b", null, w ? `${w.date}, ${w.hour}:${w.minute}` : "Time not kept"),
     v.this ? h("span", { class: "jm-tag this" }, "this visit") : null,
     v.first ? h("span", { class: "jm-tag first" }, "first visit we know of") : null,
+    v.midnight ? h("span", { class: "jm-tag", title: MIDNIGHT }, "continued past midnight") : null,
     v.active ? h("span", { class: "jm-tag on" }, "active now") : null,
     v.kind === "script" ? h("span", { class: "jm-tag", title: "Pages the page script sent with the visitor ID; the server log's own visit is not kept for them" }, "seen by the script") : null,
     v.kind === "touch" ? h("span", { class: "jm-tag", title: "Only its source and first page are known here" }, "only its first page known") : null,

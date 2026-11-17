@@ -31,7 +31,7 @@ import { withUrl } from "../urlactions.js";
 import { shown } from "../labels.js";
 import { mark } from "../icons.js";
 import { DEMO, demoFile } from "../demo.js";
-import { journeyMap, replayButton, sourceWords } from "../journeymap.js";
+import { journeyMap, replayButton, sourceWords, MIDNIGHT } from "../journeymap.js";
 import { call } from "./ipmanager.js";
 import { countryWords, flagEl, city, cityPlace, cityName } from "./readers.js";
 import { mayFind, personParts } from "./person.js";
@@ -89,9 +89,39 @@ function visitOf(raw, kind) {
     active: kind !== "script" && Date.now() - end < 5 * 60e3, day: raw.day, seq: raw.seq, first_touch: raw.first_touch, raw };
 }
 
+/* #66: a visit the end of the day cut in two, drawn as one. Each day is counted on its own,
+   so a visit still going at midnight is closed with its day; the server marks the next day's
+   part (`continues`: the part before's [day, seq], people/timeline.py). The parts keep their
+   own figures, each in its day; here the trail runs on, its offsets from the first part's
+   start, the step after midnight marked, and the visit tagged "continued past midnight". */
+export function joinMidnight(visits) {
+  const out = [], shown = new Map();
+  const t = (s) => when(s)?.t || 0;
+  for (const v of [...visits].sort((a, b) => t(a.start) - t(b.start))) {
+    const c = v.raw?.continues;
+    const into = Array.isArray(c) ? shown.get(`${c[0]}.${c[1]}`) : null;
+    if (v.kind === "kept") shown.set(`${v.day}.${v.seq}`, into || v);
+    if (!into) { out.push(v); continue; }
+    const shift = Math.max(0, Math.round((t(v.start) - t(into.start)) / 1000));
+    const tail = v.trail.map((p, i) => ({ ...p, at: p.at == null ? null : shift + p.at, midnight: i === 0 || undefined }));
+    const parts = [...(into.parts || [into.raw]), v.raw];
+    Object.assign(into, {
+      stop: v.stop, trail: [...into.trail, ...tail], midnight: true, parts,
+      pages: (into.pages ?? 0) + (v.pages ?? 0),
+      seconds: v.stop ? Math.max(0, Math.round((t(v.stop) - t(into.start)) / 1000)) : into.seconds,
+      posted: into.posted || v.posted, nf: into.nf || v.nf, active: v.active,
+      this: into.this || v.this, first_touch: into.first_touch || v.first_touch,
+      // The header's "N pages (M seen in the browser)" reads the raw trail: both parts'.
+      raw: { ...into.raw, pages: (into.raw?.pages ?? 0) + (v.raw?.pages ?? 0), trail: [...(into.raw?.trail || []), ...(v.raw?.trail || [])] },
+    });
+  }
+  return out;
+}
+
 function ends(v, leads, convs) {
   const t0 = when(v.start)?.t || 0, t1 = when(v.stop || v.start)?.t || t0;
-  const lead = leads.find((l) => l.visit_start === v.raw.start);
+  const starts = (v.parts || [v.raw]).map((r) => r?.start);
+  const lead = leads.find((l) => starts.includes(l.visit_start));
   const booked = convs.find((c) => c.action === "demo" && ["completed", "paid"].includes(c.stage) && (when(c.at)?.t || 0) >= t0 && (when(c.at)?.t || 0) <= t1 + 30 * 60e3);
   if (booked) return { kind: "booked", words: "booked a demo", detail: `A demo booked at ${at(booked.at)}` };
   if (lead) return { kind: "lead", words: `lead #${lead.lead}`, detail: `Lead #${lead.lead}${lead.type ? ` (${lead.type})` : ""}, made ${at(lead.created_at)}: matched by time to a form this visit sent` };
@@ -125,7 +155,7 @@ function fromTimeline(j, got) {
     if (j && r.day === j.day && r.seq === j.seq) { v.this = true; v.first_touch = j.first_touch; }
     return v;
   });
-  return { title: "Visitor", journey: j, visits, leads: got.leads || [], conversions: got.conversions || [], withheld: got.withheld || {},
+  return { title: "Visitor", journey: j, visits: joinMidnight(visits), leads: got.leads || [], conversions: got.conversions || [], withheld: got.withheld || {},
     firstTouch: j?.first_touch, how: "address", short: got.linked_by === "short_address", vid: got.vid_matched, firstKnown: true };
 }
 
@@ -252,6 +282,7 @@ function timeline(model) {
       h("td", null, v.kind === "touch" && !v.start?.includes("T") ? v.start : at(v.start),
         v.first ? h("span", { class: "vz-badge" }, "first") : null, v.this ? h("span", { class: "vz-badge" }, "this visit") : null,
         v.kind === "script" ? h("span", { class: "vz-badge script", title: "Pages the page script sent with the visitor ID" }, "seen by the script") : null,
+        v.midnight ? h("span", { class: "vz-badge", title: MIDNIGHT }, "past midnight") : null,
         held[v.day] ? h("small", { class: "pp-bad", title: "This day's figures did not reconcile: it is withheld from every total." }, " withheld day") : null),
       h("td", null, h("span", { class: "named" }, v.via ? mark("referrer", v.via) : mark("source", v.source), h("span", { class: "nm" }, sourceWords(v))),
         v.via ? h("small", { class: "v-ft" }, shown(v.source)) : null, line ? h("small", { class: "v-ft" }, line) : null),
