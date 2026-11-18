@@ -246,8 +246,13 @@ export function trailOf(key) {
    and today's visitors, a check on this one, then All sites. In the icon
    rail the logo alone is the button; on a phone the top bar has its own
    (siteChip). The list is sites.json (the helper's, with only the reader's
-   sites), else this site alone; grouped by organisation for a reader in two. */
-const CHEV = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 6.5 8 10l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+   sites), else this site alone; grouped by organisation for a reader in two.
+   SKALD-35: the list scrolls inside the window (its height is set on opening,
+   fitMenu), All sites stays below it, and a reader with SITE_FIND_MIN sites or
+   more gets "Find a site" above it: typing narrows the rows by site or
+   organisation name. */
+const SITE_FIND_MIN = 7;
+const CHEV ='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 6.5 8 10l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const CHECK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 let SITE = { site: "", sites: [] };
 
@@ -258,11 +263,14 @@ function siteMenu() {
   const row = (x) => {
     const here = x.name === site;
     // The site's own address: copy and open in a new tab at the row's end (urlactions.js).
-    return withUrl(h("a", { class: "menu-i site-i", role: "menuitem", href: here ? "./" : `../${x.path}`, "aria-current": here ? "page" : null },
+    const el = withUrl(h("a", { class: "menu-i site-i", role: "menuitem", href: here ? "./" : `../${x.path}`, "aria-current": here ? "page" : null },
       tile(logoOf(x, x.name), 24, "si-logo"),
       h("b", null, x.name, x.live ? h("span", { class: "live-dot", title: "Live: today is counted again every few minutes" }, h("span", { class: "vh" }, ", live")) : null),
       here ? h("span", { class: "si-end si-check", html: CHECK, "aria-label": "this site", role: "img" })
         : today(x) ? h("small", { class: "si-end" }, today(x)) : null), /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(x.name || "") ? `https://${x.name}` : "", { label: x.name, tag: "div", cls: "si-row" });
+    // What "Find a site" matches: the site's name and its organisation's.
+    el.dataset.find = `${x.name || ""} ${x.org || ""}`.toLowerCase();
+    return el;
   };
   // 2.38.0: a reader in two or more organisations gets the sites under each one's name
   // (sites.json names a site's org only then).
@@ -272,8 +280,44 @@ function siteMenu() {
     return mine.length ? h("div", { class: "site-group", role: "group", "aria-label": o || "Other sites" },
       h("div", { class: "site-org", "aria-hidden": "true" }, o || "Other sites"), mine.map(row)) : null;
   });
-  return h("div", { class: "pop menu site-menu", role: "menu", hidden: true, "aria-label": "Switch site" },
-    body, h("a", { class: "menu-i site-all", role: "menuitem", href: "../" }, "All sites"));
+  // The rows scroll; the search box above them and All sites below stay put.
+  const scroller = h("div", { class: "site-list" }, body);
+  const all = h("a", { class: "menu-i site-all", role: "menuitem", href: "../" }, "All sites");
+  if (list.length < SITE_FIND_MIN) {
+    return h("div", { class: "pop menu site-menu", role: "menu", hidden: true, "aria-label": "Switch site" },
+      h("div", { class: "site-items" }, scroller, all));
+  }
+  // With the search box the popup is a dialog holding a box and a menu: a text box
+  // is not a menu item.
+  const find = h("input", { type: "search", class: "site-find-in", placeholder: "Find a site", "aria-label": "Find a site",
+    autocomplete: "off", spellcheck: "false", enterkeyhint: "go" });
+  const none = h("p", { class: "site-none", hidden: true }, "No site matches");
+  const said = h("span", { class: "vh", "aria-live": "polite" });
+  find.addEventListener("input", () => {
+    const q = find.value.trim().toLowerCase();
+    let shown = 0;
+    for (const el of scroller.querySelectorAll("[data-find]")) {
+      el.hidden = !!q && !el.dataset.find.includes(q);
+      if (!el.hidden) shown++;
+    }
+    for (const g of scroller.querySelectorAll(".site-group")) g.hidden = !g.querySelector("[data-find]:not([hidden])");
+    none.hidden = shown > 0;
+    said.textContent = !q ? "" : shown ? `${shown} site${shown === 1 ? "" : "s"} match` : "No site matches";
+  });
+  return h("div", { class: "pop menu site-menu has-find", role: "dialog", hidden: true, "aria-label": "Switch site" },
+    h("div", { class: "site-find" }, find, said),
+    h("div", { class: "site-items", role: "menu", "aria-label": "Sites" }, scroller, none, all));
+}
+
+/* The menu's height: down to just above the window's bottom from where it opened,
+   or above the phone's tab bar, which would cover its end, so a long list scrolls
+   instead of running past the screen (SKALD-35). */
+function fitMenu(menu) {
+  if (menu.hidden) return;
+  const top = menu.getBoundingClientRect().top;
+  const tb = tabbar?.getBoundingClientRect();  // fixed, so no offsetParent: a hidden bar has no size
+  const end = tb && tb.height > 0 && tb.top > top ? Math.min(innerHeight, tb.top) : innerHeight;
+  menu.style.setProperty("--site-menu-max", `${Math.max(180, Math.floor(end - top - 12))}px`);
 }
 
 // One button and its menu: opens and closes; Escape, a click elsewhere or a
@@ -281,8 +325,14 @@ function siteMenu() {
 // (the icon rail, the phone's bar), where the sidebar would clip it.
 function switcher(btn, float) {
   const menu = siteMenu();
+  const find = menu.querySelector(".site-find-in");
+  const scroller = menu.querySelector(".site-list");
+  if (find) btn.setAttribute("aria-haspopup", "dialog");
   const wrap = h("span", { class: "site-wrap" }, btn, menu);
   const close = () => { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); };
+  // The rows a key can reach: the shown ones (a search hides the rest).
+  const rows = () => [...menu.querySelectorAll("a.menu-i")].filter((a) => !a.closest("[hidden]"));
+  const search = (q) => { if (find) { find.value = q; find.dispatchEvent(new Event("input")); } };
   btn.addEventListener("click", () => {
     const open = menu.hidden;
     menu.hidden = !open;
@@ -292,11 +342,35 @@ function switcher(btn, float) {
       const r = btn.getBoundingClientRect(), beside = rail.contains(btn);
       Object.assign(menu.style, { position: "fixed", top: `${beside ? r.top : r.bottom + 6}px`, left: `${beside ? r.right + 8 : Math.max(8, r.left)}px` });
     } else menu.removeAttribute("style");
-    if (open) menu.querySelector("a.menu-i")?.focus();
+    if (!open) return;
+    // Each opening starts from the whole list, scrolled to this site.
+    search("");
+    fitMenu(menu);
+    scroller.scrollTop = 0;
+    const here = menu.querySelector('a.site-i[aria-current="page"]');
+    if (here) scroller.scrollTop = Math.max(0, here.getBoundingClientRect().bottom - scroller.getBoundingClientRect().bottom + 8);
+    // A touch screen keeps its keyboard down until the box is tapped.
+    if (find && !matchMedia("(pointer: coarse)").matches) find.focus();
+    else menu.querySelector("a.menu-i")?.focus({ preventScroll: true });
   });
+  addEventListener("resize", () => fitMenu(menu));
   menu.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { close(); btn.focus(); return; }
-    const items = [...menu.querySelectorAll("a.menu-i")], i = items.indexOf(document.activeElement);
+    if (e.key === "Escape") {
+      // The first Escape empties the search box, the next one closes.
+      if (find?.value) { e.preventDefault(); search(""); find.focus(); return; }
+      close(); btn.focus(); return;
+    }
+    if (find && e.target === find && e.key === "Enter") {
+      e.preventDefault();
+      rows().find((a) => a.classList.contains("site-i"))?.click();
+      return;
+    }
+    // Typing on a row goes to the search box.
+    if (find && e.target !== find && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key.length === 1 || e.key === "Backspace")) {
+      find.focus();
+      return;
+    }
+    const items = find ? [find, ...rows()] : rows(), i = items.indexOf(document.activeElement);
     const j = { ArrowDown: i + 1, ArrowUp: i - 1 }[e.key];
     if (j != null && items.length) { e.preventDefault(); items[(j + items.length) % items.length].focus(); }
   });
