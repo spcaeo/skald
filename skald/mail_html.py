@@ -198,7 +198,17 @@ def _kpis(now_f: dict, before: dict | None, compare_words: str) -> str:
     return _card("The headline", body, esc(note))
 
 
-def _insights(found: list[dict]) -> str:
+def windows(day: date) -> str:
+    """The What changed note (SKALD-12, #70). insights.compute runs at the
+    mail's last day: its comparisons say their window ("week on week", "30 days
+    on the 30 before", "in the last 30 days"), while an anomaly (a spike or a
+    drop) and a "New" line count that one day, and a "New" line does not say so."""
+    return ("Only whole, verified days are compared. Each comparison says its window "
+            "(week on week, 30 days on the 30 before, or the last 30 days); a spike, a "
+            f"drop or a \"New\" line is about {day:%a %d %b} alone.")
+
+
+def _insights(found: list[dict], day: date) -> str:
     if not found:
         return ""
     rows = []
@@ -215,7 +225,7 @@ def _insights(found: list[dict]) -> str:
             f'{esc(shown_text(i.get("title", "")))}</td></tr>')
     body = (f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
             f'style="border-collapse:collapse">{"".join(rows)}</table>')
-    return _card("What changed", body, "Only whole, verified days are compared.")
+    return _card("What changed", body, esc(windows(day)))
 
 
 def _unmeasured(title: str) -> str:
@@ -242,13 +252,14 @@ def _sources(people) -> str:
                  "Each visitor counted once, by the first page they read." if rows else "")
 
 
-def _pages(people) -> str:
+def _pages(people, note: str = "") -> str:
+    """`note`: set when the list is the sum of each day's top 50 (mailer.whole_pages)."""
     pages = Counter(people.pages) if people else Counter()
     total = people.views if people else 0
     rows = [(f'<span style="font-family:{MONO};'
              f'font-size:13px">{esc(p)}</span>', f"{n:,}", _pct(n, total))
             for p, n in pages.most_common(ROWS + 1) if p != OTHER][:ROWS]
-    return _card("Top pages", _table(rows, ("Page", "Reads", "")))
+    return _card("Top pages", _table(rows, ("Page", "Reads", "")), esc(note))
 
 
 def _countries(people, credit=None) -> str:
@@ -333,8 +344,10 @@ def _health(history, site: str, tz, first: date, last: date, totals, config=None
     errors = (f"{sum(int(s.statuses.get('5xx', 0)) for s in totals.groups.values()):,}"
               if measured else "—")
     broken = Counter(people.not_found) if people and measured else Counter()
-    rows = [("Uptime (our 5-minute check)", uptime, ""),
-            ("Server errors (5xx), all visitors", errors, ""),
+    # No heartbeat rule: no uptime check exists, so no row (it was a "—" in every
+    # mail). With a rule and a day not known, the row stays and says "—".
+    rows = ([("Uptime (our 5-minute check)", uptime, "")] if beating else []) + [
+            ("Server errors (5xx), all requests", errors, ""),
             ("Broken links people hit (404)",
              f"{sum(broken.values()):,}" if measured else "—", "")]
     rows += [(f'<span class="s-ink2" style="color:{INK2};font-family:ui-monospace,'
@@ -380,9 +393,12 @@ def _button(url: str | None) -> str:
 
 def render(kind: str, config: dict, history, tz, site: str, first: date, last: date,
            period, before, insights: list[dict], partial: str, url: str | None,
-           recipients: list[str], credit=None, logo: bool = True, extra: str = "") -> str:
+           recipients: list[str], credit=None, logo: bool = True, extra: str = "",
+           pages_note: str = "") -> str:
     """The whole HTML part. `before` is the period compared with, or None;
-    `extra` a ready card after the insights (the weekly AI reading changes)."""
+    `extra` a ready card after the insights (the weekly AI reading changes);
+    `pages_note` the Top pages card's note (mailer.PAGES_NOTE), or ""; `url`
+    the dashboard's, or None (the footer then names config.yml)."""
     b = brand.load()
     totals = period.totals
     people = totals.groups.get(Group.PEOPLE)
@@ -430,20 +446,25 @@ def render(kind: str, config: dict, history, tz, site: str, first: date, last: d
     sections = [
         banner, _kpis(now_f, before_f, compare_words),
         _week_bars(history, site, first, last) if kind == "weekly" else "",
-        _insights(insights), extra,
+        _insights(insights, last), extra,
         _sources(people) if totals.breakdowns else _unmeasured("Where visitors came from"),
-        _pages(people),
+        _pages(people, pages_note),
         _countries(people, credit) if totals.breakdowns else _unmeasured("Countries"),
         _crawlers(totals, _reads(history, site, first, last)), _health(history, site, tz, first, last, totals, config)]
     who = ", ".join(recipients)
     verb = "are" if len(recipients) > 1 else "is"
+    # Where the list is kept: the dashboard's Settings, or config.yml on an install
+    # without one. Never "mail.to", which a mail client turned into a link to an
+    # outside website.
+    where = ("Settings › This site › Mail &amp; reports" if url else
+             "the to list in the mail section of the server's config.yml")
     footer = (
         _button(url)
         + f'<div class="s-ink3" style="font:500 12px/1.6 {FONT};color:{INK3};text-align:center">'
         f'{esc(brand.line(b))}</div>'
         f'<div class="s-ink3" style="font:400 12px/1.6 {FONT};color:{INK3};text-align:center;'
         f'padding:6px 12px 0">You get this because {esc(who)} {verb} on the report list for '
-        f'{esc(site)} (mail.to in the server\'s Skald settings): a daily report each morning '
+        f'{esc(site)} ({where}): a daily report each morning '
         f'and a weekly one on Mondays. Read from the web server\'s own logs; nothing in this '
         f'mail tracks you.</div>')
     return (

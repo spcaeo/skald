@@ -51,6 +51,7 @@
 
 ## What's new
 
+- **2.52.0: the weekly mail's Top pages count every read; "What changed" says which window each line covers; no empty uptime row** ([changelog](CHANGELOG.md#2520-2026-11-18)).
 - **2.51.0: the site switcher scrolls inside the window, and with seven sites or more a Find a site box narrows it as you type** ([changelog](CHANGELOG.md#2510-2026-11-18)).
 - **2.50.1: page addresses longer than 70 characters are kept whole, and Open goes to the real page** ([changelog](CHANGELOG.md#2501-2026-11-17)).
 - **2.50.0: a short daily summary mail; pages loaded ahead and visits past midnight read right in journeys** ([changelog](CHANGELOG.md#2500-2026-11-17)).

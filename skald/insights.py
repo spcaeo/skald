@@ -273,8 +273,10 @@ def opportunities(src: Source, anchor: date, cfg: dict) -> list[dict]:
                                 {"kind": "page", "name": path}, ai, c["readers"],
                                 first.isoformat(), period, {"path": path}, floor))
         if c["entries"] >= 2 * floor and c["after_pages"] * 5 <= c["entries"]:
+            went_on = ("none went on" if not c["after_pages"] else
+                       f"almost none went on ({c['after_pages']:,} more pages)")
             out.append(_insight("opportunity", f"{path}: {c['entries']:,} visits started here "
-                                f"and almost none went on ({c['after_pages']:,} more pages)",
+                                f"in the last 30 days, and {went_on}",
                                 "entries", {"kind": "page", "name": path}, c["entries"],
                                 c["after_pages"], first.isoformat(), period, {"path": path}, floor))
     linked = Counter()
@@ -287,7 +289,7 @@ def opportunities(src: Source, anchor: date, cfg: dict) -> list[dict]:
     for path, n in linked.items():
         if n >= 2:
             out.append(_insight("opportunity", f"{path}: {n:,} people reached this 404 from a "
-                                f"link elsewhere - redirect it", "not_found",
+                                f"link elsewhere in the last 30 days - redirect it", "not_found",
                                 {"kind": "path", "name": path}, None, n, first.isoformat(),
                                 period, {"path": path}, 2))
     return out
