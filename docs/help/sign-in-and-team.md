@@ -104,7 +104,7 @@ People are given sites through organisations. By default everyone in an organisa
 
 When you are in two or more:
 
-- The site switcher at the top of the sidebar lists your sites under each organisation's name, and so does **All sites**. With one organisation the list is plain, as before.
+- The site switcher at the top of the sidebar lists your sites under each organisation's name, and so does **All sites**. With one organisation the list is plain, as before. Its **Find a site** box (seven sites or more) matches an organisation's name too, so typing it shows that organisation's sites.
 - Every **Settings > Organisation** page says at its top which organisation it is ("Organisation: Kiwi"), with **Switch** to open the same page for another one.
 - **Settings > Organisation > People > Team** shows the team of the organisation that owns the site you have open. Its title names the organisation ("Team of Kiwi"), with the sites it sees ("These people see kiwi.example only.") and links to your other organisations' teams. Inviting someone there adds them to that organisation only.
 

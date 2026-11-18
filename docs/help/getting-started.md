@@ -116,6 +116,8 @@ The sidebar has six sections. Each section has tabs along its top.
 - **Security** is who probes your server and what they tried, from the same log: whether any probe got a real file, scanners, attack attempts, fake browsers, a block list to review, your site's stack against known advisories, and security alerts. See [Security](security.md).
 - **Site** is the server: what it answered, open alerts, the request log line by line, pages not found, page speed and the data's own checks.
 
+Above the sections, the site's name opens the **site switcher**: your sites with today's visitors, a check on the one open, and **All sites** at the end. A long list scrolls inside it. With seven sites or more, **Find a site** at its top narrows the list as you type a site's name or an organisation's; ↓ moves into the list, Enter opens the first site shown, and Esc empties the box (a second Esc closes the switcher).
+
 The address names the section and the tab, for example `#traffic/sources`. Older links, such as `#sources` or `#live`, still open the right tab.
 
 ### Every view has its own link

@@ -4,6 +4,35 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.51.0 (2026-11-18)
+
+The site switcher scrolls inside the window however many sites you have, and with seven or
+more it has a **Find a site** box.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- No schema change, no setting, no recount.
+
+### Changes
+
+- **The site switcher scrolls, and finds a site as you type (SKALD-35).** Seen on 18 Nov
+  2026 on a laptop (1512×703 window): with 18 sites the switcher at the top of the sidebar ran
+  from y=72 to y=1068, past the window's bottom. The sidebar is one screen high and cuts off
+  what sticks out, so the last 7 sites and **All sites** could not be reached or scrolled to.
+  The switcher had no height limit. Now it ends just above the window's bottom (above the
+  tab bar on a phone), the sites scroll inside it, and **All sites** stays below them. It
+  opens scrolled to the site you are on. With seven sites or more, a **Find a site** box sits
+  at its top: typing narrows the list by site or organisation name, an organisation whose
+  sites are all hidden hides its name too, and no match says "No site matches". ↓ goes into
+  the list, Enter opens the first site shown, and the first Esc empties the box (the second
+  closes the switcher). On a touch screen the box waits to be tapped, so the keyboard does
+  not cover the list. Affects everyone with many sites, in the sidebar, the icon rail and
+  the phone's top bar. Under seven sites the switcher looks and works as before. Nothing to
+  do. Checked: the unit tests; `tests/e2e/switcher.mjs` (now also at 600 px high, with a
+  search, no match and Esc) passes all 28 checks in a local install with 24 sites in two
+  organisations; and by hand in Chrome.
+
 ## 2.50.1 (2026-11-17)
 
 Page addresses longer than 70 characters are kept whole: right in every list, and **Open**

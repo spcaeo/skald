@@ -157,6 +157,21 @@ a.tab, a.foot-btn { text-decoration: none; box-sizing: border-box; }
 .pop.site-menu { left: 0; right: 0; top: calc(100% + 6px); width: auto; padding: 6px; gap: 2px; z-index: 60; transform-origin: top left;
   grid-template-columns: minmax(0, 1fr); }
 .pop.site-menu[style*="fixed"] { right: auto; width: 260px; }
+/* SKALD-35: the menu ends above the window's bottom (--site-menu-max, set on opening) and
+   its rows scroll; the search box above them and All sites below stay put. */
+.pop.site-menu { display: flex; flex-direction: column; max-height: var(--site-menu-max, calc(100vh - 96px)); overflow: hidden; }
+.pop.site-menu[hidden], .site-menu [hidden] { display: none !important; }
+.site-menu .site-items { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+.site-menu .site-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; min-height: 0; flex: 1 1 auto;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.site-menu .site-all { flex: none; }
+.site-menu .site-find { flex: none; padding: 2px 2px 6px; }
+.site-menu .site-find-in { box-sizing: border-box; width: 100%; height: var(--ctl-h, 32px); padding: 4px 10px;
+  border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13.5px; }
+.site-menu .site-find-in::placeholder { color: var(--ink-3); }
+.site-menu .site-find-in:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.site-menu .site-none { margin: 0; padding: 10px 8px; font-size: 13px; color: var(--ink-3); }
+@media (pointer: coarse) { .site-menu .site-find-in { font-size: 16px; } }
 .site-menu .site-org { padding: 8px 8px 4px; font-size: 11.5px; font-weight: 620; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
 .site-menu .site-group + .site-group { margin-top: 4px; border-top: 1px solid var(--grid); padding-top: 2px; }
 .site-menu .site-i { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 8px; }
