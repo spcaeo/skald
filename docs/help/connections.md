@@ -243,7 +243,7 @@ When it is done, it says **Receiving data** in green, with **Open the dashboard*
 
 ### The invites, once the first data arrives
 
-The people you chose in step 1 are invited by Skald itself, once the set-up is done and the first data has arrived. Their mail says, for example, "fieldcamp.example.com is live, 1,283 requests so far. Open your dashboard." You get one mail too: "fieldcamp.example.com is live. Invites sent to 1 person." Your AI agent ends its work with "Done. ana@example.com will get an invite as soon as the first data arrives." and sends no invite itself.
+The people you chose in step 1 are invited by Skald itself, once the set-up is done and the first data has arrived. Their mail says, for example, "example.com is live, 1,283 requests so far. Open your dashboard." You get one mail too: "example.com is live. Invites sent to 1 person." Your AI agent ends its work with "Done. ana@example.com will get an invite as soon as the first data arrives." and sends no invite itself.
 
 If the set-up has not finished within 24 hours, you get one mail that says what is missing. **Send the invites now**, under the live progress, sends them anyway. Without a mail server nobody gets a mail: the invites wait in **Settings › Organisation › People** (the organisation the site went to), where an admin sends each link again or passes it on by hand.
 

@@ -216,7 +216,8 @@ as a new history entry.
   `list`, `scan`, `ans`, `who`). A change in place (a period, a filter, a sort) keeps the
   step and takes its new address. A place already on the trail (Back, a crumb, a link to
   it) cuts the trail back to it. A move along one section's tabs with nothing open replaces
-  the last step. At most 12 steps; past 5 the middle folds into `…`.
+  the last step. At most 12 steps; past 5 the middle folds into `…`. A section or page picked
+  in the left menu or the phone's tab bar starts a new trail there (`crumbs.fresh`, SKALD-27).
 - **The trail** lives in the tab's `sessionStorage` (`ti-crumbs`), never sent and gone with
   the tab. A reload, or Back into the page, keeps it; a copied address opened in a new tab
   starts its own from the address alone: section › tab, then the item (`Traffic › Pages`,

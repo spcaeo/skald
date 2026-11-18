@@ -228,6 +228,22 @@ class Node(unittest.TestCase):
         the count's words and the one button's words."""
         self.assertIn("settings-todo: all passed", self.run_js("settings-todo.mjs"))
 
+    def test_ai_answers_empty_chain_and_new_profile(self):
+        """SKALD-30 (js/tabs/ai-answers.js): an empty chain says it starts from Skald's own
+        sample of answers; the New profile form opens only on "+ New profile", at once."""
+        self.assertIn("ai-answers-tab: all passed", self.run_js("ai-answers-tab.mjs"))
+
+    # Three Leads & sales files that no test ran (found in the 2.53.0 review): the
+    # section's one period (with SKALD-32's "opens on 7 days"), its rates and its routes.
+    def test_leads_and_sales_one_period(self):
+        self.assertIn("sales-period: all passed", self.run_js("sales-period.mjs"))
+
+    def test_leads_and_sales_rates(self):
+        self.assertIn("sales-rate: all passed", self.run_js("sales-rate.mjs"))
+
+    def test_leads_and_sales_routes(self):
+        self.assertIn("sales-routes: all passed", self.run_js("sales-routes.mjs"))
+
 
 if __name__ == "__main__":
     unittest.main()

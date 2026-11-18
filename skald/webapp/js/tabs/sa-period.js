@@ -26,6 +26,9 @@
 //   periodCheck(...)          the period's Leads figure against conversions.json
 //                             today.periods (its second count: one SQL window per period);
 //                             a figure that does not match is withheld
+//   openWords(s)              "Leads & sales opens on 7 days ..." when the section's own
+//                             default period is on (not one the address or a click named),
+//                             so a move from Overview's Today is never silent (SKALD-32)
 //   liveNote(...)             today's part of the period ("2 of them today so far", Show
 //                             today (live)) and what is verified, in one short line
 //
@@ -38,6 +41,16 @@ import * as S from "../state.js";
 import { rangeOf, allTime, daysBetween, previousOf } from "../data.js";
 import { time as tzTime } from "../tz.js";
 import { leadsOn, convFile } from "./leadfigs.js";
+
+/* Leads & sales opens on its own default period (state.js SECTION_RANGE, the owner's rule of
+   2026-10-22: leads are few, and Today alone was too often empty). Said in words while that
+   default is on, so Overview's Today and this section's 7 days are never compared unawares. */
+export function openWords(s) {
+  const own = S.SECTION_RANGE.sales;
+  if (!s || S.sectionOf(s.tab)?.key !== "sales" || !own || s.range !== own || s.auto !== own) return null;
+  const name = (S.RANGES.find(([k]) => k === own)?.[1] || own).toLowerCase();
+  return `Leads & sales opens on ${name}, today included: leads are few, so today alone is often empty. Other sections open on Today.`;
+}
 
 // The presets that end today, and their length in days.
 export const LIVE = { "7d": 7, "30d": 30, "90d": 90 };

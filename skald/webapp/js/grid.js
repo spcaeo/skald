@@ -39,7 +39,7 @@ import { link, drillRow } from "./drill.js";
 import { shown, shownText } from "./labels.js";
 import { REGISTRY, csv, csvWidth, download, alignOf } from "./table.js";
 import { track } from "./mounts.js";
-import { HASH, TABLE_KEY, writeKeys, sortRows, nextSort, readFilters, writeFilters, readHidden, testFilter, filterKind, parseAmount, visibleColumns } from "./tablestate.js";
+import { HASH, TABLE_KEY, writeKeys, sortRows, foldLast, nextSort, readFilters, writeFilters, readHidden, testFilter, filterKind, parseAmount, visibleColumns } from "./tablestate.js";
 import { chooser, exportButton, filterToggle, filterCell, filterChips } from "./tabletools.js";
 import { withUrl, isUrlColumn, copyCell } from "./urlactions.js";
 
@@ -147,7 +147,8 @@ export function grid(opts) {
         .map(([c, dir]) => ({ get: (r) => value(c, r), type: c.type, dir }));
       out = sortRows(out, keys);
     }
-    return out;
+    // "(all others)" stays last whatever the order (SKALD-29).
+    return foldLast(out, cols);
   }
 
   // The order on screen: the address's, else the grid's own (sortKey).

@@ -2,7 +2,8 @@
 // Real time and Summary were two tabs showing the same thing; they are one page now.
 //
 //   head    "Right now", how old the count is ("Updated 40 s ago", from the live count's
-//           `until`), Pause, and Refresh now: counts this site at once (POST <page>/refresh,
+//           `until`) and that it is counted every few minutes, not every 15 seconds like the
+//           charts that poll (SKALD-31), Pause, and Refresh now: counts this site at once (POST <page>/refresh,
 //           one site only, refresh_server.py) and draws the answer
 //   left    visitors on the site now (last 5 minutes), visitors minute by minute (30 bars),
 //           visitors in the last 30 minutes. The number opens the list of everyone
@@ -36,6 +37,11 @@ const people = (B) => (B && (B.people_state === "ok" || B.people_state === "stal
 const ms = (ts) => when(ts)?.t ?? NaN;
 
 /* "just now", "40 s ago", "6 min ago", "2 h ago". */
+/* The clock's words: how old the people count is, and how often it comes (SKALD-31). */
+export const EVERY = "counted every few minutes";
+export function clockWords(until, now = Date.now()) {
+  return until ? `Updated ${agoWords(until, now)} · ${EVERY}` : "No live count yet";
+}
 export function agoWords(ts, now = Date.now()) {
   const t = ms(ts);
   if (!Number.isFinite(t)) return "";
@@ -155,7 +161,7 @@ export function rightNow(m, s, o = {}) {
     const p = people(B);
     const late = p?.until && Date.now() - ms(p.until) > 10 * 60000;
     clock.replaceChildren(rt.isPaused() ? `Paused at ${p?.until ? tzTime(p.until, { label: false }) : "-"}`
-      : p?.until ? `Updated ${agoWords(p.until)}` : "No live count yet");
+      : clockWords(p?.until));
     clock.classList.toggle("late", !!late);
     clock.title = p?.until ? `Visitors as of ${tzTime(p.until, { seconds: true })}. Asked for again every 15 seconds; the live count itself runs every few minutes. Refresh now counts this site at once.` : "";
   }

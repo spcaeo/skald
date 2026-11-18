@@ -4,6 +4,75 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.53.0 (2026-11-18)
+
+Six small fixes from a review of the live dashboard: Back after the left menu, "(all others)"
+last in every table, clearer AI answers, how fresh Right now is, why Leads & sales opens on
+7 days, and an example in the help.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- No schema change, no setting, no recount.
+
+### Changes
+
+- **"← Back to" no longer points at an unrelated old screen after the left menu (SKALD-27).**
+  After opening a drawer or a page's story and then picking another section in the left menu,
+  the line over the tab kept the old step: AI & bots said "← Back to Landing page: /pricing/",
+  Leads & sales "← Back to AI answers" (seen on a live site, 17 Nov). A section or page picked
+  in the left menu, its settings links or the phone's tab bar now starts a new trail there, so
+  there is no Back line until you go deeper. Links inside a page keep the trail as before.
+  **Who it affects:** everyone using the dashboard. **What to do:** nothing. **How it was
+  checked:** `tests/js/crumbs.mjs` (a menu click gives a one-step trail and no line; a link
+  after it adds a step; a mark for another tab is not used), failing before the fix.
+- **"(all others)" stays the last row of a table, whatever the sort (SKALD-29).** Traffic ›
+  Pages › Landing pages, sorted by Most visits, showed "(all others) 28" second, between "/"
+  (30) and the real pages (seen on a live site, 17 Nov). That row is what each day's list cut
+  off, added up, not a page, so it now stays last in every table and grid, in either direction
+  and after a filter or search. Its figures are unchanged. **Who it affects:** everyone using
+  the dashboard. **What to do:** nothing. **How it was checked:** `tests/js/tables.mjs`
+  (sorted both ways, the folded row is last and the others keep their order; both table
+  builders use it), failing before the fix.
+- **AI answers: the empty "From an answer to a lead" card says what it measures, and the New
+  profile form no longer opens by itself (SKALD-30).** On a live site with AI answers off, the
+  card said "No assistant cited one of your pages in an answer from 18 Oct to 16 Nov yet"
+  while ChatGPT had sent visitors that week (17 Nov). The card starts from Skald's own sample
+  of API answers, so it now says that: with AI answers not set up, there is no sampled answer to
+  follow; with them on, "None of the answers Skald sampled … cited one of your pages", and that
+  the sample is not every answer people get. Both point to AI assistants, where the visitors
+  assistants sent are counted. With no profile yet, the page also opened the "New profile" form
+  on its own with "Loading the settings…" for several seconds; it now opens only on "+ New
+  profile", and the settings are fetched as the tab opens, so the form shows at once. No figure
+  changes. **Who it affects:** admins and members looking at AI & bots › AI answers. **What to
+  do:** nothing. **How it was checked:** new `tests/js/ai-answers-tab.mjs` (the words with AI
+  answers off and on, no form without "+ New profile", one settings request, the form without a
+  wait).
+- **"Right now" says it is counted every few minutes (SKALD-31).** On a live site the card said
+  "Updated 4 min ago" several times while the requests chart beside it moved every 15 seconds,
+  so the list of people looked stuck, and a new visitor showed only after Refresh now (17 Nov).
+  The people are counted by the live count, which runs every few minutes for each site in turn;
+  that was only in the clock's tooltip. The clock now reads "Updated 4 min ago · counted every
+  few minutes", next to Refresh now, which counts the site at once. The count itself is
+  unchanged. **Who it affects:** everyone on Overview. **What to do:** nothing. **How it was
+  checked:** `tests/js/right-now.mjs` (the clock's words, with and without a count).
+- **Leads & sales says it opens on 7 days (SKALD-32).** Moving from Overview (Today) to Leads &
+  sales switched the period to 7 days without a word, so Overview said Leads 0 and Leads & sales
+  said 19 (a live site, 17 Nov). The 7 days are on purpose (the owner's rule of 2026-10-22: leads
+  are few, and today alone was too often empty), so the period stays, and every Leads & sales
+  tab now says under its heading "Leads & sales opens on 7 days, today included: leads are few,
+  so today alone is often empty. Other sections open on Today." The line shows only while the 7
+  days are the section's default, not when a period is picked or named in the link. **Who it
+  affects:** everyone who opens Leads & sales. **What to do:** nothing. **How it was checked:**
+  `tests/js/sales-period.mjs` (said with no period, not with one named, only in Leads & sales)
+  and `tests/js/leads-period.mjs` (the line on the Leads tab).
+- **Help: an example in Connections uses example.com (SKALD-37).** The invite example in
+  Connections named a real host; it now uses `example.com`, like every other example. No
+  behaviour change.
+- **Tests: three Leads & sales test files now run with the suite.** `sales-period.mjs`,
+  `sales-rate.mjs` and `sales-routes.mjs` passed by hand but no test ran them; they run from
+  `test_navigate_js.py` now.
+
 ## 2.52.0 (2026-11-18)
 
 The weekly mail's Top pages count every read of a page, "What changed" says which window

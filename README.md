@@ -51,6 +51,7 @@
 
 ## What's new
 
+- **2.53.0: Back starts afresh from the left menu, "(all others)" stays the last row, clearer AI answers, Right now says how often it is counted, and Leads & sales says why it opens on 7 days** ([changelog](CHANGELOG.md#2530-2026-11-18)).
 - **2.52.0: the weekly mail's Top pages count every read; "What changed" says which window each line covers; no empty uptime row** ([changelog](CHANGELOG.md#2520-2026-11-18)).
 - **2.51.0: the site switcher scrolls inside the window, and with seven sites or more a Find a site box narrows it as you type** ([changelog](CHANGELOG.md#2510-2026-11-18)).
 - **2.50.1: page addresses longer than 70 characters are kept whole, and Open goes to the real page** ([changelog](CHANGELOG.md#2501-2026-11-17)).

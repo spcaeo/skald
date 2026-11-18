@@ -23,7 +23,7 @@ The card at the top of Overview answers "who is on my site now?".
 
 ## How fresh it is
 
-**Updated 40 s ago** beside **Right now** says how old the visitor count is. Skald counts every site in turn, so on a busy server the count can be a few minutes old. The page asks for the newest count every 15 seconds while it is open and visible.
+**Updated 40 s ago · counted every few minutes** beside **Right now** says how old the visitor count is, and that it is not counted every 15 seconds. Skald counts every site in turn, so on a busy server the count can be a few minutes old, and someone who just arrived may not be listed yet: press **Refresh now** to count this site at once. The page asks for the newest count every 15 seconds while it is open and visible.
 
 - **Refresh now** counts this site at once, instead of waiting for its turn, and draws the answer. It counts this one site only; one count runs at a time. A count that started earlier (the server's own round of every site) never replaces a newer one.
 - **Pause** holds everything still; **Resume** starts again.

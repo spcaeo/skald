@@ -191,4 +191,15 @@ assert.equal(want, 3, "16 Oct's contact form and today's two");
   assert.deepEqual(sales.map(([k]) => `sales/${k}`).sort(), Object.values(TABS).sort());
 }
 
+// SKALD-32: the section's own 7 days are said while they are the default, never a named period.
+{
+  const words = (hash) => P.openWords(go(hash));
+  assert.match(words("#sales/leads"), /^Leads & sales opens on 7 days, today included/, "opened with no period: said");
+  assert.match(words("#sales/summary"), /Other sections open on Today/);
+  assert.equal(words("#sales/leads?range=30d"), null, "a period the address names: nothing to say");
+  assert.equal(words("#sales/leads?range=today"), null);
+  assert.equal(words("#overview/summary"), null, "only in Leads & sales");
+  assert.match(readFileSync(new URL("tabs/sa-options.js", JS), "utf8"), /openWords\(s\)/, "every Leads & sales head says it (tabHead)");
+}
+
 console.log("sales-period: all passed");

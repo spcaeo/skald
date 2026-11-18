@@ -1,4 +1,4 @@
-// A set-up's live progress (2.43): the owner added fieldcamp.ai, gave the agent line to its
+// A set-up's live progress (2.43): the owner added a client's site, gave the agent line to its
 // developer, and the agent did it all, but his open wizard said only "Finish later". Now Add a
 // site's "Connect it" (My AI agent and My developer), and a done set-up opened from a link,
 // show a short checklist that ticks itself, each line with its time:
