@@ -172,6 +172,26 @@ back().dispatchEvent(new Event("click"));
 await later();
 assert.equal(location.hash, GOOGLE);
 
+// SKALD-27: the left menu starts a new trail; no "Back to" the screen before it.
+S.set({ tab: "traffic/pages", page: "/pricing/", dd: "" });
+await tick();
+assert.equal(back().textContent, "← Back to Source: Google");
+C.fresh(S.route("ai").tab);
+S.set({ tab: "ai" });
+await tick();
+assert.equal(C.trail().length, 1, "a menu click: a new trail");
+assert.ok(line.hidden, "and no Back line");
+// A link inside the page still adds a step, so Back returns to the menu's screen.
+S.set({ tab: "traffic/sources" });
+await tick();
+assert.equal(C.trail().length, 2);
+assert.equal(back().getAttribute("href"), C.trail()[0].hash);
+// A menu click on the screen already shown does nothing; a stale mark is not used later.
+C.fresh("overview/summary");
+S.set({ tab: "traffic/pages", page: "/blog/" });
+await tick();
+assert.equal(C.trail().length, 3, "the mark was for another tab: the trail goes on");
+
 // ---- a reload keeps the tab's trail; a link opened fresh starts from its address
 await tick(80);   // the trail is saved a moment after a visit
 const kept = JSON.parse(session.get(C.STORE));

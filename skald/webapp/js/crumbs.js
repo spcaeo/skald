@@ -14,6 +14,9 @@
 //   a fresh link a copied address opened in a new tab starts its own trail from the
 //               address alone: section › tab, then the item (Traffic › Pages / /pricing/).
 //               A reload or Back into the page keeps the tab's trail.
+//   the menu    a section or page picked in the left menu (or the phone's tab bar) starts a
+//               new trail there (SKALD-27): no "Back to" an unrelated screen from before.
+//               Links inside a page keep the trail, so Back returns where the link was.
 //   scrolling   each step keeps where the page was scrolled; Back, Forward, a crumb or a
 //               reload put it back once the tab is drawn (history.scrollRestoration is
 //               manual: the page draws after the browser would have scrolled). The last 40
@@ -102,7 +105,7 @@ export function crumbWords(steps, i) {
 }
 
 // ------------------------------------------------------------------ the tab's trail
-let TRAIL = null, restoreNext = false, saving = 0, SCROLLS = new Map();
+let TRAIL = null, restoreNext = false, saving = 0, SCROLLS = new Map(), FRESH = null;
 const storage = () => { try { return globalThis.sessionStorage || null; } catch { return null; } };
 function load() {
   try { const got = JSON.parse(storage()?.getItem(STORE) || "null"); return Array.isArray(got) ? got : []; } catch { return []; }
@@ -149,9 +152,14 @@ export function start() {
   addEventListener("pagehide", write);
 }
 
+/* The menu is going to `tab`: its visit starts a new trail (SKALD-27). */
+export function fresh(tab) { FRESH = tab || null; }
+
 /* The trail with the state on screen noted; a fresh tab starts from the address. */
 export function visit(s, m) {
-  if (TRAIL === null) TRAIL = fromUrl(s, m, S.hashFor);
+  const anew = FRESH !== null && s.tab === FRESH;
+  FRESH = null;
+  if (TRAIL === null || anew) TRAIL = fromUrl(s, m, S.hashFor);
   else TRAIL = note(TRAIL, placeOf(s, m), location.hash || S.hashFor(s));
   save();
   return TRAIL;

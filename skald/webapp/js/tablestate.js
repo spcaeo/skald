@@ -111,6 +111,15 @@ export function sortRows(rows, keys) {
   }).map(([r]) => r);
 }
 
+// A folded row ("(all others)": what a day's list cut off) is not a page or a source, so it
+// stays last whatever the sort (SKALD-29); the others keep their order.
+export const FOLDED = "(all others)";
+export function foldLast(rows, columns) {
+  const isFolded = (r) => columns.some((c) => !c.num && r?.[c.key] === FOLDED);
+  const folded = rows.filter(isFolded);
+  return folded.length ? [...rows.filter((r) => !isFolded(r)), ...folded] : rows;
+}
+
 // A column's first direction: numbers and dates biggest or newest first, words A to Z.
 export const firstDir = (c) => (c.num || c.type === "num" || c.type === "date" ? -1 : 1);
 

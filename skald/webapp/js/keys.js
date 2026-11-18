@@ -27,8 +27,13 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-18-2.52.0",
+  id: "2026-11-18-2.53.0",
   items: [
+    ["A new Back trail from the menu", "a section or page picked in the left menu starts a new trail, so \"Back to\" never points at an unrelated screen from before; links inside a page keep it.", "getting-started"],
+    ["\"(all others)\" stays last", "the row that adds up what a day's list cut off stays the last row of every table, whatever the sort.", "search"],
+    ["AI answers in plainer words", "an empty \"From an answer to a lead\" says it starts from Skald's own sample of answers, and the New profile form opens only when you ask for it.", "ai-answers"],
+    ["How fresh Right now is", "\"Updated 4 min ago · counted every few minutes\": Refresh now counts this site at once.", "real-time"],
+    ["Why Leads & sales opens on 7 days", "a short note says so while the 7 days are the section's own default; other sections open on Today.", "leads-and-conversions"],
     ["Every read in the weekly mail's Top pages", "the weekly mail lists each page by all its reads, not only the days it made the top 50; What changed says which window each line covers, and the empty uptime row is gone.", "settings-and-retention"],
     ["Find a site in the switcher", "the site switcher scrolls inside the window however many sites you have; with seven or more, type in Find a site to narrow it by site or organisation name.", "getting-started"],
     ["Long page addresses kept whole", "an address longer than 70 characters is no longer cut short: it is one row of its own and Open goes to the real page; older days say \"may be cut short\".", "where-visitors-come-from"],

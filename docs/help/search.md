@@ -50,7 +50,7 @@ Pick **7 days**, **28 days**, **3 months** or **16 months**. Sort any table by a
 - **Queries**: what people searched for. Google leaves out rare queries to protect searchers, so the queries add up to less than the total. The table shows that gap as **Not given by Google**, never hidden.
 - **Pages**: your pages in the results. Google counts these per page, so this table has its own total.
 - **Countries**, **Devices**, **Search appearance**: how and where you were shown, under Google's own names.
-- **(all others)**: the rows past the top of each day's table, added together, so every table still adds up to its total.
+- **(all others)**: the rows past the top of each day's table, added together, so every table still adds up to its total. It is always the last row, whatever the sort.
 
 **AI Overviews and AI Mode:** Google's API does not give them apart yet. If Google adds them, they appear under **Search appearance** with Google's own name. Skald never guesses them.
 

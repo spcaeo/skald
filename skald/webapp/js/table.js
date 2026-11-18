@@ -7,7 +7,7 @@ import { h, n, toast, reduced, ICON } from "./ui.js";
 import { link, drillRow } from "./drill.js";
 import { shownText } from "./labels.js";
 import { code3, countryName } from "./countries.js";
-import { HASH, writeKeys, nsOf, compare, sortRows, nextSort, sortParam, readSort, readFilters, writeFilters, readHidden, testFilter, filterKind, parseAmount, visibleColumns } from "./tablestate.js";
+import { HASH, writeKeys, nsOf, compare, sortRows, foldLast, nextSort, sortParam, readSort, readFilters, writeFilters, readHidden, testFilter, filterKind, parseAmount, visibleColumns } from "./tablestate.js";
 import { chooser, exportButton, filterToggle, filterCell, filterChips } from "./tabletools.js";
 import { withUrl, isUrlColumn, copyCell } from "./urlactions.js";
 
@@ -182,7 +182,7 @@ export function table(columns, opts) {
     }
     const s = sort || def;
     const c = s && columns.find((x) => x.key === s.key);
-    return c ? sortRows(out, [{ get: (r) => val(c, r), type: c.type, dir: s.dir }]) : out;
+    return foldLast(c ? sortRows(out, [{ get: (r) => val(c, r), type: c.type, dir: s.dir }]) : out, columns);
   };
 
   // The filter row: one cell per column shown, built once per render of the header.

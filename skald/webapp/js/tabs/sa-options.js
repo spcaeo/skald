@@ -27,7 +27,7 @@ import { head, context } from "./common.js";
 import { info } from "./tiles.js";
 import { leadsOn } from "./leadfigs.js";
 import { sourceLink } from "../ui/connect.js";
-import { headWords } from "./sa-period.js";
+import { headWords, openWords } from "./sa-period.js";
 import { daysNote } from "../tz.js";
 
 /* Today so far, beside a period that ends before today (2.23; since #32 only Yesterday and a
@@ -66,7 +66,11 @@ export function tabHead(title, question, r, { help = "", more = "", period, sour
   // Leads & sales only (Security draws its heads here too); a tab with a period of its own
   // has no "Today so far" line, nor one whose period holds today already.
   const today = !period && !r?.live && S.sectionOf(s?.tab)?.key === "sales" ? todayNote(m, s, r) : null;
-  return [bar, question ? h("p", { class: "lede sa-q" }, question) : null, today].filter(Boolean);
+  // SKALD-32: the section's own 7 days, said (Today is one click in the bar, and "Show today
+  // (live)" is on the line under the count).
+  const words = !period ? openWords(s) : null;
+  const opens = words ? h("p", { class: "note sa-opens", role: "note" }, words) : null;
+  return [bar, question ? h("p", { class: "lede sa-q" }, question) : null, opens, today].filter(Boolean);
 }
 
 /* One options row. opts: {more: [controls] folded under "More", end: a node at the right

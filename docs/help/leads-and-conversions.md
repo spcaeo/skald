@@ -24,7 +24,7 @@ Older links keep working too: `#sales/pipeline`, `#leads` and `#conversions` ope
 
 ### One period on every tab
 
-Leads & sales opens on the **last 7 days** when the link names no period. Pick another in the top bar (or **All time**) and it stays while you move between the section's tabs. Every tab reads the period the same way:
+Leads & sales opens on the **last 7 days** when the link names no period: leads are few, so today alone is often empty. Every other section opens on **Today**, so the heading says so while the 7 days are the section's own choice ("Leads & sales opens on 7 days, today included ..."). Pick another in the top bar (or **All time**) and it stays while you move between the section's tabs. Every tab reads the period the same way:
 
 - **7, 30 and 90 days include today.** 7 days are today so far and the 6 whole days before it: 7 calendar days. The heading gives the dates from and to, for example "Last 7 days: Fri 16 Oct to Thu 22 Oct (today, so far)"; the year shows only when the days cross into a new year. Today's part is marked **live**.
 - **All time**, and a custom period that ends today, include today too. **Yesterday** is that whole day. **Today** is today so far.

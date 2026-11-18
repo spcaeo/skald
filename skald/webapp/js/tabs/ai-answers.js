@@ -32,6 +32,7 @@ const SAMPLE = [h("b", null, "A sample of API answers, not what every user sees.
 
 let api = null;          // GET ai-answers (sessions mode): the editable settings
 let asked = false;
+let waiting = false;     // the aside shows "Loading the settings..." until api is in
 let chainAt = 0;
 let fresh = null;        // a profile list newer than the data file, after a save
 
@@ -70,7 +71,17 @@ function setupCard(m, x) {
   return connectCard(m, "ai", { mode: "plain", plainExtra: [steps, where] });
 }
 
+/* The settings, asked once as the tab opens (sessions mode), so "+ New profile" opens at once;
+   the tab redraws when they come only if the aside is waiting for them (SKALD-30). */
+function loadSettings(redraw) {
+  if (asked) return;
+  asked = true;
+  call("ai-answers").then((r) => { api = r.ok ? r : { ok: false, error: why(r) }; if (waiting) { waiting = false; redraw(); } });
+}
+
 // The aside: the profile's settings (sessions mode), else what the file says.
+// It opens for a profile, or on "+ New profile" (ap=new); never on its own (SKALD-30).
+export const asideShown = (prof, s) => !!prof || s.ap === "new";
 function aside(m, x, prof, redraw) {
   const box = h("aside", { class: "aa-aside", "aria-labelledby": "aa-set-h" },
     h("div", { class: "aa-row" }, h("h2", { id: "aa-set-h" }, prof ? "Profile settings" : "New profile"), prof ? h("span", { class: "muted" }, profileText(prof)) : null));
@@ -86,7 +97,8 @@ function aside(m, x, prof, redraw) {
   }
   if (!api) {
     box.append(h("p", { class: "empty" }, "Loading the settings..."));
-    if (!asked) { asked = true; call("ai-answers").then((r) => { api = r.ok ? r : { ok: false, error: why(r) }; redraw(); }); }
+    waiting = true;
+    loadSettings(redraw);
     return box;
   }
   if (!api.ok) { box.append(h("p", { class: "msg err" }, api.error)); return box; }
@@ -119,6 +131,8 @@ export default function aiAnswers(m, s) {
   // No profile and nothing to make one with (a viewer, or no accounts): the setup card says how.
   if (profs.length || sessions()) out.push(chips);
 
+  if (sessions()) loadSettings(redraw);
+
   const left = h("div", { class: "aa-main" });
   if (x.state !== "ok") left.append(setupCard(m, x));
   if (x.chain.length) chainAt = Math.min(chainAt, x.chain.length - 1);
@@ -146,6 +160,7 @@ export default function aiAnswers(m, s) {
     }
     left.append(competitorsTable(x.competitors[String(prof.id)] || [], x.providers, profileText(prof), x.competitor_days));
   }
-  out.push(h("div", { class: "aa-cols" }, left, aside(m, x, prof, redraw)));
+  const side = asideShown(prof, s) ? aside(m, x, prof, redraw) : null;
+  out.push(h("div", { class: side ? "aa-cols" : "aa-cols solo" }, left, side));
   return out;
 }

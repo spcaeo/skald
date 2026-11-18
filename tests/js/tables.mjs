@@ -29,6 +29,21 @@ S.addSections([{ key: "traffic", name: "Traffic", tabs: [{ route: "traffic/sourc
   const stable = T.sortRows([{ k: 1, i: "a" }, { k: 1, i: "b" }, { k: 0, i: "c" }], [{ get: (r) => r.k, dir: -1 }]).map((r) => r.i);
   assert.deepEqual(stable, ["a", "b", "c"], "ties keep their order");
 }
+// SKALD-29: "(all others)" stays last whatever the sort; a number column never makes a row folded.
+{
+  const cols = [{ key: "p" }, { key: "v", num: true }];
+  const rows = [{ p: "/", v: 30 }, { p: "(all others)", v: 28 }, { p: "/a/", v: 5 }, { p: "/b/", v: 9 }];
+  for (const dir of [-1, 1]) {
+    const got = T.foldLast(T.sortRows(rows, [{ get: (r) => r.v, dir }]), cols).map((r) => r.p);
+    assert.equal(got.at(-1), "(all others)", `folded row last (dir ${dir})`);
+    assert.deepEqual(got.slice(0, 3), dir < 0 ? ["/", "/b/", "/a/"] : ["/a/", "/b/", "/"]);
+  }
+  const plain = [{ p: "/" }, { p: "/a/" }];
+  assert.equal(T.foldLast(plain, cols), plain, "nothing folded: the same rows");
+  // Both builders use it (the grid draws in the browser only, so its source is checked).
+  const { readFileSync } = await import("node:fs");
+  for (const f of ["table.js", "grid.js"]) assert.match(readFileSync(new URL(f, JS), "utf8"), /return foldLast\(/, `${f} keeps "(all others)" last`);
+}
 // The click cycle: first way, the other, the table's own again.
 {
   const num = { key: "v", num: true }, word = { key: "w" };

@@ -1,7 +1,7 @@
 """A set-up's live progress and its Check now (2.43), for Add a site, the Sites
 list and Overview's "Set up <site>".
 
-The owner (2026-10-27) added fieldcamp.ai, gave the agent line to its
+The owner (2026-10-27) added a client's site, gave the agent line to its
 developer, and the agent did it all: a Vercel log drain, the hooks, the set-up
 marked done, 1,300 requests in. His open wizard still said only "Finish
 later". Now the wizard shows, ticking by itself, each with its time:

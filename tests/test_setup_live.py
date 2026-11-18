@@ -125,16 +125,16 @@ class Wizard(TenantServer):
             db.close()
 
     def test_a_new_organisation_is_made_with_the_site(self):
-        got = self.add(org="new", org_name="Fieldcamp", privacy_class="client",
+        got = self.add(org="new", org_name="Northwind", privacy_class="client",
                        people=[{"email": "ana@example.com", "role": "owner"},
                                {"user": self.uids["viewer@example.com"], "role": "viewer"}])
         self.assertEqual(got.status, 200, got.json)
-        self.assertEqual(got.json["org"]["name"], "Fieldcamp")
+        self.assertEqual(got.json["org"]["name"], "Northwind")
         self.assertTrue(got.json["org"]["new"])
         db = self.accounts_db()
         try:
             org = orgs.org_of_site(db, NEW)
-            self.assertEqual(org["name"], "Fieldcamp", "there from the start: nothing moves")
+            self.assertEqual(org["name"], "Northwind", "there from the start: nothing moves")
             from skald.accounts import users
             self.assertEqual(users.role_in(db, self.uids["owner@example.com"], org["id"]), "owner")
             self.assertTrue(apitokens.creator_ok(db, org["id"], self.uids["owner@example.com"]))
@@ -153,7 +153,7 @@ class Wizard(TenantServer):
         self.assertEqual(got.status, 200, got.json)
         got = self.call("GET", T + f"sites?site={NEW}", cookie=self.cookie)
         self.assertEqual([s["name"] for s in got.json["sites"]], [NEW])
-        self.assertEqual(got.json["org"], "Fieldcamp")
+        self.assertEqual(got.json["org"], "Northwind")
 
     def test_refusals(self):
         beta = self.beta["id"]
@@ -235,7 +235,7 @@ class Wizard(TenantServer):
         self.assertIn("as admin. ", str(cy.get_body(("plain",))))
 
     def test_a_new_organisation_sees_every_site(self):
-        got = self.add(org="new", org_name="Fieldcamp", privacy_class="internal",
+        got = self.add(org="new", org_name="Northwind", privacy_class="internal",
                        people=[{"email": "ana@example.com", "role": "viewer"},
                                {"email": "bo@example.com", "role": "owner", "sees": "site"},
                                {"email": "cy@example.com", "role": "admin", "sees": "site"}])

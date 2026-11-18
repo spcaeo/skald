@@ -366,6 +366,8 @@ assert.deepEqual(ids({ country: "US", lby: "Direct or unknown" }), [], "filters 
   // #32: no "Summary counts other days" any more: every tab counts these days.
   assert.equal(text(line).replace(/\s+/g, " ").trim(), "Today so far: 3 of these 4 leads Show today (live) → · Fri 16 Oct to Wed 21 Oct are whole days, verified; today is live and verified again once it is whole.");
   assert.equal(el.querySelectorAll(".sa-today").length, 1, "not the old line beside it");
+  // SKALD-32: opened with no period named, the head says why it is 7 days.
+  assert.match(text(el.querySelector(".sa-opens")), /^Leads & sales opens on 7 days, today included/);
   // The list: today's leads, newest first, marked live.
   const g = el.querySelector(".sk-grid");
   assert.deepEqual(g.filtered().map((x) => x.id), [6, 5], "today's rows, newest first");

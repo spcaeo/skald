@@ -20,6 +20,7 @@ import { TAB_ICONS, GEAR } from "./tabs/index.js";
 import { store } from "./extras.js";
 import { logoOf, tile, setTabIcon } from "./logo.js";
 import { withUrl } from "./urlactions.js";
+import { fresh } from "./crumbs.js";
 
 const app = document.getElementById("app");
 const rail = document.getElementById("rail");
@@ -107,12 +108,13 @@ rail.addEventListener("keydown", (e) => {
 // ------------------------------------------------------------- sections
 // A link keeps the period and the filters; a plain click stays in the page, a
 // Ctrl- or middle-click opens the section in a new tab as any link would.
-// A section's link goes to its first tab.
+// A section's link goes to its first tab, and starts a new Back trail there (SKALD-27).
 const hrefOf = (key) => S.hashFor({ ...S.read(), tab: S.route(key).tab, dd: "" });
 function go(e, key) {
   if (e.button > 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   e.preventDefault();
   closeDrawer(false);
+  fresh(S.route(key).tab);
   S.set({ tab: key });
 }
 // In the icon rail the name is a tooltip, on hover and on keyboard focus.

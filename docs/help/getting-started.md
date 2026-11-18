@@ -140,6 +140,7 @@ When you go deeper (Summary, then a source, then a page, then a visitor), one li
 
 - The browser's **Back** and **Forward** go through the same steps, and put the page back where you had scrolled it.
 - Going back to a step on the trail (with Back or a link) cuts the trail back to it. Moving along a section's tabs does not add steps.
+- Picking a section in the menu on the left starts a new trail there, so **← Back to** never points at an unrelated screen you saw before. Links inside a page keep the trail.
 - The trail belongs to this browser tab. A reload keeps it; closing the tab forgets it. Nothing is sent anywhere.
 - A link someone sent you starts its own short trail from the link: the section and tab, then what it opens (for example **Traffic › Pages**, then **/pricing/**).
 - On a phone the line shows **← Back to** and where you are.

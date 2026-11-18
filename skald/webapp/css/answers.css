@@ -26,6 +26,7 @@
 
 /* two columns: the figures, and the profile's settings beside them */
 .aa-cols { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+.aa-cols.solo { grid-template-columns: minmax(0, 1fr); }
 @media (max-width: 1080px) { .aa-cols { grid-template-columns: minmax(0, 1fr); } }
 .aa-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .aa-card { margin: 0; }

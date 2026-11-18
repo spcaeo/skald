@@ -41,12 +41,19 @@ export function readRoad(x, c) {
   return `${road}, ${reqs}; reads ${x.reads_from ? `counted from ${short(x.reads_from)}` : "not counted on these days"}`;
 }
 
+/* An empty chain says what it measures (SKALD-30): it starts from Skald's own sample of API
+   answers, not from every answer people get, so "no citation" never reads as "never cited".
+   Visitors the assistants sent are counted either way, in AI assistants. */
+export function noChain(x) {
+  const span = x.chain_first && x.chain_last ? ` from ${short(x.chain_first)} to ${short(x.chain_last)}` : "";
+  const sent = ["Visitors the assistants sent you are counted either way, in ", h("a", { href: "#ai/assistants" }, "AI assistants"), "."];
+  if (x.state !== "ok") return ["This card starts from Skald's own sample of AI answers, which is not set up here, so there is no answer to follow yet. ", ...sent];
+  return [`None of the answers Skald sampled${span} cited one of your pages. When one does, this shows what the assistant's fetcher then read and the visitors it sent. The sample is a few questions asked through the APIs, not every answer people get. `, ...sent];
+}
+
 /* The chain: the first assistant and page with a citation, or the one picked. */
 export function chainCard(x, ch, provName, onPick) {
-  if (!ch.length) {
-    return h("section", { class: "s aa-card" }, h("h2", null, "From an answer to a lead"),
-      h("p", { class: "empty" }, `No assistant cited one of your pages in an answer${x.chain_first && x.chain_last ? ` from ${short(x.chain_first)} to ${short(x.chain_last)}` : ""} yet. When one does, this shows what its fetcher then read and the visitors it sent.`));
-  }
+  if (!ch.length) return h("section", { class: "s aa-card" }, h("h2", null, "From an answer to a lead"), h("p", { class: "empty" }, ...noChain(x)));
   const c = ch[0];
   const nr = (v) => (v == null ? "not recorded" : n(v));
   const steps = [
